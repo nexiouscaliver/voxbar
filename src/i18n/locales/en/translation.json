@@ -4,6 +4,10 @@
     "checkUpdates": "Check for Updates...",
     "copyLastTranscript": "Copy Last Transcript",
     "unloadModel": "Unload Model",
+    "unloadAfter": "Unload After",
+    "unloadAfterImmediately": "Immediately",
+    "unloadAfterNever": "Never",
+    "unloadAfterCustom": "Custom…",
     "model": "Model",
     "quit": "Quit",
     "cancel": "Cancel",
@@ -376,8 +380,11 @@
           "min10": "After 10 minutes",
           "min15": "After 15 minutes",
           "hour1": "After 1 hour",
+          "custom": "Custom",
           "sec15": "After 15 seconds (Debug)"
-        }
+        },
+        "customSecondsLabel": "Custom seconds",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Custom Words",

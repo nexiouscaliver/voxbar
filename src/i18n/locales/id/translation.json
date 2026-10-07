@@ -4,6 +4,10 @@
     "checkUpdates": "Periksa Pembaruan...",
     "copyLastTranscript": "Salin Transkripsi Terakhir",
     "unloadModel": "Keluarkan Model dari Memori",
+    "unloadAfter": "Setelah itu bongkar",
+    "unloadAfterImmediately": "Segera",
+    "unloadAfterNever": "Tidak Pernah",
+    "unloadAfterCustom": "Kustom…",
     "model": "Model",
     "quit": "Keluar",
     "cancel": "Batal",
@@ -376,8 +380,11 @@
           "min10": "Setelah 10 menit",
           "min15": "Setelah 15 menit",
           "hour1": "Setelah 1 jam",
+          "custom": "Kustom",
           "sec15": "Setelah 15 detik (Debug)"
-        }
+        },
+        "customSecondsLabel": "Detik kustom",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Kata Khusus",

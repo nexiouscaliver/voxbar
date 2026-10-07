@@ -4,6 +4,10 @@
     "checkUpdates": "Rechercher des mises à jour...",
     "copyLastTranscript": "Copier la dernière transcription",
     "unloadModel": "Décharger le modèle",
+    "unloadAfter": "Déchargement après",
+    "unloadAfterImmediately": "Immédiatement",
+    "unloadAfterNever": "Jamais",
+    "unloadAfterCustom": "Personnalisé…",
     "model": "Modèle",
     "quit": "Quitter",
     "cancel": "Annuler",
@@ -376,8 +380,11 @@
           "min10": "Après 10 minutes",
           "min15": "Après 15 minutes",
           "hour1": "Après 1 heure",
+          "custom": "Personnalisé",
           "sec15": "Après 15 secondes (Débogage)"
-        }
+        },
+        "customSecondsLabel": "Secondes personnalisées",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Mots personnalisés",

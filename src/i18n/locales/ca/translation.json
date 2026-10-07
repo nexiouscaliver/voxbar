@@ -4,6 +4,10 @@
     "checkUpdates": "Comprova si hi ha actualitzacions...",
     "copyLastTranscript": "Copia l'última transcripció",
     "unloadModel": "Allibera el model de la memòria",
+    "unloadAfter": "Descarregar després de",
+    "unloadAfterImmediately": "Immediatament",
+    "unloadAfterNever": "Mai",
+    "unloadAfterCustom": "Personalitzat…",
     "model": "Model",
     "quit": "Surt",
     "cancel": "Cancel·la",
@@ -376,8 +380,11 @@
           "min10": "Al cap de 10 minuts",
           "min15": "Al cap de 15 minuts",
           "hour1": "Al cap d'1 hora",
+          "custom": "Personalitzat",
           "sec15": "Al cap de 15 segons (depuració)"
-        }
+        },
+        "customSecondsLabel": "Segons personalitzats",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Paraules personalitzades",

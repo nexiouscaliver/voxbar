@@ -143,7 +143,21 @@ pub enum ModelUnloadTimeout {
     Min15,
     Hour1,
     Sec15, // Debug mode only
+    /// User-entered idle timeout in seconds (tray "Unload After → Custom…"
+    /// and the Settings numeric field). Serialized as
+    /// `{"custom":{"seconds":N}}`; the fixed variants above keep their
+    /// string wire format, so stored settings are unaffected.
+    Custom {
+        seconds: u64,
+    },
 }
+
+/// Inclusive bounds for [`ModelUnloadTimeout::Custom`] seconds, enforced at
+/// every write path (constructor, command, tray presets) so a hand-edited
+/// store is the only way to see an out-of-range value — and even that only
+/// until the next write.
+pub const MODEL_UNLOAD_CUSTOM_MIN_SECONDS: u64 = 5;
+pub const MODEL_UNLOAD_CUSTOM_MAX_SECONDS: u64 = 86400; // 24h
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "snake_case")]
@@ -237,6 +251,36 @@ impl Default for PasteMethod {
 }
 
 impl ModelUnloadTimeout {
+    /// Clamped [`ModelUnloadTimeout::Custom`] constructor: every write path
+    /// funnels through here so the stored seconds always land inside
+    /// `[MODEL_UNLOAD_CUSTOM_MIN_SECONDS, MODEL_UNLOAD_CUSTOM_MAX_SECONDS]`.
+    pub fn custom(seconds: u64) -> Self {
+        ModelUnloadTimeout::Custom {
+            seconds: clamp_custom_seconds(seconds),
+        }
+    }
+
+    /// Map a preset's idle seconds onto the enum: canonical values use their
+    /// dedicated variant (so the Settings dropdown and the tray checkmark
+    /// agree on the stored value), anything else in range becomes `Custom`.
+    /// `None` for out-of-range seconds — callers must not persist those.
+    pub fn from_preset_seconds(seconds: u64) -> Option<Self> {
+        match seconds {
+            0 => Some(ModelUnloadTimeout::Immediately),
+            120 => Some(ModelUnloadTimeout::Min2),
+            300 => Some(ModelUnloadTimeout::Min5),
+            600 => Some(ModelUnloadTimeout::Min10),
+            900 => Some(ModelUnloadTimeout::Min15),
+            3600 => Some(ModelUnloadTimeout::Hour1),
+            s if (MODEL_UNLOAD_CUSTOM_MIN_SECONDS..=MODEL_UNLOAD_CUSTOM_MAX_SECONDS)
+                .contains(&s) =>
+            {
+                Some(ModelUnloadTimeout::Custom { seconds: s })
+            }
+            _ => None,
+        }
+    }
+
     pub fn to_minutes(self) -> Option<u64> {
         match self {
             ModelUnloadTimeout::Never => None,
@@ -247,6 +291,9 @@ impl ModelUnloadTimeout {
             ModelUnloadTimeout::Min15 => Some(15),
             ModelUnloadTimeout::Hour1 => Some(60),
             ModelUnloadTimeout::Sec15 => Some(0), // Special case for debug - handled separately
+            // Truncated minutes; anything sub-minute reads as "immediately"
+            // here, which is why the idle watcher uses to_seconds().
+            ModelUnloadTimeout::Custom { seconds } => Some(seconds / 60),
         }
     }
 
@@ -255,9 +302,20 @@ impl ModelUnloadTimeout {
             ModelUnloadTimeout::Never => None,
             ModelUnloadTimeout::Immediately => Some(0), // Special case for immediate unloading
             ModelUnloadTimeout::Sec15 => Some(15),
+            // Matched explicitly so the `_` wildcard below can never recurse
+            // through to_minutes -> to_seconds.
+            ModelUnloadTimeout::Custom { seconds } => Some(seconds),
             _ => self.to_minutes().map(|m| m * 60),
         }
     }
+}
+
+/// Clamp custom unload seconds into the valid range (pure; unit-tested).
+pub fn clamp_custom_seconds(seconds: u64) -> u64 {
+    seconds.clamp(
+        MODEL_UNLOAD_CUSTOM_MIN_SECONDS,
+        MODEL_UNLOAD_CUSTOM_MAX_SECONDS,
+    )
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
@@ -1327,6 +1385,88 @@ mod tests {
         assert_eq!(wire, r#""min2""#);
         let parsed: ModelUnloadTimeout = serde_json::from_str(r#""min2""#).unwrap();
         assert_eq!(parsed, ModelUnloadTimeout::Min2);
+    }
+
+    #[test]
+    fn custom_unload_timeout_round_trips_through_serde() {
+        // The struct variant serializes externally tagged; the fixed variants
+        // keep their plain-string wire format (asserted above and by the
+        // frozen v0.9 fixture), so adding Custom cannot break stored values.
+        let value = ModelUnloadTimeout::Custom { seconds: 90 };
+        let wire = serde_json::to_string(&value).unwrap();
+        assert_eq!(wire, r#"{"custom":{"seconds":90}}"#);
+        let parsed: ModelUnloadTimeout = serde_json::from_str(&wire).unwrap();
+        assert_eq!(parsed, value);
+        // Round-trips through the whole settings object too.
+        let mut settings = get_default_settings();
+        settings.model_unload_timeout = value;
+        let parsed: AppSettings =
+            serde_json::from_value(serde_json::to_value(settings).unwrap()).unwrap();
+        assert_eq!(parsed.model_unload_timeout, value);
+        // to_seconds drives the idle watcher; sub-minute customs survive.
+        assert_eq!(value.to_seconds(), Some(90));
+        assert_eq!(value.to_minutes(), Some(1));
+    }
+
+    #[test]
+    fn custom_unload_seconds_clamp_at_boundaries() {
+        // Below/above the range clamp to the bounds; the bounds themselves
+        // pass through unchanged.
+        assert_eq!(clamp_custom_seconds(0), MODEL_UNLOAD_CUSTOM_MIN_SECONDS);
+        assert_eq!(clamp_custom_seconds(4), MODEL_UNLOAD_CUSTOM_MIN_SECONDS);
+        assert_eq!(clamp_custom_seconds(5), 5);
+        assert_eq!(clamp_custom_seconds(90), 90);
+        assert_eq!(
+            clamp_custom_seconds(86_400),
+            MODEL_UNLOAD_CUSTOM_MAX_SECONDS
+        );
+        assert_eq!(
+            clamp_custom_seconds(86_401),
+            MODEL_UNLOAD_CUSTOM_MAX_SECONDS
+        );
+        assert_eq!(
+            clamp_custom_seconds(u64::MAX),
+            MODEL_UNLOAD_CUSTOM_MAX_SECONDS
+        );
+        // The constructor clamps through the same fn.
+        assert_eq!(
+            ModelUnloadTimeout::custom(1),
+            ModelUnloadTimeout::Custom {
+                seconds: MODEL_UNLOAD_CUSTOM_MIN_SECONDS
+            }
+        );
+    }
+
+    #[test]
+    fn preset_seconds_map_to_canonical_variants_or_custom() {
+        // Canonical presets persist as their dedicated variant so the
+        // Settings dropdown and the tray checkmark agree on the stored value.
+        assert_eq!(
+            ModelUnloadTimeout::from_preset_seconds(0),
+            Some(ModelUnloadTimeout::Immediately)
+        );
+        assert_eq!(
+            ModelUnloadTimeout::from_preset_seconds(120),
+            Some(ModelUnloadTimeout::Min2)
+        );
+        assert_eq!(
+            ModelUnloadTimeout::from_preset_seconds(3600),
+            Some(ModelUnloadTimeout::Hour1)
+        );
+        // Non-canonical in-range presets become Custom (15s deliberately does
+        // NOT become the debug-only Sec15 — it must display in the normal
+        // Settings dropdown).
+        assert_eq!(
+            ModelUnloadTimeout::from_preset_seconds(15),
+            Some(ModelUnloadTimeout::Custom { seconds: 15 })
+        );
+        assert_eq!(
+            ModelUnloadTimeout::from_preset_seconds(45),
+            Some(ModelUnloadTimeout::Custom { seconds: 45 })
+        );
+        // Out-of-range presets are rejected, never persisted.
+        assert_eq!(ModelUnloadTimeout::from_preset_seconds(4), None);
+        assert_eq!(ModelUnloadTimeout::from_preset_seconds(90_000), None);
     }
 
     #[test]

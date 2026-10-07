@@ -4,6 +4,10 @@
     "checkUpdates": "...التحقق من وجود تحديثات",
     "copyLastTranscript": "نسخ آخر نص تم تفريغه",
     "unloadModel": "تفريغ النموذج",
+    "unloadAfter": "الإفراج بعد",
+    "unloadAfterImmediately": "فوراً",
+    "unloadAfterNever": "أبداً",
+    "unloadAfterCustom": "مخصص…",
     "model": "النموذج",
     "quit": "إنهاء",
     "cancel": "إلغاء",
@@ -353,8 +357,11 @@
           "min10": "بعد 10 دقائق",
           "min15": "بعد 15 دقيقة",
           "hour1": "بعد ساعة واحدة",
+          "custom": "مخصص",
           "sec15": "بعد 15 ثوانٍ (تصحيح أخطاء)"
-        }
+        },
+        "customSecondsLabel": "ثوانٍ مخصصة",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "كلمات مخصصة",

@@ -4,6 +4,10 @@
     "checkUpdates": "Kiểm tra cập nhật...",
     "copyLastTranscript": "Sao chép bản chép lời mới nhất",
     "unloadModel": "Dỡ mô hình",
+    "unloadAfter": "Dỡ sau",
+    "unloadAfterImmediately": "Ngay lập tức",
+    "unloadAfterNever": "Không bao giờ",
+    "unloadAfterCustom": "Tùy chỉnh…",
     "model": "Mô hình",
     "quit": "Thoát",
     "cancel": "Hủy",
@@ -376,8 +380,11 @@
           "min10": "Sau 10 phút",
           "min15": "Sau 15 phút",
           "hour1": "Sau 1 giờ",
+          "custom": "Tùy chỉnh",
           "sec15": "Sau 15 giây (Gỡ lỗi)"
-        }
+        },
+        "customSecondsLabel": "Giây tùy chỉnh",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Từ tùy chỉnh",

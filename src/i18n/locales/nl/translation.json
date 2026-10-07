@@ -4,6 +4,10 @@
     "checkUpdates": "Controleren op updates...",
     "copyLastTranscript": "Laatste transcriptie kopiëren",
     "unloadModel": "Model ontladen",
+    "unloadAfter": "Ontladen na",
+    "unloadAfterImmediately": "Direct",
+    "unloadAfterNever": "Nooit",
+    "unloadAfterCustom": "Aangepast…",
     "model": "Model",
     "quit": "Afsluiten",
     "cancel": "Annuleren",
@@ -376,8 +380,11 @@
           "min10": "Na 10 minuten",
           "min15": "Na 15 minuten",
           "hour1": "Na 1 uur",
+          "custom": "Aangepast",
           "sec15": "Na 15 seconden (Debug)"
-        }
+        },
+        "customSecondsLabel": "Aangepaste seconden",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Eigen woordenlijst",

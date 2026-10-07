@@ -310,6 +310,42 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                 transcription_manager.request_unload();
                 log::info!("Model unloaded via tray.");
             }
+            // "Unload After" presets persist immediately through the same
+            // setting the app uses (the set_model_unload_timeout command's
+            // write path); "custom" opens Settings focused on the custom
+            // seconds field.
+            id if id.starts_with("unload_after:") => {
+                let selection = id.strip_prefix("unload_after:").unwrap().to_string();
+                let app_clone = app.clone();
+                std::thread::spawn(move || {
+                    if selection == "custom" {
+                        show_main_window(&app_clone);
+                        let _ = app_clone.emit("open-settings-unload-timeout", ());
+                        return;
+                    }
+                    let value = if selection == "never" {
+                        settings::ModelUnloadTimeout::Never
+                    } else {
+                        match selection
+                            .parse::<u64>()
+                            .ok()
+                            .and_then(settings::ModelUnloadTimeout::from_preset_seconds)
+                        {
+                            Some(value) => value,
+                            None => {
+                                log::warn!(
+                                    "Ignoring unknown tray unload-after preset: {}",
+                                    selection
+                                );
+                                return;
+                            }
+                        }
+                    };
+                    commands::transcription::set_model_unload_timeout(app_clone.clone(), value);
+                    log::info!("Model unload timeout set to {:?} via tray.", value);
+                    tray::update_tray_menu(&app_clone);
+                });
+            }
             "cancel" => {
                 use crate::utils::cancel_current_operation;
 
@@ -760,6 +796,7 @@ pub fn run(cli_args: CliArgs) {
             commands::audio::get_microphone_channels,
             commands::audio::set_selected_channel,
             commands::transcription::set_model_unload_timeout,
+            commands::transcription::set_model_unload_timeout_custom_seconds,
             commands::transcription::get_model_load_status,
             commands::transcription::unload_model_manually,
             commands::history::get_history_entries,

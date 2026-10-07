@@ -4,6 +4,10 @@
     "checkUpdates": "Zkontrolovat aktualizace...",
     "copyLastTranscript": "Zkopírovat poslední přepis",
     "unloadModel": "Uvolnit model",
+    "unloadAfter": "Uvolnit po",
+    "unloadAfterImmediately": "Okamžitě",
+    "unloadAfterNever": "Nikdy",
+    "unloadAfterCustom": "Vlastní…",
     "model": "Model",
     "quit": "Ukončit",
     "cancel": "Zrušit",
@@ -376,8 +380,11 @@
           "min10": "Po 10 minutách",
           "min15": "Po 15 minutách",
           "hour1": "Po 1 hodině",
+          "custom": "Vlastní",
           "sec15": "Po 15 sekundách (Debug)"
-        }
+        },
+        "customSecondsLabel": "Vlastní sekundy",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Vlastní slova",

@@ -4,6 +4,10 @@
     "checkUpdates": "Nach Updates suchen...",
     "copyLastTranscript": "Letzte Transkription kopieren",
     "unloadModel": "Modell entladen",
+    "unloadAfter": "Entladen nach",
+    "unloadAfterImmediately": "Sofort",
+    "unloadAfterNever": "Nie",
+    "unloadAfterCustom": "Benutzerdefiniert…",
     "model": "Modell",
     "quit": "Beenden",
     "cancel": "Abbrechen",
@@ -376,8 +380,11 @@
           "min10": "Nach 10 Minuten",
           "min15": "Nach 15 Minuten",
           "hour1": "Nach 1 Stunde",
+          "custom": "Benutzerdefiniert",
           "sec15": "Nach 15 Sekunden (Debug)"
-        }
+        },
+        "customSecondsLabel": "Benutzerdefinierte Sekunden",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Benutzerdefinierte Wörter",

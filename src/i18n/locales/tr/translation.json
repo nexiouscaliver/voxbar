@@ -4,6 +4,10 @@
     "checkUpdates": "Güncellemeleri Kontrol Et...",
     "copyLastTranscript": "Son Transkripti Kopyala",
     "unloadModel": "Modeli Boşalt",
+    "unloadAfter": "Boşaltma süresi",
+    "unloadAfterImmediately": "Hemen",
+    "unloadAfterNever": "Asla",
+    "unloadAfterCustom": "Özel…",
     "model": "Model",
     "quit": "Çıkış",
     "cancel": "İptal",
@@ -376,8 +380,11 @@
           "min10": "10 dakika sonra",
           "min15": "15 dakika sonra",
           "hour1": "1 saat sonra",
+          "custom": "Özel",
           "sec15": "15 saniye sonra (Debug)"
-        }
+        },
+        "customSecondsLabel": "Özel saniye",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Özel Kelimeler",

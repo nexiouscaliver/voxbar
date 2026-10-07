@@ -214,6 +214,21 @@ function App() {
     };
   }, [t]);
 
+  // Tray "Unload After → Custom…": jump to the Advanced settings section and
+  // focus the custom-seconds field. The window event is re-dispatched after a
+  // short delay so the section (and the field) has mounted before it arrives.
+  useEffect(() => {
+    const unlisten = listen("open-settings-unload-timeout", () => {
+      setCurrentSection("advanced");
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("voxbar:focus-unload-timeout"));
+      }, 150);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
   const revealMainWindowForPermissions = async () => {
     try {
       await commands.showMainWindowCommand();

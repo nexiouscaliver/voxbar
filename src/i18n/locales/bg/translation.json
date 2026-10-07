@@ -4,6 +4,10 @@
     "checkUpdates": "Проверка за актуализации...",
     "copyLastTranscript": "Копиране на последния транскрипт",
     "unloadModel": "Разтоварване на модела",
+    "unloadAfter": "Изчистване след",
+    "unloadAfterImmediately": "Веднага",
+    "unloadAfterNever": "Никога",
+    "unloadAfterCustom": "Персонализиран…",
     "model": "Модел",
     "quit": "Изход",
     "cancel": "Отказ",
@@ -376,8 +380,11 @@
           "min10": "След 10 минути",
           "min15": "След 15 минути",
           "hour1": "След 1 час",
+          "custom": "Персонализиран",
           "sec15": "След 15 секунди (отстраняване)"
-        }
+        },
+        "customSecondsLabel": "Персонализирани секунди",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Персонализирани думи",

@@ -4,6 +4,10 @@
     "checkUpdates": "检查更新...",
     "copyLastTranscript": "复制最新转录",
     "unloadModel": "卸载模型",
+    "unloadAfter": "卸载时间",
+    "unloadAfterImmediately": "立即",
+    "unloadAfterNever": "从不",
+    "unloadAfterCustom": "自定义…",
     "model": "模型",
     "quit": "退出",
     "cancel": "取消",
@@ -376,8 +380,11 @@
           "min10": "10 分钟后",
           "min15": "15 分钟后",
           "hour1": "1 小时后",
+          "custom": "自定义",
           "sec15": "15 秒后（调试）"
-        }
+        },
+        "customSecondsLabel": "自定义秒数",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "自定义词汇",

@@ -4,6 +4,10 @@
     "checkUpdates": "업데이트 확인...",
     "copyLastTranscript": "마지막 녹음 내용 복사",
     "unloadModel": "모델 언로드",
+    "unloadAfter": "언로드 시기",
+    "unloadAfterImmediately": "즉시",
+    "unloadAfterNever": "안 함",
+    "unloadAfterCustom": "사용자 지정…",
     "model": "모델",
     "quit": "종료",
     "cancel": "취소",
@@ -376,8 +380,11 @@
           "min10": "10분 후",
           "min15": "15분 후",
           "hour1": "1시간 후",
+          "custom": "사용자 지정",
           "sec15": "15초 후 (디버그)"
-        }
+        },
+        "customSecondsLabel": "사용자 지정 초",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "사용자 정의 단어",

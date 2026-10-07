@@ -4,6 +4,10 @@
     "checkUpdates": "בדוק עדכונים...",
     "copyLastTranscript": "העתק את התמלול האחרון",
     "unloadModel": "פרוק מודל",
+    "unloadAfter": "פריקה לאחר",
+    "unloadAfterImmediately": "מיידית",
+    "unloadAfterNever": "אף פעם",
+    "unloadAfterCustom": "מותאם אישית…",
     "model": "מודל",
     "quit": "יציאה",
     "cancel": "ביטול",
@@ -376,8 +380,11 @@
           "min10": "אחרי 10 דקות",
           "min15": "אחרי 15 דקות",
           "hour1": "אחרי שעה",
+          "custom": "מותאם אישית",
           "sec15": "אחרי 15 שניות (דיבאג)"
-        }
+        },
+        "customSecondsLabel": "שניות מותאמות אישית",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "מילים מותאמות אישית",

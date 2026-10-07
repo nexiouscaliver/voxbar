@@ -4,6 +4,10 @@
     "checkUpdates": "Проверить обновления...",
     "copyLastTranscript": "Скопировать последнюю транскрипцию",
     "unloadModel": "Выгрузить модель",
+    "unloadAfter": "Выгрузка через",
+    "unloadAfterImmediately": "Немедленно",
+    "unloadAfterNever": "Никогда",
+    "unloadAfterCustom": "Пользовательский…",
     "model": "Модель",
     "quit": "Выход",
     "cancel": "Отмена",
@@ -376,8 +380,11 @@
           "min10": "Через 10 минут",
           "min15": "Через 15 минут",
           "hour1": "Через 1 час",
+          "custom": "Пользовательский",
           "sec15": "Через 15 секунд (отладка)"
-        }
+        },
+        "customSecondsLabel": "Пользовательские секунды",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Пользовательский словарь",

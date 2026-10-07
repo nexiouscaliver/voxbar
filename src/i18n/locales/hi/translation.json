@@ -4,6 +4,10 @@
     "checkUpdates": "अपडेट जांचें...",
     "copyLastTranscript": "पिछला ट्रांसक्रिप्ट कॉपी करें",
     "unloadModel": "मॉडल अनलोड करें",
+    "unloadAfter": "अनलोड समय",
+    "unloadAfterImmediately": "तुरंत",
+    "unloadAfterNever": "कभी नहीं",
+    "unloadAfterCustom": "कस्टम…",
     "model": "मॉडल",
     "quit": "बाहर निकलें",
     "cancel": "रद्द करें",
@@ -376,8 +380,11 @@
           "min10": "10 मिनट बाद",
           "min15": "15 मिनट बाद",
           "hour1": "1 घंटे बाद",
+          "custom": "कस्टम",
           "sec15": "15 सेकंड बाद (डिबग)"
-        }
+        },
+        "customSecondsLabel": "कस्टम सेकंड",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "कस्टम शब्द",

@@ -4,6 +4,10 @@
     "checkUpdates": "Sök efter uppdateringar...",
     "copyLastTranscript": "Kopiera senaste transkriptionen",
     "unloadModel": "Avlasta modell",
+    "unloadAfter": "Urladdning efter",
+    "unloadAfterImmediately": "Omedelbart",
+    "unloadAfterNever": "Aldrig",
+    "unloadAfterCustom": "Anpassad…",
     "model": "Modell",
     "quit": "Avsluta",
     "cancel": "Avbryt",
@@ -376,8 +380,11 @@
           "min10": "Efter 10 minuter",
           "min15": "Efter 15 minuter",
           "hour1": "Efter 1 timme",
+          "custom": "Anpassad",
           "sec15": "Efter 15 sekunder (Felsökning)"
-        }
+        },
+        "customSecondsLabel": "Anpassade sekunder",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Anpassade ord",

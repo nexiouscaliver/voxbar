@@ -4,6 +4,10 @@
     "checkUpdates": "Перевірити оновлення...",
     "copyLastTranscript": "Скопіювати останню транскрипцію",
     "unloadModel": "Вивантажити модель",
+    "unloadAfter": "Вивантаження через",
+    "unloadAfterImmediately": "Негайно",
+    "unloadAfterNever": "Ніколи",
+    "unloadAfterCustom": "Користувацький…",
     "model": "Модель",
     "quit": "Вийти",
     "cancel": "Скасувати",
@@ -376,8 +380,11 @@
           "min10": "Через 10 хвилин",
           "min15": "Через 15 хвилин",
           "hour1": "Через 1 годину",
+          "custom": "Користувацький",
           "sec15": "Через 15 секунд (Дебаг)"
-        }
+        },
+        "customSecondsLabel": "Користувацькі секунди",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Власні слова",
