@@ -36,14 +36,21 @@ jobs:
             libxtst-dev libx11-dev libxrandr-dev libopenblas-dev \
             libvulkan-dev glslc spirv-headers
 
-      # Windows x86_64 builds transcribe-cpp with the Vulkan feature (see
-      # src-tauri/Cargo.toml), and ggml's Vulkan backend needs the SDK at
-      # build time; runners do not ship it. Mirrors upstream Handy's CI step.
+      # Mirrors upstream Handy's proven Windows recipe: long paths enabled,
+      # then the exact Vulkan SDK version their CI pins. Newer SDK versions
+      # (tested: 1.4.363.0 via latest) fail CMake's FindVulkan on runners.
+      - name: Enable long paths (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" `
+            -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+
       - name: Install Vulkan SDK (Windows)
         if: runner.os == 'Windows'
         uses: humbletim/install-vulkan-sdk@v1.2
         with:
-          version: latest
+          version: 1.4.309.0
           cache: true
 
       - name: Install Rust toolchain
