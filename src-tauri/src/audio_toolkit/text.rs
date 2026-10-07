@@ -1,3 +1,4 @@
+use super::command_matrix::{CompiledCommandMatrix, VoiceDeletionKind};
 use natural::phonetics::soundex;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -492,87 +493,6 @@ pub fn remove_filler_words(
     filtered
 }
 
-/// One spoken-punctuation vocabulary entry.
-struct SpokenPunctuationRule {
-    /// Lowercase spoken words. Multi-word entries are matched as a phrase, so
-    /// "question mark" can never fire on the word "question" alone.
-    phrase: &'static [&'static str],
-    /// Text the spoken phrase becomes. The dash is always a plain ASCII
-    /// hyphen, never an em or en dash.
-    replacement: &'static str,
-}
-
-/// UK and US vocabularies are both covered ("full stop" / "period",
-/// "exclamation mark" / "exclamation point"). Two-word phrases are listed
-/// before any single-word rival so the longest phrase always wins.
-const SPOKEN_PUNCTUATION_RULES: &[SpokenPunctuationRule] = &[
-    SpokenPunctuationRule {
-        phrase: &["full", "stop"],
-        replacement: ".",
-    },
-    SpokenPunctuationRule {
-        phrase: &["question", "mark"],
-        replacement: "?",
-    },
-    SpokenPunctuationRule {
-        phrase: &["exclamation", "mark"],
-        replacement: "!",
-    },
-    SpokenPunctuationRule {
-        phrase: &["exclamation", "point"],
-        replacement: "!",
-    },
-    SpokenPunctuationRule {
-        phrase: &["new", "paragraph"],
-        replacement: "\n\n",
-    },
-    SpokenPunctuationRule {
-        phrase: &["new", "line"],
-        replacement: "\n",
-    },
-    SpokenPunctuationRule {
-        phrase: &["period"],
-        replacement: ".",
-    },
-    SpokenPunctuationRule {
-        phrase: &["comma"],
-        replacement: ",",
-    },
-    SpokenPunctuationRule {
-        phrase: &["colon"],
-        replacement: ":",
-    },
-    SpokenPunctuationRule {
-        phrase: &["semicolon"],
-        replacement: ";",
-    },
-    SpokenPunctuationRule {
-        phrase: &["dash"],
-        replacement: "-",
-    },
-];
-
-static SPOKEN_PUNCTUATION_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    // Built from the rule table so the regex can never drift from it. The
-    // `\b` anchors keep every token word-boundary matched: nothing fires
-    // inside a larger word ("questionable", "periodic", "dashboards"). The
-    // optional trailing [,.]? consumes punctuation a model already attached
-    // to the spoken token, mirroring the filler-word matcher.
-    let alternation = SPOKEN_PUNCTUATION_RULES
-        .iter()
-        .map(|rule| rule.phrase.join(" "))
-        .collect::<Vec<_>>()
-        .join("|");
-    Regex::new(&format!(r"(?i)\b(?:{alternation})\b[,.]?")).unwrap()
-});
-
-fn spoken_punctuation_replacement(matched_phrase: &str) -> Option<&'static str> {
-    SPOKEN_PUNCTUATION_RULES
-        .iter()
-        .find(|rule| rule.phrase.join(" ") == matched_phrase)
-        .map(|rule| rule.replacement)
-}
-
 /// Whether the inserted mark ends a sentence and owes the next word a
 /// capital.
 fn is_sentence_ending_punctuation(mark: &str) -> bool {
@@ -589,15 +509,16 @@ fn trim_trailing_spaces(text: &mut String) {
 
 /// Converts standalone spoken punctuation tokens into real punctuation.
 ///
-/// "full stop" and "period" become ".", "comma" becomes ",", "question mark"
-/// becomes "?", "exclamation mark" / "exclamation point" become "!", "colon"
-/// becomes ":", "semicolon" becomes ";", "new line" becomes a line break,
-/// "new paragraph" a blank line, and "dash" a plain ASCII hyphen. Matching is
-/// case-insensitive, word-boundary anchored, and phrase-aware: the matched
-/// token is consumed and the word after sentence-ending punctuation
-/// (".", "?", "!") is capitalized. All other text, including existing
-/// newlines, is preserved byte-for-byte.
-pub fn normalize_spoken_punctuation(text: &str) -> String {
+/// The vocabulary is the command matrix's symbol-insert entries (compiled
+/// by [`super::command_matrix`]): "full stop" and "period" become ".",
+/// "comma" becomes ",", "question mark" becomes "?", the extended symbol
+/// set (at sign, brackets, slash, ...) inserts its literal, "new line"
+/// becomes a line break, "new paragraph" a blank line, and "dash" a plain
+/// ASCII hyphen. Matching is case-insensitive, word-boundary anchored, and
+/// phrase-aware: the matched token is consumed and the word after
+/// sentence-ending punctuation (".", "?", "!") is capitalized. All other
+/// text, including existing newlines, is preserved byte-for-byte.
+pub fn normalize_spoken_punctuation(text: &str, matrix: &CompiledCommandMatrix) -> String {
     let mut kept = String::with_capacity(text.len());
     let mut resume = 0;
     let mut capital_owed = false;
@@ -606,11 +527,11 @@ pub fn normalize_spoken_punctuation(text: &str) -> String {
     // "twenty-five" and "new line" starts the next line cleanly.
     let mut skip_leading_space = false;
 
-    for token in SPOKEN_PUNCTUATION_PATTERN.find_iter(text) {
+    for token in matrix.punctuation_pattern_matches(text) {
         // Strip the optional trailing [,.]? the pattern may have consumed so
         // the lookup key is the pure spoken phrase.
         let phrase = token.as_str().trim_end_matches([',', '.']);
-        let Some(replacement) = spoken_punctuation_replacement(&phrase.to_lowercase()) else {
+        let Some(replacement) = matrix.punctuation_replacement(&phrase.to_lowercase()) else {
             continue;
         };
 
@@ -705,30 +626,14 @@ pub struct VoiceDeletionOutcome {
     pub cleared: bool,
 }
 
-/// Matches the voice deletion vocabulary. Word-boundary anchored and
-/// case-insensitive like the spoken-punctuation pattern, so nothing fires
-/// inside a larger word ("deleted", "underscratch") and phrases always match
-/// whole. The digit form accepts 1 through 10 only; "delete last 0 words" and
-/// "delete last 99 words" are not commands and stay verbatim.
-static VOICE_DELETION_PATTERN: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(concat!(
-        r"(?i)\b(?:",
-        "delete everything|scratch everything|start over|",
-        "scratch that|delete that|remove that|delete line|",
-        "delete last (?:one word|word|two words|three words|four words|five words|",
-        "six words|seven words|eight words|nine words|ten words|(?:[1-9]|10) words?)",
-        r")\b"
-    ))
-    .unwrap()
-});
-
-/// Commands that discard the entire transcript.
-fn is_clear_everything_command(phrase: &str) -> bool {
-    matches!(
-        phrase,
-        "delete everything" | "scratch everything" | "start over"
-    )
-}
+/// The voice-deletion vocabulary is the command matrix's DeleteWord /
+/// DeleteLine / ClearAll entries merged with the built-in "delete last N
+/// words" family, compiled by [`super::command_matrix`]. Word-boundary
+/// anchored and case-insensitive like the spoken-punctuation pattern, so
+/// nothing fires inside a larger word ("deleted", "underscratch") and
+/// phrases always match whole. The digit form accepts 1 through 10 only;
+/// "delete last 0 words" and "delete last 99 words" are not commands and
+/// stay verbatim.
 
 /// Word count for a matched "delete last <count> words" command. The pattern
 /// guarantees the count token is one of the accepted forms.
@@ -850,15 +755,16 @@ pub fn interim_display_transform(
     text: &str,
     spoken_punctuation: bool,
     voice_deletion: bool,
+    matrix: &CompiledCommandMatrix,
 ) -> String {
     let punctuated = if spoken_punctuation {
-        normalize_spoken_punctuation(text)
+        normalize_spoken_punctuation(text, matrix)
     } else {
         text.to_string()
     };
 
     let deleted = if voice_deletion {
-        apply_voice_deletion(&punctuated)
+        apply_voice_deletion(&punctuated, matrix)
     } else {
         VoiceDeletionOutcome {
             text: punctuated,
@@ -901,37 +807,78 @@ fn push_deletion_span(
 
 /// Applies voice deletion commands to already-punctuated transcript text.
 ///
-/// "scratch that", "delete that" and "remove that" delete the preceding word
-/// (the command is consumed even when no word precedes it); "delete last
-/// word" through "delete last ten words", including digit forms like
-/// "delete last 3 words", delete that many preceding words; "delete line"
-/// clears the current trailing line (everything after the last newline, so
-/// with no newline the whole buffer empties and the outcome is `cleared`,
-/// matching the "delete everything" semantics); "delete everything",
-/// "scratch everything" and "start over" discard the whole transcript and
-/// set [`VoiceDeletionOutcome::cleared`]. Commands apply left to right, each
-/// seeing the result of the previous one.
+/// The vocabulary is the command matrix's DeleteWord / DeleteLine /
+/// ClearAll entries plus the built-in count family: the DeleteWord phrases
+/// ("delete word", "scratch that", "delete that", "remove that", and any
+/// the operator added) delete the preceding word (the command is consumed
+/// even when no word precedes it); "delete last word" through "delete last
+/// ten words", including digit forms like "delete last 3 words", delete
+/// that many preceding words; the DeleteLine phrases clear the current
+/// trailing line (everything after the last newline, so with no newline
+/// the whole buffer empties and the outcome is `cleared`, matching the
+/// ClearAll semantics); the ClearAll phrases ("delete everything",
+/// "scratch everything", "start over", ...) discard the whole transcript
+/// and set [`VoiceDeletionOutcome::cleared`]. Commands apply left to
+/// right, each seeing the result of the previous one.
 ///
 /// After a deletion the next word is capitalized when it lands at a sentence
 /// start (nothing kept yet, or the kept text ends a sentence). Text without
 /// any command is preserved byte-for-byte except that leading spaces/tabs
 /// left behind by a command consumed at the very start are trimmed.
-pub fn apply_voice_deletion(text: &str) -> VoiceDeletionOutcome {
+pub fn apply_voice_deletion(
+    text: &str,
+    matrix: &CompiledCommandMatrix,
+) -> VoiceDeletionOutcome {
     let mut kept = String::with_capacity(text.len());
     let mut resume = 0;
     let mut capital_owed = false;
     // Set by each deletion: the next span joins with exactly one space.
     let mut pending_space = false;
 
-    for command in VOICE_DELETION_PATTERN.find_iter(text) {
+    for command in matrix.voice_deletion_pattern_matches(text) {
         let phrase = command.as_str().to_lowercase();
 
-        if is_clear_everything_command(&phrase) {
-            return VoiceDeletionOutcome {
-                text: String::new(),
-                cleared: true,
-            };
-        }
+        // A matrix phrase maps to its deletion kind; a match outside the
+        // map is the built-in "delete last N words" family.
+        let count = match matrix.voice_deletion_kind(&phrase) {
+            Some(VoiceDeletionKind::All) => {
+                return VoiceDeletionOutcome {
+                    text: String::new(),
+                    cleared: true,
+                };
+            }
+            Some(VoiceDeletionKind::Line) => {
+                push_deletion_span(
+                    &mut kept,
+                    &text[resume..command.start()],
+                    &mut pending_space,
+                    &mut capital_owed,
+                );
+                // Clear the current trailing line: everything after the last
+                // newline. The newline itself is kept so text spoken next
+                // starts on the fresh line rather than joining the previous
+                // one. With no newline the whole buffer is the trailing
+                // line, so clearing it empties everything: report `cleared`
+                // exactly like a ClearAll phrase (the pipeline then skips
+                // later passes and pastes nothing).
+                match kept.rfind('\n') {
+                    Some(newline) => kept.truncate(newline + 1),
+                    None => {
+                        return VoiceDeletionOutcome {
+                            text: String::new(),
+                            cleared: true,
+                        };
+                    }
+                }
+                trim_trailing_spaces(&mut kept);
+                pending_space = true;
+                capital_owed |= opens_sentence(&kept);
+                resume = command.end();
+                continue;
+            }
+            Some(VoiceDeletionKind::Word) => 1,
+            None => voice_deletion_word_count(&phrase),
+        };
 
         push_deletion_span(
             &mut kept,
@@ -940,31 +887,7 @@ pub fn apply_voice_deletion(text: &str) -> VoiceDeletionOutcome {
             &mut capital_owed,
         );
 
-        if phrase == "delete line" {
-            // Clear the current trailing line: everything after the last
-            // newline. The newline itself is kept so text spoken next starts
-            // on the fresh line rather than joining the previous one. With no
-            // newline the whole buffer is the trailing line, so clearing it
-            // empties everything: report `cleared` exactly like "delete
-            // everything" (the pipeline then skips later passes and pastes
-            // nothing).
-            match kept.rfind('\n') {
-                Some(newline) => kept.truncate(newline + 1),
-                None => {
-                    return VoiceDeletionOutcome {
-                        text: String::new(),
-                        cleared: true,
-                    };
-                }
-            }
-        } else {
-            let count = if phrase.starts_with("delete last") {
-                voice_deletion_word_count(&phrase)
-            } else {
-                1
-            };
-            remove_trailing_words(&mut kept, count);
-        }
+        remove_trailing_words(&mut kept, count);
         trim_trailing_spaces(&mut kept);
         pending_space = true;
         capital_owed |= opens_sentence(&kept);
@@ -1012,6 +935,12 @@ pub fn normalize_transcription_output(text: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::super::command_matrix::default_compiled_matrix;
+
+    /// The compiled DEFAULT matrix (shared; no rebuild per test).
+    fn dm() -> std::sync::Arc<super::super::command_matrix::CompiledCommandMatrix> {
+        default_compiled_matrix()
+    }
 
     /// Exercise the complete cleanup sequence with an explicitly selected
     /// language. Individual tests below predate the split between filler
@@ -1489,35 +1418,35 @@ mod tests {
     #[test]
     fn test_spoken_punctuation_single_word_tokens() {
         assert_eq!(
-            normalize_spoken_punctuation("hello comma world"),
+            normalize_spoken_punctuation("hello comma world", &dm()),
             "hello, world"
         );
         assert_eq!(
-            normalize_spoken_punctuation("hello full stop world"),
+            normalize_spoken_punctuation("hello full stop world", &dm()),
             "hello. World"
         );
         assert_eq!(
-            normalize_spoken_punctuation("hello period world"),
+            normalize_spoken_punctuation("hello period world", &dm()),
             "hello. World"
         );
         assert_eq!(
-            normalize_spoken_punctuation("it is fine question mark"),
+            normalize_spoken_punctuation("it is fine question mark", &dm()),
             "it is fine?"
         );
         assert_eq!(
-            normalize_spoken_punctuation("amazing exclamation mark"),
+            normalize_spoken_punctuation("amazing exclamation mark", &dm()),
             "amazing!"
         );
         assert_eq!(
-            normalize_spoken_punctuation("amazing exclamation point"),
+            normalize_spoken_punctuation("amazing exclamation point", &dm()),
             "amazing!"
         );
         assert_eq!(
-            normalize_spoken_punctuation("items colon one two"),
+            normalize_spoken_punctuation("items colon one two", &dm()),
             "items: one two"
         );
         assert_eq!(
-            normalize_spoken_punctuation("one semicolon two"),
+            normalize_spoken_punctuation("one semicolon two", &dm()),
             "one; two"
         );
     }
@@ -1525,11 +1454,11 @@ mod tests {
     #[test]
     fn test_spoken_punctuation_case_insensitive() {
         assert_eq!(
-            normalize_spoken_punctuation("HELLO COMMA World"),
+            normalize_spoken_punctuation("HELLO COMMA World", &dm()),
             "HELLO, World"
         );
         assert_eq!(
-            normalize_spoken_punctuation("Stop there Full Stop then go"),
+            normalize_spoken_punctuation("Stop there Full Stop then go", &dm()),
             "Stop there. Then go"
         );
     }
@@ -1537,18 +1466,18 @@ mod tests {
     #[test]
     fn test_spoken_punctuation_newline_and_paragraph() {
         assert_eq!(
-            normalize_spoken_punctuation("line one new line line two"),
+            normalize_spoken_punctuation("line one new line line two", &dm()),
             "line one\nline two"
         );
         assert_eq!(
-            normalize_spoken_punctuation("para one new paragraph para two"),
+            normalize_spoken_punctuation("para one new paragraph para two", &dm()),
             "para one\n\npara two"
         );
     }
 
     #[test]
     fn test_spoken_punctuation_dash_is_plain_hyphen() {
-        let result = normalize_spoken_punctuation("twenty dash five");
+        let result = normalize_spoken_punctuation("twenty dash five", &dm());
         assert_eq!(result, "twenty-five");
         // Unicode escapes keep the literal em/en dash characters out of the
         // source while still asserting they can never be emitted.
@@ -1560,11 +1489,11 @@ mod tests {
 
     #[test]
     fn test_spoken_punctuation_token_is_consumed() {
-        assert_eq!(normalize_spoken_punctuation("hello comma"), "hello,");
-        assert_eq!(normalize_spoken_punctuation("wait period"), "wait.");
+        assert_eq!(normalize_spoken_punctuation("hello comma", &dm()), "hello,");
+        assert_eq!(normalize_spoken_punctuation("wait period", &dm()), "wait.");
         // Punctuation the model attached to the spoken token is consumed too.
         assert_eq!(
-            normalize_spoken_punctuation("hello comma, world"),
+            normalize_spoken_punctuation("hello comma, world", &dm()),
             "hello, world"
         );
     }
@@ -1572,20 +1501,20 @@ mod tests {
     #[test]
     fn test_spoken_punctuation_capitalizes_after_sentence_end_only() {
         assert_eq!(
-            normalize_spoken_punctuation("first full stop second"),
+            normalize_spoken_punctuation("first full stop second", &dm()),
             "first. Second"
         );
         assert_eq!(
-            normalize_spoken_punctuation("first comma second"),
+            normalize_spoken_punctuation("first comma second", &dm()),
             "first, second"
         );
         assert_eq!(
-            normalize_spoken_punctuation("first colon second"),
+            normalize_spoken_punctuation("first colon second", &dm()),
             "first: second"
         );
         // The capital survives a following line break.
         assert_eq!(
-            normalize_spoken_punctuation("done full stop new line next"),
+            normalize_spoken_punctuation("done full stop new line next", &dm()),
             "done.\nNext"
         );
     }
@@ -1593,32 +1522,32 @@ mod tests {
     #[test]
     fn test_spoken_punctuation_word_boundaries_do_not_fire_inside_words() {
         assert_eq!(
-            normalize_spoken_punctuation("the question is questionable"),
+            normalize_spoken_punctuation("the question is questionable", &dm()),
             "the question is questionable"
         );
         assert_eq!(
-            normalize_spoken_punctuation("a question of time"),
+            normalize_spoken_punctuation("a question of time", &dm()),
             "a question of time"
         );
         assert_eq!(
-            normalize_spoken_punctuation("periodic periods matter"),
+            normalize_spoken_punctuation("periodic periods matter", &dm()),
             "periodic periods matter"
         );
         assert_eq!(
-            normalize_spoken_punctuation("dashboards and dashes"),
+            normalize_spoken_punctuation("dashboards and dashes", &dm()),
             "dashboards and dashes"
         );
         // "question mark" must match the full phrase only.
         assert_eq!(
-            normalize_spoken_punctuation("the question marks the end"),
+            normalize_spoken_punctuation("the question marks the end", &dm()),
             "the question marks the end"
         );
         assert_eq!(
-            normalize_spoken_punctuation("check the question markdown"),
+            normalize_spoken_punctuation("check the question markdown", &dm()),
             "check the question markdown"
         );
         assert_eq!(
-            normalize_spoken_punctuation("many commas here"),
+            normalize_spoken_punctuation("many commas here", &dm()),
             "many commas here"
         );
     }
@@ -1626,15 +1555,15 @@ mod tests {
     #[test]
     fn test_spoken_punctuation_preserves_existing_layout() {
         assert_eq!(
-            normalize_spoken_punctuation("first line\nsecond line"),
+            normalize_spoken_punctuation("first line\nsecond line", &dm()),
             "first line\nsecond line"
         );
         assert_eq!(
-            normalize_spoken_punctuation("already, punctuated. Text!"),
+            normalize_spoken_punctuation("already, punctuated. Text!", &dm()),
             "already, punctuated. Text!"
         );
         // CJK text is untouched: the vocabulary is English-only.
-        assert_eq!(normalize_spoken_punctuation("你好世界"), "你好世界");
+        assert_eq!(normalize_spoken_punctuation("你好世界", &dm()), "你好世界");
     }
 
     #[test]
@@ -1686,7 +1615,7 @@ mod tests {
     #[test]
     fn test_voice_deletion_word_commands() {
         for command in ["scratch that", "delete that", "remove that"] {
-            let result = apply_voice_deletion(&format!("hello world {command}"));
+            let result = apply_voice_deletion(&format!("hello world {command}"), &dm());
             assert_eq!(result.text, "hello", "command: {command}");
             assert!(!result.cleared, "command: {command}");
         }
@@ -1695,7 +1624,7 @@ mod tests {
     #[test]
     fn test_voice_deletion_case_insensitive_and_word_boundaries() {
         assert_eq!(
-            apply_voice_deletion("Hello World SCRATCH THAT").text,
+            apply_voice_deletion("Hello World SCRATCH THAT", &dm()).text,
             "Hello"
         );
         // Nothing fires inside larger words, on near-misses, or on digit
@@ -1709,7 +1638,7 @@ mod tests {
             "delete last 0 words",
             "delete last 99 words",
         ] {
-            let result = apply_voice_deletion(text);
+            let result = apply_voice_deletion(text, &dm());
             assert_eq!(result.text, text, "text: {text}");
             assert!(!result.cleared, "text: {text}");
         }
@@ -1717,9 +1646,9 @@ mod tests {
 
     #[test]
     fn test_voice_deletion_counted_forms() {
-        assert_eq!(apply_voice_deletion("a b c delete last word").text, "a b");
+        assert_eq!(apply_voice_deletion("a b c delete last word", &dm()).text, "a b");
         assert_eq!(
-            apply_voice_deletion("a b c delete last one word").text,
+            apply_voice_deletion("a b c delete last one word", &dm()).text,
             "a b"
         );
         // Word forms and digit forms delete the same words.
@@ -1729,25 +1658,25 @@ mod tests {
             let expected = words[..words.len() - count].join(" ");
             let spoken = format!("{base} delete last {word_form} words");
             assert_eq!(
-                apply_voice_deletion(&spoken).text,
+                apply_voice_deletion(&spoken, &dm()).text,
                 expected,
                 "form: {word_form}"
             );
             let digits = format!("{base} delete last {count} words");
             assert_eq!(
-                apply_voice_deletion(&digits).text,
+                apply_voice_deletion(&digits, &dm()).text,
                 expected,
                 "digit count: {count}"
             );
         }
         // Requesting more words than remain deletes all of them.
-        assert_eq!(apply_voice_deletion("a b delete last ten words").text, "");
+        assert_eq!(apply_voice_deletion("a b delete last ten words", &dm()).text, "");
     }
 
     #[test]
     fn test_voice_deletion_everything_commands_clear() {
         for command in ["delete everything", "scratch everything", "start over"] {
-            let result = apply_voice_deletion(&format!("hello world {command} trailing words"));
+            let result = apply_voice_deletion(&format!("hello world {command} trailing words"), &dm());
             assert_eq!(result.text, "", "command: {command}");
             assert!(result.cleared, "command: {command}");
         }
@@ -1755,11 +1684,11 @@ mod tests {
 
     #[test]
     fn test_voice_deletion_no_preceding_word_still_consumes() {
-        let result = apply_voice_deletion("scratch that hello there");
+        let result = apply_voice_deletion("scratch that hello there", &dm());
         assert_eq!(result.text, "Hello there");
         assert!(!result.cleared);
 
-        let empty = apply_voice_deletion("");
+        let empty = apply_voice_deletion("", &dm());
         assert_eq!(empty.text, "");
         assert!(!empty.cleared);
     }
@@ -1768,42 +1697,42 @@ mod tests {
     fn test_voice_deletion_capital_and_spacing_after_deletion() {
         // A word landing at a sentence start after a deletion is capitalized.
         assert_eq!(
-            apply_voice_deletion("One. Two scratch that three").text,
+            apply_voice_deletion("One. Two scratch that three", &dm()).text,
             "One. Three"
         );
         // Mid-sentence deletions do not capitalize.
         assert_eq!(
-            apply_voice_deletion("hello world scratch that there").text,
+            apply_voice_deletion("hello world scratch that there", &dm()).text,
             "hello there"
         );
         // Deletions collapse doubled spaces around the join point.
-        assert_eq!(apply_voice_deletion("a  b   scratch that   c").text, "a c");
+        assert_eq!(apply_voice_deletion("a  b   scratch that   c", &dm()).text, "a c");
     }
 
     #[test]
     fn test_voice_deletion_commands_chain_left_to_right() {
         assert_eq!(
-            apply_voice_deletion("a b c scratch that delete that").text,
+            apply_voice_deletion("a b c scratch that delete that", &dm()).text,
             "a"
         );
         assert_eq!(
-            apply_voice_deletion("a b c delete last two words scratch that").text,
+            apply_voice_deletion("a b c delete last two words scratch that", &dm()).text,
             ""
         );
         // Word-by-word deletion down to empty does not set the cleared flag.
-        let emptied = apply_voice_deletion("a b scratch that scratch that");
+        let emptied = apply_voice_deletion("a b scratch that scratch that", &dm());
         assert_eq!(emptied.text, "");
         assert!(!emptied.cleared);
     }
 
     #[test]
     fn test_voice_deletion_preserves_layout_without_commands() {
-        let result = apply_voice_deletion("first line\nsecond line");
+        let result = apply_voice_deletion("first line\nsecond line", &dm());
         assert_eq!(result.text, "first line\nsecond line");
         assert!(!result.cleared);
 
         assert_eq!(
-            apply_voice_deletion("already, punctuated. Text!").text,
+            apply_voice_deletion("already, punctuated. Text!", &dm()).text,
             "already, punctuated. Text!"
         );
     }
@@ -1813,11 +1742,11 @@ mod tests {
         // The pass runs after the spoken-punctuation normalizer, so deleted
         // words carry their attached punctuation with them.
         assert_eq!(
-            apply_voice_deletion("hello, world scratch that").text,
+            apply_voice_deletion("hello, world scratch that", &dm()).text,
             "hello,"
         );
         assert_eq!(
-            apply_voice_deletion("Done. World delete that next").text,
+            apply_voice_deletion("Done. World delete that next", &dm()).text,
             "Done. Next"
         );
     }
@@ -1827,16 +1756,16 @@ mod tests {
         // Everything after the last newline goes; the newline itself stays so
         // the next spoken word starts on the fresh line.
         assert_eq!(
-            apply_voice_deletion("first line\nsecond part delete line").text,
+            apply_voice_deletion("first line\nsecond part delete line", &dm()).text,
             "first line\n"
         );
         // Text spoken after the command remains, starting on the fresh line.
         assert_eq!(
-            apply_voice_deletion("one\n_two\nthree delete line four").text,
+            apply_voice_deletion("one\n_two\nthree delete line four", &dm()).text,
             "one\n_two\nfour"
         );
         assert_eq!(
-            apply_voice_deletion("one\ntwo delete line three").text,
+            apply_voice_deletion("one\ntwo delete line three", &dm()).text,
             "one\nthree"
         );
     }
@@ -1846,11 +1775,11 @@ mod tests {
         // No newline means the whole buffer is the trailing line: clearing it
         // empties everything, reported with the cleared flag like "delete
         // everything" (including anything spoken after the command).
-        let result = apply_voice_deletion("just one line delete line trailing words");
+        let result = apply_voice_deletion("just one line delete line trailing words", &dm());
         assert_eq!(result.text, "");
         assert!(result.cleared);
 
-        let bare = apply_voice_deletion("delete line");
+        let bare = apply_voice_deletion("delete line", &dm());
         assert_eq!(bare.text, "");
         assert!(bare.cleared);
     }
@@ -1864,7 +1793,7 @@ mod tests {
             "delete lines",
             "the delete lineage here",
         ] {
-            let result = apply_voice_deletion(text);
+            let result = apply_voice_deletion(text, &dm());
             assert_eq!(result.text, text, "text: {text}");
             assert!(!result.cleared, "text: {text}");
         }
@@ -1876,7 +1805,7 @@ mod tests {
         // result of the previous one. Here "scratch that" removes "four"
         // (the word spoken after the line was cleared).
         assert_eq!(
-            apply_voice_deletion("one\ntwo three delete line four scratch that five").text,
+            apply_voice_deletion("one\ntwo three delete line four scratch that five", &dm()).text,
             "one\nfive"
         );
     }
@@ -1958,11 +1887,11 @@ mod tests {
         // Spoken punctuation converts and voice deletion removes, in finalize
         // order.
         assert_eq!(
-            interim_display_transform("hello comma world", true, true),
+            interim_display_transform("hello comma world", true, true, &dm()),
             "hello, world"
         );
         assert_eq!(
-            interim_display_transform("hello world scratch that there", true, true),
+            interim_display_transform("hello world scratch that there", true, true, &dm()),
             "hello there"
         );
     }
@@ -1970,11 +1899,11 @@ mod tests {
     #[test]
     fn test_interim_display_transform_respects_toggles() {
         assert_eq!(
-            interim_display_transform("hello comma world", false, true),
+            interim_display_transform("hello comma world", false, true, &dm()),
             "hello comma world"
         );
         assert_eq!(
-            interim_display_transform("hello world scratch that there", true, false),
+            interim_display_transform("hello world scratch that there", true, false, &dm()),
             "hello world scratch that there"
         );
     }
@@ -1984,11 +1913,11 @@ mod tests {
         // The deliberate stop: a mid-sentence buffer must not gain a period
         // (or question mark) on any tick.
         assert_eq!(
-            interim_display_transform("hello world", true, true),
+            interim_display_transform("hello world", true, true, &dm()),
             "hello world"
         );
         assert_eq!(
-            interim_display_transform("what is this", true, true),
+            interim_display_transform("what is this", true, true, &dm()),
             "what is this"
         );
     }
@@ -1996,7 +1925,7 @@ mod tests {
     #[test]
     fn test_interim_display_transform_clear_outcome_empties_display() {
         assert_eq!(
-            interim_display_transform("hello delete everything spoken after", true, true),
+            interim_display_transform("hello delete everything spoken after", true, true, &dm()),
             ""
         );
     }
@@ -2013,8 +1942,8 @@ mod tests {
             "plain text with no commands at all",
             "twenty dash five",
         ] {
-            let once = interim_display_transform(raw, true, true);
-            let twice = interim_display_transform(&once, true, true);
+            let once = interim_display_transform(raw, true, true, &dm());
+            let twice = interim_display_transform(&once, true, true, &dm());
             assert_eq!(once, twice, "raw: {raw}");
         }
     }

@@ -1186,11 +1186,12 @@ mod tests {
     /// recognizable speech leaves the live buffer untouched.
     #[test]
     fn blank_or_unrecognized_command_delta_edits_nothing() {
+        let matrix = crate::audio_toolkit::command_matrix::default_compiled_matrix();
         let mut buffer = "hello world".to_string();
-        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "");
-        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "   ");
-        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "\n\t");
-        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "um nothing here");
+        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "", &matrix);
+        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "   ", &matrix);
+        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "\n\t", &matrix);
+        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "um nothing here", &matrix);
         assert_eq!(buffer, "hello world");
     }
 }
