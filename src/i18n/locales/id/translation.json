@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Periksa Pembaruan",
-        "description": "Periksa versi baru VoxBar secara otomatis",
+        "description": "Tampilkan opsi \"Periksa Pembaruan\" di menu baki dan di footer",
         "lockedDescription": "Dinonaktifkan oleh konfigurasi sistem (HANDY_DISABLE_UPDATER)"
       },
       "whatsNewPreview": {

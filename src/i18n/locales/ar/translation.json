@@ -550,7 +550,7 @@
       },
       "updateChecks": {
         "label": "التحقق من وجود تحديثات",
-        "description": "التحقق تلقائياً من وجود إصدارات جديدة من VoxBar",
+        "description": "إظهار خيار التحقق من وجود تحديثات في قائمة الدرج وفي تذييل النافذة",
         "lockedDescription": "معطّل بواسطة إعدادات النظام (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {

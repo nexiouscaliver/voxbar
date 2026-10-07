@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Sök efter uppdateringar",
-        "description": "Sök automatiskt efter nya versioner av VoxBar",
+        "description": "Visa alternativet \"Sök efter uppdateringar\" i traymenyn och i sidfoten",
         "lockedDescription": "Inaktiverad av systemkonfiguration (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {

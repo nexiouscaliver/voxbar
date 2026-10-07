@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Tjek for opdateringer",
-        "description": "Tjek automatisk for nye versioner af VoxBar",
+        "description": "Vis indstillingen \"Tjek for opdateringer\" i bakke-menuen og i sidefoden",
         "lockedDescription": "Deaktiveret af systemkonfiguration (HANDY_DISABLE_UPDATER)"
       },
       "whatsNewPreview": {

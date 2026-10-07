@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Kiểm tra cập nhật",
-        "description": "Tự động kiểm tra phiên bản mới của VoxBar",
+        "description": "Hiển thị tùy chọn \"Kiểm tra cập nhật\" trong menu khay và ở chân cửa sổ",
         "lockedDescription": "Đã bị vô hiệu hóa bởi cấu hình hệ thống (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {

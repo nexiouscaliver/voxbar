@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "アップデートを確認",
-        "description": "VoxBar の新しいバージョンを自動的にチェック",
+        "description": "トレイメニューとフッターに「アップデートを確認」オプションを表示",
         "lockedDescription": "システム設定により無効化されています (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {

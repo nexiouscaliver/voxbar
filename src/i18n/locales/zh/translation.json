@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "检查更新",
-        "description": "自动检查 VoxBar 的新版本",
+        "description": "在托盘菜单和页脚中显示“检查更新”选项",
         "lockedDescription": "已被系统配置禁用 (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {

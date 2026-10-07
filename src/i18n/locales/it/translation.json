@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Controlla aggiornamenti",
-        "description": "Controlla automaticamente la disponibilità di nuove versioni di VoxBar",
+        "description": "Mostra l'opzione \"Controlla aggiornamenti\" nel menu della barra dei menu e nel piè di pagina",
         "lockedDescription": "Disabilitato dalla configurazione di sistema (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {

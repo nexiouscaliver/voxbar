@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Güncellemeleri Kontrol Et",
-        "description": "VoxBar için yeni sürümleri otomatik olarak kontrol eder",
+        "description": "\"Güncellemeleri Kontrol Et\" seçeneğini tepsi menüsünde ve alt bilgide göster",
         "lockedDescription": "Sistem yapılandırması tarafından devre dışı bırakıldı (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {

@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "업데이트 확인",
-        "description": "VoxBar의 새 버전을 자동으로 확인합니다",
+        "description": "트레이 메뉴와 푸터에 \"업데이트 확인\" 옵션 표시",
         "lockedDescription": "시스템 구성에 의해 비활성화됨 (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {

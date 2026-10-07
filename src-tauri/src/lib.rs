@@ -48,12 +48,18 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Listener, Manager};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_log::{Builder as LogBuilder, RotationStrategy, Target, TargetKind};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::settings::get_settings;
 
 // Global atomic to store the file log level filter
 // We use u8 to store the log::LevelFilter as a number
 pub static FILE_LOG_LEVEL: AtomicU8 = AtomicU8::new(log::LevelFilter::Debug as u8);
+
+/// Releases page opened by every "Check for Updates" affordance (tray item
+/// and footer link). This build ships no in-app updater, so the honest
+/// behavior is to hand the user over to the releases list in their browser.
+const RELEASES_URL: &str = "https://github.com/nexiouscaliver/voxbar/releases";
 
 /// When `true`, log records are also forwarded to the webview via the
 /// `log://log` event for the debug panel's live log viewer. Gated on debug
@@ -292,10 +298,11 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                 show_main_window(app);
             }
             "check_updates" => {
-                let settings = settings::get_settings(app);
-                if settings::update_checks_effectively_enabled(&settings) {
-                    show_main_window(app);
-                    let _ = app.emit("check-for-updates", ());
+                // No in-app updater exists in this build, so the item opens
+                // the releases page in the default browser instead of
+                // pretending to check an update endpoint.
+                if let Err(err) = app.opener().open_url(RELEASES_URL, None::<String>) {
+                    log::error!("Failed to open the releases page: {err}");
                 }
             }
             "copy_last_transcript" => {
@@ -401,18 +408,6 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
-}
-
-#[tauri::command]
-#[specta::specta]
-fn trigger_update_check(app: AppHandle) -> Result<(), String> {
-    let settings = settings::get_settings(&app);
-    if !settings::update_checks_effectively_enabled(&settings) {
-        return Ok(());
-    }
-    app.emit("check-for-updates", ())
-        .map_err(|e| e.to_string())?;
-    Ok(())
 }
 
 #[tauri::command]
@@ -763,7 +758,6 @@ pub fn run(cli_args: CliArgs) {
             shortcut::handy_keys::stop_handy_keys_recording,
             secure_input::get_secure_input_status,
             secure_input::run_keyboard_diagnostic,
-            trigger_update_check,
             show_main_window_command,
             commands::cancel_operation,
             commands::is_portable,
@@ -929,15 +923,10 @@ pub fn run(cli_args: CliArgs) {
     #[allow(unused_mut)]
     let mut app = builder
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_process::init())
-        // Updater NOT registered: T2 removed the plugins.updater config
-        // section (updater disabled), and the plugin's init REQUIRES that
-        // section - registering it panics the app at startup (verified by
-        // running the debug binary: PluginInitialization("updater", ...
-        // invalid type: null)). The frontend check surface stays
-        // visible-and-inert: UpdateChecker's `check()` now fails fast with
-        // "plugin not registered" and its existing catch swallows the error
-        // (logs, no dialog, no crash) - spec F1/T2 AC8a behavior.
+        // No updater plugin is registered (or depended on): this build ships
+        // no update endpoint to query. Both "Check for Updates" affordances
+        // (tray item and footer link) open RELEASES_URL in the default
+        // browser instead.
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_macos_permissions::init())

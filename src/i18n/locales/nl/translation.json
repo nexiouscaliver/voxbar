@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Controleren op updates",
-        "description": "Automatisch controleren op nieuwe versies van VoxBar",
+        "description": "Toon de optie \"Controleren op updates\" in het tray-menu en in de voettekst",
         "lockedDescription": "Uitgeschakeld door systeemconfiguratie (HANDY_DISABLE_UPDATER)"
       },
       "whatsNewPreview": {

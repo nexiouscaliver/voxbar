@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Sprawdzaj aktualizacje",
-        "description": "Automatycznie sprawdzaj nowe wersje VoxBar",
+        "description": "Pokazuj opcję \"Sprawdzaj aktualizacje\" w menu zasobnika i w stopce",
         "lockedDescription": "Wyłączone przez konfigurację systemową (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {

@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Comproveu si hi ha actualitzacions",
-        "description": "Comprova automàticament si hi ha versions noves del VoxBar",
+        "description": "Mostra l'opció \"Comproveu si hi ha actualitzacions\" al menú de la safata i al peu de la finestra",
         "lockedDescription": "Desactivat per la configuració del sistema (HANDY_DISABLE_UPDATER)"
       },
       "whatsNewPreview": {

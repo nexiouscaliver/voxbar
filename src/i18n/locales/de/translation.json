@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Nach Updates suchen",
-        "description": "Automatisch nach neuen Versionen von VoxBar suchen",
+        "description": "Die Option \"Nach Updates suchen\" im Tray-Menü und in der Fußzeile anzeigen",
         "lockedDescription": "Durch Systemkonfiguration deaktiviert (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {

@@ -601,7 +601,7 @@
       },
       "updateChecks": {
         "label": "अपडेट जांचें",
-        "description": "VoxBar के नए वर्शन की अपने आप जांच करें",
+        "description": "ट्रे मेनू और फ़ुटर में \"अपडेट जांचें\" विकल्प दिखाएँ",
         "lockedDescription": "सिस्टम कॉन्फ़िगरेशन द्वारा अक्षम (HANDY_DISABLE_UPDATER)"
       },
       "whatsNewPreview": {
