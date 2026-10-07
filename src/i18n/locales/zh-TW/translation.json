@@ -829,7 +829,8 @@
   },
   "overlay": {
     "transcribing": "正在轉錄...",
-    "processing": "處理中..."
+    "processing": "處理中...",
+    "removedWord": "已移除：{{text}}"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} 新功能"

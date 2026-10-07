@@ -829,7 +829,8 @@
   },
   "overlay": {
     "transcribing": "텍스트로 변환 중...",
-    "processing": "처리 중..."
+    "processing": "처리 중...",
+    "removedWord": "제거됨: {{text}}"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}}의 새 소식"

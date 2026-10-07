@@ -829,7 +829,8 @@
   },
   "overlay": {
     "transcribing": "Đang chuyển đổi...",
-    "processing": "Đang xử lý..."
+    "processing": "Đang xử lý...",
+    "removedWord": "Đã xóa: {{text}}"
   },
   "whatsNew": {
     "title": "Điểm mới trong VoxBar v{{version}}"

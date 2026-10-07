@@ -829,7 +829,8 @@
   },
   "overlay": {
     "transcribing": "Transcrevendo...",
-    "processing": "Processando..."
+    "processing": "Processando...",
+    "removedWord": "Removido: {{text}}"
   },
   "whatsNew": {
     "title": "Novidades no VoxBar v{{version}}"

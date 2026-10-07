@@ -829,7 +829,8 @@
   },
   "overlay": {
     "transcribing": "文字起こし中…",
-    "processing": "処理中…"
+    "processing": "処理中…",
+    "removedWord": "削除: {{text}}"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} の新機能"

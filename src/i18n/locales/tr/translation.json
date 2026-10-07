@@ -829,7 +829,8 @@
   },
   "overlay": {
     "transcribing": "Transkribe ediliyor...",
-    "processing": "İşleniyor..."
+    "processing": "İşleniyor...",
+    "removedWord": "Kaldırıldı: {{text}}"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} yenilikleri"

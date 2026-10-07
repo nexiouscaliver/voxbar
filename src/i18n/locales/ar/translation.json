@@ -829,7 +829,8 @@
   },
   "overlay": {
     "transcribing": "...جاري التفريغ",
-    "processing": "...جاري المعالجة"
+    "processing": "...جاري المعالجة",
+    "removedWord": "تمت إزالته: {{text}}"
   },
   "whatsNew": {
     "title": "الجديد في VoxBar v{{version}}"

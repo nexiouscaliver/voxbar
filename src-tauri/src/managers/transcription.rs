@@ -4,7 +4,7 @@ use crate::audio_toolkit::commands::{
 use crate::audio_toolkit::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion, detect_output_language,
     interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
-    remove_filler_words, remove_trailing_word_from_buffer, OutputLanguageEvidence,
+    remove_filler_words, remove_trailing_word_from_buffer_reporting, OutputLanguageEvidence,
     VoiceDeletionOutcome,
 };
 use crate::chinese_script::{convert_chinese_script, ChineseVariety};
@@ -184,11 +184,19 @@ pub struct ModelFallbackEvent {
 
 /// Live transcription snapshot emitted to the overlay during a streaming run.
 /// `committed` is the append-only, flicker-free prefix; `tentative` is the
-/// volatile suffix the model may still rewrite.
+/// volatile suffix the model may still rewrite. `deleted` carries the text a
+/// buffer-side deletion just removed (the delete-word hotkey or a command-mode
+/// DeleteWord / DeleteLine) so the overlay can show what went; absent from
+/// the payload entirely when nothing was deleted.
 #[derive(Clone, Debug, Serialize, Deserialize, Type, tauri_specta::Event)]
 pub struct StreamTextEvent {
     pub committed: String,
     pub tentative: String,
+    /// Present only when a buffer-side deletion just removed text; the
+    /// payload omits the key entirely otherwise (the StreamPhaseEvent
+    /// `kind` precedent).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted: Option<String>,
 }
 
 /// Phase of the streaming overlay card, emitted to drive its UI state.
@@ -307,6 +315,12 @@ struct StreamSessionBuffer {
     /// release-snapshot dictation. Only a set marker fires the
     /// release/finalize flush.
     holding: bool,
+    /// Text removed by the most recent buffer-side deletion (the
+    /// delete-word hotkey or a command-mode DeleteWord / DeleteLine), set
+    /// by whichever path applied it and drained by [`Self::take_deleted`]
+    /// for the next stream-text emission so the overlay can show what
+    /// went. Draining keeps a stale value off later emissions.
+    last_deleted: Option<String>,
     /// Toggles for the interim display transform, captured when the stream
     /// begins (a mid-session toggle applies from the next session, matching
     /// how `PreviewScript` captures `chinese_script` today).
@@ -325,6 +339,7 @@ impl Default for StreamSessionBuffer {
             live: false,
             command_active: false,
             holding: false,
+            last_deleted: None,
             spoken_punctuation: true,
             voice_deletion: true,
             preview_script: PreviewScript::new(
@@ -350,6 +365,7 @@ impl StreamSessionBuffer {
         self.live = true;
         self.command_active = false;
         self.holding = false;
+        self.last_deleted = None;
         self.spoken_punctuation = spoken_punctuation;
         self.voice_deletion = voice_deletion;
         self.preview_script = preview_script;
@@ -363,6 +379,7 @@ impl StreamSessionBuffer {
         self.live = false;
         self.command_active = false;
         self.holding = false;
+        self.last_deleted = None;
         self.base.clear();
         self.raw_seen.clear();
         self.last_full.clear();
@@ -421,7 +438,7 @@ impl StreamSessionBuffer {
                 let delta = snapshot[keep..].to_string();
                 let held = held_prefix_len(&delta, COMMAND_VOCABULARY);
                 let applicable_end = delta.len() - held;
-                crate::audio_toolkit::apply_command_delta_to_buffer(
+                self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
                     &mut self.base,
                     &delta[..applicable_end],
                 );
@@ -464,9 +481,20 @@ impl StreamSessionBuffer {
     fn flush_held_region(&mut self, region: &str) -> usize {
         let consumed = flush_command_prefix_len(region, COMMAND_VOCABULARY);
         if consumed > 0 {
-            crate::audio_toolkit::apply_command_delta_to_buffer(&mut self.base, &region[..consumed]);
+            self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
+                &mut self.base,
+                &region[..consumed],
+            );
         }
         consumed
+    }
+
+    /// Take the text removed by the most recent buffer-side deletion (the
+    /// delete-word hotkey or a command-mode DeleteWord / DeleteLine), if
+    /// any, so the caller can surface it on the stream-text emission.
+    /// Draining keeps a stale value off later emissions.
+    fn take_deleted(&mut self) -> Option<String> {
+        self.last_deleted.take()
     }
 
     /// Apply the delete-last-word hotkey to the buffer. Returns the refreshed
@@ -477,7 +505,10 @@ impl StreamSessionBuffer {
             return None;
         }
         let buffer = self.combine(&self.last_full);
-        self.base = remove_trailing_word_from_buffer(&buffer);
+        let (edited, removed_word) = remove_trailing_word_from_buffer_reporting(&buffer);
+        self.base = edited;
+        // Report what the hotkey removed so the overlay can show it.
+        self.last_deleted = removed_word;
         self.raw_seen = self.last_full.clone();
         // The held region (if any) is consumed unparsed; a stale marker
         // must never fire a later flush.
@@ -506,7 +537,10 @@ impl StreamSessionBuffer {
         self.raw_seen = self.last_full.clone();
         // Same as the delete-word hotkey: the reset consumes any held
         // fragment without parsing it, and the marker must not survive.
+        // The clear-everything reset is not one of the instrumented
+        // word/line deletions, so nothing is reported as removed.
         self.holding = false;
+        self.last_deleted = None;
         let raw = self.combine(&self.last_full);
         let (converted, _) = self
             .preview_script
@@ -1593,11 +1627,15 @@ impl TranscriptionManager {
                     let command_modifier = app_handle
                         .try_state::<crate::TranscriptionCoordinator>()
                         .is_some_and(|c| c.is_command_modifier_active());
-                    let display = {
+                    let (display, deleted) = {
                         let mut session = session_buffer_for_progress
                             .lock()
                             .unwrap_or_else(|e| e.into_inner());
-                        session.render(&text.committed, &text.tentative, command_modifier)
+                        let display =
+                            session.render(&text.committed, &text.tentative, command_modifier);
+                        // Surface what a command-mode deletion just removed
+                        // (None on every ordinary tick).
+                        (display, session.take_deleted())
                     };
                     // The whole displayed text is emitted as the committed
                     // part: the interim transform runs over the full raw
@@ -1605,7 +1643,7 @@ impl TranscriptionManager {
                     // be preserved exactly across punctuation joins and
                     // deletions. The model's own rewrites still surface
                     // because the display is recomputed from every snapshot.
-                    emit_stream_text(&app_handle, &display, "");
+                    emit_stream_text(&app_handle, &display, "", deleted.as_deref());
                 }
                 perf.maybe_log();
             }
@@ -1800,9 +1838,11 @@ impl TranscriptionManager {
             .unwrap_or_else(|e| e.into_inner());
         match session.delete_last_word() {
             Some(display) => {
+                let deleted = session.take_deleted();
                 let _ = StreamTextEvent {
                     committed: display,
                     tentative: String::new(),
+                    deleted,
                 }
                 .emit(&self.app_handle);
                 true
@@ -1825,6 +1865,10 @@ impl TranscriptionManager {
                 let _ = StreamTextEvent {
                     committed: display,
                     tentative: String::new(),
+                    // The clear-everything reset is not one of the
+                    // instrumented word/line deletions; nothing reports as
+                    // removed.
+                    deleted: None,
                 }
                 .emit(&self.app_handle);
                 true
@@ -2276,10 +2320,16 @@ struct RunOutcome {
     model_is_whisper: bool,
 }
 
-fn emit_stream_text(app_handle: &AppHandle, committed: &str, tentative: &str) {
+fn emit_stream_text(
+    app_handle: &AppHandle,
+    committed: &str,
+    tentative: &str,
+    deleted: Option<&str>,
+) {
     let _ = StreamTextEvent {
         committed: committed.to_string(),
         tentative: tentative.to_string(),
+        deleted: deleted.map(str::to_string),
     }
     .emit(app_handle);
 }
@@ -3360,6 +3410,46 @@ mod tests {
             session.render("hello world comma comma new line comma", "", true),
             "hello world,\n,"
         );
+    }
+
+    // -----------------------------------------------------------------
+    // Deletion reporting: the delete-word hotkey and the command-mode
+    // DeleteWord / DeleteLine surface exactly what they removed, so the
+    // refreshed display emission can carry deleted: Some(text).
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn session_buffer_hotkey_word_deletion_reports_the_removed_word() {
+        let mut session = session_buffer();
+        session.render("one two three", "", false);
+        assert_eq!(session.delete_last_word(), Some("one two ".to_string()));
+        assert_eq!(session.take_deleted(), Some("three".to_string()));
+        // Drained: a later emission reports nothing.
+        assert_eq!(session.take_deleted(), None);
+        // Deleting with nothing visible left reports None.
+        let mut empty = session_buffer();
+        empty.render("   ", "", false);
+        assert_eq!(empty.delete_last_word(), Some("".to_string()));
+        assert_eq!(empty.take_deleted(), None);
+    }
+
+    #[test]
+    fn session_buffer_command_mode_deletion_reports_the_removed_text() {
+        let mut session = session_buffer();
+        session.render("alpha beta", "", false);
+        session.render("alpha beta", "", true); // engage
+        assert_eq!(session.render("alpha beta delete word", "", true), "alpha ");
+        assert_eq!(session.take_deleted(), Some("beta".to_string()));
+        // An ordinary command tick reports nothing.
+        assert_eq!(session.render("alpha beta comma", "", true), "alpha ,");
+        assert_eq!(session.take_deleted(), None);
+
+        // DeleteLine reports the cleared trailing line.
+        let mut lines = session_buffer();
+        lines.render("first\nsecond", "", false);
+        lines.render("first\nsecond", "", true); // engage
+        assert_eq!(lines.render("first\nsecond delete line", "", true), "first\n");
+        assert_eq!(lines.take_deleted(), Some("second".to_string()));
     }
 
     #[test]

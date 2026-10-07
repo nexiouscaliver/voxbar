@@ -778,9 +778,19 @@ fn remove_trailing_words(text: &mut String, count: usize) {
 /// the whitespace that separated the removed word from the previous one is
 /// kept, so material streamed after the edit joins with correct spacing.
 pub fn remove_trailing_word_from_buffer(text: &str) -> String {
+    remove_trailing_word_from_buffer_reporting(text).0
+}
+
+/// [`remove_trailing_word_from_buffer`] with reporting: also returns the
+/// word that was removed (exactly the trailing non-whitespace run, attached
+/// punctuation included, no surrounding whitespace), or `None` when the
+/// buffer held no word to remove. Pure; the overlay shows the reported
+/// text on a "Removed:" chip so a deletion is never invisible.
+pub fn remove_trailing_word_from_buffer_reporting(text: &str) -> (String, Option<String>) {
     let mut buffer = text.to_string();
     remove_trailing_words(&mut buffer, 1);
-    buffer
+    let removed = text.split_whitespace().next_back().map(str::to_string);
+    (buffer, removed)
 }
 
 /// Clears the current trailing line of a raw session buffer, with the same
@@ -790,13 +800,28 @@ pub fn remove_trailing_word_from_buffer(text: &str) -> String {
 /// on the fresh line, and with no newline the whole buffer is the trailing
 /// line and empties entirely.
 pub fn remove_trailing_line_from_buffer(text: &str) -> String {
+    remove_trailing_line_from_buffer_reporting(text).0
+}
+
+/// [`remove_trailing_line_from_buffer`] with reporting: also returns the
+/// text that was cleared (everything after the last newline, or the whole
+/// buffer when there is no newline), or `None` when that span held nothing
+/// visible to remove. Pure.
+pub fn remove_trailing_line_from_buffer_reporting(text: &str) -> (String, Option<String>) {
     match text.rfind('\n') {
         Some(newline) => {
             let mut buffer = text.to_string();
             buffer.truncate(newline + 1);
-            buffer
+            let removed = &text[newline + 1..];
+            (
+                buffer,
+                (!removed.trim().is_empty()).then(|| removed.to_string()),
+            )
         }
-        None => String::new(),
+        None => (
+            String::new(),
+            (!text.trim().is_empty()).then(|| text.to_string()),
+        ),
     }
 }
 
@@ -1877,6 +1902,55 @@ mod tests {
         // No newline: the whole buffer is the trailing line and empties.
         assert_eq!(remove_trailing_line_from_buffer("only line"), "");
         assert_eq!(remove_trailing_line_from_buffer(""), "");
+    }
+
+    #[test]
+    fn test_deletion_reporting_helpers_report_the_removed_span() {
+        // Word reporting: the reported text is exactly the removed trailing
+        // non-whitespace run, attached punctuation included; the buffer
+        // outcome matches the non-reporting variant.
+        assert_eq!(
+            remove_trailing_word_from_buffer_reporting("one two three"),
+            ("one two ".to_string(), Some("three".to_string()))
+        );
+        assert_eq!(
+            remove_trailing_word_from_buffer_reporting("done."),
+            (String::new(), Some("done.".to_string()))
+        );
+        assert_eq!(
+            remove_trailing_word_from_buffer_reporting("one "),
+            (String::new(), Some("one".to_string()))
+        );
+        // Nothing visible to remove.
+        assert_eq!(
+            remove_trailing_word_from_buffer_reporting("   "),
+            (String::new(), None)
+        );
+        assert_eq!(remove_trailing_word_from_buffer_reporting(""), (String::new(), None));
+
+        // Line reporting: the span after the last newline, or the whole
+        // buffer with no newline; None when that span holds nothing
+        // visible.
+        assert_eq!(
+            remove_trailing_line_from_buffer_reporting("first\nsecond third"),
+            ("first\n".to_string(), Some("second third".to_string()))
+        );
+        assert_eq!(
+            remove_trailing_line_from_buffer_reporting("first\n"),
+            ("first\n".to_string(), None)
+        );
+        assert_eq!(
+            remove_trailing_line_from_buffer_reporting("first\n  "),
+            ("first\n".to_string(), None)
+        );
+        assert_eq!(
+            remove_trailing_line_from_buffer_reporting("only line"),
+            (String::new(), Some("only line".to_string()))
+        );
+        assert_eq!(
+            remove_trailing_line_from_buffer_reporting(""),
+            (String::new(), None)
+        );
     }
 
     #[test]
