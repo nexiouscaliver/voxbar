@@ -194,6 +194,8 @@ const settingUpdaters: {
     commands.changeFillerWordRemovalEnabledSetting(value as boolean),
   spoken_punctuation: (value) =>
     commands.changeSpokenPunctuationSetting(value as boolean),
+  auto_interpret_commands: (value) =>
+    commands.changeAutoInterpretCommandsSetting(value as boolean),
   terminal_punctuation: (value) =>
     commands.changeTerminalPunctuationSetting(value as boolean),
   voice_deletion_commands: (value) =>

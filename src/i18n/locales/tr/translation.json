@@ -477,6 +477,10 @@
         "title": "Dolgu Sözcüklerini Kaldır",
         "description": "Transkripsiyonlardaki yaygın duraksama sözcüklerini kaldırır. Bunları korumak için kapatın."
       },
+      "autoInterpret": {
+        "title": "Komutları otomatik yorumla",
+        "description": "Normal dikte sırasında söylenen komut kelimelerini (\"comma\", \"scratch that\") yorumlar. Kapatınca komut kelimeleri normal kelime olarak yazılır; komutları uygulamak için komut modu değiştirici tuşunu basılı tutun."
+      },
       "spokenPunctuation": {
         "title": "Sözlü noktalama",
         "description": "\"comma\", \"period\" ve \"question mark\" gibi söylenen noktalama kelimelerini gerçek noktalamaya dönüştürür. Sıradan kelime olarak bırakmak için kapatın."

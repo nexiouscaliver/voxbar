@@ -477,6 +477,10 @@
         "title": "Eliminar muletillas",
         "description": "Elimina las muletillas más comunes de las transcripciones. Desactívalo para conservarlas."
       },
+      "autoInterpret": {
+        "title": "Interpretar comandos automáticamente",
+        "description": "Interpreta las palabras de comando habladas (\"comma\", \"scratch that\") durante el dictado normal. Desactívalo para escribirlas como palabras normales; mantén pulsado el modificador del modo de comandos para ejecutar comandos."
+      },
       "spokenPunctuation": {
         "title": "Puntuación hablada",
         "description": "Convierte palabras de puntuación habladas como \"comma\", \"period\" y \"question mark\" en puntuación real. Desactívalo para mantenerlas como palabras normales."

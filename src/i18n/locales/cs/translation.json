@@ -477,6 +477,10 @@
         "title": "Odstranit výplňová slova",
         "description": "Odstraňuje běžná slova vyjadřující váhání z přepisů. Vypnutím je zachováte."
       },
+      "autoInterpret": {
+        "title": "Automatická interpretace příkazů",
+        "description": "Interpretuje vyslovená příkazová slova (\"comma\", \"scratch that\") při běžném diktování. Vypněte, aby se příkazová slova psala jako obyčejná slova; pro provádění příkazů podržte modifikátor režimu příkazů."
+      },
       "spokenPunctuation": {
         "title": "Mluvená interpunkce",
         "description": "Převádí mluvená interpunkční slova jako \"comma\", \"period\" a \"question mark\" na skutečnou interpunkci. Vypněte, aby zůstala běžnými slovy."

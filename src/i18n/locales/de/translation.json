@@ -477,6 +477,10 @@
         "title": "Füllwörter entfernen",
         "description": "Entfernt häufige Verzögerungslaute aus Transkriptionen. Deaktivieren Sie diese Option, um sie beizubehalten."
       },
+      "autoInterpret": {
+        "title": "Befehle automatisch ausführen",
+        "description": "Interpretiert gesprochene Befehlswörter (\"comma\", \"scratch that\") während des normalen Diktierens. Ausschalten, um Befehlswörter als normale Wörter zu tippen; halten Sie den Modifikator des Befehlsmodus gedrückt, um Befehle auszuführen."
+      },
       "spokenPunctuation": {
         "title": "Gesprochene Satzzeichen",
         "description": "Wandelt gesprochene Satzzeichenwörter wie \"comma\", \"period\" und \"question mark\" in echte Satzzeichen um. Ausschalten, um sie als normale Wörter zu behalten."

@@ -477,6 +477,10 @@
         "title": "Supprimer les mots de remplissage",
         "description": "Supprime les hésitations courantes des transcriptions. Désactivez cette option pour les conserver."
       },
+      "autoInterpret": {
+        "title": "Interprétation automatique des commandes",
+        "description": "Interprète les mots de commande prononcés (\"comma\", \"scratch that\") pendant la dictée normale. Désactivez pour les taper comme des mots normaux ; maintenez le modificateur du mode commandes pour exécuter les commandes."
+      },
       "spokenPunctuation": {
         "title": "Ponctuation vocale",
         "description": "Convertit les mots de ponctuation dictés comme \"comma\", \"period\" et \"question mark\" en vraie ponctuation. Désactivez pour les garder comme mots simples."

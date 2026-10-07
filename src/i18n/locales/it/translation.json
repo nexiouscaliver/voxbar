@@ -477,6 +477,10 @@
         "title": "Rimuovi le parole riempitive",
         "description": "Rimuove le parole di esitazione più comuni dalle trascrizioni. Disattiva per mantenerle."
       },
+      "autoInterpret": {
+        "title": "Interpretazione automatica dei comandi",
+        "description": "Interpreta le parole di comando pronunciate (\"comma\", \"scratch that\") durante la dettatura normale. Disattiva per digitarle come parole normali; tieni premuto il modificatore della modalità comandi per eseguire i comandi."
+      },
       "spokenPunctuation": {
         "title": "Punteggiatura parlata",
         "description": "Trasforma le parole di punteggiatura pronunciate come \"comma\", \"period\" e \"question mark\" in vera punteggiatura. Disattiva per mantenerle come parole normali."

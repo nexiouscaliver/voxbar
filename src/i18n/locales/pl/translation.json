@@ -477,6 +477,10 @@
         "title": "Usuń wyrazy wypełniające",
         "description": "Usuwa typowe słowa wyrażające wahanie z transkrypcji. Wyłącz, aby je zachować."
       },
+      "autoInterpret": {
+        "title": "Automatyczna interpretacja poleceń",
+        "description": "Interpretuje wypowiadane słowa poleceń (\"comma\", \"scratch that\") podczas normalnego dyktowania. Wyłącz, aby wpisywać słowa poleceń jako zwykłe słowa; przytrzymaj modyfikator trybu poleceń, aby wykonywać polecenia."
+      },
       "spokenPunctuation": {
         "title": "Mówiona interpunkcja",
         "description": "Zamienia wypowiadane słowa interpunkcyjne takie jak \"comma\", \"period\" i \"question mark\" na prawdziwą interpunkcję. Wyłącz, aby zachować je jako zwykłe słowa."
