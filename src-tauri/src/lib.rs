@@ -12,6 +12,7 @@ mod commands;
 pub mod engine_supervisor;
 mod helpers;
 mod input;
+mod legacy_migration;
 mod llm_client;
 mod managers;
 mod memory;
@@ -891,6 +892,13 @@ pub fn run(cli_args: CliArgs) {
         ))
         .manage(cli_args.clone())
         .setup(move |app| {
+            // Installed-upgrade continuity (legacy Handy -> VoxBar): must be
+            // the FIRST thing setup() does — the `get_settings` read below
+            // WRITES defaults into a fresh store, and the headless branch's
+            // `ModelManager::new` create_dir_all's `models/`; either would
+            // defeat the migration's no-store trigger / skip-if-present.
+            legacy_migration::run_first_run_migration(app.handle());
+
             #[cfg(target_os = "windows")]
             log::info!(
                 "Vulkan layer policy: VK_LOADER_LAYERS_DISABLE={:?}, HANDY_KEEP_VULKAN_IMPLICIT_LAYERS={}",
