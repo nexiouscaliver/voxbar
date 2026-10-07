@@ -1,5 +1,8 @@
+use crate::audio_toolkit::command_matrix::{
+    matrix_from_settings, CompiledCommandMatrix,
+};
 use crate::audio_toolkit::commands::{
-    flush_command_prefix_len, held_prefix_len, COMMAND_VOCABULARY,
+    flush_command_prefix_len, held_prefix_len,
 };
 use crate::audio_toolkit::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion, detect_output_language,
@@ -321,6 +324,11 @@ struct StreamSessionBuffer {
     /// for the next stream-text emission so the overlay can show what
     /// went. Draining keeps a stale value off later emissions.
     last_deleted: Option<String>,
+    /// The compiled command matrix this session's command grammar and
+    /// interim transforms run against, captured at `begin` (the edited
+    /// table when `command_phrases` is set, the shared defaults
+    /// otherwise). Per-tick cost is a clone of an Arc; no regex rebuilds.
+    matrix: Arc<CompiledCommandMatrix>,
     /// Toggles for the interim display transform, captured when the stream
     /// begins (a mid-session toggle applies from the next session, matching
     /// how `PreviewScript` captures `chinese_script` today).
@@ -340,6 +348,7 @@ impl Default for StreamSessionBuffer {
             command_active: false,
             holding: false,
             last_deleted: None,
+            matrix: crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             spoken_punctuation: true,
             voice_deletion: true,
             preview_script: PreviewScript::new(
@@ -361,6 +370,7 @@ impl StreamSessionBuffer {
         spoken_punctuation: bool,
         voice_deletion: bool,
         supported_languages: &[String],
+        matrix: Arc<CompiledCommandMatrix>,
     ) {
         self.live = true;
         self.command_active = false;
@@ -370,6 +380,7 @@ impl StreamSessionBuffer {
         self.voice_deletion = voice_deletion;
         self.preview_script = preview_script;
         self.supported_languages = supported_languages.to_vec();
+        self.matrix = matrix;
         self.base.clear();
         self.raw_seen.clear();
         self.last_full.clear();
@@ -436,11 +447,12 @@ impl StreamSessionBuffer {
             } else {
                 let keep = common_prefix_len(&self.raw_seen, &snapshot);
                 let delta = snapshot[keep..].to_string();
-                let held = held_prefix_len(&delta, COMMAND_VOCABULARY);
+                let held = held_prefix_len(&delta, &self.matrix);
                 let applicable_end = delta.len() - held;
                 self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
                     &mut self.base,
                     &delta[..applicable_end],
+                    &self.matrix,
                 );
                 self.raw_seen = snapshot[..snapshot.len() - held].to_string();
                 self.holding = held > 0;
@@ -467,7 +479,12 @@ impl StreamSessionBuffer {
         let (converted, _) = self
             .preview_script
             .convert(&raw, "", &self.supported_languages);
-        interim_display_transform(&converted, self.spoken_punctuation, self.voice_deletion)
+        interim_display_transform(
+            &converted,
+            self.spoken_punctuation,
+            self.voice_deletion,
+            &self.matrix,
+        )
     }
 
     /// Flush an unresolved held fragment through the command grammar and
@@ -479,11 +496,12 @@ impl StreamSessionBuffer {
     /// commands (unrecognized words discarded per the contract) and any
     /// remainder stays unconsumed, flowing on as normal dictation.
     fn flush_held_region(&mut self, region: &str) -> usize {
-        let consumed = flush_command_prefix_len(region, COMMAND_VOCABULARY);
+        let consumed = flush_command_prefix_len(region, &self.matrix);
         if consumed > 0 {
             self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
                 &mut self.base,
                 &region[..consumed],
+                &self.matrix,
             );
         }
         consumed
@@ -521,6 +539,7 @@ impl StreamSessionBuffer {
             &converted,
             self.spoken_punctuation,
             self.voice_deletion,
+            &self.matrix,
         ))
     }
 
@@ -549,6 +568,7 @@ impl StreamSessionBuffer {
             &converted,
             self.spoken_punctuation,
             self.voice_deletion,
+            &self.matrix,
         ))
     }
 
@@ -1650,11 +1670,12 @@ impl TranscriptionManager {
         };
 
         // The session buffer goes live before the engine stream starts, so
-        // no interim callback can race past `begin`. Toggles are captured
-        // here (once per session), matching `PreviewScript`. The
-        // auto-interpretation master gate ANDs with the per-pass toggles
-        // (same composition as post_process_transcription_text) so the
-        // interim display matches the paste.
+        // no interim callback can race past `begin`. Toggles and the
+        // compiled command matrix are captured here (once per session),
+        // matching `PreviewScript`. The auto-interpretation master gate
+        // ANDs with the per-pass toggles (same composition as
+        // post_process_transcription_text) so the interim display matches
+        // the paste.
         self.session_buffer
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -1663,6 +1684,7 @@ impl TranscriptionManager {
                 settings.spoken_punctuation && settings.auto_interpret_commands,
                 settings.voice_deletion_commands && settings.auto_interpret_commands,
                 &languages,
+                matrix_from_settings(&settings),
             );
 
         // Run the stream in the engine's worker process. Feeds are queued
@@ -2567,6 +2589,10 @@ fn post_process_transcription_text(
     supported_languages: &[String],
 ) -> String {
     let converts_script = settings.chinese_script != ChineseScript::AsTranscribed;
+    // The command matrix compiles once per call (shared Arc for the
+    // defaults; only an edited table builds fresh regexes) and feeds both
+    // spoken-command passes below.
+    let matrix = matrix_from_settings(settings);
     fail_open_text_transform(raw, |raw| {
         // Last-resort language evidence: confidence-gated detection from the
         // transcribed text itself, constrained to the model's languages. Only
@@ -2610,7 +2636,7 @@ fn post_process_transcription_text(
         // OFF leaves command words as plain words (the command-mode
         // modifier is a separate surface and stays untouched).
         let punctuated = if settings.spoken_punctuation && settings.auto_interpret_commands {
-            normalize_spoken_punctuation(&raw)
+            normalize_spoken_punctuation(&raw, &matrix)
         } else {
             raw
         };
@@ -2621,7 +2647,7 @@ fn post_process_transcription_text(
         // every later pass: the dictation pastes nothing (the paste site
         // already skips empty text).
         let deleted = if settings.voice_deletion_commands && settings.auto_interpret_commands {
-            apply_voice_deletion(&punctuated)
+            apply_voice_deletion(&punctuated, &matrix)
         } else {
             VoiceDeletionOutcome {
                 text: punctuated,
@@ -3051,6 +3077,7 @@ mod tests {
             true,
             true,
             &languages(&["en"]),
+            crate::audio_toolkit::command_matrix::default_compiled_matrix(),
         );
         buffer
     }
@@ -3489,6 +3516,7 @@ mod tests {
             true,
             true,
             &languages(&["en"]),
+            crate::audio_toolkit::command_matrix::default_compiled_matrix(),
         );
         assert!(!session.command_active);
         assert_eq!(session.render("hello there", "", false), "hello there");
