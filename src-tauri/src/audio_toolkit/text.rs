@@ -460,6 +460,204 @@ pub fn remove_filler_words(
     filtered
 }
 
+/// One spoken-punctuation vocabulary entry.
+struct SpokenPunctuationRule {
+    /// Lowercase spoken words. Multi-word entries are matched as a phrase, so
+    /// "question mark" can never fire on the word "question" alone.
+    phrase: &'static [&'static str],
+    /// Text the spoken phrase becomes. The dash is always a plain ASCII
+    /// hyphen, never an em or en dash.
+    replacement: &'static str,
+}
+
+/// UK and US vocabularies are both covered ("full stop" / "period",
+/// "exclamation mark" / "exclamation point"). Two-word phrases are listed
+/// before any single-word rival so the longest phrase always wins.
+const SPOKEN_PUNCTUATION_RULES: &[SpokenPunctuationRule] = &[
+    SpokenPunctuationRule {
+        phrase: &["full", "stop"],
+        replacement: ".",
+    },
+    SpokenPunctuationRule {
+        phrase: &["question", "mark"],
+        replacement: "?",
+    },
+    SpokenPunctuationRule {
+        phrase: &["exclamation", "mark"],
+        replacement: "!",
+    },
+    SpokenPunctuationRule {
+        phrase: &["exclamation", "point"],
+        replacement: "!",
+    },
+    SpokenPunctuationRule {
+        phrase: &["new", "paragraph"],
+        replacement: "\n\n",
+    },
+    SpokenPunctuationRule {
+        phrase: &["new", "line"],
+        replacement: "\n",
+    },
+    SpokenPunctuationRule {
+        phrase: &["period"],
+        replacement: ".",
+    },
+    SpokenPunctuationRule {
+        phrase: &["comma"],
+        replacement: ",",
+    },
+    SpokenPunctuationRule {
+        phrase: &["colon"],
+        replacement: ":",
+    },
+    SpokenPunctuationRule {
+        phrase: &["semicolon"],
+        replacement: ";",
+    },
+    SpokenPunctuationRule {
+        phrase: &["dash"],
+        replacement: "-",
+    },
+];
+
+static SPOKEN_PUNCTUATION_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    // Built from the rule table so the regex can never drift from it. The
+    // `\b` anchors keep every token word-boundary matched: nothing fires
+    // inside a larger word ("questionable", "periodic", "dashboards"). The
+    // optional trailing [,.]? consumes punctuation a model already attached
+    // to the spoken token, mirroring the filler-word matcher.
+    let alternation = SPOKEN_PUNCTUATION_RULES
+        .iter()
+        .map(|rule| rule.phrase.join(" "))
+        .collect::<Vec<_>>()
+        .join("|");
+    Regex::new(&format!(r"(?i)\b(?:{alternation})\b[,.]?")).unwrap()
+});
+
+fn spoken_punctuation_replacement(matched_phrase: &str) -> Option<&'static str> {
+    SPOKEN_PUNCTUATION_RULES
+        .iter()
+        .find(|rule| rule.phrase.join(" ") == matched_phrase)
+        .map(|rule| rule.replacement)
+}
+
+/// Whether the inserted mark ends a sentence and owes the next word a
+/// capital.
+fn is_sentence_ending_punctuation(mark: &str) -> bool {
+    matches!(mark, "." | "?" | "!")
+}
+
+/// Trims trailing spaces/tabs so inserted punctuation attaches to the
+/// preceding word.
+fn trim_trailing_spaces(text: &mut String) {
+    while text.ends_with([' ', '\t']) {
+        text.pop();
+    }
+}
+
+/// Converts standalone spoken punctuation tokens into real punctuation.
+///
+/// "full stop" and "period" become ".", "comma" becomes ",", "question mark"
+/// becomes "?", "exclamation mark" / "exclamation point" become "!", "colon"
+/// becomes ":", "semicolon" becomes ";", "new line" becomes a line break,
+/// "new paragraph" a blank line, and "dash" a plain ASCII hyphen. Matching is
+/// case-insensitive, word-boundary anchored, and phrase-aware: the matched
+/// token is consumed and the word after sentence-ending punctuation
+/// (".", "?", "!") is capitalized. All other text, including existing
+/// newlines, is preserved byte-for-byte.
+pub fn normalize_spoken_punctuation(text: &str) -> String {
+    let mut kept = String::with_capacity(text.len());
+    let mut resume = 0;
+    let mut capital_owed = false;
+    // Set after a hyphen or line break: the whitespace that followed the
+    // spoken token is dropped so "twenty dash five" joins into
+    // "twenty-five" and "new line" starts the next line cleanly.
+    let mut skip_leading_space = false;
+
+    for token in SPOKEN_PUNCTUATION_PATTERN.find_iter(text) {
+        // Strip the optional trailing [,.]? the pattern may have consumed so
+        // the lookup key is the pure spoken phrase.
+        let phrase = token.as_str().trim_end_matches([',', '.']);
+        let Some(replacement) = spoken_punctuation_replacement(&phrase.to_lowercase()) else {
+            continue;
+        };
+
+        let mut span = &text[resume..token.start()];
+        if skip_leading_space {
+            span = span.trim_start_matches([' ', '\t']);
+        }
+        skip_leading_space = false;
+        push_restoring_capital(&mut kept, span, &mut capital_owed);
+
+        trim_trailing_spaces(&mut kept);
+        kept.push_str(replacement);
+        if is_sentence_ending_punctuation(replacement) {
+            capital_owed = true;
+        }
+        if replacement.starts_with('\n') || replacement == "-" {
+            skip_leading_space = true;
+        }
+        resume = token.end();
+    }
+
+    let mut tail = &text[resume..];
+    if skip_leading_space {
+        tail = tail.trim_start_matches([' ', '\t']);
+    }
+    push_restoring_capital(&mut kept, tail, &mut capital_owed);
+
+    kept
+}
+
+/// Openers that mark a transcript as a question when it is the first word.
+const INTERROGATIVE_OPENERS: &[&str] = &[
+    "what", "why", "how", "when", "who", "where", "which", "is", "are", "do", "does", "can",
+    "could", "would", "should", "will",
+];
+
+fn starts_with_interrogative(text: &str) -> bool {
+    text.split_whitespace().next().is_some_and(|first| {
+        let key: String = first
+            .chars()
+            .filter(|c| c.is_alphanumeric())
+            .flat_map(|c| c.to_lowercase())
+            .collect();
+        INTERROGATIVE_OPENERS.contains(&key.as_str())
+    })
+}
+
+/// Appends terminal punctuation when a transcript does not end with any.
+///
+/// If the final character is alphanumeric, "?" is appended when the first
+/// word is an interrogative ([`INTERROGATIVE_OPENERS`]), otherwise ".".
+/// Existing terminal punctuation is never doubled and empty/whitespace-only
+/// text is returned unchanged. The check runs on the trimmed text so a
+/// trailing space cannot swallow the appended mark (the trailing whitespace
+/// itself is dropped, matching the downstream trim in
+/// [`normalize_transcription_output`]).
+pub fn apply_terminal_punctuation(text: &str) -> String {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return text.to_string();
+    }
+
+    if !trimmed
+        .chars()
+        .next_back()
+        .is_some_and(|c| c.is_alphanumeric())
+    {
+        return text.to_string();
+    }
+
+    let mark = if starts_with_interrogative(trimmed) {
+        "?"
+    } else {
+        "."
+    };
+
+    format!("{trimmed}{mark}")
+}
+
 /// Applies non-filler transcription cleanup.
 ///
 /// Kept separate from [`remove_filler_words`] so disabling filler deletion
@@ -880,5 +1078,192 @@ mod tests {
         let custom_words = vec!["你号".to_string()];
         let result = apply_custom_words(text, &custom_words, 1.0);
         assert_eq!(result, text);
+    }
+
+    #[test]
+    fn test_spoken_punctuation_single_word_tokens() {
+        assert_eq!(
+            normalize_spoken_punctuation("hello comma world"),
+            "hello, world"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("hello full stop world"),
+            "hello. World"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("hello period world"),
+            "hello. World"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("it is fine question mark"),
+            "it is fine?"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("amazing exclamation mark"),
+            "amazing!"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("amazing exclamation point"),
+            "amazing!"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("items colon one two"),
+            "items: one two"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("one semicolon two"),
+            "one; two"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_case_insensitive() {
+        assert_eq!(
+            normalize_spoken_punctuation("HELLO COMMA World"),
+            "HELLO, World"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("Stop there Full Stop then go"),
+            "Stop there. Then go"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_newline_and_paragraph() {
+        assert_eq!(
+            normalize_spoken_punctuation("line one new line line two"),
+            "line one\nline two"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("para one new paragraph para two"),
+            "para one\n\npara two"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_dash_is_plain_hyphen() {
+        let result = normalize_spoken_punctuation("twenty dash five");
+        assert_eq!(result, "twenty-five");
+        // Unicode escapes keep the literal em/en dash characters out of the
+        // source while still asserting they can never be emitted.
+        assert!(
+            !result.contains('\u{2014}') && !result.contains('\u{2013}'),
+            "dash must never become an em or en dash: {result}"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_token_is_consumed() {
+        assert_eq!(normalize_spoken_punctuation("hello comma"), "hello,");
+        assert_eq!(normalize_spoken_punctuation("wait period"), "wait.");
+        // Punctuation the model attached to the spoken token is consumed too.
+        assert_eq!(
+            normalize_spoken_punctuation("hello comma, world"),
+            "hello, world"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_capitalizes_after_sentence_end_only() {
+        assert_eq!(
+            normalize_spoken_punctuation("first full stop second"),
+            "first. Second"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("first comma second"),
+            "first, second"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("first colon second"),
+            "first: second"
+        );
+        // The capital survives a following line break.
+        assert_eq!(
+            normalize_spoken_punctuation("done full stop new line next"),
+            "done.\nNext"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_word_boundaries_do_not_fire_inside_words() {
+        assert_eq!(
+            normalize_spoken_punctuation("the question is questionable"),
+            "the question is questionable"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("a question of time"),
+            "a question of time"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("periodic periods matter"),
+            "periodic periods matter"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("dashboards and dashes"),
+            "dashboards and dashes"
+        );
+        // "question mark" must match the full phrase only.
+        assert_eq!(
+            normalize_spoken_punctuation("the question marks the end"),
+            "the question marks the end"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("check the question markdown"),
+            "check the question markdown"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("many commas here"),
+            "many commas here"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_preserves_existing_layout() {
+        assert_eq!(
+            normalize_spoken_punctuation("first line\nsecond line"),
+            "first line\nsecond line"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("already, punctuated. Text!"),
+            "already, punctuated. Text!"
+        );
+        // CJK text is untouched: the vocabulary is English-only.
+        assert_eq!(normalize_spoken_punctuation("你好世界"), "你好世界");
+    }
+
+    #[test]
+    fn test_terminal_punctuation_appends_period_by_default() {
+        assert_eq!(apply_terminal_punctuation("hello world"), "hello world.");
+        // Trailing whitespace is dropped so the mark is not stranded.
+        assert_eq!(apply_terminal_punctuation("hello world  "), "hello world.");
+    }
+
+    #[test]
+    fn test_terminal_punctuation_appends_question_for_interrogatives() {
+        for opener in [
+            "what", "why", "how", "when", "who", "where", "which", "is", "are", "do", "does",
+            "can", "could", "would", "should", "will",
+        ] {
+            let text = format!("{opener} is this");
+            assert_eq!(
+                apply_terminal_punctuation(&text),
+                format!("{text}?"),
+                "opener: {opener}"
+            );
+        }
+        // Case-insensitive, with leading punctuation on the first word.
+        assert_eq!(apply_terminal_punctuation("What is this"), "What is this?");
+        assert_eq!(apply_terminal_punctuation("\"why\" ask"), "\"why\" ask?");
+    }
+
+    #[test]
+    fn test_terminal_punctuation_never_doubles_or_touches_empty() {
+        assert_eq!(apply_terminal_punctuation("hello world."), "hello world.");
+        assert_eq!(apply_terminal_punctuation("hello world?"), "hello world?");
+        assert_eq!(apply_terminal_punctuation("hello world!"), "hello world!");
+        assert_eq!(apply_terminal_punctuation(""), "");
+        assert_eq!(apply_terminal_punctuation("   "), "   ");
+        // Existing terminal punctuation with trailing whitespace is left alone.
+        assert_eq!(apply_terminal_punctuation("done! "), "done! ");
     }
 }

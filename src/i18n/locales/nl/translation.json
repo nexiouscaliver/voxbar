@@ -418,6 +418,14 @@
         "title": "Opvulwoorden verwijderen",
         "description": "Verwijdert veelvoorkomende aarzelwoorden uit transcripties. Schakel dit uit om ze te behouden."
       },
+      "spokenPunctuation": {
+        "title": "Gesproken interpunctie",
+        "description": "Zet gesproken interpunctiewoorden zoals \"comma\", \"period\" en \"question mark\" om in echte interpunctie. Zet uit om ze als gewone woorden te behouden."
+      },
+      "terminalPunctuation": {
+        "title": "Slotinterpunctie",
+        "description": "Beëindigt elke transcriptie met interpunctie: een vraagteken bij vragen, anders een punt. Zet uit om het einde zoals getranscribeerd te laten."
+      },
       "chineseScript": {
         "title": "Chinees schrift",
         "description": "Schrijft Mandarijn- en Kantonese transcripties in vereenvoudigde of traditionele karakters. Andere talen blijven ongewijzigd.",

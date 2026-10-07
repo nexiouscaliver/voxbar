@@ -418,6 +418,14 @@
         "title": "Fjern fyldord",
         "description": "Fjerner almindelige tøveord fra transskriptioner. Slå fra for at beholde dem."
       },
+      "spokenPunctuation": {
+        "title": "Talt tegnsætning",
+        "description": "Ændrer talte tegnsætningsord som \"comma\", \"period\" og \"question mark\" til rigtig tegnsætning. Slå fra for at beholde dem som almindelige ord."
+      },
+      "terminalPunctuation": {
+        "title": "Afsluttende tegnsætning",
+        "description": "Afslutter hver transskription med tegnsætning: spørgsmålstegn ved spørgsmål, ellers et punktum. Slå fra for at lade slutningen stå som transskriberet."
+      },
       "chineseScript": {
         "title": "Kinesisk skrift",
         "description": "Skriver mandarin- og kantonesisk-transskriptioner med forenklede eller traditionelle tegn. Andre sprog ændres ikke.",

@@ -418,6 +418,14 @@
         "title": "フィラー語を削除",
         "description": "文字起こしから一般的なフィラー語を削除します。残すにはオフにしてください。"
       },
+      "spokenPunctuation": {
+        "title": "音声読点",
+        "description": "\"comma\"、\"period\"、\"question mark\" など、読み上げた句読点語を実際の句読点に変換します。オフにすると通常の単語のまま残します。"
+      },
+      "terminalPunctuation": {
+        "title": "文末句読点",
+        "description": "すべての文字起こしを句読点で終えます。疑問文には疑問符、その他にはピリオドを付けます。オフにすると起こし結果のままになります。"
+      },
       "chineseScript": {
         "title": "中国語の表記",
         "description": "北京語と広東語の文字起こしを簡体字または繁体字で出力します。他の言語は変更されません。",

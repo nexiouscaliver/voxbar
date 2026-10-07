@@ -418,6 +418,14 @@
         "title": "Supprimer les mots de remplissage",
         "description": "Supprime les hésitations courantes des transcriptions. Désactivez cette option pour les conserver."
       },
+      "spokenPunctuation": {
+        "title": "Ponctuation vocale",
+        "description": "Convertit les mots de ponctuation dictés comme \"comma\", \"period\" et \"question mark\" en vraie ponctuation. Désactivez pour les garder comme mots simples."
+      },
+      "terminalPunctuation": {
+        "title": "Ponctuation finale",
+        "description": "Termine chaque transcription par une ponctuation : point d'interrogation pour les questions, point sinon. Désactivez pour laisser la fin telle que transcrite."
+      },
       "chineseScript": {
         "title": "Écriture chinoise",
         "description": "Écrit les transcriptions en mandarin et en cantonais en caractères simplifiés ou traditionnels. Les autres langues ne sont pas modifiées.",

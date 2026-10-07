@@ -418,6 +418,14 @@
         "title": "Odstranit výplňová slova",
         "description": "Odstraňuje běžná slova vyjadřující váhání z přepisů. Vypnutím je zachováte."
       },
+      "spokenPunctuation": {
+        "title": "Mluvená interpunkce",
+        "description": "Převádí mluvená interpunkční slova jako \"comma\", \"period\" a \"question mark\" na skutečnou interpunkci. Vypněte, aby zůstala běžnými slovy."
+      },
+      "terminalPunctuation": {
+        "title": "Koncová interpunkce",
+        "description": "Ukončuje každý přepis interpunkcí: otazník u otázek, jinak tečka. Vypněte, aby konec zůstal tak, jak byl přepsán."
+      },
       "chineseScript": {
         "title": "Čínské písmo",
         "description": "Zapisuje přepisy v mandarínštině a kantonštině zjednodušenými nebo tradičními znaky. Ostatní jazyky zůstávají beze změny.",

@@ -418,6 +418,14 @@
         "title": "Remove Filler Words",
         "description": "Removes common hesitation words from transcriptions. Turn off to keep them."
       },
+      "spokenPunctuation": {
+        "title": "Spoken Punctuation",
+        "description": "Turns spoken punctuation words like \"comma\", \"period\" and \"question mark\" into real punctuation. Turn off to keep them as plain words."
+      },
+      "terminalPunctuation": {
+        "title": "Terminal Punctuation",
+        "description": "Ends every transcript with punctuation: a question mark for questions, a period otherwise. Turn off to leave endings as transcribed."
+      },
       "chineseScript": {
         "title": "Chinese Script",
         "description": "Writes Mandarin and Cantonese transcriptions in Simplified or Traditional characters. Other languages are left unchanged.",

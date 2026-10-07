@@ -418,6 +418,14 @@
         "title": "Dolgu Sözcüklerini Kaldır",
         "description": "Transkripsiyonlardaki yaygın duraksama sözcüklerini kaldırır. Bunları korumak için kapatın."
       },
+      "spokenPunctuation": {
+        "title": "Sözlü noktalama",
+        "description": "\"comma\", \"period\" ve \"question mark\" gibi söylenen noktalama kelimelerini gerçek noktalamaya dönüştürür. Sıradan kelime olarak bırakmak için kapatın."
+      },
+      "terminalPunctuation": {
+        "title": "Son noktalama",
+        "description": "Her transkripti noktalama ile bitirir: sorular için soru işareti, aksi halde nokta. Sonu transkript edildiği gibi bırakmak için kapatın."
+      },
       "chineseScript": {
         "title": "Çince yazı",
         "description": "Mandarin ve Kantonca transkripsiyonları Basitleştirilmiş veya Geleneksel karakterlerle yazar. Diğer diller değiştirilmez.",

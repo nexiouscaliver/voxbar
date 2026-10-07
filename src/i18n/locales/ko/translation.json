@@ -418,6 +418,14 @@
         "title": "군더더기 표현 제거",
         "description": "전사에서 흔한 머뭇거림 표현을 제거합니다. 그대로 두려면 이 옵션을 끄세요."
       },
+      "spokenPunctuation": {
+        "title": "음성 문장부호",
+        "description": "\"comma\", \"period\", \"question mark\"처럼 말로 하는 문장부호 단어를 실제 문장부호로 바꿉니다. 끄면 일반 단어로 남습니다."
+      },
+      "terminalPunctuation": {
+        "title": "문장 끝 부호",
+        "description": "모든 전사가 문장부호로 끝나도록 합니다. 의문문에는 물음표, 그 외에는 마침표를 추가합니다. 끄면 전사된 그대로 끝납니다."
+      },
       "chineseScript": {
         "title": "중국어 간체/번체",
         "description": "표준 중국어와 광둥어 전사를 간체 또는 번체로 표기합니다. 다른 언어는 변경되지 않습니다.",

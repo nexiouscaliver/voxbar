@@ -418,6 +418,14 @@
         "title": "Remover palavras de preenchimento",
         "description": "Remove hesitações comuns das transcrições. Desative para mantê-las."
       },
+      "spokenPunctuation": {
+        "title": "Pontuação falada",
+        "description": "Transforma palavras de pontuação faladas como \"comma\", \"period\" e \"question mark\" em pontuação real. Desative para mantê-las como palavras comuns."
+      },
+      "terminalPunctuation": {
+        "title": "Pontuação final",
+        "description": "Encerra cada transcrição com pontuação: ponto de interrogação para perguntas, ponto caso contrário. Desative para deixar o final como transcrito."
+      },
       "chineseScript": {
         "title": "Escrita chinesa",
         "description": "Escreve as transcrições em mandarim e cantonês com caracteres simplificados ou tradicionais. Os outros idiomas não são alterados.",

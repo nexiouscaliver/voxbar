@@ -418,6 +418,14 @@
         "title": "Rimuovi le parole riempitive",
         "description": "Rimuove le parole di esitazione più comuni dalle trascrizioni. Disattiva per mantenerle."
       },
+      "spokenPunctuation": {
+        "title": "Punteggiatura parlata",
+        "description": "Trasforma le parole di punteggiatura pronunciate come \"comma\", \"period\" e \"question mark\" in vera punteggiatura. Disattiva per mantenerle come parole normali."
+      },
+      "terminalPunctuation": {
+        "title": "Punteggiatura finale",
+        "description": "Termina ogni trascrizione con la punteggiatura: punto interrogativo per le domande, altrimenti un punto. Disattiva per lasciare la fine come trascritta."
+      },
       "chineseScript": {
         "title": "Scrittura cinese",
         "description": "Scrive le trascrizioni in mandarino e cantonese con caratteri semplificati o tradizionali. Le altre lingue restano invariate.",

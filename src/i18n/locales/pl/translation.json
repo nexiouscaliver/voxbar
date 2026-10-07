@@ -418,6 +418,14 @@
         "title": "Usuń wyrazy wypełniające",
         "description": "Usuwa typowe słowa wyrażające wahanie z transkrypcji. Wyłącz, aby je zachować."
       },
+      "spokenPunctuation": {
+        "title": "Mówiona interpunkcja",
+        "description": "Zamienia wypowiadane słowa interpunkcyjne takie jak \"comma\", \"period\" i \"question mark\" na prawdziwą interpunkcję. Wyłącz, aby zachować je jako zwykłe słowa."
+      },
+      "terminalPunctuation": {
+        "title": "Interpunkcja końcowa",
+        "description": "Kończy każdą transkrypcję interpunkcją: znakiem zapytania przy pytaniach, w przeciwnym razie kropką. Wyłącz, aby zostawić koniec zgodnie z transkrypcją."
+      },
       "chineseScript": {
         "title": "Pismo chińskie",
         "description": "Zapisuje transkrypcje w języku mandaryńskim i kantońskim znakami uproszczonymi lub tradycyjnymi. Inne języki pozostają bez zmian.",

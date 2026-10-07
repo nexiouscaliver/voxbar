@@ -418,6 +418,14 @@
         "title": "Elimina les falques",
         "description": "Elimina les expressions de vacil·lació habituals de les transcripcions. Desactiveu aquesta opció per conservar-les."
       },
+      "spokenPunctuation": {
+        "title": "Puntuació parlada",
+        "description": "Converteix paraules de puntuació dites com \"comma\", \"period\" i \"question mark\" en puntuació real. Desactiveu-ho per mantenir-les com a paraules normals."
+      },
+      "terminalPunctuation": {
+        "title": "Puntuació final",
+        "description": "Acaba cada transcripció amb puntuació: signe d'interrogació per a preguntes i punt en la resta. Desactiveu-ho per deixar el final tal com s'ha transcrit."
+      },
       "chineseScript": {
         "title": "Escriptura xinesa",
         "description": "Escriu les transcripcions en mandarí i cantonès amb caràcters simplificats o tradicionals. Els altres idiomes no es modifiquen.",

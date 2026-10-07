@@ -418,6 +418,14 @@
         "title": "移除语气词",
         "description": "从转录中移除常见的语气词。关闭此选项即可保留这些词。"
       },
+      "spokenPunctuation": {
+        "title": "语音标点",
+        "description": "将 \"comma\"、\"period\"、\"question mark\" 等口述的标点词转换为真实标点。关闭后保留为普通文字。"
+      },
+      "terminalPunctuation": {
+        "title": "句末标点",
+        "description": "为每段转写文字补上结尾标点：疑问句用问号，其他用句号。关闭后按原样保留。"
+      },
       "chineseScript": {
         "title": "简繁转换",
         "description": "将普通话和粤语转录输出为简体或繁体中文。其他语言不受影响。",

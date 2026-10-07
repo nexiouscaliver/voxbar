@@ -192,6 +192,10 @@ const settingUpdaters: {
   },
   filler_word_removal_enabled: (value) =>
     commands.changeFillerWordRemovalEnabledSetting(value as boolean),
+  spoken_punctuation: (value) =>
+    commands.changeSpokenPunctuationSetting(value as boolean),
+  terminal_punctuation: (value) =>
+    commands.changeTerminalPunctuationSetting(value as boolean),
   chinese_script: (value) =>
     commands.changeChineseScriptSetting(value as ChineseScript),
   show_tray_icon: (value) =>

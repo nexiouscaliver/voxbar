@@ -418,6 +418,14 @@
         "title": "Füllwörter entfernen",
         "description": "Entfernt häufige Verzögerungslaute aus Transkriptionen. Deaktivieren Sie diese Option, um sie beizubehalten."
       },
+      "spokenPunctuation": {
+        "title": "Gesprochene Satzzeichen",
+        "description": "Wandelt gesprochene Satzzeichenwörter wie \"comma\", \"period\" und \"question mark\" in echte Satzzeichen um. Ausschalten, um sie als normale Wörter zu behalten."
+      },
+      "terminalPunctuation": {
+        "title": "Schlusszeichen",
+        "description": "Beendet jede Transkription mit einem Satzzeichen: Fragezeichen bei Fragen, sonst ein Punkt. Ausschalten, um das Ende wie transkribiert zu lassen."
+      },
       "chineseScript": {
         "title": "Chinesische Schrift",
         "description": "Schreibt Transkriptionen auf Mandarin und Kantonesisch in vereinfachten oder traditionellen Schriftzeichen. Andere Sprachen bleiben unverändert.",

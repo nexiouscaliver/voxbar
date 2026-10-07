@@ -418,6 +418,14 @@
         "title": "Ta bort utfyllnadsord",
         "description": "Tar bort vanliga tvekljud från transkriberingar. Stäng av för att behålla dem."
       },
+      "spokenPunctuation": {
+        "title": "Talad interpunktion",
+        "description": "Omvanlar talade interpunktionsord som \"comma\", \"period\" och \"question mark\" till riktig interpunktion. Stäng av för att behålla dem som vanliga ord."
+      },
+      "terminalPunctuation": {
+        "title": "Slutinterpunktion",
+        "description": "Avslutar varje transkription med interpunktion: frågetecken för frågor, annars en punkt. Stäng av för att lämna slutet som det transkriberades."
+      },
       "chineseScript": {
         "title": "Kinesisk skrift",
         "description": "Skriver mandarin- och kantonesiska transkriptioner med förenklade eller traditionella tecken. Andra språk lämnas oförändrade.",

@@ -418,6 +418,14 @@
         "title": "Hapus Kata Pengisi",
         "description": "Menghapus kata pengisi umum dari transkripsi. Nonaktifkan untuk mempertahankannya."
       },
+      "spokenPunctuation": {
+        "title": "Tanda baca lisan",
+        "description": "Mengubah kata tanda baca yang diucapkan seperti \"comma\", \"period\", dan \"question mark\" menjadi tanda baca sungguhan. Matikan untuk membiarkannya sebagai kata biasa."
+      },
+      "terminalPunctuation": {
+        "title": "Tanda baca akhir",
+        "description": "Mengakhiri setiap transkripsi dengan tanda baca: tanda tanya untuk pertanyaan, jika tidak titik. Matikan untuk membiarkan akhiran sesuai transkripsi."
+      },
       "chineseScript": {
         "title": "Aksara Tionghoa",
         "description": "Menulis transkripsi Mandarin dan Kanton dengan aksara Sederhana atau Tradisional. Bahasa lain tidak diubah.",

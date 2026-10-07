@@ -1,6 +1,7 @@
 use crate::audio_toolkit::{
-    apply_custom_words, detect_output_language, normalize_transcription_output,
-    remove_filler_words, OutputLanguageEvidence,
+    apply_custom_words, apply_terminal_punctuation, detect_output_language,
+    normalize_spoken_punctuation, normalize_transcription_output, remove_filler_words,
+    OutputLanguageEvidence,
 };
 use crate::chinese_script::{convert_chinese_script, ChineseVariety};
 use crate::engine_supervisor::{
@@ -1989,14 +1990,28 @@ fn post_process_transcription_text(
             _ => raw,
         };
 
+        // Spoken punctuation first, then the terminal fallback, so the
+        // custom-word pass and every later stage see final punctuation. Each
+        // pass is independently toggleable; off reproduces today's behavior.
+        let punctuated = if settings.spoken_punctuation {
+            normalize_spoken_punctuation(&raw)
+        } else {
+            raw
+        };
+        let punctuated = if settings.terminal_punctuation {
+            apply_terminal_punctuation(&punctuated)
+        } else {
+            punctuated
+        };
+
         let corrected = if !settings.custom_words.is_empty() && !custom_words_already_prompted {
             apply_custom_words(
-                &raw,
+                &punctuated,
                 &settings.custom_words,
                 settings.word_correction_threshold,
             )
         } else {
-            raw
+            punctuated
         };
 
         let without_fillers = remove_filler_words(
@@ -2395,6 +2410,7 @@ mod tests {
     fn non_chinese_output_is_never_converted() {
         let settings = AppSettings {
             chinese_script: ChineseScript::Traditional,
+            terminal_punctuation: false,
             ..Default::default()
         };
         for evidence in [
@@ -2437,6 +2453,7 @@ mod tests {
         let settings = AppSettings {
             app_language: "en".to_string(),
             selected_language: "pt-BR".to_string(),
+            terminal_punctuation: false,
             ..Default::default()
         };
         let supported = languages(&["en", "pt"]);
@@ -2477,6 +2494,7 @@ mod tests {
     fn auto_language_without_detection_skips_gated_filler_removal() {
         let settings = AppSettings {
             selected_language: "auto".to_string(),
+            terminal_punctuation: false,
             ..Default::default()
         };
         let evidence =
@@ -2500,6 +2518,7 @@ mod tests {
     fn unknown_evidence_with_confident_text_detection_removes_gated_fillers() {
         let settings = AppSettings {
             selected_language: "auto".to_string(),
+            terminal_punctuation: false,
             ..Default::default()
         };
 
@@ -2522,6 +2541,7 @@ mod tests {
     fn unknown_evidence_with_portuguese_text_preserves_um() {
         let settings = AppSettings {
             selected_language: "auto".to_string(),
+            terminal_punctuation: false,
             ..Default::default()
         };
 
@@ -2604,6 +2624,7 @@ mod tests {
             // Parakeet V3 ignores language hints and auto-detects even when a
             // selection from the previously active model remains persisted.
             selected_language: "en".to_string(),
+            terminal_punctuation: false,
             ..Default::default()
         };
         let supported = languages(&["en", "de", "pt"]);
@@ -2619,6 +2640,82 @@ mod tests {
             &supported,
         );
         assert_eq!(result, "eu vi um carro");
+    }
+
+    fn punctuation_pipeline_settings(spoken: bool, terminal: bool) -> AppSettings {
+        AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            custom_words: vec!["ChargeBee".to_string()],
+            word_correction_threshold: 0.5,
+            spoken_punctuation: spoken,
+            terminal_punctuation: terminal,
+            ..Default::default()
+        }
+    }
+
+    /// The dictionary can only match "charge b" as clean n-gram words after
+    /// the spoken-punctuation pass inserted the period and handed the capital
+    /// over, and the trailing period proves the terminal fallback ran ahead
+    /// of the custom-word correction: normalizer -> terminal fallback ->
+    /// custom words -> filler/normalize cleanup.
+    #[test]
+    fn punctuation_passes_compose_in_the_specified_order() {
+        let settings = punctuation_pipeline_settings(true, true);
+
+        let result = post_process_transcription_text(
+            "hello full stop charge b".to_string(),
+            &settings,
+            false,
+            &OutputLanguageEvidence::UserSelected("en".to_string()),
+            &languages(&["en"]),
+        );
+
+        assert_eq!(result, "hello. ChargeBee.");
+
+        let question = post_process_transcription_text(
+            "what time is it".to_string(),
+            &settings,
+            false,
+            &OutputLanguageEvidence::UserSelected("en".to_string()),
+            &languages(&["en"]),
+        );
+        assert_eq!(question, "what time is it?");
+    }
+
+    #[test]
+    fn punctuation_passes_respect_their_toggles_independently() {
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+        let raw = "hello comma charge b".to_string();
+
+        // Spoken punctuation only: comma inserted, no terminal period.
+        let spoken_only = punctuation_pipeline_settings(true, false);
+        assert_eq!(
+            post_process_transcription_text(raw.clone(), &spoken_only, false, &en, &supported),
+            "hello, ChargeBee"
+        );
+
+        // Terminal fallback only: period appended, spoken token untouched.
+        let terminal_only = punctuation_pipeline_settings(false, true);
+        assert_eq!(
+            post_process_transcription_text(raw.clone(), &terminal_only, false, &en, &supported),
+            "hello comma ChargeBee."
+        );
+
+        // Both on.
+        let both = punctuation_pipeline_settings(true, true);
+        assert_eq!(
+            post_process_transcription_text(raw.clone(), &both, false, &en, &supported),
+            "hello, ChargeBee."
+        );
+
+        // Both off: byte-for-byte the pre-punctuation pipeline (dictionary,
+        // filler removal, normalization, and nothing else).
+        let neither = punctuation_pipeline_settings(false, false);
+        assert_eq!(
+            post_process_transcription_text(raw, &neither, false, &en, &supported),
+            "hello comma ChargeBee"
+        );
     }
 
     #[test]
