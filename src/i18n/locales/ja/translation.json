@@ -721,6 +721,26 @@
       "system": "システム",
       "light": "ライト",
       "dark": "ダーク"
+    },
+    "accentColor": {
+      "label": "アクセントカラー",
+      "description": "ハイライト、スイッチ、コントロールに使用する色を選択します"
+    },
+    "accentColors": {
+      "black": "黒",
+      "gray": "グレー",
+      "white": "白",
+      "red": "赤",
+      "orange": "オレンジ",
+      "amber": "アンバー",
+      "green": "緑",
+      "teal": "ティール",
+      "cyan": "シアン",
+      "blue": "青",
+      "indigo": "インディゴ",
+      "violet": "紫",
+      "magenta": "マゼンタ",
+      "pink": "ピンク"
     }
   },
   "overlay": {

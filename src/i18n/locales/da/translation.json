@@ -724,6 +724,26 @@
       "system": "System",
       "light": "Lys",
       "dark": "Mørk"
+    },
+    "accentColor": {
+      "label": "Accentfarve",
+      "description": "Vælg farven til fremhævninger, kontaktpunkter og kontroller"
+    },
+    "accentColors": {
+      "black": "Sort",
+      "gray": "Grå",
+      "white": "Hvid",
+      "red": "Rød",
+      "orange": "Orange",
+      "amber": "Rav",
+      "green": "Grøn",
+      "teal": "Turkis",
+      "cyan": "Cyan",
+      "blue": "Blå",
+      "indigo": "Indigo",
+      "violet": "Violet",
+      "magenta": "Magenta",
+      "pink": "Pink"
     }
   },
   "overlay": {

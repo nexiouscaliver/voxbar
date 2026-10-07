@@ -721,6 +721,26 @@
       "system": "System",
       "light": "Hell",
       "dark": "Dunkel"
+    },
+    "accentColor": {
+      "label": "Akzentfarbe",
+      "description": "Wähle die Farbe für Hervorhebungen, Schalter und Bedienelemente"
+    },
+    "accentColors": {
+      "black": "Schwarz",
+      "gray": "Grau",
+      "white": "Weiß",
+      "red": "Rot",
+      "orange": "Orange",
+      "amber": "Bernstein",
+      "green": "Grün",
+      "teal": "Petrol",
+      "cyan": "Cyan",
+      "blue": "Blau",
+      "indigo": "Indigo",
+      "violet": "Violett",
+      "magenta": "Magenta",
+      "pink": "Pink"
     }
   },
   "overlay": {

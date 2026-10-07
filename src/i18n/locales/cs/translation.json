@@ -721,6 +721,26 @@
       "system": "Systém",
       "light": "Světlý",
       "dark": "Tmavý"
+    },
+    "accentColor": {
+      "label": "Barva zvýraznění",
+      "description": "Vyberte barvu používanou pro zvýraznění, přepínače a ovládací prvky"
+    },
+    "accentColors": {
+      "black": "Černá",
+      "gray": "Šedá",
+      "white": "Bílá",
+      "red": "Červená",
+      "orange": "Oranžová",
+      "amber": "Jantarová",
+      "green": "Zelená",
+      "teal": "Petrolejová",
+      "cyan": "Azurová",
+      "blue": "Modrá",
+      "indigo": "Indigová",
+      "violet": "Fialová",
+      "magenta": "Purpurová",
+      "pink": "Růžová"
     }
   },
   "overlay": {

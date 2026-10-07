@@ -721,6 +721,26 @@
       "system": "Sistema",
       "light": "Claro",
       "dark": "Escuro"
+    },
+    "accentColor": {
+      "label": "Cor de destaque",
+      "description": "Escolha a cor usada para destaques, interruptores e controles"
+    },
+    "accentColors": {
+      "black": "Preto",
+      "gray": "Cinza",
+      "white": "Branco",
+      "red": "Vermelho",
+      "orange": "Laranja",
+      "amber": "Âmbar",
+      "green": "Verde",
+      "teal": "Verde-azulado",
+      "cyan": "Ciano",
+      "blue": "Azul",
+      "indigo": "Índigo",
+      "violet": "Violeta",
+      "magenta": "Magenta",
+      "pink": "Rosa"
     }
   },
   "overlay": {

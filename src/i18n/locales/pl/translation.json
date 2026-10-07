@@ -721,6 +721,26 @@
       "system": "System",
       "light": "Jasny",
       "dark": "Ciemny"
+    },
+    "accentColor": {
+      "label": "Kolor akcentu",
+      "description": "Wybierz kolor używany do wyróżnień, przełączników i elementów sterowania"
+    },
+    "accentColors": {
+      "black": "Czarny",
+      "gray": "Szary",
+      "white": "Biały",
+      "red": "Czerwony",
+      "orange": "Pomarańczowy",
+      "amber": "Bursztynowy",
+      "green": "Zielony",
+      "teal": "Morski",
+      "cyan": "Cyjan",
+      "blue": "Niebieski",
+      "indigo": "Indygo",
+      "violet": "Fioletowy",
+      "magenta": "Magenta",
+      "pink": "Różowy"
     }
   },
   "overlay": {

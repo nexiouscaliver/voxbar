@@ -724,6 +724,26 @@
       "system": "Sistema",
       "light": "Clar",
       "dark": "Fosc"
+    },
+    "accentColor": {
+      "label": "Color d’accent",
+      "description": "Trieu el color usat per a ressalts, commutadors i controls"
+    },
+    "accentColors": {
+      "black": "Negre",
+      "gray": "Gris",
+      "white": "Blanc",
+      "red": "Vermell",
+      "orange": "Taronja",
+      "amber": "Ambre",
+      "green": "Verd",
+      "teal": "Blau verdós",
+      "cyan": "Cian",
+      "blue": "Blau",
+      "indigo": "Indi",
+      "violet": "Violeta",
+      "magenta": "Magenta",
+      "pink": "Rosa"
     }
   },
   "overlay": {

@@ -672,6 +672,22 @@ pub fn change_theme_setting(app: AppHandle, theme: String) -> Result<(), String>
     Ok(())
 }
 
+#[tauri::command]
+#[specta::specta]
+pub fn change_accent_color_setting(app: AppHandle, accent: String) -> Result<(), String> {
+    let accent = accent.trim().to_lowercase();
+    let mut settings = settings::get_settings(&app);
+    // The valid id set lives in the frontend (src/lib/utils/accent.ts); the
+    // store keeps the raw string and the frontend renders its default accent
+    // for unknown ids, so no allowlist is duplicated here.
+    settings.accent_color = accent.clone();
+    settings::write_settings(&app, settings);
+    // Notify other webviews (the recording overlay) so they re-apply the
+    // accent live — each window sets the palette override on its own document.
+    let _ = app.emit("accent-changed", accent);
+    Ok(())
+}
+
 /// Applies the appearance setting to the native window chrome (title bar), which
 /// CSS `data-theme` cannot reach. `System` clears the override so the window
 /// follows the OS. Call this on startup and whenever the setting changes to keep

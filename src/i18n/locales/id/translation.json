@@ -724,6 +724,26 @@
       "system": "Sistem",
       "light": "Terang",
       "dark": "Gelap"
+    },
+    "accentColor": {
+      "label": "Warna aksen",
+      "description": "Pilih warna yang digunakan untuk sorotan, tombol alih, dan kontrol"
+    },
+    "accentColors": {
+      "black": "Hitam",
+      "gray": "Abu-abu",
+      "white": "Putih",
+      "red": "Merah",
+      "orange": "Jingga",
+      "amber": "Amber",
+      "green": "Hijau",
+      "teal": "Hijau kebiruan",
+      "cyan": "Sian",
+      "blue": "Biru",
+      "indigo": "Nila",
+      "violet": "Ungu",
+      "magenta": "Magenta",
+      "pink": "Merah muda"
     }
   },
   "overlay": {

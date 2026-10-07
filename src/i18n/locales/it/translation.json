@@ -721,6 +721,26 @@
       "system": "Sistema",
       "light": "Chiaro",
       "dark": "Scuro"
+    },
+    "accentColor": {
+      "label": "Colore accento",
+      "description": "Scegli il colore usato per evidenziazioni, interruttori e controlli"
+    },
+    "accentColors": {
+      "black": "Nero",
+      "gray": "Grigio",
+      "white": "Bianco",
+      "red": "Rosso",
+      "orange": "Arancione",
+      "amber": "Ambra",
+      "green": "Verde",
+      "teal": "Verde acqua",
+      "cyan": "Ciano",
+      "blue": "Blu",
+      "indigo": "Indaco",
+      "violet": "Viola",
+      "magenta": "Magenta",
+      "pink": "Rosa"
     }
   },
   "overlay": {

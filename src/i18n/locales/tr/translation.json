@@ -721,6 +721,26 @@
       "system": "Sistem",
       "light": "Açık",
       "dark": "Koyu"
+    },
+    "accentColor": {
+      "label": "Vurgu rengi",
+      "description": "Vurgular, anahtarlar ve denetimler için kullanılan rengi seçin"
+    },
+    "accentColors": {
+      "black": "Siyah",
+      "gray": "Gri",
+      "white": "Beyaz",
+      "red": "Kırmızı",
+      "orange": "Turuncu",
+      "amber": "Amber",
+      "green": "Yeşil",
+      "teal": "Turkuaz",
+      "cyan": "Camgöbeği",
+      "blue": "Mavi",
+      "indigo": "Çivit mavisi",
+      "violet": "Mor",
+      "magenta": "Macenta",
+      "pink": "Pembe"
     }
   },
   "overlay": {

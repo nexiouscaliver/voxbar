@@ -721,6 +721,26 @@
       "system": "시스템",
       "light": "밝게",
       "dark": "어둡게"
+    },
+    "accentColor": {
+      "label": "강조 색상",
+      "description": "강조 표시, 스위치 및 컨트롤에 사용되는 색상을 선택하세요"
+    },
+    "accentColors": {
+      "black": "검정",
+      "gray": "회색",
+      "white": "흰색",
+      "red": "빨강",
+      "orange": "주황",
+      "amber": "앰버",
+      "green": "초록",
+      "teal": "청록",
+      "cyan": "시안",
+      "blue": "파랑",
+      "indigo": "남색",
+      "violet": "보라",
+      "magenta": "마젠타",
+      "pink": "분홍"
     }
   },
   "overlay": {

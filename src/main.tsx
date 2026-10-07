@@ -8,6 +8,11 @@ import {
   getStoredTheme,
   syncThemeFromSettings,
 } from "./lib/utils/theme";
+import {
+  applyAccent,
+  getStoredAccent,
+  syncAccentFromSettings,
+} from "./lib/utils/accent";
 
 installCompatShims();
 
@@ -18,6 +23,11 @@ document.documentElement.dataset.platform = platform();
 // the wrong palette, then reconcile with the persisted setting once it loads.
 applyTheme(getStoredTheme());
 syncThemeFromSettings();
+
+// Same boot pattern as the theme: apply the last-known accent before render
+// to avoid a flash of the default pink, then reconcile with the setting.
+applyAccent(getStoredAccent());
+syncAccentFromSettings();
 
 // Initialize i18n
 import "./i18n";

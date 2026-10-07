@@ -721,6 +721,26 @@
       "system": "Système",
       "light": "Clair",
       "dark": "Sombre"
+    },
+    "accentColor": {
+      "label": "Couleur d’accentuation",
+      "description": "Choisissez la couleur des éléments mis en évidence, des commutateurs et des commandes"
+    },
+    "accentColors": {
+      "black": "Noir",
+      "gray": "Gris",
+      "white": "Blanc",
+      "red": "Rouge",
+      "orange": "Orange",
+      "amber": "Ambre",
+      "green": "Vert",
+      "teal": "Sarcelle",
+      "cyan": "Cyan",
+      "blue": "Bleu",
+      "indigo": "Indigo",
+      "violet": "Violet",
+      "magenta": "Magenta",
+      "pink": "Rose"
     }
   },
   "overlay": {

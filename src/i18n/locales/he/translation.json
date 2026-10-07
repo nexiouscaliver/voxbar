@@ -721,6 +721,26 @@
       "system": "מערכת",
       "light": "בהיר",
       "dark": "כהה"
+    },
+    "accentColor": {
+      "label": "צבע הדגשה",
+      "description": "בחר את הצבע המשמש להדגשות, מתגים ופקדים"
+    },
+    "accentColors": {
+      "black": "שחור",
+      "gray": "אפור",
+      "white": "לבן",
+      "red": "אדום",
+      "orange": "כתום",
+      "amber": "ענבר",
+      "green": "ירוק",
+      "teal": "טורקיז",
+      "cyan": "ציאן",
+      "blue": "כחול",
+      "indigo": "אינדיגו",
+      "violet": "סגול",
+      "magenta": "מג׳נטה",
+      "pink": "ורוד"
     }
   },
   "overlay": {

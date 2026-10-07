@@ -721,6 +721,26 @@
       "system": "System",
       "light": "Ljust",
       "dark": "Mörkt"
+    },
+    "accentColor": {
+      "label": "Accentfärg",
+      "description": "Välj färgen som används för markeringar, reglage och kontroller"
+    },
+    "accentColors": {
+      "black": "Svart",
+      "gray": "Grå",
+      "white": "Vit",
+      "red": "Röd",
+      "orange": "Orange",
+      "amber": "Bärnsten",
+      "green": "Grön",
+      "teal": "Turkos",
+      "cyan": "Cyan",
+      "blue": "Blå",
+      "indigo": "Indigo",
+      "violet": "Violett",
+      "magenta": "Magenta",
+      "pink": "Rosa"
     }
   },
   "overlay": {

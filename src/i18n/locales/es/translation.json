@@ -721,6 +721,26 @@
       "system": "Sistema",
       "light": "Claro",
       "dark": "Oscuro"
+    },
+    "accentColor": {
+      "label": "Color de acento",
+      "description": "Elige el color usado para resaltes, interruptores y controles"
+    },
+    "accentColors": {
+      "black": "Negro",
+      "gray": "Gris",
+      "white": "Blanco",
+      "red": "Rojo",
+      "orange": "Naranja",
+      "amber": "Ámbar",
+      "green": "Verde",
+      "teal": "Verde azulado",
+      "cyan": "Cian",
+      "blue": "Azul",
+      "indigo": "Índigo",
+      "violet": "Violeta",
+      "magenta": "Magenta",
+      "pink": "Rosa"
     }
   },
   "overlay": {

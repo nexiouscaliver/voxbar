@@ -724,6 +724,26 @@
       "system": "Systeem",
       "light": "Licht",
       "dark": "Donker"
+    },
+    "accentColor": {
+      "label": "Accentkleur",
+      "description": "Kies de kleur voor markeringen, schakelaars en bedieningselementen"
+    },
+    "accentColors": {
+      "black": "Zwart",
+      "gray": "Grijs",
+      "white": "Wit",
+      "red": "Rood",
+      "orange": "Oranje",
+      "amber": "Amber",
+      "green": "Groen",
+      "teal": "Turquoise",
+      "cyan": "Cyaan",
+      "blue": "Blauw",
+      "indigo": "Indigo",
+      "violet": "Violet",
+      "magenta": "Magenta",
+      "pink": "Roze"
     }
   },
   "overlay": {

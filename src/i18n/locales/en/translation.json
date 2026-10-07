@@ -724,6 +724,26 @@
       "system": "System",
       "light": "Light",
       "dark": "Dark"
+    },
+    "accentColor": {
+      "label": "Accent Color",
+      "description": "Choose the color used for highlights, toggles, and controls"
+    },
+    "accentColors": {
+      "black": "Black",
+      "gray": "Gray",
+      "white": "White",
+      "red": "Red",
+      "orange": "Orange",
+      "amber": "Amber",
+      "green": "Green",
+      "teal": "Teal",
+      "cyan": "Cyan",
+      "blue": "Blue",
+      "indigo": "Indigo",
+      "violet": "Violet",
+      "magenta": "Magenta",
+      "pink": "Pink"
     }
   },
   "overlay": {

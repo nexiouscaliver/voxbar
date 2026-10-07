@@ -721,6 +721,26 @@
       "system": "Hệ thống",
       "light": "Sáng",
       "dark": "Tối"
+    },
+    "accentColor": {
+      "label": "Màu nhấn",
+      "description": "Chọn màu được dùng cho phần đánh dấu, công tắc và điều khiển"
+    },
+    "accentColors": {
+      "black": "Đen",
+      "gray": "Xám",
+      "white": "Trắng",
+      "red": "Đỏ",
+      "orange": "Cam",
+      "amber": "Hổ phách",
+      "green": "Xanh lục",
+      "teal": "Xanh mòng két",
+      "cyan": "Xanh lục lam",
+      "blue": "Xanh dương",
+      "indigo": "Chàm",
+      "violet": "Tím",
+      "magenta": "Magenta",
+      "pink": "Hồng"
     }
   },
   "overlay": {

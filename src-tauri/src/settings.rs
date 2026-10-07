@@ -543,6 +543,8 @@ pub struct AppSettings {
     pub app_language: String,
     #[serde(default = "default_theme")]
     pub theme: Theme,
+    #[serde(default = "default_accent_color")]
+    pub accent_color: String,
     #[serde(default)]
     pub experimental_enabled: bool,
     #[serde(default)]
@@ -729,6 +731,14 @@ fn default_sound_theme() -> SoundTheme {
 
 fn default_theme() -> Theme {
     Theme::System
+}
+
+/// Default accent id. The set of valid ids lives in the frontend
+/// (`src/lib/utils/accent.ts`); Rust stores the string as-is and the
+/// frontend falls back to this default when it doesn't recognize a value,
+/// so a stale or hand-edited store can never break rendering.
+fn default_accent_color() -> String {
+    "pink".to_string()
 }
 
 fn default_post_process_enabled() -> bool {
@@ -1056,6 +1066,7 @@ pub fn get_default_settings() -> AppSettings {
         append_trailing_space: false,
         app_language: default_app_language(),
         theme: default_theme(),
+        accent_color: default_accent_color(),
         experimental_enabled: false,
         lazy_stream_close: false,
         keyboard_implementation: KeyboardImplementation::default(),

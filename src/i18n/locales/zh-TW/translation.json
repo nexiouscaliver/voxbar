@@ -721,6 +721,26 @@
       "system": "跟隨系統",
       "light": "淺色",
       "dark": "深色"
+    },
+    "accentColor": {
+      "label": "強調色",
+      "description": "選擇用於反白顯示、開關和控制項的顏色"
+    },
+    "accentColors": {
+      "black": "黑色",
+      "gray": "灰色",
+      "white": "白色",
+      "red": "紅色",
+      "orange": "橘色",
+      "amber": "琥珀色",
+      "green": "綠色",
+      "teal": "藍綠色",
+      "cyan": "青色",
+      "blue": "藍色",
+      "indigo": "靛藍色",
+      "violet": "紫色",
+      "magenta": "洋紅色",
+      "pink": "粉紅色"
     }
   },
   "overlay": {

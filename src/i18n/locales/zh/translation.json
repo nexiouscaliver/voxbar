@@ -721,6 +721,26 @@
       "system": "跟随系统",
       "light": "浅色",
       "dark": "深色"
+    },
+    "accentColor": {
+      "label": "强调色",
+      "description": "选择用于高亮显示、开关和控件的颜色"
+    },
+    "accentColors": {
+      "black": "黑色",
+      "gray": "灰色",
+      "white": "白色",
+      "red": "红色",
+      "orange": "橙色",
+      "amber": "琥珀色",
+      "green": "绿色",
+      "teal": "蓝绿色",
+      "cyan": "青色",
+      "blue": "蓝色",
+      "indigo": "靛蓝色",
+      "violet": "紫色",
+      "magenta": "品红色",
+      "pink": "粉红色"
     }
   },
   "overlay": {
