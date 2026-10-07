@@ -242,7 +242,7 @@
           },
           "transcribe_commands": {
             "name": "Tryb poleceń",
-            "description": "Nagrywa jak dyktowanie, ale każde słowo jest traktowane jako polecenie: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Nierozpoznane słowa są odrzucane, więc nic innego nie zostanie wpisane. Domyślnie bez klawisza."
+            "description": "Przytrzymaj ten klawisz podczas aktywnej sesji dyktowania, aby przełączyć ją w tryb interpretacji poleceń: wszystko, co powiesz, edytuje bezpośrednio bufor dyktowania (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), a nierozpoznane słowa są odrzucane. Puść klawisz, aby wrócić do normalnego dyktowania; końcowe wklejenie dostarcza dokładnie edytowany bufor. Nigdy nie rozpoczyna nagrywania i sam z siebie nic nie robi. Domyślnie bez klawisza."
           }
         },
         "errors": {
@@ -288,7 +288,7 @@
         "title": "Tryb poleceń",
         "toggle": {
           "title": "Tryb poleceń",
-          "description": "Włącza przypisywalny wyzwalacz trybu poleceń. Przytrzymany nagrywa jak dyktowanie; transkrypcja jest wykonywana jako polecenia (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste), a nierozpoznane słowa są odrzucane."
+          "description": "Włącza przypisywalny modyfikator trybu poleceń. Przytrzymaj go podczas aktywnej sesji dyktowania, aby interpretować mowę jako polecenia (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) edytujące bezpośrednio bufor dyktowania; nierozpoznane słowa są odrzucane. Nigdy sam nie rozpoczyna nagrywania."
         }
       }
     },

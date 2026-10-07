@@ -4,13 +4,32 @@ use crate::settings::ShortcutActivation;
 use log::{debug, error, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
 const DEBOUNCE: Duration = Duration::from_millis(30);
 const RELEASE_GRACE: Duration = Duration::from_millis(50);
+
+/// How long after a dictation's paste completes the Undo action stays
+/// armed. The operator uses Undo to kill a just-pasted dictation; this
+/// grace covers the review moment right after the paste lands. Outside a
+/// live session and this window the Undo press is a logged no-op.
+const UNDO_PASTE_GRACE: Duration = Duration::from_secs(10);
+
+/// Pure decision for the Undo action's activity window: live while a
+/// recording session is live, or within [`UNDO_PASTE_GRACE`] of the moment
+/// the last dictation paste completed. `now` is injected so tests can
+/// expire the grace on a clock fixture without sleeping.
+fn undo_window_active(
+    recording: bool,
+    last_paste_completed_at: Option<Instant>,
+    now: Instant,
+) -> bool {
+    recording
+        || last_paste_completed_at.is_some_and(|t| now.duration_since(t) <= UNDO_PASTE_GRACE)
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PttAction {
@@ -173,6 +192,9 @@ enum Command {
     Input(InputEvent),
     Cancel { recording_was_active: bool },
     ProcessingFinished,
+    /// Press/release of the command-mode binding (a during-dictation
+    /// modifier, never a recording trigger).
+    CommandModifier { is_pressed: bool },
 }
 
 /// Decide whether a key-up should be deferred (so auto-repeat can cancel it)
@@ -223,6 +245,13 @@ struct CoordinatorState {
     last_press: Option<Instant>,
     pending_release: Option<PendingRelease>,
     pending_press: Option<PendingPress>,
+    /// True while the command-mode binding is held AND a dictation session
+    /// it can modulate is live. Set on a press that arrives during a live
+    /// recording; cleared on release and on every path that ends the
+    /// session (finalize, cancel, failed-start rollback). A press with no
+    /// live session is a complete no-op, so a session that starts later
+    /// does not inherit a modifier that was never activated for it.
+    command_modifier: bool,
 }
 
 impl CoordinatorState {
@@ -233,6 +262,7 @@ impl CoordinatorState {
             last_press: None,
             pending_release: None,
             pending_press: None,
+            command_modifier: false,
         }
     }
 
@@ -464,6 +494,8 @@ impl CoordinatorState {
         // An explicit cancel abandons any remembered start too - the user
         // asked for silence, not a deferred recording.
         self.pending_press = None;
+        // Cancel ends the session: the command modifier cannot outlive it.
+        self.command_modifier = false;
         // Don't reset during processing - wait for the pipeline to finish.
         if !matches!(self.stage, Stage::Processing)
             && (recording_was_active || matches!(self.stage, Stage::Recording(_)))
@@ -495,6 +527,8 @@ impl CoordinatorState {
         if !started && matches!(&self.stage, Stage::Recording(id) if id == binding_id) {
             self.stage = Stage::Idle;
             self.hold = None;
+            // The session never existed; the modifier cannot stay armed.
+            self.command_modifier = false;
         }
     }
 
@@ -519,9 +553,33 @@ impl CoordinatorState {
     fn begin_processing(&mut self, binding_id: String, hotkey_string: String) -> Effect {
         self.stage = Stage::Processing;
         self.hold = None;
+        // The recording ended: the in-session command modifier goes with it,
+        // even if the key is still physically held. Re-engaging requires a
+        // fresh press during the next live session.
+        self.command_modifier = false;
         Effect::Stop {
             binding_id,
             hotkey_string,
+        }
+    }
+
+    /// A press or release of the command-mode binding. The binding never
+    /// touches the recording lifecycle: a press engages command
+    /// interpretation only when a dictation session is live at that moment,
+    /// a release always disengages, and any other situation is inert.
+    fn on_command_modifier(&mut self, is_pressed: bool) {
+        if is_pressed {
+            if matches!(self.stage, Stage::Recording(_)) {
+                debug!("Command modifier engaged for the live dictation session");
+                self.command_modifier = true;
+            } else {
+                debug!(
+                    "Command modifier pressed with no live dictation session; nothing happens"
+                );
+            }
+        } else if self.command_modifier {
+            debug!("Command modifier released; dictation returns to normal");
+            self.command_modifier = false;
         }
     }
 }
@@ -540,14 +598,23 @@ pub struct TranscriptionCoordinator {
     /// after every processed command, so it lags reality by at most the
     /// channel latency.
     recording: Arc<AtomicBool>,
+    /// Mirror of `CoordinatorState::command_modifier` for the interim
+    /// streaming path: the session buffer asks "is the command modifier
+    /// held for this live session?" on every engine snapshot, lock-free.
+    command_modifier: Arc<AtomicBool>,
+    /// When the last dictation paste completed. Written by the paste
+    /// executor (main thread), read by [`Self::is_undo_active`] to arm the
+    /// Undo action for [`UNDO_PASTE_GRACE`].
+    last_paste_completed_at: Arc<Mutex<Option<Instant>>>,
 }
 
-/// Which binding IDs drive the recording lifecycle. Command mode
-/// ("transcribe_commands") shares it: the trigger records exactly like
-/// normal dictation (hold/toggle per the activation setting), and only the
-/// finalize path differs (the transcript goes to the command parser).
+/// Which binding IDs drive the recording lifecycle. The command-mode
+/// binding ("transcribe_commands") is NOT one of them: it is a
+/// during-dictation modifier that never starts or stops a recording, so
+/// its events route to [`TranscriptionCoordinator::send_command_modifier`]
+/// instead of the lifecycle input path.
 pub fn is_transcribe_binding(id: &str) -> bool {
-    id == "transcribe" || id == "transcribe_with_post_process" || id == "transcribe_commands"
+    id == "transcribe" || id == "transcribe_with_post_process"
 }
 
 impl TranscriptionCoordinator {
@@ -555,6 +622,8 @@ impl TranscriptionCoordinator {
         let (tx, rx) = mpsc::channel();
         let recording = Arc::new(AtomicBool::new(false));
         let recording_mirror = Arc::clone(&recording);
+        let command_modifier = Arc::new(AtomicBool::new(false));
+        let command_modifier_mirror = Arc::clone(&command_modifier);
 
         thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -562,14 +631,16 @@ impl TranscriptionCoordinator {
                 // Publish the stage mirror after every state change, so a
                 // reader can never observe a stale Recording long after the
                 // stage moved on (worst case: one command of lag while a
-                // transition is in flight).
-                let publish_stage = |state: &CoordinatorState| {
+                // transition is in flight). The command-modifier mirror
+                // rides the same publication point.
+                let publish_state = |state: &CoordinatorState| {
                     recording_mirror.store(
                         matches!(state.stage, Stage::Recording(_)),
                         Ordering::Release,
                     );
+                    command_modifier_mirror.store(state.command_modifier, Ordering::Release);
                 };
-                publish_stage(&state);
+                publish_state(&state);
 
                 loop {
                     let cmd = if let Some(deadline) = state.grace_deadline() {
@@ -579,7 +650,7 @@ impl TranscriptionCoordinator {
                                 if let Some(effect) = state.on_grace_expired() {
                                     run_effect(&app, &mut state, effect);
                                 }
-                                publish_stage(&state);
+                                publish_state(&state);
                                 continue;
                             }
                             Err(mpsc::RecvTimeoutError::Disconnected) => break,
@@ -605,12 +676,17 @@ impl TranscriptionCoordinator {
                                 run_effect(&app, &mut state, effect);
                             }
                         }
+                        Command::CommandModifier { is_pressed } => {
+                            state.on_command_modifier(is_pressed)
+                        }
                     }
-                    publish_stage(&state);
+                    publish_state(&state);
                 }
                 // The coordinator thread is gone (app shutdown); stop
-                // advertising a live recording session.
+                // advertising a live recording session or an engaged command
+                // modifier.
                 recording_mirror.store(false, Ordering::Release);
+                command_modifier_mirror.store(false, Ordering::Release);
                 debug!("Transcription coordinator exited");
             }));
             if let Err(e) = result {
@@ -618,7 +694,12 @@ impl TranscriptionCoordinator {
             }
         });
 
-        Self { tx, recording }
+        Self {
+            tx,
+            recording,
+            command_modifier,
+            last_paste_completed_at: Arc::new(Mutex::new(None)),
+        }
     }
 
     /// Whether a dictation recording session is live (the coordinator is in
@@ -627,6 +708,35 @@ impl TranscriptionCoordinator {
     /// between editing the dictation buffer and injecting keys.
     pub fn is_recording_session(&self) -> bool {
         self.recording.load(Ordering::Acquire)
+    }
+
+    /// Whether the command-mode binding is currently modulating the live
+    /// dictation session (held during a live session). The interim
+    /// streaming path consults this on every engine snapshot.
+    pub fn is_command_modifier_active(&self) -> bool {
+        self.command_modifier.load(Ordering::Acquire)
+    }
+
+    /// Record that a dictation paste just completed successfully. Arms the
+    /// Undo action for [`UNDO_PASTE_GRACE`] (the review moment after the
+    /// paste lands).
+    pub fn note_paste_completed(&self) {
+        *self
+            .last_paste_completed_at
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
+    }
+
+    /// Whether the Undo action may fire right now: while a recording
+    /// session is live, or within [`UNDO_PASTE_GRACE`] after the last
+    /// dictation paste completed. The decision itself is the pure
+    /// [`undo_window_active`]; this only gathers the live inputs.
+    pub fn is_undo_active(&self) -> bool {
+        let last_paste = *self
+            .last_paste_completed_at
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        undo_window_active(self.is_recording_session(), last_paste, Instant::now())
     }
 
     /// Send a keyboard input event for a transcribe binding. `hold_threshold`
@@ -660,6 +770,20 @@ impl TranscriptionCoordinator {
             Duration::ZERO,
             true,
         );
+    }
+
+    /// Send a press/release of the command-mode binding. The binding is a
+    /// during-dictation modifier: the coordinator engages command
+    /// interpretation only when a session is live at the press, and the
+    /// event never enters the recording lifecycle.
+    pub fn send_command_modifier(&self, is_pressed: bool) {
+        if self
+            .tx
+            .send(Command::CommandModifier { is_pressed })
+            .is_err()
+        {
+            warn!("Transcription coordinator channel closed");
+        }
     }
 
     fn send(
@@ -751,17 +875,172 @@ fn stop(app: &AppHandle, binding_id: &str, hotkey_string: &str) {
 mod tests {
     use super::*;
 
-    /// Command mode shares the recording lifecycle: its binding must route
-    /// through this coordinator so it gets the same hold/toggle semantics
-    /// and busy-pipeline handling as the normal dictation triggers.
+    /// The command-mode binding is a during-dictation modifier, not a
+    /// recording trigger: it must NOT route through the recording
+    /// lifecycle (it can never start or stop a recording), while the
+    /// dictation triggers do.
     #[test]
-    fn command_mode_binding_routes_through_the_recording_lifecycle() {
+    fn command_mode_binding_is_not_a_recording_lifecycle_binding() {
         assert!(is_transcribe_binding("transcribe"));
         assert!(is_transcribe_binding("transcribe_with_post_process"));
-        assert!(is_transcribe_binding("transcribe_commands"));
+        assert!(
+            !is_transcribe_binding("transcribe_commands"),
+            "the command binding is a during-dictation modifier, never a recording trigger"
+        );
         assert!(!is_transcribe_binding("delete_last_word"));
         assert!(!is_transcribe_binding("undo"));
         assert!(!is_transcribe_binding("cancel"));
+    }
+
+    // ---------------------------------------------------------------------
+    // Undo activity window: live while a recording session is live, or for
+    // UNDO_PASTE_GRACE after a dictation paste completed.
+    // ---------------------------------------------------------------------
+
+    /// A live recording session keeps Undo armed regardless of paste
+    /// history (including a paste so old its own grace is long gone).
+    #[test]
+    fn undo_window_active_while_recording_session_live() {
+        let stale_paste = Instant::now() - UNDO_PASTE_GRACE - Duration::from_secs(60);
+        assert!(undo_window_active(true, None, Instant::now()));
+        assert!(undo_window_active(true, Some(stale_paste), Instant::now()));
+    }
+
+    /// Within the grace after a paste completed (and not recording) Undo
+    /// stays armed.
+    #[test]
+    fn undo_window_active_within_paste_grace() {
+        let pasted_at = Instant::now();
+        assert!(undo_window_active(false, Some(pasted_at), pasted_at));
+        assert!(undo_window_active(
+            false,
+            Some(pasted_at),
+            pasted_at + Duration::from_secs(9)
+        ));
+        // The boundary itself is inside the window.
+        assert!(undo_window_active(
+            false,
+            Some(pasted_at),
+            pasted_at + UNDO_PASTE_GRACE
+        ));
+    }
+
+    /// Past the grace (and not recording) Undo is inert: no session, no
+    /// recent paste, nothing to undo through VoxBar.
+    #[test]
+    fn undo_window_expired_past_grace() {
+        assert!(!undo_window_active(false, None, Instant::now()));
+        let pasted_at = Instant::now();
+        assert!(!undo_window_active(
+            false,
+            Some(pasted_at),
+            pasted_at + UNDO_PASTE_GRACE + Duration::from_millis(1)
+        ));
+        assert!(!undo_window_active(
+            false,
+            Some(pasted_at),
+            pasted_at + Duration::from_secs(60)
+        ));
+    }
+
+    /// The grace is elapsed by the clock, not by mutation: the same
+    /// timestamp flips from armed to inert as the injected `now` advances
+    /// past the constant.
+    #[test]
+    fn undo_grace_expires_by_clock_fixture() {
+        let pasted_at = Instant::now();
+        let mut now = pasted_at;
+        for _ in 0..10 {
+            now += Duration::from_secs(1);
+            assert!(
+                undo_window_active(false, Some(pasted_at), now),
+                "still inside the 10s grace"
+            );
+        }
+        now += Duration::from_secs(1);
+        assert!(
+            !undo_window_active(false, Some(pasted_at), now),
+            "11s after the paste the grace is expired"
+        );
+    }
+
+    // ---------------------------------------------------------------------
+    // Command-modifier state machine: press during a live session engages
+    // command interpretation, release disengages, session end clears it
+    // even while held, and a press with no live session does nothing.
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn command_modifier_press_during_live_session_engages() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0),
+            Some(Effect::Start { .. })
+        ));
+
+        state.on_command_modifier(true);
+        assert!(state.command_modifier);
+    }
+
+    #[test]
+    fn command_modifier_release_returns_to_normal() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        state.on_input(toggle_input(true), t0);
+        state.on_command_modifier(true);
+        assert!(state.command_modifier);
+
+        state.on_command_modifier(false);
+        assert!(!state.command_modifier);
+        // The session itself is untouched by the modifier.
+        assert_eq!(state.stage, Stage::Recording(BINDING.to_string()));
+    }
+
+    #[test]
+    fn command_modifier_cleared_when_session_ends_while_held() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        state.on_input(toggle_input(true), t0);
+        state.on_command_modifier(true);
+        assert!(state.command_modifier);
+
+        // The dictation finalizes while the modifier is still held: the
+        // modifier is cleared cleanly, and a later release stays inert.
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0 + Duration::from_secs(5)),
+            Some(Effect::Stop { .. })
+        ));
+        assert!(!state.command_modifier);
+        state.on_command_modifier(false);
+        assert!(!state.command_modifier);
+    }
+
+    #[test]
+    fn command_modifier_press_with_no_live_session_does_nothing() {
+        // Idle: nothing at all happens.
+        let mut state = CoordinatorState::new();
+        state.on_command_modifier(true);
+        assert!(!state.command_modifier);
+        assert_eq!(state.stage, Stage::Idle);
+
+        // Busy pipeline: equally nothing (the modifier only modulates a
+        // LIVE session, never queues for one).
+        let mut busy = CoordinatorState::new();
+        let t0 = Instant::now();
+        drive_into_processing(&mut busy, t0);
+        busy.on_command_modifier(true);
+        assert!(!busy.command_modifier);
+        assert!(busy.on_processing_finished().is_none());
+        assert_eq!(busy.stage, Stage::Idle);
+
+        // Cancel path: a session cancelled while held also clears it.
+        let mut cancelled = CoordinatorState::new();
+        cancelled.on_input(toggle_input(true), t0);
+        cancelled.on_command_modifier(true);
+        cancelled.on_cancel(true);
+        assert!(!cancelled.command_modifier);
+        assert_eq!(cancelled.stage, Stage::Idle);
     }
 
     #[test]
@@ -1671,7 +1950,8 @@ mod tests {
     //
     // Sequence: tap starts dictation, tap stops it, the async pipeline
     // transcribes and pastes, and a few seconds later a recording starts
-    // again by itself. Root cause, confirmed against the code paths:
+    // again by itself. Original root cause, confirmed against the code
+    // paths:
     //
     // 1. The paste chord is synthesized with enigo (Cmd down, V click, Cmd
     //    up after ~100ms) and posted through CGEventPost, so it re-enters
@@ -1679,44 +1959,26 @@ mod tests {
     // 2. Upstream handy-keys 0.3.4 did not filter host-synthesized events
     //    and fired the modifier-only command binding ("command_left") on
     //    the leading Cmd press, exactly like a physical key.
-    // 3. `handle_shortcut_event` routes transcribe_commands into this
-    //    coordinator; the stage is Processing, so the press is remembered
-    //    (classify_busy_input -> Remember).
-    // 4. The trailing Cmd release is deferred by RELEASE_GRACE and
-    //    classified as a ~100ms tap: `finish_pending_hold` locks the
-    //    remembered press.
-    // 5. `FinishGuard::drop` -> `notify_processing_finished` ->
-    //    `on_processing_finished` starts the remembered press: recording
-    //    begins again with no key touched.
+    // 3. Back then transcribe_commands was a recording trigger routed into
+    //    this coordinator; the stage was Processing, so the press was
+    //    remembered (classify_busy_input -> Remember), the ~100ms synthetic
+    //    release classified as a tap and locked it, and the drain started
+    //    it: recording began again with no key touched.
     //
-    // The fix removes the inputs, not the state machine: the vendored
-    // handy-keys tap ignores events stamped with SYNTHESIZED_EVENT_MARKER
-    // (which input.rs now sets on Enigo), and single-modifier bindings are
-    // hold-gated for 400ms, which the ~100ms synthesized chord can never
-    // survive even from another injector. The busy-pipeline remember/lock
-    // behavior exercised below is intentional for REAL presses (toggle
-    // parity), so it is kept and pinned by the reproduction test.
+    // Two structural fixes since: the synthesized-event marker makes the
+    // tap ignore enigo-injected events entirely, single-modifier bindings
+    // are hold-gated for 400ms, and the command binding no longer routes
+    // into the recording lifecycle AT ALL (it is a during-dictation
+    // modifier; a press with no live session is inert). The test below
+    // drives the re-entry edges through the ONLY path they can still take
+    // (the command-modifier command) and pins that nothing restarts.
     // ---------------------------------------------------------------------
 
-    fn commands_input(is_pressed: bool) -> InputEvent {
-        InputEvent {
-            binding_id: "transcribe_commands".to_string(),
-            hotkey_string: "command_left".to_string(),
-            is_pressed,
-            mode: ShortcutActivation::HoldOrToggle,
-            hold_threshold: HOLD_THRESHOLD,
-            external: false,
-        }
-    }
-
-    /// Operator sequence: tap -> locked dictation, tap -> stop, then the
-    /// synthesized paste chord arrives for the command-mode binding while
-    /// the pipeline is busy. Given those events, the machine DOES restart
-    /// at the drain - this is the reproduced bug, asserted so the
-    /// mechanism stays understood and any future re-introduction of the
-    /// re-entry (or removal of the tap filter) has a name to fail against.
+    /// The operator sequence with the re-entered chord delivered as the
+    /// command-modifier edges (all the binding can produce now): nothing
+    /// is remembered, the drain lands on idle, and no recording restarts.
     #[test]
-    fn paste_chord_reentry_rearms_start_at_drain_reproduction() {
+    fn paste_chord_reentry_cannot_rearm_a_start_after_the_redesign() {
         let mode = ShortcutActivation::HoldOrToggle;
         let mut state = CoordinatorState::new();
         let t0 = Instant::now();
@@ -1739,23 +2001,21 @@ mod tests {
 
         // The paste chord re-enters the tap ~1.2s later (preview delay) or
         // right after transcription: command down, V click, command up
-        // ~100ms later. Both edges arrive as if physical.
-        assert!(state.on_input(commands_input(true), t0 + ms(4200)).is_none());
-        assert!(state.on_input(commands_input(false), t0 + ms(4300)).is_none());
-        assert!(state.on_grace_expired().is_none(), "the 100ms synthetic hold classifies as a tap, locking the remembered press");
+        // ~100ms later. Even if both edges reached the coordinator they
+        // are command-modifier presses with no live session: inert.
+        state.on_command_modifier(true);
+        state.on_command_modifier(false);
+        assert!(
+            !state.command_modifier,
+            "a modifier press with no live session must not engage"
+        );
 
-        // The pipeline drains: the remembered press starts a recording the
-        // user never asked for. This is the reported auto-restart.
-        match state.on_processing_finished() {
-            Some(Effect::Start { binding_id, .. }) => {
-                assert_eq!(
-                    binding_id, "transcribe_commands",
-                    "the restart is the remembered command-mode press"
-                );
-            }
-            other => panic!("reproduction failed: expected the auto-restart Start, got {other:?}"),
-        }
-        assert_eq!(state.stage, Stage::Recording("transcribe_commands".to_string()));
+        // The pipeline drains: nothing remembered, nothing restarts.
+        assert!(
+            state.on_processing_finished().is_none(),
+            "the drain must land on idle; the chord edges carry no lifecycle weight"
+        );
+        assert_eq!(state.stage, Stage::Idle);
     }
 
     /// The same operator sequence with the fix in place: the synthesized

@@ -242,7 +242,7 @@
           },
           "transcribe_commands": {
             "name": "Chế độ lệnh",
-            "description": "Ghi âm như đọc chính tả, nhưng mỗi từ được coi là một lệnh: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Các từ không nhận dạng được bị loại bỏ, nên không bao giờ gõ nội dung nào khác. Mặc định chưa gán phím."
+            "description": "Giữ phím này trong khi một phiên đọc chính tả đang hoạt động để chuyển sang diễn giải lệnh: mọi lời bạn nói sẽ chỉnh sửa trực tiếp bộ đệm đọc chính tả (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) và các từ không nhận diện được sẽ bị bỏ qua. Nhả phím để quay lại đọc chính tả bình thường; lần dán cuối cùng trả về đúng bộ đệm đã chỉnh sửa. Không bao giờ tự bắt đầu ghi âm và tự nó không làm gì cả. Mặc định không gán phím."
           }
         },
         "errors": {
@@ -288,7 +288,7 @@
         "title": "Chế độ lệnh",
         "toggle": {
           "title": "Chế độ lệnh",
-          "description": "Bật phím kích hoạt chế độ lệnh có thể gán. Khi giữ, nó ghi âm như đọc chính tả; bản transcript được thực thi dưới dạng lệnh (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) và các từ không nhận dạng được bị loại bỏ."
+          "description": "Bật phím bổ trợ có thể gán của chế độ lệnh. Giữ phím này trong khi một phiên đọc chính tả đang hoạt động để giọng nói được diễn giải thành các lệnh (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) chỉnh sửa trực tiếp bộ đệm đọc chính tả; các từ không nhận diện được sẽ bị bỏ qua. Không bao giờ tự bắt đầu ghi âm."
         }
       }
     },

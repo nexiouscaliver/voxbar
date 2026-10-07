@@ -10,15 +10,13 @@ pub use audio::{
     is_microphone_access_denied, is_no_input_device_error, list_input_devices, list_output_devices,
     read_wav_samples, save_wav_file, verify_wav_file, AudioRecorder, CpalDeviceInfo, VadPolicy,
 };
-pub use commands::{
-    parse_command_transcript, plan_command_transcript, plan_execution, CommandAction, ExecutionStep,
-};
+pub use commands::{apply_command_delta_to_buffer, parse_command_transcript, CommandAction};
 pub use lang_id::detect_output_language;
 pub use text::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion,
     interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
-    remove_filler_words, remove_trailing_word_from_buffer, OutputLanguageEvidence,
-    VoiceDeletionOutcome,
+    remove_filler_words, remove_trailing_line_from_buffer, remove_trailing_word_from_buffer,
+    OutputLanguageEvidence, VoiceDeletionOutcome,
 };
 pub use utils::get_cpal_host;
 pub use vad::{EarshotVad, SileroVad, VoiceActivityDetector};

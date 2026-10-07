@@ -60,25 +60,22 @@ pub trait ShortcutAction: Send + Sync {
 // Transcribe Action
 struct TranscribeAction {
     post_process: bool,
-    /// Command mode: audio is captured exactly like normal dictation, but at
-    /// finalize the whole transcript is parsed as a command sequence
-    /// (see `audio_toolkit::commands`) instead of being pasted as text.
-    command_mode: bool,
 }
 
 /// Pure routing table from a transcribe binding id to its
-/// [`TranscribeAction`] configuration: `(post_process, command_mode)`.
+/// [`TranscribeAction`] configuration: `post_process`.
 ///
 /// Extracted from the ACTION_MAP literals so a test can pin the safety
-/// property the operator relies on: the command-mode binding
-/// ("transcribe_commands") routes ONLY to the command capture path
-/// (`command_mode = true`), and the plain dictation bindings route only to
-/// the dictation path. No binding id can reach both.
-fn transcribe_action_config(binding_id: &str) -> Option<(bool, bool)> {
+/// property the operator relies on: only the dictation bindings
+/// ("transcribe", "transcribe_with_post_process") route here. The
+/// command-mode binding ("transcribe_commands") is NOT a recording action
+/// at all - it is a during-dictation modifier routed to the coordinator's
+/// `send_command_modifier`, so no binding id can ever start a command
+/// capture recording.
+fn transcribe_action_config(binding_id: &str) -> Option<bool> {
     match binding_id {
-        "transcribe" => Some((false, false)),
-        "transcribe_with_post_process" => Some((true, false)),
-        "transcribe_commands" => Some((false, true)),
+        "transcribe" => Some(false),
+        "transcribe_with_post_process" => Some(true),
         _ => None,
     }
 }
@@ -626,7 +623,6 @@ impl ShortcutAction for TranscribeAction {
 
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
         let post_process = self.post_process;
-        let command_mode = self.command_mode;
         let cancel_generation = rm.cancel_generation();
 
         tauri::async_runtime::spawn(async move {
@@ -680,16 +676,12 @@ impl ShortcutAction for TranscribeAction {
                     // "unload immediately" setting clears it as soon as the
                     // stream ends.
                     //
-                    // Command mode requests the raw transcript: none of the
-                    // normal text passes may rewrite a command transcript,
-                    // because the parser owns all interpretation.
+                    // In-session command edits (the command-mode modifier) and
+                    // manual buffer edits fold into the final text through the
+                    // session buffer inside finalize_stream.
                     let transcription_time = Instant::now();
                     let stream_model = tm.get_current_model().unwrap_or_default();
-                    let finalize = if command_mode {
-                        tm.finalize_stream_for_commands()
-                    } else {
-                        tm.finalize_stream()
-                    };
+                    let finalize = tm.finalize_stream();
                     let transcription_result = match finalize {
                         // A finalized stream with usable text wins. An empty result
                         // (no active stream, produced nothing, or the stream failed
@@ -699,13 +691,7 @@ impl ShortcutAction for TranscribeAction {
                         Ok(Some(text)) if !text.trim().is_empty() => {
                             Ok((text, stream_model.clone()))
                         }
-                        Ok(_) => {
-                            if command_mode {
-                                tm.transcribe_with_model_for_commands(samples)
-                            } else {
-                                tm.transcribe_with_model(samples)
-                            }
-                        }
+                        Ok(_) => tm.transcribe_with_model(samples),
                         Err(err) => Err(err),
                     };
 
@@ -747,77 +733,6 @@ impl ShortcutAction for TranscribeAction {
                                 transcription_time.elapsed(),
                                 utils::redact_text(&transcription)
                             );
-
-                            // Command mode: the whole transcript is a command
-                            // sequence. Parse it, save the raw transcript to
-                            // history for auditability, then execute the
-                            // planned steps in order. No post-processing, no
-                            // punctuation/deletion text passes, no dictation
-                            // paste: nothing unrecognized is ever typed.
-                            if command_mode {
-                                // An empty or whitespace-only capture is a
-                                // silent no-op: nothing recorded to history,
-                                // nothing pasted, no overlay weirdness. A
-                                // mis-trigger (or an ultra-short capture that
-                                // transcribed to nothing) must leave no trace.
-                                if transcription.trim().is_empty() {
-                                    debug!(
-                                        "Command mode capture was blank; discarding without recording or executing"
-                                    );
-                                    utils::hide_recording_overlay(&ah);
-                                    set_tray_state(&ah, TrayIconState::Idle);
-                                    return;
-                                }
-
-                                let steps =
-                                    crate::audio_toolkit::plan_command_transcript(&transcription);
-                                debug!(
-                                    "Command mode parsed {} step(s) from {} word(s)",
-                                    steps.len(),
-                                    transcription.split_whitespace().count()
-                                );
-
-                                if wav_saved {
-                                    if let Err(err) = hm.save_entry(
-                                        file_name,
-                                        transcription,
-                                        false,
-                                        None,
-                                        None,
-                                        Some(used_model),
-                                    ) {
-                                        error!("Failed to save history entry: {}", err);
-                                    }
-                                }
-
-                                if rm.was_cancelled_since(cancel_generation) {
-                                    debug!("Command execution cancelled before running steps");
-                                    utils::hide_recording_overlay(&ah);
-                                    set_tray_state(&ah, TrayIconState::Idle);
-                                    return;
-                                }
-
-                                let ah_clone = ah.clone();
-                                let rm_for_steps = Arc::clone(&rm);
-                                ah.run_on_main_thread(move || {
-                                    if rm_for_steps.was_cancelled_since(cancel_generation) {
-                                        debug!("Command execution cancelled before running steps");
-                                        utils::hide_recording_overlay(&ah_clone);
-                                        set_tray_state(&ah_clone, TrayIconState::Idle);
-                                        return;
-                                    }
-
-                                    execute_command_steps(&ah_clone, &steps);
-                                    utils::hide_recording_overlay(&ah_clone);
-                                    set_tray_state(&ah_clone, TrayIconState::Idle);
-                                })
-                                .unwrap_or_else(|e| {
-                                    error!("Failed to run command steps on main thread: {:?}", e);
-                                    utils::hide_recording_overlay(&ah);
-                                    set_tray_state(&ah, TrayIconState::Idle);
-                                });
-                                return;
-                            }
 
                             if post_process {
                                 if use_streaming_overlay {
@@ -920,10 +835,23 @@ impl ShortcutAction for TranscribeAction {
                                     }
 
                                     match utils::paste(final_text, ah_clone.clone()) {
-                                        Ok(()) => debug!(
-                                            "Text pasted successfully in {:?}",
-                                            paste_time.elapsed()
-                                        ),
+                                        Ok(()) => {
+                                            // The dictation landed in the target app:
+                                            // this is the single point where the
+                                            // paste completes, and it arms the
+                                            // Undo action's post-paste grace (the
+                                            // operator's review moment to kill a
+                                            // just-pasted dictation).
+                                            if let Some(c) =
+                                                ah_clone.try_state::<TranscriptionCoordinator>()
+                                            {
+                                                c.note_paste_completed();
+                                            }
+                                            debug!(
+                                                "Text pasted successfully in {:?}",
+                                                paste_time.elapsed()
+                                            )
+                                        }
                                         Err(e) => {
                                             error!("Failed to paste transcription: {}", e);
                                             let _ = ah_clone.emit("paste-error", ());
@@ -984,34 +912,6 @@ impl ShortcutAction for TranscribeAction {
             "TranscribeAction::stop completed in {:?}",
             stop_time.elapsed()
         );
-    }
-}
-
-/// Run command-mode steps against the focused app, in transcript order.
-///
-/// Order guarantees: the steps run sequentially inside one main-thread
-/// closure, so each paste (which blocks until its chord, hold, and restore
-/// delays elapse) and each editing chord fully completes before the next
-/// step is synthesized; consecutive inserts have already been coalesced into
-/// one paste by the planner, and a failure in one step is logged and does
-/// not abort the remaining steps. Must run on the main thread (macOS chord
-/// resolution requires it, matching the paste path).
-fn execute_command_steps(app: &AppHandle, steps: &[crate::audio_toolkit::ExecutionStep]) {
-    use crate::audio_toolkit::ExecutionStep;
-
-    for step in steps {
-        let result = match step {
-            // Inserts go through the paste path verbatim; key actions reuse
-            // the Feature 1 injection helper.
-            ExecutionStep::PasteText(text) => crate::clipboard::paste_for_commands(text, app),
-            ExecutionStep::Edit(action) => {
-                crate::paste_tx::key_send::send_edit_action(app, *action)
-            }
-        };
-
-        if let Err(e) = result {
-            error!("Command step {:?} failed: {}", step, e);
-        }
     }
 }
 
@@ -1081,12 +981,28 @@ impl ShortcutAction for UndoAction {
             return;
         }
 
-        // Undo stays PURE keystroke injection in both cases (session active
-        // or not): it acts on the TARGET APP's edit history, which is
-        // exactly what the user wants to undo there. The dictation buffer
-        // has no undo stack of its own, and the last pasted dictation can
-        // only be removed from the target app with the target app's own
-        // undo.
+        // Undo is a dictation-flow key: it only fires while a recording
+        // session is live (undo a PREVIOUS paste mid-dictation) or within
+        // the post-paste grace (kill a just-pasted dictation during the
+        // review moment). Outside that window it is a debug-logged no-op -
+        // it must never fire as a general-purpose undo for whatever app
+        // happens to be focused.
+        let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() else {
+            debug!("Undo pressed with no coordinator; ignoring");
+            return;
+        };
+        if !coordinator.is_undo_active() {
+            debug!(
+                "Undo pressed outside a live session and the post-paste grace; ignoring"
+            );
+            return;
+        }
+
+        // When active it stays PURE keystroke injection: it acts on the
+        // TARGET APP's edit history, which is exactly what the user wants
+        // to undo there. The dictation buffer has no undo stack of its
+        // own, and the last pasted dictation can only be removed from the
+        // target app with the target app's own undo.
         let ah = app.clone();
         if let Err(e) = app.run_on_main_thread(move || {
             if let Err(err) = crate::paste_tx::key_send::send_edit_action(
@@ -1131,19 +1047,11 @@ impl ShortcutAction for TestAction {
 // Static Action Map
 pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::new(|| {
     let mut map = HashMap::new();
-    for binding_id in [
-        "transcribe",
-        "transcribe_with_post_process",
-        "transcribe_commands",
-    ] {
-        let (post_process, command_mode) =
-            transcribe_action_config(binding_id).expect("known transcribe binding id");
+    for binding_id in ["transcribe", "transcribe_with_post_process"] {
+        let post_process = transcribe_action_config(binding_id).expect("known transcribe binding id");
         map.insert(
             binding_id.to_string(),
-            Arc::new(TranscribeAction {
-                post_process,
-                command_mode,
-            }) as Arc<dyn ShortcutAction>,
+            Arc::new(TranscribeAction { post_process }) as Arc<dyn ShortcutAction>,
         );
     }
     map.insert("cancel".to_string(), Arc::new(CancelAction) as Arc<dyn ShortcutAction>);
@@ -1262,37 +1170,47 @@ mod tests {
         ));
     }
 
-    /// Routing safety for command mode: the transcribe_commands binding id
-    /// maps to the command capture action (command_mode = true) and to
-    /// nothing else; the dictation bindings map only to dictation. This is
-    /// the single table the ACTION_MAP is built from, so the property holds
-    /// for every dispatch path (shortcut handler, coordinator effects).
+    /// Routing safety for the command-mode redesign: the command binding
+    /// has NO entry in the action map (it is a during-dictation modifier
+    /// routed to the coordinator's `send_command_modifier`, never a
+    /// recording action), while the dictation bindings route only to
+    /// dictation. This is the single table the ACTION_MAP is built from, so
+    /// the property holds for every dispatch path (shortcut handler,
+    /// coordinator effects): nothing can start a command capture recording.
     #[test]
-    fn command_mode_binding_routes_only_to_the_command_capture_path() {
+    fn command_mode_binding_has_no_recording_action() {
         use super::transcribe_action_config;
+        use crate::actions::ACTION_MAP;
 
-        assert_eq!(transcribe_action_config("transcribe"), Some((false, false)));
+        assert_eq!(transcribe_action_config("transcribe"), Some(false));
         assert_eq!(
             transcribe_action_config("transcribe_with_post_process"),
-            Some((true, false))
+            Some(true)
         );
         assert_eq!(
             transcribe_action_config("transcribe_commands"),
-            Some((false, true)),
-            "command mode must never route to the plain dictation action"
+            None,
+            "command mode must never route to a recording action"
+        );
+        assert!(
+            !ACTION_MAP.contains_key("transcribe_commands"),
+            "the command binding dispatches through the coordinator's modifier path, not ACTION_MAP"
         );
         assert_eq!(transcribe_action_config("delete_last_word"), None);
         assert_eq!(transcribe_action_config("undo"), None);
         assert_eq!(transcribe_action_config("unknown"), None);
     }
 
-    /// Command mode's empty-capture contract, planner half: a blank or
-    /// unrecognized transcript plans zero steps, so even if the blank guard
-    /// in the stop path were removed the executor would still do nothing.
+    /// The in-session command contract, applier half: a blank or
+    /// unrecognized delta edits nothing, so a mis-held modifier with no
+    /// recognizable speech leaves the live buffer untouched.
     #[test]
-    fn blank_command_transcript_plans_nothing() {
-        assert!(crate::audio_toolkit::plan_command_transcript("").is_empty());
-        assert!(crate::audio_toolkit::plan_command_transcript("   ").is_empty());
-        assert!(crate::audio_toolkit::plan_command_transcript("\n\t").is_empty());
+    fn blank_or_unrecognized_command_delta_edits_nothing() {
+        let mut buffer = "hello world".to_string();
+        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "");
+        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "   ");
+        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "\n\t");
+        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "um nothing here");
+        assert_eq!(buffer, "hello world");
     }
 }

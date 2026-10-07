@@ -291,6 +291,10 @@ struct StreamSessionBuffer {
     /// True between `begin` (the engine stream actually started) and
     /// `combine_final`/`end`. Only then may hotkey edits apply.
     live: bool,
+    /// True while the command-mode modifier is held for this session. The
+    /// flag mirrors the coordinator's decision (press during a live
+    /// session) at snapshot granularity; see [`Self::render`].
+    command_active: bool,
     /// Toggles for the interim display transform, captured when the stream
     /// begins (a mid-session toggle applies from the next session, matching
     /// how `PreviewScript` captures `chinese_script` today).
@@ -307,6 +311,7 @@ impl Default for StreamSessionBuffer {
     fn default() -> Self {
         Self {
             live: false,
+            command_active: false,
             spoken_punctuation: true,
             voice_deletion: true,
             preview_script: PreviewScript::new(
@@ -330,6 +335,7 @@ impl StreamSessionBuffer {
         supported_languages: &[String],
     ) {
         self.live = true;
+        self.command_active = false;
         self.spoken_punctuation = spoken_punctuation;
         self.voice_deletion = voice_deletion;
         self.preview_script = preview_script;
@@ -341,6 +347,7 @@ impl StreamSessionBuffer {
 
     fn end(&mut self) {
         self.live = false;
+        self.command_active = false;
         self.base.clear();
         self.raw_seen.clear();
         self.last_full.clear();
@@ -356,10 +363,41 @@ impl StreamSessionBuffer {
     /// combined raw buffer, script-converted, then the interim display
     /// transform (spoken punctuation, voice deletion; deliberately nothing
     /// else, see [`interim_display_transform`]).
-    fn render(&mut self, committed: &str, tentative: &str) -> String {
+    ///
+    /// `command_modifier` is whether the command-mode binding is held for
+    /// this live session (the coordinator's mirror). While it is held,
+    /// engine material beyond what was already consumed is a COMMAND
+    /// DELTA, not dictation: the delta is parsed by the command grammar
+    /// and its actions edit `base` directly (punctuation/newline inserts,
+    /// delete word, delete line); unrecognized words are discarded - that
+    /// is the command contract. The ENGAGEMENT tick folds the whole
+    /// current snapshot into `base` verbatim (in-flight tentative words
+    /// included, so a word completing across the boundary is never
+    /// truncated into a bogus one-letter command) and marks it consumed
+    /// via `raw_seen`; only material arriving on later snapshots parses
+    /// as commands. Releasing resumes normal dictation from the end of
+    /// the last consumed snapshot; the finalized buffer (and therefore
+    /// the final paste) is exactly the edited `base` plus any later
+    /// normal speech, because `combine_final` never re-consumes material
+    /// covered by `raw_seen`.
+    fn render(&mut self, committed: &str, tentative: &str, command_modifier: bool) -> String {
         let snapshot = format!("{committed}{tentative}");
         self.last_full = snapshot.clone();
-        let raw = self.combine(&snapshot);
+        if command_modifier {
+            if !self.command_active {
+                self.base = self.combine(&snapshot);
+                self.raw_seen = snapshot;
+                self.command_active = true;
+            } else {
+                let keep = common_prefix_len(&self.raw_seen, &snapshot);
+                let delta = snapshot[keep..].to_string();
+                self.raw_seen = snapshot;
+                crate::audio_toolkit::apply_command_delta_to_buffer(&mut self.base, &delta);
+            }
+        } else {
+            self.command_active = false;
+        }
+        let raw = self.combine(&self.last_full);
         let (converted, _) = self
             .preview_script
             .convert(&raw, "", &self.supported_languages);
@@ -1440,11 +1478,19 @@ impl TranscriptionManager {
                 perf.record_update(&progress.update);
                 if let Some(text) = progress.text {
                     perf.record_emit();
+                    // The command-mode modifier is consulted per snapshot:
+                    // while it is held for this live session the new engine
+                    // material parses as commands and edits the buffer
+                    // instead of appending as dictation. A missing
+                    // coordinator reads as "not held".
+                    let command_modifier = app_handle
+                        .try_state::<crate::TranscriptionCoordinator>()
+                        .is_some_and(|c| c.is_command_modifier_active());
                     let display = {
                         let mut session = session_buffer_for_progress
                             .lock()
                             .unwrap_or_else(|e| e.into_inner());
-                        session.render(&text.committed, &text.tentative)
+                        session.render(&text.committed, &text.tentative, command_modifier)
                     };
                     // The whole displayed text is emitted as the committed
                     // part: the interim transform runs over the full raw
@@ -1590,19 +1636,6 @@ impl TranscriptionManager {
     /// queue position, not a failure (#1841), and the engine bounds the
     /// finalize itself by the audio it still has to decode.
     pub fn finalize_stream(&self) -> Result<Option<String>> {
-        self.finalize_stream_with_passes(false)
-    }
-
-    /// Command-mode variant of [`Self::finalize_stream`]: the finalized text
-    /// is returned raw. None of the normal text passes (spoken punctuation,
-    /// voice deletion, terminal fallback, custom words, fillers) may touch a
-    /// command transcript, because every word is a command token and the
-    /// parser owns all interpretation.
-    pub fn finalize_stream_for_commands(&self) -> Result<Option<String>> {
-        self.finalize_stream_with_passes(true)
-    }
-
-    fn finalize_stream_with_passes(&self, command_mode: bool) -> Result<Option<String>> {
         let Some(tx) = self.router.take() else {
             return Ok(None);
         };
@@ -1617,35 +1650,32 @@ impl TranscriptionManager {
         };
 
         // Fold the engine's final raw text together with any manual
-        // session-buffer edits (delete-last-word hotkey). The finalize path
-        // then transforms this raw transcript exactly once through the
-        // canonical pipeline; it is never fed the interim-displayed text.
-        // Idempotence argument: the interim display transform is recomputed
-        // from the raw buffer on every tick and never writes back into it
-        // (the engine accumulator and `base` stay raw-domain), so no text
-        // pass can run twice over the same words. The interim transform is
-        // additionally idempotent on its own output (tested), but the
-        // architecture does not rely on that.
+        // session-buffer edits (delete-last-word hotkey, in-session command
+        // grammar: both consume engine material into `raw_seen` and edit
+        // `base`). The finalize path then transforms this raw transcript
+        // exactly once through the canonical pipeline; it is never fed the
+        // interim-displayed text. Idempotence argument: the interim display
+        // transform is recomputed from the raw buffer on every tick and
+        // never writes back into it (the engine accumulator and `base` stay
+        // raw-domain), so no text pass can run twice over the same words.
+        // The interim transform is additionally idempotent on its own
+        // output (tested), but the architecture does not rely on that.
         let final_raw = self
             .session_buffer
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .combine_final(finalized.text);
 
-        let filtered = if command_mode {
-            final_raw
-        } else {
-            let settings = get_settings(&self.app_handle);
-            // Streaming models do not receive a decode prompt, so custom words
-            // always go through the shared fuzzy post-correction path.
-            post_process_transcription_text(
-                final_raw,
-                &settings,
-                false,
-                &finalized.output_language,
-                &finalized.supported_languages,
-            )
-        };
+        let settings = get_settings(&self.app_handle);
+        // Streaming models do not receive a decode prompt, so custom words
+        // always go through the shared fuzzy post-correction path.
+        let filtered = post_process_transcription_text(
+            final_raw,
+            &settings,
+            false,
+            &finalized.output_language,
+            &finalized.supported_languages,
+        );
 
         self.maybe_unload_immediately("streaming transcription");
         Ok(Some(filtered))
@@ -1709,21 +1739,14 @@ impl TranscriptionManager {
 
     /// Transcribe and report which model id actually produced the text: the
     /// resident model at run time - after a RAM auto-fallback this is the
-    /// fallback, not the persisted selection. History entries record it so a
-    /// mid-dictation model switch stays auditable. Returns `(text, model_id)`;
+    /// fallback, not the persisted selection. History entries record it so
+    /// a mid-dictation model switch stays auditable. Returns `(text, model_id)`;
     /// the model id is empty when unknown.
     pub fn transcribe_with_model(&self, audio: Vec<f32>) -> Result<(String, String)> {
-        self.transcribe_audio(audio, false)
+        self.transcribe_audio(audio)
     }
 
-    /// Command-mode variant of [`Self::transcribe_with_model`]: the raw
-    /// transcript is returned with every text pass skipped, because the
-    /// command parser owns all interpretation of the words.
-    pub fn transcribe_with_model_for_commands(&self, audio: Vec<f32>) -> Result<(String, String)> {
-        self.transcribe_audio(audio, true)
-    }
-
-    fn transcribe_audio(&self, audio: Vec<f32>, command_mode: bool) -> Result<(String, String)> {
+    fn transcribe_audio(&self, audio: Vec<f32>) -> Result<(String, String)> {
         #[cfg(debug_assertions)]
         if std::env::var("HANDY_FORCE_TRANSCRIPTION_FAILURE").is_ok() {
             return Err(anyhow::anyhow!(
@@ -1802,24 +1825,18 @@ impl TranscriptionManager {
         );
         debug!("Output language evidence: {:?}", output_language);
 
-        // Command mode skips every text pass: the transcript is a command
-        // program, not prose, and the parser must see the raw ASR words.
-        let filtered_result = if command_mode {
-            run.text
-        } else {
-            // Apply fuzzy word correction if custom words are configured, UNLESS the
-            // words were already handed to the model as an initial prompt (whisper
-            // family). We don't pass a prompt to non-whisper models (it requires
-            // the whisper-kind run extension), so they still get fuzzy correction here,
-            // same as the ONNX engines.
-            post_process_transcription_text(
-                run.text,
-                &settings,
-                run.model_is_whisper,
-                &output_language,
-                &run.languages,
-            )
-        };
+        // Apply fuzzy word correction if custom words are configured, UNLESS the
+        // words were already handed to the model as an initial prompt (whisper
+        // family). We don't pass a prompt to non-whisper models (it requires
+        // the whisper-kind run extension), so they still get fuzzy correction here,
+        // same as the ONNX engines.
+        let filtered_result = post_process_transcription_text(
+            run.text,
+            &settings,
+            run.model_is_whisper,
+            &output_language,
+            &run.languages,
+        );
 
         let et = std::time::Instant::now();
         let translation_note = if settings.translate_to_english {
@@ -2856,8 +2873,8 @@ mod tests {
     #[test]
     fn session_buffer_without_edits_passes_snapshots_through() {
         let mut session = session_buffer();
-        assert_eq!(session.render("Hello ", "wor"), "Hello wor");
-        assert_eq!(session.render("Hello world ", ""), "Hello world ");
+        assert_eq!(session.render("Hello ", "wor", false), "Hello wor");
+        assert_eq!(session.render("Hello world ", "", false), "Hello world ");
 
         // No manual edits: finalize gets the engine text byte-for-byte.
         assert_eq!(
@@ -2870,12 +2887,12 @@ mod tests {
     #[test]
     fn session_buffer_delete_word_while_tentative_stays_deleted() {
         let mut session = session_buffer();
-        session.render("hello ", "world");
+        session.render("hello ", "world", false);
         assert_eq!(session.delete_last_word(), Some("hello ".to_string()));
 
         // The engine commits the (already deleted) tentative word verbatim
         // and the user keeps talking: the word must not resurrect.
-        assert_eq!(session.render("hello world and more", ""), "hello and more");
+        assert_eq!(session.render("hello world and more", "", false), "hello and more");
         assert_eq!(
             session.combine_final("hello world and more".to_string()),
             "hello and more"
@@ -2885,18 +2902,18 @@ mod tests {
     #[test]
     fn session_buffer_delete_committed_word_joins_cleanly() {
         let mut session = session_buffer();
-        session.render("hello world", "");
+        session.render("hello world", "", false);
         assert_eq!(session.delete_last_word(), Some("hello ".to_string()));
 
         // New speech arrives after the committed prefix that was already
         // consumed: exactly one separating space survives the join.
-        assert_eq!(session.render("hello world next", ""), "hello next");
+        assert_eq!(session.render("hello world next", "", false), "hello next");
     }
 
     #[test]
     fn session_buffer_delete_word_repeated_and_on_empty() {
         let mut session = session_buffer();
-        session.render("one two three", "");
+        session.render("one two three", "", false);
         assert_eq!(session.delete_last_word(), Some("one two ".to_string()));
         assert_eq!(session.delete_last_word(), Some("one ".to_string()));
         assert_eq!(session.delete_last_word(), Some("".to_string()));
@@ -2905,8 +2922,8 @@ mod tests {
 
         // The interim display transform trims a leading space; the raw
         // buffer keeps it, so speech after a full deletion joins normally.
-        assert_eq!(session.render(" fresh", ""), "fresh");
-        assert_eq!(session.render(" fresh words", ""), "fresh words");
+        assert_eq!(session.render(" fresh", "", false), "fresh");
+        assert_eq!(session.render(" fresh words", "", false), "fresh words");
     }
 
     #[test]
@@ -2916,7 +2933,7 @@ mod tests {
 
         // After finalize the buffer is no longer live.
         let mut live = session_buffer();
-        live.render("hello", "");
+        live.render("hello", "", false);
         live.combine_final("hello".to_string());
         assert_eq!(live.delete_last_word(), None);
     }
@@ -2928,14 +2945,14 @@ mod tests {
         // across a manual-edit seam) still converts; converting the parts
         // separately would miss it.
         let mut session = session_buffer();
-        assert_eq!(session.render("say full", " stop now"), "say. Now");
+        assert_eq!(session.render("say full", " stop now", false), "say. Now");
 
         // After a manual edit the same holds across the base/new-material
         // seam: "full" lands in base, "stop" in the new material.
         let mut edited = session_buffer();
-        edited.render("alpha ", "beta");
+        edited.render("alpha ", "beta", false);
         edited.delete_last_word(); // removes "beta", freezes "alpha "
-        assert_eq!(edited.render("alpha beta full", " stop now"), "alpha. Now");
+        assert_eq!(edited.render("alpha beta full", " stop now", false), "alpha. Now");
     }
 
     #[test]
@@ -2943,8 +2960,8 @@ mod tests {
         let mut session = session_buffer();
         // Mid-sentence, mid-question: no period or question mark may appear
         // on any tick (the terminal fallback runs only at finalize).
-        assert_eq!(session.render("hello world", ""), "hello world");
-        assert_eq!(session.render("what is this", ""), "what is this");
+        assert_eq!(session.render("hello world", "", false), "hello world");
+        assert_eq!(session.render("what is this", "", false), "what is this");
 
         // The finalize pipeline is where terminal punctuation may land.
         let settings = AppSettings {
@@ -2970,11 +2987,11 @@ mod tests {
         // transform recomputes over the whole combined buffer every tick.
         // Here "two" was removed by the hotkey, "three" by the voice command.
         let mut session = session_buffer();
-        session.render("one two", "");
+        session.render("one two", "", false);
         session.delete_last_word(); // buffer is now "one "
-        session.render("one two three", "");
+        session.render("one two three", "", false);
         assert_eq!(
-            session.render("one two three scratch that", ""),
+            session.render("one two three scratch that", "", false),
             "one".to_string()
         );
         // And the finalize fold agrees: raw buffer passed onward is
@@ -2984,6 +3001,152 @@ mod tests {
             session.combine_final("one two three scratch that more".to_string()),
             "one three scratch that more"
         );
+    }
+
+    // -----------------------------------------------------------------
+    // Command-mode modifier over the live session buffer: engagement
+    // folds the snapshot so far in as dictation, later deltas parse as
+    // grammar commands editing the buffer, unrecognized words are
+    // discarded, and the final paste is exactly the edited buffer.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn session_buffer_command_modifier_edits_instead_of_appending() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+
+        // Engagement tick: the snapshot so far is dictation, folded
+        // verbatim (the flag arrives with this snapshot, material in it
+        // predates activation).
+        assert_eq!(session.render("hello world", "", true), "hello world");
+        // Command words arriving on later snapshots while held parse and
+        // edit the buffer instead of appending as words.
+        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+        assert_eq!(
+            session.render("hello world comma question mark", "", true),
+            "hello world,?"
+        );
+        // Unrecognized words while held are DISCARDED (the command contract).
+        assert_eq!(
+            session.render("hello world comma question mark um stuff", "", true),
+            "hello world,?"
+        );
+
+        // Released: dictation resumes appending beyond the consumed
+        // snapshot; the command words never re-enter the raw buffer.
+        assert_eq!(
+            session.render("hello world comma question mark um stuff and more", "", false),
+            "hello world,? and more"
+        );
+        // The final paste delivers exactly the edited buffer (plus later
+        // normal speech); the command tokens are gone.
+        assert_eq!(
+            session.combine_final("hello world comma question mark um stuff and more".to_string()),
+            "hello world,? and more"
+        );
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_delete_word_and_line() {
+        let mut session = session_buffer();
+        session.render("alpha beta", "", false);
+        session.render("alpha beta", "", true); // engage
+
+        // "delete word" removes the trailing word from the buffer.
+        assert_eq!(session.render("alpha beta delete word", "", true), "alpha ");
+        // "new line" inserts a break; unrecognized filler is discarded.
+        assert_eq!(
+            session.render("alpha beta delete word new line gamma delta", "", true),
+            "alpha \n"
+        );
+        // Released: normal speech resumes on the fresh line (the engine
+        // separates it with a space; the raw domain keeps it).
+        assert_eq!(
+            session.render(
+                "alpha beta delete word new line gamma delta second line words",
+                "",
+                false
+            ),
+            "alpha \n second line words"
+        );
+        // Re-engaged "delete line" clears the current trailing line back
+        // to the newline (same semantics as the voice-deletion phrase).
+        assert_eq!(
+            session.render(
+                "alpha beta delete word new line gamma delta second line words delete line",
+                "",
+                true
+            ),
+            "alpha \n"
+        );
+        // A delete line with no newline clears the whole buffer.
+        let mut single = session_buffer();
+        single.render("only line", "", false);
+        single.render("only line", "", true); // engage
+        assert_eq!(single.render("only line delete line", "", true), "");
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_engagement_keeps_in_flight_tentative() {
+        // A word still tentative at the engagement tick completes on the
+        // next snapshot: the completion is dictation that predates
+        // activation, so it must survive intact rather than parse as a
+        // one-letter "command" (and be discarded).
+        let mut session = session_buffer();
+        session.render("hello ", "wor", false);
+        assert_eq!(session.render("hello world", "", true), "hello world");
+        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_words_stay_out_of_final_raw() {
+        // The engine's final text contains the command words verbatim;
+        // everything covered by raw_seen at finalize is skipped, so the
+        // final raw is the edited buffer plus genuinely new material.
+        let mut session = session_buffer();
+        session.render("one two", "", false);
+        session.render("one two", "", true); // engage
+        session.render("one two delete word new line", "", true);
+        assert_eq!(
+            session.combine_final("one two delete word new line three".to_string()),
+            "one \n three"
+        );
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_hotkey_deletion_still_works_while_held() {
+        // The delete-last-word hotkey edits the same live buffer the
+        // command grammar is editing; the two compose.
+        let mut session = session_buffer();
+        session.render("one two three", "", false);
+        session.render("one two three", "", true); // engage
+        session.render("one two three comma", "", true);
+        assert_eq!(session.delete_last_word(), Some("one two ".to_string()));
+        assert_eq!(
+            session.render("one two three comma period", "", true),
+            "one two ."
+        );
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_resets_between_sessions() {
+        let mut session = session_buffer();
+        session.render("hello comma", "", true);
+        assert!(session.command_active);
+        session.end();
+        assert!(!session.command_active);
+
+        // A fresh session starts in normal dictation even though the
+        // modifier may still be held (the coordinator clears its flag on
+        // session end; the buffer forgets on begin/end too).
+        session.begin(
+            PreviewScript::new(ChineseScript::AsTranscribed, &OutputLanguageEvidence::Unknown),
+            true,
+            true,
+            &languages(&["en"]),
+        );
+        assert!(!session.command_active);
+        assert_eq!(session.render("hello there", "", false), "hello there");
     }
 
     #[test]

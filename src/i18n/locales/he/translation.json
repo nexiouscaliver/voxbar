@@ -194,7 +194,7 @@
           },
           "transcribe_commands": {
             "name": "מצב פקודות",
-            "description": "מקליט כמו הקלטה, אבל כל מילה מטופלת כפקודה: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. מילים לא מזוהות נזרקות, כך שלעולם לא נקלד דבר אחר. לא מוקצה כברירת מחדל."
+            "description": "החזיקו מקש זה בזמן שהקלטת ההקראה פעילה כדי לעבור לפרשנות פקודות: כל מה שתגידו עורך ישירות את מאגר ההקראה (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) ומילים לא מזוהות נזרקות. שחררו כדי לחזור להקראה רגילה; ההדבקה הסופית מוסרת בדיוק עם המאגר הערוך. לעולם לא מתחיל הקלטה ולבד לא עושה דבר. ברירת מחדל ללא מקש."
           }
         },
         "errors": {
@@ -240,7 +240,7 @@
         "title": "מצב פקודות",
         "toggle": {
           "title": "מצב פקודות",
-          "description": "מפעיל את מקש ההקלטה הניתן להקצאה של מצב הפקודות. בהחזקה הוא מקליט כמו הקלטה; התמליל מבוצע כפקודות (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) ומילים לא מזוהות נזרקות."
+          "description": "מפעיל את מקש השינוי הניתן להקצאה של מצב הפקודות. החזיקו אותו בזמן הקלטת הקראה פעילה כדי שהדיבור יפורש כפקודות (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) העורכות ישירות את מאגר ההקראה; מילים לא מזוהות נזרקות. לעולם לא מתחיל הקלטה בפני עצמו."
         }
       }
     },

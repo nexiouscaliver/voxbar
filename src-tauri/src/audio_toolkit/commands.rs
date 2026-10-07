@@ -1,8 +1,13 @@
-//! Command mode: parse a whole transcript as a sequence of editing commands.
+//! Command mode: the during-dictation grammar for editing the live buffer.
 //!
-//! Command mode is a second recording trigger, separate from normal
-//! dictation. Audio is captured exactly like push-to-talk, but at finalize
-//! the transcript is treated as a command sequence instead of text to paste.
+//! Command mode is NOT a recording trigger. The transcribe_commands
+//! binding is a modifier: while a NORMAL dictation session is live,
+//! holding it switches that session into command interpretation, and the
+//! interim transcript deltas arriving while it is held are parsed here and
+//! their actions edit the SESSION BUFFER live (see
+//! `StreamSessionBuffer::render` in `managers/transcription.rs`). Releasing
+//! the modifier returns the session to normal dictation, and the final
+//! paste delivers exactly the edited buffer.
 //!
 //! GRAMMAR
 //! =======
@@ -20,10 +25,19 @@
 //! "paste"                                                       | Paste
 //!
 //! Every other word is DISCARDED. That is the command-mode contract:
-//! nothing unrecognized ever reaches the target app, so the user can speak
-//! filler ("um", "eh", half-sentences) while issuing commands and nothing
-//! stray is typed. A transcript with no recognized commands produces an
-//! empty action list and nothing happens.
+//! nothing unrecognized ever reaches the dictation buffer, so the user
+//! can speak filler ("um", "eh", half-sentences) while issuing commands
+//! and nothing stray lands in the pasted text. A delta with no recognized
+//! commands produces no actions and edits nothing.
+//!
+//! TARGET-APP ACTIONS DURING A SESSION: "undo" and "paste" act on the
+//! focused app, not the dictation buffer, and injecting keystrokes
+//! mid-dictation is forbidden (the synthesized events would race the
+//! recording, and undoing in the target app while its final text has not
+//! landed yet is meaningless). Both are recognized by the grammar but
+//! deliberately IGNORED by [`apply_command_delta_to_buffer`]; only the
+//! buffer-edit actions (Insert, DeleteWord, DeleteLine) have an effect
+//! while the modifier is held.
 //!
 //! Matching follows the phrase style of the spoken-punctuation normalizer
 //! in [`super::text`]: phrases are matched whole (two-word entries before
@@ -34,7 +48,7 @@
 //! dropped rather than kept, because here the transcript is a program, not
 //! prose.
 
-use crate::paste_tx::key_send::EditAction;
+use super::text::{remove_trailing_line_from_buffer, remove_trailing_word_from_buffer};
 
 /// One parsed command-mode action, in transcript order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -45,9 +59,10 @@ pub enum CommandAction {
     DeleteWord,
     /// Delete the current line.
     DeleteLine,
-    /// Undo the last edit.
+    /// Undo the last edit. Target-app action: ignored during a session.
     Undo,
-    /// Send a plain paste chord.
+    /// Send a plain paste chord. Target-app action: ignored during a
+    /// session.
     Paste,
 }
 
@@ -125,60 +140,36 @@ pub fn parse_command_transcript(transcript: &str) -> Vec<CommandAction> {
     actions
 }
 
-/// One executable step after coalescing. Consecutive [`CommandAction::Insert`]
-/// values join into a single paste so "comma question mark" pastes ",?" once
-/// instead of racing two clipboard transactions.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ExecutionStep {
-    /// Paste this literal text through the paste path.
-    PasteText(String),
-    /// Send one editing chord.
-    Edit(EditAction),
-}
-
-fn edit_action_for(action: &CommandAction) -> Option<EditAction> {
-    match action {
-        CommandAction::DeleteWord => Some(EditAction::DeleteLastWord),
-        CommandAction::DeleteLine => Some(EditAction::DeleteLine),
-        CommandAction::Undo => Some(EditAction::Undo),
-        CommandAction::Paste => Some(EditAction::Paste),
-        CommandAction::Insert(_) => None,
-    }
-}
-
-/// Turn parsed actions into executable steps: consecutive inserts coalesce
-/// into one paste, key actions stay separate, and transcript order is
-/// preserved. An empty action list yields an empty plan (nothing happens).
-pub fn plan_execution(actions: &[CommandAction]) -> Vec<ExecutionStep> {
-    let mut steps: Vec<ExecutionStep> = Vec::new();
-    let mut pending_text: Option<String> = None;
-
-    for action in actions {
+/// Apply a command-mode transcript delta to the live session buffer, in
+/// delta order. The buffer-edit actions:
+///
+/// * `Insert` appends the literal text (punctuation, line breaks);
+/// * `DeleteWord` removes the trailing word from the buffer, using the
+///   same word semantics as the delete-last-word hotkey and the
+///   voice-deletion "scratch that" (attached punctuation goes with the
+///   word, the separating whitespace is kept for the re-join);
+/// * `DeleteLine` clears the current trailing line, with the same
+///   semantics as the voice-deletion "delete line": everything after the
+///   last newline goes (the newline is kept so text spoken next starts on
+///   the fresh line), and with no newline the whole buffer empties.
+///
+/// `Undo` and `Paste` act on the TARGET APP and are deliberately ignored
+/// here: no keystroke is injected mid-dictation (see the module docs). A
+/// blank or wholly unrecognized delta edits nothing.
+pub fn apply_command_delta_to_buffer(buffer: &mut String, delta: &str) {
+    for action in parse_command_transcript(delta) {
         match action {
-            CommandAction::Insert(text) => {
-                pending_text.get_or_insert_with(String::new).push_str(text);
+            CommandAction::Insert(text) => buffer.push_str(text),
+            CommandAction::DeleteWord => {
+                *buffer = remove_trailing_word_from_buffer(buffer)
             }
-            other => {
-                if let Some(text) = pending_text.take() {
-                    steps.push(ExecutionStep::PasteText(text));
-                }
-                if let Some(edit) = edit_action_for(other) {
-                    steps.push(ExecutionStep::Edit(edit));
-                }
+            CommandAction::DeleteLine => {
+                *buffer = remove_trailing_line_from_buffer(buffer)
             }
+            // Target-app actions: inert during a live session.
+            CommandAction::Undo | CommandAction::Paste => {}
         }
     }
-
-    if let Some(text) = pending_text {
-        steps.push(ExecutionStep::PasteText(text));
-    }
-
-    steps
-}
-
-/// Parse and plan in one call: transcript -> executable steps.
-pub fn plan_command_transcript(transcript: &str) -> Vec<ExecutionStep> {
-    plan_execution(&parse_command_transcript(transcript))
 }
 
 #[cfg(test)]
@@ -310,75 +301,65 @@ mod tests {
         );
     }
 
+    // -----------------------------------------------------------------
+    // Buffer-edit application (the in-session command contract).
+    // -----------------------------------------------------------------
+
     #[test]
-    fn consecutive_inserts_coalesce_into_one_paste() {
-        let steps = plan_execution(&[
-            CommandAction::Insert(","),
-            CommandAction::Insert("?"),
-            CommandAction::Insert("\n"),
-        ]);
-        assert_eq!(steps, vec![ExecutionStep::PasteText(",?\n".to_string())]);
+    fn inserts_append_literal_text_to_the_buffer() {
+        let mut buffer = "hello world".to_string();
+        apply_command_delta_to_buffer(&mut buffer, "comma question mark");
+        assert_eq!(buffer, "hello world,?");
+        apply_command_delta_to_buffer(&mut buffer, "new line");
+        assert_eq!(buffer, "hello world,?\n");
+        apply_command_delta_to_buffer(&mut buffer, "new paragraph");
+        assert_eq!(buffer, "hello world,?\n\n\n");
     }
 
     #[test]
-    fn inserts_surrounding_an_edit_split_at_the_edit() {
-        let steps = plan_execution(&[
-            CommandAction::Insert("."),
-            CommandAction::Undo,
-            CommandAction::Insert(","),
-        ]);
-        assert_eq!(
-            steps,
-            vec![
-                ExecutionStep::PasteText(".".to_string()),
-                ExecutionStep::Edit(EditAction::Undo),
-                ExecutionStep::PasteText(",".to_string()),
-            ]
-        );
+    fn delete_word_uses_the_buffer_word_semantics() {
+        let mut buffer = "one two three".to_string();
+        apply_command_delta_to_buffer(&mut buffer, "delete word");
+        assert_eq!(buffer, "one two ");
+        apply_command_delta_to_buffer(&mut buffer, "delete word");
+        assert_eq!(buffer, "one ");
+        // Deleting from an empty buffer stays empty.
+        let mut empty = " ".to_string();
+        apply_command_delta_to_buffer(&mut empty, "delete word");
+        assert_eq!(empty, "");
     }
 
     #[test]
-    fn transcript_order_is_preserved_end_to_end() {
-        let steps = plan_command_transcript(
-            "hello comma question mark delete word undo new line paste period",
-        );
-        assert_eq!(
-            steps,
-            vec![
-                ExecutionStep::PasteText(",?".to_string()),
-                ExecutionStep::Edit(EditAction::DeleteLastWord),
-                ExecutionStep::Edit(EditAction::Undo),
-                ExecutionStep::PasteText("\n".to_string()),
-                ExecutionStep::Edit(EditAction::Paste),
-                ExecutionStep::PasteText(".".to_string()),
-            ]
-        );
+    fn delete_line_clears_the_trailing_line() {
+        let mut buffer = "first\nsecond third".to_string();
+        apply_command_delta_to_buffer(&mut buffer, "delete line");
+        assert_eq!(buffer, "first\n");
+        // No newline: the whole buffer empties.
+        let mut single = "only line".to_string();
+        apply_command_delta_to_buffer(&mut single, "delete line");
+        assert_eq!(single, "");
     }
 
     #[test]
-    fn empty_action_list_plans_nothing() {
-        assert!(plan_execution(&[]).is_empty());
-        assert!(plan_command_transcript("nothing recognizable here").is_empty());
+    fn target_app_actions_edit_nothing_during_a_session() {
+        let mut buffer = "hello world".to_string();
+        apply_command_delta_to_buffer(&mut buffer, "undo paste");
+        assert_eq!(buffer, "hello world");
     }
 
     #[test]
-    fn key_actions_map_to_their_edit_chords() {
-        assert_eq!(
-            edit_action_for(&CommandAction::DeleteWord),
-            Some(EditAction::DeleteLastWord)
-        );
-        assert_eq!(
-            edit_action_for(&CommandAction::DeleteLine),
-            Some(EditAction::DeleteLine)
-        );
-        assert_eq!(
-            edit_action_for(&CommandAction::Undo),
-            Some(EditAction::Undo)
-        );
-        assert_eq!(
-            edit_action_for(&CommandAction::Paste),
-            Some(EditAction::Paste)
-        );
-        assert_eq!(edit_action_for(&CommandAction::Insert("?")), None);
+    fn actions_apply_in_delta_order() {
+        let mut buffer = "one two three".to_string();
+        apply_command_delta_to_buffer(&mut buffer, "delete word comma delete word");
+        assert_eq!(buffer, "one two ");
+    }
+
+    #[test]
+    fn blank_or_unrecognized_delta_edits_nothing() {
+        let mut buffer = "hello world".to_string();
+        apply_command_delta_to_buffer(&mut buffer, "");
+        apply_command_delta_to_buffer(&mut buffer, "   ");
+        apply_command_delta_to_buffer(&mut buffer, "um eh nothing recognizable");
+        assert_eq!(buffer, "hello world");
     }
 }

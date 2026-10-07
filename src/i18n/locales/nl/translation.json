@@ -194,7 +194,7 @@
           },
           "transcribe_commands": {
             "name": "Commandomodus",
-            "description": "Neemt op zoals dicteren, maar elk woord wordt als commando behandeld: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Niet-herkende woorden worden weggegooid, zodat er nooit iets anders wordt getypt. Standaard niet toegewezen."
+            "description": "Houd deze toets ingedrukt terwijl een dicteersessie actief is om over te schakelen naar commandointerpretatie: alles wat u zegt bewerkt direct de dicteerbuffer (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) en niet-herkende woorden worden weggegooid. Laat de toets los om terug te keren naar normaal dicteren; de uiteindelijke plakactie levert exact de bewerkte buffer. Start nooit een opname en doet op zichzelf niets. Standaard zonder toets."
           }
         },
         "errors": {
@@ -240,7 +240,7 @@
         "title": "Commandomodus",
         "toggle": {
           "title": "Commandomodus",
-          "description": "Schakelt de toewijsbare commandomodus-trigger in. Ingehouden neemt hij op zoals dicteren; de transcriptie wordt uitgevoerd als commando's (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) en niet-herkende woorden worden weggegooid."
+          "description": "Schakelt de toewijsbare commandomodus-modificatortoets in. Houd deze ingedrukt terwijl een dicteersessie actief is om uw spraak te interpreteren als commando's (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) die de dicteerbuffer direct bewerken; niet-herkende woorden worden weggegooid. Start nooit zelf een opname."
         }
       }
     },

@@ -242,7 +242,7 @@
           },
           "transcribe_commands": {
             "name": "コマンドモード",
-            "description": "音声入力と同じように録音しますが、すべての単語をコマンドとして扱います: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste。認識されない単語は破棄されるため、それ以外が入力されることはありません。既定では割り当てなし。"
+            "description": "音声入力セッション中にこのキーを押し続けるとコマンド解釈に切り替わります: 発話内容がそのままディクテーションバッファを直接編集し (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line)、認識されない単語は破棄されます。キーを離すと通常の音声入力に戻り、最終貼り付けは編集済みバッファをそのまま配信します。単体では録音を開始せず何もしません。デフォルトでは未割り当てです。"
           }
         },
         "errors": {
@@ -288,7 +288,7 @@
         "title": "コマンドモード",
         "toggle": {
           "title": "コマンドモード",
-          "description": "割り当て可能なコマンドモードトリガーを有効にします。押している間は音声入力と同じように録音し、文字起こしはコマンドとして実行されます (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste)。認識されない単語は破棄されます。"
+          "description": "割り当て可能なコマンドモードの修飾キーを有効にします。音声入力セッション中に押し続けると、発話がディクテーションバッファを直接編集するコマンド (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) として解釈され、認識されない単語は破棄されます。単体で録音を開始することはありません。"
         }
       }
     },

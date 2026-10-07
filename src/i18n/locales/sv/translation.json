@@ -194,7 +194,7 @@
           },
           "transcribe_commands": {
             "name": "Kommandoläge",
-            "description": "Spelar in som en diktering, men varje ord behandlas som ett kommando: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Okända ord kasseras, så inget annat skrivs någonsin. Ej kopplad som standard."
+            "description": "Håll ned denna tangent medan en dikteringsession är aktiv för att växla till kommandotolkning: allt du säger redigerar dikteringsbufferten direkt (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) och okända ord kastas bort. Släpp tangenten för att återgå till normal diktering; den slutliga inklistringen levererar exakt den redigerade bufferten. Startar aldrig en inspelning och gör inget på egen hand. Utan tangent som standard."
           }
         },
         "errors": {
@@ -240,7 +240,7 @@
         "title": "Kommandoläge",
         "toggle": {
           "title": "Kommandoläge",
-          "description": "Aktiverar den kopplingsbara kommandolägesutlösaren. Innehåll spelar den in som en diktering; transkriptionen körs som kommandon (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) och okända ord kasseras."
+          "description": "Aktiverar den kopplingsbara modifierartangenten för kommandoläge. Håll den nedtryckt medan en dikteringssession är aktiv för att tolka din röst som kommandon (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) som redigerar dikteringsbufferten direkt; okända ord kastas bort. Startar aldrig en inspelning på egen hand."
         }
       }
     },

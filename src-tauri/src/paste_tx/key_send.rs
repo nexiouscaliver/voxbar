@@ -2,10 +2,12 @@
 //!
 //! The paste chord in [`crate::input::send_paste_ctrl_v`] shows the pattern
 //! this module follows: describe the keys abstractly, then translate them to
-//! enigo `Key`s per platform. Editing actions assignable in the shortcut
-//! system and command mode's key actions both inject through here, so the
-//! CGEvent/SendInput synthesis lives in exactly one place instead of being
-//! duplicated per feature.
+//! enigo `Key`s per platform. Only the scoped Undo action injects through
+//! here today: delete word and delete line are dictation-flow keys that edit
+//! the SESSION BUFFER, and in-session command mode never injects keystrokes
+//! mid-dictation. The full chord table stays as the single tested mapping
+//! source for every platform, so the CGEvent/SendInput synthesis lives in
+//! exactly one place instead of being duplicated per feature.
 //!
 //! The mapping table is deliberately a pure function of an explicit
 //! [`Platform`] value (not of `cfg`), so unit tests pin every platform's
@@ -97,6 +99,12 @@ impl KeySpec {
 }
 
 /// Editing actions delivered as synthesized key chords to the focused app.
+///
+/// Only [`EditAction::Undo`] has a live caller today (the dictation-scoped
+/// Undo action). The other variants are still exercised by the unit tests
+/// and remain the surface any future target-app edit action would inject
+/// through, so the table is kept whole rather than pruned to the one chord.
+#[allow(dead_code)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EditAction {
     /// Delete the word before the caret: Option+Backspace on macOS,

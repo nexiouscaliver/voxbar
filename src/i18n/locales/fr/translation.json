@@ -242,7 +242,7 @@
           },
           "transcribe_commands": {
             "name": "Mode commandes",
-            "description": "Enregistre comme une dictée, mais chaque mot est traité comme une commande : question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Les mots non reconnus sont ignorés, rien d'autre n'est jamais saisi. Non assigné par défaut."
+            "description": "Maintenez cette touche pendant une dictée active pour passer en interprétation de commandes : tout ce que vous dictez modifie directement la mémoire tampon de la dictée (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) et les mots non reconnus sont ignorés. Relâchez-la pour revenir à la dictée normale ; le collage final livre exactement la mémoire tampon modifiée. Ne démarre jamais un enregistrement et ne fait rien seule. Non assignée par défaut."
           }
         },
         "errors": {
@@ -288,7 +288,7 @@
         "title": "Mode commandes",
         "toggle": {
           "title": "Mode commandes",
-          "description": "Active le déclencheur assignable du mode commandes. Maintenu, il enregistre comme une dictée ; la transcription est exécutée comme des commandes (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) et les mots non reconnus sont ignorés."
+          "description": "Active la touche modificatrice attribuable du mode commandes. Maintenez-la pendant une dictée active pour interpréter votre voix comme des commandes (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) qui modifient directement la mémoire tampon de la dictée ; les mots non reconnus sont ignorés. Ne démarre jamais un enregistrement seule."
         }
       }
     },

@@ -242,7 +242,7 @@
           },
           "transcribe_commands": {
             "name": "Befehlsmodus",
-            "description": "Nimmt wie eine Diktierung auf, aber jedes Wort gilt als Befehl: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Nicht erkannte Wörter werden verworfen, sodass nichts anderes je getippt wird. Standardmäßig ohne Taste."
+            "description": "Halten Sie diese Taste, während eine Diktatsitzung läuft, um in die Befehlsinterpretation zu wechseln: Alles Gesprochene bearbeitet direkt den Diktatpuffer (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), nicht erkannte Wörter werden verworfen. Beim Loslassen kehrt man zum normalen Diktat zurück; das finale Einfügen liefert genau den bearbeiteten Puffer. Startet nie eine Aufnahme und bewirkt allein nichts. Standardmäßig ohne Taste."
           }
         },
         "errors": {
@@ -288,7 +288,7 @@
         "title": "Befehlsmodus",
         "toggle": {
           "title": "Befehlsmodus",
-          "description": "Aktiviert den zuweisbaren Befehlsmodus-Trigger. Beim Halten nimmt er wie eine Diktierung auf; das Transkript wird als Befehle ausgeführt (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) und nicht erkannte Wörter werden verworfen."
+          "description": "Aktiviert den zuweisbaren Befehlsmodus-Modifikator. Halten Sie ihn, während eine Diktatsitzung läuft, um Gesprochenes als Befehle zu interpretieren (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), die den Diktatpuffer direkt bearbeiten; nicht erkannte Wörter werden verworfen. Startet nie eine eigene Aufnahme."
         }
       }
     },

@@ -615,11 +615,11 @@ pub struct AppSettings {
     /// bound.
     #[serde(default = "default_undo_enabled")]
     pub undo_enabled: bool,
-    /// Master toggle for command mode: a second, assignable recording
-    /// trigger whose whole transcript is parsed as a command sequence
-    /// (punctuation, line breaks, delete word/line, undo, paste) instead of
-    /// being pasted as dictation text. Ships unbound, so it stays inert
-    /// until the operator binds a key.
+    /// Master toggle for command mode: the assignable during-dictation
+    /// modifier that switches a live dictation session into command
+    /// interpretation (punctuation, line breaks, delete word/line editing
+    /// the session buffer). Ships unbound, so it stays inert until the
+    /// operator binds a key.
     #[serde(default = "default_command_mode_enabled")]
     pub command_mode_enabled: bool,
     /// Fresh installs default from the OS locale; existing stores are migrated
@@ -1152,14 +1152,14 @@ pub fn get_default_settings() -> AppSettings {
             current_binding: String::new(),
         },
     );
-    // Command mode ships unbound too: it records like dictation, but the
-    // whole transcript is executed as a command sequence.
+    // Command mode ships unbound too: it is a during-dictation modifier,
+    // never a recording trigger of its own.
     bindings.insert(
         "transcribe_commands".to_string(),
         ShortcutBinding {
             id: "transcribe_commands".to_string(),
             name: "Command Mode".to_string(),
-            description: "Records like dictation, but every word is treated as a command: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Unrecognized words are discarded. Unbound by default."
+            description: "Hold during a live dictation to switch it into command interpretation: everything you say edits the dictation buffer directly (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) and unrecognized words are discarded. Release to return to normal dictation; the final paste delivers the edited buffer. Never starts a recording and does nothing on its own. Unbound by default."
                 .to_string(),
             default_binding: String::new(),
             current_binding: String::new(),
@@ -1774,7 +1774,7 @@ mod tests {
         assert!(settings.bindings.is_empty());
     }
 
-    /// The assignable editing actions and the command-mode trigger ship
+    /// The assignable editing actions and the command-mode modifier ship
     /// unbound (empty current and default binding) with their master toggles
     /// on, so nothing registers until the operator binds a key.
     #[test]
