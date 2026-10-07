@@ -242,7 +242,7 @@
           },
           "transcribe_commands": {
             "name": "Modalità comandi",
-            "description": "Registra come una dettatura, ma ogni parola viene trattata come un comando: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Le parole non riconosciute vengono scartate, quindi non viene mai digitato altro. Non assegnato per impostazione predefinita."
+            "description": "Tieni premuto questo tasto mentre una sessione di dettatura è attiva per passare all'interpretazione dei comandi: tutto ciò che detti modifica direttamente il buffer della dettatura (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) e le parole non riconosciute vengono scartate. Rilascia il tasto per tornare alla dettatura normale; l'incolla finale consegna esattamente il buffer modificato. Non avvia mai una registrazione e da solo non fa nulla. Senza tasto per impostazione predefinita."
           }
         },
         "errors": {
@@ -288,7 +288,7 @@
         "title": "Modalità comandi",
         "toggle": {
           "title": "Modalità comandi",
-          "description": "Attiva il trigger assegnabile della modalità comandi. Tenuto premuto registra come una dettatura; la trascrizione viene eseguita come comandi (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) e le parole non riconosciute vengono scartate."
+          "description": "Attiva il tasto modificatore assegnabile della modalità comandi. Tienilo premuto mentre una sessione di dettatura è attiva per interpretare la voce come comandi (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) che modificano direttamente il buffer della dettatura; le parole non riconosciute vengono scartate. Non avvia mai una registrazione da solo."
         }
       }
     },

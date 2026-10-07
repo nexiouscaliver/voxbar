@@ -747,6 +747,23 @@ pub fn remove_trailing_word_from_buffer(text: &str) -> String {
     buffer
 }
 
+/// Clears the current trailing line of a raw session buffer, with the same
+/// semantics as the voice-deletion "delete line" (and therefore the
+/// in-session command of the same name): everything after the last newline
+/// goes, the newline itself is kept so text arriving after the edit starts
+/// on the fresh line, and with no newline the whole buffer is the trailing
+/// line and empties entirely.
+pub fn remove_trailing_line_from_buffer(text: &str) -> String {
+    match text.rfind('\n') {
+        Some(newline) => {
+            let mut buffer = text.to_string();
+            buffer.truncate(newline + 1);
+            buffer
+        }
+        None => String::new(),
+    }
+}
+
 /// Display transform for interim (mid-stream) overlay text.
 ///
 /// Runs exactly the first two text passes of the finalize pipeline, in the
@@ -1745,6 +1762,17 @@ mod tests {
         // whole run counts as the trailing word.
         assert_eq!(remove_trailing_word_from_buffer("你好 世界"), "你好 ");
         assert_eq!(remove_trailing_word_from_buffer(""), "");
+    }
+
+    #[test]
+    fn test_remove_trailing_line_from_buffer_matches_voice_deletion_line_semantics() {
+        // Everything after the last newline goes; the newline stays so text
+        // arriving after the edit starts on the fresh line.
+        assert_eq!(remove_trailing_line_from_buffer("first\nsecond third"), "first\n");
+        assert_eq!(remove_trailing_line_from_buffer("first\n"), "first\n");
+        // No newline: the whole buffer is the trailing line and empties.
+        assert_eq!(remove_trailing_line_from_buffer("only line"), "");
+        assert_eq!(remove_trailing_line_from_buffer(""), "");
     }
 
     #[test]

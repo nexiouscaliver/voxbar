@@ -194,7 +194,7 @@
           },
           "transcribe_commands": {
             "name": "命令模式",
-            "description": "像聽寫一樣錄音，但每個詞都作為命令處理：question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste。無法辨識的詞會被丟棄，因此絕不會輸入其他內容。預設不綁定按鍵。"
+            "description": "在聽寫會話進行期間按住此鍵可切換到命令解釋模式：所說的一切都會直接編輯聽寫緩衝區 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line)，無法辨識的詞會被丟棄。放開後恢復一般聽寫；最終貼上交付的正是編輯後的緩衝區。它絕不會自行開始錄音，單獨按下不做任何事。預設不綁定按鍵。"
           }
         },
         "errors": {
@@ -240,7 +240,7 @@
         "title": "命令模式",
         "toggle": {
           "title": "命令模式",
-          "description": "啟用可自訂的命令模式錄音觸發鍵。按住時像聽寫一樣錄音；轉錄內容會作為命令執行 (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste)，無法辨識的詞會被丟棄。"
+          "description": "啟用可自訂的命令模式修飾鍵。在聽寫會話進行期間按住它，即可將語音解譯為直接編輯聽寫緩衝區的命令 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line)；無法辨識的詞會被丟棄。它絕不會自行開始錄音。"
         }
       }
     },

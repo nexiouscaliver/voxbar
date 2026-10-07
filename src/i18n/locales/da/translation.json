@@ -194,7 +194,7 @@
           },
           "transcribe_commands": {
             "name": "Kommandotilstand",
-            "description": "Optager som en diktéring, men hvert ord behandles som en kommando: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Ikke-genkendte ord kasseres, så der skrives aldrig andet. Ikke tildelt som standard."
+            "description": "Hold denne tast nede, mens en dikteringssession er aktiv, for at skifte til kommandofortolkning: alt hvad du siger, redigerer dikteringsbufferen direkte (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), og ikke-genkendte ord kasseres. Slip tasten for at vende tilbage til normal diktering; den endelige indsættelse leverer præcis den redigerede buffer. Starter aldrig en optagelse og gør intet alene. Som standard uden tast."
           }
         },
         "errors": {
@@ -240,7 +240,7 @@
         "title": "Kommandotilstand",
         "toggle": {
           "title": "Kommandotilstand",
-          "description": "Aktiverer den tildelbare kommandotilstands-udløser. Holdt nede optager den som en diktéring; transskriptionen udføres som kommandoer (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) og ikke-genkendte ord kasseres."
+          "description": "Aktiverer den tildelbare kommandotilstands-modifikatortast. Hold den nede, mens en dikteringssession er aktiv, for at fortolke din tale som kommandoer (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), der redigerer dikteringsbufferen direkte; ikke-genkendte ord kasseres. Starter aldrig en optagelse af sig selv."
         }
       }
     },

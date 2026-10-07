@@ -191,7 +191,7 @@
           },
           "transcribe_commands": {
             "name": "وضع الأوامر",
-            "description": "يسجل مثل الإملاء، لكن كل كلمة تعامل كأمر: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. الكلمات غير المعروفة تُهمل، فلا يُكتب أي شيء آخر أبدا. غير معين افتراضيا."
+            "description": "اضغط هذا المفتاح باستمرار أثناء جلسة إملاء نشطة للتبديل إلى وضع تفسير الأوامر: كل ما تقوله يعدّل مخزن الإملاء المؤقت مباشرة (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) وتُهمَل الكلمات غير المتعرف عليها. اترك المفتاح للعودة إلى الإملاء العادي؛ اللصق النهائي يسلّم المخزن المعدّل كما هو. لا يبدأ تسجيلًا أبدًا ولا يفعل شيئًا بمفرده. افتراضيًا بدون مفتاح."
           }
         },
         "errors": {
@@ -237,7 +237,7 @@
         "title": "وضع الأوامر",
         "toggle": {
           "title": "وضع الأوامر",
-          "description": "يفعّل مفتاح تسجيل وضع الأوامر القابل للتعيين. عند الاستمرار في الضغط يسجل مثل الإملاء؛ يُنفَّذ النص كأوامر (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) وتهمل الكلمات غير المعروفة."
+          "description": "يفعّل مفتاح التعديل القابل للتعيين لوضع الأوامر. اضغطه باستمرار أثناء جلسة إملاء نشطة ليُفسَّر كلامك كأوامر (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) تعدّل مخزن الإملاء المؤقت مباشرة؛ الكلمات غير المتعرف عليها تُهمَل. لا يبدأ تسجيلًا بمفرده أبدًا."
         }
       }
     },

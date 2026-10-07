@@ -242,7 +242,7 @@
           },
           "transcribe_commands": {
             "name": "Režim příkazů",
-            "description": "Nahrává jako diktát, ale každé slovo se chápe jako příkaz: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Nerozpoznaná slova se zahazují, takže se nic jiného nikdy nenapíše. Ve výchozím nastavení bez klávesy."
+            "description": "Podržte tuto klávesu během živé relace diktování, aby se přepla do režimu interpretace příkazů: vše, co řeknete, upravuje přímo vyrovnávací paměť diktování (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) a nerozpoznaná slova se zahazují. Uvolněte klávesu pro návrat k normálnímu diktování; konečné vložení dodá přesně upravenou vyrovnávací paměť. Nikdy nespustí nahrávání a sama o sobě nic nedělá. Ve výchozím nastavení bez klávesy."
           }
         },
         "errors": {
@@ -288,7 +288,7 @@
         "title": "Režim příkazů",
         "toggle": {
           "title": "Režim příkazů",
-          "description": "Zapne přiřaditelnou spoušť režimu příkazů. Držením nahrává jako diktát; přepis se vykoná jako příkazy (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) a nerozpoznaná slova se zahazují."
+          "description": "Zapne přiřaditelný modifikátor režimu příkazů. Podržte jej během živé relace diktování, aby se řeč interpretovala jako příkazy (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), které přímo upravují vyrovnávací paměť diktování; nerozpoznaná slova se zahazují. Nikdy sama nespustí nahrávání."
         }
       }
     },

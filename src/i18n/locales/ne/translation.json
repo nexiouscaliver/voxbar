@@ -194,7 +194,7 @@
           },
           "transcribe_commands": {
             "name": "Command Mode",
-            "description": "Records like dictation, but every word is treated as a command: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Unrecognized words are discarded, so nothing else is ever typed. Unbound by default."
+            "description": "Hold this key while a dictation session is live to switch it into command interpretation: everything you say edits the dictation buffer directly (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) and unrecognized words are discarded. Release it to return to normal dictation; the final paste delivers exactly the edited buffer. It never starts a recording and does nothing on its own. Unbound by default."
           }
         },
         "errors": {
@@ -240,7 +240,7 @@
         "title": "Command Mode",
         "toggle": {
           "title": "Command Mode",
-          "description": "Enable the assignable command-mode recording trigger. While held it records like dictation; the transcript is executed as commands (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste) and unrecognized words are discarded."
+          "description": "Enable the assignable command-mode modifier key. Hold it while a dictation session is live to interpret your speech as commands (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) that edit the dictation buffer directly; unrecognized words are discarded. It never starts a recording on its own."
         }
       }
     },

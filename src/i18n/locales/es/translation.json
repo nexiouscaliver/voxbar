@@ -242,7 +242,7 @@
           },
           "transcribe_commands": {
             "name": "Modo de comandos",
-            "description": "Graba como un dictado, pero cada palabra se trata como un comando: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Las palabras no reconocidas se descartan, así nunca se escribe nada más. Sin asignar por defecto."
+            "description": "Mantén esta tecla mientras una sesión de dictado está activa para pasar a interpretación de comandos: todo lo que digas edita directamente el búfer del dictado (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) y las palabras no reconocidas se descartan. Suelta la tecla para volver al dictado normal; el pegado final entrega exactamente el búfer editado. Nunca inicia una grabación y por sí sola no hace nada. Sin tecla por defecto."
           }
         },
         "errors": {
@@ -288,7 +288,7 @@
         "title": "Modo de comandos",
         "toggle": {
           "title": "Modo de comandos",
-          "description": "Activa el disparador asignable del modo de comandos. Mantenido graba como un dictado; el texto se ejecuta como comandos (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) y las palabras no reconocidas se descartan."
+          "description": "Activa la tecla modificadora asignable del modo de comandos. Mantenla mientras una sesión de dictado está activa para interpretar tu voz como comandos (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) que editan directamente el búfer del dictado; las palabras no reconocidas se descartan. Nunca inicia una grabación por sí sola."
         }
       }
     },

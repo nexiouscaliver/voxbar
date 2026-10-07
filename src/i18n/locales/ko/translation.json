@@ -194,7 +194,7 @@
           },
           "transcribe_commands": {
             "name": "명령 모드",
-            "description": "받아쓰기처럼 녹음하지만 모든 단어를 명령으로 처리합니다: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. 인식되지 않은 단어는 버려지므로 다른 내용이 입력되지 않습니다. 기본적으로 할당되지 않음."
+            "description": "받아쓰기 세션이 진행 중일 때 이 키를 누르고 있으면 명령 해석 모드로 전환됩니다: 말하는 모든 내용이 받아쓰기 버퍼를 직접 편집하고 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) 인식되지 않은 단어는 버려집니다. 키를 떼면 일반 받아쓰기로 돌아가며, 최종 붙여넣기는 편집된 버퍼를 그대로 전달합니다. 단독으로는 녹음을 시작하지 않고 아무 동작도 하지 않습니다. 기본적으로 바인딩되지 않습니다."
           }
         },
         "errors": {
@@ -240,7 +240,7 @@
         "title": "명령 모드",
         "toggle": {
           "title": "명령 모드",
-          "description": "할당 가능한 명령 모드 트리거를 켭니다. 누르고 있는 동안 받아쓰기처럼 녹음하며, 문자 기록은 명령으로 실행됩니다 (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste). 인식되지 않은 단어는 버려집니다."
+          "description": "할당 가능한 명령 모드 수정 키를 켭니다. 받아쓰기 세션이 진행 중일 때 누르고 있으면 말이 받아쓰기 버퍼를 직접 편집하는 명령 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line)으로 해석되고 인식되지 않은 단어는 버려집니다. 단독으로 녹음을 시작하지 않습니다."
         }
       }
     },

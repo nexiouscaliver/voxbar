@@ -194,7 +194,7 @@
           },
           "transcribe_commands": {
             "name": "Mode perintah",
-            "description": "Merekam seperti dikte, tetapi setiap kata diperlakukan sebagai perintah: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Kata yang tidak dikenali dibuang, jadi tidak ada hal lain yang pernah diketik. Belum ditetapkan secara bawaan."
+            "description": "Tahan tombol ini selama sesi dikte sedang berlangsung untuk beralih ke interpretasi perintah: semua yang Anda ucapkan menyunting penyangga dikte secara langsung (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) dan kata yang tidak dikenali dibuang. Lepaskan tombol untuk kembali ke dikte normal; tempel akhir menghasilkan tepat penyangga yang disunting. Tidak pernah memulai perekaman dan tidak melakukan apa pun sendirian. Tanpa tombol secara bawaan."
           }
         },
         "errors": {
@@ -240,7 +240,7 @@
         "title": "Mode perintah",
         "toggle": {
           "title": "Mode perintah",
-          "description": "Mengaktifkan pemicu mode perintah yang dapat ditetapkan. Saat ditahan ia merekam seperti dikte; transkrip dijalankan sebagai perintah (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) dan kata yang tidak dikenali dibuang."
+          "description": "Mengaktifkan tombol pengubah mode perintah yang dapat ditetapkan. Tahan selama sesi dikte sedang berlangsung agar ucapan Anda ditafsirkan sebagai perintah (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) yang menyunting penyangga dikte secara langsung; kata yang tidak dikenali dibuang. Tidak pernah memulai perekaman sendirian."
         }
       }
     },

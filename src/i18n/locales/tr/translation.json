@@ -242,7 +242,7 @@
           },
           "transcribe_commands": {
             "name": "Komut modu",
-            "description": "Dikte gibi kaydeder, ancak her kelime bir komut olarak ele alınır: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Tanınmayan kelimeler atılır, böylece başka hiçbir şey yazılmaz. Varsayılan olarak atanmamıştır."
+            "description": "Canlı bir dikte oturumu sırasında bu tuşu basılı tutun ve komut yorumuna geçin: söylediğiniz her şey doğrudan dikte arabelleğini düzenler (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) ve tanınmayan kelimeler atılır. Tuşu bırakınca normal dikteye dönülür; son yapıştırma tam olarak düzenlenmiş arabelleği verir. Hiçbir zaman kendi başına kayıt başlatmaz ve tek başına hiçbir şey yapmaz. Varsayılan olarak tuş atanmamıştır."
           }
         },
         "errors": {
@@ -288,7 +288,7 @@
         "title": "Komut modu",
         "toggle": {
           "title": "Komut modu",
-          "description": "Atanabilir komut modu tetikleyicisini etkinleştirir. Basılı tutulduğunda dikte gibi kaydeder; transkript komut olarak yürütülür (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) ve tanınmayan kelimeler atılır."
+          "description": "Atanabilir komut modu değiştirici tuşunu etkinleştirir. Canlı bir dikte oturumu sırasında basılı tutun; konuşmanız dikte arabelleğini doğrudan düzenleyen komutlar (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) olarak yorumlanır ve tanınmayan kelimeler atılır. Kendi başına asla kayıt başlatmaz."
         }
       }
     },

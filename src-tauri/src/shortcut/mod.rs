@@ -1612,7 +1612,7 @@ pub fn change_undo_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), 
 }
 
 /// Flip the command-mode master toggle and register or unregister its
-/// trigger binding to match.
+/// modifier binding to match.
 #[tauri::command]
 #[specta::specta]
 pub fn change_command_mode_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {

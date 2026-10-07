@@ -771,57 +771,6 @@ fn should_send_auto_submit(auto_submit: bool, paste_method: PasteMethod) -> bool
     auto_submit && paste_method != PasteMethod::None
 }
 
-/// Paste text verbatim for command mode. The configured paste method and its
-/// delays are honored, but none of the dictation niceties apply: no trailing
-/// space is appended (the inserts are punctuation and line breaks), no
-/// auto-submit Enter is sent, and the clipboard is not re-copied afterwards.
-/// The debug-gated receipt-sequenced path is skipped too because its settle
-/// logic bakes in dictation semantics.
-pub fn paste_for_commands(text: &str, app_handle: &AppHandle) -> Result<(), String> {
-    let settings = get_settings(app_handle);
-    let paste_method = settings.paste_method;
-    let paste_delay_ms = settings.paste_delay_ms;
-    let paste_delay_after_ms = settings.paste_delay_after_ms;
-
-    info!(
-        "Using paste method for command insert: {:?}, delay before: {}ms, delay after: {}ms",
-        paste_method, paste_delay_ms, paste_delay_after_ms
-    );
-
-    match paste_method {
-        PasteMethod::None => {
-            info!("PasteMethod::None selected - skipping command insert");
-        }
-        PasteMethod::Direct => {
-            paste_direct(
-                text,
-                app_handle,
-                #[cfg(target_os = "linux")]
-                settings.typing_tool,
-            )?;
-        }
-        PasteMethod::CtrlV | PasteMethod::CtrlShiftV | PasteMethod::ShiftInsert => {
-            paste_via_clipboard(
-                text,
-                app_handle,
-                &paste_method,
-                paste_delay_ms,
-                paste_delay_after_ms,
-            )?
-        }
-        PasteMethod::ExternalScript => {
-            let script_path = settings
-                .external_script_path
-                .as_ref()
-                .filter(|p| !p.is_empty())
-                .ok_or("External script path is not configured")?;
-            paste_via_external_script(text, script_path)?;
-        }
-    }
-
-    Ok(())
-}
-
 pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
     let settings = get_settings(&app_handle);
     let paste_method = settings.paste_method;

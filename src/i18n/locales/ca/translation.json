@@ -194,7 +194,7 @@
           },
           "transcribe_commands": {
             "name": "Mode d'ordres",
-            "description": "Enregistra com un dictat, però cada paraula es tracta com una ordre: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Les paraules no reconegudes es descarten, així mai no s'escriu res més. Sense assignar per defecte."
+            "description": "Mantén aquesta tecla mentre una sessió de dictat és activa per canviar a interpretació d'ordres: tot el que diguis edita directament la memòria intermèdia del dictat (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) i les paraules no reconegudes es descarten. Deixa anar la tecla per tornar al dictat normal; l'enganxat final lliura exactament la memòria intermèdia editada. Mai no inicia un enregistrament i tot sol no fa res. Sense tecla per defecte."
           }
         },
         "errors": {
@@ -240,7 +240,7 @@
         "title": "Mode d'ordres",
         "toggle": {
           "title": "Mode d'ordres",
-          "description": "Activa el disparador assignable del mode d'ordres. Mantingut, enregistra com un dictat; la transcripció s'executa com ordres (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) i les paraules no reconegudes es descarten."
+          "description": "Activa la tecla modificadora assignable del mode d'ordres. Mantén-la mentre una sessió de dictat és activa per interpretar la veu com a ordres (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) que editen directament la memòria intermèdia del dictat; les paraules no reconegudes es descarten. Mai no inicia un enregistrament tota sola."
         }
       }
     },

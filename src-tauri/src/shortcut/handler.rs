@@ -34,6 +34,21 @@ pub fn handle_shortcut_event(
 ) {
     let settings = get_settings(app);
 
+    // The command-mode binding is a during-dictation modifier: it never
+    // starts a recording of its own. A press engages command interpretation
+    // only while a dictation session is live (the coordinator decides; a
+    // press with no live session is inert), a release always disengages.
+    // Single-modifier bindings arrive here already hold-gated by the
+    // backend; combo bindings fire on the press as usual.
+    if binding_id == "transcribe_commands" {
+        if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
+            coordinator.send_command_modifier(is_pressed);
+        } else {
+            warn!("TranscriptionCoordinator is not initialized");
+        }
+        return;
+    }
+
     // Transcribe bindings are handled by the coordinator.
     if is_transcribe_binding(binding_id) {
         if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
