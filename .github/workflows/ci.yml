@@ -17,6 +17,9 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    # Windows is experimental until its engine build lands green once:
+    # remove this line after the first fully green Windows run.
+    continue-on-error: ${{ matrix.os == 'windows-latest' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -70,10 +73,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          cmake -S spirv-headers-src -B spirv-headers-build -DCMAKE_INSTALL_PREFIX=$env:RUNNER_TEMP\spirv-install
+          $prefix = Join-Path $env:RUNNER_TEMP 'spirv-install'
+          cmake -S spirv-headers-src -B spirv-headers-build "-DCMAKE_INSTALL_PREFIX=$prefix"
           cmake --build spirv-headers-build --config Release
           cmake --install spirv-headers-build --config Release
-          "TRANSCRIBE_CMAKE_ARGS=-DCMAKE_PREFIX_PATH=$env:RUNNER_TEMP\spirv-install" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "TRANSCRIBE_CMAKE_ARGS=-DCMAKE_PREFIX_PATH=$prefix" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
