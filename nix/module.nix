@@ -7,13 +7,13 @@
 #
 # Usage in your flake:
 #
-#   inputs.handy.url = "github:cjpais/Handy";
+#   inputs.voxbar.url = "github:nexiouscaliver/voxbar";
 #
 #   nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
 #     modules = [
-#       handy.nixosModules.default
+#       voxbar.nixosModules.default
 #       { programs.voxbar.enable = true; }
-#     ];
+#     ]
 #   };
 {
   config,
