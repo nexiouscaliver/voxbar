@@ -160,7 +160,26 @@ pub fn apply_custom_words(text: &str, custom_words: &[String], threshold: f64) -
         .flat_map(|(index, word)| build_custom_word_match_keys(word, index))
         .collect();
 
-    let words: Vec<&str> = text.split_whitespace().collect();
+    // Line-preserving: the correction runs per line, so an n-gram can never
+    // consume the first word of the next line across a line break, and the
+    // breaks themselves survive (a split_whitespace rebuild would flatten
+    // them). This pass runs on the DEFAULT configuration (the custom-words
+    // seed is non-empty out of the box), so it must not destroy layout.
+    text.split('\n')
+        .map(|line| {
+            apply_custom_words_in_line(line, custom_words, &custom_word_match_keys, threshold)
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn apply_custom_words_in_line(
+    line: &str,
+    custom_words: &[String],
+    custom_word_match_keys: &[CustomWordMatchKey],
+    threshold: f64,
+) -> String {
+    let words: Vec<&str> = line.split_whitespace().collect();
     let mut result = Vec::new();
     let mut i = 0;
 
@@ -188,7 +207,7 @@ pub fn apply_custom_words(text: &str, custom_words: &[String], threshold: f64) -
             let ngram = build_ngram(ngram_words);
 
             if let Some((replacement, score)) =
-                find_best_match(&ngram, custom_words, &custom_word_match_keys, threshold)
+                find_best_match(&ngram, custom_words, custom_word_match_keys, threshold)
             {
                 let is_better = best_match
                     .as_ref()
@@ -320,14 +339,27 @@ fn gated_filler_words_for_language(lang: &str) -> &'static [&'static str] {
     }
 }
 
-static MULTI_SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"\s{2,}").unwrap());
+/// Runs of spaces/tabs (any whitespace except newlines). Newline runs are
+/// layout the operator spoke ("new line" / "new paragraph"), so they are
+/// never collapsed by the whitespace cleanup.
+static MULTI_SPACE_PATTERN: Lazy<Regex> = Lazy::new(|| Regex::new(r"[^\S\n]{2,}").unwrap());
 
 /// Collapses repeated words (3+ repetitions) to a single instance.
 /// E.g., "wh wh wh wh" -> "wh", "I I I I" -> "I"
+///
+/// Line-preserving: the repetition collapse runs per line, so "\n" and "\n\n"
+/// survive instead of being flattened by the word rebuild.
 fn collapse_stutters(text: &str) -> String {
-    let words: Vec<&str> = text.split_whitespace().collect();
+    text.split('\n')
+        .map(collapse_stutters_in_line)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+fn collapse_stutters_in_line(line: &str) -> String {
+    let words: Vec<&str> = line.split_whitespace().collect();
     if words.is_empty() {
-        return text.to_string();
+        return line.to_string();
     }
 
     let mut result: Vec<&str> = Vec::new();
@@ -634,9 +666,13 @@ fn starts_with_interrogative(text: &str) -> bool {
 /// text is returned unchanged. The check runs on the trimmed text so a
 /// trailing space cannot swallow the appended mark (the trailing whitespace
 /// itself is dropped, matching the downstream trim in
-/// [`normalize_transcription_output`]).
+/// [`normalize_transcription_output`]). A trailing newline run is layout the
+/// operator spoke, so the mark is inserted BEFORE it: "hello\n" becomes
+/// "hello.\n" and "para one\n\n" becomes "para one.\n\n".
 pub fn apply_terminal_punctuation(text: &str) -> String {
-    let trimmed = text.trim();
+    let body_end = text.trim_end_matches('\n').len();
+    let (body, newline_run) = text.split_at(body_end);
+    let trimmed = body.trim();
     if trimmed.is_empty() {
         return text.to_string();
     }
@@ -655,7 +691,7 @@ pub fn apply_terminal_punctuation(text: &str) -> String {
         "."
     };
 
-    format!("{trimmed}{mark}")
+    format!("{trimmed}{mark}{newline_run}")
 }
 
 /// Outcome of applying voice deletion commands to a transcript.
@@ -928,16 +964,24 @@ pub fn apply_voice_deletion(text: &str) -> VoiceDeletionOutcome {
 ///
 /// Kept separate from [`remove_filler_words`] so disabling filler deletion
 /// does not also disable the existing repeated-word and whitespace cleanup.
+///
+/// Layout-preserving: runs of spaces/tabs collapse, but newline runs survive,
+/// the leading trim is unchanged, and the right edge trims spaces/tabs only
+/// while retaining any trailing "\n" run the operator spoke.
 pub fn normalize_transcription_output(text: &str) -> String {
     let mut normalized = collapse_stutters(text);
 
-    // Clean up multiple spaces to single space
+    // Clean up multiple spaces/tabs to a single space; newline runs are
+    // never touched by the pattern itself.
     normalized = MULTI_SPACE_PATTERN
         .replace_all(&normalized, " ")
         .to_string();
 
-    // Trim leading/trailing whitespace
-    normalized.trim().to_string()
+    // Trim leading whitespace as before; on the right edge trim spaces and
+    // tabs only so a trailing newline run is retained.
+    let trimmed_start = normalized.trim_start();
+    let body_end = trimmed_start.trim_end_matches([' ', '\t']).len();
+    trimmed_start[..body_end].to_string()
 }
 
 #[cfg(test)]
@@ -991,6 +1035,26 @@ mod tests {
         assert_eq!(
             apply_custom_words("open woksbar please", &custom_words, 0.18),
             "open woksbar please"
+        );
+    }
+
+    #[test]
+    fn test_apply_custom_words_never_matches_across_a_newline() {
+        // The correction runs per line: the fuzzy match still fires inside a
+        // line, the break survives, and an n-gram can never consume the first
+        // word of the next line across the boundary.
+        let custom_words = vec!["VoxBar".to_string()];
+        assert_eq!(
+            apply_custom_words("line one\nvoxbar line two", &custom_words, 0.5),
+            "line one\nVoxBar line two"
+        );
+
+        // "one voxbar" spells the custom word only if the newline is ignored;
+        // with line-preserving matching nothing fires and the layout stays.
+        let phrase = vec!["OneVoxBar".to_string()];
+        assert_eq!(
+            apply_custom_words("line one\nvoxbar tail", &phrase, 0.3),
+            "line one\nvoxbar tail"
         );
     }
 
@@ -1118,6 +1182,36 @@ mod tests {
         let text = "no no is fine";
         let result = filter_transcription_output(text, "en", &None);
         assert_eq!(result, "no no is fine");
+    }
+
+    #[test]
+    fn test_stutter_collapse_is_per_line_keeping_newlines() {
+        // Repetitions collapse within each line; the break survives.
+        assert_eq!(collapse_stutters("the the the\none one one one"), "the\none");
+        // Repetition counting never crosses a line boundary: two pairs on
+        // separate lines stay two pairs (a flattened count of four would
+        // collapse them to one).
+        assert_eq!(collapse_stutters("go go\ngo go"), "go go\ngo go");
+        // Lines without stutters pass through with their layout intact.
+        assert_eq!(
+            collapse_stutters("hello world\nbye world"),
+            "hello world\nbye world"
+        );
+    }
+
+    #[test]
+    fn test_normalize_preserves_newline_layout() {
+        // Newline runs are layout, not whitespace noise: paragraphs survive
+        // verbatim instead of being collapsed to a single space.
+        assert_eq!(
+            normalize_transcription_output("para one\n\npara two"),
+            "para one\n\npara two"
+        );
+        // Runs of spaces still collapse.
+        assert_eq!(normalize_transcription_output("hello  world"), "hello world");
+        // The leading trim is unchanged and a trailing newline run is
+        // retained on the right edge.
+        assert_eq!(normalize_transcription_output("  hello.\n"), "hello.\n");
     }
 
     #[test]
@@ -1552,6 +1646,16 @@ mod tests {
         assert_eq!(apply_terminal_punctuation("   "), "   ");
         // Existing terminal punctuation with trailing whitespace is left alone.
         assert_eq!(apply_terminal_punctuation("done! "), "done! ");
+    }
+
+    #[test]
+    fn test_terminal_punctuation_inserts_mark_before_trailing_newline_run() {
+        // A trailing newline run is spoken layout ("new line" / "new
+        // paragraph"); the mark lands before it instead of trimming it away.
+        assert_eq!(apply_terminal_punctuation("hello\n"), "hello.\n");
+        assert_eq!(apply_terminal_punctuation("para one\n\n"), "para one.\n\n");
+        // The interrogative choice runs on the body before the run.
+        assert_eq!(apply_terminal_punctuation("what is this\n"), "what is this?\n");
     }
 
     #[test]
