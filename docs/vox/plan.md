@@ -17,12 +17,13 @@ execution.
 
 Build order follows the spec (§1): F1 → F2 → F3 → F4. F5
 (`apple-silicon-verdict`) is a decision record already embodied in the spec
-+ research notes — no code task. Rebranding and build configuration come
-first (T1, T2), per the ordering rule; T1 exists so that every later cargo
-invocation — including the release build, which tauri drives and which
-cannot take `-j` flags — is parallelism-capped on this memory-constrained
-machine. T2's lib-crate rename forces a full rebuild, so the cap must land
-before it.
+
+- research notes — no code task. Rebranding and build configuration come
+  first (T1, T2), per the ordering rule; T1 exists so that every later cargo
+  invocation — including the release build, which tauri drives and which
+  cannot take `-j` flags — is parallelism-capped on this memory-constrained
+  machine. T2's lib-crate rename forces a full rebuild, so the cap must land
+  before it.
 
 T2/T3 split: the spec's F1 is one feature, but two commits. T2 is the
 identity sweep (mechanical, wide); T3 is the installed-upgrade data
@@ -34,10 +35,11 @@ checklist for T2's residual-grep classification and is not duplicated here.
 
 Two deliberate deviations from the spec's letter, both review-driven and
 code-verified:
+
 - **Spec names `DebugPaths.tsx:29/37/46` for backend-resolved paths** — the
   component is dead code (grep this session: `grep -rn 'DebugPaths' src/
-  tests/` matches only its own definition; `DebugSettings.tsx` does not
-  import it). Editing it is unobservable; T3 instead asserts the *live*
+tests/` matches only its own definition; `DebugSettings.tsx` does not
+  import it). Editing it is unobservable; T3 instead asserts the _live_
   path rows (About's `AppDataDirectory`/`LogDirectory`,
   `AboutSettings.tsx:80-81`, already backend-resolved).
 - **Spec's attribution wording** implies an existing line at
@@ -57,6 +59,7 @@ into cargo and cannot take `-j` flags) — spawns an unbounded number of rustc
 processes on the operator's memory-constrained machine.
 
 **Files**
+
 - `handy-dictation/.cargo/config.toml` — exists on disk today containing only
   an empty `[build]` header (read this session); add `jobs = 8` under it.
 
@@ -67,6 +70,7 @@ status clean apart from `docs/vox/`), and `.cargo` is not ignored by
 `src-tauri/.gitignore` (read this session).
 
 **Acceptance**
+
 1. `.cargo/config.toml` contains `[build]` with `jobs = 8`.
 2. A `cargo check` from `src-tauri/` succeeds — cargo fails fast on an
    unparseable/discovered-broken config, so a green check proves the file is
@@ -87,6 +91,7 @@ behavior beyond disabling the updater. The installed-upgrade data migration
 is T3, not this task.
 
 **Files (exact)**
+
 - Identity/version trio: `src-tauri/tauri.conf.json` (`productName` →
   "VoxBar" `:3`; `identifier` → `"com.voxbar.app"` `:5`; deb + rpm
   `/usr/lib/Handy` → `/usr/lib/VoxBar` (~`:50`,`:62`); Windows signCommand
@@ -125,7 +130,7 @@ is T3, not this task.
   `SettingContainer` row (e.g. under acknowledgments) rendered as an
   **eslint-disabled literal** following the component's existing
   untranslated-literal pattern at `:50-51` (`{/* eslint-disable-next-line
-  i18next/no-literal-string */}` before the `v{version}` span — verified this
+i18next/no-literal-string */}` before the `v{version}` span — verified this
   session). NOT an i18n key: the line necessarily contains "Handy", and a
   locale value containing exact-case "Handy" would break AC1's zero-Handy
   locale scan; an untranslated key in all 26 locales would violate the
@@ -154,7 +159,7 @@ is T3, not this task.
   `/usr/lib/Handy/lib*` → `/usr/lib/VoxBar/lib*`), **and the Windows
   package audit** `:835` (`Get-ChildItem $Root -Filter "handy.exe"` →
   `voxbar.exe`) plus the launch at `:842` (`& $handy.FullName
-  --list-devices` — rename the variable or the filter; both verified this
+--list-devices` — rename the variable or the filter; both verified this
   session); **keep** the `blob.handy.computer` ORT URLs `:366/:381` and
   `HANDY_VC_REDIST_DIRS` `:334`. `.github/workflows/release.yml:77`,
   `build-test.yml:41`, `pr-test-build.yml:47` — asset prefixes `handy` →
@@ -164,7 +169,7 @@ is T3, not this task.
   `flake.nix:90/:183` drive the rest — verified this session):
   `flake.nix:188` (`default = self.packages.${system}.handy` → `.voxbar`),
   `flake.nix:197` (`programs.handy.package = … .handy` → `programs.voxbar.package
-  = … .voxbar`), `flake.nix:205` (`services.handy.package = … .handy` →
+= … .voxbar`), `flake.nix:205` (`services.handy.package = … .handy` →
   `services.voxbar.package = … .voxbar`), the option namespaces themselves —
   `programs.handy` → `programs.voxbar` in `nix/module.nix:25/:28` and
   `flake.nix:196-198`; `services.handy` → `services.voxbar` in
@@ -211,6 +216,7 @@ is T3, not this task.
   a name string; verified this session).
 
 **Acceptance (spec F1 AC1–AC6; AC7 moves to T3)**
+
 1. Python3 recursive scan of every string value in all 26
    `translation.json` reports **zero** exact-case "Handy" (baseline
    confirmed this session; the case-insensitive-only hit embedding
@@ -218,12 +224,12 @@ is T3, not this task.
    `AboutSettings.tsx` is outside the locale files by design, see the
    decision above).
 2. Every hit of `grep -ri handy src src-tauri index.html package.json
-   .github nix flake.nix README.md BUILD.md` is classified against the
+.github nix flake.nix README.md BUILD.md` is classified against the
    spec's survivor list or this task's work items — recorded as a review
    checklist in the PR body (README.md/BUILD.md are in scope so their
    identifier refs are renamed and their brand prose is explicitly
    classified, not silently uncovered); additionally `grep -rn handy
-   flake.nix nix/` and `grep -rn handy .github/workflows/build.yml` show
+flake.nix nix/` and `grep -rn handy .github/workflows/build.yml` show
    zero unclassified hits (covers the silent-break nix/Windows-audit
    surfaces CI cannot catch).
 3. `bun run check:translations` passes; 0 locales missing keys.
@@ -236,7 +242,7 @@ is T3, not this task.
 6. Template inspection: `installer.nsi:600` visibly compares both magic
    strings (NSIS cannot be cargo-tested).
 7. `grep -n 'createUpdaterArtifacts\|plugins.updater\|"pubkey"'
-   src-tauri/tauri.conf.json` → zero hits.
+src-tauri/tauri.conf.json` → zero hits.
 8. Manual, batched target-machine + Windows pass (see below): (a) release
    build, network blocked: reaches the tray, transcribes, no update-check
    request, inert check surfaces log an error with no dialog and no crash
@@ -265,6 +271,7 @@ fresh (re-onboarding, model re-download, lost history). Portable installs
 are unaffected (`Data/` sits next to the exe; `portable.rs:83-87`).
 
 **Files (exact)**
+
 - NEW `src-tauri/src/legacy_migration.rs` — on first run, when the new data
   dir holds no settings store and a legacy Handy dir exists, migrate
   per-item and idempotently: `settings_store.json`
@@ -306,7 +313,7 @@ are unaffected (`Data/` sits next to the exe; `portable.rs:83-87`).
     `get_settings` **writes** the defaults
     (`store.set("settings", …)`, `settings.rs:1070-1073`) — creating
     `settings_store.json` in the new dir and defeating the no-store
-    trigger (`lib.rs:350` is only the first read *inside*
+    trigger (`lib.rs:350` is only the first read _inside_
     `initialize_core_logic`, not the first overall). The headless
     branch's `ModelManager::new` (`lib.rs:913-914`) `create_dir_all`s the
     new `models/` dir (`model.rs:561-563`), defeating skip-if-present on
@@ -318,7 +325,7 @@ are unaffected (`Data/` sits next to the exe; `portable.rs:83-87`).
     against the app bundle itself. **Re-registration under the new name
     needs no code**: once `settings_store.json` migrates,
     `initialize_core_logic` → `apply_autostart(app_handle,
-    settings.autostart_enabled)` (`lib.rs:363`) registers the new bundle on
+settings.autostart_enabled)` (`lib.rs:363`) registers the new bundle on
     first launch.
   - The every-launch legacy cleanup `remove_plugin_launch_agent`
     (`autostart.rs:94-107`) removes
@@ -351,6 +358,7 @@ are unaffected (`Data/` sits next to the exe; `portable.rs:83-87`).
   checklist).
 
 **Acceptance**
+
 1. Unit tests (temp dirs, no app handle): per-item skip-if-present;
    idempotent second run is a no-op; partial-failure path leaves the source
    dir intact; item selection fn returns exactly the item set above;
@@ -396,6 +404,7 @@ recommended preset stays the catalog's rank-1 `parakeet-unified-en-0.6b`
 onboarding change**.
 
 **Files (exact)**
+
 - `src-tauri/src/settings.rs` — move `#[default]` from `Min5` to `Min2` in
   `ModelUnloadTimeout` (enum at ~`:133-143`, `#[default]` on `Min5`
   verified this session; default applied via
@@ -404,6 +413,7 @@ onboarding change**.
   governs. Nothing else.
 
 **Acceptance (spec F2 AC1–AC2; AC3 is the manual tail batched into T6)**
+
 1. New unit test: `ModelUnloadTimeout::default() == Min2` and the serde wire
    string round-trips `"min2"` (mind the documented trap: generated TS
    bindings mislabel wire strings — the frontend already sends `"min2"`
@@ -425,6 +435,7 @@ Refuse model loads whose forecast footprint exceeds available RAM, before
 any load starts; settings toggle, default ON; fail-open on probe failure.
 
 **Files (exact)**
+
 - `src-tauri/src/memory.rs` — today glibc-only tuning, macOS no-op (read in
   full this session). Add:
   - `available_memory_bytes() -> Option<u64>` — macOS
@@ -433,7 +444,7 @@ any load starts; settings toggle, default ON; fail-open on probe failure.
     only if the symbol is unavailable), Linux `/proc/meminfo MemAvailable`,
     Windows `GlobalMemoryStatusEx ullAvailPhys`.
   - Pure `gate_should_refuse(free: Option<u64>, forecast: u64, headroom: u64)
-    -> bool` and `const` headroom default **1.5 GiB**. Forecast =
+-> bool` and `const` headroom default **1.5 GiB**. Forecast =
     `ModelInfo.size_mb` MiB (`model.rs:67`, verified this session) — an
     estimate (GGUF disk ≠ resident RAM, research-models §8).
   - `rss_bytes_for_pid(pid) -> Option<u64>` helper (macOS
@@ -468,6 +479,7 @@ any load starts; settings toggle, default ON; fail-open on probe failure.
   `src/i18n/locales/*/translation.json` ×26 — new keys in every locale (C3).
 
 **Acceptance (spec F3 AC1–AC3, AC6; AC4/AC5 manual)**
+
 1. Table-driven unit tests for `gate_should_refuse`: `None` → false
    (fail-open); boundary `forecast + headroom == free` → allow, `== free+1`
    → refuse; the resident-credit arithmetic including the ONNX
@@ -500,9 +512,10 @@ divergence. Unload-now already ships upstream (`tray.rs:549-556` +
 `lib.rs:303-311`, both verified this session).
 
 **Files (exact)**
+
 - `src-tauri/src/tray.rs` —
   - `MenuInputs` (struct at `:57`, fields `:58-66`; `#[derive(Clone, Debug,
-    PartialEq, Eq)]` at `:56` — grep-verified this session; the derive's
+PartialEq, Eq)]` at `:56` — grep-verified this session; the derive's
     `PartialEq` is what makes the diffing applier rebuild only on change)
     gains `resident_model: Option<(String, String)>` (id + display name) and
     `model_ram: Option<String>` (pre-formatted).
@@ -545,6 +558,7 @@ divergence. Unload-now already ships upstream (`tray.rs:549-556` +
   anyway, it lands in all 26 locales (C3).
 
 **Acceptance (spec F4 AC1–AC3; AC4 manual)**
+
 1. Unit tests: formatting fn (measured / estimate / absent) and
    `MenuInputs` inequality on `model_ram`/`resident_model` change (drives a
    rebuild).
@@ -643,7 +657,7 @@ check:translations`; the manual ±25% comparison on the M4 Pro.
     full rebuild; T1 must land first or that rebuild runs uncapped (the
     OOM history in the operator's environment notes).
 13. **Planning did not compile or test anything**: `cargo check`, `cargo
-    test`, and all builds remain unrun by this plan (only
+test`, and all builds remain unrun by this plan (only
     `bun run check:translations` and the locale scan were executed, both
     green/matching). Every compile/test acceptance above is the
     implementing task's own gate.

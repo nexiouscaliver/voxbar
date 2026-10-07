@@ -47,22 +47,22 @@ All path references below are relative to `handy-dictation/` unless absolute.
 
 `package.json:6-23` scripts:
 
-| Script | Command | What it does |
-| --- | --- | --- |
-| `dev` | `vite` | frontend-only dev server |
-| `build` | `tsc && vite build` | typecheck + production frontend bundle into `dist/` |
-| `preview` | `vite preview` | serve built frontend |
-| `tauri` | `tauri` | tauri CLI passthrough |
-| `lint` | `eslint src` | ESLint (i18next literal-string rule) |
-| `lint:fix` | `eslint src --fix` | |
-| `format` | `prettier --write . && cd src-tauri && cargo fmt` | both languages |
-| `format:check` | `prettier --check . && cd src-tauri && cargo fmt -- --check` | CI check |
-| `test:keyboard` | `bun src/lib/utils/keyboard.test.ts` | plain-bun unit test, no deps |
-| `test:playwright` | `playwright test` | e2e smoke (2 tests) |
-| `test:playwright:ui` | `playwright test --ui` | |
-| `check:translations` | `bun scripts/check-translations.ts` | locale key parity vs `en` |
-| `check:model-languages` | `bun scripts/check-model-language-coverage.ts` | catalog↔frontend language intents |
-| `postinstall` | `bun scripts/check-nix-deps.ts` | regenerates `.nix/bun.nix` when `bun.lock` changes (no-op on Windows, warns-not-fails if bun2nix missing — `scripts/check-nix-deps.ts:33-77`) |
+| Script                  | Command                                                      | What it does                                                                                                                                  |
+| ----------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dev`                   | `vite`                                                       | frontend-only dev server                                                                                                                      |
+| `build`                 | `tsc && vite build`                                          | typecheck + production frontend bundle into `dist/`                                                                                           |
+| `preview`               | `vite preview`                                               | serve built frontend                                                                                                                          |
+| `tauri`                 | `tauri`                                                      | tauri CLI passthrough                                                                                                                         |
+| `lint`                  | `eslint src`                                                 | ESLint (i18next literal-string rule)                                                                                                          |
+| `lint:fix`              | `eslint src --fix`                                           |                                                                                                                                               |
+| `format`                | `prettier --write . && cd src-tauri && cargo fmt`            | both languages                                                                                                                                |
+| `format:check`          | `prettier --check . && cd src-tauri && cargo fmt -- --check` | CI check                                                                                                                                      |
+| `test:keyboard`         | `bun src/lib/utils/keyboard.test.ts`                         | plain-bun unit test, no deps                                                                                                                  |
+| `test:playwright`       | `playwright test`                                            | e2e smoke (2 tests)                                                                                                                           |
+| `test:playwright:ui`    | `playwright test --ui`                                       |                                                                                                                                               |
+| `check:translations`    | `bun scripts/check-translations.ts`                          | locale key parity vs `en`                                                                                                                     |
+| `check:model-languages` | `bun scripts/check-model-language-coverage.ts`               | catalog↔frontend language intents                                                                                                            |
+| `postinstall`           | `bun scripts/check-nix-deps.ts`                              | regenerates `.nix/bun.nix` when `bun.lock` changes (no-op on Windows, warns-not-fails if bun2nix missing — `scripts/check-nix-deps.ts:33-77`) |
 
 Documented top-level flow (`AGENTS.md:14-41`, `BUILD.md:99-115`):
 
@@ -154,8 +154,8 @@ bun run tauri build -- --bundles deb  # subset of Linux bundles (BUILD.md:203)
 - **CI runs plain `cargo test` on ubuntu-24.04**
   (`.github/workflows/test.yml:17-37`) with apt deps
   `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev libasound2-dev
-  libssl-dev libgtk-layer-shell-dev libvulkan-dev glslc spirv-headers`
-  (`test.yml:22-29`) — those native headers are needed to *compile* the crate
+libssl-dev libgtk-layer-shell-dev libvulkan-dev glslc spirv-headers`
+  (`test.yml:22-29`) — those native headers are needed to _compile_ the crate
   (Vulkan backend of transcribe-cpp), not to run tests.
 - **Model/GPU-dependent tests are `#[ignore]`d**: the engine_supervisor
   end-to-end suite (17 ignored tests,
@@ -197,23 +197,23 @@ bun run tauri build -- --bundles deb  # subset of Linux bundles (BUILD.md:203)
 - `cargo metadata --manifest-path src-tauri/Cargo.toml --no-deps --offline`
   → parsed OK; single package `handy` 0.9.8 (see §2).
 - **Not run** (heavy / would compile or download): `cargo test`, `cargo
-  build`, `bun run lint`, `bun run format:check`, `playwright test`,
+build`, `bun run lint`, `bun run format:check`, `playwright test`,
   `bun run tauri build`. `bun install` was not needed for the two bun checks
   above (they don't import node_modules deps).
 
 ## 7. CI workflows (`.github/workflows/`, 9 files)
 
-| Workflow | Trigger | What it does |
-| --- | --- | --- |
-| `test.yml` | push/PR touching `src-tauri/**` | `cargo test` on ubuntu-24.04 (+rust-cache `workspaces: "./src-tauri -> target"`) |
-| `code-quality.yml` | push/PR touching `src/**`, `scripts/**`, `package.json`, `bun.lock`, lint/ts configs, catalog.json, workflows | `bun install --frozen-lockfile`; `check:translations`; `check:model-languages`; `test:keyboard`; `lint`; `format:check` |
-| `playwright.yml` | PR touching `src/**`, `tests/**`, `package.json`, `bun.lock`, `playwright.config.*` | bun install, `bunx playwright install chromium`, `test:playwright` |
-| `build.yml` | `workflow_call` only | **the reusable cross-platform builder** — see below |
-| `main-build.yml` | push to main | 7-target matrix, `sign-binaries: true`, uploads 30-day artifacts |
-| `release.yml` | manual `workflow_dispatch` | creates a **draft** GitHub release tagged `v{tauri.conf.json version}`, then the same 7-target matrix with `no-cache: true` (release builds never restore the Rust cache so a stale native lib can't be linked — `release.yml:79-82`) |
-| `build-test.yml` | manual | full signed matrix, `asset-prefix: handy-test`, uploads artifacts |
-| `pr-test-build.yml` | manual, takes `pr_number` | builds `refs/pull/N/merge`, comments artifact links on the PR |
-| `nix-check.yml` | push/PR touching nix/bun.lock/src | regenerates `.nix/bun.nix` via `bunx bun2nix` and diffs (fails if stale), `nix eval`, full `nix build .#handy` when nix packaging files changed or on main; pushes to Cachix `handy-computer` |
+| Workflow            | Trigger                                                                                                       | What it does                                                                                                                                                                                                                          |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `test.yml`          | push/PR touching `src-tauri/**`                                                                               | `cargo test` on ubuntu-24.04 (+rust-cache `workspaces: "./src-tauri -> target"`)                                                                                                                                                      |
+| `code-quality.yml`  | push/PR touching `src/**`, `scripts/**`, `package.json`, `bun.lock`, lint/ts configs, catalog.json, workflows | `bun install --frozen-lockfile`; `check:translations`; `check:model-languages`; `test:keyboard`; `lint`; `format:check`                                                                                                               |
+| `playwright.yml`    | PR touching `src/**`, `tests/**`, `package.json`, `bun.lock`, `playwright.config.*`                           | bun install, `bunx playwright install chromium`, `test:playwright`                                                                                                                                                                    |
+| `build.yml`         | `workflow_call` only                                                                                          | **the reusable cross-platform builder** — see below                                                                                                                                                                                   |
+| `main-build.yml`    | push to main                                                                                                  | 7-target matrix, `sign-binaries: true`, uploads 30-day artifacts                                                                                                                                                                      |
+| `release.yml`       | manual `workflow_dispatch`                                                                                    | creates a **draft** GitHub release tagged `v{tauri.conf.json version}`, then the same 7-target matrix with `no-cache: true` (release builds never restore the Rust cache so a stale native lib can't be linked — `release.yml:79-82`) |
+| `build-test.yml`    | manual                                                                                                        | full signed matrix, `asset-prefix: handy-test`, uploads artifacts                                                                                                                                                                     |
+| `pr-test-build.yml` | manual, takes `pr_number`                                                                                     | builds `refs/pull/N/merge`, comments artifact links on the PR                                                                                                                                                                         |
+| `nix-check.yml`     | push/PR touching nix/bun.lock/src                                                                             | regenerates `.nix/bun.nix` via `bunx bun2nix` and diffs (fails if stale), `nix eval`, full `nix build .#handy` when nix packaging files changed or on main; pushes to Cachix `handy-computer`                                         |
 
 ### The build matrix (identical in main-build/release/build-test/pr-test-build)
 
@@ -252,7 +252,7 @@ bun run tauri build -- --bundles deb  # subset of Linux bundles (BUILD.md:203)
   (`build.yml:497-513`); `LINUXDEPLOY_EXCLUDED_LIBRARIES=libvulkan.so*;libwayland-client.so*`
   and `LINUXDEPLOY_OUTPUT_VERSION` env (`build.yml:537-540`).
 - Build step: `tauri-apps/tauri-action@v0` with `args: <build-args>` and all
-  signing env (GITHUB_TOKEN, APPLE_*, AZURE_*, TAURI_SIGNING_PRIVATE_KEY…)
+  signing env (GITHUB*TOKEN, APPLE*\_, AZURE\_\_, TAURI_SIGNING_PRIVATE_KEY…)
   (`build.yml:515-546`).
 - **Post-build audits** (all fail the job):
   - AppImage `X-AppImage-Version` check (`build.yml:551-580`, `718-781`);
@@ -297,7 +297,7 @@ bun run tauri build -- --bundles deb  # subset of Linux bundles (BUILD.md:203)
 - Linux: deb depends `libgtk-layer-shell0, libopenblas0` and maps
   `transcribe-libs` → `/usr/lib/Handy`; rpm same with compression none;
   appimage `bundleMediaFramework: true`, `files: {"/usr/lib":
-  "transcribe-libs"}` (`tauri.conf.json:46-71`). `tauri.windows.conf.json`
+"transcribe-libs"}` (`tauri.conf.json:46-71`). `tauri.windows.conf.json`
   (merged for Windows builds) maps `resources` and `transcribe-libs` → `.`
   (install root, beside `Handy.exe`).
 - **Updater**: `plugins.updater` with embedded minisign public key and
@@ -369,7 +369,7 @@ Linux-only (x86_64/aarch64). Dev shell + NixOS/home-manager modules included
 - Playwright coverage is minimal (dev-server smoke only); the real app is
   never e2e-tested in CI.
 - `cargo test` on a machine without the Vulkan/glslc headers will fail to
-  *compile* the test binary on Linux (CI installs them at `test.yml:28-29`);
+  _compile_ the test binary on Linux (CI installs them at `test.yml:28-29`);
   on macOS the metal feature path needs Xcode CLT at minimum (AI bridge
   auto-stubs under CLT-only, `build.rs:425-444`).
 - The engine_supervisor e2e suite (worker crash/hang recovery) is invisible to

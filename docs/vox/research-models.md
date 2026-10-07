@@ -17,11 +17,11 @@ explicitly marked otherwise. No builds or tests were run (research-only task).
 
 ## 1. Architecture: three owners of model state
 
-| Owner | File | Owns |
-|---|---|---|
-| `ModelManager` | `src-tauri/src/managers/model.rs:542-551` | The **registry**: the list of known models (`HashMap<String, ModelInfo>`), download/delete, on-disk discovery, disk-status flags |
-| `TranscriptionManager` | `src-tauri/src/managers/transcription.rs:243-276` | The **loaded model**: `current_model_id`, the engine (in two possible homes, below), the idle watcher thread, the `is_loading` gate |
-| `EngineSupervisor` | `src-tauri/src/engine_supervisor/supervisor.rs:325` | The **transcribe-cpp worker process**: spawns/kills the child, owns `LoadSpec`/`Unloading`, snapshot of `LoadedInfo` |
+| Owner                  | File                                                | Owns                                                                                                                                |
+| ---------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `ModelManager`         | `src-tauri/src/managers/model.rs:542-551`           | The **registry**: the list of known models (`HashMap<String, ModelInfo>`), download/delete, on-disk discovery, disk-status flags    |
+| `TranscriptionManager` | `src-tauri/src/managers/transcription.rs:243-276`   | The **loaded model**: `current_model_id`, the engine (in two possible homes, below), the idle watcher thread, the `is_loading` gate |
+| `EngineSupervisor`     | `src-tauri/src/engine_supervisor/supervisor.rs:325` | The **transcribe-cpp worker process**: spawns/kills the child, owns `LoadSpec`/`Unloading`, snapshot of `LoadedInfo`                |
 
 Two fundamentally different engine homes, decided by `EngineType`
 (`src-tauri/src/managers/model.rs:26-39`):
@@ -37,17 +37,17 @@ Two fundamentally different engine homes, decided by `EngineType`
   (`src-tauri/src/managers/transcription.rs:186-194, 249`). Its RAM is in the
   main process.
 
-Module doc, key sentence: *"At most one worker holds a model at a time, and it
+Module doc, key sentence: _"At most one worker holds a model at a time, and it
 lives exactly as long as that model, so unloading returns all of its CPU and
-GPU memory to the OS"* (`src-tauri/src/engine_supervisor/mod.rs:8-15`).
+GPU memory to the OS"_ (`src-tauri/src/engine_supervisor/mod.rs:8-15`).
 
 At most **one** model is resident at a time, enforced in two places:
-`EngineSupervisor::load` — *"The old worker has fully exited before the new one
-starts, so two models are never held at once"*
+`EngineSupervisor::load` — _"The old worker has fully exited before the new one
+starts, so two models are never held at once"_
 (`src-tauri/src/engine_supervisor/supervisor.rs:362-368`) — and the load path
 drops the previous ONNX engine before building the new one, with an explicit
-peak-memory comment: *"Drop the current engine BEFORE building the new one …
-avoids holding two models at once (peak memory on large GGUFs)"*
+peak-memory comment: _"Drop the current engine BEFORE building the new one …
+avoids holding two models at once (peak memory on large GGUFs)"_
 (`src-tauri/src/managers/transcription.rs:590-598`).
 
 ---
@@ -59,12 +59,12 @@ avoids holding two models at once (peak memory on large GGUFs)"*
 - **App models dir**: `portable::app_data_dir(app_handle)/models`, created at
   `ModelManager::new` (`src-tauri/src/managers/model.rs:554-562`). In normal
   installs this is the OS app-data dir (macOS `~/Library/Application
-  Support/<bundle>/models`); in portable mode it is `<exe-dir>/Data/models`
+Support/<bundle>/models`); in portable mode it is `<exe-dir>/Data/models`
   (`src-tauri/src/portable.rs:83-89`).
 - **Shared Hugging Face cache** (the primary path for catalog models):
   hf-hub's `Cache::from_env()`, i.e. `$HF_HOME/hub` (portable mode redirects
   `HF_HOME` to `Data/huggingface` at startup — `src-tauri/src/portable.rs:44-47,
-  65-69`). Lookup additionally checks the pre-v0.9.6 portable HF home
+65-69`). Lookup additionally checks the pre-v0.9.6 portable HF home
   (`hf_caches()`, `src-tauri/src/managers/model.rs:325-339`).
 - Cache resolution goes through `refs/<revision>` with a fallback to
   `refs/main` so caches populated by other tools still hit
@@ -159,7 +159,7 @@ settings but never loads a model. A model loads on exactly these triggers:
 2. **User switches model** (settings UI, onboarding, or tray menu):
    `switch_active_model` (`src-tauri/src/commands/models.rs:99-163`) persists
    the selection, then **eagerly** calls `transcription_manager.load_model`
-   synchronously (`src-tauri/src/commands/models.rs:154`) — *unless*
+   synchronously (`src-tauri/src/commands/models.rs:154`) — _unless_
    `model_unload_timeout == Immediately`, in which case it only emits a
    `selection_changed` event and skips the load (load happens on next use;
    `src-tauri/src/commands/models.rs:132-151`). Tray entries route through the
@@ -168,7 +168,7 @@ settings but never loads a model. A model loads on exactly these triggers:
    `initiate_model_load()` then `transcribe`
    (`src-tauri/src/commands/history.rs:84-90`).
 4. **Headless `--transcribe-file` CLI**: `tm.load_model_with_device(&model_id,
-   device_index)` with load timing (`src-tauri/src/lib.rs:535-561`), reloading
+device_index)` with load timing (`src-tauri/src/lib.rs:535-561`), reloading
    between repeats when Immediately is set (`src-tauri/src/lib.rs:567-574`),
    and unloading at exit (`src-tauri/src/lib.rs:928-932`).
 
@@ -190,7 +190,7 @@ wrapper, `src-tauri/src/managers/transcription.rs:518-520`). Its sequence:
 5. Build the engine per type (`:606-744`):
    - TranscribeCpp: pick backend/device from settings or explicit
      `device_index` (`:615-632`), call `self.engine.load(LoadSpec { path,
-     backend, device })` (`:634-645`) — this (re)spawns the worker process and
+backend, device })` (`:634-645`) — this (re)spawns the worker process and
      loads the model inside it; returns `LoadedInfo` (arch, variant, backend,
      device, on_gpu, capabilities — `src-tauri/src/engine_supervisor/protocol.rs:144-156`).
      Then reconciles registry capabilities with runtime truth via
@@ -225,6 +225,7 @@ honored by `initiate_model_load` (`:783-795`); invoked from
 ```rust
 pub enum ModelUnloadTimeout { Never, Immediately, Min2, Min5 /*default*/, Min10, Min15, Hour1, Sec15 /*debug*/ }
 ```
+
 `src-tauri/src/settings.rs:134-146` (`#[serde(rename_all = "snake_case")]`,
 `#[default]` = `Min5`). Stored as `AppSettings.model_unload_timeout`
 (`src-tauri/src/settings.rs:443`), default applied in `get_default_settings`
@@ -251,7 +252,7 @@ loops forever:
 3. **Skip `Immediately`** here on purpose — it would unload mid-recording;
    that variant is handled per-transcription instead (`:317-321`).
 4. **While recording, refresh the timer** (`AudioRecordingManager::
-   is_recording()` → `touch_activity()` → `continue`) so the model is never
+is_recording()` → `touch_activity()` → `continue`) so the model is never
    unloaded mid-session (`:324-331`).
 5. If `idle_ms > limit_ms` and `is_model_loaded()` → `unload_model()` with
    timing logs (`:333-361`).
@@ -293,7 +294,7 @@ joins the thread, but only on the last `Arc` clone
 
 `begin_unload` (`src-tauri/src/managers/transcription.rs:471-491`) does all
 state changes synchronously on the caller's thread — `engine.unload()` (which
-clears the supervisor's `loaded` snapshot *immediately* and queues the worker
+clears the supervisor's `loaded` snapshot _immediately_ and queues the worker
 exit ahead of anything requested later, `src-tauri/src/engine_supervisor/supervisor.rs:370-385`),
 drops the ONNX engine (freeing its resources), nulls `current_model_id`, and
 emits `model-state-changed` `unloaded`. Only the worker's process exit is
@@ -304,7 +305,7 @@ reaped — `src-tauri/src/engine_supervisor/supervisor.rs:1085-1088, 1290-1305`)
 (`src-tauri/src/managers/transcription.rs:449-465`).
 
 **This is why unload frees memory**: for transcribe-cpp models the whole worker
-process dies, returning *"all of its CPU and GPU memory to the OS"*
+process dies, returning _"all of its CPU and GPU memory to the OS"_
 (`src-tauri/src/engine_supervisor/mod.rs:12-15`); for ONNX models the engine
 object is dropped in-process.
 
@@ -315,12 +316,12 @@ object is dropped in-process.
 ### 5.1 From Rust
 
 - `TranscriptionManager::is_model_loaded()` — `self.engine.loaded().is_some()
-  || self.lock_onnx().is_some()` (`src-tauri/src/managers/transcription.rs:380-384`).
+|| self.lock_onnx().is_some()` (`src-tauri/src/managers/transcription.rs:380-384`).
   Snapshot, non-blocking ("A transcribe-cpp model stays loaded while it is
   busy, so a batch run or stream in progress never reads as 'unloaded'").
 - `TranscriptionManager::get_current_model() -> Option<String>` — the
   `current_model_id` mutex (`src-tauri/src/managers/transcription.rs:806-809`).
-  `None` when nothing is loaded. Note this is the *loaded* id, which can
+  `None` when nothing is loaded. Note this is the _loaded_ id, which can
   differ from `settings.selected_model` (e.g. Immediately mode between loads,
   or a headless `--model` override).
 - `TranscriptionManager::current_backend() -> Option<String>` — bound backend
@@ -330,20 +331,20 @@ object is dropped in-process.
   arch/variant/backend/device/on_gpu/capabilities
   (`src-tauri/src/engine_supervisor/supervisor.rs:396-399`;
   `LoadedInfo` at `src-tauri/src/engine_supervisor/protocol.rs:144-156`).
-- For contrast, `settings.selected_model` is the *persisted preference*
+- For contrast, `settings.selected_model` is the _persisted preference_
   (default `""`, `src-tauri/src/settings.rs:414-415, 535-537`) — populated by
   `switch_active_model` or `auto_select_model_if_needed`.
 
 ### 5.2 From the frontend (Tauri commands, specta-typed in `src/bindings.ts`)
 
-| Command | Rust | Binding | Returns |
-|---|---|---|---|
-| `get_model_load_status` | `commands/transcription.rs:22-31` | `bindings.ts:846` | `{ is_loaded: bool, current_model: string \| null }` (type at `bindings.ts:1063`) |
-| `get_transcription_model_status` | `commands/models.rs:183-189` | `bindings.ts:699` | `Option<String>` — loaded model id |
-| `get_current_model` | `commands/models.rs:176-181` | `bindings.ts:691` | `settings.selected_model` (preference, **not** loaded state) |
-| `unload_model_manually` | `commands/transcription.rs:33-40` | `bindings.ts:854` | unloads (async) |
-| `set_model_unload_timeout` | `commands/transcription.rs:14-20` | `bindings.ts:843` | persists the setting |
-| `is_model_loading` | `commands/models.rs:191-199` | `bindings.ts:707` | ⚠ misnomer — returns `current_model.is_none()` (true when *nothing is loaded*), not load-in-progress |
+| Command                          | Rust                              | Binding           | Returns                                                                                               |
+| -------------------------------- | --------------------------------- | ----------------- | ----------------------------------------------------------------------------------------------------- |
+| `get_model_load_status`          | `commands/transcription.rs:22-31` | `bindings.ts:846` | `{ is_loaded: bool, current_model: string \| null }` (type at `bindings.ts:1063`)                     |
+| `get_transcription_model_status` | `commands/models.rs:183-189`      | `bindings.ts:699` | `Option<String>` — loaded model id                                                                    |
+| `get_current_model`              | `commands/models.rs:176-181`      | `bindings.ts:691` | `settings.selected_model` (preference, **not** loaded state)                                          |
+| `unload_model_manually`          | `commands/transcription.rs:33-40` | `bindings.ts:854` | unloads (async)                                                                                       |
+| `set_model_unload_timeout`       | `commands/transcription.rs:14-20` | `bindings.ts:843` | persists the setting                                                                                  |
+| `is_model_loading`               | `commands/models.rs:191-199`      | `bindings.ts:707` | ⚠ misnomer — returns `current_model.is_none()` (true when _nothing is loaded_), not load-in-progress |
 
 **Events** (string payload event `model-state-changed`, `ModelStateEvent {
 event_type, model_id, model_name, error }`,
@@ -360,7 +361,7 @@ event_type, model_id, model_name, error }`,
 - `App.tsx:197-215` toasts on `loading_failed`.
 - The tray rebuilds its menu on `model-state-changed`
   (`src-tauri/src/lib.rs:355-359`); the tray's model submenu checkmarks the
-  *settings-selected* model and enables "Unload model" only while loaded
+  _settings-selected_ model and enables "Unload model" only while loaded
   (`src-tauri/src/tray.rs:540-566`).
 
 Unused today: `get_model_load_status` is exposed in bindings but **no frontend
@@ -381,7 +382,7 @@ or similar crate. Likewise no frontend code displays RAM (grep for
 `memory|vram` in `src/` hits only `AccelerationSelector.tsx` and a comment in
 `LiveLogViewer.tsx`).
 
-What *does* exist:
+What _does_ exist:
 
 1. **Disk size as the only size signal**: `ModelInfo.size_mb`
    (`src-tauri/src/managers/model.rs:67, 240`) from catalog `size_bytes`.
@@ -407,7 +408,7 @@ What *does* exist:
    `worker.rs:136,154`). The module doc quantifies the transient-buffer
    problem it fixes (~15 MB retained per 2-min dictation → ~0.5 MB; issue
    #1792). No-ops on macOS/Windows/musl (`src-tauri/src/memory.rs:29-39, 47-57`).
-   This is about *transcription buffers*, not model weights.
+   This is about _transcription buffers_, not model weights.
 4. **Timing, not bytes**: load and unload durations are logged
    (`src-tauri/src/managers/transcription.rs:342-358, 450-456, 767-772`) —
    the only "cost" telemetry that exists.
@@ -422,7 +423,7 @@ the app** — a feature would have to measure it (see §8).
 Ranked seams, most natural first:
 
 1. **`TranscriptionManager::load_model_with_device`**
-   (`src-tauri/src/managers/transcription.rs:527`) — the *single* function all
+   (`src-tauri/src/managers/transcription.rs:527`) — the _single_ function all
    four load triggers funnel through. A pressure check belongs right after
    `apply_accelerator_settings` (`:532`) / before the old-engine drop
    (`:590`). Threading context of callers: `initiate_model_load`'s background
@@ -433,14 +434,14 @@ Ranked seams, most natural first:
    (`src-tauri/src/lib.rs:556-561`). A blocking OS query here is acceptable
    but note it runs on the tauri async worker for command-triggered loads.
 2. **`switch_active_model`** (`src-tauri/src/commands/models.rs:99-163`) —
-   policy decision point: under pressure it could skip the *eager* load the
+   policy decision point: under pressure it could skip the _eager_ load the
    same way the `Immediately` branch already does (`:132-151`), falling back to
    on-demand.
 3. **`initiate_model_load`** (`src-tauri/src/managers/transcription.rs:777-804`)
    — gate for on-demand loads at recording start / history retry.
 4. **The idle watcher loop** (`src-tauri/src/managers/transcription.rs:303-367`)
    — already a 10-second poll that reads settings and calls
-   `is_model_loaded()`/`unload_model()`; the natural home for a *reactive*
+   `is_model_loaded()`/`unload_model()`; the natural home for a _reactive_
    pressure-driven unload (symmetric to the time-based one).
 5. **`crate::memory`** (`src-tauri/src/memory.rs`) — the obvious module to
    grow a `system_memory()` / `worker_rss(pid)` probe. No sysinfo crate today
@@ -454,20 +455,20 @@ Ranked seams, most natural first:
    protocol (`Command` enum, `src-tauri/src/engine_supervisor/supervisor.rs:177-205`;
    `Response` enum, `src-tauri/src/engine_supervisor/protocol.rs:69-88`) with a
    self-report message, and/or add a memory field to `LoadedInfo`
-   (`protocol.rs:144-156`). Remember ONNX models live in the *app* process —
+   (`protocol.rs:144-156`). Remember ONNX models live in the _app_ process —
    a complete picture needs both.
 7. **Frontend surfacing**: `ModelLoadStatus`
    (`src-tauri/src/commands/transcription.rs:8-12`) is an obvious vehicle
    (it's currently unused by the UI), plus `ModelStateEvent`
    (`src-tauri/src/managers/transcription.rs:53-59`) / the
-  `model-state-changed` listeners in `ModelSelector.tsx:71-98` and
-  `modelStore.ts:419-422` already refresh on every lifecycle change. Specta
-  bindings regenerate into `src/bindings.ts` (see research-build.md).
+   `model-state-changed` listeners in `ModelSelector.tsx:71-98` and
+   `modelStore.ts:419-422` already refresh on every lifecycle change. Specta
+   bindings regenerate into `src/bindings.ts` (see research-build.md).
 
 Handy primitives a pressure feature can reuse: `try_start_loading` /
 `LoadingGuard` (exclusive load slot), `request_unload` (non-blocking unload),
 `engine.loaded()` (instant snapshot), and `ModelInfo.size_mb` as a
-pressure *forecast* (disk-size proxy for what a load will cost).
+pressure _forecast_ (disk-size proxy for what a load will cost).
 
 ---
 
@@ -475,13 +476,13 @@ pressure *forecast* (disk-size proxy for what a load will cost).
 
 - **`bindings.ts` vs serde wire-format mismatch for `ModelUnloadTimeout`.**
   The generated TS type says `"min_2" | "min_5" | "min_10" | "min_15" |
-  "hour_1" | "sec_15"` (`src/bindings.ts:1088`) but serde's `snake_case` for
+"hour_1" | "sec_15"` (`src/bindings.ts:1088`) but serde's `snake_case` for
   `Min2` is `"min2"` — proven by the frozen v0.9 store test fixture, which
   parses `"model_unload_timeout": "min5"` strictly
   (`src-tauri/src/settings.rs:1383`, test at `:1333-1334`; not executed by me,
   read from source). The shipped React dropdown sends `"min2"`-style values
   and casts them to the TS type (`src/components/settings/ModelUnloadTimeout.tsx:30-46`),
-  i.e. it works at runtime and the *type annotation* is what's wrong. Any new
+  i.e. it works at runtime and the _type annotation_ is what's wrong. Any new
   frontend code that trusts the literal `"min_5"` from bindings will send a
   string serde rejects → the command errors. Verify the accepted wire strings
   empirically before sending new values.
@@ -507,7 +508,7 @@ pressure *forecast* (disk-size proxy for what a load will cost).
   slot; under memory pressure it is also the moment two models could
   transiently coexist — except the code deliberately drops the old engine
   first (`src-tauri/src/managers/transcription.rs:590-598`), so peak = max
-  (old, new), not sum. A pre-load pressure check must run *before* that drop
+  (old, new), not sum. A pre-load pressure check must run _before_ that drop
   if it wants to consider the outgoing model.
 - **Worker crash ≠ clean state**: after engine-dropped reconciliation the
   loaded id clears and the next use reloads
@@ -525,19 +526,19 @@ pressure *forecast* (disk-size proxy for what a load will cost).
 
 ## 9. Quick reference: file map
 
-| Concern | File:lines |
-|---|---|
-| Registry struct + dir | `src-tauri/src/managers/model.rs:542-562` |
-| Legacy model table | `src-tauri/src/managers/model.rs:581-1143` |
-| Catalog seeding / rescan | `src-tauri/src/managers/model.rs:1212-1286`; `src-tauri/src/catalog/mod.rs` |
-| Downloads (HF/URL/mirror) | `src-tauri/src/managers/model.rs:1922-2418` |
-| Path resolution | `src-tauri/src/managers/model.rs:2586-2661` |
-| Load choke point | `src-tauri/src/managers/transcription.rs:527-774` |
-| On-demand loader | `src-tauri/src/managers/transcription.rs:777-804` |
-| Idle watcher | `src-tauri/src/managers/transcription.rs:298-367` |
-| Unload paths | `src-tauri/src/managers/transcription.rs:449-516`; `src-tauri/src/engine_supervisor/supervisor.rs:370-389` |
-| Timeout enum | `src-tauri/src/settings.rs:134-146, 239-261` |
-| Status commands | `src-tauri/src/commands/transcription.rs`; `src-tauri/src/commands/models.rs` |
-| Frontend store / selector | `src/stores/modelStore.ts`; `src/components/model-selector/ModelSelector.tsx` |
-| Allocator hygiene | `src-tauri/src/memory.rs` |
-| Bindings | `src/bindings.ts` (specta-generated) |
+| Concern                   | File:lines                                                                                                 |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Registry struct + dir     | `src-tauri/src/managers/model.rs:542-562`                                                                  |
+| Legacy model table        | `src-tauri/src/managers/model.rs:581-1143`                                                                 |
+| Catalog seeding / rescan  | `src-tauri/src/managers/model.rs:1212-1286`; `src-tauri/src/catalog/mod.rs`                                |
+| Downloads (HF/URL/mirror) | `src-tauri/src/managers/model.rs:1922-2418`                                                                |
+| Path resolution           | `src-tauri/src/managers/model.rs:2586-2661`                                                                |
+| Load choke point          | `src-tauri/src/managers/transcription.rs:527-774`                                                          |
+| On-demand loader          | `src-tauri/src/managers/transcription.rs:777-804`                                                          |
+| Idle watcher              | `src-tauri/src/managers/transcription.rs:298-367`                                                          |
+| Unload paths              | `src-tauri/src/managers/transcription.rs:449-516`; `src-tauri/src/engine_supervisor/supervisor.rs:370-389` |
+| Timeout enum              | `src-tauri/src/settings.rs:134-146, 239-261`                                                               |
+| Status commands           | `src-tauri/src/commands/transcription.rs`; `src-tauri/src/commands/models.rs`                              |
+| Frontend store / selector | `src/stores/modelStore.ts`; `src/components/model-selector/ModelSelector.tsx`                              |
+| Allocator hygiene         | `src-tauri/src/memory.rs`                                                                                  |
+| Bindings                  | `src/bindings.ts` (specta-generated)                                                                       |

@@ -9,7 +9,6 @@ the research notes: the rank-1 preset's default download is `Q8_0` ≈ 697 MB
 (`default_quant`, selected at `src-tauri/src/managers/model.rs:142-148`),
 not the 455 MB Q4_K_M. Paths relative to `handy-dictation/`.
 
-
 ## 1. Global constraints (bind every feature)
 
 - **C1 Offline.** Never regressed; v1 adds zero network calls, removes one
@@ -18,7 +17,7 @@ not the 455 MB Q4_K_M. Paths relative to `handy-dictation/`.
   timers, no new background threads). The pressure gate (F3) defaults ON.
 - **C3 i18n.** New user-visible strings land as keys in all 26 locale files
   (`src/i18n/locales/*/translation.json`) in the same change; `bun run
-  check:translations` (gated at `.github/workflows/code-quality.yml:50`)
+check:translations` (gated at `.github/workflows/code-quality.yml:50`)
   must pass. "VoxBar" is untranslated per `CONTRIBUTING_TRANSLATIONS.md`.
 - **C4 Tests.** Every new decision/derivation is a pure function with unit
   tests (`cargo test`, CI via `test.yml`). No new model-dependent tests.
@@ -81,11 +80,12 @@ failure is already swallowed (`UpdateChecker.tsx:108-109` catches,
 `console.error` only — verified).
 
 **Decisions (binding).**
-- *Updater:* v1 ships disabled — remove `bundle.createUpdaterArtifacts`
+
+- _Updater:_ v1 ships disabled — remove `bundle.createUpdaterArtifacts`
   (`tauri.conf.json:28`) and the `plugins.updater` pubkey/endpoint (`:82-85`).
   `HANDY_DISABLE_UPDATER` (`settings.rs:1231-1238`) stays for packaging
   compat.
-- *Keyboard implementation:* keep the serde wire value `"handy_keys"` (enum
+- _Keyboard implementation:_ keep the serde wire value `"handy_keys"` (enum
   `settings.rs:217`; frozen fixture `:1414`), module
   (`shortcut/handy_keys.rs`), and component filenames
   (`HandyKeysShortcutInput.tsx`) — renaming breaks stored settings and the
@@ -94,7 +94,7 @@ failure is already swallowed (`UpdateChecker.tsx:108-109` catches,
   and the failure toast "Failed to initialize HandyKeys: {}. Reverted to
   Tauri." (`shortcut/mod.rs:563-566`, surfaces via
   `change_keyboard_implementation_setting`).
-- *Portable marker (three sites, one decision):* the magic string lives in
+- _Portable marker (three sites, one decision):_ the magic string lives in
   Rust too — read side `is_valid_portable_marker` (`portable.rs:118-122`,
   match at `:121`) and legacy-upgrade write (`portable.rs:34`), besides
   NSIS (`:600` read — `$2 == "Handy Portable Mode"` only today, so the
@@ -103,7 +103,7 @@ failure is already swallowed (`UpdateChecker.tsx:108-109` catches,
   write sites write the new one. Fresh VoxBar portable installs then get Data/ redirect + HF_HOME
   (`portable.rs:40-46`); old Handy installs keep working via the legacy
   branch.
-- *Installed-upgrade data continuity:* F1 renames `productName` +
+- _Installed-upgrade data continuity:_ F1 renames `productName` +
   `identifier`, so the installed data dir moves (portable installs are
   unaffected — `Data/` sits next to the exe; resolution at
   `portable.rs:83-87` falls back to Tauri's `app_data_dir()`, whose exact
@@ -120,13 +120,13 @@ failure is already swallowed (`UpdateChecker.tsx:108-109` catches,
   partial failure (log + retry next launch). The hardcoded
   `%APPDATA%/handy*` display strings (`DebugPaths.tsx:29/37/46`) are
   replaced with backend-resolved paths so the Debug panel cannot go stale.
-  *Autostart continuity:* the macOS agent plist is
+  _Autostart continuity:_ the macOS agent plist is
   `~/Library/LaunchAgents/{package_info().name}.plist` (`autostart.rs:103-106`,
   removal keyed to the new name at `:98`), so the rename orphans the old
   agent — the migration hook also re-registers autostart under the new
   name when the old agent/.desktop/Run-key entry exists (Linux .desktop
   is productName-derived; Windows Run key is the same class).
-- *Allowed "Handy" survivors (exhaustive; basis for AC1/AC2):* LICENSE/
+- _Allowed "Handy" survivors (exhaustive; basis for AC1/AC2):_ LICENSE/
   copyright notices; the attribution line; the legacy portable-marker
   string on read sides (NSIS `:600`, `portable.rs:121` legacy branch);
   `HANDY_DISABLE_UPDATER`; the `"handy_keys"` wire value + the
@@ -169,6 +169,7 @@ failure is already swallowed (`UpdateChecker.tsx:108-109` catches,
   `src/bindings.ts`).
 
 **Acceptance criteria.**
+
 1. Locale sweep: a recursive scan of every string value in all 26
    `translation.json` files (same python3 walk used for verification above)
    reports **zero** occurrences of exact-case "Handy". Case-sensitive by
@@ -176,7 +177,7 @@ failure is already swallowed (`UpdateChecker.tsx:108-109` catches,
    (`settings.debug.updateChecks.lockedDescription`) embeds the
    `HANDY_DISABLE_UPDATER` name kept for compat — exempt.
 2. Residual grep is classified: every hit of `grep -ri handy src
-   src-tauri index.html package.json .github nix flake.nix` (baseline: 22
+src-tauri index.html package.json .github nix flake.nix` (baseline: 22
    ts/tsx files in `src` alone) falls into a survivor class above or the
    CI/packaging work item — a review checklist, not a zero-hit gate.
 3. Release build, network blocked: reaches the tray, transcribes, no
@@ -218,6 +219,7 @@ keeps `min5`.
 its RSS is freed — that is the feature.
 
 **Acceptance criteria.**
+
 1. Unit test: `ModelUnloadTimeout::default() == Min2`; serde wire string
    `"min2"` (`settings.rs:135-137`; `ModelUnloadTimeout.tsx` verified).
 2. Existing v0.9 fixture test (`settings.rs:1383` parses explicit `"min5"`;
@@ -245,6 +247,7 @@ pattern) → `collect_commands!` (`lib.rs:652`) → debug-build regen of
 (`settingsStore.ts:83`) → toggle + i18n keys (C3).
 
 **Mechanism.**
+
 - `memory.rs` (today glibc-only tuning, macOS no-op — read in full) gains
   `available_memory_bytes() -> Option<u64>`: macOS **`os_proc_available_memory()`**
   (bytes available to the process — NOT a naive `host_statistics64`
@@ -254,14 +257,14 @@ pattern) → `collect_commands!` (`lib.rs:652`) → debug-build regen of
   symbol is unavailable); Linux `/proc/meminfo MemAvailable`; Windows
   `GlobalMemoryStatusEx ullAvailPhys`.
 - Pure decision fn `gate_should_refuse(free: Option<u64>, forecast: u64,
-  headroom: u64) -> bool`; forecast = `ModelInfo.size_mb` MiB (`model.rs:67`)
+headroom: u64) -> bool`; forecast = `ModelInfo.size_mb` MiB (`model.rs:67`)
   — an estimate (GGUF disk ≠ resident RAM, research-models §8); `headroom`
   is a named constant, default **1.5 GiB**.
 - Gate sits in `load_model_with_device` (`transcription.rs:527`; `load_model`
   delegates at `:518-519` and the only other caller is the CLI benchmark, so
   the gate covers every GUI load) **before** the old-engine drop
   (`:590-602`), crediting the outgoing model: `effective_free = free +
-  resident_footprint` (peak = max(old, new) once the drop precedes the
+resident_footprint` (peak = max(old, new) once the drop precedes the
   build). `resident_footprint` = measured worker RSS for TranscribeCpp
   (pid, `supervisor.rs:1063`); the same `size_mb`-derived estimate F4 uses
   for in-process ONNX engines (no pid — `OnnxEngine`,
@@ -273,6 +276,7 @@ never brick model loading. Toggle off → gate skipped entirely. Refusal is
 the only failure mode that reaches the user.
 
 **Acceptance criteria.**
+
 1. Table-driven unit tests for `gate_should_refuse`: `None` → false
    (fail-open); boundary `forecast + headroom == free` → allow, `== free+1`
    → refuse; resident-credit arithmetic incl. the ONNX estimate branch.
@@ -323,6 +327,7 @@ estimate from `size_mb`, `~`-labeled — the same source F3's
 never fails on measurement errors.
 
 **Acceptance criteria.**
+
 1. Unit test: formatting fn (measured vs estimate vs absent) and
    `MenuInputs` inequality driving a rebuild.
 2. Unit test: label resolution prefers `resident_model` over
@@ -354,19 +359,13 @@ tray "Unload model now" (`tray.rs:549-556`, `lib.rs:303-311`); the
 recommended-model preset mechanism (`model.rs:1544-1597`); the
 parakeet-mlx sidecar (F5).
 
-Fork-level non-goals for v1:
-4. Auto-select-smaller-model fallback when the gate refuses — refuse-with-
-   warning suffices; fallback (reusing `get_available_models` rank order)
-   is a later-version stretch.
-5. A VoxBar update feed, signing keys, or any update delivery — v1 disables
-   the updater outright (F1); hiding the inert check surfaces goes with it.
-6. Renaming catalog model ids `handy-computer/*` — HuggingFace download
-   paths; renaming breaks all one-click downloads.
-7. Renaming the `"handy_keys"` wire value, module, or generated command
-   names (F1 decision); translating "VoxBar".
-8. Continuous RAM polling / tray refresh timers — violates C2.
-9. GPU/device selection UI, new engines, model conversions, UI redesign,
-   Android/iOS targets, new locales, catalog edits beyond F2's rank-1.
+Fork-level non-goals for v1: 4. Auto-select-smaller-model fallback when the gate refuses — refuse-with-
+warning suffices; fallback (reusing `get_available_models` rank order)
+is a later-version stretch. 5. A VoxBar update feed, signing keys, or any update delivery — v1 disables
+the updater outright (F1); hiding the inert check surfaces goes with it. 6. Renaming catalog model ids `handy-computer/*` — HuggingFace download
+paths; renaming breaks all one-click downloads. 7. Renaming the `"handy_keys"` wire value, module, or generated command
+names (F1 decision); translating "VoxBar". 8. Continuous RAM polling / tray refresh timers — violates C2. 9. GPU/device selection UI, new engines, model conversions, UI redesign,
+Android/iOS targets, new locales, catalog edits beyond F2's rank-1.
 
 ## 8. Verification basis & not-run disclosure
 

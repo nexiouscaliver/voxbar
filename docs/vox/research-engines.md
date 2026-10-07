@@ -21,10 +21,11 @@ transcribe bindings are `"transcribe"` and `"transcribe_with_post_process"`
 `post_process: bool` (`src-tauri/src/actions.rs:860-880`).
 
 **Start** (`TranscribeAction::start`, `src-tauri/src/actions.rs:388-562`):
+
 1. `tm.initiate_model_load()` (background thread, `src-tauri/src/managers/transcription.rs:777-804`) and
    `rm.preload_vad()` (`src-tauri/src/managers/audio.rs:623-635`) kick off in parallel.
-2. Reads `ModelManager::get_model_info(settings.selected_model).supports_streaming` — the *single
-   pre-recording source* for streaming decisions; unknown renders as `false`
+2. Reads `ModelManager::get_model_info(settings.selected_model).supports_streaming` — the _single
+   pre-recording source_ for streaming decisions; unknown renders as `false`
    (`src-tauri/src/actions.rs:434-447`).
 3. VAD policy: `VadPolicy::Disabled` if `!settings.vad_enabled`, `Streaming` if the model streams,
    else `Offline` (`src-tauri/src/actions.rs:441-447`). Streaming models also get `tm.start_stream()`.
@@ -37,7 +38,7 @@ transcribe bindings are `"transcribe"` and `"transcribe_with_post_process"`
 (`rtrb`) → consumer thread drains ≤50 ms chunks (`src-tauri/src/audio_toolkit/audio/recorder.rs:31-36`,
 `914-1043`). `CaptureProcessor` resamples to 16 kHz mono in frames sized for the VAD backend
 (`recorder.rs:699-772`), then `handle_frame` routes each frame through the `SmoothedVad` wrapper:
-speech frames are appended to the recording buffer *and* forwarded to the `audio_cb`
+speech frames are appended to the recording buffer _and_ forwarded to the `audio_cb`
 (`recorder.rs:631-664`). The `audio_cb` is installed at recorder construction as
 `router.feed(frame)` — the `StreamRouter` owned by `TranscriptionManager`
 (`src-tauri/src/managers/audio.rs:344-349`, `src-tauri/src/managers/transcription.rs:125-181`), so live
@@ -45,6 +46,7 @@ frames reach the streaming worker without touching Tauri state or the manager lo
 costs one relaxed atomic load per frame (`transcription.rs:168-175`).
 
 **Stop** (`TranscribeAction::stop`, `src-tauri/src/actions.rs:564-820`):
+
 1. `rm.stop_recording()` drains the ring (pause-ack handshake so the boundary block is included),
    flushes the resampler tail through VAD, optionally sleeps `extra_recording_buffer_ms` first, pads
    recordings shorter than 1 s out to 1.25 s of zeros, and returns `Vec<f32>` PCM
@@ -58,7 +60,7 @@ costs one relaxed atomic load per frame (`transcription.rs:168-175`).
 5. History save (`hm.save_entry`) if the WAV verified, then **paste on the main thread** via
    `utils::paste(final_text, …)` inside `run_on_main_thread` (`actions.rs:744-774`).
 6. `paste()` dispatches on `settings.paste_method`: `None | Direct | CtrlV | CtrlShiftV |
-   ShiftInsert`; on macOS/Windows with `reliable_paste` it first tries the receipt-sequenced
+ShiftInsert`; on macOS/Windows with `reliable_paste` it first tries the receipt-sequenced
    clipboard paste (lazy NSPasteboard promises, restore only after the target actually read the
    clipboard) and falls back to the legacy timed restore (`src-tauri/src/clipboard.rs:774-830`;
    `src-tauri/src/paste_tx/mod.rs:1-52`).
@@ -81,7 +83,7 @@ Cancellation flows through a `cancel_generation` atomic checked at every stage
     threshold 0.5; clamps resampler overshoot before prediction (`src-tauri/src/audio_toolkit/vad/earshot.rs:5-72`;
     `src-tauri/src/managers/audio.rs:21, 300-303`).
 - Both are wrapped in **`SmoothedVad`** (onset confirmation, pre-roll buffer, post-speech hangover)
-  (`src-tauri/src/audio_toolkit/vad/smoothed.rs:13-164`). Timing profile is defined in *milliseconds*
+  (`src-tauri/src/audio_toolkit/vad/smoothed.rs:13-164`). Timing profile is defined in _milliseconds_
   and converted per-backend by rounding up so switching backends never shortens audio:
   `VAD_PREFILL_MS = 450`, `VAD_OFFLINE_HANGOVER_MS = 450`, `VAD_STREAMING_HANGOVER_MS = 1650`,
   `VAD_ONSET_MS = 60` (`src-tauri/src/audio_toolkit/vad/mod.rs:4-8`). One detector instance is
@@ -96,6 +98,7 @@ Cancellation flows through a `cancel_generation` atomic checked at every stage
 ## 3. Engine abstraction
 
 `TranscriptionManager` holds **two engine homes** (`src-tauri/src/managers/transcription.rs:243-276`):
+
 1. `engine: EngineSupervisor` — transcribe-cpp, **out-of-process** (own worker binary invocation).
 2. `onnx: Arc<Mutex<Option<OnnxEngine>>>` — transcribe-rs ONNX engines, **in-process**
    (`OnnxEngine` enum: Parakeet, Moonshine, MoonshineStreaming, SenseVoice, GigaAM, Canary, Cohere —
@@ -111,7 +114,7 @@ the corresponding `transcribe_rs::onnx::*::load(&model_path, &Quantization::Int8
 
 At run time (`transcribe`, `transcription.rs:1128-1251`): `self.engine.loaded()` is `Some` →
 `transcribe_cpp(...)`; `None` → `transcribe_onnx(...)` (`transcription.rs:1189-1194`). The ONNX path
-takes the engine *out* of the mutex during the call, wraps it in `catch_unwind` (a panicking engine
+takes the engine _out_ of the mutex during the call, wraps it in `catch_unwind` (a panicking engine
 is dropped, effectively unloaded, never poisons the mutex — `transcription.rs:1361-1499`), then
 returns it via `return_engine` unless the model was switched mid-run (`transcription.rs:1053-1065`).
 
@@ -137,7 +140,7 @@ returns it via `return_engine` unless the model was switched mid-run (`transcrip
   (`GPU_DEADLINES` 30 s floor / 10× audio; `CPU_DEADLINES` 120 s floor / 20× audio —
   `supervisor.rs:68-80`). Cancel kills the in-flight worker outright (`supervisor.rs:454-464`).
 - **Device selection**: `Backend::{Auto, Cpu}` + `DeviceSelector::{Auto, Key, Index}`
-  (`protocol.rs:58-66`). Settings carry a stable device *key* (device_id or name for Metal);
+  (`protocol.rs:58-66`). Settings carry a stable device _key_ (device_id or name for Metal);
   `resolve_gpu_device` maps the persisted GPU choice to a key, `select_transcribe_backend` maps
   Auto/Cpu/Gpu → Backend (`transcription.rs:1996-2030`). `load_model_with_device` additionally
   accepts a hard `device_index` (the `--device-index` CLI flag) that never falls back to CPU
@@ -226,7 +229,7 @@ Two producers feed one registry (`HashMap<String, ModelInfo>` in `ModelManager`,
    (`discover_hf_cache_models`, `model.rs:1764-1902`), both probed via the pure-Rust GGUF header
    reader (`GgufHeaderProber`, `src-tauri/src/managers/model_capabilities.rs:148-216`) which reads
    `general.architecture`, `stt.variant`, `general.languages`, `stt.capability.{streaming,translate,
-   lang_detect}` from the first ≤64 KiB (grown geometrically to 16 MiB). Files matching a catalog
+lang_detect}` from the first ≤64 KiB (grown geometrically to 16 MiB). Files matching a catalog
    quant surface with full catalog metadata (`file_in_catalog`, `catalog/mod.rs:180-197`).
 
 ### 3.5 Parakeet variants available
@@ -234,22 +237,22 @@ Two producers feed one registry (`HashMap<String, ModelInfo>` in `ModelManager`,
 **GGUF (transcribe-cpp, catalog.json)** — arch `parakeet` unless noted; accuracy/speed are the
 catalog's 0-100 scores; size is the default Q4_K_M quant:
 
-| Model (repo id) | langs | acc/speed | streaming | size (Q4_K_M) | catalog line |
-|---|---|---|---|---|---|
-| parakeet-unified-en-0.6b | en | 90/79 | **yes** | 455 MB | `catalog.json:9` |
-| nemotron-3.5-asr-streaming-0.6b | 28 | 82/84 | **yes** | 472 MB | `catalog.json:42` |
-| parakeet-tdt-0.6b-v3 | 25 EU | 88/79 | no | 462 MB | `catalog.json:207` |
-| parakeet-tdt-0.6b-v2 | en | 89/85 | no | 453 MB | `catalog.json:240` |
-| nemotron-speech-streaming-en-0.6b | en | 86/80 | **yes** | 453 MB | `catalog.json:1377` |
-| parakeet-tdt_ctc-110m | en | 85/98 | no | 85 MB | `catalog.json:1410` |
-| multitalker-parakeet-streaming-0.6b-v1 | en | 86/96 | **yes** | 455 MB | `catalog.json:1443` |
-| parakeet-ctc-0.6b | en | 88/94 | no | 447 MB | `catalog.json:1482` |
-| parakeet-rnnt-0.6b | en | 90/84 | no | 454 MB | `catalog.json:1515` |
-| parakeet-ctc-1.1b | en | 88/83 | no | 780 MB | `catalog.json:1548` |
-| parakeet-primeline | 25 EU | 67/79 | no | 462 MB | `catalog.json:1581` |
-| parakeet-tdt-1.1b | en | 91/76 | no | 787 MB | `catalog.json:1614` |
-| parakeet-rnnt-1.1b | en | 91/75 | no | 787 MB | `catalog.json:1647` |
-| parakeet-tdt_ctc-1.1b | en | 88/75 | no | 787 MB | `catalog.json:1680` |
+| Model (repo id)                        | langs | acc/speed | streaming | size (Q4_K_M) | catalog line        |
+| -------------------------------------- | ----- | --------- | --------- | ------------- | ------------------- |
+| parakeet-unified-en-0.6b               | en    | 90/79     | **yes**   | 455 MB        | `catalog.json:9`    |
+| nemotron-3.5-asr-streaming-0.6b        | 28    | 82/84     | **yes**   | 472 MB        | `catalog.json:42`   |
+| parakeet-tdt-0.6b-v3                   | 25 EU | 88/79     | no        | 462 MB        | `catalog.json:207`  |
+| parakeet-tdt-0.6b-v2                   | en    | 89/85     | no        | 453 MB        | `catalog.json:240`  |
+| nemotron-speech-streaming-en-0.6b      | en    | 86/80     | **yes**   | 453 MB        | `catalog.json:1377` |
+| parakeet-tdt_ctc-110m                  | en    | 85/98     | no        | 85 MB         | `catalog.json:1410` |
+| multitalker-parakeet-streaming-0.6b-v1 | en    | 86/96     | **yes**   | 455 MB        | `catalog.json:1443` |
+| parakeet-ctc-0.6b                      | en    | 88/94     | no        | 447 MB        | `catalog.json:1482` |
+| parakeet-rnnt-0.6b                     | en    | 90/84     | no        | 454 MB        | `catalog.json:1515` |
+| parakeet-ctc-1.1b                      | en    | 88/83     | no        | 780 MB        | `catalog.json:1548` |
+| parakeet-primeline                     | 25 EU | 67/79     | no        | 462 MB        | `catalog.json:1581` |
+| parakeet-tdt-1.1b                      | en    | 91/76     | no        | 787 MB        | `catalog.json:1614` |
+| parakeet-rnnt-1.1b                     | en    | 91/75     | no        | 787 MB        | `catalog.json:1647` |
+| parakeet-tdt_ctc-1.1b                  | en    | 88/75     | no        | 787 MB        | `catalog.json:1680` |
 
 The two recommended-ranked streaming Parakeets are the catalog's #1 and #2 entries overall
 (`recommended_rank` 1 and 2, `recommended: true`; values read from catalog.json this session).
@@ -261,11 +264,12 @@ languages, `is_recommended` — `model.rs:786-816`). Both load via
 `ParakeetModel::load(&path, &Quantization::Int8)` (`transcription.rs:675-684`).
 
 Quirks that matter for Parakeet specifically:
+
 - Parakeet V3 (ONNX) always auto-detects and ignores Handy's language selection — the
   output-language evidence code explicitly refuses to treat an unapplied hint as evidence
   (`transcription.rs:1679-1695`; test `ignored_user_language_is_not_output_evidence`,
   `transcription.rs:2412-2432`).
-- Parakeet-family streaming is *inferred* by transcribe-cpp's loader from encoder hparams, not a
+- Parakeet-family streaming is _inferred_ by transcribe-cpp's loader from encoder hparams, not a
   flat GGUF bool, so pre-download header probes leave it `None` (unknown) and post-load
   reconciliation settles it (`model_capabilities.rs:121-125`; `model.rs:1296-1305`).
 
@@ -284,7 +288,7 @@ Quirks that matter for Parakeet specifically:
   "policy" today = this sort + the catalog's editorial rank.
 - Recording start refuses to open the mic if no model can transcribe (model path lookup fails)
   (`actions.rs:407-418`).
-- Language *intent* coercion (`effective_language`, `model.rs:272-312`): base-language matching with
+- Language _intent_ coercion (`effective_language`, `model.rs:272-312`): base-language matching with
   nb→no / fil→tl aliases, falling back to auto (if the model detects language) or English/first
   listed; never written back to settings.
 
@@ -319,6 +323,7 @@ Order of operations on the final text (both streaming-finalize and batch) is
 
 Then, only for the `transcribe_with_post_process` binding, the **LLM polish**
 (`post_process_transcription`, `src-tauri/src/actions.rs:121-345`):
+
 - Requires an active provider (`settings.active_post_process_provider()`), a configured model, and a
   selected non-empty prompt; blank transcriptions skip the call (`actions.rs:121-175`).
 - Providers (default list at `settings.rs:672-760`): OpenAI, Z.AI, OpenRouter, Anthropic, Groq,
@@ -371,10 +376,10 @@ Then, only for the `transcribe_with_post_process` binding, the **LLM polish**
    - `switch_active_model` (`src-tauri/src/commands/models.rs:99-163`) for explicit selection
      (frontend/tray entry point);
    - `actions.rs:407-418` for the "nothing can transcribe" gate.
-   Everything downstream keys off `settings.selected_model` + `ModelInfo` fields
-   (`accuracy_score`, `speed_score`, `supported_languages`, `supports_streaming`,
-   `supports_language_detection` — `model.rs:60-82`), so a policy has rich inputs without touching
-   the engine layer.
+     Everything downstream keys off `settings.selected_model` + `ModelInfo` fields
+     (`accuracy_score`, `speed_score`, `supported_languages`, `supports_streaming`,
+     `supports_language_detection` — `model.rs:60-82`), so a policy has rich inputs without touching
+     the engine layer.
 5. **Per-session engine choice** (e.g. pick model by detected language or audio length): the natural
    injection point is `TranscribeAction::start` before `initiate_model_load` (`actions.rs:392-399`)
    and `TranscriptionManager::transcribe`'s "load if not loaded" wait (`transcription.rs:1150-1161`);
@@ -390,7 +395,7 @@ Then, only for the `transcribe_with_post_process` binding, the **LLM polish**
   drop-the-engine (`transcription.rs:1374-1499`); a native abort inside ort would take the app down,
   unlike transcribe-cpp's worker process (`engine_supervisor/mod.rs:1-8`). A new engine should
   strongly prefer the worker-process pattern.
-- **Streaming is transcribe-cpp-only** and gated on the *registry's* `supports_streaming` at
+- **Streaming is transcribe-cpp-only** and gated on the _registry's_ `supports_streaming` at
   recording start (`actions.rs:434-450`) — which is `false` until either the catalog says so or
   `set_runtime_capabilities` reconciles after a load. A fresh GGUF without the flat metadata key
   will not stream on its first session even if the arch supports it (parakeet streaming is inferred

@@ -21,16 +21,16 @@ modifies source.
 
 ## Feature table
 
-| # | id | Title | Upstream? | Size | v1 | One-line verdict |
-|---|---|---|---|---|---|---|
-| 1 | `voxbar-rebrand` | Rebrand fork as VoxBar: identity, titles, neutral brand assets | no | M | ✅ | Nothing exists upstream *to* keep — this is the legally required core of the fork |
-| 2 | `tray-model-ram-status` | Tray: resident model + approximate RAM footprint | no (unload action IS upstream) | M | ✅ | Unload-now already ships; the RAM footprint and resident-vs-selected display are genuinely new |
-| 3 | `memory-pressure-gate` | Pre-load free-RAM check: refuse with clear warning (+ settings toggle) | no | M | ✅ | No memory probing exists anywhere in the crate; single load choke point makes the gate clean |
-| 4 | `defaults-24gb` | 24 GB-sensible defaults: shorter unload-timeout default + recommended preset | no (preset *mechanism* is upstream) | S | ✅ | Timeout default is one line (`Min5` → shorter); preset choice rides existing rank machinery |
-| 5 | `apple-silicon-verdict` | Highest-accuracy Apple Silicon setup = upstream Metal GGUF; no mlx sidecar | **yes** | S | ❌ (docs only) | transcribe-cpp static-Metal + catalog GGUF (acc 91–92) already wins; sidecar is not clean |
+| #   | id                      | Title                                                                        | Upstream?                           | Size | v1             | One-line verdict                                                                               |
+| --- | ----------------------- | ---------------------------------------------------------------------------- | ----------------------------------- | ---- | -------------- | ---------------------------------------------------------------------------------------------- |
+| 1   | `voxbar-rebrand`        | Rebrand fork as VoxBar: identity, titles, neutral brand assets               | no                                  | M    | ✅             | Nothing exists upstream _to_ keep — this is the legally required core of the fork              |
+| 2   | `tray-model-ram-status` | Tray: resident model + approximate RAM footprint                             | no (unload action IS upstream)      | M    | ✅             | Unload-now already ships; the RAM footprint and resident-vs-selected display are genuinely new |
+| 3   | `memory-pressure-gate`  | Pre-load free-RAM check: refuse with clear warning (+ settings toggle)       | no                                  | M    | ✅             | No memory probing exists anywhere in the crate; single load choke point makes the gate clean   |
+| 4   | `defaults-24gb`         | 24 GB-sensible defaults: shorter unload-timeout default + recommended preset | no (preset _mechanism_ is upstream) | S    | ✅             | Timeout default is one line (`Min5` → shorter); preset choice rides existing rank machinery    |
+| 5   | `apple-silicon-verdict` | Highest-accuracy Apple Silicon setup = upstream Metal GGUF; no mlx sidecar   | **yes**                             | S    | ❌ (docs only) | transcribe-cpp static-Metal + catalog GGUF (acc 91–92) already wins; sidecar is not clean      |
 
 Dropped because upstream covers it (proof paths in the section at the end):
-the tray Unload-model action, the recommended-model *mechanism*, and the
+the tray Unload-model action, the recommended-model _mechanism_, and the
 parakeet-mlx sidecar.
 
 ---
@@ -39,7 +39,7 @@ parakeet-mlx sidecar.
 
 ### 1. `voxbar-rebrand` — Rebrand as VoxBar (M, in v1)
 
-**alreadyUpstream: false.** Upstream *is* the Handy brand; every identity
+**alreadyUpstream: false.** Upstream _is_ the Handy brand; every identity
 surface must change. Verified surfaces this session:
 
 - `src-tauri/tauri.conf.json:4-5` — `productName: "Handy"`,
@@ -49,7 +49,7 @@ surface must change. Verified surfaces this session:
   `https://github.com/cjpais/Handy/releases/latest/download/latest.json`
   (read via python3 JSON parse this session).
 - `src-tauri/Cargo.toml:2-5` — package `name = "handy"`, `description =
-  "Handy"`, `authors = ["cjpais"]`. `package.json:2` — `"name": "handy-app"`.
+"Handy"`, `authors = ["cjpais"]`. `package.json:2` — `"name": "handy-app"`.
 - Window title: `src-tauri/src/lib.rs:948` — `.title("Handy")` on the main
   `WebviewWindowBuilder` (`tauri.conf.json` `app.windows` is `[]`; the window
   is created in code).
@@ -61,7 +61,7 @@ surface must change. Verified surfaces this session:
 - Linux rpath: `src-tauri/build.rs:19` — links
   `-Wl,-rpath,$ORIGIN/../lib/Handy:$ORIGIN/../lib` (must match whatever the
   deb/rpm `files` mapping becomes).
-- Brand assets (must be *replaced*, not edited): `src-tauri/icons/` — `icon.icns`,
+- Brand assets (must be _replaced_, not edited): `src-tauri/icons/` — `icon.icns`,
   `icon.ico`, `32x32/64x64/128x128(.@2x).png`, `logo.png`, `icon.png`, 11
   Windows-Store `Square*Logo/StoreLogo.png`, plus `android/` and `ios/` sets
   (dir listing this session). Runtime tray art: `src-tauri/resources/handy.png`
@@ -88,7 +88,7 @@ surface must change. Verified surfaces this session:
   `HANDY_DISABLE_UPDATER=1` path already exists — `settings.rs:1231-1238`,
   used by Nix, `flake.nix:89-186`) or repoint to a VoxBar feed later.
 - **License**: MIT (`LICENSE`, "Copyright (c) 2025 CJ Pais") covers code;
-  rebrand must *retain* the copyright notice and attribution (e.g. an
+  rebrand must _retain_ the copyright notice and attribution (e.g. an
   "originally Handy by CJ Pais" line in About) while replacing brand assets —
   that is consistent with the operator's "MIT covers code only" framing.
 
@@ -109,7 +109,7 @@ plus `src-tauri/tauri.windows.conf.json` if it repeats resource paths.
 **alreadyUpstream: false as a feature; its "Unload now" sub-part IS upstream**
 (moved to droppedBecauseUpstream). What I verified:
 
-- The tray already shows the *selected* model as the model-submenu label
+- The tray already shows the _selected_ model as the model-submenu label
   (`tray.rs:533-547`: `find(|(id,_)| *id == inputs.selected_model)`) and
   carries only a bool `model_loaded` in `MenuInputs` (`tray.rs:54-66`,
   populated from `is_model_loaded()` in `compute_desired`, `tray.rs:317`).
@@ -122,7 +122,7 @@ plus `src-tauri/tauri.windows.conf.json` if it repeats resource paths.
   device/on_gpu/capabilities but **no memory field**.
 - The worker's pid is already tracked (`Control { pid, ... }`,
   `supervisor.rs:1063`), so parent-side RSS polling for transcribe-cpp models
-  is possible without protocol changes; ONNX models live in the *app* process
+  is possible without protocol changes; ONNX models live in the _app_ process
   (`transcription.rs:186-194`) and need an in-process measurement or an
   explicitly-labeled estimate.
 
@@ -152,6 +152,7 @@ no memory consideration; `memory.rs` is glibc allocator tuning only (Linux
 session); no sysinfo/memory-probe code anywhere (grep above).
 
 v1 scope (conservative, satisfies "never silently head into an OOM"):
+
 - `memory.rs`: add a free-RAM probe (macOS `sysctl hw.memsize` +
   `host_statistics64` vm stats; Linux `/proc/meminfo`; Windows
   `GlobalMemoryStatusEx`) — macOS-first, others follow.
@@ -183,25 +184,25 @@ Files: `src-tauri/src/memory.rs`, `src-tauri/src/managers/transcription.rs`,
 
 ### 4. `defaults-24gb` — 24 GB-sensible defaults (S, in v1)
 
-**alreadyUpstream: false for the timeout default; the preset *mechanism* is
+**alreadyUpstream: false for the timeout default; the preset _mechanism_ is
 upstream.** Verified:
 
 - Upstream default unload timeout is `Min5` (`settings.rs:141` `#[default]`
   on `Min5`; applied at `:958`). Changing to `Min2` is the whole code change;
   the frozen v0.9 fixture (`settings.rs:1383` parses `"min5"`) is unaffected
-  because it exercises an *explicit* stored value, not the default. Mind the
+  because it exercises an _explicit_ stored value, not the default. Mind the
   documented trap: generated TS bindings mislabel the wire strings
   (`"min_5"` vs real serde `"min5"`) — new frontend code must send
   `"min2"`-style values (`research-models.md` §8; `ModelUnloadTimeout.tsx:30-46`
   already does).
-- Recommended preset: the *machinery* is upstream — catalog
+- Recommended preset: the _machinery_ is upstream — catalog
   `recommended`/`recommended_rank` (rank 1 `parakeet-unified-en-0.6b-gguf`
   acc 90/streaming; rank 2 `nemotron-3.5-asr-streaming` 28 langs — extracted
   from `catalog.json` this session), `auto_select_model_if_needed` picks the
   first downloaded model in that rank order once onboarding completes
   (`model.rs:1544-1597`, read this session). For a 24 GB machine the rank-1
-  default (~455 MB Q4_K_M) fits trivially. The only VoxBar work is the
-  *decision* (confirm rank-1 streaming parakeet, or pin e.g. the higher-
+  default (~455 MB Q4*K_M) fits trivially. The only VoxBar work is the
+  \_decision* (confirm rank-1 streaming parakeet, or pin e.g. the higher-
   accuracy 1.1b variant at 787 MB which still fits easily) and at most a tiny
   onboarding/default tweak.
 
@@ -229,7 +230,7 @@ for Apple Silicon; do not build a parakeet-mlx sidecar.** Evidence:
    feature (`Cargo.toml:83`), and no CoreML execution-provider feature exists
    anywhere in the manifest (grep `coreml` = no match). Its legacy-table
    accuracy (v2 0.85 / v3 0.80) is also below the GGUF parakeets on the same
-   editorial scale. So "Parakeet via ONNX" is *not* the high-accuracy path —
+   editorial scale. So "Parakeet via ONNX" is _not_ the high-accuracy path —
    "Parakeet via GGUF on Metal" is, and it's already shipped.
 4. A parakeet-mlx sidecar fails the operator's "only if clean" bar: it would
    be a third engine home (mirror the EngineSupervisor worker+framed-protocol
@@ -254,13 +255,13 @@ high-accuracy catalog GGUF, revisit a sidecar only if a concrete gap appears
    `src-tauri/src/lib.rs:303-311` (`request_unload()` with a no-model warn) +
    the existing frontend command `unload_model_manually`
    (`src-tauri/src/commands/transcription.rs:33-40`). Verified by direct read
-   this session. Feature 2 keeps only the *status display* delta.
+   this session. Feature 2 keeps only the _status display_ delta.
 2. **Recommended-model preset mechanism** — proof:
    `src-tauri/src/managers/model.rs:1544-1597`
    (`auto_select_model_if_needed`, ranked pick) + `catalog.json`
    `recommended`/`recommended_rank` fields (rank 1/2 extracted this session) +
    onboarding presenting the choice (`model.rs:1566-1572`). Only the timeout
-   default and the *choice* of preset remain (feature 4).
+   default and the _choice_ of preset remain (feature 4).
 3. **parakeet-mlx sidecar for highest-accuracy Apple Silicon ASR** — proof:
    `src-tauri/Cargo.toml:157-159` (static Metal) + catalog entries at acc
    91–92 (`src-tauri/src/catalog/catalog.json`, parsed this session) +
@@ -285,7 +286,7 @@ high-accuracy catalog GGUF, revisit a sidecar only if a concrete gap appears
    operator's 24 GB machine (their stated OOM history) from day one.
 4. **`tray-model-ram-status`** — builds on the probe module; display-only
    since unload already exists; lands last because it is the most cosmetic.
-5. **`apple-silicon-verdict`** — no code; it *is* this document + the feature-4
+5. **`apple-silicon-verdict`** — no code; it _is_ this document + the feature-4
    preset decision. Revisit only on a concrete gap.
 
 Cross-cutting reminders for whoever builds: new Rust commands need a debug
