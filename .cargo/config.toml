@@ -1,2 +1,8 @@
+# Cargo configuration committed to the repository. Keep it machine-neutral:
+# SDK pinning (SDKROOT / MACOSX_DEPLOYMENT_TARGET) names an SDK that exists
+# only on the local workstation and would break cloud builds, so it is a
+# local-machine concern handled by a parent directory's .cargo/config.toml
+# that cargo discovers by walking up from the working directory and that is
+# never committed to this repository.
 [build]
 jobs = 8
