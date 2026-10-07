@@ -98,6 +98,70 @@ fn fallback_candidate_list(
         .collect()
 }
 
+/// The memory-pressure gate's verdict for one attempted load. Plain data so
+/// the toggle wiring ([`decide_memory_gate`]) is unit-testable without an
+/// app handle.
+#[derive(Debug, Clone, PartialEq, Eq)]
+enum MemoryGateDecision {
+    /// Proceed with the requested model.
+    Allow,
+    /// Refuse the load with the not-enough-memory error.
+    Refuse,
+    /// Swap to this already-downloaded model id for this load.
+    Fallback(String),
+}
+
+impl MemoryGateDecision {
+    /// The wire word for the structured gate-decision log line.
+    fn as_log_str(&self) -> String {
+        match self {
+            MemoryGateDecision::Allow => "allow".to_string(),
+            MemoryGateDecision::Refuse => "refuse".to_string(),
+            MemoryGateDecision::Fallback(id) => format!("fallback->{id}"),
+        }
+    }
+}
+
+/// The gate's decision, pure over its inputs (spec F3). The toggles are
+/// passed in explicitly so their wiring is provable by test:
+///
+/// - `guard_enabled == false` (Settings' `memory_pressure_guard` off) returns
+///   [`MemoryGateDecision::Allow`] IMMEDIATELY: the gate is bypassed
+///   entirely - no refusal and, notably, no RAM auto-fallback either (the
+///   candidate inventory is never even consulted).
+/// - A forecast that fits (`forecast + headroom <= free`, `None` probe fails
+///   open) is allowed - exactly [`memory::gate_should_refuse`]'s semantics.
+/// - A refusal becomes [`MemoryGateDecision::Fallback`] only when BOTH the
+///   Settings' `auto_fallback` toggle and the caller's no-cascade
+///   `allow_fallback` are on AND some downloaded candidate fits; with
+///   `auto_fallback == false` a refusal stays a refusal - models are never
+///   swapped underneath the user.
+fn decide_memory_gate<F>(
+    guard_enabled: bool,
+    auto_fallback: bool,
+    allow_fallback: bool,
+    free: Option<u64>,
+    forecast: u64,
+    candidates: F,
+    failed_id: &str,
+) -> MemoryGateDecision
+where
+    F: FnOnce() -> Vec<memory::FallbackCandidate>,
+{
+    if !guard_enabled {
+        return MemoryGateDecision::Allow;
+    }
+    if !memory::gate_should_refuse(free, forecast, memory::DEFAULT_HEADROOM_BYTES) {
+        return MemoryGateDecision::Allow;
+    }
+    if allow_fallback && auto_fallback {
+        if let Some(fallback) = memory::resolve_fallback_model(free, &candidates(), failed_id) {
+            return MemoryGateDecision::Fallback(fallback.id.clone());
+        }
+    }
+    MemoryGateDecision::Refuse
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct ModelStateEvent {
     pub event_type: String,
@@ -888,11 +952,14 @@ impl TranscriptionManager {
         // a refusal leaves the resident model loaded and transcribing. The
         // outgoing model's footprint is credited back to the free reading
         // because its pages are freed before the new model's peak. A probe
-        // failure fails open (gate returns false for `None`).
+        // failure fails open (gate returns false for `None`). The whole
+        // block is skipped when memory_pressure_guard is off - the toggle
+        // bypasses the gate entirely, the RAM auto-fallback included.
+        let forecast = model_info.size_mb.saturating_mul(1024 * 1024);
         if get_settings(&self.app_handle).memory_pressure_guard {
-            let forecast = model_info.size_mb.saturating_mul(1024 * 1024);
             let credit = self.resident_model_footprint_bytes();
-            let free = memory::available_memory_bytes().map(|f| f.saturating_add(credit));
+            let probe = memory::probe_availability();
+            let free = probe.available_bytes.map(|f| f.saturating_add(credit));
             if free.is_none() {
                 // Spec F3: the fail-open path must log a WARNING so an inert
                 // probe is visible on the console (default filter Info), not
@@ -902,53 +969,90 @@ impl TranscriptionManager {
                     model_info.name
                 );
             }
-            if memory::gate_should_refuse(free, forecast, memory::DEFAULT_HEADROOM_BYTES) {
-                // RAM auto-fallback: when enabled, load the best
-                // ALREADY-DOWNLOADED model that fits instead of failing the
-                // dictation. The tray/indicator state follows the model that
-                // is actually resident (current_model_id is set to the
-                // fallback below), and the frontend gets a one-shot
-                // "model-fallback" event to toast the switch. Toggle off (or
-                // nothing fitting) keeps the exact refuse-with-toast path.
-                if allow_fallback && get_settings(&self.app_handle).auto_fallback {
-                    let candidates = self.fallback_candidates(model_id);
-                    if let Some(fallback) =
-                        memory::resolve_fallback_model(free, &candidates, model_id)
-                    {
-                        let fallback_name = self
-                            .model_manager
-                            .get_model_info(&fallback.id)
-                            .map(|info| info.name)
-                            .unwrap_or_else(|| fallback.id.clone());
-                        warn!(
-                            "memory gate refused '{}', falling back to '{}' for this load",
-                            model_info.name, fallback_name
-                        );
-                        let _ = self.app_handle.emit(
-                            "model-fallback",
-                            ModelFallbackEvent {
-                                requested_model_name: model_info.name.clone(),
-                                fallback_model_name: fallback_name,
-                            },
-                        );
-                        return self.load_model_with_device_internal(
-                            &fallback.id,
-                            device_index,
-                            false,
-                        );
-                    }
+            let decision = decide_memory_gate(
+                true,
+                get_settings(&self.app_handle).auto_fallback,
+                allow_fallback,
+                free,
+                forecast,
+                || self.fallback_candidates(model_id),
+                model_id,
+            );
+            // The one structured line at every gate decision: probe bytes,
+            // the kernel pressure verdict, the inactive factor the probe's
+            // composition applied, the model, its forecast, and the verdict.
+            // This is the field diagnostic for any future misfire.
+            info!(
+                "memory gate decision: probe_bytes={} pressure_level={} inactive_factor={} model={} forecast_bytes={} decision={}",
+                free.map(|b| b.to_string()).unwrap_or_else(|| "unavailable".to_string()),
+                match probe.pressure_level {
+                    Some(level) => level.to_string(),
+                    None => "unreadable".to_string(),
+                },
+                probe
+                    .inactive_factor
+                    .map(|f| format!("{f:.2}"))
+                    .unwrap_or_else(|| "n/a".to_string()),
+                model_id,
+                forecast,
+                decision.as_log_str(),
+            );
+            match decision {
+                MemoryGateDecision::Allow => {}
+                // RAM auto-fallback: load the best ALREADY-DOWNLOADED model
+                // that fits instead of failing the dictation. The
+                // tray/indicator state follows the model that is actually
+                // resident (current_model_id is set to the fallback below),
+                // and the frontend gets a one-shot "model-fallback" event to
+                // toast the switch. Toggle off (or nothing fitting) keeps the
+                // exact refuse-with-toast path.
+                MemoryGateDecision::Fallback(fallback_id) => {
+                    let fallback_name = self
+                        .model_manager
+                        .get_model_info(&fallback_id)
+                        .map(|info| info.name)
+                        .unwrap_or_else(|| fallback_id.clone());
+                    warn!(
+                        "memory gate refused '{}', falling back to '{}' for this load",
+                        model_info.name, fallback_name
+                    );
+                    let _ = self.app_handle.emit(
+                        "model-fallback",
+                        ModelFallbackEvent {
+                            requested_model_name: model_info.name.clone(),
+                            fallback_model_name: fallback_name,
+                        },
+                    );
+                    return self.load_model_with_device_internal(
+                        &fallback_id,
+                        device_index,
+                        false,
+                    );
                 }
-                let gib = 1024.0 * 1024.0 * 1024.0;
-                let error_msg = format!(
-                    "Not enough free memory for {}: needs ~{:.1} GB, ~{:.1} GB free (guard can be disabled in Settings)",
-                    model_info.name,
-                    forecast as f64 / gib,
-                    free.unwrap_or(0) as f64 / gib
-                );
-                warn!("memory gate refused a load: {}", error_msg);
-                emit_loading_failed(&error_msg);
-                return Err(anyhow::anyhow!(error_msg));
+                MemoryGateDecision::Refuse => {
+                    let gib = 1024.0 * 1024.0 * 1024.0;
+                    let error_msg = format!(
+                        "Not enough free memory for {}: needs ~{:.1} GB, ~{:.1} GB free (guard can be disabled in Settings)",
+                        model_info.name,
+                        forecast as f64 / gib,
+                        free.unwrap_or(0) as f64 / gib
+                    );
+                    warn!("memory gate refused a load: {}", error_msg);
+                    emit_loading_failed(&error_msg);
+                    return Err(anyhow::anyhow!(error_msg));
+                }
             }
+        } else {
+            // memory_pressure_guard off: the gate is bypassed entirely (no
+            // probe, no refusal, no fallback). One structured line so a
+            // future misfire report shows the toggle state, same shape as
+            // the engaged-gate line above.
+            info!(
+                "memory gate decision: probe_bytes=skipped pressure_level=skipped \
+                 inactive_factor=n/a model={} forecast_bytes={} decision=allow \
+                 reason=memory_pressure_guard_disabled",
+                model_id, forecast
+            );
         }
 
         let model_path = self
@@ -3536,6 +3640,130 @@ mod tests {
             memory::resolve_fallback_model(Some(8 * GIB), &forced, "selected")
                 .map(|c| c.id.as_str()),
             Some("org/custom-asr/model-Q8_0.gguf")
+        );
+    }
+
+    // --- Toggle wiring for the memory gate -----------------------------------
+
+    /// Helper: a fallback candidate that always fits the tight fixtures
+    /// below (footprint well under a 2 GiB free reading with 1.5 GiB
+    /// headroom).
+    fn gate_fitting_candidate() -> memory::FallbackCandidate {
+        memory::FallbackCandidate {
+            id: "whisper-base".to_string(),
+            rank: 1,
+            footprint_bytes: 150 * 1024 * 1024,
+        }
+    }
+
+    /// memory_pressure_guard=false bypasses the gate ENTIRELY: the tightest
+    /// possible memory state still allows, and the fallback inventory is
+    /// never even consulted (proven by the flag the closure sets).
+    #[test]
+    fn memory_gate_bypasses_entirely_when_guard_off() {
+        let consulted = Arc::new(AtomicBool::new(false));
+        let flag = Arc::clone(&consulted);
+        let decision = decide_memory_gate(
+            false, // memory_pressure_guard = false
+            true,  // auto_fallback = true
+            true,  // top-level load (cascades allowed)
+            Some(1), // one byte free
+            8 * 1024 * 1024 * 1024, // 8 GiB forecast: would always refuse
+            move || {
+                flag.store(true, Ordering::SeqCst);
+                vec![gate_fitting_candidate()]
+            },
+            "selected",
+        );
+        assert_eq!(decision, MemoryGateDecision::Allow);
+        assert!(
+            !consulted.load(Ordering::SeqCst),
+            "guard off must not even inventory fallback candidates"
+        );
+    }
+
+    /// auto_fallback=false never swaps models: a refusal stays a refusal
+    /// even with a fitting already-downloaded candidate on disk.
+    #[test]
+    fn memory_gate_never_swaps_models_when_auto_fallback_off() {
+        let decision = decide_memory_gate(
+            true,  // memory_pressure_guard = true
+            false, // auto_fallback = false
+            true,
+            Some(2 * 1024 * 1024 * 1024), // 2 GiB free
+            8 * 1024 * 1024 * 1024,       // 8 GiB forecast: refuses
+            || vec![gate_fitting_candidate()],
+            "selected",
+        );
+        assert_eq!(decision, MemoryGateDecision::Refuse);
+    }
+
+    /// The fallback load's own re-entry (allow_fallback=false, the
+    /// no-cascade guard) may not fall back again even with auto_fallback
+    /// on and a second candidate fitting.
+    #[test]
+    fn memory_gate_fallback_never_cascades() {
+        let decision = decide_memory_gate(
+            true,
+            true,
+            false, // the fallback's own load
+            Some(2 * 1024 * 1024 * 1024),
+            8 * 1024 * 1024 * 1024,
+            || vec![gate_fitting_candidate()],
+            "selected",
+        );
+        assert_eq!(decision, MemoryGateDecision::Refuse);
+    }
+
+    /// The engaged gate's happy paths: a fitting forecast allows, a refused
+    /// one falls back to the best fitting candidate, an unavailable probe
+    /// fails open, and a refusal with nothing fitting stays a refusal.
+    #[test]
+    fn memory_gate_allows_fits_falls_back_and_fails_open() {
+        let fitting = 700 * 1024 * 1024;
+        // Plenty free: allowed.
+        assert_eq!(
+            decide_memory_gate(
+                true,
+                true,
+                true,
+                Some(16 * 1024 * 1024 * 1024),
+                fitting,
+                || vec![],
+                "selected"
+            ),
+            MemoryGateDecision::Allow
+        );
+        // Tight free (700 MiB + 1.5 GiB headroom > 2 GiB): falls back.
+        assert_eq!(
+            decide_memory_gate(
+                true,
+                true,
+                true,
+                Some(2 * 1024 * 1024 * 1024),
+                fitting,
+                || vec![gate_fitting_candidate()],
+                "selected"
+            ),
+            MemoryGateDecision::Fallback("whisper-base".to_string())
+        );
+        // Probe unavailable: fails open exactly like the gate predicate.
+        assert_eq!(
+            decide_memory_gate(true, true, true, None, 8 * 1024 * 1024 * 1024, || vec![], "selected"),
+            MemoryGateDecision::Allow
+        );
+        // Refused and nothing fits (or nothing downloaded): refusal.
+        assert_eq!(
+            decide_memory_gate(
+                true,
+                true,
+                true,
+                Some(2 * 1024 * 1024 * 1024),
+                fitting,
+                || vec![],
+                "selected"
+            ),
+            MemoryGateDecision::Refuse
         );
     }
 }

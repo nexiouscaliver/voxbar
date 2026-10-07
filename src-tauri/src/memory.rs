@@ -63,49 +63,123 @@ pub fn trim_freed_memory() {}
 /// run-time allocations all need room beyond the model file's size).
 pub const DEFAULT_HEADROOM_BYTES: u64 = 1536 * 1024 * 1024;
 
-/// Best-effort system-wide available RAM in bytes, or `None` when the probe
-/// fails - callers must FAIL OPEN on `None`.
+// --- Kernel pressure verdict (macOS) ---------------------------------------
+
+/// macOS kernel memory-pressure verdicts, the values of
+/// `kern.memorystatus_vm_pressure_level` (the `kVMPressure*` tiers the
+/// kernel exports to user space).
+pub const PRESSURE_LEVEL_NORMAL: u32 = 1;
+pub const PRESSURE_LEVEL_WARN: u32 = 2;
+pub const PRESSURE_LEVEL_CRITICAL: u32 = 4;
+
+/// Inactive-page credit factor when the pressure sysctl is UNREADABLE: the
+/// documented middle ground between the comfortable (1.0) and warning (0.25)
+/// postures, and the gate still fails open.
+pub const PRESSURE_UNREADABLE_INACTIVE_FACTOR: f64 = 0.5;
+
+/// How much of the machine's INACTIVE pages (reclaimable file cache) to
+/// count as available, given the kernel's own pressure verdict. Pure.
 ///
-/// - macOS: `os_proc_available_memory()` (libc does not bind it, so the
-///   extern is declared here; it is available on macOS 11+, this app's
+/// History: the probe originally counted free+speculative+purgeable+inactive
+/// unconditionally and overcounted 4.8x under real pressure (inactive pages
+/// are reclaimed only slowly while the machine swaps). The fix excluded
+/// inactive entirely, which starved the estimate on an IDLE machine: macOS
+/// parks most reclaimable memory in INACTIVE when comfortable, so an idle
+/// box with 8+ GiB genuinely available read as too tight and refused loads
+/// it should have taken (the v1.0.0 regression). The kernel's pressure
+/// verdict is what distinguishes the two states, so the credit now follows
+/// it: full credit when NORMAL, a quarter when WARN, none when CRITICAL.
+pub fn inactive_factor_for_pressure(level: u32) -> f64 {
+    match level {
+        PRESSURE_LEVEL_NORMAL => 1.0,
+        PRESSURE_LEVEL_WARN => 0.25,
+        PRESSURE_LEVEL_CRITICAL => 0.0,
+        // Any value outside the documented verdicts (the undefined 0, or a
+        // tier a future kernel adds) reads as at-least-warn: a brand-new
+        // pressure tier is more likely a worse state than a better one, and
+        // erring low here errs against the swap/OOM failure mode.
+        _ => 0.25,
+    }
+}
+
+/// One availability reading plus everything the gate's structured log line
+/// needs to explain it. Plain data so callers (and tests) can inspect the
+/// verdict's inputs instead of re-probing.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct AvailabilityProbe {
+    /// Best-effort available RAM in bytes; `None` when the probe fails -
+    /// callers must FAIL OPEN on `None`.
+    pub available_bytes: Option<u64>,
+    /// The kernel pressure verdict the reading was taken under: 1/2/4 on
+    /// macOS, `None` when the sysctl is unreadable (fail-open factor
+    /// applies), or the documented NORMAL passthrough constant on platforms
+    /// without the sysctl.
+    pub pressure_level: Option<u32>,
+    /// The inactive-credit factor the probe's composition applied, or `None`
+    /// when the reading did not use the composition at all (the
+    /// `os_proc_available_memory` branch, or non-macOS probes that already
+    /// fold reclaimable memory into the number they return).
+    pub inactive_factor: Option<f64>,
+}
+
+/// The full availability probe: bytes, kernel pressure verdict, and the
+/// inactive factor the composition applied. Sources per platform:
+///
+/// - macOS: `os_proc_available_memory()` first (libc does not bind it, so
+///   the extern is declared below; available on macOS 11+, this app's
 ///   effective deployment floor - rustc links with
-///   `-mmacosx-version-min=11.0.0`). Deliberately NOT the naive
-///   `host_statistics64` free page count, which under-reports memory the
-///   kernel can reclaim. FALLBACK: on this app's actual target machine
-///   (macOS 26 / darwin 25.6) `os_proc_available_memory()` was measured
-///   returning 0 for ordinary processes (verified from plain C, outside any
-///   sandbox, this session), so a zero reading falls back to the calibrated
-///   free+speculative+purgeable `host_statistics64` sum (see
-///   [`fallback_page_bytes`]) instead of poisoning the gate with
+///   `-mmacosx-version-min=11.0.0`). FALLBACK: on this app's actual target
+///   machine (macOS 26 / darwin 25.6) `os_proc_available_memory()` was
+///   measured returning 0 for ordinary processes (verified from plain C,
+///   outside any sandbox), so a zero reading falls back to the
+///   pressure-scaled `host_statistics64` composition (see
+///   [`pressure_adjusted_page_bytes`]) instead of poisoning the gate with
 ///   "0 bytes free".
 /// - Linux: `/proc/meminfo` `MemAvailable` (the kernel's own reclaim
 ///   estimate).
 /// - Windows: `GlobalMemoryStatusEx` `ullAvailPhys`.
-pub fn available_memory_bytes() -> Option<u64> {
+pub fn probe_availability() -> AvailabilityProbe {
     #[cfg(target_os = "macos")]
     {
         // SAFETY: extern with no arguments returning a plain u64 from
         // libSystem; thread-safe and allocation-free.
         let proc = unsafe { os_proc_available_memory() };
         if proc > 0 {
-            Some(proc)
-        } else {
-            host_statistics_available()
+            return AvailabilityProbe {
+                available_bytes: Some(proc),
+                pressure_level: memory_pressure_level(),
+                // This branch does not use the page composition; the factor
+                // is not applicable (logged as n/a).
+                inactive_factor: None,
+            };
         }
+        return host_statistics_probe();
     }
     #[cfg(target_os = "linux")]
     {
-        let statm = std::fs::read_to_string("/proc/meminfo").ok()?;
-        for line in statm.lines() {
-            if let Some(rest) = line.strip_prefix("MemAvailable:") {
+        // MemAvailable is the kernel's own reclaim estimate: it already
+        // includes the Linux analog of macOS inactive file cache, so no
+        // pressure scaling applies. The pressure field reads as the
+        // documented NORMAL passthrough for the log line.
+        let available = std::fs::read_to_string("/proc/meminfo").ok().and_then(|meminfo| {
+            meminfo.lines().find_map(|line| {
+                let rest = line.strip_prefix("MemAvailable:")?;
                 let kb: u64 = rest.trim().split_whitespace().next()?.parse().ok()?;
-                return Some(kb.saturating_mul(1024));
-            }
+                Some(kb.saturating_mul(1024))
+            })
+        });
+        AvailabilityProbe {
+            available_bytes: available,
+            pressure_level: Some(PRESSURE_LEVEL_NORMAL),
+            inactive_factor: None,
         }
-        None
     }
     #[cfg(target_os = "windows")]
     {
+        // ullAvailPhys counts only truly free physical memory (the standby
+        // list, Windows's inactive analog, is excluded), so the reading is
+        // already conservative and no scaling applies; the pressure field
+        // reads as the documented NORMAL passthrough for the log line.
         use windows::Win32::System::SystemInformation::{GlobalMemoryStatusEx, MEMORYSTATUSEX};
         let mut status = MEMORYSTATUSEX {
             dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
@@ -113,37 +187,99 @@ pub fn available_memory_bytes() -> Option<u64> {
         };
         // SAFETY: writable pointer to a correctly-sized struct of the
         // expected type; GlobalMemoryStatusEx only fills it in.
-        unsafe { GlobalMemoryStatusEx(&mut status) }.ok()?;
-        Some(status.ullAvailPhys)
+        let available = unsafe { GlobalMemoryStatusEx(&mut status) }
+            .ok()
+            .map(|_| status.ullAvailPhys);
+        AvailabilityProbe {
+            available_bytes: available,
+            pressure_level: Some(PRESSURE_LEVEL_NORMAL),
+            inactive_factor: None,
+        }
     }
 }
 
-/// The pure page-sum at the heart of the macOS fallback probe:
-/// free + speculative + purgeable, deliberately EXCLUDING inactive pages.
-///
-/// Calibration on the target machine (see `probe_calibration_snapshot`)
-/// measured the previous free+inactive+purgeable+speculative sum at 4.82x
-/// the sysctl ground truth: inactive pages (~4 GiB on a 24 GiB box) are
-/// cached data the kernel reclaims only slowly under real pressure, so
-/// counting them made the memory gate and the RAM auto-fallback wildly
-/// optimistic - the fallback would almost never fire even with RAM
-/// genuinely low. This composition matches the harness's ground truth
-/// (`vm.page_free_count` + `vm.page_speculative_count` + purgeable, x page
-/// size). `vm_statistics64` does carry `purgeable_count`, so it is counted;
-/// had it been missing, the correct degradation is free+speculative only -
-/// never a silent reintroduction of inactive.
+/// The kernel's own memory-pressure verdict via
+/// `kern.memorystatus_vm_pressure_level`: 1 normal, 2 warn, 4 critical
+/// ([`PRESSURE_LEVEL_*`]), or `None` when the sysctl is unreadable - callers
+/// fail open with the [`PRESSURE_UNREADABLE_INACTIVE_FACTOR`] middle-ground
+/// factor and a one-time warning.
 #[cfg(target_os = "macos")]
-fn fallback_page_bytes(vm: &libc::vm_statistics64, page_size: u64) -> u64 {
-    (vm.free_count as u64 + vm.speculative_count as u64 + vm.purgeable_count as u64)
-        .saturating_mul(page_size)
+fn memory_pressure_level() -> Option<u32> {
+    let mut level: libc::c_int = 0;
+    let mut len = std::mem::size_of::<libc::c_int>() as libc::size_t;
+    // SAFETY: sysctlbyname writing into a correctly sized buffer.
+    let rc = unsafe {
+        libc::sysctlbyname(
+            c"kern.memorystatus_vm_pressure_level".as_ptr(),
+            &mut level as *mut _ as *mut libc::c_void,
+            &mut len as *mut libc::size_t,
+            std::ptr::null_mut(),
+            0,
+        )
+    };
+    (rc == 0).then_some(level as u32)
 }
 
-/// macOS fallback probe: available RAM from `host_statistics64`, in bytes -
-/// [`fallback_page_bytes`] over the kernel's page counters. Conservative by
-/// design (inactive pages are NOT counted as available); the gate's headroom
-/// absorbs the remaining optimism from speculative/purgeable pages.
+/// Platforms without the macOS pressure sysctl: the probes there return
+/// numbers that already carry their kernel's own reclaim semantics (Linux
+/// MemAvailable includes reclaimable cache; Windows ullAvailPhys excludes
+/// the standby list and is therefore conservative), so no inactive scaling
+/// applies - the verdict passes through as NORMAL and the log line says so.
+#[cfg(not(target_os = "macos"))]
+fn memory_pressure_level() -> Option<u32> {
+    Some(PRESSURE_LEVEL_NORMAL)
+}
+
+/// One-time warning for an unreadable pressure sysctl: every later probe
+/// stays silent (the gate runs per model load; a log line each time would
+/// be noise), but the first one must be visible.
 #[cfg(target_os = "macos")]
-fn host_statistics_available() -> Option<u64> {
+static UNREADABLE_PRESSURE_LOG: std::sync::Once = std::sync::Once::new();
+
+#[cfg(target_os = "macos")]
+fn log_unreadable_pressure_once() {
+    UNREADABLE_PRESSURE_LOG.call_once(|| {
+        log::warn!(
+            "memory probe: kern.memorystatus_vm_pressure_level unreadable; counting inactive \
+             pages at factor {PRESSURE_UNREADABLE_INACTIVE_FACTOR:.2} and failing open (logged \
+             once)"
+        );
+    });
+}
+
+/// The pure page-sum at the heart of the macOS fallback probe:
+/// free + speculative + purgeable + inactive x factor, all times the page
+/// size.
+///
+/// The static half (free+speculative+purgeable) is memory the kernel can
+/// hand out immediately. The inactive term is the pressure-scaled credit
+/// (see [`inactive_factor_for_pressure`] for the full history): full when
+/// the kernel reports NORMAL pressure because an idle macOS parks most
+/// reclaimable file cache in INACTIVE, a quarter under WARN, none under
+/// CRITICAL - the state where those pages are being actively reclaimed to
+/// keep up and the original 4.82x overcount was measured. The f64 multiply
+/// is exact: page counts sit far below 2^53 and every factor in the matrix
+/// (1.0, 0.5, 0.25, 0.0) is an exact binary fraction.
+#[cfg(target_os = "macos")]
+fn pressure_adjusted_page_bytes(
+    vm: &libc::vm_statistics64,
+    page_size: u64,
+    inactive_factor: f64,
+) -> u64 {
+    let static_pages =
+        vm.free_count as u64 + vm.speculative_count as u64 + vm.purgeable_count as u64;
+    let inactive_pages = (vm.inactive_count as f64 * inactive_factor).round() as u64;
+    static_pages.saturating_add(inactive_pages).saturating_mul(page_size)
+}
+
+/// macOS fallback probe: available RAM from `host_statistics64` as an
+/// [`AvailabilityProbe`] - [`pressure_adjusted_page_bytes`] over the
+/// kernel's page counters, with the inactive credit scaled by the kernel's
+/// own pressure verdict. An unreadable verdict applies the documented 0.5
+/// middle-ground factor and fails open (the gate never refuses on a probe
+/// problem).
+#[cfg(target_os = "macos")]
+fn host_statistics_probe() -> AvailabilityProbe {
     use libc::{
         host_statistics64, mach_host_self, vm_statistics64, vm_statistics64_data_t, HOST_VM_INFO64,
     };
@@ -162,10 +298,26 @@ fn host_statistics_available() -> Option<u64> {
         )
     };
     if kr != libc::KERN_SUCCESS {
-        return None;
+        return AvailabilityProbe {
+            available_bytes: None,
+            pressure_level: memory_pressure_level(),
+            inactive_factor: None,
+        };
     }
     let page = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as u64;
-    Some(fallback_page_bytes(&vm, page))
+    let level = memory_pressure_level();
+    let factor = match level {
+        Some(level) => inactive_factor_for_pressure(level),
+        None => {
+            log_unreadable_pressure_once();
+            PRESSURE_UNREADABLE_INACTIVE_FACTOR
+        }
+    };
+    AvailabilityProbe {
+        available_bytes: Some(pressure_adjusted_page_bytes(&vm, page, factor)),
+        pressure_level: level,
+        inactive_factor: Some(factor),
+    }
 }
 
 #[cfg(target_os = "macos")]
@@ -390,7 +542,9 @@ mod tests {
             )
         };
         assert_eq!(rc, 0, "sysctlbyname hw.memsize failed");
-        let available = available_memory_bytes().expect("probe returned None");
+        let available = probe_availability()
+            .available_bytes
+            .expect("probe returned None");
         assert!(available > 0, "available memory must be positive, got 0");
         assert!(
             available <= total,
@@ -407,7 +561,9 @@ mod tests {
             .find_map(|l| l.strip_prefix("MemTotal:"))
             .and_then(|v| v.trim().split_whitespace().next().unwrap().parse().ok())
             .unwrap();
-        let available = available_memory_bytes().expect("probe returned None");
+        let available = probe_availability()
+            .available_bytes
+            .expect("probe returned None");
         assert!(available > 0);
         assert!(available <= total.saturating_mul(1024));
     }
@@ -517,34 +673,128 @@ mod tests {
         );
     }
 
-    /// Fixture test for [`fallback_page_bytes`]: the composition is
-    /// free + speculative + purgeable and inactive is excluded (see the
-    /// function's doc for the calibration rationale).
+    /// The factor matrix as specified: full inactive credit under NORMAL
+    /// pressure (an idle macOS parks reclaimable file cache in inactive),
+    /// a quarter under WARN, none under CRITICAL, the 0.5 middle ground
+    /// when the sysctl is unreadable, and at-least-warn for any verdict
+    /// outside the documented tiers.
+    #[test]
+    fn inactive_factor_matrix() {
+        assert_eq!(inactive_factor_for_pressure(PRESSURE_LEVEL_NORMAL), 1.0);
+        assert_eq!(inactive_factor_for_pressure(PRESSURE_LEVEL_WARN), 0.25);
+        assert_eq!(inactive_factor_for_pressure(PRESSURE_LEVEL_CRITICAL), 0.0);
+        // Undefined/future verdicts read as at-least-warn.
+        assert_eq!(inactive_factor_for_pressure(0), 0.25);
+        assert_eq!(inactive_factor_for_pressure(3), 0.25);
+        assert_eq!(inactive_factor_for_pressure(99), 0.25);
+        // Unreadable sysctl: the documented middle-ground constant.
+        assert_eq!(PRESSURE_UNREADABLE_INACTIVE_FACTOR, 0.5);
+    }
+
+    /// Fixture test for [`pressure_adjusted_page_bytes`]: the static half is
+    /// always free + speculative + purgeable, and the inactive term follows
+    /// the factor exactly (including the old exclude-inactive-entirely
+    /// behavior at factor 0.0 - the CRITICAL posture and the pre-pressure
+    /// fix).
     #[cfg(target_os = "macos")]
     #[test]
-    fn macos_fallback_page_sum_excludes_inactive_pages() {
+    fn macos_composition_scales_inactive_pages_by_the_pressure_factor() {
         let mut vm: libc::vm_statistics64_data_t = unsafe { std::mem::zeroed() };
         vm.free_count = 1_000;
         vm.speculative_count = 200;
         vm.purgeable_count = 50;
-        // The over-counted category: 5x everything else combined. Counting it
-        // was the 4.82x calibration error.
+        // The contested category: 4x everything else combined.
         vm.inactive_count = 5_000;
 
         let page = 16_384_u64;
-        assert_eq!(
-            fallback_page_bytes(&vm, page),
-            (1_000 + 200 + 50) * page,
-            "must count free + speculative + purgeable"
-        );
-        assert_ne!(
-            fallback_page_bytes(&vm, page),
-            (1_000 + 200 + 50 + 5_000) * page,
-            "inactive pages must NOT be counted as available"
-        );
+        let compose = |factor| pressure_adjusted_page_bytes(&vm, page, factor);
+        // NORMAL (1.0): everything counts - the v1.0.0 starvation fix.
+        assert_eq!(compose(1.0), (1_000 + 200 + 50 + 5_000) * page);
+        // Unreadable (0.5): half the inactive credit.
+        assert_eq!(compose(0.5), (1_250 + 2_500) * page);
+        // WARN (0.25): a quarter.
+        assert_eq!(compose(0.25), (1_250 + 1_250) * page);
+        // CRITICAL (0.0): exactly the old conservative composition, and
+        // never the over-counting one.
+        assert_eq!(compose(0.0), (1_250) * page);
+        assert_ne!(compose(0.0), (1_250 + 5_000) * page);
         // Zeroed counters (fresh boot edge) saturate to 0, never panic.
         let empty: libc::vm_statistics64_data_t = unsafe { std::mem::zeroed() };
-        assert_eq!(fallback_page_bytes(&empty, page), 0);
+        assert_eq!(pressure_adjusted_page_bytes(&empty, page, 1.0), 0);
+    }
+
+    /// The same page fixture flips the gate's verdict as the kernel's
+    /// pressure verdict worsens: static 1755 MiB, inactive 2048 MiB, and
+    /// Parakeet Unified EN Q8_0's 731 MiB forecast + the 1.5 GiB headroom
+    /// (2267 MiB needed). NORMAL gives 3803 MiB (allow), WARN gives exactly
+    /// 2267 MiB (the allow boundary), CRITICAL gives 1755 MiB (refuse).
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn gate_boundaries_flip_with_the_pressure_verdict() {
+        let page = 16_384_u64;
+        let mib_pages = |mib: u64| (mib * 1024 * 1024 / page) as libc::natural_t;
+        let mut vm: libc::vm_statistics64_data_t = unsafe { std::mem::zeroed() };
+        vm.free_count = mib_pages(1_000);
+        vm.speculative_count = mib_pages(500);
+        vm.purgeable_count = mib_pages(255);
+        vm.inactive_count = mib_pages(2_048);
+
+        let forecast = 731 * 1024 * 1024; // Parakeet Unified EN Q8_0 file
+        let needed = forecast + DEFAULT_HEADROOM_BYTES;
+        assert_eq!(needed, 2_267 * 1024 * 1024, "fixture must sit at the boundary");
+
+        let compose = |factor| pressure_adjusted_page_bytes(&vm, page, factor);
+        // NORMAL: 1755 + 2048 = 3803 MiB.
+        assert_eq!(compose(1.0), 3_803 * 1024 * 1024);
+        assert!(!gate_should_refuse(Some(compose(1.0)), forecast, DEFAULT_HEADROOM_BYTES));
+        // WARN: 1755 + 512 = exactly the 2267 MiB requirement - the boundary
+        // itself allows, one page less refuses.
+        let warn_available = compose(0.25);
+        assert_eq!(warn_available, needed);
+        assert!(!gate_should_refuse(Some(warn_available), forecast, DEFAULT_HEADROOM_BYTES));
+        assert!(gate_should_refuse(Some(warn_available - page), forecast, DEFAULT_HEADROOM_BYTES));
+        // CRITICAL: static only, 1755 MiB.
+        assert_eq!(compose(0.0), 1_755 * 1024 * 1024);
+        assert!(gate_should_refuse(Some(compose(0.0)), forecast, DEFAULT_HEADROOM_BYTES));
+    }
+
+    /// SUCCESS CRITERION for the operator regression: pressure NORMAL with
+    /// 4 GiB or more available must allow the Parakeet Unified EN Q8_0
+    /// load (~2.2 GiB forecast + headroom with the default 1.5 GiB).
+    #[test]
+    fn normal_pressure_with_four_gib_available_allows_the_parakeet_q8_forecast() {
+        let forecast = 731 * 1024 * 1024;
+        let needed = forecast + DEFAULT_HEADROOM_BYTES;
+        assert!(
+            needed <= 4 * GIB,
+            "parakeet q8 + default headroom must fit inside 4 GiB"
+        );
+        // The bytes-level gate: 4 GiB allows with ~1.8 GiB to spare, and the
+        // actual refusal boundary sits at `needed` bytes (allow), one byte
+        // under it (refuse).
+        assert!(!gate_should_refuse(Some(4 * GIB), forecast, DEFAULT_HEADROOM_BYTES));
+        assert!(!gate_should_refuse(Some(needed), forecast, DEFAULT_HEADROOM_BYTES));
+        assert!(gate_should_refuse(Some(needed - 1), forecast, DEFAULT_HEADROOM_BYTES));
+
+        // Through the composition too: a NORMAL-pressure reading assembled
+        // from pages (2 GiB static + 2 GiB inactive = 4 GiB available)
+        // allows the same load, where the CRITICAL posture would not.
+        #[cfg(target_os = "macos")]
+        {
+            let page = 16_384_u64;
+            let mib_pages = |mib: u64| (mib * 1024 * 1024 / page) as libc::natural_t;
+            let mut vm: libc::vm_statistics64_data_t = unsafe { std::mem::zeroed() };
+            vm.free_count = mib_pages(1_500);
+            vm.speculative_count = mib_pages(412);
+            vm.purgeable_count = mib_pages(136);
+            vm.inactive_count = mib_pages(2_048);
+            let normal = pressure_adjusted_page_bytes(&vm, page, 1.0);
+            assert_eq!(normal, 4 * GIB);
+            assert!(!gate_should_refuse(Some(normal), forecast, DEFAULT_HEADROOM_BYTES));
+            let critical = pressure_adjusted_page_bytes(&vm, page, 0.0);
+            assert_eq!(critical, 2 * GIB);
+            assert!(gate_should_refuse(Some(critical), forecast, DEFAULT_HEADROOM_BYTES));
+        }
     }
 
     /// Helper: candidate with an id, rank, and footprint.
@@ -579,23 +829,24 @@ mod tests {
     /// INFORMATIONAL MEASUREMENT HARNESS - not a pass/fail test.
     ///
     /// On this app's target machine `os_proc_available_memory()` returns 0, so
-    /// every live memory decision uses the `host_statistics64` fallback
-    /// (free + speculative + purgeable; inactive pages were dropped after
-    /// this harness measured them at 4.82x the sysctl ground truth). Run it
-    /// explicitly on the live box with:
+    /// every live memory decision uses the `host_statistics64` fallback:
+    /// free + speculative + purgeable + inactive x factor, where the factor
+    /// follows the kernel's own pressure verdict (inactive counted fully
+    /// under NORMAL pressure, 0.25 under WARN, 0 under CRITICAL, 0.5 when
+    /// the verdict is unreadable). Run it explicitly on the live box with:
     ///
     /// ```text
     /// cargo test --lib -- memory::tests::probe_calibration_snapshot --ignored --nocapture
     /// ```
     ///
-    /// It prints (a) the probe's current free-RAM value, (b) a ground-truth
-    /// estimate computed independently from sysctl
-    /// (vm.page_free_count + vm.page_speculative_count +
-    /// vm.page_purgeable_count) x page size, and (c) the delta and ratio
-    /// between the two. There are deliberately NO assertions: the values move
-    /// with system load, so anything asserted here would flake on CI. Read
-    /// the printed ratio to judge whether the fallback's optimism (counting
-    /// inactive pages) stays within what the gate's headroom absorbs.
+    /// It prints (a) the probe's current free-RAM value, (b) the pressure
+    /// verdict and the composition the fallback applied, (c) a ground-truth
+    /// estimate computed independently from sysctl (vm.page_free_count +
+    /// vm.page_speculative_count + vm.page_purgeable_count) x page size,
+    /// (d) the inactive term and what each factor would credit, and (e) the
+    /// delta and ratio between probe and ground truth. There are
+    /// deliberately NO assertions: the values move with system load, so
+    /// anything asserted here would flake on CI.
     ///
     /// Compiles on every platform; only macOS computes the sysctl ground
     /// truth, others print the probe alone.
@@ -605,16 +856,37 @@ mod tests {
         const MIB: f64 = 1024.0 * 1024.0;
         let mib = |bytes: u64| format!("{:.1} MiB", bytes as f64 / MIB);
 
-        let probe = available_memory_bytes();
+        let probe = probe_availability().available_bytes;
         match probe {
-            Some(bytes) => println!("probe available_memory_bytes(): {bytes} ({})", mib(bytes)),
-            None => println!("probe available_memory_bytes(): None (probe unavailable)"),
+            Some(bytes) => println!("probe available bytes: {bytes} ({})", mib(bytes)),
+            None => println!("probe available bytes: None (probe unavailable)"),
         }
 
         #[cfg(target_os = "macos")]
         {
-            // The raw kernel call and the fallback it degrades to, so the
-            // snapshot shows which branch of the probe is live here.
+            // The kernel's own pressure verdict and the inactive factor it
+            // drives - the new half of the probe's behavior.
+            let level = memory_pressure_level();
+            let verdict = match level {
+                Some(PRESSURE_LEVEL_NORMAL) => {
+                    " (normal: inactive credited in full)".to_string()
+                }
+                Some(PRESSURE_LEVEL_WARN) => " (warn: inactive credited at 0.25)".to_string(),
+                Some(PRESSURE_LEVEL_CRITICAL) => " (critical: inactive not credited)".to_string(),
+                Some(other) => {
+                    format!(" (unrecognized verdict {other}: treated as at-least-warn)")
+                }
+                None => " (unreadable: 0.5 middle-ground factor, fail open)".to_string(),
+            };
+            if let Some(level) = level {
+                println!("kern.memorystatus_vm_pressure_level: {level}{verdict}");
+            } else {
+                println!("kern.memorystatus_vm_pressure_level: unreadable{verdict}");
+            }
+
+            // The raw kernel call and the pressure-scaled fallback it
+            // degrades to, so the snapshot shows which branch of the probe
+            // is live here and what the composition applied.
             let raw = unsafe { os_proc_available_memory() };
             println!(
                 "os_proc_available_memory(): {raw}{}",
@@ -624,12 +896,17 @@ mod tests {
                     ""
                 }
             );
-            match host_statistics_available() {
-                Some(bytes) => println!(
-                    "host_statistics64 fallback: {bytes} ({}) [free+speculative+purgeable]",
+            let fallback = host_statistics_probe();
+            match (fallback.available_bytes, fallback.inactive_factor) {
+                (Some(bytes), Some(factor)) => println!(
+                    "host_statistics64 composition: {bytes} ({}) [free+speculative+purgeable + inactive x {factor:.2}]",
                     mib(bytes)
                 ),
-                None => println!("host_statistics64 fallback: None"),
+                (Some(bytes), None) => println!(
+                    "host_statistics64 composition: {bytes} ({}) [no inactive factor applied]",
+                    mib(bytes)
+                ),
+                (None, _) => println!("host_statistics64 composition: probe failed"),
             }
 
             // Ground truth, computed independently via sysctl.
@@ -643,9 +920,21 @@ mod tests {
             let free = sysctl_page_count(c"vm.page_free_count");
             let speculative = sysctl_page_count(c"vm.page_speculative_count");
             let purgeable = sysctl_page_count(c"vm.page_purgeable_count");
+            let inactive = sysctl_page_count(c"vm.page_inactive_count");
             println!(
-                "sysctl pages (page size {page}): free={free:?} speculative={speculative:?} purgeable={purgeable:?}"
+                "sysctl pages (page size {page}): free={free:?} speculative={speculative:?} purgeable={purgeable:?} inactive={inactive:?}"
             );
+            if let Some(inactive) = inactive {
+                let inactive_bytes = inactive.saturating_mul(page);
+                println!(
+                    "inactive term ({}) credited by the matrix: normal {:.1}, unreadable {:.1}, warn {:.1}, critical {:.1}",
+                    mib(inactive_bytes),
+                    inactive_bytes as f64 / MIB,
+                    0.5 * inactive_bytes as f64 / MIB,
+                    0.25 * inactive_bytes as f64 / MIB,
+                    0.0,
+                );
+            }
 
             if let (Some(free), Some(speculative)) = (free, speculative) {
                 // vm.page_purgeable_count cannot be read via sysctl(3) on
@@ -675,10 +964,11 @@ mod tests {
                         println!("ratio (probe / ground truth): {ratio:.3}");
                         if purgeable.is_none() {
                             println!(
-                                "note: the probe still counts purgeable pages (from the \
-                                 vm_statistics64 struct), which this ground truth cannot \
-                                 measure here - expect the delta to equal the probe's \
-                                 purgeable component, NOT an inactive over-count"
+                                "note: the probe also counts purgeable pages (from the \
+                                 vm_statistics64 struct) and the pressure-scaled inactive \
+                                 credit, which this static ground truth does not - under \
+                                 NORMAL pressure expect the delta to track the inactive \
+                                 term, which is the intended behavior, not an over-count"
                             );
                         }
                     } else {
