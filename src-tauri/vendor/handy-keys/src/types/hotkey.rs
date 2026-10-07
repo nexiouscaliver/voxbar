@@ -149,11 +149,10 @@ impl Hotkey {
             parts.push(s);
         }
 
-        // Opt/Alt
-        #[cfg(target_os = "macos")]
+        // Opt/Alt. The wire vocabulary is macOS-style on EVERY platform so a
+        // settings file written on one OS parses identically on the others;
+        // alt/super spellings remain accepted as parse aliases.
         let opt_name = "option";
-        #[cfg(not(target_os = "macos"))]
-        let opt_name = "alt";
         if let Some(s) = mod_names(
             self.modifiers,
             Modifiers::OPT_LEFT,
@@ -175,11 +174,8 @@ impl Hotkey {
             parts.push(s);
         }
 
-        // Cmd/Super
-        #[cfg(target_os = "macos")]
+        // Cmd/Super. See the Opt/Alt note: macOS-style names everywhere.
         let cmd_name = "command";
-        #[cfg(not(target_os = "macos"))]
-        let cmd_name = "super";
         if let Some(s) = mod_names(
             self.modifiers,
             Modifiers::CMD_LEFT,
