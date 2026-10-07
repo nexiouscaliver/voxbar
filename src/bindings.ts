@@ -463,6 +463,14 @@ async changeUndoEnabledSetting(enabled: boolean) : Promise<Result<null, string>>
     else return { status: "error", error: e  as any };
 }
 },
+async changeCommandModeEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_command_mode_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeChineseScriptSetting(script: ChineseScript) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_chinese_script_setting", { script }) };
@@ -1125,6 +1133,14 @@ delete_last_word_enabled?: boolean;
  * bound.
  */
 undo_enabled?: boolean; 
+/**
+ * Master toggle for command mode: a second, assignable recording
+ * trigger whose whole transcript is parsed as a command sequence
+ * (punctuation, line breaks, delete word/line, undo, paste) instead of
+ * being pasted as dictation text. Ships unbound, so it stays inert
+ * until the operator binds a key.
+ */
+command_mode_enabled?: boolean; 
 /**
  * Fresh installs default from the OS locale; existing stores are migrated
  * in `apply_settings_migrations`.

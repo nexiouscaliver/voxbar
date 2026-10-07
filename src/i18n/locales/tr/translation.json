@@ -239,6 +239,10 @@
           "undo": {
             "name": "Geri al",
             "description": "Odaklanmış uygulamada Geri Al'ı tetikler (macOS'ta Cmd+Z, diğerlerinde Ctrl+Z) ve son yapıştırılan dikteyi tek seferde geri alır. Etkinleştirmek için bir tuş atayın."
+          },
+          "transcribe_commands": {
+            "name": "Komut modu",
+            "description": "Dikte gibi kaydeder, ancak her kelime bir komut olarak ele alınır: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Tanınmayan kelimeler atılır, böylece başka hiçbir şey yazılmaz. Varsayılan olarak atanmamıştır."
           }
         },
         "errors": {
@@ -278,6 +282,13 @@
         "undo": {
           "title": "Eylem: geri al",
           "description": "Odaklanmış uygulamada Geri Al'ı tetikleyen atanabilir kısayolu etkinleştirir. Kısayol, yukarıda bir tuş atanana kadar etkinsiz kalır."
+        }
+      },
+      "commandMode": {
+        "title": "Komut modu",
+        "toggle": {
+          "title": "Komut modu",
+          "description": "Atanabilir komut modu tetikleyicisini etkinleştirir. Basılı tutulduğunda dikte gibi kaydeder; transkript komut olarak yürütülür (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) ve tanınmayan kelimeler atılır."
         }
       }
     },

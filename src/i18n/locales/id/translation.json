@@ -191,6 +191,10 @@
           "undo": {
             "name": "Urungkan",
             "description": "Menjalankan Urungkan di aplikasi yang fokus (Cmd+Z di macOS, Ctrl+Z di tempat lain), membatalkan dikte terakhir yang ditempel sekaligus. Tetapkan tombol untuk mengaktifkannya."
+          },
+          "transcribe_commands": {
+            "name": "Mode perintah",
+            "description": "Merekam seperti dikte, tetapi setiap kata diperlakukan sebagai perintah: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Kata yang tidak dikenali dibuang, jadi tidak ada hal lain yang pernah diketik. Belum ditetapkan secara bawaan."
           }
         },
         "errors": {
@@ -230,6 +234,13 @@
         "undo": {
           "title": "Aksi: urungkan",
           "description": "Mengaktifkan pintasan yang dapat ditetapkan untuk menjalankan Urungkan di aplikasi yang fokus. Pintasan tetap nonaktif sampai Anda menetapkan tombol di atas."
+        }
+      },
+      "commandMode": {
+        "title": "Mode perintah",
+        "toggle": {
+          "title": "Mode perintah",
+          "description": "Mengaktifkan pemicu mode perintah yang dapat ditetapkan. Saat ditahan ia merekam seperti dikte; transkrip dijalankan sebagai perintah (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) dan kata yang tidak dikenali dibuang."
         }
       }
     },

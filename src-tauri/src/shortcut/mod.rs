@@ -48,6 +48,7 @@ pub fn binding_is_active(
         "transcribe_with_post_process" => settings.post_process_enabled,
         "delete_last_word" => settings.delete_last_word_enabled,
         "undo" => settings.undo_enabled,
+        "transcribe_commands" => settings.command_mode_enabled,
         _ => true,
     }
 }
@@ -1537,6 +1538,29 @@ pub fn change_undo_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), 
     settings::write_settings(&app, settings.clone());
 
     if let Some(binding) = settings.bindings.get("undo").cloned() {
+        if enabled {
+            if !binding.current_binding.trim().is_empty() {
+                let _ = register_shortcut(&app, binding);
+            }
+        } else {
+            let _ = unregister_shortcut(&app, binding);
+        }
+    }
+
+    crate::secure_input::reconcile_fallback(&app);
+    Ok(())
+}
+
+/// Flip the command-mode master toggle and register or unregister its
+/// trigger binding to match.
+#[tauri::command]
+#[specta::specta]
+pub fn change_command_mode_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.command_mode_enabled = enabled;
+    settings::write_settings(&app, settings.clone());
+
+    if let Some(binding) = settings.bindings.get("transcribe_commands").cloned() {
         if enabled {
             if !binding.current_binding.trim().is_empty() {
                 let _ = register_shortcut(&app, binding);

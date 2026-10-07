@@ -745,6 +745,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_voice_deletion_commands_setting,
             shortcut::change_delete_last_word_enabled_setting,
             shortcut::change_undo_enabled_setting,
+            shortcut::change_command_mode_enabled_setting,
             shortcut::change_chinese_script_setting,
             shortcut::change_app_language_setting,
             shortcut::change_update_checks_setting,

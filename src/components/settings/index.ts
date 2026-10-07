@@ -31,6 +31,7 @@ export { TerminalPunctuation } from "./TerminalPunctuation";
 export { VoiceDeletionCommands } from "./VoiceDeletionCommands";
 export { DeleteLastWordAction } from "./DeleteLastWordAction";
 export { UndoAction } from "./UndoAction";
+export { CommandModeToggle } from "./CommandModeToggle";
 export { ChineseScriptSetting } from "./ChineseScript";
 export { AppDataDirectory } from "./AppDataDirectory";
 export { ModelUnloadTimeoutSetting } from "./ModelUnloadTimeout";

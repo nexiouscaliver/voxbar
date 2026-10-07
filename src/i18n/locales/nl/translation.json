@@ -191,6 +191,10 @@
           "undo": {
             "name": "Ongedaan maken",
             "description": "Activeert Ongedaan maken in de actieve app (Cmd+Z op macOS, Ctrl+Z elders) en herstelt zo de laatst geplakte dictering in één keer. Wijs een toets toe om in te schakelen."
+          },
+          "transcribe_commands": {
+            "name": "Commandomodus",
+            "description": "Neemt op zoals dicteren, maar elk woord wordt als commando behandeld: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Niet-herkende woorden worden weggegooid, zodat er nooit iets anders wordt getypt. Standaard niet toegewezen."
           }
         },
         "errors": {
@@ -230,6 +234,13 @@
         "undo": {
           "title": "Actie: ongedaan maken",
           "description": "Schakelt de toewijsbare sneltoets in die Ongedaan maken activeert in de actieve app. De sneltoets blijft inactief tot je bovenaan een toets toewijst."
+        }
+      },
+      "commandMode": {
+        "title": "Commandomodus",
+        "toggle": {
+          "title": "Commandomodus",
+          "description": "Schakelt de toewijsbare commandomodus-trigger in. Ingehouden neemt hij op zoals dicteren; de transcriptie wordt uitgevoerd als commando's (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) en niet-herkende woorden worden weggegooid."
         }
       }
     },

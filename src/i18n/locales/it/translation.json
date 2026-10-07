@@ -239,6 +239,10 @@
           "undo": {
             "name": "Annulla",
             "description": "Esegue Annulla nell'app attiva (Cmd+Z su macOS, Ctrl+Z altrove), annullando l'ultima dettatura incollata in un colpo solo. Assegna un tasto per attivarla."
+          },
+          "transcribe_commands": {
+            "name": "Modalità comandi",
+            "description": "Registra come una dettatura, ma ogni parola viene trattata come un comando: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Le parole non riconosciute vengono scartate, quindi non viene mai digitato altro. Non assegnato per impostazione predefinita."
           }
         },
         "errors": {
@@ -278,6 +282,13 @@
         "undo": {
           "title": "Azione: annulla",
           "description": "Attiva la scorciatoia assegnabile che esegue Annulla nell'app attiva. La scorciatoia resta inattiva finché non assegni un tasto sopra."
+        }
+      },
+      "commandMode": {
+        "title": "Modalità comandi",
+        "toggle": {
+          "title": "Modalità comandi",
+          "description": "Attiva il trigger assegnabile della modalità comandi. Tenuto premuto registra come una dettatura; la trascrizione viene eseguita come comandi (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) e le parole non riconosciute vengono scartate."
         }
       }
     },

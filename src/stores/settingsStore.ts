@@ -201,6 +201,8 @@ const settingUpdaters: {
   delete_last_word_enabled: (value) =>
     commands.changeDeleteLastWordEnabledSetting(value as boolean),
   undo_enabled: (value) => commands.changeUndoEnabledSetting(value as boolean),
+  command_mode_enabled: (value) =>
+    commands.changeCommandModeEnabledSetting(value as boolean),
   chinese_script: (value) =>
     commands.changeChineseScriptSetting(value as ChineseScript),
   show_tray_icon: (value) =>

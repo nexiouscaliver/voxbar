@@ -56,6 +56,10 @@ pub trait ShortcutAction: Send + Sync {
 // Transcribe Action
 struct TranscribeAction {
     post_process: bool,
+    /// Command mode: audio is captured exactly like normal dictation, but at
+    /// finalize the whole transcript is parsed as a command sequence
+    /// (see `audio_toolkit::commands`) instead of being pasted as text.
+    command_mode: bool,
 }
 
 /// Field name for structured output JSON schema
@@ -601,6 +605,7 @@ impl ShortcutAction for TranscribeAction {
 
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
         let post_process = self.post_process;
+        let command_mode = self.command_mode;
         let cancel_generation = rm.cancel_generation();
 
         tauri::async_runtime::spawn(async move {
@@ -648,14 +653,23 @@ impl ShortcutAction for TranscribeAction {
                     // running, finalize it and use its text (all audio was already
                     // fed to the stream); otherwise batch-transcribe the samples.
                     // The result also carries the model id that actually produced
-                    // the text — after a RAM auto-fallback that can differ from
+                    // the text: after a RAM auto-fallback that can differ from
                     // the persisted selection, and history records it per entry.
                     // The streaming worker's model is read BEFORE finalize: an
                     // "unload immediately" setting clears it as soon as the
                     // stream ends.
+                    //
+                    // Command mode requests the raw transcript: none of the
+                    // normal text passes may rewrite a command transcript,
+                    // because the parser owns all interpretation.
                     let transcription_time = Instant::now();
                     let stream_model = tm.get_current_model().unwrap_or_default();
-                    let transcription_result = match tm.finalize_stream() {
+                    let finalize = if command_mode {
+                        tm.finalize_stream_for_commands()
+                    } else {
+                        tm.finalize_stream()
+                    };
+                    let transcription_result = match finalize {
                         // A finalized stream with usable text wins. An empty result
                         // (no active stream, produced nothing, or the stream failed
                         // or its worker crashed) falls back to a full batch
@@ -664,7 +678,13 @@ impl ShortcutAction for TranscribeAction {
                         Ok(Some(text)) if !text.trim().is_empty() => {
                             Ok((text, stream_model.clone()))
                         }
-                        Ok(_) => tm.transcribe_with_model(samples),
+                        Ok(_) => {
+                            if command_mode {
+                                tm.transcribe_with_model_for_commands(samples)
+                            } else {
+                                tm.transcribe_with_model(samples)
+                            }
+                        }
                         Err(err) => Err(err),
                     };
 
@@ -706,6 +726,63 @@ impl ShortcutAction for TranscribeAction {
                                 transcription_time.elapsed(),
                                 utils::redact_text(&transcription)
                             );
+
+                            // Command mode: the whole transcript is a command
+                            // sequence. Parse it, save the raw transcript to
+                            // history for auditability, then execute the
+                            // planned steps in order. No post-processing, no
+                            // punctuation/deletion text passes, no dictation
+                            // paste: nothing unrecognized is ever typed.
+                            if command_mode {
+                                let steps =
+                                    crate::audio_toolkit::plan_command_transcript(&transcription);
+                                debug!(
+                                    "Command mode parsed {} step(s) from {} word(s)",
+                                    steps.len(),
+                                    transcription.split_whitespace().count()
+                                );
+
+                                if wav_saved {
+                                    if let Err(err) = hm.save_entry(
+                                        file_name,
+                                        transcription,
+                                        false,
+                                        None,
+                                        None,
+                                        Some(used_model),
+                                    ) {
+                                        error!("Failed to save history entry: {}", err);
+                                    }
+                                }
+
+                                if rm.was_cancelled_since(cancel_generation) {
+                                    debug!("Command execution cancelled before running steps");
+                                    utils::hide_recording_overlay(&ah);
+                                    set_tray_state(&ah, TrayIconState::Idle);
+                                    return;
+                                }
+
+                                let ah_clone = ah.clone();
+                                let rm_for_steps = Arc::clone(&rm);
+                                ah.run_on_main_thread(move || {
+                                    if rm_for_steps.was_cancelled_since(cancel_generation) {
+                                        debug!("Command execution cancelled before running steps");
+                                        utils::hide_recording_overlay(&ah_clone);
+                                        set_tray_state(&ah_clone, TrayIconState::Idle);
+                                        return;
+                                    }
+
+                                    execute_command_steps(&ah_clone, &steps);
+                                    utils::hide_recording_overlay(&ah_clone);
+                                    set_tray_state(&ah_clone, TrayIconState::Idle);
+                                })
+                                .unwrap_or_else(|e| {
+                                    error!("Failed to run command steps on main thread: {:?}", e);
+                                    utils::hide_recording_overlay(&ah);
+                                    set_tray_state(&ah, TrayIconState::Idle);
+                                });
+                                return;
+                            }
 
                             if post_process {
                                 if use_streaming_overlay {
@@ -831,6 +908,34 @@ impl ShortcutAction for TranscribeAction {
     }
 }
 
+/// Run command-mode steps against the focused app, in transcript order.
+///
+/// Order guarantees: the steps run sequentially inside one main-thread
+/// closure, so each paste (which blocks until its chord, hold, and restore
+/// delays elapse) and each editing chord fully completes before the next
+/// step is synthesized; consecutive inserts have already been coalesced into
+/// one paste by the planner, and a failure in one step is logged and does
+/// not abort the remaining steps. Must run on the main thread (macOS chord
+/// resolution requires it, matching the paste path).
+fn execute_command_steps(app: &AppHandle, steps: &[crate::audio_toolkit::ExecutionStep]) {
+    use crate::audio_toolkit::ExecutionStep;
+
+    for step in steps {
+        let result = match step {
+            // Inserts go through the paste path verbatim; key actions reuse
+            // the Feature 1 injection helper.
+            ExecutionStep::PasteText(text) => crate::clipboard::paste_for_commands(text, app),
+            ExecutionStep::Edit(action) => {
+                crate::paste_tx::key_send::send_edit_action(app, *action)
+            }
+        };
+
+        if let Err(e) = result {
+            error!("Command step {:?} failed: {}", step, e);
+        }
+    }
+}
+
 // Cancel Action
 struct CancelAction;
 
@@ -933,11 +1038,22 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
         "transcribe".to_string(),
         Arc::new(TranscribeAction {
             post_process: false,
+            command_mode: false,
         }) as Arc<dyn ShortcutAction>,
     );
     map.insert(
         "transcribe_with_post_process".to_string(),
-        Arc::new(TranscribeAction { post_process: true }) as Arc<dyn ShortcutAction>,
+        Arc::new(TranscribeAction {
+            post_process: true,
+            command_mode: false,
+        }) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        "transcribe_commands".to_string(),
+        Arc::new(TranscribeAction {
+            post_process: false,
+            command_mode: true,
+        }) as Arc<dyn ShortcutAction>,
     );
     map.insert(
         "cancel".to_string(),

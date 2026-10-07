@@ -191,6 +191,10 @@
           "undo": {
             "name": "Ångra",
             "description": "Utför Ångra i den aktiva appen (Cmd+Z på macOS, Ctrl+Z på andra) och återställer den senaste inklistrade dikteringen i ett steg. Koppla en tangent för att aktivera."
+          },
+          "transcribe_commands": {
+            "name": "Kommandoläge",
+            "description": "Spelar in som en diktering, men varje ord behandlas som ett kommando: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Okända ord kasseras, så inget annat skrivs någonsin. Ej kopplad som standard."
           }
         },
         "errors": {
@@ -230,6 +234,13 @@
         "undo": {
           "title": "Åtgärd: ångra",
           "description": "Aktiverar den kopplingsbara genvägen som utför Ångra i den aktiva appen. Genvägen förblir inaktiv tills en tangent kopplas ovan."
+        }
+      },
+      "commandMode": {
+        "title": "Kommandoläge",
+        "toggle": {
+          "title": "Kommandoläge",
+          "description": "Aktiverar den kopplingsbara kommandolägesutlösaren. Innehåll spelar den in som en diktering; transkriptionen körs som kommandon (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) och okända ord kasseras."
         }
       }
     },

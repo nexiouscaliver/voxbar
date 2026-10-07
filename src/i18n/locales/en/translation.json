@@ -191,6 +191,10 @@
           "undo": {
             "name": "Undo",
             "description": "Triggers undo in the focused app (Cmd+Z on macOS, Ctrl+Z elsewhere), reverting the last pasted dictation in one hit. Assign a key to enable it."
+          },
+          "transcribe_commands": {
+            "name": "Command Mode",
+            "description": "Records like dictation, but every word is treated as a command: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Unrecognized words are discarded, so nothing else is ever typed. Unbound by default."
           }
         },
         "errors": {
@@ -230,6 +234,13 @@
         "undo": {
           "title": "Undo Action",
           "description": "Enable the assignable hotkey that triggers undo in the focused app. The hotkey stays inactive until a key is assigned above."
+        }
+      },
+      "commandMode": {
+        "title": "Command Mode",
+        "toggle": {
+          "title": "Command Mode",
+          "description": "Enable the assignable command-mode recording trigger. While held it records like dictation; the transcript is executed as commands (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste) and unrecognized words are discarded."
         }
       }
     },

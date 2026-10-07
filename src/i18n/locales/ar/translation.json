@@ -188,6 +188,10 @@
           "undo": {
             "name": "تراجع",
             "description": "يشغّل التراجع في التطبيق النشط (Cmd+Z على ماك أو إس، و Ctrl+Z في غيره) فيلغي آخر نص ملصق من dictation بضغطة واحدة. عيّن مفتاحا لتمكينه."
+          },
+          "transcribe_commands": {
+            "name": "وضع الأوامر",
+            "description": "يسجل مثل الإملاء، لكن كل كلمة تعامل كأمر: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. الكلمات غير المعروفة تُهمل، فلا يُكتب أي شيء آخر أبدا. غير معين افتراضيا."
           }
         },
         "errors": {
@@ -227,6 +231,13 @@
         "undo": {
           "title": "إجراء: تراجع",
           "description": "يفعّل الاختصار القابل للتعيين الذي يشغّل التراجع في التطبيق النشط. يبقى الاختصار معطلا حتى تعيّن مفتاحا أعلاه."
+        }
+      },
+      "commandMode": {
+        "title": "وضع الأوامر",
+        "toggle": {
+          "title": "وضع الأوامر",
+          "description": "يفعّل مفتاح تسجيل وضع الأوامر القابل للتعيين. عند الاستمرار في الضغط يسجل مثل الإملاء؛ يُنفَّذ النص كأوامر (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) وتهمل الكلمات غير المعروفة."
         }
       }
     },

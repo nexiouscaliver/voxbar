@@ -191,6 +191,10 @@
           "undo": {
             "name": "Desfés",
             "description": "Executa Desfés a l'aplicació activa (Cmd+Z a macOS, Ctrl+Z a altres), revertint l'últim dictat enganxat d'una sola vegada. Assigna una tecla per activar-ho."
+          },
+          "transcribe_commands": {
+            "name": "Mode d'ordres",
+            "description": "Enregistra com un dictat, però cada paraula es tracta com una ordre: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Les paraules no reconegudes es descarten, així mai no s'escriu res més. Sense assignar per defecte."
           }
         },
         "errors": {
@@ -230,6 +234,13 @@
         "undo": {
           "title": "Acció: desfés",
           "description": "Activa la drecera assignable que executa Desfés a l'aplicació activa. La drecera es manté inactiva fins que assignis una tecla a dalt."
+        }
+      },
+      "commandMode": {
+        "title": "Mode d'ordres",
+        "toggle": {
+          "title": "Mode d'ordres",
+          "description": "Activa el disparador assignable del mode d'ordres. Mantingut, enregistra com un dictat; la transcripció s'executa com ordres (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) i les paraules no reconegudes es descarten."
         }
       }
     },

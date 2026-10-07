@@ -239,6 +239,10 @@
           "undo": {
             "name": "Rückgängig",
             "description": "Löst Rückgängig in der fokussierten App aus (Cmd+Z unter macOS, Strg+Z anderswo) und macht damit die zuletzt eingefügte Diktierung in einem Schritt rückgängig. Zum Aktivieren eine Taste zuweisen."
+          },
+          "transcribe_commands": {
+            "name": "Befehlsmodus",
+            "description": "Nimmt wie eine Diktierung auf, aber jedes Wort gilt als Befehl: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Nicht erkannte Wörter werden verworfen, sodass nichts anderes je getippt wird. Standardmäßig ohne Taste."
           }
         },
         "errors": {
@@ -278,6 +282,13 @@
         "undo": {
           "title": "Aktion: Rückgängig",
           "description": "Aktiviert den zuweisbaren Hotkey, der Rückgängig in der fokussierten App auslöst. Der Hotkey bleibt inaktiv, bis oben eine Taste zugewiesen wird."
+        }
+      },
+      "commandMode": {
+        "title": "Befehlsmodus",
+        "toggle": {
+          "title": "Befehlsmodus",
+          "description": "Aktiviert den zuweisbaren Befehlsmodus-Trigger. Beim Halten nimmt er wie eine Diktierung auf; das Transkript wird als Befehle ausgeführt (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) und nicht erkannte Wörter werden verworfen."
         }
       }
     },

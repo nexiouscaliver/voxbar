@@ -191,6 +191,10 @@
           "undo": {
             "name": "실행 취소",
             "description": "포커스된 앱에서 실행 취소를 실행합니다 (macOS에서는 Cmd+Z, 그 외에는 Ctrl+Z). 마지막에 붙여넣은 받아쓰기를 한 번에 되돌립니다. 활성화하려면 키를 할당하세요."
+          },
+          "transcribe_commands": {
+            "name": "명령 모드",
+            "description": "받아쓰기처럼 녹음하지만 모든 단어를 명령으로 처리합니다: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. 인식되지 않은 단어는 버려지므로 다른 내용이 입력되지 않습니다. 기본적으로 할당되지 않음."
           }
         },
         "errors": {
@@ -230,6 +234,13 @@
         "undo": {
           "title": "동작: 실행 취소",
           "description": "포커스된 앱에서 실행 취소를 실행하는 할당 가능한 단축키를 켭니다. 위에서 키를 할당할 때까지 비활성 상태로 유지됩니다."
+        }
+      },
+      "commandMode": {
+        "title": "명령 모드",
+        "toggle": {
+          "title": "명령 모드",
+          "description": "할당 가능한 명령 모드 트리거를 켭니다. 누르고 있는 동안 받아쓰기처럼 녹음하며, 문자 기록은 명령으로 실행됩니다 (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste). 인식되지 않은 단어는 버려집니다."
         }
       }
     },

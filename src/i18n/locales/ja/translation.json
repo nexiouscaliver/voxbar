@@ -239,6 +239,10 @@
           "undo": {
             "name": "元に戻す",
             "description": "フォーカスされたアプリで元に戻すを実行します (macOS では Cmd+Z、その他では Ctrl+Z)。最後に貼り付けた音声入力を一回で取り消します。有効にするにはキーを割り当ててください。"
+          },
+          "transcribe_commands": {
+            "name": "コマンドモード",
+            "description": "音声入力と同じように録音しますが、すべての単語をコマンドとして扱います: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste。認識されない単語は破棄されるため、それ以外が入力されることはありません。既定では割り当てなし。"
           }
         },
         "errors": {
@@ -278,6 +282,13 @@
         "undo": {
           "title": "アクション: 元に戻す",
           "description": "フォーカスされたアプリで元に戻すを実行する割り当て可能なホットキーを有効にします。上でキーを割り当てるまで無効のままです。"
+        }
+      },
+      "commandMode": {
+        "title": "コマンドモード",
+        "toggle": {
+          "title": "コマンドモード",
+          "description": "割り当て可能なコマンドモードトリガーを有効にします。押している間は音声入力と同じように録音し、文字起こしはコマンドとして実行されます (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste)。認識されない単語は破棄されます。"
         }
       }
     },

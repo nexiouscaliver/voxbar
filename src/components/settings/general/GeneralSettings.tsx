@@ -14,6 +14,7 @@ import { MuteWhileRecording } from "../MuteWhileRecording";
 import { ModelSettingsCard } from "./ModelSettingsCard";
 import { DeleteLastWordAction } from "../DeleteLastWordAction";
 import { UndoAction } from "../UndoAction";
+import { CommandModeToggle } from "../CommandModeToggle";
 
 export const GeneralSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -21,6 +22,7 @@ export const GeneralSettings: React.FC = () => {
   const isLinux = type() === "linux";
   const deleteLastWordEnabled = getSetting("delete_last_word_enabled") ?? true;
   const undoEnabled = getSetting("undo_enabled") ?? true;
+  const commandModeEnabled = getSetting("command_mode_enabled") ?? true;
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("settings.general.title")}>
@@ -42,6 +44,14 @@ export const GeneralSettings: React.FC = () => {
           disabled={!undoEnabled}
         />
         <UndoAction descriptionMode="tooltip" grouped={true} />
+      </SettingsGroup>
+      <SettingsGroup title={t("settings.general.commandMode.title")}>
+        <ShortcutInput
+          shortcutId="transcribe_commands"
+          grouped={true}
+          disabled={!commandModeEnabled}
+        />
+        <CommandModeToggle descriptionMode="inline" grouped={true} />
       </SettingsGroup>
       <ModelSettingsCard />
       <SettingsGroup title={t("settings.sound.title")}>

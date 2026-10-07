@@ -239,6 +239,10 @@
           "undo": {
             "name": "Hoàn tác",
             "description": "Kích hoạt Hoàn tác trong ứng dụng đang tập trung (Cmd+Z trên macOS, Ctrl+Z trên nền tảng khác), hoàn tác lần đọc chính được dán gần nhất chỉ trong một thao tác. Gán phím để bật."
+          },
+          "transcribe_commands": {
+            "name": "Chế độ lệnh",
+            "description": "Ghi âm như đọc chính tả, nhưng mỗi từ được coi là một lệnh: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Các từ không nhận dạng được bị loại bỏ, nên không bao giờ gõ nội dung nào khác. Mặc định chưa gán phím."
           }
         },
         "errors": {
@@ -278,6 +282,13 @@
         "undo": {
           "title": "Hành động: hoàn tác",
           "description": "Bật phím tắt có thể gán để kích hoạt Hoàn tác trong ứng dụng đang tập trung. Phím tắt giữ trạng thái tắt cho đến khi bạn gán phím ở trên."
+        }
+      },
+      "commandMode": {
+        "title": "Chế độ lệnh",
+        "toggle": {
+          "title": "Chế độ lệnh",
+          "description": "Bật phím kích hoạt chế độ lệnh có thể gán. Khi giữ, nó ghi âm như đọc chính tả; bản transcript được thực thi dưới dạng lệnh (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) và các từ không nhận dạng được bị loại bỏ."
         }
       }
     },

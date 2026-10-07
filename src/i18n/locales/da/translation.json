@@ -191,6 +191,10 @@
           "undo": {
             "name": "Fortryd",
             "description": "Udfører Fortryd i den aktive app (Cmd+Z på macOS, Ctrl+Z andre steder) og fjerner den sidst indsatte diktéring i ét træk. Tildel en tast for at aktivere."
+          },
+          "transcribe_commands": {
+            "name": "Kommandotilstand",
+            "description": "Optager som en diktéring, men hvert ord behandles som en kommando: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Ikke-genkendte ord kasseres, så der skrives aldrig andet. Ikke tildelt som standard."
           }
         },
         "errors": {
@@ -230,6 +234,13 @@
         "undo": {
           "title": "Handling: fortryd",
           "description": "Aktiverer den tildelbare genvej, der udfører Fortryd i den aktive app. Genvejen forbliver inaktiv, til en tast tildeles ovenfor."
+        }
+      },
+      "commandMode": {
+        "title": "Kommandotilstand",
+        "toggle": {
+          "title": "Kommandotilstand",
+          "description": "Aktiverer den tildelbare kommandotilstands-udløser. Holdt nede optager den som en diktéring; transskriptionen udføres som kommandoer (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) og ikke-genkendte ord kasseres."
         }
       }
     },

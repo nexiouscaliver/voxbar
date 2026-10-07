@@ -1272,6 +1272,19 @@ impl TranscriptionManager {
     /// queue position, not a failure (#1841), and the engine bounds the
     /// finalize itself by the audio it still has to decode.
     pub fn finalize_stream(&self) -> Result<Option<String>> {
+        self.finalize_stream_with_passes(false)
+    }
+
+    /// Command-mode variant of [`Self::finalize_stream`]: the finalized text
+    /// is returned raw. None of the normal text passes (spoken punctuation,
+    /// voice deletion, terminal fallback, custom words, fillers) may touch a
+    /// command transcript, because every word is a command token and the
+    /// parser owns all interpretation.
+    pub fn finalize_stream_for_commands(&self) -> Result<Option<String>> {
+        self.finalize_stream_with_passes(true)
+    }
+
+    fn finalize_stream_with_passes(&self, command_mode: bool) -> Result<Option<String>> {
         let Some(tx) = self.router.take() else {
             return Ok(None);
         };
@@ -1285,16 +1298,20 @@ impl TranscriptionManager {
             Ok(Err(e)) => return Err(e.into()),
         };
 
-        let settings = get_settings(&self.app_handle);
-        // Streaming models do not receive a decode prompt, so custom words
-        // always go through the shared fuzzy post-correction path.
-        let filtered = post_process_transcription_text(
-            finalized.text,
-            &settings,
-            false,
-            &finalized.output_language,
-            &finalized.supported_languages,
-        );
+        let filtered = if command_mode {
+            finalized.text
+        } else {
+            let settings = get_settings(&self.app_handle);
+            // Streaming models do not receive a decode prompt, so custom words
+            // always go through the shared fuzzy post-correction path.
+            post_process_transcription_text(
+                finalized.text,
+                &settings,
+                false,
+                &finalized.output_language,
+                &finalized.supported_languages,
+            )
+        };
 
         self.maybe_unload_immediately("streaming transcription");
         Ok(Some(filtered))
@@ -1335,6 +1352,17 @@ impl TranscriptionManager {
     /// mid-dictation model switch stays auditable. Returns `(text, model_id)`;
     /// the model id is empty when unknown.
     pub fn transcribe_with_model(&self, audio: Vec<f32>) -> Result<(String, String)> {
+        self.transcribe_audio(audio, false)
+    }
+
+    /// Command-mode variant of [`Self::transcribe_with_model`]: the raw
+    /// transcript is returned with every text pass skipped, because the
+    /// command parser owns all interpretation of the words.
+    pub fn transcribe_with_model_for_commands(&self, audio: Vec<f32>) -> Result<(String, String)> {
+        self.transcribe_audio(audio, true)
+    }
+
+    fn transcribe_audio(&self, audio: Vec<f32>, command_mode: bool) -> Result<(String, String)> {
         #[cfg(debug_assertions)]
         if std::env::var("HANDY_FORCE_TRANSCRIPTION_FAILURE").is_ok() {
             return Err(anyhow::anyhow!(
@@ -1413,18 +1441,24 @@ impl TranscriptionManager {
         );
         debug!("Output language evidence: {:?}", output_language);
 
-        // Apply fuzzy word correction if custom words are configured — UNLESS the
-        // words were already handed to the model as an initial prompt (whisper
-        // family). We don't pass a prompt to non-whisper models (it requires the
-        // whisper-kind run extension), so they still get fuzzy correction here,
-        // same as the ONNX engines.
-        let filtered_result = post_process_transcription_text(
-            run.text,
-            &settings,
-            run.model_is_whisper,
-            &output_language,
-            &run.languages,
-        );
+        // Command mode skips every text pass: the transcript is a command
+        // program, not prose, and the parser must see the raw ASR words.
+        let filtered_result = if command_mode {
+            run.text
+        } else {
+            // Apply fuzzy word correction if custom words are configured, UNLESS the
+            // words were already handed to the model as an initial prompt (whisper
+            // family). We don't pass a prompt to non-whisper models (it requires
+            // the whisper-kind run extension), so they still get fuzzy correction here,
+            // same as the ONNX engines.
+            post_process_transcription_text(
+                run.text,
+                &settings,
+                run.model_is_whisper,
+                &output_language,
+                &run.languages,
+            )
+        };
 
         let et = std::time::Instant::now();
         let translation_note = if settings.translate_to_english {

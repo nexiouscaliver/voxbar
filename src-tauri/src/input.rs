@@ -180,6 +180,14 @@ impl EnigoState {
     }
 }
 
+/// Layout-aware key that types `v` while Command is held (macOS only).
+/// Other platforms resolve chord keys at their call sites with virtual
+/// key codes or Unicode keys.
+#[cfg(target_os = "macos")]
+pub fn command_v_key() -> Key {
+    macos::command_v_key()
+}
+
 /// Layout-aware key that types `z` while Command is held (macOS only).
 #[cfg(target_os = "macos")]
 pub fn command_z_key() -> Key {

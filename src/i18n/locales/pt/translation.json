@@ -191,6 +191,10 @@
           "undo": {
             "name": "Desfazer",
             "description": "Aciona Desfazer na aplicação focada (Cmd+Z no macOS, Ctrl+Z nos outros), revertendo o último ditado colado de uma só vez. Atribua uma tecla para ativar."
+          },
+          "transcribe_commands": {
+            "name": "Modo de comandos",
+            "description": "Grava como um ditado, mas cada palavra é tratada como um comando: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Palavras não reconhecidas são descartadas, então nada mais é digitado. Não atribuído por padrão."
           }
         },
         "errors": {
@@ -230,6 +234,13 @@
         "undo": {
           "title": "Ação: desfazer",
           "description": "Ativa o atalho atribuível que aciona Desfazer na aplicação focada. O atalho fica inativo até atribuir uma tecla acima."
+        }
+      },
+      "commandMode": {
+        "title": "Modo de comandos",
+        "toggle": {
+          "title": "Modo de comandos",
+          "description": "Ativa o gatilho atribuível do modo de comandos. Pressionado, grava como um ditado; a transcrição é executada como comandos (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) e palavras não reconhecidas são descartadas."
         }
       }
     },

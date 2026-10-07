@@ -191,6 +191,10 @@
           "undo": {
             "name": "ביטול פעולה",
             "description": "מפעיל ביטול פעולה באפליקציה הממוקדת (Cmd+Z ב-macOS, Ctrl+Z במקומות אחרים) ומבטל את ההקלטה המודבקת האחרונה בלחיצה אחת. הקצה מקש כדי להפעיל."
+          },
+          "transcribe_commands": {
+            "name": "מצב פקודות",
+            "description": "מקליט כמו הקלטה, אבל כל מילה מטופלת כפקודה: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. מילים לא מזוהות נזרקות, כך שלעולם לא נקלד דבר אחר. לא מוקצה כברירת מחדל."
           }
         },
         "errors": {
@@ -230,6 +234,13 @@
         "undo": {
           "title": "פעולה: ביטול",
           "description": "מפעיל את קיצור המקלדת הניתן להקצאה שמבטל פעולה באפליקציה הממוקדת. הקיצור יישאר כבוי עד שתקצה מקש למעלה."
+        }
+      },
+      "commandMode": {
+        "title": "מצב פקודות",
+        "toggle": {
+          "title": "מצב פקודות",
+          "description": "מפעיל את מקש ההקלטה הניתן להקצאה של מצב הפקודות. בהחזקה הוא מקליט כמו הקלטה; התמליל מבוצע כפקודות (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) ומילים לא מזוהות נזרקות."
         }
       }
     },

@@ -239,6 +239,10 @@
           "undo": {
             "name": "Cofnij",
             "description": "Wywołuje Cofnij w aktywnej aplikacji (Cmd+Z na macOS, Ctrl+Z gdzie indziej), cofając ostatni wstawiony tekst dyktowania za jednym razem. Przypisz klawisz, aby włączyć."
+          },
+          "transcribe_commands": {
+            "name": "Tryb poleceń",
+            "description": "Nagrywa jak dyktowanie, ale każde słowo jest traktowane jako polecenie: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Nierozpoznane słowa są odrzucane, więc nic innego nie zostanie wpisane. Domyślnie bez klawisza."
           }
         },
         "errors": {
@@ -278,6 +282,13 @@
         "undo": {
           "title": "Akcja: cofnij",
           "description": "Włącza przypisywalny skrót, który wywołuje Cofnij w aktywnej aplikacji. Skrót pozostaje nieaktywny, dopóki nie przypiszesz klawisza powyżej."
+        }
+      },
+      "commandMode": {
+        "title": "Tryb poleceń",
+        "toggle": {
+          "title": "Tryb poleceń",
+          "description": "Włącza przypisywalny wyzwalacz trybu poleceń. Przytrzymany nagrywa jak dyktowanie; transkrypcja jest wykonywana jako polecenia (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste), a nierozpoznane słowa są odrzucane."
         }
       }
     },

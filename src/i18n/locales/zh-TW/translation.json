@@ -191,6 +191,10 @@
           "undo": {
             "name": "復原",
             "description": "在目前聚焦的應用程式中觸發復原 (macOS 為 Cmd+Z，其他平台為 Ctrl+Z)，一次撤銷上一次貼上的聽寫內容。指派按鍵後才會啟用。"
+          },
+          "transcribe_commands": {
+            "name": "命令模式",
+            "description": "像聽寫一樣錄音，但每個詞都作為命令處理：question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste。無法辨識的詞會被丟棄，因此絕不會輸入其他內容。預設不綁定按鍵。"
           }
         },
         "errors": {
@@ -230,6 +234,13 @@
         "undo": {
           "title": "動作：復原",
           "description": "啟用可自訂的快捷鍵來在聚焦應用程式中觸發復原。在上方指派按鍵之前該快捷鍵保持停用。"
+        }
+      },
+      "commandMode": {
+        "title": "命令模式",
+        "toggle": {
+          "title": "命令模式",
+          "description": "啟用可自訂的命令模式錄音觸發鍵。按住時像聽寫一樣錄音；轉錄內容會作為命令執行 (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste)，無法辨識的詞會被丟棄。"
         }
       }
     },

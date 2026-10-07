@@ -239,6 +239,10 @@
           "undo": {
             "name": "Deshacer",
             "description": "Ejecuta deshacer en la aplicación enfocada (Cmd+Z en macOS, Ctrl+Z en otras), revirtiendo el último dictado pegado de una sola vez. Asigna una tecla para activarlo."
+          },
+          "transcribe_commands": {
+            "name": "Modo de comandos",
+            "description": "Graba como un dictado, pero cada palabra se trata como un comando: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Las palabras no reconocidas se descartan, así nunca se escribe nada más. Sin asignar por defecto."
           }
         },
         "errors": {
@@ -278,6 +282,13 @@
         "undo": {
           "title": "Acción: deshacer",
           "description": "Activa el atajo asignable que ejecuta deshacer en la aplicación enfocada. El atajo permanece inactivo hasta que asignes una tecla arriba."
+        }
+      },
+      "commandMode": {
+        "title": "Modo de comandos",
+        "toggle": {
+          "title": "Modo de comandos",
+          "description": "Activa el disparador asignable del modo de comandos. Mantenido graba como un dictado; el texto se ejecuta como comandos (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) y las palabras no reconocidas se descartan."
         }
       }
     },

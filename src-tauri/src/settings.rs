@@ -602,6 +602,13 @@ pub struct AppSettings {
     /// bound.
     #[serde(default = "default_undo_enabled")]
     pub undo_enabled: bool,
+    /// Master toggle for command mode: a second, assignable recording
+    /// trigger whose whole transcript is parsed as a command sequence
+    /// (punctuation, line breaks, delete word/line, undo, paste) instead of
+    /// being pasted as dictation text. Ships unbound, so it stays inert
+    /// until the operator binds a key.
+    #[serde(default = "default_command_mode_enabled")]
+    pub command_mode_enabled: bool,
     /// Fresh installs default from the OS locale; existing stores are migrated
     /// in `apply_settings_migrations`.
     #[serde(default)]
@@ -718,6 +725,10 @@ fn default_delete_last_word_enabled() -> bool {
 }
 
 fn default_undo_enabled() -> bool {
+    true
+}
+
+fn default_command_mode_enabled() -> bool {
     true
 }
 
@@ -1107,6 +1118,19 @@ pub fn get_default_settings() -> AppSettings {
             current_binding: String::new(),
         },
     );
+    // Command mode ships unbound too: it records like dictation, but the
+    // whole transcript is executed as a command sequence.
+    bindings.insert(
+        "transcribe_commands".to_string(),
+        ShortcutBinding {
+            id: "transcribe_commands".to_string(),
+            name: "Command Mode".to_string(),
+            description: "Records like dictation, but every word is treated as a command: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Unrecognized words are discarded. Unbound by default."
+                .to_string(),
+            default_binding: String::new(),
+            current_binding: String::new(),
+        },
+    );
 
     AppSettings {
         settings_schema_version: default_settings_schema_version(),
@@ -1174,6 +1198,7 @@ pub fn get_default_settings() -> AppSettings {
         voice_deletion_commands: default_voice_deletion_commands(),
         delete_last_word_enabled: default_delete_last_word_enabled(),
         undo_enabled: default_undo_enabled(),
+        command_mode_enabled: default_command_mode_enabled(),
         chinese_script: default_chinese_script(),
         transcribe_accelerator: TranscribeAcceleratorSetting::default(),
         ort_accelerator: OrtAcceleratorSetting::default(),
@@ -1693,18 +1718,19 @@ mod tests {
         assert!(settings.voice_deletion_commands);
         assert!(settings.delete_last_word_enabled);
         assert!(settings.undo_enabled);
+        assert!(settings.command_mode_enabled);
         // Bindings default to empty; the load path merges the real defaults in.
         assert!(settings.bindings.is_empty());
     }
 
-    /// The assignable editing actions ship unbound (empty current and default
-    /// binding) with their master toggles on, so nothing registers until the
-    /// operator binds a key.
+    /// The assignable editing actions and the command-mode trigger ship
+    /// unbound (empty current and default binding) with their master toggles
+    /// on, so nothing registers until the operator binds a key.
     #[test]
     fn editing_action_bindings_default_to_unbound() {
         let defaults = get_default_settings();
 
-        for id in ["delete_last_word", "undo"] {
+        for id in ["delete_last_word", "undo", "transcribe_commands"] {
             let binding = defaults
                 .bindings
                 .get(id)
@@ -1720,18 +1746,20 @@ mod tests {
         }
     }
 
-    /// The editing-action toggles must survive a store round-trip with their
-    /// values intact in both directions.
+    /// The editing-action and command-mode toggles must survive a store
+    /// round-trip with their values intact in both directions.
     #[test]
     fn editing_action_toggles_round_trip_through_json() {
         let mut settings = get_default_settings();
         settings.delete_last_word_enabled = false;
         settings.undo_enabled = false;
+        settings.command_mode_enabled = false;
 
         let json = serde_json::to_value(&settings).unwrap();
         let reloaded: AppSettings = serde_json::from_value(json).unwrap();
         assert!(!reloaded.delete_last_word_enabled);
         assert!(!reloaded.undo_enabled);
+        assert!(!reloaded.command_mode_enabled);
 
         // A partial store that predates the toggles falls back to the enabled
         // defaults.
@@ -1741,6 +1769,7 @@ mod tests {
         .unwrap();
         assert!(legacy.delete_last_word_enabled);
         assert!(legacy.undo_enabled);
+        assert!(legacy.command_mode_enabled);
         assert!(!legacy.voice_deletion_commands);
     }
 

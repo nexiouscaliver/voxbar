@@ -534,8 +534,12 @@ pub struct TranscriptionCoordinator {
     tx: Sender<Command>,
 }
 
+/// Which binding IDs drive the recording lifecycle. Command mode
+/// ("transcribe_commands") shares it: the trigger records exactly like
+/// normal dictation (hold/toggle per the activation setting), and only the
+/// finalize path differs (the transcript goes to the command parser).
 pub fn is_transcribe_binding(id: &str) -> bool {
-    id == "transcribe" || id == "transcribe_with_post_process"
+    id == "transcribe" || id == "transcribe_with_post_process" || id == "transcribe_commands"
 }
 
 impl TranscriptionCoordinator {
@@ -712,6 +716,19 @@ fn stop(app: &AppHandle, binding_id: &str, hotkey_string: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Command mode shares the recording lifecycle: its binding must route
+    /// through this coordinator so it gets the same hold/toggle semantics
+    /// and busy-pipeline handling as the normal dictation triggers.
+    #[test]
+    fn command_mode_binding_routes_through_the_recording_lifecycle() {
+        assert!(is_transcribe_binding("transcribe"));
+        assert!(is_transcribe_binding("transcribe_with_post_process"));
+        assert!(is_transcribe_binding("transcribe_commands"));
+        assert!(!is_transcribe_binding("delete_last_word"));
+        assert!(!is_transcribe_binding("undo"));
+        assert!(!is_transcribe_binding("cancel"));
+    }
 
     #[test]
     fn push_to_talk_release_while_recording_defers_release() {
