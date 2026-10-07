@@ -832,7 +832,8 @@
   },
   "overlay": {
     "transcribing": "S'està transcrivint...",
-    "processing": "S'està processant..."
+    "processing": "S'està processant...",
+    "removedWord": "Eliminat: {{text}}"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} pot estar blocant 1 drecera",

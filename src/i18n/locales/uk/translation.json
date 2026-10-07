@@ -829,7 +829,8 @@
   },
   "overlay": {
     "transcribing": "Обробка...",
-    "processing": "Постобробка..."
+    "processing": "Постобробка...",
+    "removedWord": "Видалено: {{text}}"
   },
   "whatsNew": {
     "title": "Нове в VoxBar v{{version}}"

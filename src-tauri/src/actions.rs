@@ -798,6 +798,10 @@ impl ShortcutAction for TranscribeAction {
                                         let _ = StreamTextEvent {
                                             committed: processed.final_text.clone(),
                                             tentative: String::new(),
+                                            // The final preview shows the
+                                            // finished text; no deletion to
+                                            // report.
+                                            deleted: None,
                                         }
                                         .emit(&ah);
                                     } else {

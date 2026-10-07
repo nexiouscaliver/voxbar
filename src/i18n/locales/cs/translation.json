@@ -829,7 +829,8 @@
   },
   "overlay": {
     "transcribing": "Přepisuji...",
-    "processing": "Zpracovávám..."
+    "processing": "Zpracovávám...",
+    "removedWord": "Odebráno: {{text}}"
   },
   "whatsNew": {
     "title": "Novinky v VoxBar v{{version}}"

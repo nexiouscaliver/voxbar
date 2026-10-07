@@ -1344,7 +1344,12 @@ kind?: StreamWorkKind | null }
  * `committed` is the append-only, flicker-free prefix; `tentative` is the
  * volatile suffix the model may still rewrite.
  */
-export type StreamTextEvent = { committed: string; tentative: string }
+export type StreamTextEvent = { committed: string; tentative: string;
+/**
+ * Present only when a buffer-side deletion just removed text; the payload
+ * omits the key entirely otherwise.
+ */
+deleted?: string | null }
 /**
  * Semantic kind of "working" phase, used to localize the spinner label.
  */

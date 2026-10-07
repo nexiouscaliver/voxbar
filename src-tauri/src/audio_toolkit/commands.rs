@@ -48,7 +48,9 @@
 //! dropped rather than kept, because here the transcript is a program, not
 //! prose.
 
-use super::text::{remove_trailing_line_from_buffer, remove_trailing_word_from_buffer};
+use super::text::{
+    remove_trailing_line_from_buffer_reporting, remove_trailing_word_from_buffer_reporting,
+};
 
 /// One parsed command-mode action, in transcript order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -321,7 +323,13 @@ fn is_coalescible_symbol(text: &str) -> bool {
 /// `Undo` and `Paste` act on the TARGET APP and are deliberately ignored
 /// here: no keystroke is injected mid-dictation (see the module docs). A
 /// blank or wholly unrecognized delta edits nothing.
-pub fn apply_command_delta_to_buffer(buffer: &mut String, delta: &str) {
+///
+/// Returns the text removed by the buffer-side DELETION actions in this
+/// delta (`DeleteWord` / `DeleteLine`; multiple removals join with a
+/// single space), or `None` when nothing was deleted, so the caller can
+/// surface it on the next stream-text event ("Removed:" chip).
+pub fn apply_command_delta_to_buffer(buffer: &mut String, delta: &str) -> Option<String> {
+    let mut removed: Option<String> = None;
     for action in parse_command_transcript(delta) {
         match action {
             CommandAction::Insert(text) => {
@@ -338,13 +346,31 @@ pub fn apply_command_delta_to_buffer(buffer: &mut String, delta: &str) {
                 buffer.push_str(text);
             }
             CommandAction::DeleteWord => {
-                *buffer = remove_trailing_word_from_buffer(buffer)
+                let (next, word) = remove_trailing_word_from_buffer_reporting(buffer);
+                *buffer = next;
+                record_removal(&mut removed, word);
             }
             CommandAction::DeleteLine => {
-                *buffer = remove_trailing_line_from_buffer(buffer)
+                let (next, line) = remove_trailing_line_from_buffer_reporting(buffer);
+                *buffer = next;
+                record_removal(&mut removed, line);
             }
             // Target-app actions: inert during a live session.
             CommandAction::Undo | CommandAction::Paste => {}
+        }
+    }
+    removed
+}
+
+/// Accumulates one deletion's removed text into the delta's running report.
+fn record_removal(removed: &mut Option<String>, text: Option<String>) {
+    if let Some(text) = text {
+        match removed {
+            Some(existing) => {
+                existing.push(' ');
+                existing.push_str(&text);
+            }
+            None => *removed = Some(text),
         }
     }
 }

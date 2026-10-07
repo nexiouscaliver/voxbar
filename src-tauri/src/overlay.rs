@@ -653,6 +653,9 @@ pub fn show_final_preview_overlay(app_handle: &AppHandle, final_text: &str) {
         let _ = crate::managers::transcription::StreamTextEvent {
             committed: text,
             tentative: String::new(),
+            // The batch final preview shows the finished text; no deletion
+            // to report.
+            deleted: None,
         }
         .emit(&handle);
     });
