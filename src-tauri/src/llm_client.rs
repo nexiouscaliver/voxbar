@@ -143,11 +143,11 @@ fn build_headers(provider: &PostProcessProvider, api_key: &str) -> Result<Header
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
     headers.insert(
         REFERER,
-        HeaderValue::from_static("https://github.com/cjpais/Handy"),
+        HeaderValue::from_static("https://github.com/nexiouscaliver/voxbar"),
     );
     headers.insert(
         USER_AGENT,
-        HeaderValue::from_static("Handy/1.0 (+https://github.com/cjpais/Handy)"),
+        HeaderValue::from_static("VoxBar/1.0 (+https://github.com/nexiouscaliver/voxbar)"),
     );
     headers.insert("X-Title", HeaderValue::from_static("VoxBar"));
 
@@ -722,11 +722,25 @@ mod tests {
 
     #[test]
     fn outbound_headers_identify_the_app_as_voxbar() {
-        // X-Title is sent to user-configured LLM providers (OpenRouter et al.)
-        // to attribute traffic; it must carry the product name, not the fork's
-        // upstream name.
+        // Identity headers are sent to user-configured LLM providers
+        // (OpenRouter et al.) to attribute traffic; they must carry the
+        // product's own name and repo, not the fork's upstream.
         let headers = build_headers(&provider("custom", "http://localhost:11434/v1"), "").unwrap();
         assert_eq!(headers.get("x-title").unwrap(), "VoxBar");
+        assert_eq!(
+            headers.get(REFERER).unwrap(),
+            "https://github.com/nexiouscaliver/voxbar"
+        );
+        assert_eq!(
+            headers.get(USER_AGENT).unwrap(),
+            "VoxBar/1.0 (+https://github.com/nexiouscaliver/voxbar)"
+        );
+        assert!(!headers
+            .get(USER_AGENT)
+            .unwrap()
+            .to_str()
+            .unwrap()
+            .contains("Handy"));
     }
 
     #[test]

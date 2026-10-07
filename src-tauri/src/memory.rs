@@ -74,9 +74,10 @@ pub const DEFAULT_HEADROOM_BYTES: u64 = 1536 * 1024 * 1024;
 ///   kernel can reclaim. FALLBACK: on this app's actual target machine
 ///   (macOS 26 / darwin 25.6) `os_proc_available_memory()` was measured
 ///   returning 0 for ordinary processes (verified from plain C, outside any
-///   sandbox, this session), so a zero reading falls back to the plan's
-///   free+inactive+purgeable+speculative `host_statistics64` sum instead of
-///   poisoning the gate with "0 bytes free".
+///   sandbox, this session), so a zero reading falls back to the calibrated
+///   free+speculative+purgeable `host_statistics64` sum (see
+///   [`fallback_page_bytes`]) instead of poisoning the gate with
+///   "0 bytes free".
 /// - Linux: `/proc/meminfo` `MemAvailable` (the kernel's own reclaim
 ///   estimate).
 /// - Windows: `GlobalMemoryStatusEx` `ullAvailPhys`.
@@ -117,10 +118,30 @@ pub fn available_memory_bytes() -> Option<u64> {
     }
 }
 
-/// macOS fallback probe: the kernel's reclaimable page sum from
-/// `host_statistics64` (free + inactive + purgeable + speculative), in
-/// bytes. Slightly generous by design — it counts pages the kernel can
-/// reclaim under pressure, and the gate's headroom absorbs the optimism.
+/// The pure page-sum at the heart of the macOS fallback probe:
+/// free + speculative + purgeable, deliberately EXCLUDING inactive pages.
+///
+/// Calibration on the target machine (see `probe_calibration_snapshot`)
+/// measured the previous free+inactive+purgeable+speculative sum at 4.82x
+/// the sysctl ground truth: inactive pages (~4 GiB on a 24 GiB box) are
+/// cached data the kernel reclaims only slowly under real pressure, so
+/// counting them made the memory gate and the RAM auto-fallback wildly
+/// optimistic — the fallback would almost never fire even with RAM
+/// genuinely low. This composition matches the harness's ground truth
+/// (`vm.page_free_count` + `vm.page_speculative_count` + purgeable, x page
+/// size). `vm_statistics64` does carry `purgeable_count`, so it is counted;
+/// had it been missing, the correct degradation is free+speculative only —
+/// never a silent reintroduction of inactive.
+#[cfg(target_os = "macos")]
+fn fallback_page_bytes(vm: &libc::vm_statistics64, page_size: u64) -> u64 {
+    (vm.free_count as u64 + vm.speculative_count as u64 + vm.purgeable_count as u64)
+        .saturating_mul(page_size)
+}
+
+/// macOS fallback probe: available RAM from `host_statistics64`, in bytes —
+/// [`fallback_page_bytes`] over the kernel's page counters. Conservative by
+/// design (inactive pages are NOT counted as available); the gate's headroom
+/// absorbs the remaining optimism from speculative/purgeable pages.
 #[cfg(target_os = "macos")]
 fn host_statistics_available() -> Option<u64> {
     use libc::{
@@ -144,11 +165,7 @@ fn host_statistics_available() -> Option<u64> {
         return None;
     }
     let page = unsafe { libc::sysconf(libc::_SC_PAGESIZE) } as u64;
-    let pages = vm.free_count as u64
-        + vm.inactive_count as u64
-        + vm.purgeable_count as u64
-        + vm.speculative_count as u64;
-    Some(pages.saturating_mul(page))
+    Some(fallback_page_bytes(&vm, page))
 }
 
 #[cfg(target_os = "macos")]
@@ -500,6 +517,36 @@ mod tests {
         );
     }
 
+    /// Fixture test for [`fallback_page_bytes`]: the composition is
+    /// free + speculative + purgeable and inactive is excluded (see the
+    /// function's doc for the calibration rationale).
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_fallback_page_sum_excludes_inactive_pages() {
+        let mut vm: libc::vm_statistics64_data_t = unsafe { std::mem::zeroed() };
+        vm.free_count = 1_000;
+        vm.speculative_count = 200;
+        vm.purgeable_count = 50;
+        // The over-counted category: 5x everything else combined. Counting it
+        // was the 4.82x calibration error.
+        vm.inactive_count = 5_000;
+
+        let page = 16_384_u64;
+        assert_eq!(
+            fallback_page_bytes(&vm, page),
+            (1_000 + 200 + 50) * page,
+            "must count free + speculative + purgeable"
+        );
+        assert_ne!(
+            fallback_page_bytes(&vm, page),
+            (1_000 + 200 + 50 + 5_000) * page,
+            "inactive pages must NOT be counted as available"
+        );
+        // Zeroed counters (fresh boot edge) saturate to 0, never panic.
+        let empty: libc::vm_statistics64_data_t = unsafe { std::mem::zeroed() };
+        assert_eq!(fallback_page_bytes(&empty, page), 0);
+    }
+
     /// Helper: candidate with an id, rank, and footprint.
     fn cand(id: &str, rank: u32, footprint_bytes: u64) -> FallbackCandidate {
         FallbackCandidate {
@@ -533,8 +580,9 @@ mod tests {
     ///
     /// On this app's target machine `os_proc_available_memory()` returns 0, so
     /// every live memory decision uses the `host_statistics64` fallback
-    /// (free + inactive + purgeable + speculative), whose absolute accuracy
-    /// was never measured. Run it explicitly on the live box with:
+    /// (free + speculative + purgeable; inactive pages were dropped after
+    /// this harness measured them at 4.82x the sysctl ground truth). Run it
+    /// explicitly on the live box with:
     ///
     /// ```text
     /// cargo test --lib -- memory::tests::probe_calibration_snapshot --ignored --nocapture
@@ -578,7 +626,7 @@ mod tests {
             );
             match host_statistics_available() {
                 Some(bytes) => println!(
-                    "host_statistics64 fallback: {bytes} ({}) [free+inactive+purgeable+speculative]",
+                    "host_statistics64 fallback: {bytes} ({}) [free+speculative+purgeable]",
                     mib(bytes)
                 ),
                 None => println!("host_statistics64 fallback: None"),
@@ -600,12 +648,16 @@ mod tests {
             );
 
             if let (Some(free), Some(speculative)) = (free, speculative) {
-                // vm.page_purgeable_count is not exposed as a sysctl on every
-                // macOS version (absent on macOS 26, measured); count it as
-                // zero and say so rather than skipping the measurement.
+                // vm.page_purgeable_count cannot be read via sysctl(3) on
+                // every macOS version: on macOS 26 sysctlbyname fails with
+                // ENOMEM for a 4-byte buffer and returns 0 for an 8-byte one
+                // (measured), even though the sysctl CLI reports a value —
+                // the counter is effectively unmeasurable from this process.
+                // Count it as zero and say so rather than skipping the
+                // measurement.
                 let purgeable_pages = purgeable.unwrap_or(0);
                 if purgeable.is_none() {
-                    println!("note: vm.page_purgeable_count sysctl unavailable; treated as 0");
+                    println!("note: vm.page_purgeable_count sysctl unreadable here; ground truth treated as 0");
                 }
                 let ground = (free + speculative + purgeable_pages).saturating_mul(page);
                 println!(
@@ -621,6 +673,14 @@ mod tests {
                             delta_bytes as f64 / MIB
                         );
                         println!("ratio (probe / ground truth): {ratio:.3}");
+                        if purgeable.is_none() {
+                            println!(
+                                "note: the probe still counts purgeable pages (from the \
+                                 vm_statistics64 struct), which this ground truth cannot \
+                                 measure here — expect the delta to equal the probe's \
+                                 purgeable component, NOT an inactive over-count"
+                            );
+                        }
                     } else {
                         println!("ground truth is zero; ratio undefined");
                     }
