@@ -1651,14 +1651,17 @@ impl TranscriptionManager {
 
         // The session buffer goes live before the engine stream starts, so
         // no interim callback can race past `begin`. Toggles are captured
-        // here (once per session), matching `PreviewScript`.
+        // here (once per session), matching `PreviewScript`. The
+        // auto-interpretation master gate ANDs with the per-pass toggles
+        // (same composition as post_process_transcription_text) so the
+        // interim display matches the paste.
         self.session_buffer
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .begin(
                 preview_script,
-                settings.spoken_punctuation,
-                settings.voice_deletion_commands,
+                settings.spoken_punctuation && settings.auto_interpret_commands,
+                settings.voice_deletion_commands && settings.auto_interpret_commands,
                 &languages,
             );
 
@@ -2602,8 +2605,11 @@ fn post_process_transcription_text(
         // Spoken punctuation first, then voice deletion, then the terminal
         // fallback, so the custom-word pass and every later stage see final
         // wording and punctuation. Each pass is independently toggleable;
-        // off reproduces today's behavior.
-        let punctuated = if settings.spoken_punctuation {
+        // off reproduces today's behavior. The auto-interpretation master
+        // gate ANDs with the per-pass toggles in NORMAL dictation only;
+        // OFF leaves command words as plain words (the command-mode
+        // modifier is a separate surface and stays untouched).
+        let punctuated = if settings.spoken_punctuation && settings.auto_interpret_commands {
             normalize_spoken_punctuation(&raw)
         } else {
             raw
@@ -2614,7 +2620,7 @@ fn post_process_transcription_text(
         // terminal fallback. A "delete everything" command short-circuits
         // every later pass: the dictation pastes nothing (the paste site
         // already skips empty text).
-        let deleted = if settings.voice_deletion_commands {
+        let deleted = if settings.voice_deletion_commands && settings.auto_interpret_commands {
             apply_voice_deletion(&punctuated)
         } else {
             VoiceDeletionOutcome {
@@ -3815,6 +3821,41 @@ mod tests {
         assert_eq!(
             post_process_transcription_text(raw, &neither, false, &en, &supported),
             "hello comma ChargeBee"
+        );
+    }
+
+    /// The auto-interpretation master gate OFF leaves spoken command words
+    /// as plain text in normal dictation: with both per-pass toggles ON and
+    /// the terminal pass disabled (it is NOT gated by this toggle), the
+    /// input survives the FULL pipeline verbatim; with the terminal pass
+    /// left at its default ON the same input gains only the trailing
+    /// period, proving the OFF gate touches nothing else. With the gate at
+    /// its default ON, the conversion pins above run today's behavior.
+    #[test]
+    fn auto_interpret_commands_off_types_command_words_as_plain_words() {
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+        let raw = "hello comma scratch that world".to_string();
+
+        let gate_off = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            auto_interpret_commands: false,
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(raw.clone(), &gate_off, false, &en, &supported),
+            "hello comma scratch that world"
+        );
+
+        let gate_off_terminal_on = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            auto_interpret_commands: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(raw, &gate_off_terminal_on, false, &en, &supported),
+            "hello comma scratch that world."
         );
     }
 

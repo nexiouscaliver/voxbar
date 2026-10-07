@@ -477,6 +477,10 @@
         "title": "Elimina les falques",
         "description": "Elimina les expressions de vacil·lació habituals de les transcripcions. Desactiveu aquesta opció per conservar-les."
       },
+      "autoInterpret": {
+        "title": "Interpreta ordres automàticament",
+        "description": "Interpreta les paraules d'ordre dites (\"comma\", \"scratch that\") durant el dictat normal. Desactiveu-ho per escriure-les com a paraules normals; manteniu premut el modificador del mode d'ordres per executar ordres."
+      },
       "spokenPunctuation": {
         "title": "Puntuació parlada",
         "description": "Converteix paraules de puntuació dites com \"comma\", \"period\" i \"question mark\" en puntuació real. Desactiveu-ho per mantenir-les com a paraules normals."

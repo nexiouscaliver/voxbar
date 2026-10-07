@@ -477,6 +477,10 @@
         "title": "Hapus Kata Pengisi",
         "description": "Menghapus kata pengisi umum dari transkripsi. Nonaktifkan untuk mempertahankannya."
       },
+      "autoInterpret": {
+        "title": "Interpretasi Otomatis Perintah",
+        "description": "Mengartikan kata perintah yang diucapkan (\"comma\", \"scratch that\") selama dikte normal. Matikan untuk mengetik kata perintah sebagai kata biasa; tahan modifier mode perintah untuk menjalankan perintah."
+      },
       "spokenPunctuation": {
         "title": "Tanda baca lisan",
         "description": "Mengubah kata tanda baca yang diucapkan seperti \"comma\", \"period\", dan \"question mark\" menjadi tanda baca sungguhan. Matikan untuk membiarkannya sebagai kata biasa."

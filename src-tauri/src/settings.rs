@@ -589,6 +589,13 @@ pub struct AppSettings {
     /// correction.
     #[serde(default = "default_spoken_punctuation")]
     pub spoken_punctuation: bool,
+    /// Master gate over the two spoken-command passes in NORMAL dictation
+    /// (spoken punctuation and voice deletion): ON is exactly today's
+    /// behavior; OFF leaves command words as plain transcribed words. The
+    /// command-mode modifier is a separate surface and is NOT gated by
+    /// this toggle.
+    #[serde(default = "default_auto_interpret_commands")]
+    pub auto_interpret_commands: bool,
     /// Ensure every transcript ends with terminal punctuation: "?" when the
     /// first word is an interrogative, otherwise ".".
     #[serde(default = "default_terminal_punctuation")]
@@ -722,6 +729,10 @@ fn default_filler_word_removal_enabled() -> bool {
 }
 
 fn default_spoken_punctuation() -> bool {
+    true
+}
+
+fn default_auto_interpret_commands() -> bool {
     true
 }
 
@@ -1228,6 +1239,7 @@ pub fn get_default_settings() -> AppSettings {
         filler_word_removal_enabled: default_filler_word_removal_enabled(),
         custom_filler_words: None,
         spoken_punctuation: default_spoken_punctuation(),
+        auto_interpret_commands: default_auto_interpret_commands(),
         terminal_punctuation: default_terminal_punctuation(),
         voice_deletion_commands: default_voice_deletion_commands(),
         preview_before_paste: default_preview_before_paste(),
@@ -1764,6 +1776,7 @@ mod tests {
         assert!(!settings.audio_feedback);
         assert!(settings.filler_word_removal_enabled);
         assert!(settings.spoken_punctuation);
+        assert!(settings.auto_interpret_commands);
         assert!(settings.terminal_punctuation);
         assert!(settings.voice_deletion_commands);
         assert!(settings.preview_before_paste);
@@ -1822,6 +1835,27 @@ mod tests {
         assert!(legacy.undo_enabled);
         assert!(legacy.command_mode_enabled);
         assert!(!legacy.voice_deletion_commands);
+    }
+
+    /// The auto-interpretation master gate defaults ON (today's behavior),
+    /// survives a store round-trip in both directions, and a partial store
+    /// that predates the toggle falls back to ON.
+    #[test]
+    fn auto_interpret_commands_defaults_on_and_round_trips() {
+        assert!(get_default_settings().auto_interpret_commands);
+
+        let mut settings = get_default_settings();
+        settings.auto_interpret_commands = false;
+        let json = serde_json::to_value(&settings).unwrap();
+        let reloaded: AppSettings = serde_json::from_value(json).unwrap();
+        assert!(!reloaded.auto_interpret_commands);
+
+        let legacy: AppSettings = serde_json::from_value(serde_json::json!({
+            "spoken_punctuation": false
+        }))
+        .unwrap();
+        assert!(legacy.auto_interpret_commands);
+        assert!(!legacy.spoken_punctuation);
     }
 
     /// Frozen snapshot of a real v0.9.0-era settings store, as written to

@@ -477,6 +477,10 @@
         "title": "Loại bỏ từ đệm",
         "description": "Loại bỏ các từ ngập ngừng phổ biến khỏi bản chép lời. Tắt để giữ lại các từ này."
       },
+      "autoInterpret": {
+        "title": "Tự động diễn giải lệnh",
+        "description": "Diễn giải các từ lệnh được nói (\"comma\", \"scratch that\") trong quá trình đọc chính tả thông thường. Tắt để gõ các từ lệnh như từ thông thường; giữ phím bổ trợ của chế độ lệnh để thực thi lệnh."
+      },
       "spokenPunctuation": {
         "title": "Dấu câu bằng lời",
         "description": "Chuyển các từ dấu câu được nói như \"comma\", \"period\" và \"question mark\" thành dấu câu thật. Tắt để giữ chúng là từ thường."

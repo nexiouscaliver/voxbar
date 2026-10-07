@@ -477,6 +477,10 @@
         "title": "移除語助詞",
         "description": "從轉錄中移除常見的語助詞。關閉此選項即可保留這些詞。"
       },
+      "autoInterpret": {
+        "title": "自動解析命令詞",
+        "description": "在一般聽寫時解析說出的命令詞（如 \"comma\"、\"scratch that\"）。關閉後命令詞將按普通文字輸入；按住命令模式修飾鍵可執行命令。"
+      },
       "spokenPunctuation": {
         "title": "語音標點",
         "description": "將 \"comma\"、\"period\"、\"question mark\" 等口述的標點詞轉換為真實標點。關閉後保留為一般文字。"

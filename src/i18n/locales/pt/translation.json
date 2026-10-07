@@ -477,6 +477,10 @@
         "title": "Remover palavras de preenchimento",
         "description": "Remove hesitações comuns das transcrições. Desative para mantê-las."
       },
+      "autoInterpret": {
+        "title": "Interpretar comandos automaticamente",
+        "description": "Interpreta palavras de comando faladas (\"comma\", \"scratch that\") durante o ditado normal. Desative para digitá-las como palavras comuns; mantenha pressionado o modificador do modo de comandos para executar comandos."
+      },
       "spokenPunctuation": {
         "title": "Pontuação falada",
         "description": "Transforma palavras de pontuação faladas como \"comma\", \"period\" e \"question mark\" em pontuação real. Desative para mantê-las como palavras comuns."

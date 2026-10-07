@@ -477,6 +477,10 @@
         "title": "Opvulwoorden verwijderen",
         "description": "Verwijdert veelvoorkomende aarzelwoorden uit transcripties. Schakel dit uit om ze te behouden."
       },
+      "autoInterpret": {
+        "title": "Opdrachten automatisch interpreteren",
+        "description": "Interpreteert gesproken opdrachtwoorden (\"comma\", \"scratch that\") tijdens normaal dicteren. Zet uit om opdrachtwoorden als gewone woorden te typen; houd de modifier van de opdrachtmodus ingedrukt om opdrachten uit te voeren."
+      },
       "spokenPunctuation": {
         "title": "Gesproken interpunctie",
         "description": "Zet gesproken interpunctiewoorden zoals \"comma\", \"period\" en \"question mark\" om in echte interpunctie. Zet uit om ze als gewone woorden te behouden."

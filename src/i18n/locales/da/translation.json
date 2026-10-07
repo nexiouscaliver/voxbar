@@ -477,6 +477,10 @@
         "title": "Fjern fyldord",
         "description": "Fjerner almindelige tøveord fra transskriptioner. Slå fra for at beholde dem."
       },
+      "autoInterpret": {
+        "title": "Fortolk kommandoer automatisk",
+        "description": "Fortolker talte kommandoord (\"comma\", \"scratch that\") under normal diktering. Slå fra for at skrive kommandoord som almindelige ord; hold kommandotilstands-modifikatoren nede for at udføre kommandoer."
+      },
       "spokenPunctuation": {
         "title": "Talt tegnsætning",
         "description": "Ændrer talte tegnsætningsord som \"comma\", \"period\" og \"question mark\" til rigtig tegnsætning. Slå fra for at beholde dem som almindelige ord."

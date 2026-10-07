@@ -477,6 +477,10 @@
         "title": "Ta bort utfyllnadsord",
         "description": "Tar bort vanliga tvekljud från transkriberingar. Stäng av för att behålla dem."
       },
+      "autoInterpret": {
+        "title": "Tolka kommandon automatiskt",
+        "description": "Tolkar talade kommandon (\"comma\", \"scratch that\") under normal diktering. Stäng av för att skriva kommandon som vanliga ord; håll kommandolägesmodifieraren intryckt för att utföra kommandon."
+      },
       "spokenPunctuation": {
         "title": "Talad interpunktion",
         "description": "Omvanlar talade interpunktionsord som \"comma\", \"period\" och \"question mark\" till riktig interpunktion. Stäng av för att behålla dem som vanliga ord."

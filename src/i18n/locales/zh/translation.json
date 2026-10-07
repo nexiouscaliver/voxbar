@@ -477,6 +477,10 @@
         "title": "移除语气词",
         "description": "从转录中移除常见的语气词。关闭此选项即可保留这些词。"
       },
+      "autoInterpret": {
+        "title": "自动解析命令词",
+        "description": "在普通听写时解析说出的命令词（如 \"comma\"、\"scratch that\"）。关闭后命令词将按普通文字输入；按住命令模式修饰键可执行命令。"
+      },
       "spokenPunctuation": {
         "title": "语音标点",
         "description": "将 \"comma\"、\"period\"、\"question mark\" 等口述的标点词转换为真实标点。关闭后保留为普通文字。"
