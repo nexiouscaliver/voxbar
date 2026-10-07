@@ -20,8 +20,10 @@ for my own daily use on macOS.
   downloaded instead of failing the dictation.
 - The tray menu shows which model is resident and how much RAM it uses.
 - Unload timers to free RAM after idle, including a custom duration.
-- Command mode: a second, assignable trigger that turns one dictation into a
-  command (for example, asking an assistant to run something).
+- Command mode: a second, assignable trigger whose transcript is executed as
+  editing commands: punctuation ("comma", "period", "question mark"), "new line",
+  "delete word", "delete line", "undo", and "paste". Unrecognized words are
+  discarded, so nothing unrecognized is ever sent to the target app.
 - Spoken punctuation ("comma", "period") and spoken deletion passes ("scratch
   that", "delete everything").
 - Assignable delete-last-word and undo hotkeys to fix dictation mistakes

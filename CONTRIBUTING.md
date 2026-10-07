@@ -126,9 +126,9 @@ We use GitHub Discussions for feature requests rather than issues. This keeps is
 ### Before Suggesting a Feature
 
 1. **Search existing discussions** at [github.com/nexiouscaliver/voxbar/discussions](https://github.com/nexiouscaliver/voxbar/discussions)
-2. **Check common feature requests**:
-   - [Post-processing / Editing Transcripts](https://github.com/nexiouscaliver/voxbar/discussions/168)
-   - [Keyboard Shortcuts / Hotkeys](https://github.com/nexiouscaliver/voxbar/discussions/211)
+2. **Check common feature requests** (upstream Handy threads):
+   - [Post-processing / Editing Transcripts](https://github.com/cjpais/Handy/discussions/168)
+   - [Keyboard Shortcuts / Hotkeys](https://github.com/cjpais/Handy/discussions/211)
 
 ### Submitting a Feature Request
 

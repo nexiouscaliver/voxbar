@@ -44,7 +44,7 @@ export interface AccentDefinition {
 export type ThemeName = "light" | "dark";
 
 export const DEFAULT_ACCENT_ID = "pink";
-export const ACCENT_STORAGE_KEY = "handy.accent";
+export const ACCENT_STORAGE_KEY = "voxbar.accent";
 
 /*
  * Fixed palette. Light render colors sit at Tailwind 600/700 depth (white
