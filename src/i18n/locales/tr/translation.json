@@ -454,6 +454,10 @@
         "title": "Son noktalama",
         "description": "Her transkripti noktalama ile bitirir: sorular için soru işareti, aksi halde nokta. Sonu transkript edildiği gibi bırakmak için kapatın."
       },
+      "voiceDeletion": {
+        "title": "Sesli silme komutları",
+        "description": "\"scratch that\", \"delete that\" ve \"remove that\" önceki kelimeyi siler, \"delete last three words\" birkaç kelimeyi siler, \"delete everything\" veya \"start over\" dikteyi temizler. Sıradan kelime olarak bırakmak için kapatın."
+      },
       "chineseScript": {
         "title": "Çince yazı",
         "description": "Mandarin ve Kantonca transkripsiyonları Basitleştirilmiş veya Geleneksel karakterlerle yazar. Diğer diller değiştirilmez.",

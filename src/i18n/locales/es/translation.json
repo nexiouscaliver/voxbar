@@ -454,6 +454,10 @@
         "title": "Puntuación final",
         "description": "Termina cada transcripción con puntuación: signo de interrogación para preguntas y punto en los demás casos. Desactívalo para dejar el final tal como se transcribió."
       },
+      "voiceDeletion": {
+        "title": "Comandos de borrado por voz",
+        "description": "\"scratch that\", \"delete that\" y \"remove that\" borran la palabra anterior, \"delete last three words\" borra varias, y \"delete everything\" o \"start over\" borra el dictado. Desactívalo para mantenerlas como palabras normales."
+      },
       "chineseScript": {
         "title": "Escritura china",
         "description": "Escribe las transcripciones en mandarín y cantonés con caracteres simplificados o tradicionales. Los demás idiomas no se modifican.",

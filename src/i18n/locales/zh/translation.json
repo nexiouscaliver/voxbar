@@ -454,6 +454,10 @@
         "title": "句末标点",
         "description": "为每段转写文字补上结尾标点：疑问句用问号，其他用句号。关闭后按原样保留。"
       },
+      "voiceDeletion": {
+        "title": "语音删除命令",
+        "description": "\"scratch that\"、\"delete that\"、\"remove that\" 删除上一个词，\"delete last three words\" 删除多个词，\"delete everything\" 或 \"start over\" 清空整段听写。关闭后保留为普通文字。"
+      },
       "chineseScript": {
         "title": "简繁转换",
         "description": "将普通话和粤语转录输出为简体或繁体中文。其他语言不受影响。",

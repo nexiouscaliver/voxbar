@@ -196,6 +196,8 @@ const settingUpdaters: {
     commands.changeSpokenPunctuationSetting(value as boolean),
   terminal_punctuation: (value) =>
     commands.changeTerminalPunctuationSetting(value as boolean),
+  voice_deletion_commands: (value) =>
+    commands.changeVoiceDeletionCommandsSetting(value as boolean),
   chinese_script: (value) =>
     commands.changeChineseScriptSetting(value as ChineseScript),
   show_tray_icon: (value) =>

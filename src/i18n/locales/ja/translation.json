@@ -454,6 +454,10 @@
         "title": "文末句読点",
         "description": "すべての文字起こしを句読点で終えます。疑問文には疑問符、その他にはピリオドを付けます。オフにすると起こし結果のままになります。"
       },
+      "voiceDeletion": {
+        "title": "音声削除コマンド",
+        "description": "\"scratch that\"、\"delete that\"、\"remove that\" は直前の単語を削除し、\"delete last three words\" は複数の単語を削除し、\"delete everything\" または \"start over\" でディテーション全体を消去します。オフにすると通常の単語のまま残ります。"
+      },
       "chineseScript": {
         "title": "中国語の表記",
         "description": "北京語と広東語の文字起こしを簡体字または繁体字で出力します。他の言語は変更されません。",

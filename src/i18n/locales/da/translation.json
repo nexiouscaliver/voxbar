@@ -454,6 +454,10 @@
         "title": "Afsluttende tegnsætning",
         "description": "Afslutter hver transskription med tegnsætning: spørgsmålstegn ved spørgsmål, ellers et punktum. Slå fra for at lade slutningen stå som transskriberet."
       },
+      "voiceDeletion": {
+        "title": "Talekommandoer til sletning",
+        "description": "\"scratch that\", \"delete that\" og \"remove that\" sletter det forrige ord, \"delete last three words\" sletter flere, og \"delete everything\" eller \"start over\" rydder dikteringen. Slå fra for at beholde dem som almindelige ord."
+      },
       "chineseScript": {
         "title": "Kinesisk skrift",
         "description": "Skriver mandarin- og kantonesisk-transskriptioner med forenklede eller traditionelle tegn. Andre sprog ændres ikke.",

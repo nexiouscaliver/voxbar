@@ -587,6 +587,11 @@ pub struct AppSettings {
     /// first word is an interrogative, otherwise ".".
     #[serde(default = "default_terminal_punctuation")]
     pub terminal_punctuation: bool,
+    /// Voice deletion commands: "scratch that" / "delete that" remove the
+    /// preceding word, "delete last N words" removes several, and "delete
+    /// everything" / "start over" clears the transcription.
+    #[serde(default = "default_voice_deletion_commands")]
+    pub voice_deletion_commands: bool,
     /// Fresh installs default from the OS locale; existing stores are migrated
     /// in `apply_settings_migrations`.
     #[serde(default)]
@@ -691,6 +696,10 @@ fn default_spoken_punctuation() -> bool {
 }
 
 fn default_terminal_punctuation() -> bool {
+    true
+}
+
+fn default_voice_deletion_commands() -> bool {
     true
 }
 
@@ -1119,6 +1128,7 @@ pub fn get_default_settings() -> AppSettings {
         custom_filler_words: None,
         spoken_punctuation: default_spoken_punctuation(),
         terminal_punctuation: default_terminal_punctuation(),
+        voice_deletion_commands: default_voice_deletion_commands(),
         chinese_script: default_chinese_script(),
         transcribe_accelerator: TranscribeAcceleratorSetting::default(),
         ort_accelerator: OrtAcceleratorSetting::default(),
@@ -1635,6 +1645,7 @@ mod tests {
         assert!(settings.filler_word_removal_enabled);
         assert!(settings.spoken_punctuation);
         assert!(settings.terminal_punctuation);
+        assert!(settings.voice_deletion_commands);
         // Bindings default to empty; the load path merges the real defaults in.
         assert!(settings.bindings.is_empty());
     }

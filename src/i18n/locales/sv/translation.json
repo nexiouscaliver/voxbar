@@ -454,6 +454,10 @@
         "title": "Slutinterpunktion",
         "description": "Avslutar varje transkription med interpunktion: frågetecken för frågor, annars en punkt. Stäng av för att lämna slutet som det transkriberades."
       },
+      "voiceDeletion": {
+        "title": "Röstkommandon för borttagning",
+        "description": "\"scratch that\", \"delete that\" och \"remove that\" tar bort föregående ord, \"delete last three words\" tar bort flera, och \"delete everything\" eller \"start over\" rensar dikteringen. Stäng av för att behålla dem som vanliga ord."
+      },
       "chineseScript": {
         "title": "Kinesisk skrift",
         "description": "Skriver mandarin- och kantonesiska transkriptioner med förenklade eller traditionella tecken. Andra språk lämnas oförändrade.",

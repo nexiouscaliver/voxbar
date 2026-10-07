@@ -454,6 +454,10 @@
         "title": "문장 끝 부호",
         "description": "모든 전사가 문장부호로 끝나도록 합니다. 의문문에는 물음표, 그 외에는 마침표를 추가합니다. 끄면 전사된 그대로 끝납니다."
       },
+      "voiceDeletion": {
+        "title": "음성 삭제 명령",
+        "description": "\"scratch that\", \"delete that\", \"remove that\"은 바로 앞 단어를 지우고, \"delete last three words\"는 여러 단어를 지우며, \"delete everything\" 또는 \"start over\"는 받아쓰기를 모두 지웁니다. 끄면 일반 단어로 남습니다."
+      },
       "chineseScript": {
         "title": "중국어 간체/번체",
         "description": "표준 중국어와 광둥어 전사를 간체 또는 번체로 표기합니다. 다른 언어는 변경되지 않습니다.",

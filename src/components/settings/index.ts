@@ -28,6 +28,7 @@ export { PostProcessingSettingsPrompts } from "./PostProcessingSettingsPrompts";
 export { FillerWordRemoval } from "./FillerWordRemoval";
 export { SpokenPunctuation } from "./SpokenPunctuation";
 export { TerminalPunctuation } from "./TerminalPunctuation";
+export { VoiceDeletionCommands } from "./VoiceDeletionCommands";
 export { ChineseScriptSetting } from "./ChineseScript";
 export { AppDataDirectory } from "./AppDataDirectory";
 export { ModelUnloadTimeoutSetting } from "./ModelUnloadTimeout";

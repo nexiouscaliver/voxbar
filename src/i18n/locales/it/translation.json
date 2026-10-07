@@ -454,6 +454,10 @@
         "title": "Punteggiatura finale",
         "description": "Termina ogni trascrizione con la punteggiatura: punto interrogativo per le domande, altrimenti un punto. Disattiva per lasciare la fine come trascritta."
       },
+      "voiceDeletion": {
+        "title": "Comandi di eliminazione vocale",
+        "description": "\"scratch that\", \"delete that\" e \"remove that\" eliminano la parola precedente, \"delete last three words\" ne elimina diverse, e \"delete everything\" o \"start over\" cancella la dettatura. Disattiva per mantenerle come parole normali."
+      },
       "chineseScript": {
         "title": "Scrittura cinese",
         "description": "Scrive le trascrizioni in mandarino e cantonese con caratteri semplificati o tradizionali. Le altre lingue restano invariate.",

@@ -658,6 +658,174 @@ pub fn apply_terminal_punctuation(text: &str) -> String {
     format!("{trimmed}{mark}")
 }
 
+/// Outcome of applying voice deletion commands to a transcript.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct VoiceDeletionOutcome {
+    /// The text with every matched command consumed and its deletion applied.
+    pub text: String,
+    /// True when a "delete everything" style command discarded the whole
+    /// transcript (including anything spoken after the command). The pipeline
+    /// then skips every later text pass and pastes nothing.
+    pub cleared: bool,
+}
+
+/// Matches the voice deletion vocabulary. Word-boundary anchored and
+/// case-insensitive like the spoken-punctuation pattern, so nothing fires
+/// inside a larger word ("deleted", "underscratch") and phrases always match
+/// whole. The digit form accepts 1 through 10 only; "delete last 0 words" and
+/// "delete last 99 words" are not commands and stay verbatim.
+static VOICE_DELETION_PATTERN: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(concat!(
+        r"(?i)\b(?:",
+        "delete everything|scratch everything|start over|",
+        "scratch that|delete that|remove that|",
+        "delete last (?:one word|word|two words|three words|four words|five words|",
+        "six words|seven words|eight words|nine words|ten words|(?:[1-9]|10) words?)",
+        r")\b"
+    ))
+    .unwrap()
+});
+
+/// Commands that discard the entire transcript.
+fn is_clear_everything_command(phrase: &str) -> bool {
+    matches!(
+        phrase,
+        "delete everything" | "scratch everything" | "start over"
+    )
+}
+
+/// Word count for a matched "delete last <count> words" command. The pattern
+/// guarantees the count token is one of the accepted forms.
+fn voice_deletion_word_count(phrase: &str) -> usize {
+    let count_word = phrase.split_whitespace().nth(2).unwrap_or_default();
+    if let Ok(number) = count_word.parse::<usize>() {
+        return number;
+    }
+    match count_word {
+        "word" | "one" => 1,
+        "two" => 2,
+        "three" => 3,
+        "four" => 4,
+        "five" => 5,
+        "six" => 6,
+        "seven" => 7,
+        "eight" => 8,
+        "nine" => 9,
+        _ => 10,
+    }
+}
+
+/// Removes the last `count` whitespace-delimited words from the end of
+/// `text`, deleting fewer when the text runs out. A word is any trailing
+/// non-whitespace run, so attached punctuation ("world.") is removed with
+/// its word.
+fn remove_trailing_words(text: &mut String, count: usize) {
+    for _ in 0..count {
+        while text.ends_with(char::is_whitespace) {
+            text.pop();
+        }
+        if text.is_empty() {
+            return;
+        }
+        while !text.ends_with(char::is_whitespace) {
+            text.pop();
+            if text.is_empty() {
+                return;
+            }
+        }
+    }
+}
+
+/// Appends a span of untouched text. While `pending_space` is set (a deletion
+/// just removed the preceding word), leading spaces/tabs are dropped and a
+/// single separating space is inserted, so deletions collapse doubled spaces.
+fn push_deletion_span(
+    kept: &mut String,
+    span: &str,
+    pending_space: &mut bool,
+    capital_owed: &mut bool,
+) {
+    if !*pending_space {
+        push_restoring_capital(kept, span, capital_owed);
+        return;
+    }
+
+    let trimmed = span.trim_start_matches([' ', '\t']);
+    if trimmed.is_empty() {
+        // Whitespace only: the separation is still owed to the next span.
+        return;
+    }
+    if !kept.is_empty() && !kept.ends_with('\n') && !trimmed.starts_with('\n') {
+        kept.push(' ');
+    }
+    *pending_space = false;
+    push_restoring_capital(kept, trimmed, capital_owed);
+}
+
+/// Applies voice deletion commands to already-punctuated transcript text.
+///
+/// "scratch that", "delete that" and "remove that" delete the preceding word
+/// (the command is consumed even when no word precedes it); "delete last
+/// word" through "delete last ten words", including digit forms like
+/// "delete last 3 words", delete that many preceding words; "delete
+/// everything", "scratch everything" and "start over" discard the whole
+/// transcript and set [`VoiceDeletionOutcome::cleared`]. Commands apply
+/// left to right, each seeing the result of the previous one.
+///
+/// After a deletion the next word is capitalized when it lands at a sentence
+/// start (nothing kept yet, or the kept text ends a sentence). Text without
+/// any command is preserved byte-for-byte except that leading spaces/tabs
+/// left behind by a command consumed at the very start are trimmed.
+pub fn apply_voice_deletion(text: &str) -> VoiceDeletionOutcome {
+    let mut kept = String::with_capacity(text.len());
+    let mut resume = 0;
+    let mut capital_owed = false;
+    // Set by each deletion: the next span joins with exactly one space.
+    let mut pending_space = false;
+
+    for command in VOICE_DELETION_PATTERN.find_iter(text) {
+        let phrase = command.as_str().to_lowercase();
+
+        if is_clear_everything_command(&phrase) {
+            return VoiceDeletionOutcome {
+                text: String::new(),
+                cleared: true,
+            };
+        }
+
+        push_deletion_span(
+            &mut kept,
+            &text[resume..command.start()],
+            &mut pending_space,
+            &mut capital_owed,
+        );
+
+        let count = if phrase.starts_with("delete last") {
+            voice_deletion_word_count(&phrase)
+        } else {
+            1
+        };
+        remove_trailing_words(&mut kept, count);
+        trim_trailing_spaces(&mut kept);
+        pending_space = true;
+        capital_owed |= opens_sentence(&kept);
+        resume = command.end();
+    }
+
+    let tail = &text[resume..];
+    if pending_space {
+        let mut pending = true;
+        push_deletion_span(&mut kept, tail, &mut pending, &mut capital_owed);
+    } else {
+        push_restoring_capital(&mut kept, tail, &mut capital_owed);
+    }
+
+    VoiceDeletionOutcome {
+        text: kept.trim_start_matches([' ', '\t']).to_string(),
+        cleared: false,
+    }
+}
+
 /// Applies non-filler transcription cleanup.
 ///
 /// Kept separate from [`remove_filler_words`] so disabling filler deletion
@@ -1265,5 +1433,144 @@ mod tests {
         assert_eq!(apply_terminal_punctuation("   "), "   ");
         // Existing terminal punctuation with trailing whitespace is left alone.
         assert_eq!(apply_terminal_punctuation("done! "), "done! ");
+    }
+
+    #[test]
+    fn test_voice_deletion_word_commands() {
+        for command in ["scratch that", "delete that", "remove that"] {
+            let result = apply_voice_deletion(&format!("hello world {command}"));
+            assert_eq!(result.text, "hello", "command: {command}");
+            assert!(!result.cleared, "command: {command}");
+        }
+    }
+
+    #[test]
+    fn test_voice_deletion_case_insensitive_and_word_boundaries() {
+        assert_eq!(
+            apply_voice_deletion("Hello World SCRATCH THAT").text,
+            "Hello"
+        );
+        // Nothing fires inside larger words, on near-misses, or on digit
+        // counts outside 1-10.
+        for text in [
+            "he deleted that file",
+            "underscratch that",
+            "scratch thatch",
+            "removal that",
+            "delete lasting words",
+            "delete last 0 words",
+            "delete last 99 words",
+        ] {
+            let result = apply_voice_deletion(text);
+            assert_eq!(result.text, text, "text: {text}");
+            assert!(!result.cleared, "text: {text}");
+        }
+    }
+
+    #[test]
+    fn test_voice_deletion_counted_forms() {
+        assert_eq!(apply_voice_deletion("a b c delete last word").text, "a b");
+        assert_eq!(
+            apply_voice_deletion("a b c delete last one word").text,
+            "a b"
+        );
+        // Word forms and digit forms delete the same words.
+        let base = "one two three four five six seven eight nine ten";
+        let words: Vec<&str> = base.split(' ').collect();
+        for (word_form, count) in [("two", 2), ("three", 3), ("ten", 10)] {
+            let expected = words[..words.len() - count].join(" ");
+            let spoken = format!("{base} delete last {word_form} words");
+            assert_eq!(
+                apply_voice_deletion(&spoken).text,
+                expected,
+                "form: {word_form}"
+            );
+            let digits = format!("{base} delete last {count} words");
+            assert_eq!(
+                apply_voice_deletion(&digits).text,
+                expected,
+                "digit count: {count}"
+            );
+        }
+        // Requesting more words than remain deletes all of them.
+        assert_eq!(apply_voice_deletion("a b delete last ten words").text, "");
+    }
+
+    #[test]
+    fn test_voice_deletion_everything_commands_clear() {
+        for command in ["delete everything", "scratch everything", "start over"] {
+            let result = apply_voice_deletion(&format!("hello world {command} trailing words"));
+            assert_eq!(result.text, "", "command: {command}");
+            assert!(result.cleared, "command: {command}");
+        }
+    }
+
+    #[test]
+    fn test_voice_deletion_no_preceding_word_still_consumes() {
+        let result = apply_voice_deletion("scratch that hello there");
+        assert_eq!(result.text, "Hello there");
+        assert!(!result.cleared);
+
+        let empty = apply_voice_deletion("");
+        assert_eq!(empty.text, "");
+        assert!(!empty.cleared);
+    }
+
+    #[test]
+    fn test_voice_deletion_capital_and_spacing_after_deletion() {
+        // A word landing at a sentence start after a deletion is capitalized.
+        assert_eq!(
+            apply_voice_deletion("One. Two scratch that three").text,
+            "One. Three"
+        );
+        // Mid-sentence deletions do not capitalize.
+        assert_eq!(
+            apply_voice_deletion("hello world scratch that there").text,
+            "hello there"
+        );
+        // Deletions collapse doubled spaces around the join point.
+        assert_eq!(apply_voice_deletion("a  b   scratch that   c").text, "a c");
+    }
+
+    #[test]
+    fn test_voice_deletion_commands_chain_left_to_right() {
+        assert_eq!(
+            apply_voice_deletion("a b c scratch that delete that").text,
+            "a"
+        );
+        assert_eq!(
+            apply_voice_deletion("a b c delete last two words scratch that").text,
+            ""
+        );
+        // Word-by-word deletion down to empty does not set the cleared flag.
+        let emptied = apply_voice_deletion("a b scratch that scratch that");
+        assert_eq!(emptied.text, "");
+        assert!(!emptied.cleared);
+    }
+
+    #[test]
+    fn test_voice_deletion_preserves_layout_without_commands() {
+        let result = apply_voice_deletion("first line\nsecond line");
+        assert_eq!(result.text, "first line\nsecond line");
+        assert!(!result.cleared);
+
+        assert_eq!(
+            apply_voice_deletion("already, punctuated. Text!").text,
+            "already, punctuated. Text!"
+        );
+    }
+
+    #[test]
+    fn test_voice_deletion_consumes_punctuated_word_tokens() {
+        // The pass runs after the spoken-punctuation normalizer, so deleted
+        // words carry their attached punctuation with them.
+        assert_eq!(
+            apply_voice_deletion("hello, world scratch that").text,
+            "hello,"
+        );
+        assert_eq!(
+            apply_voice_deletion("Done. World delete that next").text,
+            "Done. Next"
+        );
     }
 }

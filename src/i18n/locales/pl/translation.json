@@ -454,6 +454,10 @@
         "title": "Interpunkcja końcowa",
         "description": "Kończy każdą transkrypcję interpunkcją: znakiem zapytania przy pytaniach, w przeciwnym razie kropką. Wyłącz, aby zostawić koniec zgodnie z transkrypcją."
       },
+      "voiceDeletion": {
+        "title": "Głosowe polecenia usuwania",
+        "description": "\"scratch that\", \"delete that\" i \"remove that\" usuwają poprzednie słowo, \"delete last three words\" usuwa kilka słów, a \"delete everything\" lub \"start over\" czyści dyktando. Wyłącz, aby zachować je jako zwykłe słowa."
+      },
       "chineseScript": {
         "title": "Pismo chińskie",
         "description": "Zapisuje transkrypcje w języku mandaryńskim i kantońskim znakami uproszczonymi lub tradycyjnymi. Inne języki pozostają bez zmian.",

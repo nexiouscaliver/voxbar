@@ -1,7 +1,7 @@
 use crate::audio_toolkit::{
-    apply_custom_words, apply_terminal_punctuation, detect_output_language,
+    apply_custom_words, apply_terminal_punctuation, apply_voice_deletion, detect_output_language,
     normalize_spoken_punctuation, normalize_transcription_output, remove_filler_words,
-    OutputLanguageEvidence,
+    OutputLanguageEvidence, VoiceDeletionOutcome,
 };
 use crate::chinese_script::{convert_chinese_script, ChineseVariety};
 use crate::engine_supervisor::{
@@ -2008,18 +2008,38 @@ fn post_process_transcription_text(
             _ => raw,
         };
 
-        // Spoken punctuation first, then the terminal fallback, so the
-        // custom-word pass and every later stage see final punctuation. Each
-        // pass is independently toggleable; off reproduces today's behavior.
+        // Spoken punctuation first, then voice deletion, then the terminal
+        // fallback, so the custom-word pass and every later stage see final
+        // wording and punctuation. Each pass is independently toggleable;
+        // off reproduces today's behavior.
         let punctuated = if settings.spoken_punctuation {
             normalize_spoken_punctuation(&raw)
         } else {
             raw
         };
-        let punctuated = if settings.terminal_punctuation {
-            apply_terminal_punctuation(&punctuated)
+
+        // Voice deletion runs after punctuation insertion (so "hello comma
+        // scratch that" deletes the punctuated word "hello,") and before the
+        // terminal fallback. A "delete everything" command short-circuits
+        // every later pass: the dictation pastes nothing (the paste site
+        // already skips empty text).
+        let deleted = if settings.voice_deletion_commands {
+            apply_voice_deletion(&punctuated)
         } else {
-            punctuated
+            VoiceDeletionOutcome {
+                text: punctuated,
+                cleared: false,
+            }
+        };
+        if deleted.cleared {
+            info!("Voice deletion command cleared the transcription; skipping the remaining text passes");
+            return String::new();
+        }
+
+        let punctuated = if settings.terminal_punctuation {
+            apply_terminal_punctuation(&deleted.text)
+        } else {
+            deleted.text
         };
 
         let corrected = if !settings.custom_words.is_empty() && !custom_words_already_prompted {
@@ -2660,13 +2680,14 @@ mod tests {
         assert_eq!(result, "eu vi um carro");
     }
 
-    fn punctuation_pipeline_settings(spoken: bool, terminal: bool) -> AppSettings {
+    fn text_pipeline_settings(spoken: bool, terminal: bool, deletion: bool) -> AppSettings {
         AppSettings {
             chinese_script: ChineseScript::AsTranscribed,
             custom_words: vec!["ChargeBee".to_string()],
             word_correction_threshold: 0.5,
             spoken_punctuation: spoken,
             terminal_punctuation: terminal,
+            voice_deletion_commands: deletion,
             ..Default::default()
         }
     }
@@ -2678,7 +2699,7 @@ mod tests {
     /// custom words -> filler/normalize cleanup.
     #[test]
     fn punctuation_passes_compose_in_the_specified_order() {
-        let settings = punctuation_pipeline_settings(true, true);
+        let settings = text_pipeline_settings(true, true, true);
 
         let result = post_process_transcription_text(
             "hello full stop charge b".to_string(),
@@ -2707,21 +2728,21 @@ mod tests {
         let raw = "hello comma charge b".to_string();
 
         // Spoken punctuation only: comma inserted, no terminal period.
-        let spoken_only = punctuation_pipeline_settings(true, false);
+        let spoken_only = text_pipeline_settings(true, false, true);
         assert_eq!(
             post_process_transcription_text(raw.clone(), &spoken_only, false, &en, &supported),
             "hello, ChargeBee"
         );
 
         // Terminal fallback only: period appended, spoken token untouched.
-        let terminal_only = punctuation_pipeline_settings(false, true);
+        let terminal_only = text_pipeline_settings(false, true, true);
         assert_eq!(
             post_process_transcription_text(raw.clone(), &terminal_only, false, &en, &supported),
             "hello comma ChargeBee."
         );
 
         // Both on.
-        let both = punctuation_pipeline_settings(true, true);
+        let both = text_pipeline_settings(true, true, true);
         assert_eq!(
             post_process_transcription_text(raw.clone(), &both, false, &en, &supported),
             "hello, ChargeBee."
@@ -2729,11 +2750,112 @@ mod tests {
 
         // Both off: byte-for-byte the pre-punctuation pipeline (dictionary,
         // filler removal, normalization, and nothing else).
-        let neither = punctuation_pipeline_settings(false, false);
+        let neither = text_pipeline_settings(false, false, false);
         assert_eq!(
             post_process_transcription_text(raw, &neither, false, &en, &supported),
             "hello comma ChargeBee"
         );
+    }
+
+    /// Voice deletion sits between the punctuation passes and the dictionary:
+    /// it sees punctuated word tokens ("hello,"), the terminal fallback's
+    /// interrogative check sees the post-deletion wording, and the dictionary
+    /// sees the post-deletion words (a pre-deletion "charge b" would have
+    /// fuzzy-matched the custom word).
+    #[test]
+    fn voice_deletion_sits_between_punctuation_and_dictionary() {
+        let settings = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            custom_words: vec!["ChargeBee".to_string()],
+            ..Default::default()
+        };
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+
+        // "hello," is deleted as one word, leaving nothing for the terminal
+        // fallback to punctuate.
+        let emptied = post_process_transcription_text(
+            "hello comma scratch that".to_string(),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(emptied, "");
+
+        // The question mark proves the interrogative check ran after the
+        // deletion removed "this".
+        let question = post_process_transcription_text(
+            "what is this scratch that".to_string(),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(question, "what is?");
+
+        // "charge b" never reaches the dictionary intact: the deletion
+        // removes "b" first and "charge" alone stays below the default
+        // correction threshold.
+        let partial = post_process_transcription_text(
+            "hello comma charge b scratch that".to_string(),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(partial, "hello, charge.");
+    }
+
+    /// A "delete everything" command short-circuits the terminal fallback,
+    /// the dictionary, and cleanup: the result is exactly empty, with no
+    /// appended punctuation and no custom-word substitution.
+    #[test]
+    fn voice_deletion_cleared_short_circuits_later_passes() {
+        let settings = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            custom_words: vec!["ChargeBee".to_string()],
+            ..Default::default()
+        };
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+
+        let cleared = post_process_transcription_text(
+            "what time is it delete everything".to_string(),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(cleared, "");
+
+        // Everything after the command is discarded too.
+        let restarted = post_process_transcription_text(
+            "one two three start over four five".to_string(),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(restarted, "");
+    }
+
+    /// Toggling voice deletion off leaves the command words in the text,
+    /// byte-for-byte the pre-deletion pipeline.
+    #[test]
+    fn voice_deletion_toggle_off_preserves_command_words() {
+        let settings = text_pipeline_settings(true, true, false);
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+
+        let result = post_process_transcription_text(
+            "hello scratch that world".to_string(),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(result, "hello scratch that world.");
     }
 
     #[test]

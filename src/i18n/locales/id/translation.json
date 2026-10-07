@@ -454,6 +454,10 @@
         "title": "Tanda baca akhir",
         "description": "Mengakhiri setiap transkripsi dengan tanda baca: tanda tanya untuk pertanyaan, jika tidak titik. Matikan untuk membiarkan akhiran sesuai transkripsi."
       },
+      "voiceDeletion": {
+        "title": "Perintah penghapusan suara",
+        "description": "\"scratch that\", \"delete that\", dan \"remove that\" menghapus kata sebelumnya, \"delete last three words\" menghapus beberapa kata, dan \"delete everything\" atau \"start over\" mengosongkan dikte. Matikan untuk membiarkannya sebagai kata biasa."
+      },
       "chineseScript": {
         "title": "Aksara Tionghoa",
         "description": "Menulis transkripsi Mandarin dan Kanton dengan aksara Sederhana atau Tradisional. Bahasa lain tidak diubah.",
