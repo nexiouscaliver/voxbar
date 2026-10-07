@@ -3523,6 +3523,54 @@ mod tests {
         );
     }
 
+    /// Spoken "new line" must survive the FULL finalize pipeline, not just the
+    /// spoken-punctuation pass: the custom-words stage runs on the DEFAULT
+    /// configuration (the dictionary seed is non-empty out of the box) and
+    /// used to flatten the break with its whitespace-token rebuild. Terminal
+    /// punctuation is off to isolate the newline outcome.
+    #[test]
+    fn newline_phrase_survives_the_full_pipeline_including_custom_words() {
+        let settings = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+
+        let result = post_process_transcription_text(
+            "line one new line line two".to_string(),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(result, "line one\nline two");
+    }
+
+    /// A trailing "new line" keeps its final break through the whole
+    /// pipeline under the same settings (the whitespace cleanup retains a
+    /// trailing newline run instead of trimming it away).
+    #[test]
+    fn trailing_newline_phrase_keeps_its_break_through_the_pipeline() {
+        let settings = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+
+        let result = post_process_transcription_text(
+            "line one new line".to_string(),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(result, "line one\n");
+    }
+
     /// Voice deletion sits between the punctuation passes and the dictionary:
     /// it sees punctuated word tokens ("hello,"), the terminal fallback's
     /// interrogative check sees the post-deletion wording, and the dictionary

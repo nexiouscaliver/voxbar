@@ -267,6 +267,10 @@
   /* Bottom-anchor the text when it's shorter than the viewport, avoiding the
      justify-content:flex-end overflow bug that makes the top unscrollable. */
   margin: auto 0 0;
+  /* Render "\n" in the payload as a real line break; break-word keeps an
+     unbroken long token from overflowing the card. */
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 .stext-cap .tentative {
   color: inherit;
