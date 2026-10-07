@@ -11,6 +11,7 @@ mod clipboard;
 mod commands;
 pub mod engine_supervisor;
 mod helpers;
+mod hindi_script;
 mod input;
 mod legacy_migration;
 mod llm_client;

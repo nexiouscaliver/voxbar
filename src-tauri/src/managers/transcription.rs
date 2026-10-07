@@ -16,7 +16,9 @@ use crate::engine_supervisor::{
     StreamProgress, Unloading,
 };
 use crate::managers::audio::AudioRecordingManager;
-use crate::managers::model::{EngineType, ModelInfo, ModelManager, ModelSource};
+use crate::managers::model::{
+    canonical_language_code, EngineType, ModelInfo, ModelManager, ModelSource,
+};
 use crate::memory;
 use crate::settings::{
     get_settings, AppSettings, ChineseScript, ModelUnloadTimeout, OrtAcceleratorSetting,
@@ -92,10 +94,28 @@ fn fallback_rank(info: &ModelInfo) -> u32 {
 fn fallback_candidate_list(
     models: &[ModelInfo],
     failed_id: &str,
+    language_intent: &str,
 ) -> Vec<memory::FallbackCandidate> {
+    // Language-aware (spec F7): when the intent is concrete and not
+    // English, only candidates serving the intent's base code are
+    // offered. A silent swap to a wrong-language model would effectively
+    // translate the dictation; with no downloaded candidate both fitting
+    // RAM and serving the language, the gate's existing Refuse path
+    // stands.
+    let intent_base = canonical_language_code(language_intent);
+    let language_gated =
+        !language_intent.is_empty() && language_intent != "auto" && intent_base != "en";
     models
         .iter()
-        .filter(|info| info.is_downloaded && info.id != failed_id)
+        .filter(|info| {
+            info.is_downloaded
+                && info.id != failed_id
+                && (!language_gated
+                    || info
+                        .supported_languages
+                        .iter()
+                        .any(|lang| canonical_language_code(lang) == intent_base))
+        })
         .map(|info| memory::FallbackCandidate {
             rank: fallback_rank(info),
             footprint_bytes: info.size_mb.saturating_mul(1024 * 1024),
@@ -329,6 +349,10 @@ struct StreamSessionBuffer {
     /// table when `command_phrases` is set, the shared defaults
     /// otherwise). Per-tick cost is a clone of an Arc; no regex rebuilds.
     matrix: Arc<CompiledCommandMatrix>,
+    /// Captured at `begin` from `selected_language == "hi-Latn"`: the
+    /// interim display transliterates Devanagari to Roman so the overlay
+    /// matches the paste (the finalize pipeline does the same).
+    hinglish: bool,
     /// Toggles for the interim display transform, captured when the stream
     /// begins (a mid-session toggle applies from the next session, matching
     /// how `PreviewScript` captures `chinese_script` today).
@@ -349,6 +373,7 @@ impl Default for StreamSessionBuffer {
             holding: false,
             last_deleted: None,
             matrix: crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            hinglish: false,
             spoken_punctuation: true,
             voice_deletion: true,
             preview_script: PreviewScript::new(
@@ -371,6 +396,7 @@ impl StreamSessionBuffer {
         voice_deletion: bool,
         supported_languages: &[String],
         matrix: Arc<CompiledCommandMatrix>,
+        hinglish: bool,
     ) {
         self.live = true;
         self.command_active = false;
@@ -381,6 +407,7 @@ impl StreamSessionBuffer {
         self.preview_script = preview_script;
         self.supported_languages = supported_languages.to_vec();
         self.matrix = matrix;
+        self.hinglish = hinglish;
         self.base.clear();
         self.raw_seen.clear();
         self.last_full.clear();
@@ -475,10 +502,23 @@ impl StreamSessionBuffer {
         } else {
             self.command_active = false;
         }
+        self.interim_display()
+    }
+
+    /// The interim display string for the combined raw buffer: script
+    /// conversion, then Hinglish transliteration (Devanagari to Roman,
+    /// captured at `begin` from the "hi-Latn" intent so the overlay
+    /// matches the paste), then the interim text passes.
+    fn interim_display(&mut self) -> String {
         let raw = self.combine(&self.last_full);
         let (converted, _) = self
             .preview_script
             .convert(&raw, "", &self.supported_languages);
+        let converted = if self.hinglish {
+            crate::hindi_script::transliterate_devanagari_to_roman(&converted)
+        } else {
+            converted
+        };
         interim_display_transform(
             &converted,
             self.spoken_punctuation,
@@ -531,16 +571,7 @@ impl StreamSessionBuffer {
         // The held region (if any) is consumed unparsed; a stale marker
         // must never fire a later flush.
         self.holding = false;
-        let raw = self.combine(&self.last_full);
-        let (converted, _) = self
-            .preview_script
-            .convert(&raw, "", &self.supported_languages);
-        Some(interim_display_transform(
-            &converted,
-            self.spoken_punctuation,
-            self.voice_deletion,
-            &self.matrix,
-        ))
+        Some(self.interim_display())
     }
 
     /// Clear everything dictated so far, keeping the session live: the
@@ -560,16 +591,7 @@ impl StreamSessionBuffer {
         // word/line deletions, so nothing is reported as removed.
         self.holding = false;
         self.last_deleted = None;
-        let raw = self.combine(&self.last_full);
-        let (converted, _) = self
-            .preview_script
-            .convert(&raw, "", &self.supported_languages);
-        Some(interim_display_transform(
-            &converted,
-            self.spoken_punctuation,
-            self.voice_deletion,
-            &self.matrix,
-        ))
+        Some(self.interim_display())
     }
 
     /// Fold the engine's final raw text into the buffer and end the session.
@@ -940,7 +962,12 @@ impl TranscriptionManager {
     /// compares. Nothing is ever downloaded for this list: it only inventories
     /// what is already on disk.
     fn fallback_candidates(&self, failed_id: &str) -> Vec<memory::FallbackCandidate> {
-        fallback_candidate_list(&self.model_manager.get_available_models(), failed_id)
+        let language_intent = get_settings(&self.app_handle).selected_language;
+        fallback_candidate_list(
+            &self.model_manager.get_available_models(),
+            failed_id,
+            &language_intent,
+        )
     }
 
     /// Accelerator changes should not disturb the current transcription. Mark
@@ -1685,6 +1712,7 @@ impl TranscriptionManager {
                 settings.voice_deletion_commands && settings.auto_interpret_commands,
                 &languages,
                 matrix_from_settings(&settings),
+                settings.selected_language == "hi-Latn",
             );
 
         // Run the stream in the engine's worker process. Feeds are queued
@@ -2508,8 +2536,8 @@ fn resolve_output_language_evidence(
     if let Some(language) = applied_language_hint.filter(|lang| !lang.is_empty() && *lang != "auto")
     {
         if settings.selected_language != "auto"
-            && crate::managers::model::canonical_language_code(&settings.selected_language)
-                == crate::managers::model::canonical_language_code(language)
+            && canonical_language_code(&settings.selected_language)
+                == canonical_language_code(language)
         {
             return OutputLanguageEvidence::UserSelected(language.to_string());
         }
@@ -2626,6 +2654,17 @@ fn post_process_transcription_text(
                 convert_chinese_script(&raw, variety, settings.chinese_script)
             }
             _ => raw,
+        };
+
+        // Hinglish (selected_language "hi-Latn") expresses a SCRIPT intent:
+        // the model still yields Devanagari, so transliterate to Roman
+        // before every text pass. This is script conversion (the same class
+        // as the Chinese slot above), never translation, and it only runs
+        // when the intent explicitly selects it.
+        let raw = if settings.selected_language == "hi-Latn" {
+            crate::hindi_script::transliterate_devanagari_to_roman(&raw)
+        } else {
+            raw
         };
 
         // Spoken punctuation first, then voice deletion, then the terminal
@@ -3078,6 +3117,7 @@ mod tests {
             true,
             &languages(&["en"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            false,
         );
         buffer
     }
@@ -3517,6 +3557,7 @@ mod tests {
             true,
             &languages(&["en"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            false,
         );
         assert!(!session.command_active);
         assert_eq!(session.render("hello there", "", false), "hello there");
@@ -3887,6 +3928,89 @@ mod tests {
         );
     }
 
+    // -----------------------------------------------------------------
+    // Hinglish (selected_language "hi-Latn"): Devanagari output is
+    // transliterated to Roman, interim and final alike; script
+    // conversion, never translation.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn hinglish_post_process_transliterates_only_for_the_latin_intent() {
+        let hi = OutputLanguageEvidence::UserSelected("hi".to_string());
+        let supported = languages(&["hi"]);
+
+        let hinglish = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            selected_language: "hi-Latn".to_string(),
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(
+                "नमस्ते दिल्ली".to_string(),
+                &hinglish,
+                false,
+                &hi,
+                &supported,
+            ),
+            "namaste dillee"
+        );
+
+        // Without the intent the Devanagari passes through untouched.
+        let devanagari = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(
+                "नमस्ते दिल्ली".to_string(),
+                &devanagari,
+                false,
+                &hi,
+                &supported,
+            ),
+            "नमस्ते दिल्ली"
+        );
+    }
+
+    #[test]
+    fn hinglish_interim_render_matches_the_paste() {
+        let mut session = StreamSessionBuffer::default();
+        session.begin(
+            PreviewScript::new(
+                ChineseScript::AsTranscribed,
+                &OutputLanguageEvidence::UserSelected("hi".to_string()),
+            ),
+            true,
+            true,
+            &languages(&["hi"]),
+            crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            true,
+        );
+        // The overlay shows Roman while speaking...
+        assert_eq!(session.render("नमस्ते", "", false), "namaste");
+        assert_eq!(session.render("नमस्ते दिल्ली", "", false), "namaste dillee");
+        // ...and the finalize pipeline pastes the same words.
+        let final_raw = session.combine_final("नमस्ते दिल्ली".to_string());
+        let settings = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            selected_language: "hi-Latn".to_string(),
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(
+                final_raw,
+                &settings,
+                false,
+                &OutputLanguageEvidence::UserSelected("hi".to_string()),
+                &languages(&["hi"]),
+            ),
+            "namaste dillee"
+        );
+    }
+
     /// Spoken "new line" must survive the FULL finalize pipeline, not just the
     /// spoken-punctuation pass: the custom-words stage runs on the DEFAULT
     /// configuration (the dictionary seed is non-empty out of the box) and
@@ -4188,7 +4312,7 @@ mod tests {
             not_downloaded,
         ];
 
-        let candidates = fallback_candidate_list(&models, "selected");
+        let candidates = fallback_candidate_list(&models, "selected", "auto");
 
         // Exactly the downloaded models other than the failed one, custom and
         // user-added included.
@@ -4223,7 +4347,7 @@ mod tests {
             "model-Q8_0.gguf",
             700,
         );
-        let candidates = fallback_candidate_list(&[added], "selected");
+        let candidates = fallback_candidate_list(&[added], "selected", "auto");
 
         // Plenty free: the user-added model is selected.
         assert_eq!(
@@ -4248,7 +4372,7 @@ mod tests {
             "model-Q8_0.gguf",
             700,
         );
-        let candidates = fallback_candidate_list(&[added.clone(), catalog.clone()], "selected");
+        let candidates = fallback_candidate_list(&[added.clone(), catalog.clone()], "selected", "auto");
 
         // Both fit, the ranked catalog entry wins...
         assert_eq!(
@@ -4264,12 +4388,95 @@ mod tests {
         huge.size_mb = 1; // small: always fits
         let mut huge_catalog = catalog.clone();
         huge_catalog.size_mb = 16 * 1024; // 16 GiB: never fits below
-        let forced = fallback_candidate_list(&[huge_catalog, huge], "selected");
+        let forced = fallback_candidate_list(&[huge_catalog, huge], "selected", "auto");
         assert_eq!(
             memory::resolve_fallback_model(Some(8 * GIB), &forced, "selected")
                 .map(|c| c.id.as_str()),
             Some("org/custom-asr/model-Q8_0.gguf")
         );
+    }
+
+    #[test]
+    fn language_aware_fallback_refuses_rather_than_swapping_languages() {
+        const GIB: u64 = 1024 * 1024 * 1024;
+        // The failed model is the downloaded Hindi model; the only other
+        // downloaded candidate is English-only.
+        let mut hi_model = model_info_for("hi-model", 4000, true);
+        hi_model.supported_languages = vec!["hi".to_string()];
+        let mut en_model = model_info_for("en-model", 100, true);
+        en_model.supported_languages = vec!["en".to_string()];
+
+        let candidates =
+            fallback_candidate_list(&[hi_model.clone(), en_model.clone()], "hi-model", "hi");
+        assert!(
+            candidates.is_empty(),
+            "an English-only model must never be offered for a Hindi intent"
+        );
+
+        // Nothing fits the language: the gate refuses instead of swapping
+        // (decide_memory_gate itself is unchanged; the empty candidate
+        // list drives the Refuse).
+        let decision = decide_memory_gate(
+            true,
+            true,
+            true,
+            Some(2 * GIB),
+            5 * GIB,
+            || candidates,
+            "hi-model",
+        );
+        assert_eq!(decision, MemoryGateDecision::Refuse);
+
+        // A downloaded Hindi-capable candidate that fits IS offered.
+        let mut hi_fallback = model_info_for("hi-small", 100, true);
+        hi_fallback.supported_languages = vec!["en".to_string(), "hi".to_string()];
+        let candidates = fallback_candidate_list(
+            &[hi_model, en_model, hi_fallback],
+            "hi-model",
+            "hi",
+        );
+        let decision = decide_memory_gate(
+            true,
+            true,
+            true,
+            Some(2 * GIB),
+            5 * GIB,
+            || candidates,
+            "hi-model",
+        );
+        assert_eq!(decision, MemoryGateDecision::Fallback("hi-small".to_string()));
+    }
+
+    #[test]
+    fn auto_intent_fallback_candidates_behave_as_before() {
+        let mut en_model = model_info_for("en-model", 100, true);
+        en_model.supported_languages = vec!["en".to_string()];
+        let mut hi_model = model_info_for("hi-model", 100, true);
+        hi_model.supported_languages = vec!["hi".to_string()];
+
+        // auto (and empty) intents offer every downloaded candidate,
+        // exactly as before the language filter existed.
+        assert_eq!(
+            fallback_candidate_list(&[en_model.clone(), hi_model.clone()], "selected", "auto")
+                .len(),
+            2
+        );
+        assert_eq!(
+            fallback_candidate_list(&[en_model.clone(), hi_model.clone()], "selected", "").len(),
+            2
+        );
+        // English intents are not gated either.
+        assert_eq!(
+            fallback_candidate_list(&[en_model.clone(), hi_model.clone()], "selected", "en").len(),
+            2
+        );
+        // The script subtag base-matches: "hi-Latn" gates like "hi".
+        let gated: Vec<String> =
+            fallback_candidate_list(&[en_model, hi_model], "selected", "hi-Latn")
+                .into_iter()
+                .map(|c| c.id)
+                .collect();
+        assert_eq!(gated, vec!["hi-model".to_string()]);
     }
 
     // --- Toggle wiring for the memory gate -----------------------------------
