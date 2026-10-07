@@ -136,8 +136,8 @@ pub enum OverlayStyle {
 pub enum ModelUnloadTimeout {
     Never,
     Immediately,
-    Min2,
     #[default]
+    Min2,
     Min5,
     Min10,
     Min15,
@@ -1280,6 +1280,21 @@ pub fn get_recording_retention_period(app: &AppHandle) -> RecordingRetentionPeri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn model_unload_timeout_default_is_min2_and_round_trips_wire_string() {
+        // Fresh installs default to a 2-minute unload timeout (spec F2);
+        // stored settings are untouched — a stored "min5" still parses, as
+        // the frozen v0.9 fixture below asserts.
+        assert_eq!(ModelUnloadTimeout::default(), ModelUnloadTimeout::Min2);
+        // Wire format is snake_case; the frontend sends "min2"-style values
+        // (ModelUnloadTimeout.tsx). Mind the trap: the generated TS bindings
+        // mislabel wire strings — assert against the real serde output.
+        let wire = serde_json::to_string(&ModelUnloadTimeout::Min2).unwrap();
+        assert_eq!(wire, r#""min2""#);
+        let parsed: ModelUnloadTimeout = serde_json::from_str(r#""min2""#).unwrap();
+        assert_eq!(parsed, ModelUnloadTimeout::Min2);
+    }
 
     #[test]
     fn stored_binding_returns_the_requested_binding() {
