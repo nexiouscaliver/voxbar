@@ -303,6 +303,10 @@
         "label": "Automatische RAM-terugval",
         "description": "Als het geselecteerde model niet in het vrije geheugen past, wordt automatisch het beste gedownloade model geladen dat wel past. Zet uit om de gewone weigering te behouden."
       },
+      "menuBarModelTitle": {
+        "label": "Modeltitel in menubalk",
+        "description": "Toont het residente model en het RAM-gebruik als tekst naast het tray-pictogram (macOS-menubalk)."
+      },
       "autostart": {
         "label": "Starten bij opstarten",
         "description": "VoxBar automatisch starten zodra je inlogt op je computer."
@@ -493,7 +497,11 @@
       "retranscribeError": "Opnieuw transcriberen mislukt. Probeer het opnieuw.",
       "transcribing": "Transcriberen...",
       "transcriptionFailed": "Transcriptie mislukt. Je kunt het opnieuw proberen via het herlaad-pictogram.",
-      "model": "Transcriptiemodel"
+      "model": "Transcriptiemodel",
+      "showModel": {
+        "label": "Modelbadge tonen",
+        "description": "Toont een compacte badge met het model dat elke transcriptie heeft gemaakt."
+      }
     },
     "debug": {
       "title": "Probleemoplossing",

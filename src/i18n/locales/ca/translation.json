@@ -303,6 +303,10 @@
         "label": "Alternativa automàtica de RAM",
         "description": "Quan el model seleccionat no cap a la memòria lliure, carrega automàticament el millor model descarregat que hi cap. Desactiva per mantenir el refús simple."
       },
+      "menuBarModelTitle": {
+        "label": "Títol del model a la barra de menús",
+        "description": "Mostra el model resident i el seu ús de RAM com a text al costat de la icona de la safata (barra de menús de macOS)."
+      },
       "autostart": {
         "label": "Inicia en entrar a la sessió",
         "description": "Inicia automàticament el VoxBar quan entreu a la sessió de l'ordinador."
@@ -493,7 +497,11 @@
       "retranscribeError": "No s'ha pogut tornar a transcriure. Torneu-ho a provar.",
       "transcribing": "S'està transcrivint...",
       "transcriptionFailed": "La transcripció ha fallat. Podeu tornar a transcriure amb la icona de reintent.",
-      "model": "Model de transcripció"
+      "model": "Model de transcripció",
+      "showModel": {
+        "label": "Mostra la insígnia del model",
+        "description": "Mostra una insígnia compacta amb el model que va produir cada transcripció."
+      }
     },
     "debug": {
       "title": "Depuració",

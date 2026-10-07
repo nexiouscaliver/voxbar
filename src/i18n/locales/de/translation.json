@@ -303,6 +303,10 @@
         "label": "RAM-Auto-Fallback",
         "description": "Wenn das gewählte Modell nicht in den freien Speicher passt, wird automatisch das beste heruntergeladene passende Modell geladen. Deaktivieren für die einfache Ablehnung."
       },
+      "menuBarModelTitle": {
+        "label": "Titel in der Menüleiste",
+        "description": "Zeigt das residente Modell und seinen RAM-Verbrauch als Text neben dem Tray-Symbol (macOS-Menüleiste)."
+      },
       "autostart": {
         "label": "Beim Start ausführen",
         "description": "VoxBar automatisch beim Anmelden starten."
@@ -493,7 +497,11 @@
       "retranscribeError": "Erneute Transkription fehlgeschlagen. Bitte versuche es erneut.",
       "transcribing": "Transkribiere...",
       "transcriptionFailed": "Transkription fehlgeschlagen. Du kannst über das Wiederholen-Symbol erneut transkribieren.",
-      "model": "Transkriptionsmodell"
+      "model": "Transkriptionsmodell",
+      "showModel": {
+        "label": "Modell-Badge anzeigen",
+        "description": "Zeigt eine kompakte Plakette mit dem Modell, das jede Transkription erstellt hat."
+      }
     },
     "debug": {
       "title": "Debug",

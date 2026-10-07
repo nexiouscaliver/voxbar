@@ -507,10 +507,18 @@ pub struct AppSettings {
     /// refuse-with-toast behavior.
     #[serde(default = "default_auto_fallback")]
     pub auto_fallback: bool,
+    /// Show the resident model + compact RAM as the macOS menu-bar title
+    /// (next to the tray icon). Off never produces a title, clearing any
+    /// currently-displayed one.
+    #[serde(default = "default_menu_bar_model_title")]
+    pub menu_bar_model_title: bool,
     #[serde(default = "default_word_correction_threshold")]
     pub word_correction_threshold: f64,
     #[serde(default = "default_history_limit")]
     pub history_limit: usize,
+    /// Show the compact per-entry model badge in the History list.
+    #[serde(default = "default_show_history_model")]
+    pub show_history_model: bool,
     #[serde(default = "default_recording_retention_period")]
     pub recording_retention_period: RecordingRetentionPeriod,
     #[serde(default)]
@@ -710,6 +718,18 @@ fn default_memory_pressure_guard() -> bool {
 /// operator's preference is a transcribed dictation on a smaller
 /// already-downloaded model over a hard failure.
 fn default_auto_fallback() -> bool {
+    true
+}
+
+/// The menu-bar model title defaults ON — it is the at-a-glance loaded-state
+/// indicator this fork was built around.
+fn default_menu_bar_model_title() -> bool {
+    true
+}
+
+/// The History model badge defaults ON; the toggle exists so the (dense)
+/// history list can shed the extra chrome.
+fn default_show_history_model() -> bool {
     true
 }
 
@@ -1048,8 +1068,10 @@ pub fn get_default_settings() -> AppSettings {
         model_unload_timeout: ModelUnloadTimeout::default(),
         memory_pressure_guard: default_memory_pressure_guard(),
         auto_fallback: default_auto_fallback(),
+        menu_bar_model_title: default_menu_bar_model_title(),
         word_correction_threshold: default_word_correction_threshold(),
         history_limit: default_history_limit(),
+        show_history_model: default_show_history_model(),
         recording_retention_period: default_recording_retention_period(),
         paste_method: PasteMethod::default(),
         clipboard_handling: ClipboardHandling::default(),
@@ -1415,6 +1437,49 @@ mod tests {
         legacy.as_object_mut().unwrap().remove("auto_fallback");
         let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
         assert!(backfilled.auto_fallback);
+    }
+
+    #[test]
+    fn menu_bar_model_title_defaults_on_round_trips_and_backfills() {
+        // Default is ON for fresh installs.
+        assert!(get_default_settings().menu_bar_model_title);
+        // Serde round-trips both stored values.
+        let mut off = get_default_settings();
+        off.menu_bar_model_title = false;
+        let parsed: AppSettings =
+            serde_json::from_value(serde_json::to_value(off).unwrap()).unwrap();
+        assert!(!parsed.menu_bar_model_title);
+        let on = serde_json::to_value(get_default_settings()).unwrap();
+        let parsed: AppSettings = serde_json::from_value(on).unwrap();
+        assert!(parsed.menu_bar_model_title);
+        // Old settings JSON without the field parses to the default (true).
+        let mut legacy = serde_json::to_value(get_default_settings()).unwrap();
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .remove("menu_bar_model_title");
+        let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert!(backfilled.menu_bar_model_title);
+    }
+
+    #[test]
+    fn show_history_model_defaults_on_round_trips_and_backfills() {
+        // Default is ON for fresh installs.
+        assert!(get_default_settings().show_history_model);
+        // Serde round-trips both stored values.
+        let mut off = get_default_settings();
+        off.show_history_model = false;
+        let parsed: AppSettings =
+            serde_json::from_value(serde_json::to_value(off).unwrap()).unwrap();
+        assert!(!parsed.show_history_model);
+        let on = serde_json::to_value(get_default_settings()).unwrap();
+        let parsed: AppSettings = serde_json::from_value(on).unwrap();
+        assert!(parsed.show_history_model);
+        // Old settings JSON without the field parses to the default (true).
+        let mut legacy = serde_json::to_value(get_default_settings()).unwrap();
+        legacy.as_object_mut().unwrap().remove("show_history_model");
+        let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert!(backfilled.show_history_model);
     }
 
     #[test]

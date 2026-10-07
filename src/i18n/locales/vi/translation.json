@@ -303,6 +303,10 @@
         "label": "Tự động chuyển khi thiếu RAM",
         "description": "Khi mô hình đã chọn không vừa bộ nhớ trống, tự động tải mô hình đã tải xuống phù hợp nhất. Tắt để giữ việc từ chối đơn giản."
       },
+      "menuBarModelTitle": {
+        "label": "Tiêu đề mô hình trên thanh menu",
+        "description": "Hiển thị mô hình thường trú và mức dùng RAM dưới dạng văn bản bên cạnh biểu tượng khay (thanh menu macOS)."
+      },
       "autostart": {
         "label": "Khởi động cùng hệ thống",
         "description": "Tự động khởi động VoxBar khi bạn đăng nhập vào máy tính."
@@ -493,7 +497,11 @@
       "retranscribeError": "Không thể phiên âm lại. Vui lòng thử lại.",
       "transcribing": "Đang phiên âm...",
       "transcriptionFailed": "Phiên âm thất bại. Bạn có thể phiên âm lại bằng biểu tượng thử lại.",
-      "model": "Mô hình transcription"
+      "model": "Mô hình transcription",
+      "showModel": {
+        "label": "Hiện huy hiệu mô hình",
+        "description": "Hiển thị huy hiệu gọn gàng kèm mô hình đã tạo từng bản ghi âm."
+      }
     },
     "debug": {
       "title": "Gỡ lỗi",

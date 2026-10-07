@@ -4,6 +4,7 @@ import { ShowOverlay } from "../ShowOverlay";
 import { ModelUnloadTimeoutSetting } from "../ModelUnloadTimeout";
 import { MemoryPressureGuard } from "../MemoryPressureGuard";
 import { AutoFallback } from "../AutoFallback";
+import { MenuBarModelTitle } from "../MenuBarModelTitle";
 import { CustomWords } from "../CustomWords";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { StartHidden } from "../StartHidden";
@@ -42,6 +43,7 @@ export const AdvancedSettings: React.FC = () => {
         <ModelUnloadTimeoutSetting descriptionMode="tooltip" grouped={true} />
         <MemoryPressureGuard descriptionMode="tooltip" grouped={true} />
         <AutoFallback descriptionMode="tooltip" grouped={true} />
+        <MenuBarModelTitle descriptionMode="tooltip" grouped={true} />
         <ExperimentalToggle descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
 

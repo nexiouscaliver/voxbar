@@ -303,6 +303,10 @@
         "label": "RAM Auto-Fallback",
         "description": "When the selected model does not fit free memory, automatically load the best downloaded model that does. Turn off to keep the plain refusal."
       },
+      "menuBarModelTitle": {
+        "label": "Menu-Bar Model Title",
+        "description": "Show the resident model and its RAM footprint as text next to the tray icon (macOS menu bar)."
+      },
       "autostart": {
         "label": "Launch on Startup",
         "description": "Automatically start VoxBar when you log in to your computer."
@@ -493,7 +497,11 @@
       "retranscribeError": "Failed to re-transcribe. Please try again.",
       "transcribing": "Transcribing...",
       "transcriptionFailed": "Transcription failed. You can re-transcribe using the retry icon.",
-      "model": "Transcription model"
+      "model": "Transcription model",
+      "showModel": {
+        "label": "Show Model Badge",
+        "description": "Show a compact badge with the model that produced each transcription."
+      }
     },
     "debug": {
       "title": "Debug",

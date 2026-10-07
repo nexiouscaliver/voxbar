@@ -359,9 +359,12 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
     let footprint = transcription.resident_model_footprint();
     let model_ram = format_ram_segment(footprint);
     // Menu-bar title (macOS only; see MenuInputs::title). Computed from the
-    // same load/unload-driven snapshot as the menu — no polling (spec C2).
+    // same load/unload-driven snapshot as the menu — no polling (spec C2) —
+    // and gated by the menu_bar_model_title setting (desired_tray_title
+    // returns None for every input when it is off).
     #[cfg(target_os = "macos")]
-    let title = format_tray_title(
+    let title = desired_tray_title(
+        settings.menu_bar_model_title,
         resident_model.as_ref().map(|(_, name)| name.as_str()),
         footprint.map(|(bytes, _)| bytes),
     );
@@ -749,11 +752,30 @@ fn resolve_model_label_name(
 /// budgets this class of length.
 const TRAY_TITLE_MAX_CHARS: usize = 18;
 
+/// The title `compute_desired` wants, given the `menu_bar_model_title`
+/// setting: off → `None` for EVERY input (even with a model resident — the
+/// applier's diff then clears any currently-displayed title); on → exactly
+/// what [`format_tray_title`] produces today. Pure, so the setting's effect
+/// is unit-testable without an app.
+fn desired_tray_title(
+    setting_enabled: bool,
+    resident_name: Option<&str>,
+    footprint_bytes: Option<u64>,
+) -> Option<String> {
+    if !setting_enabled {
+        return None;
+    }
+    format_tray_title(resident_name, footprint_bytes)
+}
+
 /// Format the macOS menu-bar title: short model name + compact resident RAM
 /// (`Parakeet EN · 768M`). Pure — `None` in, `None` out (nothing resident
 /// clears the title entirely). The name is truncated (with `…`) when the
 /// combined title would exceed [`TRAY_TITLE_MAX_CHARS`] characters; the RAM
 /// segment is never truncated. A missing footprint yields a name-only title.
+///
+/// NOT the function `compute_desired` calls — use [`desired_tray_title`],
+/// which gates on the `menu_bar_model_title` setting.
 fn format_tray_title(resident_name: Option<&str>, footprint_bytes: Option<u64>) -> Option<String> {
     let name = resident_name?;
     let ram = footprint_bytes.map(compact_ram);
@@ -930,10 +952,10 @@ pub fn copy_last_transcript(app: &AppHandle) {
 #[cfg(test)]
 mod tests {
     use super::{
-        compact_ram, format_duration_compact, format_ram_segment, format_tray_title,
-        last_transcript_text, load_tray_icon, resolve_model_label_name, unload_after_custom_label,
-        unload_after_preset_is_active, MenuInputs, TrayDesired, TrayIconState,
-        TRAY_TITLE_MAX_CHARS,
+        compact_ram, desired_tray_title, format_duration_compact, format_ram_segment,
+        format_tray_title, last_transcript_text, load_tray_icon, resolve_model_label_name,
+        unload_after_custom_label, unload_after_preset_is_active, MenuInputs, TrayDesired,
+        TrayIconState, TRAY_TITLE_MAX_CHARS,
     };
     use crate::managers::history::HistoryEntry;
     use crate::settings::ModelUnloadTimeout;
@@ -1048,6 +1070,42 @@ mod tests {
     fn tray_title_clears_when_no_model_resident() {
         assert_eq!(format_tray_title(None, Some(768 * 1024 * 1024)), None);
         assert_eq!(format_tray_title(None, None), None);
+    }
+
+    #[test]
+    fn disabled_menu_bar_title_never_produces_one_even_with_a_model_resident() {
+        let mib = 1024 * 1024;
+        // Setting off: None for every resident/footprint combination a
+        // loaded model can produce — compute_desired feeds exactly these
+        // inputs, so the applier's diff clears any displayed title.
+        assert_eq!(
+            desired_tray_title(false, Some("Parakeet EN"), Some(768 * mib)),
+            None
+        );
+        assert_eq!(desired_tray_title(false, Some("Parakeet EN"), None), None);
+        assert_eq!(desired_tray_title(false, None, Some(768 * mib)), None);
+        assert_eq!(desired_tray_title(false, None, None), None);
+    }
+
+    #[test]
+    fn enabled_menu_bar_title_matches_format_tray_title_exactly() {
+        let mib = 1024 * 1024;
+        // Setting on: today's behavior, byte for byte, across the input
+        // shapes (resident+RAM, resident-only, nothing resident).
+        let cases: Vec<(Option<&str>, Option<u64>)> = vec![
+            (Some("Parakeet EN"), Some(768 * mib)),
+            (Some("Parakeet Unified EN 0.6B"), Some(768 * mib)),
+            (Some("Small"), None),
+            (None, Some(768 * mib)),
+            (None, None),
+        ];
+        for (name, footprint) in cases {
+            assert_eq!(
+                desired_tray_title(true, name, footprint),
+                format_tray_title(name, footprint),
+                "name={name:?} footprint={footprint:?}"
+            );
+        }
     }
 
     #[test]

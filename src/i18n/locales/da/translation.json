@@ -303,6 +303,10 @@
         "label": "Automatisk RAM-reserve",
         "description": "Når den valgte model ikke passer i ledig hukommelse, indlæses automatisk den bedste downloadede model, der passer. Slå fra for at beholde den almindelige afvisning."
       },
+      "menuBarModelTitle": {
+        "label": "Modeltitel i menulinjen",
+        "description": "Viser den residente model og dens RAM-forbrug som tekst ved siden af bakkeikonet (macOS-menulinje)."
+      },
       "autostart": {
         "label": "Start ved opstart",
         "description": "Start VoxBar automatisk, når du logger ind på din computer."
@@ -493,7 +497,11 @@
       "retranscribeError": "Kunne ikke transskribere igen. Prøv igen.",
       "transcribing": "Transskriberer...",
       "transcriptionFailed": "Transskription mislykkedes. Du kan transskribere igen ved hjælp af genforsøgsikonet.",
-      "model": "Transkriptionsmodel"
+      "model": "Transkriptionsmodel",
+      "showModel": {
+        "label": "Vis modelmærke",
+        "description": "Viser et kompakt mærke med den model, der lavede hver transskription."
+      }
     },
     "debug": {
       "title": "Fejlfinding",

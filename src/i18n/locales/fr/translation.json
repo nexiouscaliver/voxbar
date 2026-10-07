@@ -303,6 +303,10 @@
         "label": "Repli automatique (RAM)",
         "description": "Lorsque le modèle sélectionné ne tient pas dans la mémoire libre, charge automatiquement le meilleur modèle téléchargé qui tient. Désactivez pour conserver le refus simple."
       },
+      "menuBarModelTitle": {
+        "label": "Titre du modèle dans la barre de menus",
+        "description": "Affiche le modèle résident et son empreinte RAM en texte à côté de l'icône de la barre (barre de menus macOS)."
+      },
       "autostart": {
         "label": "Lancer au démarrage",
         "description": "Démarrer automatiquement VoxBar lorsque vous vous connectez à votre ordinateur."
@@ -493,7 +497,11 @@
       "retranscribeError": "Impossible de re-transcrire. Veuillez réessayer.",
       "transcribing": "Transcription en cours...",
       "transcriptionFailed": "La transcription a échoué. Vous pouvez re-transcrire en utilisant l'icône de réessai.",
-      "model": "Modèle de transcription"
+      "model": "Modèle de transcription",
+      "showModel": {
+        "label": "Afficher le badge du modèle",
+        "description": "Affiche un badge compact indiquant le modèle ayant produit chaque transcription."
+      }
     },
     "debug": {
       "title": "Débogage",

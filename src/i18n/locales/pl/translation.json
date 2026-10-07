@@ -303,6 +303,10 @@
         "label": "Automatyczny model zapasowy (RAM)",
         "description": "Gdy wybrany model nie mieści się w wolnej pamięci, automatycznie ładuje najlepszy pobrany model, który się mieści. Wyłącz, aby zachować zwykłą odmowę."
       },
+      "menuBarModelTitle": {
+        "label": "Tytuł modelu na pasku menu",
+        "description": "Pokazuje rezydujący model i jego użycie RAM jako tekst obok ikony zasobnika (pasek menu macOS)."
+      },
       "autostart": {
         "label": "Uruchamiaj przy starcie",
         "description": "Automatycznie uruchamiaj VoxBar po zalogowaniu."
@@ -493,7 +497,11 @@
       "retranscribeError": "Nie udało się ponownie transkrybować. Spróbuj ponownie.",
       "transcribing": "Transkrybuję...",
       "transcriptionFailed": "Transkrypcja nie powiodła się. Możesz transkrybować ponownie za pomocą ikony ponowienia.",
-      "model": "Model transkrypcji"
+      "model": "Model transkrypcji",
+      "showModel": {
+        "label": "Pokaż plakietkę modelu",
+        "description": "Pokazuje zwartą plakietkę z modelem, który wygenerował każdą transkrypcję."
+      }
     },
     "debug": {
       "title": "Debugowanie",

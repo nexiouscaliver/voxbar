@@ -303,6 +303,10 @@
         "label": "Alternativa automática de RAM",
         "description": "Quando o modelo selecionado não cabe na memória livre, carrega automaticamente o melhor modelo baixado que caiba. Desative para manter a recusa simples."
       },
+      "menuBarModelTitle": {
+        "label": "Título do modelo na barra de menus",
+        "description": "Mostra o modelo residente e seu uso de RAM como texto ao lado do ícone da bandeja (barra de menus do macOS)."
+      },
       "autostart": {
         "label": "Iniciar na Inicialização",
         "description": "Iniciar automaticamente o VoxBar quando você fizer login no seu computador."
@@ -493,7 +497,11 @@
       "retranscribeError": "Falha ao re-transcrever. Por favor, tente novamente.",
       "transcribing": "Transcrevendo...",
       "transcriptionFailed": "A transcrição falhou. Você pode re-transcrever usando o ícone de tentar novamente.",
-      "model": "Modelo de transcrição"
+      "model": "Modelo de transcrição",
+      "showModel": {
+        "label": "Mostrar selo do modelo",
+        "description": "Mostra um selo compacto com o modelo que produziu cada transcrição."
+      }
     },
     "debug": {
       "title": "Depuração",

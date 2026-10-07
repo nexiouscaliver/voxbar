@@ -303,6 +303,10 @@
         "label": "RAM 자동 폴백",
         "description": "선택한 모델이 여유 메모리에 맞지 않으면 맞는 최고의 다운로드된 모델을 자동으로 불러옵니다. 끄면 거부만 합니다."
       },
+      "menuBarModelTitle": {
+        "label": "메뉴 막대 모델 제목",
+        "description": "상주 모델과 RAM 사용량을 트레이 아이콘 옆에 텍스트로 표시합니다(macOS 메뉴 막대)."
+      },
       "autostart": {
         "label": "시작 시 실행",
         "description": "컴퓨터 로그인 시 VoxBar를 자동으로 시작합니다."
@@ -493,7 +497,11 @@
       "retranscribeError": "다시 전사에 실패했습니다. 다시 시도해주세요.",
       "transcribing": "전사 중...",
       "transcriptionFailed": "전사에 실패했습니다. 재시도 아이콘을 사용하여 다시 전사할 수 있습니다.",
-      "model": "전사 모델"
+      "model": "전사 모델",
+      "showModel": {
+        "label": "모델 배지 표시",
+        "description": "각 전사를 만든 모델을 나타내는 간결한 배지를 표시합니다."
+      }
     },
     "debug": {
       "title": "디버그",

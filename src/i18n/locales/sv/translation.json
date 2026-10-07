@@ -303,6 +303,10 @@
         "label": "Automatisk RAM-reserv",
         "description": "När den valda modellen inte får plats i ledigt minne laddas automatiskt den bästa nedladdade modellen som får plats. Stäng av för att behålla det vanliga avslaget."
       },
+      "menuBarModelTitle": {
+        "label": "Modelltitel i menyraden",
+        "description": "Visar den residenta modellen och dess RAM-användning som text bredvid trayikonen (macOS-menyrad)."
+      },
       "autostart": {
         "label": "Starta vid uppstart",
         "description": "Starta VoxBar automatiskt när du loggar in på din dator."
@@ -493,7 +497,11 @@
       "retranscribeError": "Misslyckades med att transkribera igen. Försök igen.",
       "transcribing": "Transkriberar...",
       "transcriptionFailed": "Transkribering misslyckades. Du kan transkribera igen med hjälp av ikonen för nytt försök.",
-      "model": "Transkriptionsmodell"
+      "model": "Transkriptionsmodell",
+      "showModel": {
+        "label": "Visa modellmärke",
+        "description": "Visar ett kompakt märke med modellen som skapade varje transkription."
+      }
     },
     "debug": {
       "title": "Felsökning",

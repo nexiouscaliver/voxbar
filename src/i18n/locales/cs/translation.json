@@ -303,6 +303,10 @@
         "label": "Automatické přepnutí při nedostatku RAM",
         "description": "Když se vybraný model nevejde do volné paměti, automaticky se načte nejlepší stažený model, který se vejde. Vypněte pro obyčejné odmítnutí."
       },
+      "menuBarModelTitle": {
+        "label": "Název modelu v liště nabídky",
+        "description": "Zobrazuje rezidentní model a jeho využití RAM jako text vedle ikony v liště (nabídková lišta macOS)."
+      },
       "autostart": {
         "label": "Spouštět při startu",
         "description": "Automaticky spustit VoxBar po přihlášení do počítače."
@@ -493,7 +497,11 @@
       "retranscribeError": "Opětovný přepis se nezdařil. Zkuste to prosím znovu.",
       "transcribing": "Přepisuji...",
       "transcriptionFailed": "Přepis selhal. Můžete zkusit přepis znovu pomocí ikony opakování.",
-      "model": "Model přepisu"
+      "model": "Model přepisu",
+      "showModel": {
+        "label": "Zobrazit štítek modelu",
+        "description": "Zobrazuje kompaktní štítek s modelem, který vytvořil každý přepis."
+      }
     },
     "debug": {
       "title": "Ladění",

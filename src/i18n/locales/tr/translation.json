@@ -303,6 +303,10 @@
         "label": "Otomatik RAM yedeklemesi",
         "description": "Seçilen model boş belleğe sığmadığında, sığan en iyi indirilmiş model otomatik yüklenir. Basit reddi korumak için kapatın."
       },
+      "menuBarModelTitle": {
+        "label": "Menü çubuğunda model başlığı",
+        "description": "Yerleşik modeli ve RAM kullanımını tepsi simgesinin yanında metin olarak gösterir (macOS menü çubuğu)."
+      },
       "autostart": {
         "label": "Başlangıçta Çalıştır",
         "description": "Bilgisayara giriş yaptığınızda VoxBar otomatik olarak başlatılır."
@@ -493,7 +497,11 @@
       "retranscribeError": "Yeniden transkripsiyon başarısız oldu. Lütfen tekrar deneyin.",
       "transcribing": "Transkribe ediliyor...",
       "transcriptionFailed": "Transkripsiyon başarısız oldu. Yeniden deneme simgesini kullanarak tekrar transkribe edebilirsiniz.",
-      "model": "Transkripsiyon modeli"
+      "model": "Transkripsiyon modeli",
+      "showModel": {
+        "label": "Model rozetini göster",
+        "description": "Her transkripti üreten modeli gösteren kompakt bir rozet gösterir."
+      }
     },
     "debug": {
       "title": "Hata Ayıklama",

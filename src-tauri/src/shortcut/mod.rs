@@ -624,6 +624,30 @@ pub fn change_auto_fallback_setting(app: AppHandle, enabled: bool) -> Result<(),
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_menu_bar_model_title_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.menu_bar_model_title = enabled;
+    settings::write_settings(&app, settings);
+
+    // Apply immediately (mirrors change_show_tray_icon_setting): a tray sync
+    // recomputes the desired title, and the applier's applied_title diff
+    // clears the displayed title when the setting turned off.
+    tray::update_tray_menu(&app);
+
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_show_history_model_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.show_history_model = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_audio_feedback_volume_setting(app: AppHandle, volume: f32) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.audio_feedback_volume = volume;

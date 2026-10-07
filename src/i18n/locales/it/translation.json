@@ -303,6 +303,10 @@
         "label": "Ripiego automatico (RAM)",
         "description": "Quando il modello selezionato non entra nella memoria libera, carica automaticamente il miglior modello scaricato che entra. Disattiva per mantenere il rifiuto semplice."
       },
+      "menuBarModelTitle": {
+        "label": "Titolo del modello nella barra dei menu",
+        "description": "Mostra il modello residente e la sua impronta RAM come testo accanto all'icona del vassoio (barra dei menu macOS)."
+      },
       "autostart": {
         "label": "Avvia all'Accensione",
         "description": "Avvia VoxBar automaticamente quando accedi al computer."
@@ -493,7 +497,11 @@
       "retranscribeError": "Impossibile ri-trascrivere. Riprova.",
       "transcribing": "Trascrizione in corso...",
       "transcriptionFailed": "Trascrizione fallita. Puoi ri-trascrivere usando l'icona di ripetizione.",
-      "model": "Modello di trascrizione"
+      "model": "Modello di trascrizione",
+      "showModel": {
+        "label": "Mostra badge del modello",
+        "description": "Mostra un badge compatto con il modello che ha prodotto ogni trascrizione."
+      }
     },
     "debug": {
       "title": "Debug",

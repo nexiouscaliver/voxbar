@@ -303,6 +303,10 @@
         "label": "記憶體自動降級",
         "description": "當所選模型無法放入可用記憶體時，自動載入最合適的已下載模型。關閉則直接拒絕。"
       },
+      "menuBarModelTitle": {
+        "label": "選單列模型標題",
+        "description": "在系統匣圖示旁以文字顯示常駐模型及其記憶體用量（macOS 選單列）。"
+      },
       "autostart": {
         "label": "開機啟動",
         "description": "登入電腦時自動啟動 VoxBar"
@@ -493,7 +497,11 @@
       "retranscribeError": "重新轉錄失敗，請重試。",
       "transcribing": "轉錄中...",
       "transcriptionFailed": "轉錄失敗。您可以使用重試圖示重新轉錄。",
-      "model": "轉寫模型"
+      "model": "轉寫模型",
+      "showModel": {
+        "label": "顯示模型徽章",
+        "description": "為每筆聽寫顯示產生它的模型的精簡徽章。"
+      }
     },
     "debug": {
       "title": "偵錯",

@@ -303,6 +303,10 @@
         "label": "Fallback otomatis RAM",
         "description": "Saat model terpilih tidak muat di memori bebas, model terbaik yang sudah diunduh dimuat otomatis. Matikan untuk tetap menolak saja."
       },
+      "menuBarModelTitle": {
+        "label": "Judul model di bilah menu",
+        "description": "Menampilkan model resident dan penggunaan RAM-nya sebagai teks di samping ikon baki (bilah menu macOS)."
+      },
       "autostart": {
         "label": "Jalankan saat Komputer Dinyalakan",
         "description": "Mulai VoxBar secara otomatis saat Anda masuk ke komputer."
@@ -493,7 +497,11 @@
       "retranscribeError": "Gagal mentranskripsikan ulang. Silakan coba lagi.",
       "transcribing": "Mentranskripsikan...",
       "transcriptionFailed": "Transkripsi gagal. Anda dapat mentranskripsikan ulang menggunakan ikon coba lagi.",
-      "model": "Model transkripsi"
+      "model": "Model transkripsi",
+      "showModel": {
+        "label": "Tampilkan lencana model",
+        "description": "Menampilkan lencana ringkas dengan model yang menghasilkan tiap transkripsi."
+      }
     },
     "debug": {
       "title": "Debug",
