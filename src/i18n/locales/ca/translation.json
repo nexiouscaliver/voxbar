@@ -291,6 +291,10 @@
         "label": "Inicia ocult",
         "description": "Inicia a la safata del sistema sense obrir la finestra."
       },
+      "memoryPressureGuard": {
+        "label": "Guarda de pressió de memòria",
+        "description": "Rebutja carregar un model quan la memòria lliure no és suficient. El model actual continua funcionant quan es rebutja una càrrega."
+      },
       "autostart": {
         "label": "Inicia en entrar a la sessió",
         "description": "Inicia automàticament el VoxBar quan entreu a la sessió de l'ordinador."

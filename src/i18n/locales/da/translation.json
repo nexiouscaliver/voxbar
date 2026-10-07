@@ -291,6 +291,10 @@
         "label": "Start skjult",
         "description": "Vis på meddelelsesområdet uden at åbne vinduet."
       },
+      "memoryPressureGuard": {
+        "label": "Hukommelsespres-vagt",
+        "description": "Afviser at indlæse en model, når ledig hukommelse ikke er nok. Den nuværende model fortsætter, når en indlæsning afvises."
+      },
       "autostart": {
         "label": "Start ved opstart",
         "description": "Start VoxBar automatisk, når du logger ind på din computer."

@@ -291,6 +291,10 @@
         "label": "Start Hidden",
         "description": "Launch to system tray without opening the window."
       },
+      "memoryPressureGuard": {
+        "label": "Memory Pressure Guard",
+        "description": "Refuse to load a model when free memory cannot fit it. The current model keeps working when a load is refused."
+      },
       "autostart": {
         "label": "Launch on Startup",
         "description": "Automatically start VoxBar when you log in to your computer."

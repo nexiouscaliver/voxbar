@@ -291,6 +291,10 @@
         "label": "Starta dold",
         "description": "Starta i systemfältet utan att öppna fönstret."
       },
+      "memoryPressureGuard": {
+        "label": "Skydd mot minnesbrist",
+        "description": "Vägrar läsa in en modell när ledigt minne inte räcker. Den aktuella modellen fortsätter fungera när en inläsning vägras."
+      },
       "autostart": {
         "label": "Starta vid uppstart",
         "description": "Starta VoxBar automatiskt när du loggar in på din dator."

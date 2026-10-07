@@ -9,6 +9,7 @@ use crate::engine_supervisor::{
 };
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::model::{EngineType, ModelManager};
+use crate::memory;
 use crate::settings::{
     get_settings, AppSettings, ChineseScript, ModelUnloadTimeout, OrtAcceleratorSetting,
     TranscribeAcceleratorSetting,
@@ -383,6 +384,30 @@ impl TranscriptionManager {
         self.engine.loaded().is_some() || self.lock_onnx().is_some()
     }
 
+    /// Footprint of the currently-resident model, credited back to the
+    /// free-memory reading by the gate in `load_model_with_device` (those
+    /// pages are freed before the replacement model's peak).
+    ///
+    /// TranscribeCpp: the worker process's measured RSS when both a model is
+    /// loaded and the pid probe succeeds (either unavailable → no credit —
+    /// conservative). In-process ONNX engines: the resident model's
+    /// `size_mb`-derived estimate (the same estimate class the gate uses for
+    /// the incoming model). Nothing resident → 0.
+    fn resident_model_footprint_bytes(&self) -> u64 {
+        if self.engine.loaded().is_some() {
+            let measured = self.engine.worker_pid().and_then(memory::rss_bytes_for_pid);
+            return memory::resident_credit(measured, None);
+        }
+        if self.lock_onnx().is_some() {
+            let estimate = self
+                .get_current_model()
+                .and_then(|id| self.model_manager.get_model_info(&id))
+                .map(|info| info.size_mb.saturating_mul(1024 * 1024));
+            return memory::resident_credit(None, estimate);
+        }
+        0
+    }
+
     /// Accelerator changes should not disturb the current transcription. Mark
     /// the cached engine stale; the next model-use path reloads it with the
     /// latest settings.
@@ -580,6 +605,36 @@ impl TranscriptionManager {
             let error_msg = "Model not downloaded";
             emit_loading_failed(error_msg);
             return Err(anyhow::anyhow!(error_msg));
+        }
+
+        // Memory-pressure gate (spec F3): refuse loads whose forecast
+        // footprint cannot fit, BEFORE the current engine is dropped below —
+        // a refusal leaves the resident model loaded and transcribing. The
+        // outgoing model's footprint is credited back to the free reading
+        // because its pages are freed before the new model's peak. A probe
+        // failure fails open (gate returns false for `None`).
+        if get_settings(&self.app_handle).memory_pressure_guard {
+            let forecast = model_info.size_mb.saturating_mul(1024 * 1024);
+            let credit = self.resident_model_footprint_bytes();
+            let free = memory::available_memory_bytes().map(|f| f.saturating_add(credit));
+            if free.is_none() {
+                debug!(
+                    "memory gate: available-memory probe unavailable, failing open for {}",
+                    model_info.name
+                );
+            }
+            if memory::gate_should_refuse(free, forecast, memory::DEFAULT_HEADROOM_BYTES) {
+                let gib = 1024.0 * 1024.0 * 1024.0;
+                let error_msg = format!(
+                    "Not enough free memory for {}: needs ~{:.1} GB, ~{:.1} GB free (guard can be disabled in Settings)",
+                    model_info.name,
+                    forecast as f64 / gib,
+                    free.unwrap_or(0) as f64 / gib
+                );
+                warn!("memory gate refused a load: {}", error_msg);
+                emit_loading_failed(&error_msg);
+                return Err(anyhow::anyhow!(error_msg));
+            }
         }
 
         let model_path = self

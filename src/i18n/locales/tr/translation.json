@@ -291,6 +291,10 @@
         "label": "Gizli Başlat",
         "description": "Pencereyi açmadan sistem tepsisinde başlatır."
       },
+      "memoryPressureGuard": {
+        "label": "Bellek Baskısı Koruması",
+        "description": "Boş bellek yeterli olmadığında model yüklemeyi reddeder. Yükleme reddedildiğinde geçerli model çalışmaya devam eder."
+      },
       "autostart": {
         "label": "Başlangıçta Çalıştır",
         "description": "Bilgisayara giriş yaptığınızda VoxBar otomatik olarak başlatılır."

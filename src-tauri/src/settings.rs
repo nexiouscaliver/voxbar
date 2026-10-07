@@ -441,6 +441,8 @@ pub struct AppSettings {
     pub custom_words: Vec<String>,
     #[serde(default)]
     pub model_unload_timeout: ModelUnloadTimeout,
+    #[serde(default = "default_memory_pressure_guard")]
+    pub memory_pressure_guard: bool,
     #[serde(default = "default_word_correction_threshold")]
     pub word_correction_threshold: f64,
     #[serde(default = "default_history_limit")]
@@ -629,6 +631,13 @@ fn default_paste_delay_after_ms() -> u64 {
 
 fn default_auto_submit() -> bool {
     false
+}
+
+/// The memory-pressure gate defaults ON: refusing an oversized load before
+/// it starts (leaving the resident model transcribing) is strictly safer
+/// than attempting it and swapping or dying on a 24 GB machine (spec F3).
+fn default_memory_pressure_guard() -> bool {
+    true
 }
 
 fn default_history_limit() -> usize {
@@ -956,6 +965,7 @@ pub fn get_default_settings() -> AppSettings {
         log_level: default_log_level(),
         custom_words: Vec::new(),
         model_unload_timeout: ModelUnloadTimeout::default(),
+        memory_pressure_guard: default_memory_pressure_guard(),
         word_correction_threshold: default_word_correction_threshold(),
         history_limit: default_history_limit(),
         recording_retention_period: default_recording_retention_period(),
@@ -1280,6 +1290,29 @@ pub fn get_recording_retention_period(app: &AppHandle) -> RecordingRetentionPeri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn memory_pressure_guard_defaults_on_round_trips_and_backfills() {
+        // Default is ON for fresh installs.
+        assert!(get_default_settings().memory_pressure_guard);
+        // Serde round-trips both stored values.
+        let mut off = get_default_settings();
+        off.memory_pressure_guard = false;
+        let parsed: AppSettings =
+            serde_json::from_value(serde_json::to_value(off).unwrap()).unwrap();
+        assert!(!parsed.memory_pressure_guard);
+        let on = serde_json::to_value(get_default_settings()).unwrap();
+        let parsed: AppSettings = serde_json::from_value(on).unwrap();
+        assert!(parsed.memory_pressure_guard);
+        // Old settings JSON without the field parses to the default (true).
+        let mut legacy = serde_json::to_value(get_default_settings()).unwrap();
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .remove("memory_pressure_guard");
+        let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert!(backfilled.memory_pressure_guard);
+    }
 
     #[test]
     fn model_unload_timeout_default_is_min2_and_round_trips_wire_string() {

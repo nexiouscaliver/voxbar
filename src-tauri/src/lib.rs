@@ -657,6 +657,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_shortcut_activation_setting,
             shortcut::change_hold_threshold_ms_setting,
             shortcut::change_audio_feedback_setting,
+            shortcut::change_memory_pressure_guard_setting,
             shortcut::change_audio_feedback_volume_setting,
             shortcut::change_sound_theme_setting,
             shortcut::change_theme_setting,
@@ -879,7 +880,14 @@ pub fn run(cli_args: CliArgs) {
     let mut app = builder
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        // Updater NOT registered: T2 removed the plugins.updater config
+        // section (updater disabled), and the plugin's init REQUIRES that
+        // section — registering it panics the app at startup (verified by
+        // running the debug binary: PluginInitialization("updater", ...
+        // invalid type: null)). The frontend check surface stays
+        // visible-and-inert: UpdateChecker's `check()` now fails fast with
+        // "plugin not registered" and its existing catch swallows the error
+        // (logs, no dialog, no crash) — spec F1/T2 AC8a behavior.
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_macos_permissions::init())

@@ -291,6 +291,10 @@
         "label": "Spouštět skrytě",
         "description": "Spustit do systémové lišty bez otevření okna."
       },
+      "memoryPressureGuard": {
+        "label": "Ochrana při nedostatku paměti",
+        "description": "Odmítne načíst model, když na něj nezbývá dost volné paměti. Aktuální model dále funguje, když je načtení odmítnuto."
+      },
       "autostart": {
         "label": "Spouštět při startu",
         "description": "Automaticky spustit VoxBar po přihlášení do počítače."

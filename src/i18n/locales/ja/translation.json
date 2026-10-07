@@ -291,6 +291,10 @@
         "label": "非表示で起動",
         "description": "ウィンドウを開かずにシステムトレイに起動。"
       },
+      "memoryPressureGuard": {
+        "label": "メモリ圧ガード",
+        "description": "空きメモリが不足している場合にモデルの読み込みを拒否します。読み込みが拒否されても現在のモデルは動作を続けます。"
+      },
       "autostart": {
         "label": "起動時に実行",
         "description": "コンピューターにログインしたときに VoxBar を自動的に起動。"

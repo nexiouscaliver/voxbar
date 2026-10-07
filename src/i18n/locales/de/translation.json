@@ -291,6 +291,10 @@
         "label": "Versteckt starten",
         "description": "In den Systembereich starten, ohne das Fenster zu öffnen."
       },
+      "memoryPressureGuard": {
+        "label": "Speicherdruck-Schutz",
+        "description": "Lehnt das Laden eines Modells ab, wenn der freie Speicher nicht ausreicht. Das aktuelle Modell läuft weiter, wenn ein Laden abgelehnt wird."
+      },
       "autostart": {
         "label": "Beim Start ausführen",
         "description": "VoxBar automatisch beim Anmelden starten."

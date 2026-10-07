@@ -291,6 +291,10 @@
         "label": "Avvia in Background",
         "description": "Avvia l'applicazione in background senza aprire la finestra."
       },
+      "memoryPressureGuard": {
+        "label": "Protezione da pressione di memoria",
+        "description": "Rifiuta di caricare un modello quando la memoria libera è insufficiente. Il modello attuale continua a funzionare quando un caricamento viene rifiutato."
+      },
       "autostart": {
         "label": "Avvia all'Accensione",
         "description": "Avvia VoxBar automaticamente quando accedi al computer."

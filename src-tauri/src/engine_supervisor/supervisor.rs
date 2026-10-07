@@ -231,6 +231,10 @@ struct Shared {
     /// Bumped by every [`EngineSupervisor::unload`] as it is called, so the
     /// model reads as unloaded at once, even while the unload waits its turn.
     unloads_requested: AtomicU64,
+    /// Pid of the live worker process, if one is running. Published by the
+    /// owner thread for the memory-pressure gate's resident-RSS credit;
+    /// cleared whenever the worker is dropped (unload, cancel, replacement).
+    worker_pid: Mutex<Option<u32>>,
     next_id: AtomicU64,
 }
 
@@ -396,6 +400,15 @@ impl EngineSupervisor {
     /// The loaded model. A snapshot; never waits on the queue.
     pub fn loaded(&self) -> Option<LoadedInfo> {
         lock(&self.shared.loaded).clone()
+    }
+
+    /// Pid of the live transcribe-cpp worker process, if one is running.
+    /// Lets the memory-pressure gate credit the outgoing model's measured
+    /// resident footprint (`memory::rss_bytes_for_pid`); `None` between
+    /// workers (unload, crash, replacement) — callers treat that as no
+    /// credit rather than a failure.
+    pub fn worker_pid(&self) -> Option<u32> {
+        *lock(&self.shared.worker_pid)
     }
 
     /// Transcribe 16 kHz mono PCM with the loaded model. A worker crash or
@@ -683,6 +696,7 @@ impl Owner {
             let started = Instant::now();
             let pid = worker.control.pid;
             drop(worker);
+            *lock(&self.shared.worker_pid) = None;
             debug!(
                 "Transcription worker (pid {}) stopped in {}ms",
                 pid,
@@ -747,6 +761,7 @@ impl Owner {
             started.elapsed().as_millis()
         );
         self.publish_loaded(&info);
+        *lock(&self.shared.worker_pid) = Some(worker.control.pid);
         self.worker = Some(worker);
         Ok(info)
     }
@@ -849,6 +864,7 @@ impl Owner {
             if killed || result.as_ref().is_err_and(Failure::worker_lost) {
                 // The next use starts a fresh worker.
                 self.worker = None;
+                *lock(&self.shared.worker_pid) = None;
             }
             return Err(Failure::Cancelled);
         }

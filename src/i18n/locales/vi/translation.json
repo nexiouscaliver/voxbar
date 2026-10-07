@@ -291,6 +291,10 @@
         "label": "Khởi động ẩn",
         "description": "Khởi động vào khay hệ thống mà không mở cửa sổ."
       },
+      "memoryPressureGuard": {
+        "label": "Bảo vệ áp lực bộ nhớ",
+        "description": "Từ chối tải mô hình khi bộ nhớ trống không đủ. Mô hình hiện tại tiếp tục hoạt động khi việc tải bị từ chối."
+      },
       "autostart": {
         "label": "Khởi động cùng hệ thống",
         "description": "Tự động khởi động VoxBar khi bạn đăng nhập vào máy tính."

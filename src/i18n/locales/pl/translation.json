@@ -291,6 +291,10 @@
         "label": "Uruchom ukryty",
         "description": "Uruchom w zasobniku systemowym bez otwierania okna."
       },
+      "memoryPressureGuard": {
+        "label": "Ochrona przed brakiem pamięci",
+        "description": "Odmawia załadowania modelu, gdy wolnej pamięci jest za mało. Bieżący model nadal działa, gdy ładowanie zostanie odrzucone."
+      },
       "autostart": {
         "label": "Uruchamiaj przy starcie",
         "description": "Automatycznie uruchamiaj VoxBar po zalogowaniu."

@@ -291,6 +291,10 @@
         "label": "隐藏启动",
         "description": "启动到系统托盘而不打开窗口。"
       },
+      "memoryPressureGuard": {
+        "label": "内存压力防护",
+        "description": "当可用内存不足以容纳模型时拒绝加载。拒绝加载时当前模型继续工作。"
+      },
       "autostart": {
         "label": "开机启动",
         "description": "登录计算机时自动启动 VoxBar。"

@@ -291,6 +291,10 @@
         "label": "Iniciar oculto",
         "description": "Lanzar en la bandeja del sistema sin abrir la ventana."
       },
+      "memoryPressureGuard": {
+        "label": "Protección de presión de memoria",
+        "description": "Rechaza cargar un modelo cuando la memoria libre no es suficiente. El modelo actual sigue funcionando cuando se rechaza una carga."
+      },
       "autostart": {
         "label": "Iniciar al arranque",
         "description": "Iniciar VoxBar automáticamente cuando inicies sesión en tu computadora."

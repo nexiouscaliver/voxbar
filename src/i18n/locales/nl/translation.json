@@ -291,6 +291,10 @@
         "label": "Geminimaliseerd opstarten",
         "description": "Start op de achtergrond in het systeemvak zonder het hoofdvenster te openen."
       },
+      "memoryPressureGuard": {
+        "label": "Geheugendruk-bescherming",
+        "description": "Weigert een model te laden als het vrije geheugen niet volstaat. Het huidige model blijft werken wanneer een laden wordt geweigerd."
+      },
       "autostart": {
         "label": "Starten bij opstarten",
         "description": "VoxBar automatisch starten zodra je inlogt op je computer."

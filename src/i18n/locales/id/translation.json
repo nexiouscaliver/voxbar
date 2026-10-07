@@ -291,6 +291,10 @@
         "label": "Mulai dalam Keadaan Tersembunyi",
         "description": "Jalankan ke baki sistem tanpa membuka jendela."
       },
+      "memoryPressureGuard": {
+        "label": "Penjaga Tekanan Memori",
+        "description": "Menolak memuat model saat memori bebas tidak cukup. Model saat ini tetap berfungsi saat pemuatan ditolak."
+      },
       "autostart": {
         "label": "Jalankan saat Komputer Dinyalakan",
         "description": "Mulai VoxBar secara otomatis saat Anda masuk ke komputer."

@@ -291,6 +291,10 @@
         "label": "隱藏啟動",
         "description": "啟動至系統匣而不開啟視窗"
       },
+      "memoryPressureGuard": {
+        "label": "記憶體壓力防護",
+        "description": "當可用記憶體不足以容納模型時拒絕載入。拒絕載入時目前模型繼續運作。"
+      },
       "autostart": {
         "label": "開機啟動",
         "description": "登入電腦時自動啟動 VoxBar"
