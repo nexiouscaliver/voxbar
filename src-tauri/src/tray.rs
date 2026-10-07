@@ -63,6 +63,14 @@ struct MenuInputs {
     downloaded_models: Vec<(String, String)>,
     locale: String,
     update_checks_enabled: bool,
+    /// `(id, display name)` of the RESIDENT model, when one is loaded. The
+    /// submenu label prefers this over `selected_model` — the two diverge in
+    /// the failed-switch and pending-unload states (spec F4).
+    resident_model: Option<(String, String)>,
+    /// Pre-formatted resident-footprint segment for the submenu label and
+    /// tooltip (`697 MB` measured / `~697 MB` estimate); `None` omits the
+    /// segment. A change drives a menu rebuild via this struct's `PartialEq`.
+    model_ram: Option<String>,
 }
 
 /// Complete description of what the tray should look like.
@@ -313,7 +321,8 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
     let settings = settings::get_settings(app);
     let theme = get_current_theme(app);
     let warning = crate::secure_input::tray_warning_active(app);
-    let model_loaded = app.state::<Arc<TranscriptionManager>>().is_model_loaded();
+    let transcription = app.state::<Arc<TranscriptionManager>>();
+    let model_loaded = transcription.is_model_loaded();
 
     let mut downloaded_models: Vec<(String, String)> = app
         .state::<Arc<ModelManager>>()
@@ -323,6 +332,18 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
         .map(|m| (m.id, m.name))
         .collect();
     downloaded_models.sort_by(|a, b| a.1.cmp(&b.1));
+
+    // Resident model (id + display name) via the existing public accessor,
+    // mapped through the same downloaded list the submenu builds from; the
+    // footprint segment comes from the resident-footprint plumbing (measured
+    // worker RSS for transcribe-cpp, size estimate for in-process ONNX).
+    let resident_model = transcription.get_current_model().and_then(|id| {
+        downloaded_models
+            .iter()
+            .find(|(mid, _)| *mid == id)
+            .map(|(_, name)| (id, name.clone()))
+    });
+    let model_ram = format_ram_segment(transcription.resident_model_footprint());
 
     TrayDesired {
         icon_path: get_icon_path(theme, icon_state, warning),
@@ -334,6 +355,8 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
             downloaded_models,
             locale: settings.app_language,
             update_checks_enabled: settings.update_checks_enabled,
+            resident_model,
+            model_ram,
         },
     }
 }
@@ -530,13 +553,18 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
             ],
         )?
     } else {
-        // Build model submenu — label is the active model name
-        let submenu_label = inputs
-            .downloaded_models
-            .iter()
-            .find(|(id, _)| *id == inputs.selected_model)
-            .map(|(_, name)| name.clone())
-            .unwrap_or_else(|| strings.model.clone());
+        // Build model submenu — the label shows the RESIDENT model and its
+        // footprint when one is loaded, falling back to the selection.
+        let model_name = resolve_model_label_name(
+            inputs.resident_model.as_ref(),
+            &inputs.selected_model,
+            &inputs.downloaded_models,
+            &strings.model,
+        );
+        let submenu_label = match &inputs.model_ram {
+            Some(ram) => format!("{model_name} — {ram}"),
+            None => model_name.clone(),
+        };
 
         let model_submenu = Submenu::with_id(app, "model_submenu", &submenu_label, true)?;
         for (id, name) in &inputs.downloaded_models {
@@ -584,7 +612,14 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
 
     // Both layouts start with [version, separator, ...]; slot the warning in
     // right below the version line so it's the first actionable thing seen.
+    // The tooltip mirrors the resident model + footprint segment (spec F4).
     let mut tooltip = version_label;
+    if let Some((_, resident_name)) = &inputs.resident_model {
+        tooltip = match &inputs.model_ram {
+            Some(ram) => format!("{tooltip} — {resident_name} — {ram}"),
+            None => format!("{tooltip} — {resident_name}"),
+        };
+    }
     if let Some(warning_item) = secure_input_warning {
         menu.insert(&warning_item, 2)?;
         menu.insert(&separator()?, 3)?;
@@ -599,6 +634,43 @@ fn last_transcript_text(entry: &HistoryEntry) -> &str {
         .post_processed_text
         .as_deref()
         .unwrap_or(&entry.transcription_text)
+}
+
+/// Format the resident-footprint segment shown after the model name:
+/// measured bytes render plain (`697 MB`), estimates get a `~` prefix
+/// (`~697 MB`), and `None` (nothing resident, or no estimate resolved)
+/// omits the segment entirely. Pure — menu building never fails on
+/// measurement errors.
+fn format_ram_segment(footprint: Option<(u64, bool)>) -> Option<String> {
+    let (bytes, measured) = footprint?;
+    let mb = bytes.saturating_add(512 * 1024) / (1024 * 1024);
+    if measured {
+        Some(format!("{mb} MB"))
+    } else {
+        Some(format!("~{mb} MB"))
+    }
+}
+
+/// Resolve the model submenu label's name part (pure — extracted from
+/// `build_menu` so the precedence is unit-testable without an app):
+/// prefer the RESIDENT model (what is actually in memory — the
+/// selected-vs-resident divergence of the failed-switch and pending-unload
+/// states), fall back to the `selected_model` lookup, then the localized
+/// "Model" fallback string.
+fn resolve_model_label_name(
+    resident_model: Option<&(String, String)>,
+    selected_model: &str,
+    downloaded_models: &[(String, String)],
+    fallback: &str,
+) -> String {
+    if let Some((_, name)) = resident_model {
+        return name.clone();
+    }
+    downloaded_models
+        .iter()
+        .find(|(id, _)| id == selected_model)
+        .map(|(_, name)| name.clone())
+        .unwrap_or_else(|| fallback.to_string())
 }
 
 pub fn set_tray_visibility(app: &AppHandle, visible: bool) {
@@ -668,7 +740,10 @@ pub fn copy_last_transcript(app: &AppHandle) {
 
 #[cfg(test)]
 mod tests {
-    use super::{last_transcript_text, load_tray_icon, MenuInputs, TrayDesired, TrayIconState};
+    use super::{
+        format_ram_segment, last_transcript_text, load_tray_icon, resolve_model_label_name,
+        MenuInputs, TrayDesired, TrayIconState,
+    };
     use crate::managers::history::HistoryEntry;
 
     fn build_entry(transcription: &str, post_processed: Option<&str>) -> HistoryEntry {
@@ -694,7 +769,82 @@ mod tests {
             downloaded_models: vec![("small".to_string(), "Small".to_string())],
             locale: "en".to_string(),
             update_checks_enabled: true,
+            resident_model: None,
+            model_ram: None,
         }
+    }
+
+    #[test]
+    fn ram_segment_formats_measured_estimate_and_absent() {
+        let mb = 697 * 1024 * 1024;
+        assert_eq!(
+            format_ram_segment(Some((mb, true))),
+            Some("697 MB".to_string())
+        );
+        assert_eq!(
+            format_ram_segment(Some((mb, false))),
+            Some("~697 MB".to_string())
+        );
+        // Nothing resident / no estimate -> the segment is omitted.
+        assert_eq!(format_ram_segment(None), None);
+        // Rounds to the nearest MB rather than truncating: 400 KiB stays at
+        // 697, 600 KiB rounds up to 698.
+        assert_eq!(
+            format_ram_segment(Some((mb + 400 * 1024, true))),
+            Some("697 MB".to_string())
+        );
+        assert_eq!(
+            format_ram_segment(Some((mb + 600 * 1024, true))),
+            Some("698 MB".to_string())
+        );
+    }
+
+    #[test]
+    fn menu_inputs_differ_on_model_ram_change() {
+        let mut with_ram = inputs(false);
+        with_ram.model_ram = Some("697 MB".to_string());
+        assert_ne!(inputs(false), with_ram);
+    }
+
+    #[test]
+    fn menu_inputs_differ_on_resident_model_change() {
+        let mut with_resident = inputs(false);
+        with_resident.resident_model = Some(("small".to_string(), "Small".to_string()));
+        assert_ne!(inputs(false), with_resident);
+    }
+
+    #[test]
+    fn label_prefers_resident_model_over_selection() {
+        // The failed-switch / pending-unload divergence: selected=small but
+        // large is what is actually in memory — the label shows the resident
+        // model.
+        let resident = Some(("large".to_string(), "Large".to_string()));
+        let models = vec![
+            ("large".to_string(), "Large".to_string()),
+            ("small".to_string(), "Small".to_string()),
+        ];
+        assert_eq!(
+            resolve_model_label_name(resident.as_ref(), "small", &models, "Model"),
+            "Large"
+        );
+    }
+
+    #[test]
+    fn label_falls_back_to_selected_model_then_localized_fallback() {
+        let models = vec![("small".to_string(), "Small".to_string())];
+        assert_eq!(
+            resolve_model_label_name(None, "small", &models, "Model"),
+            "Small"
+        );
+        // Selection not in the downloaded list -> localized fallback.
+        assert_eq!(
+            resolve_model_label_name(None, "missing", &models, "Modell"),
+            "Modell"
+        );
+        assert_eq!(
+            resolve_model_label_name(None, "x", &[], "Modello"),
+            "Modello"
+        );
     }
 
     #[test]

@@ -408,6 +408,33 @@ impl TranscriptionManager {
         0
     }
 
+    /// Resident model's footprint for the tray status line (spec F4):
+    /// `Some((bytes, measured))` when a model is resident — `measured` is
+    /// `true` only for the transcribe-cpp worker's RSS; `false` marks the
+    /// size-derived estimate (in-process ONNX engines, or the worker's RSS
+    /// could not be read). `None` when nothing is resident or no estimate
+    /// resolves — callers omit the segment. Distinct from the gate's
+    /// [`Self::resident_model_footprint_bytes`] above, which credits
+    /// TranscribeCpp by measured RSS only (conservative for load decisions).
+    pub fn resident_model_footprint(&self) -> Option<(u64, bool)> {
+        let estimate = || {
+            self.get_current_model()
+                .and_then(|id| self.model_manager.get_model_info(&id))
+                .map(|info| info.size_mb.saturating_mul(1024 * 1024))
+        };
+        if self.engine.loaded().is_some() {
+            if let Some(rss) = self.engine.worker_pid().and_then(memory::rss_bytes_for_pid) {
+                return Some((rss, true));
+            }
+            // RSS read failed → fall back to the ~-estimate (spec F4).
+            return estimate().map(|e| (e, false));
+        }
+        if self.lock_onnx().is_some() {
+            return estimate().map(|e| (e, false));
+        }
+        None
+    }
+
     /// Accelerator changes should not disturb the current transcription. Mark
     /// the cached engine stale; the next model-use path reloads it with the
     /// latest settings.
