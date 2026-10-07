@@ -1,12 +1,12 @@
-//! Model capability probing — the seam between Handy's model UI and "what can
+//! Model capability probing - the seam between Handy's model UI and "what can
 //! this GGUF actually do".
 //!
 //! Capabilities are canonical *in the GGUF itself*: transcribe-cpp reads them
 //! from the model's metadata at load time, and the runtime reconciles the
-//! registry against that ground truth once a model is loaded — streaming,
+//! registry against that ground truth once a model is loaded - streaming,
 //! translation, language detection, and the supported-language set (see
 //! [`crate::managers::model::ModelManager::set_runtime_capabilities`]). This
-//! module covers the other half — reading the same values from the GGUF header
+//! module covers the other half - reading the same values from the GGUF header
 //! *before* download, so search/listing can show them honestly ahead of a load.
 //!
 //! Everything goes through the [`CapabilityProber`] trait. Today the only
@@ -22,7 +22,7 @@ use std::path::Path;
 
 use super::gguf_meta::{self, GgufError, GgufMetadata};
 
-/// Architecture strings transcribe-cpp can load — the `.name` of each arch under
+/// Architecture strings transcribe-cpp can load - the `.name` of each arch under
 /// its `src/arch/`, which is exactly the value stored in `general.architecture`.
 /// Keep this in sync with transcribe-cpp; an arch absent here still parses, it's
 /// just surfaced as [`Compatibility::MaybeIncompatible`] rather than promised.
@@ -75,7 +75,7 @@ const PROBE_KEYS: &[&str] = &[
 pub enum Compatibility {
     /// Parsed as GGUF and the architecture is one transcribe-cpp ships.
     Compatible,
-    /// Parsed as GGUF, but the architecture is unknown to us — might work.
+    /// Parsed as GGUF, but the architecture is unknown to us - might work.
     MaybeIncompatible,
     /// Not a GGUF we can use (bad magic, unsupported version, malformed).
     Unsupported,
@@ -85,7 +85,7 @@ pub enum Compatibility {
 }
 
 /// Capabilities surfaced in the model UI. Every field is optional on purpose:
-/// `None` means "not known yet" — a community model whose header omits the key,
+/// `None` means "not known yet" - a community model whose header omits the key,
 /// or a field (parakeet streaming) the header parse can't determine. The UI
 /// renders that honestly as unknown, and the runtime fills it in for real once
 /// the model is loaded.
@@ -98,13 +98,13 @@ pub struct CapabilityProbe {
     pub architecture: Option<String>,
     /// `stt.variant`, when present.
     pub variant: Option<String>,
-    /// `general.languages` — transcribable language codes.
+    /// `general.languages` - transcribable language codes.
     pub languages: Option<Vec<String>>,
-    /// `stt.capability.streaming` — native live-streaming support.
+    /// `stt.capability.streaming` - native live-streaming support.
     pub supports_streaming: Option<bool>,
-    /// `stt.capability.translate` — translation to English.
+    /// `stt.capability.translate` - translation to English.
     pub supports_translation: Option<bool>,
-    /// `stt.capability.lang_detect` — automatic language detection.
+    /// `stt.capability.lang_detect` - automatic language detection.
     pub supports_language_detect: Option<bool>,
 }
 
@@ -122,7 +122,7 @@ impl CapabilityProbe {
     /// Streaming for the parakeet family is *inferred* by transcribe-cpp's
     /// native loader from encoder hparams rather than a flat bool, so when the
     /// explicit `stt.capability.streaming` key is absent we leave it `None`
-    /// (unknown) and let post-load reconciliation settle it — we never guess.
+    /// (unknown) and let post-load reconciliation settle it - we never guess.
     pub fn from_metadata(meta: &GgufMetadata) -> Self {
         let architecture = meta.get_str(KEY_ARCH).map(str::to_string);
         let verdict = match architecture.as_deref() {

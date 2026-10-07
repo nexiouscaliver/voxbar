@@ -163,7 +163,7 @@ pub async fn update_microphone_mode(app: AppHandle, always_on: bool) -> Result<(
     write_settings(&app, settings);
 
     // Update the audio manager mode. update_mode can stop/start the cpal stream
-    // (blocking CoreAudio) and takes the manager std mutexes — run it on a
+    // (blocking CoreAudio) and takes the manager std mutexes - run it on a
     // blocking thread, NOT inline on the webview/main run loop (a slow device
     // open/close would freeze the UI).
     let rm = app.state::<Arc<AudioRecordingManager>>().inner().clone();
@@ -189,7 +189,7 @@ pub fn get_microphone_mode(app: AppHandle) -> Result<bool, String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn get_available_microphones() -> Result<Vec<AudioDevice>, String> {
-    // cpal device enumeration can stall — run it off the webview/main run loop.
+    // cpal device enumeration can stall - run it off the webview/main run loop.
     tokio::task::spawn_blocking(|| {
         let devices =
             list_input_devices().map_err(|e| format!("Failed to list audio devices: {}", e))?;
@@ -224,7 +224,7 @@ pub async fn set_selected_microphone(app: AppHandle, device_name: String) -> Res
     write_settings(&app, settings);
 
     // Update the audio manager to use the new device. update_selected_device
-    // can restart the cpal stream (blocking CoreAudio) — run it on a blocking
+    // can restart the cpal stream (blocking CoreAudio) - run it on a blocking
     // thread, not inline on the webview/main run loop.
     let rm = app.state::<Arc<AudioRecordingManager>>().inner().clone();
     tokio::task::spawn_blocking(move || rm.update_selected_device())
@@ -245,7 +245,7 @@ pub fn get_selected_microphone(app: AppHandle) -> Result<String, String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn get_available_output_devices() -> Result<Vec<AudioDevice>, String> {
-    // cpal device enumeration can stall — run it off the webview/main run loop.
+    // cpal device enumeration can stall - run it off the webview/main run loop.
     tokio::task::spawn_blocking(|| {
         let devices =
             list_output_devices().map_err(|e| format!("Failed to list output devices: {}", e))?;

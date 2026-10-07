@@ -577,7 +577,7 @@ async changeTranscribeGpuDevice(device: string | null) : Promise<Result<null, st
  * First-call cost is dominated by enumerating GPU devices through the
  * transcribe.cpp Metal/Vulkan backend, which loads dynamic libraries and
  * probes hardware. Run it on the blocking pool so the webview thread
- * stays responsive — see also the startup pre-warm in `lib.rs`.
+ * stays responsive - see also the startup pre-warm in `lib.rs`.
  */
 async getAvailableAccelerators() : Promise<AvailableAccelerators> {
     return await TAURI_INVOKE("get_available_accelerators");
@@ -1084,7 +1084,7 @@ streamTextEvent: "stream-text-event"
 
 /**
  * The container-level `serde(default)` (backed by the `Default` impl below)
- * guarantees every field — including ones added in the future — falls back to
+ * guarantees every field - including ones added in the future - falls back to
  * its `get_default_settings()` value when missing from a stored settings
  * object, so a partial store can never fail the whole load (#1619).
  * Field-level defaults below take precedence where present.
@@ -1115,7 +1115,7 @@ hold_threshold_ms?: number; audio_feedback?: boolean; audio_feedback_volume?: nu
  * The app version whose What's New the user has already seen. Fresh installs
  * default to the current version (nothing is "new" to them). Existing users
  * upgrading from before this key existed are blanked by the migration so they
- * see the current release's notes — see `apply_settings_migrations`.
+ * see the current release's notes - see `apply_settings_migrations`.
  */
 whats_new_last_seen_version?: string; selected_model?: string; onboarding_completed?: boolean; always_on_microphone?: boolean; selected_microphone?: string | null; 
 /**
@@ -1173,7 +1173,7 @@ transcribe_gpu_device?: string | null; extra_recording_buffer_ms?: number; vad_e
 vad_backend?: VadBackend; 
 /**
  * Which recording overlay to show: None / Minimal / Live. Streaming mode is
- * not gated on this — that follows model capability. Migrated from the old
+ * not gated on this - that follows model capability. Migrated from the old
  * `overlay_position` (position `none` → style `None`).
  */
 overlay_style?: OverlayStyle }
@@ -1225,7 +1225,7 @@ export type ImplementationChangeResult = { success: boolean;
 reset_bindings: string[] }
 export type KeyboardDiagnosticReport = { secure_input_enabled: boolean; culprit_pid: number | null; culprit_name: string | null; 
 /**
- * Counts only — key identity is deliberately never captured.
+ * Counts only - key identity is deliberately never captured.
  */
 key_down: number; key_up: number; flags_changed: number; mouse: number; duration_ms: number }
 export type KeyboardImplementation = "tauri" | "handy_keys"
@@ -1234,7 +1234,7 @@ export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type ModelInfo = { id: string; name: string; description: string; filename: string; source: ModelSource; size_mb: number; is_downloaded: boolean; is_downloading: boolean; partial_size: number; is_directory: boolean; engine_type: EngineType; accuracy_score: number; speed_score: number; supports_translation: boolean; is_recommended: boolean; supported_languages: string[]; supports_language_selection: boolean; is_custom: boolean; supports_streaming: boolean; supports_language_detection: boolean }
 export type ModelLoadStatus = { is_loaded: boolean; current_model: string | null }
 /**
- * Where a model comes from and how Handy obtains it — the routing discriminant
+ * Where a model comes from and how Handy obtains it - the routing discriminant
  * for downloading and on-disk resolution.
  */
 export type ModelSource = 
@@ -1253,7 +1253,7 @@ sha256: string | null } } |
  */
 { HuggingFace: { repo_id: string; revision: string } } | 
 /**
- * Already present on disk — a user-provided custom model, or one discovered
+ * Already present on disk - a user-provided custom model, or one discovered
  * in a shared cache. Nothing to download.
  */
 "Local"
@@ -1336,7 +1336,7 @@ export type StreamPhase =
  */
 "listening" | 
 /**
- * Finalizing or post-processing — show a spinner.
+ * Finalizing or post-processing - show a spinner.
  */
 "working"
 /**

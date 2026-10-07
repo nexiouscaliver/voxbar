@@ -141,7 +141,7 @@
     "loadingGeneric": "Yükleniyor...",
     "modelError": "Model Hatası",
     "modelUnloaded": "Model Boşaltıldı",
-    "noModelDownloadRequired": "Model Yok – İndirme Gerekli",
+    "noModelDownloadRequired": "Model Yok - İndirme Gerekli",
     "deleteModel": "{{modelName}} Sil",
     "switching": "Değiştiriliyor...",
     "downloadSpeed": "{{speed}} MB/s",
@@ -377,7 +377,7 @@
       "overlay": {
         "style": {
           "title": "Ekran Katmanı",
-          "description": "Kayıt sırasında gösterilecek ekran katmanını seçin: 'Yok' katmanı gizler, 'Sade' küçük bir gösterge gösterir, 'Canlı' siz konuşurken transkripsiyonu gerçek zamanlı gösterir (yalnızca akış destekli modeller — model seçicide 'Akış' rozetini arayın). Linux'ta 'Yok' önerilir.",
+          "description": "Kayıt sırasında gösterilecek ekran katmanını seçin: 'Yok' katmanı gizler, 'Sade' küçük bir gösterge gösterir, 'Canlı' siz konuşurken transkripsiyonu gerçek zamanlı gösterir (yalnızca akış destekli modeller - model seçicide 'Akış' rozetini arayın). Linux'ta 'Yok' önerilir.",
           "options": {
             "none": "Yok",
             "minimal": "Sade",
@@ -455,7 +455,7 @@
       },
       "customWords": {
         "title": "Özel Kelimeler",
-        "description": "Desteklenen modellerin adları ve özel terimleri tanımasına yardımcı olun. Bulanık düzeltme şu anda A–Z harflerini ve rakamları kullanan sözcüklerle sınırlıdır.",
+        "description": "Desteklenen modellerin adları ve özel terimleri tanımasına yardımcı olun. Bulanık düzeltme şu anda A-Z harflerini ve rakamları kullanan sözcüklerle sınırlıdır.",
         "placeholder": "Kelime ekle",
         "add": "Ekle",
         "remove": "{{word}} Kaldır",
@@ -679,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Klavye Tanılaması",
-        "description": "Klavye olaylarının VoxBar'ye ulaşıp ulaşmadığını denetler. Yalnızca olay sayıları kaydedilir — hangi tuşlara bastığınız asla kaydedilmez.",
+        "description": "Klavye olaylarının VoxBar'ye ulaşıp ulaşmadığını denetler. Yalnızca olay sayıları kaydedilir - hangi tuşlara bastığınız asla kaydedilmez.",
         "run": "10 sn'lik tanılamayı çalıştır",
         "running": "Dinleniyor… kısayolunuza birkaç kez basın (ör. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -691,10 +691,10 @@
         "keyUp": "Tuş bırakma",
         "flagsChanged": "Değiştiriciler",
         "mouse": "Fare",
-        "verdictBlocked": "Secure Input tuş olaylarını engelliyor — normal tuş içeren kısayollar bu sorun çözülene kadar çalışamaz.",
-        "verdictSuspicious": "Değiştirici olayları geldi ancak hiç tuş olayı gelmedi — Secure Input devre dışı görünmesine rağmen bir şey tuşları bastırıyor. Lütfen bunu GitHub'da bildirin.",
+        "verdictBlocked": "Secure Input tuş olaylarını engelliyor - normal tuş içeren kısayollar bu sorun çözülene kadar çalışamaz.",
+        "verdictSuspicious": "Değiştirici olayları geldi ancak hiç tuş olayı gelmedi - Secure Input devre dışı görünmesine rağmen bir şey tuşları bastırıyor. Lütfen bunu GitHub'da bildirin.",
         "verdictOk": "Tuş olayları VoxBar'ye normal şekilde ulaşıyor.",
-        "verdictNoEvents": "Hiç olay yakalanmadı — test sırasında herhangi bir tuşa bastınız mı?",
+        "verdictNoEvents": "Hiç olay yakalanmadı - test sırasında herhangi bir tuşa bastınız mı?",
         "failed": "Tanılama başarısız: {{error}}"
       },
       "whatsNewPreview": {
@@ -756,9 +756,9 @@
     "preparing": "Hazırlanıyor...",
     "checkForUpdates": "Güncellemeleri kontrol et",
     "portableUpdateTitle": "Manuel güncelleme gerekli",
-    "portableUpdateMessage": "Taşınabilir kurulumlar otomatik olarak güncellenemez. Aşağıdan sisteminize uygun yükleyiciyi indirin, çalıştırın ve aynı klasöre kurun — Data/ klasörünüz (ayarlar, modeller, kayıtlar) yerinde kalır.",
+    "portableUpdateMessage": "Taşınabilir kurulumlar otomatik olarak güncellenemez. Aşağıdan sisteminize uygun yükleyiciyi indirin, çalıştırın ve aynı klasöre kurun - Data/ klasörünüz (ayarlar, modeller, kayıtlar) yerinde kalır.",
     "portableUpdateButton": "Yükleyiciyi indir",
-    "portableUpdateBrowseMessage": "Taşınabilir kurulumlar otomatik olarak güncellenemez. Sisteminize uygun en son sürümü GitHub Releases’ten indirin ve aynı klasöre kurun — Data/ klasörünüz (ayarlar, modeller, kayıtlar) yerinde kalır.",
+    "portableUpdateBrowseMessage": "Taşınabilir kurulumlar otomatik olarak güncellenemez. Sisteminize uygun en son sürümü GitHub Releases’ten indirin ve aynı klasöre kurun - Data/ klasörünüz (ayarlar, modeller, kayıtlar) yerinde kalır.",
     "portableUpdateBrowseButton": "GitHub Releases’i aç"
   },
   "common": {
@@ -842,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} kısayol değişikliklerini engelliyor olabilir",
     "recorderBlockedNoCulprit": "macOS geçici olarak kısayol değişikliklerini engelliyor",
     "learnMore": "Bu nasıl düzeltilir",
-    "recorderBlocked": "Şu anda kısayol kaydedilemiyor — macOS Secure Input tuş olaylarını engelliyor. Önce Secure Input uyarısını giderin.",
+    "recorderBlocked": "Şu anda kısayol kaydedilemiyor - macOS Secure Input tuş olaylarını engelliyor. Önce Secure Input uyarısını giderin.",
     "dismiss": "Kapat"
   }
 }

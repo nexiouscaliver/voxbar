@@ -377,7 +377,7 @@
       "overlay": {
         "style": {
           "title": "Overlay",
-          "description": "Välj inspelningsöverlägget: ”Ingen” döljer det, ”Minimal” visar en kompakt indikator, ”Live” visar transkriberingen i realtid medan du talar (endast modeller med streamingstöd — leta efter Streaming-märket i modellväljaren). På Linux rekommenderas ”Ingen”.",
+          "description": "Välj inspelningsöverlägget: ”Ingen” döljer det, ”Minimal” visar en kompakt indikator, ”Live” visar transkriberingen i realtid medan du talar (endast modeller med streamingstöd - leta efter Streaming-märket i modellväljaren). På Linux rekommenderas ”Ingen”.",
           "options": {
             "none": "Ingen",
             "minimal": "Minimal",
@@ -455,7 +455,7 @@
       },
       "customWords": {
         "title": "Anpassade ord",
-        "description": "Hjälp modeller som stöds att känna igen namn och specialtermer. Ungefärlig korrigering är för närvarande begränsad till ord med bokstäverna A–Z och siffror.",
+        "description": "Hjälp modeller som stöds att känna igen namn och specialtermer. Ungefärlig korrigering är för närvarande begränsad till ord med bokstäverna A-Z och siffror.",
         "placeholder": "Lägg till ett ord",
         "add": "Lägg till",
         "remove": "Ta bort {{word}}",
@@ -679,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Tangentbordsdiagnostik",
-        "description": "Kontrollerar om tangentbordshändelser når VoxBar. Endast antalet händelser registreras — aldrig vilka tangenter du trycker på.",
+        "description": "Kontrollerar om tangentbordshändelser når VoxBar. Endast antalet händelser registreras - aldrig vilka tangenter du trycker på.",
         "run": "Kör 10 s diagnostik",
         "running": "Lyssnar… tryck på ditt kortkommando några gånger (t.ex. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -691,10 +691,10 @@
         "keyUp": "Tangent upp",
         "flagsChanged": "Modifierare",
         "mouse": "Mus",
-        "verdictBlocked": "Secure Input blockerar tangenthändelser — kortkommandon med en vanlig tangent kan inte fungera förrän det är löst.",
-        "verdictSuspicious": "Modifierarhändelser kom fram men inga tangenthändelser — något undertrycker tangenter trots att Secure Input rapporteras som inaktiverat. Rapportera gärna detta på GitHub.",
+        "verdictBlocked": "Secure Input blockerar tangenthändelser - kortkommandon med en vanlig tangent kan inte fungera förrän det är löst.",
+        "verdictSuspicious": "Modifierarhändelser kom fram men inga tangenthändelser - något undertrycker tangenter trots att Secure Input rapporteras som inaktiverat. Rapportera gärna detta på GitHub.",
         "verdictOk": "Tangenthändelser når VoxBar som vanligt.",
-        "verdictNoEvents": "Inga händelser fångades — tryckte du på några tangenter under testet?",
+        "verdictNoEvents": "Inga händelser fångades - tryckte du på några tangenter under testet?",
         "failed": "Diagnostiken misslyckades: {{error}}"
       },
       "whatsNewPreview": {
@@ -756,9 +756,9 @@
     "preparing": "Förbereder...",
     "checkForUpdates": "Sök efter uppdateringar",
     "portableUpdateTitle": "Manuell uppdatering krävs",
-    "portableUpdateMessage": "Portabla installationer kan inte uppdateras automatiskt. Ladda ner installeraren för ditt system nedan, kör den och installera i samma mapp — din Data/-mapp (inställningar, modeller, inspelningar) behålls.",
+    "portableUpdateMessage": "Portabla installationer kan inte uppdateras automatiskt. Ladda ner installeraren för ditt system nedan, kör den och installera i samma mapp - din Data/-mapp (inställningar, modeller, inspelningar) behålls.",
     "portableUpdateButton": "Ladda ner installeraren",
-    "portableUpdateBrowseMessage": "Portabla installationer kan inte uppdateras automatiskt. Ladda ner den senaste versionen för ditt system från GitHub Releases och installera den i samma mapp — din Data/-mapp (inställningar, modeller, inspelningar) behålls.",
+    "portableUpdateBrowseMessage": "Portabla installationer kan inte uppdateras automatiskt. Ladda ner den senaste versionen för ditt system från GitHub Releases och installera den i samma mapp - din Data/-mapp (inställningar, modeller, inspelningar) behålls.",
     "portableUpdateBrowseButton": "Öppna GitHub Releases"
   },
   "common": {
@@ -842,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} kanske blockerar ändringar av kortkommandon",
     "recorderBlockedNoCulprit": "macOS blockerar tillfälligt ändringar av kortkommandon",
     "learnMore": "Så här löser du det",
-    "recorderBlocked": "Det går inte att spela in kortkommandon just nu — macOS Secure Input blockerar tangenthändelser. Lös varningen om Secure Input först.",
+    "recorderBlocked": "Det går inte att spela in kortkommandon just nu - macOS Secure Input blockerar tangenthändelser. Lös varningen om Secure Input först.",
     "dismiss": "Avfärda"
   }
 }

@@ -402,7 +402,7 @@ pub async fn send_chat_completion_with_schema(
     );
 
     // A 400/422 on a request carrying reasoning-disable fields is almost always
-    // the endpoint rejecting those fields — retry once without them.
+    // the endpoint rejecting those fields - retry once without them.
     if !status.is_success()
         && matches!(status.as_u16(), 400 | 422)
         && !request_body.reasoning.is_empty()

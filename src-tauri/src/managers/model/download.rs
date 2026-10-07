@@ -21,7 +21,7 @@ const HTTP_CONNECT_TIMEOUT: Duration = Duration::from_secs(15);
 
 /// No headers, body bytes, or hf-hub progress for this long means the transfer
 /// is wedged, not slow: direct downloads error out (keeping the partial for
-/// resume) and HF attempts are cancelled by a watchdog — either way the retry
+/// resume) and HF attempts are cancelled by a watchdog - either way the retry
 /// loop and mirror fallback take over instead of hanging forever.
 pub(super) const DOWNLOAD_STALL_TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -120,7 +120,7 @@ impl ModelManager {
     }
 
     /// [`Self::download_http_resumable_with_events`] wired to the Tauri event
-    /// bus — the production entry point.
+    /// bus - the production entry point.
     pub(super) async fn download_http_resumable(
         &self,
         model_id: &str,
@@ -158,7 +158,7 @@ impl ModelManager {
 
     /// The one resumable HTTP downloader, shared by the mirror fallback and
     /// URL-sourced models: fetch `url` into `partial_path`, resuming what's
-    /// already there, and leave verified bytes in `partial_path` on success —
+    /// already there, and leave verified bytes in `partial_path` on success -
     /// finalizing (rename / extract) is the caller's job. Takes progress and
     /// verification notifications as a callback instead of touching Tauri, so
     /// the failure-mode behavior below is exercised by tests against a local
@@ -235,7 +235,7 @@ impl ModelManager {
         // 416 to our Range request means its start is at or past the object's
         // end. With a catalog size in hand that can only mean the server's
         // object is *smaller* than expected (a full-size partial never issues
-        // a request — handled above), and with no hash there is no trusted
+        // a request - handled above), and with no hash there is no trusted
         // signal to bless the partial: both restart clean. Only a hash can
         // genuinely finish a partial here. Without a Range in flight a 416 is
         // just a broken server, which the generic status check below rejects.
@@ -279,7 +279,7 @@ impl ModelManager {
             }
         }
         // When the catalog pins the size, a server advertising a different
-        // total is already misbehaving — reject before writing anything.
+        // total is already misbehaving - reject before writing anything.
         if let (Some(expected), Some(len)) = (expected_size, response.content_length()) {
             if resume_from + len != expected {
                 return Err(anyhow::anyhow!(
@@ -339,7 +339,7 @@ impl ModelManager {
             // An untrusted server must not be able to fill the disk: cut the
             // transfer at the first byte past the known total instead of
             // trusting it to eventually close the stream. Everything written
-            // so far is tainted by a provably-misbehaving server — clear it.
+            // so far is tainted by a provably-misbehaving server - clear it.
             if let Some(cap) = known_total {
                 if downloaded + chunk.len() as u64 > cap {
                     drop(file);

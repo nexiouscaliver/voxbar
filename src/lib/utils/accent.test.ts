@@ -31,7 +31,7 @@ const THEME_BACKGROUND: Record<"light" | "dark", string> = {
   dark: "#2c2b29",
 };
 
-/* 1. The default pins today's exact palette — no behavior change until the
+/* 1. The default pins today's exact palette - no behavior change until the
       user picks an accent. */
 const pink = ACCENTS.find((a) => a.id === DEFAULT_ACCENT_ID);
 assert.ok(pink, "default pink accent exists");
@@ -97,7 +97,7 @@ for (const accent of ACCENTS) {
         - render color vs theme background  >= 4.5:1 (text usage)
         - fill vs onFill                    >= 4.5:1 (badge labels)
         - fill vs knob                      >= 3:1  (WCAG 1.4.11 UI component)
-      The default pink is pinned by (1) instead — its historical values are
+      The default pink is pinned by (1) instead - its historical values are
       intentionally not re-litigated here. */
 for (const accent of ACCENTS) {
   if (accent.id === DEFAULT_ACCENT_ID) continue;

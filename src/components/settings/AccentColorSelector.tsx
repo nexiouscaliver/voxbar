@@ -12,7 +12,7 @@ interface AccentColorSelectorProps {
 /**
  * Fixed-swatch accent picker (deliberately not a color wheel). Every cell
  * carries a border so dark swatches stay visible on the dark theme and light
- * swatches on light. Selecting applies immediately — the CSS palette
+ * swatches on light. Selecting applies immediately - the CSS palette
  * override lands before the setting round-trips, so the UI recolors at once.
  */
 export const AccentColorSelector: React.FC<AccentColorSelectorProps> =

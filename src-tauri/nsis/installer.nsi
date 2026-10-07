@@ -173,7 +173,7 @@ Var InstallTypeRadioPortable
 Page custom PageInstallType PageLeaveInstallType
 
 Function PageInstallType
-  ; Skip for passive/silent/update modes — portable flag is handled via /PORTABLE
+  ; Skip for passive/silent/update modes - portable flag is handled via /PORTABLE
   ${If} $PassiveMode = 1
   ${OrIf} ${Silent}
   ${OrIf} $UpdateMode = 1

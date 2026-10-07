@@ -6,9 +6,9 @@
 //! recommended set). It is compiled into the binary so Handy ships a complete
 //! model list with zero network access.
 //!
-//! Each entry is normalised into a [`ModelDescriptor`] — the same source-agnostic
+//! Each entry is normalised into a [`ModelDescriptor`] - the same source-agnostic
 //! shape every other producer (HF discovery, on-disk scans, the legacy table)
-//! yields — so the catalog is "just another producer". Its explicit `capabilities`
+//! yields - so the catalog is "just another producer". Its explicit `capabilities`
 //! map becomes a [`CapabilityProbe`] with confident `Some(..)` values; the runtime
 //! `GgufHeaderProber` is the same shape with `None` where a header omits a key,
 //! which is why the two are interchangeable (the catalog is a baked probe).
@@ -26,7 +26,7 @@ use crate::managers::model_capabilities::{CapabilityProbe, Compatibility};
 #[derive(Deserialize)]
 struct CatalogRoot {
     /// Base URLs tried in order when the Hugging Face download fails. The full
-    /// file URL is `{mirror}/{repo_id}/{revision}/{filename}` — the same three
+    /// file URL is `{mirror}/{repo_id}/{revision}/{filename}` - the same three
     /// values that form the HF resolve URL, so a mirror is a plain static host.
     #[serde(default)]
     mirrors: Vec<String>,
@@ -67,14 +67,14 @@ struct CatalogCaps {
     translate: bool,
     lang_detect: bool,
     // `timestamps` (a string enum) is present in the catalog but has no
-    // `CapabilityProbe` field yet — wire it through when the probe gains one.
+    // `CapabilityProbe` field yet - wire it through when the probe gains one.
 }
 
 impl From<&CatalogModel> for ModelDescriptor {
     fn from(m: &CatalogModel) -> Self {
         // The default download file. Its name is folded into the id so a catalog
         // entry collides (dedups) with the very same file later discovered in
-        // the HF cache — both compute `"{repo_id}/{filename}"`.
+        // the HF cache - both compute `"{repo_id}/{filename}"`.
         let default_filename = default_quant_file(&m.files, m.default_quant.as_deref())
             .map(|f| f.filename.clone())
             .unwrap_or_default();
@@ -103,7 +103,7 @@ impl From<&CatalogModel> for ModelDescriptor {
             },
             files: m.files.clone(),
             default_quant: m.default_quant.clone(),
-            // catalog scores are 0–100; ModelInfo / the UI bars use 0.0–1.0.
+            // catalog scores are 0-100; ModelInfo / the UI bars use 0.0-1.0.
             speed_score: m.speed_score.unwrap_or(0.0) / 100.0,
             accuracy_score: m.accuracy_score.unwrap_or(0.0) / 100.0,
             recommended_rank: m.recommended_rank,
@@ -126,17 +126,17 @@ pub static CATALOG: Lazy<Vec<ModelDescriptor>> =
 /// A mirror copy of a catalog model's default file, with the expected content
 /// hash for end-to-end verification. Mirrors are untrusted bit-pipes: the
 /// sha256 here (from the catalog compiled into the binary) is the trust anchor,
-/// which is why it is mandatory — a file without one is never offered from a
+/// which is why it is mandatory - a file without one is never offered from a
 /// mirror at all.
 pub struct MirrorFile {
     pub url: String,
     pub sha256: String,
-    /// Catalog size — drives progress totals and resume sanity checks.
+    /// Catalog size - drives progress totals and resume sanity checks.
     pub size_bytes: u64,
 }
 
-/// Ordered mirror URLs for a catalog model's file — any listed quant, not just
-/// the default — or empty when the model isn't from the catalog / no mirrors
+/// Ordered mirror URLs for a catalog model's file - any listed quant, not just
+/// the default - or empty when the model isn't from the catalog / no mirrors
 /// are configured. `model_id` is the registry id (`"{repo_id}/{filename}"`).
 /// (The mirror may only host default quants; a miss there just 404s and the
 /// caller reports it, so listing every quant here costs nothing.)
@@ -175,7 +175,7 @@ pub fn mirror_fallbacks(model_id: &str) -> Vec<MirrorFile> {
 
 /// The catalog descriptor + specific `files[]` entry owning `filename`,
 /// matched across every listed quant (not just the default). `repo_id`, when
-/// given, must also match — the HF-cache scan uses it to keep a foreign repo
+/// given, must also match - the HF-cache scan uses it to keep a foreign repo
 /// that happens to reuse a catalog filename from masquerading as ours.
 pub fn file_in_catalog(
     filename: &str,

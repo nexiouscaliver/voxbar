@@ -17,7 +17,7 @@ pub const fn frames_for_duration_ms(duration_ms: u64, frame_samples: usize) -> u
 }
 
 pub enum VadFrame<'a> {
-    /// Speech – may aggregate several frames (prefill + current + hangover)
+    /// Speech - may aggregate several frames (prefill + current + hangover)
     Speech(&'a [f32]),
     /// Non-speech (silence, noise). Down-stream code can ignore it.
     Noise,
@@ -46,7 +46,7 @@ pub trait VoiceActivityDetector: Send + Sync {
     fn set_hangover_frames(&mut self, _frames: usize) {}
 
     /// End-of-recording diagnostic snapshot, taken after the final frame.
-    /// Purely observational — implementations must not change what they emit.
+    /// Purely observational - implementations must not change what they emit.
     /// Detectors without smoothing state return None.
     fn tail_report(&self) -> Option<VadTailReport> {
         None
@@ -56,7 +56,7 @@ pub trait VoiceActivityDetector: Send + Sync {
 }
 
 /// End-of-recording snapshot of a smoothing detector's state. Voiced frames
-/// in the withheld tail suggest — but don't prove — a final word cut off at
+/// in the withheld tail suggest - but don't prove - a final word cut off at
 /// the stop; a clean report doesn't rule VAD loss out either (soft trailing
 /// speech can be classified as noise).
 #[derive(Debug, Clone, Copy)]

@@ -64,7 +64,7 @@ struct MenuInputs {
     locale: String,
     update_checks_enabled: bool,
     /// `(id, display name)` of the RESIDENT model, when one is loaded. The
-    /// submenu label prefers this over `selected_model` — the two diverge in
+    /// submenu label prefers this over `selected_model` - the two diverge in
     /// the failed-switch and pending-unload states (spec F4).
     resident_model: Option<(String, String)>,
     /// Pre-formatted resident-footprint segment for the submenu label and
@@ -76,7 +76,7 @@ struct MenuInputs {
     unload_timeout: ModelUnloadTimeout,
     /// macOS menu-bar title (resident model + compact RAM), set via
     /// `TrayIcon::set_title`. `None` (nothing resident) clears it. Only
-    /// computed on macOS — Windows does not support tray titles and showing
+    /// computed on macOS - Windows does not support tray titles and showing
     /// one on the Linux panel is a behavior change nobody asked for.
     title: Option<String>,
 }
@@ -359,7 +359,7 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
     let footprint = transcription.resident_model_footprint();
     let model_ram = format_ram_segment(footprint);
     // Menu-bar title (macOS only; see MenuInputs::title). Computed from the
-    // same load/unload-driven snapshot as the menu — no polling (spec C2) —
+    // same load/unload-driven snapshot as the menu - no polling (spec C2) -
     // and gated by the menu_bar_model_title setting (desired_tray_title
     // returns None for every input when it is off).
     #[cfg(target_os = "macos")]
@@ -464,7 +464,7 @@ fn apply_on_main(app: &AppHandle) {
     }
 
     // Menu-bar title (macOS). Best-effort like the tooltip, but tracked in
-    // `applied_title` so a failed `set_title` is retried on the next sync —
+    // `applied_title` so a failed `set_title` is retried on the next sync -
     // the title is the loaded-state indicator and worth one retry, and it can
     // change without the menu rebuilding only in exotic partial-failure cases.
     let mut title_ok = false;
@@ -594,7 +594,7 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
             ],
         )?
     } else {
-        // Build model submenu — the label shows the RESIDENT model and its
+        // Build model submenu - the label shows the RESIDENT model and its
         // footprint when one is loaded, falling back to the selection.
         let model_name = resolve_model_label_name(
             inputs.resident_model.as_ref(),
@@ -603,7 +603,7 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
             &strings.model,
         );
         let submenu_label = match &inputs.model_ram {
-            Some(ram) => format!("{model_name} — {ram}"),
+            Some(ram) => format!("{model_name} - {ram}"),
             None => model_name.clone(),
         };
 
@@ -673,7 +673,7 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
 
     // When update checks are forced off (e.g. HANDY_DISABLE_UPDATER, set by
     // the Nix package), the item is dropped from the menu rather than shown
-    // disabled — it can never do anything in that case, and a disabled item
+    // disabled - it can never do anything in that case, and a disabled item
     // still shifts every entry below it by one position. A manually-disabled
     // toggle in Debug Settings keeps the old greyed-out behavior via the
     // enabled flag.
@@ -687,14 +687,14 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
     let mut tooltip = version_label;
     if let Some((_, resident_name)) = &inputs.resident_model {
         tooltip = match &inputs.model_ram {
-            Some(ram) => format!("{tooltip} — {resident_name} — {ram}"),
-            None => format!("{tooltip} — {resident_name}"),
+            Some(ram) => format!("{tooltip} - {resident_name} - {ram}"),
+            None => format!("{tooltip} - {resident_name}"),
         };
     }
     if let Some(warning_item) = secure_input_warning {
         menu.insert(&warning_item, 2)?;
         menu.insert(&separator()?, 3)?;
-        tooltip = format!("{} — {}", tooltip, warning_item.text().unwrap_or_default());
+        tooltip = format!("{} - {}", tooltip, warning_item.text().unwrap_or_default());
     }
 
     Ok((menu, tooltip))
@@ -710,7 +710,7 @@ fn last_transcript_text(entry: &HistoryEntry) -> &str {
 /// Format the resident-footprint segment shown after the model name:
 /// measured bytes render plain (`697 MB`), estimates get a `~` prefix
 /// (`~697 MB`), and `None` (nothing resident, or no estimate resolved)
-/// omits the segment entirely. Pure — menu building never fails on
+/// omits the segment entirely. Pure - menu building never fails on
 /// measurement errors.
 fn format_ram_segment(footprint: Option<(u64, bool)>) -> Option<String> {
     let (bytes, measured) = footprint?;
@@ -722,9 +722,9 @@ fn format_ram_segment(footprint: Option<(u64, bool)>) -> Option<String> {
     }
 }
 
-/// Resolve the model submenu label's name part (pure — extracted from
+/// Resolve the model submenu label's name part (pure - extracted from
 /// `build_menu` so the precedence is unit-testable without an app):
-/// prefer the RESIDENT model (what is actually in memory — the
+/// prefer the RESIDENT model (what is actually in memory - the
 /// selected-vs-resident divergence of the failed-switch and pending-unload
 /// states), fall back to the `selected_model` lookup, then the localized
 /// "Model" fallback string.
@@ -748,12 +748,12 @@ fn resolve_model_label_name(
 
 /// Keep the menu-bar title from eating the menu bar: everything past this
 /// many characters is truncation territory. 18 fits the spec's worked
-/// example (`Parakeet EN · 768M`) exactly — the "~16 characters" guidance
+/// example (`Parakeet EN · 768M`) exactly - the "~16 characters" guidance
 /// budgets this class of length.
 const TRAY_TITLE_MAX_CHARS: usize = 18;
 
 /// The title `compute_desired` wants, given the `menu_bar_model_title`
-/// setting: off → `None` for EVERY input (even with a model resident — the
+/// setting: off → `None` for EVERY input (even with a model resident - the
 /// applier's diff then clears any currently-displayed title); on → exactly
 /// what [`format_tray_title`] produces today. Pure, so the setting's effect
 /// is unit-testable without an app.
@@ -769,12 +769,12 @@ fn desired_tray_title(
 }
 
 /// Format the macOS menu-bar title: short model name + compact resident RAM
-/// (`Parakeet EN · 768M`). Pure — `None` in, `None` out (nothing resident
+/// (`Parakeet EN · 768M`). Pure - `None` in, `None` out (nothing resident
 /// clears the title entirely). The name is truncated (with `…`) when the
 /// combined title would exceed [`TRAY_TITLE_MAX_CHARS`] characters; the RAM
 /// segment is never truncated. A missing footprint yields a name-only title.
 ///
-/// NOT the function `compute_desired` calls — use [`desired_tray_title`],
+/// NOT the function `compute_desired` calls - use [`desired_tray_title`],
 /// which gates on the `menu_bar_model_title` setting.
 fn format_tray_title(resident_name: Option<&str>, footprint_bytes: Option<u64>) -> Option<String> {
     let name = resident_name?;
@@ -898,7 +898,7 @@ pub fn set_tray_visibility(app: &AppHandle, visible: bool) {
 /// Hiding and re-showing the tray recreates it with its current icon, menu and
 /// tooltip. Called when the user "relaunches" Handy while it is already running
 /// (`RunEvent::Reopen` for Spotlight/Finder/Dock, the single-instance callback
-/// for a second process) — the natural "where did my icon go?" moment — so a
+/// for a second process) - the natural "where did my icon go?" moment - so a
 /// relaunch brings the icon back without a full quit.
 #[cfg(target_os = "macos")]
 pub fn recreate_tray_icon(app: &AppHandle) {
@@ -1076,7 +1076,7 @@ mod tests {
     fn disabled_menu_bar_title_never_produces_one_even_with_a_model_resident() {
         let mib = 1024 * 1024;
         // Setting off: None for every resident/footprint combination a
-        // loaded model can produce — compute_desired feeds exactly these
+        // loaded model can produce - compute_desired feeds exactly these
         // inputs, so the applier's diff clears any displayed title.
         assert_eq!(
             desired_tray_title(false, Some("Parakeet EN"), Some(768 * mib)),
@@ -1224,7 +1224,7 @@ mod tests {
     #[test]
     fn label_prefers_resident_model_over_selection() {
         // The failed-switch / pending-unload divergence: selected=small but
-        // large is what is actually in memory — the label shows the resident
+        // large is what is actually in memory - the label shows the resident
         // model.
         let resident = Some(("large".to_string(), "Large".to_string()));
         let models = vec![

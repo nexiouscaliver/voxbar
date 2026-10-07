@@ -209,7 +209,7 @@ pub fn get_cursor_position(app_handle: &AppHandle) -> Option<(i32, i32)> {
 /// `hold_ms` is how long the modifier stays held after the V click before being
 /// released. Most applications read the modifier from the V event's flags and
 /// need no hold at all, but applications that poll global keyboard state when
-/// handling the key need the modifier to still be down — the hold insures
+/// handling the key need the modifier to still be down - the hold insures
 /// against those. Callers that can detect a failed chord (e.g. the
 /// receipt-sequenced paste path) may use a much shorter hold.
 pub fn send_paste_ctrl_v(enigo: &mut Enigo, hold_ms: u64) -> Result<(), String> {

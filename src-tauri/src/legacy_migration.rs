@@ -4,11 +4,11 @@
 //! over an existing Handy install resolves a NEW app-data dir
 //! (`com.voxbar.app` next to the legacy `com.pais.handy`) and would
 //! otherwise start fresh: re-onboarding, model re-download, lost history.
-//! On the first run after the rename — before anything in `.setup()` has
-//! written into the new dir — this module moves the user's data over
+//! On the first run after the rename - before anything in `.setup()` has
+//! written into the new dir - this module moves the user's data over
 //! per-item and idempotently:
 //!
-//! - `settings_store.json` ([`SETTINGS_STORE_PATH`]) — the no-store trigger
+//! - `settings_store.json` ([`SETTINGS_STORE_PATH`]) - the no-store trigger
 //!   and the first item moved; migrating it also carries
 //!   `autostart_enabled`, so login-item re-registration happens
 //!   automatically later in `initialize_core_logic` → `apply_autostart`.
@@ -25,7 +25,7 @@
 //! next launch retries the missing items.
 //!
 //! Portable installs are unaffected: their `Data/` dir lives next to the
-//! executable (`portable.rs`), so an in-place upgrade keeps using it —
+//! executable (`portable.rs`), so an in-place upgrade keeps using it -
 //! this module skips them entirely.
 //!
 //! Legacy autostart entries are also cleaned up where derivable. On macOS
@@ -34,7 +34,7 @@
 //! every-launch cleanup in `autostart.rs` is keyed to the NEW product name
 //! and can never remove it). DOCUMENTED RESIDUAL, not code-fixable: a
 //! Handy install that registered itself through `SMAppService` (macOS 13+)
-//! leaves that registration orphaned — SMAppService manages only its own
+//! leaves that registration orphaned - SMAppService manages only its own
 //! bundle, so the new app cannot unregister it. While the old `Handy.app`
 //! remains installed the registration is functional (the old app launches
 //! at login); removing it requires uninstalling the old app or toggling it
@@ -57,8 +57,8 @@ pub const LEGACY_PRODUCT_NAME: &str = "Handy";
 pub const LEGACY_IDENTIFIER: &str = "com.pais.handy";
 
 /// Written into the new data dir while a migration pass left failed items,
-/// so the next launch retries them even though `settings_store.json` —
-/// migrated first — already exists and would otherwise satisfy the
+/// so the next launch retries them even though `settings_store.json` -
+/// migrated first - already exists and would otherwise satisfy the
 /// no-store trigger. Cleared by the first pass with no failures.
 pub const MIGRATION_PENDING_MARKER: &str = ".legacy-migration-pending";
 
@@ -110,9 +110,9 @@ pub fn migration_items() -> [MigrationItem; 5] {
 /// Legacy app-data dir for `home`, following the same per-OS rules tauri
 /// uses for `app_data_dir()` (tauri `path/desktop.rs`: `dirs::data_dir()` +
 /// identifier): `~/Library/Application Support` on macOS,
-/// `~/.local/share` (XDG data) on Linux, `%APPDATA%` (Roaming) on Windows —
+/// `~/.local/share` (XDG data) on Linux, `%APPDATA%` (Roaming) on Windows -
 /// with the LEGACY identifier. (`dirs::data_dir()` on Linux is
-/// `$XDG_DATA_HOME`/`~/.local/share`, NOT `~/.config` — the pre-rebrand
+/// `$XDG_DATA_HOME`/`~/.local/share`, NOT `~/.config` - the pre-rebrand
 /// README's `~/.config/com.pais.handy` table row was wrong.)
 pub fn legacy_data_dir(home: &Path) -> PathBuf {
     #[cfg(target_os = "macos")]
@@ -126,7 +126,7 @@ pub fn legacy_data_dir(home: &Path) -> PathBuf {
 
 /// Legacy log dir for `home`, following tauri's `app_log_dir()` rules
 /// (tauri `path/desktop.rs`): `~/Library/Logs/{identifier}` on macOS,
-/// `dirs::data_local_dir()/{identifier}/logs` elsewhere — with the LEGACY
+/// `dirs::data_local_dir()/{identifier}/logs` elsewhere - with the LEGACY
 /// identifier.
 pub fn legacy_log_dir(home: &Path) -> PathBuf {
     #[cfg(target_os = "macos")]
@@ -145,7 +145,7 @@ pub fn legacy_log_dir(home: &Path) -> PathBuf {
 
 /// Resolve the legacy data dir for a given (`new_dir`, `home`) pair, or
 /// `None` when the new dir already IS the legacy dir (identifier unchanged
-/// or a shared/portable dir) — nothing to migrate from in that case.
+/// or a shared/portable dir) - nothing to migrate from in that case.
 pub fn resolve_legacy_data_dir(new_dir: &Path, home: &Path) -> Option<PathBuf> {
     let legacy = legacy_data_dir(home);
     if &legacy == new_dir {
@@ -201,7 +201,7 @@ impl MigrationReport {
 /// into the new data dir ([`MIGRATION_PENDING_MARKER`]) and cleared once a
 /// pass completes without failures. The first-run hook in
 /// [`run_first_run_migration`] bypasses its no-store early-return while the
-/// marker exists — without it the trigger would never re-fire, because
+/// marker exists - without it the trigger would never re-fire, because
 /// SettingsStore migrates first and its presence is what the trigger keys
 /// on.
 pub fn migrate_data(
@@ -257,7 +257,7 @@ fn move_item(src: &Path, dst: &Path) -> std::io::Result<()> {
         Ok(()) => Ok(()),
         Err(rename_err) => copy_item(src, dst).map_err(|copy_err| {
             // Surface the original rename error with the copy failure as
-            // context — the fallback is the unusual path.
+            // context - the fallback is the unusual path.
             std::io::Error::other(format!(
                 "rename failed: {rename_err}; copy fallback failed: {copy_err}"
             ))
@@ -293,7 +293,7 @@ pub fn legacy_launch_agent_path(home: &Path, product_name: &str) -> PathBuf {
 /// - macOS: the pre-SMAppService `Handy.plist` launch agent.
 /// - Linux: the auto-launch crate's `~/.config/autostart` desktop entries
 ///   (both name casings, idempotent to attempt).
-/// - Windows: the legacy entry is a Run-key registry VALUE, not a path —
+/// - Windows: the legacy entry is a Run-key registry VALUE, not a path -
 ///   exposed as [`LEGACY_WINDOWS_RUN_VALUE`]; removal is not attempted
 ///   (untestable tier, logged and skipped per plan).
 pub fn legacy_autostart_paths(home: &Path) -> Vec<PathBuf> {
@@ -317,7 +317,7 @@ pub fn legacy_autostart_paths(home: &Path) -> Vec<PathBuf> {
 }
 
 /// Remove a legacy launch-agent plist. `true` when a file was removed,
-/// `false` when absent (the normal case) — a no-op either way.
+/// `false` when absent (the normal case) - a no-op either way.
 pub fn remove_legacy_launch_agent(path: &Path) -> bool {
     match std::fs::remove_file(path) {
         Ok(()) => true,
@@ -371,7 +371,7 @@ pub fn remove_legacy_autostart_entries(home: &Path) -> Vec<PathBuf> {
 /// `lib.rs`. Must run before `specta_builder.mount_events`, before the
 /// headless branch (whose `ModelManager::new` `create_dir_all`s `models/`)
 /// and before the `get_settings(app.handle())` read, which WRITES defaults
-/// into a fresh store — either would defeat the no-store trigger or the
+/// into a fresh store - either would defeat the no-store trigger or the
 /// per-item skip-if-present semantics.
 pub fn run_first_run_migration(app: &AppHandle) {
     if portable::is_portable() {
@@ -395,7 +395,7 @@ pub fn run_first_run_migration(app: &AppHandle) {
     };
 
     // Legacy autostart cleanup runs whenever any legacy artifact exists,
-    // independent of the data trigger — it is idempotent and cheap, and a
+    // independent of the data trigger - it is idempotent and cheap, and a
     // data migration that partially failed on an earlier launch should
     // still not leave the old launch agent behind.
     let legacy_exists = resolve_legacy_data_dir(&new_data, &home)
@@ -419,7 +419,7 @@ pub fn run_first_run_migration(app: &AppHandle) {
     }
 
     // Data migration: only on a fresh new dir (no settings store yet) with
-    // a legacy dir present — or while a previous pass left failed items
+    // a legacy dir present - or while a previous pass left failed items
     // (marker present), since the store migrates first and would otherwise
     // satisfy the no-store trigger, making the promised retry unreachable.
     if new_data.join(SETTINGS_STORE_PATH).exists()
@@ -648,7 +648,7 @@ mod tests {
         let (legacy_data, legacy_logs) = legacy_layout(tmp.path());
         let new_data = tmp.path().join("new-data");
         // Block the logs target on the first pass, unblock it for the
-        // second — exactly the transient condition (locked dir, full disk)
+        // second - exactly the transient condition (locked dir, full disk)
         // the marker exists to survive.
         let blocker = tmp.path().join("blocker");
         std::fs::write(&blocker, b"not a dir").unwrap();
@@ -662,7 +662,7 @@ mod tests {
         assert!(new_data.join(SETTINGS_STORE_PATH).is_file());
         assert!(new_data.join(MIGRATION_PENDING_MARKER).is_file());
 
-        // The retry sees the settings store at the target — skip-if-present —
+        // The retry sees the settings store at the target - skip-if-present -
         // but the failed item still moves and the marker clears.
         std::fs::remove_file(&blocker).unwrap();
         let new_logs = tmp.path().join("new-logs");

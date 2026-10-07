@@ -377,7 +377,7 @@
       "overlay": {
         "style": {
           "title": "Sobreposição",
-          "description": "Escolha a sobreposição de gravação: 'Nenhum' a oculta, 'Minimalista' mostra um indicador compacto, 'Ao vivo' mostra a transcrição em tempo real enquanto você fala (apenas modelos com suporte a streaming — procure o selo 'Streaming' no seletor de modelos). No Linux, recomenda-se 'Nenhum'.",
+          "description": "Escolha a sobreposição de gravação: 'Nenhum' a oculta, 'Minimalista' mostra um indicador compacto, 'Ao vivo' mostra a transcrição em tempo real enquanto você fala (apenas modelos com suporte a streaming - procure o selo 'Streaming' no seletor de modelos). No Linux, recomenda-se 'Nenhum'.",
           "options": {
             "none": "Nenhum",
             "minimal": "Minimalista",
@@ -455,7 +455,7 @@
       },
       "customWords": {
         "title": "Palavras Personalizadas",
-        "description": "Ajude os modelos compatíveis a reconhecer nomes e termos especializados. A correção aproximada está atualmente limitada a palavras que usam letras de A–Z e números.",
+        "description": "Ajude os modelos compatíveis a reconhecer nomes e termos especializados. A correção aproximada está atualmente limitada a palavras que usam letras de A-Z e números.",
         "placeholder": "Adicionar uma palavra",
         "add": "Adicionar",
         "remove": "Remover {{word}}",
@@ -679,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Diagnóstico do teclado",
-        "description": "Verifica se os eventos de teclado chegam ao VoxBar. Apenas a contagem de eventos é registrada — nunca quais teclas você pressiona.",
+        "description": "Verifica se os eventos de teclado chegam ao VoxBar. Apenas a contagem de eventos é registrada - nunca quais teclas você pressiona.",
         "run": "Executar diagnóstico de 10 s",
         "running": "Ouvindo… pressione seu atalho algumas vezes (ex.: Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -691,10 +691,10 @@
         "keyUp": "Tecla liberada",
         "flagsChanged": "Modificadores",
         "mouse": "Mouse",
-        "verdictBlocked": "O Secure Input está bloqueando os eventos de tecla — atalhos que incluem uma tecla normal não funcionam até que isso seja resolvido.",
-        "verdictSuspicious": "Chegaram eventos de modificadores, mas nenhum evento de tecla — algo está suprimindo as teclas mesmo com o Secure Input indicando desativado. Por favor, relate isso no GitHub.",
+        "verdictBlocked": "O Secure Input está bloqueando os eventos de tecla - atalhos que incluem uma tecla normal não funcionam até que isso seja resolvido.",
+        "verdictSuspicious": "Chegaram eventos de modificadores, mas nenhum evento de tecla - algo está suprimindo as teclas mesmo com o Secure Input indicando desativado. Por favor, relate isso no GitHub.",
         "verdictOk": "Os eventos de tecla estão chegando normalmente ao VoxBar.",
-        "verdictNoEvents": "Nenhum evento capturado — você pressionou alguma tecla durante o teste?",
+        "verdictNoEvents": "Nenhum evento capturado - você pressionou alguma tecla durante o teste?",
         "failed": "Falha no diagnóstico: {{error}}"
       },
       "whatsNewPreview": {
@@ -756,9 +756,9 @@
     "preparing": "Preparando...",
     "checkForUpdates": "Verificar atualizações",
     "portableUpdateTitle": "Atualização manual necessária",
-    "portableUpdateMessage": "Instalações portáteis não podem ser atualizadas automaticamente. Baixe abaixo o instalador para o seu sistema, execute-o e instale na mesma pasta — a sua pasta Data/ (configurações, modelos, gravações) é mantida.",
+    "portableUpdateMessage": "Instalações portáteis não podem ser atualizadas automaticamente. Baixe abaixo o instalador para o seu sistema, execute-o e instale na mesma pasta - a sua pasta Data/ (configurações, modelos, gravações) é mantida.",
     "portableUpdateButton": "Baixar instalador",
-    "portableUpdateBrowseMessage": "Instalações portáteis não podem ser atualizadas automaticamente. Baixe a versão mais recente para o seu sistema no GitHub Releases e instale-a na mesma pasta — a sua pasta Data/ (configurações, modelos, gravações) é mantida.",
+    "portableUpdateBrowseMessage": "Instalações portáteis não podem ser atualizadas automaticamente. Baixe a versão mais recente para o seu sistema no GitHub Releases e instale-a na mesma pasta - a sua pasta Data/ (configurações, modelos, gravações) é mantida.",
     "portableUpdateBrowseButton": "Abrir GitHub Releases"
   },
   "common": {
@@ -842,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} pode estar bloqueando alterações nos atalhos",
     "recorderBlockedNoCulprit": "O macOS está bloqueando temporariamente alterações nos atalhos",
     "learnMore": "Como resolver isso",
-    "recorderBlocked": "Não é possível gravar atalhos agora — o Secure Input do macOS está bloqueando os eventos de tecla. Resolva primeiro o aviso do Secure Input.",
+    "recorderBlocked": "Não é possível gravar atalhos agora - o Secure Input do macOS está bloqueando os eventos de tecla. Resolva primeiro o aviso do Secure Input.",
     "dismiss": "Dispensar"
   }
 }

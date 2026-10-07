@@ -220,7 +220,7 @@ fn get_mute() -> Option<bool> {
 }
 
 /// Restores the system mute state after our forced mute, given the state
-/// captured just before we muted. We only ever need to unmute — and only when
+/// captured just before we muted. We only ever need to unmute - and only when
 /// the system was NOT already muted beforehand. If the prior state was muted,
 /// we leave it muted (the user's own state). If it's unknown (`None`), we
 /// default to unmuting so audio is never left stranded muted by us.
@@ -326,7 +326,7 @@ fn create_audio_recorder(
 
     // Recorder with VAD, a spectrum-level callback that forwards level updates to
     // the frontend, and an audio-frame callback that feeds live streaming via a
-    // shared `StreamRouter` (captured directly, not via Tauri state — see its docs).
+    // shared `StreamRouter` (captured directly, not via Tauri state - see its docs).
     let recorder = AudioRecorder::new()
         .map_err(|e| anyhow::anyhow!("Failed to create AudioRecorder: {}", e))?
         .with_vad(
@@ -372,7 +372,7 @@ impl RecordingReadiness {
 
 #[derive(Clone)]
 pub struct AudioRecordingManager {
-    /// Never assign through this directly — route every write through
+    /// Never assign through this directly - route every write through
     /// `set_state()`, which keeps `recording_active` in sync.
     state: Arc<Mutex<RecordingState>>,
     mode: Arc<Mutex<MicrophoneMode>>,
@@ -399,7 +399,7 @@ pub struct AudioRecordingManager {
     /// device, cached so on-demand recording starts skip the full device
     /// enumeration (~40-110ms). Keyed by the resolved name, so a settings
     /// change misses naturally; cleared when an open fails (device unplugged)
-    /// so the retry re-enumerates. The system-default case is never cached —
+    /// so the retry re-enumerates. The system-default case is never cached -
     /// the recorder resolves the current default itself, cheaply.
     cached_device: Arc<Mutex<Option<(String, cpal::Device)>>>,
 }
@@ -592,7 +592,7 @@ impl AudioRecordingManager {
         // Lock order: is_open before mute_state (matches stop_microphone_stream).
         let is_open = self.is_open.lock().unwrap();
         let mut mute_guard = self.mute_state.lock().unwrap();
-        // Already muted this session — don't re-snapshot, or a duplicate/late
+        // Already muted this session - don't re-snapshot, or a duplicate/late
         // apply would overwrite prev_muted with our own forced-muted state and
         // strand audio muted on stop.
         if mute_guard.did_mute {
@@ -734,11 +734,11 @@ impl AudioRecordingManager {
             // failed fallback must not erase the user's microphone preference.
             self.persist_default_microphone_after_fallback(&unavailable_name);
         }
-        // This timing covers through cpal's stream.play() returning — i.e. the
+        // This timing covers through cpal's stream.play() returning - i.e. the
         // point cpal surfaces as "stream running." It does NOT guarantee the
         // host audio device is producing samples yet; the first input callback
         // fires asynchronously one buffer period later (hardware dependent,
-        // typically ~10–200ms on macOS, longer on Bluetooth/USB).
+        // typically ~10-200ms on macOS, longer on Bluetooth/USB).
         info!(
             "Microphone stream initialized in {:?}",
             start_time.elapsed()
@@ -825,7 +825,7 @@ impl AudioRecordingManager {
             // closes are never scheduled).
             self.close_generation.fetch_add(1, Ordering::SeqCst);
             // Opens the stream in on-demand mode. In always-on mode the stream
-            // is normally already open and this is a cheap aliveness check —
+            // is normally already open and this is a cheap aliveness check -
             // but if the capture worker died (device disconnect), it rebuilds
             // the stream instead of leaving every subsequent start wedged on
             // "Recorder not available".

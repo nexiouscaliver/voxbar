@@ -377,7 +377,7 @@
       "overlay": {
         "style": {
           "title": "Overlay",
-          "description": "Wähle das Aufnahme-Overlay: „Keine“ blendet es aus, „Minimal“ zeigt ein kompaktes Element, „Live“ zeigt die Transkription in Echtzeit während des Sprechens an (nur für streamingfähige Modelle – suche nach dem Streaming-Badge in der Modellauswahl). Unter Linux wird „Keine“ empfohlen.",
+          "description": "Wähle das Aufnahme-Overlay: „Keine“ blendet es aus, „Minimal“ zeigt ein kompaktes Element, „Live“ zeigt die Transkription in Echtzeit während des Sprechens an (nur für streamingfähige Modelle - suche nach dem Streaming-Badge in der Modellauswahl). Unter Linux wird „Keine“ empfohlen.",
           "options": {
             "none": "Keine",
             "minimal": "Minimal",
@@ -455,7 +455,7 @@
       },
       "customWords": {
         "title": "Benutzerdefinierte Wörter",
-        "description": "Hilf unterstützten Modellen, Namen und Fachbegriffe zu erkennen. Die unscharfe Korrektur ist derzeit auf Wörter mit den Buchstaben A–Z und Zahlen beschränkt.",
+        "description": "Hilf unterstützten Modellen, Namen und Fachbegriffe zu erkennen. Die unscharfe Korrektur ist derzeit auf Wörter mit den Buchstaben A-Z und Zahlen beschränkt.",
         "placeholder": "Wort hinzufügen",
         "add": "Hinzufügen",
         "remove": "{{word}} entfernen",
@@ -679,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Tastatur-Diagnose",
-        "description": "Prüft, ob Tastaturereignisse VoxBar erreichen. Es wird nur die Anzahl der Ereignisse erfasst — niemals, welche Tasten du drückst.",
+        "description": "Prüft, ob Tastaturereignisse VoxBar erreichen. Es wird nur die Anzahl der Ereignisse erfasst - niemals, welche Tasten du drückst.",
         "run": "10-Sekunden-Diagnose starten",
         "running": "Lauscht… drücke dein Tastenkürzel ein paar Mal (z. B. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -691,10 +691,10 @@
         "keyUp": "Taste losgelassen",
         "flagsChanged": "Modifikatoren",
         "mouse": "Maus",
-        "verdictBlocked": "Secure Input blockiert Tastenereignisse — Tastenkürzel mit einer normalen Taste können erst wieder funktionieren, wenn das behoben ist.",
-        "verdictSuspicious": "Es kamen Modifikator-Ereignisse an, aber keine Tastenereignisse — irgendetwas unterdrückt Tasten, obwohl Secure Input als deaktiviert gemeldet wird. Bitte melde das auf GitHub.",
+        "verdictBlocked": "Secure Input blockiert Tastenereignisse - Tastenkürzel mit einer normalen Taste können erst wieder funktionieren, wenn das behoben ist.",
+        "verdictSuspicious": "Es kamen Modifikator-Ereignisse an, aber keine Tastenereignisse - irgendetwas unterdrückt Tasten, obwohl Secure Input als deaktiviert gemeldet wird. Bitte melde das auf GitHub.",
         "verdictOk": "Tastenereignisse erreichen VoxBar normal.",
-        "verdictNoEvents": "Keine Ereignisse erfasst — hast du während des Tests Tasten gedrückt?",
+        "verdictNoEvents": "Keine Ereignisse erfasst - hast du während des Tests Tasten gedrückt?",
         "failed": "Diagnose fehlgeschlagen: {{error}}"
       },
       "whatsNewPreview": {
@@ -756,9 +756,9 @@
     "preparing": "Wird vorbereitet...",
     "checkForUpdates": "Nach Updates suchen",
     "portableUpdateTitle": "Manuelles Update erforderlich",
-    "portableUpdateMessage": "Portable Installationen können nicht automatisch aktualisiert werden. Lade unten den Installer für dein System herunter, führe ihn aus und installiere in denselben Ordner — dein Data/-Ordner (Einstellungen, Modelle, Aufnahmen) bleibt erhalten.",
+    "portableUpdateMessage": "Portable Installationen können nicht automatisch aktualisiert werden. Lade unten den Installer für dein System herunter, führe ihn aus und installiere in denselben Ordner - dein Data/-Ordner (Einstellungen, Modelle, Aufnahmen) bleibt erhalten.",
     "portableUpdateButton": "Installer herunterladen",
-    "portableUpdateBrowseMessage": "Portable Installationen können nicht automatisch aktualisiert werden. Lade die neueste Version für dein System von GitHub Releases herunter und installiere sie in denselben Ordner — dein Data/-Ordner (Einstellungen, Modelle, Aufnahmen) bleibt erhalten.",
+    "portableUpdateBrowseMessage": "Portable Installationen können nicht automatisch aktualisiert werden. Lade die neueste Version für dein System von GitHub Releases herunter und installiere sie in denselben Ordner - dein Data/-Ordner (Einstellungen, Modelle, Aufnahmen) bleibt erhalten.",
     "portableUpdateBrowseButton": "GitHub Releases öffnen"
   },
   "common": {
@@ -842,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} blockiert möglicherweise Änderungen an Tastenkürzeln",
     "recorderBlockedNoCulprit": "macOS blockiert vorübergehend Änderungen an Tastenkürzeln",
     "learnMore": "So behebst du das",
-    "recorderBlocked": "Tastenkürzel können gerade nicht aufgezeichnet werden — macOS Secure Input blockiert Tastenereignisse. Behebe zuerst die Secure-Input-Warnung.",
+    "recorderBlocked": "Tastenkürzel können gerade nicht aufgezeichnet werden - macOS Secure Input blockiert Tastenereignisse. Behebe zuerst die Secure-Input-Warnung.",
     "dismiss": "Ausblenden"
   }
 }

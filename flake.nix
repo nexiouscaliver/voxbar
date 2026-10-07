@@ -109,7 +109,7 @@
                 src-tauri/tauri.conf.json > $TMPDIR/tauri.conf.json
               cp $TMPDIR/tauri.conf.json src-tauri/tauri.conf.json
 
-              # Strip postinstall hook — it runs check-nix-deps.ts which is only
+              # Strip postinstall hook - it runs check-nix-deps.ts which is only
               # needed during local development, not inside the Nix sandbox.
               ${pkgs.jq}/bin/jq 'del(.scripts.postinstall)' \
                 package.json > $TMPDIR/package.json
@@ -143,7 +143,7 @@
               pkg-config
               wrapGAppsHook4
               bun
-              # pkgs.bun2nix (from overlay), not the flake input — `with pkgs;`
+              # pkgs.bun2nix (from overlay), not the flake input - `with pkgs;`
               # doesn't shadow function arguments in Nix.
               pkgs.bun2nix.hook # Sets up node_modules from pre-fetched bun cache
               jq

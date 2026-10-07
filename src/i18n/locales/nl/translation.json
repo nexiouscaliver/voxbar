@@ -455,7 +455,7 @@
       },
       "customWords": {
         "title": "Eigen woordenlijst",
-        "description": "Help ondersteunde modellen namen en vaktermen te herkennen. Fuzzy-correctie is momenteel beperkt tot woorden met de letters A–Z en cijfers.",
+        "description": "Help ondersteunde modellen namen en vaktermen te herkennen. Fuzzy-correctie is momenteel beperkt tot woorden met de letters A-Z en cijfers.",
         "placeholder": "Woord toevoegen",
         "add": "Toevoegen",
         "remove": "{{word}} verwijderen",
@@ -693,7 +693,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Toetsenborddiagnose",
-        "description": "Controleert of toetsenbordgebeurtenissen VoxBar bereiken. Alleen het aantal gebeurtenissen wordt vastgelegd — nooit welke toetsen je indrukt.",
+        "description": "Controleert of toetsenbordgebeurtenissen VoxBar bereiken. Alleen het aantal gebeurtenissen wordt vastgelegd - nooit welke toetsen je indrukt.",
         "run": "Diagnose van 10 s uitvoeren",
         "running": "Luisteren… druk je sneltoets een paar keer in (bijv. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -705,10 +705,10 @@
         "keyUp": "Toets losgelaten",
         "flagsChanged": "Modificatietoetsen",
         "mouse": "Muis",
-        "verdictBlocked": "Secure Input blokkeert toetsgebeurtenissen — sneltoetsen met een gewone toets kunnen pas weer werken als dit is opgelost.",
-        "verdictSuspicious": "Er kwamen wel modificatiegebeurtenissen binnen, maar geen toetsgebeurtenissen — iets onderdrukt toetsen terwijl Secure Input als uitgeschakeld wordt gemeld. Meld dit op GitHub.",
+        "verdictBlocked": "Secure Input blokkeert toetsgebeurtenissen - sneltoetsen met een gewone toets kunnen pas weer werken als dit is opgelost.",
+        "verdictSuspicious": "Er kwamen wel modificatiegebeurtenissen binnen, maar geen toetsgebeurtenissen - iets onderdrukt toetsen terwijl Secure Input als uitgeschakeld wordt gemeld. Meld dit op GitHub.",
         "verdictOk": "Toetsgebeurtenissen bereiken VoxBar normaal.",
-        "verdictNoEvents": "Geen gebeurtenissen vastgelegd — heb je tijdens de test toetsen ingedrukt?",
+        "verdictNoEvents": "Geen gebeurtenissen vastgelegd - heb je tijdens de test toetsen ingedrukt?",
         "failed": "Diagnose mislukt: {{error}}"
       }
     },
@@ -756,9 +756,9 @@
     "preparing": "Voorbereiden...",
     "checkForUpdates": "Controleren op updates",
     "portableUpdateTitle": "Handmatige update vereist",
-    "portableUpdateMessage": "Draagbare (portable) installaties kunnen niet automatisch worden bijgewerkt. Download hieronder het installatiebestand voor je systeem, voer het uit en installeer in dezelfde map — je Data/-map (instellingen, modellen, opnames) blijft behouden.",
+    "portableUpdateMessage": "Draagbare (portable) installaties kunnen niet automatisch worden bijgewerkt. Download hieronder het installatiebestand voor je systeem, voer het uit en installeer in dezelfde map - je Data/-map (instellingen, modellen, opnames) blijft behouden.",
     "portableUpdateButton": "Installatiebestand downloaden",
-    "portableUpdateBrowseMessage": "Draagbare (portable) installaties kunnen niet automatisch worden bijgewerkt. Download de nieuwste versie voor je systeem van GitHub Releases en installeer die in dezelfde map — je Data/-map (instellingen, modellen, opnames) blijft behouden.",
+    "portableUpdateBrowseMessage": "Draagbare (portable) installaties kunnen niet automatisch worden bijgewerkt. Download de nieuwste versie voor je systeem van GitHub Releases en installeer die in dezelfde map - je Data/-map (instellingen, modellen, opnames) blijft behouden.",
     "portableUpdateBrowseButton": "GitHub Releases openen"
   },
   "whatsNew": {
@@ -842,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} blokkeert mogelijk wijzigingen aan sneltoetsen",
     "recorderBlockedNoCulprit": "macOS blokkeert tijdelijk wijzigingen aan sneltoetsen",
     "learnMore": "Hoe je dit oplost",
-    "recorderBlocked": "Sneltoetsen kunnen nu niet worden opgenomen — Secure Input van macOS blokkeert toetsgebeurtenissen. Los eerst de Secure Input-waarschuwing op.",
+    "recorderBlocked": "Sneltoetsen kunnen nu niet worden opgenomen - Secure Input van macOS blokkeert toetsgebeurtenissen. Los eerst de Secure Input-waarschuwing op.",
     "dismiss": "Sluiten"
   }
 }

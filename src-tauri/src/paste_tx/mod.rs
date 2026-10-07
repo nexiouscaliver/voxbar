@@ -2,13 +2,13 @@
 //!
 //! The legacy clipboard paste (`clipboard::paste_via_clipboard`) restores the
 //! previous clipboard after a fixed delay. The paste keystroke is only
-//! *enqueued* at that point — the target application reads the clipboard
+//! *enqueued* at that point - the target application reads the clipboard
 //! whenever its event loop gets to it, so any fixed delay can lose the race
 //! and the user gets their old clipboard pasted back (#502).
 //!
 //! This module instead publishes the transcript as a *lazy promise* and waits
 //! for the operating system to tell us that a consumer actually read the
-//! clipboard — a "receipt" — before restoring:
+//! clipboard - a "receipt" - before restoring:
 //!
 //! - Windows: delayed rendering (`SetClipboardData(CF_UNICODETEXT, NULL)`),
 //!   the owner window receives `WM_RENDERFORMAT` on read.
@@ -70,7 +70,7 @@ pub(crate) struct TxState {
     /// When the transcript was published to the clipboard.
     pub published_at: Instant,
     /// When the paste chord was injected. Only receipts *after* this count as
-    /// evidence the target read the transcript — earlier reads are eager third
+    /// evidence the target read the transcript - earlier reads are eager third
     /// parties reacting to the clipboard change itself.
     pub injected_at: Option<Instant>,
     /// The chord could not be sent; short-circuit the wait.
@@ -163,7 +163,7 @@ pub(crate) fn evaluate(state: &TxState, now: Instant) -> WaitDecision {
 /// users' systems dropped chords released too quickly, and the beta should
 /// validate the receipt mechanism without changing a second variable.
 ///
-/// Once receipts are proven in the field this becomes a safe tuning knob — a
+/// Once receipts are proven in the field this becomes a safe tuning knob - a
 /// chord the target never recognizes produces no receipt and is logged ("no
 /// read within timeout") rather than failing silently, so a shorter hold
 /// (measured working at 10ms on a fast machine, cutting visible latency from

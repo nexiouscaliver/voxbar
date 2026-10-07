@@ -3,7 +3,7 @@
 //! Publishes the transcript as a *delayed-render* clipboard format
 //! (`SetClipboardData(CF_UNICODETEXT, NULL)`) owned by a hidden message-only
 //! window. Windows sends the owner `WM_RENDERFORMAT` when a consumer actually
-//! requests the data — that message is the read receipt. The previous
+//! requests the data - that message is the read receipt. The previous
 //! clipboard contents (snapshotted with full format fidelity) are restored
 //! once receipts go quiet (see `paste_tx::evaluate`), guarded by the clipboard
 //! sequence number so we never clobber a newer user copy.
@@ -73,7 +73,7 @@ pub(super) struct WinTxShared {
     app_handle: tauri::AppHandle,
     auto_submit: bool,
     auto_submit_key: AutoSubmitKey,
-    /// ClipboardHandling::CopyToClipboard — settle by leaving the transcript
+    /// ClipboardHandling::CopyToClipboard - settle by leaving the transcript
     /// on the clipboard as plain text instead of restoring the snapshot.
     preserve_transcript: bool,
 }
@@ -159,7 +159,7 @@ unsafe extern "system" fn paste_wnd_proc(
         }
         WM_RENDERALLFORMATS => {
             // Sent when the window is destroyed while an unrendered promise is
-            // still on the clipboard — not a consumer read, so no receipt.
+            // still on the clipboard - not a consumer read, so no receipt.
             // Unlike WM_RENDERFORMAT the system does not open the clipboard on
             // our behalf here: open it and confirm we still own it first.
             if !shared.is_null() {
@@ -240,7 +240,7 @@ fn flush_pending() {
 }
 
 /// Settle-time clipboard handling once we know we still own the clipboard:
-/// restore the snapshot, or — for ClipboardHandling::CopyToClipboard — replace
+/// restore the snapshot, or - for ClipboardHandling::CopyToClipboard - replace
 /// the concealed promise with plain transcript text, so clipboard history and
 /// managers record it and it survives this transaction's window going away.
 unsafe fn settle_clipboard(shared: &WinTxShared) {
@@ -364,7 +364,7 @@ unsafe fn publish(hwnd: HWND) -> Result<u32, String> {
 }
 
 /// Everything `publish` does while the clipboard is open, split out so
-/// `publish` closes the clipboard on every path — bailing out while holding it
+/// `publish` closes the clipboard on every path - bailing out while holding it
 /// open (and possibly already emptied) would strand the clipboard and leave
 /// the legacy fallback snapshotting nothing.
 unsafe fn publish_formats() -> Result<(), String> {

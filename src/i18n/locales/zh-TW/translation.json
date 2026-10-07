@@ -377,7 +377,7 @@
       "overlay": {
         "style": {
           "title": "懸浮窗",
-          "description": "選擇錄音懸浮窗的樣式：「無」會隱藏懸浮窗，「精簡」顯示小巧的膠囊狀指示，「即時」在您說話時即時顯示轉錄內容（僅限支援串流的模型——請在模型選擇器中尋找「串流」標籤）。在 Linux 上建議選擇「無」",
+          "description": "選擇錄音懸浮窗的樣式：「無」會隱藏懸浮窗，「精簡」顯示小巧的膠囊狀指示，「即時」在您說話時即時顯示轉錄內容（僅限支援串流的模型-請在模型選擇器中尋找「串流」標籤）。在 Linux 上建議選擇「無」",
           "options": {
             "none": "無",
             "minimal": "精簡",
@@ -455,7 +455,7 @@
       },
       "customWords": {
         "title": "自訂詞彙",
-        "description": "協助支援的模型辨識名稱和專業術語。目前，模糊修正僅適用於使用 A–Z 字母和數字的詞語。",
+        "description": "協助支援的模型辨識名稱和專業術語。目前，模糊修正僅適用於使用 A-Z 字母和數字的詞語。",
         "placeholder": "新增詞彙",
         "add": "新增",
         "remove": "刪除 {{word}}",
@@ -691,10 +691,10 @@
         "keyUp": "按鍵放開",
         "flagsChanged": "修飾鍵",
         "mouse": "滑鼠",
-        "verdictBlocked": "Secure Input 正在阻擋按鍵事件——在問題解決前，包含一般按鍵的快捷鍵無法運作。",
-        "verdictSuspicious": "收到了修飾鍵事件，但沒有按鍵事件——即使 Secure Input 回報為已停用，仍有程式在抑制按鍵。請在 GitHub 上回報此問題。",
+        "verdictBlocked": "Secure Input 正在阻擋按鍵事件-在問題解決前，包含一般按鍵的快捷鍵無法運作。",
+        "verdictSuspicious": "收到了修飾鍵事件，但沒有按鍵事件-即使 Secure Input 回報為已停用，仍有程式在抑制按鍵。請在 GitHub 上回報此問題。",
         "verdictOk": "按鍵事件正常送達 VoxBar。",
-        "verdictNoEvents": "未擷取到任何事件——測試期間您有按鍵嗎？",
+        "verdictNoEvents": "未擷取到任何事件-測試期間您有按鍵嗎？",
         "failed": "診斷失敗：{{error}}"
       },
       "whatsNewPreview": {
@@ -842,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} 可能正在阻擋快捷鍵變更",
     "recorderBlockedNoCulprit": "macOS 正在暫時阻擋快捷鍵變更",
     "learnMore": "如何解決",
-    "recorderBlocked": "目前無法錄製快捷鍵——macOS 的 Secure Input 正在阻擋按鍵事件。請先解決 Secure Input 警告。",
+    "recorderBlocked": "目前無法錄製快捷鍵-macOS 的 Secure Input 正在阻擋按鍵事件。請先解決 Secure Input 警告。",
     "dismiss": "關閉"
   }
 }

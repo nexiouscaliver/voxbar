@@ -377,7 +377,7 @@
       "overlay": {
         "style": {
           "title": "Lớp phủ",
-          "description": "Chọn lớp phủ khi ghi âm: 'Không có' sẽ ẩn nó, 'Tối giản' hiển thị một chỉ báo nhỏ gọn, 'Trực tiếp' hiển thị bản chép lời theo thời gian thực khi bạn nói (chỉ với các mô hình hỗ trợ truyền trực tiếp — hãy tìm huy hiệu 'Truyền trực tiếp' trong bộ chọn mô hình). Trên Linux, khuyến nghị chọn 'Không có'.",
+          "description": "Chọn lớp phủ khi ghi âm: 'Không có' sẽ ẩn nó, 'Tối giản' hiển thị một chỉ báo nhỏ gọn, 'Trực tiếp' hiển thị bản chép lời theo thời gian thực khi bạn nói (chỉ với các mô hình hỗ trợ truyền trực tiếp - hãy tìm huy hiệu 'Truyền trực tiếp' trong bộ chọn mô hình). Trên Linux, khuyến nghị chọn 'Không có'.",
           "options": {
             "none": "Không có",
             "minimal": "Tối giản",
@@ -455,7 +455,7 @@
       },
       "customWords": {
         "title": "Từ tùy chỉnh",
-        "description": "Giúp các mô hình được hỗ trợ nhận dạng tên và thuật ngữ chuyên ngành. Tính năng sửa gần đúng hiện chỉ áp dụng cho các từ sử dụng chữ cái A–Z và chữ số.",
+        "description": "Giúp các mô hình được hỗ trợ nhận dạng tên và thuật ngữ chuyên ngành. Tính năng sửa gần đúng hiện chỉ áp dụng cho các từ sử dụng chữ cái A-Z và chữ số.",
         "placeholder": "Thêm một từ",
         "add": "Thêm",
         "remove": "Xóa {{word}}",
@@ -679,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Chẩn đoán bàn phím",
-        "description": "Kiểm tra xem các sự kiện bàn phím có đến được VoxBar hay không. Chỉ số lượng sự kiện được ghi lại — không bao giờ ghi lại bạn bấm phím nào.",
+        "description": "Kiểm tra xem các sự kiện bàn phím có đến được VoxBar hay không. Chỉ số lượng sự kiện được ghi lại - không bao giờ ghi lại bạn bấm phím nào.",
         "run": "Chạy chẩn đoán 10 giây",
         "running": "Đang lắng nghe… hãy bấm phím tắt của bạn vài lần (ví dụ: Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -691,10 +691,10 @@
         "keyUp": "Nhả phím",
         "flagsChanged": "Phím bổ trợ",
         "mouse": "Chuột",
-        "verdictBlocked": "Secure Input đang chặn các sự kiện phím — phím tắt có chứa phím thường không thể hoạt động cho đến khi vấn đề này được xử lý.",
-        "verdictSuspicious": "Có sự kiện phím bổ trợ nhưng không có sự kiện phím nào — thứ gì đó đang chặn phím dù Secure Input báo là đang tắt. Vui lòng báo cáo việc này trên GitHub.",
+        "verdictBlocked": "Secure Input đang chặn các sự kiện phím - phím tắt có chứa phím thường không thể hoạt động cho đến khi vấn đề này được xử lý.",
+        "verdictSuspicious": "Có sự kiện phím bổ trợ nhưng không có sự kiện phím nào - thứ gì đó đang chặn phím dù Secure Input báo là đang tắt. Vui lòng báo cáo việc này trên GitHub.",
         "verdictOk": "Các sự kiện phím đang đến VoxBar bình thường.",
-        "verdictNoEvents": "Không ghi nhận sự kiện nào — bạn có bấm phím nào trong lúc kiểm tra không?",
+        "verdictNoEvents": "Không ghi nhận sự kiện nào - bạn có bấm phím nào trong lúc kiểm tra không?",
         "failed": "Chẩn đoán thất bại: {{error}}"
       },
       "whatsNewPreview": {
@@ -756,9 +756,9 @@
     "preparing": "Đang chuẩn bị...",
     "checkForUpdates": "Kiểm tra cập nhật",
     "portableUpdateTitle": "Cần cập nhật thủ công",
-    "portableUpdateMessage": "Bản cài đặt di động không thể cập nhật tự động. Hãy tải trình cài đặt phù hợp với hệ thống của bạn bên dưới, chạy nó và cài vào cùng thư mục — thư mục Data/ (cài đặt, mô hình, bản ghi) của bạn được giữ nguyên.",
+    "portableUpdateMessage": "Bản cài đặt di động không thể cập nhật tự động. Hãy tải trình cài đặt phù hợp với hệ thống của bạn bên dưới, chạy nó và cài vào cùng thư mục - thư mục Data/ (cài đặt, mô hình, bản ghi) của bạn được giữ nguyên.",
     "portableUpdateButton": "Tải trình cài đặt",
-    "portableUpdateBrowseMessage": "Bản cài đặt di động không thể cập nhật tự động. Hãy tải phiên bản mới nhất phù hợp với hệ thống của bạn từ GitHub Releases và cài vào cùng thư mục — thư mục Data/ (cài đặt, mô hình, bản ghi) của bạn được giữ nguyên.",
+    "portableUpdateBrowseMessage": "Bản cài đặt di động không thể cập nhật tự động. Hãy tải phiên bản mới nhất phù hợp với hệ thống của bạn từ GitHub Releases và cài vào cùng thư mục - thư mục Data/ (cài đặt, mô hình, bản ghi) của bạn được giữ nguyên.",
     "portableUpdateBrowseButton": "Mở GitHub Releases"
   },
   "common": {
@@ -842,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} có thể đang chặn việc thay đổi phím tắt",
     "recorderBlockedNoCulprit": "macOS đang tạm thời chặn việc thay đổi phím tắt",
     "learnMore": "Cách khắc phục",
-    "recorderBlocked": "Hiện không thể ghi phím tắt — Secure Input của macOS đang chặn các sự kiện phím. Hãy xử lý cảnh báo Secure Input trước.",
+    "recorderBlocked": "Hiện không thể ghi phím tắt - Secure Input của macOS đang chặn các sự kiện phím. Hãy xử lý cảnh báo Secure Input trước.",
     "dismiss": "Bỏ qua"
   }
 }

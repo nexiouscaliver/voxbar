@@ -405,7 +405,7 @@ impl EngineSupervisor {
     /// Pid of the live transcribe-cpp worker process, if one is running.
     /// Lets the memory-pressure gate credit the outgoing model's measured
     /// resident footprint (`memory::rss_bytes_for_pid`); `None` between
-    /// workers (unload, crash, replacement) — callers treat that as no
+    /// workers (unload, crash, replacement) - callers treat that as no
     /// credit rather than a failure.
     pub fn worker_pid(&self) -> Option<u32> {
         *lock(&self.shared.worker_pid)

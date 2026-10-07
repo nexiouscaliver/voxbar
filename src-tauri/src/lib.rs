@@ -57,8 +57,8 @@ pub static FILE_LOG_LEVEL: AtomicU8 = AtomicU8::new(log::LevelFilter::Debug as u
 
 /// When `true`, log records are also forwarded to the webview via the
 /// `log://log` event for the debug panel's live log viewer. Gated on debug
-/// mode — the live log viewer is its only consumer and only exists in debug
-/// mode — so normal runs never broadcast log records (which can include file
+/// mode - the live log viewer is its only consumer and only exists in debug
+/// mode - so normal runs never broadcast log records (which can include file
 /// paths or transcribed text) onto the frontend event bus. Synced at startup
 /// and whenever debug mode is toggled (see `shortcut::change_debug_mode_setting`).
 pub static WEBVIEW_LOG_STREAMING: AtomicBool = AtomicBool::new(false);
@@ -131,7 +131,7 @@ fn show_main_window(app: &AppHandle) {
 /// `applicationDidFinishLaunching` then applies directly. Calling the
 /// `AppHandle` variant from `setup` (which Tauri runs on `RunEvent::Ready`,
 /// i.e. after launch) is instead a runtime Regular → Accessory demotion of an
-/// already-activated foreground app — the transition Apple documents as
+/// already-activated foreground app - the transition Apple documents as
 /// unreliable, and what left a Dock icon behind for start-hidden and
 /// login-item launches on macOS 26+ (#1787). Launching as Accessory avoids the
 /// transition entirely; showing the window later promotes to Regular, which is
@@ -224,8 +224,8 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // This matches the pattern used for Enigo initialization.
 
     // Set up signal handlers for toggling transcription. On Linux, SIGUSR1 is
-    // deliberately not handled — it belongs to WebKitGTK's garbage collector
-    // (#1660) — see signal_handle.rs.
+    // deliberately not handled - it belongs to WebKitGTK's garbage collector
+    // (#1660) - see signal_handle.rs.
     #[cfg(unix)]
     signal_handle::setup_signal_handler(app_handle.clone());
 
@@ -492,7 +492,7 @@ fn run_headless_transcription(app: &AppHandle, args: &CliArgs) -> i32 {
     }
 
     // --list-models: print the model registry (catalog + on-disk + custom) with
-    // their ids — the same ids `--model` accepts — then exit. `--json` emits the
+    // their ids - the same ids `--model` accepts - then exit. `--json` emits the
     // full ModelInfo array for scripting.
     if args.list_models {
         let model_manager = app.state::<Arc<ModelManager>>();
@@ -915,8 +915,8 @@ pub fn run(cli_args: CliArgs) {
             } else {
                 // A second process was launched without remote-control flags
                 // (e.g. the binary run from a shell). On macOS, relaunching the
-                // bundle from Spotlight/Finder/Dock does not start a process —
-                // it arrives as RunEvent::Reopen below — but treat this the
+                // bundle from Spotlight/Finder/Dock does not start a process -
+                // it arrives as RunEvent::Reopen below - but treat this the
                 // same way: raise the window and recreate a possibly vanished
                 // tray icon (#1948).
                 #[cfg(target_os = "macos")]
@@ -932,12 +932,12 @@ pub fn run(cli_args: CliArgs) {
         .plugin(tauri_plugin_process::init())
         // Updater NOT registered: T2 removed the plugins.updater config
         // section (updater disabled), and the plugin's init REQUIRES that
-        // section — registering it panics the app at startup (verified by
+        // section - registering it panics the app at startup (verified by
         // running the debug binary: PluginInitialization("updater", ...
         // invalid type: null)). The frontend check surface stays
         // visible-and-inert: UpdateChecker's `check()` now fails fast with
         // "plugin not registered" and its existing catch swallows the error
-        // (logs, no dialog, no crash) — spec F1/T2 AC8a behavior.
+        // (logs, no dialog, no crash) - spec F1/T2 AC8a behavior.
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_macos_permissions::init())
@@ -951,7 +951,7 @@ pub fn run(cli_args: CliArgs) {
         .manage(cli_args.clone())
         .setup(move |app| {
             // Installed-upgrade continuity (legacy Handy -> VoxBar): must be
-            // the FIRST thing setup() does — the `get_settings` read below
+            // the FIRST thing setup() does - the `get_settings` read below
             // WRITES defaults into a fresh store, and the headless branch's
             // `ModelManager::new` create_dir_all's `models/`; either would
             // defeat the migration's no-store trigger / skip-if-present.
@@ -967,9 +967,9 @@ pub fn run(cli_args: CliArgs) {
             specta_builder.mount_events(app);
 
             // Headless one-shot path (`--transcribe-file` / `--list-devices` /
-            // `--list-models`): initialize only what transcription needs — the
+            // `--list-models`): initialize only what transcription needs - the
             // store/paths plugins, the model + transcription managers, and the
-            // transcribe-cpp backend + accelerator settings — then run on a worker
+            // transcribe-cpp backend + accelerator settings - then run on a worker
             // thread and exit. Deliberately skips the window, tray, overlay, audio
             // recorder (so it never opens the mic, even with always_on_microphone),
             // signal handlers, and autostart that initialize_core_logic sets up.

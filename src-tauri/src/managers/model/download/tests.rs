@@ -23,7 +23,7 @@ fn write_temp_file(data: &[u8]) -> (TempDir, std::path::PathBuf) {
 
 #[test]
 fn test_verify_sha256_skipped_when_none() {
-    // Custom models have no expected hash — verification must be a no-op.
+    // Custom models have no expected hash - verification must be a no-op.
     let (_dir, path) = write_temp_file(b"anything");
     assert!(ModelManager::verify_sha256(&path, None, "custom").is_ok());
     assert!(
@@ -70,7 +70,7 @@ fn test_verify_sha256_fails_and_deletes_partial_when_file_missing() {
     // Simulate a partial file that was already removed (e.g. disk full mid-download).
     let dir = TempDir::new().unwrap();
     let missing_path = dir.path().join("gone.partial");
-    // Don't create the file — it should not exist.
+    // Don't create the file - it should not exist.
 
     let result =
         ModelManager::verify_sha256(&missing_path, Some("anyexpectedhash"), "missing_model");
@@ -81,7 +81,7 @@ fn test_verify_sha256_fails_and_deletes_partial_when_file_missing() {
 // ── Resumable HTTP downloader tests ───────────────────────────────────────
 //
 // Each test drives `download_http_resumable_with_events` against a scripted
-// single-connection server on a local socket — no Tauri, no real network.
+// single-connection server on a local socket - no Tauri, no real network.
 // Success means verified bytes are left in the partial (finalizing is the
 // caller's job), so "no Completed on a bad hash" is the rename gate too.
 
@@ -274,7 +274,7 @@ async fn http_range_ignored_200_restarts_from_zero() {
 
 #[tokio::test]
 async fn http_416_with_hash_finalizes_complete_partial() {
-    // URL-model shape: no catalog size, but a hash — the one case where a
+    // URL-model shape: no catalog size, but a hash - the one case where a
     // 416 may bless the partial, because verification proves it.
     let body = b"the whole file";
     let (url, _server) = serve_once(http_response("416 Range Not Satisfiable", &[], b"")).await;
@@ -323,7 +323,7 @@ async fn http_416_with_wrong_hash_clears_partial() {
 #[tokio::test]
 async fn http_416_short_of_expected_size_clears_partial() {
     // Mirror shape: catalog size known, partial shorter, yet the server
-    // says our offset is past EOF — its object is smaller than the catalog
+    // says our offset is past EOF - its object is smaller than the catalog
     // expects. Never blessed, even with a hash on hand.
     let (url, _server) = serve_once(http_response("416 Range Not Satisfiable", &[], b"")).await;
     let dir = TempDir::new().unwrap();
@@ -501,7 +501,7 @@ async fn http_wrong_hash_after_download_clears_partial() {
 
 #[tokio::test]
 async fn http_cancel_while_awaiting_headers() {
-    // Server accepts and goes silent. Cancellation must win immediately —
+    // Server accepts and goes silent. Cancellation must win immediately -
     // not after the stall timeout, and certainly not never.
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let addr = listener.local_addr().unwrap();

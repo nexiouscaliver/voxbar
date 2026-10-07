@@ -1,9 +1,9 @@
 //! glibc allocator tuning (Linux only).
 //!
-//! Each dictation allocates multi-megabyte transient buffers — the captured
+//! Each dictation allocates multi-megabyte transient buffers - the captured
 //! 16 kHz PCM (~64 KB per second, held twice: once for transcription, once
 //! for the history WAV) plus the transcription engine's per-run mel/FFT
-//! scratch (~80 KB per second of audio) — all freed within seconds.
+//! scratch (~80 KB per second of audio) - all freed within seconds.
 //!
 //! glibc's malloc serves allocations above its "mmap threshold" with a
 //! private mmap that is returned to the OS on free. But the threshold is
@@ -13,7 +13,7 @@
 //! reuse, and interleaved small live allocations pin those pages, so the OS
 //! never gets them back: RSS grows by roughly the transient-buffer volume of
 //! each dictation, is never touched again, and slowly migrates to swap
-//! (issue #1792 — measured at ~15 MB retained per 2-minute dictation;
+//! (issue #1792 - measured at ~15 MB retained per 2-minute dictation;
 //! pinning the threshold reduced that to ~0.5 MB).
 //!
 //! Both entry points are no-ops on non-glibc targets (Windows, macOS, musl):
@@ -64,11 +64,11 @@ pub fn trim_freed_memory() {}
 pub const DEFAULT_HEADROOM_BYTES: u64 = 1536 * 1024 * 1024;
 
 /// Best-effort system-wide available RAM in bytes, or `None` when the probe
-/// fails — callers must FAIL OPEN on `None`.
+/// fails - callers must FAIL OPEN on `None`.
 ///
 /// - macOS: `os_proc_available_memory()` (libc does not bind it, so the
 ///   extern is declared here; it is available on macOS 11+, this app's
-///   effective deployment floor — rustc links with
+///   effective deployment floor - rustc links with
 ///   `-mmacosx-version-min=11.0.0`). Deliberately NOT the naive
 ///   `host_statistics64` free page count, which under-reports memory the
 ///   kernel can reclaim. FALLBACK: on this app's actual target machine
@@ -126,11 +126,11 @@ pub fn available_memory_bytes() -> Option<u64> {
 /// the sysctl ground truth: inactive pages (~4 GiB on a 24 GiB box) are
 /// cached data the kernel reclaims only slowly under real pressure, so
 /// counting them made the memory gate and the RAM auto-fallback wildly
-/// optimistic — the fallback would almost never fire even with RAM
+/// optimistic - the fallback would almost never fire even with RAM
 /// genuinely low. This composition matches the harness's ground truth
 /// (`vm.page_free_count` + `vm.page_speculative_count` + purgeable, x page
 /// size). `vm_statistics64` does carry `purgeable_count`, so it is counted;
-/// had it been missing, the correct degradation is free+speculative only —
+/// had it been missing, the correct degradation is free+speculative only -
 /// never a silent reintroduction of inactive.
 #[cfg(target_os = "macos")]
 fn fallback_page_bytes(vm: &libc::vm_statistics64, page_size: u64) -> u64 {
@@ -138,7 +138,7 @@ fn fallback_page_bytes(vm: &libc::vm_statistics64, page_size: u64) -> u64 {
         .saturating_mul(page_size)
 }
 
-/// macOS fallback probe: available RAM from `host_statistics64`, in bytes —
+/// macOS fallback probe: available RAM from `host_statistics64`, in bytes -
 /// [`fallback_page_bytes`] over the kernel's page counters. Conservative by
 /// design (inactive pages are NOT counted as available); the gate's headroom
 /// absorbs the remaining optimism from speculative/purgeable pages.
@@ -232,7 +232,7 @@ pub fn rss_bytes_for_pid(pid: u32) -> Option<u64> {
 ///
 /// `free` is the (already resident-credited) bytes available; `forecast` the
 /// incoming model's estimated footprint; `headroom` what must remain free
-/// above the forecast. `None` (probe unavailable) NEVER refuses — fail open.
+/// above the forecast. `None` (probe unavailable) NEVER refuses - fail open.
 /// Boundary: `forecast + headroom == free` allows (saturating, so huge
 /// forecasts still refuse), `== free + 1` refuses.
 pub fn gate_should_refuse(free: Option<u64>, forecast: u64, headroom: u64) -> bool {
@@ -260,7 +260,7 @@ pub struct FallbackCandidate {
     /// Catalog recommended rank (lower = better); `u32::MAX` for unranked
     /// models so they sort last.
     pub rank: u32,
-    /// Estimated footprint in bytes — the SAME size-derived forecast the
+    /// Estimated footprint in bytes - the SAME size-derived forecast the
     /// F3 gate compares (`size_mb` MiB plus the fixed
     /// [`DEFAULT_HEADROOM_BYTES`] compute allowance), so "fits" here means
     /// exactly "the gate would allow this load".
@@ -273,10 +273,10 @@ pub struct FallbackCandidate {
 /// Preference: catalog `rank` ascending (lower = better), ties broken by the
 /// smaller footprint (under pressure, smaller is safer), then by id for
 /// determinism. Only downloaded candidates belong in `candidates` (the
-/// "prefer the quant actually downloaded" rule — the caller lists exactly
+/// "prefer the quant actually downloaded" rule - the caller lists exactly
 /// what is on disk); the model that just failed is always excluded. A
 /// candidate fits when the F3 gate would NOT refuse it against `free`.
-/// `free == None` (probe unavailable) never resolves — the gate fails open
+/// `free == None` (probe unavailable) never resolves - the gate fails open
 /// in that case, so there is nothing to fall back FROM.
 pub fn resolve_fallback_model<'a>(
     free: Option<u64>,
@@ -372,7 +372,7 @@ mod tests {
 
     /// The live probe sanity check (macOS): the reading must be positive and
     /// cannot exceed the machine's physical RAM (`hw.memsize`). This is the
-    /// undercount guard's unit-testable half — a wildly wrong reading (0 or
+    /// undercount guard's unit-testable half - a wildly wrong reading (0 or
     /// > total) fails here.
     #[cfg(target_os = "macos")]
     #[test]
@@ -455,7 +455,7 @@ mod tests {
     fn fallback_resolver_excludes_the_failed_model() {
         let free = Some(10 * GIB);
         let candidates = vec![
-            cand("failed", 1, 1 * GIB), // would fit and outrank — but it JUST failed
+            cand("failed", 1, 1 * GIB), // would fit and outrank - but it JUST failed
             cand("other", 2, 1 * GIB),
         ];
         assert_eq!(
@@ -493,7 +493,7 @@ mod tests {
         // Empty candidate list (only the failed model downloaded).
         assert_eq!(resolve_fallback_model(free, &[], "selected"), None);
         // Probe unavailable: the gate fails open, so there is no refusal to
-        // answer — never resolve.
+        // answer - never resolve.
         assert_eq!(
             resolve_fallback_model(None, &[cand("a", 1, 1 * GIB)], "selected"),
             None
@@ -576,7 +576,7 @@ mod tests {
         (rc == 0).then_some(value as u64)
     }
 
-    /// INFORMATIONAL MEASUREMENT HARNESS — not a pass/fail test.
+    /// INFORMATIONAL MEASUREMENT HARNESS - not a pass/fail test.
     ///
     /// On this app's target machine `os_proc_available_memory()` returns 0, so
     /// every live memory decision uses the `host_statistics64` fallback
@@ -651,7 +651,7 @@ mod tests {
                 // vm.page_purgeable_count cannot be read via sysctl(3) on
                 // every macOS version: on macOS 26 sysctlbyname fails with
                 // ENOMEM for a 4-byte buffer and returns 0 for an 8-byte one
-                // (measured), even though the sysctl CLI reports a value —
+                // (measured), even though the sysctl CLI reports a value -
                 // the counter is effectively unmeasurable from this process.
                 // Count it as zero and say so rather than skipping the
                 // measurement.
@@ -677,7 +677,7 @@ mod tests {
                             println!(
                                 "note: the probe still counts purgeable pages (from the \
                                  vm_statistics64 struct), which this ground truth cannot \
-                                 measure here — expect the delta to equal the probe's \
+                                 measure here - expect the delta to equal the probe's \
                                  purgeable component, NOT an inactive over-count"
                             );
                         }

@@ -39,7 +39,7 @@ in
     environment.systemPackages = [ cfg.package ];
 
     # rdev grab() creates virtual input devices via /dev/uinput.
-    # Default permissions are crw------- root root — open it to the input group.
+    # Default permissions are crw------- root root - open it to the input group.
     services.udev.extraRules = ''
       KERNEL=="uinput", GROUP="input", MODE="0660"
     '';

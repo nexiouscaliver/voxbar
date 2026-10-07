@@ -45,7 +45,7 @@ const SecureInputWarning: React.FC = () => {
   // Only warn when the user is actually impacted: a binding is degraded
   // (side-specific matching widened) or dead (e.g. fn+key), or they ran into
   // the blocked shortcut recorder. When the fallback covers everything
-  // transparently — and nothing else surfaced — stay silent; the backend
+  // transparently - and nothing else surfaced - stay silent; the backend
   // still logs.
   const impacted =
     status !== null &&

@@ -36,7 +36,7 @@ mkdir -p "$DEST"
 cp -vL "$SRC"/libtranscribe.so* "$DEST"/ 2>/dev/null || true
 cp -vL "$SRC"/libggml*.so*      "$DEST"/ 2>/dev/null || true
 
-# Fail loudly if the core lib or the CPU backend modules are absent — a missing
+# Fail loudly if the core lib or the CPU backend modules are absent - a missing
 # CPU module means no usable compute device on machines without a GPU backend,
 # which is exactly the SIGILL-safe baseline this whole posture exists to deliver.
 if ! ls "$DEST"/libtranscribe.so* >/dev/null 2>&1; then

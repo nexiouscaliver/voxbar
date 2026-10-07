@@ -38,7 +38,7 @@ tauri_panel! {
 // state and resized in `show_overlay_state`; each size need only be at least as
 // large as the card it hosts (the `--ov-*` vars in RecordingOverlay.css). The
 // card is CSS-anchored flush to the screen edge, so window height doesn't move
-// where the card sits — only OVERLAY_TOP_OFFSET / OVERLAY_BOTTOM_OFFSET do. Keep
+// where the card sits - only OVERLAY_TOP_OFFSET / OVERLAY_BOTTOM_OFFSET do. Keep
 // these in sync with the CSS card geometry.
 //
 // On Windows these sizes are additionally multiplied by the accessibility text
@@ -235,7 +235,7 @@ fn is_mouse_within_monitor(
 /// Returns overlay position in logical coordinates (points on macOS).
 ///
 /// The Bottom anchor uses the macOS work area (visibleFrame) so the overlay
-/// tracks the Dock — above it when shown, at the screen edge when hidden.
+/// tracks the Dock - above it when shown, at the screen edge when hidden.
 /// This relies on tauri 2.11's work_area.position.y fix (#14655), the same
 /// bug that led PR #969 to abandon work_area for full monitor bounds. Top and
 /// the other platforms keep full monitor bounds plus the fixed offsets
@@ -401,7 +401,7 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
         }
     }
 
-    // Position starts unset — update_overlay_position() sets the correct
+    // Position starts unset - update_overlay_position() sets the correct
     // LogicalPosition before the overlay is shown.
     let mut builder = WebviewWindowBuilder::new(
         app_handle,
@@ -498,7 +498,7 @@ fn show_overlay_state(app_handle: &AppHandle, state: &str) {
 
     // The rest queries monitors and the cursor and mutates window geometry. On
     // Linux the monitor/cursor lookups hit GDK/Xlib on the process's shared X11
-    // connection, which is only safe from the GTK main thread — running them on
+    // connection, which is only safe from the GTK main thread - running them on
     // a background thread corrupts the connection and hard-crashes the app
     // (issue #227). Hop to the main thread on every platform to keep the
     // geometry path uniform (a no-op cost on Windows, and it also keeps macOS's
@@ -661,7 +661,7 @@ pub fn show_final_preview_overlay(app_handle: &AppHandle, final_text: &str) {
 /// Updates the overlay window position based on current settings
 pub fn update_overlay_position(app_handle: &AppHandle) {
     // Positioning queries monitors/cursor (GDK/Xlib on Linux) and moves the
-    // window, so it must run on the main thread — see show_overlay_state.
+    // window, so it must run on the main thread - see show_overlay_state.
     let handle = app_handle.clone();
     let _ = app_handle.run_on_main_thread(move || update_overlay_position_on_main(&handle));
 }
@@ -708,7 +708,7 @@ fn update_overlay_position_on_main(app_handle: &AppHandle) {
 /// Generation counter bumped every time the overlay is shown. The delayed
 /// `hide()` below only unmaps the window if no show happened after it was
 /// scheduled, so a hide left over from a finished transcription can never
-/// take down the overlay of a session that started in the meantime — e.g. a
+/// take down the overlay of a session that started in the meantime - e.g. a
 /// press the coordinator remembered while the pipeline was busy and started
 /// the instant it drained, well inside the 300 ms hide delay.
 static OVERLAY_SHOW_GENERATION: AtomicU64 = AtomicU64::new(0);

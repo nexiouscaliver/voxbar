@@ -41,7 +41,7 @@ pub enum EngineType {
     Cohere,
 }
 
-/// Where a model comes from and how Handy obtains it — the routing discriminant
+/// Where a model comes from and how Handy obtains it - the routing discriminant
 /// for downloading and on-disk resolution.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub enum ModelSource {
@@ -55,7 +55,7 @@ pub enum ModelSource {
     /// HF cache (so other tools reuse it). The file within the repo is
     /// [`ModelInfo::filename`].
     HuggingFace { repo_id: String, revision: String },
-    /// Already present on disk — a user-provided custom model, or one discovered
+    /// Already present on disk - a user-provided custom model, or one discovered
     /// in a shared cache. Nothing to download.
     Local,
 }
@@ -132,7 +132,7 @@ pub struct QuantFile {
     pub filename: String,
     pub quant: String,
     pub size_bytes: u64,
-    /// Content sha256 — the trust anchor for downloads from any source (HF or
+    /// Content sha256 - the trust anchor for downloads from any source (HF or
     /// mirror). `None` only for catalogs predating the field.
     #[serde(default)]
     pub sha256: Option<String>,
@@ -140,7 +140,7 @@ pub struct QuantFile {
 
 /// Pick the default quant among `files`: the one whose `quant` matches
 /// `default_quant`, else the first file. The single source of the "which file do
-/// we surface" rule — shared by [`ModelDescriptor::default_file`] and the
+/// we surface" rule - shared by [`ModelDescriptor::default_file`] and the
 /// catalog's id construction so the two can never drift.
 pub(crate) fn default_quant_file<'a>(
     files: &'a [QuantFile],
@@ -152,7 +152,7 @@ pub(crate) fn default_quant_file<'a>(
         .or_else(|| files.first())
 }
 
-/// Live, on-disk status — the half of [`ModelInfo`] that isn't part of the
+/// Live, on-disk status - the half of [`ModelInfo`] that isn't part of the
 /// static spec. Kept separate so a descriptor stays purely descriptive and
 /// status can be recomputed without rebuilding it.
 #[derive(Debug, Clone, Default)]
@@ -201,7 +201,7 @@ impl ModelDescriptor {
         self.render_model_info(self.default_file(), status)
     }
 
-    /// [`ModelInfo`] for one specific quant `file` of this catalog model — how
+    /// [`ModelInfo`] for one specific quant `file` of this catalog model - how
     /// alternate-quant files found on disk surface with full catalog metadata
     /// instead of as anonymous customs. The default quant keeps the plain
     /// catalog name; any other quant appends it ("Name (Q4_K_M)") so two
@@ -348,8 +348,8 @@ fn hf_cached_path(repo_id: &str, revision: &str, filename: &str) -> Option<PathB
 /// Resolve a Hugging Face model file in the supplied caches, if already present.
 ///
 /// hf-hub resolves purely through `refs/<revision>`. Pinned downloads write
-/// `refs/<commit-sha>`, but caches populated before pinning — or by other
-/// tools, which download via `main` — only have `refs/main`, so lookup falls
+/// `refs/<commit-sha>`, but caches populated before pinning - or by other
+/// tools, which download via `main` - only have `refs/main`, so lookup falls
 /// back to it. Grandfathered `main` copies may predate the pin; per policy a
 /// working local model is never invalidated by routine catalog regeneration.
 fn hf_cached_path_in(
@@ -384,8 +384,8 @@ fn probed_display_name(probe: &CapabilityProbe) -> Option<String> {
 }
 
 /// Capability fields for a locally-discovered on-disk model, derived from its
-/// GGUF header probe. Anything without readable GGUF metadata — a legacy `.bin`
-/// file, or a header that simply omits a key — collapses to "no advertised
+/// GGUF header probe. Anything without readable GGUF metadata - a legacy `.bin`
+/// file, or a header that simply omits a key - collapses to "no advertised
 /// capability"; transcribe-cpp still reconciles the real values at load time.
 /// Shared by both local discovery paths (custom models dir + HF cache) so they
 /// surface capabilities identically.
@@ -423,8 +423,8 @@ struct HfProgressState {
     downloaded: u64,
     last_emit: Instant,
     /// Every callback (even throttled-out ones) bumps this; the stall watchdog
-    /// reads it. Starts at construction so a hang before the first byte —
-    /// e.g. a wedged metadata/resolve request — also counts as a stall.
+    /// reads it. Starts at construction so a hang before the first byte -
+    /// e.g. a wedged metadata/resolve request - also counts as a stall.
     last_activity: Instant,
 }
 
@@ -1058,7 +1058,7 @@ impl ModelManager {
                 supports_language_selection: true,
                 is_custom: false,
                 supports_streaming: false,
-                // Canary (NeMo) requires an explicit source language — no auto-detect.
+                // Canary (NeMo) requires an explicit source language - no auto-detect.
                 supports_language_detection: false,
             },
         );
@@ -1101,7 +1101,7 @@ impl ModelManager {
                 supports_language_selection: true,
                 is_custom: false,
                 supports_streaming: false,
-                // Canary (NeMo) requires an explicit source language — no auto-detect.
+                // Canary (NeMo) requires an explicit source language - no auto-detect.
                 supports_language_detection: false,
             },
         );
@@ -1148,7 +1148,7 @@ impl ModelManager {
         // Seed the bundled offline catalog before the on-disk scans, so a model
         // already in the HF cache dedups onto its richer catalog entry (the scans
         // only insert ids not already present) instead of showing as a bare cache
-        // find. Additive — see `seed_catalog_models`.
+        // find. Additive - see `seed_catalog_models`.
         Self::seed_catalog_models(&mut available_models);
 
         // Auto-discover custom transcribe-cpp models (.bin / .gguf) in the models directory
@@ -1208,7 +1208,7 @@ impl ModelManager {
     /// inserting each model whose id isn't already present (additive).
     ///
     /// Catalog (`.gguf`, `HuggingFace`) and legacy (`.bin`/ONNX, `Url`) entries
-    /// stay SEPARATE — different files, ids, and runtimes. Nothing is merged or
+    /// stay SEPARATE - different files, ids, and runtimes. Nothing is merged or
     /// removed; the UI just hides not-on-disk `Url` entries to deprecate legacy
     /// downloads, while already-downloaded ones stay runnable. Runs before the
     /// on-disk scans so a cached model dedups onto its catalog entry.
@@ -1239,7 +1239,7 @@ impl ModelManager {
     /// Re-run the local discovery scans (custom models dir + shared HF cache) so
     /// models dropped in or downloaded outside Handy show up without a restart.
     /// The merge is additive: only new ids are inserted, so existing entries keep
-    /// their values — including runtime-probed capabilities from
+    /// their values - including runtime-probed capabilities from
     /// [`Self::set_runtime_capabilities`]. It then runs [`Self::update_download_status`],
     /// which recomputes disk-derived flags for *every* entry; a rescan racing an
     /// in-flight download can briefly clear its `is_downloading`, but the download
@@ -1295,13 +1295,13 @@ impl ModelManager {
 
     /// Reconcile a model's advertised capabilities with the ground truth from the
     /// loaded model (transcribe-cpp's GGUF-derived capabilities), overwriting the
-    /// pre-download view (catalog metadata or a header probe — see
+    /// pre-download view (catalog metadata or a header probe - see
     /// [`super::model_capabilities`]).
     ///
     /// This corrects the header probe's gaps. It matters most for **streaming**
     /// (transcribe-cpp infers it at load for parakeet/streaming families, where
     /// the flat GGUF key can be absent, and it gates whether streaming is even
-    /// attempted — see `actions.rs`) and for **language detection** / the
+    /// attempted - see `actions.rs`) and for **language detection** / the
     /// **supported-language set**, which feed [`effective_language`]; a mislabeled
     /// header would otherwise coerce an "auto" intent to a forced language for good.
     /// Translate is reconciled too for badge accuracy, though run paths re-read it
@@ -1320,7 +1320,7 @@ impl ModelManager {
             model.supports_streaming = supports_streaming;
             model.supports_translation = supports_translation;
             model.supports_language_detection = supports_language_detection;
-            // An empty set means the model is language-agnostic — but it is also
+            // An empty set means the model is language-agnostic - but it is also
             // what a failed capability read leaves behind, so keep the probed /
             // catalog list rather than blanking a known one to nothing.
             if !supported_languages.is_empty() {
@@ -1420,7 +1420,7 @@ impl ModelManager {
                 model.is_downloading = false;
                 model.partial_size = partial_path.metadata().map(|m| m.len()).unwrap_or(0);
                 // Alternate-quant entries exist only because their file was
-                // discovered on disk — the catalog offers just the default
+                // discovered on disk - the catalog offers just the default
                 // quant, so they are never presented for download. When the
                 // file is gone, the entry goes with it.
                 if !model.is_downloaded
@@ -1494,7 +1494,7 @@ impl ModelManager {
     }
 
     /// Whether `filename` is a catalog-listed quant of `repo_id` other than
-    /// the default — the only quant the catalog seeds and offers for download.
+    /// the default - the only quant the catalog seeds and offers for download.
     fn is_catalog_alternate_quant(repo_id: &str, filename: &str) -> bool {
         crate::catalog::file_in_catalog(filename, Some(repo_id)).is_some_and(|(desc, file)| {
             desc.default_file()
@@ -1645,8 +1645,8 @@ impl ModelManager {
             }
 
             // Only process Whisper-family model files: legacy GGML `.bin` or
-            // GGUF `.gguf` (both load through transcribe-cpp). Anything else —
-            // including `.partial` downloads like "model.bin.partial" — is
+            // GGUF `.gguf` (both load through transcribe-cpp). Anything else -
+            // including `.partial` downloads like "model.bin.partial" - is
             // skipped, since it ends in neither extension. The model ID is the
             // filename with its extension removed.
             let (model_id, is_gguf) = if let Some(stem) = filename.strip_suffix(".bin") {
@@ -1663,8 +1663,8 @@ impl ModelManager {
             }
 
             // A file matching ANY catalog-listed quant surfaces as that catalog
-            // model — full name/description/scores, quant-suffixed name for
-            // non-defaults — instead of as an anonymous custom entry. (Default
+            // model - full name/description/scores, quant-suffixed name for
+            // non-defaults - instead of as an anonymous custom entry. (Default
             // quants never reach here: they're in `predefined_filenames`.)
             if let Some((desc, quant_file)) = crate::catalog::file_in_catalog(&filename, None) {
                 let info = desc.to_model_info_for_file(
@@ -1835,7 +1835,7 @@ impl ModelManager {
                 }
 
                 // Catalog-listed quants (same repo) surface with full catalog
-                // metadata — quant-suffixed name for non-defaults — and skip
+                // metadata - quant-suffixed name for non-defaults - and skip
                 // the header probe (the catalog is authoritative for its own
                 // models). Everything else keeps the generic probed path.
                 if let Some((desc, quant_file)) =
@@ -1970,8 +1970,8 @@ impl ModelManager {
         );
 
         // hf-hub has no working internal retry (its retry knobs are hardcoded
-        // to zero), so a single transient fault — dropped connection, a 429
-        // from the resolve endpoint, a CDN blip — would otherwise fail the
+        // to zero), so a single transient fault - dropped connection, a 429
+        // from the resolve endpoint, a CDN blip - would otherwise fail the
         // whole download. Each attempt resumes from the `.sync.part`
         // committed-offset marker, so a retry only re-fetches what the failed
         // attempt hadn't finished.
@@ -2031,7 +2031,7 @@ impl ModelManager {
                     }
                 }
             });
-            // hf-hub only observes its token inside the chunk loop — the
+            // hf-hub only observes its token inside the chunk loop - the
             // metadata/resolve request and cache lock run before it, so a hang
             // there would ignore the cancel entirely. Race the whole future
             // against the token: on cancel, grant a short grace so an attempt
@@ -2074,7 +2074,7 @@ impl ModelManager {
                     // the connection pool a brief pause, then retry once using
                     // the known-compatible single-stream path. A sequential
                     // stall already cost DOWNLOAD_STALL_TIMEOUT, so further
-                    // retries would likely just repeat it — use the mirror.
+                    // retries would likely just repeat it - use the mirror.
                     if stream_count == 1 || attempt >= ATTEMPT_STREAMS.len() {
                         break Some(err);
                     }
@@ -2396,7 +2396,7 @@ impl ModelManager {
             fs::rename(&partial_path, &model_path)?;
         }
 
-        // Disarm the guard — success path does its own cleanup because it
+        // Disarm the guard - success path does its own cleanup because it
         // additionally sets is_downloaded = true.
         cleanup.disarmed = true;
         {
@@ -2440,7 +2440,7 @@ impl ModelManager {
             if is_alternate_quant {
                 // Only this quant's own file: the snapshot pointer and its
                 // blob. The default (and any other quants) survive in the
-                // cache — the entry never owned more than its one file.
+                // cache - the entry never owned more than its one file.
                 deleted |= Self::delete_hf_cache_file(repo_id, revision, &model_info.filename);
             } else if let Some(file) = hf_cached_path(repo_id, revision, &model_info.filename) {
                 // Cached at <cache>/models--org--name/snapshots/<rev>/<file>; remove
@@ -2471,7 +2471,7 @@ impl ModelManager {
                     deleted = true;
                 }
             }
-            // Files already missing (e.g. removed outside Handy) is not a failure —
+            // Files already missing (e.g. removed outside Handy) is not a failure -
             // deleting is idempotent, so this still needs to fall through and clear
             // the stale "Downloaded" entry rather than erroring out and leaving it stuck.
             if !deleted {
@@ -2526,7 +2526,7 @@ impl ModelManager {
             deleted_something = true;
         }
 
-        // Files already missing (e.g. removed outside Handy) is not a failure —
+        // Files already missing (e.g. removed outside Handy) is not a failure -
         // deleting is idempotent, so this still needs to fall through and clear
         // the stale "Downloaded" entry rather than erroring out and leaving it stuck.
         if !deleted_something {
@@ -2609,7 +2609,7 @@ impl ModelManager {
             }
             // Mirror-fallback download or manual drop-in in the models dir.
             // The complete file only ever appears after verification, so a
-            // stale `.partial` alongside it is leftover noise, not a veto —
+            // stale `.partial` alongside it is leftover noise, not a veto -
             // clear it rather than declaring the model missing.
             let local_path = self.models_dir.join(&model_info.filename);
             if local_path.exists() {

@@ -21,7 +21,7 @@
   --dark-color-background-ui: #da5893;
 
   /* Content placed on solid accent fills. `on` is for text (badge labels),
-     `knob` for the toggle knob. Defaults keep today's look — text on a pink
+     `knob` for the toggle knob. Defaults keep today's look - text on a pink
      fill inherits the theme text color, the knob is white in both themes.
      A non-default accent overrides both pairs inline so a white knob never
      sits on a light fill (black/white/gray accents) and solid-fill text
@@ -43,7 +43,7 @@
   --color-text-stroke: #f6f6f6;
   --color-mid-gray: #808080;
 
-  /* Active palette — defaults to light, follows the OS via the media query
+  /* Active palette - defaults to light, follows the OS via the media query
      below, or is forced by `data-theme` (see the overrides below). */
   --color-text: var(--light-color-text);
   --color-background: var(--light-color-background);
@@ -77,8 +77,8 @@
  * so a user can keep Handy light or dark regardless of the OS setting.
  * `system` (or no attribute) leaves the OS in charge.
  *
- * Lives here (not in App.css) so every window that imports the shared palette —
- * the settings window and the recording overlay alike — honours the override.
+ * Lives here (not in App.css) so every window that imports the shared palette -
+ * the settings window and the recording overlay alike - honours the override.
  */
 :root[data-theme="light"] {
   --color-text: var(--light-color-text);

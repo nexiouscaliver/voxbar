@@ -102,7 +102,7 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
     let model_manager = app.state::<Arc<ModelManager>>();
     let transcription_manager = app.state::<Arc<TranscriptionManager>>();
 
-    // Atomically claim the loading slot — prevents concurrent model loads
+    // Atomically claim the loading slot - prevents concurrent model loads
     // from tray double-clicks or overlapping commands. The guard resets the
     // flag on drop (including early returns, errors, and panics).
     let _loading_guard = transcription_manager
@@ -131,10 +131,10 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
 
     write_settings(app, settings);
 
-    // Skip eager loading if unload is set to "Immediately" — the model
+    // Skip eager loading if unload is set to "Immediately" - the model
     // will be loaded on-demand during the next transcription.
     if unload_timeout == ModelUnloadTimeout::Immediately {
-        // Notify frontend — load_model won't be called so no events
+        // Notify frontend - load_model won't be called so no events
         // would otherwise be emitted.
         let _ = app.emit(
             "model-state-changed",
@@ -146,7 +146,7 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
             },
         );
         log::info!(
-            "Model selection changed to {} (not loading — unload set to Immediately).",
+            "Model selection changed to {} (not loading - unload set to Immediately).",
             model_id
         );
         return Ok(());

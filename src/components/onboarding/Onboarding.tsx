@@ -38,7 +38,7 @@ const Onboarding: React.FC<OnboardingProps> = ({
   // Curate the download list: legacy (.bin/ONNX) downloads are deprecated and
   // never shown here (they still appear in the compatible section if already on
   // disk). The catalog arrives rank-sorted, so the first two recommended models
-  // are the featured picks — currently Parakeet Unified (English) and Nemotron
+  // are the featured picks - currently Parakeet Unified (English) and Nemotron
   // Streaming (multilingual). Everything else hides behind "Show all".
   const { downloadable, topPicks, otherRecommended, rest } = useMemo(() => {
     const downloadable = models.filter(
@@ -88,7 +88,7 @@ const Onboarding: React.FC<OnboardingProps> = ({
     ) {
       hasStartedSelection.current = true;
 
-      // Model is ready — select it and transition
+      // Model is ready - select it and transition
       selectModel(selectedModelId).then((success) => {
         if (success) {
           onModelSelected();
@@ -117,7 +117,7 @@ const Onboarding: React.FC<OnboardingProps> = ({
     setSelectedModelId(modelId);
 
     // Error toast is handled centrally by the model-download-failed event listener
-    // in modelStore — no toast here to avoid duplicates.
+    // in modelStore - no toast here to avoid duplicates.
     const success = await downloadModel(modelId);
     if (!success) {
       setSelectedModelId(null);

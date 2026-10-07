@@ -71,7 +71,7 @@ pub struct HistoryEntry {
     pub post_process_prompt: Option<String>,
     pub post_process_requested: bool,
     /// Model id that actually produced `transcription_text` (the resident
-    /// model at transcription time — after a RAM auto-fallback this is the
+    /// model at transcription time - after a RAM auto-fallback this is the
     /// fallback). `None` for pre-migration entries or when the model was
     /// unknown (e.g. a failed transcription saved for retry).
     pub model_id: Option<String>,
@@ -234,7 +234,7 @@ impl HistoryManager {
     /// Save a new history entry to the database.
     /// The WAV file should already have been written to the recordings directory.
     /// `model_id` is the model that actually produced the transcription (the
-    /// resident model at transcription time — after a RAM auto-fallback this
+    /// resident model at transcription time - after a RAM auto-fallback this
     /// is the fallback), recorded per entry for auditability.
     pub fn save_entry(
         &self,
@@ -852,7 +852,7 @@ mod tests {
     }
 
     /// Save path: the actually-used model id lands in the row. After a RAM
-    /// auto-fallback the pipeline passes the fallback's id here — this pins
+    /// auto-fallback the pipeline passes the fallback's id here - this pins
     /// that whatever id the pipeline threads through ends up persisted.
     #[test]
     fn save_path_records_the_actually_used_model_id() {
@@ -882,7 +882,7 @@ mod tests {
         assert_eq!(entry.model_id.as_deref(), Some("whisper-large-v3-turbo"));
 
         // Unknown model (failed transcription saved for retry) writes as ''
-        // — never NULL — and reads back as None.
+        // - never NULL - and reads back as None.
         let unknown = HistoryManager::insert_entry_with_conn(
             &conn,
             "voxbar-300.wav".to_string(),

@@ -8,13 +8,13 @@
 
 use whatlang::{Detector, Lang};
 
-/// Minimum whatlang confidence (0.0–1.0) to accept a detection, on top of
+/// Minimum whatlang confidence (0.0-1.0) to accept a detection, on top of
 /// whatlang's own `is_reliable()` heuristic. A wrong accepted language can
 /// reintroduce real-word deletion (e.g. Portuguese "um"), so the gate is
 /// deliberately strict: calibrated on ~8k short Tatoeba sentences across the
 /// 16 filler-profile languages, `is_reliable() && confidence >= 0.9` fires on
 /// ~66% of sentences with 99.9% accuracy (script-distinct languages ~100%,
-/// Latin-script languages 22–64%). Missed detections merely skip gated filler
+/// Latin-script languages 22-64%). Missed detections merely skip gated filler
 /// removal; the universal tier still applies.
 const MIN_CONFIDENCE: f64 = 0.9;
 
@@ -58,7 +58,7 @@ pub fn detect_output_language(text: &str, supported_languages: &[String]) -> Opt
     // Codes whatlang cannot represent (e.g. Maltese in Parakeet V3's list,
     // Cantonese in SenseVoice's) are dropped rather than disabling detection
     // for the whole model. Text in a dropped language only causes harm if it
-    // clears the confidence gate as en/de/fr — the only gated filler profiles —
+    // clears the confidence gate as en/de/fr - the only gated filler profiles -
     // which is the same misdetection risk the gate already absorbs for in-list
     // confusions like pt vs es.
     let allowlist: Vec<Lang> = supported_languages

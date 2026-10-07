@@ -29,7 +29,7 @@ pub fn init() {
         } else if marker_path.exists() && data_dir.exists() {
             // Migration: v0.8.0 created an empty marker file. If we find an
             // empty/invalid marker alongside an existing Data/ dir, this is a
-            // real portable install — upgrade the marker in place.
+            // real portable install - upgrade the marker in place.
             eprintln!("[portable] upgrading legacy empty marker to magic string");
             let _ = std::fs::write(&marker_path, "VoxBar Portable Mode");
             true
@@ -207,7 +207,7 @@ mod tests {
 
     #[test]
     fn test_legacy_empty_marker_without_data_dir_does_not_enable_portable() {
-        // Empty marker alone (scoop scenario) — no Data/ dir → not portable
+        // Empty marker alone (scoop scenario) - no Data/ dir → not portable
         let dir = std::env::temp_dir().join("handy_test_legacy_no_data");
         std::fs::create_dir_all(&dir).unwrap();
         let marker = dir.join("portable");

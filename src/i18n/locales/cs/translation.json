@@ -377,7 +377,7 @@
       "overlay": {
         "style": {
           "title": "Překryv",
-          "description": "Vyberte překryv při nahrávání: „Žádné“ jej skryje, „Minimální“ zobrazí kompaktní indikátor, „Živě“ zobrazuje přepis v reálném čase, když mluvíte (pouze modely podporující streaming — hledejte odznak „Streaming“ ve výběru modelů). Na Linuxu se doporučuje „Žádné“.",
+          "description": "Vyberte překryv při nahrávání: „Žádné“ jej skryje, „Minimální“ zobrazí kompaktní indikátor, „Živě“ zobrazuje přepis v reálném čase, když mluvíte (pouze modely podporující streaming - hledejte odznak „Streaming“ ve výběru modelů). Na Linuxu se doporučuje „Žádné“.",
           "options": {
             "none": "Žádné",
             "minimal": "Minimální",
@@ -455,7 +455,7 @@
       },
       "customWords": {
         "title": "Vlastní slova",
-        "description": "Pomozte podporovaným modelům rozpoznávat jména a odborné termíny. Přibližné opravy jsou v současnosti omezeny na slova obsahující písmena A–Z a číslice.",
+        "description": "Pomozte podporovaným modelům rozpoznávat jména a odborné termíny. Přibližné opravy jsou v současnosti omezeny na slova obsahující písmena A-Z a číslice.",
         "placeholder": "Přidat slovo",
         "add": "Přidat",
         "remove": "Odebrat {{word}}",
@@ -679,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Diagnostika klávesnice",
-        "description": "Ověří, zda události klávesnice dorazí do VoxBar. Zaznamenává se pouze počet událostí — nikdy to, které klávesy stisknete.",
+        "description": "Ověří, zda události klávesnice dorazí do VoxBar. Zaznamenává se pouze počet událostí - nikdy to, které klávesy stisknete.",
         "run": "Spustit 10s diagnostiku",
         "running": "Naslouchání… několikrát stiskněte svou zkratku (např. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -691,10 +691,10 @@
         "keyUp": "Uvolnění klávesy",
         "flagsChanged": "Modifikátory",
         "mouse": "Myš",
-        "verdictBlocked": "Secure Input blokuje události kláves — zkratky obsahující běžnou klávesu nemohou fungovat, dokud se to nevyřeší.",
-        "verdictSuspicious": "Dorazily události modifikátorů, ale žádné události kláves — něco klávesy potlačuje, přestože Secure Input hlásí, že je vypnutý. Nahlaste to prosím na GitHubu.",
+        "verdictBlocked": "Secure Input blokuje události kláves - zkratky obsahující běžnou klávesu nemohou fungovat, dokud se to nevyřeší.",
+        "verdictSuspicious": "Dorazily události modifikátorů, ale žádné události kláves - něco klávesy potlačuje, přestože Secure Input hlásí, že je vypnutý. Nahlaste to prosím na GitHubu.",
         "verdictOk": "Události kláves dorazí do VoxBar normálně.",
-        "verdictNoEvents": "Nebyly zachyceny žádné události — stiskli jste během testu nějaké klávesy?",
+        "verdictNoEvents": "Nebyly zachyceny žádné události - stiskli jste během testu nějaké klávesy?",
         "failed": "Diagnostika selhala: {{error}}"
       },
       "whatsNewPreview": {
@@ -756,9 +756,9 @@
     "preparing": "Příprava...",
     "checkForUpdates": "Zkontrolovat aktualizace",
     "portableUpdateTitle": "Vyžadována ruční aktualizace",
-    "portableUpdateMessage": "Přenosné instalace nelze aktualizovat automaticky. Níže stáhněte instalátor pro svůj systém, spusťte jej a nainstalujte do stejné složky — vaše složka Data/ (nastavení, modely, nahrávky) zůstane na místě.",
+    "portableUpdateMessage": "Přenosné instalace nelze aktualizovat automaticky. Níže stáhněte instalátor pro svůj systém, spusťte jej a nainstalujte do stejné složky - vaše složka Data/ (nastavení, modely, nahrávky) zůstane na místě.",
     "portableUpdateButton": "Stáhnout instalátor",
-    "portableUpdateBrowseMessage": "Přenosné instalace nelze aktualizovat automaticky. Stáhněte nejnovější verzi pro svůj systém z GitHub Releases a nainstalujte ji do stejné složky — vaše složka Data/ (nastavení, modely, nahrávky) zůstane na místě.",
+    "portableUpdateBrowseMessage": "Přenosné instalace nelze aktualizovat automaticky. Stáhněte nejnovější verzi pro svůj systém z GitHub Releases a nainstalujte ji do stejné složky - vaše složka Data/ (nastavení, modely, nahrávky) zůstane na místě.",
     "portableUpdateBrowseButton": "Otevřít GitHub Releases"
   },
   "common": {
@@ -842,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} může blokovat změny zkratek",
     "recorderBlockedNoCulprit": "macOS dočasně blokuje změny zkratek",
     "learnMore": "Jak to vyřešit",
-    "recorderBlocked": "Zkratky teď nelze nahrát — Secure Input v macOS blokuje události kláves. Nejprve vyřešte upozornění na Secure Input.",
+    "recorderBlocked": "Zkratky teď nelze nahrát - Secure Input v macOS blokuje události kláves. Nejprve vyřešte upozornění na Secure Input.",
     "dismiss": "Zavřít"
   }
 }

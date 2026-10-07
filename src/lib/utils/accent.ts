@@ -13,7 +13,7 @@ import { commands } from "@/bindings";
  * root, so every theme selector (`prefers-color-scheme` media query or forced
  * `data-theme`) keeps resolving the pair for the active theme with no extra
  * JS. Picking the default (`pink`) clears the overrides, leaving `theme.css`
- * in charge — i.e. zero behavior change until the user chooses.
+ * in charge - i.e. zero behavior change until the user chooses.
  *
  * Contrast discipline: monochrome accents would vanish if rendered literally
  * (black on the dark theme, white on light), so each swatch carries a
@@ -23,9 +23,9 @@ import { commands } from "@/bindings";
  */
 
 export interface AccentPalette {
-  /** Accent render color — text, icons, borders, rings, tinted fills. */
+  /** Accent render color - text, icons, borders, rings, tinted fills. */
   color: string;
-  /** Solid accent fill — checked toggle, solid badges, overlay pulse. */
+  /** Solid accent fill - checked toggle, solid badges, overlay pulse. */
   fill: string;
   /** Text color placed on a solid `fill` (e.g. badge labels). */
   onFill: string;
@@ -50,7 +50,7 @@ export const ACCENT_STORAGE_KEY = "handy.accent";
  * Fixed palette. Light render colors sit at Tailwind 600/700 depth (white
  * content on them passes 4.5:1), dark render colors at 400 depth (readable on
  * #2c2b29). The monochrome entries flip: black renders near-black on light
- * and light gray on dark, white vice versa — the only accessible reading of
+ * and light gray on dark, white vice versa - the only accessible reading of
  * those choices. The default `pink` entry pins today's exact values
  * (logo-primary #faa2ca/#f28cbb, background-ui #da5893, knob white, content
  * color = theme text) so the mapping is a no-op until a user picks.
@@ -327,7 +327,7 @@ export function applyAccent(accentId: string): void {
   const root = document.documentElement;
   const accent = byId.get(accentId.trim().toLowerCase());
   if (!accent || accent.id === DEFAULT_ACCENT_ID) {
-    // Default (or unknown): let theme.css's own palette rule — the exact
+    // Default (or unknown): let theme.css's own palette rule - the exact
     // historical rendering.
     for (const [prop] of OVERRIDE_PROPS) root.style.removeProperty(prop);
   } else {

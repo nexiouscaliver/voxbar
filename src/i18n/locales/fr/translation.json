@@ -377,7 +377,7 @@
       "overlay": {
         "style": {
           "title": "Overlay",
-          "description": "Choisissez l'overlay d'enregistrement : « Aucun » le masque, « Minimal » affiche une pilule compacte, « Live » affiche la transcription en temps réel pendant que vous parlez (uniquement pour les modèles compatibles avec le streaming — recherchez le badge Streaming dans le sélecteur de modèle). Sur Linux, « Aucun » est recommandé.",
+          "description": "Choisissez l'overlay d'enregistrement : « Aucun » le masque, « Minimal » affiche une pilule compacte, « Live » affiche la transcription en temps réel pendant que vous parlez (uniquement pour les modèles compatibles avec le streaming - recherchez le badge Streaming dans le sélecteur de modèle). Sur Linux, « Aucun » est recommandé.",
           "options": {
             "none": "Aucune",
             "minimal": "Minimal",

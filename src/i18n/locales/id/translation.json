@@ -143,7 +143,7 @@
     "loadingGeneric": "Memuat...",
     "modelError": "Kesalahan Model",
     "modelUnloaded": "Model Dikeluarkan dari Memori",
-    "noModelDownloadRequired": "Model Belum Tersedia — Perlu Diunduh",
+    "noModelDownloadRequired": "Model Belum Tersedia - Perlu Diunduh",
     "deleteModel": "Hapus {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
     "cancel": "Batal",
@@ -377,7 +377,7 @@
       "overlay": {
         "style": {
           "title": "Overlay",
-          "description": "Pilih overlay perekaman: Tidak Ada menyembunyikannya, Minimal menampilkan indikator ringkas, dan Langsung menampilkan transkripsi secara waktu nyata saat Anda berbicara (hanya model yang mendukung streaming — cari lencana Streaming di pemilih model). Di Linux, 'Tidak Ada' direkomendasikan.",
+          "description": "Pilih overlay perekaman: Tidak Ada menyembunyikannya, Minimal menampilkan indikator ringkas, dan Langsung menampilkan transkripsi secara waktu nyata saat Anda berbicara (hanya model yang mendukung streaming - cari lencana Streaming di pemilih model). Di Linux, 'Tidak Ada' direkomendasikan.",
           "options": {
             "none": "Tidak Ada",
             "minimal": "Minimal",
@@ -455,7 +455,7 @@
       },
       "customWords": {
         "title": "Kata Khusus",
-        "description": "Bantu model yang didukung mengenali nama dan istilah khusus. Koreksi fuzzy saat ini terbatas pada kata yang menggunakan huruf A–Z dan angka.",
+        "description": "Bantu model yang didukung mengenali nama dan istilah khusus. Koreksi fuzzy saat ini terbatas pada kata yang menggunakan huruf A-Z dan angka.",
         "placeholder": "Tambahkan kata",
         "add": "Tambah",
         "remove": "Hapus {{word}}",
@@ -693,7 +693,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Diagnostik Keyboard",
-        "description": "Memeriksa apakah peristiwa keyboard mencapai VoxBar. Hanya jumlah peristiwa yang dicatat — bukan tombol yang Anda tekan.",
+        "description": "Memeriksa apakah peristiwa keyboard mencapai VoxBar. Hanya jumlah peristiwa yang dicatat - bukan tombol yang Anda tekan.",
         "run": "Jalankan diagnostik 10 dtk",
         "running": "Mendengarkan… tekan pintasan Anda beberapa kali (mis. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -705,10 +705,10 @@
         "keyUp": "Tombol dilepas",
         "flagsChanged": "Tombol pengubah",
         "mouse": "Mouse",
-        "verdictBlocked": "Secure Input memblokir peristiwa tombol — pintasan keyboard tidak dapat berfungsi sampai masalah ini diselesaikan.",
-        "verdictSuspicious": "Peristiwa tombol pengubah diterima, tetapi tidak ada peristiwa tombol — sesuatu memblokir input tombol meskipun Secure Input dilaporkan nonaktif. Harap laporkan ini di GitHub.",
+        "verdictBlocked": "Secure Input memblokir peristiwa tombol - pintasan keyboard tidak dapat berfungsi sampai masalah ini diselesaikan.",
+        "verdictSuspicious": "Peristiwa tombol pengubah diterima, tetapi tidak ada peristiwa tombol - sesuatu memblokir input tombol meskipun Secure Input dilaporkan nonaktif. Harap laporkan ini di GitHub.",
         "verdictOk": "Peristiwa tombol mencapai VoxBar secara normal.",
-        "verdictNoEvents": "Tidak ada peristiwa yang tertangkap — apakah Anda menekan tombol selama pengujian?",
+        "verdictNoEvents": "Tidak ada peristiwa yang tertangkap - apakah Anda menekan tombol selama pengujian?",
         "failed": "Diagnostik gagal: {{error}}"
       }
     },
@@ -756,9 +756,9 @@
     "preparing": "Menyiapkan...",
     "checkForUpdates": "Periksa pembaruan",
     "portableUpdateTitle": "Pembaruan manual diperlukan",
-    "portableUpdateMessage": "Instalasi portabel tidak dapat diperbarui secara otomatis. Unduh penginstal untuk sistem Anda di bawah ini, jalankan, lalu instal ke folder yang sama — folder Data/ Anda (pengaturan, model, rekaman) tetap dipertahankan.",
+    "portableUpdateMessage": "Instalasi portabel tidak dapat diperbarui secara otomatis. Unduh penginstal untuk sistem Anda di bawah ini, jalankan, lalu instal ke folder yang sama - folder Data/ Anda (pengaturan, model, rekaman) tetap dipertahankan.",
     "portableUpdateButton": "Unduh penginstal",
-    "portableUpdateBrowseMessage": "Instalasi portabel tidak dapat diperbarui secara otomatis. Unduh versi terbaru untuk sistem Anda dari GitHub Releases dan instal ke folder yang sama — folder Data/ Anda (pengaturan, model, rekaman) tetap dipertahankan.",
+    "portableUpdateBrowseMessage": "Instalasi portabel tidak dapat diperbarui secara otomatis. Unduh versi terbaru untuk sistem Anda dari GitHub Releases dan instal ke folder yang sama - folder Data/ Anda (pengaturan, model, rekaman) tetap dipertahankan.",
     "portableUpdateBrowseButton": "Buka GitHub Releases"
   },
   "whatsNew": {
@@ -842,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} mungkin memblokir perubahan pintasan",
     "recorderBlockedNoCulprit": "macOS untuk sementara memblokir perubahan pintasan",
     "learnMore": "Cara memperbaiki",
-    "recorderBlocked": "Pintasan tidak dapat direkam saat ini — macOS Secure Input memblokir peristiwa tombol. Selesaikan peringatan Secure Input terlebih dahulu.",
+    "recorderBlocked": "Pintasan tidak dapat direkam saat ini - macOS Secure Input memblokir peristiwa tombol. Selesaikan peringatan Secure Input terlebih dahulu.",
     "dismiss": "Tutup"
   }
 }

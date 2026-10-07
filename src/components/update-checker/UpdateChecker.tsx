@@ -87,7 +87,7 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
       if (update) {
         setUpdateAvailable(true);
         setShowUpToDate(false);
-        // Portable installs can't self-update in place — the manual dialog links
+        // Portable installs can't self-update in place - the manual dialog links
         // straight at the matching installer from this manifest instead.
         setPortableInstallerUrl(
           resolvePortableInstallerUrl(update.rawJson, platform(), arch()),

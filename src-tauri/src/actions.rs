@@ -76,7 +76,7 @@ fn strip_invisible_chars(s: &str) -> String {
 
 /// Strip a leading `<think>...</think>` block. Some endpoints can't disable
 /// reasoning, and some local servers put the reasoning text into `content`
-/// instead of a separate field — without this the user would get the model's
+/// instead of a separate field - without this the user would get the model's
 /// chain of thought pasted along with the cleaned transcription.
 fn strip_think_block(s: &str) -> &str {
     if let Some(rest) = s.trim_start().strip_prefix("<think>") {
@@ -193,7 +193,7 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
         .cloned()
         .unwrap_or_default();
 
-    // Ask these providers to skip reasoning/thinking — post-processing rarely
+    // Ask these providers to skip reasoning/thinking - post-processing rarely
     // benefits from it and it adds seconds of latency. llm_client picks the
     // field the endpoint understands and retries without it if rejected.
     let disable_reasoning = matches!(provider.id.as_str(), "custom" | "openrouter");

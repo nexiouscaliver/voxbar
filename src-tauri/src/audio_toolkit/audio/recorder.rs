@@ -150,7 +150,7 @@ impl AudioRecorder {
 
     /// Register a callback that receives real-time 16 kHz frames after the active
     /// VAD policy has been applied. Frames arrive in real time, in order, on the
-    /// recorder's consumer thread — keep the callback cheap (e.g. forward to a
+    /// recorder's consumer thread - keep the callback cheap (e.g. forward to a
     /// channel) so it never stalls capture.
     pub fn with_audio_callback<F>(mut self, cb: F) -> Self
     where

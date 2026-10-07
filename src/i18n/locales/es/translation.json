@@ -377,7 +377,7 @@
       "overlay": {
         "style": {
           "title": "Superposición",
-          "description": "Elige la superposición de grabación: Ninguna la oculta, Minimalista muestra una píldora compacta, En vivo muestra la transcripción en tiempo real mientras hablas (solo modelos compatibles con streaming — busca la insignia Streaming en el selector de modelos). En Linux se recomienda 'Ninguna'.",
+          "description": "Elige la superposición de grabación: Ninguna la oculta, Minimalista muestra una píldora compacta, En vivo muestra la transcripción en tiempo real mientras hablas (solo modelos compatibles con streaming - busca la insignia Streaming en el selector de modelos). En Linux se recomienda 'Ninguna'.",
           "options": {
             "none": "Ninguna",
             "minimal": "Minimalista",

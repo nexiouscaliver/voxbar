@@ -3,7 +3,7 @@
 //! Publishes the transcript with `declareTypes:owner:`, which puts a *promise*
 //! on the general pasteboard instead of data. When any consumer actually
 //! requests the text, AppKit calls `pasteboard:provideDataForType:` on our
-//! owner object — that callback is the read receipt. The previous clipboard is
+//! owner object - that callback is the read receipt. The previous clipboard is
 //! restored once receipts go quiet (see `paste_tx::evaluate`), guarded by the
 //! pasteboard `changeCount` so we never clobber a newer user copy.
 //!
@@ -54,7 +54,7 @@ define_class!(
 
     impl HandyPasteProvider {
         // NSPasteboardOwner informal protocol: the pasteboard is asking for the
-        // promised data — our receipt that a consumer read the clipboard.
+        // promised data - our receipt that a consumer read the clipboard.
         #[unsafe(method(pasteboard:provideDataForType:))]
         fn pasteboard_provide_data_for_type(&self, pasteboard: &NSPasteboard, data_type: &NSString) {
             let ivars = self.ivars();
@@ -101,7 +101,7 @@ struct MacPending {
     provider: Option<Retained<HandyPasteProvider>>,
     auto_submit: bool,
     auto_submit_key: AutoSubmitKey,
-    /// ClipboardHandling::CopyToClipboard — instead of restoring, settle by
+    /// ClipboardHandling::CopyToClipboard - instead of restoring, settle by
     /// re-writing the transcript as plain text (without the concealment
     /// markers), so clipboard managers record it and it outlives the promise.
     preserve_transcript: bool,

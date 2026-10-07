@@ -377,7 +377,7 @@
       "overlay": {
         "style": {
           "title": "悬浮窗",
-          "description": "选择录音悬浮窗的样式：「无」会隐藏悬浮窗，「精简」显示小巧的胶囊状指示，「实时」在您说话时实时显示转录内容（仅限支持流式的模型——请在模型选择器中查找「流式」标签）。在 Linux 上建议选择「无」。",
+          "description": "选择录音悬浮窗的样式：「无」会隐藏悬浮窗，「精简」显示小巧的胶囊状指示，「实时」在您说话时实时显示转录内容（仅限支持流式的模型-请在模型选择器中查找「流式」标签）。在 Linux 上建议选择「无」。",
           "options": {
             "none": "无",
             "minimal": "精简",
@@ -455,7 +455,7 @@
       },
       "customWords": {
         "title": "自定义词汇",
-        "description": "帮助受支持的模型识别名称和专业术语。目前，模糊纠错仅适用于使用 A–Z 字母和数字的词语。",
+        "description": "帮助受支持的模型识别名称和专业术语。目前，模糊纠错仅适用于使用 A-Z 字母和数字的词语。",
         "placeholder": "添加词汇",
         "add": "添加",
         "remove": "删除 {{word}}",
@@ -691,10 +691,10 @@
         "keyUp": "按键释放",
         "flagsChanged": "修饰键",
         "mouse": "鼠标",
-        "verdictBlocked": "Secure Input 正在阻止按键事件——在问题解决前，包含普通按键的快捷键无法工作。",
-        "verdictSuspicious": "收到了修饰键事件，但没有按键事件——尽管 Secure Input 报告为已禁用，仍有程序在抑制按键。请在 GitHub 上反馈此问题。",
+        "verdictBlocked": "Secure Input 正在阻止按键事件-在问题解决前，包含普通按键的快捷键无法工作。",
+        "verdictSuspicious": "收到了修饰键事件，但没有按键事件-尽管 Secure Input 报告为已禁用，仍有程序在抑制按键。请在 GitHub 上反馈此问题。",
         "verdictOk": "按键事件正常到达 VoxBar。",
-        "verdictNoEvents": "未捕获到任何事件——测试期间您按过键吗？",
+        "verdictNoEvents": "未捕获到任何事件-测试期间您按过键吗？",
         "failed": "诊断失败：{{error}}"
       },
       "whatsNewPreview": {
@@ -842,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} 可能正在阻止快捷键更改",
     "recorderBlockedNoCulprit": "macOS 正在暂时阻止快捷键更改",
     "learnMore": "如何解决",
-    "recorderBlocked": "当前无法录制快捷键——macOS 的 Secure Input 正在阻止按键事件。请先解决 Secure Input 警告。",
+    "recorderBlocked": "当前无法录制快捷键-macOS 的 Secure Input 正在阻止按键事件。请先解决 Secure Input 警告。",
     "dismiss": "关闭"
   }
 }

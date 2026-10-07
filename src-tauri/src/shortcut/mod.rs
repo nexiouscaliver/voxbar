@@ -735,7 +735,7 @@ pub fn change_theme_setting(app: AppHandle, theme: String) -> Result<(), String>
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     apply_window_theme(&app, parsed);
     // Notify other webviews (the recording overlay) so they re-apply the palette
-    // live — they set `data-theme` on their own document and can't see this one.
+    // live - they set `data-theme` on their own document and can't see this one.
     let _ = app.emit("theme-changed", parsed);
     Ok(())
 }
@@ -751,7 +751,7 @@ pub fn change_accent_color_setting(app: AppHandle, accent: String) -> Result<(),
     settings.accent_color = accent.clone();
     settings::write_settings(&app, settings);
     // Notify other webviews (the recording overlay) so they re-apply the
-    // accent live — each window sets the palette override on its own document.
+    // accent live - each window sets the palette override on its own document.
     let _ = app.emit("accent-changed", accent);
     Ok(())
 }
@@ -1669,7 +1669,7 @@ pub fn change_transcribe_gpu_device(app: AppHandle, device: Option<String>) -> R
 /// First-call cost is dominated by enumerating GPU devices through the
 /// transcribe.cpp Metal/Vulkan backend, which loads dynamic libraries and
 /// probes hardware. Run it on the blocking pool so the webview thread
-/// stays responsive — see also the startup pre-warm in `lib.rs`.
+/// stays responsive - see also the startup pre-warm in `lib.rs`.
 #[tauri::command]
 #[specta::specta]
 pub async fn get_available_accelerators(

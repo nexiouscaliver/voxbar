@@ -10,7 +10,7 @@ Thank you for your interest in contributing to VoxBar! This guide will help you 
 
 ## 📖 Philosophy
 
-Handy aims to be the most forkable speech-to-text app. The goal is to create both a useful tool and a foundation for others to build upon—a well-patterned, simple codebase that serves the community. We prioritize:
+Handy aims to be the most forkable speech-to-text app. The goal is to create both a useful tool and a foundation for others to build upon-a well-patterned, simple codebase that serves the community. We prioritize:
 
 - **Simplicity**: Clear, maintainable code over clever solutions
 - **Extensibility**: Make it easy for others to fork and customize

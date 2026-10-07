@@ -56,7 +56,7 @@ fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> String {
 /// Editorial rank for a RAM auto-fallback candidate. Direct registry ids
 /// resolve through the rank table; an alternate quant found on disk has the
 /// id `"{repo_id}/{filename}"`, which that table (keyed by the descriptor's
-/// default file) misses — resolve those through the catalog's file table so
+/// default file) misses - resolve those through the catalog's file table so
 /// they compete at their base model's rank instead of sorting last.
 /// Unranked/unknown models (user-added Hugging Face repos, local customs,
 /// legacy entries without a rank) return `u32::MAX`: they rank AFTER every
@@ -132,7 +132,7 @@ pub enum StreamPhase {
     /// does not emit this today; the frontend starts in this phase and Rust only
     /// emits transitions away from it.
     Listening,
-    /// Finalizing or post-processing — show a spinner.
+    /// Finalizing or post-processing - show a spinner.
     Working,
 }
 
@@ -341,7 +341,7 @@ impl StreamSessionBuffer {
 /// the [`TranscriptionManager`] (opens/closes the route) and the audio recorder's
 /// per-frame callback (feeds frames). The recorder holds an `Arc<StreamRouter>`
 /// directly, so a frame with no stream pending costs a single relaxed atomic
-/// load — no Tauri state lookup, no mutex lock.
+/// load - no Tauri state lookup, no mutex lock.
 pub struct StreamRouter {
     /// Command channel to the active streaming worker, present from
     /// `start_stream` until `finalize_stream`/`cancel_stream`.
@@ -422,12 +422,12 @@ pub struct LoadingGuard {
 
 impl Drop for LoadingGuard {
     fn drop(&mut self) {
-        // Recover from a poisoned mutex instead of panicking —
+        // Recover from a poisoned mutex instead of panicking -
         // a panic inside Drop calls abort().
         let mut is_loading = match self.is_loading.lock() {
             Ok(g) => g,
             Err(e) => {
-                warn!("Recovered poisoned is_loading mutex during LoadingGuard drop — a panic occurred earlier this session");
+                warn!("Recovered poisoned is_loading mutex during LoadingGuard drop - a panic occurred earlier this session");
                 e.into_inner()
             }
         };
@@ -538,7 +538,7 @@ impl TranscriptionManager {
                     let settings = get_settings(&app_handle_cloned);
                     let timeout = settings.model_unload_timeout;
 
-                    // Skip Immediately — that variant is handled by
+                    // Skip Immediately - that variant is handled by
                     // maybe_unload_immediately() after each transcription.
                     // Treating it as 0s here would unload the model mid-recording.
                     if timeout == ModelUnloadTimeout::Immediately {
@@ -613,7 +613,7 @@ impl TranscriptionManager {
     /// pages are freed before the replacement model's peak).
     ///
     /// TranscribeCpp: the worker process's measured RSS when both a model is
-    /// loaded and the pid probe succeeds (either unavailable → no credit —
+    /// loaded and the pid probe succeeds (either unavailable → no credit -
     /// conservative). In-process ONNX engines: the resident model's
     /// `size_mb`-derived estimate (the same estimate class the gate uses for
     /// the incoming model). Nothing resident → 0.
@@ -633,11 +633,11 @@ impl TranscriptionManager {
     }
 
     /// Resident model's footprint for the tray status line (spec F4):
-    /// `Some((bytes, measured))` when a model is resident — `measured` is
+    /// `Some((bytes, measured))` when a model is resident - `measured` is
     /// `true` only for the transcribe-cpp worker's RSS; `false` marks the
     /// size-derived estimate (in-process ONNX engines, or the worker's RSS
     /// could not be read). `None` when nothing is resident or no estimate
-    /// resolves — callers omit the segment. Distinct from the gate's
+    /// resolves - callers omit the segment. Distinct from the gate's
     /// [`Self::resident_model_footprint_bytes`] above, which credits
     /// TranscribeCpp by measured RSS only (conservative for load decisions).
     pub fn resident_model_footprint(&self) -> Option<(u64, bool)> {
@@ -823,7 +823,7 @@ impl TranscriptionManager {
     /// top-level (user-initiated) load may fall back to a smaller
     /// already-downloaded model when the memory gate refuses the selection;
     /// the fallback load itself may not cascade (the resolver already picked
-    /// the best fit — if even that no longer fits, refusing is correct).
+    /// the best fit - if even that no longer fits, refusing is correct).
     fn load_model_with_device_internal(
         &self,
         model_id: &str,
@@ -884,7 +884,7 @@ impl TranscriptionManager {
         }
 
         // Memory-pressure gate (spec F3): refuse loads whose forecast
-        // footprint cannot fit, BEFORE the current engine is dropped below —
+        // footprint cannot fit, BEFORE the current engine is dropped below -
         // a refusal leaves the resident model loaded and transcribing. The
         // outgoing model's footprint is credited back to the free reading
         // because its pages are freed before the new model's peak. A probe
@@ -957,7 +957,7 @@ impl TranscriptionManager {
             .inspect_err(|error| emit_loading_failed(&error.to_string()))?;
 
         // Drop the current engine BEFORE building the new one so the previous
-        // model is freed first — avoids holding two models at once (peak memory
+        // model is freed first - avoids holding two models at once (peak memory
         // on large GGUFs). A transcribe-cpp load replaces its worker the same
         // way. Clear the id too: if the new load fails, status should read "no
         // loaded model", not the dropped engine.
@@ -1594,7 +1594,7 @@ impl TranscriptionManager {
     }
 
     /// Transcribe and report which model id actually produced the text: the
-    /// resident model at run time — after a RAM auto-fallback this is the
+    /// resident model at run time - after a RAM auto-fallback this is the
     /// fallback, not the persisted selection. History entries record it so a
     /// mid-dictation model switch stays auditable. Returns `(text, model_id)`;
     /// the model id is empty when unknown.
@@ -1650,7 +1650,7 @@ impl TranscriptionManager {
         // Validate selected language against the model's supported languages.
         // If the language isn't supported, fall back to "auto" to prevent errors.
         // Validate against the model that's actually loaded (which can differ
-        // from settings.selected_model when a caller loaded a specific model —
+        // from settings.selected_model when a caller loaded a specific model -
         // e.g. the --transcribe-file path's --model), not the persisted
         // selection.
         let active_model = self
@@ -1658,7 +1658,7 @@ impl TranscriptionManager {
             .unwrap_or_else(|| settings.selected_model.clone());
         // Resolve the persisted language *intent* into the language this model
         // will actually use. The coercion is capability-aware (a must-pick model
-        // never receives "auto") and computed fresh here — it is never written
+        // never receives "auto") and computed fresh here - it is never written
         // back to settings, so the intent survives switching models and back.
         let validated_language =
             effective_language_for_model(&settings, self.model_manager.as_ref(), &active_model);
@@ -1714,7 +1714,7 @@ impl TranscriptionManager {
             ""
         };
         // Real-time factor. Input PCM is 16 kHz mono, so audio length in seconds
-        // is samples / 16000. `speedup` is audio_secs / elapsed_secs — e.g. 4.00x
+        // is samples / 16000. `speedup` is audio_secs / elapsed_secs - e.g. 4.00x
         // means transcribed 4x faster than real time
         let elapsed_secs = (et - st).as_secs_f64();
         let audio_secs = audio_len as f64 / 16_000.0;
@@ -1745,7 +1745,7 @@ impl TranscriptionManager {
     /// capabilities (cheap GGUF-metadata reads) are the source of truth, not
     /// the ModelManager copy. The whisper run extension is kind-tagged, so
     /// non-whisper archs (parakeet, voxtral, …) reject it with INVALID_ARG;
-    /// attach it — and translate — only where supported.
+    /// attach it - and translate - only where supported.
     fn transcribe_cpp(
         &self,
         info: LoadedInfo,
@@ -1954,7 +1954,7 @@ impl TranscriptionManager {
                 inner_result?
             }
             Err(panic_payload) => {
-                // Engine panicked — do NOT put it back (it's in an unknown state).
+                // Engine panicked - do NOT put it back (it's in an unknown state).
                 // The engine is dropped here, effectively unloading it.
                 let panic_msg = panic_payload_message(panic_payload.as_ref());
                 error!(
@@ -2430,7 +2430,7 @@ where
 /// `translate` flag is set), transcribe-cpp requires an explicit
 /// `target_language`: a null target defaults to the *source*, so a non-English
 /// source silently becomes e.g. es→es and Canary rejects the unadvertised pair.
-/// An English source is skipped entirely — en→en is not a real translation, and
+/// An English source is skipped entirely - en→en is not a real translation, and
 /// it's reachable by default since auto-detect-less models coerce intent to "en".
 ///
 /// Returns `(task, target_language)` ready to drop into `RunOptions`.
@@ -3543,7 +3543,7 @@ mod tests {
 impl Drop for TranscriptionManager {
     fn drop(&mut self) {
         // Skip shutdown unless this is the very last clone. TranscriptionManager
-        // is cloned by initiate_model_load() and the watcher thread — those
+        // is cloned by initiate_model_load() and the watcher thread - those
         // clones dropping must not kill the watcher. The watcher thread holds
         // its own clone, so onnx's strong_count is always >= 2 while the
         // watcher is alive. When it reaches 1, only this instance remains
@@ -3557,11 +3557,11 @@ impl Drop for TranscriptionManager {
 
         // Wait for the thread to finish gracefully.
         // Use match instead of unwrap to avoid panicking if the mutex is
-        // poisoned — a panic inside Drop calls abort().
+        // poisoned - a panic inside Drop calls abort().
         let mut guard = match self.watcher_handle.lock() {
             Ok(g) => g,
             Err(e) => {
-                warn!("Recovered poisoned watcher_handle mutex during TranscriptionManager drop — a panic occurred earlier this session");
+                warn!("Recovered poisoned watcher_handle mutex during TranscriptionManager drop - a panic occurred earlier this session");
                 e.into_inner()
             }
         };
