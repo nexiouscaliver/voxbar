@@ -1,3 +1,6 @@
+use crate::audio_toolkit::commands::{
+    flush_command_prefix_len, held_prefix_len, COMMAND_VOCABULARY,
+};
 use crate::audio_toolkit::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion, detect_output_language,
     interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
@@ -295,6 +298,15 @@ struct StreamSessionBuffer {
     /// flag mirrors the coordinator's decision (press during a live
     /// session) at snapshot granularity; see [`Self::render`].
     command_active: bool,
+    /// True while a command delta's trailing fragment is HELD BACK (a
+    /// proper prefix of some command phrase, possibly a partial word).
+    /// The held region is the `raw_seen` shortfall itself (nothing is
+    /// stored twice); the marker exists because `render` assigns
+    /// `last_full` BEFORE the modifier branch, so a release-tick
+    /// shortfall alone cannot tell a held fragment apart from FRESH
+    /// release-snapshot dictation. Only a set marker fires the
+    /// release/finalize flush.
+    holding: bool,
     /// Toggles for the interim display transform, captured when the stream
     /// begins (a mid-session toggle applies from the next session, matching
     /// how `PreviewScript` captures `chinese_script` today).
@@ -312,6 +324,7 @@ impl Default for StreamSessionBuffer {
         Self {
             live: false,
             command_active: false,
+            holding: false,
             spoken_punctuation: true,
             voice_deletion: true,
             preview_script: PreviewScript::new(
@@ -336,6 +349,7 @@ impl StreamSessionBuffer {
     ) {
         self.live = true;
         self.command_active = false;
+        self.holding = false;
         self.spoken_punctuation = spoken_punctuation;
         self.voice_deletion = voice_deletion;
         self.preview_script = preview_script;
@@ -348,6 +362,7 @@ impl StreamSessionBuffer {
     fn end(&mut self) {
         self.live = false;
         self.command_active = false;
+        self.holding = false;
         self.base.clear();
         self.raw_seen.clear();
         self.last_full.clear();
@@ -375,11 +390,24 @@ impl StreamSessionBuffer {
     /// included, so a word completing across the boundary is never
     /// truncated into a bogus one-letter command) and marks it consumed
     /// via `raw_seen`; only material arriving on later snapshots parses
-    /// as commands. Releasing resumes normal dictation from the end of
-    /// the last consumed snapshot; the finalized buffer (and therefore
-    /// the final paste) is exactly the edited `base` plus any later
-    /// normal speech, because `combine_final` never re-consumes material
-    /// covered by `raw_seen`.
+    /// as commands.
+    ///
+    /// A delta whose TRAILING token sequence is a proper prefix of some
+    /// command phrase (the last token possibly a partial word, as when a
+    /// streaming snapshot cuts "comma" into "com") is HELD BACK: the
+    /// delta before the fragment applies, `raw_seen` stops at the
+    /// fragment's start INCLUDING its preceding separator, and the
+    /// `holding` marker is set. Nothing is stored twice: the shortfall
+    /// between `raw_seen` and the snapshot IS the held region, so the
+    /// next delta re-includes the whole token and nothing double-counts;
+    /// the fragment stays visible in the interim display, separator
+    /// included. Releasing with a fragment held flushes it through the
+    /// grammar (see [`Self::flush_held_region`]) and then resumes normal
+    /// dictation from the consumed boundary; releasing with nothing held
+    /// behaves exactly as before. The finalized buffer (and therefore the
+    /// final paste) is exactly the edited `base` plus any later normal
+    /// speech, because `combine_final` never re-consumes material covered
+    /// by `raw_seen`.
     fn render(&mut self, committed: &str, tentative: &str, command_modifier: bool) -> String {
         let snapshot = format!("{committed}{tentative}");
         self.last_full = snapshot.clone();
@@ -391,9 +419,30 @@ impl StreamSessionBuffer {
             } else {
                 let keep = common_prefix_len(&self.raw_seen, &snapshot);
                 let delta = snapshot[keep..].to_string();
-                self.raw_seen = snapshot;
-                crate::audio_toolkit::apply_command_delta_to_buffer(&mut self.base, &delta);
+                let held = held_prefix_len(&delta, COMMAND_VOCABULARY);
+                let applicable_end = delta.len() - held;
+                crate::audio_toolkit::apply_command_delta_to_buffer(
+                    &mut self.base,
+                    &delta[..applicable_end],
+                );
+                self.raw_seen = snapshot[..snapshot.len() - held].to_string();
+                self.holding = held > 0;
             }
+        } else if self.holding {
+            // Release tick with a fragment still held: the shortfall
+            // mixes the held fragment with the release snapshot's FRESH
+            // dictation, which is why the marker gates this flush. Apply
+            // the flush span rule from raw_seen's end (the common prefix;
+            // an engine revision inside the held region is consumed by
+            // the same rule, the pre-existing revision edge), then resume
+            // normal dictation: the remainder of the release snapshot
+            // flows through combine() and is never parsed as commands.
+            let start = common_prefix_len(&self.raw_seen, &snapshot);
+            let region = snapshot[start..].to_string();
+            let consumed = self.flush_held_region(&region);
+            self.raw_seen = snapshot[..start + consumed].to_string();
+            self.holding = false;
+            self.command_active = false;
         } else {
             self.command_active = false;
         }
@@ -402,6 +451,22 @@ impl StreamSessionBuffer {
             .preview_script
             .convert(&raw, "", &self.supported_languages);
         interim_display_transform(&converted, self.spoken_punctuation, self.voice_deletion)
+    }
+
+    /// Flush an unresolved held fragment through the command grammar and
+    /// return the byte count the flush consumed from `region`. Shared by
+    /// the release tick and the finalize fold: consume the region's first
+    /// word with its preceding separator, then whole words while the span
+    /// remains a proper prefix of some command phrase (so a held " new l"
+    /// resolves to the whole "new line"); the consumed span parses as
+    /// commands (unrecognized words discarded per the contract) and any
+    /// remainder stays unconsumed, flowing on as normal dictation.
+    fn flush_held_region(&mut self, region: &str) -> usize {
+        let consumed = flush_command_prefix_len(region, COMMAND_VOCABULARY);
+        if consumed > 0 {
+            crate::audio_toolkit::apply_command_delta_to_buffer(&mut self.base, &region[..consumed]);
+        }
+        consumed
     }
 
     /// Apply the delete-last-word hotkey to the buffer. Returns the refreshed
@@ -414,6 +479,9 @@ impl StreamSessionBuffer {
         let buffer = self.combine(&self.last_full);
         self.base = remove_trailing_word_from_buffer(&buffer);
         self.raw_seen = self.last_full.clone();
+        // The held region (if any) is consumed unparsed; a stale marker
+        // must never fire a later flush.
+        self.holding = false;
         let raw = self.combine(&self.last_full);
         let (converted, _) = self
             .preview_script
@@ -436,6 +504,9 @@ impl StreamSessionBuffer {
         }
         self.base = String::new();
         self.raw_seen = self.last_full.clone();
+        // Same as the delete-word hotkey: the reset consumes any held
+        // fragment without parsing it, and the marker must not survive.
+        self.holding = false;
         let raw = self.combine(&self.last_full);
         let (converted, _) = self
             .preview_script
@@ -449,8 +520,22 @@ impl StreamSessionBuffer {
 
     /// Fold the engine's final raw text into the buffer and end the session.
     /// With no manual edits this is exactly the engine text unchanged.
+    ///
+    /// A fragment still held at finalize flushes through the grammar first
+    /// (ONLY on the `holding` marker: final material beyond the last
+    /// consumed snapshot is dictation by design, so a raw_seen shortfall
+    /// alone must not trigger a parse). The flush consumes from the common
+    /// prefix with `raw_seen`; everything beyond stays dictation and the
+    /// fold appends it as usual.
     fn combine_final(&mut self, final_raw: String) -> String {
         let combined = if self.live {
+            if self.holding {
+                let start = common_prefix_len(&self.raw_seen, &final_raw);
+                let region = final_raw[start..].to_string();
+                let consumed = self.flush_held_region(&region);
+                self.raw_seen = final_raw[..start + consumed].to_string();
+                self.holding = false;
+            }
             let keep = common_prefix_len(&self.raw_seen, &final_raw);
             join_raw(&self.base, &final_raw[keep..])
         } else {
@@ -3154,6 +3239,126 @@ mod tests {
         assert_eq!(
             session.combine_final("one two delete word new line three".to_string()),
             "one \n three"
+        );
+    }
+
+    // -----------------------------------------------------------------
+    // Fragmented command words: a delta ending mid-token or mid-phrase is
+    // a proper prefix of a vocabulary phrase, so it is HELD (visible in
+    // the interim display, separator intact) until a later delta
+    // completes it; release/finalize flush what never completed.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn session_buffer_command_modifier_fragmented_word_parses_whole() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage on a clean snapshot
+
+        // The fragment arrives on a LATER tick: "com" is a partial-word
+        // proper prefix of "comma", so the delta is held, no command
+        // applies, and the display keeps the separator.
+        assert_eq!(session.render("hello world com", "", true), "hello world com");
+        // The next delta re-includes the whole token (the raw_seen
+        // shortfall IS the held region); the comma applies exactly once
+        // and no stray "com" survives.
+        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_fragmented_phrase_parses_whole() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+
+        // " question" is a whole word that only OPENS "question mark":
+        // held rather than silently discarded.
+        assert_eq!(
+            session.render("hello world question", "", true),
+            "hello world question"
+        );
+        // The completing word arrives on the next delta: the phrase
+        // parses whole.
+        assert_eq!(
+            session.render("hello world question mark", "", true),
+            "hello world?"
+        );
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_release_flush_discards_unresolved_fragment() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+        assert_eq!(session.render("hello world com", "", true), "hello world com");
+
+        // Released with the snapshot unchanged: the flush consumes the
+        // fragment, the grammar discards it ("com" is no command), and it
+        // never re-enters the buffer.
+        assert_eq!(session.render("hello world com", "", false), "hello world");
+        assert_eq!(
+            session.combine_final("hello world com".to_string()),
+            "hello world"
+        );
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_release_flush_resolves_and_appends_dictation() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+        assert_eq!(session.render("hello world com", "", true), "hello world com");
+
+        // Released with the snapshot GROWN: the flush span resolves the
+        // held fragment into the comma command and stops; the fresh
+        // release-snapshot dictation " and more" is appended, never
+        // parsed as commands. This is the exact rhythm the holding
+        // marker gates (a bare raw_seen shortfall cannot tell the two
+        // apart).
+        assert_eq!(
+            session.render("hello world comma and more", "", false),
+            "hello world, and more"
+        );
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_finalize_flush_resolves_held_fragment() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+        assert_eq!(session.render("hello world com", "", true), "hello world com");
+
+        // Finalize flushes ONLY because the holding marker is set: the
+        // held word resolves to the comma from the final text and the
+        // remainder (" three") appends as dictation.
+        assert_eq!(
+            session.combine_final("hello world comma three".to_string()),
+            "hello world, three"
+        );
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_duplicate_symbol_inserts_coalesce() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+
+        // A whole "comma" delta applies on arrival.
+        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+        // Repeating the identical symbol command coalesces: one comma.
+        assert_eq!(
+            session.render("hello world comma comma", "", true),
+            "hello world,"
+        );
+        // Line breaks never coalesce, and a comma after a line break
+        // still lands.
+        assert_eq!(
+            session.render("hello world comma comma new line", "", true),
+            "hello world,\n"
+        );
+        assert_eq!(
+            session.render("hello world comma comma new line comma", "", true),
+            "hello world,\n,"
         );
     }
 
