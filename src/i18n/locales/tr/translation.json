@@ -231,13 +231,22 @@
           "transcribe_with_post_process": {
             "name": "Son İşlem Kısayolu",
             "description": "İsteğe bağlı: Transkripsiyonunuza her zaman yapay zekâ ile son işlem uygulayan özel bir kısayol tuşu."
+          },
+          "delete_last_word": {
+            "name": "Son kelimeyi sil",
+            "description": "Odaklanmış uygulamada imleçten önceki kelimeyi siler (macOS'ta Option+Backspace, diğerlerinde Ctrl+Backspace). Etkinleştirmek için bir tuş atayın."
+          },
+          "undo": {
+            "name": "Geri al",
+            "description": "Odaklanmış uygulamada Geri Al'ı tetikler (macOS'ta Cmd+Z, diğerlerinde Ctrl+Z) ve son yapıştırılan dikteyi tek seferde geri alır. Etkinleştirmek için bir tuş atayın."
           }
         },
         "errors": {
           "restore": "Orijinal kısayol geri yüklenemedi",
           "set": "Kısayol ayarlanamadı: {{error}}",
           "reset": "Kısayol orijinal değerine sıfırlanamadı"
-        }
+        },
+        "unbound": "Atanmadı"
       },
       "language": {
         "title": "Dil",
@@ -258,6 +267,17 @@
           "hold_or_toggle": "Kaydetmek için basılı tutun veya açıp kapatmak için dokunun",
           "push_to_talk": "Kısayolu basılı tuttuğunuz sürece kaydeder",
           "toggle": "Kaydı başlatmak için kısayola dokunun, durdurmak için tekrar dokunun"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Düzenleme kısayolları",
+        "deleteLastWord": {
+          "title": "Eylem: son kelimeyi sil",
+          "description": "İmleçten önceki kelimeyi silen atanabilir kısayolu etkinleştirir. Kısayol, yukarıda bir tuş atanana kadar etkinsiz kalır."
+        },
+        "undo": {
+          "title": "Eylem: geri al",
+          "description": "Odaklanmış uygulamada Geri Al'ı tetikleyen atanabilir kısayolu etkinleştirir. Kısayol, yukarıda bir tuş atanana kadar etkinsiz kalır."
         }
       }
     },

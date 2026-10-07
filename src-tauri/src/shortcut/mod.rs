@@ -30,6 +30,28 @@ use crate::tray;
 
 // Note: Commands are accessed via shortcut::handy_keys:: in lib.rs
 
+/// Whether a binding should currently hold a registration: it must be bound
+/// to a key, and its feature's master toggle (when it has one) must be on.
+///
+/// Bindings that ship unbound (the assignable editing actions, command mode)
+/// stay unregistered, and therefore inert, until the operator binds a key in
+/// Settings even though their master toggles default to on.
+pub fn binding_is_active(
+    settings: &crate::settings::AppSettings,
+    id: &str,
+    binding: &ShortcutBinding,
+) -> bool {
+    if binding.current_binding.trim().is_empty() {
+        return false;
+    }
+    match id {
+        "transcribe_with_post_process" => settings.post_process_enabled,
+        "delete_last_word" => settings.delete_last_word_enabled,
+        "undo" => settings.undo_enabled,
+        _ => true,
+    }
+}
+
 /// Initialize shortcuts using the configured implementation
 pub fn init_shortcuts(app: &AppHandle) {
     let user_settings = settings::load_or_create_app_settings(app);
@@ -165,11 +187,6 @@ pub fn change_binding(
     id: String,
     binding: String,
 ) -> Result<BindingResponse, String> {
-    // Reject empty bindings — every shortcut should have a value
-    if binding.trim().is_empty() {
-        return Err("Binding cannot be empty".to_string());
-    }
-
     let mut settings = settings::get_settings(&app);
 
     // Get the binding to modify, or create it from defaults if it doesn't exist
@@ -199,6 +216,13 @@ pub fn change_binding(
         }
     };
 
+    // Bindings that ship unbound (empty default) may be cleared back to
+    // nothing, e.g. by reset_binding; every other shortcut must keep a value.
+    let optional_binding = binding_to_modify.default_binding.trim().is_empty();
+    if binding.trim().is_empty() && !optional_binding {
+        return Err("Binding cannot be empty".to_string());
+    }
+
     // If this is the cancel binding, just update the settings and return
     // It's managed dynamically, so we don't register/unregister here
     if id == "cancel" {
@@ -215,37 +239,44 @@ pub fn change_binding(
         }
     }
 
-    // Unregister the existing binding
-    if let Err(e) = unregister_shortcut(&app, binding_to_modify.clone()) {
-        let error_msg = format!("Failed to unregister shortcut: {}", e);
-        error!("change_binding error: {}", error_msg);
+    // Unregister the existing binding (nothing to do when it was unbound)
+    if !binding_to_modify.current_binding.trim().is_empty() {
+        if let Err(e) = unregister_shortcut(&app, binding_to_modify.clone()) {
+            let error_msg = format!("Failed to unregister shortcut: {}", e);
+            error!("change_binding error: {}", error_msg);
+        }
     }
 
-    // Validate the new shortcut for the current keyboard implementation
-    if let Err(e) = validate_shortcut_for_implementation(&binding, settings.keyboard_implementation)
-    {
-        warn!("change_binding validation error: {}", e);
-        restore_registration(&app, &binding_to_modify);
-        return Err(e);
-    }
+    // Validate and register the new binding. An empty target means "unbind":
+    // skip both steps and simply persist the cleared value.
+    if !binding.trim().is_empty() {
+        // Validate the new shortcut for the current keyboard implementation
+        if let Err(e) =
+            validate_shortcut_for_implementation(&binding, settings.keyboard_implementation)
+        {
+            warn!("change_binding validation error: {}", e);
+            restore_registration(&app, &binding_to_modify);
+            return Err(e);
+        }
 
-    // Create an updated binding
-    let mut updated_binding = binding_to_modify.clone();
-    updated_binding.current_binding = binding;
-
-    // Register the new binding
-    if let Err(e) = register_shortcut(&app, updated_binding.clone()) {
-        let error_msg = format!("Failed to register shortcut: {}", e);
-        error!("change_binding error: {}", error_msg);
-        restore_registration(&app, &binding_to_modify);
-        return Ok(BindingResponse {
-            success: false,
-            binding: None,
-            error: Some(error_msg),
-        });
+        // Register the new binding
+        let mut candidate = binding_to_modify.clone();
+        candidate.current_binding = binding.clone();
+        if let Err(e) = register_shortcut(&app, candidate) {
+            let error_msg = format!("Failed to register shortcut: {}", e);
+            error!("change_binding error: {}", error_msg);
+            restore_registration(&app, &binding_to_modify);
+            return Ok(BindingResponse {
+                success: false,
+                binding: None,
+                error: Some(error_msg),
+            });
+        }
     }
 
     // Update the binding in the settings
+    let mut updated_binding = binding_to_modify.clone();
+    updated_binding.current_binding = binding;
     settings.bindings.insert(id, updated_binding.clone());
 
     // Save the settings and synchronize any active Secure Input shadows.
@@ -263,6 +294,9 @@ pub fn change_binding(
 /// Best-effort re-register of the previous binding after a failed change,
 /// so a failure leaves the user's shortcut working exactly as before.
 fn restore_registration(app: &AppHandle, binding: &ShortcutBinding) {
+    if binding.current_binding.trim().is_empty() {
+        return; // Was unbound before the failed change; nothing to restore
+    }
     if let Err(e) = register_shortcut(app, binding.clone()) {
         error!(
             "Failed to restore previous binding '{}' ({}): {}",
@@ -279,12 +313,17 @@ pub fn reset_binding(app: AppHandle, id: String) -> Result<BindingResponse, Stri
 }
 
 /// Unregister every binding while the user is recording a new shortcut in
-/// the UI, so no existing shortcut can fire — or swallow the keystrokes —
+/// the UI, so no existing shortcut can fire (or swallow the keystrokes)
 /// mid-capture. The "cancel" binding is untouched: it is managed dynamically
 /// by the recording lifecycle.
 pub fn suspend_all_shortcuts(app: &AppHandle) {
     for (id, binding) in settings::get_bindings(app) {
         if id == "cancel" {
+            continue;
+        }
+        // Nothing registered for unbound bindings; unregistering an empty
+        // chord would only log a parse error.
+        if binding.current_binding.trim().is_empty() {
             continue;
         }
         if let Err(e) = unregister_shortcut(app, binding) {
@@ -305,7 +344,7 @@ pub fn resume_all_shortcuts(app: &AppHandle) {
         if id == "cancel" {
             continue;
         }
-        if id == "transcribe_with_post_process" && !settings.post_process_enabled {
+        if !binding_is_active(&settings, id, binding) {
             continue;
         }
         if let Err(e) = register_shortcut(app, binding.clone()) {
@@ -466,6 +505,10 @@ fn unregister_all_shortcuts(app: &AppHandle, implementation: KeyboardImplementat
         if id == "cancel" {
             continue;
         }
+        // Nothing to unregister for a binding that holds no key.
+        if binding.current_binding.trim().is_empty() {
+            continue;
+        }
 
         let result = match implementation {
             KeyboardImplementation::Tauri => tauri_impl::unregister_shortcut(app, binding),
@@ -496,16 +539,16 @@ fn register_all_shortcuts_for_implementation(
             continue;
         }
 
-        // Skip post-processing shortcut when the feature is disabled
-        if id == "transcribe_with_post_process" && !current_settings.post_process_enabled {
-            continue;
-        }
-
         let mut binding = current_settings
             .bindings
             .get(id)
             .cloned()
             .unwrap_or_else(|| default_binding.clone());
+
+        // Unbound or toggle-disabled bindings hold no registration.
+        if !binding_is_active(&current_settings, id, &binding) {
+            continue;
+        }
 
         // Validate the shortcut for the target implementation
         if let Err(e) =
@@ -1454,6 +1497,56 @@ pub fn change_voice_deletion_commands_setting(app: AppHandle, enabled: bool) -> 
     let mut settings = settings::get_settings(&app);
     settings.voice_deletion_commands = enabled;
     settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// Flip the delete-last-word master toggle and register or unregister its
+/// binding to match, mirroring how the post-processing toggle drives its
+/// shortcut.
+#[tauri::command]
+#[specta::specta]
+pub fn change_delete_last_word_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.delete_last_word_enabled = enabled;
+    settings::write_settings(&app, settings.clone());
+
+    if let Some(binding) = settings.bindings.get("delete_last_word").cloned() {
+        if enabled {
+            if !binding.current_binding.trim().is_empty() {
+                let _ = register_shortcut(&app, binding);
+            }
+        } else {
+            let _ = unregister_shortcut(&app, binding);
+        }
+    }
+
+    crate::secure_input::reconcile_fallback(&app);
+    Ok(())
+}
+
+/// Flip the undo master toggle and register or unregister its binding to
+/// match.
+#[tauri::command]
+#[specta::specta]
+pub fn change_undo_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.undo_enabled = enabled;
+    settings::write_settings(&app, settings.clone());
+
+    if let Some(binding) = settings.bindings.get("undo").cloned() {
+        if enabled {
+            if !binding.current_binding.trim().is_empty() {
+                let _ = register_shortcut(&app, binding);
+            }
+        } else {
+            let _ = unregister_shortcut(&app, binding);
+        }
+    }
+
+    crate::secure_input::reconcile_fallback(&app);
     Ok(())
 }
 

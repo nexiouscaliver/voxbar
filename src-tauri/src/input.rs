@@ -68,13 +68,14 @@ mod macos {
         (0..KEYCODE_COUNT).find(|&keycode| matches(keycode))
     }
 
-    /// Resolves the physical key that macOS interprets as `v` while Command is
-    /// held. Including Command is important: non-Latin layouts commonly map
-    /// Cmd shortcuts to their ANSI equivalents, while standard Dvorak does not.
+    /// Resolves the physical key that macOS interprets as `letter` while
+    /// Command is held. Including Command is important: non-Latin layouts
+    /// commonly map Cmd shortcuts to their ANSI equivalents, while standard
+    /// Dvorak does not.
     ///
     /// TIS APIs must run on the main thread. Handy's paste path already enters
     /// through `AppHandle::run_on_main_thread` before reaching this function.
-    fn resolve_command_v_keycode() -> Result<u16, String> {
+    fn resolve_command_letter_keycode(letter: u8) -> Result<u16, String> {
         // SAFETY: This function is called on the macOS main thread. The returned
         // source follows the Create Rule and is released by InputSource::drop.
         let source = InputSource(unsafe { TISCopyCurrentKeyboardLayoutInputSource() });
@@ -123,24 +124,45 @@ mod macos {
                 )
             };
 
-            status == 0 && length == 1 && chars[0] == u16::from(b'v')
+            status == 0 && length == 1 && chars[0] == u16::from(letter)
         })
-        .ok_or_else(|| "could not map Cmd+V in the current macOS keyboard layout".to_string())?;
+        .ok_or_else(|| {
+            format!(
+                "could not map Cmd+{} in the current macOS keyboard layout",
+                letter as char
+            )
+        })?;
 
         Ok(keycode)
     }
 
     pub(super) fn command_v_key() -> Key {
-        match resolve_command_v_keycode() {
+        command_letter_key(b'v', ANSI_V_KEYCODE)
+    }
+
+    pub(super) fn command_z_key() -> Key {
+        // No documented ANSI fallback keycode constant is needed: 6 is the
+        // ANSI Z keycode (kVK_ANSI_Z), the equivalent of the V fallback above.
+        command_letter_key(b'z', 6)
+    }
+
+    /// Resolve the Cmd chord key for `letter`, falling back to `ansi_keycode`
+    /// when the active layout cannot be resolved.
+    fn command_letter_key(letter: u8, ansi_keycode: u16) -> Key {
+        match resolve_command_letter_keycode(letter) {
             Ok(keycode) => {
-                debug!("Resolved Cmd+V for the active macOS layout to keycode {keycode}");
+                debug!(
+                    "Resolved Cmd+{} for the active macOS layout to keycode {keycode}",
+                    letter as char
+                );
                 Key::Other(u32::from(keycode))
             }
             Err(error) => {
                 warn!(
-                    "Could not resolve Cmd+V for the active macOS layout ({error}); using ANSI V keycode {ANSI_V_KEYCODE}"
+                    "Could not resolve Cmd+{} for the active macOS layout ({error}); using ANSI keycode {ansi_keycode}",
+                    letter as char
                 );
-                Key::Other(u32::from(ANSI_V_KEYCODE))
+                Key::Other(u32::from(ansi_keycode))
             }
         }
     }
@@ -156,6 +178,12 @@ impl EnigoState {
             .map_err(|e| format!("Failed to initialize Enigo: {}", e))?;
         Ok(Self(Mutex::new(enigo)))
     }
+}
+
+/// Layout-aware key that types `z` while Command is held (macOS only).
+#[cfg(target_os = "macos")]
+pub fn command_z_key() -> Key {
+    macos::command_z_key()
 }
 
 /// Get the current mouse cursor position using the managed Enigo instance.

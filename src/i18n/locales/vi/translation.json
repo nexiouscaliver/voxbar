@@ -231,13 +231,22 @@
           "transcribe_with_post_process": {
             "name": "Phím tắt xử lý sau",
             "description": "Tùy chọn: Phím tắt chuyên dụng luôn áp dụng xử lý sau bằng AI cho bản chuyển đổi của bạn."
+          },
+          "delete_last_word": {
+            "name": "Xóa từ cuối cùng",
+            "description": "Xóa từ trước con trỏ trong ứng dụng đang tập trung (Option+Backspace trên macOS, Ctrl+Backspace trên nền tảng khác). Gán phím để bật."
+          },
+          "undo": {
+            "name": "Hoàn tác",
+            "description": "Kích hoạt Hoàn tác trong ứng dụng đang tập trung (Cmd+Z trên macOS, Ctrl+Z trên nền tảng khác), hoàn tác lần đọc chính được dán gần nhất chỉ trong một thao tác. Gán phím để bật."
           }
         },
         "errors": {
           "restore": "Không thể khôi phục phím tắt gốc",
           "set": "Không thể đặt phím tắt: {{error}}",
           "reset": "Không thể đặt lại phím tắt về giá trị gốc"
-        }
+        },
+        "unbound": "Chưa gán"
       },
       "language": {
         "title": "Ngôn ngữ",
@@ -258,6 +267,17 @@
           "hold_or_toggle": "Giữ để ghi âm hoặc nhấn nhanh để bật/tắt",
           "push_to_talk": "Ghi âm trong lúc bạn giữ phím tắt",
           "toggle": "Nhấn phím tắt để bắt đầu ghi âm, nhấn lại để dừng"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Phím tắt chỉnh sửa",
+        "deleteLastWord": {
+          "title": "Hành động: xóa từ cuối cùng",
+          "description": "Bật phím tắt có thể gán để xóa từ trước con trỏ. Phím tắt giữ trạng thái tắt cho đến khi bạn gán phím ở trên."
+        },
+        "undo": {
+          "title": "Hành động: hoàn tác",
+          "description": "Bật phím tắt có thể gán để kích hoạt Hoàn tác trong ứng dụng đang tập trung. Phím tắt giữ trạng thái tắt cho đến khi bạn gán phím ở trên."
         }
       }
     },

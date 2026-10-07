@@ -183,13 +183,22 @@
           "transcribe_with_post_process": {
             "name": "후처리 단축키",
             "description": "선택 사항: 항상 AI 후처리를 적용하는 전용 단축키입니다."
+          },
+          "delete_last_word": {
+            "name": "마지막 단어 삭제",
+            "description": "포커스된 앱에서 커서 앞의 단어를 삭제합니다 (macOS에서는 Option+Backspace, 그 외에는 Ctrl+Backspace). 활성화하려면 키를 할당하세요."
+          },
+          "undo": {
+            "name": "실행 취소",
+            "description": "포커스된 앱에서 실행 취소를 실행합니다 (macOS에서는 Cmd+Z, 그 외에는 Ctrl+Z). 마지막에 붙여넣은 받아쓰기를 한 번에 되돌립니다. 활성화하려면 키를 할당하세요."
           }
         },
         "errors": {
           "restore": "원래 단축키 복원에 실패했습니다",
           "set": "단축키 설정 실패: {{error}}",
           "reset": "단축키를 원래 값으로 재설정하는데 실패했습니다"
-        }
+        },
+        "unbound": "할당되지 않음"
       },
       "language": {
         "title": "언어",
@@ -210,6 +219,17 @@
           "hold_or_toggle": "길게 누르면 녹음, 탭하면 전환",
           "push_to_talk": "단축키를 누르고 있는 동안 녹음합니다",
           "toggle": "단축키를 탭하면 녹음을 시작하고, 다시 탭하면 중지합니다"
+        }
+      },
+      "editingShortcuts": {
+        "title": "편집 단축키",
+        "deleteLastWord": {
+          "title": "동작: 마지막 단어 삭제",
+          "description": "커서 앞의 단어를 삭제하는 할당 가능한 단축키를 켭니다. 위에서 키를 할당할 때까지 비활성 상태로 유지됩니다."
+        },
+        "undo": {
+          "title": "동작: 실행 취소",
+          "description": "포커스된 앱에서 실행 취소를 실행하는 할당 가능한 단축키를 켭니다. 위에서 키를 할당할 때까지 비활성 상태로 유지됩니다."
         }
       }
     },

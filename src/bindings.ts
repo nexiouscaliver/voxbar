@@ -447,6 +447,22 @@ async changeVoiceDeletionCommandsSetting(enabled: boolean) : Promise<Result<null
     else return { status: "error", error: e  as any };
 }
 },
+async changeDeleteLastWordEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_delete_last_word_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeUndoEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_undo_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeChineseScriptSetting(script: ChineseScript) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_chinese_script_setting", { script }) };
@@ -1097,6 +1113,18 @@ selected_channel?: number | null; clamshell_microphone?: string | null; selected
  * fixed delay. See `paste_tx`. macOS and Windows only.
  */
 reliable_paste?: boolean; typing_tool?: TypingTool; external_script_path?: string | null; filler_word_removal_enabled?: boolean; custom_filler_words?: string[] | null; spoken_punctuation?: boolean; terminal_punctuation?: boolean; voice_deletion_commands?: boolean; 
+/**
+ * Master toggle for the assignable "delete last word" hotkey action.
+ * The action also ships unbound, so it stays inert until the operator
+ * binds a key for it.
+ */
+delete_last_word_enabled?: boolean; 
+/**
+ * Master toggle for the assignable "undo" hotkey action. Like the
+ * delete-word action it ships unbound and stays inert until a key is
+ * bound.
+ */
+undo_enabled?: boolean; 
 /**
  * Fresh installs default from the OS locale; existing stores are migrated
  * in `apply_settings_migrations`.

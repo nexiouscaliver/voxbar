@@ -844,6 +844,65 @@ impl ShortcutAction for CancelAction {
     }
 }
 
+// Delete Last Word Action
+struct DeleteLastWordAction;
+
+impl ShortcutAction for DeleteLastWordAction {
+    fn start(&self, app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
+        if !get_settings(app).delete_last_word_enabled {
+            debug!("Delete-last-word action disabled by its settings toggle");
+            return;
+        }
+
+        // The chord's letter-key resolution queries the macOS keyboard
+        // layout, which must happen on the main thread (same requirement as
+        // the paste path).
+        let ah = app.clone();
+        if let Err(e) = app.run_on_main_thread(move || {
+            if let Err(err) = crate::paste_tx::key_send::send_edit_action(
+                &ah,
+                crate::paste_tx::key_send::EditAction::DeleteLastWord,
+            ) {
+                error!("Failed to send delete-last-word chord: {}", err);
+            }
+        }) {
+            error!("Failed to run delete-last-word on main thread: {:?}", e);
+        }
+    }
+
+    fn stop(&self, _app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
+        // One-shot action: nothing to do on release
+    }
+}
+
+// Undo Action
+struct UndoAction;
+
+impl ShortcutAction for UndoAction {
+    fn start(&self, app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
+        if !get_settings(app).undo_enabled {
+            debug!("Undo action disabled by its settings toggle");
+            return;
+        }
+
+        let ah = app.clone();
+        if let Err(e) = app.run_on_main_thread(move || {
+            if let Err(err) = crate::paste_tx::key_send::send_edit_action(
+                &ah,
+                crate::paste_tx::key_send::EditAction::Undo,
+            ) {
+                error!("Failed to send undo chord: {}", err);
+            }
+        }) {
+            error!("Failed to run undo on main thread: {:?}", e);
+        }
+    }
+
+    fn stop(&self, _app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
+        // One-shot action: nothing to do on release
+    }
+}
+
 // Test Action
 struct TestAction;
 
@@ -883,6 +942,14 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
     map.insert(
         "cancel".to_string(),
         Arc::new(CancelAction) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        "delete_last_word".to_string(),
+        Arc::new(DeleteLastWordAction) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        "undo".to_string(),
+        Arc::new(UndoAction) as Arc<dyn ShortcutAction>,
     );
     map.insert(
         "test".to_string(),
@@ -977,5 +1044,23 @@ mod tests {
         assert!(!should_use_streaming_overlay(OverlayStyle::Live, false));
         assert!(!should_use_streaming_overlay(OverlayStyle::Minimal, true));
         assert!(!should_use_streaming_overlay(OverlayStyle::None, true));
+    }
+
+    /// The assignable editing actions must exist in ACTION_MAP (so presses
+    /// dispatch to them) and must NOT be transcribe bindings (so they never
+    /// route into the recording coordinator or collide with the PTT trigger
+    /// by sharing its lifecycle).
+    #[test]
+    fn editing_actions_are_mapped_and_not_recording_bindings() {
+        use crate::actions::ACTION_MAP;
+
+        assert!(ACTION_MAP.contains_key("delete_last_word"));
+        assert!(ACTION_MAP.contains_key("undo"));
+        assert!(!crate::transcription_coordinator::is_transcribe_binding(
+            "delete_last_word"
+        ));
+        assert!(!crate::transcription_coordinator::is_transcribe_binding(
+            "undo"
+        ));
     }
 }

@@ -183,13 +183,22 @@
           "transcribe_with_post_process": {
             "name": "Genvej til efterbehandling",
             "description": "Valgfrit: En dedikeret genvej, der altid anvender AI-efterbehandling på din transskription."
+          },
+          "delete_last_word": {
+            "name": "Slet sidste ord",
+            "description": "Sletter ordet før markøren i den aktive app (Option+Backspace på macOS, Ctrl+Backspace andre steder). Tildel en tast for at aktivere."
+          },
+          "undo": {
+            "name": "Fortryd",
+            "description": "Udfører Fortryd i den aktive app (Cmd+Z på macOS, Ctrl+Z andre steder) og fjerner den sidst indsatte diktéring i ét træk. Tildel en tast for at aktivere."
           }
         },
         "errors": {
           "restore": "Kunne ikke gendanne den oprindelige genvej",
           "set": "Kunne ikke indstille genvej: {{error}}",
           "reset": "Kunne ikke nulstille genvej til oprindelig indstilling"
-        }
+        },
+        "unbound": "Ikke tildelt"
       },
       "language": {
         "title": "Sprog",
@@ -210,6 +219,17 @@
           "hold_or_toggle": "Hold nede for at optage, eller tryk kort for at slå til/fra",
           "push_to_talk": "Optager, mens du holder genvejen nede",
           "toggle": "Tryk på genvejen for at starte optagelsen, tryk igen for at stoppe"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Redigeringsgenveje",
+        "deleteLastWord": {
+          "title": "Handling: slet sidste ord",
+          "description": "Aktiverer den tildelbare genvej, der sletter ordet før markøren. Genvejen forbliver inaktiv, til en tast tildeles ovenfor."
+        },
+        "undo": {
+          "title": "Handling: fortryd",
+          "description": "Aktiverer den tildelbare genvej, der udfører Fortryd i den aktive app. Genvejen forbliver inaktiv, til en tast tildeles ovenfor."
         }
       }
     },

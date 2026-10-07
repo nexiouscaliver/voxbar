@@ -12,11 +12,15 @@ import { useSettings } from "../../../hooks/useSettings";
 import { VolumeSlider } from "../VolumeSlider";
 import { MuteWhileRecording } from "../MuteWhileRecording";
 import { ModelSettingsCard } from "./ModelSettingsCard";
+import { DeleteLastWordAction } from "../DeleteLastWordAction";
+import { UndoAction } from "../UndoAction";
 
 export const GeneralSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { audioFeedbackEnabled } = useSettings();
+  const { audioFeedbackEnabled, getSetting } = useSettings();
   const isLinux = type() === "linux";
+  const deleteLastWordEnabled = getSetting("delete_last_word_enabled") ?? true;
+  const undoEnabled = getSetting("undo_enabled") ?? true;
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("settings.general.title")}>
@@ -24,6 +28,20 @@ export const GeneralSettings: React.FC = () => {
         <ShortcutActivationSetting descriptionMode="tooltip" grouped={true} />
         {/* Cancel shortcut remains hidden on Linux because of dynamic shortcut instability. */}
         {!isLinux && <ShortcutInput shortcutId="cancel" grouped={true} />}
+      </SettingsGroup>
+      <SettingsGroup title={t("settings.general.editingShortcuts.title")}>
+        <ShortcutInput
+          shortcutId="delete_last_word"
+          grouped={true}
+          disabled={!deleteLastWordEnabled}
+        />
+        <DeleteLastWordAction descriptionMode="tooltip" grouped={true} />
+        <ShortcutInput
+          shortcutId="undo"
+          grouped={true}
+          disabled={!undoEnabled}
+        />
+        <UndoAction descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
       <ModelSettingsCard />
       <SettingsGroup title={t("settings.sound.title")}>

@@ -231,13 +231,22 @@
           "transcribe_with_post_process": {
             "name": "Klávesa pro následné zpracování",
             "description": "Volitelné: Vyhrazená klávesová zkratka, která vždy použije AI následné zpracování na váš přepis."
+          },
+          "delete_last_word": {
+            "name": "Smazat poslední slovo",
+            "description": "Smaže slovo před kurzorem v aktivní aplikaci (Option+Backspace na macOS, Ctrl+Backspace jinde). Přiřaďte klávesu pro aktivaci."
+          },
+          "undo": {
+            "name": "Zpět",
+            "description": "Spustí Zpět v aktivní aplikaci (Cmd+Z na macOS, Ctrl+Z jinde) a jedním krokem vrátí poslední vložený diktát. Přiřaďte klávesu pro aktivaci."
           }
         },
         "errors": {
           "restore": "Nepodařilo se obnovit původní zkratku",
           "set": "Nepodařilo se nastavit zkratku: {{error}}",
           "reset": "Nepodařilo se vrátit zkratku na původní hodnotu"
-        }
+        },
+        "unbound": "Nepřiřazeno"
       },
       "language": {
         "title": "Jazyk",
@@ -258,6 +267,17 @@
           "hold_or_toggle": "Podržte pro nahrávání nebo klepněte pro přepnutí",
           "push_to_talk": "Nahrává, dokud držíte zkratku",
           "toggle": "Klepněte na zkratku pro zahájení nahrávání, klepněte znovu pro zastavení"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Klávesy pro úpravy",
+        "deleteLastWord": {
+          "title": "Akce: smazat poslední slovo",
+          "description": "Zapne přiřaditelnou zkratku, která maže slovo před kurzorem. Zkratka zůstává neaktivní, dokud výše nepřiřadíte klávesu."
+        },
+        "undo": {
+          "title": "Akce: zpět",
+          "description": "Zapne přiřaditelnou zkratku, která spouští Zpět v aktivní aplikaci. Zkratka zůstává neaktivní, dokud výše nepřiřadíte klávesu."
         }
       }
     },

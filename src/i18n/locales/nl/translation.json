@@ -183,13 +183,22 @@
           "transcribe_with_post_process": {
             "name": "Sneltoets voor naverwerking",
             "description": "Optioneel: Een specifieke sneltoets die altijd AI-naverwerking toepast op je transcriptie."
+          },
+          "delete_last_word": {
+            "name": "Laatste woord verwijderen",
+            "description": "Verwijdert het woord voor de cursor in de actieve app (Optie+Backspace op macOS, Ctrl+Backspace elders). Wijs een toets toe om in te schakelen."
+          },
+          "undo": {
+            "name": "Ongedaan maken",
+            "description": "Activeert Ongedaan maken in de actieve app (Cmd+Z op macOS, Ctrl+Z elders) en herstelt zo de laatst geplakte dictering in één keer. Wijs een toets toe om in te schakelen."
           }
         },
         "errors": {
           "restore": "Herstellen van originele sneltoets mislukt",
           "set": "Instellen van sneltoets mislukt: {{error}}",
           "reset": "Sneltoets terugzetten naar standaardwaarde mislukt"
-        }
+        },
+        "unbound": "Niet toegewezen"
       },
       "language": {
         "title": "Taal",
@@ -210,6 +219,17 @@
           "hold_or_toggle": "Houd ingedrukt om op te nemen of tik om te schakelen",
           "push_to_talk": "Neemt op zolang je de sneltoets ingedrukt houdt",
           "toggle": "Tik op de sneltoets om de opname te starten, tik opnieuw om te stoppen"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Sneltoetsen voor bewerken",
+        "deleteLastWord": {
+          "title": "Actie: laatste woord verwijderen",
+          "description": "Schakelt de toewijsbare sneltoets in die het woord voor de cursor verwijdert. De sneltoets blijft inactief tot je bovenaan een toets toewijst."
+        },
+        "undo": {
+          "title": "Actie: ongedaan maken",
+          "description": "Schakelt de toewijsbare sneltoets in die Ongedaan maken activeert in de actieve app. De sneltoets blijft inactief tot je bovenaan een toets toewijst."
         }
       }
     },

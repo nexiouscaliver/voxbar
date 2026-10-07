@@ -42,6 +42,8 @@ mod macos;
 #[cfg(target_os = "windows")]
 mod windows;
 
+pub mod key_send;
+
 #[cfg(target_os = "macos")]
 use macos as platform;
 #[cfg(target_os = "windows")]

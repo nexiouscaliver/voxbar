@@ -231,13 +231,22 @@
           "transcribe_with_post_process": {
             "name": "Nachbearbeitungs-Tastenkürzel",
             "description": "Optional: Ein dediziertes Tastenkürzel, das immer die KI-Nachbearbeitung auf deine Transkription anwendet."
+          },
+          "delete_last_word": {
+            "name": "Letztes Wort löschen",
+            "description": "Löscht das Wort vor dem Cursor in der fokussierten App (Option+Rücktaste unter macOS, Strg+Rücktaste anderswo). Zum Aktivieren eine Taste zuweisen."
+          },
+          "undo": {
+            "name": "Rückgängig",
+            "description": "Löst Rückgängig in der fokussierten App aus (Cmd+Z unter macOS, Strg+Z anderswo) und macht damit die zuletzt eingefügte Diktierung in einem Schritt rückgängig. Zum Aktivieren eine Taste zuweisen."
           }
         },
         "errors": {
           "restore": "Ursprüngliches Tastenkürzel konnte nicht wiederhergestellt werden",
           "set": "Tastenkürzel konnte nicht gesetzt werden: {{error}}",
           "reset": "Tastenkürzel konnte nicht auf Originalwert zurückgesetzt werden"
-        }
+        },
+        "unbound": "Nicht zugewiesen"
       },
       "language": {
         "title": "Sprache",
@@ -258,6 +267,17 @@
           "hold_or_toggle": "Gedrückt halten zum Aufnehmen oder antippen zum Umschalten",
           "push_to_talk": "Nimmt auf, solange die Tastenkombination gedrückt bleibt",
           "toggle": "Tastenkombination antippen, um die Aufnahme zu starten, erneut antippen zum Stoppen"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Bearbeitungs-Shortcuts",
+        "deleteLastWord": {
+          "title": "Aktion: Letztes Wort löschen",
+          "description": "Aktiviert den zuweisbaren Hotkey, der das Wort vor dem Cursor löscht. Der Hotkey bleibt inaktiv, bis oben eine Taste zugewiesen wird."
+        },
+        "undo": {
+          "title": "Aktion: Rückgängig",
+          "description": "Aktiviert den zuweisbaren Hotkey, der Rückgängig in der fokussierten App auslöst. Der Hotkey bleibt inaktiv, bis oben eine Taste zugewiesen wird."
         }
       }
     },

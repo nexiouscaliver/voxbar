@@ -183,13 +183,22 @@
           "transcribe_with_post_process": {
             "name": "Snabbkommando för efterbearbetning",
             "description": "Valfritt: En dedikerad snabbknapp som alltid tillämpar AI-efterbearbetning på din transkription."
+          },
+          "delete_last_word": {
+            "name": "Ta bort senaste ordet",
+            "description": "Tar bort ordet före markören i den aktiva appen (Alternativ+Backsteg på macOS, Ctrl+Backsteg på andra). Koppla en tangent för att aktivera."
+          },
+          "undo": {
+            "name": "Ångra",
+            "description": "Utför Ångra i den aktiva appen (Cmd+Z på macOS, Ctrl+Z på andra) och återställer den senaste inklistrade dikteringen i ett steg. Koppla en tangent för att aktivera."
           }
         },
         "errors": {
           "restore": "Misslyckades med att återställa ursprungligt kortkommando",
           "set": "Misslyckades med att ställa in kortkommando: {{error}}",
           "reset": "Misslyckades med att återställa kortkommando till ursprungsvärdet"
-        }
+        },
+        "unbound": "Ej kopplad"
       },
       "language": {
         "title": "Språk",
@@ -210,6 +219,17 @@
           "hold_or_toggle": "Håll nere för att spela in eller tryck kort för att växla",
           "push_to_talk": "Spelar in så länge du håller genvägen nedtryckt",
           "toggle": "Tryck på genvägen för att starta inspelningen, tryck igen för att stoppa"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Redigeringsgenvägar",
+        "deleteLastWord": {
+          "title": "Åtgärd: ta bort senaste ordet",
+          "description": "Aktiverar den kopplingsbara genvägen som tar bort ordet före markören. Genvägen förblir inaktiv tills en tangent kopplas ovan."
+        },
+        "undo": {
+          "title": "Åtgärd: ångra",
+          "description": "Aktiverar den kopplingsbara genvägen som utför Ångra i den aktiva appen. Genvägen förblir inaktiv tills en tangent kopplas ovan."
         }
       }
     },

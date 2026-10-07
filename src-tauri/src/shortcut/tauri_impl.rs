@@ -21,15 +21,18 @@ pub fn init_shortcuts(app: &AppHandle) {
         if id == "cancel" {
             continue; // Skip cancel shortcut, it will be registered dynamically
         }
-        // Skip post-processing shortcut when the feature is disabled
-        if id == "transcribe_with_post_process" && !user_settings.post_process_enabled {
-            continue;
-        }
         let binding = user_settings
             .bindings
             .get(&id)
             .cloned()
             .unwrap_or(default_binding);
+
+        // Skip bindings that are unbound or disabled by their feature toggle
+        // (post-processing when off, editing actions and command mode before
+        // the operator binds a key for them).
+        if !super::binding_is_active(&user_settings, &id, &binding) {
+            continue;
+        }
 
         if let Err(e) = register_shortcut(app, binding) {
             error!("Failed to register shortcut {} during init: {}", id, e);

@@ -183,13 +183,22 @@
           "transcribe_with_post_process": {
             "name": "後處理快捷鍵",
             "description": "可選：專用快捷鍵，使用時一律對轉錄結果套用 AI 後處理"
+          },
+          "delete_last_word": {
+            "name": "刪除上一個詞",
+            "description": "在目前聚焦的應用程式中刪除游標前的一個詞 (macOS 為 Option+Backspace，其他平台為 Ctrl+Backspace)。指派按鍵後才會啟用。"
+          },
+          "undo": {
+            "name": "復原",
+            "description": "在目前聚焦的應用程式中觸發復原 (macOS 為 Cmd+Z，其他平台為 Ctrl+Z)，一次撤銷上一次貼上的聽寫內容。指派按鍵後才會啟用。"
           }
         },
         "errors": {
           "restore": "無法還原原始快捷鍵",
           "set": "無法設定快捷鍵: {{error}}",
           "reset": "無法將快捷鍵重設為原始值"
-        }
+        },
+        "unbound": "未綁定"
       },
       "language": {
         "title": "語言",
@@ -210,6 +219,17 @@
           "hold_or_toggle": "按住錄音，或輕按切換",
           "push_to_talk": "按住快捷鍵期間錄音",
           "toggle": "輕按快捷鍵開始錄音，再次輕按停止"
+        }
+      },
+      "editingShortcuts": {
+        "title": "編輯快捷鍵",
+        "deleteLastWord": {
+          "title": "動作：刪除上一個詞",
+          "description": "啟用可自訂的快捷鍵來刪除游標前的一個詞。在上方指派按鍵之前該快捷鍵保持停用。"
+        },
+        "undo": {
+          "title": "動作：復原",
+          "description": "啟用可自訂的快捷鍵來在聚焦應用程式中觸發復原。在上方指派按鍵之前該快捷鍵保持停用。"
         }
       }
     },

@@ -183,13 +183,22 @@
           "transcribe_with_post_process": {
             "name": "Drecera de postprocessament",
             "description": "Opcional: una drecera específica que sempre aplica postprocessament amb IA a la transcripció."
+          },
+          "delete_last_word": {
+            "name": "Suprimeix l'última paraula",
+            "description": "Suprimeix la paraula anterior al cursor a l'aplicació activa (Opció+Retroés a macOS, Ctrl+Retroés a altres). Assigna una tecla per activar-ho."
+          },
+          "undo": {
+            "name": "Desfés",
+            "description": "Executa Desfés a l'aplicació activa (Cmd+Z a macOS, Ctrl+Z a altres), revertint l'últim dictat enganxat d'una sola vegada. Assigna una tecla per activar-ho."
           }
         },
         "errors": {
           "restore": "No s'ha pogut restaurar la drecera original",
           "set": "No s'ha pogut definir la drecera: {{error}}",
           "reset": "No s'ha pogut restablir la drecera al valor original"
-        }
+        },
+        "unbound": "Sense assignar"
       },
       "language": {
         "title": "Llengua",
@@ -210,6 +219,17 @@
           "hold_or_toggle": "Manteniu-la premuda per enregistrar o feu una pulsació breu per iniciar o aturar l'enregistrament",
           "push_to_talk": "Enregistreu mentre manteniu premuda la drecera",
           "toggle": "Premeu la drecera per iniciar l'enregistrament i torneu-la a prémer per aturar-lo"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Dreceres d'edició",
+        "deleteLastWord": {
+          "title": "Acció: suprimeix l'última paraula",
+          "description": "Activa la drecera assignable que suprimeix la paraula anterior al cursor. La drecera es manté inactiva fins que assignis una tecla a dalt."
+        },
+        "undo": {
+          "title": "Acció: desfés",
+          "description": "Activa la drecera assignable que executa Desfés a l'aplicació activa. La drecera es manté inactiva fins que assignis una tecla a dalt."
         }
       }
     },

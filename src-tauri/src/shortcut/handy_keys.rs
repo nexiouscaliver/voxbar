@@ -433,16 +433,17 @@ pub fn init_shortcuts(app: &AppHandle) -> Result<(), String> {
         if id == "cancel" {
             continue;
         }
-        // Skip post-processing shortcut when the feature is disabled
-        if id == "transcribe_with_post_process" && !user_settings.post_process_enabled {
-            continue;
-        }
 
         let binding = user_settings
             .bindings
             .get(&id)
             .cloned()
             .unwrap_or(default_binding);
+
+        // Skip bindings that are unbound or disabled by their feature toggle.
+        if !super::binding_is_active(&user_settings, &id, &binding) {
+            continue;
+        }
 
         if let Err(e) = state.register(&binding) {
             error!(

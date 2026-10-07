@@ -592,6 +592,16 @@ pub struct AppSettings {
     /// everything" / "start over" clears the transcription.
     #[serde(default = "default_voice_deletion_commands")]
     pub voice_deletion_commands: bool,
+    /// Master toggle for the assignable "delete last word" hotkey action.
+    /// The action also ships unbound, so it stays inert until the operator
+    /// binds a key for it.
+    #[serde(default = "default_delete_last_word_enabled")]
+    pub delete_last_word_enabled: bool,
+    /// Master toggle for the assignable "undo" hotkey action. Like the
+    /// delete-word action it ships unbound and stays inert until a key is
+    /// bound.
+    #[serde(default = "default_undo_enabled")]
+    pub undo_enabled: bool,
     /// Fresh installs default from the OS locale; existing stores are migrated
     /// in `apply_settings_migrations`.
     #[serde(default)]
@@ -700,6 +710,14 @@ fn default_terminal_punctuation() -> bool {
 }
 
 fn default_voice_deletion_commands() -> bool {
+    true
+}
+
+fn default_delete_last_word_enabled() -> bool {
+    true
+}
+
+fn default_undo_enabled() -> bool {
     true
 }
 
@@ -1064,6 +1082,31 @@ pub fn get_default_settings() -> AppSettings {
             current_binding: "escape".to_string(),
         },
     );
+    // Editing actions ship unbound: an empty default keeps them unregistered
+    // (and therefore off) until the operator binds a key in Settings.
+    bindings.insert(
+        "delete_last_word".to_string(),
+        ShortcutBinding {
+            id: "delete_last_word".to_string(),
+            name: "Delete Last Word".to_string(),
+            description:
+                "Deletes the word before the caret in the focused app. Unbound by default."
+                    .to_string(),
+            default_binding: String::new(),
+            current_binding: String::new(),
+        },
+    );
+    bindings.insert(
+        "undo".to_string(),
+        ShortcutBinding {
+            id: "undo".to_string(),
+            name: "Undo".to_string(),
+            description: "Triggers undo in the focused app, reverting the last pasted dictation in one hit. Unbound by default."
+                .to_string(),
+            default_binding: String::new(),
+            current_binding: String::new(),
+        },
+    );
 
     AppSettings {
         settings_schema_version: default_settings_schema_version(),
@@ -1129,6 +1172,8 @@ pub fn get_default_settings() -> AppSettings {
         spoken_punctuation: default_spoken_punctuation(),
         terminal_punctuation: default_terminal_punctuation(),
         voice_deletion_commands: default_voice_deletion_commands(),
+        delete_last_word_enabled: default_delete_last_word_enabled(),
+        undo_enabled: default_undo_enabled(),
         chinese_script: default_chinese_script(),
         transcribe_accelerator: TranscribeAcceleratorSetting::default(),
         ort_accelerator: OrtAcceleratorSetting::default(),
@@ -1646,8 +1691,57 @@ mod tests {
         assert!(settings.spoken_punctuation);
         assert!(settings.terminal_punctuation);
         assert!(settings.voice_deletion_commands);
+        assert!(settings.delete_last_word_enabled);
+        assert!(settings.undo_enabled);
         // Bindings default to empty; the load path merges the real defaults in.
         assert!(settings.bindings.is_empty());
+    }
+
+    /// The assignable editing actions ship unbound (empty current and default
+    /// binding) with their master toggles on, so nothing registers until the
+    /// operator binds a key.
+    #[test]
+    fn editing_action_bindings_default_to_unbound() {
+        let defaults = get_default_settings();
+
+        for id in ["delete_last_word", "undo"] {
+            let binding = defaults
+                .bindings
+                .get(id)
+                .unwrap_or_else(|| panic!("default binding '{id}' is missing"));
+            assert!(
+                binding.default_binding.trim().is_empty(),
+                "'{id}' must ship unbound by default"
+            );
+            assert!(
+                binding.current_binding.trim().is_empty(),
+                "'{id}' must be unbound out of the box"
+            );
+        }
+    }
+
+    /// The editing-action toggles must survive a store round-trip with their
+    /// values intact in both directions.
+    #[test]
+    fn editing_action_toggles_round_trip_through_json() {
+        let mut settings = get_default_settings();
+        settings.delete_last_word_enabled = false;
+        settings.undo_enabled = false;
+
+        let json = serde_json::to_value(&settings).unwrap();
+        let reloaded: AppSettings = serde_json::from_value(json).unwrap();
+        assert!(!reloaded.delete_last_word_enabled);
+        assert!(!reloaded.undo_enabled);
+
+        // A partial store that predates the toggles falls back to the enabled
+        // defaults.
+        let legacy: AppSettings = serde_json::from_value(serde_json::json!({
+            "voice_deletion_commands": false
+        }))
+        .unwrap();
+        assert!(legacy.delete_last_word_enabled);
+        assert!(legacy.undo_enabled);
+        assert!(!legacy.voice_deletion_commands);
     }
 
     /// Frozen snapshot of a real v0.9.0-era settings store, as written to

@@ -480,7 +480,10 @@ mod imp {
                 if id == "cancel" && !state.cancel_requested.load(Ordering::SeqCst) {
                     continue;
                 }
-                if id == "transcribe_with_post_process" && !settings.post_process_enabled {
+                // Unbound and toggle-disabled bindings hold no registration
+                // to shadow (covers post-processing when off plus the
+                // unbound-by-default editing actions).
+                if !crate::shortcut::binding_is_active(&settings, id, binding) {
                     continue;
                 }
 

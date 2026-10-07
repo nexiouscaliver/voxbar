@@ -183,13 +183,22 @@
           "transcribe_with_post_process": {
             "name": "Post-Processing Hotkey",
             "description": "Optional: A dedicated hotkey that always applies AI post-processing to your transcription."
+          },
+          "delete_last_word": {
+            "name": "Delete Last Word",
+            "description": "Deletes the word before the caret in the focused app (Option+Backspace on macOS, Ctrl+Backspace elsewhere). Assign a key to enable it."
+          },
+          "undo": {
+            "name": "Undo",
+            "description": "Triggers undo in the focused app (Cmd+Z on macOS, Ctrl+Z elsewhere), reverting the last pasted dictation in one hit. Assign a key to enable it."
           }
         },
         "errors": {
           "restore": "Failed to restore original shortcut",
           "set": "Failed to set shortcut: {{error}}",
           "reset": "Failed to reset shortcut to original value"
-        }
+        },
+        "unbound": "Not bound"
       },
       "language": {
         "title": "Language",
@@ -210,6 +219,17 @@
           "hold_or_toggle": "Hold to record or tap to toggle",
           "push_to_talk": "Records while you hold the shortcut",
           "toggle": "Tap the shortcut to start recording, tap again to stop"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Editing Shortcuts",
+        "deleteLastWord": {
+          "title": "Delete Last Word Action",
+          "description": "Enable the assignable hotkey that deletes the word before the caret. The hotkey stays inactive until a key is assigned above."
+        },
+        "undo": {
+          "title": "Undo Action",
+          "description": "Enable the assignable hotkey that triggers undo in the focused app. The hotkey stays inactive until a key is assigned above."
         }
       }
     },

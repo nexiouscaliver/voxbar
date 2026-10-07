@@ -183,13 +183,22 @@
           "transcribe_with_post_process": {
             "name": "Pintasan Pascaproses",
             "description": "Opsional: pintasan khusus yang selalu menerapkan pascaproses AI pada transkripsi Anda."
+          },
+          "delete_last_word": {
+            "name": "Hapus kata terakhir",
+            "description": "Menghapus kata sebelum kursor di aplikasi yang fokus (Option+Backspace di macOS, Ctrl+Backspace di tempat lain). Tetapkan tombol untuk mengaktifkannya."
+          },
+          "undo": {
+            "name": "Urungkan",
+            "description": "Menjalankan Urungkan di aplikasi yang fokus (Cmd+Z di macOS, Ctrl+Z di tempat lain), membatalkan dikte terakhir yang ditempel sekaligus. Tetapkan tombol untuk mengaktifkannya."
           }
         },
         "errors": {
           "restore": "Gagal memulihkan pintasan asli",
           "set": "Gagal mengatur pintasan: {{error}}",
           "reset": "Gagal mengembalikan pintasan ke nilai awal"
-        }
+        },
+        "unbound": "Belum ditetapkan"
       },
       "language": {
         "title": "Bahasa",
@@ -210,6 +219,17 @@
           "hold_or_toggle": "Tahan untuk merekam atau tekan untuk mulai/berhenti",
           "push_to_talk": "Merekam selama Anda menahan pintasan",
           "toggle": "Ketuk pintasan untuk mulai merekam, lalu ketuk lagi untuk berhenti"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Pintasan penyuntingan",
+        "deleteLastWord": {
+          "title": "Aksi: hapus kata terakhir",
+          "description": "Mengaktifkan pintasan yang dapat ditetapkan untuk menghapus kata sebelum kursor. Pintasan tetap nonaktif sampai Anda menetapkan tombol di atas."
+        },
+        "undo": {
+          "title": "Aksi: urungkan",
+          "description": "Mengaktifkan pintasan yang dapat ditetapkan untuk menjalankan Urungkan di aplikasi yang fokus. Pintasan tetap nonaktif sampai Anda menetapkan tombol di atas."
         }
       }
     },

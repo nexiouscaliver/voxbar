@@ -231,13 +231,22 @@
           "transcribe_with_post_process": {
             "name": "Tasto di post-elaborazione",
             "description": "Facoltativo: Un tasto di scelta rapida dedicato che applica sempre la post-elaborazione IA alla trascrizione."
+          },
+          "delete_last_word": {
+            "name": "Elimina ultima parola",
+            "description": "Elimina la parola prima del cursore nell'app attiva (Opzione+Backspace su macOS, Ctrl+Backspace altrove). Assegna un tasto per attivarla."
+          },
+          "undo": {
+            "name": "Annulla",
+            "description": "Esegue Annulla nell'app attiva (Cmd+Z su macOS, Ctrl+Z altrove), annullando l'ultima dettatura incollata in un colpo solo. Assegna un tasto per attivarla."
           }
         },
         "errors": {
           "restore": "Errore nel ripristino della scorciatoia originale",
           "set": "Errore nella configurazione della scorciatoia: {{error}}",
           "reset": "Errore nella reinizializzazione della scorciatoia al valore originale"
-        }
+        },
+        "unbound": "Non assegnato"
       },
       "language": {
         "title": "Lingua",
@@ -258,6 +267,17 @@
           "hold_or_toggle": "Tieni premuto per registrare o tocca per alternare",
           "push_to_talk": "Registra finché tieni premuta la scorciatoia",
           "toggle": "Tocca la scorciatoia per avviare la registrazione, tocca di nuovo per fermarla"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Scorciatoie di modifica",
+        "deleteLastWord": {
+          "title": "Azione: elimina ultima parola",
+          "description": "Attiva la scorciatoia assegnabile che elimina la parola prima del cursore. La scorciatoia resta inattiva finché non assegni un tasto sopra."
+        },
+        "undo": {
+          "title": "Azione: annulla",
+          "description": "Attiva la scorciatoia assegnabile che esegue Annulla nell'app attiva. La scorciatoia resta inattiva finché non assegni un tasto sopra."
         }
       }
     },

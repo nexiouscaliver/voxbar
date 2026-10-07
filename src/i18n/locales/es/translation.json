@@ -231,13 +231,22 @@
           "transcribe_with_post_process": {
             "name": "Tecla de post procesamiento",
             "description": "Opcional: Una tecla de acceso rápido dedicada que siempre aplica post procesamiento con IA a tu transcripción."
+          },
+          "delete_last_word": {
+            "name": "Eliminar última palabra",
+            "description": "Elimina la palabra anterior al cursor en la aplicación enfocada (Opción+Retroceso en macOS, Ctrl+Retroceso en otras). Asigna una tecla para activarlo."
+          },
+          "undo": {
+            "name": "Deshacer",
+            "description": "Ejecuta deshacer en la aplicación enfocada (Cmd+Z en macOS, Ctrl+Z en otras), revirtiendo el último dictado pegado de una sola vez. Asigna una tecla para activarlo."
           }
         },
         "errors": {
           "restore": "Error al restaurar el atajo original",
           "set": "Error al configurar el atajo: {{error}}",
           "reset": "Error al restablecer el atajo al valor original"
-        }
+        },
+        "unbound": "Sin asignar"
       },
       "language": {
         "title": "Idioma",
@@ -258,6 +267,17 @@
           "hold_or_toggle": "Mantén pulsado para grabar o toca para alternar",
           "push_to_talk": "Graba mientras mantienes pulsado el atajo",
           "toggle": "Toca el atajo para empezar a grabar, tócalo de nuevo para detener"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Atajos de edición",
+        "deleteLastWord": {
+          "title": "Acción: eliminar última palabra",
+          "description": "Activa el atajo asignable que elimina la palabra anterior al cursor. El atajo permanece inactivo hasta que asignes una tecla arriba."
+        },
+        "undo": {
+          "title": "Acción: deshacer",
+          "description": "Activa el atajo asignable que ejecuta deshacer en la aplicación enfocada. El atajo permanece inactivo hasta que asignes una tecla arriba."
         }
       }
     },

@@ -231,13 +231,22 @@
           "transcribe_with_post_process": {
             "name": "Skrót postprocessingu",
             "description": "Opcjonalnie: Dedykowany skrót klawiszowy, który zawsze stosuje postprocessing AI do transkrypcji."
+          },
+          "delete_last_word": {
+            "name": "Usuń ostatnie słowo",
+            "description": "Usuwa słowo przed kursorem w aktywnej aplikacji (Option+Backspace na macOS, Ctrl+Backspace gdzie indziej). Przypisz klawisz, aby włączyć."
+          },
+          "undo": {
+            "name": "Cofnij",
+            "description": "Wywołuje Cofnij w aktywnej aplikacji (Cmd+Z na macOS, Ctrl+Z gdzie indziej), cofając ostatni wstawiony tekst dyktowania za jednym razem. Przypisz klawisz, aby włączyć."
           }
         },
         "errors": {
           "restore": "Nie udało się przywrócić oryginalnego skrótu",
           "set": "Nie udało się ustawić skrótu: {{error}}",
           "reset": "Nie udało się zresetować skrótu do wartości domyślnej"
-        }
+        },
+        "unbound": "Nie przypisano"
       },
       "language": {
         "title": "Język",
@@ -258,6 +267,17 @@
           "hold_or_toggle": "Przytrzymaj, aby nagrywać, lub dotknij, aby przełączyć",
           "push_to_talk": "Nagrywa, dopóki trzymasz skrót",
           "toggle": "Dotknij skrótu, aby rozpocząć nagrywanie, dotknij ponownie, aby zatrzymać"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Skróty edycji",
+        "deleteLastWord": {
+          "title": "Akcja: usuń ostatnie słowo",
+          "description": "Włącza przypisywalny skrót, który usuwa słowo przed kursorem. Skrót pozostaje nieaktywny, dopóki nie przypiszesz klawisza powyżej."
+        },
+        "undo": {
+          "title": "Akcja: cofnij",
+          "description": "Włącza przypisywalny skrót, który wywołuje Cofnij w aktywnej aplikacji. Skrót pozostaje nieaktywny, dopóki nie przypiszesz klawisza powyżej."
         }
       }
     },

@@ -29,6 +29,8 @@ export { FillerWordRemoval } from "./FillerWordRemoval";
 export { SpokenPunctuation } from "./SpokenPunctuation";
 export { TerminalPunctuation } from "./TerminalPunctuation";
 export { VoiceDeletionCommands } from "./VoiceDeletionCommands";
+export { DeleteLastWordAction } from "./DeleteLastWordAction";
+export { UndoAction } from "./UndoAction";
 export { ChineseScriptSetting } from "./ChineseScript";
 export { AppDataDirectory } from "./AppDataDirectory";
 export { ModelUnloadTimeoutSetting } from "./ModelUnloadTimeout";
