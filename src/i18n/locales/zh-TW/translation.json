@@ -481,6 +481,21 @@
         "title": "自動解析命令詞",
         "description": "在一般聽寫時解析說出的命令詞（如 \"comma\"、\"scratch that\"）。關閉後命令詞將按普通文字輸入；按住命令模式修飾鍵可執行命令。"
       },
+      "commandMatrix": {
+        "title": "命令矩陣",
+        "description": "一張可編輯的短語表驅動所有語音命令介面：命令模式、口語標點與語音刪除。可為每個命令新增或移除短語；同樣的短語在所有地方生效。",
+        "groups": {
+          "symbols": "符號與標點",
+          "editing": "編輯",
+          "control": "控制"
+        },
+        "addPhrase": "新增",
+        "removePhrase": "移除 {{phrase}}",
+        "reset": "重設為預設",
+        "duplicateError": "短語 \"{{phrase}}\" 已被其他命令使用",
+        "tooLongError": "短語不得超過 60 個字元",
+        "placeholder": "新增短語"
+      },
       "spokenPunctuation": {
         "title": "語音標點",
         "description": "將 \"comma\"、\"period\"、\"question mark\" 等口述的標點詞轉換為真實標點。關閉後保留為一般文字。"

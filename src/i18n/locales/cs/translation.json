@@ -481,6 +481,21 @@
         "title": "Automatická interpretace příkazů",
         "description": "Interpretuje vyslovená příkazová slova (\"comma\", \"scratch that\") při běžném diktování. Vypněte, aby se příkazová slova psala jako obyčejná slova; pro provádění příkazů podržte modifikátor režimu příkazů."
       },
+      "commandMatrix": {
+        "title": "Matice příkazů",
+        "description": "Jedna upravitelná tabulka frází napájí všechny povrchy mluvených příkazů: režim příkazů, mluvenou interpunkci i hlasové mazání. Přidávejte nebo odebírejte fráze každého příkazu; stejné fráze fungují všude.",
+        "groups": {
+          "symbols": "Symboly a interpunkce",
+          "editing": "Úpravy",
+          "control": "Ovládání"
+        },
+        "addPhrase": "Přidat",
+        "removePhrase": "Odebrat {{phrase}}",
+        "reset": "Obnovit výchozí",
+        "duplicateError": "Fráze \"{{phrase}}\" už je použita u jiného příkazu",
+        "tooLongError": "Fráze jsou omezeny na 60 znaků",
+        "placeholder": "Přidat frázi"
+      },
       "spokenPunctuation": {
         "title": "Mluvená interpunkce",
         "description": "Převádí mluvená interpunkční slova jako \"comma\", \"period\" a \"question mark\" na skutečnou interpunkci. Vypněte, aby zůstala běžnými slovy."

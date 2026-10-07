@@ -481,6 +481,21 @@
         "title": "명령어 자동 해석",
         "description": "일반 받아쓰기 중 말한 명령어 단어(\"comma\", \"scratch that\" 등)를 해석합니다. 끄면 명령어 단어가 일반 단어로 입력됩니다. 명령을 실행하려면 명령 모드 수정 키를 누르고 있으면 됩니다."
       },
+      "commandMatrix": {
+        "title": "명령 매트릭스",
+        "description": "하나의 편집 가능한 구문 표가 음성 명령의 모든 영면(명령 모드, 음성 문장부호, 음성 삭제)을 구동합니다. 각 명령의 구문을 추가하거나 제거하세요. 같은 구문이 어디서든 작동합니다.",
+        "groups": {
+          "symbols": "기호 및 문장부호",
+          "editing": "편집",
+          "control": "제어"
+        },
+        "addPhrase": "추가",
+        "removePhrase": "{{phrase}} 제거",
+        "reset": "기본값으로 재설정",
+        "duplicateError": "구문 \"{{phrase}}\"이(가) 이미 다른 명령에 사용되고 있습니다",
+        "tooLongError": "구문은 60자로 제한됩니다",
+        "placeholder": "구문 추가"
+      },
       "spokenPunctuation": {
         "title": "음성 문장부호",
         "description": "\"comma\", \"period\", \"question mark\"처럼 말로 하는 문장부호 단어를 실제 문장부호로 바꿉니다. 끄면 일반 단어로 남습니다."

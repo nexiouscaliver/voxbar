@@ -743,6 +743,8 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_filler_word_removal_enabled_setting,
             shortcut::change_spoken_punctuation_setting,
             shortcut::change_auto_interpret_commands_setting,
+            shortcut::update_command_matrix,
+            shortcut::get_default_command_matrix,
             shortcut::change_terminal_punctuation_setting,
             shortcut::change_voice_deletion_commands_setting,
             shortcut::change_preview_before_paste_setting,

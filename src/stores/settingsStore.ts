@@ -5,6 +5,7 @@ import type {
   AppSettings as Settings,
   AudioDevice,
   ChineseScript,
+  CommandMatrixEntry,
   TranscribeAcceleratorSetting,
   OrtAcceleratorSetting,
   ShortcutActivation,
@@ -200,6 +201,17 @@ const settingUpdaters: {
     commands.changeTerminalPunctuationSetting(value as boolean),
   voice_deletion_commands: (value) =>
     commands.changeVoiceDeletionCommandsSetting(value as boolean),
+  command_phrases: async (value) => {
+    const result = await commands.updateCommandMatrix(
+      value as CommandMatrixEntry[] | null,
+    );
+    if (result.status === "error") {
+      // Rejected matrix (duplicate, too long, empty phrase): roll the
+      // editor back via the throw below; the toast tells the user why.
+      toast.error(result.error);
+      throw new Error(result.error);
+    }
+  },
   preview_before_paste: (value) =>
     commands.changePreviewBeforePasteSetting(value as boolean),
   delete_last_word_enabled: (value) =>

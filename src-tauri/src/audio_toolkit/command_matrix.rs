@@ -274,6 +274,29 @@ pub fn validate_matrix(entries: &[CommandMatrixEntry]) -> Result<(), String> {
     Ok(())
 }
 
+/// Normalize and validate an edited matrix for persistence (the write
+/// path of the Settings editor): every phrase is normalized (lowercase,
+/// trimmed, inner whitespace collapsed) and [`validate_matrix`] then
+/// rejects empty entries, over-length phrases, and duplicates across
+/// commands. `None` passes through unchanged (reset to the built-in
+/// defaults).
+pub fn normalize_and_validate_matrix(
+    entries: Option<Vec<CommandMatrixEntry>>,
+) -> Result<Option<Vec<CommandMatrixEntry>>, String> {
+    let Some(entries) = entries else {
+        return Ok(None);
+    };
+    let normalized: Vec<CommandMatrixEntry> = entries
+        .into_iter()
+        .map(|entry| CommandMatrixEntry {
+            command: entry.command,
+            phrases: entry.phrases.iter().map(|p| normalize_phrase(p)).collect(),
+        })
+        .collect();
+    validate_matrix(&normalized)?;
+    Ok(Some(normalized))
+}
+
 /// Sort a phrase list by word count descending (stable, so equal-length
 /// phrases keep their table order). The regex consumers rely on
 /// leftmost-first alternation, so the longest phrase must come first.
@@ -617,6 +640,54 @@ mod tests {
         }];
         assert!(validate_matrix(&edge).is_ok());
         assert_eq!(normalize_phrase("  Kohma   Kohma "), "kohma kohma");
+    }
+
+    #[test]
+    fn update_path_normalizes_phrases_and_round_trips_validation() {
+        use super::normalize_and_validate_matrix;
+
+        // None passes through (reset to defaults).
+        assert_eq!(normalize_and_validate_matrix(None), Ok(None));
+
+        // Phrases are normalized before validation and storage.
+        let edited = vec![CommandMatrixEntry {
+            command: CommandId::Comma,
+            phrases: vec!["  Kohma   KOHMA ".to_string()],
+        }];
+        let stored = normalize_and_validate_matrix(Some(edited)).unwrap().unwrap();
+        assert_eq!(stored[0].phrases, vec!["kohma kohma".to_string()]);
+        // The stored form compiles and the phrase reaches every consumer.
+        let matrix = compile_command_matrix(&stored);
+        assert_eq!(
+            parse_command_transcript("kohma kohma", &matrix),
+            vec![CommandAction::Insert(",")]
+        );
+
+        // A phrase that normalizes to empty is rejected, naming the command.
+        let empty = vec![CommandMatrixEntry {
+            command: CommandId::Paste,
+            phrases: vec!["   ".to_string()],
+        }];
+        let err = normalize_and_validate_matrix(Some(empty)).unwrap_err();
+        assert!(err.contains("Paste") && err.contains("empty"), "{err}");
+
+        // Duplicates surface through the same path (case/whitespace
+        // variants collide after normalization).
+        let duplicate = vec![
+            CommandMatrixEntry {
+                command: CommandId::Comma,
+                phrases: vec!["Kohma".to_string()],
+            },
+            CommandMatrixEntry {
+                command: CommandId::Period,
+                phrases: vec!["  kohma ".to_string()],
+            },
+        ];
+        let err = normalize_and_validate_matrix(Some(duplicate)).unwrap_err();
+        assert!(err.contains("'kohma'") && err.contains("Comma"), "{err}");
+
+        // The full default table passes its own write path unchanged.
+        assert!(normalize_and_validate_matrix(Some(default_command_matrix())).is_ok());
     }
 
     #[test]
