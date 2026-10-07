@@ -29,7 +29,7 @@ use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, MutexGuard};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIcon;
@@ -359,9 +359,11 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
     let footprint = transcription.resident_model_footprint();
     let model_ram = format_ram_segment(footprint);
     // Menu-bar title (macOS only; see MenuInputs::title). Computed from the
-    // same load/unload-driven snapshot as the menu - no polling (spec C2) -
-    // and gated by the menu_bar_model_title setting (desired_tray_title
-    // returns None for every input when it is off).
+    // load/unload-driven snapshot as the menu is, PLUS the periodic RAM
+    // refresh loop (see [`start_ram_refresh`]) while a model is resident, and
+    // gated by the menu_bar_model_title setting (desired_tray_title returns
+    // None for every input when it is off - the applier then clears the
+    // native title via an explicit empty string).
     #[cfg(target_os = "macos")]
     let title = desired_tray_title(
         settings.menu_bar_model_title,
@@ -411,7 +413,7 @@ fn apply_on_main(app: &AppHandle) {
     };
 
     let started = Instant::now();
-    let (desired, icon, icon_changed, menu_changed, title_changed) = {
+    let (desired, icon, icon_changed, menu_changed, title_action) = {
         let mut inner = state.lock();
         inner.pending = false;
         let Some(desired) = inner.desired.clone() else {
@@ -419,13 +421,17 @@ fn apply_on_main(app: &AppHandle) {
         };
         let icon_changed = inner.applied_icon != Some(desired.icon_path);
         let menu_changed = inner.applied_menu.as_ref() != Some(&desired.menu);
-        let title_changed = inner.applied_title != desired.menu.title;
+        let title_action = title_reconciliation(
+            inner.applied_title.as_deref(),
+            desired.menu.title.as_deref(),
+        );
+        let title_changed = title_action != TitleAction::Keep;
         if !icon_changed && !menu_changed && !title_changed {
             trace!("tray apply: nothing changed");
             return;
         }
         let icon = inner.icons.get(desired.icon_path).cloned();
-        (desired, icon, icon_changed, menu_changed, title_changed)
+        (desired, icon, icon_changed, menu_changed, title_action)
     };
 
     // Each part is recorded as applied only if its native call succeeded, so a
@@ -467,9 +473,14 @@ fn apply_on_main(app: &AppHandle) {
     // `applied_title` so a failed `set_title` is retried on the next sync -
     // the title is the loaded-state indicator and worth one retry, and it can
     // change without the menu rebuilding only in exotic partial-failure cases.
+    // Clearing MUST carry an explicit empty string to the native layer (see
+    // [`native_title_arg`]); `title_action` decided Keep/Set/Clear above.
     let mut title_ok = false;
-    if title_changed && set_tray_title(&tray, desired.menu.title.as_deref()) {
-        title_ok = true;
+    if title_action != TitleAction::Keep {
+        let native_arg = Some(native_title_arg(desired.menu.title.as_deref()));
+        if set_tray_title(&tray, native_arg) {
+            title_ok = true;
+        }
     }
 
     {
@@ -813,10 +824,54 @@ fn compact_ram(bytes: u64) -> String {
     }
 }
 
+/// What the applier should do with the native menu-bar title for a given
+/// (applied, desired) pair. Pure, so the reconciliation decisions are
+/// unit-testable without an app or a native tray: `Keep` (no native call),
+/// `Set` (show/replace the string) and `Clear` (the title must be removed
+/// from the menu bar - model unloaded/deleted, or the
+/// `menu_bar_model_title` setting turned off).
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum TitleAction {
+    Keep,
+    Set(String),
+    Clear,
+}
+
+/// The applier's native-title decision for a diff. Pure.
+fn title_reconciliation(applied: Option<&str>, desired: Option<&str>) -> TitleAction {
+    match (applied, desired) {
+        // Nothing shown, nothing wanted (the common idle case).
+        (None, None) => TitleAction::Keep,
+        // Same string: no native work.
+        (Some(applied), Some(desired)) if applied == desired => TitleAction::Keep,
+        // A title is wanted and differs from what is displayed.
+        (_, Some(desired)) => TitleAction::Set(desired.to_string()),
+        // Something is displayed but nothing is wanted: CLEAR.
+        (Some(_), None) => TitleAction::Clear,
+    }
+}
+
+/// The string argument the native `set_title` call must receive for a
+/// desired title. A `None` desired title MUST become an explicit empty
+/// string: tray-icon 0.24's macOS `set_title_inner` only touches the
+/// `NSStatusBarButton` inside `if let Some(title) = title`, so passing
+/// `None` through to the native layer is a SILENT NO-OP - the stale title
+/// stays on the menu bar forever, while tauri still reports `Ok`, which
+/// would poison our `applied_title` tracking into never retrying. That is
+/// exactly how the stuck-title regression shipped in v1.0.0 (every unload
+/// path and the live settings toggle left the old text behind);
+/// `setTitle("")` is what actually clears the text.
+fn native_title_arg(desired: Option<&str>) -> &str {
+    desired.unwrap_or("")
+}
+
 /// Apply the menu-bar title to the native tray (macOS). `false` when the
 /// native call failed, so the applier does not record it as displayed.
+/// Callers pass [`native_title_arg`] output so a `None` desired title is
+/// translated to the explicit empty-string clear.
 #[cfg(target_os = "macos")]
 fn set_tray_title(tray: &TrayIcon, title: Option<&str>) -> bool {
+    trace!("Setting tray title to {:?}", title);
     match tray.set_title(title) {
         Ok(()) => true,
         Err(err) => {
@@ -832,6 +887,108 @@ fn set_tray_title(tray: &TrayIcon, title: Option<&str>) -> bool {
 #[cfg(not(target_os = "macos"))]
 fn set_tray_title(_tray: &TrayIcon, _title: Option<&str>) -> bool {
     true
+}
+
+// --- Resident-model RAM refresh ---------------------------------------------
+
+/// While a model is resident, the footprint-dependent tray parts (model
+/// submenu RAM segment, tooltip, macOS menu-bar title) are refreshed on this
+/// cadence, so the numbers track the live worker instead of whatever the
+/// load-time snapshot happened to be. The applier's diff skips all native
+/// work whenever the formatted segment is unchanged, so a steady footprint
+/// costs one probe and no native calls.
+const TRAY_RAM_REFRESH_INTERVAL: Duration = Duration::from_secs(10);
+
+/// Tauri managed state owning the resident-model refresh task. Absent (or a
+/// finished task) means no polling at all - zero background work runs while
+/// no model is resident.
+pub struct TrayRamRefresh(Mutex<Option<tauri::async_runtime::JoinHandle<()>>>);
+
+impl TrayRamRefresh {
+    pub fn new() -> Self {
+        Self(Mutex::new(None))
+    }
+
+    fn lock(&self) -> MutexGuard<'_, Option<tauri::async_runtime::JoinHandle<()>>> {
+        self.0.lock().unwrap_or_else(|poisoned| {
+            warn!("Tray RAM refresh mutex was poisoned, recovering");
+            poisoned.into_inner()
+        })
+    }
+}
+
+impl Default for TrayRamRefresh {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// Start the periodic RAM refresh unless one is already running. Idempotent,
+/// so callers can reconcile on every model-state change without tracking
+/// residency themselves.
+pub fn start_ram_refresh(app: &AppHandle) {
+    let Some(state) = app.try_state::<TrayRamRefresh>() else {
+        return;
+    };
+    let mut running = state.lock();
+    if running
+        .as_ref()
+        .is_some_and(|task| !task.inner().is_finished())
+    {
+        return; // A refresh loop is already alive.
+    }
+
+    let task_app = app.clone();
+    let task = tauri::async_runtime::spawn(async move {
+        let mut ticker = tokio::time::interval(TRAY_RAM_REFRESH_INTERVAL);
+        // interval's first tick completes immediately; the load that started
+        // the refresher just applied a fresh snapshot, so consume it.
+        ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        ticker.tick().await;
+        loop {
+            ticker.tick().await;
+            let resident = task_app
+                .try_state::<Arc<TranscriptionManager>>()
+                .is_some_and(|transcription| transcription.is_model_loaded());
+            if !resident {
+                // Residency ended without the "unloaded" hook firing (or the
+                // abort raced): stop polling instead of spinning.
+                debug!("tray RAM refresh: model no longer resident, stopping");
+                break;
+            }
+            // One footprint read + a desired-state recompute; the applier
+            // diffs against what is displayed and touches native state only
+            // when the formatted segment actually changed.
+            sync_tray(&task_app);
+        }
+    });
+    *running = Some(task);
+}
+
+/// Stop the periodic RAM refresh if one is running (model no longer
+/// resident, or the app is quitting). Idempotent.
+pub fn stop_ram_refresh(app: &AppHandle) {
+    let Some(state) = app.try_state::<TrayRamRefresh>() else {
+        return;
+    };
+    let mut running = state.lock();
+    if let Some(task) = running.take() {
+        task.abort();
+    }
+}
+
+/// Reconcile the periodic RAM refresh with actual residency: running while
+/// (and only while) a model is loaded. Called on every model-state change,
+/// which every load/unload path already emits or follows with a tray sync.
+pub fn reconcile_ram_refresh(app: &AppHandle) {
+    let resident = app
+        .try_state::<Arc<TranscriptionManager>>()
+        .is_some_and(|transcription| transcription.is_model_loaded());
+    if resident {
+        start_ram_refresh(app);
+    } else {
+        stop_ram_refresh(app);
+    }
 }
 
 // --- "Unload After" tray submenu --------------------------------------------
@@ -953,9 +1110,10 @@ pub fn copy_last_transcript(app: &AppHandle) {
 mod tests {
     use super::{
         compact_ram, desired_tray_title, format_duration_compact, format_ram_segment,
-        format_tray_title, last_transcript_text, load_tray_icon, resolve_model_label_name,
-        unload_after_custom_label, unload_after_preset_is_active, MenuInputs, TrayDesired,
-        TrayIconState, TRAY_TITLE_MAX_CHARS,
+        format_tray_title, last_transcript_text, load_tray_icon, native_title_arg,
+        resolve_model_label_name, title_reconciliation, unload_after_custom_label,
+        unload_after_preset_is_active, MenuInputs, TitleAction, TrayDesired, TrayIconState,
+        TRAY_TITLE_MAX_CHARS,
     };
     use crate::managers::history::HistoryEntry;
     use crate::settings::ModelUnloadTimeout;
@@ -1070,6 +1228,71 @@ mod tests {
     fn tray_title_clears_when_no_model_resident() {
         assert_eq!(format_tray_title(None, Some(768 * 1024 * 1024)), None);
         assert_eq!(format_tray_title(None, None), None);
+    }
+
+    // NOTE: the tests below exercise the applier's DECISION layer only
+    // (title_reconciliation + native_title_arg). The live NSStatusItem
+    // behavior of TrayIcon::set_title - including the tray-icon 0.24.1
+    // macOS no-op on None that these decisions work around - cannot be
+    // exercised in a unit test: it needs a running macOS event loop.
+
+    #[test]
+    fn title_reconciliation_keeps_unchanged_titles() {
+        // Idle baseline: nothing shown, nothing wanted.
+        assert_eq!(title_reconciliation(None, None), TitleAction::Keep);
+        // Same string: no native call, so the 10s RAM refresh stays free
+        // whenever the formatted footprint did not change.
+        assert_eq!(
+            title_reconciliation(Some("Small · 300M"), Some("Small · 300M")),
+            TitleAction::Keep
+        );
+    }
+
+    #[test]
+    fn title_reconciliation_sets_new_and_changed_titles() {
+        assert_eq!(
+            title_reconciliation(None, Some("Small · 300M")),
+            TitleAction::Set("Small · 300M".to_string())
+        );
+        assert_eq!(
+            title_reconciliation(Some("Old · 1M"), Some("New · 2M")),
+            TitleAction::Set("New · 2M".to_string())
+        );
+    }
+
+    #[test]
+    fn applier_requests_native_clear_when_desired_title_becomes_none() {
+        // The stuck-title regression: every Some -> None transition (manual
+        // unload, model delete, idle-timeout expiry, menu_bar_model_title
+        // turned off) must ask the native layer to CLEAR...
+        assert_eq!(
+            title_reconciliation(Some("Whisper Base · 243M"), None),
+            TitleAction::Clear
+        );
+        // ...and the native call must carry an explicit empty string:
+        // tray-icon 0.24.1's macOS backend no-ops on None, which is how the
+        // stale title survived every unload path in v1.0.0.
+        assert_eq!(native_title_arg(None), "");
+    }
+
+    #[test]
+    fn native_title_arg_passes_desired_title_through() {
+        assert_eq!(native_title_arg(Some("Small · 300M")), "Small · 300M");
+        // Defensive: an empty desired title also clears (same native arg).
+        assert_eq!(native_title_arg(Some("")), "");
+    }
+
+    #[test]
+    fn measured_display_footprint_renders_through_both_formatters() {
+        // A display-footprint reading for e.g. an 85 MB Q8 model's worker
+        // (weights + real runtime overhead) renders through both the submenu
+        // segment and the compact menu-bar title form.
+        let bytes = 150 * 1024 * 1024;
+        assert_eq!(
+            format_ram_segment(Some((bytes, true))),
+            Some("150 MB".to_string())
+        );
+        assert_eq!(compact_ram(bytes), "150M");
     }
 
     #[test]
