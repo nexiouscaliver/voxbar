@@ -20,6 +20,9 @@ use tar::Archive;
 use tauri::{AppHandle, Emitter, Manager};
 
 mod download;
+mod hf_add;
+
+pub use hf_add::{resolve_hf_repo, HfModelError, HfModelResolution};
 
 use download::{HttpDownloadOutcome, DOWNLOAD_STALL_TIMEOUT};
 

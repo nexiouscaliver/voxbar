@@ -57,7 +57,12 @@ fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> String {
 /// id `"{repo_id}/{filename}"`, which that table (keyed by the descriptor's
 /// default file) misses — resolve those through the catalog's file table so
 /// they compete at their base model's rank instead of sorting last.
-/// Unranked/unknown models return `u32::MAX` (sort last).
+/// Unranked/unknown models (user-added Hugging Face repos, local customs,
+/// legacy entries without a rank) return `u32::MAX`: they rank AFTER every
+/// ranked catalog model but stay eligible, so a user-added model is only
+/// chosen when no cataloged model fits. Ties among unranked candidates are
+/// settled by the resolver's footprint-then-id rule, keeping the order
+/// deterministic.
 fn fallback_rank(info: &ModelInfo) -> u32 {
     let direct = crate::catalog::rank_of(&info.id);
     if direct != u32::MAX {
@@ -71,6 +76,25 @@ fn fallback_rank(info: &ModelInfo) -> u32 {
         }
         _ => u32::MAX,
     }
+}
+
+/// The pure half of the fallback inventory: map every downloaded model
+/// except `failed_id` to its resolver candidate. Split from the method so the
+/// inventory contract (custom and user-added Hugging Face models included,
+/// ranked after the catalog) is unit-testable without an app handle.
+fn fallback_candidate_list(
+    models: &[ModelInfo],
+    failed_id: &str,
+) -> Vec<memory::FallbackCandidate> {
+    models
+        .iter()
+        .filter(|info| info.is_downloaded && info.id != failed_id)
+        .map(|info| memory::FallbackCandidate {
+            rank: fallback_rank(info),
+            footprint_bytes: info.size_mb.saturating_mul(1024 * 1024),
+            id: info.id.clone(),
+        })
+        .collect()
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -468,19 +492,13 @@ impl TranscriptionManager {
 
     /// Downloaded-model candidates for the RAM auto-fallback (see the memory
     /// gate in `load_model_with_device_internal`): every downloaded model
-    /// except the one that just failed, with the same size-derived footprint
-    /// the gate compares and the catalog's editorial rank.
+    /// except the one that just failed: catalog entries at their editorial
+    /// rank, user-added Hugging Face and custom models after them (see
+    /// [`fallback_rank`]), with the same size-derived footprint the gate
+    /// compares. Nothing is ever downloaded for this list: it only inventories
+    /// what is already on disk.
     fn fallback_candidates(&self, failed_id: &str) -> Vec<memory::FallbackCandidate> {
-        self.model_manager
-            .get_available_models()
-            .into_iter()
-            .filter(|info| info.is_downloaded && info.id != failed_id)
-            .map(|info| memory::FallbackCandidate {
-                rank: fallback_rank(&info),
-                footprint_bytes: info.size_mb.saturating_mul(1024 * 1024),
-                id: info.id,
-            })
-            .collect()
+        fallback_candidate_list(&self.model_manager.get_available_models(), failed_id)
     }
 
     /// Accelerator changes should not disturb the current transcription. Mark
@@ -2781,6 +2799,177 @@ mod tests {
         assert!(matches!(plan.task, Task::Transcribe));
         assert_eq!(plan.language.as_deref(), Some("es"));
         assert_eq!(plan.target_language, None);
+    }
+
+    // --- RAM auto-fallback inventory --------------------------------------
+
+    fn model_info_for(id: &str, size_mb: u64, downloaded: bool) -> ModelInfo {
+        ModelInfo {
+            id: id.to_string(),
+            name: id.to_string(),
+            description: String::new(),
+            filename: format!("{}.gguf", id),
+            source: ModelSource::Local,
+            size_mb,
+            is_downloaded: downloaded,
+            is_downloading: false,
+            partial_size: 0,
+            is_directory: false,
+            engine_type: crate::managers::model::EngineType::TranscribeCpp,
+            accuracy_score: 0.0,
+            speed_score: 0.0,
+            supports_translation: false,
+            is_recommended: false,
+            supported_languages: vec![],
+            supports_language_selection: false,
+            is_custom: true,
+            supports_streaming: false,
+            supports_language_detection: false,
+        }
+    }
+
+    fn hf_added_model(id: &str, repo_id: &str, filename: &str, size_mb: u64) -> ModelInfo {
+        let mut info = model_info_for(id, size_mb, true);
+        info.filename = filename.to_string();
+        info.source = ModelSource::HuggingFace {
+            repo_id: repo_id.to_string(),
+            revision: "main".to_string(),
+        };
+        info.is_custom = false;
+        info
+    }
+
+    /// A real ranked catalog entry, for rank comparison.
+    fn ranked_catalog_model() -> ModelInfo {
+        let desc = crate::catalog::CATALOG
+            .iter()
+            .find(|d| d.recommended_rank.is_some())
+            .expect("catalog has ranked models");
+        let mut info = desc.to_model_info(&super::super::model::DiskStatus::default());
+        info.is_downloaded = true;
+        info
+    }
+
+    #[test]
+    fn fallback_rank_places_unranked_models_after_the_catalog() {
+        // A ranked catalog entry resolves to its real (small) rank...
+        let catalog = ranked_catalog_model();
+        assert!(fallback_rank(&catalog) != u32::MAX);
+
+        // ...while a user-added Hugging Face repo and a local custom model
+        // both rank last (u32::MAX): eligible, but only chosen when no
+        // cataloged model fits.
+        let added = hf_added_model(
+            "org/custom-asr/model-Q8_0.gguf",
+            "org/custom-asr",
+            "model-Q8_0.gguf",
+            700,
+        );
+        assert_eq!(fallback_rank(&added), u32::MAX);
+        let custom = model_info_for("my-dropped-model", 100, true);
+        assert_eq!(fallback_rank(&custom), u32::MAX);
+    }
+
+    #[test]
+    fn fallback_inventory_includes_user_added_and_custom_models() {
+        let catalog = ranked_catalog_model();
+        let added = hf_added_model(
+            "org/custom-asr/model-Q8_0.gguf",
+            "org/custom-asr",
+            "model-Q8_0.gguf",
+            700,
+        );
+        let custom = model_info_for("my-dropped-model", 100, true);
+        let not_downloaded = model_info_for("pending-model", 50, false);
+        let models = vec![
+            catalog.clone(),
+            added.clone(),
+            custom.clone(),
+            not_downloaded,
+        ];
+
+        let candidates = fallback_candidate_list(&models, "selected");
+
+        // Exactly the downloaded models other than the failed one, custom and
+        // user-added included.
+        let mut ids: Vec<&str> = candidates.iter().map(|c| c.id.as_str()).collect();
+        ids.sort_unstable();
+        assert_eq!(
+            ids,
+            vec![
+                catalog.id.as_str(),
+                "my-dropped-model",
+                "org/custom-asr/model-Q8_0.gguf",
+            ]
+        );
+        let added_candidate = candidates
+            .iter()
+            .find(|c| c.id == "org/custom-asr/model-Q8_0.gguf")
+            .unwrap();
+        assert_eq!(added_candidate.rank, u32::MAX);
+        assert_eq!(
+            added_candidate.footprint_bytes,
+            700u64 * 1024 * 1024,
+            "footprint must stay the size-derived estimate the gate compares"
+        );
+    }
+
+    #[test]
+    fn fallback_resolver_selects_user_added_model_when_it_fits() {
+        const GIB: u64 = 1024 * 1024 * 1024;
+        let added = hf_added_model(
+            "org/custom-asr/model-Q8_0.gguf",
+            "org/custom-asr",
+            "model-Q8_0.gguf",
+            700,
+        );
+        let candidates = fallback_candidate_list(&[added], "selected");
+
+        // Plenty free: the user-added model is selected.
+        assert_eq!(
+            memory::resolve_fallback_model(Some(8 * GIB), &candidates, "selected")
+                .map(|c| c.id.as_str()),
+            Some("org/custom-asr/model-Q8_0.gguf")
+        );
+        // Too tight for it (700 MiB + 1.5 GiB headroom > 2 GiB): nothing.
+        assert_eq!(
+            memory::resolve_fallback_model(Some(2 * GIB), &candidates, "selected"),
+            None
+        );
+    }
+
+    #[test]
+    fn fallback_resolver_prefers_catalog_over_user_added_when_both_fit() {
+        const GIB: u64 = 1024 * 1024 * 1024;
+        let catalog = ranked_catalog_model();
+        let added = hf_added_model(
+            "org/custom-asr/model-Q8_0.gguf",
+            "org/custom-asr",
+            "model-Q8_0.gguf",
+            700,
+        );
+        let candidates = fallback_candidate_list(&[added.clone(), catalog.clone()], "selected");
+
+        // Both fit, the ranked catalog entry wins...
+        assert_eq!(
+            memory::resolve_fallback_model(Some(16 * GIB), &candidates, "selected")
+                .map(|c| c.id.as_str()),
+            Some(catalog.id.as_str())
+        );
+
+        // ...and the user-added model takes over once the cataloged one does
+        // not fit (a huge forecast here forces that without needing a big
+        // catalog model).
+        let mut huge = added.clone();
+        huge.size_mb = 1; // small: always fits
+        let mut huge_catalog = catalog.clone();
+        huge_catalog.size_mb = 16 * 1024; // 16 GiB: never fits below
+        let forced = fallback_candidate_list(&[huge_catalog, huge], "selected");
+        assert_eq!(
+            memory::resolve_fallback_model(Some(8 * GIB), &forced, "selected")
+                .map(|c| c.id.as_str()),
+            Some("org/custom-asr/model-Q8_0.gguf")
+        );
     }
 }
 

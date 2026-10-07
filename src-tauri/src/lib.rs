@@ -784,6 +784,8 @@ pub fn run(cli_args: CliArgs) {
             commands::models::get_transcription_model_status,
             commands::models::is_model_loading,
             commands::models::rescan_local_models,
+            commands::models::resolve_hf_model,
+            commands::models::add_hf_model,
             commands::audio::update_microphone_mode,
             commands::audio::get_microphone_mode,
             commands::audio::get_windows_microphone_permission_status,

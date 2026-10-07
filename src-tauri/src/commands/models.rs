@@ -1,4 +1,6 @@
-use crate::managers::model::{ModelInfo, ModelManager};
+use crate::managers::model::{
+    resolve_hf_repo, HfModelError, HfModelResolution, ModelInfo, ModelManager,
+};
 use crate::managers::transcription::{ModelStateEvent, TranscriptionManager};
 use crate::settings::{get_settings, write_settings, ModelUnloadTimeout};
 use log::error;
@@ -207,4 +209,31 @@ pub async fn cancel_download(
     model_manager
         .cancel_download(&model_id)
         .map_err(|e| e.to_string())
+}
+
+/// Resolve pasted Hugging Face input (a URL, `owner/repo`, or
+/// `owner/repo/file.gguf`) into the repo's GGUF file list with sizes plus a
+/// suggested file. Public repos only in v1: repos that cannot be read
+/// anonymously come back as a structured error the UI can localize.
+#[tauri::command]
+#[specta::specta]
+pub async fn resolve_hf_model(input: String) -> Result<HfModelResolution, HfModelError> {
+    resolve_hf_repo(&input).await
+}
+
+/// Download a specific file from a Hugging Face repo and register it, gated
+/// on the GGUF architecture probe: an unsupported architecture is refused,
+/// the blob deleted, and the error names the architecture and supported
+/// families. Downloads nothing outside this explicit user action.
+#[tauri::command]
+#[specta::specta]
+pub async fn add_hf_model(
+    model_manager: State<'_, Arc<ModelManager>>,
+    repo_id: String,
+    filename: String,
+    revision: Option<String>,
+) -> Result<String, HfModelError> {
+    model_manager
+        .add_hf_model(&repo_id, &filename, revision.as_deref())
+        .await
 }
