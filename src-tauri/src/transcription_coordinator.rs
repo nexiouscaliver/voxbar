@@ -2,6 +2,7 @@ use crate::actions::ACTION_MAP;
 use crate::managers::audio::AudioRecordingManager;
 use crate::settings::ShortcutActivation;
 use log::{debug, error, warn};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
 use std::sync::Arc;
 use std::thread;
@@ -532,6 +533,13 @@ impl CoordinatorState {
 /// returned [`Effect`]s.
 pub struct TranscriptionCoordinator {
     tx: Sender<Command>,
+    /// Mirror of `Stage::Recording` for lock-free readers outside the
+    /// coordinator thread (the session-state seam): buffer-aware hotkey
+    /// actions ask "is a dictation recording live right now?" without
+    /// sending a command and waiting for an answer. Updated by the thread
+    /// after every processed command, so it lags reality by at most the
+    /// channel latency.
+    recording: Arc<AtomicBool>,
 }
 
 /// Which binding IDs drive the recording lifecycle. Command mode
@@ -545,10 +553,23 @@ pub fn is_transcribe_binding(id: &str) -> bool {
 impl TranscriptionCoordinator {
     pub fn new(app: AppHandle) -> Self {
         let (tx, rx) = mpsc::channel();
+        let recording = Arc::new(AtomicBool::new(false));
+        let recording_mirror = Arc::clone(&recording);
 
         thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let mut state = CoordinatorState::new();
+                // Publish the stage mirror after every state change, so a
+                // reader can never observe a stale Recording long after the
+                // stage moved on (worst case: one command of lag while a
+                // transition is in flight).
+                let publish_stage = |state: &CoordinatorState| {
+                    recording_mirror.store(
+                        matches!(state.stage, Stage::Recording(_)),
+                        Ordering::Release,
+                    );
+                };
+                publish_stage(&state);
 
                 loop {
                     let cmd = if let Some(deadline) = state.grace_deadline() {
@@ -558,6 +579,7 @@ impl TranscriptionCoordinator {
                                 if let Some(effect) = state.on_grace_expired() {
                                     run_effect(&app, &mut state, effect);
                                 }
+                                publish_stage(&state);
                                 continue;
                             }
                             Err(mpsc::RecvTimeoutError::Disconnected) => break,
@@ -584,7 +606,11 @@ impl TranscriptionCoordinator {
                             }
                         }
                     }
+                    publish_stage(&state);
                 }
+                // The coordinator thread is gone (app shutdown); stop
+                // advertising a live recording session.
+                recording_mirror.store(false, Ordering::Release);
                 debug!("Transcription coordinator exited");
             }));
             if let Err(e) = result {
@@ -592,7 +618,15 @@ impl TranscriptionCoordinator {
             }
         });
 
-        Self { tx }
+        Self { tx, recording }
+    }
+
+    /// Whether a dictation recording session is live (the coordinator is in
+    /// its Recording stage: between the start effect and the stop effect).
+    /// The session-state seam used by buffer-aware hotkey actions to decide
+    /// between editing the dictation buffer and injecting keys.
+    pub fn is_recording_session(&self) -> bool {
+        self.recording.load(Ordering::Acquire)
     }
 
     /// Send a keyboard input event for a transcribe binding. `hold_threshold`

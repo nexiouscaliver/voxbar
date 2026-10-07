@@ -1,7 +1,8 @@
 use crate::audio_toolkit::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion, detect_output_language,
-    normalize_spoken_punctuation, normalize_transcription_output, remove_filler_words,
-    OutputLanguageEvidence, VoiceDeletionOutcome,
+    interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
+    remove_filler_words, remove_trailing_word_from_buffer, OutputLanguageEvidence,
+    VoiceDeletionOutcome,
 };
 use crate::chinese_script::{convert_chinese_script, ChineseVariety};
 use crate::engine_supervisor::{
@@ -173,6 +174,169 @@ struct FinalizedStreamText {
     supported_languages: Vec<String>,
 }
 
+/// Byte length of the longest common prefix of `a` and `b`, always landing on
+/// a `char` boundary of both (the prefix is built from equal `char`s).
+fn common_prefix_len(a: &str, b: &str) -> usize {
+    a.chars()
+        .zip(b.chars())
+        .take_while(|(x, y)| x == y)
+        .map(|(c, _)| c.len_utf8())
+        .sum()
+}
+
+/// Concatenate `base` with `rest`, collapsing a single duplicated space/tab
+/// at the seam (a manual word deletion keeps the separator that preceded the
+/// removed word, while the engine's continuation often re-supplies one).
+fn join_raw(base: &str, rest: &str) -> String {
+    if base.ends_with([' ', '\t']) && rest.starts_with([' ', '\t']) {
+        let mut joined = String::with_capacity(base.len() + rest.len());
+        joined.push_str(base);
+        joined.push_str(&rest[1..]);
+        joined
+    } else {
+        format!("{base}{rest}")
+    }
+}
+
+/// The live dictation buffer of an active streaming session.
+///
+/// The engine owns the authoritative raw text and only hands out snapshots
+/// (an append-only `committed` prefix plus a volatile `tentative` suffix), so
+/// manual buffer edits (the delete-last-word hotkey) cannot rewrite what the
+/// engine holds. Instead the buffer keeps its own raw-domain copy:
+///
+/// * `base` holds the buffer content at the moment of the last manual edit,
+///   with every edit applied;
+/// * `raw_seen` is the engine's FULL snapshot (committed + tentative) at
+///   that moment. New material on any later snapshot is the part beyond the
+///   common prefix with `raw_seen`, appended to `base`.
+///
+/// Anchoring on the full snapshot (not just the committed prefix) is what
+/// keeps a deleted word deleted: a word removed while still tentative does
+/// not come back when the engine commits it verbatim afterwards, because
+/// those bytes sit inside `raw_seen` and are never re-consumed. The known
+/// artifact: if the engine REVISES that region while committing it (a
+/// hypothesis correction), the common prefix stops at the first differing
+/// byte and the revised word re-enters the buffer. That is rare and
+/// self-limiting; everything after the divergence behaves normally.
+///
+/// Everything is recomputed from scratch on every tick; nothing is applied
+/// incrementally to previous output, so a spoken phrase split across chunk
+/// boundaries cannot hide and tentative rewrites show up naturally.
+struct StreamSessionBuffer {
+    /// True between `begin` (the engine stream actually started) and
+    /// `combine_final`/`end`. Only then may hotkey edits apply.
+    live: bool,
+    /// Toggles for the interim display transform, captured when the stream
+    /// begins (a mid-session toggle applies from the next session, matching
+    /// how `PreviewScript` captures `chinese_script` today).
+    spoken_punctuation: bool,
+    voice_deletion: bool,
+    preview_script: PreviewScript,
+    supported_languages: Vec<String>,
+    base: String,
+    raw_seen: String,
+    last_full: String,
+}
+
+impl Default for StreamSessionBuffer {
+    fn default() -> Self {
+        Self {
+            live: false,
+            spoken_punctuation: true,
+            voice_deletion: true,
+            preview_script: PreviewScript::new(
+                crate::settings::ChineseScript::AsTranscribed,
+                &OutputLanguageEvidence::Unknown,
+            ),
+            supported_languages: Vec::new(),
+            base: String::new(),
+            raw_seen: String::new(),
+            last_full: String::new(),
+        }
+    }
+}
+
+impl StreamSessionBuffer {
+    fn begin(
+        &mut self,
+        preview_script: PreviewScript,
+        spoken_punctuation: bool,
+        voice_deletion: bool,
+        supported_languages: &[String],
+    ) {
+        self.live = true;
+        self.spoken_punctuation = spoken_punctuation;
+        self.voice_deletion = voice_deletion;
+        self.preview_script = preview_script;
+        self.supported_languages = supported_languages.to_vec();
+        self.base.clear();
+        self.raw_seen.clear();
+        self.last_full.clear();
+    }
+
+    fn end(&mut self) {
+        self.live = false;
+        self.base.clear();
+        self.raw_seen.clear();
+        self.last_full.clear();
+    }
+
+    /// The raw-domain working buffer for an engine snapshot.
+    fn combine(&self, snapshot: &str) -> String {
+        let keep = common_prefix_len(&self.raw_seen, snapshot);
+        join_raw(&self.base, &snapshot[keep..])
+    }
+
+    /// Record a snapshot and render what the overlay should display: the
+    /// combined raw buffer, script-converted, then the interim display
+    /// transform (spoken punctuation, voice deletion; deliberately nothing
+    /// else, see [`interim_display_transform`]).
+    fn render(&mut self, committed: &str, tentative: &str) -> String {
+        let snapshot = format!("{committed}{tentative}");
+        self.last_full = snapshot.clone();
+        let raw = self.combine(&snapshot);
+        let (converted, _) = self
+            .preview_script
+            .convert(&raw, "", &self.supported_languages);
+        interim_display_transform(&converted, self.spoken_punctuation, self.voice_deletion)
+    }
+
+    /// Apply the delete-last-word hotkey to the buffer. Returns the refreshed
+    /// display text, or `None` when no live session buffer exists (no
+    /// stream, batch model, or the session already finalized).
+    fn delete_last_word(&mut self) -> Option<String> {
+        if !self.live {
+            return None;
+        }
+        let buffer = self.combine(&self.last_full);
+        self.base = remove_trailing_word_from_buffer(&buffer);
+        self.raw_seen = self.last_full.clone();
+        let raw = self.combine(&self.last_full);
+        let (converted, _) = self
+            .preview_script
+            .convert(&raw, "", &self.supported_languages);
+        Some(interim_display_transform(
+            &converted,
+            self.spoken_punctuation,
+            self.voice_deletion,
+        ))
+    }
+
+    /// Fold the engine's final raw text into the buffer and end the session.
+    /// With no manual edits this is exactly the engine text unchanged.
+    fn combine_final(&mut self, final_raw: String) -> String {
+        let combined = if self.live {
+            let keep = common_prefix_len(&self.raw_seen, &final_raw);
+            join_raw(&self.base, &final_raw[keep..])
+        } else {
+            final_raw
+        };
+        self.end();
+        combined
+    }
+}
+
 /// Routes real-time audio frames to the active streaming worker. Shared between
 /// the [`TranscriptionManager`] (opens/closes the route) and the audio recorder's
 /// per-frame callback (feeds frames). The recorder holds an `Arc<StreamRouter>`
@@ -329,6 +493,10 @@ pub struct TranscriptionManager {
     /// yet. This prevents a second worker from starting after finalize/cancel
     /// closes the router but before the first worker has fully exited.
     active_stream_worker: Arc<AtomicU64>,
+    /// The live dictation buffer of the current streaming session: renders
+    /// interim overlay text, absorbs manual hotkey edits, and folds into the
+    /// finalize path. See [`StreamSessionBuffer`].
+    session_buffer: Arc<Mutex<StreamSessionBuffer>>,
 }
 
 impl TranscriptionManager {
@@ -349,6 +517,7 @@ impl TranscriptionManager {
             stream_active: Arc::new(AtomicBool::new(false)),
             next_stream_worker_id: Arc::new(AtomicU64::new(1)),
             active_stream_worker: Arc::new(AtomicU64::new(0)),
+            session_buffer: Arc::new(Mutex::new(StreamSessionBuffer::default())),
         };
 
         // Start the idle watcher
@@ -1046,6 +1215,13 @@ impl TranscriptionManager {
             warn!("start_stream called while a stream worker is already active");
             return;
         }
+        // A previous worker that exited without the finalize/cancel handshake
+        // (channel dropped underneath it) must not leave a stale live buffer
+        // behind for hotkey edits to write into.
+        self.session_buffer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .end();
         let worker_id = self.next_stream_worker_id.fetch_add(1, Ordering::Relaxed);
         if self
             .active_stream_worker
@@ -1135,27 +1311,51 @@ impl TranscriptionManager {
             ..Default::default()
         };
 
-        // Feed results arrive on the engine's thread; this callback only
-        // converts and emits preview text.
+        // Feed results arrive on the engine's thread; this callback records
+        // the snapshot into the session buffer and emits the rendered
+        // interim text.
+        let preview_script = PreviewScript::new(settings.chinese_script, &output_language);
         let perf = Arc::new(Mutex::new(StreamPerf::new()));
+        let session_buffer_for_progress = Arc::clone(&self.session_buffer);
         let on_progress = {
             let perf = Arc::clone(&perf);
             let app_handle = self.app_handle.clone();
-            let languages = languages.clone();
-            let mut preview_script = PreviewScript::new(settings.chinese_script, &output_language);
             move |progress: StreamProgress| {
                 let mut perf = lock_perf(&perf);
                 perf.record_compute(progress.elapsed);
                 perf.record_update(&progress.update);
                 if let Some(text) = progress.text {
                     perf.record_emit();
-                    let (committed, tentative) =
-                        preview_script.convert(&text.committed, &text.tentative, &languages);
-                    emit_stream_text(&app_handle, &committed, &tentative);
+                    let display = {
+                        let mut session = session_buffer_for_progress
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner());
+                        session.render(&text.committed, &text.tentative)
+                    };
+                    // The whole displayed text is emitted as the committed
+                    // part: the interim transform runs over the full raw
+                    // buffer, so the committed/tentative visual split cannot
+                    // be preserved exactly across punctuation joins and
+                    // deletions. The model's own rewrites still surface
+                    // because the display is recomputed from every snapshot.
+                    emit_stream_text(&app_handle, &display, "");
                 }
                 perf.maybe_log();
             }
         };
+
+        // The session buffer goes live before the engine stream starts, so
+        // no interim callback can race past `begin`. Toggles are captured
+        // here (once per session), matching `PreviewScript`.
+        self.session_buffer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .begin(
+                preview_script,
+                settings.spoken_punctuation,
+                settings.voice_deletion_commands,
+                &languages,
+            );
 
         // Run the stream in the engine's worker process. Feeds are queued
         // without waiting; a crashed or hung worker makes finalize report no
@@ -1170,6 +1370,10 @@ impl TranscriptionManager {
                 Ok(stream) => stream,
                 Err(e) => {
                     error!("Failed to begin stream: {}", e);
+                    self.session_buffer
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner())
+                        .end();
                     self.forget_model_if_engine_dropped(&model_id, &e.to_string());
                     drain_until_finalize(rx);
                     return;
@@ -1298,14 +1502,30 @@ impl TranscriptionManager {
             Ok(Err(e)) => return Err(e.into()),
         };
 
+        // Fold the engine's final raw text together with any manual
+        // session-buffer edits (delete-last-word hotkey). The finalize path
+        // then transforms this raw transcript exactly once through the
+        // canonical pipeline; it is never fed the interim-displayed text.
+        // Idempotence argument: the interim display transform is recomputed
+        // from the raw buffer on every tick and never writes back into it
+        // (the engine accumulator and `base` stay raw-domain), so no text
+        // pass can run twice over the same words. The interim transform is
+        // additionally idempotent on its own output (tested), but the
+        // architecture does not rely on that.
+        let final_raw = self
+            .session_buffer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .combine_final(finalized.text);
+
         let filtered = if command_mode {
-            finalized.text
+            final_raw
         } else {
             let settings = get_settings(&self.app_handle);
             // Streaming models do not receive a decode prompt, so custom words
             // always go through the shared fuzzy post-correction path.
             post_process_transcription_text(
-                finalized.text,
+                final_raw,
                 &settings,
                 false,
                 &finalized.output_language,
@@ -1317,12 +1537,39 @@ impl TranscriptionManager {
         Ok(Some(filtered))
     }
 
+    /// Apply the assignable delete-last-word hotkey to the live session
+    /// buffer of an active streaming dictation. Returns `true` when a live
+    /// buffer was edited and the overlay refreshed through the regular
+    /// interim-update event; `false` when there is no live buffer to edit
+    /// (batch model, stream not begun, or the session already finalized).
+    pub fn apply_session_buffer_word_deletion(&self) -> bool {
+        let mut session = self
+            .session_buffer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        match session.delete_last_word() {
+            Some(display) => {
+                let _ = StreamTextEvent {
+                    committed: display,
+                    tentative: String::new(),
+                }
+                .emit(&self.app_handle);
+                true
+            }
+            None => false,
+        }
+    }
+
     /// Abandon any active stream without producing text (e.g. on cancel).
     pub fn cancel_stream(&self) {
         if let Some(tx) = self.router.take() {
             let _ = tx.send(StreamCmd::Cancel);
         }
         self.stream_active.store(false, Ordering::Release);
+        self.session_buffer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .end();
     }
 
     /// Stop the transcription in progress (a batch run or stream finalize),
@@ -2476,6 +2723,170 @@ mod tests {
         });
 
         assert_eq!(result, raw);
+    }
+
+    fn session_buffer() -> StreamSessionBuffer {
+        let mut buffer = StreamSessionBuffer::default();
+        buffer.begin(
+            PreviewScript::new(
+                ChineseScript::AsTranscribed,
+                &OutputLanguageEvidence::Unknown,
+            ),
+            true,
+            true,
+            &languages(&["en"]),
+        );
+        buffer
+    }
+
+    #[test]
+    fn session_buffer_without_edits_passes_snapshots_through() {
+        let mut session = session_buffer();
+        assert_eq!(session.render("Hello ", "wor"), "Hello wor");
+        assert_eq!(session.render("Hello world ", ""), "Hello world ");
+
+        // No manual edits: finalize gets the engine text byte-for-byte.
+        assert_eq!(
+            session.combine_final("Hello world".to_string()),
+            "Hello world"
+        );
+        assert!(!session.live);
+    }
+
+    #[test]
+    fn session_buffer_delete_word_while_tentative_stays_deleted() {
+        let mut session = session_buffer();
+        session.render("hello ", "world");
+        assert_eq!(session.delete_last_word(), Some("hello ".to_string()));
+
+        // The engine commits the (already deleted) tentative word verbatim
+        // and the user keeps talking: the word must not resurrect.
+        assert_eq!(session.render("hello world and more", ""), "hello and more");
+        assert_eq!(
+            session.combine_final("hello world and more".to_string()),
+            "hello and more"
+        );
+    }
+
+    #[test]
+    fn session_buffer_delete_committed_word_joins_cleanly() {
+        let mut session = session_buffer();
+        session.render("hello world", "");
+        assert_eq!(session.delete_last_word(), Some("hello ".to_string()));
+
+        // New speech arrives after the committed prefix that was already
+        // consumed: exactly one separating space survives the join.
+        assert_eq!(session.render("hello world next", ""), "hello next");
+    }
+
+    #[test]
+    fn session_buffer_delete_word_repeated_and_on_empty() {
+        let mut session = session_buffer();
+        session.render("one two three", "");
+        assert_eq!(session.delete_last_word(), Some("one two ".to_string()));
+        assert_eq!(session.delete_last_word(), Some("one ".to_string()));
+        assert_eq!(session.delete_last_word(), Some("".to_string()));
+        // Deleting from an empty buffer is a no-op that still refreshes.
+        assert_eq!(session.delete_last_word(), Some("".to_string()));
+
+        // The interim display transform trims a leading space; the raw
+        // buffer keeps it, so speech after a full deletion joins normally.
+        assert_eq!(session.render(" fresh", ""), "fresh");
+        assert_eq!(session.render(" fresh words", ""), "fresh words");
+    }
+
+    #[test]
+    fn session_buffer_delete_word_requires_live_session() {
+        let mut session = StreamSessionBuffer::default();
+        assert_eq!(session.delete_last_word(), None);
+
+        // After finalize the buffer is no longer live.
+        let mut live = session_buffer();
+        live.render("hello", "");
+        live.combine_final("hello".to_string());
+        assert_eq!(live.delete_last_word(), None);
+    }
+
+    #[test]
+    fn session_buffer_phrase_split_across_snapshot_regions_converts() {
+        // The interim transform runs over the FULL combined raw buffer, so a
+        // spoken phrase split across the committed/tentative boundary (or
+        // across a manual-edit seam) still converts; converting the parts
+        // separately would miss it.
+        let mut session = session_buffer();
+        assert_eq!(session.render("say full", " stop now"), "say. Now");
+
+        // After a manual edit the same holds across the base/new-material
+        // seam: "full" lands in base, "stop" in the new material.
+        let mut edited = session_buffer();
+        edited.render("alpha ", "beta");
+        edited.delete_last_word(); // removes "beta", freezes "alpha "
+        assert_eq!(edited.render("alpha beta full", " stop now"), "alpha. Now");
+    }
+
+    #[test]
+    fn session_buffer_display_grows_no_terminal_punctuation() {
+        let mut session = session_buffer();
+        // Mid-sentence, mid-question: no period or question mark may appear
+        // on any tick (the terminal fallback runs only at finalize).
+        assert_eq!(session.render("hello world", ""), "hello world");
+        assert_eq!(session.render("what is this", ""), "what is this");
+
+        // The finalize pipeline is where terminal punctuation may land.
+        let settings = AppSettings {
+            spoken_punctuation: true,
+            voice_deletion_commands: true,
+            terminal_punctuation: true,
+            ..Default::default()
+        };
+        let final_text = post_process_transcription_text(
+            session.combine_final("what is this".to_string()),
+            &settings,
+            false,
+            &OutputLanguageEvidence::UserSelected("en".to_string()),
+            &languages(&["en"]),
+        );
+        assert_eq!(final_text, "what is this?");
+    }
+
+    #[test]
+    fn session_buffer_voice_deletion_command_eats_into_edited_base() {
+        // A spoken "scratch that" after a manual edit still deletes the word
+        // before it, even when that word was streamed after the edit: the
+        // transform recomputes over the whole combined buffer every tick.
+        // Here "two" was removed by the hotkey, "three" by the voice command.
+        let mut session = session_buffer();
+        session.render("one two", "");
+        session.delete_last_word(); // buffer is now "one "
+        session.render("one two three", "");
+        assert_eq!(
+            session.render("one two three scratch that", ""),
+            "one".to_string()
+        );
+        // And the finalize fold agrees: raw buffer passed onward is
+        // "one three scratch that more" (the voice command is consumed by
+        // the finalize pipeline's own deletion pass, not by the buffer).
+        assert_eq!(
+            session.combine_final("one two three scratch that more".to_string()),
+            "one three scratch that more"
+        );
+    }
+
+    #[test]
+    fn join_raw_collapses_a_single_duplicated_separator() {
+        assert_eq!(join_raw("hello ", " world"), "hello world");
+        assert_eq!(join_raw("hello", " world"), "hello world");
+        assert_eq!(join_raw("hello ", "world"), "hello world");
+        // Newlines are never collapsed away by the space rule.
+        assert_eq!(join_raw("hello ", "\nworld"), "hello \nworld");
+        assert_eq!(join_raw("line\n", "next"), "line\nnext");
+    }
+
+    #[test]
+    fn common_prefix_stops_on_char_boundaries() {
+        assert_eq!(common_prefix_len("你好世界", "你好啊"), "你好".len());
+        assert_eq!(common_prefix_len("abc", "abc"), 3);
+        assert_eq!(common_prefix_len("", "abc"), 0);
     }
 
     #[test]

@@ -16,8 +16,9 @@ pub use commands::{
 pub use lang_id::detect_output_language;
 pub use text::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion,
-    normalize_spoken_punctuation, normalize_transcription_output, remove_filler_words,
-    OutputLanguageEvidence, VoiceDeletionOutcome,
+    interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
+    remove_filler_words, remove_trailing_word_from_buffer, OutputLanguageEvidence,
+    VoiceDeletionOutcome,
 };
 pub use utils::get_cpal_host;
 pub use vad::{EarshotVad, SileroVad, VoiceActivityDetector};

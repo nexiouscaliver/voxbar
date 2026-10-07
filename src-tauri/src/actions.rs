@@ -959,9 +959,34 @@ impl ShortcutAction for DeleteLastWordAction {
             return;
         }
 
-        // The chord's letter-key resolution queries the macOS keyboard
-        // layout, which must happen on the main thread (same requirement as
-        // the paste path).
+        // Buffer-aware routing. While a dictation recording session is LIVE,
+        // the target app's text does not contain anything from this
+        // dictation yet (streaming models only paste at finalize), so
+        // injecting the delete-word chord would edit the user's own
+        // pre-existing text instead of the dictation. Route the edit into
+        // the session's accumulated raw transcript instead; the overlay
+        // refreshes through the regular interim-update event.
+        if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
+            if coordinator.is_recording_session() {
+                let tm = app.state::<Arc<TranscriptionManager>>();
+                if tm.apply_session_buffer_word_deletion() {
+                    return;
+                }
+                // A recording is live but has no stream buffer to edit (a
+                // batch/non-streaming model, or the stream has not begun).
+                // There is nothing in the buffer to delete and keystroke
+                // injection would hit the wrong text, so this is a
+                // deliberate no-op.
+                debug!(
+                    "Delete-last-word skipped: recording session active but no live buffer to edit"
+                );
+                return;
+            }
+        }
+
+        // No dictation session: the chord's letter-key resolution queries the
+        // macOS keyboard layout, which must happen on the main thread (same
+        // requirement as the paste path).
         let ah = app.clone();
         if let Err(e) = app.run_on_main_thread(move || {
             if let Err(err) = crate::paste_tx::key_send::send_edit_action(
@@ -990,6 +1015,12 @@ impl ShortcutAction for UndoAction {
             return;
         }
 
+        // Undo stays PURE keystroke injection in both cases (session active
+        // or not): it acts on the TARGET APP's edit history, which is
+        // exactly what the user wants to undo there. The dictation buffer
+        // has no undo stack of its own, and the last pasted dictation can
+        // only be removed from the target app with the target app's own
+        // undo.
         let ah = app.clone();
         if let Err(e) = app.run_on_main_thread(move || {
             if let Err(err) = crate::paste_tx::key_send::send_edit_action(

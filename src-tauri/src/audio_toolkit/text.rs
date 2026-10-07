@@ -678,7 +678,7 @@ static VOICE_DELETION_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new(concat!(
         r"(?i)\b(?:",
         "delete everything|scratch everything|start over|",
-        "scratch that|delete that|remove that|",
+        "scratch that|delete that|remove that|delete line|",
         "delete last (?:one word|word|two words|three words|four words|five words|",
         "six words|seven words|eight words|nine words|ten words|(?:[1-9]|10) words?)",
         r")\b"
@@ -736,6 +736,65 @@ fn remove_trailing_words(text: &mut String, count: usize) {
     }
 }
 
+/// Removes the trailing word from a raw session buffer, using the same word
+/// semantics as the voice-deletion pass (a word is a trailing non-whitespace
+/// run, attached punctuation included). Unlike the voice-deletion join logic,
+/// the whitespace that separated the removed word from the previous one is
+/// kept, so material streamed after the edit joins with correct spacing.
+pub fn remove_trailing_word_from_buffer(text: &str) -> String {
+    let mut buffer = text.to_string();
+    remove_trailing_words(&mut buffer, 1);
+    buffer
+}
+
+/// Display transform for interim (mid-stream) overlay text.
+///
+/// Runs exactly the first two text passes of the finalize pipeline, in the
+/// finalize order: the spoken-punctuation normalizer, then voice deletion.
+/// The transform deliberately STOPS there:
+///
+/// * no terminal-punctuation fallback: a mid-sentence buffer must not grow a
+///   period on every tick, and the fallback only makes sense on a finished
+///   sentence;
+/// * no custom-word correction, filler removal, or whitespace
+///   normalization: those passes run once at finalize over the raw
+///   transcript, and fuzzy correction on a half-spoken trailing word would
+///   mis-rewrite text the model is still revising.
+///
+/// The transform is applied to the FULL raw buffer, recomputed from scratch
+/// on every tick (never incrementally), so a spoken phrase split across
+/// stream-chunk boundaries ("full" in one chunk, "stop" in the next) still
+/// converts. Recomputation from the raw buffer also makes the transform
+/// idempotent by construction: the raw accumulator is never itself
+/// transformed, so applying the transform twice to the same raw input
+/// produces the same output (asserted in tests).
+pub fn interim_display_transform(
+    text: &str,
+    spoken_punctuation: bool,
+    voice_deletion: bool,
+) -> String {
+    let punctuated = if spoken_punctuation {
+        normalize_spoken_punctuation(text)
+    } else {
+        text.to_string()
+    };
+
+    let deleted = if voice_deletion {
+        apply_voice_deletion(&punctuated)
+    } else {
+        VoiceDeletionOutcome {
+            text: punctuated,
+            cleared: false,
+        }
+    };
+
+    if deleted.cleared {
+        String::new()
+    } else {
+        deleted.text
+    }
+}
+
 /// Appends a span of untouched text. While `pending_space` is set (a deletion
 /// just removed the preceding word), leading spaces/tabs are dropped and a
 /// single separating space is inserted, so deletions collapse doubled spaces.
@@ -767,10 +826,13 @@ fn push_deletion_span(
 /// "scratch that", "delete that" and "remove that" delete the preceding word
 /// (the command is consumed even when no word precedes it); "delete last
 /// word" through "delete last ten words", including digit forms like
-/// "delete last 3 words", delete that many preceding words; "delete
-/// everything", "scratch everything" and "start over" discard the whole
-/// transcript and set [`VoiceDeletionOutcome::cleared`]. Commands apply
-/// left to right, each seeing the result of the previous one.
+/// "delete last 3 words", delete that many preceding words; "delete line"
+/// clears the current trailing line (everything after the last newline, so
+/// with no newline the whole buffer empties and the outcome is `cleared`,
+/// matching the "delete everything" semantics); "delete everything",
+/// "scratch everything" and "start over" discard the whole transcript and
+/// set [`VoiceDeletionOutcome::cleared`]. Commands apply left to right, each
+/// seeing the result of the previous one.
 ///
 /// After a deletion the next word is capitalized when it lands at a sentence
 /// start (nothing kept yet, or the kept text ends a sentence). Text without
@@ -800,12 +862,31 @@ pub fn apply_voice_deletion(text: &str) -> VoiceDeletionOutcome {
             &mut capital_owed,
         );
 
-        let count = if phrase.starts_with("delete last") {
-            voice_deletion_word_count(&phrase)
+        if phrase == "delete line" {
+            // Clear the current trailing line: everything after the last
+            // newline. The newline itself is kept so text spoken next starts
+            // on the fresh line rather than joining the previous one. With no
+            // newline the whole buffer is the trailing line, so clearing it
+            // empties everything: report `cleared` exactly like "delete
+            // everything" (the pipeline then skips later passes and pastes
+            // nothing).
+            match kept.rfind('\n') {
+                Some(newline) => kept.truncate(newline + 1),
+                None => {
+                    return VoiceDeletionOutcome {
+                        text: String::new(),
+                        cleared: true,
+                    };
+                }
+            }
         } else {
-            1
-        };
-        remove_trailing_words(&mut kept, count);
+            let count = if phrase.starts_with("delete last") {
+                voice_deletion_word_count(&phrase)
+            } else {
+                1
+            };
+            remove_trailing_words(&mut kept, count);
+        }
         trim_trailing_spaces(&mut kept);
         pending_space = true;
         capital_owed |= opens_sentence(&kept);
@@ -1572,5 +1653,142 @@ mod tests {
             apply_voice_deletion("Done. World delete that next").text,
             "Done. Next"
         );
+    }
+
+    #[test]
+    fn test_voice_deletion_delete_line_clears_trailing_line() {
+        // Everything after the last newline goes; the newline itself stays so
+        // the next spoken word starts on the fresh line.
+        assert_eq!(
+            apply_voice_deletion("first line\nsecond part delete line").text,
+            "first line\n"
+        );
+        // Text spoken after the command remains, starting on the fresh line.
+        assert_eq!(
+            apply_voice_deletion("one\n_two\nthree delete line four").text,
+            "one\n_two\nfour"
+        );
+        assert_eq!(
+            apply_voice_deletion("one\ntwo delete line three").text,
+            "one\nthree"
+        );
+    }
+
+    #[test]
+    fn test_voice_deletion_delete_line_without_newline_clears_everything() {
+        // No newline means the whole buffer is the trailing line: clearing it
+        // empties everything, reported with the cleared flag like "delete
+        // everything" (including anything spoken after the command).
+        let result = apply_voice_deletion("just one line delete line trailing words");
+        assert_eq!(result.text, "");
+        assert!(result.cleared);
+
+        let bare = apply_voice_deletion("delete line");
+        assert_eq!(bare.text, "");
+        assert!(bare.cleared);
+    }
+
+    #[test]
+    fn test_voice_deletion_delete_line_word_boundaries() {
+        // Nothing fires inside larger words or on near-misses.
+        for text in [
+            "delete lined",
+            "deleted line",
+            "delete lines",
+            "the delete lineage here",
+        ] {
+            let result = apply_voice_deletion(text);
+            assert_eq!(result.text, text, "text: {text}");
+            assert!(!result.cleared, "text: {text}");
+        }
+    }
+
+    #[test]
+    fn test_voice_deletion_delete_line_then_more_commands_chain() {
+        // A delete-line followed by a word deletion: each command sees the
+        // result of the previous one. Here "scratch that" removes "four"
+        // (the word spoken after the line was cleared).
+        assert_eq!(
+            apply_voice_deletion("one\ntwo three delete line four scratch that five").text,
+            "one\nfive"
+        );
+    }
+
+    #[test]
+    fn test_remove_trailing_word_from_buffer_matches_voice_deletion_word_semantics() {
+        // A word is a trailing non-whitespace run; attached punctuation goes
+        // with it; the separating whitespace is kept for the join.
+        assert_eq!(remove_trailing_word_from_buffer("hello world"), "hello ");
+        assert_eq!(remove_trailing_word_from_buffer("done."), "");
+        // CJK without spaces is one contiguous non-whitespace run, so the
+        // whole run counts as the trailing word.
+        assert_eq!(remove_trailing_word_from_buffer("你好 世界"), "你好 ");
+        assert_eq!(remove_trailing_word_from_buffer(""), "");
+    }
+
+    #[test]
+    fn test_interim_display_transform_runs_both_enabled_passes() {
+        // Spoken punctuation converts and voice deletion removes, in finalize
+        // order.
+        assert_eq!(
+            interim_display_transform("hello comma world", true, true),
+            "hello, world"
+        );
+        assert_eq!(
+            interim_display_transform("hello world scratch that there", true, true),
+            "hello there"
+        );
+    }
+
+    #[test]
+    fn test_interim_display_transform_respects_toggles() {
+        assert_eq!(
+            interim_display_transform("hello comma world", false, true),
+            "hello comma world"
+        );
+        assert_eq!(
+            interim_display_transform("hello world scratch that there", true, false),
+            "hello world scratch that there"
+        );
+    }
+
+    #[test]
+    fn test_interim_display_transform_grows_no_terminal_punctuation() {
+        // The deliberate stop: a mid-sentence buffer must not gain a period
+        // (or question mark) on any tick.
+        assert_eq!(
+            interim_display_transform("hello world", true, true),
+            "hello world"
+        );
+        assert_eq!(
+            interim_display_transform("what is this", true, true),
+            "what is this"
+        );
+    }
+
+    #[test]
+    fn test_interim_display_transform_clear_outcome_empties_display() {
+        assert_eq!(
+            interim_display_transform("hello delete everything spoken after", true, true),
+            ""
+        );
+    }
+
+    #[test]
+    fn test_interim_display_transform_is_idempotent() {
+        // The transform is recomputed from the raw buffer every tick, never
+        // applied to its own output; still, double application must be a
+        // fixed point so a recompute can never compound.
+        for raw in [
+            "hello comma world full stop next period",
+            "one scratch that two delete last two words three",
+            "first line new line second line delete line tail",
+            "plain text with no commands at all",
+            "twenty dash five",
+        ] {
+            let once = interim_display_transform(raw, true, true);
+            let twice = interim_display_transform(&once, true, true);
+            assert_eq!(once, twice, "raw: {raw}");
+        }
     }
 }
