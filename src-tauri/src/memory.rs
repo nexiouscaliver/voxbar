@@ -508,4 +508,131 @@ mod tests {
             footprint_bytes,
         }
     }
+
+    // --- Probe calibration harness (informational) ---------------------------
+
+    /// Read a vm page-count sysctl by name (macOS), returning pages.
+    #[cfg(target_os = "macos")]
+    fn sysctl_page_count(name: &std::ffi::CStr) -> Option<u64> {
+        let mut value: libc::c_uint = 0;
+        let mut len = std::mem::size_of::<libc::c_uint>() as libc::size_t;
+        // SAFETY: sysctlbyname writing into a correctly sized buffer.
+        let rc = unsafe {
+            libc::sysctlbyname(
+                name.as_ptr(),
+                &mut value as *mut _ as *mut libc::c_void,
+                &mut len as *mut libc::size_t,
+                std::ptr::null_mut(),
+                0,
+            )
+        };
+        (rc == 0).then_some(value as u64)
+    }
+
+    /// INFORMATIONAL MEASUREMENT HARNESS — not a pass/fail test.
+    ///
+    /// On this app's target machine `os_proc_available_memory()` returns 0, so
+    /// every live memory decision uses the `host_statistics64` fallback
+    /// (free + inactive + purgeable + speculative), whose absolute accuracy
+    /// was never measured. Run it explicitly on the live box with:
+    ///
+    /// ```text
+    /// cargo test --lib -- memory::tests::probe_calibration_snapshot --ignored --nocapture
+    /// ```
+    ///
+    /// It prints (a) the probe's current free-RAM value, (b) a ground-truth
+    /// estimate computed independently from sysctl
+    /// (vm.page_free_count + vm.page_speculative_count +
+    /// vm.page_purgeable_count) x page size, and (c) the delta and ratio
+    /// between the two. There are deliberately NO assertions: the values move
+    /// with system load, so anything asserted here would flake on CI. Read
+    /// the printed ratio to judge whether the fallback's optimism (counting
+    /// inactive pages) stays within what the gate's headroom absorbs.
+    ///
+    /// Compiles on every platform; only macOS computes the sysctl ground
+    /// truth, others print the probe alone.
+    #[test]
+    #[ignore = "informational measurement harness; run with --ignored --nocapture"]
+    fn probe_calibration_snapshot() {
+        const MIB: f64 = 1024.0 * 1024.0;
+        let mib = |bytes: u64| format!("{:.1} MiB", bytes as f64 / MIB);
+
+        let probe = available_memory_bytes();
+        match probe {
+            Some(bytes) => println!("probe available_memory_bytes(): {bytes} ({})", mib(bytes)),
+            None => println!("probe available_memory_bytes(): None (probe unavailable)"),
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            // The raw kernel call and the fallback it degrades to, so the
+            // snapshot shows which branch of the probe is live here.
+            let raw = unsafe { os_proc_available_memory() };
+            println!(
+                "os_proc_available_memory(): {raw}{}",
+                if raw == 0 {
+                    " (zero -> fallback is live)"
+                } else {
+                    ""
+                }
+            );
+            match host_statistics_available() {
+                Some(bytes) => println!(
+                    "host_statistics64 fallback: {bytes} ({}) [free+inactive+purgeable+speculative]",
+                    mib(bytes)
+                ),
+                None => println!("host_statistics64 fallback: None"),
+            }
+
+            // Ground truth, computed independently via sysctl.
+            let page = sysctl_page_count(c"hw.pagesize")
+                .or_else(|| {
+                    // hw.pagesize is normally available; fall back to sysconf.
+                    let size = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
+                    (size > 0).then_some(size as u64)
+                })
+                .expect("page size unavailable");
+            let free = sysctl_page_count(c"vm.page_free_count");
+            let speculative = sysctl_page_count(c"vm.page_speculative_count");
+            let purgeable = sysctl_page_count(c"vm.page_purgeable_count");
+            println!(
+                "sysctl pages (page size {page}): free={free:?} speculative={speculative:?} purgeable={purgeable:?}"
+            );
+
+            if let (Some(free), Some(speculative)) = (free, speculative) {
+                // vm.page_purgeable_count is not exposed as a sysctl on every
+                // macOS version (absent on macOS 26, measured); count it as
+                // zero and say so rather than skipping the measurement.
+                let purgeable_pages = purgeable.unwrap_or(0);
+                if purgeable.is_none() {
+                    println!("note: vm.page_purgeable_count sysctl unavailable; treated as 0");
+                }
+                let ground = (free + speculative + purgeable_pages).saturating_mul(page);
+                println!(
+                    "ground truth (free+speculative+purgeable x page): {ground} ({})",
+                    mib(ground)
+                );
+                if let Some(probe_bytes) = probe {
+                    if ground > 0 {
+                        let delta_bytes = probe_bytes as i64 - ground as i64;
+                        let ratio = probe_bytes as f64 / ground as f64;
+                        println!(
+                            "delta (probe - ground truth): {delta_bytes} bytes ({:+.1} MiB)",
+                            delta_bytes as f64 / MIB
+                        );
+                        println!("ratio (probe / ground truth): {ratio:.3}");
+                    } else {
+                        println!("ground truth is zero; ratio undefined");
+                    }
+                }
+            } else {
+                println!("sysctl vm.page_* counters unavailable; no ground truth computed");
+            }
+        }
+
+        #[cfg(not(target_os = "macos"))]
+        {
+            println!("no independent sysctl ground truth on this platform; probe-only snapshot");
+        }
+    }
 }
