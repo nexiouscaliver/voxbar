@@ -54,18 +54,25 @@ jobs:
           cache: true
 
       # The pinned SDK ships Vulkan headers but not the SPIRV-Headers CMake
-      # package config that ggml-vulkan's find_package requires (run 2
-      # evidence: "Could not find a package configuration file provided by
-      # SPIRV-Headers"). Build and install Khronos/SPIRV-Headers into a
-      # prefix, then point the transcribe-cpp-sys cmake build at it.
+      # package config that ggml-vulkan's find_package requires. Build and
+      # install KhronosGroup/SPIRV-Headers into a prefix, then point the
+      # transcribe-cpp-sys cmake build at it. Note the org is KhronosGroup
+      # (a wrong org makes github prompt for auth instead of erroring).
+      - name: Checkout SPIRV-Headers (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/checkout@v5
+        with:
+          repository: KhronosGroup/SPIRV-Headers
+          ref: vulkan-sdk-1.4.341.0
+          path: spirv-headers-src
+
       - name: Install SPIRV-Headers (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          git clone --depth 1 --branch sdk-1.3.290.0 https://github.com/Khronos/SPIRV-Headers.git $env:RUNNER_TEMP\spirv-headers
-          cmake -S $env:RUNNER_TEMP\spirv-headers -B $env:RUNNER_TEMP\spirv-headers\build -DCMAKE_INSTALL_PREFIX=$env:RUNNER_TEMP\spirv-install
-          cmake --build $env:RUNNER_TEMP\spirv-headers\build --config Release
-          cmake --install $env:RUNNER_TEMP\spirv-headers\build --config Release
+          cmake -S spirv-headers-src -B spirv-headers-build -DCMAKE_INSTALL_PREFIX=$env:RUNNER_TEMP\spirv-install
+          cmake --build spirv-headers-build --config Release
+          cmake --install spirv-headers-build --config Release
           "TRANSCRIBE_CMAKE_ARGS=-DCMAKE_PREFIX_PATH=$env:RUNNER_TEMP\spirv-install" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Install Rust toolchain
