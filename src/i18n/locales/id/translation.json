@@ -481,6 +481,21 @@
         "title": "Interpretasi Otomatis Perintah",
         "description": "Mengartikan kata perintah yang diucapkan (\"comma\", \"scratch that\") selama dikte normal. Matikan untuk mengetik kata perintah sebagai kata biasa; tahan modifier mode perintah untuk menjalankan perintah."
       },
+      "commandMatrix": {
+        "title": "Matriks Perintah",
+        "description": "Satu tabel frasa yang dapat diedit menggerakkan semua permukaan perintah yang diucapkan: mode perintah, tanda baca lisan, dan penghapusan suara. Tambahkan atau hapus frasa setiap perintah; frasa yang sama bekerja di semua tempat.",
+        "groups": {
+          "symbols": "Simbol dan tanda baca",
+          "editing": "Penyuntingan",
+          "control": "Kontrol"
+        },
+        "addPhrase": "Tambah",
+        "removePhrase": "Hapus {{phrase}}",
+        "reset": "Reset ke bawaan",
+        "duplicateError": "Frasa \"{{phrase}}\" sudah dipakai oleh perintah lain",
+        "tooLongError": "Frasa dibatasi hingga 60 karakter",
+        "placeholder": "Tambahkan frasa"
+      },
       "spokenPunctuation": {
         "title": "Tanda baca lisan",
         "description": "Mengubah kata tanda baca yang diucapkan seperti \"comma\", \"period\", dan \"question mark\" menjadi tanda baca sungguhan. Matikan untuk membiarkannya sebagai kata biasa."

@@ -481,6 +481,21 @@
         "title": "Tolka kommandon automatiskt",
         "description": "Tolkar talade kommandon (\"comma\", \"scratch that\") under normal diktering. Stäng av för att skriva kommandon som vanliga ord; håll kommandolägesmodifieraren intryckt för att utföra kommandon."
       },
+      "commandMatrix": {
+        "title": "Kommandomatris",
+        "description": "En redigerbar frastabell driver alla talade kommandoytor: kommandoläget, talad interpunktion och röststyrd borttagning. Lägg till eller ta bort varje kommandos fraser; samma fraser fungerar överallt.",
+        "groups": {
+          "symbols": "Symboler och interpunktion",
+          "editing": "Redigering",
+          "control": "Styrning"
+        },
+        "addPhrase": "Lägg till",
+        "removePhrase": "Ta bort {{phrase}}",
+        "reset": "Återställ till standard",
+        "duplicateError": "Frasen \"{{phrase}}\" används redan av ett kommando",
+        "tooLongError": "Fraser är begränsade till 60 tecken",
+        "placeholder": "Lägg till en fras"
+      },
       "spokenPunctuation": {
         "title": "Talad interpunktion",
         "description": "Omvanlar talade interpunktionsord som \"comma\", \"period\" och \"question mark\" till riktig interpunktion. Stäng av för att behålla dem som vanliga ord."

@@ -481,6 +481,21 @@
         "title": "Interpreta ordres automàticament",
         "description": "Interpreta les paraules d'ordre dites (\"comma\", \"scratch that\") durant el dictat normal. Desactiveu-ho per escriure-les com a paraules normals; manteniu premut el modificador del mode d'ordres per executar ordres."
       },
+      "commandMatrix": {
+        "title": "Matriu d'ordres",
+        "description": "Una taula editable de frases alimenta totes les superfícies d'ordres parlades: el mode d'ordres, la puntuació parlada i la supressió per veu. Afegiu o suprimiu les frases de cada ordre; les mateixes frases funcionen a tot arreu.",
+        "groups": {
+          "symbols": "Símbols i puntuació",
+          "editing": "Edició",
+          "control": "Control"
+        },
+        "addPhrase": "Afegeix",
+        "removePhrase": "Elimina {{phrase}}",
+        "reset": "Restableix els valors predeterminats",
+        "duplicateError": "La frase \"{{phrase}}\" ja existeix en una ordre",
+        "tooLongError": "Les frases estan limitades a 60 caràcters",
+        "placeholder": "Afegeix una frase"
+      },
       "spokenPunctuation": {
         "title": "Puntuació parlada",
         "description": "Converteix paraules de puntuació dites com \"comma\", \"period\" i \"question mark\" en puntuació real. Desactiveu-ho per mantenir-les com a paraules normals."

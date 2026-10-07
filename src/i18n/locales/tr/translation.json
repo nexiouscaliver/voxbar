@@ -481,6 +481,21 @@
         "title": "Komutları otomatik yorumla",
         "description": "Normal dikte sırasında söylenen komut kelimelerini (\"comma\", \"scratch that\") yorumlar. Kapatınca komut kelimeleri normal kelime olarak yazılır; komutları uygulamak için komut modu değiştirici tuşunu basılı tutun."
       },
+      "commandMatrix": {
+        "title": "Komut Matrisi",
+        "description": "Tek bir düzenlenebilir ifade tablosu, konuşulan komutların tüm yüzeylerini besler: komut modu, konuşulan noktalama ve sesle silme. Her komutun ifadelerini ekleyin veya kaldırın; aynı ifadeler her yerde çalışır.",
+        "groups": {
+          "symbols": "Semboller ve noktalama",
+          "editing": "Düzenleme",
+          "control": "Denetim"
+        },
+        "addPhrase": "Ekle",
+        "removePhrase": "{{phrase}} ifadesini kaldır",
+        "reset": "Varsayılana sıfırla",
+        "duplicateError": "\"{{phrase}}\" ifadesi zaten bir komutta kullanılıyor",
+        "tooLongError": "İfadeler 60 karakterle sınırlıdır",
+        "placeholder": "İfade ekle"
+      },
       "spokenPunctuation": {
         "title": "Sözlü noktalama",
         "description": "\"comma\", \"period\" ve \"question mark\" gibi söylenen noktalama kelimelerini gerçek noktalamaya dönüştürür. Sıradan kelime olarak bırakmak için kapatın."

@@ -481,6 +481,21 @@
         "title": "コマンドの自動解釈",
         "description": "通常のディクテーション中に話されたコマンド語（\"comma\"、\"scratch that\" など）を解釈します。オフにするとコマンド語は通常の単語として入力されます。コマンドを実行するにはコマンドモードの修飾キーを押し続けてください。"
       },
+      "commandMatrix": {
+        "title": "コマンドマトリクス",
+        "description": "編集可能なひとつのフレーズ表が、話されるコマンドのすべての面（コマンドモード、話された句読点、音声削除）を支えます。各コマンドのフレーズを追加・削除できます。同じフレーズがどこでも機能します。",
+        "groups": {
+          "symbols": "記号と句読点",
+          "editing": "編集",
+          "control": "制御"
+        },
+        "addPhrase": "追加",
+        "removePhrase": "{{phrase}} を削除",
+        "reset": "デフォルトに戻す",
+        "duplicateError": "フレーズ \"{{phrase}}\" は既に別のコマンドで使われています",
+        "tooLongError": "フレーズは60文字までです",
+        "placeholder": "フレーズを追加"
+      },
       "spokenPunctuation": {
         "title": "音声読点",
         "description": "\"comma\"、\"period\"、\"question mark\" など、読み上げた句読点語を実際の句読点に変換します。オフにすると通常の単語のまま残します。"
