@@ -1,4 +1,4 @@
-# NixOS module for Handy speech-to-text
+# NixOS module for VoxBar speech-to-text
 #
 # Handles system-level configuration that the package wrapper cannot:
 #   - udev rule for /dev/uinput (rdev grab() needs it for virtual input)
@@ -12,7 +12,7 @@
 #   nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
 #     modules = [
 #       handy.nixosModules.default
-#       { programs.handy.enable = true; }
+#       { programs.voxbar.enable = true; }
 #     ];
 #   };
 {
@@ -22,16 +22,16 @@
   ...
 }:
 let
-  cfg = config.programs.handy;
+  cfg = config.programs.voxbar;
 in
 {
-  options.programs.handy = {
-    enable = lib.mkEnableOption "Handy offline speech-to-text";
+  options.programs.voxbar = {
+    enable = lib.mkEnableOption "VoxBar offline speech-to-text";
 
     package = lib.mkOption {
       type = lib.types.package;
-      defaultText = lib.literalExpression "handy.packages.\${system}.handy";
-      description = "The Handy package to use.";
+      defaultText = lib.literalExpression "voxbar.packages.\${system}.voxbar";
+      description = "The VoxBar package to use.";
     };
   };
 

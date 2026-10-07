@@ -31,7 +31,7 @@ pub fn init() {
             // empty/invalid marker alongside an existing Data/ dir, this is a
             // real portable install — upgrade the marker in place.
             eprintln!("[portable] upgrading legacy empty marker to magic string");
-            let _ = std::fs::write(&marker_path, "Handy Portable Mode");
+            let _ = std::fs::write(&marker_path, "VoxBar Portable Mode");
             true
         } else {
             false
@@ -115,10 +115,16 @@ pub fn store_path(relative: &str) -> PathBuf {
 }
 
 /// Check if a marker file path contains the portable magic string.
+/// Accepts both the current "VoxBar Portable Mode" marker and the legacy
+/// "Handy Portable Mode" marker written by pre-rebrand releases, so an
+/// existing portable install keeps detecting as portable after the update.
 /// Extracted for testability.
 fn is_valid_portable_marker(path: &std::path::Path) -> bool {
     std::fs::read_to_string(path)
-        .map(|s| s.trim().starts_with("Handy Portable Mode"))
+        .map(|s| {
+            let t = s.trim();
+            t.starts_with("Handy Portable Mode") || t.starts_with("VoxBar Portable Mode")
+        })
         .unwrap_or(false)
 }
 
@@ -135,6 +141,40 @@ mod tests {
         let mut f = std::fs::File::create(&marker).unwrap();
         write!(f, "Handy Portable Mode").unwrap();
         assert!(is_valid_portable_marker(&marker));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn test_valid_voxbar_magic_string_enables_portable() {
+        let dir = std::env::temp_dir().join("voxbar_test_valid");
+        std::fs::create_dir_all(&dir).unwrap();
+        let marker = dir.join("portable");
+        let mut f = std::fs::File::create(&marker).unwrap();
+        write!(f, "VoxBar Portable Mode").unwrap();
+        assert!(is_valid_portable_marker(&marker));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn test_voxbar_magic_string_with_whitespace_enables_portable() {
+        let dir = std::env::temp_dir().join("voxbar_test_ws");
+        std::fs::create_dir_all(&dir).unwrap();
+        let marker = dir.join("portable");
+        let mut f = std::fs::File::create(&marker).unwrap();
+        write!(f, "  VoxBar Portable Mode\n").unwrap();
+        assert!(is_valid_portable_marker(&marker));
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn test_near_miss_magic_string_does_not_enable_portable() {
+        // Neither marker may be spoofed by a prefix-adjacent string.
+        let dir = std::env::temp_dir().join("voxbar_test_near_miss");
+        std::fs::create_dir_all(&dir).unwrap();
+        let marker = dir.join("portable");
+        let mut f = std::fs::File::create(&marker).unwrap();
+        write!(f, "VoxBar Portable-Mode").unwrap();
+        assert!(!is_valid_portable_marker(&marker));
         std::fs::remove_dir_all(dir).unwrap();
     }
 
@@ -186,7 +226,6 @@ mod tests {
         assert!(is_valid_portable_marker(&marker));
         std::fs::remove_dir_all(dir).unwrap();
     }
-
     #[test]
     fn test_hugging_face_home_is_inside_portable_data() {
         let data_dir = Path::new("portable-root").join("Data");
