@@ -380,6 +380,47 @@ pub fn rss_bytes_for_pid(pid: u32) -> Option<u64> {
     }
 }
 
+/// The resident-memory figure to DISPLAY for the model worker process (the
+/// tray submenu RAM segment and the macOS menu-bar title): the number that
+/// should track what Activity Monitor (macOS) or Task Manager shows for that
+/// worker. Distinct from [`rss_bytes_for_pid`], which stays the conservative
+/// RSS credit the load gate uses.
+///
+/// - macOS: `ri_phys_footprint` from the same `proc_pid_rusage`
+///   `RUSAGE_INFO_V4` probe (newer SDK headers spell the field `ri_footprint`
+///   - it is the kernel's `phys_footprint`). This is what Activity Monitor's
+///   Memory column shows: the pages the process is actually accountable for
+///   (dirty + compressed), and it can be markedly lower than
+///   `ri_resident_size`, which also counts clean file-backed pages such as
+///   the mmap'ed model weights the kernel can evict at will. Runtime
+///   overhead (runtime + compute buffers) IS included - that memory is
+///   really resident, so the tray shows the whole worker, not just the
+///   weights file. Falls back to the RSS probe when the read fails.
+/// - Linux / Windows: [`rss_bytes_for_pid`] (statm resident pages /
+///   WorkingSetSize) is already the figure the system process monitor
+///   shows.
+pub fn display_footprint_bytes_for_pid(pid: u32) -> Option<u64> {
+    #[cfg(target_os = "macos")]
+    {
+        use libc::{proc_pid_rusage, rusage_info_v4, RUSAGE_INFO_V4};
+        let mut info: rusage_info_v4 = unsafe { std::mem::zeroed() };
+        // SAFETY: pid from our own spawned child; buffer is a correctly
+        // typed rusage_info_v4 for the RUSAGE_INFO_V4 flavor.
+        let rc = unsafe {
+            proc_pid_rusage(
+                pid as libc::c_int,
+                RUSAGE_INFO_V4,
+                &mut info as *mut _ as *mut libc::rusage_info_t,
+            )
+        };
+        if rc == 0 && info.ri_phys_footprint > 0 {
+            return Some(info.ri_phys_footprint);
+        }
+        // Probe failed or reported nothing: fall through to the RSS probe.
+    }
+    rss_bytes_for_pid(pid)
+}
+
 /// The pure refusal decision for the memory-pressure gate.
 ///
 /// `free` is the (already resident-credited) bytes available; `forecast` the

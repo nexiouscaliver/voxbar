@@ -223,6 +223,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(transcription_manager.clone());
     app_handle.manage(history_manager.clone());
     app_handle.manage(tray::TrayState::new());
+    app_handle.manage(tray::TrayRamRefresh::new());
 
     // Note: Shortcuts are NOT initialized here.
     // The frontend is responsible for calling the `initialize_shortcuts` command
@@ -400,6 +401,11 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     let app_handle_for_listener = app_handle.clone();
     app_handle.listen("model-state-changed", move |_| {
         tray::update_tray_menu(&app_handle_for_listener);
+        // Keep the periodic RAM refresher in step with residency: running
+        // while (and only while) a model is loaded, so the tray RAM segment
+        // and menu-bar title track the live worker footprint. No-op when the
+        // task is already in the right state.
+        tray::reconcile_ram_refresh(&app_handle_for_listener);
     });
 
     // Apply the autostart preference (SMAppService login item on macOS 13+,
@@ -1173,6 +1179,12 @@ pub fn run(cli_args: CliArgs) {
                 tray::recreate_tray_icon(app);
             }
             show_main_window(app);
+        }
+        // Stop the resident-model RAM refresher with the event loop; the
+        // async runtime would otherwise keep it (and its footprint probes)
+        // alive past the UI it exists to update.
+        tauri::RunEvent::Exit => {
+            tray::stop_ram_refresh(app);
         }
         // No transcription teardown on exit: transcribe.cpp runs only in the
         // worker process, which exits by itself as soon as this process's end

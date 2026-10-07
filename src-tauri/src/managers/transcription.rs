@@ -698,12 +698,18 @@ impl TranscriptionManager {
 
     /// Resident model's footprint for the tray status line (spec F4):
     /// `Some((bytes, measured))` when a model is resident - `measured` is
-    /// `true` only for the transcribe-cpp worker's RSS; `false` marks the
-    /// size-derived estimate (in-process ONNX engines, or the worker's RSS
-    /// could not be read). `None` when nothing is resident or no estimate
+    /// `true` only when a live reading was taken from the transcribe-cpp
+    /// worker process (Activity-Monitor-equivalent physical footprint on
+    /// macOS, RSS elsewhere); `false` marks the size-derived estimate
+    /// (in-process ONNX engines, or the worker's footprint could not be
+    /// read). The measured figure includes the worker's runtime overhead
+    /// (runtime + compute buffers), because that memory is really resident -
+    /// it is what the system process monitor shows for the worker, not just
+    /// the weights file. `None` when nothing is resident or no estimate
     /// resolves - callers omit the segment. Distinct from the gate's
     /// [`Self::resident_model_footprint_bytes`] above, which credits
-    /// TranscribeCpp by measured RSS only (conservative for load decisions).
+    /// TranscribeCpp by conservative measured RSS only (load decisions must
+    /// not assume clean pages were freed).
     pub fn resident_model_footprint(&self) -> Option<(u64, bool)> {
         let estimate = || {
             self.get_current_model()
@@ -711,10 +717,14 @@ impl TranscriptionManager {
                 .map(|info| info.size_mb.saturating_mul(1024 * 1024))
         };
         if self.engine.loaded().is_some() {
-            if let Some(rss) = self.engine.worker_pid().and_then(memory::rss_bytes_for_pid) {
-                return Some((rss, true));
+            if let Some(footprint) = self
+                .engine
+                .worker_pid()
+                .and_then(memory::display_footprint_bytes_for_pid)
+            {
+                return Some((footprint, true));
             }
-            // RSS read failed → fall back to the ~-estimate (spec F4).
+            // Footprint read failed → fall back to the ~-estimate (spec F4).
             return estimate().map(|e| (e, false));
         }
         if self.lock_onnx().is_some() {
