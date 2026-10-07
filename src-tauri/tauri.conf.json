@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "VoxBar",
-  "version": "0.9.8",
+  "version": "1.0.0",
   "identifier": "com.voxbar.app",
   "build": {
     "beforeDevCommand": "bun run dev",
@@ -25,7 +25,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["app"],
     "resources": ["resources/**/*"],
     "license": "MIT",
     "publisher": "Shahil Kadia",
