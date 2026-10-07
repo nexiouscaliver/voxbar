@@ -37,8 +37,11 @@ for my own daily use on macOS.
 1. Download the release zip for macOS from the
    [releases page](https://github.com/nexiouscaliver/voxbar/releases).
 2. Unzip it and drag VoxBar.app to Applications.
-3. The app is not signed with a developer certificate. The first launch needs
-   a right-click, then "Open", then confirm in the dialog that appears.
+3. The app is not signed with a developer certificate, so Gatekeeper blocks
+   the first launch with an "Apple could not verify" warning. To open it:
+   System Settings, Privacy and Security, scroll to the bottom, click
+   "Open Anyway" and confirm. Terminal alternative:
+   `xattr -dr com.apple.quarantine /Applications/VoxBar.app`
 4. Grant Accessibility and Microphone access when prompted.
 
 One macOS quirk worth knowing: after a rebuild or an app update, macOS may
