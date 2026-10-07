@@ -83,7 +83,12 @@ transcribe-rs = { version = "0.3.8", features = ["onnx"] }
 transcribe-cpp = { version = "0.3.1", default-features = false, features = [
   "serde",
 ] }
-handy-keys = "0.3.4"
+# Vendored fork of upstream 0.3.4 (the newest release): adds the macOS
+# device-dependent right-modifier keycodes (0x6A/0x6B/0x7C), filters
+# host-synthesized events via the enigo EventSourceUserData marker, and an
+# opt-in hold-to-activate window for single-modifier hotkeys. See
+# vendor/handy-keys/Cargo.toml for the full delta and the upstream plan.
+handy-keys = { path = "vendor/handy-keys" }
 ferrous-opencc = "0.2.3"
 clap = { version = "4", features = ["derive"] }
 specta = "=2.0.0-rc.22"

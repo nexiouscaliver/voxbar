@@ -1135,7 +1135,7 @@ pub fn get_default_settings() -> AppSettings {
             id: "delete_last_word".to_string(),
             name: "Delete Last Word".to_string(),
             description:
-                "Deletes the word before the caret in the focused app. Unbound by default."
+                "Removes the last word from the live dictation transcript while a recording session is active; does nothing otherwise. Unbound by default."
                     .to_string(),
             default_binding: String::new(),
             current_binding: String::new(),

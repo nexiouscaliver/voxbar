@@ -174,7 +174,18 @@ pub struct EnigoState(pub Mutex<Enigo>);
 
 impl EnigoState {
     pub fn new() -> Result<Self, String> {
-        let enigo = Enigo::new(&Settings::default())
+        // Stamp every synthesized event (paste chords, editing chords,
+        // auto-submit keys) with the handy-keys marker so the macOS event
+        // tap can recognize them as our own and never treat them as user
+        // input. Without this, the app's own Cmd+V paste re-entered the
+        // tap, fired any modifier-only command binding mid-processing,
+        // and re-armed the transcription lifecycle (the toggle
+        // auto-restart). The field is enigo's supported escape hatch for
+        // exactly this (enigo::EVENT_MARKER is its generic default; we
+        // use a VoxBar-specific value so only our events are filtered).
+        let mut settings = Settings::default();
+        settings.event_source_user_data = Some(handy_keys::SYNTHESIZED_EVENT_MARKER);
+        let enigo = Enigo::new(&settings)
             .map_err(|e| format!("Failed to initialize Enigo: {}", e))?;
         Ok(Self(Mutex::new(enigo)))
     }
