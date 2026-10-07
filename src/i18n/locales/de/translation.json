@@ -238,7 +238,7 @@
           },
           "undo": {
             "name": "Rückgängig",
-            "description": "Löst Rückgängig in der fokussierten App aus (Cmd+Z unter macOS, Strg+Z anderswo) und macht damit die zuletzt eingefügte Diktierung in einem Schritt rückgängig. Zum Aktivieren eine Taste zuweisen."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Befehlsmodus",

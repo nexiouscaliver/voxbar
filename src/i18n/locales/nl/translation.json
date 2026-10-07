@@ -190,7 +190,7 @@
           },
           "undo": {
             "name": "Ongedaan maken",
-            "description": "Activeert Ongedaan maken in de actieve app (Cmd+Z op macOS, Ctrl+Z elders) en herstelt zo de laatst geplakte dictering in één keer. Wijs een toets toe om in te schakelen."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Commandomodus",

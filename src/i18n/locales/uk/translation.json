@@ -190,7 +190,7 @@
           },
           "undo": {
             "name": "Скасувати",
-            "description": "Викликає скасування в активній програмі (Cmd+Z на macOS, Ctrl+Z в інших системах), скасовуючи останній вставлений диктований текст одним натисканням. Призначте клавішу, щоб увімкнути."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Режим команд",

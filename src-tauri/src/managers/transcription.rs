@@ -425,6 +425,28 @@ impl StreamSessionBuffer {
         ))
     }
 
+    /// Clear everything dictated so far, keeping the session live: the
+    /// buffer empties and everything the engine has already reported is
+    /// consumed via `raw_seen`, so only speech after this point reaches
+    /// the final text. Key-based start-over (the Undo binding's in-session
+    /// semantics); mirrors the voice "start over" everything-command.
+    fn clear_all(&mut self) -> Option<String> {
+        if !self.live {
+            return None;
+        }
+        self.base = String::new();
+        self.raw_seen = self.last_full.clone();
+        let raw = self.combine(&self.last_full);
+        let (converted, _) = self
+            .preview_script
+            .convert(&raw, "", &self.supported_languages);
+        Some(interim_display_transform(
+            &converted,
+            self.spoken_punctuation,
+            self.voice_deletion,
+        ))
+    }
+
     /// Fold the engine's final raw text into the buffer and end the session.
     /// With no manual edits this is exactly the engine text unchanged.
     fn combine_final(&mut self, final_raw: String) -> String {
@@ -1692,6 +1714,28 @@ impl TranscriptionManager {
             .lock()
             .unwrap_or_else(|e| e.into_inner());
         match session.delete_last_word() {
+            Some(display) => {
+                let _ = StreamTextEvent {
+                    committed: display,
+                    tentative: String::new(),
+                }
+                .emit(&self.app_handle);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Apply the Undo binding to the live session buffer: clears everything
+    /// dictated so far (a key-based start-over). Returns `true` when a live
+    /// buffer was cleared and the overlay refreshed; `false` when there is
+    /// no live buffer (same contract as the word-deletion path).
+    pub fn clear_session_buffer(&self) -> bool {
+        let mut session = self
+            .session_buffer
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+        match session.clear_all() {
             Some(display) => {
                 let _ = StreamTextEvent {
                     committed: display,

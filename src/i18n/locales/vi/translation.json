@@ -238,7 +238,7 @@
           },
           "undo": {
             "name": "Hoàn tác",
-            "description": "Kích hoạt Hoàn tác trong ứng dụng đang tập trung (Cmd+Z trên macOS, Ctrl+Z trên nền tảng khác), hoàn tác lần đọc chính được dán gần nhất chỉ trong một thao tác. Gán phím để bật."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Chế độ lệnh",

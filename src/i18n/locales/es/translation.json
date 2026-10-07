@@ -238,7 +238,7 @@
           },
           "undo": {
             "name": "Deshacer",
-            "description": "Ejecuta deshacer en la aplicación enfocada (Cmd+Z en macOS, Ctrl+Z en otras), revirtiendo el último dictado pegado de una sola vez. Asigna una tecla para activarlo."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Modo de comandos",

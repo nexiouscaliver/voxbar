@@ -190,7 +190,7 @@
           },
           "undo": {
             "name": "ביטול פעולה",
-            "description": "מפעיל ביטול פעולה באפליקציה הממוקדת (Cmd+Z ב-macOS, Ctrl+Z במקומות אחרים) ומבטל את ההקלטה המודבקת האחרונה בלחיצה אחת. הקצה מקש כדי להפעיל."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "מצב פקודות",

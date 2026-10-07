@@ -836,17 +836,6 @@ impl ShortcutAction for TranscribeAction {
 
                                     match utils::paste(final_text, ah_clone.clone()) {
                                         Ok(()) => {
-                                            // The dictation landed in the target app:
-                                            // this is the single point where the
-                                            // paste completes, and it arms the
-                                            // Undo action's post-paste grace (the
-                                            // operator's review moment to kill a
-                                            // just-pasted dictation).
-                                            if let Some(c) =
-                                                ah_clone.try_state::<TranscriptionCoordinator>()
-                                            {
-                                                c.note_paste_completed();
-                                            }
                                             debug!(
                                                 "Text pasted successfully in {:?}",
                                                 paste_time.elapsed()
@@ -981,38 +970,25 @@ impl ShortcutAction for UndoAction {
             return;
         }
 
-        // Undo is a dictation-flow key: it only fires while a recording
-        // session is live (undo a PREVIOUS paste mid-dictation) or within
-        // the post-paste grace (kill a just-pasted dictation during the
-        // review moment). Outside that window it is a debug-logged no-op -
-        // it must never fire as a general-purpose undo for whatever app
-        // happens to be focused.
+        // Operator rule: the ONLY always-on binding is the transcribe
+        // trigger. Undo is a dictation-flow key: it may fire while a
+        // recording session is LIVE, never after it ends. In a live
+        // session it clears the accumulated dictation buffer (a key-based
+        // start-over). There is intentionally no post-paste undo.
         let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() else {
             debug!("Undo pressed with no coordinator; ignoring");
             return;
         };
         if !coordinator.is_undo_active() {
-            debug!(
-                "Undo pressed outside a live session and the post-paste grace; ignoring"
-            );
+            debug!("Undo pressed with no live dictation session; ignoring");
             return;
         }
 
-        // When active it stays PURE keystroke injection: it acts on the
-        // TARGET APP's edit history, which is exactly what the user wants
-        // to undo there. The dictation buffer has no undo stack of its
-        // own, and the last pasted dictation can only be removed from the
-        // target app with the target app's own undo.
-        let ah = app.clone();
-        if let Err(e) = app.run_on_main_thread(move || {
-            if let Err(err) = crate::paste_tx::key_send::send_edit_action(
-                &ah,
-                crate::paste_tx::key_send::EditAction::Undo,
-            ) {
-                error!("Failed to send undo chord: {}", err);
-            }
-        }) {
-            error!("Failed to run undo on main thread: {:?}", e);
+        let tm = app.state::<Arc<TranscriptionManager>>();
+        if !tm.clear_session_buffer() {
+            // A recording is live but has no stream buffer to clear (a
+            // batch/non-streaming model, or the stream has not begun).
+            debug!("Undo skipped: recording session active but no live buffer to clear");
         }
     }
 

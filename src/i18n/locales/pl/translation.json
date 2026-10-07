@@ -238,7 +238,7 @@
           },
           "undo": {
             "name": "Cofnij",
-            "description": "Wywołuje Cofnij w aktywnej aplikacji (Cmd+Z na macOS, Ctrl+Z gdzie indziej), cofając ostatni wstawiony tekst dyktowania za jednym razem. Przypisz klawisz, aby włączyć."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Tryb poleceń",

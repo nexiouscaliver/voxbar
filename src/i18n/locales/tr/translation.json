@@ -238,7 +238,7 @@
           },
           "undo": {
             "name": "Geri al",
-            "description": "Odaklanmış uygulamada Geri Al'ı tetikler (macOS'ta Cmd+Z, diğerlerinde Ctrl+Z) ve son yapıştırılan dikteyi tek seferde geri alır. Etkinleştirmek için bir tuş atayın."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Komut modu",

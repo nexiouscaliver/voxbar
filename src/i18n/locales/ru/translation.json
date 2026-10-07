@@ -238,7 +238,7 @@
           },
           "undo": {
             "name": "Отменить",
-            "description": "Вызывает отмену в активном приложении (Cmd+Z на macOS, Ctrl+Z в других системах), отменяя последний вставленный диктовочный текст одним нажатием. Назначьте клавишу для включения."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Режим команд",
