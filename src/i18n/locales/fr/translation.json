@@ -299,6 +299,10 @@
         "label": "Garde de pression mémoire",
         "description": "Refuse de charger un modèle lorsque la mémoire libre est insuffisante. Le modèle actuel continue de fonctionner lorsqu'un chargement est refusé."
       },
+      "autoFallback": {
+        "label": "Repli automatique (RAM)",
+        "description": "Lorsque le modèle sélectionné ne tient pas dans la mémoire libre, charge automatiquement le meilleur modèle téléchargé qui tient. Désactivez pour conserver le refus simple."
+      },
       "autostart": {
         "label": "Lancer au démarrage",
         "description": "Démarrer automatiquement VoxBar lorsque vous vous connectez à votre ordinateur."
@@ -700,6 +704,8 @@
     "recordingFailed": "Échec du démarrage de l'enregistrement : {{error}}",
     "modelLoadFailed": "Échec du chargement du modèle : {{model}}",
     "modelLoadFailedUnknown": "modèle inconnu",
+    "modelFallbackTitle": "Mémoire insuffisante",
+    "modelFallback": "Basculé sur {{model}} pour cette dictée",
     "pasteFailedTitle": "Échec du collage du texte",
     "pasteFailed": "Le texte n'a pas pu être collé dans l'application active.",
     "transcriptionFailedTitle": "Échec de la transcription"

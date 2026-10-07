@@ -299,6 +299,10 @@
         "label": "Memory Pressure Guard",
         "description": "Refuse to load a model when free memory cannot fit it. The current model keeps working when a load is refused."
       },
+      "autoFallback": {
+        "label": "RAM Auto-Fallback",
+        "description": "When the selected model does not fit free memory, automatically load the best downloaded model that does. Turn off to keep the plain refusal."
+      },
       "autostart": {
         "label": "Launch on Startup",
         "description": "Automatically start VoxBar when you log in to your computer."
@@ -703,6 +707,8 @@
     "recordingFailed": "Failed to start recording: {{error}}",
     "modelLoadFailed": "Failed to load model: {{model}}",
     "modelLoadFailedUnknown": "unknown model",
+    "modelFallbackTitle": "Low memory",
+    "modelFallback": "Switched to {{model}} for this dictation",
     "pasteFailedTitle": "Failed to Paste Text",
     "pasteFailed": "Text could not be pasted into the active application.",
     "transcriptionFailedTitle": "Transcription Failed"

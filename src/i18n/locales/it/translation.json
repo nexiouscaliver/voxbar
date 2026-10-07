@@ -299,6 +299,10 @@
         "label": "Protezione da pressione di memoria",
         "description": "Rifiuta di caricare un modello quando la memoria libera è insufficiente. Il modello attuale continua a funzionare quando un caricamento viene rifiutato."
       },
+      "autoFallback": {
+        "label": "Ripiego automatico (RAM)",
+        "description": "Quando il modello selezionato non entra nella memoria libera, carica automaticamente il miglior modello scaricato che entra. Disattiva per mantenere il rifiuto semplice."
+      },
       "autostart": {
         "label": "Avvia all'Accensione",
         "description": "Avvia VoxBar automaticamente quando accedi al computer."
@@ -700,6 +704,8 @@
     "recordingFailed": "Impossibile avviare la registrazione: {{error}}",
     "modelLoadFailed": "Impossibile caricare il modello: {{model}}",
     "modelLoadFailedUnknown": "modello sconosciuto",
+    "modelFallbackTitle": "Memoria insufficiente",
+    "modelFallback": "Passato a {{model}} per questa dettatura",
     "pasteFailedTitle": "Impossibile incollare il testo",
     "pasteFailed": "Non è stato possibile incollare il testo nell'applicazione attiva.",
     "transcriptionFailedTitle": "Trascrizione non riuscita"

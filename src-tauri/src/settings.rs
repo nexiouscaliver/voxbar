@@ -501,6 +501,12 @@ pub struct AppSettings {
     pub model_unload_timeout: ModelUnloadTimeout,
     #[serde(default = "default_memory_pressure_guard")]
     pub memory_pressure_guard: bool,
+    /// When the memory-pressure guard refuses the selected model AND this is
+    /// on, automatically load the best already-downloaded model that fits
+    /// free RAM instead of failing the dictation. Off reproduces the plain
+    /// refuse-with-toast behavior.
+    #[serde(default = "default_auto_fallback")]
+    pub auto_fallback: bool,
     #[serde(default = "default_word_correction_threshold")]
     pub word_correction_threshold: f64,
     #[serde(default = "default_history_limit")]
@@ -695,6 +701,13 @@ fn default_auto_submit() -> bool {
 /// it starts (leaving the resident model transcribing) is strictly safer
 /// than attempting it and swapping or dying on a 24 GB machine (spec F3).
 fn default_memory_pressure_guard() -> bool {
+    true
+}
+
+/// Auto-fallback defaults ON: with the guard refusing oversized loads, the
+/// operator's preference is a transcribed dictation on a smaller
+/// already-downloaded model over a hard failure.
+fn default_auto_fallback() -> bool {
     true
 }
 
@@ -1024,6 +1037,7 @@ pub fn get_default_settings() -> AppSettings {
         custom_words: Vec::new(),
         model_unload_timeout: ModelUnloadTimeout::default(),
         memory_pressure_guard: default_memory_pressure_guard(),
+        auto_fallback: default_auto_fallback(),
         word_correction_threshold: default_word_correction_threshold(),
         history_limit: default_history_limit(),
         recording_retention_period: default_recording_retention_period(),
@@ -1370,6 +1384,26 @@ mod tests {
             .remove("memory_pressure_guard");
         let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
         assert!(backfilled.memory_pressure_guard);
+    }
+
+    #[test]
+    fn auto_fallback_defaults_on_round_trips_and_backfills() {
+        // Default is ON for fresh installs.
+        assert!(get_default_settings().auto_fallback);
+        // Serde round-trips both stored values.
+        let mut off = get_default_settings();
+        off.auto_fallback = false;
+        let parsed: AppSettings =
+            serde_json::from_value(serde_json::to_value(off).unwrap()).unwrap();
+        assert!(!parsed.auto_fallback);
+        let on = serde_json::to_value(get_default_settings()).unwrap();
+        let parsed: AppSettings = serde_json::from_value(on).unwrap();
+        assert!(parsed.auto_fallback);
+        // Old settings JSON without the field parses to the default (true).
+        let mut legacy = serde_json::to_value(get_default_settings()).unwrap();
+        legacy.as_object_mut().unwrap().remove("auto_fallback");
+        let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert!(backfilled.auto_fallback);
     }
 
     #[test]

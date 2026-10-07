@@ -299,6 +299,10 @@
         "label": "Penjaga Tekanan Memori",
         "description": "Menolak memuat model saat memori bebas tidak cukup. Model saat ini tetap berfungsi saat pemuatan ditolak."
       },
+      "autoFallback": {
+        "label": "Fallback otomatis RAM",
+        "description": "Saat model terpilih tidak muat di memori bebas, model terbaik yang sudah diunduh dimuat otomatis. Matikan untuk tetap menolak saja."
+      },
       "autostart": {
         "label": "Jalankan saat Komputer Dinyalakan",
         "description": "Mulai VoxBar secara otomatis saat Anda masuk ke komputer."
@@ -703,6 +707,8 @@
     "recordingFailed": "Gagal memulai perekaman: {{error}}",
     "modelLoadFailed": "Gagal memuat model: {{model}}",
     "modelLoadFailedUnknown": "model tidak dikenal",
+    "modelFallbackTitle": "Memori rendah",
+    "modelFallback": "Beralih ke {{model}} untuk dikte ini",
     "pasteFailedTitle": "Gagal Menempelkan Teks",
     "pasteFailed": "Teks tidak dapat ditempelkan ke aplikasi aktif.",
     "transcriptionFailedTitle": "Transkripsi Gagal"

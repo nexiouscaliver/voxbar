@@ -299,6 +299,10 @@
         "label": "Hukommelsespres-vagt",
         "description": "Afviser at indlæse en model, når ledig hukommelse ikke er nok. Den nuværende model fortsætter, når en indlæsning afvises."
       },
+      "autoFallback": {
+        "label": "Automatisk RAM-reserve",
+        "description": "Når den valgte model ikke passer i ledig hukommelse, indlæses automatisk den bedste downloadede model, der passer. Slå fra for at beholde den almindelige afvisning."
+      },
       "autostart": {
         "label": "Start ved opstart",
         "description": "Start VoxBar automatisk, når du logger ind på din computer."
@@ -703,6 +707,8 @@
     "recordingFailed": "Kunne ikke starte optagelse: {{error}}",
     "modelLoadFailed": "Kunne ikke indlæse model: {{model}}",
     "modelLoadFailedUnknown": "ukendt model",
+    "modelFallbackTitle": "Lav hukommelse",
+    "modelFallback": "Skiftede til {{model}} for denne diktering",
     "pasteFailedTitle": "Kunne ikke indsætte tekst",
     "pasteFailed": "Teksten kunne ikke indsættes i det aktive program.",
     "transcriptionFailedTitle": "Transskription mislykkedes"

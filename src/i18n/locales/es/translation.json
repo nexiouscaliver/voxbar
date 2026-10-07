@@ -299,6 +299,10 @@
         "label": "Protección de presión de memoria",
         "description": "Rechaza cargar un modelo cuando la memoria libre no es suficiente. El modelo actual sigue funcionando cuando se rechaza una carga."
       },
+      "autoFallback": {
+        "label": "Cambio automático por memoria",
+        "description": "Cuando el modelo seleccionado no cabe en la memoria libre, se carga automáticamente el mejor modelo descargado que sí quepa. Desactívalo para mantener el rechazo simple."
+      },
       "autostart": {
         "label": "Iniciar al arranque",
         "description": "Iniciar VoxBar automáticamente cuando inicies sesión en tu computadora."
@@ -700,6 +704,8 @@
     "recordingFailed": "Error al iniciar la grabación: {{error}}",
     "modelLoadFailed": "Error al cargar el modelo: {{model}}",
     "modelLoadFailedUnknown": "modelo desconocido",
+    "modelFallbackTitle": "Memoria insuficiente",
+    "modelFallback": "Se cambió a {{model}} para este dictado",
     "pasteFailedTitle": "Error al pegar el texto",
     "pasteFailed": "No se pudo pegar el texto en la aplicación activa.",
     "transcriptionFailedTitle": "Error de transcripción"

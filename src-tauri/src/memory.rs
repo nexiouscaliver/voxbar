@@ -232,6 +232,59 @@ pub fn resident_credit(measured_rss: Option<u64>, estimate: Option<u64>) -> u64 
     measured_rss.unwrap_or_else(|| estimate.unwrap_or(0))
 }
 
+// --- RAM auto-fallback resolver ---------------------------------------------
+
+/// A downloaded model considered as a fallback when the selected model does
+/// not fit free RAM. Plain data so the resolver below stays pure and
+/// unit-testable without an app or a model manager.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FallbackCandidate {
+    pub id: String,
+    /// Catalog recommended rank (lower = better); `u32::MAX` for unranked
+    /// models so they sort last.
+    pub rank: u32,
+    /// Estimated footprint in bytes — the SAME size-derived forecast the
+    /// F3 gate compares (`size_mb` MiB plus the fixed
+    /// [`DEFAULT_HEADROOM_BYTES`] compute allowance), so "fits" here means
+    /// exactly "the gate would allow this load".
+    pub footprint_bytes: u64,
+}
+
+/// Pick the best already-downloaded model to fall back to after the selected
+/// model was refused by the memory gate. Pure.
+///
+/// Preference: catalog `rank` ascending (lower = better), ties broken by the
+/// smaller footprint (under pressure, smaller is safer), then by id for
+/// determinism. Only downloaded candidates belong in `candidates` (the
+/// "prefer the quant actually downloaded" rule — the caller lists exactly
+/// what is on disk); the model that just failed is always excluded. A
+/// candidate fits when the F3 gate would NOT refuse it against `free`.
+/// `free == None` (probe unavailable) never resolves — the gate fails open
+/// in that case, so there is nothing to fall back FROM.
+pub fn resolve_fallback_model<'a>(
+    free: Option<u64>,
+    candidates: &'a [FallbackCandidate],
+    failed_id: &str,
+) -> Option<&'a FallbackCandidate> {
+    let free = free?;
+    candidates
+        .iter()
+        .filter(|candidate| candidate.id != failed_id)
+        .filter(|candidate| {
+            !gate_should_refuse(
+                Some(free),
+                candidate.footprint_bytes,
+                DEFAULT_HEADROOM_BYTES,
+            )
+        })
+        .min_by(|a, b| {
+            a.rank
+                .cmp(&b.rank)
+                .then(a.footprint_bytes.cmp(&b.footprint_bytes))
+                .then_with(|| a.id.cmp(&b.id))
+        })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -347,5 +400,112 @@ mod tests {
         // pid u32::MAX is never allocated; the probe must fail, not hang or
         // return garbage.
         assert_eq!(rss_bytes_for_pid(u32::MAX), None);
+    }
+
+    #[test]
+    fn fallback_resolver_picks_best_rank_that_fits() {
+        // free = 10 GiB; headroom 1.5 GiB; footprints in bytes below.
+        let free = Some(10 * GIB);
+        let candidates = vec![
+            cand("big-best", 1, 10 * GIB),   // best rank, does NOT fit
+            cand("mid-second", 2, 5 * GIB),  // fits
+            cand("small-third", 3, 1 * GIB), // fits
+            cand("tiny-unranked", u32::MAX, 100 * 1024 * 1024),
+        ];
+        // Rank wins over size when both fit: rank-2 beats rank-3 even though
+        // it is bigger.
+        assert_eq!(
+            resolve_fallback_model(free, &candidates, "selected").map(|c| c.id.as_str()),
+            Some("mid-second")
+        );
+    }
+
+    #[test]
+    fn fallback_resolver_skips_non_fitting_and_falls_to_worse_ranks() {
+        let free = Some(4 * GIB);
+        let candidates = vec![
+            cand("rank1-too-big", 1, 10 * GIB),
+            cand("rank2-too-big", 2, 4 * GIB), // 4 + 1.5 > 4 -> refused
+            cand("rank3-fits", 3, 2 * GIB),    // 2 + 1.5 <= 4 -> fits
+        ];
+        assert_eq!(
+            resolve_fallback_model(free, &candidates, "selected").map(|c| c.id.as_str()),
+            Some("rank3-fits")
+        );
+    }
+
+    #[test]
+    fn fallback_resolver_excludes_the_failed_model() {
+        let free = Some(10 * GIB);
+        let candidates = vec![
+            cand("failed", 1, 1 * GIB), // would fit and outrank — but it JUST failed
+            cand("other", 2, 1 * GIB),
+        ];
+        assert_eq!(
+            resolve_fallback_model(free, &candidates, "failed").map(|c| c.id.as_str()),
+            Some("other")
+        );
+    }
+
+    #[test]
+    fn fallback_resolver_breaks_rank_ties_by_footprint_then_id() {
+        let free = Some(10 * GIB);
+        // Same rank (alternate quants of one model share the descriptor
+        // rank): the smaller footprint wins.
+        let same_rank = vec![
+            cand("q8", 4, 700 * 1024 * 1024),
+            cand("f16", 4, 1500 * 1024 * 1024),
+        ];
+        assert_eq!(
+            resolve_fallback_model(free, &same_rank, "selected").map(|c| c.id.as_str()),
+            Some("q8")
+        );
+        // Fully tied: stable, deterministic by id.
+        let tied = vec![cand("b", 4, 1 * GIB), cand("a", 4, 1 * GIB)];
+        assert_eq!(
+            resolve_fallback_model(free, &tied, "selected").map(|c| c.id.as_str()),
+            Some("a")
+        );
+    }
+
+    #[test]
+    fn fallback_resolver_returns_none_when_nothing_fits_or_probe_unavailable() {
+        let free = Some(2 * GIB);
+        let too_big = vec![cand("a", 1, 10 * GIB), cand("b", 2, 8 * GIB)];
+        assert_eq!(resolve_fallback_model(free, &too_big, "selected"), None);
+        // Empty candidate list (only the failed model downloaded).
+        assert_eq!(resolve_fallback_model(free, &[], "selected"), None);
+        // Probe unavailable: the gate fails open, so there is no refusal to
+        // answer — never resolve.
+        assert_eq!(
+            resolve_fallback_model(None, &[cand("a", 1, 1 * GIB)], "selected"),
+            None
+        );
+    }
+
+    #[test]
+    fn fallback_resolver_fit_boundary_matches_the_gate() {
+        // The resolver's fit check IS the gate: boundary forecast+headroom ==
+        // free fits, one byte over does not.
+        let forecast = 4 * GIB;
+        let free_exact = Some(forecast + DEFAULT_HEADROOM_BYTES);
+        let candidates = vec![cand("edge", 1, forecast)];
+        assert_eq!(
+            resolve_fallback_model(free_exact, &candidates, "selected").map(|c| c.id.as_str()),
+            Some("edge")
+        );
+        assert_eq!(
+            resolve_fallback_model(Some(free_exact.unwrap() - 1), &candidates, "selected"),
+            None
+        );
+    }
+
+    /// Helper: candidate with an id, rank, and footprint.
+    fn cand(id: &str, rank: u32, footprint_bytes: u64) -> FallbackCandidate {
+        FallbackCandidate {
+            id: id.to_string(),
+            rank,
+            footprint_bytes,
+        }
     }
 }

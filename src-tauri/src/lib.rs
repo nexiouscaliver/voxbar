@@ -694,6 +694,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_hold_threshold_ms_setting,
             shortcut::change_audio_feedback_setting,
             shortcut::change_memory_pressure_guard_setting,
+            shortcut::change_auto_fallback_setting,
             shortcut::change_audio_feedback_volume_setting,
             shortcut::change_sound_theme_setting,
             shortcut::change_theme_setting,

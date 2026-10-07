@@ -299,6 +299,10 @@
         "label": "内存压力防护",
         "description": "当可用内存不足以容纳模型时拒绝加载。拒绝加载时当前模型继续工作。"
       },
+      "autoFallback": {
+        "label": "内存自动降级",
+        "description": "当所选模型无法放入可用内存时，自动加载最合适的已下载模型。关闭则以直接拒绝为准。"
+      },
       "autostart": {
         "label": "开机启动",
         "description": "登录计算机时自动启动 VoxBar。"
@@ -700,6 +704,8 @@
     "recordingFailed": "录音启动失败: {{error}}",
     "modelLoadFailed": "加载模型失败: {{model}}",
     "modelLoadFailedUnknown": "未知模型",
+    "modelFallbackTitle": "内存不足",
+    "modelFallback": "本次听写已切换到 {{model}}",
     "pasteFailedTitle": "粘贴文本失败",
     "pasteFailed": "无法将文本粘贴到当前活动的应用程序中。",
     "transcriptionFailedTitle": "转录失败"

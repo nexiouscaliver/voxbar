@@ -299,6 +299,10 @@
         "label": "מגן לחץ זיכרון",
         "description": "מסרב לטעון מודל כשאין מספיק זיכרון פנוי. המודל הנוכחי ממשיך לעבוד כאשר טעינה נדחית."
       },
+      "autoFallback": {
+        "label": "מעבר אוטומטי לפי זיכרון",
+        "description": "כשהמודל הנבחר לא נכנס לזיכרון הפנוי, נטען אוטומטית מודל שהורד שכן נכנס. כבה כדי להשאיר את הסירוב הרגיל."
+      },
       "autostart": {
         "label": "הפעל עם עליית המערכת",
         "description": "הפעל את VoxBar אוטומטית כשאתה מתחבר למחשב."
@@ -700,6 +704,8 @@
     "recordingFailed": "הפעלת ההקלטה נכשלה: {{error}}",
     "modelLoadFailed": "טעינת המודל נכשלה: {{model}}",
     "modelLoadFailedUnknown": "מודל לא ידוע",
+    "modelFallbackTitle": "זיכרון נמוך",
+    "modelFallback": "עבר אל {{model}} עבור הכתבה זו",
     "pasteFailedTitle": "ההדבקה נכשלה",
     "pasteFailed": "לא ניתן היה להדביק את הטקסט ביישום הפעיל.",
     "transcriptionFailedTitle": "התמלול נכשל"

@@ -299,6 +299,10 @@
         "label": "記憶體壓力防護",
         "description": "當可用記憶體不足以容納模型時拒絕載入。拒絕載入時目前模型繼續運作。"
       },
+      "autoFallback": {
+        "label": "記憶體自動降級",
+        "description": "當所選模型無法放入可用記憶體時，自動載入最合適的已下載模型。關閉則直接拒絕。"
+      },
       "autostart": {
         "label": "開機啟動",
         "description": "登入電腦時自動啟動 VoxBar"
@@ -700,6 +704,8 @@
     "recordingFailed": "錄音啟動失敗: {{error}}",
     "modelLoadFailed": "載入模型失敗: {{model}}",
     "modelLoadFailedUnknown": "未知模型",
+    "modelFallbackTitle": "記憶體不足",
+    "modelFallback": "本次聽寫已切換到 {{model}}",
     "pasteFailedTitle": "貼上文字失敗",
     "pasteFailed": "無法將文字貼上至目前作用中的應用程式。",
     "transcriptionFailedTitle": "轉錄失敗"

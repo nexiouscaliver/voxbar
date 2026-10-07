@@ -299,6 +299,10 @@
         "label": "Bảo vệ áp lực bộ nhớ",
         "description": "Từ chối tải mô hình khi bộ nhớ trống không đủ. Mô hình hiện tại tiếp tục hoạt động khi việc tải bị từ chối."
       },
+      "autoFallback": {
+        "label": "Tự động chuyển khi thiếu RAM",
+        "description": "Khi mô hình đã chọn không vừa bộ nhớ trống, tự động tải mô hình đã tải xuống phù hợp nhất. Tắt để giữ việc từ chối đơn giản."
+      },
       "autostart": {
         "label": "Khởi động cùng hệ thống",
         "description": "Tự động khởi động VoxBar khi bạn đăng nhập vào máy tính."
@@ -700,6 +704,8 @@
     "recordingFailed": "Không thể bắt đầu ghi âm: {{error}}",
     "modelLoadFailed": "Không thể tải mô hình: {{model}}",
     "modelLoadFailedUnknown": "mô hình không xác định",
+    "modelFallbackTitle": "Bộ nhớ thấp",
+    "modelFallback": "Đã chuyển sang {{model}} cho lần đọc này",
     "pasteFailedTitle": "Không thể dán văn bản",
     "pasteFailed": "Không thể dán văn bản vào ứng dụng đang hoạt động.",
     "transcriptionFailedTitle": "Phiên âm thất bại"

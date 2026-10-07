@@ -299,6 +299,10 @@
         "label": "Geheugendruk-bescherming",
         "description": "Weigert een model te laden als het vrije geheugen niet volstaat. Het huidige model blijft werken wanneer een laden wordt geweigerd."
       },
+      "autoFallback": {
+        "label": "Automatische RAM-terugval",
+        "description": "Als het geselecteerde model niet in het vrije geheugen past, wordt automatisch het beste gedownloade model geladen dat wel past. Zet uit om de gewone weigering te behouden."
+      },
       "autostart": {
         "label": "Starten bij opstarten",
         "description": "VoxBar automatisch starten zodra je inlogt op je computer."
@@ -703,6 +707,8 @@
     "recordingFailed": "Opname starten mislukt: {{error}}",
     "modelLoadFailed": "Model laden mislukt: {{model}}",
     "modelLoadFailedUnknown": "onbekend model",
+    "modelFallbackTitle": "Te weinig geheugen",
+    "modelFallback": "Overgeschakeld naar {{model}} voor deze dicteeropname",
     "pasteFailedTitle": "Tekst plakken mislukt",
     "pasteFailed": "Tekst kon niet worden geplakt in de actieve applicatie.",
     "transcriptionFailedTitle": "Transcriptie mislukt"

@@ -299,6 +299,10 @@
         "label": "Skydd mot minnesbrist",
         "description": "Vägrar läsa in en modell när ledigt minne inte räcker. Den aktuella modellen fortsätter fungera när en inläsning vägras."
       },
+      "autoFallback": {
+        "label": "Automatisk RAM-reserv",
+        "description": "När den valda modellen inte får plats i ledigt minne laddas automatiskt den bästa nedladdade modellen som får plats. Stäng av för att behålla det vanliga avslaget."
+      },
       "autostart": {
         "label": "Starta vid uppstart",
         "description": "Starta VoxBar automatiskt när du loggar in på din dator."
@@ -698,6 +702,8 @@
     "recordingFailed": "Misslyckades med att starta inspelning: {{error}}",
     "modelLoadFailed": "Misslyckades med att ladda modell: {{model}}",
     "modelLoadFailedUnknown": "okänd modell",
+    "modelFallbackTitle": "Lite minne",
+    "modelFallback": "Växlade till {{model}} för denna diktering",
     "noInputDeviceTitle": "Ingen mikrofon hittades",
     "noInputDevice": "Ingen ljudenhet hittades. Anslut en mikrofon eller ett headset och försök igen.",
     "pasteFailedTitle": "Det gick inte att klistra in texten",

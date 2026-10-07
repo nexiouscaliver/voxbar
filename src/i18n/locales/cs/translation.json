@@ -299,6 +299,10 @@
         "label": "Ochrana při nedostatku paměti",
         "description": "Odmítne načíst model, když na něj nezbývá dost volné paměti. Aktuální model dále funguje, když je načtení odmítnuto."
       },
+      "autoFallback": {
+        "label": "Automatické přepnutí při nedostatku RAM",
+        "description": "Když se vybraný model nevejde do volné paměti, automaticky se načte nejlepší stažený model, který se vejde. Vypněte pro obyčejné odmítnutí."
+      },
       "autostart": {
         "label": "Spouštět při startu",
         "description": "Automaticky spustit VoxBar po přihlášení do počítače."
@@ -700,6 +704,8 @@
     "recordingFailed": "Nepodařilo se spustit nahrávání: {{error}}",
     "modelLoadFailed": "Nepodařilo se načíst model: {{model}}",
     "modelLoadFailedUnknown": "neznámý model",
+    "modelFallbackTitle": "Málo paměti",
+    "modelFallback": "Pro toto diktování bylo přepnuto na {{model}}",
     "pasteFailedTitle": "Vložení textu se nezdařilo",
     "pasteFailed": "Text nebylo možné vložit do aktivní aplikace.",
     "transcriptionFailedTitle": "Přepis selhal"

@@ -299,6 +299,10 @@
         "label": "Guarda de pressió de memòria",
         "description": "Rebutja carregar un model quan la memòria lliure no és suficient. El model actual continua funcionant quan es rebutja una càrrega."
       },
+      "autoFallback": {
+        "label": "Alternativa automàtica de RAM",
+        "description": "Quan el model seleccionat no cap a la memòria lliure, carrega automàticament el millor model descarregat que hi cap. Desactiva per mantenir el refús simple."
+      },
       "autostart": {
         "label": "Inicia en entrar a la sessió",
         "description": "Inicia automàticament el VoxBar quan entreu a la sessió de l'ordinador."
@@ -703,6 +707,8 @@
     "recordingFailed": "No s'ha pogut iniciar l'enregistrament: {{error}}",
     "modelLoadFailed": "No s'ha pogut carregar el model: {{model}}",
     "modelLoadFailedUnknown": "model desconegut",
+    "modelFallbackTitle": "Memòria baixa",
+    "modelFallback": "Canviat a {{model}} per aquest dictat",
     "pasteFailedTitle": "No s'ha pogut enganxar el text",
     "pasteFailed": "No s'ha pogut enganxar el text a l'aplicació activa.",
     "transcriptionFailedTitle": "La transcripció ha fallat"

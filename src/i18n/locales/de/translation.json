@@ -299,6 +299,10 @@
         "label": "Speicherdruck-Schutz",
         "description": "Lehnt das Laden eines Modells ab, wenn der freie Speicher nicht ausreicht. Das aktuelle Modell läuft weiter, wenn ein Laden abgelehnt wird."
       },
+      "autoFallback": {
+        "label": "RAM-Auto-Fallback",
+        "description": "Wenn das gewählte Modell nicht in den freien Speicher passt, wird automatisch das beste heruntergeladene passende Modell geladen. Deaktivieren für die einfache Ablehnung."
+      },
       "autostart": {
         "label": "Beim Start ausführen",
         "description": "VoxBar automatisch beim Anmelden starten."
@@ -700,6 +704,8 @@
     "recordingFailed": "Aufnahme konnte nicht gestartet werden: {{error}}",
     "modelLoadFailed": "Modell konnte nicht geladen werden: {{model}}",
     "modelLoadFailedUnknown": "unbekanntes Modell",
+    "modelFallbackTitle": "Wenig Speicher",
+    "modelFallback": "Für diese Diktation wurde zu {{model}} gewechselt",
     "pasteFailedTitle": "Text konnte nicht eingefügt werden",
     "pasteFailed": "Der Text konnte nicht in die aktive Anwendung eingefügt werden.",
     "transcriptionFailedTitle": "Transkription fehlgeschlagen"

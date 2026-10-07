@@ -299,6 +299,10 @@
         "label": "Bellek Baskısı Koruması",
         "description": "Boş bellek yeterli olmadığında model yüklemeyi reddeder. Yükleme reddedildiğinde geçerli model çalışmaya devam eder."
       },
+      "autoFallback": {
+        "label": "Otomatik RAM yedeklemesi",
+        "description": "Seçilen model boş belleğe sığmadığında, sığan en iyi indirilmiş model otomatik yüklenir. Basit reddi korumak için kapatın."
+      },
       "autostart": {
         "label": "Başlangıçta Çalıştır",
         "description": "Bilgisayara giriş yaptığınızda VoxBar otomatik olarak başlatılır."
@@ -700,6 +704,8 @@
     "recordingFailed": "Kayıt başlatılamadı: {{error}}",
     "modelLoadFailed": "Model yüklenemedi: {{model}}",
     "modelLoadFailedUnknown": "bilinmeyen model",
+    "modelFallbackTitle": "Düşük bellek",
+    "modelFallback": "Bu dikte için {{model}} modeline geçildi",
     "pasteFailedTitle": "Metin yapıştırılamadı",
     "pasteFailed": "Metin etkin uygulamaya yapıştırılamadı.",
     "transcriptionFailedTitle": "Transkripsiyon başarısız oldu"

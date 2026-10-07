@@ -8,7 +8,7 @@ use crate::engine_supervisor::{
     StreamProgress, Unloading,
 };
 use crate::managers::audio::AudioRecordingManager;
-use crate::managers::model::{EngineType, ModelManager};
+use crate::managers::model::{EngineType, ModelInfo, ModelManager, ModelSource};
 use crate::memory;
 use crate::settings::{
     get_settings, AppSettings, ChineseScript, ModelUnloadTimeout, OrtAcceleratorSetting,
@@ -51,12 +51,42 @@ fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> String {
     }
 }
 
+/// Editorial rank for a RAM auto-fallback candidate. Direct registry ids
+/// resolve through the rank table; an alternate quant found on disk has the
+/// id `"{repo_id}/{filename}"`, which that table (keyed by the descriptor's
+/// default file) misses — resolve those through the catalog's file table so
+/// they compete at their base model's rank instead of sorting last.
+/// Unranked/unknown models return `u32::MAX` (sort last).
+fn fallback_rank(info: &ModelInfo) -> u32 {
+    let direct = crate::catalog::rank_of(&info.id);
+    if direct != u32::MAX {
+        return direct;
+    }
+    match &info.source {
+        ModelSource::HuggingFace { repo_id, .. } => {
+            crate::catalog::file_in_catalog(&info.filename, Some(repo_id.as_str()))
+                .and_then(|(desc, _)| desc.recommended_rank)
+                .unwrap_or(u32::MAX)
+        }
+        _ => u32::MAX,
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct ModelStateEvent {
     pub event_type: String,
     pub model_id: Option<String>,
     pub model_name: Option<String>,
     pub error: Option<String>,
+}
+
+/// One-shot notification that a RAM auto-fallback fired: the selected model
+/// was refused by the memory gate and the named fallback model is being
+/// loaded for this dictation. The frontend toasts it transiently.
+#[derive(Clone, Debug, Serialize)]
+pub struct ModelFallbackEvent {
+    pub requested_model_name: String,
+    pub fallback_model_name: String,
 }
 
 /// Live transcription snapshot emitted to the overlay during a streaming run.
@@ -435,6 +465,23 @@ impl TranscriptionManager {
         None
     }
 
+    /// Downloaded-model candidates for the RAM auto-fallback (see the memory
+    /// gate in `load_model_with_device_internal`): every downloaded model
+    /// except the one that just failed, with the same size-derived footprint
+    /// the gate compares and the catalog's editorial rank.
+    fn fallback_candidates(&self, failed_id: &str) -> Vec<memory::FallbackCandidate> {
+        self.model_manager
+            .get_available_models()
+            .into_iter()
+            .filter(|info| info.is_downloaded && info.id != failed_id)
+            .map(|info| memory::FallbackCandidate {
+                rank: fallback_rank(&info),
+                footprint_bytes: info.size_mb.saturating_mul(1024 * 1024),
+                id: info.id,
+            })
+            .collect()
+    }
+
     /// Accelerator changes should not disturb the current transcription. Mark
     /// the cached engine stale; the next model-use path reloads it with the
     /// latest settings.
@@ -581,6 +628,20 @@ impl TranscriptionManager {
         model_id: &str,
         device_index: Option<usize>,
     ) -> Result<()> {
+        self.load_model_with_device_internal(model_id, device_index, true)
+    }
+
+    /// The real load path. `allow_fallback` gates the RAM auto-fallback: the
+    /// top-level (user-initiated) load may fall back to a smaller
+    /// already-downloaded model when the memory gate refuses the selection;
+    /// the fallback load itself may not cascade (the resolver already picked
+    /// the best fit — if even that no longer fits, refusing is correct).
+    fn load_model_with_device_internal(
+        &self,
+        model_id: &str,
+        device_index: Option<usize>,
+        allow_fallback: bool,
+    ) -> Result<()> {
         apply_accelerator_settings(&self.app_handle);
 
         let load_start = std::time::Instant::now();
@@ -654,6 +715,41 @@ impl TranscriptionManager {
                 );
             }
             if memory::gate_should_refuse(free, forecast, memory::DEFAULT_HEADROOM_BYTES) {
+                // RAM auto-fallback: when enabled, load the best
+                // ALREADY-DOWNLOADED model that fits instead of failing the
+                // dictation. The tray/indicator state follows the model that
+                // is actually resident (current_model_id is set to the
+                // fallback below), and the frontend gets a one-shot
+                // "model-fallback" event to toast the switch. Toggle off (or
+                // nothing fitting) keeps the exact refuse-with-toast path.
+                if allow_fallback && get_settings(&self.app_handle).auto_fallback {
+                    let candidates = self.fallback_candidates(model_id);
+                    if let Some(fallback) =
+                        memory::resolve_fallback_model(free, &candidates, model_id)
+                    {
+                        let fallback_name = self
+                            .model_manager
+                            .get_model_info(&fallback.id)
+                            .map(|info| info.name)
+                            .unwrap_or_else(|| fallback.id.clone());
+                        warn!(
+                            "memory gate refused '{}', falling back to '{}' for this load",
+                            model_info.name, fallback_name
+                        );
+                        let _ = self.app_handle.emit(
+                            "model-fallback",
+                            ModelFallbackEvent {
+                                requested_model_name: model_info.name.clone(),
+                                fallback_model_name: fallback_name,
+                            },
+                        );
+                        return self.load_model_with_device_internal(
+                            &fallback.id,
+                            device_index,
+                            false,
+                        );
+                    }
+                }
                 let gib = 1024.0 * 1024.0 * 1024.0;
                 let error_msg = format!(
                     "Not enough free memory for {}: needs ~{:.1} GB, ~{:.1} GB free (guard can be disabled in Settings)",

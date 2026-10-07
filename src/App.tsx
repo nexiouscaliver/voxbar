@@ -13,7 +13,11 @@ import {
   checkAccessibilityPermission,
   checkMicrophonePermission,
 } from "tauri-plugin-macos-permissions-api";
-import { ModelStateEvent, RecordingErrorEvent } from "./lib/types/events";
+import {
+  ModelFallbackEvent,
+  ModelStateEvent,
+  RecordingErrorEvent,
+} from "./lib/types/events";
 import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import SecureInputWarning from "./components/SecureInputWarning";
@@ -208,6 +212,22 @@ function App() {
           },
         );
       }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
+  // RAM auto-fallback fired: the selected model did not fit free memory and
+  // a smaller already-downloaded model is being loaded for this dictation.
+  // Transient warning toast; the tray already reflects the resident model.
+  useEffect(() => {
+    const unlisten = listen<ModelFallbackEvent>("model-fallback", (event) => {
+      toast.warning(t("errors.modelFallbackTitle"), {
+        description: t("errors.modelFallback", {
+          model: event.payload.fallback_model_name,
+        }),
+      });
     });
     return () => {
       unlisten.then((fn) => fn());
