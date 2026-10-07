@@ -190,7 +190,7 @@
           },
           "undo": {
             "name": "Undo",
-            "description": "Triggers undo in the focused app (Cmd+Z on macOS, Ctrl+Z elsewhere), reverting the last pasted dictation in one hit. Assign a key to enable it."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Command Mode",

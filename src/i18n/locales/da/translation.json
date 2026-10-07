@@ -190,7 +190,7 @@
           },
           "undo": {
             "name": "Fortryd",
-            "description": "Udfører Fortryd i den aktive app (Cmd+Z på macOS, Ctrl+Z andre steder) og fjerner den sidst indsatte diktéring i ét træk. Tildel en tast for at aktivere."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Kommandotilstand",

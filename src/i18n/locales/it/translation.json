@@ -238,7 +238,7 @@
           },
           "undo": {
             "name": "Annulla",
-            "description": "Esegue Annulla nell'app attiva (Cmd+Z su macOS, Ctrl+Z altrove), annullando l'ultima dettatura incollata in un colpo solo. Assegna un tasto per attivarla."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Modalità comandi",

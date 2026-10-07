@@ -187,7 +187,7 @@
           },
           "undo": {
             "name": "تراجع",
-            "description": "يشغّل التراجع في التطبيق النشط (Cmd+Z على ماك أو إس، و Ctrl+Z في غيره) فيلغي آخر نص ملصق من dictation بضغطة واحدة. عيّن مفتاحا لتمكينه."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "وضع الأوامر",

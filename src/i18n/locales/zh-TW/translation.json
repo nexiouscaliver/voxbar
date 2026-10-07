@@ -190,7 +190,7 @@
           },
           "undo": {
             "name": "復原",
-            "description": "在目前聚焦的應用程式中觸發復原 (macOS 為 Cmd+Z，其他平台為 Ctrl+Z)，一次撤銷上一次貼上的聽寫內容。指派按鍵後才會啟用。"
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "命令模式",

@@ -190,7 +190,7 @@
           },
           "undo": {
             "name": "Desfazer",
-            "description": "Aciona Desfazer na aplicação focada (Cmd+Z no macOS, Ctrl+Z nos outros), revertendo o último ditado colado de uma só vez. Atribua uma tecla para ativar."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Modo de comandos",

@@ -238,7 +238,7 @@
           },
           "undo": {
             "name": "元に戻す",
-            "description": "フォーカスされたアプリで元に戻すを実行します (macOS では Cmd+Z、その他では Ctrl+Z)。最後に貼り付けた音声入力を一回で取り消します。有効にするにはキーを割り当ててください。"
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "コマンドモード",

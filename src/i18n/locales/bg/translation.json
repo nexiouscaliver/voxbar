@@ -190,7 +190,7 @@
           },
           "undo": {
             "name": "Отмяна",
-            "description": "Задейства отмяна в активното приложение (Cmd+Z на macOS, Ctrl+Z на други), отменяйки последното поставено диктуване с едно натискане. Задайте клавиш, за да активирате."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Режим на команди",

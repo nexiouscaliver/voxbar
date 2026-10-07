@@ -190,7 +190,7 @@
           },
           "undo": {
             "name": "पूर्ववत करें",
-            "description": "फोकस किए गए ऐप में पूर्ववत करें चलाता है (macOS पर Cmd+Z, अन्य जगह Ctrl+Z) और अंतिम पेस्ट की गई डिक्टेशन को एक ही बार में पूर्ववत करता है। सक्रिय करने के लिए एक कुंजी असाइन करें।"
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "कमांड मोड",

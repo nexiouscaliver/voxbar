@@ -4,7 +4,7 @@ use crate::settings::ShortcutActivation;
 use log::{debug, error, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
@@ -12,24 +12,9 @@ use tauri::{AppHandle, Manager};
 const DEBOUNCE: Duration = Duration::from_millis(30);
 const RELEASE_GRACE: Duration = Duration::from_millis(50);
 
-/// How long after a dictation's paste completes the Undo action stays
-/// armed. The operator uses Undo to kill a just-pasted dictation; this
-/// grace covers the review moment right after the paste lands. Outside a
-/// live session and this window the Undo press is a logged no-op.
-const UNDO_PASTE_GRACE: Duration = Duration::from_secs(10);
-
-/// Pure decision for the Undo action's activity window: live while a
-/// recording session is live, or within [`UNDO_PASTE_GRACE`] of the moment
-/// the last dictation paste completed. `now` is injected so tests can
-/// expire the grace on a clock fixture without sleeping.
-fn undo_window_active(
-    recording: bool,
-    last_paste_completed_at: Option<Instant>,
-    now: Instant,
-) -> bool {
-    recording
-        || last_paste_completed_at.is_some_and(|t| now.duration_since(t) <= UNDO_PASTE_GRACE)
-}
+// Operator rule, stated absolutely: the ONLY always-on binding is the
+// transcribe trigger. Every other binding (delete, undo, command modifier)
+// may act while a dictation session is LIVE and never after it ends.
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum PttAction {
@@ -602,10 +587,6 @@ pub struct TranscriptionCoordinator {
     /// streaming path: the session buffer asks "is the command modifier
     /// held for this live session?" on every engine snapshot, lock-free.
     command_modifier: Arc<AtomicBool>,
-    /// When the last dictation paste completed. Written by the paste
-    /// executor (main thread), read by [`Self::is_undo_active`] to arm the
-    /// Undo action for [`UNDO_PASTE_GRACE`].
-    last_paste_completed_at: Arc<Mutex<Option<Instant>>>,
 }
 
 /// Which binding IDs drive the recording lifecycle. The command-mode
@@ -698,7 +679,6 @@ impl TranscriptionCoordinator {
             tx,
             recording,
             command_modifier,
-            last_paste_completed_at: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -717,26 +697,12 @@ impl TranscriptionCoordinator {
         self.command_modifier.load(Ordering::Acquire)
     }
 
-    /// Record that a dictation paste just completed successfully. Arms the
-    /// Undo action for [`UNDO_PASTE_GRACE`] (the review moment after the
-    /// paste lands).
-    pub fn note_paste_completed(&self) {
-        *self
-            .last_paste_completed_at
-            .lock()
-            .unwrap_or_else(|e| e.into_inner()) = Some(Instant::now());
-    }
-
-    /// Whether the Undo action may fire right now: while a recording
-    /// session is live, or within [`UNDO_PASTE_GRACE`] after the last
-    /// dictation paste completed. The decision itself is the pure
-    /// [`undo_window_active`]; this only gathers the live inputs.
+    /// Whether the Undo action may fire right now: ONLY while a recording
+    /// session is live (per the operator rule above). The moment the
+    /// session ends the key is inert; there is intentionally no post-paste
+    /// undo.
     pub fn is_undo_active(&self) -> bool {
-        let last_paste = *self
-            .last_paste_completed_at
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-        undo_window_active(self.is_recording_session(), last_paste, Instant::now())
+        self.is_recording_session()
     }
 
     /// Send a keyboard input event for a transcribe binding. `hold_threshold`
@@ -893,74 +859,32 @@ mod tests {
     }
 
     // ---------------------------------------------------------------------
-    // Undo activity window: live while a recording session is live, or for
-    // UNDO_PASTE_GRACE after a dictation paste completed.
+    // Undo activity window: ONLY while a recording session is live. The
+    // operator rule forbids any post-session activity; a completed paste
+    // arms nothing.
     // ---------------------------------------------------------------------
 
-    /// A live recording session keeps Undo armed regardless of paste
-    /// history (including a paste so old its own grace is long gone).
+    /// Undo is armed exactly while the session is live: idle and ended
+    /// sessions leave it inert, with no post-paste grace of any kind (the
+    /// recording mirror `is_undo_active` delegates to follows this stage).
     #[test]
-    fn undo_window_active_while_recording_session_live() {
-        let stale_paste = Instant::now() - UNDO_PASTE_GRACE - Duration::from_secs(60);
-        assert!(undo_window_active(true, None, Instant::now()));
-        assert!(undo_window_active(true, Some(stale_paste), Instant::now()));
-    }
-
-    /// Within the grace after a paste completed (and not recording) Undo
-    /// stays armed.
-    #[test]
-    fn undo_window_active_within_paste_grace() {
-        let pasted_at = Instant::now();
-        assert!(undo_window_active(false, Some(pasted_at), pasted_at));
-        assert!(undo_window_active(
-            false,
-            Some(pasted_at),
-            pasted_at + Duration::from_secs(9)
-        ));
-        // The boundary itself is inside the window.
-        assert!(undo_window_active(
-            false,
-            Some(pasted_at),
-            pasted_at + UNDO_PASTE_GRACE
-        ));
-    }
-
-    /// Past the grace (and not recording) Undo is inert: no session, no
-    /// recent paste, nothing to undo through VoxBar.
-    #[test]
-    fn undo_window_expired_past_grace() {
-        assert!(!undo_window_active(false, None, Instant::now()));
-        let pasted_at = Instant::now();
-        assert!(!undo_window_active(
-            false,
-            Some(pasted_at),
-            pasted_at + UNDO_PASTE_GRACE + Duration::from_millis(1)
-        ));
-        assert!(!undo_window_active(
-            false,
-            Some(pasted_at),
-            pasted_at + Duration::from_secs(60)
-        ));
-    }
-
-    /// The grace is elapsed by the clock, not by mutation: the same
-    /// timestamp flips from armed to inert as the injected `now` advances
-    /// past the constant.
-    #[test]
-    fn undo_grace_expires_by_clock_fixture() {
-        let pasted_at = Instant::now();
-        let mut now = pasted_at;
-        for _ in 0..10 {
-            now += Duration::from_secs(1);
-            assert!(
-                undo_window_active(false, Some(pasted_at), now),
-                "still inside the 10s grace"
-            );
-        }
-        now += Duration::from_secs(1);
+    fn undo_active_exactly_while_session_is_live() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
         assert!(
-            !undo_window_active(false, Some(pasted_at), now),
-            "11s after the paste the grace is expired"
+            !matches!(state.stage, Stage::Recording(..)),
+            "idle: undo must be inert"
+        );
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(matches!(state.stage, Stage::Recording(..)));
+        // Stop the session: undo goes inert the same instant, no grace.
+        let _ = state.on_input(toggle_input(false), t0 + Duration::from_secs(5));
+        assert!(
+            !matches!(state.stage, Stage::Recording(..)),
+            "session ended: undo must be inert immediately"
         );
     }
 

@@ -190,7 +190,7 @@
           },
           "undo": {
             "name": "Ångra",
-            "description": "Utför Ångra i den aktiva appen (Cmd+Z på macOS, Ctrl+Z på andra) och återställer den senaste inklistrade dikteringen i ett steg. Koppla en tangent för att aktivera."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Kommandoläge",

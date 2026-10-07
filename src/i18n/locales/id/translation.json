@@ -190,7 +190,7 @@
           },
           "undo": {
             "name": "Urungkan",
-            "description": "Menjalankan Urungkan di aplikasi yang fokus (Cmd+Z di macOS, Ctrl+Z di tempat lain), membatalkan dikte terakhir yang ditempel sekaligus. Tetapkan tombol untuk mengaktifkannya."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Mode perintah",

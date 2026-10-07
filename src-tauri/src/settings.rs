@@ -1146,7 +1146,7 @@ pub fn get_default_settings() -> AppSettings {
         ShortcutBinding {
             id: "undo".to_string(),
             name: "Undo".to_string(),
-            description: "Triggers undo in the focused app, reverting the last pasted dictation in one hit. Unbound by default."
+            description: "While a dictation is live: clears it (start over). Does nothing otherwise. Unbound by default."
                 .to_string(),
             default_binding: String::new(),
             current_binding: String::new(),

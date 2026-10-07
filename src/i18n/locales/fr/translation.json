@@ -238,7 +238,7 @@
           },
           "undo": {
             "name": "Annuler",
-            "description": "Déclenche Annuler dans l'application active (Cmd+Z sur macOS, Ctrl+Z ailleurs), annulant la dernière dictée collée en une seule fois. Assignez une touche pour l'activer."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Mode commandes",

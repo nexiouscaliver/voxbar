@@ -238,7 +238,7 @@
           },
           "undo": {
             "name": "Zpět",
-            "description": "Spustí Zpět v aktivní aplikaci (Cmd+Z na macOS, Ctrl+Z jinde) a jedním krokem vrátí poslední vložený diktát. Přiřaďte klávesu pro aktivaci."
+            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
           },
           "transcribe_commands": {
             "name": "Režim příkazů",
