@@ -418,7 +418,7 @@ pub fn validate_shortcut(raw: &str) -> Result<(), String> {
     // Just verify the string is parseable
     raw.parse::<Hotkey>()
         .map(|_| ())
-        .map_err(|e| format!("Invalid shortcut for HandyKeys: {}", e))
+        .map_err(|e| format!("Invalid shortcut for VoxBar Keys: {}", e))
 }
 
 /// Initialize handy-keys shortcuts
