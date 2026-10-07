@@ -78,6 +78,17 @@ pub fn validate_shortcut(raw: &str) -> Result<(), String> {
 
 /// Register a shortcut using Tauri's global-shortcut plugin
 pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<(), String> {
+    // Bare-key guard mirrors binding_is_active for the paths that register
+    // directly (feature-toggle flips, cancel reconciliation is exempt by
+    // id) instead of going through change_binding's validation.
+    if binding.id != "cancel" && super::is_bare_key_binding(&binding.current_binding) {
+        return Err(format!(
+            "treating '{}' as unbound: {}",
+            binding.current_binding,
+            super::bare_key_rejection(&binding.current_binding)
+        ));
+    }
+
     // Validate for Tauri requirements
     if let Err(e) = validate_shortcut(&binding.current_binding) {
         warn!(

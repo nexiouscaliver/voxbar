@@ -30,18 +30,62 @@ use crate::tray;
 
 // Note: Commands are accessed via shortcut::handy_keys:: in lib.rs
 
+/// Whether a binding string is a "bare key": a single non-modifier key
+/// with no modifier held (for example `z`, or `escape`).
+///
+/// Global action bindings must never be bare: the hotkey would fire on
+/// every press of that key in every app (the shipped `undo = z` case
+/// injected Cmd+Z into whatever was focused on every typed z). The one
+/// exemption is the `cancel` binding, which is intentionally a bare
+/// Escape and only fires while a recording is live.
+pub fn is_bare_key_binding(raw: &str) -> bool {
+    // `::handy_keys` because this module also declares a `handy_keys`
+    // submodule that shadows the extern crate name in scope here.
+    match raw.trim().parse::<::handy_keys::Hotkey>() {
+        Ok(hotkey) => hotkey.modifiers.is_empty() && hotkey.key.is_some(),
+        // Unparseable strings are rejected by the per-implementation
+        // validators; they are not this rule's concern.
+        Err(_) => false,
+    }
+}
+
+/// The bare-key rule as an error message, shared by the change-binding
+/// rejection and the register-level guards so every surface names the same
+/// rule.
+pub fn bare_key_rejection(raw: &str) -> String {
+    format!(
+        "Shortcut '{}' needs at least one modifier key (for example 'option+z', not 'z'): a bare key would fire on every press of that key in any app",
+        raw.trim()
+    )
+}
+
 /// Whether a binding should currently hold a registration: it must be bound
-/// to a key, and its feature's master toggle (when it has one) must be on.
+/// to a key, its feature's master toggle (when it has one) must be on, and
+/// it must not be a bare key.
 ///
 /// Bindings that ship unbound (the assignable editing actions, command mode)
 /// stay unregistered, and therefore inert, until the operator binds a key in
 /// Settings even though their master toggles default to on.
+///
+/// Stored bare-key action bindings (accepted by earlier versions) are
+/// treated as unbound here with a warning: safer than firing the action on
+/// every press of that key. The value stays in settings so the operator can
+/// see it and rebind deliberately; re-recording it through the UI is
+/// rejected by `change_binding`.
 pub fn binding_is_active(
     settings: &crate::settings::AppSettings,
     id: &str,
     binding: &ShortcutBinding,
 ) -> bool {
     if binding.current_binding.trim().is_empty() {
+        return false;
+    }
+    if id != "cancel" && is_bare_key_binding(&binding.current_binding) {
+        warn!(
+            "Binding '{}' ('{}') is a single key with no modifier; treating it as unbound. \
+             Rebind it in Settings with at least one modifier key.",
+            id, binding.current_binding
+        );
         return false;
     }
     match id {
@@ -222,6 +266,13 @@ pub fn change_binding(
     let optional_binding = binding_to_modify.default_binding.trim().is_empty();
     if binding.trim().is_empty() && !optional_binding {
         return Err("Binding cannot be empty".to_string());
+    }
+
+    // Bare-key rule: a global action on a single unmodified key fires on
+    // every press of that key in every app. The cancel binding is exempt
+    // (bare Escape by design, only armed while recording).
+    if id != "cancel" && is_bare_key_binding(&binding) {
+        return Err(bare_key_rejection(&binding));
     }
 
     // If this is the cancel binding, just update the settings and return
@@ -1689,6 +1740,8 @@ mod tests {
     use handy_keys::Hotkey;
     use tauri_plugin_global_shortcut::Shortcut;
 
+    use super::{bare_key_rejection, binding_is_active, is_bare_key_binding};
+
     #[test]
     fn compound_shortcut_keys_parse_on_both_backends() {
         for key in [
@@ -1702,5 +1755,122 @@ mod tests {
             assert!(key.parse::<Shortcut>().is_ok(), "Tauri rejected {key}");
             assert!(key.parse::<Hotkey>().is_ok(), "HandyKeys rejected {key}");
         }
+    }
+
+    /// The bare-key rule: a single non-modifier key with no modifier is
+    /// bare; modifier-only and combo bindings are not.
+    /// Side-specific modifier wire values round-trip through the hotkey
+    /// parser and formatter: the capture UI can store, and settings can
+    /// hold, right-side variants alongside the left ones. Control's wire
+    /// name is the short `ctrl_*` (matching the operator's stored
+    /// `ctrl_left+fn`); `control_*` spellings parse as aliases.
+    #[test]
+    fn side_specific_modifier_wire_values_round_trip() {
+        for raw in [
+            "command_right",
+            "shift_right",
+            "option_right",
+            "ctrl_right",
+            "command_left",
+            "shift_left",
+            "option_left",
+            "ctrl_left",
+        ] {
+            let hotkey: Hotkey = raw.parse().unwrap_or_else(|e| panic!("{raw}: {e}"));
+            assert_eq!(hotkey.to_handy_string(), raw, "{raw} must round-trip");
+            assert!(
+                hotkey.is_single_modifier(),
+                "{raw} is a single modifier and must be hold-gated"
+            );
+        }
+        // The long control spellings parse to the same binding.
+        let alias: Hotkey = "control_right".parse().unwrap();
+        assert_eq!(alias.to_handy_string(), "ctrl_right");
+    }
+
+    /// Side-strict matching for modifier-only bindings: a command_left
+    /// binding must not fire on right command, and vice versa. (The
+    /// keycode-to-side mapping itself, including the device-dependent
+    /// built-in keyboard codes, is pinned by the vendored crate's
+    /// keycode tests.)
+    #[test]
+    fn modifier_only_matching_is_side_strict() {
+        use handy_keys::Modifiers;
+        let left: Hotkey = "command_left".parse().unwrap();
+        let right: Hotkey = "command_right".parse().unwrap();
+        assert!(left.modifiers.matches(Modifiers::CMD_LEFT));
+        assert!(!left.modifiers.matches(Modifiers::CMD_RIGHT));
+        assert!(right.modifiers.matches(Modifiers::CMD_RIGHT));
+        assert!(!right.modifiers.matches(Modifiers::CMD_LEFT));
+    }
+
+    #[test]
+    fn bare_key_detection_covers_the_wire_formats() {
+        for raw in ["z", "escape", "a", "space", "f5", "  z  "] {
+            assert!(is_bare_key_binding(raw), "{raw} should be rejected as bare");
+        }
+        for raw in [
+            "option+z",
+            "ctrl_left+fn",
+            "command_right",
+            "shift_left",
+            "cmd+shift",
+            "ctrl+shift+space",
+        ] {
+            assert!(!is_bare_key_binding(raw), "{raw} is not a bare key");
+        }
+        // Unparseable values are the impl validators' concern, not ours.
+        assert!(!is_bare_key_binding(""));
+        assert!(!is_bare_key_binding("not+a+real+key"));
+    }
+
+    /// The rejection message names the rule (at least one modifier
+    /// required) and echoes the offending binding.
+    #[test]
+    fn bare_key_rejection_names_the_rule() {
+        let message = bare_key_rejection("z");
+        assert!(message.contains("at least one modifier"), "{message}");
+        assert!(message.contains("'z'"), "{message}");
+    }
+
+    /// Stored bare-key action bindings (the shipped `undo = z`) load as
+    /// unbound; cancel keeps its intentional bare Escape; proper bindings
+    /// (combos and hold-gated single modifiers) stay active.
+    #[test]
+    fn stored_bare_key_action_bindings_are_treated_as_unbound() {
+        let mut settings = crate::settings::get_default_settings();
+
+        settings.undo_enabled = true;
+        settings
+            .bindings
+            .get_mut("undo")
+            .unwrap()
+            .current_binding = "z".to_string();
+        let undo = settings.bindings.get("undo").unwrap().clone();
+        assert!(
+            !binding_is_active(&settings, "undo", &undo),
+            "undo = z must not hold a registration"
+        );
+
+        let cancel = settings.bindings.get("cancel").unwrap().clone();
+        assert!(
+            binding_is_active(&settings, "cancel", &cancel),
+            "cancel keeps its bare Escape (armed only while recording)"
+        );
+
+        let transcribe = settings.bindings.get("transcribe").unwrap().clone();
+        assert!(binding_is_active(&settings, "transcribe", &transcribe));
+
+        settings.delete_last_word_enabled = true;
+        settings
+            .bindings
+            .get_mut("delete_last_word")
+            .unwrap()
+            .current_binding = "shift_left".to_string();
+        let delete_last_word = settings.bindings.get("delete_last_word").unwrap().clone();
+        assert!(
+            binding_is_active(&settings, "delete_last_word", &delete_last_word),
+            "a single-modifier binding stays active (it is hold-gated, not bare)"
+        );
     }
 }

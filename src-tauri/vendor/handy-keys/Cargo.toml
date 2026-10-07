@@ -1,0 +1,104 @@
+# Vendored fork of handy-keys 0.3.4 (github.com/handy-computer/handy-keys).
+#
+# Upstream 0.3.4 is the newest published release and misses three macOS
+# behaviors VoxBar needs; rather than diverging silently, the crate is
+# vendored here so the deltas stay reviewable in this repository:
+#
+# 1. Built-in Apple keyboards report right-side modifier FlagsChanged with
+#    device-dependent keycodes (right option 0x6A, right control 0x6B,
+#    right shift 0x7C) that upstream does not map, so those keys were
+#    mis-tracked (as F16/F14/RightArrow key events) and side-specific
+#    matching defaulted both sides to the left variant.
+# 2. Events synthesized by the host app (stamped with
+#    SYNTHESIZED_EVENT_MARKER in CGEventField::EventSourceUserData, the
+#    field enigo 0.6 exposes for exactly this purpose) re-entered the tap
+#    and could fire hotkeys, re-arming the transcription pipeline.
+# 3. HotkeyManager gained an opt-in hold-to-activate window for
+#    single-modifier hotkeys (see SINGLE_MODIFIER_HOLD_THRESHOLD).
+#
+# Upstream these changes, then delete this directory and return to the
+# registry dependency.
+
+[package]
+edition = "2021"
+name = "handy-keys"
+version = "0.3.4"
+description = "Cross-platform global keyboard shortcuts library (VoxBar vendored fork)"
+documentation = "https://docs.rs/handy-keys"
+readme = "README.md"
+keywords = ["keyboard", "hotkey", "shortcuts", "global", "cross-platform"]
+categories = ["api-bindings", "os"]
+license = "MIT"
+repository = "https://github.com/handy-computer/handy-keys"
+
+[lib]
+name = "handy_keys"
+path = "src/lib.rs"
+
+[[test]]
+name = "synthetic_input"
+path = "tests/synthetic_input.rs"
+
+[dependencies.bitflags]
+version = "2"
+features = ["serde"]
+
+[dependencies.serde]
+version = "1"
+features = ["derive"]
+
+[dependencies.thiserror]
+version = "2"
+
+[target.'cfg(target_os = "linux")'.dependencies.evdev]
+version = "0.13"
+
+[target.'cfg(target_os = "linux")'.dependencies.libc]
+version = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies.block2]
+version = "0.6"
+
+[target.'cfg(target_os = "macos")'.dependencies.objc2]
+version = "0.6"
+
+[target.'cfg(target_os = "macos")'.dependencies.objc2-app-kit]
+version = "0.3"
+features = [
+    "NSEvent",
+    "NSApplication",
+]
+
+[target.'cfg(target_os = "macos")'.dependencies.objc2-core-foundation]
+version = "0.3"
+
+[target.'cfg(target_os = "macos")'.dependencies.objc2-core-graphics]
+version = "0.3"
+features = [
+    "CGEvent",
+    "CGEventTypes",
+    "CGEventSource",
+    "CGRemoteOperation",
+]
+
+[target.'cfg(target_os = "macos")'.dependencies.objc2-foundation]
+version = "0.3"
+
+[target.'cfg(target_os = "windows")'.dependencies.windows]
+version = "0.58"
+features = [
+    "Win32_Foundation",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_RemoteDesktop",
+    "Win32_Graphics_Gdi",
+]
+
+[target.'cfg(target_os = "windows")'.dev-dependencies.windows]
+version = "0.58"
+features = [
+    "Win32_Foundation",
+    "Win32_System_Console",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_System_Threading",
+]

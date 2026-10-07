@@ -66,6 +66,23 @@ struct TranscribeAction {
     command_mode: bool,
 }
 
+/// Pure routing table from a transcribe binding id to its
+/// [`TranscribeAction`] configuration: `(post_process, command_mode)`.
+///
+/// Extracted from the ACTION_MAP literals so a test can pin the safety
+/// property the operator relies on: the command-mode binding
+/// ("transcribe_commands") routes ONLY to the command capture path
+/// (`command_mode = true`), and the plain dictation bindings route only to
+/// the dictation path. No binding id can reach both.
+fn transcribe_action_config(binding_id: &str) -> Option<(bool, bool)> {
+    match binding_id {
+        "transcribe" => Some((false, false)),
+        "transcribe_with_post_process" => Some((true, false)),
+        "transcribe_commands" => Some((false, true)),
+        _ => None,
+    }
+}
+
 /// Field name for structured output JSON schema
 const TRANSCRIPTION_FIELD: &str = "transcription";
 
@@ -738,6 +755,20 @@ impl ShortcutAction for TranscribeAction {
                             // punctuation/deletion text passes, no dictation
                             // paste: nothing unrecognized is ever typed.
                             if command_mode {
+                                // An empty or whitespace-only capture is a
+                                // silent no-op: nothing recorded to history,
+                                // nothing pasted, no overlay weirdness. A
+                                // mis-trigger (or an ultra-short capture that
+                                // transcribed to nothing) must leave no trace.
+                                if transcription.trim().is_empty() {
+                                    debug!(
+                                        "Command mode capture was blank; discarding without recording or executing"
+                                    );
+                                    utils::hide_recording_overlay(&ah);
+                                    set_tray_state(&ah, TrayIconState::Idle);
+                                    return;
+                                }
+
                                 let steps =
                                     crate::audio_toolkit::plan_command_transcript(&transcription);
                                 debug!(
@@ -1007,44 +1038,31 @@ impl ShortcutAction for DeleteLastWordAction {
             return;
         }
 
-        // Buffer-aware routing. While a dictation recording session is LIVE,
-        // the target app's text does not contain anything from this
-        // dictation yet (streaming models only paste at finalize), so
-        // injecting the delete-word chord would edit the user's own
-        // pre-existing text instead of the dictation. Route the edit into
-        // the session's accumulated raw transcript instead; the overlay
-        // refreshes through the regular interim-update event.
-        if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
-            if coordinator.is_recording_session() {
-                let tm = app.state::<Arc<TranscriptionManager>>();
-                if tm.apply_session_buffer_word_deletion() {
-                    return;
-                }
-                // A recording is live but has no stream buffer to edit (a
-                // batch/non-streaming model, or the stream has not begun).
-                // There is nothing in the buffer to delete and keystroke
-                // injection would hit the wrong text, so this is a
-                // deliberate no-op.
-                debug!(
-                    "Delete-last-word skipped: recording session active but no live buffer to edit"
-                );
-                return;
-            }
+        // Session-scoped by design: delete-last-word edits THIS dictation's
+        // accumulated transcript only. While no recording session is live
+        // there is no dictation buffer to edit, and injecting the
+        // word-delete chord into the focused app would edit text the
+        // operator never dictated here - the idle fallback that did that
+        // was revoked. A press with no live session is a logged no-op.
+        let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() else {
+            debug!("Delete-last-word pressed with no coordinator; ignoring");
+            return;
+        };
+        if !coordinator.is_recording_session() {
+            debug!("Delete-last-word pressed with no live dictation session; ignoring");
+            return;
         }
 
-        // No dictation session: the chord's letter-key resolution queries the
-        // macOS keyboard layout, which must happen on the main thread (same
-        // requirement as the paste path).
-        let ah = app.clone();
-        if let Err(e) = app.run_on_main_thread(move || {
-            if let Err(err) = crate::paste_tx::key_send::send_edit_action(
-                &ah,
-                crate::paste_tx::key_send::EditAction::DeleteLastWord,
-            ) {
-                error!("Failed to send delete-last-word chord: {}", err);
-            }
-        }) {
-            error!("Failed to run delete-last-word on main thread: {:?}", e);
+        let tm = app.state::<Arc<TranscriptionManager>>();
+        if !tm.apply_session_buffer_word_deletion() {
+            // A recording is live but has no stream buffer to edit (a
+            // batch/non-streaming model, or the stream has not begun).
+            // There is nothing in the buffer to delete and keystroke
+            // injection would hit the wrong text, so this is a deliberate
+            // no-op.
+            debug!(
+                "Delete-last-word skipped: recording session active but no live buffer to edit"
+            );
         }
     }
 
@@ -1113,43 +1131,28 @@ impl ShortcutAction for TestAction {
 // Static Action Map
 pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::new(|| {
     let mut map = HashMap::new();
-    map.insert(
-        "transcribe".to_string(),
-        Arc::new(TranscribeAction {
-            post_process: false,
-            command_mode: false,
-        }) as Arc<dyn ShortcutAction>,
-    );
-    map.insert(
-        "transcribe_with_post_process".to_string(),
-        Arc::new(TranscribeAction {
-            post_process: true,
-            command_mode: false,
-        }) as Arc<dyn ShortcutAction>,
-    );
-    map.insert(
-        "transcribe_commands".to_string(),
-        Arc::new(TranscribeAction {
-            post_process: false,
-            command_mode: true,
-        }) as Arc<dyn ShortcutAction>,
-    );
-    map.insert(
-        "cancel".to_string(),
-        Arc::new(CancelAction) as Arc<dyn ShortcutAction>,
-    );
+    for binding_id in [
+        "transcribe",
+        "transcribe_with_post_process",
+        "transcribe_commands",
+    ] {
+        let (post_process, command_mode) =
+            transcribe_action_config(binding_id).expect("known transcribe binding id");
+        map.insert(
+            binding_id.to_string(),
+            Arc::new(TranscribeAction {
+                post_process,
+                command_mode,
+            }) as Arc<dyn ShortcutAction>,
+        );
+    }
+    map.insert("cancel".to_string(), Arc::new(CancelAction) as Arc<dyn ShortcutAction>);
     map.insert(
         "delete_last_word".to_string(),
         Arc::new(DeleteLastWordAction) as Arc<dyn ShortcutAction>,
     );
-    map.insert(
-        "undo".to_string(),
-        Arc::new(UndoAction) as Arc<dyn ShortcutAction>,
-    );
-    map.insert(
-        "test".to_string(),
-        Arc::new(TestAction) as Arc<dyn ShortcutAction>,
-    );
+    map.insert("undo".to_string(), Arc::new(UndoAction) as Arc<dyn ShortcutAction>);
+    map.insert("test".to_string(), Arc::new(TestAction) as Arc<dyn ShortcutAction>);
     map
 });
 
@@ -1257,5 +1260,39 @@ mod tests {
         assert!(!crate::transcription_coordinator::is_transcribe_binding(
             "undo"
         ));
+    }
+
+    /// Routing safety for command mode: the transcribe_commands binding id
+    /// maps to the command capture action (command_mode = true) and to
+    /// nothing else; the dictation bindings map only to dictation. This is
+    /// the single table the ACTION_MAP is built from, so the property holds
+    /// for every dispatch path (shortcut handler, coordinator effects).
+    #[test]
+    fn command_mode_binding_routes_only_to_the_command_capture_path() {
+        use super::transcribe_action_config;
+
+        assert_eq!(transcribe_action_config("transcribe"), Some((false, false)));
+        assert_eq!(
+            transcribe_action_config("transcribe_with_post_process"),
+            Some((true, false))
+        );
+        assert_eq!(
+            transcribe_action_config("transcribe_commands"),
+            Some((false, true)),
+            "command mode must never route to the plain dictation action"
+        );
+        assert_eq!(transcribe_action_config("delete_last_word"), None);
+        assert_eq!(transcribe_action_config("undo"), None);
+        assert_eq!(transcribe_action_config("unknown"), None);
+    }
+
+    /// Command mode's empty-capture contract, planner half: a blank or
+    /// unrecognized transcript plans zero steps, so even if the blank guard
+    /// in the stop path were removed the executor would still do nothing.
+    #[test]
+    fn blank_command_transcript_plans_nothing() {
+        assert!(crate::audio_toolkit::plan_command_transcript("").is_empty());
+        assert!(crate::audio_toolkit::plan_command_transcript("   ").is_empty());
+        assert!(crate::audio_toolkit::plan_command_transcript("\n\t").is_empty());
     }
 }

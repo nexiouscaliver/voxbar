@@ -1665,4 +1665,127 @@ mod tests {
         );
         assert_eq!(state.stage, Stage::Processing);
     }
+
+    // ---------------------------------------------------------------------
+    // Toggle auto-restart reproduction (v1.0.0 regression report 3).
+    //
+    // Sequence: tap starts dictation, tap stops it, the async pipeline
+    // transcribes and pastes, and a few seconds later a recording starts
+    // again by itself. Root cause, confirmed against the code paths:
+    //
+    // 1. The paste chord is synthesized with enigo (Cmd down, V click, Cmd
+    //    up after ~100ms) and posted through CGEventPost, so it re-enters
+    //    the same session event tap the shortcut backend listens on.
+    // 2. Upstream handy-keys 0.3.4 did not filter host-synthesized events
+    //    and fired the modifier-only command binding ("command_left") on
+    //    the leading Cmd press, exactly like a physical key.
+    // 3. `handle_shortcut_event` routes transcribe_commands into this
+    //    coordinator; the stage is Processing, so the press is remembered
+    //    (classify_busy_input -> Remember).
+    // 4. The trailing Cmd release is deferred by RELEASE_GRACE and
+    //    classified as a ~100ms tap: `finish_pending_hold` locks the
+    //    remembered press.
+    // 5. `FinishGuard::drop` -> `notify_processing_finished` ->
+    //    `on_processing_finished` starts the remembered press: recording
+    //    begins again with no key touched.
+    //
+    // The fix removes the inputs, not the state machine: the vendored
+    // handy-keys tap ignores events stamped with SYNTHESIZED_EVENT_MARKER
+    // (which input.rs now sets on Enigo), and single-modifier bindings are
+    // hold-gated for 400ms, which the ~100ms synthesized chord can never
+    // survive even from another injector. The busy-pipeline remember/lock
+    // behavior exercised below is intentional for REAL presses (toggle
+    // parity), so it is kept and pinned by the reproduction test.
+    // ---------------------------------------------------------------------
+
+    fn commands_input(is_pressed: bool) -> InputEvent {
+        InputEvent {
+            binding_id: "transcribe_commands".to_string(),
+            hotkey_string: "command_left".to_string(),
+            is_pressed,
+            mode: ShortcutActivation::HoldOrToggle,
+            hold_threshold: HOLD_THRESHOLD,
+            external: false,
+        }
+    }
+
+    /// Operator sequence: tap -> locked dictation, tap -> stop, then the
+    /// synthesized paste chord arrives for the command-mode binding while
+    /// the pipeline is busy. Given those events, the machine DOES restart
+    /// at the drain - this is the reproduced bug, asserted so the
+    /// mechanism stays understood and any future re-introduction of the
+    /// re-entry (or removal of the tap filter) has a name to fail against.
+    #[test]
+    fn paste_chord_reentry_rearms_start_at_drain_reproduction() {
+        let mode = ShortcutActivation::HoldOrToggle;
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        // Tap 1: starts dictation, locks it on.
+        assert!(matches!(
+            state.on_input(input(mode, true), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(state.on_input(input(mode, false), t0 + ms(120)).is_none());
+        assert!(state.on_grace_expired().is_none());
+        assert!(state.is_locked());
+
+        // Tap 2: stops and finalizes -> Processing.
+        assert!(matches!(
+            state.on_input(input(mode, true), t0 + ms(3000)),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(state.stage, Stage::Processing);
+
+        // The paste chord re-enters the tap ~1.2s later (preview delay) or
+        // right after transcription: command down, V click, command up
+        // ~100ms later. Both edges arrive as if physical.
+        assert!(state.on_input(commands_input(true), t0 + ms(4200)).is_none());
+        assert!(state.on_input(commands_input(false), t0 + ms(4300)).is_none());
+        assert!(state.on_grace_expired().is_none(), "the 100ms synthetic hold classifies as a tap, locking the remembered press");
+
+        // The pipeline drains: the remembered press starts a recording the
+        // user never asked for. This is the reported auto-restart.
+        match state.on_processing_finished() {
+            Some(Effect::Start { binding_id, .. }) => {
+                assert_eq!(
+                    binding_id, "transcribe_commands",
+                    "the restart is the remembered command-mode press"
+                );
+            }
+            other => panic!("reproduction failed: expected the auto-restart Start, got {other:?}"),
+        }
+        assert_eq!(state.stage, Stage::Recording("transcribe_commands".to_string()));
+    }
+
+    /// The same operator sequence with the fix in place: the synthesized
+    /// chord never reaches the coordinator (filtered at the tap, and
+    /// hold-gated even if it did), so the drain lands on idle and nothing
+    /// restarts.
+    #[test]
+    fn clean_drain_after_toggle_stop_does_not_restart() {
+        let mode = ShortcutActivation::HoldOrToggle;
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        assert!(matches!(
+            state.on_input(input(mode, true), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(state.on_input(input(mode, false), t0 + ms(120)).is_none());
+        assert!(state.on_grace_expired().is_none());
+
+        assert!(matches!(
+            state.on_input(input(mode, true), t0 + ms(3000)),
+            Some(Effect::Stop { .. })
+        ));
+
+        // Seconds pass: transcription, preview, paste. No coordinator
+        // inputs arrive, because the chord is filtered at the tap.
+        assert!(
+            state.on_processing_finished().is_none(),
+            "nothing remembered: the drain must land on idle"
+        );
+        assert_eq!(state.stage, Stage::Idle);
+    }
 }

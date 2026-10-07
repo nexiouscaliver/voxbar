@@ -3,6 +3,34 @@
 //! This module provides an alternative to Tauri's global-shortcut plugin
 //! using the handy-keys library for more control over keyboard events.
 //!
+//! ## Side-specific modifiers
+//!
+//! macOS modifier bindings are side-strict: `command_left` fires only on
+//! the left command key, `command_right` only on the right one, and the
+//! capture UI records the side that was physically pressed (the wire
+//! values `command_right` / `shift_right` / `option_right` /
+//! `control_right` alongside the left ones). The vendored handy-keys fork
+//! maps both macOS keycode families for right-side modifiers: classic
+//! kVK_ codes from external keyboards and the device-dependent codes
+//! (0x7C / 0x6A / 0x6B) from built-in Apple keyboards. One hardware
+//! collapse remains and is not fixable in software: some external
+//! keyboards deliver right command with the left command keycode (0x37).
+//! Existing bindings stored as left variants keep working as left-strict.
+//!
+//! Non-macOS platforms keep the crate's existing behavior: the Windows
+//! and Linux backends already report side-specific modifier events
+//! natively, so side-strict matching works there without extra mapping.
+//!
+//! ## Hold-to-activate
+//!
+//! A binding that is exactly one modifier key (no main key) activates
+//! only after that modifier has been held ~400ms with no other key event
+//! in between; chord usage (Cmd+C and friends) releases far faster and
+//! can never trigger, and any other key during the window cancels the
+//! pending activation. Combos (`ctrl_left+fn`, `option+space`) fire on
+//! the press as before. This applies on every platform (the arbitration
+//! lives in the platform-agnostic manager).
+//!
 //! ## Architecture
 //!
 //! The implementation uses a dedicated manager thread that owns the `HotkeyManager`:
@@ -117,7 +145,13 @@ impl HandyKeysState {
                 error!("Failed to create HotkeyManager: {}", e);
                 return;
             }
-        };
+        }
+        // A single-modifier binding (e.g. command_right) is also the lead
+        // key of every chord, so it only activates after a deliberate
+        // ~400ms hold with no other key in between; combos like
+        // ctrl_left+fn keep firing on the press. See the vendored crate's
+        // manager for the arbitration rules.
+        .with_single_modifier_hold(handy_keys::SINGLE_MODIFIER_HOLD_THRESHOLD);
 
         // Maps binding IDs to HotkeyIds and hotkey strings
         let mut binding_to_hotkey: HashMap<String, HotkeyId> = HashMap::new();
@@ -379,29 +413,84 @@ impl Drop for HandyKeysState {
     }
 }
 
-/// Convert handy-keys Modifiers to a list of strings
+/// Convert handy-keys Modifiers to a list of strings.
+///
+/// Side-aware on every platform: when exactly one side of a modifier group
+/// is held the name carries the side (`command_left`, `shift_right`), and
+/// only a genuinely two-sided hold reports the plain name. The recorder's
+/// committed value still comes from the event's `hotkey_string`, which
+/// records the side that was actually pressed.
 fn modifiers_to_strings(modifiers: handy_keys::Modifiers) -> Vec<String> {
+    use handy_keys::Modifiers as M;
     let mut result = Vec::new();
 
-    if modifiers.contains(handy_keys::Modifiers::CTRL) {
-        result.push("ctrl".to_string());
+    fn side_name(
+        modifiers: M,
+        left: M,
+        right: M,
+        left_name: &'static str,
+        right_name: &'static str,
+        plain_name: &'static str,
+    ) -> Option<&'static str> {
+        let has_left = modifiers.contains(left);
+        let has_right = modifiers.contains(right);
+        match (has_left, has_right) {
+            (true, false) => Some(left_name),
+            (false, true) => Some(right_name),
+            (true, true) => Some(plain_name),
+            (false, false) => None,
+        }
     }
-    if modifiers.contains(handy_keys::Modifiers::OPT) {
-        #[cfg(target_os = "macos")]
-        result.push("option".to_string());
-        #[cfg(not(target_os = "macos"))]
-        result.push("alt".to_string());
+
+    if let Some(name) = side_name(
+        modifiers,
+        M::CTRL_LEFT,
+        M::CTRL_RIGHT,
+        "ctrl_left",
+        "ctrl_right",
+        "ctrl",
+    ) {
+        result.push(name.to_string());
     }
-    if modifiers.contains(handy_keys::Modifiers::SHIFT) {
-        result.push("shift".to_string());
+    #[cfg(target_os = "macos")]
+    let (opt_left, opt_right, opt_plain) = ("option_left", "option_right", "option");
+    #[cfg(not(target_os = "macos"))]
+    let (opt_left, opt_right, opt_plain) = ("alt_left", "alt_right", "alt");
+    if let Some(name) = side_name(
+        modifiers,
+        M::OPT_LEFT,
+        M::OPT_RIGHT,
+        opt_left,
+        opt_right,
+        opt_plain,
+    ) {
+        result.push(name.to_string());
     }
-    if modifiers.contains(handy_keys::Modifiers::CMD) {
-        #[cfg(target_os = "macos")]
-        result.push("command".to_string());
-        #[cfg(not(target_os = "macos"))]
-        result.push("super".to_string());
+    if let Some(name) = side_name(
+        modifiers,
+        M::SHIFT_LEFT,
+        M::SHIFT_RIGHT,
+        "shift_left",
+        "shift_right",
+        "shift",
+    ) {
+        result.push(name.to_string());
     }
-    if modifiers.contains(handy_keys::Modifiers::FN) {
+    #[cfg(target_os = "macos")]
+    let (cmd_left, cmd_right, cmd_plain) = ("command_left", "command_right", "command");
+    #[cfg(not(target_os = "macos"))]
+    let (cmd_left, cmd_right, cmd_plain) = ("super_left", "super_right", "super");
+    if let Some(name) = side_name(
+        modifiers,
+        M::CMD_LEFT,
+        M::CMD_RIGHT,
+        cmd_left,
+        cmd_right,
+        cmd_plain,
+    ) {
+        result.push(name.to_string());
+    }
+    if modifiers.contains(M::FN) {
         result.push("fn".to_string());
     }
 
@@ -460,6 +549,16 @@ pub fn init_shortcuts(app: &AppHandle) -> Result<(), String> {
 
 /// Register a shortcut
 pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<(), String> {
+    // Bare-key guard mirrors binding_is_active for the paths that register
+    // directly (feature-toggle flips) instead of going through
+    // change_binding's validation.
+    if binding.id != "cancel" && super::is_bare_key_binding(&binding.current_binding) {
+        return Err(format!(
+            "treating '{}' as unbound: {}",
+            binding.current_binding,
+            super::bare_key_rejection(&binding.current_binding)
+        ));
+    }
     let state = app
         .try_state::<HandyKeysState>()
         .ok_or("HandyKeysState not initialized")?;
