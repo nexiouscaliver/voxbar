@@ -489,6 +489,10 @@
         "title": "语音删除命令",
         "description": "\"scratch that\"、\"delete that\"、\"remove that\" 删除上一个词，\"delete last three words\" 删除多个词，\"delete everything\" 或 \"start over\" 清空整段听写。关闭后保留为普通文字。"
       },
+      "previewBeforePaste": {
+        "title": "粘贴前预览",
+        "description": "粘贴前在录制悬浮窗中短暂显示完成的转写文本。关闭后立即粘贴。"
+      },
       "chineseScript": {
         "title": "简繁转换",
         "description": "将普通话和粤语转录输出为简体或繁体中文。其他语言不受影响。",

@@ -489,6 +489,10 @@
         "title": "Talekommandoer til sletning",
         "description": "\"scratch that\", \"delete that\" og \"remove that\" sletter det forrige ord, \"delete last three words\" sletter flere, og \"delete everything\" eller \"start over\" rydder dikteringen. Slå fra for at beholde dem som almindelige ord."
       },
+      "previewBeforePaste": {
+        "title": "Forhåndsvisning før indsættelse",
+        "description": "Viser den færdige transskription kort i optagelses-overlayet, før den indsættes. Slå fra for at indsætte straks."
+      },
       "chineseScript": {
         "title": "Kinesisk skrift",
         "description": "Skriver mandarin- og kantonesisk-transskriptioner med forenklede eller traditionelle tegn. Andre sprog ændres ikke.",

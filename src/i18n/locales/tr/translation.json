@@ -489,6 +489,10 @@
         "title": "Sesli silme komutları",
         "description": "\"scratch that\", \"delete that\" ve \"remove that\" önceki kelimeyi siler, \"delete last three words\" birkaç kelimeyi siler, \"delete everything\" veya \"start over\" dikteyi temizler. Sıradan kelime olarak bırakmak için kapatın."
       },
+      "previewBeforePaste": {
+        "title": "Yapıştırmadan önce önizleme",
+        "description": "Yapıştırılmadan önce bitmiş transkripsiyonu kayıt bindirmesinde kısa süreyle gösterir. Anında yapıştırmak için kapatın."
+      },
       "chineseScript": {
         "title": "Çince yazı",
         "description": "Mandarin ve Kantonca transkripsiyonları Basitleştirilmiş veya Geleneksel karakterlerle yazar. Diğer diller değiştirilmez.",

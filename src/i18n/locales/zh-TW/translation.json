@@ -489,6 +489,10 @@
         "title": "語音刪除命令",
         "description": "\"scratch that\"、\"delete that\"、\"remove that\" 刪除上一個詞，\"delete last three words\" 刪除多個詞，\"delete everything\" 或 \"start over\" 清空整段聽寫。關閉後保留為一般文字。"
       },
+      "previewBeforePaste": {
+        "title": "貼上前預覽",
+        "description": "貼上前在錄製懸浮視窗短暫顯示完成的轉寫文字。關閉後立即貼上。"
+      },
       "chineseScript": {
         "title": "繁簡轉換",
         "description": "將國語和粵語轉錄輸出為簡體或繁體中文。其他語言不受影響。",

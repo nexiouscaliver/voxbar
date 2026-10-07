@@ -489,6 +489,10 @@
         "title": "Commandes de suppression vocale",
         "description": "\"scratch that\", \"delete that\" et \"remove that\" suppriment le mot précédent, \"delete last three words\" en supprime plusieurs, et \"delete everything\" ou \"start over\" efface la dictée. Désactivez pour les garder comme mots simples."
       },
+      "previewBeforePaste": {
+        "title": "Aperçu avant collage",
+        "description": "Affiche brièvement la transcription finale dans la superposition d'enregistrement avant de la coller. Désactivez pour coller immédiatement."
+      },
       "chineseScript": {
         "title": "Écriture chinoise",
         "description": "Écrit les transcriptions en mandarin et en cantonais en caractères simplifiés ou traditionnels. Les autres langues ne sont pas modifiées.",

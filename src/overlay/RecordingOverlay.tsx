@@ -12,7 +12,12 @@ import type {
 import i18n, { syncLanguageFromSettings } from "@/i18n";
 import { getLanguageDirection } from "@/lib/utils/rtl";
 
-type OverlayState = "recording" | "streaming" | "transcribing" | "processing";
+type OverlayState =
+  | "recording"
+  | "streaming"
+  | "transcribing"
+  | "processing"
+  | "preview";
 
 // Number of reactive bars in the waveform (the simple, smoothed style shared by
 // every overlay form). Mic levels arrive as 16 FFT buckets; we take the first N.
@@ -59,7 +64,11 @@ const RecordingOverlay: React.FC = () => {
         // Reset synchronously before settings I/O. A fast microphone can emit
         // recording-ready while the awaits below are in flight; resetting after
         // them would overwrite that event and leave the overlay stuck arming.
-        if (overlayState === "recording" || overlayState === "streaming") {
+        if (
+          overlayState === "recording" ||
+          overlayState === "streaming" ||
+          overlayState === "preview"
+        ) {
           setCaptureReady(false);
           smoothedLevelsRef.current = Array(16).fill(0);
           setLevels(Array(WAVE_BARS).fill(0));
@@ -80,7 +89,7 @@ const RecordingOverlay: React.FC = () => {
           // Keep the previous/default placement if settings can't be read.
         }
         setState(overlayState);
-        if (overlayState === "streaming") {
+        if (overlayState === "streaming" || overlayState === "preview") {
           setPhase("listening");
           setWorkKind("transcribing");
           setElapsed(0);
@@ -228,7 +237,11 @@ const RecordingOverlay: React.FC = () => {
   );
 
   // ---- Live overlay: a pill that sculpts open into a panel ----
-  if (state === "streaming") {
+  // The final-text preview ("preview") reuses the Live card: it shows the
+  // finished transcription briefly before the paste fires, so batch models
+  // get the same final confirmation streaming models already had.
+  if (state === "streaming" || state === "preview") {
+    const isPreview = state === "preview";
     const hasText =
       streamText.committed.length > 0 || streamText.tentative.length > 0;
     const working = phase === "working";
@@ -260,8 +273,9 @@ const RecordingOverlay: React.FC = () => {
                   </span>
                   <span className="tentative">{streamText.tentative}</span>
                   {/* Drop the blinking caret once finalizing — it's no longer
-                      capturing, and a static spinner conveys the work. */}
-                  {!working && <span className="scaret" />}
+                      capturing, and a static spinner conveys the work. The
+                      preview keeps it: the text is final but not yet pasted. */}
+                  {(!working || isPreview) && <span className="scaret" />}
                 </p>
               </div>
             </div>
@@ -273,7 +287,9 @@ const RecordingOverlay: React.FC = () => {
                   : t("overlay.transcribing"),
                 true,
               )
-            : listeningRow(open, true)}
+            : // The preview row keeps the shared 3-zone layout but drops the
+              // elapsed timer: nothing is being timed anymore.
+              listeningRow(open && !isPreview, true)}
         </div>
       </div>
     );

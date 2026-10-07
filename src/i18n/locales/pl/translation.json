@@ -489,6 +489,10 @@
         "title": "Głosowe polecenia usuwania",
         "description": "\"scratch that\", \"delete that\" i \"remove that\" usuwają poprzednie słowo, \"delete last three words\" usuwa kilka słów, a \"delete everything\" lub \"start over\" czyści dyktando. Wyłącz, aby zachować je jako zwykłe słowa."
       },
+      "previewBeforePaste": {
+        "title": "Podgląd przed wklejeniem",
+        "description": "Krótko pokazuje gotową transkrypcję w nakładce nagrywania przed jej wklejeniem. Wyłącz, aby wkleić natychmiast."
+      },
       "chineseScript": {
         "title": "Pismo chińskie",
         "description": "Zapisuje transkrypcje w języku mandaryńskim i kantońskim znakami uproszczonymi lub tradycyjnymi. Inne języki pozostają bez zmian.",

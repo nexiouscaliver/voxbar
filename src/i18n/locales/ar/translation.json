@@ -438,6 +438,10 @@
         "title": "أوامر الحذف الصوتي",
         "description": "تحذف \"scratch that\" و\"delete that\" و\"remove that\" الكلمة السابقة، وتحذف \"delete last three words\" عدة كلمات، وتمسح \"delete everything\" أو \"start over\" الإملاء بالكامل. أطفئه لتبقى كلمات عادية."
       },
+      "previewBeforePaste": {
+        "title": "معاينة قبل اللصق",
+        "description": "يعرض النص النهائي لفترة قصيرة في نافذة التسجيل العائمة قبل لصقه. أوقفه للصق فورًا."
+      },
       "chineseScript": {
         "title": "الكتابة الصينية",
         "description": "يكتب نصوص الماندرين والكانتونية بالأحرف المبسطة أو التقليدية. لا تتغير اللغات الأخرى.",

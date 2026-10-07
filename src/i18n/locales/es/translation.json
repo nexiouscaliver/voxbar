@@ -489,6 +489,10 @@
         "title": "Comandos de borrado por voz",
         "description": "\"scratch that\", \"delete that\" y \"remove that\" borran la palabra anterior, \"delete last three words\" borra varias, y \"delete everything\" o \"start over\" borra el dictado. Desactívalo para mantenerlas como palabras normales."
       },
+      "previewBeforePaste": {
+        "title": "Vista previa antes de pegar",
+        "description": "Muestra brevemente la transcripción terminada en la superposición de grabación antes de pegarla. Desactívalo para pegar de inmediato."
+      },
       "chineseScript": {
         "title": "Escritura china",
         "description": "Escribe las transcripciones en mandarín y cantonés con caracteres simplificados o tradicionales. Los demás idiomas no se modifican.",

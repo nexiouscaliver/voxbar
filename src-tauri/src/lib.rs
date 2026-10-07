@@ -743,6 +743,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_spoken_punctuation_setting,
             shortcut::change_terminal_punctuation_setting,
             shortcut::change_voice_deletion_commands_setting,
+            shortcut::change_preview_before_paste_setting,
             shortcut::change_delete_last_word_enabled_setting,
             shortcut::change_undo_enabled_setting,
             shortcut::change_command_mode_enabled_setting,

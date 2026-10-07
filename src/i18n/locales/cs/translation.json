@@ -489,6 +489,10 @@
         "title": "Hlasové příkazy pro mazání",
         "description": "\"scratch that\", \"delete that\" a \"remove that\" smažou předchozí slovo, \"delete last three words\" smaže více slov a \"delete everything\" nebo \"start over\" vymaže celý přepis. Vypněte, aby zůstaly běžnými slovy."
       },
+      "previewBeforePaste": {
+        "title": "Náhled před vložením",
+        "description": "Krátce zobrazí hotový přepis v překryvu nahrávání před jeho vložením. Vypněte pro okamžité vložení."
+      },
       "chineseScript": {
         "title": "Čínské písmo",
         "description": "Zapisuje přepisy v mandarínštině a kantonštině zjednodušenými nebo tradičními znaky. Ostatní jazyky zůstávají beze změny.",

@@ -447,6 +447,14 @@ async changeVoiceDeletionCommandsSetting(enabled: boolean) : Promise<Result<null
     else return { status: "error", error: e  as any };
 }
 },
+async changePreviewBeforePasteSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_preview_before_paste_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeDeleteLastWordEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_delete_last_word_enabled_setting", { enabled }) };
@@ -1120,7 +1128,14 @@ selected_channel?: number | null; clamshell_microphone?: string | null; selected
  * after the target app actually reads the transcript, instead of after a
  * fixed delay. See `paste_tx`. macOS and Windows only.
  */
-reliable_paste?: boolean; typing_tool?: TypingTool; external_script_path?: string | null; filler_word_removal_enabled?: boolean; custom_filler_words?: string[] | null; spoken_punctuation?: boolean; terminal_punctuation?: boolean; voice_deletion_commands?: boolean; 
+reliable_paste?: boolean; typing_tool?: TypingTool; external_script_path?: string | null; filler_word_removal_enabled?: boolean; custom_filler_words?: string[] | null; spoken_punctuation?: boolean; terminal_punctuation?: boolean; voice_deletion_commands?: boolean;
+/**
+ * Briefly show the final transcription in the recording overlay before
+ * it is pasted (~1.2s). Gives non-streaming (batch) models the same
+ * final-text confirmation the live overlay gives streaming models; off
+ * pastes immediately as before.
+ */
+preview_before_paste?: boolean;
 /**
  * Master toggle for the assignable "delete last word" hotkey action.
  * The action also ships unbound, so it stays inert until the operator

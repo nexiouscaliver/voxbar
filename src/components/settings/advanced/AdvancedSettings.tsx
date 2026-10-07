@@ -28,6 +28,7 @@ import { FillerWordRemoval } from "../FillerWordRemoval";
 import { SpokenPunctuation } from "../SpokenPunctuation";
 import { TerminalPunctuation } from "../TerminalPunctuation";
 import { VoiceDeletionCommands } from "../VoiceDeletionCommands";
+import { PreviewBeforePaste } from "../PreviewBeforePaste";
 import { ChineseScriptSetting } from "../ChineseScript";
 import { VadBackendSelector } from "../VadBackendSelector";
 
@@ -55,6 +56,7 @@ export const AdvancedSettings: React.FC = () => {
         <TypingToolSetting descriptionMode="tooltip" grouped={true} />
         <ClipboardHandlingSetting descriptionMode="tooltip" grouped={true} />
         <AutoSubmit descriptionMode="tooltip" grouped={true} />
+        <PreviewBeforePaste descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.advanced.groups.transcription")}>

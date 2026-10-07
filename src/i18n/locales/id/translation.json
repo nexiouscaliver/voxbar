@@ -489,6 +489,10 @@
         "title": "Perintah penghapusan suara",
         "description": "\"scratch that\", \"delete that\", dan \"remove that\" menghapus kata sebelumnya, \"delete last three words\" menghapus beberapa kata, dan \"delete everything\" atau \"start over\" mengosongkan dikte. Matikan untuk membiarkannya sebagai kata biasa."
       },
+      "previewBeforePaste": {
+        "title": "Pratinjau sebelum tempel",
+        "description": "Menampilkan transkripsi yang telah selesai sebentar di overlay perekaman sebelum ditempel. Nonaktifkan untuk menempel langsung."
+      },
       "chineseScript": {
         "title": "Aksara Tionghoa",
         "description": "Menulis transkripsi Mandarin dan Kanton dengan aksara Sederhana atau Tradisional. Bahasa lain tidak diubah.",

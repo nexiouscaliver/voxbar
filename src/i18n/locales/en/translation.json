@@ -489,6 +489,10 @@
         "title": "Voice Deletion Commands",
         "description": "\"scratch that\", \"delete that\" and \"remove that\" delete the previous word, \"delete last three words\" deletes several, and \"delete everything\" or \"start over\" clears the dictation. Turn off to keep these as plain words."
       },
+      "previewBeforePaste": {
+        "title": "Preview Before Paste",
+        "description": "Briefly shows the finished transcription in the recording overlay before it is pasted. Turn off to paste immediately."
+      },
       "chineseScript": {
         "title": "Chinese Script",
         "description": "Writes Mandarin and Cantonese transcriptions in Simplified or Traditional characters. Other languages are left unchanged.",

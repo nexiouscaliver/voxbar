@@ -198,6 +198,8 @@ const settingUpdaters: {
     commands.changeTerminalPunctuationSetting(value as boolean),
   voice_deletion_commands: (value) =>
     commands.changeVoiceDeletionCommandsSetting(value as boolean),
+  preview_before_paste: (value) =>
+    commands.changePreviewBeforePasteSetting(value as boolean),
   delete_last_word_enabled: (value) =>
     commands.changeDeleteLastWordEnabledSetting(value as boolean),
   undo_enabled: (value) => commands.changeUndoEnabledSetting(value as boolean),

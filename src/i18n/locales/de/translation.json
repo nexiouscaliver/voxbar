@@ -489,6 +489,10 @@
         "title": "Sprachlöschbefehle",
         "description": "\"scratch that\", \"delete that\" und \"remove that\" löschen das vorherige Wort, \"delete last three words\" löscht mehrere, und \"delete everything\" oder \"start over\" löscht das gesamte Diktat. Ausschalten, um sie als normale Wörter zu behalten."
       },
+      "previewBeforePaste": {
+        "title": "Vorschau vor dem Einfügen",
+        "description": "Zeigt die fertige Transkription kurz im Aufnahme-Overlay an, bevor sie eingefügt wird. Deaktivieren, um sofort einzufügen."
+      },
       "chineseScript": {
         "title": "Chinesische Schrift",
         "description": "Schreibt Transkriptionen auf Mandarin und Kantonesisch in vereinfachten oder traditionellen Schriftzeichen. Andere Sprachen bleiben unverändert.",

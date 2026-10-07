@@ -29,6 +29,7 @@ export { FillerWordRemoval } from "./FillerWordRemoval";
 export { SpokenPunctuation } from "./SpokenPunctuation";
 export { TerminalPunctuation } from "./TerminalPunctuation";
 export { VoiceDeletionCommands } from "./VoiceDeletionCommands";
+export { PreviewBeforePaste } from "./PreviewBeforePaste";
 export { DeleteLastWordAction } from "./DeleteLastWordAction";
 export { UndoAction } from "./UndoAction";
 export { CommandModeToggle } from "./CommandModeToggle";

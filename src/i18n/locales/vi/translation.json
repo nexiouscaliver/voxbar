@@ -489,6 +489,10 @@
         "title": "Lệnh xóa bằng giọng nói",
         "description": "\"scratch that\", \"delete that\" và \"remove that\" xóa từ liền trước, \"delete last three words\" xóa nhiều từ, còn \"delete everything\" hoặc \"start over\" xóa toàn bộ bản đọc. Tắt để giữ chúng là từ thường."
       },
+      "previewBeforePaste": {
+        "title": "Xem trước trước khi dán",
+        "description": "Tạm thời hiển thị bản ghi đã hoàn thành trong lớp phủ ghi âm trước khi dán. Tắt để dán ngay."
+      },
       "chineseScript": {
         "title": "Chữ Hán giản thể/phồn thể",
         "description": "Ghi bản chép tiếng Quan Thoại và tiếng Quảng Đông bằng chữ Giản thể hoặc Phồn thể. Các ngôn ngữ khác không bị thay đổi.",

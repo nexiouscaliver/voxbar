@@ -588,10 +588,17 @@ pub struct AppSettings {
     #[serde(default = "default_terminal_punctuation")]
     pub terminal_punctuation: bool,
     /// Voice deletion commands: "scratch that" / "delete that" remove the
-    /// preceding word, "delete last N words" removes several, and "delete
-    /// everything" / "start over" clears the transcription.
+    /// preceding word, "delete last N words" removes several, "delete line"
+    /// clears the trailing line, and "delete everything" / "start over"
+    /// clears the transcription.
     #[serde(default = "default_voice_deletion_commands")]
     pub voice_deletion_commands: bool,
+    /// Briefly show the final transcription in the recording overlay before
+    /// it is pasted (~1.2s). Gives non-streaming (batch) models the same
+    /// final-text confirmation the live overlay gives streaming models; off
+    /// pastes immediately as before.
+    #[serde(default = "default_preview_before_paste")]
+    pub preview_before_paste: bool,
     /// Master toggle for the assignable "delete last word" hotkey action.
     /// The action also ships unbound, so it stays inert until the operator
     /// binds a key for it.
@@ -717,6 +724,14 @@ fn default_terminal_punctuation() -> bool {
 }
 
 fn default_voice_deletion_commands() -> bool {
+    true
+}
+
+/// The final-text preview defaults ON: seeing what is about to be pasted
+/// (especially for batch models, which show nothing while recording) is the
+/// safer default, and the toggle turns it off for operators who want the
+/// fastest possible paste.
+fn default_preview_before_paste() -> bool {
     true
 }
 
@@ -1196,6 +1211,7 @@ pub fn get_default_settings() -> AppSettings {
         spoken_punctuation: default_spoken_punctuation(),
         terminal_punctuation: default_terminal_punctuation(),
         voice_deletion_commands: default_voice_deletion_commands(),
+        preview_before_paste: default_preview_before_paste(),
         delete_last_word_enabled: default_delete_last_word_enabled(),
         undo_enabled: default_undo_enabled(),
         command_mode_enabled: default_command_mode_enabled(),
@@ -1582,6 +1598,29 @@ mod tests {
     }
 
     #[test]
+    fn preview_before_paste_defaults_on_round_trips_and_backfills() {
+        // Default is ON for fresh installs.
+        assert!(get_default_settings().preview_before_paste);
+        // Serde round-trips both stored values (the toggle round-trip).
+        let mut off = get_default_settings();
+        off.preview_before_paste = false;
+        let parsed: AppSettings =
+            serde_json::from_value(serde_json::to_value(off).unwrap()).unwrap();
+        assert!(!parsed.preview_before_paste);
+        let on = serde_json::to_value(get_default_settings()).unwrap();
+        let parsed: AppSettings = serde_json::from_value(on).unwrap();
+        assert!(parsed.preview_before_paste);
+        // Old settings JSON without the field parses to the default (true).
+        let mut legacy = serde_json::to_value(get_default_settings()).unwrap();
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .remove("preview_before_paste");
+        let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert!(backfilled.preview_before_paste);
+    }
+
+    #[test]
     fn model_unload_timeout_default_is_min2_and_round_trips_wire_string() {
         // Fresh installs default to a 2-minute unload timeout (spec F2);
         // stored settings are untouched — a stored "min5" still parses, as
@@ -1716,6 +1755,7 @@ mod tests {
         assert!(settings.spoken_punctuation);
         assert!(settings.terminal_punctuation);
         assert!(settings.voice_deletion_commands);
+        assert!(settings.preview_before_paste);
         assert!(settings.delete_last_word_enabled);
         assert!(settings.undo_enabled);
         assert!(settings.command_mode_enabled);

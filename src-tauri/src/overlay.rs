@@ -4,6 +4,7 @@ use crate::settings::{OverlayPosition, OverlayStyle};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
+use tauri_specta::Event as _;
 
 #[cfg(not(target_os = "macos"))]
 use log::debug;
@@ -55,7 +56,8 @@ const OVERLAY_STREAM_HEIGHT: f64 = 120.0;
 
 /// Overlay window size (logical) for a given UI state.
 fn overlay_dimensions(state: &str) -> (f64, f64) {
-    if state == "streaming" {
+    // The final-text preview uses the Live panel layout (it shows text).
+    if state == "streaming" || state == "preview" {
         (OVERLAY_STREAM_WIDTH, OVERLAY_STREAM_HEIGHT)
     } else {
         (OVERLAY_WIDTH, OVERLAY_HEIGHT)
@@ -628,6 +630,32 @@ pub fn show_transcribing_overlay(app_handle: &AppHandle) {
 /// Shows the processing overlay window
 pub fn show_processing_overlay(app_handle: &AppHandle) {
     show_overlay_state(app_handle, "processing");
+}
+
+/// Shows the final-text preview: the Live panel layout carrying the final
+/// transcription, displayed briefly before the paste fires (batch models
+/// show nothing live, so this is their only look at the text before it
+/// lands). The show and the text emission run in ONE main-thread closure so
+/// the text event can never land before, and be reset by, the show event's
+/// state reset in the frontend.
+pub fn show_final_preview_overlay(app_handle: &AppHandle, final_text: &str) {
+    // Whether the overlay shows at all is governed by overlay_style, checked
+    // off the main thread like `show_overlay_state` does.
+    if settings::get_settings(app_handle).overlay_style == OverlayStyle::None {
+        return;
+    }
+
+    let handle = app_handle.clone();
+    let state = "preview".to_string();
+    let text = final_text.to_string();
+    let _ = app_handle.run_on_main_thread(move || {
+        show_overlay_state_on_main(&handle, &state);
+        let _ = crate::managers::transcription::StreamTextEvent {
+            committed: text,
+            tentative: String::new(),
+        }
+        .emit(&handle);
+    });
 }
 
 /// Updates the overlay window position based on current settings

@@ -489,6 +489,10 @@
         "title": "Spraakopdrachten voor verwijderen",
         "description": "\"scratch that\", \"delete that\" en \"remove that\" verwijderen het vorige woord, \"delete last three words\" verwijdert er meerdere, en \"delete everything\" of \"start over\" wist de dictee. Zet uit om ze als gewone woorden te behouden."
       },
+      "previewBeforePaste": {
+        "title": "Voorvertoning vóór het plakken",
+        "description": "Toont de voltooide transcriptie kort in de opname-overlay voordat deze wordt geplakt. Schakel uit om direct te plakken."
+      },
       "chineseScript": {
         "title": "Chinees schrift",
         "description": "Schrijft Mandarijn- en Kantonese transcripties in vereenvoudigde of traditionele karakters. Andere talen blijven ongewijzigd.",

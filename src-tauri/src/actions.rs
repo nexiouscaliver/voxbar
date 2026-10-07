@@ -5,8 +5,7 @@ use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
-use crate::managers::transcription::StreamWorkKind;
-use crate::managers::transcription::TranscriptionManager;
+use crate::managers::transcription::{StreamTextEvent, StreamWorkKind, TranscriptionManager};
 use crate::settings::{get_settings, AppSettings, OverlayStyle, APPLE_INTELLIGENCE_PROVIDER_ID};
 use crate::shortcut;
 use crate::tray::{set_tray_state, TrayIconState};
@@ -22,8 +21,13 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tauri::Manager;
 use tauri::{AppHandle, Emitter};
+use tauri_specta::Event as _;
 
 const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
+
+/// How long the final-text preview stays on screen before the paste fires
+/// when `preview_before_paste` is enabled.
+const PREVIEW_BEFORE_PASTE_DELAY: Duration = Duration::from_millis(1200);
 
 #[derive(Clone, serde::Serialize)]
 struct RecordingErrorEvent {
@@ -828,6 +832,50 @@ impl ShortcutAction for TranscribeAction {
                                 utils::hide_recording_overlay(&ah);
                                 set_tray_state(&ah, TrayIconState::Idle);
                             } else {
+                                // Final-text preview before the paste: batch
+                                // models show nothing while recording, so
+                                // this is the operator's only look at the
+                                // text before it lands. The streaming overlay
+                                // already showed interim text; its final
+                                // preview swaps in exactly what will be
+                                // pasted. The delay sits BEFORE the single
+                                // utils::paste call, and paste performs the
+                                // paste, auto-submit, and clipboard handling
+                                // as one unit, so the preview can never
+                                // stack with auto-submit into a double
+                                // paste; cancelling during the window skips
+                                // the paste entirely (the loop below polls
+                                // the same cancellation generation the paste
+                                // closure checks).
+                                if get_settings(&ah).preview_before_paste {
+                                    if use_streaming_overlay {
+                                        let _ = StreamTextEvent {
+                                            committed: processed.final_text.clone(),
+                                            tentative: String::new(),
+                                        }
+                                        .emit(&ah);
+                                    } else {
+                                        utils::show_final_preview_overlay(
+                                            &ah,
+                                            &processed.final_text,
+                                        );
+                                    }
+
+                                    let mut waited = Duration::ZERO;
+                                    while waited < PREVIEW_BEFORE_PASTE_DELAY {
+                                        if rm.was_cancelled_since(cancel_generation) {
+                                            debug!(
+                                                "Transcription operation cancelled during final preview"
+                                            );
+                                            utils::hide_recording_overlay(&ah);
+                                            set_tray_state(&ah, TrayIconState::Idle);
+                                            return;
+                                        }
+                                        tokio::time::sleep(CANCELLATION_POLL_INTERVAL).await;
+                                        waited += CANCELLATION_POLL_INTERVAL;
+                                    }
+                                }
+
                                 let ah_clone = ah.clone();
                                 let paste_time = Instant::now();
                                 let final_text = processed.final_text;

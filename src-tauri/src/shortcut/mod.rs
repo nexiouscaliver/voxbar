@@ -1501,6 +1501,15 @@ pub fn change_voice_deletion_commands_setting(app: AppHandle, enabled: bool) -> 
     Ok(())
 }
 
+#[tauri::command]
+#[specta::specta]
+pub fn change_preview_before_paste_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.preview_before_paste = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
 /// Flip the delete-last-word master toggle and register or unregister its
 /// binding to match, mirroring how the post-processing toggle drives its
 /// shortcut.

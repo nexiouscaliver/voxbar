@@ -489,6 +489,10 @@
         "title": "Comandi di eliminazione vocale",
         "description": "\"scratch that\", \"delete that\" e \"remove that\" eliminano la parola precedente, \"delete last three words\" ne elimina diverse, e \"delete everything\" o \"start over\" cancella la dettatura. Disattiva per mantenerle come parole normali."
       },
+      "previewBeforePaste": {
+        "title": "Anteprima prima di incollare",
+        "description": "Mostra brevemente la trascrizione finale nell'overlay di registrazione prima di incollarla. Disattiva per incollare immediatamente."
+      },
       "chineseScript": {
         "title": "Scrittura cinese",
         "description": "Scrive le trascrizioni in mandarino e cantonese con caratteri semplificati o tradizionali. Le altre lingue restano invariate.",
