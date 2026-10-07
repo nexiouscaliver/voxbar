@@ -492,7 +492,8 @@
       "retranscribe": "Přepsat znovu",
       "retranscribeError": "Opětovný přepis se nezdařil. Zkuste to prosím znovu.",
       "transcribing": "Přepisuji...",
-      "transcriptionFailed": "Přepis selhal. Můžete zkusit přepis znovu pomocí ikony opakování."
+      "transcriptionFailed": "Přepis selhal. Můžete zkusit přepis znovu pomocí ikony opakování.",
+      "model": "Model přepisu"
     },
     "debug": {
       "title": "Ladění",

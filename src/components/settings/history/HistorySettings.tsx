@@ -356,7 +356,19 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   return (
     <div className="px-4 py-2 pb-5 flex flex-col gap-3">
       <div className="flex justify-between items-center">
-        <p className="text-sm font-medium">{formattedDate}</p>
+        <div className="flex items-center gap-2 min-w-0">
+          <p className="text-sm font-medium whitespace-nowrap">
+            {formattedDate}
+          </p>
+          {entry.model_id ? (
+            <span
+              className="px-1.5 py-0.5 text-[10px] leading-none font-medium rounded bg-mid-gray/20 text-text/60 truncate"
+              title={`${t("settings.history.model")}: ${entry.model_id}`}
+            >
+              {entry.model_id}
+            </span>
+          ) : null}
+        </div>
         <div className="flex items-center">
           <IconButton
             onClick={handleCopyText}

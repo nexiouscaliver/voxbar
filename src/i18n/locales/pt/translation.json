@@ -492,7 +492,8 @@
       "retranscribe": "Re-transcrever",
       "retranscribeError": "Falha ao re-transcrever. Por favor, tente novamente.",
       "transcribing": "Transcrevendo...",
-      "transcriptionFailed": "A transcrição falhou. Você pode re-transcrever usando o ícone de tentar novamente."
+      "transcriptionFailed": "A transcrição falhou. Você pode re-transcrever usando o ícone de tentar novamente.",
+      "model": "Modelo de transcrição"
     },
     "debug": {
       "title": "Depuração",

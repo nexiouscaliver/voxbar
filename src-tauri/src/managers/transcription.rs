@@ -1307,6 +1307,15 @@ impl TranscriptionManager {
     }
 
     pub fn transcribe(&self, audio: Vec<f32>) -> Result<String> {
+        self.transcribe_with_model(audio).map(|(text, _)| text)
+    }
+
+    /// Transcribe and report which model id actually produced the text: the
+    /// resident model at run time — after a RAM auto-fallback this is the
+    /// fallback, not the persisted selection. History entries record it so a
+    /// mid-dictation model switch stays auditable. Returns `(text, model_id)`;
+    /// the model id is empty when unknown.
+    pub fn transcribe_with_model(&self, audio: Vec<f32>) -> Result<(String, String)> {
         #[cfg(debug_assertions)]
         if std::env::var("HANDY_FORCE_TRANSCRIPTION_FAILURE").is_ok() {
             return Err(anyhow::anyhow!(
@@ -1325,7 +1334,7 @@ impl TranscriptionManager {
         if audio.is_empty() {
             debug!("Empty audio vector");
             self.maybe_unload_immediately("empty audio");
-            return Ok(String::new());
+            return Ok((String::new(), self.get_current_model().unwrap_or_default()));
         }
 
         // Check if model is loaded, if not try to load it
@@ -1428,7 +1437,7 @@ impl TranscriptionManager {
 
         self.maybe_unload_immediately("transcription");
 
-        Ok(final_result)
+        Ok((final_result, active_model))
     }
 
     /// transcribe-cpp: the model runs in the engine's worker process, which

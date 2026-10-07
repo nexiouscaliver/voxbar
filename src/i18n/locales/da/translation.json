@@ -492,7 +492,8 @@
       "retranscribe": "Transskribér igen",
       "retranscribeError": "Kunne ikke transskribere igen. Prøv igen.",
       "transcribing": "Transskriberer...",
-      "transcriptionFailed": "Transskription mislykkedes. Du kan transskribere igen ved hjælp af genforsøgsikonet."
+      "transcriptionFailed": "Transskription mislykkedes. Du kan transskribere igen ved hjælp af genforsøgsikonet.",
+      "model": "Transkriptionsmodel"
     },
     "debug": {
       "title": "Fejlfinding",

@@ -647,15 +647,24 @@ impl ShortcutAction for TranscribeAction {
                     // Transcribe concurrently with WAV save. If a live stream was
                     // running, finalize it and use its text (all audio was already
                     // fed to the stream); otherwise batch-transcribe the samples.
+                    // The result also carries the model id that actually produced
+                    // the text — after a RAM auto-fallback that can differ from
+                    // the persisted selection, and history records it per entry.
+                    // The streaming worker's model is read BEFORE finalize: an
+                    // "unload immediately" setting clears it as soon as the
+                    // stream ends.
                     let transcription_time = Instant::now();
+                    let stream_model = tm.get_current_model().unwrap_or_default();
                     let transcription_result = match tm.finalize_stream() {
                         // A finalized stream with usable text wins. An empty result
                         // (no active stream, produced nothing, or the stream failed
                         // or its worker crashed) falls back to a full batch
                         // transcription of the same audio. A cancelled finalize is
                         // surfaced instead, so a cancel never starts a batch run.
-                        Ok(Some(text)) if !text.trim().is_empty() => Ok(text),
-                        Ok(_) => tm.transcribe(samples),
+                        Ok(Some(text)) if !text.trim().is_empty() => {
+                            Ok((text, stream_model.clone()))
+                        }
+                        Ok(_) => tm.transcribe_with_model(samples),
                         Err(err) => Err(err),
                     };
 
@@ -691,7 +700,7 @@ impl ShortcutAction for TranscribeAction {
                     }
 
                     match transcription_result {
-                        Ok(transcription) => {
+                        Ok((transcription, used_model)) => {
                             debug!(
                                 "Transcription completed in {:?}: '{}'",
                                 transcription_time.elapsed(),
@@ -732,6 +741,7 @@ impl ShortcutAction for TranscribeAction {
                                     post_process,
                                     processed.post_processed_text.clone(),
                                     processed.post_process_prompt.clone(),
+                                    Some(used_model),
                                 ) {
                                     error!("Failed to save history entry: {}", err);
                                 }
@@ -795,6 +805,7 @@ impl ShortcutAction for TranscribeAction {
                                     post_process,
                                     None,
                                     None,
+                                    Some(stream_model),
                                 ) {
                                     error!("Failed to save failed history entry: {}", save_err);
                                 }
