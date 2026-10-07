@@ -1,2 +1,12 @@
 [build]
 jobs = 8
+
+[env]
+# This machine's default CLT SDK (MacOSX27.0.sdk) ships .tbd files the
+# linker's tapi cannot parse under rustc 1.99 ("unknown architecture
+# arm64e.x1-macos" — verified: even a hello-world link fails). Pin the
+# newest SDK that links cleanly for EVERY cargo-spawned process (rustc, cc,
+# cmake), so gates and builds need no external env wrapper. Deployment
+# target matches rustc's own default minimum (11.0).
+SDKROOT = "/Library/Developer/CommandLineTools/SDKs/MacOSX26.5.sdk"
+MACOSX_DEPLOYMENT_TARGET = "11.0"
