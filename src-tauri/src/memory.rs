@@ -191,7 +191,7 @@ pub fn rss_bytes_for_pid(pid: u32) -> Option<u64> {
     #[cfg(target_os = "windows")]
     {
         use windows::core::PCWSTR;
-        use windows::Win32::System::Diagnostics::Debug::{
+        use windows::Win32::System::ProcessStatus::{
             GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS,
         };
         use windows::Win32::System::Threading::{OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION};

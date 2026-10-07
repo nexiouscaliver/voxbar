@@ -93,7 +93,12 @@ export const AboutSettings: React.FC = () => {
           </div>
         </SettingContainer>
 
-        <SettingContainer title="Attribution" grouped={true} layout="stacked">
+        <SettingContainer
+          title="Attribution"
+          description="Upstream attribution"
+          grouped={true}
+          layout="stacked"
+        >
           {/* eslint-disable-next-line i18next/no-literal-string */}
           <div className="text-sm text-mid-gray">
             VoxBar is a fork of Handy by CJ Pais (MIT)

@@ -799,7 +799,12 @@ impl Owner {
     /// details and native output). If it was on a GPU, mark the GPU
     /// unavailable so the next worker uses CPU. Returns whether it was.
     fn worker_lost(&mut self, during: &str, failure: &Failure) -> bool {
-        // Dropping the handle reaps the process.
+        // Dropping the handle reaps the process. Clear the published pid
+        // immediately: once reaped, the pid can be recycled by the OS and a
+        // stale value would feed an unrelated process's RSS to the
+        // memory-pressure gate's resident credit and the tray's footprint
+        // (both treat "loaded but no pid" as no-credit / ~-estimate).
+        *lock(&self.shared.worker_pid) = None;
         let info = self.worker.take().and_then(|worker| worker.info.clone());
         let pinned = self.spec.as_ref().is_some_and(LoadSpec::pinned);
         match info {

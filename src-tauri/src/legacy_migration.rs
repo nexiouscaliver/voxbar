@@ -56,6 +56,12 @@ use crate::settings::SETTINGS_STORE_PATH;
 pub const LEGACY_PRODUCT_NAME: &str = "Handy";
 pub const LEGACY_IDENTIFIER: &str = "com.pais.handy";
 
+/// Written into the new data dir while a migration pass left failed items,
+/// so the next launch retries them even though `settings_store.json` —
+/// migrated first — already exists and would otherwise satisfy the
+/// no-store trigger. Cleared by the first pass with no failures.
+pub const MIGRATION_PENDING_MARKER: &str = ".legacy-migration-pending";
+
 /// Legacy autostart value names / file stems (see `legacy_autostart_paths`).
 #[cfg(target_os = "windows")]
 pub const LEGACY_WINDOWS_RUN_VALUE: &str = "Handy";
@@ -103,13 +109,16 @@ pub fn migration_items() -> [MigrationItem; 5] {
 
 /// Legacy app-data dir for `home`, following the same per-OS rules tauri
 /// uses for `app_data_dir()` (tauri `path/desktop.rs`: `dirs::data_dir()` +
-/// identifier): `~/Library/Application Support` on macOS, `~/.config` on
-/// Linux, `%APPDATA%` (Roaming) on Windows — with the LEGACY identifier.
+/// identifier): `~/Library/Application Support` on macOS,
+/// `~/.local/share` (XDG data) on Linux, `%APPDATA%` (Roaming) on Windows —
+/// with the LEGACY identifier. (`dirs::data_dir()` on Linux is
+/// `$XDG_DATA_HOME`/`~/.local/share`, NOT `~/.config` — the pre-rebrand
+/// README's `~/.config/com.pais.handy` table row was wrong.)
 pub fn legacy_data_dir(home: &Path) -> PathBuf {
     #[cfg(target_os = "macos")]
     let base = home.join("Library").join("Application Support");
     #[cfg(target_os = "linux")]
-    let base = home.join(".config");
+    let base = home.join(".local").join("share");
     #[cfg(target_os = "windows")]
     let base = home.join("AppData").join("Roaming");
     base.join(LEGACY_IDENTIFIER)
@@ -186,8 +195,15 @@ impl MigrationReport {
 /// target already present → skip; source missing → skip (nothing to do);
 /// otherwise prefer a same-volume `rename` (instant for the multi-GB
 /// `models/` dir) and fall back to a recursive copy. The source side is
-/// never deleted, so a partial failure leaves the legacy dir intact and
-/// the next launch retries the failed items.
+/// never deleted, so a partial failure leaves the legacy dir intact.
+///
+/// Retry semantics: when a pass leaves failures, a marker file is written
+/// into the new data dir ([`MIGRATION_PENDING_MARKER`]) and cleared once a
+/// pass completes without failures. The first-run hook in
+/// [`run_first_run_migration`] bypasses its no-store early-return while the
+/// marker exists — without it the trigger would never re-fire, because
+/// SettingsStore migrates first and its presence is what the trigger keys
+/// on.
 pub fn migrate_data(
     legacy_data: &Path,
     legacy_logs: &Path,
@@ -218,6 +234,17 @@ pub fn migrate_data(
             Ok(()) => report.migrated.push(item),
             Err(e) => report.failed.push((item, e.to_string())),
         }
+    }
+
+    // Write/clear the retry marker after the pass. Failures here are
+    // best-effort: a marker that cannot be written merely means the failed
+    // items are not retried (the pre-fix behavior), never a startup error.
+    let marker = new_data.join(MIGRATION_PENDING_MARKER);
+    if report.failed.is_empty() {
+        let _ = std::fs::remove_file(&marker);
+    } else {
+        let _ = std::fs::create_dir_all(new_data);
+        let _ = std::fs::write(&marker, "pending\n");
     }
 
     report
@@ -392,8 +419,12 @@ pub fn run_first_run_migration(app: &AppHandle) {
     }
 
     // Data migration: only on a fresh new dir (no settings store yet) with
-    // a legacy dir present.
-    if new_data.join(SETTINGS_STORE_PATH).exists() {
+    // a legacy dir present — or while a previous pass left failed items
+    // (marker present), since the store migrates first and would otherwise
+    // satisfy the no-store trigger, making the promised retry unreachable.
+    if new_data.join(SETTINGS_STORE_PATH).exists()
+        && !new_data.join(MIGRATION_PENDING_MARKER).exists()
+    {
         return;
     }
     let Some(legacy_data) = resolve_legacy_data_dir(&new_data, &home) else {
@@ -572,6 +603,8 @@ mod tests {
         let second = migrate_data(&legacy_data, &legacy_logs, &new_data, &new_logs);
         assert!(second.is_noop(), "second run migrated/failed: {second:?}");
         assert_eq!(second.skipped.len(), migration_items().len());
+        // A clean pass leaves no retry marker.
+        assert!(!new_data.join(MIGRATION_PENDING_MARKER).exists());
         // Migrated content is unchanged by the second pass.
         assert_eq!(
             std::fs::read(new_data.join(SETTINGS_STORE_PATH)).unwrap(),
@@ -595,6 +628,9 @@ mod tests {
         assert_eq!(report.failed.len(), 1);
         assert_eq!(report.failed[0].0, MigrationItem::Logs);
         assert!(report.migrated.contains(&MigrationItem::SettingsStore));
+        // The retry marker is written so the next launch re-runs the pass
+        // even though the (first-migrated) settings store now exists.
+        assert!(new_data.join(MIGRATION_PENDING_MARKER).is_file());
         // The source side is never deleted: the legacy dir and the failed
         // item's source are still there for the next-launch retry.
         assert!(legacy_data.exists());
@@ -604,6 +640,42 @@ mod tests {
             legacy_data.join(SETTINGS_STORE_PATH).is_file()
                 || new_data.join(SETTINGS_STORE_PATH).is_file()
         );
+    }
+
+    #[test]
+    fn failed_items_are_retried_and_marker_cleared_on_the_next_launch() {
+        let tmp = tempfile::tempdir().unwrap();
+        let (legacy_data, legacy_logs) = legacy_layout(tmp.path());
+        let new_data = tmp.path().join("new-data");
+        // Block the logs target on the first pass, unblock it for the
+        // second — exactly the transient condition (locked dir, full disk)
+        // the marker exists to survive.
+        let blocker = tmp.path().join("blocker");
+        std::fs::write(&blocker, b"not a dir").unwrap();
+        let blocked_logs = blocker.join("logs");
+
+        let first = migrate_data(&legacy_data, &legacy_logs, &new_data, &blocked_logs);
+        assert_eq!(
+            first.failed,
+            vec![(MigrationItem::Logs, first.failed[0].1.clone())]
+        );
+        assert!(new_data.join(SETTINGS_STORE_PATH).is_file());
+        assert!(new_data.join(MIGRATION_PENDING_MARKER).is_file());
+
+        // The retry sees the settings store at the target — skip-if-present —
+        // but the failed item still moves and the marker clears.
+        std::fs::remove_file(&blocker).unwrap();
+        let new_logs = tmp.path().join("new-logs");
+        let second = migrate_data(&legacy_data, &legacy_logs, &new_data, &new_logs);
+        assert!(second.failed.is_empty());
+        assert_eq!(second.migrated, vec![MigrationItem::Logs]);
+        assert!(!new_data.join(MIGRATION_PENDING_MARKER).exists());
+        assert!(new_logs.join("handy.log").is_file());
+
+        // Third pass: clean, no marker, full no-op.
+        let third = migrate_data(&legacy_data, &legacy_logs, &new_data, &new_logs);
+        assert!(third.is_noop());
+        assert!(!new_data.join(MIGRATION_PENDING_MARKER).exists());
     }
 
     #[test]

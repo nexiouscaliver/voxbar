@@ -645,7 +645,10 @@ impl TranscriptionManager {
             let credit = self.resident_model_footprint_bytes();
             let free = memory::available_memory_bytes().map(|f| f.saturating_add(credit));
             if free.is_none() {
-                debug!(
+                // Spec F3: the fail-open path must log a WARNING so an inert
+                // probe is visible on the console (default filter Info), not
+                // silently skipped.
+                warn!(
                     "memory gate: available-memory probe unavailable, failing open for {}",
                     model_info.name
                 );
