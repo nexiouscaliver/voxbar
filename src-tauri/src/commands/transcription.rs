@@ -1,5 +1,8 @@
 use crate::managers::transcription::TranscriptionManager;
-use crate::settings::{get_settings, write_settings, ModelUnloadTimeout};
+use crate::settings::{
+    get_settings, write_settings, ModelUnloadTimeout, MODEL_UNLOAD_CUSTOM_MAX_SECONDS,
+    MODEL_UNLOAD_CUSTOM_MIN_SECONDS,
+};
 use serde::Serialize;
 use specta::Type;
 use std::sync::Arc;
@@ -17,6 +20,25 @@ pub fn set_model_unload_timeout(app: AppHandle, timeout: ModelUnloadTimeout) {
     let mut settings = get_settings(&app);
     settings.model_unload_timeout = timeout;
     write_settings(&app, settings);
+}
+
+/// Set the idle-unload timeout to a custom seconds value (the Settings
+/// numeric field and any future UI that speaks seconds). Rejects
+/// out-of-range values instead of clamping so a UI bug can't silently write
+/// a 3-second or 30-day timeout the user never saw.
+#[tauri::command]
+#[specta::specta]
+pub fn set_model_unload_timeout_custom_seconds(app: AppHandle, seconds: u64) -> Result<(), String> {
+    if !(MODEL_UNLOAD_CUSTOM_MIN_SECONDS..=MODEL_UNLOAD_CUSTOM_MAX_SECONDS).contains(&seconds) {
+        return Err(format!(
+            "Custom unload timeout must be between {MODEL_UNLOAD_CUSTOM_MIN_SECONDS} and \
+             {MODEL_UNLOAD_CUSTOM_MAX_SECONDS} seconds (got {seconds})"
+        ));
+    }
+    let mut settings = get_settings(&app);
+    settings.model_unload_timeout = ModelUnloadTimeout::Custom { seconds };
+    write_settings(&app, settings);
+    Ok(())
 }
 
 #[tauri::command]

@@ -87,6 +87,14 @@ const settingUpdaters: {
     commands.updateMicrophoneMode(value as boolean),
   audio_feedback: (value) =>
     commands.changeAudioFeedbackSetting(value as boolean),
+  memory_pressure_guard: (value) =>
+    commands.changeMemoryPressureGuardSetting(value as boolean),
+  auto_fallback: (value) =>
+    commands.changeAutoFallbackSetting(value as boolean),
+  menu_bar_model_title: (value) =>
+    commands.changeMenuBarModelTitleSetting(value as boolean),
+  show_history_model: (value) =>
+    commands.changeShowHistoryModelSetting(value as boolean),
   audio_feedback_volume: (value) =>
     commands.changeAudioFeedbackVolumeSetting(value as number),
   sound_theme: (value) => commands.changeSoundThemeSetting(value as string),
@@ -166,6 +174,7 @@ const settingUpdaters: {
   log_level: (value) => commands.setLogLevel(value as any),
   app_language: (value) => commands.changeAppLanguageSetting(value as string),
   theme: (value) => commands.changeThemeSetting(value as string),
+  accent_color: (value) => commands.changeAccentColorSetting(value as string),
   experimental_enabled: (value) =>
     commands.changeExperimentalEnabledSetting(value as boolean),
   lazy_stream_close: (value) =>
@@ -183,6 +192,19 @@ const settingUpdaters: {
   },
   filler_word_removal_enabled: (value) =>
     commands.changeFillerWordRemovalEnabledSetting(value as boolean),
+  spoken_punctuation: (value) =>
+    commands.changeSpokenPunctuationSetting(value as boolean),
+  terminal_punctuation: (value) =>
+    commands.changeTerminalPunctuationSetting(value as boolean),
+  voice_deletion_commands: (value) =>
+    commands.changeVoiceDeletionCommandsSetting(value as boolean),
+  preview_before_paste: (value) =>
+    commands.changePreviewBeforePasteSetting(value as boolean),
+  delete_last_word_enabled: (value) =>
+    commands.changeDeleteLastWordEnabledSetting(value as boolean),
+  undo_enabled: (value) => commands.changeUndoEnabledSetting(value as boolean),
+  command_mode_enabled: (value) =>
+    commands.changeCommandModeEnabledSetting(value as boolean),
   chinese_script: (value) =>
     commands.changeChineseScriptSetting(value as ChineseScript),
   show_tray_icon: (value) =>

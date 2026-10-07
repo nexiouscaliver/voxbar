@@ -4,6 +4,10 @@
     "checkUpdates": "Kiểm tra cập nhật...",
     "copyLastTranscript": "Sao chép bản chép lời mới nhất",
     "unloadModel": "Dỡ mô hình",
+    "unloadAfter": "Dỡ sau",
+    "unloadAfterImmediately": "Ngay lập tức",
+    "unloadAfterNever": "Không bao giờ",
+    "unloadAfterCustom": "Tùy chỉnh…",
     "model": "Mô hình",
     "quit": "Thoát",
     "cancel": "Hủy",
@@ -101,7 +105,7 @@
     },
     "permissions": {
       "title": "Cần cấp quyền",
-      "description": "Handy cần một số quyền để hoạt động bình thường.",
+      "description": "VoxBar cần một số quyền để hoạt động bình thường.",
       "microphone": {
         "title": "Quyền truy cập Micrô",
         "description": "Cần thiết để nghe giọng nói của bạn để chuyển đổi."
@@ -175,13 +179,41 @@
       "searchPlaceholder": "Tìm mô hình theo tên…",
       "rescan": {
         "label": "Quét lại",
-        "tooltip": "Quét lại các mô hình được thêm vào thư mục mô hình hoặc bộ nhớ đệm Hugging Face bên ngoài Handy"
+        "tooltip": "Quét lại các mô hình được thêm vào thư mục mô hình hoặc bộ nhớ đệm Hugging Face bên ngoài VoxBar"
+      },
+      "rescanModels": "Quét lại các mô hình",
+      "addFromHf": {
+        "title": "Thêm mô hình từ Hugging Face",
+        "description": "Dán URL kho công khai hoặc chủ/kho, ví dụ https://huggingface.co/chu/mo-hinh.",
+        "placeholder": "https://huggingface.co/chu/mo-hinh hoặc chu/kho",
+        "add": "Thêm",
+        "cancel": "Hủy",
+        "pickFile": "Chọn một tệp từ {{repo}}:",
+        "recommended": "Được đề xuất",
+        "status": {
+          "resolving": "Đang phân giải kho...",
+          "adding": "Đang tải xuống và kiểm tra mô hình...",
+          "added": "Đã thêm mô hình. Nó xuất hiện trong các mô hình đã tải xuống."
+        },
+        "errors": {
+          "invalidInput": "Không thể đọc đó là kho Hugging Face: {{detail}}",
+          "notFound": "Không tìm thấy kho {{repo}} trên Hugging Face.",
+          "inaccessible": "Không thể truy cập {{repo}} trên Hugging Face. Nó có thể không tồn tại, hoặc là kho riêng tư hoặc bị giới hạn. Hiện tại chỉ hỗ trợ kho công khai.",
+          "fileNotFound": "Không tìm thấy tệp {{filename}} trong {{repo}}.",
+          "noGguf": "{{repo}} không chứa tệp GGUF nào.",
+          "network": "Không thể kết nối với Hugging Face: {{detail}}",
+          "downloadFailed": "Tải xuống thất bại: {{detail}}",
+          "cancelled": "Đã hủy tải xuống.",
+          "unsupportedArch": "Kiến trúc mô hình {{arch}} không được hỗ trợ. Được hỗ trợ: {{supported}}.",
+          "unsupportedArchUnknown": "Không thể đọc tệp đó dưới dạng mô hình GGUF nên đã không thêm.",
+          "generic": "Đã xảy ra lỗi."
+        }
       }
     },
     "general": {
       "title": "Chung",
       "shortcut": {
-        "title": "Phím tắt Handy",
+        "title": "Phím tắt VoxBar",
         "description": "Cấu hình phím tắt để kích hoạt ghi âm chuyển đổi giọng nói thành văn bản",
         "loading": "Đang tải phím tắt...",
         "none": "Chưa cấu hình phím tắt",
@@ -199,13 +231,26 @@
           "transcribe_with_post_process": {
             "name": "Phím tắt xử lý sau",
             "description": "Tùy chọn: Phím tắt chuyên dụng luôn áp dụng xử lý sau bằng AI cho bản chuyển đổi của bạn."
+          },
+          "delete_last_word": {
+            "name": "Xóa từ cuối cùng",
+            "description": "Xóa từ trước con trỏ trong ứng dụng đang tập trung (Option+Backspace trên macOS, Ctrl+Backspace trên nền tảng khác). Gán phím để bật."
+          },
+          "undo": {
+            "name": "Hoàn tác",
+            "description": "Kích hoạt Hoàn tác trong ứng dụng đang tập trung (Cmd+Z trên macOS, Ctrl+Z trên nền tảng khác), hoàn tác lần đọc chính được dán gần nhất chỉ trong một thao tác. Gán phím để bật."
+          },
+          "transcribe_commands": {
+            "name": "Chế độ lệnh",
+            "description": "Ghi âm như đọc chính tả, nhưng mỗi từ được coi là một lệnh: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Các từ không nhận dạng được bị loại bỏ, nên không bao giờ gõ nội dung nào khác. Mặc định chưa gán phím."
           }
         },
         "errors": {
           "restore": "Không thể khôi phục phím tắt gốc",
           "set": "Không thể đặt phím tắt: {{error}}",
           "reset": "Không thể đặt lại phím tắt về giá trị gốc"
-        }
+        },
+        "unbound": "Chưa gán"
       },
       "language": {
         "title": "Ngôn ngữ",
@@ -226,6 +271,24 @@
           "hold_or_toggle": "Giữ để ghi âm hoặc nhấn nhanh để bật/tắt",
           "push_to_talk": "Ghi âm trong lúc bạn giữ phím tắt",
           "toggle": "Nhấn phím tắt để bắt đầu ghi âm, nhấn lại để dừng"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Phím tắt chỉnh sửa",
+        "deleteLastWord": {
+          "title": "Hành động: xóa từ cuối cùng",
+          "description": "Bật phím tắt có thể gán để xóa từ trước con trỏ. Phím tắt giữ trạng thái tắt cho đến khi bạn gán phím ở trên."
+        },
+        "undo": {
+          "title": "Hành động: hoàn tác",
+          "description": "Bật phím tắt có thể gán để kích hoạt Hoàn tác trong ứng dụng đang tập trung. Phím tắt giữ trạng thái tắt cho đến khi bạn gán phím ở trên."
+        }
+      },
+      "commandMode": {
+        "title": "Chế độ lệnh",
+        "toggle": {
+          "title": "Chế độ lệnh",
+          "description": "Bật phím kích hoạt chế độ lệnh có thể gán. Khi giữ, nó ghi âm như đọc chính tả; bản transcript được thực thi dưới dạng lệnh (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) và các từ không nhận dạng được bị loại bỏ."
         }
       }
     },
@@ -291,18 +354,30 @@
         "label": "Khởi động ẩn",
         "description": "Khởi động vào khay hệ thống mà không mở cửa sổ."
       },
+      "memoryPressureGuard": {
+        "label": "Bảo vệ áp lực bộ nhớ",
+        "description": "Từ chối tải mô hình khi bộ nhớ trống không đủ. Mô hình hiện tại tiếp tục hoạt động khi việc tải bị từ chối."
+      },
+      "autoFallback": {
+        "label": "Tự động chuyển khi thiếu RAM",
+        "description": "Khi mô hình đã chọn không vừa bộ nhớ trống, tự động tải mô hình đã tải xuống phù hợp nhất. Tắt để giữ việc từ chối đơn giản."
+      },
+      "menuBarModelTitle": {
+        "label": "Tiêu đề mô hình trên thanh menu",
+        "description": "Hiển thị mô hình thường trú và mức dùng RAM dưới dạng văn bản bên cạnh biểu tượng khay (thanh menu macOS)."
+      },
       "autostart": {
         "label": "Khởi động cùng hệ thống",
-        "description": "Tự động khởi động Handy khi bạn đăng nhập vào máy tính."
+        "description": "Tự động khởi động VoxBar khi bạn đăng nhập vào máy tính."
       },
       "showTrayIcon": {
         "label": "Hiển thị biểu tượng khay",
-        "description": "Hiển thị biểu tượng Handy trong khay hệ thống."
+        "description": "Hiển thị biểu tượng VoxBar trong khay hệ thống."
       },
       "overlay": {
         "style": {
           "title": "Lớp phủ",
-          "description": "Chọn lớp phủ khi ghi âm: 'Không có' sẽ ẩn nó, 'Tối giản' hiển thị một chỉ báo nhỏ gọn, 'Trực tiếp' hiển thị bản chép lời theo thời gian thực khi bạn nói (chỉ với các mô hình hỗ trợ truyền trực tiếp — hãy tìm huy hiệu 'Truyền trực tiếp' trong bộ chọn mô hình). Trên Linux, khuyến nghị chọn 'Không có'.",
+          "description": "Chọn lớp phủ khi ghi âm: 'Không có' sẽ ẩn nó, 'Tối giản' hiển thị một chỉ báo nhỏ gọn, 'Trực tiếp' hiển thị bản chép lời theo thời gian thực khi bạn nói (chỉ với các mô hình hỗ trợ truyền trực tiếp - hãy tìm huy hiệu 'Truyền trực tiếp' trong bộ chọn mô hình). Trên Linux, khuyến nghị chọn 'Không có'.",
           "options": {
             "none": "Không có",
             "minimal": "Tối giản",
@@ -372,12 +447,15 @@
           "min10": "Sau 10 phút",
           "min15": "Sau 15 phút",
           "hour1": "Sau 1 giờ",
+          "custom": "Tùy chỉnh",
           "sec15": "Sau 15 giây (Gỡ lỗi)"
-        }
+        },
+        "customSecondsLabel": "Giây tùy chỉnh",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Từ tùy chỉnh",
-        "description": "Giúp các mô hình được hỗ trợ nhận dạng tên và thuật ngữ chuyên ngành. Tính năng sửa gần đúng hiện chỉ áp dụng cho các từ sử dụng chữ cái A–Z và chữ số.",
+        "description": "Giúp các mô hình được hỗ trợ nhận dạng tên và thuật ngữ chuyên ngành. Tính năng sửa gần đúng hiện chỉ áp dụng cho các từ sử dụng chữ cái A-Z và chữ số.",
         "placeholder": "Thêm một từ",
         "add": "Thêm",
         "remove": "Xóa {{word}}",
@@ -398,6 +476,22 @@
       "fillerWordRemoval": {
         "title": "Loại bỏ từ đệm",
         "description": "Loại bỏ các từ ngập ngừng phổ biến khỏi bản chép lời. Tắt để giữ lại các từ này."
+      },
+      "spokenPunctuation": {
+        "title": "Dấu câu bằng lời",
+        "description": "Chuyển các từ dấu câu được nói như \"comma\", \"period\" và \"question mark\" thành dấu câu thật. Tắt để giữ chúng là từ thường."
+      },
+      "terminalPunctuation": {
+        "title": "Dấu câu kết thúc",
+        "description": "Kết thúc mỗi bản ghi bằng dấu câu: dấu hỏi cho câu hỏi, nếu không là dấu chấm. Tắt để để phần kết thúc đúng như bản ghi."
+      },
+      "voiceDeletion": {
+        "title": "Lệnh xóa bằng giọng nói",
+        "description": "\"scratch that\", \"delete that\" và \"remove that\" xóa từ liền trước, \"delete last three words\" xóa nhiều từ, còn \"delete everything\" hoặc \"start over\" xóa toàn bộ bản đọc. Tắt để giữ chúng là từ thường."
+      },
+      "previewBeforePaste": {
+        "title": "Xem trước trước khi dán",
+        "description": "Tạm thời hiển thị bản ghi đã hoàn thành trong lớp phủ ghi âm trước khi dán. Tắt để dán ngay."
       },
       "chineseScript": {
         "title": "Chữ Hán giản thể/phồn thể",
@@ -477,7 +571,12 @@
       "retranscribe": "Phiên âm lại",
       "retranscribeError": "Không thể phiên âm lại. Vui lòng thử lại.",
       "transcribing": "Đang phiên âm...",
-      "transcriptionFailed": "Phiên âm thất bại. Bạn có thể phiên âm lại bằng biểu tượng thử lại."
+      "transcriptionFailed": "Phiên âm thất bại. Bạn có thể phiên âm lại bằng biểu tượng thử lại.",
+      "model": "Mô hình transcription",
+      "showModel": {
+        "label": "Hiện huy hiệu mô hình",
+        "description": "Hiển thị huy hiệu gọn gàng kèm mô hình đã tạo từng bản ghi âm."
+      }
     },
     "debug": {
       "title": "Gỡ lỗi",
@@ -502,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Kiểm tra cập nhật",
-        "description": "Tự động kiểm tra phiên bản mới của Handy",
+        "description": "Hiển thị tùy chọn \"Kiểm tra cập nhật\" trong menu khay và ở chân cửa sổ",
         "lockedDescription": "Đã bị vô hiệu hóa bởi cấu hình hệ thống (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {
@@ -580,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Chẩn đoán bàn phím",
-        "description": "Kiểm tra xem các sự kiện bàn phím có đến được Handy hay không. Chỉ số lượng sự kiện được ghi lại — không bao giờ ghi lại bạn bấm phím nào.",
+        "description": "Kiểm tra xem các sự kiện bàn phím có đến được VoxBar hay không. Chỉ số lượng sự kiện được ghi lại - không bao giờ ghi lại bạn bấm phím nào.",
         "run": "Chạy chẩn đoán 10 giây",
         "running": "Đang lắng nghe… hãy bấm phím tắt của bạn vài lần (ví dụ: Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -592,10 +691,10 @@
         "keyUp": "Nhả phím",
         "flagsChanged": "Phím bổ trợ",
         "mouse": "Chuột",
-        "verdictBlocked": "Secure Input đang chặn các sự kiện phím — phím tắt có chứa phím thường không thể hoạt động cho đến khi vấn đề này được xử lý.",
-        "verdictSuspicious": "Có sự kiện phím bổ trợ nhưng không có sự kiện phím nào — thứ gì đó đang chặn phím dù Secure Input báo là đang tắt. Vui lòng báo cáo việc này trên GitHub.",
-        "verdictOk": "Các sự kiện phím đang đến Handy bình thường.",
-        "verdictNoEvents": "Không ghi nhận sự kiện nào — bạn có bấm phím nào trong lúc kiểm tra không?",
+        "verdictBlocked": "Secure Input đang chặn các sự kiện phím - phím tắt có chứa phím thường không thể hoạt động cho đến khi vấn đề này được xử lý.",
+        "verdictSuspicious": "Có sự kiện phím bổ trợ nhưng không có sự kiện phím nào - thứ gì đó đang chặn phím dù Secure Input báo là đang tắt. Vui lòng báo cáo việc này trên GitHub.",
+        "verdictOk": "Các sự kiện phím đang đến VoxBar bình thường.",
+        "verdictNoEvents": "Không ghi nhận sự kiện nào - bạn có bấm phím nào trong lúc kiểm tra không?",
         "failed": "Chẩn đoán thất bại: {{error}}"
       },
       "whatsNewPreview": {
@@ -617,11 +716,11 @@
       "title": "Giới thiệu",
       "version": {
         "title": "Phiên bản",
-        "description": "Phiên bản hiện tại của Handy"
+        "description": "Phiên bản hiện tại của VoxBar"
       },
       "appDataDirectory": {
         "title": "Thư mục dữ liệu ứng dụng",
-        "description": "Vị trí Handy lưu trữ dữ liệu"
+        "description": "Vị trí VoxBar lưu trữ dữ liệu"
       },
       "sourceCode": {
         "title": "Mã nguồn",
@@ -630,7 +729,7 @@
       },
       "supportDevelopment": {
         "title": "Hỗ trợ phát triển",
-        "description": "Giúp chúng tôi tiếp tục xây dựng Handy",
+        "description": "Giúp chúng tôi tiếp tục xây dựng VoxBar",
         "button": "Quyên góp"
       },
       "acknowledgments": {
@@ -638,12 +737,12 @@
         "ggml": {
           "title": "ggml",
           "description": "Suy luận hiệu suất cao của mô hình nhận dạng giọng nói tự động Whisper của OpenAI",
-          "details": "Handy sử dụng ggml để xử lý chuyển đổi giọng nói thành văn bản nhanh, cục bộ. Cảm ơn công việc tuyệt vời của Georgi Gerganov và các cộng tác viên."
+          "details": "VoxBar sử dụng ggml để xử lý chuyển đổi giọng nói thành văn bản nhanh, cục bộ. Cảm ơn công việc tuyệt vời của Georgi Gerganov và các cộng tác viên."
         }
       },
       "whatsNewUpdates": {
         "label": "Hiển thị điểm mới",
-        "description": "Hiển thị ghi chú phát hành sau khi Handy cập nhật"
+        "description": "Hiển thị ghi chú phát hành sau khi VoxBar cập nhật"
       }
     }
   },
@@ -657,9 +756,9 @@
     "preparing": "Đang chuẩn bị...",
     "checkForUpdates": "Kiểm tra cập nhật",
     "portableUpdateTitle": "Cần cập nhật thủ công",
-    "portableUpdateMessage": "Bản cài đặt di động không thể cập nhật tự động. Hãy tải trình cài đặt phù hợp với hệ thống của bạn bên dưới, chạy nó và cài vào cùng thư mục — thư mục Data/ (cài đặt, mô hình, bản ghi) của bạn được giữ nguyên.",
+    "portableUpdateMessage": "Bản cài đặt di động không thể cập nhật tự động. Hãy tải trình cài đặt phù hợp với hệ thống của bạn bên dưới, chạy nó và cài vào cùng thư mục - thư mục Data/ (cài đặt, mô hình, bản ghi) của bạn được giữ nguyên.",
     "portableUpdateButton": "Tải trình cài đặt",
-    "portableUpdateBrowseMessage": "Bản cài đặt di động không thể cập nhật tự động. Hãy tải phiên bản mới nhất phù hợp với hệ thống của bạn từ GitHub Releases và cài vào cùng thư mục — thư mục Data/ (cài đặt, mô hình, bản ghi) của bạn được giữ nguyên.",
+    "portableUpdateBrowseMessage": "Bản cài đặt di động không thể cập nhật tự động. Hãy tải phiên bản mới nhất phù hợp với hệ thống của bạn từ GitHub Releases và cài vào cùng thư mục - thư mục Data/ (cài đặt, mô hình, bản ghi) của bạn được giữ nguyên.",
     "portableUpdateBrowseButton": "Mở GitHub Releases"
   },
   "common": {
@@ -672,7 +771,7 @@
     "noOptionsFound": "Không tìm thấy tùy chọn"
   },
   "accessibility": {
-    "permissionsDescription": "Handy cần quyền truy cập để gõ văn bản đã chuyển đổi.",
+    "permissionsDescription": "VoxBar cần quyền truy cập để gõ văn bản đã chuyển đổi.",
     "openSettings": "Mở Cài đặt Hệ thống"
   },
   "errors": {
@@ -689,21 +788,43 @@
     "recordingFailed": "Không thể bắt đầu ghi âm: {{error}}",
     "modelLoadFailed": "Không thể tải mô hình: {{model}}",
     "modelLoadFailedUnknown": "mô hình không xác định",
+    "modelFallbackTitle": "Bộ nhớ thấp",
+    "modelFallback": "Đã chuyển sang {{model}} cho lần đọc này",
     "pasteFailedTitle": "Không thể dán văn bản",
     "pasteFailed": "Không thể dán văn bản vào ứng dụng đang hoạt động.",
     "transcriptionFailedTitle": "Phiên âm thất bại"
   },
   "appLanguage": {
     "title": "Ngôn ngữ ứng dụng",
-    "description": "Thay đổi ngôn ngữ giao diện của Handy"
+    "description": "Thay đổi ngôn ngữ giao diện của VoxBar"
   },
   "theme": {
     "title": "Giao diện ứng dụng",
-    "description": "Chọn xem Handy theo chủ đề hệ thống hay giữ ở chế độ sáng hoặc tối",
+    "description": "Chọn xem VoxBar theo chủ đề hệ thống hay giữ ở chế độ sáng hoặc tối",
     "options": {
       "system": "Hệ thống",
       "light": "Sáng",
       "dark": "Tối"
+    },
+    "accentColor": {
+      "label": "Màu nhấn",
+      "description": "Chọn màu được dùng cho phần đánh dấu, công tắc và điều khiển"
+    },
+    "accentColors": {
+      "black": "Đen",
+      "gray": "Xám",
+      "white": "Trắng",
+      "red": "Đỏ",
+      "orange": "Cam",
+      "amber": "Hổ phách",
+      "green": "Xanh lục",
+      "teal": "Xanh mòng két",
+      "cyan": "Xanh lục lam",
+      "blue": "Xanh dương",
+      "indigo": "Chàm",
+      "violet": "Tím",
+      "magenta": "Magenta",
+      "pink": "Hồng"
     }
   },
   "overlay": {
@@ -711,7 +832,7 @@
     "processing": "Đang xử lý..."
   },
   "whatsNew": {
-    "title": "Điểm mới trong Handy v{{version}}"
+    "title": "Điểm mới trong VoxBar v{{version}}"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} có thể đang chặn 1 phím tắt",
@@ -721,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} có thể đang chặn việc thay đổi phím tắt",
     "recorderBlockedNoCulprit": "macOS đang tạm thời chặn việc thay đổi phím tắt",
     "learnMore": "Cách khắc phục",
-    "recorderBlocked": "Hiện không thể ghi phím tắt — Secure Input của macOS đang chặn các sự kiện phím. Hãy xử lý cảnh báo Secure Input trước.",
+    "recorderBlocked": "Hiện không thể ghi phím tắt - Secure Input của macOS đang chặn các sự kiện phím. Hãy xử lý cảnh báo Secure Input trước.",
     "dismiss": "Bỏ qua"
   }
 }

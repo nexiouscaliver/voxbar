@@ -4,6 +4,10 @@
     "checkUpdates": "Periksa Pembaruan...",
     "copyLastTranscript": "Salin Transkripsi Terakhir",
     "unloadModel": "Keluarkan Model dari Memori",
+    "unloadAfter": "Setelah itu bongkar",
+    "unloadAfterImmediately": "Segera",
+    "unloadAfterNever": "Tidak Pernah",
+    "unloadAfterCustom": "Kustom…",
     "model": "Model",
     "quit": "Keluar",
     "cancel": "Batal",
@@ -101,7 +105,7 @@
     },
     "permissions": {
       "title": "Izin Diperlukan",
-      "description": "Handy memerlukan beberapa izin agar dapat berfungsi dengan baik.",
+      "description": "VoxBar memerlukan beberapa izin agar dapat berfungsi dengan baik.",
       "microphone": {
         "title": "Akses Mikrofon",
         "description": "Diperlukan untuk menangkap suara Anda agar dapat ditranskripsikan."
@@ -139,7 +143,7 @@
     "loadingGeneric": "Memuat...",
     "modelError": "Kesalahan Model",
     "modelUnloaded": "Model Dikeluarkan dari Memori",
-    "noModelDownloadRequired": "Model Belum Tersedia — Perlu Diunduh",
+    "noModelDownloadRequired": "Model Belum Tersedia - Perlu Diunduh",
     "deleteModel": "Hapus {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
     "cancel": "Batal",
@@ -161,7 +165,7 @@
     "general": {
       "title": "Umum",
       "shortcut": {
-        "title": "Pintasan Handy",
+        "title": "Pintasan VoxBar",
         "description": "Atur pintasan keyboard untuk memulai perekaman ucapan-ke-teks",
         "loading": "Memuat pintasan...",
         "none": "Belum ada pintasan yang diatur",
@@ -179,13 +183,26 @@
           "transcribe_with_post_process": {
             "name": "Pintasan Pascaproses",
             "description": "Opsional: pintasan khusus yang selalu menerapkan pascaproses AI pada transkripsi Anda."
+          },
+          "delete_last_word": {
+            "name": "Hapus kata terakhir",
+            "description": "Menghapus kata sebelum kursor di aplikasi yang fokus (Option+Backspace di macOS, Ctrl+Backspace di tempat lain). Tetapkan tombol untuk mengaktifkannya."
+          },
+          "undo": {
+            "name": "Urungkan",
+            "description": "Menjalankan Urungkan di aplikasi yang fokus (Cmd+Z di macOS, Ctrl+Z di tempat lain), membatalkan dikte terakhir yang ditempel sekaligus. Tetapkan tombol untuk mengaktifkannya."
+          },
+          "transcribe_commands": {
+            "name": "Mode perintah",
+            "description": "Merekam seperti dikte, tetapi setiap kata diperlakukan sebagai perintah: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Kata yang tidak dikenali dibuang, jadi tidak ada hal lain yang pernah diketik. Belum ditetapkan secara bawaan."
           }
         },
         "errors": {
           "restore": "Gagal memulihkan pintasan asli",
           "set": "Gagal mengatur pintasan: {{error}}",
           "reset": "Gagal mengembalikan pintasan ke nilai awal"
-        }
+        },
+        "unbound": "Belum ditetapkan"
       },
       "language": {
         "title": "Bahasa",
@@ -207,6 +224,24 @@
           "push_to_talk": "Merekam selama Anda menahan pintasan",
           "toggle": "Ketuk pintasan untuk mulai merekam, lalu ketuk lagi untuk berhenti"
         }
+      },
+      "editingShortcuts": {
+        "title": "Pintasan penyuntingan",
+        "deleteLastWord": {
+          "title": "Aksi: hapus kata terakhir",
+          "description": "Mengaktifkan pintasan yang dapat ditetapkan untuk menghapus kata sebelum kursor. Pintasan tetap nonaktif sampai Anda menetapkan tombol di atas."
+        },
+        "undo": {
+          "title": "Aksi: urungkan",
+          "description": "Mengaktifkan pintasan yang dapat ditetapkan untuk menjalankan Urungkan di aplikasi yang fokus. Pintasan tetap nonaktif sampai Anda menetapkan tombol di atas."
+        }
+      },
+      "commandMode": {
+        "title": "Mode perintah",
+        "toggle": {
+          "title": "Mode perintah",
+          "description": "Mengaktifkan pemicu mode perintah yang dapat ditetapkan. Saat ditahan ia merekam seperti dikte; transkrip dijalankan sebagai perintah (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) dan kata yang tidak dikenali dibuang."
+        }
       }
     },
     "models": {
@@ -225,9 +260,37 @@
       },
       "rescan": {
         "label": "Pindai Ulang",
-        "tooltip": "Pindai ulang model yang ditambahkan ke folder model atau cache Hugging Face dari luar Handy"
+        "tooltip": "Pindai ulang model yang ditambahkan ke folder model atau cache Hugging Face dari luar VoxBar"
       },
-      "noModelsMatch": "Tidak ada model yang cocok dengan kriteria ini."
+      "noModelsMatch": "Tidak ada model yang cocok dengan kriteria ini.",
+      "rescanModels": "Pindai ulang model",
+      "addFromHf": {
+        "title": "Tambahkan model dari Hugging Face",
+        "description": "Tempel URL repo publik atau pemilik/repo, misalnya https://huggingface.co/pemilik/model.",
+        "placeholder": "https://huggingface.co/pemilik/model atau pemilik/model",
+        "add": "Tambahkan",
+        "cancel": "Batal",
+        "pickFile": "Pilih file dari {{repo}}:",
+        "recommended": "Direkomendasikan",
+        "status": {
+          "resolving": "Menyelesaikan repo...",
+          "adding": "Mengunduh dan memeriksa model...",
+          "added": "Model ditambahkan. Muncul di model yang diunduh."
+        },
+        "errors": {
+          "invalidInput": "Tidak bisa membaca itu sebagai repo Hugging Face: {{detail}}",
+          "notFound": "Repo {{repo}} tidak ditemukan di Hugging Face.",
+          "inaccessible": "{{repo}} tidak dapat diakses di Hugging Face. Mungkin tidak ada, atau bersifat privat atau dibatasi. Saat ini hanya repo publik yang didukung.",
+          "fileNotFound": "File {{filename}} tidak ditemukan di {{repo}}.",
+          "noGguf": "{{repo}} tidak berisi file GGUF.",
+          "network": "Tidak dapat menghubungi Hugging Face: {{detail}}",
+          "downloadFailed": "Unduhan gagal: {{detail}}",
+          "cancelled": "Unduhan dibatalkan.",
+          "unsupportedArch": "Arsitektur model {{arch}} tidak didukung. Yang didukung: {{supported}}.",
+          "unsupportedArchUnknown": "File itu tidak bisa dibaca sebagai model GGUF, jadi tidak ditambahkan.",
+          "generic": "Terjadi kesalahan."
+        }
+      }
     },
     "sound": {
       "title": "Suara",
@@ -291,18 +354,30 @@
         "label": "Mulai dalam Keadaan Tersembunyi",
         "description": "Jalankan ke baki sistem tanpa membuka jendela."
       },
+      "memoryPressureGuard": {
+        "label": "Penjaga Tekanan Memori",
+        "description": "Menolak memuat model saat memori bebas tidak cukup. Model saat ini tetap berfungsi saat pemuatan ditolak."
+      },
+      "autoFallback": {
+        "label": "Fallback otomatis RAM",
+        "description": "Saat model terpilih tidak muat di memori bebas, model terbaik yang sudah diunduh dimuat otomatis. Matikan untuk tetap menolak saja."
+      },
+      "menuBarModelTitle": {
+        "label": "Judul model di bilah menu",
+        "description": "Menampilkan model resident dan penggunaan RAM-nya sebagai teks di samping ikon baki (bilah menu macOS)."
+      },
       "autostart": {
         "label": "Jalankan saat Komputer Dinyalakan",
-        "description": "Mulai Handy secara otomatis saat Anda masuk ke komputer."
+        "description": "Mulai VoxBar secara otomatis saat Anda masuk ke komputer."
       },
       "showTrayIcon": {
         "label": "Tampilkan Ikon Baki Sistem",
-        "description": "Tampilkan ikon Handy di baki sistem."
+        "description": "Tampilkan ikon VoxBar di baki sistem."
       },
       "overlay": {
         "style": {
           "title": "Overlay",
-          "description": "Pilih overlay perekaman: Tidak Ada menyembunyikannya, Minimal menampilkan indikator ringkas, dan Langsung menampilkan transkripsi secara waktu nyata saat Anda berbicara (hanya model yang mendukung streaming — cari lencana Streaming di pemilih model). Di Linux, 'Tidak Ada' direkomendasikan.",
+          "description": "Pilih overlay perekaman: Tidak Ada menyembunyikannya, Minimal menampilkan indikator ringkas, dan Langsung menampilkan transkripsi secara waktu nyata saat Anda berbicara (hanya model yang mendukung streaming - cari lencana Streaming di pemilih model). Di Linux, 'Tidak Ada' direkomendasikan.",
           "options": {
             "none": "Tidak Ada",
             "minimal": "Minimal",
@@ -372,12 +447,15 @@
           "min10": "Setelah 10 menit",
           "min15": "Setelah 15 menit",
           "hour1": "Setelah 1 jam",
+          "custom": "Kustom",
           "sec15": "Setelah 15 detik (Debug)"
-        }
+        },
+        "customSecondsLabel": "Detik kustom",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Kata Khusus",
-        "description": "Bantu model yang didukung mengenali nama dan istilah khusus. Koreksi fuzzy saat ini terbatas pada kata yang menggunakan huruf A–Z dan angka.",
+        "description": "Bantu model yang didukung mengenali nama dan istilah khusus. Koreksi fuzzy saat ini terbatas pada kata yang menggunakan huruf A-Z dan angka.",
         "placeholder": "Tambahkan kata",
         "add": "Tambah",
         "remove": "Hapus {{word}}",
@@ -398,6 +476,22 @@
       "fillerWordRemoval": {
         "title": "Hapus Kata Pengisi",
         "description": "Menghapus kata pengisi umum dari transkripsi. Nonaktifkan untuk mempertahankannya."
+      },
+      "spokenPunctuation": {
+        "title": "Tanda baca lisan",
+        "description": "Mengubah kata tanda baca yang diucapkan seperti \"comma\", \"period\", dan \"question mark\" menjadi tanda baca sungguhan. Matikan untuk membiarkannya sebagai kata biasa."
+      },
+      "terminalPunctuation": {
+        "title": "Tanda baca akhir",
+        "description": "Mengakhiri setiap transkripsi dengan tanda baca: tanda tanya untuk pertanyaan, jika tidak titik. Matikan untuk membiarkan akhiran sesuai transkripsi."
+      },
+      "voiceDeletion": {
+        "title": "Perintah penghapusan suara",
+        "description": "\"scratch that\", \"delete that\", dan \"remove that\" menghapus kata sebelumnya, \"delete last three words\" menghapus beberapa kata, dan \"delete everything\" atau \"start over\" mengosongkan dikte. Matikan untuk membiarkannya sebagai kata biasa."
+      },
+      "previewBeforePaste": {
+        "title": "Pratinjau sebelum tempel",
+        "description": "Menampilkan transkripsi yang telah selesai sebentar di overlay perekaman sebelum ditempel. Nonaktifkan untuk menempel langsung."
       },
       "chineseScript": {
         "title": "Aksara Tionghoa",
@@ -477,7 +571,12 @@
       "retranscribe": "Transkripsikan ulang",
       "retranscribeError": "Gagal mentranskripsikan ulang. Silakan coba lagi.",
       "transcribing": "Mentranskripsikan...",
-      "transcriptionFailed": "Transkripsi gagal. Anda dapat mentranskripsikan ulang menggunakan ikon coba lagi."
+      "transcriptionFailed": "Transkripsi gagal. Anda dapat mentranskripsikan ulang menggunakan ikon coba lagi.",
+      "model": "Model transkripsi",
+      "showModel": {
+        "label": "Tampilkan lencana model",
+        "description": "Menampilkan lencana ringkas dengan model yang menghasilkan tiap transkripsi."
+      }
     },
     "debug": {
       "title": "Debug",
@@ -502,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Periksa Pembaruan",
-        "description": "Periksa versi baru Handy secara otomatis",
+        "description": "Tampilkan opsi \"Periksa Pembaruan\" di menu baki dan di footer",
         "lockedDescription": "Dinonaktifkan oleh konfigurasi sistem (HANDY_DISABLE_UPDATER)"
       },
       "whatsNewPreview": {
@@ -594,7 +693,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Diagnostik Keyboard",
-        "description": "Memeriksa apakah peristiwa keyboard mencapai Handy. Hanya jumlah peristiwa yang dicatat — bukan tombol yang Anda tekan.",
+        "description": "Memeriksa apakah peristiwa keyboard mencapai VoxBar. Hanya jumlah peristiwa yang dicatat - bukan tombol yang Anda tekan.",
         "run": "Jalankan diagnostik 10 dtk",
         "running": "Mendengarkan… tekan pintasan Anda beberapa kali (mis. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -606,10 +705,10 @@
         "keyUp": "Tombol dilepas",
         "flagsChanged": "Tombol pengubah",
         "mouse": "Mouse",
-        "verdictBlocked": "Secure Input memblokir peristiwa tombol — pintasan keyboard tidak dapat berfungsi sampai masalah ini diselesaikan.",
-        "verdictSuspicious": "Peristiwa tombol pengubah diterima, tetapi tidak ada peristiwa tombol — sesuatu memblokir input tombol meskipun Secure Input dilaporkan nonaktif. Harap laporkan ini di GitHub.",
-        "verdictOk": "Peristiwa tombol mencapai Handy secara normal.",
-        "verdictNoEvents": "Tidak ada peristiwa yang tertangkap — apakah Anda menekan tombol selama pengujian?",
+        "verdictBlocked": "Secure Input memblokir peristiwa tombol - pintasan keyboard tidak dapat berfungsi sampai masalah ini diselesaikan.",
+        "verdictSuspicious": "Peristiwa tombol pengubah diterima, tetapi tidak ada peristiwa tombol - sesuatu memblokir input tombol meskipun Secure Input dilaporkan nonaktif. Harap laporkan ini di GitHub.",
+        "verdictOk": "Peristiwa tombol mencapai VoxBar secara normal.",
+        "verdictNoEvents": "Tidak ada peristiwa yang tertangkap - apakah Anda menekan tombol selama pengujian?",
         "failed": "Diagnostik gagal: {{error}}"
       }
     },
@@ -617,15 +716,15 @@
       "title": "Tentang",
       "version": {
         "title": "Versi",
-        "description": "Versi Handy saat ini"
+        "description": "Versi VoxBar saat ini"
       },
       "whatsNewUpdates": {
         "label": "Tampilkan Yang Baru",
-        "description": "Tampilkan catatan rilis setelah Handy diperbarui"
+        "description": "Tampilkan catatan rilis setelah VoxBar diperbarui"
       },
       "appDataDirectory": {
         "title": "Direktori Data Aplikasi",
-        "description": "Lokasi Handy menyimpan datanya"
+        "description": "Lokasi VoxBar menyimpan datanya"
       },
       "sourceCode": {
         "title": "Kode Sumber",
@@ -634,7 +733,7 @@
       },
       "supportDevelopment": {
         "title": "Dukung Pengembangan",
-        "description": "Bantu kami terus mengembangkan Handy",
+        "description": "Bantu kami terus mengembangkan VoxBar",
         "button": "Donasi"
       },
       "acknowledgments": {
@@ -642,7 +741,7 @@
         "ggml": {
           "title": "ggml",
           "description": "Pustaka tensor berkinerja tinggi untuk inferensi pembelajaran mesin di perangkat",
-          "details": "Fitur ucapan-ke-teks lokal Handy dibangun menggunakan transcribe.cpp dan ggml. Terima kasih kepada Georgi Gerganov dan para kontributor atas karya luar biasa mereka."
+          "details": "Fitur ucapan-ke-teks lokal VoxBar dibangun menggunakan transcribe.cpp dan ggml. Terima kasih kepada Georgi Gerganov dan para kontributor atas karya luar biasa mereka."
         }
       }
     }
@@ -657,13 +756,13 @@
     "preparing": "Menyiapkan...",
     "checkForUpdates": "Periksa pembaruan",
     "portableUpdateTitle": "Pembaruan manual diperlukan",
-    "portableUpdateMessage": "Instalasi portabel tidak dapat diperbarui secara otomatis. Unduh penginstal untuk sistem Anda di bawah ini, jalankan, lalu instal ke folder yang sama — folder Data/ Anda (pengaturan, model, rekaman) tetap dipertahankan.",
+    "portableUpdateMessage": "Instalasi portabel tidak dapat diperbarui secara otomatis. Unduh penginstal untuk sistem Anda di bawah ini, jalankan, lalu instal ke folder yang sama - folder Data/ Anda (pengaturan, model, rekaman) tetap dipertahankan.",
     "portableUpdateButton": "Unduh penginstal",
-    "portableUpdateBrowseMessage": "Instalasi portabel tidak dapat diperbarui secara otomatis. Unduh versi terbaru untuk sistem Anda dari GitHub Releases dan instal ke folder yang sama — folder Data/ Anda (pengaturan, model, rekaman) tetap dipertahankan.",
+    "portableUpdateBrowseMessage": "Instalasi portabel tidak dapat diperbarui secara otomatis. Unduh versi terbaru untuk sistem Anda dari GitHub Releases dan instal ke folder yang sama - folder Data/ Anda (pengaturan, model, rekaman) tetap dipertahankan.",
     "portableUpdateBrowseButton": "Buka GitHub Releases"
   },
   "whatsNew": {
-    "title": "Baru di Handy v{{version}}"
+    "title": "Baru di VoxBar v{{version}}"
   },
   "common": {
     "loading": "Memuat...",
@@ -675,7 +774,7 @@
     "noOptionsFound": "Tidak ada opsi yang ditemukan"
   },
   "accessibility": {
-    "permissionsDescription": "Handy memerlukan izin aksesibilitas untuk mengetik teks hasil transkripsi.",
+    "permissionsDescription": "VoxBar memerlukan izin aksesibilitas untuk mengetik teks hasil transkripsi.",
     "openSettings": "Buka Pengaturan Sistem"
   },
   "errors": {
@@ -692,21 +791,43 @@
     "recordingFailed": "Gagal memulai perekaman: {{error}}",
     "modelLoadFailed": "Gagal memuat model: {{model}}",
     "modelLoadFailedUnknown": "model tidak dikenal",
+    "modelFallbackTitle": "Memori rendah",
+    "modelFallback": "Beralih ke {{model}} untuk dikte ini",
     "pasteFailedTitle": "Gagal Menempelkan Teks",
     "pasteFailed": "Teks tidak dapat ditempelkan ke aplikasi aktif.",
     "transcriptionFailedTitle": "Transkripsi Gagal"
   },
   "appLanguage": {
     "title": "Bahasa Aplikasi",
-    "description": "Ubah bahasa antarmuka Handy"
+    "description": "Ubah bahasa antarmuka VoxBar"
   },
   "theme": {
     "title": "Tema Aplikasi",
-    "description": "Pilih apakah Handy mengikuti tema sistem atau selalu menggunakan tema terang atau gelap",
+    "description": "Pilih apakah VoxBar mengikuti tema sistem atau selalu menggunakan tema terang atau gelap",
     "options": {
       "system": "Sistem",
       "light": "Terang",
       "dark": "Gelap"
+    },
+    "accentColor": {
+      "label": "Warna aksen",
+      "description": "Pilih warna yang digunakan untuk sorotan, tombol alih, dan kontrol"
+    },
+    "accentColors": {
+      "black": "Hitam",
+      "gray": "Abu-abu",
+      "white": "Putih",
+      "red": "Merah",
+      "orange": "Jingga",
+      "amber": "Amber",
+      "green": "Hijau",
+      "teal": "Hijau kebiruan",
+      "cyan": "Sian",
+      "blue": "Biru",
+      "indigo": "Nila",
+      "violet": "Ungu",
+      "magenta": "Magenta",
+      "pink": "Merah muda"
     }
   },
   "overlay": {
@@ -721,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} mungkin memblokir perubahan pintasan",
     "recorderBlockedNoCulprit": "macOS untuk sementara memblokir perubahan pintasan",
     "learnMore": "Cara memperbaiki",
-    "recorderBlocked": "Pintasan tidak dapat direkam saat ini — macOS Secure Input memblokir peristiwa tombol. Selesaikan peringatan Secure Input terlebih dahulu.",
+    "recorderBlocked": "Pintasan tidak dapat direkam saat ini - macOS Secure Input memblokir peristiwa tombol. Selesaikan peringatan Secure Input terlebih dahulu.",
     "dismiss": "Tutup"
   }
 }

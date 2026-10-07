@@ -4,6 +4,10 @@
     "checkUpdates": "Controleren op updates...",
     "copyLastTranscript": "Laatste transcriptie kopiëren",
     "unloadModel": "Model ontladen",
+    "unloadAfter": "Ontladen na",
+    "unloadAfterImmediately": "Direct",
+    "unloadAfterNever": "Nooit",
+    "unloadAfterCustom": "Aangepast…",
     "model": "Model",
     "quit": "Afsluiten",
     "cancel": "Annuleren",
@@ -16,7 +20,7 @@
     "postProcessing": "Naverwerking",
     "history": "Geschiedenis",
     "debug": "Probleemoplossing",
-    "about": "Over Handy"
+    "about": "Over VoxBar"
   },
   "onboarding": {
     "subtitle": "Kies een transcriptiemodel om aan de slag te gaan",
@@ -101,7 +105,7 @@
     },
     "permissions": {
       "title": "Machtigingen vereist",
-      "description": "Handy heeft een aantal machtigingen nodig om goed te kunnen werken.",
+      "description": "VoxBar heeft een aantal machtigingen nodig om goed te kunnen werken.",
       "microphone": {
         "title": "Microfoontoegang",
         "description": "Vereist om je stem op te nemen voor transcriptie."
@@ -179,13 +183,26 @@
           "transcribe_with_post_process": {
             "name": "Sneltoets voor naverwerking",
             "description": "Optioneel: Een specifieke sneltoets die altijd AI-naverwerking toepast op je transcriptie."
+          },
+          "delete_last_word": {
+            "name": "Laatste woord verwijderen",
+            "description": "Verwijdert het woord voor de cursor in de actieve app (Optie+Backspace op macOS, Ctrl+Backspace elders). Wijs een toets toe om in te schakelen."
+          },
+          "undo": {
+            "name": "Ongedaan maken",
+            "description": "Activeert Ongedaan maken in de actieve app (Cmd+Z op macOS, Ctrl+Z elders) en herstelt zo de laatst geplakte dictering in één keer. Wijs een toets toe om in te schakelen."
+          },
+          "transcribe_commands": {
+            "name": "Commandomodus",
+            "description": "Neemt op zoals dicteren, maar elk woord wordt als commando behandeld: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Niet-herkende woorden worden weggegooid, zodat er nooit iets anders wordt getypt. Standaard niet toegewezen."
           }
         },
         "errors": {
           "restore": "Herstellen van originele sneltoets mislukt",
           "set": "Instellen van sneltoets mislukt: {{error}}",
           "reset": "Sneltoets terugzetten naar standaardwaarde mislukt"
-        }
+        },
+        "unbound": "Niet toegewezen"
       },
       "language": {
         "title": "Taal",
@@ -207,6 +224,24 @@
           "push_to_talk": "Neemt op zolang je de sneltoets ingedrukt houdt",
           "toggle": "Tik op de sneltoets om de opname te starten, tik opnieuw om te stoppen"
         }
+      },
+      "editingShortcuts": {
+        "title": "Sneltoetsen voor bewerken",
+        "deleteLastWord": {
+          "title": "Actie: laatste woord verwijderen",
+          "description": "Schakelt de toewijsbare sneltoets in die het woord voor de cursor verwijdert. De sneltoets blijft inactief tot je bovenaan een toets toewijst."
+        },
+        "undo": {
+          "title": "Actie: ongedaan maken",
+          "description": "Schakelt de toewijsbare sneltoets in die Ongedaan maken activeert in de actieve app. De sneltoets blijft inactief tot je bovenaan een toets toewijst."
+        }
+      },
+      "commandMode": {
+        "title": "Commandomodus",
+        "toggle": {
+          "title": "Commandomodus",
+          "description": "Schakelt de toewijsbare commandomodus-trigger in. Ingehouden neemt hij op zoals dicteren; de transcriptie wordt uitgevoerd als commando's (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) en niet-herkende woorden worden weggegooid."
+        }
       }
     },
     "models": {
@@ -225,9 +260,37 @@
       },
       "rescan": {
         "label": "Opnieuw scannen",
-        "tooltip": "Scannen naar modellen die buiten Handy om zijn toegevoegd aan de modellenmap of Hugging Face-cache"
+        "tooltip": "Scannen naar modellen die buiten VoxBar om zijn toegevoegd aan de modellenmap of Hugging Face-cache"
       },
-      "noModelsMatch": "Geen modellen voldoen aan dit filter."
+      "noModelsMatch": "Geen modellen voldoen aan dit filter.",
+      "rescanModels": "Modellen opnieuw scannen",
+      "addFromHf": {
+        "title": "Model van Hugging Face toevoegen",
+        "description": "Plak een openbare repo-URL of eigenaar/repo, bijvoorbeeld https://huggingface.co/eigenaar/model.",
+        "placeholder": "https://huggingface.co/eigenaar/model of eigenaar/model",
+        "add": "Toevoegen",
+        "cancel": "Annuleren",
+        "pickFile": "Kies een bestand uit {{repo}}:",
+        "recommended": "Aanbevolen",
+        "status": {
+          "resolving": "Repository wordt opgezocht...",
+          "adding": "Model wordt gedownload en gecontroleerd...",
+          "added": "Model toegevoegd. Het verschijnt bij de gedownloade modellen."
+        },
+        "errors": {
+          "invalidInput": "Dat kon niet worden gelezen als een Hugging Face repository: {{detail}}",
+          "notFound": "Repository {{repo}} is niet gevonden op Hugging Face.",
+          "inaccessible": "{{repo}} is niet bereikbaar op Hugging Face. Het bestaat mogelijk niet, of het is privé of afgeschermd. Voor nu worden alleen openbare repositories ondersteund.",
+          "fileNotFound": "Bestand {{filename}} is niet gevonden in {{repo}}.",
+          "noGguf": "{{repo}} bevat geen GGUF bestanden.",
+          "network": "Kan Hugging Face niet bereiken: {{detail}}",
+          "downloadFailed": "Download mislukt: {{detail}}",
+          "cancelled": "Download geannuleerd.",
+          "unsupportedArch": "De modelarchitectuur {{arch}} wordt niet ondersteund. Ondersteund: {{supported}}.",
+          "unsupportedArchUnknown": "Dit bestand kon niet worden gelezen als een GGUF model en is daarom niet toegevoegd.",
+          "generic": "Er ging iets mis."
+        }
+      }
     },
     "sound": {
       "title": "Geluid",
@@ -291,13 +354,25 @@
         "label": "Geminimaliseerd opstarten",
         "description": "Start op de achtergrond in het systeemvak zonder het hoofdvenster te openen."
       },
+      "memoryPressureGuard": {
+        "label": "Geheugendruk-bescherming",
+        "description": "Weigert een model te laden als het vrije geheugen niet volstaat. Het huidige model blijft werken wanneer een laden wordt geweigerd."
+      },
+      "autoFallback": {
+        "label": "Automatische RAM-terugval",
+        "description": "Als het geselecteerde model niet in het vrije geheugen past, wordt automatisch het beste gedownloade model geladen dat wel past. Zet uit om de gewone weigering te behouden."
+      },
+      "menuBarModelTitle": {
+        "label": "Modeltitel in menubalk",
+        "description": "Toont het residente model en het RAM-gebruik als tekst naast het tray-pictogram (macOS-menubalk)."
+      },
       "autostart": {
         "label": "Starten bij opstarten",
-        "description": "Handy automatisch starten zodra je inlogt op je computer."
+        "description": "VoxBar automatisch starten zodra je inlogt op je computer."
       },
       "showTrayIcon": {
         "label": "Pictogram in systeemvak tonen",
-        "description": "Toon het Handy-pictogram in het systeemvak."
+        "description": "Toon het VoxBar-pictogram in het systeemvak."
       },
       "overlay": {
         "style": {
@@ -372,12 +447,15 @@
           "min10": "Na 10 minuten",
           "min15": "Na 15 minuten",
           "hour1": "Na 1 uur",
+          "custom": "Aangepast",
           "sec15": "Na 15 seconden (Debug)"
-        }
+        },
+        "customSecondsLabel": "Aangepaste seconden",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Eigen woordenlijst",
-        "description": "Help ondersteunde modellen namen en vaktermen te herkennen. Fuzzy-correctie is momenteel beperkt tot woorden met de letters A–Z en cijfers.",
+        "description": "Help ondersteunde modellen namen en vaktermen te herkennen. Fuzzy-correctie is momenteel beperkt tot woorden met de letters A-Z en cijfers.",
         "placeholder": "Woord toevoegen",
         "add": "Toevoegen",
         "remove": "{{word}} verwijderen",
@@ -398,6 +476,22 @@
       "fillerWordRemoval": {
         "title": "Opvulwoorden verwijderen",
         "description": "Verwijdert veelvoorkomende aarzelwoorden uit transcripties. Schakel dit uit om ze te behouden."
+      },
+      "spokenPunctuation": {
+        "title": "Gesproken interpunctie",
+        "description": "Zet gesproken interpunctiewoorden zoals \"comma\", \"period\" en \"question mark\" om in echte interpunctie. Zet uit om ze als gewone woorden te behouden."
+      },
+      "terminalPunctuation": {
+        "title": "Slotinterpunctie",
+        "description": "Beëindigt elke transcriptie met interpunctie: een vraagteken bij vragen, anders een punt. Zet uit om het einde zoals getranscribeerd te laten."
+      },
+      "voiceDeletion": {
+        "title": "Spraakopdrachten voor verwijderen",
+        "description": "\"scratch that\", \"delete that\" en \"remove that\" verwijderen het vorige woord, \"delete last three words\" verwijdert er meerdere, en \"delete everything\" of \"start over\" wist de dictee. Zet uit om ze als gewone woorden te behouden."
+      },
+      "previewBeforePaste": {
+        "title": "Voorvertoning vóór het plakken",
+        "description": "Toont de voltooide transcriptie kort in de opname-overlay voordat deze wordt geplakt. Schakel uit om direct te plakken."
       },
       "chineseScript": {
         "title": "Chinees schrift",
@@ -477,7 +571,12 @@
       "retranscribe": "Opnieuw transcriberen",
       "retranscribeError": "Opnieuw transcriberen mislukt. Probeer het opnieuw.",
       "transcribing": "Transcriberen...",
-      "transcriptionFailed": "Transcriptie mislukt. Je kunt het opnieuw proberen via het herlaad-pictogram."
+      "transcriptionFailed": "Transcriptie mislukt. Je kunt het opnieuw proberen via het herlaad-pictogram.",
+      "model": "Transcriptiemodel",
+      "showModel": {
+        "label": "Modelbadge tonen",
+        "description": "Toont een compacte badge met het model dat elke transcriptie heeft gemaakt."
+      }
     },
     "debug": {
       "title": "Probleemoplossing",
@@ -502,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Controleren op updates",
-        "description": "Automatisch controleren op nieuwe versies van Handy",
+        "description": "Toon de optie \"Controleren op updates\" in het tray-menu en in de voettekst",
         "lockedDescription": "Uitgeschakeld door systeemconfiguratie (HANDY_DISABLE_UPDATER)"
       },
       "whatsNewPreview": {
@@ -594,7 +693,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Toetsenborddiagnose",
-        "description": "Controleert of toetsenbordgebeurtenissen Handy bereiken. Alleen het aantal gebeurtenissen wordt vastgelegd — nooit welke toetsen je indrukt.",
+        "description": "Controleert of toetsenbordgebeurtenissen VoxBar bereiken. Alleen het aantal gebeurtenissen wordt vastgelegd - nooit welke toetsen je indrukt.",
         "run": "Diagnose van 10 s uitvoeren",
         "running": "Luisteren… druk je sneltoets een paar keer in (bijv. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -606,26 +705,26 @@
         "keyUp": "Toets losgelaten",
         "flagsChanged": "Modificatietoetsen",
         "mouse": "Muis",
-        "verdictBlocked": "Secure Input blokkeert toetsgebeurtenissen — sneltoetsen met een gewone toets kunnen pas weer werken als dit is opgelost.",
-        "verdictSuspicious": "Er kwamen wel modificatiegebeurtenissen binnen, maar geen toetsgebeurtenissen — iets onderdrukt toetsen terwijl Secure Input als uitgeschakeld wordt gemeld. Meld dit op GitHub.",
-        "verdictOk": "Toetsgebeurtenissen bereiken Handy normaal.",
-        "verdictNoEvents": "Geen gebeurtenissen vastgelegd — heb je tijdens de test toetsen ingedrukt?",
+        "verdictBlocked": "Secure Input blokkeert toetsgebeurtenissen - sneltoetsen met een gewone toets kunnen pas weer werken als dit is opgelost.",
+        "verdictSuspicious": "Er kwamen wel modificatiegebeurtenissen binnen, maar geen toetsgebeurtenissen - iets onderdrukt toetsen terwijl Secure Input als uitgeschakeld wordt gemeld. Meld dit op GitHub.",
+        "verdictOk": "Toetsgebeurtenissen bereiken VoxBar normaal.",
+        "verdictNoEvents": "Geen gebeurtenissen vastgelegd - heb je tijdens de test toetsen ingedrukt?",
         "failed": "Diagnose mislukt: {{error}}"
       }
     },
     "about": {
-      "title": "Over Handy",
+      "title": "Over VoxBar",
       "version": {
         "title": "Versie",
-        "description": "Huidige versie van Handy"
+        "description": "Huidige versie van VoxBar"
       },
       "whatsNewUpdates": {
         "label": "Toon 'Wat is er nieuw'",
-        "description": "Release-notes tonen nadat Handy is bijgewerkt"
+        "description": "Release-notes tonen nadat VoxBar is bijgewerkt"
       },
       "appDataDirectory": {
         "title": "App-datamap",
-        "description": "Locatie waar Handy de gegevens opslaat"
+        "description": "Locatie waar VoxBar de gegevens opslaat"
       },
       "sourceCode": {
         "title": "Broncode",
@@ -634,7 +733,7 @@
       },
       "supportDevelopment": {
         "title": "Ontwikkeling ondersteunen",
-        "description": "Help ons om te blijven bouwen aan Handy",
+        "description": "Help ons om te blijven bouwen aan VoxBar",
         "button": "Doneren"
       },
       "acknowledgments": {
@@ -642,7 +741,7 @@
         "ggml": {
           "title": "ggml",
           "description": "Krachtige tensorbibliotheek voor lokale AI-verwerking",
-          "details": "Handy's lokale spraak-naar-tekst is gebouwd op transcribe.cpp en ggml. Met dank aan het geweldige werk van Georgi Gerganov en alle bijdragers."
+          "details": "VoxBar's lokale spraak-naar-tekst is gebouwd op transcribe.cpp en ggml. Met dank aan het geweldige werk van Georgi Gerganov en alle bijdragers."
         }
       }
     }
@@ -657,13 +756,13 @@
     "preparing": "Voorbereiden...",
     "checkForUpdates": "Controleren op updates",
     "portableUpdateTitle": "Handmatige update vereist",
-    "portableUpdateMessage": "Draagbare (portable) installaties kunnen niet automatisch worden bijgewerkt. Download hieronder het installatiebestand voor je systeem, voer het uit en installeer in dezelfde map — je Data/-map (instellingen, modellen, opnames) blijft behouden.",
+    "portableUpdateMessage": "Draagbare (portable) installaties kunnen niet automatisch worden bijgewerkt. Download hieronder het installatiebestand voor je systeem, voer het uit en installeer in dezelfde map - je Data/-map (instellingen, modellen, opnames) blijft behouden.",
     "portableUpdateButton": "Installatiebestand downloaden",
-    "portableUpdateBrowseMessage": "Draagbare (portable) installaties kunnen niet automatisch worden bijgewerkt. Download de nieuwste versie voor je systeem van GitHub Releases en installeer die in dezelfde map — je Data/-map (instellingen, modellen, opnames) blijft behouden.",
+    "portableUpdateBrowseMessage": "Draagbare (portable) installaties kunnen niet automatisch worden bijgewerkt. Download de nieuwste versie voor je systeem van GitHub Releases en installeer die in dezelfde map - je Data/-map (instellingen, modellen, opnames) blijft behouden.",
     "portableUpdateBrowseButton": "GitHub Releases openen"
   },
   "whatsNew": {
-    "title": "Nieuw in Handy v{{version}}"
+    "title": "Nieuw in VoxBar v{{version}}"
   },
   "common": {
     "loading": "Laden...",
@@ -675,7 +774,7 @@
     "noOptionsFound": "Geen opties gevonden"
   },
   "accessibility": {
-    "permissionsDescription": "Handy heeft toegankelijkheidsmachtigingen nodig om getranscribeerde tekst te kunnen typen.",
+    "permissionsDescription": "VoxBar heeft toegankelijkheidsmachtigingen nodig om getranscribeerde tekst te kunnen typen.",
     "openSettings": "Systeeminstellingen openen"
   },
   "errors": {
@@ -692,21 +791,43 @@
     "recordingFailed": "Opname starten mislukt: {{error}}",
     "modelLoadFailed": "Model laden mislukt: {{model}}",
     "modelLoadFailedUnknown": "onbekend model",
+    "modelFallbackTitle": "Te weinig geheugen",
+    "modelFallback": "Overgeschakeld naar {{model}} voor deze dicteeropname",
     "pasteFailedTitle": "Tekst plakken mislukt",
     "pasteFailed": "Tekst kon niet worden geplakt in de actieve applicatie.",
     "transcriptionFailedTitle": "Transcriptie mislukt"
   },
   "appLanguage": {
     "title": "Interfacetaal",
-    "description": "Wijzig de taal van de Handy-interface"
+    "description": "Wijzig de taal van de VoxBar-interface"
   },
   "theme": {
     "title": "App-thema",
-    "description": "Kies of Handy het systeemthema volgt of licht of donker blijft",
+    "description": "Kies of VoxBar het systeemthema volgt of licht of donker blijft",
     "options": {
       "system": "Systeem",
       "light": "Licht",
       "dark": "Donker"
+    },
+    "accentColor": {
+      "label": "Accentkleur",
+      "description": "Kies de kleur voor markeringen, schakelaars en bedieningselementen"
+    },
+    "accentColors": {
+      "black": "Zwart",
+      "gray": "Grijs",
+      "white": "Wit",
+      "red": "Rood",
+      "orange": "Oranje",
+      "amber": "Amber",
+      "green": "Groen",
+      "teal": "Turquoise",
+      "cyan": "Cyaan",
+      "blue": "Blauw",
+      "indigo": "Indigo",
+      "violet": "Violet",
+      "magenta": "Magenta",
+      "pink": "Roze"
     }
   },
   "overlay": {
@@ -721,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} blokkeert mogelijk wijzigingen aan sneltoetsen",
     "recorderBlockedNoCulprit": "macOS blokkeert tijdelijk wijzigingen aan sneltoetsen",
     "learnMore": "Hoe je dit oplost",
-    "recorderBlocked": "Sneltoetsen kunnen nu niet worden opgenomen — Secure Input van macOS blokkeert toetsgebeurtenissen. Los eerst de Secure Input-waarschuwing op.",
+    "recorderBlocked": "Sneltoetsen kunnen nu niet worden opgenomen - Secure Input van macOS blokkeert toetsgebeurtenissen. Los eerst de Secure Input-waarschuwing op.",
     "dismiss": "Sluiten"
   }
 }

@@ -31,6 +31,13 @@ static MIGRATIONS: &[M] = &[
     M::up("ALTER TABLE transcription_history ADD COLUMN post_processed_text TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_prompt TEXT;"),
     M::up("ALTER TABLE transcription_history ADD COLUMN post_process_requested BOOLEAN NOT NULL DEFAULT 0;"),
+    // Auditability for the RAM auto-fallback: which model actually produced
+    // each entry. Nullable column; pre-existing rows are backfilled to '' so
+    // no row is left NULL (empty reads back as `None` in HistoryEntry).
+    M::up(
+        "ALTER TABLE transcription_history ADD COLUMN model_id TEXT;
+         UPDATE transcription_history SET model_id = '' WHERE model_id IS NULL;",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -63,6 +70,11 @@ pub struct HistoryEntry {
     pub post_processed_text: Option<String>,
     pub post_process_prompt: Option<String>,
     pub post_process_requested: bool,
+    /// Model id that actually produced `transcription_text` (the resident
+    /// model at transcription time - after a RAM auto-fallback this is the
+    /// fallback). `None` for pre-migration entries or when the model was
+    /// unknown (e.g. a failed transcription saved for retry).
+    pub model_id: Option<String>,
 }
 
 pub struct HistoryManager {
@@ -207,6 +219,11 @@ impl HistoryManager {
             post_processed_text: row.get("post_processed_text")?,
             post_process_prompt: row.get("post_process_prompt")?,
             post_process_requested: row.get("post_process_requested")?,
+            // Legacy rows are backfilled to '' by the migration; read both
+            // NULL and '' as "unknown" so the UI never shows an empty badge.
+            model_id: row
+                .get::<_, Option<String>>("model_id")?
+                .filter(|model| !model.is_empty()),
         })
     }
 
@@ -216,6 +233,9 @@ impl HistoryManager {
 
     /// Save a new history entry to the database.
     /// The WAV file should already have been written to the recordings directory.
+    /// `model_id` is the model that actually produced the transcription (the
+    /// resident model at transcription time - after a RAM auto-fallback this
+    /// is the fallback), recorded per entry for auditability.
     pub fn save_entry(
         &self,
         file_name: String,
@@ -223,45 +243,23 @@ impl HistoryManager {
         post_process_requested: bool,
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
+        model_id: Option<String>,
     ) -> Result<HistoryEntry> {
         let timestamp = Utc::now().timestamp();
         let title = self.format_timestamp_title(timestamp);
 
         let conn = self.get_connection()?;
-        conn.execute(
-            "INSERT INTO transcription_history (
-                file_name,
-                timestamp,
-                saved,
-                title,
-                transcription_text,
-                post_processed_text,
-                post_process_prompt,
-                post_process_requested
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-            params![
-                &file_name,
-                timestamp,
-                false,
-                &title,
-                &transcription_text,
-                &post_processed_text,
-                &post_process_prompt,
-                post_process_requested,
-            ],
-        )?;
-
-        let entry = HistoryEntry {
-            id: conn.last_insert_rowid(),
+        let entry = Self::insert_entry_with_conn(
+            &conn,
             file_name,
-            timestamp,
-            saved: false,
-            title,
             transcription_text,
+            post_process_requested,
             post_processed_text,
             post_process_prompt,
-            post_process_requested,
-        };
+            model_id,
+            timestamp,
+            title,
+        )?;
 
         debug!("Saved history entry with id {}", entry.id);
 
@@ -279,25 +277,85 @@ impl HistoryManager {
         Ok(entry)
     }
 
+    /// INSERT a new history row and return the resulting entry. Split out of
+    /// [`save_entry`](Self::save_entry) so tests can exercise the write path
+    /// (including the model id) against an in-memory connection.
+    fn insert_entry_with_conn(
+        conn: &Connection,
+        file_name: String,
+        transcription_text: String,
+        post_process_requested: bool,
+        post_processed_text: Option<String>,
+        post_process_prompt: Option<String>,
+        model_id: Option<String>,
+        timestamp: i64,
+        title: String,
+    ) -> Result<HistoryEntry> {
+        // Unknown model writes as '' (never NULL) so the migration's
+        // no-NULL invariant holds for new rows too.
+        let stored_model_id = model_id.clone().unwrap_or_default();
+        conn.execute(
+            "INSERT INTO transcription_history (
+                file_name,
+                timestamp,
+                saved,
+                title,
+                transcription_text,
+                post_processed_text,
+                post_process_prompt,
+                post_process_requested,
+                model_id
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                &file_name,
+                timestamp,
+                false,
+                &title,
+                &transcription_text,
+                &post_processed_text,
+                &post_process_prompt,
+                post_process_requested,
+                &stored_model_id,
+            ],
+        )?;
+
+        Ok(HistoryEntry {
+            id: conn.last_insert_rowid(),
+            file_name,
+            timestamp,
+            saved: false,
+            title,
+            transcription_text,
+            post_processed_text,
+            post_process_prompt,
+            post_process_requested,
+            model_id: (!stored_model_id.is_empty()).then_some(stored_model_id),
+        })
+    }
+
     /// Update an existing history entry with new transcription results (used by retry).
+    /// `model_id` is the model that produced this retry's transcription.
     pub fn update_transcription(
         &self,
         id: i64,
         transcription_text: String,
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
+        model_id: Option<String>,
     ) -> Result<HistoryEntry> {
         let conn = self.get_connection()?;
         let updated = conn.execute(
             "UPDATE transcription_history
              SET transcription_text = ?1,
                  post_processed_text = ?2,
-                 post_process_prompt = ?3
-             WHERE id = ?4",
+                 post_process_prompt = ?3,
+                 model_id = ?4
+             WHERE id = ?5",
             params![
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
+                model_id.unwrap_or_default(),
                 id
             ],
         )?;
@@ -308,7 +366,7 @@ impl HistoryManager {
 
         let entry = conn
             .query_row(
-                "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id
                  FROM transcription_history WHERE id = ?1",
                 params![id],
                 Self::map_history_entry,
@@ -459,7 +517,7 @@ impl HistoryManager {
             (Some(cursor_id), Some(lim)) => {
                 let fetch_count = (lim + 1) as i64;
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id
                      FROM transcription_history
                      WHERE id < ?1
                      ORDER BY id DESC
@@ -473,7 +531,7 @@ impl HistoryManager {
             (None, Some(lim)) => {
                 let fetch_count = (lim + 1) as i64;
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id
                      FROM transcription_history
                      ORDER BY id DESC
                      LIMIT ?1",
@@ -485,7 +543,7 @@ impl HistoryManager {
             }
             (_, None) => {
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested
+                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id
                      FROM transcription_history
                      ORDER BY id DESC",
                 )?;
@@ -516,7 +574,8 @@ impl HistoryManager {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
+                post_process_requested,
+                model_id
              FROM transcription_history
              ORDER BY timestamp DESC
              LIMIT 1",
@@ -543,7 +602,8 @@ impl HistoryManager {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
+                post_process_requested,
+                model_id
              FROM transcription_history
              WHERE transcription_text != ''
              ORDER BY timestamp DESC
@@ -597,7 +657,8 @@ impl HistoryManager {
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
-                post_process_requested
+                post_process_requested,
+                model_id
              FROM transcription_history
              WHERE id = ?1",
         )?;
@@ -666,7 +727,8 @@ mod tests {
                 transcription_text TEXT NOT NULL,
                 post_processed_text TEXT,
                 post_process_prompt TEXT,
-                post_process_requested BOOLEAN NOT NULL DEFAULT 0
+                post_process_requested BOOLEAN NOT NULL DEFAULT 0,
+                model_id TEXT
             );",
         )
         .expect("create transcription_history table");
@@ -686,7 +748,7 @@ mod tests {
                 post_process_requested
             ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
             params![
-                format!("handy-{}.wav", timestamp),
+                format!("voxbar-{}.wav", timestamp),
                 timestamp,
                 false,
                 format!("Recording {}", timestamp),
@@ -733,5 +795,115 @@ mod tests {
 
         assert_eq!(entry.timestamp, 100);
         assert_eq!(entry.transcription_text, "completed");
+    }
+
+    /// Version-forward migration test: a database at the previous version
+    /// (no model_id column) gains the column via the migration chain, the
+    /// column stays nullable, and pre-existing rows are backfilled to ''
+    /// (never left NULL).
+    #[test]
+    fn migration_adds_nullable_model_id_and_backfills_empty() {
+        let mut conn = Connection::open_in_memory().expect("open in-memory db");
+
+        // Build the previous database state: every migration except the
+        // model_id one, tracked via user_version exactly like a live DB.
+        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 1].to_vec());
+        previous
+            .to_latest(&mut conn)
+            .expect("apply pre-model_id migrations");
+        insert_entry(&conn, 100, "legacy entry", None);
+
+        // Roll forward with the full chain; it continues from user_version.
+        let latest = Migrations::new(MIGRATIONS.to_vec());
+        latest
+            .to_latest(&mut conn)
+            .expect("apply latest migrations");
+
+        let version: i32 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .expect("read user_version");
+        assert_eq!(version as usize, MIGRATIONS.len());
+
+        // The column exists and is nullable...
+        let notnull: i32 = conn
+            .query_row(
+                "SELECT [notnull] FROM pragma_table_info('transcription_history')
+                 WHERE name = 'model_id'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("query pragma_table_info for model_id");
+        assert_eq!(notnull, 0, "model_id must remain a nullable column");
+
+        // ...and the legacy row reads back as '' (backfilled), which the row
+        // mapper surfaces as None ("unknown").
+        let stored: Option<String> = conn
+            .query_row(
+                "SELECT model_id FROM transcription_history WHERE timestamp = 100",
+                [],
+                |row| row.get(0),
+            )
+            .expect("query legacy row");
+        assert_eq!(stored.as_deref(), Some(""));
+        let mapped = HistoryManager::get_latest_entry_with_conn(&conn)
+            .expect("fetch latest entry")
+            .expect("entry exists");
+        assert_eq!(mapped.model_id, None);
+    }
+
+    /// Save path: the actually-used model id lands in the row. After a RAM
+    /// auto-fallback the pipeline passes the fallback's id here - this pins
+    /// that whatever id the pipeline threads through ends up persisted.
+    #[test]
+    fn save_path_records_the_actually_used_model_id() {
+        let conn = setup_conn();
+
+        let entry = HistoryManager::insert_entry_with_conn(
+            &conn,
+            "voxbar-200.wav".to_string(),
+            "hello".to_string(),
+            false,
+            None,
+            None,
+            Some("whisper-large-v3-turbo".to_string()),
+            200,
+            "Recording 200".to_string(),
+        )
+        .expect("insert entry with model");
+
+        let in_row: Option<String> = conn
+            .query_row(
+                "SELECT model_id FROM transcription_history WHERE id = ?1",
+                params![entry.id],
+                |row| row.get(0),
+            )
+            .expect("query saved row");
+        assert_eq!(in_row.as_deref(), Some("whisper-large-v3-turbo"));
+        assert_eq!(entry.model_id.as_deref(), Some("whisper-large-v3-turbo"));
+
+        // Unknown model (failed transcription saved for retry) writes as ''
+        // - never NULL - and reads back as None.
+        let unknown = HistoryManager::insert_entry_with_conn(
+            &conn,
+            "voxbar-300.wav".to_string(),
+            String::new(),
+            false,
+            None,
+            None,
+            None,
+            300,
+            "Recording 300".to_string(),
+        )
+        .expect("insert entry without model");
+
+        let raw: Option<String> = conn
+            .query_row(
+                "SELECT model_id FROM transcription_history WHERE id = ?1",
+                params![unknown.id],
+                |row| row.get(0),
+            )
+            .expect("query saved row");
+        assert_eq!(raw.as_deref(), Some(""), "unknown model is stored as ''");
+        assert_eq!(unknown.model_id, None);
     }
 }

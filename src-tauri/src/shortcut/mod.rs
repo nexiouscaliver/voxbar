@@ -30,6 +30,29 @@ use crate::tray;
 
 // Note: Commands are accessed via shortcut::handy_keys:: in lib.rs
 
+/// Whether a binding should currently hold a registration: it must be bound
+/// to a key, and its feature's master toggle (when it has one) must be on.
+///
+/// Bindings that ship unbound (the assignable editing actions, command mode)
+/// stay unregistered, and therefore inert, until the operator binds a key in
+/// Settings even though their master toggles default to on.
+pub fn binding_is_active(
+    settings: &crate::settings::AppSettings,
+    id: &str,
+    binding: &ShortcutBinding,
+) -> bool {
+    if binding.current_binding.trim().is_empty() {
+        return false;
+    }
+    match id {
+        "transcribe_with_post_process" => settings.post_process_enabled,
+        "delete_last_word" => settings.delete_last_word_enabled,
+        "undo" => settings.undo_enabled,
+        "transcribe_commands" => settings.command_mode_enabled,
+        _ => true,
+    }
+}
+
 /// Initialize shortcuts using the configured implementation
 pub fn init_shortcuts(app: &AppHandle) {
     let user_settings = settings::load_or_create_app_settings(app);
@@ -165,11 +188,6 @@ pub fn change_binding(
     id: String,
     binding: String,
 ) -> Result<BindingResponse, String> {
-    // Reject empty bindings — every shortcut should have a value
-    if binding.trim().is_empty() {
-        return Err("Binding cannot be empty".to_string());
-    }
-
     let mut settings = settings::get_settings(&app);
 
     // Get the binding to modify, or create it from defaults if it doesn't exist
@@ -199,6 +217,13 @@ pub fn change_binding(
         }
     };
 
+    // Bindings that ship unbound (empty default) may be cleared back to
+    // nothing, e.g. by reset_binding; every other shortcut must keep a value.
+    let optional_binding = binding_to_modify.default_binding.trim().is_empty();
+    if binding.trim().is_empty() && !optional_binding {
+        return Err("Binding cannot be empty".to_string());
+    }
+
     // If this is the cancel binding, just update the settings and return
     // It's managed dynamically, so we don't register/unregister here
     if id == "cancel" {
@@ -215,37 +240,44 @@ pub fn change_binding(
         }
     }
 
-    // Unregister the existing binding
-    if let Err(e) = unregister_shortcut(&app, binding_to_modify.clone()) {
-        let error_msg = format!("Failed to unregister shortcut: {}", e);
-        error!("change_binding error: {}", error_msg);
+    // Unregister the existing binding (nothing to do when it was unbound)
+    if !binding_to_modify.current_binding.trim().is_empty() {
+        if let Err(e) = unregister_shortcut(&app, binding_to_modify.clone()) {
+            let error_msg = format!("Failed to unregister shortcut: {}", e);
+            error!("change_binding error: {}", error_msg);
+        }
     }
 
-    // Validate the new shortcut for the current keyboard implementation
-    if let Err(e) = validate_shortcut_for_implementation(&binding, settings.keyboard_implementation)
-    {
-        warn!("change_binding validation error: {}", e);
-        restore_registration(&app, &binding_to_modify);
-        return Err(e);
-    }
+    // Validate and register the new binding. An empty target means "unbind":
+    // skip both steps and simply persist the cleared value.
+    if !binding.trim().is_empty() {
+        // Validate the new shortcut for the current keyboard implementation
+        if let Err(e) =
+            validate_shortcut_for_implementation(&binding, settings.keyboard_implementation)
+        {
+            warn!("change_binding validation error: {}", e);
+            restore_registration(&app, &binding_to_modify);
+            return Err(e);
+        }
 
-    // Create an updated binding
-    let mut updated_binding = binding_to_modify.clone();
-    updated_binding.current_binding = binding;
-
-    // Register the new binding
-    if let Err(e) = register_shortcut(&app, updated_binding.clone()) {
-        let error_msg = format!("Failed to register shortcut: {}", e);
-        error!("change_binding error: {}", error_msg);
-        restore_registration(&app, &binding_to_modify);
-        return Ok(BindingResponse {
-            success: false,
-            binding: None,
-            error: Some(error_msg),
-        });
+        // Register the new binding
+        let mut candidate = binding_to_modify.clone();
+        candidate.current_binding = binding.clone();
+        if let Err(e) = register_shortcut(&app, candidate) {
+            let error_msg = format!("Failed to register shortcut: {}", e);
+            error!("change_binding error: {}", error_msg);
+            restore_registration(&app, &binding_to_modify);
+            return Ok(BindingResponse {
+                success: false,
+                binding: None,
+                error: Some(error_msg),
+            });
+        }
     }
 
     // Update the binding in the settings
+    let mut updated_binding = binding_to_modify.clone();
+    updated_binding.current_binding = binding;
     settings.bindings.insert(id, updated_binding.clone());
 
     // Save the settings and synchronize any active Secure Input shadows.
@@ -263,6 +295,9 @@ pub fn change_binding(
 /// Best-effort re-register of the previous binding after a failed change,
 /// so a failure leaves the user's shortcut working exactly as before.
 fn restore_registration(app: &AppHandle, binding: &ShortcutBinding) {
+    if binding.current_binding.trim().is_empty() {
+        return; // Was unbound before the failed change; nothing to restore
+    }
     if let Err(e) = register_shortcut(app, binding.clone()) {
         error!(
             "Failed to restore previous binding '{}' ({}): {}",
@@ -279,12 +314,17 @@ pub fn reset_binding(app: AppHandle, id: String) -> Result<BindingResponse, Stri
 }
 
 /// Unregister every binding while the user is recording a new shortcut in
-/// the UI, so no existing shortcut can fire — or swallow the keystrokes —
+/// the UI, so no existing shortcut can fire (or swallow the keystrokes)
 /// mid-capture. The "cancel" binding is untouched: it is managed dynamically
 /// by the recording lifecycle.
 pub fn suspend_all_shortcuts(app: &AppHandle) {
     for (id, binding) in settings::get_bindings(app) {
         if id == "cancel" {
+            continue;
+        }
+        // Nothing registered for unbound bindings; unregistering an empty
+        // chord would only log a parse error.
+        if binding.current_binding.trim().is_empty() {
             continue;
         }
         if let Err(e) = unregister_shortcut(app, binding) {
@@ -305,7 +345,7 @@ pub fn resume_all_shortcuts(app: &AppHandle) {
         if id == "cancel" {
             continue;
         }
-        if id == "transcribe_with_post_process" && !settings.post_process_enabled {
+        if !binding_is_active(&settings, id, binding) {
             continue;
         }
         if let Err(e) = register_shortcut(app, binding.clone()) {
@@ -466,6 +506,10 @@ fn unregister_all_shortcuts(app: &AppHandle, implementation: KeyboardImplementat
         if id == "cancel" {
             continue;
         }
+        // Nothing to unregister for a binding that holds no key.
+        if binding.current_binding.trim().is_empty() {
+            continue;
+        }
 
         let result = match implementation {
             KeyboardImplementation::Tauri => tauri_impl::unregister_shortcut(app, binding),
@@ -496,16 +540,16 @@ fn register_all_shortcuts_for_implementation(
             continue;
         }
 
-        // Skip post-processing shortcut when the feature is disabled
-        if id == "transcribe_with_post_process" && !current_settings.post_process_enabled {
-            continue;
-        }
-
         let mut binding = current_settings
             .bindings
             .get(id)
             .cloned()
             .unwrap_or_else(|| default_binding.clone());
+
+        // Unbound or toggle-disabled bindings hold no registration.
+        if !binding_is_active(&current_settings, id, &binding) {
+            continue;
+        }
 
         // Validate the shortcut for the target implementation
         if let Err(e) =
@@ -553,7 +597,7 @@ fn initialize_handy_keys_with_rollback(app: &AppHandle) -> Result<bool, String> 
     }
 
     if let Err(e) = handy_keys::init_shortcuts(app) {
-        error!("Failed to initialize HandyKeys: {}", e);
+        error!("Failed to initialize VoxBar Keys: {}", e);
         // Rollback to Tauri
         let mut settings = settings::get_settings(app);
         settings.keyboard_implementation = KeyboardImplementation::Tauri;
@@ -561,7 +605,7 @@ fn initialize_handy_keys_with_rollback(app: &AppHandle) -> Result<bool, String> 
         crate::secure_input::reconcile_fallback(app);
         tauri_impl::init_shortcuts(app);
         return Err(format!(
-            "Failed to initialize HandyKeys: {}. Reverted to Tauri.",
+            "Failed to initialize VoxBar Keys: {}. Reverted to Tauri.",
             e
         ));
     }
@@ -600,6 +644,48 @@ pub fn change_hold_threshold_ms_setting(app: AppHandle, ms: u64) -> Result<(), S
 pub fn change_audio_feedback_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.audio_feedback = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_memory_pressure_guard_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.memory_pressure_guard = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_auto_fallback_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.auto_fallback = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_menu_bar_model_title_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.menu_bar_model_title = enabled;
+    settings::write_settings(&app, settings);
+
+    // Apply immediately (mirrors change_show_tray_icon_setting): a tray sync
+    // recomputes the desired title, and the applier's applied_title diff
+    // clears the displayed title when the setting turned off.
+    tray::update_tray_menu(&app);
+
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_show_history_model_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.show_history_model = enabled;
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -649,8 +735,24 @@ pub fn change_theme_setting(app: AppHandle, theme: String) -> Result<(), String>
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     apply_window_theme(&app, parsed);
     // Notify other webviews (the recording overlay) so they re-apply the palette
-    // live — they set `data-theme` on their own document and can't see this one.
+    // live - they set `data-theme` on their own document and can't see this one.
     let _ = app.emit("theme-changed", parsed);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_accent_color_setting(app: AppHandle, accent: String) -> Result<(), String> {
+    let accent = accent.trim().to_lowercase();
+    let mut settings = settings::get_settings(&app);
+    // The valid id set lives in the frontend (src/lib/utils/accent.ts); the
+    // store keeps the raw string and the frontend renders its default accent
+    // for unknown ids, so no allowlist is duplicated here.
+    settings.accent_color = accent.clone();
+    settings::write_settings(&app, settings);
+    // Notify other webviews (the recording overlay) so they re-apply the
+    // accent live - each window sets the palette override on its own document.
+    let _ = app.emit("accent-changed", accent);
     Ok(())
 }
 
@@ -1374,6 +1476,115 @@ pub fn change_filler_word_removal_enabled_setting(
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_spoken_punctuation_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.spoken_punctuation = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_terminal_punctuation_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.terminal_punctuation = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_voice_deletion_commands_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.voice_deletion_commands = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_preview_before_paste_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.preview_before_paste = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// Flip the delete-last-word master toggle and register or unregister its
+/// binding to match, mirroring how the post-processing toggle drives its
+/// shortcut.
+#[tauri::command]
+#[specta::specta]
+pub fn change_delete_last_word_enabled_setting(
+    app: AppHandle,
+    enabled: bool,
+) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.delete_last_word_enabled = enabled;
+    settings::write_settings(&app, settings.clone());
+
+    if let Some(binding) = settings.bindings.get("delete_last_word").cloned() {
+        if enabled {
+            if !binding.current_binding.trim().is_empty() {
+                let _ = register_shortcut(&app, binding);
+            }
+        } else {
+            let _ = unregister_shortcut(&app, binding);
+        }
+    }
+
+    crate::secure_input::reconcile_fallback(&app);
+    Ok(())
+}
+
+/// Flip the undo master toggle and register or unregister its binding to
+/// match.
+#[tauri::command]
+#[specta::specta]
+pub fn change_undo_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.undo_enabled = enabled;
+    settings::write_settings(&app, settings.clone());
+
+    if let Some(binding) = settings.bindings.get("undo").cloned() {
+        if enabled {
+            if !binding.current_binding.trim().is_empty() {
+                let _ = register_shortcut(&app, binding);
+            }
+        } else {
+            let _ = unregister_shortcut(&app, binding);
+        }
+    }
+
+    crate::secure_input::reconcile_fallback(&app);
+    Ok(())
+}
+
+/// Flip the command-mode master toggle and register or unregister its
+/// trigger binding to match.
+#[tauri::command]
+#[specta::specta]
+pub fn change_command_mode_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.command_mode_enabled = enabled;
+    settings::write_settings(&app, settings.clone());
+
+    if let Some(binding) = settings.bindings.get("transcribe_commands").cloned() {
+        if enabled {
+            if !binding.current_binding.trim().is_empty() {
+                let _ = register_shortcut(&app, binding);
+            }
+        } else {
+            let _ = unregister_shortcut(&app, binding);
+        }
+    }
+
+    crate::secure_input::reconcile_fallback(&app);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_chinese_script_setting(app: AppHandle, script: ChineseScript) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.chinese_script = script;
@@ -1458,7 +1669,7 @@ pub fn change_transcribe_gpu_device(app: AppHandle, device: Option<String>) -> R
 /// First-call cost is dominated by enumerating GPU devices through the
 /// transcribe.cpp Metal/Vulkan backend, which loads dynamic libraries and
 /// probes hardware. Run it on the blocking pool so the webview thread
-/// stays responsive — see also the startup pre-warm in `lib.rs`.
+/// stays responsive - see also the startup pre-warm in `lib.rs`.
 #[tauri::command]
 #[specta::specta]
 pub async fn get_available_accelerators(

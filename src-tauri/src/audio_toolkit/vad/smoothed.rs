@@ -205,7 +205,7 @@ mod tests {
     #[test]
     fn tail_report_counts_withheld_onset_tail() {
         // One voiced frame at the end: onset (2 frames) never confirms, so
-        // both trailing frames are withheld and one of them is voiced —
+        // both trailing frames are withheld and one of them is voiced -
         // consistent with a final word cut off at the stop boundary.
         let mut vad = smoothed(&[false, true], 2);
         assert!(!vad.push_frame(&frame(0.1)).unwrap().is_speech());
@@ -221,7 +221,7 @@ mod tests {
     #[test]
     fn tail_report_counts_only_trailing_run() {
         // Speech emitted through hangover, then silence past the hangover is
-        // withheld. Only the trailing run counts — frames older than an
+        // withheld. Only the trailing run counts - frames older than an
         // emitted frame are excluded.
         let mut vad = smoothed(&[true, true, false, false, false, false], 2);
         for v in [0.1, 0.2, 0.3, 0.4] {

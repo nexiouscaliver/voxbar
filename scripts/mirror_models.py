@@ -5,7 +5,7 @@
 """
 Mirror the catalog's GGUF files to S3-compatible blob storage (Cloudflare R2).
 
-Object keys are `{repo_id}/{revision}/{filename}` — the same three values that
+Object keys are `{repo_id}/{revision}/{filename}` - the same three values that
 form the HF resolve URL, so the app's mirror template is plain substitution.
 A revision pins content, making keys immutable: objects are served with an
 immutable cache policy, and existence implies correctness.
@@ -14,13 +14,13 @@ The bucket is the only state. Each run HEADs every expected key and uploads
 what's missing, so runs are idempotent and machine-independent; concurrent
 runs from different machines at worst duplicate work with identical bytes.
 Every file is hash-verified against the catalog's `sha256` between download
-and upload — that verification is what lets everything downstream trust bare
+and upload - that verification is what lets everything downstream trust bare
 key existence. When a repo's revision moves but a file's bytes didn't change,
 the object is server-side copied from the old revision's key instead of
 re-transferred.
 
 Modes:
-  (default)   dry run — print the plan; read-only HEAD/LIST when credentials
+  (default)   dry run - print the plan; read-only HEAD/LIST when credentials
               are present, offline otherwise. Writes nothing.
   --execute   perform the plan. Downloads (hf_xet, parallel chunks) and
               uploads (one worker thread) are pipelined, so wall time is
@@ -33,7 +33,7 @@ Modes:
               bucket and hash it against the catalog. No disk writes; R2
               egress is free, so a full audit costs only time.
 
-Only each model's default quant is mirrored — the one quant the app offers
+Only each model's default quant is mirrored - the one quant the app offers
 for download; --all-quants widens to every listed quant.
 
 Env:  R2_ENDPOINT (https://<account>.r2.cloudflarestorage.com)
@@ -116,7 +116,7 @@ def download_verified(repo_id, revision, f, tmpdir):
     bar), then hash-verify against the catalog.
 
     Returns (path, scratch_dir); the caller removes scratch_dir after upload.
-    Retries transfer errors AND verification failures — a hash mismatch here
+    Retries transfer errors AND verification failures - a hash mismatch here
     means a corrupted transfer, and uploading it would poison an immutable key.
     """
     last_err = None
@@ -228,7 +228,7 @@ def main():
             if meta is not None:
                 # Immutable key already populated. "Existence implies
                 # correctness" only covers objects this script wrote (verified,
-                # hash recorded) — a disagreeing OR missing hash means some
+                # hash recorded) - a disagreeing OR missing hash means some
                 # other writer, the one state that must never pass silently.
                 recorded = meta.get("sha256")
                 if recorded != f["sha256"]:
@@ -270,7 +270,7 @@ def main():
 
     drain(0)
     uploader.shutdown()
-    print(f'{"DRY RUN — nothing written. " if not args.execute else ""}'
+    print(f'{"DRY RUN - nothing written. " if not args.execute else ""}'
           f'skip {tally["skip"]}, copy {tally["copy"]}, upload {tally["upload"]}'
           f' ({upload_bytes/1e9:.1f} GB), mismatch {tally["mismatch"]}')
     if tally["mismatch"]:

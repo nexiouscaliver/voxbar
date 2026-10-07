@@ -96,7 +96,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
     (state) => state.settings?.debug_mode ?? false,
   );
   const isFeatured = variant === "featured";
-  // The active model is already loaded — re-selecting it just reloads it for no
+  // The active model is already loaded - re-selecting it just reloads it for no
   // gain, so it is deliberately not clickable.
   const isClickable = status === "available" || status === "downloadable";
 

@@ -4,6 +4,10 @@
     "checkUpdates": "Verifica aggiornamenti...",
     "copyLastTranscript": "Copia l'ultima trascrizione",
     "unloadModel": "Rilascia modello",
+    "unloadAfter": "Scarica dopo",
+    "unloadAfterImmediately": "Immediatamente",
+    "unloadAfterNever": "Mai",
+    "unloadAfterCustom": "Personalizzato…",
     "model": "Modello",
     "quit": "Esci",
     "cancel": "Annulla",
@@ -101,7 +105,7 @@
     },
     "permissions": {
       "title": "Permessi Richiesti",
-      "description": "Handy ha bisogno di alcuni permessi per funzionare correttamente.",
+      "description": "VoxBar ha bisogno di alcuni permessi per funzionare correttamente.",
       "microphone": {
         "title": "Accesso al Microfono",
         "description": "Necessario per sentire la tua voce per la trascrizione."
@@ -175,13 +179,41 @@
       "searchPlaceholder": "Cerca modelli per nome…",
       "rescan": {
         "label": "Riscansiona",
-        "tooltip": "Riscansiona per trovare modelli aggiunti alla cartella dei modelli o alla cache di Hugging Face al di fuori di Handy"
+        "tooltip": "Riscansiona per trovare modelli aggiunti alla cartella dei modelli o alla cache di Hugging Face al di fuori di VoxBar"
+      },
+      "rescanModels": "Scansiona di nuovo i modelli",
+      "addFromHf": {
+        "title": "Aggiungi modello da Hugging Face",
+        "description": "Incolla un URL di repository pubblico o proprietario/repository, ad esempio https://huggingface.co/proprietario/modello.",
+        "placeholder": "https://huggingface.co/proprietario/modello o proprietario/modello",
+        "add": "Aggiungi",
+        "cancel": "Annulla",
+        "pickFile": "Scegli un file da {{repo}}:",
+        "recommended": "Consigliato",
+        "status": {
+          "resolving": "Risoluzione del repository...",
+          "adding": "Scaricamento e verifica del modello...",
+          "added": "Modello aggiunto. Appare nei modelli scaricati."
+        },
+        "errors": {
+          "invalidInput": "Impossibile interpretarlo come repository Hugging Face: {{detail}}",
+          "notFound": "Il repository {{repo}} non è stato trovato su Hugging Face.",
+          "inaccessible": "{{repo}} non è raggiungibile su Hugging Face. Potrebbe non esistere, oppure essere privato o con accesso limitato. Al momento sono supportati solo repository pubblici.",
+          "fileNotFound": "Il file {{filename}} non è stato trovato in {{repo}}.",
+          "noGguf": "{{repo}} non contiene file GGUF.",
+          "network": "Impossibile raggiungere Hugging Face: {{detail}}",
+          "downloadFailed": "Download non riuscito: {{detail}}",
+          "cancelled": "Download annullato.",
+          "unsupportedArch": "L'architettura del modello {{arch}} non è supportata. Supportate: {{supported}}.",
+          "unsupportedArchUnknown": "Quel file non può essere letto come modello GGUF, quindi non è stato aggiunto.",
+          "generic": "Qualcosa è andato storto."
+        }
       }
     },
     "general": {
       "title": "Generale",
       "shortcut": {
-        "title": "Scorciatoie di Handy",
+        "title": "Scorciatoie di VoxBar",
         "description": "Configura le scorciatoie per attivare la trascrizione vocale",
         "loading": "Caricamento delle scorciatoie...",
         "none": "Nessuna scorciatoia configurata",
@@ -199,13 +231,26 @@
           "transcribe_with_post_process": {
             "name": "Tasto di post-elaborazione",
             "description": "Facoltativo: Un tasto di scelta rapida dedicato che applica sempre la post-elaborazione IA alla trascrizione."
+          },
+          "delete_last_word": {
+            "name": "Elimina ultima parola",
+            "description": "Elimina la parola prima del cursore nell'app attiva (Opzione+Backspace su macOS, Ctrl+Backspace altrove). Assegna un tasto per attivarla."
+          },
+          "undo": {
+            "name": "Annulla",
+            "description": "Esegue Annulla nell'app attiva (Cmd+Z su macOS, Ctrl+Z altrove), annullando l'ultima dettatura incollata in un colpo solo. Assegna un tasto per attivarla."
+          },
+          "transcribe_commands": {
+            "name": "Modalità comandi",
+            "description": "Registra come una dettatura, ma ogni parola viene trattata come un comando: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Le parole non riconosciute vengono scartate, quindi non viene mai digitato altro. Non assegnato per impostazione predefinita."
           }
         },
         "errors": {
           "restore": "Errore nel ripristino della scorciatoia originale",
           "set": "Errore nella configurazione della scorciatoia: {{error}}",
           "reset": "Errore nella reinizializzazione della scorciatoia al valore originale"
-        }
+        },
+        "unbound": "Non assegnato"
       },
       "language": {
         "title": "Lingua",
@@ -226,6 +271,24 @@
           "hold_or_toggle": "Tieni premuto per registrare o tocca per alternare",
           "push_to_talk": "Registra finché tieni premuta la scorciatoia",
           "toggle": "Tocca la scorciatoia per avviare la registrazione, tocca di nuovo per fermarla"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Scorciatoie di modifica",
+        "deleteLastWord": {
+          "title": "Azione: elimina ultima parola",
+          "description": "Attiva la scorciatoia assegnabile che elimina la parola prima del cursore. La scorciatoia resta inattiva finché non assegni un tasto sopra."
+        },
+        "undo": {
+          "title": "Azione: annulla",
+          "description": "Attiva la scorciatoia assegnabile che esegue Annulla nell'app attiva. La scorciatoia resta inattiva finché non assegni un tasto sopra."
+        }
+      },
+      "commandMode": {
+        "title": "Modalità comandi",
+        "toggle": {
+          "title": "Modalità comandi",
+          "description": "Attiva il trigger assegnabile della modalità comandi. Tenuto premuto registra come una dettatura; la trascrizione viene eseguita come comandi (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) e le parole non riconosciute vengono scartate."
         }
       }
     },
@@ -291,18 +354,30 @@
         "label": "Avvia in Background",
         "description": "Avvia l'applicazione in background senza aprire la finestra."
       },
+      "memoryPressureGuard": {
+        "label": "Protezione da pressione di memoria",
+        "description": "Rifiuta di caricare un modello quando la memoria libera è insufficiente. Il modello attuale continua a funzionare quando un caricamento viene rifiutato."
+      },
+      "autoFallback": {
+        "label": "Ripiego automatico (RAM)",
+        "description": "Quando il modello selezionato non entra nella memoria libera, carica automaticamente il miglior modello scaricato che entra. Disattiva per mantenere il rifiuto semplice."
+      },
+      "menuBarModelTitle": {
+        "label": "Titolo del modello nella barra dei menu",
+        "description": "Mostra il modello residente e la sua impronta RAM come testo accanto all'icona del vassoio (barra dei menu macOS)."
+      },
       "autostart": {
         "label": "Avvia all'Accensione",
-        "description": "Avvia Handy automaticamente quando accedi al computer."
+        "description": "Avvia VoxBar automaticamente quando accedi al computer."
       },
       "showTrayIcon": {
         "label": "Mostra icona nella barra di sistema",
-        "description": "Mostra l'icona di Handy nella barra di sistema."
+        "description": "Mostra l'icona di VoxBar nella barra di sistema."
       },
       "overlay": {
         "style": {
           "title": "Overlay",
-          "description": "Scegli l'overlay di registrazione: 'Nessuno' lo nasconde, 'Minimo' mostra una barra compatta, 'In tempo reale' mostra la trascrizione in tempo reale mentre parli (solo per modelli che supportano lo streaming — cerca il badge 'Streaming' nel selettore del modello). Su Linux si raccomanda l'opzione 'Nessuno'.",
+          "description": "Scegli l'overlay di registrazione: 'Nessuno' lo nasconde, 'Minimo' mostra una barra compatta, 'In tempo reale' mostra la trascrizione in tempo reale mentre parli (solo per modelli che supportano lo streaming - cerca il badge 'Streaming' nel selettore del modello). Su Linux si raccomanda l'opzione 'Nessuno'.",
           "options": {
             "none": "Nessuno",
             "minimal": "Minimo",
@@ -372,12 +447,15 @@
           "min10": "Dopo 10 minuti",
           "min15": "Dopo 15 minuti",
           "hour1": "Dopo 1 ora",
+          "custom": "Personalizzato",
           "sec15": "Dopo 15 secondi (Debug)"
-        }
+        },
+        "customSecondsLabel": "Secondi personalizzati",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Parole personalizzate",
-        "description": "Aiuta i modelli supportati a riconoscere nomi e termini specialistici. La correzione approssimativa è attualmente limitata alle parole che usano le lettere A–Z e i numeri.",
+        "description": "Aiuta i modelli supportati a riconoscere nomi e termini specialistici. La correzione approssimativa è attualmente limitata alle parole che usano le lettere A-Z e i numeri.",
         "placeholder": "Aggiungi una parola",
         "add": "Aggiungi",
         "remove": "Rimuovi {{word}}",
@@ -398,6 +476,22 @@
       "fillerWordRemoval": {
         "title": "Rimuovi le parole riempitive",
         "description": "Rimuove le parole di esitazione più comuni dalle trascrizioni. Disattiva per mantenerle."
+      },
+      "spokenPunctuation": {
+        "title": "Punteggiatura parlata",
+        "description": "Trasforma le parole di punteggiatura pronunciate come \"comma\", \"period\" e \"question mark\" in vera punteggiatura. Disattiva per mantenerle come parole normali."
+      },
+      "terminalPunctuation": {
+        "title": "Punteggiatura finale",
+        "description": "Termina ogni trascrizione con la punteggiatura: punto interrogativo per le domande, altrimenti un punto. Disattiva per lasciare la fine come trascritta."
+      },
+      "voiceDeletion": {
+        "title": "Comandi di eliminazione vocale",
+        "description": "\"scratch that\", \"delete that\" e \"remove that\" eliminano la parola precedente, \"delete last three words\" ne elimina diverse, e \"delete everything\" o \"start over\" cancella la dettatura. Disattiva per mantenerle come parole normali."
+      },
+      "previewBeforePaste": {
+        "title": "Anteprima prima di incollare",
+        "description": "Mostra brevemente la trascrizione finale nell'overlay di registrazione prima di incollarla. Disattiva per incollare immediatamente."
       },
       "chineseScript": {
         "title": "Scrittura cinese",
@@ -477,7 +571,12 @@
       "retranscribe": "Ri-trascrivere",
       "retranscribeError": "Impossibile ri-trascrivere. Riprova.",
       "transcribing": "Trascrizione in corso...",
-      "transcriptionFailed": "Trascrizione fallita. Puoi ri-trascrivere usando l'icona di ripetizione."
+      "transcriptionFailed": "Trascrizione fallita. Puoi ri-trascrivere usando l'icona di ripetizione.",
+      "model": "Modello di trascrizione",
+      "showModel": {
+        "label": "Mostra badge del modello",
+        "description": "Mostra un badge compatto con il modello che ha prodotto ogni trascrizione."
+      }
     },
     "debug": {
       "title": "Debug",
@@ -502,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Controlla aggiornamenti",
-        "description": "Controlla automaticamente la disponibilità di nuove versioni di Handy",
+        "description": "Mostra l'opzione \"Controlla aggiornamenti\" nel menu della barra dei menu e nel piè di pagina",
         "lockedDescription": "Disabilitato dalla configurazione di sistema (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {
@@ -580,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Diagnostica tastiera",
-        "description": "Verifica se gli eventi della tastiera arrivano a Handy. Viene registrato solo il numero di eventi, mai quali tasti premi.",
+        "description": "Verifica se gli eventi della tastiera arrivano a VoxBar. Viene registrato solo il numero di eventi, mai quali tasti premi.",
         "run": "Esegui diagnostica di 10 s",
         "running": "In ascolto… premi la tua scorciatoia alcune volte (ad es. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -594,7 +693,7 @@
         "mouse": "Mouse",
         "verdictBlocked": "Secure Input sta bloccando gli eventi dei tasti: le scorciatoie che includono un tasto normale non possono funzionare finché non viene risolto.",
         "verdictSuspicious": "Sono arrivati eventi dei modificatori ma nessun evento dei tasti: qualcosa sta sopprimendo i tasti anche se Secure Input risulta disabilitato. Segnalalo su GitHub.",
-        "verdictOk": "Gli eventi dei tasti arrivano a Handy normalmente.",
+        "verdictOk": "Gli eventi dei tasti arrivano a VoxBar normalmente.",
         "verdictNoEvents": "Nessun evento rilevato: hai premuto qualche tasto durante il test?",
         "failed": "Diagnostica non riuscita: {{error}}"
       },
@@ -617,11 +716,11 @@
       "title": "Informazioni",
       "version": {
         "title": "Versione",
-        "description": "Versione attuale di Handy"
+        "description": "Versione attuale di VoxBar"
       },
       "appDataDirectory": {
         "title": "Cartella Dati App",
-        "description": "Cartella in cui Handy salva i dati"
+        "description": "Cartella in cui VoxBar salva i dati"
       },
       "sourceCode": {
         "title": "Codice Sorgente",
@@ -630,7 +729,7 @@
       },
       "supportDevelopment": {
         "title": "Supporta lo Sviluppo",
-        "description": "Aiutaci a sviluppare Handy",
+        "description": "Aiutaci a sviluppare VoxBar",
         "button": "Dona"
       },
       "acknowledgments": {
@@ -638,12 +737,12 @@
         "ggml": {
           "title": "ggml",
           "description": "Inferenza ad alte prestazioni del modello di riconoscimento vocale automatico Whisper di OpenAI",
-          "details": "Handy usa ggml per il riconoscimento vocale veloce in locale. Grazie a Georgi Gerganov e collaboratori per il fantastico lavoro."
+          "details": "VoxBar usa ggml per il riconoscimento vocale veloce in locale. Grazie a Georgi Gerganov e collaboratori per il fantastico lavoro."
         }
       },
       "whatsNewUpdates": {
         "label": "Mostra novità",
-        "description": "Mostra le note di rilascio dopo gli aggiornamenti di Handy"
+        "description": "Mostra le note di rilascio dopo gli aggiornamenti di VoxBar"
       }
     }
   },
@@ -672,7 +771,7 @@
     "noOptionsFound": "Nessuna opzione trovata"
   },
   "accessibility": {
-    "permissionsDescription": "Handy ha bisogno dei permessi di accessibilità per digitare il testo trascritto.",
+    "permissionsDescription": "VoxBar ha bisogno dei permessi di accessibilità per digitare il testo trascritto.",
     "openSettings": "Apri Impostazioni di Sistema"
   },
   "errors": {
@@ -689,21 +788,43 @@
     "recordingFailed": "Impossibile avviare la registrazione: {{error}}",
     "modelLoadFailed": "Impossibile caricare il modello: {{model}}",
     "modelLoadFailedUnknown": "modello sconosciuto",
+    "modelFallbackTitle": "Memoria insufficiente",
+    "modelFallback": "Passato a {{model}} per questa dettatura",
     "pasteFailedTitle": "Impossibile incollare il testo",
     "pasteFailed": "Non è stato possibile incollare il testo nell'applicazione attiva.",
     "transcriptionFailedTitle": "Trascrizione non riuscita"
   },
   "appLanguage": {
     "title": "Lingua Applicazione",
-    "description": "Cambia la lingua dell'interfaccia di Handy"
+    "description": "Cambia la lingua dell'interfaccia di VoxBar"
   },
   "theme": {
     "title": "Tema dell'applicazione",
-    "description": "Scegli se Handy segue il tema di sistema o resta chiaro o scuro",
+    "description": "Scegli se VoxBar segue il tema di sistema o resta chiaro o scuro",
     "options": {
       "system": "Sistema",
       "light": "Chiaro",
       "dark": "Scuro"
+    },
+    "accentColor": {
+      "label": "Colore accento",
+      "description": "Scegli il colore usato per evidenziazioni, interruttori e controlli"
+    },
+    "accentColors": {
+      "black": "Nero",
+      "gray": "Grigio",
+      "white": "Bianco",
+      "red": "Rosso",
+      "orange": "Arancione",
+      "amber": "Ambra",
+      "green": "Verde",
+      "teal": "Verde acqua",
+      "cyan": "Ciano",
+      "blue": "Blu",
+      "indigo": "Indaco",
+      "violet": "Viola",
+      "magenta": "Magenta",
+      "pink": "Rosa"
     }
   },
   "overlay": {
@@ -711,7 +832,7 @@
     "processing": "Elaborazione..."
   },
   "whatsNew": {
-    "title": "Novità in Handy v{{version}}"
+    "title": "Novità in VoxBar v{{version}}"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} potrebbe bloccare 1 scorciatoia",

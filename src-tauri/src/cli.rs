@@ -2,7 +2,7 @@ use clap::Parser;
 use std::path::PathBuf;
 
 #[derive(Parser, Debug, Clone, Default)]
-#[command(name = "handy", about = "Handy - Speech to Text")]
+#[command(name = "voxbar", about = "VoxBar - Speech to Text")]
 pub struct CliArgs {
     /// Start with the main window hidden
     #[arg(long)]
@@ -29,7 +29,7 @@ pub struct CliArgs {
     pub debug: bool,
 
     /// Transcribe this WAV (16 kHz mono) headlessly and exit. Runs the same
-    /// batch transcription path as the app — no mic, no VAD, no download
+    /// batch transcription path as the app - no mic, no VAD, no download
     /// (the model must already be installed).
     #[arg(short = 'f', long, value_name = "WAV")]
     pub transcribe_file: Option<PathBuf>,

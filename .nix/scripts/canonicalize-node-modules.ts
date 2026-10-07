@@ -20,7 +20,7 @@
  *               └── core   → ../../@babel+core@7.28.5+…/node_modules/@babel/core
  *
  * Real package content lives in .bun/<pkg>@<ver>/node_modules/<pkg>/.
- * The .bun/node_modules/ directory (linkRoot) holds only symlinks — it acts
+ * The .bun/node_modules/ directory (linkRoot) holds only symlinks - it acts
  * as a fallback upward-resolution path for packages inside .bun/.
  *
  * Bun's creation order for those symlinks is not guaranteed to be stable

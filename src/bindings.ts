@@ -45,6 +45,38 @@ async changeAudioFeedbackSetting(enabled: boolean) : Promise<Result<null, string
     else return { status: "error", error: e  as any };
 }
 },
+async changeMemoryPressureGuardSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_memory_pressure_guard_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeAutoFallbackSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_auto_fallback_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeMenuBarModelTitleSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_menu_bar_model_title_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeShowHistoryModelSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_show_history_model_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeAudioFeedbackVolumeSetting(volume: number) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_audio_feedback_volume_setting", { volume }) };
@@ -64,6 +96,14 @@ async changeSoundThemeSetting(theme: string) : Promise<Result<null, string>> {
 async changeThemeSetting(theme: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_theme_setting", { theme }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeAccentColorSetting(accent: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_accent_color_setting", { accent }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -383,6 +423,62 @@ async changeFillerWordRemovalEnabledSetting(enabled: boolean) : Promise<Result<n
     else return { status: "error", error: e  as any };
 }
 },
+async changeSpokenPunctuationSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_spoken_punctuation_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeTerminalPunctuationSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_terminal_punctuation_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeVoiceDeletionCommandsSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_voice_deletion_commands_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changePreviewBeforePasteSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_preview_before_paste_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeDeleteLastWordEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_delete_last_word_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeUndoEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_undo_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeCommandModeEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_command_mode_enabled_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeChineseScriptSetting(script: ChineseScript) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_chinese_script_setting", { script }) };
@@ -481,7 +577,7 @@ async changeTranscribeGpuDevice(device: string | null) : Promise<Result<null, st
  * First-call cost is dominated by enumerating GPU devices through the
  * transcribe.cpp Metal/Vulkan backend, which loads dynamic libraries and
  * probes hardware. Run it on the blocking pool so the webview thread
- * stays responsive — see also the startup pre-warm in `lib.rs`.
+ * stays responsive - see also the startup pre-warm in `lib.rs`.
  */
 async getAvailableAccelerators() : Promise<AvailableAccelerators> {
     return await TAURI_INVOKE("get_available_accelerators");
@@ -514,14 +610,6 @@ async getSecureInputStatus() : Promise<SecureInputStatus> {
 async runKeyboardDiagnostic(durationSecs: number | null) : Promise<Result<KeyboardDiagnosticReport, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("run_keyboard_diagnostic", { durationSecs }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async triggerUpdateCheck() : Promise<Result<null, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("trigger_update_check") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -724,6 +812,34 @@ async rescanLocalModels() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Resolve pasted Hugging Face input (a URL, `owner/repo`, or
+ * `owner/repo/file.gguf`) into the repo's GGUF file list with sizes plus a
+ * suggested file. Public repos only in v1: repos that cannot be read
+ * anonymously come back as a structured error the UI can localize.
+ */
+async resolveHfModel(input: string) : Promise<Result<HfModelResolution, HfModelError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("resolve_hf_model", { input }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Download a specific file from a Hugging Face repo and register it, gated
+ * on the GGUF architecture probe: an unsupported architecture is refused,
+ * the blob deleted, and the error names the architecture and supported
+ * families. Downloads nothing outside this explicit user action.
+ */
+async addHfModel(repoId: string, filename: string, revision: string | null) : Promise<Result<string, HfModelError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("add_hf_model", { repoId, filename, revision }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async updateMicrophoneMode(alwaysOn: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_microphone_mode", { alwaysOn }) };
@@ -843,6 +959,14 @@ async setSelectedChannel(channel: number | null) : Promise<Result<null, string>>
 async setModelUnloadTimeout(timeout: ModelUnloadTimeout) : Promise<void> {
     await TAURI_INVOKE("set_model_unload_timeout", { timeout });
 },
+async setModelUnloadTimeoutCustomSeconds(seconds: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_model_unload_timeout_custom_seconds", { seconds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async getModelLoadStatus() : Promise<Result<ModelLoadStatus, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_model_load_status") };
@@ -952,7 +1076,7 @@ streamTextEvent: "stream-text-event"
 
 /**
  * The container-level `serde(default)` (backed by the `Default` impl below)
- * guarantees every field — including ones added in the future — falls back to
+ * guarantees every field - including ones added in the future - falls back to
  * its `get_default_settings()` value when missing from a stored settings
  * object, so a partial store can never fail the whole load (#1619).
  * Field-level defaults below take precedence where present.
@@ -983,20 +1107,47 @@ hold_threshold_ms?: number; audio_feedback?: boolean; audio_feedback_volume?: nu
  * The app version whose What's New the user has already seen. Fresh installs
  * default to the current version (nothing is "new" to them). Existing users
  * upgrading from before this key existed are blanked by the migration so they
- * see the current release's notes — see `apply_settings_migrations`.
+ * see the current release's notes - see `apply_settings_migrations`.
  */
 whats_new_last_seen_version?: string; selected_model?: string; onboarding_completed?: boolean; always_on_microphone?: boolean; selected_microphone?: string | null; 
 /**
  * Which input channel to use on the selected microphone device.
  * None means "average all channels" (original behavior).
  */
-selected_channel?: number | null; clamshell_microphone?: string | null; selected_output_device?: string | null; translate_to_english?: boolean; selected_language?: string; overlay_position?: OverlayPosition; debug_mode?: boolean; log_level?: LogLevel; custom_words?: string[]; model_unload_timeout?: ModelUnloadTimeout; word_correction_threshold?: number; history_limit?: number; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; theme?: Theme; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; paste_delay_after_ms?: number; 
+selected_channel?: number | null; clamshell_microphone?: string | null; selected_output_device?: string | null; translate_to_english?: boolean; selected_language?: string; overlay_position?: OverlayPosition; debug_mode?: boolean; log_level?: LogLevel; custom_words?: string[]; model_unload_timeout?: ModelUnloadTimeout; memory_pressure_guard?: boolean; auto_fallback?: boolean; menu_bar_model_title?: boolean; word_correction_threshold?: number; history_limit?: number; show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; theme?: Theme; accent_color?: string; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; paste_delay_after_ms?: number; 
 /**
  * Debug-gated ("beta") receipt-sequenced paste: restore the clipboard only
  * after the target app actually reads the transcript, instead of after a
  * fixed delay. See `paste_tx`. macOS and Windows only.
  */
-reliable_paste?: boolean; typing_tool?: TypingTool; external_script_path?: string | null; filler_word_removal_enabled?: boolean; custom_filler_words?: string[] | null; 
+reliable_paste?: boolean; typing_tool?: TypingTool; external_script_path?: string | null; filler_word_removal_enabled?: boolean; custom_filler_words?: string[] | null; spoken_punctuation?: boolean; terminal_punctuation?: boolean; voice_deletion_commands?: boolean;
+/**
+ * Briefly show the final transcription in the recording overlay before
+ * it is pasted (~1.2s). Gives non-streaming (batch) models the same
+ * final-text confirmation the live overlay gives streaming models; off
+ * pastes immediately as before.
+ */
+preview_before_paste?: boolean;
+/**
+ * Master toggle for the assignable "delete last word" hotkey action.
+ * The action also ships unbound, so it stays inert until the operator
+ * binds a key for it.
+ */
+delete_last_word_enabled?: boolean; 
+/**
+ * Master toggle for the assignable "undo" hotkey action. Like the
+ * delete-word action it ships unbound and stays inert until a key is
+ * bound.
+ */
+undo_enabled?: boolean; 
+/**
+ * Master toggle for command mode: a second, assignable recording
+ * trigger whose whole transcript is parsed as a command sequence
+ * (punctuation, line breaks, delete word/line, undo, paste) instead of
+ * being pasted as dictation text. Ships unbound, so it stays inert
+ * until the operator binds a key.
+ */
+command_mode_enabled?: boolean; 
 /**
  * Fresh installs default from the OS locale; existing stores are migrated
  * in `apply_settings_migrations`.
@@ -1014,7 +1165,7 @@ transcribe_gpu_device?: string | null; extra_recording_buffer_ms?: number; vad_e
 vad_backend?: VadBackend; 
 /**
  * Which recording overlay to show: None / Minimal / Live. Streaming mode is
- * not gated on this — that follows model capability. Migrated from the old
+ * not gated on this - that follows model capability. Migrated from the old
  * `overlay_position` (position `none` → style `None`).
  */
 overlay_style?: OverlayStyle }
@@ -1041,7 +1192,20 @@ export type EngineType =
  */
 "TranscribeCpp" | "Parakeet" | "Moonshine" | "MoonshineStreaming" | "SenseVoice" | "GigaAM" | "Canary" | "Cohere"
 export type GpuDeviceOption = { id: string; name: string; total_vram_mb: number }
-export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean }
+/**
+ * Structured failure kinds for the add-from-Hugging-Face flow, so the
+ * frontend can localize each instead of showing raw error strings.
+ */
+export type HfModelError = { InvalidInput: { detail: string } } | { RepoNotFound: { repo_id: string } } | { Inaccessible: { repo_id: string } } | { FileNotFound: { repo_id: string; filename: string } } | { NoGgufFiles: { repo_id: string } } | { Network: { detail: string } } | { DownloadFailed: { detail: string } } | "Cancelled" | { UnsupportedArchitecture: { architecture: string | null; supported: string[] } }
+/**
+ * The repo listing handed to the UI when the user's input resolves.
+ */
+export type HfModelResolution = { repo_id: string; revision: string | null; files: HfRepoFile[]; suggested_filename: string }
+/**
+ * One `.gguf` file inside a Hugging Face repo, as listed by the metadata API.
+ */
+export type HfRepoFile = { filename: string; size_bytes: number | null }
+export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean; model_id: string | null }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
  * Result of changing keyboard implementation
@@ -1053,7 +1217,7 @@ export type ImplementationChangeResult = { success: boolean;
 reset_bindings: string[] }
 export type KeyboardDiagnosticReport = { secure_input_enabled: boolean; culprit_pid: number | null; culprit_name: string | null; 
 /**
- * Counts only — key identity is deliberately never captured.
+ * Counts only - key identity is deliberately never captured.
  */
 key_down: number; key_up: number; flags_changed: number; mouse: number; duration_ms: number }
 export type KeyboardImplementation = "tauri" | "handy_keys"
@@ -1062,7 +1226,7 @@ export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type ModelInfo = { id: string; name: string; description: string; filename: string; source: ModelSource; size_mb: number; is_downloaded: boolean; is_downloading: boolean; partial_size: number; is_directory: boolean; engine_type: EngineType; accuracy_score: number; speed_score: number; supports_translation: boolean; is_recommended: boolean; supported_languages: string[]; supports_language_selection: boolean; is_custom: boolean; supports_streaming: boolean; supports_language_detection: boolean }
 export type ModelLoadStatus = { is_loaded: boolean; current_model: string | null }
 /**
- * Where a model comes from and how Handy obtains it — the routing discriminant
+ * Where a model comes from and how Handy obtains it - the routing discriminant
  * for downloading and on-disk resolution.
  */
 export type ModelSource = 
@@ -1081,11 +1245,11 @@ sha256: string | null } } |
  */
 { HuggingFace: { repo_id: string; revision: string } } | 
 /**
- * Already present on disk — a user-provided custom model, or one discovered
+ * Already present on disk - a user-provided custom model, or one discovered
  * in a shared cache. Nothing to download.
  */
 "Local"
-export type ModelUnloadTimeout = "never" | "immediately" | "min_2" | "min_5" | "min_10" | "min_15" | "hour_1" | "sec_15"
+export type ModelUnloadTimeout = "never" | "immediately" | "min_2" | "min_5" | "min_10" | "min_15" | "hour_1" | "sec_15" | { custom: { seconds: number } }
 export type OrtAcceleratorSetting = "auto" | "cpu" | "cuda" | "directml" | "rocm"
 export type OverlayPosition = "top" | "bottom"
 /**
@@ -1164,7 +1328,7 @@ export type StreamPhase =
  */
 "listening" | 
 /**
- * Finalizing or post-processing — show a spinner.
+ * Finalizing or post-processing - show a spinner.
  */
 "working"
 /**

@@ -18,6 +18,7 @@ import {
   supportsLanguageCode,
 } from "@/lib/constants/languages.ts";
 import type { ModelInfo } from "@/bindings";
+import { AddModelFromHuggingFace } from "./AddModelFromHuggingFace";
 
 // check if model supports a language based on its supported_languages list
 const modelSupportsLanguage = (model: ModelInfo, langCode: string): boolean => {
@@ -248,7 +249,7 @@ export const ModelsSettings: React.FC = () => {
         </p>
       </div>
 
-      {/* Search bar — filter the catalog by name or description */}
+      {/* Search bar - filter the catalog by name or description */}
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text/40 pointer-events-none" />
         <input
@@ -260,15 +261,18 @@ export const ModelsSettings: React.FC = () => {
         />
       </div>
 
+      {/* Add a model by pasting a Hugging Face repo, plus a prominent rescan */}
+      <AddModelFromHuggingFace />
+
       <div className="space-y-6">
-        {/* Downloaded Models Section — header always visible so filter stays accessible */}
+        {/* Downloaded Models Section - header always visible so filter stays accessible */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium text-text/60">
               {t("settings.models.yourModels")}
             </h2>
             <div className="flex items-center gap-2">
-              {/* Rescan local sources for models added outside Handy */}
+              {/* Rescan local sources for models added outside VoxBar */}
               <button
                 type="button"
                 onClick={() => rescanLocalModels()}

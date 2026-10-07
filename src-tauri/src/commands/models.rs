@@ -1,4 +1,6 @@
-use crate::managers::model::{ModelInfo, ModelManager};
+use crate::managers::model::{
+    resolve_hf_repo, HfModelError, HfModelResolution, ModelInfo, ModelManager,
+};
 use crate::managers::transcription::{ModelStateEvent, TranscriptionManager};
 use crate::settings::{get_settings, write_settings, ModelUnloadTimeout};
 use log::error;
@@ -100,7 +102,7 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
     let model_manager = app.state::<Arc<ModelManager>>();
     let transcription_manager = app.state::<Arc<TranscriptionManager>>();
 
-    // Atomically claim the loading slot — prevents concurrent model loads
+    // Atomically claim the loading slot - prevents concurrent model loads
     // from tray double-clicks or overlapping commands. The guard resets the
     // flag on drop (including early returns, errors, and panics).
     let _loading_guard = transcription_manager
@@ -129,10 +131,10 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
 
     write_settings(app, settings);
 
-    // Skip eager loading if unload is set to "Immediately" — the model
+    // Skip eager loading if unload is set to "Immediately" - the model
     // will be loaded on-demand during the next transcription.
     if unload_timeout == ModelUnloadTimeout::Immediately {
-        // Notify frontend — load_model won't be called so no events
+        // Notify frontend - load_model won't be called so no events
         // would otherwise be emitted.
         let _ = app.emit(
             "model-state-changed",
@@ -144,7 +146,7 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
             },
         );
         log::info!(
-            "Model selection changed to {} (not loading — unload set to Immediately).",
+            "Model selection changed to {} (not loading - unload set to Immediately).",
             model_id
         );
         return Ok(());
@@ -207,4 +209,31 @@ pub async fn cancel_download(
     model_manager
         .cancel_download(&model_id)
         .map_err(|e| e.to_string())
+}
+
+/// Resolve pasted Hugging Face input (a URL, `owner/repo`, or
+/// `owner/repo/file.gguf`) into the repo's GGUF file list with sizes plus a
+/// suggested file. Public repos only in v1: repos that cannot be read
+/// anonymously come back as a structured error the UI can localize.
+#[tauri::command]
+#[specta::specta]
+pub async fn resolve_hf_model(input: String) -> Result<HfModelResolution, HfModelError> {
+    resolve_hf_repo(&input).await
+}
+
+/// Download a specific file from a Hugging Face repo and register it, gated
+/// on the GGUF architecture probe: an unsupported architecture is refused,
+/// the blob deleted, and the error names the architecture and supported
+/// families. Downloads nothing outside this explicit user action.
+#[tauri::command]
+#[specta::specta]
+pub async fn add_hf_model(
+    model_manager: State<'_, Arc<ModelManager>>,
+    repo_id: String,
+    filename: String,
+    revision: Option<String>,
+) -> Result<String, HfModelError> {
+    model_manager
+        .add_hf_model(&repo_id, &filename, revision.as_deref())
+        .await
 }

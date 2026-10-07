@@ -1,7 +1,7 @@
 /**
  * Make `bun install --linker=isolated` output bit-reproducible.
  *
- * Entry point for the nixpkgs FOD build — invoke this single script after
+ * Entry point for the nixpkgs FOD build - invoke this single script after
  * `bun install` to get a `node_modules/` tree that is byte-identical
  * across machines and runs with the same bun.lock.
  *

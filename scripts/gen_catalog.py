@@ -40,7 +40,7 @@ def acc_from_wer(wer):
 # slug -> {rank?, rec?, desc?, use_case?, default_quant?, hidden?}.  All optional.
 # desc is hand-written UI copy; models without one use factual generated summaries.
 # rank = editorial sort position (broad ordering). rec = the small "Recommended"
-# badge / onboarding subset — independent of rank, so a model can rank high
+# badge / onboarding subset - independent of rank, so a model can rank high
 # without carrying the recommended tag.
 CURATION = {
     "parakeet-unified-en-0.6b":        {"rank": 1, "rec": True, "desc": "Fast, accurate live English transcription"},
@@ -54,7 +54,7 @@ CURATION = {
     "parakeet-tdt-0.6b-v2":            {"rank": 8, "desc": "English only. The best model for English speakers"},
     "Qwen3-ASR-0.6B":                  {"rank": 9, "desc": "Excellent multilingual model"},
     "Fun-ASR-MLT-Nano-2512":           {"rank": 10, "desc": "A tiny multilingual model"},
-    # description-only (unranked, not recommended) — carried over from the legacy .bin entry
+    # description-only (unranked, not recommended) - carried over from the legacy .bin entry
     "Breeze-ASR-25":                   {"desc": "Optimized for Taiwanese Mandarin. Code-switching support."},
     # Sortformer emits speaker segments only; Handy's catalog is for models
     # that produce transcription text.
@@ -161,7 +161,7 @@ def probe_header(repo, filename, nbytes=65536):
                 off = skip(off, vt)
             if GGUF_WANT.issubset(out): break
     except Exception:
-        pass                      # ran past the buffer (hit tokenizer) — keep what we got
+        pass                      # ran past the buffer (hit tokenizer) - keep what we got
     return out
 
 def lfs_sha256(x):

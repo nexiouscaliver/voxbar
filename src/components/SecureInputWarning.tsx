@@ -5,9 +5,9 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { ExternalLink, TriangleAlert, X } from "lucide-react";
 import { commands, type SecureInputStatus } from "@/bindings";
 
-// Detailed remediation steps live in the docs rather than in the banner
-export const SECURE_INPUT_HELP_URL =
-  "https://handy.computer/docs/troubleshooting#shortcuts-stopped-working-on-macos-secure-input";
+// Detailed remediation steps used to live in the upstream project's docs site;
+// this fork has no docs site, so the link goes to the fork's repository.
+export const SECURE_INPUT_HELP_URL = "https://github.com/nexiouscaliver/voxbar";
 
 /**
  * Compact warning banner shown while macOS Secure Input is stuck on.
@@ -45,7 +45,7 @@ const SecureInputWarning: React.FC = () => {
   // Only warn when the user is actually impacted: a binding is degraded
   // (side-specific matching widened) or dead (e.g. fn+key), or they ran into
   // the blocked shortcut recorder. When the fallback covers everything
-  // transparently — and nothing else surfaced — stay silent; the backend
+  // transparently - and nothing else surfaced - stay silent; the backend
   // still logs.
   const impacted =
     status !== null &&

@@ -1,13 +1,13 @@
 //! Minimal, dependency-free GGUF metadata reader.
 //!
-//! Parses ONLY the GGUF key/value header section — the magic, the version, the
+//! Parses ONLY the GGUF key/value header section - the magic, the version, the
 //! counts, and the `metadata_kv_count` key/value pairs that sit at the front of
 //! the file, before any tensor info or tensor data. We never touch tensors, so
 //! the exact same code works on a complete file on disk and on the leading
 //! bytes of a remote file fetched with an HTTP Range request: a too-short
 //! buffer surfaces cleanly as [`GgufError::Truncated`] instead of panicking.
 //!
-//! This is intentionally not a full GGUF library — it reads what Handy needs to
+//! This is intentionally not a full GGUF library - it reads what Handy needs to
 //! display a model's capabilities before download. Format reference: GGUF v2/v3,
 //! little-endian. v1 (32-bit lengths) is not supported; every transcribe-cpp
 //! model is v3.
@@ -95,7 +95,7 @@ impl GgufValue {
 }
 
 /// The parsed front-of-file metadata of a GGUF model. Only the key/value block
-/// is retained — the version is validated during parsing and the tensor count is
+/// is retained - the version is validated during parsing and the tensor count is
 /// skipped, since Handy reads capabilities purely from the KV pairs.
 #[derive(Debug, Clone)]
 pub struct GgufMetadata {
@@ -124,7 +124,7 @@ pub enum GgufError {
     UnsupportedVersion(u32),
     /// The buffer ended before the metadata section was fully parsed. `needed`
     /// is a lower-bound hint for the total number of bytes to fetch and retry
-    /// with — because element sizes vary, callers should also grow geometrically
+    /// with - because element sizes vary, callers should also grow geometrically
     /// rather than trust this as the exact final size.
     Truncated { needed: usize },
     /// The bytes were malformed in a way that isn't simple truncation.

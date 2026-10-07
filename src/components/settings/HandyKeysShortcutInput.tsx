@@ -45,7 +45,7 @@ export const HandyKeysShortcutInput: React.FC<HandyKeysShortcutInputProps> = ({
   // on its key's release and a modifier-only shortcut only once every
   // modifier is released. Committing on the *first* release (the old
   // behavior) silently saved just the modifier whenever the key event never
-  // arrived — e.g. while macOS Secure Input is active (issue #1578).
+  // arrived - e.g. while macOS Secure Input is active (issue #1578).
   const keyedShortcutRef = useRef<string>("");
   const modifierOnlyShortcutRef = useRef<string>("");
   const osType = useOsType();
@@ -144,7 +144,7 @@ export const HandyKeysShortcutInput: React.FC<HandyKeysShortcutInputProps> = ({
             currentKeysRef.current = hotkey_string;
             setCurrentKeys(hotkey_string);
           } else if (!is_key_down && key) {
-            // The main key was released — commit the keyed combo. The release
+            // The main key was released - commit the keyed combo. The release
             // event's hotkey_string still contains the key, so it works even
             // if the key-down was somehow missed. Never fall back to a
             // modifier-only capture here: that's how bindings used to get
@@ -160,7 +160,7 @@ export const HandyKeysShortcutInput: React.FC<HandyKeysShortcutInputProps> = ({
             !keyedShortcutRef.current &&
             modifierOnlyShortcutRef.current
           ) {
-            // Every modifier released without a main key ever going down —
+            // Every modifier released without a main key ever going down -
             // commit as a modifier-only shortcut
             await commitAndStop(modifierOnlyShortcutRef.current);
           }
@@ -216,7 +216,7 @@ export const HandyKeysShortcutInput: React.FC<HandyKeysShortcutInputProps> = ({
 
     // Start backend recording. The backend refuses while macOS Secure Input
     // is active (the recorder's listener would receive no key events and
-    // capture just the modifier) — it also flips the warning banner on, so
+    // capture just the modifier) - it also flips the warning banner on, so
     // the toast points at a visible explanation.
     try {
       const result = await commands.startHandyKeysRecording(shortcutId);
@@ -336,7 +336,9 @@ export const HandyKeysShortcutInput: React.FC<HandyKeysShortcutInputProps> = ({
             className="px-2 py-1 text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 hover:bg-logo-primary/10 rounded-md cursor-pointer hover:border-logo-primary"
             onClick={startRecording}
           >
-            {formatKeyCombination(binding.current_binding, osType)}
+            {binding.current_binding
+              ? formatKeyCombination(binding.current_binding, osType)
+              : t("settings.general.shortcut.unbound")}
           </div>
         )}
         <ResetButton

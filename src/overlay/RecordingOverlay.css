@@ -16,7 +16,7 @@
     var(--color-background-ui) 16%,
     transparent
   );
-  /* Dark uses the lighter logo pink — reads better on the dark surface than the
+  /* Dark uses the lighter logo pink - reads better on the dark surface than the
      deeper UI pink. */
   --dark-s-accent-soft: color-mix(
     in srgb,
@@ -29,15 +29,15 @@
   --dark-s-muted: #a3a09a;
   --light-s-faint: #9a9a9a;
   --dark-s-faint: #6f6c66;
-  /* Hairlines reuse the app's mid-gray at low opacity in light — same vocabulary
-     as the app's border-mid-gray/* utilities — and flip to the near-white text
+  /* Hairlines reuse the app's mid-gray at low opacity in light - same vocabulary
+     as the app's border-mid-gray/* utilities - and flip to the near-white text
      token for contrast on dark. */
   --light-s-border: color-mix(in srgb, var(--color-mid-gray) 22%, transparent);
   --dark-s-border: color-mix(in srgb, var(--color-text) 12%, transparent);
   --light-s-hair: color-mix(in srgb, var(--color-mid-gray) 12%, transparent);
   --dark-s-hair: color-mix(in srgb, var(--color-text) 8%, transparent);
 
-  /* Active neutrals — default light, flipped by the media query below or forced
+  /* Active neutrals - default light, flipped by the media query below or forced
      by `data-theme`. */
   --s-accent-soft: var(--light-s-accent-soft);
   --s-muted: var(--light-s-muted);
@@ -45,7 +45,7 @@
   --s-border: var(--light-s-border);
   --s-hair: var(--light-s-hair);
 
-  /* Card geometry — single source of truth for the visible overlay sizes. The
+  /* Card geometry - single source of truth for the visible overlay sizes. The
      native overlay window (overlay.rs) is sized from these: it must be at least
      the card's max footprint (--ov-work-w for compact, --ov-open-w for Live),
      since the card is anchored flush to the screen edge in CSS. Keep overlay.rs
@@ -73,7 +73,7 @@
  * Explicit theme override, matching the `data-theme` blocks in theme.css.
  * `--s-surface` and `--s-accent` honour the setting for free because they derive
  * from shared palette tokens, but the neutrals above are chosen here, so without
- * this block a forced theme on a differently-themed OS mixes the two — e.g. dark
+ * this block a forced theme on a differently-themed OS mixes the two - e.g. dark
  * surface with light-theme secondary text at ~2.8:1 contrast. macOS masks that
  * (setting the app appearance flips the webview's `prefers-color-scheme` to
  * match), so this is what Windows and Linux need.
@@ -95,11 +95,11 @@
 }
 
 /* ============================================================
-   Unified overlay stage — one fixed, transparent container shared by the compact
+   Unified overlay stage - one fixed, transparent container shared by the compact
    pill and the Live panel (both render the same `.scard` base). The card is
    anchored flush to the screen-edge side (bottom by default, top when placed up
    top) and centered horizontally, so the visible card sits exactly
-   OVERLAY_*_OFFSET from the screen edge regardless of window height — only the
+   OVERLAY_*_OFFSET from the screen edge regardless of window height - only the
    offsets in overlay.rs move it. Pops scale from that edge, so the card is never
    drawn past it (matters for the 4px top offset on Windows/Linux).
    ============================================================ */
@@ -127,7 +127,7 @@
 
 /* Top placement, Live panel: stack the control pill above the text region so the
    card grows downward from its top edge (oldest line under the pill, newest at
-   the bottom) — mirroring the bottom overlay's upward flow. The compact pill has
+   the bottom) - mirroring the bottom overlay's upward flow. The compact pill has
    no flowing text, so this only affects the Live panel. The text region keeps the
    same fade + scroll-pin; older lines dissolve up under the pill. */
 .ov-stage.top .scard {
@@ -138,7 +138,7 @@
 .ov-stage.top .stext-cap {
   /* Mirror of the bottom overlay (top: 12 / bottom: 0): the first line sits flush
      under the pill and the breathing room moves below the text. The top fade is
-     off at rest — at zero top padding it would dim the resting first line — and
+     off at rest - at zero top padding it would dim the resting first line - and
      switches on (below) only once text overflows. */
   padding-top: 0;
   padding-bottom: 12px;
@@ -183,7 +183,7 @@
 @keyframes scard-pop {
   from {
     opacity: 0;
-    /* Scale from the anchored edge (transform-origin) — never translate past it. */
+    /* Scale from the anchored edge (transform-origin) - never translate past it. */
     transform: scale(0.92);
   }
   to {
@@ -211,7 +211,7 @@
    width transition (intrinsic max-content can't be transitioned, and every label
    is short enough to fit the resting pill, so content-sizing produced no visible
    grow). The resting pill hugs the waveform; the working pill is roomy enough to
-   center the longest label — the .swork-label ellipsis is only a safety net past it. */
+   center the longest label - the .swork-label ellipsis is only a safety net past it. */
 .scard.compact {
   animation: none;
   width: var(--ov-rest-w);
@@ -220,7 +220,7 @@
   width: var(--ov-work-w);
 }
 
-/* text region — auto-height open via grid-rows trick; region fades as a whole */
+/* text region - auto-height open via grid-rows trick; region fades as a whole */
 .stext {
   display: grid;
   grid-template-rows: 0fr;
@@ -259,7 +259,7 @@
   scrollbar-width: none; /* Firefox */
   -ms-overflow-style: none; /* legacy Edge */
 }
-/* Hide the scrollbar (WebKit/Chromium) — scroll-back is signalled by the fade. */
+/* Hide the scrollbar (WebKit/Chromium) - scroll-back is signalled by the fade. */
 .stext-cap::-webkit-scrollbar {
   display: none;
 }
@@ -287,7 +287,7 @@
   }
 }
 
-/* base row — dot (left) | waveform (center) | timer + cancel (right).
+/* base row - dot (left) | waveform (center) | timer + cancel (right).
    Same structure for pill & panel; the dot stays anchored left in both. */
 .sbase {
   height: var(--ov-base-h);
@@ -295,7 +295,7 @@
   padding: 0 10px;
   display: grid;
   /* Equal side columns (min 22px to hold the cancel button) keep the center item
-     — waveform or label — centered whether the pill is at min width or content-
+     - waveform or label - centered whether the pill is at min width or content-
      sized. */
   grid-template-columns: minmax(22px, 1fr) auto minmax(22px, 1fr);
   align-items: center;
@@ -353,7 +353,7 @@
   opacity: 1;
 }
 
-/* Waveform — reactive only after the first microphone callback. While arming,
+/* Waveform - reactive only after the first microphone callback. While arming,
    a muted travelling pulse acknowledges the shortcut without pretending that
    audio levels are already being received. */
 .swave {
@@ -441,7 +441,7 @@
   transform: scale(0.95);
 }
 
-/* working state (transcribing / polishing) — spinner + label */
+/* working state (transcribing / polishing) - spinner + label */
 .sspinner {
   width: 13px;
   height: 13px;

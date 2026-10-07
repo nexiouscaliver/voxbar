@@ -23,7 +23,7 @@
 use crate::managers::history::{HistoryEntry, HistoryManager};
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::TranscriptionManager;
-use crate::settings;
+use crate::settings::{self, ModelUnloadTimeout};
 use crate::tray_i18n::get_tray_translations;
 use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
@@ -63,6 +63,22 @@ struct MenuInputs {
     downloaded_models: Vec<(String, String)>,
     locale: String,
     update_checks_enabled: bool,
+    /// `(id, display name)` of the RESIDENT model, when one is loaded. The
+    /// submenu label prefers this over `selected_model` - the two diverge in
+    /// the failed-switch and pending-unload states (spec F4).
+    resident_model: Option<(String, String)>,
+    /// Pre-formatted resident-footprint segment for the submenu label and
+    /// tooltip (`697 MB` measured / `~697 MB` estimate); `None` omits the
+    /// segment. A change drives a menu rebuild via this struct's `PartialEq`.
+    model_ram: Option<String>,
+    /// Persisted idle-unload timeout, driving the "Unload After" submenu's
+    /// checkmark (and its Custom… seconds hint).
+    unload_timeout: ModelUnloadTimeout,
+    /// macOS menu-bar title (resident model + compact RAM), set via
+    /// `TrayIcon::set_title`. `None` (nothing resident) clears it. Only
+    /// computed on macOS - Windows does not support tray titles and showing
+    /// one on the Linux panel is a behavior change nobody asked for.
+    title: Option<String>,
 }
 
 /// Complete description of what the tray should look like.
@@ -84,6 +100,10 @@ struct TrayInner {
     /// is derived from the same inputs and set best-effort alongside the menu;
     /// it is not tracked separately.
     applied_menu: Option<MenuInputs>,
+    /// Menu-bar title the native tray currently shows (macOS). Recorded only
+    /// when `set_title` succeeded, so a failed update is retried on the next
+    /// sync.
+    applied_title: Option<String>,
     /// An apply is scheduled on the main thread.
     pending: bool,
     /// Decoded icons by resource path so the main thread never touches disk.
@@ -105,6 +125,7 @@ impl TrayState {
             desired: None,
             applied_icon: None,
             applied_menu: None,
+            applied_title: None,
             pending: false,
             icons: HashMap::new(),
             next_seq: 0,
@@ -313,7 +334,8 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
     let settings = settings::get_settings(app);
     let theme = get_current_theme(app);
     let warning = crate::secure_input::tray_warning_active(app);
-    let model_loaded = app.state::<Arc<TranscriptionManager>>().is_model_loaded();
+    let transcription = app.state::<Arc<TranscriptionManager>>();
+    let model_loaded = transcription.is_model_loaded();
 
     let mut downloaded_models: Vec<(String, String)> = app
         .state::<Arc<ModelManager>>()
@@ -323,6 +345,31 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
         .map(|m| (m.id, m.name))
         .collect();
     downloaded_models.sort_by(|a, b| a.1.cmp(&b.1));
+
+    // Resident model (id + display name) via the existing public accessor,
+    // mapped through the same downloaded list the submenu builds from; the
+    // footprint segment comes from the resident-footprint plumbing (measured
+    // worker RSS for transcribe-cpp, size estimate for in-process ONNX).
+    let resident_model = transcription.get_current_model().and_then(|id| {
+        downloaded_models
+            .iter()
+            .find(|(mid, _)| *mid == id)
+            .map(|(_, name)| (id, name.clone()))
+    });
+    let footprint = transcription.resident_model_footprint();
+    let model_ram = format_ram_segment(footprint);
+    // Menu-bar title (macOS only; see MenuInputs::title). Computed from the
+    // same load/unload-driven snapshot as the menu - no polling (spec C2) -
+    // and gated by the menu_bar_model_title setting (desired_tray_title
+    // returns None for every input when it is off).
+    #[cfg(target_os = "macos")]
+    let title = desired_tray_title(
+        settings.menu_bar_model_title,
+        resident_model.as_ref().map(|(_, name)| name.as_str()),
+        footprint.map(|(bytes, _)| bytes),
+    );
+    #[cfg(not(target_os = "macos"))]
+    let title: Option<String> = None;
 
     TrayDesired {
         icon_path: get_icon_path(theme, icon_state, warning),
@@ -334,6 +381,10 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
             downloaded_models,
             locale: settings.app_language,
             update_checks_enabled: settings.update_checks_enabled,
+            resident_model,
+            model_ram,
+            unload_timeout: settings.model_unload_timeout,
+            title,
         },
     }
 }
@@ -360,7 +411,7 @@ fn apply_on_main(app: &AppHandle) {
     };
 
     let started = Instant::now();
-    let (desired, icon, icon_changed, menu_changed) = {
+    let (desired, icon, icon_changed, menu_changed, title_changed) = {
         let mut inner = state.lock();
         inner.pending = false;
         let Some(desired) = inner.desired.clone() else {
@@ -368,12 +419,13 @@ fn apply_on_main(app: &AppHandle) {
         };
         let icon_changed = inner.applied_icon != Some(desired.icon_path);
         let menu_changed = inner.applied_menu.as_ref() != Some(&desired.menu);
-        if !icon_changed && !menu_changed {
+        let title_changed = inner.applied_title != desired.menu.title;
+        if !icon_changed && !menu_changed && !title_changed {
             trace!("tray apply: nothing changed");
             return;
         }
         let icon = inner.icons.get(desired.icon_path).cloned();
-        (desired, icon, icon_changed, menu_changed)
+        (desired, icon, icon_changed, menu_changed, title_changed)
     };
 
     // Each part is recorded as applied only if its native call succeeded, so a
@@ -411,6 +463,15 @@ fn apply_on_main(app: &AppHandle) {
         }
     }
 
+    // Menu-bar title (macOS). Best-effort like the tooltip, but tracked in
+    // `applied_title` so a failed `set_title` is retried on the next sync -
+    // the title is the loaded-state indicator and worth one retry, and it can
+    // change without the menu rebuilding only in exotic partial-failure cases.
+    let mut title_ok = false;
+    if title_changed && set_tray_title(&tray, desired.menu.title.as_deref()) {
+        title_ok = true;
+    }
+
     {
         let mut inner = state.lock();
         if icon_ok {
@@ -418,6 +479,9 @@ fn apply_on_main(app: &AppHandle) {
         }
         if menu_ok {
             inner.applied_menu = Some(desired.menu.clone());
+        }
+        if title_ok {
+            inner.applied_title = desired.menu.title.clone();
         }
     }
 
@@ -445,9 +509,9 @@ pub fn tray_tooltip() -> String {
 
 fn version_label() -> String {
     if cfg!(debug_assertions) {
-        format!("Handy v{} (Dev)", env!("CARGO_PKG_VERSION"))
+        format!("VoxBar v{} (Dev)", env!("CARGO_PKG_VERSION"))
     } else {
-        format!("Handy v{}", env!("CARGO_PKG_VERSION"))
+        format!("VoxBar v{}", env!("CARGO_PKG_VERSION"))
     }
 }
 
@@ -530,13 +594,18 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
             ],
         )?
     } else {
-        // Build model submenu — label is the active model name
-        let submenu_label = inputs
-            .downloaded_models
-            .iter()
-            .find(|(id, _)| *id == inputs.selected_model)
-            .map(|(_, name)| name.clone())
-            .unwrap_or_else(|| strings.model.clone());
+        // Build model submenu - the label shows the RESIDENT model and its
+        // footprint when one is loaded, falling back to the selection.
+        let model_name = resolve_model_label_name(
+            inputs.resident_model.as_ref(),
+            &inputs.selected_model,
+            &inputs.downloaded_models,
+            &strings.model,
+        );
+        let submenu_label = match &inputs.model_ram {
+            Some(ram) => format!("{model_name} - {ram}"),
+            None => model_name.clone(),
+        };
 
         let model_submenu = Submenu::with_id(app, "model_submenu", &submenu_label, true)?;
         for (id, name) in &inputs.downloaded_models {
@@ -554,6 +623,35 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
             None::<&str>,
         )?;
 
+        // "Unload After" submenu: preset idle timeouts with a checkmark on
+        // the active one, plus a Custom… item that opens Settings focused on
+        // the custom-seconds field. Selecting a preset persists immediately
+        // through the same setting the app uses.
+        let unload_after_submenu =
+            Submenu::with_id(app, "unload_after_submenu", &strings.unload_after, true)?;
+        for (preset_id, preset_secs) in UNLOAD_AFTER_PRESETS {
+            let label = match preset_secs {
+                None => strings.unload_after_never.clone(),
+                Some(0) => strings.unload_after_immediately.clone(),
+                Some(secs) => format_duration_compact(*secs),
+            };
+            let item_id = format!("unload_after:{preset_id}");
+            let is_active = unload_after_preset_is_active(&inputs.unload_timeout, *preset_secs);
+            let item =
+                CheckMenuItem::with_id(app, &item_id, &label, true, is_active, None::<&str>)?;
+            unload_after_submenu.append(&item)?;
+        }
+        let custom_label =
+            unload_after_custom_label(&strings.unload_after_custom, &inputs.unload_timeout);
+        let unload_after_custom_i = MenuItem::with_id(
+            app,
+            "unload_after:custom",
+            &custom_label,
+            true,
+            None::<&str>,
+        )?;
+        unload_after_submenu.append(&unload_after_custom_i)?;
+
         Menu::with_items(
             app,
             &[
@@ -563,6 +661,7 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
                 &separator()?,
                 &model_submenu,
                 &unload_model_i,
+                &unload_after_submenu,
                 &separator()?,
                 &settings_i,
                 &check_updates_i,
@@ -574,7 +673,7 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
 
     // When update checks are forced off (e.g. HANDY_DISABLE_UPDATER, set by
     // the Nix package), the item is dropped from the menu rather than shown
-    // disabled — it can never do anything in that case, and a disabled item
+    // disabled - it can never do anything in that case, and a disabled item
     // still shifts every entry below it by one position. A manually-disabled
     // toggle in Debug Settings keeps the old greyed-out behavior via the
     // enabled flag.
@@ -584,11 +683,18 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
 
     // Both layouts start with [version, separator, ...]; slot the warning in
     // right below the version line so it's the first actionable thing seen.
+    // The tooltip mirrors the resident model + footprint segment (spec F4).
     let mut tooltip = version_label;
+    if let Some((_, resident_name)) = &inputs.resident_model {
+        tooltip = match &inputs.model_ram {
+            Some(ram) => format!("{tooltip} - {resident_name} - {ram}"),
+            None => format!("{tooltip} - {resident_name}"),
+        };
+    }
     if let Some(warning_item) = secure_input_warning {
         menu.insert(&warning_item, 2)?;
         menu.insert(&separator()?, 3)?;
-        tooltip = format!("{} — {}", tooltip, warning_item.text().unwrap_or_default());
+        tooltip = format!("{} - {}", tooltip, warning_item.text().unwrap_or_default());
     }
 
     Ok((menu, tooltip))
@@ -599,6 +705,183 @@ fn last_transcript_text(entry: &HistoryEntry) -> &str {
         .post_processed_text
         .as_deref()
         .unwrap_or(&entry.transcription_text)
+}
+
+/// Format the resident-footprint segment shown after the model name:
+/// measured bytes render plain (`697 MB`), estimates get a `~` prefix
+/// (`~697 MB`), and `None` (nothing resident, or no estimate resolved)
+/// omits the segment entirely. Pure - menu building never fails on
+/// measurement errors.
+fn format_ram_segment(footprint: Option<(u64, bool)>) -> Option<String> {
+    let (bytes, measured) = footprint?;
+    let mb = bytes.saturating_add(512 * 1024) / (1024 * 1024);
+    if measured {
+        Some(format!("{mb} MB"))
+    } else {
+        Some(format!("~{mb} MB"))
+    }
+}
+
+/// Resolve the model submenu label's name part (pure - extracted from
+/// `build_menu` so the precedence is unit-testable without an app):
+/// prefer the RESIDENT model (what is actually in memory - the
+/// selected-vs-resident divergence of the failed-switch and pending-unload
+/// states), fall back to the `selected_model` lookup, then the localized
+/// "Model" fallback string.
+fn resolve_model_label_name(
+    resident_model: Option<&(String, String)>,
+    selected_model: &str,
+    downloaded_models: &[(String, String)],
+    fallback: &str,
+) -> String {
+    if let Some((_, name)) = resident_model {
+        return name.clone();
+    }
+    downloaded_models
+        .iter()
+        .find(|(id, _)| id == selected_model)
+        .map(|(_, name)| name.clone())
+        .unwrap_or_else(|| fallback.to_string())
+}
+
+// --- Menu-bar title (macOS loaded-state indicator) -------------------------
+
+/// Keep the menu-bar title from eating the menu bar: everything past this
+/// many characters is truncation territory. 18 fits the spec's worked
+/// example (`Parakeet EN · 768M`) exactly - the "~16 characters" guidance
+/// budgets this class of length.
+const TRAY_TITLE_MAX_CHARS: usize = 18;
+
+/// The title `compute_desired` wants, given the `menu_bar_model_title`
+/// setting: off → `None` for EVERY input (even with a model resident - the
+/// applier's diff then clears any currently-displayed title); on → exactly
+/// what [`format_tray_title`] produces today. Pure, so the setting's effect
+/// is unit-testable without an app.
+fn desired_tray_title(
+    setting_enabled: bool,
+    resident_name: Option<&str>,
+    footprint_bytes: Option<u64>,
+) -> Option<String> {
+    if !setting_enabled {
+        return None;
+    }
+    format_tray_title(resident_name, footprint_bytes)
+}
+
+/// Format the macOS menu-bar title: short model name + compact resident RAM
+/// (`Parakeet EN · 768M`). Pure - `None` in, `None` out (nothing resident
+/// clears the title entirely). The name is truncated (with `…`) when the
+/// combined title would exceed [`TRAY_TITLE_MAX_CHARS`] characters; the RAM
+/// segment is never truncated. A missing footprint yields a name-only title.
+///
+/// NOT the function `compute_desired` calls - use [`desired_tray_title`],
+/// which gates on the `menu_bar_model_title` setting.
+fn format_tray_title(resident_name: Option<&str>, footprint_bytes: Option<u64>) -> Option<String> {
+    let name = resident_name?;
+    let ram = footprint_bytes.map(compact_ram);
+    let title = match &ram {
+        Some(ram) => format!("{name} · {ram}"),
+        None => name.to_string(),
+    };
+    let total = title.chars().count();
+    if total <= TRAY_TITLE_MAX_CHARS {
+        return Some(title);
+    }
+    // Truncate the NAME so the whole fits; reserve one char for the ellipsis.
+    // The separator + RAM segment are the informative tail, keep them intact.
+    let tail_len = match &ram {
+        Some(ram) => " · ".chars().count() + ram.chars().count(),
+        None => 0,
+    };
+    let name_budget = TRAY_TITLE_MAX_CHARS.saturating_sub(tail_len + 1);
+    let mut truncated: String = name.chars().take(name_budget).collect();
+    truncated.push('…');
+    match &ram {
+        Some(ram) => Some(format!("{truncated} · {ram}")),
+        None => Some(truncated),
+    }
+}
+
+/// Compact RAM for the menu-bar title: `768M` below 1 GiB, `1.2G` above.
+/// Rounds MiB like [`format_ram_segment`] (nearest, not truncating).
+fn compact_ram(bytes: u64) -> String {
+    let mb = bytes.saturating_add(512 * 1024) / (1024 * 1024);
+    if mb >= 1024 {
+        format!("{:.1}G", mb as f64 / 1024.0)
+    } else {
+        format!("{mb}M")
+    }
+}
+
+/// Apply the menu-bar title to the native tray (macOS). `false` when the
+/// native call failed, so the applier does not record it as displayed.
+#[cfg(target_os = "macos")]
+fn set_tray_title(tray: &TrayIcon, title: Option<&str>) -> bool {
+    match tray.set_title(title) {
+        Ok(()) => true,
+        Err(err) => {
+            error!("Failed to set tray title: {err}");
+            false
+        }
+    }
+}
+
+/// Windows has no tray title and the Linux panel is not a target for this
+/// feature; the applier's diff never sees a title change there anyway
+/// (`compute_desired` leaves `MenuInputs::title` as `None`).
+#[cfg(not(target_os = "macos"))]
+fn set_tray_title(_tray: &TrayIcon, _title: Option<&str>) -> bool {
+    true
+}
+
+// --- "Unload After" tray submenu --------------------------------------------
+
+/// Tray "Unload After" presets: `(menu-id suffix, idle seconds; None = Never)`.
+/// The numeric items' ids ARE their seconds, so the menu-event handler parses
+/// them straight into `ModelUnloadTimeout::from_preset_seconds`; "never" and
+/// the trailing Custom… item are handled specially. Order is display order.
+const UNLOAD_AFTER_PRESETS: &[(&str, Option<u64>)] = &[
+    ("0", Some(0)),
+    ("15", Some(15)),
+    ("30", Some(30)),
+    ("60", Some(60)),
+    ("120", Some(120)),
+    ("300", Some(300)),
+    ("600", Some(600)),
+    ("900", Some(900)),
+    ("3600", Some(3600)),
+    ("never", None),
+];
+
+/// Locale-neutral compact duration for preset labels: `15s`, `1m`, `1h`.
+/// Pure.
+fn format_duration_compact(seconds: u64) -> String {
+    if seconds >= 3600 && seconds % 3600 == 0 {
+        format!("{}h", seconds / 3600)
+    } else if seconds >= 60 && seconds % 60 == 0 {
+        format!("{}m", seconds / 60)
+    } else {
+        format!("{seconds}s")
+    }
+}
+
+/// Whether a preset's checkmark should be on for the current setting. Presets
+/// match semantically (by idle seconds), so `Custom { seconds: 300 }` lights
+/// up the 5m preset just like `Min5` does. Pure.
+fn unload_after_preset_is_active(current: &ModelUnloadTimeout, preset_secs: Option<u64>) -> bool {
+    match preset_secs {
+        None => matches!(current, ModelUnloadTimeout::Never),
+        Some(secs) => current.to_seconds() == Some(secs),
+    }
+}
+
+/// Label for the trailing Custom… item: shows the current custom seconds when
+/// the setting is a custom value (`Custom… (90s)`), plain otherwise. Pure.
+fn unload_after_custom_label(base: &str, current: &ModelUnloadTimeout) -> String {
+    match current {
+        ModelUnloadTimeout::Custom { seconds } => format!("{base} ({seconds}s)"),
+        _ => base.to_string(),
+    }
 }
 
 pub fn set_tray_visibility(app: &AppHandle, visible: bool) {
@@ -615,7 +898,7 @@ pub fn set_tray_visibility(app: &AppHandle, visible: bool) {
 /// Hiding and re-showing the tray recreates it with its current icon, menu and
 /// tooltip. Called when the user "relaunches" Handy while it is already running
 /// (`RunEvent::Reopen` for Spotlight/Finder/Dock, the single-instance callback
-/// for a second process) — the natural "where did my icon go?" moment — so a
+/// for a second process) - the natural "where did my icon go?" moment - so a
 /// relaunch brings the icon back without a full quit.
 #[cfg(target_os = "macos")]
 pub fn recreate_tray_icon(app: &AppHandle) {
@@ -668,8 +951,14 @@ pub fn copy_last_transcript(app: &AppHandle) {
 
 #[cfg(test)]
 mod tests {
-    use super::{last_transcript_text, load_tray_icon, MenuInputs, TrayDesired, TrayIconState};
+    use super::{
+        compact_ram, desired_tray_title, format_duration_compact, format_ram_segment,
+        format_tray_title, last_transcript_text, load_tray_icon, resolve_model_label_name,
+        unload_after_custom_label, unload_after_preset_is_active, MenuInputs, TrayDesired,
+        TrayIconState, TRAY_TITLE_MAX_CHARS,
+    };
     use crate::managers::history::HistoryEntry;
+    use crate::settings::ModelUnloadTimeout;
 
     fn build_entry(transcription: &str, post_processed: Option<&str>) -> HistoryEntry {
         HistoryEntry {
@@ -682,6 +971,7 @@ mod tests {
             post_processed_text: post_processed.map(|text| text.to_string()),
             post_process_prompt: None,
             post_process_requested: false,
+            model_id: None,
         }
     }
 
@@ -694,7 +984,275 @@ mod tests {
             downloaded_models: vec![("small".to_string(), "Small".to_string())],
             locale: "en".to_string(),
             update_checks_enabled: true,
+            resident_model: None,
+            model_ram: None,
+            unload_timeout: ModelUnloadTimeout::Min2,
+            title: None,
         }
+    }
+
+    #[test]
+    fn ram_segment_formats_measured_estimate_and_absent() {
+        let mb = 697 * 1024 * 1024;
+        assert_eq!(
+            format_ram_segment(Some((mb, true))),
+            Some("697 MB".to_string())
+        );
+        assert_eq!(
+            format_ram_segment(Some((mb, false))),
+            Some("~697 MB".to_string())
+        );
+        // Nothing resident / no estimate -> the segment is omitted.
+        assert_eq!(format_ram_segment(None), None);
+        // Rounds to the nearest MB rather than truncating: 400 KiB stays at
+        // 697, 600 KiB rounds up to 698.
+        assert_eq!(
+            format_ram_segment(Some((mb + 400 * 1024, true))),
+            Some("697 MB".to_string())
+        );
+        assert_eq!(
+            format_ram_segment(Some((mb + 600 * 1024, true))),
+            Some("698 MB".to_string())
+        );
+    }
+
+    #[test]
+    fn menu_inputs_differ_on_model_ram_change() {
+        let mut with_ram = inputs(false);
+        with_ram.model_ram = Some("697 MB".to_string());
+        assert_ne!(inputs(false), with_ram);
+    }
+
+    #[test]
+    fn menu_inputs_differ_on_resident_model_change() {
+        let mut with_resident = inputs(false);
+        with_resident.resident_model = Some(("small".to_string(), "Small".to_string()));
+        assert_ne!(inputs(false), with_resident);
+    }
+
+    #[test]
+    fn menu_inputs_differ_on_unload_timeout_change() {
+        // Selecting an "Unload After" preset must rebuild the menu so the
+        // checkmark moves.
+        let mut other_timeout = inputs(false);
+        other_timeout.unload_timeout = ModelUnloadTimeout::Custom { seconds: 90 };
+        assert_ne!(inputs(false), other_timeout);
+    }
+
+    #[test]
+    fn menu_inputs_differ_on_title_change() {
+        let mut with_title = inputs(false);
+        with_title.title = Some("Small · 300M".to_string());
+        assert_ne!(inputs(false), with_title);
+    }
+
+    #[test]
+    fn tray_title_formats_name_and_compact_ram() {
+        let mib = 1024 * 1024;
+        // Spec example shape: short name + compact resident RAM.
+        assert_eq!(
+            format_tray_title(Some("Parakeet EN"), Some(768 * mib)),
+            Some("Parakeet EN · 768M".to_string())
+        );
+        // GiB-scale footprints compact to one decimal.
+        assert_eq!(
+            format_tray_title(Some("Whisper Lg"), Some((1.3 * 1024.0) as u64 * mib)),
+            Some("Whisper Lg · 1.3G".to_string())
+        );
+        // No footprint estimate -> name-only title.
+        assert_eq!(
+            format_tray_title(Some("Small"), None),
+            Some("Small".to_string())
+        );
+    }
+
+    #[test]
+    fn tray_title_clears_when_no_model_resident() {
+        assert_eq!(format_tray_title(None, Some(768 * 1024 * 1024)), None);
+        assert_eq!(format_tray_title(None, None), None);
+    }
+
+    #[test]
+    fn disabled_menu_bar_title_never_produces_one_even_with_a_model_resident() {
+        let mib = 1024 * 1024;
+        // Setting off: None for every resident/footprint combination a
+        // loaded model can produce - compute_desired feeds exactly these
+        // inputs, so the applier's diff clears any displayed title.
+        assert_eq!(
+            desired_tray_title(false, Some("Parakeet EN"), Some(768 * mib)),
+            None
+        );
+        assert_eq!(desired_tray_title(false, Some("Parakeet EN"), None), None);
+        assert_eq!(desired_tray_title(false, None, Some(768 * mib)), None);
+        assert_eq!(desired_tray_title(false, None, None), None);
+    }
+
+    #[test]
+    fn enabled_menu_bar_title_matches_format_tray_title_exactly() {
+        let mib = 1024 * 1024;
+        // Setting on: today's behavior, byte for byte, across the input
+        // shapes (resident+RAM, resident-only, nothing resident).
+        let cases: Vec<(Option<&str>, Option<u64>)> = vec![
+            (Some("Parakeet EN"), Some(768 * mib)),
+            (Some("Parakeet Unified EN 0.6B"), Some(768 * mib)),
+            (Some("Small"), None),
+            (None, Some(768 * mib)),
+            (None, None),
+        ];
+        for (name, footprint) in cases {
+            assert_eq!(
+                desired_tray_title(true, name, footprint),
+                format_tray_title(name, footprint),
+                "name={name:?} footprint={footprint:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn tray_title_truncates_name_to_fit_but_never_the_ram_segment() {
+        let mib = 1024 * 1024;
+        // Exactly at the limit: untouched.
+        let exact = format_tray_title(Some("Parakeet EN"), Some(768 * mib)).unwrap();
+        assert_eq!(exact, "Parakeet EN · 768M");
+        assert_eq!(exact.chars().count(), TRAY_TITLE_MAX_CHARS);
+        // A long name gets truncated with an ellipsis, RAM segment intact,
+        // total within budget.
+        let long = format_tray_title(Some("Parakeet Unified EN 0.6B"), Some(768 * mib)).unwrap();
+        assert!(long.chars().count() <= TRAY_TITLE_MAX_CHARS, "{long}");
+        assert!(long.ends_with("· 768M"), "{long}");
+        assert!(long.contains('…'), "{long}");
+        // Name-only titles truncate too.
+        let name_only = format_tray_title(Some("A Very Long Model Name Indeed"), None).unwrap();
+        assert!(
+            name_only.chars().count() <= TRAY_TITLE_MAX_CHARS,
+            "{name_only}"
+        );
+        assert!(name_only.ends_with('…'), "{name_only}");
+        // Truncation is char-based, not byte-based: a CJK-heavy name never
+        // panics or overruns the budget.
+        let cjk = format_tray_title(Some("语音识别模型很长很长"), Some(300 * mib)).unwrap();
+        assert!(cjk.chars().count() <= TRAY_TITLE_MAX_CHARS, "{cjk}");
+    }
+
+    #[test]
+    fn compact_ram_boundaries() {
+        let kib = 1024;
+        let mib = 1024 * 1024;
+        // Sub-MiB footprints round to the nearest MB (600 KiB -> 1M).
+        assert_eq!(compact_ram(0), "0M");
+        assert_eq!(compact_ram(600 * kib), "1M");
+        assert_eq!(compact_ram(768 * mib), "768M");
+        // 1 GiB boundary flips to the G scale.
+        assert_eq!(compact_ram(1024 * mib), "1.0G");
+        assert_eq!(compact_ram(1536 * mib), "1.5G");
+        // Rounding to one decimal, not truncation: 1.26 GiB -> 1.3G.
+        assert_eq!(compact_ram(1290 * mib), "1.3G");
+    }
+
+    #[test]
+    fn duration_compact_uses_s_m_h() {
+        assert_eq!(format_duration_compact(15), "15s");
+        assert_eq!(format_duration_compact(45), "45s");
+        assert_eq!(format_duration_compact(60), "1m");
+        assert_eq!(format_duration_compact(120), "2m");
+        assert_eq!(format_duration_compact(900), "15m");
+        assert_eq!(format_duration_compact(3600), "1h");
+    }
+
+    #[test]
+    fn unload_after_checkmark_matches_by_idle_seconds() {
+        // Canonical variants light their preset.
+        assert!(unload_after_preset_is_active(
+            &ModelUnloadTimeout::Min5,
+            Some(300)
+        ));
+        assert!(unload_after_preset_is_active(
+            &ModelUnloadTimeout::Immediately,
+            Some(0)
+        ));
+        assert!(unload_after_preset_is_active(
+            &ModelUnloadTimeout::Never,
+            None
+        ));
+        // A custom value equal to a preset lights that preset; a custom value
+        // matching no preset lights none of them.
+        assert!(unload_after_preset_is_active(
+            &ModelUnloadTimeout::Custom { seconds: 300 },
+            Some(300)
+        ));
+        assert!(!unload_after_preset_is_active(
+            &ModelUnloadTimeout::Custom { seconds: 90 },
+            Some(300)
+        ));
+        // The debug-only Sec15 and Custom{15} are the same timeout: both mark
+        // the 15s preset, and neither marks Never.
+        assert!(unload_after_preset_is_active(
+            &ModelUnloadTimeout::Sec15,
+            Some(15)
+        ));
+        assert!(unload_after_preset_is_active(
+            &ModelUnloadTimeout::Custom { seconds: 15 },
+            Some(15)
+        ));
+        assert!(!unload_after_preset_is_active(
+            &ModelUnloadTimeout::Custom { seconds: 15 },
+            None
+        ));
+        // Never is not "0 seconds".
+        assert!(!unload_after_preset_is_active(
+            &ModelUnloadTimeout::Never,
+            Some(0)
+        ));
+    }
+
+    #[test]
+    fn unload_after_custom_label_shows_seconds_only_for_custom() {
+        assert_eq!(
+            unload_after_custom_label("Custom…", &ModelUnloadTimeout::Custom { seconds: 90 }),
+            "Custom… (90s)"
+        );
+        assert_eq!(
+            unload_after_custom_label("Custom…", &ModelUnloadTimeout::Min2),
+            "Custom…"
+        );
+        assert_eq!(
+            unload_after_custom_label("Custom…", &ModelUnloadTimeout::Never),
+            "Custom…"
+        );
+    }
+
+    #[test]
+    fn label_prefers_resident_model_over_selection() {
+        // The failed-switch / pending-unload divergence: selected=small but
+        // large is what is actually in memory - the label shows the resident
+        // model.
+        let resident = Some(("large".to_string(), "Large".to_string()));
+        let models = vec![
+            ("large".to_string(), "Large".to_string()),
+            ("small".to_string(), "Small".to_string()),
+        ];
+        assert_eq!(
+            resolve_model_label_name(resident.as_ref(), "small", &models, "Model"),
+            "Large"
+        );
+    }
+
+    #[test]
+    fn label_falls_back_to_selected_model_then_localized_fallback() {
+        let models = vec![("small".to_string(), "Small".to_string())];
+        assert_eq!(
+            resolve_model_label_name(None, "small", &models, "Model"),
+            "Small"
+        );
+        // Selection not in the downloaded list -> localized fallback.
+        assert_eq!(
+            resolve_model_label_name(None, "missing", &models, "Modell"),
+            "Modell"
+        );
+        assert_eq!(
+            resolve_model_label_name(None, "x", &[], "Modello"),
+            "Modello"
+        );
     }
 
     #[test]

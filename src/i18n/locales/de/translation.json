@@ -4,6 +4,10 @@
     "checkUpdates": "Nach Updates suchen...",
     "copyLastTranscript": "Letzte Transkription kopieren",
     "unloadModel": "Modell entladen",
+    "unloadAfter": "Entladen nach",
+    "unloadAfterImmediately": "Sofort",
+    "unloadAfterNever": "Nie",
+    "unloadAfterCustom": "Benutzerdefiniert…",
     "model": "Modell",
     "quit": "Beenden",
     "cancel": "Abbrechen",
@@ -101,7 +105,7 @@
     },
     "permissions": {
       "title": "Berechtigungen erforderlich",
-      "description": "Handy benötigt einige Berechtigungen, um richtig zu funktionieren.",
+      "description": "VoxBar benötigt einige Berechtigungen, um richtig zu funktionieren.",
       "microphone": {
         "title": "Mikrofonzugriff",
         "description": "Erforderlich, um deine Stimme für die Transkription zu hören."
@@ -175,13 +179,41 @@
       "searchPlaceholder": "Modelle nach Namen suchen…",
       "rescan": {
         "label": "Neu scannen",
-        "tooltip": "Erneut nach Modellen scannen, die außerhalb von Handy zum Modellordner oder Hugging-Face-Cache hinzugefügt wurden"
+        "tooltip": "Erneut nach Modellen scannen, die außerhalb von VoxBar zum Modellordner oder Hugging-Face-Cache hinzugefügt wurden"
+      },
+      "rescanModels": "Modelle neu scannen",
+      "addFromHf": {
+        "title": "Modell von Hugging Face hinzufügen",
+        "description": "Füge eine öffentliche Repo-URL oder owner/repo ein, zum Beispiel https://huggingface.co/owner/repo.",
+        "placeholder": "https://huggingface.co/owner/repo oder owner/repo",
+        "add": "Hinzufügen",
+        "cancel": "Abbrechen",
+        "pickFile": "Wähle eine Datei aus {{repo}}:",
+        "recommended": "Empfohlen",
+        "status": {
+          "resolving": "Repo wird aufgelöst...",
+          "adding": "Modell wird heruntergeladen und geprüft...",
+          "added": "Modell hinzugefügt. Es erscheint in der Liste der heruntergeladenen Modelle."
+        },
+        "errors": {
+          "invalidInput": "Das konnte nicht als Hugging Face Repo gelesen werden: {{detail}}",
+          "notFound": "Das Repository {{repo}} wurde auf Hugging Face nicht gefunden.",
+          "inaccessible": "{{repo}} konnte auf Hugging Face nicht erreicht werden. Es existiert möglicherweise nicht oder ist privat bzw. eingeschränkt. Vorläufig werden nur öffentliche Repositories unterstützt.",
+          "fileNotFound": "Die Datei {{filename}} wurde in {{repo}} nicht gefunden.",
+          "noGguf": "{{repo}} enthält keine GGUF Dateien.",
+          "network": "Hugging Face konnte nicht erreicht werden: {{detail}}",
+          "downloadFailed": "Download fehlgeschlagen: {{detail}}",
+          "cancelled": "Download abgebrochen.",
+          "unsupportedArch": "Die Modellarchitektur {{arch}} wird nicht unterstützt. Unterstützt: {{supported}}.",
+          "unsupportedArchUnknown": "Diese Datei konnte nicht als GGUF Modell gelesen werden und wurde daher nicht hinzugefügt.",
+          "generic": "Etwas ist schiefgelaufen."
+        }
       }
     },
     "general": {
       "title": "Allgemein",
       "shortcut": {
-        "title": "Handy-Tastenkürzel",
+        "title": "VoxBar-Tastenkürzel",
         "description": "Tastenkürzel für die Sprachaufnahme konfigurieren",
         "loading": "Tastenkürzel werden geladen...",
         "none": "Keine Tastenkürzel konfiguriert",
@@ -199,13 +231,26 @@
           "transcribe_with_post_process": {
             "name": "Nachbearbeitungs-Tastenkürzel",
             "description": "Optional: Ein dediziertes Tastenkürzel, das immer die KI-Nachbearbeitung auf deine Transkription anwendet."
+          },
+          "delete_last_word": {
+            "name": "Letztes Wort löschen",
+            "description": "Löscht das Wort vor dem Cursor in der fokussierten App (Option+Rücktaste unter macOS, Strg+Rücktaste anderswo). Zum Aktivieren eine Taste zuweisen."
+          },
+          "undo": {
+            "name": "Rückgängig",
+            "description": "Löst Rückgängig in der fokussierten App aus (Cmd+Z unter macOS, Strg+Z anderswo) und macht damit die zuletzt eingefügte Diktierung in einem Schritt rückgängig. Zum Aktivieren eine Taste zuweisen."
+          },
+          "transcribe_commands": {
+            "name": "Befehlsmodus",
+            "description": "Nimmt wie eine Diktierung auf, aber jedes Wort gilt als Befehl: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Nicht erkannte Wörter werden verworfen, sodass nichts anderes je getippt wird. Standardmäßig ohne Taste."
           }
         },
         "errors": {
           "restore": "Ursprüngliches Tastenkürzel konnte nicht wiederhergestellt werden",
           "set": "Tastenkürzel konnte nicht gesetzt werden: {{error}}",
           "reset": "Tastenkürzel konnte nicht auf Originalwert zurückgesetzt werden"
-        }
+        },
+        "unbound": "Nicht zugewiesen"
       },
       "language": {
         "title": "Sprache",
@@ -226,6 +271,24 @@
           "hold_or_toggle": "Gedrückt halten zum Aufnehmen oder antippen zum Umschalten",
           "push_to_talk": "Nimmt auf, solange die Tastenkombination gedrückt bleibt",
           "toggle": "Tastenkombination antippen, um die Aufnahme zu starten, erneut antippen zum Stoppen"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Bearbeitungs-Shortcuts",
+        "deleteLastWord": {
+          "title": "Aktion: Letztes Wort löschen",
+          "description": "Aktiviert den zuweisbaren Hotkey, der das Wort vor dem Cursor löscht. Der Hotkey bleibt inaktiv, bis oben eine Taste zugewiesen wird."
+        },
+        "undo": {
+          "title": "Aktion: Rückgängig",
+          "description": "Aktiviert den zuweisbaren Hotkey, der Rückgängig in der fokussierten App auslöst. Der Hotkey bleibt inaktiv, bis oben eine Taste zugewiesen wird."
+        }
+      },
+      "commandMode": {
+        "title": "Befehlsmodus",
+        "toggle": {
+          "title": "Befehlsmodus",
+          "description": "Aktiviert den zuweisbaren Befehlsmodus-Trigger. Beim Halten nimmt er wie eine Diktierung auf; das Transkript wird als Befehle ausgeführt (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) und nicht erkannte Wörter werden verworfen."
         }
       }
     },
@@ -291,18 +354,30 @@
         "label": "Versteckt starten",
         "description": "In den Systembereich starten, ohne das Fenster zu öffnen."
       },
+      "memoryPressureGuard": {
+        "label": "Speicherdruck-Schutz",
+        "description": "Lehnt das Laden eines Modells ab, wenn der freie Speicher nicht ausreicht. Das aktuelle Modell läuft weiter, wenn ein Laden abgelehnt wird."
+      },
+      "autoFallback": {
+        "label": "RAM-Auto-Fallback",
+        "description": "Wenn das gewählte Modell nicht in den freien Speicher passt, wird automatisch das beste heruntergeladene passende Modell geladen. Deaktivieren für die einfache Ablehnung."
+      },
+      "menuBarModelTitle": {
+        "label": "Titel in der Menüleiste",
+        "description": "Zeigt das residente Modell und seinen RAM-Verbrauch als Text neben dem Tray-Symbol (macOS-Menüleiste)."
+      },
       "autostart": {
         "label": "Beim Start ausführen",
-        "description": "Handy automatisch beim Anmelden starten."
+        "description": "VoxBar automatisch beim Anmelden starten."
       },
       "showTrayIcon": {
         "label": "Taskleistensymbol anzeigen",
-        "description": "Das Handy-Symbol in der Taskleiste anzeigen."
+        "description": "Das VoxBar-Symbol in der Taskleiste anzeigen."
       },
       "overlay": {
         "style": {
           "title": "Overlay",
-          "description": "Wähle das Aufnahme-Overlay: „Keine“ blendet es aus, „Minimal“ zeigt ein kompaktes Element, „Live“ zeigt die Transkription in Echtzeit während des Sprechens an (nur für streamingfähige Modelle – suche nach dem Streaming-Badge in der Modellauswahl). Unter Linux wird „Keine“ empfohlen.",
+          "description": "Wähle das Aufnahme-Overlay: „Keine“ blendet es aus, „Minimal“ zeigt ein kompaktes Element, „Live“ zeigt die Transkription in Echtzeit während des Sprechens an (nur für streamingfähige Modelle - suche nach dem Streaming-Badge in der Modellauswahl). Unter Linux wird „Keine“ empfohlen.",
           "options": {
             "none": "Keine",
             "minimal": "Minimal",
@@ -372,12 +447,15 @@
           "min10": "Nach 10 Minuten",
           "min15": "Nach 15 Minuten",
           "hour1": "Nach 1 Stunde",
+          "custom": "Benutzerdefiniert",
           "sec15": "Nach 15 Sekunden (Debug)"
-        }
+        },
+        "customSecondsLabel": "Benutzerdefinierte Sekunden",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Benutzerdefinierte Wörter",
-        "description": "Hilf unterstützten Modellen, Namen und Fachbegriffe zu erkennen. Die unscharfe Korrektur ist derzeit auf Wörter mit den Buchstaben A–Z und Zahlen beschränkt.",
+        "description": "Hilf unterstützten Modellen, Namen und Fachbegriffe zu erkennen. Die unscharfe Korrektur ist derzeit auf Wörter mit den Buchstaben A-Z und Zahlen beschränkt.",
         "placeholder": "Wort hinzufügen",
         "add": "Hinzufügen",
         "remove": "{{word}} entfernen",
@@ -398,6 +476,22 @@
       "fillerWordRemoval": {
         "title": "Füllwörter entfernen",
         "description": "Entfernt häufige Verzögerungslaute aus Transkriptionen. Deaktivieren Sie diese Option, um sie beizubehalten."
+      },
+      "spokenPunctuation": {
+        "title": "Gesprochene Satzzeichen",
+        "description": "Wandelt gesprochene Satzzeichenwörter wie \"comma\", \"period\" und \"question mark\" in echte Satzzeichen um. Ausschalten, um sie als normale Wörter zu behalten."
+      },
+      "terminalPunctuation": {
+        "title": "Schlusszeichen",
+        "description": "Beendet jede Transkription mit einem Satzzeichen: Fragezeichen bei Fragen, sonst ein Punkt. Ausschalten, um das Ende wie transkribiert zu lassen."
+      },
+      "voiceDeletion": {
+        "title": "Sprachlöschbefehle",
+        "description": "\"scratch that\", \"delete that\" und \"remove that\" löschen das vorherige Wort, \"delete last three words\" löscht mehrere, und \"delete everything\" oder \"start over\" löscht das gesamte Diktat. Ausschalten, um sie als normale Wörter zu behalten."
+      },
+      "previewBeforePaste": {
+        "title": "Vorschau vor dem Einfügen",
+        "description": "Zeigt die fertige Transkription kurz im Aufnahme-Overlay an, bevor sie eingefügt wird. Deaktivieren, um sofort einzufügen."
       },
       "chineseScript": {
         "title": "Chinesische Schrift",
@@ -477,7 +571,12 @@
       "retranscribe": "Erneut transkribieren",
       "retranscribeError": "Erneute Transkription fehlgeschlagen. Bitte versuche es erneut.",
       "transcribing": "Transkribiere...",
-      "transcriptionFailed": "Transkription fehlgeschlagen. Du kannst über das Wiederholen-Symbol erneut transkribieren."
+      "transcriptionFailed": "Transkription fehlgeschlagen. Du kannst über das Wiederholen-Symbol erneut transkribieren.",
+      "model": "Transkriptionsmodell",
+      "showModel": {
+        "label": "Modell-Badge anzeigen",
+        "description": "Zeigt eine kompakte Plakette mit dem Modell, das jede Transkription erstellt hat."
+      }
     },
     "debug": {
       "title": "Debug",
@@ -502,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Nach Updates suchen",
-        "description": "Automatisch nach neuen Versionen von Handy suchen",
+        "description": "Die Option \"Nach Updates suchen\" im Tray-Menü und in der Fußzeile anzeigen",
         "lockedDescription": "Durch Systemkonfiguration deaktiviert (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {
@@ -580,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Tastatur-Diagnose",
-        "description": "Prüft, ob Tastaturereignisse Handy erreichen. Es wird nur die Anzahl der Ereignisse erfasst — niemals, welche Tasten du drückst.",
+        "description": "Prüft, ob Tastaturereignisse VoxBar erreichen. Es wird nur die Anzahl der Ereignisse erfasst - niemals, welche Tasten du drückst.",
         "run": "10-Sekunden-Diagnose starten",
         "running": "Lauscht… drücke dein Tastenkürzel ein paar Mal (z. B. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -592,10 +691,10 @@
         "keyUp": "Taste losgelassen",
         "flagsChanged": "Modifikatoren",
         "mouse": "Maus",
-        "verdictBlocked": "Secure Input blockiert Tastenereignisse — Tastenkürzel mit einer normalen Taste können erst wieder funktionieren, wenn das behoben ist.",
-        "verdictSuspicious": "Es kamen Modifikator-Ereignisse an, aber keine Tastenereignisse — irgendetwas unterdrückt Tasten, obwohl Secure Input als deaktiviert gemeldet wird. Bitte melde das auf GitHub.",
-        "verdictOk": "Tastenereignisse erreichen Handy normal.",
-        "verdictNoEvents": "Keine Ereignisse erfasst — hast du während des Tests Tasten gedrückt?",
+        "verdictBlocked": "Secure Input blockiert Tastenereignisse - Tastenkürzel mit einer normalen Taste können erst wieder funktionieren, wenn das behoben ist.",
+        "verdictSuspicious": "Es kamen Modifikator-Ereignisse an, aber keine Tastenereignisse - irgendetwas unterdrückt Tasten, obwohl Secure Input als deaktiviert gemeldet wird. Bitte melde das auf GitHub.",
+        "verdictOk": "Tastenereignisse erreichen VoxBar normal.",
+        "verdictNoEvents": "Keine Ereignisse erfasst - hast du während des Tests Tasten gedrückt?",
         "failed": "Diagnose fehlgeschlagen: {{error}}"
       },
       "whatsNewPreview": {
@@ -617,11 +716,11 @@
       "title": "Info",
       "version": {
         "title": "Version",
-        "description": "Aktuelle Version von Handy"
+        "description": "Aktuelle Version von VoxBar"
       },
       "appDataDirectory": {
         "title": "App-Datenverzeichnis",
-        "description": "Speicherort der Handy-Daten"
+        "description": "Speicherort der VoxBar-Daten"
       },
       "sourceCode": {
         "title": "Quellcode",
@@ -630,7 +729,7 @@
       },
       "supportDevelopment": {
         "title": "Entwicklung unterstützen",
-        "description": "Hilf uns, Handy weiterzuentwickeln",
+        "description": "Hilf uns, VoxBar weiterzuentwickeln",
         "button": "Spenden"
       },
       "acknowledgments": {
@@ -638,12 +737,12 @@
         "ggml": {
           "title": "ggml",
           "description": "Hochleistungs-Inferenz des Whisper-Spracherkennungsmodells von OpenAI",
-          "details": "Handy verwendet ggml für schnelle, lokale Sprach-zu-Text-Verarbeitung. Dank an Georgi Gerganov und die Mitwirkenden für ihre großartige Arbeit."
+          "details": "VoxBar verwendet ggml für schnelle, lokale Sprach-zu-Text-Verarbeitung. Dank an Georgi Gerganov und die Mitwirkenden für ihre großartige Arbeit."
         }
       },
       "whatsNewUpdates": {
         "label": "Neuerungen anzeigen",
-        "description": "Versionshinweise nach Handy-Updates anzeigen"
+        "description": "Versionshinweise nach VoxBar-Updates anzeigen"
       }
     }
   },
@@ -657,9 +756,9 @@
     "preparing": "Wird vorbereitet...",
     "checkForUpdates": "Nach Updates suchen",
     "portableUpdateTitle": "Manuelles Update erforderlich",
-    "portableUpdateMessage": "Portable Installationen können nicht automatisch aktualisiert werden. Lade unten den Installer für dein System herunter, führe ihn aus und installiere in denselben Ordner — dein Data/-Ordner (Einstellungen, Modelle, Aufnahmen) bleibt erhalten.",
+    "portableUpdateMessage": "Portable Installationen können nicht automatisch aktualisiert werden. Lade unten den Installer für dein System herunter, führe ihn aus und installiere in denselben Ordner - dein Data/-Ordner (Einstellungen, Modelle, Aufnahmen) bleibt erhalten.",
     "portableUpdateButton": "Installer herunterladen",
-    "portableUpdateBrowseMessage": "Portable Installationen können nicht automatisch aktualisiert werden. Lade die neueste Version für dein System von GitHub Releases herunter und installiere sie in denselben Ordner — dein Data/-Ordner (Einstellungen, Modelle, Aufnahmen) bleibt erhalten.",
+    "portableUpdateBrowseMessage": "Portable Installationen können nicht automatisch aktualisiert werden. Lade die neueste Version für dein System von GitHub Releases herunter und installiere sie in denselben Ordner - dein Data/-Ordner (Einstellungen, Modelle, Aufnahmen) bleibt erhalten.",
     "portableUpdateBrowseButton": "GitHub Releases öffnen"
   },
   "common": {
@@ -672,7 +771,7 @@
     "noOptionsFound": "Keine Optionen gefunden"
   },
   "accessibility": {
-    "permissionsDescription": "Handy benötigt Bedienungshilfen-Berechtigungen, um transkribierten Text einzugeben.",
+    "permissionsDescription": "VoxBar benötigt Bedienungshilfen-Berechtigungen, um transkribierten Text einzugeben.",
     "openSettings": "Systemeinstellungen öffnen"
   },
   "errors": {
@@ -689,21 +788,43 @@
     "recordingFailed": "Aufnahme konnte nicht gestartet werden: {{error}}",
     "modelLoadFailed": "Modell konnte nicht geladen werden: {{model}}",
     "modelLoadFailedUnknown": "unbekanntes Modell",
+    "modelFallbackTitle": "Wenig Speicher",
+    "modelFallback": "Für diese Diktation wurde zu {{model}} gewechselt",
     "pasteFailedTitle": "Text konnte nicht eingefügt werden",
     "pasteFailed": "Der Text konnte nicht in die aktive Anwendung eingefügt werden.",
     "transcriptionFailedTitle": "Transkription fehlgeschlagen"
   },
   "appLanguage": {
     "title": "Anwendungssprache",
-    "description": "Sprache der Handy-Oberfläche ändern"
+    "description": "Sprache der VoxBar-Oberfläche ändern"
   },
   "theme": {
     "title": "Anwendungsdesign",
-    "description": "Wählen Sie, ob Handy dem Systemthema folgt oder hell bzw. dunkel bleibt",
+    "description": "Wählen Sie, ob VoxBar dem Systemthema folgt oder hell bzw. dunkel bleibt",
     "options": {
       "system": "System",
       "light": "Hell",
       "dark": "Dunkel"
+    },
+    "accentColor": {
+      "label": "Akzentfarbe",
+      "description": "Wähle die Farbe für Hervorhebungen, Schalter und Bedienelemente"
+    },
+    "accentColors": {
+      "black": "Schwarz",
+      "gray": "Grau",
+      "white": "Weiß",
+      "red": "Rot",
+      "orange": "Orange",
+      "amber": "Bernstein",
+      "green": "Grün",
+      "teal": "Petrol",
+      "cyan": "Cyan",
+      "blue": "Blau",
+      "indigo": "Indigo",
+      "violet": "Violett",
+      "magenta": "Magenta",
+      "pink": "Pink"
     }
   },
   "overlay": {
@@ -711,7 +832,7 @@
     "processing": "Verarbeite..."
   },
   "whatsNew": {
-    "title": "Neu in Handy v{{version}}"
+    "title": "Neu in VoxBar v{{version}}"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blockiert möglicherweise 1 Tastenkürzel",
@@ -721,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} blockiert möglicherweise Änderungen an Tastenkürzeln",
     "recorderBlockedNoCulprit": "macOS blockiert vorübergehend Änderungen an Tastenkürzeln",
     "learnMore": "So behebst du das",
-    "recorderBlocked": "Tastenkürzel können gerade nicht aufgezeichnet werden — macOS Secure Input blockiert Tastenereignisse. Behebe zuerst die Secure-Input-Warnung.",
+    "recorderBlocked": "Tastenkürzel können gerade nicht aufgezeichnet werden - macOS Secure Input blockiert Tastenereignisse. Behebe zuerst die Secure-Input-Warnung.",
     "dismiss": "Ausblenden"
   }
 }

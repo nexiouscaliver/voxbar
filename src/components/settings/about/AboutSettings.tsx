@@ -9,6 +9,7 @@ import { AppDataDirectory } from "../AppDataDirectory";
 import { AppLanguageSelector } from "../AppLanguageSelector";
 import { ShowWhatsNewOnUpdate } from "../ShowWhatsNewOnUpdate";
 import { ThemeSelector } from "../ThemeSelector";
+import { AccentColorSelector } from "../AccentColorSelector";
 import { LogDirectory } from "../debug";
 
 export const AboutSettings: React.FC = () => {
@@ -29,19 +30,12 @@ export const AboutSettings: React.FC = () => {
     fetchVersion();
   }, []);
 
-  const handleDonateClick = async () => {
-    try {
-      await openUrl("https://handy.computer/donate");
-    } catch (error) {
-      console.error("Failed to open donate link:", error);
-    }
-  };
-
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("settings.about.title")}>
         <AppLanguageSelector descriptionMode="tooltip" grouped={true} />
         <ThemeSelector descriptionMode="tooltip" grouped={true} />
+        <AccentColorSelector descriptionMode="tooltip" grouped={true} />
         <SettingContainer
           title={t("settings.about.version.title")}
           description={t("settings.about.version.description")}
@@ -54,16 +48,6 @@ export const AboutSettings: React.FC = () => {
         <ShowWhatsNewOnUpdate descriptionMode="tooltip" grouped={true} />
 
         <SettingContainer
-          title={t("settings.about.supportDevelopment.title")}
-          description={t("settings.about.supportDevelopment.description")}
-          grouped={true}
-        >
-          <Button variant="primary" size="md" onClick={handleDonateClick}>
-            {t("settings.about.supportDevelopment.button")}
-          </Button>
-        </SettingContainer>
-
-        <SettingContainer
           title={t("settings.about.sourceCode.title")}
           description={t("settings.about.sourceCode.description")}
           grouped={true}
@@ -71,7 +55,7 @@ export const AboutSettings: React.FC = () => {
           <Button
             variant="secondary"
             size="md"
-            onClick={() => openUrl("https://github.com/cjpais/Handy")}
+            onClick={() => openUrl("https://github.com/nexiouscaliver/voxbar")}
           >
             {t("settings.about.sourceCode.button")}
           </Button>
@@ -91,6 +75,32 @@ export const AboutSettings: React.FC = () => {
           <div className="text-sm text-mid-gray">
             {t("settings.about.acknowledgments.ggml.details")}
           </div>
+        </SettingContainer>
+
+        <SettingContainer
+          title="Attribution"
+          description="Upstream attribution"
+          grouped={true}
+          layout="stacked"
+        >
+          {/* eslint-disable i18next/no-literal-string -- proper nouns and an
+              upstream credit link; attribution, not navigation, so the link
+              stays pointed at the upstream project on purpose. */}
+          <div className="text-sm text-mid-gray">
+            VoxBar is a fork of{" "}
+            <a
+              href="https://github.com/cjpais/Handy"
+              onClick={(e) => {
+                e.preventDefault();
+                openUrl("https://github.com/cjpais/Handy");
+              }}
+              className="underline"
+            >
+              Handy
+            </a>{" "}
+            by CJ Pais (MIT)
+          </div>
+          {/* eslint-enable i18next/no-literal-string */}
         </SettingContainer>
       </SettingsGroup>
     </div>

@@ -4,6 +4,10 @@
     "checkUpdates": "Güncellemeleri Kontrol Et...",
     "copyLastTranscript": "Son Transkripti Kopyala",
     "unloadModel": "Modeli Boşalt",
+    "unloadAfter": "Boşaltma süresi",
+    "unloadAfterImmediately": "Hemen",
+    "unloadAfterNever": "Asla",
+    "unloadAfterCustom": "Özel…",
     "model": "Model",
     "quit": "Çıkış",
     "cancel": "İptal",
@@ -101,7 +105,7 @@
     },
     "permissions": {
       "title": "İzinler Gerekli",
-      "description": "Handy'nin düzgün çalışabilmesi için birkaç izne ihtiyacı var.",
+      "description": "VoxBar'nin düzgün çalışabilmesi için birkaç izne ihtiyacı var.",
       "microphone": {
         "title": "Mikrofon Erişimi",
         "description": "Sesinizi transkripsiyon için alabilmek için gereklidir."
@@ -137,7 +141,7 @@
     "loadingGeneric": "Yükleniyor...",
     "modelError": "Model Hatası",
     "modelUnloaded": "Model Boşaltıldı",
-    "noModelDownloadRequired": "Model Yok – İndirme Gerekli",
+    "noModelDownloadRequired": "Model Yok - İndirme Gerekli",
     "deleteModel": "{{modelName}} Sil",
     "switching": "Değiştiriliyor...",
     "downloadSpeed": "{{speed}} MB/s",
@@ -175,13 +179,41 @@
       "searchPlaceholder": "Modelleri ada göre ara…",
       "rescan": {
         "label": "Yeniden Tara",
-        "tooltip": "Handy dışında modeller klasörüne veya Hugging Face önbelleğine eklenen modelleri yeniden tara"
+        "tooltip": "VoxBar dışında modeller klasörüne veya Hugging Face önbelleğine eklenen modelleri yeniden tara"
+      },
+      "rescanModels": "Modelleri yeniden tara",
+      "addFromHf": {
+        "title": "Hugging Face'ten model ekle",
+        "description": "Herkese açık bir depo URL'si veya sahip/depo yapıştırın, örneğin https://huggingface.co/sahip/model.",
+        "placeholder": "https://huggingface.co/sahip/model veya sahip/model",
+        "add": "Ekle",
+        "cancel": "İptal",
+        "pickFile": "{{repo}} içinden bir dosya seçin:",
+        "recommended": "Önerilen",
+        "status": {
+          "resolving": "Depo çözümleniyor...",
+          "adding": "Model indiriliyor ve denetleniyor...",
+          "added": "Model eklendi. İndirilen modeller arasında görünür."
+        },
+        "errors": {
+          "invalidInput": "Bu, bir Hugging Face deposu olarak okunamadı: {{detail}}",
+          "notFound": "{{repo}} deposu Hugging Face üzerinde bulunamadı.",
+          "inaccessible": "{{repo}} Hugging Face üzerinde erişilemedi. Mevcut olmayabilir ya da özel veya kısıtlı olabilir. Şimdilik yalnızca herkese açık depolar destekleniyor.",
+          "fileNotFound": "{{filename}} dosyası {{repo}} içinde bulunamadı.",
+          "noGguf": "{{repo}} hiç GGUF dosyası içermiyor.",
+          "network": "Hugging Face'e ulaşılamadı: {{detail}}",
+          "downloadFailed": "İndirme başarısız: {{detail}}",
+          "cancelled": "İndirme iptal edildi.",
+          "unsupportedArch": "{{arch}} model mimarisi desteklenmiyor. Desteklenenler: {{supported}}.",
+          "unsupportedArchUnknown": "Bu dosya bir GGUF modeli olarak okunamadığı için eklenmedi.",
+          "generic": "Bir şeyler ters gitti."
+        }
       }
     },
     "general": {
       "title": "Genel",
       "shortcut": {
-        "title": "Handy Kısayolları",
+        "title": "VoxBar Kısayolları",
         "description": "Sesle yazma kaydını başlatmak için klavye kısayollarını yapılandırın",
         "loading": "Kısayollar yükleniyor...",
         "none": "Kısayol yapılandırılmadı",
@@ -199,13 +231,26 @@
           "transcribe_with_post_process": {
             "name": "Son İşlem Kısayolu",
             "description": "İsteğe bağlı: Transkripsiyonunuza her zaman yapay zekâ ile son işlem uygulayan özel bir kısayol tuşu."
+          },
+          "delete_last_word": {
+            "name": "Son kelimeyi sil",
+            "description": "Odaklanmış uygulamada imleçten önceki kelimeyi siler (macOS'ta Option+Backspace, diğerlerinde Ctrl+Backspace). Etkinleştirmek için bir tuş atayın."
+          },
+          "undo": {
+            "name": "Geri al",
+            "description": "Odaklanmış uygulamada Geri Al'ı tetikler (macOS'ta Cmd+Z, diğerlerinde Ctrl+Z) ve son yapıştırılan dikteyi tek seferde geri alır. Etkinleştirmek için bir tuş atayın."
+          },
+          "transcribe_commands": {
+            "name": "Komut modu",
+            "description": "Dikte gibi kaydeder, ancak her kelime bir komut olarak ele alınır: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Tanınmayan kelimeler atılır, böylece başka hiçbir şey yazılmaz. Varsayılan olarak atanmamıştır."
           }
         },
         "errors": {
           "restore": "Orijinal kısayol geri yüklenemedi",
           "set": "Kısayol ayarlanamadı: {{error}}",
           "reset": "Kısayol orijinal değerine sıfırlanamadı"
-        }
+        },
+        "unbound": "Atanmadı"
       },
       "language": {
         "title": "Dil",
@@ -226,6 +271,24 @@
           "hold_or_toggle": "Kaydetmek için basılı tutun veya açıp kapatmak için dokunun",
           "push_to_talk": "Kısayolu basılı tuttuğunuz sürece kaydeder",
           "toggle": "Kaydı başlatmak için kısayola dokunun, durdurmak için tekrar dokunun"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Düzenleme kısayolları",
+        "deleteLastWord": {
+          "title": "Eylem: son kelimeyi sil",
+          "description": "İmleçten önceki kelimeyi silen atanabilir kısayolu etkinleştirir. Kısayol, yukarıda bir tuş atanana kadar etkinsiz kalır."
+        },
+        "undo": {
+          "title": "Eylem: geri al",
+          "description": "Odaklanmış uygulamada Geri Al'ı tetikleyen atanabilir kısayolu etkinleştirir. Kısayol, yukarıda bir tuş atanana kadar etkinsiz kalır."
+        }
+      },
+      "commandMode": {
+        "title": "Komut modu",
+        "toggle": {
+          "title": "Komut modu",
+          "description": "Atanabilir komut modu tetikleyicisini etkinleştirir. Basılı tutulduğunda dikte gibi kaydeder; transkript komut olarak yürütülür (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) ve tanınmayan kelimeler atılır."
         }
       }
     },
@@ -291,18 +354,30 @@
         "label": "Gizli Başlat",
         "description": "Pencereyi açmadan sistem tepsisinde başlatır."
       },
+      "memoryPressureGuard": {
+        "label": "Bellek Baskısı Koruması",
+        "description": "Boş bellek yeterli olmadığında model yüklemeyi reddeder. Yükleme reddedildiğinde geçerli model çalışmaya devam eder."
+      },
+      "autoFallback": {
+        "label": "Otomatik RAM yedeklemesi",
+        "description": "Seçilen model boş belleğe sığmadığında, sığan en iyi indirilmiş model otomatik yüklenir. Basit reddi korumak için kapatın."
+      },
+      "menuBarModelTitle": {
+        "label": "Menü çubuğunda model başlığı",
+        "description": "Yerleşik modeli ve RAM kullanımını tepsi simgesinin yanında metin olarak gösterir (macOS menü çubuğu)."
+      },
       "autostart": {
         "label": "Başlangıçta Çalıştır",
-        "description": "Bilgisayara giriş yaptığınızda Handy otomatik olarak başlatılır."
+        "description": "Bilgisayara giriş yaptığınızda VoxBar otomatik olarak başlatılır."
       },
       "showTrayIcon": {
         "label": "Tepsi Simgesini Göster",
-        "description": "Handy simgesini sistem tepsisinde göster."
+        "description": "VoxBar simgesini sistem tepsisinde göster."
       },
       "overlay": {
         "style": {
           "title": "Ekran Katmanı",
-          "description": "Kayıt sırasında gösterilecek ekran katmanını seçin: 'Yok' katmanı gizler, 'Sade' küçük bir gösterge gösterir, 'Canlı' siz konuşurken transkripsiyonu gerçek zamanlı gösterir (yalnızca akış destekli modeller — model seçicide 'Akış' rozetini arayın). Linux'ta 'Yok' önerilir.",
+          "description": "Kayıt sırasında gösterilecek ekran katmanını seçin: 'Yok' katmanı gizler, 'Sade' küçük bir gösterge gösterir, 'Canlı' siz konuşurken transkripsiyonu gerçek zamanlı gösterir (yalnızca akış destekli modeller - model seçicide 'Akış' rozetini arayın). Linux'ta 'Yok' önerilir.",
           "options": {
             "none": "Yok",
             "minimal": "Sade",
@@ -372,12 +447,15 @@
           "min10": "10 dakika sonra",
           "min15": "15 dakika sonra",
           "hour1": "1 saat sonra",
+          "custom": "Özel",
           "sec15": "15 saniye sonra (Debug)"
-        }
+        },
+        "customSecondsLabel": "Özel saniye",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Özel Kelimeler",
-        "description": "Desteklenen modellerin adları ve özel terimleri tanımasına yardımcı olun. Bulanık düzeltme şu anda A–Z harflerini ve rakamları kullanan sözcüklerle sınırlıdır.",
+        "description": "Desteklenen modellerin adları ve özel terimleri tanımasına yardımcı olun. Bulanık düzeltme şu anda A-Z harflerini ve rakamları kullanan sözcüklerle sınırlıdır.",
         "placeholder": "Kelime ekle",
         "add": "Ekle",
         "remove": "{{word}} Kaldır",
@@ -398,6 +476,22 @@
       "fillerWordRemoval": {
         "title": "Dolgu Sözcüklerini Kaldır",
         "description": "Transkripsiyonlardaki yaygın duraksama sözcüklerini kaldırır. Bunları korumak için kapatın."
+      },
+      "spokenPunctuation": {
+        "title": "Sözlü noktalama",
+        "description": "\"comma\", \"period\" ve \"question mark\" gibi söylenen noktalama kelimelerini gerçek noktalamaya dönüştürür. Sıradan kelime olarak bırakmak için kapatın."
+      },
+      "terminalPunctuation": {
+        "title": "Son noktalama",
+        "description": "Her transkripti noktalama ile bitirir: sorular için soru işareti, aksi halde nokta. Sonu transkript edildiği gibi bırakmak için kapatın."
+      },
+      "voiceDeletion": {
+        "title": "Sesli silme komutları",
+        "description": "\"scratch that\", \"delete that\" ve \"remove that\" önceki kelimeyi siler, \"delete last three words\" birkaç kelimeyi siler, \"delete everything\" veya \"start over\" dikteyi temizler. Sıradan kelime olarak bırakmak için kapatın."
+      },
+      "previewBeforePaste": {
+        "title": "Yapıştırmadan önce önizleme",
+        "description": "Yapıştırılmadan önce bitmiş transkripsiyonu kayıt bindirmesinde kısa süreyle gösterir. Anında yapıştırmak için kapatın."
       },
       "chineseScript": {
         "title": "Çince yazı",
@@ -477,7 +571,12 @@
       "retranscribe": "Yeniden transkribe et",
       "retranscribeError": "Yeniden transkripsiyon başarısız oldu. Lütfen tekrar deneyin.",
       "transcribing": "Transkribe ediliyor...",
-      "transcriptionFailed": "Transkripsiyon başarısız oldu. Yeniden deneme simgesini kullanarak tekrar transkribe edebilirsiniz."
+      "transcriptionFailed": "Transkripsiyon başarısız oldu. Yeniden deneme simgesini kullanarak tekrar transkribe edebilirsiniz.",
+      "model": "Transkripsiyon modeli",
+      "showModel": {
+        "label": "Model rozetini göster",
+        "description": "Her transkripti üreten modeli gösteren kompakt bir rozet gösterir."
+      }
     },
     "debug": {
       "title": "Hata Ayıklama",
@@ -502,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Güncellemeleri Kontrol Et",
-        "description": "Handy için yeni sürümleri otomatik olarak kontrol eder",
+        "description": "\"Güncellemeleri Kontrol Et\" seçeneğini tepsi menüsünde ve alt bilgide göster",
         "lockedDescription": "Sistem yapılandırması tarafından devre dışı bırakıldı (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {
@@ -580,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Klavye Tanılaması",
-        "description": "Klavye olaylarının Handy'ye ulaşıp ulaşmadığını denetler. Yalnızca olay sayıları kaydedilir — hangi tuşlara bastığınız asla kaydedilmez.",
+        "description": "Klavye olaylarının VoxBar'ye ulaşıp ulaşmadığını denetler. Yalnızca olay sayıları kaydedilir - hangi tuşlara bastığınız asla kaydedilmez.",
         "run": "10 sn'lik tanılamayı çalıştır",
         "running": "Dinleniyor… kısayolunuza birkaç kez basın (ör. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -592,10 +691,10 @@
         "keyUp": "Tuş bırakma",
         "flagsChanged": "Değiştiriciler",
         "mouse": "Fare",
-        "verdictBlocked": "Secure Input tuş olaylarını engelliyor — normal tuş içeren kısayollar bu sorun çözülene kadar çalışamaz.",
-        "verdictSuspicious": "Değiştirici olayları geldi ancak hiç tuş olayı gelmedi — Secure Input devre dışı görünmesine rağmen bir şey tuşları bastırıyor. Lütfen bunu GitHub'da bildirin.",
-        "verdictOk": "Tuş olayları Handy'ye normal şekilde ulaşıyor.",
-        "verdictNoEvents": "Hiç olay yakalanmadı — test sırasında herhangi bir tuşa bastınız mı?",
+        "verdictBlocked": "Secure Input tuş olaylarını engelliyor - normal tuş içeren kısayollar bu sorun çözülene kadar çalışamaz.",
+        "verdictSuspicious": "Değiştirici olayları geldi ancak hiç tuş olayı gelmedi - Secure Input devre dışı görünmesine rağmen bir şey tuşları bastırıyor. Lütfen bunu GitHub'da bildirin.",
+        "verdictOk": "Tuş olayları VoxBar'ye normal şekilde ulaşıyor.",
+        "verdictNoEvents": "Hiç olay yakalanmadı - test sırasında herhangi bir tuşa bastınız mı?",
         "failed": "Tanılama başarısız: {{error}}"
       },
       "whatsNewPreview": {
@@ -617,11 +716,11 @@
       "title": "Hakkında",
       "version": {
         "title": "Sürüm",
-        "description": "Handy'nin mevcut sürümü"
+        "description": "VoxBar'nin mevcut sürümü"
       },
       "appDataDirectory": {
         "title": "Uygulama Veri Dizini",
-        "description": "Handy'nin verilerini sakladığı konum"
+        "description": "VoxBar'nin verilerini sakladığı konum"
       },
       "sourceCode": {
         "title": "Kaynak Kodu",
@@ -630,7 +729,7 @@
       },
       "supportDevelopment": {
         "title": "Geliştirmeyi Destekle",
-        "description": "Handy'yi geliştirmeye devam etmemize yardımcı olun",
+        "description": "VoxBar'yi geliştirmeye devam etmemize yardımcı olun",
         "button": "Bağış Yap"
       },
       "acknowledgments": {
@@ -638,12 +737,12 @@
         "ggml": {
           "title": "ggml",
           "description": "Cihaz üzerinde makine öğrenmesi çıkarımı için yüksek performanslı tensör kütüphanesi",
-          "details": "Handy'nin yerel konuşmadan metne dönüştürme özelliği transcribe.cpp ve ggml üzerine kuruludur. Georgi Gerganov'a ve katkıda bulunanlara harika çalışmaları için teşekkür ederiz."
+          "details": "VoxBar'nin yerel konuşmadan metne dönüştürme özelliği transcribe.cpp ve ggml üzerine kuruludur. Georgi Gerganov'a ve katkıda bulunanlara harika çalışmaları için teşekkür ederiz."
         }
       },
       "whatsNewUpdates": {
         "label": "Yenilikleri Göster",
-        "description": "Handy güncellemelerinden sonra sürüm notlarını göster"
+        "description": "VoxBar güncellemelerinden sonra sürüm notlarını göster"
       }
     }
   },
@@ -657,9 +756,9 @@
     "preparing": "Hazırlanıyor...",
     "checkForUpdates": "Güncellemeleri kontrol et",
     "portableUpdateTitle": "Manuel güncelleme gerekli",
-    "portableUpdateMessage": "Taşınabilir kurulumlar otomatik olarak güncellenemez. Aşağıdan sisteminize uygun yükleyiciyi indirin, çalıştırın ve aynı klasöre kurun — Data/ klasörünüz (ayarlar, modeller, kayıtlar) yerinde kalır.",
+    "portableUpdateMessage": "Taşınabilir kurulumlar otomatik olarak güncellenemez. Aşağıdan sisteminize uygun yükleyiciyi indirin, çalıştırın ve aynı klasöre kurun - Data/ klasörünüz (ayarlar, modeller, kayıtlar) yerinde kalır.",
     "portableUpdateButton": "Yükleyiciyi indir",
-    "portableUpdateBrowseMessage": "Taşınabilir kurulumlar otomatik olarak güncellenemez. Sisteminize uygun en son sürümü GitHub Releases’ten indirin ve aynı klasöre kurun — Data/ klasörünüz (ayarlar, modeller, kayıtlar) yerinde kalır.",
+    "portableUpdateBrowseMessage": "Taşınabilir kurulumlar otomatik olarak güncellenemez. Sisteminize uygun en son sürümü GitHub Releases’ten indirin ve aynı klasöre kurun - Data/ klasörünüz (ayarlar, modeller, kayıtlar) yerinde kalır.",
     "portableUpdateBrowseButton": "GitHub Releases’i aç"
   },
   "common": {
@@ -672,7 +771,7 @@
     "noOptionsFound": "Seçenek bulunamadı"
   },
   "accessibility": {
-    "permissionsDescription": "Handy, transkribe edilen metni yazabilmek için erişilebilirlik izinlerine ihtiyaç duyar.",
+    "permissionsDescription": "VoxBar, transkribe edilen metni yazabilmek için erişilebilirlik izinlerine ihtiyaç duyar.",
     "openSettings": "Sistem Ayarlarını Aç"
   },
   "errors": {
@@ -689,21 +788,43 @@
     "recordingFailed": "Kayıt başlatılamadı: {{error}}",
     "modelLoadFailed": "Model yüklenemedi: {{model}}",
     "modelLoadFailedUnknown": "bilinmeyen model",
+    "modelFallbackTitle": "Düşük bellek",
+    "modelFallback": "Bu dikte için {{model}} modeline geçildi",
     "pasteFailedTitle": "Metin yapıştırılamadı",
     "pasteFailed": "Metin etkin uygulamaya yapıştırılamadı.",
     "transcriptionFailedTitle": "Transkripsiyon başarısız oldu"
   },
   "appLanguage": {
     "title": "Uygulama Dili",
-    "description": "Handy arayüzünün dilini değiştirin"
+    "description": "VoxBar arayüzünün dilini değiştirin"
   },
   "theme": {
     "title": "Uygulama Teması",
-    "description": "Handy'nin sistem temasını izlemesini ya da açık veya koyu kalmasını seçin",
+    "description": "VoxBar'nin sistem temasını izlemesini ya da açık veya koyu kalmasını seçin",
     "options": {
       "system": "Sistem",
       "light": "Açık",
       "dark": "Koyu"
+    },
+    "accentColor": {
+      "label": "Vurgu rengi",
+      "description": "Vurgular, anahtarlar ve denetimler için kullanılan rengi seçin"
+    },
+    "accentColors": {
+      "black": "Siyah",
+      "gray": "Gri",
+      "white": "Beyaz",
+      "red": "Kırmızı",
+      "orange": "Turuncu",
+      "amber": "Amber",
+      "green": "Yeşil",
+      "teal": "Turkuaz",
+      "cyan": "Camgöbeği",
+      "blue": "Mavi",
+      "indigo": "Çivit mavisi",
+      "violet": "Mor",
+      "magenta": "Macenta",
+      "pink": "Pembe"
     }
   },
   "overlay": {
@@ -711,7 +832,7 @@
     "processing": "İşleniyor..."
   },
   "whatsNew": {
-    "title": "Handy v{{version}} yenilikleri"
+    "title": "VoxBar v{{version}} yenilikleri"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} 1 kısayolu engelliyor olabilir",
@@ -721,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} kısayol değişikliklerini engelliyor olabilir",
     "recorderBlockedNoCulprit": "macOS geçici olarak kısayol değişikliklerini engelliyor",
     "learnMore": "Bu nasıl düzeltilir",
-    "recorderBlocked": "Şu anda kısayol kaydedilemiyor — macOS Secure Input tuş olaylarını engelliyor. Önce Secure Input uyarısını giderin.",
+    "recorderBlocked": "Şu anda kısayol kaydedilemiyor - macOS Secure Input tuş olaylarını engelliyor. Önce Secure Input uyarısını giderin.",
     "dismiss": "Kapat"
   }
 }

@@ -4,6 +4,10 @@
     "checkUpdates": "Sök efter uppdateringar...",
     "copyLastTranscript": "Kopiera senaste transkriptionen",
     "unloadModel": "Avlasta modell",
+    "unloadAfter": "Urladdning efter",
+    "unloadAfterImmediately": "Omedelbart",
+    "unloadAfterNever": "Aldrig",
+    "unloadAfterCustom": "Anpassad…",
     "model": "Modell",
     "quit": "Avsluta",
     "cancel": "Avbryt",
@@ -101,7 +105,7 @@
     },
     "permissions": {
       "title": "Behörigheter krävs",
-      "description": "Handy behöver ett par behörigheter för att fungera korrekt.",
+      "description": "VoxBar behöver ett par behörigheter för att fungera korrekt.",
       "microphone": {
         "title": "Mikrofonåtkomst",
         "description": "Krävs för att höra din röst för transkription."
@@ -161,7 +165,7 @@
     "general": {
       "title": "Allmänt",
       "shortcut": {
-        "title": "Handy-kortkommandon",
+        "title": "VoxBar-kortkommandon",
         "description": "Konfigurera kortkommandon för att starta tal-till-text-inspelning",
         "loading": "Laddar kortkommandon...",
         "none": "Inga kortkommandon konfigurerade",
@@ -179,13 +183,26 @@
           "transcribe_with_post_process": {
             "name": "Snabbkommando för efterbearbetning",
             "description": "Valfritt: En dedikerad snabbknapp som alltid tillämpar AI-efterbearbetning på din transkription."
+          },
+          "delete_last_word": {
+            "name": "Ta bort senaste ordet",
+            "description": "Tar bort ordet före markören i den aktiva appen (Alternativ+Backsteg på macOS, Ctrl+Backsteg på andra). Koppla en tangent för att aktivera."
+          },
+          "undo": {
+            "name": "Ångra",
+            "description": "Utför Ångra i den aktiva appen (Cmd+Z på macOS, Ctrl+Z på andra) och återställer den senaste inklistrade dikteringen i ett steg. Koppla en tangent för att aktivera."
+          },
+          "transcribe_commands": {
+            "name": "Kommandoläge",
+            "description": "Spelar in som en diktering, men varje ord behandlas som ett kommando: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Okända ord kasseras, så inget annat skrivs någonsin. Ej kopplad som standard."
           }
         },
         "errors": {
           "restore": "Misslyckades med att återställa ursprungligt kortkommando",
           "set": "Misslyckades med att ställa in kortkommando: {{error}}",
           "reset": "Misslyckades med att återställa kortkommando till ursprungsvärdet"
-        }
+        },
+        "unbound": "Ej kopplad"
       },
       "language": {
         "title": "Språk",
@@ -207,6 +224,24 @@
           "push_to_talk": "Spelar in så länge du håller genvägen nedtryckt",
           "toggle": "Tryck på genvägen för att starta inspelningen, tryck igen för att stoppa"
         }
+      },
+      "editingShortcuts": {
+        "title": "Redigeringsgenvägar",
+        "deleteLastWord": {
+          "title": "Åtgärd: ta bort senaste ordet",
+          "description": "Aktiverar den kopplingsbara genvägen som tar bort ordet före markören. Genvägen förblir inaktiv tills en tangent kopplas ovan."
+        },
+        "undo": {
+          "title": "Åtgärd: ångra",
+          "description": "Aktiverar den kopplingsbara genvägen som utför Ångra i den aktiva appen. Genvägen förblir inaktiv tills en tangent kopplas ovan."
+        }
+      },
+      "commandMode": {
+        "title": "Kommandoläge",
+        "toggle": {
+          "title": "Kommandoläge",
+          "description": "Aktiverar den kopplingsbara kommandolägesutlösaren. Innehåll spelar den in som en diktering; transkriptionen körs som kommandon (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) och okända ord kasseras."
+        }
       }
     },
     "models": {
@@ -226,7 +261,35 @@
       "searchPlaceholder": "Sök modeller efter namn…",
       "rescan": {
         "label": "Skanna om",
-        "tooltip": "Skanna om efter modeller som lagts till i modellmappen eller Hugging Face-cachen utanför Handy"
+        "tooltip": "Skanna om efter modeller som lagts till i modellmappen eller Hugging Face-cachen utanför VoxBar"
+      },
+      "rescanModels": "Skanna modeller igen",
+      "addFromHf": {
+        "title": "Lägg till modell från Hugging Face",
+        "description": "Klistra in en publik repo-URL eller ägare/repo, till exempel https://huggingface.co/ägare/modell.",
+        "placeholder": "https://huggingface.co/ägare/modell eller ägare/modell",
+        "add": "Lägg till",
+        "cancel": "Avbryt",
+        "pickFile": "Välj en fil från {{repo}}:",
+        "recommended": "Rekommenderad",
+        "status": {
+          "resolving": "Löser repo...",
+          "adding": "Laddar ner och kontrollerar modellen...",
+          "added": "Modellen lades till. Den visas under nedladdade modeller."
+        },
+        "errors": {
+          "invalidInput": "Det kunde inte läsas som en Hugging Face repo: {{detail}}",
+          "notFound": "Repot {{repo}} hittades inte på Hugging Face.",
+          "inaccessible": "{{repo}} kunde inte nås på Hugging Face. Det finns kanske inte, eller är privat eller låst. Endast publika repos stöds just nu.",
+          "fileNotFound": "Filen {{filename}} hittades inte i {{repo}}.",
+          "noGguf": "{{repo}} innehåller inga GGUF filer.",
+          "network": "Kunde inte nå Hugging Face: {{detail}}",
+          "downloadFailed": "Nedladdningen misslyckades: {{detail}}",
+          "cancelled": "Nedladdningen avbröts.",
+          "unsupportedArch": "Modellarkitekturen {{arch}} stöds inte. Stöds: {{supported}}.",
+          "unsupportedArchUnknown": "Filen kunde inte läsas som en GGUF modell, så den lades inte till.",
+          "generic": "Något gick fel."
+        }
       }
     },
     "sound": {
@@ -291,18 +354,30 @@
         "label": "Starta dold",
         "description": "Starta i systemfältet utan att öppna fönstret."
       },
+      "memoryPressureGuard": {
+        "label": "Skydd mot minnesbrist",
+        "description": "Vägrar läsa in en modell när ledigt minne inte räcker. Den aktuella modellen fortsätter fungera när en inläsning vägras."
+      },
+      "autoFallback": {
+        "label": "Automatisk RAM-reserv",
+        "description": "När den valda modellen inte får plats i ledigt minne laddas automatiskt den bästa nedladdade modellen som får plats. Stäng av för att behålla det vanliga avslaget."
+      },
+      "menuBarModelTitle": {
+        "label": "Modelltitel i menyraden",
+        "description": "Visar den residenta modellen och dess RAM-användning som text bredvid trayikonen (macOS-menyrad)."
+      },
       "autostart": {
         "label": "Starta vid uppstart",
-        "description": "Starta Handy automatiskt när du loggar in på din dator."
+        "description": "Starta VoxBar automatiskt när du loggar in på din dator."
       },
       "showTrayIcon": {
         "label": "Visa ikon i systemfältet",
-        "description": "Visa Handy-ikonen i systemfältet."
+        "description": "Visa VoxBar-ikonen i systemfältet."
       },
       "overlay": {
         "style": {
           "title": "Overlay",
-          "description": "Välj inspelningsöverlägget: ”Ingen” döljer det, ”Minimal” visar en kompakt indikator, ”Live” visar transkriberingen i realtid medan du talar (endast modeller med streamingstöd — leta efter Streaming-märket i modellväljaren). På Linux rekommenderas ”Ingen”.",
+          "description": "Välj inspelningsöverlägget: ”Ingen” döljer det, ”Minimal” visar en kompakt indikator, ”Live” visar transkriberingen i realtid medan du talar (endast modeller med streamingstöd - leta efter Streaming-märket i modellväljaren). På Linux rekommenderas ”Ingen”.",
           "options": {
             "none": "Ingen",
             "minimal": "Minimal",
@@ -372,12 +447,15 @@
           "min10": "Efter 10 minuter",
           "min15": "Efter 15 minuter",
           "hour1": "Efter 1 timme",
+          "custom": "Anpassad",
           "sec15": "Efter 15 sekunder (Felsökning)"
-        }
+        },
+        "customSecondsLabel": "Anpassade sekunder",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Anpassade ord",
-        "description": "Hjälp modeller som stöds att känna igen namn och specialtermer. Ungefärlig korrigering är för närvarande begränsad till ord med bokstäverna A–Z och siffror.",
+        "description": "Hjälp modeller som stöds att känna igen namn och specialtermer. Ungefärlig korrigering är för närvarande begränsad till ord med bokstäverna A-Z och siffror.",
         "placeholder": "Lägg till ett ord",
         "add": "Lägg till",
         "remove": "Ta bort {{word}}",
@@ -398,6 +476,22 @@
       "fillerWordRemoval": {
         "title": "Ta bort utfyllnadsord",
         "description": "Tar bort vanliga tvekljud från transkriberingar. Stäng av för att behålla dem."
+      },
+      "spokenPunctuation": {
+        "title": "Talad interpunktion",
+        "description": "Omvanlar talade interpunktionsord som \"comma\", \"period\" och \"question mark\" till riktig interpunktion. Stäng av för att behålla dem som vanliga ord."
+      },
+      "terminalPunctuation": {
+        "title": "Slutinterpunktion",
+        "description": "Avslutar varje transkription med interpunktion: frågetecken för frågor, annars en punkt. Stäng av för att lämna slutet som det transkriberades."
+      },
+      "voiceDeletion": {
+        "title": "Röstkommandon för borttagning",
+        "description": "\"scratch that\", \"delete that\" och \"remove that\" tar bort föregående ord, \"delete last three words\" tar bort flera, och \"delete everything\" eller \"start over\" rensar dikteringen. Stäng av för att behålla dem som vanliga ord."
+      },
+      "previewBeforePaste": {
+        "title": "Förhandsvisning före inklistring",
+        "description": "Visar den färdiga transkriptionen kort i inspelningsöverlägget innan den klistras in. Stäng av för att klistra in direkt."
       },
       "chineseScript": {
         "title": "Kinesisk skrift",
@@ -477,7 +571,12 @@
       "retranscribe": "Transkribera igen",
       "retranscribeError": "Misslyckades med att transkribera igen. Försök igen.",
       "transcribing": "Transkriberar...",
-      "transcriptionFailed": "Transkribering misslyckades. Du kan transkribera igen med hjälp av ikonen för nytt försök."
+      "transcriptionFailed": "Transkribering misslyckades. Du kan transkribera igen med hjälp av ikonen för nytt försök.",
+      "model": "Transkriptionsmodell",
+      "showModel": {
+        "label": "Visa modellmärke",
+        "description": "Visar ett kompakt märke med modellen som skapade varje transkription."
+      }
     },
     "debug": {
       "title": "Felsökning",
@@ -502,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Sök efter uppdateringar",
-        "description": "Sök automatiskt efter nya versioner av Handy",
+        "description": "Visa alternativet \"Sök efter uppdateringar\" i traymenyn och i sidfoten",
         "lockedDescription": "Inaktiverad av systemkonfiguration (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {
@@ -580,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Tangentbordsdiagnostik",
-        "description": "Kontrollerar om tangentbordshändelser når Handy. Endast antalet händelser registreras — aldrig vilka tangenter du trycker på.",
+        "description": "Kontrollerar om tangentbordshändelser når VoxBar. Endast antalet händelser registreras - aldrig vilka tangenter du trycker på.",
         "run": "Kör 10 s diagnostik",
         "running": "Lyssnar… tryck på ditt kortkommando några gånger (t.ex. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -592,10 +691,10 @@
         "keyUp": "Tangent upp",
         "flagsChanged": "Modifierare",
         "mouse": "Mus",
-        "verdictBlocked": "Secure Input blockerar tangenthändelser — kortkommandon med en vanlig tangent kan inte fungera förrän det är löst.",
-        "verdictSuspicious": "Modifierarhändelser kom fram men inga tangenthändelser — något undertrycker tangenter trots att Secure Input rapporteras som inaktiverat. Rapportera gärna detta på GitHub.",
-        "verdictOk": "Tangenthändelser når Handy som vanligt.",
-        "verdictNoEvents": "Inga händelser fångades — tryckte du på några tangenter under testet?",
+        "verdictBlocked": "Secure Input blockerar tangenthändelser - kortkommandon med en vanlig tangent kan inte fungera förrän det är löst.",
+        "verdictSuspicious": "Modifierarhändelser kom fram men inga tangenthändelser - något undertrycker tangenter trots att Secure Input rapporteras som inaktiverat. Rapportera gärna detta på GitHub.",
+        "verdictOk": "Tangenthändelser når VoxBar som vanligt.",
+        "verdictNoEvents": "Inga händelser fångades - tryckte du på några tangenter under testet?",
         "failed": "Diagnostiken misslyckades: {{error}}"
       },
       "whatsNewPreview": {
@@ -617,11 +716,11 @@
       "title": "Om",
       "version": {
         "title": "Version",
-        "description": "Nuvarande version av Handy"
+        "description": "Nuvarande version av VoxBar"
       },
       "appDataDirectory": {
         "title": "Mapp för appdata",
-        "description": "Plats där Handy lagrar sina data"
+        "description": "Plats där VoxBar lagrar sina data"
       },
       "sourceCode": {
         "title": "Källkod",
@@ -630,7 +729,7 @@
       },
       "supportDevelopment": {
         "title": "Stöd utvecklingen",
-        "description": "Hjälp oss att fortsätta bygga Handy",
+        "description": "Hjälp oss att fortsätta bygga VoxBar",
         "button": "Donera"
       },
       "acknowledgments": {
@@ -638,12 +737,12 @@
         "ggml": {
           "title": "ggml",
           "description": "Högpresterande inferens av OpenAI:s Whisper-modell för automatisk taligenkänning",
-          "details": "Handy använder ggml för snabb, lokal tal-till-text-behandling. Tack till det fantastiska arbete som utförts av Georgi Gerganov med medarbetare."
+          "details": "VoxBar använder ggml för snabb, lokal tal-till-text-behandling. Tack till det fantastiska arbete som utförts av Georgi Gerganov med medarbetare."
         }
       },
       "whatsNewUpdates": {
         "label": "Visa nyheter",
-        "description": "Visa versionsinformation efter Handy-uppdateringar"
+        "description": "Visa versionsinformation efter VoxBar-uppdateringar"
       }
     }
   },
@@ -657,9 +756,9 @@
     "preparing": "Förbereder...",
     "checkForUpdates": "Sök efter uppdateringar",
     "portableUpdateTitle": "Manuell uppdatering krävs",
-    "portableUpdateMessage": "Portabla installationer kan inte uppdateras automatiskt. Ladda ner installeraren för ditt system nedan, kör den och installera i samma mapp — din Data/-mapp (inställningar, modeller, inspelningar) behålls.",
+    "portableUpdateMessage": "Portabla installationer kan inte uppdateras automatiskt. Ladda ner installeraren för ditt system nedan, kör den och installera i samma mapp - din Data/-mapp (inställningar, modeller, inspelningar) behålls.",
     "portableUpdateButton": "Ladda ner installeraren",
-    "portableUpdateBrowseMessage": "Portabla installationer kan inte uppdateras automatiskt. Ladda ner den senaste versionen för ditt system från GitHub Releases och installera den i samma mapp — din Data/-mapp (inställningar, modeller, inspelningar) behålls.",
+    "portableUpdateBrowseMessage": "Portabla installationer kan inte uppdateras automatiskt. Ladda ner den senaste versionen för ditt system från GitHub Releases och installera den i samma mapp - din Data/-mapp (inställningar, modeller, inspelningar) behålls.",
     "portableUpdateBrowseButton": "Öppna GitHub Releases"
   },
   "common": {
@@ -672,7 +771,7 @@
     "noOptionsFound": "Inga alternativ hittades"
   },
   "accessibility": {
-    "permissionsDescription": "Handy behöver behörighet för hjälpmedel för att kunna skriva transkriberad text.",
+    "permissionsDescription": "VoxBar behöver behörighet för hjälpmedel för att kunna skriva transkriberad text.",
     "openSettings": "Öppna systeminställningar"
   },
   "errors": {
@@ -687,6 +786,8 @@
     "recordingFailed": "Misslyckades med att starta inspelning: {{error}}",
     "modelLoadFailed": "Misslyckades med att ladda modell: {{model}}",
     "modelLoadFailedUnknown": "okänd modell",
+    "modelFallbackTitle": "Lite minne",
+    "modelFallback": "Växlade till {{model}} för denna diktering",
     "noInputDeviceTitle": "Ingen mikrofon hittades",
     "noInputDevice": "Ingen ljudenhet hittades. Anslut en mikrofon eller ett headset och försök igen.",
     "pasteFailedTitle": "Det gick inte att klistra in texten",
@@ -695,15 +796,35 @@
   },
   "appLanguage": {
     "title": "Applikationsspråk",
-    "description": "Ändra språket i Handy-gränssnittet"
+    "description": "Ändra språket i VoxBar-gränssnittet"
   },
   "theme": {
     "title": "Apptema",
-    "description": "Välj om Handy ska följa systemets tema eller förbli ljust eller mörkt",
+    "description": "Välj om VoxBar ska följa systemets tema eller förbli ljust eller mörkt",
     "options": {
       "system": "System",
       "light": "Ljust",
       "dark": "Mörkt"
+    },
+    "accentColor": {
+      "label": "Accentfärg",
+      "description": "Välj färgen som används för markeringar, reglage och kontroller"
+    },
+    "accentColors": {
+      "black": "Svart",
+      "gray": "Grå",
+      "white": "Vit",
+      "red": "Röd",
+      "orange": "Orange",
+      "amber": "Bärnsten",
+      "green": "Grön",
+      "teal": "Turkos",
+      "cyan": "Cyan",
+      "blue": "Blå",
+      "indigo": "Indigo",
+      "violet": "Violett",
+      "magenta": "Magenta",
+      "pink": "Rosa"
     }
   },
   "overlay": {
@@ -711,7 +832,7 @@
     "processing": "Bearbetar..."
   },
   "whatsNew": {
-    "title": "Nytt i Handy v{{version}}"
+    "title": "Nytt i VoxBar v{{version}}"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} kanske blockerar 1 kortkommando",
@@ -721,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} kanske blockerar ändringar av kortkommandon",
     "recorderBlockedNoCulprit": "macOS blockerar tillfälligt ändringar av kortkommandon",
     "learnMore": "Så här löser du det",
-    "recorderBlocked": "Det går inte att spela in kortkommandon just nu — macOS Secure Input blockerar tangenthändelser. Lös varningen om Secure Input först.",
+    "recorderBlocked": "Det går inte att spela in kortkommandon just nu - macOS Secure Input blockerar tangenthändelser. Lös varningen om Secure Input först.",
     "dismiss": "Avfärda"
   }
 }

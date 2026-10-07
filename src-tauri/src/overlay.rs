@@ -4,6 +4,7 @@ use crate::settings::{OverlayPosition, OverlayStyle};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, PhysicalSize};
+use tauri_specta::Event as _;
 
 #[cfg(not(target_os = "macos"))]
 use log::debug;
@@ -37,7 +38,7 @@ tauri_panel! {
 // state and resized in `show_overlay_state`; each size need only be at least as
 // large as the card it hosts (the `--ov-*` vars in RecordingOverlay.css). The
 // card is CSS-anchored flush to the screen edge, so window height doesn't move
-// where the card sits — only OVERLAY_TOP_OFFSET / OVERLAY_BOTTOM_OFFSET do. Keep
+// where the card sits - only OVERLAY_TOP_OFFSET / OVERLAY_BOTTOM_OFFSET do. Keep
 // these in sync with the CSS card geometry.
 //
 // On Windows these sizes are additionally multiplied by the accessibility text
@@ -55,7 +56,8 @@ const OVERLAY_STREAM_HEIGHT: f64 = 120.0;
 
 /// Overlay window size (logical) for a given UI state.
 fn overlay_dimensions(state: &str) -> (f64, f64) {
-    if state == "streaming" {
+    // The final-text preview uses the Live panel layout (it shows text).
+    if state == "streaming" || state == "preview" {
         (OVERLAY_STREAM_WIDTH, OVERLAY_STREAM_HEIGHT)
     } else {
         (OVERLAY_WIDTH, OVERLAY_HEIGHT)
@@ -233,7 +235,7 @@ fn is_mouse_within_monitor(
 /// Returns overlay position in logical coordinates (points on macOS).
 ///
 /// The Bottom anchor uses the macOS work area (visibleFrame) so the overlay
-/// tracks the Dock — above it when shown, at the screen edge when hidden.
+/// tracks the Dock - above it when shown, at the screen edge when hidden.
 /// This relies on tauri 2.11's work_area.position.y fix (#14655), the same
 /// bug that led PR #969 to abandon work_area for full monitor bounds. Top and
 /// the other platforms keep full monitor bounds plus the fixed offsets
@@ -399,7 +401,7 @@ pub fn create_recording_overlay(app_handle: &AppHandle) {
         }
     }
 
-    // Position starts unset — update_overlay_position() sets the correct
+    // Position starts unset - update_overlay_position() sets the correct
     // LogicalPosition before the overlay is shown.
     let mut builder = WebviewWindowBuilder::new(
         app_handle,
@@ -496,7 +498,7 @@ fn show_overlay_state(app_handle: &AppHandle, state: &str) {
 
     // The rest queries monitors and the cursor and mutates window geometry. On
     // Linux the monitor/cursor lookups hit GDK/Xlib on the process's shared X11
-    // connection, which is only safe from the GTK main thread — running them on
+    // connection, which is only safe from the GTK main thread - running them on
     // a background thread corrupts the connection and hard-crashes the app
     // (issue #227). Hop to the main thread on every platform to keep the
     // geometry path uniform (a no-op cost on Windows, and it also keeps macOS's
@@ -630,10 +632,36 @@ pub fn show_processing_overlay(app_handle: &AppHandle) {
     show_overlay_state(app_handle, "processing");
 }
 
+/// Shows the final-text preview: the Live panel layout carrying the final
+/// transcription, displayed briefly before the paste fires (batch models
+/// show nothing live, so this is their only look at the text before it
+/// lands). The show and the text emission run in ONE main-thread closure so
+/// the text event can never land before, and be reset by, the show event's
+/// state reset in the frontend.
+pub fn show_final_preview_overlay(app_handle: &AppHandle, final_text: &str) {
+    // Whether the overlay shows at all is governed by overlay_style, checked
+    // off the main thread like `show_overlay_state` does.
+    if settings::get_settings(app_handle).overlay_style == OverlayStyle::None {
+        return;
+    }
+
+    let handle = app_handle.clone();
+    let state = "preview".to_string();
+    let text = final_text.to_string();
+    let _ = app_handle.run_on_main_thread(move || {
+        show_overlay_state_on_main(&handle, &state);
+        let _ = crate::managers::transcription::StreamTextEvent {
+            committed: text,
+            tentative: String::new(),
+        }
+        .emit(&handle);
+    });
+}
+
 /// Updates the overlay window position based on current settings
 pub fn update_overlay_position(app_handle: &AppHandle) {
     // Positioning queries monitors/cursor (GDK/Xlib on Linux) and moves the
-    // window, so it must run on the main thread — see show_overlay_state.
+    // window, so it must run on the main thread - see show_overlay_state.
     let handle = app_handle.clone();
     let _ = app_handle.run_on_main_thread(move || update_overlay_position_on_main(&handle));
 }
@@ -680,7 +708,7 @@ fn update_overlay_position_on_main(app_handle: &AppHandle) {
 /// Generation counter bumped every time the overlay is shown. The delayed
 /// `hide()` below only unmaps the window if no show happened after it was
 /// scheduled, so a hide left over from a finished transcription can never
-/// take down the overlay of a session that started in the meantime — e.g. a
+/// take down the overlay of a session that started in the meantime - e.g. a
 /// press the coordinator remembered while the pipeline was busy and started
 /// the instant it drained, well inside the 300 ms hide delay.
 static OVERLAY_SHOW_GENERATION: AtomicU64 = AtomicU64::new(0);

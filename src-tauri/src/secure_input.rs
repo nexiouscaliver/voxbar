@@ -8,7 +8,7 @@
 //!
 //! This module:
 //! - polls `IsSecureEventInputEnabled()` and tracks state transitions
-//! - looks up the holding process (best effort — Apple documents no reliable
+//! - looks up the holding process (best effort - Apple documents no reliable
 //!   API; the IORegistry PID is frequently wrong or absent)
 //! - while secure input is sustained, shadow-registers vulnerable *keyed*
 //!   bindings through the Carbon-backed Tauri global-shortcut path, which is
@@ -16,7 +16,7 @@
 //! - dynamically shadows the Cancel binding while recording, so Escape and
 //!   other keyed cancellation shortcuts remain available under secure input
 //! - exposes a count-only keyboard diagnostic for the debug window. Only
-//!   event *kinds* are counted — key identity is never logged or returned.
+//!   event *kinds* are counted - key identity is never logged or returned.
 
 use serde::Serialize;
 use specta::Type;
@@ -50,7 +50,7 @@ pub struct KeyboardDiagnosticReport {
     pub secure_input_enabled: bool,
     pub culprit_pid: Option<i32>,
     pub culprit_name: Option<String>,
-    /// Counts only — key identity is deliberately never captured.
+    /// Counts only - key identity is deliberately never captured.
     pub key_down: u32,
     pub key_up: u32,
     pub flags_changed: u32,
@@ -272,7 +272,7 @@ mod imp {
     pub fn note_recorder_blocked(app: &AppHandle) {
         let state = app.state::<SecureInputState>();
         if !state.recorder_blocked.swap(true, Ordering::SeqCst) {
-            warn!("SecureInput: shortcut recording attempt blocked — surfacing warning");
+            warn!("SecureInput: shortcut recording attempt blocked - surfacing warning");
             refresh_tray(app);
             emit_status(app);
         }
@@ -348,7 +348,7 @@ mod imp {
                         .unwrap_or(false);
                     if held_long_enough {
                         warn!(
-                            "SecureInput held for {}s — keyed shortcuts are blocked; activating fallback",
+                            "SecureInput held for {}s - keyed shortcuts are blocked; activating fallback",
                             SUSTAIN_THRESHOLD.as_secs()
                         );
                         state.sustained.store(true, Ordering::SeqCst);
@@ -366,7 +366,7 @@ mod imp {
     /// Build the Carbon-registrable equivalent of a keyed hotkey.
     ///
     /// Carbon has no concept of left/right modifiers, so side-specific
-    /// modifiers widen to the whole group — returned as `degraded: true` so
+    /// modifiers widen to the whole group - returned as `degraded: true` so
     /// the UI can call out the changed matching. The fn key cannot be
     /// expressed at all (`None`).
     fn carbon_equivalent(hotkey: &handy_keys::Hotkey) -> Option<(String, bool)> {
@@ -382,7 +382,7 @@ mod imp {
             if hotkey.modifiers.intersects(group) {
                 widened |= group;
                 if !hotkey.modifiers.contains(group) {
-                    // Only one side was specified — matching gets wider
+                    // Only one side was specified - matching gets wider
                     degraded = true;
                 }
             }
@@ -417,14 +417,14 @@ mod imp {
         match &hotkey.key {
             None => {
                 debug!(
-                    "SecureInput fallback: '{}' ('{}') is modifier-only — immune, no shadow needed",
+                    "SecureInput fallback: '{}' ('{}') is modifier-only - immune, no shadow needed",
                     id, binding.current_binding
                 );
                 return ShadowPlan::Immune;
             }
             Some(k) if is_mouse_key(k) => {
                 debug!(
-                    "SecureInput fallback: '{}' ('{}') is mouse-based — immune, no shadow needed",
+                    "SecureInput fallback: '{}' ('{}') is mouse-based - immune, no shadow needed",
                     id, binding.current_binding
                 );
                 return ShadowPlan::Immune;
@@ -480,7 +480,10 @@ mod imp {
                 if id == "cancel" && !state.cancel_requested.load(Ordering::SeqCst) {
                     continue;
                 }
-                if id == "transcribe_with_post_process" && !settings.post_process_enabled {
+                // Unbound and toggle-disabled bindings hold no registration
+                // to shadow (covers post-processing when off plus the
+                // unbound-by-default editing actions).
+                if !crate::shortcut::binding_is_active(&settings, id, binding) {
                     continue;
                 }
 

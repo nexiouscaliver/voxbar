@@ -2,6 +2,9 @@ import React from "react";
 import { useTranslation } from "react-i18next";
 import { ShowOverlay } from "../ShowOverlay";
 import { ModelUnloadTimeoutSetting } from "../ModelUnloadTimeout";
+import { MemoryPressureGuard } from "../MemoryPressureGuard";
+import { AutoFallback } from "../AutoFallback";
+import { MenuBarModelTitle } from "../MenuBarModelTitle";
 import { CustomWords } from "../CustomWords";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { StartHidden } from "../StartHidden";
@@ -22,6 +25,10 @@ import { VoiceActivityDetection } from "../VoiceActivityDetection";
 import { AccelerationSelector } from "../AccelerationSelector";
 import { LazyStreamClose } from "../LazyStreamClose";
 import { FillerWordRemoval } from "../FillerWordRemoval";
+import { SpokenPunctuation } from "../SpokenPunctuation";
+import { TerminalPunctuation } from "../TerminalPunctuation";
+import { VoiceDeletionCommands } from "../VoiceDeletionCommands";
+import { PreviewBeforePaste } from "../PreviewBeforePaste";
 import { ChineseScriptSetting } from "../ChineseScript";
 import { VadBackendSelector } from "../VadBackendSelector";
 
@@ -38,6 +45,9 @@ export const AdvancedSettings: React.FC = () => {
         <ShowTrayIcon descriptionMode="tooltip" grouped={true} />
         <ShowOverlay descriptionMode="tooltip" grouped={true} />
         <ModelUnloadTimeoutSetting descriptionMode="tooltip" grouped={true} />
+        <MemoryPressureGuard descriptionMode="tooltip" grouped={true} />
+        <AutoFallback descriptionMode="tooltip" grouped={true} />
+        <MenuBarModelTitle descriptionMode="tooltip" grouped={true} />
         <ExperimentalToggle descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
 
@@ -46,11 +56,15 @@ export const AdvancedSettings: React.FC = () => {
         <TypingToolSetting descriptionMode="tooltip" grouped={true} />
         <ClipboardHandlingSetting descriptionMode="tooltip" grouped={true} />
         <AutoSubmit descriptionMode="tooltip" grouped={true} />
+        <PreviewBeforePaste descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.advanced.groups.transcription")}>
         <VoiceActivityDetection descriptionMode="tooltip" grouped={true} />
         <FillerWordRemoval descriptionMode="tooltip" grouped={true} />
+        <SpokenPunctuation descriptionMode="tooltip" grouped={true} />
+        <TerminalPunctuation descriptionMode="tooltip" grouped={true} />
+        <VoiceDeletionCommands descriptionMode="tooltip" grouped={true} />
         <ChineseScriptSetting descriptionMode="tooltip" grouped={true} />
         <CustomWords descriptionMode="tooltip" grouped />
         <AppendTrailingSpace descriptionMode="tooltip" grouped={true} />

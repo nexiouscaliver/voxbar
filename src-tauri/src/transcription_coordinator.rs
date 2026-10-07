@@ -2,6 +2,7 @@ use crate::actions::ACTION_MAP;
 use crate::managers::audio::AudioRecordingManager;
 use crate::settings::ShortcutActivation;
 use log::{debug, error, warn};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
 use std::sync::Arc;
 use std::thread;
@@ -106,7 +107,7 @@ fn classify_busy_input(
         (Toggle, true, None) => BusyAction::Remember,
         // Toggle mode ignores releases.
         (Toggle, false, _) => BusyAction::Ignore,
-        // Hold modes: a press while busy means the user is holding the key —
+        // Hold modes: a press while busy means the user is holding the key -
         // start as soon as the pipeline drains. A press on a queued tap stops
         // it (parity); a press while the key is already down is a repeat.
         (PushToTalk | HoldOrToggle, true, None) => BusyAction::Remember,
@@ -136,7 +137,7 @@ struct InputEvent {
     /// Hold-or-toggle: minimum press duration that counts as a hold.
     hold_threshold: Duration,
     /// External triggers (SIGUSR2, CLI flags) rather than physical keys.
-    /// They fire on every edge by design and must never be debounced —
+    /// They fire on every edge by design and must never be debounced -
     /// dropping one desyncs toggle parity and wedges recording on.
     external: bool,
 }
@@ -178,7 +179,7 @@ enum Command {
 /// or a key-down cancels a deferred release. `hold_to_talk` is whether a
 /// release currently ends the session: true for push-to-talk and for an
 /// unlocked hold-or-toggle session, false for toggle and a locked session.
-/// `held_binding` is the binding whose key we believe is down — the one
+/// `held_binding` is the binding whose key we believe is down - the one
 /// recording, or the one remembered while the pipeline is busy.
 fn classify_ptt_event(
     pending_release_binding: Option<&str>,
@@ -212,9 +213,9 @@ fn classify_ptt_event(
 /// All three activation modes run through one machine. A recording starts on
 /// key-down in every mode; what differs is how it ends:
 ///
-/// * push-to-talk — every release stops (hold threshold of zero)
-/// * toggle — releases are ignored, the next press stops (locked from the start)
-/// * hold-or-toggle — a release after a long hold stops; a release after a
+/// * push-to-talk - every release stops (hold threshold of zero)
+/// * toggle - releases are ignored, the next press stops (locked from the start)
+/// * hold-or-toggle - a release after a long hold stops; a release after a
 ///   short tap locks the session, and the next press stops
 struct CoordinatorState {
     stage: Stage,
@@ -235,7 +236,7 @@ impl CoordinatorState {
         }
     }
 
-    /// Deadline of the deferred release, if any — drives `recv_timeout`.
+    /// Deadline of the deferred release, if any - drives `recv_timeout`.
     fn grace_deadline(&self) -> Option<Instant> {
         self.pending_release.as_ref().map(|p| p.deadline)
     }
@@ -303,8 +304,8 @@ impl CoordinatorState {
         // silently.
         if let Stage::Processing = self.stage {
             // Only one press can be remembered. Once a binding has claimed it,
-            // inputs for a different binding are ignored — the same rule as a
-            // different binding pressed while recording — rather than silently
+            // inputs for a different binding are ignored - the same rule as a
+            // different binding pressed while recording - rather than silently
             // replacing the remembered press and breaking its parity.
             if let Some(pending) = &self.pending_press {
                 if pending.binding_id != input.binding_id {
@@ -356,7 +357,7 @@ impl CoordinatorState {
                 Stage::Recording(id) if id == &input.binding_id => {
                     // A locked session ends on the next press. In toggle mode
                     // every press ends it, even if the recording began under a
-                    // hold mode (the setting changed mid-recording) — otherwise
+                    // hold mode (the setting changed mid-recording) - otherwise
                     // nothing but Escape could stop it.
                     if self.is_locked() || input.mode == ShortcutActivation::Toggle {
                         return Some(self.begin_processing(input.binding_id, input.hotkey_string));
@@ -383,7 +384,7 @@ impl CoordinatorState {
 
     /// The `RELEASE_GRACE` window elapsed with no cancelling press arriving:
     /// resolve the deferred release against whatever that binding's key was
-    /// holding — the live recording, or a press remembered while busy.
+    /// holding - the live recording, or a press remembered while busy.
     fn on_grace_expired(&mut self) -> Option<Effect> {
         let pending = self.pending_release.take()?;
         match &self.stage {
@@ -403,7 +404,7 @@ impl CoordinatorState {
 
     /// A press remembered while the pipeline was busy has been released for
     /// real, still before the drain. A completed hold has nothing left to
-    /// start; a tap queues a locked session so the drain starts it — the
+    /// start; a tap queues a locked session so the drain starts it - the
     /// same hold-vs-tap rule as [`CoordinatorState::finish_hold`].
     fn finish_pending_hold(&mut self, release: &PendingRelease) {
         let Some(pending) = self
@@ -460,10 +461,10 @@ impl CoordinatorState {
 
     fn on_cancel(&mut self, recording_was_active: bool) {
         self.pending_release = None;
-        // An explicit cancel abandons any remembered start too — the user
+        // An explicit cancel abandons any remembered start too - the user
         // asked for silence, not a deferred recording.
         self.pending_press = None;
-        // Don't reset during processing — wait for the pipeline to finish.
+        // Don't reset during processing - wait for the pipeline to finish.
         if !matches!(self.stage, Stage::Processing)
             && (recording_was_active || matches!(self.stage, Stage::Recording(_)))
         {
@@ -532,19 +533,43 @@ impl CoordinatorState {
 /// returned [`Effect`]s.
 pub struct TranscriptionCoordinator {
     tx: Sender<Command>,
+    /// Mirror of `Stage::Recording` for lock-free readers outside the
+    /// coordinator thread (the session-state seam): buffer-aware hotkey
+    /// actions ask "is a dictation recording live right now?" without
+    /// sending a command and waiting for an answer. Updated by the thread
+    /// after every processed command, so it lags reality by at most the
+    /// channel latency.
+    recording: Arc<AtomicBool>,
 }
 
+/// Which binding IDs drive the recording lifecycle. Command mode
+/// ("transcribe_commands") shares it: the trigger records exactly like
+/// normal dictation (hold/toggle per the activation setting), and only the
+/// finalize path differs (the transcript goes to the command parser).
 pub fn is_transcribe_binding(id: &str) -> bool {
-    id == "transcribe" || id == "transcribe_with_post_process"
+    id == "transcribe" || id == "transcribe_with_post_process" || id == "transcribe_commands"
 }
 
 impl TranscriptionCoordinator {
     pub fn new(app: AppHandle) -> Self {
         let (tx, rx) = mpsc::channel();
+        let recording = Arc::new(AtomicBool::new(false));
+        let recording_mirror = Arc::clone(&recording);
 
         thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 let mut state = CoordinatorState::new();
+                // Publish the stage mirror after every state change, so a
+                // reader can never observe a stale Recording long after the
+                // stage moved on (worst case: one command of lag while a
+                // transition is in flight).
+                let publish_stage = |state: &CoordinatorState| {
+                    recording_mirror.store(
+                        matches!(state.stage, Stage::Recording(_)),
+                        Ordering::Release,
+                    );
+                };
+                publish_stage(&state);
 
                 loop {
                     let cmd = if let Some(deadline) = state.grace_deadline() {
@@ -554,6 +579,7 @@ impl TranscriptionCoordinator {
                                 if let Some(effect) = state.on_grace_expired() {
                                     run_effect(&app, &mut state, effect);
                                 }
+                                publish_stage(&state);
                                 continue;
                             }
                             Err(mpsc::RecvTimeoutError::Disconnected) => break,
@@ -580,7 +606,11 @@ impl TranscriptionCoordinator {
                             }
                         }
                     }
+                    publish_stage(&state);
                 }
+                // The coordinator thread is gone (app shutdown); stop
+                // advertising a live recording session.
+                recording_mirror.store(false, Ordering::Release);
                 debug!("Transcription coordinator exited");
             }));
             if let Err(e) = result {
@@ -588,7 +618,15 @@ impl TranscriptionCoordinator {
             }
         });
 
-        Self { tx }
+        Self { tx, recording }
+    }
+
+    /// Whether a dictation recording session is live (the coordinator is in
+    /// its Recording stage: between the start effect and the stop effect).
+    /// The session-state seam used by buffer-aware hotkey actions to decide
+    /// between editing the dictation buffer and injecting keys.
+    pub fn is_recording_session(&self) -> bool {
+        self.recording.load(Ordering::Acquire)
     }
 
     /// Send a keyboard input event for a transcribe binding. `hold_threshold`
@@ -612,7 +650,7 @@ impl TranscriptionCoordinator {
     }
 
     /// Send an external trigger (SIGUSR2, CLI flag). Always a toggle press,
-    /// always exempt from debounce — see [`InputEvent::external`].
+    /// always exempt from debounce - see [`InputEvent::external`].
     pub fn send_external_input(&self, binding_id: &str, source: &str) {
         self.send(
             binding_id,
@@ -712,6 +750,19 @@ fn stop(app: &AppHandle, binding_id: &str, hotkey_string: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Command mode shares the recording lifecycle: its binding must route
+    /// through this coordinator so it gets the same hold/toggle semantics
+    /// and busy-pipeline handling as the normal dictation triggers.
+    #[test]
+    fn command_mode_binding_routes_through_the_recording_lifecycle() {
+        assert!(is_transcribe_binding("transcribe"));
+        assert!(is_transcribe_binding("transcribe_with_post_process"));
+        assert!(is_transcribe_binding("transcribe_commands"));
+        assert!(!is_transcribe_binding("delete_last_word"));
+        assert!(!is_transcribe_binding("undo"));
+        assert!(!is_transcribe_binding("cancel"));
+    }
 
     #[test]
     fn push_to_talk_release_while_recording_defers_release() {
@@ -864,8 +915,8 @@ mod tests {
     //
     // The unit tests above assert the classifiers in isolation. The harness
     // below drives the real `CoordinatorState` through whole event sequences
-    // — the same `on_input` / `on_grace_expired` handlers the coordinator
-    // thread runs — so a burst can be exercised deterministically without a
+    // - the same `on_input` / `on_grace_expired` handlers the coordinator
+    // thread runs - so a burst can be exercised deterministically without a
     // Tauri AppHandle or real timers, and the tests can never drift from the
     // production transitions.
     // ---------------------------------------------------------------------
@@ -1073,7 +1124,7 @@ mod tests {
         assert_eq!(
             state.stage,
             Stage::Processing,
-            "cancel must not reset mid-processing — the pipeline still finishes"
+            "cancel must not reset mid-processing - the pipeline still finishes"
         );
 
         let effect = state.on_processing_finished();
@@ -1228,7 +1279,7 @@ mod tests {
         Duration::from_millis(n)
     }
 
-    /// Hold-or-toggle: a key held past the threshold is push-to-talk — the
+    /// Hold-or-toggle: a key held past the threshold is push-to-talk - the
     /// (deferred) release stops recording.
     #[test]
     fn hold_or_toggle_long_hold_stops_on_release() {
@@ -1280,7 +1331,7 @@ mod tests {
         assert_eq!(state.stage, Stage::Idle);
     }
 
-    /// Hold-or-toggle: a locked session ignores stray releases — only a press
+    /// Hold-or-toggle: a locked session ignores stray releases - only a press
     /// ends it.
     #[test]
     fn hold_or_toggle_locked_session_ignores_release() {
@@ -1373,7 +1424,7 @@ mod tests {
             state.on_processing_finished(),
             Some(Effect::Start { .. })
         ));
-        // Released 100ms after recording began — but 800ms after key-down.
+        // Released 100ms after recording began - but 800ms after key-down.
         assert!(state.on_input(input(mode, false), t0 + ms(1800)).is_none());
         assert!(
             matches!(state.on_grace_expired(), Some(Effect::Stop { .. })),
@@ -1406,7 +1457,7 @@ mod tests {
         ));
     }
 
-    /// Push-to-talk: even a very short press stops on release — there is no
+    /// Push-to-talk: even a very short press stops on release - there is no
     /// tap-to-lock in this mode (hold threshold of zero).
     #[test]
     fn push_to_talk_short_press_still_stops_on_release() {
@@ -1575,7 +1626,7 @@ mod tests {
     /// X11 auto-repeat while busy, key still held at the drain: recording
     /// starts measured from the first press, not from the last synthesized
     /// press before the drain. Released 400ms after the real key-down but
-    /// only ~100ms after the drain — a hold, so it must stop rather than lock.
+    /// only ~100ms after the drain - a hold, so it must stop rather than lock.
     #[test]
     fn hold_or_toggle_autorepeat_burst_straddling_drain_measures_from_first_press() {
         let mode = ShortcutActivation::HoldOrToggle;

@@ -129,7 +129,7 @@ Settings are stored using Tauri's store plugin with reactive updates:
 
 ### Single Instance Architecture
 
-The app enforces single instance behavior — launching when already running brings the settings window to front rather than creating a new process. Remote control flags (`--toggle-transcription`, etc.) work by launching a second instance that sends args to the running instance via `tauri_plugin_single_instance`, then exits.
+The app enforces single instance behavior - launching when already running brings the settings window to front rather than creating a new process. Remote control flags (`--toggle-transcription`, etc.) work by launching a second instance that sends args to the running instance via `tauri_plugin_single_instance`, then exits.
 
 ## Internationalization (i18n)
 
@@ -186,7 +186,7 @@ Handy supports command-line parameters on all platforms for integration with scr
 
 **Key design decisions:**
 
-- CLI flags are runtime-only overrides — they do NOT modify persisted settings
+- CLI flags are runtime-only overrides - they do NOT modify persisted settings
 - Remote control flags work via `tauri_plugin_single_instance`: second instance sends args, then exits
 - `send_transcription_input()` in `signal_handle.rs` is shared between signal handlers and CLI
 
@@ -207,11 +207,11 @@ See the [Troubleshooting](README.md#troubleshooting) section in README.md.
 
 ## GitHub workflow for AI coding assistants
 
-**MANDATORY. Before opening any PR, issue, or discussion in this repo: you MUST read the relevant template file and follow it strictly.** That includes sections that look "ceremonial" — checklists, AI Assistance disclosures, "Human Written Description". A generic Summary/Test-plan layout is not acceptable.
+**MANDATORY. Before opening any PR, issue, or discussion in this repo: you MUST read the relevant template file and follow it strictly.** That includes sections that look "ceremonial" - checklists, AI Assistance disclosures, "Human Written Description". A generic Summary/Test-plan layout is not acceptable.
 
-- **Opening a PR:** Read [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md). Every section listed there is mandatory. If a section requires a human-written paragraph (e.g. "Human Written Description"), leave a clear TODO placeholder and ask the human contributor to fill it in — do not invent their voice.
-- **Opening an issue:** Read [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/). Blank issues are disabled; pick the right template (`bug_report.md` for bugs). Feature requests do not belong in issues — they go to [Discussions](https://github.com/cjpais/Handy/discussions) (see `.github/ISSUE_TEMPLATE/config.yml`).
-- **Proposing a feature:** Handy is under a feature freeze. New features require community support gathered in [Discussions](https://github.com/cjpais/Handy/discussions) before any PR is opened — see the PR template's "Community Feedback" section.
+- **Opening a PR:** Read [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md). Every section listed there is mandatory. If a section requires a human-written paragraph (e.g. "Human Written Description"), leave a clear TODO placeholder and ask the human contributor to fill it in - do not invent their voice.
+- **Opening an issue:** Read [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/). Blank issues are disabled; pick the right template (`bug_report.md` for bugs). Feature requests do not belong in issues - they go to [Discussions](https://github.com/nexiouscaliver/voxbar/discussions) (see `.github/ISSUE_TEMPLATE/config.yml`).
+- **Proposing a feature:** Larger features require community support gathered in [Discussions](https://github.com/nexiouscaliver/voxbar/discussions) before any PR is opened - see the PR template's "Community Feedback" section.
 - **Translations:** Follow [CONTRIBUTING_TRANSLATIONS.md](CONTRIBUTING_TRANSLATIONS.md).
 - **Full contributor workflow:** [CONTRIBUTING.md](CONTRIBUTING.md).
 

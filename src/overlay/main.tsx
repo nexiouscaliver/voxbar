@@ -7,6 +7,11 @@ import {
   getStoredTheme,
   syncThemeFromSettings,
 } from "@/lib/utils/theme";
+import {
+  applyAccent,
+  getStoredAccent,
+  syncAccentFromSettings,
+} from "@/lib/utils/accent";
 import type { Theme } from "@/bindings";
 import "@/i18n";
 
@@ -17,6 +22,14 @@ import "@/i18n";
 applyTheme(getStoredTheme());
 syncThemeFromSettings();
 listen<Theme>("theme-changed", (event) => applyTheme(event.payload));
+
+// Accent boot/live-follow, mirroring the theme handling above: the swatch
+// palette override lands on this document too (shared localStorage avoids a
+// first-frame flash, the settings sync covers boot-order races, the event
+// follows live changes from the settings window).
+applyAccent(getStoredAccent());
+syncAccentFromSettings();
+listen<string>("accent-changed", (event) => applyAccent(event.payload));
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

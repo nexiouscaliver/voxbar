@@ -4,6 +4,10 @@
     "checkUpdates": "अपडेटहरू जाँच गर्नुहोस्...",
     "copyLastTranscript": "पछिल्लो ट्रान्सक्रिप्ट कपी गर्नुहोस्",
     "unloadModel": "मोडेल अनलोड गर्नुहोस्",
+    "unloadAfter": "अनलोड समय",
+    "unloadAfterImmediately": "तुरुन्तै",
+    "unloadAfterNever": "कहिल्यै होइन",
+    "unloadAfterCustom": "अनुकूल…",
     "model": "मोडेल",
     "quit": "बाहिर निस्कनुहोस्",
     "cancel": "रद्द गर्नुहोस्",
@@ -101,7 +105,7 @@
     },
     "permissions": {
       "title": "अनुमतिहरू आवश्यक छन्",
-      "description": "Handy लाई राम्रोसँग काम गर्न केही अनुमतिहरू चाहिन्छ।",
+      "description": "VoxBar लाई राम्रोसँग काम गर्न केही अनुमतिहरू चाहिन्छ।",
       "microphone": {
         "title": "माइक्रोफोन पहुँच",
         "description": "ट्रान्सक्रिप्सनका लागि तपाईंको आवाज सुन्न आवश्यक छ।"
@@ -161,7 +165,7 @@
     "general": {
       "title": "सामान्य",
       "shortcut": {
-        "title": "Handy सर्टकटहरू",
+        "title": "VoxBar सर्टकटहरू",
         "description": "स्पिच-टु-टेक्स्ट रेकर्डिङ सुरु गर्न किबोर्ड सर्टकटहरू सेट अप गर्नुहोस्",
         "loading": "सर्टकटहरू लोड गरिँदैछन्...",
         "none": "कुनै सर्टकट सेट गरिएको छैन",
@@ -179,13 +183,26 @@
           "transcribe_with_post_process": {
             "name": "पोस्ट-प्रोसेसिङ हटकी",
             "description": "वैकल्पिक: तपाईंको ट्रान्सक्रिप्सनमा सधैँ AI पोस्ट-प्रोसेसिङ लागू गर्ने छुट्टै हटकी।"
+          },
+          "delete_last_word": {
+            "name": "Delete Last Word",
+            "description": "Deletes the word before the caret in the focused app (Option+Backspace on macOS, Ctrl+Backspace elsewhere). Assign a key to enable it."
+          },
+          "undo": {
+            "name": "Undo",
+            "description": "Triggers undo in the focused app (Cmd+Z on macOS, Ctrl+Z elsewhere), reverting the last pasted dictation in one hit. Assign a key to enable it."
+          },
+          "transcribe_commands": {
+            "name": "Command Mode",
+            "description": "Records like dictation, but every word is treated as a command: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Unrecognized words are discarded, so nothing else is ever typed. Unbound by default."
           }
         },
         "errors": {
           "restore": "मूल सर्टकट पुनर्स्थापना गर्न सकिएन",
           "set": "सर्टकट सेट गर्न सकिएन: {{error}}",
           "reset": "सर्टकटलाई मूल मानमा रिसेट गर्न सकिएन"
-        }
+        },
+        "unbound": "Not bound"
       },
       "language": {
         "title": "भाषा",
@@ -207,6 +224,24 @@
           "push_to_talk": "सर्टकट थिचिराखेसम्म रेकर्ड गर्छ",
           "toggle": "रेकर्डिङ सुरु गर्न सर्टकट ट्याप गर्नुहोस्, रोक्न फेरि ट्याप गर्नुहोस्"
         }
+      },
+      "editingShortcuts": {
+        "title": "Editing Shortcuts",
+        "deleteLastWord": {
+          "title": "Delete Last Word Action",
+          "description": "Enable the assignable hotkey that deletes the word before the caret. The hotkey stays inactive until a key is assigned above."
+        },
+        "undo": {
+          "title": "Undo Action",
+          "description": "Enable the assignable hotkey that triggers undo in the focused app. The hotkey stays inactive until a key is assigned above."
+        }
+      },
+      "commandMode": {
+        "title": "Command Mode",
+        "toggle": {
+          "title": "Command Mode",
+          "description": "Enable the assignable command-mode recording trigger. While held it records like dictation; the transcript is executed as commands (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste) and unrecognized words are discarded."
+        }
       }
     },
     "models": {
@@ -225,9 +260,37 @@
       },
       "rescan": {
         "label": "फेरि स्क्यान गर्नुहोस्",
-        "tooltip": "Handy बाहिरबाट मोडेल फोल्डर वा Hugging Face क्यासमा थपिएका मोडेलहरू फेरि स्क्यान गर्नुहोस्"
+        "tooltip": "VoxBar बाहिरबाट मोडेल फोल्डर वा Hugging Face क्यासमा थपिएका मोडेलहरू फेरि स्क्यान गर्नुहोस्"
       },
-      "noModelsMatch": "यो फिल्टरसँग कुनै मोडेल मिल्दैन।"
+      "noModelsMatch": "यो फिल्टरसँग कुनै मोडेल मिल्दैन।",
+      "rescanModels": "Rescan models",
+      "addFromHf": {
+        "title": "Add model from Hugging Face",
+        "description": "Paste a public repo URL or owner/repo, for example https://huggingface.co/owner/repo.",
+        "placeholder": "https://huggingface.co/owner/repo or owner/repo",
+        "add": "Add",
+        "cancel": "Cancel",
+        "pickFile": "Choose a file from {{repo}}:",
+        "recommended": "Recommended",
+        "status": {
+          "resolving": "Resolving repository...",
+          "adding": "Downloading and checking the model...",
+          "added": "Model added. It appears under Downloaded Models."
+        },
+        "errors": {
+          "invalidInput": "Could not read that as a Hugging Face repo: {{detail}}",
+          "notFound": "Repository {{repo}} was not found on Hugging Face.",
+          "inaccessible": "{{repo}} could not be reached on Hugging Face. It may not exist, or it may be private or gated. Only public repositories are supported for now.",
+          "fileNotFound": "File {{filename}} was not found in {{repo}}.",
+          "noGguf": "{{repo}} contains no GGUF files.",
+          "network": "Could not reach Hugging Face: {{detail}}",
+          "downloadFailed": "Download failed: {{detail}}",
+          "cancelled": "Download cancelled.",
+          "unsupportedArch": "The model architecture {{arch}} is not supported. Supported: {{supported}}.",
+          "unsupportedArchUnknown": "That file could not be read as a GGUF model, so it was not added.",
+          "generic": "Something went wrong."
+        }
+      }
     },
     "sound": {
       "title": "साउन्ड",
@@ -291,18 +354,30 @@
         "label": "लुकेर सुरु गर्नुहोस्",
         "description": "विन्डो नखोली सिस्टम ट्रेमा सुरु गर्नुहोस्।"
       },
+      "memoryPressureGuard": {
+        "label": "मेमोरी प्रेसर गार्ड",
+        "description": "खाली मेमोरी अपुग भएमा मोडेल लोड गर्न अस्वीकार गर्छ। लोड अस्वीकृत भए पनि हालको मोडेल काम गरिरहन्छ।"
+      },
+      "autoFallback": {
+        "label": "RAM अटो-फलब्याक",
+        "description": "छानिएको मोडेल खाली मेमोरीमा नमाच्दा, मान्ने उत्कृष्ट डाउनलोड गरिएको मोडेल स्वतः लोड हुन्छ। सामान्य अस्वीकृति राख्न बन्द गर्नुहोस्।"
+      },
+      "menuBarModelTitle": {
+        "label": "मेनु-बार मोडेल शीर्षक",
+        "description": "निवासी मोडेल र यसको RAM प्रयोगलाई ट्रे आइकनको छेउमा पाठको रूपमा देखाउँछ (macOS मेनु बार)।"
+      },
       "autostart": {
         "label": "स्टार्टअपमा सुरु गर्नुहोस्",
-        "description": "कम्प्युटरमा लगइन गर्दा Handy स्वतः सुरु गर्नुहोस्।"
+        "description": "कम्प्युटरमा लगइन गर्दा VoxBar स्वतः सुरु गर्नुहोस्।"
       },
       "showTrayIcon": {
         "label": "ट्रे आइकन देखाउनुहोस्",
-        "description": "सिस्टम ट्रेमा Handy आइकन देखाउनुहोस्।"
+        "description": "सिस्टम ट्रेमा VoxBar आइकन देखाउनुहोस्।"
       },
       "overlay": {
         "style": {
           "title": "ओभरले",
-          "description": "रेकर्डिङ ओभरले छान्नुहोस्: 'कुनै होइन' ले लुकाउँछ, 'मिनिमल' ले सानो पिल देखाउँछ, 'लाइभ' ले बोल्दै गर्दा वास्तविक समयमा ट्रान्सक्रिप्सन देखाउँछ (स्ट्रिमिङ-सक्षम मोडेलहरूमा मात्र — मोडेल पिकरमा स्ट्रिमिङ ब्याज हेर्नुहोस्)। Linux मा 'कुनै होइन' सिफारिस गरिन्छ।",
+          "description": "रेकर्डिङ ओभरले छान्नुहोस्: 'कुनै होइन' ले लुकाउँछ, 'मिनिमल' ले सानो पिल देखाउँछ, 'लाइभ' ले बोल्दै गर्दा वास्तविक समयमा ट्रान्सक्रिप्सन देखाउँछ (स्ट्रिमिङ-सक्षम मोडेलहरूमा मात्र - मोडेल पिकरमा स्ट्रिमिङ ब्याज हेर्नुहोस्)। Linux मा 'कुनै होइन' सिफारिस गरिन्छ।",
           "options": {
             "none": "कुनै होइन",
             "minimal": "मिनिमल",
@@ -372,12 +447,15 @@
           "min10": "10 मिनेटपछि",
           "min15": "15 मिनेटपछि",
           "hour1": "1 घण्टापछि",
+          "custom": "अनुकूल",
           "sec15": "15 सेकेन्डपछि (डिबग)"
-        }
+        },
+        "customSecondsLabel": "अनुकूल सेकेन्ड",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "कस्टम शब्दहरू",
-        "description": "समर्थित मोडेलहरूलाई नाम र विशेष शब्दावली चिन्न मद्दत गर्नुहोस्। फजी सुधार हाल A–Z अक्षर र अङ्क प्रयोग भएका शब्दहरूमा मात्र सीमित छ।",
+        "description": "समर्थित मोडेलहरूलाई नाम र विशेष शब्दावली चिन्न मद्दत गर्नुहोस्। फजी सुधार हाल A-Z अक्षर र अङ्क प्रयोग भएका शब्दहरूमा मात्र सीमित छ।",
         "placeholder": "शब्द थप्नुहोस्",
         "add": "थप्नुहोस्",
         "remove": "{{word}} हटाउनुहोस्",
@@ -398,6 +476,22 @@
       "fillerWordRemoval": {
         "title": "फिलर शब्दहरू हटाउनुहोस्",
         "description": "ट्रान्सक्रिप्सनबाट सामान्य हिचकिचाहटका शब्दहरू हटाउँछ। तिनलाई राख्न यो विकल्प बन्द गर्नुहोस्।"
+      },
+      "spokenPunctuation": {
+        "title": "बोलिएको विराम चिन्ह",
+        "description": "\"comma\", \"period\" र \"question mark\" जस्तै बोलिएका विराम चिन्ह शब्दहरूलाई वास्तविक विराम चिन्हमा परिवर्तन गर्छ। सामान्य शब्दका रूपमा राख्न बन्ध गर्नुहोस्।"
+      },
+      "terminalPunctuation": {
+        "title": "अन्तिम विराम चिन्ह",
+        "description": "हरेक ट्रान्सक्रिप्टलाई विराम चिन्हले समाप्त गर्छ: प्रश्नका लागि प्रश्नवाचक चिन्ह, अन्यथा पूर्ण विराम चिन्ह। अन्त्यलाई ट्रान्सक्रिप्टअनुसार छोड्न बन्ध गर्नुहोस्।"
+      },
+      "voiceDeletion": {
+        "title": "आवाजद्वारा मेट्ने आदेश",
+        "description": "\"scratch that\", \"delete that\" र \"remove that\" अघिल्लो शब्द मेट्छन्, \"delete last three words\" कयौं शब्द मेट्छ, र \"delete everything\" वा \"start over\" सम्पूर्ण डिक्टेसन खाली गर्छ। सामान्य शब्दका रूपमा राख्न बन्ध गर्नुहोस्।"
+      },
+      "previewBeforePaste": {
+        "title": "टाँस्नु अघि पूर्वावलोकन",
+        "description": "टाँस्नु अघि पूरा ट्रान्सक्रिप्टलाई रेकर्डिङ ओभरलेमा छोटो समय देखाउँछ। तुरुन्त टाँस्न बन्द गर्नुहोस्।"
       },
       "chineseScript": {
         "title": "चिनियाँ लिपि",
@@ -477,7 +571,12 @@
       "retranscribe": "फेरि ट्रान्सक्राइब गर्नुहोस्",
       "retranscribeError": "फेरि ट्रान्सक्राइब गर्न सकिएन। कृपया फेरि प्रयास गर्नुहोस्।",
       "transcribing": "ट्रान्सक्राइब गरिँदैछ...",
-      "transcriptionFailed": "ट्रान्सक्रिप्सन गर्न सकिएन। रिट्राई आइकन प्रयोग गरेर फेरि ट्रान्सक्राइब गर्न सक्नुहुन्छ।"
+      "transcriptionFailed": "ट्रान्सक्रिप्सन गर्न सकिएन। रिट्राई आइकन प्रयोग गरेर फेरि ट्रान्सक्राइब गर्न सक्नुहुन्छ।",
+      "model": "ट्रान्सक्रिप्सन मोडेल",
+      "showModel": {
+        "label": "मोडेल ब्याज देखाउनुहोस्",
+        "description": "प्रत्येक ट्रान्स्क्रिप्सन बनाउने मोडेलसहित कॉम्प्याक्ट ब्याज देखाउँछ।"
+      }
     },
     "debug": {
       "title": "डिबग",
@@ -502,7 +601,7 @@
       },
       "updateChecks": {
         "label": "अपडेटहरू जाँच गर्नुहोस्",
-        "description": "Handy को नयाँ संस्करण स्वतः जाँच गर्नुहोस्",
+        "description": "ट्रे मेनु र फुटरमा \"अपडेटहरू जाँच गर्नुहोस्\" विकल्प देखाउनुहोस्",
         "lockedDescription": "प्रणाली कन्फिगरेसनद्वारा असक्षम पारिएको (HANDY_DISABLE_UPDATER)"
       },
       "whatsNewPreview": {
@@ -594,7 +693,7 @@
       },
       "keyboardDiagnostic": {
         "title": "किबोर्ड डायग्नोस्टिक",
-        "description": "किबोर्ड इभेन्टहरू Handy सम्म पुग्छन् कि पुग्दैनन् भनी जाँच्छ। इभेन्टको संख्या मात्र रेकर्ड हुन्छ — तपाईंले कुन कुञ्जी थिच्नुभयो भन्ने कहिल्यै होइन।",
+        "description": "किबोर्ड इभेन्टहरू VoxBar सम्म पुग्छन् कि पुग्दैनन् भनी जाँच्छ। इभेन्टको संख्या मात्र रेकर्ड हुन्छ - तपाईंले कुन कुञ्जी थिच्नुभयो भन्ने कहिल्यै होइन।",
         "run": "१० सेकेन्डको डायग्नोस्टिक चलाउनुहोस्",
         "running": "सुनिरहेको छ… आफ्नो सर्टकट केही पटक थिच्नुहोस् (जस्तै Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -606,10 +705,10 @@
         "keyUp": "कुञ्जी छाडिएको",
         "flagsChanged": "मोडिफायर",
         "mouse": "माउस",
-        "verdictBlocked": "Secure Input ले कुञ्जी इभेन्टहरू रोकिरहेको छ — यो समाधान नभएसम्म सामान्य कुञ्जी भएका सर्टकटहरूले काम गर्न सक्दैनन्।",
-        "verdictSuspicious": "मोडिफायर इभेन्टहरू आए तर कुञ्जी इभेन्ट आएनन् — Secure Input अक्षम देखिए पनि केहीले कुञ्जीहरू दबाइरहेको छ। कृपया यसको रिपोर्ट GitHub मा गर्नुहोस्।",
-        "verdictOk": "कुञ्जी इभेन्टहरू Handy सम्म सामान्य रूपमा पुगिरहेका छन्।",
-        "verdictNoEvents": "कुनै इभेन्ट कैद भएन — के तपाईंले परीक्षणको क्रममा कुनै कुञ्जी थिच्नुभयो?",
+        "verdictBlocked": "Secure Input ले कुञ्जी इभेन्टहरू रोकिरहेको छ - यो समाधान नभएसम्म सामान्य कुञ्जी भएका सर्टकटहरूले काम गर्न सक्दैनन्।",
+        "verdictSuspicious": "मोडिफायर इभेन्टहरू आए तर कुञ्जी इभेन्ट आएनन् - Secure Input अक्षम देखिए पनि केहीले कुञ्जीहरू दबाइरहेको छ। कृपया यसको रिपोर्ट GitHub मा गर्नुहोस्।",
+        "verdictOk": "कुञ्जी इभेन्टहरू VoxBar सम्म सामान्य रूपमा पुगिरहेका छन्।",
+        "verdictNoEvents": "कुनै इभेन्ट कैद भएन - के तपाईंले परीक्षणको क्रममा कुनै कुञ्जी थिच्नुभयो?",
         "failed": "डायग्नोस्टिक असफल: {{error}}"
       }
     },
@@ -617,15 +716,15 @@
       "title": "बारेमा",
       "version": {
         "title": "संस्करण",
-        "description": "Handy को हालको संस्करण"
+        "description": "VoxBar को हालको संस्करण"
       },
       "whatsNewUpdates": {
         "label": "नयाँ के छ देखाउनुहोस्",
-        "description": "Handy अपडेट भएपछि रिलिज नोटहरू देखाउनुहोस्"
+        "description": "VoxBar अपडेट भएपछि रिलिज नोटहरू देखाउनुहोस्"
       },
       "appDataDirectory": {
         "title": "एप डेटा डाइरेक्टरी",
-        "description": "Handy ले आफ्नो डेटा भण्डारण गर्ने स्थान"
+        "description": "VoxBar ले आफ्नो डेटा भण्डारण गर्ने स्थान"
       },
       "sourceCode": {
         "title": "स्रोत कोड",
@@ -634,7 +733,7 @@
       },
       "supportDevelopment": {
         "title": "विकासलाई सहयोग गर्नुहोस्",
-        "description": "Handy निर्माण जारी राख्न हामीलाई सहयोग गर्नुहोस्",
+        "description": "VoxBar निर्माण जारी राख्न हामीलाई सहयोग गर्नुहोस्",
         "button": "दान गर्नुहोस्"
       },
       "acknowledgments": {
@@ -642,7 +741,7 @@
         "ggml": {
           "title": "ggml",
           "description": "अन-डिभाइस मेसिन लर्निङ अनुमानका लागि उच्च-प्रदर्शन टेन्सर लाइब्रेरी",
-          "details": "Handy को स्थानीय स्पिच-टु-टेक्स्ट transcribe.cpp र ggml मा आधारित छ। Georgi Gerganov र योगदानकर्ताहरूको उत्कृष्ट कामका लागि धन्यवाद।"
+          "details": "VoxBar को स्थानीय स्पिच-टु-टेक्स्ट transcribe.cpp र ggml मा आधारित छ। Georgi Gerganov र योगदानकर्ताहरूको उत्कृष्ट कामका लागि धन्यवाद।"
         }
       }
     }
@@ -657,13 +756,13 @@
     "preparing": "तयारी गरिँदैछ...",
     "checkForUpdates": "अपडेटहरू जाँच गर्नुहोस्",
     "portableUpdateTitle": "म्यानुअल अपडेट आवश्यक",
-    "portableUpdateMessage": "पोर्टेबल इन्स्टलहरू स्वतः अपडेट गर्न सकिँदैन। तलबाट आफ्नो प्रणालीका लागि इन्स्टलर डाउनलोड गर्नुहोस्, चलाउनुहोस् र उही फोल्डरमा इन्स्टल गर्नुहोस् — तपाईंको Data/ फोल्डर (सेटिङ, मोडेल, रेकर्डिङ) जस्ताको तस्तै रहन्छ।",
+    "portableUpdateMessage": "पोर्टेबल इन्स्टलहरू स्वतः अपडेट गर्न सकिँदैन। तलबाट आफ्नो प्रणालीका लागि इन्स्टलर डाउनलोड गर्नुहोस्, चलाउनुहोस् र उही फोल्डरमा इन्स्टल गर्नुहोस् - तपाईंको Data/ फोल्डर (सेटिङ, मोडेल, रेकर्डिङ) जस्ताको तस्तै रहन्छ।",
     "portableUpdateButton": "इन्स्टलर डाउनलोड गर्नुहोस्",
-    "portableUpdateBrowseMessage": "पोर्टेबल इन्स्टलहरू स्वतः अपडेट गर्न सकिँदैन। GitHub Releases बाट आफ्नो प्रणालीका लागि पछिल्लो संस्करण डाउनलोड गर्नुहोस् र उही फोल्डरमा इन्स्टल गर्नुहोस् — तपाईंको Data/ फोल्डर (सेटिङ, मोडेल, रेकर्डिङ) जस्ताको तस्तै रहन्छ।",
+    "portableUpdateBrowseMessage": "पोर्टेबल इन्स्टलहरू स्वतः अपडेट गर्न सकिँदैन। GitHub Releases बाट आफ्नो प्रणालीका लागि पछिल्लो संस्करण डाउनलोड गर्नुहोस् र उही फोल्डरमा इन्स्टल गर्नुहोस् - तपाईंको Data/ फोल्डर (सेटिङ, मोडेल, रेकर्डिङ) जस्ताको तस्तै रहन्छ।",
     "portableUpdateBrowseButton": "GitHub Releases खोल्नुहोस्"
   },
   "whatsNew": {
-    "title": "Handy v{{version}} मा नयाँ"
+    "title": "VoxBar v{{version}} मा नयाँ"
   },
   "common": {
     "loading": "लोड गरिँदैछ...",
@@ -675,7 +774,7 @@
     "noOptionsFound": "कुनै विकल्प भेटिएन"
   },
   "accessibility": {
-    "permissionsDescription": "ट्रान्सक्राइब गरिएको टेक्स्ट टाइप गर्न Handy लाई एक्सेसिबिलिटी अनुमति चाहिन्छ।",
+    "permissionsDescription": "ट्रान्सक्राइब गरिएको टेक्स्ट टाइप गर्न VoxBar लाई एक्सेसिबिलिटी अनुमति चाहिन्छ।",
     "openSettings": "सिस्टम सेटिङहरू खोल्नुहोस्"
   },
   "errors": {
@@ -692,21 +791,43 @@
     "recordingFailed": "रेकर्डिङ सुरु गर्न सकिएन: {{error}}",
     "modelLoadFailed": "मोडेल लोड गर्न सकिएन: {{model}}",
     "modelLoadFailedUnknown": "अज्ञात मोडेल",
+    "modelFallbackTitle": "कम मेमोरी",
+    "modelFallback": "यो डिक्टेसनका लागि {{model}} मा स्विच गरियो",
     "pasteFailedTitle": "टेक्स्ट पेस्ट गर्न सकिएन",
     "pasteFailed": "सक्रिय एपमा टेक्स्ट पेस्ट गर्न सकिएन।",
     "transcriptionFailedTitle": "ट्रान्सक्रिप्सन गर्न सकिएन"
   },
   "appLanguage": {
     "title": "एपको भाषा",
-    "description": "Handy इन्टरफेसको भाषा परिवर्तन गर्नुहोस्"
+    "description": "VoxBar इन्टरफेसको भाषा परिवर्तन गर्नुहोस्"
   },
   "theme": {
     "title": "अनुप्रयोगको थिम",
-    "description": "Handy ले तपाईंको सिस्टम थिम अनुसरण गर्ने वा उज्यालो वा अँध्यारो रहने छान्नुहोस्",
+    "description": "VoxBar ले तपाईंको सिस्टम थिम अनुसरण गर्ने वा उज्यालो वा अँध्यारो रहने छान्नुहोस्",
     "options": {
       "system": "सिस्टम",
       "light": "उज्यालो",
       "dark": "अँध्यारो"
+    },
+    "accentColor": {
+      "label": "एक्सेन्ट रङ",
+      "description": "हाइलाइट, टगल र नियन्त्रणहरूमा प्रयोग हुने रङ छान्नुहोस्"
+    },
+    "accentColors": {
+      "black": "कालो",
+      "gray": "खैरो",
+      "white": "सेतो",
+      "red": "रातो",
+      "orange": "सुन्तला",
+      "amber": "एम्बर",
+      "green": "हरियो",
+      "teal": "टिल",
+      "cyan": "सायन",
+      "blue": "नीलो",
+      "indigo": "ईन्डिगो",
+      "violet": "बैजनी",
+      "magenta": "मजेन्टा",
+      "pink": "गुलाबी"
     }
   },
   "overlay": {
@@ -721,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} ले सर्टकट परिवर्तन रोकिरहेको हुन सक्छ",
     "recorderBlockedNoCulprit": "macOS ले अस्थायी रूपमा सर्टकट परिवर्तन रोकिरहेको छ",
     "learnMore": "यसलाई कसरी ठिक गर्ने",
-    "recorderBlocked": "अहिले सर्टकट रेकर्ड गर्न सकिँदैन — macOS Secure Input ले कुञ्जी इभेन्टहरू रोकिरहेको छ। पहिले Secure Input चेतावनी समाधान गर्नुहोस्।",
+    "recorderBlocked": "अहिले सर्टकट रेकर्ड गर्न सकिँदैन - macOS Secure Input ले कुञ्जी इभेन्टहरू रोकिरहेको छ। पहिले Secure Input चेतावनी समाधान गर्नुहोस्।",
     "dismiss": "हटाउनुहोस्"
   }
 }

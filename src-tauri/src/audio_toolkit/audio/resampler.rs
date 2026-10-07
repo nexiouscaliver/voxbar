@@ -187,7 +187,7 @@ mod tests {
 
         r.reset();
 
-        // Now push silence — should get only silence out, no remnants of 0.5
+        // Now push silence - should get only silence out, no remnants of 0.5
         let silence = vec![0.0f32; 4096];
         let out = collect_output(&mut r, &silence);
 
@@ -335,7 +335,7 @@ mod tests {
         rs.push(&[0.5f32; 100], |_| {});
         rs.finish(|_| {});
 
-        // One fresh chunk yields ~341 output samples — below one frame, so
+        // One fresh chunk yields ~341 output samples - below one frame, so
         // nothing should be emitted yet. If finish() left its padded tail in
         // in_buf, that tail is re-processed first, the output crosses the
         // 480-sample frame boundary, and a stale frame is emitted here.

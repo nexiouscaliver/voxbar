@@ -4,6 +4,10 @@
     "checkUpdates": "检查更新...",
     "copyLastTranscript": "复制最新转录",
     "unloadModel": "卸载模型",
+    "unloadAfter": "卸载时间",
+    "unloadAfterImmediately": "立即",
+    "unloadAfterNever": "从不",
+    "unloadAfterCustom": "自定义…",
     "model": "模型",
     "quit": "退出",
     "cancel": "取消",
@@ -101,7 +105,7 @@
     },
     "permissions": {
       "title": "需要权限",
-      "description": "Handy 需要一些权限才能正常工作。",
+      "description": "VoxBar 需要一些权限才能正常工作。",
       "microphone": {
         "title": "麦克风访问",
         "description": "需要听取您的语音进行转录。"
@@ -175,13 +179,41 @@
       "searchPlaceholder": "按名称搜索模型…",
       "rescan": {
         "label": "重新扫描",
-        "tooltip": "重新扫描在 Handy 之外添加到模型文件夹或 Hugging Face 缓存中的模型"
+        "tooltip": "重新扫描在 VoxBar 之外添加到模型文件夹或 Hugging Face 缓存中的模型"
+      },
+      "rescanModels": "重新扫描模型",
+      "addFromHf": {
+        "title": "从 Hugging Face 添加模型",
+        "description": "粘贴公开仓库链接或 owner/repo，例如 https://huggingface.co/owner/model。",
+        "placeholder": "https://huggingface.co/owner/repo 或 owner/repo",
+        "add": "添加",
+        "cancel": "取消",
+        "pickFile": "从 {{repo}} 中选择一个文件:",
+        "recommended": "推荐",
+        "status": {
+          "resolving": "正在解析仓库...",
+          "adding": "正在下载并检查模型...",
+          "added": "模型已添加，会显示在已下载模型中。"
+        },
+        "errors": {
+          "invalidInput": "无法将其识别为 Hugging Face 仓库: {{detail}}",
+          "notFound": "在 Hugging Face 上找不到仓库 {{repo}}。",
+          "inaccessible": "无法访问 Hugging Face 上的 {{repo}}。它可能不存在，或者是私有或受限仓库。目前仅支持公开仓库。",
+          "fileNotFound": "在 {{repo}} 中找不到文件 {{filename}}。",
+          "noGguf": "{{repo}} 不包含任何 GGUF 文件。",
+          "network": "无法连接 Hugging Face: {{detail}}",
+          "downloadFailed": "下载失败: {{detail}}",
+          "cancelled": "下载已取消。",
+          "unsupportedArch": "不支持模型架构 {{arch}}。支持的架构: {{supported}}。",
+          "unsupportedArchUnknown": "该文件无法作为 GGUF 模型读取，因此未被添加。",
+          "generic": "出现问题。"
+        }
       }
     },
     "general": {
       "title": "通用",
       "shortcut": {
-        "title": "Handy 快捷键",
+        "title": "VoxBar 快捷键",
         "description": "配置启动语音转文字录制的键盘快捷键",
         "loading": "加载快捷键中...",
         "none": "未配置快捷键",
@@ -199,13 +231,26 @@
           "transcribe_with_post_process": {
             "name": "后处理快捷键",
             "description": "可选：一个专用快捷键，始终对您的转录应用 AI 后处理。"
+          },
+          "delete_last_word": {
+            "name": "删除上一个词",
+            "description": "在当前聚焦的应用中删除光标前的一个词 (macOS 为 Option+Backspace，其他平台为 Ctrl+Backspace)。分配按键后才会启用。"
+          },
+          "undo": {
+            "name": "撤销",
+            "description": "在当前聚焦的应用中触发撤销 (macOS 为 Cmd+Z，其他平台为 Ctrl+Z)，一次性撤销上一次粘贴的听写内容。分配按键后才会启用。"
+          },
+          "transcribe_commands": {
+            "name": "命令模式",
+            "description": "像听写一样录音，但每个词都作为命令处理：question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste。无法识别的词会被丢弃，因此绝不会输入其他内容。默认不绑定按键。"
           }
         },
         "errors": {
           "restore": "无法恢复原始快捷键",
           "set": "无法设置快捷键: {{error}}",
           "reset": "无法将快捷键重置为原始值"
-        }
+        },
+        "unbound": "未绑定"
       },
       "language": {
         "title": "语言",
@@ -226,6 +271,24 @@
           "hold_or_toggle": "按住录音，或轻按切换",
           "push_to_talk": "按住快捷键期间录音",
           "toggle": "轻按快捷键开始录音，再次轻按停止"
+        }
+      },
+      "editingShortcuts": {
+        "title": "编辑快捷键",
+        "deleteLastWord": {
+          "title": "操作：删除上一个词",
+          "description": "启用可自定义的快捷键来删除光标前的一个词。在上方分配按键之前该快捷键保持停用。"
+        },
+        "undo": {
+          "title": "操作：撤销",
+          "description": "启用可自定义的快捷键来在聚焦应用中触发撤销。在上方分配按键之前该快捷键保持停用。"
+        }
+      },
+      "commandMode": {
+        "title": "命令模式",
+        "toggle": {
+          "title": "命令模式",
+          "description": "启用可自定义的命令模式录音触发键。按住时像听写一样录音；转录内容会作为命令执行 (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste)，无法识别的词会被丢弃。"
         }
       }
     },
@@ -291,18 +354,30 @@
         "label": "隐藏启动",
         "description": "启动到系统托盘而不打开窗口。"
       },
+      "memoryPressureGuard": {
+        "label": "内存压力防护",
+        "description": "当可用内存不足以容纳模型时拒绝加载。拒绝加载时当前模型继续工作。"
+      },
+      "autoFallback": {
+        "label": "内存自动降级",
+        "description": "当所选模型无法放入可用内存时，自动加载最合适的已下载模型。关闭则以直接拒绝为准。"
+      },
+      "menuBarModelTitle": {
+        "label": "菜单栏模型标题",
+        "description": "在托盘图标旁以文字显示常驻模型及其内存占用（macOS 菜单栏）。"
+      },
       "autostart": {
         "label": "开机启动",
-        "description": "登录计算机时自动启动 Handy。"
+        "description": "登录计算机时自动启动 VoxBar。"
       },
       "showTrayIcon": {
         "label": "显示托盘图标",
-        "description": "在系统托盘中显示 Handy 图标。"
+        "description": "在系统托盘中显示 VoxBar 图标。"
       },
       "overlay": {
         "style": {
           "title": "悬浮窗",
-          "description": "选择录音悬浮窗的样式：「无」会隐藏悬浮窗，「精简」显示小巧的胶囊状指示，「实时」在您说话时实时显示转录内容（仅限支持流式的模型——请在模型选择器中查找「流式」标签）。在 Linux 上建议选择「无」。",
+          "description": "选择录音悬浮窗的样式：「无」会隐藏悬浮窗，「精简」显示小巧的胶囊状指示，「实时」在您说话时实时显示转录内容（仅限支持流式的模型-请在模型选择器中查找「流式」标签）。在 Linux 上建议选择「无」。",
           "options": {
             "none": "无",
             "minimal": "精简",
@@ -372,12 +447,15 @@
           "min10": "10 分钟后",
           "min15": "15 分钟后",
           "hour1": "1 小时后",
+          "custom": "自定义",
           "sec15": "15 秒后（调试）"
-        }
+        },
+        "customSecondsLabel": "自定义秒数",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "自定义词汇",
-        "description": "帮助受支持的模型识别名称和专业术语。目前，模糊纠错仅适用于使用 A–Z 字母和数字的词语。",
+        "description": "帮助受支持的模型识别名称和专业术语。目前，模糊纠错仅适用于使用 A-Z 字母和数字的词语。",
         "placeholder": "添加词汇",
         "add": "添加",
         "remove": "删除 {{word}}",
@@ -398,6 +476,22 @@
       "fillerWordRemoval": {
         "title": "移除语气词",
         "description": "从转录中移除常见的语气词。关闭此选项即可保留这些词。"
+      },
+      "spokenPunctuation": {
+        "title": "语音标点",
+        "description": "将 \"comma\"、\"period\"、\"question mark\" 等口述的标点词转换为真实标点。关闭后保留为普通文字。"
+      },
+      "terminalPunctuation": {
+        "title": "句末标点",
+        "description": "为每段转写文字补上结尾标点：疑问句用问号，其他用句号。关闭后按原样保留。"
+      },
+      "voiceDeletion": {
+        "title": "语音删除命令",
+        "description": "\"scratch that\"、\"delete that\"、\"remove that\" 删除上一个词，\"delete last three words\" 删除多个词，\"delete everything\" 或 \"start over\" 清空整段听写。关闭后保留为普通文字。"
+      },
+      "previewBeforePaste": {
+        "title": "粘贴前预览",
+        "description": "粘贴前在录制悬浮窗中短暂显示完成的转写文本。关闭后立即粘贴。"
       },
       "chineseScript": {
         "title": "简繁转换",
@@ -477,7 +571,12 @@
       "retranscribe": "重新转录",
       "retranscribeError": "重新转录失败。请重试。",
       "transcribing": "转录中...",
-      "transcriptionFailed": "转录失败。您可以使用重试图标重新转录。"
+      "transcriptionFailed": "转录失败。您可以使用重试图标重新转录。",
+      "model": "转写模型",
+      "showModel": {
+        "label": "显示模型徽章",
+        "description": "为每条听写显示生成它的模型的紧凑徽章。"
+      }
     },
     "debug": {
       "title": "调试",
@@ -502,7 +601,7 @@
       },
       "updateChecks": {
         "label": "检查更新",
-        "description": "自动检查 Handy 的新版本",
+        "description": "在托盘菜单和页脚中显示“检查更新”选项",
         "lockedDescription": "已被系统配置禁用 (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {
@@ -580,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "键盘诊断",
-        "description": "检查键盘事件是否能到达 Handy。仅记录事件数量，绝不记录您按了哪些键。",
+        "description": "检查键盘事件是否能到达 VoxBar。仅记录事件数量，绝不记录您按了哪些键。",
         "run": "运行 10 秒诊断",
         "running": "正在监听… 请按几次您的快捷键（例如 Option+Space）",
         "secureInputLabel": "Secure Input",
@@ -592,10 +691,10 @@
         "keyUp": "按键释放",
         "flagsChanged": "修饰键",
         "mouse": "鼠标",
-        "verdictBlocked": "Secure Input 正在阻止按键事件——在问题解决前，包含普通按键的快捷键无法工作。",
-        "verdictSuspicious": "收到了修饰键事件，但没有按键事件——尽管 Secure Input 报告为已禁用，仍有程序在抑制按键。请在 GitHub 上反馈此问题。",
-        "verdictOk": "按键事件正常到达 Handy。",
-        "verdictNoEvents": "未捕获到任何事件——测试期间您按过键吗？",
+        "verdictBlocked": "Secure Input 正在阻止按键事件-在问题解决前，包含普通按键的快捷键无法工作。",
+        "verdictSuspicious": "收到了修饰键事件，但没有按键事件-尽管 Secure Input 报告为已禁用，仍有程序在抑制按键。请在 GitHub 上反馈此问题。",
+        "verdictOk": "按键事件正常到达 VoxBar。",
+        "verdictNoEvents": "未捕获到任何事件-测试期间您按过键吗？",
         "failed": "诊断失败：{{error}}"
       },
       "whatsNewPreview": {
@@ -617,11 +716,11 @@
       "title": "关于",
       "version": {
         "title": "版本",
-        "description": "Handy 的当前版本"
+        "description": "VoxBar 的当前版本"
       },
       "appDataDirectory": {
         "title": "应用数据目录",
-        "description": "Handy 存储数据的位置"
+        "description": "VoxBar 存储数据的位置"
       },
       "sourceCode": {
         "title": "源代码",
@@ -630,7 +729,7 @@
       },
       "supportDevelopment": {
         "title": "支持开发",
-        "description": "帮助我们继续开发 Handy",
+        "description": "帮助我们继续开发 VoxBar",
         "button": "捐赠"
       },
       "acknowledgments": {
@@ -638,12 +737,12 @@
         "ggml": {
           "title": "ggml",
           "description": "OpenAI Whisper 自动语音识别模型的高性能推理",
-          "details": "Handy 使用 ggml 进行快速的本地语音转文字处理。感谢 Georgi Gerganov 和贡献者们的出色工作。"
+          "details": "VoxBar 使用 ggml 进行快速的本地语音转文字处理。感谢 Georgi Gerganov 和贡献者们的出色工作。"
         }
       },
       "whatsNewUpdates": {
         "label": "显示新功能",
-        "description": "Handy 更新后显示发行说明"
+        "description": "VoxBar 更新后显示发行说明"
       }
     }
   },
@@ -672,7 +771,7 @@
     "noOptionsFound": "未找到选项"
   },
   "accessibility": {
-    "permissionsDescription": "Handy 需要辅助功能权限才能输入转录的文字。",
+    "permissionsDescription": "VoxBar 需要辅助功能权限才能输入转录的文字。",
     "openSettings": "打开系统设置"
   },
   "errors": {
@@ -689,21 +788,43 @@
     "recordingFailed": "录音启动失败: {{error}}",
     "modelLoadFailed": "加载模型失败: {{model}}",
     "modelLoadFailedUnknown": "未知模型",
+    "modelFallbackTitle": "内存不足",
+    "modelFallback": "本次听写已切换到 {{model}}",
     "pasteFailedTitle": "粘贴文本失败",
     "pasteFailed": "无法将文本粘贴到当前活动的应用程序中。",
     "transcriptionFailedTitle": "转录失败"
   },
   "appLanguage": {
     "title": "应用语言",
-    "description": "更改 Handy 界面的语言"
+    "description": "更改 VoxBar 界面的语言"
   },
   "theme": {
     "title": "应用主题",
-    "description": "选择 Handy 跟随系统主题，还是保持浅色或深色",
+    "description": "选择 VoxBar 跟随系统主题，还是保持浅色或深色",
     "options": {
       "system": "跟随系统",
       "light": "浅色",
       "dark": "深色"
+    },
+    "accentColor": {
+      "label": "强调色",
+      "description": "选择用于高亮显示、开关和控件的颜色"
+    },
+    "accentColors": {
+      "black": "黑色",
+      "gray": "灰色",
+      "white": "白色",
+      "red": "红色",
+      "orange": "橙色",
+      "amber": "琥珀色",
+      "green": "绿色",
+      "teal": "蓝绿色",
+      "cyan": "青色",
+      "blue": "蓝色",
+      "indigo": "靛蓝色",
+      "violet": "紫色",
+      "magenta": "品红色",
+      "pink": "粉红色"
     }
   },
   "overlay": {
@@ -711,7 +832,7 @@
     "processing": "处理中..."
   },
   "whatsNew": {
-    "title": "Handy v{{version}} 新功能"
+    "title": "VoxBar v{{version}} 新功能"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} 可能正在阻止 1 个快捷键",
@@ -721,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} 可能正在阻止快捷键更改",
     "recorderBlockedNoCulprit": "macOS 正在暂时阻止快捷键更改",
     "learnMore": "如何解决",
-    "recorderBlocked": "当前无法录制快捷键——macOS 的 Secure Input 正在阻止按键事件。请先解决 Secure Input 警告。",
+    "recorderBlocked": "当前无法录制快捷键-macOS 的 Secure Input 正在阻止按键事件。请先解决 Secure Input 警告。",
     "dismiss": "关闭"
   }
 }

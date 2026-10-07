@@ -1,5 +1,5 @@
 {
-  description = "Handy - A free, open source, and extensible speech-to-text application that works completely offline";
+  description = "VoxBar - A free, open source, and extensible speech-to-text application that works completely offline";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -86,8 +86,8 @@
           };
         in
         {
-          handy = pkgs.rustPlatform.buildRustPackage {
-            pname = "handy";
+          voxbar = pkgs.rustPlatform.buildRustPackage {
+            pname = "voxbar";
             inherit version;
             src = self;
 
@@ -109,7 +109,7 @@
                 src-tauri/tauri.conf.json > $TMPDIR/tauri.conf.json
               cp $TMPDIR/tauri.conf.json src-tauri/tauri.conf.json
 
-              # Strip postinstall hook — it runs check-nix-deps.ts which is only
+              # Strip postinstall hook - it runs check-nix-deps.ts which is only
               # needed during local development, not inside the Nix sandbox.
               ${pkgs.jq}/bin/jq 'del(.scripts.postinstall)' \
                 package.json > $TMPDIR/package.json
@@ -143,7 +143,7 @@
               pkg-config
               wrapGAppsHook4
               bun
-              # pkgs.bun2nix (from overlay), not the flake input — `with pkgs;`
+              # pkgs.bun2nix (from overlay), not the flake input - `with pkgs;`
               # doesn't shadow function arguments in Nix.
               pkgs.bun2nix.hook # Sets up node_modules from pre-fetched bun cache
               jq
@@ -178,14 +178,14 @@
 
             meta = {
               description = "A free, open source, and extensible speech-to-text application that works completely offline";
-              homepage = "https://github.com/cjpais/Handy";
+              homepage = "https://github.com/nexiouscaliver/voxbar";
               license = lib.licenses.mit;
-              mainProgram = "handy";
+              mainProgram = "voxbar";
               platforms = supportedSystems;
             };
           };
 
-          default = self.packages.${system}.handy;
+          default = self.packages.${system}.voxbar;
         }
       );
 
@@ -194,7 +194,7 @@
         { lib, pkgs, ... }:
         {
           imports = [ ./nix/module.nix ];
-          programs.handy.package = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.handy;
+          programs.voxbar.package = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.voxbar;
         };
 
       # Home-manager module for per-user service
@@ -202,7 +202,7 @@
         { lib, pkgs, ... }:
         {
           imports = [ ./nix/hm-module.nix ];
-          services.handy.package = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.handy;
+          services.voxbar.package = lib.mkDefault self.packages.${pkgs.stdenv.hostPlatform.system}.voxbar;
         };
 
       # Development shell for building from source
@@ -242,7 +242,7 @@
             XDG_DATA_DIRS = "${pkgs.gsettings-desktop-schemas}/share/gsettings-schemas/${pkgs.gsettings-desktop-schemas.name}:${pkgs.gtk3}/share/gsettings-schemas/${pkgs.gtk3.name}:${pkgs.hicolor-icon-theme}/share";
 
             shellHook = ''
-              echo "Handy development environment"
+              echo "VoxBar development environment"
               bun install
               echo "Run 'bun run tauri dev' to start"
             '';

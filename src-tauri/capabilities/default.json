@@ -7,8 +7,6 @@
     "core:default",
     "opener:default",
     "store:default",
-    "updater:default",
-    "process:default",
     "dialog:default",
     "global-shortcut:allow-is-registered",
     "global-shortcut:allow-register",

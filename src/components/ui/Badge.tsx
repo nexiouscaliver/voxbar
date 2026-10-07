@@ -12,7 +12,10 @@ const Badge: React.FC<BadgeProps> = ({
   className = "",
 }) => {
   const variantClasses = {
-    primary: "bg-logo-primary",
+    // text-accent-on keeps labels legible on light accent fills (white /
+    // light-gray renders of the monochrome accents); for the default pink it
+    // resolves to the theme text color, matching the previous look.
+    primary: "bg-logo-primary text-accent-on",
     success: "bg-green-500/20 text-green-400",
     secondary: "bg-mid-gray/20 text-text/70",
   };

@@ -4,6 +4,10 @@
     "checkUpdates": "Zkontrolovat aktualizace...",
     "copyLastTranscript": "Zkopírovat poslední přepis",
     "unloadModel": "Uvolnit model",
+    "unloadAfter": "Uvolnit po",
+    "unloadAfterImmediately": "Okamžitě",
+    "unloadAfterNever": "Nikdy",
+    "unloadAfterCustom": "Vlastní…",
     "model": "Model",
     "quit": "Ukončit",
     "cancel": "Zrušit",
@@ -101,7 +105,7 @@
     },
     "permissions": {
       "title": "Vyžadována oprávnění",
-      "description": "Handy potřebuje několik oprávnění pro správné fungování.",
+      "description": "VoxBar potřebuje několik oprávnění pro správné fungování.",
       "microphone": {
         "title": "Přístup k mikrofonu",
         "description": "Potřebný pro zachycení vašeho hlasu k přepisu."
@@ -175,13 +179,41 @@
       "searchPlaceholder": "Hledat modely podle názvu…",
       "rescan": {
         "label": "Znovu prohledat",
-        "tooltip": "Znovu prohledat modely přidané do složky modelů nebo mezipaměti Hugging Face mimo Handy"
+        "tooltip": "Znovu prohledat modely přidané do složky modelů nebo mezipaměti Hugging Face mimo VoxBar"
+      },
+      "rescanModels": "Znovu prohledat modely",
+      "addFromHf": {
+        "title": "Přidat model z Hugging Face",
+        "description": "Vložte veřejnou URL repozitáře nebo vlastník/repozitář, například https://huggingface.co/vlastník/model.",
+        "placeholder": "https://huggingface.co/vlastník/model nebo vlastník/model",
+        "add": "Přidat",
+        "cancel": "Zrušit",
+        "pickFile": "Vyberte soubor z {{repo}}:",
+        "recommended": "Doporučeno",
+        "status": {
+          "resolving": "Zjišťování repozitáře...",
+          "adding": "Stahování a kontrola modelu...",
+          "added": "Model přidán. Zobrazí se ve stažených modelech."
+        },
+        "errors": {
+          "invalidInput": "Tohle nešlo přečíst jako repozitář Hugging Face: {{detail}}",
+          "notFound": "Repozitář {{repo}} nebyl na Hugging Face nalezen.",
+          "inaccessible": "{{repo}} se na Hugging Face nepodařilo zpřístupnit. Buď neexistuje, nebo je privátní či omezený. Zatím jsou podporovány jen veřejné repozitáře.",
+          "fileNotFound": "Soubor {{filename}} nebyl v {{repo}} nalezen.",
+          "noGguf": "{{repo}} neobsahuje žádné GGUF soubory.",
+          "network": "Službu Hugging Face se nepodařilo spojit: {{detail}}",
+          "downloadFailed": "Stahování se nezdařilo: {{detail}}",
+          "cancelled": "Stahování zrušeno.",
+          "unsupportedArch": "Architektura modelu {{arch}} není podporována. Podporované: {{supported}}.",
+          "unsupportedArchUnknown": "Tento soubor nešlo přečíst jako GGUF model, takže nebyl přidán.",
+          "generic": "Něco se pokazilo."
+        }
       }
     },
     "general": {
       "title": "Obecné",
       "shortcut": {
-        "title": "Zkratky Handy",
+        "title": "Zkratky VoxBar",
         "description": "Nastavte klávesové zkratky pro spuštění nahrávání řeči na text",
         "loading": "Načítám zkratky...",
         "none": "Žádné zkratky nejsou nastavené",
@@ -199,13 +231,26 @@
           "transcribe_with_post_process": {
             "name": "Klávesa pro následné zpracování",
             "description": "Volitelné: Vyhrazená klávesová zkratka, která vždy použije AI následné zpracování na váš přepis."
+          },
+          "delete_last_word": {
+            "name": "Smazat poslední slovo",
+            "description": "Smaže slovo před kurzorem v aktivní aplikaci (Option+Backspace na macOS, Ctrl+Backspace jinde). Přiřaďte klávesu pro aktivaci."
+          },
+          "undo": {
+            "name": "Zpět",
+            "description": "Spustí Zpět v aktivní aplikaci (Cmd+Z na macOS, Ctrl+Z jinde) a jedním krokem vrátí poslední vložený diktát. Přiřaďte klávesu pro aktivaci."
+          },
+          "transcribe_commands": {
+            "name": "Režim příkazů",
+            "description": "Nahrává jako diktát, ale každé slovo se chápe jako příkaz: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Nerozpoznaná slova se zahazují, takže se nic jiného nikdy nenapíše. Ve výchozím nastavení bez klávesy."
           }
         },
         "errors": {
           "restore": "Nepodařilo se obnovit původní zkratku",
           "set": "Nepodařilo se nastavit zkratku: {{error}}",
           "reset": "Nepodařilo se vrátit zkratku na původní hodnotu"
-        }
+        },
+        "unbound": "Nepřiřazeno"
       },
       "language": {
         "title": "Jazyk",
@@ -226,6 +271,24 @@
           "hold_or_toggle": "Podržte pro nahrávání nebo klepněte pro přepnutí",
           "push_to_talk": "Nahrává, dokud držíte zkratku",
           "toggle": "Klepněte na zkratku pro zahájení nahrávání, klepněte znovu pro zastavení"
+        }
+      },
+      "editingShortcuts": {
+        "title": "Klávesy pro úpravy",
+        "deleteLastWord": {
+          "title": "Akce: smazat poslední slovo",
+          "description": "Zapne přiřaditelnou zkratku, která maže slovo před kurzorem. Zkratka zůstává neaktivní, dokud výše nepřiřadíte klávesu."
+        },
+        "undo": {
+          "title": "Akce: zpět",
+          "description": "Zapne přiřaditelnou zkratku, která spouští Zpět v aktivní aplikaci. Zkratka zůstává neaktivní, dokud výše nepřiřadíte klávesu."
+        }
+      },
+      "commandMode": {
+        "title": "Režim příkazů",
+        "toggle": {
+          "title": "Režim příkazů",
+          "description": "Zapne přiřaditelnou spoušť režimu příkazů. Držením nahrává jako diktát; přepis se vykoná jako příkazy (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) a nerozpoznaná slova se zahazují."
         }
       }
     },
@@ -291,18 +354,30 @@
         "label": "Spouštět skrytě",
         "description": "Spustit do systémové lišty bez otevření okna."
       },
+      "memoryPressureGuard": {
+        "label": "Ochrana při nedostatku paměti",
+        "description": "Odmítne načíst model, když na něj nezbývá dost volné paměti. Aktuální model dále funguje, když je načtení odmítnuto."
+      },
+      "autoFallback": {
+        "label": "Automatické přepnutí při nedostatku RAM",
+        "description": "Když se vybraný model nevejde do volné paměti, automaticky se načte nejlepší stažený model, který se vejde. Vypněte pro obyčejné odmítnutí."
+      },
+      "menuBarModelTitle": {
+        "label": "Název modelu v liště nabídky",
+        "description": "Zobrazuje rezidentní model a jeho využití RAM jako text vedle ikony v liště (nabídková lišta macOS)."
+      },
       "autostart": {
         "label": "Spouštět při startu",
-        "description": "Automaticky spustit Handy po přihlášení do počítače."
+        "description": "Automaticky spustit VoxBar po přihlášení do počítače."
       },
       "showTrayIcon": {
         "label": "Zobrazit ikonu v systémové liště",
-        "description": "Zobrazit ikonu Handy v systémové liště."
+        "description": "Zobrazit ikonu VoxBar v systémové liště."
       },
       "overlay": {
         "style": {
           "title": "Překryv",
-          "description": "Vyberte překryv při nahrávání: „Žádné“ jej skryje, „Minimální“ zobrazí kompaktní indikátor, „Živě“ zobrazuje přepis v reálném čase, když mluvíte (pouze modely podporující streaming — hledejte odznak „Streaming“ ve výběru modelů). Na Linuxu se doporučuje „Žádné“.",
+          "description": "Vyberte překryv při nahrávání: „Žádné“ jej skryje, „Minimální“ zobrazí kompaktní indikátor, „Živě“ zobrazuje přepis v reálném čase, když mluvíte (pouze modely podporující streaming - hledejte odznak „Streaming“ ve výběru modelů). Na Linuxu se doporučuje „Žádné“.",
           "options": {
             "none": "Žádné",
             "minimal": "Minimální",
@@ -372,12 +447,15 @@
           "min10": "Po 10 minutách",
           "min15": "Po 15 minutách",
           "hour1": "Po 1 hodině",
+          "custom": "Vlastní",
           "sec15": "Po 15 sekundách (Debug)"
-        }
+        },
+        "customSecondsLabel": "Vlastní sekundy",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Vlastní slova",
-        "description": "Pomozte podporovaným modelům rozpoznávat jména a odborné termíny. Přibližné opravy jsou v současnosti omezeny na slova obsahující písmena A–Z a číslice.",
+        "description": "Pomozte podporovaným modelům rozpoznávat jména a odborné termíny. Přibližné opravy jsou v současnosti omezeny na slova obsahující písmena A-Z a číslice.",
         "placeholder": "Přidat slovo",
         "add": "Přidat",
         "remove": "Odebrat {{word}}",
@@ -398,6 +476,22 @@
       "fillerWordRemoval": {
         "title": "Odstranit výplňová slova",
         "description": "Odstraňuje běžná slova vyjadřující váhání z přepisů. Vypnutím je zachováte."
+      },
+      "spokenPunctuation": {
+        "title": "Mluvená interpunkce",
+        "description": "Převádí mluvená interpunkční slova jako \"comma\", \"period\" a \"question mark\" na skutečnou interpunkci. Vypněte, aby zůstala běžnými slovy."
+      },
+      "terminalPunctuation": {
+        "title": "Koncová interpunkce",
+        "description": "Ukončuje každý přepis interpunkcí: otazník u otázek, jinak tečka. Vypněte, aby konec zůstal tak, jak byl přepsán."
+      },
+      "voiceDeletion": {
+        "title": "Hlasové příkazy pro mazání",
+        "description": "\"scratch that\", \"delete that\" a \"remove that\" smažou předchozí slovo, \"delete last three words\" smaže více slov a \"delete everything\" nebo \"start over\" vymaže celý přepis. Vypněte, aby zůstaly běžnými slovy."
+      },
+      "previewBeforePaste": {
+        "title": "Náhled před vložením",
+        "description": "Krátce zobrazí hotový přepis v překryvu nahrávání před jeho vložením. Vypněte pro okamžité vložení."
       },
       "chineseScript": {
         "title": "Čínské písmo",
@@ -477,7 +571,12 @@
       "retranscribe": "Přepsat znovu",
       "retranscribeError": "Opětovný přepis se nezdařil. Zkuste to prosím znovu.",
       "transcribing": "Přepisuji...",
-      "transcriptionFailed": "Přepis selhal. Můžete zkusit přepis znovu pomocí ikony opakování."
+      "transcriptionFailed": "Přepis selhal. Můžete zkusit přepis znovu pomocí ikony opakování.",
+      "model": "Model přepisu",
+      "showModel": {
+        "label": "Zobrazit štítek modelu",
+        "description": "Zobrazuje kompaktní štítek s modelem, který vytvořil každý přepis."
+      }
     },
     "debug": {
       "title": "Ladění",
@@ -502,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Kontrolovat aktualizace",
-        "description": "Automaticky kontrolovat nové verze Handy",
+        "description": "Zobrazit volbu \"Kontrolovat aktualizace\" v nabídce v systémové liště a v zápatí okna",
         "lockedDescription": "Zakázáno systémovou konfigurací (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {
@@ -580,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Diagnostika klávesnice",
-        "description": "Ověří, zda události klávesnice dorazí do Handy. Zaznamenává se pouze počet událostí — nikdy to, které klávesy stisknete.",
+        "description": "Ověří, zda události klávesnice dorazí do VoxBar. Zaznamenává se pouze počet událostí - nikdy to, které klávesy stisknete.",
         "run": "Spustit 10s diagnostiku",
         "running": "Naslouchání… několikrát stiskněte svou zkratku (např. Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -592,10 +691,10 @@
         "keyUp": "Uvolnění klávesy",
         "flagsChanged": "Modifikátory",
         "mouse": "Myš",
-        "verdictBlocked": "Secure Input blokuje události kláves — zkratky obsahující běžnou klávesu nemohou fungovat, dokud se to nevyřeší.",
-        "verdictSuspicious": "Dorazily události modifikátorů, ale žádné události kláves — něco klávesy potlačuje, přestože Secure Input hlásí, že je vypnutý. Nahlaste to prosím na GitHubu.",
-        "verdictOk": "Události kláves dorazí do Handy normálně.",
-        "verdictNoEvents": "Nebyly zachyceny žádné události — stiskli jste během testu nějaké klávesy?",
+        "verdictBlocked": "Secure Input blokuje události kláves - zkratky obsahující běžnou klávesu nemohou fungovat, dokud se to nevyřeší.",
+        "verdictSuspicious": "Dorazily události modifikátorů, ale žádné události kláves - něco klávesy potlačuje, přestože Secure Input hlásí, že je vypnutý. Nahlaste to prosím na GitHubu.",
+        "verdictOk": "Události kláves dorazí do VoxBar normálně.",
+        "verdictNoEvents": "Nebyly zachyceny žádné události - stiskli jste během testu nějaké klávesy?",
         "failed": "Diagnostika selhala: {{error}}"
       },
       "whatsNewPreview": {
@@ -617,11 +716,11 @@
       "title": "O aplikaci",
       "version": {
         "title": "Verze",
-        "description": "Aktuální verze Handy"
+        "description": "Aktuální verze VoxBar"
       },
       "appDataDirectory": {
         "title": "Adresář dat aplikace",
-        "description": "Umístění, kde Handy ukládá data"
+        "description": "Umístění, kde VoxBar ukládá data"
       },
       "sourceCode": {
         "title": "Zdrojový kód",
@@ -630,7 +729,7 @@
       },
       "supportDevelopment": {
         "title": "Podpořte vývoj",
-        "description": "Pomozte nám pokračovat ve vývoji Handy",
+        "description": "Pomozte nám pokračovat ve vývoji VoxBar",
         "button": "Přispět"
       },
       "acknowledgments": {
@@ -638,12 +737,12 @@
         "ggml": {
           "title": "ggml",
           "description": "Vysoce výkonné inferenční zpracování modelu automatického rozpoznávání řeči Whisper od OpenAI",
-          "details": "Handy používá ggml pro rychlé lokální zpracování řeči na text. Díky skvělé práci Georgiho Gerganova a přispěvatelů."
+          "details": "VoxBar používá ggml pro rychlé lokální zpracování řeči na text. Díky skvělé práci Georgiho Gerganova a přispěvatelů."
         }
       },
       "whatsNewUpdates": {
         "label": "Zobrazovat novinky",
-        "description": "Zobrazovat poznámky k vydání po aktualizacích Handy"
+        "description": "Zobrazovat poznámky k vydání po aktualizacích VoxBar"
       }
     }
   },
@@ -657,9 +756,9 @@
     "preparing": "Příprava...",
     "checkForUpdates": "Zkontrolovat aktualizace",
     "portableUpdateTitle": "Vyžadována ruční aktualizace",
-    "portableUpdateMessage": "Přenosné instalace nelze aktualizovat automaticky. Níže stáhněte instalátor pro svůj systém, spusťte jej a nainstalujte do stejné složky — vaše složka Data/ (nastavení, modely, nahrávky) zůstane na místě.",
+    "portableUpdateMessage": "Přenosné instalace nelze aktualizovat automaticky. Níže stáhněte instalátor pro svůj systém, spusťte jej a nainstalujte do stejné složky - vaše složka Data/ (nastavení, modely, nahrávky) zůstane na místě.",
     "portableUpdateButton": "Stáhnout instalátor",
-    "portableUpdateBrowseMessage": "Přenosné instalace nelze aktualizovat automaticky. Stáhněte nejnovější verzi pro svůj systém z GitHub Releases a nainstalujte ji do stejné složky — vaše složka Data/ (nastavení, modely, nahrávky) zůstane na místě.",
+    "portableUpdateBrowseMessage": "Přenosné instalace nelze aktualizovat automaticky. Stáhněte nejnovější verzi pro svůj systém z GitHub Releases a nainstalujte ji do stejné složky - vaše složka Data/ (nastavení, modely, nahrávky) zůstane na místě.",
     "portableUpdateBrowseButton": "Otevřít GitHub Releases"
   },
   "common": {
@@ -672,7 +771,7 @@
     "noOptionsFound": "Nenalezeny žádné možnosti"
   },
   "accessibility": {
-    "permissionsDescription": "Handy potřebuje oprávnění usnadnění přístupu, aby mohlo psát přepsaný text.",
+    "permissionsDescription": "VoxBar potřebuje oprávnění usnadnění přístupu, aby mohlo psát přepsaný text.",
     "openSettings": "Otevřít Nastavení systému"
   },
   "errors": {
@@ -689,21 +788,43 @@
     "recordingFailed": "Nepodařilo se spustit nahrávání: {{error}}",
     "modelLoadFailed": "Nepodařilo se načíst model: {{model}}",
     "modelLoadFailedUnknown": "neznámý model",
+    "modelFallbackTitle": "Málo paměti",
+    "modelFallback": "Pro toto diktování bylo přepnuto na {{model}}",
     "pasteFailedTitle": "Vložení textu se nezdařilo",
     "pasteFailed": "Text nebylo možné vložit do aktivní aplikace.",
     "transcriptionFailedTitle": "Přepis selhal"
   },
   "appLanguage": {
     "title": "Jazyk aplikace",
-    "description": "Změňte jazyk rozhraní Handy"
+    "description": "Změňte jazyk rozhraní VoxBar"
   },
   "theme": {
     "title": "Motiv aplikace",
-    "description": "Zvolte, zda má Handy sledovat motiv systému, nebo zůstat světlý či tmavý",
+    "description": "Zvolte, zda má VoxBar sledovat motiv systému, nebo zůstat světlý či tmavý",
     "options": {
       "system": "Systém",
       "light": "Světlý",
       "dark": "Tmavý"
+    },
+    "accentColor": {
+      "label": "Barva zvýraznění",
+      "description": "Vyberte barvu používanou pro zvýraznění, přepínače a ovládací prvky"
+    },
+    "accentColors": {
+      "black": "Černá",
+      "gray": "Šedá",
+      "white": "Bílá",
+      "red": "Červená",
+      "orange": "Oranžová",
+      "amber": "Jantarová",
+      "green": "Zelená",
+      "teal": "Petrolejová",
+      "cyan": "Azurová",
+      "blue": "Modrá",
+      "indigo": "Indigová",
+      "violet": "Fialová",
+      "magenta": "Purpurová",
+      "pink": "Růžová"
     }
   },
   "overlay": {
@@ -711,7 +832,7 @@
     "processing": "Zpracovávám..."
   },
   "whatsNew": {
-    "title": "Novinky v Handy v{{version}}"
+    "title": "Novinky v VoxBar v{{version}}"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} může blokovat 1 zkratku",
@@ -721,7 +842,7 @@
     "recorderBlockedWithCulprit": "{{name}} může blokovat změny zkratek",
     "recorderBlockedNoCulprit": "macOS dočasně blokuje změny zkratek",
     "learnMore": "Jak to vyřešit",
-    "recorderBlocked": "Zkratky teď nelze nahrát — Secure Input v macOS blokuje události kláves. Nejprve vyřešte upozornění na Secure Input.",
+    "recorderBlocked": "Zkratky teď nelze nahrát - Secure Input v macOS blokuje události kláves. Nejprve vyřešte upozornění na Secure Input.",
     "dismiss": "Zavřít"
   }
 }

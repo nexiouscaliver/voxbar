@@ -5,7 +5,7 @@
  *
  * Bun's `--linker=isolated` installer creates `.bin/<name>` symlinks inside
  * each package's private node_modules/.bin/ for every dependency that has a
- * `bin` field in its manifest — regular, optional, AND peer dependencies all
+ * `bin` field in its manifest - regular, optional, AND peer dependencies all
  * go through the same code path (`Installer.zig::linkDependencyBins`), and
  * the decision to link is made purely on whether the source file exists on
  * disk at the moment the linker looks (`bin.zig`:
@@ -18,14 +18,14 @@
  * ). For most dependencies the installer blocks the consuming package on the
  * provider via `isTaskBlocked`, so by the time `linkDependencyBins` runs for
  * package A the provider's file is guaranteed to be in place. But for
- * circular peer dependency pairs — A declares B as a peer, B (transitively)
- * depends on A — that blocking would deadlock, so bun's `Store.isCycle`
+ * circular peer dependency pairs - A declares B as a peer, B (transitively)
+ * depends on A - that blocking would deadlock, so bun's `Store.isCycle`
  * detector explicitly bypasses it and lets both sides run in parallel.
  *
  * The consequence is a plain timing race between two worker threads. Which
  * side wins depends on anything that shifts the relative scheduling of the
- * two workers — CPU load, thread-pool size, filesystem write latency and
- * caching, the kernel scheduler, NICE / cgroup limits — so the same bun
+ * two workers - CPU load, thread-pool size, filesystem write latency and
+ * caching, the kernel scheduler, NICE / cgroup limits - so the same bun
  * version with the same bun.lock and the same install flags can produce
  * different `.bin/` sets not just between different hosts but in principle
  * between two consecutive runs on the same host. In practice we have
@@ -54,7 +54,7 @@
  * symlinks that bun's installer "intended" to create but may have skipped.
  * Entries that already exist are left alone (the script is idempotent).
  *
- * This is the "fix by adding" approach — we produce the complete `.bin/`
+ * This is the "fix by adding" approach - we produce the complete `.bin/`
  * set that bun would have produced without the race, rather than stripping
  * the inconsistent subset. Advantages:
  *
@@ -195,7 +195,7 @@ export async function healPeerDepBins(): Promise<void> {
           await lstat(linkPath);
           continue;
         } catch {
-          // Does not exist — fall through to create.
+          // Does not exist - fall through to create.
         }
 
         await symlink(target, linkPath);

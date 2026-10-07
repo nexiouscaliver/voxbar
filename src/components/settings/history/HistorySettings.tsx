@@ -11,8 +11,10 @@ import {
   type HistoryUpdatePayload,
 } from "@/bindings";
 import { useOsType } from "@/hooks/useOsType";
+import { useSettings } from "@/hooks/useSettings";
 import { formatDateTime } from "@/utils/dateFormat";
 import { AudioPlayer, AudioPlayerGroup } from "../../ui/AudioPlayer";
+import { ToggleSwitch } from "../../ui/ToggleSwitch";
 import { Button } from "../../ui/Button";
 import { copyToClipboard } from "./clipboard";
 
@@ -63,6 +65,9 @@ const OpenRecordingsButton: React.FC<OpenRecordingsButtonProps> = ({
 export const HistorySettings: React.FC = () => {
   const { t } = useTranslation();
   const osType = useOsType();
+  const { getSetting, updateSetting, isUpdating } = useSettings();
+
+  const showModelBadge = getSetting("show_history_model") ?? true;
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
@@ -250,6 +255,7 @@ export const HistorySettings: React.FC = () => {
               <HistoryEntryComponent
                 key={entry.id}
                 entry={entry}
+                showModelBadge={showModelBadge}
                 onToggleSaved={() => toggleSaved(entry.id)}
                 onCopyText={() => copyToClipboard(entry.transcription_text)}
                 getAudioUrl={getAudioUrl}
@@ -279,6 +285,16 @@ export const HistorySettings: React.FC = () => {
             label={t("settings.history.openFolder")}
           />
         </div>
+        <ToggleSwitch
+          checked={showModelBadge}
+          onChange={(enabled) => updateSetting("show_history_model", enabled)}
+          isUpdating={isUpdating("show_history_model")}
+          label={t("settings.history.showModel.label")}
+          description={t("settings.history.showModel.description")}
+          descriptionMode="tooltip"
+          grouped={true}
+          tooltipPosition="bottom"
+        />
         <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
           {content}
         </div>
@@ -289,6 +305,7 @@ export const HistorySettings: React.FC = () => {
 
 interface HistoryEntryProps {
   entry: HistoryEntry;
+  showModelBadge: boolean;
   onToggleSaved: () => void;
   onCopyText: () => Promise<boolean>;
   getAudioUrl: (fileName: string) => Promise<string | null>;
@@ -298,6 +315,7 @@ interface HistoryEntryProps {
 
 const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   entry,
+  showModelBadge,
   onToggleSaved,
   onCopyText,
   getAudioUrl,
@@ -356,7 +374,19 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   return (
     <div className="px-4 py-2 pb-5 flex flex-col gap-3">
       <div className="flex justify-between items-center">
-        <p className="text-sm font-medium">{formattedDate}</p>
+        <div className="flex items-center gap-2 min-w-0">
+          <p className="text-sm font-medium whitespace-nowrap">
+            {formattedDate}
+          </p>
+          {showModelBadge && entry.model_id ? (
+            <span
+              className="px-1.5 py-0.5 text-[10px] leading-none font-medium rounded bg-mid-gray/20 text-text/60 truncate"
+              title={`${t("settings.history.model")}: ${entry.model_id}`}
+            >
+              {entry.model_id}
+            </span>
+          ) : null}
+        </div>
         <div className="flex items-center">
           <IconButton
             onClick={handleCopyText}

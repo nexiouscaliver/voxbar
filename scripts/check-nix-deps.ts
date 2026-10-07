@@ -1,19 +1,19 @@
-// scripts/check-nix-deps.ts — Keep .nix/bun.nix in sync with bun.lock
+// scripts/check-nix-deps.ts - Keep .nix/bun.nix in sync with bun.lock
 //
 // Handy uses bun2nix to generate per-package Nix fetchurl expressions from
 // bun.lock. This replaces the old FOD (Fixed-Output Derivation) approach
-// where a single hash covered the entire node_modules — that hash would
+// where a single hash covered the entire node_modules - that hash would
 // break whenever the bun version in nixpkgs changed, even without any
 // dependency updates.
 //
 // How it works:
 //   1. Computes sha256 of bun.lock
 //   2. Compares with stored hash in .nix/bun-lock-hash
-//   3. If they match — nothing to do (~2ms)
-//   4. If they differ — runs `bunx bun2nix` to regenerate .nix/bun.nix
+//   3. If they match - nothing to do (~2ms)
+//   4. If they differ - runs `bunx bun2nix` to regenerate .nix/bun.nix
 //
 // When it runs:
-//   - Automatically via "postinstall" in package.json — triggers after every
+//   - Automatically via "postinstall" in package.json - triggers after every
 //     bun install / bun add / bun remove / bun update
 //   - Can also be run manually: bun scripts/check-nix-deps.ts
 //
@@ -30,10 +30,10 @@ const lockFile = join(root, "bun.lock");
 const hashFile = join(nixDir, "bun-lock-hash");
 const nixFile = join(nixDir, "bun.nix");
 
-// Skip on Windows — bun2nix is Nix-only and hangs on Windows CI
+// Skip on Windows - bun2nix is Nix-only and hangs on Windows CI
 if (process.platform === "win32") process.exit(0);
 
-// No bun.lock — nothing to do
+// No bun.lock - nothing to do
 if (!existsSync(lockFile)) process.exit(0);
 
 // Ensure .nix directory exists
@@ -49,10 +49,10 @@ const storedHash = existsSync(hashFile)
   ? readFileSync(hashFile, "utf-8").trim()
   : "";
 
-// If hashes match, bun.nix is up to date — nothing to do
+// If hashes match, bun.nix is up to date - nothing to do
 if (currentHash === storedHash) process.exit(0);
 
-// bun.lock has changed — regenerate the Nix dependency file
+// bun.lock has changed - regenerate the Nix dependency file
 console.log(
   `[check-nix-deps] bun.lock has changed, regenerating ${nixFile}...`,
 );

@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Install system dependencies (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          # Tauri v2 system deps (webkit2gtk/appindicator/rsvg) plus what this
+          # crate adds on top: ALSA for cpal, gtk-layer-shell for the overlay,
+          # X11 libs for enigo (XTEST/X11/Xrandr), OpenBLAS headers for the
+          # whisper wrapper, and Vulkan headers + glslc so transcribe-cpp-sys
+          # can build ggml's Vulkan backend (the Linux `vulkan` feature).
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev \
+            libasound2-dev libssl-dev libgtk-layer-shell-dev \
+            libxtst-dev libx11-dev libxrandr-dev libopenblas-dev \
+            libvulkan-dev glslc spirv-headers
+
+      # Windows x86_64 builds transcribe-cpp with the Vulkan feature (see
+      # src-tauri/Cargo.toml), and ggml's Vulkan backend needs the SDK at
+      # build time; runners do not ship it. Mirrors upstream Handy's CI step.
+      - name: Install Vulkan SDK (Windows)
+        if: runner.os == 'Windows'
+        uses: humbletim/install-vulkan-sdk@v1.2
+        with:
+          version: latest
+          cache: true
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install frontend dependencies
+        run: bun install
+
+      - name: Run Rust tests
+        run: cargo test --manifest-path src-tauri/Cargo.toml
+
+      - name: Lint frontend
+        run: bun run lint
+
+      - name: Typecheck frontend
+        run: bunx tsc --noEmit -p tsconfig.json
+
+      - name: Test accent palette
+        run: bun run test:accent
+
+      - name: Check translations
+        run: bun run check:translations

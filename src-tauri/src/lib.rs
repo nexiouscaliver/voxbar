@@ -12,6 +12,7 @@ mod commands;
 pub mod engine_supervisor;
 mod helpers;
 mod input;
+mod legacy_migration;
 mod llm_client;
 mod managers;
 mod memory;
@@ -47,6 +48,7 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Listener, Manager};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_log::{Builder as LogBuilder, RotationStrategy, Target, TargetKind};
+use tauri_plugin_opener::OpenerExt;
 
 use crate::settings::get_settings;
 
@@ -54,10 +56,15 @@ use crate::settings::get_settings;
 // We use u8 to store the log::LevelFilter as a number
 pub static FILE_LOG_LEVEL: AtomicU8 = AtomicU8::new(log::LevelFilter::Debug as u8);
 
+/// Releases page opened by every "Check for Updates" affordance (tray item
+/// and footer link). This build ships no in-app updater, so the honest
+/// behavior is to hand the user over to the releases list in their browser.
+const RELEASES_URL: &str = "https://github.com/nexiouscaliver/voxbar/releases";
+
 /// When `true`, log records are also forwarded to the webview via the
 /// `log://log` event for the debug panel's live log viewer. Gated on debug
-/// mode — the live log viewer is its only consumer and only exists in debug
-/// mode — so normal runs never broadcast log records (which can include file
+/// mode - the live log viewer is its only consumer and only exists in debug
+/// mode - so normal runs never broadcast log records (which can include file
 /// paths or transcribed text) onto the frontend event bus. Synced at startup
 /// and whenever debug mode is toggled (see `shortcut::change_debug_mode_setting`).
 pub static WEBVIEW_LOG_STREAMING: AtomicBool = AtomicBool::new(false);
@@ -130,7 +137,7 @@ fn show_main_window(app: &AppHandle) {
 /// `applicationDidFinishLaunching` then applies directly. Calling the
 /// `AppHandle` variant from `setup` (which Tauri runs on `RunEvent::Ready`,
 /// i.e. after launch) is instead a runtime Regular → Accessory demotion of an
-/// already-activated foreground app — the transition Apple documents as
+/// already-activated foreground app - the transition Apple documents as
 /// unreliable, and what left a Dock icon behind for start-hidden and
 /// login-item launches on macOS 26+ (#1787). Launching as Accessory avoids the
 /// transition entirely; showing the window later promotes to Regular, which is
@@ -223,8 +230,8 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // This matches the pattern used for Enigo initialization.
 
     // Set up signal handlers for toggling transcription. On Linux, SIGUSR1 is
-    // deliberately not handled — it belongs to WebKitGTK's garbage collector
-    // (#1660) — see signal_handle.rs.
+    // deliberately not handled - it belongs to WebKitGTK's garbage collector
+    // (#1660) - see signal_handle.rs.
     #[cfg(unix)]
     signal_handle::setup_signal_handler(app_handle.clone());
 
@@ -291,10 +298,11 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                 show_main_window(app);
             }
             "check_updates" => {
-                let settings = settings::get_settings(app);
-                if settings::update_checks_effectively_enabled(&settings) {
-                    show_main_window(app);
-                    let _ = app.emit("check-for-updates", ());
+                // No in-app updater exists in this build, so the item opens
+                // the releases page in the default browser instead of
+                // pretending to check an update endpoint.
+                if let Err(err) = app.opener().open_url(RELEASES_URL, None::<String>) {
+                    log::error!("Failed to open the releases page: {err}");
                 }
             }
             "copy_last_transcript" => {
@@ -308,6 +316,42 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                 }
                 transcription_manager.request_unload();
                 log::info!("Model unloaded via tray.");
+            }
+            // "Unload After" presets persist immediately through the same
+            // setting the app uses (the set_model_unload_timeout command's
+            // write path); "custom" opens Settings focused on the custom
+            // seconds field.
+            id if id.starts_with("unload_after:") => {
+                let selection = id.strip_prefix("unload_after:").unwrap().to_string();
+                let app_clone = app.clone();
+                std::thread::spawn(move || {
+                    if selection == "custom" {
+                        show_main_window(&app_clone);
+                        let _ = app_clone.emit("open-settings-unload-timeout", ());
+                        return;
+                    }
+                    let value = if selection == "never" {
+                        settings::ModelUnloadTimeout::Never
+                    } else {
+                        match selection
+                            .parse::<u64>()
+                            .ok()
+                            .and_then(settings::ModelUnloadTimeout::from_preset_seconds)
+                        {
+                            Some(value) => value,
+                            None => {
+                                log::warn!(
+                                    "Ignoring unknown tray unload-after preset: {}",
+                                    selection
+                                );
+                                return;
+                            }
+                        }
+                    };
+                    commands::transcription::set_model_unload_timeout(app_clone.clone(), value);
+                    log::info!("Model unload timeout set to {:?} via tray.", value);
+                    tray::update_tray_menu(&app_clone);
+                });
             }
             "cancel" => {
                 use crate::utils::cancel_current_operation;
@@ -364,18 +408,6 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
-}
-
-#[tauri::command]
-#[specta::specta]
-fn trigger_update_check(app: AppHandle) -> Result<(), String> {
-    let settings = settings::get_settings(&app);
-    if !settings::update_checks_effectively_enabled(&settings) {
-        return Ok(());
-    }
-    app.emit("check-for-updates", ())
-        .map_err(|e| e.to_string())?;
-    Ok(())
 }
 
 #[tauri::command]
@@ -455,7 +487,7 @@ fn run_headless_transcription(app: &AppHandle, args: &CliArgs) -> i32 {
     }
 
     // --list-models: print the model registry (catalog + on-disk + custom) with
-    // their ids — the same ids `--model` accepts — then exit. `--json` emits the
+    // their ids - the same ids `--model` accepts - then exit. `--json` emits the
     // full ModelInfo array for scripting.
     if args.list_models {
         let model_manager = app.state::<Arc<ModelManager>>();
@@ -656,9 +688,14 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_shortcut_activation_setting,
             shortcut::change_hold_threshold_ms_setting,
             shortcut::change_audio_feedback_setting,
+            shortcut::change_memory_pressure_guard_setting,
+            shortcut::change_auto_fallback_setting,
+            shortcut::change_menu_bar_model_title_setting,
+            shortcut::change_show_history_model_setting,
             shortcut::change_audio_feedback_volume_setting,
             shortcut::change_sound_theme_setting,
             shortcut::change_theme_setting,
+            shortcut::change_accent_color_setting,
             shortcut::change_start_hidden_setting,
             shortcut::change_autostart_setting,
             shortcut::change_translate_to_english_setting,
@@ -698,6 +735,13 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_vad_enabled_setting,
             shortcut::change_vad_backend_setting,
             shortcut::change_filler_word_removal_enabled_setting,
+            shortcut::change_spoken_punctuation_setting,
+            shortcut::change_terminal_punctuation_setting,
+            shortcut::change_voice_deletion_commands_setting,
+            shortcut::change_preview_before_paste_setting,
+            shortcut::change_delete_last_word_enabled_setting,
+            shortcut::change_undo_enabled_setting,
+            shortcut::change_command_mode_enabled_setting,
             shortcut::change_chinese_script_setting,
             shortcut::change_app_language_setting,
             shortcut::change_update_checks_setting,
@@ -714,7 +758,6 @@ pub fn run(cli_args: CliArgs) {
             shortcut::handy_keys::stop_handy_keys_recording,
             secure_input::get_secure_input_status,
             secure_input::run_keyboard_diagnostic,
-            trigger_update_check,
             show_main_window_command,
             commands::cancel_operation,
             commands::is_portable,
@@ -740,6 +783,8 @@ pub fn run(cli_args: CliArgs) {
             commands::models::get_transcription_model_status,
             commands::models::is_model_loading,
             commands::models::rescan_local_models,
+            commands::models::resolve_hf_model,
+            commands::models::add_hf_model,
             commands::audio::update_microphone_mode,
             commands::audio::get_microphone_mode,
             commands::audio::get_windows_microphone_permission_status,
@@ -758,6 +803,7 @@ pub fn run(cli_args: CliArgs) {
             commands::audio::get_microphone_channels,
             commands::audio::set_selected_channel,
             commands::transcription::set_model_unload_timeout,
+            commands::transcription::set_model_unload_timeout_custom_seconds,
             commands::transcription::get_model_load_status,
             commands::transcription::unload_model_manually,
             commands::history::get_history_entries,
@@ -818,11 +864,11 @@ pub fn run(cli_args: CliArgs) {
                     Target::new(if let Some(data_dir) = portable::data_dir() {
                         TargetKind::Folder {
                             path: data_dir.join("logs"),
-                            file_name: Some("handy".into()),
+                            file_name: Some("voxbar".into()),
                         }
                     } else {
                         TargetKind::LogDir {
-                            file_name: Some("handy".into()),
+                            file_name: Some("voxbar".into()),
                         }
                     })
                     .filter(|metadata| {
@@ -863,8 +909,8 @@ pub fn run(cli_args: CliArgs) {
             } else {
                 // A second process was launched without remote-control flags
                 // (e.g. the binary run from a shell). On macOS, relaunching the
-                // bundle from Spotlight/Finder/Dock does not start a process —
-                // it arrives as RunEvent::Reopen below — but treat this the
+                // bundle from Spotlight/Finder/Dock does not start a process -
+                // it arrives as RunEvent::Reopen below - but treat this the
                 // same way: raise the window and recreate a possibly vanished
                 // tray icon (#1948).
                 #[cfg(target_os = "macos")]
@@ -877,8 +923,10 @@ pub fn run(cli_args: CliArgs) {
     #[allow(unused_mut)]
     let mut app = builder
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_process::init())
-        .plugin(tauri_plugin_updater::Builder::new().build())
+        // No updater plugin is registered (or depended on): this build ships
+        // no update endpoint to query. Both "Check for Updates" affordances
+        // (tray item and footer link) open RELEASES_URL in the default
+        // browser instead.
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_macos_permissions::init())
@@ -891,6 +939,13 @@ pub fn run(cli_args: CliArgs) {
         ))
         .manage(cli_args.clone())
         .setup(move |app| {
+            // Installed-upgrade continuity (legacy Handy -> VoxBar): must be
+            // the FIRST thing setup() does - the `get_settings` read below
+            // WRITES defaults into a fresh store, and the headless branch's
+            // `ModelManager::new` create_dir_all's `models/`; either would
+            // defeat the migration's no-store trigger / skip-if-present.
+            legacy_migration::run_first_run_migration(app.handle());
+
             #[cfg(target_os = "windows")]
             log::info!(
                 "Vulkan layer policy: VK_LOADER_LAYERS_DISABLE={:?}, HANDY_KEEP_VULKAN_IMPLICIT_LAYERS={}",
@@ -901,9 +956,9 @@ pub fn run(cli_args: CliArgs) {
             specta_builder.mount_events(app);
 
             // Headless one-shot path (`--transcribe-file` / `--list-devices` /
-            // `--list-models`): initialize only what transcription needs — the
+            // `--list-models`): initialize only what transcription needs - the
             // store/paths plugins, the model + transcription managers, and the
-            // transcribe-cpp backend + accelerator settings — then run on a worker
+            // transcribe-cpp backend + accelerator settings - then run on a worker
             // thread and exit. Deliberately skips the window, tray, overlay, audio
             // recorder (so it never opens the mic, even with always_on_microphone),
             // signal handlers, and autostart that initialize_core_logic sets up.
@@ -945,7 +1000,7 @@ pub fn run(cli_args: CliArgs) {
             // for portable mode (redirects WebView2 cache to portable Data dir)
             let mut win_builder =
                 tauri::WebviewWindowBuilder::new(app, "main", tauri::WebviewUrl::App("/".into()))
-                    .title("Handy")
+                    .title("VoxBar")
                     .inner_size(680.0, 570.0)
                     .min_inner_size(680.0, 570.0)
                     .resizable(true)

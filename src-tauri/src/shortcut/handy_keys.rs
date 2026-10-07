@@ -418,7 +418,7 @@ pub fn validate_shortcut(raw: &str) -> Result<(), String> {
     // Just verify the string is parseable
     raw.parse::<Hotkey>()
         .map(|_| ())
-        .map_err(|e| format!("Invalid shortcut for HandyKeys: {}", e))
+        .map_err(|e| format!("Invalid shortcut for VoxBar Keys: {}", e))
 }
 
 /// Initialize handy-keys shortcuts
@@ -433,16 +433,17 @@ pub fn init_shortcuts(app: &AppHandle) -> Result<(), String> {
         if id == "cancel" {
             continue;
         }
-        // Skip post-processing shortcut when the feature is disabled
-        if id == "transcribe_with_post_process" && !user_settings.post_process_enabled {
-            continue;
-        }
 
         let binding = user_settings
             .bindings
             .get(&id)
             .cloned()
             .unwrap_or(default_binding);
+
+        // Skip bindings that are unbound or disabled by their feature toggle.
+        if !super::binding_is_active(&user_settings, &id, &binding) {
+            continue;
+        }
 
         if let Err(e) = state.register(&binding) {
             error!(

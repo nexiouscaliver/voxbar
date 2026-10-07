@@ -4,6 +4,10 @@
     "checkUpdates": "アップデートを確認…",
     "copyLastTranscript": "最新の文字起こしをコピー",
     "unloadModel": "モデルをアンロード",
+    "unloadAfter": "アンロードまでの時間",
+    "unloadAfterImmediately": "即座に",
+    "unloadAfterNever": "しない",
+    "unloadAfterCustom": "カスタム…",
     "model": "モデル",
     "quit": "終了",
     "cancel": "キャンセル",
@@ -101,7 +105,7 @@
     },
     "permissions": {
       "title": "権限が必要です",
-      "description": "Handy が正常に動作するにはいくつかの権限が必要です。",
+      "description": "VoxBar が正常に動作するにはいくつかの権限が必要です。",
       "microphone": {
         "title": "マイクへのアクセス",
         "description": "文字起こしのためにあなたの声を聞くために必要です。"
@@ -175,13 +179,41 @@
       "searchPlaceholder": "モデルを名前で検索…",
       "rescan": {
         "label": "再スキャン",
-        "tooltip": "Handy を使わずに models フォルダーまたは Hugging Face キャッシュに追加されたモデルを再スキャンします"
+        "tooltip": "VoxBar を使わずに models フォルダーまたは Hugging Face キャッシュに追加されたモデルを再スキャンします"
+      },
+      "rescanModels": "モデルを再スキャン",
+      "addFromHf": {
+        "title": "Hugging Face からモデルを追加",
+        "description": "公開リポジトリの URL、または owner/repo を貼り付けてください。例: https://huggingface.co/owner/model.",
+        "placeholder": "https://huggingface.co/owner/model または owner/repo",
+        "add": "追加",
+        "cancel": "キャンセル",
+        "pickFile": "{{repo}} からファイルを選択してください:",
+        "recommended": "推奨",
+        "status": {
+          "resolving": "リポジトリを解決中...",
+          "adding": "モデルをダウンロードして確認中...",
+          "added": "モデルを追加しました。ダウンロード済みモデルに表示されます。"
+        },
+        "errors": {
+          "invalidInput": "Hugging Face のリポジトリとして読み取れませんでした: {{detail}}",
+          "notFound": "リポジトリ {{repo}} が Hugging Face で見つかりませんでした。",
+          "inaccessible": "{{repo}} にアクセスできませんでした。存在しないか、非公開または制限付きの可能性があります。現在は公開リポジトリのみ対応しています。",
+          "fileNotFound": "ファイル {{filename}} は {{repo}} 内で見つかりませんでした。",
+          "noGguf": "{{repo}} に GGUF ファイルがありません。",
+          "network": "Hugging Face に接続できませんでした: {{detail}}",
+          "downloadFailed": "ダウンロードに失敗しました: {{detail}}",
+          "cancelled": "ダウンロードをキャンセルしました。",
+          "unsupportedArch": "モデルのアーキテクチャ {{arch}} は対応していません。対応: {{supported}}.",
+          "unsupportedArchUnknown": "このファイルは GGUF モデルとして読み取れなかったため、追加されませんでした。",
+          "generic": "問題が発生しました。"
+        }
       }
     },
     "general": {
       "title": "一般",
       "shortcut": {
-        "title": "Handy ショートカット",
+        "title": "VoxBar ショートカット",
         "description": "音声録音を開始するキーボードショートカットを設定",
         "loading": "ショートカットを読み込み中…",
         "none": "ショートカットが設定されていません",
@@ -199,13 +231,26 @@
           "transcribe_with_post_process": {
             "name": "後処理のショートカット",
             "description": "文字起こしに常に AI 後処理を適用するキーボードショートカット。 (任意)"
+          },
+          "delete_last_word": {
+            "name": "最後の単語を削除",
+            "description": "フォーカスされたアプリでカーソルの前の単語を削除します (macOS では Option+Backspace、その他では Ctrl+Backspace)。有効にするにはキーを割り当ててください。"
+          },
+          "undo": {
+            "name": "元に戻す",
+            "description": "フォーカスされたアプリで元に戻すを実行します (macOS では Cmd+Z、その他では Ctrl+Z)。最後に貼り付けた音声入力を一回で取り消します。有効にするにはキーを割り当ててください。"
+          },
+          "transcribe_commands": {
+            "name": "コマンドモード",
+            "description": "音声入力と同じように録音しますが、すべての単語をコマンドとして扱います: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste。認識されない単語は破棄されるため、それ以外が入力されることはありません。既定では割り当てなし。"
           }
         },
         "errors": {
           "restore": "元のショートカットを復元できませんでした",
           "set": "ショートカットを設定できませんでした: {{error}}",
           "reset": "ショートカットを元の値にリセットできませんでした"
-        }
+        },
+        "unbound": "未割り当て"
       },
       "language": {
         "title": "言語",
@@ -226,6 +271,24 @@
           "hold_or_toggle": "長押しで録音、タップで切り替え",
           "push_to_talk": "ショートカットを押している間だけ録音します",
           "toggle": "ショートカットをタップすると録音を開始し、もう一度タップすると停止します"
+        }
+      },
+      "editingShortcuts": {
+        "title": "編集ショートカット",
+        "deleteLastWord": {
+          "title": "アクション: 最後の単語を削除",
+          "description": "カーソルの前の単語を削除する割り当て可能なホットキーを有効にします。上でキーを割り当てるまで無効のままです。"
+        },
+        "undo": {
+          "title": "アクション: 元に戻す",
+          "description": "フォーカスされたアプリで元に戻すを実行する割り当て可能なホットキーを有効にします。上でキーを割り当てるまで無効のままです。"
+        }
+      },
+      "commandMode": {
+        "title": "コマンドモード",
+        "toggle": {
+          "title": "コマンドモード",
+          "description": "割り当て可能なコマンドモードトリガーを有効にします。押している間は音声入力と同じように録音し、文字起こしはコマンドとして実行されます (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste)。認識されない単語は破棄されます。"
         }
       }
     },
@@ -291,13 +354,25 @@
         "label": "非表示で起動",
         "description": "ウィンドウを開かずにシステムトレイに起動。"
       },
+      "memoryPressureGuard": {
+        "label": "メモリ圧ガード",
+        "description": "空きメモリが不足している場合にモデルの読み込みを拒否します。読み込みが拒否されても現在のモデルは動作を続けます。"
+      },
+      "autoFallback": {
+        "label": "RAM自動フォールバック",
+        "description": "選択したモデルが空きメモリに収まらない場合、収まる最適なダウンロード済みモデルを自動的に読み込みます。オフにすると単に拒否します。"
+      },
+      "menuBarModelTitle": {
+        "label": "メニューバーのモデル表示",
+        "description": "常駐モデルとRAM使用量をトレイアイコンの横にテキストで表示します（macOSメニューバー）。"
+      },
       "autostart": {
         "label": "起動時に実行",
-        "description": "コンピューターにログインしたときに Handy を自動的に起動。"
+        "description": "コンピューターにログインしたときに VoxBar を自動的に起動。"
       },
       "showTrayIcon": {
         "label": "トレイアイコンを表示",
-        "description": "システムトレイに Handy のアイコンを表示します。"
+        "description": "システムトレイに VoxBar のアイコンを表示します。"
       },
       "overlay": {
         "style": {
@@ -372,8 +447,11 @@
           "min10": "10分後",
           "min15": "15分後",
           "hour1": "1時間後",
+          "custom": "カスタム",
           "sec15": "15秒後 (デバッグ)"
-        }
+        },
+        "customSecondsLabel": "カスタム秒数",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "カスタム単語",
@@ -398,6 +476,22 @@
       "fillerWordRemoval": {
         "title": "フィラー語を削除",
         "description": "文字起こしから一般的なフィラー語を削除します。残すにはオフにしてください。"
+      },
+      "spokenPunctuation": {
+        "title": "音声読点",
+        "description": "\"comma\"、\"period\"、\"question mark\" など、読み上げた句読点語を実際の句読点に変換します。オフにすると通常の単語のまま残します。"
+      },
+      "terminalPunctuation": {
+        "title": "文末句読点",
+        "description": "すべての文字起こしを句読点で終えます。疑問文には疑問符、その他にはピリオドを付けます。オフにすると起こし結果のままになります。"
+      },
+      "voiceDeletion": {
+        "title": "音声削除コマンド",
+        "description": "\"scratch that\"、\"delete that\"、\"remove that\" は直前の単語を削除し、\"delete last three words\" は複数の単語を削除し、\"delete everything\" または \"start over\" でディテーション全体を消去します。オフにすると通常の単語のまま残ります。"
+      },
+      "previewBeforePaste": {
+        "title": "貼り付け前のプレビュー",
+        "description": "貼り付ける前に、完成した書き起こしを録音オーバーレイに短時間表示します。オフにするとすぐに貼り付けます。"
       },
       "chineseScript": {
         "title": "中国語の表記",
@@ -477,7 +571,12 @@
       "retranscribe": "再文字起こし",
       "retranscribeError": "再文字起こしに失敗しました。もう一度お試しください。",
       "transcribing": "文字起こし中…",
-      "transcriptionFailed": "文字起こしに失敗しました。リトライアイコンを使用して再文字起こしできます。"
+      "transcriptionFailed": "文字起こしに失敗しました。リトライアイコンを使用して再文字起こしできます。",
+      "model": "文字起こしモデル",
+      "showModel": {
+        "label": "モデルバッジを表示",
+        "description": "各文字起こしを作成したモデルを示すコンパクトなバッジを表示します。"
+      }
     },
     "debug": {
       "title": "デバッグ",
@@ -502,7 +601,7 @@
       },
       "updateChecks": {
         "label": "アップデートを確認",
-        "description": "Handy の新しいバージョンを自動的にチェック",
+        "description": "トレイメニューとフッターに「アップデートを確認」オプションを表示",
         "lockedDescription": "システム設定により無効化されています (HANDY_DISABLE_UPDATER)"
       },
       "soundTheme": {
@@ -580,7 +679,7 @@
       },
       "keyboardDiagnostic": {
         "title": "キーボード診断",
-        "description": "キーボードイベントが Handy に届いているかを確認します。記録されるのはイベント数のみで、押したキーの内容は記録されません。",
+        "description": "キーボードイベントが VoxBar に届いているかを確認します。記録されるのはイベント数のみで、押したキーの内容は記録されません。",
         "run": "10 秒間の診断を実行",
         "running": "待機中… ショートカットを数回押してください (例: Option+Space)",
         "secureInputLabel": "Secure Input",
@@ -594,7 +693,7 @@
         "mouse": "マウス",
         "verdictBlocked": "Secure Input がキーイベントをブロックしています。解消されるまで、通常キーを含むショートカットは動作しません。",
         "verdictSuspicious": "修飾キーのイベントは届いていますが、キーイベントは届いていません。Secure Input は無効と報告されているのに、何かがキーを抑制しています。GitHub で報告してください。",
-        "verdictOk": "キーイベントは Handy に正常に届いています。",
+        "verdictOk": "キーイベントは VoxBar に正常に届いています。",
         "verdictNoEvents": "イベントを検出できませんでした。テスト中にキーを押しましたか？",
         "failed": "診断に失敗しました: {{error}}"
       },
@@ -617,11 +716,11 @@
       "title": "概要",
       "version": {
         "title": "バージョン",
-        "description": "Handy の現在のバージョン"
+        "description": "VoxBar の現在のバージョン"
       },
       "appDataDirectory": {
         "title": "アプリデータディレクトリ",
-        "description": "Handy がデータを保存する場所"
+        "description": "VoxBar がデータを保存する場所"
       },
       "sourceCode": {
         "title": "ソースコード",
@@ -630,7 +729,7 @@
       },
       "supportDevelopment": {
         "title": "開発を支援",
-        "description": "Handy の開発を支援してください",
+        "description": "VoxBar の開発を支援してください",
         "button": "寄付する"
       },
       "acknowledgments": {
@@ -638,12 +737,12 @@
         "ggml": {
           "title": "ggml",
           "description": "オンデバイス機械学習推論のための高性能テンソルライブラリ",
-          "details": "Handy のローカルの音声からテキストへの文字起こしは transcribe.cpp と ggml を基盤としています。Georgi Gerganov 氏と貢献者の皆様の素晴らしい仕事に感謝します。"
+          "details": "VoxBar のローカルの音声からテキストへの文字起こしは transcribe.cpp と ggml を基盤としています。Georgi Gerganov 氏と貢献者の皆様の素晴らしい仕事に感謝します。"
         }
       },
       "whatsNewUpdates": {
         "label": "新機能を表示",
-        "description": "Handy のアップデート後にリリースノートを表示"
+        "description": "VoxBar のアップデート後にリリースノートを表示"
       }
     }
   },
@@ -672,7 +771,7 @@
     "noOptionsFound": "オプションが見つかりません"
   },
   "accessibility": {
-    "permissionsDescription": "Handy が文字起こしテキストを入力するには、アクセシビリティ権限が必要です。",
+    "permissionsDescription": "VoxBar が文字起こしテキストを入力するには、アクセシビリティ権限が必要です。",
     "openSettings": "システム設定を開く"
   },
   "errors": {
@@ -689,21 +788,43 @@
     "recordingFailed": "録音の開始に失敗しました: {{error}}",
     "modelLoadFailed": "モデルの読み込みに失敗しました: {{model}}",
     "modelLoadFailedUnknown": "不明なモデル",
+    "modelFallbackTitle": "メモリ不足",
+    "modelFallback": "このディクテーションでは {{model}} に切り替えました",
     "pasteFailedTitle": "テキストの貼り付けに失敗しました",
     "pasteFailed": "アクティブなアプリにテキストを貼り付けられませんでした。",
     "transcriptionFailedTitle": "文字起こしに失敗しました"
   },
   "appLanguage": {
     "title": "アプリの言語",
-    "description": "Handy インターフェースの言語を変更"
+    "description": "VoxBar インターフェースの言語を変更"
   },
   "theme": {
     "title": "アプリのテーマ",
-    "description": "Handy をシステムのテーマに合わせるか、ライトまたはダークで固定するかを選択します",
+    "description": "VoxBar をシステムのテーマに合わせるか、ライトまたはダークで固定するかを選択します",
     "options": {
       "system": "システム",
       "light": "ライト",
       "dark": "ダーク"
+    },
+    "accentColor": {
+      "label": "アクセントカラー",
+      "description": "ハイライト、スイッチ、コントロールに使用する色を選択します"
+    },
+    "accentColors": {
+      "black": "黒",
+      "gray": "グレー",
+      "white": "白",
+      "red": "赤",
+      "orange": "オレンジ",
+      "amber": "アンバー",
+      "green": "緑",
+      "teal": "ティール",
+      "cyan": "シアン",
+      "blue": "青",
+      "indigo": "インディゴ",
+      "violet": "紫",
+      "magenta": "マゼンタ",
+      "pink": "ピンク"
     }
   },
   "overlay": {
@@ -711,7 +832,7 @@
     "processing": "処理中…"
   },
   "whatsNew": {
-    "title": "Handy v{{version}} の新機能"
+    "title": "VoxBar v{{version}} の新機能"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} が1個のショートカットをブロックしている可能性があります",

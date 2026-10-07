@@ -12,7 +12,12 @@ import type {
 import i18n, { syncLanguageFromSettings } from "@/i18n";
 import { getLanguageDirection } from "@/lib/utils/rtl";
 
-type OverlayState = "recording" | "streaming" | "transcribing" | "processing";
+type OverlayState =
+  | "recording"
+  | "streaming"
+  | "transcribing"
+  | "processing"
+  | "preview";
 
 // Number of reactive bars in the waveform (the simple, smoothed style shared by
 // every overlay form). Mic levels arrive as 16 FFT buckets; we take the first N.
@@ -59,7 +64,11 @@ const RecordingOverlay: React.FC = () => {
         // Reset synchronously before settings I/O. A fast microphone can emit
         // recording-ready while the awaits below are in flight; resetting after
         // them would overwrite that event and leave the overlay stuck arming.
-        if (overlayState === "recording" || overlayState === "streaming") {
+        if (
+          overlayState === "recording" ||
+          overlayState === "streaming" ||
+          overlayState === "preview"
+        ) {
           setCaptureReady(false);
           smoothedLevelsRef.current = Array(16).fill(0);
           setLevels(Array(WAVE_BARS).fill(0));
@@ -80,7 +89,7 @@ const RecordingOverlay: React.FC = () => {
           // Keep the previous/default placement if settings can't be read.
         }
         setState(overlayState);
-        if (overlayState === "streaming") {
+        if (overlayState === "streaming" || overlayState === "preview") {
           setPhase("listening");
           setWorkKind("transcribing");
           setElapsed(0);
@@ -141,7 +150,7 @@ const RecordingOverlay: React.FC = () => {
     return () => clearInterval(id);
   }, [state, isVisible, captureReady]);
 
-  // Stick to the bottom as text streams in — but only while pinned, so a user who
+  // Stick to the bottom as text streams in - but only while pinned, so a user who
   // has scrolled up to read history isn't yanked back down by the next chunk.
   useLayoutEffect(() => {
     const el = capRef.current;
@@ -200,7 +209,7 @@ const RecordingOverlay: React.FC = () => {
     </button>
   );
 
-  // dot (left) | waveform (center) | timer + cancel (right) — same structure for
+  // dot (left) | waveform (center) | timer + cancel (right) - same structure for
   // pill & panel, so the Live morph is a pure width change.
   const listeningRow = (showTimer: boolean, showCancel: boolean) => (
     <div className="sbase">
@@ -215,7 +224,7 @@ const RecordingOverlay: React.FC = () => {
     </div>
   );
 
-  // spinner (left) | label (center) | cancel (right) — same 3-zone grid as the
+  // spinner (left) | label (center) | cancel (right) - same 3-zone grid as the
   // listening row, so the label is centered.
   const workingRow = (label: string, showCancel: boolean) => (
     <div className="sbase">
@@ -228,11 +237,15 @@ const RecordingOverlay: React.FC = () => {
   );
 
   // ---- Live overlay: a pill that sculpts open into a panel ----
-  if (state === "streaming") {
+  // The final-text preview ("preview") reuses the Live card: it shows the
+  // finished transcription briefly before the paste fires, so batch models
+  // get the same final confirmation streaming models already had.
+  if (state === "streaming" || state === "preview") {
+    const isPreview = state === "preview";
     const hasText =
       streamText.committed.length > 0 || streamText.tentative.length > 0;
     const working = phase === "working";
-    // Keep the panel open whenever there's text — even while finalizing — so the
+    // Keep the panel open whenever there's text - even while finalizing - so the
     // transcript stays put under a working spinner instead of collapsing and
     // squishing the text mid-stream. Only fall back to the small working pill
     // when there was no text to preserve.
@@ -259,9 +272,10 @@ const RecordingOverlay: React.FC = () => {
                     {streamText.committed ? streamText.committed + " " : ""}
                   </span>
                   <span className="tentative">{streamText.tentative}</span>
-                  {/* Drop the blinking caret once finalizing — it's no longer
-                      capturing, and a static spinner conveys the work. */}
-                  {!working && <span className="scaret" />}
+                  {/* Drop the blinking caret once finalizing - it's no longer
+                      capturing, and a static spinner conveys the work. The
+                      preview keeps it: the text is final but not yet pasted. */}
+                  {(!working || isPreview) && <span className="scaret" />}
                 </p>
               </div>
             </div>
@@ -273,13 +287,15 @@ const RecordingOverlay: React.FC = () => {
                   : t("overlay.transcribing"),
                 true,
               )
-            : listeningRow(open, true)}
+            : // The preview row keeps the shared 3-zone layout but drops the
+              // elapsed timer: nothing is being timed anymore.
+              listeningRow(open && !isPreview, true)}
         </div>
       </div>
     );
   }
 
-  // ---- Minimal overlay: exactly one row at a time — waveform (recording), or a
+  // ---- Minimal overlay: exactly one row at a time - waveform (recording), or a
   // spinner + label (transcribing / processing). Never both. The pill animates its
   // width between them; the cancel button is in both rows so it stays put.
   const working = state === "transcribing" || state === "processing";

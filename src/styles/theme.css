@@ -1,4 +1,4 @@
-/* Handy Colors */
+/* VoxBar Colors */
 
 :root {
   /* Palette source of truth. Each themed color is defined once as a
@@ -14,6 +14,23 @@
   --dark-color-logo-primary: #f28cbb;
   --dark-color-logo-stroke: #fad1ed;
 
+  /* Control fill / hover-tint pair (checked toggle, tab + button hovers).
+     Overridden per accent via inline document-root custom properties
+     (lib/utils/accent.ts) when the user picks a non-default accent. */
+  --light-color-background-ui: #da5893;
+  --dark-color-background-ui: #da5893;
+
+  /* Content placed on solid accent fills. `on` is for text (badge labels),
+     `knob` for the toggle knob. Defaults keep today's look - text on a pink
+     fill inherits the theme text color, the knob is white in both themes.
+     A non-default accent overrides both pairs inline so a white knob never
+     sits on a light fill (black/white/gray accents) and solid-fill text
+     stays legible. */
+  --light-accent-on: var(--color-text);
+  --dark-accent-on: var(--color-text);
+  --light-accent-knob: #ffffff;
+  --dark-accent-knob: #ffffff;
+
   /* Semantic status colors. First used by SecureInputWarning; intended to
      replace the ad-hoc yellow-500/red-500 usages (e.g. ui/Alert.tsx) over
      time so status styling is themeable from one place. */
@@ -23,16 +40,18 @@
   --dark-color-error: #f87171;
 
   /* Tokens that do not change between light and dark */
-  --color-background-ui: #da5893;
   --color-text-stroke: #f6f6f6;
   --color-mid-gray: #808080;
 
-  /* Active palette — defaults to light, follows the OS via the media query
+  /* Active palette - defaults to light, follows the OS via the media query
      below, or is forced by `data-theme` (see the overrides below). */
   --color-text: var(--light-color-text);
   --color-background: var(--light-color-background);
   --color-logo-primary: var(--light-color-logo-primary);
   --color-logo-stroke: var(--light-color-logo-stroke);
+  --color-background-ui: var(--light-color-background-ui);
+  --color-accent-on: var(--light-accent-on);
+  --color-accent-knob: var(--light-accent-knob);
   --color-warning: var(--light-color-warning);
   --color-error: var(--light-color-error);
 }
@@ -43,6 +62,9 @@
     --color-background: var(--dark-color-background);
     --color-logo-primary: var(--dark-color-logo-primary);
     --color-logo-stroke: var(--dark-color-logo-stroke);
+    --color-background-ui: var(--dark-color-background-ui);
+    --color-accent-on: var(--dark-accent-on);
+    --color-accent-knob: var(--dark-accent-knob);
     --color-warning: var(--dark-color-warning);
     --color-error: var(--dark-color-error);
   }
@@ -52,17 +74,20 @@
  * Explicit theme override, driven by the `theme` setting via
  * `document.documentElement.dataset.theme`. When set, the higher-specificity
  * attribute selectors win over the `prefers-color-scheme` media query above,
- * so a user can keep Handy light or dark regardless of the OS setting.
+ * so a user can keep VoxBar light or dark regardless of the OS setting.
  * `system` (or no attribute) leaves the OS in charge.
  *
- * Lives here (not in App.css) so every window that imports the shared palette —
- * the settings window and the recording overlay alike — honours the override.
+ * Lives here (not in App.css) so every window that imports the shared palette -
+ * the settings window and the recording overlay alike - honours the override.
  */
 :root[data-theme="light"] {
   --color-text: var(--light-color-text);
   --color-background: var(--light-color-background);
   --color-logo-primary: var(--light-color-logo-primary);
   --color-logo-stroke: var(--light-color-logo-stroke);
+  --color-background-ui: var(--light-color-background-ui);
+  --color-accent-on: var(--light-accent-on);
+  --color-accent-knob: var(--light-accent-knob);
   --color-warning: var(--light-color-warning);
   --color-error: var(--light-color-error);
 }
@@ -72,6 +97,9 @@
   --color-background: var(--dark-color-background);
   --color-logo-primary: var(--dark-color-logo-primary);
   --color-logo-stroke: var(--dark-color-logo-stroke);
+  --color-background-ui: var(--dark-color-background-ui);
+  --color-accent-on: var(--dark-accent-on);
+  --color-accent-knob: var(--dark-accent-knob);
   --color-warning: var(--dark-color-warning);
   --color-error: var(--dark-color-error);
 }

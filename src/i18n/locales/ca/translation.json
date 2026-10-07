@@ -4,6 +4,10 @@
     "checkUpdates": "Comprova si hi ha actualitzacions...",
     "copyLastTranscript": "Copia l'última transcripció",
     "unloadModel": "Allibera el model de la memòria",
+    "unloadAfter": "Descarregar després de",
+    "unloadAfterImmediately": "Immediatament",
+    "unloadAfterNever": "Mai",
+    "unloadAfterCustom": "Personalitzat…",
     "model": "Model",
     "quit": "Surt",
     "cancel": "Cancel·la",
@@ -101,7 +105,7 @@
     },
     "permissions": {
       "title": "Permisos necessaris",
-      "description": "El Handy demana alguns permisos per funcionar correctament.",
+      "description": "El VoxBar demana alguns permisos per funcionar correctament.",
       "microphone": {
         "title": "Accés al micròfon",
         "description": "Necessari per escoltar la vostra veu i transcriure-la."
@@ -161,7 +165,7 @@
     "general": {
       "title": "General",
       "shortcut": {
-        "title": "Dreceres del Handy",
+        "title": "Dreceres del VoxBar",
         "description": "Configura les dreceres de teclat per iniciar l'enregistrament de veu per a la transcripció",
         "loading": "S'estan carregant les dreceres...",
         "none": "No hi ha cap drecera configurada",
@@ -179,13 +183,26 @@
           "transcribe_with_post_process": {
             "name": "Drecera de postprocessament",
             "description": "Opcional: una drecera específica que sempre aplica postprocessament amb IA a la transcripció."
+          },
+          "delete_last_word": {
+            "name": "Suprimeix l'última paraula",
+            "description": "Suprimeix la paraula anterior al cursor a l'aplicació activa (Opció+Retroés a macOS, Ctrl+Retroés a altres). Assigna una tecla per activar-ho."
+          },
+          "undo": {
+            "name": "Desfés",
+            "description": "Executa Desfés a l'aplicació activa (Cmd+Z a macOS, Ctrl+Z a altres), revertint l'últim dictat enganxat d'una sola vegada. Assigna una tecla per activar-ho."
+          },
+          "transcribe_commands": {
+            "name": "Mode d'ordres",
+            "description": "Enregistra com un dictat, però cada paraula es tracta com una ordre: question mark, full stop or period, comma, new line, new paragraph, delete word, delete line, undo, paste. Les paraules no reconegudes es descarten, així mai no s'escriu res més. Sense assignar per defecte."
           }
         },
         "errors": {
           "restore": "No s'ha pogut restaurar la drecera original",
           "set": "No s'ha pogut definir la drecera: {{error}}",
           "reset": "No s'ha pogut restablir la drecera al valor original"
-        }
+        },
+        "unbound": "Sense assignar"
       },
       "language": {
         "title": "Llengua",
@@ -207,6 +224,24 @@
           "push_to_talk": "Enregistreu mentre manteniu premuda la drecera",
           "toggle": "Premeu la drecera per iniciar l'enregistrament i torneu-la a prémer per aturar-lo"
         }
+      },
+      "editingShortcuts": {
+        "title": "Dreceres d'edició",
+        "deleteLastWord": {
+          "title": "Acció: suprimeix l'última paraula",
+          "description": "Activa la drecera assignable que suprimeix la paraula anterior al cursor. La drecera es manté inactiva fins que assignis una tecla a dalt."
+        },
+        "undo": {
+          "title": "Acció: desfés",
+          "description": "Activa la drecera assignable que executa Desfés a l'aplicació activa. La drecera es manté inactiva fins que assignis una tecla a dalt."
+        }
+      },
+      "commandMode": {
+        "title": "Mode d'ordres",
+        "toggle": {
+          "title": "Mode d'ordres",
+          "description": "Activa el disparador assignable del mode d'ordres. Mantingut, enregistra com un dictat; la transcripció s'executa com ordres (question mark, full stop, period, comma, new line, new paragraph, delete word, delete line, undo, paste) i les paraules no reconegudes es descarten."
+        }
       }
     },
     "models": {
@@ -225,9 +260,37 @@
       },
       "rescan": {
         "label": "Torna a cercar",
-        "tooltip": "Torna a cercar models afegits a la carpeta de models o a la memòria cau de Hugging Face des de fora del Handy"
+        "tooltip": "Torna a cercar models afegits a la carpeta de models o a la memòria cau de Hugging Face des de fora del VoxBar"
       },
-      "noModelsMatch": "Cap model no coincideix amb aquest filtre."
+      "noModelsMatch": "Cap model no coincideix amb aquest filtre.",
+      "rescanModels": "Tornar a escanejar models",
+      "addFromHf": {
+        "title": "Afegeix un model de Hugging Face",
+        "description": "Enganxa un URL de repositori públic o propietari/repositori, per exemple https://huggingface.co/propietari/model.",
+        "placeholder": "https://huggingface.co/propietari/model o propietari/repositori",
+        "add": "Afegeix",
+        "cancel": "Cancel·la",
+        "pickFile": "Tria un fitxer de {{repo}}:",
+        "recommended": "Recomanat",
+        "status": {
+          "resolving": "S'està resolent el repositori...",
+          "adding": "S'està descarregant i comprovant el model...",
+          "added": "Model afegit. Apareix als models descarregats."
+        },
+        "errors": {
+          "invalidInput": "No s'ha pogut llegir com un repositori de Hugging Face: {{detail}}",
+          "notFound": "El repositori {{repo}} no s'ha trobat a Hugging Face.",
+          "inaccessible": "No s'ha pogut accedir a {{repo}} a Hugging Face. Potser no existeix, o bé és privat o restringit. De moment només s'admeten repositoris públics.",
+          "fileNotFound": "El fitxer {{filename}} no s'ha trobat a {{repo}}.",
+          "noGguf": "{{repo}} no conté fitxers GGUF.",
+          "network": "No s'ha pogut contactar amb Hugging Face: {{detail}}",
+          "downloadFailed": "La descàrrega ha fallat: {{detail}}",
+          "cancelled": "Descàrrega cancel·lada.",
+          "unsupportedArch": "L'arquitectura del model {{arch}} no és compatible. Compatibles: {{supported}}.",
+          "unsupportedArchUnknown": "Aquest fitxer no s'ha pogut llegir com un model GGUF, per això no s'ha afegit.",
+          "generic": "Alguna cosa ha fallat."
+        }
+      }
     },
     "sound": {
       "title": "So",
@@ -291,13 +354,25 @@
         "label": "Inicia ocult",
         "description": "Inicia a la safata del sistema sense obrir la finestra."
       },
+      "memoryPressureGuard": {
+        "label": "Guarda de pressió de memòria",
+        "description": "Rebutja carregar un model quan la memòria lliure no és suficient. El model actual continua funcionant quan es rebutja una càrrega."
+      },
+      "autoFallback": {
+        "label": "Alternativa automàtica de RAM",
+        "description": "Quan el model seleccionat no cap a la memòria lliure, carrega automàticament el millor model descarregat que hi cap. Desactiva per mantenir el refús simple."
+      },
+      "menuBarModelTitle": {
+        "label": "Títol del model a la barra de menús",
+        "description": "Mostra el model resident i el seu ús de RAM com a text al costat de la icona de la safata (barra de menús de macOS)."
+      },
       "autostart": {
         "label": "Inicia en entrar a la sessió",
-        "description": "Inicia automàticament el Handy quan entreu a la sessió de l'ordinador."
+        "description": "Inicia automàticament el VoxBar quan entreu a la sessió de l'ordinador."
       },
       "showTrayIcon": {
         "label": "Mostra la icona a la safata",
-        "description": "Mostra la icona del Handy a la safata del sistema."
+        "description": "Mostra la icona del VoxBar a la safata del sistema."
       },
       "overlay": {
         "style": {
@@ -372,8 +447,11 @@
           "min10": "Al cap de 10 minuts",
           "min15": "Al cap de 15 minuts",
           "hour1": "Al cap d'1 hora",
+          "custom": "Personalitzat",
           "sec15": "Al cap de 15 segons (depuració)"
-        }
+        },
+        "customSecondsLabel": "Segons personalitzats",
+        "customSecondsUnit": "s"
       },
       "customWords": {
         "title": "Paraules personalitzades",
@@ -398,6 +476,22 @@
       "fillerWordRemoval": {
         "title": "Elimina les falques",
         "description": "Elimina les expressions de vacil·lació habituals de les transcripcions. Desactiveu aquesta opció per conservar-les."
+      },
+      "spokenPunctuation": {
+        "title": "Puntuació parlada",
+        "description": "Converteix paraules de puntuació dites com \"comma\", \"period\" i \"question mark\" en puntuació real. Desactiveu-ho per mantenir-les com a paraules normals."
+      },
+      "terminalPunctuation": {
+        "title": "Puntuació final",
+        "description": "Acaba cada transcripció amb puntuació: signe d'interrogació per a preguntes i punt en la resta. Desactiveu-ho per deixar el final tal com s'ha transcrit."
+      },
+      "voiceDeletion": {
+        "title": "Ordres de supressió per veu",
+        "description": "\"scratch that\", \"delete that\" i \"remove that\" suprimeixen la paraula anterior, \"delete last three words\" en suprimeix diverses, i \"delete everything\" o \"start over\" esborra el dictat. Desactiveu-ho per mantenir-les com a paraules normals."
+      },
+      "previewBeforePaste": {
+        "title": "Previsualització abans d'enganxar",
+        "description": "Mostra breument la transcripció acabada a la superposició de gravació abans d'enganxar-la. Desactiva-ho per enganxar immediatament."
       },
       "chineseScript": {
         "title": "Escriptura xinesa",
@@ -477,7 +571,12 @@
       "retranscribe": "Torneu a transcriure",
       "retranscribeError": "No s'ha pogut tornar a transcriure. Torneu-ho a provar.",
       "transcribing": "S'està transcrivint...",
-      "transcriptionFailed": "La transcripció ha fallat. Podeu tornar a transcriure amb la icona de reintent."
+      "transcriptionFailed": "La transcripció ha fallat. Podeu tornar a transcriure amb la icona de reintent.",
+      "model": "Model de transcripció",
+      "showModel": {
+        "label": "Mostra la insígnia del model",
+        "description": "Mostra una insígnia compacta amb el model que va produir cada transcripció."
+      }
     },
     "debug": {
       "title": "Depuració",
@@ -502,7 +601,7 @@
       },
       "updateChecks": {
         "label": "Comproveu si hi ha actualitzacions",
-        "description": "Comprova automàticament si hi ha versions noves del Handy",
+        "description": "Mostra l'opció \"Comproveu si hi ha actualitzacions\" al menú de la safata i al peu de la finestra",
         "lockedDescription": "Desactivat per la configuració del sistema (HANDY_DISABLE_UPDATER)"
       },
       "whatsNewPreview": {
@@ -594,7 +693,7 @@
       },
       "keyboardDiagnostic": {
         "title": "Diagnòstic del teclat",
-        "description": "Comprova si els esdeveniments del teclat arriben al Handy. Només se'n registra el recompte, mai les tecles que premeu.",
+        "description": "Comprova si els esdeveniments del teclat arriben al VoxBar. Només se'n registra el recompte, mai les tecles que premeu.",
         "run": "Executa un diagnòstic de 10 s",
         "running": "S'està escoltant… prema la drecera unes quantes vegades (p. ex., Option+Space)",
         "secureInputLabel": "Entrada segura",
@@ -608,7 +707,7 @@
         "mouse": "Ratolí",
         "verdictBlocked": "L'entrada segura bloca els esdeveniments de tecla. Les dreceres amb tecles no poden funcionar fins que es resolgui.",
         "verdictSuspicious": "Han arribat esdeveniments de modificadors, però no de tecles. Alguna cosa suprimeix les tecles tot i que l'entrada segura consta com a desactivada. Informeu-ne al GitHub.",
-        "verdictOk": "Els esdeveniments de tecla arriben al Handy amb normalitat.",
+        "verdictOk": "Els esdeveniments de tecla arriben al VoxBar amb normalitat.",
         "verdictNoEvents": "No s'ha capturat cap esdeveniment. Heu premut alguna tecla durant la prova?",
         "failed": "El diagnòstic ha fallat: {{error}}"
       }
@@ -617,15 +716,15 @@
       "title": "Quant a",
       "version": {
         "title": "Versió",
-        "description": "Versió actual del Handy"
+        "description": "Versió actual del VoxBar"
       },
       "whatsNewUpdates": {
         "label": "Mostra les novetats",
-        "description": "Mostra les notes de la versió després d'actualitzar el Handy"
+        "description": "Mostra les notes de la versió després d'actualitzar el VoxBar"
       },
       "appDataDirectory": {
         "title": "Directori de dades de l'aplicació",
-        "description": "Ubicació on el Handy desa les dades"
+        "description": "Ubicació on el VoxBar desa les dades"
       },
       "sourceCode": {
         "title": "Codi font",
@@ -634,7 +733,7 @@
       },
       "supportDevelopment": {
         "title": "Dona suport al desenvolupament",
-        "description": "Ajudeu-nos a continuar desenvolupant el Handy",
+        "description": "Ajudeu-nos a continuar desenvolupant el VoxBar",
         "button": "Feu una donació"
       },
       "acknowledgments": {
@@ -642,7 +741,7 @@
         "ggml": {
           "title": "ggml",
           "description": "Biblioteca de tensors d'alt rendiment per a la inferència d'aprenentatge automàtic al dispositiu",
-          "details": "La transcripció local de veu a text del Handy es basa en el transcribe.cpp i el ggml. Gràcies a la gran feina de Georgi Gerganov i dels col·laboradors."
+          "details": "La transcripció local de veu a text del VoxBar es basa en el transcribe.cpp i el ggml. Gràcies a la gran feina de Georgi Gerganov i dels col·laboradors."
         }
       }
     }
@@ -663,7 +762,7 @@
     "portableUpdateBrowseButton": "Obriu GitHub Releases"
   },
   "whatsNew": {
-    "title": "Novetats del Handy v{{version}}"
+    "title": "Novetats del VoxBar v{{version}}"
   },
   "common": {
     "loading": "S'està carregant...",
@@ -675,7 +774,7 @@
     "noOptionsFound": "No s'ha trobat cap opció"
   },
   "accessibility": {
-    "permissionsDescription": "El Handy necessita permisos d'accessibilitat per escriure el text transcrit.",
+    "permissionsDescription": "El VoxBar necessita permisos d'accessibilitat per escriure el text transcrit.",
     "openSettings": "Obriu la configuració del sistema"
   },
   "errors": {
@@ -692,21 +791,43 @@
     "recordingFailed": "No s'ha pogut iniciar l'enregistrament: {{error}}",
     "modelLoadFailed": "No s'ha pogut carregar el model: {{model}}",
     "modelLoadFailedUnknown": "model desconegut",
+    "modelFallbackTitle": "Memòria baixa",
+    "modelFallback": "Canviat a {{model}} per aquest dictat",
     "pasteFailedTitle": "No s'ha pogut enganxar el text",
     "pasteFailed": "No s'ha pogut enganxar el text a l'aplicació activa.",
     "transcriptionFailedTitle": "La transcripció ha fallat"
   },
   "appLanguage": {
     "title": "Llengua de l'aplicació",
-    "description": "Canvia la llengua de la interfície del Handy"
+    "description": "Canvia la llengua de la interfície del VoxBar"
   },
   "theme": {
     "title": "Tema de l'aplicació",
-    "description": "Tria si el Handy segueix el tema del sistema o es manté en mode clar o fosc",
+    "description": "Tria si el VoxBar segueix el tema del sistema o es manté en mode clar o fosc",
     "options": {
       "system": "Sistema",
       "light": "Clar",
       "dark": "Fosc"
+    },
+    "accentColor": {
+      "label": "Color d’accent",
+      "description": "Trieu el color usat per a ressalts, commutadors i controls"
+    },
+    "accentColors": {
+      "black": "Negre",
+      "gray": "Gris",
+      "white": "Blanc",
+      "red": "Vermell",
+      "orange": "Taronja",
+      "amber": "Ambre",
+      "green": "Verd",
+      "teal": "Blau verdós",
+      "cyan": "Cian",
+      "blue": "Blau",
+      "indigo": "Indi",
+      "violet": "Violeta",
+      "magenta": "Magenta",
+      "pink": "Rosa"
     }
   },
   "overlay": {

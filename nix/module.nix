@@ -1,4 +1,4 @@
-# NixOS module for Handy speech-to-text
+# NixOS module for VoxBar speech-to-text
 #
 # Handles system-level configuration that the package wrapper cannot:
 #   - udev rule for /dev/uinput (rdev grab() needs it for virtual input)
@@ -7,13 +7,13 @@
 #
 # Usage in your flake:
 #
-#   inputs.handy.url = "github:cjpais/Handy";
+#   inputs.voxbar.url = "github:nexiouscaliver/voxbar";
 #
 #   nixosConfigurations.myhost = nixpkgs.lib.nixosSystem {
 #     modules = [
-#       handy.nixosModules.default
-#       { programs.handy.enable = true; }
-#     ];
+#       voxbar.nixosModules.default
+#       { programs.voxbar.enable = true; }
+#     ]
 #   };
 {
   config,
@@ -22,16 +22,16 @@
   ...
 }:
 let
-  cfg = config.programs.handy;
+  cfg = config.programs.voxbar;
 in
 {
-  options.programs.handy = {
-    enable = lib.mkEnableOption "Handy offline speech-to-text";
+  options.programs.voxbar = {
+    enable = lib.mkEnableOption "VoxBar offline speech-to-text";
 
     package = lib.mkOption {
       type = lib.types.package;
-      defaultText = lib.literalExpression "handy.packages.\${system}.handy";
-      description = "The Handy package to use.";
+      defaultText = lib.literalExpression "voxbar.packages.\${system}.voxbar";
+      description = "The VoxBar package to use.";
     };
   };
 
@@ -39,7 +39,7 @@ in
     environment.systemPackages = [ cfg.package ];
 
     # rdev grab() creates virtual input devices via /dev/uinput.
-    # Default permissions are crw------- root root — open it to the input group.
+    # Default permissions are crw------- root root - open it to the input group.
     services.udev.extraRules = ''
       KERNEL=="uinput", GROUP="input", MODE="0660"
     '';

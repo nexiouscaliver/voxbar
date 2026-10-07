@@ -111,7 +111,7 @@ fn paste_via_clipboard(
             info!("Restoring image to clipboard");
             let _ = clipboard.write_image(&image);
         } else {
-            // Nothing was there to begin with — don't leave the transcription behind.
+            // Nothing was there to begin with - don't leave the transcription behind.
             let _ = clipboard.clear();
         }
     })
@@ -124,7 +124,7 @@ fn try_send_key_combo_linux(paste_method: &PasteMethod) -> Result<bool, String> 
     if is_wayland() {
         // Wayland: prefer wtype (but not on KDE or GNOME), then dotool, then ydotool
         // Note: wtype doesn't work on KDE (no zwp_virtual_keyboard_manager_v1 support)
-        // or on GNOME/Mutter (same reason — Mutter deliberately does not implement
+        // or on GNOME/Mutter (same reason - Mutter deliberately does not implement
         // the virtual-keyboard-v1 protocol).
         if !is_kde_wayland() && !is_gnome_wayland() && is_wtype_available() {
             info!("Using wtype for key combo");
@@ -207,7 +207,7 @@ fn try_direct_typing_linux(text: &str, preferred_tool: TypingTool) -> Result<boo
         }
         // Wayland: prefer wtype, then dotool, then ydotool
         // Note: wtype doesn't work on KDE (no zwp_virtual_keyboard_manager_v1 support)
-        // or on GNOME/Mutter (same reason — Mutter deliberately does not implement
+        // or on GNOME/Mutter (same reason - Mutter deliberately does not implement
         // the virtual-keyboard-v1 protocol).
         if !is_kde_wayland() && !is_gnome_wayland() && is_wtype_available() {
             info!("Using wtype for direct text input");
@@ -539,7 +539,7 @@ fn type_text_via_kwtype(text: &str) -> Result<(), String> {
 }
 
 /// Write text to clipboard via wl-copy (Wayland clipboard tool).
-/// Uses Stdio::null() to avoid blocking on repeated calls — wl-copy forks a
+/// Uses Stdio::null() to avoid blocking on repeated calls - wl-copy forks a
 /// daemon that inherits piped fds, causing read_to_end to hang indefinitely.
 #[cfg(target_os = "linux")]
 fn write_clipboard_via_wl_copy(text: &str) -> Result<(), String> {
@@ -769,6 +769,57 @@ pub(crate) fn send_return_key(enigo: &mut Enigo, key_type: AutoSubmitKey) -> Res
 
 fn should_send_auto_submit(auto_submit: bool, paste_method: PasteMethod) -> bool {
     auto_submit && paste_method != PasteMethod::None
+}
+
+/// Paste text verbatim for command mode. The configured paste method and its
+/// delays are honored, but none of the dictation niceties apply: no trailing
+/// space is appended (the inserts are punctuation and line breaks), no
+/// auto-submit Enter is sent, and the clipboard is not re-copied afterwards.
+/// The debug-gated receipt-sequenced path is skipped too because its settle
+/// logic bakes in dictation semantics.
+pub fn paste_for_commands(text: &str, app_handle: &AppHandle) -> Result<(), String> {
+    let settings = get_settings(app_handle);
+    let paste_method = settings.paste_method;
+    let paste_delay_ms = settings.paste_delay_ms;
+    let paste_delay_after_ms = settings.paste_delay_after_ms;
+
+    info!(
+        "Using paste method for command insert: {:?}, delay before: {}ms, delay after: {}ms",
+        paste_method, paste_delay_ms, paste_delay_after_ms
+    );
+
+    match paste_method {
+        PasteMethod::None => {
+            info!("PasteMethod::None selected - skipping command insert");
+        }
+        PasteMethod::Direct => {
+            paste_direct(
+                text,
+                app_handle,
+                #[cfg(target_os = "linux")]
+                settings.typing_tool,
+            )?;
+        }
+        PasteMethod::CtrlV | PasteMethod::CtrlShiftV | PasteMethod::ShiftInsert => {
+            paste_via_clipboard(
+                text,
+                app_handle,
+                &paste_method,
+                paste_delay_ms,
+                paste_delay_after_ms,
+            )?
+        }
+        PasteMethod::ExternalScript => {
+            let script_path = settings
+                .external_script_path
+                .as_ref()
+                .filter(|p| !p.is_empty())
+                .ok_or("External script path is not configured")?;
+            paste_via_external_script(text, script_path)?;
+        }
+    }
+
+    Ok(())
 }
 
 pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
