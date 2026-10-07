@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.9.8",
   "type": "module",
+  "author": "Shahil Kadia",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",

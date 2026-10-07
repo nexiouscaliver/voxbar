@@ -957,6 +957,27 @@ mod tests {
     }
 
     #[test]
+    fn test_builtin_voxbar_seed_catches_near_variants_only() {
+        // The built-in dictionary seed is a single "VoxBar" entry (see
+        // default_custom_words in settings.rs). At the default 0.18
+        // correction threshold the fuzzy pass catches spellings one edit
+        // away, such as "woxbar" (score 0.17)...
+        let custom_words = vec!["VoxBar".to_string()];
+        assert_eq!(
+            apply_custom_words("open woxbar please", &custom_words, 0.18),
+            "open VoxBar please"
+        );
+        // ...while farther mishearings ("woksbar" scores 0.43, "worksbar"
+        // 0.5) are left alone here. They are handled at decode time by the
+        // whisper initial-prompt bias instead; raising the global threshold
+        // to catch them would mis-correct ordinary words.
+        assert_eq!(
+            apply_custom_words("open woksbar please", &custom_words, 0.18),
+            "open woksbar please"
+        );
+    }
+
+    #[test]
     fn test_preserve_case_pattern() {
         assert_eq!(preserve_case_pattern("HELLO", "world"), "WORLD");
         assert_eq!(preserve_case_pattern("Hello", "world"), "World");

@@ -28,6 +28,7 @@
     "targets": "all",
     "resources": ["resources/**/*"],
     "license": "MIT",
+    "publisher": "Shahil Kadia",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -69,7 +70,6 @@
       }
     },
     "windows": {
-      "signCommand": "trusted-signing-cli -e https://eus.codesigning.azure.net/ -a CJ-Signing -c cjpais-dev -d VoxBar %1",
       "nsis": {
         "template": "nsis/installer.nsi",
         "installerIcon": "icons/icon.ico"

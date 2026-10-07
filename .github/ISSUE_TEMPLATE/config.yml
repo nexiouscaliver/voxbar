@@ -2,13 +2,13 @@ blank_issues_enabled: false
 contact_links:
   - name: ✏️ Post-processing / Editing Transcripts
     url: https://github.com/cjpais/Handy/discussions/168
-    about: Looking to edit, format, or post-process transcripts? Join this discussion
+    about: Looking to edit, format, or post-process transcripts? Join this upstream discussion
   - name: ⌨️ Keyboard Shortcuts / Hotkeys
     url: https://github.com/cjpais/Handy/discussions/211
-    about: Want different keyboard shortcuts or hotkey configurations? Join this discussion
+    about: Want different keyboard shortcuts or hotkey configurations? Join this upstream discussion
   - name: 💡 Feature Request or Idea
-    url: https://github.com/cjpais/Handy/discussions
-    about: Please post feature requests and ideas in our Discussions tab
+    url: https://github.com/nexiouscaliver/voxbar/discussions
+    about: Please post feature requests and ideas in the Discussions tab
   - name: 💬 General Discussion
-    url: https://github.com/cjpais/Handy/discussions
-    about: Ask questions and discuss Handy with the community
+    url: https://github.com/nexiouscaliver/voxbar/discussions
+    about: Ask questions and discuss VoxBar with the community

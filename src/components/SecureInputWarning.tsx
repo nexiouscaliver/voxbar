@@ -5,9 +5,9 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { ExternalLink, TriangleAlert, X } from "lucide-react";
 import { commands, type SecureInputStatus } from "@/bindings";
 
-// Detailed remediation steps live in the docs rather than in the banner
-export const SECURE_INPUT_HELP_URL =
-  "https://handy.computer/docs/troubleshooting#shortcuts-stopped-working-on-macos-secure-input";
+// Detailed remediation steps used to live in the upstream project's docs site;
+// this fork has no docs site, so the link goes to the fork's repository.
+export const SECURE_INPUT_HELP_URL = "https://github.com/nexiouscaliver/voxbar";
 
 /**
  * Compact warning banner shown while macOS Secure Input is stuck on.

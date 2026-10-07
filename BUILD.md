@@ -92,8 +92,8 @@ ORT_LIB_LOCATION=$(brew --prefix onnxruntime)/lib ORT_PREFER_DYNAMIC_LINK=1 bun 
 ### 1. Clone the Repository
 
 ```bash
-git clone git@github.com:cjpais/Handy.git
-cd Handy
+git clone git@github.com:nexiouscaliver/voxbar.git
+cd voxbar
 ```
 
 ### 2. Install Dependencies

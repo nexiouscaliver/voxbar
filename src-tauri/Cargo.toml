@@ -2,7 +2,7 @@
 name = "voxbar"
 version = "0.9.8"
 description = "VoxBar"
-authors = ["cjpais"]
+authors = ["Shahil Kadia"]
 edition = "2021"
 license = "MIT"
 default-run = "voxbar"

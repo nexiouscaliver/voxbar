@@ -495,7 +495,13 @@ pub struct AppSettings {
     pub debug_mode: bool,
     #[serde(default = "default_log_level")]
     pub log_level: LogLevel,
-    #[serde(default)]
+    /// Built-in dictionary seed so the speech models stop mishearing the app
+    /// name ("woksbar", "woxbar", "worksbar" and similar). Applies only when
+    /// the stored settings have no `custom_words` key (fresh installs, or
+    /// stores written before the setting existed). A user who edits the list,
+    /// including deleting the seed, has an explicit key persisted and is never
+    /// clobbered or re-seeded.
+    #[serde(default = "default_custom_words")]
     pub custom_words: Vec<String>,
     #[serde(default)]
     pub model_unload_timeout: ModelUnloadTimeout,
@@ -763,6 +769,19 @@ fn default_log_level() -> LogLevel {
 
 fn default_word_correction_threshold() -> f64 {
     0.18
+}
+
+/// Built-in custom-words seed. The dictionary stores target spellings (the
+/// fuzzy pass and the whisper initial prompt work from the word itself), so a
+/// single "VoxBar" entry covers the family of mishearings: whisper-family
+/// models get it as an initial-prompt bias at decode time, and the fuzzy
+/// post-correction catches near variants ("woxbar" scores 0.17 against
+/// "voxbar" at the default 0.18 threshold). Farther spellings such as
+/// "woksbar"/"worksbar" (0.43/0.5) rely on the prompt bias; they are too far
+/// from "voxbar" to fuzzy-correct without raising the global threshold, which
+/// would mis-correct ordinary words, so the threshold is not touched.
+fn default_custom_words() -> Vec<String> {
+    vec!["VoxBar".to_string()]
 }
 
 fn default_paste_delay_ms() -> u64 {
@@ -1172,7 +1191,7 @@ pub fn get_default_settings() -> AppSettings {
         overlay_position: default_overlay_position(),
         debug_mode: false,
         log_level: default_log_level(),
-        custom_words: Vec::new(),
+        custom_words: default_custom_words(),
         model_unload_timeout: ModelUnloadTimeout::default(),
         memory_pressure_guard: default_memory_pressure_guard(),
         auto_fallback: default_auto_fallback(),
@@ -1986,6 +2005,39 @@ mod tests {
         assert_eq!(salvaged.paste_delay_ms, default_paste_delay_ms());
         assert_eq!(salvaged.sound_theme, default_sound_theme());
         assert_eq!(salvaged.custom_words, vec!["handy".to_string()]);
+    }
+
+    #[test]
+    fn custom_words_seed_applies_only_when_the_key_is_missing() {
+        // A store without a custom_words key (fresh install, or written
+        // before the setting existed) gets the built-in seed.
+        let mut stored = default_settings_json();
+        stored.as_object_mut().unwrap().remove("custom_words");
+        let settings: AppSettings =
+            serde_json::from_value(stored).expect("store without custom_words parses");
+        assert_eq!(settings.custom_words, default_custom_words());
+        assert_eq!(settings.custom_words, vec!["VoxBar".to_string()]);
+
+        // A user's own list is never clobbered...
+        let mut stored = default_settings_json();
+        stored
+            .as_object_mut()
+            .unwrap()
+            .insert("custom_words".into(), serde_json::json!(["ChargeBee"]));
+        let settings: AppSettings =
+            serde_json::from_value(stored).expect("store with user words parses");
+        assert_eq!(settings.custom_words, vec!["ChargeBee".to_string()]);
+
+        // ...including the explicit empty list written when the user deletes
+        // the seed, so the built-in default cannot come back on its own.
+        let mut stored = default_settings_json();
+        stored
+            .as_object_mut()
+            .unwrap()
+            .insert("custom_words".into(), serde_json::json!([]));
+        let settings: AppSettings =
+            serde_json::from_value(stored).expect("store with empty words parses");
+        assert!(settings.custom_words.is_empty());
     }
 
     #[test]
