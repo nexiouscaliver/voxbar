@@ -180,6 +180,34 @@
       "rescan": {
         "label": "Yeniden Tara",
         "tooltip": "VoxBar dışında modeller klasörüne veya Hugging Face önbelleğine eklenen modelleri yeniden tara"
+      },
+      "rescanModels": "Modelleri yeniden tara",
+      "addFromHf": {
+        "title": "Hugging Face'ten model ekle",
+        "description": "Herkese açık bir depo URL'si veya sahip/depo yapıştırın, örneğin https://huggingface.co/sahip/model.",
+        "placeholder": "https://huggingface.co/sahip/model veya sahip/model",
+        "add": "Ekle",
+        "cancel": "İptal",
+        "pickFile": "{{repo}} içinden bir dosya seçin:",
+        "recommended": "Önerilen",
+        "status": {
+          "resolving": "Depo çözümleniyor...",
+          "adding": "Model indiriliyor ve denetleniyor...",
+          "added": "Model eklendi. İndirilen modeller arasında görünür."
+        },
+        "errors": {
+          "invalidInput": "Bu, bir Hugging Face deposu olarak okunamadı: {{detail}}",
+          "notFound": "{{repo}} deposu Hugging Face üzerinde bulunamadı.",
+          "inaccessible": "{{repo}} Hugging Face üzerinde erişilemedi. Mevcut olmayabilir ya da özel veya kısıtlı olabilir. Şimdilik yalnızca herkese açık depolar destekleniyor.",
+          "fileNotFound": "{{filename}} dosyası {{repo}} içinde bulunamadı.",
+          "noGguf": "{{repo}} hiç GGUF dosyası içermiyor.",
+          "network": "Hugging Face'e ulaşılamadı: {{detail}}",
+          "downloadFailed": "İndirme başarısız: {{detail}}",
+          "cancelled": "İndirme iptal edildi.",
+          "unsupportedArch": "{{arch}} model mimarisi desteklenmiyor. Desteklenenler: {{supported}}.",
+          "unsupportedArchUnknown": "Bu dosya bir GGUF modeli olarak okunamadığı için eklenmedi.",
+          "generic": "Bir şeyler ters gitti."
+        }
       }
     },
     "general": {

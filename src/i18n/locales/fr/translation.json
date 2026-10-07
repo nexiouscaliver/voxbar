@@ -180,6 +180,34 @@
       "rescan": {
         "label": "Réanalyser",
         "tooltip": "Réanalyser pour détecter les modèles ajoutés au dossier des modèles ou au cache Hugging Face en dehors de VoxBar"
+      },
+      "rescanModels": "Rescanner les modèles",
+      "addFromHf": {
+        "title": "Ajouter un modèle depuis Hugging Face",
+        "description": "Collez une URL de dépôt public ou propriétaire/dépôt, par exemple https://huggingface.co/proprietaire/modele.",
+        "placeholder": "https://huggingface.co/proprietaire/modele ou proprietaire/modele",
+        "add": "Ajouter",
+        "cancel": "Annuler",
+        "pickFile": "Choisissez un fichier dans {{repo}} :",
+        "recommended": "Recommandé",
+        "status": {
+          "resolving": "Résolution du dépôt...",
+          "adding": "Téléchargement et vérification du modèle...",
+          "added": "Modèle ajouté. Il apparaît dans les modèles téléchargés."
+        },
+        "errors": {
+          "invalidInput": "Impossible d'interpréter ceci comme un dépôt Hugging Face : {{detail}}",
+          "notFound": "Le dépôt {{repo}} est introuvable sur Hugging Face.",
+          "inaccessible": "{{repo}} est inaccessible sur Hugging Face. Il n'existe peut-être pas, ou il est privé ou restreint. Seuls les dépôts publics sont pris en charge pour le moment.",
+          "fileNotFound": "Le fichier {{filename}} est introuvable dans {{repo}}.",
+          "noGguf": "{{repo}} ne contient aucun fichier GGUF.",
+          "network": "Impossible de joindre Hugging Face : {{detail}}",
+          "downloadFailed": "Échec du téléchargement : {{detail}}",
+          "cancelled": "Téléchargement annulé.",
+          "unsupportedArch": "L'architecture de modèle {{arch}} n'est pas prise en charge. Architectures prises en charge : {{supported}}.",
+          "unsupportedArchUnknown": "Ce fichier n'a pas pu être lu comme un modèle GGUF, il n'a donc pas été ajouté.",
+          "generic": "Une erreur s'est produite."
+        }
       }
     },
     "general": {

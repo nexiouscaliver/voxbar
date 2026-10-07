@@ -231,7 +231,35 @@
         "label": "फिर से स्कैन करें",
         "tooltip": "VoxBar के बाहर, मॉडल फ़ोल्डर या Hugging Face कैश में जोड़े गए मॉडल के लिए फिर से स्कैन करें"
       },
-      "noModelsMatch": "इस फ़िल्टर से मेल खाने वाला कोई मॉडल नहीं है."
+      "noModelsMatch": "इस फ़िल्टर से मेल खाने वाला कोई मॉडल नहीं है.",
+      "rescanModels": "मॉडल फिर से स्कैन करें",
+      "addFromHf": {
+        "title": "Hugging Face से मॉडल जोड़ें",
+        "description": "कोई सार्वजनिक रेपो URL या owner/repo पेस्ट करें, जैसे https://huggingface.co/owner/model.",
+        "placeholder": "https://huggingface.co/owner/model या owner/repo",
+        "add": "जोड़ें",
+        "cancel": "रद्द करें",
+        "pickFile": "{{repo}} से एक फ़ाइल चुनें:",
+        "recommended": "अनुशंसित",
+        "status": {
+          "resolving": "रेपो खोजा जा रहा है...",
+          "adding": "मॉडल डाउनलोड और जाँचा जा रहा है...",
+          "added": "मॉडल जोड़ दिया गया। यह डाउनलोड किए गए मॉडल में दिखेगा।"
+        },
+        "errors": {
+          "invalidInput": "इसे Hugging Face रेपो के रूप में नहीं पढ़ा जा सका: {{detail}}",
+          "notFound": "रेपो {{repo}} Hugging Face पर नहीं मिला।",
+          "inaccessible": "Hugging Face पर {{repo}} तक नहीं पहुँचा जा सका। हो सकता है कि यह मौजूद न हो, या निजी या प्रतिबंधित हो। अभी केवल सार्वजनिक रेपो समर्थित हैं।",
+          "fileNotFound": "फ़ाइल {{filename}} {{repo}} में नहीं मिली।",
+          "noGguf": "{{repo}} में कोई GGUF फ़ाइलें नहीं हैं।",
+          "network": "Hugging Face से संपर्क नहीं हो सका: {{detail}}",
+          "downloadFailed": "डाउनलोड विफल: {{detail}}",
+          "cancelled": "डाउनलोड रद्द किया गया।",
+          "unsupportedArch": "मॉडल आर्किटेक्चर {{arch}} समर्थित नहीं है। समर्थित: {{supported}}.",
+          "unsupportedArchUnknown": "इस फ़ाइल को GGUF मॉडल के रूप में नहीं पढ़ा जा सका, इसलिए जोड़ा नहीं गया।",
+          "generic": "कुछ गड़बड़ हो गई।"
+        }
+      }
     },
     "sound": {
       "title": "आवाज़",

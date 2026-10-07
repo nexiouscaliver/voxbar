@@ -231,7 +231,35 @@
         "label": "Torna a cercar",
         "tooltip": "Torna a cercar models afegits a la carpeta de models o a la memòria cau de Hugging Face des de fora del VoxBar"
       },
-      "noModelsMatch": "Cap model no coincideix amb aquest filtre."
+      "noModelsMatch": "Cap model no coincideix amb aquest filtre.",
+      "rescanModels": "Tornar a escanejar models",
+      "addFromHf": {
+        "title": "Afegeix un model de Hugging Face",
+        "description": "Enganxa un URL de repositori públic o propietari/repositori, per exemple https://huggingface.co/propietari/model.",
+        "placeholder": "https://huggingface.co/propietari/model o propietari/repositori",
+        "add": "Afegeix",
+        "cancel": "Cancel·la",
+        "pickFile": "Tria un fitxer de {{repo}}:",
+        "recommended": "Recomanat",
+        "status": {
+          "resolving": "S'està resolent el repositori...",
+          "adding": "S'està descarregant i comprovant el model...",
+          "added": "Model afegit. Apareix als models descarregats."
+        },
+        "errors": {
+          "invalidInput": "No s'ha pogut llegir com un repositori de Hugging Face: {{detail}}",
+          "notFound": "El repositori {{repo}} no s'ha trobat a Hugging Face.",
+          "inaccessible": "No s'ha pogut accedir a {{repo}} a Hugging Face. Potser no existeix, o bé és privat o restringit. De moment només s'admeten repositoris públics.",
+          "fileNotFound": "El fitxer {{filename}} no s'ha trobat a {{repo}}.",
+          "noGguf": "{{repo}} no conté fitxers GGUF.",
+          "network": "No s'ha pogut contactar amb Hugging Face: {{detail}}",
+          "downloadFailed": "La descàrrega ha fallat: {{detail}}",
+          "cancelled": "Descàrrega cancel·lada.",
+          "unsupportedArch": "L'arquitectura del model {{arch}} no és compatible. Compatibles: {{supported}}.",
+          "unsupportedArchUnknown": "Aquest fitxer no s'ha pogut llegir com un model GGUF, per això no s'ha afegit.",
+          "generic": "Alguna cosa ha fallat."
+        }
+      }
     },
     "sound": {
       "title": "So",

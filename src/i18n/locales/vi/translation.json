@@ -180,6 +180,34 @@
       "rescan": {
         "label": "Quét lại",
         "tooltip": "Quét lại các mô hình được thêm vào thư mục mô hình hoặc bộ nhớ đệm Hugging Face bên ngoài VoxBar"
+      },
+      "rescanModels": "Quét lại các mô hình",
+      "addFromHf": {
+        "title": "Thêm mô hình từ Hugging Face",
+        "description": "Dán URL kho công khai hoặc chủ/kho, ví dụ https://huggingface.co/chu/mo-hinh.",
+        "placeholder": "https://huggingface.co/chu/mo-hinh hoặc chu/kho",
+        "add": "Thêm",
+        "cancel": "Hủy",
+        "pickFile": "Chọn một tệp từ {{repo}}:",
+        "recommended": "Được đề xuất",
+        "status": {
+          "resolving": "Đang phân giải kho...",
+          "adding": "Đang tải xuống và kiểm tra mô hình...",
+          "added": "Đã thêm mô hình. Nó xuất hiện trong các mô hình đã tải xuống."
+        },
+        "errors": {
+          "invalidInput": "Không thể đọc đó là kho Hugging Face: {{detail}}",
+          "notFound": "Không tìm thấy kho {{repo}} trên Hugging Face.",
+          "inaccessible": "Không thể truy cập {{repo}} trên Hugging Face. Nó có thể không tồn tại, hoặc là kho riêng tư hoặc bị giới hạn. Hiện tại chỉ hỗ trợ kho công khai.",
+          "fileNotFound": "Không tìm thấy tệp {{filename}} trong {{repo}}.",
+          "noGguf": "{{repo}} không chứa tệp GGUF nào.",
+          "network": "Không thể kết nối với Hugging Face: {{detail}}",
+          "downloadFailed": "Tải xuống thất bại: {{detail}}",
+          "cancelled": "Đã hủy tải xuống.",
+          "unsupportedArch": "Kiến trúc mô hình {{arch}} không được hỗ trợ. Được hỗ trợ: {{supported}}.",
+          "unsupportedArchUnknown": "Không thể đọc tệp đó dưới dạng mô hình GGUF nên đã không thêm.",
+          "generic": "Đã xảy ra lỗi."
+        }
       }
     },
     "general": {

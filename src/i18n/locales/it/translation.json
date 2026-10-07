@@ -180,6 +180,34 @@
       "rescan": {
         "label": "Riscansiona",
         "tooltip": "Riscansiona per trovare modelli aggiunti alla cartella dei modelli o alla cache di Hugging Face al di fuori di VoxBar"
+      },
+      "rescanModels": "Scansiona di nuovo i modelli",
+      "addFromHf": {
+        "title": "Aggiungi modello da Hugging Face",
+        "description": "Incolla un URL di repository pubblico o proprietario/repository, ad esempio https://huggingface.co/proprietario/modello.",
+        "placeholder": "https://huggingface.co/proprietario/modello o proprietario/modello",
+        "add": "Aggiungi",
+        "cancel": "Annulla",
+        "pickFile": "Scegli un file da {{repo}}:",
+        "recommended": "Consigliato",
+        "status": {
+          "resolving": "Risoluzione del repository...",
+          "adding": "Scaricamento e verifica del modello...",
+          "added": "Modello aggiunto. Appare nei modelli scaricati."
+        },
+        "errors": {
+          "invalidInput": "Impossibile interpretarlo come repository Hugging Face: {{detail}}",
+          "notFound": "Il repository {{repo}} non è stato trovato su Hugging Face.",
+          "inaccessible": "{{repo}} non è raggiungibile su Hugging Face. Potrebbe non esistere, oppure essere privato o con accesso limitato. Al momento sono supportati solo repository pubblici.",
+          "fileNotFound": "Il file {{filename}} non è stato trovato in {{repo}}.",
+          "noGguf": "{{repo}} non contiene file GGUF.",
+          "network": "Impossibile raggiungere Hugging Face: {{detail}}",
+          "downloadFailed": "Download non riuscito: {{detail}}",
+          "cancelled": "Download annullato.",
+          "unsupportedArch": "L'architettura del modello {{arch}} non è supportata. Supportate: {{supported}}.",
+          "unsupportedArchUnknown": "Quel file non può essere letto come modello GGUF, quindi non è stato aggiunto.",
+          "generic": "Qualcosa è andato storto."
+        }
       }
     },
     "general": {

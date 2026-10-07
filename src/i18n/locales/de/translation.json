@@ -180,6 +180,34 @@
       "rescan": {
         "label": "Neu scannen",
         "tooltip": "Erneut nach Modellen scannen, die außerhalb von VoxBar zum Modellordner oder Hugging-Face-Cache hinzugefügt wurden"
+      },
+      "rescanModels": "Modelle neu scannen",
+      "addFromHf": {
+        "title": "Modell von Hugging Face hinzufügen",
+        "description": "Füge eine öffentliche Repo-URL oder owner/repo ein, zum Beispiel https://huggingface.co/owner/repo.",
+        "placeholder": "https://huggingface.co/owner/repo oder owner/repo",
+        "add": "Hinzufügen",
+        "cancel": "Abbrechen",
+        "pickFile": "Wähle eine Datei aus {{repo}}:",
+        "recommended": "Empfohlen",
+        "status": {
+          "resolving": "Repo wird aufgelöst...",
+          "adding": "Modell wird heruntergeladen und geprüft...",
+          "added": "Modell hinzugefügt. Es erscheint in der Liste der heruntergeladenen Modelle."
+        },
+        "errors": {
+          "invalidInput": "Das konnte nicht als Hugging Face Repo gelesen werden: {{detail}}",
+          "notFound": "Das Repository {{repo}} wurde auf Hugging Face nicht gefunden.",
+          "inaccessible": "{{repo}} konnte auf Hugging Face nicht erreicht werden. Es existiert möglicherweise nicht oder ist privat bzw. eingeschränkt. Vorläufig werden nur öffentliche Repositories unterstützt.",
+          "fileNotFound": "Die Datei {{filename}} wurde in {{repo}} nicht gefunden.",
+          "noGguf": "{{repo}} enthält keine GGUF Dateien.",
+          "network": "Hugging Face konnte nicht erreicht werden: {{detail}}",
+          "downloadFailed": "Download fehlgeschlagen: {{detail}}",
+          "cancelled": "Download abgebrochen.",
+          "unsupportedArch": "Die Modellarchitektur {{arch}} wird nicht unterstützt. Unterstützt: {{supported}}.",
+          "unsupportedArchUnknown": "Diese Datei konnte nicht als GGUF Modell gelesen werden und wurde daher nicht hinzugefügt.",
+          "generic": "Etwas ist schiefgelaufen."
+        }
       }
     },
     "general": {

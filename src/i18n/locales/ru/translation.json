@@ -180,6 +180,34 @@
       "rescan": {
         "label": "Пересканировать",
         "tooltip": "Пересканировать модели, добавленные в папку моделей или кэш Hugging Face вне VoxBar"
+      },
+      "rescanModels": "Пересканировать модели",
+      "addFromHf": {
+        "title": "Добавить модель с Hugging Face",
+        "description": "Вставьте публичный URL репозитория или владелец/репозиторий, например https://huggingface.co/владелец/модель.",
+        "placeholder": "https://huggingface.co/владелец/модель или владелец/модель",
+        "add": "Добавить",
+        "cancel": "Отмена",
+        "pickFile": "Выберите файл из {{repo}}:",
+        "recommended": "Рекомендуется",
+        "status": {
+          "resolving": "Поиск репозитория...",
+          "adding": "Загрузка и проверка модели...",
+          "added": "Модель добавлена. Она появится в загруженных моделях."
+        },
+        "errors": {
+          "invalidInput": "Не удалось распознать это как репозиторий Hugging Face: {{detail}}",
+          "notFound": "Репозиторий {{repo}} не найден на Hugging Face.",
+          "inaccessible": "{{repo}} недоступен на Hugging Face. Возможно, он не существует, либо является приватным или закрытым. Пока поддерживаются только публичные репозитории.",
+          "fileNotFound": "Файл {{filename}} не найден в {{repo}}.",
+          "noGguf": "В {{repo}} нет файлов GGUF.",
+          "network": "Не удалось связаться с Hugging Face: {{detail}}",
+          "downloadFailed": "Ошибка загрузки: {{detail}}",
+          "cancelled": "Загрузка отменена.",
+          "unsupportedArch": "Архитектура модели {{arch}} не поддерживается. Поддерживаются: {{supported}}.",
+          "unsupportedArchUnknown": "Файл не удалось прочитать как модель GGUF, поэтому он не был добавлен.",
+          "generic": "Что-то пошло не так."
+        }
       }
     },
     "general": {

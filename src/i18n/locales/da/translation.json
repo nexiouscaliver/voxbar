@@ -231,7 +231,35 @@
         "label": "Søg igen",
         "tooltip": "Søg igen efter modeller, der er tilføjet til modelmappen eller Hugging Face-cachen uden for VoxBar"
       },
-      "noModelsMatch": "Ingen modeller matcher dette filter."
+      "noModelsMatch": "Ingen modeller matcher dette filter.",
+      "rescanModels": "Genskan modeller",
+      "addFromHf": {
+        "title": "Tilføj model fra Hugging Face",
+        "description": "Indsæt en offentlig repo-URL eller ejer/repo, for eksempel https://huggingface.co/ejer/model.",
+        "placeholder": "https://huggingface.co/ejer/model eller ejer/model",
+        "add": "Tilføj",
+        "cancel": "Annuller",
+        "pickFile": "Vælg en fil fra {{repo}}:",
+        "recommended": "Anbefalet",
+        "status": {
+          "resolving": "Resolverer repo...",
+          "adding": "Downloader og kontrollerer modellen...",
+          "added": "Model tilføjet. Den vises under downloadede modeller."
+        },
+        "errors": {
+          "invalidInput": "Det kunne ikke læses som en Hugging Face repo: {{detail}}",
+          "notFound": "Repoet {{repo}} blev ikke fundet på Hugging Face.",
+          "inaccessible": "{{repo}} kunne ikke nås på Hugging Face. Det findes muligvis ikke, eller det er privat eller begrænset. Kun offentlige repos understøttes lige nu.",
+          "fileNotFound": "Filen {{filename}} blev ikke fundet i {{repo}}.",
+          "noGguf": "{{repo}} indeholder ingen GGUF filer.",
+          "network": "Kunne ikke nå Hugging Face: {{detail}}",
+          "downloadFailed": "Download mislykkedes: {{detail}}",
+          "cancelled": "Download annulleret.",
+          "unsupportedArch": "Modelarkitekturen {{arch}} understøttes ikke. Understøttes: {{supported}}.",
+          "unsupportedArchUnknown": "Filen kunne ikke læses som en GGUF model, så den blev ikke tilføjet.",
+          "generic": "Noget gik galt."
+        }
+      }
     },
     "sound": {
       "title": "Lyd",

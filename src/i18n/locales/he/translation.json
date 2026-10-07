@@ -231,6 +231,34 @@
       "rescan": {
         "label": "סריקה מחדש",
         "tooltip": "סריקה מחדש לאיתור מודלים שנוספו לתיקיית המודלים או למטמון של Hugging Face מחוץ ל-VoxBar"
+      },
+      "rescanModels": "סריקת המודלים מחדש",
+      "addFromHf": {
+        "title": "הוספת מודל מ-Hugging Face",
+        "description": "הדביקו כתובת מאגר ציבורית או בעלים/מאגר, למשל https://huggingface.co/owner/model.",
+        "placeholder": "https://huggingface.co/owner/model או בעלים/מאגר",
+        "add": "הוספה",
+        "cancel": "ביטול",
+        "pickFile": "בחרו קובץ מ-{{repo}}:",
+        "recommended": "מומלץ",
+        "status": {
+          "resolving": "מאתר את המאגר...",
+          "adding": "מוריד ובודק את המודל...",
+          "added": "המודל נוסף. הוא יופיע במודלים שהורדו."
+        },
+        "errors": {
+          "invalidInput": "לא ניתן היה לקרוא זאת כמאגר Hugging Face: {{detail}}",
+          "notFound": "המאגר {{repo}} לא נמצא ב-Hugging Face.",
+          "inaccessible": "לא ניתן לגשת ל-{{repo}} ב-Hugging Face. ייתכן שהוא לא קיים, או שהוא פרטי או מוגבל. כרגע נתמכים רק מאגרים ציבוריים.",
+          "fileNotFound": "הקובץ {{filename}} לא נמצא ב-{{repo}}.",
+          "noGguf": "ל-{{repo}} אין קבצי GGUF.",
+          "network": "לא ניתן להתחבר ל-Hugging Face: {{detail}}",
+          "downloadFailed": "ההורדה נכשלה: {{detail}}",
+          "cancelled": "ההורדה בוטלה.",
+          "unsupportedArch": "ארכיטקטורת המודל {{arch}} אינה נתמכת. נתמכות: {{supported}}.",
+          "unsupportedArchUnknown": "לא ניתן היה לקרוא את הקובץ הזה כמודל GGUF, לכן הוא לא נוסף.",
+          "generic": "משהו השתבש."
+        }
       }
     },
     "sound": {

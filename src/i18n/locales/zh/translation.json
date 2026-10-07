@@ -180,6 +180,34 @@
       "rescan": {
         "label": "重新扫描",
         "tooltip": "重新扫描在 VoxBar 之外添加到模型文件夹或 Hugging Face 缓存中的模型"
+      },
+      "rescanModels": "重新扫描模型",
+      "addFromHf": {
+        "title": "从 Hugging Face 添加模型",
+        "description": "粘贴公开仓库链接或 owner/repo，例如 https://huggingface.co/owner/model。",
+        "placeholder": "https://huggingface.co/owner/repo 或 owner/repo",
+        "add": "添加",
+        "cancel": "取消",
+        "pickFile": "从 {{repo}} 中选择一个文件:",
+        "recommended": "推荐",
+        "status": {
+          "resolving": "正在解析仓库...",
+          "adding": "正在下载并检查模型...",
+          "added": "模型已添加，会显示在已下载模型中。"
+        },
+        "errors": {
+          "invalidInput": "无法将其识别为 Hugging Face 仓库: {{detail}}",
+          "notFound": "在 Hugging Face 上找不到仓库 {{repo}}。",
+          "inaccessible": "无法访问 Hugging Face 上的 {{repo}}。它可能不存在，或者是私有或受限仓库。目前仅支持公开仓库。",
+          "fileNotFound": "在 {{repo}} 中找不到文件 {{filename}}。",
+          "noGguf": "{{repo}} 不包含任何 GGUF 文件。",
+          "network": "无法连接 Hugging Face: {{detail}}",
+          "downloadFailed": "下载失败: {{detail}}",
+          "cancelled": "下载已取消。",
+          "unsupportedArch": "不支持模型架构 {{arch}}。支持的架构: {{supported}}。",
+          "unsupportedArchUnknown": "该文件无法作为 GGUF 模型读取，因此未被添加。",
+          "generic": "出现问题。"
+        }
       }
     },
     "general": {

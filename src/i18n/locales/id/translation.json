@@ -231,7 +231,35 @@
         "label": "Pindai Ulang",
         "tooltip": "Pindai ulang model yang ditambahkan ke folder model atau cache Hugging Face dari luar VoxBar"
       },
-      "noModelsMatch": "Tidak ada model yang cocok dengan kriteria ini."
+      "noModelsMatch": "Tidak ada model yang cocok dengan kriteria ini.",
+      "rescanModels": "Pindai ulang model",
+      "addFromHf": {
+        "title": "Tambahkan model dari Hugging Face",
+        "description": "Tempel URL repo publik atau pemilik/repo, misalnya https://huggingface.co/pemilik/model.",
+        "placeholder": "https://huggingface.co/pemilik/model atau pemilik/model",
+        "add": "Tambahkan",
+        "cancel": "Batal",
+        "pickFile": "Pilih file dari {{repo}}:",
+        "recommended": "Direkomendasikan",
+        "status": {
+          "resolving": "Menyelesaikan repo...",
+          "adding": "Mengunduh dan memeriksa model...",
+          "added": "Model ditambahkan. Muncul di model yang diunduh."
+        },
+        "errors": {
+          "invalidInput": "Tidak bisa membaca itu sebagai repo Hugging Face: {{detail}}",
+          "notFound": "Repo {{repo}} tidak ditemukan di Hugging Face.",
+          "inaccessible": "{{repo}} tidak dapat diakses di Hugging Face. Mungkin tidak ada, atau bersifat privat atau dibatasi. Saat ini hanya repo publik yang didukung.",
+          "fileNotFound": "File {{filename}} tidak ditemukan di {{repo}}.",
+          "noGguf": "{{repo}} tidak berisi file GGUF.",
+          "network": "Tidak dapat menghubungi Hugging Face: {{detail}}",
+          "downloadFailed": "Unduhan gagal: {{detail}}",
+          "cancelled": "Unduhan dibatalkan.",
+          "unsupportedArch": "Arsitektur model {{arch}} tidak didukung. Yang didukung: {{supported}}.",
+          "unsupportedArchUnknown": "File itu tidak bisa dibaca sebagai model GGUF, jadi tidak ditambahkan.",
+          "generic": "Terjadi kesalahan."
+        }
+      }
     },
     "sound": {
       "title": "Suara",

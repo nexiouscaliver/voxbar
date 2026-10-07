@@ -180,6 +180,34 @@
       "rescan": {
         "label": "Znovu prohledat",
         "tooltip": "Znovu prohledat modely přidané do složky modelů nebo mezipaměti Hugging Face mimo VoxBar"
+      },
+      "rescanModels": "Znovu prohledat modely",
+      "addFromHf": {
+        "title": "Přidat model z Hugging Face",
+        "description": "Vložte veřejnou URL repozitáře nebo vlastník/repozitář, například https://huggingface.co/vlastník/model.",
+        "placeholder": "https://huggingface.co/vlastník/model nebo vlastník/model",
+        "add": "Přidat",
+        "cancel": "Zrušit",
+        "pickFile": "Vyberte soubor z {{repo}}:",
+        "recommended": "Doporučeno",
+        "status": {
+          "resolving": "Zjišťování repozitáře...",
+          "adding": "Stahování a kontrola modelu...",
+          "added": "Model přidán. Zobrazí se ve stažených modelech."
+        },
+        "errors": {
+          "invalidInput": "Tohle nešlo přečíst jako repozitář Hugging Face: {{detail}}",
+          "notFound": "Repozitář {{repo}} nebyl na Hugging Face nalezen.",
+          "inaccessible": "{{repo}} se na Hugging Face nepodařilo zpřístupnit. Buď neexistuje, nebo je privátní či omezený. Zatím jsou podporovány jen veřejné repozitáře.",
+          "fileNotFound": "Soubor {{filename}} nebyl v {{repo}} nalezen.",
+          "noGguf": "{{repo}} neobsahuje žádné GGUF soubory.",
+          "network": "Službu Hugging Face se nepodařilo spojit: {{detail}}",
+          "downloadFailed": "Stahování se nezdařilo: {{detail}}",
+          "cancelled": "Stahování zrušeno.",
+          "unsupportedArch": "Architektura modelu {{arch}} není podporována. Podporované: {{supported}}.",
+          "unsupportedArchUnknown": "Tento soubor nešlo přečíst jako GGUF model, takže nebyl přidán.",
+          "generic": "Něco se pokazilo."
+        }
       }
     },
     "general": {

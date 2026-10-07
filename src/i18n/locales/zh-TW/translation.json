@@ -231,6 +231,34 @@
       "rescan": {
         "label": "重新掃描",
         "tooltip": "重新掃描在 VoxBar 之外新增到模型資料夾或 Hugging Face 快取中的模型"
+      },
+      "rescanModels": "重新掃描模型",
+      "addFromHf": {
+        "title": "從 Hugging Face 新增模型",
+        "description": "貼上公開儲存庫連結或 owner/repo，例如 https://huggingface.co/owner/model。",
+        "placeholder": "https://huggingface.co/owner/repo 或 owner/repo",
+        "add": "新增",
+        "cancel": "取消",
+        "pickFile": "從 {{repo}} 中選擇一個檔案:",
+        "recommended": "建議",
+        "status": {
+          "resolving": "正在解析儲存庫...",
+          "adding": "正在下載並檢查模型...",
+          "added": "模型已新增，會顯示在已下載模型中。"
+        },
+        "errors": {
+          "invalidInput": "無法將其識別為 Hugging Face 儲存庫: {{detail}}",
+          "notFound": "在 Hugging Face 上找不到儲存庫 {{repo}}。",
+          "inaccessible": "無法存取 Hugging Face 上的 {{repo}}。它可能不存在，或者是私有或受限儲存庫。目前僅支援公開儲存庫。",
+          "fileNotFound": "在 {{repo}} 中找不到檔案 {{filename}}。",
+          "noGguf": "{{repo}} 不包含任何 GGUF 檔案。",
+          "network": "無法連線 Hugging Face: {{detail}}",
+          "downloadFailed": "下載失敗: {{detail}}",
+          "cancelled": "下載已取消。",
+          "unsupportedArch": "不支援模型架構 {{arch}}。支援的架構: {{supported}}。",
+          "unsupportedArchUnknown": "該檔案無法作為 GGUF 模型讀取，因此未新增。",
+          "generic": "發生問題。"
+        }
       }
     },
     "sound": {

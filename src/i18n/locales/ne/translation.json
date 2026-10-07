@@ -231,7 +231,35 @@
         "label": "फेरि स्क्यान गर्नुहोस्",
         "tooltip": "VoxBar बाहिरबाट मोडेल फोल्डर वा Hugging Face क्यासमा थपिएका मोडेलहरू फेरि स्क्यान गर्नुहोस्"
       },
-      "noModelsMatch": "यो फिल्टरसँग कुनै मोडेल मिल्दैन।"
+      "noModelsMatch": "यो फिल्टरसँग कुनै मोडेल मिल्दैन।",
+      "rescanModels": "Rescan models",
+      "addFromHf": {
+        "title": "Add model from Hugging Face",
+        "description": "Paste a public repo URL or owner/repo, for example https://huggingface.co/owner/repo.",
+        "placeholder": "https://huggingface.co/owner/repo or owner/repo",
+        "add": "Add",
+        "cancel": "Cancel",
+        "pickFile": "Choose a file from {{repo}}:",
+        "recommended": "Recommended",
+        "status": {
+          "resolving": "Resolving repository...",
+          "adding": "Downloading and checking the model...",
+          "added": "Model added. It appears under Downloaded Models."
+        },
+        "errors": {
+          "invalidInput": "Could not read that as a Hugging Face repo: {{detail}}",
+          "notFound": "Repository {{repo}} was not found on Hugging Face.",
+          "inaccessible": "{{repo}} could not be reached on Hugging Face. It may not exist, or it may be private or gated. Only public repositories are supported for now.",
+          "fileNotFound": "File {{filename}} was not found in {{repo}}.",
+          "noGguf": "{{repo}} contains no GGUF files.",
+          "network": "Could not reach Hugging Face: {{detail}}",
+          "downloadFailed": "Download failed: {{detail}}",
+          "cancelled": "Download cancelled.",
+          "unsupportedArch": "The model architecture {{arch}} is not supported. Supported: {{supported}}.",
+          "unsupportedArchUnknown": "That file could not be read as a GGUF model, so it was not added.",
+          "generic": "Something went wrong."
+        }
+      }
     },
     "sound": {
       "title": "साउन्ड",

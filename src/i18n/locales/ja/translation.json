@@ -180,6 +180,34 @@
       "rescan": {
         "label": "再スキャン",
         "tooltip": "VoxBar を使わずに models フォルダーまたは Hugging Face キャッシュに追加されたモデルを再スキャンします"
+      },
+      "rescanModels": "モデルを再スキャン",
+      "addFromHf": {
+        "title": "Hugging Face からモデルを追加",
+        "description": "公開リポジトリの URL、または owner/repo を貼り付けてください。例: https://huggingface.co/owner/model.",
+        "placeholder": "https://huggingface.co/owner/model または owner/repo",
+        "add": "追加",
+        "cancel": "キャンセル",
+        "pickFile": "{{repo}} からファイルを選択してください:",
+        "recommended": "推奨",
+        "status": {
+          "resolving": "リポジトリを解決中...",
+          "adding": "モデルをダウンロードして確認中...",
+          "added": "モデルを追加しました。ダウンロード済みモデルに表示されます。"
+        },
+        "errors": {
+          "invalidInput": "Hugging Face のリポジトリとして読み取れませんでした: {{detail}}",
+          "notFound": "リポジトリ {{repo}} が Hugging Face で見つかりませんでした。",
+          "inaccessible": "{{repo}} にアクセスできませんでした。存在しないか、非公開または制限付きの可能性があります。現在は公開リポジトリのみ対応しています。",
+          "fileNotFound": "ファイル {{filename}} は {{repo}} 内で見つかりませんでした。",
+          "noGguf": "{{repo}} に GGUF ファイルがありません。",
+          "network": "Hugging Face に接続できませんでした: {{detail}}",
+          "downloadFailed": "ダウンロードに失敗しました: {{detail}}",
+          "cancelled": "ダウンロードをキャンセルしました。",
+          "unsupportedArch": "モデルのアーキテクチャ {{arch}} は対応していません。対応: {{supported}}.",
+          "unsupportedArchUnknown": "このファイルは GGUF モデルとして読み取れなかったため、追加されませんでした。",
+          "generic": "問題が発生しました。"
+        }
       }
     },
     "general": {

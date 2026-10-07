@@ -676,6 +676,34 @@
       "rescan": {
         "label": "إعادة الفحص",
         "tooltip": "إعادة الفحص بحثًا عن النماذج المضافة إلى مجلد النماذج أو ذاكرة Hugging Face التخزينية المؤقتة خارج VoxBar"
+      },
+      "rescanModels": "إعادة فحص النماذج",
+      "addFromHf": {
+        "title": "إضافة نموذج من Hugging Face",
+        "description": "الصق رابط مستودع عام أو مالك/مستودع، على سبيل المثال https://huggingface.co/owner/model.",
+        "placeholder": "https://huggingface.co/owner/model أو مالك/مستودع",
+        "add": "إضافة",
+        "cancel": "إلغاء",
+        "pickFile": "اختر ملفا من {{repo}}:",
+        "recommended": "موصى به",
+        "status": {
+          "resolving": "جار حل المستودع...",
+          "adding": "جار تنزيل النموذج والتحقق منه...",
+          "added": "تمت إضافة النموذج. سيظهر ضمن النماذج المنزلة."
+        },
+        "errors": {
+          "invalidInput": "تعذر قراءة هذا كمستودع Hugging Face: {{detail}}",
+          "notFound": "لم يتم العثور على المستودع {{repo}} في Hugging Face.",
+          "inaccessible": "تعذر الوصول إلى {{repo}} على Hugging Face. قد لا يكون موجودا، أو قد يكون خاصا أو مقيّدا. حاليا يتم دعم المستودعات العامة فقط.",
+          "fileNotFound": "لم يتم العثور على الملف {{filename}} في {{repo}}.",
+          "noGguf": "لا يحتوي {{repo}} على أي ملفات GGUF.",
+          "network": "تعذر الوصول إلى Hugging Face: {{detail}}",
+          "downloadFailed": "فشل التنزيل: {{detail}}",
+          "cancelled": "تم إلغاء التنزيل.",
+          "unsupportedArch": "بنية النموذج {{arch}} غير مدعومة. المدعومة: {{supported}}.",
+          "unsupportedArchUnknown": "تعذر قراءة هذا الملف كنموذج GGUF، لذلك لم تتم إضافته.",
+          "generic": "حدث خطأ ما."
+        }
       }
     }
   },

@@ -231,6 +231,34 @@
       "rescan": {
         "label": "Skanna om",
         "tooltip": "Skanna om efter modeller som lagts till i modellmappen eller Hugging Face-cachen utanför VoxBar"
+      },
+      "rescanModels": "Skanna modeller igen",
+      "addFromHf": {
+        "title": "Lägg till modell från Hugging Face",
+        "description": "Klistra in en publik repo-URL eller ägare/repo, till exempel https://huggingface.co/ägare/modell.",
+        "placeholder": "https://huggingface.co/ägare/modell eller ägare/modell",
+        "add": "Lägg till",
+        "cancel": "Avbryt",
+        "pickFile": "Välj en fil från {{repo}}:",
+        "recommended": "Rekommenderad",
+        "status": {
+          "resolving": "Löser repo...",
+          "adding": "Laddar ner och kontrollerar modellen...",
+          "added": "Modellen lades till. Den visas under nedladdade modeller."
+        },
+        "errors": {
+          "invalidInput": "Det kunde inte läsas som en Hugging Face repo: {{detail}}",
+          "notFound": "Repot {{repo}} hittades inte på Hugging Face.",
+          "inaccessible": "{{repo}} kunde inte nås på Hugging Face. Det finns kanske inte, eller är privat eller låst. Endast publika repos stöds just nu.",
+          "fileNotFound": "Filen {{filename}} hittades inte i {{repo}}.",
+          "noGguf": "{{repo}} innehåller inga GGUF filer.",
+          "network": "Kunde inte nå Hugging Face: {{detail}}",
+          "downloadFailed": "Nedladdningen misslyckades: {{detail}}",
+          "cancelled": "Nedladdningen avbröts.",
+          "unsupportedArch": "Modellarkitekturen {{arch}} stöds inte. Stöds: {{supported}}.",
+          "unsupportedArchUnknown": "Filen kunde inte läsas som en GGUF modell, så den lades inte till.",
+          "generic": "Något gick fel."
+        }
       }
     },
     "sound": {

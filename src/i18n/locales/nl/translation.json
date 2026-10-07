@@ -231,7 +231,35 @@
         "label": "Opnieuw scannen",
         "tooltip": "Scannen naar modellen die buiten VoxBar om zijn toegevoegd aan de modellenmap of Hugging Face-cache"
       },
-      "noModelsMatch": "Geen modellen voldoen aan dit filter."
+      "noModelsMatch": "Geen modellen voldoen aan dit filter.",
+      "rescanModels": "Modellen opnieuw scannen",
+      "addFromHf": {
+        "title": "Model van Hugging Face toevoegen",
+        "description": "Plak een openbare repo-URL of eigenaar/repo, bijvoorbeeld https://huggingface.co/eigenaar/model.",
+        "placeholder": "https://huggingface.co/eigenaar/model of eigenaar/model",
+        "add": "Toevoegen",
+        "cancel": "Annuleren",
+        "pickFile": "Kies een bestand uit {{repo}}:",
+        "recommended": "Aanbevolen",
+        "status": {
+          "resolving": "Repository wordt opgezocht...",
+          "adding": "Model wordt gedownload en gecontroleerd...",
+          "added": "Model toegevoegd. Het verschijnt bij de gedownloade modellen."
+        },
+        "errors": {
+          "invalidInput": "Dat kon niet worden gelezen als een Hugging Face repository: {{detail}}",
+          "notFound": "Repository {{repo}} is niet gevonden op Hugging Face.",
+          "inaccessible": "{{repo}} is niet bereikbaar op Hugging Face. Het bestaat mogelijk niet, of het is privé of afgeschermd. Voor nu worden alleen openbare repositories ondersteund.",
+          "fileNotFound": "Bestand {{filename}} is niet gevonden in {{repo}}.",
+          "noGguf": "{{repo}} bevat geen GGUF bestanden.",
+          "network": "Kan Hugging Face niet bereiken: {{detail}}",
+          "downloadFailed": "Download mislukt: {{detail}}",
+          "cancelled": "Download geannuleerd.",
+          "unsupportedArch": "De modelarchitectuur {{arch}} wordt niet ondersteund. Ondersteund: {{supported}}.",
+          "unsupportedArchUnknown": "Dit bestand kon niet worden gelezen als een GGUF model en is daarom niet toegevoegd.",
+          "generic": "Er ging iets mis."
+        }
+      }
     },
     "sound": {
       "title": "Geluid",

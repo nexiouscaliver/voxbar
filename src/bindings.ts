@@ -780,6 +780,34 @@ async rescanLocalModels() : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Resolve pasted Hugging Face input (a URL, `owner/repo`, or
+ * `owner/repo/file.gguf`) into the repo's GGUF file list with sizes plus a
+ * suggested file. Public repos only in v1: repos that cannot be read
+ * anonymously come back as a structured error the UI can localize.
+ */
+async resolveHfModel(input: string) : Promise<Result<HfModelResolution, HfModelError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("resolve_hf_model", { input }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Download a specific file from a Hugging Face repo and register it, gated
+ * on the GGUF architecture probe: an unsupported architecture is refused,
+ * the blob deleted, and the error names the architecture and supported
+ * families. Downloads nothing outside this explicit user action.
+ */
+async addHfModel(repoId: string, filename: string, revision: string | null) : Promise<Result<string, HfModelError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("add_hf_model", { repoId, filename, revision }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async updateMicrophoneMode(alwaysOn: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_microphone_mode", { alwaysOn }) };
@@ -1105,6 +1133,19 @@ export type EngineType =
  */
 "TranscribeCpp" | "Parakeet" | "Moonshine" | "MoonshineStreaming" | "SenseVoice" | "GigaAM" | "Canary" | "Cohere"
 export type GpuDeviceOption = { id: string; name: string; total_vram_mb: number }
+/**
+ * Structured failure kinds for the add-from-Hugging-Face flow, so the
+ * frontend can localize each instead of showing raw error strings.
+ */
+export type HfModelError = { InvalidInput: { detail: string } } | { RepoNotFound: { repo_id: string } } | { Inaccessible: { repo_id: string } } | { FileNotFound: { repo_id: string; filename: string } } | { NoGgufFiles: { repo_id: string } } | { Network: { detail: string } } | { DownloadFailed: { detail: string } } | "Cancelled" | { UnsupportedArchitecture: { architecture: string | null; supported: string[] } }
+/**
+ * The repo listing handed to the UI when the user's input resolves.
+ */
+export type HfModelResolution = { repo_id: string; revision: string | null; files: HfRepoFile[]; suggested_filename: string }
+/**
+ * One `.gguf` file inside a Hugging Face repo, as listed by the metadata API.
+ */
+export type HfRepoFile = { filename: string; size_bytes: number | null }
 export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean; model_id: string | null }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
