@@ -13,6 +13,8 @@
     "global-shortcut:allow-unregister",
     "global-shortcut:allow-unregister-all",
     "macos-permissions:default",
+    "updater:default",
+    "process:default",
     "fs:read-files",
     "fs:allow-resource-read-recursive",
     {

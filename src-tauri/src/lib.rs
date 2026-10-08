@@ -934,10 +934,12 @@ pub fn run(cli_args: CliArgs) {
     #[allow(unused_mut)]
     let mut app = builder
         .plugin(tauri_plugin_fs::init())
-        // No updater plugin is registered (or depended on): this build ships
-        // no update endpoint to query. Both "Check for Updates" affordances
-        // (tray item and footer link) open RELEASES_URL in the default
-        // browser instead.
+        // In-app updates: the updater plugin itself is registered in setup()
+        // (desktop-gated, per the plugin docs); tauri-plugin-process provides
+        // the relaunch() used after an update installs. The "Check for
+        // Updates" affordances (tray item and footer button) drive the
+        // frontend flow in src/components/update-checker/.
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_macos_permissions::init())
@@ -950,6 +952,14 @@ pub fn run(cli_args: CliArgs) {
         ))
         .manage(cli_args.clone())
         .setup(move |app| {
+            // In-app updater (desktop only, docs-verbatim registration). The
+            // update endpoint and signing pubkey live in tauri.conf.json's
+            // plugins.updater block; checks are driven by the frontend and
+            // gated by update_checks_enabled / HANDY_DISABLE_UPDATER there.
+            #[cfg(desktop)]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
+
             // Installed-upgrade continuity (legacy Handy -> VoxBar): must be
             // the FIRST thing setup() does - the `get_settings` read below
             // WRITES defaults into a fresh store, and the headless branch's
