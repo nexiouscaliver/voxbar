@@ -923,10 +923,11 @@ mod tests {
                 "no one knows",
                 "someone anyone everyone",
                 "give me five",
-                "nine out of ten",
+                "nine out of ten times",
                 "one should always",
                 "give me a second",
                 "ten",
+                "one in a million",
             ] {
                 assert_eq!(
                     convert_number_words(text, mode, NumberScript::English),
@@ -1043,6 +1044,12 @@ mod tests {
         assert_eq!(
             convert_number_words("one hundred fifth", SMART, NumberScript::English),
             "105th"
+        );
+        // The compound-ordinal rule is Smart-only: Digits keeps the
+        // sentence exactly as spoken, and Smart never reorders the date.
+        assert_eq!(
+            convert_number_words("the twenty fifth of March", DIGITS, NumberScript::English),
+            "the twenty fifth of March"
         );
         // Simple ordinals never convert, in any mode.
         for mode in [DIGITS, SMART] {
