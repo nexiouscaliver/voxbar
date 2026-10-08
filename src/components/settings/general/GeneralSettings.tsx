@@ -15,6 +15,13 @@ import { ModelSettingsCard } from "./ModelSettingsCard";
 import { DeleteLastWordAction } from "../DeleteLastWordAction";
 import { UndoAction } from "../UndoAction";
 import { CommandModeToggle } from "../CommandModeToggle";
+import { StartHidden } from "../StartHidden";
+import { AutostartToggle } from "../AutostartToggle";
+import { ShowTrayIcon } from "../ShowTrayIcon";
+import { ShowOverlay } from "../ShowOverlay";
+import { AlwaysOnMicrophone } from "../AlwaysOnMicrophone";
+import { ClamshellMicrophoneSelector } from "../ClamshellMicrophoneSelector";
+import { SoundPicker } from "../SoundPicker";
 
 export const GeneralSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -53,18 +60,32 @@ export const GeneralSettings: React.FC = () => {
         />
         <CommandModeToggle descriptionMode="inline" grouped={true} />
       </SettingsGroup>
+      <SettingsGroup title={t("settings.general.groups.app")}>
+        <StartHidden descriptionMode="tooltip" grouped={true} />
+        <AutostartToggle descriptionMode="tooltip" grouped={true} />
+        <ShowTrayIcon descriptionMode="tooltip" grouped={true} />
+        <ShowOverlay descriptionMode="tooltip" grouped={true} />
+      </SettingsGroup>
       <ModelSettingsCard />
       <SettingsGroup title={t("settings.sound.title")}>
         <MicrophoneSelector descriptionMode="tooltip" grouped={true} />
         <ChannelSelector descriptionMode="tooltip" grouped={true} />
         <MuteWhileRecording descriptionMode="tooltip" grouped={true} />
         <AudioFeedback descriptionMode="tooltip" grouped={true} />
+        <SoundPicker
+          label={t("settings.debug.soundTheme.label")}
+          description={t("settings.debug.soundTheme.description")}
+        />
         <OutputDeviceSelector
           descriptionMode="tooltip"
           grouped={true}
           disabled={!audioFeedbackEnabled}
         />
         <VolumeSlider disabled={!audioFeedbackEnabled} />
+      </SettingsGroup>
+      <SettingsGroup title={t("settings.general.groups.microphone")}>
+        <AlwaysOnMicrophone descriptionMode="tooltip" grouped={true} />
+        <ClamshellMicrophoneSelector descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
     </div>
   );
