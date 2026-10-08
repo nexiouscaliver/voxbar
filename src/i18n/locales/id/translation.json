@@ -809,7 +809,18 @@
     "portableUpdateMessage": "Instalasi portabel tidak dapat diperbarui secara otomatis. Unduh penginstal untuk sistem Anda di bawah ini, jalankan, lalu instal ke folder yang sama - folder Data/ Anda (pengaturan, model, rekaman) tetap dipertahankan.",
     "portableUpdateButton": "Unduh penginstal",
     "portableUpdateBrowseMessage": "Instalasi portabel tidak dapat diperbarui secara otomatis. Unduh versi terbaru untuk sistem Anda dari GitHub Releases dan instal ke folder yang sama - folder Data/ Anda (pengaturan, model, rekaman) tetap dipertahankan.",
-    "portableUpdateBrowseButton": "Buka GitHub Releases"
+    "portableUpdateBrowseButton": "Buka GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} tersedia",
+      "availableDate": "Dirilis {{date}}",
+      "downloadAction": "Unduh dan pasang",
+      "laterAction": "Nanti",
+      "progress": "Mengunduh pembaruan... {{percent}}%",
+      "installRestart": "Pembaruan terunduh. Memasang dan memulai ulang...",
+      "failedTitle": "Pembaruan gagal",
+      "failedAction": "Buka Rilis GitHub",
+      "checkFailedTitle": "Tidak dapat memeriksa pembaruan"
+    }
   },
   "whatsNew": {
     "title": "Baru di VoxBar v{{version}}"

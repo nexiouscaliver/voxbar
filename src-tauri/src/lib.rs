@@ -57,11 +57,6 @@ use crate::settings::get_settings;
 // We use u8 to store the log::LevelFilter as a number
 pub static FILE_LOG_LEVEL: AtomicU8 = AtomicU8::new(log::LevelFilter::Debug as u8);
 
-/// Releases page opened by every "Check for Updates" affordance (tray item
-/// and footer link). This build ships no in-app updater, so the honest
-/// behavior is to hand the user over to the releases list in their browser.
-const RELEASES_URL: &str = "https://github.com/nexiouscaliver/voxbar/releases";
-
 /// When `true`, log records are also forwarded to the webview via the
 /// `log://log` event for the debug panel's live log viewer. Gated on debug
 /// mode - the live log viewer is its only consumer and only exists in debug
@@ -300,11 +295,14 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                 show_main_window(app);
             }
             "check_updates" => {
-                // No in-app updater exists in this build, so the item opens
-                // the releases page in the default browser instead of
-                // pretending to check an update endpoint.
-                if let Err(err) = app.opener().open_url(RELEASES_URL, None::<String>) {
-                    log::error!("Failed to open the releases page: {err}");
+                // The frontend (App-level request-update-check listener)
+                // runs the in-app update flow: check the releases endpoint,
+                // confirm, download, install, relaunch. Emitting an event
+                // keeps the flow's toasts in the UI and works in every app
+                // state, because the main window is hidden rather than
+                // destroyed on close.
+                if let Err(err) = app.emit("request-update-check", ()) {
+                    log::error!("Failed to emit request-update-check: {err}");
                 }
             }
             "copy_last_transcript" => {

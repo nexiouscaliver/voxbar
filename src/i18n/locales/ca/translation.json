@@ -809,7 +809,18 @@
     "portableUpdateMessage": "Les instal·lacions portables no es poden actualitzar automàticament. Baixa l'instal·lador per al vostre sistema a continuació, executeu-lo i instal·leu-lo a la mateixa carpeta. La carpeta Data/ (configuració, models i enregistraments) es conserva.",
     "portableUpdateButton": "Baixa l'instal·lador",
     "portableUpdateBrowseMessage": "Les instal·lacions portables no es poden actualitzar automàticament. Baixa l'última versió per al vostre sistema des de GitHub Releases i instal·leu-la a la mateixa carpeta. La carpeta Data/ (configuració, models i enregistraments) es conserva.",
-    "portableUpdateBrowseButton": "Obriu GitHub Releases"
+    "portableUpdateBrowseButton": "Obriu GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} està disponible",
+      "availableDate": "Publicat el {{date}}",
+      "downloadAction": "Baixa i instal·la",
+      "laterAction": "Més tard",
+      "progress": "S'està baixant l'actualització... {{percent}}%",
+      "installRestart": "Actualització baixada. S'està instal·lant i reiniciant...",
+      "failedTitle": "L'actualització ha fallat",
+      "failedAction": "Obre les versions de GitHub",
+      "checkFailedTitle": "No s'ha pogut comprovar les actualitzacions"
+    }
   },
   "whatsNew": {
     "title": "Novetats del VoxBar v{{version}}"

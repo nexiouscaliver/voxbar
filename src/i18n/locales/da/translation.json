@@ -809,7 +809,18 @@
     "portableUpdateMessage": "Flytbare installationer kan ikke opdateres automatisk. Download installeren til dit system nedenfor, kør den, og installer i den samme mappe - din Data/-mappe (indstillinger, modeller, optagelser) bliver bevaret.",
     "portableUpdateButton": "Download installer",
     "portableUpdateBrowseMessage": "Flytbare installationer kan ikke opdateres automatisk. Download den nyeste version til dit system fra GitHub Releases, og installer den i den samme mappe - din Data/-mappe (indstillinger, modeller, optagelser) bliver bevaret.",
-    "portableUpdateBrowseButton": "Åbn GitHub Releases"
+    "portableUpdateBrowseButton": "Åbn GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} er tilgængelig",
+      "availableDate": "Udgivet {{date}}",
+      "downloadAction": "Hent og installér",
+      "laterAction": "Senere",
+      "progress": "Downloader opdatering... {{percent}}%",
+      "installRestart": "Opdatering hentet. Installerer og genstarter...",
+      "failedTitle": "Opdatering mislykkedes",
+      "failedAction": "Åbn GitHub Releases",
+      "checkFailedTitle": "Kunne ikke tjekke for opdateringer"
+    }
   },
   "whatsNew": {
     "title": "Nyt i VoxBar v{{version}}"

@@ -809,7 +809,18 @@
     "portableUpdateMessage": "Bản cài đặt di động không thể cập nhật tự động. Hãy tải trình cài đặt phù hợp với hệ thống của bạn bên dưới, chạy nó và cài vào cùng thư mục - thư mục Data/ (cài đặt, mô hình, bản ghi) của bạn được giữ nguyên.",
     "portableUpdateButton": "Tải trình cài đặt",
     "portableUpdateBrowseMessage": "Bản cài đặt di động không thể cập nhật tự động. Hãy tải phiên bản mới nhất phù hợp với hệ thống của bạn từ GitHub Releases và cài vào cùng thư mục - thư mục Data/ (cài đặt, mô hình, bản ghi) của bạn được giữ nguyên.",
-    "portableUpdateBrowseButton": "Mở GitHub Releases"
+    "portableUpdateBrowseButton": "Mở GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} đã có sẵn",
+      "availableDate": "Phát hành {{date}}",
+      "downloadAction": "Tải xuống và cài đặt",
+      "laterAction": "Để sau",
+      "progress": "Đang tải bản cập nhật... {{percent}}%",
+      "installRestart": "Đã tải bản cập nhật. Đang cài đặt và khởi động lại...",
+      "failedTitle": "Cập nhật thất bại",
+      "failedAction": "Mở bản phát hành trên GitHub",
+      "checkFailedTitle": "Không thể kiểm tra bản cập nhật"
+    }
   },
   "common": {
     "loading": "Đang tải...",

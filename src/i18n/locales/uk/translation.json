@@ -809,7 +809,18 @@
     "portableUpdateMessage": "Портативні встановлення не можна оновити автоматично. Завантажте нижче інсталятор для вашої системи, запустіть його та встановіть у ту саму теку - ваша тека Data/ (налаштування, моделі, записи) залишиться на місці.",
     "portableUpdateButton": "Завантажити інсталятор",
     "portableUpdateBrowseMessage": "Портативні встановлення не можна оновити автоматично. Завантажте найновішу версію для вашої системи зі сторінки GitHub Releases та встановіть її в ту саму теку - ваша тека Data/ (налаштування, моделі, записи) залишиться на місці.",
-    "portableUpdateBrowseButton": "Відкрити GitHub Releases"
+    "portableUpdateBrowseButton": "Відкрити GitHub Releases",
+    "updater": {
+      "availableTitle": "Доступна VoxBar {{version}}",
+      "availableDate": "Опубліковано {{date}}",
+      "downloadAction": "Завантажити та встановити",
+      "laterAction": "Пізніше",
+      "progress": "Завантаження оновлення... {{percent}}%",
+      "installRestart": "Оновлення завантажено. Встановлення та перезапуск...",
+      "failedTitle": "Не вдалося оновити",
+      "failedAction": "Відкрити релізи GitHub",
+      "checkFailedTitle": "Не вдалося перевірити оновлення"
+    }
   },
   "common": {
     "loading": "Завантаження...",

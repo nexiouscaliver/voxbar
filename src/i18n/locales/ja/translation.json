@@ -809,7 +809,18 @@
     "portableUpdateMessage": "ポータブル版は自動的に更新できません。下のボタンからお使いのシステム向けのインストーラーをダウンロードし、実行して同じフォルダーにインストールしてください。Data フォルダー(設定、モデル、録音)はそのまま残ります。",
     "portableUpdateButton": "インストーラーをダウンロード",
     "portableUpdateBrowseMessage": "ポータブル版は自動的に更新できません。GitHub Releases からお使いのシステム向けの最新版をダウンロードし、同じフォルダーにインストールしてください。Data フォルダー(設定、モデル、録音)はそのまま残ります。",
-    "portableUpdateBrowseButton": "GitHub Releases を開く"
+    "portableUpdateBrowseButton": "GitHub Releases を開く",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} が利用可能です",
+      "availableDate": "公開日: {{date}}",
+      "downloadAction": "ダウンロードしてインストール",
+      "laterAction": "後で",
+      "progress": "アップデートをダウンロード中... {{percent}}%",
+      "installRestart": "ダウンロード完了。インストールして再起動しています...",
+      "failedTitle": "アップデートに失敗しました",
+      "failedAction": "GitHub のリリースを開く",
+      "checkFailedTitle": "アップデートを確認できませんでした"
+    }
   },
   "common": {
     "loading": "読み込み中…",

@@ -809,7 +809,18 @@
     "portableUpdateMessage": "התקנות ניידות אינן מתעדכנות אוטומטית. הורד למטה את המתקין המתאים למערכת שלך, הפעל אותו והתקן לאותה תיקייה - תיקיית Data/ (הגדרות, מודלים, הקלטות) נשמרת במקומה.",
     "portableUpdateButton": "הורדת המתקין",
     "portableUpdateBrowseMessage": "התקנות ניידות אינן מתעדכנות אוטומטית. הורד את הגרסה האחרונה המתאימה למערכת שלך מ-GitHub Releases והתקן אותה לאותה תיקייה - תיקיית Data/ (הגדרות, מודלים, הקלטות) נשמרת במקומה.",
-    "portableUpdateBrowseButton": "פתח את GitHub Releases"
+    "portableUpdateBrowseButton": "פתח את GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} זמין",
+      "availableDate": "פורסם ב-{{date}}",
+      "downloadAction": "הורדה והתקנה",
+      "laterAction": "מאוחר יותר",
+      "progress": "מוריד עדכון... {{percent}}%",
+      "installRestart": "העדכון הורד. מתקין ומפעיל מחדש...",
+      "failedTitle": "העדכון נכשל",
+      "failedAction": "פתיחת מהדורות GitHub",
+      "checkFailedTitle": "בדיקת העדכונים נכשלה"
+    }
   },
   "common": {
     "loading": "טוען...",

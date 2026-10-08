@@ -809,7 +809,18 @@
     "portableUpdateMessage": "Les installations portables ne peuvent pas être mises à jour automatiquement. Téléchargez ci-dessous l’installateur correspondant à votre système, exécutez-le et installez-le dans le même dossier : votre dossier Data/ (paramètres, modèles, enregistrements) est conservé.",
     "portableUpdateButton": "Télécharger l’installateur",
     "portableUpdateBrowseMessage": "Les installations portables ne peuvent pas être mises à jour automatiquement. Téléchargez la dernière version correspondant à votre système depuis GitHub Releases et installez-la dans le même dossier : votre dossier Data/ (paramètres, modèles, enregistrements) est conservé.",
-    "portableUpdateBrowseButton": "Ouvrir GitHub Releases"
+    "portableUpdateBrowseButton": "Ouvrir GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} est disponible",
+      "availableDate": "Publié le {{date}}",
+      "downloadAction": "Télécharger et installer",
+      "laterAction": "Plus tard",
+      "progress": "Téléchargement de la mise à jour... {{percent}}%",
+      "installRestart": "Mise à jour téléchargée. Installation et redémarrage...",
+      "failedTitle": "Échec de la mise à jour",
+      "failedAction": "Ouvrir les versions GitHub",
+      "checkFailedTitle": "Impossible de vérifier les mises à jour"
+    }
   },
   "common": {
     "loading": "Chargement...",
