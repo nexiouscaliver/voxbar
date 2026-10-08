@@ -67,6 +67,34 @@ pub struct NumberPassScripts {
     pub english: bool,
 }
 
+/// The per-session snapshot the interim path captures: the mode plus the
+/// script gating the finalize pipeline resolved for the run. Bundled so a
+/// session begin stays a single argument.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct NumberPass {
+    pub mode: NumberFormat,
+    pub scripts: NumberPassScripts,
+}
+
+impl NumberPass {
+    /// The inert snapshot: no pass runs anywhere.
+    pub fn disabled() -> Self {
+        Self {
+            mode: NumberFormat::AsTranscribed,
+            scripts: NumberPassScripts::default(),
+        }
+    }
+}
+
+/// The passes a transcription's pipeline should run, resolved from the
+/// setting plus its output-language evidence.
+pub fn number_pass(settings: &AppSettings, output_language: &OutputLanguageEvidence) -> NumberPass {
+    NumberPass {
+        mode: settings.number_format,
+        scripts: number_pass_scripts(settings, output_language),
+    }
+}
+
 pub fn number_pass_scripts(
     settings: &AppSettings,
     output_language: &OutputLanguageEvidence,
@@ -253,13 +281,13 @@ impl<'a> Token<'a> {
             leading_punct: "",
             trailing_punct: "",
         };
-        let Some((start, _)) = lower
-            .char_indices()
-            .find(|(_, c)| c.is_alphanumeric())
-        else {
+        let Some((start, _)) = lower.char_indices().find(|(_, c)| c.is_alphanumeric()) else {
             return token;
         };
-        let Some((end, last)) = lower.char_indices().rev().find(|(_, c)| c.is_alphanumeric())
+        let Some((end, last)) = lower
+            .char_indices()
+            .rev()
+            .find(|(_, c)| c.is_alphanumeric())
         else {
             return token;
         };
@@ -330,21 +358,21 @@ fn parse_cardinal(kinds: &[Option<Kind>]) -> Option<Cardinal> {
             Some(Kind::Unit(unit)) => {
                 // A unit only fills a group's open ones-slot: nothing yet,
                 // a bare tens (twenty + five), or whole hundreds.
-                if current % 10 == 0 {
+                if current.is_multiple_of(10) {
                     current += *unit as u64;
                 } else {
                     break;
                 }
             }
             Some(Kind::Teen(value)) => {
-                if current % 100 == 0 {
+                if current.is_multiple_of(100) {
                     current += *value as u64;
                 } else {
                     break;
                 }
             }
             Some(Kind::Tens(value)) | Some(Kind::HyphenGroup(value)) => {
-                if current % 100 == 0 {
+                if current.is_multiple_of(100) {
                     current += *value as u64;
                 } else {
                     break;
@@ -376,10 +404,7 @@ fn parse_cardinal(kinds: &[Option<Kind>]) -> Option<Cardinal> {
                 let next_is_group = matches!(
                     kinds.get(index + 1),
                     Some(Some(
-                        Kind::Unit(_)
-                            | Kind::Teen(_)
-                            | Kind::Tens(_)
-                            | Kind::HyphenGroup(_)
+                        Kind::Unit(_) | Kind::Teen(_) | Kind::Tens(_) | Kind::HyphenGroup(_)
                     ))
                 );
                 if !last_was_scale || !next_is_group {
@@ -432,7 +457,7 @@ fn render_digits(ascii: &str, script: NumberScript) -> String {
 
 fn ordinal_suffix(value: u64) -> &'static str {
     match value % 100 {
-        11 | 12 | 13 => "th",
+        11..=13 => "th",
         _ => match value % 10 {
             1 => "st",
             2 => "nd",
@@ -553,9 +578,7 @@ impl<'a> Scan<'a> {
     fn single_letter_follows(&self, index: usize) -> bool {
         match self.tokens.get(index) {
             Some(token) => {
-                let core = token
-                    .text
-                    .trim_matches(|c: char| !c.is_alphanumeric());
+                let core = token.text.trim_matches(|c: char| !c.is_alphanumeric());
                 core.chars().count() == 1 && core.chars().all(char::is_alphabetic)
             }
             None => false,
@@ -645,7 +668,7 @@ pub fn convert_number_words(text: &str, mode: NumberFormat, script: NumberScript
                     let folded = match u64::from(ordinal_value) {
                         value if value < 10 => Some(Kind::Unit(ordinal_value as u8)),
                         value if value < 20 => Some(Kind::Teen(ordinal_value)),
-                        value if value % 10 == 0 => Some(Kind::Tens(ordinal_value)),
+                        value if value.is_multiple_of(10) => Some(Kind::Tens(ordinal_value)),
                         _ => None,
                     };
                     if let Some(folded) = folded {
@@ -657,17 +680,8 @@ pub fn convert_number_words(text: &str, mode: NumberFormat, script: NumberScript
                             if let Some(full) = parse_cardinal(&extended) {
                                 if full.words == words {
                                     let value = full.value;
-                                    let replacement =
-                                        format!("{}{}", value, ordinal_suffix(value));
-                                    emit(
-                                        &mut out,
-                                        &scan,
-                                        resume,
-                                        i,
-                                        words,
-                                        &replacement,
-                                        script,
-                                    );
+                                    let replacement = format!("{}{}", value, ordinal_suffix(value));
+                                    emit(&mut out, &scan, resume, i, words, &replacement, script);
                                     resume = scan.end_of(i + words - 1);
                                     i += words;
                                     continue;
@@ -958,11 +972,7 @@ mod tests {
             "1100"
         );
         assert_eq!(
-            convert_number_words(
-                "twenty five items",
-                DIGITS,
-                NumberScript::English
-            ),
+            convert_number_words("twenty five items", DIGITS, NumberScript::English),
             "25 items"
         );
         assert_eq!(
@@ -995,19 +1005,11 @@ mod tests {
             "3.1415"
         );
         assert_eq!(
-            convert_number_words(
-                "twenty five point six",
-                DIGITS,
-                NumberScript::English
-            ),
+            convert_number_words("twenty five point six", DIGITS, NumberScript::English),
             "25.6"
         );
         assert_eq!(
-            convert_number_words(
-                "one eight zero point five",
-                DIGITS,
-                NumberScript::English
-            ),
+            convert_number_words("one eight zero point five", DIGITS, NumberScript::English),
             "180.5"
         );
         for text in [
@@ -1202,11 +1204,7 @@ mod tests {
     #[test]
     fn hindi_devanagari_conversion() {
         assert_eq!(
-            convert_number_words(
-                "एक आठ शून्य एक",
-                DIGITS,
-                NumberScript::Devanagari
-            ),
+            convert_number_words("एक आठ शून्य एक", DIGITS, NumberScript::Devanagari),
             "१८०१"
         );
         assert_eq!(
@@ -1218,11 +1216,7 @@ mod tests {
             "१५०००००"
         );
         assert_eq!(
-            convert_number_words(
-                "एक लाख पचास हज़ार",
-                DIGITS,
-                NumberScript::Devanagari
-            ),
+            convert_number_words("एक लाख पचास हज़ार", DIGITS, NumberScript::Devanagari),
             "१५००००"
         );
         // Lone "ek" is the indefinite article; never converts.
@@ -1239,19 +1233,11 @@ mod tests {
         // follows the same mode rules as English ("twenty" stays a word
         // in Digits, converts in Smart).
         assert_eq!(
-            convert_number_words(
-                "meeting तीस बजे",
-                DIGITS,
-                NumberScript::Devanagari
-            ),
+            convert_number_words("meeting तीस बजे", DIGITS, NumberScript::Devanagari),
             "meeting तीस बजे"
         );
         assert_eq!(
-            convert_number_words(
-                "meeting तीस बजे",
-                SMART,
-                NumberScript::Devanagari
-            ),
+            convert_number_words("meeting तीस बजे", SMART, NumberScript::Devanagari),
             "meeting ३० बजे"
         );
         // Romanized Hindi number words never match the English grammar.
