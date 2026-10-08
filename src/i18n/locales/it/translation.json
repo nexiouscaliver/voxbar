@@ -358,6 +358,21 @@
         "label": "Protezione da pressione di memoria",
         "description": "Rifiuta di caricare un modello quando la memoria libera è insufficiente. Il modello attuale continua a funzionare quando un caricamento viene rifiutato."
       },
+      "memoryHeadroom": {
+        "label": "Margine di sicurezza della memoria",
+        "description": "RAM libera aggiuntiva mantenuta oltre la dimensione del modello prima che la protezione da pressione di memoria rifiuti un caricamento. 0 (predefinito) significa che il modello da solo deve starci; un valore personalizzato è 0 o almeno 5 MB.",
+        "options": {
+          "off": "Disattivato",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Personalizzato"
+        },
+        "customLabel": "Margine personalizzato",
+        "customUnit": "MB",
+        "invalid": "Immettere 0 o almeno 5 MB."
+      },
       "autoFallback": {
         "label": "Ripiego automatico (RAM)",
         "description": "Quando il modello selezionato non entra nella memoria libera, carica automaticamente il miglior modello scaricato che entra. Disattiva per mantenere il rifiuto semplice."

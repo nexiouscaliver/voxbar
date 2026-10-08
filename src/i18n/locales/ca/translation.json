@@ -358,6 +358,21 @@
         "label": "Guarda de pressió de memòria",
         "description": "Rebutja carregar un model quan la memòria lliure no és suficient. El model actual continua funcionant quan es rebutja una càrrega."
       },
+      "memoryHeadroom": {
+        "label": "Marge de seguretat de memòria",
+        "description": "Memòria lliure addicional reservada més enllà de la mida del model abans que la guarda de pressió de memòria rebutgi una càrrega. 0 (per defecte) vol dir que el model sol ha de cabre; un valor personalitzat és 0 o com a mínim 5 MB.",
+        "options": {
+          "off": "Desactivat",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Personalitzat"
+        },
+        "customLabel": "Marge personalitzat",
+        "customUnit": "MB",
+        "invalid": "Introduïu 0 o com a mínim 5 MB."
+      },
       "autoFallback": {
         "label": "Alternativa automàtica de RAM",
         "description": "Quan el model seleccionat no cap a la memòria lliure, carrega automàticament el millor model descarregat que hi cap. Desactiva per mantenir el refús simple."

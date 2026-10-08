@@ -358,6 +358,21 @@
         "label": "Bảo vệ áp lực bộ nhớ",
         "description": "Từ chối tải mô hình khi bộ nhớ trống không đủ. Mô hình hiện tại tiếp tục hoạt động khi việc tải bị từ chối."
       },
+      "memoryHeadroom": {
+        "label": "Biên an toàn bộ nhớ",
+        "description": "RAM trống thêm được giữ vượt quá kích thước mô hình trước khi bảo vệ áp lực bộ nhớ từ chối tải. 0 (mặc định) nghĩa là chỉ mô hình phải vừa; giá trị tùy chỉnh là 0 hoặc ít nhất 5 MB.",
+        "options": {
+          "off": "Tắt",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Tùy chỉnh"
+        },
+        "customLabel": "Biên tùy chỉnh",
+        "customUnit": "MB",
+        "invalid": "Nhập 0 hoặc ít nhất 5 MB."
+      },
       "autoFallback": {
         "label": "Tự động chuyển khi thiếu RAM",
         "description": "Khi mô hình đã chọn không vừa bộ nhớ trống, tự động tải mô hình đã tải xuống phù hợp nhất. Tắt để giữ việc từ chối đơn giản."

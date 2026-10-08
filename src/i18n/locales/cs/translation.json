@@ -358,6 +358,21 @@
         "label": "Ochrana při nedostatku paměti",
         "description": "Odmítne načíst model, když na něj nezbývá dost volné paměti. Aktuální model dále funguje, když je načtení odmítnuto."
       },
+      "memoryHeadroom": {
+        "label": "Rezerva paměti pro bezpečnost",
+        "description": "Dodatečná volná paměť ponechaná nad velikost modelu, než ochrana při nedostatku paměti odmítne načtení. 0 (výchozí) znamená, že se musí vejít sám model; vlastní hodnota je 0 nebo alespoň 5 MB.",
+        "options": {
+          "off": "Vypnuto",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Vlastní"
+        },
+        "customLabel": "Vlastní rezerva",
+        "customUnit": "MB",
+        "invalid": "Zadejte 0 nebo alespoň 5 MB."
+      },
       "autoFallback": {
         "label": "Automatické přepnutí při nedostatku RAM",
         "description": "Když se vybraný model nevejde do volné paměti, automaticky se načte nejlepší stažený model, který se vejde. Vypněte pro obyčejné odmítnutí."

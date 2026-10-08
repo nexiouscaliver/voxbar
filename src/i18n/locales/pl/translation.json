@@ -358,6 +358,21 @@
         "label": "Ochrona przed brakiem pamięci",
         "description": "Odmawia załadowania modelu, gdy wolnej pamięci jest za mało. Bieżący model nadal działa, gdy ładowanie zostanie odrzucone."
       },
+      "memoryHeadroom": {
+        "label": "Margines bezpieczeństwa pamięci",
+        "description": "Dodatkowa wolna pamięć zachowywana ponad rozmiar modelu, zanim ochrona przed brakiem pamięci odrzuci załadowanie. 0 (domyślnie) oznacza, że musi się zmieścić sam model; wartość niestandardowa to 0 lub co najmniej 5 MB.",
+        "options": {
+          "off": "Wyłączone",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Niestandardowe"
+        },
+        "customLabel": "Margines niestandardowy",
+        "customUnit": "MB",
+        "invalid": "Wprowadź 0 lub co najmniej 5 MB."
+      },
       "autoFallback": {
         "label": "Automatyczny model zapasowy (RAM)",
         "description": "Gdy wybrany model nie mieści się w wolnej pamięci, automatycznie ładuje najlepszy pobrany model, który się mieści. Wyłącz, aby zachować zwykłą odmowę."

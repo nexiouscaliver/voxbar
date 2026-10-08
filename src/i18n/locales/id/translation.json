@@ -358,6 +358,21 @@
         "label": "Penjaga Tekanan Memori",
         "description": "Menolak memuat model saat memori bebas tidak cukup. Model saat ini tetap berfungsi saat pemuatan ditolak."
       },
+      "memoryHeadroom": {
+        "label": "Margin Keamanan Memori",
+        "description": "RAM bebas ekstra yang disisihkan melebihi ukuran model sebelum penjaga tekanan memori menolak pemuatan. 0 (bawaan) berarti model saja harus cukup; nilai kustom adalah 0 atau setidaknya 5 MB.",
+        "options": {
+          "off": "Mati",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Kustom"
+        },
+        "customLabel": "Margin kustom",
+        "customUnit": "MB",
+        "invalid": "Masukkan 0 atau setidaknya 5 MB."
+      },
       "autoFallback": {
         "label": "Fallback otomatis RAM",
         "description": "Saat model terpilih tidak muat di memori bebas, model terbaik yang sudah diunduh dimuat otomatis. Matikan untuk tetap menolak saja."

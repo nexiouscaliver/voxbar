@@ -358,6 +358,21 @@
         "label": "Proteção de pressão de memória",
         "description": "Recusa carregar um modelo quando a memória livre é insuficiente. O modelo atual continua funcionando quando um carregamento é recusado."
       },
+      "memoryHeadroom": {
+        "label": "Margem de segurança de memória",
+        "description": "RAM livre extra mantida além do tamanho do modelo antes que a proteção de pressão de memória recuse um carregamento. 0 (padrão) significa que apenas o modelo deve caber; um valor personalizado é 0 ou pelo menos 5 MB.",
+        "options": {
+          "off": "Desativado",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Personalizado"
+        },
+        "customLabel": "Margem personalizada",
+        "customUnit": "MB",
+        "invalid": "Digite 0 ou pelo menos 5 MB."
+      },
       "autoFallback": {
         "label": "Alternativa automática de RAM",
         "description": "Quando o modelo selecionado não cabe na memória livre, carrega automaticamente o melhor modelo baixado que caiba. Desative para manter a recusa simples."

@@ -358,6 +358,21 @@
         "label": "Speicherdruck-Schutz",
         "description": "Lehnt das Laden eines Modells ab, wenn der freie Speicher nicht ausreicht. Das aktuelle Modell läuft weiter, wenn ein Laden abgelehnt wird."
       },
+      "memoryHeadroom": {
+        "label": "Speicher-Sicherheitsmarge",
+        "description": "Zusätzlich freier Speicher, der über die Modellgröße hinaus frei bleibt, bevor der Speicherdruck-Schutz ein Laden ablehnt. 0 (Standard) heißt, das Modell allein muss passen; ein benutzerdefinierter Wert ist 0 oder mindestens 5 MB.",
+        "options": {
+          "off": "Aus",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Benutzerdefiniert"
+        },
+        "customLabel": "Benutzerdefinierte Marge",
+        "customUnit": "MB",
+        "invalid": "Geben Sie 0 oder mindestens 5 MB ein."
+      },
       "autoFallback": {
         "label": "RAM-Auto-Fallback",
         "description": "Wenn das gewählte Modell nicht in den freien Speicher passt, wird automatisch das beste heruntergeladene passende Modell geladen. Deaktivieren für die einfache Ablehnung."
