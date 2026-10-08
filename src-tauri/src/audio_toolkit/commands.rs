@@ -669,6 +669,16 @@ mod tests {
     }
 
     #[test]
+    fn command_mode_everyday_words_are_not_gated() {
+        // The utterance-final gate lives in the normal-dictation text pass
+        // only: with the modifier held, an explicit everyday-word command
+        // always inserts its symbol.
+        let mut buffer = "hello".to_string();
+        apply_command_delta_to_buffer(&mut buffer, "period star percent pipe", &dm());
+        assert_eq!(buffer, "hello.*%|");
+    }
+
+    #[test]
     fn matrix_unification_adds_voice_phrases_and_extended_symbols() {
         // The DeleteWord unification: the voice phrases also parse in
         // command mode.
