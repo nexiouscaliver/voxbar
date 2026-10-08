@@ -1,4 +1,5 @@
 use super::command_matrix::{CompiledCommandMatrix, VoiceDeletionKind};
+use super::commands::is_coalescible_symbol;
 use natural::phonetics::soundex;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -516,7 +517,9 @@ fn trim_trailing_spaces(text: &mut String) {
 /// becomes a line break, "new paragraph" a blank line, and "dash" a plain
 /// ASCII hyphen. Matching is case-insensitive, word-boundary anchored, and
 /// phrase-aware: the matched token is consumed and the word after
-/// sentence-ending punctuation (".", "?", "!") is capitalized. All other
+/// sentence-ending punctuation (".", "?", "!") is capitalized. A symbol
+/// whose mark is already at the kept tail (the model wrote the mark AND the
+/// command word) coalesces instead of doubling. All other
 /// text, including existing newlines, is preserved byte-for-byte.
 pub fn normalize_spoken_punctuation(text: &str, matrix: &CompiledCommandMatrix) -> String {
     let mut kept = String::with_capacity(text.len());
@@ -543,7 +546,17 @@ pub fn normalize_spoken_punctuation(text: &str, matrix: &CompiledCommandMatrix) 
         push_restoring_capital(&mut kept, span, &mut capital_owed);
 
         trim_trailing_spaces(&mut kept);
-        kept.push_str(replacement);
+        // The model often writes BOTH the literal mark and the command word
+        // ("hello, comma world"): when the kept tail already ends with the
+        // exact symbol, the replacement coalesces into it instead of
+        // appending a second mark. Scoped to single symbols through
+        // is_coalescible_symbol, so line-break inserts ("\n", "\n\n") keep
+        // stacking and the trailing-space trim never touches a newline.
+        let already_marked =
+            is_coalescible_symbol(replacement) && kept.ends_with(replacement);
+        if !already_marked {
+            kept.push_str(replacement);
+        }
         if is_sentence_ending_punctuation(replacement) {
             capital_owed = true;
         }
@@ -1498,6 +1511,41 @@ mod tests {
         assert_eq!(
             normalize_spoken_punctuation("hello comma, world", &dm()),
             "hello, world"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_mark_plus_word_never_doubles() {
+        // The model emitted BOTH the literal mark and the spoken command
+        // word (whisper's frequent rendering of spoken punctuation): the
+        // replacement must coalesce with the mark already in the text, not
+        // append a second one.
+        assert_eq!(
+            normalize_spoken_punctuation("hello, comma world", &dm()),
+            "hello, world"
+        );
+        assert_eq!(normalize_spoken_punctuation("done. period", &dm()), "done.");
+        assert_eq!(
+            normalize_spoken_punctuation("done? question mark", &dm()),
+            "done?"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("value: colon x", &dm()),
+            "value: x"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_consecutive_newline_phrases_still_stack() {
+        // The dedup guard never applies to line breaks: spoken "new line" /
+        // "new paragraph" repeats keep stacking layout.
+        assert_eq!(
+            normalize_spoken_punctuation("done new line new line next", &dm()),
+            "done\n\nnext"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("para new paragraph new paragraph", &dm()),
+            "para\n\n\n\n"
         );
     }
 

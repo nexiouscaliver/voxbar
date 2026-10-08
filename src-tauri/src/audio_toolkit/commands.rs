@@ -290,8 +290,10 @@ pub fn parse_command_transcript(
 /// Repeating a symbol command that LOOKED dead (the fragmentation this
 /// module now fixes) used to double the punctuation; identical adjacent
 /// symbols coalesce instead. Line breaks never coalesce ("new paragraph"
-/// after "new line" must stack) and neither do words.
-fn is_coalescible_symbol(text: &str) -> bool {
+/// after "new line" must stack) and neither do words. Shared with the
+/// spoken-punctuation text pass, whose mark+word dedup follows the same
+/// semantics (text.rs).
+pub(crate) fn is_coalescible_symbol(text: &str) -> bool {
     let mut chars = text.chars();
     matches!(chars.next(), Some(c) if !c.is_alphanumeric() && c != '\n' && chars.next().is_none())
 }
