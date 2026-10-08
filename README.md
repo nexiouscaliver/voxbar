@@ -49,9 +49,32 @@ for my own daily use on macOS.
    `xattr -dr com.apple.quarantine /Applications/VoxBar.app`
 4. Grant Accessibility and Microphone access when prompted.
 
+The Gatekeeper step is one time. From version 1.1.0 on, every further update
+installs inside the app (see below) and never repeats it, because the updater
+delivers the new version without the browser download that triggers the
+check.
+
+## Updating
+
+Updates install in the app: open the tray menu and click "Check for
+Updates", or use the link in the settings footer. If a new version is found,
+VoxBar shows what changed, downloads the update, and restarts itself into
+the new version. The download comes from this project's GitHub releases and
+is verified against a signing key embedded in the app before it installs.
+
+Update checks also run quietly at startup when enabled. To turn them off,
+disable "Update Check" in Settings, under General. Packaged installs can
+force checks off entirely with the `HANDY_DISABLE_UPDATER` environment
+variable, which removes the menu item and the footer link.
+
+For how release artifacts are built and signed, see the "Releasing (macOS)"
+section of [BUILD.md](BUILD.md).
+
 One macOS quirk worth knowing: after a rebuild or an app update, macOS may
 treat the app as new and dictation shortcuts can silently stop firing even
-though Accessibility still shows as enabled. If that happens, quit VoxBar, run
+though Accessibility still shows as enabled. VoxBar now carries a stable code
+identity across updates and self-checks accessibility at launch, so this
+should be rare. If it still happens, quit VoxBar, run
 `tccutil reset Accessibility com.voxbar.app` in a terminal, and grant
 Accessibility again on the next launch. Microphone and other permissions are
 not affected.

@@ -1,6 +1,6 @@
 [package]
 name = "voxbar"
-version = "1.0.2"
+version = "1.1.0"
 description = "VoxBar"
 authors = ["Shahil Kadia"]
 edition = "2021"
