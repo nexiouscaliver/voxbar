@@ -157,9 +157,15 @@ pub fn default_command_matrix() -> Vec<CommandMatrixEntry> {
         (Slash, &["slash", "forward slash"]),
         (Backslash, &["backslash"]),
         (Pipe, &["pipe", "vertical bar"]),
-        (DeleteWord, &["delete word", "scratch that", "delete that", "remove that"]),
+        (
+            DeleteWord,
+            &["delete word", "scratch that", "delete that", "remove that"],
+        ),
         (DeleteLine, &["delete line"]),
-        (ClearAll, &["delete everything", "scratch everything", "start over"]),
+        (
+            ClearAll,
+            &["delete everything", "scratch everything", "start over"],
+        ),
         (Undo, &["undo"]),
         (Paste, &["paste"]),
     ]
@@ -218,7 +224,10 @@ impl CompiledCommandMatrix {
     /// Iterate the punctuation pattern's matches over `text` (word
     /// boundary anchored, case-insensitive, with the optional trailing
     /// [,.]? the model may have attached).
-    pub(crate) fn punctuation_pattern_matches<'a>(&'a self, text: &'a str) -> regex::Matches<'a, 'a> {
+    pub(crate) fn punctuation_pattern_matches<'a>(
+        &'a self,
+        text: &'a str,
+    ) -> regex::Matches<'a, 'a> {
         self.punctuation_pattern.find_iter(text)
     }
 
@@ -229,7 +238,10 @@ impl CompiledCommandMatrix {
     }
 
     /// Iterate the voice-deletion pattern's matches over `text`.
-    pub(crate) fn voice_deletion_pattern_matches<'a>(&'a self, text: &'a str) -> regex::Matches<'a, 'a> {
+    pub(crate) fn voice_deletion_pattern_matches<'a>(
+        &'a self,
+        text: &'a str,
+    ) -> regex::Matches<'a, 'a> {
         self.voice_deletion_pattern.find_iter(text)
     }
 
@@ -243,7 +255,11 @@ impl CompiledCommandMatrix {
 /// Normalize one phrase for storage and matching: lowercase, trim, and
 /// collapse inner whitespace to single spaces.
 pub fn normalize_phrase(phrase: &str) -> String {
-    phrase.split_whitespace().collect::<Vec<_>>().join(" ").to_lowercase()
+    phrase
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase()
 }
 
 /// Validate an edited matrix before persisting it. Rejects empty phrases,
@@ -401,7 +417,11 @@ pub fn compile_command_matrix(entries: &[CommandMatrixEntry]) -> CompiledCommand
             )
         })
         .collect();
-    let max_phrase_words = parser.iter().map(|(tokens, _)| tokens.len()).max().unwrap_or(0);
+    let max_phrase_words = parser
+        .iter()
+        .map(|(tokens, _)| tokens.len())
+        .max()
+        .unwrap_or(0);
 
     CompiledCommandMatrix {
         punctuation_pattern,
@@ -439,9 +459,7 @@ mod tests {
     use crate::audio_toolkit::commands::{
         apply_command_delta_to_buffer, held_prefix_len, parse_command_transcript,
     };
-    use crate::audio_toolkit::text::{
-        apply_voice_deletion, normalize_spoken_punctuation,
-    };
+    use crate::audio_toolkit::text::{apply_voice_deletion, normalize_spoken_punctuation};
 
     fn dm() -> Arc<CompiledCommandMatrix> {
         default_compiled_matrix()
@@ -450,7 +468,10 @@ mod tests {
     #[test]
     fn defaults_compile_with_every_surface_populated() {
         let matrix = dm();
-        assert!(matrix.max_phrase_words == 3, "open square bracket is 3 words");
+        assert!(
+            matrix.max_phrase_words == 3,
+            "open square bracket is 3 words"
+        );
         // Every default phrase lands in the parser table.
         let expected: usize = default_command_matrix()
             .iter()
@@ -458,7 +479,11 @@ mod tests {
             .sum();
         assert_eq!(matrix.parser.len(), expected);
         // The parser table is sorted by word count descending.
-        let counts: Vec<usize> = matrix.parser.iter().map(|(tokens, _)| tokens.len()).collect();
+        let counts: Vec<usize> = matrix
+            .parser
+            .iter()
+            .map(|(tokens, _)| tokens.len())
+            .collect();
         let mut sorted_counts = counts.clone();
         sorted_counts.sort_unstable_by(|a, b| b.cmp(a));
         assert_eq!(counts, sorted_counts);
@@ -554,10 +579,7 @@ mod tests {
         // square bracket" and produce "(" plus stray words.
         let custom = vec![CommandMatrixEntry {
             command: CommandId::OpenBracket,
-            phrases: vec![
-                "open".to_string(),
-                "open square bracket".to_string(),
-            ],
+            phrases: vec!["open".to_string(), "open square bracket".to_string()],
         }];
         let matrix = compile_command_matrix(&custom);
 
@@ -570,7 +592,10 @@ mod tests {
             vec![CommandAction::Insert("[")]
         );
         // The short phrase still works alone.
-        assert_eq!(normalize_spoken_punctuation("open hello", &matrix), "[ hello");
+        assert_eq!(
+            normalize_spoken_punctuation("open hello", &matrix),
+            "[ hello"
+        );
     }
 
     #[test]
@@ -654,7 +679,9 @@ mod tests {
             command: CommandId::Comma,
             phrases: vec!["  Kohma   KOHMA ".to_string()],
         }];
-        let stored = normalize_and_validate_matrix(Some(edited)).unwrap().unwrap();
+        let stored = normalize_and_validate_matrix(Some(edited))
+            .unwrap()
+            .unwrap();
         assert_eq!(stored[0].phrases, vec!["kohma kohma".to_string()]);
         // The stored form compiles and the phrase reaches every consumer.
         let matrix = compile_command_matrix(&stored);
@@ -739,7 +766,10 @@ mod tests {
         let matrix = compile_command_matrix(&[]);
         assert_eq!(matrix.max_phrase_words, 0);
         assert!(parse_command_transcript("comma", &matrix).is_empty());
-        assert_eq!(normalize_spoken_punctuation("hello comma world", &matrix), "hello comma world");
+        assert_eq!(
+            normalize_spoken_punctuation("hello comma world", &matrix),
+            "hello comma world"
+        );
         // Matrix phrases are gone, so nothing deletes; the built-in count
         // family survives even an empty matrix.
         let outcome = apply_voice_deletion("hello scratch that", &matrix);

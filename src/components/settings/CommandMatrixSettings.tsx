@@ -58,11 +58,7 @@ const humanizeCommand = (id: CommandId) =>
 /** Mirror of the backend's phrase normalization: lowercase, trim, collapse
  * inner whitespace. */
 const normalizePhrase = (phrase: string) =>
-  phrase
-    .split(/\s+/)
-    .join(" ")
-    .trim()
-    .toLowerCase();
+  phrase.split(/\s+/).join(" ").trim().toLowerCase();
 
 const MAX_PHRASE_CHARS = 60;
 
@@ -94,10 +90,7 @@ export const CommandMatrixSettings: React.FC<CommandMatrixSettingsProps> =
 
     // null (or not yet loaded) means the built-in defaults.
     const stored = getSetting("command_phrases");
-    const entries = useMemo(
-      () => stored ?? defaults ?? [],
-      [stored, defaults],
-    );
+    const entries = useMemo(() => stored ?? defaults ?? [], [stored, defaults]);
     const phrasesByCommand = useMemo(() => {
       const map = new Map<CommandId, string[]>();
       for (const entry of entries) map.set(entry.command, entry.phrases);
@@ -175,7 +168,10 @@ export const CommandMatrixSettings: React.FC<CommandMatrixSettingsProps> =
               {group.ids.map((command) => {
                 const phrases = phrasesByCommand.get(command) ?? [];
                 return (
-                  <div key={command} className="flex flex-wrap items-center gap-1">
+                  <div
+                    key={command}
+                    className="flex flex-wrap items-center gap-1"
+                  >
                     <span className="w-36 shrink-0 text-sm">
                       {humanizeCommand(command)}
                     </span>
@@ -248,7 +244,12 @@ export const CommandMatrixSettings: React.FC<CommandMatrixSettingsProps> =
               })}
             </div>
           ))}
-          <Button onClick={resetToDefaults} disabled={busy} variant="secondary" size="sm">
+          <Button
+            onClick={resetToDefaults}
+            disabled={busy}
+            variant="secondary"
+            size="sm"
+          >
             {t("settings.advanced.commandMatrix.reset")}
           </Button>
         </div>

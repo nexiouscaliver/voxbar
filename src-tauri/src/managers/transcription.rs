@@ -1,9 +1,5 @@
-use crate::audio_toolkit::command_matrix::{
-    matrix_from_settings, CompiledCommandMatrix,
-};
-use crate::audio_toolkit::commands::{
-    flush_command_prefix_len, held_prefix_len,
-};
+use crate::audio_toolkit::command_matrix::{matrix_from_settings, CompiledCommandMatrix};
+use crate::audio_toolkit::commands::{flush_command_prefix_len, held_prefix_len};
 use crate::audio_toolkit::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion, detect_output_language,
     interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
@@ -1259,11 +1255,7 @@ impl TranscriptionManager {
                             fallback_model_name: fallback_name,
                         },
                     );
-                    return self.load_model_with_device_internal(
-                        &fallback_id,
-                        device_index,
-                        false,
-                    );
+                    return self.load_model_with_device_internal(&fallback_id, device_index, false);
                 }
                 MemoryGateDecision::Refuse => {
                     let gib = 1024.0 * 1024.0 * 1024.0;
@@ -3144,7 +3136,10 @@ mod tests {
 
         // The engine commits the (already deleted) tentative word verbatim
         // and the user keeps talking: the word must not resurrect.
-        assert_eq!(session.render("hello world and more", "", false), "hello and more");
+        assert_eq!(
+            session.render("hello world and more", "", false),
+            "hello and more"
+        );
         assert_eq!(
             session.combine_final("hello world and more".to_string()),
             "hello and more"
@@ -3204,7 +3199,10 @@ mod tests {
         let mut edited = session_buffer();
         edited.render("alpha ", "beta", false);
         edited.delete_last_word(); // removes "beta", freezes "alpha "
-        assert_eq!(edited.render("alpha beta full", " stop now", false), "alpha. Now");
+        assert_eq!(
+            edited.render("alpha beta full", " stop now", false),
+            "alpha. Now"
+        );
     }
 
     #[test]
@@ -3273,7 +3271,10 @@ mod tests {
         assert_eq!(session.render("hello world", "", true), "hello world");
         // Command words arriving on later snapshots while held parse and
         // edit the buffer instead of appending as words.
-        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+        assert_eq!(
+            session.render("hello world comma", "", true),
+            "hello world,"
+        );
         assert_eq!(
             session.render("hello world comma question mark", "", true),
             "hello world,?"
@@ -3287,7 +3288,11 @@ mod tests {
         // Released: dictation resumes appending beyond the consumed
         // snapshot; the command words never re-enter the raw buffer.
         assert_eq!(
-            session.render("hello world comma question mark um stuff and more", "", false),
+            session.render(
+                "hello world comma question mark um stuff and more",
+                "",
+                false
+            ),
             "hello world,? and more"
         );
         // The final paste delivers exactly the edited buffer (plus later
@@ -3347,7 +3352,10 @@ mod tests {
         let mut session = session_buffer();
         session.render("hello ", "wor", false);
         assert_eq!(session.render("hello world", "", true), "hello world");
-        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+        assert_eq!(
+            session.render("hello world comma", "", true),
+            "hello world,"
+        );
     }
 
     #[test]
@@ -3381,11 +3389,17 @@ mod tests {
         // The fragment arrives on a LATER tick: "com" is a partial-word
         // proper prefix of "comma", so the delta is held, no command
         // applies, and the display keeps the separator.
-        assert_eq!(session.render("hello world com", "", true), "hello world com");
+        assert_eq!(
+            session.render("hello world com", "", true),
+            "hello world com"
+        );
         // The next delta re-includes the whole token (the raw_seen
         // shortfall IS the held region); the comma applies exactly once
         // and no stray "com" survives.
-        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+        assert_eq!(
+            session.render("hello world comma", "", true),
+            "hello world,"
+        );
     }
 
     #[test]
@@ -3413,7 +3427,10 @@ mod tests {
         let mut session = session_buffer();
         session.render("hello world", "", false);
         session.render("hello world", "", true); // engage
-        assert_eq!(session.render("hello world com", "", true), "hello world com");
+        assert_eq!(
+            session.render("hello world com", "", true),
+            "hello world com"
+        );
 
         // Released with the snapshot unchanged: the flush consumes the
         // fragment, the grammar discards it ("com" is no command), and it
@@ -3430,7 +3447,10 @@ mod tests {
         let mut session = session_buffer();
         session.render("hello world", "", false);
         session.render("hello world", "", true); // engage
-        assert_eq!(session.render("hello world com", "", true), "hello world com");
+        assert_eq!(
+            session.render("hello world com", "", true),
+            "hello world com"
+        );
 
         // Released with the snapshot GROWN: the flush span resolves the
         // held fragment into the comma command and stops; the fresh
@@ -3449,7 +3469,10 @@ mod tests {
         let mut session = session_buffer();
         session.render("hello world", "", false);
         session.render("hello world", "", true); // engage
-        assert_eq!(session.render("hello world com", "", true), "hello world com");
+        assert_eq!(
+            session.render("hello world com", "", true),
+            "hello world com"
+        );
 
         // Finalize flushes ONLY because the holding marker is set: the
         // held word resolves to the comma from the final text and the
@@ -3467,7 +3490,10 @@ mod tests {
         session.render("hello world", "", true); // engage
 
         // A whole "comma" delta applies on arrival.
-        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+        assert_eq!(
+            session.render("hello world comma", "", true),
+            "hello world,"
+        );
         // Repeating the identical symbol command coalesces: one comma.
         assert_eq!(
             session.render("hello world comma comma", "", true),
@@ -3521,7 +3547,10 @@ mod tests {
         let mut lines = session_buffer();
         lines.render("first\nsecond", "", false);
         lines.render("first\nsecond", "", true); // engage
-        assert_eq!(lines.render("first\nsecond delete line", "", true), "first\n");
+        assert_eq!(
+            lines.render("first\nsecond delete line", "", true),
+            "first\n"
+        );
         assert_eq!(lines.take_deleted(), Some("second".to_string()));
     }
 
@@ -3552,7 +3581,10 @@ mod tests {
         // modifier may still be held (the coordinator clears its flag on
         // session end; the buffer forgets on begin/end too).
         session.begin(
-            PreviewScript::new(ChineseScript::AsTranscribed, &OutputLanguageEvidence::Unknown),
+            PreviewScript::new(
+                ChineseScript::AsTranscribed,
+                &OutputLanguageEvidence::Unknown,
+            ),
             true,
             true,
             &languages(&["en"]),
@@ -4372,7 +4404,8 @@ mod tests {
             "model-Q8_0.gguf",
             700,
         );
-        let candidates = fallback_candidate_list(&[added.clone(), catalog.clone()], "selected", "auto");
+        let candidates =
+            fallback_candidate_list(&[added.clone(), catalog.clone()], "selected", "auto");
 
         // Both fit, the ranked catalog entry wins...
         assert_eq!(
@@ -4430,11 +4463,8 @@ mod tests {
         // A downloaded Hindi-capable candidate that fits IS offered.
         let mut hi_fallback = model_info_for("hi-small", 100, true);
         hi_fallback.supported_languages = vec!["en".to_string(), "hi".to_string()];
-        let candidates = fallback_candidate_list(
-            &[hi_model, en_model, hi_fallback],
-            "hi-model",
-            "hi",
-        );
+        let candidates =
+            fallback_candidate_list(&[hi_model, en_model, hi_fallback], "hi-model", "hi");
         let decision = decide_memory_gate(
             true,
             true,
@@ -4444,7 +4474,10 @@ mod tests {
             || candidates,
             "hi-model",
         );
-        assert_eq!(decision, MemoryGateDecision::Fallback("hi-small".to_string()));
+        assert_eq!(
+            decision,
+            MemoryGateDecision::Fallback("hi-small".to_string())
+        );
     }
 
     #[test]
@@ -4500,10 +4533,10 @@ mod tests {
         let consulted = Arc::new(AtomicBool::new(false));
         let flag = Arc::clone(&consulted);
         let decision = decide_memory_gate(
-            false, // memory_pressure_guard = false
-            true,  // auto_fallback = true
-            true,  // top-level load (cascades allowed)
-            Some(1), // one byte free
+            false,                  // memory_pressure_guard = false
+            true,                   // auto_fallback = true
+            true,                   // top-level load (cascades allowed)
+            Some(1),                // one byte free
             8 * 1024 * 1024 * 1024, // 8 GiB forecast: would always refuse
             move || {
                 flag.store(true, Ordering::SeqCst);
@@ -4585,7 +4618,15 @@ mod tests {
         );
         // Probe unavailable: fails open exactly like the gate predicate.
         assert_eq!(
-            decide_memory_gate(true, true, true, None, 8 * 1024 * 1024 * 1024, || vec![], "selected"),
+            decide_memory_gate(
+                true,
+                true,
+                true,
+                None,
+                8 * 1024 * 1024 * 1024,
+                || vec![],
+                "selected"
+            ),
             MemoryGateDecision::Allow
         );
         // Refused and nothing fits (or nothing downloaded): refusal.

@@ -1878,11 +1878,7 @@ mod tests {
         let mut settings = crate::settings::get_default_settings();
 
         settings.undo_enabled = true;
-        settings
-            .bindings
-            .get_mut("undo")
-            .unwrap()
-            .current_binding = "z".to_string();
+        settings.bindings.get_mut("undo").unwrap().current_binding = "z".to_string();
         let undo = settings.bindings.get("undo").unwrap().clone();
         assert!(
             !binding_is_active(&settings, "undo", &undo),

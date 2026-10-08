@@ -161,13 +161,15 @@ pub fn probe_availability() -> AvailabilityProbe {
         // includes the Linux analog of macOS inactive file cache, so no
         // pressure scaling applies. The pressure field reads as the
         // documented NORMAL passthrough for the log line.
-        let available = std::fs::read_to_string("/proc/meminfo").ok().and_then(|meminfo| {
-            meminfo.lines().find_map(|line| {
-                let rest = line.strip_prefix("MemAvailable:")?;
-                let kb: u64 = rest.trim().split_whitespace().next()?.parse().ok()?;
-                Some(kb.saturating_mul(1024))
-            })
-        });
+        let available = std::fs::read_to_string("/proc/meminfo")
+            .ok()
+            .and_then(|meminfo| {
+                meminfo.lines().find_map(|line| {
+                    let rest = line.strip_prefix("MemAvailable:")?;
+                    let kb: u64 = rest.trim().split_whitespace().next()?.parse().ok()?;
+                    Some(kb.saturating_mul(1024))
+                })
+            });
         AvailabilityProbe {
             available_bytes: available,
             pressure_level: Some(PRESSURE_LEVEL_NORMAL),
@@ -269,7 +271,9 @@ fn pressure_adjusted_page_bytes(
     let static_pages =
         vm.free_count as u64 + vm.speculative_count as u64 + vm.purgeable_count as u64;
     let inactive_pages = (vm.inactive_count as f64 * inactive_factor).round() as u64;
-    static_pages.saturating_add(inactive_pages).saturating_mul(page_size)
+    static_pages
+        .saturating_add(inactive_pages)
+        .saturating_mul(page_size)
 }
 
 /// macOS fallback probe: available RAM from `host_statistics64` as an
@@ -782,21 +786,41 @@ mod tests {
 
         let forecast = 731 * 1024 * 1024; // Parakeet Unified EN Q8_0 file
         let needed = forecast + DEFAULT_HEADROOM_BYTES;
-        assert_eq!(needed, 2_267 * 1024 * 1024, "fixture must sit at the boundary");
+        assert_eq!(
+            needed,
+            2_267 * 1024 * 1024,
+            "fixture must sit at the boundary"
+        );
 
         let compose = |factor| pressure_adjusted_page_bytes(&vm, page, factor);
         // NORMAL: 1755 + 2048 = 3803 MiB.
         assert_eq!(compose(1.0), 3_803 * 1024 * 1024);
-        assert!(!gate_should_refuse(Some(compose(1.0)), forecast, DEFAULT_HEADROOM_BYTES));
+        assert!(!gate_should_refuse(
+            Some(compose(1.0)),
+            forecast,
+            DEFAULT_HEADROOM_BYTES
+        ));
         // WARN: 1755 + 512 = exactly the 2267 MiB requirement - the boundary
         // itself allows, one page less refuses.
         let warn_available = compose(0.25);
         assert_eq!(warn_available, needed);
-        assert!(!gate_should_refuse(Some(warn_available), forecast, DEFAULT_HEADROOM_BYTES));
-        assert!(gate_should_refuse(Some(warn_available - page), forecast, DEFAULT_HEADROOM_BYTES));
+        assert!(!gate_should_refuse(
+            Some(warn_available),
+            forecast,
+            DEFAULT_HEADROOM_BYTES
+        ));
+        assert!(gate_should_refuse(
+            Some(warn_available - page),
+            forecast,
+            DEFAULT_HEADROOM_BYTES
+        ));
         // CRITICAL: static only, 1755 MiB.
         assert_eq!(compose(0.0), 1_755 * 1024 * 1024);
-        assert!(gate_should_refuse(Some(compose(0.0)), forecast, DEFAULT_HEADROOM_BYTES));
+        assert!(gate_should_refuse(
+            Some(compose(0.0)),
+            forecast,
+            DEFAULT_HEADROOM_BYTES
+        ));
     }
 
     /// SUCCESS CRITERION for the operator regression: pressure NORMAL with
@@ -813,9 +837,21 @@ mod tests {
         // The bytes-level gate: 4 GiB allows with ~1.8 GiB to spare, and the
         // actual refusal boundary sits at `needed` bytes (allow), one byte
         // under it (refuse).
-        assert!(!gate_should_refuse(Some(4 * GIB), forecast, DEFAULT_HEADROOM_BYTES));
-        assert!(!gate_should_refuse(Some(needed), forecast, DEFAULT_HEADROOM_BYTES));
-        assert!(gate_should_refuse(Some(needed - 1), forecast, DEFAULT_HEADROOM_BYTES));
+        assert!(!gate_should_refuse(
+            Some(4 * GIB),
+            forecast,
+            DEFAULT_HEADROOM_BYTES
+        ));
+        assert!(!gate_should_refuse(
+            Some(needed),
+            forecast,
+            DEFAULT_HEADROOM_BYTES
+        ));
+        assert!(gate_should_refuse(
+            Some(needed - 1),
+            forecast,
+            DEFAULT_HEADROOM_BYTES
+        ));
 
         // Through the composition too: a NORMAL-pressure reading assembled
         // from pages (2 GiB static + 2 GiB inactive = 4 GiB available)
@@ -831,10 +867,18 @@ mod tests {
             vm.inactive_count = mib_pages(2_048);
             let normal = pressure_adjusted_page_bytes(&vm, page, 1.0);
             assert_eq!(normal, 4 * GIB);
-            assert!(!gate_should_refuse(Some(normal), forecast, DEFAULT_HEADROOM_BYTES));
+            assert!(!gate_should_refuse(
+                Some(normal),
+                forecast,
+                DEFAULT_HEADROOM_BYTES
+            ));
             let critical = pressure_adjusted_page_bytes(&vm, page, 0.0);
             assert_eq!(critical, 2 * GIB);
-            assert!(gate_should_refuse(Some(critical), forecast, DEFAULT_HEADROOM_BYTES));
+            assert!(gate_should_refuse(
+                Some(critical),
+                forecast,
+                DEFAULT_HEADROOM_BYTES
+            ));
         }
     }
 
@@ -909,9 +953,7 @@ mod tests {
             // drives - the new half of the probe's behavior.
             let level = memory_pressure_level();
             let verdict = match level {
-                Some(PRESSURE_LEVEL_NORMAL) => {
-                    " (normal: inactive credited in full)".to_string()
-                }
+                Some(PRESSURE_LEVEL_NORMAL) => " (normal: inactive credited in full)".to_string(),
                 Some(PRESSURE_LEVEL_WARN) => " (warn: inactive credited at 0.25)".to_string(),
                 Some(PRESSURE_LEVEL_CRITICAL) => " (critical: inactive not credited)".to_string(),
                 Some(other) => {
