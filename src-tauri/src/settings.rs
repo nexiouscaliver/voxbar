@@ -2368,6 +2368,49 @@ mod tests {
         }
     }
 
+    /// Plan D1/D6 pins: the derived default, the constructed default and
+    /// the serde field default must all agree on Digits (the release
+    /// default), so a legacy store without the key upgrades to the fix
+    /// and no code path calling `default()` lands on the off mode.
+    #[test]
+    fn number_format_default_is_digits_everywhere() {
+        assert_eq!(NumberFormat::default(), NumberFormat::Digits);
+        assert_eq!(get_default_settings().number_format, NumberFormat::Digits);
+        assert_eq!(
+            AppSettings::default().number_format,
+            NumberFormat::Digits
+        );
+
+        // Legacy store (1.1.0) predates the key entirely.
+        let legacy = serde_json::json!({
+            "settings_schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
+            "overlay_style": "live",
+        });
+        let settings: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert_eq!(settings.number_format, NumberFormat::Digits);
+
+        // An explicit store value wins, including the off position.
+        let stored = serde_json::json!({
+            "settings_schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
+            "number_format": "smart",
+        });
+        let settings: AppSettings = serde_json::from_value(stored).unwrap();
+        assert_eq!(settings.number_format, NumberFormat::Smart);
+
+        let stored = serde_json::json!({
+            "settings_schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
+            "number_format": "as_transcribed",
+        });
+        let settings: AppSettings = serde_json::from_value(stored).unwrap();
+        assert_eq!(settings.number_format, NumberFormat::AsTranscribed);
+
+        // Round-trip keeps the value.
+        let mut settings = get_default_settings();
+        settings.number_format = NumberFormat::Smart;
+        let serialized = serde_json::to_value(&settings).unwrap();
+        assert_eq!(serialized["number_format"], "smart");
+    }
+
     #[test]
     fn shortcut_activation_migration_maps_push_to_talk_true() {
         let mut settings = get_default_settings();
