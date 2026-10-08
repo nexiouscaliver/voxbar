@@ -594,11 +594,14 @@ impl StreamSessionBuffer {
     /// Flush an unresolved held fragment through the command grammar and
     /// return the byte count the flush consumed from `region`. Shared by
     /// the release tick and the finalize fold: consume the region's first
-    /// word with its preceding separator, then whole words while the span
-    /// remains a proper prefix of some command phrase (so a held " new l"
-    /// resolves to the whole "new line"); the consumed span parses as
-    /// commands (unrecognized words discarded per the contract) and any
-    /// remainder stays unconsumed, flowing on as normal dictation.
+    /// word with its preceding separator ONLY when it completes a phrase or
+    /// opens one (a proper prefix; an ordinary word that merely starts like
+    /// a command word consumes nothing and the whole region stays
+    /// dictation), then whole words while the span remains a proper prefix
+    /// of some command phrase (so a held " new l" resolves to the whole
+    /// "new line"); the consumed span parses as commands (unrecognized
+    /// words discarded per the contract) and any remainder stays
+    /// unconsumed, flowing on as normal dictation.
     fn flush_held_region(&mut self, region: &str) -> usize {
         let consumed = flush_command_prefix_len(region, &self.matrix);
         if consumed > 0 {
@@ -3538,6 +3541,48 @@ mod tests {
         assert_eq!(
             session.combine_final("hello world com".to_string()),
             "hello world"
+        );
+    }
+
+    #[test]
+    fn session_buffer_release_flush_returns_innocent_words_to_dictation() {
+        // Held " com" (a fragment of "comma"), then the release snapshot
+        // grows into the ordinary word "computer": the flush must consume
+        // NOTHING, so "computer science rocks" flows back as dictation
+        // instead of being silently deleted by the grammar.
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+        assert_eq!(
+            session.render("hello world com", "", true),
+            "hello world com"
+        );
+        assert_eq!(
+            session.render("hello world computer science rocks", "", false),
+            "hello world computer science rocks"
+        );
+        assert_eq!(
+            session.combine_final("hello world computer science rocks".to_string()),
+            "hello world computer science rocks"
+        );
+
+        // "periodical" merely starts like "period": survives the same way.
+        let mut periodical = session_buffer();
+        periodical.render("hello world", "", false);
+        periodical.render("hello world per", "", true); // hold " per"
+        assert_eq!(
+            periodical.render("hello world periodical", "", false),
+            "hello world periodical"
+        );
+
+        // Control: a real completion still resolves, and the words beyond
+        // stay dictation.
+        let mut resolved = session_buffer();
+        resolved.render("hello world", "", false);
+        resolved.render("hello world com", "", true);
+        assert_eq!(
+            resolved.render("hello world comma please", "", false),
+            "hello world, please"
         );
     }
 

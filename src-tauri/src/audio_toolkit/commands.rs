@@ -203,15 +203,29 @@ pub(crate) fn held_prefix_len(delta: &str, matrix: &CompiledCommandMatrix) -> us
 /// an unresolved held region: the region's first whitespace-delimited word
 /// WITH its preceding separator, then whole words while the consumed span
 /// remains a proper prefix of some vocabulary phrase (so a held " new l"
-/// resolves to the whole "new line", not just " new"). Stops at the end of
-/// the text, when the span completes a phrase, or when it is no longer a
-/// prefix. The caller parses the consumed span through the command grammar;
-/// anything beyond it stays unconsumed and flows on as normal dictation.
+/// resolves to the whole "new line", not just " new"). The first word must
+/// itself complete a phrase or open one (a proper prefix): an ordinary word
+/// that merely STARTS like a command word ("computer" of "comma") consumes
+/// NOTHING, so the whole region flows back as dictation instead of being
+/// eaten and then discarded by the grammar. Stops at the end of the text,
+/// when the span completes a phrase, or when it is no longer a prefix. The
+/// caller parses the consumed span through the command grammar; anything
+/// beyond it stays unconsumed and flows on as normal dictation.
 pub(crate) fn flush_command_prefix_len(text: &str, matrix: &CompiledCommandMatrix) -> usize {
     let tokens = token_ranges(text);
     let Some(&(_, first_end)) = tokens.first() else {
         return 0;
     };
+
+    // Gate on the first word BEFORE committing to any consumption: a flush
+    // region led by a non-command word is really release-snapshot
+    // dictation, not a held fragment's completion.
+    let first_window = [&text[tokens[0].0..tokens[0].1]];
+    if !window_completes_phrase(&first_window, matrix)
+        && !window_is_proper_prefix(&first_window, matrix)
+    {
+        return 0;
+    }
 
     // The first word travels with its preceding separator, so the span
     // always begins at the region's start (byte 0).
@@ -668,6 +682,19 @@ mod tests {
         // Nothing to consume.
         assert_eq!(flush_command_prefix_len("", &dm()), 0);
         assert_eq!(flush_command_prefix_len("   ", &dm()), 0);
+    }
+
+    #[test]
+    fn flush_command_prefix_len_returns_innocent_words_to_dictation() {
+        // An ordinary word that merely STARTS like a command word is not a
+        // command fragment: consume nothing, so the whole region flows back
+        // as dictation instead of being eaten and discarded by the grammar.
+        assert_eq!(flush_command_prefix_len(" computer science rocks", &dm()), 0);
+        assert_eq!(flush_command_prefix_len(" periodical", &dm()), 0);
+        // Still a command fragment: resolves through the grammar (exact or,
+        // per the fuzzy contract, "perio" at distance 1 from "period").
+        assert_eq!(flush_command_prefix_len(" comma please", &dm()), 6);
+        assert_eq!(flush_command_prefix_len(" perio", &dm()), 6);
     }
 
     // -----------------------------------------------------------------
