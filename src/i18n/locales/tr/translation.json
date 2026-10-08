@@ -17,6 +17,7 @@
     "general": "Genel",
     "commands": "Komutlar",
     "models": "Modeller",
+    "output": "Çıktı",
     "advanced": "Gelişmiş",
     "postProcessing": "Son İşlem",
     "history": "Geçmiş",
@@ -307,6 +308,10 @@
           "title": "Komut modu",
           "description": "Atanabilir komut modu değiştirici tuşunu etkinleştirir. Canlı bir dikte oturumu sırasında basılı tutun; konuşmanız dikte arabelleğini doğrudan düzenleyen komutlar (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) olarak yorumlanır ve tanınmayan kelimeler atılır. Kendi başına asla kayıt başlatmaz."
         }
+      },
+      "groups": {
+        "app": "Uygulama",
+        "microphone": "Mikrofon"
       }
     },
     "commands": {
@@ -374,6 +379,10 @@
         "paste": "Panoyu odaktaki uygulamaya yapıştırır"
       }
     },
+    "search": {
+      "placeholder": "Ayarlarda ara",
+      "noResults": "Aramanızla eşleşen ayar yok"
+    },
     "sound": {
       "title": "Ses",
       "microphone": {
@@ -403,12 +412,16 @@
         "description": "Sesli geri bildirimlerin ses seviyesini ayarlayın"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Yapıştırma",
+        "recording": "Kayıt"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Uygulama",
-        "output": "Çıktı",
+        "model": "Model ve bellek",
         "transcription": "Transkripsiyon",
-        "history": "Geçmiş",
         "experimental": "Deneysel"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Model rozetini göster",
         "description": "Her transkripti üreten modeli gösteren kompakt bir rozet gösterir."
+      },
+      "groups": {
+        "retention": "Saklama"
       }
     },
     "debug": {
@@ -752,11 +768,6 @@
         "title": "Klavye Uygulaması",
         "description": "Klavye kısayolları için kullanılacak altyapıyı seçin.",
         "bindingsReset": "Klavye kısayolları uyumsuzdu ve varsayılan ayarlara sıfırlandı"
-      },
-      "paths": {
-        "appData": "Uygulama Verileri:",
-        "models": "Modeller:",
-        "settings": "Ayarlar:"
       },
       "pasteDelay": {
         "title": "Yapıştırma Gecikmesi (Önce)",

@@ -17,6 +17,7 @@
     "general": "Umum",
     "commands": "Perintah",
     "models": "Model",
+    "output": "Keluaran",
     "advanced": "Lanjutan",
     "postProcessing": "Pascaproses",
     "history": "Riwayat",
@@ -259,6 +260,10 @@
           "title": "Mode perintah",
           "description": "Mengaktifkan tombol pengubah mode perintah yang dapat ditetapkan. Tahan selama sesi dikte sedang berlangsung agar ucapan Anda ditafsirkan sebagai perintah (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) yang menyunting penyangga dikte secara langsung; kata yang tidak dikenali dibuang. Tidak pernah memulai perekaman sendirian."
         }
+      },
+      "groups": {
+        "app": "Aplikasi",
+        "microphone": "Mikrofon"
       }
     },
     "commands": {
@@ -325,6 +330,10 @@
         "undo": "Menjalankan urungkan di aplikasi aktif",
         "paste": "Menempelkan papan klip di aplikasi aktif"
       }
+    },
+    "search": {
+      "placeholder": "Cari pengaturan",
+      "noResults": "Tidak ada pengaturan yang cocok dengan pencarian"
     },
     "models": {
       "title": "Model Transkripsi",
@@ -403,12 +412,16 @@
         "description": "Sesuaikan volume suara umpan balik audio"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Penempelan",
+        "recording": "Perekaman"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Aplikasi",
-        "output": "Keluaran",
+        "model": "Model dan memori",
         "transcription": "Transkripsi",
-        "history": "Riwayat",
         "experimental": "Eksperimental"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Tampilkan lencana model",
         "description": "Menampilkan lencana ringkas dengan model yang menghasilkan tiap transkripsi."
+      },
+      "groups": {
+        "retention": "Retensi"
       }
     },
     "debug": {
@@ -766,11 +782,6 @@
         "title": "Implementasi Keyboard",
         "description": "Pilih backend pintasan keyboard.",
         "bindingsReset": "Pintasan keyboard tidak kompatibel dan telah dikembalikan ke nilai awal"
-      },
-      "paths": {
-        "appData": "Data Aplikasi:",
-        "models": "Model:",
-        "settings": "Pengaturan:"
       },
       "pasteDelay": {
         "title": "Jeda Tempel (Sebelum)",

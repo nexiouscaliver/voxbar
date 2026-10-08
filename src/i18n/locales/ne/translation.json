@@ -17,6 +17,7 @@
     "general": "सामान्य",
     "commands": "आदेश",
     "models": "मोडेलहरू",
+    "output": "आउटपुट",
     "advanced": "उन्नत",
     "postProcessing": "पोस्ट प्रोसेस",
     "history": "हिस्ट्री",
@@ -259,6 +260,10 @@
           "title": "Command Mode",
           "description": "Enable the assignable command-mode modifier key. Hold it while a dictation session is live to interpret your speech as commands (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) that edit the dictation buffer directly; unrecognized words are discarded. It never starts a recording on its own."
         }
+      },
+      "groups": {
+        "app": "एप",
+        "microphone": "माइक्रोफोन"
       }
     },
     "commands": {
@@ -325,6 +330,10 @@
         "undo": "सक्रिय एपमा पूर्ववत गर्छ",
         "paste": "सक्रिय एपमा क्लिपबोर्ड पेस्ट गर्छ"
       }
+    },
+    "search": {
+      "placeholder": "सेटिङहरू खोज्नुहोस्",
+      "noResults": "तपाईंको खोज कुनै सेटिङसँग मेल खाँदैन"
     },
     "models": {
       "title": "ट्रान्सक्रिप्सन मोडेलहरू",
@@ -403,12 +412,16 @@
         "description": "अडियो फिडब्याक आवाजको भोल्युम मिलाउनुहोस्"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "पेस्ट गर्ने",
+        "recording": "रेकर्डिङ"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "एप",
-        "output": "आउटपुट",
+        "model": "मोडेल र मेमोरी",
         "transcription": "ट्रान्सक्रिप्सन",
-        "history": "हिस्ट्री",
         "experimental": "प्रयोगात्मक"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "मोडेल ब्याज देखाउनुहोस्",
         "description": "प्रत्येक ट्रान्स्क्रिप्सन बनाउने मोडेलसहित कॉम्प्याक्ट ब्याज देखाउँछ।"
+      },
+      "groups": {
+        "retention": "प्रतिधारण"
       }
     },
     "debug": {
@@ -766,11 +782,6 @@
         "title": "किबोर्ड कार्यान्वयन",
         "description": "किबोर्ड सर्टकट ब्याकइन्ड छान्नुहोस्।",
         "bindingsReset": "किबोर्ड सर्टकटहरू असंगत भएकाले डिफल्टमा रिसेट गरियो"
-      },
-      "paths": {
-        "appData": "एप डेटा:",
-        "models": "मोडेलहरू:",
-        "settings": "सेटिङहरू:"
       },
       "pasteDelay": {
         "title": "पेस्ट ढिलाइ (अघि)",

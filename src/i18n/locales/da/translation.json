@@ -17,6 +17,7 @@
     "general": "Generelt",
     "commands": "Kommandoer",
     "models": "Modeller",
+    "output": "Output",
     "advanced": "Avanceret",
     "postProcessing": "Efterbehandling",
     "history": "Historik",
@@ -259,6 +260,10 @@
           "title": "Kommandotilstand",
           "description": "Aktiverer den tildelbare kommandotilstands-modifikatortast. Hold den nede, mens en dikteringssession er aktiv, for at fortolke din tale som kommandoer (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), der redigerer dikteringsbufferen direkte; ikke-genkendte ord kasseres. Starter aldrig en optagelse af sig selv."
         }
+      },
+      "groups": {
+        "app": "App",
+        "microphone": "Mikrofon"
       }
     },
     "commands": {
@@ -325,6 +330,10 @@
         "undo": "Kører fortryd i appen i fokus",
         "paste": "Indsætter udklipsholderen i appen i fokus"
       }
+    },
+    "search": {
+      "placeholder": "Søg i indstillinger",
+      "noResults": "Ingen indstillinger matcher din søgning"
     },
     "models": {
       "title": "Transskriptionsmodeller",
@@ -403,12 +412,16 @@
         "description": "Juster lydstyrken for lydfeedback"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Indsættelse",
+        "recording": "Optagelse"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "App",
-        "output": "Output",
+        "model": "Model og hukommelse",
         "transcription": "Transskription",
-        "history": "Historik",
         "experimental": "Eksperimentel"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Vis modelmærke",
         "description": "Viser et kompakt mærke med den model, der lavede hver transskription."
+      },
+      "groups": {
+        "retention": "Opbevaring"
       }
     },
     "debug": {
@@ -766,11 +782,6 @@
         "title": "Tastaturimplementering",
         "description": "Vælg backend til tastaturgenveje.",
         "bindingsReset": "Tastaturgenveje var inkompatible og blev nulstillet til standard"
-      },
-      "paths": {
-        "appData": "Appdata:",
-        "models": "Modeller:",
-        "settings": "Indstillinger:"
       },
       "pasteDelay": {
         "title": "Forsinkelse af indsættelse (før)",

@@ -17,6 +17,7 @@
     "general": "General",
     "commands": "Comandos",
     "models": "Modelos",
+    "output": "Salida",
     "advanced": "Avanzado",
     "postProcessing": "Post proceso",
     "history": "Historial",
@@ -307,6 +308,10 @@
           "title": "Modo de comandos",
           "description": "Activa la tecla modificadora asignable del modo de comandos. Mantenla mientras una sesión de dictado está activa para interpretar tu voz como comandos (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) que editan directamente el búfer del dictado; las palabras no reconocidas se descartan. Nunca inicia una grabación por sí sola."
         }
+      },
+      "groups": {
+        "app": "Aplicación",
+        "microphone": "Micrófono"
       }
     },
     "commands": {
@@ -374,6 +379,10 @@
         "paste": "Pega el portapapeles en la aplicación enfocada"
       }
     },
+    "search": {
+      "placeholder": "Buscar en la configuración",
+      "noResults": "Ninguna configuración coincide con tu búsqueda"
+    },
     "sound": {
       "title": "Sonido",
       "microphone": {
@@ -403,12 +412,16 @@
         "description": "Ajusta el volumen de los sonidos de retroalimentación de audio"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Pegado",
+        "recording": "Grabación"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Aplicación",
-        "output": "Salida",
+        "model": "Modelo y memoria",
         "transcription": "Transcripción",
-        "history": "Historial",
         "experimental": "Experimental"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Mostrar insignia del modelo",
         "description": "Muestra una insignia compacta con el modelo que produjo cada transcripción."
+      },
+      "groups": {
+        "retention": "Retención"
       }
     },
     "debug": {
@@ -752,11 +768,6 @@
         "title": "Implementación del teclado",
         "description": "Elige el sistema que gestiona los atajos de teclado.",
         "bindingsReset": "Los atajos de teclado eran incompatibles y se restablecieron a los valores predeterminados"
-      },
-      "paths": {
-        "appData": "Datos de la aplicación:",
-        "models": "Modelos:",
-        "settings": "Configuración:"
       },
       "pasteDelay": {
         "title": "Retraso de pegado (antes)",

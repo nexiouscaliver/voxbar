@@ -17,6 +17,7 @@
     "general": "Obecné",
     "commands": "Příkazy",
     "models": "Modely",
+    "output": "Výstup",
     "advanced": "Pokročilé",
     "postProcessing": "Následné zpracování",
     "history": "Historie",
@@ -307,6 +308,10 @@
           "title": "Režim příkazů",
           "description": "Zapne přiřaditelný modifikátor režimu příkazů. Podržte jej během živé relace diktování, aby se řeč interpretovala jako příkazy (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), které přímo upravují vyrovnávací paměť diktování; nerozpoznaná slova se zahazují. Nikdy sama nespustí nahrávání."
         }
+      },
+      "groups": {
+        "app": "Aplikace",
+        "microphone": "Mikrofon"
       }
     },
     "commands": {
@@ -374,6 +379,10 @@
         "paste": "Vloží schránku do aktivní aplikace"
       }
     },
+    "search": {
+      "placeholder": "Hledat v nastavení",
+      "noResults": "Vašemu hledání neodpovídá žádné nastavení"
+    },
     "sound": {
       "title": "Zvuk",
       "microphone": {
@@ -403,12 +412,16 @@
         "description": "Upravte hlasitost zvukové odezvy"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Vkládání",
+        "recording": "Nahrávání"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Aplikace",
-        "output": "Výstup",
+        "model": "Model a paměť",
         "transcription": "Přepis",
-        "history": "Historie",
         "experimental": "Experimentální"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Zobrazit štítek modelu",
         "description": "Zobrazuje kompaktní štítek s modelem, který vytvořil každý přepis."
+      },
+      "groups": {
+        "retention": "Uchovávání"
       }
     },
     "debug": {
@@ -752,11 +768,6 @@
         "title": "Implementace klávesnice",
         "description": "Zvolte backend pro klávesové zkratky.",
         "bindingsReset": "Klávesové zkratky byly nekompatibilní a byly obnoveny na výchozí hodnoty"
-      },
-      "paths": {
-        "appData": "Data aplikace:",
-        "models": "Modely:",
-        "settings": "Nastavení:"
       },
       "pasteDelay": {
         "title": "Zpoždění vložení (před)",

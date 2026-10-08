@@ -17,6 +17,7 @@
     "general": "一般",
     "commands": "コマンド",
     "models": "モデル",
+    "output": "出力",
     "advanced": "詳細設定",
     "postProcessing": "後処理",
     "history": "履歴",
@@ -307,6 +308,10 @@
           "title": "コマンドモード",
           "description": "割り当て可能なコマンドモードの修飾キーを有効にします。音声入力セッション中に押し続けると、発話がディクテーションバッファを直接編集するコマンド (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) として解釈され、認識されない単語は破棄されます。単体で録音を開始することはありません。"
         }
+      },
+      "groups": {
+        "app": "アプリ",
+        "microphone": "マイク"
       }
     },
     "commands": {
@@ -374,6 +379,10 @@
         "paste": "フォーカス中のアプリにクリップボードを貼り付けます"
       }
     },
+    "search": {
+      "placeholder": "設定を検索",
+      "noResults": "検索に一致する設定はありません"
+    },
     "sound": {
       "title": "サウンド",
       "microphone": {
@@ -403,12 +412,16 @@
         "description": "オーディオフィードバックの音量を調整"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "貼り付け",
+        "recording": "録音"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "アプリ",
-        "output": "出力",
+        "model": "モデルとメモリ",
         "transcription": "文字起こし",
-        "history": "履歴",
         "experimental": "実験的"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "モデルバッジを表示",
         "description": "各文字起こしを作成したモデルを示すコンパクトなバッジを表示します。"
+      },
+      "groups": {
+        "retention": "保存期間"
       }
     },
     "debug": {
@@ -752,11 +768,6 @@
         "title": "キーボード実装",
         "description": "キーボードショートカットのバックエンドを選択してください。",
         "bindingsReset": "キーボードショートカットに互換性がなかったため、デフォルトにリセットされました"
-      },
-      "paths": {
-        "appData": "アプリデータ:",
-        "models": "モデル:",
-        "settings": "設定:"
       },
       "pasteDelay": {
         "title": "貼り付け遅延(前)",

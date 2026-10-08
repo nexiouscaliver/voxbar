@@ -17,6 +17,7 @@
     "general": "Chung",
     "commands": "Lệnh",
     "models": "Mô hình",
+    "output": "Đầu ra",
     "advanced": "Nâng cao",
     "postProcessing": "Xử lý sau",
     "history": "Lịch sử",
@@ -307,6 +308,10 @@
           "title": "Chế độ lệnh",
           "description": "Bật phím bổ trợ có thể gán của chế độ lệnh. Giữ phím này trong khi một phiên đọc chính tả đang hoạt động để giọng nói được diễn giải thành các lệnh (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) chỉnh sửa trực tiếp bộ đệm đọc chính tả; các từ không nhận diện được sẽ bị bỏ qua. Không bao giờ tự bắt đầu ghi âm."
         }
+      },
+      "groups": {
+        "app": "Ứng dụng",
+        "microphone": "Micrô"
       }
     },
     "commands": {
@@ -374,6 +379,10 @@
         "paste": "Dán bảng tạm vào ứng dụng đang tập trung"
       }
     },
+    "search": {
+      "placeholder": "Tìm trong cài đặt",
+      "noResults": "Không có cài đặt nào khớp với tìm kiếm"
+    },
     "sound": {
       "title": "Âm thanh",
       "microphone": {
@@ -403,12 +412,16 @@
         "description": "Điều chỉnh âm lượng của âm thanh phản hồi"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Dán",
+        "recording": "Ghi âm"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Ứng dụng",
-        "output": "Đầu ra",
+        "model": "Mô hình và bộ nhớ",
         "transcription": "Chuyển đổi",
-        "history": "Lịch sử",
         "experimental": "Thử nghiệm"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Hiện huy hiệu mô hình",
         "description": "Hiển thị huy hiệu gọn gàng kèm mô hình đã tạo từng bản ghi âm."
+      },
+      "groups": {
+        "retention": "Lưu trữ"
       }
     },
     "debug": {
@@ -752,11 +768,6 @@
         "title": "Triển khai bàn phím",
         "description": "Chọn hệ thống xử lý phím tắt.",
         "bindingsReset": "Các phím tắt không tương thích và đã được đặt lại về mặc định"
-      },
-      "paths": {
-        "appData": "Dữ liệu ứng dụng:",
-        "models": "Mô hình:",
-        "settings": "Cài đặt:"
       },
       "pasteDelay": {
         "title": "Độ trễ dán (trước)",

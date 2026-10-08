@@ -17,6 +17,7 @@
     "general": "Allgemein",
     "commands": "Befehle",
     "models": "Modelle",
+    "output": "Ausgabe",
     "advanced": "Erweitert",
     "postProcessing": "Nachbearbeitung",
     "history": "Verlauf",
@@ -307,6 +308,10 @@
           "title": "Befehlsmodus",
           "description": "Aktiviert den zuweisbaren Befehlsmodus-Modifikator. Halten Sie ihn, während eine Diktatsitzung läuft, um Gesprochenes als Befehle zu interpretieren (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), die den Diktatpuffer direkt bearbeiten; nicht erkannte Wörter werden verworfen. Startet nie eine eigene Aufnahme."
         }
+      },
+      "groups": {
+        "app": "App",
+        "microphone": "Mikrofon"
       }
     },
     "commands": {
@@ -374,6 +379,10 @@
         "paste": "Fügt die Zwischenablage in der fokussierten App ein"
       }
     },
+    "search": {
+      "placeholder": "Einstellungen durchsuchen",
+      "noResults": "Keine Einstellungen entsprechen deiner Suche"
+    },
     "sound": {
       "title": "Ton",
       "microphone": {
@@ -403,12 +412,16 @@
         "description": "Lautstärke der Audio-Feedback-Töne anpassen"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Einfügen",
+        "recording": "Aufnahme"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "App",
-        "output": "Ausgabe",
+        "model": "Modell und Speicher",
         "transcription": "Transkription",
-        "history": "Verlauf",
         "experimental": "Experimentell"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Modell-Badge anzeigen",
         "description": "Zeigt eine kompakte Plakette mit dem Modell, das jede Transkription erstellt hat."
+      },
+      "groups": {
+        "retention": "Aufbewahrung"
       }
     },
     "debug": {
@@ -752,11 +768,6 @@
         "title": "Tastatur-Implementierung",
         "description": "Wähle das Backend für Tastaturkürzel.",
         "bindingsReset": "Tastaturkürzel waren inkompatibel und wurden auf die Standardwerte zurückgesetzt"
-      },
-      "paths": {
-        "appData": "App-Daten:",
-        "models": "Modelle:",
-        "settings": "Einstellungen:"
       },
       "pasteDelay": {
         "title": "Einfügeverzögerung (vorher)",

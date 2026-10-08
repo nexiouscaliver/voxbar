@@ -17,6 +17,7 @@
     "general": "General",
     "commands": "Commands",
     "models": "Models",
+    "output": "Output",
     "advanced": "Advanced",
     "postProcessing": "Post Process",
     "history": "History",
@@ -259,6 +260,10 @@
           "title": "Command Mode",
           "description": "Enable the assignable command-mode modifier key. Hold it while a dictation session is live to interpret your speech as commands (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) that edit the dictation buffer directly; unrecognized words are discarded. It never starts a recording on its own."
         }
+      },
+      "groups": {
+        "app": "App",
+        "microphone": "Microphone"
       }
     },
     "commands": {
@@ -325,6 +330,10 @@
         "undo": "Runs undo in the focused app",
         "paste": "Pastes the clipboard in the focused app"
       }
+    },
+    "search": {
+      "placeholder": "Search settings",
+      "noResults": "No settings match your search"
     },
     "models": {
       "title": "Transcription Models",
@@ -403,12 +412,16 @@
         "description": "Adjust the volume of audio feedback sounds"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Pasting",
+        "recording": "Recording"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "App",
-        "output": "Output",
+        "model": "Model & Memory",
         "transcription": "Transcription",
-        "history": "History",
         "experimental": "Experimental"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Show Model Badge",
         "description": "Show a compact badge with the model that produced each transcription."
+      },
+      "groups": {
+        "retention": "Retention"
       }
     },
     "debug": {
@@ -766,11 +782,6 @@
         "title": "Keyboard Implementation",
         "description": "Choose the keyboard shortcut backend.",
         "bindingsReset": "Keyboard shortcuts were incompatible and reset to defaults"
-      },
-      "paths": {
-        "appData": "App Data:",
-        "models": "Models:",
-        "settings": "Settings:"
       },
       "pasteDelay": {
         "title": "Paste Delay (Before)",

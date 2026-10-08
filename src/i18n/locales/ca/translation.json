@@ -17,6 +17,7 @@
     "general": "General",
     "commands": "Ordres",
     "models": "Models",
+    "output": "Sortida",
     "advanced": "Avançat",
     "postProcessing": "Postprocessament",
     "history": "Historial",
@@ -259,6 +260,10 @@
           "title": "Mode d'ordres",
           "description": "Activa la tecla modificadora assignable del mode d'ordres. Mantén-la mentre una sessió de dictat és activa per interpretar la veu com a ordres (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) que editen directament la memòria intermèdia del dictat; les paraules no reconegudes es descarten. Mai no inicia un enregistrament tota sola."
         }
+      },
+      "groups": {
+        "app": "Aplicació",
+        "microphone": "Micròfon"
       }
     },
     "commands": {
@@ -325,6 +330,10 @@
         "undo": "Executa desfés a l'aplicació activa",
         "paste": "Enganxa el porta-retalls a l'aplicació activa"
       }
+    },
+    "search": {
+      "placeholder": "Cerca a la configuració",
+      "noResults": "Cap configuració coincideix amb la cerca"
     },
     "models": {
       "title": "Models de transcripció",
@@ -403,12 +412,16 @@
         "description": "Ajusta el volum dels avisos sonors"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Enganxament",
+        "recording": "Enregistrament"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Aplicació",
-        "output": "Sortida",
+        "model": "Model i memòria",
         "transcription": "Transcripció",
-        "history": "Historial",
         "experimental": "Experimental"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Mostra la insígnia del model",
         "description": "Mostra una insígnia compacta amb el model que va produir cada transcripció."
+      },
+      "groups": {
+        "retention": "Retenció"
       }
     },
     "debug": {
@@ -766,11 +782,6 @@
         "title": "Implementació del teclat",
         "description": "Tria el motor de dreceres de teclat.",
         "bindingsReset": "Les dreceres de teclat eren incompatibles i s'han restablert als valors per defecte"
-      },
-      "paths": {
-        "appData": "Dades de l'aplicació:",
-        "models": "Models:",
-        "settings": "Configuració:"
       },
       "pasteDelay": {
         "title": "Retard abans d'enganxar",

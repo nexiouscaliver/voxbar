@@ -17,6 +17,7 @@
     "general": "כללי",
     "commands": "פקודות",
     "models": "מודלים",
+    "output": "פלט",
     "advanced": "מתקדם",
     "postProcessing": "עיבוד משלים",
     "history": "היסטוריה",
@@ -259,6 +260,10 @@
           "title": "מצב פקודות",
           "description": "מפעיל את מקש השינוי הניתן להקצאה של מצב הפקודות. החזיקו אותו בזמן הקלטת הקראה פעילה כדי שהדיבור יפורש כפקודות (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) העורכות ישירות את מאגר ההקראה; מילים לא מזוהות נזרקות. לעולם לא מתחיל הקלטה בפני עצמו."
         }
+      },
+      "groups": {
+        "app": "אפליקציה",
+        "microphone": "מיקרופון"
       }
     },
     "commands": {
@@ -325,6 +330,10 @@
         "undo": "מבצע ביטול ביישום הפעיל",
         "paste": "מדביק את לוח העריכה ביישום הפעיל"
       }
+    },
+    "search": {
+      "placeholder": "חיפוש בהגדרות",
+      "noResults": "אין הגדרות שתואמות לחיפוש"
     },
     "models": {
       "title": "מודלי תמלול",
@@ -403,12 +412,16 @@
         "description": "כוונן את עוצמת צלילי המשוב"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "הדבקה",
+        "recording": "הקלטה"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "אפליקציה",
-        "output": "פלט",
+        "model": "מודל וזיכרון",
         "transcription": "תמלול",
-        "history": "היסטוריה",
         "experimental": "ניסיוני"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "הצג תגית מודל",
         "description": "מציג תגית קומפקטית עם המודל שהפיק כל תמליל."
+      },
+      "groups": {
+        "retention": "שמירה"
       }
     },
     "debug": {
@@ -752,11 +768,6 @@
         "title": "מימוש מקלדת",
         "description": "בחר את מנגנון קיצורי המקלדת.",
         "bindingsReset": "קיצורי המקלדת לא היו תואמים ואופסו לברירות המחדל"
-      },
-      "paths": {
-        "appData": "נתוני אפליקציה:",
-        "models": "מודלים:",
-        "settings": "הגדרות:"
       },
       "pasteDelay": {
         "title": "השהיית הדבקה (לפני)",
