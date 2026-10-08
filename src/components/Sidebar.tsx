@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
+  ClipboardPaste,
   Cog,
   FlaskConical,
   History,
@@ -21,6 +22,7 @@ import {
   AboutSettings,
   PostProcessingSettings,
   ModelsSettings,
+  OutputSettings,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -63,6 +65,12 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.models",
     icon: Cpu,
     component: ModelsSettings,
+    enabled: () => true,
+  },
+  output: {
+    labelKey: "sidebar.output",
+    icon: ClipboardPaste,
+    component: OutputSettings,
     enabled: () => true,
   },
   advanced: {
