@@ -358,6 +358,21 @@
         "label": "Skydd mot minnesbrist",
         "description": "Vägrar läsa in en modell när ledigt minne inte räcker. Den aktuella modellen fortsätter fungera när en inläsning vägras."
       },
+      "memoryHeadroom": {
+        "label": "Säkerhetsmarginal för minne",
+        "description": "Extra ledigt minne som hålls fritt utöver modellens storlek innan skyddet mot minnesbrist vägrar en inläsning. 0 (standard) innebär att modellen ensam måste få plats; ett anpassat värde är 0 eller minst 5 MB.",
+        "options": {
+          "off": "Av",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Anpassad"
+        },
+        "customLabel": "Anpassad marginal",
+        "customUnit": "MB",
+        "invalid": "Ange 0 eller minst 5 MB."
+      },
       "autoFallback": {
         "label": "Automatisk RAM-reserv",
         "description": "När den valda modellen inte får plats i ledigt minne laddas automatiskt den bästa nedladdade modellen som får plats. Stäng av för att behålla det vanliga avslaget."

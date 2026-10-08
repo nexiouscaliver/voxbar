@@ -358,6 +358,21 @@
         "label": "Memory Pressure Guard",
         "description": "Refuse to load a model when free memory cannot fit it. The current model keeps working when a load is refused."
       },
+      "memoryHeadroom": {
+        "label": "Memory Safety Margin",
+        "description": "Extra free RAM kept beyond the model's size before the memory guard refuses a load. 0 (default) means the model alone must fit; a custom value is 0 or at least 5 MB.",
+        "options": {
+          "off": "Off",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Custom"
+        },
+        "customLabel": "Custom margin",
+        "customUnit": "MB",
+        "invalid": "Enter 0 or at least 5 MB."
+      },
       "autoFallback": {
         "label": "RAM Auto-Fallback",
         "description": "When the selected model does not fit free memory, automatically load the best downloaded model that does. Turn off to keep the plain refusal."

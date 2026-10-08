@@ -358,6 +358,21 @@
         "label": "Bellek Baskısı Koruması",
         "description": "Boş bellek yeterli olmadığında model yüklemeyi reddeder. Yükleme reddedildiğinde geçerli model çalışmaya devam eder."
       },
+      "memoryHeadroom": {
+        "label": "Bellek Güvenlik Marjı",
+        "description": "Bellek koruması bir yüklemeyi reddetmeden önce modelin boyutunun üzerinde tutulan ek boş RAM. 0 (varsayılan), modelin tek başına sığması gerektiği anlamına gelir; özel değer 0 veya en az 5 MB olmalıdır.",
+        "options": {
+          "off": "Kapalı",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Özel"
+        },
+        "customLabel": "Özel marj",
+        "customUnit": "MB",
+        "invalid": "0 veya en az 5 MB girin."
+      },
       "autoFallback": {
         "label": "Otomatik RAM yedeklemesi",
         "description": "Seçilen model boş belleğe sığmadığında, sığan en iyi indirilmiş model otomatik yüklenir. Basit reddi korumak için kapatın."

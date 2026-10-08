@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { ShowOverlay } from "../ShowOverlay";
 import { ModelUnloadTimeoutSetting } from "../ModelUnloadTimeout";
 import { MemoryPressureGuard } from "../MemoryPressureGuard";
+import { MemoryHeadroom } from "../MemoryHeadroom";
 import { AutoFallback } from "../AutoFallback";
 import { MenuBarModelTitle } from "../MenuBarModelTitle";
 import { CustomWords } from "../CustomWords";
@@ -48,6 +49,7 @@ export const AdvancedSettings: React.FC = () => {
         <ShowOverlay descriptionMode="tooltip" grouped={true} />
         <ModelUnloadTimeoutSetting descriptionMode="tooltip" grouped={true} />
         <MemoryPressureGuard descriptionMode="tooltip" grouped={true} />
+        <MemoryHeadroom descriptionMode="tooltip" grouped={true} />
         <AutoFallback descriptionMode="tooltip" grouped={true} />
         <MenuBarModelTitle descriptionMode="tooltip" grouped={true} />
         <ExperimentalToggle descriptionMode="tooltip" grouped={true} />

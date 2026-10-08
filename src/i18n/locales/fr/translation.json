@@ -358,6 +358,21 @@
         "label": "Garde de pression mémoire",
         "description": "Refuse de charger un modèle lorsque la mémoire libre est insuffisante. Le modèle actuel continue de fonctionner lorsqu'un chargement est refusé."
       },
+      "memoryHeadroom": {
+        "label": "Marge de sécurité mémoire",
+        "description": "Mémoire libre supplémentaire conservée au-delà de la taille du modèle avant que la garde de pression mémoire refuse un chargement. 0 (par défaut) signifie que le modèle seul doit tenir ; une valeur personnalisée est 0 ou au moins 5 MB.",
+        "options": {
+          "off": "Désactivé",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Personnalisé"
+        },
+        "customLabel": "Marge personnalisée",
+        "customUnit": "MB",
+        "invalid": "Saisissez 0 ou au moins 5 MB."
+      },
       "autoFallback": {
         "label": "Repli automatique (RAM)",
         "description": "Lorsque le modèle sélectionné ne tient pas dans la mémoire libre, charge automatiquement le meilleur modèle téléchargé qui tient. Désactivez pour conserver le refus simple."

@@ -358,6 +358,21 @@
         "label": "Hukommelsespres-vagt",
         "description": "Afviser at indlæse en model, når ledig hukommelse ikke er nok. Den nuværende model fortsætter, når en indlæsning afvises."
       },
+      "memoryHeadroom": {
+        "label": "Sikkerhedsmargin for hukommelse",
+        "description": "Ekstra ledig hukommelse, der holdes fri ud over modellens størrelse, før hukommelsespres-vagten afviser en indlæsning. 0 (standard) betyder, at modellen alene skal kunne være; en brugerdefineret værdi er 0 eller mindst 5 MB.",
+        "options": {
+          "off": "Fra",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Brugerdefineret"
+        },
+        "customLabel": "Brugerdefineret margin",
+        "customUnit": "MB",
+        "invalid": "Indtast 0 eller mindst 5 MB."
+      },
       "autoFallback": {
         "label": "Automatisk RAM-reserve",
         "description": "Når den valgte model ikke passer i ledig hukommelse, indlæses automatisk den bedste downloadede model, der passer. Slå fra for at beholde den almindelige afvisning."

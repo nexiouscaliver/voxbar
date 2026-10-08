@@ -358,6 +358,21 @@
         "label": "Geheugendruk-bescherming",
         "description": "Weigert een model te laden als het vrije geheugen niet volstaat. Het huidige model blijft werken wanneer een laden wordt geweigerd."
       },
+      "memoryHeadroom": {
+        "label": "Geheugenveiligheidsmarge",
+        "description": "Extra vrij geheugen dat vrij blijft boven de modelgrootte voordat de geheugendruk-bescherming een laden weigert. 0 (standaard) betekent dat het model alleen moet passen; een aangepaste waarde is 0 of minimaal 5 MB.",
+        "options": {
+          "off": "Uit",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Aangepast"
+        },
+        "customLabel": "Aangepaste marge",
+        "customUnit": "MB",
+        "invalid": "Voer 0 of minimaal 5 MB in."
+      },
       "autoFallback": {
         "label": "Automatische RAM-terugval",
         "description": "Als het geselecteerde model niet in het vrije geheugen past, wordt automatisch het beste gedownloade model geladen dat wel past. Zet uit om de gewone weigering te behouden."

@@ -17,6 +17,7 @@
     "format:backend": "cd src-tauri && cargo fmt",
     "test:keyboard": "bun src/lib/utils/keyboard.test.ts",
     "test:accent": "bun src/lib/utils/accent.test.ts",
+    "test:settings": "bun src/components/settings/memoryMarginInput.test.ts",
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
     "check:translations": "bun scripts/check-translations.ts",
