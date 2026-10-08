@@ -17,6 +17,7 @@
     "general": "Ogólne",
     "commands": "Polecenia",
     "models": "Modele",
+    "output": "Wyjście",
     "advanced": "Zaawansowane",
     "postProcessing": "Postproces",
     "history": "Historia",
@@ -307,6 +308,10 @@
           "title": "Tryb poleceń",
           "description": "Włącza przypisywalny modyfikator trybu poleceń. Przytrzymaj go podczas aktywnej sesji dyktowania, aby interpretować mowę jako polecenia (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) edytujące bezpośrednio bufor dyktowania; nierozpoznane słowa są odrzucane. Nigdy sam nie rozpoczyna nagrywania."
         }
+      },
+      "groups": {
+        "app": "Aplikacja",
+        "microphone": "Mikrofon"
       }
     },
     "commands": {
@@ -374,6 +379,10 @@
         "paste": "Wkleja schowek w aktywnej aplikacji"
       }
     },
+    "search": {
+      "placeholder": "Szukaj w ustawieniach",
+      "noResults": "Żadne ustawienie nie pasuje do wyszukiwania"
+    },
     "sound": {
       "title": "Dźwięk",
       "microphone": {
@@ -403,12 +412,16 @@
         "description": "Dostosuj głośność dźwięków informacyjnych"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Wklejanie",
+        "recording": "Nagrywanie"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Aplikacja",
-        "output": "Wyjście",
+        "model": "Model i pamięć",
         "transcription": "Transkrypcja",
-        "history": "Historia",
         "experimental": "Eksperymentalne"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Pokaż plakietkę modelu",
         "description": "Pokazuje zwartą plakietkę z modelem, który wygenerował każdą transkrypcję."
+      },
+      "groups": {
+        "retention": "Przechowywanie"
       }
     },
     "debug": {
@@ -752,11 +768,6 @@
         "title": "Implementacja klawiatury",
         "description": "Wybierz backend dla skrótów klawiaturowych.",
         "bindingsReset": "Skróty klawiaturowe były niekompatybilne i zostały zresetowane do wartości domyślnych"
-      },
-      "paths": {
-        "appData": "Dane aplikacji:",
-        "models": "Modele:",
-        "settings": "Ustawienia:"
       },
       "pasteDelay": {
         "title": "Opóźnienie wklejania (przed)",

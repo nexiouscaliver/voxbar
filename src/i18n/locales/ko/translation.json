@@ -17,6 +17,7 @@
     "general": "일반",
     "commands": "명령어",
     "models": "모델",
+    "output": "출력",
     "advanced": "고급",
     "postProcessing": "후처리",
     "history": "히스토리",
@@ -259,6 +260,10 @@
           "title": "명령 모드",
           "description": "할당 가능한 명령 모드 수정 키를 켭니다. 받아쓰기 세션이 진행 중일 때 누르고 있으면 말이 받아쓰기 버퍼를 직접 편집하는 명령 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line)으로 해석되고 인식되지 않은 단어는 버려집니다. 단독으로 녹음을 시작하지 않습니다."
         }
+      },
+      "groups": {
+        "app": "앱",
+        "microphone": "마이크"
       }
     },
     "commands": {
@@ -326,6 +331,10 @@
         "paste": "포커스된 앱에 클립보드를 붙여넣습니다"
       }
     },
+    "search": {
+      "placeholder": "설정 검색",
+      "noResults": "검색과 일치하는 설정이 없습니다"
+    },
     "sound": {
       "title": "사운드",
       "microphone": {
@@ -353,6 +362,12 @@
       "volume": {
         "title": "볼륨",
         "description": "오디오 피드백 사운드의 볼륨 조절"
+      }
+    },
+    "output": {
+      "groups": {
+        "paste": "붙여넣기",
+        "recording": "녹음"
       }
     },
     "models": {
@@ -405,10 +420,8 @@
     },
     "advanced": {
       "groups": {
-        "app": "앱",
-        "output": "출력",
+        "model": "모델 및 메모리",
         "transcription": "전사",
-        "history": "히스토리",
         "experimental": "실험적"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "모델 배지 표시",
         "description": "각 전사를 만든 모델을 나타내는 간결한 배지를 표시합니다."
+      },
+      "groups": {
+        "retention": "보존"
       }
     },
     "debug": {
@@ -796,11 +812,6 @@
         "verdictOk": "키 이벤트가 VoxBar에 정상적으로 도달하고 있습니다.",
         "verdictNoEvents": "이벤트가 감지되지 않았습니다. 테스트 중에 키를 누르셨나요?",
         "failed": "진단 실패: {{error}}"
-      },
-      "paths": {
-        "appData": "앱 데이터:",
-        "models": "모델:",
-        "settings": "설정:"
       },
       "whatsNewPreview": {
         "title": "새 소식 미리보기",

@@ -17,6 +17,7 @@
     "general": "Général",
     "commands": "Commandes",
     "models": "Modèles",
+    "output": "Sortie",
     "advanced": "Avancé",
     "postProcessing": "Post-traitement",
     "history": "Historique",
@@ -307,6 +308,10 @@
           "title": "Mode commandes",
           "description": "Active la touche modificatrice attribuable du mode commandes. Maintenez-la pendant une dictée active pour interpréter votre voix comme des commandes (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) qui modifient directement la mémoire tampon de la dictée ; les mots non reconnus sont ignorés. Ne démarre jamais un enregistrement seule."
         }
+      },
+      "groups": {
+        "app": "Application",
+        "microphone": "Microphone"
       }
     },
     "commands": {
@@ -374,6 +379,10 @@
         "paste": "Colle le presse-papiers dans l'application active"
       }
     },
+    "search": {
+      "placeholder": "Rechercher dans les paramètres",
+      "noResults": "Aucun paramètre ne correspond à votre recherche"
+    },
     "sound": {
       "title": "Son",
       "microphone": {
@@ -403,12 +412,16 @@
         "description": "Ajuster le volume du signal sonore"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Collage",
+        "recording": "Enregistrement"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Application",
-        "output": "Sortie",
+        "model": "Modèle et mémoire",
         "transcription": "Transcription",
-        "history": "Historique",
         "experimental": "Expérimental"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Afficher le badge du modèle",
         "description": "Affiche un badge compact indiquant le modèle ayant produit chaque transcription."
+      },
+      "groups": {
+        "retention": "Conservation"
       }
     },
     "debug": {
@@ -752,11 +768,6 @@
         "title": "Gestion du clavier",
         "description": "Choisissez le système des raccourcis clavier.",
         "bindingsReset": "Raccourcis clavier étaient incompatibles et ont été réinitialisés aux valeurs par défaut"
-      },
-      "paths": {
-        "appData": "Données de l'application :",
-        "models": "Modèles :",
-        "settings": "Paramètres :"
       },
       "pasteDelay": {
         "title": "Délai de collage (avant)",

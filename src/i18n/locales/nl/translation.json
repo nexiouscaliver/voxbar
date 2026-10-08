@@ -17,6 +17,7 @@
     "general": "Algemeen",
     "commands": "Opdrachten",
     "models": "Modellen",
+    "output": "Uitvoer",
     "advanced": "Geavanceerd",
     "postProcessing": "Naverwerking",
     "history": "Geschiedenis",
@@ -259,6 +260,10 @@
           "title": "Commandomodus",
           "description": "Schakelt de toewijsbare commandomodus-modificatortoets in. Houd deze ingedrukt terwijl een dicteersessie actief is om uw spraak te interpreteren als commando's (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) die de dicteerbuffer direct bewerken; niet-herkende woorden worden weggegooid. Start nooit zelf een opname."
         }
+      },
+      "groups": {
+        "app": "App",
+        "microphone": "Microfoon"
       }
     },
     "commands": {
@@ -325,6 +330,10 @@
         "undo": "Voert ongedaan maken uit in de app met focus",
         "paste": "Plakt het klembord in de app met focus"
       }
+    },
+    "search": {
+      "placeholder": "Instellingen zoeken",
+      "noResults": "Geen instellingen komen overeen met je zoekopdracht"
     },
     "models": {
       "title": "Transcriptiemodellen",
@@ -403,12 +412,16 @@
         "description": "Pas het volume van de geluidsfeedback aan"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Plakken",
+        "recording": "Opname"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "App",
-        "output": "Uitvoer",
+        "model": "Model en geheugen",
         "transcription": "Transcriptie",
-        "history": "Geschiedenis",
         "experimental": "Experimenteel"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Modelbadge tonen",
         "description": "Toont een compacte badge met het model dat elke transcriptie heeft gemaakt."
+      },
+      "groups": {
+        "retention": "Bewaartermijn"
       }
     },
     "debug": {
@@ -766,11 +782,6 @@
         "title": "Toetsenbord-implementatie",
         "description": "Kies de backend voor sneltoetsen.",
         "bindingsReset": "Sneltoetsen waren incompatibel en zijn teruggezet naar de standaardwaarden"
-      },
-      "paths": {
-        "appData": "App-data:",
-        "models": "Modellen:",
-        "settings": "Instellingen:"
       },
       "pasteDelay": {
         "title": "Plakvertraging (voor)",

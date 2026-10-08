@@ -17,6 +17,7 @@
     "general": "Geral",
     "commands": "Comandos",
     "models": "Modelos",
+    "output": "Saída",
     "advanced": "Avançado",
     "postProcessing": "Pós-Processamento",
     "history": "Histórico",
@@ -259,6 +260,10 @@
           "title": "Modo de comandos",
           "description": "Ativa a tecla modificadora atribuível do modo de comandos. Mantenha-a enquanto uma sessão de ditado está ativa para interpretar a fala como comandos (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) que editam diretamente o buffer do ditado; palavras não reconhecidas são descartadas. Nunca inicia uma gravação por si."
         }
+      },
+      "groups": {
+        "app": "Aplicativo",
+        "microphone": "Microfone"
       }
     },
     "commands": {
@@ -325,6 +330,10 @@
         "undo": "Executa desfazer no app em foco",
         "paste": "Cola a área de transferência no app em foco"
       }
+    },
+    "search": {
+      "placeholder": "Pesquisar nas configurações",
+      "noResults": "Nenhuma configuração corresponde à sua pesquisa"
     },
     "models": {
       "title": "Modelos de Transcrição",
@@ -403,12 +412,16 @@
         "description": "Ajustar o volume dos sons de feedback de áudio"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Colagem",
+        "recording": "Gravação"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Aplicativo",
-        "output": "Saída",
+        "model": "Modelo e memória",
         "transcription": "Transcrição",
-        "history": "Histórico",
         "experimental": "Experimental"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Mostrar selo do modelo",
         "description": "Mostra um selo compacto com o modelo que produziu cada transcrição."
+      },
+      "groups": {
+        "retention": "Retenção"
       }
     },
     "debug": {
@@ -752,11 +768,6 @@
         "title": "Implementação do Teclado",
         "description": "Escolha o sistema responsável pelos atalhos de teclado.",
         "bindingsReset": "Os atalhos de teclado eram incompatíveis e foram redefinidos para os padrões"
-      },
-      "paths": {
-        "appData": "Dados do App:",
-        "models": "Modelos:",
-        "settings": "Configurações:"
       },
       "pasteDelay": {
         "title": "Atraso de colagem (antes)",

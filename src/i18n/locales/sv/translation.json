@@ -17,6 +17,7 @@
     "general": "Allmänt",
     "commands": "Kommandon",
     "models": "Modeller",
+    "output": "Utmatning",
     "advanced": "Avancerat",
     "postProcessing": "Efterbearbetning",
     "history": "Historik",
@@ -259,6 +260,10 @@
           "title": "Kommandoläge",
           "description": "Aktiverar den kopplingsbara modifierartangenten för kommandoläge. Håll den nedtryckt medan en dikteringssession är aktiv för att tolka din röst som kommandon (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) som redigerar dikteringsbufferten direkt; okända ord kastas bort. Startar aldrig en inspelning på egen hand."
         }
+      },
+      "groups": {
+        "app": "App",
+        "microphone": "Mikrofon"
       }
     },
     "commands": {
@@ -325,6 +330,10 @@
         "undo": "Kör ångra i appen i fokus",
         "paste": "Klistrar in urklipp i appen i fokus"
       }
+    },
+    "search": {
+      "placeholder": "Sök i inställningar",
+      "noResults": "Inga inställningar matchar din sökning"
     },
     "models": {
       "title": "Transkriptionsmodeller",
@@ -403,12 +412,16 @@
         "description": "Justera volymen för ljudåterkopplingsljud"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Inklistring",
+        "recording": "Inspelning"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "App",
-        "output": "Utmatning",
+        "model": "Modell och minne",
         "transcription": "Transkription",
-        "history": "Historik",
         "experimental": "Experimentellt"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Visa modellmärke",
         "description": "Visar ett kompakt märke med modellen som skapade varje transkription."
+      },
+      "groups": {
+        "retention": "Lagring"
       }
     },
     "debug": {
@@ -752,11 +768,6 @@
         "title": "Tangentbordsimplementering",
         "description": "Välj tangentbordsgenvägens implementation.",
         "bindingsReset": "Kortkommandona var inkompatibla och återställdes till standardvärden"
-      },
-      "paths": {
-        "appData": "Appdata:",
-        "models": "Modeller:",
-        "settings": "Inställningar:"
       },
       "pasteDelay": {
         "title": "Fördröjning vid klistra in (före)",

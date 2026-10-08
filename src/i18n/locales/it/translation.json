@@ -17,6 +17,7 @@
     "general": "Generale",
     "commands": "Comandi",
     "models": "Modelli",
+    "output": "Output",
     "advanced": "Avanzate",
     "postProcessing": "Post-Elaborazione",
     "history": "Cronologia",
@@ -307,6 +308,10 @@
           "title": "Modalità comandi",
           "description": "Attiva il tasto modificatore assegnabile della modalità comandi. Tienilo premuto mentre una sessione di dettatura è attiva per interpretare la voce come comandi (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) che modificano direttamente il buffer della dettatura; le parole non riconosciute vengono scartate. Non avvia mai una registrazione da solo."
         }
+      },
+      "groups": {
+        "app": "App",
+        "microphone": "Microfono"
       }
     },
     "commands": {
@@ -374,6 +379,10 @@
         "paste": "Incolla gli appunti nell'app attiva"
       }
     },
+    "search": {
+      "placeholder": "Cerca nelle impostazioni",
+      "noResults": "Nessuna impostazione corrisponde alla ricerca"
+    },
     "sound": {
       "title": "Suono",
       "microphone": {
@@ -403,12 +412,16 @@
         "description": "Regola il volume del feedback audio"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Incollaggio",
+        "recording": "Registrazione"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "App",
-        "output": "Output",
+        "model": "Modello e memoria",
         "transcription": "Trascrizione",
-        "history": "Cronologia",
         "experimental": "Sperimentale"
       },
       "experimentalToggle": {
@@ -677,6 +690,9 @@
       "showModel": {
         "label": "Mostra badge del modello",
         "description": "Mostra un badge compatto con il modello che ha prodotto ogni trascrizione."
+      },
+      "groups": {
+        "retention": "Conservazione"
       }
     },
     "debug": {
@@ -752,11 +768,6 @@
         "title": "Implementazione tastiera",
         "description": "Scegli il backend per le scorciatoie da tastiera.",
         "bindingsReset": "Le scorciatoie da tastiera erano incompatibili e sono state ripristinate ai valori predefiniti"
-      },
-      "paths": {
-        "appData": "Dati App:",
-        "models": "Modelli:",
-        "settings": "Impostazioni:"
       },
       "pasteDelay": {
         "title": "Ritardo incolla (prima)",
