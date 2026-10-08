@@ -162,9 +162,13 @@ pub fn default_command_matrix() -> Vec<CommandMatrixEntry> {
             &["delete word", "scratch that", "delete that", "remove that"],
         ),
         (DeleteLine, &["delete line"]),
+        // "start over" is deliberately NOT a default phrase: it is ordinary
+        // English ("let me start over and try again") and a spoken
+        // clear-all must be unambiguous. It stays reachable as a
+        // user-added phrase in the matrix editor.
         (
             ClearAll,
-            &["delete everything", "scratch everything", "start over"],
+            &["delete everything", "scratch everything"],
         ),
         (Undo, &["undo"]),
         (Paste, &["paste"]),

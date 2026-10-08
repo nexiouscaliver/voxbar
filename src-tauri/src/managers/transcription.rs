@@ -642,7 +642,8 @@ impl StreamSessionBuffer {
     /// buffer empties and everything the engine has already reported is
     /// consumed via `raw_seen`, so only speech after this point reaches
     /// the final text. Key-based start-over (the Undo binding's in-session
-    /// semantics); mirrors the voice "start over" everything-command.
+    /// semantics); mirrors the voice clear-everything commands
+    /// ("delete everything" / "scratch everything").
     fn clear_all(&mut self) -> Option<String> {
         if !self.live {
             return None;
@@ -4263,13 +4264,23 @@ mod tests {
 
         // Everything after the command is discarded too.
         let restarted = post_process_transcription_text(
-            "one two three start over four five".to_string(),
+            "one two three delete everything four five".to_string(),
             &settings,
             false,
             &en,
             &supported,
         );
         assert_eq!(restarted, "");
+        // "start over" left the default ClearAll table: ordinary dictation
+        // saying it keeps its sentence (terminal punctuation still lands).
+        let kept = post_process_transcription_text(
+            "let me start over and try again".to_string(),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(kept, "let me start over and try again.");
     }
 
     /// Toggling voice deletion off leaves the command words in the text,
