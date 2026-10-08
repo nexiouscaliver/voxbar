@@ -177,6 +177,18 @@ pub fn default_command_matrix() -> Vec<CommandMatrixEntry> {
     .collect()
 }
 
+/// Everyday English words that double as single-word symbol commands. In
+/// NORMAL dictation prose they convert only at utterance-final position
+/// (text.rs keys the gate on the normalized phrase, so user-added phrases
+/// are never gated); mid-sentence they stay plain words, because "a period
+/// of time" and "five star hotel" must not turn into "a. Of time" and
+/// "five* hotel". Command mode (the held modifier) is a separate surface
+/// and is not gated: an explicit "period" while commanding always inserts.
+/// Deliberately NOT in the set: dash (mid-prose hyphenation is a designed,
+/// pinned feature) and colon/slash/hash (no demonstrated collision; symbol
+/// intent dominates; auto_interpret_commands off is the escape hatch).
+pub(crate) const AMBIGUOUS_EVERYDAY_PHRASES: &[&str] = &["period", "star", "percent", "pipe"];
+
 /// How a matched voice-deletion phrase acts on the transcript.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum VoiceDeletionKind {
@@ -525,10 +537,15 @@ mod tests {
                 match action {
                     CommandAction::Insert(symbol) => {
                         // Punctuation surface: "hello <phrase> world" converts
-                        // to the symbol with the defined spacing semantics.
+                        // to the symbol with the defined spacing semantics,
+                        // EXCEPT the ambiguous everyday words, which stay
+                        // verbatim mid-prose and convert only utterance-final.
                         let converted =
                             normalize_spoken_punctuation(&format!("hello {phrase} world"), &matrix);
-                        let expected = if is_sentence_ending(symbol) {
+                        let gated = AMBIGUOUS_EVERYDAY_PHRASES.contains(&phrase.as_str());
+                        let expected = if gated {
+                            format!("hello {phrase} world")
+                        } else if is_sentence_ending(symbol) {
                             format!("hello{symbol} World")
                         } else if symbol == "-" {
                             "hello-world".to_string()
@@ -538,6 +555,13 @@ mod tests {
                             format!("hello{symbol} world")
                         };
                         assert_eq!(converted, expected, "phrase: {phrase}");
+                        if gated {
+                            // Paired utterance-final probe: the everyday word
+                            // still converts when nothing follows it.
+                            let final_pos =
+                                normalize_spoken_punctuation(&format!("hello {phrase}"), &matrix);
+                            assert_eq!(final_pos, format!("hello{symbol}"), "phrase: {phrase}");
+                        }
                     }
                     CommandAction::DeleteWord => {
                         let outcome =

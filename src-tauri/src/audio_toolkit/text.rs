@@ -1,4 +1,6 @@
-use super::command_matrix::{ ATTACHED_MARKS, CompiledCommandMatrix, VoiceDeletionKind };
+use super::command_matrix::{
+    AMBIGUOUS_EVERYDAY_PHRASES, ATTACHED_MARKS, CompiledCommandMatrix, VoiceDeletionKind,
+};
 use super::commands::is_coalescible_symbol;
 use natural::phonetics::soundex;
 use once_cell::sync::Lazy;
@@ -534,9 +536,24 @@ pub fn normalize_spoken_punctuation(text: &str, matrix: &CompiledCommandMatrix) 
         // Strip the optional attached mark the pattern may have consumed so
         // the lookup key is the pure spoken phrase.
         let phrase = token.as_str().trim_end_matches(ATTACHED_MARKS);
-        let Some(replacement) = matrix.punctuation_replacement(&phrase.to_lowercase()) else {
+        let phrase = phrase.split_whitespace().collect::<Vec<_>>().join(" ");
+        let phrase = phrase.to_lowercase();
+        let Some(replacement) = matrix.punctuation_replacement(&phrase) else {
             continue;
         };
+
+        // Everyday-word gate (normal dictation only): an ambiguous
+        // single-word command ("period", "star", "percent", "pipe")
+        // converts only when it is utterance-final (nothing but whitespace
+        // follows); mid-sentence it stays a plain word so prose keeps its
+        // meaning. Multi-word phrases and unambiguous symbols are exempt,
+        // and command mode is a separate surface (commands.rs) that never
+        // gates.
+        if AMBIGUOUS_EVERYDAY_PHRASES.contains(&phrase.as_str())
+            && !text[token.end()..].chars().all(char::is_whitespace)
+        {
+            continue;
+        }
 
         let mut span = &text[resume..token.start()];
         if skip_leading_space {
@@ -1441,9 +1458,15 @@ mod tests {
             normalize_spoken_punctuation("hello full stop world", &dm()),
             "hello. World"
         );
+        // "period" is an everyday word: verbatim mid-prose, converting only
+        // at utterance-final position.
         assert_eq!(
             normalize_spoken_punctuation("hello period world", &dm()),
-            "hello. World"
+            "hello period world"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("hello period", &dm()),
+            "hello."
         );
         assert_eq!(
             normalize_spoken_punctuation("it is fine question mark", &dm()),
@@ -1568,6 +1591,84 @@ mod tests {
         assert_eq!(
             normalize_spoken_punctuation("really exclamation mark! yes", &dm()),
             "really! Yes"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_everyday_words_stay_verbatim_mid_prose() {
+        // Ordinary English words that double as single-word symbol commands
+        // never convert mid-sentence; the dictation keeps its words.
+        assert_eq!(
+            normalize_spoken_punctuation("a period of time", &dm()),
+            "a period of time"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("five star hotel", &dm()),
+            "five star hotel"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("the pay is ten percent higher", &dm()),
+            "the pay is ten percent higher"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("it was a pipe dream", &dm()),
+            "it was a pipe dream"
+        );
+        // Utterance-final still converts: the designed use ("end my
+        // sentence here"). The spoken word is consumed, the symbol lands.
+        assert_eq!(
+            normalize_spoken_punctuation("I will be there period", &dm()),
+            "I will be there."
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("give it a star", &dm()),
+            "give it a*"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_unambiguous_symbols_keep_converting_mid_prose() {
+        // The gate is scoped to the ambiguous everyday nouns; every other
+        // symbol phrase still converts mid-sentence.
+        assert_eq!(
+            normalize_spoken_punctuation("hello comma world", &dm()),
+            "hello, world"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("one semicolon two", &dm()),
+            "one; two"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("items colon one", &dm()),
+            "items: one"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("twenty dash five", &dm()),
+            "twenty-five"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("five asterisk six", &dm()),
+            "five* six"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("a ampersand b", &dm()),
+            "a& b"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("x caret y", &dm()),
+            "x^ y"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("a slash b", &dm()),
+            "a/ b"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("tag hash mark", &dm()),
+            "tag# mark"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("a backslash b", &dm()),
+            "a\\ b"
         );
     }
 
