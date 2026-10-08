@@ -30,6 +30,16 @@
     "showFewerModels": "Minder modellen tonen",
     "recommended": "Aanbevolen",
     "customModelDescription": "Niet officieel ondersteund",
+    "refusal": {
+      "title": "Niet genoeg vrij geheugen",
+      "needs": "De geheugenbescherming weigerde {{model}} te laden: er is ~{{needed}} nodig, en er is ~{{free}} vrij.",
+      "marginNote": "Boven de modelgrootte komt een veiligheidsmarge van {{margin}} (aanpasbaar via Instellingen > Geavanceerd).",
+      "retry": "Opnieuw proberen",
+      "switchModel": "Ander model kiezen",
+      "disableGuard": "Laden zonder geheugenbescherming",
+      "continueDeferred": "Doorgaan zonder nu te laden",
+      "guardOffCaveat": "De bescherming blijft uit tot je hem opnieuw inschakelt via Instellingen > Geavanceerd; het model laadt bij de eerste dictering."
+    },
     "modelCard": {
       "accuracy": "nauwkeurigheid",
       "speed": "snelheid"

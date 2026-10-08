@@ -30,6 +30,16 @@
     "showFewerModels": "Weniger Modelle anzeigen",
     "recommended": "Empfohlen",
     "customModelDescription": "Nicht offiziell unterstützt",
+    "refusal": {
+      "title": "Nicht genug freier Speicher",
+      "needs": "Der Speicherdruck-Schutz hat das Laden von {{model}} abgelehnt: benötigt ~{{needed}}, frei sind ~{{free}}.",
+      "marginNote": "Über der Modellgröße wird eine Sicherheitsmarge von {{margin}} angesetzt (anpassbar unter Einstellungen > Erweitert).",
+      "retry": "Erneut versuchen",
+      "switchModel": "Anderes Modell wählen",
+      "disableGuard": "Ohne Speicherschutz laden",
+      "continueDeferred": "Jetzt ohne Laden fortfahren",
+      "guardOffCaveat": "Der Schutz bleibt aus, bis Sie ihn unter Einstellungen > Erweitert wieder aktivieren; das Modell lädt bei der ersten Diktation."
+    },
     "modelCard": {
       "accuracy": "Genauigkeit",
       "speed": "Geschwindigkeit"

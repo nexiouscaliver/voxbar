@@ -30,6 +30,16 @@
     "showFewerModels": "Daha az model göster",
     "recommended": "Önerilen",
     "customModelDescription": "Resmi olarak desteklenmiyor",
+    "refusal": {
+      "title": "Yeterli boş bellek yok",
+      "needs": "Bellek koruması {{model}} yüklemeyi reddetti: ~{{needed}} gerekiyor, boş olan ~{{free}}.",
+      "marginNote": "Modelin boyutunun üzerine {{margin}} güvenlik marjı eklenir (Ayarlar > Gelişmiş bölümünden ayarlanabilir).",
+      "retry": "Yeniden dene",
+      "switchModel": "Başka bir model seç",
+      "disableGuard": "Bellek koruması olmadan yükle",
+      "continueDeferred": "Şimdi yüklemeden devam et",
+      "guardOffCaveat": "Koruma, Ayarlar > Gelişmiş bölümünden yeniden açana kadar kapalı kalır; model ilk dikte sırasında yüklenir."
+    },
     "modelCard": {
       "accuracy": "doğruluk",
       "speed": "hız"

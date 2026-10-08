@@ -30,6 +30,16 @@
     "showFewerModels": "Show fewer models",
     "recommended": "Recommended",
     "customModelDescription": "Not officially supported",
+    "refusal": {
+      "title": "Not enough free memory",
+      "needs": "The memory guard refused to load {{model}}: it needs ~{{needed}}, and ~{{free}} is free.",
+      "marginNote": "A {{margin}} safety margin is added beyond the model's size (adjustable in Settings > Advanced).",
+      "retry": "Retry",
+      "switchModel": "Choose a different model",
+      "disableGuard": "Load without the memory guard",
+      "continueDeferred": "Continue without loading now",
+      "guardOffCaveat": "The guard stays off until re-enabled in Settings > Advanced; the model loads on your first dictation."
+    },
     "modelCard": {
       "accuracy": "accuracy",
       "speed": "speed"

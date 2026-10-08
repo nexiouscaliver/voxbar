@@ -30,6 +30,16 @@
     "showFewerModels": "Vis færre modeller",
     "recommended": "Anbefalet",
     "customModelDescription": "Ikke officielt understøttet",
+    "refusal": {
+      "title": "Ikke nok ledig hukommelse",
+      "needs": "Hukommelsesvægten afviste at indlæse {{model}}: den kræver ~{{needed}}, og der er ~{{free}} ledigt.",
+      "marginNote": "Der lægges en sikkerhedsmargin på {{margin}} ud over modellens størrelse (kan justeres i Indstillinger > Avanceret).",
+      "retry": "Prøv igen",
+      "switchModel": "Vælg en anden model",
+      "disableGuard": "Indlæs uden hukommelsesvagten",
+      "continueDeferred": "Fortsæt uden at indlæse nu",
+      "guardOffCaveat": "Vagten forbliver slået fra, indtil du slår den til igen i Indstillinger > Avanceret; modellen indlæses ved den første diktering."
+    },
     "modelCard": {
       "accuracy": "nøjagtighed",
       "speed": "hastighed"

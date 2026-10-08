@@ -30,6 +30,16 @@
     "showFewerModels": "간략히 표시",
     "recommended": "추천",
     "customModelDescription": "공식 지원되지 않음",
+    "refusal": {
+      "title": "여유 메모리가 부족합니다",
+      "needs": "메모리 가드가 {{model}} 로드를 거부했습니다: 약 {{needed}}가 필요하고 여유는 약 {{free}}입니다.",
+      "marginNote": "모델 크기 외에 {{margin}} 안전 마진이 추가됩니다(설정 > 고급에서 조정).",
+      "retry": "다시 시도",
+      "switchModel": "다른 모델 선택",
+      "disableGuard": "메모리 가드 없이 로드",
+      "continueDeferred": "지금 로드하지 않고 계속",
+      "guardOffCaveat": "가드는 설정 > 고급에서 다시 켤 때까지 꺼져 있으며, 모델은 첫 받아쓰기 때 로드됩니다."
+    },
     "modelCard": {
       "accuracy": "정확도",
       "speed": "속도"

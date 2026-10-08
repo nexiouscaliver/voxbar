@@ -30,6 +30,16 @@
     "showFewerModels": "הצג פחות מודלים",
     "recommended": "מומלץ",
     "customModelDescription": "לא נתמך באופן רשמי",
+    "refusal": {
+      "title": "אין מספיק זיכרון פנוי",
+      "needs": "מגן הזיכרון סירב לטעון את {{model}}: נדרשים ~{{needed}}, ופנויים ~{{free}}.",
+      "marginNote": "נוסף מרווח בטיחות של {{margin}} מעבר לגודל המודל (ניתן לכוונון בהגדרות > מתקדם).",
+      "retry": "נסה שוב",
+      "switchModel": "בחירת מודל אחר",
+      "disableGuard": "טעינה בלי מגן הזיכרון",
+      "continueDeferred": "המשך בלי לטעון כעת",
+      "guardOffCaveat": "המגן יישאר כבוי עד שתפעילו אותו מחדש בהגדרות > מתקדם; המודל ייטען בהקלטה הראשונה."
+    },
     "modelCard": {
       "accuracy": "דיוק",
       "speed": "מהירות"
