@@ -2918,13 +2918,15 @@ fn post_process_transcription_text(
             raw
         };
 
-        // Spoken punctuation first, then voice deletion, then the terminal
-        // fallback, so the custom-word pass and every later stage see final
-        // wording and punctuation. Each pass is independently toggleable;
-        // off reproduces today's behavior. The auto-interpretation master
-        // gate ANDs with the per-pass toggles in NORMAL dictation only;
-        // OFF leaves command words as plain words (the command-mode
-        // modifier is a separate surface and stays untouched).
+        // Spoken punctuation first, then voice deletion, then custom words,
+        // filler removal, and the terminal fallback last (see the comment at
+        // the reorder below), so the dictionary and every later stage see
+        // final wording and punctuation. Each pass is independently
+        // toggleable; off reproduces today's behavior. The
+        // auto-interpretation master gate ANDs with the per-pass toggles in
+        // NORMAL dictation only; OFF leaves command words as plain words
+        // (the command-mode modifier is a separate surface and stays
+        // untouched).
         let punctuated = if settings.spoken_punctuation && settings.auto_interpret_commands {
             normalize_spoken_punctuation(&raw, &matrix)
         } else {
@@ -2949,20 +2951,20 @@ fn post_process_transcription_text(
             return String::new();
         }
 
-        let punctuated = if settings.terminal_punctuation {
-            apply_terminal_punctuation(&deleted.text)
-        } else {
-            deleted.text
-        };
-
+        // Custom words run on the post-deletion wording, then filler
+        // removal, then the terminal fallback: removing fillers BEFORE the
+        // terminal pass makes the ordering structural rather than relying
+        // on the filler patterns' [,.]? eating the just-appended mark (a
+        // filler-final utterance now earns its terminal period instead of
+        // losing it).
         let corrected = if !settings.custom_words.is_empty() && !custom_words_already_prompted {
             apply_custom_words(
-                &punctuated,
+                &deleted.text,
                 &settings.custom_words,
                 settings.word_correction_threshold,
             )
         } else {
-            punctuated
+            deleted.text
         };
 
         let without_fillers = remove_filler_words(
@@ -2972,7 +2974,13 @@ fn post_process_transcription_text(
             settings.filler_word_removal_enabled,
         );
 
-        normalize_transcription_output(&without_fillers)
+        let punctuated = if settings.terminal_punctuation {
+            apply_terminal_punctuation(&without_fillers)
+        } else {
+            without_fillers
+        };
+
+        normalize_transcription_output(&punctuated)
     })
 }
 
@@ -4536,6 +4544,38 @@ mod tests {
         assert!(!is_latin_language("ru"));
         assert!(is_latin_language("en"));
         assert!(is_latin_language("pt"));
+    }
+
+    #[test]
+    fn filler_removal_runs_before_terminal_punctuation() {
+        // Ordering invariant: a filler-final utterance keeps the comma the
+        // command inserted, identical before and after the ordering change.
+        let settings = text_pipeline_settings(true, true, true);
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+        assert_eq!(
+            post_process_transcription_text(
+                "hello comma uhm".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "hello,"
+        );
+        // Declared behavior change: the filler goes first, so the bare
+        // utterance still earns its terminal period (previously the
+        // filler's [,.]? ate the just-appended mark and the paste lost it).
+        assert_eq!(
+            post_process_transcription_text(
+                "hello uhm".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "hello."
+        );
     }
 
     #[test]
