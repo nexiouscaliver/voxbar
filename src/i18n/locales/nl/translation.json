@@ -809,7 +809,18 @@
     "portableUpdateMessage": "Draagbare (portable) installaties kunnen niet automatisch worden bijgewerkt. Download hieronder het installatiebestand voor je systeem, voer het uit en installeer in dezelfde map - je Data/-map (instellingen, modellen, opnames) blijft behouden.",
     "portableUpdateButton": "Installatiebestand downloaden",
     "portableUpdateBrowseMessage": "Draagbare (portable) installaties kunnen niet automatisch worden bijgewerkt. Download de nieuwste versie voor je systeem van GitHub Releases en installeer die in dezelfde map - je Data/-map (instellingen, modellen, opnames) blijft behouden.",
-    "portableUpdateBrowseButton": "GitHub Releases openen"
+    "portableUpdateBrowseButton": "GitHub Releases openen",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} is beschikbaar",
+      "availableDate": "Uitgebracht op {{date}}",
+      "downloadAction": "Downloaden en installeren",
+      "laterAction": "Later",
+      "progress": "Update downloaden... {{percent}}%",
+      "installRestart": "Update gedownload. Installeren en herstarten...",
+      "failedTitle": "Update mislukt",
+      "failedAction": "GitHub-releases openen",
+      "checkFailedTitle": "Kon niet controleren op updates"
+    }
   },
   "whatsNew": {
     "title": "Nieuw in VoxBar v{{version}}"

@@ -809,7 +809,18 @@
     "portableUpdateMessage": "便携版无法自动更新。请通过下方按钮下载适用于你的系统的安装程序，运行后安装到同一文件夹，你的 Data/ 文件夹（设置、模型、录音）会保留在原处。",
     "portableUpdateButton": "下载安装程序",
     "portableUpdateBrowseMessage": "便携版无法自动更新。请从 GitHub Releases 下载适用于你的系统的最新版本，并安装到同一文件夹，你的 Data/ 文件夹（设置、模型、录音）会保留在原处。",
-    "portableUpdateBrowseButton": "打开 GitHub Releases"
+    "portableUpdateBrowseButton": "打开 GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} 已发布",
+      "availableDate": "发布日期：{{date}}",
+      "downloadAction": "下载并安装",
+      "laterAction": "稍后",
+      "progress": "正在下载更新... {{percent}}%",
+      "installRestart": "更新已下载。正在安装并重启...",
+      "failedTitle": "更新失败",
+      "failedAction": "打开 GitHub 发布页",
+      "checkFailedTitle": "无法检查更新"
+    }
   },
   "common": {
     "loading": "加载中...",

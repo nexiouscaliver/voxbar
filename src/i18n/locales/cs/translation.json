@@ -809,7 +809,18 @@
     "portableUpdateMessage": "Přenosné instalace nelze aktualizovat automaticky. Níže stáhněte instalátor pro svůj systém, spusťte jej a nainstalujte do stejné složky - vaše složka Data/ (nastavení, modely, nahrávky) zůstane na místě.",
     "portableUpdateButton": "Stáhnout instalátor",
     "portableUpdateBrowseMessage": "Přenosné instalace nelze aktualizovat automaticky. Stáhněte nejnovější verzi pro svůj systém z GitHub Releases a nainstalujte ji do stejné složky - vaše složka Data/ (nastavení, modely, nahrávky) zůstane na místě.",
-    "portableUpdateBrowseButton": "Otevřít GitHub Releases"
+    "portableUpdateBrowseButton": "Otevřít GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} je k dispozici",
+      "availableDate": "Vydáno {{date}}",
+      "downloadAction": "Stáhnout a nainstalovat",
+      "laterAction": "Později",
+      "progress": "Stahování aktualizace... {{percent}}%",
+      "installRestart": "Aktualizace stažena. Instaluje se a restartuje...",
+      "failedTitle": "Aktualizace se nezdařila",
+      "failedAction": "Otevřít GitHub Releases",
+      "checkFailedTitle": "Nepodařilo se zkontrolovat aktualizace"
+    }
   },
   "common": {
     "loading": "Načítání...",

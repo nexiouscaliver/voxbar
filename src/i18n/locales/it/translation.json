@@ -809,7 +809,18 @@
     "portableUpdateMessage": "Le installazioni portatili non possono essere aggiornate automaticamente. Scarica qui sotto il programma di installazione per il tuo sistema, eseguilo e installalo nella stessa cartella: la cartella Data/ (impostazioni, modelli, registrazioni) viene mantenuta.",
     "portableUpdateButton": "Scarica il programma di installazione",
     "portableUpdateBrowseMessage": "Le installazioni portatili non possono essere aggiornate automaticamente. Scarica da GitHub Releases la versione più recente per il tuo sistema e installala nella stessa cartella: la cartella Data/ (impostazioni, modelli, registrazioni) viene mantenuta.",
-    "portableUpdateBrowseButton": "Apri i rilasci su GitHub"
+    "portableUpdateBrowseButton": "Apri i rilasci su GitHub",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} è disponibile",
+      "availableDate": "Pubblicato il {{date}}",
+      "downloadAction": "Scarica e installa",
+      "laterAction": "Più tardi",
+      "progress": "Scaricamento aggiornamento... {{percent}}%",
+      "installRestart": "Aggiornamento scaricato. Installazione e riavvio...",
+      "failedTitle": "Aggiornamento non riuscito",
+      "failedAction": "Apri le release su GitHub",
+      "checkFailedTitle": "Impossibile verificare gli aggiornamenti"
+    }
   },
   "common": {
     "loading": "Caricamento...",

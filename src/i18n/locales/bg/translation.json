@@ -809,7 +809,18 @@
     "portableUpdateMessage": "Преносимите инсталации не могат да бъдат актуализирани автоматично. Изтеглете инсталатора за вашата система от бутона по-долу, стартирайте го и инсталирайте в същата папка - папката Data/ (настройки, модели, записи) остава на мястото си.",
     "portableUpdateButton": "Изтегляне на инсталатора",
     "portableUpdateBrowseMessage": "Преносимите инсталации не могат да бъдат актуализирани автоматично. Изтеглете най-новата версия за вашата система от GitHub Releases и я инсталирайте в същата папка - папката Data/ (настройки, модели, записи) остава на мястото си.",
-    "portableUpdateBrowseButton": "Отвори GitHub Releases"
+    "portableUpdateBrowseButton": "Отвори GitHub Releases",
+    "updater": {
+      "availableTitle": "Наличен е VoxBar {{version}}",
+      "availableDate": "Публикуван на {{date}}",
+      "downloadAction": "Изтегляне и инсталиране",
+      "laterAction": "По-късно",
+      "progress": "Изтегляне на актуализацията... {{percent}}%",
+      "installRestart": "Актуализацията е изтеглена. Инсталиране и рестартиране...",
+      "failedTitle": "Неуспешна актуализация",
+      "failedAction": "Отваряне на GitHub Releases",
+      "checkFailedTitle": "Неуспешна проверка за актуализации"
+    }
   },
   "common": {
     "loading": "Зареждане...",

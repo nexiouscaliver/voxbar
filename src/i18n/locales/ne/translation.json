@@ -809,7 +809,18 @@
     "portableUpdateMessage": "पोर्टेबल इन्स्टलहरू स्वतः अपडेट गर्न सकिँदैन। तलबाट आफ्नो प्रणालीका लागि इन्स्टलर डाउनलोड गर्नुहोस्, चलाउनुहोस् र उही फोल्डरमा इन्स्टल गर्नुहोस् - तपाईंको Data/ फोल्डर (सेटिङ, मोडेल, रेकर्डिङ) जस्ताको तस्तै रहन्छ।",
     "portableUpdateButton": "इन्स्टलर डाउनलोड गर्नुहोस्",
     "portableUpdateBrowseMessage": "पोर्टेबल इन्स्टलहरू स्वतः अपडेट गर्न सकिँदैन। GitHub Releases बाट आफ्नो प्रणालीका लागि पछिल्लो संस्करण डाउनलोड गर्नुहोस् र उही फोल्डरमा इन्स्टल गर्नुहोस् - तपाईंको Data/ फोल्डर (सेटिङ, मोडेल, रेकर्डिङ) जस्ताको तस्तै रहन्छ।",
-    "portableUpdateBrowseButton": "GitHub Releases खोल्नुहोस्"
+    "portableUpdateBrowseButton": "GitHub Releases खोल्नुहोस्",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} उपलब्ध छ",
+      "availableDate": "{{date}} मा जारी",
+      "downloadAction": "डाउनलोड र स्थापना गर्नुहोस्",
+      "laterAction": "पछि",
+      "progress": "अपडेट डाउनलोड हुँदै... {{percent}}%",
+      "installRestart": "अपडेट डाउनलोड भयो। स्थापना र पुन: सुरु हुँदै...",
+      "failedTitle": "अपडेट असफल",
+      "failedAction": "GitHub रिलिजहरू खोल्नुहोस्",
+      "checkFailedTitle": "अपडेट जाँच गर्न सकिएन"
+    }
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} मा नयाँ"

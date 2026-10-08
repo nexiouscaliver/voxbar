@@ -30,6 +30,7 @@ import {
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
 import { WhatsNewGate } from "./components/whats-new";
+import { runUpdateCheck } from "./components/update-checker/updaterFlow";
 import { useSettings } from "./hooks/useSettings";
 import { useSettingsStore } from "./stores/settingsStore";
 import { commands } from "@/bindings";
@@ -240,6 +241,24 @@ function App() {
       unlisten.then((fn) => fn());
     };
   }, [t]);
+
+  // Tray "Check for Updates": the backend emits request-update-check and the
+  // shared flow in components/update-checker/updaterFlow.ts does check ->
+  // confirm -> download -> install -> relaunch. Mounted at App level, NOT in
+  // UpdateChecker: that component lives in the Footer, which is not rendered
+  // during onboarding or debug previews, so a Footer-mounted listener would
+  // silently drop tray clicks there. The main window is hidden, never
+  // destroyed, on close, so this listener receives the event in every app
+  // state. The flow itself no-ops when HANDY_DISABLE_UPDATER locks checks
+  // (defense in depth; the backend removes the tray item when locked).
+  useEffect(() => {
+    const unlisten = listen("request-update-check", () => {
+      void runUpdateCheck();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
 
   // Tray "Unload After → Custom…": jump to the Advanced settings section and
   // focus the custom-seconds field. The window event is re-dispatched after a

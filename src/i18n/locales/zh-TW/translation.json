@@ -809,7 +809,18 @@
     "portableUpdateMessage": "可攜式安裝無法自動更新。請透過下方按鈕下載適用於你的系統的安裝程式，執行後安裝到相同資料夾，你的 Data/ 資料夾（設定、模型、錄音）會保留在原處。",
     "portableUpdateButton": "下載安裝程式",
     "portableUpdateBrowseMessage": "可攜式安裝無法自動更新。請從 GitHub Releases 下載適用於你的系統的最新版本，並安裝到相同資料夾，你的 Data/ 資料夾（設定、模型、錄音）會保留在原處。",
-    "portableUpdateBrowseButton": "開啟 GitHub Releases"
+    "portableUpdateBrowseButton": "開啟 GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} 已推出",
+      "availableDate": "發布日期：{{date}}",
+      "downloadAction": "下載並安裝",
+      "laterAction": "稍後",
+      "progress": "正在下載更新... {{percent}}%",
+      "installRestart": "更新已下載。正在安裝並重新啟動...",
+      "failedTitle": "更新失敗",
+      "failedAction": "開啟 GitHub 發布頁面",
+      "checkFailedTitle": "無法檢查更新"
+    }
   },
   "common": {
     "loading": "載入中...",

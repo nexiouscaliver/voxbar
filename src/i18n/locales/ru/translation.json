@@ -809,7 +809,18 @@
     "portableUpdateMessage": "Портативные установки нельзя обновить автоматически. Скачайте ниже установщик для вашей системы, запустите его и установите в ту же папку - папка Data/ (настройки, модели, записи) останется на месте.",
     "portableUpdateButton": "Скачать установщик",
     "portableUpdateBrowseMessage": "Портативные установки нельзя обновить автоматически. Скачайте последнюю версию для вашей системы со страницы GitHub Releases и установите её в ту же папку - папка Data/ (настройки, модели, записи) останется на месте.",
-    "portableUpdateBrowseButton": "Открыть GitHub Releases"
+    "portableUpdateBrowseButton": "Открыть GitHub Releases",
+    "updater": {
+      "availableTitle": "Доступна VoxBar {{version}}",
+      "availableDate": "Опубликована {{date}}",
+      "downloadAction": "Скачать и установить",
+      "laterAction": "Позже",
+      "progress": "Загрузка обновления... {{percent}}%",
+      "installRestart": "Обновление загружено. Установка и перезапуск...",
+      "failedTitle": "Не удалось обновить",
+      "failedAction": "Открыть релизы GitHub",
+      "checkFailedTitle": "Не удалось проверить обновления"
+    }
   },
   "common": {
     "loading": "Загрузка...",
