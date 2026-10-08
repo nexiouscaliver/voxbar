@@ -357,7 +357,11 @@ pub(crate) fn is_coalescible_symbol(text: &str) -> bool {
 ///
 /// * `Insert` appends the literal text (punctuation, line breaks); a
 ///   repeated identical single-symbol insert onto a trimmed buffer tail
-///   that already ends with that symbol is skipped (coalescing);
+///   that already ends with that symbol is skipped (coalescing), UNLESS
+///   the immediately preceding action in THIS delta inserted the same
+///   symbol: same-delta repeats are intentional doubles ("comma comma"
+///   said in one breath lands ",,") while the cross-delta repeat is the
+///   "looked dead" retry that coalesces;
 /// * `DeleteWord` removes the trailing word from the buffer, using the
 ///   same word semantics as the delete-last-word hotkey and the
 ///   voice-deletion "scratch that" (attached punctuation goes with the
@@ -386,6 +390,11 @@ pub fn apply_command_delta_to_buffer(
     matrix: &CompiledCommandMatrix,
 ) -> Option<String> {
     let mut removed: Option<String> = None;
+    // The immediately preceding action in THIS delta: an intentional
+    // same-delta repeat of the same symbol must land, while the same
+    // symbol arriving in a LATER delta is the "looked dead" retry that
+    // coalesces.
+    let mut previous_action: Option<CommandAction> = None;
     for action in parse_command_transcript(delta, matrix) {
         match action {
             CommandAction::Insert(text) => {
@@ -394,9 +403,16 @@ pub fn apply_command_delta_to_buffer(
                 // The trim ignores spaces/tabs (a delete-word leaves them
                 // behind) but NEVER a line break: "new line" then "comma"
                 // must still land "\n," (spec F2 item 5), so a full
-                // str::trim_end would be wrong here.
+                // str::trim_end would be wrong here. An insert that
+                // directly follows the SAME insert in this delta is an
+                // intentional double and skips the coalescing check.
+                let same_delta_double = previous_action == Some(CommandAction::Insert(text));
                 let trimmed_tail = &buffer[..buffer.trim_end_matches([' ', '\t']).len()];
-                if is_coalescible_symbol(text) && trimmed_tail.ends_with(text) {
+                if !same_delta_double
+                    && is_coalescible_symbol(text)
+                    && trimmed_tail.ends_with(text)
+                {
+                    previous_action = Some(action);
                     continue;
                 }
                 buffer.push_str(text);
@@ -415,6 +431,7 @@ pub fn apply_command_delta_to_buffer(
             // Target-app actions: inert during a live session.
             CommandAction::Undo | CommandAction::Paste => {}
         }
+        previous_action = Some(action);
     }
     removed
 }
@@ -706,14 +723,20 @@ mod tests {
         let mut buffer = "hello world".to_string();
         apply_command_delta_to_buffer(&mut buffer, "comma", &dm());
         assert_eq!(buffer, "hello world,");
-        // Repeating the identical symbol command (the operator's old
-        // response to a command that LOOKED dead) coalesces to one.
+        // Repeating the identical symbol command across DELTAS (the
+        // operator's old response to a command that LOOKED dead) still
+        // coalesces to one.
         apply_command_delta_to_buffer(&mut buffer, "comma", &dm());
         assert_eq!(buffer, "hello world,");
-        // Same within one delta: per-token conversion this is not.
-        let mut once = "x".to_string();
-        apply_command_delta_to_buffer(&mut once, "comma comma", &dm());
-        assert_eq!(once, "x,");
+        // Same-delta repeats are INTENTIONAL doubles ("comma comma" said
+        // in one breath): both land.
+        let mut twice = "x".to_string();
+        apply_command_delta_to_buffer(&mut twice, "comma comma", &dm());
+        assert_eq!(twice, "x,,");
+        // Three in a row stack three.
+        let mut triple = "x".to_string();
+        apply_command_delta_to_buffer(&mut triple, "comma comma comma", &dm());
+        assert_eq!(triple, "x,,,");
     }
 
     #[test]
