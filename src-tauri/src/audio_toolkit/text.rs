@@ -1,4 +1,4 @@
-use super::command_matrix::{CompiledCommandMatrix, VoiceDeletionKind};
+use super::command_matrix::{ ATTACHED_MARKS, CompiledCommandMatrix, VoiceDeletionKind };
 use super::commands::is_coalescible_symbol;
 use natural::phonetics::soundex;
 use once_cell::sync::Lazy;
@@ -531,9 +531,9 @@ pub fn normalize_spoken_punctuation(text: &str, matrix: &CompiledCommandMatrix) 
     let mut skip_leading_space = false;
 
     for token in matrix.punctuation_pattern_matches(text) {
-        // Strip the optional trailing [,.]? the pattern may have consumed so
+        // Strip the optional attached mark the pattern may have consumed so
         // the lookup key is the pure spoken phrase.
-        let phrase = token.as_str().trim_end_matches([',', '.']);
+        let phrase = token.as_str().trim_end_matches(ATTACHED_MARKS);
         let Some(replacement) = matrix.punctuation_replacement(&phrase.to_lowercase()) else {
             continue;
         };
@@ -1546,6 +1546,28 @@ mod tests {
         assert_eq!(
             normalize_spoken_punctuation("para new paragraph new paragraph", &dm()),
             "para\n\n\n\n"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_attached_mark_on_command_word_converts_once() {
+        // The model punctuated the command token itself; the attached mark
+        // converts with the word instead of stranding a second one.
+        assert_eq!(
+            normalize_spoken_punctuation("is it fine question mark?", &dm()),
+            "is it fine?"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("items colon: one", &dm()),
+            "items: one"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("wait comma; then", &dm()),
+            "wait, then"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("really exclamation mark! yes", &dm()),
+            "really! Yes"
         );
     }
 
