@@ -3542,6 +3542,32 @@ mod tests {
     }
 
     #[test]
+    fn session_buffer_release_flush_fuzzy_near_miss_fragment_resolves() {
+        // Declared narrowed contract: a release-time held fragment that is
+        // a proper prefix of a >= 5-char single-word phrase AND within edit
+        // distance 1 of it resolves to that command at flush. The user was
+        // issuing a command, so converting is the desired outcome.
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+        assert_eq!(
+            session.render("hello world perio", "", true),
+            "hello world perio"
+        );
+        assert_eq!(session.render("hello world perio", "", false), "hello world.");
+        // Fragments outside fuzzy reach ("com" is 3 chars, distance 2 from
+        // "comma") still discard: the pre-existing pin's exact input.
+        let mut short = session_buffer();
+        short.render("hello world", "", false);
+        short.render("hello world", "", true); // engage
+        assert_eq!(
+            short.render("hello world com", "", true),
+            "hello world com"
+        );
+        assert_eq!(short.render("hello world com", "", false), "hello world");
+    }
+
+    #[test]
     fn session_buffer_command_modifier_release_flush_resolves_and_appends_dictation() {
         let mut session = session_buffer();
         session.render("hello world", "", false);

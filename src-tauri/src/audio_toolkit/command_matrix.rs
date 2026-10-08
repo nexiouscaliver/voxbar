@@ -355,6 +355,18 @@ fn sorted_by_word_count_descending<T>(mut items: Vec<T>, words: impl Fn(&T) -> u
     items
 }
 
+/// One phrase's regex fragment: its tokens escaped and joined with `\s+`,
+/// so a phrase matches whatever inner whitespace the model emitted (a
+/// double space inside "question  mark" still matches) while the phrase
+/// boundaries stay token-exact.
+fn phrase_regex_fragment(phrase: &str) -> String {
+    phrase
+        .split_whitespace()
+        .map(regex::escape)
+        .collect::<Vec<_>>()
+        .join(r"\s+")
+}
+
 /// Compile an entry list into every consumer surface. Defensive against
 /// imperfect stores: empty phrases are skipped (validation happens on
 /// write), never panics.
@@ -393,7 +405,7 @@ pub fn compile_command_matrix(entries: &[CommandMatrixEntry]) -> CompiledCommand
         .collect();
     let punctuation_alternation = punctuation
         .iter()
-        .map(|(phrase, _)| regex::escape(phrase))
+        .map(|(phrase, _)| phrase_regex_fragment(phrase))
         .collect::<Vec<_>>()
         .join("|");
     let attached_class: String = ATTACHED_MARKS.iter().collect();

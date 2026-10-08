@@ -1673,6 +1673,27 @@ mod tests {
     }
 
     #[test]
+    fn test_spoken_punctuation_tolerates_inner_phrase_whitespace() {
+        // The model may emit a double space inside a multi-word phrase; the
+        // phrase still matches and the lookup key collapses whitespace.
+        assert_eq!(
+            normalize_spoken_punctuation("is it fine question  mark", &dm()),
+            "is it fine?"
+        );
+        assert_eq!(normalize_spoken_punctuation("new  line next", &dm()), "\nnext");
+        // The text pass stays EXACT: near-miss words never convert here
+        // (fuzzy matching is command-mode only; "coma" is a real word).
+        assert_eq!(
+            normalize_spoken_punctuation("a coma patient", &dm()),
+            "a coma patient"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("questionmark", &dm()),
+            "questionmark"
+        );
+    }
+
+    #[test]
     fn test_spoken_punctuation_capitalizes_after_sentence_end_only() {
         assert_eq!(
             normalize_spoken_punctuation("first full stop second", &dm()),

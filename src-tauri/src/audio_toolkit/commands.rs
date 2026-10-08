@@ -57,6 +57,7 @@ use super::command_matrix::CompiledCommandMatrix;
 use super::text::{
     remove_trailing_line_from_buffer_reporting, remove_trailing_word_from_buffer_reporting,
 };
+use strsim::levenshtein;
 
 /// One parsed command-mode action, in transcript order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -236,10 +237,42 @@ pub(crate) fn flush_command_prefix_len(text: &str, matrix: &CompiledCommandMatri
     consumed
 }
 
+/// Minimum length (characters) a single-word phrase must have before a
+/// command-mode token may fuzzy match it at edit distance 1. Long enough
+/// that everyday near-misses of short phrases ("pas" vs "paste") never
+/// fire, short enough to catch whisper's real misspellings ("coma" for
+/// "comma").
+const FUZZY_MIN_PHRASE_CHARS: usize = 5;
+
+/// Command-mode-only fuzzy resolution: the action of a single-word SYMBOL
+/// phrase (an Insert) of at least [`FUZZY_MIN_PHRASE_CHARS`] characters
+/// within edit distance 1 of `token`. The modifier being held says "this
+/// is a command", so a near-miss of an unambiguous spoken symbol command
+/// resolves to it; normal dictation (the text pass) never fuzzy matches.
+/// Deliberately scoped to Insert actions: the control commands (Paste is
+/// 5 characters) sit inside ordinary vocabulary ("pastel"), and a spurious
+/// target-app command is worse than a discarded filler word.
+fn fuzzy_single_token_action(token: &str, matrix: &CompiledCommandMatrix) -> Option<CommandAction> {
+    matrix
+        .parser
+        .iter()
+        .filter(|(phrase, action)| {
+            phrase.len() == 1 && matches!(action, CommandAction::Insert(_))
+        })
+        .find(|(phrase, _)| {
+            phrase[0].chars().count() >= FUZZY_MIN_PHRASE_CHARS
+                && levenshtein(token, &phrase[0]) == 1
+        })
+        .map(|(_, action)| *action)
+}
+
 /// Parse a raw transcript into the command sequence it spells out, in
 /// transcript order. The vocabulary is the compiled command matrix;
 /// unmatched words are discarded; a transcript with no recognized
-/// commands yields an empty vector.
+/// commands yields an empty vector. A single token within edit distance 1
+/// of a >= 5-character single-word phrase resolves to that command
+/// (command mode is explicitly commanding; see
+/// [`fuzzy_single_token_action`]).
 pub fn parse_command_transcript(
     transcript: &str,
     matrix: &CompiledCommandMatrix,
@@ -275,10 +308,16 @@ pub fn parse_command_transcript(
                 actions.push(action);
                 position += length;
             }
-            None => {
-                // Unrecognized word: consume and discard it.
-                position += 1;
-            }
+            None => match fuzzy_single_token_action(&tokens[position], matrix) {
+                Some(action) => {
+                    actions.push(action);
+                    position += 1;
+                }
+                None => {
+                    // Unrecognized word: consume and discard it.
+                    position += 1;
+                }
+            },
         }
     }
 
@@ -666,6 +705,27 @@ mod tests {
         // A period after a comma is a different symbol: both land.
         apply_command_delta_to_buffer(&mut mixed, "period", &dm());
         assert_eq!(mixed, "x,?.");
+    }
+
+    #[test]
+    fn command_mode_fuzzy_single_word_near_miss_resolves() {
+        // Command mode only: a single token within edit distance 1 of a
+        // single-word phrase of at least 5 characters resolves to it. The
+        // held modifier says "this is a command", so "coma" lands the comma
+        // whisper refused to spell straight. Normal dictation never fuzzy
+        // matches (pinned in text.rs: "a coma patient").
+        let mut buffer = "hello".to_string();
+        apply_command_delta_to_buffer(&mut buffer, "coma", &dm());
+        assert_eq!(buffer, "hello,");
+        // Distance 2 ("com" vs "comma") still does not fire.
+        let mut far = "hello".to_string();
+        apply_command_delta_to_buffer(&mut far, "com", &dm());
+        assert_eq!(far, "hello");
+        // Near-misses of phrases shorter than 5 characters never fire
+        // either ("pas" is 2 edits from "paste", 3 from "hash").
+        let mut none = "hello".to_string();
+        apply_command_delta_to_buffer(&mut none, "pas", &dm());
+        assert_eq!(none, "hello");
     }
 
     #[test]
