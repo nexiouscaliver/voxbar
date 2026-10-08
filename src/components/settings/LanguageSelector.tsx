@@ -24,17 +24,24 @@ interface LanguageSelectorProps {
 // *concrete* code the engine receives (e.g. `nb`); this resolves the canonical
 // picker intent (e.g. `no`) so model switches preserve the user's language.
 // Model codes such as `en-US` and `nb` resolve to their `en` / `no` entry.
+// An intent that is itself an exact LANGUAGES value keeps the intent verbatim:
+// a script-carrying tag like `hi-Latn` (Hinglish) highlights its own row
+// instead of collapsing to the base `hi` row.
 const effectiveLanguage = (
   intent: string,
   supported: string[],
   supportsDetection: boolean,
 ): string => {
-  if (supported.length === 0) return recognitionLanguage(intent);
+  const resolve = (code: string): string =>
+    LANGUAGES.some((language) => language.value === code)
+      ? code
+      : recognitionLanguage(code);
+  if (supported.length === 0) return resolve(intent);
   if (intent !== "auto" && supportsLanguageCode(supported, intent))
-    return recognitionLanguage(intent);
+    return resolve(intent);
   if (supportsDetection) return "auto";
   if (supportsLanguageCode(supported, "en")) return "en";
-  return recognitionLanguage(supported[0]);
+  return resolve(supported[0]);
 };
 
 export const LanguageSelector: React.FC<LanguageSelectorProps> = ({

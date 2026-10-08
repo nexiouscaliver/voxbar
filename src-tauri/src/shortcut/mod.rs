@@ -1536,6 +1536,43 @@ pub fn change_spoken_punctuation_setting(app: AppHandle, enabled: bool) -> Resul
 
 #[tauri::command]
 #[specta::specta]
+pub fn change_auto_interpret_commands_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.auto_interpret_commands = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// Write the edited command matrix. `Some(entries)` normalizes every
+/// phrase and validates the table (empty phrases, over-length phrases,
+/// duplicates across commands) before anything is persisted; the error
+/// string surfaces in the UI toast. `None` resets to the built-in
+/// defaults.
+#[tauri::command]
+#[specta::specta]
+pub fn update_command_matrix(
+    app: AppHandle,
+    entries: Option<Vec<crate::audio_toolkit::command_matrix::CommandMatrixEntry>>,
+) -> Result<(), String> {
+    let entries = crate::audio_toolkit::command_matrix::normalize_and_validate_matrix(entries)?;
+    let mut settings = settings::get_settings(&app);
+    settings.command_phrases = entries;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// The built-in default command matrix, read by the Settings editor so
+/// the default phrases come from the backend instead of being duplicated
+/// in TypeScript.
+#[tauri::command]
+#[specta::specta]
+pub fn get_default_command_matrix() -> Vec<crate::audio_toolkit::command_matrix::CommandMatrixEntry>
+{
+    crate::audio_toolkit::command_matrix::default_command_matrix()
+}
+
+#[tauri::command]
+#[specta::specta]
 pub fn change_terminal_punctuation_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.terminal_punctuation = enabled;

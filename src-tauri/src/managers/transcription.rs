@@ -1,7 +1,13 @@
+use crate::audio_toolkit::command_matrix::{
+    matrix_from_settings, CompiledCommandMatrix,
+};
+use crate::audio_toolkit::commands::{
+    flush_command_prefix_len, held_prefix_len,
+};
 use crate::audio_toolkit::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion, detect_output_language,
     interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
-    remove_filler_words, remove_trailing_word_from_buffer, OutputLanguageEvidence,
+    remove_filler_words, remove_trailing_word_from_buffer_reporting, OutputLanguageEvidence,
     VoiceDeletionOutcome,
 };
 use crate::chinese_script::{convert_chinese_script, ChineseVariety};
@@ -10,7 +16,9 @@ use crate::engine_supervisor::{
     StreamProgress, Unloading,
 };
 use crate::managers::audio::AudioRecordingManager;
-use crate::managers::model::{EngineType, ModelInfo, ModelManager, ModelSource};
+use crate::managers::model::{
+    canonical_language_code, EngineType, ModelInfo, ModelManager, ModelSource,
+};
 use crate::memory;
 use crate::settings::{
     get_settings, AppSettings, ChineseScript, ModelUnloadTimeout, OrtAcceleratorSetting,
@@ -86,10 +94,28 @@ fn fallback_rank(info: &ModelInfo) -> u32 {
 fn fallback_candidate_list(
     models: &[ModelInfo],
     failed_id: &str,
+    language_intent: &str,
 ) -> Vec<memory::FallbackCandidate> {
+    // Language-aware (spec F7): when the intent is concrete and not
+    // English, only candidates serving the intent's base code are
+    // offered. A silent swap to a wrong-language model would effectively
+    // translate the dictation; with no downloaded candidate both fitting
+    // RAM and serving the language, the gate's existing Refuse path
+    // stands.
+    let intent_base = canonical_language_code(language_intent);
+    let language_gated =
+        !language_intent.is_empty() && language_intent != "auto" && intent_base != "en";
     models
         .iter()
-        .filter(|info| info.is_downloaded && info.id != failed_id)
+        .filter(|info| {
+            info.is_downloaded
+                && info.id != failed_id
+                && (!language_gated
+                    || info
+                        .supported_languages
+                        .iter()
+                        .any(|lang| canonical_language_code(lang) == intent_base))
+        })
         .map(|info| memory::FallbackCandidate {
             rank: fallback_rank(info),
             footprint_bytes: info.size_mb.saturating_mul(1024 * 1024),
@@ -181,11 +207,19 @@ pub struct ModelFallbackEvent {
 
 /// Live transcription snapshot emitted to the overlay during a streaming run.
 /// `committed` is the append-only, flicker-free prefix; `tentative` is the
-/// volatile suffix the model may still rewrite.
+/// volatile suffix the model may still rewrite. `deleted` carries the text a
+/// buffer-side deletion just removed (the delete-word hotkey or a command-mode
+/// DeleteWord / DeleteLine) so the overlay can show what went; absent from
+/// the payload entirely when nothing was deleted.
 #[derive(Clone, Debug, Serialize, Deserialize, Type, tauri_specta::Event)]
 pub struct StreamTextEvent {
     pub committed: String,
     pub tentative: String,
+    /// Present only when a buffer-side deletion just removed text; the
+    /// payload omits the key entirely otherwise (the StreamPhaseEvent
+    /// `kind` precedent).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub deleted: Option<String>,
 }
 
 /// Phase of the streaming overlay card, emitted to drive its UI state.
@@ -295,6 +329,30 @@ struct StreamSessionBuffer {
     /// flag mirrors the coordinator's decision (press during a live
     /// session) at snapshot granularity; see [`Self::render`].
     command_active: bool,
+    /// True while a command delta's trailing fragment is HELD BACK (a
+    /// proper prefix of some command phrase, possibly a partial word).
+    /// The held region is the `raw_seen` shortfall itself (nothing is
+    /// stored twice); the marker exists because `render` assigns
+    /// `last_full` BEFORE the modifier branch, so a release-tick
+    /// shortfall alone cannot tell a held fragment apart from FRESH
+    /// release-snapshot dictation. Only a set marker fires the
+    /// release/finalize flush.
+    holding: bool,
+    /// Text removed by the most recent buffer-side deletion (the
+    /// delete-word hotkey or a command-mode DeleteWord / DeleteLine), set
+    /// by whichever path applied it and drained by [`Self::take_deleted`]
+    /// for the next stream-text emission so the overlay can show what
+    /// went. Draining keeps a stale value off later emissions.
+    last_deleted: Option<String>,
+    /// The compiled command matrix this session's command grammar and
+    /// interim transforms run against, captured at `begin` (the edited
+    /// table when `command_phrases` is set, the shared defaults
+    /// otherwise). Per-tick cost is a clone of an Arc; no regex rebuilds.
+    matrix: Arc<CompiledCommandMatrix>,
+    /// Captured at `begin` from `selected_language == "hi-Latn"`: the
+    /// interim display transliterates Devanagari to Roman so the overlay
+    /// matches the paste (the finalize pipeline does the same).
+    hinglish: bool,
     /// Toggles for the interim display transform, captured when the stream
     /// begins (a mid-session toggle applies from the next session, matching
     /// how `PreviewScript` captures `chinese_script` today).
@@ -312,6 +370,10 @@ impl Default for StreamSessionBuffer {
         Self {
             live: false,
             command_active: false,
+            holding: false,
+            last_deleted: None,
+            matrix: crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            hinglish: false,
             spoken_punctuation: true,
             voice_deletion: true,
             preview_script: PreviewScript::new(
@@ -333,13 +395,19 @@ impl StreamSessionBuffer {
         spoken_punctuation: bool,
         voice_deletion: bool,
         supported_languages: &[String],
+        matrix: Arc<CompiledCommandMatrix>,
+        hinglish: bool,
     ) {
         self.live = true;
         self.command_active = false;
+        self.holding = false;
+        self.last_deleted = None;
         self.spoken_punctuation = spoken_punctuation;
         self.voice_deletion = voice_deletion;
         self.preview_script = preview_script;
         self.supported_languages = supported_languages.to_vec();
+        self.matrix = matrix;
+        self.hinglish = hinglish;
         self.base.clear();
         self.raw_seen.clear();
         self.last_full.clear();
@@ -348,6 +416,8 @@ impl StreamSessionBuffer {
     fn end(&mut self) {
         self.live = false;
         self.command_active = false;
+        self.holding = false;
+        self.last_deleted = None;
         self.base.clear();
         self.raw_seen.clear();
         self.last_full.clear();
@@ -375,11 +445,24 @@ impl StreamSessionBuffer {
     /// included, so a word completing across the boundary is never
     /// truncated into a bogus one-letter command) and marks it consumed
     /// via `raw_seen`; only material arriving on later snapshots parses
-    /// as commands. Releasing resumes normal dictation from the end of
-    /// the last consumed snapshot; the finalized buffer (and therefore
-    /// the final paste) is exactly the edited `base` plus any later
-    /// normal speech, because `combine_final` never re-consumes material
-    /// covered by `raw_seen`.
+    /// as commands.
+    ///
+    /// A delta whose TRAILING token sequence is a proper prefix of some
+    /// command phrase (the last token possibly a partial word, as when a
+    /// streaming snapshot cuts "comma" into "com") is HELD BACK: the
+    /// delta before the fragment applies, `raw_seen` stops at the
+    /// fragment's start INCLUDING its preceding separator, and the
+    /// `holding` marker is set. Nothing is stored twice: the shortfall
+    /// between `raw_seen` and the snapshot IS the held region, so the
+    /// next delta re-includes the whole token and nothing double-counts;
+    /// the fragment stays visible in the interim display, separator
+    /// included. Releasing with a fragment held flushes it through the
+    /// grammar (see [`Self::flush_held_region`]) and then resumes normal
+    /// dictation from the consumed boundary; releasing with nothing held
+    /// behaves exactly as before. The finalized buffer (and therefore the
+    /// final paste) is exactly the edited `base` plus any later normal
+    /// speech, because `combine_final` never re-consumes material covered
+    /// by `raw_seen`.
     fn render(&mut self, committed: &str, tentative: &str, command_modifier: bool) -> String {
         let snapshot = format!("{committed}{tentative}");
         self.last_full = snapshot.clone();
@@ -391,17 +474,85 @@ impl StreamSessionBuffer {
             } else {
                 let keep = common_prefix_len(&self.raw_seen, &snapshot);
                 let delta = snapshot[keep..].to_string();
-                self.raw_seen = snapshot;
-                crate::audio_toolkit::apply_command_delta_to_buffer(&mut self.base, &delta);
+                let held = held_prefix_len(&delta, &self.matrix);
+                let applicable_end = delta.len() - held;
+                self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
+                    &mut self.base,
+                    &delta[..applicable_end],
+                    &self.matrix,
+                );
+                self.raw_seen = snapshot[..snapshot.len() - held].to_string();
+                self.holding = held > 0;
             }
+        } else if self.holding {
+            // Release tick with a fragment still held: the shortfall
+            // mixes the held fragment with the release snapshot's FRESH
+            // dictation, which is why the marker gates this flush. Apply
+            // the flush span rule from raw_seen's end (the common prefix;
+            // an engine revision inside the held region is consumed by
+            // the same rule, the pre-existing revision edge), then resume
+            // normal dictation: the remainder of the release snapshot
+            // flows through combine() and is never parsed as commands.
+            let start = common_prefix_len(&self.raw_seen, &snapshot);
+            let region = snapshot[start..].to_string();
+            let consumed = self.flush_held_region(&region);
+            self.raw_seen = snapshot[..start + consumed].to_string();
+            self.holding = false;
+            self.command_active = false;
         } else {
             self.command_active = false;
         }
+        self.interim_display()
+    }
+
+    /// The interim display string for the combined raw buffer: script
+    /// conversion, then Hinglish transliteration (Devanagari to Roman,
+    /// captured at `begin` from the "hi-Latn" intent so the overlay
+    /// matches the paste), then the interim text passes.
+    fn interim_display(&mut self) -> String {
         let raw = self.combine(&self.last_full);
         let (converted, _) = self
             .preview_script
             .convert(&raw, "", &self.supported_languages);
-        interim_display_transform(&converted, self.spoken_punctuation, self.voice_deletion)
+        let converted = if self.hinglish {
+            crate::hindi_script::transliterate_devanagari_to_roman(&converted)
+        } else {
+            converted
+        };
+        interim_display_transform(
+            &converted,
+            self.spoken_punctuation,
+            self.voice_deletion,
+            &self.matrix,
+        )
+    }
+
+    /// Flush an unresolved held fragment through the command grammar and
+    /// return the byte count the flush consumed from `region`. Shared by
+    /// the release tick and the finalize fold: consume the region's first
+    /// word with its preceding separator, then whole words while the span
+    /// remains a proper prefix of some command phrase (so a held " new l"
+    /// resolves to the whole "new line"); the consumed span parses as
+    /// commands (unrecognized words discarded per the contract) and any
+    /// remainder stays unconsumed, flowing on as normal dictation.
+    fn flush_held_region(&mut self, region: &str) -> usize {
+        let consumed = flush_command_prefix_len(region, &self.matrix);
+        if consumed > 0 {
+            self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
+                &mut self.base,
+                &region[..consumed],
+                &self.matrix,
+            );
+        }
+        consumed
+    }
+
+    /// Take the text removed by the most recent buffer-side deletion (the
+    /// delete-word hotkey or a command-mode DeleteWord / DeleteLine), if
+    /// any, so the caller can surface it on the stream-text emission.
+    /// Draining keeps a stale value off later emissions.
+    fn take_deleted(&mut self) -> Option<String> {
+        self.last_deleted.take()
     }
 
     /// Apply the delete-last-word hotkey to the buffer. Returns the refreshed
@@ -412,17 +563,15 @@ impl StreamSessionBuffer {
             return None;
         }
         let buffer = self.combine(&self.last_full);
-        self.base = remove_trailing_word_from_buffer(&buffer);
+        let (edited, removed_word) = remove_trailing_word_from_buffer_reporting(&buffer);
+        self.base = edited;
+        // Report what the hotkey removed so the overlay can show it.
+        self.last_deleted = removed_word;
         self.raw_seen = self.last_full.clone();
-        let raw = self.combine(&self.last_full);
-        let (converted, _) = self
-            .preview_script
-            .convert(&raw, "", &self.supported_languages);
-        Some(interim_display_transform(
-            &converted,
-            self.spoken_punctuation,
-            self.voice_deletion,
-        ))
+        // The held region (if any) is consumed unparsed; a stale marker
+        // must never fire a later flush.
+        self.holding = false;
+        Some(self.interim_display())
     }
 
     /// Clear everything dictated so far, keeping the session live: the
@@ -436,21 +585,33 @@ impl StreamSessionBuffer {
         }
         self.base = String::new();
         self.raw_seen = self.last_full.clone();
-        let raw = self.combine(&self.last_full);
-        let (converted, _) = self
-            .preview_script
-            .convert(&raw, "", &self.supported_languages);
-        Some(interim_display_transform(
-            &converted,
-            self.spoken_punctuation,
-            self.voice_deletion,
-        ))
+        // Same as the delete-word hotkey: the reset consumes any held
+        // fragment without parsing it, and the marker must not survive.
+        // The clear-everything reset is not one of the instrumented
+        // word/line deletions, so nothing is reported as removed.
+        self.holding = false;
+        self.last_deleted = None;
+        Some(self.interim_display())
     }
 
     /// Fold the engine's final raw text into the buffer and end the session.
     /// With no manual edits this is exactly the engine text unchanged.
+    ///
+    /// A fragment still held at finalize flushes through the grammar first
+    /// (ONLY on the `holding` marker: final material beyond the last
+    /// consumed snapshot is dictation by design, so a raw_seen shortfall
+    /// alone must not trigger a parse). The flush consumes from the common
+    /// prefix with `raw_seen`; everything beyond stays dictation and the
+    /// fold appends it as usual.
     fn combine_final(&mut self, final_raw: String) -> String {
         let combined = if self.live {
+            if self.holding {
+                let start = common_prefix_len(&self.raw_seen, &final_raw);
+                let region = final_raw[start..].to_string();
+                let consumed = self.flush_held_region(&region);
+                self.raw_seen = final_raw[..start + consumed].to_string();
+                self.holding = false;
+            }
             let keep = common_prefix_len(&self.raw_seen, &final_raw);
             join_raw(&self.base, &final_raw[keep..])
         } else {
@@ -801,7 +962,12 @@ impl TranscriptionManager {
     /// compares. Nothing is ever downloaded for this list: it only inventories
     /// what is already on disk.
     fn fallback_candidates(&self, failed_id: &str) -> Vec<memory::FallbackCandidate> {
-        fallback_candidate_list(&self.model_manager.get_available_models(), failed_id)
+        let language_intent = get_settings(&self.app_handle).selected_language;
+        fallback_candidate_list(
+            &self.model_manager.get_available_models(),
+            failed_id,
+            &language_intent,
+        )
     }
 
     /// Accelerator changes should not disturb the current transcription. Mark
@@ -1508,11 +1674,15 @@ impl TranscriptionManager {
                     let command_modifier = app_handle
                         .try_state::<crate::TranscriptionCoordinator>()
                         .is_some_and(|c| c.is_command_modifier_active());
-                    let display = {
+                    let (display, deleted) = {
                         let mut session = session_buffer_for_progress
                             .lock()
                             .unwrap_or_else(|e| e.into_inner());
-                        session.render(&text.committed, &text.tentative, command_modifier)
+                        let display =
+                            session.render(&text.committed, &text.tentative, command_modifier);
+                        // Surface what a command-mode deletion just removed
+                        // (None on every ordinary tick).
+                        (display, session.take_deleted())
                     };
                     // The whole displayed text is emitted as the committed
                     // part: the interim transform runs over the full raw
@@ -1520,23 +1690,29 @@ impl TranscriptionManager {
                     // be preserved exactly across punctuation joins and
                     // deletions. The model's own rewrites still surface
                     // because the display is recomputed from every snapshot.
-                    emit_stream_text(&app_handle, &display, "");
+                    emit_stream_text(&app_handle, &display, "", deleted.as_deref());
                 }
                 perf.maybe_log();
             }
         };
 
         // The session buffer goes live before the engine stream starts, so
-        // no interim callback can race past `begin`. Toggles are captured
-        // here (once per session), matching `PreviewScript`.
+        // no interim callback can race past `begin`. Toggles and the
+        // compiled command matrix are captured here (once per session),
+        // matching `PreviewScript`. The auto-interpretation master gate
+        // ANDs with the per-pass toggles (same composition as
+        // post_process_transcription_text) so the interim display matches
+        // the paste.
         self.session_buffer
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .begin(
                 preview_script,
-                settings.spoken_punctuation,
-                settings.voice_deletion_commands,
+                settings.spoken_punctuation && settings.auto_interpret_commands,
+                settings.voice_deletion_commands && settings.auto_interpret_commands,
                 &languages,
+                matrix_from_settings(&settings),
+                settings.selected_language == "hi-Latn",
             );
 
         // Run the stream in the engine's worker process. Feeds are queued
@@ -1715,9 +1891,11 @@ impl TranscriptionManager {
             .unwrap_or_else(|e| e.into_inner());
         match session.delete_last_word() {
             Some(display) => {
+                let deleted = session.take_deleted();
                 let _ = StreamTextEvent {
                     committed: display,
                     tentative: String::new(),
+                    deleted,
                 }
                 .emit(&self.app_handle);
                 true
@@ -1740,6 +1918,10 @@ impl TranscriptionManager {
                 let _ = StreamTextEvent {
                     committed: display,
                     tentative: String::new(),
+                    // The clear-everything reset is not one of the
+                    // instrumented word/line deletions; nothing reports as
+                    // removed.
+                    deleted: None,
                 }
                 .emit(&self.app_handle);
                 true
@@ -2191,10 +2373,16 @@ struct RunOutcome {
     model_is_whisper: bool,
 }
 
-fn emit_stream_text(app_handle: &AppHandle, committed: &str, tentative: &str) {
+fn emit_stream_text(
+    app_handle: &AppHandle,
+    committed: &str,
+    tentative: &str,
+    deleted: Option<&str>,
+) {
     let _ = StreamTextEvent {
         committed: committed.to_string(),
         tentative: tentative.to_string(),
+        deleted: deleted.map(str::to_string),
     }
     .emit(app_handle);
 }
@@ -2348,8 +2536,8 @@ fn resolve_output_language_evidence(
     if let Some(language) = applied_language_hint.filter(|lang| !lang.is_empty() && *lang != "auto")
     {
         if settings.selected_language != "auto"
-            && crate::managers::model::canonical_language_code(&settings.selected_language)
-                == crate::managers::model::canonical_language_code(language)
+            && canonical_language_code(&settings.selected_language)
+                == canonical_language_code(language)
         {
             return OutputLanguageEvidence::UserSelected(language.to_string());
         }
@@ -2429,6 +2617,10 @@ fn post_process_transcription_text(
     supported_languages: &[String],
 ) -> String {
     let converts_script = settings.chinese_script != ChineseScript::AsTranscribed;
+    // The command matrix compiles once per call (shared Arc for the
+    // defaults; only an edited table builds fresh regexes) and feeds both
+    // spoken-command passes below.
+    let matrix = matrix_from_settings(settings);
     fail_open_text_transform(raw, |raw| {
         // Last-resort language evidence: confidence-gated detection from the
         // transcribed text itself, constrained to the model's languages. Only
@@ -2464,12 +2656,26 @@ fn post_process_transcription_text(
             _ => raw,
         };
 
+        // Hinglish (selected_language "hi-Latn") expresses a SCRIPT intent:
+        // the model still yields Devanagari, so transliterate to Roman
+        // before every text pass. This is script conversion (the same class
+        // as the Chinese slot above), never translation, and it only runs
+        // when the intent explicitly selects it.
+        let raw = if settings.selected_language == "hi-Latn" {
+            crate::hindi_script::transliterate_devanagari_to_roman(&raw)
+        } else {
+            raw
+        };
+
         // Spoken punctuation first, then voice deletion, then the terminal
         // fallback, so the custom-word pass and every later stage see final
         // wording and punctuation. Each pass is independently toggleable;
-        // off reproduces today's behavior.
-        let punctuated = if settings.spoken_punctuation {
-            normalize_spoken_punctuation(&raw)
+        // off reproduces today's behavior. The auto-interpretation master
+        // gate ANDs with the per-pass toggles in NORMAL dictation only;
+        // OFF leaves command words as plain words (the command-mode
+        // modifier is a separate surface and stays untouched).
+        let punctuated = if settings.spoken_punctuation && settings.auto_interpret_commands {
+            normalize_spoken_punctuation(&raw, &matrix)
         } else {
             raw
         };
@@ -2479,8 +2685,8 @@ fn post_process_transcription_text(
         // terminal fallback. A "delete everything" command short-circuits
         // every later pass: the dictation pastes nothing (the paste site
         // already skips empty text).
-        let deleted = if settings.voice_deletion_commands {
-            apply_voice_deletion(&punctuated)
+        let deleted = if settings.voice_deletion_commands && settings.auto_interpret_commands {
+            apply_voice_deletion(&punctuated, &matrix)
         } else {
             VoiceDeletionOutcome {
                 text: punctuated,
@@ -2910,6 +3116,8 @@ mod tests {
             true,
             true,
             &languages(&["en"]),
+            crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            false,
         );
         buffer
     }
@@ -3157,6 +3365,166 @@ mod tests {
         );
     }
 
+    // -----------------------------------------------------------------
+    // Fragmented command words: a delta ending mid-token or mid-phrase is
+    // a proper prefix of a vocabulary phrase, so it is HELD (visible in
+    // the interim display, separator intact) until a later delta
+    // completes it; release/finalize flush what never completed.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn session_buffer_command_modifier_fragmented_word_parses_whole() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage on a clean snapshot
+
+        // The fragment arrives on a LATER tick: "com" is a partial-word
+        // proper prefix of "comma", so the delta is held, no command
+        // applies, and the display keeps the separator.
+        assert_eq!(session.render("hello world com", "", true), "hello world com");
+        // The next delta re-includes the whole token (the raw_seen
+        // shortfall IS the held region); the comma applies exactly once
+        // and no stray "com" survives.
+        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_fragmented_phrase_parses_whole() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+
+        // " question" is a whole word that only OPENS "question mark":
+        // held rather than silently discarded.
+        assert_eq!(
+            session.render("hello world question", "", true),
+            "hello world question"
+        );
+        // The completing word arrives on the next delta: the phrase
+        // parses whole.
+        assert_eq!(
+            session.render("hello world question mark", "", true),
+            "hello world?"
+        );
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_release_flush_discards_unresolved_fragment() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+        assert_eq!(session.render("hello world com", "", true), "hello world com");
+
+        // Released with the snapshot unchanged: the flush consumes the
+        // fragment, the grammar discards it ("com" is no command), and it
+        // never re-enters the buffer.
+        assert_eq!(session.render("hello world com", "", false), "hello world");
+        assert_eq!(
+            session.combine_final("hello world com".to_string()),
+            "hello world"
+        );
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_release_flush_resolves_and_appends_dictation() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+        assert_eq!(session.render("hello world com", "", true), "hello world com");
+
+        // Released with the snapshot GROWN: the flush span resolves the
+        // held fragment into the comma command and stops; the fresh
+        // release-snapshot dictation " and more" is appended, never
+        // parsed as commands. This is the exact rhythm the holding
+        // marker gates (a bare raw_seen shortfall cannot tell the two
+        // apart).
+        assert_eq!(
+            session.render("hello world comma and more", "", false),
+            "hello world, and more"
+        );
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_finalize_flush_resolves_held_fragment() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+        assert_eq!(session.render("hello world com", "", true), "hello world com");
+
+        // Finalize flushes ONLY because the holding marker is set: the
+        // held word resolves to the comma from the final text and the
+        // remainder (" three") appends as dictation.
+        assert_eq!(
+            session.combine_final("hello world comma three".to_string()),
+            "hello world, three"
+        );
+    }
+
+    #[test]
+    fn session_buffer_command_modifier_duplicate_symbol_inserts_coalesce() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+
+        // A whole "comma" delta applies on arrival.
+        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+        // Repeating the identical symbol command coalesces: one comma.
+        assert_eq!(
+            session.render("hello world comma comma", "", true),
+            "hello world,"
+        );
+        // Line breaks never coalesce, and a comma after a line break
+        // still lands.
+        assert_eq!(
+            session.render("hello world comma comma new line", "", true),
+            "hello world,\n"
+        );
+        assert_eq!(
+            session.render("hello world comma comma new line comma", "", true),
+            "hello world,\n,"
+        );
+    }
+
+    // -----------------------------------------------------------------
+    // Deletion reporting: the delete-word hotkey and the command-mode
+    // DeleteWord / DeleteLine surface exactly what they removed, so the
+    // refreshed display emission can carry deleted: Some(text).
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn session_buffer_hotkey_word_deletion_reports_the_removed_word() {
+        let mut session = session_buffer();
+        session.render("one two three", "", false);
+        assert_eq!(session.delete_last_word(), Some("one two ".to_string()));
+        assert_eq!(session.take_deleted(), Some("three".to_string()));
+        // Drained: a later emission reports nothing.
+        assert_eq!(session.take_deleted(), None);
+        // Deleting with nothing visible left reports None.
+        let mut empty = session_buffer();
+        empty.render("   ", "", false);
+        assert_eq!(empty.delete_last_word(), Some("".to_string()));
+        assert_eq!(empty.take_deleted(), None);
+    }
+
+    #[test]
+    fn session_buffer_command_mode_deletion_reports_the_removed_text() {
+        let mut session = session_buffer();
+        session.render("alpha beta", "", false);
+        session.render("alpha beta", "", true); // engage
+        assert_eq!(session.render("alpha beta delete word", "", true), "alpha ");
+        assert_eq!(session.take_deleted(), Some("beta".to_string()));
+        // An ordinary command tick reports nothing.
+        assert_eq!(session.render("alpha beta comma", "", true), "alpha ,");
+        assert_eq!(session.take_deleted(), None);
+
+        // DeleteLine reports the cleared trailing line.
+        let mut lines = session_buffer();
+        lines.render("first\nsecond", "", false);
+        lines.render("first\nsecond", "", true); // engage
+        assert_eq!(lines.render("first\nsecond delete line", "", true), "first\n");
+        assert_eq!(lines.take_deleted(), Some("second".to_string()));
+    }
+
     #[test]
     fn session_buffer_command_modifier_hotkey_deletion_still_works_while_held() {
         // The delete-last-word hotkey edits the same live buffer the
@@ -3188,6 +3556,8 @@ mod tests {
             true,
             true,
             &languages(&["en"]),
+            crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            false,
         );
         assert!(!session.command_active);
         assert_eq!(session.render("hello there", "", false), "hello there");
@@ -3523,6 +3893,172 @@ mod tests {
         );
     }
 
+    /// The auto-interpretation master gate OFF leaves spoken command words
+    /// as plain text in normal dictation: with both per-pass toggles ON and
+    /// the terminal pass disabled (it is NOT gated by this toggle), the
+    /// input survives the FULL pipeline verbatim; with the terminal pass
+    /// left at its default ON the same input gains only the trailing
+    /// period, proving the OFF gate touches nothing else. With the gate at
+    /// its default ON, the conversion pins above run today's behavior.
+    #[test]
+    fn auto_interpret_commands_off_types_command_words_as_plain_words() {
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+        let raw = "hello comma scratch that world".to_string();
+
+        let gate_off = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            auto_interpret_commands: false,
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(raw.clone(), &gate_off, false, &en, &supported),
+            "hello comma scratch that world"
+        );
+
+        let gate_off_terminal_on = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            auto_interpret_commands: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(raw, &gate_off_terminal_on, false, &en, &supported),
+            "hello comma scratch that world."
+        );
+    }
+
+    // -----------------------------------------------------------------
+    // Hinglish (selected_language "hi-Latn"): Devanagari output is
+    // transliterated to Roman, interim and final alike; script
+    // conversion, never translation.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn hinglish_post_process_transliterates_only_for_the_latin_intent() {
+        let hi = OutputLanguageEvidence::UserSelected("hi".to_string());
+        let supported = languages(&["hi"]);
+
+        let hinglish = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            selected_language: "hi-Latn".to_string(),
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(
+                "नमस्ते दिल्ली".to_string(),
+                &hinglish,
+                false,
+                &hi,
+                &supported,
+            ),
+            "namaste dillee"
+        );
+
+        // Without the intent the Devanagari passes through untouched.
+        let devanagari = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(
+                "नमस्ते दिल्ली".to_string(),
+                &devanagari,
+                false,
+                &hi,
+                &supported,
+            ),
+            "नमस्ते दिल्ली"
+        );
+    }
+
+    #[test]
+    fn hinglish_interim_render_matches_the_paste() {
+        let mut session = StreamSessionBuffer::default();
+        session.begin(
+            PreviewScript::new(
+                ChineseScript::AsTranscribed,
+                &OutputLanguageEvidence::UserSelected("hi".to_string()),
+            ),
+            true,
+            true,
+            &languages(&["hi"]),
+            crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            true,
+        );
+        // The overlay shows Roman while speaking...
+        assert_eq!(session.render("नमस्ते", "", false), "namaste");
+        assert_eq!(session.render("नमस्ते दिल्ली", "", false), "namaste dillee");
+        // ...and the finalize pipeline pastes the same words.
+        let final_raw = session.combine_final("नमस्ते दिल्ली".to_string());
+        let settings = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            selected_language: "hi-Latn".to_string(),
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(
+                final_raw,
+                &settings,
+                false,
+                &OutputLanguageEvidence::UserSelected("hi".to_string()),
+                &languages(&["hi"]),
+            ),
+            "namaste dillee"
+        );
+    }
+
+    /// Spoken "new line" must survive the FULL finalize pipeline, not just the
+    /// spoken-punctuation pass: the custom-words stage runs on the DEFAULT
+    /// configuration (the dictionary seed is non-empty out of the box) and
+    /// used to flatten the break with its whitespace-token rebuild. Terminal
+    /// punctuation is off to isolate the newline outcome.
+    #[test]
+    fn newline_phrase_survives_the_full_pipeline_including_custom_words() {
+        let settings = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+
+        let result = post_process_transcription_text(
+            "line one new line line two".to_string(),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(result, "line one\nline two");
+    }
+
+    /// A trailing "new line" keeps its final break through the whole
+    /// pipeline under the same settings (the whitespace cleanup retains a
+    /// trailing newline run instead of trimming it away).
+    #[test]
+    fn trailing_newline_phrase_keeps_its_break_through_the_pipeline() {
+        let settings = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+
+        let result = post_process_transcription_text(
+            "line one new line".to_string(),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(result, "line one\n");
+    }
+
     /// Voice deletion sits between the punctuation passes and the dictionary:
     /// it sees punctuated word tokens ("hello,"), the terminal fallback's
     /// interrogative check sees the post-deletion wording, and the dictionary
@@ -3776,7 +4312,7 @@ mod tests {
             not_downloaded,
         ];
 
-        let candidates = fallback_candidate_list(&models, "selected");
+        let candidates = fallback_candidate_list(&models, "selected", "auto");
 
         // Exactly the downloaded models other than the failed one, custom and
         // user-added included.
@@ -3811,7 +4347,7 @@ mod tests {
             "model-Q8_0.gguf",
             700,
         );
-        let candidates = fallback_candidate_list(&[added], "selected");
+        let candidates = fallback_candidate_list(&[added], "selected", "auto");
 
         // Plenty free: the user-added model is selected.
         assert_eq!(
@@ -3836,7 +4372,7 @@ mod tests {
             "model-Q8_0.gguf",
             700,
         );
-        let candidates = fallback_candidate_list(&[added.clone(), catalog.clone()], "selected");
+        let candidates = fallback_candidate_list(&[added.clone(), catalog.clone()], "selected", "auto");
 
         // Both fit, the ranked catalog entry wins...
         assert_eq!(
@@ -3852,12 +4388,95 @@ mod tests {
         huge.size_mb = 1; // small: always fits
         let mut huge_catalog = catalog.clone();
         huge_catalog.size_mb = 16 * 1024; // 16 GiB: never fits below
-        let forced = fallback_candidate_list(&[huge_catalog, huge], "selected");
+        let forced = fallback_candidate_list(&[huge_catalog, huge], "selected", "auto");
         assert_eq!(
             memory::resolve_fallback_model(Some(8 * GIB), &forced, "selected")
                 .map(|c| c.id.as_str()),
             Some("org/custom-asr/model-Q8_0.gguf")
         );
+    }
+
+    #[test]
+    fn language_aware_fallback_refuses_rather_than_swapping_languages() {
+        const GIB: u64 = 1024 * 1024 * 1024;
+        // The failed model is the downloaded Hindi model; the only other
+        // downloaded candidate is English-only.
+        let mut hi_model = model_info_for("hi-model", 4000, true);
+        hi_model.supported_languages = vec!["hi".to_string()];
+        let mut en_model = model_info_for("en-model", 100, true);
+        en_model.supported_languages = vec!["en".to_string()];
+
+        let candidates =
+            fallback_candidate_list(&[hi_model.clone(), en_model.clone()], "hi-model", "hi");
+        assert!(
+            candidates.is_empty(),
+            "an English-only model must never be offered for a Hindi intent"
+        );
+
+        // Nothing fits the language: the gate refuses instead of swapping
+        // (decide_memory_gate itself is unchanged; the empty candidate
+        // list drives the Refuse).
+        let decision = decide_memory_gate(
+            true,
+            true,
+            true,
+            Some(2 * GIB),
+            5 * GIB,
+            || candidates,
+            "hi-model",
+        );
+        assert_eq!(decision, MemoryGateDecision::Refuse);
+
+        // A downloaded Hindi-capable candidate that fits IS offered.
+        let mut hi_fallback = model_info_for("hi-small", 100, true);
+        hi_fallback.supported_languages = vec!["en".to_string(), "hi".to_string()];
+        let candidates = fallback_candidate_list(
+            &[hi_model, en_model, hi_fallback],
+            "hi-model",
+            "hi",
+        );
+        let decision = decide_memory_gate(
+            true,
+            true,
+            true,
+            Some(2 * GIB),
+            5 * GIB,
+            || candidates,
+            "hi-model",
+        );
+        assert_eq!(decision, MemoryGateDecision::Fallback("hi-small".to_string()));
+    }
+
+    #[test]
+    fn auto_intent_fallback_candidates_behave_as_before() {
+        let mut en_model = model_info_for("en-model", 100, true);
+        en_model.supported_languages = vec!["en".to_string()];
+        let mut hi_model = model_info_for("hi-model", 100, true);
+        hi_model.supported_languages = vec!["hi".to_string()];
+
+        // auto (and empty) intents offer every downloaded candidate,
+        // exactly as before the language filter existed.
+        assert_eq!(
+            fallback_candidate_list(&[en_model.clone(), hi_model.clone()], "selected", "auto")
+                .len(),
+            2
+        );
+        assert_eq!(
+            fallback_candidate_list(&[en_model.clone(), hi_model.clone()], "selected", "").len(),
+            2
+        );
+        // English intents are not gated either.
+        assert_eq!(
+            fallback_candidate_list(&[en_model.clone(), hi_model.clone()], "selected", "en").len(),
+            2
+        );
+        // The script subtag base-matches: "hi-Latn" gates like "hi".
+        let gated: Vec<String> =
+            fallback_candidate_list(&[en_model, hi_model], "selected", "hi-Latn")
+                .into_iter()
+                .map(|c| c.id)
+                .collect();
+        assert_eq!(gated, vec!["hi-model".to_string()]);
     }
 
     // --- Toggle wiring for the memory gate -----------------------------------

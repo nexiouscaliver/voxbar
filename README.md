@@ -21,11 +21,16 @@ for my own daily use on macOS.
 - The tray menu shows which model is resident and how much RAM it uses.
 - Unload timers to free RAM after idle, including a custom duration.
 - Command mode: a second, assignable trigger whose transcript is executed as
-  editing commands: punctuation ("comma", "period", "question mark"), "new line",
-  "delete word", "delete line", "undo", and "paste". Unrecognized words are
-  discarded, so nothing unrecognized is ever sent to the target app.
-- Spoken punctuation ("comma", "period") and spoken deletion passes ("scratch
-  that", "delete everything").
+  editing commands: symbol inserts (punctuation like "comma", "period",
+  "question mark", plus the extended set: "at sign", "hash", "dollar sign",
+  "percent", "star", "ampersand", "caret", brackets, braces, "slash",
+  "backslash", "pipe"), line breaks ("new line", "new paragraph"), editing
+  ("delete word", "scratch that", "delete line", "delete everything"), and the
+  inert-in-session "undo" and "paste". Unrecognized words are discarded, so
+  nothing unrecognized is ever sent to the target app.
+- One editable command matrix feeds every spoken-command surface (command
+  mode, spoken punctuation, and spoken deletion): each command's phrases can
+  be added or removed in Settings, and the same phrases work everywhere.
 - Assignable delete-last-word and undo hotkeys to fix dictation mistakes
   without touching the mouse.
 - Accent color palette and theme selection.

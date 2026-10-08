@@ -477,6 +477,25 @@
         "title": "Opvulwoorden verwijderen",
         "description": "Verwijdert veelvoorkomende aarzelwoorden uit transcripties. Schakel dit uit om ze te behouden."
       },
+      "autoInterpret": {
+        "title": "Opdrachten automatisch interpreteren",
+        "description": "Interpreteert gesproken opdrachtwoorden (\"comma\", \"scratch that\") tijdens normaal dicteren. Zet uit om opdrachtwoorden als gewone woorden te typen; houd de modifier van de opdrachtmodus ingedrukt om opdrachten uit te voeren."
+      },
+      "commandMatrix": {
+        "title": "Opdrachtmatrix",
+        "description": "Eén bewerkbare zinjestabel voedt elk gesproken opdrachtvlak: de opdrachtmodus, gesproken interpunctie en spraakgestuurd verwijderen. Voeg zinnen per opdracht toe of verwijder ze; dezelfde zinnen werken overal.",
+        "groups": {
+          "symbols": "Symbolen en interpunctie",
+          "editing": "Bewerken",
+          "control": "Bediening"
+        },
+        "addPhrase": "Toevoegen",
+        "removePhrase": "{{phrase}} verwijderen",
+        "reset": "Standaardwaarden herstellen",
+        "duplicateError": "De zin \"{{phrase}}\" wordt al door een opdracht gebruikt",
+        "tooLongError": "Zinnen zijn beperkt tot 60 tekens",
+        "placeholder": "Zin toevoegen"
+      },
       "spokenPunctuation": {
         "title": "Gesproken interpunctie",
         "description": "Zet gesproken interpunctiewoorden zoals \"comma\", \"period\" en \"question mark\" om in echte interpunctie. Zet uit om ze als gewone woorden te behouden."
@@ -832,7 +851,8 @@
   },
   "overlay": {
     "transcribing": "Transcriberen...",
-    "processing": "Verwerken..."
+    "processing": "Verwerken...",
+    "removedWord": "Verwijderd: {{text}}"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blokkeert mogelijk 1 sneltoets",

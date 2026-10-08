@@ -29,6 +29,7 @@ export const LANGUAGES: Language[] = [
   { value: "it", label: "Italian" },
   { value: "id", label: "Indonesian" },
   { value: "hi", label: "Hindi" },
+  { value: "hi-Latn", label: "Hinglish (Roman script)" },
   { value: "fi", label: "Finnish" },
   { value: "vi", label: "Vietnamese" },
   { value: "he", label: "Hebrew" },

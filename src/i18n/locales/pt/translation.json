@@ -477,6 +477,25 @@
         "title": "Remover palavras de preenchimento",
         "description": "Remove hesitações comuns das transcrições. Desative para mantê-las."
       },
+      "autoInterpret": {
+        "title": "Interpretar comandos automaticamente",
+        "description": "Interpreta palavras de comando faladas (\"comma\", \"scratch that\") durante o ditado normal. Desative para digitá-las como palavras comuns; mantenha pressionado o modificador do modo de comandos para executar comandos."
+      },
+      "commandMatrix": {
+        "title": "Matriz de comandos",
+        "description": "Uma tabela editável de frases alimenta todas as superfícies de comandos falados: o modo de comandos, a pontuação falada e a exclusão por voz. Adicione ou remova as frases de cada comando; as mesmas frases funcionam em todos os lugares.",
+        "groups": {
+          "symbols": "Símbolos e pontuação",
+          "editing": "Edição",
+          "control": "Controle"
+        },
+        "addPhrase": "Adicionar",
+        "removePhrase": "Remover {{phrase}}",
+        "reset": "Redefinir para o padrão",
+        "duplicateError": "A frase \"{{phrase}}\" já existe em um comando",
+        "tooLongError": "As frases estão limitadas a 60 caracteres",
+        "placeholder": "Adicionar uma frase"
+      },
       "spokenPunctuation": {
         "title": "Pontuação falada",
         "description": "Transforma palavras de pontuação faladas como \"comma\", \"period\" e \"question mark\" em pontuação real. Desative para mantê-las como palavras comuns."
@@ -829,7 +848,8 @@
   },
   "overlay": {
     "transcribing": "Transcrevendo...",
-    "processing": "Processando..."
+    "processing": "Processando...",
+    "removedWord": "Removido: {{text}}"
   },
   "whatsNew": {
     "title": "Novidades no VoxBar v{{version}}"

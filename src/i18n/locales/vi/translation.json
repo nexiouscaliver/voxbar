@@ -477,6 +477,25 @@
         "title": "Loại bỏ từ đệm",
         "description": "Loại bỏ các từ ngập ngừng phổ biến khỏi bản chép lời. Tắt để giữ lại các từ này."
       },
+      "autoInterpret": {
+        "title": "Tự động diễn giải lệnh",
+        "description": "Diễn giải các từ lệnh được nói (\"comma\", \"scratch that\") trong quá trình đọc chính tả thông thường. Tắt để gõ các từ lệnh như từ thông thường; giữ phím bổ trợ của chế độ lệnh để thực thi lệnh."
+      },
+      "commandMatrix": {
+        "title": "Ma trận lệnh",
+        "description": "Một bảng cụm từ có thể chỉnh sửa nuôi mọi bề mặt lệnh nói: chế độ lệnh, dấu câu nói và xóa bằng giọng nói. Thêm hoặc bớt cụm từ của từng lệnh; cùng các cụm từ đó hoạt động ở mọi nơi.",
+        "groups": {
+          "symbols": "Ký hiệu và dấu câu",
+          "editing": "Chỉnh sửa",
+          "control": "Điều khiển"
+        },
+        "addPhrase": "Thêm",
+        "removePhrase": "Xóa {{phrase}}",
+        "reset": "Đặt lại về mặc định",
+        "duplicateError": "Cụm từ \"{{phrase}}\" đã tồn tại trên một lệnh",
+        "tooLongError": "Cụm từ giới hạn 60 ký tự",
+        "placeholder": "Thêm cụm từ"
+      },
       "spokenPunctuation": {
         "title": "Dấu câu bằng lời",
         "description": "Chuyển các từ dấu câu được nói như \"comma\", \"period\" và \"question mark\" thành dấu câu thật. Tắt để giữ chúng là từ thường."
@@ -829,7 +848,8 @@
   },
   "overlay": {
     "transcribing": "Đang chuyển đổi...",
-    "processing": "Đang xử lý..."
+    "processing": "Đang xử lý...",
+    "removedWord": "Đã xóa: {{text}}"
   },
   "whatsNew": {
     "title": "Điểm mới trong VoxBar v{{version}}"

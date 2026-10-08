@@ -477,6 +477,25 @@
         "title": "Rimuovi le parole riempitive",
         "description": "Rimuove le parole di esitazione più comuni dalle trascrizioni. Disattiva per mantenerle."
       },
+      "autoInterpret": {
+        "title": "Interpretazione automatica dei comandi",
+        "description": "Interpreta le parole di comando pronunciate (\"comma\", \"scratch that\") durante la dettatura normale. Disattiva per digitarle come parole normali; tieni premuto il modificatore della modalità comandi per eseguire i comandi."
+      },
+      "commandMatrix": {
+        "title": "Matrice dei comandi",
+        "description": "Una tabella di frasi modificabile alimenta ogni superficie dei comandi vocali: la modalità comandi, la punteggiatura parlata e l'eliminazione vocale. Aggiungi o rimuovi le frasi di ogni comando; le stesse frasi funzionano ovunque.",
+        "groups": {
+          "symbols": "Simboli e punteggiatura",
+          "editing": "Modifica",
+          "control": "Controllo"
+        },
+        "addPhrase": "Aggiungi",
+        "removePhrase": "Rimuovi {{phrase}}",
+        "reset": "Ripristina valori predefiniti",
+        "duplicateError": "La frase \"{{phrase}}\" esiste già in un comando",
+        "tooLongError": "Le frasi sono limitate a 60 caratteri",
+        "placeholder": "Aggiungi una frase"
+      },
       "spokenPunctuation": {
         "title": "Punteggiatura parlata",
         "description": "Trasforma le parole di punteggiatura pronunciate come \"comma\", \"period\" e \"question mark\" in vera punteggiatura. Disattiva per mantenerle come parole normali."
@@ -829,7 +848,8 @@
   },
   "overlay": {
     "transcribing": "Trascrizione...",
-    "processing": "Elaborazione..."
+    "processing": "Elaborazione...",
+    "removedWord": "Rimosso: {{text}}"
   },
   "whatsNew": {
     "title": "Novità in VoxBar v{{version}}"

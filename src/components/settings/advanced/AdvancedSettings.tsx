@@ -26,6 +26,8 @@ import { AccelerationSelector } from "../AccelerationSelector";
 import { LazyStreamClose } from "../LazyStreamClose";
 import { FillerWordRemoval } from "../FillerWordRemoval";
 import { SpokenPunctuation } from "../SpokenPunctuation";
+import { AutoInterpretCommands } from "../AutoInterpretCommands";
+import { CommandMatrixSettings } from "../CommandMatrixSettings";
 import { TerminalPunctuation } from "../TerminalPunctuation";
 import { VoiceDeletionCommands } from "../VoiceDeletionCommands";
 import { PreviewBeforePaste } from "../PreviewBeforePaste";
@@ -60,11 +62,13 @@ export const AdvancedSettings: React.FC = () => {
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.advanced.groups.transcription")}>
+        <AutoInterpretCommands descriptionMode="tooltip" grouped={true} />
         <VoiceActivityDetection descriptionMode="tooltip" grouped={true} />
         <FillerWordRemoval descriptionMode="tooltip" grouped={true} />
         <SpokenPunctuation descriptionMode="tooltip" grouped={true} />
         <TerminalPunctuation descriptionMode="tooltip" grouped={true} />
         <VoiceDeletionCommands descriptionMode="tooltip" grouped={true} />
+        <CommandMatrixSettings descriptionMode="tooltip" grouped />
         <ChineseScriptSetting descriptionMode="tooltip" grouped={true} />
         <CustomWords descriptionMode="tooltip" grouped />
         <AppendTrailingSpace descriptionMode="tooltip" grouped={true} />

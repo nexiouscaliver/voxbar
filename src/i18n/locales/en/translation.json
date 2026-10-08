@@ -477,6 +477,25 @@
         "title": "Remove Filler Words",
         "description": "Removes common hesitation words from transcriptions. Turn off to keep them."
       },
+      "autoInterpret": {
+        "title": "Auto-Interpret Commands",
+        "description": "Interprets spoken command words (\"comma\", \"scratch that\") during normal dictation. Turn off to type command words as plain words; hold the command-mode modifier to enact commands."
+      },
+      "commandMatrix": {
+        "title": "Command Matrix",
+        "description": "One editable phrase table feeds every spoken-command surface: command mode, spoken punctuation, and spoken deletion. Add or remove each command's phrases; the same phrases work everywhere.",
+        "groups": {
+          "symbols": "Symbols and punctuation",
+          "editing": "Editing",
+          "control": "Control"
+        },
+        "addPhrase": "Add",
+        "removePhrase": "Remove {{phrase}}",
+        "reset": "Reset to defaults",
+        "duplicateError": "The phrase \"{{phrase}}\" already exists on a command",
+        "tooLongError": "Phrases are limited to 60 characters",
+        "placeholder": "Add a phrase"
+      },
       "spokenPunctuation": {
         "title": "Spoken Punctuation",
         "description": "Turns spoken punctuation words like \"comma\", \"period\" and \"question mark\" into real punctuation. Turn off to keep them as plain words."
@@ -832,7 +851,8 @@
   },
   "overlay": {
     "transcribing": "Transcribing...",
-    "processing": "Processing..."
+    "processing": "Processing...",
+    "removedWord": "Removed: {{text}}"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} may be blocking 1 shortcut",

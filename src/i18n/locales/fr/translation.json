@@ -477,6 +477,25 @@
         "title": "Supprimer les mots de remplissage",
         "description": "Supprime les hésitations courantes des transcriptions. Désactivez cette option pour les conserver."
       },
+      "autoInterpret": {
+        "title": "Interprétation automatique des commandes",
+        "description": "Interprète les mots de commande prononcés (\"comma\", \"scratch that\") pendant la dictée normale. Désactivez pour les taper comme des mots normaux ; maintenez le modificateur du mode commandes pour exécuter les commandes."
+      },
+      "commandMatrix": {
+        "title": "Matrice de commandes",
+        "description": "Une table de phrases modifiable alimente toutes les surfaces de commandes vocales : le mode commandes, la ponctuation parlée et la suppression vocale. Ajoutez ou retirez les phrases de chaque commande ; les mêmes phrases fonctionnent partout.",
+        "groups": {
+          "symbols": "Symboles et ponctuation",
+          "editing": "Édition",
+          "control": "Contrôle"
+        },
+        "addPhrase": "Ajouter",
+        "removePhrase": "Retirer {{phrase}}",
+        "reset": "Rétablir les valeurs par défaut",
+        "duplicateError": "La phrase \"{{phrase}}\" existe déjà sur une commande",
+        "tooLongError": "Les phrases sont limitées à 60 caractères",
+        "placeholder": "Ajouter une phrase"
+      },
       "spokenPunctuation": {
         "title": "Ponctuation vocale",
         "description": "Convertit les mots de ponctuation dictés comme \"comma\", \"period\" et \"question mark\" en vraie ponctuation. Désactivez pour les garder comme mots simples."
@@ -829,7 +848,8 @@
   },
   "overlay": {
     "transcribing": "Transcription...",
-    "processing": "Traitement..."
+    "processing": "Traitement...",
+    "removedWord": "Supprimé : {{text}}"
   },
   "whatsNew": {
     "title": "Nouveautés de VoxBar v{{version}}"

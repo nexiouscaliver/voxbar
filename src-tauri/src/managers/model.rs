@@ -2779,6 +2779,18 @@ mod tests {
         assert_eq!(effective_language("auto", &languages, false), "zh");
     }
 
+    /// The Hinglish picker value carries its script intent in the subtag;
+    /// base-language matching resolves it to the model's own "hi" code,
+    /// which the run plan then forces. Passes today; pinned so it cannot
+    /// regress (spec F7).
+    #[test]
+    fn hinglish_script_intent_base_matches_hi_model() {
+        let languages = vec!["en".to_string(), "hi".to_string()];
+        assert_eq!(effective_language("hi-Latn", &languages, true), "hi");
+        // Detection never wins over a concrete usable intent.
+        assert_eq!(effective_language("hi-Latn", &languages, false), "hi");
+    }
+
     #[test]
     fn test_effective_language_resolves_bare_intent_to_concrete_locale() {
         // A model advertising full BCP-47 locales (e.g. Nemotron Streaming):

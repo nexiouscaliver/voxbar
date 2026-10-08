@@ -431,6 +431,25 @@ async changeSpokenPunctuationSetting(enabled: boolean) : Promise<Result<null, st
     else return { status: "error", error: e  as any };
 }
 },
+async changeAutoInterpretCommandsSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_auto_interpret_commands_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async updateCommandMatrix(entries: CommandMatrixEntry[] | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("update_command_matrix", { entries }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async getDefaultCommandMatrix() : Promise<CommandMatrixEntry[]> {
+    return await TAURI_INVOKE("get_default_command_matrix");
+},
 async changeTerminalPunctuationSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_terminal_punctuation_setting", { enabled }) };
@@ -1120,7 +1139,7 @@ selected_channel?: number | null; clamshell_microphone?: string | null; selected
  * after the target app actually reads the transcript, instead of after a
  * fixed delay. See `paste_tx`. macOS and Windows only.
  */
-reliable_paste?: boolean; typing_tool?: TypingTool; external_script_path?: string | null; filler_word_removal_enabled?: boolean; custom_filler_words?: string[] | null; spoken_punctuation?: boolean; terminal_punctuation?: boolean; voice_deletion_commands?: boolean;
+reliable_paste?: boolean; typing_tool?: TypingTool; external_script_path?: string | null; filler_word_removal_enabled?: boolean; custom_filler_words?: string[] | null; command_phrases?: CommandMatrixEntry[] | null; spoken_punctuation?: boolean; auto_interpret_commands?: boolean; terminal_punctuation?: boolean; voice_deletion_commands?: boolean;
 /**
  * Briefly show the final transcription in the recording overlay before
  * it is pasted (~1.2s). Gives non-streaming (batch) models the same
@@ -1183,6 +1202,8 @@ export type ChineseScript =
  */
 "as_transcribed" | "simplified" | "traditional"
 export type ClipboardHandling = "dont_modify" | "copy_to_clipboard"
+export type CommandId = "period" | "comma" | "questionMark" | "exclamation" | "colon" | "semicolon" | "dash" | "newLine" | "newParagraph" | "atSign" | "hash" | "dollarSign" | "percent" | "star" | "ampersand" | "caret" | "openParen" | "closeParen" | "openBracket" | "closeBracket" | "openBrace" | "closeBrace" | "slash" | "backslash" | "pipe" | "deleteWord" | "deleteLine" | "clearAll" | "undo" | "paste"
+export type CommandMatrixEntry = { command: CommandId; phrases: string[] }
 export type CustomSounds = { start: boolean; stop: boolean }
 export type EngineType = 
 /**
@@ -1344,7 +1365,12 @@ kind?: StreamWorkKind | null }
  * `committed` is the append-only, flicker-free prefix; `tentative` is the
  * volatile suffix the model may still rewrite.
  */
-export type StreamTextEvent = { committed: string; tentative: string }
+export type StreamTextEvent = { committed: string; tentative: string;
+/**
+ * Present only when a buffer-side deletion just removed text; the payload
+ * omits the key entirely otherwise.
+ */
+deleted?: string | null }
 /**
  * Semantic kind of "working" phase, used to localize the spinner label.
  */

@@ -45,3 +45,5 @@ result
 
 # Python bytecode (scripts/)
 __pycache__/
+
+src-tauri/vendor/handy-keys/target/

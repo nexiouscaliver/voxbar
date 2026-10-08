@@ -477,6 +477,25 @@
         "title": "Usuń wyrazy wypełniające",
         "description": "Usuwa typowe słowa wyrażające wahanie z transkrypcji. Wyłącz, aby je zachować."
       },
+      "autoInterpret": {
+        "title": "Automatyczna interpretacja poleceń",
+        "description": "Interpretuje wypowiadane słowa poleceń (\"comma\", \"scratch that\") podczas normalnego dyktowania. Wyłącz, aby wpisywać słowa poleceń jako zwykłe słowa; przytrzymaj modyfikator trybu poleceń, aby wykonywać polecenia."
+      },
+      "commandMatrix": {
+        "title": "Macierz poleceń",
+        "description": "Jedna edytowalna tabela fraz zasila każdą powierzchnię poleceń mówionych: tryb poleceń, mówioną interpunkcję i usuwanie głosem. Dodawaj lub usuwaj frazy każdego polecenia; te same frazy działają wszędzie.",
+        "groups": {
+          "symbols": "Symbole i interpunkcja",
+          "editing": "Edycja",
+          "control": "Sterowanie"
+        },
+        "addPhrase": "Dodaj",
+        "removePhrase": "Usuń {{phrase}}",
+        "reset": "Przywróć domyślne",
+        "duplicateError": "Fraza \"{{phrase}}\" jest już używana przez polecenie",
+        "tooLongError": "Frazy są ograniczone do 60 znaków",
+        "placeholder": "Dodaj frazę"
+      },
       "spokenPunctuation": {
         "title": "Mówiona interpunkcja",
         "description": "Zamienia wypowiadane słowa interpunkcyjne takie jak \"comma\", \"period\" i \"question mark\" na prawdziwą interpunkcję. Wyłącz, aby zachować je jako zwykłe słowa."
@@ -829,7 +848,8 @@
   },
   "overlay": {
     "transcribing": "Transkrypcja...",
-    "processing": "Przetwarzanie..."
+    "processing": "Przetwarzanie...",
+    "removedWord": "Usunięto: {{text}}"
   },
   "whatsNew": {
     "title": "Nowości w VoxBar v{{version}}"

@@ -584,11 +584,26 @@ pub struct AppSettings {
     pub filler_word_removal_enabled: bool,
     #[serde(default)]
     pub custom_filler_words: Option<Vec<String>>,
+    /// The edited command matrix: one row per command with its spoken
+    /// phrases. None means the built-in defaults; Some means the operator
+    /// edited the table and the full edited list is persisted (the
+    /// precedent of `custom_words`). Consequence, accepted: an operator
+    /// who edited the matrix does not automatically gain default phrases
+    /// added in later versions; clearing the setting back to None resets.
+    #[serde(default)]
+    pub command_phrases: Option<Vec<crate::audio_toolkit::command_matrix::CommandMatrixEntry>>,
     /// Convert standalone spoken punctuation tokens ("comma", "full stop",
     /// "question mark", ...) into real punctuation before custom-word
     /// correction.
     #[serde(default = "default_spoken_punctuation")]
     pub spoken_punctuation: bool,
+    /// Master gate over the two spoken-command passes in NORMAL dictation
+    /// (spoken punctuation and voice deletion): ON is exactly today's
+    /// behavior; OFF leaves command words as plain transcribed words. The
+    /// command-mode modifier is a separate surface and is NOT gated by
+    /// this toggle.
+    #[serde(default = "default_auto_interpret_commands")]
+    pub auto_interpret_commands: bool,
     /// Ensure every transcript ends with terminal punctuation: "?" when the
     /// first word is an interrogative, otherwise ".".
     #[serde(default = "default_terminal_punctuation")]
@@ -722,6 +737,10 @@ fn default_filler_word_removal_enabled() -> bool {
 }
 
 fn default_spoken_punctuation() -> bool {
+    true
+}
+
+fn default_auto_interpret_commands() -> bool {
     true
 }
 
@@ -1227,7 +1246,9 @@ pub fn get_default_settings() -> AppSettings {
         external_script_path: None,
         filler_word_removal_enabled: default_filler_word_removal_enabled(),
         custom_filler_words: None,
+        command_phrases: None,
         spoken_punctuation: default_spoken_punctuation(),
+        auto_interpret_commands: default_auto_interpret_commands(),
         terminal_punctuation: default_terminal_punctuation(),
         voice_deletion_commands: default_voice_deletion_commands(),
         preview_before_paste: default_preview_before_paste(),
@@ -1764,6 +1785,7 @@ mod tests {
         assert!(!settings.audio_feedback);
         assert!(settings.filler_word_removal_enabled);
         assert!(settings.spoken_punctuation);
+        assert!(settings.auto_interpret_commands);
         assert!(settings.terminal_punctuation);
         assert!(settings.voice_deletion_commands);
         assert!(settings.preview_before_paste);
@@ -1822,6 +1844,53 @@ mod tests {
         assert!(legacy.undo_enabled);
         assert!(legacy.command_mode_enabled);
         assert!(!legacy.voice_deletion_commands);
+    }
+
+    /// The auto-interpretation master gate defaults ON (today's behavior),
+    /// survives a store round-trip in both directions, and a partial store
+    /// that predates the toggle falls back to ON.
+    #[test]
+    fn auto_interpret_commands_defaults_on_and_round_trips() {
+        assert!(get_default_settings().auto_interpret_commands);
+
+        let mut settings = get_default_settings();
+        settings.auto_interpret_commands = false;
+        let json = serde_json::to_value(&settings).unwrap();
+        let reloaded: AppSettings = serde_json::from_value(json).unwrap();
+        assert!(!reloaded.auto_interpret_commands);
+
+        let legacy: AppSettings = serde_json::from_value(serde_json::json!({
+            "spoken_punctuation": false
+        }))
+        .unwrap();
+        assert!(legacy.auto_interpret_commands);
+        assert!(!legacy.spoken_punctuation);
+    }
+
+    /// The command matrix is defaults-only (None) out of the box; an edited
+    /// matrix round-trips verbatim, and a store that predates the key falls
+    /// back to None (the built-in defaults).
+    #[test]
+    fn command_matrix_phrases_round_trip_through_json() {
+        assert!(get_default_settings().command_phrases.is_none());
+
+        let edited = vec![
+            crate::audio_toolkit::command_matrix::CommandMatrixEntry {
+                command: crate::audio_toolkit::command_matrix::CommandId::Comma,
+                phrases: vec!["kohma".to_string()],
+            },
+        ];
+        let mut settings = get_default_settings();
+        settings.command_phrases = Some(edited.clone());
+        let json = serde_json::to_value(&settings).unwrap();
+        let reloaded: AppSettings = serde_json::from_value(json).unwrap();
+        assert_eq!(reloaded.command_phrases, Some(edited));
+
+        let legacy: AppSettings = serde_json::from_value(serde_json::json!({
+            "spoken_punctuation": true
+        }))
+        .unwrap();
+        assert!(legacy.command_phrases.is_none());
     }
 
     /// Frozen snapshot of a real v0.9.0-era settings store, as written to

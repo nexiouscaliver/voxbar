@@ -48,6 +48,11 @@ const RecordingOverlay: React.FC = () => {
   // True once live text overflows the cap. A top overlay fades its top edge only
   // while overflowing, so the resting first line stays crisp flush under the pill.
   const [overflowing, setOverflowing] = useState(false);
+  // Text a buffer-side deletion just removed (delete-word hotkey or a
+  // command-mode DeleteWord / DeleteLine), shown on a transient chip for
+  // about 1.5 s so a deletion is never invisible. Null when idle.
+  const [removedText, setRemovedText] = useState<string | null>(null);
+  const removedTimerRef = useRef<number | null>(null);
 
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
   // Live-text scroll-back: the text region "sticks" to the newest line while the
@@ -73,6 +78,7 @@ const RecordingOverlay: React.FC = () => {
           smoothedLevelsRef.current = Array(16).fill(0);
           setLevels(Array(WAVE_BARS).fill(0));
           setStreamText({ committed: "", tentative: "" });
+          setRemovedText(null);
         }
 
         await syncLanguageFromSettings();
@@ -122,6 +128,20 @@ const RecordingOverlay: React.FC = () => {
 
       const unlistenStream = await events.streamTextEvent.listen((event) => {
         setStreamText(event.payload);
+        // A deletion report rides the same event as the refreshed text;
+        // show it briefly, then clear. Ordinary ticks carry no report and
+        // leave a still-visible chip alone.
+        const deleted = event.payload.deleted;
+        if (deleted) {
+          setRemovedText(deleted);
+          if (removedTimerRef.current !== null) {
+            window.clearTimeout(removedTimerRef.current);
+          }
+          removedTimerRef.current = window.setTimeout(() => {
+            setRemovedText(null);
+            removedTimerRef.current = null;
+          }, 1500);
+        }
       });
 
       const unlistenPhase = await events.streamPhaseEvent.listen((event) => {
@@ -137,6 +157,11 @@ const RecordingOverlay: React.FC = () => {
         unlistenLevel();
         unlistenStream();
         unlistenPhase();
+        // Never leave the removal chip's timer running past unmount.
+        if (removedTimerRef.current !== null) {
+          window.clearTimeout(removedTimerRef.current);
+          removedTimerRef.current = null;
+        }
       };
     };
 
@@ -277,6 +302,11 @@ const RecordingOverlay: React.FC = () => {
                       preview keeps it: the text is final but not yet pasted. */}
                   {(!working || isPreview) && <span className="scaret" />}
                 </p>
+                {removedText !== null && (
+                  <span className="sremoved" role="status">
+                    <s>{t("overlay.removedWord", { text: removedText })}</s>
+                  </span>
+                )}
               </div>
             </div>
           </div>
