@@ -375,6 +375,17 @@ pub fn compile_command_matrix(entries: &[CommandMatrixEntry]) -> CompiledCommand
     let word_count = |phrase: &str| phrase.split_whitespace().count();
     let sorted = sorted_by_word_count_descending(all, |(phrase, _)| word_count(phrase));
 
+    // Deduplicate, keeping the FIRST occurrence after the sort. A corrupted
+    // store (the same phrase on two commands; validate_matrix guards only
+    // the settings write path) would otherwise drive the surfaces apart:
+    // the parser's find() picks the first entry while the replacement
+    // HashMap keeps the last. First-wins everywhere degrades consistently.
+    let mut seen_phrases: HashMap<String, ()> = HashMap::new();
+    let sorted: Vec<(String, CommandAction)> = sorted
+        .into_iter()
+        .filter(|(phrase, _)| seen_phrases.insert(phrase.clone(), ()).is_none())
+        .collect();
+
     // Punctuation pass: the symbol-insert entries.
     let punctuation: Vec<&(String, CommandAction)> = sorted
         .iter()
@@ -807,6 +818,40 @@ mod tests {
         // and holds the trailing token that opens a fresh instance of it
         // (proper-prefix semantics: a completing sequence never holds).
         assert_eq!(held_prefix_len(" kohma kohma", &custom), 6);
+    }
+
+    #[test]
+    fn corrupted_store_duplicate_phrase_compiles_to_one_command() {
+        // A hand-edited settings file can carry the same phrase on two
+        // commands (validate_matrix guards only the write path). The three
+        // consumer surfaces must agree on ONE command: the first entry
+        // after the word-count sort, not parser-first / replacements-last.
+        let corrupted = vec![
+            CommandMatrixEntry {
+                command: CommandId::Comma,
+                phrases: vec!["comma".to_string()],
+            },
+            CommandMatrixEntry {
+                command: CommandId::Period,
+                phrases: vec!["comma".to_string()],
+            },
+        ];
+        let matrix = compile_command_matrix(&corrupted);
+        assert_eq!(
+            parse_command_transcript("comma", &matrix),
+            vec![CommandAction::Insert(",")]
+        );
+        assert_eq!(matrix.punctuation_replacement("comma"), Some(","));
+        // The duplicate never reaches the voice-deletion or parser tables
+        // twice either.
+        assert_eq!(
+            matrix
+                .parser
+                .iter()
+                .filter(|(tokens, _)| tokens == &vec!["comma".to_string()])
+                .count(),
+            1
+        );
     }
 
     #[test]
