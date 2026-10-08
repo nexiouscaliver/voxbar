@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "सामान्य",
+    "commands": "आदेश",
     "models": "मोडेलहरू",
     "advanced": "उन्नत",
     "postProcessing": "पोस्ट प्रोसेस",
@@ -258,6 +259,71 @@
           "title": "Command Mode",
           "description": "Enable the assignable command-mode modifier key. Hold it while a dictation session is live to interpret your speech as commands (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) that edit the dictation buffer directly; unrecognized words are discarded. It never starts a recording on its own."
         }
+      }
+    },
+    "commands": {
+      "searchPlaceholder": "आदेश खोज्नुहोस्",
+      "resetAll": "सबै आदेश रिसेट गर्नुहोस्",
+      "resetRow": "रिसेट गर्नुहोस्",
+      "addPhrase": "थप्नुहोस्",
+      "removePhrase": "{{phrase}} हटाउनुहोस्",
+      "placeholder": "वाक्यांश थप्नुहोस्",
+      "duplicateError": "\"{{phrase}}\" वाक्यांश पहिले नै कुनै आदेशमा छ",
+      "tooLongError": "वाक्यांश ६० अक्षरसम्म सीमित छन्",
+      "noResults": "तपाईंको खोज कुनै आदेशसँग मेल खाँदैन",
+      "inserts": "<code>{{result}}</code> घुसाउँछ",
+      "removedPhrase": "{{phrase}} हटाइयो",
+      "undoRemove": "पूर्ववत",
+      "resetCollision": "रिसेट गर्न सकिँदैन: \"{{phrase}}\" अब {{command}} को हो",
+      "resetAllConfirmTitle": "सबै आदेश रिसेट गर्ने?",
+      "resetAllConfirmBody": "सबै आफ्नै वाक्यांश हटाइन्छन् र हरेक आदेश आफ्ना बिल्ट-इन वाक्यांशमा फर्किन्छ।",
+      "resetAllConfirmCancel": "रद्द गर्नुहोस्",
+      "resetAllConfirmConfirm": "सबै रिसेट गर्नुहोस्",
+      "behavior": "आदेश व्यवहार",
+      "groups": {
+        "punctuation": "विराम चिह्न",
+        "symbols": "चिह्न",
+        "editing": "सम्पादन",
+        "control": "नियन्त्रण"
+      },
+      "names": {
+        "period": "पूर्ण विराम",
+        "comma": "अल्प विराम",
+        "questionMark": "प्रश्न चिह्न",
+        "exclamation": "विस्मयादिबोधक चिह्न",
+        "colon": "कोलन",
+        "semicolon": "अर्धविराम",
+        "dash": "ड्यास",
+        "newLine": "नयाँ लाइन",
+        "newParagraph": "नयाँ अनुच्छेद",
+        "atSign": "एट चिह्न",
+        "hash": "ह्यास",
+        "dollarSign": "डलर चिह्न",
+        "percent": "प्रतिशत",
+        "star": "तारा",
+        "ampersand": "एम्परस्यान्ड",
+        "caret": "क्यारेट",
+        "openParen": "खुल्ला कोष्ठक",
+        "closeParen": "बन्द कोष्ठक",
+        "openBracket": "खुल्ला वर्ग कोष्ठक",
+        "closeBracket": "बन्द वर्ग कोष्ठक",
+        "openBrace": "खुल्ला घुँड्रिले कोष्ठक",
+        "closeBrace": "बन्द घुँड्रिले कोष्ठक",
+        "slash": "स्ल्यास",
+        "backslash": "ब्याकस्ल्यास",
+        "pipe": "पाइप",
+        "deleteWord": "शब्द मेटाउनुहोस्",
+        "deleteLine": "लाइन मेटाउनुहोस्",
+        "clearAll": "सबै मेटाउनुहोस्",
+        "undo": "पूर्ववत",
+        "paste": "पेस्ट"
+      },
+      "actions": {
+        "deleteWord": "भनिएको अन्तिम शब्द मेटाउँछ",
+        "deleteLine": "भनिएको अन्तिम लाइन मेटाउँछ",
+        "clearAll": "पूरै भनिएको पाठ मेटाउँछ",
+        "undo": "सक्रिय एपमा पूर्ववत गर्छ",
+        "paste": "सक्रिय एपमा क्लिपबोर्ड पेस्ट गर्छ"
       }
     },
     "models": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "स्वतः आदेश व्याख्या",
         "description": "सामान्य डिक्टेसनको क्रममा बोलिएका आदेश शब्दहरू (\"comma\", \"scratch that\") व्याख्या गर्छ। बन्द गर्दा आदेश शब्दहरू सामान्य शब्दजस्तै टाइप हुन्छन्; आदेश कार्यान्वयन गर्न आदेश-मोड परिमार्जक थिचिराख्नुहोस्।"
-      },
-      "commandMatrix": {
-        "title": "आदेश म्याट्रिक्स",
-        "description": "सम्पादन गर्न मिल्ने एउटै वाक्यांश तालिकाले बोलिने आदेशका सबै सतहहरू (आदेश मोड, बोलिने विरामचिह्न, आवाज मेटाइ) चलाउँछ। हरेक आदेशका वाक्यांशहरू थप्नुहोस् वा हटाउनुहोस्; तिनै वाक्यांशहरू सबैता काम गर्छन्।",
-        "groups": {
-          "symbols": "प्रतीक र विरामचिह्न",
-          "editing": "सम्पादन",
-          "control": "नियन्त्रण"
-        },
-        "addPhrase": "थप्नुहोस्",
-        "removePhrase": "{{phrase}} हटाउनुहोस्",
-        "reset": "पूर्वनिर्धारितमा रिसेट गर्नुहोस्",
-        "duplicateError": "वाक्यांश \"{{phrase}}\" पहिले नै अर्को आदेशमा छ",
-        "tooLongError": "वाक्यांश ६० अक्षरसम्म मात्र",
-        "placeholder": "वाक्यांश थप्नुहोस्"
       },
       "spokenPunctuation": {
         "title": "बोलिएको विराम चिन्ह",

@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "Général",
+    "commands": "Commandes",
     "models": "Modèles",
     "advanced": "Avancé",
     "postProcessing": "Post-traitement",
@@ -308,6 +309,71 @@
         }
       }
     },
+    "commands": {
+      "searchPlaceholder": "Rechercher des commandes",
+      "resetAll": "Réinitialiser toutes les commandes",
+      "resetRow": "Réinitialiser",
+      "addPhrase": "Ajouter",
+      "removePhrase": "Retirer {{phrase}}",
+      "placeholder": "Ajouter une phrase",
+      "duplicateError": "La phrase \"{{phrase}}\" existe déjà pour une commande",
+      "tooLongError": "Les phrases sont limitées à 60 caractères",
+      "noResults": "Aucune commande ne correspond à votre recherche",
+      "inserts": "Insère <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} retirée",
+      "undoRemove": "Annuler",
+      "resetCollision": "Impossible de réinitialiser : \"{{phrase}}\" appartient maintenant à {{command}}",
+      "resetAllConfirmTitle": "Réinitialiser toutes les commandes ?",
+      "resetAllConfirmBody": "Toutes les phrases personnalisées sont supprimées et chaque commande retrouve ses phrases intégrées.",
+      "resetAllConfirmCancel": "Annuler",
+      "resetAllConfirmConfirm": "Tout réinitialiser",
+      "behavior": "Comportement des commandes",
+      "groups": {
+        "punctuation": "Ponctuation",
+        "symbols": "Symboles",
+        "editing": "Édition",
+        "control": "Contrôle"
+      },
+      "names": {
+        "period": "Point",
+        "comma": "Virgule",
+        "questionMark": "Point d'interrogation",
+        "exclamation": "Point d'exclamation",
+        "colon": "Deux-points",
+        "semicolon": "Point-virgule",
+        "dash": "Tiret",
+        "newLine": "Nouvelle ligne",
+        "newParagraph": "Nouveau paragraphe",
+        "atSign": "Arobase",
+        "hash": "Dièse",
+        "dollarSign": "Signe dollar",
+        "percent": "Pour cent",
+        "star": "Astérisque",
+        "ampersand": "Esperluette",
+        "caret": "Accent circonflexe",
+        "openParen": "Parenthèse ouvrante",
+        "closeParen": "Parenthèse fermante",
+        "openBracket": "Crochet ouvrant",
+        "closeBracket": "Crochet fermant",
+        "openBrace": "Accolade ouvrante",
+        "closeBrace": "Accolade fermante",
+        "slash": "Barre oblique",
+        "backslash": "Barre oblique inversée",
+        "pipe": "Barre verticale",
+        "deleteWord": "Supprimer le mot",
+        "deleteLine": "Supprimer la ligne",
+        "clearAll": "Tout effacer",
+        "undo": "Annuler",
+        "paste": "Coller"
+      },
+      "actions": {
+        "deleteWord": "Supprime le dernier mot dicté",
+        "deleteLine": "Supprime la dernière ligne dictée",
+        "clearAll": "Efface toute la dictée",
+        "undo": "Annule dans l'application active",
+        "paste": "Colle le presse-papiers dans l'application active"
+      }
+    },
     "sound": {
       "title": "Son",
       "microphone": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "Interprétation automatique des commandes",
         "description": "Interprète les mots de commande prononcés (\"comma\", \"scratch that\") pendant la dictée normale. Désactivez pour les taper comme des mots normaux ; maintenez le modificateur du mode commandes pour exécuter les commandes."
-      },
-      "commandMatrix": {
-        "title": "Matrice de commandes",
-        "description": "Une table de phrases modifiable alimente toutes les surfaces de commandes vocales : le mode commandes, la ponctuation parlée et la suppression vocale. Ajoutez ou retirez les phrases de chaque commande ; les mêmes phrases fonctionnent partout.",
-        "groups": {
-          "symbols": "Symboles et ponctuation",
-          "editing": "Édition",
-          "control": "Contrôle"
-        },
-        "addPhrase": "Ajouter",
-        "removePhrase": "Retirer {{phrase}}",
-        "reset": "Rétablir les valeurs par défaut",
-        "duplicateError": "La phrase \"{{phrase}}\" existe déjà sur une commande",
-        "tooLongError": "Les phrases sont limitées à 60 caractères",
-        "placeholder": "Ajouter une phrase"
       },
       "spokenPunctuation": {
         "title": "Ponctuation vocale",

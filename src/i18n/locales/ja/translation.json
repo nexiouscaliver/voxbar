@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "一般",
+    "commands": "コマンド",
     "models": "モデル",
     "advanced": "詳細設定",
     "postProcessing": "後処理",
@@ -308,6 +309,71 @@
         }
       }
     },
+    "commands": {
+      "searchPlaceholder": "コマンドを検索",
+      "resetAll": "すべてのコマンドをリセット",
+      "resetRow": "デフォルトに戻す",
+      "addPhrase": "追加",
+      "removePhrase": "{{phrase}} を削除",
+      "placeholder": "フレーズを追加",
+      "duplicateError": "フレーズ \"{{phrase}}\" はすでに別のコマンドに存在します",
+      "tooLongError": "フレーズは60文字までです",
+      "noResults": "検索に一致するコマンドはありません",
+      "inserts": "<code>{{result}}</code> を挿入",
+      "removedPhrase": "{{phrase}} を削除しました",
+      "undoRemove": "元に戻す",
+      "resetCollision": "リセットできません: \"{{phrase}}\" は現在 {{command}} に割り当てられています",
+      "resetAllConfirmTitle": "すべてのコマンドをリセットしますか？",
+      "resetAllConfirmBody": "カスタムフレーズはすべて破棄され、各コマンドは内蔵フレーズに戻ります。",
+      "resetAllConfirmCancel": "キャンセル",
+      "resetAllConfirmConfirm": "すべてリセット",
+      "behavior": "コマンドの動作",
+      "groups": {
+        "punctuation": "句読点",
+        "symbols": "記号",
+        "editing": "編集",
+        "control": "操作"
+      },
+      "names": {
+        "period": "ピリオド",
+        "comma": "カンマ",
+        "questionMark": "疑問符",
+        "exclamation": "感嘆符",
+        "colon": "コロン",
+        "semicolon": "セミコロン",
+        "dash": "ハイフン",
+        "newLine": "改行",
+        "newParagraph": "段落",
+        "atSign": "アットマーク",
+        "hash": "シャープ",
+        "dollarSign": "ドル記号",
+        "percent": "パーセント",
+        "star": "アスタリスク",
+        "ampersand": "アンパサンド",
+        "caret": "キャレット",
+        "openParen": "開き括弧",
+        "closeParen": "閉じ括弧",
+        "openBracket": "開き角括弧",
+        "closeBracket": "閉じ角括弧",
+        "openBrace": "開き波括弧",
+        "closeBrace": "閉じ波括弧",
+        "slash": "スラッシュ",
+        "backslash": "バックスラッシュ",
+        "pipe": "縦線",
+        "deleteWord": "単語を削除",
+        "deleteLine": "行を削除",
+        "clearAll": "すべて削除",
+        "undo": "元に戻す",
+        "paste": "貼り付け"
+      },
+      "actions": {
+        "deleteWord": "最後に発話した単語を削除します",
+        "deleteLine": "最後に発話した行を削除します",
+        "clearAll": "ディクテーション全体を削除します",
+        "undo": "フォーカス中のアプリで取り消します",
+        "paste": "フォーカス中のアプリにクリップボードを貼り付けます"
+      }
+    },
     "sound": {
       "title": "サウンド",
       "microphone": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "コマンドの自動解釈",
         "description": "通常のディクテーション中に話されたコマンド語（\"comma\"、\"scratch that\" など）を解釈します。オフにするとコマンド語は通常の単語として入力されます。コマンドを実行するにはコマンドモードの修飾キーを押し続けてください。"
-      },
-      "commandMatrix": {
-        "title": "コマンドマトリクス",
-        "description": "編集可能なひとつのフレーズ表が、話されるコマンドのすべての面（コマンドモード、話された句読点、音声削除）を支えます。各コマンドのフレーズを追加・削除できます。同じフレーズがどこでも機能します。",
-        "groups": {
-          "symbols": "記号と句読点",
-          "editing": "編集",
-          "control": "制御"
-        },
-        "addPhrase": "追加",
-        "removePhrase": "{{phrase}} を削除",
-        "reset": "デフォルトに戻す",
-        "duplicateError": "フレーズ \"{{phrase}}\" は既に別のコマンドで使われています",
-        "tooLongError": "フレーズは60文字までです",
-        "placeholder": "フレーズを追加"
       },
       "spokenPunctuation": {
         "title": "音声読点",

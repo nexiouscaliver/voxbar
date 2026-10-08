@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "عام",
+    "commands": "الأوامر",
     "advanced": "متقدم",
     "postProcessing": "معالجة لاحقة",
     "history": "السجل",
@@ -257,6 +258,71 @@
         }
       }
     },
+    "commands": {
+      "searchPlaceholder": "البحث في الأوامر",
+      "resetAll": "إعادة تعيين كل الأوامر",
+      "resetRow": "إعادة تعيين",
+      "addPhrase": "إضافة",
+      "removePhrase": "إزالة {{phrase}}",
+      "placeholder": "أضف عبارة",
+      "duplicateError": "العبارة \"{{phrase}}\" موجودة بالفعل في أمر آخر",
+      "tooLongError": "العبارات محدودة بـ 60 حرفا",
+      "noResults": "لا توجد أوامر تطابق بحثك",
+      "inserts": "يُدرج <code>{{result}}</code>",
+      "removedPhrase": "تمت إزالة {{phrase}}",
+      "undoRemove": "تراجع",
+      "resetCollision": "لا يمكن إعادة التعيين: \"{{phrase}}\" أصبحت الآن تخص {{command}}",
+      "resetAllConfirmTitle": "إعادة تعيين كل الأوامر؟",
+      "resetAllConfirmBody": "سيتم تجاهل كل العبارات المخصصة ويعود كل أمر إلى عباراته المدمجة.",
+      "resetAllConfirmCancel": "إلغاء",
+      "resetAllConfirmConfirm": "إعادة تعيين الكل",
+      "behavior": "سلوك الأوامر",
+      "groups": {
+        "punctuation": "علامات الترقيم",
+        "symbols": "الرموز",
+        "editing": "التحرير",
+        "control": "التحكم"
+      },
+      "names": {
+        "period": "نقطة",
+        "comma": "فاصلة",
+        "questionMark": "علامة استفهام",
+        "exclamation": "علامة تعجب",
+        "colon": "نقطتان",
+        "semicolon": "فاصلة منقوطة",
+        "dash": "شرطة",
+        "newLine": "سطر جديد",
+        "newParagraph": "فقرة جديدة",
+        "atSign": "علامة آت",
+        "hash": "هاش",
+        "dollarSign": "علامة الدولار",
+        "percent": "نسبة مئوية",
+        "star": "نجمة",
+        "ampersand": "علامة العطف",
+        "caret": "علامة إقحام",
+        "openParen": "قوس فتح",
+        "closeParen": "قوس إغلاق",
+        "openBracket": "قوس مربع فتح",
+        "closeBracket": "قوس مربع إغلاق",
+        "openBrace": "قوس معقوص فتح",
+        "closeBrace": "قوس معقوص إغلاق",
+        "slash": "شرطة مائلة",
+        "backslash": "شرطة مائلة عكسية",
+        "pipe": "خط عمودي",
+        "deleteWord": "حذف كلمة",
+        "deleteLine": "حذف سطر",
+        "clearAll": "حذف الكل",
+        "undo": "تراجع",
+        "paste": "لصق"
+      },
+      "actions": {
+        "deleteWord": "يحذف الكلمة المنطوقة الأخيرة",
+        "deleteLine": "يحذف السطر المنطوق الأخير",
+        "clearAll": "يحذف كل النص المنطوق",
+        "undo": "ينفذ التراجع في التطبيق النشط",
+        "paste": "يلصق الحافظة في التطبيق النشط"
+      }
+    },
     "sound": {
       "title": "الصوت",
       "microphone": {
@@ -460,21 +526,6 @@
       "autoInterpret": {
         "title": "تفسير الأوامر تلقائيًا",
         "description": "يفسّر كلمات الأوامر المنطوقة (\"comma\"، \"scratch that\") أثناء الإملاء العادي. أوقفه لتُكتب كلمات الأوامر ككلمات عادية؛ استمر بالضغط على مفتاح وضع الأوامر لتنفيذها."
-      },
-      "commandMatrix": {
-        "title": "مصفوفة الأوامر",
-        "description": "جدول عبارات واحد قابل للتعديل يغذي كل أسطح الأوامر المنطوقة: وضع الأوامر وعلامات الترقيم المنطوقة والحذف الصوتي. أضف عبارات كل أمر أو أزلها؛ نفس العبارات تعمل في كل مكان.",
-        "groups": {
-          "symbols": "الرموز وعلامات الترقيم",
-          "editing": "التحرير",
-          "control": "التحكم"
-        },
-        "addPhrase": "إضافة",
-        "removePhrase": "إزالة {{phrase}}",
-        "reset": "إعادة التعيين إلى الافتراضي",
-        "duplicateError": "العبارة \"{{phrase}}\" مستخدمة بالفعل في أمر آخر",
-        "tooLongError": "العبارات محدودة بستين حرفًا",
-        "placeholder": "أضف عبارة"
       },
       "spokenPunctuation": {
         "title": "علامات الترقيم المنطوقة",

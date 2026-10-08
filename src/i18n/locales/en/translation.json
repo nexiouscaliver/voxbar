@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "General",
+    "commands": "Commands",
     "models": "Models",
     "advanced": "Advanced",
     "postProcessing": "Post Process",
@@ -258,6 +259,71 @@
           "title": "Command Mode",
           "description": "Enable the assignable command-mode modifier key. Hold it while a dictation session is live to interpret your speech as commands (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) that edit the dictation buffer directly; unrecognized words are discarded. It never starts a recording on its own."
         }
+      }
+    },
+    "commands": {
+      "searchPlaceholder": "Search commands",
+      "resetAll": "Reset all commands",
+      "resetRow": "Reset to default",
+      "addPhrase": "Add",
+      "removePhrase": "Remove {{phrase}}",
+      "placeholder": "Add a phrase",
+      "duplicateError": "The phrase \"{{phrase}}\" already exists on a command",
+      "tooLongError": "Phrases are limited to 60 characters",
+      "noResults": "No commands match your search",
+      "inserts": "Inserts <code>{{result}}</code>",
+      "removedPhrase": "Removed {{phrase}}",
+      "undoRemove": "Undo",
+      "resetCollision": "Cannot reset: \"{{phrase}}\" now belongs to {{command}}",
+      "resetAllConfirmTitle": "Reset all commands?",
+      "resetAllConfirmBody": "Every custom phrase is discarded and all commands return to their built-in phrases.",
+      "resetAllConfirmCancel": "Cancel",
+      "resetAllConfirmConfirm": "Reset all",
+      "behavior": "Command behavior",
+      "groups": {
+        "punctuation": "Punctuation",
+        "symbols": "Symbols",
+        "editing": "Editing",
+        "control": "Control"
+      },
+      "names": {
+        "period": "Period",
+        "comma": "Comma",
+        "questionMark": "Question mark",
+        "exclamation": "Exclamation mark",
+        "colon": "Colon",
+        "semicolon": "Semicolon",
+        "dash": "Dash",
+        "newLine": "New line",
+        "newParagraph": "New paragraph",
+        "atSign": "At sign",
+        "hash": "Hash",
+        "dollarSign": "Dollar sign",
+        "percent": "Percent",
+        "star": "Star",
+        "ampersand": "Ampersand",
+        "caret": "Caret",
+        "openParen": "Open paren",
+        "closeParen": "Close paren",
+        "openBracket": "Open bracket",
+        "closeBracket": "Close bracket",
+        "openBrace": "Open brace",
+        "closeBrace": "Close brace",
+        "slash": "Slash",
+        "backslash": "Backslash",
+        "pipe": "Pipe",
+        "deleteWord": "Delete word",
+        "deleteLine": "Delete line",
+        "clearAll": "Clear all",
+        "undo": "Undo",
+        "paste": "Paste"
+      },
+      "actions": {
+        "deleteWord": "Deletes the last dictated word",
+        "deleteLine": "Deletes the last dictated line",
+        "clearAll": "Clears the whole dictation",
+        "undo": "Runs undo in the focused app",
+        "paste": "Pastes the clipboard in the focused app"
       }
     },
     "models": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "Auto-Interpret Commands",
         "description": "Interprets spoken command words (\"comma\", \"scratch that\") during normal dictation. Turn off to type command words as plain words; hold the command-mode modifier to enact commands."
-      },
-      "commandMatrix": {
-        "title": "Command Matrix",
-        "description": "One editable phrase table feeds every spoken-command surface: command mode, spoken punctuation, and spoken deletion. Add or remove each command's phrases; the same phrases work everywhere.",
-        "groups": {
-          "symbols": "Symbols and punctuation",
-          "editing": "Editing",
-          "control": "Control"
-        },
-        "addPhrase": "Add",
-        "removePhrase": "Remove {{phrase}}",
-        "reset": "Reset to defaults",
-        "duplicateError": "The phrase \"{{phrase}}\" already exists on a command",
-        "tooLongError": "Phrases are limited to 60 characters",
-        "placeholder": "Add a phrase"
       },
       "spokenPunctuation": {
         "title": "Spoken Punctuation",

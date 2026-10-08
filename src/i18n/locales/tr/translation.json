@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "Genel",
+    "commands": "Komutlar",
     "models": "Modeller",
     "advanced": "Gelişmiş",
     "postProcessing": "Son İşlem",
@@ -308,6 +309,71 @@
         }
       }
     },
+    "commands": {
+      "searchPlaceholder": "Komutlarda ara",
+      "resetAll": "Tüm komutları sıfırla",
+      "resetRow": "Sıfırla",
+      "addPhrase": "Ekle",
+      "removePhrase": "{{phrase}} ifadesini kaldır",
+      "placeholder": "Bir ifade ekle",
+      "duplicateError": "\"{{phrase}}\" ifadesi zaten bir komutta var",
+      "tooLongError": "İfadeler 60 karakterle sınırlıdır",
+      "noResults": "Aramanızla eşleşen komut yok",
+      "inserts": "<code>{{result}}</code> ekler",
+      "removedPhrase": "{{phrase}} kaldırıldı",
+      "undoRemove": "Geri al",
+      "resetCollision": "Sıfırlanamıyor: \"{{phrase}}\" artık {{command}} komutuna ait",
+      "resetAllConfirmTitle": "Tüm komutlar sıfırlansın mı?",
+      "resetAllConfirmBody": "Tüm özel ifadeler atılır ve her komut yerleşik ifadelerine döner.",
+      "resetAllConfirmCancel": "İptal",
+      "resetAllConfirmConfirm": "Tümünü sıfırla",
+      "behavior": "Komut davranışı",
+      "groups": {
+        "punctuation": "Noktalama",
+        "symbols": "Simgeler",
+        "editing": "Düzenleme",
+        "control": "Kontrol"
+      },
+      "names": {
+        "period": "Nokta",
+        "comma": "Virgül",
+        "questionMark": "Soru işareti",
+        "exclamation": "Ünlem işareti",
+        "colon": "İki nokta",
+        "semicolon": "Noktalı virgül",
+        "dash": "Tire",
+        "newLine": "Yeni satır",
+        "newParagraph": "Yeni paragraf",
+        "atSign": "Et işareti",
+        "hash": "Kare işareti",
+        "dollarSign": "Dolar işareti",
+        "percent": "Yüzde",
+        "star": "Yıldız",
+        "ampersand": "Ve işareti",
+        "caret": "Şapka",
+        "openParen": "Açılış parantezi",
+        "closeParen": "Kapanış parantezi",
+        "openBracket": "Açılış köşeli parantezi",
+        "closeBracket": "Kapanış köşeli parantezi",
+        "openBrace": "Açılış süslü parantezi",
+        "closeBrace": "Kapanış süslü parantezi",
+        "slash": "Eğik çizgi",
+        "backslash": "Ters eğik çizgi",
+        "pipe": "Dikey çizgi",
+        "deleteWord": "Kelimeyi sil",
+        "deleteLine": "Satırı sil",
+        "clearAll": "Tümünü sil",
+        "undo": "Geri al",
+        "paste": "Yapıştır"
+      },
+      "actions": {
+        "deleteWord": "Son söylenen kelimeyi siler",
+        "deleteLine": "Son söylenen satırı siler",
+        "clearAll": "Söylenen her şeyi siler",
+        "undo": "Odaktaki uygulamada geri al çalıştırır",
+        "paste": "Panoyu odaktaki uygulamaya yapıştırır"
+      }
+    },
     "sound": {
       "title": "Ses",
       "microphone": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "Komutları otomatik yorumla",
         "description": "Normal dikte sırasında söylenen komut kelimelerini (\"comma\", \"scratch that\") yorumlar. Kapatınca komut kelimeleri normal kelime olarak yazılır; komutları uygulamak için komut modu değiştirici tuşunu basılı tutun."
-      },
-      "commandMatrix": {
-        "title": "Komut Matrisi",
-        "description": "Tek bir düzenlenebilir ifade tablosu, konuşulan komutların tüm yüzeylerini besler: komut modu, konuşulan noktalama ve sesle silme. Her komutun ifadelerini ekleyin veya kaldırın; aynı ifadeler her yerde çalışır.",
-        "groups": {
-          "symbols": "Semboller ve noktalama",
-          "editing": "Düzenleme",
-          "control": "Denetim"
-        },
-        "addPhrase": "Ekle",
-        "removePhrase": "{{phrase}} ifadesini kaldır",
-        "reset": "Varsayılana sıfırla",
-        "duplicateError": "\"{{phrase}}\" ifadesi zaten bir komutta kullanılıyor",
-        "tooLongError": "İfadeler 60 karakterle sınırlıdır",
-        "placeholder": "İfade ekle"
       },
       "spokenPunctuation": {
         "title": "Sözlü noktalama",

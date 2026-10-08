@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "Generale",
+    "commands": "Comandi",
     "models": "Modelli",
     "advanced": "Avanzate",
     "postProcessing": "Post-Elaborazione",
@@ -308,6 +309,71 @@
         }
       }
     },
+    "commands": {
+      "searchPlaceholder": "Cerca comandi",
+      "resetAll": "Ripristina tutti i comandi",
+      "resetRow": "Ripristina",
+      "addPhrase": "Aggiungi",
+      "removePhrase": "Rimuovi {{phrase}}",
+      "placeholder": "Aggiungi una frase",
+      "duplicateError": "La frase \"{{phrase}}\" esiste già in un comando",
+      "tooLongError": "Le frasi sono limitate a 60 caratteri",
+      "noResults": "Nessun comando corrisponde alla ricerca",
+      "inserts": "Inserisce <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} rimossa",
+      "undoRemove": "Annulla",
+      "resetCollision": "Impossibile ripristinare: \"{{phrase}}\" ora appartiene a {{command}}",
+      "resetAllConfirmTitle": "Ripristinare tutti i comandi?",
+      "resetAllConfirmBody": "Tutte le frasi personalizzate vengono scartate e ogni comando torna alle frasi predefinite.",
+      "resetAllConfirmCancel": "Annulla",
+      "resetAllConfirmConfirm": "Ripristina tutto",
+      "behavior": "Comportamento dei comandi",
+      "groups": {
+        "punctuation": "Punteggiatura",
+        "symbols": "Simboli",
+        "editing": "Modifica",
+        "control": "Controllo"
+      },
+      "names": {
+        "period": "Punto",
+        "comma": "Virgola",
+        "questionMark": "Punto interrogativo",
+        "exclamation": "Punto esclamativo",
+        "colon": "Due punti",
+        "semicolon": "Punto e virgola",
+        "dash": "Trattino",
+        "newLine": "Nuova riga",
+        "newParagraph": "Nuovo paragrafo",
+        "atSign": "Chiocciola",
+        "hash": "Cancelletto",
+        "dollarSign": "Dollaro",
+        "percent": "Per cento",
+        "star": "Asterisco",
+        "ampersand": "E commerciale",
+        "caret": "Accento circonflesso",
+        "openParen": "Parentesi aperta",
+        "closeParen": "Parentesi chiusa",
+        "openBracket": "Parentesi quadra aperta",
+        "closeBracket": "Parentesi quadra chiusa",
+        "openBrace": "Parentesi graffa aperta",
+        "closeBrace": "Parentesi graffa chiusa",
+        "slash": "Barra",
+        "backslash": "Barra inversa",
+        "pipe": "Barra verticale",
+        "deleteWord": "Elimina parola",
+        "deleteLine": "Elimina riga",
+        "clearAll": "Cancella tutto",
+        "undo": "Annulla",
+        "paste": "Incolla"
+      },
+      "actions": {
+        "deleteWord": "Elimina l'ultima parola dettata",
+        "deleteLine": "Elimina l'ultima riga dettata",
+        "clearAll": "Cancella tutta la dettatura",
+        "undo": "Esegue annulla nell'app attiva",
+        "paste": "Incolla gli appunti nell'app attiva"
+      }
+    },
     "sound": {
       "title": "Suono",
       "microphone": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "Interpretazione automatica dei comandi",
         "description": "Interpreta le parole di comando pronunciate (\"comma\", \"scratch that\") durante la dettatura normale. Disattiva per digitarle come parole normali; tieni premuto il modificatore della modalità comandi per eseguire i comandi."
-      },
-      "commandMatrix": {
-        "title": "Matrice dei comandi",
-        "description": "Una tabella di frasi modificabile alimenta ogni superficie dei comandi vocali: la modalità comandi, la punteggiatura parlata e l'eliminazione vocale. Aggiungi o rimuovi le frasi di ogni comando; le stesse frasi funzionano ovunque.",
-        "groups": {
-          "symbols": "Simboli e punteggiatura",
-          "editing": "Modifica",
-          "control": "Controllo"
-        },
-        "addPhrase": "Aggiungi",
-        "removePhrase": "Rimuovi {{phrase}}",
-        "reset": "Ripristina valori predefiniti",
-        "duplicateError": "La frase \"{{phrase}}\" esiste già in un comando",
-        "tooLongError": "Le frasi sono limitate a 60 caratteri",
-        "placeholder": "Aggiungi una frase"
       },
       "spokenPunctuation": {
         "title": "Punteggiatura parlata",

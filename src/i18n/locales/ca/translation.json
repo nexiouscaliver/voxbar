@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "General",
+    "commands": "Ordres",
     "models": "Models",
     "advanced": "Avançat",
     "postProcessing": "Postprocessament",
@@ -258,6 +259,71 @@
           "title": "Mode d'ordres",
           "description": "Activa la tecla modificadora assignable del mode d'ordres. Mantén-la mentre una sessió de dictat és activa per interpretar la veu com a ordres (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) que editen directament la memòria intermèdia del dictat; les paraules no reconegudes es descarten. Mai no inicia un enregistrament tota sola."
         }
+      }
+    },
+    "commands": {
+      "searchPlaceholder": "Cerca ordres",
+      "resetAll": "Restableix totes les ordres",
+      "resetRow": "Restableix",
+      "addPhrase": "Afegeix",
+      "removePhrase": "Elimina {{phrase}}",
+      "placeholder": "Afegeix una frase",
+      "duplicateError": "La frase \"{{phrase}}\" ja existeix en una ordre",
+      "tooLongError": "Les frases estan limitades a 60 caràcters",
+      "noResults": "Cap ordre coincideix amb la cerca",
+      "inserts": "Insereix <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} eliminada",
+      "undoRemove": "Desfés",
+      "resetCollision": "No es pot restablir: \"{{phrase}}\" ara pertany a {{command}}",
+      "resetAllConfirmTitle": "Vols restablir totes les ordres?",
+      "resetAllConfirmBody": "Es descarten totes les frases personalitzades i cada ordre torna a les seves frases integrades.",
+      "resetAllConfirmCancel": "Cancel·la",
+      "resetAllConfirmConfirm": "Restableix-ho tot",
+      "behavior": "Comportament de les ordres",
+      "groups": {
+        "punctuation": "Puntuació",
+        "symbols": "Símbols",
+        "editing": "Edició",
+        "control": "Control"
+      },
+      "names": {
+        "period": "Punt",
+        "comma": "Coma",
+        "questionMark": "Signe d'interrogació",
+        "exclamation": "Signe d'exclamació",
+        "colon": "Dos punts",
+        "semicolon": "Punt i coma",
+        "dash": "Guió",
+        "newLine": "Línia nova",
+        "newParagraph": "Paràgraf nou",
+        "atSign": "Arrova",
+        "hash": "Coixinet",
+        "dollarSign": "Signe de dòlar",
+        "percent": "Per cent",
+        "star": "Asterisc",
+        "ampersand": "Et comercial",
+        "caret": "Circumflex",
+        "openParen": "Parèntesi d'obertura",
+        "closeParen": "Parèntesi de tancament",
+        "openBracket": "Claudàtor d'obertura",
+        "closeBracket": "Claudàtor de tancament",
+        "openBrace": "Clau d'obertura",
+        "closeBrace": "Clau de tancament",
+        "slash": "Barra",
+        "backslash": "Barra invertida",
+        "pipe": "Barra vertical",
+        "deleteWord": "Suprimeix paraula",
+        "deleteLine": "Suprimeix línia",
+        "clearAll": "Esborra-ho tot",
+        "undo": "Desfés",
+        "paste": "Enganxa"
+      },
+      "actions": {
+        "deleteWord": "Suprimeix l'última paraula dictada",
+        "deleteLine": "Suprimeix l'última línia dictada",
+        "clearAll": "Esborra tot el dictat",
+        "undo": "Executa desfés a l'aplicació activa",
+        "paste": "Enganxa el porta-retalls a l'aplicació activa"
       }
     },
     "models": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "Interpreta ordres automàticament",
         "description": "Interpreta les paraules d'ordre dites (\"comma\", \"scratch that\") durant el dictat normal. Desactiveu-ho per escriure-les com a paraules normals; manteniu premut el modificador del mode d'ordres per executar ordres."
-      },
-      "commandMatrix": {
-        "title": "Matriu d'ordres",
-        "description": "Una taula editable de frases alimenta totes les superfícies d'ordres parlades: el mode d'ordres, la puntuació parlada i la supressió per veu. Afegiu o suprimiu les frases de cada ordre; les mateixes frases funcionen a tot arreu.",
-        "groups": {
-          "symbols": "Símbols i puntuació",
-          "editing": "Edició",
-          "control": "Control"
-        },
-        "addPhrase": "Afegeix",
-        "removePhrase": "Elimina {{phrase}}",
-        "reset": "Restableix els valors predeterminats",
-        "duplicateError": "La frase \"{{phrase}}\" ja existeix en una ordre",
-        "tooLongError": "Les frases estan limitades a 60 caràcters",
-        "placeholder": "Afegeix una frase"
       },
       "spokenPunctuation": {
         "title": "Puntuació parlada",

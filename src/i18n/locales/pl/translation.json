@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "Ogólne",
+    "commands": "Polecenia",
     "models": "Modele",
     "advanced": "Zaawansowane",
     "postProcessing": "Postproces",
@@ -308,6 +309,71 @@
         }
       }
     },
+    "commands": {
+      "searchPlaceholder": "Szukaj poleceń",
+      "resetAll": "Przywróć wszystkie polecenia",
+      "resetRow": "Przywróć domyślne",
+      "addPhrase": "Dodaj",
+      "removePhrase": "Usuń {{phrase}}",
+      "placeholder": "Dodaj wyrażenie",
+      "duplicateError": "Wyrażenie \"{{phrase}}\" już istnieje w innym poleceniu",
+      "tooLongError": "Wyrażenia są ograniczone do 60 znaków",
+      "noResults": "Żadne polecenie nie pasuje do wyszukiwania",
+      "inserts": "Wstawia <code>{{result}}</code>",
+      "removedPhrase": "Usunięto {{phrase}}",
+      "undoRemove": "Cofnij",
+      "resetCollision": "Nie można przywrócić: \"{{phrase}}\" należy teraz do polecenia {{command}}",
+      "resetAllConfirmTitle": "Przywrócić wszystkie polecenia?",
+      "resetAllConfirmBody": "Własne wyrażenia zostaną odrzucone, a wszystkie polecenia wrócą do wbudowanych wyrażeń.",
+      "resetAllConfirmCancel": "Anuluj",
+      "resetAllConfirmConfirm": "Przywróć wszystko",
+      "behavior": "Zachowanie poleceń",
+      "groups": {
+        "punctuation": "Interpunkcja",
+        "symbols": "Symbole",
+        "editing": "Edycja",
+        "control": "Sterowanie"
+      },
+      "names": {
+        "period": "Kropka",
+        "comma": "Przecinek",
+        "questionMark": "Znak zapytania",
+        "exclamation": "Wykrzyknik",
+        "colon": "Dwukropek",
+        "semicolon": "Średnik",
+        "dash": "Myślnik",
+        "newLine": "Nowa linia",
+        "newParagraph": "Nowy akapit",
+        "atSign": "Małpa",
+        "hash": "Kratka",
+        "dollarSign": "Znak dolara",
+        "percent": "Procent",
+        "star": "Gwiazdka",
+        "ampersand": "Ampersand",
+        "caret": "Daszek",
+        "openParen": "Nawias otwierający",
+        "closeParen": "Nawias zamykający",
+        "openBracket": "Lewy kwadratowy nawias",
+        "closeBracket": "Prawy kwadratowy nawias",
+        "openBrace": "Lewy klamrowy nawias",
+        "closeBrace": "Prawy klamrowy nawias",
+        "slash": "Ukośnik",
+        "backslash": "Ukośnik odwrotny",
+        "pipe": "Kreska pionowa",
+        "deleteWord": "Usuń słowo",
+        "deleteLine": "Usuń linię",
+        "clearAll": "Usuń wszystko",
+        "undo": "Cofnij",
+        "paste": "Wklej"
+      },
+      "actions": {
+        "deleteWord": "Usuwa ostatnie zdyktowane słowo",
+        "deleteLine": "Usuwa ostatnią zdyktowaną linię",
+        "clearAll": "Usuwa całe dyktando",
+        "undo": "Wykonuje cofnięcie w aktywnej aplikacji",
+        "paste": "Wkleja schowek w aktywnej aplikacji"
+      }
+    },
     "sound": {
       "title": "Dźwięk",
       "microphone": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "Automatyczna interpretacja poleceń",
         "description": "Interpretuje wypowiadane słowa poleceń (\"comma\", \"scratch that\") podczas normalnego dyktowania. Wyłącz, aby wpisywać słowa poleceń jako zwykłe słowa; przytrzymaj modyfikator trybu poleceń, aby wykonywać polecenia."
-      },
-      "commandMatrix": {
-        "title": "Macierz poleceń",
-        "description": "Jedna edytowalna tabela fraz zasila każdą powierzchnię poleceń mówionych: tryb poleceń, mówioną interpunkcję i usuwanie głosem. Dodawaj lub usuwaj frazy każdego polecenia; te same frazy działają wszędzie.",
-        "groups": {
-          "symbols": "Symbole i interpunkcja",
-          "editing": "Edycja",
-          "control": "Sterowanie"
-        },
-        "addPhrase": "Dodaj",
-        "removePhrase": "Usuń {{phrase}}",
-        "reset": "Przywróć domyślne",
-        "duplicateError": "Fraza \"{{phrase}}\" jest już używana przez polecenie",
-        "tooLongError": "Frazy są ograniczone do 60 znaków",
-        "placeholder": "Dodaj frazę"
       },
       "spokenPunctuation": {
         "title": "Mówiona interpunkcja",

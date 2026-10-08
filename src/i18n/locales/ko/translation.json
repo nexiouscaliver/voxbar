@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "일반",
+    "commands": "명령어",
     "models": "모델",
     "advanced": "고급",
     "postProcessing": "후처리",
@@ -258,6 +259,71 @@
           "title": "명령 모드",
           "description": "할당 가능한 명령 모드 수정 키를 켭니다. 받아쓰기 세션이 진행 중일 때 누르고 있으면 말이 받아쓰기 버퍼를 직접 편집하는 명령 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line)으로 해석되고 인식되지 않은 단어는 버려집니다. 단독으로 녹음을 시작하지 않습니다."
         }
+      }
+    },
+    "commands": {
+      "searchPlaceholder": "명령어 검색",
+      "resetAll": "모든 명령어 재설정",
+      "resetRow": "기본값으로 재설정",
+      "addPhrase": "추가",
+      "removePhrase": "{{phrase}} 제거",
+      "placeholder": "구문 추가",
+      "duplicateError": "\"{{phrase}}\" 구문이 이미 다른 명령어에 있습니다",
+      "tooLongError": "구문은 60자까지 가능합니다",
+      "noResults": "검색과 일치하는 명령어가 없습니다",
+      "inserts": "<code>{{result}}</code> 삽입",
+      "removedPhrase": "{{phrase}} 제거됨",
+      "undoRemove": "실행 취소",
+      "resetCollision": "재설정할 수 없습니다: \"{{phrase}}\"이(가) 현재 {{command}}에 속합니다",
+      "resetAllConfirmTitle": "모든 명령어를 재설정할까요?",
+      "resetAllConfirmBody": "사용자 지정 구문은 모두 버려지고 각 명령어가 기본 제공 구문으로 돌아갑니다.",
+      "resetAllConfirmCancel": "취소",
+      "resetAllConfirmConfirm": "모두 재설정",
+      "behavior": "명령어 동작",
+      "groups": {
+        "punctuation": "문장 부호",
+        "symbols": "기호",
+        "editing": "편집",
+        "control": "제어"
+      },
+      "names": {
+        "period": "마침표",
+        "comma": "쉼표",
+        "questionMark": "물음표",
+        "exclamation": "느낌표",
+        "colon": "콜론",
+        "semicolon": "세미콜론",
+        "dash": "하이픈",
+        "newLine": "줄 바꿈",
+        "newParagraph": "새 단락",
+        "atSign": "골뱅이",
+        "hash": "샵",
+        "dollarSign": "달러 기호",
+        "percent": "퍼센트",
+        "star": "별표",
+        "ampersand": "앰퍼샌드",
+        "caret": "캐럿",
+        "openParen": "여는 괄호",
+        "closeParen": "닫는 괄호",
+        "openBracket": "여는 대괄호",
+        "closeBracket": "닫는 대괄호",
+        "openBrace": "여는 중괄호",
+        "closeBrace": "닫는 중괄호",
+        "slash": "슬래시",
+        "backslash": "백슬래시",
+        "pipe": "세로선",
+        "deleteWord": "단어 삭제",
+        "deleteLine": "줄 삭제",
+        "clearAll": "모두 삭제",
+        "undo": "실행 취소",
+        "paste": "붙여넣기"
+      },
+      "actions": {
+        "deleteWord": "마지막에 말한 단어를 삭제합니다",
+        "deleteLine": "마지막에 말한 줄을 삭제합니다",
+        "clearAll": "받아쓴 내용 전체를 삭제합니다",
+        "undo": "포커스된 앱에서 실행 취소를 수행합니다",
+        "paste": "포커스된 앱에 클립보드를 붙여넣습니다"
       }
     },
     "sound": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "명령어 자동 해석",
         "description": "일반 받아쓰기 중 말한 명령어 단어(\"comma\", \"scratch that\" 등)를 해석합니다. 끄면 명령어 단어가 일반 단어로 입력됩니다. 명령을 실행하려면 명령 모드 수정 키를 누르고 있으면 됩니다."
-      },
-      "commandMatrix": {
-        "title": "명령 매트릭스",
-        "description": "하나의 편집 가능한 구문 표가 음성 명령의 모든 영면(명령 모드, 음성 문장부호, 음성 삭제)을 구동합니다. 각 명령의 구문을 추가하거나 제거하세요. 같은 구문이 어디서든 작동합니다.",
-        "groups": {
-          "symbols": "기호 및 문장부호",
-          "editing": "편집",
-          "control": "제어"
-        },
-        "addPhrase": "추가",
-        "removePhrase": "{{phrase}} 제거",
-        "reset": "기본값으로 재설정",
-        "duplicateError": "구문 \"{{phrase}}\"이(가) 이미 다른 명령에 사용되고 있습니다",
-        "tooLongError": "구문은 60자로 제한됩니다",
-        "placeholder": "구문 추가"
       },
       "spokenPunctuation": {
         "title": "음성 문장부호",
