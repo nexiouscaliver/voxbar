@@ -761,9 +761,15 @@ pub fn remove_trailing_line_from_buffer_reporting(text: &str) -> (String, Option
 
 /// Display transform for interim (mid-stream) overlay text.
 ///
-/// Runs exactly the first two text passes of the finalize pipeline, in the
-/// finalize order: the spoken-punctuation normalizer, then voice deletion.
-/// The transform deliberately STOPS there:
+/// Runs the first text passes of the finalize pipeline, in the finalize
+/// order: the spoken-punctuation normalizer, voice deletion, and then the
+/// English spoken-number pass (same grammar and mode as the finalize
+/// pipeline's, so the overlay shows the digits the paste will contain;
+/// `number_english` carries the pipeline's script gating and
+/// [`NumberFormat::AsTranscribed`] turns the pass off). The Devanagari
+/// number pass belongs to the caller: it must run on the raw Devanagari
+/// text BEFORE Hinglish transliteration. The transform deliberately STOPS
+/// here:
 ///
 /// * no terminal-punctuation fallback: a mid-sentence buffer must not grow a
 ///   period on every tick, and the fallback only makes sense on a finished
@@ -771,20 +777,25 @@ pub fn remove_trailing_line_from_buffer_reporting(text: &str) -> (String, Option
 /// * no custom-word correction, filler removal, or whitespace
 ///   normalization: those passes run once at finalize over the raw
 ///   transcript, and fuzzy correction on a half-spoken trailing word would
-///   mis-rewrite text the model is still revising.
+///   mis-rewrite text the model is still revising. None of them can change
+///   a number-word conversion, so the interim digits still match the paste.
 ///
 /// The transform is applied to the FULL raw buffer, recomputed from scratch
 /// on every tick (never incrementally), so a spoken phrase split across
 /// stream-chunk boundaries ("full" in one chunk, "stop" in the next) still
-/// converts. Recomputation from the raw buffer also makes the transform
-/// idempotent by construction: the raw accumulator is never itself
-/// transformed, so applying the transform twice to the same raw input
-/// produces the same output (asserted in tests).
+/// converts, and a number phrase grows monotonically ("one" stays a word,
+/// "one eight" is already "18", "one eight zero one" is "1801") without
+/// ever flipping back to words mid-utterance. Recomputation from the raw
+/// buffer also makes the transform idempotent by construction: the raw
+/// accumulator is never itself transformed, so applying the transform twice
+/// to the same raw input produces the same output (asserted in tests).
 pub fn interim_display_transform(
     text: &str,
     spoken_punctuation: bool,
     voice_deletion: bool,
     matrix: &CompiledCommandMatrix,
+    number_format: crate::settings::NumberFormat,
+    number_english: bool,
 ) -> String {
     let punctuated = if spoken_punctuation {
         normalize_spoken_punctuation(text, matrix)
@@ -800,9 +811,18 @@ pub fn interim_display_transform(
             cleared: false,
         }
     };
-
     if deleted.cleared {
-        String::new()
+        return String::new();
+    }
+
+    if number_english && number_format != crate::settings::NumberFormat::AsTranscribed {
+        // Fail-open like the finalize pipeline's pass: a display bug must
+        // never eat the overlay text.
+        crate::number_format::convert_number_words_fail_open(
+            deleted.text,
+            number_format,
+            crate::number_format::NumberScript::English,
+        )
     } else {
         deleted.text
     }
@@ -2131,11 +2151,25 @@ mod tests {
         // Spoken punctuation converts and voice deletion removes, in finalize
         // order.
         assert_eq!(
-            interim_display_transform("hello comma world", true, true, &dm()),
+            interim_display_transform(
+                "hello comma world",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             "hello, world"
         );
         assert_eq!(
-            interim_display_transform("hello world scratch that there", true, true, &dm()),
+            interim_display_transform(
+                "hello world scratch that there",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             "hello there"
         );
     }
@@ -2143,11 +2177,25 @@ mod tests {
     #[test]
     fn test_interim_display_transform_respects_toggles() {
         assert_eq!(
-            interim_display_transform("hello comma world", false, true, &dm()),
+            interim_display_transform(
+                "hello comma world",
+                false,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             "hello comma world"
         );
         assert_eq!(
-            interim_display_transform("hello world scratch that there", true, false, &dm()),
+            interim_display_transform(
+                "hello world scratch that there",
+                true,
+                false,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             "hello world scratch that there"
         );
     }
@@ -2157,11 +2205,25 @@ mod tests {
         // The deliberate stop: a mid-sentence buffer must not gain a period
         // (or question mark) on any tick.
         assert_eq!(
-            interim_display_transform("hello world", true, true, &dm()),
+            interim_display_transform(
+                "hello world",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             "hello world"
         );
         assert_eq!(
-            interim_display_transform("what is this", true, true, &dm()),
+            interim_display_transform(
+                "what is this",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             "what is this"
         );
     }
@@ -2169,7 +2231,14 @@ mod tests {
     #[test]
     fn test_interim_display_transform_clear_outcome_empties_display() {
         assert_eq!(
-            interim_display_transform("hello delete everything spoken after", true, true, &dm()),
+            interim_display_transform(
+                "hello delete everything spoken after",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             ""
         );
     }
@@ -2186,8 +2255,22 @@ mod tests {
             "plain text with no commands at all",
             "twenty dash five",
         ] {
-            let once = interim_display_transform(raw, true, true, &dm());
-            let twice = interim_display_transform(&once, true, true, &dm());
+            let once = interim_display_transform(
+                raw,
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            );
+            let twice = interim_display_transform(
+                &once,
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            );
             assert_eq!(once, twice, "raw: {raw}");
         }
     }

@@ -17,6 +17,7 @@ mod legacy_migration;
 mod llm_client;
 mod managers;
 mod memory;
+mod number_format;
 mod overlay;
 mod paste_tx;
 pub mod portable;
@@ -752,6 +753,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_undo_enabled_setting,
             shortcut::change_command_mode_enabled_setting,
             shortcut::change_chinese_script_setting,
+            shortcut::change_number_format_setting,
             shortcut::change_app_language_setting,
             shortcut::change_update_checks_setting,
             shortcut::change_show_whats_new_on_update_setting,
