@@ -1,5 +1,5 @@
 use super::command_matrix::{
-    AMBIGUOUS_EVERYDAY_PHRASES, ATTACHED_MARKS, CompiledCommandMatrix, VoiceDeletionKind,
+    CompiledCommandMatrix, VoiceDeletionKind, AMBIGUOUS_EVERYDAY_PHRASES, ATTACHED_MARKS,
 };
 use super::commands::is_coalescible_symbol;
 use natural::phonetics::soundex;
@@ -569,8 +569,7 @@ pub fn normalize_spoken_punctuation(text: &str, matrix: &CompiledCommandMatrix) 
         // appending a second mark. Scoped to single symbols through
         // is_coalescible_symbol, so line-break inserts ("\n", "\n\n") keep
         // stacking and the trailing-space trim never touches a newline.
-        let already_marked =
-            is_coalescible_symbol(replacement) && kept.ends_with(replacement);
+        let already_marked = is_coalescible_symbol(replacement) && kept.ends_with(replacement);
         if !already_marked {
             kept.push_str(replacement);
         }
@@ -1657,18 +1656,9 @@ mod tests {
             normalize_spoken_punctuation("five asterisk six", &dm()),
             "five* six"
         );
-        assert_eq!(
-            normalize_spoken_punctuation("a ampersand b", &dm()),
-            "a& b"
-        );
-        assert_eq!(
-            normalize_spoken_punctuation("x caret y", &dm()),
-            "x^ y"
-        );
-        assert_eq!(
-            normalize_spoken_punctuation("a slash b", &dm()),
-            "a/ b"
-        );
+        assert_eq!(normalize_spoken_punctuation("a ampersand b", &dm()), "a& b");
+        assert_eq!(normalize_spoken_punctuation("x caret y", &dm()), "x^ y");
+        assert_eq!(normalize_spoken_punctuation("a slash b", &dm()), "a/ b");
         assert_eq!(
             normalize_spoken_punctuation("tag hash mark", &dm()),
             "tag# mark"
@@ -1687,7 +1677,10 @@ mod tests {
             normalize_spoken_punctuation("is it fine question  mark", &dm()),
             "is it fine?"
         );
-        assert_eq!(normalize_spoken_punctuation("new  line next", &dm()), "\nnext");
+        assert_eq!(
+            normalize_spoken_punctuation("new  line next", &dm()),
+            "\nnext"
+        );
         // The text pass stays EXACT: near-miss words never convert here
         // (fuzzy matching is command-mode only; "coma" is a real word).
         assert_eq!(

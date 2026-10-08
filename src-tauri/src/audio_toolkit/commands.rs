@@ -285,9 +285,7 @@ fn fuzzy_single_token_action(token: &str, matrix: &CompiledCommandMatrix) -> Opt
     matrix
         .parser
         .iter()
-        .filter(|(phrase, action)| {
-            phrase.len() == 1 && matches!(action, CommandAction::Insert(_))
-        })
+        .filter(|(phrase, action)| phrase.len() == 1 && matches!(action, CommandAction::Insert(_)))
         .find(|(phrase, _)| {
             phrase[0].chars().count() >= FUZZY_MIN_PHRASE_CHARS
                 && levenshtein(token, &phrase[0]) == 1
@@ -423,9 +421,7 @@ pub fn apply_command_delta_to_buffer(
                 // intentional double and skips the coalescing check.
                 let same_delta_double = previous_action == Some(CommandAction::Insert(text));
                 let trimmed_tail = &buffer[..buffer.trim_end_matches([' ', '\t']).len()];
-                if !same_delta_double
-                    && is_coalescible_symbol(text)
-                    && trimmed_tail.ends_with(text)
+                if !same_delta_double && is_coalescible_symbol(text) && trimmed_tail.ends_with(text)
                 {
                     previous_action = Some(action);
                     continue;
@@ -721,7 +717,10 @@ mod tests {
         // An ordinary word that merely STARTS like a command word is not a
         // command fragment: consume nothing, so the whole region flows back
         // as dictation instead of being eaten and discarded by the grammar.
-        assert_eq!(flush_command_prefix_len(" computer science rocks", &dm()), 0);
+        assert_eq!(
+            flush_command_prefix_len(" computer science rocks", &dm()),
+            0
+        );
         assert_eq!(flush_command_prefix_len(" periodical", &dm()), 0);
         // Still a command fragment: resolves through the grammar (exact or,
         // per the fuzzy contract, "perio" at distance 1 from "period").
