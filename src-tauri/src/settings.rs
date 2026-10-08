@@ -1594,6 +1594,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn llm_post_process_prompt_is_opt_in_by_default() {
+        // No prompt is selected out of the box, so the LLM layer (which
+        // rewrites text AFTER command interpretation and can reflow
+        // command-inserted punctuation) never runs on a stock install.
+        assert_eq!(get_default_settings().post_process_selected_prompt_id, None);
+        // A store without the key deserializes to None as well.
+        let mut legacy = serde_json::to_value(get_default_settings()).unwrap();
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .remove("post_process_selected_prompt_id");
+        let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert_eq!(backfilled.post_process_selected_prompt_id, None);
+    }
+
+    #[test]
     fn streaming_release_tail_defaults_to_200_round_trips_and_backfills() {
         // Default is 200ms: streaming quick-releases keep word tails.
         assert_eq!(get_default_settings().streaming_release_tail_ms, 200);

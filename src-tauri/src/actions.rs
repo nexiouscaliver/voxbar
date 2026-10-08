@@ -372,6 +372,15 @@ pub(crate) struct ProcessedTranscription {
     pub post_process_prompt: Option<String>,
 }
 
+/// Apply the optional LLM post-process layer to a finished transcription.
+///
+/// The layer is OPT-IN end to end: it runs only when `post_process` is on
+/// AND a prompt is selected (`post_process_selected_prompt_id` defaults to
+/// None, so stock installs never rewrite output). It rewrites the ENTIRE
+/// text AFTER the command pipeline has already converted spoken commands
+/// and inserted their punctuation, so an aggressive prompt can reflow or
+/// drop command-inserted marks; that is the documented contract of the
+/// feature, not a bug in the command passes.
 pub(crate) async fn process_transcription_output(
     app: &AppHandle,
     transcription: &str,
