@@ -615,6 +615,15 @@
           "simplified": "Simplificat",
           "traditional": "Tradicional"
         }
+      },
+      "numberFormat": {
+        "title": "Nombres parlats",
+        "description": "Escriu els nombres dits com a dígits, de manera que \"one eight zero one\" s'enganxi com a 1801. \"Tal com s'ha transcrit\" manté els nombres tal com s'han dit; Smart també converteix ordinals compostos i números solts a partir d'onze.",
+        "options": {
+          "asTranscribed": "Tal com s'ha transcrit",
+          "digits": "Dígits",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

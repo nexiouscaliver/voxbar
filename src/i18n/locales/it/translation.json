@@ -615,6 +615,15 @@
           "simplified": "Semplificato",
           "traditional": "Tradizionale"
         }
+      },
+      "numberFormat": {
+        "title": "Numeri dettati",
+        "description": "Scrive i numeri dettati come cifre, così \"one eight zero one\" viene incollato come 1801. \"Come trascritto\" mantiene i numeri come dettati; Smart converte anche ordinali composti e numeri singoli da undici in su.",
+        "options": {
+          "asTranscribed": "Come trascritto",
+          "digits": "Cifre",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

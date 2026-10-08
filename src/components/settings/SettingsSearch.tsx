@@ -66,6 +66,7 @@ const STATIC_INDEX: readonly SearchEntry[] = [
   { section: "commands", key: "settings.commands.behavior" },
   { section: "commands", key: "settings.advanced.autoInterpret.title" },
   { section: "commands", key: "settings.advanced.spokenPunctuation.title" },
+  { section: "commands", key: "settings.advanced.numberFormat.title" },
   { section: "commands", key: "settings.advanced.terminalPunctuation.title" },
   { section: "commands", key: "settings.advanced.voiceDeletion.title" },
   { section: "commands", key: "settings.commands.groups.punctuation" },

@@ -615,6 +615,15 @@
           "simplified": "Uproszczone",
           "traditional": "Tradycyjne"
         }
+      },
+      "numberFormat": {
+        "title": "Mówione liczby",
+        "description": "Zapisuje mówione liczby jako cyfry, więc \"one eight zero one\" zostanie wklejone jako 1801. \"Jak transkrybowano\" zachowuje liczby tak, jak wypowiedziano; Smart zamienia także złożone liczebniki porządkowe i pojedyncze liczby od jedenastu w górę.",
+        "options": {
+          "asTranscribed": "Jak w transkrypcji",
+          "digits": "Cyfry",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

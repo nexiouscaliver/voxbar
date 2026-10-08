@@ -615,6 +615,15 @@
           "simplified": "Simplificado",
           "traditional": "Tradicional"
         }
+      },
+      "numberFormat": {
+        "title": "Números hablados",
+        "description": "Escribe los números hablados como dígitos, de modo que \"one eight zero one\" se pegue como 1801. \"Tal como se transcribió\" mantiene los números tal como se dijeron; Smart también convierte ordinales compuestos y números sueltos a partir de once.",
+        "options": {
+          "asTranscribed": "Tal como se transcribió",
+          "digits": "Dígitos",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

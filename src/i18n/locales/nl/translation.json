@@ -615,6 +615,15 @@
           "simplified": "Vereenvoudigd",
           "traditional": "Traditioneel"
         }
+      },
+      "numberFormat": {
+        "title": "Gesproken getallen",
+        "description": "Schrijft gesproken getalwoorden als cijfers, zodat \"one eight zero one\" als 1801 wordt geplakt. \"Zo getranscribeerd\" laat getallen zoals gesproken; Smart zet ook samengestelde rangtelwoorden en losse getallen vanaf elf om.",
+        "options": {
+          "asTranscribed": "Zoals getranscribeerd",
+          "digits": "Cijfers",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

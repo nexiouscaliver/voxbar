@@ -11,6 +11,7 @@ import { Input } from "../../ui/Input";
 import { Button } from "../../ui/Button";
 import { Dialog } from "../../ui/Dialog";
 import { AutoInterpretCommands } from "../AutoInterpretCommands";
+import { NumberFormatSetting } from "../NumberFormat";
 import { SpokenPunctuation } from "../SpokenPunctuation";
 import { TerminalPunctuation } from "../TerminalPunctuation";
 import { VoiceDeletionCommands } from "../VoiceDeletionCommands";
@@ -329,6 +330,7 @@ export const CommandsSettings: React.FC = () => {
         <SettingsGroup title={t("settings.commands.behavior")}>
           <AutoInterpretCommands descriptionMode="tooltip" grouped={true} />
           <SpokenPunctuation descriptionMode="tooltip" grouped={true} />
+          <NumberFormatSetting descriptionMode="tooltip" grouped={true} />
           <TerminalPunctuation descriptionMode="tooltip" grouped={true} />
           <VoiceDeletionCommands descriptionMode="tooltip" grouped={true} />
         </SettingsGroup>

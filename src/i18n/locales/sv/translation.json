@@ -615,6 +615,15 @@
           "simplified": "Förenklad",
           "traditional": "Traditionell"
         }
+      },
+      "numberFormat": {
+        "title": "Dikterade tal",
+        "description": "Skriver uttalade talord som siffror, så att \"one eight zero one\" klistras in som 1801. \"Såsom transkriberat\" behåller tal såsom sagda; Smart konverterar även sammansatta ordningstal och enskilda tal från elva och uppåt.",
+        "options": {
+          "asTranscribed": "Som transkriberat",
+          "digits": "Siffror",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {
