@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Model selecteren mislukt"
+      "selectModel": "Model selecteren mislukt",
+      "downloadFailed": "Downloaden van {{model}} mislukt: {{error}}"
     },
     "permissions": {
       "title": "Machtigingen vereist",
       "description": "VoxBar heeft een aantal machtigingen nodig om goed te kunnen werken.",
       "microphone": {
         "title": "Microfoontoegang",
-        "description": "Vereist om je stem op te nemen voor transcriptie."
+        "description": "Vereist om je stem op te nemen voor transcriptie.",
+        "deniedGuidance": "Nog geen microfoontoegang. Zet VoxBar aan onder Systeeminstellingen > Privacy en beveiliging > Microfoon en controleer opnieuw.",
+        "openSettings": "Microfooninstellingen openen",
+        "checkAgain": "Opnieuw controleren"
       },
       "accessibility": {
         "title": "Toegankelijkheid",
@@ -132,7 +136,9 @@
         "checkFailed": "Machtigingen controleren mislukt. Probeer het opnieuw.",
         "requestFailed": "Machtiging aanvragen mislukt. Probeer het opnieuw."
       }
-    }
+    },
+    "hotkeyHint": "Start dicteren met {{hotkey}}, altijd.",
+    "hotkeyChangeHint": "Je kunt deze sneltoets wijzigen via Instellingen > Algemeen."
   },
   "modelSelector": {
     "custom": "Aangepast",
@@ -839,7 +845,9 @@
     "modelFallback": "Overgeschakeld naar {{model}} voor deze dicteeropname",
     "pasteFailedTitle": "Tekst plakken mislukt",
     "pasteFailed": "Tekst kon niet worden geplakt in de actieve applicatie.",
-    "transcriptionFailedTitle": "Transcriptie mislukt"
+    "transcriptionFailedTitle": "Transcriptie mislukt",
+    "noModelSelectedTitle": "Geen model gekozen",
+    "noModelSelected": "Kies voor het dicteren eerst een transcriptiemodel in Instellingen."
   },
   "appLanguage": {
     "title": "Interfacetaal",

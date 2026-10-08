@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "選擇模型失敗"
+      "selectModel": "選擇模型失敗",
+      "downloadFailed": "下載 {{model}} 失敗：{{error}}"
     },
     "permissions": {
       "title": "需要權限",
       "description": "VoxBar 需要一些權限才能正常運作",
       "microphone": {
         "title": "麥克風存取",
-        "description": "需要聽取您的語音進行轉錄"
+        "description": "需要聽取您的語音進行轉錄",
+        "deniedGuidance": "還沒有麥克風存取權限。請在 系統設定 > 隱私權與安全性 > 麥克風 中允許 VoxBar，然後重新檢查。",
+        "openSettings": "開啟麥克風設定",
+        "checkAgain": "重新檢查"
       },
       "accessibility": {
         "title": "輔助使用存取",
@@ -132,7 +136,9 @@
         "checkFailed": "檢查權限失敗，請重試",
         "requestFailed": "請求權限失敗，請重試"
       }
-    }
+    },
+    "hotkeyHint": "隨時按 {{hotkey}} 開始聽寫。",
+    "hotkeyChangeHint": "可以在 設定 > 一般 中變更此快捷鍵。"
   },
   "modelSelector": {
     "custom": "自訂",
@@ -836,7 +842,9 @@
     "modelFallback": "本次聽寫已切換到 {{model}}",
     "pasteFailedTitle": "貼上文字失敗",
     "pasteFailed": "無法將文字貼上至目前作用中的應用程式。",
-    "transcriptionFailedTitle": "轉錄失敗"
+    "transcriptionFailedTitle": "轉錄失敗",
+    "noModelSelectedTitle": "未選擇模型",
+    "noModelSelected": "聽寫前請先在設定中選擇一個轉寫模型。"
   },
   "appLanguage": {
     "title": "應用程式語言",

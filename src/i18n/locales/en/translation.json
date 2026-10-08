@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Failed to select model"
+      "selectModel": "Failed to select model",
+      "downloadFailed": "Failed to download {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permissions Required",
       "description": "VoxBar needs a couple of permissions to work properly.",
       "microphone": {
         "title": "Microphone Access",
-        "description": "Required to hear your voice for transcription."
+        "description": "Required to hear your voice for transcription.",
+        "deniedGuidance": "No microphone access yet. Enable VoxBar under System Settings > Privacy & Security > Microphone, then check again.",
+        "openSettings": "Open Microphone Settings",
+        "checkAgain": "Check Again"
       },
       "accessibility": {
         "title": "Accessibility Access",
@@ -132,7 +136,9 @@
         "checkFailed": "Failed to check permissions. Please try again.",
         "requestFailed": "Failed to request permission. Please try again."
       }
-    }
+    },
+    "hotkeyHint": "Start dictation with {{hotkey}} anytime.",
+    "hotkeyChangeHint": "You can change this shortcut in Settings > General."
   },
   "modelSelector": {
     "custom": "Custom",
@@ -839,7 +845,9 @@
     "modelFallback": "Switched to {{model}} for this dictation",
     "pasteFailedTitle": "Failed to Paste Text",
     "pasteFailed": "Text could not be pasted into the active application.",
-    "transcriptionFailedTitle": "Transcription Failed"
+    "transcriptionFailedTitle": "Transcription Failed",
+    "noModelSelectedTitle": "No model selected",
+    "noModelSelected": "Pick a transcription model in Settings before dictating."
   },
   "appLanguage": {
     "title": "Application Language",

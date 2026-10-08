@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "No s'ha pogut seleccionar el model"
+      "selectModel": "No s'ha pogut seleccionar el model",
+      "downloadFailed": "No s'ha pogut descarregar {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permisos necessaris",
       "description": "El VoxBar demana alguns permisos per funcionar correctament.",
       "microphone": {
         "title": "Accés al micròfon",
-        "description": "Necessari per escoltar la vostra veu i transcriure-la."
+        "description": "Necessari per escoltar la vostra veu i transcriure-la.",
+        "deniedGuidance": "Encara no hi ha accés al micròfon. Activeu VoxBar a Configuració del sistema > Privacitat i seguretat > Micròfon i torneu a comprovar-ho.",
+        "openSettings": "Obre la configuració del micròfon",
+        "checkAgain": "Comprova de nou"
       },
       "accessibility": {
         "title": "Accés a l'accessibilitat",
@@ -132,7 +136,9 @@
         "checkFailed": "No s'han pogut comprovar els permisos. Torneu-ho a provar.",
         "requestFailed": "No s'ha pogut sol·licitar el permís. Torneu-ho a provar."
       }
-    }
+    },
+    "hotkeyHint": "Inicieu el dictat amb {{hotkey}} en qualsevol moment.",
+    "hotkeyChangeHint": "Podeu canviar aquesta drecera a Configuració > General."
   },
   "modelSelector": {
     "custom": "Personalitzat",
@@ -839,7 +845,9 @@
     "modelFallback": "Canviat a {{model}} per aquest dictat",
     "pasteFailedTitle": "No s'ha pogut enganxar el text",
     "pasteFailed": "No s'ha pogut enganxar el text a l'aplicació activa.",
-    "transcriptionFailedTitle": "La transcripció ha fallat"
+    "transcriptionFailedTitle": "La transcripció ha fallat",
+    "noModelSelectedTitle": "Cap model seleccionat",
+    "noModelSelected": "Trieu un model de transcripció a Configuració abans de dictar."
   },
   "appLanguage": {
     "title": "Llengua de l'aplicació",

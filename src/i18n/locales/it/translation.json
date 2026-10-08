@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Impossibile selezionare il modello"
+      "selectModel": "Impossibile selezionare il modello",
+      "downloadFailed": "Download di {{model}} non riuscito: {{error}}"
     },
     "permissions": {
       "title": "Permessi Richiesti",
       "description": "VoxBar ha bisogno di alcuni permessi per funzionare correttamente.",
       "microphone": {
         "title": "Accesso al Microfono",
-        "description": "Necessario per sentire la tua voce per la trascrizione."
+        "description": "Necessario per sentire la tua voce per la trascrizione.",
+        "deniedGuidance": "Ancora nessun accesso al microfono. Abilita VoxBar in Impostazioni di Sistema > Privacy e sicurezza > Microfono, poi ricontrolla.",
+        "openSettings": "Apri impostazioni microfono",
+        "checkAgain": "Ricontrolla"
       },
       "accessibility": {
         "title": "Accesso all'Accessibilità",
@@ -132,7 +136,9 @@
         "checkFailed": "Impossibile verificare i permessi. Riprova.",
         "requestFailed": "Impossibile richiedere il permesso. Riprova."
       }
-    }
+    },
+    "hotkeyHint": "Avvia la dettatura con {{hotkey}} in qualsiasi momento.",
+    "hotkeyChangeHint": "Puoi cambiare questa scorciatoia in Impostazioni > Generali."
   },
   "modelSelector": {
     "custom": "Personalizzato",
@@ -836,7 +842,9 @@
     "modelFallback": "Passato a {{model}} per questa dettatura",
     "pasteFailedTitle": "Impossibile incollare il testo",
     "pasteFailed": "Non è stato possibile incollare il testo nell'applicazione attiva.",
-    "transcriptionFailedTitle": "Trascrizione non riuscita"
+    "transcriptionFailedTitle": "Trascrizione non riuscita",
+    "noModelSelectedTitle": "Nessun modello selezionato",
+    "noModelSelected": "Scegli un modello di trascrizione in Impostazioni prima di dettare."
   },
   "appLanguage": {
     "title": "Lingua Applicazione",

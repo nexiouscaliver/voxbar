@@ -135,11 +135,16 @@ pub fn get_windows_microphone_permission_status() -> WindowsMicrophonePermission
     }
 }
 
+/// Open the OS microphone privacy pane. On macOS this is the recovery path
+/// for a user who denied the mic in the system dialog: the TCC state can
+/// only be flipped from System Settings > Privacy & Security > Microphone,
+/// so the mic-denial guidance card links here.
 #[tauri::command]
 #[specta::specta]
-pub fn open_microphone_privacy_settings() -> Result<(), String> {
+pub fn open_microphone_privacy_settings(app: AppHandle) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
+        let _ = &app;
         use std::process::Command;
         Command::new("cmd")
             .args(["/C", "start", "", "ms-settings:privacy-microphone"])
@@ -148,9 +153,25 @@ pub fn open_microphone_privacy_settings() -> Result<(), String> {
         return Ok(());
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
     {
-        Err("Opening microphone privacy settings is only supported on Windows".to_string())
+        use tauri_plugin_opener::OpenerExt;
+        app.opener()
+            .open_url(
+                "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone",
+                None::<String>,
+            )
+            .map_err(|e| format!("Failed to open macOS microphone privacy settings: {}", e))?;
+        return Ok(());
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+    {
+        let _ = &app;
+        Err(
+            "Opening microphone privacy settings is only supported on Windows and macOS"
+                .to_string(),
+        )
     }
 }
 

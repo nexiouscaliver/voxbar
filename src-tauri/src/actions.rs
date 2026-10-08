@@ -427,7 +427,9 @@ impl ShortcutAction for TranscribeAction {
         let kickoff_elapsed = kickoff_started.elapsed();
 
         // Don't open the mic if nothing can transcribe the recording; the load
-        // kicked off above fails and reports why.
+        // kicked off above fails and reports why. Emit a user-facing event so
+        // the hotkey explains itself instead of appearing broken (a bare
+        // warn! log is invisible to the user).
         if !tm.is_model_loaded() {
             let selected_model = get_settings(app).selected_model;
             if let Err(e) = app
@@ -435,6 +437,13 @@ impl ShortcutAction for TranscribeAction {
                 .get_model_path(&selected_model)
             {
                 warn!("Not starting recording: no model can transcribe it ({})", e);
+                let _ = app.emit(
+                    "recording-error",
+                    RecordingErrorEvent {
+                        error_type: "no_model_selected".to_string(),
+                        detail: Some(e.to_string()),
+                    },
+                );
                 return;
             }
         }

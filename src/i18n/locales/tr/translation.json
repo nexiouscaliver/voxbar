@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Model seçilemedi"
+      "selectModel": "Model seçilemedi",
+      "downloadFailed": "{{model}} indirilemedi: {{error}}"
     },
     "permissions": {
       "title": "İzinler Gerekli",
       "description": "VoxBar'nin düzgün çalışabilmesi için birkaç izne ihtiyacı var.",
       "microphone": {
         "title": "Mikrofon Erişimi",
-        "description": "Sesinizi transkripsiyon için alabilmek için gereklidir."
+        "description": "Sesinizi transkripsiyon için alabilmek için gereklidir.",
+        "deniedGuidance": "Henüz mikrofon erişimi yok. Sistem Ayarları > Gizlilik ve Güvenlik > Mikrofon altında VoxBar'ı etkinleştirin, sonra tekrar kontrol edin.",
+        "openSettings": "Mikrofon ayarlarını aç",
+        "checkAgain": "Tekrar kontrol et"
       },
       "accessibility": {
         "title": "Erişilebilirlik Erişimi",
@@ -132,7 +136,9 @@
         "checkFailed": "İzinler kontrol edilemedi. Lütfen tekrar deneyin.",
         "requestFailed": "İzin isteği başarısız oldu. Lütfen tekrar deneyin."
       }
-    }
+    },
+    "hotkeyHint": "Dikteyi istediğiniz zaman {{hotkey}} ile başlatın.",
+    "hotkeyChangeHint": "Bu kısayolu Ayarlar > Genel bölümünden değiştirebilirsiniz."
   },
   "modelSelector": {
     "custom": "Özel",
@@ -836,7 +842,9 @@
     "modelFallback": "Bu dikte için {{model}} modeline geçildi",
     "pasteFailedTitle": "Metin yapıştırılamadı",
     "pasteFailed": "Metin etkin uygulamaya yapıştırılamadı.",
-    "transcriptionFailedTitle": "Transkripsiyon başarısız oldu"
+    "transcriptionFailedTitle": "Transkripsiyon başarısız oldu",
+    "noModelSelectedTitle": "Model seçilmedi",
+    "noModelSelected": "Dikteye başlamadan önce Ayarlar'dan bir transkripsiyon modeli seçin."
   },
   "appLanguage": {
     "title": "Uygulama Dili",

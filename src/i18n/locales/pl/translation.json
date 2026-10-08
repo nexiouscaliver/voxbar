@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Nie udało się wybrać modelu"
+      "selectModel": "Nie udało się wybrać modelu",
+      "downloadFailed": "Nie udało się pobrać {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Wymagane uprawnienia",
       "description": "VoxBar potrzebuje kilku uprawnień, aby działać poprawnie.",
       "microphone": {
         "title": "Dostęp do mikrofonu",
-        "description": "Wymagany do słyszenia Twojego głosu w celu transkrypcji."
+        "description": "Wymagany do słyszenia Twojego głosu w celu transkrypcji.",
+        "deniedGuidance": "Brak dostępu do mikrofonu. Włącz VoxBar w Ustawieniach systemowych > Prywatność i ochrona > Mikrofon, a następnie sprawdź ponownie.",
+        "openSettings": "Otwórz ustawienia mikrofonu",
+        "checkAgain": "Sprawdź ponownie"
       },
       "accessibility": {
         "title": "Dostęp do dostępności",
@@ -132,7 +136,9 @@
         "checkFailed": "Nie udało się sprawdzić uprawnień. Spróbuj ponownie.",
         "requestFailed": "Nie udało się poprosić o uprawnienie. Spróbuj ponownie."
       }
-    }
+    },
+    "hotkeyHint": "Dyktowanie uruchomisz klawiszem {{hotkey}} w każdej chwili.",
+    "hotkeyChangeHint": "Ten skrót zmienisz w Ustawienia > Ogólne."
   },
   "modelSelector": {
     "custom": "Własny",
@@ -836,7 +842,9 @@
     "modelFallback": "Przełączono na {{model}} dla tego dyktanda",
     "pasteFailedTitle": "Nie udało się wkleić tekstu",
     "pasteFailed": "Nie można było wkleić tekstu do aktywnej aplikacji.",
-    "transcriptionFailedTitle": "Transkrypcja nie powiodła się"
+    "transcriptionFailedTitle": "Transkrypcja nie powiodła się",
+    "noModelSelectedTitle": "Nie wybrano modelu",
+    "noModelSelected": "Przed dyktowaniem wybierz model transkrypcji w Ustawieniach."
   },
   "appLanguage": {
     "title": "Język aplikacji",

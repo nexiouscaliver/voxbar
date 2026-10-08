@@ -4,6 +4,7 @@ import { produce } from "immer";
 import { listen } from "@tauri-apps/api/event";
 import { commands, type ModelInfo } from "@/bindings";
 import { toast } from "sonner";
+import i18n from "../i18n";
 
 interface DownloadProgress {
   model_id: string;
@@ -345,7 +346,16 @@ export const useModelStore = create<ModelsStore>()(
               state.error = error;
             }),
           );
-          toast.error(error);
+          // Localized and model-named for the user; state.error stays the
+          // raw backend string for programmatic use.
+          const model = get().models.find((m) => m.id === modelId);
+          const modelName = model?.name ?? modelId;
+          toast.error(
+            i18n.t("onboarding.errors.downloadFailed", {
+              model: modelName,
+              error,
+            }),
+          );
         },
       );
 

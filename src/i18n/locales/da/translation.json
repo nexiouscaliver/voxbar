@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Kunne ikke vælge model"
+      "selectModel": "Kunne ikke vælge model",
+      "downloadFailed": "Kunne ikke downloade {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Tilladelser påkrævet",
       "description": "VoxBar har brug for et par tilladelser for at fungere korrekt.",
       "microphone": {
         "title": "Mikrofonadgang",
-        "description": "Påkrævet for at høre din stemme til transskription."
+        "description": "Påkrævet for at høre din stemme til transskription.",
+        "deniedGuidance": "Endnu ingen mikrofonadgang. Aktivér VoxBar under Systemindstillinger > Anonymitet og sikkerhed > Mikrofon, og tjek igen.",
+        "openSettings": "Åbn mikrofonindstillinger",
+        "checkAgain": "Tjek igen"
       },
       "accessibility": {
         "title": "Tilgængelighedsadgang",
@@ -132,7 +136,9 @@
         "checkFailed": "Kunne ikke tjekke tilladelser. Prøv igen.",
         "requestFailed": "Kunne ikke anmode om tilladelse. Prøv igen."
       }
-    }
+    },
+    "hotkeyHint": "Start diktering med {{hotkey}} når som helst.",
+    "hotkeyChangeHint": "Du kan ændre denne genvej i Indstillinger > Generelt."
   },
   "modelSelector": {
     "custom": "Brugerdefineret",
@@ -839,7 +845,9 @@
     "modelFallback": "Skiftede til {{model}} for denne diktering",
     "pasteFailedTitle": "Kunne ikke indsætte tekst",
     "pasteFailed": "Teksten kunne ikke indsættes i det aktive program.",
-    "transcriptionFailedTitle": "Transskription mislykkedes"
+    "transcriptionFailedTitle": "Transskription mislykkedes",
+    "noModelSelectedTitle": "Ingen model valgt",
+    "noModelSelected": "Vælg en transkriptionsmodel i Indstillinger, før du dikterer."
   },
   "appLanguage": {
     "title": "Applikationssprog",
