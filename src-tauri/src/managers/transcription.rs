@@ -479,8 +479,7 @@ struct StreamSessionBuffer {
     /// runs inside [`interim_display_transform`]. Both are recomputed from
     /// the raw buffer every tick, so the overlay digits always match the
     /// paste and never flip back to words mid-utterance.
-    number_format: crate::settings::NumberFormat,
-    number_scripts: crate::number_format::NumberPassScripts,
+    numbers: crate::number_format::NumberPass,
     /// Toggles for the interim display transform, captured when the stream
     /// begins (a mid-session toggle applies from the next session, matching
     /// how `PreviewScript` captures `chinese_script` today).
@@ -502,8 +501,7 @@ impl Default for StreamSessionBuffer {
             last_deleted: None,
             matrix: crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             hinglish: false,
-            number_format: crate::settings::NumberFormat::AsTranscribed,
-            number_scripts: crate::number_format::NumberPassScripts::default(),
+            numbers: crate::number_format::NumberPass::disabled(),
             spoken_punctuation: true,
             voice_deletion: true,
             preview_script: PreviewScript::new(
@@ -519,6 +517,10 @@ impl Default for StreamSessionBuffer {
 }
 
 impl StreamSessionBuffer {
+    // A session snapshot: one argument per captured pipeline input. The
+    // arity is deliberate (each field lives on the struct); bundling them
+    // behind yet another struct would hide which toggles exist.
+    #[allow(clippy::too_many_arguments)]
     fn begin(
         &mut self,
         preview_script: PreviewScript,
@@ -527,8 +529,7 @@ impl StreamSessionBuffer {
         supported_languages: &[String],
         matrix: Arc<CompiledCommandMatrix>,
         hinglish: bool,
-        number_format: crate::settings::NumberFormat,
-        number_scripts: crate::number_format::NumberPassScripts,
+        numbers: crate::number_format::NumberPass,
     ) {
         self.live = true;
         self.command_active = false;
@@ -540,8 +541,7 @@ impl StreamSessionBuffer {
         self.supported_languages = supported_languages.to_vec();
         self.matrix = matrix;
         self.hinglish = hinglish;
-        self.number_format = number_format;
-        self.number_scripts = number_scripts;
+        self.numbers = numbers;
         self.base.clear();
         self.raw_seen.clear();
         self.last_full.clear();
@@ -668,10 +668,10 @@ impl StreamSessionBuffer {
         let (converted, _) = self
             .preview_script
             .convert(&raw, "", &self.supported_languages);
-        let converted = if self.number_scripts.devanagari {
+        let converted = if self.numbers.scripts.devanagari {
             crate::number_format::convert_number_words_fail_open(
                 converted,
-                self.number_format,
+                self.numbers.mode,
                 crate::number_format::NumberScript::Devanagari,
             )
         } else {
@@ -687,8 +687,8 @@ impl StreamSessionBuffer {
             self.spoken_punctuation,
             self.voice_deletion,
             &self.matrix,
-            self.number_format,
-            self.number_scripts.english,
+            self.numbers.mode,
+            self.numbers.scripts.english,
         )
     }
 
@@ -1919,7 +1919,7 @@ impl TranscriptionManager {
         // the paste. The number pass captures the mode plus the same
         // script gating the finalize pipeline resolves from this run's
         // output-language evidence.
-        let number_scripts = crate::number_format::number_pass_scripts(&settings, &output_language);
+        let numbers = crate::number_format::number_pass(&settings, &output_language);
         self.session_buffer
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -1930,8 +1930,7 @@ impl TranscriptionManager {
                 &languages,
                 matrix_from_settings(&settings),
                 settings.selected_language == "hi-Latn",
-                settings.number_format,
-                number_scripts,
+                numbers,
             );
 
         // Run the stream in the engine's worker process. Feeds are queued
@@ -3466,8 +3465,7 @@ mod tests {
             &languages(&["en"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             false,
-            crate::settings::NumberFormat::AsTranscribed,
-            crate::number_format::NumberPassScripts::default(),
+            crate::number_format::NumberPass::disabled(),
         );
         buffer
     }
@@ -4133,8 +4131,7 @@ mod tests {
             &languages(&["en"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             false,
-            crate::settings::NumberFormat::AsTranscribed,
-            crate::number_format::NumberPassScripts::default(),
+            crate::number_format::NumberPass::disabled(),
         );
         assert!(!session.command_active);
         assert_eq!(session.render("hello there", "", false), "hello there");
@@ -4721,8 +4718,7 @@ mod tests {
             &languages(&["hi"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             true,
-            crate::settings::NumberFormat::AsTranscribed,
-            crate::number_format::NumberPassScripts::default(),
+            crate::number_format::NumberPass::disabled(),
         );
         // The overlay shows Roman while speaking...
         assert_eq!(session.render("नमस्ते", "", false), "namaste");
@@ -5580,7 +5576,13 @@ mod tests {
             "0x1F",
         ] {
             assert_eq!(
-                post_process_transcription_text(text.to_string(), &settings, false, &en, &supported),
+                post_process_transcription_text(
+                    text.to_string(),
+                    &settings,
+                    false,
+                    &en,
+                    &supported
+                ),
                 text,
                 "text: {text}"
             );
@@ -5719,7 +5721,8 @@ mod tests {
         };
         assert_eq!(
             post_process_transcription_text(
-                "\u{90F}\u{915} \u{906}\u{920} \u{936}\u{942}\u{928}\u{94d}\u{92f} \u{90F}\u{915}".to_string(),
+                "\u{90F}\u{915} \u{906}\u{920} \u{936}\u{942}\u{928}\u{94d}\u{92f} \u{90F}\u{915}"
+                    .to_string(),
                 &hinglish,
                 false,
                 &hi,
@@ -5784,17 +5787,22 @@ mod tests {
             &languages(&["en"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             false,
-            crate::settings::NumberFormat::Digits,
-            crate::number_format::NumberPassScripts {
-                devanagari: false,
-                english: true,
+            crate::number_format::NumberPass {
+                mode: crate::settings::NumberFormat::Digits,
+                scripts: crate::number_format::NumberPassScripts {
+                    devanagari: false,
+                    english: true,
+                },
             },
         );
         assert_eq!(session.render("one", "", false), "one");
         assert_eq!(session.render("one eight", "", false), "18");
         assert_eq!(session.render("one eight zero", "", false), "180");
         assert_eq!(session.render("one eight zero one", "", false), "1801");
-        assert_eq!(session.render("version one point two", "", false), "version 1.2");
+        assert_eq!(
+            session.render("version one point two", "", false),
+            "version 1.2"
+        );
 
         let final_raw = session.combine_final("one eight zero one".to_string());
         assert_eq!(
@@ -5824,14 +5832,20 @@ mod tests {
             &languages(&["hi"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             true,
-            crate::settings::NumberFormat::Digits,
-            crate::number_format::NumberPassScripts {
-                devanagari: true,
-                english: true,
+            crate::number_format::NumberPass {
+                mode: crate::settings::NumberFormat::Digits,
+                scripts: crate::number_format::NumberPassScripts {
+                    devanagari: true,
+                    english: true,
+                },
             },
         );
         assert_eq!(
-            session.render("\u{90F}\u{915} \u{906}\u{920} \u{936}\u{942}\u{928}\u{94d}\u{92f} \u{90F}\u{915}", "", false),
+            session.render(
+                "\u{90F}\u{915} \u{906}\u{920} \u{936}\u{942}\u{928}\u{94d}\u{92f} \u{90F}\u{915}",
+                "",
+                false
+            ),
             "1801"
         );
         assert_eq!(
@@ -5872,15 +5886,19 @@ mod tests {
             &languages(&["en"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             false,
-            crate::settings::NumberFormat::AsTranscribed,
-            crate::number_format::NumberPassScripts { devanagari: false, english: true },
+            crate::number_format::NumberPass {
+                mode: crate::settings::NumberFormat::AsTranscribed,
+                scripts: crate::number_format::NumberPassScripts {
+                    devanagari: false,
+                    english: true,
+                },
+            },
         );
         assert_eq!(
             session.render("one eight zero one", "", false),
             "one eight zero one"
         );
     }
-
 }
 
 impl Drop for TranscriptionManager {

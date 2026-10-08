@@ -2376,10 +2376,7 @@ mod tests {
     fn number_format_default_is_digits_everywhere() {
         assert_eq!(NumberFormat::default(), NumberFormat::Digits);
         assert_eq!(get_default_settings().number_format, NumberFormat::Digits);
-        assert_eq!(
-            AppSettings::default().number_format,
-            NumberFormat::Digits
-        );
+        assert_eq!(AppSettings::default().number_format, NumberFormat::Digits);
 
         // Legacy store (1.1.0) predates the key entirely.
         let legacy = serde_json::json!({
