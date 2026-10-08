@@ -260,7 +260,10 @@ pub fn parse_command_transcript(
             let window = &tokens[position..position + length];
             if let Some((_, action)) = matrix.parser.iter().find(|(phrase, _)| {
                 phrase.len() == length
-                    && phrase.iter().zip(window).all(|(expected, actual)| expected == actual)
+                    && phrase
+                        .iter()
+                        .zip(window)
+                        .all(|(expected, actual)| expected == actual)
             }) {
                 matched = Some((*action, length));
                 break;
@@ -376,8 +379,8 @@ fn record_removal(removed: &mut Option<String>, text: Option<String>) {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::command_matrix::default_compiled_matrix;
+    use super::*;
 
     /// The compiled DEFAULT matrix (shared; no rebuild per test).
     fn dm() -> std::sync::Arc<super::super::command_matrix::CompiledCommandMatrix> {
@@ -418,7 +421,10 @@ mod tests {
             parse_command_transcript("delete line", &dm()),
             vec![CommandAction::DeleteLine]
         );
-        assert_eq!(parse_command_transcript("undo", &dm()), vec![CommandAction::Undo]);
+        assert_eq!(
+            parse_command_transcript("undo", &dm()),
+            vec![CommandAction::Undo]
+        );
         assert_eq!(
             parse_command_transcript("paste", &dm()),
             vec![CommandAction::Paste]

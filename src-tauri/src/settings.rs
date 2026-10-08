@@ -1874,12 +1874,10 @@ mod tests {
     fn command_matrix_phrases_round_trip_through_json() {
         assert!(get_default_settings().command_phrases.is_none());
 
-        let edited = vec![
-            crate::audio_toolkit::command_matrix::CommandMatrixEntry {
-                command: crate::audio_toolkit::command_matrix::CommandId::Comma,
-                phrases: vec!["kohma".to_string()],
-            },
-        ];
+        let edited = vec![crate::audio_toolkit::command_matrix::CommandMatrixEntry {
+            command: crate::audio_toolkit::command_matrix::CommandId::Comma,
+            phrases: vec!["kohma".to_string()],
+        }];
         let mut settings = get_default_settings();
         settings.command_phrases = Some(edited.clone());
         let json = serde_json::to_value(&settings).unwrap();
