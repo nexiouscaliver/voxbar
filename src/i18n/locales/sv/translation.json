@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "Allmänt",
+    "commands": "Kommandon",
     "models": "Modeller",
     "advanced": "Avancerat",
     "postProcessing": "Efterbearbetning",
@@ -258,6 +259,71 @@
           "title": "Kommandoläge",
           "description": "Aktiverar den kopplingsbara modifierartangenten för kommandoläge. Håll den nedtryckt medan en dikteringssession är aktiv för att tolka din röst som kommandon (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) som redigerar dikteringsbufferten direkt; okända ord kastas bort. Startar aldrig en inspelning på egen hand."
         }
+      }
+    },
+    "commands": {
+      "searchPlaceholder": "Sök kommandon",
+      "resetAll": "Återställ alla kommandon",
+      "resetRow": "Återställ",
+      "addPhrase": "Lägg till",
+      "removePhrase": "Ta bort {{phrase}}",
+      "placeholder": "Lägg till en fras",
+      "duplicateError": "Frasen \"{{phrase}}\" finns redan på ett kommando",
+      "tooLongError": "Fraser är begränsade till 60 tecken",
+      "noResults": "Inga kommandon matchar din sökning",
+      "inserts": "Infogar <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} borttagen",
+      "undoRemove": "Ångra",
+      "resetCollision": "Kan inte återställa: \"{{phrase}}\" tillhör nu {{command}}",
+      "resetAllConfirmTitle": "Återställ alla kommandon?",
+      "resetAllConfirmBody": "Alla egna fraser kastas och alla kommandon återgår till sina inbyggda fraser.",
+      "resetAllConfirmCancel": "Avbryt",
+      "resetAllConfirmConfirm": "Återställ alla",
+      "behavior": "Kommandobeteende",
+      "groups": {
+        "punctuation": "Skiljetecken",
+        "symbols": "Symboler",
+        "editing": "Redigering",
+        "control": "Kontroll"
+      },
+      "names": {
+        "period": "Punkt",
+        "comma": "Komma",
+        "questionMark": "Frågetecken",
+        "exclamation": "Utropstecken",
+        "colon": "Kolon",
+        "semicolon": "Semikolon",
+        "dash": "Tankstreck",
+        "newLine": "Ny rad",
+        "newParagraph": "Nytt stycke",
+        "atSign": "Snabel-a",
+        "hash": "Brädgård",
+        "dollarSign": "Dollartecken",
+        "percent": "Procent",
+        "star": "Stjärna",
+        "ampersand": "Och-tecken",
+        "caret": "Cirkumflex",
+        "openParen": "Inledande parentes",
+        "closeParen": "Avslutande parentes",
+        "openBracket": "Inledande hakparentes",
+        "closeBracket": "Avslutande hakparentes",
+        "openBrace": "Inledande klammerparentes",
+        "closeBrace": "Avslutande klammerparentes",
+        "slash": "Snedstreck",
+        "backslash": "Omvänt snedstreck",
+        "pipe": "Lodstreck",
+        "deleteWord": "Radera ord",
+        "deleteLine": "Radera rad",
+        "clearAll": "Radera allt",
+        "undo": "Ångra",
+        "paste": "Klistra in"
+      },
+      "actions": {
+        "deleteWord": "Raderar senast dikterade ord",
+        "deleteLine": "Raderar senast dikterade rad",
+        "clearAll": "Raderar hela dikteringen",
+        "undo": "Kör ångra i appen i fokus",
+        "paste": "Klistrar in urklipp i appen i fokus"
       }
     },
     "models": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "Tolka kommandon automatiskt",
         "description": "Tolkar talade kommandon (\"comma\", \"scratch that\") under normal diktering. Stäng av för att skriva kommandon som vanliga ord; håll kommandolägesmodifieraren intryckt för att utföra kommandon."
-      },
-      "commandMatrix": {
-        "title": "Kommandomatris",
-        "description": "En redigerbar frastabell driver alla talade kommandoytor: kommandoläget, talad interpunktion och röststyrd borttagning. Lägg till eller ta bort varje kommandos fraser; samma fraser fungerar överallt.",
-        "groups": {
-          "symbols": "Symboler och interpunktion",
-          "editing": "Redigering",
-          "control": "Styrning"
-        },
-        "addPhrase": "Lägg till",
-        "removePhrase": "Ta bort {{phrase}}",
-        "reset": "Återställ till standard",
-        "duplicateError": "Frasen \"{{phrase}}\" används redan av ett kommando",
-        "tooLongError": "Fraser är begränsade till 60 tecken",
-        "placeholder": "Lägg till en fras"
       },
       "spokenPunctuation": {
         "title": "Talad interpunktion",

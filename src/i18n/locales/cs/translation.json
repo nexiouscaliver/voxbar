@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "Obecné",
+    "commands": "Příkazy",
     "models": "Modely",
     "advanced": "Pokročilé",
     "postProcessing": "Následné zpracování",
@@ -308,6 +309,71 @@
         }
       }
     },
+    "commands": {
+      "searchPlaceholder": "Hledat příkazy",
+      "resetAll": "Obnovit všechny příkazy",
+      "resetRow": "Obnovit výchozí",
+      "addPhrase": "Přidat",
+      "removePhrase": "Odebrat {{phrase}}",
+      "placeholder": "Přidat frázi",
+      "duplicateError": "Fráze \"{{phrase}}\" už u jednoho příkazu existuje",
+      "tooLongError": "Fráze jsou omezeny na 60 znaků",
+      "noResults": "Vašemu hledání neodpovídá žádný příkaz",
+      "inserts": "Vloží <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} odebrána",
+      "undoRemove": "Zpět",
+      "resetCollision": "Nelze obnovit: \"{{phrase}}\" teď patří příkazu {{command}}",
+      "resetAllConfirmTitle": "Obnovit všechny příkazy?",
+      "resetAllConfirmBody": "Vlastní fráze se zahodí a všechny příkazy se vrátí k vestavěným frázím.",
+      "resetAllConfirmCancel": "Zrušit",
+      "resetAllConfirmConfirm": "Obnovit vše",
+      "behavior": "Chování příkazů",
+      "groups": {
+        "punctuation": "Interpunkce",
+        "symbols": "Symboly",
+        "editing": "Úpravy",
+        "control": "Ovládání"
+      },
+      "names": {
+        "period": "Tečka",
+        "comma": "Čárka",
+        "questionMark": "Otazník",
+        "exclamation": "Vykřičník",
+        "colon": "Dvojtečka",
+        "semicolon": "Středník",
+        "dash": "Pomlčka",
+        "newLine": "Nový řádek",
+        "newParagraph": "Nový odstavec",
+        "atSign": "Zavináč",
+        "hash": "Mřížka",
+        "dollarSign": "Znak dolaru",
+        "percent": "Procento",
+        "star": "Hvězdička",
+        "ampersand": "Ampersand",
+        "caret": "Stříška",
+        "openParen": "Levá závorka",
+        "closeParen": "Pravá závorka",
+        "openBracket": "Levá hranatá závorka",
+        "closeBracket": "Pravá hranatá závorka",
+        "openBrace": "Levá složená závorka",
+        "closeBrace": "Pravá složená závorka",
+        "slash": "Lomítko",
+        "backslash": "Zpětné lomítko",
+        "pipe": "Svislítko",
+        "deleteWord": "Smazat slovo",
+        "deleteLine": "Smazat řádek",
+        "clearAll": "Smazat vše",
+        "undo": "Zpět",
+        "paste": "Vložit"
+      },
+      "actions": {
+        "deleteWord": "Smaže posledně diktované slovo",
+        "deleteLine": "Smaže posledně diktovaný řádek",
+        "clearAll": "Smaže celý diktát",
+        "undo": "Spustí akci zpět v aktivní aplikaci",
+        "paste": "Vloží schránku do aktivní aplikace"
+      }
+    },
     "sound": {
       "title": "Zvuk",
       "microphone": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "Automatická interpretace příkazů",
         "description": "Interpretuje vyslovená příkazová slova (\"comma\", \"scratch that\") při běžném diktování. Vypněte, aby se příkazová slova psala jako obyčejná slova; pro provádění příkazů podržte modifikátor režimu příkazů."
-      },
-      "commandMatrix": {
-        "title": "Matice příkazů",
-        "description": "Jedna upravitelná tabulka frází napájí všechny povrchy mluvených příkazů: režim příkazů, mluvenou interpunkci i hlasové mazání. Přidávejte nebo odebírejte fráze každého příkazu; stejné fráze fungují všude.",
-        "groups": {
-          "symbols": "Symboly a interpunkce",
-          "editing": "Úpravy",
-          "control": "Ovládání"
-        },
-        "addPhrase": "Přidat",
-        "removePhrase": "Odebrat {{phrase}}",
-        "reset": "Obnovit výchozí",
-        "duplicateError": "Fráze \"{{phrase}}\" už je použita u jiného příkazu",
-        "tooLongError": "Fráze jsou omezeny na 60 znaků",
-        "placeholder": "Přidat frázi"
       },
       "spokenPunctuation": {
         "title": "Mluvená interpunkce",

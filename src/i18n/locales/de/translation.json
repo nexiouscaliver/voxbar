@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "Allgemein",
+    "commands": "Befehle",
     "models": "Modelle",
     "advanced": "Erweitert",
     "postProcessing": "Nachbearbeitung",
@@ -308,6 +309,71 @@
         }
       }
     },
+    "commands": {
+      "searchPlaceholder": "Befehle suchen",
+      "resetAll": "Alle Befehle zurücksetzen",
+      "resetRow": "Auf Standard zurücksetzen",
+      "addPhrase": "Hinzufügen",
+      "removePhrase": "{{phrase}} entfernen",
+      "placeholder": "Phrase hinzufügen",
+      "duplicateError": "Die Phrase \"{{phrase}}\" existiert bereits für einen Befehl",
+      "tooLongError": "Phrasen sind auf 60 Zeichen begrenzt",
+      "noResults": "Keine Befehle entsprechen deiner Suche",
+      "inserts": "Fügt <code>{{result}}</code> ein",
+      "removedPhrase": "{{phrase}} entfernt",
+      "undoRemove": "Rückgängig",
+      "resetCollision": "Zurücksetzen nicht möglich: \"{{phrase}}\" gehört jetzt zu {{command}}",
+      "resetAllConfirmTitle": "Alle Befehle zurücksetzen?",
+      "resetAllConfirmBody": "Alle eigenen Phrasen werden verworfen und jeder Befehl kehrt zu seinen eingebauten Phrasen zurück.",
+      "resetAllConfirmCancel": "Abbrechen",
+      "resetAllConfirmConfirm": "Alle zurücksetzen",
+      "behavior": "Befehlsverhalten",
+      "groups": {
+        "punctuation": "Satzzeichen",
+        "symbols": "Symbole",
+        "editing": "Bearbeiten",
+        "control": "Steuerung"
+      },
+      "names": {
+        "period": "Punkt",
+        "comma": "Komma",
+        "questionMark": "Fragezeichen",
+        "exclamation": "Ausrufezeichen",
+        "colon": "Doppelpunkt",
+        "semicolon": "Semikolon",
+        "dash": "Bindestrich",
+        "newLine": "Neue Zeile",
+        "newParagraph": "Neuer Absatz",
+        "atSign": "At-Zeichen",
+        "hash": "Raute",
+        "dollarSign": "Dollarzeichen",
+        "percent": "Prozent",
+        "star": "Stern",
+        "ampersand": "Und-Zeichen",
+        "caret": "Zirkumflex",
+        "openParen": "Klammer auf",
+        "closeParen": "Klammer zu",
+        "openBracket": "Eckige Klammer auf",
+        "closeBracket": "Eckige Klammer zu",
+        "openBrace": "Geschweifte Klammer auf",
+        "closeBrace": "Geschweifte Klammer zu",
+        "slash": "Schrägstrich",
+        "backslash": "Umgekehrter Schrägstrich",
+        "pipe": "Senkrechter Strich",
+        "deleteWord": "Wort löschen",
+        "deleteLine": "Zeile löschen",
+        "clearAll": "Alles löschen",
+        "undo": "Rückgängig",
+        "paste": "Einfügen"
+      },
+      "actions": {
+        "deleteWord": "Löscht das zuletzt diktierte Wort",
+        "deleteLine": "Löscht die zuletzt diktierte Zeile",
+        "clearAll": "Löscht das komplette Diktat",
+        "undo": "Führt Rückgängig in der fokussierten App aus",
+        "paste": "Fügt die Zwischenablage in der fokussierten App ein"
+      }
+    },
     "sound": {
       "title": "Ton",
       "microphone": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "Befehle automatisch ausführen",
         "description": "Interpretiert gesprochene Befehlswörter (\"comma\", \"scratch that\") während des normalen Diktierens. Ausschalten, um Befehlswörter als normale Wörter zu tippen; halten Sie den Modifikator des Befehlsmodus gedrückt, um Befehle auszuführen."
-      },
-      "commandMatrix": {
-        "title": "Befehlsmatrix",
-        "description": "Eine bearbeitbare Phrasentabelle speist jede gesprochene Befehlsoberfläche: den Befehlsmodus, die gesprochene Zeichensetzung und das sprachgesteuerte Löschen. Fügen Sie die Phrasen jedes Befehls hinzu oder entfernen Sie sie; dieselben Phrasen funktionieren überall.",
-        "groups": {
-          "symbols": "Symbole und Zeichensetzung",
-          "editing": "Bearbeiten",
-          "control": "Steuerung"
-        },
-        "addPhrase": "Hinzufügen",
-        "removePhrase": "\"{{phrase}}\" entfernen",
-        "reset": "Auf Standard zurücksetzen",
-        "duplicateError": "Die Phrase \"{{phrase}}\" wird bereits von einem Befehl verwendet",
-        "tooLongError": "Phrasen sind auf 60 Zeichen begrenzt",
-        "placeholder": "Phrase hinzufügen"
       },
       "spokenPunctuation": {
         "title": "Gesprochene Satzzeichen",

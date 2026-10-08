@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "Algemeen",
+    "commands": "Opdrachten",
     "models": "Modellen",
     "advanced": "Geavanceerd",
     "postProcessing": "Naverwerking",
@@ -258,6 +259,71 @@
           "title": "Commandomodus",
           "description": "Schakelt de toewijsbare commandomodus-modificatortoets in. Houd deze ingedrukt terwijl een dicteersessie actief is om uw spraak te interpreteren als commando's (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) die de dicteerbuffer direct bewerken; niet-herkende woorden worden weggegooid. Start nooit zelf een opname."
         }
+      }
+    },
+    "commands": {
+      "searchPlaceholder": "Opdrachten zoeken",
+      "resetAll": "Alle opdrachten terugzetten",
+      "resetRow": "Terug naar standaard",
+      "addPhrase": "Toevoegen",
+      "removePhrase": "{{phrase}} verwijderen",
+      "placeholder": "Zinsnede toevoegen",
+      "duplicateError": "De zinsnede \"{{phrase}}\" bestaat al voor een opdracht",
+      "tooLongError": "Zinsneden zijn beperkt tot 60 tekens",
+      "noResults": "Geen opdrachten komen overeen met je zoekopdracht",
+      "inserts": "Voegt <code>{{result}}</code> in",
+      "removedPhrase": "{{phrase}} verwijderd",
+      "undoRemove": "Ongedaan maken",
+      "resetCollision": "Kan niet terugzetten: \"{{phrase}}\" hoort nu bij {{command}}",
+      "resetAllConfirmTitle": "Alle opdrachten terugzetten?",
+      "resetAllConfirmBody": "Alle aangepaste zinsneden worden weggegooid en elke opdracht keert terug naar de ingebouwde zinsneden.",
+      "resetAllConfirmCancel": "Annuleren",
+      "resetAllConfirmConfirm": "Alles terugzetten",
+      "behavior": "Opdrachtgedrag",
+      "groups": {
+        "punctuation": "Interpunctie",
+        "symbols": "Symbolen",
+        "editing": "Bewerken",
+        "control": "Bediening"
+      },
+      "names": {
+        "period": "Punt",
+        "comma": "Komma",
+        "questionMark": "Vraagteken",
+        "exclamation": "Uitroepteken",
+        "colon": "Dubbele punt",
+        "semicolon": "Puntkomma",
+        "dash": "Streepje",
+        "newLine": "Nieuwe regel",
+        "newParagraph": "Nieuwe alinea",
+        "atSign": "Apenteken",
+        "hash": "Hekje",
+        "dollarSign": "Dollarteken",
+        "percent": "Procent",
+        "star": "Sterretje",
+        "ampersand": "En-teken",
+        "caret": "Dakje",
+        "openParen": "Openend haakje",
+        "closeParen": "Sluitend haakje",
+        "openBracket": "Openend blokhaakje",
+        "closeBracket": "Sluitend blokhaakje",
+        "openBrace": "Openend accolade",
+        "closeBrace": "Sluitend accolade",
+        "slash": "Schuine streep",
+        "backslash": "Terugschuine streep",
+        "pipe": "Verticale streep",
+        "deleteWord": "Woord verwijderen",
+        "deleteLine": "Regel verwijderen",
+        "clearAll": "Alles wissen",
+        "undo": "Ongedaan maken",
+        "paste": "Plakken"
+      },
+      "actions": {
+        "deleteWord": "Verwijdert het laatst gedicteerde woord",
+        "deleteLine": "Verwijdert de laatst gedicteerde regel",
+        "clearAll": "Wist de hele dicteertekst",
+        "undo": "Voert ongedaan maken uit in de app met focus",
+        "paste": "Plakt het klembord in de app met focus"
       }
     },
     "models": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "Opdrachten automatisch interpreteren",
         "description": "Interpreteert gesproken opdrachtwoorden (\"comma\", \"scratch that\") tijdens normaal dicteren. Zet uit om opdrachtwoorden als gewone woorden te typen; houd de modifier van de opdrachtmodus ingedrukt om opdrachten uit te voeren."
-      },
-      "commandMatrix": {
-        "title": "Opdrachtmatrix",
-        "description": "Eén bewerkbare zinjestabel voedt elk gesproken opdrachtvlak: de opdrachtmodus, gesproken interpunctie en spraakgestuurd verwijderen. Voeg zinnen per opdracht toe of verwijder ze; dezelfde zinnen werken overal.",
-        "groups": {
-          "symbols": "Symbolen en interpunctie",
-          "editing": "Bewerken",
-          "control": "Bediening"
-        },
-        "addPhrase": "Toevoegen",
-        "removePhrase": "{{phrase}} verwijderen",
-        "reset": "Standaardwaarden herstellen",
-        "duplicateError": "De zin \"{{phrase}}\" wordt al door een opdracht gebruikt",
-        "tooLongError": "Zinnen zijn beperkt tot 60 tekens",
-        "placeholder": "Zin toevoegen"
       },
       "spokenPunctuation": {
         "title": "Gesproken interpunctie",

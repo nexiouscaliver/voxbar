@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "Geral",
+    "commands": "Comandos",
     "models": "Modelos",
     "advanced": "Avançado",
     "postProcessing": "Pós-Processamento",
@@ -258,6 +259,71 @@
           "title": "Modo de comandos",
           "description": "Ativa a tecla modificadora atribuível do modo de comandos. Mantenha-a enquanto uma sessão de ditado está ativa para interpretar a fala como comandos (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) que editam diretamente o buffer do ditado; palavras não reconhecidas são descartadas. Nunca inicia uma gravação por si."
         }
+      }
+    },
+    "commands": {
+      "searchPlaceholder": "Pesquisar comandos",
+      "resetAll": "Redefinir todos os comandos",
+      "resetRow": "Redefinir",
+      "addPhrase": "Adicionar",
+      "removePhrase": "Remover {{phrase}}",
+      "placeholder": "Adicionar uma frase",
+      "duplicateError": "A frase \"{{phrase}}\" já existe num comando",
+      "tooLongError": "As frases estão limitadas a 60 caracteres",
+      "noResults": "Nenhum comando corresponde à sua pesquisa",
+      "inserts": "Insere <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} removida",
+      "undoRemove": "Desfazer",
+      "resetCollision": "Não é possível redefinir: \"{{phrase}}\" agora pertence a {{command}}",
+      "resetAllConfirmTitle": "Redefinir todos os comandos?",
+      "resetAllConfirmBody": "Todas as frases personalizadas são descartadas e todos os comandos voltam às frases integradas.",
+      "resetAllConfirmCancel": "Cancelar",
+      "resetAllConfirmConfirm": "Redefinir tudo",
+      "behavior": "Comportamento dos comandos",
+      "groups": {
+        "punctuation": "Pontuação",
+        "symbols": "Símbolos",
+        "editing": "Edição",
+        "control": "Controle"
+      },
+      "names": {
+        "period": "Ponto",
+        "comma": "Vírgula",
+        "questionMark": "Ponto de interrogação",
+        "exclamation": "Ponto de exclamação",
+        "colon": "Dois pontos",
+        "semicolon": "Ponto e vírgula",
+        "dash": "Hífen",
+        "newLine": "Nova linha",
+        "newParagraph": "Novo parágrafo",
+        "atSign": "Arroba",
+        "hash": "Cerquilha",
+        "dollarSign": "Cifrão",
+        "percent": "Por cento",
+        "star": "Asterisco",
+        "ampersand": "E comercial",
+        "caret": "Acento circunflexo",
+        "openParen": "Parêntese de abertura",
+        "closeParen": "Parêntese de fechamento",
+        "openBracket": "Colchete de abertura",
+        "closeBracket": "Colchete de fechamento",
+        "openBrace": "Chave de abertura",
+        "closeBrace": "Chave de fechamento",
+        "slash": "Barra",
+        "backslash": "Barra invertida",
+        "pipe": "Barra vertical",
+        "deleteWord": "Apagar palavra",
+        "deleteLine": "Apagar linha",
+        "clearAll": "Apagar tudo",
+        "undo": "Desfazer",
+        "paste": "Colar"
+      },
+      "actions": {
+        "deleteWord": "Apaga a última palavra ditada",
+        "deleteLine": "Apaga a última linha ditada",
+        "clearAll": "Apaga todo o ditado",
+        "undo": "Executa desfazer no app em foco",
+        "paste": "Cola a área de transferência no app em foco"
       }
     },
     "models": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "Interpretar comandos automaticamente",
         "description": "Interpreta palavras de comando faladas (\"comma\", \"scratch that\") durante o ditado normal. Desative para digitá-las como palavras comuns; mantenha pressionado o modificador do modo de comandos para executar comandos."
-      },
-      "commandMatrix": {
-        "title": "Matriz de comandos",
-        "description": "Uma tabela editável de frases alimenta todas as superfícies de comandos falados: o modo de comandos, a pontuação falada e a exclusão por voz. Adicione ou remova as frases de cada comando; as mesmas frases funcionam em todos os lugares.",
-        "groups": {
-          "symbols": "Símbolos e pontuação",
-          "editing": "Edição",
-          "control": "Controle"
-        },
-        "addPhrase": "Adicionar",
-        "removePhrase": "Remover {{phrase}}",
-        "reset": "Redefinir para o padrão",
-        "duplicateError": "A frase \"{{phrase}}\" já existe em um comando",
-        "tooLongError": "As frases estão limitadas a 60 caracteres",
-        "placeholder": "Adicionar uma frase"
       },
       "spokenPunctuation": {
         "title": "Pontuação falada",

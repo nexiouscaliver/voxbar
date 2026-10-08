@@ -15,6 +15,7 @@
   },
   "sidebar": {
     "general": "General",
+    "commands": "Comandos",
     "models": "Modelos",
     "advanced": "Avanzado",
     "postProcessing": "Post proceso",
@@ -308,6 +309,71 @@
         }
       }
     },
+    "commands": {
+      "searchPlaceholder": "Buscar comandos",
+      "resetAll": "Restablecer todos los comandos",
+      "resetRow": "Restablecer",
+      "addPhrase": "Añadir",
+      "removePhrase": "Quitar {{phrase}}",
+      "placeholder": "Añadir una frase",
+      "duplicateError": "La frase \"{{phrase}}\" ya existe en un comando",
+      "tooLongError": "Las frases están limitadas a 60 caracteres",
+      "noResults": "Ningún comando coincide con tu búsqueda",
+      "inserts": "Inserta <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} quitada",
+      "undoRemove": "Deshacer",
+      "resetCollision": "No se puede restablecer: \"{{phrase}}\" ahora pertenece a {{command}}",
+      "resetAllConfirmTitle": "¿Restablecer todos los comandos?",
+      "resetAllConfirmBody": "Se descartan todas las frases personalizadas y todos los comandos vuelven a sus frases integradas.",
+      "resetAllConfirmCancel": "Cancelar",
+      "resetAllConfirmConfirm": "Restablecer todo",
+      "behavior": "Comportamiento de los comandos",
+      "groups": {
+        "punctuation": "Puntuación",
+        "symbols": "Símbolos",
+        "editing": "Edición",
+        "control": "Control"
+      },
+      "names": {
+        "period": "Punto",
+        "comma": "Coma",
+        "questionMark": "Signo de interrogación",
+        "exclamation": "Signo de exclamación",
+        "colon": "Dos puntos",
+        "semicolon": "Punto y coma",
+        "dash": "Guion",
+        "newLine": "Nueva línea",
+        "newParagraph": "Nuevo párrafo",
+        "atSign": "Arroba",
+        "hash": "Almohadilla",
+        "dollarSign": "Signo de dólar",
+        "percent": "Porcentaje",
+        "star": "Asterisco",
+        "ampersand": "Ampersand",
+        "caret": "Circunflejo",
+        "openParen": "Paréntesis de apertura",
+        "closeParen": "Paréntesis de cierre",
+        "openBracket": "Corchete de apertura",
+        "closeBracket": "Corchete de cierre",
+        "openBrace": "Llave de apertura",
+        "closeBrace": "Llave de cierre",
+        "slash": "Barra",
+        "backslash": "Barra invertida",
+        "pipe": "Barra vertical",
+        "deleteWord": "Eliminar palabra",
+        "deleteLine": "Eliminar línea",
+        "clearAll": "Borrar todo",
+        "undo": "Deshacer",
+        "paste": "Pegar"
+      },
+      "actions": {
+        "deleteWord": "Elimina la última palabra dictada",
+        "deleteLine": "Elimina la última línea dictada",
+        "clearAll": "Borra todo lo dictado",
+        "undo": "Ejecuta deshacer en la aplicación enfocada",
+        "paste": "Pega el portapapeles en la aplicación enfocada"
+      }
+    },
     "sound": {
       "title": "Sonido",
       "microphone": {
@@ -511,21 +577,6 @@
       "autoInterpret": {
         "title": "Interpretar comandos automáticamente",
         "description": "Interpreta las palabras de comando habladas (\"comma\", \"scratch that\") durante el dictado normal. Desactívalo para escribirlas como palabras normales; mantén pulsado el modificador del modo de comandos para ejecutar comandos."
-      },
-      "commandMatrix": {
-        "title": "Matriz de comandos",
-        "description": "Una tabla editable de frases alimenta todas las superficies de comandos hablados: el modo de comandos, la puntuación hablada y el borrado por voz. Añade o quita las frases de cada comando; las mismas frases funcionan en todas partes.",
-        "groups": {
-          "symbols": "Símbolos y puntuación",
-          "editing": "Edición",
-          "control": "Control"
-        },
-        "addPhrase": "Añadir",
-        "removePhrase": "Quitar {{phrase}}",
-        "reset": "Restablecer valores predeterminados",
-        "duplicateError": "La frase \"{{phrase}}\" ya existe en un comando",
-        "tooLongError": "Las frases están limitadas a 60 caracteres",
-        "placeholder": "Añadir una frase"
       },
       "spokenPunctuation": {
         "title": "Puntuación hablada",
