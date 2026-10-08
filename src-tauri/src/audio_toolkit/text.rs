@@ -825,10 +825,7 @@ fn push_deletion_span(
 /// start (nothing kept yet, or the kept text ends a sentence). Text without
 /// any command is preserved byte-for-byte except that leading spaces/tabs
 /// left behind by a command consumed at the very start are trimmed.
-pub fn apply_voice_deletion(
-    text: &str,
-    matrix: &CompiledCommandMatrix,
-) -> VoiceDeletionOutcome {
+pub fn apply_voice_deletion(text: &str, matrix: &CompiledCommandMatrix) -> VoiceDeletionOutcome {
     let mut kept = String::with_capacity(text.len());
     let mut resume = 0;
     let mut capital_owed = false;
@@ -934,8 +931,8 @@ pub fn normalize_transcription_output(text: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use super::super::command_matrix::default_compiled_matrix;
+    use super::*;
 
     /// The compiled DEFAULT matrix (shared; no rebuild per test).
     fn dm() -> std::sync::Arc<super::super::command_matrix::CompiledCommandMatrix> {
@@ -1141,7 +1138,10 @@ mod tests {
     #[test]
     fn test_stutter_collapse_is_per_line_keeping_newlines() {
         // Repetitions collapse within each line; the break survives.
-        assert_eq!(collapse_stutters("the the the\none one one one"), "the\none");
+        assert_eq!(
+            collapse_stutters("the the the\none one one one"),
+            "the\none"
+        );
         // Repetition counting never crosses a line boundary: two pairs on
         // separate lines stay two pairs (a flattened count of four would
         // collapse them to one).
@@ -1162,7 +1162,10 @@ mod tests {
             "para one\n\npara two"
         );
         // Runs of spaces still collapse.
-        assert_eq!(normalize_transcription_output("hello  world"), "hello world");
+        assert_eq!(
+            normalize_transcription_output("hello  world"),
+            "hello world"
+        );
         // The leading trim is unchanged and a trailing newline run is
         // retained on the right edge.
         assert_eq!(normalize_transcription_output("  hello.\n"), "hello.\n");
@@ -1609,7 +1612,10 @@ mod tests {
         assert_eq!(apply_terminal_punctuation("hello\n"), "hello.\n");
         assert_eq!(apply_terminal_punctuation("para one\n\n"), "para one.\n\n");
         // The interrogative choice runs on the body before the run.
-        assert_eq!(apply_terminal_punctuation("what is this\n"), "what is this?\n");
+        assert_eq!(
+            apply_terminal_punctuation("what is this\n"),
+            "what is this?\n"
+        );
     }
 
     #[test]
@@ -1646,7 +1652,10 @@ mod tests {
 
     #[test]
     fn test_voice_deletion_counted_forms() {
-        assert_eq!(apply_voice_deletion("a b c delete last word", &dm()).text, "a b");
+        assert_eq!(
+            apply_voice_deletion("a b c delete last word", &dm()).text,
+            "a b"
+        );
         assert_eq!(
             apply_voice_deletion("a b c delete last one word", &dm()).text,
             "a b"
@@ -1670,13 +1679,17 @@ mod tests {
             );
         }
         // Requesting more words than remain deletes all of them.
-        assert_eq!(apply_voice_deletion("a b delete last ten words", &dm()).text, "");
+        assert_eq!(
+            apply_voice_deletion("a b delete last ten words", &dm()).text,
+            ""
+        );
     }
 
     #[test]
     fn test_voice_deletion_everything_commands_clear() {
         for command in ["delete everything", "scratch everything", "start over"] {
-            let result = apply_voice_deletion(&format!("hello world {command} trailing words"), &dm());
+            let result =
+                apply_voice_deletion(&format!("hello world {command} trailing words"), &dm());
             assert_eq!(result.text, "", "command: {command}");
             assert!(result.cleared, "command: {command}");
         }
@@ -1706,7 +1719,10 @@ mod tests {
             "hello there"
         );
         // Deletions collapse doubled spaces around the join point.
-        assert_eq!(apply_voice_deletion("a  b   scratch that   c", &dm()).text, "a c");
+        assert_eq!(
+            apply_voice_deletion("a  b   scratch that   c", &dm()).text,
+            "a c"
+        );
     }
 
     #[test]
@@ -1826,7 +1842,10 @@ mod tests {
     fn test_remove_trailing_line_from_buffer_matches_voice_deletion_line_semantics() {
         // Everything after the last newline goes; the newline stays so text
         // arriving after the edit starts on the fresh line.
-        assert_eq!(remove_trailing_line_from_buffer("first\nsecond third"), "first\n");
+        assert_eq!(
+            remove_trailing_line_from_buffer("first\nsecond third"),
+            "first\n"
+        );
         assert_eq!(remove_trailing_line_from_buffer("first\n"), "first\n");
         // No newline: the whole buffer is the trailing line and empties.
         assert_eq!(remove_trailing_line_from_buffer("only line"), "");
@@ -1855,7 +1874,10 @@ mod tests {
             remove_trailing_word_from_buffer_reporting("   "),
             (String::new(), None)
         );
-        assert_eq!(remove_trailing_word_from_buffer_reporting(""), (String::new(), None));
+        assert_eq!(
+            remove_trailing_word_from_buffer_reporting(""),
+            (String::new(), None)
+        );
 
         // Line reporting: the span after the last newline, or the whole
         // buffer with no newline; None when that span holds nothing

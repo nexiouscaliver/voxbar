@@ -30,6 +30,16 @@
     "showFewerModels": "عرض عدد أقل من النماذج",
     "recommended": "موصى به",
     "customModelDescription": "غير مدعوم رسميًا",
+    "refusal": {
+      "title": "لا توجد ذاكرة حرة كافية",
+      "needs": "رفض حارس الذاكرة تحميل {{model}}: يحتاج ~{{needed}}، والمتاح ~{{free}}.",
+      "marginNote": "تُضاف فوق حجم النموذج هوامش أمان قدرها {{margin}} (يمكن تعديلها في الإعدادات > متقدم).",
+      "retry": "إعادة المحاولة",
+      "switchModel": "اختيار نموذج آخر",
+      "disableGuard": "تحميل بدون حارس الذاكرة",
+      "continueDeferred": "المتابعة بدون تحميل الآن",
+      "guardOffCaveat": "يظل الحارس مطفأً حتى تعيد تشغيله في الإعدادات > متقدم؛ يُحمّل النموذج عند أول إملاء."
+    },
     "modelCard": {
       "accuracy": "الدقة",
       "speed": "السرعة"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "فشل تحديد النموذج"
+      "selectModel": "فشل تحديد النموذج",
+      "downloadFailed": "فشل تنزيل {{model}}: {{error}}"
     },
     "permissions": {
       "title": "الأذونات المطلوبة",
       "description": ".يحتاج VoxBar إلى بعض الأذونات ليعمل بشكل صحيح",
       "microphone": {
         "title": "الوصول إلى الميكروفون",
-        "description": ".مطلوب لسماع صوتك من أجل التفريغ الصوتي"
+        "description": ".مطلوب لسماع صوتك من أجل التفريغ الصوتي",
+        "deniedGuidance": "لا يوجد وصول إلى الميكروفون بعد. فعّل VoxBar ضمن إعدادات النظام > الخصوصية والأمان > الميكروفون، ثم تحقق مجددًا.",
+        "openSettings": "فتح إعدادات الميكروفون",
+        "checkAgain": "التحقق مجددًا"
       },
       "accessibility": {
         "title": "إمكانية الوصول",
@@ -122,7 +136,9 @@
         "checkFailed": "فشل التحقق من الأذونات. يرجير المحاولة مرة أخرى.",
         "requestFailed": "فشل طلب الإذن. يرجى المحاولة مرة أخرى."
       }
-    }
+    },
+    "hotkeyHint": "ابدأ الإملاء بـ {{hotkey}} في أي وقت.",
+    "hotkeyChangeHint": "يمكنك تغيير هذا الاختصار في الإعدادات > عام."
   },
   "modelSelector": {
     "custom": "مخصص",
@@ -306,6 +322,21 @@
       "memoryPressureGuard": {
         "label": "حارس ضغط الذاكرة",
         "description": "رفض تحميل نموذج عندما لا تتسع الذاكرة الحرة له. يظل النموذج الحالي يعمل عند رفض التحميل."
+      },
+      "memoryHeadroom": {
+        "label": "هامش أمان الذاكرة",
+        "description": "ذاكرة حرة إضافية تُترك متاحة فوق حجم النموذج قبل أن يرفض حارس الذاكرة التحميل. القيمة 0 (الافتراضية) تعني أن يتسع النموذج وحده؛ والقيمة المخصصة هي 0 أو 5 MB على الأقل.",
+        "options": {
+          "off": "إيقاف",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "مخصص"
+        },
+        "customLabel": "هامش مخصص",
+        "customUnit": "MB",
+        "invalid": "أدخل 0 أو 5 MB على الأقل."
       },
       "autoFallback": {
         "label": "تبديل تلقائي عند نقص الذاكرة",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "لا يمكن تحديث التثبيتات المحمولة تلقائيًا. نزّل المثبّت المناسب لنظامك من الزر أدناه، شغّله، وثبّته في المجلد نفسه - يبقى مجلد Data/ (الإعدادات والنماذج والتسجيلات) في مكانه.",
     "portableUpdateButton": "تنزيل المثبّت",
     "portableUpdateBrowseMessage": "لا يمكن تحديث التثبيتات المحمولة تلقائيًا. نزّل أحدث إصدار مناسب لنظامك من GitHub Releases وثبّته في المجلد نفسه - يبقى مجلد Data/ (الإعدادات والنماذج والتسجيلات) في مكانه.",
-    "portableUpdateBrowseButton": "فتح GitHub Releases"
+    "portableUpdateBrowseButton": "فتح GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} متاح",
+      "availableDate": "صدر في {{date}}",
+      "downloadAction": "تنزيل وتثبيت",
+      "laterAction": "لاحقًا",
+      "progress": "جارٍ تنزيل التحديث... {{percent}}%",
+      "installRestart": "تم تنزيل التحديث. جارٍ التثبيت وإعادة التشغيل...",
+      "failedTitle": "فشل التحديث",
+      "failedAction": "فتح إصدارات GitHub",
+      "checkFailedTitle": "تعذّر التحقق من التحديثات"
+    }
   },
   "common": {
     "loading": "...جاري التحميل",
@@ -811,7 +853,9 @@
     "modelFallback": "تم التبديل إلى {{model}} لهذا الإملاء",
     "pasteFailedTitle": "فشل لصق النص",
     "pasteFailed": "تعذر لصق النص في التطبيق النشط.",
-    "transcriptionFailedTitle": "فشل التفريغ النصي"
+    "transcriptionFailedTitle": "فشل التفريغ النصي",
+    "noModelSelectedTitle": "لم يتم اختيار نموذج",
+    "noModelSelected": "اختر نموذج نسخ في الإعدادات قبل الإملاء."
   },
   "appLanguage": {
     "title": "لغة التطبيق",

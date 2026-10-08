@@ -175,11 +175,15 @@ enum Effect {
 /// Commands processed sequentially by the coordinator thread.
 enum Command {
     Input(InputEvent),
-    Cancel { recording_was_active: bool },
+    Cancel {
+        recording_was_active: bool,
+    },
     ProcessingFinished,
     /// Press/release of the command-mode binding (a during-dictation
     /// modifier, never a recording trigger).
-    CommandModifier { is_pressed: bool },
+    CommandModifier {
+        is_pressed: bool,
+    },
 }
 
 /// Decide whether a key-up should be deferred (so auto-repeat can cancel it)
@@ -558,9 +562,7 @@ impl CoordinatorState {
                 debug!("Command modifier engaged for the live dictation session");
                 self.command_modifier = true;
             } else {
-                debug!(
-                    "Command modifier pressed with no live dictation session; nothing happens"
-                );
+                debug!("Command modifier pressed with no live dictation session; nothing happens");
             }
         } else if self.command_modifier {
             debug!("Command modifier released; dictation returns to normal");

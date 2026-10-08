@@ -30,6 +30,16 @@
     "showFewerModels": "Visa färre modeller",
     "recommended": "Rekommenderat",
     "customModelDescription": "Stöds inte officiellt",
+    "refusal": {
+      "title": "Inte tillräckligt ledigt minne",
+      "needs": "Minnesskyddet vägrade läsa in {{model}}: det krävs ~{{needed}}, och ~{{free}} är ledigt.",
+      "marginNote": "En säkerhetsmarginal på {{margin}} läggs utöver modellens storlek (justeras i Inställningar > Avancerat).",
+      "retry": "Försök igen",
+      "switchModel": "Välj en annan modell",
+      "disableGuard": "Läs in utan minnesskyddet",
+      "continueDeferred": "Fortsätt utan att läsa in nu",
+      "guardOffCaveat": "Skyddet förblir avstängt tills du slår på det igen i Inställningar > Avancerat; modellen läses in vid första dikteringen."
+    },
     "modelCard": {
       "accuracy": "noggrannhet",
       "speed": "hastighet"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Det gick inte att välja modell"
+      "selectModel": "Det gick inte att välja modell",
+      "downloadFailed": "Det gick inte att ladda ner {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Behörigheter krävs",
       "description": "VoxBar behöver ett par behörigheter för att fungera korrekt.",
       "microphone": {
         "title": "Mikrofonåtkomst",
-        "description": "Krävs för att höra din röst för transkription."
+        "description": "Krävs för att höra din röst för transkription.",
+        "deniedGuidance": "Ingen mikrofonåtkomst ännu. Aktivera VoxBar under Systeminställningar > Integritet och säkerhet > Mikrofon och kontrollera igen.",
+        "openSettings": "Öppna mikrofoninställningar",
+        "checkAgain": "Kontrollera igen"
       },
       "accessibility": {
         "title": "Hjälpmedelsåtkomst",
@@ -122,7 +136,9 @@
         "checkFailed": "Misslyckades med att kontrollera behörigheter. Försök igen.",
         "requestFailed": "Misslyckades med att begära behörighet. Försök igen."
       }
-    }
+    },
+    "hotkeyHint": "Starta diktering med {{hotkey}} när som helst.",
+    "hotkeyChangeHint": "Du kan ändra denna genväg i Inställningar > Allmänt."
   },
   "modelSelector": {
     "custom": "Anpassad",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "Skydd mot minnesbrist",
         "description": "Vägrar läsa in en modell när ledigt minne inte räcker. Den aktuella modellen fortsätter fungera när en inläsning vägras."
+      },
+      "memoryHeadroom": {
+        "label": "Säkerhetsmarginal för minne",
+        "description": "Extra ledigt minne som hålls fritt utöver modellens storlek innan skyddet mot minnesbrist vägrar en inläsning. 0 (standard) innebär att modellen ensam måste få plats; ett anpassat värde är 0 eller minst 5 MB.",
+        "options": {
+          "off": "Av",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Anpassad"
+        },
+        "customLabel": "Anpassad marginal",
+        "customUnit": "MB",
+        "invalid": "Ange 0 eller minst 5 MB."
       },
       "autoFallback": {
         "label": "Automatisk RAM-reserv",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "Portabla installationer kan inte uppdateras automatiskt. Ladda ner installeraren för ditt system nedan, kör den och installera i samma mapp - din Data/-mapp (inställningar, modeller, inspelningar) behålls.",
     "portableUpdateButton": "Ladda ner installeraren",
     "portableUpdateBrowseMessage": "Portabla installationer kan inte uppdateras automatiskt. Ladda ner den senaste versionen för ditt system från GitHub Releases och installera den i samma mapp - din Data/-mapp (inställningar, modeller, inspelningar) behålls.",
-    "portableUpdateBrowseButton": "Öppna GitHub Releases"
+    "portableUpdateBrowseButton": "Öppna GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} är tillgänglig",
+      "availableDate": "Publicerad {{date}}",
+      "downloadAction": "Hämta och installera",
+      "laterAction": "Senare",
+      "progress": "Hämtar uppdatering... {{percent}}%",
+      "installRestart": "Uppdateringen har hämtats. Installerar och startar om...",
+      "failedTitle": "Uppdateringen misslyckades",
+      "failedAction": "Öppna GitHub-releaser",
+      "checkFailedTitle": "Kunde inte söka efter uppdateringar"
+    }
   },
   "common": {
     "loading": "Laddar...",
@@ -811,7 +853,9 @@
     "noInputDevice": "Ingen ljudenhet hittades. Anslut en mikrofon eller ett headset och försök igen.",
     "pasteFailedTitle": "Det gick inte att klistra in texten",
     "pasteFailed": "Texten kunde inte klistras in i det aktiva programmet.",
-    "transcriptionFailedTitle": "Transkriptionen misslyckades"
+    "transcriptionFailedTitle": "Transkriptionen misslyckades",
+    "noModelSelectedTitle": "Ingen modell vald",
+    "noModelSelected": "Välj en transkriberingsmodell i Inställningar innan du dikterar."
   },
   "appLanguage": {
     "title": "Applikationsspråk",

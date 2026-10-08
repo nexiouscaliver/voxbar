@@ -30,6 +30,16 @@
     "showFewerModels": "Mostrar menos modelos",
     "recommended": "Recomendado",
     "customModelDescription": "Sin soporte oficial",
+    "refusal": {
+      "title": "No hay suficiente memoria libre",
+      "needs": "La protección de memoria rechazó cargar {{model}}: necesita ~{{needed}}, y hay ~{{free}} libres.",
+      "marginNote": "Se añade un margen de seguridad de {{margin}} más allá del tamaño del modelo (ajustable en Configuración > Avanzado).",
+      "retry": "Reintentar",
+      "switchModel": "Elegir otro modelo",
+      "disableGuard": "Cargar sin la protección de memoria",
+      "continueDeferred": "Continuar sin cargar ahora",
+      "guardOffCaveat": "La protección queda desactivada hasta que la reactives en Configuración > Avanzado; el modelo se carga en el primer dictado."
+    },
     "modelCard": {
       "accuracy": "precisión",
       "speed": "velocidad"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Error al seleccionar el modelo"
+      "selectModel": "Error al seleccionar el modelo",
+      "downloadFailed": "Error al descargar {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permisos requeridos",
       "description": "VoxBar necesita algunos permisos para funcionar correctamente.",
       "microphone": {
         "title": "Acceso al micrófono",
-        "description": "Necesario para escuchar tu voz para la transcripción."
+        "description": "Necesario para escuchar tu voz para la transcripción.",
+        "deniedGuidance": "Aún no hay acceso al micrófono. Activa VoxBar en Ajustes del Sistema > Privacidad y seguridad > Micrófono y vuelve a comprobarlo.",
+        "openSettings": "Abrir ajustes del micrófono",
+        "checkAgain": "Comprobar de nuevo"
       },
       "accessibility": {
         "title": "Acceso de accesibilidad",
@@ -122,7 +136,9 @@
         "checkFailed": "Error al verificar permisos. Por favor, inténtalo de nuevo.",
         "requestFailed": "Error al solicitar permiso. Por favor, inténtalo de nuevo."
       }
-    }
+    },
+    "hotkeyHint": "Inicia el dictado con {{hotkey}} en cualquier momento.",
+    "hotkeyChangeHint": "Puedes cambiar este atajo en Configuración > General."
   },
   "modelSelector": {
     "custom": "Personalizado",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "Protección de presión de memoria",
         "description": "Rechaza cargar un modelo cuando la memoria libre no es suficiente. El modelo actual sigue funcionando cuando se rechaza una carga."
+      },
+      "memoryHeadroom": {
+        "label": "Margen de seguridad de memoria",
+        "description": "Memoria libre adicional que se mantiene más allá del tamaño del modelo antes de que la protección de presión de memoria rechace una carga. 0 (predeterminado) significa que el modelo por sí solo debe caber; un valor personalizado es 0 o al menos 5 MB.",
+        "options": {
+          "off": "Desactivado",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Personalizado"
+        },
+        "customLabel": "Margen personalizado",
+        "customUnit": "MB",
+        "invalid": "Introduzca 0 o al menos 5 MB."
       },
       "autoFallback": {
         "label": "Cambio automático por memoria",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "Las instalaciones portátiles no se pueden actualizar automáticamente. Descarga abajo el instalador para tu sistema, ejecútalo e instálalo en la misma carpeta: tu carpeta Data/ (ajustes, modelos, grabaciones) se conserva.",
     "portableUpdateButton": "Descargar instalador",
     "portableUpdateBrowseMessage": "Las instalaciones portátiles no se pueden actualizar automáticamente. Descarga la versión más reciente para tu sistema desde GitHub Releases e instálala en la misma carpeta: tu carpeta Data/ (ajustes, modelos, grabaciones) se conserva.",
-    "portableUpdateBrowseButton": "Abrir GitHub Releases"
+    "portableUpdateBrowseButton": "Abrir GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} está disponible",
+      "availableDate": "Publicado el {{date}}",
+      "downloadAction": "Descargar e instalar",
+      "laterAction": "Más tarde",
+      "progress": "Descargando actualización... {{percent}}%",
+      "installRestart": "Actualización descargada. Instalando y reiniciando...",
+      "failedTitle": "Error al actualizar",
+      "failedAction": "Abrir versiones de GitHub",
+      "checkFailedTitle": "No se pudieron comprobar actualizaciones"
+    }
   },
   "common": {
     "loading": "Cargando...",
@@ -811,7 +853,9 @@
     "modelFallback": "Se cambió a {{model}} para este dictado",
     "pasteFailedTitle": "Error al pegar el texto",
     "pasteFailed": "No se pudo pegar el texto en la aplicación activa.",
-    "transcriptionFailedTitle": "Error de transcripción"
+    "transcriptionFailedTitle": "Error de transcripción",
+    "noModelSelectedTitle": "Ningún modelo seleccionado",
+    "noModelSelected": "Elige un modelo de transcripción en Configuración antes de dictar."
   },
   "appLanguage": {
     "title": "Idioma de la aplicación",

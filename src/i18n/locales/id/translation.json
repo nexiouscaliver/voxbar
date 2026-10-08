@@ -30,6 +30,16 @@
     "showFewerModels": "Tampilkan lebih sedikit model",
     "recommended": "Direkomendasikan",
     "customModelDescription": "Tidak didukung secara resmi",
+    "refusal": {
+      "title": "Memori bebas tidak cukup",
+      "needs": "Penjaga memori menolak memuat {{model}}: perlu ~{{needed}}, dan yang bebas ~{{free}}.",
+      "marginNote": "Margin keamanan {{margin}} ditambahkan di luar ukuran model (dapat diatur di Pengaturan > Lanjutan).",
+      "retry": "Coba lagi",
+      "switchModel": "Pilih model lain",
+      "disableGuard": "Muat tanpa penjaga memori",
+      "continueDeferred": "Lanjutkan tanpa memuat sekarang",
+      "guardOffCaveat": "Penjaga tetap mati sampai diaktifkan lagi di Pengaturan > Lanjutan; model dimuat pada dikte pertama."
+    },
     "modelCard": {
       "accuracy": "akurasi",
       "speed": "kecepatan"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Gagal memilih model"
+      "selectModel": "Gagal memilih model",
+      "downloadFailed": "Gagal mengunduh {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Izin Diperlukan",
       "description": "VoxBar memerlukan beberapa izin agar dapat berfungsi dengan baik.",
       "microphone": {
         "title": "Akses Mikrofon",
-        "description": "Diperlukan untuk menangkap suara Anda agar dapat ditranskripsikan."
+        "description": "Diperlukan untuk menangkap suara Anda agar dapat ditranskripsikan.",
+        "deniedGuidance": "Akses mikrofon belum ada. Aktifkan VoxBar di Pengaturan Sistem > Privasi & Keamanan > Mikrofon, lalu periksa lagi.",
+        "openSettings": "Buka Pengaturan Mikrofon",
+        "checkAgain": "Periksa Lagi"
       },
       "accessibility": {
         "title": "Izin Aksesibilitas",
@@ -122,7 +136,9 @@
         "checkFailed": "Gagal memeriksa izin. Silakan coba lagi.",
         "requestFailed": "Gagal meminta izin. Silakan coba lagi."
       }
-    }
+    },
+    "hotkeyHint": "Mulai dikte dengan {{hotkey}} kapan saja.",
+    "hotkeyChangeHint": "Pintasan ini bisa diubah di Pengaturan > Umum."
   },
   "modelSelector": {
     "custom": "Kustom",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "Penjaga Tekanan Memori",
         "description": "Menolak memuat model saat memori bebas tidak cukup. Model saat ini tetap berfungsi saat pemuatan ditolak."
+      },
+      "memoryHeadroom": {
+        "label": "Margin Keamanan Memori",
+        "description": "RAM bebas ekstra yang disisihkan melebihi ukuran model sebelum penjaga tekanan memori menolak pemuatan. 0 (bawaan) berarti model saja harus cukup; nilai kustom adalah 0 atau setidaknya 5 MB.",
+        "options": {
+          "off": "Mati",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Kustom"
+        },
+        "customLabel": "Margin kustom",
+        "customUnit": "MB",
+        "invalid": "Masukkan 0 atau setidaknya 5 MB."
       },
       "autoFallback": {
         "label": "Fallback otomatis RAM",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "Instalasi portabel tidak dapat diperbarui secara otomatis. Unduh penginstal untuk sistem Anda di bawah ini, jalankan, lalu instal ke folder yang sama - folder Data/ Anda (pengaturan, model, rekaman) tetap dipertahankan.",
     "portableUpdateButton": "Unduh penginstal",
     "portableUpdateBrowseMessage": "Instalasi portabel tidak dapat diperbarui secara otomatis. Unduh versi terbaru untuk sistem Anda dari GitHub Releases dan instal ke folder yang sama - folder Data/ Anda (pengaturan, model, rekaman) tetap dipertahankan.",
-    "portableUpdateBrowseButton": "Buka GitHub Releases"
+    "portableUpdateBrowseButton": "Buka GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} tersedia",
+      "availableDate": "Dirilis {{date}}",
+      "downloadAction": "Unduh dan pasang",
+      "laterAction": "Nanti",
+      "progress": "Mengunduh pembaruan... {{percent}}%",
+      "installRestart": "Pembaruan terunduh. Memasang dan memulai ulang...",
+      "failedTitle": "Pembaruan gagal",
+      "failedAction": "Buka Rilis GitHub",
+      "checkFailedTitle": "Tidak dapat memeriksa pembaruan"
+    }
   },
   "whatsNew": {
     "title": "Baru di VoxBar v{{version}}"
@@ -814,7 +856,9 @@
     "modelFallback": "Beralih ke {{model}} untuk dikte ini",
     "pasteFailedTitle": "Gagal Menempelkan Teks",
     "pasteFailed": "Teks tidak dapat ditempelkan ke aplikasi aktif.",
-    "transcriptionFailedTitle": "Transkripsi Gagal"
+    "transcriptionFailedTitle": "Transkripsi Gagal",
+    "noModelSelectedTitle": "Tidak ada model dipilih",
+    "noModelSelected": "Pilih model transkripsi di Pengaturan sebelum mendikte."
   },
   "appLanguage": {
     "title": "Bahasa Aplikasi",

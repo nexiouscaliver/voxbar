@@ -30,6 +30,16 @@
     "showFewerModels": "Mostrar menos modelos",
     "recommended": "Recomendado",
     "customModelDescription": "Não suportado oficialmente",
+    "refusal": {
+      "title": "Memória livre insuficiente",
+      "needs": "A proteção de memória recusou carregar {{model}}: precisa de ~{{needed}}, e há ~{{free}} livres.",
+      "marginNote": "Uma margem de segurança de {{margin}} é adicionada além do tamanho do modelo (ajustável em Configurações > Avançado).",
+      "retry": "Tentar novamente",
+      "switchModel": "Escolher outro modelo",
+      "disableGuard": "Carregar sem a proteção de memória",
+      "continueDeferred": "Continuar sem carregar agora",
+      "guardOffCaveat": "A proteção fica desativada até você reativá-la em Configurações > Avançado; o modelo carrega no primeiro ditado."
+    },
     "modelCard": {
       "accuracy": "precisão",
       "speed": "velocidade"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Falha ao selecionar o modelo"
+      "selectModel": "Falha ao selecionar o modelo",
+      "downloadFailed": "Falha ao baixar {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permissões Necessárias",
       "description": "O VoxBar precisa de algumas permissões para funcionar corretamente.",
       "microphone": {
         "title": "Acesso ao Microfone",
-        "description": "Necessário para ouvir sua voz para transcrição."
+        "description": "Necessário para ouvir sua voz para transcrição.",
+        "deniedGuidance": "Ainda sem acesso ao microfone. Ative o VoxBar em Ajustes do Sistema > Privacidade e Segurança > Microfone e verifique novamente.",
+        "openSettings": "Abrir ajustes do microfone",
+        "checkAgain": "Verificar novamente"
       },
       "accessibility": {
         "title": "Acesso à Acessibilidade",
@@ -122,7 +136,9 @@
         "checkFailed": "Erro ao verificar permissões. Por favor, tente novamente.",
         "requestFailed": "Erro ao solicitar permissão. Por favor, tente novamente."
       }
-    }
+    },
+    "hotkeyHint": "Inicie o ditado com {{hotkey}} a qualquer momento.",
+    "hotkeyChangeHint": "Você pode mudar este atalho em Configurações > Geral."
   },
   "modelSelector": {
     "custom": "Personalizado",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "Proteção de pressão de memória",
         "description": "Recusa carregar um modelo quando a memória livre é insuficiente. O modelo atual continua funcionando quando um carregamento é recusado."
+      },
+      "memoryHeadroom": {
+        "label": "Margem de segurança de memória",
+        "description": "RAM livre extra mantida além do tamanho do modelo antes que a proteção de pressão de memória recuse um carregamento. 0 (padrão) significa que apenas o modelo deve caber; um valor personalizado é 0 ou pelo menos 5 MB.",
+        "options": {
+          "off": "Desativado",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Personalizado"
+        },
+        "customLabel": "Margem personalizada",
+        "customUnit": "MB",
+        "invalid": "Digite 0 ou pelo menos 5 MB."
       },
       "autoFallback": {
         "label": "Alternativa automática de RAM",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "Instalações portáteis não podem ser atualizadas automaticamente. Baixe abaixo o instalador para o seu sistema, execute-o e instale na mesma pasta - a sua pasta Data/ (configurações, modelos, gravações) é mantida.",
     "portableUpdateButton": "Baixar instalador",
     "portableUpdateBrowseMessage": "Instalações portáteis não podem ser atualizadas automaticamente. Baixe a versão mais recente para o seu sistema no GitHub Releases e instale-a na mesma pasta - a sua pasta Data/ (configurações, modelos, gravações) é mantida.",
-    "portableUpdateBrowseButton": "Abrir GitHub Releases"
+    "portableUpdateBrowseButton": "Abrir GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} está disponível",
+      "availableDate": "Publicado em {{date}}",
+      "downloadAction": "Baixar e instalar",
+      "laterAction": "Mais tarde",
+      "progress": "Baixando atualização... {{percent}}%",
+      "installRestart": "Atualização baixada. Instalando e reiniciando...",
+      "failedTitle": "Falha na atualização",
+      "failedAction": "Abrir versões no GitHub",
+      "checkFailedTitle": "Não foi possível verificar atualizações"
+    }
   },
   "common": {
     "loading": "Carregando...",
@@ -811,7 +853,9 @@
     "modelFallback": "Trocado para {{model}} para este ditado",
     "pasteFailedTitle": "Falha ao colar o texto",
     "pasteFailed": "Não foi possível colar o texto no aplicativo ativo.",
-    "transcriptionFailedTitle": "Falha na transcrição"
+    "transcriptionFailedTitle": "Falha na transcrição",
+    "noModelSelectedTitle": "Nenhum modelo selecionado",
+    "noModelSelected": "Escolha um modelo de transcrição em Configurações antes de ditar."
   },
   "appLanguage": {
     "title": "Idioma da Aplicação",

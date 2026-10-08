@@ -1,6 +1,6 @@
 [package]
 name = "voxbar"
-version = "1.0.2"
+version = "1.1.0"
 description = "VoxBar"
 authors = ["Shahil Kadia"]
 edition = "2021"
@@ -106,6 +106,11 @@ signal-hook = "0.3"
 tauri-plugin-autostart = "2.5.1"
 tauri-plugin-global-shortcut = "2.3.1"
 tauri-plugin-single-instance = "2.3.2"
+# In-app updater (updates served from the GitHub releases; see the updater
+# config in tauri.conf.json and scripts/release-macos.sh for the signing
+# pipeline). tauri-plugin-process provides the post-install relaunch.
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"
 
 [target.'cfg(windows)'.dependencies]
 # Used to reach ICoreWebView2Settings3 through the webview's controller

@@ -427,7 +427,9 @@ impl ShortcutAction for TranscribeAction {
         let kickoff_elapsed = kickoff_started.elapsed();
 
         // Don't open the mic if nothing can transcribe the recording; the load
-        // kicked off above fails and reports why.
+        // kicked off above fails and reports why. Emit a user-facing event so
+        // the hotkey explains itself instead of appearing broken (a bare
+        // warn! log is invisible to the user).
         if !tm.is_model_loaded() {
             let selected_model = get_settings(app).selected_model;
             if let Err(e) = app
@@ -435,6 +437,13 @@ impl ShortcutAction for TranscribeAction {
                 .get_model_path(&selected_model)
             {
                 warn!("Not starting recording: no model can transcribe it ({})", e);
+                let _ = app.emit(
+                    "recording-error",
+                    RecordingErrorEvent {
+                        error_type: "no_model_selected".to_string(),
+                        detail: Some(e.to_string()),
+                    },
+                );
                 return;
             }
         }
@@ -953,9 +962,7 @@ impl ShortcutAction for DeleteLastWordAction {
             // There is nothing in the buffer to delete and keystroke
             // injection would hit the wrong text, so this is a deliberate
             // no-op.
-            debug!(
-                "Delete-last-word skipped: recording session active but no live buffer to edit"
-            );
+            debug!("Delete-last-word skipped: recording session active but no live buffer to edit");
         }
     }
 
@@ -1028,19 +1035,29 @@ impl ShortcutAction for TestAction {
 pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::new(|| {
     let mut map = HashMap::new();
     for binding_id in ["transcribe", "transcribe_with_post_process"] {
-        let post_process = transcribe_action_config(binding_id).expect("known transcribe binding id");
+        let post_process =
+            transcribe_action_config(binding_id).expect("known transcribe binding id");
         map.insert(
             binding_id.to_string(),
             Arc::new(TranscribeAction { post_process }) as Arc<dyn ShortcutAction>,
         );
     }
-    map.insert("cancel".to_string(), Arc::new(CancelAction) as Arc<dyn ShortcutAction>);
+    map.insert(
+        "cancel".to_string(),
+        Arc::new(CancelAction) as Arc<dyn ShortcutAction>,
+    );
     map.insert(
         "delete_last_word".to_string(),
         Arc::new(DeleteLastWordAction) as Arc<dyn ShortcutAction>,
     );
-    map.insert("undo".to_string(), Arc::new(UndoAction) as Arc<dyn ShortcutAction>);
-    map.insert("test".to_string(), Arc::new(TestAction) as Arc<dyn ShortcutAction>);
+    map.insert(
+        "undo".to_string(),
+        Arc::new(UndoAction) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        "test".to_string(),
+        Arc::new(TestAction) as Arc<dyn ShortcutAction>,
+    );
     map
 });
 
@@ -1191,7 +1208,11 @@ mod tests {
         crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "", &matrix);
         crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "   ", &matrix);
         crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "\n\t", &matrix);
-        crate::audio_toolkit::apply_command_delta_to_buffer(&mut buffer, "um nothing here", &matrix);
+        crate::audio_toolkit::apply_command_delta_to_buffer(
+            &mut buffer,
+            "um nothing here",
+            &matrix,
+        );
         assert_eq!(buffer, "hello world");
     }
 }

@@ -30,6 +30,16 @@
     "showFewerModels": "Zobrazit méně modelů",
     "recommended": "Doporučeno",
     "customModelDescription": "Oficiálně nepodporováno",
+    "refusal": {
+      "title": "Nedostatek volné paměti",
+      "needs": "Ochrana paměti odmítla načíst {{model}}: potřebuje ~{{needed}}, volných je ~{{free}}.",
+      "marginNote": "Nad velikost modelu se přičítá bezpečnostní rezerva {{margin}} (upravitelné v Nastavení > Pokročilé).",
+      "retry": "Zkusit znovu",
+      "switchModel": "Vybrat jiný model",
+      "disableGuard": "Načíst bez ochrany paměti",
+      "continueDeferred": "Pokračovat bez načtení",
+      "guardOffCaveat": "Ochrana zůstane vypnutá, dokud ji znovu nezapnete v Nastavení > Pokročilé; model se načte při prvním diktování."
+    },
     "modelCard": {
       "accuracy": "přesnost",
       "speed": "rychlost"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Nepodařilo se vybrat model"
+      "selectModel": "Nepodařilo se vybrat model",
+      "downloadFailed": "Stažení {{model}} se nezdařilo: {{error}}"
     },
     "permissions": {
       "title": "Vyžadována oprávnění",
       "description": "VoxBar potřebuje několik oprávnění pro správné fungování.",
       "microphone": {
         "title": "Přístup k mikrofonu",
-        "description": "Potřebný pro zachycení vašeho hlasu k přepisu."
+        "description": "Potřebný pro zachycení vašeho hlasu k přepisu.",
+        "deniedGuidance": "Přístup k mikrofonu zatím není. Povolte VoxBar v Nastavení systému > Soukromí a zabezpečení > Mikrofon a zkontrolujte to znovu.",
+        "openSettings": "Otevřít nastavení mikrofonu",
+        "checkAgain": "Zkontrolovat znovu"
       },
       "accessibility": {
         "title": "Přístup k usnadnění",
@@ -122,7 +136,9 @@
         "checkFailed": "Nepodařilo se zkontrolovat oprávnění. Zkuste to prosím znovu.",
         "requestFailed": "Nepodařilo se požádat o oprávnění. Zkuste to prosím znovu."
       }
-    }
+    },
+    "hotkeyHint": "Diktování spustíte klávesou {{hotkey}} kdykoli.",
+    "hotkeyChangeHint": "Tuto zkratku můžete změnit v Nastavení > Obecné."
   },
   "modelSelector": {
     "custom": "Vlastní",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "Ochrana při nedostatku paměti",
         "description": "Odmítne načíst model, když na něj nezbývá dost volné paměti. Aktuální model dále funguje, když je načtení odmítnuto."
+      },
+      "memoryHeadroom": {
+        "label": "Rezerva paměti pro bezpečnost",
+        "description": "Dodatečná volná paměť ponechaná nad velikost modelu, než ochrana při nedostatku paměti odmítne načtení. 0 (výchozí) znamená, že se musí vejít sám model; vlastní hodnota je 0 nebo alespoň 5 MB.",
+        "options": {
+          "off": "Vypnuto",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Vlastní"
+        },
+        "customLabel": "Vlastní rezerva",
+        "customUnit": "MB",
+        "invalid": "Zadejte 0 nebo alespoň 5 MB."
       },
       "autoFallback": {
         "label": "Automatické přepnutí při nedostatku RAM",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "Přenosné instalace nelze aktualizovat automaticky. Níže stáhněte instalátor pro svůj systém, spusťte jej a nainstalujte do stejné složky - vaše složka Data/ (nastavení, modely, nahrávky) zůstane na místě.",
     "portableUpdateButton": "Stáhnout instalátor",
     "portableUpdateBrowseMessage": "Přenosné instalace nelze aktualizovat automaticky. Stáhněte nejnovější verzi pro svůj systém z GitHub Releases a nainstalujte ji do stejné složky - vaše složka Data/ (nastavení, modely, nahrávky) zůstane na místě.",
-    "portableUpdateBrowseButton": "Otevřít GitHub Releases"
+    "portableUpdateBrowseButton": "Otevřít GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} je k dispozici",
+      "availableDate": "Vydáno {{date}}",
+      "downloadAction": "Stáhnout a nainstalovat",
+      "laterAction": "Později",
+      "progress": "Stahování aktualizace... {{percent}}%",
+      "installRestart": "Aktualizace stažena. Instaluje se a restartuje...",
+      "failedTitle": "Aktualizace se nezdařila",
+      "failedAction": "Otevřít GitHub Releases",
+      "checkFailedTitle": "Nepodařilo se zkontrolovat aktualizace"
+    }
   },
   "common": {
     "loading": "Načítání...",
@@ -811,7 +853,9 @@
     "modelFallback": "Pro toto diktování bylo přepnuto na {{model}}",
     "pasteFailedTitle": "Vložení textu se nezdařilo",
     "pasteFailed": "Text nebylo možné vložit do aktivní aplikace.",
-    "transcriptionFailedTitle": "Přepis selhal"
+    "transcriptionFailedTitle": "Přepis selhal",
+    "noModelSelectedTitle": "Není vybrán žádný model",
+    "noModelSelected": "Před diktováním vyberte v Nastavení model přepisu."
   },
   "appLanguage": {
     "title": "Jazyk aplikace",

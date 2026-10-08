@@ -30,6 +30,16 @@
     "showFewerModels": "表示を減らす",
     "recommended": "おすすめ",
     "customModelDescription": "公式サポート対象外",
+    "refusal": {
+      "title": "空きメモリが足りません",
+      "needs": "メモリガードは{{model}}の読み込みを拒否しました: 約{{needed}}必要で、空きは約{{free}}です。",
+      "marginNote": "モデルのサイズに加えて{{margin}}の安全マージンが考慮されます（設定 > 詳細で調整できます）。",
+      "retry": "再試行",
+      "switchModel": "別のモデルを選ぶ",
+      "disableGuard": "メモリガードなしで読み込む",
+      "continueDeferred": "読み込まずに続行",
+      "guardOffCaveat": "ガードは設定 > 詳細で再有効化するまでオフのままです。モデルは最初のディテーション時に読み込まれます。"
+    },
     "modelCard": {
       "accuracy": "精度",
       "speed": "速度"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "モデルの選択に失敗しました"
+      "selectModel": "モデルの選択に失敗しました",
+      "downloadFailed": "{{model}} のダウンロードに失敗しました: {{error}}"
     },
     "permissions": {
       "title": "権限が必要です",
       "description": "VoxBar が正常に動作するにはいくつかの権限が必要です。",
       "microphone": {
         "title": "マイクへのアクセス",
-        "description": "文字起こしのためにあなたの声を聞くために必要です。"
+        "description": "文字起こしのためにあなたの声を聞くために必要です。",
+        "deniedGuidance": "まだマイクへのアクセスがありません。システム設定 > プライバシーとセキュリティ > マイクで VoxBar を有効にしてから、もう一度確認してください。",
+        "openSettings": "マイク設定を開く",
+        "checkAgain": "再確認"
       },
       "accessibility": {
         "title": "アクセシビリティへのアクセス",
@@ -122,7 +136,9 @@
         "checkFailed": "権限の確認に失敗しました。もう一度お試しください。",
         "requestFailed": "権限のリクエストに失敗しました。もう一度お試しください。"
       }
-    }
+    },
+    "hotkeyHint": "いつでも {{hotkey}} でディテーションを開始できます。",
+    "hotkeyChangeHint": "このショートカットは 設定 > 一般 で変更できます。"
   },
   "modelSelector": {
     "custom": "カスタム",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "メモリ圧ガード",
         "description": "空きメモリが不足している場合にモデルの読み込みを拒否します。読み込みが拒否されても現在のモデルは動作を続けます。"
+      },
+      "memoryHeadroom": {
+        "label": "メモリ安全マージン",
+        "description": "メモリガードが読み込みを拒否する前にモデルのサイズ以上に確保しておく追加の空きメモリ。0（デフォルト）はモデル単体で収まればよいことを意味し、カスタム値は0または5 MB以上です。",
+        "options": {
+          "off": "オフ",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "カスタム"
+        },
+        "customLabel": "カスタムマージン",
+        "customUnit": "MB",
+        "invalid": "0または5 MB以上を入力してください。"
       },
       "autoFallback": {
         "label": "RAM自動フォールバック",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "ポータブル版は自動的に更新できません。下のボタンからお使いのシステム向けのインストーラーをダウンロードし、実行して同じフォルダーにインストールしてください。Data フォルダー(設定、モデル、録音)はそのまま残ります。",
     "portableUpdateButton": "インストーラーをダウンロード",
     "portableUpdateBrowseMessage": "ポータブル版は自動的に更新できません。GitHub Releases からお使いのシステム向けの最新版をダウンロードし、同じフォルダーにインストールしてください。Data フォルダー(設定、モデル、録音)はそのまま残ります。",
-    "portableUpdateBrowseButton": "GitHub Releases を開く"
+    "portableUpdateBrowseButton": "GitHub Releases を開く",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} が利用可能です",
+      "availableDate": "公開日: {{date}}",
+      "downloadAction": "ダウンロードしてインストール",
+      "laterAction": "後で",
+      "progress": "アップデートをダウンロード中... {{percent}}%",
+      "installRestart": "ダウンロード完了。インストールして再起動しています...",
+      "failedTitle": "アップデートに失敗しました",
+      "failedAction": "GitHub のリリースを開く",
+      "checkFailedTitle": "アップデートを確認できませんでした"
+    }
   },
   "common": {
     "loading": "読み込み中…",
@@ -811,7 +853,9 @@
     "modelFallback": "このディクテーションでは {{model}} に切り替えました",
     "pasteFailedTitle": "テキストの貼り付けに失敗しました",
     "pasteFailed": "アクティブなアプリにテキストを貼り付けられませんでした。",
-    "transcriptionFailedTitle": "文字起こしに失敗しました"
+    "transcriptionFailedTitle": "文字起こしに失敗しました",
+    "noModelSelectedTitle": "モデルが選択されていません",
+    "noModelSelected": "ディテーションの前に、設定で文字起こしモデルを選んでください。"
   },
   "appLanguage": {
     "title": "アプリの言語",

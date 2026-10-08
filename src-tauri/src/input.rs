@@ -185,8 +185,8 @@ impl EnigoState {
         // use a VoxBar-specific value so only our events are filtered).
         let mut settings = Settings::default();
         settings.event_source_user_data = Some(handy_keys::SYNTHESIZED_EVENT_MARKER);
-        let enigo = Enigo::new(&settings)
-            .map_err(|e| format!("Failed to initialize Enigo: {}", e))?;
+        let enigo =
+            Enigo::new(&settings).map_err(|e| format!("Failed to initialize Enigo: {}", e))?;
         Ok(Self(Mutex::new(enigo)))
     }
 }

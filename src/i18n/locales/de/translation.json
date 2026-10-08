@@ -30,6 +30,16 @@
     "showFewerModels": "Weniger Modelle anzeigen",
     "recommended": "Empfohlen",
     "customModelDescription": "Nicht offiziell unterstützt",
+    "refusal": {
+      "title": "Nicht genug freier Speicher",
+      "needs": "Der Speicherdruck-Schutz hat das Laden von {{model}} abgelehnt: benötigt ~{{needed}}, frei sind ~{{free}}.",
+      "marginNote": "Über der Modellgröße wird eine Sicherheitsmarge von {{margin}} angesetzt (anpassbar unter Einstellungen > Erweitert).",
+      "retry": "Erneut versuchen",
+      "switchModel": "Anderes Modell wählen",
+      "disableGuard": "Ohne Speicherschutz laden",
+      "continueDeferred": "Jetzt ohne Laden fortfahren",
+      "guardOffCaveat": "Der Schutz bleibt aus, bis Sie ihn unter Einstellungen > Erweitert wieder aktivieren; das Modell lädt bei der ersten Diktation."
+    },
     "modelCard": {
       "accuracy": "Genauigkeit",
       "speed": "Geschwindigkeit"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Modellauswahl fehlgeschlagen"
+      "selectModel": "Modellauswahl fehlgeschlagen",
+      "downloadFailed": "{{model}} konnte nicht geladen werden: {{error}}"
     },
     "permissions": {
       "title": "Berechtigungen erforderlich",
       "description": "VoxBar benötigt einige Berechtigungen, um richtig zu funktionieren.",
       "microphone": {
         "title": "Mikrofonzugriff",
-        "description": "Erforderlich, um deine Stimme für die Transkription zu hören."
+        "description": "Erforderlich, um deine Stimme für die Transkription zu hören.",
+        "deniedGuidance": "Noch kein Mikrofonzugriff. Aktivieren Sie VoxBar unter Systemeinstellungen > Datenschutz & Sicherheit > Mikrofon und prüfen Sie dann erneut.",
+        "openSettings": "Mikrofoneinstellungen öffnen",
+        "checkAgain": "Erneut prüfen"
       },
       "accessibility": {
         "title": "Bedienungshilfen-Zugriff",
@@ -122,7 +136,9 @@
         "checkFailed": "Berechtigungsprüfung fehlgeschlagen. Bitte erneut versuchen.",
         "requestFailed": "Berechtigungsanfrage fehlgeschlagen. Bitte erneut versuchen."
       }
-    }
+    },
+    "hotkeyHint": "Diktat jederzeit mit {{hotkey}} starten.",
+    "hotkeyChangeHint": "Sie können diese Tastenkombination unter Einstellungen > Allgemein ändern."
   },
   "modelSelector": {
     "custom": "Benutzerdefiniert",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "Speicherdruck-Schutz",
         "description": "Lehnt das Laden eines Modells ab, wenn der freie Speicher nicht ausreicht. Das aktuelle Modell läuft weiter, wenn ein Laden abgelehnt wird."
+      },
+      "memoryHeadroom": {
+        "label": "Speicher-Sicherheitsmarge",
+        "description": "Zusätzlich freier Speicher, der über die Modellgröße hinaus frei bleibt, bevor der Speicherdruck-Schutz ein Laden ablehnt. 0 (Standard) heißt, das Modell allein muss passen; ein benutzerdefinierter Wert ist 0 oder mindestens 5 MB.",
+        "options": {
+          "off": "Aus",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Benutzerdefiniert"
+        },
+        "customLabel": "Benutzerdefinierte Marge",
+        "customUnit": "MB",
+        "invalid": "Geben Sie 0 oder mindestens 5 MB ein."
       },
       "autoFallback": {
         "label": "RAM-Auto-Fallback",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "Portable Installationen können nicht automatisch aktualisiert werden. Lade unten den Installer für dein System herunter, führe ihn aus und installiere in denselben Ordner - dein Data/-Ordner (Einstellungen, Modelle, Aufnahmen) bleibt erhalten.",
     "portableUpdateButton": "Installer herunterladen",
     "portableUpdateBrowseMessage": "Portable Installationen können nicht automatisch aktualisiert werden. Lade die neueste Version für dein System von GitHub Releases herunter und installiere sie in denselben Ordner - dein Data/-Ordner (Einstellungen, Modelle, Aufnahmen) bleibt erhalten.",
-    "portableUpdateBrowseButton": "GitHub Releases öffnen"
+    "portableUpdateBrowseButton": "GitHub Releases öffnen",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} ist verfügbar",
+      "availableDate": "Veröffentlicht am {{date}}",
+      "downloadAction": "Herunterladen und installieren",
+      "laterAction": "Später",
+      "progress": "Update wird heruntergeladen... {{percent}}%",
+      "installRestart": "Update heruntergeladen. Wird installiert und neu gestartet...",
+      "failedTitle": "Update fehlgeschlagen",
+      "failedAction": "GitHub-Releases öffnen",
+      "checkFailedTitle": "Suche nach Updates fehlgeschlagen"
+    }
   },
   "common": {
     "loading": "Wird geladen...",
@@ -811,7 +853,9 @@
     "modelFallback": "Für diese Diktation wurde zu {{model}} gewechselt",
     "pasteFailedTitle": "Text konnte nicht eingefügt werden",
     "pasteFailed": "Der Text konnte nicht in die aktive Anwendung eingefügt werden.",
-    "transcriptionFailedTitle": "Transkription fehlgeschlagen"
+    "transcriptionFailedTitle": "Transkription fehlgeschlagen",
+    "noModelSelectedTitle": "Kein Modell ausgewählt",
+    "noModelSelected": "Wählen Sie vor dem Diktieren ein Transkriptionsmodell in den Einstellungen."
   },
   "appLanguage": {
     "title": "Anwendungssprache",

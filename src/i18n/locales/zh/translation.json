@@ -30,6 +30,16 @@
     "showFewerModels": "显示较少模型",
     "recommended": "推荐",
     "customModelDescription": "非官方支持",
+    "refusal": {
+      "title": "可用内存不足",
+      "needs": "内存防护拒绝加载{{model}}：需要约 {{needed}}，当前可用约 {{free}}。",
+      "marginNote": "在模型大小之外另计 {{margin}} 安全余量（可在 设置 > 高级 中调整）。",
+      "retry": "重试",
+      "switchModel": "选择其他模型",
+      "disableGuard": "关闭内存防护后加载",
+      "continueDeferred": "暂不加载，继续",
+      "guardOffCaveat": "防护将保持关闭，直到你在 设置 > 高级 中重新开启；模型会在第一次听写时加载。"
+    },
     "modelCard": {
       "accuracy": "准确度",
       "speed": "速度"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "选择模型失败"
+      "selectModel": "选择模型失败",
+      "downloadFailed": "下载 {{model}} 失败：{{error}}"
     },
     "permissions": {
       "title": "需要权限",
       "description": "VoxBar 需要一些权限才能正常工作。",
       "microphone": {
         "title": "麦克风访问",
-        "description": "需要听取您的语音进行转录。"
+        "description": "需要听取您的语音进行转录。",
+        "deniedGuidance": "还没有麦克风访问权限。请在 系统设置 > 隐私与安全性 > 麦克风 中允许 VoxBar，然后重新检查。",
+        "openSettings": "打开麦克风设置",
+        "checkAgain": "重新检查"
       },
       "accessibility": {
         "title": "辅助功能访问",
@@ -122,7 +136,9 @@
         "checkFailed": "检查权限失败。请重试。",
         "requestFailed": "请求权限失败。请重试。"
       }
-    }
+    },
+    "hotkeyHint": "随时按 {{hotkey}} 开始听写。",
+    "hotkeyChangeHint": "可以在 设置 > 通用 中更改此快捷键。"
   },
   "modelSelector": {
     "custom": "自定义",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "内存压力防护",
         "description": "当可用内存不足以容纳模型时拒绝加载。拒绝加载时当前模型继续工作。"
+      },
+      "memoryHeadroom": {
+        "label": "内存安全余量",
+        "description": "内存防护拒绝加载前，在模型大小之外保留的额外空闲内存。0（默认）表示只需容纳模型本身；自定义值为 0 或至少 5 MB。",
+        "options": {
+          "off": "关闭",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "自定义"
+        },
+        "customLabel": "自定义余量",
+        "customUnit": "MB",
+        "invalid": "请输入 0 或至少 5 MB。"
       },
       "autoFallback": {
         "label": "内存自动降级",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "便携版无法自动更新。请通过下方按钮下载适用于你的系统的安装程序，运行后安装到同一文件夹，你的 Data/ 文件夹（设置、模型、录音）会保留在原处。",
     "portableUpdateButton": "下载安装程序",
     "portableUpdateBrowseMessage": "便携版无法自动更新。请从 GitHub Releases 下载适用于你的系统的最新版本，并安装到同一文件夹，你的 Data/ 文件夹（设置、模型、录音）会保留在原处。",
-    "portableUpdateBrowseButton": "打开 GitHub Releases"
+    "portableUpdateBrowseButton": "打开 GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} 已发布",
+      "availableDate": "发布日期：{{date}}",
+      "downloadAction": "下载并安装",
+      "laterAction": "稍后",
+      "progress": "正在下载更新... {{percent}}%",
+      "installRestart": "更新已下载。正在安装并重启...",
+      "failedTitle": "更新失败",
+      "failedAction": "打开 GitHub 发布页",
+      "checkFailedTitle": "无法检查更新"
+    }
   },
   "common": {
     "loading": "加载中...",
@@ -811,7 +853,9 @@
     "modelFallback": "本次听写已切换到 {{model}}",
     "pasteFailedTitle": "粘贴文本失败",
     "pasteFailed": "无法将文本粘贴到当前活动的应用程序中。",
-    "transcriptionFailedTitle": "转录失败"
+    "transcriptionFailedTitle": "转录失败",
+    "noModelSelectedTitle": "未选择模型",
+    "noModelSelected": "听写前请先在设置中选择一个转写模型。"
   },
   "appLanguage": {
     "title": "应用语言",

@@ -30,6 +30,16 @@
     "showFewerModels": "Hiển thị ít mô hình hơn",
     "recommended": "Đề xuất",
     "customModelDescription": "Không được hỗ trợ chính thức",
+    "refusal": {
+      "title": "Không đủ bộ nhớ trống",
+      "needs": "Bảo vệ bộ nhớ đã từ chối tải {{model}}: cần ~{{needed}}, và còn ~{{free}} trống.",
+      "marginNote": "Một biên an toàn {{margin}} được cộng thêm ngoài kích thước mô hình (chỉnh trong Cài đặt > Nâng cao).",
+      "retry": "Thử lại",
+      "switchModel": "Chọn mô hình khác",
+      "disableGuard": "Tải mà không có bảo vệ bộ nhớ",
+      "continueDeferred": "Tiếp tục mà không tải bây giờ",
+      "guardOffCaveat": "Bảo vệ giữ tắt cho đến khi bạn bật lại trong Cài đặt > Nâng cao; mô hình sẽ tải ở lần đọc đầu tiên."
+    },
     "modelCard": {
       "accuracy": "độ chính xác",
       "speed": "tốc độ"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Không thể chọn mô hình"
+      "selectModel": "Không thể chọn mô hình",
+      "downloadFailed": "Tải xuống {{model}} thất bại: {{error}}"
     },
     "permissions": {
       "title": "Cần cấp quyền",
       "description": "VoxBar cần một số quyền để hoạt động bình thường.",
       "microphone": {
         "title": "Quyền truy cập Micrô",
-        "description": "Cần thiết để nghe giọng nói của bạn để chuyển đổi."
+        "description": "Cần thiết để nghe giọng nói của bạn để chuyển đổi.",
+        "deniedGuidance": "Chưa có quyền truy cập micrô. Bật VoxBar trong Cài đặt Hệ thống > Quyền riêng tư và Bảo mật > Micrô, rồi kiểm tra lại.",
+        "openSettings": "Mở cài đặt micrô",
+        "checkAgain": "Kiểm tra lại"
       },
       "accessibility": {
         "title": "Quyền truy cập Trợ năng",
@@ -122,7 +136,9 @@
         "checkFailed": "Không thể kiểm tra quyền. Vui lòng thử lại.",
         "requestFailed": "Không thể yêu cầu quyền. Vui lòng thử lại."
       }
-    }
+    },
+    "hotkeyHint": "Bắt đầu đọc chính tả bằng {{hotkey}} bất cứ lúc nào.",
+    "hotkeyChangeHint": "Bạn có thể đổi phím tắt này trong Cài đặt > Chung."
   },
   "modelSelector": {
     "custom": "Tùy chỉnh",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "Bảo vệ áp lực bộ nhớ",
         "description": "Từ chối tải mô hình khi bộ nhớ trống không đủ. Mô hình hiện tại tiếp tục hoạt động khi việc tải bị từ chối."
+      },
+      "memoryHeadroom": {
+        "label": "Biên an toàn bộ nhớ",
+        "description": "RAM trống thêm được giữ vượt quá kích thước mô hình trước khi bảo vệ áp lực bộ nhớ từ chối tải. 0 (mặc định) nghĩa là chỉ mô hình phải vừa; giá trị tùy chỉnh là 0 hoặc ít nhất 5 MB.",
+        "options": {
+          "off": "Tắt",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Tùy chỉnh"
+        },
+        "customLabel": "Biên tùy chỉnh",
+        "customUnit": "MB",
+        "invalid": "Nhập 0 hoặc ít nhất 5 MB."
       },
       "autoFallback": {
         "label": "Tự động chuyển khi thiếu RAM",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "Bản cài đặt di động không thể cập nhật tự động. Hãy tải trình cài đặt phù hợp với hệ thống của bạn bên dưới, chạy nó và cài vào cùng thư mục - thư mục Data/ (cài đặt, mô hình, bản ghi) của bạn được giữ nguyên.",
     "portableUpdateButton": "Tải trình cài đặt",
     "portableUpdateBrowseMessage": "Bản cài đặt di động không thể cập nhật tự động. Hãy tải phiên bản mới nhất phù hợp với hệ thống của bạn từ GitHub Releases và cài vào cùng thư mục - thư mục Data/ (cài đặt, mô hình, bản ghi) của bạn được giữ nguyên.",
-    "portableUpdateBrowseButton": "Mở GitHub Releases"
+    "portableUpdateBrowseButton": "Mở GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} đã có sẵn",
+      "availableDate": "Phát hành {{date}}",
+      "downloadAction": "Tải xuống và cài đặt",
+      "laterAction": "Để sau",
+      "progress": "Đang tải bản cập nhật... {{percent}}%",
+      "installRestart": "Đã tải bản cập nhật. Đang cài đặt và khởi động lại...",
+      "failedTitle": "Cập nhật thất bại",
+      "failedAction": "Mở bản phát hành trên GitHub",
+      "checkFailedTitle": "Không thể kiểm tra bản cập nhật"
+    }
   },
   "common": {
     "loading": "Đang tải...",
@@ -811,7 +853,9 @@
     "modelFallback": "Đã chuyển sang {{model}} cho lần đọc này",
     "pasteFailedTitle": "Không thể dán văn bản",
     "pasteFailed": "Không thể dán văn bản vào ứng dụng đang hoạt động.",
-    "transcriptionFailedTitle": "Phiên âm thất bại"
+    "transcriptionFailedTitle": "Phiên âm thất bại",
+    "noModelSelectedTitle": "Chưa chọn mô hình",
+    "noModelSelected": "Chọn mô hình chuyển ghi trong Cài đặt trước khi đọc chính tả."
   },
   "appLanguage": {
     "title": "Ngôn ngữ ứng dụng",

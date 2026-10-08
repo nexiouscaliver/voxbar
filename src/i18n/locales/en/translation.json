@@ -30,6 +30,16 @@
     "showFewerModels": "Show fewer models",
     "recommended": "Recommended",
     "customModelDescription": "Not officially supported",
+    "refusal": {
+      "title": "Not enough free memory",
+      "needs": "The memory guard refused to load {{model}}: it needs ~{{needed}}, and ~{{free}} is free.",
+      "marginNote": "A {{margin}} safety margin is added beyond the model's size (adjustable in Settings > Advanced).",
+      "retry": "Retry",
+      "switchModel": "Choose a different model",
+      "disableGuard": "Load without the memory guard",
+      "continueDeferred": "Continue without loading now",
+      "guardOffCaveat": "The guard stays off until re-enabled in Settings > Advanced; the model loads on your first dictation."
+    },
     "modelCard": {
       "accuracy": "accuracy",
       "speed": "speed"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Failed to select model"
+      "selectModel": "Failed to select model",
+      "downloadFailed": "Failed to download {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permissions Required",
       "description": "VoxBar needs a couple of permissions to work properly.",
       "microphone": {
         "title": "Microphone Access",
-        "description": "Required to hear your voice for transcription."
+        "description": "Required to hear your voice for transcription.",
+        "deniedGuidance": "No microphone access yet. Enable VoxBar under System Settings > Privacy & Security > Microphone, then check again.",
+        "openSettings": "Open Microphone Settings",
+        "checkAgain": "Check Again"
       },
       "accessibility": {
         "title": "Accessibility Access",
@@ -122,7 +136,9 @@
         "checkFailed": "Failed to check permissions. Please try again.",
         "requestFailed": "Failed to request permission. Please try again."
       }
-    }
+    },
+    "hotkeyHint": "Start dictation with {{hotkey}} anytime.",
+    "hotkeyChangeHint": "You can change this shortcut in Settings > General."
   },
   "modelSelector": {
     "custom": "Custom",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "Memory Pressure Guard",
         "description": "Refuse to load a model when free memory cannot fit it. The current model keeps working when a load is refused."
+      },
+      "memoryHeadroom": {
+        "label": "Memory Safety Margin",
+        "description": "Extra free RAM kept beyond the model's size before the memory guard refuses a load. 0 (default) means the model alone must fit; a custom value is 0 or at least 5 MB.",
+        "options": {
+          "off": "Off",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Custom"
+        },
+        "customLabel": "Custom margin",
+        "customUnit": "MB",
+        "invalid": "Enter 0 or at least 5 MB."
       },
       "autoFallback": {
         "label": "RAM Auto-Fallback",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "Portable installs cannot be updated automatically. Download the installer for your system below, run it, and install to the same folder - your Data/ folder (settings, models, recordings) is kept in place.",
     "portableUpdateButton": "Download installer",
     "portableUpdateBrowseMessage": "Portable installs cannot be updated automatically. Download the latest version for your system from GitHub Releases and install it to the same folder - your Data/ folder (settings, models, recordings) is kept in place.",
-    "portableUpdateBrowseButton": "Open GitHub Releases"
+    "portableUpdateBrowseButton": "Open GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} is available",
+      "availableDate": "Released {{date}}",
+      "downloadAction": "Download and Install",
+      "laterAction": "Later",
+      "progress": "Downloading update... {{percent}}%",
+      "installRestart": "Update downloaded. Installing and restarting...",
+      "failedTitle": "Update failed",
+      "failedAction": "Open GitHub Releases",
+      "checkFailedTitle": "Could not check for updates"
+    }
   },
   "whatsNew": {
     "title": "New in VoxBar v{{version}}"
@@ -814,7 +856,9 @@
     "modelFallback": "Switched to {{model}} for this dictation",
     "pasteFailedTitle": "Failed to Paste Text",
     "pasteFailed": "Text could not be pasted into the active application.",
-    "transcriptionFailedTitle": "Transcription Failed"
+    "transcriptionFailedTitle": "Transcription Failed",
+    "noModelSelectedTitle": "No model selected",
+    "noModelSelected": "Pick a transcription model in Settings before dictating."
   },
   "appLanguage": {
     "title": "Application Language",

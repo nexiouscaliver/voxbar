@@ -30,6 +30,16 @@
     "showFewerModels": "Minder modellen tonen",
     "recommended": "Aanbevolen",
     "customModelDescription": "Niet officieel ondersteund",
+    "refusal": {
+      "title": "Niet genoeg vrij geheugen",
+      "needs": "De geheugenbescherming weigerde {{model}} te laden: er is ~{{needed}} nodig, en er is ~{{free}} vrij.",
+      "marginNote": "Boven de modelgrootte komt een veiligheidsmarge van {{margin}} (aanpasbaar via Instellingen > Geavanceerd).",
+      "retry": "Opnieuw proberen",
+      "switchModel": "Ander model kiezen",
+      "disableGuard": "Laden zonder geheugenbescherming",
+      "continueDeferred": "Doorgaan zonder nu te laden",
+      "guardOffCaveat": "De bescherming blijft uit tot je hem opnieuw inschakelt via Instellingen > Geavanceerd; het model laadt bij de eerste dictering."
+    },
     "modelCard": {
       "accuracy": "nauwkeurigheid",
       "speed": "snelheid"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Model selecteren mislukt"
+      "selectModel": "Model selecteren mislukt",
+      "downloadFailed": "Downloaden van {{model}} mislukt: {{error}}"
     },
     "permissions": {
       "title": "Machtigingen vereist",
       "description": "VoxBar heeft een aantal machtigingen nodig om goed te kunnen werken.",
       "microphone": {
         "title": "Microfoontoegang",
-        "description": "Vereist om je stem op te nemen voor transcriptie."
+        "description": "Vereist om je stem op te nemen voor transcriptie.",
+        "deniedGuidance": "Nog geen microfoontoegang. Zet VoxBar aan onder Systeeminstellingen > Privacy en beveiliging > Microfoon en controleer opnieuw.",
+        "openSettings": "Microfooninstellingen openen",
+        "checkAgain": "Opnieuw controleren"
       },
       "accessibility": {
         "title": "Toegankelijkheid",
@@ -122,7 +136,9 @@
         "checkFailed": "Machtigingen controleren mislukt. Probeer het opnieuw.",
         "requestFailed": "Machtiging aanvragen mislukt. Probeer het opnieuw."
       }
-    }
+    },
+    "hotkeyHint": "Start dicteren met {{hotkey}}, altijd.",
+    "hotkeyChangeHint": "Je kunt deze sneltoets wijzigen via Instellingen > Algemeen."
   },
   "modelSelector": {
     "custom": "Aangepast",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "Geheugendruk-bescherming",
         "description": "Weigert een model te laden als het vrije geheugen niet volstaat. Het huidige model blijft werken wanneer een laden wordt geweigerd."
+      },
+      "memoryHeadroom": {
+        "label": "Geheugenveiligheidsmarge",
+        "description": "Extra vrij geheugen dat vrij blijft boven de modelgrootte voordat de geheugendruk-bescherming een laden weigert. 0 (standaard) betekent dat het model alleen moet passen; een aangepaste waarde is 0 of minimaal 5 MB.",
+        "options": {
+          "off": "Uit",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Aangepast"
+        },
+        "customLabel": "Aangepaste marge",
+        "customUnit": "MB",
+        "invalid": "Voer 0 of minimaal 5 MB in."
       },
       "autoFallback": {
         "label": "Automatische RAM-terugval",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "Draagbare (portable) installaties kunnen niet automatisch worden bijgewerkt. Download hieronder het installatiebestand voor je systeem, voer het uit en installeer in dezelfde map - je Data/-map (instellingen, modellen, opnames) blijft behouden.",
     "portableUpdateButton": "Installatiebestand downloaden",
     "portableUpdateBrowseMessage": "Draagbare (portable) installaties kunnen niet automatisch worden bijgewerkt. Download de nieuwste versie voor je systeem van GitHub Releases en installeer die in dezelfde map - je Data/-map (instellingen, modellen, opnames) blijft behouden.",
-    "portableUpdateBrowseButton": "GitHub Releases openen"
+    "portableUpdateBrowseButton": "GitHub Releases openen",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} is beschikbaar",
+      "availableDate": "Uitgebracht op {{date}}",
+      "downloadAction": "Downloaden en installeren",
+      "laterAction": "Later",
+      "progress": "Update downloaden... {{percent}}%",
+      "installRestart": "Update gedownload. Installeren en herstarten...",
+      "failedTitle": "Update mislukt",
+      "failedAction": "GitHub-releases openen",
+      "checkFailedTitle": "Kon niet controleren op updates"
+    }
   },
   "whatsNew": {
     "title": "Nieuw in VoxBar v{{version}}"
@@ -814,7 +856,9 @@
     "modelFallback": "Overgeschakeld naar {{model}} voor deze dicteeropname",
     "pasteFailedTitle": "Tekst plakken mislukt",
     "pasteFailed": "Tekst kon niet worden geplakt in de actieve applicatie.",
-    "transcriptionFailedTitle": "Transcriptie mislukt"
+    "transcriptionFailedTitle": "Transcriptie mislukt",
+    "noModelSelectedTitle": "Geen model gekozen",
+    "noModelSelected": "Kies voor het dicteren eerst een transcriptiemodel in Instellingen."
   },
   "appLanguage": {
     "title": "Interfacetaal",

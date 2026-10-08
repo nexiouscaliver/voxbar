@@ -2,7 +2,7 @@ use crate::managers::model::{
     resolve_hf_repo, HfModelError, HfModelResolution, ModelInfo, ModelManager,
 };
 use crate::managers::transcription::{ModelStateEvent, TranscriptionManager};
-use crate::settings::{get_settings, write_settings, ModelUnloadTimeout};
+use crate::settings::{get_settings, write_settings, AppSettings, ModelUnloadTimeout};
 use log::error;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
@@ -143,6 +143,7 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
                 model_id: Some(model_id.to_string()),
                 model_name: Some(model_info.name.clone()),
                 error: None,
+                memory_gate: None,
             },
         );
         log::info!(
@@ -173,6 +174,59 @@ pub async fn set_active_model(
     model_id: String,
 ) -> Result<(), String> {
     switch_active_model(&app_handle, &model_id)
+}
+
+/// The deferred selection's settings effect, pure so it is unit-testable:
+/// the model becomes the persisted selection and onboarding completes,
+/// with nothing loaded. Contrast `switch_active_model`'s failure path,
+/// which reverts BOTH fields to their pre-attempt values - the state the
+/// v1.0.2 first-run dead end was stuck in.
+fn apply_deferred_selection(settings: &mut AppSettings, model_id: &str) {
+    settings.selected_model = model_id.to_string();
+    settings.onboarding_completed = true;
+}
+
+/// Persist the model selection WITHOUT loading it: the recovery path for a
+/// first-run memory-gate refusal. Onboarding can complete with a downloaded
+/// but unloaded model, and the first hotkey press loads it on demand (the
+/// same on-demand load the "Immediately" unload timeout uses). Validations
+/// mirror `switch_active_model`; on an unknown or undownloaded model the
+/// settings are never touched. Nothing loads, so no loading-slot claim is
+/// needed.
+#[tauri::command]
+#[specta::specta]
+pub async fn set_active_model_deferred(
+    app_handle: AppHandle,
+    model_manager: State<'_, Arc<ModelManager>>,
+    model_id: String,
+) -> Result<(), String> {
+    let model_info = model_manager
+        .get_model_info(&model_id)
+        .ok_or_else(|| format!("Model not found: {}", model_id))?;
+
+    if !model_info.is_downloaded {
+        return Err(format!("Model not downloaded: {}", model_id));
+    }
+
+    let mut settings = get_settings(&app_handle);
+    apply_deferred_selection(&mut settings, &model_id);
+    write_settings(&app_handle, settings);
+
+    let _ = app_handle.emit(
+        "model-state-changed",
+        ModelStateEvent {
+            event_type: "selection_changed".to_string(),
+            model_id: Some(model_id.clone()),
+            model_name: Some(model_info.name.clone()),
+            error: None,
+            memory_gate: None,
+        },
+    );
+    log::info!(
+        "Model selection changed to {} (deferred; it loads on the next dictation).",
+        model_id
+    );
+    Ok(())
 }
 
 #[tauri::command]
@@ -236,4 +290,26 @@ pub async fn add_hf_model(
     model_manager
         .add_hf_model(&repo_id, &filename, revision.as_deref())
         .await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::settings::get_default_settings;
+
+    /// The deferred selection persists the model and completes onboarding
+    /// WITHOUT loading: the recovery a first-run memory-gate refusal offers
+    /// ("continue without loading now"). The first hotkey press loads the
+    /// model on demand. This is deliberately the opposite of
+    /// `switch_active_model`'s failure path, which reverts both fields -
+    /// the state the v1.0.2 first-run dead end was stuck in.
+    #[test]
+    fn deferred_selection_persists_selection_and_completes_onboarding() {
+        let mut settings = get_default_settings();
+        settings.selected_model = String::new();
+        settings.onboarding_completed = false;
+        apply_deferred_selection(&mut settings, "whisper-tiny-q8");
+        assert_eq!(settings.selected_model, "whisper-tiny-q8");
+        assert!(settings.onboarding_completed);
+    }
 }

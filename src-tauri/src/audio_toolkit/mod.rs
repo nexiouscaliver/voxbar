@@ -20,9 +20,9 @@ pub use lang_id::detect_output_language;
 pub use text::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion,
     interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
-    remove_filler_words, remove_trailing_line_from_buffer, remove_trailing_line_from_buffer_reporting,
-    remove_trailing_word_from_buffer, remove_trailing_word_from_buffer_reporting,
-    OutputLanguageEvidence, VoiceDeletionOutcome,
+    remove_filler_words, remove_trailing_line_from_buffer,
+    remove_trailing_line_from_buffer_reporting, remove_trailing_word_from_buffer,
+    remove_trailing_word_from_buffer_reporting, OutputLanguageEvidence, VoiceDeletionOutcome,
 };
 pub use utils::get_cpal_host;
 pub use vad::{EarshotVad, SileroVad, VoiceActivityDetector};

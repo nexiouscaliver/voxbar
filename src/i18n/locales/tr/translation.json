@@ -30,6 +30,16 @@
     "showFewerModels": "Daha az model göster",
     "recommended": "Önerilen",
     "customModelDescription": "Resmi olarak desteklenmiyor",
+    "refusal": {
+      "title": "Yeterli boş bellek yok",
+      "needs": "Bellek koruması {{model}} yüklemeyi reddetti: ~{{needed}} gerekiyor, boş olan ~{{free}}.",
+      "marginNote": "Modelin boyutunun üzerine {{margin}} güvenlik marjı eklenir (Ayarlar > Gelişmiş bölümünden ayarlanabilir).",
+      "retry": "Yeniden dene",
+      "switchModel": "Başka bir model seç",
+      "disableGuard": "Bellek koruması olmadan yükle",
+      "continueDeferred": "Şimdi yüklemeden devam et",
+      "guardOffCaveat": "Koruma, Ayarlar > Gelişmiş bölümünden yeniden açana kadar kapalı kalır; model ilk dikte sırasında yüklenir."
+    },
     "modelCard": {
       "accuracy": "doğruluk",
       "speed": "hız"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Model seçilemedi"
+      "selectModel": "Model seçilemedi",
+      "downloadFailed": "{{model}} indirilemedi: {{error}}"
     },
     "permissions": {
       "title": "İzinler Gerekli",
       "description": "VoxBar'nin düzgün çalışabilmesi için birkaç izne ihtiyacı var.",
       "microphone": {
         "title": "Mikrofon Erişimi",
-        "description": "Sesinizi transkripsiyon için alabilmek için gereklidir."
+        "description": "Sesinizi transkripsiyon için alabilmek için gereklidir.",
+        "deniedGuidance": "Henüz mikrofon erişimi yok. Sistem Ayarları > Gizlilik ve Güvenlik > Mikrofon altında VoxBar'ı etkinleştirin, sonra tekrar kontrol edin.",
+        "openSettings": "Mikrofon ayarlarını aç",
+        "checkAgain": "Tekrar kontrol et"
       },
       "accessibility": {
         "title": "Erişilebilirlik Erişimi",
@@ -122,7 +136,9 @@
         "checkFailed": "İzinler kontrol edilemedi. Lütfen tekrar deneyin.",
         "requestFailed": "İzin isteği başarısız oldu. Lütfen tekrar deneyin."
       }
-    }
+    },
+    "hotkeyHint": "Dikteyi istediğiniz zaman {{hotkey}} ile başlatın.",
+    "hotkeyChangeHint": "Bu kısayolu Ayarlar > Genel bölümünden değiştirebilirsiniz."
   },
   "modelSelector": {
     "custom": "Özel",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "Bellek Baskısı Koruması",
         "description": "Boş bellek yeterli olmadığında model yüklemeyi reddeder. Yükleme reddedildiğinde geçerli model çalışmaya devam eder."
+      },
+      "memoryHeadroom": {
+        "label": "Bellek Güvenlik Marjı",
+        "description": "Bellek koruması bir yüklemeyi reddetmeden önce modelin boyutunun üzerinde tutulan ek boş RAM. 0 (varsayılan), modelin tek başına sığması gerektiği anlamına gelir; özel değer 0 veya en az 5 MB olmalıdır.",
+        "options": {
+          "off": "Kapalı",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Özel"
+        },
+        "customLabel": "Özel marj",
+        "customUnit": "MB",
+        "invalid": "0 veya en az 5 MB girin."
       },
       "autoFallback": {
         "label": "Otomatik RAM yedeklemesi",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "Taşınabilir kurulumlar otomatik olarak güncellenemez. Aşağıdan sisteminize uygun yükleyiciyi indirin, çalıştırın ve aynı klasöre kurun - Data/ klasörünüz (ayarlar, modeller, kayıtlar) yerinde kalır.",
     "portableUpdateButton": "Yükleyiciyi indir",
     "portableUpdateBrowseMessage": "Taşınabilir kurulumlar otomatik olarak güncellenemez. Sisteminize uygun en son sürümü GitHub Releases’ten indirin ve aynı klasöre kurun - Data/ klasörünüz (ayarlar, modeller, kayıtlar) yerinde kalır.",
-    "portableUpdateBrowseButton": "GitHub Releases’i aç"
+    "portableUpdateBrowseButton": "GitHub Releases’i aç",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} kullanıma sunuldu",
+      "availableDate": "Yayınlanma: {{date}}",
+      "downloadAction": "İndir ve yükle",
+      "laterAction": "Sonra",
+      "progress": "Güncelleme indiriliyor... {{percent}}%",
+      "installRestart": "Güncelleme indirildi. Yükleniyor ve yeniden başlatılıyor...",
+      "failedTitle": "Güncelleme başarısız",
+      "failedAction": "GitHub sürümlerini aç",
+      "checkFailedTitle": "Güncellemeler kontrol edilemedi"
+    }
   },
   "common": {
     "loading": "Yükleniyor...",
@@ -811,7 +853,9 @@
     "modelFallback": "Bu dikte için {{model}} modeline geçildi",
     "pasteFailedTitle": "Metin yapıştırılamadı",
     "pasteFailed": "Metin etkin uygulamaya yapıştırılamadı.",
-    "transcriptionFailedTitle": "Transkripsiyon başarısız oldu"
+    "transcriptionFailedTitle": "Transkripsiyon başarısız oldu",
+    "noModelSelectedTitle": "Model seçilmedi",
+    "noModelSelected": "Dikteye başlamadan önce Ayarlar'dan bir transkripsiyon modeli seçin."
   },
   "appLanguage": {
     "title": "Uygulama Dili",

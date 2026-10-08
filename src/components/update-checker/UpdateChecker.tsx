@@ -1,12 +1,7 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import { useSettings } from "../../hooks/useSettings";
-
-// This build ships no in-app updater (the updater plugin is not part of the
-// app), so the footer's "Check for updates" affordance opens the GitHub
-// releases page in the default browser instead of querying an endpoint.
-const RELEASES_URL = "https://github.com/nexiouscaliver/voxbar/releases";
+import { runUpdateCheck } from "./updaterFlow";
 
 interface UpdateCheckerProps {
   className?: string;
@@ -15,15 +10,29 @@ interface UpdateCheckerProps {
 const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
   const { t } = useTranslation();
   const { settings, isLoading, updateChecksLocked } = useSettings();
-  // Wait for the lock state too (null = not loaded yet), so the link never
+  // Wait for the lock state too (null = not loaded yet), so the button never
   // flashes before the system lock (HANDY_DISABLE_UPDATER) is known.
   const settingsLoaded =
     !isLoading && settings !== null && updateChecksLocked !== null;
   // Forced-off by system configuration (HANDY_DISABLE_UPDATER) overrides the
   // stored preference without persisting it, mirroring the backend's gating
-  // of the tray menu item.
+  // of the tray menu item. The pre-load fallback is true to match the
+  // backend's serde default for update_checks_enabled (settings.rs), which
+  // was always true; the old `?? false` made fresh stores briefly read as
+  // disabled.
   const updateChecksEnabled =
-    (settings?.update_checks_enabled ?? false) && updateChecksLocked === false;
+    (settings?.update_checks_enabled ?? true) && updateChecksLocked === false;
+
+  // One silent check on startup once settings and the lock state are known;
+  // a toast appears only when an update actually exists. No polling loop.
+  const hasAutoChecked = useRef(false);
+  useEffect(() => {
+    if (!settingsLoaded || !updateChecksEnabled || hasAutoChecked.current) {
+      return;
+    }
+    hasAutoChecked.current = true;
+    void runUpdateCheck({ silent: true });
+  }, [settingsLoaded, updateChecksEnabled]);
 
   if (!settingsLoaded) {
     return null;
@@ -37,15 +46,9 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
     );
   }
 
-  const openReleases = () => {
-    openUrl(RELEASES_URL).catch((error) => {
-      console.error("Failed to open the releases page:", error);
-    });
-  };
-
   return (
     <button
-      onClick={openReleases}
+      onClick={() => void runUpdateCheck()}
       className={`text-text/60 hover:text-text/80 transition-colors tabular-nums ${className}`}
     >
       {t("footer.checkForUpdates")}

@@ -30,6 +30,16 @@
     "showFewerModels": "顯示較少模型",
     "recommended": "推薦",
     "customModelDescription": "官方不支援",
+    "refusal": {
+      "title": "可用記憶體不足",
+      "needs": "記憶體防護拒絕載入{{model}}：需要約 {{needed}}，目前可用約 {{free}}。",
+      "marginNote": "在模型大小之外另計 {{margin}} 安全餘量（可在 設定 > 進階 中調整）。",
+      "retry": "重試",
+      "switchModel": "選擇其他模型",
+      "disableGuard": "關閉記憶體防護後載入",
+      "continueDeferred": "暫不載入，繼續",
+      "guardOffCaveat": "防護將保持關閉，直到你在 設定 > 進階 中重新開啟；模型會在第一次聽寫時載入。"
+    },
     "modelCard": {
       "accuracy": "準確度",
       "speed": "速度"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "選擇模型失敗"
+      "selectModel": "選擇模型失敗",
+      "downloadFailed": "下載 {{model}} 失敗：{{error}}"
     },
     "permissions": {
       "title": "需要權限",
       "description": "VoxBar 需要一些權限才能正常運作",
       "microphone": {
         "title": "麥克風存取",
-        "description": "需要聽取您的語音進行轉錄"
+        "description": "需要聽取您的語音進行轉錄",
+        "deniedGuidance": "還沒有麥克風存取權限。請在 系統設定 > 隱私權與安全性 > 麥克風 中允許 VoxBar，然後重新檢查。",
+        "openSettings": "開啟麥克風設定",
+        "checkAgain": "重新檢查"
       },
       "accessibility": {
         "title": "輔助使用存取",
@@ -122,7 +136,9 @@
         "checkFailed": "檢查權限失敗，請重試",
         "requestFailed": "請求權限失敗，請重試"
       }
-    }
+    },
+    "hotkeyHint": "隨時按 {{hotkey}} 開始聽寫。",
+    "hotkeyChangeHint": "可以在 設定 > 一般 中變更此快捷鍵。"
   },
   "modelSelector": {
     "custom": "自訂",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "記憶體壓力防護",
         "description": "當可用記憶體不足以容納模型時拒絕載入。拒絕載入時目前模型繼續運作。"
+      },
+      "memoryHeadroom": {
+        "label": "記憶體安全餘量",
+        "description": "記憶體防護拒絕載入前，在模型大小之外保留的額外可用記憶體。0（預設）表示只需容納模型本身；自訂值為 0 或至少 5 MB。",
+        "options": {
+          "off": "關閉",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "自訂"
+        },
+        "customLabel": "自訂餘量",
+        "customUnit": "MB",
+        "invalid": "請輸入 0 或至少 5 MB。"
       },
       "autoFallback": {
         "label": "記憶體自動降級",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "可攜式安裝無法自動更新。請透過下方按鈕下載適用於你的系統的安裝程式，執行後安裝到相同資料夾，你的 Data/ 資料夾（設定、模型、錄音）會保留在原處。",
     "portableUpdateButton": "下載安裝程式",
     "portableUpdateBrowseMessage": "可攜式安裝無法自動更新。請從 GitHub Releases 下載適用於你的系統的最新版本，並安裝到相同資料夾，你的 Data/ 資料夾（設定、模型、錄音）會保留在原處。",
-    "portableUpdateBrowseButton": "開啟 GitHub Releases"
+    "portableUpdateBrowseButton": "開啟 GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} 已推出",
+      "availableDate": "發布日期：{{date}}",
+      "downloadAction": "下載並安裝",
+      "laterAction": "稍後",
+      "progress": "正在下載更新... {{percent}}%",
+      "installRestart": "更新已下載。正在安裝並重新啟動...",
+      "failedTitle": "更新失敗",
+      "failedAction": "開啟 GitHub 發布頁面",
+      "checkFailedTitle": "無法檢查更新"
+    }
   },
   "common": {
     "loading": "載入中...",
@@ -811,7 +853,9 @@
     "modelFallback": "本次聽寫已切換到 {{model}}",
     "pasteFailedTitle": "貼上文字失敗",
     "pasteFailed": "無法將文字貼上至目前作用中的應用程式。",
-    "transcriptionFailedTitle": "轉錄失敗"
+    "transcriptionFailedTitle": "轉錄失敗",
+    "noModelSelectedTitle": "未選擇模型",
+    "noModelSelected": "聽寫前請先在設定中選擇一個轉寫模型。"
   },
   "appLanguage": {
     "title": "應用程式語言",

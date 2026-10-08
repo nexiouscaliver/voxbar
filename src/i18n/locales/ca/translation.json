@@ -30,6 +30,16 @@
     "showFewerModels": "Mostra menys models",
     "recommended": "Recomanat",
     "customModelDescription": "Sense suport oficial",
+    "refusal": {
+      "title": "No hi ha prou memòria lliure",
+      "needs": "La guarda de memòria ha rebutjat carregar {{model}}: necessita ~{{needed}}, i hi ha ~{{free}} lliures.",
+      "marginNote": "S'afegeix un marge de seguretat de {{margin}} més enllà de la mida del model (ajustable a Configuració > Avançat).",
+      "retry": "Torna-ho a provar",
+      "switchModel": "Tria un altre model",
+      "disableGuard": "Carrega sense la guarda de memòria",
+      "continueDeferred": "Continua sense carregar ara",
+      "guardOffCaveat": "La guarda roman desactivada fins que la reactive a Configuració > Avançat; el model es carrega a la primera dictada."
+    },
     "modelCard": {
       "accuracy": "precisió",
       "speed": "velocitat"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "No s'ha pogut seleccionar el model"
+      "selectModel": "No s'ha pogut seleccionar el model",
+      "downloadFailed": "No s'ha pogut descarregar {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permisos necessaris",
       "description": "El VoxBar demana alguns permisos per funcionar correctament.",
       "microphone": {
         "title": "Accés al micròfon",
-        "description": "Necessari per escoltar la vostra veu i transcriure-la."
+        "description": "Necessari per escoltar la vostra veu i transcriure-la.",
+        "deniedGuidance": "Encara no hi ha accés al micròfon. Activeu VoxBar a Configuració del sistema > Privacitat i seguretat > Micròfon i torneu a comprovar-ho.",
+        "openSettings": "Obre la configuració del micròfon",
+        "checkAgain": "Comprova de nou"
       },
       "accessibility": {
         "title": "Accés a l'accessibilitat",
@@ -122,7 +136,9 @@
         "checkFailed": "No s'han pogut comprovar els permisos. Torneu-ho a provar.",
         "requestFailed": "No s'ha pogut sol·licitar el permís. Torneu-ho a provar."
       }
-    }
+    },
+    "hotkeyHint": "Inicieu el dictat amb {{hotkey}} en qualsevol moment.",
+    "hotkeyChangeHint": "Podeu canviar aquesta drecera a Configuració > General."
   },
   "modelSelector": {
     "custom": "Personalitzat",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "Guarda de pressió de memòria",
         "description": "Rebutja carregar un model quan la memòria lliure no és suficient. El model actual continua funcionant quan es rebutja una càrrega."
+      },
+      "memoryHeadroom": {
+        "label": "Marge de seguretat de memòria",
+        "description": "Memòria lliure addicional reservada més enllà de la mida del model abans que la guarda de pressió de memòria rebutgi una càrrega. 0 (per defecte) vol dir que el model sol ha de cabre; un valor personalitzat és 0 o com a mínim 5 MB.",
+        "options": {
+          "off": "Desactivat",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "Personalitzat"
+        },
+        "customLabel": "Marge personalitzat",
+        "customUnit": "MB",
+        "invalid": "Introduïu 0 o com a mínim 5 MB."
       },
       "autoFallback": {
         "label": "Alternativa automàtica de RAM",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "Les instal·lacions portables no es poden actualitzar automàticament. Baixa l'instal·lador per al vostre sistema a continuació, executeu-lo i instal·leu-lo a la mateixa carpeta. La carpeta Data/ (configuració, models i enregistraments) es conserva.",
     "portableUpdateButton": "Baixa l'instal·lador",
     "portableUpdateBrowseMessage": "Les instal·lacions portables no es poden actualitzar automàticament. Baixa l'última versió per al vostre sistema des de GitHub Releases i instal·leu-la a la mateixa carpeta. La carpeta Data/ (configuració, models i enregistraments) es conserva.",
-    "portableUpdateBrowseButton": "Obriu GitHub Releases"
+    "portableUpdateBrowseButton": "Obriu GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} està disponible",
+      "availableDate": "Publicat el {{date}}",
+      "downloadAction": "Baixa i instal·la",
+      "laterAction": "Més tard",
+      "progress": "S'està baixant l'actualització... {{percent}}%",
+      "installRestart": "Actualització baixada. S'està instal·lant i reiniciant...",
+      "failedTitle": "L'actualització ha fallat",
+      "failedAction": "Obre les versions de GitHub",
+      "checkFailedTitle": "No s'ha pogut comprovar les actualitzacions"
+    }
   },
   "whatsNew": {
     "title": "Novetats del VoxBar v{{version}}"
@@ -814,7 +856,9 @@
     "modelFallback": "Canviat a {{model}} per aquest dictat",
     "pasteFailedTitle": "No s'ha pogut enganxar el text",
     "pasteFailed": "No s'ha pogut enganxar el text a l'aplicació activa.",
-    "transcriptionFailedTitle": "La transcripció ha fallat"
+    "transcriptionFailedTitle": "La transcripció ha fallat",
+    "noModelSelectedTitle": "Cap model seleccionat",
+    "noModelSelected": "Trieu un model de transcripció a Configuració abans de dictar."
   },
   "appLanguage": {
     "title": "Llengua de l'aplicació",

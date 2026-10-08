@@ -507,6 +507,14 @@ pub struct AppSettings {
     pub model_unload_timeout: ModelUnloadTimeout,
     #[serde(default = "default_memory_pressure_guard")]
     pub memory_pressure_guard: bool,
+    /// Memory safety margin for the memory-pressure gate, in MB: free RAM
+    /// kept above the model's forecast footprint before the gate refuses a
+    /// load. 0 (the default) means the forecast alone must fit. A
+    /// user-chosen value is 0 or at least 5 MB (the settings UI rejects 1-4
+    /// with a validation message); a stale stored 1-4 normalizes to 0 on
+    /// load as a store guard.
+    #[serde(default = "default_memory_gate_headroom_mb")]
+    pub memory_gate_headroom_mb: u64,
     /// When the memory-pressure guard refuses the selected model AND this is
     /// on, automatically load the best already-downloaded model that fits
     /// free RAM instead of failing the dictation. Off reproduces the plain
@@ -820,6 +828,15 @@ fn default_auto_submit() -> bool {
 /// than attempting it and swapping or dying on a 24 GB machine (spec F3).
 fn default_memory_pressure_guard() -> bool {
     true
+}
+
+/// The memory safety margin defaults to 0: a fresh install loads any model
+/// whose forecast fits the measured availability (the fixed 1536 MiB
+/// constant of v1.0.2 refused normal macOS memory states and dead-ended
+/// first runs). Users who want the strict posture choose a margin in
+/// Advanced settings; nothing adds a hidden margin on top of this.
+fn default_memory_gate_headroom_mb() -> u64 {
+    0
 }
 
 /// Auto-fallback defaults ON: with the guard refusing oversized loads, the
@@ -1213,6 +1230,7 @@ pub fn get_default_settings() -> AppSettings {
         custom_words: default_custom_words(),
         model_unload_timeout: ModelUnloadTimeout::default(),
         memory_pressure_guard: default_memory_pressure_guard(),
+        memory_gate_headroom_mb: default_memory_gate_headroom_mb(),
         auto_fallback: default_auto_fallback(),
         menu_bar_model_title: default_menu_bar_model_title(),
         word_correction_threshold: default_word_correction_threshold(),
@@ -1396,6 +1414,21 @@ fn apply_settings_migrations(
 ) -> bool {
     let mut updated = false;
 
+    // Store guard for the memory safety margin: a user-chosen value is 0 or
+    // at least 5 MB by construction (the settings UI rejects 1-4), so a
+    // stored 1-4 can only come from a hand-edited store or a future
+    // migration. Normalize it to 0 so the gate never runs with a margin the
+    // UI would never have written. Idempotent: the normalized 0 persists on
+    // the next store write.
+    if (1..=4).contains(&settings.memory_gate_headroom_mb) {
+        warn!(
+            "memory gate headroom {} MB is outside the 0-or-at-least-5 rule; normalizing to 0",
+            settings.memory_gate_headroom_mb
+        );
+        settings.memory_gate_headroom_mb = 0;
+        updated = true;
+    }
+
     // One-time onboarding migration: users with an explicit selected model have
     // already made it through model selection. Users who merely have compatible
     // files on disk should still see onboarding.
@@ -1564,6 +1597,34 @@ mod tests {
             .remove("memory_pressure_guard");
         let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
         assert!(backfilled.memory_pressure_guard);
+    }
+
+    #[test]
+    fn memory_gate_headroom_mb_defaults_to_zero_round_trips_and_normalizes_stale_values() {
+        // Default is 0 for fresh installs: the forecast alone must fit, no
+        // hidden margin.
+        assert_eq!(get_default_settings().memory_gate_headroom_mb, 0);
+        // Serde round-trips an explicit 1536 (the strict preset).
+        let mut strict = get_default_settings();
+        strict.memory_gate_headroom_mb = 1536;
+        let parsed: AppSettings =
+            serde_json::from_value(serde_json::to_value(strict).unwrap()).unwrap();
+        assert_eq!(parsed.memory_gate_headroom_mb, 1536);
+        // Old settings JSON without the field parses to the default (0).
+        let mut legacy = serde_json::to_value(get_default_settings()).unwrap();
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .remove("memory_gate_headroom_mb");
+        let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert_eq!(backfilled.memory_gate_headroom_mb, 0);
+        // A hand-edited stored 3 (the 1-4 range the UI rejects) normalizes
+        // to 0 on the store-read path.
+        let mut stale = get_default_settings();
+        stale.memory_gate_headroom_mb = 3;
+        let raw = serde_json::to_value(&stale).unwrap();
+        apply_settings_migrations(&mut stale, &raw);
+        assert_eq!(stale.memory_gate_headroom_mb, 0);
     }
 
     #[test]
@@ -1874,12 +1935,10 @@ mod tests {
     fn command_matrix_phrases_round_trip_through_json() {
         assert!(get_default_settings().command_phrases.is_none());
 
-        let edited = vec![
-            crate::audio_toolkit::command_matrix::CommandMatrixEntry {
-                command: crate::audio_toolkit::command_matrix::CommandId::Comma,
-                phrases: vec!["kohma".to_string()],
-            },
-        ];
+        let edited = vec![crate::audio_toolkit::command_matrix::CommandMatrixEntry {
+            command: crate::audio_toolkit::command_matrix::CommandId::Comma,
+            phrases: vec!["kohma".to_string()],
+        }];
         let mut settings = get_default_settings();
         settings.command_phrases = Some(edited.clone());
         let json = serde_json::to_value(&settings).unwrap();

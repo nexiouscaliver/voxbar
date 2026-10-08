@@ -1,7 +1,7 @@
 {
   "name": "voxbar-app",
   "private": true,
-  "version": "1.0.2",
+  "version": "1.1.0",
   "type": "module",
   "author": "Shahil Kadia",
   "scripts": {
@@ -17,6 +17,8 @@
     "format:backend": "cd src-tauri && cargo fmt",
     "test:keyboard": "bun src/lib/utils/keyboard.test.ts",
     "test:accent": "bun src/lib/utils/accent.test.ts",
+    "test:settings": "bun src/components/settings/memoryMarginInput.test.ts",
+    "test:onboarding": "bun src/components/onboarding/modelRefusal.test.ts",
     "test:playwright": "playwright test",
     "test:playwright:ui": "playwright test --ui",
     "check:translations": "bun scripts/check-translations.ts",
@@ -33,8 +35,10 @@
     "@tauri-apps/plugin-global-shortcut": "~2.3.2",
     "@tauri-apps/plugin-opener": "^2.5.2",
     "@tauri-apps/plugin-os": "~2.3.2",
+    "@tauri-apps/plugin-process": "2.3.1",
     "@tauri-apps/plugin-sql": "~2.3.1",
     "@tauri-apps/plugin-store": "~2.4.1",
+    "@tauri-apps/plugin-updater": "2.12.0",
     "i18next": "^25.7.2",
     "immer": "^11.1.3",
     "lucide-react": "^0.542.0",

@@ -57,11 +57,6 @@ use crate::settings::get_settings;
 // We use u8 to store the log::LevelFilter as a number
 pub static FILE_LOG_LEVEL: AtomicU8 = AtomicU8::new(log::LevelFilter::Debug as u8);
 
-/// Releases page opened by every "Check for Updates" affordance (tray item
-/// and footer link). This build ships no in-app updater, so the honest
-/// behavior is to hand the user over to the releases list in their browser.
-const RELEASES_URL: &str = "https://github.com/nexiouscaliver/voxbar/releases";
-
 /// When `true`, log records are also forwarded to the webview via the
 /// `log://log` event for the debug panel's live log viewer. Gated on debug
 /// mode - the live log viewer is its only consumer and only exists in debug
@@ -300,11 +295,14 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                 show_main_window(app);
             }
             "check_updates" => {
-                // No in-app updater exists in this build, so the item opens
-                // the releases page in the default browser instead of
-                // pretending to check an update endpoint.
-                if let Err(err) = app.opener().open_url(RELEASES_URL, None::<String>) {
-                    log::error!("Failed to open the releases page: {err}");
+                // The frontend (App-level request-update-check listener)
+                // runs the in-app update flow: check the releases endpoint,
+                // confirm, download, install, relaunch. Emitting an event
+                // keeps the flow's toasts in the UI and works in every app
+                // state, because the main window is hidden rather than
+                // destroyed on close.
+                if let Err(err) = app.emit("request-update-check", ()) {
+                    log::error!("Failed to emit request-update-check: {err}");
                 }
             }
             "copy_last_transcript" => {
@@ -789,6 +787,7 @@ pub fn run(cli_args: CliArgs) {
             commands::models::delete_model,
             commands::models::cancel_download,
             commands::models::set_active_model,
+            commands::models::set_active_model_deferred,
             commands::models::get_current_model,
             commands::models::get_transcription_model_status,
             commands::models::is_model_loading,
@@ -933,10 +932,12 @@ pub fn run(cli_args: CliArgs) {
     #[allow(unused_mut)]
     let mut app = builder
         .plugin(tauri_plugin_fs::init())
-        // No updater plugin is registered (or depended on): this build ships
-        // no update endpoint to query. Both "Check for Updates" affordances
-        // (tray item and footer link) open RELEASES_URL in the default
-        // browser instead.
+        // In-app updates: the updater plugin itself is registered in setup()
+        // (desktop-gated, per the plugin docs); tauri-plugin-process provides
+        // the relaunch() used after an update installs. The "Check for
+        // Updates" affordances (tray item and footer button) drive the
+        // frontend flow in src/components/update-checker/.
+        .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_macos_permissions::init())
@@ -949,6 +950,14 @@ pub fn run(cli_args: CliArgs) {
         ))
         .manage(cli_args.clone())
         .setup(move |app| {
+            // In-app updater (desktop only, docs-verbatim registration). The
+            // update endpoint and signing pubkey live in tauri.conf.json's
+            // plugins.updater block; checks are driven by the frontend and
+            // gated by update_checks_enabled / HANDY_DISABLE_UPDATER there.
+            #[cfg(desktop)]
+            app.handle()
+                .plugin(tauri_plugin_updater::Builder::new().build())?;
+
             // Installed-upgrade continuity (legacy Handy -> VoxBar): must be
             // the FIRST thing setup() does - the `get_settings` read below
             // WRITES defaults into a fresh store, and the headless branch's

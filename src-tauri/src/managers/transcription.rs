@@ -1,9 +1,5 @@
-use crate::audio_toolkit::command_matrix::{
-    matrix_from_settings, CompiledCommandMatrix,
-};
-use crate::audio_toolkit::commands::{
-    flush_command_prefix_len, held_prefix_len,
-};
+use crate::audio_toolkit::command_matrix::{matrix_from_settings, CompiledCommandMatrix};
+use crate::audio_toolkit::commands::{flush_command_prefix_len, held_prefix_len};
 use crate::audio_toolkit::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion, detect_output_language,
     interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
@@ -128,7 +124,7 @@ fn fallback_candidate_list(
 /// the toggle wiring ([`decide_memory_gate`]) is unit-testable without an
 /// app handle.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum MemoryGateDecision {
+pub(crate) enum MemoryGateDecision {
     /// Proceed with the requested model.
     Allow,
     /// Refuse the load with the not-enough-memory error.
@@ -157,17 +153,21 @@ impl MemoryGateDecision {
 ///   candidate inventory is never even consulted).
 /// - A forecast that fits (`forecast + headroom <= free`, `None` probe fails
 ///   open) is allowed - exactly [`memory::gate_should_refuse`]'s semantics.
+///   `headroom` is the caller's user margin (the `memory_gate_headroom_mb`
+///   setting in MB, multiplied by 1 MiB): 0 (the default) means the
+///   forecast alone must fit; the gate never adds a hidden margin on top.
 /// - A refusal becomes [`MemoryGateDecision::Fallback`] only when BOTH the
 ///   Settings' `auto_fallback` toggle and the caller's no-cascade
-///   `allow_fallback` are on AND some downloaded candidate fits; with
-///   `auto_fallback == false` a refusal stays a refusal - models are never
-///   swapped underneath the user.
-fn decide_memory_gate<F>(
+///   `allow_fallback` are on AND some downloaded candidate fits (against
+///   the same headroom); with `auto_fallback == false` a refusal stays a
+///   refusal - models are never swapped underneath the user.
+pub(crate) fn decide_memory_gate<F>(
     guard_enabled: bool,
     auto_fallback: bool,
     allow_fallback: bool,
     free: Option<u64>,
     forecast: u64,
+    headroom: u64,
     candidates: F,
     failed_id: &str,
 ) -> MemoryGateDecision
@@ -177,15 +177,75 @@ where
     if !guard_enabled {
         return MemoryGateDecision::Allow;
     }
-    if !memory::gate_should_refuse(free, forecast, memory::DEFAULT_HEADROOM_BYTES) {
+    if !memory::gate_should_refuse(free, forecast, headroom) {
         return MemoryGateDecision::Allow;
     }
     if allow_fallback && auto_fallback {
-        if let Some(fallback) = memory::resolve_fallback_model(free, &candidates(), failed_id) {
+        if let Some(fallback) =
+            memory::resolve_fallback_model(free, &candidates(), failed_id, headroom)
+        {
             return MemoryGateDecision::Fallback(fallback.id.clone());
         }
     }
     MemoryGateDecision::Refuse
+}
+
+/// Format a forecast or free-memory amount for the refusal message:
+/// integer MB below 1 GiB (minimum 1, so a tiny figure never reads as
+/// nothing), one-decimal GB at or above it. 45,088,768 B renders "43 MB",
+/// 766,509,056 B "731 MB", 1,610,612,736 B "1.5 GB". The old inline
+/// GB-only formatting turned a 43 MiB model into "needs ~0.0 GB", telling
+/// the user the model needs zero memory while being refused.
+fn format_memory_amount(bytes: u64) -> String {
+    const GIB: u64 = 1024 * 1024 * 1024;
+    if bytes < GIB {
+        format!("{} MB", (bytes / (1024 * 1024)).max(1))
+    } else {
+        format!("{:.1} GB", bytes as f64 / GIB as f64)
+    }
+}
+
+/// Format the memory safety margin for the refusal message: ALWAYS integer
+/// MB (minimum 1). The setting is MB-granular by construction, so MB is
+/// exact, and the message must echo the unit of the Advanced UI the user
+/// set the margin in (1536 MB, never format_memory_amount's "1.5 GB").
+fn format_margin_mb(headroom: u64) -> String {
+    format!("{} MB", (headroom / (1024 * 1024)).max(1))
+}
+
+/// The exact refusal string users see, pure over the decision's inputs so
+/// the wording is unit-testable. The margin clause appears only when the
+/// margin is non-zero.
+fn memory_gate_refusal_message(
+    model_name: &str,
+    forecast: u64,
+    free: u64,
+    headroom: u64,
+) -> String {
+    let margin_clause = if headroom > 0 {
+        format!(" plus a {} safety margin,", format_margin_mb(headroom))
+    } else {
+        String::new()
+    };
+    format!(
+        "Not enough free memory for {}: needs ~{}{}, ~{} free (margin adjustable, guard can be \
+         disabled, in Settings)",
+        model_name,
+        format_memory_amount(forecast),
+        margin_clause,
+        format_memory_amount(free),
+    )
+}
+
+/// The structured numbers behind a memory-gate refusal, so the UI never
+/// parses the error string. `free_bytes` is the resident-credited reading
+/// the decision actually used. Present only on the gate's Refuse path; a
+/// failed-open probe never refuses and leaves the field absent.
+#[derive(Clone, Debug, Serialize)]
+pub struct MemoryGateRefusalPayload {
+    pub forecast_bytes: u64,
+    pub free_bytes: u64,
+    pub headroom_bytes: u64,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -194,6 +254,10 @@ pub struct ModelStateEvent {
     pub model_id: Option<String>,
     pub model_name: Option<String>,
     pub error: Option<String>,
+    /// Structured memory-gate refusal numbers; absent except on the gate's
+    /// Refuse path (loading_failed events).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_gate: Option<MemoryGateRefusalPayload>,
 }
 
 /// One-shot notification that a RAM auto-fallback fired: the selected model
@@ -1011,6 +1075,7 @@ impl TranscriptionManager {
                 model_id: None,
                 model_name: None,
                 error: Some(error.to_string()),
+                memory_gate: None,
             },
         );
     }
@@ -1072,6 +1137,7 @@ impl TranscriptionManager {
                 model_id: None,
                 model_name: None,
                 error: None,
+                memory_gate: None,
             },
         );
         unloading
@@ -1143,6 +1209,7 @@ impl TranscriptionManager {
                 model_id: Some(model_id.to_string()),
                 model_name: None,
                 error: None,
+                memory_gate: None,
             },
         );
 
@@ -1157,6 +1224,7 @@ impl TranscriptionManager {
                         model_id: Some(model_id.to_string()),
                         model_name: None,
                         error: Some(error_msg.clone()),
+                        memory_gate: None,
                     },
                 );
                 return Err(anyhow::anyhow!(error_msg));
@@ -1173,6 +1241,7 @@ impl TranscriptionManager {
                     model_id: Some(model_id.to_string()),
                     model_name: Some(model_info.name.clone()),
                     error: Some(error_msg.to_string()),
+                    memory_gate: None,
                 },
             );
         };
@@ -1190,9 +1259,15 @@ impl TranscriptionManager {
         // because its pages are freed before the new model's peak. A probe
         // failure fails open (gate returns false for `None`). The whole
         // block is skipped when memory_pressure_guard is off - the toggle
-        // bypasses the gate entirely, the RAM auto-fallback included.
+        // bypasses the gate entirely, the RAM auto-fallback included. The
+        // margin is the user's memory_gate_headroom_mb setting (default 0);
+        // no hidden headroom is added on top.
         let forecast = model_info.size_mb.saturating_mul(1024 * 1024);
-        if get_settings(&self.app_handle).memory_pressure_guard {
+        let gate_settings = get_settings(&self.app_handle);
+        if gate_settings.memory_pressure_guard {
+            let headroom = gate_settings
+                .memory_gate_headroom_mb
+                .saturating_mul(1024 * 1024);
             let credit = self.resident_model_footprint_bytes();
             let probe = memory::probe_availability();
             let free = probe.available_bytes.map(|f| f.saturating_add(credit));
@@ -1207,10 +1282,11 @@ impl TranscriptionManager {
             }
             let decision = decide_memory_gate(
                 true,
-                get_settings(&self.app_handle).auto_fallback,
+                gate_settings.auto_fallback,
                 allow_fallback,
                 free,
                 forecast,
+                headroom,
                 || self.fallback_candidates(model_id),
                 model_id,
             );
@@ -1259,22 +1335,34 @@ impl TranscriptionManager {
                             fallback_model_name: fallback_name,
                         },
                     );
-                    return self.load_model_with_device_internal(
-                        &fallback_id,
-                        device_index,
-                        false,
-                    );
+                    return self.load_model_with_device_internal(&fallback_id, device_index, false);
                 }
                 MemoryGateDecision::Refuse => {
-                    let gib = 1024.0 * 1024.0 * 1024.0;
-                    let error_msg = format!(
-                        "Not enough free memory for {}: needs ~{:.1} GB, ~{:.1} GB free (guard can be disabled in Settings)",
-                        model_info.name,
-                        forecast as f64 / gib,
-                        free.unwrap_or(0) as f64 / gib
+                    let free_bytes = free.unwrap_or(0);
+                    let error_msg = memory_gate_refusal_message(
+                        &model_info.name,
+                        forecast,
+                        free_bytes,
+                        headroom,
                     );
                     warn!("memory gate refused a load: {}", error_msg);
-                    emit_loading_failed(&error_msg);
+                    // The structured numbers ride along so the UI never
+                    // parses the message: forecast, the resident-credited
+                    // free reading the decision used, and the margin.
+                    let _ = self.app_handle.emit(
+                        "model-state-changed",
+                        ModelStateEvent {
+                            event_type: "loading_failed".to_string(),
+                            model_id: Some(model_id.to_string()),
+                            model_name: Some(model_info.name.clone()),
+                            error: Some(error_msg.clone()),
+                            memory_gate: Some(MemoryGateRefusalPayload {
+                                forecast_bytes: forecast,
+                                free_bytes,
+                                headroom_bytes: headroom,
+                            }),
+                        },
+                    );
                     return Err(anyhow::anyhow!(error_msg));
                 }
             }
@@ -1470,6 +1558,7 @@ impl TranscriptionManager {
                 model_id: Some(model_id.to_string()),
                 model_name: Some(model_info.name.clone()),
                 error: None,
+                memory_gate: None,
             },
         );
 
@@ -2335,6 +2424,7 @@ impl TranscriptionManager {
                         model_id: None,
                         model_name: None,
                         error: Some(format!("Engine panicked: {}", panic_msg)),
+                        memory_gate: None,
                     },
                 );
 
@@ -3144,7 +3234,10 @@ mod tests {
 
         // The engine commits the (already deleted) tentative word verbatim
         // and the user keeps talking: the word must not resurrect.
-        assert_eq!(session.render("hello world and more", "", false), "hello and more");
+        assert_eq!(
+            session.render("hello world and more", "", false),
+            "hello and more"
+        );
         assert_eq!(
             session.combine_final("hello world and more".to_string()),
             "hello and more"
@@ -3204,7 +3297,10 @@ mod tests {
         let mut edited = session_buffer();
         edited.render("alpha ", "beta", false);
         edited.delete_last_word(); // removes "beta", freezes "alpha "
-        assert_eq!(edited.render("alpha beta full", " stop now", false), "alpha. Now");
+        assert_eq!(
+            edited.render("alpha beta full", " stop now", false),
+            "alpha. Now"
+        );
     }
 
     #[test]
@@ -3273,7 +3369,10 @@ mod tests {
         assert_eq!(session.render("hello world", "", true), "hello world");
         // Command words arriving on later snapshots while held parse and
         // edit the buffer instead of appending as words.
-        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+        assert_eq!(
+            session.render("hello world comma", "", true),
+            "hello world,"
+        );
         assert_eq!(
             session.render("hello world comma question mark", "", true),
             "hello world,?"
@@ -3287,7 +3386,11 @@ mod tests {
         // Released: dictation resumes appending beyond the consumed
         // snapshot; the command words never re-enter the raw buffer.
         assert_eq!(
-            session.render("hello world comma question mark um stuff and more", "", false),
+            session.render(
+                "hello world comma question mark um stuff and more",
+                "",
+                false
+            ),
             "hello world,? and more"
         );
         // The final paste delivers exactly the edited buffer (plus later
@@ -3347,7 +3450,10 @@ mod tests {
         let mut session = session_buffer();
         session.render("hello ", "wor", false);
         assert_eq!(session.render("hello world", "", true), "hello world");
-        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+        assert_eq!(
+            session.render("hello world comma", "", true),
+            "hello world,"
+        );
     }
 
     #[test]
@@ -3381,11 +3487,17 @@ mod tests {
         // The fragment arrives on a LATER tick: "com" is a partial-word
         // proper prefix of "comma", so the delta is held, no command
         // applies, and the display keeps the separator.
-        assert_eq!(session.render("hello world com", "", true), "hello world com");
+        assert_eq!(
+            session.render("hello world com", "", true),
+            "hello world com"
+        );
         // The next delta re-includes the whole token (the raw_seen
         // shortfall IS the held region); the comma applies exactly once
         // and no stray "com" survives.
-        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+        assert_eq!(
+            session.render("hello world comma", "", true),
+            "hello world,"
+        );
     }
 
     #[test]
@@ -3413,7 +3525,10 @@ mod tests {
         let mut session = session_buffer();
         session.render("hello world", "", false);
         session.render("hello world", "", true); // engage
-        assert_eq!(session.render("hello world com", "", true), "hello world com");
+        assert_eq!(
+            session.render("hello world com", "", true),
+            "hello world com"
+        );
 
         // Released with the snapshot unchanged: the flush consumes the
         // fragment, the grammar discards it ("com" is no command), and it
@@ -3430,7 +3545,10 @@ mod tests {
         let mut session = session_buffer();
         session.render("hello world", "", false);
         session.render("hello world", "", true); // engage
-        assert_eq!(session.render("hello world com", "", true), "hello world com");
+        assert_eq!(
+            session.render("hello world com", "", true),
+            "hello world com"
+        );
 
         // Released with the snapshot GROWN: the flush span resolves the
         // held fragment into the comma command and stops; the fresh
@@ -3449,7 +3567,10 @@ mod tests {
         let mut session = session_buffer();
         session.render("hello world", "", false);
         session.render("hello world", "", true); // engage
-        assert_eq!(session.render("hello world com", "", true), "hello world com");
+        assert_eq!(
+            session.render("hello world com", "", true),
+            "hello world com"
+        );
 
         // Finalize flushes ONLY because the holding marker is set: the
         // held word resolves to the comma from the final text and the
@@ -3467,7 +3588,10 @@ mod tests {
         session.render("hello world", "", true); // engage
 
         // A whole "comma" delta applies on arrival.
-        assert_eq!(session.render("hello world comma", "", true), "hello world,");
+        assert_eq!(
+            session.render("hello world comma", "", true),
+            "hello world,"
+        );
         // Repeating the identical symbol command coalesces: one comma.
         assert_eq!(
             session.render("hello world comma comma", "", true),
@@ -3521,7 +3645,10 @@ mod tests {
         let mut lines = session_buffer();
         lines.render("first\nsecond", "", false);
         lines.render("first\nsecond", "", true); // engage
-        assert_eq!(lines.render("first\nsecond delete line", "", true), "first\n");
+        assert_eq!(
+            lines.render("first\nsecond delete line", "", true),
+            "first\n"
+        );
         assert_eq!(lines.take_deleted(), Some("second".to_string()));
     }
 
@@ -3552,7 +3679,10 @@ mod tests {
         // modifier may still be held (the coordinator clears its flag on
         // session end; the buffer forgets on begin/end too).
         session.begin(
-            PreviewScript::new(ChineseScript::AsTranscribed, &OutputLanguageEvidence::Unknown),
+            PreviewScript::new(
+                ChineseScript::AsTranscribed,
+                &OutputLanguageEvidence::Unknown,
+            ),
             true,
             true,
             &languages(&["en"]),
@@ -4351,13 +4481,23 @@ mod tests {
 
         // Plenty free: the user-added model is selected.
         assert_eq!(
-            memory::resolve_fallback_model(Some(8 * GIB), &candidates, "selected")
-                .map(|c| c.id.as_str()),
+            memory::resolve_fallback_model(
+                Some(8 * GIB),
+                &candidates,
+                "selected",
+                memory::DEFAULT_HEADROOM_BYTES
+            )
+            .map(|c| c.id.as_str()),
             Some("org/custom-asr/model-Q8_0.gguf")
         );
         // Too tight for it (700 MiB + 1.5 GiB headroom > 2 GiB): nothing.
         assert_eq!(
-            memory::resolve_fallback_model(Some(2 * GIB), &candidates, "selected"),
+            memory::resolve_fallback_model(
+                Some(2 * GIB),
+                &candidates,
+                "selected",
+                memory::DEFAULT_HEADROOM_BYTES
+            ),
             None
         );
     }
@@ -4372,12 +4512,18 @@ mod tests {
             "model-Q8_0.gguf",
             700,
         );
-        let candidates = fallback_candidate_list(&[added.clone(), catalog.clone()], "selected", "auto");
+        let candidates =
+            fallback_candidate_list(&[added.clone(), catalog.clone()], "selected", "auto");
 
         // Both fit, the ranked catalog entry wins...
         assert_eq!(
-            memory::resolve_fallback_model(Some(16 * GIB), &candidates, "selected")
-                .map(|c| c.id.as_str()),
+            memory::resolve_fallback_model(
+                Some(16 * GIB),
+                &candidates,
+                "selected",
+                memory::DEFAULT_HEADROOM_BYTES
+            )
+            .map(|c| c.id.as_str()),
             Some(catalog.id.as_str())
         );
 
@@ -4390,8 +4536,13 @@ mod tests {
         huge_catalog.size_mb = 16 * 1024; // 16 GiB: never fits below
         let forced = fallback_candidate_list(&[huge_catalog, huge], "selected", "auto");
         assert_eq!(
-            memory::resolve_fallback_model(Some(8 * GIB), &forced, "selected")
-                .map(|c| c.id.as_str()),
+            memory::resolve_fallback_model(
+                Some(8 * GIB),
+                &forced,
+                "selected",
+                memory::DEFAULT_HEADROOM_BYTES
+            )
+            .map(|c| c.id.as_str()),
             Some("org/custom-asr/model-Q8_0.gguf")
         );
     }
@@ -4422,6 +4573,7 @@ mod tests {
             true,
             Some(2 * GIB),
             5 * GIB,
+            memory::DEFAULT_HEADROOM_BYTES,
             || candidates,
             "hi-model",
         );
@@ -4430,21 +4582,106 @@ mod tests {
         // A downloaded Hindi-capable candidate that fits IS offered.
         let mut hi_fallback = model_info_for("hi-small", 100, true);
         hi_fallback.supported_languages = vec!["en".to_string(), "hi".to_string()];
-        let candidates = fallback_candidate_list(
-            &[hi_model, en_model, hi_fallback],
-            "hi-model",
-            "hi",
-        );
+        let candidates =
+            fallback_candidate_list(&[hi_model, en_model, hi_fallback], "hi-model", "hi");
         let decision = decide_memory_gate(
             true,
             true,
             true,
             Some(2 * GIB),
             5 * GIB,
+            memory::DEFAULT_HEADROOM_BYTES,
             || candidates,
             "hi-model",
         );
-        assert_eq!(decision, MemoryGateDecision::Fallback("hi-small".to_string()));
+        assert_eq!(
+            decision,
+            MemoryGateDecision::Fallback("hi-small".to_string())
+        );
+    }
+
+    /// AUDIT TEST 3: with whisper tiny as the ONLY downloaded model, a gate
+    /// refusal is terminal - the fallback inventory is empty by construction
+    /// (the failed model is excluded from its own candidate list), so the
+    /// decision is Refuse, not Fallback. This is the backend shape of the
+    /// v1.0.2 first-run dead end; the recovery surface is the onboarding
+    /// refusal card.
+    #[test]
+    fn single_downloaded_model_refusal_is_terminal() {
+        let whisper_tiny = model_info_for("whisper-tiny-q8", 43, true);
+        let forecast = 45_088_768_u64; // size_mb 43 x 1 MiB
+        assert_eq!(
+            whisper_tiny.size_mb.saturating_mul(1024 * 1024),
+            forecast,
+            "fixture must be whisper tiny's real forecast"
+        );
+        let decision = decide_memory_gate(
+            true,
+            true,
+            true,
+            Some(1_087_373_312), // the audit's WARN probe reading
+            forecast,
+            memory::DEFAULT_HEADROOM_BYTES, // the retired fixed margin: refuses
+            || fallback_candidate_list(&[whisper_tiny], "whisper-tiny-q8", "auto"),
+            "whisper-tiny-q8",
+        );
+        assert_eq!(
+            decision,
+            MemoryGateDecision::Refuse,
+            "only the failed model on disk means no fallback can exist"
+        );
+    }
+
+    /// AUDIT TEST 4: the refusal message is the exact string users see, and
+    /// it must never render a 43 MiB forecast as "needs ~0.0 GB". The
+    /// forecast and free amounts use the MB-below-1-GiB-else-GB rule; the
+    /// margin ALWAYS renders in integer MB so the message echoes the unit
+    /// of the Advanced UI the user set it in (1536 MB, never "1.5 GB").
+    #[test]
+    fn refusal_message_formats_tiny_forecast_in_mb() {
+        // The amount formatters, pinned to the audit's exact figures.
+        assert_eq!(format_memory_amount(45_088_768), "43 MB");
+        assert_eq!(format_memory_amount(766_509_056), "731 MB");
+        assert_eq!(format_memory_amount(1_610_612_736), "1.5 GB");
+        assert_eq!(format_margin_mb(1_610_612_736), "1536 MB");
+
+        // A 43 MiB forecast at margin 0: no "0.0 GB", no margin clause. The
+        // friend's free reading (1,087,373,312 B) sits above the 1 GiB
+        // boundary, so the amount rule renders it "1.0 GB".
+        let msg = memory_gate_refusal_message("Whisper Tiny", 45_088_768, 1_087_373_312, 0);
+        assert!(msg.contains("43 MB"), "message must name 43 MB: {msg}");
+        assert!(
+            msg.contains("1.0 GB"),
+            "free renders per the amount rule: {msg}"
+        );
+        assert!(
+            !msg.contains("0.0 GB"),
+            "message must not claim 0.0 GB: {msg}"
+        );
+        assert!(
+            !msg.contains("safety margin"),
+            "margin 0 has no margin clause: {msg}"
+        );
+
+        // The same forecast at the 1536 MiB preset: the margin clause
+        // appears with the always-MB formatter.
+        let msg = memory_gate_refusal_message(
+            "Whisper Tiny",
+            45_088_768,
+            1_087_373_312,
+            memory::DEFAULT_HEADROOM_BYTES,
+        );
+        assert!(
+            msg.contains("1536 MB safety margin"),
+            "margin clause must read 1536 MB: {msg}"
+        );
+        assert!(!msg.contains("1.5 GB safety margin"), "{msg}");
+
+        // The GB side of the amounts: a 731 MiB forecast stays MB, a 1.5
+        // GiB free reading renders GB.
+        let msg = memory_gate_refusal_message("Parakeet EN Q8", 766_509_056, 1_610_612_736, 0);
+        assert!(msg.contains("731 MB"), "{msg}");
+        assert!(msg.contains("1.5 GB"), "{msg}");
     }
 
     #[test]
@@ -4500,11 +4737,12 @@ mod tests {
         let consulted = Arc::new(AtomicBool::new(false));
         let flag = Arc::clone(&consulted);
         let decision = decide_memory_gate(
-            false, // memory_pressure_guard = false
-            true,  // auto_fallback = true
-            true,  // top-level load (cascades allowed)
-            Some(1), // one byte free
+            false,                  // memory_pressure_guard = false
+            true,                   // auto_fallback = true
+            true,                   // top-level load (cascades allowed)
+            Some(1),                // one byte free
             8 * 1024 * 1024 * 1024, // 8 GiB forecast: would always refuse
+            memory::DEFAULT_HEADROOM_BYTES,
             move || {
                 flag.store(true, Ordering::SeqCst);
                 vec![gate_fitting_candidate()]
@@ -4528,6 +4766,7 @@ mod tests {
             true,
             Some(2 * 1024 * 1024 * 1024), // 2 GiB free
             8 * 1024 * 1024 * 1024,       // 8 GiB forecast: refuses
+            memory::DEFAULT_HEADROOM_BYTES,
             || vec![gate_fitting_candidate()],
             "selected",
         );
@@ -4545,6 +4784,7 @@ mod tests {
             false, // the fallback's own load
             Some(2 * 1024 * 1024 * 1024),
             8 * 1024 * 1024 * 1024,
+            memory::DEFAULT_HEADROOM_BYTES,
             || vec![gate_fitting_candidate()],
             "selected",
         );
@@ -4565,6 +4805,7 @@ mod tests {
                 true,
                 Some(16 * 1024 * 1024 * 1024),
                 fitting,
+                memory::DEFAULT_HEADROOM_BYTES,
                 || vec![],
                 "selected"
             ),
@@ -4578,6 +4819,7 @@ mod tests {
                 true,
                 Some(2 * 1024 * 1024 * 1024),
                 fitting,
+                memory::DEFAULT_HEADROOM_BYTES,
                 || vec![gate_fitting_candidate()],
                 "selected"
             ),
@@ -4585,7 +4827,16 @@ mod tests {
         );
         // Probe unavailable: fails open exactly like the gate predicate.
         assert_eq!(
-            decide_memory_gate(true, true, true, None, 8 * 1024 * 1024 * 1024, || vec![], "selected"),
+            decide_memory_gate(
+                true,
+                true,
+                true,
+                None,
+                8 * 1024 * 1024 * 1024,
+                memory::DEFAULT_HEADROOM_BYTES,
+                || vec![],
+                "selected"
+            ),
             MemoryGateDecision::Allow
         );
         // Refused and nothing fits (or nothing downloaded): refusal.
@@ -4596,6 +4847,7 @@ mod tests {
                 true,
                 Some(2 * 1024 * 1024 * 1024),
                 fitting,
+                memory::DEFAULT_HEADROOM_BYTES,
                 || vec![],
                 "selected"
             ),

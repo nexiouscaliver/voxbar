@@ -30,6 +30,16 @@
     "showFewerModels": "הצג פחות מודלים",
     "recommended": "מומלץ",
     "customModelDescription": "לא נתמך באופן רשמי",
+    "refusal": {
+      "title": "אין מספיק זיכרון פנוי",
+      "needs": "מגן הזיכרון סירב לטעון את {{model}}: נדרשים ~{{needed}}, ופנויים ~{{free}}.",
+      "marginNote": "נוסף מרווח בטיחות של {{margin}} מעבר לגודל המודל (ניתן לכוונון בהגדרות > מתקדם).",
+      "retry": "נסה שוב",
+      "switchModel": "בחירת מודל אחר",
+      "disableGuard": "טעינה בלי מגן הזיכרון",
+      "continueDeferred": "המשך בלי לטעון כעת",
+      "guardOffCaveat": "המגן יישאר כבוי עד שתפעילו אותו מחדש בהגדרות > מתקדם; המודל ייטען בהקלטה הראשונה."
+    },
     "modelCard": {
       "accuracy": "דיוק",
       "speed": "מהירות"
@@ -101,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "בחירת המודל נכשלה"
+      "selectModel": "בחירת המודל נכשלה",
+      "downloadFailed": "הורדת {{model}} נכשלה: {{error}}"
     },
     "permissions": {
       "title": "נדרשות הרשאות",
       "description": "VoxBar צריך כמה הרשאות כדי לעבוד כמו שצריך.",
       "microphone": {
         "title": "גישה למיקרופון",
-        "description": "נדרש כדי לשמוע את הקול שלך לצורך תמלול."
+        "description": "נדרש כדי לשמוע את הקול שלך לצורך תמלול.",
+        "deniedGuidance": "אין עדיין גישה למיקרופון. הפעילו את VoxBar תחת הגדרות המערכת > פרטיות ואבטחה > מיקרופון, ואז בדקו שוב.",
+        "openSettings": "פתיחת הגדרות המיקרופון",
+        "checkAgain": "בדיקה חוזרת"
       },
       "accessibility": {
         "title": "גישת נגישות",
@@ -122,7 +136,9 @@
         "checkFailed": "בדיקת ההרשאות נכשלה. נסה שוב.",
         "requestFailed": "בקשת ההרשאה נכשלה. נסה שוב."
       }
-    }
+    },
+    "hotkeyHint": "התחילו הקלטה בכל עת עם {{hotkey}}.",
+    "hotkeyChangeHint": "ניתן לשנות את קיצור המקלדת הזה בהגדרות > כללי."
   },
   "modelSelector": {
     "custom": "מותאם אישית",
@@ -357,6 +373,21 @@
       "memoryPressureGuard": {
         "label": "מגן לחץ זיכרון",
         "description": "מסרב לטעון מודל כשאין מספיק זיכרון פנוי. המודל הנוכחי ממשיך לעבוד כאשר טעינה נדחית."
+      },
+      "memoryHeadroom": {
+        "label": "מרווח בטיחות זיכרון",
+        "description": "זיכרון פנוי נוסף שנשמר מעבר לגודל המודל לפני שמגן לחץ הזיכרון דוחה טעינה. 0 (ברירת מחדל) פירושו שהמודל לבד צריך להיכנס; ערך מותאם אישית הוא 0 או לפחות 5 MB.",
+        "options": {
+          "off": "כבוי",
+          "mb256": "256 MB",
+          "mb512": "512 MB",
+          "mb1024": "1024 MB",
+          "mb1536": "1536 MB",
+          "custom": "מותאם אישית"
+        },
+        "customLabel": "מרווח מותאם אישית",
+        "customUnit": "MB",
+        "invalid": "הזינו 0 או לפחות 5 MB."
       },
       "autoFallback": {
         "label": "מעבר אוטומטי לפי זיכרון",
@@ -778,7 +809,18 @@
     "portableUpdateMessage": "התקנות ניידות אינן מתעדכנות אוטומטית. הורד למטה את המתקין המתאים למערכת שלך, הפעל אותו והתקן לאותה תיקייה - תיקיית Data/ (הגדרות, מודלים, הקלטות) נשמרת במקומה.",
     "portableUpdateButton": "הורדת המתקין",
     "portableUpdateBrowseMessage": "התקנות ניידות אינן מתעדכנות אוטומטית. הורד את הגרסה האחרונה המתאימה למערכת שלך מ-GitHub Releases והתקן אותה לאותה תיקייה - תיקיית Data/ (הגדרות, מודלים, הקלטות) נשמרת במקומה.",
-    "portableUpdateBrowseButton": "פתח את GitHub Releases"
+    "portableUpdateBrowseButton": "פתח את GitHub Releases",
+    "updater": {
+      "availableTitle": "VoxBar {{version}} זמין",
+      "availableDate": "פורסם ב-{{date}}",
+      "downloadAction": "הורדה והתקנה",
+      "laterAction": "מאוחר יותר",
+      "progress": "מוריד עדכון... {{percent}}%",
+      "installRestart": "העדכון הורד. מתקין ומפעיל מחדש...",
+      "failedTitle": "העדכון נכשל",
+      "failedAction": "פתיחת מהדורות GitHub",
+      "checkFailedTitle": "בדיקת העדכונים נכשלה"
+    }
   },
   "common": {
     "loading": "טוען...",
@@ -811,7 +853,9 @@
     "modelFallback": "עבר אל {{model}} עבור הכתבה זו",
     "pasteFailedTitle": "ההדבקה נכשלה",
     "pasteFailed": "לא ניתן היה להדביק את הטקסט ביישום הפעיל.",
-    "transcriptionFailedTitle": "התמלול נכשל"
+    "transcriptionFailedTitle": "התמלול נכשל",
+    "noModelSelectedTitle": "לא נבחר מודל",
+    "noModelSelected": "בחרו מודל תמלול בהגדרות לפני הקלטה."
   },
   "appLanguage": {
     "title": "שפת האפליקציה",
