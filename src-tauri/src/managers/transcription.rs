@@ -1,5 +1,7 @@
 use crate::audio_toolkit::command_matrix::{matrix_from_settings, CompiledCommandMatrix};
-use crate::audio_toolkit::commands::{flush_command_prefix_len, held_prefix_len};
+use crate::audio_toolkit::commands::{
+    flush_command_prefix_len, held_prefix_len, CommandAction,
+};
 use crate::audio_toolkit::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion, detect_output_language,
     interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
@@ -2324,14 +2326,23 @@ impl TranscriptionManager {
         // Custom words become the initial prompt ONLY for models that accept
         // one (whisper family). Attaching the whisper run extension to a
         // non-whisper arch is rejected with INVALID_ARG, so skip it there and
-        // let the fuzzy post-correction handle custom words instead.
-        let family = if settings.custom_words.is_empty() || !model_is_whisper {
-            None
-        } else {
+        // let the fuzzy post-correction handle custom words instead. When
+        // the resolved output language is non-Latin, the matrix Insert
+        // phrases ride along so whisper biases its decode toward spelling
+        // command words the matching passes recognize (see
+        // whisper_initial_prompt).
+        let initial_prompt = whisper_initial_prompt(
+            &settings.custom_words,
+            &matrix_insert_phrases(settings),
+            validated_language,
+        );
+        let family = if model_is_whisper && !initial_prompt.is_empty() {
             Some(RunExtension::Whisper(WhisperRunOptions {
-                initial_prompt: Some(settings.custom_words.join(", ")),
+                initial_prompt: Some(initial_prompt),
                 ..Default::default()
             }))
+        } else {
+            None
         };
 
         let run_plan = transcribe_cpp_run_plan(
@@ -2800,6 +2811,53 @@ fn transcribe_cpp_run_plan(
         language,
         target_language,
     }
+}
+
+/// Whether a language code's script is Latin. Conservative: an unknown
+/// code reads as Latin (no prompt bias; the aliases cover matching), while
+/// the known non-Latin script families bias the decode. "hi-Latn" expresses
+/// a Roman OUTPUT intent but resolves to "hi" (the engine coercion) before
+/// this classification, which is what the bias wants.
+fn is_latin_language(language: &str) -> bool {
+    let base = language.split('-').next().unwrap_or("");
+    !matches!(
+        base,
+        "hi" | "bn" | "mr" | "ne" | "sa" | "ur" | "pa" | "gu" | "ta" | "te" | "kn" | "ml"
+            | "si" | "zh" | "yue" | "ja" | "ko" | "th" | "lo" | "my" | "km" | "ru" | "uk"
+            | "bg" | "sr" | "mk" | "el" | "he" | "ar" | "fa" | "am" | "ka" | "hy" | "ti"
+    )
+}
+
+/// Build the whisper initial prompt for a batch run: the operator's custom
+/// words, plus (when the run's output language is non-Latin) the matrix
+/// Insert phrases, biasing the decode toward spelling command words in a
+/// script the matching passes recognize. Latin output and empty inputs
+/// leave the prompt exactly as before. Streaming models take no decode
+/// prompt at all (unchanged); the aliases cover streaming.
+fn whisper_initial_prompt(
+    custom_words: &[String],
+    insert_phrases: &[String],
+    output_language: &str,
+) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    if !custom_words.is_empty() {
+        parts.push(custom_words.join(", "));
+    }
+    if !insert_phrases.is_empty() && !is_latin_language(output_language) {
+        parts.push(insert_phrases.join(", "));
+    }
+    parts.join(", ")
+}
+
+/// The matrix's Insert phrases (tokens rejoined with single spaces), for
+/// the whisper initial-prompt bias.
+fn matrix_insert_phrases(settings: &AppSettings) -> Vec<String> {
+    matrix_from_settings(settings)
+        .parser
+        .iter()
+        .filter(|(_, action)| matches!(action, CommandAction::Insert(_)))
+        .map(|(tokens, _)| tokens.join(" "))
+        .collect()
 }
 
 fn post_process_transcription_text(
@@ -4354,6 +4412,131 @@ mod tests {
     // transliterated to Roman, interim and final alike; script
     // conversion, never translation.
     // -----------------------------------------------------------------
+
+    #[test]
+    fn command_aliases_convert_across_hindi_hinglish_and_chinese_output() {
+        let hi = OutputLanguageEvidence::UserSelected("hi".to_string());
+        let supported_hi = languages(&["hi"]);
+        let hinglish = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            selected_language: "hi-Latn".to_string(),
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        let hindi = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            selected_language: "hi".to_string(),
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+
+        // hi-Latn: whisper wrote the command word in Devanagari
+        // (कॉमा); after transliteration the romanized alias converts it.
+        assert_eq!(
+            post_process_transcription_text(
+                "मुझे कॉमा चाहिए".to_string(),
+                &hinglish,
+                false,
+                &hi,
+                &supported_hi,
+            ),
+            "mujhe, chaahie"
+        );
+        // hi: the Devanagari alias itself converts.
+        assert_eq!(
+            post_process_transcription_text(
+                "मुझे कॉमा चाहिए".to_string(),
+                &hindi,
+                false,
+                &hi,
+                &supported_hi,
+            ),
+            "मुझे, चाहिए"
+        );
+        // The working Latin-fragment path keeps working (passthrough).
+        assert_eq!(
+            post_process_transcription_text(
+                "मुझे comma चाहिए".to_string(),
+                &hinglish,
+                false,
+                &hi,
+                &supported_hi,
+            ),
+            "mujhe, chaahie"
+        );
+        // Devanagari mark+word (the model wrote BOTH the mark and the
+        // command word): converts once, no double comma.
+        assert_eq!(
+            post_process_transcription_text(
+                "मुझे, कॉमा चाहिए".to_string(),
+                &hindi,
+                false,
+                &hi,
+                &supported_hi,
+            ),
+            "मुझे, चाहिए"
+        );
+        // A danda attached to the command word converts with it.
+        assert_eq!(
+            post_process_transcription_text(
+                "मुझे कॉमा। चाहिए".to_string(),
+                &hindi,
+                false,
+                &hi,
+                &supported_hi,
+            ),
+            "मुझे, चाहिए"
+        );
+
+        // zh: the CJK alias embedded in spaceless Chinese text matches.
+        let zh = OutputLanguageEvidence::UserSelected("zh".to_string());
+        let chinese = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            selected_language: "zh".to_string(),
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(
+                "你好逗号世界".to_string(),
+                &chinese,
+                false,
+                &zh,
+                &languages(&["zh"]),
+            ),
+            "你好,世界"
+        );
+    }
+
+    #[test]
+    fn whisper_initial_prompt_biases_non_latin_decodes_toward_command_words() {
+        let phrases = vec!["comma".to_string(), "question mark".to_string()];
+        // Non-Latin output: custom words plus the matrix Insert phrases.
+        assert_eq!(
+            whisper_initial_prompt(&["Alpha".to_string()], &phrases, "hi"),
+            "Alpha, comma, question mark"
+        );
+        // No custom words: the phrases alone carry the prompt.
+        assert_eq!(
+            whisper_initial_prompt(&[], &phrases, "zh"),
+            "comma, question mark"
+        );
+        // Latin output (and hi-Latn resolves to "hi" before this point):
+        // unchanged, exactly the custom words.
+        assert_eq!(
+            whisper_initial_prompt(&["Alpha".to_string()], &phrases, "en"),
+            "Alpha"
+        );
+        assert_eq!(whisper_initial_prompt(&[], &phrases, "en"), "");
+        // Script classification pins.
+        assert!(!is_latin_language("hi"));
+        assert!(!is_latin_language("hi-Latn"));
+        assert!(!is_latin_language("zh"));
+        assert!(!is_latin_language("yue"));
+        assert!(!is_latin_language("ru"));
+        assert!(is_latin_language("en"));
+        assert!(is_latin_language("pt"));
+    }
 
     #[test]
     fn hinglish_post_process_transliterates_only_for_the_latin_intent() {
