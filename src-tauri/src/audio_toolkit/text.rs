@@ -2274,4 +2274,56 @@ mod tests {
             assert_eq!(once, twice, "raw: {raw}");
         }
     }
+
+    #[test]
+    fn test_interim_display_transform_number_pass_matches_and_is_stable() {
+        // With number formatting on, the interim transform converts the
+        // same digit sequences the finalize pipeline will paste, and the
+        // pass is a fixed point: digits and untouched words never
+        // re-convert, so a recompute can never compound or flip a
+        // finished run back to words.
+        let once = interim_display_transform(
+            "pull request one one zero five",
+            true,
+            true,
+            &dm(),
+            crate::settings::NumberFormat::Digits,
+            true,
+        );
+        assert_eq!(once, "pull request 1105");
+        let twice = interim_display_transform(
+            &once,
+            true,
+            true,
+            &dm(),
+            crate::settings::NumberFormat::Digits,
+            true,
+        );
+        assert_eq!(once, twice);
+
+        // Gating off the English leg leaves the words alone.
+        assert_eq!(
+            interim_display_transform(
+                "one eight zero one",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::Digits,
+                false,
+            ),
+            "one eight zero one"
+        );
+        // Commands and numbers compose in finalize order.
+        assert_eq!(
+            interim_display_transform(
+                "version one point two comma done",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::Digits,
+                true,
+            ),
+            "version 1.2, done"
+        );
+    }
 }
