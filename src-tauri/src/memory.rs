@@ -58,9 +58,12 @@ pub fn trim_freed_memory() {}
 
 // --- Memory-pressure gate (spec F3) ----------------------------------------
 
-/// Headroom kept free above the model's forecast footprint before the gate
-/// refuses a load: 1.5 GiB (the OS, the app, and the engine's transient
-/// run-time allocations all need room beyond the model file's size).
+/// The RECOMMENDED memory safety margin preset the Advanced settings UI
+/// offers (1536 MB): enough room for the OS, the app, and the engine's
+/// transient run-time allocations beyond the model file's size. Nothing
+/// computes with this implicitly anymore - the gate uses the user's
+/// `memory_gate_headroom_mb` setting (default 0), and this constant exists
+/// only as the strict preset a memory-constrained user can pick.
 pub const DEFAULT_HEADROOM_BYTES: u64 = 1536 * 1024 * 1024;
 
 // --- Kernel pressure verdict (macOS) ---------------------------------------
@@ -458,9 +461,8 @@ pub struct FallbackCandidate {
     /// models so they sort last.
     pub rank: u32,
     /// Estimated footprint in bytes - the SAME size-derived forecast the
-    /// F3 gate compares (`size_mb` MiB plus the fixed
-    /// [`DEFAULT_HEADROOM_BYTES`] compute allowance), so "fits" here means
-    /// exactly "the gate would allow this load".
+    /// gate compares (`size_mb` MiB), so "fits" here means exactly "the
+    /// gate with the caller's headroom would allow this load".
     pub footprint_bytes: u64,
 }
 
@@ -472,25 +474,22 @@ pub struct FallbackCandidate {
 /// determinism. Only downloaded candidates belong in `candidates` (the
 /// "prefer the quant actually downloaded" rule - the caller lists exactly
 /// what is on disk); the model that just failed is always excluded. A
-/// candidate fits when the F3 gate would NOT refuse it against `free`.
-/// `free == None` (probe unavailable) never resolves - the gate fails open
-/// in that case, so there is nothing to fall back FROM.
+/// candidate fits when the gate with the caller's `headroom` would NOT
+/// refuse it against `free`, so "fits" always means "the gate with the
+/// user's margin would allow". `free == None` (probe unavailable) never
+/// resolves - the gate fails open in that case, so there is nothing to
+/// fall back FROM.
 pub fn resolve_fallback_model<'a>(
     free: Option<u64>,
     candidates: &'a [FallbackCandidate],
     failed_id: &str,
+    headroom: u64,
 ) -> Option<&'a FallbackCandidate> {
     let free = free?;
     candidates
         .iter()
         .filter(|candidate| candidate.id != failed_id)
-        .filter(|candidate| {
-            !gate_should_refuse(
-                Some(free),
-                candidate.footprint_bytes,
-                DEFAULT_HEADROOM_BYTES,
-            )
-        })
+        .filter(|candidate| !gate_should_refuse(Some(free), candidate.footprint_bytes, headroom))
         .min_by(|a, b| {
             a.rank
                 .cmp(&b.rank)
@@ -563,8 +562,165 @@ mod tests {
     }
 
     #[test]
-    fn headroom_default_is_one_and_a_half_gib() {
+    fn headroom_preset_is_one_and_a_half_gib() {
+        // The constant is no longer an implicit default anywhere (the
+        // setting itself defaults to 0, pinned in settings.rs); it survives
+        // as the strict preset the Advanced UI offers.
         assert_eq!(DEFAULT_HEADROOM_BYTES, 3 * GIB / 2);
+    }
+
+    /// THE FRIEND SCENARIO, pinned end to end: an 8 GB machine under WARN
+    /// pressure with ~2 GiB genuinely available per Activity Monitor. macOS
+    /// parks most of that in inactive pages, and the WARN posture credits
+    /// them at 0.25, so the probe reads exactly 1,087,373,312 B. Whisper
+    /// tiny's Q8_0 forecast is 45,088,768 B (size_mb 43 x 1 MiB, the
+    /// integer division of the catalog's 45,981,088 B file). At the default
+    /// 0 margin the friend's load goes through; the retired fixed 1536 MiB
+    /// margin refused this very reading, which is how v1.0.2 dead-ended his
+    /// first run.
+    #[test]
+    fn warn_pressure_two_gib_activity_monitor_available_loads_whisper_tiny_at_zero_headroom() {
+        const PAGE: u64 = 16_384;
+        // static (free+speculative+purgeable) 44,800 pages = 700 MiB;
+        // inactive 86,272 pages; together exactly 2 GiB at factor 1.0,
+        // which is Activity Monitor's own "available" number.
+        let static_pages: u64 = 44_800;
+        let inactive_pages: u64 = 86_272;
+        let compose =
+            |factor: f64| (static_pages + (inactive_pages as f64 * factor).round() as u64) * PAGE;
+        let warn = compose(inactive_factor_for_pressure(PRESSURE_LEVEL_WARN));
+        assert_eq!(
+            warn, 1_087_373_312,
+            "WARN composition must match the audit's probe reading"
+        );
+        assert_eq!(
+            compose(1.0),
+            2 * GIB,
+            "NORMAL composition is the full 2 GiB"
+        );
+
+        let forecast = 45_088_768; // whisper tiny Q8_0: size_mb 43 x 1 MiB
+                                   // The fix: the default 0 margin allows the friend's load.
+        assert!(!gate_should_refuse(Some(warn), forecast, 0));
+        // The old failure, kept as documentation: the fixed 1536 MiB margin
+        // refused the same reading, and no catalog model could pass it.
+        assert!(gate_should_refuse(
+            Some(warn),
+            forecast,
+            DEFAULT_HEADROOM_BYTES
+        ));
+    }
+
+    /// The allow boundary is exactly forecast + headroom for every margin:
+    /// equality allows, one byte under refuses. Covers the default 0 margin
+    /// and the recommended 1536 MiB preset against both a zero and a small
+    /// model forecast, documenting that below the headroom nothing passes
+    /// regardless of model size.
+    #[test]
+    fn allow_boundary_is_exactly_forecast_plus_headroom() {
+        for forecast in [0_u64, 76 * 1024 * 1024] {
+            for headroom in [0_u64, DEFAULT_HEADROOM_BYTES] {
+                let boundary = forecast + headroom;
+                assert!(
+                    !gate_should_refuse(Some(boundary), forecast, headroom),
+                    "forecast {forecast} + headroom {headroom} == free must allow"
+                );
+                if boundary > 0 {
+                    assert!(
+                        gate_should_refuse(Some(boundary - 1), forecast, headroom),
+                        "one byte under forecast {forecast} + headroom {headroom} must refuse"
+                    );
+                }
+            }
+        }
+    }
+
+    /// THE OPERATOR DIRECTION: a pressured machine must still refuse
+    /// oversized loads and auto-fall back when the user raised the margin.
+    /// Free is exactly 1 GiB as a CRITICAL-pressure composition (static
+    /// 1 GiB, every inactive page discredited), the forecast is Parakeet
+    /// Unified EN Q8_0's 731 MiB (766,509,056 B), and one 150 MiB model is
+    /// on disk as the fallback candidate. The margin alone picks the
+    /// verdict: Allow at 0 (the intended default semantics), Fallback at
+    /// 512 MiB, terminal Refuse at 1536 MiB.
+    #[test]
+    fn operator_direction_margin_controls_the_verdict() {
+        use crate::managers::transcription::{decide_memory_gate, MemoryGateDecision};
+
+        const PAGE: u64 = 16_384;
+        let free = (65_536
+            + (86_272.0_f64 * inactive_factor_for_pressure(PRESSURE_LEVEL_CRITICAL)).round()
+                as u64)
+            * PAGE;
+        assert_eq!(
+            free, 1_073_741_824,
+            "CRITICAL composition must be exactly 1 GiB"
+        );
+
+        let forecast = 731 * 1024 * 1024; // 766,509,056 B
+        let candidates = vec![
+            cand("big-selected", 1, forecast),
+            cand("small-150", 2, 150 * 1024 * 1024),
+        ];
+        let failed_id = "big-selected";
+
+        // Margin 0 (the default): the selection itself fits 1 GiB.
+        assert_eq!(
+            decide_memory_gate(
+                true,
+                true,
+                true,
+                Some(free),
+                forecast,
+                0,
+                || candidates.clone(),
+                failed_id
+            ),
+            MemoryGateDecision::Allow
+        );
+
+        // Margin 512 MiB: 731 + 512 = 1243 > 1024 refuses the selection,
+        // and the 150 MiB candidate fits (150 + 512 = 662 <= 1024).
+        let headroom = 512_u64 * 1024 * 1024;
+        assert_eq!(
+            decide_memory_gate(
+                true,
+                true,
+                true,
+                Some(free),
+                forecast,
+                headroom,
+                || candidates.clone(),
+                failed_id
+            ),
+            MemoryGateDecision::Fallback("small-150".to_string())
+        );
+        assert_eq!(
+            resolve_fallback_model(Some(free), &candidates, failed_id, headroom)
+                .map(|c| c.id.as_str()),
+            Some("small-150")
+        );
+
+        // Margin 1536 MiB: nothing fits (even 150 + 1536 = 1686 > 1024), so
+        // the refusal is terminal.
+        let headroom = DEFAULT_HEADROOM_BYTES;
+        assert_eq!(
+            decide_memory_gate(
+                true,
+                true,
+                true,
+                Some(free),
+                forecast,
+                headroom,
+                || candidates.clone(),
+                failed_id
+            ),
+            MemoryGateDecision::Refuse
+        );
+        assert_eq!(
+            resolve_fallback_model(Some(free), &candidates, failed_id, headroom),
+            None
+        );
     }
 
     /// The live probe sanity check (macOS): the reading must be positive and
@@ -633,7 +789,8 @@ mod tests {
         // Rank wins over size when both fit: rank-2 beats rank-3 even though
         // it is bigger.
         assert_eq!(
-            resolve_fallback_model(free, &candidates, "selected").map(|c| c.id.as_str()),
+            resolve_fallback_model(free, &candidates, "selected", DEFAULT_HEADROOM_BYTES)
+                .map(|c| c.id.as_str()),
             Some("mid-second")
         );
     }
@@ -647,7 +804,8 @@ mod tests {
             cand("rank3-fits", 3, 2 * GIB),    // 2 + 1.5 <= 4 -> fits
         ];
         assert_eq!(
-            resolve_fallback_model(free, &candidates, "selected").map(|c| c.id.as_str()),
+            resolve_fallback_model(free, &candidates, "selected", DEFAULT_HEADROOM_BYTES)
+                .map(|c| c.id.as_str()),
             Some("rank3-fits")
         );
     }
@@ -660,7 +818,8 @@ mod tests {
             cand("other", 2, 1 * GIB),
         ];
         assert_eq!(
-            resolve_fallback_model(free, &candidates, "failed").map(|c| c.id.as_str()),
+            resolve_fallback_model(free, &candidates, "failed", DEFAULT_HEADROOM_BYTES)
+                .map(|c| c.id.as_str()),
             Some("other")
         );
     }
@@ -675,13 +834,15 @@ mod tests {
             cand("f16", 4, 1500 * 1024 * 1024),
         ];
         assert_eq!(
-            resolve_fallback_model(free, &same_rank, "selected").map(|c| c.id.as_str()),
+            resolve_fallback_model(free, &same_rank, "selected", DEFAULT_HEADROOM_BYTES)
+                .map(|c| c.id.as_str()),
             Some("q8")
         );
         // Fully tied: stable, deterministic by id.
         let tied = vec![cand("b", 4, 1 * GIB), cand("a", 4, 1 * GIB)];
         assert_eq!(
-            resolve_fallback_model(free, &tied, "selected").map(|c| c.id.as_str()),
+            resolve_fallback_model(free, &tied, "selected", DEFAULT_HEADROOM_BYTES)
+                .map(|c| c.id.as_str()),
             Some("a")
         );
     }
@@ -690,13 +851,19 @@ mod tests {
     fn fallback_resolver_returns_none_when_nothing_fits_or_probe_unavailable() {
         let free = Some(2 * GIB);
         let too_big = vec![cand("a", 1, 10 * GIB), cand("b", 2, 8 * GIB)];
-        assert_eq!(resolve_fallback_model(free, &too_big, "selected"), None);
+        assert_eq!(
+            resolve_fallback_model(free, &too_big, "selected", DEFAULT_HEADROOM_BYTES),
+            None
+        );
         // Empty candidate list (only the failed model downloaded).
-        assert_eq!(resolve_fallback_model(free, &[], "selected"), None);
+        assert_eq!(
+            resolve_fallback_model(free, &[], "selected", DEFAULT_HEADROOM_BYTES),
+            None
+        );
         // Probe unavailable: the gate fails open, so there is no refusal to
         // answer - never resolve.
         assert_eq!(
-            resolve_fallback_model(None, &[cand("a", 1, 1 * GIB)], "selected"),
+            resolve_fallback_model(None, &[cand("a", 1, 1 * GIB)], "selected", 0),
             None
         );
     }
@@ -709,11 +876,17 @@ mod tests {
         let free_exact = Some(forecast + DEFAULT_HEADROOM_BYTES);
         let candidates = vec![cand("edge", 1, forecast)];
         assert_eq!(
-            resolve_fallback_model(free_exact, &candidates, "selected").map(|c| c.id.as_str()),
+            resolve_fallback_model(free_exact, &candidates, "selected", DEFAULT_HEADROOM_BYTES)
+                .map(|c| c.id.as_str()),
             Some("edge")
         );
         assert_eq!(
-            resolve_fallback_model(Some(free_exact.unwrap() - 1), &candidates, "selected"),
+            resolve_fallback_model(
+                Some(free_exact.unwrap() - 1),
+                &candidates,
+                "selected",
+                DEFAULT_HEADROOM_BYTES
+            ),
             None
         );
     }
@@ -773,6 +946,10 @@ mod tests {
     /// Parakeet Unified EN Q8_0's 731 MiB forecast + the 1.5 GiB headroom
     /// (2267 MiB needed). NORMAL gives 3803 MiB (allow), WARN gives exactly
     /// 2267 MiB (the allow boundary), CRITICAL gives 1755 MiB (refuse).
+    /// The friend case is the mirror image at the other end of the scale:
+    /// a WARN reading that fits a small forecast at margin 0 but not at
+    /// this preset (see
+    /// `warn_pressure_two_gib_activity_monitor_available_loads_whisper_tiny_at_zero_headroom`).
     #[cfg(target_os = "macos")]
     #[test]
     fn gate_boundaries_flip_with_the_pressure_verdict() {
@@ -825,7 +1002,11 @@ mod tests {
 
     /// SUCCESS CRITERION for the operator regression: pressure NORMAL with
     /// 4 GiB or more available must allow the Parakeet Unified EN Q8_0
-    /// load (~2.2 GiB forecast + headroom with the default 1.5 GiB).
+    /// load (~2.2 GiB forecast + headroom with the strict 1536 MiB preset,
+    /// which a memory-constrained user opts into; the shipped default
+    /// margin is 0). The friend-case counterpart: the same small-model
+    /// leniency at margin 0 is what unblocked first runs on normal macOS
+    /// WARN states.
     #[test]
     fn normal_pressure_with_four_gib_available_allows_the_parakeet_q8_forecast() {
         let forecast = 731 * 1024 * 1024;

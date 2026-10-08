@@ -124,7 +124,7 @@ fn fallback_candidate_list(
 /// the toggle wiring ([`decide_memory_gate`]) is unit-testable without an
 /// app handle.
 #[derive(Debug, Clone, PartialEq, Eq)]
-enum MemoryGateDecision {
+pub(crate) enum MemoryGateDecision {
     /// Proceed with the requested model.
     Allow,
     /// Refuse the load with the not-enough-memory error.
@@ -153,17 +153,21 @@ impl MemoryGateDecision {
 ///   candidate inventory is never even consulted).
 /// - A forecast that fits (`forecast + headroom <= free`, `None` probe fails
 ///   open) is allowed - exactly [`memory::gate_should_refuse`]'s semantics.
+///   `headroom` is the caller's user margin (the `memory_gate_headroom_mb`
+///   setting in MB, multiplied by 1 MiB): 0 (the default) means the
+///   forecast alone must fit; the gate never adds a hidden margin on top.
 /// - A refusal becomes [`MemoryGateDecision::Fallback`] only when BOTH the
 ///   Settings' `auto_fallback` toggle and the caller's no-cascade
-///   `allow_fallback` are on AND some downloaded candidate fits; with
-///   `auto_fallback == false` a refusal stays a refusal - models are never
-///   swapped underneath the user.
-fn decide_memory_gate<F>(
+///   `allow_fallback` are on AND some downloaded candidate fits (against
+///   the same headroom); with `auto_fallback == false` a refusal stays a
+///   refusal - models are never swapped underneath the user.
+pub(crate) fn decide_memory_gate<F>(
     guard_enabled: bool,
     auto_fallback: bool,
     allow_fallback: bool,
     free: Option<u64>,
     forecast: u64,
+    headroom: u64,
     candidates: F,
     failed_id: &str,
 ) -> MemoryGateDecision
@@ -173,11 +177,13 @@ where
     if !guard_enabled {
         return MemoryGateDecision::Allow;
     }
-    if !memory::gate_should_refuse(free, forecast, memory::DEFAULT_HEADROOM_BYTES) {
+    if !memory::gate_should_refuse(free, forecast, headroom) {
         return MemoryGateDecision::Allow;
     }
     if allow_fallback && auto_fallback {
-        if let Some(fallback) = memory::resolve_fallback_model(free, &candidates(), failed_id) {
+        if let Some(fallback) =
+            memory::resolve_fallback_model(free, &candidates(), failed_id, headroom)
+        {
             return MemoryGateDecision::Fallback(fallback.id.clone());
         }
     }
@@ -1186,9 +1192,15 @@ impl TranscriptionManager {
         // because its pages are freed before the new model's peak. A probe
         // failure fails open (gate returns false for `None`). The whole
         // block is skipped when memory_pressure_guard is off - the toggle
-        // bypasses the gate entirely, the RAM auto-fallback included.
+        // bypasses the gate entirely, the RAM auto-fallback included. The
+        // margin is the user's memory_gate_headroom_mb setting (default 0);
+        // no hidden headroom is added on top.
         let forecast = model_info.size_mb.saturating_mul(1024 * 1024);
-        if get_settings(&self.app_handle).memory_pressure_guard {
+        let gate_settings = get_settings(&self.app_handle);
+        if gate_settings.memory_pressure_guard {
+            let headroom = gate_settings
+                .memory_gate_headroom_mb
+                .saturating_mul(1024 * 1024);
             let credit = self.resident_model_footprint_bytes();
             let probe = memory::probe_availability();
             let free = probe.available_bytes.map(|f| f.saturating_add(credit));
@@ -1203,10 +1215,11 @@ impl TranscriptionManager {
             }
             let decision = decide_memory_gate(
                 true,
-                get_settings(&self.app_handle).auto_fallback,
+                gate_settings.auto_fallback,
                 allow_fallback,
                 free,
                 forecast,
+                headroom,
                 || self.fallback_candidates(model_id),
                 model_id,
             );
@@ -4383,13 +4396,23 @@ mod tests {
 
         // Plenty free: the user-added model is selected.
         assert_eq!(
-            memory::resolve_fallback_model(Some(8 * GIB), &candidates, "selected")
-                .map(|c| c.id.as_str()),
+            memory::resolve_fallback_model(
+                Some(8 * GIB),
+                &candidates,
+                "selected",
+                memory::DEFAULT_HEADROOM_BYTES
+            )
+            .map(|c| c.id.as_str()),
             Some("org/custom-asr/model-Q8_0.gguf")
         );
         // Too tight for it (700 MiB + 1.5 GiB headroom > 2 GiB): nothing.
         assert_eq!(
-            memory::resolve_fallback_model(Some(2 * GIB), &candidates, "selected"),
+            memory::resolve_fallback_model(
+                Some(2 * GIB),
+                &candidates,
+                "selected",
+                memory::DEFAULT_HEADROOM_BYTES
+            ),
             None
         );
     }
@@ -4409,8 +4432,13 @@ mod tests {
 
         // Both fit, the ranked catalog entry wins...
         assert_eq!(
-            memory::resolve_fallback_model(Some(16 * GIB), &candidates, "selected")
-                .map(|c| c.id.as_str()),
+            memory::resolve_fallback_model(
+                Some(16 * GIB),
+                &candidates,
+                "selected",
+                memory::DEFAULT_HEADROOM_BYTES
+            )
+            .map(|c| c.id.as_str()),
             Some(catalog.id.as_str())
         );
 
@@ -4423,8 +4451,13 @@ mod tests {
         huge_catalog.size_mb = 16 * 1024; // 16 GiB: never fits below
         let forced = fallback_candidate_list(&[huge_catalog, huge], "selected", "auto");
         assert_eq!(
-            memory::resolve_fallback_model(Some(8 * GIB), &forced, "selected")
-                .map(|c| c.id.as_str()),
+            memory::resolve_fallback_model(
+                Some(8 * GIB),
+                &forced,
+                "selected",
+                memory::DEFAULT_HEADROOM_BYTES
+            )
+            .map(|c| c.id.as_str()),
             Some("org/custom-asr/model-Q8_0.gguf")
         );
     }
@@ -4455,6 +4488,7 @@ mod tests {
             true,
             Some(2 * GIB),
             5 * GIB,
+            memory::DEFAULT_HEADROOM_BYTES,
             || candidates,
             "hi-model",
         );
@@ -4471,12 +4505,45 @@ mod tests {
             true,
             Some(2 * GIB),
             5 * GIB,
+            memory::DEFAULT_HEADROOM_BYTES,
             || candidates,
             "hi-model",
         );
         assert_eq!(
             decision,
             MemoryGateDecision::Fallback("hi-small".to_string())
+        );
+    }
+
+    /// AUDIT TEST 3: with whisper tiny as the ONLY downloaded model, a gate
+    /// refusal is terminal - the fallback inventory is empty by construction
+    /// (the failed model is excluded from its own candidate list), so the
+    /// decision is Refuse, not Fallback. This is the backend shape of the
+    /// v1.0.2 first-run dead end; the recovery surface is the onboarding
+    /// refusal card.
+    #[test]
+    fn single_downloaded_model_refusal_is_terminal() {
+        let whisper_tiny = model_info_for("whisper-tiny-q8", 43, true);
+        let forecast = 45_088_768_u64; // size_mb 43 x 1 MiB
+        assert_eq!(
+            whisper_tiny.size_mb.saturating_mul(1024 * 1024),
+            forecast,
+            "fixture must be whisper tiny's real forecast"
+        );
+        let decision = decide_memory_gate(
+            true,
+            true,
+            true,
+            Some(1_087_373_312), // the audit's WARN probe reading
+            forecast,
+            memory::DEFAULT_HEADROOM_BYTES, // the retired fixed margin: refuses
+            || fallback_candidate_list(&[whisper_tiny], "whisper-tiny-q8", "auto"),
+            "whisper-tiny-q8",
+        );
+        assert_eq!(
+            decision,
+            MemoryGateDecision::Refuse,
+            "only the failed model on disk means no fallback can exist"
         );
     }
 
@@ -4538,6 +4605,7 @@ mod tests {
             true,                   // top-level load (cascades allowed)
             Some(1),                // one byte free
             8 * 1024 * 1024 * 1024, // 8 GiB forecast: would always refuse
+            memory::DEFAULT_HEADROOM_BYTES,
             move || {
                 flag.store(true, Ordering::SeqCst);
                 vec![gate_fitting_candidate()]
@@ -4561,6 +4629,7 @@ mod tests {
             true,
             Some(2 * 1024 * 1024 * 1024), // 2 GiB free
             8 * 1024 * 1024 * 1024,       // 8 GiB forecast: refuses
+            memory::DEFAULT_HEADROOM_BYTES,
             || vec![gate_fitting_candidate()],
             "selected",
         );
@@ -4578,6 +4647,7 @@ mod tests {
             false, // the fallback's own load
             Some(2 * 1024 * 1024 * 1024),
             8 * 1024 * 1024 * 1024,
+            memory::DEFAULT_HEADROOM_BYTES,
             || vec![gate_fitting_candidate()],
             "selected",
         );
@@ -4598,6 +4668,7 @@ mod tests {
                 true,
                 Some(16 * 1024 * 1024 * 1024),
                 fitting,
+                memory::DEFAULT_HEADROOM_BYTES,
                 || vec![],
                 "selected"
             ),
@@ -4611,6 +4682,7 @@ mod tests {
                 true,
                 Some(2 * 1024 * 1024 * 1024),
                 fitting,
+                memory::DEFAULT_HEADROOM_BYTES,
                 || vec![gate_fitting_candidate()],
                 "selected"
             ),
@@ -4624,6 +4696,7 @@ mod tests {
                 true,
                 None,
                 8 * 1024 * 1024 * 1024,
+                memory::DEFAULT_HEADROOM_BYTES,
                 || vec![],
                 "selected"
             ),
@@ -4637,6 +4710,7 @@ mod tests {
                 true,
                 Some(2 * 1024 * 1024 * 1024),
                 fitting,
+                memory::DEFAULT_HEADROOM_BYTES,
                 || vec![],
                 "selected"
             ),
