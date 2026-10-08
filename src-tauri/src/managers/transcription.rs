@@ -1,7 +1,5 @@
 use crate::audio_toolkit::command_matrix::{matrix_from_settings, CompiledCommandMatrix};
-use crate::audio_toolkit::commands::{
-    flush_command_prefix_len, held_prefix_len, CommandAction,
-};
+use crate::audio_toolkit::commands::{flush_command_prefix_len, held_prefix_len, CommandAction};
 use crate::audio_toolkit::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion, detect_output_language,
     interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
@@ -2822,9 +2820,39 @@ fn is_latin_language(language: &str) -> bool {
     let base = language.split('-').next().unwrap_or("");
     !matches!(
         base,
-        "hi" | "bn" | "mr" | "ne" | "sa" | "ur" | "pa" | "gu" | "ta" | "te" | "kn" | "ml"
-            | "si" | "zh" | "yue" | "ja" | "ko" | "th" | "lo" | "my" | "km" | "ru" | "uk"
-            | "bg" | "sr" | "mk" | "el" | "he" | "ar" | "fa" | "am" | "ka" | "hy" | "ti"
+        "hi" | "bn"
+            | "mr"
+            | "ne"
+            | "sa"
+            | "ur"
+            | "pa"
+            | "gu"
+            | "ta"
+            | "te"
+            | "kn"
+            | "ml"
+            | "si"
+            | "zh"
+            | "yue"
+            | "ja"
+            | "ko"
+            | "th"
+            | "lo"
+            | "my"
+            | "km"
+            | "ru"
+            | "uk"
+            | "bg"
+            | "sr"
+            | "mk"
+            | "el"
+            | "he"
+            | "ar"
+            | "fa"
+            | "am"
+            | "ka"
+            | "hy"
+            | "ti"
     )
 }
 
@@ -3720,10 +3748,7 @@ mod tests {
         let mut session = session_buffer();
         session.render("hello world", "", false);
         session.render("hello world", "", true); // engage, raw_seen = "hello world"
-        assert_eq!(
-            session.render("hello comma more", "", true),
-            "hello world"
-        );
+        assert_eq!(session.render("hello comma more", "", true), "hello world");
         assert_eq!(
             session.render("hello comma more new line", "", true),
             "hello world\n"
@@ -3873,16 +3898,16 @@ mod tests {
             session.render("hello world perio", "", true),
             "hello world perio"
         );
-        assert_eq!(session.render("hello world perio", "", false), "hello world.");
+        assert_eq!(
+            session.render("hello world perio", "", false),
+            "hello world."
+        );
         // Fragments outside fuzzy reach ("com" is 3 chars, distance 2 from
         // "comma") still discard: the pre-existing pin's exact input.
         let mut short = session_buffer();
         short.render("hello world", "", false);
         short.render("hello world", "", true); // engage
-        assert_eq!(
-            short.render("hello world com", "", true),
-            "hello world com"
-        );
+        assert_eq!(short.render("hello world com", "", true), "hello world com");
         assert_eq!(short.render("hello world com", "", false), "hello world");
     }
 

@@ -166,10 +166,7 @@ pub fn default_command_matrix() -> Vec<CommandMatrixEntry> {
         // English ("let me start over and try again") and a spoken
         // clear-all must be unambiguous. It stays reachable as a
         // user-added phrase in the matrix editor.
-        (
-            ClearAll,
-            &["delete everything", "scratch everything"],
-        ),
+        (ClearAll, &["delete everything", "scratch everything"]),
         (Undo, &["undo"]),
         (Paste, &["paste"]),
     ]
@@ -190,9 +187,9 @@ pub fn default_command_matrix() -> Vec<CommandMatrixEntry> {
             .expect("Devanagari alias names a default command");
         for alias in *aliases {
             entry.phrases.push((*alias).to_string());
-            entry.phrases.push(
-                crate::hindi_script::transliterate_devanagari_to_roman(alias).to_lowercase(),
-            );
+            entry
+                .phrases
+                .push(crate::hindi_script::transliterate_devanagari_to_roman(alias).to_lowercase());
         }
     }
     for (command, aliases) in CJK_ALIASES {
@@ -304,23 +301,11 @@ const NEVER_MATCH: &str = r"[^\s\S]";
 /// pass strips the same set before the phrase lookup, so a punctuated
 /// command word ("question mark?") yields the pure phrase key.
 pub(crate) const ATTACHED_MARKS: &[char] = &[
-    ',',
-    '.',
-    ';',
-    ':',
-    '!',
-    '?',
-    // Devanagari danda.
+    ',', '.', ';', ':', '!', '?', // Devanagari danda.
     '\u{0964}',
     // Full-width CJK comma, ideographic full stop and comma, exclamation,
     // question, colon, semicolon.
-    '\u{FF0C}',
-    '\u{3002}',
-    '\u{3001}',
-    '\u{FF01}',
-    '\u{FF1F}',
-    '\u{FF1A}',
-    '\u{FF1B}',
+    '\u{FF0C}', '\u{3002}', '\u{3001}', '\u{FF01}', '\u{FF1F}', '\u{FF1A}', '\u{FF1B}',
 ];
 
 /// Everything the three command consumers need, compiled once from an
@@ -463,9 +448,9 @@ fn phrase_regex_fragment(phrase: &str) -> String {
 /// word characters and `\b` never fires between adjacent Han characters in
 /// spaceless Chinese text.
 fn contains_han(phrase: &str) -> bool {
-    phrase.chars().any(|c| {
-        matches!(c as u32, 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF)
-    })
+    phrase
+        .chars()
+        .any(|c| matches!(c as u32, 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF))
 }
 
 /// The phrase alternation in two anchor groups: `\b`-anchored on both
@@ -485,11 +470,7 @@ fn anchored_alternation<'a>(phrases: impl IntoIterator<Item = &'a str>) -> Strin
         }
     }
     match (anchored.is_empty(), cjk.is_empty()) {
-        (false, false) => format!(
-            r"(?:\b(?:{})\b|(?:{}))",
-            anchored.join("|"),
-            cjk.join("|")
-        ),
+        (false, false) => format!(r"(?:\b(?:{})\b|(?:{}))", anchored.join("|"), cjk.join("|")),
         (false, true) => format!(r"\b(?:{})\b", anchored.join("|")),
         (true, false) => format!(r"(?:{})", cjk.join("|")),
         (true, true) => NEVER_MATCH.to_string(),
