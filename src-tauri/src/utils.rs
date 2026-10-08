@@ -169,6 +169,17 @@ pub fn env_flag_enabled(name: &str) -> bool {
     }
 }
 
+/// Human-readable text from a panic payload, for fail-open logging sites.
+pub fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> String {
+    if let Some(message) = payload.downcast_ref::<&str>() {
+        (*message).to_string()
+    } else if let Some(message) = payload.downcast_ref::<String>() {
+        message.clone()
+    } else {
+        "unknown panic".to_string()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -205,6 +205,22 @@ pub enum ChineseScript {
     Traditional,
 }
 
+/// How spoken number words are written in the transcript. Post-model and
+/// deterministic (number_format.rs); `as_transcribed` restores the 1.1.0
+/// behavior byte-for-byte. The release default is `digits` because the
+/// words-not-digits transcripts operators hit (Parakeet-class engines
+/// spell every number out) must stop happening out of the box: old stores
+/// without the key deserialize to `digits` via the derived default, and
+/// `NumberFormat::default()` agrees (no constructed/derived split).
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum NumberFormat {
+    AsTranscribed,
+    #[default]
+    Digits,
+    Smart,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AutoSubmitKey {
@@ -649,6 +665,12 @@ pub struct AppSettings {
     /// in `apply_settings_migrations`.
     #[serde(default)]
     pub chinese_script: ChineseScript,
+    /// Spoken number formatting (number_format.rs): digits for the default
+    /// fix, smart for prose-friendly extras, as_transcribed for the exact
+    /// 1.1.0 behavior. The plain serde default (Digits) also covers legacy
+    /// stores that predate the key.
+    #[serde(default)]
+    pub number_format: NumberFormat,
     #[serde(default)]
     pub transcribe_accelerator: TranscribeAcceleratorSetting,
     #[serde(default)]
@@ -1290,6 +1312,7 @@ pub fn get_default_settings() -> AppSettings {
         undo_enabled: default_undo_enabled(),
         command_mode_enabled: default_command_mode_enabled(),
         chinese_script: default_chinese_script(),
+        number_format: NumberFormat::Digits,
         transcribe_accelerator: TranscribeAcceleratorSetting::default(),
         ort_accelerator: OrtAcceleratorSetting::default(),
         transcribe_gpu_device: default_transcribe_gpu_device(),

@@ -47,15 +47,7 @@ use transcribe_rs::{
 
 const STREAM_PERF_LOG_INTERVAL: Duration = Duration::from_secs(5);
 
-fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> String {
-    if let Some(message) = payload.downcast_ref::<&str>() {
-        (*message).to_string()
-    } else if let Some(message) = payload.downcast_ref::<String>() {
-        message.clone()
-    } else {
-        "unknown panic".to_string()
-    }
-}
+use crate::utils::panic_payload_message;
 
 /// Editorial rank for a RAM auto-fallback candidate. Direct registry ids
 /// resolve through the rank table; an alternate quant found on disk has the
@@ -480,6 +472,15 @@ struct StreamSessionBuffer {
     /// interim display transliterates Devanagari to Roman so the overlay
     /// matches the paste (the finalize pipeline does the same).
     hinglish: bool,
+    /// Spoken-number formatting captured at `begin` (same snapshot rule as
+    /// the toggles below): the mode plus which grammar legs the finalize
+    /// pipeline would run. The Devanagari leg runs in
+    /// [`Self::interim_display`] before transliteration; the English leg
+    /// runs inside [`interim_display_transform`]. Both are recomputed from
+    /// the raw buffer every tick, so the overlay digits always match the
+    /// paste and never flip back to words mid-utterance.
+    number_format: crate::settings::NumberFormat,
+    number_scripts: crate::number_format::NumberPassScripts,
     /// Toggles for the interim display transform, captured when the stream
     /// begins (a mid-session toggle applies from the next session, matching
     /// how `PreviewScript` captures `chinese_script` today).
@@ -501,6 +502,8 @@ impl Default for StreamSessionBuffer {
             last_deleted: None,
             matrix: crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             hinglish: false,
+            number_format: crate::settings::NumberFormat::AsTranscribed,
+            number_scripts: crate::number_format::NumberPassScripts::default(),
             spoken_punctuation: true,
             voice_deletion: true,
             preview_script: PreviewScript::new(
@@ -524,6 +527,8 @@ impl StreamSessionBuffer {
         supported_languages: &[String],
         matrix: Arc<CompiledCommandMatrix>,
         hinglish: bool,
+        number_format: crate::settings::NumberFormat,
+        number_scripts: crate::number_format::NumberPassScripts,
     ) {
         self.live = true;
         self.command_active = false;
@@ -535,6 +540,8 @@ impl StreamSessionBuffer {
         self.supported_languages = supported_languages.to_vec();
         self.matrix = matrix;
         self.hinglish = hinglish;
+        self.number_format = number_format;
+        self.number_scripts = number_scripts;
         self.base.clear();
         self.raw_seen.clear();
         self.last_full.clear();
@@ -651,12 +658,25 @@ impl StreamSessionBuffer {
     /// The interim display string for the combined raw buffer: script
     /// conversion, then Hinglish transliteration (Devanagari to Roman,
     /// captured at `begin` from the "hi-Latn" intent so the overlay
-    /// matches the paste), then the interim text passes.
+    /// matches the paste), then the interim text passes. The Devanagari
+    /// number pass runs between the two: number words become Devanagari
+    /// digits first, the transliterator maps those to ASCII, exactly like
+    /// the finalize pipeline. Everything is recomputed from the raw buffer
+    /// each tick.
     fn interim_display(&mut self) -> String {
         let raw = self.combine(&self.last_full);
         let (converted, _) = self
             .preview_script
             .convert(&raw, "", &self.supported_languages);
+        let converted = if self.number_scripts.devanagari {
+            crate::number_format::convert_number_words_fail_open(
+                converted,
+                self.number_format,
+                crate::number_format::NumberScript::Devanagari,
+            )
+        } else {
+            converted
+        };
         let converted = if self.hinglish {
             crate::hindi_script::transliterate_devanagari_to_roman(&converted)
         } else {
@@ -667,6 +687,8 @@ impl StreamSessionBuffer {
             self.spoken_punctuation,
             self.voice_deletion,
             &self.matrix,
+            self.number_format,
+            self.number_scripts.english,
         )
     }
 
@@ -1894,7 +1916,10 @@ impl TranscriptionManager {
         // matching `PreviewScript`. The auto-interpretation master gate
         // ANDs with the per-pass toggles (same composition as
         // post_process_transcription_text) so the interim display matches
-        // the paste.
+        // the paste. The number pass captures the mode plus the same
+        // script gating the finalize pipeline resolves from this run's
+        // output-language evidence.
+        let number_scripts = crate::number_format::number_pass_scripts(&settings, &output_language);
         self.session_buffer
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -1905,6 +1930,8 @@ impl TranscriptionManager {
                 &languages,
                 matrix_from_settings(&settings),
                 settings.selected_language == "hi-Latn",
+                settings.number_format,
+                number_scripts,
             );
 
         // Run the stream in the engine's worker process. Feeds are queued
@@ -2935,6 +2962,24 @@ fn post_process_transcription_text(
             _ => raw,
         };
 
+        // Spoken-number formatting, Devanagari leg: Hindi/Hinglish number
+        // words become Devanagari digits BEFORE the Hinglish
+        // transliteration, which maps them to ASCII digits for free. The
+        // pass runs before every command/text pass so command phrases
+        // ("delete last four words") are consumed with their number words
+        // intact. English number words are handled after the filler pass
+        // (below) where the wording is final; see the reorder comment there.
+        let number_passes = crate::number_format::number_pass_scripts(settings, &output_language);
+        let raw = if number_passes.devanagari {
+            crate::number_format::convert_number_words(
+                &raw,
+                settings.number_format,
+                crate::number_format::NumberScript::Devanagari,
+            )
+        } else {
+            raw
+        };
+
         // Hinglish (selected_language "hi-Latn") expresses a SCRIPT intent:
         // the model still yields Devanagari, so transliterate to Roman
         // before every text pass. This is script conversion (the same class
@@ -3008,7 +3053,23 @@ fn post_process_transcription_text(
             without_fillers
         };
 
-        normalize_transcription_output(&punctuated)
+        // Spoken-number formatting, English leg: last text pass before the
+        // whitespace cleanup, so it sees final wording and feeds the
+        // existing normalize. Voice deletion, custom words and filler
+        // removal have already run, so command phrases and corrections are
+        // never eaten and no number word is a filler. Inside the same
+        // fail-open transform as every other pass.
+        let numbered = if number_passes.english {
+            crate::number_format::convert_number_words(
+                &punctuated,
+                settings.number_format,
+                crate::number_format::NumberScript::English,
+            )
+        } else {
+            punctuated
+        };
+
+        normalize_transcription_output(&numbered)
     })
 }
 
@@ -3405,6 +3466,8 @@ mod tests {
             &languages(&["en"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             false,
+            crate::settings::NumberFormat::AsTranscribed,
+            crate::number_format::NumberPassScripts::default(),
         );
         buffer
     }
@@ -4070,6 +4133,8 @@ mod tests {
             &languages(&["en"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             false,
+            crate::settings::NumberFormat::AsTranscribed,
+            crate::number_format::NumberPassScripts::default(),
         );
         assert!(!session.command_active);
         assert_eq!(session.render("hello there", "", false), "hello there");
@@ -4656,6 +4721,8 @@ mod tests {
             &languages(&["hi"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             true,
+            crate::settings::NumberFormat::AsTranscribed,
+            crate::number_format::NumberPassScripts::default(),
         );
         // The overlay shows Roman while speaking...
         assert_eq!(session.render("नमस्ते", "", false), "namaste");
