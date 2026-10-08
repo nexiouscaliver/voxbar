@@ -5470,6 +5470,417 @@ mod tests {
             MemoryGateDecision::Refuse
         );
     }
+
+    // -----------------------------------------------------------------
+    // Spoken-number formatting (batch D): pipeline position, gating,
+    // interim parity, and the off path.
+    // -----------------------------------------------------------------
+
+    /// Number-pass settings helper: everything default except the mode and
+    /// the terminal fallback (kept off so assertions stay byte-exact).
+    fn number_settings(mode: crate::settings::NumberFormat) -> AppSettings {
+        AppSettings {
+            number_format: mode,
+            terminal_punctuation: false,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn number_words_convert_under_default_settings() {
+        // Default settings carry number_format = Digits (plan D1): the
+        // operator's pain case stops happening out of the box, terminal
+        // punctuation included.
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+        assert_eq!(
+            post_process_transcription_text(
+                "one eight zero one".to_string(),
+                &AppSettings::default(),
+                false,
+                &en,
+                &supported,
+            ),
+            "1801."
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "pull request one one zero five".to_string(),
+                &AppSettings::default(),
+                false,
+                &en,
+                &supported,
+            ),
+            "pull request 1105."
+        );
+
+        // With the terminal fallback off the wording is exact.
+        let settings = number_settings(crate::settings::NumberFormat::Digits);
+        assert_eq!(
+            post_process_transcription_text(
+                "one eight zero one".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "1801"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "version one point two".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "version 1.2"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "twenty five items".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "25 items"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "the twenty fifth of March".to_string(),
+                &number_settings(crate::settings::NumberFormat::Smart),
+                false,
+                &en,
+                &supported,
+            ),
+            "the 25th of March"
+        );
+    }
+
+    #[test]
+    fn number_pass_off_mode_is_byte_identical_through_the_pipeline() {
+        // The standing-rule gate: as_transcribed restores the pre-feature
+        // transcript byte-for-byte for every number-shape input.
+        let settings = number_settings(crate::settings::NumberFormat::AsTranscribed);
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+        for text in [
+            "one eight zero one",
+            "pull request one one zero five",
+            "twenty five",
+            "version one point two",
+            "one, two, three",
+            "the twenty fifth of March",
+            "no one knows",
+            "give me five",
+            "one in a million",
+            "room 4B",
+            "iPhone 15",
+            "0x1F",
+        ] {
+            assert_eq!(
+                post_process_transcription_text(text.to_string(), &settings, false, &en, &supported),
+                text,
+                "text: {text}"
+            );
+        }
+    }
+
+    #[test]
+    fn number_pass_never_eats_command_phrases() {
+        // The number pass runs AFTER voice deletion and the punctuation
+        // passes, so command phrases keep their number words ("delete
+        // last four words") and digit forms ("delete last 4 words") alike.
+        let settings = AppSettings::default();
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+
+        // Word form: the command deletes the four preceding words.
+        assert_eq!(
+            post_process_transcription_text(
+                "alpha beta gamma delta hello delete last four words".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "alpha."
+        );
+        // Digit form (1-10 accepted by the built-in pattern).
+        assert_eq!(
+            post_process_transcription_text(
+                "alpha beta gamma delta hello delete last 4 words".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "alpha."
+        );
+        // Spoken punctuation still converts with number formatting on.
+        assert_eq!(
+            post_process_transcription_text(
+                "hello comma".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "hello,"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "it is fine question mark".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "it is fine?"
+        );
+    }
+
+    #[test]
+    fn number_pass_gates_on_output_language_evidence() {
+        // Non-English output languages and unknown evidence: no conversion
+        // (documented limitation; the English grammar would also not match
+        // these words, but the gate must fail closed regardless).
+        let supported = languages(&["en", "pt", "de"]);
+        for evidence in [
+            OutputLanguageEvidence::UserSelected("pt".to_string()),
+            OutputLanguageEvidence::UserSelected("de".to_string()),
+            OutputLanguageEvidence::Unknown,
+        ] {
+            assert_eq!(
+                post_process_transcription_text(
+                    "twenty five".to_string(),
+                    &number_settings(crate::settings::NumberFormat::Digits),
+                    false,
+                    &evidence,
+                    &supported,
+                ),
+                "twenty five",
+                "evidence: {evidence:?}"
+            );
+        }
+        // Region subtags and translation evidence resolve by base language.
+        assert_eq!(
+            post_process_transcription_text(
+                "twenty five".to_string(),
+                &number_settings(crate::settings::NumberFormat::Digits),
+                false,
+                &OutputLanguageEvidence::ModelDetected("en-GB".to_string()),
+                &supported,
+            ),
+            "25"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "twenty five".to_string(),
+                &number_settings(crate::settings::NumberFormat::Digits),
+                false,
+                &OutputLanguageEvidence::TranslatedToEnglish,
+                &supported,
+            ),
+            "25"
+        );
+    }
+
+    #[test]
+    fn fillers_are_removed_before_the_number_pass() {
+        // "um" precedes the number words but the filler pass has already
+        // cleared it, so the run stays contiguous.
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        assert_eq!(
+            post_process_transcription_text(
+                "um one eight zero one".to_string(),
+                &number_settings(crate::settings::NumberFormat::Digits),
+                false,
+                &en,
+                &languages(&["en"]),
+            ),
+            "1801"
+        );
+    }
+
+    #[test]
+    fn hindi_number_pass_runs_before_hinglish_transliteration() {
+        let hi = OutputLanguageEvidence::UserSelected("hi".to_string());
+        let supported = languages(&["hi"]);
+
+        // hi-Latn: Devanagari number words become Devanagari digits, the
+        // transliterator maps them to ASCII, Latin fragments stay verbatim.
+        let hinglish = AppSettings {
+            selected_language: "hi-Latn".to_string(),
+            number_format: crate::settings::NumberFormat::Digits,
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(
+                "\u{90F}\u{915} \u{906}\u{920} \u{936}\u{942}\u{928}\u{94d}\u{92f} \u{90F}\u{915}".to_string(),
+                &hinglish,
+                false,
+                &hi,
+                &supported,
+            ),
+            "1801"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "meeting \u{90F}\u{915} \u{938}\u{94C} \u{905}\u{92c}".to_string(),
+                &hinglish,
+                false,
+                &hi,
+                &supported,
+            ),
+            "meeting 100 ab"
+        );
+
+        // Plain hi output keeps Devanagari digits.
+        let hindi = AppSettings {
+            selected_language: "hi".to_string(),
+            number_format: crate::settings::NumberFormat::Digits,
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(
+                "\u{90F}\u{915} \u{938}\u{94C}".to_string(),
+                &hindi,
+                false,
+                &hi,
+                &supported,
+            ),
+            "\u{967}\u{966}\u{966}"
+        );
+        // Lone "ek" is the indefinite article and never converts.
+        assert_eq!(
+            post_process_transcription_text(
+                "\u{90F}\u{915} \u{92b}\u{93c}\u{93f}\u{932}\u{94d}\u{92e} \u{926}\u{947}\u{916}\u{940}".to_string(),
+                &hindi,
+                false,
+                &hi,
+                &supported,
+            ),
+            "\u{90F}\u{915} \u{92b}\u{93c}\u{93f}\u{932}\u{94d}\u{92e} \u{926}\u{947}\u{916}\u{940}"
+        );
+    }
+
+    #[test]
+    fn interim_number_display_matches_the_paste() {
+        // English session: the overlay shows digits the moment a run is
+        // complete, grows monotonically, never flips back to words, and
+        // the finalize pipeline pastes the same digits.
+        let mut session = StreamSessionBuffer::default();
+        session.begin(
+            PreviewScript::new(
+                ChineseScript::AsTranscribed,
+                &OutputLanguageEvidence::UserSelected("en".to_string()),
+            ),
+            true,
+            true,
+            &languages(&["en"]),
+            crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            false,
+            crate::settings::NumberFormat::Digits,
+            crate::number_format::NumberPassScripts {
+                devanagari: false,
+                english: true,
+            },
+        );
+        assert_eq!(session.render("one", "", false), "one");
+        assert_eq!(session.render("one eight", "", false), "18");
+        assert_eq!(session.render("one eight zero", "", false), "180");
+        assert_eq!(session.render("one eight zero one", "", false), "1801");
+        assert_eq!(session.render("version one point two", "", false), "version 1.2");
+
+        let final_raw = session.combine_final("one eight zero one".to_string());
+        assert_eq!(
+            post_process_transcription_text(
+                final_raw,
+                &number_settings(crate::settings::NumberFormat::Digits),
+                false,
+                &OutputLanguageEvidence::UserSelected("en".to_string()),
+                &languages(&["en"]),
+            ),
+            "1801"
+        );
+    }
+
+    #[test]
+    fn interim_hinglish_number_display_matches_the_paste() {
+        // hi-Latn session: Devanagari pass before transliteration, in the
+        // overlay too, so the digits match the paste while speaking.
+        let mut session = StreamSessionBuffer::default();
+        session.begin(
+            PreviewScript::new(
+                ChineseScript::AsTranscribed,
+                &OutputLanguageEvidence::UserSelected("hi".to_string()),
+            ),
+            true,
+            true,
+            &languages(&["hi"]),
+            crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            true,
+            crate::settings::NumberFormat::Digits,
+            crate::number_format::NumberPassScripts {
+                devanagari: true,
+                english: true,
+            },
+        );
+        assert_eq!(
+            session.render("\u{90F}\u{915} \u{906}\u{920} \u{936}\u{942}\u{928}\u{94d}\u{92f} \u{90F}\u{915}", "", false),
+            "1801"
+        );
+        assert_eq!(
+            session.render("meeting \u{90F}\u{915} \u{938}\u{94C}", "", false),
+            "meeting 100"
+        );
+
+        let final_raw = session.combine_final("meeting \u{90F}\u{915} \u{938}\u{94C}".to_string());
+        assert_eq!(
+            post_process_transcription_text(
+                final_raw,
+                &AppSettings {
+                    selected_language: "hi-Latn".to_string(),
+                    number_format: crate::settings::NumberFormat::Digits,
+                    terminal_punctuation: false,
+                    ..Default::default()
+                },
+                false,
+                &OutputLanguageEvidence::UserSelected("hi".to_string()),
+                &languages(&["hi"]),
+            ),
+            "meeting 100"
+        );
+    }
+
+    #[test]
+    fn interim_number_pass_off_keeps_words_in_the_overlay() {
+        // as_transcribed: the overlay shows the words while speaking and
+        // the paste keeps them (the pre-feature behavior on both paths).
+        let mut session = StreamSessionBuffer::default();
+        session.begin(
+            PreviewScript::new(
+                ChineseScript::AsTranscribed,
+                &OutputLanguageEvidence::UserSelected("en".to_string()),
+            ),
+            true,
+            true,
+            &languages(&["en"]),
+            crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            false,
+            crate::settings::NumberFormat::AsTranscribed,
+            crate::number_format::NumberPassScripts { devanagari: false, english: true },
+        );
+        assert_eq!(
+            session.render("one eight zero one", "", false),
+            "one eight zero one"
+        );
+    }
+
 }
 
 impl Drop for TranscriptionManager {
