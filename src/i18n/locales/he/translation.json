@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "בחירת המודל נכשלה"
+      "selectModel": "בחירת המודל נכשלה",
+      "downloadFailed": "הורדת {{model}} נכשלה: {{error}}"
     },
     "permissions": {
       "title": "נדרשות הרשאות",
       "description": "VoxBar צריך כמה הרשאות כדי לעבוד כמו שצריך.",
       "microphone": {
         "title": "גישה למיקרופון",
-        "description": "נדרש כדי לשמוע את הקול שלך לצורך תמלול."
+        "description": "נדרש כדי לשמוע את הקול שלך לצורך תמלול.",
+        "deniedGuidance": "אין עדיין גישה למיקרופון. הפעילו את VoxBar תחת הגדרות המערכת > פרטיות ואבטחה > מיקרופון, ואז בדקו שוב.",
+        "openSettings": "פתיחת הגדרות המיקרופון",
+        "checkAgain": "בדיקה חוזרת"
       },
       "accessibility": {
         "title": "גישת נגישות",
@@ -132,7 +136,9 @@
         "checkFailed": "בדיקת ההרשאות נכשלה. נסה שוב.",
         "requestFailed": "בקשת ההרשאה נכשלה. נסה שוב."
       }
-    }
+    },
+    "hotkeyHint": "התחילו הקלטה בכל עת עם {{hotkey}}.",
+    "hotkeyChangeHint": "ניתן לשנות את קיצור המקלדת הזה בהגדרות > כללי."
   },
   "modelSelector": {
     "custom": "מותאם אישית",
@@ -836,7 +842,9 @@
     "modelFallback": "עבר אל {{model}} עבור הכתבה זו",
     "pasteFailedTitle": "ההדבקה נכשלה",
     "pasteFailed": "לא ניתן היה להדביק את הטקסט ביישום הפעיל.",
-    "transcriptionFailedTitle": "התמלול נכשל"
+    "transcriptionFailedTitle": "התמלול נכשל",
+    "noModelSelectedTitle": "לא נבחר מודל",
+    "noModelSelected": "בחרו מודל תמלול בהגדרות לפני הקלטה."
   },
   "appLanguage": {
     "title": "שפת האפליקציה",

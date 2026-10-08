@@ -159,6 +159,13 @@ function App() {
         toast.error(t("errors.noInputDeviceTitle"), {
           description: t("errors.noInputDevice"),
         });
+      } else if (error_type === "no_model_selected") {
+        // A hotkey press with no usable model: explain it instead of
+        // silently aborting with only a log line (which read as a broken
+        // hotkey).
+        toast.error(t("errors.noModelSelectedTitle"), {
+          description: t("errors.noModelSelected"),
+        });
       } else {
         toast.error(
           t("errors.recordingFailed", { error: detail ?? "Unknown error" }),

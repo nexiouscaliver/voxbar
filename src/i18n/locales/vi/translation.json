@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Không thể chọn mô hình"
+      "selectModel": "Không thể chọn mô hình",
+      "downloadFailed": "Tải xuống {{model}} thất bại: {{error}}"
     },
     "permissions": {
       "title": "Cần cấp quyền",
       "description": "VoxBar cần một số quyền để hoạt động bình thường.",
       "microphone": {
         "title": "Quyền truy cập Micrô",
-        "description": "Cần thiết để nghe giọng nói của bạn để chuyển đổi."
+        "description": "Cần thiết để nghe giọng nói của bạn để chuyển đổi.",
+        "deniedGuidance": "Chưa có quyền truy cập micrô. Bật VoxBar trong Cài đặt Hệ thống > Quyền riêng tư và Bảo mật > Micrô, rồi kiểm tra lại.",
+        "openSettings": "Mở cài đặt micrô",
+        "checkAgain": "Kiểm tra lại"
       },
       "accessibility": {
         "title": "Quyền truy cập Trợ năng",
@@ -132,7 +136,9 @@
         "checkFailed": "Không thể kiểm tra quyền. Vui lòng thử lại.",
         "requestFailed": "Không thể yêu cầu quyền. Vui lòng thử lại."
       }
-    }
+    },
+    "hotkeyHint": "Bắt đầu đọc chính tả bằng {{hotkey}} bất cứ lúc nào.",
+    "hotkeyChangeHint": "Bạn có thể đổi phím tắt này trong Cài đặt > Chung."
   },
   "modelSelector": {
     "custom": "Tùy chỉnh",
@@ -836,7 +842,9 @@
     "modelFallback": "Đã chuyển sang {{model}} cho lần đọc này",
     "pasteFailedTitle": "Không thể dán văn bản",
     "pasteFailed": "Không thể dán văn bản vào ứng dụng đang hoạt động.",
-    "transcriptionFailedTitle": "Phiên âm thất bại"
+    "transcriptionFailedTitle": "Phiên âm thất bại",
+    "noModelSelectedTitle": "Chưa chọn mô hình",
+    "noModelSelected": "Chọn mô hình chuyển ghi trong Cài đặt trước khi đọc chính tả."
   },
   "appLanguage": {
     "title": "Ngôn ngữ ứng dụng",

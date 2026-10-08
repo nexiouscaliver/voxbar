@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Det gick inte att välja modell"
+      "selectModel": "Det gick inte att välja modell",
+      "downloadFailed": "Det gick inte att ladda ner {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Behörigheter krävs",
       "description": "VoxBar behöver ett par behörigheter för att fungera korrekt.",
       "microphone": {
         "title": "Mikrofonåtkomst",
-        "description": "Krävs för att höra din röst för transkription."
+        "description": "Krävs för att höra din röst för transkription.",
+        "deniedGuidance": "Ingen mikrofonåtkomst ännu. Aktivera VoxBar under Systeminställningar > Integritet och säkerhet > Mikrofon och kontrollera igen.",
+        "openSettings": "Öppna mikrofoninställningar",
+        "checkAgain": "Kontrollera igen"
       },
       "accessibility": {
         "title": "Hjälpmedelsåtkomst",
@@ -132,7 +136,9 @@
         "checkFailed": "Misslyckades med att kontrollera behörigheter. Försök igen.",
         "requestFailed": "Misslyckades med att begära behörighet. Försök igen."
       }
-    }
+    },
+    "hotkeyHint": "Starta diktering med {{hotkey}} när som helst.",
+    "hotkeyChangeHint": "Du kan ändra denna genväg i Inställningar > Allmänt."
   },
   "modelSelector": {
     "custom": "Anpassad",
@@ -836,7 +842,9 @@
     "noInputDevice": "Ingen ljudenhet hittades. Anslut en mikrofon eller ett headset och försök igen.",
     "pasteFailedTitle": "Det gick inte att klistra in texten",
     "pasteFailed": "Texten kunde inte klistras in i det aktiva programmet.",
-    "transcriptionFailedTitle": "Transkriptionen misslyckades"
+    "transcriptionFailedTitle": "Transkriptionen misslyckades",
+    "noModelSelectedTitle": "Ingen modell vald",
+    "noModelSelected": "Välj en transkriberingsmodell i Inställningar innan du dikterar."
   },
   "appLanguage": {
     "title": "Applikationsspråk",

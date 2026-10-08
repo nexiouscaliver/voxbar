@@ -8,6 +8,8 @@ import ModelCard, { isLegacySource } from "./ModelCard";
 import HandyTextLogo from "../icons/HandyTextLogo";
 import { useModelStore } from "../../stores/modelStore";
 import { useSettings } from "../../hooks/useSettings";
+import { useOsType } from "../../hooks/useOsType";
+import { formatKeyCombination } from "../../lib/utils/keyboard";
 import type { ModelStateEvent } from "../../lib/types/events";
 import {
   formatMarginMb,
@@ -55,6 +57,7 @@ const Onboarding: React.FC<OnboardingProps> = ({
     cancelDownload,
   } = useModelStore();
   const { getSetting, updateSetting } = useSettings();
+  const osType = useOsType();
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [refusalCard, setRefusalCard] = useState<RefusalCardState | null>(null);
@@ -252,12 +255,22 @@ const Onboarding: React.FC<OnboardingProps> = ({
     return downloadStats[modelId]?.speed;
   };
 
+  // The start-dictation binding, shown during onboarding because it appears
+  // nowhere else before the main app: default option+space per settings.rs.
+  const bindings = getSetting("bindings");
+  const hotkeyBinding =
+    bindings?.["transcribe"]?.current_binding || "option+space";
+  const hotkeyDisplay = formatKeyCombination(hotkeyBinding, osType);
+
   return (
     <div className="h-screen w-full flex flex-col p-6 gap-4">
       <div className="flex flex-col items-center gap-2 shrink-0">
         <HandyTextLogo width={200} />
         <p className="text-text/70 max-w-md font-medium mx-auto">
           {t("onboarding.subtitle")}
+        </p>
+        <p className="text-xs text-text/50">
+          {t("onboarding.hotkeyHint", { hotkey: hotkeyDisplay })}
         </p>
       </div>
 

@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Échec de la sélection du modèle"
+      "selectModel": "Échec de la sélection du modèle",
+      "downloadFailed": "Échec du téléchargement de {{model}} : {{error}}"
     },
     "permissions": {
       "title": "Autorisations requises",
       "description": "VoxBar a besoin de quelques autorisations pour fonctionner correctement.",
       "microphone": {
         "title": "Accès au microphone",
-        "description": "Nécessaire pour entendre votre voix pour la transcription."
+        "description": "Nécessaire pour entendre votre voix pour la transcription.",
+        "deniedGuidance": "Pas encore d'accès au micro. Activez VoxBar dans Réglages Système > Confidentialité et sécurité > Micro, puis revérifiez.",
+        "openSettings": "Ouvrir les réglages du micro",
+        "checkAgain": "Revérifier"
       },
       "accessibility": {
         "title": "Accès à l'accessibilité",
@@ -132,7 +136,9 @@
         "checkFailed": "Échec de la vérification des autorisations. Veuillez réessayer.",
         "requestFailed": "Échec de la demande d'autorisation. Veuillez réessayer."
       }
-    }
+    },
+    "hotkeyHint": "Lancez la dictée avec {{hotkey}} à tout moment.",
+    "hotkeyChangeHint": "Vous pouvez changer ce raccourci dans Paramètres > Général."
   },
   "modelSelector": {
     "custom": "Personnalisé",
@@ -836,7 +842,9 @@
     "modelFallback": "Basculé sur {{model}} pour cette dictée",
     "pasteFailedTitle": "Échec du collage du texte",
     "pasteFailed": "Le texte n'a pas pu être collé dans l'application active.",
-    "transcriptionFailedTitle": "Échec de la transcription"
+    "transcriptionFailedTitle": "Échec de la transcription",
+    "noModelSelectedTitle": "Aucun modèle sélectionné",
+    "noModelSelected": "Choisissez un modèle de transcription dans Paramètres avant de dicter."
   },
   "appLanguage": {
     "title": "Langue de l'application",

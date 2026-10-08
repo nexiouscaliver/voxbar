@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Gagal memilih model"
+      "selectModel": "Gagal memilih model",
+      "downloadFailed": "Gagal mengunduh {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Izin Diperlukan",
       "description": "VoxBar memerlukan beberapa izin agar dapat berfungsi dengan baik.",
       "microphone": {
         "title": "Akses Mikrofon",
-        "description": "Diperlukan untuk menangkap suara Anda agar dapat ditranskripsikan."
+        "description": "Diperlukan untuk menangkap suara Anda agar dapat ditranskripsikan.",
+        "deniedGuidance": "Akses mikrofon belum ada. Aktifkan VoxBar di Pengaturan Sistem > Privasi & Keamanan > Mikrofon, lalu periksa lagi.",
+        "openSettings": "Buka Pengaturan Mikrofon",
+        "checkAgain": "Periksa Lagi"
       },
       "accessibility": {
         "title": "Izin Aksesibilitas",
@@ -132,7 +136,9 @@
         "checkFailed": "Gagal memeriksa izin. Silakan coba lagi.",
         "requestFailed": "Gagal meminta izin. Silakan coba lagi."
       }
-    }
+    },
+    "hotkeyHint": "Mulai dikte dengan {{hotkey}} kapan saja.",
+    "hotkeyChangeHint": "Pintasan ini bisa diubah di Pengaturan > Umum."
   },
   "modelSelector": {
     "custom": "Kustom",
@@ -839,7 +845,9 @@
     "modelFallback": "Beralih ke {{model}} untuk dikte ini",
     "pasteFailedTitle": "Gagal Menempelkan Teks",
     "pasteFailed": "Teks tidak dapat ditempelkan ke aplikasi aktif.",
-    "transcriptionFailedTitle": "Transkripsi Gagal"
+    "transcriptionFailedTitle": "Transkripsi Gagal",
+    "noModelSelectedTitle": "Tidak ada model dipilih",
+    "noModelSelected": "Pilih model transkripsi di Pengaturan sebelum mendikte."
   },
   "appLanguage": {
     "title": "Bahasa Aplikasi",

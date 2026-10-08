@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Error al seleccionar el modelo"
+      "selectModel": "Error al seleccionar el modelo",
+      "downloadFailed": "Error al descargar {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permisos requeridos",
       "description": "VoxBar necesita algunos permisos para funcionar correctamente.",
       "microphone": {
         "title": "Acceso al micrófono",
-        "description": "Necesario para escuchar tu voz para la transcripción."
+        "description": "Necesario para escuchar tu voz para la transcripción.",
+        "deniedGuidance": "Aún no hay acceso al micrófono. Activa VoxBar en Ajustes del Sistema > Privacidad y seguridad > Micrófono y vuelve a comprobarlo.",
+        "openSettings": "Abrir ajustes del micrófono",
+        "checkAgain": "Comprobar de nuevo"
       },
       "accessibility": {
         "title": "Acceso de accesibilidad",
@@ -132,7 +136,9 @@
         "checkFailed": "Error al verificar permisos. Por favor, inténtalo de nuevo.",
         "requestFailed": "Error al solicitar permiso. Por favor, inténtalo de nuevo."
       }
-    }
+    },
+    "hotkeyHint": "Inicia el dictado con {{hotkey}} en cualquier momento.",
+    "hotkeyChangeHint": "Puedes cambiar este atajo en Configuración > General."
   },
   "modelSelector": {
     "custom": "Personalizado",
@@ -836,7 +842,9 @@
     "modelFallback": "Se cambió a {{model}} para este dictado",
     "pasteFailedTitle": "Error al pegar el texto",
     "pasteFailed": "No se pudo pegar el texto en la aplicación activa.",
-    "transcriptionFailedTitle": "Error de transcripción"
+    "transcriptionFailedTitle": "Error de transcripción",
+    "noModelSelectedTitle": "Ningún modelo seleccionado",
+    "noModelSelected": "Elige un modelo de transcripción en Configuración antes de dictar."
   },
   "appLanguage": {
     "title": "Idioma de la aplicación",

@@ -111,14 +111,18 @@
       }
     },
     "errors": {
-      "selectModel": "Nepodařilo se vybrat model"
+      "selectModel": "Nepodařilo se vybrat model",
+      "downloadFailed": "Stažení {{model}} se nezdařilo: {{error}}"
     },
     "permissions": {
       "title": "Vyžadována oprávnění",
       "description": "VoxBar potřebuje několik oprávnění pro správné fungování.",
       "microphone": {
         "title": "Přístup k mikrofonu",
-        "description": "Potřebný pro zachycení vašeho hlasu k přepisu."
+        "description": "Potřebný pro zachycení vašeho hlasu k přepisu.",
+        "deniedGuidance": "Přístup k mikrofonu zatím není. Povolte VoxBar v Nastavení systému > Soukromí a zabezpečení > Mikrofon a zkontrolujte to znovu.",
+        "openSettings": "Otevřít nastavení mikrofonu",
+        "checkAgain": "Zkontrolovat znovu"
       },
       "accessibility": {
         "title": "Přístup k usnadnění",
@@ -132,7 +136,9 @@
         "checkFailed": "Nepodařilo se zkontrolovat oprávnění. Zkuste to prosím znovu.",
         "requestFailed": "Nepodařilo se požádat o oprávnění. Zkuste to prosím znovu."
       }
-    }
+    },
+    "hotkeyHint": "Diktování spustíte klávesou {{hotkey}} kdykoli.",
+    "hotkeyChangeHint": "Tuto zkratku můžete změnit v Nastavení > Obecné."
   },
   "modelSelector": {
     "custom": "Vlastní",
@@ -836,7 +842,9 @@
     "modelFallback": "Pro toto diktování bylo přepnuto na {{model}}",
     "pasteFailedTitle": "Vložení textu se nezdařilo",
     "pasteFailed": "Text nebylo možné vložit do aktivní aplikace.",
-    "transcriptionFailedTitle": "Přepis selhal"
+    "transcriptionFailedTitle": "Přepis selhal",
+    "noModelSelectedTitle": "Není vybrán žádný model",
+    "noModelSelected": "Před diktováním vyberte v Nastavení model přepisu."
   },
   "appLanguage": {
     "title": "Jazyk aplikace",
