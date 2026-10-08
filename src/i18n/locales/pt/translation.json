@@ -727,6 +727,10 @@
         "title": "Buffer de gravação extra",
         "description": "Tempo extra (em milissegundos) para continuar gravando após soltar a tecla, para capturar áudio restante. 0 = sem buffer extra."
       },
+      "streamingTail": {
+        "title": "Cauda de liberação do streaming",
+        "description": "Tempo extra (em milissegundos) em que uma sessão de streaming continua gravando depois de soltar a tecla, para capturar o fim da última palavra. 0 = sem cauda extra."
+      },
       "keyboardDiagnostic": {
         "title": "Diagnóstico do teclado",
         "description": "Verifica se os eventos de teclado chegam ao VoxBar. Apenas a contagem de eventos é registrada - nunca quais teclas você pressiona.",

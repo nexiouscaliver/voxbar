@@ -663,6 +663,14 @@ pub struct AppSettings {
     pub transcribe_gpu_device: Option<String>,
     #[serde(default)]
     pub extra_recording_buffer_ms: u64,
+    /// Post-release capture floor for STREAMING sessions only: releasing
+    /// the hotkey the instant a spoken command word ends otherwise
+    /// truncates its tail and the command silently fails. The stop path
+    /// uses max(extra_recording_buffer_ms, streaming_release_tail_ms) when
+    /// the recording ran with an active stream; batch sessions are
+    /// untouched. 0 restores the old no-tail behavior exactly.
+    #[serde(default = "default_streaming_release_tail_ms")]
+    pub streaming_release_tail_ms: u64,
     #[serde(default = "default_vad_enabled")]
     pub vad_enabled: bool,
     /// Experimental detector implementation. Silero remains the stable default.
@@ -687,6 +695,14 @@ fn default_settings_schema_version() -> u32 {
 
 fn default_hold_threshold_ms() -> u64 {
     300
+}
+
+/// 200ms of post-release capture for streaming sessions: enough to land a
+/// final consonant after a spoken command word, small enough not to feel
+/// like latency. Users can zero it (settings row) to restore the old
+/// behavior.
+fn default_streaming_release_tail_ms() -> u64 {
+    200
 }
 
 fn default_always_on_microphone() -> bool {
@@ -1278,6 +1294,7 @@ pub fn get_default_settings() -> AppSettings {
         ort_accelerator: OrtAcceleratorSetting::default(),
         transcribe_gpu_device: default_transcribe_gpu_device(),
         extra_recording_buffer_ms: 0,
+        streaming_release_tail_ms: default_streaming_release_tail_ms(),
         vad_enabled: default_vad_enabled(),
         vad_backend: VadBackend::default(),
         overlay_style: default_overlay_style(),
@@ -1575,6 +1592,27 @@ pub fn get_recording_retention_period(app: &AppHandle) -> RecordingRetentionPeri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn streaming_release_tail_defaults_to_200_round_trips_and_backfills() {
+        // Default is 200ms: streaming quick-releases keep word tails.
+        assert_eq!(get_default_settings().streaming_release_tail_ms, 200);
+        // Serde round-trips an explicit value, including the off path (0).
+        let mut off = get_default_settings();
+        off.streaming_release_tail_ms = 0;
+        let parsed: AppSettings =
+            serde_json::from_value(serde_json::to_value(off).unwrap()).unwrap();
+        assert_eq!(parsed.streaming_release_tail_ms, 0);
+        // Old settings JSON without the field parses to the default (200),
+        // so upgrading installs gain the tail.
+        let mut legacy = serde_json::to_value(get_default_settings()).unwrap();
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .remove("streaming_release_tail_ms");
+        let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert_eq!(backfilled.streaming_release_tail_ms, 200);
+    }
 
     #[test]
     fn memory_pressure_guard_defaults_on_round_trips_and_backfills() {

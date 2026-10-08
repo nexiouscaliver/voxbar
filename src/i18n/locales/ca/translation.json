@@ -741,6 +741,10 @@
         "title": "Marge addicional d'enregistrament",
         "description": "Temps addicional (en mil·lisegons) durant el qual es continua enregistrant després de deixar anar la tecla per capturar l'àudio final. 0 = sense marge addicional."
       },
+      "streamingTail": {
+        "title": "Cua d'alliberament de l'streaming",
+        "description": "Temps addicional (en mil·lisegons) que una sessió de streaming continua enregistrant després de deixar anar la tecla, per capturar el final de l'última paraula. 0 = sense cua addicional."
+      },
       "keyboardDiagnostic": {
         "title": "Diagnòstic del teclat",
         "description": "Comprova si els esdeveniments del teclat arriben al VoxBar. Només se'n registra el recompte, mai les tecles que premeu.",

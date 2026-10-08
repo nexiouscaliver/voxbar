@@ -7,6 +7,7 @@ import { PasteDelay } from "./PasteDelay";
 import { HoldThreshold } from "./HoldThreshold";
 import { ReliablePasteToggle } from "./ReliablePaste";
 import { RecordingBuffer } from "./RecordingBuffer";
+import { StreamingReleaseTail } from "./StreamingReleaseTail";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { AlwaysOnMicrophone } from "../AlwaysOnMicrophone";
 import { SoundPicker } from "../SoundPicker";
@@ -57,6 +58,7 @@ export const DebugSettings: React.FC<DebugSettingsProps> = ({
         <ReliablePasteToggle descriptionMode="tooltip" grouped={true} />
         <HoldThreshold descriptionMode="tooltip" grouped={true} />
         <RecordingBuffer descriptionMode="tooltip" grouped={true} />
+        <StreamingReleaseTail descriptionMode="tooltip" grouped={true} />
         <AlwaysOnMicrophone descriptionMode="tooltip" grouped={true} />
         <ClamshellMicrophoneSelector descriptionMode="tooltip" grouped={true} />
         <KeyboardDiagnostic />

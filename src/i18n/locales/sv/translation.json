@@ -727,6 +727,10 @@
         "title": "Extra inspelningsbuffert",
         "description": "Extra tid (i millisekunder) för att fortsätta spela in efter att du släppt tangenten, för att fånga upp avslutande ljud. 0 = ingen extra buffert."
       },
+      "streamingTail": {
+        "title": "Eftersläp för streaming",
+        "description": "Extra tid (i millisekunder) som en strömningssession fortsätter spela in efter att du släpper tangenten, så att slutet på det sista ordet fångas. 0 = ingen extra eftersläp."
+      },
       "keyboardDiagnostic": {
         "title": "Tangentbordsdiagnostik",
         "description": "Kontrollerar om tangentbordshändelser når VoxBar. Endast antalet händelser registreras - aldrig vilka tangenter du trycker på.",

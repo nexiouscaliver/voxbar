@@ -727,6 +727,10 @@
         "title": "Buffer di registrazione extra",
         "description": "Tempo extra (in millisecondi) per continuare a registrare dopo aver rilasciato il tasto, per catturare l'audio finale. 0 = nessun buffer extra."
       },
+      "streamingTail": {
+        "title": "Coda di rilascio dello streaming",
+        "description": "Tempo aggiuntivo (in millisecondi) in cui una sessione in streaming continua a registrare dopo il rilascio del tasto, per acquisire la fine dell'ultima parola. 0 = nessuna coda aggiuntiva."
+      },
       "keyboardDiagnostic": {
         "title": "Diagnostica tastiera",
         "description": "Verifica se gli eventi della tastiera arrivano a VoxBar. Viene registrato solo il numero di eventi, mai quali tasti premi.",

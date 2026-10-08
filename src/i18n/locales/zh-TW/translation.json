@@ -727,6 +727,10 @@
         "title": "額外錄音緩衝",
         "description": "放開按鍵後繼續錄音的額外時間（毫秒），以捕捉尾音。0 = 無額外緩衝。"
       },
+      "streamingTail": {
+        "title": "串流釋放尾音",
+        "description": "串流工作階段在放開按鍵後繼續錄音的額外時間（毫秒），以捕捉最後一個詞的結尾。0 = 無額外尾音。"
+      },
       "keyboardDiagnostic": {
         "title": "鍵盤診斷",
         "description": "檢查鍵盤事件是否能送達 VoxBar。只會記錄事件數量，絕不記錄您按了哪些按鍵。",

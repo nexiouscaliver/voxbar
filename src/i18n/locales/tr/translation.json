@@ -727,6 +727,10 @@
         "title": "Ekstra Kayıt Tamponu",
         "description": "Tuşu bıraktıktan sonra arka plandaki sesi yakalamak için kaydı sürdürme süresi (milisaniye). 0 = ekstra tampon yok."
       },
+      "streamingTail": {
+        "title": "Yayın bırakma kuyruğu",
+        "description": "Yayın oturumunun tuşu bıraktıktan sonra kaydetmeye devam ettiği ek süre (milisaniye cinsinden), son kelimenin sonunu yakalamak için. 0 = ek kuyruk yok."
+      },
       "keyboardDiagnostic": {
         "title": "Klavye Tanılaması",
         "description": "Klavye olaylarının VoxBar'ye ulaşıp ulaşmadığını denetler. Yalnızca olay sayıları kaydedilir - hangi tuşlara bastığınız asla kaydedilmez.",

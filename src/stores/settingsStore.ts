@@ -233,6 +233,8 @@ const settingUpdaters: {
     commands.changeTranscribeGpuDevice(value as string | null),
   extra_recording_buffer_ms: (value) =>
     commands.changeExtraRecordingBufferSetting(value as number),
+  streaming_release_tail_ms: (value) =>
+    commands.changeStreamingReleaseTailSetting(value as number),
 };
 
 export const useSettingsStore = create<SettingsStore>()(

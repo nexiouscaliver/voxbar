@@ -741,6 +741,10 @@
         "title": "Extra Recording Buffer",
         "description": "Extra time (in milliseconds) to keep recording after you release the key, to capture trailing audio. 0 = no extra buffer."
       },
+      "streamingTail": {
+        "title": "Streaming Release Tail",
+        "description": "Extra time (in milliseconds) a streaming session keeps recording after you release the key, so the end of the last word is captured. 0 = no extra tail."
+      },
       "keyboardDiagnostic": {
         "title": "Keyboard Diagnostic",
         "description": "Checks whether keyboard events reach VoxBar. Only event counts are recorded - never which keys you press.",
