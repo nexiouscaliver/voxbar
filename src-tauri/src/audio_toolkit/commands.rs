@@ -78,13 +78,28 @@ pub enum CommandAction {
     Paste,
 }
 
+/// Devanagari vowel signs and other word marks are part of a word, not
+/// attached punctuation: कॉमा ends in the matra ा, which must survive
+/// token normalization or the phrase never matches. Danda (U+0964) and
+/// double danda (U+0965) are sentence punctuation and stay strippable.
+fn is_devanagari_word_sign(c: char) -> bool {
+    matches!(
+        c,
+        '\u{0900}'..='\u{0903}'
+            | '\u{093A}'..='\u{094F}'
+            | '\u{0951}'..='\u{0957}'
+            | '\u{0962}'..='\u{0963}'
+    )
+}
+
 /// Normalize one whitespace-delimited token for comparison: lowercase it and
-/// strip leading/trailing punctuation the model may have attached. Inner
-/// characters (apostrophes in "don't") are kept; such words simply never
-/// match a command and are discarded per the contract.
+/// strip leading/trailing punctuation the model may have attached (keeping
+/// Devanagari vowel signs, which are part of the word). Inner characters
+/// (apostrophes in "don't") are kept; such words simply never match a
+/// command and are discarded per the contract.
 fn normalize_token(token: &str) -> String {
     token
-        .trim_matches(|c: char| !c.is_alphanumeric())
+        .trim_matches(|c: char| !c.is_alphanumeric() && !is_devanagari_word_sign(c))
         .to_lowercase()
 }
 

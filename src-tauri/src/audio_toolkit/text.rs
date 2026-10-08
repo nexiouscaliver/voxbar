@@ -863,7 +863,14 @@ pub fn apply_voice_deletion(text: &str, matrix: &CompiledCommandMatrix) -> Voice
     let mut pending_space = false;
 
     for command in matrix.voice_deletion_pattern_matches(text) {
-        let phrase = command.as_str().to_lowercase();
+        // Collapse inner whitespace the pattern's \s+ may have matched so
+        // the phrase key is the normalized stored phrase.
+        let phrase = command
+            .as_str()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_lowercase();
 
         // A matrix phrase maps to its deletion kind; a match outside the
         // map is the built-in "delete last N words" family.
@@ -1690,6 +1697,30 @@ mod tests {
         assert_eq!(
             normalize_spoken_punctuation("questionmark", &dm()),
             "questionmark"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_cjk_aliases_match_inside_spaceless_text() {
+        // The CJK aliases compile without \b anchors (Han characters are
+        // word characters, so \b never fires between adjacent Han), so a
+        // command embedded in spaceless Chinese text still converts.
+        assert_eq!(
+            normalize_spoken_punctuation("你好逗号世界", &dm()),
+            "你好,世界"
+        );
+        assert_eq!(normalize_spoken_punctuation("他说句号完", &dm()), "他说.完");
+        // The anchored group keeps its boundaries: Latin near-misses of
+        // "period" still never fire.
+        assert_eq!(
+            normalize_spoken_punctuation("the periodic table", &dm()),
+            "the periodic table"
+        );
+        // A full-width mark attached to a CJK command word converts with
+        // it instead of stranding.
+        assert_eq!(
+            normalize_spoken_punctuation("你好逗号，世界", &dm()),
+            "你好,世界"
         );
     }
 
