@@ -1,6 +1,5 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { ShowOverlay } from "../ShowOverlay";
 import { ModelUnloadTimeoutSetting } from "../ModelUnloadTimeout";
 import { MemoryPressureGuard } from "../MemoryPressureGuard";
 import { MemoryHeadroom } from "../MemoryHeadroom";
@@ -8,28 +7,27 @@ import { AutoFallback } from "../AutoFallback";
 import { MenuBarModelTitle } from "../MenuBarModelTitle";
 import { CustomWords } from "../CustomWords";
 import { SettingsGroup } from "../../ui/SettingsGroup";
-import { StartHidden } from "../StartHidden";
-import { AutostartToggle } from "../AutostartToggle";
-import { ShowTrayIcon } from "../ShowTrayIcon";
-import { PasteMethodSetting } from "../PasteMethod";
-import { TypingToolSetting } from "../TypingTool";
-import { ClipboardHandlingSetting } from "../ClipboardHandling";
-import { AutoSubmit } from "../AutoSubmit";
 import { PostProcessingToggle } from "../PostProcessingToggle";
-import { AppendTrailingSpace } from "../AppendTrailingSpace";
-import { HistoryLimit } from "../HistoryLimit";
-import { RecordingRetentionPeriodSelector } from "../RecordingRetentionPeriod";
-import { ExperimentalToggle } from "../ExperimentalToggle";
 import { useSettings } from "../../../hooks/useSettings";
 import { KeyboardImplementationSelector } from "../debug/KeyboardImplementationSelector";
 import { VoiceActivityDetection } from "../VoiceActivityDetection";
 import { AccelerationSelector } from "../AccelerationSelector";
 import { LazyStreamClose } from "../LazyStreamClose";
 import { FillerWordRemoval } from "../FillerWordRemoval";
-import { PreviewBeforePaste } from "../PreviewBeforePaste";
+import { WordCorrectionThreshold } from "../debug/WordCorrectionThreshold";
 import { ChineseScriptSetting } from "../ChineseScript";
 import { VadBackendSelector } from "../VadBackendSelector";
+import { ExperimentalToggle } from "../ExperimentalToggle";
 
+/**
+ * Plumbing only: model residency and memory, the transcription passes that
+ * rewrite text, and the single gated Experimental group. The model/memory
+ * group stays always visible, and with it the ExperimentalToggle, because
+ * experimental_enabled defaults to false: a master toggle hidden behind its
+ * own flag would be unreachable for every default-config user. The unload
+ * timeout also stays under this section id: the tray's "Unload After" ->
+ * "Custom..." flow opens the advanced section and focuses its field.
+ */
 export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
   const { getSetting } = useSettings();
@@ -37,11 +35,7 @@ export const AdvancedSettings: React.FC = () => {
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
-      <SettingsGroup title={t("settings.advanced.groups.app")}>
-        <StartHidden descriptionMode="tooltip" grouped={true} />
-        <AutostartToggle descriptionMode="tooltip" grouped={true} />
-        <ShowTrayIcon descriptionMode="tooltip" grouped={true} />
-        <ShowOverlay descriptionMode="tooltip" grouped={true} />
+      <SettingsGroup title={t("settings.advanced.groups.model")}>
         <ModelUnloadTimeoutSetting descriptionMode="tooltip" grouped={true} />
         <MemoryPressureGuard descriptionMode="tooltip" grouped={true} />
         <MemoryHeadroom descriptionMode="tooltip" grouped={true} />
@@ -50,28 +44,12 @@ export const AdvancedSettings: React.FC = () => {
         <ExperimentalToggle descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.advanced.groups.output")}>
-        <PasteMethodSetting descriptionMode="tooltip" grouped={true} />
-        <TypingToolSetting descriptionMode="tooltip" grouped={true} />
-        <ClipboardHandlingSetting descriptionMode="tooltip" grouped={true} />
-        <AutoSubmit descriptionMode="tooltip" grouped={true} />
-        <PreviewBeforePaste descriptionMode="tooltip" grouped={true} />
-      </SettingsGroup>
-
       <SettingsGroup title={t("settings.advanced.groups.transcription")}>
         <VoiceActivityDetection descriptionMode="tooltip" grouped={true} />
         <FillerWordRemoval descriptionMode="tooltip" grouped={true} />
         <ChineseScriptSetting descriptionMode="tooltip" grouped={true} />
         <CustomWords descriptionMode="tooltip" grouped />
-        <AppendTrailingSpace descriptionMode="tooltip" grouped={true} />
-      </SettingsGroup>
-
-      <SettingsGroup title={t("settings.advanced.groups.history")}>
-        <HistoryLimit descriptionMode="tooltip" grouped={true} />
-        <RecordingRetentionPeriodSelector
-          descriptionMode="tooltip"
-          grouped={true}
-        />
+        <WordCorrectionThreshold descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
 
       {experimentalEnabled && (
