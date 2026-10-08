@@ -144,6 +144,45 @@ sudo cp -a src-tauri/transcribe-libs/. /usr/lib/VoxBar/
 
 Resources only need re-copying if they change upstream (new icons, sounds, models, etc.).
 
+## Releasing (macOS)
+
+Releases are built and signed on the release machine by `scripts/release-macos.sh`. Publishing the GitHub release (tag + uploads) stays a manual, operator-only step.
+
+### One-time: updater signing key
+
+The in-app updater verifies downloaded updates with a minisign (ed25519) keypair. Generate it once on the release machine:
+
+```bash
+mkdir -p ~/.voxbar/updater-keys && chmod 700 ~/.voxbar/updater-keys
+bunx tauri signer generate -w ~/.voxbar/updater-keys/voxbar.key --password "" --force
+chmod 600 ~/.voxbar/updater-keys/voxbar.key ~/.voxbar/updater-keys/voxbar.key.pub
+```
+
+The public key's content is embedded in `src-tauri/tauri.conf.json` under `plugins.updater.pubkey`. Custody rules:
+
+- The private key is never committed, never copied into CI, and never leaves the release machine. Only a pointer to its location belongs in notes.
+- Back it up offline before the first updater-enabled release ships. If the key is lost, every installed copy can never be updated again: the updater refuses unsigned manifests and signature verification cannot be disabled.
+
+### The script
+
+From the repo root:
+
+```bash
+nice -n 15 bash scripts/release-macos.sh
+```
+
+It reads the version from `src-tauri/tauri.conf.json` (failing unless `package.json` and `src-tauri/Cargo.toml` agree), checks the key exists with mode 600, builds with `bunx tauri build`, then in a fixed order: re-signs `VoxBar.app` with the stable designated requirement (`designated => identifier "com.voxbar.app"`), zips the app for first installs (`ditto -c -k --keepParent`), tars it for the updater (the `.app` directory must be the archive root because the updater strips the first path component when extracting), signs the tar.gz, and writes `latest.json` with the signature content and both `darwin-aarch64-app` and `darwin-aarch64` platform entries. Artifacts land in `voxbar-build-docs/v<version>/release-assets/` (overridable as the script's first argument).
+
+The order is load-bearing: the build deliberately does not set `createUpdaterArtifacts`, because the designated-requirement re-sign must happen between the build and the tar, and any artifact produced before the re-sign would verify fine but ship the wrong (pre-re-sign) app. Never hand-publish artifacts that skipped a step.
+
+### What each artifact is for
+
+- `VoxBar-<version>-macOS.zip`: first install. Unzip, drag to `/Applications`. The browser download still gets the one-time Gatekeeper treatment (see the README install section).
+- `VoxBar.app.tar.gz` + `.sig`: the updater payload and its minisign signature. Installed in-app from 1.1.0 on, no Gatekeeper prompt (the updater downloads without the quarantine flag and swaps the app bundle in place).
+- `latest.json`: the manifest the updater fetches (`releases/latest/download/latest.json`). Its `version` must be greater than the installed one or `check()` reports no update.
+
+The identifier-only designated requirement is a deliberate tradeoff for an unnotarized open-source app: it keeps the macOS code identity stable so Accessibility grants survive updates, but any binary claiming the `com.voxbar.app` identifier satisfies it. The stronger variant also pins a certificate leaf, which requires a self-signed code-signing certificate on the release machine.
+
 ## Troubleshooting
 
 ### macOS Accessibility remains enabled after a local rebuild
