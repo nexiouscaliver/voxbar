@@ -16,6 +16,9 @@ import { formatDateTime } from "@/utils/dateFormat";
 import { AudioPlayer, AudioPlayerGroup } from "../../ui/AudioPlayer";
 import { ToggleSwitch } from "../../ui/ToggleSwitch";
 import { Button } from "../../ui/Button";
+import { SettingsGroup } from "../../ui/SettingsGroup";
+import { HistoryLimit } from "../HistoryLimit";
+import { RecordingRetentionPeriodSelector } from "../RecordingRetentionPeriod";
 import { copyToClipboard } from "./clipboard";
 
 const IconButton: React.FC<{
@@ -273,6 +276,26 @@ export const HistorySettings: React.FC = () => {
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
+      {/* Settings precede data, exactly as on every other tab: the retention
+          group sits above the entries list, with the model badge toggle that
+          governs how history reads absorbed into it. */}
+      <SettingsGroup title={t("settings.history.groups.retention")}>
+        <HistoryLimit descriptionMode="tooltip" grouped={true} />
+        <RecordingRetentionPeriodSelector
+          descriptionMode="tooltip"
+          grouped={true}
+        />
+        <ToggleSwitch
+          checked={showModelBadge}
+          onChange={(enabled) => updateSetting("show_history_model", enabled)}
+          isUpdating={isUpdating("show_history_model")}
+          label={t("settings.history.showModel.label")}
+          description={t("settings.history.showModel.description")}
+          descriptionMode="tooltip"
+          grouped={true}
+          tooltipPosition="bottom"
+        />
+      </SettingsGroup>
       <div className="space-y-2">
         <div className="px-4 flex items-center justify-between">
           <div>
@@ -285,16 +308,6 @@ export const HistorySettings: React.FC = () => {
             label={t("settings.history.openFolder")}
           />
         </div>
-        <ToggleSwitch
-          checked={showModelBadge}
-          onChange={(enabled) => updateSetting("show_history_model", enabled)}
-          isUpdating={isUpdating("show_history_model")}
-          label={t("settings.history.showModel.label")}
-          description={t("settings.history.showModel.description")}
-          descriptionMode="tooltip"
-          grouped={true}
-          tooltipPosition="bottom"
-        />
         <div className="bg-background border border-mid-gray/20 rounded-lg overflow-visible">
           {content}
         </div>
