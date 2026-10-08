@@ -30,6 +30,16 @@
     "showFewerModels": "Mostra menys models",
     "recommended": "Recomanat",
     "customModelDescription": "Sense suport oficial",
+    "refusal": {
+      "title": "No hi ha prou memòria lliure",
+      "needs": "La guarda de memòria ha rebutjat carregar {{model}}: necessita ~{{needed}}, i hi ha ~{{free}} lliures.",
+      "marginNote": "S'afegeix un marge de seguretat de {{margin}} més enllà de la mida del model (ajustable a Configuració > Avançat).",
+      "retry": "Torna-ho a provar",
+      "switchModel": "Tria un altre model",
+      "disableGuard": "Carrega sense la guarda de memòria",
+      "continueDeferred": "Continua sense carregar ara",
+      "guardOffCaveat": "La guarda roman desactivada fins que la reactive a Configuració > Avançat; el model es carrega a la primera dictada."
+    },
     "modelCard": {
       "accuracy": "precisió",
       "speed": "velocitat"

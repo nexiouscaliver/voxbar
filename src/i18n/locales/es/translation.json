@@ -30,6 +30,16 @@
     "showFewerModels": "Mostrar menos modelos",
     "recommended": "Recomendado",
     "customModelDescription": "Sin soporte oficial",
+    "refusal": {
+      "title": "No hay suficiente memoria libre",
+      "needs": "La protección de memoria rechazó cargar {{model}}: necesita ~{{needed}}, y hay ~{{free}} libres.",
+      "marginNote": "Se añade un margen de seguridad de {{margin}} más allá del tamaño del modelo (ajustable en Configuración > Avanzado).",
+      "retry": "Reintentar",
+      "switchModel": "Elegir otro modelo",
+      "disableGuard": "Cargar sin la protección de memoria",
+      "continueDeferred": "Continuar sin cargar ahora",
+      "guardOffCaveat": "La protección queda desactivada hasta que la reactives en Configuración > Avanzado; el modelo se carga en el primer dictado."
+    },
     "modelCard": {
       "accuracy": "precisión",
       "speed": "velocidad"

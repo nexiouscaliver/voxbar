@@ -30,6 +30,16 @@
     "showFewerModels": "Pokaż mniej modeli",
     "recommended": "Polecane",
     "customModelDescription": "Nieoficjalnie wspierane",
+    "refusal": {
+      "title": "Za mało wolnej pamięci",
+      "needs": "Ochrona pamięci odmówiła załadowania {{model}}: potrzebuje ~{{needed}}, a wolne jest ~{{free}}.",
+      "marginNote": "Ponad rozmiar modelu doliczany jest margines bezpieczeństwa {{margin}} (do zmiany w Ustawienia > Zaawansowane).",
+      "retry": "Spróbuj ponownie",
+      "switchModel": "Wybierz inny model",
+      "disableGuard": "Załaduj bez ochrony pamięci",
+      "continueDeferred": "Kontynuuj bez ładowania",
+      "guardOffCaveat": "Ochrona pozostanie wyłączona, aż włączysz ją ponownie w Ustawienia > Zaawansowane; model załaduje się przy pierwszej dyktacji."
+    },
     "modelCard": {
       "accuracy": "dokładność",
       "speed": "szybkość"

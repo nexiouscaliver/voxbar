@@ -1,17 +1,42 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { toast } from "sonner";
+import { listen } from "@tauri-apps/api/event";
 import { ChevronDown } from "lucide-react";
-import type { ModelInfo } from "@/bindings";
+import { commands, type ModelInfo } from "@/bindings";
 import type { ModelCardStatus } from "./ModelCard";
 import ModelCard, { isLegacySource } from "./ModelCard";
 import HandyTextLogo from "../icons/HandyTextLogo";
 import { useModelStore } from "../../stores/modelStore";
+import { useSettings } from "../../hooks/useSettings";
+import type { ModelStateEvent } from "../../lib/types/events";
+import {
+  formatMarginMb,
+  formatMemoryAmount,
+  parseRefusal,
+  refusalActions,
+  type MemoryGateRefusal,
+  type RefusalAction,
+} from "./modelRefusal";
 
 interface OnboardingProps {
   onModelSelected: () => void;
   preview?: boolean;
 }
+
+/** A memory-gate refusal of the pending selection, with the data the
+ * recovery card renders. */
+interface RefusalCardState {
+  modelId: string;
+  modelName: string;
+  refusal: MemoryGateRefusal;
+}
+
+const refusalActionLabelKey: Record<RefusalAction, string> = {
+  retry: "onboarding.refusal.retry",
+  "switch-model": "onboarding.refusal.switchModel",
+  "disable-guard": "onboarding.refusal.disableGuard",
+  "continue-deferred": "onboarding.refusal.continueDeferred",
+};
 
 const Onboarding: React.FC<OnboardingProps> = ({
   onModelSelected,
@@ -29,9 +54,20 @@ const Onboarding: React.FC<OnboardingProps> = ({
     downloadStats,
     cancelDownload,
   } = useModelStore();
+  const { getSetting, updateSetting } = useSettings();
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [refusalCard, setRefusalCard] = useState<RefusalCardState | null>(null);
   const hasStartedSelection = useRef(false);
+  // The pending selection at event time: the refusal card must only answer
+  // the load this component itself started.
+  const pendingSelectionRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    pendingSelectionRef.current = selectedModelId;
+  }, [selectedModelId]);
+
+  const guardEnabled = getSetting("memory_pressure_guard") ?? true;
 
   const isBusy = selectedModelId !== null;
 
@@ -93,7 +129,9 @@ const Onboarding: React.FC<OnboardingProps> = ({
         if (success) {
           onModelSelected();
         } else {
-          toast.error(t("onboarding.errors.selectModel"));
+          // No duplicate generic toast here: the App-level loading_failed
+          // toast already carries the reason, and the persistent inline
+          // refusal card (fed by the listener below) is the real surface.
           hasStartedSelection.current = false;
           setSelectedModelId(null);
         }
@@ -110,6 +148,61 @@ const Onboarding: React.FC<OnboardingProps> = ({
     preview,
     t,
   ]);
+
+  // A memory-gate refusal of the pending selection becomes a persistent
+  // inline card with the structured numbers and four recovery actions; it
+  // never lives only in a transient toast. Debug previews stay inert.
+  useEffect(() => {
+    if (preview) return;
+    const unlisten = listen<ModelStateEvent>("model-state-changed", (event) => {
+      const payload = event.payload;
+      const refusal = parseRefusal(payload);
+      if (!refusal) return;
+      if (payload.model_id !== pendingSelectionRef.current) return;
+      setRefusalCard({
+        modelId: payload.model_id ?? "",
+        modelName: payload.model_name ?? payload.model_id ?? "",
+        refusal,
+      });
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [preview]);
+
+  const handleRefusalAction = async (action: RefusalAction) => {
+    if (preview || !refusalCard) return;
+    const id = refusalCard.modelId;
+    switch (action) {
+      case "retry":
+        setRefusalCard(null);
+        setSelectedModelId(id);
+        break;
+      case "switch-model":
+        setRefusalCard(null);
+        setSelectedModelId(null);
+        break;
+      case "disable-guard":
+        // The override the old refusal message pointed at but onboarding
+        // could never reach: flip the guard off, then retry the load. The
+        // toggle is reversible in Settings > Advanced.
+        setRefusalCard(null);
+        await updateSetting("memory_pressure_guard", false);
+        setSelectedModelId(id);
+        break;
+      case "continue-deferred":
+        try {
+          const result = await commands.setActiveModelDeferred(id);
+          if (result.status === "ok") {
+            setRefusalCard(null);
+            onModelSelected();
+          }
+        } catch (e) {
+          console.error("Failed to defer model selection:", e);
+        }
+        break;
+    }
+  };
 
   const handleDownloadModel = async (modelId: string) => {
     if (preview) return;
@@ -170,6 +263,54 @@ const Onboarding: React.FC<OnboardingProps> = ({
 
       <div className="max-w-[600px] w-full mx-auto text-center flex-1 flex flex-col min-h-0">
         <div className="space-y-6 pb-6">
+          {refusalCard && (
+            <div
+              data-testid="memory-refusal-card"
+              className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 space-y-3 text-left"
+            >
+              <h2 className="text-sm font-semibold text-text">
+                {t("onboarding.refusal.title")}
+              </h2>
+              <p className="text-sm text-text/80">
+                {t("onboarding.refusal.needs", {
+                  model: refusalCard.modelName,
+                  needed: formatMemoryAmount(refusalCard.refusal.forecastBytes),
+                  free: formatMemoryAmount(refusalCard.refusal.freeBytes),
+                })}
+              </p>
+              {refusalCard.refusal.headroomBytes > 0 && (
+                <p className="text-xs text-text/60">
+                  {t("onboarding.refusal.marginNote", {
+                    margin: formatMarginMb(refusalCard.refusal.headroomBytes),
+                  })}
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {refusalActions(refusalCard.refusal, guardEnabled).map(
+                  (action, index) => (
+                    <button
+                      key={action}
+                      type="button"
+                      onClick={() => handleRefusalAction(action)}
+                      className={
+                        index === 0
+                          ? "rounded-lg bg-text text-background px-3 py-1.5 text-sm font-medium hover:opacity-90 transition-opacity"
+                          : "rounded-lg border border-text/20 px-3 py-1.5 text-sm font-medium text-text hover:bg-text/10 transition-colors"
+                      }
+                    >
+                      {t(refusalActionLabelKey[action])}
+                    </button>
+                  ),
+                )}
+              </div>
+              {guardEnabled && (
+                <p className="text-xs text-text/50">
+                  {t("onboarding.refusal.guardOffCaveat")}
+                </p>
+              )}
+            </div>
+          )}
+
           {models.some((m: ModelInfo) => m.is_downloaded) && (
             <div className="space-y-3">
               <div className="text-left">

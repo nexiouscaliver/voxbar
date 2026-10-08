@@ -30,6 +30,16 @@
     "showFewerModels": "Zobrazit méně modelů",
     "recommended": "Doporučeno",
     "customModelDescription": "Oficiálně nepodporováno",
+    "refusal": {
+      "title": "Nedostatek volné paměti",
+      "needs": "Ochrana paměti odmítla načíst {{model}}: potřebuje ~{{needed}}, volných je ~{{free}}.",
+      "marginNote": "Nad velikost modelu se přičítá bezpečnostní rezerva {{margin}} (upravitelné v Nastavení > Pokročilé).",
+      "retry": "Zkusit znovu",
+      "switchModel": "Vybrat jiný model",
+      "disableGuard": "Načíst bez ochrany paměti",
+      "continueDeferred": "Pokračovat bez načtení",
+      "guardOffCaveat": "Ochrana zůstane vypnutá, dokud ji znovu nezapnete v Nastavení > Pokročilé; model se načte při prvním diktování."
+    },
     "modelCard": {
       "accuracy": "přesnost",
       "speed": "rychlost"

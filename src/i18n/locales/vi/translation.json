@@ -30,6 +30,16 @@
     "showFewerModels": "Hiển thị ít mô hình hơn",
     "recommended": "Đề xuất",
     "customModelDescription": "Không được hỗ trợ chính thức",
+    "refusal": {
+      "title": "Không đủ bộ nhớ trống",
+      "needs": "Bảo vệ bộ nhớ đã từ chối tải {{model}}: cần ~{{needed}}, và còn ~{{free}} trống.",
+      "marginNote": "Một biên an toàn {{margin}} được cộng thêm ngoài kích thước mô hình (chỉnh trong Cài đặt > Nâng cao).",
+      "retry": "Thử lại",
+      "switchModel": "Chọn mô hình khác",
+      "disableGuard": "Tải mà không có bảo vệ bộ nhớ",
+      "continueDeferred": "Tiếp tục mà không tải bây giờ",
+      "guardOffCaveat": "Bảo vệ giữ tắt cho đến khi bạn bật lại trong Cài đặt > Nâng cao; mô hình sẽ tải ở lần đọc đầu tiên."
+    },
     "modelCard": {
       "accuracy": "độ chính xác",
       "speed": "tốc độ"

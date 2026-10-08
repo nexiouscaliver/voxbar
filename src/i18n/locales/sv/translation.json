@@ -30,6 +30,16 @@
     "showFewerModels": "Visa färre modeller",
     "recommended": "Rekommenderat",
     "customModelDescription": "Stöds inte officiellt",
+    "refusal": {
+      "title": "Inte tillräckligt ledigt minne",
+      "needs": "Minnesskyddet vägrade läsa in {{model}}: det krävs ~{{needed}}, och ~{{free}} är ledigt.",
+      "marginNote": "En säkerhetsmarginal på {{margin}} läggs utöver modellens storlek (justeras i Inställningar > Avancerat).",
+      "retry": "Försök igen",
+      "switchModel": "Välj en annan modell",
+      "disableGuard": "Läs in utan minnesskyddet",
+      "continueDeferred": "Fortsätt utan att läsa in nu",
+      "guardOffCaveat": "Skyddet förblir avstängt tills du slår på det igen i Inställningar > Avancerat; modellen läses in vid första dikteringen."
+    },
     "modelCard": {
       "accuracy": "noggrannhet",
       "speed": "hastighet"

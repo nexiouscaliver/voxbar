@@ -30,6 +30,16 @@
     "showFewerModels": "显示较少模型",
     "recommended": "推荐",
     "customModelDescription": "非官方支持",
+    "refusal": {
+      "title": "可用内存不足",
+      "needs": "内存防护拒绝加载{{model}}：需要约 {{needed}}，当前可用约 {{free}}。",
+      "marginNote": "在模型大小之外另计 {{margin}} 安全余量（可在 设置 > 高级 中调整）。",
+      "retry": "重试",
+      "switchModel": "选择其他模型",
+      "disableGuard": "关闭内存防护后加载",
+      "continueDeferred": "暂不加载，继续",
+      "guardOffCaveat": "防护将保持关闭，直到你在 设置 > 高级 中重新开启；模型会在第一次听写时加载。"
+    },
     "modelCard": {
       "accuracy": "准确度",
       "speed": "速度"

@@ -30,6 +30,16 @@
     "showFewerModels": "Afficher moins de modèles",
     "recommended": "Recommandé",
     "customModelDescription": "Non officiellement pris en charge",
+    "refusal": {
+      "title": "Mémoire libre insuffisante",
+      "needs": "La garde de pression mémoire a refusé de charger {{model}} : il faut ~{{needed}}, et ~{{free}} sont libres.",
+      "marginNote": "Une marge de sécurité de {{margin}} s'ajoute au-delà de la taille du modèle (réglable dans Paramètres > Avancé).",
+      "retry": "Réessayer",
+      "switchModel": "Choisir un autre modèle",
+      "disableGuard": "Charger sans la garde mémoire",
+      "continueDeferred": "Continuer sans charger maintenant",
+      "guardOffCaveat": "La garde reste désactivée jusqu'à réactivation dans Paramètres > Avancé ; le modèle se charge à la première dictée."
+    },
     "modelCard": {
       "accuracy": "précision",
       "speed": "vitesse"

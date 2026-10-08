@@ -30,6 +30,16 @@
     "showFewerModels": "表示を減らす",
     "recommended": "おすすめ",
     "customModelDescription": "公式サポート対象外",
+    "refusal": {
+      "title": "空きメモリが足りません",
+      "needs": "メモリガードは{{model}}の読み込みを拒否しました: 約{{needed}}必要で、空きは約{{free}}です。",
+      "marginNote": "モデルのサイズに加えて{{margin}}の安全マージンが考慮されます（設定 > 詳細で調整できます）。",
+      "retry": "再試行",
+      "switchModel": "別のモデルを選ぶ",
+      "disableGuard": "メモリガードなしで読み込む",
+      "continueDeferred": "読み込まずに続行",
+      "guardOffCaveat": "ガードは設定 > 詳細で再有効化するまでオフのままです。モデルは最初のディテーション時に読み込まれます。"
+    },
     "modelCard": {
       "accuracy": "精度",
       "speed": "速度"

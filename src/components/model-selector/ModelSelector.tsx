@@ -34,6 +34,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     verifyingModels,
     extractingModels,
     selectModel,
+    error: storeError,
   } = useModelStore();
 
   const [modelStatus, setModelStatus] = useState<ModelStatus>("unloaded");
@@ -220,7 +221,11 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             })
           : t("modelSelector.extractingGeneric");
       case "error":
-        return modelError || t("modelSelector.modelError");
+        // The listener's message first, then the store's (the auto-select
+        // loop swallows its selectModel failures into the store), so a
+        // main-app refusal shows its reason once instead of a silent
+        // nothing.
+        return modelError || storeError || t("modelSelector.modelError");
       case "unloaded":
         return currentModelInfo
           ? getTranslatedModelName(currentModelInfo, t)
