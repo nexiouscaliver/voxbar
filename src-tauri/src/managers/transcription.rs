@@ -360,6 +360,65 @@ fn join_raw(base: &str, rest: &str) -> String {
     }
 }
 
+/// Case- and attached-punctuation-insensitive token key for the final-fold
+/// alignment (the spirit of commands.rs `normalize_token`: "Hello," and
+/// "hello" are the same word).
+fn fold_alignment_key(token: &str) -> String {
+    token
+        .trim_matches(|c: char| !c.is_alphanumeric())
+        .to_lowercase()
+}
+
+/// Byte offset into `final_raw` after the last token that aligns with
+/// `raw_seen` under normalized token comparison, when EVERY token of
+/// `raw_seen` aligns with a leading sequence of `final_raw` tokens.
+/// Punctuation-only `final_raw` tokens (standalone marks the engine added
+/// around words) align with anything and are skipped; punctuation-only
+/// `raw_seen` tokens are skipped the same way. `None` when even normalized
+/// tokens diverge before `raw_seen` is exhausted, so the caller falls back
+/// to the byte-prefix behavior (worst case: the status quo).
+fn reentry_offset(raw_seen: &str, final_raw: &str) -> Option<usize> {
+    let mut ranges: Vec<(usize, usize)> = Vec::new();
+    let mut start: Option<usize> = None;
+    for (index, c) in final_raw.char_indices() {
+        if c.is_whitespace() {
+            if let Some(open) = start.take() {
+                ranges.push((open, index));
+            }
+        } else if start.is_none() {
+            start = Some(index);
+        }
+    }
+    if let Some(open) = start {
+        ranges.push((open, final_raw.len()));
+    }
+
+    let mut next = 0usize;
+    for raw_token in raw_seen.split_whitespace() {
+        let want = fold_alignment_key(raw_token);
+        if want.is_empty() {
+            continue;
+        }
+        loop {
+            let Some(&(from, to)) = ranges.get(next) else {
+                // final_raw ran out of tokens before raw_seen aligned.
+                return None;
+            };
+            let key = fold_alignment_key(&final_raw[from..to]);
+            if key.is_empty() {
+                next += 1;
+                continue;
+            }
+            if key == want {
+                next += 1;
+                break;
+            }
+            return None;
+        }
+    }
+    Some(if next == 0 { 0 } else { ranges[next - 1].1 })
+}
+
 /// The live dictation buffer of an active streaming session.
 ///
 /// The engine owns the authoritative raw text and only hands out snapshots
@@ -691,6 +750,19 @@ impl StreamSessionBuffer {
     /// alone must not trigger a parse). The flush consumes from the common
     /// prefix with `raw_seen`; everything beyond stays dictation and the
     /// fold appends it as usual.
+    ///
+    /// The engine's final "full" text may rewrite anywhere (transcribe-cpp
+    /// documents it as such), so after any manual edit the byte common
+    /// prefix can diverge inside `raw_seen` on a mere casing flip or an
+    /// added comma. When that happens the fold prefers normalized token
+    /// alignment ([`reentry_offset`]): every raw_seen token that aligns
+    /// case- and punctuation-insensitively counts as consumed, so the
+    /// final's re-wording of those tokens does not re-enter the buffer.
+    /// When even normalized tokens diverge (the engine genuinely dropped
+    /// or replaced words) the fold falls back to the byte-prefix behavior,
+    /// and the final text wins for genuinely new material: the paste is
+    /// authoritative and can differ from the last interim display (a
+    /// residual documented, not silently ignored).
     fn combine_final(&mut self, final_raw: String) -> String {
         let combined = if self.live {
             if self.holding {
@@ -700,7 +772,14 @@ impl StreamSessionBuffer {
                 self.raw_seen = final_raw[..start + consumed].to_string();
                 self.holding = false;
             }
-            let keep = common_prefix_len(&self.raw_seen, &final_raw);
+            let byte_keep = common_prefix_len(&self.raw_seen, &final_raw);
+            let keep = if byte_keep == self.raw_seen.len() {
+                byte_keep
+            } else {
+                // The engine rewrote bytes inside raw_seen: try the
+                // normalized token alignment before falling back to bytes.
+                reentry_offset(&self.raw_seen, &final_raw).unwrap_or(byte_keep)
+            };
             join_raw(&self.base, &final_raw[keep..])
         } else {
             final_raw
@@ -3477,6 +3556,50 @@ mod tests {
         assert_eq!(
             session.render("hello world comma", "", true),
             "hello world,"
+        );
+    }
+
+    /// A session edited exactly as render() leaves it after a command-mode
+    /// comma: base "hello world," with raw_seen "hello world comma".
+    fn command_edited_session() -> StreamSessionBuffer {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+        session.render("hello world comma", "", true);
+        session
+    }
+
+    #[test]
+    fn session_buffer_final_fold_survives_final_text_divergence_after_edit() {
+        // The final decode capitalizes and punctuates around the words, so
+        // the byte common prefix stops at byte 0; the fold must not
+        // re-append the whole final text after the edited base.
+        let mut fold = command_edited_session();
+        assert_eq!(
+            fold.combine_final("Hello world, comma.".to_string()),
+            "hello world,"
+        );
+        let mut fold_two = command_edited_session();
+        assert_eq!(
+            fold_two.combine_final("Hello, world comma.".to_string()),
+            "hello world,"
+        );
+        // Identical-prefix control: byte-identical to the byte-prefix fold.
+        let mut control = command_edited_session();
+        assert_eq!(
+            control.combine_final("hello world comma three".to_string()),
+            "hello world, three"
+        );
+    }
+
+    #[test]
+    fn session_buffer_final_fold_survives_casing_divergence_after_hotkey_delete() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.delete_last_word(); // base "hello ", raw_seen "hello world"
+        assert_eq!(
+            session.combine_final("Hello world and more".to_string()),
+            "hello and more"
         );
     }
 
