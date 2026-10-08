@@ -615,6 +615,15 @@
           "simplified": "Basitleştirilmiş",
           "traditional": "Geleneksel"
         }
+      },
+      "numberFormat": {
+        "title": "Söylenen sayılar",
+        "description": "Söylenen sayıları rakam olarak yazar, böylece \"one eight zero one\" 1801 olarak yapıştırılır. \"Transkript edildiği gibi\" sayıları söylendiği gibi tutar; Smart ayrıca bileşik sıra sayılarını ve on bir ve üzeri tek sayıları dönüştürür.",
+        "options": {
+          "asTranscribed": "Transkripsiyondaki gibi",
+          "digits": "Rakamlar",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

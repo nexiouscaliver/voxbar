@@ -615,6 +615,15 @@
           "simplified": "Simplified",
           "traditional": "Traditional"
         }
+      },
+      "numberFormat": {
+        "title": "Spoken Numbers",
+        "description": "Writes spoken number words as digits, so \"one eight zero one\" pastes as 1801. As Transcribed keeps numbers as spoken; Smart also converts compound ordinals and lone numbers from eleven up.",
+        "options": {
+          "asTranscribed": "As Transcribed",
+          "digits": "Digits",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

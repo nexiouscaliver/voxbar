@@ -615,6 +615,15 @@
           "simplified": "Sederhana",
           "traditional": "Tradisional"
         }
+      },
+      "numberFormat": {
+        "title": "Angka lisan",
+        "description": "Menulis kata angka lisan sebagai digit, sehingga \"one eight zero one\" ditempel sebagai 1801. \"Sesuai transkrip\" mempertahankan angka seperti diucapkan; Smart juga mengonversi bilangan tingkat majemuk dan angka tunggal sebelas ke atas.",
+        "options": {
+          "asTranscribed": "Sesuai transkripsi",
+          "digits": "Digit",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

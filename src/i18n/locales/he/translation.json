@@ -615,6 +615,15 @@
           "simplified": "מפושט",
           "traditional": "מסורתי"
         }
+      },
+      "numberFormat": {
+        "title": "מספרים מדוברים",
+        "description": "כותב מילות מספר מדוברות כספרות, כך ש-\"one eight zero one\" יודבק כ-1801. \"כפי שתועתק\" שומר מספרים כפי שנאמרו; Smart ממיר גם מספרים סודרים מורכבים ומספרים בודדים מאחת עשרה ומעלה.",
+        "options": {
+          "asTranscribed": "כפי שתומלל",
+          "digits": "ספרות",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

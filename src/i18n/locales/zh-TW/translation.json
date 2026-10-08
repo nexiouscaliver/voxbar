@@ -615,6 +615,15 @@
           "simplified": "簡體",
           "traditional": "繁體"
         }
+      },
+      "numberFormat": {
+        "title": "語音數字",
+        "description": "將口述的數字詞寫成數字，\"one eight zero one\" 會以 1801 貼上。「保持原樣」讓數字保持口述原詞；Smart 還會轉換複合序數詞以及十一以上的單一數字。",
+        "options": {
+          "asTranscribed": "保持原樣",
+          "digits": "數字",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

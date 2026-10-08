@@ -564,6 +564,15 @@
           "simplified": "مبسطة",
           "traditional": "تقليدية"
         }
+      },
+      "numberFormat": {
+        "title": "الأرقام المنطوقة",
+        "description": "يكتب أرقام الكلام المنطوق كأرقام، فيُلصق \"one eight zero one\" كـ 1801. \"كما نُطق\" يبقي الأرقام كما نُطقت؛ ويحوّل Smart أيضاً الأعداد الترتيبية المركبة والأرقام المفردة من أحد عشر فأعلى.",
+        "options": {
+          "asTranscribed": "كما نُسخ",
+          "digits": "أرقام",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

@@ -447,6 +447,13 @@ async changeAutoInterpretCommandsSetting(enabled: boolean) : Promise<Result<null
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Write the edited command matrix. `Some(entries)` normalizes every
+ * phrase and validates the table (empty phrases, over-length phrases,
+ * duplicates across commands) before anything is persisted; the error
+ * string surfaces in the UI toast. `None` resets to the built-in
+ * defaults.
+ */
 async updateCommandMatrix(entries: CommandMatrixEntry[] | null) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_command_matrix", { entries }) };
@@ -455,6 +462,11 @@ async updateCommandMatrix(entries: CommandMatrixEntry[] | null) : Promise<Result
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * The built-in default command matrix, read by the Settings editor so
+ * the default phrases come from the backend instead of being duplicated
+ * in TypeScript.
+ */
 async getDefaultCommandMatrix() : Promise<CommandMatrixEntry[]> {
     return await TAURI_INVOKE("get_default_command_matrix");
 },
@@ -482,6 +494,11 @@ async changePreviewBeforePasteSetting(enabled: boolean) : Promise<Result<null, s
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Flip the delete-last-word master toggle and register or unregister its
+ * binding to match, mirroring how the post-processing toggle drives its
+ * shortcut.
+ */
 async changeDeleteLastWordEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_delete_last_word_enabled_setting", { enabled }) };
@@ -490,6 +507,10 @@ async changeDeleteLastWordEnabledSetting(enabled: boolean) : Promise<Result<null
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Flip the undo master toggle and register or unregister its binding to
+ * match.
+ */
 async changeUndoEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_undo_enabled_setting", { enabled }) };
@@ -498,6 +519,10 @@ async changeUndoEnabledSetting(enabled: boolean) : Promise<Result<null, string>>
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Flip the command-mode master toggle and register or unregister its
+ * modifier binding to match.
+ */
 async changeCommandModeEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_command_mode_enabled_setting", { enabled }) };
@@ -509,6 +534,14 @@ async changeCommandModeEnabledSetting(enabled: boolean) : Promise<Result<null, s
 async changeChineseScriptSetting(script: ChineseScript) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_chinese_script_setting", { script }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async changeNumberFormatSetting(format: NumberFormat) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_number_format_setting", { format }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -803,6 +836,15 @@ async setActiveModel(modelId: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Persist the model selection WITHOUT loading it: the recovery path for a
+ * first-run memory-gate refusal. Onboarding can complete with a downloaded
+ * but unloaded model, and the first hotkey press loads it on demand (the
+ * same on-demand load the "Immediately" unload timeout uses). Validations
+ * mirror `switch_active_model`; on an unknown or undownloaded model the
+ * settings are never touched. Nothing loads, so no loading-slot claim is
+ * needed.
+ */
 async setActiveModelDeferred(modelId: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("set_active_model_deferred", { modelId }) };
@@ -894,6 +936,12 @@ async getMicrophoneMode() : Promise<Result<boolean, string>> {
 async getWindowsMicrophonePermissionStatus() : Promise<WindowsMicrophonePermissionStatus> {
     return await TAURI_INVOKE("get_windows_microphone_permission_status");
 },
+/**
+ * Open the OS microphone privacy pane. On macOS this is the recovery path
+ * for a user who denied the mic in the system dialog: the TCC state can
+ * only be flipped from System Settings > Privacy & Security > Microphone,
+ * so the mic-denial guidance card links here.
+ */
 async openMicrophonePrivacySettings() : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("open_microphone_privacy_settings") };
@@ -994,6 +1042,12 @@ async setSelectedChannel(channel: number | null) : Promise<Result<null, string>>
 async setModelUnloadTimeout(timeout: ModelUnloadTimeout) : Promise<void> {
     await TAURI_INVOKE("set_model_unload_timeout", { timeout });
 },
+/**
+ * Set the idle-unload timeout to a custom seconds value (the Settings
+ * numeric field and any future UI that speaks seconds). Rejects
+ * out-of-range values instead of clamping so a UI bug can't silently write
+ * a 3-second or 30-day timeout the user never saw.
+ */
 async setModelUnloadTimeoutCustomSeconds(seconds: number) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("set_model_unload_timeout_custom_seconds", { seconds }) };
@@ -1149,7 +1203,16 @@ whats_new_last_seen_version?: string; selected_model?: string; onboarding_comple
  * Which input channel to use on the selected microphone device.
  * None means "average all channels" (original behavior).
  */
-selected_channel?: number | null; clamshell_microphone?: string | null; selected_output_device?: string | null; translate_to_english?: boolean; selected_language?: string; overlay_position?: OverlayPosition; debug_mode?: boolean; log_level?: LogLevel; custom_words?: string[]; model_unload_timeout?: ModelUnloadTimeout; memory_pressure_guard?: boolean;
+selected_channel?: number | null; clamshell_microphone?: string | null; selected_output_device?: string | null; translate_to_english?: boolean; selected_language?: string; overlay_position?: OverlayPosition; debug_mode?: boolean; log_level?: LogLevel; 
+/**
+ * Built-in dictionary seed so the speech models stop mishearing the app
+ * name ("woksbar", "woxbar", "worksbar" and similar). Applies only when
+ * the stored settings have no `custom_words` key (fresh installs, or
+ * stores written before the setting existed). A user who edits the list,
+ * including deleting the seed, has an explicit key persisted and is never
+ * clobbered or re-seeded.
+ */
+custom_words?: string[]; model_unload_timeout?: ModelUnloadTimeout; memory_pressure_guard?: boolean; 
 /**
  * Memory safety margin for the memory-pressure gate, in MB: free RAM
  * kept above the model's forecast footprint before the gate refuses a
@@ -1158,20 +1221,72 @@ selected_channel?: number | null; clamshell_microphone?: string | null; selected
  * with a validation message); a stale stored 1-4 normalizes to 0 on
  * load as a store guard.
  */
-memory_gate_headroom_mb?: number; auto_fallback?: boolean; menu_bar_model_title?: boolean; word_correction_threshold?: number; history_limit?: number; show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; theme?: Theme; accent_color?: string; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; paste_delay_after_ms?: number; 
+memory_gate_headroom_mb?: number; 
+/**
+ * When the memory-pressure guard refuses the selected model AND this is
+ * on, automatically load the best already-downloaded model that fits
+ * free RAM instead of failing the dictation. Off reproduces the plain
+ * refuse-with-toast behavior.
+ */
+auto_fallback?: boolean; 
+/**
+ * Show the resident model + compact RAM as the macOS menu-bar title
+ * (next to the tray icon). Off never produces a title, clearing any
+ * currently-displayed one.
+ */
+menu_bar_model_title?: boolean; word_correction_threshold?: number; history_limit?: number; 
+/**
+ * Show the compact per-entry model badge in the History list.
+ */
+show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; theme?: Theme; accent_color?: string; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; paste_delay_after_ms?: number; 
 /**
  * Debug-gated ("beta") receipt-sequenced paste: restore the clipboard only
  * after the target app actually reads the transcript, instead of after a
  * fixed delay. See `paste_tx`. macOS and Windows only.
  */
-reliable_paste?: boolean; typing_tool?: TypingTool; external_script_path?: string | null; filler_word_removal_enabled?: boolean; custom_filler_words?: string[] | null; command_phrases?: CommandMatrixEntry[] | null; spoken_punctuation?: boolean; auto_interpret_commands?: boolean; terminal_punctuation?: boolean; voice_deletion_commands?: boolean;
+reliable_paste?: boolean; typing_tool?: TypingTool; external_script_path?: string | null; filler_word_removal_enabled?: boolean; custom_filler_words?: string[] | null; 
+/**
+ * The edited command matrix: one row per command with its spoken
+ * phrases. None means the built-in defaults; Some means the operator
+ * edited the table and the full edited list is persisted (the
+ * precedent of `custom_words`). Consequence, accepted: an operator
+ * who edited the matrix does not automatically gain default phrases
+ * added in later versions; clearing the setting back to None resets.
+ */
+command_phrases?: CommandMatrixEntry[] | null; 
+/**
+ * Convert standalone spoken punctuation tokens ("comma", "full stop",
+ * "question mark", ...) into real punctuation before custom-word
+ * correction.
+ */
+spoken_punctuation?: boolean; 
+/**
+ * Master gate over the two spoken-command passes in NORMAL dictation
+ * (spoken punctuation and voice deletion): ON is exactly today's
+ * behavior; OFF leaves command words as plain transcribed words. The
+ * command-mode modifier is a separate surface and is NOT gated by
+ * this toggle.
+ */
+auto_interpret_commands?: boolean; 
+/**
+ * Ensure every transcript ends with terminal punctuation: "?" when the
+ * first word is an interrogative, otherwise ".".
+ */
+terminal_punctuation?: boolean; 
+/**
+ * Voice deletion commands: "scratch that" / "delete that" remove the
+ * preceding word, "delete last N words" removes several, "delete line"
+ * clears the trailing line, and "delete everything" /
+ * "scratch everything" clears the transcription.
+ */
+voice_deletion_commands?: boolean; 
 /**
  * Briefly show the final transcription in the recording overlay before
  * it is pasted (~1.2s). Gives non-streaming (batch) models the same
  * final-text confirmation the live overlay gives streaming models; off
  * pastes immediately as before.
  */
-preview_before_paste?: boolean;
+preview_before_paste?: boolean; 
 /**
  * Master toggle for the assignable "delete last word" hotkey action.
  * The action also ships unbound, so it stays inert until the operator
@@ -1185,24 +1300,40 @@ delete_last_word_enabled?: boolean;
  */
 undo_enabled?: boolean; 
 /**
- * Master toggle for command mode: a second, assignable recording
- * trigger whose whole transcript is parsed as a command sequence
- * (punctuation, line breaks, delete word/line, undo, paste) instead of
- * being pasted as dictation text. Ships unbound, so it stays inert
- * until the operator binds a key.
+ * Master toggle for command mode: the assignable during-dictation
+ * modifier that switches a live dictation session into command
+ * interpretation (punctuation, line breaks, delete word/line editing
+ * the session buffer). Ships unbound, so it stays inert until the
+ * operator binds a key.
  */
 command_mode_enabled?: boolean; 
 /**
  * Fresh installs default from the OS locale; existing stores are migrated
  * in `apply_settings_migrations`.
  */
-chinese_script?: ChineseScript; transcribe_accelerator?: TranscribeAcceleratorSetting; ort_accelerator?: OrtAcceleratorSetting; 
+chinese_script?: ChineseScript; 
+/**
+ * Spoken number formatting (number_format.rs): digits for the default
+ * fix, smart for prose-friendly extras, as_transcribed for the exact
+ * 1.1.0 behavior. The plain serde default (Digits) also covers legacy
+ * stores that predate the key.
+ */
+number_format?: NumberFormat; transcribe_accelerator?: TranscribeAcceleratorSetting; ort_accelerator?: OrtAcceleratorSetting; 
 /**
  * Stable transcribe.cpp device selector. This is derived from the backend's
  * `device_id` when available (or its name for backends such as Metal),
  * never from the process-local device registry index.
  */
-transcribe_gpu_device?: string | null; extra_recording_buffer_ms?: number; streaming_release_tail_ms?: number; vad_enabled?: boolean;
+transcribe_gpu_device?: string | null; extra_recording_buffer_ms?: number; 
+/**
+ * Post-release capture floor for STREAMING sessions only: releasing
+ * the hotkey the instant a spoken command word ends otherwise
+ * truncates its tail and the command silently fails. The stop path
+ * uses max(extra_recording_buffer_ms, streaming_release_tail_ms) when
+ * the recording ran with an active stream; batch sessions are
+ * untouched. 0 restores the old no-tail behavior exactly.
+ */
+streaming_release_tail_ms?: number; vad_enabled?: boolean; 
 /**
  * Experimental detector implementation. Silero remains the stable default.
  */
@@ -1227,7 +1358,14 @@ export type ChineseScript =
  */
 "as_transcribed" | "simplified" | "traditional"
 export type ClipboardHandling = "dont_modify" | "copy_to_clipboard"
+/**
+ * One command of the matrix. Thirty fixed commands; only their PHRASES
+ * are editable. camelCase serde names are the persisted and TS contract.
+ */
 export type CommandId = "period" | "comma" | "questionMark" | "exclamation" | "colon" | "semicolon" | "dash" | "newLine" | "newParagraph" | "atSign" | "hash" | "dollarSign" | "percent" | "star" | "ampersand" | "caret" | "openParen" | "closeParen" | "openBracket" | "closeBracket" | "openBrace" | "closeBrace" | "slash" | "backslash" | "pipe" | "deleteWord" | "deleteLine" | "clearAll" | "undo" | "paste"
+/**
+ * One matrix row: a command and its editable spoken phrases.
+ */
 export type CommandMatrixEntry = { command: CommandId; phrases: string[] }
 export type CustomSounds = { start: boolean; stop: boolean }
 export type EngineType = 
@@ -1242,16 +1380,66 @@ export type GpuDeviceOption = { id: string; name: string; total_vram_mb: number 
  * Structured failure kinds for the add-from-Hugging-Face flow, so the
  * frontend can localize each instead of showing raw error strings.
  */
-export type HfModelError = { InvalidInput: { detail: string } } | { RepoNotFound: { repo_id: string } } | { Inaccessible: { repo_id: string } } | { FileNotFound: { repo_id: string; filename: string } } | { NoGgufFiles: { repo_id: string } } | { Network: { detail: string } } | { DownloadFailed: { detail: string } } | "Cancelled" | { UnsupportedArchitecture: { architecture: string | null; supported: string[] } }
+export type HfModelError = 
+/**
+ * The pasted text is not a repo URL, owner/name, or owner/name/file.gguf.
+ */
+{ InvalidInput: { detail: string } } | { RepoNotFound: { repo_id: string } } | 
+/**
+ * The repo cannot be read anonymously: to an unauthenticated caller the
+ * Hub answers 401 identically for a repo that does not exist and one
+ * that is private or gated, so the two cannot be told apart. v1 supports
+ * public repos only (no token is ever sent).
+ */
+{ Inaccessible: { repo_id: string } } | { FileNotFound: { repo_id: string; filename: string } } | { NoGgufFiles: { repo_id: string } } | { Network: { detail: string } } | { DownloadFailed: { detail: string } } | 
+/**
+ * The user cancelled the download (the partial is kept for resume).
+ */
+"Cancelled" | 
+/**
+ * The downloaded GGUF's `general.architecture` is not one the engines
+ * support; nothing was registered and the blob was deleted.
+ */
+{ UnsupportedArchitecture: { architecture: string | null; supported: string[] } }
 /**
  * The repo listing handed to the UI when the user's input resolves.
  */
-export type HfModelResolution = { repo_id: string; revision: string | null; files: HfRepoFile[]; suggested_filename: string }
+export type HfModelResolution = { repo_id: string; 
+/**
+ * Commit sha the listing was read at. Pinning the download to it keeps
+ * the fetched bytes identical to the listed sizes; `None` falls back to
+ * `main`.
+ */
+revision: string | null; 
+/**
+ * Every `.gguf` in the repo, sorted by filename for display.
+ */
+files: HfRepoFile[]; 
+/**
+ * The file to download when the user does not choose one: the input's
+ * own file, else the quant preference below.
+ */
+suggested_filename: string }
 /**
  * One `.gguf` file inside a Hugging Face repo, as listed by the metadata API.
  */
-export type HfRepoFile = { filename: string; size_bytes: number | null }
-export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean; model_id: string | null }
+export type HfRepoFile = { 
+/**
+ * Path within the repo (subfolders included).
+ */
+filename: string; 
+/**
+ * Blob size in bytes when the API reported it.
+ */
+size_bytes: number | null }
+export type HistoryEntry = { id: number; file_name: string; timestamp: number; saved: boolean; title: string; transcription_text: string; post_processed_text: string | null; post_process_prompt: string | null; post_process_requested: boolean; 
+/**
+ * Model id that actually produced `transcription_text` (the resident
+ * model at transcription time - after a RAM auto-fallback this is the
+ * fallback). `None` for pre-migration entries or when the model was
+ * unknown (e.g. a failed transcription saved for retry).
+ */
+model_id: string | null }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
  * Result of changing keyboard implementation
@@ -1295,7 +1483,24 @@ sha256: string | null } } |
  * in a shared cache. Nothing to download.
  */
 "Local"
-export type ModelUnloadTimeout = "never" | "immediately" | "min_2" | "min_5" | "min_10" | "min_15" | "hour_1" | "sec_15" | { custom: { seconds: number } }
+export type ModelUnloadTimeout = "never" | "immediately" | "min_2" | "min_5" | "min_10" | "min_15" | "hour_1" | "sec_15" | 
+/**
+ * User-entered idle timeout in seconds (tray "Unload After → Custom…"
+ * and the Settings numeric field). Serialized as
+ * `{"custom":{"seconds":N}}`; the fixed variants above keep their
+ * string wire format, so stored settings are unaffected.
+ */
+{ custom: { seconds: number } }
+/**
+ * How spoken number words are written in the transcript. Post-model and
+ * deterministic (number_format.rs); `as_transcribed` restores the 1.1.0
+ * behavior byte-for-byte. The release default is `digits` because the
+ * words-not-digits transcripts operators hit (Parakeet-class engines
+ * spell every number out) must stop happening out of the box: old stores
+ * without the key deserialize to `digits` via the derived default, and
+ * `NumberFormat::default()` agrees (no constructed/derived split).
+ */
+export type NumberFormat = "as_transcribed" | "digits" | "smart"
 export type OrtAcceleratorSetting = "auto" | "cpu" | "cuda" | "directml" | "rocm"
 export type OverlayPosition = "top" | "bottom"
 /**
@@ -1388,12 +1593,16 @@ kind?: StreamWorkKind | null }
 /**
  * Live transcription snapshot emitted to the overlay during a streaming run.
  * `committed` is the append-only, flicker-free prefix; `tentative` is the
- * volatile suffix the model may still rewrite.
+ * volatile suffix the model may still rewrite. `deleted` carries the text a
+ * buffer-side deletion just removed (the delete-word hotkey or a command-mode
+ * DeleteWord / DeleteLine) so the overlay can show what went; absent from
+ * the payload entirely when nothing was deleted.
  */
-export type StreamTextEvent = { committed: string; tentative: string;
+export type StreamTextEvent = { committed: string; tentative: string; 
 /**
- * Present only when a buffer-side deletion just removed text; the payload
- * omits the key entirely otherwise.
+ * Present only when a buffer-side deletion just removed text; the
+ * payload omits the key entirely otherwise (the StreamPhaseEvent
+ * `kind` precedent).
  */
 deleted?: string | null }
 /**

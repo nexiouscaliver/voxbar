@@ -615,6 +615,15 @@
           "simplified": "Vereinfacht",
           "traditional": "Traditionell"
         }
+      },
+      "numberFormat": {
+        "title": "Gesprochene Zahlen",
+        "description": "Schreibt gesprochene Zahlwörter als Ziffern, sodass \"one eight zero one\" als 1801 eingefügt wird. \"Wie transkribiert\" behält Zahlen wie gesprochen; Smart wandelt zusätzlich zusammengesetzte Ordinalzahlen und Einzelzahlen ab elf um.",
+        "options": {
+          "asTranscribed": "Wie transkribiert",
+          "digits": "Ziffern",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

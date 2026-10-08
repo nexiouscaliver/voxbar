@@ -615,6 +615,15 @@
           "simplified": "Zjednodušené",
           "traditional": "Tradiční"
         }
+      },
+      "numberFormat": {
+        "title": "Mluvená čísla",
+        "description": "Zapisuje mluvená čísla jako číslice, takže \"one eight zero one\" se vloží jako 1801. \"Jak přepsáno\" ponechá čísla tak, jak byla řečena; Smart navíc převádí složené řadové číslovky a samostatná čísla od jedenácti výš.",
+        "options": {
+          "asTranscribed": "Jak bylo přepsáno",
+          "digits": "Číslice",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

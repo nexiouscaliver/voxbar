@@ -615,6 +615,15 @@
           "simplified": "簡体字",
           "traditional": "繁体字"
         }
+      },
+      "numberFormat": {
+        "title": "音声数値",
+        "description": "読み上げた数値語を数字で書き出し、\"one eight zero one\" は 1801 として貼り付けられます。「文字起こしのまま」は数値を話したとおりに残し、Smart は合成序数や11以上の単独の数も変換します。",
+        "options": {
+          "asTranscribed": "文字起こしのまま",
+          "digits": "数字",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

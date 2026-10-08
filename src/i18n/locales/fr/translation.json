@@ -615,6 +615,15 @@
           "simplified": "Simplifié",
           "traditional": "Traditionnel"
         }
+      },
+      "numberFormat": {
+        "title": "Nombres dictés",
+        "description": "Écrit les nombres dictés en chiffres, ainsi \"one eight zero one\" est collé en 1801. \"Tel que transcrit\" garde les nombres tels que dictés ; Smart convertit aussi les ordinaux composés et les nombres isolés à partir de onze.",
+        "options": {
+          "asTranscribed": "Tel que transcrit",
+          "digits": "Chiffres",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

@@ -615,6 +615,15 @@
           "simplified": "Giản thể",
           "traditional": "Phồn thể"
         }
+      },
+      "numberFormat": {
+        "title": "Số nói",
+        "description": "Viết các từ số thành chữ số, nên \"one eight zero one\" được dán thành 1801. \"Như đã chuyển ghi\" giữ số như đã nói; Smart còn chuyển đổi số thứ tự ghép và các số đơn lẻ từ mười một trở lên.",
+        "options": {
+          "asTranscribed": "Giữ nguyên bản chép",
+          "digits": "Chữ số",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

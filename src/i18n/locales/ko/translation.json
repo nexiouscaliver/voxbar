@@ -615,6 +615,15 @@
           "simplified": "간체",
           "traditional": "번체"
         }
+      },
+      "numberFormat": {
+        "title": "음성 숫자",
+        "description": "말한 숫자 단어를 숫자로 기록하여 \"one eight zero one\"이 1801으로 붙여넣기 됩니다. \"받아쓴 대로\"는 숫자를 말한 대로 유지하고, Smart는 합성 서수와 열한 이상의 단일 숫자도 변환합니다.",
+        "options": {
+          "asTranscribed": "전사된 그대로",
+          "digits": "숫자",
+          "smart": "Smart"
+        }
       }
     },
     "postProcessing": {

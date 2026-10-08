@@ -36,6 +36,7 @@ export { DeleteLastWordAction } from "./DeleteLastWordAction";
 export { UndoAction } from "./UndoAction";
 export { CommandModeToggle } from "./CommandModeToggle";
 export { ChineseScriptSetting } from "./ChineseScript";
+export { NumberFormatSetting } from "./NumberFormat";
 export { AppDataDirectory } from "./AppDataDirectory";
 export { ModelUnloadTimeoutSetting } from "./ModelUnloadTimeout";
 export { StartHidden } from "./StartHidden";
