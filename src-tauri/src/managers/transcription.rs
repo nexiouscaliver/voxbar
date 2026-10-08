@@ -376,10 +376,14 @@ fn join_raw(base: &str, rest: &str) -> String {
 /// Anchoring on the full snapshot (not just the committed prefix) is what
 /// keeps a deleted word deleted: a word removed while still tentative does
 /// not come back when the engine commits it verbatim afterwards, because
-/// those bytes sit inside `raw_seen` and are never re-consumed. The known
-/// artifact: if the engine REVISES that region while committing it (a
-/// hypothesis correction), the common prefix stops at the first differing
-/// byte and the revised word re-enters the buffer. That is rare and
+/// those bytes sit inside `raw_seen` and are never re-consumed. A revision
+/// of already-consumed bytes (a hypothesis correction that rewrites the
+/// region instead of committing it verbatim) diverges from the common
+/// prefix; how the divergence is handled depends on the surface: a
+/// command-mode tick absorbs the revision without parsing it (see
+/// [`StreamSessionBuffer::render`]), and the final fold prefers normalized
+/// token alignment over the raw byte prefix (see
+/// [`StreamSessionBuffer::combine_final`]). Revisions are rare and
 /// self-limiting; everything after the divergence behaves normally.
 ///
 /// Everything is recomputed from scratch on every tick; nothing is applied
@@ -537,16 +541,32 @@ impl StreamSessionBuffer {
                 self.command_active = true;
             } else {
                 let keep = common_prefix_len(&self.raw_seen, &snapshot);
-                let delta = snapshot[keep..].to_string();
-                let held = held_prefix_len(&delta, &self.matrix);
-                let applicable_end = delta.len() - held;
-                self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
-                    &mut self.base,
-                    &delta[..applicable_end],
-                    &self.matrix,
-                );
-                self.raw_seen = snapshot[..snapshot.len() - held].to_string();
-                self.holding = held > 0;
+                if keep < self.raw_seen.len() {
+                    // The engine REWROTE already-consumed bytes (a tentative
+                    // revision; transcribe-cpp's final "full" may rewrite
+                    // anywhere, and tentative snapshots revise too). The
+                    // material beyond the common prefix is a rewrite, not
+                    // fresh commands: parsing it as grammar input would
+                    // discard revised ordinary words and could fire a
+                    // revision that happens to spell a command word. Absorb
+                    // the revision for this tick (speech arriving in the
+                    // same tick is not command-interpreted exactly once; the
+                    // alternative is worse) and resume parsing on the next
+                    // append-only delta.
+                    self.raw_seen = snapshot;
+                    self.holding = false;
+                } else {
+                    let delta = snapshot[keep..].to_string();
+                    let held = held_prefix_len(&delta, &self.matrix);
+                    let applicable_end = delta.len() - held;
+                    self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
+                        &mut self.base,
+                        &delta[..applicable_end],
+                        &self.matrix,
+                    );
+                    self.raw_seen = snapshot[..snapshot.len() - held].to_string();
+                    self.holding = held > 0;
+                }
             }
         } else if self.holding {
             // Release tick with a fragment still held: the shortfall
@@ -3461,6 +3481,31 @@ mod tests {
     }
 
     #[test]
+    fn session_buffer_command_mode_revision_tick_is_not_parsed_as_commands() {
+        // While the modifier is held, the engine revises an already
+        // consumed word ("world" -> "comma") and appends new speech. The
+        // delta beyond the byte common prefix is a REWRITE, not fresh
+        // commands: parsing it would fire a spurious comma (or discard
+        // revised ordinary words). The revision is absorbed for one tick
+        // instead; the next append-only delta parses normally.
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage, raw_seen = "hello world"
+        assert_eq!(
+            session.render("hello comma more", "", true),
+            "hello world"
+        );
+        assert_eq!(
+            session.render("hello comma more new line", "", true),
+            "hello world\n"
+        );
+        assert_eq!(
+            session.combine_final("hello comma more new line three".to_string()),
+            "hello world\n three"
+        );
+    }
+
+    #[test]
     fn session_buffer_command_modifier_words_stay_out_of_final_raw() {
         // The engine's final text contains the command words verbatim;
         // everything covered by raw_seen at finalize is skipped, so the
@@ -3709,8 +3754,19 @@ mod tests {
         session.render("alpha beta", "", true); // engage
         assert_eq!(session.render("alpha beta delete word", "", true), "alpha ");
         assert_eq!(session.take_deleted(), Some("beta".to_string()));
-        // An ordinary command tick reports nothing.
-        assert_eq!(session.render("alpha beta comma", "", true), "alpha ,");
+        // An ordinary command tick reports nothing. NOTE: this snapshot is
+        // revision-shaped (the engine dropped the already-consumed
+        // "delete word" and the tick carries "comma"), so per the revision
+        // rule the same-tick material is absorbed, not parsed: the comma
+        // would land on the next append-only tick.
+        assert_eq!(session.render("alpha beta comma", "", true), "alpha ");
+        assert_eq!(session.take_deleted(), None);
+        // A genuinely append-only command tick parses normally and reports
+        // nothing.
+        assert_eq!(
+            session.render("alpha beta comma period", "", true),
+            "alpha ."
+        );
         assert_eq!(session.take_deleted(), None);
 
         // DeleteLine reports the cleared trailing line.
