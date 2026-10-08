@@ -3570,6 +3570,46 @@ mod tests {
     }
 
     #[test]
+    fn overlay_to_paste_parity_for_casing_and_punctuation_rewrites() {
+        // The overlay's punctuation conversions are re-derived at paste by
+        // post_process over the folded raw text, so a final decode that
+        // only rewrites casing or punctuation pastes exactly what the
+        // overlay converted (see combine_final's doc for the residual:
+        // a final decode that genuinely drops or changes words makes the
+        // paste authoritative).
+        let settings = text_pipeline_settings(true, false, true);
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+
+        let mut session = session_buffer();
+        let display = session.render("hello comma world", "", false);
+        assert_eq!(display, "hello, world");
+
+        // Punctuation-only divergence: the paste matches the display.
+        let pasted = post_process_transcription_text(
+            session.combine_final("hello, comma. world".to_string()),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(pasted, "hello, world");
+
+        // Casing divergence: identical modulo the engine's own casing.
+        let mut cased = session_buffer();
+        let display = cased.render("hello comma world", "", false);
+        let pasted = post_process_transcription_text(
+            cased.combine_final("Hello, comma. World".to_string()),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(pasted, "Hello, World");
+        assert_eq!(pasted.to_lowercase(), display.to_lowercase());
+    }
+
+    #[test]
     fn session_buffer_final_fold_survives_final_text_divergence_after_edit() {
         // The final decode capitalizes and punctuates around the words, so
         // the byte common prefix stops at byte 0; the fold must not
