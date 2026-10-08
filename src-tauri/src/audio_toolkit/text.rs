@@ -847,7 +847,7 @@ fn push_deletion_span(
 /// trailing line (everything after the last newline, so with no newline
 /// the whole buffer empties and the outcome is `cleared`, matching the
 /// ClearAll semantics); the ClearAll phrases ("delete everything",
-/// "scratch everything", "start over", ...) discard the whole transcript
+/// "scratch everything", ...) discard the whole transcript
 /// and set [`VoiceDeletionOutcome::cleared`]. Commands apply left to
 /// right, each seeing the result of the previous one.
 ///
@@ -1858,12 +1858,18 @@ mod tests {
 
     #[test]
     fn test_voice_deletion_everything_commands_clear() {
-        for command in ["delete everything", "scratch everything", "start over"] {
+        for command in ["delete everything", "scratch everything"] {
             let result =
                 apply_voice_deletion(&format!("hello world {command} trailing words"), &dm());
             assert_eq!(result.text, "", "command: {command}");
             assert!(result.cleared, "command: {command}");
         }
+        // "start over" is ordinary English ("let me start over and try
+        // again"): it is no longer a default ClearAll phrase and must not
+        // wipe the dictation. Operators can re-add it in the matrix editor.
+        let result = apply_voice_deletion("let me start over and try again", &dm());
+        assert_eq!(result.text, "let me start over and try again");
+        assert!(!result.cleared);
     }
 
     #[test]

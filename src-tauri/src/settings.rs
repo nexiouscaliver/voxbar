@@ -618,8 +618,8 @@ pub struct AppSettings {
     pub terminal_punctuation: bool,
     /// Voice deletion commands: "scratch that" / "delete that" remove the
     /// preceding word, "delete last N words" removes several, "delete line"
-    /// clears the trailing line, and "delete everything" / "start over"
-    /// clears the transcription.
+    /// clears the trailing line, and "delete everything" /
+    /// "scratch everything" clears the transcription.
     #[serde(default = "default_voice_deletion_commands")]
     pub voice_deletion_commands: bool,
     /// Briefly show the final transcription in the recording overlay before

@@ -25,7 +25,7 @@
 //! "new paragraph"                                            | Insert("\n\n")
 //! "delete word" (also "scratch that", "delete that", ...)    | DeleteWord
 //! "delete line"                                              | DeleteLine
-//! "delete everything" (also "start over", ...)               | ClearAll
+//! "delete everything" (also "scratch everything", ...)       | ClearAll
 //! "undo"                                                     | Undo
 //! "paste"                                                    | Paste
 //!
@@ -692,9 +692,12 @@ mod tests {
         );
         // ClearAll is a command-mode action now: clear, session continues.
         assert_eq!(
-            parse_command_transcript("start over", &dm()),
+            parse_command_transcript("delete everything", &dm()),
             vec![CommandAction::ClearAll]
         );
+        // "start over" left the default table: it is ordinary English, so
+        // in command mode too it no longer parses (nothing fires).
+        assert!(parse_command_transcript("start over", &dm()).is_empty());
         // Extended symbol set from the default matrix.
         assert_eq!(
             parse_command_transcript("open square bracket", &dm()),
