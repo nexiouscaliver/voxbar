@@ -727,6 +727,10 @@
         "title": "Tampon d'enregistrement supplémentaire",
         "description": "Temps supplémentaire (en millisecondes) pour continuer l'enregistrement après avoir relâché la touche, pour capturer l'audio restant. 0 = pas de tampon supplémentaire."
       },
+      "streamingTail": {
+        "title": "Queue de relâchement du streaming",
+        "description": "Temps supplémentaire (en millisecondes) pendant lequel une session de streaming continue d'enregistrer après avoir relâché la touche, afin de capturer la fin du dernier mot. 0 = pas de queue supplémentaire."
+      },
       "keyboardDiagnostic": {
         "title": "Diagnostic du clavier",
         "description": "Vérifie si les événements clavier atteignent VoxBar. Seul le nombre d'événements est enregistré, jamais les touches sur lesquelles vous appuyez.",

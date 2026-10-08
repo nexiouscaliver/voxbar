@@ -727,6 +727,10 @@
         "title": "Bộ đệm ghi âm thêm",
         "description": "Thời gian thêm (tính bằng mili giây) để tiếp tục ghi âm sau khi nhả phím, để thu âm thanh cuối. 0 = không có bộ đệm thêm."
       },
+      "streamingTail": {
+        "title": "Đuôi nhả cho streaming",
+        "description": "Thời gian thêm (tính bằng mili giây) phiên streaming tiếp tục ghi âm sau khi bạn nhả phím, để bắt phần cuối của từ cuối cùng. 0 = không có đuôi thêm."
+      },
       "keyboardDiagnostic": {
         "title": "Chẩn đoán bàn phím",
         "description": "Kiểm tra xem các sự kiện bàn phím có đến được VoxBar hay không. Chỉ số lượng sự kiện được ghi lại - không bao giờ ghi lại bạn bấm phím nào.",

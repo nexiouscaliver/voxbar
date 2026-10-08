@@ -727,6 +727,10 @@
         "title": "Extra vyrovnávací paměť nahrávání",
         "description": "Extra čas (v milisekundách) pro pokračování nahrávání po uvolnění klávesy, pro zachycení zbývajícího zvuku. 0 = žádná extra vyrovnávací paměť."
       },
+      "streamingTail": {
+        "title": "Doběh streamování při uvolnění",
+        "description": "Dodatečný čas (v milisekundách), po který streamovaná relace pokračuje v nahrávání po uvolnění klávesy, aby se zachytil konec posledního slova. 0 = žádný dodatečný doběh."
+      },
       "keyboardDiagnostic": {
         "title": "Diagnostika klávesnice",
         "description": "Ověří, zda události klávesnice dorazí do VoxBar. Zaznamenává se pouze počet událostí - nikdy to, které klávesy stisknete.",

@@ -741,6 +741,10 @@
         "title": "Extra opnamebuffer",
         "description": "Extra tijd (in milliseconden) om te blijven opnemen nadat je de toets loslaat, om naloopaudio op te vangen. 0 = geen extra buffer."
       },
+      "streamingTail": {
+        "title": "Nalooptijd bij loslaten (streaming)",
+        "description": "Extra tijd (in milliseconden) waarin een streamingsessie blijft opnemen nadat je de toets loslaat, zodat het einde van het laatste woord wordt vastgelegd. 0 = geen extra nalooptijd."
+      },
       "keyboardDiagnostic": {
         "title": "Toetsenborddiagnose",
         "description": "Controleert of toetsenbordgebeurtenissen VoxBar bereiken. Alleen het aantal gebeurtenissen wordt vastgelegd - nooit welke toetsen je indrukt.",

@@ -727,6 +727,10 @@
         "title": "额外录音缓冲",
         "description": "放开按键后继续录音的额外时间（毫秒），以捕捉尾音。0 = 无额外缓冲。"
       },
+      "streamingTail": {
+        "title": "流式释放尾音",
+        "description": "流式会话在放开按键后继续录音的额外时间（毫秒），以捕捉最后一个词的结尾。0 = 无额外尾音。"
+      },
       "keyboardDiagnostic": {
         "title": "键盘诊断",
         "description": "检查键盘事件是否能到达 VoxBar。仅记录事件数量，绝不记录您按了哪些键。",

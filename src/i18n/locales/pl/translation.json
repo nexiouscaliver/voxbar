@@ -727,6 +727,10 @@
         "title": "Dodatkowy bufor nagrywania",
         "description": "Dodatkowy czas (w milisekundach) na kontynuowanie nagrywania po zwolnieniu klawisza, aby przechwycić końcowy dźwięk. 0 = brak dodatkowego bufora."
       },
+      "streamingTail": {
+        "title": "Czas po puszczeniu klawisza (streaming)",
+        "description": "Dodatkowy czas (w milisekundach), w którym sesja strumieniowa kontynuuje nagrywanie po puszczeniu klawisza, aby uchwycić koniec ostatniego słowa. 0 = brak dodatkowego czasu."
+      },
       "keyboardDiagnostic": {
         "title": "Diagnostyka klawiatury",
         "description": "Sprawdza, czy zdarzenia klawiatury docierają do VoxBar. Zapisywana jest tylko liczba zdarzeń - nigdy to, które klawisze naciskasz.",

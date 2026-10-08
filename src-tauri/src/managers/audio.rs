@@ -404,6 +404,22 @@ pub struct AudioRecordingManager {
     cached_device: Arc<Mutex<Option<(String, cpal::Device)>>>,
 }
 
+/// Effective post-release capture for a stop: the explicit
+/// extra-recording buffer, raised to the streaming release tail when the
+/// recording ran with an ACTIVE STREAM. The predicate is stream-active
+/// (the router's open flag), NOT the VAD policy: a streaming model with
+/// `vad_enabled = false` gets `VadPolicy::Disabled` yet still streams and
+/// still loses trailing words on a quick release. Setting the tail to 0
+/// restores the old behavior exactly; a non-streaming session is governed
+/// by the batch buffer alone.
+fn effective_release_buffer_ms(extra_ms: u64, tail_ms: u64, stream_active: bool) -> u64 {
+    if stream_active {
+        extra_ms.max(tail_ms)
+    } else {
+        extra_ms
+    }
+}
+
 impl AudioRecordingManager {
     /* ---------- construction ------------------------------------------------ */
 
@@ -991,11 +1007,21 @@ impl AudioRecordingManager {
                 self.set_state(&mut state, RecordingState::Stopping);
                 drop(state);
 
-                // Optionally keep recording for a bit longer to capture trailing audio.
-                // This is only the explicit user setting; streaming VAD must not add
-                // hidden post-release capture time.
+                // Optionally keep recording for a bit longer to capture trailing
+                // audio. Streaming sessions additionally get the streaming
+                // release tail (see effective_release_buffer_ms): releasing
+                // the hotkey the instant a command word ends otherwise
+                // truncates its final consonant and the command silently
+                // fails. The predicate is STREAM-ACTIVE, not the VAD policy:
+                // a streaming model with VAD disabled still streams and
+                // still loses trailing words on a quick release.
                 let settings = get_settings(&self.app_handle);
-                let buffer_ms = settings.extra_recording_buffer_ms;
+                let stream_active = self.stream_router.is_open();
+                let buffer_ms = effective_release_buffer_ms(
+                    settings.extra_recording_buffer_ms,
+                    settings.streaming_release_tail_ms,
+                    stream_active,
+                );
                 if buffer_ms > 0 {
                     debug!(
                         "Extra recording buffer: sleeping {}ms before stopping",
@@ -1097,5 +1123,27 @@ impl AudioRecordingManager {
             }
             RecordingState::Idle => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn effective_release_buffer_ms_uses_the_stream_active_predicate() {
+        // A streaming session gets at least the release tail: a quick
+        // hotkey release right after a command word otherwise truncates
+        // its tail (the final text ends up with a partial or missing
+        // word and the command silently fails).
+        assert_eq!(effective_release_buffer_ms(0, 200, true), 200);
+        // An explicit larger batch buffer wins.
+        assert_eq!(effective_release_buffer_ms(500, 200, true), 500);
+        // No stream (batch session, or the stream already closed): the
+        // tail never applies, regardless of the VAD policy.
+        assert_eq!(effective_release_buffer_ms(300, 200, false), 300);
+        assert_eq!(effective_release_buffer_ms(0, 200, false), 0);
+        // The off path: a zero tail restores the old behavior exactly.
+        assert_eq!(effective_release_buffer_ms(0, 0, true), 0);
     }
 }

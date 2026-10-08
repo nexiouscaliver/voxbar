@@ -727,6 +727,10 @@
         "title": "Zusätzlicher Aufnahmepuffer",
         "description": "Zusätzliche Zeit (in Millisekunden), um nach dem Loslassen der Taste weiter aufzunehmen, um nachlaufendes Audio zu erfassen. 0 = kein zusätzlicher Puffer."
       },
+      "streamingTail": {
+        "title": "Nachlauf beim Loslassen (Streaming)",
+        "description": "Zusätzliche Zeit (in Millisekunden), in der eine Streaming-Sitzung nach dem Loslassen der Taste weiter aufnimmt, damit das Ende des letzten Wortes erfasst wird. 0 = kein zusätzlicher Nachlauf."
+      },
       "keyboardDiagnostic": {
         "title": "Tastatur-Diagnose",
         "description": "Prüft, ob Tastaturereignisse VoxBar erreichen. Es wird nur die Anzahl der Ereignisse erfasst - niemals, welche Tasten du drückst.",

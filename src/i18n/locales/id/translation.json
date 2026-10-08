@@ -741,6 +741,10 @@
         "title": "Buffer Perekaman Tambahan",
         "description": "Waktu tambahan (dalam milidetik) untuk terus merekam setelah Anda melepas tombol agar audio di bagian akhir tetap tertangkap. 0 = tanpa buffer tambahan."
       },
+      "streamingTail": {
+        "title": "Ekor rilis streaming",
+        "description": "Waktu tambahan (dalam milidetik) sesi streaming terus merekam setelah Anda melepas tombol, agar akhir kata terakhir tertangkap. 0 = tanpa ekor tambahan."
+      },
       "keyboardDiagnostic": {
         "title": "Diagnostik Keyboard",
         "description": "Memeriksa apakah peristiwa keyboard mencapai VoxBar. Hanya jumlah peristiwa yang dicatat - bukan tombol yang Anda tekan.",

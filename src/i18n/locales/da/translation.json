@@ -741,6 +741,10 @@
         "title": "Ekstra optagelsesbuffer",
         "description": "Ekstra tid (i millisekunder) til at fortsætte optagelsen, efter du slipper tasten, for at fange efterfølgende lyd. 0 = ingen ekstra buffer."
       },
+      "streamingTail": {
+        "title": "Efterløb for streaming",
+        "description": "Ekstra tid (i millisekunder), hvor en streamingsession fortsætter optagelsen, efter du slipper tasten, så slutningen af det sidste ord fanges. 0 = intet ekstra efterløb."
+      },
       "keyboardDiagnostic": {
         "title": "Tastaturdiagnostik",
         "description": "Kontrollerer, om tastaturhændelser når frem til VoxBar. Kun antallet af hændelser registreres - aldrig hvilke taster du trykker på.",
