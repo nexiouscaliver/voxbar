@@ -199,11 +199,29 @@ pub(crate) const VOICE_DELETION_COUNT_FAMILY: &str =
 /// out empty (an empty alternation would match everywhere).
 const NEVER_MATCH: &str = r"[^\s\S]";
 
+/// Marks the model may ATTACH to a spoken command word (trailing the token
+/// itself): the ASCII punctuation set plus the Devanagari danda (U+0964),
+/// which Hindi output glues onto words where English would use ".". The
+/// punctuation pattern consumes one optional trailing member and the text
+/// pass strips the same set before the phrase lookup, so a punctuated
+/// command word ("question mark?") yields the pure phrase key.
+pub(crate) const ATTACHED_MARKS: &[char] = &[
+    ',',
+    '.',
+    ';',
+    ':',
+    '!',
+    '?',
+    // Devanagari danda.
+    '\u{0964}',
+];
+
 /// Everything the three command consumers need, compiled once from an
 /// entry list. Cheap to share: the regexes live behind an `Arc`.
 pub struct CompiledCommandMatrix {
     /// Spoken-punctuation pass: word-boundary anchored, case-insensitive,
-    /// with the optional trailing [,.]? the model may have attached.
+    /// with the optional attached trailing mark ([`ATTACHED_MARKS`]) the
+    /// model may have glued onto the command word.
     punctuation_pattern: Regex,
     /// Matched (normalized, lowercased) phrase -> inserted symbol.
     punctuation_replacements: HashMap<String, &'static str>,
@@ -222,8 +240,8 @@ pub struct CompiledCommandMatrix {
 
 impl CompiledCommandMatrix {
     /// Iterate the punctuation pattern's matches over `text` (word
-    /// boundary anchored, case-insensitive, with the optional trailing
-    /// [,.]? the model may have attached).
+    /// boundary anchored, case-insensitive, with the optional attached
+    /// trailing mark the model may have glued onto the command word).
     pub(crate) fn punctuation_pattern_matches<'a>(
         &'a self,
         text: &'a str,
@@ -351,13 +369,15 @@ pub fn compile_command_matrix(entries: &[CommandMatrixEntry]) -> CompiledCommand
         .map(|(phrase, _)| regex::escape(phrase))
         .collect::<Vec<_>>()
         .join("|");
+    let attached_class: String = ATTACHED_MARKS.iter().collect();
     let punctuation_pattern = Regex::new(&format!(
-        r"(?i)\b(?:{})\b[,.]?",
+        r"(?i)\b(?:{})\b[{}]?",
         if punctuation_alternation.is_empty() {
             NEVER_MATCH
         } else {
             &punctuation_alternation
-        }
+        },
+        attached_class
     ))
     .unwrap();
     let punctuation_replacements = punctuation
