@@ -190,12 +190,74 @@ where
     MemoryGateDecision::Refuse
 }
 
+/// Format a forecast or free-memory amount for the refusal message:
+/// integer MB below 1 GiB (minimum 1, so a tiny figure never reads as
+/// nothing), one-decimal GB at or above it. 45,088,768 B renders "43 MB",
+/// 766,509,056 B "731 MB", 1,610,612,736 B "1.5 GB". The old inline
+/// GB-only formatting turned a 43 MiB model into "needs ~0.0 GB", telling
+/// the user the model needs zero memory while being refused.
+fn format_memory_amount(bytes: u64) -> String {
+    const GIB: u64 = 1024 * 1024 * 1024;
+    if bytes < GIB {
+        format!("{} MB", (bytes / (1024 * 1024)).max(1))
+    } else {
+        format!("{:.1} GB", bytes as f64 / GIB as f64)
+    }
+}
+
+/// Format the memory safety margin for the refusal message: ALWAYS integer
+/// MB (minimum 1). The setting is MB-granular by construction, so MB is
+/// exact, and the message must echo the unit of the Advanced UI the user
+/// set the margin in (1536 MB, never format_memory_amount's "1.5 GB").
+fn format_margin_mb(headroom: u64) -> String {
+    format!("{} MB", (headroom / (1024 * 1024)).max(1))
+}
+
+/// The exact refusal string users see, pure over the decision's inputs so
+/// the wording is unit-testable. The margin clause appears only when the
+/// margin is non-zero.
+fn memory_gate_refusal_message(
+    model_name: &str,
+    forecast: u64,
+    free: u64,
+    headroom: u64,
+) -> String {
+    let margin_clause = if headroom > 0 {
+        format!(" plus a {} safety margin,", format_margin_mb(headroom))
+    } else {
+        String::new()
+    };
+    format!(
+        "Not enough free memory for {}: needs ~{}{}, ~{} free (margin adjustable, guard can be \
+         disabled, in Settings)",
+        model_name,
+        format_memory_amount(forecast),
+        margin_clause,
+        format_memory_amount(free),
+    )
+}
+
+/// The structured numbers behind a memory-gate refusal, so the UI never
+/// parses the error string. `free_bytes` is the resident-credited reading
+/// the decision actually used. Present only on the gate's Refuse path; a
+/// failed-open probe never refuses and leaves the field absent.
+#[derive(Clone, Debug, Serialize)]
+pub struct MemoryGateRefusalPayload {
+    pub forecast_bytes: u64,
+    pub free_bytes: u64,
+    pub headroom_bytes: u64,
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct ModelStateEvent {
     pub event_type: String,
     pub model_id: Option<String>,
     pub model_name: Option<String>,
     pub error: Option<String>,
+    /// Structured memory-gate refusal numbers; absent except on the gate's
+    /// Refuse path (loading_failed events).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_gate: Option<MemoryGateRefusalPayload>,
 }
 
 /// One-shot notification that a RAM auto-fallback fired: the selected model
@@ -1013,6 +1075,7 @@ impl TranscriptionManager {
                 model_id: None,
                 model_name: None,
                 error: Some(error.to_string()),
+                memory_gate: None,
             },
         );
     }
@@ -1074,6 +1137,7 @@ impl TranscriptionManager {
                 model_id: None,
                 model_name: None,
                 error: None,
+                memory_gate: None,
             },
         );
         unloading
@@ -1145,6 +1209,7 @@ impl TranscriptionManager {
                 model_id: Some(model_id.to_string()),
                 model_name: None,
                 error: None,
+                memory_gate: None,
             },
         );
 
@@ -1159,6 +1224,7 @@ impl TranscriptionManager {
                         model_id: Some(model_id.to_string()),
                         model_name: None,
                         error: Some(error_msg.clone()),
+                        memory_gate: None,
                     },
                 );
                 return Err(anyhow::anyhow!(error_msg));
@@ -1175,6 +1241,7 @@ impl TranscriptionManager {
                     model_id: Some(model_id.to_string()),
                     model_name: Some(model_info.name.clone()),
                     error: Some(error_msg.to_string()),
+                    memory_gate: None,
                 },
             );
         };
@@ -1271,15 +1338,31 @@ impl TranscriptionManager {
                     return self.load_model_with_device_internal(&fallback_id, device_index, false);
                 }
                 MemoryGateDecision::Refuse => {
-                    let gib = 1024.0 * 1024.0 * 1024.0;
-                    let error_msg = format!(
-                        "Not enough free memory for {}: needs ~{:.1} GB, ~{:.1} GB free (guard can be disabled in Settings)",
-                        model_info.name,
-                        forecast as f64 / gib,
-                        free.unwrap_or(0) as f64 / gib
+                    let free_bytes = free.unwrap_or(0);
+                    let error_msg = memory_gate_refusal_message(
+                        &model_info.name,
+                        forecast,
+                        free_bytes,
+                        headroom,
                     );
                     warn!("memory gate refused a load: {}", error_msg);
-                    emit_loading_failed(&error_msg);
+                    // The structured numbers ride along so the UI never
+                    // parses the message: forecast, the resident-credited
+                    // free reading the decision used, and the margin.
+                    let _ = self.app_handle.emit(
+                        "model-state-changed",
+                        ModelStateEvent {
+                            event_type: "loading_failed".to_string(),
+                            model_id: Some(model_id.to_string()),
+                            model_name: Some(model_info.name.clone()),
+                            error: Some(error_msg.clone()),
+                            memory_gate: Some(MemoryGateRefusalPayload {
+                                forecast_bytes: forecast,
+                                free_bytes,
+                                headroom_bytes: headroom,
+                            }),
+                        },
+                    );
                     return Err(anyhow::anyhow!(error_msg));
                 }
             }
@@ -1475,6 +1558,7 @@ impl TranscriptionManager {
                 model_id: Some(model_id.to_string()),
                 model_name: Some(model_info.name.clone()),
                 error: None,
+                memory_gate: None,
             },
         );
 
@@ -2340,6 +2424,7 @@ impl TranscriptionManager {
                         model_id: None,
                         model_name: None,
                         error: Some(format!("Engine panicked: {}", panic_msg)),
+                        memory_gate: None,
                     },
                 );
 
@@ -4545,6 +4630,58 @@ mod tests {
             MemoryGateDecision::Refuse,
             "only the failed model on disk means no fallback can exist"
         );
+    }
+
+    /// AUDIT TEST 4: the refusal message is the exact string users see, and
+    /// it must never render a 43 MiB forecast as "needs ~0.0 GB". The
+    /// forecast and free amounts use the MB-below-1-GiB-else-GB rule; the
+    /// margin ALWAYS renders in integer MB so the message echoes the unit
+    /// of the Advanced UI the user set it in (1536 MB, never "1.5 GB").
+    #[test]
+    fn refusal_message_formats_tiny_forecast_in_mb() {
+        // The amount formatters, pinned to the audit's exact figures.
+        assert_eq!(format_memory_amount(45_088_768), "43 MB");
+        assert_eq!(format_memory_amount(766_509_056), "731 MB");
+        assert_eq!(format_memory_amount(1_610_612_736), "1.5 GB");
+        assert_eq!(format_margin_mb(1_610_612_736), "1536 MB");
+
+        // A 43 MiB forecast at margin 0: no "0.0 GB", no margin clause. The
+        // friend's free reading (1,087,373,312 B) sits above the 1 GiB
+        // boundary, so the amount rule renders it "1.0 GB".
+        let msg = memory_gate_refusal_message("Whisper Tiny", 45_088_768, 1_087_373_312, 0);
+        assert!(msg.contains("43 MB"), "message must name 43 MB: {msg}");
+        assert!(
+            msg.contains("1.0 GB"),
+            "free renders per the amount rule: {msg}"
+        );
+        assert!(
+            !msg.contains("0.0 GB"),
+            "message must not claim 0.0 GB: {msg}"
+        );
+        assert!(
+            !msg.contains("safety margin"),
+            "margin 0 has no margin clause: {msg}"
+        );
+
+        // The same forecast at the 1536 MiB preset: the margin clause
+        // appears with the always-MB formatter.
+        let msg = memory_gate_refusal_message(
+            "Whisper Tiny",
+            45_088_768,
+            1_087_373_312,
+            memory::DEFAULT_HEADROOM_BYTES,
+        );
+        assert!(
+            msg.contains("1536 MB safety margin"),
+            "margin clause must read 1536 MB: {msg}"
+        );
+        assert!(!msg.contains("1.5 GB safety margin"), "{msg}");
+
+        // The GB side of the amounts: a 731 MiB forecast stays MB, a 1.5
+        // GiB free reading renders GB.
+        let msg = memory_gate_refusal_message("Parakeet EN Q8", 766_509_056, 1_610_612_736, 0);
+        assert!(msg.contains("731 MB"), "{msg}");
+        assert!(msg.contains("1.5 GB"), "{msg}");
     }
 
     #[test]

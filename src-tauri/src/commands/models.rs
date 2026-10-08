@@ -143,6 +143,7 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
                 model_id: Some(model_id.to_string()),
                 model_name: Some(model_info.name.clone()),
                 error: None,
+                memory_gate: None,
             },
         );
         log::info!(
