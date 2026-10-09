@@ -108,7 +108,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: in-app updates, a smarter memory gate, recoverable first-run failures." \
+  --arg notes "VoxBar ${VERSION}: repaired update notifications with a live progress bar, a restart-now prompt, and a configurable update policy." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \
