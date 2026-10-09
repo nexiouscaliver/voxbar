@@ -219,6 +219,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(model_manager.clone());
     app_handle.manage(transcription_manager.clone());
     app_handle.manage(history_manager.clone());
+    app_handle.manage(local_llm::manager::LlmManager::new());
     app_handle.manage(tray::TrayState::new());
     app_handle.manage(tray::TrayRamRefresh::new());
 
@@ -801,6 +802,9 @@ pub fn run(cli_args: CliArgs) {
             commands::models::rescan_local_models,
             commands::models::resolve_hf_model,
             commands::models::add_hf_model,
+            commands::local_llm::get_local_llm_model_status,
+            commands::local_llm::download_local_llm_model,
+            commands::local_llm::delete_local_llm_model,
             commands::audio::update_microphone_mode,
             commands::audio::get_microphone_mode,
             commands::audio::get_windows_microphone_permission_status,
@@ -835,6 +839,7 @@ pub fn run(cli_args: CliArgs) {
             managers::history::HistoryUpdatePayload,
             managers::transcription::StreamTextEvent,
             managers::transcription::StreamPhaseEvent,
+            local_llm::manager::PostProcessSkipEvent,
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds

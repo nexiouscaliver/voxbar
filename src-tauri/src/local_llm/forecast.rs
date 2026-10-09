@@ -40,12 +40,14 @@ pub fn cjk_char_count(text: &str) -> u64 {
     text.chars()
         .filter(|c| {
             let cp = *c as u32;
-            (cp >= 0x4E00 && cp <= 0x9FFF)      // CJK Unified Ideographs
-                || (cp >= 0x3400 && cp <= 0x4DBF) // CJK Extension A
-                || (cp >= 0x3040 && cp <= 0x309F) // Hiragana
-                || (cp >= 0x30A0 && cp <= 0x30FF) // Katakana
-                || (cp >= 0xAC00 && cp <= 0xD7AF) // Hangul Syllables
-                || (cp >= 0x1100 && cp <= 0x11FF) // Hangul Jamo
+            // CJK Unified Ideographs, CJK Extension A, Hiragana, Katakana,
+            // Hangul Syllables, Hangul Jamo (the spec 1.2 ranges).
+            (0x4E00..=0x9FFF).contains(&cp)
+                || (0x3400..=0x4DBF).contains(&cp)
+                || (0x3040..=0x309F).contains(&cp)
+                || (0x30A0..=0x30FF).contains(&cp)
+                || (0xAC00..=0xD7AF).contains(&cp)
+                || (0x1100..=0x11FF).contains(&cp)
         })
         .count() as u64
 }

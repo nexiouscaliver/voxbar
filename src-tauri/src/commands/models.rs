@@ -69,8 +69,17 @@ pub async fn delete_model(
     app_handle: AppHandle,
     model_manager: State<'_, Arc<ModelManager>>,
     transcription_manager: State<'_, Arc<TranscriptionManager>>,
+    llm_manager: State<'_, Arc<crate::local_llm::manager::LlmManager>>,
     model_id: String,
 ) -> Result<(), String> {
+    // L3: a post-process swap may be about to restore the very model file
+    // this delete would remove. A transient, retryable refusal; a cheap
+    // non-blocking probe, never a wait (waiting would freeze the settings
+    // UI for up to a minute behind the swap).
+    if llm_manager.swap_in_progress() {
+        return Err("post-processing is in progress, try again in a moment".to_string());
+    }
+
     // If deleting the active model, unload it and clear the setting
     let settings = get_settings(&app_handle);
     if settings.selected_model == model_id {

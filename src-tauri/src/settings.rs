@@ -10,6 +10,11 @@ use tauri_plugin_store::StoreExt;
 
 pub const APPLE_INTELLIGENCE_PROVIDER_ID: &str = "apple_intelligence";
 pub const APPLE_INTELLIGENCE_DEFAULT_MODEL_ID: &str = "Apple Intelligence";
+/// The local on-device post-process engine's provider id. Selecting this
+/// provider runs post-processing on the local LLM (the exclusive swap);
+/// any other provider keeps today's OpenAI-compatible API behavior
+/// untouched.
+pub const LOCAL_LLM_PROVIDER_ID: &str = "local";
 
 #[derive(Serialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "lowercase")]

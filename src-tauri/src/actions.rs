@@ -80,11 +80,13 @@ fn transcribe_action_config(binding_id: &str) -> Option<bool> {
     }
 }
 
-/// Field name for structured output JSON schema
-const TRANSCRIPTION_FIELD: &str = "transcription";
+/// Field name for structured output JSON schema. Shared with the local
+/// post-process engine, whose worker output is parsed against the same
+/// schema.
+pub(crate) const TRANSCRIPTION_FIELD: &str = "transcription";
 
 /// Strip invisible Unicode characters that some LLMs may insert
-fn strip_invisible_chars(s: &str) -> String {
+pub(crate) fn strip_invisible_chars(s: &str) -> String {
     s.replace(['\u{200B}', '\u{200C}', '\u{200D}', '\u{FEFF}'], "")
 }
 
@@ -92,7 +94,7 @@ fn strip_invisible_chars(s: &str) -> String {
 /// reasoning, and some local servers put the reasoning text into `content`
 /// instead of a separate field - without this the user would get the model's
 /// chain of thought pasted along with the cleaned transcription.
-fn strip_think_block(s: &str) -> &str {
+pub(crate) fn strip_think_block(s: &str) -> &str {
     if let Some(rest) = s.trim_start().strip_prefix("<think>") {
         if let Some(end) = rest.find("</think>") {
             return rest[end + "</think>".len()..].trim_start();
@@ -140,7 +142,52 @@ fn should_use_streaming_overlay(style: OverlayStyle, is_streaming: bool) -> bool
     style == OverlayStyle::Live && is_streaming
 }
 
-async fn post_process_transcription(settings: &AppSettings, transcription: &str) -> Option<String> {
+/// Whether this provider id routes to the local on-device engine (T28's
+/// routing predicate, extracted so the decision is testable and the branch
+/// binds to it).
+pub(crate) fn uses_local_engine(provider_id: &str) -> bool {
+    provider_id == crate::settings::LOCAL_LLM_PROVIDER_ID
+}
+
+/// The local branch's availability decision (T28): the pinned model must
+/// be downloaded before the engine can run; when it is not, the branch
+/// skips with the download_missing reason and the raw transcript is used.
+pub(crate) fn local_engine_availability(
+    model_downloaded: bool,
+) -> Option<(crate::local_llm::SkipReason, Option<String>)> {
+    if model_downloaded {
+        None
+    } else {
+        Some((
+            crate::local_llm::SkipReason::DownloadMissing,
+            Some("the post-process model is not downloaded; download it in Settings".to_string()),
+        ))
+    }
+}
+
+/// The structured-output JSON schema for post-processing. Extracted
+/// verbatim from the API path so the local engine's grammar is generated
+/// from exactly the same contract (T28 pins the identity).
+pub(crate) fn post_process_output_schema() -> serde_json::Value {
+    serde_json::json!({
+        "type": "object",
+        "properties": {
+            (TRANSCRIPTION_FIELD): {
+                "type": "string",
+                "description": "The cleaned and processed transcription text"
+            }
+        },
+        "required": [TRANSCRIPTION_FIELD],
+        "additionalProperties": false
+    })
+}
+
+async fn post_process_transcription(
+    app: &AppHandle,
+    settings: &AppSettings,
+    transcription: &str,
+    is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+) -> Option<String> {
     if is_blank_transcription(transcription) {
         debug!("Post-processing skipped because the transcription is empty");
         return None;
@@ -262,18 +309,70 @@ async fn post_process_transcription(settings: &AppSettings, transcription: &str)
             }
         }
 
-        // Define JSON schema for transcription output
-        let json_schema = serde_json::json!({
-            "type": "object",
-            "properties": {
-                (TRANSCRIPTION_FIELD): {
-                    "type": "string",
-                    "description": "The cleaned and processed transcription text"
+        // The local on-device engine: the same branch shape as Apple
+        // Intelligence (availability check, then the engine), but through
+        // the exclusive swap: voice out (waited), LLM in, generate, LLM
+        // out (waited), voice restore. Every failure returns None so the
+        // raw transcript is pasted; skip events were already emitted by
+        // the swap runner.
+        if uses_local_engine(&provider.id) {
+            let downloaded = app
+                .state::<Arc<ModelManager>>()
+                .get_model_info(crate::local_llm::LOCAL_LLM_MODEL_ID)
+                .is_some_and(|info| info.is_downloaded);
+            if let Some((reason, detail)) = local_engine_availability(downloaded) {
+                debug!("Local post-process unavailable; using the raw transcript");
+                let _ =
+                    crate::local_llm::manager::PostProcessSkipEvent { reason, detail }.emit(app);
+                return None;
+            }
+
+            // The grammar is rendered from the exact schema the API path
+            // uses, so both engines answer to the same contract.
+            let grammar = match llama_cpp_2::json_schema_to_grammar(
+                &post_process_output_schema().to_string(),
+            ) {
+                Ok(gbnf) => Some(gbnf),
+                Err(e) => {
+                    warn!(
+                        "Failed to render the post-process grammar: {}. Using the raw transcript.",
+                        e
+                    );
+                    return None;
                 }
-            },
-            "required": [TRANSCRIPTION_FIELD],
-            "additionalProperties": false
-        });
+            };
+
+            let request = crate::local_llm::manager::SwapRequest {
+                transcript: user_content.clone(),
+                system_prompt: system_prompt.clone(),
+                grammar,
+                is_cancelled,
+            };
+            let llm = app.state::<Arc<crate::local_llm::manager::LlmManager>>();
+            // The runner is detached and bounded; awaiting the receiver
+            // can be dropped at any instant without abandoning it (L6).
+            let outcome = llm.run_swap(app, request).await;
+            return match outcome {
+                Ok(crate::local_llm::manager::SwapOutcome::Processed(text)) => {
+                    let text = strip_invisible_chars(strip_think_block(&text));
+                    if text.trim().is_empty() {
+                        debug!("Local post-processing returned an empty response");
+                        None
+                    } else {
+                        debug!(
+                            "Local post-processing succeeded. Output length: {} chars",
+                            text.len()
+                        );
+                        Some(text)
+                    }
+                }
+                _ => None,
+            };
+        }
+
+        // The structured-output schema, shared verbatim by the API path
+        // here and the local engine's grammar.
+        let json_schema = post_process_output_schema();
 
         match crate::llm_client::send_chat_completion_with_schema(
             &provider,
@@ -385,6 +484,7 @@ pub(crate) async fn process_transcription_output(
     app: &AppHandle,
     transcription: &str,
     post_process: bool,
+    is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
 ) -> ProcessedTranscription {
     let settings = get_settings(app);
     let mut final_text = transcription.to_string();
@@ -392,7 +492,9 @@ pub(crate) async fn process_transcription_output(
     let mut post_process_prompt: Option<String> = None;
 
     if post_process {
-        if let Some(processed_text) = post_process_transcription(&settings, &final_text).await {
+        if let Some(processed_text) =
+            post_process_transcription(app, &settings, &final_text, is_cancelled).await
+        {
             post_processed_text = Some(processed_text.clone());
             final_text = processed_text;
 
@@ -759,8 +861,22 @@ impl ShortcutAction for TranscribeAction {
                                     show_processing_overlay(&ah);
                                 }
                             }
+                            // The same cancel generation the paste gates
+                            // use, threaded into the swap runner so user
+                            // cancellation aborts post-processing promptly
+                            // (polled every 25ms, never awaited).
+                            let rm_for_swap = Arc::clone(&rm);
+                            let is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>> =
+                                Some(Arc::new(move || {
+                                    rm_for_swap.was_cancelled_since(cancel_generation)
+                                }));
                             let Some(processed) = complete_unless_cancelled(
-                                process_transcription_output(&ah, &transcription, post_process),
+                                process_transcription_output(
+                                    &ah,
+                                    &transcription,
+                                    post_process,
+                                    is_cancelled,
+                                ),
                                 || rm.was_cancelled_since(cancel_generation),
                             )
                             .await
@@ -1073,8 +1189,9 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
 #[cfg(test)]
 mod tests {
     use super::{
-        complete_unless_cancelled, is_blank_transcription, should_use_streaming_overlay,
-        strip_think_block,
+        complete_unless_cancelled, is_blank_transcription, local_engine_availability,
+        post_process_output_schema, should_use_streaming_overlay, strip_think_block,
+        uses_local_engine, TRANSCRIPTION_FIELD,
     };
     use crate::settings::OverlayStyle;
     use std::future;
@@ -1205,6 +1322,59 @@ mod tests {
         assert_eq!(transcribe_action_config("delete_last_word"), None);
         assert_eq!(transcribe_action_config("undo"), None);
         assert_eq!(transcribe_action_config("unknown"), None);
+    }
+
+    /// T28: provider routing. The local provider routes to the on-device
+    /// engine; every API provider (including custom and openai, the off
+    /// path) keeps today's llm_client behavior.
+    #[test]
+    fn provider_routing_separates_local_from_api_paths() {
+        assert!(uses_local_engine(crate::settings::LOCAL_LLM_PROVIDER_ID));
+        assert!(uses_local_engine("local"));
+        assert!(!uses_local_engine("openai"));
+        assert!(!uses_local_engine("custom"));
+        assert!(!uses_local_engine("anthropic"));
+        assert!(!uses_local_engine(
+            crate::settings::APPLE_INTELLIGENCE_PROVIDER_ID
+        ));
+        assert!(!uses_local_engine(""));
+    }
+
+    /// T28: the local branch's availability decision. Not downloaded ->
+    /// skip with download_missing (raw transcript, never blocks dictation,
+    /// never auto-downloads); downloaded -> no skip, the engine runs.
+    #[test]
+    fn local_branch_skips_only_when_model_not_downloaded() {
+        assert_eq!(
+            local_engine_availability(false).map(|(r, _)| r),
+            Some(crate::local_llm::SkipReason::DownloadMissing)
+        );
+        assert!(local_engine_availability(false).unwrap().1.is_some());
+        assert_eq!(local_engine_availability(true), None);
+    }
+
+    /// T28: the extracted schema is byte-identical to the literal the API
+    /// path used before the extraction, so both engines answer to the
+    /// exact same structured-output contract.
+    #[test]
+    fn post_process_schema_matches_the_api_literal_verbatim() {
+        let expected = serde_json::json!({
+            "type": "object",
+            "properties": {
+                (TRANSCRIPTION_FIELD): {
+                    "type": "string",
+                    "description": "The cleaned and processed transcription text"
+                }
+            },
+            "required": [TRANSCRIPTION_FIELD],
+            "additionalProperties": false
+        });
+        assert_eq!(post_process_output_schema(), expected);
+        // And the grammar renderer accepts it (the local branch feeds its
+        // serialization straight into json_schema_to_grammar).
+        let rendered = llama_cpp_2::json_schema_to_grammar(&expected.to_string());
+        assert!(rendered.is_ok(), "{:?}", rendered.err());
+        assert!(rendered.unwrap().contains("transcription"));
     }
 
     /// The in-session command contract, applier half: a blank or
