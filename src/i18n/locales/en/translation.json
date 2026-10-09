@@ -381,6 +381,10 @@
           "unsupportedArchUnknown": "That file could not be read as a GGUF model, so it was not added.",
           "generic": "Something went wrong."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "This model is the local post-process engine. It polishes transcripts after dictation, it cannot transcribe audio.",
+        "generic": "Could not switch to this model: {{error}}"
       }
     },
     "sound": {

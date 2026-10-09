@@ -226,6 +226,10 @@
           "unsupportedArchUnknown": "Tento soubor nešlo přečíst jako GGUF model, takže nebyl přidán.",
           "generic": "Něco se pokazilo."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Tento model je lokální engine pro následné zpracování. Vylepšuje přepisy po diktování, ale nedokáže přepisovat zvuk.",
+        "generic": "Přepnutí na tento model se nezdařilo: {{error}}"
       }
     },
     "general": {

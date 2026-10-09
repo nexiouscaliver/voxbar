@@ -381,6 +381,10 @@
           "unsupportedArchUnknown": "Esse arquivo não pôde ser lido como um modelo GGUF, então não foi adicionado.",
           "generic": "Algo deu errado."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Este modelo é o motor local de pós-processamento. Ele aprimora transcrições depois do ditado, não pode transcrever áudio.",
+        "generic": "Não foi possível mudar para este modelo: {{error}}"
       }
     },
     "sound": {

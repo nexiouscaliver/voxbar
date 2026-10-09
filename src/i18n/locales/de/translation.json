@@ -226,6 +226,10 @@
           "unsupportedArchUnknown": "Diese Datei konnte nicht als GGUF Modell gelesen werden und wurde daher nicht hinzugefügt.",
           "generic": "Etwas ist schiefgelaufen."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Dieses Modell ist die lokale Nachbearbeitungs-Engine. Sie verbessert Texte nach dem Diktat, kann aber kein Audio transkribieren.",
+        "generic": "Wechsel zu diesem Modell fehlgeschlagen: {{error}}"
       }
     },
     "general": {

@@ -226,6 +226,10 @@
           "unsupportedArchUnknown": "Nie udało się odczytać tego pliku jako modelu GGUF, więc nie został dodany.",
           "generic": "Coś poszło nie tak."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Ten model to lokalny silnik przetwarzania końcowego. Polepsza transkrypcje po dyktowaniu, nie potrafi transkrybować dźwięku.",
+        "generic": "Nie udało się przełączyć na ten model: {{error}}"
       }
     },
     "general": {

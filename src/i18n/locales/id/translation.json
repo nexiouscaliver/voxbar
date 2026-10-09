@@ -381,6 +381,10 @@
           "unsupportedArchUnknown": "File itu tidak bisa dibaca sebagai model GGUF, jadi tidak ditambahkan.",
           "generic": "Terjadi kesalahan."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Model ini adalah engine pascaproses lokal. Model ini memoles transkripsi setelah dikte, tidak dapat mentranskripsi audio.",
+        "generic": "Tidak dapat beralih ke model ini: {{error}}"
       }
     },
     "sound": {

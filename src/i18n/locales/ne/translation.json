@@ -381,6 +381,10 @@
           "unsupportedArchUnknown": "That file could not be read as a GGUF model, so it was not added.",
           "generic": "Something went wrong."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "यो मोडेल स्थानीय पोस्ट-प्रोसेस इन्जिन हो। यसले डिक्टेसनपछि ट्रान्सक्रिप्ट सुधार्छ, अडियो ट्रान्सक्राइब गर्न सक्दैन।",
+        "generic": "यो मोडेलमा स्विच गर्न सकिएन: {{error}}"
       }
     },
     "sound": {

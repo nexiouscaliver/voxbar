@@ -381,6 +381,10 @@
           "unsupportedArchUnknown": "Aquest fitxer no s'ha pogut llegir com un model GGUF, per això no s'ha afegit.",
           "generic": "Alguna cosa ha fallat."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Aquest model és el motor local de postprocessat. Poleix les transcripcions després del dictat, no pot transcriure àudio.",
+        "generic": "No s'ha pogut canviar a aquest model: {{error}}"
       }
     },
     "sound": {

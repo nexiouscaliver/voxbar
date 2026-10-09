@@ -381,6 +381,10 @@
           "unsupportedArchUnknown": "Filen kunne ikke læses som en GGUF model, så den blev ikke tilføjet.",
           "generic": "Noget gik galt."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Denne model er den lokale efterbehandlingsmotor. Den forbedrer transskriptioner efter diktat, men kan ikke transskribere lyd.",
+        "generic": "Kunne ikke skifte til denne model: {{error}}"
       }
     },
     "sound": {

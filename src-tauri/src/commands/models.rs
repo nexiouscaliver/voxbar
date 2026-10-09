@@ -1,11 +1,33 @@
 use crate::managers::model::{
     resolve_hf_repo, HfModelError, HfModelResolution, ModelInfo, ModelManager,
 };
-use crate::managers::transcription::{ModelStateEvent, TranscriptionManager};
+use crate::managers::transcription::{asr_load_refusal, ModelStateEvent, TranscriptionManager};
 use crate::settings::{get_settings, write_settings, AppSettings, ModelUnloadTimeout};
 use log::error;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
+
+/// Stable prefix marking the selection refusal (the post-process LLM is not
+/// an ASR model). The settings UI matches this prefix to word the row-level
+/// error as a localized explanation instead of the raw refusal text, the
+/// same convention as [`crate::local_llm::SWAP_REFUSAL_PREFIX`].
+pub const SELECTION_REFUSAL_PREFIX: &str = "not-an-asr-model";
+
+/// Pure selection guard, shared by every command that persists an ASR model
+/// selection: the local post-process LLM must never become the selected ASR
+/// model. With `unload_timeout = Immediately` the switch command persists
+/// the selection WITHOUT loading, so without this guard the GGUF only blows
+/// up at the next hotkey press (asr_load_refusal fires mid-session and the
+/// speech is lost). Reusing the load path's own predicate keeps selection
+/// and loading ruled by one table.
+fn selection_guard_error(model_info: &ModelInfo) -> Option<String> {
+    asr_load_refusal(&model_info.engine_type, &model_info.id).map(|msg| {
+        format!(
+            "{}: {} (it powers post-processing, not transcription)",
+            SELECTION_REFUSAL_PREFIX, msg
+        )
+    })
+}
 
 #[tauri::command]
 #[specta::specta]
@@ -132,6 +154,13 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
         return Err(format!("Model not downloaded: {}", model_id));
     }
 
+    // Selection guard: reject the post-process LLM BEFORE anything is
+    // persisted. Nothing was written, so nothing needs reverting; the error
+    // carries the stable prefix the settings UI localizes against.
+    if let Some(error_msg) = selection_guard_error(&model_info) {
+        return Err(error_msg);
+    }
+
     let settings = get_settings(app);
     let unload_timeout = settings.model_unload_timeout;
     let old_model = settings.selected_model.clone();
@@ -222,6 +251,12 @@ pub async fn set_active_model_deferred(
         return Err(format!("Model not downloaded: {}", model_id));
     }
 
+    // Same guard as switch_active_model: the deferred path persists without
+    // loading too, so the GGUF must be refused before the store is touched.
+    if let Some(error_msg) = selection_guard_error(&model_info) {
+        return Err(error_msg);
+    }
+
     let mut settings = get_settings(&app_handle);
     apply_deferred_selection(&mut settings, &model_id);
     write_settings(&app_handle, settings);
@@ -309,6 +344,7 @@ pub async fn add_hf_model(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::managers::model::{local_llm_model_info, EngineType};
     use crate::settings::get_default_settings;
 
     /// The deferred selection persists the model and completes onboarding
@@ -325,5 +361,45 @@ mod tests {
         apply_deferred_selection(&mut settings, "whisper-tiny-q8");
         assert_eq!(settings.selected_model, "whisper-tiny-q8");
         assert!(settings.onboarding_completed);
+    }
+
+    /// The selection guard rejects the local post-process LLM (the Qwen GGUF)
+    /// at selection time with the stable prefix the settings UI matches, so
+    /// the Immediately branch of `switch_active_model` (persist-without-load)
+    /// can never persist it and blow up at the next hotkey press instead.
+    #[test]
+    fn selection_guard_rejects_the_post_process_llm_up_front() {
+        let llm = local_llm_model_info();
+        let refusal = selection_guard_error(&llm)
+            .expect("the post-process GGUF must be refused at selection time");
+        assert!(
+            refusal.starts_with(SELECTION_REFUSAL_PREFIX),
+            "the refusal must carry the stable prefix, got: {refusal}"
+        );
+        assert!(refusal.contains(&llm.id), "the refusal names the model id");
+    }
+
+    /// Every real ASR engine type passes the guard: only the LocalLlm engine
+    /// is refused, so no legitimate model selection is blocked by it.
+    #[test]
+    fn selection_guard_accepts_every_real_asr_engine() {
+        let engines = [
+            EngineType::TranscribeCpp,
+            EngineType::Parakeet,
+            EngineType::Moonshine,
+            EngineType::MoonshineStreaming,
+            EngineType::SenseVoice,
+            EngineType::GigaAM,
+            EngineType::Canary,
+            EngineType::Cohere,
+        ];
+        for engine in engines {
+            let mut info = local_llm_model_info();
+            info.engine_type = engine.clone();
+            assert!(
+                selection_guard_error(&info).is_none(),
+                "{engine:?} is a real ASR engine and must be selectable"
+            );
+        }
     }
 }

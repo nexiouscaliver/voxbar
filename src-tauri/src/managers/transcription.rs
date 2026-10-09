@@ -94,6 +94,30 @@ pub(crate) fn asr_load_refusal(engine_type: &EngineType, model_id: &str) -> Opti
     }
 }
 
+/// What the hotkey-path load-failure hook should do, decided purely from the
+/// coordinator's session-liveness mirror (the scripted mirror the unit test
+/// drives): a failure with NO live session is the ordinary settings-driven
+/// case (toast + log already cover it), a failure WITH a live session must
+/// tear the session down or the mic and overlay stay live on a dictation
+/// that can never transcribe.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LoadFailureAction {
+    /// No session was live: the loading_failed notice, toast, and log stand
+    /// on their own.
+    LogOnly,
+    /// A recording session was live: notify (already done at the
+    /// loading_failed seam) and tear the session down.
+    NotifyAndTearDown,
+}
+
+fn load_failure_action(session_live: bool) -> LoadFailureAction {
+    if session_live {
+        LoadFailureAction::NotifyAndTearDown
+    } else {
+        LoadFailureAction::LogOnly
+    }
+}
+
 /// The pure half of the fallback inventory: map every downloaded model
 /// except `failed_id` to its resolver candidate. Split from the method so the
 /// inventory contract (custom and user-added Hugging Face models included,
@@ -2126,11 +2150,56 @@ impl TranscriptionManager {
             let settings = get_settings(&self_clone.app_handle);
             if let Err(e) = self_clone.load_model(&settings.selected_model) {
                 error!("Failed to load model: {}", e);
+                self_clone.handle_hotkey_load_failure(&e);
             }
             let mut is_loading = self_clone.is_loading.lock().unwrap();
             *is_loading = false;
             self_clone.loading_condvar.notify_all();
         });
+    }
+
+    /// The hotkey-path load-failure hook. A model load that fails while a
+    /// recording session is LIVE (the coordinator's recording mirror says
+    /// so) has already opened the microphone and shown the overlay; without
+    /// this hook both stay live while the pipeline waits on audio that can
+    /// never be transcribed (the observed dead sessions: ~16 s of speech
+    /// lost, tray stuck on Recording). The notice itself already fired at
+    /// the loading_failed seam inside `load_model`; this hook adds only the
+    /// teardown, mirroring `cancel_current_operation`'s route (cancel the
+    /// stream and transcription, tray Idle, coordinator cancel) with the
+    /// overlay hide DELAYED so the in-card error stays readable.
+    fn handle_hotkey_load_failure(&self, error: &anyhow::Error) {
+        let session_live = self
+            .app_handle
+            .try_state::<crate::TranscriptionCoordinator>()
+            .is_some_and(|c| c.is_recording_session());
+        if !matches!(
+            load_failure_action(session_live),
+            LoadFailureAction::NotifyAndTearDown
+        ) {
+            return;
+        }
+        warn!(
+            "model load failed while a dictation session was live; tearing the session down ({error})"
+        );
+        crate::shortcut::unregister_cancel_shortcut(&self.app_handle);
+        let recording_was_active = self
+            .app_handle
+            .try_state::<Arc<AudioRecordingManager>>()
+            .is_some_and(|a| a.is_recording());
+        if let Some(rm) = self.app_handle.try_state::<Arc<AudioRecordingManager>>() {
+            rm.cancel_recording();
+        }
+        self.cancel_stream();
+        self.cancel_transcription();
+        crate::tray::set_tray_state(&self.app_handle, crate::tray::TrayIconState::Idle);
+        crate::overlay::hide_recording_overlay_after_error(&self.app_handle);
+        self.maybe_unload_immediately("hotkey model-load failure");
+        if let Some(coordinator) =
+            self.app_handle.try_state::<crate::TranscriptionCoordinator>()
+        {
+            coordinator.notify_cancel(recording_was_active);
+        }
     }
 
     /// Reload the selected voice model under a loading slot the exclusive
@@ -4023,6 +4092,23 @@ mod tests {
     /// The mapping helpers the emit sites rely on: recording error types and
     /// post-process skip reasons resolve to the code the frontend expects,
     /// with unknowns degrading to the generic recording failure.
+    /// The session-liveness failure hook's decision table (the scripted
+    /// coordinator mirror): only a LIVE session tears down; a settings-driven
+    /// load failure (no session) keeps the ordinary toast+log behavior.
+    #[test]
+    fn load_failure_action_follows_session_liveness() {
+        assert_eq!(
+            load_failure_action(true),
+            LoadFailureAction::NotifyAndTearDown,
+            "a live session must be torn down, not left waiting on audio"
+        );
+        assert_eq!(
+            load_failure_action(false),
+            LoadFailureAction::LogOnly,
+            "no session means nothing to tear down"
+        );
+    }
+
     #[test]
     fn notice_mapping_helpers_cover_every_source() {
         use crate::local_llm::SkipReason;

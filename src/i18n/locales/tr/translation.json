@@ -226,6 +226,10 @@
           "unsupportedArchUnknown": "Bu dosya bir GGUF modeli olarak okunamadığı için eklenmedi.",
           "generic": "Bir şeyler ters gitti."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Bu model yerel son işlem motorudur. Dikte sonrası transkriptleri cilalar, sesi transkribe edemez.",
+        "generic": "Bu modele geçilemedi: {{error}}"
       }
     },
     "general": {

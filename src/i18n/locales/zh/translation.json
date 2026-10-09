@@ -226,6 +226,10 @@
           "unsupportedArchUnknown": "该文件无法作为 GGUF 模型读取，因此未被添加。",
           "generic": "出现问题。"
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "此模型是本地后处理引擎。它在听写后润色转录文本，无法转录音频。",
+        "generic": "无法切换到此模型：{{error}}"
       }
     },
     "general": {

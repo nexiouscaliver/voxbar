@@ -381,6 +381,10 @@
           "unsupportedArchUnknown": "該檔案無法作為 GGUF 模型讀取，因此未新增。",
           "generic": "發生問題。"
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "此模型是本機後處理引擎。它會在聽寫後潤飾轉錄文字，無法轉錄音訊。",
+        "generic": "無法切換到此模型：{{error}}"
       }
     },
     "sound": {

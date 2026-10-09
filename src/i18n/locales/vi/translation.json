@@ -226,6 +226,10 @@
           "unsupportedArchUnknown": "Không thể đọc tệp đó dưới dạng mô hình GGUF nên đã không thêm.",
           "generic": "Đã xảy ra lỗi."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Mô hình này là engine hậu xử lý cục bộ. Nó trau chuốt bản trích lời sau khi đọc chính tả, không thể trích lời âm thanh.",
+        "generic": "Không thể chuyển sang mô hình này: {{error}}"
       }
     },
     "general": {
