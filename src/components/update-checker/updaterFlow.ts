@@ -20,9 +20,13 @@ export const RELEASES_URL = "https://github.com/nexiouscaliver/voxbar/releases";
 const t = (key: string, options?: Record<string, unknown>): string =>
   i18n.t(key, options);
 
-// The check must not hang silently behind a stalled connection, and a ~20 MB
-// download on a slow link can legitimately take minutes - but not ten.
-const CHECK_TIMEOUT_MS = 20000;
+// Each network call must not hang silently behind a stalled connection, and
+// a ~20 MB download on a slow link can legitimately take minutes - but not
+// ten. The check gets a tighter per-attempt budget because it is retried
+// (see checkForUpdates): three 15s attempts recover from the GitHub assets
+// CDN intermittently stalling new connections without making the user wait
+// a full minute per attempt.
+const CHECK_TIMEOUT_MS = 15000;
 const DOWNLOAD_TIMEOUT_MS = 600000;
 // The plugin emits one progress event per network chunk; re-rendering the
 // toast per chunk churns the webview and makes the download feel slower than
@@ -134,6 +138,36 @@ async function showFailureToast(id?: string | number): Promise<void> {
 // bar, or an indeterminate pulse when the CDN withholds the content length).
 // Resolves true only when the payload is fully downloaded and still attached
 // to `update`; installation is a separate, later step.
+//
+// The GitHub assets CDN (release-assets.githubusercontent.com) intermittently
+// stalls NEW connections for whole minutes on some networks - observed as
+// every check reaching github.com cleanly and then hanging on the redirect
+// target until the timeout - so both the check and the download retry a
+// bounded number of times before surfacing an error. A stall that outlives
+// all attempts is a real network problem the manual fallback covers.
+const CHECK_ATTEMPTS = 3;
+const DOWNLOAD_ATTEMPTS = 2;
+const RETRY_PAUSE_MS = 2000;
+
+async function checkForUpdates(): Promise<Update | null> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= CHECK_ATTEMPTS; attempt++) {
+    try {
+      return await check({ timeout: CHECK_TIMEOUT_MS });
+    } catch (error) {
+      lastError = error;
+      console.error(
+        `Update check attempt ${attempt}/${CHECK_ATTEMPTS} failed:`,
+        error,
+      );
+      if (attempt < CHECK_ATTEMPTS) {
+        await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
+      }
+    }
+  }
+  throw lastError;
+}
+
 async function downloadUpdate(update: Update): Promise<boolean> {
   const progressId = "updater-download";
   let contentLength: number | null = null;
@@ -164,30 +198,43 @@ async function downloadUpdate(update: Update): Promise<boolean> {
     });
   };
 
-  try {
-    await update.download(
-      (event) => {
-        switch (event.event) {
-          case "Started":
-            contentLength = event.data.contentLength ?? null;
-            render(true);
-            break;
-          case "Progress":
-            downloaded += event.data.chunkLength;
-            render(false);
-            break;
-          case "Finished":
-            break;
-        }
-      },
-      { timeout: DOWNLOAD_TIMEOUT_MS },
-    );
-    return true;
-  } catch (error) {
-    console.error("Update download failed:", error);
-    void showFailureToast(progressId);
-    return false;
+  for (let attempt = 1; attempt <= DOWNLOAD_ATTEMPTS; attempt++) {
+    // Counters reset per attempt: a failed attempt may have reported partial
+    // progress that the fresh request starts over.
+    contentLength = null;
+    downloaded = 0;
+    try {
+      await update.download(
+        (event) => {
+          switch (event.event) {
+            case "Started":
+              contentLength = event.data.contentLength ?? null;
+              render(true);
+              break;
+            case "Progress":
+              downloaded += event.data.chunkLength;
+              render(false);
+              break;
+            case "Finished":
+              break;
+          }
+        },
+        { timeout: DOWNLOAD_TIMEOUT_MS },
+      );
+      return true;
+    } catch (error) {
+      console.error(
+        `Update download attempt ${attempt}/${DOWNLOAD_ATTEMPTS} failed:`,
+        error,
+      );
+      if (attempt < DOWNLOAD_ATTEMPTS) {
+        render(true);
+        await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
+      }
+    }
   }
+  void showFailureToast(progressId);
+  return false;
 }
 
 // Install the already-downloaded payload. "Restart now" relaunches into the
@@ -257,7 +304,7 @@ export async function runUpdateCheck(
       toast.loading(t("footer.checkingUpdates"), { id: "updater-checking" });
     }
 
-    const update = await check({ timeout: CHECK_TIMEOUT_MS });
+    const update = await checkForUpdates();
 
     if (!update) {
       if (trigger === "manual") {
