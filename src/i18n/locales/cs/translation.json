@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Vyhledejte nebo vyberte model",
           "placeholderNoOptions": "Zadejte název modelu",
           "refreshModels": "Obnovit modely"
+        },
+        "timeout": {
+          "title": "Časový limit požadavku",
+          "description": "Jak dlouho může cloudový požadavek na dodatečné zpracování běžet, než se vzdá a použije se surový přepis. Platí, když endpoint přestane odpovídat."
         }
       },
       "local": {

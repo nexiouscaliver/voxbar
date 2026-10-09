@@ -12,7 +12,8 @@ use super::{CPU_ONLY_FLAG, LOG_LEVEL_ENV};
 use log::{debug, error, warn, LevelFilter, Log, Metadata, Record};
 use std::fs::File;
 use std::io::{self, BufReader, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::process::ChildStderr;
 use std::sync::mpsc;
 use std::thread;
 use transcribe_cpp::{
@@ -22,6 +23,10 @@ use transcribe_cpp::{
 /// Prefix on worker log lines so the parent can tell them apart from raw
 /// native output (e.g. a `GGML_ASSERT` message right before an abort).
 pub(super) const LOG_LINE_PREFIX: &str = "\u{1}";
+
+/// Lines of worker stderr kept as the crash tail (shared contract: both
+/// worker kinds drain through [`spawn_stderr_tail`]).
+pub(crate) const STDERR_TAIL_LINES: usize = 64;
 
 /// A request as handed from the stdin reader to the main loop.
 struct Incoming {
@@ -471,5 +476,218 @@ pub(crate) fn take_stdout_for_protocol() -> io::Result<File> {
             return Err(io::Error::last_os_error());
         }
         Ok(File::from_raw_handle(handle as _))
+    }
+}
+
+// --- The shared worker spawn contract ---------------------------------------
+//
+// Both same-binary worker processes (the transcribe-cpp worker and the
+// local-LLM worker) spawn through these helpers, so they share one posture:
+// the executable is verified against the file the app was launched from (a
+// self-update applied mid-run must never pair a new-version worker with an
+// old parent), and stderr is always drained and kept as a bounded crash
+// tail (a full pipe would block the worker).
+
+/// The file the app was started from, with its identity (device and inode),
+/// recorded at startup; see [`worker_exe`]. `None` if either couldn't be
+/// read, which skips the check.
+#[cfg(all(unix, not(test)))]
+static LAUNCHED_EXE: std::sync::OnceLock<Option<(PathBuf, (u64, u64))>> =
+    std::sync::OnceLock::new();
+
+/// (device, inode) identity of a file.
+#[cfg(unix)]
+pub(crate) fn file_id(path: &Path) -> io::Result<(u64, u64)> {
+    use std::os::unix::fs::MetadataExt;
+    let metadata = std::fs::metadata(path)?;
+    Ok((metadata.dev(), metadata.ino()))
+}
+
+/// The exe-identity decision, extracted so it is unit-testable: `true` when
+/// the file the app was launched from was replaced or removed on disk.
+/// `None` (identity never recorded) skips the check.
+#[cfg(unix)]
+pub(crate) fn launched_exe_replaced(launched: Option<&(PathBuf, (u64, u64))>) -> bool {
+    launched.is_some_and(|(path, id)| file_id(path).ok().as_ref() != Some(id))
+}
+
+/// Must run before an upgrade can replace the file, so at startup.
+#[cfg(all(unix, not(test)))]
+pub(crate) fn record_launched_exe() {
+    LAUNCHED_EXE.get_or_init(|| {
+        std::env::current_exe()
+            .and_then(|path| {
+                let id = file_id(&path)?;
+                Ok((path, id))
+            })
+            .inspect_err(|e| warn!("Could not identify VoxBar's executable: {}", e))
+            .ok()
+    });
+}
+
+/// Test and non-unix builds have no identity to record.
+#[cfg(any(not(unix), test))]
+pub(crate) fn record_launched_exe() {}
+
+/// The executable a same-binary worker runs: always this very binary, so the
+/// two agree on the protocol and on the native libraries. Upgrading or
+/// moving VoxBar while it runs replaces or removes the file it started
+/// from, and a worker started from there would be the new version (macOS),
+/// or this binary loading the new version's backend libraries (Linux). Only
+/// a restart fixes that, so refuse to start one and say so. Windows locks a
+/// running executable against replacement. On Linux the worker runs from
+/// `/proc/self/exe`, which is this binary even once its file is replaced.
+pub(crate) fn worker_exe() -> io::Result<PathBuf> {
+    #[cfg(all(unix, not(test)))]
+    if launched_exe_replaced(LAUNCHED_EXE.get().and_then(Option::as_ref)) {
+        return Err(io::Error::other(
+            "VoxBar was updated or moved while it was running; restart VoxBar",
+        ));
+    }
+    #[cfg(target_os = "linux")]
+    return Ok(PathBuf::from("/proc/self/exe"));
+    #[cfg(not(target_os = "linux"))]
+    std::env::current_exe()
+}
+
+/// Drain a worker's stderr: re-log every line under `log_target` and keep
+/// the last `tail_lines` in the returned crash tail. Returns the tail plus
+/// a channel that closes once the stream ends (so a reader can wait for the
+/// final lines before reporting a death). Splitting on raw bytes: native
+/// code may write non-UTF-8 (e.g. a path in the Windows ANSI code page),
+/// and `lines()` would end the loop there, losing every later line, abort
+/// message included.
+pub(crate) fn spawn_stderr_tail(
+    stderr: ChildStderr,
+    tail_lines: usize,
+    log_target: &'static str,
+) -> (
+    std::sync::Arc<std::sync::Mutex<std::collections::VecDeque<String>>>,
+    mpsc::Receiver<()>,
+) {
+    use std::collections::VecDeque;
+    use std::io::BufRead;
+    use std::sync::{Arc, Mutex};
+
+    let tail = Arc::new(Mutex::new(VecDeque::with_capacity(tail_lines)));
+    let (done_tx, done) = mpsc::channel();
+    let tail_for_thread = Arc::clone(&tail);
+    let _ = thread::Builder::new()
+        .name("worker-stderr-tail".into())
+        .spawn(move || {
+            for line in BufReader::new(stderr).split(b'\n') {
+                let Ok(line) = line else { break };
+                let line = String::from_utf8_lossy(&line);
+                let line = line.strip_suffix('\r').unwrap_or(&line).to_string();
+                forward_stderr_line(&line, log_target);
+                let mut tail = tail_for_thread
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                if tail.len() == tail_lines {
+                    tail.pop_front();
+                }
+                tail.push_back(line);
+            }
+            let _ = done_tx.send(());
+        });
+    (tail, done)
+}
+
+/// Re-log a worker stderr line in the parent. Structured lines keep their
+/// level; anything else is raw native output.
+fn forward_stderr_line(line: &str, log_target: &'static str) {
+    if let Some(rest) = line.strip_prefix(LOG_LINE_PREFIX) {
+        let mut parts = rest.splitn(3, '\t');
+        if let (Some(level), Some(target), Some(message)) =
+            (parts.next(), parts.next(), parts.next())
+        {
+            let level = level.parse::<log::Level>().unwrap_or(log::Level::Info);
+            log::log!(target: log_target, level, "[{}] {}", target, message);
+            return;
+        }
+    }
+    log::info!(target: log_target, "{}", line);
+}
+
+#[cfg(test)]
+mod spawn_contract_tests {
+    use super::*;
+    use std::io::Write;
+
+    /// The exe-identity decision: an untouched recorded file is NOT
+    /// replaced; a file replaced underneath (new inode, the macOS updater
+    /// pattern: write a new file, rename it over the old path) IS; a
+    /// missing identity never refuses; a deleted file counts as replaced.
+    #[test]
+    #[cfg(unix)]
+    fn launched_exe_replacement_decision() {
+        let dir = std::env::temp_dir().join(format!(
+            "voxbar-exe-identity-{}-{}",
+            std::process::id(),
+            thread::current().name().unwrap_or("test")
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        let exe = dir.join("app-binary");
+        std::fs::write(&exe, b"old version").unwrap();
+        let recorded = (exe.clone(), file_id(&exe).unwrap());
+
+        // Untouched: same identity.
+        assert!(!launched_exe_replaced(Some(&recorded)));
+
+        // Replaced by a rename-over (new inode): the updater's pattern.
+        let staged = dir.join("app-binary.new");
+        std::fs::write(&staged, b"new version with different length").unwrap();
+        std::fs::rename(&staged, &exe).unwrap();
+        assert!(
+            launched_exe_replaced(Some(&recorded)),
+            "a renamed-over binary must read as replaced"
+        );
+
+        // Deleted: replaced (the file the app ran from is gone).
+        std::fs::remove_file(&exe).unwrap();
+        assert!(launched_exe_replaced(Some(&recorded)));
+
+        // No recorded identity: the check never refuses.
+        assert!(!launched_exe_replaced(None));
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    /// The stderr tail: keeps the LAST `tail_lines` raw lines, drops the
+    /// earlier ones, and signals completion when the stream ends. Runs
+    /// against a real child's piped stderr.
+    #[test]
+    #[cfg(unix)]
+    fn stderr_tail_keeps_the_last_lines() {
+        let script = format!(
+            "printf '{}' 1>&2",
+            (0..8)
+                .map(|index| format!("native output {index}\\n"))
+                .collect::<String>()
+        );
+        let mut child = std::process::Command::new("sh")
+            .arg("-c")
+            .arg(&script)
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .expect("sh is available on unix");
+        let stderr = child.stderr.take().expect("stderr is piped");
+
+        let (tail, done) = spawn_stderr_tail(stderr, 5, "spawn-contract-test");
+        done.recv_timeout(std::time::Duration::from_secs(5))
+            .expect("the drain must finish when the stream ends");
+        let _ = child.wait();
+        let tail = tail.lock().unwrap();
+        assert_eq!(
+            tail.iter().collect::<Vec<_>>(),
+            vec![
+                "native output 3",
+                "native output 4",
+                "native output 5",
+                "native output 6",
+                "native output 7",
+            ],
+            "only the last tail_lines lines survive"
+        );
     }
 }

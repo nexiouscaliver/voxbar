@@ -178,16 +178,12 @@ enum Effect {
     /// A transcribe binding was pressed while a DIFFERENT binding is already
     /// recording; the press was swallowed to protect the live session.
     /// Surfaced through the notice channel so the press is not silent.
-    NotifyRecordingBusy {
-        binding_id: String,
-    },
+    NotifyRecordingBusy { binding_id: String },
     /// The command-mode modifier engaged (true) or disengaged (false) for
     /// the live session; drives the overlay's command-mode badge. Emitted on
     /// every transition path, session end included, so the badge can never
     /// outlive the session that armed it.
-    CommandModifierChanged {
-        active: bool,
-    },
+    CommandModifierChanged { active: bool },
 }
 
 /// Commands processed sequentially by the coordinator thread.
@@ -655,6 +651,13 @@ pub struct TranscriptionCoordinator {
     /// thread. The latch itself is NOT new state: it observes the same
     /// pending_press the drain consumes.
     pending_press: Arc<AtomicBool>,
+    /// Mirror of `Stage::Processing` for lock-free readers outside the
+    /// coordinator thread: the cancel-shortcut handler gate asks "is the
+    /// stop pipeline still working (finalize, batch, post-process, paste)?"
+    /// so Escape stays alive for the whole pipeline, not just while a
+    /// microphone recording is live. Published at the same points as the
+    /// recording mirror.
+    processing: Arc<AtomicBool>,
 }
 
 /// Which binding IDs drive the recording lifecycle. The command-mode
@@ -675,6 +678,8 @@ impl TranscriptionCoordinator {
         let command_modifier_mirror = Arc::clone(&command_modifier);
         let pending_press = Arc::new(AtomicBool::new(false));
         let pending_press_mirror = Arc::clone(&pending_press);
+        let processing = Arc::new(AtomicBool::new(false));
+        let processing_mirror = Arc::clone(&processing);
 
         thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -689,6 +694,8 @@ impl TranscriptionCoordinator {
                         matches!(state.stage, Stage::Recording(_)),
                         Ordering::Release,
                     );
+                    processing_mirror
+                        .store(matches!(state.stage, Stage::Processing), Ordering::Release);
                     command_modifier_mirror.store(state.command_modifier, Ordering::Release);
                     pending_press_mirror.store(state.pending_press.is_some(), Ordering::Release);
                 };
@@ -745,6 +752,7 @@ impl TranscriptionCoordinator {
                 // advertising a live recording session, an engaged command
                 // modifier, or a remembered press.
                 recording_mirror.store(false, Ordering::Release);
+                processing_mirror.store(false, Ordering::Release);
                 command_modifier_mirror.store(false, Ordering::Release);
                 pending_press_mirror.store(false, Ordering::Release);
                 debug!("Transcription coordinator exited");
@@ -759,6 +767,7 @@ impl TranscriptionCoordinator {
             recording,
             command_modifier,
             pending_press,
+            processing,
         }
     }
 
@@ -768,6 +777,16 @@ impl TranscriptionCoordinator {
     /// between editing the dictation buffer and injecting keys.
     pub fn is_recording_session(&self) -> bool {
         self.recording.load(Ordering::Acquire)
+    }
+
+    /// Whether the stop pipeline is still working (the coordinator is in
+    /// its Processing stage: after the stop effect, until the pipeline's
+    /// FinishGuard reports completion). The cancel-shortcut handler gate
+    /// reads this so Escape stays alive while finalize, batch
+    /// transcription, post-processing, or the paste still run, even though
+    /// no recording is live anymore.
+    pub fn is_processing(&self) -> bool {
+        self.processing.load(Ordering::Acquire)
     }
 
     /// Whether the command-mode binding is currently modulating the live
@@ -1198,7 +1217,10 @@ mod tests {
 
         // A different dictation binding presses: swallowed, and surfaced.
         assert_eq!(
-            state.on_input(toggle_input_for("transcribe_with_post_process", false), t0 + Duration::from_millis(50)),
+            state.on_input(
+                toggle_input_for("transcribe_with_post_process", false),
+                t0 + Duration::from_millis(50)
+            ),
             Some(Effect::NotifyRecordingBusy {
                 binding_id: "transcribe_with_post_process".to_string()
             })

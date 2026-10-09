@@ -234,18 +234,16 @@ const RecordingOverlay: React.FC = () => {
         if (payload.kind) setWorkKind(payload.kind);
       });
 
-      const unlistenNotice = await events.overlayNoticeEvent.listen(
-        (event) => {
-          setNotice(event.payload);
-          if (noticeTimerRef.current !== null) {
-            window.clearTimeout(noticeTimerRef.current);
-          }
-          noticeTimerRef.current = window.setTimeout(() => {
-            setNotice(null);
-            noticeTimerRef.current = null;
-          }, NOTICE_DISMISS_MS);
-        },
-      );
+      const unlistenNotice = await events.overlayNoticeEvent.listen((event) => {
+        setNotice(event.payload);
+        if (noticeTimerRef.current !== null) {
+          window.clearTimeout(noticeTimerRef.current);
+        }
+        noticeTimerRef.current = window.setTimeout(() => {
+          setNotice(null);
+          noticeTimerRef.current = null;
+        }, NOTICE_DISMISS_MS);
+      });
 
       const unlistenCmd = await listen<boolean>(
         "command-modifier-changed",
@@ -407,12 +405,12 @@ const RecordingOverlay: React.FC = () => {
 
     return (
       <div dir={direction} className={`ov-stage ${position}`}>
-      <div
-        key={session}
-        className={`scard ${open ? "open" : ""} ${collapsed ? "working" : ""} ${
-          isVisible ? "" : "leaving"
-        } ${notice !== null ? "has-notice" : ""}`}
-      >
+        <div
+          key={session}
+          className={`scard ${open ? "open" : ""} ${collapsed ? "working" : ""} ${
+            isVisible ? "" : "leaving"
+          } ${notice !== null ? "has-notice" : ""}`}
+        >
           <div className="stext">
             <div className="stext-clip">
               <div

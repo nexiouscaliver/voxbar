@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Wyszukaj lub wybierz model",
           "placeholderNoOptions": "Wpisz nazwę modelu",
           "refreshModels": "Odśwież modele"
+        },
+        "timeout": {
+          "title": "Limit czasu żądania",
+          "description": "Jak długo żądanie przetwarzania końcowego w chmurze może działać, zanim zrezygnuje i zostanie użyty surowy zapis. Stosowane, gdy endpoint przestaje odpowiadać."
         }
       },
       "local": {

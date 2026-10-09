@@ -660,6 +660,10 @@
           "placeholderWithOptions": "搜尋或選擇模型",
           "placeholderNoOptions": "輸入模型名稱",
           "refreshModels": "重新整理模型"
+        },
+        "timeout": {
+          "title": "請求逾時",
+          "description": "雲端後處理請求在放棄並改用原始轉寫文字之前可以執行多久。適用於端點停止回應的情況。"
         }
       },
       "local": {

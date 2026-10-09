@@ -131,17 +131,25 @@ pub async fn delete_model(
 /// Shared logic for switching the active model, used by both the Tauri command
 /// and the tray menu handler.
 ///
-/// Validates the model, updates the persisted setting, and loads the model
-/// unless the unload timeout is set to "Immediately" (in which case the model
-/// will be loaded on-demand during the next transcription).
+/// Validates the model and persists the selection synchronously, then runs
+/// the load on a dedicated loader thread holding the loading slot (the same
+/// guard-transfer pattern the post-process restore and the hotkey load use).
+/// The eager load can take up to LOAD_TIMEOUT (180s) on a large GGUF; running
+/// it inline pinned the calling context (an async command's runtime worker
+/// for the settings path), freezing every other command behind it. The
+/// command now returns once the selection is persisted, and load progress
+/// still reaches the frontend through the model-state-changed events
+/// `load_model` emits. Loading is skipped entirely when the unload timeout
+/// is "Immediately" (the model loads on demand at the next transcription).
 pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String> {
     let model_manager = app.state::<Arc<ModelManager>>();
     let transcription_manager = app.state::<Arc<TranscriptionManager>>();
 
     // Atomically claim the loading slot - prevents concurrent model loads
     // from tray double-clicks or overlapping commands. The guard resets the
-    // flag on drop (including early returns, errors, and panics).
-    let _loading_guard = transcription_manager
+    // flag on drop (including early returns, errors, and panics), wherever
+    // it ends up living.
+    let loading_guard = transcription_manager
         .try_start_loading()
         .ok_or_else(|| "Model load already in progress".to_string())?;
 
@@ -193,17 +201,36 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
             "Model selection changed to {} (not loading - unload set to Immediately).",
             model_id
         );
+        // Nothing loads: the slot releases here and the command is done.
+        drop(loading_guard);
         return Ok(());
     }
 
-    // Load the model. On failure, revert the persisted selection.
-    if let Err(e) = transcription_manager.load_model(model_id) {
-        let mut settings = get_settings(app);
-        settings.selected_model = old_model;
-        settings.onboarding_completed = old_onboarding_completed;
-        write_settings(app, settings);
-        return Err(e.to_string());
-    }
+    // The eager load runs off this calling context (the tray handler already
+    // wrapped this helper in a thread; now the helper itself owns that). The
+    // guard MOVES into the loader thread, so the slot stays held for the
+    // whole load and a panic inside it still clears the flag (the guard's
+    // Drop, the same mechanism every other load path uses).
+    let tm = Arc::clone(&transcription_manager);
+    let app_for_loader = app.clone();
+    let loader_model_id = model_id.to_string();
+    std::thread::spawn(move || {
+        let _slot = loading_guard;
+        // On failure, revert the persisted selection, exactly as the
+        // synchronous path did; the failure itself already reached the
+        // frontend through load_model's loading_failed event.
+        if let Err(e) = tm.load_model(&loader_model_id) {
+            log::error!(
+                "Failed to load model {}: {}; reverting the selection",
+                loader_model_id,
+                e
+            );
+            let mut settings = get_settings(&app_for_loader);
+            settings.selected_model = old_model;
+            settings.onboarding_completed = old_onboarding_completed;
+            write_settings(&app_for_loader, settings);
+        }
+    });
 
     Ok(())
 }

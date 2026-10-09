@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Zoek of selecteer een model",
           "placeholderNoOptions": "Typ een modelnaam",
           "refreshModels": "Modellen verversen"
+        },
+        "timeout": {
+          "title": "Time-out van verzoek",
+          "description": "Hoe lang een cloudverzoek voor nabewerking mag draaien voordat het opgeeft en de ruwe transcriptie wordt gebruikt. Geldt wanneer een endpoint niet meer reageert."
         }
       },
       "local": {

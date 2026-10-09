@@ -660,6 +660,10 @@
           "placeholderWithOptions": "搜索或选择模型",
           "placeholderNoOptions": "输入模型名称",
           "refreshModels": "刷新模型"
+        },
+        "timeout": {
+          "title": "请求超时",
+          "description": "云端后处理请求在放弃并改用原始转写文本之前可以运行多久。适用于端点停止响应的情况。"
         }
       },
       "local": {

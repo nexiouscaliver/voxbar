@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Sök eller välj en modell",
           "placeholderNoOptions": "Ange ett modellnamn",
           "refreshModels": "Uppdatera modeller"
+        },
+        "timeout": {
+          "title": "Tidsgräns för begäran",
+          "description": "Hur länge en efterbearbetningsbegäran i molnet får köras innan den ger upp och den råa transkriberingen används. Gäller när en slutpunkt slutar svara."
         }
       },
       "local": {

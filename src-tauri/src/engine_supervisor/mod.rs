@@ -31,11 +31,15 @@ mod worker;
 // posture: claim stdout for the protocol, log to stderr, ignore app signals).
 #[cfg(target_os = "linux")]
 pub(crate) use worker::set_process_name;
-pub(crate) use worker::{ignore_app_signals, init_logger, take_stdout_for_protocol};
+pub(crate) use worker::{
+    ignore_app_signals, init_logger, record_launched_exe, spawn_stderr_tail,
+    take_stdout_for_protocol, worker_exe, STDERR_TAIL_LINES,
+};
 
 pub use protocol::{DeviceInfo, DeviceSelector, LoadedInfo};
 pub use supervisor::{
-    EngineError, EngineSupervisor, Finalized, LoadSpec, StreamHandle, StreamProgress, Unloading,
+    EngineError, EngineSupervisor, Finalized, LoadSpec, RenderBackpressure, StreamHandle,
+    StreamProgress, Unloading,
 };
 
 /// Hidden first argument that turns the executable into a worker.

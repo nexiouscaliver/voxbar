@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Model ara veya seç",
           "placeholderNoOptions": "Model adı yazın",
           "refreshModels": "Modelleri Yenile"
+        },
+        "timeout": {
+          "title": "İstek zaman aşımı",
+          "description": "Bir bulut son işleme isteğinin vazgeçip ham transkriptin kullanıldığı süreye kadar çalışabileceği süre. Bir endpoint yanıt vermeyi bıraktığında geçerlidir."
         }
       },
       "local": {

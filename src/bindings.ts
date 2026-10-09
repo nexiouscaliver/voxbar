@@ -1120,6 +1120,22 @@ async setModelUnloadTimeoutCustomSeconds(seconds: number) : Promise<Result<null,
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Set the total-request timeout for cloud post-process calls, in seconds.
+ * Rejects out-of-range values instead of clamping so a UI bug can't
+ * silently write a 1-second or 10-minute timeout the user never saw.
+ */
+async setPostProcessTimeout(seconds: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_post_process_timeout", { seconds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async logUpdateDecision(stage: string, detail: string | null) : Promise<void> {
+    await TAURI_INVOKE("log_update_decision", { stage, detail });
+},
 async getModelLoadStatus() : Promise<Result<ModelLoadStatus, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_model_load_status") };
@@ -1312,7 +1328,7 @@ menu_bar_model_title?: boolean; word_correction_threshold?: number; history_limi
 /**
  * Show the compact per-entry model badge in the History list.
  */
-show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; 
+show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_timeout_secs?: number; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; 
 /**
  * One-time marker for the local-default post-process migration (spec
  * 5.2): absent on legacy stores (the migration fires once), true on

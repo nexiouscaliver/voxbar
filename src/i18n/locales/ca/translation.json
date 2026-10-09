@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Cerqueu o seleccioneu un model",
           "placeholderNoOptions": "Escriviu el nom d'un model",
           "refreshModels": "Actualitzeu els models"
+        },
+        "timeout": {
+          "title": "Temps d'espera de la sol·licitud",
+          "description": "Quant de temps pot executar-se una sol·licitud de postprocessat al núvol abans de renunciar-hi i usar la transcripció en brut. S'aplica quan un endpoint deixa de respondre."
         }
       },
       "local": {

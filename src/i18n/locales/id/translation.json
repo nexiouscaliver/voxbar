@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Cari atau pilih model",
           "placeholderNoOptions": "Ketik nama model",
           "refreshModels": "Segarkan model"
+        },
+        "timeout": {
+          "title": "Batas waktu permintaan",
+          "description": "Berapa lama permintaan pascaproses cloud boleh berjalan sebelum menyerah dan transkripsi mentah dipakai. Berlaku saat endpoint berhenti merespons."
         }
       },
       "local": {

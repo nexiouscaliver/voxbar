@@ -660,6 +660,10 @@
           "placeholderWithOptions": "モデルを検索または選択",
           "placeholderNoOptions": "モデル名を入力",
           "refreshModels": "モデルを更新"
+        },
+        "timeout": {
+          "title": "リクエストのタイムアウト",
+          "description": "クラウドの後処理リクエストが諦めて生の書き起こしを使うまでに実行できる時間。エンドポイントが応答しなくなったときに適用されます。"
         }
       },
       "local": {

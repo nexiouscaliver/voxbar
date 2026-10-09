@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Modell suchen oder auswählen",
           "placeholderNoOptions": "Modellnamen eingeben",
           "refreshModels": "Modelle aktualisieren"
+        },
+        "timeout": {
+          "title": "Anfrage-Timeout",
+          "description": "Wie lange eine Cloud-Nachbearbeitungsanfrage laufen darf, bevor sie abgebrochen und das rohe Transkript verwendet wird. Greift, wenn ein Endpunkt nicht mehr antwortet."
         }
       },
       "local": {

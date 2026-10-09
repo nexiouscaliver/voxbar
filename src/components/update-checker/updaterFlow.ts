@@ -64,6 +64,18 @@ function currentPolicy(): UpdatePolicyValue {
   return policy === "download" || policy === "install" ? policy : "ask";
 }
 
+// The file-log seam: webview console output never reaches voxbar.log, so
+// every update-flow decision rides through this Rust command and lands as
+// one info line per decision (see commands/updater.rs). Fire-and-forget:
+// a logging failure must never break the flow it describes.
+function logDecision(stage: string, detail?: string): void {
+  commands
+    .logUpdateDecision(stage, detail ?? null)
+    .catch((error) =>
+      console.error(`Failed to log update decision (${stage}):`, error),
+    );
+}
+
 // Update toasts render in the main window's webview, and that window is
 // hidden (not destroyed) while the app dwells in the tray. Manual checks
 // must surface it first or every toast below renders nowhere.
@@ -210,6 +222,10 @@ async function downloadUpdate(update: Update): Promise<boolean> {
     contentLength = null;
     downloaded = 0;
     try {
+      logDecision(
+        "download_started",
+        `attempt ${attempt}/${DOWNLOAD_ATTEMPTS}`,
+      );
       await update.download(
         (event) => {
           switch (event.event) {
@@ -232,6 +248,10 @@ async function downloadUpdate(update: Update): Promise<boolean> {
       console.error(
         `Update download attempt ${attempt}/${DOWNLOAD_ATTEMPTS} failed:`,
         error,
+      );
+      logDecision(
+        "download_failed",
+        `attempt ${attempt}/${DOWNLOAD_ATTEMPTS}: ${String(error)}`,
       );
       // No pause before the retry: timers suspend in the hidden tray
       // webview (see the note above CHECK_ATTEMPTS); the download window
@@ -256,14 +276,20 @@ async function finishInstall(
 ): Promise<void> {
   const installId = "updater-install";
   try {
+    logDecision("install_started", update.version);
     toast.loading(t("footer.updater.installingTitle"), { id: installId });
     await update.install();
+    logDecision(
+      "install_finished",
+      `${update.version}${restartNow ? ", relaunching" : ", active on next launch"}`,
+    );
     toast.dismiss(installId);
     if (restartNow) {
       await relaunch();
     }
   } catch (error) {
     console.error("Update install failed:", error);
+    logDecision("install_failed", String(error));
     void showFailureToast(installId);
   }
 }
@@ -306,6 +332,7 @@ export async function runUpdateCheck(
   };
 
   try {
+    logDecision("check_started", `trigger=${trigger}`);
     if (trigger === "manual") {
       // Instant feedback in a visible window; without this a tray click on a
       // hidden window shows every toast nowhere and reads as "does nothing".
@@ -336,6 +363,7 @@ export async function runUpdateCheck(
     // The policy only ever governs the automatic startup check; a manual
     // check was initiated on purpose and always asks what to do next.
     const policy = trigger === "auto" ? currentPolicy() : "ask";
+    logDecision("offered", `version=${update.version} policy=${policy}`);
 
     if (policy === "install") {
       // Chrome-style: fetch and swap silently (no surprise window for a
@@ -374,13 +402,17 @@ export async function runUpdateCheck(
               }
             })();
           },
-          onLater: () => toast.dismiss(id),
+          onLater: () => {
+            toast.dismiss(id);
+            logDecision("declined", update.version);
+          },
         }),
       { duration: Infinity },
     );
     release();
   } catch (error) {
     console.error("Update check failed:", error);
+    logDecision("check_failed", `trigger=${trigger}: ${String(error)}`);
     if (trigger === "manual") {
       toast.error(t("footer.updater.checkFailedTitle"), {
         id: "updater-checking",

@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Rechercher ou sélectionner un modèle",
           "placeholderNoOptions": "Tapez un nom de modèle",
           "refreshModels": "Actualiser les modèles"
+        },
+        "timeout": {
+          "title": "Délai de requête",
+          "description": "Combien de temps une requête de post-traitement cloud peut durer avant d'abandonner et d'utiliser la transcription brute. S'applique quand un endpoint cesse de répondre."
         }
       },
       "local": {

@@ -6,14 +6,16 @@ use crate::managers::audio::AudioRecordingManager;
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::{StreamTextEvent, StreamWorkKind, TranscriptionManager};
-use crate::settings::{get_settings, AppSettings, OverlayStyle, APPLE_INTELLIGENCE_PROVIDER_ID};
+use crate::settings::{
+    get_settings, AppSettings, ModelUnloadTimeout, OverlayStyle, APPLE_INTELLIGENCE_PROVIDER_ID,
+};
 use crate::shortcut;
 use crate::tray::{set_tray_state, TrayIconState};
 use crate::utils::{
     self, show_processing_overlay, show_recording_overlay, show_transcribing_overlay,
 };
 use crate::TranscriptionCoordinator;
-use log::{debug, error, warn};
+use log::{debug, error, info, warn};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
 use std::future::Future;
@@ -40,6 +42,14 @@ struct RecordingErrorEvent {
 struct FinishGuard(AppHandle, Arc<TranscriptionManager>);
 impl Drop for FinishGuard {
     fn drop(&mut self) {
+        // The cancel shortcut stays registered for the WHOLE pipeline
+        // (Recording through Processing: finalize, batch, post-process,
+        // paste). It used to be unregistered the moment stop() fired, which
+        // left a wedged post-process request with no keyboard escape
+        // (the handler gate also required a live recording), so only the
+        // tray Cancel could break out. Unregistering here, at the true end
+        // of the pipeline, keeps Escape alive the entire time.
+        crate::shortcut::unregister_cancel_shortcut(&self.0);
         self.1.maybe_unload_immediately("transcription session");
         if let Some(c) = self.0.try_state::<TranscriptionCoordinator>() {
             c.notify_processing_finished();
@@ -140,6 +150,64 @@ where
 
 fn should_use_streaming_overlay(style: OverlayStyle, is_streaming: bool) -> bool {
     style == OverlayStyle::Live && is_streaming
+}
+
+/// What the stop pipeline does when a stream finalize produced no usable
+/// text (`None`, or a blank/whitespace-only string). Extracted so the
+/// decision is unit-testable.
+enum EmptyFinalizeOutcome {
+    /// Transcribe the captured samples in batch: the genuine fallback for
+    /// stream failures and every ordinary configuration.
+    Batch,
+    /// Return the quiet empty result. With
+    /// [`ModelUnloadTimeout::Immediately`] the stream's finalize already
+    /// unloaded the model (a routine silent sub-second tap finalizes to
+    /// empty because the audio is zero-padded to 1.25s), so a batch attempt
+    /// dies at transcribe_audio's "Model is not loaded" check and turned
+    /// the tap into an error toast plus a failed history entry.
+    QuietEmpty,
+}
+
+/// The pure decision: `finalize outcome x unload timeout -> batch | quiet
+/// empty`. `model_loaded` is the residency observed AFTER finalize_stream
+/// returned (Immediately's unload reads as unloaded at once).
+fn empty_finalize_outcome(unload_is_immediately: bool, model_loaded: bool) -> EmptyFinalizeOutcome {
+    if unload_is_immediately && !model_loaded {
+        EmptyFinalizeOutcome::QuietEmpty
+    } else {
+        EmptyFinalizeOutcome::Batch
+    }
+}
+
+/// The per-dictation outcome summary (pure formatter, unit-tested): the
+/// stop pipeline logs ONE such line at its true end, so voxbar.log can
+/// answer the end-to-end questions the usage survey could not (what the
+/// session did, from key release to paste).
+pub(crate) struct SessionOutcomeSummary {
+    pub binding: String,
+    pub audio_seconds: f64,
+    pub sample_count: usize,
+    /// "stream-finalize" | "batch" | "quiet-empty" | "failed".
+    pub source: &'static str,
+    /// "off" | "processed" | "raw-fallback" | "failed".
+    pub post_process: &'static str,
+    /// "ok" | "failed" | "skipped-empty" | "dispatch-failed" | "error".
+    pub paste: &'static str,
+    /// Key release (stop) to the pipeline's true end, in milliseconds.
+    pub stop_to_end_ms: u128,
+}
+
+pub(crate) fn format_session_outcome(summary: &SessionOutcomeSummary) -> String {
+    format!(
+        "dictation outcome: binding={} audio={:.2}s samples={} source={} post_process={} paste={} stop_to_end={}ms",
+        summary.binding,
+        summary.audio_seconds,
+        summary.sample_count,
+        summary.source,
+        summary.post_process,
+        summary.paste,
+        summary.stop_to_end_ms,
+    )
 }
 
 /// Whether this provider id routes to the local on-device engine (T28's
@@ -381,6 +449,7 @@ async fn post_process_transcription(
             Some(system_prompt),
             Some(json_schema),
             disable_reasoning,
+            settings.post_process_timeout_secs,
         )
         .await
         {
@@ -437,6 +506,7 @@ async fn post_process_transcription(
         &model,
         processed_prompt,
         disable_reasoning,
+        settings.post_process_timeout_secs,
     )
     .await
     {
@@ -723,9 +793,8 @@ impl ShortcutAction for TranscribeAction {
         app.state::<Arc<AudioRecordingManager>>()
             .invalidate_recording_readiness();
 
-        // Unregister the cancel shortcut when transcription stops
-        shortcut::unregister_cancel_shortcut(app);
-
+        // The cancel shortcut stays registered through the whole pipeline;
+        // FinishGuard::drop (the pipeline's true end) unregisters it.
         let stop_time = Instant::now();
         debug!("TranscribeAction::stop called for binding: {}", binding_id);
 
@@ -759,7 +828,19 @@ impl ShortcutAction for TranscribeAction {
         let post_process = self.post_process;
         let cancel_generation = rm.cancel_generation();
 
-        tauri::async_runtime::spawn(async move {
+        // The stop pipeline runs on a dedicated std::thread (mirroring
+        // run_stream_worker), entering the async world via block_on only for
+        // its genuinely async seams (the WAV save, the post-process future,
+        // the preview wait). It used to be spawned onto the shared async
+        // runtime, pinning a tokio worker for the pipeline's whole blocking
+        // tail: stop_recording's tail sleep, the finalize reply recv, a
+        // synchronous batch transcription, the history SQLite insert, and
+        // the 1.2s preview wait. stop() runs on the shortcut handler thread,
+        // never inside the runtime, so block_on here cannot deadlock.
+        std::thread::Builder::new()
+            .name("stop-pipeline".into())
+            .spawn(move || {
+                tauri::async_runtime::block_on(async move {
             let _guard = FinishGuard(ah.clone(), Arc::clone(&tm));
             debug!(
                 "Starting async transcription task for binding: {}",
@@ -816,6 +897,10 @@ impl ShortcutAction for TranscribeAction {
                     let transcription_time = Instant::now();
                     let stream_model = tm.get_current_model().unwrap_or_default();
                     let finalize = tm.finalize_stream();
+                    // The summary line's source term: which arm produced the
+                    // text (finalize-vs-batch, the survey's unanswerable
+                    // question).
+                    let mut outcome_source: &'static str = "stream-finalize";
                     let transcription_result = match finalize {
                         // A finalized stream with usable text wins. An empty result
                         // (no active stream, produced nothing, or the stream failed
@@ -825,7 +910,34 @@ impl ShortcutAction for TranscribeAction {
                         Ok(Some(text)) if !text.trim().is_empty() => {
                             Ok((text, stream_model.clone()))
                         }
-                        Ok(_) => tm.transcribe_with_model(samples),
+                        Ok(empty) => {
+                            // The one exception: an empty finalize with the
+                            // model already evicted by the Immediately unload
+                            // returns the quiet empty result instead of a
+                            // batch run that can only fail (see
+                            // empty_finalize_outcome).
+                            let unload_is_immediately = get_settings(&ah).model_unload_timeout
+                                == ModelUnloadTimeout::Immediately;
+                            match empty_finalize_outcome(
+                                unload_is_immediately,
+                                tm.is_model_loaded(),
+                            ) {
+                                EmptyFinalizeOutcome::QuietEmpty => {
+                                    debug!(
+                                        "Stream finalize produced no text ({}) and the model \
+                                         was unloaded by the Immediately setting; returning the \
+                                         quiet empty result",
+                                        empty.as_deref().map(str::len).unwrap_or(0)
+                                    );
+                                    outcome_source = "quiet-empty";
+                                    Ok((String::new(), stream_model.clone()))
+                                }
+                                EmptyFinalizeOutcome::Batch => {
+                                    outcome_source = "batch";
+                                    tm.transcribe_with_model(samples)
+                                }
+                            }
+                        }
                         Err(err) => Err(err),
                     };
 
@@ -922,7 +1034,29 @@ impl ShortcutAction for TranscribeAction {
                                 }
                             }
 
+                            // The outcome line's post-process term, computed
+                            // once for every exit below.
+                            let post_process_term: &'static str = if !post_process {
+                                "off"
+                            } else if processed.post_processed_text.is_some() {
+                                "processed"
+                            } else {
+                                "raw-fallback"
+                            };
+
                             if processed.final_text.is_empty() {
+                                info!(
+                                    "{}",
+                                    format_session_outcome(&SessionOutcomeSummary {
+                                        binding: binding_id.clone(),
+                                        audio_seconds: sample_count as f64 / 16_000.0,
+                                        sample_count,
+                                        source: outcome_source,
+                                        post_process: post_process_term,
+                                        paste: "skipped-empty",
+                                        stop_to_end_ms: stop_time.elapsed().as_millis(),
+                                    })
+                                );
                                 utils::hide_recording_overlay(&ah);
                                 set_tray_state(&ah, TrayIconState::Idle);
                             } else {
@@ -982,6 +1116,20 @@ impl ShortcutAction for TranscribeAction {
                                     false,
                                 ));
                                 let paste_failed_flag = Arc::clone(&paste_failed);
+                                // The outcome summary completes inside the
+                                // paste closure: only there is the paste's
+                                // ok/failed known, and the closure runs at
+                                // the pipeline's true end.
+                                let outcome_summary = SessionOutcomeSummary {
+                                    binding: binding_id.clone(),
+                                    audio_seconds: sample_count as f64 / 16_000.0,
+                                    sample_count,
+                                    source: outcome_source,
+                                    post_process: post_process_term,
+                                    // Filled in by the paste outcome below.
+                                    paste: "ok",
+                                    stop_to_end_ms: 0,
+                                };
                                 ah.run_on_main_thread(move || {
                                     if rm_for_paste.was_cancelled_since(cancel_generation) {
                                         debug!("Transcription operation cancelled before paste");
@@ -990,12 +1138,16 @@ impl ShortcutAction for TranscribeAction {
                                         return;
                                     }
 
-                                    match utils::paste(final_text, ah_clone.clone()) {
+                                    let paste_ok = match utils::paste(
+                                        final_text,
+                                        ah_clone.clone(),
+                                    ) {
                                         Ok(()) => {
                                             debug!(
                                                 "Text pasted successfully in {:?}",
                                                 paste_time.elapsed()
-                                            )
+                                            );
+                                            true
                                         }
                                         Err(e) => {
                                             error!("Failed to paste transcription: {}", e);
@@ -1009,8 +1161,15 @@ impl ShortcutAction for TranscribeAction {
                                                 true,
                                                 std::sync::atomic::Ordering::Release,
                                             );
+                                            false
                                         }
-                                    }
+                                    };
+                                    let mut outcome_summary = outcome_summary;
+                                    outcome_summary.paste =
+                                        if paste_ok { "ok" } else { "failed" };
+                                    outcome_summary.stop_to_end_ms =
+                                        stop_time.elapsed().as_millis();
+                                    info!("{}", format_session_outcome(&outcome_summary));
                                     set_tray_state(&ah_clone, TrayIconState::Idle);
                                     if paste_failed_flag.load(std::sync::atomic::Ordering::Acquire)
                                     {
@@ -1023,6 +1182,18 @@ impl ShortcutAction for TranscribeAction {
                                 })
                                 .unwrap_or_else(|e| {
                                     error!("Failed to run paste on main thread: {:?}", e);
+                                    info!(
+                                        "{}",
+                                        format_session_outcome(&SessionOutcomeSummary {
+                                            binding: binding_id.clone(),
+                                            audio_seconds: sample_count as f64 / 16_000.0,
+                                            sample_count,
+                                            source: outcome_source,
+                                            post_process: post_process_term,
+                                            paste: "dispatch-failed",
+                                            stop_to_end_ms: stop_time.elapsed().as_millis(),
+                                        })
+                                    );
                                     utils::hide_recording_overlay(&ah);
                                     set_tray_state(&ah, TrayIconState::Idle);
                                 });
@@ -1039,6 +1210,18 @@ impl ShortcutAction for TranscribeAction {
                             }
 
                             error!("Transcription failed: {}", err);
+                            info!(
+                                "{}",
+                                format_session_outcome(&SessionOutcomeSummary {
+                                    binding: binding_id.clone(),
+                                    audio_seconds: sample_count as f64 / 16_000.0,
+                                    sample_count,
+                                    source: "failed",
+                                    post_process: if post_process { "failed" } else { "off" },
+                                    paste: "error",
+                                    stop_to_end_ms: stop_time.elapsed().as_millis(),
+                                })
+                            );
                             // Surface the failure to the UI (toast). The full
                             // message is also in voxbar.log via the line above.
                             let _ = ah.emit("transcription-error", err.to_string());
@@ -1073,7 +1256,9 @@ impl ShortcutAction for TranscribeAction {
                 utils::hide_recording_overlay(&ah);
                 set_tray_state(&ah, TrayIconState::Idle);
             }
-        });
+                })
+            })
+            .expect("failed to spawn the stop pipeline thread");
 
         debug!(
             "TranscribeAction::stop completed in {:?}",
@@ -1288,6 +1473,45 @@ mod tests {
         assert_eq!(result, Some("done"));
     }
 
+    /// The per-session outcome summary line: one line, every field present,
+    /// stable order. This is the line the stop pipeline info!s at its true
+    /// end, so the shape is pinned here.
+    #[test]
+    fn session_outcome_line_shape() {
+        use super::{format_session_outcome, SessionOutcomeSummary};
+
+        let line = format_session_outcome(&SessionOutcomeSummary {
+            binding: "transcribe_with_post_process".to_string(),
+            audio_seconds: 12.5,
+            sample_count: 200_000,
+            source: "stream-finalize",
+            post_process: "processed",
+            paste: "ok",
+            stop_to_end_ms: 3210,
+        });
+        assert_eq!(
+            line,
+            "dictation outcome: binding=transcribe_with_post_process audio=12.50s \
+             samples=200000 source=stream-finalize post_process=processed paste=ok \
+             stop_to_end=3210ms"
+        );
+        assert!(!line.contains('\n'), "one line per session");
+
+        // The failure shapes stay single-line too.
+        let failed = format_session_outcome(&SessionOutcomeSummary {
+            binding: "transcribe".to_string(),
+            audio_seconds: 0.0,
+            sample_count: 0,
+            source: "failed",
+            post_process: "off",
+            paste: "error",
+            stop_to_end_ms: 42,
+        });
+        assert!(failed.contains("source=failed"));
+        assert!(failed.contains("paste=error"));
+        assert!(!failed.contains('\n'));
+    }
+
     #[test]
     fn pending_operation_stops_after_cancellation() {
         let cancelled = Arc::new(AtomicBool::new(false));
@@ -1338,6 +1562,37 @@ mod tests {
         assert!(!should_use_streaming_overlay(OverlayStyle::Live, false));
         assert!(!should_use_streaming_overlay(OverlayStyle::Minimal, true));
         assert!(!should_use_streaming_overlay(OverlayStyle::None, true));
+    }
+
+    /// The finalize-outcome x unload-timeout decision table: batch stays the
+    /// fallback for every ordinary configuration and every state where the
+    /// model is still resident; ONLY the Immediately configuration with the
+    /// model actually evicted by the finalize returns the quiet empty
+    /// result (the silent-tap toast fix).
+    #[test]
+    fn empty_finalize_decision_table() {
+        use super::{empty_finalize_outcome, EmptyFinalizeOutcome};
+
+        // Immediately + model evicted by the finalize: quiet empty.
+        assert!(matches!(
+            empty_finalize_outcome(true, false),
+            EmptyFinalizeOutcome::QuietEmpty
+        ));
+        // Still Immediately-configured, but the model is resident (e.g. the
+        // stream never ran and never unloaded): batch is safe and ordinary.
+        assert!(matches!(
+            empty_finalize_outcome(true, true),
+            EmptyFinalizeOutcome::Batch
+        ));
+        // Any other unload configuration: always batch, model or not.
+        assert!(matches!(
+            empty_finalize_outcome(false, false),
+            EmptyFinalizeOutcome::Batch
+        ));
+        assert!(matches!(
+            empty_finalize_outcome(false, true),
+            EmptyFinalizeOutcome::Batch
+        ));
     }
 
     /// The assignable editing actions must exist in ACTION_MAP (so presses

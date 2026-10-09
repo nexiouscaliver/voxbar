@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Buscar ou selecionar um modelo",
           "placeholderNoOptions": "Digite o nome de um modelo",
           "refreshModels": "Atualizar modelos"
+        },
+        "timeout": {
+          "title": "Tempo limite da solicitação",
+          "description": "Por quanto tempo uma solicitação de pós-processamento na nuvem pode rodar antes de desistir e usar a transcrição bruta. Aplica-se quando um endpoint para de responder."
         }
       },
       "local": {

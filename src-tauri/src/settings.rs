@@ -593,6 +593,13 @@ pub struct AppSettings {
     pub auto_submit_key: AutoSubmitKey,
     #[serde(default = "default_post_process_enabled")]
     pub post_process_enabled: bool,
+    /// Total-request timeout for cloud post-process calls, in seconds.
+    /// Bounds a wedged endpoint (one that accepts the connection but never
+    /// responds) so the stop pipeline returns to Idle instead of hanging
+    /// with only the tray Cancel as an escape. Applies to both the chat
+    /// completion and the model-list requests.
+    #[serde(default = "default_post_process_timeout_secs")]
+    pub post_process_timeout_secs: u64,
     #[serde(default = "default_post_process_provider_id")]
     pub post_process_provider_id: String,
     #[serde(default = "default_post_process_providers")]
@@ -965,6 +972,17 @@ fn default_accent_color() -> String {
 
 fn default_post_process_enabled() -> bool {
     false
+}
+
+/// Inclusive bounds for [`AppSettings::post_process_timeout_secs`], enforced
+/// by the set command so a UI bug can't write a 1-second or week-long
+/// timeout the user never saw (the same posture as the model-unload custom
+/// seconds bounds).
+pub const POST_PROCESS_TIMEOUT_MIN_SECONDS: u64 = 5;
+pub const POST_PROCESS_TIMEOUT_MAX_SECONDS: u64 = 600;
+
+fn default_post_process_timeout_secs() -> u64 {
+    crate::llm_client::DEFAULT_POST_PROCESS_TIMEOUT_SECS
 }
 
 fn default_app_language() -> String {
@@ -1340,6 +1358,7 @@ pub fn get_default_settings() -> AppSettings {
         auto_submit: default_auto_submit(),
         auto_submit_key: AutoSubmitKey::default(),
         post_process_enabled: default_post_process_enabled(),
+        post_process_timeout_secs: default_post_process_timeout_secs(),
         post_process_provider_id: default_post_process_provider_id(),
         // Fresh installs start on the local default; the marker exists so
         // the one-time migration never re-evaluates their choice.

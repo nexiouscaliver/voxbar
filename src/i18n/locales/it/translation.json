@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Cerca o scegli un modello",
           "placeholderNoOptions": "Digita il nome di un modello",
           "refreshModels": "Aggiorna modelli"
+        },
+        "timeout": {
+          "title": "Timeout della richiesta",
+          "description": "Per quanto tempo una richiesta di post-elaborazione cloud può essere in esecuzione prima di arrendersi e usare la trascrizione grezza. Si applica quando un endpoint smette di rispondere."
         }
       },
       "local": {

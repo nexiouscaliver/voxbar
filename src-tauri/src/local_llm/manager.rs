@@ -35,6 +35,7 @@ use crate::TranscriptionCoordinator;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use specta::Type;
+use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -327,6 +328,9 @@ pub(crate) trait SwapEngine: Send {
     fn worker_pid(&self) -> Option<u32> {
         None
     }
+    /// Log the worker's last NATIVE stderr lines (crash diagnostics), once
+    /// teardown observes the exit. Default: nothing to log.
+    fn log_native_tail(&mut self) {}
 }
 
 /// Kill-on-drop child wrapper: if the runner is ever lost (panic), the
@@ -367,6 +371,10 @@ struct ProcessEngine {
     stdin: Option<ChildStdin>,
     responses: Option<Arc<Mutex<Receiver<WorkerResponse>>>>,
     pid: Option<u32>,
+    /// The worker's drained stderr crash tail (kept by the shared tail
+    /// thread) and the drain-done signal, for teardown diagnostics.
+    stderr_tail: Option<Arc<Mutex<VecDeque<String>>>>,
+    stderr_done: Option<Receiver<()>>,
 }
 
 impl ProcessEngine {
@@ -376,6 +384,8 @@ impl ProcessEngine {
             stdin: None,
             responses: None,
             pid: None,
+            stderr_tail: None,
+            stderr_done: None,
         }
     }
 
@@ -383,19 +393,34 @@ impl ProcessEngine {
         if self.child.is_some() {
             return Ok(());
         }
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("cannot resolve the current executable: {}", e))?;
+        // The shared worker spawn contract: the same exe-identity check the
+        // transcribe-cpp worker passes, so a self-update applied mid-run
+        // can never pair a new-version llm worker with an old parent.
+        let exe = crate::engine_supervisor::worker_exe()
+            .map_err(|e| format!("cannot resolve the worker executable: {}", e))?;
         let mut command = Command::new(exe);
         command
             .arg(super::worker::WORKER_FLAG)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit());
+            // Piped and drained (never inherited): the shared tail thread
+            // forwards every line into voxbar.log, keeps a bounded crash
+            // tail, and a full pipe can never block the worker.
+            .stderr(Stdio::piped());
         let mut child = command
             .spawn()
             .map_err(|e| format!("failed to spawn the llm worker: {}", e))?;
         self.pid = Some(child.id());
         let stdin = child.stdin.take();
+        if let Some(stderr) = child.stderr.take() {
+            let (tail, done) = crate::engine_supervisor::spawn_stderr_tail(
+                stderr,
+                crate::engine_supervisor::STDERR_TAIL_LINES,
+                "llm_worker",
+            );
+            self.stderr_tail = Some(tail);
+            self.stderr_done = Some(done);
+        }
         if let Some(stdout) = child.stdout.take() {
             let (tx, rx) = mpsc::channel();
             thread::Builder::new()
@@ -541,6 +566,30 @@ impl SwapEngine for ProcessEngine {
     fn worker_pid(&self) -> Option<u32> {
         self.pid
     }
+
+    fn log_native_tail(&mut self) {
+        // Let the drain thread catch the worker's final lines, then report
+        // only the RAW native output (structured log lines were already
+        // forwarded by the tail thread; re-logging them would be noise).
+        if let Some(done) = self.stderr_done.take() {
+            let _ = done.recv_timeout(Duration::from_secs(1));
+        }
+        let Some(tail) = self.stderr_tail.take() else {
+            return;
+        };
+        let native: Vec<String> = tail
+            .lock()
+            .map(|tail| {
+                tail.iter()
+                    .filter(|line| !line.starts_with('\u{1}'))
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !native.is_empty() {
+            warn!("llm worker native stderr tail:\n{}", native.join("\n"));
+        }
+    }
 }
 
 /// The production host: everything the runner does to the app.
@@ -624,9 +673,10 @@ impl SwapHost for AppSwapHost {
             });
         // L5: runtime-inclusive forecast; the measured RSS (captured after
         // the first successful generation this launch) corrects the 3/2
-        // file-size floor once available.
+        // file-size floor once available. The same shared helper the voice
+        // gate composes through, so both gates forecast identically.
         let forecast_bytes =
-            forecast::llm_forecast_bytes(file_size_bytes, self.measured_rss.get().copied());
+            forecast::runtime_inclusive_bytes(file_size_bytes, self.measured_rss.get().copied());
         // The voice model is still resident at gate time and its pages are
         // freed before the LLM's peak: credit its footprint back to free,
         // exactly like the voice loader's drop-old-first credit.
@@ -1110,6 +1160,7 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                     let hard_deadline = start + timing.graceful_exit + timing.kill_wait;
                     loop {
                         if engine.has_exited() {
+                            engine.log_native_tail();
                             signal = Some(Signal::LlmUnloaded);
                             break;
                         }
@@ -1120,6 +1171,7 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                                  the worker slot poisoned and restoring the voice model",
                                 timing.kill_wait
                             );
+                            engine.log_native_tail();
                             signal = Some(Signal::LlmKillTimedOut);
                             break;
                         }
@@ -1199,7 +1251,10 @@ mod tests {
                 line.starts_with("local post-process skipped: reason="),
                 "line shape: {line}"
             );
-            assert!(line.contains(skip_reason_str(reason)), "reason in line: {line}");
+            assert!(
+                line.contains(skip_reason_str(reason)),
+                "reason in line: {line}"
+            );
             assert!(line.ends_with("detail=because"), "detail in line: {line}");
             // No detail still produces a complete line.
             assert!(skip_log_line(reason, None).ends_with("detail=-"));
@@ -1220,7 +1275,6 @@ mod tests {
         assert!(raw.starts_with("local post-process outcome: raw transcript used"));
         assert!(raw.contains("Done"), "planner state rides the line: {raw}");
     }
-
 
     fn mib(mb: u64) -> u64 {
         mb * 1024 * 1024

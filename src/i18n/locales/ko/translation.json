@@ -660,6 +660,10 @@
           "placeholderWithOptions": "모델 검색 또는 선택",
           "placeholderNoOptions": "모델 이름 입력",
           "refreshModels": "모델 새로고침"
+        },
+        "timeout": {
+          "title": "요청 시간 제한",
+          "description": "클라우드 후처리 요청이 포기하고 원본 전사를 사용하기 전까지 실행될 수 있는 시간. 엔드포인트가 응답을 멈출 때 적용됩니다."
         }
       },
       "local": {

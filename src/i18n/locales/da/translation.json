@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Søg eller vælg en model",
           "placeholderNoOptions": "Skriv et modelnavn",
           "refreshModels": "Opdater modeller"
+        },
+        "timeout": {
+          "title": "Anmodningstimeout",
+          "description": "Hvor længe en cloud-efterbehandlingsanmodning må køre, før den giver op og den rå transskription bruges. Gælder, når en endpoint holder op med at svare."
         }
       },
       "local": {

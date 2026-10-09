@@ -9,7 +9,7 @@ use crate::audio_toolkit::{
 use crate::chinese_script::{convert_chinese_script, ChineseVariety};
 use crate::engine_supervisor::{
     DeviceInfo, DeviceSelector, EngineError, EngineSupervisor, LoadSpec, LoadedInfo,
-    StreamProgress, Unloading,
+    RenderBackpressure, StreamProgress, Unloading,
 };
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::model::{
@@ -1300,6 +1300,15 @@ impl Drop for LoadingGuard {
     }
 }
 
+/// The voice gate's runtime-inclusive forecast: max(file size * 3/2,
+/// measured worker RSS), composed through the SAME shared helper the
+/// local-LLM gate uses ([`crate::local_llm::forecast::runtime_inclusive_bytes`]),
+/// so both gates forecast identically. Extracted so the composition is
+/// unit-testable with an injected measurement.
+fn asr_forecast_bytes(file_size_bytes: u64, measured_asr_rss: Option<u64>) -> u64 {
+    crate::local_llm::forecast::runtime_inclusive_bytes(file_size_bytes, measured_asr_rss)
+}
+
 /// RAII guard that clears the streaming worker flags on any worker exit -
 /// normal return, early return, or a panic that unwinds the detached worker
 /// thread. Tokens prevent an older worker from clearing a newer worker's
@@ -1361,6 +1370,14 @@ pub struct TranscriptionManager {
     /// interim overlay text, absorbs manual hotkey edits, and folds into the
     /// finalize path. See [`StreamSessionBuffer`].
     session_buffer: Arc<Mutex<StreamSessionBuffer>>,
+    /// Measured RSS of the transcribe-cpp worker captured after its last
+    /// successful model load (in-memory only, like the LLM gate's
+    /// measured_rss). Feeds the voice gate's runtime-inclusive forecast so
+    /// an ASR model whose true resident footprint (weights + Metal wired
+    /// buffers + compute scratch) exceeds the file-size estimate cannot pass
+    /// the gate on the exact voice/LLM swap cycle that loads both in quick
+    /// succession.
+    measured_asr_rss: Arc<Mutex<Option<u64>>>,
 }
 
 impl TranscriptionManager {
@@ -1382,6 +1399,7 @@ impl TranscriptionManager {
             next_stream_worker_id: Arc::new(AtomicU64::new(1)),
             active_stream_worker: Arc::new(AtomicU64::new(0)),
             session_buffer: Arc::new(Mutex::new(StreamSessionBuffer::default())),
+            measured_asr_rss: Arc::new(Mutex::new(None)),
         };
 
         // Start the idle watcher
@@ -1798,7 +1816,17 @@ impl TranscriptionManager {
         // bypasses the gate entirely, the RAM auto-fallback included. The
         // margin is the user's memory_gate_headroom_mb setting (default 0);
         // no hidden headroom is added on top.
-        let forecast = model_info.size_mb.saturating_mul(1024 * 1024);
+        let file_size_bytes = model_info.size_mb.saturating_mul(1024 * 1024);
+        let measured_asr_rss = self
+            .measured_asr_rss
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .filter(|_| matches!(model_info.engine_type, EngineType::TranscribeCpp));
+        // Runtime-inclusive forecast: max(file size * 3/2, measured worker
+        // RSS), the exact composition the local-LLM gate uses (one shared
+        // helper), so a model whose resident footprint runs ~1.5x its file
+        // size cannot pass this gate on the voice/LLM swap cycle.
+        let forecast = asr_forecast_bytes(file_size_bytes, measured_asr_rss);
         let gate_settings = get_settings(&self.app_handle);
         if gate_settings.memory_pressure_guard {
             let headroom = gate_settings
@@ -1828,10 +1856,11 @@ impl TranscriptionManager {
             );
             // The one structured line at every gate decision: probe bytes,
             // the kernel pressure verdict, the inactive factor the probe's
-            // composition applied, the model, its forecast, and the verdict.
-            // This is the field diagnostic for any future misfire.
+            // composition applied, the model, its file size, the measured
+            // RSS term of the forecast, the composed forecast, and the
+            // verdict. This is the field diagnostic for any future misfire.
             info!(
-                "memory gate decision: probe_bytes={} pressure_level={} inactive_factor={} model={} forecast_bytes={} decision={}",
+                "memory gate decision: probe_bytes={} pressure_level={} inactive_factor={} model={} file_size_bytes={} measured_asr_bytes={} forecast_bytes={} decision={}",
                 free.map(|b| b.to_string()).unwrap_or_else(|| "unavailable".to_string()),
                 match probe.pressure_level {
                     Some(level) => level.to_string(),
@@ -1842,6 +1871,10 @@ impl TranscriptionManager {
                     .map(|f| format!("{f:.2}"))
                     .unwrap_or_else(|| "n/a".to_string()),
                 model_id,
+                file_size_bytes,
+                measured_asr_rss
+                    .map(|b| b.to_string())
+                    .unwrap_or_else(|| "unmeasured".to_string()),
                 forecast,
                 decision.as_log_str(),
             );
@@ -2106,6 +2139,20 @@ impl TranscriptionManager {
         // Reset idle timer so the watcher doesn't immediately unload a just-loaded model
         self.touch_activity();
 
+        // Capture the transcribe-cpp worker's measured RSS now that the
+        // model is resident: the runtime-inclusive term of the next voice
+        // gate decision (the same refinement the LLM gate applies after its
+        // first generation). ONNX engines load in-process with no worker
+        // pid; their loads leave the last measurement alone.
+        if let Some(pid) = self.engine.worker_pid() {
+            if let Some(rss) = memory::rss_bytes_for_pid(pid) {
+                *self
+                    .measured_asr_rss
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(rss);
+            }
+        }
+
         // Emit loading completed event
         let _ = self.app_handle.emit(
             "model-state-changed",
@@ -2129,19 +2176,26 @@ impl TranscriptionManager {
 
     /// Kicks off the model loading in a background thread if it's not already loaded
     pub fn initiate_model_load(&self) {
-        let mut is_loading = self.is_loading.lock().unwrap();
-        if *is_loading {
-            return;
-        }
-
         let reload_pending = self.reload_model_on_next_use.load(Ordering::Acquire);
         if !reload_pending && self.is_model_loaded() {
             return;
         }
 
-        *is_loading = true;
+        // Claim the loading slot through the same atomic claim every other
+        // load path uses (a concurrent loader keeps the old early return).
+        // The guard is MOVED into the loader thread below, so its Drop is
+        // the ONLY clear: a panic inside the loader (e.g. a store failure
+        // inside get_settings) unwinds through the guard, clears the flag,
+        // and wakes every condvar waiter. The manual set/clear this
+        // replaced stranded is_loading=true on exactly that panic, blocking
+        // every later dictation (transcribe_audio / run_stream_worker park
+        // on the condvar) until app restart.
+        let Some(guard) = self.try_start_loading() else {
+            return;
+        };
         let self_clone = self.clone();
         thread::spawn(move || {
+            let _slot = guard;
             if reload_pending {
                 self_clone
                     .reload_model_on_next_use
@@ -2152,9 +2206,6 @@ impl TranscriptionManager {
                 error!("Failed to load model: {}", e);
                 self_clone.handle_hotkey_load_failure(&e);
             }
-            let mut is_loading = self_clone.is_loading.lock().unwrap();
-            *is_loading = false;
-            self_clone.loading_condvar.notify_all();
         });
     }
 
@@ -2195,8 +2246,9 @@ impl TranscriptionManager {
         crate::tray::set_tray_state(&self.app_handle, crate::tray::TrayIconState::Idle);
         crate::overlay::hide_recording_overlay_after_error(&self.app_handle);
         self.maybe_unload_immediately("hotkey model-load failure");
-        if let Some(coordinator) =
-            self.app_handle.try_state::<crate::TranscriptionCoordinator>()
+        if let Some(coordinator) = self
+            .app_handle
+            .try_state::<crate::TranscriptionCoordinator>()
         {
             coordinator.notify_cancel(recording_was_active);
         }
@@ -2385,12 +2437,16 @@ impl TranscriptionManager {
             ..Default::default()
         };
 
-        // Feed results arrive on the engine's thread; the progress emitter
-        // (built below, reusable for the low-latency retry) records the
-        // snapshot into the session buffer and emits the rendered interim
-        // text.
+        // Feed results arrive on the engine's owner thread; the progress
+        // emitter (built below, reusable for the low-latency retry) runs on
+        // a DEDICATED emitter thread fed by a lossless queue (the supervisor
+        // hands each snapshot off without blocking), records the snapshot
+        // into the session buffer, and emits the rendered interim text. The
+        // backpressure gauge is shared with the emitter so its perf line can
+        // show render-queue depth and drain lag instead of hiding them.
         let preview_script = PreviewScript::new(settings.chinese_script, &output_language);
         let perf = Arc::new(Mutex::new(StreamPerf::new()));
+        let render_gauge = Arc::new(RenderBackpressure::default());
         // The session buffer goes live before the engine stream starts, so
         // no interim callback can race past `begin`. Toggles and the
         // compiled command matrix are captured here (once per session),
@@ -2426,8 +2482,10 @@ impl TranscriptionManager {
         // not contain the requested tuple rejects it with InvalidArgument and
         // we retry once on pure defaults, so the worst case is exactly the
         // previous behavior.
-        let progress_emitter = |perf: Arc<Mutex<StreamPerf>>, app_handle: tauri::AppHandle| {
-            stream_progress_emitter(Arc::clone(&self.session_buffer), app_handle, perf)
+        let progress_emitter = |perf: Arc<Mutex<StreamPerf>>,
+                                app_handle: tauri::AppHandle,
+                                gauge: Arc<RenderBackpressure>| {
+            stream_progress_emitter(Arc::clone(&self.session_buffer), app_handle, perf, gauge)
         };
 
         let low_latency_ext = low_latency_stream_extension(&info.arch, &info.variant);
@@ -2438,7 +2496,12 @@ impl TranscriptionManager {
         let stream = match self.engine.start_stream(
             run_options.clone(),
             first_options,
-            progress_emitter(Arc::clone(&perf), self.app_handle.clone()),
+            progress_emitter(
+                Arc::clone(&perf),
+                self.app_handle.clone(),
+                Arc::clone(&render_gauge),
+            ),
+            Arc::clone(&render_gauge),
         ) {
             Ok(stream) => {
                 if low_latency_ext.is_some() {
@@ -2456,7 +2519,12 @@ impl TranscriptionManager {
                 match self.engine.start_stream(
                     run_options,
                     StreamOptions::default(),
-                    progress_emitter(Arc::clone(&perf), self.app_handle.clone()),
+                    progress_emitter(
+                        Arc::clone(&perf),
+                        self.app_handle.clone(),
+                        Arc::clone(&render_gauge),
+                    ),
+                    Arc::clone(&render_gauge),
                 ) {
                     Ok(stream) => stream,
                     Err(e) => {
@@ -3149,15 +3217,20 @@ fn lock_perf(perf: &Mutex<StreamPerf>) -> MutexGuard<'_, StreamPerf> {
 /// The per-snapshot streaming callback: records perf counters, renders the
 /// session buffer, and emits the interim display. A free function (not a
 /// closure) so the low-latency start_stream retry can build a fresh copy.
+/// Runs on the supervisor's dedicated emitter thread (fed by the lossless
+/// render queue); `gauge` carries that queue's backpressure so the perf
+/// line shows depth and drain lag instead of hiding them.
 fn stream_progress_emitter(
     session_buffer: Arc<Mutex<StreamSessionBuffer>>,
     app_handle: AppHandle,
     perf: Arc<Mutex<StreamPerf>>,
+    gauge: Arc<RenderBackpressure>,
 ) -> impl FnMut(StreamProgress) + Send + 'static {
     move |progress: StreamProgress| {
         let mut perf = lock_perf(&perf);
         perf.record_compute(progress.elapsed);
         perf.record_update(&progress.update);
+        perf.record_queue(gauge.depth(), gauge.latest_lag_ms());
         if let Some(text) = progress.text {
             perf.record_emit();
             // The command-mode modifier is consulted per snapshot: while it
@@ -3259,6 +3332,13 @@ struct StreamPerf {
     latest_input_received_ms: i64,
     latest_audio_committed_ms: i64,
     latest_buffered_ms: i64,
+    /// Render-queue backpressure (the lossless interim-render queue): the
+    /// depth and drain lag observed at the latest snapshot. Under render
+    /// pressure the unbounded queue grows; the perf line shows it instead
+    /// of hiding it.
+    render_queue_depth: usize,
+    render_queue_max_depth: usize,
+    render_queue_lag_ms: u64,
 }
 
 impl StreamPerf {
@@ -3273,6 +3353,9 @@ impl StreamPerf {
             latest_input_received_ms: 0,
             latest_audio_committed_ms: 0,
             latest_buffered_ms: 0,
+            render_queue_depth: 0,
+            render_queue_max_depth: 0,
+            render_queue_lag_ms: 0,
         }
     }
 
@@ -3296,6 +3379,12 @@ impl StreamPerf {
         self.emit_count += 1;
     }
 
+    fn record_queue(&mut self, depth: usize, lag_ms: u64) {
+        self.render_queue_depth = depth;
+        self.render_queue_max_depth = self.render_queue_max_depth.max(depth);
+        self.render_queue_lag_ms = lag_ms;
+    }
+
     fn maybe_log(&mut self) {
         if self.last_log.elapsed() < STREAM_PERF_LOG_INTERVAL {
             return;
@@ -3306,7 +3395,7 @@ impl StreamPerf {
         debug!(
             "Live preview perf: {:.2}s streamed audio, {:.2}s model compute ({:.2}x real-time), \
              input_received={:.2}s, committed_audio={:.2}s, buffered={}ms, revision={}, \
-             {} frames fed, {} updates emitted",
+             {} frames fed, {} updates emitted, render_queue depth={} max={} lag={}ms",
             audio_secs,
             compute_secs,
             real_time_factor(audio_secs, compute_secs),
@@ -3316,6 +3405,9 @@ impl StreamPerf {
             self.latest_revision,
             self.feed_count,
             self.emit_count,
+            self.render_queue_depth,
+            self.render_queue_max_depth,
+            self.render_queue_lag_ms,
         );
         self.last_log = Instant::now();
     }
@@ -4073,7 +4165,12 @@ mod tests {
             NoticeCode::PostProcessTimeout,
             NoticeCode::PostProcessLengthGuard,
         ] {
-            assert_eq!(code.kind(), OverlayNoticeKind::Error, "{:?} is an error", code);
+            assert_eq!(
+                code.kind(),
+                OverlayNoticeKind::Error,
+                "{:?} is an error",
+                code
+            );
         }
         for code in [
             NoticeCode::ModelFallback,
@@ -4107,6 +4204,92 @@ mod tests {
             LoadFailureAction::LogOnly,
             "no session means nothing to tear down"
         );
+    }
+
+    /// The voice gate's forecast is the shared runtime-inclusive
+    /// composition: max(size * 3/2, measured). Injected measurements pin
+    /// both directions (a larger measurement wins; a smaller one never
+    /// shrinks below the multiplier floor), including the None case a
+    /// first-ever load sees. This is the same table the local-LLM gate
+    /// tests pin for its side, so the two gates cannot drift apart again.
+    #[test]
+    fn voice_gate_forecast_is_max_of_multiplier_floor_and_injected_rss() {
+        let size = 484 * 1024 * 1024u64;
+        // No measurement yet (first load): the 3/2 floor stands alone.
+        assert_eq!(asr_forecast_bytes(size, None), size * 3 / 2);
+        // A measurement above the floor wins: weights + Metal wired
+        // buffers + compute scratch can run ~1.5x the file size.
+        let measured = size * 3 / 2 + 200 * 1024 * 1024;
+        assert_eq!(asr_forecast_bytes(size, Some(measured)), measured);
+        // A measurement below the floor never shrinks the forecast.
+        assert_eq!(asr_forecast_bytes(size, Some(1024)), size * 3 / 2);
+        // Both gates compose through the one shared helper.
+        assert_eq!(
+            asr_forecast_bytes(size, Some(measured)),
+            crate::local_llm::forecast::runtime_inclusive_bytes(size, Some(measured))
+        );
+    }
+
+    /// The panic-stranding path this task closes: the hotkey load's slot is
+    /// a LoadingGuard MOVED into the loader thread (exactly what
+    /// `initiate_model_load` now does), so a panic that unwinds the loader
+    /// clears `is_loading` and wakes the condvar waiters
+    /// (`transcribe_audio` / `run_stream_worker` park there) instead of
+    /// stranding every later dictation until app restart. Fabricates the
+    /// exact flag/guard pair `try_start_loading` hands out (the local_llm
+    /// FakeHost pattern), because building a TranscriptionManager requires
+    /// a live AppHandle.
+    #[test]
+    fn loading_guard_survives_a_loader_panic_and_wakes_waiters() {
+        let is_loading = Arc::new(Mutex::new(false));
+        let condvar = Arc::new(Condvar::new());
+
+        // A waiter parked exactly like transcribe_audio parks: while the
+        // flag is set, wait on the condvar.
+        let waiter_flag = Arc::clone(&is_loading);
+        let waiter_condvar = Arc::clone(&condvar);
+        let waiter = thread::spawn(move || {
+            let mut flag = waiter_flag.lock().unwrap();
+            while *flag {
+                flag = waiter_condvar.wait(flag).unwrap();
+            }
+        });
+
+        // Claim the slot the way initiate_model_load does, then move the
+        // guard into a loader thread that panics before any load happens.
+        *is_loading.lock().unwrap() = true;
+        let guard = LoadingGuard::new(Arc::clone(&is_loading), Arc::clone(&condvar));
+        let loader = thread::spawn(move || {
+            let _slot = guard;
+            panic!("simulated panic inside the model loader");
+        });
+        assert!(
+            loader.join().is_err(),
+            "the loader thread must have panicked"
+        );
+
+        // The unwind dropped the guard: the flag returns to false (with a
+        // bound, so a regression fails the test instead of hanging it).
+        let deadline = Instant::now() + Duration::from_secs(5);
+        {
+            let mut flag = is_loading.lock().unwrap();
+            while *flag {
+                assert!(
+                    Instant::now() < deadline,
+                    "is_loading must clear after the loader panicked"
+                );
+                flag = condvar
+                    .wait_timeout(flag, Duration::from_millis(50))
+                    .unwrap()
+                    .0;
+            }
+        }
+
+        // And the parked waiter (the next dictation) was woken and
+        // completed rather than blocking forever.
+        waiter
+            .join()
+            .expect("the condvar waiter must wake after the loader panic");
     }
 
     #[test]

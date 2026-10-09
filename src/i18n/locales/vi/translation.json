@@ -660,6 +660,10 @@
           "placeholderWithOptions": "Tìm kiếm hoặc chọn một mô hình",
           "placeholderNoOptions": "Nhập tên mô hình",
           "refreshModels": "Làm mới mô hình"
+        },
+        "timeout": {
+          "title": "Thời gian chờ yêu cầu",
+          "description": "Yêu cầu hậu xử lý trên đám mây có thể chạy bao lâu trước khi từ bỏ và dùng bản ghi thô. Áp dụng khi một endpoint ngừng phản hồi."
         }
       },
       "local": {

@@ -88,7 +88,10 @@ function scanJsonFile(absPath: string, findings: Finding[]): boolean {
     parsed = JSON.parse(fs.readFileSync(absPath, "utf8"));
   } catch (error) {
     console.error(
-      colorize(`✗ Could not parse ${absPath}: ${(error as Error).message}`, "red"),
+      colorize(
+        `✗ Could not parse ${absPath}: ${(error as Error).message}`,
+        "red",
+      ),
     );
     return false;
   }
@@ -128,9 +131,9 @@ function scanPath(target: string, findings: Finding[]): boolean {
     return true;
   }
   let ok = true;
-  for (const entry of fs.readdirSync(target, { withFileTypes: true }).sort(
-    (a, b) => a.name.localeCompare(b.name),
-  )) {
+  for (const entry of fs
+    .readdirSync(target, { withFileTypes: true })
+    .sort((a, b) => a.name.localeCompare(b.name))) {
     ok = scanPath(path.join(target, entry.name), findings) && ok;
   }
   return ok;
@@ -157,9 +160,7 @@ export function scanTargets(targets: string[]): {
 /// Unit self-test: the scanner must flag seeded em and en dashes in JSON key
 /// paths and markdown lines, and must pass clean copy. Run with --self-test.
 function runSelfTest(): number {
-  const tmpDir = fs.mkdtempSync(
-    path.join(os.tmpdir(), "voxbar-text-style-"),
-  );
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "voxbar-text-style-"));
   let failures = 0;
   const expect = (condition: boolean, message: string) => {
     if (!condition) {
