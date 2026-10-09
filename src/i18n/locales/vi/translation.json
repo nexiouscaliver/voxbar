@@ -658,6 +658,18 @@
           "refreshModels": "Làm mới mô hình"
         }
       },
+      "local": {
+        "label": "Mô hình cục bộ",
+        "modelStatus": {
+          "notDownloaded": "Chưa tải xuống",
+          "downloading": "Đang tải ({{progress}}%)",
+          "ready": "Sẵn sàng"
+        },
+        "modelSizeMb": "Kích thước: {{size}} MB",
+        "download": "Tải xuống",
+        "delete": "Xóa",
+        "deleteInUse": "Hiện tại không thể xóa: một lượt xử lý sau đang chạy. Hãy thử lại sau ít lâu."
+      },
       "prompts": {
         "title": "Câu lệnh",
         "selectedPrompt": {
@@ -1001,6 +1013,16 @@
     "learnMore": "Cách khắc phục",
     "recorderBlocked": "Hiện không thể ghi phím tắt - Secure Input của macOS đang chặn các sự kiện phím. Hãy xử lý cảnh báo Secure Input trước.",
     "dismiss": "Bỏ qua"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Đã bỏ qua xử lý sau để bảo vệ bộ nhớ hệ thống. {{detail}}",
+      "downloadMissing": "Đã bỏ qua xử lý sau: mô hình cục bộ chưa được tải xuống. Hãy mở Cài đặt để tải xuống.",
+      "engineFailed": "Đã bỏ qua xử lý sau: mô hình cục bộ không thể xử lý văn bản này. Đã dùng văn bản gốc.",
+      "timeout": "Đã bỏ qua xử lý sau: mô hình cục bộ mất quá nhiều thời gian. Đã dùng văn bản gốc.",
+      "lengthGuard": "Đã bỏ qua xử lý sau: đầu ra của mô hình cục bộ không vượt qua kiểm tra độ dài. Đã dùng văn bản gốc.",
+      "tooLong": "Đã bỏ qua xử lý sau: văn bản này quá dài đối với mô hình cục bộ. Đã dùng văn bản gốc."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar không thể cài đặt bản cập nhật từ vị trí này",

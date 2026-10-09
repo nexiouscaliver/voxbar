@@ -658,6 +658,18 @@
           "refreshModels": "Odśwież modele"
         }
       },
+      "local": {
+        "label": "Model lokalny",
+        "modelStatus": {
+          "notDownloaded": "Nie pobrano",
+          "downloading": "Pobieranie ({{progress}}%)",
+          "ready": "Gotowy"
+        },
+        "modelSizeMb": "Rozmiar: {{size}} MB",
+        "download": "Pobierz",
+        "delete": "Usuń",
+        "deleteInUse": "Nie można teraz usunąć: trwa postprocessing. Spróbuj ponownie za chwilę."
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
@@ -1001,6 +1013,16 @@
     "learnMore": "Jak to naprawić",
     "recorderBlocked": "Nie można teraz nagrać skrótu - Secure Input w macOS blokuje zdarzenia klawiszy. Najpierw rozwiąż ostrzeżenie o Secure Input.",
     "dismiss": "Odrzuć"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Pominięto postprocessing, aby chronić pamięć systemu. {{detail}}",
+      "downloadMissing": "Pominięto postprocessing: model lokalny nie został jeszcze pobrany. Otwórz Ustawienia, aby go pobrać.",
+      "engineFailed": "Pominięto postprocessing: model lokalny nie mógł przetworzyć tej transkrypcji. Użyto oryginalnej transkrypcji.",
+      "timeout": "Pominięto postprocessing: model lokalny działał zbyt długo. Użyto oryginalnej transkrypcji.",
+      "lengthGuard": "Pominięto postprocessing: wynik modelu lokalnego nie przeszedł sprawdzania długości. Użyto oryginalnej transkrypcji.",
+      "tooLong": "Pominięto postprocessing: ta transkrypcja jest za długa dla modelu lokalnego. Użyto oryginalnej transkrypcji."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar nie może instalować aktualizacji z tej lokalizacji",
