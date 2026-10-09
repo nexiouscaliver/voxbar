@@ -658,6 +658,18 @@
           "refreshModels": "重新整理模型"
         }
       },
+      "local": {
+        "label": "本地模型",
+        "modelStatus": {
+          "notDownloaded": "尚未下載",
+          "downloading": "下載中（{{progress}}%）",
+          "ready": "已就緒"
+        },
+        "modelSizeMb": "大小：{{size}} MB",
+        "download": "下載",
+        "delete": "刪除",
+        "deleteInUse": "目前無法刪除：後處理正在執行中，請稍後再試。"
+      },
       "prompts": {
         "title": "提示詞",
         "selectedPrompt": {
@@ -1001,6 +1013,16 @@
     "learnMore": "如何解決",
     "recorderBlocked": "目前無法錄製快捷鍵-macOS 的 Secure Input 正在阻擋按鍵事件。請先解決 Secure Input 警告。",
     "dismiss": "關閉"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "為保護系統記憶體，已跳過後處理。{{detail}}",
+      "downloadMissing": "已跳過後處理：本地模型尚未下載。請開啟設定以下載。",
+      "engineFailed": "已跳過後處理：本地模型無法處理此轉錄。已使用原始轉錄。",
+      "timeout": "已跳過後處理：本地模型耗時過長。已使用原始轉錄。",
+      "lengthGuard": "已跳過後處理：本地模型的輸出未通過長度檢查。已使用原始轉錄。",
+      "tooLong": "已跳過後處理：此轉錄對本地模型來說過長。已使用原始轉錄。"
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar 無法從此位置安裝更新",
