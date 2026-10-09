@@ -668,7 +668,8 @@
         "modelSizeMb": "Mida: {{size}} MB",
         "download": "Baixa",
         "delete": "Suprimeix",
-        "deleteInUse": "Ara no es pot suprimir: hi ha un postprocessament en execució. Torneu-ho a provar d'aquí a un moment."
+        "deleteInUse": "Ara no es pot suprimir: hi ha un postprocessament en execució. Torneu-ho a provar d'aquí a un moment.",
+        "downloadFailed": "No s'ha pogut descarregar: {{error}}"
       },
       "prompts": {
         "title": "Indicació",

@@ -668,7 +668,8 @@
         "modelSizeMb": "크기: {{size}} MB",
         "download": "다운로드",
         "delete": "삭제",
-        "deleteInUse": "지금은 삭제할 수 없습니다: 후처리가 진행 중입니다. 잠시 후 다시 시도하세요."
+        "deleteInUse": "지금은 삭제할 수 없습니다: 후처리가 진행 중입니다. 잠시 후 다시 시도하세요.",
+        "downloadFailed": "다운로드 실패: {{error}}"
       },
       "prompts": {
         "title": "프롬프트",

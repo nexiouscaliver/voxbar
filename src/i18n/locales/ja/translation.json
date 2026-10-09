@@ -668,7 +668,8 @@
         "modelSizeMb": "サイズ: {{size}} MB",
         "download": "ダウンロード",
         "delete": "削除",
-        "deleteInUse": "今は削除できません: 後処理が実行中です。しばらくしてからもう一度お試しください。"
+        "deleteInUse": "今は削除できません: 後処理が実行中です。しばらくしてからもう一度お試しください。",
+        "downloadFailed": "ダウンロードに失敗しました: {{error}}"
       },
       "prompts": {
         "title": "プロンプト",

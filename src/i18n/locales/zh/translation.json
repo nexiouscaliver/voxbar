@@ -668,7 +668,8 @@
         "modelSizeMb": "大小：{{size}} MB",
         "download": "下载",
         "delete": "删除",
-        "deleteInUse": "暂时无法删除：后处理正在进行中，请稍后再试。"
+        "deleteInUse": "暂时无法删除：后处理正在进行中，请稍后再试。",
+        "downloadFailed": "下载失败：{{error}}"
       },
       "prompts": {
         "title": "提示词",

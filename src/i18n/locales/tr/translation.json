@@ -668,7 +668,8 @@
         "modelSizeMb": "Boyut: {{size}} MB",
         "download": "İndir",
         "delete": "Sil",
-        "deleteInUse": "Şu anda silinemiyor: bir son işlem sürüyor. Birazdan tekrar deneyin."
+        "deleteInUse": "Şu anda silinemiyor: bir son işlem sürüyor. Birazdan tekrar deneyin.",
+        "downloadFailed": "İndirme başarısız: {{error}}"
       },
       "prompts": {
         "title": "Prompt",

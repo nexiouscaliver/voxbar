@@ -668,7 +668,8 @@
         "modelSizeMb": "Velikost: {{size}} MB",
         "download": "Stáhnout",
         "delete": "Smazat",
-        "deleteInUse": "Nyní nelze smazat: právě běží následné zpracování. Zkuste to za chvíli znovu."
+        "deleteInUse": "Nyní nelze smazat: právě běží následné zpracování. Zkuste to za chvíli znovu.",
+        "downloadFailed": "Stažení se nezdařilo: {{error}}"
       },
       "prompts": {
         "title": "Prompt",

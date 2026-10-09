@@ -668,7 +668,8 @@
         "modelSizeMb": "Tamanho: {{size}} MB",
         "download": "Baixar",
         "delete": "Excluir",
-        "deleteInUse": "Não é possível excluir agora: uma execução de pós-processamento está em andamento. Tente novamente em instantes."
+        "deleteInUse": "Não é possível excluir agora: uma execução de pós-processamento está em andamento. Tente novamente em instantes.",
+        "downloadFailed": "Falha no download: {{error}}"
       },
       "prompts": {
         "title": "Prompt",

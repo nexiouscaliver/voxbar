@@ -668,7 +668,8 @@
         "modelSizeMb": "Größe: {{size}} MB",
         "download": "Herunterladen",
         "delete": "Löschen",
-        "deleteInUse": "Löschen ist gerade nicht möglich: Eine Nachbearbeitung läuft. Versuche es gleich noch einmal."
+        "deleteInUse": "Löschen ist gerade nicht möglich: Eine Nachbearbeitung läuft. Versuche es gleich noch einmal.",
+        "downloadFailed": "Herunterladen fehlgeschlagen: {{error}}"
       },
       "prompts": {
         "title": "Prompt",

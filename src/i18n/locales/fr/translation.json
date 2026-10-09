@@ -668,7 +668,8 @@
         "modelSizeMb": "Taille : {{size}} MB",
         "download": "Télécharger",
         "delete": "Supprimer",
-        "deleteInUse": "Suppression impossible pour le moment : un post-traitement est en cours. Réessayez dans un instant."
+        "deleteInUse": "Suppression impossible pour le moment : un post-traitement est en cours. Réessayez dans un instant.",
+        "downloadFailed": "Échec du téléchargement : {{error}}"
       },
       "prompts": {
         "title": "Prompt",
