@@ -256,11 +256,11 @@
           },
           "delete_last_word": {
             "name": "Usuń ostatnie słowo",
-            "description": "Usuwa słowo przed kursorem w aktywnej aplikacji (Option+Backspace na macOS, Ctrl+Backspace gdzie indziej). Przypisz klawisz, aby włączyć."
+            "description": "Usuwa ostatnie słowo z tekstu na żywo dyktowania, gdy trwa sesja nagrywania; w przeciwnym razie nic nie robi. Przypisz klawisz, aby go włączyć."
           },
           "undo": {
             "name": "Cofnij",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Podczas trwającego dyktowania: czyści je i zaczyna od nowa. W przeciwnym razie nic nie robi."
           },
           "transcribe_commands": {
             "name": "Tryb poleceń",
@@ -299,11 +299,11 @@
         "title": "Skróty edycji",
         "deleteLastWord": {
           "title": "Akcja: usuń ostatnie słowo",
-          "description": "Włącza przypisywalny skrót, który usuwa słowo przed kursorem. Skrót pozostaje nieaktywny, dopóki nie przypiszesz klawisza powyżej."
+          "description": "Włącza przypisywalny klawisz, który usuwa ostatnie słowo z tekstu na żywo dyktowania, gdy trwa sesja nagrywania."
         },
         "undo": {
           "title": "Akcja: cofnij",
-          "description": "Włącza przypisywalny skrót, który wywołuje Cofnij w aktywnej aplikacji. Skrót pozostaje nieaktywny, dopóki nie przypiszesz klawisza powyżej."
+          "description": "Włącza przypisywalny klawisz, który czyści tekst na żywo dyktowania i zaczyna od nowa, gdy trwa sesja nagrywania."
         }
       },
       "commandMode": {

@@ -256,11 +256,11 @@
           },
           "delete_last_word": {
             "name": "Eliminar última palabra",
-            "description": "Elimina la palabra anterior al cursor en la aplicación enfocada (Opción+Retroceso en macOS, Ctrl+Retroceso en otras). Asigna una tecla para activarlo."
+            "description": "Elimina la última palabra de la transcripción en vivo del dictado mientras hay una sesión de grabación activa; en caso contrario no hace nada. Asigna una tecla para activarlo."
           },
           "undo": {
             "name": "Deshacer",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Mientras hay un dictado en curso: lo borra y empieza de nuevo. En caso contrario no hace nada."
           },
           "transcribe_commands": {
             "name": "Modo de comandos",
@@ -299,11 +299,11 @@
         "title": "Atajos de edición",
         "deleteLastWord": {
           "title": "Acción: eliminar última palabra",
-          "description": "Activa el atajo asignable que elimina la palabra anterior al cursor. El atajo permanece inactivo hasta que asignes una tecla arriba."
+          "description": "Activa el atajo asignable que elimina la última palabra de la transcripción en vivo del dictado mientras hay una sesión de grabación activa."
         },
         "undo": {
           "title": "Acción: deshacer",
-          "description": "Activa el atajo asignable que ejecuta deshacer en la aplicación enfocada. El atajo permanece inactivo hasta que asignes una tecla arriba."
+          "description": "Activa el atajo asignable que borra la transcripción en vivo del dictado y empieza de nuevo mientras hay una sesión de grabación activa."
         }
       },
       "commandMode": {

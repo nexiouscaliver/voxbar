@@ -256,11 +256,11 @@
           },
           "delete_last_word": {
             "name": "Supprimer le dernier mot",
-            "description": "Supprime le mot avant le curseur dans l'application active (Option+Retour arrière sur macOS, Ctrl+Retour arrière ailleurs). Assignez une touche pour l'activer."
+            "description": "Supprime le dernier mot de la transcription en direct de la dictée pendant qu'une session d'enregistrement est active ; sinon, ne fait rien. Assignez une touche pour l'activer."
           },
           "undo": {
             "name": "Annuler",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Pendant une dictée en cours : l'efface et repart de zéro. Sinon, ne fait rien."
           },
           "transcribe_commands": {
             "name": "Mode commandes",
@@ -299,11 +299,11 @@
         "title": "Raccourcis d'édition",
         "deleteLastWord": {
           "title": "Action : supprimer le dernier mot",
-          "description": "Active le raccourci assignable qui supprime le mot avant le curseur. Le raccourci reste inactif tant qu'aucune touche n'est assignée ci-dessus."
+          "description": "Active le raccourci assignable qui supprime le dernier mot de la transcription en direct de la dictée pendant qu'une session d'enregistrement est active."
         },
         "undo": {
           "title": "Action : annuler",
-          "description": "Active le raccourci assignable qui déclenche Annuler dans l'application active. Le raccourci reste inactif tant qu'aucune touche n'est assignée ci-dessus."
+          "description": "Active le raccourci assignable qui efface la transcription en direct de la dictée et repart de zéro pendant qu'une session d'enregistrement est active."
         }
       },
       "commandMode": {

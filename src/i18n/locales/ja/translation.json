@@ -256,11 +256,11 @@
           },
           "delete_last_word": {
             "name": "最後の単語を削除",
-            "description": "フォーカスされたアプリでカーソルの前の単語を削除します (macOS では Option+Backspace、その他では Ctrl+Backspace)。有効にするにはキーを割り当ててください。"
+            "description": "録音セッション中はディクテーションのライブテキストの最後の単語を削除します。それ以外では何もしません。有効にするにはキーを割り当ててください。"
           },
           "undo": {
             "name": "元に戻す",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "ディクテーション中は、それを消去して最初からやり直します。それ以外では何もしません。"
           },
           "transcribe_commands": {
             "name": "コマンドモード",
@@ -299,11 +299,11 @@
         "title": "編集ショートカット",
         "deleteLastWord": {
           "title": "アクション: 最後の単語を削除",
-          "description": "カーソルの前の単語を削除する割り当て可能なホットキーを有効にします。上でキーを割り当てるまで無効のままです。"
+          "description": "録音セッション中にディクテーションのライブテキストの最後の単語を削除する、割り当て可能なキーを有効にします。"
         },
         "undo": {
           "title": "アクション: 元に戻す",
-          "description": "フォーカスされたアプリで元に戻すを実行する割り当て可能なホットキーを有効にします。上でキーを割り当てるまで無効のままです。"
+          "description": "録音セッション中にディクテーションのライブテキストを消去して最初からやり直す、割り当て可能なキーを有効にします。"
         }
       },
       "commandMode": {

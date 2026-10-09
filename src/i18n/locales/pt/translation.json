@@ -204,11 +204,11 @@
           },
           "delete_last_word": {
             "name": "Apagar última palavra",
-            "description": "Apaga a palavra antes do cursor na aplicação focada (Opção+Backspace no macOS, Ctrl+Backspace nos outros). Atribua uma tecla para ativar."
+            "description": "Remove a última palavra da transcrição ao vivo do ditado enquanto uma sessão de gravação está ativa; caso contrário, não faz nada. Atribua uma tecla para ativá-lo."
           },
           "undo": {
             "name": "Desfazer",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Durante um ditado em andamento: apaga-o e recomeça. Caso contrário, não faz nada."
           },
           "transcribe_commands": {
             "name": "Modo de comandos",
@@ -247,11 +247,11 @@
         "title": "Atalhos de edição",
         "deleteLastWord": {
           "title": "Ação: apagar última palavra",
-          "description": "Ativa o atalho atribuível que apaga a palavra antes do cursor. O atalho fica inativo até atribuir uma tecla acima."
+          "description": "Ativa a tecla atribuível que remove a última palavra da transcrição ao vivo do ditado enquanto uma sessão de gravação está ativa."
         },
         "undo": {
           "title": "Ação: desfazer",
-          "description": "Ativa o atalho atribuível que aciona Desfazer na aplicação focada. O atalho fica inativo até atribuir uma tecla acima."
+          "description": "Ativa a tecla atribuível que apaga a transcrição ao vivo do ditado e recomeça enquanto uma sessão de gravação está ativa."
         }
       },
       "commandMode": {

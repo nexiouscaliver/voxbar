@@ -256,11 +256,11 @@
           },
           "delete_last_word": {
             "name": "Letztes Wort löschen",
-            "description": "Löscht das Wort vor dem Cursor in der fokussierten App (Option+Rücktaste unter macOS, Strg+Rücktaste anderswo). Zum Aktivieren eine Taste zuweisen."
+            "description": "Entfernt das letzte Wort aus dem Live-Text der Diktatsitzung, solange eine Aufnahme läuft; sonst passiert nichts. Zum Aktivieren eine Taste zuweisen."
           },
           "undo": {
             "name": "Rückgängig",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Während einer laufenden Diktatsitzung: leert sie und startet neu. Sonst passiert nichts."
           },
           "transcribe_commands": {
             "name": "Befehlsmodus",
@@ -299,11 +299,11 @@
         "title": "Bearbeitungs-Shortcuts",
         "deleteLastWord": {
           "title": "Aktion: Letztes Wort löschen",
-          "description": "Aktiviert den zuweisbaren Hotkey, der das Wort vor dem Cursor löscht. Der Hotkey bleibt inaktiv, bis oben eine Taste zugewiesen wird."
+          "description": "Aktiviert die zuweisbare Taste, die das letzte Wort aus dem Live-Text der Diktatsitzung entfernt, solange eine Aufnahme läuft."
         },
         "undo": {
           "title": "Aktion: Rückgängig",
-          "description": "Aktiviert den zuweisbaren Hotkey, der Rückgängig in der fokussierten App auslöst. Der Hotkey bleibt inaktiv, bis oben eine Taste zugewiesen wird."
+          "description": "Aktiviert die zuweisbare Taste, die den Live-Text der Diktatsitzung löscht und neu startet, solange eine Aufnahme läuft."
         }
       },
       "commandMode": {

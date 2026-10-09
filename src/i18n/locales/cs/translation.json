@@ -256,11 +256,11 @@
           },
           "delete_last_word": {
             "name": "Smazat poslední slovo",
-            "description": "Smaže slovo před kurzorem v aktivní aplikaci (Option+Backspace na macOS, Ctrl+Backspace jinde). Přiřaďte klávesu pro aktivaci."
+            "description": "Odstraní poslední slovo ze živého přepisu diktování, dokud běží nahrávací relace; jinak nedělá nic. Přiřazením klávesy jej povolíte."
           },
           "undo": {
             "name": "Zpět",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Probíhá-li diktování: vymaže jej a začne znovu. Jinak nedělá nic."
           },
           "transcribe_commands": {
             "name": "Režim příkazů",
@@ -299,11 +299,11 @@
         "title": "Klávesy pro úpravy",
         "deleteLastWord": {
           "title": "Akce: smazat poslední slovo",
-          "description": "Zapne přiřaditelnou zkratku, která maže slovo před kurzorem. Zkratka zůstává neaktivní, dokud výše nepřiřadíte klávesu."
+          "description": "Povoluje přiřaditelnou klávesu, která odstraní poslední slovo ze živého přepisu diktování, dokud běží nahrávací relace."
         },
         "undo": {
           "title": "Akce: zpět",
-          "description": "Zapne přiřaditelnou zkratku, která spouští Zpět v aktivní aplikaci. Zkratka zůstává neaktivní, dokud výše nepřiřadíte klávesu."
+          "description": "Povoluje přiřaditelnou klávesu, která vymaže živý přepis diktování a začne znovu, dokud běží nahrávací relace."
         }
       },
       "commandMode": {

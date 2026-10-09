@@ -204,11 +204,11 @@
           },
           "delete_last_word": {
             "name": "Laatste woord verwijderen",
-            "description": "Verwijdert het woord voor de cursor in de actieve app (Optie+Backspace op macOS, Ctrl+Backspace elders). Wijs een toets toe om in te schakelen."
+            "description": "Verwijdert het laatste woord uit de live tekst van de dicteersessie zolang een opname actief is; anders gebeurt er niets. Wijs een toets toe om hem in te schakelen."
           },
           "undo": {
             "name": "Ongedaan maken",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Tijdens een lopende dictatie: wist hem en begint opnieuw. Anders gebeurt er niets."
           },
           "transcribe_commands": {
             "name": "Commandomodus",
@@ -247,11 +247,11 @@
         "title": "Sneltoetsen voor bewerken",
         "deleteLastWord": {
           "title": "Actie: laatste woord verwijderen",
-          "description": "Schakelt de toewijsbare sneltoets in die het woord voor de cursor verwijdert. De sneltoets blijft inactief tot je bovenaan een toets toewijst."
+          "description": "Schakelt de toewijsbare toets in die het laatste woord uit de live tekst van de dicteersessie verwijdert zolang een opname actief is."
         },
         "undo": {
           "title": "Actie: ongedaan maken",
-          "description": "Schakelt de toewijsbare sneltoets in die Ongedaan maken activeert in de actieve app. De sneltoets blijft inactief tot je bovenaan een toets toewijst."
+          "description": "Schakelt de toewijsbare toets in die de live tekst van de dicteersessie wist en opnieuw begint zolang een opname actief is."
         }
       },
       "commandMode": {

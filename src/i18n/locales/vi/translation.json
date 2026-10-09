@@ -256,11 +256,11 @@
           },
           "delete_last_word": {
             "name": "Xóa từ cuối cùng",
-            "description": "Xóa từ trước con trỏ trong ứng dụng đang tập trung (Option+Backspace trên macOS, Ctrl+Backspace trên nền tảng khác). Gán phím để bật."
+            "description": "Xóa từ cuối cùng khỏi văn bản trực tiếp của buổi đọc chính tả khi phiên ghi âm đang hoạt động; ngoài ra không làm gì. Gán một phím để bật."
           },
           "undo": {
             "name": "Hoàn tác",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Trong lúc đọc chính tả: xóa nó và bắt đầu lại. Ngoài ra không làm gì."
           },
           "transcribe_commands": {
             "name": "Chế độ lệnh",
@@ -299,11 +299,11 @@
         "title": "Phím tắt chỉnh sửa",
         "deleteLastWord": {
           "title": "Hành động: xóa từ cuối cùng",
-          "description": "Bật phím tắt có thể gán để xóa từ trước con trỏ. Phím tắt giữ trạng thái tắt cho đến khi bạn gán phím ở trên."
+          "description": "Bật phím có thể gán để xóa từ cuối cùng khỏi văn bản trực tiếp của buổi đọc chính tả khi phiên ghi âm đang hoạt động."
         },
         "undo": {
           "title": "Hành động: hoàn tác",
-          "description": "Bật phím tắt có thể gán để kích hoạt Hoàn tác trong ứng dụng đang tập trung. Phím tắt giữ trạng thái tắt cho đến khi bạn gán phím ở trên."
+          "description": "Bật phím có thể gán để xóa văn bản trực tiếp của buổi đọc chính tả và bắt đầu lại khi phiên ghi âm đang hoạt động."
         }
       },
       "commandMode": {

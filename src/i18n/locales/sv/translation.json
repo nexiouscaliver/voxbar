@@ -204,11 +204,11 @@
           },
           "delete_last_word": {
             "name": "Ta bort senaste ordet",
-            "description": "Tar bort ordet före markören i den aktiva appen (Alternativ+Backsteg på macOS, Ctrl+Backsteg på andra). Koppla en tangent för att aktivera."
+            "description": "Tar bort det sista ordet från dikteringens direkttext medan en inspelningssession är aktiv; annars görs ingenting. Koppla en tangent för att aktivera."
           },
           "undo": {
             "name": "Ångra",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Medan en diktering pågår: rensar den och börjar om. Annars görs ingenting."
           },
           "transcribe_commands": {
             "name": "Kommandoläge",
@@ -247,11 +247,11 @@
         "title": "Redigeringsgenvägar",
         "deleteLastWord": {
           "title": "Åtgärd: ta bort senaste ordet",
-          "description": "Aktiverar den kopplingsbara genvägen som tar bort ordet före markören. Genvägen förblir inaktiv tills en tangent kopplas ovan."
+          "description": "Aktiverar den kopplningsbara tangent som tar bort det sista ordet från dikteringens direkttext medan en inspelningssession är aktiv."
         },
         "undo": {
           "title": "Åtgärd: ångra",
-          "description": "Aktiverar den kopplingsbara genvägen som utför Ångra i den aktiva appen. Genvägen förblir inaktiv tills en tangent kopplas ovan."
+          "description": "Aktiverar den kopplningsbara tangent som rensar dikteringens direkttext och börjar om medan en inspelningssession är aktiv."
         }
       },
       "commandMode": {

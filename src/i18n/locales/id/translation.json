@@ -204,11 +204,11 @@
           },
           "delete_last_word": {
             "name": "Hapus kata terakhir",
-            "description": "Menghapus kata sebelum kursor di aplikasi yang fokus (Option+Backspace di macOS, Ctrl+Backspace di tempat lain). Tetapkan tombol untuk mengaktifkannya."
+            "description": "Menghapus kata terakhir dari teks dikte langsung selama sesi perekaman aktif; selain itu tidak melakukan apa pun. Tetapkan tombol untuk mengaktifkannya."
           },
           "undo": {
             "name": "Urungkan",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Saat dikte sedang berlangsung: menghapusnya dan memulai ulang. Selain itu tidak melakukan apa pun."
           },
           "transcribe_commands": {
             "name": "Mode perintah",
@@ -247,11 +247,11 @@
         "title": "Pintasan penyuntingan",
         "deleteLastWord": {
           "title": "Aksi: hapus kata terakhir",
-          "description": "Mengaktifkan pintasan yang dapat ditetapkan untuk menghapus kata sebelum kursor. Pintasan tetap nonaktif sampai Anda menetapkan tombol di atas."
+          "description": "Mengaktifkan tombol yang dapat ditetapkan yang menghapus kata terakhir dari teks dikte langsung selama sesi perekaman aktif."
         },
         "undo": {
           "title": "Aksi: urungkan",
-          "description": "Mengaktifkan pintasan yang dapat ditetapkan untuk menjalankan Urungkan di aplikasi yang fokus. Pintasan tetap nonaktif sampai Anda menetapkan tombol di atas."
+          "description": "Mengaktifkan tombol yang dapat ditetapkan yang menghapus teks dikte langsung dan memulai ulang selama sesi perekaman aktif."
         }
       },
       "commandMode": {

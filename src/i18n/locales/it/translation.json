@@ -256,11 +256,11 @@
           },
           "delete_last_word": {
             "name": "Elimina ultima parola",
-            "description": "Elimina la parola prima del cursore nell'app attiva (Opzione+Backspace su macOS, Ctrl+Backspace altrove). Assegna un tasto per attivarla."
+            "description": "Rimuove l'ultima parola dalla trascrizione in diretta della dettatura mentre una sessione di registrazione è attiva; altrimenti non fa nulla. Assegna un tasto per attivarla."
           },
           "undo": {
             "name": "Annulla",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Durante una dettatura in corso: la cancella e ricomincia. Altrimenti non fa nulla."
           },
           "transcribe_commands": {
             "name": "Modalità comandi",
@@ -299,11 +299,11 @@
         "title": "Scorciatoie di modifica",
         "deleteLastWord": {
           "title": "Azione: elimina ultima parola",
-          "description": "Attiva la scorciatoia assegnabile che elimina la parola prima del cursore. La scorciatoia resta inattiva finché non assegni un tasto sopra."
+          "description": "Attiva il tasto assegnabile che rimuove l'ultima parola dalla trascrizione in diretta della dettatura mentre una sessione di registrazione è attiva."
         },
         "undo": {
           "title": "Azione: annulla",
-          "description": "Attiva la scorciatoia assegnabile che esegue Annulla nell'app attiva. La scorciatoia resta inattiva finché non assegni un tasto sopra."
+          "description": "Attiva il tasto assegnabile che cancella la trascrizione in diretta della dettatura e ricomincia mentre una sessione di registrazione è attiva."
         }
       },
       "commandMode": {

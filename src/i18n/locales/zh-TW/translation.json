@@ -204,11 +204,11 @@
           },
           "delete_last_word": {
             "name": "刪除上一個詞",
-            "description": "在目前聚焦的應用程式中刪除游標前的一個詞 (macOS 為 Option+Backspace，其他平台為 Ctrl+Backspace)。指派按鍵後才會啟用。"
+            "description": "在錄音工作階段進行期間，刪除即時聽寫文字的最後一個詞；在其他情況下不執行任何動作。指派按鍵即可啟用。"
           },
           "undo": {
             "name": "復原",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "聽寫進行期間：清除本次聽寫並重新開始。其他情況下不執行任何動作。"
           },
           "transcribe_commands": {
             "name": "命令模式",
@@ -247,11 +247,11 @@
         "title": "編輯快捷鍵",
         "deleteLastWord": {
           "title": "動作：刪除上一個詞",
-          "description": "啟用可自訂的快捷鍵來刪除游標前的一個詞。在上方指派按鍵之前該快捷鍵保持停用。"
+          "description": "啟用可指派的按鍵，在錄音工作階段進行期間刪除即時聽寫文字的最後一個詞。"
         },
         "undo": {
           "title": "動作：復原",
-          "description": "啟用可自訂的快捷鍵來在聚焦應用程式中觸發復原。在上方指派按鍵之前該快捷鍵保持停用。"
+          "description": "啟用可指派的按鍵，在錄音工作階段進行期間清除即時聽寫文字並重新開始。"
         }
       },
       "commandMode": {

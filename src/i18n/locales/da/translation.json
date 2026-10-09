@@ -204,11 +204,11 @@
           },
           "delete_last_word": {
             "name": "Slet sidste ord",
-            "description": "Sletter ordet før markøren i den aktive app (Option+Backspace på macOS, Ctrl+Backspace andre steder). Tildel en tast for at aktivere."
+            "description": "Fjerner det sidste ord fra den live dikteringstekst, mens en optagelsessession er aktiv; ellers sker der intet. Tildel en tast for at aktivere den."
           },
           "undo": {
             "name": "Fortryd",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Mens en diktering er i gang: rydder den og starter forfra. Ellers sker der intet."
           },
           "transcribe_commands": {
             "name": "Kommandotilstand",
@@ -247,11 +247,11 @@
         "title": "Redigeringsgenveje",
         "deleteLastWord": {
           "title": "Handling: slet sidste ord",
-          "description": "Aktiverer den tildelbare genvej, der sletter ordet før markøren. Genvejen forbliver inaktiv, til en tast tildeles ovenfor."
+          "description": "Aktiverer den tildelbare genvejstast, der fjerner det sidste ord fra den live dikteringstekst, mens en optagelsessession er aktiv."
         },
         "undo": {
           "title": "Handling: fortryd",
-          "description": "Aktiverer den tildelbare genvej, der udfører Fortryd i den aktive app. Genvejen forbliver inaktiv, til en tast tildeles ovenfor."
+          "description": "Aktiverer den tildelbare genvejstast, der rydder den live dikteringstekst og starter forfra, mens en optagelsessession er aktiv."
         }
       },
       "commandMode": {

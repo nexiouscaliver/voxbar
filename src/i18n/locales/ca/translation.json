@@ -204,11 +204,11 @@
           },
           "delete_last_word": {
             "name": "Suprimeix l'última paraula",
-            "description": "Suprimeix la paraula anterior al cursor a l'aplicació activa (Opció+Retroés a macOS, Ctrl+Retroés a altres). Assigna una tecla per activar-ho."
+            "description": "Elimina l'última paraula de la transcripció en directe del dictat mentre hi ha una sessió d'enregistrament activa; en qualsevol altre cas no fa res. Assigna una tecla per activar-ho."
           },
           "undo": {
             "name": "Desfés",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Mentre el dictat està en marxa: l'esborra i comença de nou. En qualsevol altre cas no fa res."
           },
           "transcribe_commands": {
             "name": "Mode d'ordres",
@@ -247,11 +247,11 @@
         "title": "Dreceres d'edició",
         "deleteLastWord": {
           "title": "Acció: suprimeix l'última paraula",
-          "description": "Activa la drecera assignable que suprimeix la paraula anterior al cursor. La drecera es manté inactiva fins que assignis una tecla a dalt."
+          "description": "Activa la tecla assignable que elimina l'última paraula de la transcripció en directe del dictat mentre hi ha una sessió d'enregistrament activa."
         },
         "undo": {
           "title": "Acció: desfés",
-          "description": "Activa la drecera assignable que executa Desfés a l'aplicació activa. La drecera es manté inactiva fins que assignis una tecla a dalt."
+          "description": "Activa la tecla assignable que esborra la transcripció en directe del dictat i comença de nou mentre hi ha una sessió d'enregistrament activa."
         }
       },
       "commandMode": {

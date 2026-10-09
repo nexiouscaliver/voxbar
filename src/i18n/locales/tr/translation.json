@@ -256,11 +256,11 @@
           },
           "delete_last_word": {
             "name": "Son kelimeyi sil",
-            "description": "Odaklanmış uygulamada imleçten önceki kelimeyi siler (macOS'ta Option+Backspace, diğerlerinde Ctrl+Backspace). Etkinleştirmek için bir tuş atayın."
+            "description": "Kayıt oturumu etkinken canlı dikte metnindeki son sözcüğü siler; aksi halde hiçbir şey yapmaz. Etkinleştirmek için bir tuş atayın."
           },
           "undo": {
             "name": "Geri al",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Canlı bir dikte sırasında: onu temizler ve yeniden başlar. Aksi halde hiçbir şey yapmaz."
           },
           "transcribe_commands": {
             "name": "Komut modu",
@@ -299,11 +299,11 @@
         "title": "Düzenleme kısayolları",
         "deleteLastWord": {
           "title": "Eylem: son kelimeyi sil",
-          "description": "İmleçten önceki kelimeyi silen atanabilir kısayolu etkinleştirir. Kısayol, yukarıda bir tuş atanana kadar etkinsiz kalır."
+          "description": "Kayıt oturumu etkinken canlı dikte metnindeki son sözcüğü silebilen atanabilir tuşu etkinleştirir."
         },
         "undo": {
           "title": "Eylem: geri al",
-          "description": "Odaklanmış uygulamada Geri Al'ı tetikleyen atanabilir kısayolu etkinleştirir. Kısayol, yukarıda bir tuş atanana kadar etkinsiz kalır."
+          "description": "Kayıt oturumu etkinken canlı dikte metnini temizleyip yeniden başlatan atanabilir tuşu etkinleştirir."
         }
       },
       "commandMode": {
