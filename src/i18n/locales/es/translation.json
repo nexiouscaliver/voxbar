@@ -1015,7 +1015,8 @@
       "undoNoSession": "La tecla de deshacer funciona durante un dictado activo. Comienza a grabar primero.",
       "undoNoBuffer": "Aún no hay nada que limpiar, el dictado no tiene texto en vivo.",
       "bindingBusy": "Otra tecla de dictado ya está grabando."
-    }
+    },
+    "commandBadge": "Modo de comandos"
   },
   "whatsNew": {
     "title": "Nuevo en VoxBar v{{version}}"

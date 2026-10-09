@@ -1015,7 +1015,8 @@
       "undoNoSession": "A tecla de desfazer funciona durante um ditado ativo. Comece a gravação primeiro.",
       "undoNoBuffer": "Ainda não há nada para limpar, o ditado não tem texto ao vivo.",
       "bindingBusy": "Outra tecla de ditado já está gravando."
-    }
+    },
+    "commandBadge": "Modo de comandos"
   },
   "whatsNew": {
     "title": "Novidades no VoxBar v{{version}}"

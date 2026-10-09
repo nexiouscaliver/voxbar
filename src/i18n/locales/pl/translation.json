@@ -1015,7 +1015,8 @@
       "undoNoSession": "Klawisz cofania działa podczas aktywnego dyktowania. Najpierw rozpocznij nagrywanie.",
       "undoNoBuffer": "Nie ma jeszcze czego czyścić, dyktowanie nie ma tekstu na żywo.",
       "bindingBusy": "Inny klawisz dyktowania już nagrywa."
-    }
+    },
+    "commandBadge": "Tryb poleceń"
   },
   "whatsNew": {
     "title": "Nowości w VoxBar v{{version}}"

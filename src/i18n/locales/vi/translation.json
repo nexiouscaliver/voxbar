@@ -1015,7 +1015,8 @@
       "undoNoSession": "Phím hoàn tác chỉ hoạt động trong lúc đọc chính tả đang bật. Hãy bắt đầu ghi âm trước.",
       "undoNoBuffer": "Chưa có gì để xóa sạch, buổi đọc chính tả chưa có văn bản trực tiếp.",
       "bindingBusy": "Một phím đọc chính tả khác đang ghi âm."
-    }
+    },
+    "commandBadge": "Chế độ lệnh"
   },
   "whatsNew": {
     "title": "Điểm mới trong VoxBar v{{version}}"

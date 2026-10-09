@@ -1018,7 +1018,8 @@
       "undoNoSession": "Fortryd-tasten virker under en aktiv diktatning. Start optagelsen først.",
       "undoNoBuffer": "Der er endnu intet at rydde, diktatningen har ingen tekst endnu.",
       "bindingBusy": "En anden diktattast optager allerede."
-    }
+    },
+    "commandBadge": "Kommandotilstand"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blokerer muligvis 1 genvej",

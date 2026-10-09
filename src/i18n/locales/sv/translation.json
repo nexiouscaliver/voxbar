@@ -1015,7 +1015,8 @@
       "undoNoSession": "Ångra-tangenten fungerar under en aktiv diktering. Starta inspelningen först.",
       "undoNoBuffer": "Det finns inget att rensa än, dikteringen har ingen direkt text.",
       "bindingBusy": "En annan dikteringstangent spelar redan in."
-    }
+    },
+    "commandBadge": "Kommandoläge"
   },
   "whatsNew": {
     "title": "Nytt i VoxBar v{{version}}"

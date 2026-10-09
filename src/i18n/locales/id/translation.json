@@ -1018,7 +1018,8 @@
       "undoNoSession": "Tombol urungkan bekerja saat dikte sedang berlangsung. Mulai rekaman dulu.",
       "undoNoBuffer": "Belum ada yang bisa dibersihkan, dikte belum memiliki teks langsung.",
       "bindingBusy": "Tombol dikte lain sedang merekam."
-    }
+    },
+    "commandBadge": "Mode perintah"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} mungkin memblokir 1 pintasan",

@@ -1117,6 +1117,14 @@ impl ShortcutAction for DeleteLastWordAction {
         };
         if !coordinator.is_recording_session() {
             debug!("Delete-last-word pressed with no live dictation session; ignoring");
+            // Not silent: the usage log showed idle presses the operator
+            // believed were editing text. One info notice explains the
+            // session-scoped rule (the frontend rate-limits repeats).
+            crate::managers::transcription::emit_overlay_notice(
+                app,
+                crate::managers::transcription::NoticeCode::DeleteLastWordNoSession,
+                None,
+            );
             return;
         }
 
@@ -1128,6 +1136,11 @@ impl ShortcutAction for DeleteLastWordAction {
             // injection would hit the wrong text, so this is a deliberate
             // no-op.
             debug!("Delete-last-word skipped: recording session active but no live buffer to edit");
+            crate::managers::transcription::emit_overlay_notice(
+                app,
+                crate::managers::transcription::NoticeCode::DeleteLastWordNoBuffer,
+                None,
+            );
         }
     }
 
@@ -1157,6 +1170,13 @@ impl ShortcutAction for UndoAction {
         };
         if !coordinator.is_undo_active() {
             debug!("Undo pressed with no live dictation session; ignoring");
+            // Same treatment as delete-last-word: the revocation made this
+            // key session-scoped, and the press explains itself once.
+            crate::managers::transcription::emit_overlay_notice(
+                app,
+                crate::managers::transcription::NoticeCode::UndoNoSession,
+                None,
+            );
             return;
         }
 
@@ -1165,6 +1185,11 @@ impl ShortcutAction for UndoAction {
             // A recording is live but has no stream buffer to clear (a
             // batch/non-streaming model, or the stream has not begun).
             debug!("Undo skipped: recording session active but no live buffer to clear");
+            crate::managers::transcription::emit_overlay_notice(
+                app,
+                crate::managers::transcription::NoticeCode::UndoNoBuffer,
+                None,
+            );
         }
     }
 

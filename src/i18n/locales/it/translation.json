@@ -1015,7 +1015,8 @@
       "undoNoSession": "Il tasto di annullamento funziona durante una dettatura attiva. Avvia prima la registrazione.",
       "undoNoBuffer": "Ancora niente da svuotare, la dettatura non ha testo in diretta.",
       "bindingBusy": "Un altro tasto di dettatura sta già registrando."
-    }
+    },
+    "commandBadge": "Modalità comandi"
   },
   "whatsNew": {
     "title": "Novità in VoxBar v{{version}}"

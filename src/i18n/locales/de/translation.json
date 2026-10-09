@@ -1015,7 +1015,8 @@
       "undoNoSession": "Die Rückgängig-Taste funktioniert nur während einer laufenden Diktatsitzung. Starte zuerst die Aufnahme.",
       "undoNoBuffer": "Noch nichts zu leeren, das Diktat hat noch keinen Live-Text.",
       "bindingBusy": "Eine andere Diktattaste nimmt bereits auf."
-    }
+    },
+    "commandBadge": "Befehlsmodus"
   },
   "whatsNew": {
     "title": "Neu in VoxBar v{{version}}"

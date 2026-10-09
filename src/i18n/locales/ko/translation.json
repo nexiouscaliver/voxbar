@@ -1015,7 +1015,8 @@
       "undoNoSession": "되돌리기 키는 받아쓰기 중에만 동작합니다. 먼저 녹음을 시작하세요.",
       "undoNoBuffer": "아직 지울 내용이 없습니다. 받아쓰기에 실시간 텍스트가 없습니다.",
       "bindingBusy": "다른 받아쓰기 키가 이미 녹음 중입니다."
-    }
+    },
+    "commandBadge": "명령 모드"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}}의 새 소식"

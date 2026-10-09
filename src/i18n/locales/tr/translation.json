@@ -1015,7 +1015,8 @@
       "undoNoSession": "Geri al tuşu canlı dikte sırasında çalışır. Önce kaydı başlatın.",
       "undoNoBuffer": "Henüz temizlenecek bir şey yok, diktede canlı metin yok.",
       "bindingBusy": "Başka bir dikte tuşu zaten kaydediyor."
-    }
+    },
+    "commandBadge": "Komut modu"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} yenilikleri"

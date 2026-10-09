@@ -1015,7 +1015,8 @@
       "undoNoSession": "撤销按键仅在听写进行中有效。请先开始录音。",
       "undoNoBuffer": "还没有可清除的内容，听写中没有实时文本。",
       "bindingBusy": "另一个听写按键已在录音中。"
-    }
+    },
+    "commandBadge": "命令模式"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} 新功能"

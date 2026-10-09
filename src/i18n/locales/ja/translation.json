@@ -1015,7 +1015,8 @@
       "undoNoSession": "元に戻すキーはディクテーション中のみ動作します。まず録音を開始してください。",
       "undoNoBuffer": "まだクリアできるものがありません。ディクテーションにライブテキストがありません。",
       "bindingBusy": "別のディクテーションキーがすでに録音中です。"
-    }
+    },
+    "commandBadge": "コマンドモード"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} の新機能"

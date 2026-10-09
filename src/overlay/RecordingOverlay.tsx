@@ -122,6 +122,10 @@ const RecordingOverlay: React.FC = () => {
   // the main-window toast instead. Cleared on hide and on fresh sessions.
   const [notice, setNotice] = useState<OverlayNoticeEvent | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
+  // Command-mode indicator: the coordinator emits command-modifier-changed at
+  // engage/release (and clears it at session end), so the pill shows a subtle
+  // CMD chip while speech edits the buffer instead of dictating text.
+  const [cmdActive, setCmdActive] = useState(false);
 
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
   // Live-text scroll-back: the text region "sticks" to the newest line while the
@@ -149,6 +153,7 @@ const RecordingOverlay: React.FC = () => {
           setStreamText({ committed: "", tentative: "" });
           setRemovedText(null);
           setNotice(null);
+          setCmdActive(false);
           if (noticeTimerRef.current !== null) {
             window.clearTimeout(noticeTimerRef.current);
             noticeTimerRef.current = null;
@@ -242,6 +247,13 @@ const RecordingOverlay: React.FC = () => {
         },
       );
 
+      const unlistenCmd = await listen<boolean>(
+        "command-modifier-changed",
+        (event) => {
+          setCmdActive(Boolean(event.payload));
+        },
+      );
+
       return () => {
         unlistenShow();
         unlistenHide();
@@ -250,6 +262,7 @@ const RecordingOverlay: React.FC = () => {
         unlistenStream();
         unlistenPhase();
         unlistenNotice();
+        unlistenCmd();
         // Never leave the removal chip's timer running past unmount.
         if (removedTimerRef.current !== null) {
           window.clearTimeout(removedTimerRef.current);
@@ -337,6 +350,11 @@ const RecordingOverlay: React.FC = () => {
     <div className="sbase">
       <div className="sbase-l">
         <span className={`sdot ${captureReady ? "ready" : "arming"}`} />
+        {cmdActive && (
+          <span className="scmd" aria-label={t("overlay.commandBadge")}>
+            CMD
+          </span>
+        )}
       </div>
       {waveform}
       <div className="sbase-r">

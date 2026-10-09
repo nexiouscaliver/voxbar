@@ -1015,7 +1015,8 @@
       "undoNoSession": "Klávesa zpět funguje během aktivního diktování. Nejdřív spusťte nahrávání.",
       "undoNoBuffer": "Zatím není co vymazat, diktování nemá živý text.",
       "bindingBusy": "Jiná klávesa diktování už nahrává."
-    }
+    },
+    "commandBadge": "Režim příkazů"
   },
   "whatsNew": {
     "title": "Novinky v VoxBar v{{version}}"

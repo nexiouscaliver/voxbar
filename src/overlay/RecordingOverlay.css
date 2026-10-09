@@ -412,6 +412,22 @@
   opacity: 0.45;
   animation: none;
 }
+/* Command-mode badge: a keycap-styled CMD chip beside the dot while the
+   command modifier is modulating the live session. Subtle by design: it
+   confirms the mode, it does not shout over the text. */
+.scmd {
+  margin-left: 6px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  font-style: normal;
+  letter-spacing: 0.06em;
+  line-height: 1.4;
+  color: var(--s-accent);
+  background: var(--s-accent-soft);
+  border: 1px solid var(--s-hair);
+}
 @keyframes sdot-pulse {
   0% {
     box-shadow: 0 0 0 0 var(--s-accent-soft);

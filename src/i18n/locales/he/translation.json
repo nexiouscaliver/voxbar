@@ -1015,7 +1015,8 @@
       "undoNoSession": "מקש ביטול עובד בזמן הקלטה פעילה. התחילו הקלטה קודם.",
       "undoNoBuffer": "אין עדיין מה לנקות, אין טקסט חי בהקלטה.",
       "bindingBusy": "מקש הקלטה אחר כבר מקליט."
-    }
+    },
+    "commandBadge": "מצב פקודות"
   },
   "whatsNew": {
     "title": "חדש ב-VoxBar v{{version}}"

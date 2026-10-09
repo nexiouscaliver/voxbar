@@ -1015,7 +1015,8 @@
       "undoNoSession": "La touche d'annulation fonctionne pendant une dictée active. Commence d'abord un enregistrement.",
       "undoNoBuffer": "Rien à effacer pour l'instant, la dictée n'a pas encore de texte en direct.",
       "bindingBusy": "Une autre touche de dictée est déjà en train d'enregistrer."
-    }
+    },
+    "commandBadge": "Mode commandes"
   },
   "whatsNew": {
     "title": "Nouveautés de VoxBar v{{version}}"

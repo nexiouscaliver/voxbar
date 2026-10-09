@@ -1018,7 +1018,8 @@
       "undoNoSession": "De ongedaan-toets werkt tijdens een actieve dicteersessie. Start eerst een opname.",
       "undoNoBuffer": "Nog niets om leeg te maken, de dicteersessie heeft nog geen live tekst.",
       "bindingBusy": "Een andere dicteertoets neemt al op."
-    }
+    },
+    "commandBadge": "Opdrachtmodus"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blokkeert mogelijk 1 sneltoets",

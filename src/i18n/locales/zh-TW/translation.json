@@ -1015,7 +1015,8 @@
       "undoNoSession": "復原按鍵僅在聽寫進行中有效。請先開始錄音。",
       "undoNoBuffer": "還沒有可清除的內容，聽寫中沒有即時文字。",
       "bindingBusy": "另一個聽寫按鍵已在錄音中。"
-    }
+    },
+    "commandBadge": "命令模式"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} 新功能"
