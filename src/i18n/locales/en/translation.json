@@ -868,6 +868,15 @@
           "description": "High-performance tensor library for on-device machine learning inference",
           "details": "VoxBar's local speech-to-text is built on transcribe.cpp and ggml. Thanks to the amazing work by Georgi Gerganov and contributors."
         }
+      },
+      "updatePolicy": {
+        "title": "Update policy",
+        "description": "Choose what the automatic check may do when it finds an update.",
+        "options": {
+          "ask": "Ask before downloading",
+          "download": "Download automatically",
+          "install": "Download and install automatically"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Released {{date}}",
       "downloadAction": "Download and Install",
       "laterAction": "Later",
-      "progress": "Downloading update... {{percent}}%",
-      "installRestart": "Update downloaded. Installing and restarting...",
       "failedTitle": "Update failed",
       "failedAction": "Open GitHub Releases",
-      "checkFailedTitle": "Could not check for updates"
+      "checkFailedTitle": "Could not check for updates",
+      "progressSize": "Downloading update... {{downloaded}} of {{total}} ({{percent}}%)",
+      "progressUnknown": "Downloading update... {{downloaded}}",
+      "installingTitle": "Installing update...",
+      "restartTitle": "Update ready to install",
+      "restartDescription": "VoxBar {{version}} has been downloaded. Restart now to finish installing.",
+      "restartNow": "Restart now",
+      "restartLater": "Later",
+      "installedDescription": "VoxBar {{version}} has been installed and becomes active the next time VoxBar restarts.",
+      "failedDescription": "The update could not be downloaded. Check your connection and try again, or download it from GitHub Releases."
     }
   },
   "whatsNew": {

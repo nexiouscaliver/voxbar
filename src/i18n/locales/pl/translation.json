@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "Pokaż nowości",
         "description": "Pokazuj informacje o wydaniu po aktualizacjach VoxBar"
+      },
+      "updatePolicy": {
+        "title": "Zachowanie aktualizacji",
+        "description": "Wybierz, co automatyczne sprawdzanie może zrobić, gdy znajdzie aktualizację.",
+        "options": {
+          "ask": "Pytaj przed pobieraniem",
+          "download": "Pobieraj automatycznie",
+          "install": "Pobieraj i instaluj automatycznie"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Opublikowano {{date}}",
       "downloadAction": "Pobierz i zainstaluj",
       "laterAction": "Później",
-      "progress": "Pobieranie aktualizacji... {{percent}}%",
-      "installRestart": "Aktualizacja pobrana. Instalowanie i ponowne uruchamianie...",
       "failedTitle": "Aktualizacja nie powiodła się",
       "failedAction": "Otwórz wydania GitHub",
-      "checkFailedTitle": "Nie udało się sprawdzić aktualizacji"
+      "checkFailedTitle": "Nie udało się sprawdzić aktualizacji",
+      "progressSize": "Pobieranie aktualizacji... {{downloaded}} z {{total}} ({{percent}}%)",
+      "progressUnknown": "Pobieranie aktualizacji... {{downloaded}}",
+      "installingTitle": "Instalowanie aktualizacji...",
+      "restartTitle": "Aktualizacja gotowa do instalacji",
+      "restartDescription": "VoxBar {{version}} został pobrany. Uruchom ponownie teraz, aby zakończyć instalację.",
+      "restartNow": "Uruchom ponownie teraz",
+      "restartLater": "Później",
+      "installedDescription": "VoxBar {{version}} został zainstalowany i stanie się aktywny przy następnym uruchomieniu VoxBar.",
+      "failedDescription": "Nie udało się pobrać aktualizacji. Sprawdź połączenie i spróbuj ponownie albo pobierz ją z GitHub Releases."
     }
   },
   "common": {

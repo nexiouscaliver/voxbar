@@ -24,7 +24,8 @@ use crate::settings::APPLE_INTELLIGENCE_DEFAULT_MODEL_ID;
 use crate::settings::{
     self, get_settings, AutoSubmitKey, ChineseScript, ClipboardHandling, KeyboardImplementation,
     LLMPrompt, NumberFormat, OverlayPosition, OverlayStyle, PasteMethod, ShortcutActivation,
-    ShortcutBinding, SoundTheme, Theme, TypingTool, VadBackend, APPLE_INTELLIGENCE_PROVIDER_ID,
+    ShortcutBinding, SoundTheme, Theme, TypingTool, UpdatePolicy, VadBackend,
+    APPLE_INTELLIGENCE_PROVIDER_ID,
 };
 use crate::tray;
 
@@ -1694,6 +1695,15 @@ pub fn change_chinese_script_setting(app: AppHandle, script: ChineseScript) -> R
 pub fn change_number_format_setting(app: AppHandle, format: NumberFormat) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.number_format = format;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn change_update_policy_setting(app: AppHandle, policy: UpdatePolicy) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.update_policy = policy;
     settings::write_settings(&app, settings);
     Ok(())
 }

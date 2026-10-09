@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "显示新功能",
         "description": "VoxBar 更新后显示发行说明"
+      },
+      "updatePolicy": {
+        "title": "更新方式",
+        "description": "选择自动检查发现更新时可以执行的操作。",
+        "options": {
+          "ask": "下载前先询问",
+          "download": "自动下载",
+          "install": "自动下载并安装"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "发布日期：{{date}}",
       "downloadAction": "下载并安装",
       "laterAction": "稍后",
-      "progress": "正在下载更新... {{percent}}%",
-      "installRestart": "更新已下载。正在安装并重启...",
       "failedTitle": "更新失败",
       "failedAction": "打开 GitHub 发布页",
-      "checkFailedTitle": "无法检查更新"
+      "checkFailedTitle": "无法检查更新",
+      "progressSize": "正在下载更新... {{downloaded}} / {{total}} ({{percent}}%)",
+      "progressUnknown": "正在下载更新... {{downloaded}}",
+      "installingTitle": "正在安装更新...",
+      "restartTitle": "更新已就绪，可以安装",
+      "restartDescription": "VoxBar {{version}} 已下载完成。立即重启以完成安装。",
+      "restartNow": "立即重启",
+      "restartLater": "稍后",
+      "installedDescription": "VoxBar {{version}} 已安装，将在下次启动 VoxBar 时生效。",
+      "failedDescription": "无法下载更新。请检查网络连接后重试，或从 GitHub Releases 手动下载。"
     }
   },
   "common": {

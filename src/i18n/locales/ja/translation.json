@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "新機能を表示",
         "description": "VoxBar のアップデート後にリリースノートを表示"
+      },
+      "updatePolicy": {
+        "title": "アップデートの動作",
+        "description": "自動チェックがアップデートを見つけたときの動作を選択します。",
+        "options": {
+          "ask": "ダウンロード前に確認",
+          "download": "自動でダウンロード",
+          "install": "自動でダウンロードとインストール"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "公開日: {{date}}",
       "downloadAction": "ダウンロードしてインストール",
       "laterAction": "後で",
-      "progress": "アップデートをダウンロード中... {{percent}}%",
-      "installRestart": "ダウンロード完了。インストールして再起動しています...",
       "failedTitle": "アップデートに失敗しました",
       "failedAction": "GitHub のリリースを開く",
-      "checkFailedTitle": "アップデートを確認できませんでした"
+      "checkFailedTitle": "アップデートを確認できませんでした",
+      "progressSize": "アップデートをダウンロード中... {{downloaded}} / {{total}} ({{percent}}%)",
+      "progressUnknown": "アップデートをダウンロード中... {{downloaded}}",
+      "installingTitle": "アップデートをインストール中...",
+      "restartTitle": "アップデートの準備が完了",
+      "restartDescription": "VoxBar {{version}} のダウンロードが完了しました。今すぐ再起動してインストールを完了してください。",
+      "restartNow": "今すぐ再起動",
+      "restartLater": "後で",
+      "installedDescription": "VoxBar {{version}} はインストール済みで、次回 VoxBar を起動したときに有効になります。",
+      "failedDescription": "アップデートをダウンロードできませんでした。接続を確認して再試行するか、GitHub Releases からダウンロードしてください。"
     }
   },
   "common": {

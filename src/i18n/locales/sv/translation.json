@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "Visa nyheter",
         "description": "Visa versionsinformation efter VoxBar-uppdateringar"
+      },
+      "updatePolicy": {
+        "title": "Uppdateringsbeteende",
+        "description": "Välj vad den automatiska kontrollen får göra när den hittar en uppdatering.",
+        "options": {
+          "ask": "Fråga före hämtning",
+          "download": "Hämta automatiskt",
+          "install": "Hämta och installera automatiskt"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Publicerad {{date}}",
       "downloadAction": "Hämta och installera",
       "laterAction": "Senare",
-      "progress": "Hämtar uppdatering... {{percent}}%",
-      "installRestart": "Uppdateringen har hämtats. Installerar och startar om...",
       "failedTitle": "Uppdateringen misslyckades",
       "failedAction": "Öppna GitHub-releaser",
-      "checkFailedTitle": "Kunde inte söka efter uppdateringar"
+      "checkFailedTitle": "Kunde inte söka efter uppdateringar",
+      "progressSize": "Hämtar uppdatering... {{downloaded}} av {{total}} ({{percent}}%)",
+      "progressUnknown": "Hämtar uppdatering... {{downloaded}}",
+      "installingTitle": "Installerar uppdatering...",
+      "restartTitle": "Uppdatering klar att installeras",
+      "restartDescription": "VoxBar {{version}} har hämtats. Starta om nu för att slutföra installationen.",
+      "restartNow": "Starta om nu",
+      "restartLater": "Senare",
+      "installedDescription": "VoxBar {{version}} har installerats och blir aktiv nästa gång VoxBar startas om.",
+      "failedDescription": "Uppdateringen kunde inte hämtas. Kontrollera din anslutning och försök igen, eller hämta den från GitHub Releases."
     }
   },
   "common": {

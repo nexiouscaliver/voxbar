@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "Yenilikleri Göster",
         "description": "VoxBar güncellemelerinden sonra sürüm notlarını göster"
+      },
+      "updatePolicy": {
+        "title": "Güncelleme davranışı",
+        "description": "Otomatik kontrol bir güncelleme bulduğunda ne yapabileceğini seçin.",
+        "options": {
+          "ask": "İndirmeden önce sor",
+          "download": "Otomatik indir",
+          "install": "Otomatik indir ve kur"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Yayınlanma: {{date}}",
       "downloadAction": "İndir ve yükle",
       "laterAction": "Sonra",
-      "progress": "Güncelleme indiriliyor... {{percent}}%",
-      "installRestart": "Güncelleme indirildi. Yükleniyor ve yeniden başlatılıyor...",
       "failedTitle": "Güncelleme başarısız",
       "failedAction": "GitHub sürümlerini aç",
-      "checkFailedTitle": "Güncellemeler kontrol edilemedi"
+      "checkFailedTitle": "Güncellemeler kontrol edilemedi",
+      "progressSize": "Güncelleme indiriliyor... {{downloaded}} / {{total}} ({{percent}}%)",
+      "progressUnknown": "Güncelleme indiriliyor... {{downloaded}}",
+      "installingTitle": "Güncelleme kuruluyor...",
+      "restartTitle": "Güncelleme kuruluma hazır",
+      "restartDescription": "VoxBar {{version}} indirildi. Kurulumu tamamlamak için şimdi yeniden başlatın.",
+      "restartNow": "Şimdi yeniden başlat",
+      "restartLater": "Daha sonra",
+      "installedDescription": "VoxBar {{version}} kuruldu ve VoxBar'ın bir sonraki açılışında etkin olacak.",
+      "failedDescription": "Güncelleme indirilemedi. Bağlantınızı kontrol edip tekrar deneyin ya da GitHub Releases'ten indirin."
     }
   },
   "common": {

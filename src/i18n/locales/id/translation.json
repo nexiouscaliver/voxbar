@@ -868,6 +868,15 @@
           "description": "Pustaka tensor berkinerja tinggi untuk inferensi pembelajaran mesin di perangkat",
           "details": "Fitur ucapan-ke-teks lokal VoxBar dibangun menggunakan transcribe.cpp dan ggml. Terima kasih kepada Georgi Gerganov dan para kontributor atas karya luar biasa mereka."
         }
+      },
+      "updatePolicy": {
+        "title": "Perilaku pembaruan",
+        "description": "Pilih apa yang boleh dilakukan pemeriksaan otomatis saat menemukan pembaruan.",
+        "options": {
+          "ask": "Tanya sebelum mengunduh",
+          "download": "Unduh otomatis",
+          "install": "Unduh dan pasang otomatis"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Dirilis {{date}}",
       "downloadAction": "Unduh dan pasang",
       "laterAction": "Nanti",
-      "progress": "Mengunduh pembaruan... {{percent}}%",
-      "installRestart": "Pembaruan terunduh. Memasang dan memulai ulang...",
       "failedTitle": "Pembaruan gagal",
       "failedAction": "Buka Rilis GitHub",
-      "checkFailedTitle": "Tidak dapat memeriksa pembaruan"
+      "checkFailedTitle": "Tidak dapat memeriksa pembaruan",
+      "progressSize": "Mengunduh pembaruan... {{downloaded}} dari {{total}} ({{percent}}%)",
+      "progressUnknown": "Mengunduh pembaruan... {{downloaded}}",
+      "installingTitle": "Memasang pembaruan...",
+      "restartTitle": "Pembaruan siap dipasang",
+      "restartDescription": "VoxBar {{version}} telah diunduh. Mulai ulang sekarang untuk menyelesaikan pemasangan.",
+      "restartNow": "Mulai ulang sekarang",
+      "restartLater": "Nanti",
+      "installedDescription": "VoxBar {{version}} telah dipasang dan akan aktif saat VoxBar dimulai ulang berikutnya.",
+      "failedDescription": "Pembaruan tidak dapat diunduh. Periksa koneksi Anda dan coba lagi, atau unduh dari GitHub Releases."
     }
   },
   "whatsNew": {
