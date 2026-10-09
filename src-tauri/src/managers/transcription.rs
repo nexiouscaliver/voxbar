@@ -211,7 +211,7 @@ fn format_margin_mb(headroom: u64) -> String {
 /// The exact refusal string users see, pure over the decision's inputs so
 /// the wording is unit-testable. The margin clause appears only when the
 /// margin is non-zero.
-fn memory_gate_refusal_message(
+pub(crate) fn memory_gate_refusal_message(
     model_name: &str,
     forecast: u64,
     free: u64,
@@ -588,13 +588,22 @@ impl StreamSessionBuffer {
     /// where the hold ends, the engine usually still holds the tail of the
     /// hold's audio un-committed (`buffered_ms > 0`): the spoken command is
     /// in flight and WILL arrive in a later snapshot. Arming the latch
-    /// (`command_latch_until_ms = input_received_ms`) keeps every such
-    /// late-arriving snapshot in command mode until committed audio
-    /// (`input_received_ms - buffered_ms`) covers everything the engine had
-    /// received at the release instant. Re-pressing the modifier clears the
-    /// latch (a fresh hold governs); once the boundary is crossed the latch
-    /// stays cleared and plain dictation resumes, including the existing
-    /// release-flush for any held command fragment.
+    /// keeps every such late-arriving snapshot in command mode until
+    /// committed audio (`input_received_ms - buffered_ms`) crosses the
+    /// boundary. The boundary is `input_received_ms` of the FIRST snapshot
+    /// observed after the release - the coordinator's flag is only sampled
+    /// at snapshot granularity, so the true release instant is unknowable
+    /// here; speech spoken between the actual key release and that first
+    /// observed snapshot is INSIDE the boundary and parses as commands
+    /// (unrecognized words discarded per the contract). That over-latch
+    /// window is one snapshot interval: roughly half a second at the
+    /// low-latency operating point, up to 1-2 s on models that rejected the
+    /// extension. Re-pressing the modifier clears the latch (a fresh hold
+    /// governs); once the boundary is crossed the latch stays cleared and
+    /// plain dictation resumes, including the existing release-flush for
+    /// any held command fragment. At finalize, an armed latch routes the
+    /// final in-flight region through the command grammar too
+    /// ([`Self::combine_final`]).
     fn render_with_clock(
         &mut self,
         committed: &str,
@@ -635,12 +644,16 @@ impl StreamSessionBuffer {
     /// DELTA, not dictation: the delta is parsed by the command grammar
     /// and its actions edit `base` directly (punctuation/newline inserts,
     /// delete word, delete line); unrecognized words are discarded - that
-    /// is the command contract. The ENGAGEMENT tick folds the whole
-    /// current snapshot into `base` verbatim (in-flight tentative words
-    /// included, so a word completing across the boundary is never
-    /// truncated into a bogus one-letter command) and marks it consumed
-    /// via `raw_seen`; only material arriving on later snapshots parses
-    /// as commands.
+    /// is the command contract. The ENGAGEMENT tick folds only the prefix
+    /// of the current snapshot that cannot open a command phrase into
+    /// `base` (in-flight tentative words included, so a word completing
+    /// across the boundary is never truncated into a bogus one-letter
+    /// command); a trailing proper-prefix fragment is HELD BACK (the
+    /// `holding` marker) and completes on a later held delta or resolves
+    /// through the release/finalize flush, because snapshots lag the key
+    /// press and post-press words can already be in the first held
+    /// snapshot. Material arriving on later snapshots parses as
+    /// commands.
     ///
     /// A delta whose TRAILING token sequence is a proper prefix of some
     /// command phrase (the last token possibly a partial word, as when a
@@ -722,9 +735,8 @@ impl StreamSessionBuffer {
                         }
                         _ => {
                             debug!(
-                                "cmd-mode: revision absorbed during hold (rewrote {}..{} of {} raw_seen chars); this tick skips command parsing",
+                                "cmd-mode: revision absorbed during hold (rewrote bytes {}..{} of raw_seen); this tick skips command parsing",
                                 keep,
-                                self.raw_seen.len(),
                                 self.raw_seen.len()
                             );
                             self.raw_seen = snapshot;
@@ -908,6 +920,36 @@ impl StreamSessionBuffer {
     /// residual documented, not silently ignored).
     fn combine_final(&mut self, final_raw: String) -> String {
         let combined = if self.live {
+            if self.command_latch_until_ms.is_some() && !self.holding {
+                // The modifier was released but the engine had not yet
+                // committed the hold's audio when the session ended, so the
+                // final region beyond raw_seen is command material still in
+                // flight: parse it as the command delta (same rule as a
+                // latched tick). Any fragment the parse still holds open
+                // falls through to the holding flush below - nothing
+                // follows finalize to complete it. The cost mirrors the
+                // documented latch window: post-release speech in the same
+                // region parses as commands too.
+                let start = common_prefix_len(&self.raw_seen, &final_raw);
+                if start < final_raw.len() {
+                    let delta = final_raw[start..].to_string();
+                    let held = held_prefix_len(&delta, &self.matrix);
+                    let applicable_end = delta.len() - held;
+                    if applicable_end > 0 {
+                        self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
+                            &mut self.base,
+                            &delta[..applicable_end],
+                            &self.matrix,
+                        );
+                        debug!(
+                            "cmd-mode: finalize parsed {} chars of latched command material",
+                            applicable_end
+                        );
+                    }
+                    self.raw_seen = final_raw[..final_raw.len() - held].to_string();
+                    self.holding = held > 0;
+                }
+            }
             if self.holding {
                 let start = common_prefix_len(&self.raw_seen, &final_raw);
                 let region = final_raw[start..].to_string();
@@ -1013,6 +1055,18 @@ enum OnnxEngine {
 pub struct LoadingGuard {
     is_loading: Arc<Mutex<bool>>,
     loading_condvar: Arc<Condvar>,
+}
+
+impl LoadingGuard {
+    /// Build a guard over a flag pair. Same crate as the field definitions,
+    /// so the exclusive post-process swap's test doubles can fabricate the
+    /// exact guard [`TranscriptionManager::try_start_loading`] hands out.
+    pub(crate) fn new(is_loading: Arc<Mutex<bool>>, loading_condvar: Arc<Condvar>) -> LoadingGuard {
+        LoadingGuard {
+            is_loading,
+            loading_condvar,
+        }
+    }
 }
 
 impl Drop for LoadingGuard {
@@ -1212,7 +1266,7 @@ impl TranscriptionManager {
     /// conservative). In-process ONNX engines: the resident model's
     /// `size_mb`-derived estimate (the same estimate class the gate uses for
     /// the incoming model). Nothing resident → 0.
-    fn resident_model_footprint_bytes(&self) -> u64 {
+    pub(crate) fn resident_model_footprint_bytes(&self) -> u64 {
         if self.engine.loaded().is_some() {
             let measured = self.engine.worker_pid().and_then(memory::rss_bytes_for_pid);
             return memory::resident_credit(measured, None);
@@ -1336,10 +1390,10 @@ impl TranscriptionManager {
             return None;
         }
         *is_loading = true;
-        Some(LoadingGuard {
-            is_loading: self.is_loading.clone(),
-            loading_condvar: self.loading_condvar.clone(),
-        })
+        Some(LoadingGuard::new(
+            self.is_loading.clone(),
+            self.loading_condvar.clone(),
+        ))
     }
 
     /// Unload the model. Returns once the transcribe-cpp worker has exited,
@@ -1847,6 +1901,40 @@ impl TranscriptionManager {
         });
     }
 
+    /// Reload the selected voice model under a loading slot the exclusive
+    /// post-process swap already holds (spec section 2): the guard is
+    /// MOVED into the restore loader thread, so `is_loading` stays
+    /// continuously true from swap start through this load's completion.
+    /// Behaviorally indistinguishable from [`Self::initiate_model_load`]
+    /// for every other observer: the same `load_model(selected_model)`
+    /// call with its event emissions, and the same flag clear + condvar
+    /// notify on completion (performed by the guard's Drop, exactly where
+    /// initiate_model_load does it explicitly). Only the early-return
+    /// checks are absent: the caller OWNS the slot and has already decided
+    /// this load must run. A condvar waiter parked the way transcribe_audio
+    /// parks therefore never observes a false `is_loading` gap and never
+    /// takes the "Model is not loaded" error path because of the handoff.
+    ///
+    /// If this reload itself fails (gate refusal, disk error), the normal
+    /// loading_failed path fires inside `load_model`; the app is in exactly
+    /// the state of any failed model load, and the next hotkey press
+    /// retries `initiate_model_load`. That is the guaranteed path back to a
+    /// working voice model.
+    pub fn restore_model_under_guard(&self, guard: LoadingGuard) {
+        let self_clone = self.clone();
+        thread::spawn(move || {
+            // The guard moves INTO the loader thread: dropping it at the
+            // end clears is_loading and wakes waiters, mirroring
+            // initiate_model_load's explicit tail. If this thread panics,
+            // the unwind drops the guard the same way.
+            let _slot = guard;
+            let settings = get_settings(&self_clone.app_handle);
+            if let Err(e) = self_clone.load_model(&settings.selected_model) {
+                error!("Failed to restore model after post-process swap: {}", e);
+            }
+        });
+    }
+
     pub fn get_current_model(&self) -> Option<String> {
         let current_model = self.current_model_id.lock().unwrap();
         current_model.clone()
@@ -2032,8 +2120,10 @@ impl TranscriptionManager {
         };
 
         let low_latency_ext = low_latency_stream_extension(&info.arch, &info.variant);
-        let mut first_options = StreamOptions::default();
-        first_options.family = low_latency_ext.clone();
+        let first_options = StreamOptions {
+            family: low_latency_ext.clone(),
+            ..Default::default()
+        };
         let stream = match self.engine.start_stream(
             run_options.clone(),
             first_options,
@@ -2839,8 +2929,8 @@ fn low_latency_stream_extension(arch: &str, variant: &str) -> Option<StreamExten
 }
 
 /// Whether an engine error is the family-extension menu rejection (or any
-/// other invalid-argument failure), i.e. a retry without the extension is
-/// meaningful.
+/// other invalid-argument failure), for which a retry without the extension
+/// is harmless (it fails identically and lands in the same error path).
 fn is_invalid_argument(e: &EngineError) -> bool {
     match e {
         EngineError::Failed(message) => message.starts_with("invalid argument"),
@@ -4195,6 +4285,25 @@ mod tests {
             session.render_with_clock("hello world question mark and more", "", false, 15_500, 0),
             "hello world? and more"
         );
+    }
+
+    #[test]
+    fn session_buffer_finalize_resolves_latched_command_material() {
+        // The session ends while the latch is still armed and no snapshot
+        // ever carried the phrase: the engine only surfaces it in the final
+        // text, which must parse as the command (not fold as dictation).
+        let mut session = session_buffer();
+        session.render_with_clock("hello world", "", false, 10_000, 0);
+        session.render_with_clock("hello world", "", true, 12_000, 1_500);
+        // Release observed; the engine still holds 1.2s of hold-time audio.
+        session.render_with_clock("hello world", "", false, 13_200, 1_200);
+        // Stop pressed before any further snapshot: the phrase arrives only
+        // in the final text.
+        assert_eq!(
+            session.combine_final("hello world question mark".to_string()),
+            "hello world?"
+        );
+        assert!(!session.live);
     }
 
     #[test]
