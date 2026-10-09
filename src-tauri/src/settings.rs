@@ -599,6 +599,13 @@ pub struct AppSettings {
     pub post_process_prompts: Vec<LLMPrompt>,
     #[serde(default)]
     pub post_process_selected_prompt_id: Option<String>,
+    /// One-time marker for the local-default post-process migration (spec
+    /// 5.2): absent on legacy stores (the migration fires once), true on
+    /// every store the migration or a fresh install has written. The only
+    /// new field this feature adds; the schema-version ladder is
+    /// deliberately NOT used.
+    #[serde(default)]
+    pub post_process_local_default_migrated: bool,
     #[serde(default)]
     pub mute_while_recording: bool,
     #[serde(default)]
@@ -965,11 +972,24 @@ fn default_show_tray_icon() -> bool {
 }
 
 fn default_post_process_provider_id() -> String {
-    "openai".to_string()
+    LOCAL_LLM_PROVIDER_ID.to_string()
 }
 
 fn default_post_process_providers() -> Vec<PostProcessProvider> {
     let mut providers = vec![
+        // The local on-device engine: post-processing runs on the pinned
+        // Qwen3 model in an isolated worker process (local_llm). All
+        // platforms (CPU everywhere, Metal on arm64 macOS). The sentinel
+        // base_url mirrors apple-intelligence://local and is never
+        // fetched; models_endpoint is None so no model list is fetched.
+        PostProcessProvider {
+            id: LOCAL_LLM_PROVIDER_ID.to_string(),
+            label: "Local (on-device)".to_string(),
+            base_url: "voxbar://local".to_string(),
+            allow_base_url_edit: false,
+            models_endpoint: None,
+            supports_structured_output: true,
+        },
         PostProcessProvider {
             id: "openai".to_string(),
             label: "OpenAI".to_string(),
@@ -1070,6 +1090,13 @@ fn default_post_process_api_keys() -> SecretMap {
 fn default_model_for_provider(provider_id: &str) -> String {
     if provider_id == APPLE_INTELLIGENCE_PROVIDER_ID {
         return APPLE_INTELLIGENCE_DEFAULT_MODEL_ID.to_string();
+    }
+    if provider_id == LOCAL_LLM_PROVIDER_ID {
+        // The ModelManager registry id of the pinned model (spec 6.1), so
+        // ensure_post_process_defaults' empty-model backfill fills it. The
+        // model string being non-empty does NOT mean downloaded; the
+        // runtime branch checks is_downloaded and skips when absent.
+        return crate::local_llm::LOCAL_LLM_MODEL_ID.to_string();
     }
     String::new()
 }
@@ -1308,6 +1335,9 @@ pub fn get_default_settings() -> AppSettings {
         auto_submit_key: AutoSubmitKey::default(),
         post_process_enabled: default_post_process_enabled(),
         post_process_provider_id: default_post_process_provider_id(),
+        // Fresh installs start on the local default; the marker exists so
+        // the one-time migration never re-evaluates their choice.
+        post_process_local_default_migrated: true,
         post_process_providers: default_post_process_providers(),
         post_process_api_keys: default_post_process_api_keys(),
         post_process_models: default_post_process_models(),
@@ -1595,6 +1625,33 @@ fn apply_settings_migrations(
         updated = true;
     }
 
+    // One-time local-default post-process migration (spec 5.2), the same
+    // absent-key marker pattern as the migrations above. The predicate:
+    // anyone who ever made a deliberate API choice keeps it - a provider
+    // other than the stock "openai", or a non-empty OpenAI API key, means
+    // the user configured the API path and nothing changes. Only a stock,
+    // untouched store moves to the local engine. The schema-version ladder
+    // is deliberately NOT used (different one-time semantics).
+    if settings_value
+        .get("post_process_local_default_migrated")
+        .is_none()
+    {
+        let has_openai_key = settings_value
+            .get("post_process_api_keys")
+            .and_then(|keys| keys.get("openai"))
+            .and_then(|key| key.as_str())
+            .is_some_and(|key| !key.trim().is_empty());
+        if settings.post_process_provider_id == "openai" && !has_openai_key {
+            log::info!(
+                "settings migration: switching the default post-process provider from openai \
+                 to the local on-device engine"
+            );
+            settings.post_process_provider_id = LOCAL_LLM_PROVIDER_ID.to_string();
+        }
+        settings.post_process_local_default_migrated = true;
+        updated = true;
+    }
+
     updated
 }
 
@@ -1642,6 +1699,162 @@ pub fn get_recording_retention_period(app: &AppHandle) -> RecordingRetentionPeri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// T18: fresh defaults. The default provider is the local on-device
+    /// engine; the provider row exists on every platform with NO models
+    /// endpoint (no model list is ever fetched); its default model string
+    /// is the pinned registry id; and the migration marker is already set
+    /// on a fresh store so the one-time migration never re-evaluates it.
+    #[test]
+    fn fresh_defaults_use_the_local_engine() {
+        let defaults = get_default_settings();
+        assert_eq!(default_post_process_provider_id(), LOCAL_LLM_PROVIDER_ID);
+        assert_eq!(defaults.post_process_provider_id, LOCAL_LLM_PROVIDER_ID);
+        assert!(defaults.post_process_local_default_migrated);
+
+        let local = defaults
+            .post_process_providers
+            .iter()
+            .find(|p| p.id == LOCAL_LLM_PROVIDER_ID)
+            .expect("the local provider row must exist");
+        assert_eq!(local.label, "Local (on-device)");
+        assert_eq!(local.base_url, "voxbar://local");
+        assert!(!local.allow_base_url_edit);
+        assert!(local.models_endpoint.is_none(), "no model list is fetched");
+        assert!(local.supports_structured_output);
+
+        assert_eq!(
+            default_model_for_provider(LOCAL_LLM_PROVIDER_ID),
+            crate::local_llm::LOCAL_LLM_MODEL_ID
+        );
+        assert_eq!(
+            defaults
+                .post_process_models
+                .get(LOCAL_LLM_PROVIDER_ID)
+                .map(String::as_str),
+            Some(crate::local_llm::LOCAL_LLM_MODEL_ID)
+        );
+
+        // The off path is intact: every API provider row is unchanged.
+        for id in ["openai", "zai", "openrouter", "custom"] {
+            assert!(
+                defaults.post_process_providers.iter().any(|p| p.id == id),
+                "API provider {} must stay present",
+                id
+            );
+        }
+        // Post-process stays double-opt-in: enabled defaults false and no
+        // prompt is selected, so nothing runs until the user turns it on.
+        assert!(!defaults.post_process_enabled);
+        assert_eq!(defaults.post_process_selected_prompt_id, None);
+    }
+
+    /// T19: the one-time migration predicate via the absent-key marker,
+    /// all four cases. (a) a deliberate non-openai provider is kept; (b) a
+    /// configured OpenAI key is kept; (c) a stock untouched store moves to
+    /// local; (d) a store whose marker key is already present is never
+    /// re-evaluated, even after the user deliberately went back to openai.
+    #[test]
+    fn local_default_migration_covers_all_four_cases() {
+        // Build a legacy store: the raw JSON lacks the marker key entirely.
+        fn legacy_store(provider: &str, openai_key: &str) -> (AppSettings, serde_json::Value) {
+            let mut settings = get_default_settings();
+            settings.post_process_local_default_migrated = false;
+            settings.post_process_provider_id = provider.to_string();
+            settings
+                .post_process_api_keys
+                .0
+                .insert("openai".to_string(), openai_key.to_string());
+            // Serialize WITHOUT the marker: the pre-feature store shape.
+            let mut value = serde_json::to_value(&settings).unwrap();
+            value
+                .as_object_mut()
+                .unwrap()
+                .remove("post_process_local_default_migrated");
+            settings.post_process_local_default_migrated = false;
+            (settings, value)
+        }
+
+        // (a) provider anthropic: keep everything, marker set.
+        let (mut settings, value) = legacy_store("anthropic", "");
+        assert!(apply_settings_migrations(&mut settings, &value));
+        assert_eq!(settings.post_process_provider_id, "anthropic");
+        assert!(settings.post_process_local_default_migrated);
+
+        // (b) provider openai + non-empty key: keep everything, marker set.
+        let (mut settings, value) = legacy_store("openai", "sk-configured");
+        assert!(apply_settings_migrations(&mut settings, &value));
+        assert_eq!(settings.post_process_provider_id, "openai");
+        assert!(settings.post_process_local_default_migrated);
+
+        // (c) stock openai + empty key: becomes local, marker set.
+        let (mut settings, value) = legacy_store("openai", "");
+        assert!(apply_settings_migrations(&mut settings, &value));
+        assert_eq!(settings.post_process_provider_id, LOCAL_LLM_PROVIDER_ID);
+        assert!(settings.post_process_local_default_migrated);
+
+        // (d) the marker key is present: no change at all, even with a
+        // deliberate openai choice and an empty key.
+        let (mut settings, mut value) = legacy_store("openai", "");
+        value.as_object_mut().unwrap().insert(
+            "post_process_local_default_migrated".to_string(),
+            serde_json::json!(true),
+        );
+        settings.post_process_local_default_migrated = true;
+        let changed = apply_settings_migrations(&mut settings, &value);
+        assert_eq!(
+            settings.post_process_provider_id, "openai",
+            "a migrated store is never re-evaluated"
+        );
+        assert!(settings.post_process_local_default_migrated);
+        // The migration itself made no change in this run; changed is false
+        // unless some other migration fired (none does on this store).
+        assert!(!changed, "nothing else should touch this store");
+    }
+
+    /// T20: ensure_post_process_defaults backfills the local provider row
+    /// and its model string into a legacy store (existing fixture style)
+    /// and never modifies post_process_provider_id.
+    #[test]
+    fn ensure_post_process_defaults_backfills_local_without_touching_provider() {
+        // A legacy store from before the local engine existed.
+        let mut settings = get_default_settings();
+        settings
+            .post_process_providers
+            .retain(|p| p.id != LOCAL_LLM_PROVIDER_ID);
+        settings.post_process_models.remove(LOCAL_LLM_PROVIDER_ID);
+        settings
+            .post_process_api_keys
+            .0
+            .remove(LOCAL_LLM_PROVIDER_ID);
+        // The user's deliberate provider choice.
+        settings.post_process_provider_id = "zai".to_string();
+
+        assert!(ensure_post_process_defaults(&mut settings));
+
+        assert!(
+            settings
+                .post_process_providers
+                .iter()
+                .any(|p| p.id == LOCAL_LLM_PROVIDER_ID),
+            "the local row is backfilled"
+        );
+        assert_eq!(
+            settings
+                .post_process_models
+                .get(LOCAL_LLM_PROVIDER_ID)
+                .map(String::as_str),
+            Some(crate::local_llm::LOCAL_LLM_MODEL_ID),
+            "the local model string is backfilled"
+        );
+        assert!(settings
+            .post_process_api_keys
+            .contains_key(LOCAL_LLM_PROVIDER_ID));
+        assert_eq!(
+            settings.post_process_provider_id, "zai",
+            "the backfill never touches the selected provider"
+        );
+    }
 
     #[test]
     fn llm_post_process_prompt_is_opt_in_by_default() {
@@ -2592,6 +2805,10 @@ mod tests {
             "whats_new_last_seen_version": default_whats_new_last_seen_version(),
             "overlay_style": "live",
             "chinese_script": "as_transcribed",
+            // Present on every store the current version writes; without
+            // it the one-time local-default migration below would (rightly)
+            // flag the store updated.
+            "post_process_local_default_migrated": true,
             "transcribe_accelerator": "gpu",
             "transcribe_gpu_device": settings.transcribe_gpu_device
         });
