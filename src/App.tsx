@@ -261,8 +261,7 @@ function App() {
     };
   }, []);
 
-  // macOS App Translocation: the app launched with a quarantine flag straight
-  // from its download folder, so it runs from a read-only mount where the
+  // macOS App Translocation: the app launched with a quarantine flag straight  // from its download folder, so it runs from a read-only mount where the
   // updater's install step fails with "read-only file system". Fresh installs
   // see this toast during onboarding (window guaranteed visible); long-term
   // dwellers see it whenever they next open the window via this same check on
@@ -281,6 +280,23 @@ function App() {
         console.error("Failed to check App Translocation state:", error);
       }
     })();
+  }, []);
+
+  // The command-mode key pressed with no live dictation: the binding never
+  // starts a recording, so without feedback the press reads as "commands
+  // stopped working". Rate-limited: a key held through auto-repeat would
+  // otherwise stack toasts.
+  const lastCommandIdleToast = useRef(0);
+  useEffect(() => {
+    const unlisten = listen("command-mode-no-session", () => {
+      const now = Date.now();
+      if (now - lastCommandIdleToast.current < 2000) return;
+      lastCommandIdleToast.current = now;
+      toast.info(t("app.commandNoSession"), { duration: 4000 });
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, []);
 
   // Tray "Unload After → Custom…": jump to the Advanced settings section and

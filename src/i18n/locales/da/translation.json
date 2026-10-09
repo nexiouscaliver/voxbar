@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar kan ikke installere opdateringer fra denne placering",
-    "translocatedDescription": "VoxBar kører fra en midlertidig skrivebeskyttet placering (macOS App Translocation). Luk VoxBar, træk den fra mappen Downloads til Applications, og åbn den derfra."
+    "translocatedDescription": "VoxBar kører fra en midlertidig skrivebeskyttet placering (macOS App Translocation). Luk VoxBar, træk den fra mappen Downloads til Applications, og åbn den derfra.",
+    "commandNoSession": "Kommandotasten virker kun under en aktiv diktering. Start optagelsen først, hold tasten nede, og sig kommandoen."
   }
 }

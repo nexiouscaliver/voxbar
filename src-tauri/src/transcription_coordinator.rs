@@ -170,6 +170,11 @@ enum Effect {
         binding_id: String,
         hotkey_string: String,
     },
+    /// The command-mode binding was pressed with no live dictation session.
+    /// Surfaced as a toast so the press is not a silent no-op (the binding
+    /// deliberately never starts a recording; without feedback a press
+    /// between sessions reads as "commands stopped working").
+    NotifyCommandIdle,
 }
 
 /// Commands processed sequentially by the coordinator thread.
@@ -555,18 +560,25 @@ impl CoordinatorState {
     /// A press or release of the command-mode binding. The binding never
     /// touches the recording lifecycle: a press engages command
     /// interpretation only when a dictation session is live at that moment,
-    /// a release always disengages, and any other situation is inert.
-    fn on_command_modifier(&mut self, is_pressed: bool) {
+    /// a release always disengages, and any other situation is inert. A
+    /// press with no live session returns [`Effect::NotifyCommandIdle`] so
+    /// the user learns why nothing happened.
+    fn on_command_modifier(&mut self, is_pressed: bool) -> Option<Effect> {
         if is_pressed {
             if matches!(self.stage, Stage::Recording(_)) {
                 debug!("Command modifier engaged for the live dictation session");
                 self.command_modifier = true;
+                None
             } else {
                 debug!("Command modifier pressed with no live dictation session; nothing happens");
+                Some(Effect::NotifyCommandIdle)
             }
         } else if self.command_modifier {
             debug!("Command modifier released; dictation returns to normal");
             self.command_modifier = false;
+            None
+        } else {
+            None
         }
     }
 }
@@ -660,7 +672,9 @@ impl TranscriptionCoordinator {
                             }
                         }
                         Command::CommandModifier { is_pressed } => {
-                            state.on_command_modifier(is_pressed)
+                            if let Some(effect) = state.on_command_modifier(is_pressed) {
+                                run_effect(&app, &mut state, effect);
+                            }
                         }
                     }
                     publish_state(&state);
@@ -811,6 +825,12 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
             binding_id,
             hotkey_string,
         } => stop(app, &binding_id, &hotkey_string),
+        Effect::NotifyCommandIdle => {
+            use tauri::Emitter;
+            if let Err(e) = app.emit("command-mode-no-session", ()) {
+                warn!("Failed to emit command-mode-no-session: {e}");
+            }
+        }
     }
 }
 
@@ -905,7 +925,7 @@ mod tests {
             Some(Effect::Start { .. })
         ));
 
-        state.on_command_modifier(true);
+        assert_eq!(state.on_command_modifier(true), None);
         assert!(state.command_modifier);
     }
 
@@ -914,10 +934,10 @@ mod tests {
         let mut state = CoordinatorState::new();
         let t0 = Instant::now();
         state.on_input(toggle_input(true), t0);
-        state.on_command_modifier(true);
+        assert_eq!(state.on_command_modifier(true), None);
         assert!(state.command_modifier);
 
-        state.on_command_modifier(false);
+        assert_eq!(state.on_command_modifier(false), None);
         assert!(!state.command_modifier);
         // The session itself is untouched by the modifier.
         assert_eq!(state.stage, Stage::Recording(BINDING.to_string()));
@@ -928,7 +948,7 @@ mod tests {
         let mut state = CoordinatorState::new();
         let t0 = Instant::now();
         state.on_input(toggle_input(true), t0);
-        state.on_command_modifier(true);
+        assert_eq!(state.on_command_modifier(true), None);
         assert!(state.command_modifier);
 
         // The dictation finalizes while the modifier is still held: the
@@ -938,24 +958,32 @@ mod tests {
             Some(Effect::Stop { .. })
         ));
         assert!(!state.command_modifier);
-        state.on_command_modifier(false);
+        assert_eq!(state.on_command_modifier(false), None);
         assert!(!state.command_modifier);
     }
 
     #[test]
-    fn command_modifier_press_with_no_live_session_does_nothing() {
-        // Idle: nothing at all happens.
+    fn command_modifier_press_with_no_live_session_notifies() {
+        // Idle: the state stays untouched, but the press is not silent -
+        // it asks for the command-mode-no-session feedback.
         let mut state = CoordinatorState::new();
-        state.on_command_modifier(true);
+        assert!(matches!(
+            state.on_command_modifier(true),
+            Some(Effect::NotifyCommandIdle)
+        ));
         assert!(!state.command_modifier);
         assert_eq!(state.stage, Stage::Idle);
 
-        // Busy pipeline: equally nothing (the modifier only modulates a
-        // LIVE session, never queues for one).
+        // Busy pipeline: equally inert for interpretation (the modifier
+        // only modulates a LIVE session, never queues for one), with the
+        // same feedback.
         let mut busy = CoordinatorState::new();
         let t0 = Instant::now();
         drive_into_processing(&mut busy, t0);
-        busy.on_command_modifier(true);
+        assert!(matches!(
+            busy.on_command_modifier(true),
+            Some(Effect::NotifyCommandIdle)
+        ));
         assert!(!busy.command_modifier);
         assert!(busy.on_processing_finished().is_none());
         assert_eq!(busy.stage, Stage::Idle);
@@ -963,7 +991,7 @@ mod tests {
         // Cancel path: a session cancelled while held also clears it.
         let mut cancelled = CoordinatorState::new();
         cancelled.on_input(toggle_input(true), t0);
-        cancelled.on_command_modifier(true);
+        assert_eq!(cancelled.on_command_modifier(true), None);
         cancelled.on_cancel(true);
         assert!(!cancelled.command_modifier);
         assert_eq!(cancelled.stage, Stage::Idle);
@@ -1176,7 +1204,7 @@ mod tests {
             match effect {
                 Some(Effect::Start { .. }) => starts += 1,
                 Some(Effect::Stop { .. }) => stops += 1,
-                None => {}
+                Some(Effect::NotifyCommandIdle) | None => {}
             }
         }
 

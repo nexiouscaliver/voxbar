@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar no puede instalar actualizaciones desde esta ubicación",
-    "translocatedDescription": "VoxBar se está ejecutando desde una ubicación temporal de solo lectura (App Translocation de macOS). Sal de VoxBar, arrástralo de la carpeta Descargas a Aplicaciones y ábrelo desde allí."
+    "translocatedDescription": "VoxBar se está ejecutando desde una ubicación temporal de solo lectura (App Translocation de macOS). Sal de VoxBar, arrástralo de la carpeta Descargas a Aplicaciones y ábrelo desde allí.",
+    "commandNoSession": "La tecla de comandos solo funciona durante un dictado activo. Primero inicia la grabación, luego manténla pulsada y di el comando."
   }
 }

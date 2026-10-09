@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "لا يستطيع VoxBar تثبيت التحديثات من هذا الموقع",
-    "translocatedDescription": "يعمل VoxBar من موقع مؤقت للقراءة فقط (App Translocation في macOS). أنهِ VoxBar، واسحبه من مجلد Downloads إلى Applications، ثم افتحه من هناك."
+    "translocatedDescription": "يعمل VoxBar من موقع مؤقت للقراءة فقط (App Translocation في macOS). أنهِ VoxBar، واسحبه من مجلد Downloads إلى Applications، ثم افتحه من هناك.",
+    "commandNoSession": "مفتاح الأوامر يعمل أثناء الإملاء النشط فقط. ابدأ التسجيل أولا، ثم اضغط عليه وانطق الأمر."
   }
 }

@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar kan inte installera uppdateringar från denna plats",
-    "translocatedDescription": "VoxBar körs från en tillfällig skrivskyddad plats (macOS App Translocation). Avsluta VoxBar, dra den från mappen Nedladdningar till Programmappen och öppna den därifrån."
+    "translocatedDescription": "VoxBar körs från en tillfällig skrivskyddad plats (macOS App Translocation). Avsluta VoxBar, dra den från mappen Nedladdningar till Programmappen och öppna den därifrån.",
+    "commandNoSession": "Kommandotangenten fungerar bara under en aktiv diktering. Starta inspelningen först, håll sedan tangenten och säg kommandot."
   }
 }

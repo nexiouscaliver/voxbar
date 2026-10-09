@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar nie może instalować aktualizacji z tej lokalizacji",
-    "translocatedDescription": "VoxBar działa z tymczasowej lokalizacji tylko do odczytu (App Translocation w macOS). Zamknij VoxBar, przeciągnij go z folderu Pobrane do folderu Aplikacje i uruchom go stamtąd."
+    "translocatedDescription": "VoxBar działa z tymczasowej lokalizacji tylko do odczytu (App Translocation w macOS). Zamknij VoxBar, przeciągnij go z folderu Pobrane do folderu Aplikacje i uruchom go stamtąd.",
+    "commandNoSession": "Klawisz poleceń działa tylko podczas aktywnego dyktowania. Najpierw rozpocznij nagrywanie, przytrzymaj klawisz i powiedz polecenie."
   }
 }

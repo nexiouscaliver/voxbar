@@ -247,21 +247,29 @@ pub(crate) fn flush_command_prefix_len(text: &str, matrix: &CompiledCommandMatri
     let mut consumed = first_end;
     let mut count = 1;
     loop {
-        let window: Vec<&str> = tokens[..count]
-            .iter()
-            .map(|&(start, end)| &text[start..end])
-            .collect();
-        if window_completes_phrase(&window, matrix) {
-            break;
-        }
-        if !window_is_proper_prefix(&window, matrix) {
-            break;
-        }
         if count >= tokens.len() {
             break;
         }
-        consumed = tokens[count].1;
-        count += 1;
+        // Peek the ENLARGED window before committing the next word: the
+        // span may only grow while it still completes a phrase or stays a
+        // proper prefix of one. Committing first and checking afterwards
+        // over-consumed one word too many - a held " question" resolved
+        // against release dictation "about that" consumed and discarded
+        // "about", eating real dictated words.
+        let enlarged: Vec<&str> = tokens[..=count]
+            .iter()
+            .map(|&(start, end)| &text[start..end])
+            .collect();
+        if window_completes_phrase(&enlarged, matrix) {
+            consumed = tokens[count].1;
+            break;
+        }
+        if window_is_proper_prefix(&enlarged, matrix) {
+            consumed = tokens[count].1;
+            count += 1;
+            continue;
+        }
+        break;
     }
     consumed
 }
@@ -710,6 +718,34 @@ mod tests {
         // Nothing to consume.
         assert_eq!(flush_command_prefix_len("", &dm()), 0);
         assert_eq!(flush_command_prefix_len("   ", &dm()), 0);
+    }
+
+    #[test]
+    fn flush_span_never_consumes_past_the_last_verified_word() {
+        // Regression (proven in the command-mode audit): a held " question"
+        // resolved against release dictation used to consume one word TOO
+        // MANY - " question about" - and the grammar then discarded both,
+        // eating the dictated "about". The span may only grow while the
+        // ENLARGED window still completes a phrase or stays a proper prefix
+        // of one; "question about" is neither, so consumption stops at the
+        // held opener and "about that" returns to dictation.
+        assert_eq!(
+            flush_command_prefix_len(" question about that", &dm()),
+            " question".len()
+        );
+        // The completing path is untouched: "question mark" still consumes
+        // both words.
+        assert_eq!(
+            flush_command_prefix_len(" question mark and more", &dm()),
+            " question mark".len()
+        );
+        // Multi-word chain still grows while it stays a prefix: "new line"
+        // held, resolved against "new line item" (not a longer phrase) ->
+        // consumes exactly the phrase.
+        assert_eq!(
+            flush_command_prefix_len(" new line item tail", &dm()),
+            " new line".len()
+        );
     }
 
     #[test]

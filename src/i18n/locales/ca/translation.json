@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar no pot instal·lar actualitzacions des d'aquesta ubicació",
-    "translocatedDescription": "VoxBar s'està executant des d'una ubicació temporal de només lectura (App Translocation del macOS). Tanqueu VoxBar, arrossegueu-lo de la carpeta Downloads a Applications i obriu-lo des d'allà."
+    "translocatedDescription": "VoxBar s'està executant des d'una ubicació temporal de només lectura (App Translocation del macOS). Tanqueu VoxBar, arrossegueu-lo de la carpeta Downloads a Applications i obriu-lo des d'allà.",
+    "commandNoSession": "La tecla d'ordres només funciona durant un dictat actiu. Primer inicieu la gravació i després manteniu-la i parleu."
   }
 }

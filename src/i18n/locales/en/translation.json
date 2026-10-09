@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar cannot install updates from this location",
-    "translocatedDescription": "VoxBar is running from a temporary read-only location (macOS App Translocation). Quit VoxBar, drag it from your Downloads folder into Applications, and open it from there."
+    "translocatedDescription": "VoxBar is running from a temporary read-only location (macOS App Translocation). Quit VoxBar, drag it from your Downloads folder into Applications, and open it from there.",
+    "commandNoSession": "The command key works while a dictation is live. Start recording first, then hold it and speak the command."
   }
 }

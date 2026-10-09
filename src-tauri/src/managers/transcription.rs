@@ -460,6 +460,18 @@ struct StreamSessionBuffer {
     /// release-snapshot dictation. Only a set marker fires the
     /// release/finalize flush.
     holding: bool,
+    /// Engine-audio-time boundary (committed ms) through which command
+    /// mode stays LATCHED after the modifier key is released. The engine
+    /// emits a snapshot only after its chunk+lookahead window fills, so
+    /// speech spoken during a short Command hold routinely materializes in
+    /// a snapshot that arrives AFTER the release - parsed as dictation,
+    /// which is the "I pressed Command, said question mark, nothing
+    /// happened" failure. While the latch is armed, `render_with_clock`
+    /// keeps the session in command mode until the engine has committed
+    /// every audio millisecond it had already received at the release
+    /// instant; audio beyond that boundary is post-release speech. None =
+    /// not latched (plain `render` semantics, no engine clock available).
+    command_latch_until_ms: Option<i64>,
     /// Text removed by the most recent buffer-side deletion (the
     /// delete-word hotkey or a command-mode DeleteWord / DeleteLine), set
     /// by whichever path applied it and drained by [`Self::take_deleted`]
@@ -501,6 +513,7 @@ impl Default for StreamSessionBuffer {
             live: false,
             command_active: false,
             holding: false,
+            command_latch_until_ms: None,
             last_deleted: None,
             matrix: crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             hinglish: false,
@@ -537,6 +550,7 @@ impl StreamSessionBuffer {
         self.live = true;
         self.command_active = false;
         self.holding = false;
+        self.command_latch_until_ms = None;
         self.last_deleted = None;
         self.spoken_punctuation = spoken_punctuation;
         self.voice_deletion = voice_deletion;
@@ -554,6 +568,7 @@ impl StreamSessionBuffer {
         self.live = false;
         self.command_active = false;
         self.holding = false;
+        self.command_latch_until_ms = None;
         self.last_deleted = None;
         self.base.clear();
         self.raw_seen.clear();
@@ -564,6 +579,49 @@ impl StreamSessionBuffer {
     fn combine(&self, snapshot: &str) -> String {
         let keep = common_prefix_len(&self.raw_seen, snapshot);
         join_raw(&self.base, &snapshot[keep..])
+    }
+
+    /// [`Self::render`] with the engine's audio clock attached, and the
+    /// release LATCH that closes the command-mode timing trap.
+    ///
+    /// `held_now` is the coordinator's live modifier state. On the snapshot
+    /// where the hold ends, the engine usually still holds the tail of the
+    /// hold's audio un-committed (`buffered_ms > 0`): the spoken command is
+    /// in flight and WILL arrive in a later snapshot. Arming the latch
+    /// (`command_latch_until_ms = input_received_ms`) keeps every such
+    /// late-arriving snapshot in command mode until committed audio
+    /// (`input_received_ms - buffered_ms`) covers everything the engine had
+    /// received at the release instant. Re-pressing the modifier clears the
+    /// latch (a fresh hold governs); once the boundary is crossed the latch
+    /// stays cleared and plain dictation resumes, including the existing
+    /// release-flush for any held command fragment.
+    fn render_with_clock(
+        &mut self,
+        committed: &str,
+        tentative: &str,
+        held_now: bool,
+        input_received_ms: i64,
+        buffered_ms: i64,
+    ) -> String {
+        if held_now {
+            // A live hold supersedes any latch state.
+            self.command_latch_until_ms = None;
+            return self.render(committed, tentative, true);
+        }
+        if self.command_active && self.command_latch_until_ms.is_none() {
+            // The hold just ended (observed on this snapshot): arm the
+            // latch at everything the engine has already received.
+            self.command_latch_until_ms = Some(input_received_ms);
+        }
+        let held = match self.command_latch_until_ms {
+            Some(until) if input_received_ms - buffered_ms < until => true,
+            Some(_) => {
+                self.command_latch_until_ms = None;
+                false
+            }
+            None => false,
+        };
+        self.render(committed, tentative, held)
     }
 
     /// Record a snapshot and render what the overlay should display: the
@@ -605,9 +663,25 @@ impl StreamSessionBuffer {
         self.last_full = snapshot.clone();
         if command_modifier {
             if !self.command_active {
-                self.base = self.combine(&snapshot);
-                self.raw_seen = snapshot;
+                // The first held snapshot may already contain post-press
+                // words: snapshots lag the key by the chunk+lookahead
+                // window, so folding the WHOLE snapshot as dictation eats a
+                // command spoken just after the press. Fold only the prefix
+                // that cannot open a command phrase; a trailing proper-
+                // prefix fragment is HELD BACK (same contract as the delta
+                // path) and completes or resolves on the next held delta or
+                // the release/finalize flush.
+                let held = held_prefix_len(&snapshot, &self.matrix);
+                let fold_to = snapshot.len() - held;
+                debug!(
+                    "cmd-mode: engagement fold of {} chars, {}-char fragment held back",
+                    fold_to, held
+                );
+                let prefix = snapshot[..fold_to].to_string();
+                self.base = self.combine(&prefix);
+                self.raw_seen = prefix;
                 self.command_active = true;
+                self.holding = held > 0;
             } else {
                 let keep = common_prefix_len(&self.raw_seen, &snapshot);
                 if keep < self.raw_seen.len() {
@@ -622,8 +696,41 @@ impl StreamSessionBuffer {
                     // same tick is not command-interpreted exactly once; the
                     // alternative is worse) and resume parsing on the next
                     // append-only delta.
-                    self.raw_seen = snapshot;
-                    self.holding = false;
+                    // Cosmetic rewrites (casing flips, attached marks -
+                    // the routine tentative-to-committed reformat) still
+                    // align under normalized token comparison; material
+                    // BEYOND the aligned region is genuinely fresh speech
+                    // and must not vanish with the rewrite: parse it as the
+                    // command delta. Only a true word-level rewrite (no
+                    // alignment) is absorbed whole.
+                    match reentry_offset(&self.raw_seen, &snapshot) {
+                        Some(offset) if offset > keep && offset < snapshot.len() => {
+                            let delta = snapshot[offset..].to_string();
+                            let held = held_prefix_len(&delta, &self.matrix);
+                            let applicable_end = delta.len() - held;
+                            self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
+                                &mut self.base,
+                                &delta[..applicable_end],
+                                &self.matrix,
+                            );
+                            debug!(
+                                "cmd-mode: revision tick with fresh suffix, {} chars parsed as commands",
+                                applicable_end
+                            );
+                            self.raw_seen = snapshot[..snapshot.len() - held].to_string();
+                            self.holding = held > 0;
+                        }
+                        _ => {
+                            debug!(
+                                "cmd-mode: revision absorbed during hold (rewrote {}..{} of {} raw_seen chars); this tick skips command parsing",
+                                keep,
+                                self.raw_seen.len(),
+                                self.raw_seen.len()
+                            );
+                            self.raw_seen = snapshot;
+                            self.holding = false;
+                        }
+                    }
                 } else {
                     let delta = snapshot[keep..].to_string();
                     let held = held_prefix_len(&delta, &self.matrix);
@@ -632,6 +739,12 @@ impl StreamSessionBuffer {
                         &mut self.base,
                         &delta[..applicable_end],
                         &self.matrix,
+                    );
+                    debug!(
+                        "cmd-mode: delta {} chars parsed as commands ({} deleted), {}-char trailing fragment held back",
+                        applicable_end,
+                        if self.last_deleted.is_some() { "1" } else { "0" },
+                        held
                     );
                     self.raw_seen = snapshot[..snapshot.len() - held].to_string();
                     self.holding = held > 0;
@@ -649,6 +762,11 @@ impl StreamSessionBuffer {
             let start = common_prefix_len(&self.raw_seen, &snapshot);
             let region = snapshot[start..].to_string();
             let consumed = self.flush_held_region(&region);
+            debug!(
+                "cmd-mode: release flush resolved {} of {} held-region chars",
+                consumed,
+                region.len()
+            );
             self.raw_seen = snapshot[..start + consumed].to_string();
             self.holding = false;
             self.command_active = false;
@@ -2650,7 +2768,16 @@ fn stream_progress_emitter(
                 .is_some_and(|c| c.is_command_modifier_active());
             let (display, deleted) = {
                 let mut session = session_buffer.lock().unwrap_or_else(|e| e.into_inner());
-                let display = session.render(&text.committed, &text.tentative, command_modifier);
+                // The engine clock drives the command-mode release latch:
+                // snapshots lag the key by the chunk+lookahead window, so a
+                // command spoken during a short hold arrives after release.
+                let display = session.render_with_clock(
+                    &text.committed,
+                    &text.tentative,
+                    command_modifier,
+                    progress.update.input_received_ms,
+                    progress.update.buffered_ms,
+                );
                 // Surface what a command-mode deletion just removed (None on
                 // every ordinary tick).
                 (display, session.take_deleted())
@@ -4036,6 +4163,78 @@ mod tests {
         // parses whole.
         assert_eq!(
             session.render("hello world question mark", "", true),
+            "hello world?"
+        );
+    }
+
+    #[test]
+    fn session_buffer_release_latch_parses_phrase_arriving_after_release() {
+        // The exact field failure: a ~1s Command hold ends before the
+        // engine emits the snapshot carrying the spoken phrase (the engine
+        // lags the key by its chunk+lookahead window). Without the latch
+        // the phrase parsed as dictation; with it, command mode stays armed
+        // until the engine has committed every audio millisecond it had
+        // already received at the release instant.
+        let mut session = session_buffer();
+        session.render_with_clock("hello world", "", false, 10_000, 0);
+        // Engagement during the hold.
+        session.render_with_clock("hello world", "", true, 12_000, 1_500);
+        // Release observed; the engine still holds 1.2s of hold-time audio
+        // un-committed, so the latch arms at input 13,200.
+        session.render_with_clock("hello world", "", false, 13_200, 1_200);
+        // The phrase arrives AFTER the release: committed (14,000 - 1,000 =
+        // 13,000) is still below the 13,200 boundary, so this tick stays in
+        // command mode and the phrase parses.
+        assert_eq!(
+            session.render_with_clock("hello world question mark", "", false, 14_000, 1_000),
+            "hello world?"
+        );
+        // The boundary is crossed (all audio committed): post-release
+        // speech returns to plain dictation.
+        assert_eq!(
+            session.render_with_clock("hello world question mark and more", "", false, 15_500, 0),
+            "hello world? and more"
+        );
+    }
+
+    #[test]
+    fn session_buffer_release_latch_arms_only_from_command_mode() {
+        // A release tick with command mode never engaged arms nothing, and
+        // re-pressing after a latch clears behaves like a fresh hold.
+        let mut session = session_buffer();
+        session.render_with_clock("hello world", "", false, 5_000, 0);
+        // No press ever happened: the false tick is plain dictation.
+        session.render_with_clock("hello world question mark", "", false, 7_000, 1_000);
+        assert_eq!(session.command_latch_until_ms, None);
+    }
+
+    #[test]
+    fn session_buffer_engagement_holds_straddling_phrase_fragment() {
+        // The engagement snapshot already carries the first word of the
+        // command phrase (post-press words in flight). Folding the whole
+        // snapshot as dictation used to eat it; now the trailing
+        // proper-prefix fragment is held and completes on the next delta.
+        let mut session = session_buffer();
+        session.render("hello ", "", false);
+        // " question" straddles the engagement boundary: held, visible.
+        assert_eq!(session.render("hello question", "", true), "hello question");
+        assert!(session.holding);
+        // The completing word arrives on the next held delta: the phrase
+        // parses whole, no stray "question" in the result.
+        assert_eq!(session.render("hello question mark", "", true), "hello?");
+    }
+
+    #[test]
+    fn session_buffer_revision_tick_parses_fresh_suffix_as_commands() {
+        // Cosmetic rewrite (casing, attached mark) of consumed text plus a
+        // FRESH command phrase in the same snapshot: the rewrite aligns
+        // under normalized token comparison, and the fresh suffix parses
+        // instead of being swallowed with the revision.
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engagement; raw_seen = "hello world"
+        assert_eq!(
+            session.render("Hello, world question mark", "", true),
             "hello world?"
         );
     }
