@@ -31,7 +31,10 @@ use std::thread;
 use std::time::{Duration, Instant, SystemTime};
 use tauri::{AppHandle, Emitter, Manager};
 use tauri_specta::Event;
-use transcribe_cpp::{Backend, RunExtension, RunOptions, StreamOptions, Task, WhisperRunOptions};
+use transcribe_cpp::{
+    Backend, ParakeetBufferedStreamOptions, ParakeetStreamOptions, RunExtension, RunOptions,
+    StreamExtension, StreamOptions, Task, WhisperRunOptions,
+};
 use transcribe_rs::{
     onnx::{
         canary::CanaryModel,
@@ -1865,51 +1868,12 @@ impl TranscriptionManager {
             ..Default::default()
         };
 
-        // Feed results arrive on the engine's thread; this callback records
-        // the snapshot into the session buffer and emits the rendered
-        // interim text.
+        // Feed results arrive on the engine's thread; the progress emitter
+        // (built below, reusable for the low-latency retry) records the
+        // snapshot into the session buffer and emits the rendered interim
+        // text.
         let preview_script = PreviewScript::new(settings.chinese_script, &output_language);
         let perf = Arc::new(Mutex::new(StreamPerf::new()));
-        let session_buffer_for_progress = Arc::clone(&self.session_buffer);
-        let on_progress = {
-            let perf = Arc::clone(&perf);
-            let app_handle = self.app_handle.clone();
-            move |progress: StreamProgress| {
-                let mut perf = lock_perf(&perf);
-                perf.record_compute(progress.elapsed);
-                perf.record_update(&progress.update);
-                if let Some(text) = progress.text {
-                    perf.record_emit();
-                    // The command-mode modifier is consulted per snapshot:
-                    // while it is held for this live session the new engine
-                    // material parses as commands and edits the buffer
-                    // instead of appending as dictation. A missing
-                    // coordinator reads as "not held".
-                    let command_modifier = app_handle
-                        .try_state::<crate::TranscriptionCoordinator>()
-                        .is_some_and(|c| c.is_command_modifier_active());
-                    let (display, deleted) = {
-                        let mut session = session_buffer_for_progress
-                            .lock()
-                            .unwrap_or_else(|e| e.into_inner());
-                        let display =
-                            session.render(&text.committed, &text.tentative, command_modifier);
-                        // Surface what a command-mode deletion just removed
-                        // (None on every ordinary tick).
-                        (display, session.take_deleted())
-                    };
-                    // The whole displayed text is emitted as the committed
-                    // part: the interim transform runs over the full raw
-                    // buffer, so the committed/tentative visual split cannot
-                    // be preserved exactly across punctuation joins and
-                    // deletions. The model's own rewrites still surface
-                    // because the display is recomputed from every snapshot.
-                    emit_stream_text(&app_handle, &display, "", deleted.as_deref());
-                }
-                perf.maybe_log();
-            }
-        };
-
         // The session buffer goes live before the engine stream starts, so
         // no interim callback can race past `begin`. Toggles and the
         // compiled command matrix are captured here (once per session),
@@ -1935,26 +1899,70 @@ impl TranscriptionManager {
 
         // Run the stream in the engine's worker process. Feeds are queued
         // without waiting; a crashed or hung worker makes finalize report no
-        // result, and the caller falls back to batch transcription. StreamOptions::default()
-        // uses CommitPolicy::Auto and lets the family pick its own streaming
-        // strategy (no family-specific ext).
-        let stream =
-            match self
-                .engine
-                .start_stream(run_options, StreamOptions::default(), on_progress)
-            {
-                Ok(stream) => stream,
-                Err(e) => {
-                    error!("Failed to begin stream: {}", e);
-                    self.session_buffer
-                        .lock()
-                        .unwrap_or_else(|e| e.into_inner())
-                        .end();
-                    self.forget_model_if_engine_dropped(&model_id, &e.to_string());
-                    drain_until_finalize(rx);
-                    return;
+        // result, and the caller falls back to batch transcription.
+        // StreamOptions::default() uses CommitPolicy::Auto and the family's
+        // own streaming strategy - which picks the model menu's FIRST entry,
+        // i.e. max accuracy / max latency (parakeet-unified-en-0.6b: chunk
+        // 1040 ms + right 1040 ms, measured interim updates every ~1.5-2.1 s,
+        // which reads in the overlay as words not appearing). Try a
+        // low-latency operating point first; a model whose trained menu does
+        // not contain the requested tuple rejects it with InvalidArgument and
+        // we retry once on pure defaults, so the worst case is exactly the
+        // previous behavior.
+        let progress_emitter = |perf: Arc<Mutex<StreamPerf>>, app_handle: tauri::AppHandle| {
+            stream_progress_emitter(Arc::clone(&self.session_buffer), app_handle, perf)
+        };
+
+        let low_latency_ext = low_latency_stream_extension(&info.arch, &info.variant);
+        let mut first_options = StreamOptions::default();
+        first_options.family = low_latency_ext.clone();
+        let stream = match self.engine.start_stream(
+            run_options.clone(),
+            first_options,
+            progress_emitter(Arc::clone(&perf), self.app_handle.clone()),
+        ) {
+            Ok(stream) => {
+                if low_latency_ext.is_some() {
+                    info!(
+                        "Live streaming operating point: low-latency (family extension accepted)"
+                    );
                 }
-            };
+                stream
+            }
+            Err(e) if low_latency_ext.is_some() && is_invalid_argument(&e) => {
+                warn!(
+                        "Low-latency streaming operating point rejected by the model's menu ({}); retrying with the model default",
+                        e
+                    );
+                match self.engine.start_stream(
+                    run_options,
+                    StreamOptions::default(),
+                    progress_emitter(Arc::clone(&perf), self.app_handle.clone()),
+                ) {
+                    Ok(stream) => stream,
+                    Err(e) => {
+                        error!("Failed to begin stream: {}", e);
+                        self.session_buffer
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .end();
+                        self.forget_model_if_engine_dropped(&model_id, &e.to_string());
+                        drain_until_finalize(rx);
+                        return;
+                    }
+                }
+            }
+            Err(e) => {
+                error!("Failed to begin stream: {}", e);
+                self.session_buffer
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .end();
+                self.forget_model_if_engine_dropped(&model_id, &e.to_string());
+                drain_until_finalize(rx);
+                return;
+            }
+        };
 
         self.stream_active.store(true, Ordering::Release);
         self.touch_activity();
@@ -2617,6 +2625,100 @@ fn emit_stream_text(
 
 fn lock_perf(perf: &Mutex<StreamPerf>) -> MutexGuard<'_, StreamPerf> {
     perf.lock().unwrap_or_else(|e| e.into_inner())
+}
+
+/// The per-snapshot streaming callback: records perf counters, renders the
+/// session buffer, and emits the interim display. A free function (not a
+/// closure) so the low-latency start_stream retry can build a fresh copy.
+fn stream_progress_emitter(
+    session_buffer: Arc<Mutex<StreamSessionBuffer>>,
+    app_handle: AppHandle,
+    perf: Arc<Mutex<StreamPerf>>,
+) -> impl FnMut(StreamProgress) + Send + 'static {
+    move |progress: StreamProgress| {
+        let mut perf = lock_perf(&perf);
+        perf.record_compute(progress.elapsed);
+        perf.record_update(&progress.update);
+        if let Some(text) = progress.text {
+            perf.record_emit();
+            // The command-mode modifier is consulted per snapshot: while it
+            // is held for this live session the new engine material parses
+            // as commands and edits the buffer instead of appending as
+            // dictation. A missing coordinator reads as "not held".
+            let command_modifier = app_handle
+                .try_state::<crate::TranscriptionCoordinator>()
+                .is_some_and(|c| c.is_command_modifier_active());
+            let (display, deleted) = {
+                let mut session = session_buffer.lock().unwrap_or_else(|e| e.into_inner());
+                let display = session.render(&text.committed, &text.tentative, command_modifier);
+                // Surface what a command-mode deletion just removed (None on
+                // every ordinary tick).
+                (display, session.take_deleted())
+            };
+            // The whole displayed text is emitted as the committed part: the
+            // interim transform runs over the full raw buffer, so the
+            // committed/tentative visual split cannot be preserved exactly
+            // across punctuation joins and deletions. The model's own
+            // rewrites still surface because the display is recomputed from
+            // every snapshot.
+            emit_stream_text(&app_handle, &display, "", deleted.as_deref());
+        }
+        perf.maybe_log();
+    }
+}
+
+/// Low-latency chunked-attention operating point for the unified parakeet
+/// streaming family (parakeet-unified-en-0.6b). The model's trained menu
+/// (GGUF `stt.parakeet.encoder.att_chunk_*_choices`) is chunk {80, 160, 560,
+/// 1040} ms and right {0, 80, 160, 240, 320, 560, 1040} ms; the DEFAULT
+/// picks each menu's first entry (L=5600/C=1040/R=1040 - max accuracy, max
+/// latency), which measured interim updates every ~1.5-2.1 s and reads in
+/// the live overlay as spoken words not appearing on the spot. chunk=160 +
+/// right=320 stays inside the published menu and brings the visible word
+/// delay to roughly a third of a second; left stays at the model default so
+/// long-range accuracy context is untouched.
+const LOW_LATENCY_CHUNKED_CHUNK_MS: i32 = 160;
+const LOW_LATENCY_CHUNKED_RIGHT_MS: i32 = 320;
+
+/// Low-latency cache-aware lookahead for the TDT parakeet streaming family
+/// (the documented right-context menu is {13, 6, 1, 0} encoder frames at
+/// 80 ms: {1040, 480, 80, 0} ms). 6 frames (480 ms) is the balanced point.
+const LOW_LATENCY_CACHE_AWARE_RIGHT_FRAMES: i32 = 6;
+
+/// Choose a low-latency family extension for a model, or `None` to keep the
+/// family default. The tuple is only a REQUEST: `start_stream` validates it
+/// against the model's trained menu and rejects unknown values with
+/// InvalidArgument, which the caller retries on pure defaults - so an
+/// unlisted or custom model degrades to exactly the previous behavior.
+fn low_latency_stream_extension(arch: &str, variant: &str) -> Option<StreamExtension> {
+    let arch = arch.to_ascii_lowercase();
+    let variant = variant.to_ascii_lowercase();
+    if !arch.contains("parakeet") {
+        return None;
+    }
+    if variant.contains("unified") {
+        Some(StreamExtension::ParakeetBuffered(
+            ParakeetBufferedStreamOptions {
+                left_ms: None,
+                chunk_ms: Some(LOW_LATENCY_CHUNKED_CHUNK_MS),
+                right_ms: Some(LOW_LATENCY_CHUNKED_RIGHT_MS),
+            },
+        ))
+    } else {
+        Some(StreamExtension::ParakeetStream(ParakeetStreamOptions {
+            att_context_right: Some(LOW_LATENCY_CACHE_AWARE_RIGHT_FRAMES),
+        }))
+    }
+}
+
+/// Whether an engine error is the family-extension menu rejection (or any
+/// other invalid-argument failure), i.e. a retry without the extension is
+/// meaningful.
+fn is_invalid_argument(e: &EngineError) -> bool {
+    match e {
+        EngineError::Failed(message) => message.starts_with("invalid argument"),
+        _ => false,
+    }
 }
 
 struct StreamPerf {
@@ -3392,6 +3494,60 @@ pub fn get_available_accelerators(tm: &TranscriptionManager) -> AvailableAcceler
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn low_latency_extension_by_family() {
+        // The operator's daily driver: chunked-attention buffered streaming.
+        assert_eq!(
+            low_latency_stream_extension("parakeet", "unified-en-0.6b"),
+            Some(StreamExtension::ParakeetBuffered(
+                ParakeetBufferedStreamOptions {
+                    left_ms: None,
+                    chunk_ms: Some(LOW_LATENCY_CHUNKED_CHUNK_MS),
+                    right_ms: Some(LOW_LATENCY_CHUNKED_RIGHT_MS),
+                }
+            ))
+        );
+        // TDT / cache-aware streaming variants.
+        assert_eq!(
+            low_latency_stream_extension("parakeet", "tdt-0.6b-v3"),
+            Some(StreamExtension::ParakeetStream(ParakeetStreamOptions {
+                att_context_right: Some(LOW_LATENCY_CACHE_AWARE_RIGHT_FRAMES)
+            }))
+        );
+        // Case-insensitive matching; other families keep pure defaults.
+        assert_eq!(
+            low_latency_stream_extension("Parakeet", "Unified-EN-0.6B"),
+            low_latency_stream_extension("parakeet", "unified-en-0.6b")
+        );
+        assert_eq!(low_latency_stream_extension("whisper", "medium"), None);
+        assert_eq!(low_latency_stream_extension("voxtral", "mini-4b"), None);
+        assert_eq!(low_latency_stream_extension("", ""), None);
+    }
+
+    #[test]
+    fn low_latency_chunked_tuple_is_inside_published_menu() {
+        // parakeet-unified-en-0.6b menu (GGUF att_chunk_*_choices, 80 ms
+        // encoder frames): chunk [1, 2, 7, 13], right [0, 1, 2, 3, 4, 7, 13].
+        // Pin the requested tuple to menu members expressed in ms.
+        assert_eq!(LOW_LATENCY_CHUNKED_CHUNK_MS % 80, 0);
+        assert_eq!(LOW_LATENCY_CHUNKED_RIGHT_MS % 80, 0);
+        assert!([80, 160, 560, 1040].contains(&LOW_LATENCY_CHUNKED_CHUNK_MS));
+        assert!([0, 80, 160, 240, 320, 560, 1040].contains(&LOW_LATENCY_CHUNKED_RIGHT_MS));
+        // Cache-aware menu is frames {13, 6, 1, 0}.
+        assert!([13, 6, 1, 0].contains(&LOW_LATENCY_CACHE_AWARE_RIGHT_FRAMES));
+    }
+
+    #[test]
+    fn invalid_argument_detection_for_fallback() {
+        assert!(is_invalid_argument(&EngineError::Failed(
+            "invalid argument: att_context tuple not in menu".to_string()
+        )));
+        assert!(!is_invalid_argument(&EngineError::Failed(
+            "backend error: metal device lost".to_string()
+        )));
+        assert!(!is_invalid_argument(&EngineError::Cancelled));
+    }
 
     fn languages(codes: &[&str]) -> Vec<String> {
         codes.iter().map(|code| (*code).to_string()).collect()
