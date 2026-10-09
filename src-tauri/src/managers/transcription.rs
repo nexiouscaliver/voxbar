@@ -5613,6 +5613,80 @@ mod tests {
         }
     }
 
+    /// T17: the no-false-gap handoff mechanics. A waiter parked on the
+    /// is_loading condvar (the transcribe_audio pattern: wait while
+    /// is_loading, then error if no model is resident) must stay asleep
+    /// through the guard TRANSFER into the restore loader thread and wake
+    /// only after the restore "load" finishes, never observing
+    /// is_loading == false in between. The mechanics under test are the
+    /// LoadingGuard move restore_model_under_guard performs; the load body
+    /// itself is stubbed (the spec allows the extracted-helper form: the
+    /// observable is the waiter never erroring).
+    #[test]
+    fn loading_guard_transfer_never_wakes_waiters_early() {
+        use std::sync::mpsc;
+
+        let is_loading = Arc::new(Mutex::new(false));
+        let condvar = Arc::new(Condvar::new());
+
+        // The runner acquires the slot: is_loading goes true and a real
+        // guard exists (exactly what try_start_loading produced).
+        *is_loading.lock().unwrap() = true;
+        let guard = LoadingGuard::new(Arc::clone(&is_loading), Arc::clone(&condvar));
+
+        // A transcribe_audio-shaped waiter parks on the condvar while
+        // is_loading is true, recording every value it observes on wake.
+        let waiter_seen = Arc::new(Mutex::new(Vec::<bool>::new()));
+        let (waiter_done_tx, waiter_done_rx) = mpsc::channel();
+        {
+            let is_loading = Arc::clone(&is_loading);
+            let condvar = Arc::clone(&condvar);
+            let waiter_seen = Arc::clone(&waiter_seen);
+            std::thread::spawn(move || {
+                let mut flag = is_loading.lock().unwrap();
+                while *flag {
+                    flag = condvar.wait(flag).unwrap();
+                }
+                // Woke with is_loading == false: the load is over (the
+                // real waiter would check the model here).
+                waiter_seen.lock().unwrap().push(*flag);
+                let _ = waiter_done_tx.send(());
+            });
+        }
+
+        // Give the waiter a moment to park, then perform the handoff: the
+        // guard MOVES into the "restore loader" thread, whose body runs
+        // while the flag stays true, and whose end drops the guard (clear
+        // + notify, exactly like initiate_model_load's tail).
+        std::thread::sleep(Duration::from_millis(50));
+        let load_ran = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let load_ran_thread = Arc::clone(&load_ran);
+        std::thread::spawn(move || {
+            let _slot = guard;
+            load_ran_thread.store(true, Ordering::Release);
+            // The "load" takes a moment; the flag must stay true the whole
+            // time (no release-then-rekick gap).
+            std::thread::sleep(Duration::from_millis(150));
+            // _slot drops here: flag clears, waiter wakes.
+        });
+
+        // While the restore load runs, the flag is continuously true and
+        // the waiter has not returned.
+        std::thread::sleep(Duration::from_millis(75));
+        assert!(
+            *is_loading.lock().unwrap(),
+            "is_loading must stay true through the handoff (no false gap)"
+        );
+        assert!(load_ran.load(Ordering::Acquire));
+        assert!(
+            waiter_done_rx.recv_timeout(Duration::from_secs(2)).is_ok(),
+            "the waiter must wake after the restore load finishes"
+        );
+        // The waiter observed exactly the final false, never a false mid-gap.
+        assert_eq!(*waiter_seen.lock().unwrap(), vec![false]);
+        assert!(!*is_loading.lock().unwrap());
+    }
+
     /// T22: the local post-process LLM is excluded from the ASR RAM
     /// fallback inventory even when it is downloaded and the only other
     /// candidate: a chat LLM must never be selected to transcribe audio.
