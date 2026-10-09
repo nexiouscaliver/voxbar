@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "顯示新功能",
         "description": "VoxBar 更新後顯示版本資訊"
+      },
+      "updatePolicy": {
+        "title": "更新方式",
+        "description": "選擇自動檢查找到更新時可以執行的操作。",
+        "options": {
+          "ask": "下載前先詢問",
+          "download": "自動下載",
+          "install": "自動下載並安裝"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "發布日期：{{date}}",
       "downloadAction": "下載並安裝",
       "laterAction": "稍後",
-      "progress": "正在下載更新... {{percent}}%",
-      "installRestart": "更新已下載。正在安裝並重新啟動...",
       "failedTitle": "更新失敗",
       "failedAction": "開啟 GitHub 發布頁面",
-      "checkFailedTitle": "無法檢查更新"
+      "checkFailedTitle": "無法檢查更新",
+      "progressSize": "正在下載更新... {{downloaded}} / {{total}} ({{percent}}%)",
+      "progressUnknown": "正在下載更新... {{downloaded}}",
+      "installingTitle": "正在安裝更新...",
+      "restartTitle": "更新已就緒，可以安裝",
+      "restartDescription": "VoxBar {{version}} 已下載完成。立即重新啟動以完成安裝。",
+      "restartNow": "立即重新啟動",
+      "restartLater": "稍後",
+      "installedDescription": "VoxBar {{version}} 已安裝，將於下次啟動 VoxBar 時生效。",
+      "failedDescription": "無法下載更新。請檢查網路連線後再試一次，或從 GitHub Releases 手動下載。"
     }
   },
   "common": {

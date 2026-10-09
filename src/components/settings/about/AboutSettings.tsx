@@ -9,9 +9,11 @@ import { AppDataDirectory } from "../AppDataDirectory";
 import { AppLanguageSelector } from "../AppLanguageSelector";
 import { ShowWhatsNewOnUpdate } from "../ShowWhatsNewOnUpdate";
 import { UpdateChecksToggle } from "../UpdateChecksToggle";
+import { UpdatePolicySetting } from "../UpdatePolicy";
 import { ThemeSelector } from "../ThemeSelector";
 import { AccentColorSelector } from "../AccentColorSelector";
 import { LogDirectory } from "../debug";
+import { runUpdateCheck } from "../../update-checker/updaterFlow";
 
 export const AboutSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -42,12 +44,22 @@ export const AboutSettings: React.FC = () => {
           description={t("settings.about.version.description")}
           grouped={true}
         >
-          {/* eslint-disable-next-line i18next/no-literal-string */}
-          <span className="text-sm font-mono">v{version}</span>
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line i18next/no-literal-string */}
+            <span className="text-sm font-mono">v{version}</span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void runUpdateCheck({ trigger: "manual" })}
+            >
+              {t("footer.checkForUpdates")}
+            </Button>
+          </div>
         </SettingContainer>
 
         <ShowWhatsNewOnUpdate descriptionMode="tooltip" grouped={true} />
         <UpdateChecksToggle descriptionMode="tooltip" grouped={true} />
+        <UpdatePolicySetting descriptionMode="tooltip" grouped={true} />
 
         <SettingContainer
           title={t("settings.about.sourceCode.title")}

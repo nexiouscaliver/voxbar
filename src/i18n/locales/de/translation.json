@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "Neuerungen anzeigen",
         "description": "Versionshinweise nach VoxBar-Updates anzeigen"
+      },
+      "updatePolicy": {
+        "title": "Update-Verhalten",
+        "description": "Lege fest, was die automatische Prüfung tun darf, wenn ein Update verfügbar ist.",
+        "options": {
+          "ask": "Vor dem Laden nachfragen",
+          "download": "Automatisch laden",
+          "install": "Automatisch laden und installieren"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Veröffentlicht am {{date}}",
       "downloadAction": "Herunterladen und installieren",
       "laterAction": "Später",
-      "progress": "Update wird heruntergeladen... {{percent}}%",
-      "installRestart": "Update heruntergeladen. Wird installiert und neu gestartet...",
       "failedTitle": "Update fehlgeschlagen",
       "failedAction": "GitHub-Releases öffnen",
-      "checkFailedTitle": "Suche nach Updates fehlgeschlagen"
+      "checkFailedTitle": "Suche nach Updates fehlgeschlagen",
+      "progressSize": "Update wird geladen... {{downloaded}} von {{total}} ({{percent}}%)",
+      "progressUnknown": "Update wird geladen... {{downloaded}}",
+      "installingTitle": "Update wird installiert...",
+      "restartTitle": "Update bereit zur Installation",
+      "restartDescription": "VoxBar {{version}} wurde geladen. Jetzt neu starten, um die Installation abzuschließen.",
+      "restartNow": "Jetzt neu starten",
+      "restartLater": "Später",
+      "installedDescription": "VoxBar {{version}} wurde installiert und wird beim nächsten Start von VoxBar aktiv.",
+      "failedDescription": "Das Update konnte nicht geladen werden. Prüfe deine Verbindung und versuche es erneut, oder lade es von GitHub Releases herunter."
     }
   },
   "common": {

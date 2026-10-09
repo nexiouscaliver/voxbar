@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "Показывать новинки",
         "description": "Показывать примечания к выпуску после обновлений VoxBar"
+      },
+      "updatePolicy": {
+        "title": "Поведение обновлений",
+        "description": "Выберите, что может делать автоматическая проверка, когда находит обновление.",
+        "options": {
+          "ask": "Спрашивать перед загрузкой",
+          "download": "Загружать автоматически",
+          "install": "Загружать и устанавливать автоматически"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Опубликована {{date}}",
       "downloadAction": "Скачать и установить",
       "laterAction": "Позже",
-      "progress": "Загрузка обновления... {{percent}}%",
-      "installRestart": "Обновление загружено. Установка и перезапуск...",
       "failedTitle": "Не удалось обновить",
       "failedAction": "Открыть релизы GitHub",
-      "checkFailedTitle": "Не удалось проверить обновления"
+      "checkFailedTitle": "Не удалось проверить обновления",
+      "progressSize": "Загрузка обновления... {{downloaded}} из {{total}} ({{percent}}%)",
+      "progressUnknown": "Загрузка обновления... {{downloaded}}",
+      "installingTitle": "Установка обновления...",
+      "restartTitle": "Обновление готово к установке",
+      "restartDescription": "VoxBar {{version}} загружен. Перезапустите сейчас, чтобы завершить установку.",
+      "restartNow": "Перезапустить сейчас",
+      "restartLater": "Позже",
+      "installedDescription": "VoxBar {{version}} установлен и станет активным при следующем перезапуске VoxBar.",
+      "failedDescription": "Не удалось загрузить обновление. Проверьте подключение и попробуйте снова или скачайте его из GitHub Releases."
     }
   },
   "common": {

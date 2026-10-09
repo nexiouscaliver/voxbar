@@ -868,6 +868,15 @@
           "description": "Biblioteca de tensors d'alt rendiment per a la inferència d'aprenentatge automàtic al dispositiu",
           "details": "La transcripció local de veu a text del VoxBar es basa en el transcribe.cpp i el ggml. Gràcies a la gran feina de Georgi Gerganov i dels col·laboradors."
         }
+      },
+      "updatePolicy": {
+        "title": "Comportament de les actualitzacions",
+        "description": "Trieu què pot fer la comprovació automàtica quan troba una actualització.",
+        "options": {
+          "ask": "Pregunta abans de baixar",
+          "download": "Baixa automàticament",
+          "install": "Baixa i instal·la automàticament"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Publicat el {{date}}",
       "downloadAction": "Baixa i instal·la",
       "laterAction": "Més tard",
-      "progress": "S'està baixant l'actualització... {{percent}}%",
-      "installRestart": "Actualització baixada. S'està instal·lant i reiniciant...",
       "failedTitle": "L'actualització ha fallat",
       "failedAction": "Obre les versions de GitHub",
-      "checkFailedTitle": "No s'ha pogut comprovar les actualitzacions"
+      "checkFailedTitle": "No s'ha pogut comprovar les actualitzacions",
+      "progressSize": "S'està baixant l'actualització... {{downloaded}} de {{total}} ({{percent}}%)",
+      "progressUnknown": "S'està baixant l'actualització... {{downloaded}}",
+      "installingTitle": "S'està instal·lant l'actualització...",
+      "restartTitle": "Actualització a punt per instal·lar",
+      "restartDescription": "S'ha baixat VoxBar {{version}}. Reinicieu ara per acabar la instal·lació.",
+      "restartNow": "Reinicia ara",
+      "restartLater": "Més tard",
+      "installedDescription": "VoxBar {{version}} s'ha instal·lat i s'activarà la propera vegada que reinicieu VoxBar.",
+      "failedDescription": "No s'ha pogut baixar l'actualització. Comproveu la connexió i torneu-ho a provar, o baixeu-la de GitHub Releases."
     }
   },
   "whatsNew": {

@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "Afficher les nouveautés",
         "description": "Afficher les notes de version après les mises à jour de VoxBar"
+      },
+      "updatePolicy": {
+        "title": "Comportement des mises à jour",
+        "description": "Choisissez ce que la vérification automatique peut faire quand elle trouve une mise à jour.",
+        "options": {
+          "ask": "Demander avant de télécharger",
+          "download": "Télécharger automatiquement",
+          "install": "Télécharger et installer automatiquement"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Publié le {{date}}",
       "downloadAction": "Télécharger et installer",
       "laterAction": "Plus tard",
-      "progress": "Téléchargement de la mise à jour... {{percent}}%",
-      "installRestart": "Mise à jour téléchargée. Installation et redémarrage...",
       "failedTitle": "Échec de la mise à jour",
       "failedAction": "Ouvrir les versions GitHub",
-      "checkFailedTitle": "Impossible de vérifier les mises à jour"
+      "checkFailedTitle": "Impossible de vérifier les mises à jour",
+      "progressSize": "Téléchargement de la mise à jour... {{downloaded}} sur {{total}} ({{percent}}%)",
+      "progressUnknown": "Téléchargement de la mise à jour... {{downloaded}}",
+      "installingTitle": "Installation de la mise à jour...",
+      "restartTitle": "Mise à jour prête à installer",
+      "restartDescription": "VoxBar {{version}} a été téléchargé. Redémarrez maintenant pour terminer l'installation.",
+      "restartNow": "Redémarrer maintenant",
+      "restartLater": "Plus tard",
+      "installedDescription": "VoxBar {{version}} a été installé et sera actif au prochain redémarrage de VoxBar.",
+      "failedDescription": "Impossible de télécharger la mise à jour. Vérifiez votre connexion et réessayez, ou téléchargez-la depuis GitHub Releases."
     }
   },
   "common": {

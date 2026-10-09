@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "Zobrazovat novinky",
         "description": "Zobrazovat poznámky k vydání po aktualizacích VoxBar"
+      },
+      "updatePolicy": {
+        "title": "Chování aktualizací",
+        "description": "Zvolte, co smí automatická kontrola udělat, když najde aktualizaci.",
+        "options": {
+          "ask": "Ptát se před stahováním",
+          "download": "Stahovat automaticky",
+          "install": "Stahovat a instalovat automaticky"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Vydáno {{date}}",
       "downloadAction": "Stáhnout a nainstalovat",
       "laterAction": "Později",
-      "progress": "Stahování aktualizace... {{percent}}%",
-      "installRestart": "Aktualizace stažena. Instaluje se a restartuje...",
       "failedTitle": "Aktualizace se nezdařila",
       "failedAction": "Otevřít GitHub Releases",
-      "checkFailedTitle": "Nepodařilo se zkontrolovat aktualizace"
+      "checkFailedTitle": "Nepodařilo se zkontrolovat aktualizace",
+      "progressSize": "Stahování aktualizace... {{downloaded}} z {{total}} ({{percent}}%)",
+      "progressUnknown": "Stahování aktualizace... {{downloaded}}",
+      "installingTitle": "Instalace aktualizace...",
+      "restartTitle": "Aktualizace je připravena k instalaci",
+      "restartDescription": "VoxBar {{version}} byl stažen. Restartujte nyní a instalace se dokončí.",
+      "restartNow": "Restartovat nyní",
+      "restartLater": "Později",
+      "installedDescription": "VoxBar {{version}} byl nainstalován a aktivuje se při příštím restartu VoxBaru.",
+      "failedDescription": "Aktualizaci nelze stáhnout. Zkontrolujte připojení a zkuste to znovu, nebo ji stáhněte z GitHub Releases."
     }
   },
   "common": {

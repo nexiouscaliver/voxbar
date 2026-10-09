@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "Показувати новини",
         "description": "Показувати примітки до випуску після оновлень VoxBar"
+      },
+      "updatePolicy": {
+        "title": "Поведінка оновлень",
+        "description": "Виберіть, що може робити автоматична перевірка, коли знаходить оновлення.",
+        "options": {
+          "ask": "Питати перед завантаженням",
+          "download": "Завантажувати автоматично",
+          "install": "Завантажувати та встановлювати автоматично"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Опубліковано {{date}}",
       "downloadAction": "Завантажити та встановити",
       "laterAction": "Пізніше",
-      "progress": "Завантаження оновлення... {{percent}}%",
-      "installRestart": "Оновлення завантажено. Встановлення та перезапуск...",
       "failedTitle": "Не вдалося оновити",
       "failedAction": "Відкрити релізи GitHub",
-      "checkFailedTitle": "Не вдалося перевірити оновлення"
+      "checkFailedTitle": "Не вдалося перевірити оновлення",
+      "progressSize": "Завантаження оновлення... {{downloaded}} з {{total}} ({{percent}}%)",
+      "progressUnknown": "Завантаження оновлення... {{downloaded}}",
+      "installingTitle": "Встановлення оновлення...",
+      "restartTitle": "Оновлення готове до встановлення",
+      "restartDescription": "VoxBar {{version}} завантажено. Перезапустіть зараз, щоб завершити встановлення.",
+      "restartNow": "Перезапустити зараз",
+      "restartLater": "Пізніше",
+      "installedDescription": "VoxBar {{version}} встановлено і стане активним під час наступного перезапуску VoxBar.",
+      "failedDescription": "Не вдалося завантажити оновлення. Перевірте з'єднання та спробуйте ще раз або завантажте його з GitHub Releases."
     }
   },
   "common": {

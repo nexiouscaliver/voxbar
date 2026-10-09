@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "Mostra novità",
         "description": "Mostra le note di rilascio dopo gli aggiornamenti di VoxBar"
+      },
+      "updatePolicy": {
+        "title": "Comportamento aggiornamenti",
+        "description": "Scegli cosa può fare il controllo automatico quando trova un aggiornamento.",
+        "options": {
+          "ask": "Chiedi prima di scaricare",
+          "download": "Scarica automaticamente",
+          "install": "Scarica e installa automaticamente"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Pubblicato il {{date}}",
       "downloadAction": "Scarica e installa",
       "laterAction": "Più tardi",
-      "progress": "Scaricamento aggiornamento... {{percent}}%",
-      "installRestart": "Aggiornamento scaricato. Installazione e riavvio...",
       "failedTitle": "Aggiornamento non riuscito",
       "failedAction": "Apri le release su GitHub",
-      "checkFailedTitle": "Impossibile verificare gli aggiornamenti"
+      "checkFailedTitle": "Impossibile verificare gli aggiornamenti",
+      "progressSize": "Download dell'aggiornamento... {{downloaded}} di {{total}} ({{percent}}%)",
+      "progressUnknown": "Download dell'aggiornamento... {{downloaded}}",
+      "installingTitle": "Installazione dell'aggiornamento...",
+      "restartTitle": "Aggiornamento pronto da installare",
+      "restartDescription": "VoxBar {{version}} è stato scaricato. Riavvia ora per completare l'installazione.",
+      "restartNow": "Riavvia ora",
+      "restartLater": "Più tardi",
+      "installedDescription": "VoxBar {{version}} è stato installato e sarà attivo al prossimo riavvio di VoxBar.",
+      "failedDescription": "Impossibile scaricare l'aggiornamento. Controlla la connessione e riprova, oppure scaricalo da GitHub Releases."
     }
   },
   "common": {

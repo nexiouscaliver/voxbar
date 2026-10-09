@@ -10,6 +10,7 @@ import type {
   TranscribeAcceleratorSetting,
   OrtAcceleratorSetting,
   ShortcutActivation,
+  UpdatePolicy,
   VadBackend,
 } from "@/bindings";
 import { commands } from "@/bindings";
@@ -105,6 +106,8 @@ const settingUpdaters: {
     commands.changeAutostartSetting(value as boolean),
   update_checks_enabled: (value) =>
     commands.changeUpdateChecksSetting(value as boolean),
+  update_policy: (value) =>
+    commands.changeUpdatePolicySetting(value as UpdatePolicy),
   show_whats_new_on_update: (value) =>
     commands.changeShowWhatsNewOnUpdateSetting(value as boolean),
   whats_new_last_seen_version: (value) =>

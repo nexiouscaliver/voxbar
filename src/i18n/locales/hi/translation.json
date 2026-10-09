@@ -868,6 +868,15 @@
           "description": "डिवाइस पर ही मशीन लर्निंग इन्फ़रेंस के लिए हाई-परफ़ॉर्मेंस टेंसर लाइब्रेरी",
           "details": "VoxBar का लोकल स्पीच-टू-टेक्स्ट transcribe.cpp और ggml पर आधारित है. Georgi Gerganov और योगदान देने वालों के शानदार काम के लिए धन्यवाद."
         }
+      },
+      "updatePolicy": {
+        "title": "अपडेट नीति",
+        "description": "जब अपडेट मिले तो ऑटोमैटिक जांच क्या कर सकती है, यह चुनें।",
+        "options": {
+          "ask": "डाउनलोड से पहले पूछें",
+          "download": "अपने आप डाउनलोड करें",
+          "install": "अपने आप डाउनलोड और इंस्टॉल करें"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "{{date}} को जारी",
       "downloadAction": "डाउनलोड और इंस्टॉल करें",
       "laterAction": "बाद में",
-      "progress": "अपडेट डाउनलोड हो रहा है... {{percent}}%",
-      "installRestart": "अपडेट डाउनलोड हो गया। इंस्टॉल और रीस्टार्ट हो रहा है...",
       "failedTitle": "अपडेट विफल",
       "failedAction": "GitHub रिलीज़ खोलें",
-      "checkFailedTitle": "अपडेट जाँच नहीं हो सकी"
+      "checkFailedTitle": "अपडेट जाँच नहीं हो सकी",
+      "progressSize": "अपडेट डाउनलोड हो रहा है... {{total}} में से {{downloaded}} ({{percent}}%)",
+      "progressUnknown": "अपडेट डाउनलोड हो रहा है... {{downloaded}}",
+      "installingTitle": "अपडेट इंस्टॉल हो रहा है...",
+      "restartTitle": "अपडेट इंस्टॉल के लिए तैयार है",
+      "restartDescription": "VoxBar {{version}} डाउनलोड हो गया है। इंस्टॉल पूरा करने के लिए अभी रीस्टार्ट करें।",
+      "restartNow": "अभी रीस्टार्ट करें",
+      "restartLater": "बाद में",
+      "installedDescription": "VoxBar {{version}} इंस्टॉल हो गया है और VoxBar के अगली बार चालू होने पर सक्रिय हो जाएगा।",
+      "failedDescription": "अपडेट डाउनलोड नहीं हो सका। अपना कनेक्शन जांचें और फिर कोशिश करें, या इसे GitHub Releases से डाउनलोड करें।"
     }
   },
   "whatsNew": {

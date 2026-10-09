@@ -868,6 +868,15 @@
           "description": "Højtydende tensor-bibliotek til maskinlæringsinferens på enheden",
           "details": "VoxBars lokale tale-til-tekst funktionalitet er bygget på transcribe.cpp og ggml. Tak for det fantastiske arbejde af Georgi Gerganov og bidragyderne."
         }
+      },
+      "updatePolicy": {
+        "title": "Opdateringsadfærd",
+        "description": "Vælg, hvad den automatiske kontrol må gøre, når den finder en opdatering.",
+        "options": {
+          "ask": "Spørg før download",
+          "download": "Download automatisk",
+          "install": "Download og installer automatisk"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Udgivet {{date}}",
       "downloadAction": "Hent og installér",
       "laterAction": "Senere",
-      "progress": "Downloader opdatering... {{percent}}%",
-      "installRestart": "Opdatering hentet. Installerer og genstarter...",
       "failedTitle": "Opdatering mislykkedes",
       "failedAction": "Åbn GitHub Releases",
-      "checkFailedTitle": "Kunne ikke tjekke for opdateringer"
+      "checkFailedTitle": "Kunne ikke tjekke for opdateringer",
+      "progressSize": "Downloader opdatering... {{downloaded}} af {{total}} ({{percent}}%)",
+      "progressUnknown": "Downloader opdatering... {{downloaded}}",
+      "installingTitle": "Installerer opdatering...",
+      "restartTitle": "Opdatering klar til installation",
+      "restartDescription": "VoxBar {{version}} er downloadet. Genstart nu for at færdiggøre installationen.",
+      "restartNow": "Genstart nu",
+      "restartLater": "Senere",
+      "installedDescription": "VoxBar {{version}} er installeret og bliver aktiv, næste gang VoxBar genstarter.",
+      "failedDescription": "Opdateringen kunne ikke downloades. Tjek din forbindelse og prøv igen, eller download den fra GitHub Releases."
     }
   },
   "whatsNew": {
