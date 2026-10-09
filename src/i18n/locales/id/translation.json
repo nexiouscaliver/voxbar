@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar tidak dapat memasang pembaruan dari lokasi ini",
-    "translocatedDescription": "VoxBar berjalan dari lokasi sementara yang hanya-baca (App Translocation macOS). Keluar dari VoxBar, seret dari folder Unduhan ke folder Aplikasi, lalu buka dari sana."
+    "translocatedDescription": "VoxBar berjalan dari lokasi sementara yang hanya-baca (App Translocation macOS). Keluar dari VoxBar, seret dari folder Unduhan ke folder Aplikasi, lalu buka dari sana.",
+    "commandNoSession": "Tombol perintah hanya berfungsi saat dikte aktif. Mulai perekaman dulu, lalu tahan tombolnya dan ucapkan perintahnya."
   }
 }

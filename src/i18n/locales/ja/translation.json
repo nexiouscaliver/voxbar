@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "この場所からはアップデートをインストールできません",
-    "translocatedDescription": "VoxBar は一時的な読み取り専用の場所 (macOS の App Translocation) から実行されています。VoxBar を終了し、Downloads フォルダからアプリケーションフォルダへドラッグして、そこから開いてください。"
+    "translocatedDescription": "VoxBar は一時的な読み取り専用の場所 (macOS の App Translocation) から実行されています。VoxBar を終了し、Downloads フォルダからアプリケーションフォルダへドラッグして、そこから開いてください。",
+    "commandNoSession": "コマンドキーは録音中のみ動作します。まず録音を開始し、キーを押しながらコマンドを話してください。"
   }
 }

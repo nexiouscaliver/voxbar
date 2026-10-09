@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar kann von diesem Ort keine Updates installieren",
-    "translocatedDescription": "VoxBar läuft von einem temporären schreibgeschützten Ort (macOS App Translocation). Beende VoxBar, ziehe es aus dem Ordner Downloads nach Programme und starte es von dort."
+    "translocatedDescription": "VoxBar läuft von einem temporären schreibgeschützten Ort (macOS App Translocation). Beende VoxBar, ziehe es aus dem Ordner Downloads nach Programme und starte es von dort.",
+    "commandNoSession": "Die Befehlstaste funktioniert nur während einer aktiven Diktierens. Starte zuerst die Aufnahme, halte dann die Taste und sprich den Befehl."
   }
 }

@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar non può installare aggiornamenti da questa posizione",
-    "translocatedDescription": "VoxBar è in esecuzione da una posizione temporanea di sola lettura (App Translocation di macOS). Chiudi VoxBar, trascinalo dalla cartella Scaricati ad Applicazioni e aprilo da lì."
+    "translocatedDescription": "VoxBar è in esecuzione da una posizione temporanea di sola lettura (App Translocation di macOS). Chiudi VoxBar, trascinalo dalla cartella Scaricati ad Applicazioni e aprilo da lì.",
+    "commandNoSession": "Il tasto dei comandi funziona solo durante una dettatura attiva. Avvia prima la registrazione, poi tienilo premuto e pronuncia il comando."
   }
 }

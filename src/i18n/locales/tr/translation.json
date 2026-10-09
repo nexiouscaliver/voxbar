@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar bu konumdan güncellemeleri yükleyemez",
-    "translocatedDescription": "VoxBar geçici bir salt okunur konumdan çalışıyor (macOS App Translocation). VoxBar'ı kapatın, İndirilenler klasöründen Uygulamalar klasörüne sürükleyin ve oradan açın."
+    "translocatedDescription": "VoxBar geçici bir salt okunur konumdan çalışıyor (macOS App Translocation). VoxBar'ı kapatın, İndirilenler klasöründen Uygulamalar klasörüne sürükleyin ve oradan açın.",
+    "commandNoSession": "Komut tuşu yalnızca canlı dikte sırasında çalışır. Önce kaydı başlatın, sonra tuşu basılı tutup komutu söyleyin."
   }
 }

@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar не може да инсталира обновления от това местоположение",
-    "translocatedDescription": "VoxBar работи от временно местоположение само за четене (App Translocation в macOS). Спрете VoxBar, преместете го от папка Downloads в Applications и го отворете оттам."
+    "translocatedDescription": "VoxBar работи от временно местоположение само за четене (App Translocation в macOS). Спрете VoxBar, преместете го от папка Downloads в Applications и го отворете оттам.",
+    "commandNoSession": "Командният клавиш работи само по време на активна диктовка. Първо стартирайте записа, после задръжте клавиша и кажете командата."
   }
 }
