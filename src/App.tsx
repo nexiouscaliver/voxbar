@@ -261,11 +261,12 @@ function App() {
     };
   }, []);
 
-  // macOS App Translocation: the app launched with a quarantine flag straight  // from its download folder, so it runs from a read-only mount where the
-  // updater's install step fails with "read-only file system". Fresh installs
-  // see this toast during onboarding (window guaranteed visible); long-term
-  // dwellers see it whenever they next open the window via this same check on
-  // mount.
+  // macOS App Translocation: the app launched with a quarantine flag
+  // straight from its download folder, so it runs from a read-only mount
+  // where the updater's install step fails with "read-only file system".
+  // Fresh installs see this toast during onboarding (window guaranteed
+  // visible); long-term dwellers see it whenever they next open the window
+  // via this same check on mount.
   useEffect(() => {
     void (async () => {
       try {
@@ -297,7 +298,7 @@ function App() {
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, []);
+  }, [t]);
 
   // Tray "Unload After → Custom…": jump to the Advanced settings section and
   // focus the custom-seconds field. The window event is re-dispatched after a
