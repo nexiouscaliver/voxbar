@@ -1,8 +1,15 @@
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import { commands, type PostProcessProvider } from "@/bindings";
 import type { ModelOption } from "./types";
 import type { DropdownOption } from "../../ui/Dropdown";
+import {
+  APPLE_PROVIDER_ID,
+  LOCAL_PROVIDER_ID,
+  shouldFetchModels,
+  showLocalRow,
+} from "../post-processing/localLlmRouting";
 
 type PostProcessProviderState = {
   providerOptions: DropdownOption[];
@@ -10,6 +17,7 @@ type PostProcessProviderState = {
   selectedProvider: PostProcessProvider | undefined;
   isCustomProvider: boolean;
   isAppleProvider: boolean;
+  isLocalProvider: boolean;
   appleIntelligenceUnavailable: boolean;
   baseUrl: string;
   handleBaseUrlChange: (value: string) => void;
@@ -28,9 +36,8 @@ type PostProcessProviderState = {
   handleRefreshModels: () => void;
 };
 
-const APPLE_PROVIDER_ID = "apple_intelligence";
-
 export const usePostProcessProviderState = (): PostProcessProviderState => {
+  const { t } = useTranslation();
   const {
     settings,
     isUpdating,
@@ -57,6 +64,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   }, [providers, selectedProviderId]);
 
   const isAppleProvider = selectedProvider?.id === APPLE_PROVIDER_ID;
+  const isLocalProvider = showLocalRow(selectedProviderId);
   const [appleIntelligenceUnavailable, setAppleIntelligenceUnavailable] =
     useState(false);
 
@@ -68,9 +76,16 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   const providerOptions = useMemo<DropdownOption[]>(() => {
     return providers.map((provider) => ({
       value: provider.id,
-      label: provider.label,
+      // The local engine's backend label ("Local (on-device)") is the
+      // only descriptive (non-brand-name) label in the list; localize it
+      // so it does not ship as a lone English string in every locale.
+      // Brand names (OpenAI, Groq, ...) stay as the backend sends them.
+      label:
+        provider.id === LOCAL_PROVIDER_ID
+          ? t("settings.postProcessing.local.providerLabel")
+          : provider.label,
     }));
-  }, [providers]);
+  }, [providers, t]);
 
   const handleProviderSelect = useCallback(
     async (providerId: string) => {
@@ -95,8 +110,9 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
       // reflects what's actually valid. Without this, a stale model value from
       // a previous provider/base_url can persist and silently 404 at runtime.
       // Skip when the provider isn't configured yet (no API key / empty base URL)
-      // to avoid unnecessary backend errors.
-      if (providerId !== APPLE_PROVIDER_ID) {
+      // to avoid unnecessary backend errors. On-device providers (local, Apple
+      // Intelligence) have no models endpoint and must never fetch (T30).
+      if (shouldFetchModels(providerId)) {
         const provider = providers.find((p) => p.id === providerId);
         const apiKey = settings?.post_process_api_keys?.[providerId] ?? "";
         const hasBaseUrl = (provider?.base_url ?? "").trim() !== "";
@@ -164,9 +180,11 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   );
 
   const handleRefreshModels = useCallback(() => {
-    if (isAppleProvider) return;
+    // On-device providers (local, Apple Intelligence) have nothing to
+    // fetch; the local row manages its own model status.
+    if (!shouldFetchModels(selectedProviderId)) return;
     void fetchPostProcessModels(selectedProviderId);
-  }, [fetchPostProcessModels, isAppleProvider, selectedProviderId]);
+  }, [fetchPostProcessModels, selectedProviderId]);
 
   const availableModelsRaw = postProcessModelOptions[selectedProviderId] || [];
 
@@ -215,6 +233,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     selectedProvider,
     isCustomProvider,
     isAppleProvider,
+    isLocalProvider,
     appleIntelligenceUnavailable,
     baseUrl,
     handleBaseUrlChange,

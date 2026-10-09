@@ -658,6 +658,22 @@
           "refreshModels": "Uppdatera modeller"
         }
       },
+      "local": {
+        "label": "Lokal modell",
+        "modelStatus": {
+          "notDownloaded": "Inte nedladdad",
+          "downloading": "Laddar ner ({{progress}}%)",
+          "ready": "Klar",
+          "checking": "Kontrollerar status..."
+        },
+        "modelSizeMb": "Storlek: {{size}} MB",
+        "download": "Ladda ner",
+        "delete": "Ta bort",
+        "deleteInUse": "Kan inte ta bort just nu: en efterbearbetning pågår. Försök igen om en stund.",
+        "downloadFailed": "Nedladdningen misslyckades: {{error}}",
+        "deleteFailed": "Kunde inte ta bort modellen: {{error}}",
+        "providerLabel": "Lokalt (på enheten)"
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "Så här löser du det",
     "recorderBlocked": "Det går inte att spela in kortkommandon just nu - macOS Secure Input blockerar tangenthändelser. Lös varningen om Secure Input först.",
     "dismiss": "Avfärda"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Efterbearbetning hoppades över för att skydda systemminnet. {{detail}}",
+      "downloadMissing": "Efterbearbetning hoppades över: den lokala modellen är inte nedladdad ännu. Öppna Inställningar för att ladda ner den.",
+      "engineFailed": "Efterbearbetning hoppades över: den lokala modellen kunde inte bearbeta denna transkription. Den ursprungliga transkriptionen användes.",
+      "timeout": "Efterbearbetning hoppades över: den lokala modellen tog för lång tid. Den ursprungliga transkriptionen användes.",
+      "lengthGuard": "Efterbearbetning hoppades över: den lokala modellens utdata klarade inte längdkontrollen. Den ursprungliga transkriptionen användes.",
+      "tooLong": "Efterbearbetning hoppades över: denna transkription är för lång för den lokala modellen. Den ursprungliga transkriptionen användes."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar kan inte installera uppdateringar från denna plats",

@@ -658,6 +658,22 @@
           "refreshModels": "Refresh models"
         }
       },
+      "local": {
+        "label": "Local Model",
+        "modelStatus": {
+          "notDownloaded": "Not downloaded",
+          "downloading": "Downloading ({{progress}}%)",
+          "ready": "Ready",
+          "checking": "Checking status..."
+        },
+        "modelSizeMb": "Size: {{size}} MB",
+        "download": "Download",
+        "delete": "Delete",
+        "deleteInUse": "Cannot delete right now: a post-process run is in progress. Try again in a moment.",
+        "downloadFailed": "Download failed: {{error}}",
+        "deleteFailed": "Could not delete the model: {{error}}",
+        "providerLabel": "Local (on-device)"
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "How to fix",
     "recorderBlocked": "Can't record shortcuts right now - macOS Secure Input is blocking key events. Resolve the Secure Input warning first.",
     "dismiss": "Dismiss"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Post-processing skipped to protect system memory. {{detail}}",
+      "downloadMissing": "Post-processing skipped: the local model is not downloaded yet. Open Settings to download it.",
+      "engineFailed": "Post-processing skipped: the local model could not process this transcript. The raw transcript was used.",
+      "timeout": "Post-processing skipped: the local model took too long. The raw transcript was used.",
+      "lengthGuard": "Post-processing skipped: the local model output failed the length check. The raw transcript was used.",
+      "tooLong": "Post-processing skipped: this transcript is too long for the local model. The raw transcript was used."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar cannot install updates from this location",

@@ -601,6 +601,13 @@ pub struct TranscriptionCoordinator {
     /// streaming path: the session buffer asks "is the command modifier
     /// held for this live session?" on every engine snapshot, lock-free.
     command_modifier: Arc<AtomicBool>,
+    /// Mirror of `CoordinatorState::pending_press` for the exclusive
+    /// post-process swap: the swap runner polls "did a press arrive while
+    /// the pipeline is busy?" every abort tick, lock-free, so dictation
+    /// wins over post-processing without waiting on the coordinator
+    /// thread. The latch itself is NOT new state: it observes the same
+    /// pending_press the drain consumes.
+    pending_press: Arc<AtomicBool>,
 }
 
 /// Which binding IDs drive the recording lifecycle. The command-mode
@@ -619,6 +626,8 @@ impl TranscriptionCoordinator {
         let recording_mirror = Arc::clone(&recording);
         let command_modifier = Arc::new(AtomicBool::new(false));
         let command_modifier_mirror = Arc::clone(&command_modifier);
+        let pending_press = Arc::new(AtomicBool::new(false));
+        let pending_press_mirror = Arc::clone(&pending_press);
 
         thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -634,6 +643,7 @@ impl TranscriptionCoordinator {
                         Ordering::Release,
                     );
                     command_modifier_mirror.store(state.command_modifier, Ordering::Release);
+                    pending_press_mirror.store(state.pending_press.is_some(), Ordering::Release);
                 };
                 publish_state(&state);
 
@@ -680,10 +690,11 @@ impl TranscriptionCoordinator {
                     publish_state(&state);
                 }
                 // The coordinator thread is gone (app shutdown); stop
-                // advertising a live recording session or an engaged command
-                // modifier.
+                // advertising a live recording session, an engaged command
+                // modifier, or a remembered press.
                 recording_mirror.store(false, Ordering::Release);
                 command_modifier_mirror.store(false, Ordering::Release);
+                pending_press_mirror.store(false, Ordering::Release);
                 debug!("Transcription coordinator exited");
             }));
             if let Err(e) = result {
@@ -695,6 +706,7 @@ impl TranscriptionCoordinator {
             tx,
             recording,
             command_modifier,
+            pending_press,
         }
     }
 
@@ -711,6 +723,17 @@ impl TranscriptionCoordinator {
     /// streaming path consults this on every engine snapshot.
     pub fn is_command_modifier_active(&self) -> bool {
         self.command_modifier.load(Ordering::Acquire)
+    }
+
+    /// Whether a transcribe press is remembered while the pipeline is busy
+    /// (Stage::Processing) and will start a recording when it drains. The
+    /// exclusive post-process swap polls this every abort tick: dictation
+    /// wins, so a remembered press aborts the swap (kill LLM, restore
+    /// voice, raw transcript out) instead of waiting out a generation.
+    /// Reads the same pending_press the drain consumes, so the latch can
+    /// never disagree with what the coordinator will actually fire.
+    pub fn has_pending_press(&self) -> bool {
+        self.pending_press.load(Ordering::Acquire)
     }
 
     /// Whether the Undo action may fire right now: ONLY while a recording
@@ -867,6 +890,66 @@ mod tests {
     /// recording trigger: it must NOT route through the recording
     /// lifecycle (it can never start or stop a recording), while the
     /// dictation triggers do.
+    /// T24: the pending-press latch the exclusive post-process swap polls
+    /// (has_pending_press). A press that arrives while the pipeline is
+    /// busy (Stage::Processing) is remembered and latches true; the drain
+    /// (ProcessingFinished) consumes it and clears the latch. A cancel
+    /// also clears it (the user asked for silence, not a deferred
+    /// recording), and the idle state never latches. These are the pure
+    /// transitions the coordinator thread mirrors.
+    #[test]
+    fn pending_press_latch_follows_the_remember_and_drain_transitions() {
+        let mut state = CoordinatorState::new();
+        let now = Instant::now();
+        assert!(state.pending_press.is_none(), "idle: nothing latched");
+
+        // Drive into Processing: start, then stop.
+        assert!(matches!(
+            state.on_input(toggle_input(true), now),
+            Some(Effect::Start { .. })
+        ));
+        assert!(matches!(
+            state.on_input(toggle_input(true), now + Duration::from_millis(100)),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(state.stage, Stage::Processing);
+        assert!(state.pending_press.is_none(), "busy but not pressed");
+
+        // A press while busy is remembered: latch set.
+        assert!(state
+            .on_input(toggle_input(true), now + Duration::from_millis(200))
+            .is_none());
+        assert!(
+            state.pending_press.is_some(),
+            "press during Processing latches pending_press"
+        );
+
+        // The drain consumes it: latch cleared, the recording starts.
+        assert!(matches!(
+            state.on_processing_finished(),
+            Some(Effect::Start { .. })
+        ));
+        assert!(
+            state.pending_press.is_none(),
+            "drain clears the latch with the press it consumed"
+        );
+
+        // Cancel while busy abandons a remembered press: latch cleared,
+        // nothing starts on the drain.
+        state.on_input(toggle_input(true), now + Duration::from_millis(300));
+        assert!(state.stage == Stage::Processing);
+        assert!(state
+            .on_input(toggle_input(true), now + Duration::from_millis(400))
+            .is_none());
+        assert!(state.pending_press.is_some());
+        state.on_cancel(false);
+        assert!(
+            state.pending_press.is_none(),
+            "cancel abandons the remembered press"
+        );
+        assert!(state.on_processing_finished().is_none());
+    }
+
     #[test]
     fn command_mode_binding_is_not_a_recording_lifecycle_binding() {
         assert!(is_transcribe_binding("transcribe"));

@@ -658,6 +658,22 @@
           "refreshModels": "Modelle aktualisieren"
         }
       },
+      "local": {
+        "label": "Lokales Modell",
+        "modelStatus": {
+          "notDownloaded": "Nicht heruntergeladen",
+          "downloading": "Wird heruntergeladen ({{progress}}%)",
+          "ready": "Bereit",
+          "checking": "Status wird geprüft..."
+        },
+        "modelSizeMb": "Größe: {{size}} MB",
+        "download": "Herunterladen",
+        "delete": "Löschen",
+        "deleteInUse": "Löschen ist gerade nicht möglich: Eine Nachbearbeitung läuft. Versuche es gleich noch einmal.",
+        "downloadFailed": "Herunterladen fehlgeschlagen: {{error}}",
+        "deleteFailed": "Das Modell konnte nicht gelöscht werden: {{error}}",
+        "providerLabel": "Lokal (auf dem Gerät)"
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "So behebst du das",
     "recorderBlocked": "Tastenkürzel können gerade nicht aufgezeichnet werden - macOS Secure Input blockiert Tastenereignisse. Behebe zuerst die Secure-Input-Warnung.",
     "dismiss": "Ausblenden"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Nachbearbeitung übersprungen, um den Systemspeicher zu schützen. {{detail}}",
+      "downloadMissing": "Nachbearbeitung übersprungen: Das lokale Modell ist noch nicht heruntergeladen. Öffne die Einstellungen, um es herunterzuladen.",
+      "engineFailed": "Nachbearbeitung übersprungen: Das lokale Modell konnte diese Transkription nicht verarbeiten. Die unveränderte Transkription wurde eingefügt.",
+      "timeout": "Nachbearbeitung übersprungen: Das lokale Modell hat zu lange gebraucht. Die unveränderte Transkription wurde eingefügt.",
+      "lengthGuard": "Nachbearbeitung übersprungen: Die Ausgabe des lokalen Modells hat die Längenprüfung nicht bestanden. Die unveränderte Transkription wurde eingefügt.",
+      "tooLong": "Nachbearbeitung übersprungen: Diese Transkription ist zu lang für das lokale Modell. Die unveränderte Transkription wurde eingefügt."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar kann von diesem Ort keine Updates installieren",

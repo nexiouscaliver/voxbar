@@ -658,6 +658,22 @@
           "refreshModels": "Actualitzeu els models"
         }
       },
+      "local": {
+        "label": "Model local",
+        "modelStatus": {
+          "notDownloaded": "No baixat",
+          "downloading": "S'està baixant ({{progress}}%)",
+          "ready": "A punt",
+          "checking": "Comprovant l'estat..."
+        },
+        "modelSizeMb": "Mida: {{size}} MB",
+        "download": "Baixa",
+        "delete": "Suprimeix",
+        "deleteInUse": "Ara no es pot suprimir: hi ha un postprocessament en execució. Torneu-ho a provar d'aquí a un moment.",
+        "downloadFailed": "No s'ha pogut descarregar: {{error}}",
+        "deleteFailed": "No s'ha pogut suprimir el model: {{error}}",
+        "providerLabel": "Local (al dispositiu)"
+      },
       "prompts": {
         "title": "Indicació",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "Com es resol",
     "recorderBlocked": "Ara no se'n poden enregistrar dreceres: l'entrada segura del macOS bloca els esdeveniments de tecla. Resol primer l'avís d'entrada segura.",
     "dismiss": "Descarta"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "S'ha omès el postprocessament per protegir la memòria del sistema. {{detail}}",
+      "downloadMissing": "S'ha omès el postprocessament: el model local encara no s'ha baixat. Obriu la configuració per baixar-lo.",
+      "engineFailed": "S'ha omès el postprocessament: el model local no ha pogut processar aquesta transcripció. S'ha usat la transcripció original.",
+      "timeout": "S'ha omès el postprocessament: el model local ha trigat massa. S'ha usat la transcripció original.",
+      "lengthGuard": "S'ha omès el postprocessament: la sortida del model local no ha passat la comprovació de longitud. S'ha usat la transcripció original.",
+      "tooLong": "S'ha omès el postprocessament: aquesta transcripció és massa llarga per al model local. S'ha usat la transcripció original."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar no pot instal·lar actualitzacions des d'aquesta ubicació",

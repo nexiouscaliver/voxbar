@@ -658,6 +658,22 @@
           "refreshModels": "모델 새로고침"
         }
       },
+      "local": {
+        "label": "로컬 모델",
+        "modelStatus": {
+          "notDownloaded": "다운로드되지 않음",
+          "downloading": "다운로드 중 ({{progress}}%)",
+          "ready": "준비됨",
+          "checking": "상태 확인 중..."
+        },
+        "modelSizeMb": "크기: {{size}} MB",
+        "download": "다운로드",
+        "delete": "삭제",
+        "deleteInUse": "지금은 삭제할 수 없습니다: 후처리가 진행 중입니다. 잠시 후 다시 시도하세요.",
+        "downloadFailed": "다운로드 실패: {{error}}",
+        "deleteFailed": "모델을 삭제하지 못했습니다: {{error}}",
+        "providerLabel": "로컬(기기에서)"
+      },
       "prompts": {
         "title": "프롬프트",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "해결 방법",
     "recorderBlocked": "지금은 단축키를 등록할 수 없습니다. macOS Secure Input이 키 이벤트를 차단하고 있습니다. Secure Input 경고를 먼저 해결하세요.",
     "dismiss": "닫기"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "시스템 메모리를 보호하기 위해 후처리를 건너뛰었습니다. {{detail}}",
+      "downloadMissing": "후처리를 건너뛰었습니다: 로컬 모델이 아직 다운로드되지 않았습니다. 설정을 열어 다운로드하세요.",
+      "engineFailed": "후처리를 건너뛰었습니다: 로컬 모델이 이 전사 내용을 처리하지 못했습니다. 원본 전사 내용을 사용했습니다.",
+      "timeout": "후처리를 건너뛰었습니다: 로컬 모델이 너무 오래 걸렸습니다. 원본 전사 내용을 사용했습니다.",
+      "lengthGuard": "후처리를 건너뛰었습니다: 로컬 모델 출력이 길이 검사를 통과하지 못했습니다. 원본 전사 내용을 사용했습니다.",
+      "tooLong": "후처리를 건너뛰었습니다: 이 전사 내용은 로컬 모델에 너무 깁니다. 원본 전사 내용을 사용했습니다."
+    }
   },
   "app": {
     "translocatedTitle": "이 위치에서는 업데이트를 설치할 수 없습니다",

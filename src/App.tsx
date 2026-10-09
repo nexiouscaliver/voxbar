@@ -34,13 +34,22 @@ import { WhatsNewGate } from "./components/whats-new";
 import { runUpdateCheck } from "./components/update-checker/updaterFlow";
 import { useSettings } from "./hooks/useSettings";
 import { useSettingsStore } from "./stores/settingsStore";
-import { commands } from "@/bindings";
+import { commands, events, type SkipReason } from "@/bindings";
 import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
+import {
+  shouldToast,
+  skipToastKey,
+} from "./components/settings/post-processing/skipToastDedupe";
 
 type OnboardingStep = "accessibility" | "model" | "done";
 
 // Stable identity so preview effects do not re-run due to callback changes.
 const NOOP = () => {};
+
+// Post-process skip reasons already toasted this app session (spec 7.3:
+// at most one toast per reason per session). Module-level by design so
+// re-renders and remounts never reset the dedupe window.
+const toastedSkipReasons = new Set<SkipReason>();
 
 const renderSettingsContent = (
   section: SidebarSection,
@@ -237,6 +246,33 @@ function App() {
           model: event.payload.fallback_model_name,
         }),
       });
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
+  // Local post-process fell back to the raw transcript (spec 7.3): at most
+  // one toast per reason per app session, so a misbehaving engine cannot
+  // spam the user on every dictation. The memory_gate variant carries the
+  // formatted refusal numbers in detail; the raw transcript is always
+  // pasted regardless.
+  useEffect(() => {
+    const unlisten = events.postProcessSkipEvent.listen((event) => {
+      const { reason, detail } = event.payload;
+      if (!shouldToast(toastedSkipReasons, reason)) return;
+      const key = `toast.postProcessSkip.${skipToastKey(reason)}`;
+      // Engine failures and timeouts get error-level visibility; every
+      // other skip is an expected, recoverable condition.
+      const toastFn =
+        reason === "engine_failed" || reason === "timeout"
+          ? toast.error
+          : toast.info;
+      if (reason === "memory_gate") {
+        toastFn(t(key, { detail: detail ?? "" }));
+      } else {
+        toastFn(t(key));
+      }
     });
     return () => {
       unlisten.then((fn) => fn());

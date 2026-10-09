@@ -658,6 +658,22 @@
           "refreshModels": "Segarkan model"
         }
       },
+      "local": {
+        "label": "Model lokal",
+        "modelStatus": {
+          "notDownloaded": "Belum diunduh",
+          "downloading": "Mengunduh ({{progress}}%)",
+          "ready": "Siap",
+          "checking": "Memeriksa status..."
+        },
+        "modelSizeMb": "Ukuran: {{size}} MB",
+        "download": "Unduh",
+        "delete": "Hapus",
+        "deleteInUse": "Tidak bisa menghapus saat ini: pascaproses sedang berjalan. Coba lagi beberapa saat lagi.",
+        "downloadFailed": "Gagal mengunduh: {{error}}",
+        "deleteFailed": "Gagal menghapus model: {{error}}",
+        "providerLabel": "Lokal (di perangkat)"
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "Cara memperbaiki",
     "recorderBlocked": "Pintasan tidak dapat direkam saat ini - macOS Secure Input memblokir peristiwa tombol. Selesaikan peringatan Secure Input terlebih dahulu.",
     "dismiss": "Tutup"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Pascaproses dilewati untuk melindungi memori sistem. {{detail}}",
+      "downloadMissing": "Pascaproses dilewati: model lokal belum diunduh. Buka Pengaturan untuk mengunduhnya.",
+      "engineFailed": "Pascaproses dilewati: model lokal tidak dapat memproses transkripsi ini. Transkripsi asli yang digunakan.",
+      "timeout": "Pascaproses dilewati: model lokal memakan waktu terlalu lama. Transkripsi asli yang digunakan.",
+      "lengthGuard": "Pascaproses dilewati: keluaran model lokal tidak lulus pemeriksaan panjang. Transkripsi asli yang digunakan.",
+      "tooLong": "Pascaproses dilewati: transkripsi ini terlalu panjang untuk model lokal. Transkripsi asli yang digunakan."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar tidak dapat memasang pembaruan dari lokasi ini",

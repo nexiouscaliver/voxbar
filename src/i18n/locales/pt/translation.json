@@ -658,6 +658,22 @@
           "refreshModels": "Atualizar modelos"
         }
       },
+      "local": {
+        "label": "Modelo local",
+        "modelStatus": {
+          "notDownloaded": "Não baixado",
+          "downloading": "Baixando ({{progress}}%)",
+          "ready": "Pronto",
+          "checking": "Verificando estado..."
+        },
+        "modelSizeMb": "Tamanho: {{size}} MB",
+        "download": "Baixar",
+        "delete": "Excluir",
+        "deleteInUse": "Não é possível excluir agora: uma execução de pós-processamento está em andamento. Tente novamente em instantes.",
+        "downloadFailed": "Falha no download: {{error}}",
+        "deleteFailed": "Não foi possível excluir o modelo: {{error}}",
+        "providerLabel": "Local (no dispositivo)"
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "Como resolver isso",
     "recorderBlocked": "Não é possível gravar atalhos agora - o Secure Input do macOS está bloqueando os eventos de tecla. Resolva primeiro o aviso do Secure Input.",
     "dismiss": "Dispensar"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Pós-processamento ignorado para proteger a memória do sistema. {{detail}}",
+      "downloadMissing": "Pós-processamento ignorado: o modelo local ainda não foi baixado. Abra as Configurações para baixá-lo.",
+      "engineFailed": "Pós-processamento ignorado: o modelo local não conseguiu processar esta transcrição. A transcrição original foi usada.",
+      "timeout": "Pós-processamento ignorado: o modelo local demorou demais. A transcrição original foi usada.",
+      "lengthGuard": "Pós-processamento ignorado: a saída do modelo local não passou na verificação de tamanho. A transcrição original foi usada.",
+      "tooLong": "Pós-processamento ignorado: esta transcrição é longa demais para o modelo local. A transcrição original foi usada."
+    }
   },
   "app": {
     "translocatedTitle": "O VoxBar não pode instalar atualizações deste local",

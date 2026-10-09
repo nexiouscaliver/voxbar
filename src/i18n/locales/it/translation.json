@@ -658,6 +658,22 @@
           "refreshModels": "Aggiorna modelli"
         }
       },
+      "local": {
+        "label": "Modello locale",
+        "modelStatus": {
+          "notDownloaded": "Non scaricato",
+          "downloading": "Download in corso ({{progress}}%)",
+          "ready": "Pronto",
+          "checking": "Verifica dello stato in corso..."
+        },
+        "modelSizeMb": "Dimensione: {{size}} MB",
+        "download": "Scarica",
+        "delete": "Elimina",
+        "deleteInUse": "Impossibile eliminare in questo momento: una post-elaborazione è in corso. Riprova tra poco.",
+        "downloadFailed": "Download non riuscito: {{error}}",
+        "deleteFailed": "Impossibile eliminare il modello: {{error}}",
+        "providerLabel": "Locale (sul dispositivo)"
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "Come risolvere",
     "recorderBlocked": "Non è possibile registrare scorciatoie in questo momento: Secure Input di macOS sta bloccando gli eventi dei tasti. Risolvi prima l'avviso di Secure Input.",
     "dismiss": "Ignora"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Post-elaborazione saltata per proteggere la memoria di sistema. {{detail}}",
+      "downloadMissing": "Post-elaborazione saltata: il modello locale non è ancora stato scaricato. Apri le Impostazioni per scaricarlo.",
+      "engineFailed": "Post-elaborazione saltata: il modello locale non ha potuto elaborare questa trascrizione. È stata usata la trascrizione originale.",
+      "timeout": "Post-elaborazione saltata: il modello locale ha impiegato troppo tempo. È stata usata la trascrizione originale.",
+      "lengthGuard": "Post-elaborazione saltata: l'output del modello locale non ha superato il controllo di lunghezza. È stata usata la trascrizione originale.",
+      "tooLong": "Post-elaborazione saltata: questa trascrizione è troppo lunga per il modello locale. È stata usata la trascrizione originale."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar non può installare aggiornamenti da questa posizione",

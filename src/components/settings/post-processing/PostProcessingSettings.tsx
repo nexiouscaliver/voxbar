@@ -19,6 +19,7 @@ import { BaseUrlField } from "../PostProcessingSettingsApi/BaseUrlField";
 import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
 import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
+import { LocalLlmModelRow } from "./LocalLlmModelRow";
 import { ShortcutInput } from "../ShortcutInput";
 import { useSettings } from "../../../hooks/useSettings";
 
@@ -44,7 +45,12 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         </div>
       </SettingContainer>
 
-      {state.isAppleProvider ? (
+      {state.isLocalProvider ? (
+        // The local on-device engine: no API fields, no model dropdown,
+        // just the pinned model row (spec 7.2). Everything else about the
+        // panel is unchanged.
+        <LocalLlmModelRow />
+      ) : state.isAppleProvider ? (
         state.appleIntelligenceUnavailable ? (
           <Alert variant="error" contained>
             {t("settings.postProcessing.api.appleIntelligence.unavailable")}
@@ -96,7 +102,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         </>
       )}
 
-      {!state.isAppleProvider && (
+      {!state.isAppleProvider && !state.isLocalProvider && (
         <SettingContainer
           title={t("settings.postProcessing.api.model.title")}
           description={

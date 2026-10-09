@@ -658,6 +658,22 @@
           "refreshModels": "Actualizar modelos"
         }
       },
+      "local": {
+        "label": "Modelo local",
+        "modelStatus": {
+          "notDownloaded": "No descargado",
+          "downloading": "Descargando ({{progress}}%)",
+          "ready": "Listo",
+          "checking": "Comprobando estado..."
+        },
+        "modelSizeMb": "Tamaño: {{size}} MB",
+        "download": "Descargar",
+        "delete": "Eliminar",
+        "deleteInUse": "No se puede eliminar ahora mismo: hay un post proceso en ejecución. Inténtalo de nuevo en un momento.",
+        "downloadFailed": "Error al descargar: {{error}}",
+        "deleteFailed": "No se pudo eliminar el modelo: {{error}}",
+        "providerLabel": "Local (en el dispositivo)"
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "Cómo solucionarlo",
     "recorderBlocked": "Ahora mismo no se pueden grabar atajos: Secure Input de macOS está bloqueando los eventos de teclado. Resuelve primero el aviso de Secure Input.",
     "dismiss": "Descartar"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Post proceso omitido para proteger la memoria del sistema. {{detail}}",
+      "downloadMissing": "Post proceso omitido: el modelo local aún no está descargado. Abre la Configuración para descargarlo.",
+      "engineFailed": "Post proceso omitido: el modelo local no pudo procesar esta transcripción. Se usó la transcripción original.",
+      "timeout": "Post proceso omitido: el modelo local tardó demasiado. Se usó la transcripción original.",
+      "lengthGuard": "Post proceso omitido: la salida del modelo local no pasó la comprobación de longitud. Se usó la transcripción original.",
+      "tooLong": "Post proceso omitido: esta transcripción es demasiado larga para el modelo local. Se usó la transcripción original."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar no puede instalar actualizaciones desde esta ubicación",

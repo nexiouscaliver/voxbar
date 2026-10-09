@@ -83,6 +83,14 @@ transcribe-rs = { version = "0.3.8", features = ["onnx"] }
 transcribe-cpp = { version = "0.3.1", default-features = false, features = [
   "serde",
 ] }
+# Local post-process LLM (llama.cpp bindings). Pinned EXACT version: the
+# post-process worker's chat-template and grammar API surface (see
+# local_llm/worker.rs) was verified against this release, and llama.cpp
+# behavior changes between minor releases. Runs in a child worker process
+# (--llm-worker) exactly like transcribe-cpp, so its native build posture
+# (cmake + bindgen/libclang) matches what already builds here. Default
+# features: the `common` feature provides json_schema_to_grammar.
+llama-cpp-2 = "=0.1.159"
 # Vendored fork of upstream 0.3.4 (the newest release): adds the macOS
 # device-dependent right-modifier keycodes (0x6A/0x6B/0x7C), filters
 # host-synthesized events via the enigo EventSourceUserData marker, and an
@@ -210,6 +218,9 @@ tao-macros = { git = "https://github.com/cjpais/tao", rev = "c3bee28c1d446d95f08
 
 [dev-dependencies]
 tempfile = "3"
+# Enables tauri::test (MockRuntime mock apps) for the managed-state
+# regression tests; the feature is test-build-only and adds no crates.
+tauri = { version = "2.11.5", features = ["test"] }
 # Test-only tokio features for the local socket servers exercising the
 # resumable HTTP downloader; normal builds keep the leaner feature set.
 tokio = { version = "1.43.0", features = ["macros", "net", "io-util", "sync", "time", "rt-multi-thread"] }

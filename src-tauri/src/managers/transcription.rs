@@ -78,6 +78,20 @@ fn fallback_rank(info: &ModelInfo) -> u32 {
     }
 }
 
+/// Pure routing guard for the ASR load path: the local post-process LLM is
+/// loaded only by the post-process engine's worker process, so an ASR load
+/// of it is refused with this error (never routed into transcribe-cpp or
+/// an ONNX runtime). `None` for every real ASR engine type.
+fn asr_load_refusal(engine_type: &EngineType, model_id: &str) -> Option<String> {
+    match engine_type {
+        EngineType::LocalLlm => Some(format!(
+            "Model '{}' is loaded by the post-process engine, not an ASR engine",
+            model_id
+        )),
+        _ => None,
+    }
+}
+
 /// The pure half of the fallback inventory: map every downloaded model
 /// except `failed_id` to its resolver candidate. Split from the method so the
 /// inventory contract (custom and user-added Hugging Face models included,
@@ -99,7 +113,13 @@ fn fallback_candidate_list(
     models
         .iter()
         .filter(|info| {
-            info.is_downloaded
+            // The local post-process LLM is never offered as an ASR RAM
+            // fallback: it is not a transcription model, and loading it as
+            // one would route a chat LLM into ASR decoding. Defense in
+            // depth on top of the get_available_models filter, which
+            // already removes it from this list's only feed.
+            !matches!(info.engine_type, EngineType::LocalLlm)
+                && info.is_downloaded
                 && info.id != failed_id
                 && (!language_gated
                     || info
@@ -1552,6 +1572,15 @@ impl TranscriptionManager {
             return Err(anyhow::anyhow!(error_msg));
         }
 
+        // The local post-process LLM is not an ASR engine: it is loaded
+        // only inside the post-process swap's dedicated worker process.
+        // Refuse here so no ASR path (selection, fallback, retry) can ever
+        // route this GGUF into transcribe-cpp or an ONNX runtime.
+        if let Some(error_msg) = asr_load_refusal(&model_info.engine_type, model_id) {
+            emit_loading_failed(&error_msg);
+            return Err(anyhow::anyhow!(error_msg));
+        }
+
         // Memory-pressure gate (spec F3): refuse loads whose forecast
         // footprint cannot fit, BEFORE the current engine is dropped below -
         // a refusal leaves the resident model loaded and transcribing. The
@@ -1701,6 +1730,14 @@ impl TranscriptionManager {
         // Create appropriate engine based on model type
 
         let loaded_onnx = match model_info.engine_type {
+            // Unreachable in practice: the asr_load_refusal guard above
+            // rejects the post-process LLM before the dispatch. The arm
+            // keeps this match exhaustive against future reorderings.
+            EngineType::LocalLlm => {
+                let error_msg = asr_load_refusal(&model_info.engine_type, model_id)
+                    .unwrap_or_else(|| "post-process engine model".to_string());
+                return Err(anyhow::anyhow!(error_msg));
+            }
             EngineType::TranscribeCpp => {
                 // The backend is chosen at load time. With an explicit
                 // `device_index` (the --device-index flag) hard-select that
@@ -1928,6 +1965,16 @@ impl TranscriptionManager {
             // initiate_model_load's explicit tail. If this thread panics,
             // the unwind drops the guard the same way.
             let _slot = guard;
+            // Consume the reload flag exactly like initiate_model_load:
+            // this load IS the "next use" the flag was waiting for, so it
+            // must be cleared here; leaving it set would make the next
+            // hotkey press perform one redundant model reload.
+            let reload_pending = self_clone
+                .reload_model_on_next_use
+                .swap(false, Ordering::AcqRel);
+            if reload_pending {
+                debug!("post-process restore consumed a pending model reload");
+            }
             let settings = get_settings(&self_clone.app_handle);
             if let Err(e) = self_clone.load_model(&settings.selected_model) {
                 error!("Failed to restore model after post-process swap: {}", e);
@@ -5542,6 +5589,136 @@ mod tests {
             700u64 * 1024 * 1024,
             "footprint must stay the size-derived estimate the gate compares"
         );
+    }
+
+    /// T21: the local post-process LLM is refused by the ASR load path with
+    /// a clear error naming the post-process engine; every real ASR engine
+    /// type passes the guard untouched.
+    #[test]
+    fn local_llm_engine_is_refused_by_the_asr_load_path() {
+        let mut llm = model_info_for(crate::local_llm::LOCAL_LLM_MODEL_ID, 610, true);
+        llm.engine_type = crate::managers::model::EngineType::LocalLlm;
+        let refusal = asr_load_refusal(&llm.engine_type, &llm.id).expect("must refuse");
+        assert!(
+            refusal.contains("post-process engine"),
+            "the error must name the real owner: got '{}'",
+            refusal
+        );
+        assert!(refusal.contains(llm.id.as_str()));
+
+        for engine in [
+            crate::managers::model::EngineType::TranscribeCpp,
+            crate::managers::model::EngineType::Parakeet,
+            crate::managers::model::EngineType::Moonshine,
+            crate::managers::model::EngineType::MoonshineStreaming,
+            crate::managers::model::EngineType::SenseVoice,
+            crate::managers::model::EngineType::GigaAM,
+            crate::managers::model::EngineType::Canary,
+            crate::managers::model::EngineType::Cohere,
+        ] {
+            assert!(
+                asr_load_refusal(&engine, "any").is_none(),
+                "ASR engines must load as before"
+            );
+        }
+    }
+
+    /// T17: the no-false-gap handoff mechanics. A waiter parked on the
+    /// is_loading condvar (the transcribe_audio pattern: wait while
+    /// is_loading, then error if no model is resident) must stay asleep
+    /// through the guard TRANSFER into the restore loader thread and wake
+    /// only after the restore "load" finishes, never observing
+    /// is_loading == false in between. The mechanics under test are the
+    /// LoadingGuard move restore_model_under_guard performs; the load body
+    /// itself is stubbed (the spec allows the extracted-helper form: the
+    /// observable is the waiter never erroring).
+    #[test]
+    fn loading_guard_transfer_never_wakes_waiters_early() {
+        use std::sync::mpsc;
+
+        let is_loading = Arc::new(Mutex::new(false));
+        let condvar = Arc::new(Condvar::new());
+
+        // The runner acquires the slot: is_loading goes true and a real
+        // guard exists (exactly what try_start_loading produced).
+        *is_loading.lock().unwrap() = true;
+        let guard = LoadingGuard::new(Arc::clone(&is_loading), Arc::clone(&condvar));
+
+        // A transcribe_audio-shaped waiter parks on the condvar while
+        // is_loading is true, recording every value it observes on wake.
+        let waiter_seen = Arc::new(Mutex::new(Vec::<bool>::new()));
+        let (waiter_done_tx, waiter_done_rx) = mpsc::channel();
+        {
+            let is_loading = Arc::clone(&is_loading);
+            let condvar = Arc::clone(&condvar);
+            let waiter_seen = Arc::clone(&waiter_seen);
+            std::thread::spawn(move || {
+                let mut flag = is_loading.lock().unwrap();
+                while *flag {
+                    flag = condvar.wait(flag).unwrap();
+                }
+                // Woke with is_loading == false: the load is over (the
+                // real waiter would check the model here).
+                waiter_seen.lock().unwrap().push(*flag);
+                let _ = waiter_done_tx.send(());
+            });
+        }
+
+        // Give the waiter a moment to park, then perform the handoff: the
+        // guard MOVES into the "restore loader" thread, whose body runs
+        // while the flag stays true, and whose end drops the guard (clear
+        // + notify, exactly like initiate_model_load's tail).
+        std::thread::sleep(Duration::from_millis(50));
+        let load_ran = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let load_ran_thread = Arc::clone(&load_ran);
+        std::thread::spawn(move || {
+            let _slot = guard;
+            load_ran_thread.store(true, Ordering::Release);
+            // The "load" takes a moment; the flag must stay true the whole
+            // time (no release-then-rekick gap).
+            std::thread::sleep(Duration::from_millis(150));
+            // _slot drops here: flag clears, waiter wakes.
+        });
+
+        // While the restore load runs, the flag is continuously true and
+        // the waiter has not returned.
+        std::thread::sleep(Duration::from_millis(75));
+        assert!(
+            *is_loading.lock().unwrap(),
+            "is_loading must stay true through the handoff (no false gap)"
+        );
+        assert!(load_ran.load(Ordering::Acquire));
+        assert!(
+            waiter_done_rx.recv_timeout(Duration::from_secs(2)).is_ok(),
+            "the waiter must wake after the restore load finishes"
+        );
+        // The waiter observed exactly the final false, never a false mid-gap.
+        assert_eq!(*waiter_seen.lock().unwrap(), vec![false]);
+        assert!(!*is_loading.lock().unwrap());
+    }
+
+    /// T22: the local post-process LLM is excluded from the ASR RAM
+    /// fallback inventory even when it is downloaded and the only other
+    /// candidate: a chat LLM must never be selected to transcribe audio.
+    #[test]
+    fn local_llm_engine_is_excluded_from_fallback_candidates() {
+        let mut llm = model_info_for(crate::local_llm::LOCAL_LLM_MODEL_ID, 610, true);
+        llm.engine_type = crate::managers::model::EngineType::LocalLlm;
+        let asr = model_info_for("small-asr", 465, true);
+        let failed = model_info_for("selected", 100, true);
+
+        let candidates = fallback_candidate_list(
+            &[llm.clone(), asr.clone(), failed.clone()],
+            "selected",
+            "auto",
+        );
+        let ids: Vec<&str> = candidates.iter().map(|c| c.id.as_str()).collect();
+        assert_eq!(ids, vec!["small-asr"]);
+
+        // Even when the LLM is the ONLY downloaded model, the list is empty
+        // (the gate then refuses), never a chat model.
+        let only_llm = fallback_candidate_list(&[llm, failed], "selected", "auto");
+        assert!(only_llm.is_empty());
     }
 
     #[test]

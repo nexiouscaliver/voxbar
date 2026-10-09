@@ -658,6 +658,22 @@
           "refreshModels": "Obnovit modely"
         }
       },
+      "local": {
+        "label": "Místní model",
+        "modelStatus": {
+          "notDownloaded": "Nestaženo",
+          "downloading": "Stahování ({{progress}}%)",
+          "ready": "Připraveno",
+          "checking": "Kontrola stavu..."
+        },
+        "modelSizeMb": "Velikost: {{size}} MB",
+        "download": "Stáhnout",
+        "delete": "Smazat",
+        "deleteInUse": "Nyní nelze smazat: právě běží následné zpracování. Zkuste to za chvíli znovu.",
+        "downloadFailed": "Stažení se nezdařilo: {{error}}",
+        "deleteFailed": "Model se nepodařilo odstranit: {{error}}",
+        "providerLabel": "Místní (na zařízení)"
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "Jak to vyřešit",
     "recorderBlocked": "Zkratky teď nelze nahrát - Secure Input v macOS blokuje události kláves. Nejprve vyřešte upozornění na Secure Input.",
     "dismiss": "Zavřít"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Následné zpracování bylo přeskočeno, aby se chránila paměť systému. {{detail}}",
+      "downloadMissing": "Následné zpracování bylo přeskočeno: místní model ještě není stažen. Otevřete Nastavení a stáhněte si ho.",
+      "engineFailed": "Následné zpracování bylo přeskočeno: místní model nemohl zpracovat tento přepis. Byl použit původní přepis.",
+      "timeout": "Následné zpracování bylo přeskočeno: místnímu modelu to trvalo příliš dlouho. Byl použit původní přepis.",
+      "lengthGuard": "Následné zpracování bylo přeskočeno: výstup místního modelu neprošel kontrolou délky. Byl použit původní přepis.",
+      "tooLong": "Následné zpracování bylo přeskočeno: tento přepis je pro místní model příliš dlouhý. Byl použit původní přepis."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar nemůže z tohoto umístění instalovat aktualizace",

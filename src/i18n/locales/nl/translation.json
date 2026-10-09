@@ -658,6 +658,22 @@
           "refreshModels": "Modellen verversen"
         }
       },
+      "local": {
+        "label": "Lokaal model",
+        "modelStatus": {
+          "notDownloaded": "Niet gedownload",
+          "downloading": "Downloaden ({{progress}}%)",
+          "ready": "Gereed",
+          "checking": "Status controleren..."
+        },
+        "modelSizeMb": "Grootte: {{size}} MB",
+        "download": "Downloaden",
+        "delete": "Verwijderen",
+        "deleteInUse": "Kan nu niet verwijderen: er wordt een naverwerking uitgevoerd. Probeer het zo opnieuw.",
+        "downloadFailed": "Downloaden mislukt: {{error}}",
+        "deleteFailed": "Kon het model niet verwijderen: {{error}}",
+        "providerLabel": "Lokaal (op het apparaat)"
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "Hoe je dit oplost",
     "recorderBlocked": "Sneltoetsen kunnen nu niet worden opgenomen - Secure Input van macOS blokkeert toetsgebeurtenissen. Los eerst de Secure Input-waarschuwing op.",
     "dismiss": "Sluiten"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Naverwerking overgeslagen om het systeemgeheugen te beschermen. {{detail}}",
+      "downloadMissing": "Naverwerking overgeslagen: het lokale model is nog niet gedownload. Open de Instellingen om het te downloaden.",
+      "engineFailed": "Naverwerking overgeslagen: het lokale model kon deze transcriptie niet verwerken. De originele transcriptie is gebruikt.",
+      "timeout": "Naverwerking overgeslagen: het lokale model duurde te lang. De originele transcriptie is gebruikt.",
+      "lengthGuard": "Naverwerking overgeslagen: de uitvoer van het lokale model slaagde niet voor de lengtecontrole. De originele transcriptie is gebruikt.",
+      "tooLong": "Naverwerking overgeslagen: deze transcriptie is te lang voor het lokale model. De originele transcriptie is gebruikt."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar kan vanaf deze locatie geen updates installeren",

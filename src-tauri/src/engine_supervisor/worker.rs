@@ -401,7 +401,7 @@ impl Log for StderrLogger {
     }
 }
 
-fn init_logger() {
+pub(crate) fn init_logger() {
     static LOGGER: StderrLogger = StderrLogger;
     let level = std::env::var(LOG_LEVEL_ENV)
         .ok()
@@ -416,7 +416,7 @@ fn init_logger() {
 /// Aimed at Handy by name, e.g. the README's `pkill -USR2 -n handy`, one
 /// can reach this worker instead, and its default action would kill it.
 #[cfg(unix)]
-fn ignore_app_signals() {
+pub(crate) fn ignore_app_signals() {
     // SAFETY: setting a signal's disposition to SIG_IGN has no preconditions.
     unsafe {
         libc::signal(libc::SIGUSR1, libc::SIG_IGN);
@@ -428,7 +428,7 @@ fn ignore_app_signals() {
 /// as Handy's, but not `handy`: `pkill`/`killall` match names case-sensitively,
 /// so `pkill -USR2 -n handy` keeps reaching the app, never this newer process.
 #[cfg(target_os = "linux")]
-fn set_process_name() {
+pub(crate) fn set_process_name() {
     // SAFETY: PR_SET_NAME copies a NUL-terminated name of up to 16 bytes.
     unsafe {
         libc::prctl(libc::PR_SET_NAME, c"Handy-worker".as_ptr());
@@ -436,7 +436,7 @@ fn set_process_name() {
 }
 
 #[cfg(unix)]
-fn take_stdout_for_protocol() -> io::Result<File> {
+pub(crate) fn take_stdout_for_protocol() -> io::Result<File> {
     use std::os::fd::FromRawFd;
     // SAFETY: plain fd duplication; the new fd is owned by the returned File.
     unsafe {
@@ -452,7 +452,7 @@ fn take_stdout_for_protocol() -> io::Result<File> {
 }
 
 #[cfg(windows)]
-fn take_stdout_for_protocol() -> io::Result<File> {
+pub(crate) fn take_stdout_for_protocol() -> io::Result<File> {
     use std::os::windows::io::FromRawHandle;
     // Native code writes through the CRT's fd 1, so redirect that one. The
     // protocol uses the OS handle behind a CRT duplicate of the original.

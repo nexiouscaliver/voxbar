@@ -658,6 +658,22 @@
           "refreshModels": "Actualiser les modèles"
         }
       },
+      "local": {
+        "label": "Modèle local",
+        "modelStatus": {
+          "notDownloaded": "Non téléchargé",
+          "downloading": "Téléchargement en cours ({{progress}}%)",
+          "ready": "Prêt",
+          "checking": "Vérification de l'état..."
+        },
+        "modelSizeMb": "Taille : {{size}} MB",
+        "download": "Télécharger",
+        "delete": "Supprimer",
+        "deleteInUse": "Suppression impossible pour le moment : un post-traitement est en cours. Réessayez dans un instant.",
+        "downloadFailed": "Échec du téléchargement : {{error}}",
+        "deleteFailed": "Impossible de supprimer le modèle : {{error}}",
+        "providerLabel": "Local (sur l'appareil)"
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "Comment résoudre ce problème",
     "recorderBlocked": "Impossible d'enregistrer un raccourci pour le moment : Secure Input de macOS bloque les événements clavier. Résolvez d'abord l'avertissement Secure Input.",
     "dismiss": "Ignorer"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Post-traitement ignoré pour protéger la mémoire du système. {{detail}}",
+      "downloadMissing": "Post-traitement ignoré : le modèle local n'est pas encore téléchargé. Ouvrez les Paramètres pour le télécharger.",
+      "engineFailed": "Post-traitement ignoré : le modèle local n'a pas pu traiter cette transcription. La transcription brute a été utilisée.",
+      "timeout": "Post-traitement ignoré : le modèle local a pris trop de temps. La transcription brute a été utilisée.",
+      "lengthGuard": "Post-traitement ignoré : la sortie du modèle local n'a pas passé la vérification de longueur. La transcription brute a été utilisée.",
+      "tooLong": "Post-traitement ignoré : cette transcription est trop longue pour le modèle local. La transcription brute a été utilisée."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar ne peut pas installer de mises à jour depuis cet emplacement",

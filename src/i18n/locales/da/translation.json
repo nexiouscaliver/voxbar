@@ -658,6 +658,22 @@
           "refreshModels": "Opdater modeller"
         }
       },
+      "local": {
+        "label": "Lokal model",
+        "modelStatus": {
+          "notDownloaded": "Ikke hentet",
+          "downloading": "Downloader ({{progress}}%)",
+          "ready": "Klar",
+          "checking": "Tjekker status..."
+        },
+        "modelSizeMb": "Størrelse: {{size}} MB",
+        "download": "Hent",
+        "delete": "Slet",
+        "deleteInUse": "Kan ikke slette lige nu: en efterbehandling kører. Prøv igen om et øjeblik.",
+        "downloadFailed": "Kunne ikke downloade: {{error}}",
+        "deleteFailed": "Kunne ikke slette modellen: {{error}}",
+        "providerLabel": "Lokalt (på enheden)"
+      },
       "prompts": {
         "title": "Prompt",
         "selectedPrompt": {
@@ -1001,6 +1017,16 @@
     "learnMore": "Sådan løser du det",
     "recorderBlocked": "Genveje kan ikke optages lige nu - macOS Secure Input blokerer tastehændelser. Løs advarslen om Secure Input først.",
     "dismiss": "Afvis"
+  },
+  "toast": {
+    "postProcessSkip": {
+      "memoryGate": "Efterbehandling sprunget over for at beskytte systemhukommelsen. {{detail}}",
+      "downloadMissing": "Efterbehandling sprunget over: den lokale model er ikke hentet endnu. Åbn Indstillinger for at hente den.",
+      "engineFailed": "Efterbehandling sprunget over: den lokale model kunne ikke behandle denne transskription. Den originale transskription blev brugt.",
+      "timeout": "Efterbehandling sprunget over: den lokale model brugte for lang tid. Den originale transskription blev brugt.",
+      "lengthGuard": "Efterbehandling sprunget over: den lokale models output bestod ikke længdekontrollen. Den originale transskription blev brugt.",
+      "tooLong": "Efterbehandling sprunget over: denne transskription er for lang til den lokale model. Den originale transskription blev brugt."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar kan ikke installere opdateringer fra denne placering",

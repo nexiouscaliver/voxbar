@@ -15,6 +15,7 @@ mod hindi_script;
 mod input;
 mod legacy_migration;
 mod llm_client;
+pub mod local_llm;
 mod managers;
 mod memory;
 mod number_format;
@@ -188,6 +189,19 @@ fn should_force_show_permissions_window(app: &AppHandle) -> bool {
     false
 }
 
+/// Tauri keys managed state by the exact resolved type. Every consumer of
+/// the swap manager (the dictation stop path in actions.rs and the
+/// delete_model/delete_local_llm_model commands) resolves
+/// `Arc<LlmManager>`, so the managed value MUST be the Arc wrapper: a
+/// bare `LlmManager` registration compiles fine, then panics at
+/// `app.state::<Arc<LlmManager>>()` ("state not found for type") and
+/// errors on the delete commands ("state not managed") at runtime. The
+/// managed_state_tests::local_llm_manager_is_managed_as_arc regression
+/// test pins this contract through this same helper.
+fn manage_local_llm<R: tauri::Runtime>(app_handle: &tauri::AppHandle<R>) {
+    app_handle.manage(Arc::new(local_llm::manager::LlmManager::new()));
+}
+
 fn initialize_core_logic(app_handle: &AppHandle) {
     // Note: Enigo (keyboard/mouse simulation) is NOT initialized here.
     // The frontend is responsible for calling the `initialize_enigo` command
@@ -218,6 +232,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(model_manager.clone());
     app_handle.manage(transcription_manager.clone());
     app_handle.manage(history_manager.clone());
+    manage_local_llm(app_handle);
     app_handle.manage(tray::TrayState::new());
     app_handle.manage(tray::TrayRamRefresh::new());
 
@@ -459,6 +474,33 @@ mod headless_guard_tests {
     #[test]
     fn converts_worker_panics_to_runtime_failures() {
         assert_eq!(run_headless_guarded(|| panic!("simulated failure")), 1);
+    }
+}
+
+#[cfg(test)]
+mod managed_state_tests {
+    use super::manage_local_llm;
+    use std::sync::Arc;
+    use tauri::Manager;
+
+    /// Regression test for the bare-type registration bug: the app used to
+    /// manage `LlmManager` directly while every consumer (the local
+    /// post-process swap path in actions.rs and the delete_model /
+    /// delete_local_llm_model commands) resolves `Arc<LlmManager>`, which
+    /// panics or errors at every resolve at runtime. Runs the same
+    /// registration helper the real setup path uses, then resolves exactly
+    /// the type the consumers ask for.
+    #[test]
+    fn local_llm_manager_is_managed_as_arc() {
+        let app = tauri::test::mock_app();
+        manage_local_llm(app.handle());
+
+        let state: tauri::State<'_, Arc<crate::local_llm::manager::LlmManager>> = app.state();
+        // The resolved state must be the live manager, not a stub.
+        assert!(
+            !state.swap_in_progress(),
+            "a fresh manager must report no swap in progress"
+        );
     }
 }
 
@@ -800,6 +842,9 @@ pub fn run(cli_args: CliArgs) {
             commands::models::rescan_local_models,
             commands::models::resolve_hf_model,
             commands::models::add_hf_model,
+            commands::local_llm::get_local_llm_model_status,
+            commands::local_llm::download_local_llm_model,
+            commands::local_llm::delete_local_llm_model,
             commands::audio::update_microphone_mode,
             commands::audio::get_microphone_mode,
             commands::audio::get_windows_microphone_permission_status,
@@ -834,6 +879,7 @@ pub fn run(cli_args: CliArgs) {
             managers::history::HistoryUpdatePayload,
             managers::transcription::StreamTextEvent,
             managers::transcription::StreamPhaseEvent,
+            local_llm::manager::PostProcessSkipEvent,
         ]);
 
     #[cfg(debug_assertions)] // <- Only export on non-release builds
