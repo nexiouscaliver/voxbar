@@ -938,6 +938,49 @@ async addHfModel(repoId: string, filename: string, revision: string | null) : Pr
     else return { status: "error", error: e  as any };
 }
 },
+async getLocalLlmModelStatus() : Promise<Result<LocalLlmModelStatus, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_local_llm_model_status") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Download the pinned post-process model through the standard
+ * ModelManager pipeline (progress events included), then verify the
+ * sha256 ONCE against the pinned constant (spec 6.1, reviewer finding
+ * R12): a mismatch deletes the file and errors so the entry reads
+ * not-downloaded again (delete + re-download repairs any corruption).
+ */
+async downloadLocalLlmModel() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_local_llm_model") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Delete the local post-process model. Refuses with a transient error
+ * while a post-process swap is running (L3): the swap may be about to
+ * restore a voice model file this delete would remove.
+ * 
+ * DEVIATION 2 (flagged in the plan): unlike the voice-model delete path,
+ * there is no unload-with-wait here. The LLM worker exists only inside a
+ * swap, and the lease check above has already excluded swaps; outside a
+ * swap there is never a resident LLM engine to unload. The comment
+ * documents this instead of adding an unload call that can never find a
+ * worker.
+ */
+async deleteLocalLlmModel() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("delete_local_llm_model") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async updateMicrophoneMode(alwaysOn: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_microphone_mode", { alwaysOn }) };
@@ -1170,10 +1213,12 @@ async isLaptop() : Promise<Result<boolean, string>> {
 
 export const events = __makeEvents__<{
 historyUpdatePayload: HistoryUpdatePayload,
+postProcessSkipEvent: PostProcessSkipEvent,
 streamPhaseEvent: StreamPhaseEvent,
 streamTextEvent: StreamTextEvent
 }>({
 historyUpdatePayload: "history-update-payload",
+postProcessSkipEvent: "post-process-skip-event",
 streamPhaseEvent: "stream-phase-event",
 streamTextEvent: "stream-text-event"
 })
@@ -1265,7 +1310,15 @@ menu_bar_model_title?: boolean; word_correction_threshold?: number; history_limi
 /**
  * Show the compact per-entry model badge in the History list.
  */
-show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; theme?: Theme; accent_color?: string; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; paste_delay_after_ms?: number; 
+show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; 
+/**
+ * One-time marker for the local-default post-process migration (spec
+ * 5.2): absent on legacy stores (the migration fires once), true on
+ * every store the migration or a fresh install has written. The only
+ * new field this feature adds; the schema-version ladder is
+ * deliberately NOT used.
+ */
+post_process_local_default_migrated?: boolean; mute_while_recording?: boolean; append_trailing_space?: boolean; app_language?: string; theme?: Theme; accent_color?: string; experimental_enabled?: boolean; lazy_stream_close?: boolean; keyboard_implementation?: KeyboardImplementation; show_tray_icon?: boolean; paste_delay_ms?: number; paste_delay_after_ms?: number; 
 /**
  * Debug-gated ("beta") receipt-sequenced paste: restore the clipboard only
  * after the target app actually reads the transcript, instead of after a
@@ -1401,7 +1454,15 @@ export type EngineType =
  * Voxtral, Qwen3-ASR, Nemotron, …). The architecture is auto-detected from
  * the file, so this one variant covers the whole transcribe-cpp family.
  */
-"TranscribeCpp" | "Parakeet" | "Moonshine" | "MoonshineStreaming" | "SenseVoice" | "GigaAM" | "Canary" | "Cohere"
+"TranscribeCpp" | "Parakeet" | "Moonshine" | "MoonshineStreaming" | "SenseVoice" | "GigaAM" | "Canary" | "Cohere" | 
+/**
+ * The local post-process LLM (Qwen3-0.6B GGUF). Loaded only by the
+ * local post-process engine's worker process, never an ASR engine:
+ * every ASR path (load dispatch, fallback list, model pickers) refuses
+ * or filters it. Registered in the ModelManager so the download,
+ * delete, and status lifecycle is shared with voice models.
+ */
+"LocalLlm"
 export type GpuDeviceOption = { id: string; name: string; total_vram_mb: number }
 /**
  * Structured failure kinds for the add-from-Hugging-Face flow, so the
@@ -1483,6 +1544,15 @@ export type KeyboardDiagnosticReport = { secure_input_enabled: boolean; culprit_
 key_down: number; key_up: number; flags_changed: number; mouse: number; duration_ms: number }
 export type KeyboardImplementation = "tauri" | "handy_keys"
 export type LLMPrompt = { id: string; name: string; prompt: string }
+/**
+ * Status snapshot for the settings row (spec 6.2).
+ */
+export type LocalLlmModelStatus = { downloaded: boolean; downloading: boolean; size_mb: number; 
+/**
+ * 0 to 100 while downloading (partial bytes over the total); 0 or 100
+ * otherwise.
+ */
+progress: number }
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type ModelInfo = { id: string; name: string; description: string; filename: string; source: ModelSource; size_mb: number; is_downloaded: boolean; is_downloading: boolean; partial_size: number; is_directory: boolean; engine_type: EngineType; accuracy_score: number; speed_score: number; supports_translation: boolean; is_recommended: boolean; supported_languages: string[]; supports_language_selection: boolean; is_custom: boolean; supports_streaming: boolean; supports_language_detection: boolean }
 export type ModelLoadStatus = { is_loaded: boolean; current_model: string | null }
@@ -1541,6 +1611,13 @@ export type PaginatedHistory = { entries: HistoryEntry[]; has_more: boolean }
 export type PasteMethod = "ctrl_v" | "direct" | "none" | "shift_insert" | "ctrl_shift_v" | "external_script"
 export type PermissionAccess = "allowed" | "denied" | "unknown"
 export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean }
+/**
+ * Emitted when a local post-process pass fell back to the raw transcript
+ * (spec 7.3). The frontend toasts it at most once per reason per app
+ * session; the memory_gate variant carries the formatted refusal numbers
+ * in `detail`.
+ */
+export type PostProcessSkipEvent = { reason: SkipReason; detail?: string | null }
 export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "weeks_2" | "months_3"
 export type SecretMap = Partial<{ [key in string]: string }>
 export type SecureInputStatus = { 
@@ -1594,6 +1671,12 @@ export type ShortcutActivation =
  */
 "hold_or_toggle"
 export type ShortcutBinding = { id: string; name: string; description: string; default_binding: string; current_binding: string }
+/**
+ * Why a post-process pass fell back to the raw transcript. Carried on the
+ * skip event so the frontend toast can name the cause; `memory_gate`
+ * includes the formatted refusal numbers in the event detail.
+ */
+export type SkipReason = "memory_gate" | "download_missing" | "engine_failed" | "timeout" | "length_guard" | "too_long"
 export type SoundTheme = "marimba" | "pop" | "custom"
 /**
  * Phase of the streaming overlay card, emitted to drive its UI state.
