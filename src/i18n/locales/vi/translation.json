@@ -910,7 +910,8 @@
       "restartNow": "Khởi động lại ngay",
       "restartLater": "Để sau",
       "installedDescription": "VoxBar {{version}} đã được cài đặt và sẽ có hiệu lực lần tới VoxBar khởi động lại.",
-      "failedDescription": "Không thể tải bản cập nhật. Kiểm tra kết nối và thử lại, hoặc tải xuống từ GitHub Releases."
+      "failedDescription": "Không thể tải bản cập nhật. Kiểm tra kết nối và thử lại, hoặc tải xuống từ GitHub Releases.",
+      "translocatedDescription": "VoxBar không thể tự cập nhật khi chạy từ thư mục Downloads. Chuyển nó sang thư mục Ứng dụng (kéo trong Finder), mở từ đó, rồi kiểm tra bản cập nhật lại."
     }
   },
   "common": {
@@ -946,7 +947,8 @@
     "pasteFailed": "Không thể dán văn bản vào ứng dụng đang hoạt động.",
     "transcriptionFailedTitle": "Phiên âm thất bại",
     "noModelSelectedTitle": "Chưa chọn mô hình",
-    "noModelSelected": "Chọn mô hình chuyển ghi trong Cài đặt trước khi đọc chính tả."
+    "noModelSelected": "Chọn mô hình chuyển ghi trong Cài đặt trước khi đọc chính tả.",
+    "openDirectory": "Không thể mở thư mục: {{error}}"
   },
   "appLanguage": {
     "title": "Ngôn ngữ ứng dụng",
@@ -999,5 +1001,9 @@
     "learnMore": "Cách khắc phục",
     "recorderBlocked": "Hiện không thể ghi phím tắt - Secure Input của macOS đang chặn các sự kiện phím. Hãy xử lý cảnh báo Secure Input trước.",
     "dismiss": "Bỏ qua"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar không thể cài đặt bản cập nhật từ vị trí này",
+    "translocatedDescription": "VoxBar đang chạy từ một vị trí tạm thời chỉ đọc (App Translocation của macOS). Thoát VoxBar, kéo nó từ thư mục Downloads vào thư mục Ứng dụng, rồi mở từ đó."
   }
 }

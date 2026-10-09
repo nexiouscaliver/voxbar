@@ -910,7 +910,8 @@
       "restartNow": "Starta om nu",
       "restartLater": "Senare",
       "installedDescription": "VoxBar {{version}} har installerats och blir aktiv nästa gång VoxBar startas om.",
-      "failedDescription": "Uppdateringen kunde inte hämtas. Kontrollera din anslutning och försök igen, eller hämta den från GitHub Releases."
+      "failedDescription": "Uppdateringen kunde inte hämtas. Kontrollera din anslutning och försök igen, eller hämta den från GitHub Releases.",
+      "translocatedDescription": "VoxBar kan inte uppdatera sig själv medan den körs från Nedladdningsmappen. Flytta den till Programmappen (dra i Finder), öppna den därifrån och sök efter uppdateringar igen."
     }
   },
   "common": {
@@ -946,7 +947,8 @@
     "pasteFailed": "Texten kunde inte klistras in i det aktiva programmet.",
     "transcriptionFailedTitle": "Transkriptionen misslyckades",
     "noModelSelectedTitle": "Ingen modell vald",
-    "noModelSelected": "Välj en transkriberingsmodell i Inställningar innan du dikterar."
+    "noModelSelected": "Välj en transkriberingsmodell i Inställningar innan du dikterar.",
+    "openDirectory": "Mappen kunde inte öppnas: {{error}}"
   },
   "appLanguage": {
     "title": "Applikationsspråk",
@@ -999,5 +1001,9 @@
     "learnMore": "Så här löser du det",
     "recorderBlocked": "Det går inte att spela in kortkommandon just nu - macOS Secure Input blockerar tangenthändelser. Lös varningen om Secure Input först.",
     "dismiss": "Avfärda"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar kan inte installera uppdateringar från denna plats",
+    "translocatedDescription": "VoxBar körs från en tillfällig skrivskyddad plats (macOS App Translocation). Avsluta VoxBar, dra den från mappen Nedladdningar till Programmappen och öppna den därifrån."
   }
 }

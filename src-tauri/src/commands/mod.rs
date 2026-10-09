@@ -49,6 +49,15 @@ pub fn get_default_settings() -> Result<AppSettings, String> {
     Ok(crate::settings::get_default_settings())
 }
 
+/// Whether the app is running from macOS's read-only translocation mount.
+/// The frontend shows the move-to-Applications guidance when true; the
+/// updater flow also uses it to make install failures actionable.
+#[tauri::command]
+#[specta::specta]
+pub fn is_app_translocated() -> Result<bool, String> {
+    Ok(crate::portable::app_is_translocated())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn get_log_dir_path(app: AppHandle) -> Result<String, String> {
@@ -84,9 +93,12 @@ pub fn open_recordings_folder(app: AppHandle) -> Result<(), String> {
 
     let recordings_dir = app_data_dir.join("recordings");
 
-    let path = recordings_dir.to_string_lossy().as_ref().to_string();
+    // Reveal (Finder opens with the item selected), not open_path: the
+    // opener plugin's default permission set covers reveal-item-in-dir but
+    // NOT open-path, so open_path was silently ACL-denied and these buttons
+    // did nothing.
     app.opener()
-        .open_path(path, None::<String>)
+        .reveal_item_in_dir(&recordings_dir)
         .map_err(|e| format!("Failed to open recordings folder: {}", e))?;
 
     Ok(())
@@ -98,9 +110,9 @@ pub fn open_log_dir(app: AppHandle) -> Result<(), String> {
     let log_dir = crate::portable::app_log_dir(&app)
         .map_err(|e| format!("Failed to get log directory: {}", e))?;
 
-    let path = log_dir.to_string_lossy().as_ref().to_string();
+    // Reveal, not open_path: see open_recordings_folder.
     app.opener()
-        .open_path(path, None::<String>)
+        .reveal_item_in_dir(&log_dir)
         .map_err(|e| format!("Failed to open log directory: {}", e))?;
 
     Ok(())
@@ -112,9 +124,9 @@ pub fn open_app_data_dir(app: AppHandle) -> Result<(), String> {
     let app_data_dir = crate::portable::app_data_dir(&app)
         .map_err(|e| format!("Failed to get app data directory: {}", e))?;
 
-    let path = app_data_dir.to_string_lossy().as_ref().to_string();
+    // Reveal, not open_path: see open_recordings_folder.
     app.opener()
-        .open_path(path, None::<String>)
+        .reveal_item_in_dir(&app_data_dir)
         .map_err(|e| format!("Failed to open app data directory: {}", e))?;
 
     Ok(())

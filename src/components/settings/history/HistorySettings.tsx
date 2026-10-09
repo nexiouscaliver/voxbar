@@ -232,6 +232,7 @@ export const HistorySettings: React.FC = () => {
       }
     } catch (error) {
       console.error("Failed to open recordings folder:", error);
+      toast.error(t("errors.openDirectory", { error: String(error) }));
     }
   };
 

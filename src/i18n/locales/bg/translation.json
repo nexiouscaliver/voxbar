@@ -910,7 +910,8 @@
       "restartNow": "Рестартирай сега",
       "restartLater": "По-късно",
       "installedDescription": "VoxBar {{version}} е инсталиран и ще стане активен при следващото рестартиране на VoxBar.",
-      "failedDescription": "Актуализацията не можа да бъде изтеглена. Проверете връзката си и опитайте отново, или я изтеглете от GitHub Releases."
+      "failedDescription": "Актуализацията не можа да бъде изтеглена. Проверете връзката си и опитайте отново, или я изтеглете от GitHub Releases.",
+      "translocatedDescription": "VoxBar не може да се обновява, докато работи от папката Downloads. Преместете го в папка Applications (чрез плъзване във Finder), отворете го оттам и проверете за обновления отново."
     }
   },
   "common": {
@@ -946,7 +947,8 @@
     "pasteFailed": "Текстът не можа да бъде поставен в активното приложение.",
     "transcriptionFailedTitle": "Неуспешна транскрипция",
     "noModelSelectedTitle": "Не е избран модел",
-    "noModelSelected": "Изберете модел за транскрипция в Настройки, преди да диктувате."
+    "noModelSelected": "Изберете модел за транскрипция в Настройки, преди да диктувате.",
+    "openDirectory": "Папката не можа да се отвори: {{error}}"
   },
   "appLanguage": {
     "title": "Език на приложението",
@@ -999,5 +1001,9 @@
     "learnMore": "Как да поправите това",
     "recorderBlocked": "В момента не могат да се записват бързи клавиши - Secure Input на macOS блокира клавишните събития. Първо отстранете предупреждението за Secure Input.",
     "dismiss": "Отхвърляне"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar не може да инсталира обновления от това местоположение",
+    "translocatedDescription": "VoxBar работи от временно местоположение само за четене (App Translocation в macOS). Спрете VoxBar, преместете го от папка Downloads в Applications и го отворете оттам."
   }
 }

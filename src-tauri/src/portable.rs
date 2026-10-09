@@ -73,6 +73,27 @@ pub fn is_portable() -> bool {
     PORTABLE_DATA_DIR.get().and_then(|v| v.as_ref()).is_some()
 }
 
+static APP_TRANSLOCATED: OnceLock<bool> = OnceLock::new();
+
+/// Whether macOS App Translocation is active: the app carried a quarantine
+/// flag and was launched in place (the classic "ran it straight from
+/// Downloads" case), so the binary executes from a randomized READ-ONLY
+/// mount under `/private/var/folders/.../AppTranslocation/`. Day-to-day use
+/// is unaffected, but the updater installs by replacing the bundle at its
+/// current location, which fails there with "read-only file system".
+/// Whether the given executable path sits on a translocation mount.
+fn path_is_translocated(exe: &Path) -> bool {
+    exe.to_string_lossy().contains("/AppTranslocation/")
+}
+
+pub fn app_is_translocated() -> bool {
+    *APP_TRANSLOCATED.get_or_init(|| {
+        std::env::current_exe()
+            .map(|exe| path_is_translocated(&exe))
+            .unwrap_or(false)
+    })
+}
+
 /// Get the portable data dir (if active). Does not require an AppHandle.
 /// Returns `None` when not in portable mode.
 pub fn data_dir() -> Option<&'static PathBuf> {
@@ -132,6 +153,22 @@ fn is_valid_portable_marker(path: &std::path::Path) -> bool {
 mod tests {
     use super::*;
     use std::io::Write;
+
+    #[test]
+    fn translocation_detection_by_exe_path() {
+        // Realistic translocated path (randomized mount under /private/var).
+        assert!(path_is_translocated(std::path::Path::new(
+            "/private/var/folders/ab/T..x/AppTranslocation/d/12AB/VoxBar.app/Contents/MacOS/voxbar"
+        )));
+        // Normal installs, including running from Downloads without
+        // translocation (still writable) and the portable layout.
+        assert!(!path_is_translocated(std::path::Path::new(
+            "/Applications/VoxBar.app/Contents/MacOS/voxbar"
+        )));
+        assert!(!path_is_translocated(std::path::Path::new(
+            "/Users/someone/Downloads/VoxBar.app/Contents/MacOS/voxbar"
+        )));
+    }
 
     #[test]
     fn test_valid_magic_string_enables_portable() {

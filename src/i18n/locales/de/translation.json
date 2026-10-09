@@ -910,7 +910,8 @@
       "restartNow": "Jetzt neu starten",
       "restartLater": "Später",
       "installedDescription": "VoxBar {{version}} wurde installiert und wird beim nächsten Start von VoxBar aktiv.",
-      "failedDescription": "Das Update konnte nicht geladen werden. Prüfe deine Verbindung und versuche es erneut, oder lade es von GitHub Releases herunter."
+      "failedDescription": "Das Update konnte nicht geladen werden. Prüfe deine Verbindung und versuche es erneut, oder lade es von GitHub Releases herunter.",
+      "translocatedDescription": "VoxBar kann sich nicht selbst aktualisieren, solange es aus dem Downloads-Ordner läuft. Verschiebe es in den Programme-Ordner (per Drag im Finder), öffne es von dort und prüfe erneut nach Updates."
     }
   },
   "common": {
@@ -946,7 +947,8 @@
     "pasteFailed": "Der Text konnte nicht in die aktive Anwendung eingefügt werden.",
     "transcriptionFailedTitle": "Transkription fehlgeschlagen",
     "noModelSelectedTitle": "Kein Modell ausgewählt",
-    "noModelSelected": "Wählen Sie vor dem Diktieren ein Transkriptionsmodell in den Einstellungen."
+    "noModelSelected": "Wählen Sie vor dem Diktieren ein Transkriptionsmodell in den Einstellungen.",
+    "openDirectory": "Ordner konnte nicht geöffnet werden: {{error}}"
   },
   "appLanguage": {
     "title": "Anwendungssprache",
@@ -999,5 +1001,9 @@
     "learnMore": "So behebst du das",
     "recorderBlocked": "Tastenkürzel können gerade nicht aufgezeichnet werden - macOS Secure Input blockiert Tastenereignisse. Behebe zuerst die Secure-Input-Warnung.",
     "dismiss": "Ausblenden"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar kann von diesem Ort keine Updates installieren",
+    "translocatedDescription": "VoxBar läuft von einem temporären schreibgeschützten Ort (macOS App Translocation). Beende VoxBar, ziehe es aus dem Ordner Downloads nach Programme und starte es von dort."
   }
 }

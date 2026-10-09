@@ -910,7 +910,8 @@
       "restartNow": "지금 다시 시작",
       "restartLater": "나중에",
       "installedDescription": "VoxBar {{version}}이(가) 설치되었으며 다음에 VoxBar를 다시 시작할 때 적용됩니다.",
-      "failedDescription": "업데이트를 다운로드할 수 없습니다. 연결을 확인하고 다시 시도하거나 GitHub Releases에서 다운로드하세요."
+      "failedDescription": "업데이트를 다운로드할 수 없습니다. 연결을 확인하고 다시 시도하거나 GitHub Releases에서 다운로드하세요.",
+      "translocatedDescription": "Downloads 폴더에서 실행 중일 때는 VoxBar가 스스로 업데이트할 수 없습니다. Finder에서 응용 프로그램 폴더로 이동시키고 그곳에서 연 다음 다시 업데이트를 확인하세요."
     }
   },
   "common": {
@@ -946,7 +947,8 @@
     "pasteFailed": "활성 애플리케이션에 텍스트를 붙여넣을 수 없습니다.",
     "transcriptionFailedTitle": "음성 인식 실패",
     "noModelSelectedTitle": "선택된 모델 없음",
-    "noModelSelected": "받아쓰기 전에 설정에서 전사 모델을 선택하세요."
+    "noModelSelected": "받아쓰기 전에 설정에서 전사 모델을 선택하세요.",
+    "openDirectory": "폴더를 열 수 없습니다: {{error}}"
   },
   "appLanguage": {
     "title": "애플리케이션 언어",
@@ -999,5 +1001,9 @@
     "learnMore": "해결 방법",
     "recorderBlocked": "지금은 단축키를 등록할 수 없습니다. macOS Secure Input이 키 이벤트를 차단하고 있습니다. Secure Input 경고를 먼저 해결하세요.",
     "dismiss": "닫기"
+  },
+  "app": {
+    "translocatedTitle": "이 위치에서는 업데이트를 설치할 수 없습니다",
+    "translocatedDescription": "VoxBar가 임시 읽기 전용 위치(macOS App Translocation)에서 실행 중입니다. VoxBar를 종료하고 Downloads 폴더에서 응용 프로그램 폴더로 드래그한 다음 그곳에서 여세요."
   }
 }

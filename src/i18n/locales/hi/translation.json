@@ -910,7 +910,8 @@
       "restartNow": "अभी रीस्टार्ट करें",
       "restartLater": "बाद में",
       "installedDescription": "VoxBar {{version}} इंस्टॉल हो गया है और VoxBar के अगली बार चालू होने पर सक्रिय हो जाएगा।",
-      "failedDescription": "अपडेट डाउनलोड नहीं हो सका। अपना कनेक्शन जांचें और फिर कोशिश करें, या इसे GitHub Releases से डाउनलोड करें।"
+      "failedDescription": "अपडेट डाउनलोड नहीं हो सका। अपना कनेक्शन जांचें और फिर कोशिश करें, या इसे GitHub Releases से डाउनलोड करें।",
+      "translocatedDescription": "Downloads फोल्डर से चलते हुए VoxBar खुद को अपडेट नहीं कर सकता। इसे Finder में Applications फोल्डर में खींचें, वहाँ से खोलें, और फिर अपडेट जांचें।"
     }
   },
   "whatsNew": {
@@ -949,7 +950,8 @@
     "pasteFailed": "खुले हुए ऐप्लिकेशन में टेक्स्ट पेस्ट नहीं किया जा सका.",
     "transcriptionFailedTitle": "ट्रांसक्रिप्शन नहीं हो सका",
     "noModelSelectedTitle": "कोई मॉडल चुना नहीं गया",
-    "noModelSelected": "डिक्टेशन से पहले सेटिंग्स में एक ट्रांसक्रिप्शन मॉडल चुनें।"
+    "noModelSelected": "डिक्टेशन से पहले सेटिंग्स में एक ट्रांसक्रिप्शन मॉडल चुनें।",
+    "openDirectory": "फोल्डर नहीं खुल सका: {{error}}"
   },
   "appLanguage": {
     "title": "ऐप्लिकेशन की भाषा",
@@ -999,5 +1001,9 @@
     "learnMore": "इसे कैसे ठीक करें",
     "recorderBlocked": "अभी शॉर्टकट रिकॉर्ड नहीं किए जा सकते - macOS Secure Input कुंजी इवेंट ब्लॉक कर रहा है. पहले Secure Input चेतावनी हल करें.",
     "dismiss": "खारिज करें"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar इस जगह से अपडेट इंस्टॉल नहीं कर सकता",
+    "translocatedDescription": "VoxBar एक अस्थायी रीड-ओनली जगह से चल रहा है (macOS App Translocation)। VoxBar बंद करें, इसे Downloads फोल्डर से Applications में खींचें, और वहीं से खोलें।"
   }
 }
