@@ -910,7 +910,8 @@
       "restartNow": "अहिले रिस्टार्ट गर्नुहोस्",
       "restartLater": "पछि",
       "installedDescription": "VoxBar {{version}} इन्स्टल भयो र VoxBar अर्को पटक खुल्दा सक्रिय हुनेछ।",
-      "failedDescription": "अपडेट डाउनलोड गर्न सकिएन। आफ्नो जडान जाँची फेरि प्रयास गर्नुहोस्, वा GitHub Releases बाट डाउनलोड गर्नुहोस्।"
+      "failedDescription": "अपडेट डाउनलोड गर्न सकिएन। आफ्नो जडान जाँची फेरि प्रयास गर्नुहोस्, वा GitHub Releases बाट डाउनलोड गर्नुहोस्।",
+      "translocatedDescription": "Downloads फोल्डरबाट चल्दा VoxBar आफै अपडेट हुन सक्दैन। यसलाई Finder मा Applications फोल्डरमा सार्नुहोस्, त्यहाँबाट खोल्नुहोस्, र फेरि अपडेट जाँच्नुहोस्।"
     }
   },
   "whatsNew": {
@@ -949,7 +950,8 @@
     "pasteFailed": "सक्रिय एपमा टेक्स्ट पेस्ट गर्न सकिएन।",
     "transcriptionFailedTitle": "ट्रान्सक्रिप्सन गर्न सकिएन",
     "noModelSelectedTitle": "कुनै मोडेल छानिएको छैन",
-    "noModelSelected": "डिक्टेसन अघि सेटिङहरूमा ट्रान्सक्रिप्सन मोडेल छान्नुहोस्।"
+    "noModelSelected": "डिक्टेसन अघि सेटिङहरूमा ट्रान्सक्रिप्सन मोडेल छान्नुहोस्।",
+    "openDirectory": "फोल्डर खोल्न सकिएन: {{error}}"
   },
   "appLanguage": {
     "title": "एपको भाषा",
@@ -999,5 +1001,9 @@
     "learnMore": "यसलाई कसरी ठिक गर्ने",
     "recorderBlocked": "अहिले सर्टकट रेकर्ड गर्न सकिँदैन - macOS Secure Input ले कुञ्जी इभेन्टहरू रोकिरहेको छ। पहिले Secure Input चेतावनी समाधान गर्नुहोस्।",
     "dismiss": "हटाउनुहोस्"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar यो स्थानबाट अपडेट इन्स्टल गर्न सक्दैन",
+    "translocatedDescription": "VoxBar अस्थायी रीड-ओनली स्थानबाट (macOS App Translocation) चलिरहेको छ। VoxBar बन्द गर्नुहोस्, यसलाई Downloads फोल्डरबाट Applications मा तान्नुहोस्, र त्यहीँबाट खोल्नुहोस्।"
   }
 }

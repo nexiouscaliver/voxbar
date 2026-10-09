@@ -104,11 +104,25 @@ function formatMb(bytes: number): string {
 
 // Terminal failure toast with the manual escape hatch. The raw error goes to
 // the console; users get a sentence and a button, not a RequestError dump.
-function showFailureToast(id?: string | number): void {
+// When the app is running translocated (read-only mount), the copy swaps to
+// the move-to-Applications guidance, because retrying from there can never
+// succeed and the manual download would land in the same trap.
+async function showFailureToast(id?: string | number): Promise<void> {
+  let translocated = false;
+  try {
+    const result = await commands.isAppTranslocated();
+    translocated = result.status === "ok" && result.data === true;
+  } catch (error) {
+    console.error("Failed to check App Translocation state:", error);
+  }
   toast.error(t("footer.updater.failedTitle"), {
     id,
     duration: 6000,
-    description: t("footer.updater.failedDescription"),
+    description: t(
+      translocated
+        ? "footer.updater.translocatedDescription"
+        : "footer.updater.failedDescription",
+    ),
     action: {
       label: t("footer.updater.failedAction"),
       onClick: () => void openUrl(RELEASES_URL),
@@ -171,7 +185,7 @@ async function downloadUpdate(update: Update): Promise<boolean> {
     return true;
   } catch (error) {
     console.error("Update download failed:", error);
-    showFailureToast(progressId);
+    void showFailureToast(progressId);
     return false;
   }
 }
@@ -194,7 +208,7 @@ async function finishInstall(
     }
   } catch (error) {
     console.error("Update install failed:", error);
-    showFailureToast(installId);
+    void showFailureToast(installId);
   }
 }
 

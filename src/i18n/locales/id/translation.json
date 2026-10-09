@@ -910,7 +910,8 @@
       "restartNow": "Mulai ulang sekarang",
       "restartLater": "Nanti",
       "installedDescription": "VoxBar {{version}} telah dipasang dan akan aktif saat VoxBar dimulai ulang berikutnya.",
-      "failedDescription": "Pembaruan tidak dapat diunduh. Periksa koneksi Anda dan coba lagi, atau unduh dari GitHub Releases."
+      "failedDescription": "Pembaruan tidak dapat diunduh. Periksa koneksi Anda dan coba lagi, atau unduh dari GitHub Releases.",
+      "translocatedDescription": "VoxBar tidak dapat memperbarui dirinya sendiri saat berjalan dari folder Unduhan. Pindahkan ke folder Aplikasi (seret di Finder), buka dari sana, lalu periksa pembaruan lagi."
     }
   },
   "whatsNew": {
@@ -949,7 +950,8 @@
     "pasteFailed": "Teks tidak dapat ditempelkan ke aplikasi aktif.",
     "transcriptionFailedTitle": "Transkripsi Gagal",
     "noModelSelectedTitle": "Tidak ada model dipilih",
-    "noModelSelected": "Pilih model transkripsi di Pengaturan sebelum mendikte."
+    "noModelSelected": "Pilih model transkripsi di Pengaturan sebelum mendikte.",
+    "openDirectory": "Folder tidak dapat dibuka: {{error}}"
   },
   "appLanguage": {
     "title": "Bahasa Aplikasi",
@@ -999,5 +1001,9 @@
     "learnMore": "Cara memperbaiki",
     "recorderBlocked": "Pintasan tidak dapat direkam saat ini - macOS Secure Input memblokir peristiwa tombol. Selesaikan peringatan Secure Input terlebih dahulu.",
     "dismiss": "Tutup"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar tidak dapat memasang pembaruan dari lokasi ini",
+    "translocatedDescription": "VoxBar berjalan dari lokasi sementara yang hanya-baca (App Translocation macOS). Keluar dari VoxBar, seret dari folder Unduhan ke folder Aplikasi, lalu buka dari sana."
   }
 }

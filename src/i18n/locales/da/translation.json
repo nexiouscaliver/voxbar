@@ -910,7 +910,8 @@
       "restartNow": "Genstart nu",
       "restartLater": "Senere",
       "installedDescription": "VoxBar {{version}} er installeret og bliver aktiv, næste gang VoxBar genstarter.",
-      "failedDescription": "Opdateringen kunne ikke downloades. Tjek din forbindelse og prøv igen, eller download den fra GitHub Releases."
+      "failedDescription": "Opdateringen kunne ikke downloades. Tjek din forbindelse og prøv igen, eller download den fra GitHub Releases.",
+      "translocatedDescription": "VoxBar kan ikke opdatere sig selv, mens den kører fra Downloads-mappen. Flyt den til mappen Applications (træk den i Finder), åbn den derfra, og tjek efter opdateringer igen."
     }
   },
   "whatsNew": {
@@ -949,7 +950,8 @@
     "pasteFailed": "Teksten kunne ikke indsættes i det aktive program.",
     "transcriptionFailedTitle": "Transskription mislykkedes",
     "noModelSelectedTitle": "Ingen model valgt",
-    "noModelSelected": "Vælg en transkriptionsmodel i Indstillinger, før du dikterer."
+    "noModelSelected": "Vælg en transkriptionsmodel i Indstillinger, før du dikterer.",
+    "openDirectory": "Mappen kunne ikke åbnes: {{error}}"
   },
   "appLanguage": {
     "title": "Applikationssprog",
@@ -999,5 +1001,9 @@
     "learnMore": "Sådan løser du det",
     "recorderBlocked": "Genveje kan ikke optages lige nu - macOS Secure Input blokerer tastehændelser. Løs advarslen om Secure Input først.",
     "dismiss": "Afvis"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar kan ikke installere opdateringer fra denne placering",
+    "translocatedDescription": "VoxBar kører fra en midlertidig skrivebeskyttet placering (macOS App Translocation). Luk VoxBar, træk den fra mappen Downloads til Applications, og åbn den derfra."
   }
 }

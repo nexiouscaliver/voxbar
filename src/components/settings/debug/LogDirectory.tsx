@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { commands } from "@/bindings";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { PathDisplay } from "../../ui/PathDisplay";
@@ -46,7 +47,17 @@ export const LogDirectory: React.FC<LogDirectoryProps> = ({
     try {
       await commands.openLogDir();
     } catch (openError) {
+      // Visible failure: this button silently ACL-died for a whole release
+      // because the error only reached the console.
       console.error("Failed to open log directory:", openError);
+      toast.error(
+        t("errors.openDirectory", {
+          error:
+            openError && typeof openError === "object" && "message" in openError
+              ? String((openError as Error).message)
+              : String(openError),
+        }),
+      );
     }
   };
 

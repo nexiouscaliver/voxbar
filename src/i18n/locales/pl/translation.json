@@ -910,7 +910,8 @@
       "restartNow": "Uruchom ponownie teraz",
       "restartLater": "Później",
       "installedDescription": "VoxBar {{version}} został zainstalowany i stanie się aktywny przy następnym uruchomieniu VoxBar.",
-      "failedDescription": "Nie udało się pobrać aktualizacji. Sprawdź połączenie i spróbuj ponownie albo pobierz ją z GitHub Releases."
+      "failedDescription": "Nie udało się pobrać aktualizacji. Sprawdź połączenie i spróbuj ponownie albo pobierz ją z GitHub Releases.",
+      "translocatedDescription": "VoxBar nie może się aktualizować, działając z folderu Pobrane. Przenieś go do folderu Aplikacje (przeciągnij w Finderze), uruchom stamtąd i sprawdź aktualizacje ponownie."
     }
   },
   "common": {
@@ -946,7 +947,8 @@
     "pasteFailed": "Nie można było wkleić tekstu do aktywnej aplikacji.",
     "transcriptionFailedTitle": "Transkrypcja nie powiodła się",
     "noModelSelectedTitle": "Nie wybrano modelu",
-    "noModelSelected": "Przed dyktowaniem wybierz model transkrypcji w Ustawieniach."
+    "noModelSelected": "Przed dyktowaniem wybierz model transkrypcji w Ustawieniach.",
+    "openDirectory": "Nie udało się otworzyć folderu: {{error}}"
   },
   "appLanguage": {
     "title": "Język aplikacji",
@@ -999,5 +1001,9 @@
     "learnMore": "Jak to naprawić",
     "recorderBlocked": "Nie można teraz nagrać skrótu - Secure Input w macOS blokuje zdarzenia klawiszy. Najpierw rozwiąż ostrzeżenie o Secure Input.",
     "dismiss": "Odrzuć"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar nie może instalować aktualizacji z tej lokalizacji",
+    "translocatedDescription": "VoxBar działa z tymczasowej lokalizacji tylko do odczytu (App Translocation w macOS). Zamknij VoxBar, przeciągnij go z folderu Pobrane do folderu Aplikacje i uruchom go stamtąd."
   }
 }

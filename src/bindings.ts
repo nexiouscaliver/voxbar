@@ -555,6 +555,19 @@ async changeUpdatePolicySetting(policy: UpdatePolicy) : Promise<Result<null, str
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Whether the app is running from macOS's read-only translocation mount.
+ * The frontend shows the move-to-Applications guidance when true; the
+ * updater flow also uses it to make install failures actionable.
+ */
+async isAppTranslocated() : Promise<Result<boolean, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("is_app_translocated") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeAppLanguageSetting(language: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_app_language_setting", { language }) };

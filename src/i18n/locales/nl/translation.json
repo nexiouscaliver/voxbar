@@ -910,7 +910,8 @@
       "restartNow": "Nu herstarten",
       "restartLater": "Later",
       "installedDescription": "VoxBar {{version}} is geïnstalleerd en wordt actief bij de volgende herstart van VoxBar.",
-      "failedDescription": "De update kon niet worden gedownload. Controleer je verbinding en probeer het opnieuw, of download hem via GitHub Releases."
+      "failedDescription": "De update kon niet worden gedownload. Controleer je verbinding en probeer het opnieuw, of download hem via GitHub Releases.",
+      "translocatedDescription": "VoxBar kan zichzelf niet bijwerken zolang het vanuit de map Downloads draait. Verplaats het naar de map Programma's (slepen in de Finder), open het vanaf daar en controleer opnieuw op updates."
     }
   },
   "whatsNew": {
@@ -949,7 +950,8 @@
     "pasteFailed": "Tekst kon niet worden geplakt in de actieve applicatie.",
     "transcriptionFailedTitle": "Transcriptie mislukt",
     "noModelSelectedTitle": "Geen model gekozen",
-    "noModelSelected": "Kies voor het dicteren eerst een transcriptiemodel in Instellingen."
+    "noModelSelected": "Kies voor het dicteren eerst een transcriptiemodel in Instellingen.",
+    "openDirectory": "Map kon niet worden geopend: {{error}}"
   },
   "appLanguage": {
     "title": "Interfacetaal",
@@ -999,5 +1001,9 @@
     "learnMore": "Hoe je dit oplost",
     "recorderBlocked": "Sneltoetsen kunnen nu niet worden opgenomen - Secure Input van macOS blokkeert toetsgebeurtenissen. Los eerst de Secure Input-waarschuwing op.",
     "dismiss": "Sluiten"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar kan vanaf deze locatie geen updates installeren",
+    "translocatedDescription": "VoxBar draait vanaf een tijdelijke alleen-lezen locatie (macOS App Translocation). Sluit VoxBar af, sleep het van de map Downloads naar Programma's en open het vanaf daar."
   }
 }

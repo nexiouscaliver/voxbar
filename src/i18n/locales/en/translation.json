@@ -910,7 +910,8 @@
       "restartNow": "Restart now",
       "restartLater": "Later",
       "installedDescription": "VoxBar {{version}} has been installed and becomes active the next time VoxBar restarts.",
-      "failedDescription": "The update could not be downloaded. Check your connection and try again, or download it from GitHub Releases."
+      "failedDescription": "The update could not be downloaded. Check your connection and try again, or download it from GitHub Releases.",
+      "translocatedDescription": "VoxBar cannot update itself while running from the Downloads folder preview. Move it to the Applications folder (drag it in Finder), open it from there, and check for updates again."
     }
   },
   "whatsNew": {
@@ -949,7 +950,8 @@
     "pasteFailed": "Text could not be pasted into the active application.",
     "transcriptionFailedTitle": "Transcription Failed",
     "noModelSelectedTitle": "No model selected",
-    "noModelSelected": "Pick a transcription model in Settings before dictating."
+    "noModelSelected": "Pick a transcription model in Settings before dictating.",
+    "openDirectory": "Could not open the folder: {{error}}"
   },
   "appLanguage": {
     "title": "Application Language",
@@ -999,5 +1001,9 @@
     "learnMore": "How to fix",
     "recorderBlocked": "Can't record shortcuts right now - macOS Secure Input is blocking key events. Resolve the Secure Input warning first.",
     "dismiss": "Dismiss"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar cannot install updates from this location",
+    "translocatedDescription": "VoxBar is running from a temporary read-only location (macOS App Translocation). Quit VoxBar, drag it from your Downloads folder into Applications, and open it from there."
   }
 }
