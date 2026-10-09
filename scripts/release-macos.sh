@@ -108,7 +108,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: fixed the folder-reveal buttons in Settings, and VoxBar now warns when it runs from a read-only location that cannot install updates." \
+  --arg notes "VoxBar ${VERSION}: live dictation now streams into the overlay within a third of a second, and command-key commands work reliably (four fixed miss paths, plus command decisions visible in the log)." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \
