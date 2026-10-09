@@ -20,6 +20,7 @@
 pub mod forecast;
 pub mod planner;
 pub mod protocol;
+pub mod worker;
 
 /// The one and only v1 post-process model: Qwen3-0.6B Q8_0 (Apache-2.0,
 /// 609.8 MB, fits the operator's sub-800 MB budget). The id doubles as the
@@ -39,6 +40,11 @@ pub const LOCAL_LLM_MODEL_SIZE_MB: u64 = 610;
 
 /// Pinned HF revision so the bytes behind the sha256 can never move.
 pub const LOCAL_LLM_MODEL_REVISION: &str = "23749fefcc72300e3a2ad315e1317431b06b590a";
+
+/// Exact on-disk byte length of the pinned Q8_0 file (HF tree API). The
+/// worker's Load does a cheap length check against this (the full sha256
+/// is verified once, at download completion).
+pub const LOCAL_LLM_MODEL_SIZE_BYTES: u64 = 639_446_688;
 
 /// Why a post-process pass fell back to the raw transcript. Carried on the
 /// skip event so the frontend toast can name the cause; `memory_gate`

@@ -27,6 +27,12 @@ mod protocol;
 mod supervisor;
 mod worker;
 
+// Process-setup helpers shared with the local-llm worker (same child-process
+// posture: claim stdout for the protocol, log to stderr, ignore app signals).
+#[cfg(target_os = "linux")]
+pub(crate) use worker::set_process_name;
+pub(crate) use worker::{ignore_app_signals, init_logger, take_stdout_for_protocol};
+
 pub use protocol::{DeviceInfo, DeviceSelector, LoadedInfo};
 pub use supervisor::{
     EngineError, EngineSupervisor, Finalized, LoadSpec, StreamHandle, StreamProgress, Unloading,

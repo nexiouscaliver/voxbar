@@ -39,6 +39,12 @@ pub enum EngineType {
     GigaAM,
     Canary,
     Cohere,
+    /// The local post-process LLM (Qwen3-0.6B GGUF). Loaded only by the
+    /// local post-process engine's worker process, never an ASR engine:
+    /// every ASR path (load dispatch, fallback list, model pickers) refuses
+    /// or filters it. Registered in the ModelManager so the download,
+    /// delete, and status lifecycle is shared with voice models.
+    LocalLlm,
 }
 
 /// Where a model comes from and how Handy obtains it - the routing discriminant
@@ -136,6 +142,48 @@ pub struct QuantFile {
     /// mirror). `None` only for catalogs predating the field.
     #[serde(default)]
     pub sha256: Option<String>,
+}
+
+/// The built-in local post-process LLM descriptor (spec 6.1): the one
+/// pinned non-catalog model, registered at startup. Pure so the shape is
+/// unit-testable (T23) without an app handle.
+pub(crate) fn local_llm_model_info() -> ModelInfo {
+    // The Qwen3 card claims "100+ languages and dialects". The list below
+    // is inert metadata (the LocalLlm engine type is filtered out of every
+    // ASR consumer), so it names the major languages from the card family
+    // rather than embedding all 100+.
+    let languages: Vec<String> = [
+        "en", "zh", "de", "es", "ru", "ko", "fr", "ja", "pt", "it", "ar", "hi", "id", "vi", "tr",
+        "pl", "nl", "th", "he", "uk", "el", "cs", "ro", "sv", "da", "fi", "no", "hu",
+    ]
+    .into_iter()
+    .map(String::from)
+    .collect();
+    ModelInfo {
+        id: crate::local_llm::LOCAL_LLM_MODEL_ID.to_string(),
+        name: "Qwen3 0.6B (post-process)".to_string(),
+        description: "Local on-device post-process engine. Not a transcription model.".to_string(),
+        filename: "Qwen3-0.6B-Q8_0.gguf".to_string(),
+        source: ModelSource::HuggingFace {
+            repo_id: "Qwen/Qwen3-0.6B-GGUF".to_string(),
+            revision: crate::local_llm::LOCAL_LLM_MODEL_REVISION.to_string(),
+        },
+        size_mb: crate::local_llm::LOCAL_LLM_MODEL_SIZE_MB,
+        is_downloaded: false,
+        is_downloading: false,
+        partial_size: 0,
+        is_directory: false,
+        engine_type: EngineType::LocalLlm,
+        accuracy_score: 0.0,
+        speed_score: 0.0,
+        supports_translation: false,
+        is_recommended: false,
+        supported_languages: languages,
+        supports_language_selection: false,
+        is_custom: false,
+        supports_streaming: false,
+        supports_language_detection: false,
+    }
 }
 
 /// Pick the default quant among `files`: the one whose `quant` matches
@@ -1151,6 +1199,12 @@ impl ModelManager {
         // find. Additive - see `seed_catalog_models`.
         Self::seed_catalog_models(&mut available_models);
 
+        // The one built-in non-ASR model: the local post-process LLM. Pure
+        // constructor + insert (HashMap keyed by id) so registration is
+        // idempotent by construction; never offered as an ASR model (see
+        // `get_available_models`'s LocalLlm filter).
+        Self::register_builtin(&mut available_models, local_llm_model_info());
+
         // Auto-discover custom transcribe-cpp models (.bin / .gguf) in the models directory
         if let Err(e) = Self::discover_custom_transcribe_models(&models_dir, &mut available_models)
         {
@@ -1187,7 +1241,18 @@ impl ModelManager {
     pub fn get_available_models(&self) -> Vec<ModelInfo> {
         let mut list: Vec<ModelInfo> = {
             let models = self.available_models.lock().unwrap();
-            models.values().cloned().collect()
+            models
+                .values()
+                // The local post-process LLM is NOT an ASR model: this one
+                // function feeds the model picker, the tray menu, the
+                // Windows permissions check, --list-models, the fallback
+                // list, and auto-select (which would otherwise pick the
+                // LLM as the ASR model when it is the only downloaded
+                // one). The post-process settings row reads its status via
+                // get_model_info, which is unfiltered.
+                .filter(|info| !matches!(info.engine_type, EngineType::LocalLlm))
+                .cloned()
+                .collect()
         };
         // Stable, reasonable order: catalog editorial rank first (lower = higher
         // priority), then any other recommended model, then by accuracy, speed,
@@ -1222,6 +1287,13 @@ impl ModelManager {
             }
         }
         info!("Seeded {} catalog model(s) into the registry", added);
+    }
+
+    /// Insert a built-in descriptor keyed by its id. HashMap semantics make
+    /// registration idempotent: a second insert of the same id replaces in
+    /// place (still exactly one entry, never a duplicate row).
+    fn register_builtin(available_models: &mut HashMap<String, ModelInfo>, info: ModelInfo) {
+        available_models.insert(info.id.clone(), info);
     }
 
     /// Claim the single rescan slot. Returns a guard that releases it on drop,
@@ -2712,6 +2784,42 @@ mod tests {
         fs::write(repo_dir.join("refs").join(revision), revision).unwrap();
         fs::write(&snapshot, b"model").unwrap();
         snapshot
+    }
+
+    /// T23: the built-in local post-process LLM descriptor is present
+    /// exactly once even after a double registration attempt (idempotent
+    /// startup by construction), and its shape matches the pinned constants.
+    #[test]
+    fn local_llm_builtin_descriptor_registers_exactly_once() {
+        let mut models: HashMap<String, ModelInfo> = HashMap::new();
+        ModelManager::register_builtin(&mut models, local_llm_model_info());
+        ModelManager::register_builtin(&mut models, local_llm_model_info());
+        assert_eq!(
+            models
+                .values()
+                .filter(|m| matches!(m.engine_type, EngineType::LocalLlm))
+                .count(),
+            1,
+            "double registration must not duplicate the entry"
+        );
+
+        let info = models.get(crate::local_llm::LOCAL_LLM_MODEL_ID).unwrap();
+        assert_eq!(info.id, crate::local_llm::LOCAL_LLM_MODEL_ID);
+        assert_eq!(info.name, "Qwen3 0.6B (post-process)");
+        assert_eq!(info.filename, "Qwen3-0.6B-Q8_0.gguf");
+        assert_eq!(info.size_mb, crate::local_llm::LOCAL_LLM_MODEL_SIZE_MB);
+        assert!(!info.is_downloaded);
+        assert!(!info.is_custom);
+        assert!(!info.supports_streaming);
+        assert!(!info.supports_language_selection);
+        match &info.source {
+            ModelSource::HuggingFace { repo_id, revision } => {
+                assert_eq!(repo_id, "Qwen/Qwen3-0.6B-GGUF");
+                assert_eq!(revision, crate::local_llm::LOCAL_LLM_MODEL_REVISION);
+            }
+            other => panic!("expected a pinned HuggingFace source, got {:?}", other),
+        }
+        assert!(!info.supported_languages.is_empty());
     }
 
     #[test]

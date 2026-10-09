@@ -30,6 +30,12 @@ fn main() {
         std::process::exit(voxbar_app_lib::engine_supervisor::run_worker());
     }
 
+    // Post-process LLM worker: runs llama.cpp in isolation under the same
+    // rules (own protocol, exits when the parent closes stdin).
+    if voxbar_app_lib::local_llm::worker::is_llm_worker_invocation() {
+        std::process::exit(voxbar_app_lib::local_llm::worker::run());
+    }
+
     let cli_args = CliArgs::parse();
     voxbar_app_lib::run(cli_args)
 }
