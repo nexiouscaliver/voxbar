@@ -15,6 +15,7 @@ mod hindi_script;
 mod input;
 mod legacy_migration;
 mod llm_client;
+pub mod local_llm;
 mod managers;
 mod memory;
 mod number_format;
