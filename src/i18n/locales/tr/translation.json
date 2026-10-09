@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "Transkribe ediliyor...",
     "processing": "İşleniyor...",
-    "removedWord": "Kaldırıldı: {{text}}"
+    "removedWord": "Kaldırıldı: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Transkripsiyon başarısız oldu. Kayıt saklandı, geçmişten yeniden deneyin.",
+      "generic": "Bir sorun oluştu. Ayrıntılar günlükte.",
+      "deleteLastWordNoSession": "Kelime silme tuşu canlı dikte sırasında çalışır. Önce kaydı başlatın.",
+      "deleteLastWordNoBuffer": "Henüz silinecek bir şey yok, diktede canlı metin yok.",
+      "undoNoSession": "Geri al tuşu canlı dikte sırasında çalışır. Önce kaydı başlatın.",
+      "undoNoBuffer": "Henüz temizlenecek bir şey yok, diktede canlı metin yok.",
+      "bindingBusy": "Başka bir dikte tuşu zaten kaydediyor."
+    }
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} yenilikleri"

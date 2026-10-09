@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "Transkribiere...",
     "processing": "Verarbeite...",
-    "removedWord": "Entfernt: {{text}}"
+    "removedWord": "Entfernt: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Transkription fehlgeschlagen. Die Aufnahme wurde behalten, wiederhole sie über den Verlauf.",
+      "generic": "Etwas ist schiefgelaufen. Details stehen im Protokoll.",
+      "deleteLastWordNoSession": "Die Wort-löschen-Taste funktioniert nur während einer laufenden Diktatsitzung. Starte zuerst die Aufnahme.",
+      "deleteLastWordNoBuffer": "Noch nichts zu löschen, das Diktat hat noch keinen Live-Text.",
+      "undoNoSession": "Die Rückgängig-Taste funktioniert nur während einer laufenden Diktatsitzung. Starte zuerst die Aufnahme.",
+      "undoNoBuffer": "Noch nichts zu leeren, das Diktat hat noch keinen Live-Text.",
+      "bindingBusy": "Eine andere Diktattaste nimmt bereits auf."
+    }
   },
   "whatsNew": {
     "title": "Neu in VoxBar v{{version}}"

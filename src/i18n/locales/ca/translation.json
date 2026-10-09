@@ -1005,7 +1005,16 @@
   "overlay": {
     "transcribing": "S'està transcrivint...",
     "processing": "S'està processant...",
-    "removedWord": "Eliminat: {{text}}"
+    "removedWord": "Eliminat: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Ha fallat la transcripció. L'enregistrament s'ha conservat, torna-ho a provar des de l'historial.",
+      "generic": "Alguna cosa ha fallat. Els detalls són al registre.",
+      "deleteLastWordNoSession": "La tecla d'esborrar paraula funciona durant un dictat actiu. Comenceu primer a gravar.",
+      "deleteLastWordNoBuffer": "Encara no hi ha res a esborrar, el dictat no té text en directe.",
+      "undoNoSession": "La tecla de desfer funciona durant un dictat actiu. Comenceu primer a gravar.",
+      "undoNoBuffer": "Encara no hi ha res a netejar, el dictat no té text en directe.",
+      "bindingBusy": "Una altra tecla de dictat ja està gravant."
+    }
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} pot estar blocant 1 drecera",

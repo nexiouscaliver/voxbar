@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "Přepisuji...",
     "processing": "Zpracovávám...",
-    "removedWord": "Odebráno: {{text}}"
+    "removedWord": "Odebráno: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Přepis se nezdařil. Nahrávka byla zachována, zkuste to znovu z Historie.",
+      "generic": "Něco se pokazilo. Podrobnosti jsou v protokolu.",
+      "deleteLastWordNoSession": "Klávesa pro smazání slova funguje během aktivního diktování. Nejdřív spusťte nahrávání.",
+      "deleteLastWordNoBuffer": "Zatím není co mazat, diktování nemá živý text.",
+      "undoNoSession": "Klávesa zpět funguje během aktivního diktování. Nejdřív spusťte nahrávání.",
+      "undoNoBuffer": "Zatím není co vymazat, diktování nemá živý text.",
+      "bindingBusy": "Jiná klávesa diktování už nahrává."
+    }
   },
   "whatsNew": {
     "title": "Novinky v VoxBar v{{version}}"

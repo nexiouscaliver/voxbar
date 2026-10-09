@@ -1005,7 +1005,16 @@
   "overlay": {
     "transcribing": "Mentranskripsikan...",
     "processing": "Memproses...",
-    "removedWord": "Dihapus: {{text}}"
+    "removedWord": "Dihapus: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Transkripsi gagal. Rekaman disimpan, coba lagi dari Riwayat.",
+      "generic": "Terjadi kesalahan. Detailnya ada di log.",
+      "deleteLastWordNoSession": "Tombol hapus kata bekerja saat dikte sedang berlangsung. Mulai rekaman dulu.",
+      "deleteLastWordNoBuffer": "Belum ada yang bisa dihapus, dikte belum memiliki teks langsung.",
+      "undoNoSession": "Tombol urungkan bekerja saat dikte sedang berlangsung. Mulai rekaman dulu.",
+      "undoNoBuffer": "Belum ada yang bisa dibersihkan, dikte belum memiliki teks langsung.",
+      "bindingBusy": "Tombol dikte lain sedang merekam."
+    }
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} mungkin memblokir 1 pintasan",

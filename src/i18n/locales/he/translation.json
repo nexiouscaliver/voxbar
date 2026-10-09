@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "מתמלל...",
     "processing": "מעבד...",
-    "removedWord": "נמחק: {{text}}"
+    "removedWord": "נמחק: {{text}}",
+    "notice": {
+      "transcriptionFailed": "התמלול נכשל. ההקלטה נשמרה, נסה שוב מההיסטוריה.",
+      "generic": "משהו נכשל. הפרטים ביומן.",
+      "deleteLastWordNoSession": "מקש מחיקת מילה עובד בזמן הקלטה פעילה. התחילו הקלטה קודם.",
+      "deleteLastWordNoBuffer": "אין עדיין מה למחוק, אין טקסט חי בהקלטה.",
+      "undoNoSession": "מקש ביטול עובד בזמן הקלטה פעילה. התחילו הקלטה קודם.",
+      "undoNoBuffer": "אין עדיין מה לנקות, אין טקסט חי בהקלטה.",
+      "bindingBusy": "מקש הקלטה אחר כבר מקליט."
+    }
   },
   "whatsNew": {
     "title": "חדש ב-VoxBar v{{version}}"

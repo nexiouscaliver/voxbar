@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "Trascrizione...",
     "processing": "Elaborazione...",
-    "removedWord": "Rimosso: {{text}}"
+    "removedWord": "Rimosso: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Trascrizione non riuscita. La registrazione è stata conservata, riprova dalla cronologia.",
+      "generic": "Qualcosa è andato storto. I dettagli sono nel registro.",
+      "deleteLastWordNoSession": "Il tasto di cancellazione parola funziona durante una dettatura attiva. Avvia prima la registrazione.",
+      "deleteLastWordNoBuffer": "Ancora niente da cancellare, la dettatura non ha testo in diretta.",
+      "undoNoSession": "Il tasto di annullamento funziona durante una dettatura attiva. Avvia prima la registrazione.",
+      "undoNoBuffer": "Ancora niente da svuotare, la dettatura non ha testo in diretta.",
+      "bindingBusy": "Un altro tasto di dettatura sta già registrando."
+    }
   },
   "whatsNew": {
     "title": "Novità in VoxBar v{{version}}"

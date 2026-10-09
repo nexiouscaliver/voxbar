@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "Transkriberar...",
     "processing": "Bearbetar...",
-    "removedWord": "Borttaget: {{text}}"
+    "removedWord": "Borttaget: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Transkriberingen misslyckades. Inspelningen sparades, försök igen från historiken.",
+      "generic": "Något gick fel. Detaljerna finns i loggen.",
+      "deleteLastWordNoSession": "Radera ord-tangenten fungerar under en aktiv diktering. Starta inspelningen först.",
+      "deleteLastWordNoBuffer": "Det finns inget att radera än, dikteringen har ingen direkt text.",
+      "undoNoSession": "Ångra-tangenten fungerar under en aktiv diktering. Starta inspelningen först.",
+      "undoNoBuffer": "Det finns inget att rensa än, dikteringen har ingen direkt text.",
+      "bindingBusy": "En annan dikteringstangent spelar redan in."
+    }
   },
   "whatsNew": {
     "title": "Nytt i VoxBar v{{version}}"

@@ -1005,7 +1005,16 @@
   "overlay": {
     "transcribing": "Transskriberer...",
     "processing": "Behandler...",
-    "removedWord": "Fjernet: {{text}}"
+    "removedWord": "Fjernet: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Transskriptionen mislykkedes. Optagelsen blev gemt, prøv igen fra historikken.",
+      "generic": "Noget gik galt. Detaljerne findes i loggen.",
+      "deleteLastWordNoSession": "Slet ord-tasten virker under en aktiv diktatning. Start optagelsen først.",
+      "deleteLastWordNoBuffer": "Der er endnu intet at slette, diktatningen har ingen tekst endnu.",
+      "undoNoSession": "Fortryd-tasten virker under en aktiv diktatning. Start optagelsen først.",
+      "undoNoBuffer": "Der er endnu intet at rydde, diktatningen har ingen tekst endnu.",
+      "bindingBusy": "En anden diktattast optager allerede."
+    }
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blokerer muligvis 1 genvej",

@@ -879,6 +879,7 @@ pub fn run(cli_args: CliArgs) {
             managers::history::HistoryUpdatePayload,
             managers::transcription::StreamTextEvent,
             managers::transcription::StreamPhaseEvent,
+            managers::transcription::OverlayNoticeEvent,
             local_llm::manager::PostProcessSkipEvent,
         ]);
 

@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "Transcription...",
     "processing": "Traitement...",
-    "removedWord": "Supprimé : {{text}}"
+    "removedWord": "Supprimé : {{text}}",
+    "notice": {
+      "transcriptionFailed": "La transcription a échoué. L'enregistrement a été conservé, réessaie-le depuis l'historique.",
+      "generic": "Une erreur s'est produite. Les détails sont dans le journal.",
+      "deleteLastWordNoSession": "La touche de suppression de mot fonctionne pendant une dictée active. Commence d'abord un enregistrement.",
+      "deleteLastWordNoBuffer": "Rien à supprimer pour l'instant, la dictée n'a pas encore de texte en direct.",
+      "undoNoSession": "La touche d'annulation fonctionne pendant une dictée active. Commence d'abord un enregistrement.",
+      "undoNoBuffer": "Rien à effacer pour l'instant, la dictée n'a pas encore de texte en direct.",
+      "bindingBusy": "Une autre touche de dictée est déjà en train d'enregistrer."
+    }
   },
   "whatsNew": {
     "title": "Nouveautés de VoxBar v{{version}}"

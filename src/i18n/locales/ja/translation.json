@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "文字起こし中…",
     "processing": "処理中…",
-    "removedWord": "削除: {{text}}"
+    "removedWord": "削除: {{text}}",
+    "notice": {
+      "transcriptionFailed": "文字起こしに失敗しました。録音は保存されているので、履歴から再試行してください。",
+      "generic": "問題が発生しました。詳細はログにあります。",
+      "deleteLastWordNoSession": "単語削除キーはディクテーション中のみ動作します。まず録音を開始してください。",
+      "deleteLastWordNoBuffer": "まだ削除できるものがありません。ディクテーションにライブテキストがありません。",
+      "undoNoSession": "元に戻すキーはディクテーション中のみ動作します。まず録音を開始してください。",
+      "undoNoBuffer": "まだクリアできるものがありません。ディクテーションにライブテキストがありません。",
+      "bindingBusy": "別のディクテーションキーがすでに録音中です。"
+    }
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} の新機能"

@@ -1005,7 +1005,16 @@
   "overlay": {
     "transcribing": "Transcribing...",
     "processing": "Processing...",
-    "removedWord": "Removed: {{text}}"
+    "removedWord": "Removed: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Transcription failed. The recording was kept, retry it from History.",
+      "generic": "Something went wrong. Details are in the log.",
+      "deleteLastWordNoSession": "Delete word works during a live dictation. Start recording first.",
+      "deleteLastWordNoBuffer": "Nothing to delete yet, the dictation has no live text.",
+      "undoNoSession": "Undo works during a live dictation. Start recording first.",
+      "undoNoBuffer": "Nothing to clear yet, the dictation has no live text.",
+      "bindingBusy": "Another dictation key is already recording."
+    }
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} may be blocking 1 shortcut",

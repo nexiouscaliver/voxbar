@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "Đang chuyển đổi...",
     "processing": "Đang xử lý...",
-    "removedWord": "Đã xóa: {{text}}"
+    "removedWord": "Đã xóa: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Trích lời thất bại. Bản ghi đã được giữ lại, hãy thử lại từ lịch sử.",
+      "generic": "Đã xảy ra sự cố. Chi tiết nằm trong nhật ký.",
+      "deleteLastWordNoSession": "Phím xóa từ chỉ hoạt động trong lúc đọc chính tả đang bật. Hãy bắt đầu ghi âm trước.",
+      "deleteLastWordNoBuffer": "Chưa có gì để xóa, buổi đọc chính tả chưa có văn bản trực tiếp.",
+      "undoNoSession": "Phím hoàn tác chỉ hoạt động trong lúc đọc chính tả đang bật. Hãy bắt đầu ghi âm trước.",
+      "undoNoBuffer": "Chưa có gì để xóa sạch, buổi đọc chính tả chưa có văn bản trực tiếp.",
+      "bindingBusy": "Một phím đọc chính tả khác đang ghi âm."
+    }
   },
   "whatsNew": {
     "title": "Điểm mới trong VoxBar v{{version}}"

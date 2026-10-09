@@ -555,6 +555,11 @@ impl ShortcutAction for TranscribeAction {
                         detail: Some(e.to_string()),
                     },
                 );
+                crate::managers::transcription::emit_overlay_notice(
+                    app,
+                    crate::managers::transcription::NoticeCode::NoModelSelected,
+                    Some(e.to_string()),
+                );
                 return;
             }
         }
@@ -676,8 +681,10 @@ impl ShortcutAction for TranscribeAction {
         } else {
             // Starting failed (for example due to blocked microphone permissions).
             // Revert UI state so we don't stay stuck in the recording overlay.
+            // The overlay hide is DELAYED so the notice row below stays
+            // readable on the card; the show-generation guard cancels the
+            // hide if a new session starts within the read window.
             tm.cancel_stream();
-            utils::hide_recording_overlay(app);
             set_tray_state(app, TrayIconState::Idle);
             if let Some(err) = recording_error {
                 let error_type = if is_microphone_access_denied(&err) {
@@ -691,10 +698,18 @@ impl ShortcutAction for TranscribeAction {
                     "recording-error",
                     RecordingErrorEvent {
                         error_type: error_type.to_string(),
-                        detail: Some(err),
+                        detail: Some(err.clone()),
                     },
                 );
+                crate::managers::transcription::emit_overlay_notice(
+                    app,
+                    crate::managers::transcription::NoticeCode::from_recording_error_type(
+                        error_type,
+                    ),
+                    Some(err),
+                );
             }
+            utils::hide_recording_overlay_after_error(app);
         }
 
         debug!(
@@ -964,6 +979,10 @@ impl ShortcutAction for TranscribeAction {
                                 let paste_time = Instant::now();
                                 let final_text = processed.final_text;
                                 let rm_for_paste = Arc::clone(&rm);
+                                let paste_failed = Arc::new(std::sync::atomic::AtomicBool::new(
+                                    false,
+                                ));
+                                let paste_failed_flag = Arc::clone(&paste_failed);
                                 ah.run_on_main_thread(move || {
                                     if rm_for_paste.was_cancelled_since(cancel_generation) {
                                         debug!("Transcription operation cancelled before paste");
@@ -982,10 +1001,26 @@ impl ShortcutAction for TranscribeAction {
                                         Err(e) => {
                                             error!("Failed to paste transcription: {}", e);
                                             let _ = ah_clone.emit("paste-error", ());
+                                            crate::managers::transcription::emit_overlay_notice(
+                                                &ah_clone,
+                                                crate::managers::transcription::NoticeCode::PasteFailed,
+                                                Some(e.to_string()),
+                                            );
+                                            paste_failed_flag.store(
+                                                true,
+                                                std::sync::atomic::Ordering::Release,
+                                            );
                                         }
                                     }
-                                    utils::hide_recording_overlay(&ah_clone);
                                     set_tray_state(&ah_clone, TrayIconState::Idle);
+                                    if paste_failed_flag.load(std::sync::atomic::Ordering::Acquire)
+                                    {
+                                        // Delayed hide so the in-card paste
+                                        // error stays readable.
+                                        utils::hide_recording_overlay_after_error(&ah_clone);
+                                    } else {
+                                        utils::hide_recording_overlay(&ah_clone);
+                                    }
                                 })
                                 .unwrap_or_else(|e| {
                                     error!("Failed to run paste on main thread: {:?}", e);
@@ -1008,6 +1043,11 @@ impl ShortcutAction for TranscribeAction {
                             // Surface the failure to the UI (toast). The full
                             // message is also in voxbar.log via the line above.
                             let _ = ah.emit("transcription-error", err.to_string());
+                            crate::managers::transcription::emit_overlay_notice(
+                                &ah,
+                                crate::managers::transcription::NoticeCode::TranscriptionFailed,
+                                Some(err.to_string()),
+                            );
                             // Save entry with empty text so user can retry
                             if wav_saved {
                                 if let Err(save_err) = hm.save_entry(
@@ -1021,8 +1061,9 @@ impl ShortcutAction for TranscribeAction {
                                     error!("Failed to save failed history entry: {}", save_err);
                                 }
                             }
-                            utils::hide_recording_overlay(&ah);
+                            // Delayed hide so the in-card error stays readable.
                             set_tray_state(&ah, TrayIconState::Idle);
+                            utils::hide_recording_overlay_after_error(&ah);
                         }
                     }
                 }

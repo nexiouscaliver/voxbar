@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "Transkrypcja...",
     "processing": "Przetwarzanie...",
-    "removedWord": "Usunięto: {{text}}"
+    "removedWord": "Usunięto: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Transkrypcja nie powiodła się. Nagranie zostało zachowane, spróbuj ponownie z historii.",
+      "generic": "Coś poszło nie tak. Szczegóły są w dzienniku.",
+      "deleteLastWordNoSession": "Klawisz usuwania słowa działa podczas aktywnego dyktowania. Najpierw rozpocznij nagrywanie.",
+      "deleteLastWordNoBuffer": "Nie ma jeszcze czego usuwać, dyktowanie nie ma tekstu na żywo.",
+      "undoNoSession": "Klawisz cofania działa podczas aktywnego dyktowania. Najpierw rozpocznij nagrywanie.",
+      "undoNoBuffer": "Nie ma jeszcze czego czyścić, dyktowanie nie ma tekstu na żywo.",
+      "bindingBusy": "Inny klawisz dyktowania już nagrywa."
+    }
   },
   "whatsNew": {
     "title": "Nowości w VoxBar v{{version}}"

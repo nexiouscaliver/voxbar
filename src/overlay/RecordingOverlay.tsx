@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import "./RecordingOverlay.css";
 import { commands, events } from "@/bindings";
 import type {
+  OverlayNoticeEvent,
   StreamPhase,
   StreamPhaseEvent,
   StreamTextEvent,
@@ -19,9 +20,70 @@ type OverlayState =
   | "processing"
   | "preview";
 
+// How long a notice stays on the card before it dismisses itself. Errors get
+// the full window; the delayed overlay hide on error paths gives them the
+// same order of time to be read.
+const NOTICE_DISMISS_MS = 5000;
+
 // Number of reactive bars in the waveform (the simple, smoothed style shared by
 // every overlay form). Mic levels arrive as 16 FFT buckets; we take the first N.
 const WAVE_BARS = 9;
+
+// Localize one notice. Codes deliberately reuse the strings the main-window
+// toasts already ship (one voice for the same failure on both surfaces); the
+// keys below exist in every locale. The post-process skips reuse the toast
+// copy for the same reason.
+function noticeMessage(
+  notice: OverlayNoticeEvent,
+  t: (key: string, options?: Record<string, unknown>) => string,
+): string {
+  switch (notice.code) {
+    case "no_model_selected":
+      return t("errors.noModelSelected");
+    case "microphone_permission_denied":
+      return t("errors.micPermissionDenied.generic");
+    case "no_input_device":
+      return t("errors.noInputDevice");
+    case "recording_failed":
+      return t("errors.recordingFailed", { error: notice.detail ?? "" });
+    case "transcription_failed":
+      return t("overlay.notice.transcriptionFailed");
+    case "paste_failed":
+      return t("errors.pasteFailed");
+    case "model_load_failed":
+      return t("errors.modelLoadFailed", {
+        model: notice.detail ?? t("errors.modelLoadFailedUnknown"),
+      });
+    case "model_fallback":
+      return t("errors.modelFallback", { model: notice.detail ?? "" });
+    case "post_process_memory_gate":
+      return t("toast.postProcessSkip.memoryGate", {
+        detail: notice.detail ?? "",
+      });
+    case "post_process_download_missing":
+      return t("toast.postProcessSkip.downloadMissing");
+    case "post_process_engine_failed":
+      return t("toast.postProcessSkip.engineFailed");
+    case "post_process_timeout":
+      return t("toast.postProcessSkip.timeout");
+    case "post_process_length_guard":
+      return t("toast.postProcessSkip.lengthGuard");
+    case "post_process_too_long":
+      return t("toast.postProcessSkip.tooLong");
+    case "delete_last_word_no_session":
+      return t("overlay.notice.deleteLastWordNoSession");
+    case "delete_last_word_no_buffer":
+      return t("overlay.notice.deleteLastWordNoBuffer");
+    case "undo_no_session":
+      return t("overlay.notice.undoNoSession");
+    case "undo_no_buffer":
+      return t("overlay.notice.undoNoBuffer");
+    case "binding_busy":
+      return t("overlay.notice.bindingBusy");
+    default:
+      return t("overlay.notice.generic");
+  }
+}
 
 const RecordingOverlay: React.FC = () => {
   const { t } = useTranslation();
@@ -53,6 +115,13 @@ const RecordingOverlay: React.FC = () => {
   // about 1.5 s so a deletion is never invisible. Null when idle.
   const [removedText, setRemovedText] = useState<string | null>(null);
   const removedTimerRef = useRef<number | null>(null);
+  // The latest backend notice (failure or fallback), shown as a row on the
+  // card. Per the channel's display rule this renders ONLY while the card is
+  // already visible: the backend never force-shows the overlay for a notice,
+  // and a notice that arrives while hidden is carried by the error sound and
+  // the main-window toast instead. Cleared on hide and on fresh sessions.
+  const [notice, setNotice] = useState<OverlayNoticeEvent | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
 
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
   // Live-text scroll-back: the text region "sticks" to the newest line while the
@@ -79,6 +148,11 @@ const RecordingOverlay: React.FC = () => {
           setLevels(Array(WAVE_BARS).fill(0));
           setStreamText({ committed: "", tentative: "" });
           setRemovedText(null);
+          setNotice(null);
+          if (noticeTimerRef.current !== null) {
+            window.clearTimeout(noticeTimerRef.current);
+            noticeTimerRef.current = null;
+          }
         }
 
         await syncLanguageFromSettings();
@@ -107,6 +181,11 @@ const RecordingOverlay: React.FC = () => {
       const unlistenHide = await listen("hide-overlay", () => {
         setIsVisible(false);
         setCaptureReady(false);
+        setNotice(null);
+        if (noticeTimerRef.current !== null) {
+          window.clearTimeout(noticeTimerRef.current);
+          noticeTimerRef.current = null;
+        }
       });
 
       const unlistenReady = await listen("recording-ready", () => {
@@ -150,6 +229,19 @@ const RecordingOverlay: React.FC = () => {
         if (payload.kind) setWorkKind(payload.kind);
       });
 
+      const unlistenNotice = await events.overlayNoticeEvent.listen(
+        (event) => {
+          setNotice(event.payload);
+          if (noticeTimerRef.current !== null) {
+            window.clearTimeout(noticeTimerRef.current);
+          }
+          noticeTimerRef.current = window.setTimeout(() => {
+            setNotice(null);
+            noticeTimerRef.current = null;
+          }, NOTICE_DISMISS_MS);
+        },
+      );
+
       return () => {
         unlistenShow();
         unlistenHide();
@@ -157,10 +249,15 @@ const RecordingOverlay: React.FC = () => {
         unlistenLevel();
         unlistenStream();
         unlistenPhase();
+        unlistenNotice();
         // Never leave the removal chip's timer running past unmount.
         if (removedTimerRef.current !== null) {
           window.clearTimeout(removedTimerRef.current);
           removedTimerRef.current = null;
+        }
+        if (noticeTimerRef.current !== null) {
+          window.clearTimeout(noticeTimerRef.current);
+          noticeTimerRef.current = null;
         }
       };
     };
@@ -261,6 +358,19 @@ const RecordingOverlay: React.FC = () => {
     </div>
   );
 
+  // The notice strip: a failure or fallback the backend surfaced, shown only
+  // while the card is visible (see the notice state comment above). Styled on
+  // the removal chip, with the error variant carrying the refusal card's red
+  // treatment.
+  const noticeRow = notice !== null && (
+    <div
+      className={`snotice ${notice.kind === "error" ? "err" : "info"}`}
+      role="status"
+    >
+      {noticeMessage(notice, t)}
+    </div>
+  );
+
   // ---- Live overlay: a pill that sculpts open into a panel ----
   // The final-text preview ("preview") reuses the Live card: it shows the
   // finished transcription briefly before the paste fires, so batch models
@@ -279,12 +389,12 @@ const RecordingOverlay: React.FC = () => {
 
     return (
       <div dir={direction} className={`ov-stage ${position}`}>
-        <div
-          key={session}
-          className={`scard ${open ? "open" : ""} ${collapsed ? "working" : ""} ${
-            isVisible ? "" : "leaving"
-          }`}
-        >
+      <div
+        key={session}
+        className={`scard ${open ? "open" : ""} ${collapsed ? "working" : ""} ${
+          isVisible ? "" : "leaving"
+        } ${notice !== null ? "has-notice" : ""}`}
+      >
           <div className="stext">
             <div className="stext-clip">
               <div
@@ -320,6 +430,7 @@ const RecordingOverlay: React.FC = () => {
             : // The preview row keeps the shared 3-zone layout but drops the
               // elapsed timer: nothing is being timed anymore.
               listeningRow(open && !isPreview, true)}
+          {noticeRow}
         </div>
       </div>
     );
@@ -340,9 +451,12 @@ const RecordingOverlay: React.FC = () => {
       className={`ov-stage ${position} ov-fade ${isVisible ? "show" : ""}`}
     >
       <div
-        className={`scard compact ${working && isVisible ? "cworking" : ""}`}
+        className={`scard compact ${working && isVisible ? "cworking" : ""} ${
+          notice !== null ? "has-notice" : ""
+        }`}
       >
         {working ? workingRow(workLabel, true) : listeningRow(false, true)}
+        {noticeRow}
       </div>
     </div>
   );

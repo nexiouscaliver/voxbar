@@ -306,6 +306,60 @@
   text-decoration: line-through;
   text-decoration-thickness: 1px;
 }
+
+/* Notice strip: a failure or fallback the backend surfaced mid-dictation.
+   Chip geometry follows .sremoved (same visual language for transient
+   metadata under the card), with two tones: info keeps the neutral chip,
+   error takes the refusal card's red treatment (border + faint wash). The
+   card widens while a notice is up so a sentence remains readable on the
+   compact pill. */
+.snotice {
+  margin: 0 10px 8px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-style: normal;
+  line-height: 1.35;
+  max-height: 3.1em; /* two lines; longer diagnostics live in the log/toast */
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.snotice.info {
+  color: var(--s-muted);
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+.snotice.err {
+  color: oklch(0.55 0.19 27);
+  background: color-mix(in srgb, oklch(0.55 0.19 27) 5%, transparent);
+  border: 1px solid color-mix(in srgb, oklch(0.55 0.19 27) 30%, transparent);
+}
+@media (prefers-color-scheme: dark) {
+  .snotice.err {
+    color: oklch(0.77 0.12 27);
+    background: color-mix(in srgb, oklch(0.77 0.12 27) 8%, transparent);
+    border-color: color-mix(in srgb, oklch(0.77 0.12 27) 30%, transparent);
+  }
+}
+:root[data-theme="light"] .snotice.err {
+  color: oklch(0.55 0.19 27);
+  background: color-mix(in srgb, oklch(0.55 0.19 27) 5%, transparent);
+  border-color: color-mix(in srgb, oklch(0.55 0.19 27) 30%, transparent);
+}
+:root[data-theme="dark"] .snotice.err {
+  color: oklch(0.77 0.12 27);
+  background: color-mix(in srgb, oklch(0.77 0.12 27) 8%, transparent);
+  border-color: color-mix(in srgb, oklch(0.77 0.12 27) 30%, transparent);
+}
+/* Room for the notice: the collapsed Live working pill steps up to the
+   open-panel width while the strip is visible (its window is the streaming
+   one, which already fits that width). The compact pill keeps its width; the
+   native compact window is narrower, so the strip clamps to two lines there
+   and the sound plus toast carry the full message. */
+.scard.working.has-notice {
+  width: var(--ov-open-w);
+}
 @keyframes scaret-blink {
   50% {
     opacity: 0;

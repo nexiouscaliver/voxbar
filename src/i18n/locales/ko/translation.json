@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "텍스트로 변환 중...",
     "processing": "처리 중...",
-    "removedWord": "제거됨: {{text}}"
+    "removedWord": "제거됨: {{text}}",
+    "notice": {
+      "transcriptionFailed": "전사에 실패했습니다. 녹음은 보관되었으니 기록에서 다시 시도하세요.",
+      "generic": "문제가 발생했습니다. 자세한 내용은 로그에 있습니다.",
+      "deleteLastWordNoSession": "단어 삭제 키는 받아쓰기 중에만 동작합니다. 먼저 녹음을 시작하세요.",
+      "deleteLastWordNoBuffer": "아직 삭제할 내용이 없습니다. 받아쓰기에 실시간 텍스트가 없습니다.",
+      "undoNoSession": "되돌리기 키는 받아쓰기 중에만 동작합니다. 먼저 녹음을 시작하세요.",
+      "undoNoBuffer": "아직 지울 내용이 없습니다. 받아쓰기에 실시간 텍스트가 없습니다.",
+      "bindingBusy": "다른 받아쓰기 키가 이미 녹음 중입니다."
+    }
   },
   "whatsNew": {
     "title": "VoxBar v{{version}}의 새 소식"

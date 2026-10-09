@@ -12,6 +12,7 @@ use tauri::{AppHandle, Manager};
 pub enum SoundType {
     Start,
     Stop,
+    Error,
 }
 
 fn resolve_sound_path(
@@ -33,8 +34,10 @@ fn get_sound_path(settings: &AppSettings, sound_type: SoundType) -> String {
     match (settings.sound_theme, sound_type) {
         (SoundTheme::Custom, SoundType::Start) => "custom_start.wav".to_string(),
         (SoundTheme::Custom, SoundType::Stop) => "custom_stop.wav".to_string(),
+        (SoundTheme::Custom, SoundType::Error) => "custom_error.wav".to_string(),
         (_, SoundType::Start) => settings.sound_theme.to_start_path(),
         (_, SoundType::Stop) => settings.sound_theme.to_stop_path(),
+        (_, SoundType::Error) => settings.sound_theme.to_error_path(),
     }
 }
 
@@ -72,24 +75,66 @@ pub fn play_test_sound(app: &AppHandle, sound_type: SoundType) {
     }
 }
 
+/// How much quieter the Stop cue plays when it stands in for a missing Error
+/// asset: recognizably the same theme's voice, clearly not a normal stop.
+const ERROR_FALLBACK_VOLUME_FACTOR: f32 = 0.6;
+
+/// The error cue for the notice channel. Prefers the theme's dedicated
+/// `*_error.wav`; when that asset does not exist (a custom theme with only
+/// start/stop recorded), falls back to the Stop cue at reduced volume so a
+/// failure is always audible and never reads as a normal stop.
+pub fn play_error_feedback(app: &AppHandle) {
+    let settings = settings::get_settings(app);
+    if !settings.audio_feedback {
+        return;
+    }
+    if let Some(path) = resolve_sound_path(app, &settings, SoundType::Error) {
+        if path.exists() {
+            play_sound_async_at_volume(app, path, 1.0);
+            return;
+        }
+    }
+    if let Some(path) = resolve_sound_path(app, &settings, SoundType::Stop) {
+        play_sound_async_at_volume(app, path, ERROR_FALLBACK_VOLUME_FACTOR);
+    }
+}
+
 fn play_sound_async(app: &AppHandle, path: PathBuf) {
     let app_handle = app.clone();
     thread::spawn(move || {
-        if let Err(e) = play_sound_at_path(&app_handle, path.as_path()) {
+        if let Err(e) = play_sound_at_path(&app_handle, path.as_path(), None) {
+            error!("Failed to play sound '{}': {}", path.display(), e);
+        }
+    });
+}
+
+/// Async playback with a volume factor applied on top of the user's
+/// `audio_feedback_volume` (the error fallback plays the Stop cue quieter).
+fn play_sound_async_at_volume(app: &AppHandle, path: PathBuf, factor: f32) {
+    let app_handle = app.clone();
+    thread::spawn(move || {
+        if let Err(e) = play_sound_at_path(&app_handle, path.as_path(), Some(factor)) {
             error!("Failed to play sound '{}': {}", path.display(), e);
         }
     });
 }
 
 fn play_sound_blocking(app: &AppHandle, path: &Path) {
-    if let Err(e) = play_sound_at_path(app, path) {
+    if let Err(e) = play_sound_at_path(app, path, None) {
         error!("Failed to play sound '{}': {}", path.display(), e);
     }
 }
 
-fn play_sound_at_path(app: &AppHandle, path: &Path) -> Result<(), Box<dyn std::error::Error>> {
+fn play_sound_at_path(
+    app: &AppHandle,
+    path: &Path,
+    volume_factor: Option<f32>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let settings = settings::get_settings(app);
-    let volume = settings.audio_feedback_volume;
+    let volume = match volume_factor {
+        Some(factor) => settings.audio_feedback_volume * factor,
+        None => settings.audio_feedback_volume,
+    };
     let selected_device = settings.selected_output_device.clone();
     play_audio_file(path, selected_device, volume)
 }

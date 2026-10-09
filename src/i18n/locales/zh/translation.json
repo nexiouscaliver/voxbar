@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "正在转录...",
     "processing": "处理中...",
-    "removedWord": "已移除：{{text}}"
+    "removedWord": "已移除：{{text}}",
+    "notice": {
+      "transcriptionFailed": "转录失败。录音已保留，可从历史记录重试。",
+      "generic": "出了点问题。详情见日志。",
+      "deleteLastWordNoSession": "删除词按键仅在听写进行中有效。请先开始录音。",
+      "deleteLastWordNoBuffer": "还没有可删除的内容，听写中没有实时文本。",
+      "undoNoSession": "撤销按键仅在听写进行中有效。请先开始录音。",
+      "undoNoBuffer": "还没有可清除的内容，听写中没有实时文本。",
+      "bindingBusy": "另一个听写按键已在录音中。"
+    }
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} 新功能"

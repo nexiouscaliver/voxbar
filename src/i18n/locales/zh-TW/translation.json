@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "正在轉錄...",
     "processing": "處理中...",
-    "removedWord": "已移除：{{text}}"
+    "removedWord": "已移除：{{text}}",
+    "notice": {
+      "transcriptionFailed": "轉錄失敗。錄音已保留，可從歷史記錄重試。",
+      "generic": "出了點問題。詳細資訊請見日誌。",
+      "deleteLastWordNoSession": "刪除詞按鍵僅在聽寫進行中有效。請先開始錄音。",
+      "deleteLastWordNoBuffer": "還沒有可刪除的內容，聽寫中沒有即時文字。",
+      "undoNoSession": "復原按鍵僅在聽寫進行中有效。請先開始錄音。",
+      "undoNoBuffer": "還沒有可清除的內容，聽寫中沒有即時文字。",
+      "bindingBusy": "另一個聽寫按鍵已在錄音中。"
+    }
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} 新功能"

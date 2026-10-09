@@ -379,6 +379,12 @@ impl SoundTheme {
     pub fn to_stop_path(self) -> String {
         format!("resources/{}_stop.wav", self.as_str())
     }
+
+    /// The error cue of the theme. Not every theme ships one; the player
+    /// falls back to the Stop cue at reduced volume when it is absent.
+    pub fn to_error_path(self) -> String {
+        format!("resources/{}_error.wav", self.as_str())
+    }
 }
 
 /// UI appearance mode. `System` follows the OS `prefers-color-scheme`; `Light`

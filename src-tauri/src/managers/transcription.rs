@@ -81,8 +81,10 @@ fn fallback_rank(info: &ModelInfo) -> u32 {
 /// Pure routing guard for the ASR load path: the local post-process LLM is
 /// loaded only by the post-process engine's worker process, so an ASR load
 /// of it is refused with this error (never routed into transcribe-cpp or
-/// an ONNX runtime). `None` for every real ASR engine type.
-fn asr_load_refusal(engine_type: &EngineType, model_id: &str) -> Option<String> {
+/// an ONNX runtime). `None` for every real ASR engine type. Shared by the
+/// load path and the selection guard (commands/models.rs) so the same
+/// predicate rules both.
+pub(crate) fn asr_load_refusal(engine_type: &EngineType, model_id: &str) -> Option<String> {
     match engine_type {
         EngineType::LocalLlm => Some(format!(
             "Model '{}' is loaded by the post-process engine, not an ASR engine",
@@ -328,6 +330,175 @@ pub struct StreamPhaseEvent {
     /// Present only when `phase` is `Working`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<StreamWorkKind>,
+}
+
+/// Tone of an [`OverlayNoticeEvent`]: failures are errors, expected or
+/// recoverable conditions are info. Errors carry the error sound; info does
+/// not (an expected skip must not beep on every dictation).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum OverlayNoticeKind {
+    Error,
+    Info,
+}
+
+/// One feedback notice for the overlay-first user: something went wrong (or
+/// fell back) during a dictation and the person living in the overlay must
+/// hear about it through the overlay, not only through a toast in a window
+/// they never open.
+///
+/// Display rule, stated once: the overlay card renders the notice row ONLY
+/// while the card is already visible; when the overlay is hidden (including
+/// `OverlayStyle::None`, where the show path no-ops) the channel is the
+/// error sound plus the existing main-window toast and the file log. The
+/// backend NEVER force-shows the overlay for a notice, so no flashed pills.
+#[derive(Clone, Debug, Serialize, Deserialize, Type, tauri_specta::Event)]
+pub struct OverlayNoticeEvent {
+    pub kind: OverlayNoticeKind,
+    /// Stable machine code; the frontend maps it to a localized message.
+    pub code: String,
+    /// Diagnostic detail (error text, model names). Optional by design.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
+/// Every failure or notice site that feeds the overlay notice channel. The
+/// pure mapping to `(kind, code)` lives here so the code strings the frontend
+/// localizes against are pinned by unit tests, and every emit site shares one
+/// helper ([`emit_overlay_notice`]) instead of re-deriving tone and sound.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NoticeCode {
+    /// The hotkey fired with no usable ASR selection (actions.rs start path).
+    NoModelSelected,
+    /// Recording could not start: mic permission denied by the OS.
+    MicrophonePermissionDenied,
+    /// Recording could not start: no input device present.
+    NoInputDevice,
+    /// Recording failed to start for any other reason.
+    RecordingFailed,
+    /// The stop path transcribed nothing (engine failure).
+    TranscriptionFailed,
+    /// The final text could not be pasted into the focused app.
+    PasteFailed,
+    /// A voice model load failed (hotkey- or settings-driven).
+    ModelLoadFailed,
+    /// The memory gate swapped to a smaller model for this dictation.
+    ModelFallback,
+    /// Local post-process fell back to the raw transcript (memory gate).
+    PostProcessMemoryGate,
+    /// Local post-process skipped: the LLM model is not downloaded.
+    PostProcessDownloadMissing,
+    /// Local post-process skipped: the engine worker failed.
+    PostProcessEngineFailed,
+    /// Local post-process skipped: bounded wait elapsed.
+    PostProcessTimeout,
+    /// Local post-process output failed the fidelity/length guard.
+    PostProcessLengthGuard,
+    /// Local post-process skipped: transcript exceeds the token cap.
+    PostProcessTooLong,
+    /// Delete-last-word pressed with no live dictation session.
+    DeleteLastWordNoSession,
+    /// A session is live but has no stream buffer to delete from yet.
+    DeleteLastWordNoBuffer,
+    /// Undo pressed with no live dictation session.
+    UndoNoSession,
+    /// A session is live but has no buffer to clear yet.
+    UndoNoBuffer,
+    /// A different transcribe binding is already recording (press swallowed).
+    BindingBusy,
+}
+
+impl NoticeCode {
+    /// The notice tone. Everything in the error set plays the error sound;
+    /// info notices ride the overlay row / toast only.
+    pub fn kind(self) -> OverlayNoticeKind {
+        match self {
+            NoticeCode::ModelFallback
+            | NoticeCode::PostProcessDownloadMissing
+            | NoticeCode::PostProcessTooLong
+            | NoticeCode::DeleteLastWordNoSession
+            | NoticeCode::DeleteLastWordNoBuffer
+            | NoticeCode::UndoNoSession
+            | NoticeCode::UndoNoBuffer
+            | NoticeCode::BindingBusy => OverlayNoticeKind::Info,
+            _ => OverlayNoticeKind::Error,
+        }
+    }
+
+    /// Stable machine code string; the frontend's i18n keys map off this.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            NoticeCode::NoModelSelected => "no_model_selected",
+            NoticeCode::MicrophonePermissionDenied => "microphone_permission_denied",
+            NoticeCode::NoInputDevice => "no_input_device",
+            NoticeCode::RecordingFailed => "recording_failed",
+            NoticeCode::TranscriptionFailed => "transcription_failed",
+            NoticeCode::PasteFailed => "paste_failed",
+            NoticeCode::ModelLoadFailed => "model_load_failed",
+            NoticeCode::ModelFallback => "model_fallback",
+            NoticeCode::PostProcessMemoryGate => "post_process_memory_gate",
+            NoticeCode::PostProcessDownloadMissing => "post_process_download_missing",
+            NoticeCode::PostProcessEngineFailed => "post_process_engine_failed",
+            NoticeCode::PostProcessTimeout => "post_process_timeout",
+            NoticeCode::PostProcessLengthGuard => "post_process_length_guard",
+            NoticeCode::PostProcessTooLong => "post_process_too_long",
+            NoticeCode::DeleteLastWordNoSession => "delete_last_word_no_session",
+            NoticeCode::DeleteLastWordNoBuffer => "delete_last_word_no_buffer",
+            NoticeCode::UndoNoSession => "undo_no_session",
+            NoticeCode::UndoNoBuffer => "undo_no_buffer",
+            NoticeCode::BindingBusy => "binding_busy",
+        }
+    }
+
+    /// Map a recording-error `error_type` (the same strings the main-window
+    /// toast switch already keys on) to its notice code.
+    pub fn from_recording_error_type(error_type: &str) -> Self {
+        match error_type {
+            "no_model_selected" => NoticeCode::NoModelSelected,
+            "microphone_permission_denied" => NoticeCode::MicrophonePermissionDenied,
+            "no_input_device" => NoticeCode::NoInputDevice,
+            _ => NoticeCode::RecordingFailed,
+        }
+    }
+
+    /// Map a local post-process skip reason to its notice code.
+    pub fn from_skip_reason(reason: crate::local_llm::SkipReason) -> Self {
+        use crate::local_llm::SkipReason;
+        match reason {
+            SkipReason::MemoryGate => NoticeCode::PostProcessMemoryGate,
+            SkipReason::DownloadMissing => NoticeCode::PostProcessDownloadMissing,
+            SkipReason::EngineFailed => NoticeCode::PostProcessEngineFailed,
+            SkipReason::Timeout => NoticeCode::PostProcessTimeout,
+            SkipReason::LengthGuard => NoticeCode::PostProcessLengthGuard,
+            SkipReason::TooLong => NoticeCode::PostProcessTooLong,
+        }
+    }
+}
+
+/// Emit one notice through the single channel: the specta event (the overlay
+/// renders it only while its card is already visible) plus, for the error
+/// tone, the error sound. The existing main-window toasts and the file log
+/// keep running at their own emit sites, so every notice stays dual-surface.
+pub fn emit_overlay_notice(app: &AppHandle, code: NoticeCode, detail: Option<String>) {
+    let kind = code.kind();
+    info!(
+        "overlay notice: kind={} code={} detail={}",
+        match kind {
+            OverlayNoticeKind::Error => "error",
+            OverlayNoticeKind::Info => "info",
+        },
+        code.as_str(),
+        detail.as_deref().unwrap_or("-")
+    );
+    let _ = OverlayNoticeEvent {
+        kind,
+        code: code.as_str().to_string(),
+        detail,
+    }
+    .emit(app);
+    if kind == OverlayNoticeKind::Error {
+        crate::audio_feedback::play_error_feedback(app);
+    }
 }
 
 /// Commands sent to the streaming worker thread. Audio frames and the finalize
@@ -1547,6 +1718,11 @@ impl TranscriptionManager {
                         memory_gate: None,
                     },
                 );
+                emit_overlay_notice(
+                    &self.app_handle,
+                    NoticeCode::ModelLoadFailed,
+                    Some(error_msg.clone()),
+                );
                 return Err(anyhow::anyhow!(error_msg));
             }
         };
@@ -1563,6 +1739,13 @@ impl TranscriptionManager {
                     error: Some(error_msg.to_string()),
                     memory_gate: None,
                 },
+            );
+            // The toast above lands in the (usually hidden) main window; the
+            // notice channel carries the same failure to the overlay user.
+            emit_overlay_notice(
+                &self.app_handle,
+                NoticeCode::ModelLoadFailed,
+                Some(error_msg.to_string()),
             );
         };
 
@@ -1661,8 +1844,15 @@ impl TranscriptionManager {
                         "model-fallback",
                         ModelFallbackEvent {
                             requested_model_name: model_info.name.clone(),
-                            fallback_model_name: fallback_name,
+                            fallback_model_name: fallback_name.clone(),
                         },
+                    );
+                    // Info notice: the dictation continues on another model,
+                    // and the person mid-dictation should be told which one.
+                    emit_overlay_notice(
+                        &self.app_handle,
+                        NoticeCode::ModelFallback,
+                        Some(fallback_name),
                     );
                     return self.load_model_with_device_internal(&fallback_id, device_index, false);
                 }
@@ -1691,6 +1881,11 @@ impl TranscriptionManager {
                                 headroom_bytes: headroom,
                             }),
                         },
+                    );
+                    emit_overlay_notice(
+                        &self.app_handle,
+                        NoticeCode::ModelLoadFailed,
+                        Some(error_msg.clone()),
                     );
                     return Err(anyhow::anyhow!(error_msg));
                 }
@@ -3758,6 +3953,121 @@ pub fn get_available_accelerators(tm: &TranscriptionManager) -> AvailableAcceler
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The notice channel's code table is the contract the frontend
+    /// localizes against: codes must be unique, non-empty, and carry the
+    /// tone the display rule depends on (errors play the error sound, info
+    /// does not beep). A code edit that drifts from the frontend's switch
+    /// must fail here, not in a user's overlay.
+    #[test]
+    fn notice_codes_are_stable_and_toned() {
+        let all = [
+            NoticeCode::NoModelSelected,
+            NoticeCode::MicrophonePermissionDenied,
+            NoticeCode::NoInputDevice,
+            NoticeCode::RecordingFailed,
+            NoticeCode::TranscriptionFailed,
+            NoticeCode::PasteFailed,
+            NoticeCode::ModelLoadFailed,
+            NoticeCode::ModelFallback,
+            NoticeCode::PostProcessMemoryGate,
+            NoticeCode::PostProcessDownloadMissing,
+            NoticeCode::PostProcessEngineFailed,
+            NoticeCode::PostProcessTimeout,
+            NoticeCode::PostProcessLengthGuard,
+            NoticeCode::PostProcessTooLong,
+            NoticeCode::DeleteLastWordNoSession,
+            NoticeCode::DeleteLastWordNoBuffer,
+            NoticeCode::UndoNoSession,
+            NoticeCode::UndoNoBuffer,
+            NoticeCode::BindingBusy,
+        ];
+        let mut codes: Vec<&str> = all.iter().map(|c| c.as_str()).collect();
+        assert!(codes.iter().all(|c| !c.is_empty()));
+        codes.sort_unstable();
+        let unique = codes.len();
+        codes.dedup();
+        assert_eq!(codes.len(), unique, "notice codes must be unique");
+
+        // Error tone: real failures beep; expected conditions and no-op
+        // feedback stay quiet.
+        for code in [
+            NoticeCode::NoModelSelected,
+            NoticeCode::MicrophonePermissionDenied,
+            NoticeCode::NoInputDevice,
+            NoticeCode::RecordingFailed,
+            NoticeCode::TranscriptionFailed,
+            NoticeCode::PasteFailed,
+            NoticeCode::ModelLoadFailed,
+            NoticeCode::PostProcessMemoryGate,
+            NoticeCode::PostProcessEngineFailed,
+            NoticeCode::PostProcessTimeout,
+            NoticeCode::PostProcessLengthGuard,
+        ] {
+            assert_eq!(code.kind(), OverlayNoticeKind::Error, "{:?} is an error", code);
+        }
+        for code in [
+            NoticeCode::ModelFallback,
+            NoticeCode::PostProcessDownloadMissing,
+            NoticeCode::PostProcessTooLong,
+            NoticeCode::DeleteLastWordNoSession,
+            NoticeCode::DeleteLastWordNoBuffer,
+            NoticeCode::UndoNoSession,
+            NoticeCode::UndoNoBuffer,
+            NoticeCode::BindingBusy,
+        ] {
+            assert_eq!(code.kind(), OverlayNoticeKind::Info, "{:?} is info", code);
+        }
+    }
+
+    /// The mapping helpers the emit sites rely on: recording error types and
+    /// post-process skip reasons resolve to the code the frontend expects,
+    /// with unknowns degrading to the generic recording failure.
+    #[test]
+    fn notice_mapping_helpers_cover_every_source() {
+        use crate::local_llm::SkipReason;
+
+        assert_eq!(
+            NoticeCode::from_recording_error_type("no_model_selected"),
+            NoticeCode::NoModelSelected
+        );
+        assert_eq!(
+            NoticeCode::from_recording_error_type("microphone_permission_denied"),
+            NoticeCode::MicrophonePermissionDenied
+        );
+        assert_eq!(
+            NoticeCode::from_recording_error_type("no_input_device"),
+            NoticeCode::NoInputDevice
+        );
+        assert_eq!(
+            NoticeCode::from_recording_error_type("anything-else"),
+            NoticeCode::RecordingFailed
+        );
+        assert_eq!(
+            NoticeCode::from_recording_error_type(""),
+            NoticeCode::RecordingFailed
+        );
+
+        // Every SkipReason resolves to its own post-process code.
+        let reasons = [
+            SkipReason::MemoryGate,
+            SkipReason::DownloadMissing,
+            SkipReason::EngineFailed,
+            SkipReason::Timeout,
+            SkipReason::LengthGuard,
+            SkipReason::TooLong,
+        ];
+        let mapped: Vec<&str> = reasons
+            .iter()
+            .map(|r| NoticeCode::from_skip_reason(*r).as_str())
+            .collect();
+        let mut unique = mapped.clone();
+        unique.sort_unstable();
+        unique.dedup();
+        assert_eq!(mapped.len(), unique.len(), "skip reasons map 1:1 to codes");
+        assert!(mapped.contains(&"post_process_engine_failed"));
+        assert!(mapped.contains(&"post_process_memory_gate"));
+    }
 
     #[test]
     fn low_latency_extension_by_family() {

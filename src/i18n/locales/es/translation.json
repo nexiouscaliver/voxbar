@@ -1002,7 +1002,16 @@
   "overlay": {
     "transcribing": "Transcribiendo...",
     "processing": "Procesando...",
-    "removedWord": "Eliminado: {{text}}"
+    "removedWord": "Eliminado: {{text}}",
+    "notice": {
+      "transcriptionFailed": "La transcripción falló. La grabación se conservó, reinténtala desde el historial.",
+      "generic": "Algo salió mal. Los detalles están en el registro.",
+      "deleteLastWordNoSession": "La tecla de borrar palabra funciona durante un dictado activo. Comienza a grabar primero.",
+      "deleteLastWordNoBuffer": "Aún no hay nada que borrar, el dictado no tiene texto en vivo.",
+      "undoNoSession": "La tecla de deshacer funciona durante un dictado activo. Comienza a grabar primero.",
+      "undoNoBuffer": "Aún no hay nada que limpiar, el dictado no tiene texto en vivo.",
+      "bindingBusy": "Otra tecla de dictado ya está grabando."
+    }
   },
   "whatsNew": {
     "title": "Nuevo en VoxBar v{{version}}"

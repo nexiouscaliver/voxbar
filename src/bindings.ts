@@ -1213,11 +1213,13 @@ async isLaptop() : Promise<Result<boolean, string>> {
 
 export const events = __makeEvents__<{
 historyUpdatePayload: HistoryUpdatePayload,
+overlayNoticeEvent: OverlayNoticeEvent,
 postProcessSkipEvent: PostProcessSkipEvent,
 streamPhaseEvent: StreamPhaseEvent,
 streamTextEvent: StreamTextEvent
 }>({
 historyUpdatePayload: "history-update-payload",
+overlayNoticeEvent: "overlay-notice-event",
 postProcessSkipEvent: "post-process-skip-event",
 streamPhaseEvent: "stream-phase-event",
 streamTextEvent: "stream-text-event"
@@ -1599,6 +1601,33 @@ export type ModelUnloadTimeout = "never" | "immediately" | "min_2" | "min_5" | "
  */
 export type NumberFormat = "as_transcribed" | "digits" | "smart"
 export type OrtAcceleratorSetting = "auto" | "cpu" | "cuda" | "directml" | "rocm"
+/**
+ * One feedback notice for the overlay-first user: something went wrong (or
+ * fell back) during a dictation and the person living in the overlay must
+ * hear about it through the overlay, not only through a toast in a window
+ * they never open.
+ * 
+ * Display rule, stated once: the overlay card renders the notice row ONLY
+ * while the card is already visible; when the overlay is hidden (including
+ * `OverlayStyle::None`, where the show path no-ops) the channel is the
+ * error sound plus the existing main-window toast and the file log. The
+ * backend NEVER force-shows the overlay for a notice, so no flashed pills.
+ */
+export type OverlayNoticeEvent = { kind: OverlayNoticeKind; 
+/**
+ * Stable machine code; the frontend maps it to a localized message.
+ */
+code: string; 
+/**
+ * Diagnostic detail (error text, model names). Optional by design.
+ */
+detail?: string | null }
+/**
+ * Tone of an [`OverlayNoticeEvent`]: failures are errors, expected or
+ * recoverable conditions are info. Errors carry the error sound; info does
+ * not (an expected skip must not beep on every dictation).
+ */
+export type OverlayNoticeKind = "error" | "info"
 export type OverlayPosition = "top" | "bottom"
 /**
  * Which recording overlay to display. `Minimal` and `Live` share one base
