@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "Général",
+    "commands": "Commandes",
     "models": "Modèles",
+    "output": "Sortie",
     "advanced": "Avancé",
     "postProcessing": "Post-traitement",
     "history": "Historique",
@@ -306,7 +308,80 @@
           "title": "Mode commandes",
           "description": "Active la touche modificatrice attribuable du mode commandes. Maintenez-la pendant une dictée active pour interpréter votre voix comme des commandes (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) qui modifient directement la mémoire tampon de la dictée ; les mots non reconnus sont ignorés. Ne démarre jamais un enregistrement seule."
         }
+      },
+      "groups": {
+        "app": "Application",
+        "microphone": "Microphone"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "Rechercher des commandes",
+      "resetAll": "Réinitialiser toutes les commandes",
+      "resetRow": "Réinitialiser",
+      "addPhrase": "Ajouter",
+      "removePhrase": "Retirer {{phrase}}",
+      "placeholder": "Ajouter une phrase",
+      "duplicateError": "La phrase \"{{phrase}}\" existe déjà pour une commande",
+      "tooLongError": "Les phrases sont limitées à 60 caractères",
+      "noResults": "Aucune commande ne correspond à votre recherche",
+      "inserts": "Insère <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} retirée",
+      "undoRemove": "Annuler",
+      "resetCollision": "Impossible de réinitialiser : \"{{phrase}}\" appartient maintenant à {{command}}",
+      "resetAllConfirmTitle": "Réinitialiser toutes les commandes ?",
+      "resetAllConfirmBody": "Toutes les phrases personnalisées sont supprimées et chaque commande retrouve ses phrases intégrées.",
+      "resetAllConfirmCancel": "Annuler",
+      "resetAllConfirmConfirm": "Tout réinitialiser",
+      "behavior": "Comportement des commandes",
+      "groups": {
+        "punctuation": "Ponctuation",
+        "symbols": "Symboles",
+        "editing": "Édition",
+        "control": "Contrôle"
+      },
+      "names": {
+        "period": "Point",
+        "comma": "Virgule",
+        "questionMark": "Point d'interrogation",
+        "exclamation": "Point d'exclamation",
+        "colon": "Deux-points",
+        "semicolon": "Point-virgule",
+        "dash": "Tiret",
+        "newLine": "Nouvelle ligne",
+        "newParagraph": "Nouveau paragraphe",
+        "atSign": "Arobase",
+        "hash": "Dièse",
+        "dollarSign": "Signe dollar",
+        "percent": "Pour cent",
+        "star": "Astérisque",
+        "ampersand": "Esperluette",
+        "caret": "Accent circonflexe",
+        "openParen": "Parenthèse ouvrante",
+        "closeParen": "Parenthèse fermante",
+        "openBracket": "Crochet ouvrant",
+        "closeBracket": "Crochet fermant",
+        "openBrace": "Accolade ouvrante",
+        "closeBrace": "Accolade fermante",
+        "slash": "Barre oblique",
+        "backslash": "Barre oblique inversée",
+        "pipe": "Barre verticale",
+        "deleteWord": "Supprimer le mot",
+        "deleteLine": "Supprimer la ligne",
+        "clearAll": "Tout effacer",
+        "undo": "Annuler",
+        "paste": "Coller"
+      },
+      "actions": {
+        "deleteWord": "Supprime le dernier mot dicté",
+        "deleteLine": "Supprime la dernière ligne dictée",
+        "clearAll": "Efface toute la dictée",
+        "undo": "Annule dans l'application active",
+        "paste": "Colle le presse-papiers dans l'application active"
+      }
+    },
+    "search": {
+      "placeholder": "Rechercher dans les paramètres",
+      "noResults": "Aucun paramètre ne correspond à votre recherche"
     },
     "sound": {
       "title": "Son",
@@ -337,12 +412,16 @@
         "description": "Ajuster le volume du signal sonore"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Collage",
+        "recording": "Enregistrement"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Application",
-        "output": "Sortie",
+        "model": "Modèle et mémoire",
         "transcription": "Transcription",
-        "history": "Historique",
         "experimental": "Expérimental"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "Interprétation automatique des commandes",
         "description": "Interprète les mots de commande prononcés (\"comma\", \"scratch that\") pendant la dictée normale. Désactivez pour les taper comme des mots normaux ; maintenez le modificateur du mode commandes pour exécuter les commandes."
       },
-      "commandMatrix": {
-        "title": "Matrice de commandes",
-        "description": "Une table de phrases modifiable alimente toutes les surfaces de commandes vocales : le mode commandes, la ponctuation parlée et la suppression vocale. Ajoutez ou retirez les phrases de chaque commande ; les mêmes phrases fonctionnent partout.",
-        "groups": {
-          "symbols": "Symboles et ponctuation",
-          "editing": "Édition",
-          "control": "Contrôle"
-        },
-        "addPhrase": "Ajouter",
-        "removePhrase": "Retirer {{phrase}}",
-        "reset": "Rétablir les valeurs par défaut",
-        "duplicateError": "La phrase \"{{phrase}}\" existe déjà sur une commande",
-        "tooLongError": "Les phrases sont limitées à 60 caractères",
-        "placeholder": "Ajouter une phrase"
-      },
       "spokenPunctuation": {
         "title": "Ponctuation vocale",
         "description": "Convertit les mots de ponctuation dictés comme \"comma\", \"period\" et \"question mark\" en vraie ponctuation. Désactivez pour les garder comme mots simples."
@@ -550,6 +614,15 @@
           "asTranscribed": "Tel que transcrit",
           "simplified": "Simplifié",
           "traditional": "Traditionnel"
+        }
+      },
+      "numberFormat": {
+        "title": "Nombres dictés",
+        "description": "Écrit les nombres dictés en chiffres, ainsi \"one eight zero one\" est collé en 1801. \"Tel que transcrit\" garde les nombres tels que dictés ; Smart convertit aussi les ordinaux composés et les nombres isolés à partir de onze.",
+        "options": {
+          "asTranscribed": "Tel que transcrit",
+          "digits": "Chiffres",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "Afficher le badge du modèle",
         "description": "Affiche un badge compact indiquant le modèle ayant produit chaque transcription."
+      },
+      "groups": {
+        "retention": "Conservation"
       }
     },
     "debug": {
@@ -702,11 +778,6 @@
         "description": "Choisissez le système des raccourcis clavier.",
         "bindingsReset": "Raccourcis clavier étaient incompatibles et ont été réinitialisés aux valeurs par défaut"
       },
-      "paths": {
-        "appData": "Données de l'application :",
-        "models": "Modèles :",
-        "settings": "Paramètres :"
-      },
       "pasteDelay": {
         "title": "Délai de collage (avant)",
         "description": "Délai (en millisecondes) après la copie du texte, avant l'envoi de la touche de collage. Augmentez si rien n'est collé."
@@ -726,6 +797,10 @@
       "recordingBuffer": {
         "title": "Tampon d'enregistrement supplémentaire",
         "description": "Temps supplémentaire (en millisecondes) pour continuer l'enregistrement après avoir relâché la touche, pour capturer l'audio restant. 0 = pas de tampon supplémentaire."
+      },
+      "streamingTail": {
+        "title": "Queue de relâchement du streaming",
+        "description": "Temps supplémentaire (en millisecondes) pendant lequel une session de streaming continue d'enregistrer après avoir relâché la touche, afin de capturer la fin du dernier mot. 0 = pas de queue supplémentaire."
       },
       "keyboardDiagnostic": {
         "title": "Diagnostic du clavier",

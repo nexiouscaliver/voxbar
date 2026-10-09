@@ -6,6 +6,7 @@ import type {
   AudioDevice,
   ChineseScript,
   CommandMatrixEntry,
+  NumberFormat,
   TranscribeAcceleratorSetting,
   OrtAcceleratorSetting,
   ShortcutActivation,
@@ -221,6 +222,8 @@ const settingUpdaters: {
     commands.changeCommandModeEnabledSetting(value as boolean),
   chinese_script: (value) =>
     commands.changeChineseScriptSetting(value as ChineseScript),
+  number_format: (value) =>
+    commands.changeNumberFormatSetting(value as NumberFormat),
   show_tray_icon: (value) =>
     commands.changeShowTrayIconSetting(value as boolean),
   transcribe_accelerator: (value) =>
@@ -233,6 +236,8 @@ const settingUpdaters: {
     commands.changeTranscribeGpuDevice(value as string | null),
   extra_recording_buffer_ms: (value) =>
     commands.changeExtraRecordingBufferSetting(value as number),
+  streaming_release_tail_ms: (value) =>
+    commands.changeStreamingReleaseTailSetting(value as number),
 };
 
 export const useSettingsStore = create<SettingsStore>()(

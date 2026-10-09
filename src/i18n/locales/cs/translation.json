@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "Obecné",
+    "commands": "Příkazy",
     "models": "Modely",
+    "output": "Výstup",
     "advanced": "Pokročilé",
     "postProcessing": "Následné zpracování",
     "history": "Historie",
@@ -306,7 +308,80 @@
           "title": "Režim příkazů",
           "description": "Zapne přiřaditelný modifikátor režimu příkazů. Podržte jej během živé relace diktování, aby se řeč interpretovala jako příkazy (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), které přímo upravují vyrovnávací paměť diktování; nerozpoznaná slova se zahazují. Nikdy sama nespustí nahrávání."
         }
+      },
+      "groups": {
+        "app": "Aplikace",
+        "microphone": "Mikrofon"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "Hledat příkazy",
+      "resetAll": "Obnovit všechny příkazy",
+      "resetRow": "Obnovit výchozí",
+      "addPhrase": "Přidat",
+      "removePhrase": "Odebrat {{phrase}}",
+      "placeholder": "Přidat frázi",
+      "duplicateError": "Fráze \"{{phrase}}\" už u jednoho příkazu existuje",
+      "tooLongError": "Fráze jsou omezeny na 60 znaků",
+      "noResults": "Vašemu hledání neodpovídá žádný příkaz",
+      "inserts": "Vloží <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} odebrána",
+      "undoRemove": "Zpět",
+      "resetCollision": "Nelze obnovit: \"{{phrase}}\" teď patří příkazu {{command}}",
+      "resetAllConfirmTitle": "Obnovit všechny příkazy?",
+      "resetAllConfirmBody": "Vlastní fráze se zahodí a všechny příkazy se vrátí k vestavěným frázím.",
+      "resetAllConfirmCancel": "Zrušit",
+      "resetAllConfirmConfirm": "Obnovit vše",
+      "behavior": "Chování příkazů",
+      "groups": {
+        "punctuation": "Interpunkce",
+        "symbols": "Symboly",
+        "editing": "Úpravy",
+        "control": "Ovládání"
+      },
+      "names": {
+        "period": "Tečka",
+        "comma": "Čárka",
+        "questionMark": "Otazník",
+        "exclamation": "Vykřičník",
+        "colon": "Dvojtečka",
+        "semicolon": "Středník",
+        "dash": "Pomlčka",
+        "newLine": "Nový řádek",
+        "newParagraph": "Nový odstavec",
+        "atSign": "Zavináč",
+        "hash": "Mřížka",
+        "dollarSign": "Znak dolaru",
+        "percent": "Procento",
+        "star": "Hvězdička",
+        "ampersand": "Ampersand",
+        "caret": "Stříška",
+        "openParen": "Levá závorka",
+        "closeParen": "Pravá závorka",
+        "openBracket": "Levá hranatá závorka",
+        "closeBracket": "Pravá hranatá závorka",
+        "openBrace": "Levá složená závorka",
+        "closeBrace": "Pravá složená závorka",
+        "slash": "Lomítko",
+        "backslash": "Zpětné lomítko",
+        "pipe": "Svislítko",
+        "deleteWord": "Smazat slovo",
+        "deleteLine": "Smazat řádek",
+        "clearAll": "Smazat vše",
+        "undo": "Zpět",
+        "paste": "Vložit"
+      },
+      "actions": {
+        "deleteWord": "Smaže posledně diktované slovo",
+        "deleteLine": "Smaže posledně diktovaný řádek",
+        "clearAll": "Smaže celý diktát",
+        "undo": "Spustí akci zpět v aktivní aplikaci",
+        "paste": "Vloží schránku do aktivní aplikace"
+      }
+    },
+    "search": {
+      "placeholder": "Hledat v nastavení",
+      "noResults": "Vašemu hledání neodpovídá žádné nastavení"
     },
     "sound": {
       "title": "Zvuk",
@@ -337,12 +412,16 @@
         "description": "Upravte hlasitost zvukové odezvy"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Vkládání",
+        "recording": "Nahrávání"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Aplikace",
-        "output": "Výstup",
+        "model": "Model a paměť",
         "transcription": "Přepis",
-        "history": "Historie",
         "experimental": "Experimentální"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "Automatická interpretace příkazů",
         "description": "Interpretuje vyslovená příkazová slova (\"comma\", \"scratch that\") při běžném diktování. Vypněte, aby se příkazová slova psala jako obyčejná slova; pro provádění příkazů podržte modifikátor režimu příkazů."
       },
-      "commandMatrix": {
-        "title": "Matice příkazů",
-        "description": "Jedna upravitelná tabulka frází napájí všechny povrchy mluvených příkazů: režim příkazů, mluvenou interpunkci i hlasové mazání. Přidávejte nebo odebírejte fráze každého příkazu; stejné fráze fungují všude.",
-        "groups": {
-          "symbols": "Symboly a interpunkce",
-          "editing": "Úpravy",
-          "control": "Ovládání"
-        },
-        "addPhrase": "Přidat",
-        "removePhrase": "Odebrat {{phrase}}",
-        "reset": "Obnovit výchozí",
-        "duplicateError": "Fráze \"{{phrase}}\" už je použita u jiného příkazu",
-        "tooLongError": "Fráze jsou omezeny na 60 znaků",
-        "placeholder": "Přidat frázi"
-      },
       "spokenPunctuation": {
         "title": "Mluvená interpunkce",
         "description": "Převádí mluvená interpunkční slova jako \"comma\", \"period\" a \"question mark\" na skutečnou interpunkci. Vypněte, aby zůstala běžnými slovy."
@@ -550,6 +614,15 @@
           "asTranscribed": "Jak bylo přepsáno",
           "simplified": "Zjednodušené",
           "traditional": "Tradiční"
+        }
+      },
+      "numberFormat": {
+        "title": "Mluvená čísla",
+        "description": "Zapisuje mluvená čísla jako číslice, takže \"one eight zero one\" se vloží jako 1801. \"Jak přepsáno\" ponechá čísla tak, jak byla řečena; Smart navíc převádí složené řadové číslovky a samostatná čísla od jedenácti výš.",
+        "options": {
+          "asTranscribed": "Jak bylo přepsáno",
+          "digits": "Číslice",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "Zobrazit štítek modelu",
         "description": "Zobrazuje kompaktní štítek s modelem, který vytvořil každý přepis."
+      },
+      "groups": {
+        "retention": "Uchovávání"
       }
     },
     "debug": {
@@ -702,11 +778,6 @@
         "description": "Zvolte backend pro klávesové zkratky.",
         "bindingsReset": "Klávesové zkratky byly nekompatibilní a byly obnoveny na výchozí hodnoty"
       },
-      "paths": {
-        "appData": "Data aplikace:",
-        "models": "Modely:",
-        "settings": "Nastavení:"
-      },
       "pasteDelay": {
         "title": "Zpoždění vložení (před)",
         "description": "Zpoždění (v milisekundách) po zkopírování textu, před odesláním klávesy pro vložení. Zvyšte, pokud se nic nevloží."
@@ -726,6 +797,10 @@
       "recordingBuffer": {
         "title": "Extra vyrovnávací paměť nahrávání",
         "description": "Extra čas (v milisekundách) pro pokračování nahrávání po uvolnění klávesy, pro zachycení zbývajícího zvuku. 0 = žádná extra vyrovnávací paměť."
+      },
+      "streamingTail": {
+        "title": "Doběh streamování při uvolnění",
+        "description": "Dodatečný čas (v milisekundách), po který streamovaná relace pokračuje v nahrávání po uvolnění klávesy, aby se zachytil konec posledního slova. 0 = žádný dodatečný doběh."
       },
       "keyboardDiagnostic": {
         "title": "Diagnostika klávesnice",

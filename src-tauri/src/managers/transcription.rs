@@ -1,5 +1,5 @@
 use crate::audio_toolkit::command_matrix::{matrix_from_settings, CompiledCommandMatrix};
-use crate::audio_toolkit::commands::{flush_command_prefix_len, held_prefix_len};
+use crate::audio_toolkit::commands::{flush_command_prefix_len, held_prefix_len, CommandAction};
 use crate::audio_toolkit::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion, detect_output_language,
     interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
@@ -47,15 +47,7 @@ use transcribe_rs::{
 
 const STREAM_PERF_LOG_INTERVAL: Duration = Duration::from_secs(5);
 
-fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> String {
-    if let Some(message) = payload.downcast_ref::<&str>() {
-        (*message).to_string()
-    } else if let Some(message) = payload.downcast_ref::<String>() {
-        message.clone()
-    } else {
-        "unknown panic".to_string()
-    }
-}
+use crate::utils::panic_payload_message;
 
 /// Editorial rank for a RAM auto-fallback candidate. Direct registry ids
 /// resolve through the rank table; an alternate quant found on disk has the
@@ -360,6 +352,65 @@ fn join_raw(base: &str, rest: &str) -> String {
     }
 }
 
+/// Case- and attached-punctuation-insensitive token key for the final-fold
+/// alignment (the spirit of commands.rs `normalize_token`: "Hello," and
+/// "hello" are the same word).
+fn fold_alignment_key(token: &str) -> String {
+    token
+        .trim_matches(|c: char| !c.is_alphanumeric())
+        .to_lowercase()
+}
+
+/// Byte offset into `final_raw` after the last token that aligns with
+/// `raw_seen` under normalized token comparison, when EVERY token of
+/// `raw_seen` aligns with a leading sequence of `final_raw` tokens.
+/// Punctuation-only `final_raw` tokens (standalone marks the engine added
+/// around words) align with anything and are skipped; punctuation-only
+/// `raw_seen` tokens are skipped the same way. `None` when even normalized
+/// tokens diverge before `raw_seen` is exhausted, so the caller falls back
+/// to the byte-prefix behavior (worst case: the status quo).
+fn reentry_offset(raw_seen: &str, final_raw: &str) -> Option<usize> {
+    let mut ranges: Vec<(usize, usize)> = Vec::new();
+    let mut start: Option<usize> = None;
+    for (index, c) in final_raw.char_indices() {
+        if c.is_whitespace() {
+            if let Some(open) = start.take() {
+                ranges.push((open, index));
+            }
+        } else if start.is_none() {
+            start = Some(index);
+        }
+    }
+    if let Some(open) = start {
+        ranges.push((open, final_raw.len()));
+    }
+
+    let mut next = 0usize;
+    for raw_token in raw_seen.split_whitespace() {
+        let want = fold_alignment_key(raw_token);
+        if want.is_empty() {
+            continue;
+        }
+        loop {
+            let Some(&(from, to)) = ranges.get(next) else {
+                // final_raw ran out of tokens before raw_seen aligned.
+                return None;
+            };
+            let key = fold_alignment_key(&final_raw[from..to]);
+            if key.is_empty() {
+                next += 1;
+                continue;
+            }
+            if key == want {
+                next += 1;
+                break;
+            }
+            return None;
+        }
+    }
+    Some(if next == 0 { 0 } else { ranges[next - 1].1 })
+}
+
 /// The live dictation buffer of an active streaming session.
 ///
 /// The engine owns the authoritative raw text and only hands out snapshots
@@ -376,10 +427,14 @@ fn join_raw(base: &str, rest: &str) -> String {
 /// Anchoring on the full snapshot (not just the committed prefix) is what
 /// keeps a deleted word deleted: a word removed while still tentative does
 /// not come back when the engine commits it verbatim afterwards, because
-/// those bytes sit inside `raw_seen` and are never re-consumed. The known
-/// artifact: if the engine REVISES that region while committing it (a
-/// hypothesis correction), the common prefix stops at the first differing
-/// byte and the revised word re-enters the buffer. That is rare and
+/// those bytes sit inside `raw_seen` and are never re-consumed. A revision
+/// of already-consumed bytes (a hypothesis correction that rewrites the
+/// region instead of committing it verbatim) diverges from the common
+/// prefix; how the divergence is handled depends on the surface: a
+/// command-mode tick absorbs the revision without parsing it (see
+/// [`StreamSessionBuffer::render`]), and the final fold prefers normalized
+/// token alignment over the raw byte prefix (see
+/// [`StreamSessionBuffer::combine_final`]). Revisions are rare and
 /// self-limiting; everything after the divergence behaves normally.
 ///
 /// Everything is recomputed from scratch on every tick; nothing is applied
@@ -417,6 +472,14 @@ struct StreamSessionBuffer {
     /// interim display transliterates Devanagari to Roman so the overlay
     /// matches the paste (the finalize pipeline does the same).
     hinglish: bool,
+    /// Spoken-number formatting captured at `begin` (same snapshot rule as
+    /// the toggles below): the mode plus which grammar legs the finalize
+    /// pipeline would run. The Devanagari leg runs in
+    /// [`Self::interim_display`] before transliteration; the English leg
+    /// runs inside [`interim_display_transform`]. Both are recomputed from
+    /// the raw buffer every tick, so the overlay digits always match the
+    /// paste and never flip back to words mid-utterance.
+    numbers: crate::number_format::NumberPass,
     /// Toggles for the interim display transform, captured when the stream
     /// begins (a mid-session toggle applies from the next session, matching
     /// how `PreviewScript` captures `chinese_script` today).
@@ -438,6 +501,7 @@ impl Default for StreamSessionBuffer {
             last_deleted: None,
             matrix: crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             hinglish: false,
+            numbers: crate::number_format::NumberPass::disabled(),
             spoken_punctuation: true,
             voice_deletion: true,
             preview_script: PreviewScript::new(
@@ -453,6 +517,10 @@ impl Default for StreamSessionBuffer {
 }
 
 impl StreamSessionBuffer {
+    // A session snapshot: one argument per captured pipeline input. The
+    // arity is deliberate (each field lives on the struct); bundling them
+    // behind yet another struct would hide which toggles exist.
+    #[allow(clippy::too_many_arguments)]
     fn begin(
         &mut self,
         preview_script: PreviewScript,
@@ -461,6 +529,7 @@ impl StreamSessionBuffer {
         supported_languages: &[String],
         matrix: Arc<CompiledCommandMatrix>,
         hinglish: bool,
+        numbers: crate::number_format::NumberPass,
     ) {
         self.live = true;
         self.command_active = false;
@@ -472,6 +541,7 @@ impl StreamSessionBuffer {
         self.supported_languages = supported_languages.to_vec();
         self.matrix = matrix;
         self.hinglish = hinglish;
+        self.numbers = numbers;
         self.base.clear();
         self.raw_seen.clear();
         self.last_full.clear();
@@ -537,16 +607,32 @@ impl StreamSessionBuffer {
                 self.command_active = true;
             } else {
                 let keep = common_prefix_len(&self.raw_seen, &snapshot);
-                let delta = snapshot[keep..].to_string();
-                let held = held_prefix_len(&delta, &self.matrix);
-                let applicable_end = delta.len() - held;
-                self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
-                    &mut self.base,
-                    &delta[..applicable_end],
-                    &self.matrix,
-                );
-                self.raw_seen = snapshot[..snapshot.len() - held].to_string();
-                self.holding = held > 0;
+                if keep < self.raw_seen.len() {
+                    // The engine REWROTE already-consumed bytes (a tentative
+                    // revision; transcribe-cpp's final "full" may rewrite
+                    // anywhere, and tentative snapshots revise too). The
+                    // material beyond the common prefix is a rewrite, not
+                    // fresh commands: parsing it as grammar input would
+                    // discard revised ordinary words and could fire a
+                    // revision that happens to spell a command word. Absorb
+                    // the revision for this tick (speech arriving in the
+                    // same tick is not command-interpreted exactly once; the
+                    // alternative is worse) and resume parsing on the next
+                    // append-only delta.
+                    self.raw_seen = snapshot;
+                    self.holding = false;
+                } else {
+                    let delta = snapshot[keep..].to_string();
+                    let held = held_prefix_len(&delta, &self.matrix);
+                    let applicable_end = delta.len() - held;
+                    self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
+                        &mut self.base,
+                        &delta[..applicable_end],
+                        &self.matrix,
+                    );
+                    self.raw_seen = snapshot[..snapshot.len() - held].to_string();
+                    self.holding = held > 0;
+                }
             }
         } else if self.holding {
             // Release tick with a fragment still held: the shortfall
@@ -572,12 +658,25 @@ impl StreamSessionBuffer {
     /// The interim display string for the combined raw buffer: script
     /// conversion, then Hinglish transliteration (Devanagari to Roman,
     /// captured at `begin` from the "hi-Latn" intent so the overlay
-    /// matches the paste), then the interim text passes.
+    /// matches the paste), then the interim text passes. The Devanagari
+    /// number pass runs between the two: number words become Devanagari
+    /// digits first, the transliterator maps those to ASCII, exactly like
+    /// the finalize pipeline. Everything is recomputed from the raw buffer
+    /// each tick.
     fn interim_display(&mut self) -> String {
         let raw = self.combine(&self.last_full);
         let (converted, _) = self
             .preview_script
             .convert(&raw, "", &self.supported_languages);
+        let converted = if self.numbers.scripts.devanagari {
+            crate::number_format::convert_number_words_fail_open(
+                converted,
+                self.numbers.mode,
+                crate::number_format::NumberScript::Devanagari,
+            )
+        } else {
+            converted
+        };
         let converted = if self.hinglish {
             crate::hindi_script::transliterate_devanagari_to_roman(&converted)
         } else {
@@ -588,17 +687,22 @@ impl StreamSessionBuffer {
             self.spoken_punctuation,
             self.voice_deletion,
             &self.matrix,
+            self.numbers.mode,
+            self.numbers.scripts.english,
         )
     }
 
     /// Flush an unresolved held fragment through the command grammar and
     /// return the byte count the flush consumed from `region`. Shared by
     /// the release tick and the finalize fold: consume the region's first
-    /// word with its preceding separator, then whole words while the span
-    /// remains a proper prefix of some command phrase (so a held " new l"
-    /// resolves to the whole "new line"); the consumed span parses as
-    /// commands (unrecognized words discarded per the contract) and any
-    /// remainder stays unconsumed, flowing on as normal dictation.
+    /// word with its preceding separator ONLY when it completes a phrase or
+    /// opens one (a proper prefix; an ordinary word that merely starts like
+    /// a command word consumes nothing and the whole region stays
+    /// dictation), then whole words while the span remains a proper prefix
+    /// of some command phrase (so a held " new l" resolves to the whole
+    /// "new line"); the consumed span parses as commands (unrecognized
+    /// words discarded per the contract) and any remainder stays
+    /// unconsumed, flowing on as normal dictation.
     fn flush_held_region(&mut self, region: &str) -> usize {
         let consumed = flush_command_prefix_len(region, &self.matrix);
         if consumed > 0 {
@@ -642,7 +746,8 @@ impl StreamSessionBuffer {
     /// buffer empties and everything the engine has already reported is
     /// consumed via `raw_seen`, so only speech after this point reaches
     /// the final text. Key-based start-over (the Undo binding's in-session
-    /// semantics); mirrors the voice "start over" everything-command.
+    /// semantics); mirrors the voice clear-everything commands
+    /// ("delete everything" / "scratch everything").
     fn clear_all(&mut self) -> Option<String> {
         if !self.live {
             return None;
@@ -667,6 +772,19 @@ impl StreamSessionBuffer {
     /// alone must not trigger a parse). The flush consumes from the common
     /// prefix with `raw_seen`; everything beyond stays dictation and the
     /// fold appends it as usual.
+    ///
+    /// The engine's final "full" text may rewrite anywhere (transcribe-cpp
+    /// documents it as such), so after any manual edit the byte common
+    /// prefix can diverge inside `raw_seen` on a mere casing flip or an
+    /// added comma. When that happens the fold prefers normalized token
+    /// alignment ([`reentry_offset`]): every raw_seen token that aligns
+    /// case- and punctuation-insensitively counts as consumed, so the
+    /// final's re-wording of those tokens does not re-enter the buffer.
+    /// When even normalized tokens diverge (the engine genuinely dropped
+    /// or replaced words) the fold falls back to the byte-prefix behavior,
+    /// and the final text wins for genuinely new material: the paste is
+    /// authoritative and can differ from the last interim display (a
+    /// residual documented, not silently ignored).
     fn combine_final(&mut self, final_raw: String) -> String {
         let combined = if self.live {
             if self.holding {
@@ -676,7 +794,14 @@ impl StreamSessionBuffer {
                 self.raw_seen = final_raw[..start + consumed].to_string();
                 self.holding = false;
             }
-            let keep = common_prefix_len(&self.raw_seen, &final_raw);
+            let byte_keep = common_prefix_len(&self.raw_seen, &final_raw);
+            let keep = if byte_keep == self.raw_seen.len() {
+                byte_keep
+            } else {
+                // The engine rewrote bytes inside raw_seen: try the
+                // normalized token alignment before falling back to bytes.
+                reentry_offset(&self.raw_seen, &final_raw).unwrap_or(byte_keep)
+            };
             join_raw(&self.base, &final_raw[keep..])
         } else {
             final_raw
@@ -1791,7 +1916,10 @@ impl TranscriptionManager {
         // matching `PreviewScript`. The auto-interpretation master gate
         // ANDs with the per-pass toggles (same composition as
         // post_process_transcription_text) so the interim display matches
-        // the paste.
+        // the paste. The number pass captures the mode plus the same
+        // script gating the finalize pipeline resolves from this run's
+        // output-language evidence.
+        let numbers = crate::number_format::number_pass(&settings, &output_language);
         self.session_buffer
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -1802,6 +1930,7 @@ impl TranscriptionManager {
                 &languages,
                 matrix_from_settings(&settings),
                 settings.selected_language == "hi-Latn",
+                numbers,
             );
 
         // Run the stream in the engine's worker process. Feeds are queued
@@ -2221,14 +2350,23 @@ impl TranscriptionManager {
         // Custom words become the initial prompt ONLY for models that accept
         // one (whisper family). Attaching the whisper run extension to a
         // non-whisper arch is rejected with INVALID_ARG, so skip it there and
-        // let the fuzzy post-correction handle custom words instead.
-        let family = if settings.custom_words.is_empty() || !model_is_whisper {
-            None
-        } else {
+        // let the fuzzy post-correction handle custom words instead. When
+        // the resolved output language is non-Latin, the matrix Insert
+        // phrases ride along so whisper biases its decode toward spelling
+        // command words the matching passes recognize (see
+        // whisper_initial_prompt).
+        let initial_prompt = whisper_initial_prompt(
+            &settings.custom_words,
+            &matrix_insert_phrases(settings),
+            validated_language,
+        );
+        let family = if model_is_whisper && !initial_prompt.is_empty() {
             Some(RunExtension::Whisper(WhisperRunOptions {
-                initial_prompt: Some(settings.custom_words.join(", ")),
+                initial_prompt: Some(initial_prompt),
                 ..Default::default()
             }))
+        } else {
+            None
         };
 
         let run_plan = transcribe_cpp_run_plan(
@@ -2699,6 +2837,83 @@ fn transcribe_cpp_run_plan(
     }
 }
 
+/// Whether a language code's script is Latin. Conservative: an unknown
+/// code reads as Latin (no prompt bias; the aliases cover matching), while
+/// the known non-Latin script families bias the decode. "hi-Latn" expresses
+/// a Roman OUTPUT intent but resolves to "hi" (the engine coercion) before
+/// this classification, which is what the bias wants.
+fn is_latin_language(language: &str) -> bool {
+    let base = language.split('-').next().unwrap_or("");
+    !matches!(
+        base,
+        "hi" | "bn"
+            | "mr"
+            | "ne"
+            | "sa"
+            | "ur"
+            | "pa"
+            | "gu"
+            | "ta"
+            | "te"
+            | "kn"
+            | "ml"
+            | "si"
+            | "zh"
+            | "yue"
+            | "ja"
+            | "ko"
+            | "th"
+            | "lo"
+            | "my"
+            | "km"
+            | "ru"
+            | "uk"
+            | "bg"
+            | "sr"
+            | "mk"
+            | "el"
+            | "he"
+            | "ar"
+            | "fa"
+            | "am"
+            | "ka"
+            | "hy"
+            | "ti"
+    )
+}
+
+/// Build the whisper initial prompt for a batch run: the operator's custom
+/// words, plus (when the run's output language is non-Latin) the matrix
+/// Insert phrases, biasing the decode toward spelling command words in a
+/// script the matching passes recognize. Latin output and empty inputs
+/// leave the prompt exactly as before. Streaming models take no decode
+/// prompt at all (unchanged); the aliases cover streaming.
+fn whisper_initial_prompt(
+    custom_words: &[String],
+    insert_phrases: &[String],
+    output_language: &str,
+) -> String {
+    let mut parts: Vec<String> = Vec::new();
+    if !custom_words.is_empty() {
+        parts.push(custom_words.join(", "));
+    }
+    if !insert_phrases.is_empty() && !is_latin_language(output_language) {
+        parts.push(insert_phrases.join(", "));
+    }
+    parts.join(", ")
+}
+
+/// The matrix's Insert phrases (tokens rejoined with single spaces), for
+/// the whisper initial-prompt bias.
+fn matrix_insert_phrases(settings: &AppSettings) -> Vec<String> {
+    matrix_from_settings(settings)
+        .parser
+        .iter()
+        .filter(|(_, action)| matches!(action, CommandAction::Insert(_)))
+        .map(|(tokens, _)| tokens.join(" "))
+        .collect()
+}
+
 fn post_process_transcription_text(
     raw: String,
     settings: &AppSettings,
@@ -2746,6 +2961,24 @@ fn post_process_transcription_text(
             _ => raw,
         };
 
+        // Spoken-number formatting, Devanagari leg: Hindi/Hinglish number
+        // words become Devanagari digits BEFORE the Hinglish
+        // transliteration, which maps them to ASCII digits for free. The
+        // pass runs before every command/text pass so command phrases
+        // ("delete last four words") are consumed with their number words
+        // intact. English number words are handled after the filler pass
+        // (below) where the wording is final; see the reorder comment there.
+        let number_passes = crate::number_format::number_pass_scripts(settings, &output_language);
+        let raw = if number_passes.devanagari {
+            crate::number_format::convert_number_words(
+                &raw,
+                settings.number_format,
+                crate::number_format::NumberScript::Devanagari,
+            )
+        } else {
+            raw
+        };
+
         // Hinglish (selected_language "hi-Latn") expresses a SCRIPT intent:
         // the model still yields Devanagari, so transliterate to Roman
         // before every text pass. This is script conversion (the same class
@@ -2757,13 +2990,15 @@ fn post_process_transcription_text(
             raw
         };
 
-        // Spoken punctuation first, then voice deletion, then the terminal
-        // fallback, so the custom-word pass and every later stage see final
-        // wording and punctuation. Each pass is independently toggleable;
-        // off reproduces today's behavior. The auto-interpretation master
-        // gate ANDs with the per-pass toggles in NORMAL dictation only;
-        // OFF leaves command words as plain words (the command-mode
-        // modifier is a separate surface and stays untouched).
+        // Spoken punctuation first, then voice deletion, then custom words,
+        // filler removal, and the terminal fallback last (see the comment at
+        // the reorder below), so the dictionary and every later stage see
+        // final wording and punctuation. Each pass is independently
+        // toggleable; off reproduces today's behavior. The
+        // auto-interpretation master gate ANDs with the per-pass toggles in
+        // NORMAL dictation only; OFF leaves command words as plain words
+        // (the command-mode modifier is a separate surface and stays
+        // untouched).
         let punctuated = if settings.spoken_punctuation && settings.auto_interpret_commands {
             normalize_spoken_punctuation(&raw, &matrix)
         } else {
@@ -2788,20 +3023,20 @@ fn post_process_transcription_text(
             return String::new();
         }
 
-        let punctuated = if settings.terminal_punctuation {
-            apply_terminal_punctuation(&deleted.text)
-        } else {
-            deleted.text
-        };
-
+        // Custom words run on the post-deletion wording, then filler
+        // removal, then the terminal fallback: removing fillers BEFORE the
+        // terminal pass makes the ordering structural rather than relying
+        // on the filler patterns' [,.]? eating the just-appended mark (a
+        // filler-final utterance now earns its terminal period instead of
+        // losing it).
         let corrected = if !settings.custom_words.is_empty() && !custom_words_already_prompted {
             apply_custom_words(
-                &punctuated,
+                &deleted.text,
                 &settings.custom_words,
                 settings.word_correction_threshold,
             )
         } else {
-            punctuated
+            deleted.text
         };
 
         let without_fillers = remove_filler_words(
@@ -2811,7 +3046,29 @@ fn post_process_transcription_text(
             settings.filler_word_removal_enabled,
         );
 
-        normalize_transcription_output(&without_fillers)
+        let punctuated = if settings.terminal_punctuation {
+            apply_terminal_punctuation(&without_fillers)
+        } else {
+            without_fillers
+        };
+
+        // Spoken-number formatting, English leg: last text pass before the
+        // whitespace cleanup, so it sees final wording and feeds the
+        // existing normalize. Voice deletion, custom words and filler
+        // removal have already run, so command phrases and corrections are
+        // never eaten and no number word is a filler. Inside the same
+        // fail-open transform as every other pass.
+        let numbered = if number_passes.english {
+            crate::number_format::convert_number_words(
+                &punctuated,
+                settings.number_format,
+                crate::number_format::NumberScript::English,
+            )
+        } else {
+            punctuated
+        };
+
+        normalize_transcription_output(&numbered)
     })
 }
 
@@ -3208,6 +3465,7 @@ mod tests {
             &languages(&["en"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             false,
+            crate::number_format::NumberPass::disabled(),
         );
         buffer
     }
@@ -3456,6 +3714,112 @@ mod tests {
         );
     }
 
+    /// A session edited exactly as render() leaves it after a command-mode
+    /// comma: base "hello world," with raw_seen "hello world comma".
+    fn command_edited_session() -> StreamSessionBuffer {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+        session.render("hello world comma", "", true);
+        session
+    }
+
+    #[test]
+    fn overlay_to_paste_parity_for_casing_and_punctuation_rewrites() {
+        // The overlay's punctuation conversions are re-derived at paste by
+        // post_process over the folded raw text, so a final decode that
+        // only rewrites casing or punctuation pastes exactly what the
+        // overlay converted (see combine_final's doc for the residual:
+        // a final decode that genuinely drops or changes words makes the
+        // paste authoritative).
+        let settings = text_pipeline_settings(true, false, true);
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+
+        let mut session = session_buffer();
+        let display = session.render("hello comma world", "", false);
+        assert_eq!(display, "hello, world");
+
+        // Punctuation-only divergence: the paste matches the display.
+        let pasted = post_process_transcription_text(
+            session.combine_final("hello, comma. world".to_string()),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(pasted, "hello, world");
+
+        // Casing divergence: identical modulo the engine's own casing.
+        let mut cased = session_buffer();
+        let display = cased.render("hello comma world", "", false);
+        let pasted = post_process_transcription_text(
+            cased.combine_final("Hello, comma. World".to_string()),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(pasted, "Hello, World");
+        assert_eq!(pasted.to_lowercase(), display.to_lowercase());
+    }
+
+    #[test]
+    fn session_buffer_final_fold_survives_final_text_divergence_after_edit() {
+        // The final decode capitalizes and punctuates around the words, so
+        // the byte common prefix stops at byte 0; the fold must not
+        // re-append the whole final text after the edited base.
+        let mut fold = command_edited_session();
+        assert_eq!(
+            fold.combine_final("Hello world, comma.".to_string()),
+            "hello world,"
+        );
+        let mut fold_two = command_edited_session();
+        assert_eq!(
+            fold_two.combine_final("Hello, world comma.".to_string()),
+            "hello world,"
+        );
+        // Identical-prefix control: byte-identical to the byte-prefix fold.
+        let mut control = command_edited_session();
+        assert_eq!(
+            control.combine_final("hello world comma three".to_string()),
+            "hello world, three"
+        );
+    }
+
+    #[test]
+    fn session_buffer_final_fold_survives_casing_divergence_after_hotkey_delete() {
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.delete_last_word(); // base "hello ", raw_seen "hello world"
+        assert_eq!(
+            session.combine_final("Hello world and more".to_string()),
+            "hello and more"
+        );
+    }
+
+    #[test]
+    fn session_buffer_command_mode_revision_tick_is_not_parsed_as_commands() {
+        // While the modifier is held, the engine revises an already
+        // consumed word ("world" -> "comma") and appends new speech. The
+        // delta beyond the byte common prefix is a REWRITE, not fresh
+        // commands: parsing it would fire a spurious comma (or discard
+        // revised ordinary words). The revision is absorbed for one tick
+        // instead; the next append-only delta parses normally.
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage, raw_seen = "hello world"
+        assert_eq!(session.render("hello comma more", "", true), "hello world");
+        assert_eq!(
+            session.render("hello comma more new line", "", true),
+            "hello world\n"
+        );
+        assert_eq!(
+            session.combine_final("hello comma more new line three".to_string()),
+            "hello world\n three"
+        );
+    }
+
     #[test]
     fn session_buffer_command_modifier_words_stay_out_of_final_raw() {
         // The engine's final text contains the command words verbatim;
@@ -3538,6 +3902,74 @@ mod tests {
             session.combine_final("hello world com".to_string()),
             "hello world"
         );
+    }
+
+    #[test]
+    fn session_buffer_release_flush_returns_innocent_words_to_dictation() {
+        // Held " com" (a fragment of "comma"), then the release snapshot
+        // grows into the ordinary word "computer": the flush must consume
+        // NOTHING, so "computer science rocks" flows back as dictation
+        // instead of being silently deleted by the grammar.
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+        assert_eq!(
+            session.render("hello world com", "", true),
+            "hello world com"
+        );
+        assert_eq!(
+            session.render("hello world computer science rocks", "", false),
+            "hello world computer science rocks"
+        );
+        assert_eq!(
+            session.combine_final("hello world computer science rocks".to_string()),
+            "hello world computer science rocks"
+        );
+
+        // "periodical" merely starts like "period": survives the same way.
+        let mut periodical = session_buffer();
+        periodical.render("hello world", "", false);
+        periodical.render("hello world per", "", true); // hold " per"
+        assert_eq!(
+            periodical.render("hello world periodical", "", false),
+            "hello world periodical"
+        );
+
+        // Control: a real completion still resolves, and the words beyond
+        // stay dictation.
+        let mut resolved = session_buffer();
+        resolved.render("hello world", "", false);
+        resolved.render("hello world com", "", true);
+        assert_eq!(
+            resolved.render("hello world comma please", "", false),
+            "hello world, please"
+        );
+    }
+
+    #[test]
+    fn session_buffer_release_flush_fuzzy_near_miss_fragment_resolves() {
+        // Declared narrowed contract: a release-time held fragment that is
+        // a proper prefix of a >= 5-char single-word phrase AND within edit
+        // distance 1 of it resolves to that command at flush. The user was
+        // issuing a command, so converting is the desired outcome.
+        let mut session = session_buffer();
+        session.render("hello world", "", false);
+        session.render("hello world", "", true); // engage
+        assert_eq!(
+            session.render("hello world perio", "", true),
+            "hello world perio"
+        );
+        assert_eq!(
+            session.render("hello world perio", "", false),
+            "hello world."
+        );
+        // Fragments outside fuzzy reach ("com" is 3 chars, distance 2 from
+        // "comma") still discard: the pre-existing pin's exact input.
+        let mut short = session_buffer();
+        short.render("hello world", "", false);
+        short.render("hello world", "", true); // engage
+        assert_eq!(short.render("hello world com", "", true), "hello world com");
+        assert_eq!(short.render("hello world com", "", false), "hello world");
     }
 
     #[test]
@@ -3637,8 +4069,19 @@ mod tests {
         session.render("alpha beta", "", true); // engage
         assert_eq!(session.render("alpha beta delete word", "", true), "alpha ");
         assert_eq!(session.take_deleted(), Some("beta".to_string()));
-        // An ordinary command tick reports nothing.
-        assert_eq!(session.render("alpha beta comma", "", true), "alpha ,");
+        // An ordinary command tick reports nothing. NOTE: this snapshot is
+        // revision-shaped (the engine dropped the already-consumed
+        // "delete word" and the tick carries "comma"), so per the revision
+        // rule the same-tick material is absorbed, not parsed: the comma
+        // would land on the next append-only tick.
+        assert_eq!(session.render("alpha beta comma", "", true), "alpha ");
+        assert_eq!(session.take_deleted(), None);
+        // A genuinely append-only command tick parses normally and reports
+        // nothing.
+        assert_eq!(
+            session.render("alpha beta comma period", "", true),
+            "alpha ."
+        );
         assert_eq!(session.take_deleted(), None);
 
         // DeleteLine reports the cleared trailing line.
@@ -3688,6 +4131,7 @@ mod tests {
             &languages(&["en"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             false,
+            crate::number_format::NumberPass::disabled(),
         );
         assert!(!session.command_active);
         assert_eq!(session.render("hello there", "", false), "hello there");
@@ -4065,6 +4509,163 @@ mod tests {
     // -----------------------------------------------------------------
 
     #[test]
+    fn command_aliases_convert_across_hindi_hinglish_and_chinese_output() {
+        let hi = OutputLanguageEvidence::UserSelected("hi".to_string());
+        let supported_hi = languages(&["hi"]);
+        let hinglish = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            selected_language: "hi-Latn".to_string(),
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        let hindi = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            selected_language: "hi".to_string(),
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+
+        // hi-Latn: whisper wrote the command word in Devanagari
+        // (कॉमा); after transliteration the romanized alias converts it.
+        assert_eq!(
+            post_process_transcription_text(
+                "मुझे कॉमा चाहिए".to_string(),
+                &hinglish,
+                false,
+                &hi,
+                &supported_hi,
+            ),
+            "mujhe, chaahie"
+        );
+        // hi: the Devanagari alias itself converts.
+        assert_eq!(
+            post_process_transcription_text(
+                "मुझे कॉमा चाहिए".to_string(),
+                &hindi,
+                false,
+                &hi,
+                &supported_hi,
+            ),
+            "मुझे, चाहिए"
+        );
+        // The working Latin-fragment path keeps working (passthrough).
+        assert_eq!(
+            post_process_transcription_text(
+                "मुझे comma चाहिए".to_string(),
+                &hinglish,
+                false,
+                &hi,
+                &supported_hi,
+            ),
+            "mujhe, chaahie"
+        );
+        // Devanagari mark+word (the model wrote BOTH the mark and the
+        // command word): converts once, no double comma.
+        assert_eq!(
+            post_process_transcription_text(
+                "मुझे, कॉमा चाहिए".to_string(),
+                &hindi,
+                false,
+                &hi,
+                &supported_hi,
+            ),
+            "मुझे, चाहिए"
+        );
+        // A danda attached to the command word converts with it.
+        assert_eq!(
+            post_process_transcription_text(
+                "मुझे कॉमा। चाहिए".to_string(),
+                &hindi,
+                false,
+                &hi,
+                &supported_hi,
+            ),
+            "मुझे, चाहिए"
+        );
+
+        // zh: the CJK alias embedded in spaceless Chinese text matches.
+        let zh = OutputLanguageEvidence::UserSelected("zh".to_string());
+        let chinese = AppSettings {
+            chinese_script: ChineseScript::AsTranscribed,
+            selected_language: "zh".to_string(),
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(
+                "你好逗号世界".to_string(),
+                &chinese,
+                false,
+                &zh,
+                &languages(&["zh"]),
+            ),
+            "你好,世界"
+        );
+    }
+
+    #[test]
+    fn whisper_initial_prompt_biases_non_latin_decodes_toward_command_words() {
+        let phrases = vec!["comma".to_string(), "question mark".to_string()];
+        // Non-Latin output: custom words plus the matrix Insert phrases.
+        assert_eq!(
+            whisper_initial_prompt(&["Alpha".to_string()], &phrases, "hi"),
+            "Alpha, comma, question mark"
+        );
+        // No custom words: the phrases alone carry the prompt.
+        assert_eq!(
+            whisper_initial_prompt(&[], &phrases, "zh"),
+            "comma, question mark"
+        );
+        // Latin output (and hi-Latn resolves to "hi" before this point):
+        // unchanged, exactly the custom words.
+        assert_eq!(
+            whisper_initial_prompt(&["Alpha".to_string()], &phrases, "en"),
+            "Alpha"
+        );
+        assert_eq!(whisper_initial_prompt(&[], &phrases, "en"), "");
+        // Script classification pins.
+        assert!(!is_latin_language("hi"));
+        assert!(!is_latin_language("hi-Latn"));
+        assert!(!is_latin_language("zh"));
+        assert!(!is_latin_language("yue"));
+        assert!(!is_latin_language("ru"));
+        assert!(is_latin_language("en"));
+        assert!(is_latin_language("pt"));
+    }
+
+    #[test]
+    fn filler_removal_runs_before_terminal_punctuation() {
+        // Ordering invariant: a filler-final utterance keeps the comma the
+        // command inserted, identical before and after the ordering change.
+        let settings = text_pipeline_settings(true, true, true);
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+        assert_eq!(
+            post_process_transcription_text(
+                "hello comma uhm".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "hello,"
+        );
+        // Declared behavior change: the filler goes first, so the bare
+        // utterance still earns its terminal period (previously the
+        // filler's [,.]? ate the just-appended mark and the paste lost it).
+        assert_eq!(
+            post_process_transcription_text(
+                "hello uhm".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "hello."
+        );
+    }
+
+    #[test]
     fn hinglish_post_process_transliterates_only_for_the_latin_intent() {
         let hi = OutputLanguageEvidence::UserSelected("hi".to_string());
         let supported = languages(&["hi"]);
@@ -4117,6 +4718,7 @@ mod tests {
             &languages(&["hi"]),
             crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             true,
+            crate::number_format::NumberPass::disabled(),
         );
         // The overlay shows Roman while speaking...
         assert_eq!(session.render("नमस्ते", "", false), "namaste");
@@ -4263,13 +4865,23 @@ mod tests {
 
         // Everything after the command is discarded too.
         let restarted = post_process_transcription_text(
-            "one two three start over four five".to_string(),
+            "one two three delete everything four five".to_string(),
             &settings,
             false,
             &en,
             &supported,
         );
         assert_eq!(restarted, "");
+        // "start over" left the default ClearAll table: ordinary dictation
+        // saying it keeps its sentence (terminal punctuation still lands).
+        let kept = post_process_transcription_text(
+            "let me start over and try again".to_string(),
+            &settings,
+            false,
+            &en,
+            &supported,
+        );
+        assert_eq!(kept, "let me start over and try again.");
     }
 
     /// Toggling voice deletion off leaves the command words in the text,
@@ -4852,6 +5464,439 @@ mod tests {
                 "selected"
             ),
             MemoryGateDecision::Refuse
+        );
+    }
+
+    // -----------------------------------------------------------------
+    // Spoken-number formatting (batch D): pipeline position, gating,
+    // interim parity, and the off path.
+    // -----------------------------------------------------------------
+
+    /// Number-pass settings helper: everything default except the mode and
+    /// the terminal fallback (kept off so assertions stay byte-exact).
+    fn number_settings(mode: crate::settings::NumberFormat) -> AppSettings {
+        AppSettings {
+            number_format: mode,
+            terminal_punctuation: false,
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn number_words_convert_under_default_settings() {
+        // Default settings carry number_format = Digits (plan D1): the
+        // operator's pain case stops happening out of the box, terminal
+        // punctuation included.
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+        assert_eq!(
+            post_process_transcription_text(
+                "one eight zero one".to_string(),
+                &AppSettings::default(),
+                false,
+                &en,
+                &supported,
+            ),
+            "1801."
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "pull request one one zero five".to_string(),
+                &AppSettings::default(),
+                false,
+                &en,
+                &supported,
+            ),
+            "pull request 1105."
+        );
+
+        // With the terminal fallback off the wording is exact.
+        let settings = number_settings(crate::settings::NumberFormat::Digits);
+        assert_eq!(
+            post_process_transcription_text(
+                "one eight zero one".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "1801"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "version one point two".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "version 1.2"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "twenty five items".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "25 items"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "the twenty fifth of March".to_string(),
+                &number_settings(crate::settings::NumberFormat::Smart),
+                false,
+                &en,
+                &supported,
+            ),
+            "the 25th of March"
+        );
+    }
+
+    #[test]
+    fn number_pass_off_mode_is_byte_identical_through_the_pipeline() {
+        // The standing-rule gate: as_transcribed restores the pre-feature
+        // transcript byte-for-byte for every number-shape input.
+        let settings = number_settings(crate::settings::NumberFormat::AsTranscribed);
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+        for text in [
+            "one eight zero one",
+            "pull request one one zero five",
+            "twenty five",
+            "version one point two",
+            "one, two, three",
+            "the twenty fifth of March",
+            "no one knows",
+            "give me five",
+            "one in a million",
+            "room 4B",
+            "iPhone 15",
+            "0x1F",
+        ] {
+            assert_eq!(
+                post_process_transcription_text(
+                    text.to_string(),
+                    &settings,
+                    false,
+                    &en,
+                    &supported
+                ),
+                text,
+                "text: {text}"
+            );
+        }
+    }
+
+    #[test]
+    fn number_pass_never_eats_command_phrases() {
+        // The number pass runs AFTER voice deletion and the punctuation
+        // passes, so command phrases keep their number words ("delete
+        // last four words") and digit forms ("delete last 4 words") alike.
+        let settings = AppSettings::default();
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        let supported = languages(&["en"]);
+
+        // Word form: the command deletes the four preceding words.
+        assert_eq!(
+            post_process_transcription_text(
+                "alpha beta gamma delta hello delete last four words".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "alpha."
+        );
+        // Digit form (1-10 accepted by the built-in pattern).
+        assert_eq!(
+            post_process_transcription_text(
+                "alpha beta gamma delta hello delete last 4 words".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "alpha."
+        );
+        // Spoken punctuation still converts with number formatting on.
+        assert_eq!(
+            post_process_transcription_text(
+                "hello comma".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "hello,"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "it is fine question mark".to_string(),
+                &settings,
+                false,
+                &en,
+                &supported,
+            ),
+            "it is fine?"
+        );
+    }
+
+    #[test]
+    fn number_pass_gates_on_output_language_evidence() {
+        // Non-English output languages and unknown evidence: no conversion
+        // (documented limitation; the English grammar would also not match
+        // these words, but the gate must fail closed regardless).
+        let supported = languages(&["en", "pt", "de"]);
+        for evidence in [
+            OutputLanguageEvidence::UserSelected("pt".to_string()),
+            OutputLanguageEvidence::UserSelected("de".to_string()),
+            OutputLanguageEvidence::Unknown,
+        ] {
+            assert_eq!(
+                post_process_transcription_text(
+                    "twenty five".to_string(),
+                    &number_settings(crate::settings::NumberFormat::Digits),
+                    false,
+                    &evidence,
+                    &supported,
+                ),
+                "twenty five",
+                "evidence: {evidence:?}"
+            );
+        }
+        // Region subtags and translation evidence resolve by base language.
+        assert_eq!(
+            post_process_transcription_text(
+                "twenty five".to_string(),
+                &number_settings(crate::settings::NumberFormat::Digits),
+                false,
+                &OutputLanguageEvidence::ModelDetected("en-GB".to_string()),
+                &supported,
+            ),
+            "25"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "twenty five".to_string(),
+                &number_settings(crate::settings::NumberFormat::Digits),
+                false,
+                &OutputLanguageEvidence::TranslatedToEnglish,
+                &supported,
+            ),
+            "25"
+        );
+    }
+
+    #[test]
+    fn fillers_are_removed_before_the_number_pass() {
+        // "um" precedes the number words but the filler pass has already
+        // cleared it, so the run stays contiguous.
+        let en = OutputLanguageEvidence::UserSelected("en".to_string());
+        assert_eq!(
+            post_process_transcription_text(
+                "um one eight zero one".to_string(),
+                &number_settings(crate::settings::NumberFormat::Digits),
+                false,
+                &en,
+                &languages(&["en"]),
+            ),
+            "1801"
+        );
+    }
+
+    #[test]
+    fn hindi_number_pass_runs_before_hinglish_transliteration() {
+        let hi = OutputLanguageEvidence::UserSelected("hi".to_string());
+        let supported = languages(&["hi"]);
+
+        // hi-Latn: Devanagari number words become Devanagari digits, the
+        // transliterator maps them to ASCII, Latin fragments stay verbatim.
+        let hinglish = AppSettings {
+            selected_language: "hi-Latn".to_string(),
+            number_format: crate::settings::NumberFormat::Digits,
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(
+                "\u{90F}\u{915} \u{906}\u{920} \u{936}\u{942}\u{928}\u{94d}\u{92f} \u{90F}\u{915}"
+                    .to_string(),
+                &hinglish,
+                false,
+                &hi,
+                &supported,
+            ),
+            "1801"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "meeting \u{90F}\u{915} \u{938}\u{94C} \u{905}\u{92c}".to_string(),
+                &hinglish,
+                false,
+                &hi,
+                &supported,
+            ),
+            "meeting 100 ab"
+        );
+
+        // Plain hi output keeps Devanagari digits.
+        let hindi = AppSettings {
+            selected_language: "hi".to_string(),
+            number_format: crate::settings::NumberFormat::Digits,
+            terminal_punctuation: false,
+            ..Default::default()
+        };
+        assert_eq!(
+            post_process_transcription_text(
+                "\u{90F}\u{915} \u{938}\u{94C}".to_string(),
+                &hindi,
+                false,
+                &hi,
+                &supported,
+            ),
+            "\u{967}\u{966}\u{966}"
+        );
+        // Lone "ek" is the indefinite article and never converts.
+        assert_eq!(
+            post_process_transcription_text(
+                "\u{90F}\u{915} \u{92b}\u{93c}\u{93f}\u{932}\u{94d}\u{92e} \u{926}\u{947}\u{916}\u{940}".to_string(),
+                &hindi,
+                false,
+                &hi,
+                &supported,
+            ),
+            "\u{90F}\u{915} \u{92b}\u{93c}\u{93f}\u{932}\u{94d}\u{92e} \u{926}\u{947}\u{916}\u{940}"
+        );
+    }
+
+    #[test]
+    fn interim_number_display_matches_the_paste() {
+        // English session: the overlay shows digits the moment a run is
+        // complete, grows monotonically, never flips back to words, and
+        // the finalize pipeline pastes the same digits.
+        let mut session = StreamSessionBuffer::default();
+        session.begin(
+            PreviewScript::new(
+                ChineseScript::AsTranscribed,
+                &OutputLanguageEvidence::UserSelected("en".to_string()),
+            ),
+            true,
+            true,
+            &languages(&["en"]),
+            crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            false,
+            crate::number_format::NumberPass {
+                mode: crate::settings::NumberFormat::Digits,
+                scripts: crate::number_format::NumberPassScripts {
+                    devanagari: false,
+                    english: true,
+                },
+            },
+        );
+        assert_eq!(session.render("one", "", false), "one");
+        assert_eq!(session.render("one eight", "", false), "18");
+        assert_eq!(session.render("one eight zero", "", false), "180");
+        assert_eq!(session.render("one eight zero one", "", false), "1801");
+        assert_eq!(
+            session.render("version one point two", "", false),
+            "version 1.2"
+        );
+
+        let final_raw = session.combine_final("one eight zero one".to_string());
+        assert_eq!(
+            post_process_transcription_text(
+                final_raw,
+                &number_settings(crate::settings::NumberFormat::Digits),
+                false,
+                &OutputLanguageEvidence::UserSelected("en".to_string()),
+                &languages(&["en"]),
+            ),
+            "1801"
+        );
+    }
+
+    #[test]
+    fn interim_hinglish_number_display_matches_the_paste() {
+        // hi-Latn session: Devanagari pass before transliteration, in the
+        // overlay too, so the digits match the paste while speaking.
+        let mut session = StreamSessionBuffer::default();
+        session.begin(
+            PreviewScript::new(
+                ChineseScript::AsTranscribed,
+                &OutputLanguageEvidence::UserSelected("hi".to_string()),
+            ),
+            true,
+            true,
+            &languages(&["hi"]),
+            crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            true,
+            crate::number_format::NumberPass {
+                mode: crate::settings::NumberFormat::Digits,
+                scripts: crate::number_format::NumberPassScripts {
+                    devanagari: true,
+                    english: true,
+                },
+            },
+        );
+        assert_eq!(
+            session.render(
+                "\u{90F}\u{915} \u{906}\u{920} \u{936}\u{942}\u{928}\u{94d}\u{92f} \u{90F}\u{915}",
+                "",
+                false
+            ),
+            "1801"
+        );
+        assert_eq!(
+            session.render("meeting \u{90F}\u{915} \u{938}\u{94C}", "", false),
+            "meeting 100"
+        );
+
+        let final_raw = session.combine_final("meeting \u{90F}\u{915} \u{938}\u{94C}".to_string());
+        assert_eq!(
+            post_process_transcription_text(
+                final_raw,
+                &AppSettings {
+                    selected_language: "hi-Latn".to_string(),
+                    number_format: crate::settings::NumberFormat::Digits,
+                    terminal_punctuation: false,
+                    ..Default::default()
+                },
+                false,
+                &OutputLanguageEvidence::UserSelected("hi".to_string()),
+                &languages(&["hi"]),
+            ),
+            "meeting 100"
+        );
+    }
+
+    #[test]
+    fn interim_number_pass_off_keeps_words_in_the_overlay() {
+        // as_transcribed: the overlay shows the words while speaking and
+        // the paste keeps them (the pre-feature behavior on both paths).
+        let mut session = StreamSessionBuffer::default();
+        session.begin(
+            PreviewScript::new(
+                ChineseScript::AsTranscribed,
+                &OutputLanguageEvidence::UserSelected("en".to_string()),
+            ),
+            true,
+            true,
+            &languages(&["en"]),
+            crate::audio_toolkit::command_matrix::default_compiled_matrix(),
+            false,
+            crate::number_format::NumberPass {
+                mode: crate::settings::NumberFormat::AsTranscribed,
+                scripts: crate::number_format::NumberPassScripts {
+                    devanagari: false,
+                    english: true,
+                },
+            },
+        );
+        assert_eq!(
+            session.render("one eight zero one", "", false),
+            "one eight zero one"
         );
     }
 }

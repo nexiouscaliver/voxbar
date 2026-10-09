@@ -1,17 +1,28 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
-import { Cog, FlaskConical, History, Info, Sparkles, Cpu } from "lucide-react";
+import {
+  ClipboardPaste,
+  Cog,
+  FlaskConical,
+  History,
+  Info,
+  Sparkles,
+  Cpu,
+  Terminal,
+} from "lucide-react";
 import HandyTextLogo from "./icons/HandyTextLogo";
 import HandyHand from "./icons/HandyHand";
 import { useSettings } from "../hooks/useSettings";
 import {
   GeneralSettings,
+  CommandsSettings,
   AdvancedSettings,
   HistorySettings,
   DebugSettings,
   AboutSettings,
   PostProcessingSettings,
   ModelsSettings,
+  OutputSettings,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -38,6 +49,12 @@ export const SECTIONS_CONFIG = {
     component: GeneralSettings,
     enabled: () => true,
   },
+  commands: {
+    labelKey: "sidebar.commands",
+    icon: Terminal,
+    component: CommandsSettings,
+    enabled: () => true,
+  },
   history: {
     labelKey: "sidebar.history",
     icon: History,
@@ -48,6 +65,12 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.models",
     icon: Cpu,
     component: ModelsSettings,
+    enabled: () => true,
+  },
+  output: {
+    labelKey: "sidebar.output",
+    icon: ClipboardPaste,
+    component: OutputSettings,
     enabled: () => true,
   },
   advanced: {

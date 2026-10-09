@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "Chung",
+    "commands": "Lệnh",
     "models": "Mô hình",
+    "output": "Đầu ra",
     "advanced": "Nâng cao",
     "postProcessing": "Xử lý sau",
     "history": "Lịch sử",
@@ -306,7 +308,80 @@
           "title": "Chế độ lệnh",
           "description": "Bật phím bổ trợ có thể gán của chế độ lệnh. Giữ phím này trong khi một phiên đọc chính tả đang hoạt động để giọng nói được diễn giải thành các lệnh (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) chỉnh sửa trực tiếp bộ đệm đọc chính tả; các từ không nhận diện được sẽ bị bỏ qua. Không bao giờ tự bắt đầu ghi âm."
         }
+      },
+      "groups": {
+        "app": "Ứng dụng",
+        "microphone": "Micrô"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "Tìm lệnh",
+      "resetAll": "Đặt lại tất cả lệnh",
+      "resetRow": "Đặt lại",
+      "addPhrase": "Thêm",
+      "removePhrase": "Xóa {{phrase}}",
+      "placeholder": "Thêm cụm từ",
+      "duplicateError": "Cụm từ \"{{phrase}}\" đã tồn tại trong một lệnh khác",
+      "tooLongError": "Cụm từ giới hạn 60 ký tự",
+      "noResults": "Không có lệnh nào khớp với tìm kiếm",
+      "inserts": "Chèn <code>{{result}}</code>",
+      "removedPhrase": "Đã xóa {{phrase}}",
+      "undoRemove": "Hoàn tác",
+      "resetCollision": "Không thể đặt lại: \"{{phrase}}\" hiện thuộc về {{command}}",
+      "resetAllConfirmTitle": "Đặt lại tất cả lệnh?",
+      "resetAllConfirmBody": "Mọi cụm từ tùy chỉnh sẽ bị bỏ và mỗi lệnh quay về cụm từ dựng sẵn.",
+      "resetAllConfirmCancel": "Hủy",
+      "resetAllConfirmConfirm": "Đặt lại tất cả",
+      "behavior": "Hành vi lệnh",
+      "groups": {
+        "punctuation": "Dấu câu",
+        "symbols": "Ký hiệu",
+        "editing": "Chỉnh sửa",
+        "control": "Điều khiển"
+      },
+      "names": {
+        "period": "Dấu chấm",
+        "comma": "Dấu phẩy",
+        "questionMark": "Dấu chấm hỏi",
+        "exclamation": "Dấu chấm than",
+        "colon": "Dấu hai chấm",
+        "semicolon": "Dấu chấm phẩy",
+        "dash": "Dấu gạch ngang",
+        "newLine": "Xuống dòng",
+        "newParagraph": "Đoạn mới",
+        "atSign": "Dấu at",
+        "hash": "Dấu thăng",
+        "dollarSign": "Ký hiệu đô la",
+        "percent": "Phần trăm",
+        "star": "Dấu sao",
+        "ampersand": "Ký hiệu và",
+        "caret": "Dấu mũ",
+        "openParen": "Mở ngoặc đơn",
+        "closeParen": "Đóng ngoặc đơn",
+        "openBracket": "Mở ngoặc vuông",
+        "closeBracket": "Đóng ngoặc vuông",
+        "openBrace": "Mở ngoặc nhọn",
+        "closeBrace": "Đóng ngoặc nhọn",
+        "slash": "Dấu gạch chéo",
+        "backslash": "Gạch chéo ngược",
+        "pipe": "Thanh dọc",
+        "deleteWord": "Xóa từ",
+        "deleteLine": "Xóa dòng",
+        "clearAll": "Xóa tất cả",
+        "undo": "Hoàn tác",
+        "paste": "Dán"
+      },
+      "actions": {
+        "deleteWord": "Xóa từ được đọc cuối cùng",
+        "deleteLine": "Xóa dòng được đọc cuối cùng",
+        "clearAll": "Xóa toàn bộ nội dung đọc",
+        "undo": "Thực hiện hoàn tác trong ứng dụng đang tập trung",
+        "paste": "Dán bảng tạm vào ứng dụng đang tập trung"
+      }
+    },
+    "search": {
+      "placeholder": "Tìm trong cài đặt",
+      "noResults": "Không có cài đặt nào khớp với tìm kiếm"
     },
     "sound": {
       "title": "Âm thanh",
@@ -337,12 +412,16 @@
         "description": "Điều chỉnh âm lượng của âm thanh phản hồi"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Dán",
+        "recording": "Ghi âm"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Ứng dụng",
-        "output": "Đầu ra",
+        "model": "Mô hình và bộ nhớ",
         "transcription": "Chuyển đổi",
-        "history": "Lịch sử",
         "experimental": "Thử nghiệm"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "Tự động diễn giải lệnh",
         "description": "Diễn giải các từ lệnh được nói (\"comma\", \"scratch that\") trong quá trình đọc chính tả thông thường. Tắt để gõ các từ lệnh như từ thông thường; giữ phím bổ trợ của chế độ lệnh để thực thi lệnh."
       },
-      "commandMatrix": {
-        "title": "Ma trận lệnh",
-        "description": "Một bảng cụm từ có thể chỉnh sửa nuôi mọi bề mặt lệnh nói: chế độ lệnh, dấu câu nói và xóa bằng giọng nói. Thêm hoặc bớt cụm từ của từng lệnh; cùng các cụm từ đó hoạt động ở mọi nơi.",
-        "groups": {
-          "symbols": "Ký hiệu và dấu câu",
-          "editing": "Chỉnh sửa",
-          "control": "Điều khiển"
-        },
-        "addPhrase": "Thêm",
-        "removePhrase": "Xóa {{phrase}}",
-        "reset": "Đặt lại về mặc định",
-        "duplicateError": "Cụm từ \"{{phrase}}\" đã tồn tại trên một lệnh",
-        "tooLongError": "Cụm từ giới hạn 60 ký tự",
-        "placeholder": "Thêm cụm từ"
-      },
       "spokenPunctuation": {
         "title": "Dấu câu bằng lời",
         "description": "Chuyển các từ dấu câu được nói như \"comma\", \"period\" và \"question mark\" thành dấu câu thật. Tắt để giữ chúng là từ thường."
@@ -550,6 +614,15 @@
           "asTranscribed": "Giữ nguyên bản chép",
           "simplified": "Giản thể",
           "traditional": "Phồn thể"
+        }
+      },
+      "numberFormat": {
+        "title": "Số nói",
+        "description": "Viết các từ số thành chữ số, nên \"one eight zero one\" được dán thành 1801. \"Như đã chuyển ghi\" giữ số như đã nói; Smart còn chuyển đổi số thứ tự ghép và các số đơn lẻ từ mười một trở lên.",
+        "options": {
+          "asTranscribed": "Giữ nguyên bản chép",
+          "digits": "Chữ số",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "Hiện huy hiệu mô hình",
         "description": "Hiển thị huy hiệu gọn gàng kèm mô hình đã tạo từng bản ghi âm."
+      },
+      "groups": {
+        "retention": "Lưu trữ"
       }
     },
     "debug": {
@@ -702,11 +778,6 @@
         "description": "Chọn hệ thống xử lý phím tắt.",
         "bindingsReset": "Các phím tắt không tương thích và đã được đặt lại về mặc định"
       },
-      "paths": {
-        "appData": "Dữ liệu ứng dụng:",
-        "models": "Mô hình:",
-        "settings": "Cài đặt:"
-      },
       "pasteDelay": {
         "title": "Độ trễ dán (trước)",
         "description": "Độ trễ (tính bằng mili giây) sau khi sao chép văn bản, trước khi gửi phím dán. Tăng nếu không có gì được dán."
@@ -726,6 +797,10 @@
       "recordingBuffer": {
         "title": "Bộ đệm ghi âm thêm",
         "description": "Thời gian thêm (tính bằng mili giây) để tiếp tục ghi âm sau khi nhả phím, để thu âm thanh cuối. 0 = không có bộ đệm thêm."
+      },
+      "streamingTail": {
+        "title": "Đuôi nhả cho streaming",
+        "description": "Thời gian thêm (tính bằng mili giây) phiên streaming tiếp tục ghi âm sau khi bạn nhả phím, để bắt phần cuối của từ cuối cùng. 0 = không có đuôi thêm."
       },
       "keyboardDiagnostic": {
         "title": "Chẩn đoán bàn phím",

@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "כללי",
+    "commands": "פקודות",
     "models": "מודלים",
+    "output": "פלט",
     "advanced": "מתקדם",
     "postProcessing": "עיבוד משלים",
     "history": "היסטוריה",
@@ -258,7 +260,80 @@
           "title": "מצב פקודות",
           "description": "מפעיל את מקש השינוי הניתן להקצאה של מצב הפקודות. החזיקו אותו בזמן הקלטת הקראה פעילה כדי שהדיבור יפורש כפקודות (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) העורכות ישירות את מאגר ההקראה; מילים לא מזוהות נזרקות. לעולם לא מתחיל הקלטה בפני עצמו."
         }
+      },
+      "groups": {
+        "app": "אפליקציה",
+        "microphone": "מיקרופון"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "חיפוש פקודות",
+      "resetAll": "איפוס כל הפקודות",
+      "resetRow": "איפוס לברירת מחדל",
+      "addPhrase": "הוספה",
+      "removePhrase": "הסרת {{phrase}}",
+      "placeholder": "הוספת ביטוי",
+      "duplicateError": "הביטוי \"{{phrase}}\" כבר קיים בפקודה אחרת",
+      "tooLongError": "הביטויים מוגבלים ל-60 תווים",
+      "noResults": "אין פקודות שתואמות לחיפוש",
+      "inserts": "מכניס <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} הוסר",
+      "undoRemove": "ביטול",
+      "resetCollision": "לא ניתן לאפס: \"{{phrase}}\" שייך כעת לפקודה {{command}}",
+      "resetAllConfirmTitle": "לאפס את כל הפקודות?",
+      "resetAllConfirmBody": "כל הביטויים המותאמים אישית נזנחים וכל פקודה חוזרת לביטויים המובנים שלה.",
+      "resetAllConfirmCancel": "ביטול",
+      "resetAllConfirmConfirm": "איפוס הכול",
+      "behavior": "התנהגות פקודות",
+      "groups": {
+        "punctuation": "פיסוק",
+        "symbols": "סמלים",
+        "editing": "עריכה",
+        "control": "בקרה"
+      },
+      "names": {
+        "period": "נקודה",
+        "comma": "פסיק",
+        "questionMark": "סימן שאלה",
+        "exclamation": "סימן קריאה",
+        "colon": "נקודתיים",
+        "semicolon": "נקודה ופסיק",
+        "dash": "מקף",
+        "newLine": "שורה חדשה",
+        "newParagraph": "פסקה חדשה",
+        "atSign": "כרוכית",
+        "hash": "סולמית",
+        "dollarSign": "סימן דולר",
+        "percent": "אחוז",
+        "star": "כוכבית",
+        "ampersand": "אמפרסנד",
+        "caret": "גג",
+        "openParen": "סוגריים פותחים",
+        "closeParen": "סוגריים סוגרים",
+        "openBracket": "סוגריים מרובעים פותחים",
+        "closeBracket": "סוגריים מרובעים סוגרים",
+        "openBrace": "סוגריים מסולסלים פותחים",
+        "closeBrace": "סוגריים מסולסלים סוגרים",
+        "slash": "לוכסן",
+        "backslash": "לוכסן הפוך",
+        "pipe": "קו אנכי",
+        "deleteWord": "מחיקת מילה",
+        "deleteLine": "מחיקת שורה",
+        "clearAll": "מחיקת הכול",
+        "undo": "ביטול",
+        "paste": "הדבקה"
+      },
+      "actions": {
+        "deleteWord": "מוחק את המילה האחרונה שהוכתבה",
+        "deleteLine": "מוחק את השורה האחרונה שהוכתבה",
+        "clearAll": "מוחק את כל ההכתבה",
+        "undo": "מבצע ביטול ביישום הפעיל",
+        "paste": "מדביק את לוח העריכה ביישום הפעיל"
+      }
+    },
+    "search": {
+      "placeholder": "חיפוש בהגדרות",
+      "noResults": "אין הגדרות שתואמות לחיפוש"
     },
     "models": {
       "title": "מודלי תמלול",
@@ -337,12 +412,16 @@
         "description": "כוונן את עוצמת צלילי המשוב"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "הדבקה",
+        "recording": "הקלטה"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "אפליקציה",
-        "output": "פלט",
+        "model": "מודל וזיכרון",
         "transcription": "תמלול",
-        "history": "היסטוריה",
         "experimental": "ניסיוני"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "פירוש אוטומטי של פקודות",
         "description": "מפרש מילות פקודה מדוברות (\"comma\", \"scratch that\") במהלך הקלדה קולית רגילה. כבו כדי להקליד את מילות הפקודה כמילים רגילות; החזיקו את מקש מצב הפקודות כדי לבצע פקודות."
       },
-      "commandMatrix": {
-        "title": "מטריצת הפקודות",
-        "description": "טבלת ביטויים אחת הניתנת לעריכה מזינה את כל משטחי הפקודות המדוברות: מצב הפקודות, פיסוק מדובר ומחיקה קולית. הוסיפו או הסירו ביטויים לכל פקודה; אותם ביטויים עובדים בכל מקום.",
-        "groups": {
-          "symbols": "סמלים ופיסוק",
-          "editing": "עריכה",
-          "control": "בקרה"
-        },
-        "addPhrase": "הוספה",
-        "removePhrase": "הסרת {{phrase}}",
-        "reset": "איפוס לברירת המחדל",
-        "duplicateError": "הביטוי \"{{phrase}}\" כבר קיים בפקודה אחרת",
-        "tooLongError": "הביטויים מוגבלים ל-60 תווים",
-        "placeholder": "הוספת ביטוי"
-      },
       "spokenPunctuation": {
         "title": "פיסוק מדובר",
         "description": "הופך מילות פיסוק מדוברות כמו \"comma\", \"period\" ו\"question mark\" לפיסוק אמת. כבו כדי להשאיר אותן כמילים רגילות."
@@ -550,6 +614,15 @@
           "asTranscribed": "כפי שתומלל",
           "simplified": "מפושט",
           "traditional": "מסורתי"
+        }
+      },
+      "numberFormat": {
+        "title": "מספרים מדוברים",
+        "description": "כותב מילות מספר מדוברות כספרות, כך ש-\"one eight zero one\" יודבק כ-1801. \"כפי שתועתק\" שומר מספרים כפי שנאמרו; Smart ממיר גם מספרים סודרים מורכבים ומספרים בודדים מאחת עשרה ומעלה.",
+        "options": {
+          "asTranscribed": "כפי שתומלל",
+          "digits": "ספרות",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "הצג תגית מודל",
         "description": "מציג תגית קומפקטית עם המודל שהפיק כל תמליל."
+      },
+      "groups": {
+        "retention": "שמירה"
       }
     },
     "debug": {
@@ -702,11 +778,6 @@
         "description": "בחר את מנגנון קיצורי המקלדת.",
         "bindingsReset": "קיצורי המקלדת לא היו תואמים ואופסו לברירות המחדל"
       },
-      "paths": {
-        "appData": "נתוני אפליקציה:",
-        "models": "מודלים:",
-        "settings": "הגדרות:"
-      },
       "pasteDelay": {
         "title": "השהיית הדבקה (לפני)",
         "description": "השהיה (במילישניות) לאחר העתקת הטקסט, לפני שליחת צירוף ההדבקה. הגדל אם דבר אינו מודבק."
@@ -726,6 +797,10 @@
       "recordingBuffer": {
         "title": "באפר הקלטה נוסף",
         "description": "זמן נוסף (במילישניות) להמשך הקלטה אחרי שחרור המקש, כדי ללכוד סוף דיבור. 0 = בלי באפר נוסף."
+      },
+      "streamingTail": {
+        "title": "זנב שחרור לסטרימינג",
+        "description": "זמן נוסף (במילישניות) שבו הקלטת סטרימינג ממשיכה לאחר שחרור המקש, כדי לתפוס את סוף המילה האחרונה. 0 = ללא זנב נוסף."
       },
       "keyboardDiagnostic": {
         "title": "אבחון מקלדת",

@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "Umum",
+    "commands": "Perintah",
     "models": "Model",
+    "output": "Keluaran",
     "advanced": "Lanjutan",
     "postProcessing": "Pascaproses",
     "history": "Riwayat",
@@ -258,7 +260,80 @@
           "title": "Mode perintah",
           "description": "Mengaktifkan tombol pengubah mode perintah yang dapat ditetapkan. Tahan selama sesi dikte sedang berlangsung agar ucapan Anda ditafsirkan sebagai perintah (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) yang menyunting penyangga dikte secara langsung; kata yang tidak dikenali dibuang. Tidak pernah memulai perekaman sendirian."
         }
+      },
+      "groups": {
+        "app": "Aplikasi",
+        "microphone": "Mikrofon"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "Cari perintah",
+      "resetAll": "Reset semua perintah",
+      "resetRow": "Reset",
+      "addPhrase": "Tambah",
+      "removePhrase": "Hapus {{phrase}}",
+      "placeholder": "Tambah frasa",
+      "duplicateError": "Frasa \"{{phrase}}\" sudah ada di perintah lain",
+      "tooLongError": "Frasa dibatasi 60 karakter",
+      "noResults": "Tidak ada perintah yang cocok dengan pencarian",
+      "inserts": "Menyisipkan <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} dihapus",
+      "undoRemove": "Urungkan",
+      "resetCollision": "Tidak bisa reset: \"{{phrase}}\" kini milik {{command}}",
+      "resetAllConfirmTitle": "Reset semua perintah?",
+      "resetAllConfirmBody": "Semua frasa kustom dibuang dan setiap perintah kembali ke frasa bawaannya.",
+      "resetAllConfirmCancel": "Batal",
+      "resetAllConfirmConfirm": "Reset semua",
+      "behavior": "Perilaku perintah",
+      "groups": {
+        "punctuation": "Tanda baca",
+        "symbols": "Simbol",
+        "editing": "Penyuntingan",
+        "control": "Kontrol"
+      },
+      "names": {
+        "period": "Titik",
+        "comma": "Koma",
+        "questionMark": "Tanda tanya",
+        "exclamation": "Tanda seru",
+        "colon": "Titik dua",
+        "semicolon": "Titik koma",
+        "dash": "Tanda hubung",
+        "newLine": "Baris baru",
+        "newParagraph": "Paragraf baru",
+        "atSign": "Simbol at",
+        "hash": "Tanda pagar",
+        "dollarSign": "Tanda dolar",
+        "percent": "Persen",
+        "star": "Bintang",
+        "ampersand": "Ampersand",
+        "caret": "Tanda sisip",
+        "openParen": "Kurung buka",
+        "closeParen": "Kurung tutup",
+        "openBracket": "Kurung siku buka",
+        "closeBracket": "Kurung siku tutup",
+        "openBrace": "Kurung kurawal buka",
+        "closeBrace": "Kurung kurawal tutup",
+        "slash": "Garis miring",
+        "backslash": "Garis miring terbalik",
+        "pipe": "Garis vertikal",
+        "deleteWord": "Hapus kata",
+        "deleteLine": "Hapus baris",
+        "clearAll": "Hapus semua",
+        "undo": "Urungkan",
+        "paste": "Tempel"
+      },
+      "actions": {
+        "deleteWord": "Menghapus kata terakhir yang diucapkan",
+        "deleteLine": "Menghapus baris terakhir yang diucapkan",
+        "clearAll": "Menghapus seluruh dikte",
+        "undo": "Menjalankan urungkan di aplikasi aktif",
+        "paste": "Menempelkan papan klip di aplikasi aktif"
+      }
+    },
+    "search": {
+      "placeholder": "Cari pengaturan",
+      "noResults": "Tidak ada pengaturan yang cocok dengan pencarian"
     },
     "models": {
       "title": "Model Transkripsi",
@@ -337,12 +412,16 @@
         "description": "Sesuaikan volume suara umpan balik audio"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Penempelan",
+        "recording": "Perekaman"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Aplikasi",
-        "output": "Keluaran",
+        "model": "Model dan memori",
         "transcription": "Transkripsi",
-        "history": "Riwayat",
         "experimental": "Eksperimental"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "Interpretasi Otomatis Perintah",
         "description": "Mengartikan kata perintah yang diucapkan (\"comma\", \"scratch that\") selama dikte normal. Matikan untuk mengetik kata perintah sebagai kata biasa; tahan modifier mode perintah untuk menjalankan perintah."
       },
-      "commandMatrix": {
-        "title": "Matriks Perintah",
-        "description": "Satu tabel frasa yang dapat diedit menggerakkan semua permukaan perintah yang diucapkan: mode perintah, tanda baca lisan, dan penghapusan suara. Tambahkan atau hapus frasa setiap perintah; frasa yang sama bekerja di semua tempat.",
-        "groups": {
-          "symbols": "Simbol dan tanda baca",
-          "editing": "Penyuntingan",
-          "control": "Kontrol"
-        },
-        "addPhrase": "Tambah",
-        "removePhrase": "Hapus {{phrase}}",
-        "reset": "Reset ke bawaan",
-        "duplicateError": "Frasa \"{{phrase}}\" sudah dipakai oleh perintah lain",
-        "tooLongError": "Frasa dibatasi hingga 60 karakter",
-        "placeholder": "Tambahkan frasa"
-      },
       "spokenPunctuation": {
         "title": "Tanda baca lisan",
         "description": "Mengubah kata tanda baca yang diucapkan seperti \"comma\", \"period\", dan \"question mark\" menjadi tanda baca sungguhan. Matikan untuk membiarkannya sebagai kata biasa."
@@ -550,6 +614,15 @@
           "asTranscribed": "Sesuai transkripsi",
           "simplified": "Sederhana",
           "traditional": "Tradisional"
+        }
+      },
+      "numberFormat": {
+        "title": "Angka lisan",
+        "description": "Menulis kata angka lisan sebagai digit, sehingga \"one eight zero one\" ditempel sebagai 1801. \"Sesuai transkrip\" mempertahankan angka seperti diucapkan; Smart juga mengonversi bilangan tingkat majemuk dan angka tunggal sebelas ke atas.",
+        "options": {
+          "asTranscribed": "Sesuai transkripsi",
+          "digits": "Digit",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "Tampilkan lencana model",
         "description": "Menampilkan lencana ringkas dengan model yang menghasilkan tiap transkripsi."
+      },
+      "groups": {
+        "retention": "Retensi"
       }
     },
     "debug": {
@@ -716,11 +792,6 @@
         "description": "Pilih backend pintasan keyboard.",
         "bindingsReset": "Pintasan keyboard tidak kompatibel dan telah dikembalikan ke nilai awal"
       },
-      "paths": {
-        "appData": "Data Aplikasi:",
-        "models": "Model:",
-        "settings": "Pengaturan:"
-      },
       "pasteDelay": {
         "title": "Jeda Tempel (Sebelum)",
         "description": "Jeda (dalam milidetik) setelah menyalin teks sebelum mengirim perintah tempel. Tingkatkan jika tidak ada yang ditempel."
@@ -740,6 +811,10 @@
       "recordingBuffer": {
         "title": "Buffer Perekaman Tambahan",
         "description": "Waktu tambahan (dalam milidetik) untuk terus merekam setelah Anda melepas tombol agar audio di bagian akhir tetap tertangkap. 0 = tanpa buffer tambahan."
+      },
+      "streamingTail": {
+        "title": "Ekor rilis streaming",
+        "description": "Waktu tambahan (dalam milidetik) sesi streaming terus merekam setelah Anda melepas tombol, agar akhir kata terakhir tertangkap. 0 = tanpa ekor tambahan."
       },
       "keyboardDiagnostic": {
         "title": "Diagnostik Keyboard",

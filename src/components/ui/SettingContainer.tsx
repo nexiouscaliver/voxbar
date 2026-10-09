@@ -3,7 +3,9 @@ import { Tooltip } from "./Tooltip";
 
 interface SettingContainerProps {
   title: string;
-  description: string;
+  // Node (not plain string) so a row can style part of its description,
+  // e.g. the mono inserted result on the Commands tab rows.
+  description: React.ReactNode;
   children: React.ReactNode;
   descriptionMode?: "inline" | "tooltip";
   grouped?: boolean;

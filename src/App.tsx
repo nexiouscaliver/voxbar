@@ -29,6 +29,7 @@ import {
 } from "./components/settings";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
+import { SettingsSearch } from "./components/settings/SettingsSearch";
 import { WhatsNewGate } from "./components/whats-new";
 import { runUpdateCheck } from "./components/update-checker/updaterFlow";
 import { useSettings } from "./hooks/useSettings";
@@ -431,6 +432,9 @@ function App() {
               <div className="flex flex-col items-center p-4 gap-4">
                 <AccessibilityPermissions />
                 <SecureInputWarning />
+                {/* Settings-wide search sits above the tab content; picking a
+                    match jumps to the section that owns the setting. */}
+                <SettingsSearch onSelect={setCurrentSection} />
                 {renderSettingsContent(currentSection, setOnboardingPreview)}
               </div>
             </div>

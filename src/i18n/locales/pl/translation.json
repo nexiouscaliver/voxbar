@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "Ogólne",
+    "commands": "Polecenia",
     "models": "Modele",
+    "output": "Wyjście",
     "advanced": "Zaawansowane",
     "postProcessing": "Postproces",
     "history": "Historia",
@@ -306,7 +308,80 @@
           "title": "Tryb poleceń",
           "description": "Włącza przypisywalny modyfikator trybu poleceń. Przytrzymaj go podczas aktywnej sesji dyktowania, aby interpretować mowę jako polecenia (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) edytujące bezpośrednio bufor dyktowania; nierozpoznane słowa są odrzucane. Nigdy sam nie rozpoczyna nagrywania."
         }
+      },
+      "groups": {
+        "app": "Aplikacja",
+        "microphone": "Mikrofon"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "Szukaj poleceń",
+      "resetAll": "Przywróć wszystkie polecenia",
+      "resetRow": "Przywróć domyślne",
+      "addPhrase": "Dodaj",
+      "removePhrase": "Usuń {{phrase}}",
+      "placeholder": "Dodaj wyrażenie",
+      "duplicateError": "Wyrażenie \"{{phrase}}\" już istnieje w innym poleceniu",
+      "tooLongError": "Wyrażenia są ograniczone do 60 znaków",
+      "noResults": "Żadne polecenie nie pasuje do wyszukiwania",
+      "inserts": "Wstawia <code>{{result}}</code>",
+      "removedPhrase": "Usunięto {{phrase}}",
+      "undoRemove": "Cofnij",
+      "resetCollision": "Nie można przywrócić: \"{{phrase}}\" należy teraz do polecenia {{command}}",
+      "resetAllConfirmTitle": "Przywrócić wszystkie polecenia?",
+      "resetAllConfirmBody": "Własne wyrażenia zostaną odrzucone, a wszystkie polecenia wrócą do wbudowanych wyrażeń.",
+      "resetAllConfirmCancel": "Anuluj",
+      "resetAllConfirmConfirm": "Przywróć wszystko",
+      "behavior": "Zachowanie poleceń",
+      "groups": {
+        "punctuation": "Interpunkcja",
+        "symbols": "Symbole",
+        "editing": "Edycja",
+        "control": "Sterowanie"
+      },
+      "names": {
+        "period": "Kropka",
+        "comma": "Przecinek",
+        "questionMark": "Znak zapytania",
+        "exclamation": "Wykrzyknik",
+        "colon": "Dwukropek",
+        "semicolon": "Średnik",
+        "dash": "Myślnik",
+        "newLine": "Nowa linia",
+        "newParagraph": "Nowy akapit",
+        "atSign": "Małpa",
+        "hash": "Kratka",
+        "dollarSign": "Znak dolara",
+        "percent": "Procent",
+        "star": "Gwiazdka",
+        "ampersand": "Ampersand",
+        "caret": "Daszek",
+        "openParen": "Nawias otwierający",
+        "closeParen": "Nawias zamykający",
+        "openBracket": "Lewy kwadratowy nawias",
+        "closeBracket": "Prawy kwadratowy nawias",
+        "openBrace": "Lewy klamrowy nawias",
+        "closeBrace": "Prawy klamrowy nawias",
+        "slash": "Ukośnik",
+        "backslash": "Ukośnik odwrotny",
+        "pipe": "Kreska pionowa",
+        "deleteWord": "Usuń słowo",
+        "deleteLine": "Usuń linię",
+        "clearAll": "Usuń wszystko",
+        "undo": "Cofnij",
+        "paste": "Wklej"
+      },
+      "actions": {
+        "deleteWord": "Usuwa ostatnie zdyktowane słowo",
+        "deleteLine": "Usuwa ostatnią zdyktowaną linię",
+        "clearAll": "Usuwa całe dyktando",
+        "undo": "Wykonuje cofnięcie w aktywnej aplikacji",
+        "paste": "Wkleja schowek w aktywnej aplikacji"
+      }
+    },
+    "search": {
+      "placeholder": "Szukaj w ustawieniach",
+      "noResults": "Żadne ustawienie nie pasuje do wyszukiwania"
     },
     "sound": {
       "title": "Dźwięk",
@@ -337,12 +412,16 @@
         "description": "Dostosuj głośność dźwięków informacyjnych"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Wklejanie",
+        "recording": "Nagrywanie"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Aplikacja",
-        "output": "Wyjście",
+        "model": "Model i pamięć",
         "transcription": "Transkrypcja",
-        "history": "Historia",
         "experimental": "Eksperymentalne"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "Automatyczna interpretacja poleceń",
         "description": "Interpretuje wypowiadane słowa poleceń (\"comma\", \"scratch that\") podczas normalnego dyktowania. Wyłącz, aby wpisywać słowa poleceń jako zwykłe słowa; przytrzymaj modyfikator trybu poleceń, aby wykonywać polecenia."
       },
-      "commandMatrix": {
-        "title": "Macierz poleceń",
-        "description": "Jedna edytowalna tabela fraz zasila każdą powierzchnię poleceń mówionych: tryb poleceń, mówioną interpunkcję i usuwanie głosem. Dodawaj lub usuwaj frazy każdego polecenia; te same frazy działają wszędzie.",
-        "groups": {
-          "symbols": "Symbole i interpunkcja",
-          "editing": "Edycja",
-          "control": "Sterowanie"
-        },
-        "addPhrase": "Dodaj",
-        "removePhrase": "Usuń {{phrase}}",
-        "reset": "Przywróć domyślne",
-        "duplicateError": "Fraza \"{{phrase}}\" jest już używana przez polecenie",
-        "tooLongError": "Frazy są ograniczone do 60 znaków",
-        "placeholder": "Dodaj frazę"
-      },
       "spokenPunctuation": {
         "title": "Mówiona interpunkcja",
         "description": "Zamienia wypowiadane słowa interpunkcyjne takie jak \"comma\", \"period\" i \"question mark\" na prawdziwą interpunkcję. Wyłącz, aby zachować je jako zwykłe słowa."
@@ -550,6 +614,15 @@
           "asTranscribed": "Jak w transkrypcji",
           "simplified": "Uproszczone",
           "traditional": "Tradycyjne"
+        }
+      },
+      "numberFormat": {
+        "title": "Mówione liczby",
+        "description": "Zapisuje mówione liczby jako cyfry, więc \"one eight zero one\" zostanie wklejone jako 1801. \"Jak transkrybowano\" zachowuje liczby tak, jak wypowiedziano; Smart zamienia także złożone liczebniki porządkowe i pojedyncze liczby od jedenastu w górę.",
+        "options": {
+          "asTranscribed": "Jak w transkrypcji",
+          "digits": "Cyfry",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "Pokaż plakietkę modelu",
         "description": "Pokazuje zwartą plakietkę z modelem, który wygenerował każdą transkrypcję."
+      },
+      "groups": {
+        "retention": "Przechowywanie"
       }
     },
     "debug": {
@@ -702,11 +778,6 @@
         "description": "Wybierz backend dla skrótów klawiaturowych.",
         "bindingsReset": "Skróty klawiaturowe były niekompatybilne i zostały zresetowane do wartości domyślnych"
       },
-      "paths": {
-        "appData": "Dane aplikacji:",
-        "models": "Modele:",
-        "settings": "Ustawienia:"
-      },
       "pasteDelay": {
         "title": "Opóźnienie wklejania (przed)",
         "description": "Opóźnienie (w milisekundach) po skopiowaniu tekstu, przed wysłaniem klawisza wklejania. Zwiększ, jeśli nic nie jest wklejane."
@@ -726,6 +797,10 @@
       "recordingBuffer": {
         "title": "Dodatkowy bufor nagrywania",
         "description": "Dodatkowy czas (w milisekundach) na kontynuowanie nagrywania po zwolnieniu klawisza, aby przechwycić końcowy dźwięk. 0 = brak dodatkowego bufora."
+      },
+      "streamingTail": {
+        "title": "Czas po puszczeniu klawisza (streaming)",
+        "description": "Dodatkowy czas (w milisekundach), w którym sesja strumieniowa kontynuuje nagrywanie po puszczeniu klawisza, aby uchwycić koniec ostatniego słowa. 0 = brak dodatkowego czasu."
       },
       "keyboardDiagnostic": {
         "title": "Diagnostyka klawiatury",

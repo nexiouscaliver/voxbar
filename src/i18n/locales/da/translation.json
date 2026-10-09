@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "Generelt",
+    "commands": "Kommandoer",
     "models": "Modeller",
+    "output": "Output",
     "advanced": "Avanceret",
     "postProcessing": "Efterbehandling",
     "history": "Historik",
@@ -258,7 +260,80 @@
           "title": "Kommandotilstand",
           "description": "Aktiverer den tildelbare kommandotilstands-modifikatortast. Hold den nede, mens en dikteringssession er aktiv, for at fortolke din tale som kommandoer (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), der redigerer dikteringsbufferen direkte; ikke-genkendte ord kasseres. Starter aldrig en optagelse af sig selv."
         }
+      },
+      "groups": {
+        "app": "App",
+        "microphone": "Mikrofon"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "Søg i kommandoer",
+      "resetAll": "Nulstil alle kommandoer",
+      "resetRow": "Nulstil",
+      "addPhrase": "Tilføj",
+      "removePhrase": "Fjern {{phrase}}",
+      "placeholder": "Tilføj en frase",
+      "duplicateError": "Frasen \"{{phrase}}\" findes allerede på en kommando",
+      "tooLongError": "Fraser er begrænset til 60 tegn",
+      "noResults": "Ingen kommandoer matcher din søgning",
+      "inserts": "Indsætter <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} fjernet",
+      "undoRemove": "Fortryd",
+      "resetCollision": "Kan ikke nulstille: \"{{phrase}}\" tilhører nu {{command}}",
+      "resetAllConfirmTitle": "Nulstil alle kommandoer?",
+      "resetAllConfirmBody": "Alle tilpassede fraser kasseres, og alle kommandoer vender tilbage til deres indbyggede fraser.",
+      "resetAllConfirmCancel": "Annuller",
+      "resetAllConfirmConfirm": "Nulstil alle",
+      "behavior": "Kommandoadfærd",
+      "groups": {
+        "punctuation": "Tegnsætning",
+        "symbols": "Symboler",
+        "editing": "Redigering",
+        "control": "Styring"
+      },
+      "names": {
+        "period": "Punktum",
+        "comma": "Komma",
+        "questionMark": "Spørgsmålstegn",
+        "exclamation": "Udråbstegn",
+        "colon": "Kolon",
+        "semicolon": "Semikolon",
+        "dash": "Tankestreg",
+        "newLine": "Linjeskift",
+        "newParagraph": "Nyt afsnit",
+        "atSign": "Snabel-a",
+        "hash": "Gittertegn",
+        "dollarSign": "Dollartegn",
+        "percent": "Procent",
+        "star": "Stjerne",
+        "ampersand": "Og-tegn",
+        "caret": "Cirkumfleks",
+        "openParen": "Startparentes",
+        "closeParen": "Slutparentes",
+        "openBracket": "Startklamme",
+        "closeBracket": "Slutklamme",
+        "openBrace": "Startaccolade",
+        "closeBrace": "Slutaccolade",
+        "slash": "Skråstreg",
+        "backslash": "Omvendt skråstreg",
+        "pipe": "Lodret streg",
+        "deleteWord": "Slet ord",
+        "deleteLine": "Slet linje",
+        "clearAll": "Slet alt",
+        "undo": "Fortryd",
+        "paste": "Indsæt"
+      },
+      "actions": {
+        "deleteWord": "Sletter det senest dikterede ord",
+        "deleteLine": "Sletter den senest dikterede linje",
+        "clearAll": "Sletter hele diktatet",
+        "undo": "Kører fortryd i appen i fokus",
+        "paste": "Indsætter udklipsholderen i appen i fokus"
+      }
+    },
+    "search": {
+      "placeholder": "Søg i indstillinger",
+      "noResults": "Ingen indstillinger matcher din søgning"
     },
     "models": {
       "title": "Transskriptionsmodeller",
@@ -337,12 +412,16 @@
         "description": "Juster lydstyrken for lydfeedback"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Indsættelse",
+        "recording": "Optagelse"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "App",
-        "output": "Output",
+        "model": "Model og hukommelse",
         "transcription": "Transskription",
-        "history": "Historik",
         "experimental": "Eksperimentel"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "Fortolk kommandoer automatisk",
         "description": "Fortolker talte kommandoord (\"comma\", \"scratch that\") under normal diktering. Slå fra for at skrive kommandoord som almindelige ord; hold kommandotilstands-modifikatoren nede for at udføre kommandoer."
       },
-      "commandMatrix": {
-        "title": "Kommandomatrix",
-        "description": "Én redigerbar sætningstabel driver alle de talte kommandooverflader: kommandotilstand, talt tegnsætning og sletning med stemmen. Tilføj eller fjern hver kommandos sætninger; de samme sætninger virker overalt.",
-        "groups": {
-          "symbols": "Symboler og tegnsætning",
-          "editing": "Redigering",
-          "control": "Styring"
-        },
-        "addPhrase": "Tilføj",
-        "removePhrase": "Fjern {{phrase}}",
-        "reset": "Nulstil til standard",
-        "duplicateError": "Sætningen \"{{phrase}}\" bruges allerede af en kommando",
-        "tooLongError": "Sætninger er begrænset til 60 tegn",
-        "placeholder": "Tilføj en sætning"
-      },
       "spokenPunctuation": {
         "title": "Talt tegnsætning",
         "description": "Ændrer talte tegnsætningsord som \"comma\", \"period\" og \"question mark\" til rigtig tegnsætning. Slå fra for at beholde dem som almindelige ord."
@@ -550,6 +614,15 @@
           "asTranscribed": "Som transskriberet",
           "simplified": "Forenklet",
           "traditional": "Traditionel"
+        }
+      },
+      "numberFormat": {
+        "title": "Dikterede tal",
+        "description": "Skriver talte talord som cifre, så \"one eight zero one\" indsættes som 1801. \"Som transkriberet\" bevarer tal som sagt; Smart konverterer også sammensatte ordenstal og enkelttal fra elleve og opefter.",
+        "options": {
+          "asTranscribed": "Som transskriberet",
+          "digits": "Cifre",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "Vis modelmærke",
         "description": "Viser et kompakt mærke med den model, der lavede hver transskription."
+      },
+      "groups": {
+        "retention": "Opbevaring"
       }
     },
     "debug": {
@@ -716,11 +792,6 @@
         "description": "Vælg backend til tastaturgenveje.",
         "bindingsReset": "Tastaturgenveje var inkompatible og blev nulstillet til standard"
       },
-      "paths": {
-        "appData": "Appdata:",
-        "models": "Modeller:",
-        "settings": "Indstillinger:"
-      },
       "pasteDelay": {
         "title": "Forsinkelse af indsættelse (før)",
         "description": "Forsinkelse (i millisekunder) efter kopiering af tekst, før tastetrykket for indsætning sendes. Øg, hvis intet bliver indsat."
@@ -740,6 +811,10 @@
       "recordingBuffer": {
         "title": "Ekstra optagelsesbuffer",
         "description": "Ekstra tid (i millisekunder) til at fortsætte optagelsen, efter du slipper tasten, for at fange efterfølgende lyd. 0 = ingen ekstra buffer."
+      },
+      "streamingTail": {
+        "title": "Efterløb for streaming",
+        "description": "Ekstra tid (i millisekunder), hvor en streamingsession fortsætter optagelsen, efter du slipper tasten, så slutningen af det sidste ord fanges. 0 = intet ekstra efterløb."
       },
       "keyboardDiagnostic": {
         "title": "Tastaturdiagnostik",

@@ -131,7 +131,7 @@ pub fn command_action(command: CommandId) -> CommandAction {
 /// phrase is "delete word", so one phrase table feeds both surfaces).
 pub fn default_command_matrix() -> Vec<CommandMatrixEntry> {
     use CommandId::*;
-    [
+    let mut entries: Vec<CommandMatrixEntry> = [
         (Period, &["period", "full stop"][..]),
         (Comma, &["comma"]),
         (QuestionMark, &["question mark"]),
@@ -162,10 +162,11 @@ pub fn default_command_matrix() -> Vec<CommandMatrixEntry> {
             &["delete word", "scratch that", "delete that", "remove that"],
         ),
         (DeleteLine, &["delete line"]),
-        (
-            ClearAll,
-            &["delete everything", "scratch everything", "start over"],
-        ),
+        // "start over" is deliberately NOT a default phrase: it is ordinary
+        // English ("let me start over and try again") and a spoken
+        // clear-all must be unambiguous. It stays reachable as a
+        // user-added phrase in the matrix editor.
+        (ClearAll, &["delete everything", "scratch everything"]),
         (Undo, &["undo"]),
         (Paste, &["paste"]),
     ]
@@ -174,8 +175,101 @@ pub fn default_command_matrix() -> Vec<CommandMatrixEntry> {
         command,
         phrases: phrases.iter().map(|phrase| phrase.to_string()).collect(),
     })
-    .collect()
+    .collect();
+
+    // Hindi output: each Devanagari alias plus its romanized twin (what
+    // the hi-Latn pipeline sees after transliteration; pinned to the
+    // transliterator's own output by test). CJK output: the core set.
+    for (command, aliases) in DEVANAGARI_ALIASES {
+        let entry = entries
+            .iter_mut()
+            .find(|entry| entry.command == *command)
+            .expect("Devanagari alias names a default command");
+        for alias in *aliases {
+            entry.phrases.push((*alias).to_string());
+            entry
+                .phrases
+                .push(crate::hindi_script::transliterate_devanagari_to_roman(alias).to_lowercase());
+        }
+    }
+    for (command, aliases) in CJK_ALIASES {
+        let entry = entries
+            .iter_mut()
+            .find(|entry| entry.command == *command)
+            .expect("CJK alias names a default command");
+        for alias in *aliases {
+            entry.phrases.push((*alias).to_string());
+        }
+    }
+    entries
 }
+
+/// Everyday English words that double as single-word symbol commands. In
+/// NORMAL dictation prose they convert only at utterance-final position
+/// (text.rs keys the gate on the normalized phrase, so user-added phrases
+/// are never gated); mid-sentence they stay plain words, because "a period
+/// of time" and "five star hotel" must not turn into "a. Of time" and
+/// "five* hotel". Command mode (the held modifier) is a separate surface
+/// and is not gated: an explicit "period" while commanding always inserts.
+/// Deliberately NOT in the set: dash (mid-prose hyphenation is a designed,
+/// pinned feature) and colon/slash/hash (no demonstrated collision; symbol
+/// intent dominates; auto_interpret_commands off is the escape hatch).
+pub(crate) const AMBIGUOUS_EVERYDAY_PHRASES: &[&str] = &["period", "star", "percent", "pipe"];
+
+/// Devanagari aliases for the symbol commands, for Hindi ("hi") output:
+/// whisper renders the spoken English command word in Devanagari, which the
+/// English-only phrases never matched. Each alias also contributes its
+/// romanized twin (computed by the repo transliterator and pinned equal to
+/// its output by test) so the hi-Latn pipeline, which transliterates BEFORE
+/// matching, recognizes the converted form (कॉमा -> "komaa"). At most 3
+/// words each (the max_phrase_words contract); where no genuine spoken term
+/// exists the command is skipped rather than inventing a phrase. Spellings
+/// need native review; wrong spellings fail safe (the word pastes as text).
+const DEVANAGARI_ALIASES: &[(CommandId, &[&str])] = &[
+    (CommandId::Period, &["पूर्ण विराम"]),
+    (CommandId::Comma, &["कॉमा", "अल्पविराम"]),
+    (CommandId::QuestionMark, &["प्रश्न चिह्न", "सवाल चिह्न"]),
+    (CommandId::Exclamation, &["विस्मयादिबोध चिह्न"]),
+    (CommandId::Colon, &["उपविराम"]),
+    (CommandId::Semicolon, &["अर्धविराम"]),
+    (CommandId::Dash, &["डैश"]),
+    (CommandId::NewLine, &["नई लाइन"]),
+    (CommandId::NewParagraph, &["नया अनुच्छेद"]),
+    (CommandId::AtSign, &["ऐट"]),
+    (CommandId::Hash, &["हैश"]),
+    (CommandId::DollarSign, &["डॉलर"]),
+    (CommandId::Percent, &["प्रतिशत"]),
+    (CommandId::Star, &["स्टार", "तारांकन"]),
+    (CommandId::Ampersand, &["एम्परसेंड"]),
+    (CommandId::Caret, &["कैरेट"]),
+    (CommandId::OpenParen, &["ओपन ब्रैकेट", "खुला कोष्ठक"]),
+    (CommandId::CloseParen, &["क्लोज़ ब्रैकेट", "बंद कोष्ठक"]),
+    (CommandId::OpenBracket, &["ओपन स्क्वायर ब्रैकेट"]),
+    (CommandId::CloseBracket, &["क्लोज़ स्क्वायर ब्रैकेट"]),
+    (CommandId::OpenBrace, &["ओपन कर्ली ब्रैकेट"]),
+    (CommandId::CloseBrace, &["क्लोज़ कर्ली ब्रैकेट"]),
+    (CommandId::Slash, &["स्लैश", "फॉरवर्ड स्लैश"]),
+    (CommandId::Backslash, &["बैकस्लैश"]),
+    (CommandId::Pipe, &["पाइप"]),
+];
+
+/// CJK aliases for zh/yue output, the core punctuation set only (the
+/// limitation is release-noted; Latin aliases are unnecessary because the
+/// English phrases already cover the Latin script case). These phrases
+/// compile WITHOUT word-boundary anchors: Han characters are word
+/// characters, so \b never fires between adjacent Han characters in
+/// spaceless Chinese text.
+const CJK_ALIASES: &[(CommandId, &[&str])] = &[
+    (CommandId::Period, &["句号"]),
+    (CommandId::Comma, &["逗号"]),
+    (CommandId::QuestionMark, &["问号"]),
+    (CommandId::Exclamation, &["感叹号"]),
+    (CommandId::Colon, &["冒号"]),
+    (CommandId::Semicolon, &["分号"]),
+    (CommandId::Dash, &["破折号"]),
+    (CommandId::NewLine, &["换行"]),
+    (CommandId::NewParagraph, &["新段落"]),
+];
 
 /// How a matched voice-deletion phrase acts on the transcript.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -199,11 +293,27 @@ pub(crate) const VOICE_DELETION_COUNT_FAMILY: &str =
 /// out empty (an empty alternation would match everywhere).
 const NEVER_MATCH: &str = r"[^\s\S]";
 
+/// Marks the model may ATTACH to a spoken command word (trailing the token
+/// itself): the ASCII punctuation set plus the Devanagari danda (U+0964,
+/// which Hindi output glues onto words where English would use ".") and the
+/// full-width CJK marks (which Chinese output attaches the same way). The
+/// punctuation pattern consumes one optional trailing member and the text
+/// pass strips the same set before the phrase lookup, so a punctuated
+/// command word ("question mark?") yields the pure phrase key.
+pub(crate) const ATTACHED_MARKS: &[char] = &[
+    ',', '.', ';', ':', '!', '?', // Devanagari danda.
+    '\u{0964}',
+    // Full-width CJK comma, ideographic full stop and comma, exclamation,
+    // question, colon, semicolon.
+    '\u{FF0C}', '\u{3002}', '\u{3001}', '\u{FF01}', '\u{FF1F}', '\u{FF1A}', '\u{FF1B}',
+];
+
 /// Everything the three command consumers need, compiled once from an
 /// entry list. Cheap to share: the regexes live behind an `Arc`.
 pub struct CompiledCommandMatrix {
     /// Spoken-punctuation pass: word-boundary anchored, case-insensitive,
-    /// with the optional trailing [,.]? the model may have attached.
+    /// with the optional attached trailing mark ([`ATTACHED_MARKS`]) the
+    /// model may have glued onto the command word.
     punctuation_pattern: Regex,
     /// Matched (normalized, lowercased) phrase -> inserted symbol.
     punctuation_replacements: HashMap<String, &'static str>,
@@ -222,8 +332,8 @@ pub struct CompiledCommandMatrix {
 
 impl CompiledCommandMatrix {
     /// Iterate the punctuation pattern's matches over `text` (word
-    /// boundary anchored, case-insensitive, with the optional trailing
-    /// [,.]? the model may have attached).
+    /// boundary anchored, case-insensitive, with the optional attached
+    /// trailing mark the model may have glued onto the command word).
     pub(crate) fn punctuation_pattern_matches<'a>(
         &'a self,
         text: &'a str,
@@ -321,6 +431,52 @@ fn sorted_by_word_count_descending<T>(mut items: Vec<T>, words: impl Fn(&T) -> u
     items
 }
 
+/// One phrase's regex fragment: its tokens escaped and joined with `\s+`,
+/// so a phrase matches whatever inner whitespace the model emitted (a
+/// double space inside "question  mark" still matches) while the phrase
+/// boundaries stay token-exact.
+fn phrase_regex_fragment(phrase: &str) -> String {
+    phrase
+        .split_whitespace()
+        .map(regex::escape)
+        .collect::<Vec<_>>()
+        .join(r"\s+")
+}
+
+/// Whether the phrase contains Han characters (the CJK aliases): those
+/// phrases must compile WITHOUT `\b` anchors, because Han characters are
+/// word characters and `\b` never fires between adjacent Han characters in
+/// spaceless Chinese text.
+fn contains_han(phrase: &str) -> bool {
+    phrase
+        .chars()
+        .any(|c| matches!(c as u32, 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF))
+}
+
+/// The phrase alternation in two anchor groups: `\b`-anchored on both
+/// sides for Latin and Devanagari phrases (the anchors keep "periodic"
+/// from matching "period"), unanchored for CJK-containing phrases. A
+/// wholesale anchor drop would un-anchor every phrase; the split keeps
+/// each script under the rule it needs.
+fn anchored_alternation<'a>(phrases: impl IntoIterator<Item = &'a str>) -> String {
+    let mut anchored: Vec<String> = Vec::new();
+    let mut cjk: Vec<String> = Vec::new();
+    for phrase in phrases {
+        let fragment = phrase_regex_fragment(phrase);
+        if contains_han(phrase) {
+            cjk.push(fragment);
+        } else {
+            anchored.push(fragment);
+        }
+    }
+    match (anchored.is_empty(), cjk.is_empty()) {
+        (false, false) => format!(r"(?:\b(?:{})\b|(?:{}))", anchored.join("|"), cjk.join("|")),
+        (false, true) => format!(r"\b(?:{})\b", anchored.join("|")),
+        (true, false) => format!(r"(?:{})", cjk.join("|")),
+        (true, true) => NEVER_MATCH.to_string(),
+    }
+}
+
 /// Compile an entry list into every consumer surface. Defensive against
 /// imperfect stores: empty phrases are skipped (validation happens on
 /// write), never panics.
@@ -341,23 +497,27 @@ pub fn compile_command_matrix(entries: &[CommandMatrixEntry]) -> CompiledCommand
     let word_count = |phrase: &str| phrase.split_whitespace().count();
     let sorted = sorted_by_word_count_descending(all, |(phrase, _)| word_count(phrase));
 
+    // Deduplicate, keeping the FIRST occurrence after the sort. A corrupted
+    // store (the same phrase on two commands; validate_matrix guards only
+    // the settings write path) would otherwise drive the surfaces apart:
+    // the parser's find() picks the first entry while the replacement
+    // HashMap keeps the last. First-wins everywhere degrades consistently.
+    let mut seen_phrases: HashMap<String, ()> = HashMap::new();
+    let sorted: Vec<(String, CommandAction)> = sorted
+        .into_iter()
+        .filter(|(phrase, _)| seen_phrases.insert(phrase.clone(), ()).is_none())
+        .collect();
+
     // Punctuation pass: the symbol-insert entries.
     let punctuation: Vec<&(String, CommandAction)> = sorted
         .iter()
         .filter(|(_, action)| matches!(action, CommandAction::Insert(_)))
         .collect();
-    let punctuation_alternation = punctuation
-        .iter()
-        .map(|(phrase, _)| regex::escape(phrase))
-        .collect::<Vec<_>>()
-        .join("|");
+    let attached_class: String = ATTACHED_MARKS.iter().collect();
     let punctuation_pattern = Regex::new(&format!(
-        r"(?i)\b(?:{})\b[,.]?",
-        if punctuation_alternation.is_empty() {
-            NEVER_MATCH
-        } else {
-            &punctuation_alternation
-        }
+        r"(?i){}[{}]?",
+        anchored_alternation(punctuation.iter().map(|(phrase, _)| phrase.as_str())),
+        attached_class
     ))
     .unwrap();
     let punctuation_replacements = punctuation
@@ -393,15 +553,36 @@ pub fn compile_command_matrix(entries: &[CommandMatrixEntry]) -> CompiledCommand
             word_count(phrase)
         }
     });
-    let voice_deletion_pattern = Regex::new(&format!(
-        r"(?i)\b(?:{})\b",
-        voice
-            .iter()
-            .map(|(phrase, _)| phrase.as_str())
-            .collect::<Vec<_>>()
-            .join("|")
-    ))
-    .unwrap();
+    // Same two anchor groups as the punctuation pattern (the sort order is
+    // preserved so leftmost-first alternation precedence is unchanged);
+    // the built-in count family is already a regex fragment and passes
+    // through verbatim, while matrix phrases are escaped and \s+-joined.
+    let mut voice_anchored: Vec<String> = Vec::new();
+    let mut voice_cjk: Vec<String> = Vec::new();
+    for (phrase, _) in &voice {
+        let fragment = if phrase == VOICE_DELETION_COUNT_FAMILY {
+            phrase.clone()
+        } else {
+            phrase_regex_fragment(phrase)
+        };
+        if contains_han(phrase) {
+            voice_cjk.push(fragment);
+        } else {
+            voice_anchored.push(fragment);
+        }
+    }
+    let voice_alternation = match (voice_anchored.is_empty(), voice_cjk.is_empty()) {
+        (false, false) => format!(
+            r"(?:\b(?:{})\b|(?:{}))",
+            voice_anchored.join("|"),
+            voice_cjk.join("|")
+        ),
+        (false, true) => format!(r"\b(?:{})\b", voice_anchored.join("|")),
+        (true, false) => format!(r"(?:{})", voice_cjk.join("|")),
+        // Unreachable: the count family is always in the anchored group.
+        (true, true) => NEVER_MATCH.to_string(),
+    };
+    let voice_deletion_pattern = Regex::new(&format!(r"(?i){voice_alternation}")).unwrap();
     let voice_deletion_kinds = voice
         .iter()
         .filter_map(|(phrase, kind)| kind.map(|kind| (phrase.clone(), kind)))
@@ -505,10 +686,15 @@ mod tests {
                 match action {
                     CommandAction::Insert(symbol) => {
                         // Punctuation surface: "hello <phrase> world" converts
-                        // to the symbol with the defined spacing semantics.
+                        // to the symbol with the defined spacing semantics,
+                        // EXCEPT the ambiguous everyday words, which stay
+                        // verbatim mid-prose and convert only utterance-final.
                         let converted =
                             normalize_spoken_punctuation(&format!("hello {phrase} world"), &matrix);
-                        let expected = if is_sentence_ending(symbol) {
+                        let gated = AMBIGUOUS_EVERYDAY_PHRASES.contains(&phrase.as_str());
+                        let expected = if gated {
+                            format!("hello {phrase} world")
+                        } else if is_sentence_ending(symbol) {
                             format!("hello{symbol} World")
                         } else if symbol == "-" {
                             "hello-world".to_string()
@@ -518,6 +704,13 @@ mod tests {
                             format!("hello{symbol} world")
                         };
                         assert_eq!(converted, expected, "phrase: {phrase}");
+                        if gated {
+                            // Paired utterance-final probe: the everyday word
+                            // still converts when nothing follows it.
+                            let final_pos =
+                                normalize_spoken_punctuation(&format!("hello {phrase}"), &matrix);
+                            assert_eq!(final_pos, format!("hello{symbol}"), "phrase: {phrase}");
+                        }
                     }
                     CommandAction::DeleteWord => {
                         let outcome =
@@ -759,6 +952,88 @@ mod tests {
         // and holds the trailing token that opens a fresh instance of it
         // (proper-prefix semantics: a completing sequence never holds).
         assert_eq!(held_prefix_len(" kohma kohma", &custom), 6);
+    }
+
+    #[test]
+    fn romanized_aliases_equal_the_transliterator_output() {
+        // Self-consistency: every stored romanized alias is exactly what
+        // the repo transliterator produces for its Devanagari twin, so the
+        // hi-Latn pipeline (transliterate, then match) sees phrases that
+        // cannot drift from the real conversion.
+        for (command, aliases) in DEVANAGARI_ALIASES {
+            let entry = default_command_matrix()
+                .into_iter()
+                .find(|entry| entry.command == *command)
+                .expect("command present");
+            for deva in *aliases {
+                let romanized =
+                    crate::hindi_script::transliterate_devanagari_to_roman(deva).to_lowercase();
+                assert!(
+                    entry.phrases.iter().any(|p| p == deva),
+                    "Devanagari alias {deva} missing from {:?}",
+                    entry.command
+                );
+                assert!(
+                    entry.phrases.iter().any(|p| p == &romanized),
+                    "romanized alias {romanized} missing from {:?}",
+                    entry.command
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn devanagari_aliases_parse_in_command_mode() {
+        // Devanagari phrases ending in a vowel sign (कॉमा ends in ा) must
+        // survive token normalization: the matra is part of the word, not
+        // attached punctuation.
+        assert_eq!(
+            parse_command_transcript("कॉमा", &dm()),
+            vec![CommandAction::Insert(",")]
+        );
+        assert_eq!(
+            parse_command_transcript("पूर्ण विराम", &dm()),
+            vec![CommandAction::Insert(".")]
+        );
+        // The romanized twins parse too.
+        assert_eq!(
+            parse_command_transcript("komaa", &dm()),
+            vec![CommandAction::Insert(",")]
+        );
+    }
+
+    #[test]
+    fn corrupted_store_duplicate_phrase_compiles_to_one_command() {
+        // A hand-edited settings file can carry the same phrase on two
+        // commands (validate_matrix guards only the write path). The three
+        // consumer surfaces must agree on ONE command: the first entry
+        // after the word-count sort, not parser-first / replacements-last.
+        let corrupted = vec![
+            CommandMatrixEntry {
+                command: CommandId::Comma,
+                phrases: vec!["comma".to_string()],
+            },
+            CommandMatrixEntry {
+                command: CommandId::Period,
+                phrases: vec!["comma".to_string()],
+            },
+        ];
+        let matrix = compile_command_matrix(&corrupted);
+        assert_eq!(
+            parse_command_transcript("comma", &matrix),
+            vec![CommandAction::Insert(",")]
+        );
+        assert_eq!(matrix.punctuation_replacement("comma"), Some(","));
+        // The duplicate never reaches the voice-deletion or parser tables
+        // twice either.
+        assert_eq!(
+            matrix
+                .parser
+                .iter()
+                .filter(|(tokens, _)| tokens == &vec!["comma".to_string()])
+                .count(),
+            1
+        );
     }
 
     #[test]

@@ -17,6 +17,7 @@ mod legacy_migration;
 mod llm_client;
 mod managers;
 mod memory;
+mod number_format;
 mod overlay;
 mod paste_tx;
 pub mod portable;
@@ -710,6 +711,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_debug_mode_setting,
             shortcut::change_word_correction_threshold_setting,
             shortcut::change_extra_recording_buffer_setting,
+            shortcut::change_streaming_release_tail_setting,
             shortcut::change_paste_delay_ms_setting,
             shortcut::change_paste_delay_after_ms_setting,
             shortcut::change_reliable_paste_setting,
@@ -751,6 +753,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_undo_enabled_setting,
             shortcut::change_command_mode_enabled_setting,
             shortcut::change_chinese_script_setting,
+            shortcut::change_number_format_setting,
             shortcut::change_app_language_setting,
             shortcut::change_update_checks_setting,
             shortcut::change_show_whats_new_on_update_setting,

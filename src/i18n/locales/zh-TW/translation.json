@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "一般",
+    "commands": "命令",
     "models": "模型",
+    "output": "輸出",
     "advanced": "進階",
     "postProcessing": "後處理",
     "history": "歷史紀錄",
@@ -258,7 +260,80 @@
           "title": "命令模式",
           "description": "啟用可自訂的命令模式修飾鍵。在聽寫會話進行期間按住它，即可將語音解譯為直接編輯聽寫緩衝區的命令 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line)；無法辨識的詞會被丟棄。它絕不會自行開始錄音。"
         }
+      },
+      "groups": {
+        "app": "應用程式",
+        "microphone": "麥克風"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "搜尋命令",
+      "resetAll": "重設所有命令",
+      "resetRow": "還原預設",
+      "addPhrase": "新增",
+      "removePhrase": "移除 {{phrase}}",
+      "placeholder": "新增片語",
+      "duplicateError": "片語 \"{{phrase}}\" 已存在於其他命令",
+      "tooLongError": "片語最長 60 個字元",
+      "noResults": "沒有命令符合搜尋",
+      "inserts": "插入 <code>{{result}}</code>",
+      "removedPhrase": "已移除 {{phrase}}",
+      "undoRemove": "復原",
+      "resetCollision": "無法重設: \"{{phrase}}\" 目前屬於 {{command}}",
+      "resetAllConfirmTitle": "要重設所有命令嗎?",
+      "resetAllConfirmBody": "所有自訂片語都會被捨棄, 每個命令都會回到內建片語。",
+      "resetAllConfirmCancel": "取消",
+      "resetAllConfirmConfirm": "全部重設",
+      "behavior": "命令行為",
+      "groups": {
+        "punctuation": "標點",
+        "symbols": "符號",
+        "editing": "編輯",
+        "control": "控制"
+      },
+      "names": {
+        "period": "句號",
+        "comma": "逗號",
+        "questionMark": "問號",
+        "exclamation": "驚嘆號",
+        "colon": "冒號",
+        "semicolon": "分號",
+        "dash": "破折號",
+        "newLine": "換行",
+        "newParagraph": "新段落",
+        "atSign": "at 符號",
+        "hash": "井號",
+        "dollarSign": "美元符號",
+        "percent": "百分比符號",
+        "star": "星號",
+        "ampersand": "和號",
+        "caret": "插入符",
+        "openParen": "左括號",
+        "closeParen": "右括號",
+        "openBracket": "左方括號",
+        "closeBracket": "右方括號",
+        "openBrace": "左花括號",
+        "closeBrace": "右花括號",
+        "slash": "斜線",
+        "backslash": "反斜線",
+        "pipe": "豎線",
+        "deleteWord": "刪除詞",
+        "deleteLine": "刪除行",
+        "clearAll": "全部刪除",
+        "undo": "復原",
+        "paste": "貼上"
+      },
+      "actions": {
+        "deleteWord": "刪除上一個聽寫的詞",
+        "deleteLine": "刪除上一行聽寫內容",
+        "clearAll": "刪除全部聽寫內容",
+        "undo": "在使用中的 App 執行復原",
+        "paste": "將剪貼簿貼到使用中的 App"
+      }
+    },
+    "search": {
+      "placeholder": "搜尋設定",
+      "noResults": "沒有設定符合搜尋"
     },
     "models": {
       "title": "轉錄模型",
@@ -337,12 +412,16 @@
         "description": "調整聲音回饋的音量"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "貼上",
+        "recording": "錄音"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "應用程式",
-        "output": "輸出",
+        "model": "模型與記憶體",
         "transcription": "轉錄",
-        "history": "歷史",
         "experimental": "實驗性"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "自動解析命令詞",
         "description": "在一般聽寫時解析說出的命令詞（如 \"comma\"、\"scratch that\"）。關閉後命令詞將按普通文字輸入；按住命令模式修飾鍵可執行命令。"
       },
-      "commandMatrix": {
-        "title": "命令矩陣",
-        "description": "一張可編輯的短語表驅動所有語音命令介面：命令模式、口語標點與語音刪除。可為每個命令新增或移除短語；同樣的短語在所有地方生效。",
-        "groups": {
-          "symbols": "符號與標點",
-          "editing": "編輯",
-          "control": "控制"
-        },
-        "addPhrase": "新增",
-        "removePhrase": "移除 {{phrase}}",
-        "reset": "重設為預設",
-        "duplicateError": "短語 \"{{phrase}}\" 已被其他命令使用",
-        "tooLongError": "短語不得超過 60 個字元",
-        "placeholder": "新增短語"
-      },
       "spokenPunctuation": {
         "title": "語音標點",
         "description": "將 \"comma\"、\"period\"、\"question mark\" 等口述的標點詞轉換為真實標點。關閉後保留為一般文字。"
@@ -550,6 +614,15 @@
           "asTranscribed": "保持原樣",
           "simplified": "簡體",
           "traditional": "繁體"
+        }
+      },
+      "numberFormat": {
+        "title": "語音數字",
+        "description": "將口述的數字詞寫成數字，\"one eight zero one\" 會以 1801 貼上。「保持原樣」讓數字保持口述原詞；Smart 還會轉換複合序數詞以及十一以上的單一數字。",
+        "options": {
+          "asTranscribed": "保持原樣",
+          "digits": "數字",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "顯示模型徽章",
         "description": "為每筆聽寫顯示產生它的模型的精簡徽章。"
+      },
+      "groups": {
+        "retention": "保留"
       }
     },
     "debug": {
@@ -702,11 +778,6 @@
         "description": "選擇鍵盤快捷鍵的後端",
         "bindingsReset": "鍵盤快捷鍵不相容，已重設為預設值"
       },
-      "paths": {
-        "appData": "應用程式資料:",
-        "models": "模型:",
-        "settings": "設定:"
-      },
       "pasteDelay": {
         "title": "貼上延遲（前）",
         "description": "複製文字後、發送貼上按鍵前的延遲（毫秒）。如果沒有貼上任何內容，請增加此值。"
@@ -726,6 +797,10 @@
       "recordingBuffer": {
         "title": "額外錄音緩衝",
         "description": "放開按鍵後繼續錄音的額外時間（毫秒），以捕捉尾音。0 = 無額外緩衝。"
+      },
+      "streamingTail": {
+        "title": "串流釋放尾音",
+        "description": "串流工作階段在放開按鍵後繼續錄音的額外時間（毫秒），以捕捉最後一個詞的結尾。0 = 無額外尾音。"
       },
       "keyboardDiagnostic": {
         "title": "鍵盤診斷",

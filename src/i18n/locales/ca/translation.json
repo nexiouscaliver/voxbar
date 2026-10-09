@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "General",
+    "commands": "Ordres",
     "models": "Models",
+    "output": "Sortida",
     "advanced": "Avançat",
     "postProcessing": "Postprocessament",
     "history": "Historial",
@@ -258,7 +260,80 @@
           "title": "Mode d'ordres",
           "description": "Activa la tecla modificadora assignable del mode d'ordres. Mantén-la mentre una sessió de dictat és activa per interpretar la veu com a ordres (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) que editen directament la memòria intermèdia del dictat; les paraules no reconegudes es descarten. Mai no inicia un enregistrament tota sola."
         }
+      },
+      "groups": {
+        "app": "Aplicació",
+        "microphone": "Micròfon"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "Cerca ordres",
+      "resetAll": "Restableix totes les ordres",
+      "resetRow": "Restableix",
+      "addPhrase": "Afegeix",
+      "removePhrase": "Elimina {{phrase}}",
+      "placeholder": "Afegeix una frase",
+      "duplicateError": "La frase \"{{phrase}}\" ja existeix en una ordre",
+      "tooLongError": "Les frases estan limitades a 60 caràcters",
+      "noResults": "Cap ordre coincideix amb la cerca",
+      "inserts": "Insereix <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} eliminada",
+      "undoRemove": "Desfés",
+      "resetCollision": "No es pot restablir: \"{{phrase}}\" ara pertany a {{command}}",
+      "resetAllConfirmTitle": "Vols restablir totes les ordres?",
+      "resetAllConfirmBody": "Es descarten totes les frases personalitzades i cada ordre torna a les seves frases integrades.",
+      "resetAllConfirmCancel": "Cancel·la",
+      "resetAllConfirmConfirm": "Restableix-ho tot",
+      "behavior": "Comportament de les ordres",
+      "groups": {
+        "punctuation": "Puntuació",
+        "symbols": "Símbols",
+        "editing": "Edició",
+        "control": "Control"
+      },
+      "names": {
+        "period": "Punt",
+        "comma": "Coma",
+        "questionMark": "Signe d'interrogació",
+        "exclamation": "Signe d'exclamació",
+        "colon": "Dos punts",
+        "semicolon": "Punt i coma",
+        "dash": "Guió",
+        "newLine": "Línia nova",
+        "newParagraph": "Paràgraf nou",
+        "atSign": "Arrova",
+        "hash": "Coixinet",
+        "dollarSign": "Signe de dòlar",
+        "percent": "Per cent",
+        "star": "Asterisc",
+        "ampersand": "Et comercial",
+        "caret": "Circumflex",
+        "openParen": "Parèntesi d'obertura",
+        "closeParen": "Parèntesi de tancament",
+        "openBracket": "Claudàtor d'obertura",
+        "closeBracket": "Claudàtor de tancament",
+        "openBrace": "Clau d'obertura",
+        "closeBrace": "Clau de tancament",
+        "slash": "Barra",
+        "backslash": "Barra invertida",
+        "pipe": "Barra vertical",
+        "deleteWord": "Suprimeix paraula",
+        "deleteLine": "Suprimeix línia",
+        "clearAll": "Esborra-ho tot",
+        "undo": "Desfés",
+        "paste": "Enganxa"
+      },
+      "actions": {
+        "deleteWord": "Suprimeix l'última paraula dictada",
+        "deleteLine": "Suprimeix l'última línia dictada",
+        "clearAll": "Esborra tot el dictat",
+        "undo": "Executa desfés a l'aplicació activa",
+        "paste": "Enganxa el porta-retalls a l'aplicació activa"
+      }
+    },
+    "search": {
+      "placeholder": "Cerca a la configuració",
+      "noResults": "Cap configuració coincideix amb la cerca"
     },
     "models": {
       "title": "Models de transcripció",
@@ -337,12 +412,16 @@
         "description": "Ajusta el volum dels avisos sonors"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Enganxament",
+        "recording": "Enregistrament"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Aplicació",
-        "output": "Sortida",
+        "model": "Model i memòria",
         "transcription": "Transcripció",
-        "history": "Historial",
         "experimental": "Experimental"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "Interpreta ordres automàticament",
         "description": "Interpreta les paraules d'ordre dites (\"comma\", \"scratch that\") durant el dictat normal. Desactiveu-ho per escriure-les com a paraules normals; manteniu premut el modificador del mode d'ordres per executar ordres."
       },
-      "commandMatrix": {
-        "title": "Matriu d'ordres",
-        "description": "Una taula editable de frases alimenta totes les superfícies d'ordres parlades: el mode d'ordres, la puntuació parlada i la supressió per veu. Afegiu o suprimiu les frases de cada ordre; les mateixes frases funcionen a tot arreu.",
-        "groups": {
-          "symbols": "Símbols i puntuació",
-          "editing": "Edició",
-          "control": "Control"
-        },
-        "addPhrase": "Afegeix",
-        "removePhrase": "Elimina {{phrase}}",
-        "reset": "Restableix els valors predeterminats",
-        "duplicateError": "La frase \"{{phrase}}\" ja existeix en una ordre",
-        "tooLongError": "Les frases estan limitades a 60 caràcters",
-        "placeholder": "Afegeix una frase"
-      },
       "spokenPunctuation": {
         "title": "Puntuació parlada",
         "description": "Converteix paraules de puntuació dites com \"comma\", \"period\" i \"question mark\" en puntuació real. Desactiveu-ho per mantenir-les com a paraules normals."
@@ -550,6 +614,15 @@
           "asTranscribed": "Tal com s'ha transcrit",
           "simplified": "Simplificat",
           "traditional": "Tradicional"
+        }
+      },
+      "numberFormat": {
+        "title": "Nombres parlats",
+        "description": "Escriu els nombres dits com a dígits, de manera que \"one eight zero one\" s'enganxi com a 1801. \"Tal com s'ha transcrit\" manté els nombres tal com s'han dit; Smart també converteix ordinals compostos i números solts a partir d'onze.",
+        "options": {
+          "asTranscribed": "Tal com s'ha transcrit",
+          "digits": "Dígits",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "Mostra la insígnia del model",
         "description": "Mostra una insígnia compacta amb el model que va produir cada transcripció."
+      },
+      "groups": {
+        "retention": "Retenció"
       }
     },
     "debug": {
@@ -716,11 +792,6 @@
         "description": "Tria el motor de dreceres de teclat.",
         "bindingsReset": "Les dreceres de teclat eren incompatibles i s'han restablert als valors per defecte"
       },
-      "paths": {
-        "appData": "Dades de l'aplicació:",
-        "models": "Models:",
-        "settings": "Configuració:"
-      },
       "pasteDelay": {
         "title": "Retard abans d'enganxar",
         "description": "Retard (en mil·lisegons) després de copiar el text i abans d'enviar la combinació de tecles per enganxar-lo. Augmenteu-lo si no s'enganxa res."
@@ -740,6 +811,10 @@
       "recordingBuffer": {
         "title": "Marge addicional d'enregistrament",
         "description": "Temps addicional (en mil·lisegons) durant el qual es continua enregistrant després de deixar anar la tecla per capturar l'àudio final. 0 = sense marge addicional."
+      },
+      "streamingTail": {
+        "title": "Cua d'alliberament de l'streaming",
+        "description": "Temps addicional (en mil·lisegons) que una sessió de streaming continua enregistrant després de deixar anar la tecla, per capturar el final de l'última paraula. 0 = sense cua addicional."
       },
       "keyboardDiagnostic": {
         "title": "Diagnòstic del teclat",

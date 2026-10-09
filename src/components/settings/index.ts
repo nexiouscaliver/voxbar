@@ -1,5 +1,6 @@
 // Settings section components
 export { GeneralSettings } from "./general/GeneralSettings";
+export { CommandsSettings } from "./commands/CommandsSettings";
 export { AdvancedSettings } from "./advanced/AdvancedSettings";
 export { DebugSettings } from "./debug/DebugSettings";
 export type { OnboardingPreviewStep } from "./debug/OnboardingPreview";
@@ -7,6 +8,7 @@ export { HistorySettings } from "./history/HistorySettings";
 export { AboutSettings } from "./about/AboutSettings";
 export { PostProcessingSettings } from "./post-processing/PostProcessingSettings";
 export { ModelsSettings } from "./models/ModelsSettings";
+export { OutputSettings } from "./output/OutputSettings";
 
 // Individual setting components
 export { MicrophoneSelector } from "./MicrophoneSelector";
@@ -34,6 +36,7 @@ export { DeleteLastWordAction } from "./DeleteLastWordAction";
 export { UndoAction } from "./UndoAction";
 export { CommandModeToggle } from "./CommandModeToggle";
 export { ChineseScriptSetting } from "./ChineseScript";
+export { NumberFormatSetting } from "./NumberFormat";
 export { AppDataDirectory } from "./AppDataDirectory";
 export { ModelUnloadTimeoutSetting } from "./ModelUnloadTimeout";
 export { StartHidden } from "./StartHidden";

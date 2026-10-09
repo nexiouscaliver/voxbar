@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "Generale",
+    "commands": "Comandi",
     "models": "Modelli",
+    "output": "Output",
     "advanced": "Avanzate",
     "postProcessing": "Post-Elaborazione",
     "history": "Cronologia",
@@ -306,7 +308,80 @@
           "title": "Modalità comandi",
           "description": "Attiva il tasto modificatore assegnabile della modalità comandi. Tienilo premuto mentre una sessione di dettatura è attiva per interpretare la voce come comandi (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) che modificano direttamente il buffer della dettatura; le parole non riconosciute vengono scartate. Non avvia mai una registrazione da solo."
         }
+      },
+      "groups": {
+        "app": "App",
+        "microphone": "Microfono"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "Cerca comandi",
+      "resetAll": "Ripristina tutti i comandi",
+      "resetRow": "Ripristina",
+      "addPhrase": "Aggiungi",
+      "removePhrase": "Rimuovi {{phrase}}",
+      "placeholder": "Aggiungi una frase",
+      "duplicateError": "La frase \"{{phrase}}\" esiste già in un comando",
+      "tooLongError": "Le frasi sono limitate a 60 caratteri",
+      "noResults": "Nessun comando corrisponde alla ricerca",
+      "inserts": "Inserisce <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} rimossa",
+      "undoRemove": "Annulla",
+      "resetCollision": "Impossibile ripristinare: \"{{phrase}}\" ora appartiene a {{command}}",
+      "resetAllConfirmTitle": "Ripristinare tutti i comandi?",
+      "resetAllConfirmBody": "Tutte le frasi personalizzate vengono scartate e ogni comando torna alle frasi predefinite.",
+      "resetAllConfirmCancel": "Annulla",
+      "resetAllConfirmConfirm": "Ripristina tutto",
+      "behavior": "Comportamento dei comandi",
+      "groups": {
+        "punctuation": "Punteggiatura",
+        "symbols": "Simboli",
+        "editing": "Modifica",
+        "control": "Controllo"
+      },
+      "names": {
+        "period": "Punto",
+        "comma": "Virgola",
+        "questionMark": "Punto interrogativo",
+        "exclamation": "Punto esclamativo",
+        "colon": "Due punti",
+        "semicolon": "Punto e virgola",
+        "dash": "Trattino",
+        "newLine": "Nuova riga",
+        "newParagraph": "Nuovo paragrafo",
+        "atSign": "Chiocciola",
+        "hash": "Cancelletto",
+        "dollarSign": "Dollaro",
+        "percent": "Per cento",
+        "star": "Asterisco",
+        "ampersand": "E commerciale",
+        "caret": "Accento circonflesso",
+        "openParen": "Parentesi aperta",
+        "closeParen": "Parentesi chiusa",
+        "openBracket": "Parentesi quadra aperta",
+        "closeBracket": "Parentesi quadra chiusa",
+        "openBrace": "Parentesi graffa aperta",
+        "closeBrace": "Parentesi graffa chiusa",
+        "slash": "Barra",
+        "backslash": "Barra inversa",
+        "pipe": "Barra verticale",
+        "deleteWord": "Elimina parola",
+        "deleteLine": "Elimina riga",
+        "clearAll": "Cancella tutto",
+        "undo": "Annulla",
+        "paste": "Incolla"
+      },
+      "actions": {
+        "deleteWord": "Elimina l'ultima parola dettata",
+        "deleteLine": "Elimina l'ultima riga dettata",
+        "clearAll": "Cancella tutta la dettatura",
+        "undo": "Esegue annulla nell'app attiva",
+        "paste": "Incolla gli appunti nell'app attiva"
+      }
+    },
+    "search": {
+      "placeholder": "Cerca nelle impostazioni",
+      "noResults": "Nessuna impostazione corrisponde alla ricerca"
     },
     "sound": {
       "title": "Suono",
@@ -337,12 +412,16 @@
         "description": "Regola il volume del feedback audio"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Incollaggio",
+        "recording": "Registrazione"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "App",
-        "output": "Output",
+        "model": "Modello e memoria",
         "transcription": "Trascrizione",
-        "history": "Cronologia",
         "experimental": "Sperimentale"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "Interpretazione automatica dei comandi",
         "description": "Interpreta le parole di comando pronunciate (\"comma\", \"scratch that\") durante la dettatura normale. Disattiva per digitarle come parole normali; tieni premuto il modificatore della modalità comandi per eseguire i comandi."
       },
-      "commandMatrix": {
-        "title": "Matrice dei comandi",
-        "description": "Una tabella di frasi modificabile alimenta ogni superficie dei comandi vocali: la modalità comandi, la punteggiatura parlata e l'eliminazione vocale. Aggiungi o rimuovi le frasi di ogni comando; le stesse frasi funzionano ovunque.",
-        "groups": {
-          "symbols": "Simboli e punteggiatura",
-          "editing": "Modifica",
-          "control": "Controllo"
-        },
-        "addPhrase": "Aggiungi",
-        "removePhrase": "Rimuovi {{phrase}}",
-        "reset": "Ripristina valori predefiniti",
-        "duplicateError": "La frase \"{{phrase}}\" esiste già in un comando",
-        "tooLongError": "Le frasi sono limitate a 60 caratteri",
-        "placeholder": "Aggiungi una frase"
-      },
       "spokenPunctuation": {
         "title": "Punteggiatura parlata",
         "description": "Trasforma le parole di punteggiatura pronunciate come \"comma\", \"period\" e \"question mark\" in vera punteggiatura. Disattiva per mantenerle come parole normali."
@@ -550,6 +614,15 @@
           "asTranscribed": "Come trascritto",
           "simplified": "Semplificato",
           "traditional": "Tradizionale"
+        }
+      },
+      "numberFormat": {
+        "title": "Numeri dettati",
+        "description": "Scrive i numeri dettati come cifre, così \"one eight zero one\" viene incollato come 1801. \"Come trascritto\" mantiene i numeri come dettati; Smart converte anche ordinali composti e numeri singoli da undici in su.",
+        "options": {
+          "asTranscribed": "Come trascritto",
+          "digits": "Cifre",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "Mostra badge del modello",
         "description": "Mostra un badge compatto con il modello che ha prodotto ogni trascrizione."
+      },
+      "groups": {
+        "retention": "Conservazione"
       }
     },
     "debug": {
@@ -702,11 +778,6 @@
         "description": "Scegli il backend per le scorciatoie da tastiera.",
         "bindingsReset": "Le scorciatoie da tastiera erano incompatibili e sono state ripristinate ai valori predefiniti"
       },
-      "paths": {
-        "appData": "Dati App:",
-        "models": "Modelli:",
-        "settings": "Impostazioni:"
-      },
       "pasteDelay": {
         "title": "Ritardo incolla (prima)",
         "description": "Ritardo (in millisecondi) dopo aver copiato il testo, prima di inviare il tasto incolla. Aumentare se non viene incollato nulla."
@@ -726,6 +797,10 @@
       "recordingBuffer": {
         "title": "Buffer di registrazione extra",
         "description": "Tempo extra (in millisecondi) per continuare a registrare dopo aver rilasciato il tasto, per catturare l'audio finale. 0 = nessun buffer extra."
+      },
+      "streamingTail": {
+        "title": "Coda di rilascio dello streaming",
+        "description": "Tempo aggiuntivo (in millisecondi) in cui una sessione in streaming continua a registrare dopo il rilascio del tasto, per acquisire la fine dell'ultima parola. 0 = nessuna coda aggiuntiva."
       },
       "keyboardDiagnostic": {
         "title": "Diagnostica tastiera",

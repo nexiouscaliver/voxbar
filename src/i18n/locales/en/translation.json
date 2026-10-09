@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "General",
+    "commands": "Commands",
     "models": "Models",
+    "output": "Output",
     "advanced": "Advanced",
     "postProcessing": "Post Process",
     "history": "History",
@@ -258,7 +260,80 @@
           "title": "Command Mode",
           "description": "Enable the assignable command-mode modifier key. Hold it while a dictation session is live to interpret your speech as commands (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) that edit the dictation buffer directly; unrecognized words are discarded. It never starts a recording on its own."
         }
+      },
+      "groups": {
+        "app": "App",
+        "microphone": "Microphone"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "Search commands",
+      "resetAll": "Reset all commands",
+      "resetRow": "Reset to default",
+      "addPhrase": "Add",
+      "removePhrase": "Remove {{phrase}}",
+      "placeholder": "Add a phrase",
+      "duplicateError": "The phrase \"{{phrase}}\" already exists on a command",
+      "tooLongError": "Phrases are limited to 60 characters",
+      "noResults": "No commands match your search",
+      "inserts": "Inserts <code>{{result}}</code>",
+      "removedPhrase": "Removed {{phrase}}",
+      "undoRemove": "Undo",
+      "resetCollision": "Cannot reset: \"{{phrase}}\" now belongs to {{command}}",
+      "resetAllConfirmTitle": "Reset all commands?",
+      "resetAllConfirmBody": "Every custom phrase is discarded and all commands return to their built-in phrases.",
+      "resetAllConfirmCancel": "Cancel",
+      "resetAllConfirmConfirm": "Reset all",
+      "behavior": "Command behavior",
+      "groups": {
+        "punctuation": "Punctuation",
+        "symbols": "Symbols",
+        "editing": "Editing",
+        "control": "Control"
+      },
+      "names": {
+        "period": "Period",
+        "comma": "Comma",
+        "questionMark": "Question mark",
+        "exclamation": "Exclamation mark",
+        "colon": "Colon",
+        "semicolon": "Semicolon",
+        "dash": "Dash",
+        "newLine": "New line",
+        "newParagraph": "New paragraph",
+        "atSign": "At sign",
+        "hash": "Hash",
+        "dollarSign": "Dollar sign",
+        "percent": "Percent",
+        "star": "Star",
+        "ampersand": "Ampersand",
+        "caret": "Caret",
+        "openParen": "Open paren",
+        "closeParen": "Close paren",
+        "openBracket": "Open bracket",
+        "closeBracket": "Close bracket",
+        "openBrace": "Open brace",
+        "closeBrace": "Close brace",
+        "slash": "Slash",
+        "backslash": "Backslash",
+        "pipe": "Pipe",
+        "deleteWord": "Delete word",
+        "deleteLine": "Delete line",
+        "clearAll": "Clear all",
+        "undo": "Undo",
+        "paste": "Paste"
+      },
+      "actions": {
+        "deleteWord": "Deletes the last dictated word",
+        "deleteLine": "Deletes the last dictated line",
+        "clearAll": "Clears the whole dictation",
+        "undo": "Runs undo in the focused app",
+        "paste": "Pastes the clipboard in the focused app"
+      }
+    },
+    "search": {
+      "placeholder": "Search settings",
+      "noResults": "No settings match your search"
     },
     "models": {
       "title": "Transcription Models",
@@ -337,12 +412,16 @@
         "description": "Adjust the volume of audio feedback sounds"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Pasting",
+        "recording": "Recording"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "App",
-        "output": "Output",
+        "model": "Model & Memory",
         "transcription": "Transcription",
-        "history": "History",
         "experimental": "Experimental"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "Auto-Interpret Commands",
         "description": "Interprets spoken command words (\"comma\", \"scratch that\") during normal dictation. Turn off to type command words as plain words; hold the command-mode modifier to enact commands."
       },
-      "commandMatrix": {
-        "title": "Command Matrix",
-        "description": "One editable phrase table feeds every spoken-command surface: command mode, spoken punctuation, and spoken deletion. Add or remove each command's phrases; the same phrases work everywhere.",
-        "groups": {
-          "symbols": "Symbols and punctuation",
-          "editing": "Editing",
-          "control": "Control"
-        },
-        "addPhrase": "Add",
-        "removePhrase": "Remove {{phrase}}",
-        "reset": "Reset to defaults",
-        "duplicateError": "The phrase \"{{phrase}}\" already exists on a command",
-        "tooLongError": "Phrases are limited to 60 characters",
-        "placeholder": "Add a phrase"
-      },
       "spokenPunctuation": {
         "title": "Spoken Punctuation",
         "description": "Turns spoken punctuation words like \"comma\", \"period\" and \"question mark\" into real punctuation. Turn off to keep them as plain words."
@@ -550,6 +614,15 @@
           "asTranscribed": "As Transcribed",
           "simplified": "Simplified",
           "traditional": "Traditional"
+        }
+      },
+      "numberFormat": {
+        "title": "Spoken Numbers",
+        "description": "Writes spoken number words as digits, so \"one eight zero one\" pastes as 1801. As Transcribed keeps numbers as spoken; Smart also converts compound ordinals and lone numbers from eleven up.",
+        "options": {
+          "asTranscribed": "As Transcribed",
+          "digits": "Digits",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "Show Model Badge",
         "description": "Show a compact badge with the model that produced each transcription."
+      },
+      "groups": {
+        "retention": "Retention"
       }
     },
     "debug": {
@@ -716,11 +792,6 @@
         "description": "Choose the keyboard shortcut backend.",
         "bindingsReset": "Keyboard shortcuts were incompatible and reset to defaults"
       },
-      "paths": {
-        "appData": "App Data:",
-        "models": "Models:",
-        "settings": "Settings:"
-      },
       "pasteDelay": {
         "title": "Paste Delay (Before)",
         "description": "Delay (in milliseconds) after copying text, before sending the paste keystroke. Increase if nothing gets pasted."
@@ -740,6 +811,10 @@
       "recordingBuffer": {
         "title": "Extra Recording Buffer",
         "description": "Extra time (in milliseconds) to keep recording after you release the key, to capture trailing audio. 0 = no extra buffer."
+      },
+      "streamingTail": {
+        "title": "Streaming Release Tail",
+        "description": "Extra time (in milliseconds) a streaming session keeps recording after you release the key, so the end of the last word is captured. 0 = no extra tail."
       },
       "keyboardDiagnostic": {
         "title": "Keyboard Diagnostic",

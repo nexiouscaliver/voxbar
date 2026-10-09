@@ -205,6 +205,22 @@ pub enum ChineseScript {
     Traditional,
 }
 
+/// How spoken number words are written in the transcript. Post-model and
+/// deterministic (number_format.rs); `as_transcribed` restores the 1.1.0
+/// behavior byte-for-byte. The release default is `digits` because the
+/// words-not-digits transcripts operators hit (Parakeet-class engines
+/// spell every number out) must stop happening out of the box: old stores
+/// without the key deserialize to `digits` via the derived default, and
+/// `NumberFormat::default()` agrees (no constructed/derived split).
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum NumberFormat {
+    AsTranscribed,
+    #[default]
+    Digits,
+    Smart,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AutoSubmitKey {
@@ -618,8 +634,8 @@ pub struct AppSettings {
     pub terminal_punctuation: bool,
     /// Voice deletion commands: "scratch that" / "delete that" remove the
     /// preceding word, "delete last N words" removes several, "delete line"
-    /// clears the trailing line, and "delete everything" / "start over"
-    /// clears the transcription.
+    /// clears the trailing line, and "delete everything" /
+    /// "scratch everything" clears the transcription.
     #[serde(default = "default_voice_deletion_commands")]
     pub voice_deletion_commands: bool,
     /// Briefly show the final transcription in the recording overlay before
@@ -649,6 +665,12 @@ pub struct AppSettings {
     /// in `apply_settings_migrations`.
     #[serde(default)]
     pub chinese_script: ChineseScript,
+    /// Spoken number formatting (number_format.rs): digits for the default
+    /// fix, smart for prose-friendly extras, as_transcribed for the exact
+    /// 1.1.0 behavior. The plain serde default (Digits) also covers legacy
+    /// stores that predate the key.
+    #[serde(default)]
+    pub number_format: NumberFormat,
     #[serde(default)]
     pub transcribe_accelerator: TranscribeAcceleratorSetting,
     #[serde(default)]
@@ -663,6 +685,14 @@ pub struct AppSettings {
     pub transcribe_gpu_device: Option<String>,
     #[serde(default)]
     pub extra_recording_buffer_ms: u64,
+    /// Post-release capture floor for STREAMING sessions only: releasing
+    /// the hotkey the instant a spoken command word ends otherwise
+    /// truncates its tail and the command silently fails. The stop path
+    /// uses max(extra_recording_buffer_ms, streaming_release_tail_ms) when
+    /// the recording ran with an active stream; batch sessions are
+    /// untouched. 0 restores the old no-tail behavior exactly.
+    #[serde(default = "default_streaming_release_tail_ms")]
+    pub streaming_release_tail_ms: u64,
     #[serde(default = "default_vad_enabled")]
     pub vad_enabled: bool,
     /// Experimental detector implementation. Silero remains the stable default.
@@ -687,6 +717,14 @@ fn default_settings_schema_version() -> u32 {
 
 fn default_hold_threshold_ms() -> u64 {
     300
+}
+
+/// 200ms of post-release capture for streaming sessions: enough to land a
+/// final consonant after a spoken command word, small enough not to feel
+/// like latency. Users can zero it (settings row) to restore the old
+/// behavior.
+fn default_streaming_release_tail_ms() -> u64 {
+    200
 }
 
 fn default_always_on_microphone() -> bool {
@@ -1274,10 +1312,12 @@ pub fn get_default_settings() -> AppSettings {
         undo_enabled: default_undo_enabled(),
         command_mode_enabled: default_command_mode_enabled(),
         chinese_script: default_chinese_script(),
+        number_format: NumberFormat::Digits,
         transcribe_accelerator: TranscribeAcceleratorSetting::default(),
         ort_accelerator: OrtAcceleratorSetting::default(),
         transcribe_gpu_device: default_transcribe_gpu_device(),
         extra_recording_buffer_ms: 0,
+        streaming_release_tail_ms: default_streaming_release_tail_ms(),
         vad_enabled: default_vad_enabled(),
         vad_backend: VadBackend::default(),
         overlay_style: default_overlay_style(),
@@ -1575,6 +1615,43 @@ pub fn get_recording_retention_period(app: &AppHandle) -> RecordingRetentionPeri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn llm_post_process_prompt_is_opt_in_by_default() {
+        // No prompt is selected out of the box, so the LLM layer (which
+        // rewrites text AFTER command interpretation and can reflow
+        // command-inserted punctuation) never runs on a stock install.
+        assert_eq!(get_default_settings().post_process_selected_prompt_id, None);
+        // A store without the key deserializes to None as well.
+        let mut legacy = serde_json::to_value(get_default_settings()).unwrap();
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .remove("post_process_selected_prompt_id");
+        let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert_eq!(backfilled.post_process_selected_prompt_id, None);
+    }
+
+    #[test]
+    fn streaming_release_tail_defaults_to_200_round_trips_and_backfills() {
+        // Default is 200ms: streaming quick-releases keep word tails.
+        assert_eq!(get_default_settings().streaming_release_tail_ms, 200);
+        // Serde round-trips an explicit value, including the off path (0).
+        let mut off = get_default_settings();
+        off.streaming_release_tail_ms = 0;
+        let parsed: AppSettings =
+            serde_json::from_value(serde_json::to_value(off).unwrap()).unwrap();
+        assert_eq!(parsed.streaming_release_tail_ms, 0);
+        // Old settings JSON without the field parses to the default (200),
+        // so upgrading installs gain the tail.
+        let mut legacy = serde_json::to_value(get_default_settings()).unwrap();
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .remove("streaming_release_tail_ms");
+        let backfilled: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert_eq!(backfilled.streaming_release_tail_ms, 200);
+    }
 
     #[test]
     fn memory_pressure_guard_defaults_on_round_trips_and_backfills() {
@@ -2289,6 +2366,46 @@ mod tests {
             assert_eq!(settings.selected_language, language);
             assert_eq!(settings.chinese_script, script);
         }
+    }
+
+    /// Plan D1/D6 pins: the derived default, the constructed default and
+    /// the serde field default must all agree on Digits (the release
+    /// default), so a legacy store without the key upgrades to the fix
+    /// and no code path calling `default()` lands on the off mode.
+    #[test]
+    fn number_format_default_is_digits_everywhere() {
+        assert_eq!(NumberFormat::default(), NumberFormat::Digits);
+        assert_eq!(get_default_settings().number_format, NumberFormat::Digits);
+        assert_eq!(AppSettings::default().number_format, NumberFormat::Digits);
+
+        // Legacy store (1.1.0) predates the key entirely.
+        let legacy = serde_json::json!({
+            "settings_schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
+            "overlay_style": "live",
+        });
+        let settings: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert_eq!(settings.number_format, NumberFormat::Digits);
+
+        // An explicit store value wins, including the off position.
+        let stored = serde_json::json!({
+            "settings_schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
+            "number_format": "smart",
+        });
+        let settings: AppSettings = serde_json::from_value(stored).unwrap();
+        assert_eq!(settings.number_format, NumberFormat::Smart);
+
+        let stored = serde_json::json!({
+            "settings_schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
+            "number_format": "as_transcribed",
+        });
+        let settings: AppSettings = serde_json::from_value(stored).unwrap();
+        assert_eq!(settings.number_format, NumberFormat::AsTranscribed);
+
+        // Round-trip keeps the value.
+        let mut settings = get_default_settings();
+        settings.number_format = NumberFormat::Smart;
+        let serialized = serde_json::to_value(&settings).unwrap();
+        assert_eq!(serialized["number_format"], "smart");
     }
 
     #[test]

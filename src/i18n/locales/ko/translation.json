@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "일반",
+    "commands": "명령어",
     "models": "모델",
+    "output": "출력",
     "advanced": "고급",
     "postProcessing": "후처리",
     "history": "히스토리",
@@ -258,7 +260,80 @@
           "title": "명령 모드",
           "description": "할당 가능한 명령 모드 수정 키를 켭니다. 받아쓰기 세션이 진행 중일 때 누르고 있으면 말이 받아쓰기 버퍼를 직접 편집하는 명령 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line)으로 해석되고 인식되지 않은 단어는 버려집니다. 단독으로 녹음을 시작하지 않습니다."
         }
+      },
+      "groups": {
+        "app": "앱",
+        "microphone": "마이크"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "명령어 검색",
+      "resetAll": "모든 명령어 재설정",
+      "resetRow": "기본값으로 재설정",
+      "addPhrase": "추가",
+      "removePhrase": "{{phrase}} 제거",
+      "placeholder": "구문 추가",
+      "duplicateError": "\"{{phrase}}\" 구문이 이미 다른 명령어에 있습니다",
+      "tooLongError": "구문은 60자까지 가능합니다",
+      "noResults": "검색과 일치하는 명령어가 없습니다",
+      "inserts": "<code>{{result}}</code> 삽입",
+      "removedPhrase": "{{phrase}} 제거됨",
+      "undoRemove": "실행 취소",
+      "resetCollision": "재설정할 수 없습니다: \"{{phrase}}\"이(가) 현재 {{command}}에 속합니다",
+      "resetAllConfirmTitle": "모든 명령어를 재설정할까요?",
+      "resetAllConfirmBody": "사용자 지정 구문은 모두 버려지고 각 명령어가 기본 제공 구문으로 돌아갑니다.",
+      "resetAllConfirmCancel": "취소",
+      "resetAllConfirmConfirm": "모두 재설정",
+      "behavior": "명령어 동작",
+      "groups": {
+        "punctuation": "문장 부호",
+        "symbols": "기호",
+        "editing": "편집",
+        "control": "제어"
+      },
+      "names": {
+        "period": "마침표",
+        "comma": "쉼표",
+        "questionMark": "물음표",
+        "exclamation": "느낌표",
+        "colon": "콜론",
+        "semicolon": "세미콜론",
+        "dash": "하이픈",
+        "newLine": "줄 바꿈",
+        "newParagraph": "새 단락",
+        "atSign": "골뱅이",
+        "hash": "샵",
+        "dollarSign": "달러 기호",
+        "percent": "퍼센트",
+        "star": "별표",
+        "ampersand": "앰퍼샌드",
+        "caret": "캐럿",
+        "openParen": "여는 괄호",
+        "closeParen": "닫는 괄호",
+        "openBracket": "여는 대괄호",
+        "closeBracket": "닫는 대괄호",
+        "openBrace": "여는 중괄호",
+        "closeBrace": "닫는 중괄호",
+        "slash": "슬래시",
+        "backslash": "백슬래시",
+        "pipe": "세로선",
+        "deleteWord": "단어 삭제",
+        "deleteLine": "줄 삭제",
+        "clearAll": "모두 삭제",
+        "undo": "실행 취소",
+        "paste": "붙여넣기"
+      },
+      "actions": {
+        "deleteWord": "마지막에 말한 단어를 삭제합니다",
+        "deleteLine": "마지막에 말한 줄을 삭제합니다",
+        "clearAll": "받아쓴 내용 전체를 삭제합니다",
+        "undo": "포커스된 앱에서 실행 취소를 수행합니다",
+        "paste": "포커스된 앱에 클립보드를 붙여넣습니다"
+      }
+    },
+    "search": {
+      "placeholder": "설정 검색",
+      "noResults": "검색과 일치하는 설정이 없습니다"
     },
     "sound": {
       "title": "사운드",
@@ -287,6 +362,12 @@
       "volume": {
         "title": "볼륨",
         "description": "오디오 피드백 사운드의 볼륨 조절"
+      }
+    },
+    "output": {
+      "groups": {
+        "paste": "붙여넣기",
+        "recording": "녹음"
       }
     },
     "models": {
@@ -339,10 +420,8 @@
     },
     "advanced": {
       "groups": {
-        "app": "앱",
-        "output": "출력",
+        "model": "모델 및 메모리",
         "transcription": "전사",
-        "history": "히스토리",
         "experimental": "실험적"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "명령어 자동 해석",
         "description": "일반 받아쓰기 중 말한 명령어 단어(\"comma\", \"scratch that\" 등)를 해석합니다. 끄면 명령어 단어가 일반 단어로 입력됩니다. 명령을 실행하려면 명령 모드 수정 키를 누르고 있으면 됩니다."
       },
-      "commandMatrix": {
-        "title": "명령 매트릭스",
-        "description": "하나의 편집 가능한 구문 표가 음성 명령의 모든 영면(명령 모드, 음성 문장부호, 음성 삭제)을 구동합니다. 각 명령의 구문을 추가하거나 제거하세요. 같은 구문이 어디서든 작동합니다.",
-        "groups": {
-          "symbols": "기호 및 문장부호",
-          "editing": "편집",
-          "control": "제어"
-        },
-        "addPhrase": "추가",
-        "removePhrase": "{{phrase}} 제거",
-        "reset": "기본값으로 재설정",
-        "duplicateError": "구문 \"{{phrase}}\"이(가) 이미 다른 명령에 사용되고 있습니다",
-        "tooLongError": "구문은 60자로 제한됩니다",
-        "placeholder": "구문 추가"
-      },
       "spokenPunctuation": {
         "title": "음성 문장부호",
         "description": "\"comma\", \"period\", \"question mark\"처럼 말로 하는 문장부호 단어를 실제 문장부호로 바꿉니다. 끄면 일반 단어로 남습니다."
@@ -550,6 +614,15 @@
           "asTranscribed": "전사된 그대로",
           "simplified": "간체",
           "traditional": "번체"
+        }
+      },
+      "numberFormat": {
+        "title": "음성 숫자",
+        "description": "말한 숫자 단어를 숫자로 기록하여 \"one eight zero one\"이 1801으로 붙여넣기 됩니다. \"받아쓴 대로\"는 숫자를 말한 대로 유지하고, Smart는 합성 서수와 열한 이상의 단일 숫자도 변환합니다.",
+        "options": {
+          "asTranscribed": "전사된 그대로",
+          "digits": "숫자",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "모델 배지 표시",
         "description": "각 전사를 만든 모델을 나타내는 간결한 배지를 표시합니다."
+      },
+      "groups": {
+        "retention": "보존"
       }
     },
     "debug": {
@@ -722,6 +798,10 @@
         "title": "추가 녹음 버퍼",
         "description": "키를 놓은 후 추가로 녹음을 계속하는 시간(밀리초). 후행 오디오를 캡처하기 위함. 0 = 추가 버퍼 없음."
       },
+      "streamingTail": {
+        "title": "스트리밍 릴리스 테일",
+        "description": "키를 놓은 후 스트리밍 세션이 녹음을 이어가는 추가 시간(밀리초)으로, 마지막 단어의 끝부분을 담습니다. 0 = 추가 테일 없음."
+      },
       "keyboardDiagnostic": {
         "title": "키보드 진단",
         "description": "키보드 이벤트가 VoxBar에 도달하는지 확인합니다. 이벤트 개수만 기록되며, 어떤 키를 눌렀는지는 절대 기록되지 않습니다.",
@@ -741,11 +821,6 @@
         "verdictOk": "키 이벤트가 VoxBar에 정상적으로 도달하고 있습니다.",
         "verdictNoEvents": "이벤트가 감지되지 않았습니다. 테스트 중에 키를 누르셨나요?",
         "failed": "진단 실패: {{error}}"
-      },
-      "paths": {
-        "appData": "앱 데이터:",
-        "models": "모델:",
-        "settings": "설정:"
       },
       "whatsNewPreview": {
         "title": "새 소식 미리보기",

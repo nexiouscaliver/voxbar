@@ -1,4 +1,7 @@
-use super::command_matrix::{CompiledCommandMatrix, VoiceDeletionKind};
+use super::command_matrix::{
+    CompiledCommandMatrix, VoiceDeletionKind, AMBIGUOUS_EVERYDAY_PHRASES, ATTACHED_MARKS,
+};
+use super::commands::is_coalescible_symbol;
 use natural::phonetics::soundex;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -516,7 +519,9 @@ fn trim_trailing_spaces(text: &mut String) {
 /// becomes a line break, "new paragraph" a blank line, and "dash" a plain
 /// ASCII hyphen. Matching is case-insensitive, word-boundary anchored, and
 /// phrase-aware: the matched token is consumed and the word after
-/// sentence-ending punctuation (".", "?", "!") is capitalized. All other
+/// sentence-ending punctuation (".", "?", "!") is capitalized. A symbol
+/// whose mark is already at the kept tail (the model wrote the mark AND the
+/// command word) coalesces instead of doubling. All other
 /// text, including existing newlines, is preserved byte-for-byte.
 pub fn normalize_spoken_punctuation(text: &str, matrix: &CompiledCommandMatrix) -> String {
     let mut kept = String::with_capacity(text.len());
@@ -528,12 +533,27 @@ pub fn normalize_spoken_punctuation(text: &str, matrix: &CompiledCommandMatrix) 
     let mut skip_leading_space = false;
 
     for token in matrix.punctuation_pattern_matches(text) {
-        // Strip the optional trailing [,.]? the pattern may have consumed so
+        // Strip the optional attached mark the pattern may have consumed so
         // the lookup key is the pure spoken phrase.
-        let phrase = token.as_str().trim_end_matches([',', '.']);
-        let Some(replacement) = matrix.punctuation_replacement(&phrase.to_lowercase()) else {
+        let phrase = token.as_str().trim_end_matches(ATTACHED_MARKS);
+        let phrase = phrase.split_whitespace().collect::<Vec<_>>().join(" ");
+        let phrase = phrase.to_lowercase();
+        let Some(replacement) = matrix.punctuation_replacement(&phrase) else {
             continue;
         };
+
+        // Everyday-word gate (normal dictation only): an ambiguous
+        // single-word command ("period", "star", "percent", "pipe")
+        // converts only when it is utterance-final (nothing but whitespace
+        // follows); mid-sentence it stays a plain word so prose keeps its
+        // meaning. Multi-word phrases and unambiguous symbols are exempt,
+        // and command mode is a separate surface (commands.rs) that never
+        // gates.
+        if AMBIGUOUS_EVERYDAY_PHRASES.contains(&phrase.as_str())
+            && !text[token.end()..].chars().all(char::is_whitespace)
+        {
+            continue;
+        }
 
         let mut span = &text[resume..token.start()];
         if skip_leading_space {
@@ -543,7 +563,16 @@ pub fn normalize_spoken_punctuation(text: &str, matrix: &CompiledCommandMatrix) 
         push_restoring_capital(&mut kept, span, &mut capital_owed);
 
         trim_trailing_spaces(&mut kept);
-        kept.push_str(replacement);
+        // The model often writes BOTH the literal mark and the command word
+        // ("hello, comma world"): when the kept tail already ends with the
+        // exact symbol, the replacement coalesces into it instead of
+        // appending a second mark. Scoped to single symbols through
+        // is_coalescible_symbol, so line-break inserts ("\n", "\n\n") keep
+        // stacking and the trailing-space trim never touches a newline.
+        let already_marked = is_coalescible_symbol(replacement) && kept.ends_with(replacement);
+        if !already_marked {
+            kept.push_str(replacement);
+        }
         if is_sentence_ending_punctuation(replacement) {
             capital_owed = true;
         }
@@ -732,9 +761,15 @@ pub fn remove_trailing_line_from_buffer_reporting(text: &str) -> (String, Option
 
 /// Display transform for interim (mid-stream) overlay text.
 ///
-/// Runs exactly the first two text passes of the finalize pipeline, in the
-/// finalize order: the spoken-punctuation normalizer, then voice deletion.
-/// The transform deliberately STOPS there:
+/// Runs the first text passes of the finalize pipeline, in the finalize
+/// order: the spoken-punctuation normalizer, voice deletion, and then the
+/// English spoken-number pass (same grammar and mode as the finalize
+/// pipeline's, so the overlay shows the digits the paste will contain;
+/// `number_english` carries the pipeline's script gating and
+/// [`NumberFormat::AsTranscribed`] turns the pass off). The Devanagari
+/// number pass belongs to the caller: it must run on the raw Devanagari
+/// text BEFORE Hinglish transliteration. The transform deliberately STOPS
+/// here:
 ///
 /// * no terminal-punctuation fallback: a mid-sentence buffer must not grow a
 ///   period on every tick, and the fallback only makes sense on a finished
@@ -742,20 +777,25 @@ pub fn remove_trailing_line_from_buffer_reporting(text: &str) -> (String, Option
 /// * no custom-word correction, filler removal, or whitespace
 ///   normalization: those passes run once at finalize over the raw
 ///   transcript, and fuzzy correction on a half-spoken trailing word would
-///   mis-rewrite text the model is still revising.
+///   mis-rewrite text the model is still revising. None of them can change
+///   a number-word conversion, so the interim digits still match the paste.
 ///
 /// The transform is applied to the FULL raw buffer, recomputed from scratch
 /// on every tick (never incrementally), so a spoken phrase split across
 /// stream-chunk boundaries ("full" in one chunk, "stop" in the next) still
-/// converts. Recomputation from the raw buffer also makes the transform
-/// idempotent by construction: the raw accumulator is never itself
-/// transformed, so applying the transform twice to the same raw input
-/// produces the same output (asserted in tests).
+/// converts, and a number phrase grows monotonically ("one" stays a word,
+/// "one eight" is already "18", "one eight zero one" is "1801") without
+/// ever flipping back to words mid-utterance. Recomputation from the raw
+/// buffer also makes the transform idempotent by construction: the raw
+/// accumulator is never itself transformed, so applying the transform twice
+/// to the same raw input produces the same output (asserted in tests).
 pub fn interim_display_transform(
     text: &str,
     spoken_punctuation: bool,
     voice_deletion: bool,
     matrix: &CompiledCommandMatrix,
+    number_format: crate::settings::NumberFormat,
+    number_english: bool,
 ) -> String {
     let punctuated = if spoken_punctuation {
         normalize_spoken_punctuation(text, matrix)
@@ -771,9 +811,18 @@ pub fn interim_display_transform(
             cleared: false,
         }
     };
-
     if deleted.cleared {
-        String::new()
+        return String::new();
+    }
+
+    if number_english && number_format != crate::settings::NumberFormat::AsTranscribed {
+        // Fail-open like the finalize pipeline's pass: a display bug must
+        // never eat the overlay text.
+        crate::number_format::convert_number_words_fail_open(
+            deleted.text,
+            number_format,
+            crate::number_format::NumberScript::English,
+        )
     } else {
         deleted.text
     }
@@ -817,7 +866,7 @@ fn push_deletion_span(
 /// trailing line (everything after the last newline, so with no newline
 /// the whole buffer empties and the outcome is `cleared`, matching the
 /// ClearAll semantics); the ClearAll phrases ("delete everything",
-/// "scratch everything", "start over", ...) discard the whole transcript
+/// "scratch everything", ...) discard the whole transcript
 /// and set [`VoiceDeletionOutcome::cleared`]. Commands apply left to
 /// right, each seeing the result of the previous one.
 ///
@@ -833,7 +882,14 @@ pub fn apply_voice_deletion(text: &str, matrix: &CompiledCommandMatrix) -> Voice
     let mut pending_space = false;
 
     for command in matrix.voice_deletion_pattern_matches(text) {
-        let phrase = command.as_str().to_lowercase();
+        // Collapse inner whitespace the pattern's \s+ may have matched so
+        // the phrase key is the normalized stored phrase.
+        let phrase = command
+            .as_str()
+            .split_whitespace()
+            .collect::<Vec<_>>()
+            .join(" ")
+            .to_lowercase();
 
         // A matrix phrase maps to its deletion kind; a match outside the
         // map is the built-in "delete last N words" family.
@@ -1428,9 +1484,15 @@ mod tests {
             normalize_spoken_punctuation("hello full stop world", &dm()),
             "hello. World"
         );
+        // "period" is an everyday word: verbatim mid-prose, converting only
+        // at utterance-final position.
         assert_eq!(
             normalize_spoken_punctuation("hello period world", &dm()),
-            "hello. World"
+            "hello period world"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("hello period", &dm()),
+            "hello."
         );
         assert_eq!(
             normalize_spoken_punctuation("it is fine question mark", &dm()),
@@ -1498,6 +1560,180 @@ mod tests {
         assert_eq!(
             normalize_spoken_punctuation("hello comma, world", &dm()),
             "hello, world"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_mark_plus_word_never_doubles() {
+        // The model emitted BOTH the literal mark and the spoken command
+        // word (whisper's frequent rendering of spoken punctuation): the
+        // replacement must coalesce with the mark already in the text, not
+        // append a second one.
+        assert_eq!(
+            normalize_spoken_punctuation("hello, comma world", &dm()),
+            "hello, world"
+        );
+        assert_eq!(normalize_spoken_punctuation("done. period", &dm()), "done.");
+        assert_eq!(
+            normalize_spoken_punctuation("done? question mark", &dm()),
+            "done?"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("value: colon x", &dm()),
+            "value: x"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_consecutive_newline_phrases_still_stack() {
+        // The dedup guard never applies to line breaks: spoken "new line" /
+        // "new paragraph" repeats keep stacking layout.
+        assert_eq!(
+            normalize_spoken_punctuation("done new line new line next", &dm()),
+            "done\n\nnext"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("para new paragraph new paragraph", &dm()),
+            "para\n\n\n\n"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_attached_mark_on_command_word_converts_once() {
+        // The model punctuated the command token itself; the attached mark
+        // converts with the word instead of stranding a second one.
+        assert_eq!(
+            normalize_spoken_punctuation("is it fine question mark?", &dm()),
+            "is it fine?"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("items colon: one", &dm()),
+            "items: one"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("wait comma; then", &dm()),
+            "wait, then"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("really exclamation mark! yes", &dm()),
+            "really! Yes"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_everyday_words_stay_verbatim_mid_prose() {
+        // Ordinary English words that double as single-word symbol commands
+        // never convert mid-sentence; the dictation keeps its words.
+        assert_eq!(
+            normalize_spoken_punctuation("a period of time", &dm()),
+            "a period of time"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("five star hotel", &dm()),
+            "five star hotel"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("the pay is ten percent higher", &dm()),
+            "the pay is ten percent higher"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("it was a pipe dream", &dm()),
+            "it was a pipe dream"
+        );
+        // Utterance-final still converts: the designed use ("end my
+        // sentence here"). The spoken word is consumed, the symbol lands.
+        assert_eq!(
+            normalize_spoken_punctuation("I will be there period", &dm()),
+            "I will be there."
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("give it a star", &dm()),
+            "give it a*"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_unambiguous_symbols_keep_converting_mid_prose() {
+        // The gate is scoped to the ambiguous everyday nouns; every other
+        // symbol phrase still converts mid-sentence.
+        assert_eq!(
+            normalize_spoken_punctuation("hello comma world", &dm()),
+            "hello, world"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("one semicolon two", &dm()),
+            "one; two"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("items colon one", &dm()),
+            "items: one"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("twenty dash five", &dm()),
+            "twenty-five"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("five asterisk six", &dm()),
+            "five* six"
+        );
+        assert_eq!(normalize_spoken_punctuation("a ampersand b", &dm()), "a& b");
+        assert_eq!(normalize_spoken_punctuation("x caret y", &dm()), "x^ y");
+        assert_eq!(normalize_spoken_punctuation("a slash b", &dm()), "a/ b");
+        assert_eq!(
+            normalize_spoken_punctuation("tag hash mark", &dm()),
+            "tag# mark"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("a backslash b", &dm()),
+            "a\\ b"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_tolerates_inner_phrase_whitespace() {
+        // The model may emit a double space inside a multi-word phrase; the
+        // phrase still matches and the lookup key collapses whitespace.
+        assert_eq!(
+            normalize_spoken_punctuation("is it fine question  mark", &dm()),
+            "is it fine?"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("new  line next", &dm()),
+            "\nnext"
+        );
+        // The text pass stays EXACT: near-miss words never convert here
+        // (fuzzy matching is command-mode only; "coma" is a real word).
+        assert_eq!(
+            normalize_spoken_punctuation("a coma patient", &dm()),
+            "a coma patient"
+        );
+        assert_eq!(
+            normalize_spoken_punctuation("questionmark", &dm()),
+            "questionmark"
+        );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_cjk_aliases_match_inside_spaceless_text() {
+        // The CJK aliases compile without \b anchors (Han characters are
+        // word characters, so \b never fires between adjacent Han), so a
+        // command embedded in spaceless Chinese text still converts.
+        assert_eq!(
+            normalize_spoken_punctuation("你好逗号世界", &dm()),
+            "你好,世界"
+        );
+        assert_eq!(normalize_spoken_punctuation("他说句号完", &dm()), "他说.完");
+        // The anchored group keeps its boundaries: Latin near-misses of
+        // "period" still never fire.
+        assert_eq!(
+            normalize_spoken_punctuation("the periodic table", &dm()),
+            "the periodic table"
+        );
+        // A full-width mark attached to a CJK command word converts with
+        // it instead of stranding.
+        assert_eq!(
+            normalize_spoken_punctuation("你好逗号，世界", &dm()),
+            "你好,世界"
         );
     }
 
@@ -1687,12 +1923,18 @@ mod tests {
 
     #[test]
     fn test_voice_deletion_everything_commands_clear() {
-        for command in ["delete everything", "scratch everything", "start over"] {
+        for command in ["delete everything", "scratch everything"] {
             let result =
                 apply_voice_deletion(&format!("hello world {command} trailing words"), &dm());
             assert_eq!(result.text, "", "command: {command}");
             assert!(result.cleared, "command: {command}");
         }
+        // "start over" is ordinary English ("let me start over and try
+        // again"): it is no longer a default ClearAll phrase and must not
+        // wipe the dictation. Operators can re-add it in the matrix editor.
+        let result = apply_voice_deletion("let me start over and try again", &dm());
+        assert_eq!(result.text, "let me start over and try again");
+        assert!(!result.cleared);
     }
 
     #[test]
@@ -1909,11 +2151,25 @@ mod tests {
         // Spoken punctuation converts and voice deletion removes, in finalize
         // order.
         assert_eq!(
-            interim_display_transform("hello comma world", true, true, &dm()),
+            interim_display_transform(
+                "hello comma world",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             "hello, world"
         );
         assert_eq!(
-            interim_display_transform("hello world scratch that there", true, true, &dm()),
+            interim_display_transform(
+                "hello world scratch that there",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             "hello there"
         );
     }
@@ -1921,11 +2177,25 @@ mod tests {
     #[test]
     fn test_interim_display_transform_respects_toggles() {
         assert_eq!(
-            interim_display_transform("hello comma world", false, true, &dm()),
+            interim_display_transform(
+                "hello comma world",
+                false,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             "hello comma world"
         );
         assert_eq!(
-            interim_display_transform("hello world scratch that there", true, false, &dm()),
+            interim_display_transform(
+                "hello world scratch that there",
+                true,
+                false,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             "hello world scratch that there"
         );
     }
@@ -1935,11 +2205,25 @@ mod tests {
         // The deliberate stop: a mid-sentence buffer must not gain a period
         // (or question mark) on any tick.
         assert_eq!(
-            interim_display_transform("hello world", true, true, &dm()),
+            interim_display_transform(
+                "hello world",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             "hello world"
         );
         assert_eq!(
-            interim_display_transform("what is this", true, true, &dm()),
+            interim_display_transform(
+                "what is this",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             "what is this"
         );
     }
@@ -1947,7 +2231,14 @@ mod tests {
     #[test]
     fn test_interim_display_transform_clear_outcome_empties_display() {
         assert_eq!(
-            interim_display_transform("hello delete everything spoken after", true, true, &dm()),
+            interim_display_transform(
+                "hello delete everything spoken after",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            ),
             ""
         );
     }
@@ -1964,9 +2255,75 @@ mod tests {
             "plain text with no commands at all",
             "twenty dash five",
         ] {
-            let once = interim_display_transform(raw, true, true, &dm());
-            let twice = interim_display_transform(&once, true, true, &dm());
+            let once = interim_display_transform(
+                raw,
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            );
+            let twice = interim_display_transform(
+                &once,
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::AsTranscribed,
+                false,
+            );
             assert_eq!(once, twice, "raw: {raw}");
         }
+    }
+
+    #[test]
+    fn test_interim_display_transform_number_pass_matches_and_is_stable() {
+        // With number formatting on, the interim transform converts the
+        // same digit sequences the finalize pipeline will paste, and the
+        // pass is a fixed point: digits and untouched words never
+        // re-convert, so a recompute can never compound or flip a
+        // finished run back to words.
+        let once = interim_display_transform(
+            "pull request one one zero five",
+            true,
+            true,
+            &dm(),
+            crate::settings::NumberFormat::Digits,
+            true,
+        );
+        assert_eq!(once, "pull request 1105");
+        let twice = interim_display_transform(
+            &once,
+            true,
+            true,
+            &dm(),
+            crate::settings::NumberFormat::Digits,
+            true,
+        );
+        assert_eq!(once, twice);
+
+        // Gating off the English leg leaves the words alone.
+        assert_eq!(
+            interim_display_transform(
+                "one eight zero one",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::Digits,
+                false,
+            ),
+            "one eight zero one"
+        );
+        // Commands and numbers compose in finalize order.
+        assert_eq!(
+            interim_display_transform(
+                "version one point two comma done",
+                true,
+                true,
+                &dm(),
+                crate::settings::NumberFormat::Digits,
+                true,
+            ),
+            "version 1.2, done"
+        );
     }
 }

@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "Allmänt",
+    "commands": "Kommandon",
     "models": "Modeller",
+    "output": "Utmatning",
     "advanced": "Avancerat",
     "postProcessing": "Efterbearbetning",
     "history": "Historik",
@@ -258,7 +260,80 @@
           "title": "Kommandoläge",
           "description": "Aktiverar den kopplingsbara modifierartangenten för kommandoläge. Håll den nedtryckt medan en dikteringssession är aktiv för att tolka din röst som kommandon (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) som redigerar dikteringsbufferten direkt; okända ord kastas bort. Startar aldrig en inspelning på egen hand."
         }
+      },
+      "groups": {
+        "app": "App",
+        "microphone": "Mikrofon"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "Sök kommandon",
+      "resetAll": "Återställ alla kommandon",
+      "resetRow": "Återställ",
+      "addPhrase": "Lägg till",
+      "removePhrase": "Ta bort {{phrase}}",
+      "placeholder": "Lägg till en fras",
+      "duplicateError": "Frasen \"{{phrase}}\" finns redan på ett kommando",
+      "tooLongError": "Fraser är begränsade till 60 tecken",
+      "noResults": "Inga kommandon matchar din sökning",
+      "inserts": "Infogar <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} borttagen",
+      "undoRemove": "Ångra",
+      "resetCollision": "Kan inte återställa: \"{{phrase}}\" tillhör nu {{command}}",
+      "resetAllConfirmTitle": "Återställ alla kommandon?",
+      "resetAllConfirmBody": "Alla egna fraser kastas och alla kommandon återgår till sina inbyggda fraser.",
+      "resetAllConfirmCancel": "Avbryt",
+      "resetAllConfirmConfirm": "Återställ alla",
+      "behavior": "Kommandobeteende",
+      "groups": {
+        "punctuation": "Skiljetecken",
+        "symbols": "Symboler",
+        "editing": "Redigering",
+        "control": "Kontroll"
+      },
+      "names": {
+        "period": "Punkt",
+        "comma": "Komma",
+        "questionMark": "Frågetecken",
+        "exclamation": "Utropstecken",
+        "colon": "Kolon",
+        "semicolon": "Semikolon",
+        "dash": "Tankstreck",
+        "newLine": "Ny rad",
+        "newParagraph": "Nytt stycke",
+        "atSign": "Snabel-a",
+        "hash": "Brädgård",
+        "dollarSign": "Dollartecken",
+        "percent": "Procent",
+        "star": "Stjärna",
+        "ampersand": "Och-tecken",
+        "caret": "Cirkumflex",
+        "openParen": "Inledande parentes",
+        "closeParen": "Avslutande parentes",
+        "openBracket": "Inledande hakparentes",
+        "closeBracket": "Avslutande hakparentes",
+        "openBrace": "Inledande klammerparentes",
+        "closeBrace": "Avslutande klammerparentes",
+        "slash": "Snedstreck",
+        "backslash": "Omvänt snedstreck",
+        "pipe": "Lodstreck",
+        "deleteWord": "Radera ord",
+        "deleteLine": "Radera rad",
+        "clearAll": "Radera allt",
+        "undo": "Ångra",
+        "paste": "Klistra in"
+      },
+      "actions": {
+        "deleteWord": "Raderar senast dikterade ord",
+        "deleteLine": "Raderar senast dikterade rad",
+        "clearAll": "Raderar hela dikteringen",
+        "undo": "Kör ångra i appen i fokus",
+        "paste": "Klistrar in urklipp i appen i fokus"
+      }
+    },
+    "search": {
+      "placeholder": "Sök i inställningar",
+      "noResults": "Inga inställningar matchar din sökning"
     },
     "models": {
       "title": "Transkriptionsmodeller",
@@ -337,12 +412,16 @@
         "description": "Justera volymen för ljudåterkopplingsljud"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Inklistring",
+        "recording": "Inspelning"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "App",
-        "output": "Utmatning",
+        "model": "Modell och minne",
         "transcription": "Transkription",
-        "history": "Historik",
         "experimental": "Experimentellt"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "Tolka kommandon automatiskt",
         "description": "Tolkar talade kommandon (\"comma\", \"scratch that\") under normal diktering. Stäng av för att skriva kommandon som vanliga ord; håll kommandolägesmodifieraren intryckt för att utföra kommandon."
       },
-      "commandMatrix": {
-        "title": "Kommandomatris",
-        "description": "En redigerbar frastabell driver alla talade kommandoytor: kommandoläget, talad interpunktion och röststyrd borttagning. Lägg till eller ta bort varje kommandos fraser; samma fraser fungerar överallt.",
-        "groups": {
-          "symbols": "Symboler och interpunktion",
-          "editing": "Redigering",
-          "control": "Styrning"
-        },
-        "addPhrase": "Lägg till",
-        "removePhrase": "Ta bort {{phrase}}",
-        "reset": "Återställ till standard",
-        "duplicateError": "Frasen \"{{phrase}}\" används redan av ett kommando",
-        "tooLongError": "Fraser är begränsade till 60 tecken",
-        "placeholder": "Lägg till en fras"
-      },
       "spokenPunctuation": {
         "title": "Talad interpunktion",
         "description": "Omvanlar talade interpunktionsord som \"comma\", \"period\" och \"question mark\" till riktig interpunktion. Stäng av för att behålla dem som vanliga ord."
@@ -550,6 +614,15 @@
           "asTranscribed": "Som transkriberat",
           "simplified": "Förenklad",
           "traditional": "Traditionell"
+        }
+      },
+      "numberFormat": {
+        "title": "Dikterade tal",
+        "description": "Skriver uttalade talord som siffror, så att \"one eight zero one\" klistras in som 1801. \"Såsom transkriberat\" behåller tal såsom sagda; Smart konverterar även sammansatta ordningstal och enskilda tal från elva och uppåt.",
+        "options": {
+          "asTranscribed": "Som transkriberat",
+          "digits": "Siffror",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "Visa modellmärke",
         "description": "Visar ett kompakt märke med modellen som skapade varje transkription."
+      },
+      "groups": {
+        "retention": "Lagring"
       }
     },
     "debug": {
@@ -702,11 +778,6 @@
         "description": "Välj tangentbordsgenvägens implementation.",
         "bindingsReset": "Kortkommandona var inkompatibla och återställdes till standardvärden"
       },
-      "paths": {
-        "appData": "Appdata:",
-        "models": "Modeller:",
-        "settings": "Inställningar:"
-      },
       "pasteDelay": {
         "title": "Fördröjning vid klistra in (före)",
         "description": "Fördröjning (i millisekunder) efter att text kopierats, innan tangenttryckningen för att klistra in skickas. Öka om ingenting klistras in."
@@ -726,6 +797,10 @@
       "recordingBuffer": {
         "title": "Extra inspelningsbuffert",
         "description": "Extra tid (i millisekunder) för att fortsätta spela in efter att du släppt tangenten, för att fånga upp avslutande ljud. 0 = ingen extra buffert."
+      },
+      "streamingTail": {
+        "title": "Eftersläp för streaming",
+        "description": "Extra tid (i millisekunder) som en strömningssession fortsätter spela in efter att du släpper tangenten, så att slutet på det sista ordet fångas. 0 = ingen extra eftersläp."
       },
       "keyboardDiagnostic": {
         "title": "Tangentbordsdiagnostik",

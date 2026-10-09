@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "General",
+    "commands": "Comandos",
     "models": "Modelos",
+    "output": "Salida",
     "advanced": "Avanzado",
     "postProcessing": "Post proceso",
     "history": "Historial",
@@ -306,7 +308,80 @@
           "title": "Modo de comandos",
           "description": "Activa la tecla modificadora asignable del modo de comandos. Mantenla mientras una sesión de dictado está activa para interpretar tu voz como comandos (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) que editan directamente el búfer del dictado; las palabras no reconocidas se descartan. Nunca inicia una grabación por sí sola."
         }
+      },
+      "groups": {
+        "app": "Aplicación",
+        "microphone": "Micrófono"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "Buscar comandos",
+      "resetAll": "Restablecer todos los comandos",
+      "resetRow": "Restablecer",
+      "addPhrase": "Añadir",
+      "removePhrase": "Quitar {{phrase}}",
+      "placeholder": "Añadir una frase",
+      "duplicateError": "La frase \"{{phrase}}\" ya existe en un comando",
+      "tooLongError": "Las frases están limitadas a 60 caracteres",
+      "noResults": "Ningún comando coincide con tu búsqueda",
+      "inserts": "Inserta <code>{{result}}</code>",
+      "removedPhrase": "{{phrase}} quitada",
+      "undoRemove": "Deshacer",
+      "resetCollision": "No se puede restablecer: \"{{phrase}}\" ahora pertenece a {{command}}",
+      "resetAllConfirmTitle": "¿Restablecer todos los comandos?",
+      "resetAllConfirmBody": "Se descartan todas las frases personalizadas y todos los comandos vuelven a sus frases integradas.",
+      "resetAllConfirmCancel": "Cancelar",
+      "resetAllConfirmConfirm": "Restablecer todo",
+      "behavior": "Comportamiento de los comandos",
+      "groups": {
+        "punctuation": "Puntuación",
+        "symbols": "Símbolos",
+        "editing": "Edición",
+        "control": "Control"
+      },
+      "names": {
+        "period": "Punto",
+        "comma": "Coma",
+        "questionMark": "Signo de interrogación",
+        "exclamation": "Signo de exclamación",
+        "colon": "Dos puntos",
+        "semicolon": "Punto y coma",
+        "dash": "Guion",
+        "newLine": "Nueva línea",
+        "newParagraph": "Nuevo párrafo",
+        "atSign": "Arroba",
+        "hash": "Almohadilla",
+        "dollarSign": "Signo de dólar",
+        "percent": "Porcentaje",
+        "star": "Asterisco",
+        "ampersand": "Ampersand",
+        "caret": "Circunflejo",
+        "openParen": "Paréntesis de apertura",
+        "closeParen": "Paréntesis de cierre",
+        "openBracket": "Corchete de apertura",
+        "closeBracket": "Corchete de cierre",
+        "openBrace": "Llave de apertura",
+        "closeBrace": "Llave de cierre",
+        "slash": "Barra",
+        "backslash": "Barra invertida",
+        "pipe": "Barra vertical",
+        "deleteWord": "Eliminar palabra",
+        "deleteLine": "Eliminar línea",
+        "clearAll": "Borrar todo",
+        "undo": "Deshacer",
+        "paste": "Pegar"
+      },
+      "actions": {
+        "deleteWord": "Elimina la última palabra dictada",
+        "deleteLine": "Elimina la última línea dictada",
+        "clearAll": "Borra todo lo dictado",
+        "undo": "Ejecuta deshacer en la aplicación enfocada",
+        "paste": "Pega el portapapeles en la aplicación enfocada"
+      }
+    },
+    "search": {
+      "placeholder": "Buscar en la configuración",
+      "noResults": "Ninguna configuración coincide con tu búsqueda"
     },
     "sound": {
       "title": "Sonido",
@@ -337,12 +412,16 @@
         "description": "Ajusta el volumen de los sonidos de retroalimentación de audio"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Pegado",
+        "recording": "Grabación"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Aplicación",
-        "output": "Salida",
+        "model": "Modelo y memoria",
         "transcription": "Transcripción",
-        "history": "Historial",
         "experimental": "Experimental"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "Interpretar comandos automáticamente",
         "description": "Interpreta las palabras de comando habladas (\"comma\", \"scratch that\") durante el dictado normal. Desactívalo para escribirlas como palabras normales; mantén pulsado el modificador del modo de comandos para ejecutar comandos."
       },
-      "commandMatrix": {
-        "title": "Matriz de comandos",
-        "description": "Una tabla editable de frases alimenta todas las superficies de comandos hablados: el modo de comandos, la puntuación hablada y el borrado por voz. Añade o quita las frases de cada comando; las mismas frases funcionan en todas partes.",
-        "groups": {
-          "symbols": "Símbolos y puntuación",
-          "editing": "Edición",
-          "control": "Control"
-        },
-        "addPhrase": "Añadir",
-        "removePhrase": "Quitar {{phrase}}",
-        "reset": "Restablecer valores predeterminados",
-        "duplicateError": "La frase \"{{phrase}}\" ya existe en un comando",
-        "tooLongError": "Las frases están limitadas a 60 caracteres",
-        "placeholder": "Añadir una frase"
-      },
       "spokenPunctuation": {
         "title": "Puntuación hablada",
         "description": "Convierte palabras de puntuación habladas como \"comma\", \"period\" y \"question mark\" en puntuación real. Desactívalo para mantenerlas como palabras normales."
@@ -550,6 +614,15 @@
           "asTranscribed": "Tal como se transcribió",
           "simplified": "Simplificado",
           "traditional": "Tradicional"
+        }
+      },
+      "numberFormat": {
+        "title": "Números hablados",
+        "description": "Escribe los números hablados como dígitos, de modo que \"one eight zero one\" se pegue como 1801. \"Tal como se transcribió\" mantiene los números tal como se dijeron; Smart también convierte ordinales compuestos y números sueltos a partir de once.",
+        "options": {
+          "asTranscribed": "Tal como se transcribió",
+          "digits": "Dígitos",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "Mostrar insignia del modelo",
         "description": "Muestra una insignia compacta con el modelo que produjo cada transcripción."
+      },
+      "groups": {
+        "retention": "Retención"
       }
     },
     "debug": {
@@ -702,11 +778,6 @@
         "description": "Elige el sistema que gestiona los atajos de teclado.",
         "bindingsReset": "Los atajos de teclado eran incompatibles y se restablecieron a los valores predeterminados"
       },
-      "paths": {
-        "appData": "Datos de la aplicación:",
-        "models": "Modelos:",
-        "settings": "Configuración:"
-      },
       "pasteDelay": {
         "title": "Retraso de pegado (antes)",
         "description": "Retraso (en milisegundos) después de copiar el texto, antes de enviar la pulsación de tecla de pegar. Auméntelo si no se pega nada."
@@ -726,6 +797,10 @@
       "recordingBuffer": {
         "title": "Búfer de grabación adicional",
         "description": "Tiempo adicional (en milisegundos) para seguir grabando después de soltar la tecla, para capturar el audio restante. 0 = sin búfer adicional."
+      },
+      "streamingTail": {
+        "title": "Cola de liberación del streaming",
+        "description": "Tiempo adicional (en milisegundos) que una sesión de streaming sigue grabando tras soltar la tecla, para capturar el final de la última palabra. 0 = sin cola adicional."
       },
       "keyboardDiagnostic": {
         "title": "Diagnóstico del teclado",

@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "Genel",
+    "commands": "Komutlar",
     "models": "Modeller",
+    "output": "Çıktı",
     "advanced": "Gelişmiş",
     "postProcessing": "Son İşlem",
     "history": "Geçmiş",
@@ -306,7 +308,80 @@
           "title": "Komut modu",
           "description": "Atanabilir komut modu değiştirici tuşunu etkinleştirir. Canlı bir dikte oturumu sırasında basılı tutun; konuşmanız dikte arabelleğini doğrudan düzenleyen komutlar (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) olarak yorumlanır ve tanınmayan kelimeler atılır. Kendi başına asla kayıt başlatmaz."
         }
+      },
+      "groups": {
+        "app": "Uygulama",
+        "microphone": "Mikrofon"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "Komutlarda ara",
+      "resetAll": "Tüm komutları sıfırla",
+      "resetRow": "Sıfırla",
+      "addPhrase": "Ekle",
+      "removePhrase": "{{phrase}} ifadesini kaldır",
+      "placeholder": "Bir ifade ekle",
+      "duplicateError": "\"{{phrase}}\" ifadesi zaten bir komutta var",
+      "tooLongError": "İfadeler 60 karakterle sınırlıdır",
+      "noResults": "Aramanızla eşleşen komut yok",
+      "inserts": "<code>{{result}}</code> ekler",
+      "removedPhrase": "{{phrase}} kaldırıldı",
+      "undoRemove": "Geri al",
+      "resetCollision": "Sıfırlanamıyor: \"{{phrase}}\" artık {{command}} komutuna ait",
+      "resetAllConfirmTitle": "Tüm komutlar sıfırlansın mı?",
+      "resetAllConfirmBody": "Tüm özel ifadeler atılır ve her komut yerleşik ifadelerine döner.",
+      "resetAllConfirmCancel": "İptal",
+      "resetAllConfirmConfirm": "Tümünü sıfırla",
+      "behavior": "Komut davranışı",
+      "groups": {
+        "punctuation": "Noktalama",
+        "symbols": "Simgeler",
+        "editing": "Düzenleme",
+        "control": "Kontrol"
+      },
+      "names": {
+        "period": "Nokta",
+        "comma": "Virgül",
+        "questionMark": "Soru işareti",
+        "exclamation": "Ünlem işareti",
+        "colon": "İki nokta",
+        "semicolon": "Noktalı virgül",
+        "dash": "Tire",
+        "newLine": "Yeni satır",
+        "newParagraph": "Yeni paragraf",
+        "atSign": "Et işareti",
+        "hash": "Kare işareti",
+        "dollarSign": "Dolar işareti",
+        "percent": "Yüzde",
+        "star": "Yıldız",
+        "ampersand": "Ve işareti",
+        "caret": "Şapka",
+        "openParen": "Açılış parantezi",
+        "closeParen": "Kapanış parantezi",
+        "openBracket": "Açılış köşeli parantezi",
+        "closeBracket": "Kapanış köşeli parantezi",
+        "openBrace": "Açılış süslü parantezi",
+        "closeBrace": "Kapanış süslü parantezi",
+        "slash": "Eğik çizgi",
+        "backslash": "Ters eğik çizgi",
+        "pipe": "Dikey çizgi",
+        "deleteWord": "Kelimeyi sil",
+        "deleteLine": "Satırı sil",
+        "clearAll": "Tümünü sil",
+        "undo": "Geri al",
+        "paste": "Yapıştır"
+      },
+      "actions": {
+        "deleteWord": "Son söylenen kelimeyi siler",
+        "deleteLine": "Son söylenen satırı siler",
+        "clearAll": "Söylenen her şeyi siler",
+        "undo": "Odaktaki uygulamada geri al çalıştırır",
+        "paste": "Panoyu odaktaki uygulamaya yapıştırır"
+      }
+    },
+    "search": {
+      "placeholder": "Ayarlarda ara",
+      "noResults": "Aramanızla eşleşen ayar yok"
     },
     "sound": {
       "title": "Ses",
@@ -337,12 +412,16 @@
         "description": "Sesli geri bildirimlerin ses seviyesini ayarlayın"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "Yapıştırma",
+        "recording": "Kayıt"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "Uygulama",
-        "output": "Çıktı",
+        "model": "Model ve bellek",
         "transcription": "Transkripsiyon",
-        "history": "Geçmiş",
         "experimental": "Deneysel"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "Komutları otomatik yorumla",
         "description": "Normal dikte sırasında söylenen komut kelimelerini (\"comma\", \"scratch that\") yorumlar. Kapatınca komut kelimeleri normal kelime olarak yazılır; komutları uygulamak için komut modu değiştirici tuşunu basılı tutun."
       },
-      "commandMatrix": {
-        "title": "Komut Matrisi",
-        "description": "Tek bir düzenlenebilir ifade tablosu, konuşulan komutların tüm yüzeylerini besler: komut modu, konuşulan noktalama ve sesle silme. Her komutun ifadelerini ekleyin veya kaldırın; aynı ifadeler her yerde çalışır.",
-        "groups": {
-          "symbols": "Semboller ve noktalama",
-          "editing": "Düzenleme",
-          "control": "Denetim"
-        },
-        "addPhrase": "Ekle",
-        "removePhrase": "{{phrase}} ifadesini kaldır",
-        "reset": "Varsayılana sıfırla",
-        "duplicateError": "\"{{phrase}}\" ifadesi zaten bir komutta kullanılıyor",
-        "tooLongError": "İfadeler 60 karakterle sınırlıdır",
-        "placeholder": "İfade ekle"
-      },
       "spokenPunctuation": {
         "title": "Sözlü noktalama",
         "description": "\"comma\", \"period\" ve \"question mark\" gibi söylenen noktalama kelimelerini gerçek noktalamaya dönüştürür. Sıradan kelime olarak bırakmak için kapatın."
@@ -550,6 +614,15 @@
           "asTranscribed": "Transkripsiyondaki gibi",
           "simplified": "Basitleştirilmiş",
           "traditional": "Geleneksel"
+        }
+      },
+      "numberFormat": {
+        "title": "Söylenen sayılar",
+        "description": "Söylenen sayıları rakam olarak yazar, böylece \"one eight zero one\" 1801 olarak yapıştırılır. \"Transkript edildiği gibi\" sayıları söylendiği gibi tutar; Smart ayrıca bileşik sıra sayılarını ve on bir ve üzeri tek sayıları dönüştürür.",
+        "options": {
+          "asTranscribed": "Transkripsiyondaki gibi",
+          "digits": "Rakamlar",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "Model rozetini göster",
         "description": "Her transkripti üreten modeli gösteren kompakt bir rozet gösterir."
+      },
+      "groups": {
+        "retention": "Saklama"
       }
     },
     "debug": {
@@ -702,11 +778,6 @@
         "description": "Klavye kısayolları için kullanılacak altyapıyı seçin.",
         "bindingsReset": "Klavye kısayolları uyumsuzdu ve varsayılan ayarlara sıfırlandı"
       },
-      "paths": {
-        "appData": "Uygulama Verileri:",
-        "models": "Modeller:",
-        "settings": "Ayarlar:"
-      },
       "pasteDelay": {
         "title": "Yapıştırma Gecikmesi (Önce)",
         "description": "Metin kopyalandıktan sonra, yapıştırma tuşu gönderilmeden önceki gecikme (milisaniye cinsinden). Hiçbir şey yapıştırılmıyorsa artırın."
@@ -726,6 +797,10 @@
       "recordingBuffer": {
         "title": "Ekstra Kayıt Tamponu",
         "description": "Tuşu bıraktıktan sonra arka plandaki sesi yakalamak için kaydı sürdürme süresi (milisaniye). 0 = ekstra tampon yok."
+      },
+      "streamingTail": {
+        "title": "Yayın bırakma kuyruğu",
+        "description": "Yayın oturumunun tuşu bıraktıktan sonra kaydetmeye devam ettiği ek süre (milisaniye cinsinden), son kelimenin sonunu yakalamak için. 0 = ek kuyruk yok."
       },
       "keyboardDiagnostic": {
         "title": "Klavye Tanılaması",

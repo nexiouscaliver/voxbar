@@ -15,7 +15,9 @@
   },
   "sidebar": {
     "general": "सामान्य",
+    "commands": "आदेश",
     "models": "मोडेलहरू",
+    "output": "आउटपुट",
     "advanced": "उन्नत",
     "postProcessing": "पोस्ट प्रोसेस",
     "history": "हिस्ट्री",
@@ -258,7 +260,80 @@
           "title": "Command Mode",
           "description": "Enable the assignable command-mode modifier key. Hold it while a dictation session is live to interpret your speech as commands (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) that edit the dictation buffer directly; unrecognized words are discarded. It never starts a recording on its own."
         }
+      },
+      "groups": {
+        "app": "एप",
+        "microphone": "माइक्रोफोन"
       }
+    },
+    "commands": {
+      "searchPlaceholder": "आदेश खोज्नुहोस्",
+      "resetAll": "सबै आदेश रिसेट गर्नुहोस्",
+      "resetRow": "रिसेट गर्नुहोस्",
+      "addPhrase": "थप्नुहोस्",
+      "removePhrase": "{{phrase}} हटाउनुहोस्",
+      "placeholder": "वाक्यांश थप्नुहोस्",
+      "duplicateError": "\"{{phrase}}\" वाक्यांश पहिले नै कुनै आदेशमा छ",
+      "tooLongError": "वाक्यांश ६० अक्षरसम्म सीमित छन्",
+      "noResults": "तपाईंको खोज कुनै आदेशसँग मेल खाँदैन",
+      "inserts": "<code>{{result}}</code> घुसाउँछ",
+      "removedPhrase": "{{phrase}} हटाइयो",
+      "undoRemove": "पूर्ववत",
+      "resetCollision": "रिसेट गर्न सकिँदैन: \"{{phrase}}\" अब {{command}} को हो",
+      "resetAllConfirmTitle": "सबै आदेश रिसेट गर्ने?",
+      "resetAllConfirmBody": "सबै आफ्नै वाक्यांश हटाइन्छन् र हरेक आदेश आफ्ना बिल्ट-इन वाक्यांशमा फर्किन्छ।",
+      "resetAllConfirmCancel": "रद्द गर्नुहोस्",
+      "resetAllConfirmConfirm": "सबै रिसेट गर्नुहोस्",
+      "behavior": "आदेश व्यवहार",
+      "groups": {
+        "punctuation": "विराम चिह्न",
+        "symbols": "चिह्न",
+        "editing": "सम्पादन",
+        "control": "नियन्त्रण"
+      },
+      "names": {
+        "period": "पूर्ण विराम",
+        "comma": "अल्प विराम",
+        "questionMark": "प्रश्न चिह्न",
+        "exclamation": "विस्मयादिबोधक चिह्न",
+        "colon": "कोलन",
+        "semicolon": "अर्धविराम",
+        "dash": "ड्यास",
+        "newLine": "नयाँ लाइन",
+        "newParagraph": "नयाँ अनुच्छेद",
+        "atSign": "एट चिह्न",
+        "hash": "ह्यास",
+        "dollarSign": "डलर चिह्न",
+        "percent": "प्रतिशत",
+        "star": "तारा",
+        "ampersand": "एम्परस्यान्ड",
+        "caret": "क्यारेट",
+        "openParen": "खुल्ला कोष्ठक",
+        "closeParen": "बन्द कोष्ठक",
+        "openBracket": "खुल्ला वर्ग कोष्ठक",
+        "closeBracket": "बन्द वर्ग कोष्ठक",
+        "openBrace": "खुल्ला घुँड्रिले कोष्ठक",
+        "closeBrace": "बन्द घुँड्रिले कोष्ठक",
+        "slash": "स्ल्यास",
+        "backslash": "ब्याकस्ल्यास",
+        "pipe": "पाइप",
+        "deleteWord": "शब्द मेटाउनुहोस्",
+        "deleteLine": "लाइन मेटाउनुहोस्",
+        "clearAll": "सबै मेटाउनुहोस्",
+        "undo": "पूर्ववत",
+        "paste": "पेस्ट"
+      },
+      "actions": {
+        "deleteWord": "भनिएको अन्तिम शब्द मेटाउँछ",
+        "deleteLine": "भनिएको अन्तिम लाइन मेटाउँछ",
+        "clearAll": "पूरै भनिएको पाठ मेटाउँछ",
+        "undo": "सक्रिय एपमा पूर्ववत गर्छ",
+        "paste": "सक्रिय एपमा क्लिपबोर्ड पेस्ट गर्छ"
+      }
+    },
+    "search": {
+      "placeholder": "सेटिङहरू खोज्नुहोस्",
+      "noResults": "तपाईंको खोज कुनै सेटिङसँग मेल खाँदैन"
     },
     "models": {
       "title": "ट्रान्सक्रिप्सन मोडेलहरू",
@@ -337,12 +412,16 @@
         "description": "अडियो फिडब्याक आवाजको भोल्युम मिलाउनुहोस्"
       }
     },
+    "output": {
+      "groups": {
+        "paste": "पेस्ट गर्ने",
+        "recording": "रेकर्डिङ"
+      }
+    },
     "advanced": {
       "groups": {
-        "app": "एप",
-        "output": "आउटपुट",
+        "model": "मोडेल र मेमोरी",
         "transcription": "ट्रान्सक्रिप्सन",
-        "history": "हिस्ट्री",
         "experimental": "प्रयोगात्मक"
       },
       "experimentalToggle": {
@@ -512,21 +591,6 @@
         "title": "स्वतः आदेश व्याख्या",
         "description": "सामान्य डिक्टेसनको क्रममा बोलिएका आदेश शब्दहरू (\"comma\", \"scratch that\") व्याख्या गर्छ। बन्द गर्दा आदेश शब्दहरू सामान्य शब्दजस्तै टाइप हुन्छन्; आदेश कार्यान्वयन गर्न आदेश-मोड परिमार्जक थिचिराख्नुहोस्।"
       },
-      "commandMatrix": {
-        "title": "आदेश म्याट्रिक्स",
-        "description": "सम्पादन गर्न मिल्ने एउटै वाक्यांश तालिकाले बोलिने आदेशका सबै सतहहरू (आदेश मोड, बोलिने विरामचिह्न, आवाज मेटाइ) चलाउँछ। हरेक आदेशका वाक्यांशहरू थप्नुहोस् वा हटाउनुहोस्; तिनै वाक्यांशहरू सबैता काम गर्छन्।",
-        "groups": {
-          "symbols": "प्रतीक र विरामचिह्न",
-          "editing": "सम्पादन",
-          "control": "नियन्त्रण"
-        },
-        "addPhrase": "थप्नुहोस्",
-        "removePhrase": "{{phrase}} हटाउनुहोस्",
-        "reset": "पूर्वनिर्धारितमा रिसेट गर्नुहोस्",
-        "duplicateError": "वाक्यांश \"{{phrase}}\" पहिले नै अर्को आदेशमा छ",
-        "tooLongError": "वाक्यांश ६० अक्षरसम्म मात्र",
-        "placeholder": "वाक्यांश थप्नुहोस्"
-      },
       "spokenPunctuation": {
         "title": "बोलिएको विराम चिन्ह",
         "description": "\"comma\", \"period\" र \"question mark\" जस्तै बोलिएका विराम चिन्ह शब्दहरूलाई वास्तविक विराम चिन्हमा परिवर्तन गर्छ। सामान्य शब्दका रूपमा राख्न बन्ध गर्नुहोस्।"
@@ -550,6 +614,15 @@
           "asTranscribed": "ट्रान्सक्राइब भए अनुसार",
           "simplified": "सरलीकृत",
           "traditional": "परम्परागत"
+        }
+      },
+      "numberFormat": {
+        "title": "बोलिएका संख्याहरू",
+        "description": "बोलिएका संख्या शब्दहरूलाई अंकका रूपमा लेख्छ, त्यसैले \"one eight zero one\" १८०१ का रूपमा टाँसिन्छ। \"जस्तै ट्रान्सक्राइब भयो\" संख्यालाई बोलिएझैँ राख्छ; Smart ले मिश्रित क्रमसूचक र एघारदेखि माथिका एकल संख्या पनि रूपान्तरण गर्छ।",
+        "options": {
+          "asTranscribed": "ट्रान्सक्राइब भए अनुसार",
+          "digits": "अंक",
+          "smart": "Smart"
         }
       }
     },
@@ -626,6 +699,9 @@
       "showModel": {
         "label": "मोडेल ब्याज देखाउनुहोस्",
         "description": "प्रत्येक ट्रान्स्क्रिप्सन बनाउने मोडेलसहित कॉम्प्याक्ट ब्याज देखाउँछ।"
+      },
+      "groups": {
+        "retention": "प्रतिधारण"
       }
     },
     "debug": {
@@ -716,11 +792,6 @@
         "description": "किबोर्ड सर्टकट ब्याकइन्ड छान्नुहोस्।",
         "bindingsReset": "किबोर्ड सर्टकटहरू असंगत भएकाले डिफल्टमा रिसेट गरियो"
       },
-      "paths": {
-        "appData": "एप डेटा:",
-        "models": "मोडेलहरू:",
-        "settings": "सेटिङहरू:"
-      },
       "pasteDelay": {
         "title": "पेस्ट ढिलाइ (अघि)",
         "description": "टेक्स्ट कपी गरेपछि, पेस्ट किस्ट्रोक पठाउनुअघिको ढिलाइ (मिलिसेकेन्डमा)। केही पनि पेस्ट नभएमा बढाउनुहोस्।"
@@ -740,6 +811,10 @@
       "recordingBuffer": {
         "title": "अतिरिक्त रेकर्डिङ बफर",
         "description": "कि छोडेपछि अन्तिम अडियो समात्न रेकर्डिङ जारी राख्ने अतिरिक्त समय (मिलिसेकेन्डमा)। 0 = कुनै अतिरिक्त बफर छैन।"
+      },
+      "streamingTail": {
+        "title": "स्ट्रिमिङ छोड्ने अन्तिम समय",
+        "description": "कुञ्जी छोडेपछि स्ट्रिमिङ सत्रले रेकर्डिङ जारी राख्ने थप समय (मिलिसेकेन्डमा), ताकि अन्तिम शब्दको अन्त्य समातियोस्। 0 = थप समय छैन।"
       },
       "keyboardDiagnostic": {
         "title": "किबोर्ड डायग्नोस्टिक",
