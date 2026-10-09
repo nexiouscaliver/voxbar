@@ -910,7 +910,8 @@
       "restartNow": "Reiniciar ahora",
       "restartLater": "Más tarde",
       "installedDescription": "VoxBar {{version}} se ha instalado y se activará la próxima vez que reinicies VoxBar.",
-      "failedDescription": "No se pudo descargar la actualización. Comprueba tu conexión e inténtalo de nuevo, o descárgala de GitHub Releases."
+      "failedDescription": "No se pudo descargar la actualización. Comprueba tu conexión e inténtalo de nuevo, o descárgala de GitHub Releases.",
+      "translocatedDescription": "VoxBar no puede actualizarse mientras se ejecuta desde la carpeta Descargas. Muévelo a la carpeta Aplicaciones (arrastrándolo en el Finder), ábrelo desde allí y vuelve a buscar actualizaciones."
     }
   },
   "common": {
@@ -946,7 +947,8 @@
     "pasteFailed": "No se pudo pegar el texto en la aplicación activa.",
     "transcriptionFailedTitle": "Error de transcripción",
     "noModelSelectedTitle": "Ningún modelo seleccionado",
-    "noModelSelected": "Elige un modelo de transcripción en Configuración antes de dictar."
+    "noModelSelected": "Elige un modelo de transcripción en Configuración antes de dictar.",
+    "openDirectory": "No se pudo abrir la carpeta: {{error}}"
   },
   "appLanguage": {
     "title": "Idioma de la aplicación",
@@ -999,5 +1001,9 @@
     "learnMore": "Cómo solucionarlo",
     "recorderBlocked": "Ahora mismo no se pueden grabar atajos: Secure Input de macOS está bloqueando los eventos de teclado. Resuelve primero el aviso de Secure Input.",
     "dismiss": "Descartar"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar no puede instalar actualizaciones desde esta ubicación",
+    "translocatedDescription": "VoxBar se está ejecutando desde una ubicación temporal de solo lectura (App Translocation de macOS). Sal de VoxBar, arrástralo de la carpeta Descargas a Aplicaciones y ábrelo desde allí."
   }
 }

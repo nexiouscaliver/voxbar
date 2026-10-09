@@ -910,7 +910,8 @@
       "restartNow": "Şimdi yeniden başlat",
       "restartLater": "Daha sonra",
       "installedDescription": "VoxBar {{version}} kuruldu ve VoxBar'ın bir sonraki açılışında etkin olacak.",
-      "failedDescription": "Güncelleme indirilemedi. Bağlantınızı kontrol edip tekrar deneyin ya da GitHub Releases'ten indirin."
+      "failedDescription": "Güncelleme indirilemedi. Bağlantınızı kontrol edip tekrar deneyin ya da GitHub Releases'ten indirin.",
+      "translocatedDescription": "VoxBar, İndirilenler klasöründen çalışırken kendi kendini güncelleyemez. Onu Uygulamalar klasörüne taşıyın (Finder'da sürükleyin), oradan açın ve güncellemeleri tekrar kontrol edin."
     }
   },
   "common": {
@@ -946,7 +947,8 @@
     "pasteFailed": "Metin etkin uygulamaya yapıştırılamadı.",
     "transcriptionFailedTitle": "Transkripsiyon başarısız oldu",
     "noModelSelectedTitle": "Model seçilmedi",
-    "noModelSelected": "Dikteye başlamadan önce Ayarlar'dan bir transkripsiyon modeli seçin."
+    "noModelSelected": "Dikteye başlamadan önce Ayarlar'dan bir transkripsiyon modeli seçin.",
+    "openDirectory": "Klasör açılamadı: {{error}}"
   },
   "appLanguage": {
     "title": "Uygulama Dili",
@@ -999,5 +1001,9 @@
     "learnMore": "Bu nasıl düzeltilir",
     "recorderBlocked": "Şu anda kısayol kaydedilemiyor - macOS Secure Input tuş olaylarını engelliyor. Önce Secure Input uyarısını giderin.",
     "dismiss": "Kapat"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar bu konumdan güncellemeleri yükleyemez",
+    "translocatedDescription": "VoxBar geçici bir salt okunur konumdan çalışıyor (macOS App Translocation). VoxBar'ı kapatın, İndirilenler klasöründen Uygulamalar klasörüne sürükleyin ve oradan açın."
   }
 }

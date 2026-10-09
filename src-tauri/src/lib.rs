@@ -50,7 +50,6 @@ use tauri::tray::TrayIconBuilder;
 use tauri::{AppHandle, Emitter, Listener, Manager};
 use tauri_plugin_autostart::MacosLauncher;
 use tauri_plugin_log::{Builder as LogBuilder, RotationStrategy, Target, TargetKind};
-use tauri_plugin_opener::OpenerExt;
 
 use crate::settings::get_settings;
 
@@ -757,6 +756,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_chinese_script_setting,
             shortcut::change_number_format_setting,
             shortcut::change_update_policy_setting,
+            commands::is_app_translocated,
             shortcut::change_app_language_setting,
             shortcut::change_update_checks_setting,
             shortcut::change_show_whats_new_on_update_setting,
@@ -963,6 +963,19 @@ pub fn run(cli_args: CliArgs) {
             #[cfg(desktop)]
             app.handle()
                 .plugin(tauri_plugin_updater::Builder::new().build())?;
+
+            // Translocated installs keep working day to day but cannot
+            // self-update (the bundle sits on a read-only mount), which
+            // surfaces later as an opaque "read-only file system" install
+            // failure. Log it loudly here; the frontend queries
+            // commands::is_app_translocated on mount and shows the
+            // actionable toast.
+            if portable::app_is_translocated() {
+                log::warn!(
+                    "App Translocation detected: VoxBar is running from a read-only temporary location ({:?}). Updates cannot be installed until the app is moved to a writable folder such as /Applications.",
+                    std::env::current_exe()
+                );
+            }
 
             // Installed-upgrade continuity (legacy Handy -> VoxBar): must be
             // the FIRST thing setup() does - the `get_settings` read below

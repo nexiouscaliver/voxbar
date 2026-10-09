@@ -910,7 +910,8 @@
       "restartNow": "הפעלה מחדש עכשיו",
       "restartLater": "מאוחר יותר",
       "installedDescription": "VoxBar {{version}} הותקן ויכנס לתוקף בהפעלה הבאה של VoxBar.",
-      "failedDescription": "לא ניתן להוריד את העדכון. בדוק את החיבור ונסה שוב, או הורד אותו מ-GitHub Releases."
+      "failedDescription": "לא ניתן להוריד את העדכון. בדוק את החיבור ונסה שוב, או הורד אותו מ-GitHub Releases.",
+      "translocatedDescription": "VoxBar לא יכול לעדכן את עצמו בזמן שהוא פועל מתיקיית ההורדות. העבירו אותו לתיקיית Applications (גרירה ב-Finder), פתחו אותו משם ובדקו שוב עדכונים."
     }
   },
   "common": {
@@ -946,7 +947,8 @@
     "pasteFailed": "לא ניתן היה להדביק את הטקסט ביישום הפעיל.",
     "transcriptionFailedTitle": "התמלול נכשל",
     "noModelSelectedTitle": "לא נבחר מודל",
-    "noModelSelected": "בחרו מודל תמלול בהגדרות לפני הקלטה."
+    "noModelSelected": "בחרו מודל תמלול בהגדרות לפני הקלטה.",
+    "openDirectory": "לא ניתן היה לפתוח את התיקייה: {{error}}"
   },
   "appLanguage": {
     "title": "שפת האפליקציה",
@@ -999,5 +1001,9 @@
     "learnMore": "איך לתקן את זה",
     "recorderBlocked": "לא ניתן להקליט קיצורים כרגע - Secure Input של macOS חוסם אירועי מקשים. פתור תחילה את אזהרת Secure Input.",
     "dismiss": "התעלם"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar לא יכול להתקין עדכונים ממיקום זה",
+    "translocatedDescription": "VoxBar פועל ממיקום זמני לקריאה בלבד (App Translocation ב-macOS). סגרו את VoxBar, גררו אותו מתיקיית ההורדות אל Applications ופתחו אותו משם."
   }
 }

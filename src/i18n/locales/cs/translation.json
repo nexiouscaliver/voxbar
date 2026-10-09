@@ -910,7 +910,8 @@
       "restartNow": "Restartovat nyní",
       "restartLater": "Později",
       "installedDescription": "VoxBar {{version}} byl nainstalován a aktivuje se při příštím restartu VoxBaru.",
-      "failedDescription": "Aktualizaci nelze stáhnout. Zkontrolujte připojení a zkuste to znovu, nebo ji stáhněte z GitHub Releases."
+      "failedDescription": "Aktualizaci nelze stáhnout. Zkontrolujte připojení a zkuste to znovu, nebo ji stáhněte z GitHub Releases.",
+      "translocatedDescription": "VoxBar se nemůže aktualizovat, dokud běží ze složky Stažené. Přetáhněte jej ve Finderu do složky Aplikace, spusťte jej odtud a znovu zkontrolujte aktualizace."
     }
   },
   "common": {
@@ -946,7 +947,8 @@
     "pasteFailed": "Text nebylo možné vložit do aktivní aplikace.",
     "transcriptionFailedTitle": "Přepis selhal",
     "noModelSelectedTitle": "Není vybrán žádný model",
-    "noModelSelected": "Před diktováním vyberte v Nastavení model přepisu."
+    "noModelSelected": "Před diktováním vyberte v Nastavení model přepisu.",
+    "openDirectory": "Složku nelze otevřít: {{error}}"
   },
   "appLanguage": {
     "title": "Jazyk aplikace",
@@ -999,5 +1001,9 @@
     "learnMore": "Jak to vyřešit",
     "recorderBlocked": "Zkratky teď nelze nahrát - Secure Input v macOS blokuje události kláves. Nejprve vyřešte upozornění na Secure Input.",
     "dismiss": "Zavřít"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar nemůže z tohoto umístění instalovat aktualizace",
+    "translocatedDescription": "VoxBar běží z dočasného umístění jen pro čtení (macOS App Translocation). Ukončete VoxBar, přetáhněte jej ze složky Stažené do složky Aplikace a spusťte jej odtud."
   }
 }

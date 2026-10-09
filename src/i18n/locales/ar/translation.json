@@ -910,7 +910,8 @@
       "restartNow": "إعادة التشغيل الآن",
       "restartLater": "لاحقًا",
       "installedDescription": "تم تثبيت VoxBar {{version}} وسيصبح نشطًا عند إعادة تشغيل VoxBar في المرة القادمة.",
-      "failedDescription": "تعذّر تنزيل التحديث. تحقق من اتصالك وحاول مجددًا، أو نزّله من GitHub Releases."
+      "failedDescription": "تعذّر تنزيل التحديث. تحقق من اتصالك وحاول مجددًا، أو نزّله من GitHub Releases.",
+      "translocatedDescription": "لا يستطيع VoxBar تحديث نفسه أثناء التشغيل من معاينة مجلد Downloads. انقله إلى مجلد Applications (اسحبه في Finder)، وافتحه من هناك، ثم تحقق من التحديثات مجددًا."
     }
   },
   "common": {
@@ -946,7 +947,8 @@
     "pasteFailed": "تعذر لصق النص في التطبيق النشط.",
     "transcriptionFailedTitle": "فشل التفريغ النصي",
     "noModelSelectedTitle": "لم يتم اختيار نموذج",
-    "noModelSelected": "اختر نموذج نسخ في الإعدادات قبل الإملاء."
+    "noModelSelected": "اختر نموذج نسخ في الإعدادات قبل الإملاء.",
+    "openDirectory": "تعذّر فتح المجلد: {{error}}"
   },
   "appLanguage": {
     "title": "لغة التطبيق",
@@ -999,5 +1001,9 @@
     "learnMore": "كيفية الإصلاح",
     "recorderBlocked": "لا يمكن تسجيل الاختصارات الآن - يحجب Secure Input في macOS أحداث المفاتيح. عالج تحذير Secure Input أولاً.",
     "dismiss": "تجاهل"
+  },
+  "app": {
+    "translocatedTitle": "لا يستطيع VoxBar تثبيت التحديثات من هذا الموقع",
+    "translocatedDescription": "يعمل VoxBar من موقع مؤقت للقراءة فقط (App Translocation في macOS). أنهِ VoxBar، واسحبه من مجلد Downloads إلى Applications، ثم افتحه من هناك."
   }
 }

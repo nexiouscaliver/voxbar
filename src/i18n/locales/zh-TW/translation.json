@@ -910,7 +910,8 @@
       "restartNow": "立即重新啟動",
       "restartLater": "稍後",
       "installedDescription": "VoxBar {{version}} 已安裝，將於下次啟動 VoxBar 時生效。",
-      "failedDescription": "無法下載更新。請檢查網路連線後再試一次，或從 GitHub Releases 手動下載。"
+      "failedDescription": "無法下載更新。請檢查網路連線後再試一次，或從 GitHub Releases 手動下載。",
+      "translocatedDescription": "從「下載」資料夾執行時，VoxBar 無法自行更新。請將它移到「應用程式」資料夾（在 Finder 中拖曳），從那裡開啟，然後再次檢查更新。"
     }
   },
   "common": {
@@ -946,7 +947,8 @@
     "pasteFailed": "無法將文字貼上至目前作用中的應用程式。",
     "transcriptionFailedTitle": "轉錄失敗",
     "noModelSelectedTitle": "未選擇模型",
-    "noModelSelected": "聽寫前請先在設定中選擇一個轉寫模型。"
+    "noModelSelected": "聽寫前請先在設定中選擇一個轉寫模型。",
+    "openDirectory": "無法開啟資料夾：{{error}}"
   },
   "appLanguage": {
     "title": "應用程式語言",
@@ -999,5 +1001,9 @@
     "learnMore": "如何解決",
     "recorderBlocked": "目前無法錄製快捷鍵-macOS 的 Secure Input 正在阻擋按鍵事件。請先解決 Secure Input 警告。",
     "dismiss": "關閉"
+  },
+  "app": {
+    "translocatedTitle": "VoxBar 無法從此位置安裝更新",
+    "translocatedDescription": "VoxBar 正在從暫時的唯讀位置執行（macOS App Translocation）。請結束 VoxBar，將它從「下載」資料夾拖入「應用程式」資料夾，再從那裡開啟。"
   }
 }

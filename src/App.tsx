@@ -261,6 +261,28 @@ function App() {
     };
   }, []);
 
+  // macOS App Translocation: the app launched with a quarantine flag straight
+  // from its download folder, so it runs from a read-only mount where the
+  // updater's install step fails with "read-only file system". Fresh installs
+  // see this toast during onboarding (window guaranteed visible); long-term
+  // dwellers see it whenever they next open the window via this same check on
+  // mount.
+  useEffect(() => {
+    void (async () => {
+      try {
+        const result = await commands.isAppTranslocated();
+        if (result.status === "ok" && result.data) {
+          toast.warning(t("app.translocatedTitle"), {
+            description: t("app.translocatedDescription"),
+            duration: 15000,
+          });
+        }
+      } catch (error) {
+        console.error("Failed to check App Translocation state:", error);
+      }
+    })();
+  }, []);
+
   // Tray "Unload After → Custom…": jump to the Advanced settings section and
   // focus the custom-seconds field. The window event is re-dispatched after a
   // short delay so the section (and the field) has mounted before it arrives.
