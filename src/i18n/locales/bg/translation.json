@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Не е изтеглен",
           "downloading": "Изтегляне ({{progress}}%)",
-          "ready": "Готов"
+          "ready": "Готов",
+          "checking": "Проверка на състоянието..."
         },
         "modelSizeMb": "Размер: {{size}} МБ",
         "download": "Изтегли",
         "delete": "Изтриване",
         "deleteInUse": "В момента не може да се изтрие: изпълнява се постобработка. Опитайте отново след малко.",
-        "downloadFailed": "Неуспешно изтегляне: {{error}}"
+        "downloadFailed": "Неуспешно изтегляне: {{error}}",
+        "deleteFailed": "Моделът не можа да бъде изтрит: {{error}}",
+        "providerLabel": "Локално (на устройството)"
       },
       "prompts": {
         "title": "Подкана",

@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Не загружена",
           "downloading": "Загрузка ({{progress}} %)",
-          "ready": "Готова"
+          "ready": "Готова",
+          "checking": "Проверка состояния..."
         },
         "modelSizeMb": "Размер: {{size}} МБ",
         "download": "Загрузить",
         "delete": "Удалить",
         "deleteInUse": "Сейчас нельзя удалить: выполняется постобработка. Повторите попытку через мгновение.",
-        "downloadFailed": "Не удалось скачать: {{error}}"
+        "downloadFailed": "Не удалось скачать: {{error}}",
+        "deleteFailed": "Не удалось удалить модель: {{error}}",
+        "providerLabel": "Локально (на устройстве)"
       },
       "prompts": {
         "title": "Запрос к модели",

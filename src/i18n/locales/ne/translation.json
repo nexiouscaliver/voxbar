@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "डाउनलोड भएको छैन",
           "downloading": "डाउनलोड गरिँदैछ ({{progress}}%)",
-          "ready": "तयार"
+          "ready": "तयार",
+          "checking": "स्थिति जाँच हुँदैछ..."
         },
         "modelSizeMb": "आकार: {{size}} MB",
         "download": "डाउनलोड",
         "delete": "मेटाउनुहोस्",
         "deleteInUse": "अहिले मेट्न सकिँदैन: पोस्ट प्रोसेस चलिरहेको छ। केही क्षणपछि फेरि प्रयास गर्नुहोस्।",
-        "downloadFailed": "डाउनलोड असफल: {{error}}"
+        "downloadFailed": "डाउनलोड असफल: {{error}}",
+        "deleteFailed": "मोडेल मेट्न सकिएन: {{error}}",
+        "providerLabel": "स्थानीय (उपकरणमा)"
       },
       "prompts": {
         "title": "प्रम्प्ट",

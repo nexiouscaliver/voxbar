@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Nestaženo",
           "downloading": "Stahování ({{progress}}%)",
-          "ready": "Připraveno"
+          "ready": "Připraveno",
+          "checking": "Kontrola stavu..."
         },
         "modelSizeMb": "Velikost: {{size}} MB",
         "download": "Stáhnout",
         "delete": "Smazat",
         "deleteInUse": "Nyní nelze smazat: právě běží následné zpracování. Zkuste to za chvíli znovu.",
-        "downloadFailed": "Stažení se nezdařilo: {{error}}"
+        "downloadFailed": "Stažení se nezdařilo: {{error}}",
+        "deleteFailed": "Model se nepodařilo odstranit: {{error}}",
+        "providerLabel": "Místní (na zařízení)"
       },
       "prompts": {
         "title": "Prompt",

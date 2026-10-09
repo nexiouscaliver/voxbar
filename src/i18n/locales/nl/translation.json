@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Niet gedownload",
           "downloading": "Downloaden ({{progress}}%)",
-          "ready": "Gereed"
+          "ready": "Gereed",
+          "checking": "Status controleren..."
         },
         "modelSizeMb": "Grootte: {{size}} MB",
         "download": "Downloaden",
         "delete": "Verwijderen",
         "deleteInUse": "Kan nu niet verwijderen: er wordt een naverwerking uitgevoerd. Probeer het zo opnieuw.",
-        "downloadFailed": "Downloaden mislukt: {{error}}"
+        "downloadFailed": "Downloaden mislukt: {{error}}",
+        "deleteFailed": "Kon het model niet verwijderen: {{error}}",
+        "providerLabel": "Lokaal (op het apparaat)"
       },
       "prompts": {
         "title": "Prompt",

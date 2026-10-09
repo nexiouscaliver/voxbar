@@ -240,7 +240,8 @@ pub(crate) trait SwapEngine: Send {
     fn kill(&mut self);
     /// Ask the worker to exit gracefully. Idempotent; safe when dead.
     fn begin_exit(&mut self);
-    /// Non-blocking: has the child process exited?
+    /// Non-blocking: has the child process exited? Vacuously true when no
+    /// child was ever spawned (nothing to wait for).
     fn has_exited(&mut self) -> bool;
     /// The child pid (for the measured-RSS refinement); None before spawn.
     fn worker_pid(&self) -> Option<u32> {
@@ -447,7 +448,14 @@ impl SwapEngine for ProcessEngine {
     }
 
     fn has_exited(&mut self) -> bool {
-        self.child.as_mut().is_some_and(|child| child.try_wait())
+        // A worker that was never spawned (worker spawn failure is the
+        // canonical low-RAM case) has nothing to wait for: reporting
+        // false here makes WaitExit burn the full graceful+kill window
+        // and then log a false "worker ignored SIGKILL" error.
+        match self.child.as_mut() {
+            None => true,
+            Some(child) => child.try_wait(),
+        }
     }
 
     fn worker_pid(&self) -> Option<u32> {
@@ -603,7 +611,7 @@ impl LlmManager {
         app: &AppHandle,
         request: SwapRequest,
     ) -> tokio::sync::oneshot::Receiver<SwapOutcome> {
-        let (rx, handle) = self.spawn_runner(
+        let (rx, _handle) = self.spawn_runner(
             request,
             RunnerConfig {
                 timing: SwapTiming::default(),
@@ -615,7 +623,6 @@ impl LlmManager {
             },
         );
         // Detach: the runner owns everything and always terminates.
-        drop(handle);
         rx
     }
 
@@ -625,14 +632,14 @@ impl LlmManager {
         cfg: RunnerConfig,
     ) -> (
         tokio::sync::oneshot::Receiver<SwapOutcome>,
-        thread::JoinHandle<()>,
+        Option<thread::JoinHandle<()>>,
     ) {
         // Set the lease probe BEFORE the thread starts so a delete racing
         // this call can never slip between spawn and acquisition.
         self.swap_running.store(true, Ordering::Release);
         let (tx, rx) = tokio::sync::oneshot::channel();
         let llm = self.clone();
-        let handle = thread::Builder::new()
+        let spawned = thread::Builder::new()
             .name("llm-swap".into())
             .spawn(move || {
                 // The panic belt: panic=unwind even in release builds, so
@@ -653,9 +660,37 @@ impl LlmManager {
                 // A dropped receiver is harmless: the runner is done either
                 // way and never blocks on the send.
                 let _ = tx.send(outcome);
-            })
-            .expect("failed to spawn the llm swap runner thread");
+            });
+        let handle = self.recover_from_failed_spawn(spawned);
         (rx, handle)
+    }
+
+    /// The runner thread itself can fail to start (memory exhaustion is
+    /// the canonical hostile case). That failure must neither panic the
+    /// awaiting stop task nor wedge the swap probe: clear the probe HERE
+    /// (the closure that owns the other clear never ran). The failed
+    /// spawn also drops the closure, which drops the outcome sender, so
+    /// the awaiting stop task's receiver resolves Err immediately and its
+    /// match falls back to the raw transcript, exactly the recovery the
+    /// panic belt uses. Without the probe clear, every model delete
+    /// would refuse forever ("post-processing is in progress") until an
+    /// app restart.
+    fn recover_from_failed_spawn(
+        &self,
+        spawned: std::io::Result<thread::JoinHandle<()>>,
+    ) -> Option<thread::JoinHandle<()>> {
+        match spawned {
+            Ok(handle) => Some(handle),
+            Err(e) => {
+                self.swap_running.store(false, Ordering::Release);
+                error!(
+                    "failed to spawn the llm swap runner thread: {}; the swap did not run and \
+                     the caller falls back to the raw transcript",
+                    e
+                );
+                None
+            }
+        }
     }
 }
 
@@ -820,6 +855,16 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                     }
                 }
                 Action::UnloadVoice => {
+                    // The restore context must describe the model this
+                    // swap is ABOUT to unload, not the one resident when
+                    // the runner started: the lease/slot waits above can
+                    // span another load completing (or the resident model
+                    // timing out). Refresh under the held slot so no load
+                    // can slip between this read and the unload below.
+                    planner.refresh_restore_context(
+                        cfg.host.voice_model_is_loaded(),
+                        cfg.host.unload_timeout_is_immediately(),
+                    );
                     // The unload helper thread: tm.unload_model() blocks
                     // inside Unloading::wait with no timeout variant, so
                     // the runner polls this flag instead of joining.
@@ -1499,7 +1544,10 @@ mod tests {
             let (cfg, _engine_state) = runner_cfg(host, FakeEngine::happy(Ok(String::new())));
             let (rx, handle) = llm.spawn_runner(sample_request(), cfg);
             drop(rx);
-            handle.join().expect("runner must terminate");
+            handle
+                .expect("runner thread must spawn in tests")
+                .join()
+                .expect("runner must terminate");
             assert!(!llm.swap_in_progress(), "lease probe cleared");
         }
 
@@ -1511,7 +1559,10 @@ mod tests {
             cfg.timing.voice_unload = Duration::from_millis(80);
             let (rx, handle) = llm.spawn_runner(sample_request(), cfg);
             drop(rx);
-            handle.join().expect("runner must terminate");
+            handle
+                .expect("runner thread must spawn in tests")
+                .join()
+                .expect("runner must terminate");
             assert!(!llm.swap_in_progress());
         }
 
@@ -1524,7 +1575,10 @@ mod tests {
             cfg.timing.total = Duration::from_millis(120);
             let (rx, handle) = llm.spawn_runner(sample_request(), cfg);
             drop(rx);
-            handle.join().expect("runner must terminate");
+            handle
+                .expect("runner thread must spawn in tests")
+                .join()
+                .expect("runner must terminate");
             assert!(!llm.swap_in_progress());
         }
     }
@@ -1541,7 +1595,10 @@ mod tests {
         let (cfg, _engine_state) = runner_cfg(host, FakeEngine::happy(Ok(String::new())));
         let (rx, handle) = llm.spawn_runner(sample_request(), cfg);
         drop(rx);
-        handle.join().expect("runner must terminate");
+        handle
+            .expect("runner thread must spawn in tests")
+            .join()
+            .expect("runner must terminate");
         assert!(
             !*slot_flag.lock().unwrap(),
             "the loading slot must be released (guard dropped) after a gate-refused swap"
@@ -1567,7 +1624,10 @@ mod tests {
         // except its own belts.
         drop(rx);
         // catch_unwind swallows the panic; the join is clean.
-        handle.join().expect("the wrapper catches the panic");
+        handle
+            .expect("runner thread must spawn in tests")
+            .join()
+            .expect("the wrapper catches the panic");
         assert!(
             engine_state.killed.load(Ordering::Acquire),
             "the engine's kill-on-drop must have fired during the unwind"
@@ -1665,5 +1725,75 @@ mod tests {
         assert_eq!(outcome, SwapOutcome::Raw);
         assert!(engine_state.killed.load(Ordering::Acquire));
         assert_eq!(restored.load(Ordering::Acquire), 1);
+    }
+
+    /// A runner-thread spawn failure (memory exhaustion is the canonical
+    /// hostile case) must clear the swap probe instead of wedging every
+    /// later model delete on "post-processing is in progress", and must
+    /// not panic the caller: the recovery helper is the whole contract.
+    #[test]
+    fn failed_runner_spawn_clears_the_probe_without_panicking() {
+        let llm = LlmManager::new();
+        // The probe is set BEFORE the spawn attempt; simulate the spawn
+        // having failed.
+        llm.swap_running.store(true, Ordering::Release);
+        assert!(llm.swap_in_progress());
+
+        let handle = llm.recover_from_failed_spawn(Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            "test: no thread available",
+        )));
+
+        assert!(handle.is_none(), "no join handle exists for a failed spawn");
+        assert!(
+            !llm.swap_in_progress(),
+            "the probe must clear so model deletes are not refused forever"
+        );
+    }
+
+    /// A worker that was never spawned has nothing to wait for: WaitExit
+    /// must observe it as exited instead of burning the full
+    /// graceful+kill window and logging a false "worker ignored SIGKILL".
+    #[test]
+    fn unspawned_worker_counts_as_exited() {
+        let mut engine = ProcessEngine::new();
+        assert!(
+            engine.has_exited(),
+            "no child means nothing to wait for; false here burns the 15s teardown bound"
+        );
+    }
+
+    /// A voice-model load that completes while this swap waits for the
+    /// loading slot (the other load's guard holds it) must still be
+    /// restored: the planner refreshes its restore context at the unload,
+    /// over the model resident at THAT moment, not at runner start.
+    #[test]
+    fn voice_loaded_during_slot_wait_is_still_restored() {
+        let llm = LlmManager::new();
+        let host = FakeHost::new();
+        // Nothing resident when the swap starts...
+        host.voice_loaded.store(false, Ordering::Release);
+        // ...and the slot is held by the other load, which completes (and
+        // leaves a voice model resident) while this swap waits.
+        host.slot_denied.store(true, Ordering::Release);
+        let voice_loaded = Arc::clone(&host.voice_loaded);
+        let slot_denied = Arc::clone(&host.slot_denied);
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(25));
+            voice_loaded.store(true, Ordering::Release);
+            slot_denied.store(false, Ordering::Release);
+        });
+        let restored = Arc::clone(&host.restored);
+        let (cfg, _engine_state) = runner_cfg(
+            host,
+            FakeEngine::happy(Ok("{\"transcription\": \"Clean.\"}".to_string())),
+        );
+        let outcome = swap_runner(&llm, &sample_request(), cfg);
+        assert!(matches!(outcome, SwapOutcome::Processed(_)));
+        assert_eq!(
+            restored.load(Ordering::Acquire),
+            1,
+            "the freshly loaded voice model must be restored after the swap unloads it"
+        );
     }
 }

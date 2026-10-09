@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "לא הורד",
           "downloading": "בהורדה ({{progress}}%)",
-          "ready": "מוכן"
+          "ready": "מוכן",
+          "checking": "בודק מצב..."
         },
         "modelSizeMb": "גודל: {{size}} MB",
         "download": "הורד",
         "delete": "מחק",
         "deleteInUse": "לא ניתן למחוק כרגע: מתבצע עיבוד משלים. נסה שוב בעוד רגע.",
-        "downloadFailed": "ההורדה נכשלה: {{error}}"
+        "downloadFailed": "ההורדה נכשלה: {{error}}",
+        "deleteFailed": "לא ניתן למחוק את המודל: {{error}}",
+        "providerLabel": "מקומי (במכשיר)"
       },
       "prompts": {
         "title": "פרומפט",

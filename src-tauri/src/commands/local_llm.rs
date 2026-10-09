@@ -162,7 +162,12 @@ pub async fn delete_local_llm_model(
     model_manager: State<'_, Arc<ModelManager>>,
 ) -> Result<(), String> {
     if llm_manager.swap_in_progress() {
-        return Err("post-processing is in progress, try again in a moment".to_string());
+        // The stable prefix lets the settings UI tell this transient
+        // refusal apart from real delete failures (see SWAP_REFUSAL_PREFIX).
+        return Err(format!(
+            "{}: post-processing is in progress, try again in a moment",
+            crate::local_llm::SWAP_REFUSAL_PREFIX
+        ));
     }
     model_manager
         .delete_model(LOCAL_LLM_MODEL_ID)

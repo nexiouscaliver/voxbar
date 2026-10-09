@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Belum diunduh",
           "downloading": "Mengunduh ({{progress}}%)",
-          "ready": "Siap"
+          "ready": "Siap",
+          "checking": "Memeriksa status..."
         },
         "modelSizeMb": "Ukuran: {{size}} MB",
         "download": "Unduh",
         "delete": "Hapus",
         "deleteInUse": "Tidak bisa menghapus saat ini: pascaproses sedang berjalan. Coba lagi beberapa saat lagi.",
-        "downloadFailed": "Gagal mengunduh: {{error}}"
+        "downloadFailed": "Gagal mengunduh: {{error}}",
+        "deleteFailed": "Gagal menghapus model: {{error}}",
+        "providerLabel": "Lokal (di perangkat)"
       },
       "prompts": {
         "title": "Prompt",

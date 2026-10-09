@@ -22,6 +22,20 @@ export const LOCAL_LLM_MODEL_NAME = "Qwen3 0.6B (post-process)";
 // row's fallback while the first status snapshot is still in flight.
 export const LOCAL_LLM_MODEL_SIZE_MB = 610;
 
+// Stable prefix of the transient delete-refusal error string
+// (SWAP_REFUSAL_PREFIX in src-tauri/src/local_llm/mod.rs). Must stay in
+// sync: the row matches it to tell the "a post-process run is in
+// progress, try again" refusal apart from real delete failures, which
+// carry a different message.
+export const SWAP_REFUSAL_PREFIX = "post-process-swap-in-progress";
+
+// Whether a delete-command error is the transient swap refusal (L3) the
+// UI words as "try again in a moment", rather than a real failure (disk
+// error, missing file) that must show its actual cause.
+export function isSwapRefusalError(error: string): boolean {
+  return error.startsWith(SWAP_REFUSAL_PREFIX);
+}
+
 // Providers whose model list can ever be fetched from a remote endpoint.
 // Local and Apple Intelligence are on-device engines with no models
 // endpoint; API providers are unchanged.

@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "未ダウンロード",
           "downloading": "ダウンロード中 ({{progress}}%)",
-          "ready": "準備完了"
+          "ready": "準備完了",
+          "checking": "状態を確認中..."
         },
         "modelSizeMb": "サイズ: {{size}} MB",
         "download": "ダウンロード",
         "delete": "削除",
         "deleteInUse": "今は削除できません: 後処理が実行中です。しばらくしてからもう一度お試しください。",
-        "downloadFailed": "ダウンロードに失敗しました: {{error}}"
+        "downloadFailed": "ダウンロードに失敗しました: {{error}}",
+        "deleteFailed": "モデルを削除できませんでした: {{error}}",
+        "providerLabel": "ローカル（デバイス上）"
       },
       "prompts": {
         "title": "プロンプト",

@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "다운로드되지 않음",
           "downloading": "다운로드 중 ({{progress}}%)",
-          "ready": "준비됨"
+          "ready": "준비됨",
+          "checking": "상태 확인 중..."
         },
         "modelSizeMb": "크기: {{size}} MB",
         "download": "다운로드",
         "delete": "삭제",
         "deleteInUse": "지금은 삭제할 수 없습니다: 후처리가 진행 중입니다. 잠시 후 다시 시도하세요.",
-        "downloadFailed": "다운로드 실패: {{error}}"
+        "downloadFailed": "다운로드 실패: {{error}}",
+        "deleteFailed": "모델을 삭제하지 못했습니다: {{error}}",
+        "providerLabel": "로컬(기기에서)"
       },
       "prompts": {
         "title": "프롬프트",

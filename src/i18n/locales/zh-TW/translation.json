@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "尚未下載",
           "downloading": "下載中（{{progress}}%）",
-          "ready": "已就緒"
+          "ready": "已就緒",
+          "checking": "正在檢查狀態..."
         },
         "modelSizeMb": "大小：{{size}} MB",
         "download": "下載",
         "delete": "刪除",
         "deleteInUse": "目前無法刪除：後處理正在執行中，請稍後再試。",
-        "downloadFailed": "下載失敗：{{error}}"
+        "downloadFailed": "下載失敗：{{error}}",
+        "deleteFailed": "無法刪除模型：{{error}}",
+        "providerLabel": "本機（裝置上）"
       },
       "prompts": {
         "title": "提示詞",

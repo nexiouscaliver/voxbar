@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Nie pobrano",
           "downloading": "Pobieranie ({{progress}}%)",
-          "ready": "Gotowy"
+          "ready": "Gotowy",
+          "checking": "Sprawdzanie stanu..."
         },
         "modelSizeMb": "Rozmiar: {{size}} MB",
         "download": "Pobierz",
         "delete": "Usuń",
         "deleteInUse": "Nie można teraz usunąć: trwa postprocessing. Spróbuj ponownie za chwilę.",
-        "downloadFailed": "Pobieranie nie powiodło się: {{error}}"
+        "downloadFailed": "Pobieranie nie powiodło się: {{error}}",
+        "deleteFailed": "Nie udało się usunąć modelu: {{error}}",
+        "providerLabel": "Lokalnie (na urządzeniu)"
       },
       "prompts": {
         "title": "Prompt",

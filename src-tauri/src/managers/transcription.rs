@@ -1965,6 +1965,16 @@ impl TranscriptionManager {
             // initiate_model_load's explicit tail. If this thread panics,
             // the unwind drops the guard the same way.
             let _slot = guard;
+            // Consume the reload flag exactly like initiate_model_load:
+            // this load IS the "next use" the flag was waiting for, so it
+            // must be cleared here; leaving it set would make the next
+            // hotkey press perform one redundant model reload.
+            let reload_pending = self_clone
+                .reload_model_on_next_use
+                .swap(false, Ordering::AcqRel);
+            if reload_pending {
+                debug!("post-process restore consumed a pending model reload");
+            }
             let settings = get_settings(&self_clone.app_handle);
             if let Err(e) = self_clone.load_model(&settings.selected_model) {
                 error!("Failed to restore model after post-process swap: {}", e);

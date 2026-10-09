@@ -244,6 +244,21 @@ impl SwapPlanner {
         should_restore(self.voice_was_loaded, self.unload_immediately, is_recording)
     }
 
+    /// Refresh the restore context at the moment the swap actually unloads
+    /// the voice model. The context captured at runner start can go stale
+    /// across the lease/slot acquisition waits (bounded by their deadlines,
+    /// up to ~15s in production): a voice-model load that completes in
+    /// that window leaves a model resident that the swap WILL unload, so
+    /// it must be restored afterwards; conversely a model that was unloaded
+    /// by its own timeout in that window must not be re-loaded off a stale
+    /// true. The runner calls this right before issuing the unload, while
+    /// it already holds the loading slot, so no other load can slip in
+    /// between the refresh and the unload.
+    pub fn refresh_restore_context(&mut self, voice_was_loaded: bool, unload_immediately: bool) {
+        self.voice_was_loaded = voice_was_loaded;
+        self.unload_immediately = unload_immediately;
+    }
+
     /// Bookkeeping: the runner confirms each acquisition as it happens, so
     /// terminal action lists release exactly what the swap really holds.
     /// Pure state driven by real events; no resource lives here.
@@ -433,8 +448,17 @@ impl SwapPlanner {
 
             // ---- UnloadingLlm: teardown, never abandoned ----
             // A press during teardown is remembered by the coordinator; the
-            // teardown itself is only accelerated (straight to kill).
-            (SwapState::UnloadingLlm, Signal::Abort(_)) => vec![Action::KillWorker],
+            // teardown itself is only accelerated (straight to kill). The
+            // arm MUST end with WaitExit (or another signal-producing
+            // action): the runner only refills a missing signal at
+            // RestoringVoice, so an action list that leaves the state at
+            // UnloadingLlm with no signal would spin forever holding the
+            // lease and slot in release builds. Unreachable in the current
+            // wiring (the WaitExit loop consumes aborts internally), kept
+            // safe for any future producer that feeds Abort here.
+            (SwapState::UnloadingLlm, Signal::Abort(_)) => {
+                vec![Action::KillWorker, Action::WaitExit]
+            }
             (SwapState::UnloadingLlm, Signal::LlmUnloaded)
             | (SwapState::UnloadingLlm, Signal::LlmKillTimedOut) => {
                 self.state = SwapState::RestoringVoice;
@@ -735,7 +759,10 @@ mod tests {
         );
         assert_eq!(p.state, SwapState::UnloadingLlm);
         let actions = p.step(Signal::Abort(AbortReason::PressPending), false);
-        assert_eq!(actions, vec![Action::KillWorker]);
+        // The acceleration keeps the bounded, signal-producing exit wait:
+        // a bare kill would leave the runner without a signal in a state
+        // where it never refills one (only RestoringVoice does).
+        assert_eq!(actions, vec![Action::KillWorker, Action::WaitExit]);
         assert_eq!(p.state, SwapState::UnloadingLlm, "teardown continues");
         p.step(Signal::LlmUnloaded, false);
         assert_eq!(p.state, SwapState::RestoringVoice);
@@ -1012,5 +1039,84 @@ mod tests {
         p.step(Signal::LlmUnloaded, false);
         p.step(Signal::RestoreHandedOff, false);
         assert_eq!(p.state, SwapState::Done);
+    }
+
+    /// A voice-model load that completes during the runner's lease/slot
+    /// acquisition waits changes what the swap must restore: the planner's
+    /// refresh hook updates the captured context so should_restore()
+    /// decides over the model the swap actually unloads, not the one
+    /// resident at runner start. Stale in both directions: a freshly
+    /// loaded model must be restored, a timed-out one must not.
+    #[test]
+    fn refreshed_context_drives_the_restore_decision() {
+        // Started with nothing resident; a load completed before the
+        // swap's unload: the refreshed planner restores it.
+        let mut p = SwapPlanner::new(false, false);
+        assert!(!p.restore_decision(false), "nothing was resident at start");
+        p.refresh_restore_context(true, false);
+        assert!(
+            p.restore_decision(false),
+            "a model loaded during the acquire waits must be restored"
+        );
+
+        // Started with a resident model; it timed out during the waits:
+        // the refreshed planner does not re-load it off the stale true.
+        let mut q = SwapPlanner::new(true, false);
+        assert!(q.restore_decision(false));
+        q.refresh_restore_context(false, false);
+        assert!(
+            !q.restore_decision(false),
+            "a model unloaded by its own timeout must not be restored off stale context"
+        );
+
+        // The unload-timeout flip lands the same way.
+        let mut r = SwapPlanner::new(true, false);
+        r.refresh_restore_context(true, true);
+        assert!(
+            !r.restore_decision(false),
+            "Immediately still suppresses the restore"
+        );
+        // A live recording still forces the restore regardless.
+        assert!(r.restore_decision(true));
+    }
+
+    /// The (UnloadingLlm, Abort) arm must never return an action list
+    /// without a signal-producing tail: the runner only refills a missing
+    /// signal at RestoringVoice, so a bare KillWorker would spin forever
+    /// holding the lease and slot in release builds. The arm is currently
+    /// unreachable (the WaitExit loop consumes aborts internally); this
+    /// pins the safety contract for any future producer.
+    #[test]
+    fn unloading_llm_abort_arm_always_terminates() {
+        let mut p = dictation_ctx();
+        p.step(Signal::Start, false);
+        p.mark_lease_acquired();
+        p.mark_slot_acquired();
+        p.step(Signal::GateAllowed, false);
+        p.step(Signal::VoiceUnloaded, false);
+        p.step(Signal::LlmLoaded, false);
+        p.step(
+            Signal::LlmGenerated {
+                text: "x".to_string(),
+            },
+            false,
+        );
+        assert_eq!(p.state, SwapState::UnloadingLlm);
+
+        let actions = p.step(Signal::Abort(AbortReason::UserCancel), false);
+        assert_eq!(p.state, SwapState::UnloadingLlm);
+        assert_eq!(
+            actions,
+            vec![Action::KillWorker, Action::WaitExit],
+            "the abort during teardown must accelerate it AND end in the bounded, \
+             signal-producing exit wait"
+        );
+
+        // And the machine still completes normally afterwards.
+        p.step(Signal::LlmUnloaded, false);
+        assert_eq!(p.state, SwapState::RestoringVoice);
+        let tail = p.step(Signal::RestoreHandedOff, false);
+        assert_eq!(tail, vec![Action::RestoreHandoff, Action::ReleaseLease]);
+        assert!(p.is_done());
     }
 }
