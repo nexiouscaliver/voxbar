@@ -18,6 +18,7 @@
 //! - [`planner`]: the pure swap state machine (states, signals, actions).
 
 pub mod forecast;
+pub mod manager;
 pub mod planner;
 pub mod protocol;
 pub mod worker;

@@ -12,7 +12,7 @@
 //! protocol.rs tests, and real inference is exercised by the #[ignore]d
 //! smoke test behind a real model download.
 
-use super::protocol::{parse_request_line, to_line, WorkerRequest, WorkerResponse, WORKER_N_CTX};
+use super::protocol::{parse_request_line, to_line, WorkerRequest, WorkerResponse};
 use crate::local_llm::LOCAL_LLM_MODEL_SIZE_BYTES;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::context::LlamaContext;
@@ -68,7 +68,7 @@ pub fn run() -> i32 {
     let stdin = io::stdin();
     let mut reader = BufReader::new(stdin.lock());
     let mut session: Option<Session> = None;
-    let mut exit_code = 0;
+    let exit_code = 0;
 
     'mainloop: loop {
         let mut line = String::new();
@@ -276,7 +276,9 @@ impl Session {
         let mut output: Vec<u8> = Vec::new();
         let mut pos = prompt_tokens.len() as i32;
         let mut logits_index = batch.n_tokens() - 1;
-        for _ in 0..max_gen_tokens {
+        let mut generated = 0u32;
+        while generated < max_gen_tokens {
+            generated += 1;
             let token = sampler.sample(&self.ctx, logits_index);
             if vocab.is_eog(token) {
                 break;
@@ -298,15 +300,10 @@ impl Session {
     }
 }
 
-/// The context size every swap asks for (spec 1.2). Kept as a function so
-/// the constant stays next to the only consumer that must stay in sync.
-pub(crate) fn default_n_ctx() -> u32 {
-    WORKER_N_CTX
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::local_llm::protocol::WORKER_N_CTX;
 
     /// The worker flag is a distinct argv token: a normal launch (no args,
     /// or any other first argument) must never match it.
@@ -332,6 +329,6 @@ mod tests {
             crate::local_llm::LOCAL_LLM_MODEL_SIZE_MB,
             LOCAL_LLM_MODEL_SIZE_BYTES
         );
-        assert_eq!(default_n_ctx(), 4096);
+        assert_eq!(WORKER_N_CTX, 4096);
     }
 }

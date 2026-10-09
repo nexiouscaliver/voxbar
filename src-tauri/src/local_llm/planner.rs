@@ -236,6 +236,14 @@ impl SwapPlanner {
         self.state == SwapState::Done
     }
 
+    /// The restore decision at RestoringVoice, over this planner's own
+    /// captured context: restore when the voice model was resident and the
+    /// unload timeout is not Immediately, or whenever a recording is in
+    /// flight (the terminal handoff rule).
+    pub fn restore_decision(&self, is_recording: bool) -> bool {
+        should_restore(self.voice_was_loaded, self.unload_immediately, is_recording)
+    }
+
     /// Bookkeeping: the runner confirms each acquisition as it happens, so
     /// terminal action lists release exactly what the swap really holds.
     /// Pure state driven by real events; no resource lives here.
