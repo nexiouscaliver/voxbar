@@ -322,8 +322,7 @@ async fn post_process_transcription(
                 .is_some_and(|info| info.is_downloaded);
             if let Some((reason, detail)) = local_engine_availability(downloaded) {
                 debug!("Local post-process unavailable; using the raw transcript");
-                let _ =
-                    crate::local_llm::manager::PostProcessSkipEvent { reason, detail }.emit(app);
+                crate::local_llm::manager::emit_post_process_skip(app, reason, detail);
                 return None;
             }
 
