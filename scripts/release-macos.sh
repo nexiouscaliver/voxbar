@@ -108,7 +108,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: update checks and downloads now retry through transient GitHub CDN stalls instead of failing on the first attempt." \
+  --arg notes "VoxBar ${VERSION}: update retries no longer pause between attempts, so the hidden-tray startup check cannot freeze mid-retry." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \

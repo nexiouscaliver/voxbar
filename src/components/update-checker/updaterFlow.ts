@@ -22,11 +22,14 @@ const t = (key: string, options?: Record<string, unknown>): string =>
 
 // Each network call must not hang silently behind a stalled connection, and
 // a ~20 MB download on a slow link can legitimately take minutes - but not
-// ten. The check gets a tighter per-attempt budget because it is retried
-// (see checkForUpdates): three 15s attempts recover from the GitHub assets
-// CDN intermittently stalling new connections without making the user wait
-// a full minute per attempt.
-const CHECK_TIMEOUT_MS = 15000;
+// ten. The check budget must exceed a full TCP SYN-retransmission ladder:
+// GitHub's asset CDN (Fastly, 185.199.x) resolves to 3 IPs and on lossy ISP
+// paths MEASURED 2 of 3 drop SYNs, completing the connect only after the
+// ~15s retransmission ladder (documented ISP-to-Fastly peering issue, see
+// github/orgs/community discussions 143212 and 127077). A 15s total budget
+// dies inside the ladder on every bad-IP draw; 30s lets one attempt absorb
+// the ladder (~16-17s) and still finish, and each retry redraws an IP.
+const CHECK_TIMEOUT_MS = 30000;
 const DOWNLOAD_TIMEOUT_MS = 600000;
 // The plugin emits one progress event per network chunk; re-rendering the
 // toast per chunk churns the webview and makes the download feel slower than
@@ -145,9 +148,15 @@ async function showFailureToast(id?: string | number): Promise<void> {
 // target until the timeout - so both the check and the download retry a
 // bounded number of times before surfacing an error. A stall that outlives
 // all attempts is a real network problem the manual fallback covers.
+//
+// Retries run BACK-TO-BACK with no pause on purpose: the app dwells hidden
+// in the tray (start_hidden), and macOS SUSPENDS JavaScript timers in a
+// hidden webview - a setTimeout between attempts froze the whole retry
+// chain until the window next opened (observed live: the startup auto-check
+// stalled mid-retry for minutes). The attempt pacing comes entirely from
+// each attempt's own network timeout, which never suspends.
 const CHECK_ATTEMPTS = 3;
 const DOWNLOAD_ATTEMPTS = 2;
-const RETRY_PAUSE_MS = 2000;
 
 async function checkForUpdates(): Promise<Update | null> {
   let lastError: unknown;
@@ -160,9 +169,6 @@ async function checkForUpdates(): Promise<Update | null> {
         `Update check attempt ${attempt}/${CHECK_ATTEMPTS} failed:`,
         error,
       );
-      if (attempt < CHECK_ATTEMPTS) {
-        await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
-      }
     }
   }
   throw lastError;
@@ -227,9 +233,12 @@ async function downloadUpdate(update: Update): Promise<boolean> {
         `Update download attempt ${attempt}/${DOWNLOAD_ATTEMPTS} failed:`,
         error,
       );
+      // No pause before the retry: timers suspend in the hidden tray
+      // webview (see the note above CHECK_ATTEMPTS); the download window
+      // is only visible during a manual flow, but the same freeze would
+      // stall the auto-download policy paths.
       if (attempt < DOWNLOAD_ATTEMPTS) {
         render(true);
-        await new Promise((resolve) => setTimeout(resolve, RETRY_PAUSE_MS));
       }
     }
   }
