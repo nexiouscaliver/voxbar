@@ -668,7 +668,8 @@
         "modelSizeMb": "Rozmiar: {{size}} MB",
         "download": "Pobierz",
         "delete": "Usuń",
-        "deleteInUse": "Nie można teraz usunąć: trwa postprocessing. Spróbuj ponownie za chwilę."
+        "deleteInUse": "Nie można teraz usunąć: trwa postprocessing. Spróbuj ponownie za chwilę.",
+        "downloadFailed": "Pobieranie nie powiodło się: {{error}}"
       },
       "prompts": {
         "title": "Prompt",

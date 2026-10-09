@@ -668,7 +668,8 @@
         "modelSizeMb": "Size: {{size}} MB",
         "download": "Download",
         "delete": "Delete",
-        "deleteInUse": "Cannot delete right now: a post-process run is in progress. Try again in a moment."
+        "deleteInUse": "Cannot delete right now: a post-process run is in progress. Try again in a moment.",
+        "downloadFailed": "Download failed: {{error}}"
       },
       "prompts": {
         "title": "Prompt",

@@ -668,7 +668,8 @@
         "modelSizeMb": "Størrelse: {{size}} MB",
         "download": "Hent",
         "delete": "Slet",
-        "deleteInUse": "Kan ikke slette lige nu: en efterbehandling kører. Prøv igen om et øjeblik."
+        "deleteInUse": "Kan ikke slette lige nu: en efterbehandling kører. Prøv igen om et øjeblik.",
+        "downloadFailed": "Kunne ikke downloade: {{error}}"
       },
       "prompts": {
         "title": "Prompt",

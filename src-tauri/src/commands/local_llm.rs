@@ -5,7 +5,9 @@
 //! delete-time swap lease check.
 
 use crate::local_llm::manager::LlmManager;
-use crate::local_llm::{LOCAL_LLM_MODEL_ID, LOCAL_LLM_MODEL_SHA256, LOCAL_LLM_MODEL_SIZE_MB};
+use crate::local_llm::{
+    LOCAL_LLM_MODEL_ID, LOCAL_LLM_MODEL_NAME, LOCAL_LLM_MODEL_SHA256, LOCAL_LLM_MODEL_SIZE_MB,
+};
 use crate::managers::model::ModelManager;
 use log::{error, info, warn};
 use serde::Serialize;
@@ -13,6 +15,23 @@ use sha2::{Digest, Sha256};
 use std::io::Read;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, State};
+
+/// Emit the shared `model-download-failed` event for the pinned model, so
+/// the app-wide toast listener (the model store) fires for local-model
+/// downloads exactly as it does for voice-model downloads. The payload
+/// carries the display name because this model is filtered out of the
+/// store's model list: without it the toast falls back to the raw
+/// registry id.
+fn emit_download_failed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, error: &str) {
+    let _ = app.emit(
+        "model-download-failed",
+        serde_json::json!({
+            "model_id": LOCAL_LLM_MODEL_ID,
+            "error": error,
+            "name": LOCAL_LLM_MODEL_NAME,
+        }),
+    );
+}
 
 /// Status snapshot for the settings row (spec 6.2).
 #[derive(Debug, Clone, Serialize, specta::Type)]
@@ -60,10 +79,21 @@ pub async fn download_local_llm_model(
     app_handle: AppHandle,
     model_manager: State<'_, Arc<ModelManager>>,
 ) -> Result<(), String> {
-    model_manager
+    let result = model_manager
         .download_model(LOCAL_LLM_MODEL_ID)
         .await
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string());
+
+    if let Err(ref error) = result {
+        // Log as well as emit, mirroring the voice-model wrapper
+        // (commands/models.rs): without this event the app-wide toast
+        // listener stays silent, and a failed 610 MB download looks like
+        // nothing happened (the row just reverts to "Not downloaded").
+        error!("local post-process model download failed: {}", error);
+        emit_download_failed(&app_handle, error);
+    }
+
+    result?;
 
     let path = match model_manager.get_model_path(LOCAL_LLM_MODEL_ID) {
         Ok(path) => path,
@@ -100,13 +130,7 @@ pub async fn download_local_llm_model(
             LOCAL_LLM_MODEL_SHA256, digest
         );
         let _ = model_manager.delete_model(LOCAL_LLM_MODEL_ID);
-        let _ = app_handle.emit(
-            "model-download-failed",
-            serde_json::json!({
-                "model_id": LOCAL_LLM_MODEL_ID,
-                "error": "checksum mismatch after download"
-            }),
-        );
+        emit_download_failed(&app_handle, "checksum mismatch after download");
         return Err(
             "the downloaded model failed its checksum; it was removed. Try downloading again"
                 .to_string(),
@@ -143,4 +167,39 @@ pub async fn delete_local_llm_model(
     model_manager
         .delete_model(LOCAL_LLM_MODEL_ID)
         .map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::emit_download_failed;
+    use super::{LOCAL_LLM_MODEL_ID, LOCAL_LLM_MODEL_NAME};
+    use std::sync::mpsc;
+    use tauri::Listener;
+
+    /// Regression test for the invisible-download-failure bug: a failed
+    /// download of the pinned model must emit the shared
+    /// `model-download-failed` event (the one the app-wide toast listener
+    /// keys on), carrying the pinned id, the raw error, and the display
+    /// name (this model never appears in the store's model list, so the
+    /// toast cannot resolve a friendly name without it).
+    #[test]
+    fn download_failed_event_carries_id_name_and_error() {
+        let app = tauri::test::mock_app();
+        let (tx, rx) = mpsc::channel();
+        let app_handle = app.handle().clone();
+        app.listen("model-download-failed", move |event| {
+            if let Ok(payload) = serde_json::from_str::<serde_json::Value>(event.payload()) {
+                let _ = tx.send(payload);
+            }
+        });
+
+        emit_download_failed(&app_handle, "network dropped mid-download");
+
+        let payload = rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("the model-download-failed event must be emitted");
+        assert_eq!(payload["model_id"], LOCAL_LLM_MODEL_ID);
+        assert_eq!(payload["name"], LOCAL_LLM_MODEL_NAME);
+        assert_eq!(payload["error"], "network dropped mid-download");
+    }
 }

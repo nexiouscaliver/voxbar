@@ -668,7 +668,8 @@
         "modelSizeMb": "Tamaño: {{size}} MB",
         "download": "Descargar",
         "delete": "Eliminar",
-        "deleteInUse": "No se puede eliminar ahora mismo: hay un post proceso en ejecución. Inténtalo de nuevo en un momento."
+        "deleteInUse": "No se puede eliminar ahora mismo: hay un post proceso en ejecución. Inténtalo de nuevo en un momento.",
+        "downloadFailed": "Error al descargar: {{error}}"
       },
       "prompts": {
         "title": "Prompt",

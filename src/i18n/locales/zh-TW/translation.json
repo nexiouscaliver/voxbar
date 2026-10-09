@@ -668,7 +668,8 @@
         "modelSizeMb": "大小：{{size}} MB",
         "download": "下載",
         "delete": "刪除",
-        "deleteInUse": "目前無法刪除：後處理正在執行中，請稍後再試。"
+        "deleteInUse": "目前無法刪除：後處理正在執行中，請稍後再試。",
+        "downloadFailed": "下載失敗：{{error}}"
       },
       "prompts": {
         "title": "提示詞",

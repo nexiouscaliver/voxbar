@@ -5,6 +5,10 @@ import { listen } from "@tauri-apps/api/event";
 import { commands, type ModelInfo } from "@/bindings";
 import { toast } from "sonner";
 import i18n from "../i18n";
+import {
+  downloadFailedModelName,
+  type ModelDownloadFailedEvent,
+} from "@/lib/modelDownloadEvents";
 
 interface DownloadProgress {
   model_id: string;
@@ -333,31 +337,30 @@ export const useModelStore = create<ModelsStore>()(
         get().loadModels();
       });
 
-      listen<{ model_id: string; error: string }>(
-        "model-download-failed",
-        (event) => {
-          const { model_id: modelId, error } = event.payload;
-          set(
-            produce((state) => {
-              delete state.downloadingModels[modelId];
-              delete state.verifyingModels[modelId];
-              delete state.downloadProgress[modelId];
-              delete state.downloadStats[modelId];
-              state.error = error;
-            }),
-          );
-          // Localized and model-named for the user; state.error stays the
-          // raw backend string for programmatic use.
-          const model = get().models.find((m) => m.id === modelId);
-          const modelName = model?.name ?? modelId;
-          toast.error(
-            i18n.t("onboarding.errors.downloadFailed", {
-              model: modelName,
-              error,
-            }),
-          );
-        },
-      );
+      listen<ModelDownloadFailedEvent>("model-download-failed", (event) => {
+        const { model_id: modelId, error } = event.payload;
+        set(
+          produce((state) => {
+            delete state.downloadingModels[modelId];
+            delete state.verifyingModels[modelId];
+            delete state.downloadProgress[modelId];
+            delete state.downloadStats[modelId];
+            state.error = error;
+          }),
+        );
+        // Localized and model-named for the user; state.error stays the
+        // raw backend string for programmatic use. The event's display
+        // name wins when present: the local post-process model is not in
+        // the store's model list, so its toast would otherwise show the
+        // raw registry id.
+        const modelName = downloadFailedModelName(event.payload, get().models);
+        toast.error(
+          i18n.t("onboarding.errors.downloadFailed", {
+            model: modelName,
+            error,
+          }),
+        );
+      });
 
       listen<string>("model-verification-started", (event) => {
         const modelId = event.payload;

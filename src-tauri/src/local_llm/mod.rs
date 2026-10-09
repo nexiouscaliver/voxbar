@@ -47,6 +47,13 @@ pub const LOCAL_LLM_MODEL_REVISION: &str = "23749fefcc72300e3a2ad315e1317431b06b
 /// is verified once, at download completion).
 pub const LOCAL_LLM_MODEL_SIZE_BYTES: u64 = 639_446_688;
 
+/// Display name for the pinned model. Matches the ModelInfo descriptor
+/// (managers/model.rs) and LOCAL_LLM_MODEL_NAME in the frontend routing
+/// module. Sent with `model-download-failed` events because this model is
+/// filtered out of the frontend store's model list: without it the shared
+/// toast falls back to the raw registry id.
+pub const LOCAL_LLM_MODEL_NAME: &str = "Qwen3 0.6B (post-process)";
+
 /// Why a post-process pass fell back to the raw transcript. Carried on the
 /// skip event so the frontend toast can name the cause; `memory_gate`
 /// includes the formatted refusal numbers in the event detail.
@@ -83,6 +90,10 @@ mod tests {
         assert_eq!(
             LOCAL_LLM_MODEL_REVISION,
             "23749fefcc72300e3a2ad315e1317431b06b590a"
+        );
+        assert_eq!(
+            LOCAL_LLM_MODEL_NAME,
+            crate::managers::model::local_llm_model_info().name
         );
     }
 }

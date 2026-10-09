@@ -668,7 +668,8 @@
         "modelSizeMb": "Kích thước: {{size}} MB",
         "download": "Tải xuống",
         "delete": "Xóa",
-        "deleteInUse": "Hiện tại không thể xóa: một lượt xử lý sau đang chạy. Hãy thử lại sau ít lâu."
+        "deleteInUse": "Hiện tại không thể xóa: một lượt xử lý sau đang chạy. Hãy thử lại sau ít lâu.",
+        "downloadFailed": "Tải xuống thất bại: {{error}}"
       },
       "prompts": {
         "title": "Câu lệnh",

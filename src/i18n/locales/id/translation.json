@@ -668,7 +668,8 @@
         "modelSizeMb": "Ukuran: {{size}} MB",
         "download": "Unduh",
         "delete": "Hapus",
-        "deleteInUse": "Tidak bisa menghapus saat ini: pascaproses sedang berjalan. Coba lagi beberapa saat lagi."
+        "deleteInUse": "Tidak bisa menghapus saat ini: pascaproses sedang berjalan. Coba lagi beberapa saat lagi.",
+        "downloadFailed": "Gagal mengunduh: {{error}}"
       },
       "prompts": {
         "title": "Prompt",

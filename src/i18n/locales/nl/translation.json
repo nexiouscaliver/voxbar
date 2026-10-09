@@ -668,7 +668,8 @@
         "modelSizeMb": "Grootte: {{size}} MB",
         "download": "Downloaden",
         "delete": "Verwijderen",
-        "deleteInUse": "Kan nu niet verwijderen: er wordt een naverwerking uitgevoerd. Probeer het zo opnieuw."
+        "deleteInUse": "Kan nu niet verwijderen: er wordt een naverwerking uitgevoerd. Probeer het zo opnieuw.",
+        "downloadFailed": "Downloaden mislukt: {{error}}"
       },
       "prompts": {
         "title": "Prompt",

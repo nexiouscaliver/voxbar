@@ -668,7 +668,8 @@
         "modelSizeMb": "Storlek: {{size}} MB",
         "download": "Ladda ner",
         "delete": "Ta bort",
-        "deleteInUse": "Kan inte ta bort just nu: en efterbearbetning pågår. Försök igen om en stund."
+        "deleteInUse": "Kan inte ta bort just nu: en efterbearbetning pågår. Försök igen om en stund.",
+        "downloadFailed": "Nedladdningen misslyckades: {{error}}"
       },
       "prompts": {
         "title": "Prompt",

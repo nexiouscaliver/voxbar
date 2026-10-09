@@ -37,6 +37,10 @@ export const LocalLlmModelRow: React.FC = () => {
   const { t } = useTranslation();
   const [status, setStatus] = useState<LocalLlmModelStatus | null>(null);
   const [deleteError, setDeleteError] = useState(false);
+  // The raw backend error of the last failed download; shown inline so a
+  // failed 610 MB download is never silent (the toast via the shared
+  // model-download-failed event is transient). Cleared on the next attempt.
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const refreshStatus = useCallback(async () => {
     const result = await commands.getLocalLlmModelStatus();
@@ -89,6 +93,7 @@ export const LocalLlmModelRow: React.FC = () => {
 
   const handleDownload = useCallback(async () => {
     setDeleteError(false);
+    setDownloadError(null);
     // Optimistic: the command runs until the download completes; live
     // progress arrives via model-download-progress events.
     setStatus((prev) => ({
@@ -98,13 +103,17 @@ export const LocalLlmModelRow: React.FC = () => {
     }));
     const result = await commands.downloadLocalLlmModel();
     if (result.status === "error") {
+      // Keep the failure visible: the row would otherwise silently revert
+      // to "Not downloaded" once the status refresh lands.
       console.error("local model download failed:", result.error);
+      setDownloadError(result.error);
     }
     await refreshStatus();
   }, [refreshStatus]);
 
   const handleDelete = useCallback(async () => {
     setDeleteError(false);
+    setDownloadError(null);
     const result = await commands.deleteLocalLlmModel();
     if (result.status === "error") {
       // The refusal while a swap is running is transient (L3); surface
@@ -164,6 +173,13 @@ export const LocalLlmModelRow: React.FC = () => {
         {deleteError && (
           <span className="text-xs text-red-400">
             {t("settings.postProcessing.local.deleteInUse")}
+          </span>
+        )}
+        {downloadError && (
+          <span className="text-xs text-red-400">
+            {t("settings.postProcessing.local.downloadFailed", {
+              error: downloadError,
+            })}
           </span>
         )}
       </div>

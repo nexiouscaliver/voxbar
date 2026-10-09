@@ -668,7 +668,8 @@
         "modelSizeMb": "Dimensione: {{size}} MB",
         "download": "Scarica",
         "delete": "Elimina",
-        "deleteInUse": "Impossibile eliminare in questo momento: una post-elaborazione è in corso. Riprova tra poco."
+        "deleteInUse": "Impossibile eliminare in questo momento: una post-elaborazione è in corso. Riprova tra poco.",
+        "downloadFailed": "Download non riuscito: {{error}}"
       },
       "prompts": {
         "title": "Prompt",
