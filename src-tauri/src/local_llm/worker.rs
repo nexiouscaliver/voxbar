@@ -331,4 +331,13 @@ mod tests {
         );
         assert_eq!(WORKER_N_CTX, 4096);
     }
+
+    // Real-inference verification against the actual pinned model runs as
+    // a STANDALONE check outside this crate (a tiny cargo project that
+    // depends on llama-cpp-2 and loads the GGUF), NOT as a test here:
+    // llama_cpp_sys_2 and transcribe_cpp_sys each embed their own ggml,
+    // and the lib-test binary cannot link references to both (duplicate
+    // ggml symbols). The app binary links fine (llama's ggml objects are
+    // simply never pulled behind transcribe-cpp's identical symbols), and
+    // unit tests never execute llama paths anyway (spec 10).
 }
