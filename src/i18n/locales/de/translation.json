@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Nicht heruntergeladen",
           "downloading": "Wird heruntergeladen ({{progress}}%)",
-          "ready": "Bereit"
+          "ready": "Bereit",
+          "checking": "Status wird geprüft..."
         },
         "modelSizeMb": "Größe: {{size}} MB",
         "download": "Herunterladen",
         "delete": "Löschen",
         "deleteInUse": "Löschen ist gerade nicht möglich: Eine Nachbearbeitung läuft. Versuche es gleich noch einmal.",
-        "downloadFailed": "Herunterladen fehlgeschlagen: {{error}}"
+        "downloadFailed": "Herunterladen fehlgeschlagen: {{error}}",
+        "deleteFailed": "Das Modell konnte nicht gelöscht werden: {{error}}",
+        "providerLabel": "Lokal (auf dem Gerät)"
       },
       "prompts": {
         "title": "Prompt",

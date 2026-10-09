@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Não baixado",
           "downloading": "Baixando ({{progress}}%)",
-          "ready": "Pronto"
+          "ready": "Pronto",
+          "checking": "Verificando estado..."
         },
         "modelSizeMb": "Tamanho: {{size}} MB",
         "download": "Baixar",
         "delete": "Excluir",
         "deleteInUse": "Não é possível excluir agora: uma execução de pós-processamento está em andamento. Tente novamente em instantes.",
-        "downloadFailed": "Falha no download: {{error}}"
+        "downloadFailed": "Falha no download: {{error}}",
+        "deleteFailed": "Não foi possível excluir o modelo: {{error}}",
+        "providerLabel": "Local (no dispositivo)"
       },
       "prompts": {
         "title": "Prompt",

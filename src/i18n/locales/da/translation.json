@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Ikke hentet",
           "downloading": "Downloader ({{progress}}%)",
-          "ready": "Klar"
+          "ready": "Klar",
+          "checking": "Tjekker status..."
         },
         "modelSizeMb": "Størrelse: {{size}} MB",
         "download": "Hent",
         "delete": "Slet",
         "deleteInUse": "Kan ikke slette lige nu: en efterbehandling kører. Prøv igen om et øjeblik.",
-        "downloadFailed": "Kunne ikke downloade: {{error}}"
+        "downloadFailed": "Kunne ikke downloade: {{error}}",
+        "deleteFailed": "Kunne ikke slette modellen: {{error}}",
+        "providerLabel": "Lokalt (på enheden)"
       },
       "prompts": {
         "title": "Prompt",

@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Chưa tải xuống",
           "downloading": "Đang tải ({{progress}}%)",
-          "ready": "Sẵn sàng"
+          "ready": "Sẵn sàng",
+          "checking": "Đang kiểm tra trạng thái..."
         },
         "modelSizeMb": "Kích thước: {{size}} MB",
         "download": "Tải xuống",
         "delete": "Xóa",
         "deleteInUse": "Hiện tại không thể xóa: một lượt xử lý sau đang chạy. Hãy thử lại sau ít lâu.",
-        "downloadFailed": "Tải xuống thất bại: {{error}}"
+        "downloadFailed": "Tải xuống thất bại: {{error}}",
+        "deleteFailed": "Không thể xóa mô hình: {{error}}",
+        "providerLabel": "Cục bộ (trên thiết bị)"
       },
       "prompts": {
         "title": "Câu lệnh",

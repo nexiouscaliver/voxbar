@@ -8,6 +8,7 @@ import {
   LOCAL_LLM_MODEL_ID,
   LOCAL_LLM_MODEL_NAME,
   LOCAL_LLM_MODEL_SIZE_MB,
+  isSwapRefusalError,
 } from "./localLlmRouting";
 
 // Payload of the shared "model-download-progress" event
@@ -17,8 +18,10 @@ interface DownloadProgressEvent {
   percentage: number;
 }
 
-// Fallback snapshot while the first authoritative status fetch is still
-// in flight, so the row can render a correct status immediately.
+// Shape fallback for optimistic status updates that land before the first
+// authoritative snapshot arrives. The row itself never renders this as a
+// claim: while the snapshot is still unknown it shows the neutral
+// checking state instead of asserting "Not downloaded".
 const PENDING_STATUS = {
   downloaded: false,
   downloading: false,
@@ -36,7 +39,11 @@ const PENDING_STATUS = {
 export const LocalLlmModelRow: React.FC = () => {
   const { t } = useTranslation();
   const [status, setStatus] = useState<LocalLlmModelStatus | null>(null);
-  const [deleteError, setDeleteError] = useState(false);
+  // The transient delete refusal (a post-process swap holds the model
+  // files) gets its own "try again in a moment" copy; every other delete
+  // failure is real and shows the backend error inline.
+  const [deleteRefused, setDeleteRefused] = useState(false);
+  const [deleteFailure, setDeleteFailure] = useState<string | null>(null);
   // The raw backend error of the last failed download; shown inline so a
   // failed 610 MB download is never silent (the toast via the shared
   // model-download-failed event is transient). Cleared on the next attempt.
@@ -90,9 +97,15 @@ export const LocalLlmModelRow: React.FC = () => {
 
   const isDownloaded = status?.downloaded ?? false;
   const isDownloading = status?.downloading ?? false;
+  // The first authoritative snapshot is still in flight: the row must not
+  // claim "Not downloaded" with an enabled Download button in that window
+  // (the model may actually be Ready or Downloading). A neutral checking
+  // state and a disabled button bridge the gap.
+  const isStatusUnknown = status === null;
 
   const handleDownload = useCallback(async () => {
-    setDeleteError(false);
+    setDeleteRefused(false);
+    setDeleteFailure(null);
     setDownloadError(null);
     // Optimistic: the command runs until the download completes; live
     // progress arrives via model-download-progress events.
@@ -112,25 +125,34 @@ export const LocalLlmModelRow: React.FC = () => {
   }, [refreshStatus]);
 
   const handleDelete = useCallback(async () => {
-    setDeleteError(false);
+    setDeleteRefused(false);
+    setDeleteFailure(null);
     setDownloadError(null);
     const result = await commands.deleteLocalLlmModel();
     if (result.status === "error") {
-      // The refusal while a swap is running is transient (L3); surface
-      // it inline so the user knows to try again in a moment.
-      console.error("local model delete refused:", result.error);
-      setDeleteError(true);
+      console.error("local model delete failed:", result.error);
+      if (isSwapRefusalError(result.error)) {
+        // The refusal while a swap is running is transient (L3); surface
+        // it inline so the user knows to try again in a moment.
+        setDeleteRefused(true);
+      } else {
+        // A real failure (disk error, missing file): show what actually
+        // went wrong instead of a false "a run is in progress" claim.
+        setDeleteFailure(result.error);
+      }
     }
     await refreshStatus();
   }, [refreshStatus]);
 
-  const statusText = isDownloading
-    ? t("settings.postProcessing.local.modelStatus.downloading", {
-        progress: Math.round(status?.progress ?? 0),
-      })
-    : isDownloaded
-      ? t("settings.postProcessing.local.modelStatus.ready")
-      : t("settings.postProcessing.local.modelStatus.notDownloaded");
+  const statusText = isStatusUnknown
+    ? t("settings.postProcessing.local.modelStatus.checking")
+    : isDownloading
+      ? t("settings.postProcessing.local.modelStatus.downloading", {
+          progress: Math.round(status?.progress ?? 0),
+        })
+      : isDownloaded
+        ? t("settings.postProcessing.local.modelStatus.ready")
+        : t("settings.postProcessing.local.modelStatus.notDownloaded");
 
   return (
     <SettingContainer
@@ -165,14 +187,21 @@ export const LocalLlmModelRow: React.FC = () => {
             onClick={() => void handleDownload()}
             variant="primary"
             size="md"
-            disabled={isDownloading}
+            disabled={isDownloading || isStatusUnknown}
           >
             {t("settings.postProcessing.local.download")}
           </Button>
         )}
-        {deleteError && (
+        {deleteRefused && (
           <span className="text-xs text-red-400">
             {t("settings.postProcessing.local.deleteInUse")}
+          </span>
+        )}
+        {deleteFailure && (
+          <span className="text-xs text-red-400">
+            {t("settings.postProcessing.local.deleteFailed", {
+              error: deleteFailure,
+            })}
           </span>
         )}
         {downloadError && (

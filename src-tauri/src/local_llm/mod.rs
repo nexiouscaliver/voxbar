@@ -54,6 +54,14 @@ pub const LOCAL_LLM_MODEL_SIZE_BYTES: u64 = 639_446_688;
 /// toast falls back to the raw registry id.
 pub const LOCAL_LLM_MODEL_NAME: &str = "Qwen3 0.6B (post-process)";
 
+/// Stable prefix marking the transient delete refusal (L3): the model
+/// delete commands return it while a post-process swap is running. The
+/// settings UI matches on this prefix to tell the transient "try again in
+/// a moment" refusal apart from real delete failures (IO errors), which
+/// get a different message. The prefix travels on the error string, so
+/// the command signatures (and generated bindings) stay unchanged.
+pub const SWAP_REFUSAL_PREFIX: &str = "post-process-swap-in-progress";
+
 /// Why a post-process pass fell back to the raw transcript. Carried on the
 /// skip event so the frontend toast can name the cause; `memory_gate`
 /// includes the formatted refusal numbers in the event detail.

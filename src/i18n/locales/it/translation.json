@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Non scaricato",
           "downloading": "Download in corso ({{progress}}%)",
-          "ready": "Pronto"
+          "ready": "Pronto",
+          "checking": "Verifica dello stato in corso..."
         },
         "modelSizeMb": "Dimensione: {{size}} MB",
         "download": "Scarica",
         "delete": "Elimina",
         "deleteInUse": "Impossibile eliminare in questo momento: una post-elaborazione è in corso. Riprova tra poco.",
-        "downloadFailed": "Download non riuscito: {{error}}"
+        "downloadFailed": "Download non riuscito: {{error}}",
+        "deleteFailed": "Impossibile eliminare il modello: {{error}}",
+        "providerLabel": "Locale (sul dispositivo)"
       },
       "prompts": {
         "title": "Prompt",

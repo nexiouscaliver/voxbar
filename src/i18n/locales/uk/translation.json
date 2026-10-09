@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Не завантажено",
           "downloading": "Завантаження ({{progress}}%)",
-          "ready": "Готова"
+          "ready": "Готова",
+          "checking": "Перевірка стану..."
         },
         "modelSizeMb": "Розмір: {{size}} МБ",
         "download": "Завантажити",
         "delete": "Видалити",
         "deleteInUse": "Зараз не можна видалити: виконується постобробка. Спробуйте ще раз за мить.",
-        "downloadFailed": "Не вдалося завантажити: {{error}}"
+        "downloadFailed": "Не вдалося завантажити: {{error}}",
+        "deleteFailed": "Не вдалося видалити модель: {{error}}",
+        "providerLabel": "Локально (на пристрої)"
       },
       "prompts": {
         "title": "Промпт",

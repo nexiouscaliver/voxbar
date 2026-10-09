@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Not downloaded",
           "downloading": "Downloading ({{progress}}%)",
-          "ready": "Ready"
+          "ready": "Ready",
+          "checking": "Checking status..."
         },
         "modelSizeMb": "Size: {{size}} MB",
         "download": "Download",
         "delete": "Delete",
         "deleteInUse": "Cannot delete right now: a post-process run is in progress. Try again in a moment.",
-        "downloadFailed": "Download failed: {{error}}"
+        "downloadFailed": "Download failed: {{error}}",
+        "deleteFailed": "Could not delete the model: {{error}}",
+        "providerLabel": "Local (on-device)"
       },
       "prompts": {
         "title": "Prompt",

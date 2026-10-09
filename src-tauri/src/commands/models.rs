@@ -77,7 +77,12 @@ pub async fn delete_model(
     // non-blocking probe, never a wait (waiting would freeze the settings
     // UI for up to a minute behind the swap).
     if llm_manager.swap_in_progress() {
-        return Err("post-processing is in progress, try again in a moment".to_string());
+        // The stable prefix lets the settings UI tell this transient
+        // refusal apart from real delete failures (see SWAP_REFUSAL_PREFIX).
+        return Err(format!(
+            "{}: post-processing is in progress, try again in a moment",
+            crate::local_llm::SWAP_REFUSAL_PREFIX
+        ));
     }
 
     // If deleting the active model, unload it and clear the setting

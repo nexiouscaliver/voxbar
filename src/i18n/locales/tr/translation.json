@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "İndirilmedi",
           "downloading": "İndiriliyor (%{{progress}})",
-          "ready": "Hazır"
+          "ready": "Hazır",
+          "checking": "Durum kontrol ediliyor..."
         },
         "modelSizeMb": "Boyut: {{size}} MB",
         "download": "İndir",
         "delete": "Sil",
         "deleteInUse": "Şu anda silinemiyor: bir son işlem sürüyor. Birazdan tekrar deneyin.",
-        "downloadFailed": "İndirme başarısız: {{error}}"
+        "downloadFailed": "İndirme başarısız: {{error}}",
+        "deleteFailed": "Model silinemedi: {{error}}",
+        "providerLabel": "Yerel (cihazda)"
       },
       "prompts": {
         "title": "Prompt",

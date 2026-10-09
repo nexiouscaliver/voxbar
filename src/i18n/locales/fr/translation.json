@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "Non téléchargé",
           "downloading": "Téléchargement en cours ({{progress}}%)",
-          "ready": "Prêt"
+          "ready": "Prêt",
+          "checking": "Vérification de l'état..."
         },
         "modelSizeMb": "Taille : {{size}} MB",
         "download": "Télécharger",
         "delete": "Supprimer",
         "deleteInUse": "Suppression impossible pour le moment : un post-traitement est en cours. Réessayez dans un instant.",
-        "downloadFailed": "Échec du téléchargement : {{error}}"
+        "downloadFailed": "Échec du téléchargement : {{error}}",
+        "deleteFailed": "Impossible de supprimer le modèle : {{error}}",
+        "providerLabel": "Local (sur l'appareil)"
       },
       "prompts": {
         "title": "Prompt",

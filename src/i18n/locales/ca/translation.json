@@ -663,13 +663,16 @@
         "modelStatus": {
           "notDownloaded": "No baixat",
           "downloading": "S'està baixant ({{progress}}%)",
-          "ready": "A punt"
+          "ready": "A punt",
+          "checking": "Comprovant l'estat..."
         },
         "modelSizeMb": "Mida: {{size}} MB",
         "download": "Baixa",
         "delete": "Suprimeix",
         "deleteInUse": "Ara no es pot suprimir: hi ha un postprocessament en execució. Torneu-ho a provar d'aquí a un moment.",
-        "downloadFailed": "No s'ha pogut descarregar: {{error}}"
+        "downloadFailed": "No s'ha pogut descarregar: {{error}}",
+        "deleteFailed": "No s'ha pogut suprimir el model: {{error}}",
+        "providerLabel": "Local (al dispositiu)"
       },
       "prompts": {
         "title": "Indicació",

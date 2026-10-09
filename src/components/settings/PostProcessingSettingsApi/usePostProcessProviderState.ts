@@ -1,10 +1,12 @@
 import { useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useSettings } from "../../../hooks/useSettings";
 import { commands, type PostProcessProvider } from "@/bindings";
 import type { ModelOption } from "./types";
 import type { DropdownOption } from "../../ui/Dropdown";
 import {
   APPLE_PROVIDER_ID,
+  LOCAL_PROVIDER_ID,
   shouldFetchModels,
   showLocalRow,
 } from "../post-processing/localLlmRouting";
@@ -35,6 +37,7 @@ type PostProcessProviderState = {
 };
 
 export const usePostProcessProviderState = (): PostProcessProviderState => {
+  const { t } = useTranslation();
   const {
     settings,
     isUpdating,
@@ -73,9 +76,16 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
   const providerOptions = useMemo<DropdownOption[]>(() => {
     return providers.map((provider) => ({
       value: provider.id,
-      label: provider.label,
+      // The local engine's backend label ("Local (on-device)") is the
+      // only descriptive (non-brand-name) label in the list; localize it
+      // so it does not ship as a lone English string in every locale.
+      // Brand names (OpenAI, Groq, ...) stay as the backend sends them.
+      label:
+        provider.id === LOCAL_PROVIDER_ID
+          ? t("settings.postProcessing.local.providerLabel")
+          : provider.label,
     }));
-  }, [providers]);
+  }, [providers, t]);
 
   const handleProviderSelect = useCallback(
     async (providerId: string) => {

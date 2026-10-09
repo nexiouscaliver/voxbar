@@ -612,13 +612,16 @@
         "modelStatus": {
           "notDownloaded": "لم يتم التنزيل",
           "downloading": "جاري التنزيل ({{progress}}%)",
-          "ready": "جاهز"
+          "ready": "جاهز",
+          "checking": "جارٍ التحقق من الحالة..."
         },
         "modelSizeMb": "الحجم: {{size}} MB",
         "download": "تنزيل",
         "delete": "حذف",
         "deleteInUse": "لا يمكن الحذف الآن: هناك معالجة لاحقة قيد التشغيل. حاول مرة أخرى بعد لحظات.",
-        "downloadFailed": "فشل التنزيل: {{error}}"
+        "downloadFailed": "فشل التنزيل: {{error}}",
+        "deleteFailed": "تعذّر حذف النموذج: {{error}}",
+        "providerLabel": "محلي (على الجهاز)"
       },
       "prompts": {
         "title": "المطالبة",
