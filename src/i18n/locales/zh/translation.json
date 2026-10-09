@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar 无法从此位置安装更新",
-    "translocatedDescription": "VoxBar 正在从临时的只读位置运行（macOS App Translocation）。请退出 VoxBar，将其从下载文件夹拖入应用程序文件夹，再从那里打开。"
+    "translocatedDescription": "VoxBar 正在从临时的只读位置运行（macOS App Translocation）。请退出 VoxBar，将其从下载文件夹拖入应用程序文件夹，再从那里打开。",
+    "commandNoSession": "命令键仅在录音进行时有效。请先开始录音，然后按住该键并说出命令。"
   }
 }

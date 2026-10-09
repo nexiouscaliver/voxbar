@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar kan vanaf deze locatie geen updates installeren",
-    "translocatedDescription": "VoxBar draait vanaf een tijdelijke alleen-lezen locatie (macOS App Translocation). Sluit VoxBar af, sleep het van de map Downloads naar Programma's en open het vanaf daar."
+    "translocatedDescription": "VoxBar draait vanaf een tijdelijke alleen-lezen locatie (macOS App Translocation). Sluit VoxBar af, sleep het van de map Downloads naar Programma's en open het vanaf daar.",
+    "commandNoSession": "De commandotoets werkt alleen tijdens een actieve dictee. Start eerst de opname, houd de toets vast en spreek de opdracht in."
   }
 }

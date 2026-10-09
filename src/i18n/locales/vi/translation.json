@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar không thể cài đặt bản cập nhật từ vị trí này",
-    "translocatedDescription": "VoxBar đang chạy từ một vị trí tạm thời chỉ đọc (App Translocation của macOS). Thoát VoxBar, kéo nó từ thư mục Downloads vào thư mục Ứng dụng, rồi mở từ đó."
+    "translocatedDescription": "VoxBar đang chạy từ một vị trí tạm thời chỉ đọc (App Translocation của macOS). Thoát VoxBar, kéo nó từ thư mục Downloads vào thư mục Ứng dụng, rồi mở từ đó.",
+    "commandNoSession": "Phím lệnh chỉ hoạt động khi đang nghe chính tả. Hãy bắt đầu ghi âm trước, rồi giữ phím và đọc lệnh."
   }
 }

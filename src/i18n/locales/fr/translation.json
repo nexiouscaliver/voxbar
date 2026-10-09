@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar ne peut pas installer de mises à jour depuis cet emplacement",
-    "translocatedDescription": "VoxBar s'exécute depuis un emplacement temporaire en lecture seule (App Translocation de macOS). Quittez VoxBar, faites-le glisser du dossier Téléchargements vers Applications, puis ouvrez-le depuis là."
+    "translocatedDescription": "VoxBar s'exécute depuis un emplacement temporaire en lecture seule (App Translocation de macOS). Quittez VoxBar, faites-le glisser du dossier Téléchargements vers Applications, puis ouvrez-le depuis là.",
+    "commandNoSession": "La touche de commandes ne fonctionne que pendant une dictée active. Commencez d'abord l'enregistrement, puis maintenez-la et dictez la commande."
   }
 }

@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar nemůže z tohoto umístění instalovat aktualizace",
-    "translocatedDescription": "VoxBar běží z dočasného umístění jen pro čtení (macOS App Translocation). Ukončete VoxBar, přetáhněte jej ze složky Stažené do složky Aplikace a spusťte jej odtud."
+    "translocatedDescription": "VoxBar běží z dočasného umístění jen pro čtení (macOS App Translocation). Ukončete VoxBar, přetáhněte jej ze složky Stažené do složky Aplikace a spusťte jej odtud.",
+    "commandNoSession": "Příkazová klávesa funguje jen během aktivní dikce. Nejprve spusťte nahrávání, pak ji držte a vyslovte příkaz."
   }
 }

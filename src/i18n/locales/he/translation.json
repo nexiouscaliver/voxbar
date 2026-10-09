@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar לא יכול להתקין עדכונים ממיקום זה",
-    "translocatedDescription": "VoxBar פועל ממיקום זמני לקריאה בלבד (App Translocation ב-macOS). סגרו את VoxBar, גררו אותו מתיקיית ההורדות אל Applications ופתחו אותו משם."
+    "translocatedDescription": "VoxBar פועל ממיקום זמני לקריאה בלבד (App Translocation ב-macOS). סגרו את VoxBar, גררו אותו מתיקיית ההורדות אל Applications ופתחו אותו משם.",
+    "commandNoSession": "מקש הפקודות עובד רק בזמן הקלטה פעילה. התחילו הקלטה, ואז החזיקו אותו ואמרו את הפקודה."
   }
 }

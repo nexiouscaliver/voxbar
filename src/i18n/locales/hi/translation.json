@@ -1004,6 +1004,7 @@
   },
   "app": {
     "translocatedTitle": "VoxBar इस जगह से अपडेट इंस्टॉल नहीं कर सकता",
-    "translocatedDescription": "VoxBar एक अस्थायी रीड-ओनली जगह से चल रहा है (macOS App Translocation)। VoxBar बंद करें, इसे Downloads फोल्डर से Applications में खींचें, और वहीं से खोलें।"
+    "translocatedDescription": "VoxBar एक अस्थायी रीड-ओनली जगह से चल रहा है (macOS App Translocation)। VoxBar बंद करें, इसे Downloads फोल्डर से Applications में खींचें, और वहीं से खोलें।",
+    "commandNoSession": "कमांड की सिर्फ चालू डिक्टेशन के दौरान काम करती है। पहले रिकॉर्डिंग शुरू करें, फिर इसे दबाकर कमांड बोलें।"
   }
 }
