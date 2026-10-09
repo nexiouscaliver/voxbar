@@ -868,6 +868,15 @@
           "description": "अन-डिभाइस मेसिन लर्निङ अनुमानका लागि उच्च-प्रदर्शन टेन्सर लाइब्रेरी",
           "details": "VoxBar को स्थानीय स्पिच-टु-टेक्स्ट transcribe.cpp र ggml मा आधारित छ। Georgi Gerganov र योगदानकर्ताहरूको उत्कृष्ट कामका लागि धन्यवाद।"
         }
+      },
+      "updatePolicy": {
+        "title": "अपडेट नीति",
+        "description": "अपडेट भेटिएमा स्वचालित जाँचले गर्न पाउने काम छान्नुहोस्।",
+        "options": {
+          "ask": "डाउनलोड अघि सोध्ने",
+          "download": "स्वचालित रूपमा डाउनलोड",
+          "install": "स्वचालित रूपमा डाउनलोड र इन्स्टल"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "{{date}} मा जारी",
       "downloadAction": "डाउनलोड र स्थापना गर्नुहोस्",
       "laterAction": "पछि",
-      "progress": "अपडेट डाउनलोड हुँदै... {{percent}}%",
-      "installRestart": "अपडेट डाउनलोड भयो। स्थापना र पुन: सुरु हुँदै...",
       "failedTitle": "अपडेट असफल",
       "failedAction": "GitHub रिलिजहरू खोल्नुहोस्",
-      "checkFailedTitle": "अपडेट जाँच गर्न सकिएन"
+      "checkFailedTitle": "अपडेट जाँच गर्न सकिएन",
+      "progressSize": "अपडेट डाउनलोड हुँदै... {{total}} मध्ये {{downloaded}} ({{percent}}%)",
+      "progressUnknown": "अपडेट डाउनलोड हुँदै... {{downloaded}}",
+      "installingTitle": "अपडेट इन्स्टल हुँदै...",
+      "restartTitle": "अपडेट इन्स्टलका लागि तयार छ",
+      "restartDescription": "VoxBar {{version}} डाउनलोड भयो। इन्स्टल पूरा गर्न अहिले रिस्टार्ट गर्नुहोस्।",
+      "restartNow": "अहिले रिस्टार्ट गर्नुहोस्",
+      "restartLater": "पछि",
+      "installedDescription": "VoxBar {{version}} इन्स्टल भयो र VoxBar अर्को पटक खुल्दा सक्रिय हुनेछ।",
+      "failedDescription": "अपडेट डाउनलोड गर्न सकिएन। आफ्नो जडान जाँची फेरि प्रयास गर्नुहोस्, वा GitHub Releases बाट डाउनलोड गर्नुहोस्।"
     }
   },
   "whatsNew": {

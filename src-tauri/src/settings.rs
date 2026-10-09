@@ -221,6 +221,22 @@ pub enum NumberFormat {
     Smart,
 }
 
+/// What the startup update check may do without asking. `ask` is the release
+/// default because a tray-dwelling dictation app downloading ~20 MB on its
+/// own at launch is surprising behavior; `download` fetches in the background
+/// and still prompts before restarting; `install` swaps the bundle silently
+/// so the new version is simply active on the next launch (the restart
+/// prompt remains a prompt - the app never relaunches itself unprompted).
+/// Old stores without the key deserialize to `ask` via the derived default.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum UpdatePolicy {
+    #[default]
+    Ask,
+    Download,
+    Install,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AutoSubmitKey {
@@ -477,6 +493,11 @@ pub struct AppSettings {
     pub autostart_enabled: bool,
     #[serde(default = "default_update_checks_enabled")]
     pub update_checks_enabled: bool,
+    /// What the automatic startup check may do when it finds an update; see
+    /// [`UpdatePolicy`]. Manual checks (tray item, footer, About button)
+    /// always ask regardless of this setting.
+    #[serde(default)]
+    pub update_policy: UpdatePolicy,
     #[serde(default = "default_show_whats_new_on_update")]
     pub show_whats_new_on_update: bool,
     /// The app version whose What's New the user has already seen. Fresh installs
@@ -1251,6 +1272,7 @@ pub fn get_default_settings() -> AppSettings {
         start_hidden: default_start_hidden(),
         autostart_enabled: default_autostart_enabled(),
         update_checks_enabled: default_update_checks_enabled(),
+        update_policy: UpdatePolicy::Ask,
         show_whats_new_on_update: default_show_whats_new_on_update(),
         whats_new_last_seen_version: default_whats_new_last_seen_version(),
         selected_model: "".to_string(),
@@ -2406,6 +2428,39 @@ mod tests {
         settings.number_format = NumberFormat::Smart;
         let serialized = serde_json::to_value(&settings).unwrap();
         assert_eq!(serialized["number_format"], "smart");
+    }
+
+    /// The update policy defaults to `ask` everywhere (derived, constructed,
+    /// serde field default), so stores predating the key never silently gain
+    /// background downloads, and every value round-trips.
+    #[test]
+    fn update_policy_default_is_ask_everywhere() {
+        assert_eq!(UpdatePolicy::default(), UpdatePolicy::Ask);
+        assert_eq!(get_default_settings().update_policy, UpdatePolicy::Ask);
+        assert_eq!(AppSettings::default().update_policy, UpdatePolicy::Ask);
+
+        // Legacy store (1.2.0) predates the key entirely.
+        let legacy = serde_json::json!({
+            "settings_schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
+            "overlay_style": "live",
+        });
+        let settings: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert_eq!(settings.update_policy, UpdatePolicy::Ask);
+
+        // Explicit stored values win and round-trip.
+        for (stored, expected) in [
+            ("download", UpdatePolicy::Download),
+            ("install", UpdatePolicy::Install),
+        ] {
+            let raw = serde_json::json!({
+                "settings_schema_version": CURRENT_SETTINGS_SCHEMA_VERSION,
+                "update_policy": stored,
+            });
+            let settings: AppSettings = serde_json::from_value(raw).unwrap();
+            assert_eq!(settings.update_policy, expected);
+            let serialized = serde_json::to_value(&settings).unwrap();
+            assert_eq!(serialized["update_policy"], stored);
+        }
     }
 
     #[test]

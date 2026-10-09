@@ -868,6 +868,15 @@
           "description": "Krachtige tensorbibliotheek voor lokale AI-verwerking",
           "details": "VoxBar's lokale spraak-naar-tekst is gebouwd op transcribe.cpp en ggml. Met dank aan het geweldige werk van Georgi Gerganov en alle bijdragers."
         }
+      },
+      "updatePolicy": {
+        "title": "Updategedrag",
+        "description": "Kies wat de automatische controle mag doen wanneer er een update is.",
+        "options": {
+          "ask": "Vragen voor downloaden",
+          "download": "Automatisch downloaden",
+          "install": "Automatisch downloaden en installeren"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Uitgebracht op {{date}}",
       "downloadAction": "Downloaden en installeren",
       "laterAction": "Later",
-      "progress": "Update downloaden... {{percent}}%",
-      "installRestart": "Update gedownload. Installeren en herstarten...",
       "failedTitle": "Update mislukt",
       "failedAction": "GitHub-releases openen",
-      "checkFailedTitle": "Kon niet controleren op updates"
+      "checkFailedTitle": "Kon niet controleren op updates",
+      "progressSize": "Update downloaden... {{downloaded}} van {{total}} ({{percent}}%)",
+      "progressUnknown": "Update downloaden... {{downloaded}}",
+      "installingTitle": "Update installeren...",
+      "restartTitle": "Update klaar om te installeren",
+      "restartDescription": "VoxBar {{version}} is gedownload. Herstart nu om de installatie af te ronden.",
+      "restartNow": "Nu herstarten",
+      "restartLater": "Later",
+      "installedDescription": "VoxBar {{version}} is geïnstalleerd en wordt actief bij de volgende herstart van VoxBar.",
+      "failedDescription": "De update kon niet worden gedownload. Controleer je verbinding en probeer het opnieuw, of download hem via GitHub Releases."
     }
   },
   "whatsNew": {

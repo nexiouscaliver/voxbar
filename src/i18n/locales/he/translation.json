@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "הצג מה חדש",
         "description": "הצג הערות גרסה לאחר עדכוני VoxBar"
+      },
+      "updatePolicy": {
+        "title": "מדיניות עדכון",
+        "description": "בחר מה הבדיקה האוטומטית רשאית לעשות כשהיא מוצאת עדכון.",
+        "options": {
+          "ask": "לשאול לפני ההורדה",
+          "download": "הורדה אוטומטית",
+          "install": "הורדה והתקנה אוטומטית"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "פורסם ב-{{date}}",
       "downloadAction": "הורדה והתקנה",
       "laterAction": "מאוחר יותר",
-      "progress": "מוריד עדכון... {{percent}}%",
-      "installRestart": "העדכון הורד. מתקין ומפעיל מחדש...",
       "failedTitle": "העדכון נכשל",
       "failedAction": "פתיחת מהדורות GitHub",
-      "checkFailedTitle": "בדיקת העדכונים נכשלה"
+      "checkFailedTitle": "בדיקת העדכונים נכשלה",
+      "progressSize": "מוריד עדכון... {{downloaded}} מתוך {{total}} ({{percent}}%)",
+      "progressUnknown": "מוריד עדכון... {{downloaded}}",
+      "installingTitle": "מתקין עדכון...",
+      "restartTitle": "העדכון מוכן להתקנה",
+      "restartDescription": "VoxBar {{version}} הורד. הפעל מחדש עכשיו כדי לסיים את ההתקנה.",
+      "restartNow": "הפעלה מחדש עכשיו",
+      "restartLater": "מאוחר יותר",
+      "installedDescription": "VoxBar {{version}} הותקן ויכנס לתוקף בהפעלה הבאה של VoxBar.",
+      "failedDescription": "לא ניתן להוריד את העדכון. בדוק את החיבור ונסה שוב, או הורד אותו מ-GitHub Releases."
     }
   },
   "common": {

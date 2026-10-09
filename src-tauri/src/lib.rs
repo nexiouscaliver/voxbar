@@ -298,10 +298,12 @@ fn initialize_core_logic(app_handle: &AppHandle) {
             "check_updates" => {
                 // The frontend (App-level request-update-check listener)
                 // runs the in-app update flow: check the releases endpoint,
-                // confirm, download, install, relaunch. Emitting an event
-                // keeps the flow's toasts in the UI and works in every app
-                // state, because the main window is hidden rather than
-                // destroyed on close.
+                // confirm, download, install, relaunch. The confirm toast
+                // renders in the main window's webview, and that window is
+                // hidden (not destroyed) on close, so a tray click with the
+                // window hidden would show the toast nowhere: reveal the
+                // window first, exactly like the settings item.
+                show_main_window(app);
                 if let Err(err) = app.emit("request-update-check", ()) {
                     log::error!("Failed to emit request-update-check: {err}");
                 }
@@ -754,6 +756,7 @@ pub fn run(cli_args: CliArgs) {
             shortcut::change_command_mode_enabled_setting,
             shortcut::change_chinese_script_setting,
             shortcut::change_number_format_setting,
+            shortcut::change_update_policy_setting,
             shortcut::change_app_language_setting,
             shortcut::change_update_checks_setting,
             shortcut::change_show_whats_new_on_update_setting,

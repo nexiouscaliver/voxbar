@@ -817,6 +817,15 @@
       "whatsNewUpdates": {
         "label": "إظهار الجديد",
         "description": "إظهار ملاحظات الإصدار بعد تحديثات VoxBar"
+      },
+      "updatePolicy": {
+        "title": "سياسة التحديث",
+        "description": "اختر ما يُسمح للفحص التلقائي بفعله عند العثور على تحديث.",
+        "options": {
+          "ask": "السؤال قبل التنزيل",
+          "download": "تنزيل تلقائي",
+          "install": "تنزيل وتثبيت تلقائيًا"
+        }
       }
     },
     "modelSettings": {
@@ -890,11 +899,18 @@
       "availableDate": "صدر في {{date}}",
       "downloadAction": "تنزيل وتثبيت",
       "laterAction": "لاحقًا",
-      "progress": "جارٍ تنزيل التحديث... {{percent}}%",
-      "installRestart": "تم تنزيل التحديث. جارٍ التثبيت وإعادة التشغيل...",
       "failedTitle": "فشل التحديث",
       "failedAction": "فتح إصدارات GitHub",
-      "checkFailedTitle": "تعذّر التحقق من التحديثات"
+      "checkFailedTitle": "تعذّر التحقق من التحديثات",
+      "progressSize": "جارٍ تنزيل التحديث... {{downloaded}} من {{total}} ({{percent}}%)",
+      "progressUnknown": "جارٍ تنزيل التحديث... {{downloaded}}",
+      "installingTitle": "جارٍ تثبيت التحديث...",
+      "restartTitle": "التحديث جاهز للتثبيت",
+      "restartDescription": "تم تنزيل VoxBar {{version}}. أعد التشغيل الآن لإكمال التثبيت.",
+      "restartNow": "إعادة التشغيل الآن",
+      "restartLater": "لاحقًا",
+      "installedDescription": "تم تثبيت VoxBar {{version}} وسيصبح نشطًا عند إعادة تشغيل VoxBar في المرة القادمة.",
+      "failedDescription": "تعذّر تنزيل التحديث. تحقق من اتصالك وحاول مجددًا، أو نزّله من GitHub Releases."
     }
   },
   "common": {

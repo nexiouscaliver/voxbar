@@ -868,6 +868,15 @@
       "whatsNewUpdates": {
         "label": "Hiển thị điểm mới",
         "description": "Hiển thị ghi chú phát hành sau khi VoxBar cập nhật"
+      },
+      "updatePolicy": {
+        "title": "Hành vi cập nhật",
+        "description": "Chọn việc kiểm tra tự động được phép làm khi tìm thấy bản cập nhật.",
+        "options": {
+          "ask": "Hỏi trước khi tải",
+          "download": "Tự động tải",
+          "install": "Tự động tải và cài đặt"
+        }
       }
     }
   },
@@ -890,11 +899,18 @@
       "availableDate": "Phát hành {{date}}",
       "downloadAction": "Tải xuống và cài đặt",
       "laterAction": "Để sau",
-      "progress": "Đang tải bản cập nhật... {{percent}}%",
-      "installRestart": "Đã tải bản cập nhật. Đang cài đặt và khởi động lại...",
       "failedTitle": "Cập nhật thất bại",
       "failedAction": "Mở bản phát hành trên GitHub",
-      "checkFailedTitle": "Không thể kiểm tra bản cập nhật"
+      "checkFailedTitle": "Không thể kiểm tra bản cập nhật",
+      "progressSize": "Đang tải bản cập nhật... {{downloaded}} / {{total}} ({{percent}}%)",
+      "progressUnknown": "Đang tải bản cập nhật... {{downloaded}}",
+      "installingTitle": "Đang cài đặt bản cập nhật...",
+      "restartTitle": "Bản cập nhật sẵn sàng cài đặt",
+      "restartDescription": "Đã tải xong VoxBar {{version}}. Khởi động lại ngay để hoàn tất cài đặt.",
+      "restartNow": "Khởi động lại ngay",
+      "restartLater": "Để sau",
+      "installedDescription": "VoxBar {{version}} đã được cài đặt và sẽ có hiệu lực lần tới VoxBar khởi động lại.",
+      "failedDescription": "Không thể tải bản cập nhật. Kiểm tra kết nối và thử lại, hoặc tải xuống từ GitHub Releases."
     }
   },
   "common": {

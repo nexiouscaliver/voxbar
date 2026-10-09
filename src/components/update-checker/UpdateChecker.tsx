@@ -23,15 +23,17 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
   const updateChecksEnabled =
     (settings?.update_checks_enabled ?? true) && updateChecksLocked === false;
 
-  // One silent check on startup once settings and the lock state are known;
-  // a toast appears only when an update actually exists. No polling loop.
+  // One check on startup once settings and the lock state are known; a toast
+  // appears only when an update actually exists. No polling loop. The
+  // trigger distinguishes this automatic pass (which obeys the user's update
+  // policy) from manual checks (which always ask).
   const hasAutoChecked = useRef(false);
   useEffect(() => {
     if (!settingsLoaded || !updateChecksEnabled || hasAutoChecked.current) {
       return;
     }
     hasAutoChecked.current = true;
-    void runUpdateCheck({ silent: true });
+    void runUpdateCheck({ silent: true, trigger: "auto" });
   }, [settingsLoaded, updateChecksEnabled]);
 
   if (!settingsLoaded) {
@@ -48,7 +50,7 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
 
   return (
     <button
-      onClick={() => void runUpdateCheck()}
+      onClick={() => void runUpdateCheck({ trigger: "manual" })}
       className={`text-text/60 hover:text-text/80 transition-colors tabular-nums ${className}`}
     >
       {t("footer.checkForUpdates")}

@@ -547,6 +547,14 @@ async changeNumberFormatSetting(format: NumberFormat) : Promise<Result<null, str
     else return { status: "error", error: e  as any };
 }
 },
+async changeUpdatePolicySetting(policy: UpdatePolicy) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_update_policy_setting", { policy }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeAppLanguageSetting(language: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_app_language_setting", { language }) };
@@ -1191,7 +1199,13 @@ shortcut_activation?: ShortcutActivation;
  * Hold-or-toggle only: a press held at least this long is push-to-talk,
  * anything shorter is a tap that locks recording on.
  */
-hold_threshold_ms?: number; audio_feedback?: boolean; audio_feedback_volume?: number; sound_theme?: SoundTheme; start_hidden?: boolean; autostart_enabled?: boolean; update_checks_enabled?: boolean; show_whats_new_on_update?: boolean; 
+hold_threshold_ms?: number; audio_feedback?: boolean; audio_feedback_volume?: number; sound_theme?: SoundTheme; start_hidden?: boolean; autostart_enabled?: boolean; update_checks_enabled?: boolean; 
+/**
+ * What the automatic startup check may do when it finds an update; see
+ * [`UpdatePolicy`]. Manual checks (tray item, footer, About button)
+ * always ask regardless of this setting.
+ */
+update_policy?: UpdatePolicy; show_whats_new_on_update?: boolean; 
 /**
  * The app version whose What's New the user has already seen. Fresh installs
  * default to the current version (nothing is "new" to them). Existing users
@@ -1616,6 +1630,16 @@ export type StreamWorkKind = "transcribing" | "polishing"
 export type Theme = "system" | "light" | "dark"
 export type TranscribeAcceleratorSetting = "auto" | "cpu" | "gpu"
 export type TypingTool = "auto" | "wtype" | "kwtype" | "dotool" | "ydotool" | "xdotool"
+/**
+ * What the startup update check may do without asking. `ask` is the release
+ * default because a tray-dwelling dictation app downloading ~20 MB on its
+ * own at launch is surprising behavior; `download` fetches in the background
+ * and still prompts before restarting; `install` swaps the bundle silently
+ * so the new version is simply active on the next launch (the restart
+ * prompt remains a prompt - the app never relaunches itself unprompted).
+ * Old stores without the key deserialize to `ask` via the derived default.
+ */
+export type UpdatePolicy = "ask" | "download" | "install"
 export type VadBackend = "silero" | "earshot"
 export type WindowsMicrophonePermissionStatus = { supported: boolean; overall_access: PermissionAccess; device_access: PermissionAccess; app_access: PermissionAccess; desktop_app_access: PermissionAccess }
 
