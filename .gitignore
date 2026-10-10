@@ -47,3 +47,6 @@ result
 __pycache__/
 
 src-tauri/vendor/handy-keys/target/
+
+# UI-round screenshot captures and DOM audits (the rig scripts stay tracked)
+ui-shots/round*/

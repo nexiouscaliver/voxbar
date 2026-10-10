@@ -646,7 +646,7 @@ fn type_text_via_xdotool(text: &str) -> Result<(), DirectTypingFailure> {
         .output()
     {
         Ok(cleanup_output) if !cleanup_output.status.success() => {
-            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stderr = String::from_utf8_lossy(&cleanup_output.stderr);
             log::warn!(
                 "xdotool modifier cleanup failed with status {:?}: {}",
                 cleanup_output.status.code(),
