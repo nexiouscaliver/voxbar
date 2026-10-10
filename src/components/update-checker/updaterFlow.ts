@@ -281,10 +281,16 @@ async function downloadUpdate(update: Update): Promise<boolean> {
 // plugin's install() exits the app whichever button was picked, so the
 // restart prompt's copy is platform-split (RestartPromptCard) to keep that
 // promise honest.
+//
+// Resolves false when the install itself failed: the failure has already
+// surfaced here (failure toast + OS notification via showFailureToast), so
+// the caller must not stack any "installed" claim on top of it (KB-094).
+// Resolves true when the bundle swap succeeded; a relaunch failure after a
+// successful swap still counts as installed (KB-210).
 async function finishInstall(
   update: Update,
   restartNow: boolean,
-): Promise<void> {
+): Promise<boolean> {
   const installId = "updater-install";
   try {
     logDecision("install_started", update.version);
@@ -309,10 +315,12 @@ async function finishInstall(
         });
       }
     }
+    return true;
   } catch (error) {
     console.error("Update install failed:", error);
     logDecision("install_failed", String(error));
     void showFailureToast(installId);
+    return false;
   }
 }
 
@@ -428,8 +436,14 @@ export async function runUpdateCheck(
       // Chrome-style: fetch and swap silently (no surprise window for a
       // tray app), then leave a persistent restart prompt.
       if (await downloadUpdate(update)) {
-        await finishInstall(update, false);
-        showRestartPrompt(update, true);
+        // KB-094: the restart prompt's autoInstalled copy asserts the
+        // update IS installed and fires a second OS notification, so it
+        // may only follow a successful swap - a failed install already
+        // surfaced its own failure toast and notification inside
+        // finishInstall.
+        if (await finishInstall(update, false)) {
+          showRestartPrompt(update, true);
+        }
       }
       release();
       return;
