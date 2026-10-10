@@ -9,6 +9,7 @@
     "unloadAfterNever": "從不",
     "unloadAfterCustom": "自訂…",
     "model": "模型",
+    "postProcessModel": "後處理模型",
     "quit": "結束",
     "cancel": "取消",
     "secureInputWarning": "⚠ 快捷鍵被 Secure Input 阻擋"
@@ -689,6 +690,23 @@
         "downloadFailed": "下載失敗：{{error}}",
         "deleteFailed": "無法刪除模型：{{error}}",
         "providerLabel": "本機（裝置上）"
+      },
+      "models": {
+        "title": "後處理模型",
+        "description": "在本機整理你聽寫文字的模型。小模型載入更快，大模型潤飾更好。",
+        "searchPlaceholder": "搜尋後處理模型",
+        "downloaded": "已下載",
+        "available": "可下載",
+        "active": "使用中",
+        "select": "使用",
+        "contextTokens": "上下文：{{count}} 詞元",
+        "publisher": "來自 {{publisher}}",
+        "noMatch": "沒有符合搜尋的後處理模型。",
+        "addFromHf": {
+          "title": "從 Hugging Face 新增後處理模型",
+          "description": "貼上公開儲存庫連結或 owner/repo。可新增語言模型 GGUF（Qwen、Llama、Gemma、Phi）。",
+          "added": "模型已新增，會顯示在已下載中。"
+        }
       },
       "prompts": {
         "title": "提示詞",

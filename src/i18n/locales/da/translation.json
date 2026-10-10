@@ -9,6 +9,7 @@
     "unloadAfterNever": "Aldrig",
     "unloadAfterCustom": "Brugerdefineret…",
     "model": "Model",
+    "postProcessModel": "Efterbehandlingsmodel",
     "quit": "Afslut",
     "cancel": "Annuller",
     "secureInputWarning": "⚠ Genveje blokeret af Secure Input"
@@ -689,6 +690,23 @@
         "downloadFailed": "Kunne ikke downloade: {{error}}",
         "deleteFailed": "Kunne ikke slette modellen: {{error}}",
         "providerLabel": "Lokalt (på enheden)"
+      },
+      "models": {
+        "title": "Efterbehandlingsmodeller",
+        "description": "De lokale modeller, der gør dine transskriptioner renere. Mindre modeller indlæses hurtigere, større giver bedre polering.",
+        "searchPlaceholder": "Søg i efterbehandlingsmodeller",
+        "downloaded": "Downloadet",
+        "available": "Kan downloades",
+        "active": "Aktiv",
+        "select": "Anvend",
+        "contextTokens": "Kontekst: {{count}} tokens",
+        "publisher": "af {{publisher}}",
+        "noMatch": "Ingen efterbehandlingsmodeller matcher din søgning.",
+        "addFromHf": {
+          "title": "Tilføj efterbehandlingsmodel fra Hugging Face",
+          "description": "Indsæt en offentlig repo-URL eller owner/repo. GGUF-filer med sprogmodeller (Qwen, Llama, Gemma, Phi) kan tilføjes.",
+          "added": "Modellen er tilføjet. Den vises under Downloadet."
+        }
       },
       "prompts": {
         "title": "Prompt",

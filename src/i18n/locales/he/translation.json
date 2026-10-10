@@ -9,6 +9,7 @@
     "unloadAfterNever": "אף פעם",
     "unloadAfterCustom": "מותאם אישית…",
     "model": "מודל",
+    "postProcessModel": "מודל לעיבוד לאחר",
     "quit": "יציאה",
     "cancel": "ביטול",
     "secureInputWarning": "⚠ קיצורי המקשים חסומים על ידי Secure Input"
@@ -689,6 +690,23 @@
         "downloadFailed": "ההורדה נכשלה: {{error}}",
         "deleteFailed": "לא ניתן למחוק את המודל: {{error}}",
         "providerLabel": "מקומי (במכשיר)"
+      },
+      "models": {
+        "title": "מודלים לעיבוד לאחר",
+        "description": "המודלים המקומיים שמנקים את התמלילים שלך. מודלים קטנים נטענים מהר יותר, גדולים משפרים יותר.",
+        "searchPlaceholder": "חיפוש מודלים לעיבוד לאחר",
+        "downloaded": "הורדו",
+        "available": "זמינים להורדה",
+        "active": "פעיל",
+        "select": "השתמש",
+        "contextTokens": "הקשר: {{count}} אסימונים",
+        "publisher": "מאת {{publisher}}",
+        "noMatch": "אין מודלים התואמים לחיפוש שלך.",
+        "addFromHf": {
+          "title": "הוספת מודל לעיבוד לאחר מ-Hugging Face",
+          "description": "הדביקו כתובת מאגר ציבורית או owner/repo. ניתן להוסיף קובצי GGUF של מודלי שפה (Qwen, Llama, Gemma, Phi).",
+          "added": "המודל נוסף. הוא מופיע תחת הורדו."
+        }
       },
       "prompts": {
         "title": "פרומפט",

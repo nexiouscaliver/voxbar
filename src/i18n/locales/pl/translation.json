@@ -9,6 +9,7 @@
     "unloadAfterNever": "Nigdy",
     "unloadAfterCustom": "Niestandardowe…",
     "model": "Model",
+    "postProcessModel": "Model postprocessingu",
     "quit": "Zamknij",
     "cancel": "Anuluj",
     "secureInputWarning": "⚠ Skróty zablokowane przez Secure Input"
@@ -689,6 +690,23 @@
         "downloadFailed": "Pobieranie nie powiodło się: {{error}}",
         "deleteFailed": "Nie udało się usunąć modelu: {{error}}",
         "providerLabel": "Lokalnie (na urządzeniu)"
+      },
+      "models": {
+        "title": "Modele postprocessingu",
+        "description": "Modele lokalne, które porządkują Twoje transkrypcje. Mniejsze modele ładują się szybciej, większe poprawiają lepiej.",
+        "searchPlaceholder": "Szukaj modeli postprocessingu",
+        "downloaded": "Pobrane",
+        "available": "Dostępne do pobrania",
+        "active": "Aktywny",
+        "select": "Użyj",
+        "contextTokens": "Kontekst: {{count}} tokenów",
+        "publisher": "od {{publisher}}",
+        "noMatch": "Żaden model nie pasuje do wyszukiwania.",
+        "addFromHf": {
+          "title": "Dodaj model postprocessingu z Hugging Face",
+          "description": "Wklej publiczny adres repozytorium lub owner/repo. Można dodawać pliki GGUF modeli językowych (Qwen, Llama, Gemma, Phi).",
+          "added": "Model dodany. Pojawi się w sekcji Pobrane."
+        }
       },
       "prompts": {
         "title": "Prompt",

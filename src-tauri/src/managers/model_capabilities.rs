@@ -50,6 +50,16 @@ pub const KNOWN_ARCHES: &[&str] = &[
     "sortformer",
 ];
 
+/// Architecture strings the local post-process LLM worker (llama.cpp) can
+/// load - the `general.architecture` value inside post-process GGUFs. This is
+/// the LLM counterpart of [`KNOWN_ARCHES`]: the voice add-from-HF flow refuses
+/// everything not in KNOWN_ARCHES (so LLM GGUFs can never register as ASR
+/// models), and the post-process add-from-HF flow refuses everything not in
+/// here (so an ASR GGUF like `whisper` can never register as a post-process
+/// model). The two lists are deliberately separate: no architecture should be
+/// loadable by both engines.
+pub const LLM_ARCHES: &[&str] = &["qwen3", "llama", "gemma3", "phi3", "phi4", "granite"];
+
 // GGUF metadata keys transcribe-cpp writes for ASR models.
 const KEY_ARCH: &str = "general.architecture";
 const KEY_NAME: &str = "general.name";
@@ -167,6 +177,16 @@ impl CapabilityProber for GgufHeaderProber {
 /// loading the (potentially multi-GB) tensor data. Grows the prefix
 /// geometrically if a header is unusually large.
 fn read_header_metadata(path: &Path) -> Result<GgufMetadata, GgufError> {
+    read_header_metadata_for(path, PROBE_KEYS)
+}
+
+/// Same geometric-prefix read as [`read_header_metadata`], but parses an
+/// arbitrary key set - e.g. the post-process flow's `{arch}.context_length`
+/// lookup, which the capability probe's fixed key set does not carry.
+pub(crate) fn read_header_metadata_for(
+    path: &Path,
+    wanted_keys: &[&str],
+) -> Result<GgufMetadata, GgufError> {
     // The KV metadata block precedes the tensor-info table. Shipping ASR models
     // place all of it well within the first 64 KiB, so that's the common-case
     // read. Older / community GGUFs may carry it deeper, so the loop grows the
@@ -197,7 +217,7 @@ fn read_header_metadata(path: &Path) -> Result<GgufMetadata, GgufError> {
     loop {
         let buf = read_prefix(path, size).map_err(|_| GgufError::Malformed("cannot read file"))?;
         let read_len = buf.len();
-        match gguf_meta::parse_header(&buf, PROBE_KEYS) {
+        match gguf_meta::parse_header(&buf, wanted_keys) {
             Ok(meta) => return Ok(meta),
             Err(GgufError::Truncated { needed }) => {
                 if read_len < size {

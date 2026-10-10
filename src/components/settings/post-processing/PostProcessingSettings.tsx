@@ -20,7 +20,7 @@ import { BaseUrlField } from "../PostProcessingSettingsApi/BaseUrlField";
 import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
 import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
-import { LocalLlmModelRow } from "./LocalLlmModelRow";
+import { PostProcessModelsSection } from "./PostProcessModelsSection";
 import { ShortcutInput } from "../ShortcutInput";
 import { useSettings } from "../../../hooks/useSettings";
 
@@ -74,9 +74,10 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
 
       {state.isLocalProvider ? (
         // The local on-device engine: no API fields, no model dropdown,
-        // just the pinned model row (spec 7.2). Everything else about the
-        // panel is unchanged.
-        <LocalLlmModelRow />
+        // just the models section (spec 7.2, generalized). The section
+        // itself renders the original pinned row unchanged until the user
+        // downloads or selects anything beyond the pinned model.
+        <PostProcessModelsSection />
       ) : state.isAppleProvider ? (
         state.appleIntelligenceUnavailable ? (
           <Alert variant="error" contained>

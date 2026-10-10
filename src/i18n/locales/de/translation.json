@@ -9,6 +9,7 @@
     "unloadAfterNever": "Nie",
     "unloadAfterCustom": "Benutzerdefiniert…",
     "model": "Modell",
+    "postProcessModel": "Nachbearbeitungsmodell",
     "quit": "Beenden",
     "cancel": "Abbrechen",
     "secureInputWarning": "⚠ Tastenkürzel durch Secure Input blockiert"
@@ -689,6 +690,23 @@
         "downloadFailed": "Herunterladen fehlgeschlagen: {{error}}",
         "deleteFailed": "Das Modell konnte nicht gelöscht werden: {{error}}",
         "providerLabel": "Lokal (auf dem Gerät)"
+      },
+      "models": {
+        "title": "Nachbearbeitungsmodelle",
+        "description": "Die lokalen Modelle, die deine Transkripte säubern. Kleinere Modelle laden schneller, größere polieren besser.",
+        "searchPlaceholder": "Nachbearbeitungsmodelle suchen",
+        "downloaded": "Heruntergeladen",
+        "available": "Zum Herunterladen verfügbar",
+        "active": "Aktiv",
+        "select": "Verwenden",
+        "contextTokens": "Kontext: {{count}} Tokens",
+        "publisher": "von {{publisher}}",
+        "noMatch": "Keine Nachbearbeitungsmodelle passen zu deiner Suche.",
+        "addFromHf": {
+          "title": "Nachbearbeitungsmodell von Hugging Face hinzufügen",
+          "description": "Füge eine öffentliche Repo-URL oder owner/repo ein. GGUF-Dateien von Sprachmodellen (Qwen, Llama, Gemma, Phi) können hinzugefügt werden.",
+          "added": "Modell hinzugefügt. Es erscheint unter Heruntergeladen."
+        }
       },
       "prompts": {
         "title": "Prompt",

@@ -9,6 +9,7 @@
     "unloadAfterNever": "Never",
     "unloadAfterCustom": "Custom…",
     "model": "Model",
+    "postProcessModel": "Post-process Model",
     "quit": "Quit",
     "cancel": "Cancel",
     "secureInputWarning": "⚠ Shortcuts blocked by Secure Input"
@@ -689,6 +690,23 @@
         "downloadFailed": "Download failed: {{error}}",
         "deleteFailed": "Could not delete the model: {{error}}",
         "providerLabel": "Local (on-device)"
+      },
+      "models": {
+        "title": "Post-process Models",
+        "description": "The local models that clean up your transcripts. Smaller models load faster; larger ones polish better.",
+        "searchPlaceholder": "Search post-process models",
+        "downloaded": "Downloaded",
+        "available": "Available to download",
+        "active": "Active",
+        "select": "Use",
+        "contextTokens": "Context: {{count}} tokens",
+        "publisher": "by {{publisher}}",
+        "noMatch": "No post-process models match your search.",
+        "addFromHf": {
+          "title": "Add post-process model from Hugging Face",
+          "description": "Paste a public repo URL or owner/repo. Language-model GGUFs (Qwen, Llama, Gemma, Phi) can be added.",
+          "added": "Model added. It appears under Downloaded."
+        }
       },
       "prompts": {
         "title": "Prompt",

@@ -24,7 +24,7 @@ use super::protocol::{self, WorkerRequest, WorkerResponse};
 use super::SkipReason;
 use crate::actions::{strip_invisible_chars, strip_think_block, TRANSCRIPTION_FIELD};
 use crate::managers::audio::AudioRecordingManager;
-use crate::managers::model::ModelManager;
+use crate::managers::model::{EngineType, ModelManager};
 use crate::managers::transcription::{
     decide_memory_gate, memory_gate_refusal_message, LoadingGuard, MemoryGateDecision,
     MemoryGateRefusalPayload, TranscriptionManager,
@@ -35,12 +35,12 @@ use crate::TranscriptionCoordinator;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use specta::Type;
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError};
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
@@ -194,10 +194,15 @@ impl Default for SwapTiming {
     }
 }
 
-/// The gate's inputs for the LLM load (spec section 4 / L4). `free` is the
+/// The gate's inputs for the LLM load (spec section 4 / L4), and - because
+/// the gate is the first phase that resolves the selection - the per-swap
+/// model plan the runner snapshots: `model_id` (whose measured RSS and
+/// catalog n_ctx apply), `model_path` (the file this swap loads), and
+/// `n_ctx`. Carrying all of it in one snapshot is what makes a mid-swap
+/// settings change harmless: the gate forecasted model A, so the swap loads
+/// model A whatever the setting says by the time LoadLlm runs. `free` is the
 /// resident-credited reading (probe + outgoing voice credit); the runner
-/// refuses on `None`-probe only by failing open, exactly like a voice
-/// load.
+/// refuses on `None`-probe only by failing open, exactly like a voice load.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct LlmGateInputs {
     pub guard_enabled: bool,
@@ -205,6 +210,32 @@ pub struct LlmGateInputs {
     pub headroom: u64,
     pub forecast: u64,
     pub model_name: String,
+    /// The resolved registry id this swap runs on
+    /// (settings.post_process_local_model_id, normalized).
+    pub model_id: String,
+    /// The resolved GGUF path for that id ("" when unresolvable).
+    pub model_path: String,
+    /// The per-model context window (catalog value, else the protocol
+    /// default).
+    pub n_ctx: u32,
+}
+
+impl LlmGateInputs {
+    /// Test/minimal constructor keeping the pinned-model defaults for the
+    /// plan fields, so existing call sites stay terse.
+    #[cfg(test)]
+    fn pinned_for_test(free: Option<u64>, forecast: u64) -> Self {
+        Self {
+            guard_enabled: true,
+            free,
+            headroom: 0,
+            forecast,
+            model_name: super::LOCAL_LLM_MODEL_NAME.to_string(),
+            model_id: super::LOCAL_LLM_MODEL_ID.to_string(),
+            model_path: String::new(),
+            n_ctx: protocol::WORKER_N_CTX,
+        }
+    }
 }
 
 /// The LLM gate wiring, pure (T14): the SAME decide_memory_gate as voice
@@ -221,7 +252,7 @@ pub(crate) fn gate_llm_load(inputs: &LlmGateInputs) -> MemoryGateDecision {
         inputs.forecast,
         inputs.headroom,
         Vec::new,
-        super::LOCAL_LLM_MODEL_ID,
+        &inputs.model_id,
     )
 }
 
@@ -295,11 +326,14 @@ pub(crate) trait SwapHost: Send + Sync {
     fn has_pending_press(&self) -> bool;
     /// A recording is live right now (the history-retry racer).
     fn is_recording(&self) -> bool;
-    /// The pinned model's resolved file path ("" when unresolvable).
-    fn model_path(&self) -> String;
+    /// The resolved file path for `model_id` ("" when unresolvable). Called
+    /// at Action::LoadLlm with the id the gate snapshot pinned, so a setting
+    /// change mid-swap can never swap the file under a forecast made for a
+    /// different model.
+    fn model_path(&self, model_id: &str) -> String;
     /// Emit the post-process skip event to the frontend.
     fn emit_skip(&self, reason: SkipReason, detail: Option<String>);
-    /// The memory gate's inputs for this swap (L4).
+    /// The memory gate's inputs + per-swap model plan for this swap (L4).
     fn gate_inputs(&self) -> LlmGateInputs;
 }
 
@@ -595,11 +629,38 @@ impl SwapEngine for ProcessEngine {
 /// The production host: everything the runner does to the app.
 struct AppSwapHost {
     app: AppHandle,
-    measured_rss: Arc<OnceLock<u64>>,
+    /// Per-model measured worker RSS (keyed by registry id), shared with the
+    /// LlmManager so every swap refines the forecast for the model it ran.
+    measured_rss: Arc<Mutex<HashMap<String, u64>>>,
+}
+
+/// The effective post-process model id for THIS app right now: the persisted
+/// `post_process_local_model_id`, normalized to the pinned builtin when the
+/// setting is empty or names an entry the registry no longer knows (deleted
+/// while selected). Shared by the swap host, the tray submenu, and the
+/// settings command so all three surfaces agree on one selection.
+pub(crate) fn selected_llm_model_id(app: &AppHandle) -> String {
+    let stored = get_settings(app).post_process_local_model_id;
+    if stored.is_empty() {
+        return super::LOCAL_LLM_MODEL_ID.to_string();
+    }
+    let known = app
+        .state::<Arc<ModelManager>>()
+        .get_model_info(&stored)
+        .is_some_and(|info| matches!(info.engine_type, EngineType::LocalLlm));
+    if known {
+        stored
+    } else {
+        warn!(
+            "post-process model '{}' is not in the registry; falling back to the pinned model",
+            stored
+        );
+        super::LOCAL_LLM_MODEL_ID.to_string()
+    }
 }
 
 impl AppSwapHost {
-    fn new(app: AppHandle, measured_rss: Arc<OnceLock<u64>>) -> Self {
+    fn new(app: AppHandle, measured_rss: Arc<Mutex<HashMap<String, u64>>>) -> Self {
         Self { app, measured_rss }
     }
 
@@ -608,6 +669,10 @@ impl AppSwapHost {
             .state::<Arc<TranscriptionManager>>()
             .inner()
             .clone()
+    }
+
+    fn mm(&self) -> Arc<ModelManager> {
+        self.app.state::<Arc<ModelManager>>().inner().clone()
     }
 }
 
@@ -648,12 +713,35 @@ impl SwapHost for AppSwapHost {
             .is_some_and(|a| a.is_recording())
     }
 
-    fn model_path(&self) -> String {
-        self.app
-            .state::<Arc<ModelManager>>()
-            .get_model_path(super::LOCAL_LLM_MODEL_ID)
-            .map(|p| p.to_string_lossy().into_owned())
-            .unwrap_or_default()
+    fn model_path(&self, model_id: &str) -> String {
+        let Ok(path) = self.mm().get_model_path(model_id) else {
+            return String::new();
+        };
+        // Cheap parent-side integrity check (spec 6.1, moved here from the
+        // worker when the engine went multi-model: only the parent knows
+        // each model's exact expected byte length). A mismatch means a
+        // corrupted or wrong cache file: hand back "" so the load fails and
+        // the caller falls back to the raw transcript (delete + re-download
+        // repairs it). The full sha256 was verified once at download.
+        let expected = if model_id == super::LOCAL_LLM_MODEL_ID {
+            Some(super::LOCAL_LLM_MODEL_SIZE_BYTES)
+        } else {
+            crate::catalog::llm::expected_size_bytes_for(model_id)
+        };
+        if let Some(expected) = expected {
+            if let Ok(meta) = std::fs::metadata(&path) {
+                if meta.len() != expected {
+                    warn!(
+                        "post-process model file is {} bytes but {} is {}; refusing to load it",
+                        meta.len(),
+                        model_id,
+                        expected
+                    );
+                    return String::new();
+                }
+            }
+        }
+        path.to_string_lossy().into_owned()
     }
 
     fn emit_skip(&self, reason: SkipReason, detail: Option<String>) {
@@ -662,21 +750,29 @@ impl SwapHost for AppSwapHost {
 
     fn gate_inputs(&self) -> LlmGateInputs {
         let settings = get_settings(&self.app);
-        let file_size_bytes = self
-            .app
-            .state::<Arc<ModelManager>>()
-            .get_model_info(super::LOCAL_LLM_MODEL_ID)
-            .map(|info| info.size_mb.saturating_mul(1024 * 1024))
+        let model_id = selected_llm_model_id(&self.app);
+        let info = self.mm().get_model_info(&model_id);
+        let file_size_bytes = info
+            .as_ref()
+            .map(|i| i.size_mb.saturating_mul(1024 * 1024))
             .unwrap_or_else(|| {
                 warn!("the local LLM model entry is missing; using the pinned size");
                 super::LOCAL_LLM_MODEL_SIZE_MB.saturating_mul(1024 * 1024)
             });
-        // L5: runtime-inclusive forecast; the measured RSS (captured after
-        // the first successful generation this launch) corrects the 3/2
-        // file-size floor once available. The same shared helper the voice
-        // gate composes through, so both gates forecast identically.
-        let forecast_bytes =
-            forecast::runtime_inclusive_bytes(file_size_bytes, self.measured_rss.get().copied());
+        let model_name = info
+            .as_ref()
+            .map(|i| i.name.clone())
+            .unwrap_or_else(|| super::LOCAL_LLM_MODEL_NAME.to_string());
+        let measured = self
+            .measured_rss
+            .lock()
+            .ok()
+            .and_then(|rss| rss.get(&model_id).copied());
+        // L5: runtime-inclusive forecast; THIS model's measured RSS (captured
+        // after its first successful generation this launch) corrects the 3/2
+        // file-size floor once available. Per-model keying means switching
+        // models never forecasts from a stale reading of a different model.
+        let forecast_bytes = forecast::runtime_inclusive_bytes(file_size_bytes, measured);
         // The voice model is still resident at gate time and its pages are
         // freed before the LLM's peak: credit its footprint back to free,
         // exactly like the voice loader's drop-old-first credit.
@@ -695,20 +791,24 @@ impl SwapHost for AppSwapHost {
                 .map(|free| free.saturating_add(credit)),
             headroom: settings.memory_gate_headroom_mb.saturating_mul(1024 * 1024),
             forecast: forecast_bytes,
-            model_name: "Qwen3 0.6B (post-process)".to_string(),
+            model_name,
+            n_ctx: crate::catalog::llm::context_tokens_for(&model_id),
+            model_path: self.model_path(&model_id),
+            model_id,
         }
     }
 }
 
 /// The exclusive swap manager: one swap at a time (`swap_running` is the
 /// L3 lease probe the delete paths consult), the lease mutex the runner
-/// actually holds, and this launch's measured worker RSS (never
-/// persisted).
+/// actually holds, and this launch's measured worker RSS keyed by model id
+/// (never persisted, never shared across models: a 0.6B reading must not
+/// vouch for a 4B model's footprint).
 #[derive(Clone)]
 pub struct LlmManager {
     lease: Arc<Mutex<()>>,
     swap_running: Arc<AtomicBool>,
-    measured_rss: Arc<OnceLock<u64>>,
+    measured_rss: Arc<Mutex<HashMap<String, u64>>>,
 }
 
 impl Default for LlmManager {
@@ -722,8 +822,25 @@ impl LlmManager {
         Self {
             lease: Arc::new(Mutex::new(())),
             swap_running: Arc::new(AtomicBool::new(false)),
-            measured_rss: Arc::new(OnceLock::new()),
+            measured_rss: Arc::new(Mutex::new(HashMap::new())),
         }
+    }
+
+    /// Record the measured worker RSS for one model after its first
+    /// successful generation this launch (L5 refinement input).
+    fn set_measured_rss(&self, model_id: &str, rss: u64) {
+        if let Ok(mut map) = self.measured_rss.lock() {
+            map.insert(model_id.to_string(), rss);
+        }
+    }
+
+    /// The measured RSS recorded for `model_id`, if any (test seam + the
+    /// gate's lookup through the shared map).
+    pub fn measured_rss_for(&self, model_id: &str) -> Option<u64> {
+        self.measured_rss
+            .lock()
+            .ok()
+            .and_then(|map| map.get(model_id).copied())
     }
 
     /// Whether a swap is running RIGHT NOW. A cheap, non-blocking probe
@@ -888,6 +1005,11 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
     let mut lease_guard: Option<MutexGuard<'_, ()>> = None;
     let mut processed: Option<String> = None;
     let mut signal: Option<Signal> = Some(Signal::Start);
+    // The per-swap model plan, snapshotted at the gate (the first phase
+    // that resolves the selection) and used for the load, the context, and
+    // the RSS refinement: a settings change between the gate and the load
+    // can never make the runner load a model the gate did not forecast.
+    let mut swap_model: Option<LlmGateInputs> = None;
 
     debug!("local post-process swap starting (context: {:?})", planner);
 
@@ -958,6 +1080,9 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                 }
                 Action::Gate => {
                     let inputs = cfg.host.gate_inputs();
+                    // Snapshot the plan for the rest of the swap (see
+                    // `swap_model` above) BEFORE the gate decision.
+                    swap_model = Some(inputs.clone());
                     match gate_llm_load(&inputs) {
                         MemoryGateDecision::Allow => {
                             signal = Some(Signal::GateAllowed);
@@ -1039,8 +1164,23 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                         timing.llm_load,
                         timing.total.saturating_sub(total_start.elapsed()),
                     );
-                    let path = cfg.host.model_path();
-                    let rx = engine.begin_load(path, protocol::WORKER_N_CTX);
+                    // Resolve the file and the context for the model the
+                    // gate snapshotted (fallback: the pinned plan, though
+                    // the planner always gates before loading). The path is
+                    // resolved HERE, inside the runner's own thread, so an
+                    // in-flight swap finishes on the model it started with.
+                    let plan = swap_model.clone().unwrap_or_else(|| LlmGateInputs {
+                        guard_enabled: true,
+                        free: None,
+                        headroom: 0,
+                        forecast: 0,
+                        model_name: super::LOCAL_LLM_MODEL_NAME.to_string(),
+                        model_id: super::LOCAL_LLM_MODEL_ID.to_string(),
+                        model_path: String::new(),
+                        n_ctx: protocol::WORKER_N_CTX,
+                    });
+                    let path = cfg.host.model_path(&plan.model_id);
+                    let rx = engine.begin_load(path, plan.n_ctx);
                     let deadline = Instant::now() + budget;
                     loop {
                         match rx.recv_timeout(timing.poll) {
@@ -1097,17 +1237,23 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                         match rx.recv_timeout(timing.poll) {
                             Ok(Ok(text)) => {
                                 // L5: capture the worker's RSS after the
-                                // first successful generation this launch
-                                // so later gates forecast from measurement.
-                                if let (None, Some(pid)) =
-                                    (llm.measured_rss.get(), engine.worker_pid())
+                                // first successful generation of THIS model
+                                // this launch, keyed per model id so later
+                                // gates forecast from their own model's
+                                // measurement, never a different model's.
+                                let plan_model = swap_model
+                                    .as_ref()
+                                    .map(|p| p.model_id.clone())
+                                    .unwrap_or_else(|| super::LOCAL_LLM_MODEL_ID.to_string());
+                                let already_measured = llm.measured_rss_for(&plan_model).is_some();
+                                if let (false, Some(pid)) = (already_measured, engine.worker_pid())
                                 {
                                     if let Some(rss) = memory::rss_bytes_for_pid(pid) {
-                                        let _ = llm.measured_rss.set(rss);
+                                        llm.set_measured_rss(&plan_model, rss);
                                         debug!(
-                                            "measured llm worker RSS: {} bytes (forecast \
+                                            "measured llm worker RSS: {} bytes for {} (forecast \
                                              refinement for later swaps)",
-                                            rss
+                                            rss, plan_model
                                         );
                                     }
                                 }
@@ -1296,6 +1442,33 @@ mod tests {
         immediately: Arc<AtomicBool>,
         gate_refuse: Arc<AtomicBool>,
         panic_at_restore: Arc<AtomicBool>,
+        /// The live selection the gate reads ("a" = pinned-like plan,
+        /// "b" = the other model). The mid-swap test flips it after the
+        /// gate to simulate the settings write landing mid-run.
+        selection: Arc<Mutex<&'static str>>,
+        flip_selection_after_gate: Arc<AtomicBool>,
+    }
+
+    /// Plan "a": the pinned-like default (path/forecast/n_ctx the older
+    /// tests were written against).
+    fn plan_a() -> (&'static str, String, u32, u64) {
+        (
+            "a",
+            "/nonexistent/qwen-smoke.gguf".to_string(),
+            protocol::WORKER_N_CTX,
+            mib(610) * 3 / 2,
+        )
+    }
+
+    /// Plan "b": a second catalog-style model with its own path and a
+    /// different per-model context.
+    fn plan_b() -> (&'static str, String, u32, u64) {
+        (
+            "b",
+            "/nonexistent/other-model-Q4_K_M.gguf".to_string(),
+            2048,
+            mib(1056) * 3 / 2,
+        )
     }
 
     impl FakeHost {
@@ -1314,6 +1487,8 @@ mod tests {
                 immediately: Arc::new(AtomicBool::new(false)),
                 gate_refuse: Arc::new(AtomicBool::new(false)),
                 panic_at_restore: Arc::new(AtomicBool::new(false)),
+                selection: Arc::new(Mutex::new("a")),
+                flip_selection_after_gate: Arc::new(AtomicBool::new(false)),
             }
         }
 
@@ -1323,6 +1498,15 @@ mod tests {
 
         fn skips_contain(&self, reason: SkipReason) -> bool {
             self.skips.lock().unwrap().iter().any(|(r, _)| *r == reason)
+        }
+
+        /// The plan the live selection names (id, path, n_ctx, forecast).
+        fn current_plan(&self) -> (&'static str, String, u32, u64) {
+            let key = *self.selection.lock().unwrap();
+            match key {
+                "b" => plan_b(),
+                _ => plan_a(),
+            }
         }
     }
 
@@ -1380,8 +1564,14 @@ mod tests {
             self.recording.load(Ordering::Acquire)
         }
 
-        fn model_path(&self) -> String {
-            "/nonexistent/qwen-smoke.gguf".to_string()
+        fn model_path(&self, model_id: &str) -> String {
+            // Per-id lookup, exactly like the real host's ModelManager
+            // resolution: the runner passes the gate-snapshotted id, so the
+            // LIVE selection cannot influence what an in-flight swap loads.
+            match model_id {
+                "b" => plan_b().1,
+                _ => plan_a().1,
+            }
         }
 
         fn emit_skip(&self, reason: SkipReason, detail: Option<String>) {
@@ -1390,12 +1580,25 @@ mod tests {
 
         fn gate_inputs(&self) -> LlmGateInputs {
             let refuse = self.gate_refuse.load(Ordering::Acquire);
+            let (id, path, n_ctx, forecast) = self.current_plan();
+            // The mid-swap mutation: after reading the plan, the "settings
+            // write" lands, flipping the live selection before LoadLlm.
+            if self.flip_selection_after_gate.load(Ordering::Acquire) {
+                *self.selection.lock().unwrap() = "b";
+            }
             LlmGateInputs {
                 guard_enabled: true,
                 free: Some(if refuse { mib(700) } else { mib(4096) }),
                 headroom: 0,
-                forecast: mib(610) * 3 / 2,
-                model_name: "Qwen3 0.6B (post-process)".to_string(),
+                forecast,
+                model_name: if id == "b" {
+                    "Other Model (post-process)".to_string()
+                } else {
+                    "Qwen3 0.6B (post-process)".to_string()
+                },
+                model_id: id.to_string(),
+                model_path: path,
+                n_ctx,
             }
         }
     }
@@ -1407,6 +1610,8 @@ mod tests {
         exited: AtomicBool,
         exit_sent: AtomicBool,
         generate_users: Mutex<Vec<String>>,
+        /// Every Load the engine received: (path, n_ctx).
+        loads: Mutex<Vec<(String, u32)>>,
     }
 
     struct FakeEngine {
@@ -1442,7 +1647,8 @@ mod tests {
     }
 
     impl SwapEngine for FakeEngine {
-        fn begin_load(&mut self, _path: String, _n_ctx: u32) -> Receiver<Result<(), String>> {
+        fn begin_load(&mut self, path: String, n_ctx: u32) -> Receiver<Result<(), String>> {
+            self.state.loads.lock().unwrap().push((path, n_ctx));
             let (tx, rx) = mpsc::channel();
             let result = self.load_result.clone();
             let delay = self.load_delay;
@@ -1575,11 +1781,9 @@ mod tests {
     #[test]
     fn llm_gate_wiring_refuses_with_real_numbers() {
         let refuse = LlmGateInputs {
-            guard_enabled: true,
             free: Some(mib(700)),
-            headroom: 0,
             forecast: mib(610) * 3 / 2,
-            model_name: "Qwen3 0.6B (post-process)".to_string(),
+            ..LlmGateInputs::pinned_for_test(None, 0)
         };
         assert_eq!(gate_llm_load(&refuse), MemoryGateDecision::Refuse);
 
@@ -1620,11 +1824,10 @@ mod tests {
         // The refusal message carries the real numbers (915 MB forecast
         // against 700 MB free), unit-consistent with voice refusals.
         let inputs = LlmGateInputs {
-            guard_enabled: true,
             free: Some(mib(700)),
             headroom: mib(256),
             forecast: mib(610) * 3 / 2,
-            model_name: "Qwen3 0.6B (post-process)".to_string(),
+            ..LlmGateInputs::pinned_for_test(None, 0)
         };
         let (payload, message) = gate_refusal(&inputs);
         assert_eq!(payload.forecast_bytes, mib(915));
@@ -1979,5 +2182,98 @@ mod tests {
             1,
             "the freshly loaded voice model must be restored after the swap unloads it"
         );
+    }
+
+    /// A selection change landing between the gate and the load (the
+    /// settings write racing an in-flight swap) must not affect the run: the
+    /// runner snapshotted model "a"'s plan at the gate and finishes on "a",
+    /// never on the newly selected "b".
+    #[test]
+    fn selection_change_after_gate_does_not_affect_the_in_flight_run() {
+        let llm = LlmManager::new();
+        let host = FakeHost::new();
+        host.flip_selection_after_gate
+            .store(true, Ordering::Release);
+        let (cfg, engine_state) = runner_cfg(
+            host,
+            FakeEngine::happy(Ok("{\"transcription\": \"Clean.\"}".to_string())),
+        );
+        let outcome = swap_runner(&llm, &sample_request(), cfg);
+        assert!(matches!(outcome, SwapOutcome::Processed(_)));
+        let loads = engine_state.loads.lock().unwrap().clone();
+        assert_eq!(loads.len(), 1, "exactly one load per swap");
+        assert_eq!(
+            loads[0],
+            (plan_a().1, plan_a().2),
+            "the in-flight swap must load the gate-snapshotted model (path AND its own n_ctx), \
+             not the newly selected one {:?}",
+            plan_b().1
+        );
+    }
+
+    /// The multi-model memory gate with REAL catalog numbers: the largest
+    /// seeded catalog model (Gemma 3 4B, 2374 MB at Q4_K_M) is refused on a
+    /// machine reporting 700 MB free, and the refusal payload carries that
+    /// model's own forecast - 2374 MiB * 3/2 = 3561 MiB - not the pinned
+    /// model's 915 MiB numbers.
+    #[test]
+    fn large_catalog_model_is_refused_with_its_own_forecast() {
+        let model_id = "unsloth/gemma-3-4b-it-GGUF/gemma-3-4b-it-Q4_K_M.gguf";
+        let model =
+            crate::catalog::llm::find(model_id).expect("the Gemma 3 4B catalog entry must exist");
+        let file_size = model.default_file().expect("default file").size_bytes;
+        let size_mb = file_size / (1024 * 1024);
+        let forecast = forecast::runtime_inclusive_bytes(size_mb * 1024 * 1024, None);
+
+        let inputs = LlmGateInputs {
+            free: Some(mib(700)),
+            forecast,
+            model_name: model.name.clone(),
+            model_id: model_id.to_string(),
+            model_path: "/nonexistent/gemma.gguf".to_string(),
+            n_ctx: crate::catalog::llm::context_tokens_for(model_id),
+            ..LlmGateInputs::pinned_for_test(None, 0)
+        };
+        assert_eq!(
+            gate_llm_load(&inputs),
+            MemoryGateDecision::Refuse,
+            "a 2.3 GB model against 700 MB free must be refused"
+        );
+        let (payload, message) = gate_refusal(&inputs);
+        assert_eq!(payload.forecast_bytes, mib(3561), "the per-model forecast");
+        assert_eq!(payload.free_bytes, mib(700));
+        // The formatter renders multi-GB forecasts in GB: Gemma's 3561 MiB
+        // shows as ~3.5 GB (the pinned model's 915 MiB would show in MB),
+        // so "3.5 GB" in the message proves the forecast is THIS model's.
+        assert!(
+            message.contains("3.5 GB"),
+            "the refusal message names the per-model forecast: {message}"
+        );
+        assert!(
+            message.contains("Gemma 3 4B"),
+            "the refusal names the model: {message}"
+        );
+        assert_eq!(inputs.n_ctx, crate::catalog::llm::DEFAULT_CONTEXT_TOKENS);
+    }
+
+    /// The measured-RSS refinement is per model id: a reading captured for
+    /// one model never vouches for another's footprint, and re-measuring
+    /// updates only that model's entry.
+    #[test]
+    fn measured_rss_is_keyed_per_model() {
+        let llm = LlmManager::new();
+        assert_eq!(llm.measured_rss_for("model-a"), None);
+        llm.set_measured_rss("model-a", mib(700));
+        assert_eq!(llm.measured_rss_for("model-a"), Some(mib(700)));
+        // A different model starts unmeasured regardless of model-a.
+        assert_eq!(
+            llm.measured_rss_for("model-b"),
+            None,
+            "a 0.6B reading must never vouch for another model"
+        );
+        // And its own measurement replaces only its own entry.
+        llm.set_measured_rss("model-b", mib(1500));
+        assert_eq!(llm.measured_rss_for("model-b"), Some(mib(1500)));
+        assert_eq!(llm.measured_rss_for("model-a"), Some(mib(700)));
     }
 }

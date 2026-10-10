@@ -938,44 +938,97 @@ async addHfModel(repoId: string, filename: string, revision: string | null) : Pr
     else return { status: "error", error: e  as any };
 }
 },
-async getLocalLlmModelStatus() : Promise<Result<LocalLlmModelStatus, string>> {
+async getLocalLlmModelStatus(modelId: string | null = null) : Promise<Result<LocalLlmModelStatus, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("get_local_llm_model_status") };
+    return { status: "ok", data: await TAURI_INVOKE("get_local_llm_model_status", { modelId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
 },
 /**
- * Download the pinned post-process model through the standard
- * ModelManager pipeline (progress events included), then verify the
- * sha256 ONCE against the pinned constant (spec 6.1, reviewer finding
- * R12): a mismatch deletes the file and errors so the entry reads
- * not-downloaded again (delete + re-download repairs any corruption).
+ * Every post-process model (catalog + pinned + user-added) with its card
+ * metadata and the selection flag. The settings section and the tray
+ * submenu both read this; nothing else should (ASR surfaces keep using
+ * get_available_models, which filters LocalLlm entries out).
  */
-async downloadLocalLlmModel() : Promise<Result<null, string>> {
+async getAvailableLlmModels() : Promise<Result<LlmModelEntry[], string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("download_local_llm_model") };
+    return { status: "ok", data: await TAURI_INVOKE("get_available_llm_models") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
 },
 /**
- * Delete the local post-process model. Refuses with a transient error
- * while a post-process swap is running (L3): the swap may be about to
- * restore a voice model file this delete would remove.
- * 
+ * Download a post-process model through the standard ModelManager pipeline
+ * (progress events included, into the dedicated llm-models cache), then
+ * verify the sha256 ONCE against the trust anchor (spec 6.1, reviewer
+ * finding R12): a mismatch deletes the file and errors so the entry reads
+ * not-downloaded again (delete + re-download repairs any corruption).
+ * modelId null downloads the pinned builtin, exactly as before.
+ */
+async downloadLocalLlmModel(modelId: string | null = null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("download_local_llm_model", { modelId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Delete a post-process model. Refuses with a transient error while a
+ * post-process swap is running (L3): the swap may be about to restore a
+ * voice model file this delete would remove. Deleting the SELECTED model
+ * resets the selection to the pinned builtin.
+ *
  * DEVIATION 2 (flagged in the plan): unlike the voice-model delete path,
  * there is no unload-with-wait here. The LLM worker exists only inside a
  * swap, and the lease check above has already excluded swaps; outside a
- * swap there is never a resident LLM engine to unload. The comment
- * documents this instead of adding an unload call that can never find a
- * worker.
+ * swap there is never a resident LLM engine to unload.
  */
-async deleteLocalLlmModel() : Promise<Result<null, string>> {
+async deleteLocalLlmModel(modelId: string | null = null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("delete_local_llm_model") };
+    return { status: "ok", data: await TAURI_INVOKE("delete_local_llm_model", { modelId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Persist the post-process model selection (shared by the settings section
+ * and the tray submenu). The model must be a downloaded LocalLlm entry.
+ */
+async setPostProcessLocalModel(modelId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_post_process_local_model", { modelId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Resolve pasted Hugging Face input for the POST-PROCESS add flow (same
+ * listing shape as the voice flow; the suggested file prefers the smaller
+ * LLM quants).
+ */
+async resolveLlmHfModel(input: string) : Promise<Result<HfModelResolution, HfModelError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("resolve_llm_hf_model", { input }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Download a specific GGUF from a Hugging Face repo and register it as a
+ * post-process model, gated on the LLM architecture allowlist: an
+ * unsupported architecture is refused, the blob deleted, and the error
+ * names the architecture and supported families.
+ */
+async addLlmHfModel(repoId: string, filename: string, revision: string | null) : Promise<Result<string, HfModelError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("add_llm_hf_model", { repoId, filename, revision }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1328,7 +1381,7 @@ menu_bar_model_title?: boolean; word_correction_threshold?: number; history_limi
 /**
  * Show the compact per-entry model badge in the History list.
  */
-show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_timeout_secs?: number; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; 
+show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_timeout_secs?: number; post_process_provider_id?: string; post_process_local_model_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null;
 /**
  * One-time marker for the local-default post-process migration (spec
  * 5.2): absent on legacy stores (the migration fires once), true on
@@ -1565,12 +1618,18 @@ export type LLMPrompt = { id: string; name: string; prompt: string }
 /**
  * Status snapshot for the settings row (spec 6.2).
  */
-export type LocalLlmModelStatus = { downloaded: boolean; downloading: boolean; size_mb: number; 
+export type LocalLlmModelStatus = { downloaded: boolean; downloading: boolean; size_mb: number;
 /**
  * 0 to 100 while downloading (partial bytes over the total); 0 or 100
  * otherwise.
  */
 progress: number }
+/**
+ * One post-process model as the settings section and tray see it: the
+ * shared ModelInfo plus the LLM-specific card fields the ASR shape does
+ * not carry.
+ */
+export type LlmModelEntry = { info: ModelInfo; quant: string; context_tokens: number; publisher: string; selected: boolean }
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type ModelInfo = { id: string; name: string; description: string; filename: string; source: ModelSource; size_mb: number; is_downloaded: boolean; is_downloading: boolean; partial_size: number; is_directory: boolean; engine_type: EngineType; accuracy_score: number; speed_score: number; supports_translation: boolean; is_recommended: boolean; supported_languages: string[]; supports_language_selection: boolean; is_custom: boolean; supports_streaming: boolean; supports_language_detection: boolean }
 export type ModelLoadStatus = { is_loaded: boolean; current_model: string | null }

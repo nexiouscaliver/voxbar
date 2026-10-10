@@ -13,9 +13,13 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Context window the worker opens. Budgeted so the system prompt and
-/// template wrapping (256-token reserve) plus the 1200-est-token input cap
-/// plus the minimum 192-token output floor always fit with margin.
+/// Context window the worker opens when a model carries no per-model value.
+/// Budgeted so the system prompt and template wrapping (256-token reserve)
+/// plus the 1200-est-token input cap plus the minimum 192-token output floor
+/// always fit with margin. The Load frame's `n_ctx` is PER MODEL: the parent
+/// resolves it from the post-process LLM catalog (`context_tokens`, default
+/// this constant) for whichever model the gate snapshotted, so a larger
+/// operating context for a future entry needs no protocol change.
 pub const WORKER_N_CTX: u32 = 4096;
 
 /// A request from the parent, one per line.

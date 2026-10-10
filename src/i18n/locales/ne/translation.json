@@ -9,6 +9,7 @@
     "unloadAfterNever": "कहिल्यै होइन",
     "unloadAfterCustom": "अनुकूल…",
     "model": "मोडेल",
+    "postProcessModel": "पोस्ट-प्रोसेस मोडेल",
     "quit": "बाहिर निस्कनुहोस्",
     "cancel": "रद्द गर्नुहोस्",
     "secureInputWarning": "⚠ Secure Input ले सर्टकटहरू रोकेको छ"
@@ -689,6 +690,23 @@
         "downloadFailed": "डाउनलोड असफल: {{error}}",
         "deleteFailed": "मोडेल मेट्न सकिएन: {{error}}",
         "providerLabel": "स्थानीय (उपकरणमा)"
+      },
+      "models": {
+        "title": "पोस्ट-प्रोसेस मोडेलहरू",
+        "description": "तपाईंको ट्रान्सक्रिप्ट सफा गर्ने स्थानीय मोडेलहरू। साना मोडेल छिटो लोड हुन्छन्, ठूलाले राम्रो सफा गर्छन्।",
+        "searchPlaceholder": "पोस्ट-प्रोसेस मोडेल खोज्नुहोस्",
+        "downloaded": "डाउनलोड गरिएको",
+        "available": "डाउनलोडका लागि उपलब्ध",
+        "active": "सक्रिय",
+        "select": "प्रयोग गर्नुहोस्",
+        "contextTokens": "सन्दर्भ: {{count}} टोकन",
+        "publisher": "{{publisher}} द्वारा",
+        "noMatch": "तपाईंको खोजीसँग मिल्ने मोडेल छैन।",
+        "addFromHf": {
+          "title": "Hugging Face बाट पोस्ट-प्रोसेस मोडेल थप्नुहोस्",
+          "description": "सार्वजनिक रेपो URL वा owner/repo टाँस्नुहोस्। भाषा-मोडेल GGUF (Qwen, Llama, Gemma, Phi) थप्न सकिन्छ।",
+          "added": "मोडेल थपियो। डाउनलोड गरिएकोमा देखिन्छ।"
+        }
       },
       "prompts": {
         "title": "प्रम्प्ट",

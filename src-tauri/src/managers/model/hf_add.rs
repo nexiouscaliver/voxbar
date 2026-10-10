@@ -23,7 +23,7 @@
 use super::{hf_cached_path, local_caps, probed_display_name};
 use crate::managers::model::{EngineType, ModelInfo, ModelManager, ModelSource};
 use crate::managers::model_capabilities::{
-    CapabilityProbe, CapabilityProber, Compatibility, GgufHeaderProber, KNOWN_ARCHES,
+    CapabilityProbe, CapabilityProber, Compatibility, GgufHeaderProber, KNOWN_ARCHES, LLM_ARCHES,
 };
 use hf_hub::api::tokio::ApiBuilder;
 use hf_hub::{Repo, RepoType};
@@ -265,6 +265,21 @@ pub enum HfModelError {
 /// token), else the largest file overall. Ties break by filename so the
 /// choice is deterministic. Sizes the API did not report count as 0.
 pub fn preferred_gguf<'a>(files: &'a [HfRepoFile]) -> Option<&'a HfRepoFile> {
+    preferred_gguf_by(files, QUANT_PREFERENCE)
+}
+
+/// Quantization preference for the POST-PROCESS add flow: smaller default
+/// quants first (the swap engine is sized for small models), unlike the voice
+/// flow's accuracy-first Q8_0 ordering.
+const LLM_QUANT_PREFERENCE: &[&str] = &["Q4_K_M", "Q6_K", "Q5_K_M", "Q8_0"];
+
+/// [`preferred_gguf`]'s engine-specific sibling for post-process LLM repos.
+pub fn preferred_llm_gguf<'a>(files: &'a [HfRepoFile]) -> Option<&'a HfRepoFile> {
+    preferred_gguf_by(files, LLM_QUANT_PREFERENCE)
+}
+
+/// The shared first-token-then-largest rule behind both preferences.
+fn preferred_gguf_by<'a>(files: &'a [HfRepoFile], preference: &[&str]) -> Option<&'a HfRepoFile> {
     let size_of = |f: &HfRepoFile| f.size_bytes.unwrap_or(0);
     let mut candidates: Vec<&HfRepoFile> = files.iter().collect();
     candidates.sort_by(|a, b| {
@@ -273,7 +288,7 @@ pub fn preferred_gguf<'a>(files: &'a [HfRepoFile]) -> Option<&'a HfRepoFile> {
             .then_with(|| a.filename.cmp(&b.filename))
     });
 
-    for token in QUANT_PREFERENCE {
+    for token in preference {
         if let Some(best) = candidates
             .iter()
             .copied()
@@ -486,6 +501,127 @@ fn verify_supported_architecture(probe: &CapabilityProbe) -> Result<(), HfModelE
     })
 }
 
+/// The LLM flow's architecture gate: the mirror image of
+/// [`verify_supported_architecture`]. A GGUF must declare an architecture the
+/// llama.cpp worker can load ([`LLM_ARCHES`]) - which, because the two tables
+/// are disjoint, simultaneously guarantees the voice flow would refuse it.
+fn verify_supported_llm_architecture(probe: &CapabilityProbe) -> Result<(), HfModelError> {
+    let ok = probe
+        .architecture
+        .as_deref()
+        .is_some_and(|arch| LLM_ARCHES.contains(&arch));
+    if ok {
+        return Ok(());
+    }
+    Err(HfModelError::UnsupportedArchitecture {
+        architecture: probe.architecture.clone(),
+        supported: LLM_ARCHES.iter().map(|s| s.to_string()).collect(),
+    })
+}
+
+/// The model's own declared context length (`{arch}.context_length` in the
+/// GGUF header), when present and sane. Clamped to the swap engine's
+/// operating band: the token budgets in `local_llm::forecast` are designed
+/// around 4096-token contexts, so an advertised 128k native window is NOT a
+/// reason to allocate one.
+pub(super) fn probe_llm_context_tokens(path: &std::path::Path) -> Option<u32> {
+    use crate::managers::model_capabilities::read_header_metadata_for;
+    const KEY_ARCH: &str = "general.architecture";
+    let probe = GgufHeaderProber.probe_file(path);
+    let arch = probe.architecture?;
+    let key = format!("{arch}.context_length");
+    let meta = read_header_metadata_for(path, &[KEY_ARCH, key.as_str()]).ok()?;
+    let ctx = meta.get_u32(&key)?;
+    if (256..=32 * 1024).contains(&ctx) {
+        Some(ctx)
+    } else {
+        None
+    }
+}
+
+/// Registry entry for a user-added post-process LLM repo file: the
+/// `EngineType::LocalLlm` sibling of [`user_added_hf_model_info`],
+/// field-compatible with what `discover_llm_cache_models` derives, so the
+/// entry created here and the one a later scan re-derives are the same id
+/// with the same shape. `is_custom: true` gives it the vanish-when-missing
+/// semantics a discovery-born entry needs.
+pub(super) fn user_added_llm_model_info(
+    repo_id: &str,
+    revision: &str,
+    filename: &str,
+    probe: Option<&CapabilityProbe>,
+    context_tokens: Option<u32>,
+) -> ModelInfo {
+    let display = probe
+        .and_then(probed_display_name)
+        .unwrap_or_else(|| filename.trim_end_matches(".gguf").to_string());
+    let info = ModelInfo {
+        id: format!("{}/{}", repo_id, filename),
+        name: display,
+        description: format!("Local post-process model from Hugging Face: {}", repo_id),
+        filename: filename.to_string(),
+        source: ModelSource::HuggingFace {
+            repo_id: repo_id.to_string(),
+            revision: revision.to_string(),
+        },
+        size_mb: 0,
+        is_downloaded: false,
+        is_downloading: false,
+        partial_size: 0,
+        is_directory: false,
+        engine_type: EngineType::LocalLlm,
+        accuracy_score: 0.0,
+        speed_score: 0.0,
+        supports_translation: false,
+        is_recommended: false,
+        supported_languages: Vec::new(),
+        supports_language_selection: false,
+        is_custom: true,
+        supports_streaming: false,
+        supports_language_detection: false,
+    };
+    if let Some(ctx) = context_tokens {
+        crate::catalog::llm::register_dynamic_context(&info.id, ctx);
+    }
+    info
+}
+
+/// Resolve pasted input against the Hub for the POST-PROCESS flow: same
+/// parse + listing pipeline as [`resolve_hf_repo`], but the suggestion uses
+/// the smaller-first LLM quant preference.
+pub async fn resolve_llm_hf_repo(raw: &str) -> Result<HfModelResolution, HfModelError> {
+    let parsed = parse_hf_input(raw).map_err(|detail| HfModelError::InvalidInput { detail })?;
+    let revision = parsed
+        .revision
+        .clone()
+        .unwrap_or_else(|| "main".to_string());
+    let (sha, files) = list_repo_ggufs(&parsed.repo_id, &revision).await?;
+    if files.is_empty() {
+        return Err(HfModelError::NoGgufFiles {
+            repo_id: parsed.repo_id,
+        });
+    }
+    if let Some(wanted) = parsed.filename.as_deref() {
+        if !files.iter().any(|f| f.filename == wanted) {
+            return Err(HfModelError::FileNotFound {
+                repo_id: parsed.repo_id,
+                filename: wanted.to_string(),
+            });
+        }
+    }
+    let suggested_filename = parsed
+        .filename
+        .clone()
+        .or_else(|| preferred_llm_gguf(&files).map(|f| f.filename.clone()))
+        .unwrap_or_else(|| files[0].filename.clone());
+    Ok(HfModelResolution {
+        repo_id: parsed.repo_id,
+        revision: sha,
+        files,
+        suggested_filename,
+    })
+}
+
 impl ModelManager {
     /// Register, download, and architecture-check a user-added Hugging Face
     /// model. Returns the registry id (`"{repo_id}/{filename}"`).
@@ -619,6 +755,135 @@ impl ModelManager {
         if models.get(model_id).is_none_or(|m| !m.is_downloaded) {
             models.remove(model_id);
         }
+    }
+
+    /// The post-process sibling of [`Self::add_hf_model`]: register a
+    /// user-added Hugging Face GGUF as an `EngineType::LocalLlm` entry,
+    /// download it through the ordinary pipeline (which routes into the
+    /// dedicated llm-models cache), and gate registration on the LLM
+    /// architecture allowlist - the mirror image of the voice flow's
+    /// KNOWN_ARCHES gate, so an ASR GGUF (`whisper`, `parakeet`, ...) can
+    /// never register as a post-process model and vice versa.
+    pub async fn add_llm_hf_model(
+        &self,
+        repo_id: &str,
+        filename: &str,
+        revision: Option<&str>,
+    ) -> Result<String, HfModelError> {
+        let revision = revision.unwrap_or("main");
+        let model_id = format!("{}/{}", repo_id, filename);
+
+        // Was the file already on disk (another tool, or an earlier add)? The
+        // download then short-circuits, and a later refusal must not delete
+        // bytes this flow never fetched. LocalLlm files live in the dedicated
+        // llm cache (with the shared caches as grandfather fallback).
+        let preexisting = self
+            .get_model_info(&model_id)
+            .is_some_and(|m| m.is_downloaded)
+            || self.models_dir.join(filename).exists();
+
+        // Register the provisional entry unless the registry already knows
+        // the id (an LLM catalog entry, an earlier discovery, or a prior add).
+        let inserted_by_us = if self.get_model_info(&model_id).is_none() {
+            let mut info = user_added_llm_model_info(repo_id, revision, filename, None, None);
+            info.is_downloading = true;
+            self.available_models
+                .lock()
+                .unwrap()
+                .insert(model_id.clone(), info);
+            let _ = self.app_handle.emit("models-updated", ());
+            true
+        } else {
+            false
+        };
+
+        if let Err(e) = self.download_model(&model_id).await {
+            let detail = e.to_string();
+            info!(
+                "Add LLM from Hugging Face failed to download {}: {}",
+                model_id, detail
+            );
+            self.remove_added_entry(&model_id, inserted_by_us);
+            if detail.contains("401") || detail.contains("403") {
+                return Err(HfModelError::Inaccessible {
+                    repo_id: repo_id.to_string(),
+                });
+            }
+            let _ = self.app_handle.emit(
+                "model-download-failed",
+                serde_json::json!({
+                    "model_id": &model_id,
+                    "error": &detail,
+                    "name": filename.trim_end_matches(".gguf"),
+                }),
+            );
+            return Err(HfModelError::DownloadFailed { detail });
+        }
+
+        // download_model returns Ok on user cancel (partial kept), so verify
+        // the file actually landed before probing.
+        let path = match self.get_model_path(&model_id) {
+            Ok(path) => path,
+            Err(_) => {
+                self.remove_added_entry(&model_id, inserted_by_us);
+                return Err(HfModelError::Cancelled);
+            }
+        };
+
+        let probe = GgufHeaderProber.probe_file(&path);
+        if let Err(error) = verify_supported_llm_architecture(&probe) {
+            warn!(
+                "Refusing to add LLM {}: unsupported architecture {:?}",
+                model_id, probe.architecture
+            );
+            self.remove_added_entry(&model_id, inserted_by_us);
+            if !preexisting {
+                let _ = self.delete_cached_file_for(&user_added_llm_model_info(
+                    repo_id, revision, filename, None, None,
+                ));
+            }
+            let summary = match probe.architecture.as_deref() {
+                Some(arch) => format!(
+                    "architecture {} is not supported for post-processing (supported: {})",
+                    arch,
+                    LLM_ARCHES.join(", ")
+                ),
+                None => "file could not be read as a GGUF model".to_string(),
+            };
+            let _ = self.app_handle.emit(
+                "model-download-failed",
+                serde_json::json!({ "model_id": &model_id, "error": &summary }),
+            );
+            let _ = self.app_handle.emit("models-updated", ());
+            return Err(error);
+        }
+
+        // Enrich our entry from the probe (display name, real size, the
+        // model's own context length) so it matches what the llm-cache
+        // discovery re-derives later. A pre-existing entry keeps its
+        // (richer) catalog metadata.
+        if inserted_by_us {
+            let context_tokens = probe_llm_context_tokens(&path);
+            let mut enriched = user_added_llm_model_info(
+                repo_id,
+                revision,
+                filename,
+                Some(&probe),
+                context_tokens,
+            );
+            enriched.size_mb = path
+                .metadata()
+                .map(|m| m.len() / (1024 * 1024))
+                .unwrap_or(0);
+            enriched.is_downloaded = true;
+            self.available_models
+                .lock()
+                .unwrap()
+                .insert(model_id.clone(), enriched);
+        }
+        let _ = self.app_handle.emit("models-updated", ());
+        info!("Added post-process LLM from Hugging Face: {}", model_id);
+        Ok(model_id)
     }
 }
 
@@ -852,6 +1117,97 @@ mod tests {
         assert!(!info.is_downloaded);
         assert!(!info.supports_streaming);
         assert!(info.supported_languages.is_empty());
+    }
+
+    /// The two architecture gates are mirrors: LLM archs (qwen3, llama,
+    /// gemma3, ...) pass the LLM path and are refused by the voice path;
+    /// ASR-only archs (whisper) pass the voice path and are refused by the
+    /// LLM path. Neither flow can ever register a model for the wrong
+    /// engine.
+    #[test]
+    fn llm_architecture_gate_mirrors_the_voice_gate() {
+        for arch in ["qwen3", "llama", "gemma3", "phi3", "phi4"] {
+            assert!(
+                verify_supported_llm_architecture(&probe_with_arch(Some(arch))).is_ok(),
+                "{arch} must pass the LLM gate"
+            );
+            assert!(
+                verify_supported_architecture(&probe_with_arch(Some(arch))).is_err(),
+                "{arch} must STILL be refused by the voice gate"
+            );
+        }
+
+        // ASR-only archs: refused on the LLM path, error naming the LLM
+        // allowlist.
+        let err = verify_supported_llm_architecture(&probe_with_arch(Some("whisper")))
+            .expect_err("whisper is not a post-process architecture");
+        match err {
+            HfModelError::UnsupportedArchitecture {
+                architecture,
+                supported,
+            } => {
+                assert_eq!(architecture.as_deref(), Some("whisper"));
+                assert_eq!(
+                    supported,
+                    LLM_ARCHES.iter().map(|s| s.to_string()).collect::<Vec<_>>()
+                );
+            }
+            other => panic!("expected UnsupportedArchitecture, got {:?}", other),
+        }
+        assert!(verify_supported_architecture(&probe_with_arch(Some("whisper"))).is_ok());
+
+        // Unreadable GGUFs name no architecture and are refused by both.
+        assert!(verify_supported_llm_architecture(&probe_with_arch(None)).is_err());
+    }
+
+    /// The user-added LLM entry shape: LocalLlm engine, custom flag on (so
+    /// it vanishes with its file), HF source pinning the revision - the
+    /// same fields the llm-cache discovery re-derives on restart.
+    #[test]
+    fn user_added_llm_entry_matches_the_llm_discovery_shape() {
+        let info = user_added_llm_model_info("org/repo", "main", "model-Q8_0.gguf", None, None);
+        assert_eq!(info.id, "org/repo/model-Q8_0.gguf");
+        assert_eq!(info.name, "model-Q8_0");
+        assert!(matches!(info.engine_type, EngineType::LocalLlm));
+        assert!(info.is_custom, "user-added LLMs vanish with their file");
+        assert!(!info.is_downloaded);
+        assert!(matches!(
+            &info.source,
+            ModelSource::HuggingFace { repo_id, revision }
+                if repo_id == "org/repo" && revision == "main"
+        ));
+        // A probed context is registered for the runner under the entry's id.
+        user_added_llm_model_info("org/repo2", "main", "model.gguf", None, Some(8192));
+        assert_eq!(
+            crate::catalog::llm::context_tokens_for("org/repo2/model.gguf"),
+            8192
+        );
+    }
+
+    /// The LLM suggestion prefers smaller quants first (the swap engine is
+    /// sized for small models), the inverse of the voice flow's Q8_0-first
+    /// order.
+    #[test]
+    fn llm_quant_preference_is_smaller_first() {
+        let files = vec![
+            file("model-Q3_K_M.gguf", Some(300)),
+            file("model-Q4_K_M.gguf", Some(400)),
+            file("model-Q6_K.gguf", Some(550)),
+            file("model-Q8_0.gguf", Some(700)),
+        ];
+        assert_eq!(
+            preferred_llm_gguf(&files).map(|f| f.filename.as_str()),
+            Some("model-Q4_K_M.gguf")
+        );
+        // Without any preferred quant: largest file wins, same as voice.
+        let no_preferred = vec![
+            file("model-IQ2_XS.gguf", Some(120)),
+            file("model-F16.gguf", Some(1600)),
+        ];
+        assert_eq!(
+            preferred_llm_gguf(&no_preferred).map(|f| f.filename.as_str()),
+            Some("model-F16.gguf")
+        );
     }
 
     // --- persistence across rescan/restart -------------------------------

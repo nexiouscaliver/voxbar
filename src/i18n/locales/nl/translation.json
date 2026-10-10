@@ -9,6 +9,7 @@
     "unloadAfterNever": "Nooit",
     "unloadAfterCustom": "Aangepast…",
     "model": "Model",
+    "postProcessModel": "Postprocesmodel",
     "quit": "Afsluiten",
     "cancel": "Annuleren",
     "secureInputWarning": "⚠ Sneltoetsen geblokkeerd door Secure Input"
@@ -689,6 +690,23 @@
         "downloadFailed": "Downloaden mislukt: {{error}}",
         "deleteFailed": "Kon het model niet verwijderen: {{error}}",
         "providerLabel": "Lokaal (op het apparaat)"
+      },
+      "models": {
+        "title": "Postprocesmodellen",
+        "description": "De lokale modellen die je transcripties opschonen. Kleinere modellen laden sneller, grotere poesten beter.",
+        "searchPlaceholder": "Postprocesmodellen zoeken",
+        "downloaded": "Gedownload",
+        "available": "Beschikbaar om te downloaden",
+        "active": "Actief",
+        "select": "Gebruiken",
+        "contextTokens": "Context: {{count}} tokens",
+        "publisher": "door {{publisher}}",
+        "noMatch": "Geen postprocesmodellen die aan je zoekopdracht voldoen.",
+        "addFromHf": {
+          "title": "Postprocesmodel toevoegen vanaf Hugging Face",
+          "description": "Plak een openbare repo-URL of owner/repo. GGUFs van taalmodellen (Qwen, Llama, Gemma, Phi) kunnen worden toegevoegd.",
+          "added": "Model toegevoegd. Het staat bij Gedownload."
+        }
       },
       "prompts": {
         "title": "Prompt",

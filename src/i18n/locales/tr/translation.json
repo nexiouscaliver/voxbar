@@ -9,6 +9,7 @@
     "unloadAfterNever": "Asla",
     "unloadAfterCustom": "Özel…",
     "model": "Model",
+    "postProcessModel": "Son işlem modeli",
     "quit": "Çıkış",
     "cancel": "İptal",
     "secureInputWarning": "⚠ Kısayollar Secure Input tarafından engelleniyor"
@@ -689,6 +690,23 @@
         "downloadFailed": "İndirme başarısız: {{error}}",
         "deleteFailed": "Model silinemedi: {{error}}",
         "providerLabel": "Yerel (cihazda)"
+      },
+      "models": {
+        "title": "Son işlem modelleri",
+        "description": "Transkriptlerinizi temizleyen yerel modeller. Küçük modeller daha hızlı yüklenir, büyükler daha iyi düzeltir.",
+        "searchPlaceholder": "Son işlem modellerinde ara",
+        "downloaded": "İndirilen",
+        "available": "İndirilebilir",
+        "active": "Etkin",
+        "select": "Kullan",
+        "contextTokens": "Bağlam: {{count}} belirteç",
+        "publisher": "{{publisher}} tarafından",
+        "noMatch": "Aramanıza uyan son işlem modeli yok.",
+        "addFromHf": {
+          "title": "Hugging Face'ten son işlem modeli ekle",
+          "description": "Herkese açık bir depo URL'si veya owner/repo yapıştırın. Dil modeli GGUF dosyaları (Qwen, Llama, Gemma, Phi) eklenebilir.",
+          "added": "Model eklendi. İndirilenler altında görünür."
+        }
       },
       "prompts": {
         "title": "Prompt",

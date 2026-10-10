@@ -9,6 +9,7 @@
     "unloadAfterNever": "しない",
     "unloadAfterCustom": "カスタム…",
     "model": "モデル",
+    "postProcessModel": "後処理モデル",
     "quit": "終了",
     "cancel": "キャンセル",
     "secureInputWarning": "⚠ Secure Input でショートカットがブロック中"
@@ -689,6 +690,23 @@
         "downloadFailed": "ダウンロードに失敗しました: {{error}}",
         "deleteFailed": "モデルを削除できませんでした: {{error}}",
         "providerLabel": "ローカル（デバイス上）"
+      },
+      "models": {
+        "title": "後処理モデル",
+        "description": "文字起こしを清書するローカルモデルです。小さいモデルは読み込みが速く、大きいモデルはより丁寧に整えます。",
+        "searchPlaceholder": "後処理モデルを検索",
+        "downloaded": "ダウンロード済み",
+        "available": "ダウンロード可能",
+        "active": "使用中",
+        "select": "使用する",
+        "contextTokens": "コンテキスト: {{count}}トークン",
+        "publisher": "提供: {{publisher}}",
+        "noMatch": "検索に一致する後処理モデルはありません。",
+        "addFromHf": {
+          "title": "Hugging Face から後処理モデルを追加",
+          "description": "公開リポジトリの URL または owner/repo を貼り付けてください。言語モデルの GGUF（Qwen、Llama、Gemma、Phi）を追加できます。",
+          "added": "モデルを追加しました。ダウンロード済みに表示されます。"
+        }
       },
       "prompts": {
         "title": "プロンプト",

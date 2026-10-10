@@ -9,6 +9,7 @@
     "unloadAfterNever": "Никогда",
     "unloadAfterCustom": "Пользовательский…",
     "model": "Модель",
+    "postProcessModel": "Модель постобработки",
     "quit": "Выход",
     "cancel": "Отмена",
     "secureInputWarning": "⚠ Сочетания клавиш заблокированы Secure Input"
@@ -689,6 +690,23 @@
         "downloadFailed": "Не удалось скачать: {{error}}",
         "deleteFailed": "Не удалось удалить модель: {{error}}",
         "providerLabel": "Локально (на устройстве)"
+      },
+      "models": {
+        "title": "Модели постобработки",
+        "description": "Локальные модели, которые наводят порядок в ваших расшифровках. Меньшие загружаются быстрее, большие правят лучше.",
+        "searchPlaceholder": "Поиск моделей постобработки",
+        "downloaded": "Скачанные",
+        "available": "Доступны для скачивания",
+        "active": "Активна",
+        "select": "Использовать",
+        "contextTokens": "Контекст: {{count}} токенов",
+        "publisher": "от {{publisher}}",
+        "noMatch": "Нет моделей, соответствующих вашему запросу.",
+        "addFromHf": {
+          "title": "Добавить модель постобработки с Hugging Face",
+          "description": "Вставьте публичный URL репозитория или owner/repo. Можно добавить GGUF языковых моделей (Qwen, Llama, Gemma, Phi).",
+          "added": "Модель добавлена. Она появится в разделе скачанных."
+        }
       },
       "prompts": {
         "title": "Запрос к модели",

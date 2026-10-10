@@ -9,6 +9,7 @@
     "unloadAfterNever": "أبداً",
     "unloadAfterCustom": "مخصص…",
     "model": "النموذج",
+    "postProcessModel": "نموذج ما بعد المعالجة",
     "quit": "إنهاء",
     "cancel": "إلغاء",
     "secureInputWarning": "⚠ الاختصارات محجوبة بواسطة Secure Input"
@@ -634,6 +635,23 @@
         "downloadFailed": "فشل التنزيل: {{error}}",
         "deleteFailed": "تعذّر حذف النموذج: {{error}}",
         "providerLabel": "محلي (على الجهاز)"
+      },
+      "models": {
+        "title": "نماذج ما بعد المعالجة",
+        "description": "النماذج المحلية التي تنقّح نصوصك. النماذج الأصغر تحمّل أسرع، والأكبر تنقّح أفضل.",
+        "searchPlaceholder": "ابحث في نماذج ما بعد المعالجة",
+        "downloaded": "المنزّلة",
+        "available": "متاحة للتنزيل",
+        "active": "نشط",
+        "select": "استخدم",
+        "contextTokens": "السياق: {{count}} رمز",
+        "publisher": "بواسطة {{publisher}}",
+        "noMatch": "لا توجد نماذج مطابقة لبحثك.",
+        "addFromHf": {
+          "title": "إضافة نموذج ما بعد معالجة من Hugging Face",
+          "description": "الصق رابط مستودع عام أو owner/repo. يمكن إضافة ملفات GGUF لنماذج اللغة (Qwen وLlama وGemma وPhi).",
+          "added": "تمت إضافة النموذج. يظهر ضمن المنزّلة."
+        }
       },
       "prompts": {
         "title": "المطالبة",

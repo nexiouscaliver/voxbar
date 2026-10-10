@@ -9,6 +9,7 @@
     "unloadAfterNever": "Aldrig",
     "unloadAfterCustom": "Anpassad…",
     "model": "Modell",
+    "postProcessModel": "Efterbearbetningsmodell",
     "quit": "Avsluta",
     "cancel": "Avbryt",
     "secureInputWarning": "⚠ Kortkommandon blockeras av Secure Input"
@@ -689,6 +690,23 @@
         "downloadFailed": "Nedladdningen misslyckades: {{error}}",
         "deleteFailed": "Kunde inte ta bort modellen: {{error}}",
         "providerLabel": "Lokalt (på enheten)"
+      },
+      "models": {
+        "title": "Efterbearbetningsmodeller",
+        "description": "De lokala modeller som städar dina transkriptioner. Mindre modeller laddar snabbare, större putsar bättre.",
+        "searchPlaceholder": "Sök efterbearbetningsmodeller",
+        "downloaded": "Nedladdade",
+        "available": "Tillgängliga för nedladdning",
+        "active": "Aktiv",
+        "select": "Använd",
+        "contextTokens": "Kontext: {{count}} token",
+        "publisher": "av {{publisher}}",
+        "noMatch": "Inga efterbearbetningsmodeller matchar din sökning.",
+        "addFromHf": {
+          "title": "Lägg till efterbearbetningsmodell från Hugging Face",
+          "description": "Klistra in en offentlig repo-URL eller owner/repo. GGUF-filer för språkmodeller (Qwen, Llama, Gemma, Phi) kan läggas till.",
+          "added": "Modellen lades till. Den syns under Nedladdade."
+        }
       },
       "prompts": {
         "title": "Prompt",

@@ -13,7 +13,6 @@
 //! smoke test behind a real model download.
 
 use super::protocol::{parse_request_line, to_line, WorkerRequest, WorkerResponse};
-use crate::local_llm::LOCAL_LLM_MODEL_SIZE_BYTES;
 use llama_cpp_2::context::params::LlamaContextParams;
 use llama_cpp_2::context::LlamaContext;
 use llama_cpp_2::llama_backend::LlamaBackend;
@@ -60,9 +59,8 @@ pub fn run() -> i32 {
     crate::engine_supervisor::init_logger();
 
     info!(
-        "llm worker started (pid {}, expecting a {}-byte model)",
-        std::process::id(),
-        LOCAL_LLM_MODEL_SIZE_BYTES
+        "llm worker started (pid {}); the parent pins the model file and its context per load",
+        std::process::id()
     );
 
     let stdin = io::stdin();
@@ -167,19 +165,19 @@ impl Session {
             return Err("a model is already loaded in this worker".to_string());
         }
 
-        // Cheap integrity check ONLY (spec 6.1): the full sha256 was
-        // verified once at download; a 610 MB re-hash per dictation would
-        // add seconds. A length mismatch means a corrupted or wrong cache
-        // file: fail the load so the parent falls back to the raw
-        // transcript (delete + re-download repairs it).
+        // Cheap existence/sanity check only. The exact-length integrity
+        // check (spec 6.1) moved to the PARENT when the engine went
+        // multi-model: only the parent knows each model's expected byte
+        // length (pinned constant for the builtin, catalog size_bytes for
+        // catalog entries), and it refuses to hand over a wrong-length file
+        // before the worker is ever spawned. The full sha256 is verified
+        // once at download either way.
         let meta = std::fs::metadata(path)
             .map_err(|e| format!("cannot open model file '{}': {}", path, e))?;
-        if meta.len() != LOCAL_LLM_MODEL_SIZE_BYTES {
+        if meta.len() == 0 {
             return Err(format!(
-                "model file is {} bytes but the pinned model is {} bytes; delete and \
-                 re-download it in Settings",
-                meta.len(),
-                LOCAL_LLM_MODEL_SIZE_BYTES
+                "model file '{}' is empty; delete and re-download it in Settings",
+                path
             ));
         }
 
@@ -304,6 +302,7 @@ impl Session {
 mod tests {
     use super::*;
     use crate::local_llm::protocol::WORKER_N_CTX;
+    use crate::local_llm::LOCAL_LLM_MODEL_SIZE_BYTES;
 
     /// The worker flag is a distinct argv token: a normal launch (no args,
     /// or any other first argument) must never match it.

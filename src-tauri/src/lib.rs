@@ -398,6 +398,30 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                     tray::update_tray_menu(&app_clone);
                 });
             }
+            // Post-process model submenu: persists through the same command
+            // the settings UI uses (set_post_process_local_model), so the
+            // tray and the settings panel can never disagree.
+            id if id.starts_with("llm_select:") => {
+                let model_id = id.strip_prefix("llm_select:").unwrap().to_string();
+                let current = settings::get_settings(app).post_process_local_model_id;
+                if model_id == current {
+                    return;
+                }
+                let app_clone = app.clone();
+                std::thread::spawn(move || {
+                    match commands::local_llm::set_post_process_local_model_impl(
+                        &app_clone, &model_id,
+                    ) {
+                        Ok(()) => {
+                            log::info!("Post-process model set to {} via tray.", model_id);
+                        }
+                        Err(e) => {
+                            log::error!("Failed to set post-process model via tray: {}", e);
+                        }
+                    }
+                    tray::update_tray_menu(&app_clone);
+                });
+            }
             _ => {}
         })
         .build(app_handle)
@@ -845,6 +869,10 @@ pub fn run(cli_args: CliArgs) {
             commands::local_llm::get_local_llm_model_status,
             commands::local_llm::download_local_llm_model,
             commands::local_llm::delete_local_llm_model,
+            commands::local_llm::get_available_llm_models,
+            commands::local_llm::set_post_process_local_model,
+            commands::local_llm::resolve_llm_hf_model,
+            commands::local_llm::add_llm_hf_model,
             commands::audio::update_microphone_mode,
             commands::audio::get_microphone_mode,
             commands::audio::get_windows_microphone_permission_status,

@@ -9,6 +9,7 @@
     "unloadAfterNever": "Không bao giờ",
     "unloadAfterCustom": "Tùy chỉnh…",
     "model": "Mô hình",
+    "postProcessModel": "Mô hình hậu xử lý",
     "quit": "Thoát",
     "cancel": "Hủy",
     "secureInputWarning": "⚠ Phím tắt bị Secure Input chặn"
@@ -689,6 +690,23 @@
         "downloadFailed": "Tải xuống thất bại: {{error}}",
         "deleteFailed": "Không thể xóa mô hình: {{error}}",
         "providerLabel": "Cục bộ (trên thiết bị)"
+      },
+      "models": {
+        "title": "Mô hình hậu xử lý",
+        "description": "Các mô hình cục bộ làm sạch bản ghi của bạn. Mô hình nhỏ tải nhanh hơn, mô hình lớn chỉnh sửa tốt hơn.",
+        "searchPlaceholder": "Tìm mô hình hậu xử lý",
+        "downloaded": "Đã tải xuống",
+        "available": "Có thể tải xuống",
+        "active": "Đang dùng",
+        "select": "Dùng",
+        "contextTokens": "Ngữ cảnh: {{count}} token",
+        "publisher": "bởi {{publisher}}",
+        "noMatch": "Không có mô hình hậu xử lý nào khớp với tìm kiếm của bạn.",
+        "addFromHf": {
+          "title": "Thêm mô hình hậu xử lý từ Hugging Face",
+          "description": "Dán URL kho công khai hoặc owner/repo. Có thể thêm GGUF của mô hình ngôn ngữ (Qwen, Llama, Gemma, Phi).",
+          "added": "Đã thêm mô hình. Nó xuất hiện trong Đã tải xuống."
+        }
       },
       "prompts": {
         "title": "Câu lệnh",

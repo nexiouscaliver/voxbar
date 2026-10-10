@@ -9,6 +9,7 @@
     "unloadAfterNever": "Mai",
     "unloadAfterCustom": "Personalizzato…",
     "model": "Modello",
+    "postProcessModel": "Modello di post-elaborazione",
     "quit": "Esci",
     "cancel": "Annulla",
     "secureInputWarning": "⚠ Scorciatoie bloccate da Secure Input"
@@ -689,6 +690,23 @@
         "downloadFailed": "Download non riuscito: {{error}}",
         "deleteFailed": "Impossibile eliminare il modello: {{error}}",
         "providerLabel": "Locale (sul dispositivo)"
+      },
+      "models": {
+        "title": "Modelli di post-elaborazione",
+        "description": "I modelli locali che ripuliscono le tue trascrizioni. I più piccoli si caricano più in fretta, i più grandi correggono meglio.",
+        "searchPlaceholder": "Cerca modelli di post-elaborazione",
+        "downloaded": "Scaricati",
+        "available": "Disponibili per il download",
+        "active": "Attivo",
+        "select": "Usa",
+        "contextTokens": "Contesto: {{count}} token",
+        "publisher": "di {{publisher}}",
+        "noMatch": "Nessun modello di post-elaborazione corrisponde alla tua ricerca.",
+        "addFromHf": {
+          "title": "Aggiungi modello di post-elaborazione da Hugging Face",
+          "description": "Incolla l'URL di un repository pubblico oppure owner/repo. Si possono aggiungere GGUF di modelli linguistici (Qwen, Llama, Gemma, Phi).",
+          "added": "Modello aggiunto. Compare in Scaricati."
+        }
       },
       "prompts": {
         "title": "Prompt",

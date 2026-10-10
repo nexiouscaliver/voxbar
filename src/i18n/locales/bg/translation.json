@@ -9,6 +9,7 @@
     "unloadAfterNever": "Никога",
     "unloadAfterCustom": "Персонализиран…",
     "model": "Модел",
+    "postProcessModel": "Модел за последваща обработка",
     "quit": "Изход",
     "cancel": "Отказ",
     "secureInputWarning": "⚠ Бързите клавиши са блокирани от Secure Input"
@@ -689,6 +690,23 @@
         "downloadFailed": "Неуспешно изтегляне: {{error}}",
         "deleteFailed": "Моделът не можа да бъде изтрит: {{error}}",
         "providerLabel": "Локално (на устройството)"
+      },
+      "models": {
+        "title": "Модели за последваща обработка",
+        "description": "Локалните модели, които изчистват вашите транскрипции. По-малките се зареждат по-бързо, по-големите обработват по-добре.",
+        "searchPlaceholder": "Търсене на модели за последваща обработка",
+        "downloaded": "Изтеглени",
+        "available": "Налични за изтегляне",
+        "active": "Активен",
+        "select": "Използвай",
+        "contextTokens": "Контекст: {{count}} токена",
+        "publisher": "от {{publisher}}",
+        "noMatch": "Няма модели, отговарящи на търсенето.",
+        "addFromHf": {
+          "title": "Добавяне на модел от Hugging Face",
+          "description": "Поставете публичен URL адрес или owner/repo. Могат да се добавят GGUF файлове за езикови модели (Qwen, Llama, Gemma, Phi).",
+          "added": "Моделът е добавен. Появява се в Изтеглени."
+        }
       },
       "prompts": {
         "title": "Подкана",

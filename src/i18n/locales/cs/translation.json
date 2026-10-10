@@ -9,6 +9,7 @@
     "unloadAfterNever": "Nikdy",
     "unloadAfterCustom": "Vlastní…",
     "model": "Model",
+    "postProcessModel": "Model následného zpracování",
     "quit": "Ukončit",
     "cancel": "Zrušit",
     "secureInputWarning": "⚠ Zkratky blokuje Secure Input"
@@ -689,6 +690,23 @@
         "downloadFailed": "Stažení se nezdařilo: {{error}}",
         "deleteFailed": "Model se nepodařilo odstranit: {{error}}",
         "providerLabel": "Místní (na zařízení)"
+      },
+      "models": {
+        "title": "Modely následného zpracování",
+        "description": "Místní modely, které upravují vaše přepisy. Menší modely se načítají rychleji, větší upraví lépe.",
+        "searchPlaceholder": "Hledat modely následného zpracování",
+        "downloaded": "Stažené",
+        "available": "K dispozici ke stažení",
+        "active": "Aktivní",
+        "select": "Použít",
+        "contextTokens": "Kontext: {{count}} tokenů",
+        "publisher": "od {{publisher}}",
+        "noMatch": "Vašemu hledání neodpovídá žádný model.",
+        "addFromHf": {
+          "title": "Přidat model následného zpracování z Hugging Face",
+          "description": "Vložte veřejnou URL adresu repozitáře nebo owner/repo. Přidat lze GGUF jazykových modelů (Qwen, Llama, Gemma, Phi).",
+          "added": "Model přidán. Zobrazí se ve stažených."
+        }
       },
       "prompts": {
         "title": "Prompt",

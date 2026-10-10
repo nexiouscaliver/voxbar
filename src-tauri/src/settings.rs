@@ -602,6 +602,12 @@ pub struct AppSettings {
     pub post_process_timeout_secs: u64,
     #[serde(default = "default_post_process_provider_id")]
     pub post_process_provider_id: String,
+    /// The registry id of the local post-process model the swap runner loads
+    /// (catalog entry or the pinned builtin). Defaults to the pinned
+    /// Qwen3-0.6B, so stores written before the LLM catalog existed keep
+    /// exactly their prior behavior without a migration.
+    #[serde(default = "default_post_process_local_model_id")]
+    pub post_process_local_model_id: String,
     #[serde(default = "default_post_process_providers")]
     pub post_process_providers: Vec<PostProcessProvider>,
     #[serde(default = "default_post_process_api_keys")]
@@ -999,6 +1005,13 @@ fn default_post_process_provider_id() -> String {
     LOCAL_LLM_PROVIDER_ID.to_string()
 }
 
+/// Default local post-process model: the pinned Qwen3-0.6B builtin
+/// (`LOCAL_LLM_MODEL_ID`). An empty stored value normalizes back to it at
+/// read time so the swap runner always resolves a concrete model.
+pub fn default_post_process_local_model_id() -> String {
+    crate::local_llm::LOCAL_LLM_MODEL_ID.to_string()
+}
+
 fn default_post_process_providers() -> Vec<PostProcessProvider> {
     let mut providers = vec![
         // The local on-device engine: post-processing runs on the pinned
@@ -1171,6 +1184,15 @@ fn default_typing_tool() -> TypingTool {
 
 fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
     let mut changed = false;
+
+    // An empty local post-process model selection (never writable through
+    // the UI, but possible in a hand-edited store) normalizes to the pinned
+    // builtin so the swap runner always resolves a concrete model.
+    if settings.post_process_local_model_id.is_empty() {
+        settings.post_process_local_model_id = default_post_process_local_model_id();
+        changed = true;
+    }
+
     for provider in default_post_process_providers() {
         // Use match to do a single lookup - either sync existing or add new
         match settings
@@ -1360,6 +1382,7 @@ pub fn get_default_settings() -> AppSettings {
         post_process_enabled: default_post_process_enabled(),
         post_process_timeout_secs: default_post_process_timeout_secs(),
         post_process_provider_id: default_post_process_provider_id(),
+        post_process_local_model_id: default_post_process_local_model_id(),
         // Fresh installs start on the local default; the marker exists so
         // the one-time migration never re-evaluates their choice.
         post_process_local_default_migrated: true,
@@ -1878,6 +1901,37 @@ mod tests {
         assert_eq!(
             settings.post_process_provider_id, "zai",
             "the backfill never touches the selected provider"
+        );
+    }
+
+    /// A store written before `post_process_local_model_id` existed (no
+    /// field at all) deserializes cleanly and behaves exactly as before:
+    /// the selection normalizes to the pinned builtin, so the swap runner
+    /// resolves the same model it always did without a migration step.
+    #[test]
+    fn legacy_store_without_local_model_id_deserializes_to_the_pinned_default() {
+        let mut stored = serde_json::to_value(get_default_settings()).unwrap();
+        // Strip the field entirely, as a pre-catalog store would have it.
+        stored
+            .as_object_mut()
+            .unwrap()
+            .remove("post_process_local_model_id");
+        assert!(!stored
+            .as_object()
+            .unwrap()
+            .contains_key("post_process_local_model_id"));
+
+        let settings: AppSettings = serde_json::from_value(stored).expect("legacy store parses");
+        assert_eq!(
+            settings.post_process_local_model_id,
+            crate::local_llm::LOCAL_LLM_MODEL_ID,
+            "the missing field defaults to the pinned builtin"
+        );
+        // And an explicitly empty stored value normalizes the same way at
+        // read sites (selected_llm_model_id treats empty as pinned).
+        assert_eq!(
+            default_post_process_local_model_id(),
+            crate::local_llm::LOCAL_LLM_MODEL_ID
         );
     }
 

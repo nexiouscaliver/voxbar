@@ -9,6 +9,7 @@
     "unloadAfterNever": "Jamais",
     "unloadAfterCustom": "Personnalisé…",
     "model": "Modèle",
+    "postProcessModel": "Modèle de post-traitement",
     "quit": "Quitter",
     "cancel": "Annuler",
     "secureInputWarning": "⚠ Raccourcis bloqués par Secure Input"
@@ -689,6 +690,23 @@
         "downloadFailed": "Échec du téléchargement : {{error}}",
         "deleteFailed": "Impossible de supprimer le modèle : {{error}}",
         "providerLabel": "Local (sur l'appareil)"
+      },
+      "models": {
+        "title": "Modèles de post-traitement",
+        "description": "Les modèles locaux qui nettoient vos transcriptions. Les plus petits se chargent plus vite, les plus grands corrigent mieux.",
+        "searchPlaceholder": "Rechercher des modèles de post-traitement",
+        "downloaded": "Téléchargés",
+        "available": "Disponibles au téléchargement",
+        "active": "Actif",
+        "select": "Utiliser",
+        "contextTokens": "Contexte : {{count}} tokens",
+        "publisher": "par {{publisher}}",
+        "noMatch": "Aucun modèle de post-traitement ne correspond à votre recherche.",
+        "addFromHf": {
+          "title": "Ajouter un modèle de post-traitement depuis Hugging Face",
+          "description": "Collez une URL de dépôt public ou owner/repo. Les GGUF de modèles de langue (Qwen, Llama, Gemma, Phi) peuvent être ajoutés.",
+          "added": "Modèle ajouté. Il apparaît dans Téléchargés."
+        }
       },
       "prompts": {
         "title": "Prompt",

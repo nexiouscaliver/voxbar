@@ -9,6 +9,7 @@
     "unloadAfterNever": "Mai",
     "unloadAfterCustom": "Personalitzat…",
     "model": "Model",
+    "postProcessModel": "Model de postprocessament",
     "quit": "Surt",
     "cancel": "Cancel·la",
     "secureInputWarning": "⚠ Dreceres blocades per l'entrada segura"
@@ -689,6 +690,23 @@
         "downloadFailed": "No s'ha pogut descarregar: {{error}}",
         "deleteFailed": "No s'ha pogut suprimir el model: {{error}}",
         "providerLabel": "Local (al dispositiu)"
+      },
+      "models": {
+        "title": "Models de postprocessament",
+        "description": "Els models locals que poleixen les teves transcripcions. Els més petits carreguen més ràpid; els més grans poleixen millor.",
+        "searchPlaceholder": "Cerca models de postprocessament",
+        "downloaded": "Baixats",
+        "available": "Disponibles per baixar",
+        "active": "Actiu",
+        "select": "Utilitza",
+        "contextTokens": "Context: {{count}} tokens",
+        "publisher": "per {{publisher}}",
+        "noMatch": "Cap model de postprocessament coincideix amb la cerca.",
+        "addFromHf": {
+          "title": "Afegeix un model de postprocessament de Hugging Face",
+          "description": "Enganxa un URL de repositori públic o owner/repo. Es poden afegir GGUF de models de llenguatge (Qwen, Llama, Gemma, Phi).",
+          "added": "Model afegit. Apareix a Baixats."
+        }
       },
       "prompts": {
         "title": "Indicació",

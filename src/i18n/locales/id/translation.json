@@ -9,6 +9,7 @@
     "unloadAfterNever": "Tidak Pernah",
     "unloadAfterCustom": "Kustom…",
     "model": "Model",
+    "postProcessModel": "Model pasca-proses",
     "quit": "Keluar",
     "cancel": "Batal",
     "secureInputWarning": "⚠ Pintasan diblokir oleh Secure Input"
@@ -689,6 +690,23 @@
         "downloadFailed": "Gagal mengunduh: {{error}}",
         "deleteFailed": "Gagal menghapus model: {{error}}",
         "providerLabel": "Lokal (di perangkat)"
+      },
+      "models": {
+        "title": "Model pasca-proses",
+        "description": "Model lokal yang membersihkan transkrip Anda. Model kecil dimuat lebih cepat, model besar memperbaiki lebih baik.",
+        "searchPlaceholder": "Cari model pasca-proses",
+        "downloaded": "Terunduh",
+        "available": "Tersedia untuk diunduh",
+        "active": "Aktif",
+        "select": "Gunakan",
+        "contextTokens": "Konteks: {{count}} token",
+        "publisher": "oleh {{publisher}}",
+        "noMatch": "Tidak ada model pasca-proses yang cocok dengan pencarian Anda.",
+        "addFromHf": {
+          "title": "Tambah model pasca-proses dari Hugging Face",
+          "description": "Tempel URL repositori publik atau owner/repo. GGUF model bahasa (Qwen, Llama, Gemma, Phi) dapat ditambahkan.",
+          "added": "Model ditambahkan. Muncul di Terunduh."
+        }
       },
       "prompts": {
         "title": "Prompt",

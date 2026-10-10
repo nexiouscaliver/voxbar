@@ -9,6 +9,7 @@
     "unloadAfterNever": "안 함",
     "unloadAfterCustom": "사용자 지정…",
     "model": "모델",
+    "postProcessModel": "후처리 모델",
     "quit": "종료",
     "cancel": "취소",
     "secureInputWarning": "⚠ Secure Input으로 단축키가 차단됨"
@@ -689,6 +690,23 @@
         "downloadFailed": "다운로드 실패: {{error}}",
         "deleteFailed": "모델을 삭제하지 못했습니다: {{error}}",
         "providerLabel": "로컬(기기에서)"
+      },
+      "models": {
+        "title": "후처리 모델",
+        "description": "전사문을 정리해 주는 로컬 모델입니다. 작은 모델은 빠르게 로드되고, 큰 모델은 더 정교하게 다듬습니다.",
+        "searchPlaceholder": "후처리 모델 검색",
+        "downloaded": "다운로드됨",
+        "available": "다운로드 가능",
+        "active": "사용 중",
+        "select": "사용",
+        "contextTokens": "컨텍스트: {{count}}토큰",
+        "publisher": "제공: {{publisher}}",
+        "noMatch": "검색과 일치하는 후처리 모델이 없습니다.",
+        "addFromHf": {
+          "title": "Hugging Face에서 후처리 모델 추가",
+          "description": "공개 저장소 URL 또는 owner/repo를 붙여넣으세요. 언어 모델 GGUF(Qwen, Llama, Gemma, Phi)를 추가할 수 있습니다.",
+          "added": "모델을 추가했습니다. 다운로드됨에 표시됩니다."
+        }
       },
       "prompts": {
         "title": "프롬프트",
