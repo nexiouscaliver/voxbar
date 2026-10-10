@@ -245,7 +245,8 @@
       "selectionErrors": {
         "notAsrModel": "Ten model to lokalny silnik przetwarzania końcowego. Polepsza transkrypcje po dyktowaniu, nie potrafi transkrybować dźwięku.",
         "generic": "Nie udało się przełączyć na ten model: {{error}}"
-      }
+      },
+      "deleteRefusedLive": "VoxBar dyktuje teraz tym modelem. Spróbuj ponownie po zakończeniu dyktowania."
     },
     "general": {
       "title": "Ogólne",

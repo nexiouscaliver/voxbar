@@ -1377,6 +1377,14 @@ async getModelLoadStatus() : Promise<Result<ModelLoadStatus, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * KB-220: the settings-side manual unload carries the same refusal as the
+ * tray's "Unload model" - unloading while a dictation session is live
+ * (recording or the stop pipeline still working) kills the stream and
+ * leaves the batch fallback to fail. The Err carries the stable prefix so
+ * a settings surface can classify it as "try again after the dictation"
+ * instead of a real failure.
+ */
 async unloadModelManually() : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("unload_model_manually") };

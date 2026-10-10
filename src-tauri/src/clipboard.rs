@@ -1028,8 +1028,15 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
             // Debug-gated receipt-sequenced paste (#502): restore the clipboard
             // after the target actually reads the transcript, not on a timer.
             // On success it fully handles the paste (including auto-submit and
-            // clipboard handling) asynchronously; on failure fall through to
-            // the legacy path untouched.
+            // clipboard handling) asynchronously; on a pre-publish failure
+            // fall through to the legacy path untouched. KB-223: a chord
+            // failure (CHORD_FAILURE_PREFIX) is NOT a fallback candidate -
+            // the transcript is already published as a promise and the
+            // transaction's waiter owns the restore, so the legacy path would
+            // re-send the chord over a live transaction (double auto-submit
+            // Enter, a snapshot of our promise instead of the user's
+            // clipboard). Nothing was pasted: report it as the paste failure
+            // the notice router surfaces.
             #[cfg(any(target_os = "macos", target_os = "windows"))]
             if settings.reliable_paste {
                 let reliable_result = with_enigo(&app_handle, |enigo| {
@@ -1045,6 +1052,7 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
                 });
                 match reliable_result {
                     Ok(()) => return Ok(()),
+                    Err(e) if crate::paste_tx::is_chord_failure(&e) => return Err(e),
                     Err(e) => {
                         log::warn!("Reliable paste unavailable ({e}); falling back to legacy paste")
                     }

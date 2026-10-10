@@ -4,13 +4,27 @@ use crate::settings::ShortcutActivation;
 use log::{debug, error, warn};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::{self, Sender};
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Manager};
 
 const DEBOUNCE: Duration = Duration::from_millis(30);
 const RELEASE_GRACE: Duration = Duration::from_millis(50);
+
+/// KB-221: how long a completed press..release hold stays resolvable after
+/// its release. The discovering text snapshot renders within one cadence of
+/// the material (worst case the menu-fallback operating point: ~1.5-2.1 s
+/// interim cadence plus the commit lag), so 5 s is generous headroom while
+/// still bounding the silent-gap corner (a pair surviving long after the
+/// user stopped speaking must not resolve against much later dictation).
+const MISSED_HOLD_FRESHNESS: Duration = Duration::from_secs(5);
+
+/// KB-221: whether a missed hold's release edge is recent enough that the
+/// discovering snapshot's fresh material can still be bounded by it.
+fn missed_hold_pair_is_fresh(released_at: Instant, now: Instant) -> bool {
+    now.duration_since(released_at) <= MISSED_HOLD_FRESHNESS
+}
 
 /// The binding id of the phone/tablet companion trigger. Every companion
 /// edge (live presses from the phone, synthesized finalize edges from the
@@ -271,6 +285,20 @@ struct CoordinatorState {
     /// session-end clears) enqueues exactly one notification, so the badge
     /// tracks the modifier without the thread polling the mirror.
     modifier_notifications: Vec<bool>,
+    /// KB-221: wall-clock instant the command modifier was pressed while a
+    /// dictation session was live (the engage edge). Paired with the
+    /// release edge into [`Self::command_hold_edges`]; cleared on every
+    /// path that ends the session so a press can never complete across
+    /// sessions.
+    command_press_at: Option<Instant>,
+    /// KB-221: a completed press..release hold that no text-bearing
+    /// snapshot has observed yet, waiting for the coordinator thread to
+    /// publish it to the missed-hold mirror (whence the snapshot emitter or
+    /// the finalize fold drains it). The brisk sub-snapshot hold used to
+    /// vanish silently: `held_now` was never sampled true, so the buffer's
+    /// engagement/latch machinery never ran and the spoken command word
+    /// pasted as literal dictation.
+    command_hold_edges: Option<(Instant, Instant)>,
 }
 
 impl CoordinatorState {
@@ -283,6 +311,8 @@ impl CoordinatorState {
             pending_press: None,
             command_modifier: false,
             modifier_notifications: Vec::new(),
+            command_press_at: None,
+            command_hold_edges: None,
         }
     }
 
@@ -540,7 +570,11 @@ impl CoordinatorState {
         // An explicit cancel abandons any remembered start too - the user
         // asked for silence, not a deferred recording.
         self.pending_press = None;
-        // Cancel ends the session: the command modifier cannot outlive it.
+        // Cancel ends the session: the command modifier cannot outlive it,
+        // and no finalize drain follows a cancel, so a boxed missed-hold
+        // pair is abandoned with it (KB-221).
+        self.forget_command_press();
+        self.command_hold_edges = None;
         self.set_command_modifier(false);
         // Don't reset during processing - wait for the pipeline to finish.
         if !matches!(self.stage, Stage::Processing)
@@ -606,7 +640,10 @@ impl CoordinatorState {
         if !started && matches!(&self.stage, Stage::Recording(id) if id == binding_id) {
             self.stage = Stage::Idle;
             self.hold = None;
-            // The session never existed; the modifier cannot stay armed.
+            // The session never existed; the modifier cannot stay armed
+            // (KB-221: nor can any press/hold bookkeeping of it).
+            self.forget_command_press();
+            self.command_hold_edges = None;
             self.set_command_modifier(false);
         }
     }
@@ -635,7 +672,11 @@ impl CoordinatorState {
         // The recording ended: the in-session command modifier goes with it,
         // even if the key is still physically held. Re-engaging requires a
         // fresh press during the next live session. This is the session-end
-        // badge clear: the notification rides the drain below.
+        // badge clear: the notification rides the drain below. (KB-221: an
+        // in-progress press cannot complete into a hold across the session
+        // boundary either, but a COMPLETED pair survives - the stop
+        // pipeline's finalize fold may still drain it.)
+        self.forget_command_press();
         self.set_command_modifier(false);
         Effect::Stop {
             binding_id,
@@ -649,10 +690,15 @@ impl CoordinatorState {
     /// a release always disengages, and any other situation is inert. A
     /// press with no live session returns [`Effect::NotifyCommandIdle`] so
     /// the user learns why nothing happened.
-    fn on_command_modifier(&mut self, is_pressed: bool) -> Option<Effect> {
+    ///
+    /// KB-221: every engaged press..release pair is also boxed as wall-clock
+    /// edges ([`Self::command_hold_edges`]) so the streaming path can
+    /// resolve holds that fall entirely between two text-bearing snapshots.
+    fn on_command_modifier(&mut self, is_pressed: bool, now: Instant) -> Option<Effect> {
         if is_pressed {
             if matches!(self.stage, Stage::Recording(_)) {
                 debug!("Command modifier engaged for the live dictation session");
+                self.command_press_at = Some(now);
                 self.set_command_modifier(true);
                 None
             } else {
@@ -661,11 +707,29 @@ impl CoordinatorState {
             }
         } else if self.command_modifier {
             debug!("Command modifier released; dictation returns to normal");
+            if let Some(press) = self.command_press_at.take() {
+                self.command_hold_edges = Some((press, now));
+            }
             self.set_command_modifier(false);
             None
         } else {
             None
         }
+    }
+
+    /// KB-221: take the completed press..release hold waiting for
+    /// publication to the missed-hold mirror, if any. The coordinator
+    /// thread moves the pair out after the command that produced it.
+    fn take_command_hold_edges(&mut self) -> Option<(Instant, Instant)> {
+        self.command_hold_edges.take()
+    }
+
+    /// KB-221: drop any in-progress modifier-press bookkeeping. Called on
+    /// every path that ends the session: a press cannot complete into a
+    /// hold across sessions. A COMPLETED pair is deliberately kept - the
+    /// stop pipeline's finalize fold may still drain it.
+    fn forget_command_press(&mut self) {
+        self.command_press_at = None;
     }
 }
 
@@ -701,6 +765,16 @@ pub struct TranscriptionCoordinator {
     /// microphone recording is live. Published at the same points as the
     /// recording mirror.
     processing: Arc<AtomicBool>,
+    /// KB-221: mirror of `CoordinatorState::command_hold_edges` for the
+    /// streaming path. The coordinator thread stores a completed
+    /// press..release pair into this slot (event-driven, never refreshed
+    /// wholesale, so an unrelated command cannot wipe an undrained pair);
+    /// the snapshot emitter and the finalize fold TAKE it - once - and the
+    /// session buffer then resolves the hold against the discovering
+    /// material. Cleared on cancel, on a failed start rollback, at thread
+    /// exit, and when the next session's stream begins (a pair that
+    /// outlived its session must not resolve against the next one's words).
+    missed_hold: Arc<Mutex<Option<(Instant, Instant)>>>,
 }
 
 /// Which binding IDs drive the recording lifecycle. The command-mode
@@ -726,6 +800,8 @@ impl TranscriptionCoordinator {
         let pending_press_mirror = Arc::clone(&pending_press);
         let processing = Arc::new(AtomicBool::new(false));
         let processing_mirror = Arc::clone(&processing);
+        let missed_hold: Arc<Mutex<Option<(Instant, Instant)>>> = Arc::new(Mutex::new(None));
+        let missed_hold_mirror = Arc::clone(&missed_hold);
 
         thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -775,14 +851,21 @@ impl TranscriptionCoordinator {
                         }
                         Command::Cancel {
                             recording_was_active,
-                        } => state.on_cancel(recording_was_active),
+                        } => {
+                            state.on_cancel(recording_was_active);
+                            // KB-221: no finalize drain follows a cancel, so
+                            // any published missed-hold pair dies with the
+                            // session (the state side was already cleared by
+                            // on_cancel).
+                            *missed_hold_mirror.lock().unwrap_or_else(|e| e.into_inner()) = None;
+                        }
                         Command::ProcessingFinished => {
                             if let Some(effect) = state.on_processing_finished() {
                                 run_effect(&app, &mut state, effect);
                             }
                         }
                         Command::CommandModifier { is_pressed } => {
-                            if let Some(effect) = state.on_command_modifier(is_pressed) {
+                            if let Some(effect) = state.on_command_modifier(is_pressed, Instant::now()) {
                                 run_effect(&app, &mut state, effect);
                             }
                         }
@@ -791,6 +874,15 @@ impl TranscriptionCoordinator {
                                 run_effect(&app, &mut state, effect);
                             }
                         }
+                    }
+                    // KB-221: publish a completed hold's edges to the
+                    // mirror. Store-only-when-Some: the pair is consumed by
+                    // the emitter/finalize taking it, so unrelated commands
+                    // must never refresh the slot wholesale (a later pair
+                    // legitimately overwrites an undrained one - the newest
+                    // hold bounds the newest material).
+                    if let Some(edges) = state.take_command_hold_edges() {
+                        *missed_hold_mirror.lock().unwrap_or_else(|e| e.into_inner()) = Some(edges);
                     }
                     // Badge notifications the processed command enqueued
                     // (modifier engage/release and every session-end clear).
@@ -801,11 +893,12 @@ impl TranscriptionCoordinator {
                 }
                 // The coordinator thread is gone (app shutdown); stop
                 // advertising a live recording session, an engaged command
-                // modifier, or a remembered press.
+                // modifier, a remembered press, or an undrained hold.
                 recording_mirror.store(false, Ordering::Release);
                 processing_mirror.store(false, Ordering::Release);
                 command_modifier_mirror.store(false, Ordering::Release);
                 pending_press_mirror.store(false, Ordering::Release);
+                *missed_hold_mirror.lock().unwrap_or_else(|e| e.into_inner()) = None;
                 debug!("Transcription coordinator exited");
             }));
             if let Err(e) = result {
@@ -819,6 +912,7 @@ impl TranscriptionCoordinator {
             command_modifier,
             pending_press,
             processing,
+            missed_hold,
         }
     }
 
@@ -845,6 +939,49 @@ impl TranscriptionCoordinator {
     /// streaming path consults this on every engine snapshot.
     pub fn is_command_modifier_active(&self) -> bool {
         self.command_modifier.load(Ordering::Acquire)
+    }
+
+    /// KB-221: take the completed command hold (press..release pair) that
+    /// no text-bearing snapshot has observed yet, if one is both present
+    /// and FRESH enough to bound the discovering snapshot's material (no
+    /// more than [`MISSED_HOLD_FRESHNESS`] may separate the release from
+    /// `now` - the slowest text cadence is the menu-fallback operating
+    /// point at ~1.5-2.1 s plus the commit lag, so a hold older than that
+    /// cannot bound this snapshot's delta; the headroom also swallows the
+    /// silent-gap corner where a pair survives long after the user stopped
+    /// speaking). Once-only by construction: the take is the consumption.
+    /// Callers must NOT call this while the modifier is held (the live
+    /// engagement path governs that material; the pair would be dropped
+    /// anyway).
+    pub fn take_unobserved_command_hold(&self, now: Instant) -> bool {
+        let mut slot = self.missed_hold.lock().unwrap_or_else(|e| e.into_inner());
+        match slot.take() {
+            Some((_, released_at)) => missed_hold_pair_is_fresh(released_at, now),
+            None => false,
+        }
+    }
+
+    /// KB-221: drop any undrained missed-hold pair. Called when the next
+    /// session's stream begins: a pair that outlived its own session (its
+    /// stop pipeline never drained it) must never resolve against the next
+    /// session's words.
+    pub fn clear_unobserved_command_hold(&self) {
+        *self.missed_hold.lock().unwrap_or_else(|e| e.into_inner()) = None;
+    }
+
+    /// Whether a dictation session is live END TO END: the Recording stage
+    /// OR the Processing stage (finalize, batch transcription,
+    /// post-processing, and the paste still running). The one predicate
+    /// every destructive model action refuses on - tray "Unload model"
+    /// (KB-220), the settings-side unload, and model delete (KB-117) - so
+    /// no user action can destroy an in-flight dictation. Composes the two
+    /// existing stage mirrors; no new state. The idle watcher's
+    /// recording-only probe would miss the stop pipeline's batch
+    /// transcription, which is exactly where a mid-session unload's damage
+    /// lands (the batch fallback dies at transcribe_audio's residency
+    /// check).
+    pub fn is_session_live(&self) -> bool {
+        self.is_recording_session() || self.is_processing()
     }
 
     /// Whether a transcribe press is remembered while the pipeline is busy
@@ -1471,7 +1608,7 @@ mod tests {
             Some(Effect::Start { .. })
         ));
 
-        assert_eq!(state.on_command_modifier(true), None);
+        assert_eq!(state.on_command_modifier(true, t0), None);
         assert!(state.command_modifier);
     }
 
@@ -1480,10 +1617,10 @@ mod tests {
         let mut state = CoordinatorState::new();
         let t0 = Instant::now();
         state.on_input(toggle_input(true), t0);
-        assert_eq!(state.on_command_modifier(true), None);
+        assert_eq!(state.on_command_modifier(true, t0), None);
         assert!(state.command_modifier);
 
-        assert_eq!(state.on_command_modifier(false), None);
+        assert_eq!(state.on_command_modifier(false, t0), None);
         assert!(!state.command_modifier);
         // The session itself is untouched by the modifier.
         assert_eq!(state.stage, Stage::Recording(BINDING.to_string()));
@@ -1494,7 +1631,7 @@ mod tests {
         let mut state = CoordinatorState::new();
         let t0 = Instant::now();
         state.on_input(toggle_input(true), t0);
-        assert_eq!(state.on_command_modifier(true), None);
+        assert_eq!(state.on_command_modifier(true, t0), None);
         assert!(state.command_modifier);
 
         // The dictation finalizes while the modifier is still held: the
@@ -1504,8 +1641,110 @@ mod tests {
             Some(Effect::Stop { .. })
         ));
         assert!(!state.command_modifier);
-        assert_eq!(state.on_command_modifier(false), None);
+        assert_eq!(state.on_command_modifier(false, t0 + Duration::from_secs(6)), None);
         assert!(!state.command_modifier);
+    }
+
+    // ---------------------------------------------------------------------
+    // KB-221: the missed-hold outbox. A press..release pair observed while
+    // a dictation session is live is boxed as wall-clock edges for the
+    // streaming path, which resolves holds that fall entirely between two
+    // text-bearing snapshots. The pair requires a live-session press, is
+    // consumed once, and cannot complete across a session boundary.
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn command_modifier_missed_hold_boxes_press_release_edges() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        state.on_input(toggle_input(true), t0);
+
+        let press_at = t0 + Duration::from_millis(2_000);
+        let release_at = t0 + Duration::from_millis(2_600);
+        assert!(state.command_hold_edges.is_none(), "nothing boxed yet");
+        state.on_command_modifier(true, press_at);
+        assert!(
+            state.command_hold_edges.is_none(),
+            "the pair completes only on release"
+        );
+        state.on_command_modifier(false, release_at);
+        assert_eq!(state.take_command_hold_edges(), Some((press_at, release_at)));
+        assert!(
+            state.take_command_hold_edges().is_none(),
+            "the outbox is consumed exactly once"
+        );
+    }
+
+    #[test]
+    fn command_modifier_missed_hold_requires_a_live_session_press() {
+        // An idle press never engages, so its release boxes nothing.
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        state.on_command_modifier(true, t0);
+        state.on_command_modifier(false, t0 + Duration::from_millis(400));
+        assert!(state.take_command_hold_edges().is_none());
+
+        // A release with no preceding engage is equally inert.
+        let mut stray = CoordinatorState::new();
+        stray.on_command_modifier(false, t0);
+        assert!(stray.take_command_hold_edges().is_none());
+    }
+
+    #[test]
+    fn command_modifier_missed_hold_cannot_complete_across_session_end() {
+        // Engage during the live session, the session finalizes BEFORE the
+        // release: the press bookkeeping is dropped, so the later release
+        // (already inert - the modifier was cleared) boxes no pair. A
+        // completed pair, by contrast, SURVIVES begin_processing for the
+        // stop pipeline's finalize fold to drain.
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        state.on_input(toggle_input(true), t0);
+        state.on_command_modifier(true, t0 + Duration::from_secs(1));
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0 + Duration::from_secs(5)),
+            Some(Effect::Stop { .. })
+        ));
+        state.on_command_modifier(false, t0 + Duration::from_secs(6));
+        assert!(
+            state.take_command_hold_edges().is_none(),
+            "a press cannot complete into a hold across the session boundary"
+        );
+
+        let mut completed = CoordinatorState::new();
+        completed.on_input(toggle_input(true), t0);
+        completed.on_command_modifier(true, t0 + Duration::from_secs(1));
+        completed.on_command_modifier(false, t0 + Duration::from_millis(1_400));
+        assert_eq!(
+            completed.take_command_hold_edges(),
+            Some((t0 + Duration::from_secs(1), t0 + Duration::from_millis(1_400)))
+        );
+        // ...and the finalize transition itself keeps the boxed pair.
+        let mut kept = CoordinatorState::new();
+        kept.on_input(toggle_input(true), t0);
+        kept.on_command_modifier(true, t0 + Duration::from_secs(1));
+        kept.on_command_modifier(false, t0 + Duration::from_millis(1_400));
+        assert!(matches!(
+            kept.on_input(toggle_input(true), t0 + Duration::from_secs(5)),
+            Some(Effect::Stop { .. })
+        ));
+        assert!(
+            kept.take_command_hold_edges().is_some(),
+            "a completed pair survives the stop for the finalize fold to drain"
+        );
+    }
+
+    #[test]
+    fn missed_hold_freshness_bounds_the_resolvable_window() {
+        let released_at = Instant::now();
+        assert!(missed_hold_pair_is_fresh(
+            released_at,
+            released_at + Duration::from_secs(4)
+        ));
+        assert!(!missed_hold_pair_is_fresh(
+            released_at,
+            released_at + Duration::from_secs(6)
+        ));
     }
 
     /// The overlay badge tracks every real modifier transition through the
@@ -1519,7 +1758,7 @@ mod tests {
         state.on_input(toggle_input(true), t0);
 
         // Engage during the live session: one badge-on notification.
-        assert_eq!(state.on_command_modifier(true), None);
+        assert_eq!(state.on_command_modifier(true, t0), None);
         assert_eq!(
             state.drain_modifier_notifications(),
             vec![Effect::CommandModifierChanged { active: true }]
@@ -1527,14 +1766,14 @@ mod tests {
         assert!(state.drain_modifier_notifications().is_empty(), "drained");
 
         // Release: one badge-off notification.
-        assert_eq!(state.on_command_modifier(false), None);
+        assert_eq!(state.on_command_modifier(false, t0), None);
         assert_eq!(
             state.drain_modifier_notifications(),
             vec![Effect::CommandModifierChanged { active: false }]
         );
 
         // A redundant release (modifier already off) stays silent.
-        assert_eq!(state.on_command_modifier(false), None);
+        assert_eq!(state.on_command_modifier(false, t0), None);
         assert!(state.drain_modifier_notifications().is_empty());
 
         // An idle press (session over) notifies idle, never the badge.
@@ -1543,7 +1782,7 @@ mod tests {
             Some(Effect::Stop { .. })
         ));
         assert!(matches!(
-            state.on_command_modifier(true),
+            state.on_command_modifier(true, t0 + Duration::from_secs(6)),
             Some(Effect::NotifyCommandIdle)
         ));
         assert!(state.drain_modifier_notifications().is_empty());
@@ -1558,7 +1797,7 @@ mod tests {
         let mut state = CoordinatorState::new();
         let t0 = Instant::now();
         state.on_input(toggle_input(true), t0);
-        assert_eq!(state.on_command_modifier(true), None);
+        assert_eq!(state.on_command_modifier(true, t0), None);
         state.drain_modifier_notifications();
         assert!(matches!(
             state.on_input(toggle_input(true), t0 + Duration::from_secs(5)),
@@ -1573,7 +1812,7 @@ mod tests {
         // Cancel path: session cancelled while held clears it the same way.
         let mut cancelled = CoordinatorState::new();
         cancelled.on_input(toggle_input(true), t0);
-        assert_eq!(cancelled.on_command_modifier(true), None);
+        assert_eq!(cancelled.on_command_modifier(true, t0), None);
         cancelled.drain_modifier_notifications();
         cancelled.on_cancel(true);
         assert_eq!(
@@ -1619,8 +1858,9 @@ mod tests {
         // Idle: the state stays untouched, but the press is not silent -
         // it asks for the command-mode-no-session feedback.
         let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
         assert!(matches!(
-            state.on_command_modifier(true),
+            state.on_command_modifier(true, t0),
             Some(Effect::NotifyCommandIdle)
         ));
         assert!(!state.command_modifier);
@@ -1630,10 +1870,9 @@ mod tests {
         // only modulates a LIVE session, never queues for one), with the
         // same feedback.
         let mut busy = CoordinatorState::new();
-        let t0 = Instant::now();
         drive_into_processing(&mut busy, t0);
         assert!(matches!(
-            busy.on_command_modifier(true),
+            busy.on_command_modifier(true, t0),
             Some(Effect::NotifyCommandIdle)
         ));
         assert!(!busy.command_modifier);
@@ -1643,7 +1882,7 @@ mod tests {
         // Cancel path: a session cancelled while held also clears it.
         let mut cancelled = CoordinatorState::new();
         cancelled.on_input(toggle_input(true), t0);
-        assert_eq!(cancelled.on_command_modifier(true), None);
+        assert_eq!(cancelled.on_command_modifier(true, t0), None);
         cancelled.on_cancel(true);
         assert!(!cancelled.command_modifier);
         assert_eq!(cancelled.stage, Stage::Idle);
@@ -2615,8 +2854,8 @@ mod tests {
         // right after transcription: command down, V click, command up
         // ~100ms later. Even if both edges reached the coordinator they
         // are command-modifier presses with no live session: inert.
-        state.on_command_modifier(true);
-        state.on_command_modifier(false);
+        state.on_command_modifier(true, t0 + ms(4200));
+        state.on_command_modifier(false, t0 + ms(4300));
         assert!(
             !state.command_modifier,
             "a modifier press with no live session must not engage"

@@ -274,6 +274,107 @@ pub(crate) fn flush_command_prefix_len(text: &str, matrix: &CompiledCommandMatri
     consumed
 }
 
+/// KB-221: byte length of the leading span of `delta` that stays DICTATION
+/// when a command hold that no text snapshot observed is resolved on the
+/// discovering snapshot. The remainder (the command-candidate region) is
+/// the LONGEST trailing token window whose FIRST word is a WHOLE-WORD
+/// command opener: its normalized token equals the first token of some
+/// matrix phrase ("new" opens "new line"; "at" opens "at sign"). A partial
+/// word deliberately does NOT open ("a" is a partial of "at sign", so
+/// pre-press "...a" + press + "line" keeps "a" in the dictation fold and
+/// lets "new line" fire - partial openers would eat mid-word dictation at
+/// the fold boundary for no recoverable gain, since a hold whose first
+/// word is cut cannot complete inside this snapshot anyway). The separator
+/// rule matches [`held_prefix_len`]: the region begins after the separator
+/// run preceding its first token. Returns `delta.len()` when no trailing
+/// window qualifies (nothing in this delta can be command material). The
+/// engine reports no per-word audio clocks, so pre-press dictation that
+/// happens to END with a whole-word opener ("...a new" + press + "line")
+/// joins the region by design - the phrase then fires with the pre-press
+/// words before its opener surviving as dictation, which is also what the
+/// observed-hold engagement fold does.
+pub(crate) fn missed_hold_fold_len(delta: &str, matrix: &CompiledCommandMatrix) -> usize {
+    if matrix.max_phrase_words == 0 {
+        return delta.len();
+    }
+
+    // The scan is NOT capped at max_phrase_words: unlike held_prefix_len's
+    // windows, this window need not itself be a valid phrase prefix - only
+    // its FIRST word is gated - so looking back further only finds earlier
+    // openers (a hold carrying several commands plus a dictation tail).
+    let tokens = token_ranges(delta);
+    for window_len in (1..=tokens.len()).rev() {
+        let first_range = tokens[tokens.len() - window_len];
+        let first = normalize_token(&delta[first_range.0..first_range.1]);
+        if !first.is_empty()
+            && matrix
+                .parser
+                .iter()
+                .any(|(phrase, _)| phrase[0] == first)
+        {
+            // The separator run before the region's first token stays with
+            // the dictation prefix (the region re-enters parsing whole).
+            let before = &delta[..first_range.0];
+            return before.trim_end().len();
+        }
+    }
+    delta.len()
+}
+
+/// KB-221/KB-222: byte length of the leading span of `region` to parse
+/// through the command grammar when the region's command material must be
+/// BOUNDED so the words beyond it survive as dictation: phrases match
+/// greedily longest-first (exactly [`parse_command_transcript`]'s order,
+/// fuzzy single-token resolution included) and the span ends at the LAST
+/// phrase completion. Unrecognized words INSIDE the span discard per the
+/// command contract; everything beyond the span stays dictation. A trailing
+/// proper-prefix fragment DIRECTLY after the last completion extends the
+/// span (the release-flush contract: a fragment that never completed
+/// consumes and discards), but a fragment separated from it by non-command
+/// words does not - that material is beyond the boundary and flows back as
+/// dictation.
+pub(crate) fn command_prefix_span_len(region: &str, matrix: &CompiledCommandMatrix) -> usize {
+    let tokens = token_ranges(region);
+    let mut last_end = 0;
+    let mut position = 0;
+    while position < tokens.len() {
+        let mut matched_len = None;
+        for length in (1..=matrix.max_phrase_words.min(tokens.len() - position)).rev() {
+            let window: Vec<&str> = tokens[position..position + length]
+                .iter()
+                .map(|&(start, end)| &region[start..end])
+                .collect();
+            let exact = matrix.parser.iter().any(|(phrase, _)| {
+                phrase.len() == window.len()
+                    && phrase
+                        .iter()
+                        .zip(&window)
+                        .all(|(expected, actual)| expected == &normalize_token(actual))
+            });
+            let fuzzy = length == 1 && fuzzy_single_token_action(window[0], matrix).is_some();
+            if exact || fuzzy {
+                matched_len = Some(length);
+                break;
+            }
+        }
+        if let Some(length) = matched_len {
+            last_end = tokens[position + length - 1].1;
+            position += length;
+        } else {
+            // Unrecognized word: inside the eventual span it would discard,
+            // but it may also be the first word of the dictation tail, so
+            // only a LATER completion can pull it in.
+            position += 1;
+        }
+    }
+    let held = held_prefix_len(region, matrix);
+    if held > 0 && last_end >= region.len() - held {
+        region.len()
+    } else {
+        last_end
+    }
+}
+
 /// Minimum length (characters) a single-word phrase must have before a
 /// command-mode token may fuzzy match it at edit distance 1. Long enough
 /// that everyday near-misses of short phrases ("pas" vs "paste") never
@@ -762,6 +863,71 @@ mod tests {
         // per the fuzzy contract, "perio" at distance 1 from "period").
         assert_eq!(flush_command_prefix_len(" comma please", &dm()), 6);
         assert_eq!(flush_command_prefix_len(" perio", &dm()), 6);
+    }
+
+    // -----------------------------------------------------------------
+    // KB-221/KB-222: the missed-hold fold and the bounded command span.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn missed_hold_fold_len_returns_the_pinned_spans() {
+        // The reviewer's case: a lone command word arrives with the hold.
+        assert_eq!(missed_hold_fold_len(" comma", &dm()), 0);
+        // Pre-press dictation folds; the phrase region starts at the
+        // earliest opener inside the LONGEST qualifying trailing window.
+        assert_eq!(missed_hold_fold_len("hello world comma", &dm()), 11);
+        assert_eq!(missed_hold_fold_len(" um comma", &dm()), 3);
+        // "...a new" (pre-press) + "line": the region opens at "new" so the
+        // phrase can fire whole; "a" stays dictation.
+        assert_eq!(missed_hold_fold_len("a new line", &dm()), 1);
+        // Two commands in one hold: the region covers both.
+        assert_eq!(missed_hold_fold_len(" comma question", &dm()), 0);
+        assert_eq!(missed_hold_fold_len(" comma question mark and more", &dm()), 0);
+        // Post-release dictation keeps the region's first word an opener:
+        // the fold stops before "question".
+        assert_eq!(missed_hold_fold_len("hello question mark and more", &dm()), 5);
+        // A PARTIAL word never opens the region (whole-word gate): the cut
+        // "com" stays dictation, exactly like an ordinary word.
+        assert_eq!(missed_hold_fold_len("hello com", &dm()), 9);
+        // Words that prefix nothing (and ordinary words that merely start
+        // like command words) keep the whole delta dictation.
+        assert_eq!(missed_hold_fold_len("just talking more words", &dm()), 23);
+        assert_eq!(missed_hold_fold_len(" computer science rocks", &dm()), 23);
+        assert_eq!(missed_hold_fold_len("", &dm()), 0);
+    }
+
+    #[test]
+    fn command_prefix_span_len_bounds_at_the_last_completion() {
+        // KB-222 shape: phrase + post-release dictation - the span stops at
+        // the last completion and the tail survives as dictation.
+        assert_eq!(command_prefix_span_len(" question mark and more", &dm()), 14);
+        // Filler BETWEEN phrases discards per the command contract; the
+        // phrases on both sides of it still fire.
+        assert_eq!(
+            command_prefix_span_len(" comma um question mark", &dm()),
+            " comma um question mark".len()
+        );
+        // A lone phrase consumes exactly itself.
+        assert_eq!(command_prefix_span_len(" comma", &dm()), 6);
+        assert_eq!(command_prefix_span_len(" question mark", &dm()), 14);
+        // No completion anywhere: nothing parses, all dictation (an
+        // unresolved trailing fragment alone consumes-and-discards, the
+        // release-flush contract).
+        assert_eq!(command_prefix_span_len(" and more", &dm()), 0);
+        assert_eq!(command_prefix_span_len(" question", &dm()), 9);
+        assert_eq!(command_prefix_span_len(" com", &dm()), 4);
+        // A fragment DIRECTLY after the last completion extends the span
+        // (it is the hold's cut-off tail)...
+        assert_eq!(
+            command_prefix_span_len(" question mark com", &dm()),
+            " question mark com".len()
+        );
+        // ...but a fragment beyond intervening dictation does not: that
+        // material is post-boundary speech and flows back whole.
+        assert_eq!(command_prefix_span_len(" question mark and com", &dm()), 14);
+        // Fuzzy near-miss counts as a completion for the span bound.
+        assert_eq!(command_prefix_span_len(" coma", &dm()), 5);
+        assert_eq!(command_prefix_span_len("", &dm()), 0);
     }
 
     // -----------------------------------------------------------------

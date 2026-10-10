@@ -24,7 +24,7 @@ use objc2_foundation::{NSArray, NSInteger, NSObject, NSString};
 use tauri::{AppHandle, Manager};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
-use super::{evaluate, send_chord, TxState, WaitDecision};
+use super::{auto_submit_owed, chord_failure_error, evaluate, send_chord, TxState, WaitDecision};
 use crate::clipboard::send_return_key;
 use crate::input::EnigoState;
 use crate::settings::{AutoSubmitKey, ClipboardHandling, PasteMethod};
@@ -132,14 +132,20 @@ fn settle(
     }
     p.settled = true;
 
-    let (receipt_seen, ownership_lost) = match p.state.lock() {
-        Ok(st) => (st.any_receipt_after_injection(), st.ownership_lost),
-        Err(_) => (false, true),
+    let (receipt_seen, ownership_lost, injection_failed) = match p.state.lock() {
+        Ok(st) => (
+            st.any_receipt_after_injection(),
+            st.ownership_lost,
+            st.injection_failed,
+        ),
+        Err(_) => (false, true, false),
     };
 
     // Auto-submit only once the target demonstrably read the transcript;
     // pressing Enter after an unconfirmed paste could submit stale content.
-    if p.auto_submit && receipt_seen {
+    // KB-223: a chord failure owes no Enter even if an eager third-party read
+    // got recorded after the injection mark - nothing was pasted.
+    if auto_submit_owed(p.auto_submit, receipt_seen, injection_failed) {
         match enigo {
             Some(e) => {
                 let _ = send_return_key(e, p.auto_submit_key);
@@ -301,19 +307,23 @@ pub(super) fn run(
     if let Ok(mut st) = state.lock() {
         st.injected_at = Some(Instant::now());
     }
-    match send_chord(enigo, paste_method) {
+    // KB-223: a chord failure is a real paste failure, not a silent one. The
+    // transaction stays alive below (the waiter restores the clipboard after
+    // the short failed-injection timeout), and the failure is returned to the
+    // caller once the waiter is running so the restore is guaranteed.
+    let chord_failure = match send_chord(enigo, paste_method) {
         Ok(()) => {
             info!("[reliable-paste] paste chord sent ({paste_method:?})");
+            None
         }
         Err(e) => {
-            // Keep the transaction alive: the waiter restores the clipboard
-            // after the short failed-injection timeout.
             if let Ok(mut st) = state.lock() {
                 st.injection_failed = true;
             }
             error!("[reliable-paste] failed to send paste chord: {e}");
+            Some(chord_failure_error(&e))
         }
-    }
+    };
 
     let pending = Arc::new(Mutex::new(MacPending {
         state,
@@ -332,5 +342,11 @@ pub(super) fn run(
     }
     spawn_waiter(pending, app_handle.clone());
 
-    Ok(())
+    // KB-223: only now, with the waiter owning the restore, does the chord
+    // failure become the caller's error (classified by CHORD_FAILURE_PREFIX;
+    // never a legacy-paste fallback).
+    match chord_failure {
+        Some(error) => Err(error),
+        None => Ok(()),
+    }
 }

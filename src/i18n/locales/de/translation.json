@@ -245,7 +245,8 @@
       "selectionErrors": {
         "notAsrModel": "Dieses Modell ist die lokale Nachbearbeitungs-Engine. Sie verbessert Texte nach dem Diktat, kann aber kein Audio transkribieren.",
         "generic": "Wechsel zu diesem Modell fehlgeschlagen: {{error}}"
-      }
+      },
+      "deleteRefusedLive": "VoxBar diktiert gerade mit diesem Modell. Versuche es nach dem Diktat erneut."
     },
     "general": {
       "title": "Allgemein",

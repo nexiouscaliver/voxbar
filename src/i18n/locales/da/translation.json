@@ -404,7 +404,8 @@
       "selectionErrors": {
         "notAsrModel": "Denne model er den lokale efterbehandlingsmotor. Den forbedrer transskriptioner efter diktat, men kan ikke transskribere lyd.",
         "generic": "Kunne ikke skifte til denne model: {{error}}"
-      }
+      },
+      "deleteRefusedLive": "VoxBar dikterer med denne model. Prøv igen, når dikteringen er færdig."
     },
     "sound": {
       "title": "Lyd",

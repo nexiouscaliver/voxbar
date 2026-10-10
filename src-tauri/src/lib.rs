@@ -337,6 +337,24 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                     log::warn!("No model is currently loaded.");
                     return;
                 }
+                // KB-220: refuse the unload while a dictation session is
+                // live (recording or the stop pipeline still working).
+                // Unloading mid-session kills the streaming worker, drops
+                // every fed frame, and leaves the stop pipeline's batch
+                // fallback to die at transcribe_audio's residency check -
+                // the full dictation lost to one tray click. No NoticeCode
+                // fits this refusal honestly (BindingBusy is about hotkey
+                // bindings), so the surface is the honest one: nothing
+                // happens while dictating, the model stays loaded, and the
+                // refusal is logged. The batch path itself also re-loads on
+                // demand now (transcribe_audio), so even a refusal that
+                // races the stop recovers the audio.
+                if commands::models::dictation_session_live(app) {
+                    log::warn!(
+                        "Refusing tray model unload: a dictation session is live (KB-220)."
+                    );
+                    return;
+                }
                 transcription_manager.request_unload();
                 log::info!("Model unloaded via tray.");
             }

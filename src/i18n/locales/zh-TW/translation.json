@@ -404,7 +404,8 @@
       "selectionErrors": {
         "notAsrModel": "此模型是本機後處理引擎。它會在聽寫後潤飾轉錄文字，無法轉錄音訊。",
         "generic": "無法切換到此模型：{{error}}"
-      }
+      },
+      "deleteRefusedLive": "VoxBar 正在使用此模型聽寫。聽寫結束後請再試一次。"
     },
     "sound": {
       "title": "聲音",

@@ -19,6 +19,7 @@ import {
 } from "@/lib/constants/languages.ts";
 import type { ModelInfo } from "@/bindings";
 import { AddModelFromHuggingFace } from "./AddModelFromHuggingFace";
+import { isSessionRefusalError } from "./modelRefusals";
 
 // check if model supports a language based on its supported_languages list
 const modelSupportsLanguage = (model: ModelInfo, langCode: string): boolean => {
@@ -188,7 +189,27 @@ export const ModelsSettings: React.FC = () => {
 
     if (confirmed) {
       try {
-        await deleteModel(modelId);
+        const deleted = await deleteModel(modelId);
+        if (!deleted) {
+          // The store never throws the backend error; it lands in state
+          // prefixed "Failed to delete model: " (mirrors the select path).
+          const { error } = useModelStore.getState();
+          const raw =
+            typeof error === "string"
+              ? error.replace(/^Failed to delete model:\s*/, "")
+              : "";
+          if (isSessionRefusalError(raw)) {
+            // KB-117/KB-220: a live dictation is using this model; the
+            // refusal is transient, so surface it in place as a retry hint
+            // instead of letting it vanish into the console.
+            setSelectionError({
+              modelId,
+              message: t("settings.models.deleteRefusedLive"),
+            });
+          } else {
+            console.error(`Failed to delete model ${modelId}:`, error);
+          }
+        }
       } catch (err) {
         console.error(`Failed to delete model ${modelId}:`, err);
       }

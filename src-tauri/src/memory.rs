@@ -464,9 +464,12 @@ pub struct FallbackCandidate {
     /// Catalog recommended rank (lower = better); `u32::MAX` for unranked
     /// models so they sort last.
     pub rank: u32,
-    /// Estimated footprint in bytes - the SAME size-derived forecast the
-    /// gate compares (`size_mb` MiB), so "fits" here means exactly "the
-    /// gate with the caller's headroom would allow this load".
+    /// Estimated footprint in bytes - the SAME runtime-inclusive forecast
+    /// the recursive fallback load's gate compares (max(`size_mb` MiB * 3/2,
+    /// measured), the unmeasured term; KB-219), so "fits" here means
+    /// exactly "the load gate with the caller's headroom would allow this
+    /// load" and a resolved fallback can never be terminally refused by its
+    /// own re-gate.
     pub footprint_bytes: u64,
 }
 
@@ -637,6 +640,88 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// KB-218 at the gate boundary: the measured-RSS floor applies per
+    /// model, never across models. A big model's 1.3 GiB reading must not
+    /// floor a different small model's forecast (the small model keeps the
+    /// size-derived 3/2 floor alone - the un-keyed cell used to refuse it
+    /// against a phantom "needs ~1.3 GB"), while re-selecting the measured
+    /// model forecasts from its own reading.
+    #[test]
+    fn measured_rss_floors_only_its_own_model() {
+        use crate::local_llm::forecast::runtime_inclusive_bytes;
+
+        let big_size = 800 * 1024 * 1024;
+        let small_size = 43 * 1024 * 1024; // whisper tiny's file
+        let big_measured = 1300 * 1024 * 1024;
+        let free = Some(1100 * 1024 * 1024);
+
+        // (a) big -> small switch: the small model's forecast carries NO
+        // floor from the big model's reading, so it fits a free reading
+        // the big model's RSS would have refused (the phantom-refusal
+        // regression the un-keyed cell produced).
+        let small_forecast = runtime_inclusive_bytes(small_size, None);
+        assert_eq!(small_forecast, small_size * 3 / 2);
+        assert!(!gate_should_refuse(free, small_forecast, 0));
+        assert!(
+            gate_should_refuse(
+                free,
+                runtime_inclusive_bytes(small_size, Some(big_measured)),
+                0
+            ),
+            "the cross-model floor is exactly the refusal KB-218 retires"
+        );
+
+        // (b) re-selecting the big model uses its OWN reading as the floor
+        // (1300 MiB is above its 1200 MiB size floor, so it wins).
+        assert_eq!(
+            runtime_inclusive_bytes(big_size, Some(big_measured)),
+            big_measured
+        );
+        assert!(gate_should_refuse(
+            free,
+            runtime_inclusive_bytes(big_size, Some(big_measured)),
+            0
+        ));
+        // Unmeasured, the same model forecasts from size alone.
+        assert_eq!(runtime_inclusive_bytes(big_size, None), big_size * 3 / 2);
+    }
+
+    /// KB-219: a candidate the resolver accepts must also pass the load
+    /// gate for the same free memory - the candidate footprint IS the
+    /// gate's runtime-inclusive forecast (max(size * 3/2, measured)), never
+    /// the bare file size. Reviewer 15's boundary: free 900 MiB and a
+    /// 650 MiB model whose runtime forecast is 650 * 3/2 = 975 MiB is
+    /// refused by BOTH; the retired size-only footprint (650 MiB) would
+    /// have resolved it, and the recursive no-cascade load (allow_fallback
+    /// = false) would then have terminally refused and blamed it.
+    #[test]
+    fn resolver_fit_is_the_gate_forecast_reviewer_boundary() {
+        use crate::local_llm::forecast::runtime_inclusive_bytes;
+
+        let size = 650 * 1024 * 1024;
+        let footprint = runtime_inclusive_bytes(size, None);
+        assert_eq!(footprint, 975 * 1024 * 1024);
+        let candidates = vec![cand("reviewer-15", 1, footprint)];
+
+        // 975 > 900 at margin 0: the resolver refuses...
+        let free = Some(900 * 1024 * 1024);
+        assert_eq!(resolve_fallback_model(free, &candidates, "selected", 0), None);
+        // ...and so does the load gate for the same numbers - this is the
+        // exact decision the recursive fallback load would make, so the
+        // resolver never hands it a certain terminal refusal.
+        assert!(gate_should_refuse(free, footprint, 0));
+
+        // At exactly the footprint both allow (equality fits): the resolver
+        // offers precisely the models the gate passes for that free reading.
+        let free_exact = Some(footprint);
+        assert!(!gate_should_refuse(free_exact, footprint, 0));
+        assert_eq!(
+            resolve_fallback_model(free_exact, &candidates, "selected", 0)
+                .map(|c| c.id.as_str()),
+            Some("reviewer-15")
+        );
     }
 
     /// THE OPERATOR DIRECTION: a pressured machine must still refuse
