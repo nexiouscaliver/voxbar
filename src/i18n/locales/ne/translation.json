@@ -377,7 +377,7 @@
       "addFromHf": {
         "title": "हगिङ फेसबाट मोडेल थप्नुहोस्",
         "description": "सार्वजनिक रिपो URL वा owner/repo पेस्ट गर्नुहोस्, जस्तै https://huggingface.co/owner/repo।",
-        "placeholder": "https://huggingface.co/owner/repo or owner/repo",
+        "placeholder": "https://huggingface.co/owner/repo वा owner/repo",
         "add": "थप्नुहोस्",
         "cancel": "रद्द गर्नुहोस्",
         "pickFile": "{{repo}} बाट फाइल छान्नुहोस्:",
