@@ -231,3 +231,105 @@ _New in round 3 (KB-152, 153, 156-158, 161, 163-175, 177, 178, 180-182, 184, 187
 - Not run by me (carried as [R3], who ran them against 5bf5b893): all cargo/bun test invocations listed above, locale sweeps, sonner/transcribe-cpp-sys/tauri-plugin-opener source reads; static-only items never executed live on this macOS host: KB-018, 053, 123, 126, 166, 176 (truncation), 181.
 
 **Bottom line at the end of the review:** the loop converged on the hard classes: every fix commit landed exactly what the KB named, all three round-3 P0s verified FIXED, and the round-3 P0 (KB-150, mic-switch kills live recording) was fixed right after consolidation in c8b0f890. Highest-leverage next moves: the notice-routing decision (theme 1), generalizing hotkey gating (theme 2), and the lying-toggle family (theme 3); each closes 5-20 items with one pattern.
+
+---
+
+# Round 4 (cycle 3 fleet, 2026-10-10)
+
+Twelve reviewers, one per feature area, over cycle3/v1.5.0-quality-waves at
+ee983388. Every cycle-3 fix claim was re-verified in code: all held.
+
+## Fix-verified this round (do not re-file)
+
+KB-008, KB-009 (both halves), KB-016, KB-019 (held), KB-020, KB-027, KB-031,
+KB-033, KB-034, KB-036 (edge: KB-199), KB-038, KB-104 residual, KB-107,
+KB-145/183 (effective_enabled, 4-combination test), KB-148 (caveat: KB-195),
+KB-151, KB-154 (pinned twice), KB-158, KB-159, KB-160 (both recorders),
+KB-162, KB-185 (end to end), KB-187, KB-188, KB-190 (residual: KB-206),
+KB-191 (edge: KB-211), KB-192, KB-193.
+
+**KB-113 resolved by removal**: no toast.loading exists on any model-download
+path anymore; the stuck-toast defect has no trigger surface. Mark closed.
+
+## New findings (P1)
+
+- **KB-194 · generic rebind does not check chord conflicts up front, and while
+  the recorder is armed cannot catch them at register time either** (suspend
+  unregisters everything, register sees no conflict, resume's failure is
+  debug-level): one of the duplicate pair dies silently, chosen by map
+  iteration order. Fix shape: run binding_conflicts_with_active_binding in
+  the generic branch too, pre-unregister (mod.rs:395 has it for cancel only).
+- **KB-195 · every hidden-window notification gates on
+  document.visibilityState, which WKWebView may not flip for an ordered-out
+  Tauri window** (App.tsx:416, updaterFlow.ts:157/334/431): if it stays
+  "visible", all KB-148/KB-020 notifications silently no-op. Two reviewers
+  converged. Fix shape: drive the gate from the backend main-window-hidden /
+  window-visibility truth, not page visibility.
+- **KB-109 re-confirmed by two reviewers, upgraded**: retry ignores the pp
+  master toggle AND provider switch, so stored transcripts can ship to the
+  CURRENT (possibly paid cloud) provider/model/prompt with pp off
+  (commands/history.rs:100-107, actions.rs:1098-1137, settings.rs:1851-1855).
+- **KB-198 · every toggle-ON hotkey registration discards failure with
+  `let _ =`** (mod.rs:1497/1511/2244/2267/2290): a chord duplicated onto a
+  toggle-off binding makes toggle-ON hit "already in use" silently; toggle
+  reads on, key dead. Fix shape: surface or resolve at commit time.
+
+## New findings (P2)
+
+- **KB-196** failed channel-switch reopen never retries; always-on stream
+  left cold until next session (audio.rs:1212-1245; device/VAD siblings retry).
+- **KB-197** any phone's hello clobbers session_device mid-session; capped/
+  disconnected notices blame the wrong phone (server.rs:316-318).
+- **KB-199** KB-036's error exit (failed handy-keys init rollback) skips the
+  cancel rearm; mid-recording switch with failing init leaves cancel dead
+  (mod.rs:624 short-circuits before both rearm sites).
+- **KB-200** unload-timeout settings writes (incl. the tray Custom flow's own
+  seed) never rebuild the tray submenu (commands/transcription.rs:20/93).
+- **KB-201** set_post_process_provider never rebuilds; the pp Model submenu
+  appears/disappears only on the next unrelated rebuild (mod.rs:1638-1646).
+- **KB-202** history setters are the inverse KB-104 shape: persist succeeds,
+  cleanup fails, Err rolls the UI back while disk keeps the value
+  (commands/history.rs:122-163).
+- **KB-203** updateSetting failure rollback restores a wholesale stale
+  settings snapshot, silently reverting unrelated keys (settingsStore.ts:414).
+- **KB-204** notification-permission denial is silent and latched forever;
+  no surface hints that update notices will never arrive (desktopNotify.ts).
+- **KB-205** manual check click during an in-flight silent auto-check is a
+  dead click for up to ~21 minutes (runUpdateCheck early-returns on
+  inFlight with no feedback; updaterFlow.ts:345).
+- **KB-206** Theme + Accent Color rows still missing from settings search;
+  the "every About row indexed" comment is now false (SettingsSearch.tsx:167).
+- **KB-207** 300ms hide-unmap race: card_visible=true while the overlay
+  already returned null; an info notice in the window is invisible on every
+  surface (overlay.rs:731-742 vs RecordingOverlay.tsx:385).
+
+## New findings (P3)
+
+- **KB-208** (folds into KB-163) companion capped + disconnected both drop
+  the device-name detail in the shared mapping (noticeMessage.ts:85-99).
+- **KB-209** prompt ids can collide on the same millisecond
+  (mod.rs:1658/1687; the "random component" comment is not implemented).
+- **KB-210** a relaunch() failure after a successful install shows the
+  generic update-failure toast (updaterFlow.ts:299-306).
+- **KB-211** KB-191 race: fast OFF→ON toggle can skip latch consumption if
+  both writes land before the refetch renders (updaterAutoCheck.ts:43).
+- **KB-212** restore_registration still re-registers toggle-off chords on
+  failure exits (mod.rs:493-503); narrow reach after KB-009.
+- **KB-213** GlobalShortcutInput has no unmount-time resume, unlike its
+  HandyKeys twin (only listener removal in cleanup).
+- **KB-214** KB-136 family grows: shortcutGating.test.ts unwired; CI still
+  never runs test:updater (now two tests) (ci.yml:106-109).
+- **KB-215** silent value coercion: theme/sound-theme/overlay-position/style
+  setters warn + substitute defaults yet return Ok (mod.rs:986-1123).
+- **KB-216** write_settings is unobservable (no error surface); persist
+  honesty stops at the apply leg (settings.rs:2127-2134).
+- **KB-015 reach grew**: model_load_failed raw-English detail now also lands
+  in the desktop-notification body via noticeMessage.
+
+## Standing verdict
+
+Cycle 3 closed 29 goldmine items with zero false fix claims. The open P1
+queue is now: KB-194, KB-195, KB-109, KB-198, KB-186 (offline onboarding dead
+end, re-confirmed HIGH by the UI reviewer). Highest-leverage wave-5 pattern:
+honest hotkey commits (KB-194 + KB-198 + KB-199 + KB-212 share one file) and
+the notification-gate rework (KB-195 unblocks the whole KB-148 surface).
