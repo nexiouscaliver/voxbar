@@ -22,14 +22,12 @@ import { ShowOverlay } from "../ShowOverlay";
 import { AlwaysOnMicrophone } from "../AlwaysOnMicrophone";
 import { ClamshellMicrophoneSelector } from "../ClamshellMicrophoneSelector";
 import { SoundPicker } from "../SoundPicker";
+import { shortcutRowDisabled } from "../shortcutGating";
 
 export const GeneralSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { audioFeedbackEnabled, getSetting } = useSettings();
+  const { audioFeedbackEnabled, settings } = useSettings();
   const isLinux = type() === "linux";
-  const deleteLastWordEnabled = getSetting("delete_last_word_enabled") ?? true;
-  const undoEnabled = getSetting("undo_enabled") ?? true;
-  const commandModeEnabled = getSetting("command_mode_enabled") ?? true;
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("settings.general.title")}>
@@ -42,13 +40,13 @@ export const GeneralSettings: React.FC = () => {
         <ShortcutInput
           shortcutId="delete_last_word"
           grouped={true}
-          disabled={!deleteLastWordEnabled}
+          disabled={shortcutRowDisabled("delete_last_word", settings)}
         />
         <DeleteLastWordAction descriptionMode="tooltip" grouped={true} />
         <ShortcutInput
           shortcutId="undo"
           grouped={true}
-          disabled={!undoEnabled}
+          disabled={shortcutRowDisabled("undo", settings)}
         />
         <UndoAction descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
@@ -56,7 +54,7 @@ export const GeneralSettings: React.FC = () => {
         <ShortcutInput
           shortcutId="transcribe_commands"
           grouped={true}
-          disabled={!commandModeEnabled}
+          disabled={shortcutRowDisabled("transcribe_commands", settings)}
         />
         <CommandModeToggle descriptionMode="inline" grouped={true} />
       </SettingsGroup>

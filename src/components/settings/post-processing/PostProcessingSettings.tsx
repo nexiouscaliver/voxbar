@@ -30,6 +30,7 @@ import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { PostProcessModelsSection } from "./PostProcessModelsSection";
 import { ShortcutInput } from "../ShortcutInput";
+import { shortcutRowDisabled } from "../shortcutGating";
 import { useSettings } from "../../../hooks/useSettings";
 
 /// One line under the provider selector that renders the Test Connection
@@ -905,25 +906,28 @@ PostProcessingSettingsPrompts.displayName = "PostProcessingSettingsPrompts";
 
 export const PostProcessingSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { getSetting } = useSettings();
-  const postProcessEnabled = getSetting("post_process_enabled") ?? false;
+  const { settings } = useSettings();
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <SettingsGroup title={t("settings.postProcessing.hotkey.title")}>
+        {/* Both rows are inert while the master toggle is off (the backend
+            gate refuses to register either key), so they grey out to match
+            and their recorders cannot arm (KB-009). Unbound by default. */}
         <ShortcutInput
           shortcutId="transcribe_with_post_process"
           descriptionMode="tooltip"
           grouped={true}
+          disabled={shortcutRowDisabled(
+            "transcribe_with_post_process",
+            settings,
+          )}
         />
-        {/* The cycle key is inert while the master toggle is off (the
-            backend gate refuses to register it), so the row greys out to
-            match. Unbound by default. */}
         <ShortcutInput
           shortcutId="cycle_post_process_prompt"
           descriptionMode="tooltip"
           grouped={true}
-          disabled={!postProcessEnabled}
+          disabled={shortcutRowDisabled("cycle_post_process_prompt", settings)}
         />
       </SettingsGroup>
 
