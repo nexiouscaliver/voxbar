@@ -1383,6 +1383,30 @@ mod tests {
         );
     }
 
+    /// KB-200/KB-201: the "Unload After" submenu's checkmark rides
+    /// unload_timeout, and the provider flip rides post_process_local_active
+    /// (the Post-process Model submenu exists only while the local engine is
+    /// active) - so both settings' setters re-syncing through
+    /// update_tray_menu is enough for the applier to see a diff and rebuild.
+    #[test]
+    fn unload_timeout_and_provider_changes_drive_menu_rebuild() {
+        let mut custom = inputs(false);
+        custom.unload_timeout = ModelUnloadTimeout::Custom { seconds: 90 };
+        assert_ne!(
+            inputs(false),
+            custom,
+            "unload-timeout change => MenuInputs differ => the menu rebuilds"
+        );
+
+        let mut local = inputs(false);
+        local.post_process_local_active = true;
+        assert_ne!(
+            inputs(false),
+            local,
+            "provider flip => MenuInputs differ => the Post-process Model submenu appears/disappears"
+        );
+    }
+
     /// The Post-process Model submenu lists exactly the downloaded LocalLlm
     /// models with ONE checkmark, on the effective selection - and a
     /// selection change drives a menu rebuild through MenuInputs' equality.

@@ -445,8 +445,25 @@ impl HistoryManager {
     }
 
     pub fn cleanup_old_entries(&self) -> Result<()> {
-        let retention_period = crate::settings::get_recording_retention_period(&self.app_handle);
+        self.cleanup_old_entries_with(
+            crate::settings::get_recording_retention_period(&self.app_handle),
+            crate::settings::get_history_limit(&self.app_handle),
+        )
+    }
 
+    /// KB-202: [`Self::cleanup_old_entries`] with the two store reads
+    /// hoisted into explicit parameters, so the settings commands can run
+    /// the cleanup against the WOULD-BE values BEFORE persisting (each
+    /// command passes its incoming value for the field it changes and the
+    /// store's current value for the other). The passes themselves are
+    /// unchanged - by-count deletes beyond `history_limit`, by-time honors
+    /// `retention_period` - they already took these as parameters; only the
+    /// dispatcher used to re-read the store.
+    pub fn cleanup_old_entries_with(
+        &self,
+        retention_period: crate::settings::RecordingRetentionPeriod,
+        history_limit: usize,
+    ) -> Result<()> {
         match retention_period {
             crate::settings::RecordingRetentionPeriod::Never => {
                 // Don't delete anything
@@ -454,8 +471,7 @@ impl HistoryManager {
             }
             crate::settings::RecordingRetentionPeriod::PreserveLimit => {
                 // Use the old count-based logic with history_limit
-                let limit = crate::settings::get_history_limit(&self.app_handle);
-                self.cleanup_by_count(limit)
+                self.cleanup_by_count(history_limit)
             }
             _ => {
                 // Use time-based logic

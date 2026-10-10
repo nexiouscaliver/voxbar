@@ -1237,6 +1237,17 @@ impl AudioRecordingManager {
                 if let Some(recorder) = self.recorder.lock().unwrap().as_mut() {
                     recorder.set_selected_channel(previous_channel);
                 }
+                // KB-196: restoring the recorder's in-memory channel alone
+                // leaves the stream it describes still cold - AlwaysOn's
+                // warm capture then stays down until the next session opens
+                // one. Retry the reopen on the previous channel (the same
+                // rollback shape as the device switch above and the VAD
+                // backend swap) and still surface the original error.
+                if let Err(rollback_error) = self.start_microphone_stream() {
+                    error!(
+                        "Failed to restore microphone stream after failed channel switch: {rollback_error}"
+                    );
+                }
                 return Err(error);
             }
         }

@@ -411,8 +411,16 @@ export const useSettingsStore = create<SettingsStore>()(
             `Failed to update setting ${updateKey}:`,
             outcome.error,
           );
+          // KB-203: restore ONLY this key, from the state as it is NOW.
+          // The pre-patch snapshot would silently revert unrelated keys
+          // that changed while the command was in flight (a concurrent
+          // successful updateSetting, or a settings-changed refresh).
           if (settings) {
-            set({ settings: { ...settings, [key]: originalValue } });
+            set((state) => ({
+              settings: state.settings
+                ? { ...state.settings, [key]: originalValue }
+                : null,
+            }));
           }
           toast.error(
             i18n.t("toast.settingNotSaved", { error: outcome.error ?? "" }),
@@ -420,8 +428,14 @@ export const useSettingsStore = create<SettingsStore>()(
         }
       } catch (error) {
         console.error(`Failed to update setting ${String(key)}:`, error);
+        // KB-203: same per-key rollback against the current state - never
+        // the wholesale pre-patch snapshot.
         if (settings) {
-          set({ settings: { ...settings, [key]: originalValue } });
+          set((state) => ({
+            settings: state.settings
+              ? { ...state.settings, [key]: originalValue }
+              : null,
+          }));
         }
         toast.error(
           i18n.t("toast.settingNotSaved", {

@@ -92,6 +92,30 @@ await notifyDesktop("post-denial notice");
 assert.equal(requestPermissionCalls, 1);
 assert.deepEqual(sent, []);
 
+// KB-204: pin the denial lifecycle from a FRESH module instance. The
+// query string gives bun a second, untouched copy of the module state (the
+// one-ask latch above is already consumed); the specifier rides a variable
+// so tsc does not try to resolve the cache-bust query as a real file. An
+// OS-reported "denied" still gets the single requestPermission ask (a
+// no-op that keeps returning "denied" once the system has recorded it),
+// and after that every notice is silent forever: no re-prompt, no
+// delivery, and - today - no surface that tells the user update/dictation
+// notices will never arrive. That silence is the KB-204 gap: there is no
+// locale copy for it (a settings-surface hint is an operator design
+// decision), so this block pins the current contract to make any future
+// honest-surface work change it deliberately.
+sent.length = 0;
+requestPermissionCalls = 0;
+StubNotification.permission = "denied";
+StubNotification.permissionOnRequest = "denied";
+const freshModulePath = "./desktopNotify.ts?kb204";
+const { notifyDesktop: notifyDesktopFresh } = await import(freshModulePath);
+await notifyDesktopFresh("kb204 first notice");
+await notifyDesktopFresh("kb204 second notice");
+await notifyDesktopFresh("kb204 third notice");
+assert.equal(requestPermissionCalls, 1);
+assert.deepEqual(sent, []);
+
 // No Tauri window context (isVisible throws): treated as visible - no
 // delivery - and the warning fires exactly once no matter how many calls.
 StubNotification.permission = "granted";

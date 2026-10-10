@@ -4,7 +4,7 @@ use crate::managers::{
     transcription::TranscriptionManager,
 };
 use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, State};
 
 #[tauri::command]
 #[specta::specta]
@@ -139,6 +139,18 @@ pub async fn retry_history_entry_transcription(
         .map_err(|e| e.to_string())
 }
 
+/// KB-202: whether a history setter may persist its change, given the
+/// outcome of the pre-persist cleanup that already ran against the
+/// would-be value. The old inverse shape (persist, then cleanup) returned
+/// the cleanup's Err to the UI - which rolls its control back (KB-203's
+/// per-key rollback) - while the store kept the new value, so disk and
+/// the reported outcome disagreed. Pure so the contract is pinned without
+/// an app handle; the DB cleanup itself is AppHandle-bound
+/// (HistoryManager pins tauri::AppHandle).
+fn should_persist_after_cleanup(cleanup: &anyhow::Result<()>) -> bool {
+    cleanup.is_ok()
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn update_history_limit(
@@ -148,11 +160,29 @@ pub async fn update_history_limit(
 ) -> Result<(), String> {
     let mut settings = crate::settings::get_settings(&app);
     settings.history_limit = limit;
+
+    // KB-202: run the cleanup against the WOULD-BE limit first (retention
+    // is this command's untouched field, so the store's current value
+    // rides along) and persist only when it succeeded, so the store never
+    // holds a value whose cleanup the caller was told failed.
+    let cleanup =
+        history_manager.cleanup_old_entries_with(settings.recording_retention_period, limit);
+    if !should_persist_after_cleanup(&cleanup) {
+        return Err(cleanup.unwrap_err().to_string());
+    }
+
     crate::settings::write_settings(&app, settings);
 
-    history_manager
-        .cleanup_old_entries()
-        .map_err(|e| e.to_string())?;
+    // Same convergence signal the other settings setters emit (the
+    // start_hidden/debug_mode rule): every listening webview re-reads the
+    // store, which now agrees with the Ok the caller just got.
+    let _ = app.emit(
+        "settings-changed",
+        serde_json::json!({
+            "setting": "history_limit",
+            "value": limit
+        }),
+    );
 
     Ok(())
 }
@@ -177,18 +207,32 @@ pub async fn update_recording_retention_period(
 
     let mut settings = crate::settings::get_settings(&app);
     settings.recording_retention_period = retention_period;
+
+    // KB-202: the same cleanup-first shape as update_history_limit - the
+    // would-be retention picks the pass (Never: nothing; a time period:
+    // by-time against it), and the store's current limit rides along.
+    let cleanup =
+        history_manager.cleanup_old_entries_with(retention_period, settings.history_limit);
+    if !should_persist_after_cleanup(&cleanup) {
+        return Err(cleanup.unwrap_err().to_string());
+    }
+
     crate::settings::write_settings(&app, settings);
 
-    history_manager
-        .cleanup_old_entries()
-        .map_err(|e| e.to_string())?;
+    let _ = app.emit(
+        "settings-changed",
+        serde_json::json!({
+            "setting": "recording_retention_period",
+            "value": period
+        }),
+    );
 
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::retry_runs_post_process;
+    use super::{retry_runs_post_process, should_persist_after_cleanup};
     use crate::settings::get_default_settings;
 
     /// KB-109: the retry's post-process leg needs BOTH the per-entry
@@ -215,6 +259,26 @@ mod tests {
         assert!(
             !retry_runs_post_process(false, &settings),
             "an entry recorded without post-processing never gains the leg on retry"
+        );
+    }
+
+    /// KB-202: the history setters run their cleanup BEFORE persisting and
+    /// gate the write on its outcome, so a failed cleanup blocks the
+    /// persist (the UI's rollback matches the untouched store) while a
+    /// successful one lets it through. The old inverse shape wrote first,
+    /// so a cleanup failure rolled the UI back against a store that
+    /// already held the new value.
+    #[test]
+    fn cleanup_outcome_gates_whether_the_setter_persists() {
+        assert!(
+            should_persist_after_cleanup(&Ok(())),
+            "cleanup succeeded: the new value may reach the store"
+        );
+        assert!(
+            !should_persist_after_cleanup(&Err(anyhow::anyhow!(
+                "database is locked"
+            ))),
+            "cleanup failed: the store must keep the previous value so disk matches the Err the UI rolls back to"
         );
     }
 }
