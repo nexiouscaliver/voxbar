@@ -9,9 +9,11 @@
     "unloadAfterNever": "しない",
     "unloadAfterCustom": "カスタム…",
     "model": "モデル",
+    "postProcessModel": "後処理モデル",
     "quit": "終了",
     "cancel": "キャンセル",
-    "secureInputWarning": "⚠ Secure Input でショートカットがブロック中"
+    "secureInputWarning": "⚠ Secure Input でショートカットがブロック中",
+    "postProcessPrompt": "後処理プロンプト"
   },
   "sidebar": {
     "general": "一般",
@@ -272,6 +274,10 @@
           "transcribe_commands": {
             "name": "コマンドモード",
             "description": "音声入力セッション中にこのキーを押し続けるとコマンド解釈に切り替わります: 発話内容がそのままディクテーションバッファを直接編集し (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line)、認識されない単語は破棄されます。キーを離すと通常の音声入力に戻り、最終貼り付けは編集済みバッファをそのまま配信します。単体では録音を開始せず何もしません。デフォルトでは未割り当てです。"
+          },
+          "cycle_post_process_prompt": {
+            "name": "後処理プロンプトの切り替え",
+            "description": "任意: 選択中の後処理テンプレートを次へ進め、新しいテンプレートを通知します。"
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "数字",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "コンパニオンデバイス",
+        "description": "同じWi-Fi上のスマホやタブレットを、このMacのマイクとトリガーとして使います。",
+        "offNote": "既定ではオフです。有効にするまで、何も待ち受けせずスレッドも動きません。",
+        "qrTitle": "デバイスをペアリング",
+        "qrHint": "スマホのカメラでスキャンし、リンクを開いて、証明書の警告を一度だけ承認してください。",
+        "addressLabel": "アドレス",
+        "portLabel": "ポート",
+        "devicesLabel": "接続中のデバイス",
+        "noDevices": "まだデバイスは接続されていません",
+        "resetPairing": "ペアリングをリセット",
+        "fingerprintLabel": "証明書のフィンガープリント（SHA-256）",
+        "firewallNote": "初回の有効化時にmacOSが受信接続の許可を求めることがあります。許可しないとスマホはこのMacに接続できません。",
+        "unavailable": "コンパニオンデバイスはこのサイクルではmacOSが必要です。",
+        "serverError": "サーバーが失敗しました: {{error}}",
+        "refresh": "更新",
+        "statusRunning": "実行中",
+        "statusStopped": "停止"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "選択したプロバイダーが提供するモデルを選択。",
           "placeholderWithOptions": "モデルを検索または選択",
           "placeholderNoOptions": "モデル名を入力",
-          "refreshModels": "モデルを更新"
+          "refreshModels": "モデルを更新",
+          "fetchFailed": "モデル一覧の取得に失敗しました ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "モデル一覧を {{time}} に取得しました",
+          "retry": "再試行"
         },
         "timeout": {
           "title": "リクエストのタイムアウト",
-          "description": "クラウドの後処理リクエストが諦めて生の書き起こしを使うまでに実行できる時間。エンドポイントが応答しなくなったときに適用されます。"
+          "description": "このプロバイダーの後処理リクエストが諦めて元の文字起こしを使うまでに実行できる時間。リセットするとこのプロバイダーの既定値{{classDefault}}秒に戻ります。"
+        },
+        "testConnection": "接続をテスト",
+        "testConnectionRunning": "テスト中...",
+        "verdict": {
+          "ok": "認証OK、{{latencyMs}} ms、モデルに到達可能",
+          "okNoModel": "認証OK、{{latencyMs}} ms。テストするモデルが選択されていません。",
+          "localReady": "ローカルモデルはダウンロード済みで利用可能です",
+          "localNotReady": "ローカルモデルの準備ができていません: {{detail}}",
+          "appleReady": "Apple Intelligence は利用できます",
+          "appleUnavailable": "Apple Intelligence はこのデバイスでは利用できません",
+          "failed": "接続に失敗しました: {{failureClass}}。{{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "今は削除できません: 後処理が実行中です。しばらくしてからもう一度お試しください。",
         "downloadFailed": "ダウンロードに失敗しました: {{error}}",
         "deleteFailed": "モデルを削除できませんでした: {{error}}",
-        "providerLabel": "ローカル（デバイス上）"
+        "providerLabel": "ローカル（デバイス上）",
+        "keepWarm": {
+          "title": "ローカルモデルをメモリに保持",
+          "description": "ポリッシュの後、ローカル後処理モデルがすぐにアンロードされずメモリに残る時間。ディテーションは常に先にメモリを取り戻します。",
+          "off": "オフ"
+        }
+      },
+      "models": {
+        "title": "後処理モデル",
+        "description": "文字起こしを清書するローカルモデルです。小さいモデルは読み込みが速く、大きいモデルはより丁寧に整えます。",
+        "searchPlaceholder": "後処理モデルを検索",
+        "downloaded": "ダウンロード済み",
+        "available": "ダウンロード可能",
+        "active": "使用中",
+        "select": "使用する",
+        "contextTokens": "コンテキスト: {{count}}トークン",
+        "publisher": "提供: {{publisher}}",
+        "noMatch": "検索に一致する後処理モデルはありません。",
+        "browseCatalog": "他のモデルを見る",
+        "addFromHf": {
+          "title": "Hugging Face から後処理モデルを追加",
+          "description": "公開リポジトリの URL または owner/repo を貼り付けてください。言語モデルの GGUF（Qwen、Llama、Gemma、Phi）を追加できます。",
+          "added": "モデルを追加しました。ダウンロード済みに表示されます。"
+        }
       },
       "prompts": {
         "title": "プロンプト",
@@ -709,7 +771,85 @@
         "createPrompt": "プロンプトを作成",
         "cancel": "キャンセル",
         "selectToEdit": "上からプロンプトを選択して、詳細を表示・編集します。",
-        "createFirst": "上の「新しいプロンプトを作成」をクリックして、最初の後処理プロンプトを作成してください。"
+        "createFirst": "上の「新しいプロンプトを作成」をクリックして、最初の後処理プロンプトを作成してください。",
+        "registers": {
+          "professional": "ビジネス",
+          "casual": "カジュアル",
+          "technical": "技術",
+          "minimal": "最小",
+          "general": "標準"
+        },
+        "builtinBadge": "内蔵",
+        "customBadge": "カスタム",
+        "editedBadge": "編集済み",
+        "versionLabel": "バージョン {{version}}",
+        "duplicate": "複製",
+        "testOnLastTranscript": "最後の文字起こしで試す",
+        "testing": "テスト中...",
+        "testNoHistory": "文字起こしの履歴がまだありません。まず録音してください。",
+        "testPromptNotFound": "このテンプレートはもう存在しません。",
+        "testFailed": "テスト失敗: {{detail}}",
+        "testResultTitle": "テスト結果",
+        "testBefore": "変更前",
+        "testAfter": "変更後",
+        "testOutcome": "結果: {{outcome}}",
+        "testLatency": "{{ms}} ミリ秒",
+        "testRawKept": "元の文字起こしがそのまま使われます。",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "英語（ビジネス）",
+            "description": "ビジネス向けの整った英語: 文法まで丁寧に整える完全なクリーンアップ。"
+          },
+          "english_casual": {
+            "name": "英語（カジュアル）",
+            "description": "縮約形やスラングを残す会話調の英語。"
+          },
+          "english_technical": {
+            "name": "英語（技術）",
+            "description": "識別子、パス、コマンドをそのまま残すコード向きの英語。"
+          },
+          "english_minimal": {
+            "name": "英語（最小）",
+            "description": "句読点と大文字だけを修正。すべての単語は話したまま。"
+          },
+          "hindi_devanagari": {
+            "name": "ヒンディー語（デーヴァナーガリー）",
+            "description": "デーヴァナーガリー文字のヒンディー語を、プルナヴィラームの句読点で整える。"
+          },
+          "hinglish_roman": {
+            "name": "ヒングリッシュ（ローマ字）",
+            "description": "話されたヒンディー語と英語の混ざり方をローマ字のまま残す。"
+          },
+          "marathi": {
+            "name": "マラーティー語",
+            "description": "デーヴァナーガリー文字のマラーティー語を整える。"
+          },
+          "tamil": {
+            "name": "タミル語",
+            "description": "タミル文字のタミル語を整える。"
+          },
+          "spanish": {
+            "name": "スペイン語",
+            "description": "逆疑問符と逆感嘆符を使うスペイン語の整え。"
+          },
+          "french": {
+            "name": "フランス語",
+            "description": "フランス式のスペースと引用符を使うフランス語の整え。"
+          },
+          "german": {
+            "name": "ドイツ語",
+            "description": "名詞を大文字で始めるドイツ語の整え。"
+          },
+          "japanese": {
+            "name": "日本語",
+            "description": "日本語の句読点と漢字の修正を含む整え。"
+          },
+          "chinese_simplified": {
+            "name": "中国語（簡体字）",
+            "description": "簡体字中国語を同音異字の修正付きで整える。"
+          }
+        },
+        "editPrompt": "編集"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "保存期間"
-      }
+      },
+      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms で処理"
     },
     "debug": {
       "title": "デバッグ",
@@ -867,6 +1008,20 @@
         "permissionsButton": "権限",
         "modelsButton": "モデル選択",
         "exitButton": "プレビューを終了"
+      },
+      "ppRuns": {
+        "title": "後処理の実行",
+        "description": "最近の整形実行: エンジン、プロンプト、レイテンシ、結果。診断用に実行のログ行をコピーできます。",
+        "time": "時刻",
+        "engine": "プロバイダー / モデル",
+        "prompt": "プロンプト",
+        "latency": "レイテンシ",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "結果",
+        "copyLog": "この実行のログ行をコピー",
+        "copied": "実行 {{run}} のログ行をコピーしました",
+        "empty": "後処理の実行はまだありません。",
+        "live": "実行中"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "自動でダウンロードとインストール"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "適用",
+      "skipped": "スキップ",
+      "failed": "失敗"
     }
   },
   "footer": {
@@ -1031,9 +1191,16 @@
       "undoNoBuffer": "まだクリアできるものがありません。ディクテーションにライブテキストがありません。",
       "bindingBusy": "別のディクテーションキーがすでに録音中です。",
       "waylandTauriHotkeys": "このキーボード実装では、ネイティブのWaylandアプリでグローバルショートカットが動作しない場合があります。キーボード実装をVoxBar Keysに切り替え、ユーザーをinputグループに追加してください。Ubuntuのガイドを参照してください。",
-      "gnomeOverlayFallback": "GNOME Waylandでは、オーバーレイが通常のウィンドウとして表示され、フォーカスを奪って貼り付けを壊すことがあります。ここではオーバーレイ: なしを推奨します。"
+      "gnomeOverlayFallback": "GNOME Waylandでは、オーバーレイが通常のウィンドウとして表示され、フォーカスを奪って貼り付けを壊すことがあります。ここではオーバーレイ: なしを推奨します。",
+      "postProcessOutputInvalid": "整形結果が利用できないテキストだったため、元の文字起こしが保持されました。",
+      "postProcessCloudFailed": "整形に失敗したため、元の文字起こしが保持されました: {{detail}}",
+      "postProcessPromptCycled": "後処理テンプレート: {{name}}",
+      "companionDisconnected": "スマホが切断されました。録音済みの内容で確定します。",
+      "companionServerFailed": "コンパニオンサーバーが失敗しました: {{error}}"
     },
-    "commandBadge": "コマンドモード"
+    "commandBadge": "コマンドモード",
+    "ppChip": "整形中 ({{model}}) {{seconds}}秒",
+    "companionBadge": "コンパニオンマイク"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} の新機能"
@@ -1058,11 +1225,45 @@
       "lengthGuard": "後処理をスキップしました: ローカルモデルの出力が長さチェックを通過しませんでした。元の文字起こしを使用しました。",
       "tooLong": "後処理をスキップしました: この文字起こしはローカルモデルには長すぎます。元の文字起こしを使用しました。"
     },
-    "settingNotSaved": "この設定を保存できませんでした: {{error}}"
+    "settingNotSaved": "この設定を保存できませんでした: {{error}}",
+    "postProcessFailure": {
+      "auth": "整形に失敗しました: プロバイダーが API キーを拒否しました。元の文字起こしが貼り付けられました。",
+      "network": "整形に失敗しました: プロバイダーに接続できません。元の文字起こしが貼り付けられました。",
+      "timeout": "整形に失敗しました: プロバイダーの応答が遅すぎました。元の文字起こしが貼り付けられました。",
+      "contextLength": "整形に失敗しました: 文字起こしがモデルのコンテキスト上限を超えています。元の文字起こしが貼り付けられました。",
+      "outputInvalid": "整形に失敗しました: モデルが利用できないテキストを返しました。元の文字起こしが貼り付けられました。",
+      "oom": "整形に失敗しました: メモリが不足しています。元の文字起こしが貼り付けられました。",
+      "cancelled": "整形はキャンセルされました。元の文字起こしが貼り付けられました。"
+    }
   },
   "app": {
     "translocatedTitle": "この場所からはアップデートをインストールできません",
     "translocatedDescription": "VoxBar は一時的な読み取り専用の場所 (macOS の App Translocation) から実行されています。VoxBar を終了し、Downloads フォルダからアプリケーションフォルダへドラッグして、そこから開いてください。",
     "commandNoSession": "コマンドキーは録音中のみ動作します。まず録音を開始し、キーを押しながらコマンドを話してください。"
+  },
+  "companion": {
+    "title": "VoxBarコンパニオン",
+    "subtitle": "スマホがこのMacのマイクとトリガーになります。",
+    "certNote": "ブラウザが接続を警告したら、証明書のフィンガープリントをVoxBar設定のものと照合し、一度だけ承認してください。",
+    "noToken": "このページはVoxBar設定のQRコードから開いてください。",
+    "micDenied": "マイクへのアクセスが拒否されました。ブラウザで許可して再読み込みしてください。",
+    "badToken": "ペアリングに失敗しました。VoxBar設定のQRコードを再スキャンしてください。",
+    "wrongSubnet": "このスマホはMacと別のネットワークにいます。同じWi-Fiに接続して再度ペアリングしてください。",
+    "rateLimited": "ペアリングの試行が多すぎます。1分待って再試行してください。",
+    "busy": "Macはすでに別のトリガーから口述中です。",
+    "disconnectedFinalized": "接続が切れました。Macは話した内容を保持しています。",
+    "capped": "セッションは15分で打ち切られます。続けるにはもう一度押してください。",
+    "serverStopped": "Macがコンパニオンサーバーを停止しました。",
+    "reconnect": "再接続",
+    "holdToTalk": "押しながら話す",
+    "tapToTalk": "タップして話す",
+    "release": "離して終了",
+    "tapToStop": "タップして停止",
+    "stateConnecting": "接続中",
+    "stateWaitMic": "マイク待ち",
+    "stateReady": "準備完了",
+    "stateRecording": "録音中",
+    "stateDisconnected": "切断",
+    "stateError": "エラー"
   }
 }

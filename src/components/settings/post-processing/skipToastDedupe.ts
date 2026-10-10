@@ -1,4 +1,4 @@
-import type { SkipReason } from "@/bindings";
+import type { PostProcessFailureClass, SkipReason } from "@/bindings";
 
 // Pure helpers for the post-process skip toast (plan Phase B, T31). The
 // App-level listener keeps a module-level Set of already-toasted reasons
@@ -33,5 +33,28 @@ export function skipToastKey(reason: SkipReason): string {
       return "lengthGuard";
     case "too_long":
       return "tooLong";
+  }
+}
+
+// Maps a failure class (the pp: lifecycle's failed-run vocabulary) to the
+// i18n key segment under toast.postProcessFailure (camelCase). Cloud
+// failures toast at most once per class per app session through the same
+// shouldToast dedupe.
+export function failureClassToastKey(cls: PostProcessFailureClass): string {
+  switch (cls) {
+    case "auth":
+      return "auth";
+    case "network":
+      return "network";
+    case "timeout":
+      return "timeout";
+    case "context_length":
+      return "contextLength";
+    case "output_invalid":
+      return "outputInvalid";
+    case "oom":
+      return "oom";
+    case "cancelled":
+      return "cancelled";
   }
 }

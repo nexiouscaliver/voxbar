@@ -36,6 +36,63 @@ export function isSwapRefusalError(error: string): boolean {
   return error.startsWith(SWAP_REFUSAL_PREFIX);
 }
 
+// Stable prefix of the post-process selection refusal
+// (validate_llm_selection in src-tauri/src/commands/local_llm.rs). Must
+// stay in sync: the card matches it to word the "this is a transcription
+// model" explanation instead of the raw refusal.
+export const NOT_A_POST_PROCESS_MODEL_PREFIX = "not-a-post-process-model";
+
+export function isNotAPostProcessModelError(error: string): boolean {
+  return error.startsWith(NOT_A_POST_PROCESS_MODEL_PREFIX);
+}
+
+// The minimal card shape the section's pure helpers need (LlmModelEntry
+// from the bindings carries more; this keeps the helpers testable without
+// importing Tauri types).
+export interface LlmCardModel {
+  info: { id: string; is_downloaded: boolean };
+  selected: boolean;
+}
+
+// The off path (rule: the pinned row renders unchanged until the user
+// actually engages with the multi-model world): exactly when the selection
+// is still the pinned default AND at most the pinned model is downloaded,
+// the section shows the original LocalLlmModelRow instead of the card
+// grid. Users who never download or select another model keep the exact
+// prior UI. `catalogRevealed` is the explicit entry point out of that
+// state: the browse affordance under the pinned row sets it, because the
+// only UI that can download a second model or move the selection lives
+// INSIDE the grid - without the reveal, the off path would be a deadlock
+// (the pinned row alone can never produce a second downloaded model).
+export function showPinnedOnlyRow(
+  models: LlmCardModel[],
+  selectedId: string,
+  catalogRevealed = false,
+): boolean {
+  if (catalogRevealed) {
+    return false;
+  }
+  const downloaded = models.filter((m) => m.info.is_downloaded || m.selected);
+  return selectedId === LOCAL_LLM_MODEL_ID && downloaded.length <= 1;
+}
+
+// Split the section's list the way the voice Models tab does: downloaded
+// (including the active one) first, then the downloadable rest.
+export function splitLlmModels<T extends LlmCardModel>(
+  models: T[],
+): { downloaded: T[]; available: T[] } {
+  const downloaded: T[] = [];
+  const available: T[] = [];
+  for (const model of models) {
+    if (model.info.is_downloaded || model.selected) {
+      downloaded.push(model);
+    } else {
+      available.push(model);
+    }
+  }
+  return { downloaded, available };
+}
+
 // Providers whose model list can ever be fetched from a remote endpoint.
 // Local and Apple Intelligence are on-device engines with no models
 // endpoint; API providers are unchanged.

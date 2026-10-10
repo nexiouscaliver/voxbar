@@ -2,6 +2,184 @@ use super::{
     is_microphone_access_denied, is_no_input_device_error, run_consumer, AudioRecorder,
     CaptureProcessor, CaptureTransportState, ChunkDisposition, Cmd, VadConfig, VadPolicy,
 };
+
+// ---- remote capture source (companion devices) -----------------------------
+
+/// Drive a full remote session: open_remote, start, push audio, stop
+/// (acknowledging the pause like the server does on a healthy release),
+/// and collect the finalized samples. Returns (source, samples).
+fn run_remote_session(input: &[f32], policy: VadPolicy) -> (super::RemoteAudioSource, Vec<f32>) {
+    let mut recorder = AudioRecorder::new().expect("recorder");
+    let source = recorder.open_remote().expect("open remote source");
+    assert!(source.is_open());
+
+    let ready = recorder.start(policy).expect("start");
+    source.push_chunk(input);
+    ready
+        .recv_timeout(Duration::from_secs(1))
+        .expect("remote capture ready");
+
+    let stop_handle = thread::spawn(move || recorder.stop().expect("stop returns samples"));
+    wait_for_pause_request(&source, Duration::from_secs(1));
+    source.ack_pause();
+    let samples = stop_handle.join().expect("join stop");
+    (source, samples)
+}
+
+#[test]
+fn remote_source_round_trips_fed_samples() {
+    let input: Vec<f32> = (0..1600).map(|i| (i as f32 * 0.01) - 8.0).collect();
+    let (source, samples) = run_remote_session(&input, VadPolicy::Disabled);
+
+    // The input arrives byte-for-byte, followed by the same zero-padding to
+    // a whole frame the LOCAL path's finish_recording applies (the frame
+    // resampler pads its pending partial frame; 480 samples with no VAD
+    // backend attached).
+    assert_eq!(&samples[..input.len()], &input[..]);
+    let frame = 480usize;
+    let padded_len = input.len() + (frame - input.len() % frame) % frame;
+    assert_eq!(samples.len(), padded_len, "trailing frame padding only");
+    assert!(samples[input.len()..].iter().all(|&s| s == 0.0));
+    // The stop handshake was acknowledged by the push path, so no overrun
+    // was recorded.
+    assert_eq!(source.overrun_samples(), 0);
+}
+
+#[test]
+fn remote_source_runs_the_vad_passthrough_path() {
+    // A passthrough detector with a non-default frame size proves the remote
+    // recorder shares the CaptureProcessor (frame re-chunking through the
+    // same-rate resampler) rather than bypassing it.
+    let frame_samples = 256;
+    let mut recorder = AudioRecorder::new().expect("recorder").with_vad(
+        Box::new(FixedFrameVad(frame_samples)),
+        0,
+        0,
+    );
+    let source = recorder.open_remote().expect("open remote source");
+
+    let ready = recorder.start(VadPolicy::Offline).expect("start");
+    let input: Vec<f32> = vec![0.5; 1024];
+    source.push_chunk(&input);
+    ready
+        .recv_timeout(Duration::from_secs(1))
+        .expect("remote capture ready");
+
+    let stop_handle = thread::spawn(move || recorder.stop().expect("stop"));
+    wait_for_pause_request(&source, Duration::from_secs(1));
+    source.ack_pause();
+    let samples = stop_handle.join().expect("join stop");
+    assert_eq!(samples.len(), 1024);
+    assert!(samples.iter().all(|&s| s == 0.5));
+}
+
+#[test]
+fn remote_stop_with_acked_dead_source_completes_fast_and_returns_audio() {
+    let mut recorder = AudioRecorder::new().expect("recorder");
+    let source = recorder.open_remote().expect("open remote source");
+    let ready = recorder.start(VadPolicy::Disabled).expect("start");
+    source.push_chunk(&[1.0, 2.0, 3.0]);
+    ready.recv_timeout(Duration::from_secs(1)).expect("ready");
+
+    // The phone died: no boundary block will arrive. Stop begins, and once
+    // the pause request is live the server's drop handler acknowledges it,
+    // which must keep Stop well under the 2 s PAUSE_ACK_TIMEOUT while still
+    // finalizing what was captured.
+    let stop_handle = thread::spawn(move || recorder.stop().expect("stop"));
+    wait_for_pause_request(&source, Duration::from_secs(1));
+    source.ack_pause();
+    let began = Instant::now();
+    let samples = stop_handle.join().expect("join stop");
+    assert!(
+        began.elapsed() < Duration::from_secs(1),
+        "acknowledged stop must not wait the 2s pause timeout, took {:?}",
+        began.elapsed()
+    );
+    assert_eq!(&samples[..3], &[1.0, 2.0, 3.0]);
+}
+
+#[test]
+fn remote_stop_with_silent_dead_source_still_finalizes_within_the_pause_timeout() {
+    // Worst case: the phone vanishes and nobody acknowledges. The consumer's
+    // pause_timed_out path must still return the buffered samples before it
+    // exits (the graceful-finalize requirement).
+    let mut recorder = AudioRecorder::new().expect("recorder");
+    let source = recorder.open_remote().expect("open remote source");
+    let ready = recorder.start(VadPolicy::Disabled).expect("start");
+    source.push_chunk(&[4.0, 5.0]);
+    ready.recv_timeout(Duration::from_secs(1)).expect("ready");
+
+    let began = Instant::now();
+    let samples = recorder.stop().expect("stop returns buffered samples");
+    assert!(
+        began.elapsed() >= Duration::from_millis(1500),
+        "unacknowledged stop waits out the pause timeout (took {:?})",
+        began.elapsed()
+    );
+    assert_eq!(&samples[..2], &[4.0, 5.0]);
+}
+
+#[test]
+fn remote_source_counts_overruns_when_the_ring_fills() {
+    let mut recorder = AudioRecorder::new().expect("recorder");
+    let source = recorder.open_remote().expect("open remote source");
+
+    // Two seconds of ring capacity; push five seconds without draining so
+    // the tail is dropped-newest and counted.
+    let big: Vec<f32> = vec![0.1; constants::WHISPER_SAMPLE_RATE as usize * 5];
+    source.push_chunk(&big);
+    assert!(source.overrun_samples() >= 3 * constants::WHISPER_SAMPLE_RATE as u64);
+
+    let _ = recorder.close();
+}
+
+#[test]
+fn remote_source_drop_acknowledges_an_in_flight_pause() {
+    let mut recorder = AudioRecorder::new().expect("recorder");
+    let source = recorder.open_remote().expect("open remote source");
+    let ready = recorder.start(VadPolicy::Disabled).expect("start");
+    source.push_chunk(&[7.0]);
+    ready.recv_timeout(Duration::from_secs(1)).expect("ready");
+
+    // Stop in a worker, then drop every source handle (the socket died) as
+    // soon as the pause request is live: the drop acknowledges the pause so
+    // Stop returns promptly instead of timing out.
+    let stop_handle = thread::spawn(move || recorder.stop().expect("stop"));
+    wait_for_pause_request(&source, Duration::from_secs(1));
+    let began = Instant::now();
+    drop(source);
+    let samples = stop_handle.join().expect("join stop");
+    assert!(
+        began.elapsed() < Duration::from_secs(1),
+        "drop must acknowledge the pause promptly, took {:?}",
+        began.elapsed()
+    );
+    assert_eq!(&samples[..1], &[7.0]);
+}
+
+/// Wait until the consumer's Stop has raised the pause request, so an ack
+/// that follows lands inside the handshake window (an early ack is wiped
+/// when the consumer starts the pause).
+fn wait_for_pause_request(source: &super::RemoteAudioSource, timeout: Duration) {
+    let deadline = Instant::now() + timeout;
+    while !source.pause_requested() {
+        assert!(Instant::now() < deadline, "pause was not requested");
+        thread::sleep(Duration::from_millis(1));
+    }
+}
+
+#[test]
+fn remote_source_close_discards_late_audio() {
+    let mut recorder = AudioRecorder::new().expect("recorder");
+    let source = recorder.open_remote().expect("open remote source");
+    source.close();
+    assert!(!source.is_open());
+    // Pushing after close must not panic or register overruns.
+    source.push_chunk(&[1.0, 2.0]);
+    assert_eq!(source.overrun_samples(), 0);
+    let _ = recorder.close();
+}
+use crate::audio_toolkit::constants;
 use crate::audio_toolkit::vad::{VadFrame, VoiceActivityDetector};
 use rtrb::RingBuffer;
 use std::{

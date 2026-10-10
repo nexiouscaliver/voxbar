@@ -92,6 +92,21 @@ impl GgufValue {
             _ => None,
         }
     }
+
+    /// Interpret the value as a u32, widening the smaller unsigned types and
+    /// narrowing larger ones only when lossless. Producers store lengths in
+    /// whatever integer width their writer defaulted to.
+    pub fn as_u32(&self) -> Option<u32> {
+        match self {
+            GgufValue::U8(v) => Some(u32::from(*v)),
+            GgufValue::U16(v) => Some(u32::from(*v)),
+            GgufValue::U32(v) => Some(*v),
+            GgufValue::I32(v) => u32::try_from(*v).ok(),
+            GgufValue::U64(v) => u32::try_from(*v).ok(),
+            GgufValue::I64(v) => u32::try_from(*v).ok(),
+            _ => None,
+        }
+    }
 }
 
 /// The parsed front-of-file metadata of a GGUF model. Only the key/value block
@@ -112,6 +127,9 @@ impl GgufMetadata {
     }
     pub fn get_string_array(&self, key: &str) -> Option<Vec<String>> {
         self.kv.get(key).and_then(GgufValue::as_string_array)
+    }
+    pub fn get_u32(&self, key: &str) -> Option<u32> {
+        self.kv.get(key).and_then(GgufValue::as_u32)
     }
 }
 

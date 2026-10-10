@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useSettingsStore } from "../stores/settingsStore";
+import type { ModelFetchErrors } from "../stores/postProcessModelCache";
 import type { AppSettings as Settings, AudioDevice } from "@/bindings";
 
 interface UseSettingsReturn {
@@ -11,6 +12,7 @@ interface UseSettingsReturn {
   outputDevices: AudioDevice[];
   audioFeedbackEnabled: boolean;
   postProcessModelOptions: Record<string, string[]>;
+  postProcessModelFetchErrors: ModelFetchErrors;
   updateChecksLocked: boolean | null;
 
   // Actions
@@ -62,6 +64,7 @@ export const useSettings = (): UseSettingsReturn => {
     outputDevices: store.outputDevices,
     audioFeedbackEnabled: store.settings?.audio_feedback || false,
     postProcessModelOptions: store.postProcessModelOptions,
+    postProcessModelFetchErrors: store.postProcessModelFetchErrors,
     updateChecksLocked: store.updateChecksLocked,
     updateSetting: store.updateSetting,
     resetSetting: store.resetSetting,

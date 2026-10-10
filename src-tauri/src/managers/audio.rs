@@ -4,7 +4,7 @@ use crate::audio_toolkit::{
         frames_for_duration_ms, EarshotVad, SmoothedVad, VAD_OFFLINE_HANGOVER_MS, VAD_ONSET_MS,
         VAD_PREFILL_MS, VAD_STREAMING_HANGOVER_MS,
     },
-    AudioRecorder, SileroVad, VadPolicy, VoiceActivityDetector,
+    AudioRecorder, RemoteAudioSource, SileroVad, VadPolicy, VoiceActivityDetector,
 };
 use crate::helpers::clamshell;
 use crate::managers::transcription::StreamRouter;
@@ -21,6 +21,39 @@ const SILERO_VAD_THRESHOLD: f32 = 0.3;
 const EARSHOT_VAD_THRESHOLD: f32 = 0.5;
 
 fn set_mute(mute: bool) {
+    // Unit tests record the operation instead of shelling out: the real
+    // body mutates the system volume, which a test must never do.
+    #[cfg(test)]
+    {
+        mute_test_log::record(if mute { "mute" } else { "unmute" });
+    }
+
+    #[cfg(not(test))]
+    {
+        set_mute_platform(mute)
+    }
+}
+
+/// Test-only log of forced-mute operations, so the mute lifecycle (apply on
+/// readiness, restore on stop AND cancel) can be asserted without touching
+/// the real system volume.
+#[cfg(test)]
+mod mute_test_log {
+    use std::sync::Mutex;
+
+    static OPS: Mutex<Vec<&'static str>> = Mutex::new(Vec::new());
+
+    pub fn record(op: &'static str) {
+        OPS.lock().unwrap_or_else(|e| e.into_inner()).push(op);
+    }
+
+    pub fn take() -> Vec<&'static str> {
+        std::mem::take(&mut *OPS.lock().unwrap_or_else(|e| e.into_inner()))
+    }
+}
+
+#[cfg(not(test))]
+fn set_mute_platform(mute: bool) {
     // Expected behavior:
     // - Windows: works on most systems using standard audio drivers.
     // - Linux: works on many systems (PipeWire, PulseAudio, ALSA),
@@ -241,10 +274,31 @@ pub enum RecordingState {
     Stopping,
 }
 
+/// Whether a capture-restarting settings change must be rejected right
+/// now: any live recording (Recording or Stopping) would have its captured
+/// samples discarded by the restart, silently killing the dictation. The
+/// shared rule behind the device/channel/VAD switch guards.
+fn capture_restart_forbidden(state: &RecordingState) -> bool {
+    !matches!(state, RecordingState::Idle)
+}
+
 #[derive(Clone, Debug)]
 pub enum MicrophoneMode {
     AlwaysOn,
     OnDemand,
+}
+
+/// Where a recording session's audio comes from. `Local` is the cpal
+/// microphone path exactly as it has always run; `Remote` is a companion
+/// device (phone/tablet on the LAN) pushing 16 kHz mono chunks through a
+/// `RemoteAudioSource`. Both sources share the single-session state machine
+/// and the recorder built by `create_audio_recorder` (same VAD, level, and
+/// StreamRouter callbacks), so everything downstream of the ring is
+/// byte-identical.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CaptureSource {
+    Local,
+    Remote,
 }
 
 /// Tracks our forced "mute while recording" so we can restore the user's audio
@@ -255,6 +309,15 @@ pub enum MicrophoneMode {
 struct MuteState {
     did_mute: bool,
     prev_muted: Option<bool>,
+}
+
+/// The restore action for a forced mute: the snapshotted prior state to
+/// hand to `restore_mute`, taken exactly once while our mute is active.
+/// Shared decision for every teardown path (normal stop, stream close,
+/// cancellation, local or companion source) so none of them can strand
+/// the system muted.
+fn mute_restore_action(state: &MuteState) -> Option<Option<bool>> {
+    state.did_mute.then_some(state.prev_muted)
 }
 
 /// The persisted microphone preference currently in effect. Clamshell and
@@ -365,6 +428,13 @@ impl RecordingReadiness {
         self.receiver.recv().is_ok()
     }
 
+    /// Bounded variant of [`RecordingReadiness::wait`] for tests: resolves
+    /// after `timeout` instead of blocking forever on a stalled capture.
+    #[cfg(test)]
+    pub fn wait_timeout(self, timeout: std::time::Duration) -> bool {
+        self.receiver.recv_timeout(timeout).is_ok()
+    }
+
     pub fn generation(&self) -> u64 {
         self.generation
     }
@@ -402,6 +472,39 @@ pub struct AudioRecordingManager {
     /// so the retry re-enumerates. The system-default case is never cached -
     /// the recorder resolves the current default itself, cheaply.
     cached_device: Arc<Mutex<Option<(String, cpal::Device)>>>,
+    /// The recorder for REMOTE (companion) sessions. A second recorder, not
+    /// a mode of the local one: the local recorder keeps its cpal stream
+    /// untouched, and the remote one hands its ring producer to the
+    /// companion server. Built by the same `create_audio_recorder`, so VAD,
+    /// level, and StreamRouter wiring are identical for both sources.
+    remote_recorder: Arc<Mutex<Option<AudioRecorder>>>,
+    /// The current session's push handle into the remote recorder's ring.
+    /// Cloned out for the companion server; cleared when the session ends.
+    remote_source: Arc<Mutex<Option<RemoteAudioSource>>>,
+    /// Which recorder a stop/cancel must talk to. Only meaningful while a
+    /// session is live; reset to Local when a session ends.
+    active_source: Arc<Mutex<CaptureSource>>,
+    /// Factory for building recorders. Production always uses
+    /// `create_audio_recorder`; tests inject a bare recorder so the manager
+    /// logic can run without the Silero ONNX asset.
+    recorder_factory: RecorderFactory,
+}
+
+type RecorderFactory =
+    Arc<dyn Fn(&tauri::AppHandle) -> Result<AudioRecorder, anyhow::Error> + Send + Sync>;
+
+fn default_recorder_factory(
+    stream_router: Arc<StreamRouter>,
+) -> impl Fn(&tauri::AppHandle) -> Result<AudioRecorder, anyhow::Error> + Send + Sync {
+    move |app| {
+        let settings = get_settings(app);
+        create_audio_recorder(
+            settings.vad_backend,
+            app,
+            settings.selected_channel,
+            Arc::clone(&stream_router),
+        )
+    }
 }
 
 /// Effective post-release capture for a stop: the explicit
@@ -434,6 +537,9 @@ impl AudioRecordingManager {
             MicrophoneMode::OnDemand
         };
 
+        let recorder_factory: RecorderFactory =
+            Arc::new(default_recorder_factory(Arc::clone(&stream_router)));
+
         let manager = Self {
             state: Arc::new(Mutex::new(RecordingState::Idle)),
             mode: Arc::new(Mutex::new(mode.clone())),
@@ -449,11 +555,26 @@ impl AudioRecordingManager {
             recording_active: Arc::new(AtomicBool::new(false)),
             capture_generation: Arc::new(AtomicU64::new(0)),
             cached_device: Arc::new(Mutex::new(None)),
+            remote_recorder: Arc::new(Mutex::new(None)),
+            remote_source: Arc::new(Mutex::new(None)),
+            active_source: Arc::new(Mutex::new(CaptureSource::Local)),
+            recorder_factory,
         };
 
-        // Always-on?  Open immediately.
+        // Always-on?  Open immediately. Best-effort by design: a machine
+        // with no input device, revoked microphone permission, or a missing
+        // VAD resource must not panic the app at every launch (this runs
+        // during Tauri setup, before any window exists). The manager stays
+        // functional with the stream closed - try_start_recording_for
+        // re-attempts the open on every local start and surfaces the real
+        // error there, where the user can act on it.
         if matches!(mode, MicrophoneMode::AlwaysOn) {
-            manager.start_microphone_stream()?;
+            if let Err(e) = manager.start_microphone_stream() {
+                error!(
+                    "Always-on microphone stream failed to open at startup \
+                     (will retry on the next recording): {e:#}"
+                );
+            }
         }
 
         Ok(manager)
@@ -596,7 +717,11 @@ impl AudioRecordingManager {
 
     /* ---------- microphone life-cycle -------------------------------------- */
 
-    /// Applies mute if mute_while_recording is enabled and stream is open.
+    /// Applies mute if mute_while_recording is enabled and a capture path is
+    /// active. Session-scoped: a LOCAL session always has the mic stream
+    /// open (`is_open`, the original predicate, so local behavior is
+    /// unchanged), while a REMOTE (companion) session has no local stream
+    /// and is covered by the recording mirror instead.
     /// Snapshots the system's prior mute state first so `remove_mute` can
     /// restore it instead of unconditionally unmuting.
     pub fn apply_mute(&self) {
@@ -614,7 +739,7 @@ impl AudioRecordingManager {
         if mute_guard.did_mute {
             return;
         }
-        if *is_open {
+        if *is_open || self.is_recording() {
             mute_guard.prev_muted = get_mute();
             set_mute(true);
             mute_guard.did_mute = true;
@@ -626,26 +751,17 @@ impl AudioRecordingManager {
     /// (a system already muted before recording stays muted).
     pub fn remove_mute(&self) {
         let mut mute_guard = self.mute_state.lock().unwrap();
-        if mute_guard.did_mute {
-            restore_mute(mute_guard.prev_muted);
+        if let Some(prev_muted) = mute_restore_action(&mute_guard) {
+            restore_mute(prev_muted);
             mute_guard.did_mute = false;
-            debug!(
-                "Mute removed (restored prev_muted={:?})",
-                mute_guard.prev_muted
-            );
+            debug!("Mute removed (restored prev_muted={:?})", prev_muted);
         }
     }
 
     pub fn preload_vad(&self) -> Result<(), anyhow::Error> {
         let mut recorder_opt = self.recorder.lock().unwrap();
         if recorder_opt.is_none() {
-            let settings = get_settings(&self.app_handle);
-            *recorder_opt = Some(create_audio_recorder(
-                settings.vad_backend,
-                &self.app_handle,
-                settings.selected_channel,
-                Arc::clone(&self.stream_router),
-            )?);
+            *recorder_opt = Some((self.recorder_factory)(&self.app_handle)?);
         }
         Ok(())
     }
@@ -829,8 +945,15 @@ impl AudioRecordingManager {
         );
     }
 
-    pub fn try_start_recording(
+    /// Start a recording session from `source`. The single-session state
+    /// machine is shared: a remote session and a local hotkey press
+    /// arbitrate exactly like the two keyboard bindings do today ("Already
+    /// recording"). `Local` is byte-for-byte the old `try_start_recording`
+    /// path; `Remote` opens the companion recorder instead of the cpal
+    /// stream and remembers the source for stop/cancel.
+    pub fn try_start_recording_for(
         &self,
+        source: CaptureSource,
         binding_id: &str,
         vad_policy: VadPolicy,
     ) -> Result<RecordingReadiness, String> {
@@ -840,29 +963,46 @@ impl AudioRecordingManager {
             // Cancel any pending lazy close (no-op in always-on mode, where
             // closes are never scheduled).
             self.close_generation.fetch_add(1, Ordering::SeqCst);
-            // Opens the stream in on-demand mode. In always-on mode the stream
-            // is normally already open and this is a cheap aliveness check -
-            // but if the capture worker died (device disconnect), it rebuilds
-            // the stream instead of leaving every subsequent start wedged on
-            // "Recorder not available".
-            if let Err(e) = self.start_microphone_stream() {
-                let msg = format!("{e}");
-                error!("Failed to open microphone stream: {msg}");
-                return Err(msg);
+            match source {
+                CaptureSource::Local => {
+                    // Opens the stream in on-demand mode. In always-on mode
+                    // the stream is normally already open and this is a
+                    // cheap aliveness check - but if the capture worker died
+                    // (device disconnect), it rebuilds the stream instead of
+                    // leaving every subsequent start wedged on "Recorder not
+                    // available".
+                    if let Err(e) = self.start_microphone_stream() {
+                        let msg = format!("{e}");
+                        error!("Failed to open microphone stream: {msg}");
+                        return Err(msg);
+                    }
+                }
+                CaptureSource::Remote => {
+                    if let Err(e) = self.start_remote_stream() {
+                        let msg = format!("{e}");
+                        error!("Failed to open remote capture source: {msg}");
+                        return Err(msg);
+                    }
+                }
             }
 
-            if let Some(rec) = self.recorder.lock().unwrap().as_ref() {
+            let recorder_slot = match source {
+                CaptureSource::Local => &self.recorder,
+                CaptureSource::Remote => &self.remote_recorder,
+            };
+            if let Some(rec) = recorder_slot.lock().unwrap().as_ref() {
                 match rec.start(vad_policy) {
                     Ok(receiver) => {
                         let generation = self.capture_generation.fetch_add(1, Ordering::AcqRel) + 1;
                         *self.is_recording.lock().unwrap() = true;
+                        *self.active_source.lock().unwrap() = source;
                         self.set_state(
                             &mut state,
                             RecordingState::Recording {
                                 binding_id: binding_id.to_string(),
                             },
                         );
-                        debug!("Recording requested for binding {binding_id}");
+                        debug!("Recording requested for binding {binding_id} ({source:?})");
                         return Ok(RecordingReadiness {
                             receiver,
                             generation,
@@ -875,6 +1015,69 @@ impl AudioRecordingManager {
         } else {
             Err("Already recording".to_string())
         }
+    }
+
+    /// Ensure the remote recorder exists and is open, reusing a healthy one
+    /// (the companion server pre-warms it when the feature is enabled so the
+    /// press-to-capture path pays no VAD load). Rebuilds a dead worker like
+    /// `start_microphone_stream` does for a disconnected mic.
+    fn start_remote_stream(&self) -> Result<(), anyhow::Error> {
+        let needs_reopen = self
+            .remote_recorder
+            .lock()
+            .unwrap()
+            .as_ref()
+            .map_or(true, |rec| rec.needs_reopen());
+        if !needs_reopen {
+            return Ok(());
+        }
+
+        if let Some(rec) = self.remote_recorder.lock().unwrap().as_mut() {
+            let _ = rec.close();
+        }
+        let mut rec = (self.recorder_factory)(&self.app_handle)?;
+        let source = rec
+            .open_remote()
+            .map_err(|e| anyhow::anyhow!("Failed to open remote capture source: {}", e))?;
+        *self.remote_source.lock().unwrap() = Some(source);
+        *self.remote_recorder.lock().unwrap() = Some(rec);
+        Ok(())
+    }
+
+    /// The push handle for the current remote recorder, if one is open. The
+    /// companion server clones this to feed phone audio into the ring.
+    pub fn remote_source(&self) -> Option<RemoteAudioSource> {
+        self.remote_source.lock().unwrap().clone()
+    }
+
+    /// Pre-warm the remote recorder (loads the VAD, opens the ring) while
+    /// idle so a phone press pays no recorder construction cost. Called by
+    /// the companion server when the feature is enabled; refuses while any
+    /// session is live.
+    pub fn prewarm_remote(&self) -> Result<(), anyhow::Error> {
+        let state = self.state.lock().unwrap();
+        if !matches!(*state, RecordingState::Idle) {
+            return Ok(()); // a session is live; its recorder already exists
+        }
+        drop(state);
+        self.start_remote_stream()
+    }
+
+    /// Which recorder the live session (if any) is using.
+    pub fn active_source(&self) -> CaptureSource {
+        *self.active_source.lock().unwrap()
+    }
+
+    /// Close the remote recorder and its push handle outside a session
+    /// (companion feature disabled, or app shutdown). A live remote session
+    /// must be stopped first; this only tears down the idle recorder.
+    pub fn close_remote_stream(&self) {
+        if let Some(rec) = self.remote_recorder.lock().unwrap().as_mut() {
+            let _ = rec.close();
+        }
+        *self.remote_recorder.lock().unwrap() = None;
+        *self.remote_source.lock().unwrap() = None;
+        *self.active_source.lock().unwrap() = CaptureSource::Local;
     }
 
     /// Replace the VAD implementation while idle. If the microphone stream is
@@ -931,7 +1134,41 @@ impl AudioRecordingManager {
         Ok(())
     }
 
-    pub fn update_selected_device(&self) -> Result<(), anyhow::Error> {
+    /// Switch the capture to a newly selected microphone. Rejected while a
+    /// recording is live: restarting an active capture would discard its
+    /// samples and desync the recording state - the same rule as
+    /// [`Self::update_selected_channel`]. On rejection nothing changes,
+    /// not the live capture and not the persisted preference. On
+    /// acceptance the preference is persisted here (the restart resolves
+    /// the device from settings at open time, so it must be on disk before
+    /// the stream reopens) and an open stream restarts on the new device.
+    pub fn update_selected_device(
+        &self,
+        selected_microphone: Option<String>,
+    ) -> Result<(), anyhow::Error> {
+        // Serialize against recording start/stop for the whole switch,
+        // like the channel change does.
+        let state = self.state.lock().unwrap();
+        if capture_restart_forbidden(&state) {
+            return Err(anyhow::anyhow!(
+                "Cannot change the selected microphone while recording"
+            ));
+        }
+
+        let mut settings = get_settings(&self.app_handle);
+        if settings.selected_microphone != selected_microphone {
+            settings.selected_microphone = selected_microphone;
+            write_settings(&self.app_handle, settings);
+            // The same convergence signal the fallback path emits when it
+            // rewrites this field, so every open surface re-reads the store.
+            let _ = self.app_handle.emit(
+                "settings-changed",
+                serde_json::json!({
+                    "setting": "selected_microphone"
+                }),
+            );
+        }
+
         // Device settings changed; re-enumerate the device and restart capture.
         self.invalidate_device_cache();
         let was_open = *self.is_open.lock().unwrap();
@@ -1039,7 +1276,12 @@ impl AudioRecordingManager {
                     }
                 }
 
-                let samples = if let Some(rec) = self.recorder.lock().unwrap().as_ref() {
+                let source = self.active_source();
+                let recorder_slot = match source {
+                    CaptureSource::Local => &self.recorder,
+                    CaptureSource::Remote => &self.remote_recorder,
+                };
+                let samples = if let Some(rec) = recorder_slot.lock().unwrap().as_ref() {
                     match rec.stop() {
                         Ok(buf) => buf,
                         Err(e) => {
@@ -1055,12 +1297,23 @@ impl AudioRecordingManager {
                 *self.is_recording.lock().unwrap() = false;
                 self.set_state(&mut self.state.lock().unwrap(), RecordingState::Idle);
 
-                // In on-demand mode, close the mic (lazily if the setting is enabled)
-                if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
-                    if get_settings(&self.app_handle).lazy_stream_close {
-                        self.schedule_lazy_close();
-                    } else {
-                        self.stop_microphone_stream();
+                match source {
+                    CaptureSource::Remote => {
+                        // The phone session is over: close the remote
+                        // recorder so a stale socket cannot keep pushing
+                        // into a dead ring, and clear the push handle.
+                        self.close_remote_stream();
+                    }
+                    CaptureSource::Local => {
+                        // In on-demand mode, close the mic (lazily if the
+                        // setting is enabled)
+                        if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
+                            if get_settings(&self.app_handle).lazy_stream_close {
+                                self.schedule_lazy_close();
+                            } else {
+                                self.stop_microphone_stream();
+                            }
+                        }
                     }
                 }
 
@@ -1103,23 +1356,49 @@ impl AudioRecordingManager {
                 self.set_state(&mut state, RecordingState::Idle);
                 drop(state);
 
-                if let Some(rec) = self.recorder.lock().unwrap().as_ref() {
+                // Restore the forced mute the same way the normal stop path
+                // does (actions.rs calls remove_mute on stop). Without this,
+                // cancellation never restores it: in always-on mode the local
+                // stream stays open so stop_microphone_stream never runs, the
+                // remote path's close_remote_stream has no mute restore, and
+                // the on-demand lazy close defers it by the 30 s idle
+                // timeout - the system stayed muted until the next
+                // NON-cancelled dictation completed (KB-002).
+                self.remove_mute();
+
+                let source = self.active_source();
+                let recorder_slot = match source {
+                    CaptureSource::Local => &self.recorder,
+                    CaptureSource::Remote => &self.remote_recorder,
+                };
+                if let Some(rec) = recorder_slot.lock().unwrap().as_ref() {
                     let _ = rec.stop(); // Discard the result
                 }
 
                 *self.is_recording.lock().unwrap() = false;
 
-                // In on-demand mode, close the mic (lazily if the setting is enabled)
-                if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
-                    if get_settings(&self.app_handle).lazy_stream_close {
-                        self.schedule_lazy_close();
-                    } else {
-                        self.stop_microphone_stream();
+                match source {
+                    CaptureSource::Remote => self.close_remote_stream(),
+                    CaptureSource::Local => {
+                        // In on-demand mode, close the mic (lazily if the
+                        // setting is enabled)
+                        if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
+                            if get_settings(&self.app_handle).lazy_stream_close {
+                                self.schedule_lazy_close();
+                            } else {
+                                self.stop_microphone_stream();
+                            }
+                        }
                     }
                 }
             }
             RecordingState::Stopping => {
                 debug!("Cancellation requested while recording is stopping");
+                // Defensive twin of the restore above: a cancel that lands
+                // while the stop pipeline is finalizing must not leave our
+                // forced mute behind even if the pipeline's own teardown is
+                // interrupted. remove_mute is a no-op when we did not mute.
+                self.remove_mute();
             }
             RecordingState::Idle => {}
         }
@@ -1145,5 +1424,119 @@ mod tests {
         assert_eq!(effective_release_buffer_ms(0, 200, false), 0);
         // The off path: a zero tail restores the old behavior exactly.
         assert_eq!(effective_release_buffer_ms(0, 0, true), 0);
+    }
+
+    // Manager-level remote-session tests (start/stop on the remote source
+    // with the fed audio returned) are NOT runnable under tauri::test's
+    // MockRuntime: AudioRecordingManager pins tauri::AppHandle (the Wry
+    // runtime) because get_settings and the settings store are pinned the
+    // same way throughout the app, and mock apps hand out
+    // AppHandle<MockRuntime>. The remote audio path is covered instead at
+    // the recorder level (audio_toolkit/audio/recorder/tests.rs:
+    // remote_source_round_trips_fed_samples and friends) and the
+    // single-session arbitration - the same rule local hotkeys follow - at
+    // the coordinator level (transcription_coordinator tests:
+    // companion_edges_*).
+
+    /// The mute-restore decision shared by every teardown path (normal
+    /// stop, stream close, cancellation - local or companion source): a
+    /// forced mute yields the snapshotted prior state exactly once; no
+    /// forced mute yields nothing. This is the seam cancel_recording now
+    /// routes through (remove_mute), so cancelling restores the system
+    /// audio the same instant the normal stop does instead of stranding
+    /// it muted until the next completed dictation (KB-002).
+    /// The capture-restart guard behind the device/channel/VAD switch
+    /// rejections: a live recording (Recording or Stopping) must never be
+    /// restarted underneath, because the restart discards its captured
+    /// samples - switching the microphone mid-dictation used to kill the
+    /// recording silently (round 3). Idle is the only state that permits a
+    /// capture-shape change.
+    #[test]
+    fn capture_restart_is_forbidden_while_recording_or_stopping() {
+        assert!(
+            !capture_restart_forbidden(&RecordingState::Idle),
+            "idle: the capture may be restarted"
+        );
+        assert!(
+            capture_restart_forbidden(&RecordingState::Recording {
+                binding_id: "transcribe".to_string()
+            }),
+            "a live recording must never have its capture restarted"
+        );
+        assert!(
+            capture_restart_forbidden(&RecordingState::Stopping),
+            "a recording in its stop pipeline still holds samples: no restart"
+        );
+    }
+
+    /// The mute-restore decision shared by every teardown path (normal
+    /// stop, stream close, cancellation - local or companion source): a
+    /// forced mute yields the snapshotted prior state exactly once; no
+    /// forced mute yields nothing. This is the seam cancel_recording now
+    /// routes through (remove_mute), so cancelling restores the system
+    /// audio the same instant the normal stop does instead of stranding
+    /// it muted until the next completed dictation (KB-002).
+    #[test]
+    fn mute_restore_action_yields_the_snapshot_only_while_forced() {
+        assert_eq!(
+            mute_restore_action(&MuteState::default()),
+            None,
+            "no forced mute (mute_while_recording off, or readiness never reached): nothing to restore"
+        );
+
+        // The live dictation shape: forced over an unmuted system.
+        assert_eq!(
+            mute_restore_action(&MuteState {
+                did_mute: true,
+                prev_muted: Some(false),
+            }),
+            Some(Some(false)),
+            "a forced mute restores the snapshotted unmuted state"
+        );
+
+        // A system the user had already muted stays muted.
+        assert_eq!(
+            mute_restore_action(&MuteState {
+                did_mute: true,
+                prev_muted: Some(true),
+            }),
+            Some(Some(true)),
+            "the user's own mute is restored, not lifted"
+        );
+
+        // Unknown prior state restores as unknown (restore_mute defaults
+        // to unmuting so audio is never left muted by us).
+        assert_eq!(
+            mute_restore_action(&MuteState {
+                did_mute: true,
+                prev_muted: None,
+            }),
+            Some(None),
+        );
+    }
+
+    /// The restore semantics under the test spy (no real system volume is
+    /// touched): only a snapshot of Some(true) keeps the mute; everything
+    /// else unmutes, and repeated restores are single-shot.
+    #[test]
+    fn restore_mute_unmutes_unless_the_user_was_already_muted() {
+        let _ = mute_test_log::take();
+
+        restore_mute(Some(false));
+        assert_eq!(mute_test_log::take(), vec!["unmute"]);
+
+        restore_mute(None);
+        assert_eq!(
+            mute_test_log::take(),
+            vec!["unmute"],
+            "unknown prior state defaults to unmuting"
+        );
+
+        restore_mute(Some(true));
+        assert_eq!(
+            mute_test_log::take(),
+            Vec::<&'static str>::new(),
+            "a pre-existing user mute is never lifted"
+        );
     }
 }

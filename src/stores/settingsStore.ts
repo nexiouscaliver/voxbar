@@ -9,6 +9,7 @@ import type {
   NumberFormat,
   TranscribeAcceleratorSetting,
   OrtAcceleratorSetting,
+  PostProcessModelError,
   ShortcutActivation,
   UpdatePolicy,
   VadBackend,
@@ -17,6 +18,11 @@ import { commands } from "@/bindings";
 import { toast } from "sonner";
 import i18n from "../i18n";
 import { mapCommandResult } from "./settingsWriteOutcome";
+import {
+  hydrateModelOptions,
+  withModelFetchError,
+  type ModelFetchErrors,
+} from "./postProcessModelCache";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 
 interface SettingsStore {
@@ -28,6 +34,10 @@ interface SettingsStore {
   outputDevices: AudioDevice[];
   customSounds: { start: boolean; stop: boolean };
   postProcessModelOptions: Record<string, string[]>;
+  // Classified model-list fetch errors per provider (null = no error). A
+  // failure surfaces here so the panel can show it inline; it never
+  // blanks the options the user already has.
+  postProcessModelFetchErrors: ModelFetchErrors;
   // null until loadUpdateChecksLocked() resolves
   updateChecksLocked: boolean | null;
 
@@ -93,12 +103,23 @@ const initializeUnlisteners: UnlistenFn[] = [];
 const settingUpdaters: {
   [K in keyof Settings]?: (value: Settings[K]) => Promise<unknown>;
 } = {
-  always_on_microphone: (value) =>
-    commands.updateMicrophoneMode(value as boolean),
+  always_on_microphone: async (value) => {
+    const result = await commands.updateMicrophoneMode(value as boolean);
+    if (result.status === "error") {
+      // A failed enable (no input device, revoked permission) must roll
+      // the toggle back: the backend keeps the prior mode and does not
+      // persist the preference when the runtime flip fails.
+      throw new Error(result.error);
+    }
+  },
   audio_feedback: (value) =>
     commands.changeAudioFeedbackSetting(value as boolean),
   memory_pressure_guard: (value) =>
     commands.changeMemoryPressureGuardSetting(value as boolean),
+  memory_gate_headroom_mb: (value) =>
+    commands.changeMemoryGateHeadroomSetting(value as number),
+  companion_devices_enabled: (value) =>
+    commands.changeCompanionDevicesSetting(value as boolean),
   auto_fallback: (value) =>
     commands.changeAutoFallbackSetting(value as boolean),
   menu_bar_model_title: (value) =>
@@ -173,6 +194,8 @@ const settingUpdaters: {
     commands.changePostProcessEnabledSetting(value as boolean),
   post_process_timeout_secs: (value) =>
     commands.setPostProcessTimeout(value as number),
+  post_process_local_keep_warm_secs: (value) =>
+    commands.changePostProcessLocalKeepWarmSecsSetting(value as number),
   post_process_selected_prompt_id: (value) =>
     commands.setPostProcessSelectedPrompt(value as string),
   mute_while_recording: (value) =>
@@ -239,6 +262,7 @@ export const useSettingsStore = create<SettingsStore>()(
     outputDevices: [],
     customSounds: { start: false, stop: false },
     postProcessModelOptions: {},
+    postProcessModelFetchErrors: {},
     updateChecksLocked: null,
 
     // Internal setters
@@ -271,7 +295,17 @@ export const useSettingsStore = create<SettingsStore>()(
             selected_output_device:
               settings.selected_output_device ?? "Default",
           };
-          set({ settings: normalizedSettings, isLoading: false });
+          set((state) => ({
+            settings: normalizedSettings,
+            isLoading: false,
+            // Hydrate the model dropdowns from the persisted cache so the
+            // panel opens instantly (and offline). Lists fetched this
+            // session already in state win over the cache.
+            postProcessModelOptions: hydrateModelOptions(
+              normalizedSettings.post_process_model_lists,
+              state.postProcessModelOptions,
+            ),
+          }));
         } else {
           console.error("Failed to load settings:", result.error);
           set({ isLoading: false });
@@ -625,7 +659,15 @@ export const useSettingsStore = create<SettingsStore>()(
 
     fetchPostProcessModels: async (providerId) => {
       const updateKey = `post_process_models_fetch:${providerId}`;
-      const { setUpdating, setPostProcessModelOptions } = get();
+      const { setUpdating, setPostProcessModelOptions, refreshSettings } =
+        get();
+
+      // One fetch per provider at a time: the on-open effect and the
+      // provider-switch handler can both request the same list; the second
+      // caller rides on the in-flight one instead of doubling the request.
+      if (get().isUpdating[updateKey]) {
+        return [];
+      }
 
       setUpdating(updateKey, true);
 
@@ -634,13 +676,45 @@ export const useSettingsStore = create<SettingsStore>()(
         const result = await commands.fetchPostProcessModels(providerId);
         if (result.status === "ok") {
           setPostProcessModelOptions(providerId, result.data);
+          set((state) => ({
+            postProcessModelFetchErrors: withModelFetchError(
+              state.postProcessModelFetchErrors,
+              providerId,
+              null,
+            ),
+          }));
+          // The backend persisted this list to the settings cache; pull the
+          // store copy so the fetched-at hint reflects this fetch.
+          await refreshSettings();
           return result.data;
         } else {
           console.error("Failed to fetch models:", result.error);
+          // Surface the classified failure in the panel instead of only
+          // the console. The previously shown list stays: a failed refresh
+          // never blanks the dropdown.
+          set((state) => ({
+            postProcessModelFetchErrors: withModelFetchError(
+              state.postProcessModelFetchErrors,
+              providerId,
+              result.error,
+            ),
+          }));
           return [];
         }
       } catch (error) {
         console.error("Failed to fetch models:", error);
+        // An error thrown by the invoke layer is transport-shaped; record
+        // it as a network failure so the inline alert still shows.
+        set((state) => ({
+          postProcessModelFetchErrors: withModelFetchError(
+            state.postProcessModelFetchErrors,
+            providerId,
+            {
+              kind: "network",
+              detail: error instanceof Error ? error.message : String(error),
+            },
+          ),
+        }));
         // Don't cache empty array on error - let user retry
         return [];
       } finally {

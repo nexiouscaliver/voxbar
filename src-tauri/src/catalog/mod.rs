@@ -18,6 +18,8 @@ use std::collections::HashMap;
 use once_cell::sync::Lazy;
 use serde::Deserialize;
 
+pub mod llm;
+
 use crate::managers::model::{
     default_quant_file, EngineType, ModelDescriptor, ModelSource, QuantFile,
 };

@@ -53,6 +53,55 @@ async changeMemoryPressureGuardSetting(enabled: boolean) : Promise<Result<null, 
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Persist the memory-gate safety margin (Advanced settings). Mirrors the
+ * store-side load guard: margins of 1-4 MB are invalid (neither off nor a
+ * usable margin) and normalize to 0, so a value written here can never be
+ * silently rewritten on the next load. The UI already rejects 1-4; this is
+ * the same rule enforced at the write boundary for any other caller.
+ */
+async changeMemoryGateHeadroomSetting(headroomMb: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_memory_gate_headroom_setting", { headroomMb }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Companion devices master toggle (OFF by default). Beyond persisting the
+ * setting, enabling starts the companion server and disabling stops it
+ * (finalizing a live phone session first) - the same shape as
+ * change_memory_pressure_guard_setting, plus lifecycle side effects.
+ */
+async changeCompanionDevicesSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_companion_devices_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Issue a fresh pairing token (rebound to the current LAN /24) and
+ * restart the server if it is running, so the QR changes and phones
+ * holding the old token are refused.
+ */
+async resetCompanionPairing() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("reset_companion_pairing") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Snapshot for the settings panel: QR (SVG), URL, port, fingerprint,
+ * connected devices, and any server error.
+ */
+async getCompanionStatus() : Promise<CompanionStatus> {
+    return await TAURI_INVOKE("get_companion_status");
+},
 async changeAutoFallbackSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_auto_fallback_setting", { enabled }) };
@@ -312,9 +361,25 @@ async setPostProcessProvider(providerId: string) : Promise<Result<null, string>>
     else return { status: "error", error: e  as any };
 }
 },
-async fetchPostProcessModels(providerId: string) : Promise<Result<string[], string>> {
+async fetchPostProcessModels(providerId: string) : Promise<Result<string[], PostProcessModelError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("fetch_post_process_models", { providerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Test Connection: probe the selected provider and return a verdict the
+ * settings panel renders (auth ok, latency, model reachable, or the
+ * failure class). Cloud providers answer a model-list request and, when a
+ * model is configured, a tiny completion on a hard 10 s budget; the local
+ * provider's verdict is its selected model's downloaded state (no worker
+ * spawn); Apple Intelligence maps to its availability check.
+ */
+async testPostProcessConnection(providerId: string) : Promise<Result<TestConnectionResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("test_post_process_connection", { providerId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -344,9 +409,66 @@ async deletePostProcessPrompt(id: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Duplicate one template from the library: a fresh id, " copy" appended to
+ * the name, `is_builtin` cleared (a duplicate is the operator's own even
+ * when its source is a seed), and version restarted at 1. The source's
+ * language/register/description ride along so the copy lands in the same
+ * catalog bucket.
+ */
+async duplicatePostProcessPrompt(id: string) : Promise<Result<LLMPrompt, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("duplicate_post_process_prompt", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async setPostProcessSelectedPrompt(id: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("set_post_process_selected_prompt", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Set the keep-warm window for the LOCAL post-process model, in seconds.
+ * 0 (the default) is the exclusive swap of v1.3.0 (unload after every
+ * generation); up to 600 keeps the worker resident that long after the
+ * paste. Out-of-range values are rejected, never clamped.
+ */
+async changePostProcessLocalKeepWarmSecsSetting(seconds: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_post_process_local_keep_warm_secs_setting", { seconds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * The cycle command (the tray and any future surface share it). Advances
+ * the selection and confirms the new template through the overlay notice.
+ */
+async cyclePostProcessPrompt() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cycle_post_process_prompt") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * "Test on my last transcript": run one template over the most recent
+ * history entry's transcription through the exact engine lifecycle a
+ * dictation uses (provider, model, shared validator, pp: record with the
+ * `prompt_test` binding marker), WITHOUT pasting anything and WITHOUT
+ * writing a history row. Typed errors: `no_history` when nothing exists
+ * to test against, `prompt_not_found` for a dangling template id.
+ */
+async testPostProcessPrompt(promptId: string) : Promise<Result<PromptTestOutcome, TestPromptError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("test_post_process_prompt", { promptId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -938,44 +1060,94 @@ async addHfModel(repoId: string, filename: string, revision: string | null) : Pr
     else return { status: "error", error: e  as any };
 }
 },
-async getLocalLlmModelStatus() : Promise<Result<LocalLlmModelStatus, string>> {
+async getLocalLlmModelStatus(modelId: string | null) : Promise<Result<LocalLlmModelStatus, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("get_local_llm_model_status") };
+    return { status: "ok", data: await TAURI_INVOKE("get_local_llm_model_status", { modelId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
 },
 /**
- * Download the pinned post-process model through the standard
- * ModelManager pipeline (progress events included), then verify the
- * sha256 ONCE against the pinned constant (spec 6.1, reviewer finding
- * R12): a mismatch deletes the file and errors so the entry reads
+ * Download a post-process model through the standard ModelManager pipeline
+ * (progress events included, into the dedicated llm-models cache), then
+ * verify the sha256 ONCE against the trust anchor (spec 6.1, reviewer
+ * finding R12): a mismatch deletes the file and errors so the entry reads
  * not-downloaded again (delete + re-download repairs any corruption).
+ * `model_id: None` downloads the pinned builtin, exactly as before.
  */
-async downloadLocalLlmModel() : Promise<Result<null, string>> {
+async downloadLocalLlmModel(modelId: string | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("download_local_llm_model") };
+    return { status: "ok", data: await TAURI_INVOKE("download_local_llm_model", { modelId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
 },
 /**
- * Delete the local post-process model. Refuses with a transient error
- * while a post-process swap is running (L3): the swap may be about to
- * restore a voice model file this delete would remove.
+ * Delete a post-process model. Refuses with a transient error while a
+ * post-process swap is running (L3): the swap may be about to restore a
+ * voice model file this delete would remove. Deleting the SELECTED model
+ * resets the selection to the pinned builtin so the engine never points at
+ * a missing file.
  * 
  * DEVIATION 2 (flagged in the plan): unlike the voice-model delete path,
  * there is no unload-with-wait here. The LLM worker exists only inside a
  * swap, and the lease check above has already excluded swaps; outside a
- * swap there is never a resident LLM engine to unload. The comment
- * documents this instead of adding an unload call that can never find a
- * worker.
+ * swap there is never a resident LLM engine to unload.
  */
-async deleteLocalLlmModel() : Promise<Result<null, string>> {
+async deleteLocalLlmModel(modelId: string | null) : Promise<Result<null, string>> {
     try {
-    return { status: "ok", data: await TAURI_INVOKE("delete_local_llm_model") };
+    return { status: "ok", data: await TAURI_INVOKE("delete_local_llm_model", { modelId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Every post-process model (catalog + pinned + user-added) with its card
+ * metadata and the selection flag. The settings section and the tray
+ * submenu both read this; nothing else should (ASR surfaces keep using
+ * `get_available_models`, which filters LocalLlm entries out).
+ */
+async getAvailableLlmModels() : Promise<Result<LlmModelEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_available_llm_models") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+async setPostProcessLocalModel(modelId: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_post_process_local_model", { modelId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Resolve pasted Hugging Face input for the POST-PROCESS add flow (same
+ * listing shape as the voice flow; the suggested file prefers the smaller
+ * LLM quants).
+ */
+async resolveLlmHfModel(input: string) : Promise<Result<HfModelResolution, HfModelError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("resolve_llm_hf_model", { input }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Download a specific GGUF from a Hugging Face repo and register it as a
+ * post-process model, gated on the LLM architecture allowlist: an
+ * unsupported architecture is refused, the blob deleted, and the error
+ * names the architecture and supported families.
+ */
+async addLlmHfModel(repoId: string, filename: string, revision: string | null) : Promise<Result<string, HfModelError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("add_llm_hf_model", { repoId, filename, revision }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1133,8 +1305,29 @@ async setPostProcessTimeout(seconds: number) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async logUpdateDecision(stage: string, detail: string | null) : Promise<void> {
-    await TAURI_INVOKE("log_update_decision", { stage, detail });
+/**
+ * Set the per-provider override of the post-process timeout, in seconds.
+ * Same inclusive bounds as the global setting (rejecting out-of-range
+ * values instead of clamping); the provider's requests then run under
+ * this value instead of its class default. The reset command below
+ * removes the override; a stored 0 also resolves to the class default.
+ */
+async setPostProcessTimeoutForProvider(providerId: string, seconds: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_post_process_timeout_for_provider", { providerId, seconds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Remove the per-provider post-process timeout override: the provider's
+ * requests resolve through its class default again (Groq/Cerebras 30s,
+ * the others 60s), which is what the settings row shows as the reset
+ * target.
+ */
+async resetPostProcessTimeoutForProvider(providerId: string) : Promise<void> {
+    await TAURI_INVOKE("reset_post_process_timeout_for_provider", { providerId });
 },
 async getModelLoadStatus() : Promise<Result<ModelLoadStatus, string>> {
     try {
@@ -1151,6 +1344,9 @@ async unloadModelManually() : Promise<Result<null, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async logUpdateDecision(stage: string, detail: string | null) : Promise<void> {
+    await TAURI_INVOKE("log_update_decision", { stage, detail });
 },
 async getHistoryEntries(cursor: number | null, limit: number | null) : Promise<Result<PaginatedHistory, string>> {
     try {
@@ -1209,6 +1405,18 @@ async updateRecordingRetentionPeriod(period: string) : Promise<Result<null, stri
 }
 },
 /**
+ * The Tauri command the Debug tab's table calls. Returns the most recent
+ * runs, newest first.
+ */
+async getPostProcessRuns(limit: number | null) : Promise<Result<PostProcessRunRecord[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_post_process_runs", { limit }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Checks if the Mac is a laptop by detecting battery presence
  * 
  * This uses pmset to check for battery information.
@@ -1230,12 +1438,14 @@ async isLaptop() : Promise<Result<boolean, string>> {
 export const events = __makeEvents__<{
 historyUpdatePayload: HistoryUpdatePayload,
 overlayNoticeEvent: OverlayNoticeEvent,
+postProcessRunEvent: PostProcessRunEvent,
 postProcessSkipEvent: PostProcessSkipEvent,
 streamPhaseEvent: StreamPhaseEvent,
 streamTextEvent: StreamTextEvent
 }>({
 historyUpdatePayload: "history-update-payload",
 overlayNoticeEvent: "overlay-notice-event",
+postProcessRunEvent: "post-process-run-event",
 postProcessSkipEvent: "post-process-skip-event",
 streamPhaseEvent: "stream-phase-event",
 streamTextEvent: "stream-text-event"
@@ -1328,7 +1538,48 @@ menu_bar_model_title?: boolean; word_correction_threshold?: number; history_limi
 /**
  * Show the compact per-entry model badge in the History list.
  */
-show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_timeout_secs?: number; post_process_provider_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; 
+show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; 
+/**
+ * Total-request timeout for cloud post-process calls, in seconds.
+ * Bounds a wedged endpoint (one that accepts the connection but never
+ * responds) so the stop pipeline returns to Idle instead of hanging
+ * with only the tray Cancel as an escape. Applies to both the chat
+ * completion and the model-list requests.
+ */
+post_process_timeout_secs?: number; 
+/**
+ * Per-provider user overrides of the post-process timeout, keyed by
+ * provider id. Empty (the default) means every provider resolves
+ * through its class default (see
+ * [`PostProcessProvider::default_timeout_secs`]) and then the global
+ * `post_process_timeout_secs`; a stored 0 resolves the same way (the
+ * reset target), never "no timeout".
+ */
+post_process_timeouts?: Partial<{ [key in string]: number }>; 
+/**
+ * Keep-warm window for the LOCAL post-process model, in seconds. 0
+ * (the default) is exactly today's behavior: the swap runner unloads
+ * the worker after every generation and restores the voice model (the
+ * L2 exclusive swap). When > 0, the runner holds the worker resident
+ * for the window AFTER the paste, polling the dictation-wins triggers
+ * and an evict request; any voice model load evicts it first.
+ */
+post_process_local_keep_warm_secs?: number; post_process_provider_id?: string; 
+/**
+ * The registry id of the local post-process model the swap runner loads
+ * (catalog entry or the pinned builtin). Defaults to the pinned
+ * Qwen3-0.6B, so stores written before the LLM catalog existed keep
+ * exactly their prior behavior without a migration.
+ */
+post_process_local_model_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; 
+/**
+ * Last successfully fetched model list per provider id (see
+ * [`CachedModelList`]). Empty on stores written before the cache
+ * existed; the store hydrates the dropdown from it on load. Cleared
+ * for a provider when its base URL changes (a different endpoint
+ * serves a different list).
+ */
+post_process_model_lists?: Partial<{ [key in string]: CachedModelList }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; 
 /**
  * One-time marker for the local-default post-process migration (spec
  * 5.2): absent on legacy stores (the migration fires once), true on
@@ -1441,11 +1692,47 @@ vad_backend?: VadBackend;
  * not gated on this - that follows model capability. Migrated from the old
  * `overlay_position` (position `none` → style `None`).
  */
-overlay_style?: OverlayStyle }
+overlay_style?: OverlayStyle; 
+/**
+ * Companion devices: use a phone/tablet on the same Wi-Fi as a remote
+ * microphone and push-to-talk trigger, with this Mac as the engine.
+ * OFF by default - the off path leaves no listener, no threads, and
+ * the local recorder path untouched.
+ */
+companion_devices_enabled?: boolean; 
+/**
+ * Port for the companion TLS/WebSocket server on the LAN interface.
+ */
+companion_port?: number; 
+/**
+ * 128-bit hex pairing token, generated on enable/reset and bound to
+ * the advertised interface's /24 subnet. A peer from a different
+ * subnet is refused with a re-pair notice.
+ */
+companion_pairing_token?: string | null; 
+/**
+ * The /24 (as "a.b.c.0/24") the pairing token was issued for.
+ */
+companion_pairing_subnet?: string | null; 
+/**
+ * Name of the last device that completed a hello handshake.
+ */
+companion_last_device?: string | null }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AvailableAccelerators = { transcribe: string[]; ort: string[]; gpu_devices: GpuDeviceOption[] }
 export type BindingResponse = { success: boolean; binding: ShortcutBinding | null; error: string | null }
+/**
+ * The last successfully fetched model list for one provider, persisted so
+ * reopening the settings panel shows the dropdown instantly (and offline).
+ * Only successful fetches are written; failures never clobber a good list.
+ */
+export type CachedModelList = { models: string[]; 
+/**
+ * Unix seconds (UTC) of the successful fetch, shown as a fetched-at
+ * hint next to the dropdown.
+ */
+fetched_at_unix: number }
 /**
  * Script applied to Mandarin and Cantonese output. Other languages are never
  * converted.
@@ -1465,6 +1752,11 @@ export type CommandId = "period" | "comma" | "questionMark" | "exclamation" | "c
  * One matrix row: a command and its editable spoken phrases.
  */
 export type CommandMatrixEntry = { command: CommandId; phrases: string[] }
+/**
+ * The status snapshot the settings panel renders (QR, URL, devices,
+ * fingerprint, error).
+ */
+export type CompanionStatus = { enabled: boolean; running: boolean; supported: boolean; url: string | null; port: number; qr_svg: string | null; fingerprint: string | null; token: string | null; subnet: string | null; last_device: string | null; devices: string[]; error: string | null }
 export type CustomSounds = { start: boolean; stop: boolean }
 export type EngineType = 
 /**
@@ -1545,7 +1837,15 @@ export type HistoryEntry = { id: number; file_name: string; timestamp: number; s
  * fallback). `None` for pre-migration entries or when the model was
  * unknown (e.g. a failed transcription saved for retry).
  */
-model_id: string | null }
+model_id: string | null; 
+/**
+ * The pp: run summary (the post-process lifecycle, WS3): which
+ * provider/model/prompt polished this entry, how the run ended
+ * (`applied` | `skipped:<reason>` | `failed:<class>`), and its
+ * latency. `None` for pre-cycle rows and entries whose dictation ran
+ * without post-processing.
+ */
+post_process_provider: string | null; post_process_model: string | null; post_process_prompt_id: string | null; post_process_outcome: string | null; post_process_latency_ms: number | null }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
  * Result of changing keyboard implementation
@@ -1561,9 +1861,63 @@ export type KeyboardDiagnosticReport = { secure_input_enabled: boolean; culprit_
  */
 key_down: number; key_up: number; flags_changed: number; mouse: number; duration_ms: number }
 export type KeyboardImplementation = "tauri" | "handy_keys"
-export type LLMPrompt = { id: string; name: string; prompt: string }
 /**
- * Status snapshot for the settings row (spec 6.2).
+ * One template in the post-process prompt library. The three original
+ * fields (id, name, prompt) are the pre-library store shape; every newer
+ * field carries `#[serde(default)]` so stores written before the library
+ * existed load unchanged and are upgraded by `ensure_post_process_defaults`
+ * instead of a schema bump.
+ */
+export type LLMPrompt = { id: string; name: string; prompt: string; 
+/**
+ * BCP-47 tag of the output language this template keeps, or "auto" to
+ * follow whatever language was spoken.
+ */
+language?: string; register?: PromptRegister; 
+/**
+ * One-line catalog copy. The built-in seeds ship their description
+ * translated through the frontend locale files; this stored value is
+ * the English fallback.
+ */
+description?: string; 
+/**
+ * True for the seeded templates. Built-ins can be edited in place
+ * (the edit bumps `version`, which stops the seeding migration from
+ * ever touching them again); duplicates and user creations are false.
+ */
+is_builtin?: boolean; 
+/**
+ * Bumped on every user edit. 0 marks a store written before the
+ * library existed (never touched by this build); seeds and fresh
+ * creations start at 1.
+ */
+version?: number }
+/**
+ * One post-process model as the settings section and tray see it: the
+ * shared [`ModelInfo`] plus the LLM-specific card fields the ASR shape does
+ * not carry.
+ */
+export type LlmModelEntry = { info: ModelInfo; 
+/**
+ * Quantization of the surfaced file ("Q4_K_M"), when known.
+ */
+quant: string; 
+/**
+ * Context window the swap runner allocates for this model.
+ */
+context_tokens: number; 
+/**
+ * Display publisher ("Qwen", "bartowski"), when known.
+ */
+publisher: string; 
+/**
+ * Whether this is the model the post-process engine runs.
+ */
+selected: boolean }
+/**
+ * Status snapshot for one post-process model row (spec 6.2). `model_id:
+ * None` reads the pinned builtin, the shape the original settings row was
+ * built on.
  */
 export type LocalLlmModelStatus = { downloaded: boolean; downloading: boolean; size_mb: number; 
 /**
@@ -1655,7 +2009,121 @@ export type OverlayStyle = "none" | "minimal" | "live"
 export type PaginatedHistory = { entries: HistoryEntry[]; has_more: boolean }
 export type PasteMethod = "ctrl_v" | "direct" | "none" | "shift_insert" | "ctrl_shift_v" | "external_script"
 export type PermissionAccess = "allowed" | "denied" | "unknown"
-export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean }
+/**
+ * Which engine kind produced a run. Rides the `requested` line so a log
+ * reader can tell the three paths apart before any other field.
+ */
+export type PostProcessEngineKind = "cloud" | "local" | "apple_intelligence"
+/**
+ * The engine phase facts (local engine): how long the model load took,
+ * whether the model was already resident (it never is today - the swap
+ * spawns a fresh worker - but the field is the honest place for a future
+ * keep-alive), and how long the run waited on the swap machinery (lease,
+ * slot, gate, voice unload) before the load began. Cloud runs carry None
+ * for all three.
+ */
+export type PostProcessEnginePhase = { model_load_ms: number | null; cache_hit: boolean | null; swap_wait_ms: number | null }
+/**
+ * Failure classes shared across the post-process surface: the Test
+ * Connection verdict line here, and the pp: observability lifecycle that
+ * classifies every failed run. The wire values are stable tokens the UI
+ * prints verbatim (auth, network, timeout, context_length,
+ * output_invalid, oom, cancelled), so they are part of the contract with
+ * the frontend and must never be renamed.
+ */
+export type PostProcessFailureClass = "auth" | "network" | "timeout" | "context_length" | "output_invalid" | "oom" | "cancelled"
+/**
+ * The generation phase facts: wall-clock ms and retry count (a structured
+ * attempt that fell back to the legacy prompt shape counts as one retry).
+ */
+export type PostProcessGenerationPhase = { ms: number | null; retries: number | null }
+/**
+ * Structured error for the cloud model-list path (and the connection
+ * probe), replacing the bare String `fetch_post_process_models` used to
+ * return. The tag/kind is the failure class the UI prints; `detail`
+ * carries the sanitized diagnostics (never key material, never response
+ * payloads that could quote transcription content).
+ */
+export type PostProcessModelError = { kind: "auth"; detail: string } | { kind: "network"; detail: string } | { kind: "timeout"; detail: string } | { kind: "parse"; detail: string } | { kind: "other"; detail: string }
+/**
+ * How one run ended.
+ */
+export type PostProcessOutcome = 
+/**
+ * The processed text was pasted.
+ */
+{ kind: "applied" } | 
+/**
+ * The engine never produced output (expected, recoverable); the raw
+ * transcript was used. Carries the local-engine skip vocabulary.
+ */
+{ kind: "skipped"; reason: SkipReason } | 
+/**
+ * The engine tried and failed; the raw transcript was used. Carries
+ * the failure class.
+ */
+{ kind: "failed"; class: PostProcessFailureClass }
+export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean; 
+/**
+ * The provider class's default total-request timeout, in seconds.
+ * Fast inference hosts (Groq, Cerebras) default tighter (30) than the
+ * general 60; a per-provider user override
+ * (`post_process_timeouts`) beats it, and 0 falls through to the
+ * global `post_process_timeout_secs` at resolution time.
+ */
+default_timeout_secs?: number }
+/**
+ * Emitted once per lifecycle phase. The overlay window drives its
+ * "Polishing (model) 1.8s" chip off Requested/Outcome; the main window
+ * toasts failure classes off Outcome.
+ */
+export type PostProcessRunEvent = { run_id: number; phase: PostProcessRunPhase; payload: PostProcessRunPayload }
+/**
+ * The per-phase event payload. Only the fields belonging to the event's
+ * phase are populated; the rest stay None.
+ */
+export type PostProcessRunPayload = { binding: string | null; engine: PostProcessEngineKind | null; provider_id: string | null; model: string | null; prompt_name: string | null; model_load_ms: number | null; cache_hit: boolean | null; swap_wait_ms: number | null; generation_ms: number | null; retries: number | null; outcome: PostProcessOutcome | null; chars_in: number | null; chars_out: number | null; total_ms: number | null }
+/**
+ * The lifecycle phases, in order. Exactly one `pp:` line and one
+ * [`PostProcessRunEvent`] per phase per run.
+ */
+export type PostProcessRunPhase = "requested" | "engine" | "generation" | "outcome"
+/**
+ * One completed (or in-flight) post-process run. Everything the Debug
+ * table shows and everything the copy button returns lives here.
+ */
+export type PostProcessRunRecord = { 
+/**
+ * Monotonic per-app-launch id, starting at 1.
+ */
+run_id: number; 
+/**
+ * Unix epoch milliseconds (UTC) when the requested phase fired.
+ */
+started_at_unix_ms: number; binding: string; engine: PostProcessEngineKind; provider_id: string; model: string; prompt_id: string | null; prompt_name: string | null; 
+/**
+ * The prompt template's version token, when the prompt carries one.
+ */
+prompt_version: string | null; 
+/**
+ * The template's target language (the per-language prompt library),
+ * when the prompt carries one.
+ */
+template_language: string | null; phases_engine: PostProcessEnginePhase; phases_generation: PostProcessGenerationPhase; 
+/**
+ * `None` while the run is still live.
+ */
+outcome: PostProcessOutcome | null; chars_in: number | null; chars_out: number | null; 
+/**
+ * chars_out / chars_in (how much of the transcript survived), None
+ * when chars_in is 0 or the run produced no output.
+ */
+changed_ratio: number | null; total_ms: number | null; 
+/**
+ * The run's own captured `pp:` lines, in order. This is exactly what
+ * the Debug table's copy button puts on the clipboard.
+ */
+log_lines: string[] }
 /**
  * Emitted when a local post-process pass fell back to the raw transcript
  * (spec 7.3). The frontend toasts it at most once per reason per app
@@ -1663,6 +2131,20 @@ export type PostProcessProvider = { id: string; label: string; base_url: string;
  * in `detail`.
  */
 export type PostProcessSkipEvent = { reason: SkipReason; detail?: string | null }
+/**
+ * The register (tone) a prompt template is written for. Part of the
+ * template catalog's metadata; the settings list and the selected-template
+ * dropdown badge every entry with it.
+ */
+export type PromptRegister = "professional" | "casual" | "technical" | "minimal" | "general"
+/**
+ * The outcome of testing one template against the last transcript. `after`
+ * is None when the engine failed or skipped (the raw transcript would be
+ * kept on the dictation path); `outcome` is the same token the run record
+ * and history carry (`applied` | `skipped:<reason>` | `failed:<class>`,
+ * or `skipped` for pre-run config states that never mint a run).
+ */
+export type PromptTestOutcome = { before: string; after: string | null; outcome: string; latency_ms: number }
 export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "weeks_2" | "months_3"
 export type SecretMap = Partial<{ [key in string]: string }>
 export type SecureInputStatus = { 
@@ -1764,6 +2246,20 @@ deleted?: string | null }
  * Semantic kind of "working" phase, used to localize the spinner label.
  */
 export type StreamWorkKind = "transcribing" | "polishing"
+/**
+ * The Test Connection verdict, assembled by the command from the model
+ * list, the completion probe, or the on-device state. `completion_ok` is
+ * None when no probe ran (local/Apple providers, or no model selected);
+ * `latency_ms` is the round-trip of the model-list request.
+ */
+export type TestConnectionResult = { model_list_ok: boolean; completion_ok: boolean | null; latency_ms: number | null; failure_class: PostProcessFailureClass | null; detail: string }
+/**
+ * Structured error for the test command: the tag is the failure the UI
+ * keys on (`no_history` when there is nothing to test against,
+ * `prompt_not_found` for a dangling template id, `other` for a history
+ * store read failure).
+ */
+export type TestPromptError = { kind: "no_history" } | { kind: "prompt_not_found"; id: string } | { kind: "other"; detail: string }
 /**
  * UI appearance mode. `System` follows the OS `prefers-color-scheme`; `Light`
  * and `Dark` force one of the two palettes Handy already ships.

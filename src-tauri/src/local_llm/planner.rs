@@ -61,6 +61,10 @@ pub fn effective_budget(phase_bound: Duration, remaining_total: Duration) -> Dur
 }
 
 /// The phases of one swap. One per swap invocation; `Done` is terminal.
+/// `WarmHold` (keep-warm, default OFF): after a successful generation the
+/// worker and model STAY resident for a window, with the loading slot and
+/// the swap lease both released (the app is at rest; a dictation press or
+/// a new swap evicts the warm worker through `LlmManager::evict_warm`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SwapState {
     Idle,
@@ -68,6 +72,7 @@ pub enum SwapState {
     UnloadingVoice,
     LoadingLlm,
     Generating,
+    WarmHold,
     UnloadingLlm,
     RestoringVoice,
     Done,
@@ -132,6 +137,14 @@ pub enum Signal {
     LeaseDenied,
     /// The loading slot stayed held by another load past its deadline.
     SlotDenied,
+    /// The keep-warm window elapsed (only meaningful in WarmHold): the
+    /// worker unloads and the terminal handoff runs exactly as a
+    /// keep-warm-off swap's would.
+    WarmWindowExpired,
+    /// A voice model load (or a new swap) requested the warm worker's RAM
+    /// (only meaningful in WarmHold): same teardown as window expiry, at
+    /// once.
+    EvictWarm,
     Abort(AbortReason),
     Timeout(Phase),
 }
@@ -215,6 +228,10 @@ pub struct SwapPlanner {
     holds_slot: bool,
     voice_was_loaded: bool,
     unload_immediately: bool,
+    /// Whether this swap may enter WarmHold after generation (the
+    /// keep-warm setting resolved > 0 at runner start). Default false:
+    /// the machine is byte-identical to the pre-keep-warm swap.
+    keep_warm: bool,
 }
 
 impl SwapPlanner {
@@ -228,7 +245,15 @@ impl SwapPlanner {
             holds_slot: false,
             voice_was_loaded,
             unload_immediately,
+            keep_warm: false,
         }
+    }
+
+    /// Arm keep-warm for this swap (the setting is > 0): a successful
+    /// generation enters WarmHold instead of unloading. The runner calls
+    /// this once, before Start, from the resolved setting.
+    pub fn enable_keep_warm(&mut self) {
+        self.keep_warm = true;
     }
 
     /// Whether this planner already reached its terminal state.
@@ -411,6 +436,21 @@ impl SwapPlanner {
             // fidelity guard) when it observes the result; invalid output
             // folds to raw via EmitSkip during teardown. The unload path is
             // identical either way.
+            (SwapState::Generating, Signal::LlmGenerated { .. }) if self.keep_warm => {
+                // WarmHold: generation is DONE (the runner delivers the
+                // outcome to the caller and concludes the pp: run right
+                // now); the worker and model stay resident. Everything the
+                // swap held is released so the app is at rest: no loading
+                // slot (a dictation press would otherwise be refused with
+                // "Model load already in progress"), no lease (a new swap
+                // must be able to start; it evicts this warm worker first
+                // through LlmManager::evict_warm). The voice model is NOT
+                // restored here: never co-resident with the LLM (L2).
+                self.state = SwapState::WarmHold;
+                self.holds_slot = false;
+                self.lease_held = false;
+                vec![Action::DropSlotGuard, Action::ReleaseLease]
+            }
             (SwapState::Generating, Signal::LlmGenerated { .. }) => {
                 self.state = SwapState::UnloadingLlm;
                 vec![Action::WaitExit]
@@ -445,6 +485,31 @@ impl SwapPlanner {
                 actions
             }
             (SwapState::Generating, _) => Vec::new(),
+
+            // ---- WarmHold: worker resident, nothing held, window ticking ----
+            // Every exit trigger ends in UnloadLlm: window expiry and an
+            // eviction go gracefully (the worker is idle; WaitExit
+            // escalates to a kill if it stalls), a dictation-wins abort
+            // carries the total-deadline skip exactly like every other
+            // phase, and the deliberate aborts (press, recording, user
+            // cancel) complete silently with the raw text as before. The
+            // runner re-acquired the loading slot before stepping these
+            // signals when it could, so the terminal handoff at
+            // RestoringVoice behaves exactly as a keep-warm-off swap's.
+            (SwapState::WarmHold, Signal::WarmWindowExpired)
+            | (SwapState::WarmHold, Signal::EvictWarm) => {
+                self.state = SwapState::UnloadingLlm;
+                vec![Action::WaitExit]
+            }
+            (SwapState::WarmHold, Signal::Abort(reason)) => {
+                self.state = SwapState::UnloadingLlm;
+                let mut actions = deadline_skip(reason);
+                actions.push(Action::WaitExit);
+                actions
+            }
+            // Out-of-phase signals are no-ops: the machine never rewinds
+            // and never invents resource state.
+            (SwapState::WarmHold, _) => Vec::new(),
 
             // ---- UnloadingLlm: teardown, never abandoned ----
             // A press during teardown is remembered by the coordinator; the
@@ -1118,5 +1183,174 @@ mod tests {
         let tail = p.step(Signal::RestoreHandedOff, false);
         assert_eq!(tail, vec![Action::RestoreHandoff, Action::ReleaseLease]);
         assert!(p.is_done());
+    }
+    // ---- WS5 keep-warm: WarmHold entry/exit truth tables ----
+
+    /// Drive a swap up to a successful generation with keep-warm armed.
+    fn drive_to_warm(p: &mut SwapPlanner) -> Vec<Action> {
+        let mut all = Vec::new();
+        let mut feed = |p: &mut SwapPlanner, s: Signal| all.extend(p.step(s, false));
+        feed(p, Signal::Start);
+        p.mark_lease_acquired();
+        p.mark_slot_acquired();
+        feed(p, Signal::GateAllowed);
+        feed(p, Signal::VoiceUnloaded);
+        feed(p, Signal::LlmLoaded);
+        feed(
+            p,
+            Signal::LlmGenerated {
+                text: "{\"transcription\":\"clean\"}".to_string(),
+            },
+        );
+        all
+    }
+
+    /// Warm entry: a successful generation under keep-warm releases the
+    /// loading slot AND the lease (the app is at rest) and keeps the
+    /// worker: exactly [DropSlotGuard, ReleaseLease], state WarmHold, and
+    /// NO worker teardown action.
+    #[test]
+    fn warm_entry_releases_everything_and_keeps_the_worker() {
+        let mut p = dictation_ctx();
+        p.enable_keep_warm();
+        let all = drive_to_warm(&mut p);
+
+        assert_eq!(p.state, SwapState::WarmHold);
+        // The generation step's own actions are exactly the release pair.
+        assert_eq!(
+            all[all.len() - 2..],
+            [Action::DropSlotGuard, Action::ReleaseLease]
+        );
+        assert!(
+            !all.contains(&Action::WaitExit) && !all.contains(&Action::KillWorker),
+            "the worker stays resident: {all:?}"
+        );
+        assert!(
+            !all.contains(&Action::RestoreHandoff),
+            "the voice model is NOT restored while the LLM is warm (L2): {all:?}"
+        );
+    }
+
+    /// The off path is byte-identical: without arming keep-warm, the same
+    /// generation steps straight to UnloadingLlm with the graceful exit,
+    /// exactly the pre-keep-warm machine.
+    #[test]
+    fn keep_warm_off_generation_unloads_exactly_as_before() {
+        let mut p = dictation_ctx();
+        let mut all = Vec::new();
+        let mut feed = |p: &mut SwapPlanner, s: Signal| all.extend(p.step(s, false));
+        feed(&mut p, Signal::Start);
+        p.mark_lease_acquired();
+        p.mark_slot_acquired();
+        feed(&mut p, Signal::GateAllowed);
+        feed(&mut p, Signal::VoiceUnloaded);
+        feed(&mut p, Signal::LlmLoaded);
+        feed(
+            &mut p,
+            Signal::LlmGenerated {
+                text: String::new(),
+            },
+        );
+        assert_eq!(p.state, SwapState::UnloadingLlm);
+        assert_eq!(all.last(), Some(&Action::WaitExit));
+        assert!(
+            !all.contains(&Action::DropSlotGuard) && !all.contains(&Action::ReleaseLease),
+            "the slot and lease stay held until the terminal handoff: {all:?}"
+        );
+    }
+
+    /// Warm exits: window expiry, an evict request, and every
+    /// dictation-wins abort end in UnloadLlm with the graceful exit (the
+    /// idle worker); the total-deadline abort alone carries its skip.
+    #[test]
+    fn warm_exits_all_end_in_unload_with_the_graceful_exit() {
+        let exits = [
+            Signal::WarmWindowExpired,
+            Signal::EvictWarm,
+            Signal::Abort(AbortReason::PressPending),
+            Signal::Abort(AbortReason::RecordingStarted),
+            Signal::Abort(AbortReason::UserCancel),
+            Signal::Abort(AbortReason::TotalDeadline),
+        ];
+        for exit in exits {
+            let mut p = dictation_ctx();
+            p.enable_keep_warm();
+            drive_to_warm(&mut p);
+            let actions = p.step(exit.clone(), false);
+            assert_eq!(p.state, SwapState::UnloadingLlm, "exit {exit:?}");
+            match exit {
+                Signal::Abort(AbortReason::TotalDeadline) => {
+                    assert_eq!(
+                        actions,
+                        vec![
+                            Action::EmitSkip {
+                                reason: SkipReason::Timeout,
+                                detail: Some(
+                                    "local post-process exceeded its total time budget".to_string()
+                                )
+                            },
+                            Action::WaitExit
+                        ],
+                        "total deadline {exit:?}"
+                    );
+                }
+                _ => {
+                    assert_eq!(actions, vec![Action::WaitExit], "silent exit {exit:?}");
+                }
+            }
+            // The teardown completes and the terminal handoff runs exactly
+            // as a keep-warm-off swap's: recording forces the restore
+            // handoff, no recording drops the guard.
+            p.step(Signal::LlmUnloaded, false);
+            assert_eq!(p.state, SwapState::RestoringVoice);
+            let tail = p.step(Signal::RestoreHandedOff, false);
+            assert_eq!(tail, vec![Action::RestoreHandoff, Action::ReleaseLease]);
+            assert!(p.is_done());
+        }
+    }
+
+    /// Out-of-phase signals in WarmHold are no-ops: the window keeps
+    /// ticking, nothing is released twice, nothing tears down early.
+    #[test]
+    fn warm_hold_out_of_phase_signals_are_no_ops() {
+        let mut p = dictation_ctx();
+        p.enable_keep_warm();
+        drive_to_warm(&mut p);
+        for out_of_phase in [
+            Signal::Start,
+            Signal::GateAllowed,
+            Signal::GateRefused {
+                detail: String::new(),
+            },
+            Signal::VoiceUnloaded,
+            Signal::VoiceUnloadTimeout,
+            Signal::LlmLoaded,
+            Signal::LlmLoadFailed {
+                reason: String::new(),
+            },
+            Signal::LlmGenerated {
+                text: String::new(),
+            },
+            Signal::LlmGenFailed {
+                reason: String::new(),
+            },
+            Signal::LlmUnloaded,
+            Signal::LlmKillTimedOut,
+            Signal::RestoreHandedOff,
+            Signal::RestoreSkipped,
+            Signal::LeaseDenied,
+            Signal::SlotDenied,
+            Signal::Timeout(Phase::Generating),
+        ] {
+            assert_eq!(
+                p.step(out_of_phase.clone(), false),
+                Vec::new(),
+                "{out_of_phase:?} must be a no-op in WarmHold"
+            );
+            assert_eq!(p.state, SwapState::WarmHold);
+        }
+        // The machine still exits cleanly on the real trigger afterwards.
+        p.step(Signal::EvictWarm, false);
+        assert_eq!(p.state, SwapState::UnloadingLlm);
     }
 }

@@ -417,6 +417,14 @@
   background: var(--s-accent-soft);
   border: 1px solid var(--s-hair);
 }
+/* Companion-mic badge: the same chip anatomy with room for the phone icon
+   instead of the CMD keycap. */
+.scomp {
+  display: inline-flex;
+  align-items: center;
+  letter-spacing: 0;
+  line-height: 1;
+}
 @keyframes sdot-pulse {
   0% {
     box-shadow: 0 0 0 0 var(--s-accent-soft);

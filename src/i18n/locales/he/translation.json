@@ -9,9 +9,11 @@
     "unloadAfterNever": "אף פעם",
     "unloadAfterCustom": "מותאם אישית…",
     "model": "מודל",
+    "postProcessModel": "מודל לעיבוד לאחר",
     "quit": "יציאה",
     "cancel": "ביטול",
-    "secureInputWarning": "⚠ קיצורי המקשים חסומים על ידי Secure Input"
+    "secureInputWarning": "⚠ קיצורי המקשים חסומים על ידי Secure Input",
+    "postProcessPrompt": "פרומפט לעיבוד לאחר"
   },
   "sidebar": {
     "general": "כללי",
@@ -220,6 +222,10 @@
           "transcribe_commands": {
             "name": "מצב פקודות",
             "description": "החזיקו מקש זה בזמן שהקלטת ההקראה פעילה כדי לעבור לפרשנות פקודות: כל מה שתגידו עורך ישירות את מאגר ההקראה (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) ומילים לא מזוהות נזרקות. שחררו כדי לחזור להקראה רגילה; ההדבקה הסופית מוסרת בדיוק עם המאגר הערוך. לעולם לא מתחיל הקלטה ולבד לא עושה דבר. ברירת מחדל ללא מקש."
+          },
+          "cycle_post_process_prompt": {
+            "name": "מחזור פרומפט העיבוד לאחר",
+            "description": "אופציונלי: מקדם את תבנית העיבוד הנבחרת לבאה ומאשר את התבנית החדשה."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "ספרות",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "מכשירים מלווים",
+        "description": "השתמשו בטלפון או טאבלט באותו Wi-Fi כמיקרופון וכפתור הקלטה עבור ה־Mac הזה.",
+        "offNote": "כבוי כברירת מחדל. שום דבר לא מאזין ואף תהליך לא רץ עד שתפעילו.",
+        "qrTitle": "צירוף מכשיר",
+        "qrHint": "סרקו במצלמת הטלפון, פתחו את הקישור וקבלו את אזהרת התעודה פעם אחת.",
+        "addressLabel": "כתובת",
+        "portLabel": "פתחה",
+        "devicesLabel": "מכשירים מחוברים",
+        "noDevices": "עדיין אין מכשירים מחוברים",
+        "resetPairing": "איפוס הצירוף",
+        "fingerprintLabel": "טביעת אצבע של התעודה (SHA-256)",
+        "firewallNote": "בהפעלה הראשונה macOS עשוי לבקש לאפשר חיבורים נכנסים. אפשרו זאת, אחרת טלפונים לא יגיעו ל־Mac הזה.",
+        "unavailable": "מכשירים מלווים דורשים macOS במחזור הזה.",
+        "serverError": "השרת נכשל: {{error}}",
+        "refresh": "רענון",
+        "statusRunning": "פועל",
+        "statusStopped": "מופסק"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "בחר מודל שהספק הנבחר חושף.",
           "placeholderWithOptions": "חפש או בחר מודל",
           "placeholderNoOptions": "הקלד שם מודל",
-          "refreshModels": "רענן מודלים"
+          "refreshModels": "רענן מודלים",
+          "fetchFailed": "אחזור רשימת המודלים נכשל ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "רשימת המודלים אוחזרה {{time}}",
+          "retry": "נסה שוב"
         },
         "timeout": {
           "title": "פסק זמן לבקשה",
-          "description": "כמה זמן יכולה לרוץ בקשת עיבוד עוקב בענן לפני שהיא מוותרת ונעשה שימוש בתמליל הגולמי. חל כאשר נקודת קצה מפסיקה להגיב."
+          "description": "כמה זמן יכולות בקשות העיבוד המאוחר של ספק זה לרוץ לפני שהן מוותרות ונעשה שימוש בתמליל הגולמי. איפוס חוזר לברירת המחדל של {{classDefault}} שניות של הספק."
+        },
+        "testConnection": "בדיקת חיבור",
+        "testConnectionRunning": "בודק...",
+        "verdict": {
+          "ok": "אימות תקין, {{latencyMs}} מ״ש, המודל זמין",
+          "okNoModel": "אימות תקין, {{latencyMs}} מ״ש. לא נבחר מודל לבדיקה.",
+          "localReady": "המודל המקומי הורד ומוכן",
+          "localNotReady": "המודל המקומי לא מוכן: {{detail}}",
+          "appleReady": "Apple Intelligence זמין",
+          "appleUnavailable": "Apple Intelligence לא זמין במכשיר הזה",
+          "failed": "החיבור נכשל: {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "לא ניתן למחוק כרגע: מתבצע עיבוד משלים. נסה שוב בעוד רגע.",
         "downloadFailed": "ההורדה נכשלה: {{error}}",
         "deleteFailed": "לא ניתן למחוק את המודל: {{error}}",
-        "providerLabel": "מקומי (במכשיר)"
+        "providerLabel": "מקומי (במכשיר)",
+        "keepWarm": {
+          "title": "להחזיק את המודל המקומי בזיכרון",
+          "description": "כמה זמן נשאר מודל העיבוד המקומי בזיכרון אחרי ליטוש במקום להיפרק מיד. הכתבה תמיד לוקחת את הזיכרון בחזרה קודם.",
+          "off": "כבוי"
+        }
+      },
+      "models": {
+        "title": "מודלים לעיבוד לאחר",
+        "description": "המודלים המקומיים שמנקים את התמלילים שלך. מודלים קטנים נטענים מהר יותר, גדולים משפרים יותר.",
+        "searchPlaceholder": "חיפוש מודלים לעיבוד לאחר",
+        "downloaded": "הורדו",
+        "available": "זמינים להורדה",
+        "active": "פעיל",
+        "select": "השתמש",
+        "contextTokens": "הקשר: {{count}} אסימונים",
+        "publisher": "מאת {{publisher}}",
+        "noMatch": "אין מודלים התואמים לחיפוש שלך.",
+        "browseCatalog": "עיינו בדגמים נוספים",
+        "addFromHf": {
+          "title": "הוספת מודל לעיבוד לאחר מ-Hugging Face",
+          "description": "הדביקו כתובת מאגר ציבורית או owner/repo. ניתן להוסיף קובצי GGUF של מודלי שפה (Qwen, Llama, Gemma, Phi).",
+          "added": "המודל נוסף. הוא מופיע תחת הורדו."
+        }
       },
       "prompts": {
         "title": "פרומפט",
@@ -709,7 +771,85 @@
         "createPrompt": "צור פרומפט",
         "cancel": "ביטול",
         "selectToEdit": "בחר פרומפט למעלה כדי לצפות בפרטים שלו ולערוך אותם.",
-        "createFirst": "לחץ על 'צור פרומפט חדש' למעלה כדי ליצור את פרומפט העיבוד הראשון שלך."
+        "createFirst": "לחץ על 'צור פרומפט חדש' למעלה כדי ליצור את פרומפט העיבוד הראשון שלך.",
+        "registers": {
+          "professional": "מקצועי",
+          "casual": "יומיומי",
+          "technical": "טכני",
+          "minimal": "מינימלי",
+          "general": "כללי"
+        },
+        "builtinBadge": "מובנה",
+        "customBadge": "משלך",
+        "editedBadge": "נערך",
+        "versionLabel": "גרסה {{version}}",
+        "duplicate": "שכפול",
+        "testOnLastTranscript": "בדיקה על התמליל האחרון שלי",
+        "testing": "בודק...",
+        "testNoHistory": "אין עדיין היסטוריית תמלילים. הקליטו משהו קודם.",
+        "testPromptNotFound": "התבנית הזו כבר לא קיימת.",
+        "testFailed": "הבדיקה נכשלה: {{detail}}",
+        "testResultTitle": "תוצאת בדיקה",
+        "testBefore": "לפני",
+        "testAfter": "אחרי",
+        "testOutcome": "תוצאה: {{outcome}}",
+        "testLatency": "{{ms}} מ״ש",
+        "testRawKept": "התמליל הגולמי יישמר.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "אנגלית מקצועית",
+            "description": "אנגלית מהוקצעת לעבודה: ניקוי מלא עם דקדוק מלוטש."
+          },
+          "english_casual": {
+            "name": "אנגלית יומיומית",
+            "description": "אנגלית מדוברת ששומרת על קיצורים וסלנג."
+          },
+          "english_technical": {
+            "name": "אנגלית טכנית",
+            "description": "אנגלית ידידותית לקוד: מזהים, נתיבים ופקודות נשמרים כמו שהם."
+          },
+          "english_minimal": {
+            "name": "אנגלית מינימלית",
+            "description": "תיקוני פיסוק ורישיות בלבד; כל מילה נשארת כפי שנועדה."
+          },
+          "hindi_devanagari": {
+            "name": "הינדית (דוונאגרי)",
+            "description": "ניקוי הינדית בכתב דוונאגרי עם סימני פיסוק הודיים."
+          },
+          "hinglish_roman": {
+            "name": "הינגליש (לטיני)",
+            "description": "שומר על התערובת המדוברת של הינדית ואנגלית בכתב לטיני."
+          },
+          "marathi": {
+            "name": "מראטהית",
+            "description": "ניקוי מראטהית בכתב דוונאגרי."
+          },
+          "tamil": {
+            "name": "טמילית",
+            "description": "ניקוי טמילית בכתב טמילי."
+          },
+          "spanish": {
+            "name": "ספרדית",
+            "description": "ניקוי ספרדית עם סימני שאלה וקריאה הפוכים."
+          },
+          "french": {
+            "name": "צרפתית",
+            "description": "ניקוי צרפתית עם ריווח ומרכאות צרפתיים."
+          },
+          "german": {
+            "name": "גרמנית",
+            "description": "ניקוי גרמנית עם אותיות רישיות לשמות עצם."
+          },
+          "japanese": {
+            "name": "יפנית",
+            "description": "ניקוי יפנית עם פיסוק יפני ותיקוני קאנג׳י."
+          },
+          "chinese_simplified": {
+            "name": "סינית (מפושטת)",
+            "description": "ניקוי סינית מפושטת עם תיקון הומופונים."
+          }
+        },
+        "editPrompt": "עריכה"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "שמירה"
-      }
+      },
+      "viaPostProcess": "דרך {{model}} · {{prompt}} · {{outcome}} · {{latency}} מ״ש"
     },
     "debug": {
       "title": "ניפוי שגיאות",
@@ -867,6 +1008,20 @@
         "permissionsButton": "הרשאות",
         "modelsButton": "בחירת מודל",
         "exitButton": "יציאה מהתצוגה המקדימה"
+      },
+      "ppRuns": {
+        "title": "הרצות עיבוד מאוחר",
+        "description": "הרצות הליטוש האחרונות: מנוע, פרומפט, השהיה ותוצאה. העתק את שורות היומן של הרצה לאבחון.",
+        "time": "שעה",
+        "engine": "ספק / מודל",
+        "prompt": "פרומפט",
+        "latency": "השהיה",
+        "latencyMs": "{{ms}} מ״ש",
+        "outcome": "תוצאה",
+        "copyLog": "העתק את שורות היומן של הרצה זו",
+        "copied": "שורות היומן של הרצה {{run}} הועתקו",
+        "empty": "אין עדיין הרצות עיבוד מאוחר.",
+        "live": "פעיל"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "הורדה והתקנה אוטומטית"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "הוחל",
+      "skipped": "דולג",
+      "failed": "נכשל"
     }
   },
   "footer": {
@@ -1031,9 +1191,16 @@
       "undoNoBuffer": "אין עדיין מה לנקות, אין טקסט חי בהקלטה.",
       "bindingBusy": "מקש הקלטה אחר כבר מקליט.",
       "waylandTauriHotkeys": "ייתכן שקיצורי המקלדת הגלובליים לא יעבדו באפליקציות Wayland מקוריות עם מימוש המקלדת הזה. החליפו את מימוש המקלדת ל-VoxBar Keys והוסיפו את המשתמש שלכם לקבוצת input; עיינו במדריך ל-Ubuntu.",
-      "gnomeOverlayFallback": "ב-GNOME Wayland שכבת-העל מופיעה כחלון רגיל שעלול לגנוב את המיקוד ולשבור הדבקה. ההמלצה כאן היא שכבת-על: ללא."
+      "gnomeOverlayFallback": "ב-GNOME Wayland שכבת-העל מופיעה כחלון רגיל שעלול לגנוב את המיקוד ולשבור הדבקה. ההמלצה כאן היא שכבת-על: ללא.",
+      "postProcessOutputInvalid": "הליטוש החזיר טקסט בלתי שמיש, לכן נשמר התמליל המקורי.",
+      "postProcessCloudFailed": "הליטוש נכשל ונשמר התמליל המקורי: {{detail}}",
+      "postProcessPromptCycled": "תבנית עיבוד לאחר: {{name}}",
+      "companionDisconnected": "הטלפון התנתק. מסיימים עם מה שנקלט.",
+      "companionServerFailed": "שרת הליווי נכשל: {{error}}"
     },
-    "commandBadge": "מצב פקודות"
+    "commandBadge": "מצב פקודות",
+    "ppChip": "מלטש ({{model}}) {{seconds}}שנ׳",
+    "companionBadge": "מיקרופון מלווה"
   },
   "whatsNew": {
     "title": "חדש ב-VoxBar v{{version}}"
@@ -1058,11 +1225,45 @@
       "lengthGuard": "עיבוד משלים דולג: הפלט של המודל המקומי לא עבר את בדיקת האורך. נעשה שימוש בתמליל המקורי.",
       "tooLong": "עיבוד משלים דולג: התמליל הזה ארוך מדי למודל המקומי. נעשה שימוש בתמליל המקורי."
     },
-    "settingNotSaved": "לא ניתן לשמור את ההגדרה הזו: {{error}}"
+    "settingNotSaved": "לא ניתן לשמור את ההגדרה הזו: {{error}}",
+    "postProcessFailure": {
+      "auth": "הליטוש נכשל: הספק דחה את מפתח ה-API. התמליל המקורי הודבק.",
+      "network": "הליטוש נכשל: לא ניתן להגיע לספק. התמליל המקורי הודבק.",
+      "timeout": "הליטוש נכשל: הספק לקח זמן רב מדי. התמליל המקורי הודבק.",
+      "contextLength": "הליטוש נכשל: התמליל חורג מחלון ההקשר של המודל. התמליל המקורי הודבק.",
+      "outputInvalid": "הליטוש נכשל: המודל החזיר טקסט בלתי שמיש. התמליל המקורי הודבק.",
+      "oom": "הליטוש נכשל: אין מספיק זיכרון. התמליל המקורי הודבק.",
+      "cancelled": "הליטוש בוטל. התמליל המקורי הודבק."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar לא יכול להתקין עדכונים ממיקום זה",
     "translocatedDescription": "VoxBar פועל ממיקום זמני לקריאה בלבד (App Translocation ב-macOS). סגרו את VoxBar, גררו אותו מתיקיית ההורדות אל Applications ופתחו אותו משם.",
     "commandNoSession": "מקש הפקודות עובד רק בזמן הקלטה פעילה. התחילו הקלטה, ואז החזיקו אותו ואמרו את הפקודה."
+  },
+  "companion": {
+    "title": "VoxBar מלווה",
+    "subtitle": "הטלפון שלכם הוא עכשיו המיקרופון והכפתור של ה־Mac.",
+    "certNote": "אם הדפדפן מזהיר על החיבור, השוו את טביעת האצבע של התעודה מול זו שבהגדרות VoxBar וקבלו אותה פעם אחת.",
+    "noToken": "פתחו את העמוד הזה מקוד ה־QR בהגדרות VoxBar.",
+    "micDenied": "הגישה למיקרופון נדחתה. אפשרו אותה בדפדפן וטענו מחדש.",
+    "badToken": "הצירוף נכשל. סרקו שוב את קוד ה־QR בהגדרות VoxBar.",
+    "wrongSubnet": "הטלפון הזה ברשת אחרת מה־Mac. הצטרפו לאותו Wi-Fi וצרפו שוב.",
+    "rateLimited": "יותר מדי ניסיונות צירוף. המתינו דקה ונסו שוב.",
+    "busy": "ה־Mac כבר מכתיב מטריגר אחר.",
+    "disconnectedFinalized": "החיבור נותק. ה־Mac שמר את מה שאמרתם.",
+    "capped": "ההקלטה מוגבלת ל־15 דקות. לחצו שוב כדי להמשיך.",
+    "serverStopped": "ה־Mac עצר את שרת הליווי.",
+    "reconnect": "התחברות מחדש",
+    "holdToTalk": "החזיקו כדי לדבר",
+    "tapToTalk": "הקישו כדי לדבר",
+    "release": "שחררו כדי לסיים",
+    "tapToStop": "הקישו כדי לעצור",
+    "stateConnecting": "מתחבר",
+    "stateWaitMic": "ממתין למיקרופון",
+    "stateReady": "מוכן",
+    "stateRecording": "מקליט",
+    "stateDisconnected": "מנותק",
+    "stateError": "שגיאה"
   }
 }

@@ -22,7 +22,7 @@ use tauri::{AppHandle, Emitter, Manager};
 mod download;
 mod hf_add;
 
-pub use hf_add::{resolve_hf_repo, HfModelError, HfModelResolution};
+pub use hf_add::{resolve_hf_repo, resolve_llm_hf_repo, HfModelError, HfModelResolution};
 
 use download::{HttpDownloadOutcome, DOWNLOAD_STALL_TIMEOUT};
 
@@ -117,7 +117,7 @@ pub(crate) fn canonical_language_code(language: &str) -> &str {
     }
 }
 
-fn canonicalize_supported_languages(languages: Vec<String>) -> Vec<String> {
+pub(crate) fn canonicalize_supported_languages(languages: Vec<String>) -> Vec<String> {
     let mut seen = HashSet::new();
     let mut canonical = Vec::with_capacity(languages.len());
 
@@ -370,6 +370,14 @@ pub struct DownloadProgress {
     pub percentage: f64,
 }
 
+/// Whether `info` belongs on an ASR surface. Every LocalLlm entry (the
+/// pinned builtin, the catalog seed, user-added post-process repos) is NOT
+/// an ASR model: pickers, the tray, fallback lists, and auto-select must
+/// never see one. Pure, so the filter itself is unit-testable.
+pub(crate) fn is_asr_model(info: &ModelInfo) -> bool {
+    !matches!(info.engine_type, EngineType::LocalLlm)
+}
+
 /// Return the active HF cache followed by the pre-v0.9.6 cache for portable
 /// upgrades. Downloads still use `Cache::from_env()` and therefore only write
 /// to the active portable cache.
@@ -391,6 +399,23 @@ fn hf_caches() -> Vec<Cache> {
 
 fn hf_cached_path(repo_id: &str, revision: &str, filename: &str) -> Option<PathBuf> {
     hf_cached_path_in(&hf_caches(), repo_id, revision, filename)
+}
+
+/// The hf-hub Cache objects to consult for `engine`, in lookup order. Voice
+/// models read the shared caches ([`hf_caches`]); LocalLlm models read the
+/// dedicated `app_data/llm-models` cache FIRST and then fall back to the
+/// shared caches - the grandfather pattern, so the pinned Qwen3-0.6B that
+/// predates the dedicated cache (and any LLM GGUF another tool pulled into
+/// the shared cache) keeps resolving. Downloads only ever write the first
+/// entry ([`Self::download_cache_dir_for`]).
+fn caches_for_engine(engine: &EngineType, llm_cache: &Cache) -> Vec<Cache> {
+    if matches!(engine, EngineType::LocalLlm) {
+        let mut caches = vec![Cache::new(llm_cache.path().to_path_buf())];
+        caches.extend(hf_caches());
+        caches
+    } else {
+        hf_caches()
+    }
 }
 
 /// Resolve a Hugging Face model file in the supplied caches, if already present.
@@ -593,6 +618,10 @@ impl<'a> Drop for DownloadCleanup<'a> {
 pub struct ModelManager {
     app_handle: AppHandle,
     models_dir: PathBuf,
+    /// Root of the dedicated HF-style cache for post-process LLM GGUFs
+    /// (`app_data/llm-models`). Lookup falls back to the shared HF caches so
+    /// the grandfathered pinned Qwen3-0.6B keeps resolving.
+    llm_models_dir: PathBuf,
     available_models: Mutex<HashMap<String, ModelInfo>>,
     cancel_flags: Arc<Mutex<HashMap<String, CancellationToken>>>,
     extracting_models: Arc<Mutex<HashSet<String>>>,
@@ -604,9 +633,13 @@ pub struct ModelManager {
 impl ModelManager {
     pub fn new(app_handle: &AppHandle) -> Result<Self> {
         // Create models directory in app data
-        let models_dir = crate::portable::app_data_dir(app_handle)
-            .map_err(|e| anyhow::anyhow!("Failed to get app data dir: {}", e))?
-            .join("models");
+        let app_data_dir = crate::portable::app_data_dir(app_handle)
+            .map_err(|e| anyhow::anyhow!("Failed to get app data dir: {}", e))?;
+        let models_dir = app_data_dir.join("models");
+        // Post-process LLM GGUFs download into their own HF-style cache root
+        // so multi-GB LLM blobs never interleave with the ASR cache. Created
+        // lazily by the first download; lookups on a missing dir just miss.
+        let llm_models_dir = app_data_dir.join("llm-models");
 
         if !models_dir.exists() {
             fs::create_dir_all(&models_dir)?;
@@ -1199,11 +1232,23 @@ impl ModelManager {
         // find. Additive - see `seed_catalog_models`.
         Self::seed_catalog_models(&mut available_models);
 
+        // The post-process LLM catalog, seeded BEFORE the pinned builtin: the
+        // catalog's Qwen3-0.6B entry folds onto the pinned id, and the builtin
+        // then overwrites it in place, so the pinned model's identity (name,
+        // size) can never drift when the catalog is regenerated. Additive for
+        // every other id - see `register_llm_catalog`.
+        Self::register_llm_catalog(&mut available_models);
+
         // The one built-in non-ASR model: the local post-process LLM. Pure
         // constructor + insert (HashMap keyed by id) so registration is
         // idempotent by construction; never offered as an ASR model (see
         // `get_available_models`'s LocalLlm filter).
         Self::register_builtin(&mut available_models, local_llm_model_info());
+
+        // Dedicated-cache scan for LLM GGUFs added outside this app (the
+        // post-process add-from-HF flow re-derives its entries through this
+        // on restart, exactly like the shared-cache scan does for voice).
+        Self::discover_llm_cache_models(&llm_models_dir, &mut available_models);
 
         // Auto-discover custom transcribe-cpp models (.bin / .gguf) in the models directory
         if let Err(e) = Self::discover_custom_transcribe_models(&models_dir, &mut available_models)
@@ -1217,6 +1262,7 @@ impl ModelManager {
         let manager = Self {
             app_handle: app_handle.clone(),
             models_dir,
+            llm_models_dir,
             available_models: Mutex::new(available_models),
             cancel_flags: Arc::new(Mutex::new(HashMap::new())),
             extracting_models: Arc::new(Mutex::new(HashSet::new())),
@@ -1248,9 +1294,10 @@ impl ModelManager {
                 // Windows permissions check, --list-models, the fallback
                 // list, and auto-select (which would otherwise pick the
                 // LLM as the ASR model when it is the only downloaded
-                // one). The post-process settings row reads its status via
-                // get_model_info, which is unfiltered.
-                .filter(|info| !matches!(info.engine_type, EngineType::LocalLlm))
+                // one). The post-process surfaces read
+                // get_available_llm_models, which is the LocalLlm-only
+                // mirror.
+                .filter(|info| is_asr_model(info))
                 .cloned()
                 .collect()
         };
@@ -1287,6 +1334,73 @@ impl ModelManager {
             }
         }
         info!("Seeded {} catalog model(s) into the registry", added);
+    }
+
+    /// Seed the post-process LLM catalog ([`crate::catalog::llm::LLM_CATALOG`])
+    /// the same additive way. Every entry renders an `EngineType::LocalLlm`
+    /// ModelInfo, so the registry's download/cancel/delete/progress lifecycle
+    /// applies to them for free while `get_available_models`' LocalLlm filter
+    /// keeps them out of every ASR surface (picker, tray, fallback,
+    /// auto-select). The Qwen3-0.6B entry folds onto the pinned builtin's id;
+    /// `register_builtin` runs after this and overwrites that one slot, so the
+    /// pinned model keeps its identity.
+    fn register_llm_catalog(available_models: &mut HashMap<String, ModelInfo>) {
+        use std::collections::hash_map::Entry;
+        let mut added = 0usize;
+        for model in crate::catalog::llm::LLM_CATALOG.iter() {
+            let id = model.registry_id();
+            if let Entry::Vacant(slot) = available_models.entry(id) {
+                slot.insert(model.to_model_info(&DiskStatus::default()));
+                added += 1;
+            }
+        }
+        info!(
+            "Seeded {} post-process LLM catalog model(s) into the registry",
+            added
+        );
+    }
+
+    /// The LocalLlm-only counterpart of [`Self::get_available_models`]: the
+    /// post-process model list for the settings section and the tray submenu.
+    /// Sorts small-first (the swap engine is sized for small models), then by
+    /// name. Every other consumer keeps using `get_available_models`, which
+    /// filters these entries OUT.
+    pub fn get_available_llm_models(&self) -> Vec<ModelInfo> {
+        let mut list: Vec<ModelInfo> = {
+            let models = self.available_models.lock().unwrap();
+            models
+                .values()
+                .filter(|info| matches!(info.engine_type, EngineType::LocalLlm))
+                .cloned()
+                .collect()
+        };
+        list.sort_by(|a, b| a.size_mb.cmp(&b.size_mb).then_with(|| a.name.cmp(&b.name)));
+        list
+    }
+
+    /// Engine-aware cache lookup for one registry entry: the dedicated
+    /// llm-models cache (then the shared caches) for LocalLlm entries, the
+    /// shared caches for everything else. `Self.hf_caches` documents the
+    /// portable/legacy fallback order inside the shared half.
+    fn cached_path_for(&self, info: &ModelInfo) -> Option<PathBuf> {
+        let llm_cache = Cache::new(self.llm_models_dir.clone());
+        let caches = caches_for_engine(&info.engine_type, &llm_cache);
+        match &info.source {
+            ModelSource::HuggingFace { repo_id, revision } => {
+                hf_cached_path_in(&caches, repo_id, revision, &info.filename)
+            }
+            _ => None,
+        }
+    }
+
+    /// Where a download WRITES: the dedicated llm-models cache for LocalLlm
+    /// entries, the active shared cache for everything else.
+    fn download_cache_dir_for(&self, engine: &EngineType) -> PathBuf {
+        if matches!(engine, EngineType::LocalLlm) {
+            self.llm_models_dir.clone()
+        } else {
+            Cache::from_env().path().to_path_buf()
+        }
     }
 
     /// Insert a built-in descriptor keyed by its id. HashMap semantics make
@@ -1337,6 +1451,7 @@ impl ModelManager {
             warn!("Rescan: failed to discover custom models: {}", e);
         }
         Self::discover_hf_cache_models(&mut snapshot);
+        Self::discover_llm_cache_models(&self.llm_models_dir, &mut snapshot);
 
         // Merge only the genuinely-new ids back into the live registry. `or_insert`
         // leaves every existing entry exactly as it was.
@@ -1482,13 +1597,12 @@ impl ModelManager {
         let mut vanished_models: Vec<String> = Vec::new();
 
         for model in models.values_mut() {
-            if let ModelSource::HuggingFace { repo_id, revision } = &model.source {
+            if let ModelSource::HuggingFace { .. } = &model.source {
                 // A models-dir copy counts too: mirror-fallback downloads land
                 // there, and it makes manual drop-ins of catalog files work.
                 let local_path = self.models_dir.join(&model.filename);
                 let partial_path = self.models_dir.join(format!("{}.partial", &model.filename));
-                model.is_downloaded = hf_cached_path(repo_id, revision, &model.filename).is_some()
-                    || local_path.exists();
+                model.is_downloaded = self.cached_path_for(model).is_some() || local_path.exists();
                 model.is_downloading = false;
                 model.partial_size = partial_path.metadata().map(|m| m.len()).unwrap_or(0);
                 // Alternate-quant entries exist only because their file was
@@ -1567,11 +1681,20 @@ impl ModelManager {
 
     /// Whether `filename` is a catalog-listed quant of `repo_id` other than
     /// the default - the only quant the catalog seeds and offers for download.
+    /// Checks the LLM catalog too, so a post-process alternate quant (e.g. a
+    /// user-added Q8_0 beside the catalog's Q4_K_M default) gets the same
+    /// delete-only-own-file, vanish-when-missing semantics.
     fn is_catalog_alternate_quant(repo_id: &str, filename: &str) -> bool {
         crate::catalog::file_in_catalog(filename, Some(repo_id)).is_some_and(|(desc, file)| {
             desc.default_file()
                 .is_some_and(|d| d.filename != file.filename)
-        })
+        }) || crate::catalog::llm::file_in_llm_catalog(filename, Some(repo_id)).is_some_and(
+            |(model, file)| {
+                model
+                    .default_file()
+                    .is_some_and(|d| d.filename != file.filename)
+            },
+        )
     }
 
     /// Entries discovered exclusively from disk should disappear with their
@@ -1600,20 +1723,35 @@ impl ModelManager {
         let Some(pointer) = hf_cached_path(repo_id, revision, filename) else {
             return false;
         };
-        // Resolve the blob before the pointer goes away. On Windows the
-        // pointer may be a plain file (hf-hub's symlink fallback renames the
-        // blob into the snapshot), in which case there is no separate blob.
-        let is_symlink = fs::symlink_metadata(&pointer)
+        Self::remove_cache_pointer(&pointer)
+    }
+
+    /// Engine-aware single-file delete: resolves the pointer through the
+    /// caches the model's engine actually uses (dedicated llm cache first for
+    /// LocalLlm entries), then removes the pointer and its blob. Same
+    /// only-own-file contract as [`Self::delete_hf_cache_file`].
+    fn delete_cached_file_for(&self, info: &ModelInfo) -> bool {
+        let Some(pointer) = self.cached_path_for(info) else {
+            return false;
+        };
+        Self::remove_cache_pointer(&pointer)
+    }
+
+    /// The shared half of both single-file deletes: resolve the blob before
+    /// the pointer goes away (on Windows the pointer may BE the blob, see
+    /// hf-hub's symlink fallback), then remove both.
+    fn remove_cache_pointer(pointer: &Path) -> bool {
+        let is_symlink = fs::symlink_metadata(pointer)
             .map(|m| m.file_type().is_symlink())
             .unwrap_or(false);
         if is_symlink {
-            if let Ok(blob) = fs::canonicalize(&pointer) {
+            if let Ok(blob) = fs::canonicalize(pointer) {
                 info!("Deleting HF cache blob at: {:?}", blob);
                 let _ = fs::remove_file(&blob);
             }
         }
         info!("Deleting HF cache file at: {:?}", pointer);
-        fs::remove_file(&pointer).is_ok()
+        fs::remove_file(pointer).is_ok()
     }
 
     fn auto_select_model_if_needed(&self) -> Result<()> {
@@ -1990,6 +2128,128 @@ impl ModelManager {
         })
     }
 
+    /// Scan the dedicated llm-models cache root for post-process GGUFs, the
+    /// LLM sibling of [`Self::discover_hf_cache_models_in`]. Only
+    /// architectures in [`LLM_ARCHES`] surface (an ASR GGUF someone dropped
+    /// here is ignored, exactly like an LLM GGUF in the shared cache is);
+    /// catalog-listed files keep their catalog metadata (alternate quants get
+    /// the quant-suffixed name), everything else registers as a user-style
+    /// LocalLlm entry the add-from-HF flow can re-derive identically.
+    fn discover_llm_cache_models(
+        cache_root: &Path,
+        available_models: &mut HashMap<String, ModelInfo>,
+    ) {
+        use crate::managers::model_capabilities::LLM_ARCHES;
+
+        if !cache_root.is_dir() {
+            return;
+        }
+
+        let known_hf: HashSet<(String, String)> = available_models
+            .values()
+            .filter_map(|m| match &m.source {
+                ModelSource::HuggingFace { repo_id, .. } => {
+                    Some((repo_id.clone(), m.filename.clone()))
+                }
+                _ => None,
+            })
+            .collect();
+
+        let prober = GgufHeaderProber;
+        let entries = match fs::read_dir(cache_root) {
+            Ok(entries) => entries,
+            Err(_) => return,
+        };
+
+        for entry in entries.flatten() {
+            let folder = entry.file_name();
+            let folder = folder.to_string_lossy();
+            let Some(rest) = folder.strip_prefix("models--") else {
+                continue;
+            };
+            let repo_id = rest.replace("--", "/");
+
+            let refs_dir = entry.path().join("refs");
+            let Some(revision) = Self::pick_hf_revision(&refs_dir) else {
+                continue;
+            };
+            let Ok(commit) = fs::read_to_string(refs_dir.join(&revision)) else {
+                continue;
+            };
+            let snapshot = entry.path().join("snapshots").join(commit.trim());
+            let Ok(files) = fs::read_dir(&snapshot) else {
+                continue;
+            };
+
+            for file in files.flatten() {
+                let fname = file.file_name().to_string_lossy().to_string();
+                if !fname.ends_with(".gguf") {
+                    continue;
+                }
+                if known_hf.contains(&(repo_id.clone(), fname.clone())) {
+                    continue;
+                }
+                let model_id = format!("{}/{}", repo_id, fname);
+                if available_models.contains_key(&model_id) {
+                    continue;
+                }
+
+                // Catalog-listed LLM quants surface with full catalog
+                // metadata (default or alternate) and skip the probe - the
+                // catalog is authoritative for its own models.
+                if let Some((model, quant_file)) =
+                    crate::catalog::llm::file_in_llm_catalog(&fname, Some(&repo_id))
+                {
+                    let info = model.to_model_info_for_file(
+                        quant_file,
+                        &DiskStatus {
+                            is_downloaded: true,
+                            ..Default::default()
+                        },
+                    );
+                    info!(
+                        "Discovered LLM catalog quant in llm cache: {} ({})",
+                        info.id, repo_id
+                    );
+                    available_models.insert(info.id.clone(), info);
+                    continue;
+                }
+
+                let path = snapshot.join(&fname);
+                let probe = prober.probe_file(&path);
+                // Only surface models the llama.cpp worker can load.
+                let arch_ok = probe
+                    .architecture
+                    .as_deref()
+                    .is_some_and(|arch| LLM_ARCHES.contains(&arch));
+                if !arch_ok {
+                    continue;
+                }
+
+                let size_mb = path
+                    .metadata()
+                    .map(|m| m.len() / (1024 * 1024))
+                    .unwrap_or(0);
+                let context_tokens = hf_add::probe_llm_context_tokens(&path);
+                let mut info = hf_add::user_added_llm_model_info(
+                    &repo_id,
+                    &revision,
+                    &fname,
+                    Some(&probe),
+                    context_tokens,
+                );
+                info.size_mb = size_mb;
+                info.is_downloaded = true;
+
+                info!(
+                    "Discovered local LLM cache model: {} ({})",
+                    model_id, repo_id
+                );
+                available_models.insert(model_id, info);
+            }
+        }
+    }
+
     /// Download a Hugging Face-sourced model into the shared HF cache via
     /// hf-hub, reporting progress through the same `model-download-progress`
     /// event the URL path uses. Uses hf-hub's stock cache, but deliberately
@@ -2002,12 +2262,14 @@ impl ModelManager {
     ) -> Result<()> {
         let model_id = model_info.id.clone();
         let filename = model_info.filename.clone();
+        // LocalLlm models download into the dedicated llm-models cache
+        // (`app_data/llm-models`); everything else keeps the env/shared cache.
+        let download_cache_dir = self.download_cache_dir_for(&model_info.engine_type);
 
-        // Already in the shared cache (possibly from another tool), or dropped
-        // into the models dir (mirror fallback / manual install)? Done.
-        if hf_cached_path(&repo_id, &revision, &filename).is_some()
-            || self.models_dir.join(&filename).exists()
-        {
+        // Already in the engine's cache (possibly from another tool, or the
+        // grandfathered shared cache), or dropped into the models dir (mirror
+        // fallback / manual install)? Done.
+        if self.cached_path_for(model_info).is_some() || self.models_dir.join(&filename).exists() {
             self.update_download_status()?;
             let _ = self.app_handle.emit("model-download-complete", &model_id);
             return Ok(());
@@ -2065,13 +2327,16 @@ impl ModelManager {
             );
 
             // Fresh client per attempt so a wedged connection from the previous
-            // try can't poison the retry.
+            // try can't poison the retry. The cache dir routes LLM downloads
+            // to the dedicated llm-models root (with_cache_dir overrides the
+            // env-resolved default; identical behavior for voice models).
             let api = ApiBuilder::from_env()
                 // Ignore cached and environment-provided credentials. A stale token
                 // can make otherwise-public downloads fail authentication.
                 .with_token(None)
                 .with_progress(false)
                 .with_max_files(stream_count)
+                .with_cache_dir(download_cache_dir.clone())
                 .build()
                 .map_err(|e| anyhow::anyhow!("Failed to init Hugging Face API: {}", e))?;
             let repo = api.repo(Repo::with_revision(
@@ -2505,19 +2770,22 @@ impl ModelManager {
 
         debug!("ModelManager: Found model info: {:?}", model_info);
 
-        if let ModelSource::HuggingFace { repo_id, revision } = &model_info.source {
+        if let ModelSource::HuggingFace { repo_id, .. } = &model_info.source {
             let is_alternate_quant =
                 Self::is_catalog_alternate_quant(repo_id, &model_info.filename);
             let mut deleted = false;
             if is_alternate_quant {
                 // Only this quant's own file: the snapshot pointer and its
-                // blob. The default (and any other quants) survive in the
-                // cache - the entry never owned more than its one file.
-                deleted |= Self::delete_hf_cache_file(repo_id, revision, &model_info.filename);
-            } else if let Some(file) = hf_cached_path(repo_id, revision, &model_info.filename) {
+                // blob, resolved through the engine's own caches (the llm
+                // cache first for LocalLlm entries). The default (and any
+                // other quants) survive in the cache - the entry never owned
+                // more than its one file.
+                deleted |= self.delete_cached_file_for(&model_info);
+            } else if let Some(file) = self.cached_path_for(&model_info) {
                 // Cached at <cache>/models--org--name/snapshots/<rev>/<file>; remove
                 // the whole repo dir (blobs + refs + snapshots). Per product decision,
-                // delete hard-removes from the shared HF cache.
+                // delete hard-removes from the shared HF cache (or the dedicated
+                // llm cache, for post-process models).
                 if let Some(repo_dir) = file.ancestors().nth(3) {
                     if repo_dir
                         .file_name()
@@ -2675,8 +2943,8 @@ impl ModelManager {
             ));
         }
 
-        if let ModelSource::HuggingFace { repo_id, revision } = &model_info.source {
-            if let Some(path) = hf_cached_path(repo_id, revision, &model_info.filename) {
+        if let ModelSource::HuggingFace { .. } = &model_info.source {
+            if let Some(path) = self.cached_path_for(&model_info) {
                 return Ok(path);
             }
             // Mirror-fallback download or manual drop-in in the models dir.
@@ -2820,6 +3088,216 @@ mod tests {
             other => panic!("expected a pinned HuggingFace source, got {:?}", other),
         }
         assert!(!info.supported_languages.is_empty());
+    }
+
+    /// Registering the LLM catalog seeds one LocalLlm entry per catalog
+    /// model beside the pinned builtin; the Qwen3-0.6B entry folds onto the
+    /// pinned id and the builtin's register_builtin overwrite keeps the
+    /// pinned identity (name and pinned size), never a duplicate row.
+    #[test]
+    fn llm_catalog_registration_adds_entries_and_keeps_the_pinned_identity() {
+        let mut models: HashMap<String, ModelInfo> = HashMap::new();
+        ModelManager::register_llm_catalog(&mut models);
+        let seeded = models.len();
+        assert_eq!(
+            seeded,
+            crate::catalog::llm::LLM_CATALOG.len(),
+            "one entry per catalog model"
+        );
+
+        // The builtin registration afterwards overwrites the shared id in
+        // place (still exactly one row) with the pinned shape.
+        ModelManager::register_builtin(&mut models, local_llm_model_info());
+        assert_eq!(models.len(), seeded);
+        let pinned = models
+            .get(crate::local_llm::LOCAL_LLM_MODEL_ID)
+            .expect("the pinned id is present exactly once");
+        assert_eq!(pinned.name, local_llm_model_info().name);
+        assert_eq!(pinned.size_mb, crate::local_llm::LOCAL_LLM_MODEL_SIZE_MB);
+
+        // Every entry is LocalLlm (the ASR filter excludes them all) and
+        // carries the catalog's pinned revision.
+        for info in models.values() {
+            assert!(matches!(info.engine_type, EngineType::LocalLlm));
+            assert!(!is_asr_model(info));
+            match &info.source {
+                ModelSource::HuggingFace { revision, .. } => assert_eq!(revision.len(), 40),
+                other => panic!("catalog LLM entries are HF-sourced, got {:?}", other),
+            }
+        }
+
+        // And the ASR filter keeps passing real ASR engines.
+        let mut asr = local_llm_model_info();
+        asr.engine_type = EngineType::TranscribeCpp;
+        assert!(is_asr_model(&asr));
+    }
+
+    /// The dedicated llm-models cache is the FIRST lookup for LocalLlm
+    /// entries with the shared caches as grandfather fallback, while voice
+    /// models never see the llm cache at all (caches_for_engine, pure).
+    #[test]
+    fn caches_for_engine_routes_llm_models_to_the_dedicated_cache_first() {
+        let tmp = TempDir::new().unwrap();
+        let llm_cache = Cache::new(tmp.path().join("llm-models"));
+        // An LLM blob in the dedicated cache.
+        add_cached_model(
+            tmp.path().join("llm-models").as_path(),
+            "org/llm",
+            "rev1",
+            "m.gguf",
+        );
+
+        let llm_caches = caches_for_engine(&EngineType::LocalLlm, &llm_cache);
+        assert!(
+            hf_cached_path_in(&llm_caches, "org/llm", "rev1", "m.gguf").is_some(),
+            "LocalLlm entries resolve through the dedicated cache"
+        );
+        let voice_caches = caches_for_engine(&EngineType::TranscribeCpp, &llm_cache);
+        assert!(
+            hf_cached_path_in(&voice_caches, "org/llm", "rev1", "m.gguf").is_none(),
+            "voice lookups never read the llm cache"
+        );
+    }
+
+    /// LLM catalog alternate quants get the same delete semantics as ASR
+    /// alternates: a non-default quant file deletes only its own blob,
+    /// while the default (and every other repo) is untouched.
+    #[test]
+    fn llm_catalog_alternate_quants_delete_only_their_own_file() {
+        // Q8_0 is an alternate (default is Q4_K_M) for the Qwen3-1.7B entry.
+        assert!(ModelManager::is_catalog_alternate_quant(
+            "unsloth/Qwen3-1.7B-GGUF",
+            "Qwen3-1.7B-Q8_0.gguf"
+        ));
+        // The default quant is NOT an alternate.
+        assert!(!ModelManager::is_catalog_alternate_quant(
+            "unsloth/Qwen3-1.7B-GGUF",
+            "Qwen3-1.7B-Q4_K_M.gguf"
+        ));
+        // The pinned model's file is a catalog default, not an alternate.
+        assert!(!ModelManager::is_catalog_alternate_quant(
+            "Qwen/Qwen3-0.6B-GGUF",
+            "Qwen3-0.6B-Q8_0.gguf"
+        ));
+
+        // End to end against a synthetic dedicated cache: deleting the
+        // alternate's pointer leaves the default's file and an unrelated
+        // ASR repo untouched (the pinned mirror of the ASR behavior at
+        // delete_hf_cache_file).
+        let tmp = TempDir::new().unwrap();
+        let llm_root = tmp.path().join("llm-models");
+        let alt = add_cached_model(
+            &llm_root,
+            "unsloth/Qwen3-1.7B-GGUF",
+            "rev1",
+            "Qwen3-1.7B-Q8_0.gguf",
+        );
+        let default = add_cached_model(
+            &llm_root,
+            "unsloth/Qwen3-1.7B-GGUF",
+            "rev1",
+            "Qwen3-1.7B-Q4_K_M.gguf",
+        );
+        assert!(ModelManager::remove_cache_pointer(&alt));
+        assert!(!alt.exists(), "the alternate's own pointer is gone");
+        assert!(default.exists(), "the default quant survives");
+        assert!(
+            llm_root.join("models--unsloth--Qwen3-1.7B-GGUF").is_dir(),
+            "the repo (refs, snapshots) survives an alternate delete"
+        );
+    }
+
+    /// The llm cache scan mirrors the shared-cache scan: catalog files
+    /// surface with catalog metadata (alternates with the quant-suffixed
+    /// name), unknown LLM archs register as user-style entries, and ASR
+    /// GGUFs dropped into the llm cache are ignored - as are LLM GGUFs in
+    /// the SHARED cache, which the ASR scan refuses (the two worlds stay
+    /// disjoint).
+    #[test]
+    fn llm_cache_discovery_surfaces_only_llm_architectries() {
+        fn gguf_with_arch(path: &Path, arch: &str, context: Option<u32>) {
+            let mut out: Vec<u8> = Vec::new();
+            out.extend_from_slice(&0x4655_4747u32.to_le_bytes());
+            out.extend_from_slice(&3u32.to_le_bytes());
+            out.extend_from_slice(&0u64.to_le_bytes());
+            let kv_count: u64 = if context.is_some() { 3 } else { 1 };
+            out.extend_from_slice(&kv_count.to_le_bytes());
+            let mut push_str = |out: &mut Vec<u8>, key: &str, val: &str| {
+                out.extend_from_slice(&(key.len() as u64).to_le_bytes());
+                out.extend_from_slice(key.as_bytes());
+                out.extend_from_slice(&8u32.to_le_bytes());
+                out.extend_from_slice(&(val.len() as u64).to_le_bytes());
+                out.extend_from_slice(val.as_bytes());
+            };
+            push_str(&mut out, "general.architecture", arch);
+            if let Some(ctx) = context {
+                let key = format!("{arch}.context_length");
+                out.extend_from_slice(&(key.len() as u64).to_le_bytes());
+                out.extend_from_slice(key.as_bytes());
+                out.extend_from_slice(&4u32.to_le_bytes()); // U32
+                out.extend_from_slice(&ctx.to_le_bytes());
+                push_str(&mut out, "general.name", "Custom LLM");
+            }
+            fs::write(path, out).unwrap();
+        }
+
+        let tmp = TempDir::new().unwrap();
+        let llm_root = tmp.path().join("llm-models");
+
+        // A catalog alternate quant on disk.
+        let qwen_repo = llm_root.join("models--unsloth--Qwen3-1.7B-GGUF/snapshots/abc");
+        fs::create_dir_all(&qwen_repo).unwrap();
+        fs::create_dir_all(llm_root.join("models--unsloth--Qwen3-1.7B-GGUF/refs")).unwrap();
+        fs::write(
+            llm_root.join("models--unsloth--Qwen3-1.7B-GGUF/refs/main"),
+            "abc",
+        )
+        .unwrap();
+        gguf_with_arch(&qwen_repo.join("Qwen3-1.7B-Q8_0.gguf"), "qwen3", None);
+
+        // A user-style LLM repo with a context length in its header.
+        let custom_repo = llm_root.join("models--org--custom-llm/snapshots/def");
+        fs::create_dir_all(&custom_repo).unwrap();
+        fs::create_dir_all(llm_root.join("models--org--custom-llm/refs")).unwrap();
+        fs::write(llm_root.join("models--org--custom-llm/refs/main"), "def").unwrap();
+        gguf_with_arch(&custom_repo.join("custom-Q4_K_M.gguf"), "llama", Some(8192));
+
+        // An ASR GGUF that does not belong here.
+        let whisper_repo = llm_root.join("models--org--whisper-gguf/snapshots/xyz");
+        fs::create_dir_all(&whisper_repo).unwrap();
+        fs::create_dir_all(llm_root.join("models--org--whisper-gguf/refs")).unwrap();
+        fs::write(llm_root.join("models--org--whisper-gguf/refs/main"), "xyz").unwrap();
+        gguf_with_arch(&whisper_repo.join("whisper-small.gguf"), "whisper", None);
+
+        let mut models: HashMap<String, ModelInfo> = HashMap::new();
+        ModelManager::discover_llm_cache_models(&llm_root, &mut models);
+        assert_eq!(models.len(), 2, "only the two LLM archs surface");
+
+        // Catalog metadata for the alternate quant, quant-suffixed name.
+        let alt = models
+            .get("unsloth/Qwen3-1.7B-GGUF/Qwen3-1.7B-Q8_0.gguf")
+            .expect("catalog alternate surfaces");
+        assert!(
+            alt.name.contains("Q8_0"),
+            "alternate name carries the quant"
+        );
+        assert!(alt.is_downloaded);
+        assert!(!alt.is_custom, "catalog entries are never custom");
+
+        // The user-style entry with its probed context registered for the
+        // swap runner.
+        let custom = models
+            .get("org/custom-llm/custom-Q4_K_M.gguf")
+            .expect("user-added LLM surfaces");
+        assert!(matches!(custom.engine_type, EngineType::LocalLlm));
+        assert!(custom.is_custom);
+        assert_eq!(
+            crate::catalog::llm::context_tokens_for(&custom.id),
+            8192,
+            "the GGUF's own context_length is registered"
+        );
+
+        assert!(models.get("org/whisper-gguf/whisper-small.gguf").is_none());
     }
 
     #[test]

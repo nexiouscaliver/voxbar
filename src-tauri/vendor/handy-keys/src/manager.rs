@@ -18,6 +18,11 @@ struct PendingHold {
     /// every other key event cancels it.
     side_bit: Modifiers,
     pressed_at: Instant,
+    /// This hold's own window: the hotkey's per-binding override when it
+    /// has one, otherwise the manager-wide default. Carried per pending
+    /// hold (not read back from the maps) so a later policy change can
+    /// never retroactively stretch or shrink a window already running.
+    threshold: Duration,
 }
 
 /// What an incoming key event means for a pending hold.
@@ -57,8 +62,16 @@ struct ManagerState {
     /// Track which hotkeys are currently pressed
     pressed_hotkeys: HashSet<HotkeyId>,
     /// Opt-in hold-to-activate window for single-modifier hotkeys
-    /// (see [`HotkeyManager::with_single_modifier_hold`]).
+    /// (see [`HotkeyManager::with_single_modifier_hold`]). The default
+    /// every hotkey falls back to; individual hotkeys may carry their own
+    /// window in `hold_overrides`.
     single_modifier_hold: Option<Duration>,
+    /// Per-hotkey hold windows stamped at registration
+    /// (see [`HotkeyManager::register_with_hold`]). A hotkey present here
+    /// is hold-gated with ITS window even when the manager-wide policy is
+    /// disabled; the gate itself still only applies to single-modifier
+    /// hotkeys.
+    hold_overrides: HashMap<HotkeyId, Duration>,
     /// Single-modifier presses waiting out that window.
     pending_holds: Vec<PendingHold>,
 }
@@ -70,26 +83,69 @@ impl ManagerState {
             next_id: 0,
             pressed_hotkeys: HashSet::new(),
             single_modifier_hold: None,
+            hold_overrides: HashMap::new(),
             pending_holds: Vec::new(),
         }
     }
 
+    /// The hold window that gates `id`: its per-binding override when it
+    /// has one, otherwise the manager-wide default. `None` means the
+    /// hotkey is not hold-gated.
+    fn hold_threshold(&self, id: &HotkeyId) -> Option<Duration> {
+        self.hold_overrides
+            .get(id)
+            .copied()
+            .or(self.single_modifier_hold)
+    }
+
     /// Whether the hotkey registered under `id` is currently hold-gated.
     fn hold_gated(&self, id: &HotkeyId) -> bool {
-        self.single_modifier_hold.is_some()
+        self.hold_threshold(id).is_some()
             && self
                 .hotkeys
                 .get(id)
                 .is_some_and(|hotkey| hotkey.is_single_modifier())
     }
 
+    /// Register `hotkey` under the manager-wide hold policy (`hold` =
+    /// `None`) or a per-binding window (`hold` = `Some`). Shared core of
+    /// [`HotkeyManager::register`] and [`HotkeyManager::register_with_hold`].
+    fn register_hotkey(&mut self, hotkey: Hotkey, hold: Option<Duration>) -> HotkeyId {
+        let id = HotkeyId(self.next_id);
+        self.next_id += 1;
+        self.hotkeys.insert(id, hotkey);
+        if let Some(threshold) = hold {
+            self.hold_overrides.insert(id, threshold);
+        }
+        id
+    }
+
+    /// Unregister `hotkey` by ID: drops the hotkey, its per-binding hold
+    /// override, any pending hold, and its pressed bookkeeping. Returns
+    /// the hotkey so the caller can update the blocking set. Shared core
+    /// of [`HotkeyManager::unregister`].
+    fn unregister_hotkey(&mut self, id: &HotkeyId) -> Option<Hotkey> {
+        let hotkey = self.hotkeys.remove(id)?;
+        // A pending hold for an unregistered hotkey must not activate later.
+        self.pending_holds.retain(|pending| pending.id != *id);
+        self.pressed_hotkeys.remove(id);
+        // The override belongs to the registration, not the chord: drop it
+        // so a later registration of the same chord starts from the
+        // manager-wide policy again.
+        self.hold_overrides.remove(id);
+        Some(hotkey)
+    }
+
     /// Time until the next pending hold's window elapses, so the event
     /// loop can poll promptly instead of waiting for the next key event.
     fn next_wake(&self) -> Option<Duration> {
-        let threshold = self.single_modifier_hold?;
         self.pending_holds
             .iter()
-            .map(|pending| threshold.saturating_sub(pending.pressed_at.elapsed()))
+            .map(|pending| {
+                pending
+                    .threshold
+                    .saturating_sub(pending.pressed_at.elapsed())
+            })
             .min()
     }
 
@@ -108,9 +164,8 @@ impl ManagerState {
         // activation. Canceled holds never activated, so they emit
         // nothing.
         if !self.pending_holds.is_empty() {
-            self.pending_holds.retain(|pending| {
-                arbitrate_hold(pending.side_bit, event) == HoldArbitration::Keep
-            });
+            self.pending_holds
+                .retain(|pending| arbitrate_hold(pending.side_bit, event) == HoldArbitration::Keep);
         }
 
         if event.is_key_down {
@@ -136,10 +191,16 @@ impl ManagerState {
                         // A hold-gated hotkey has no key, so the matching
                         // event is a modifier-only event whose
                         // changed_modifier is the side actually pressed.
+                        // The window snapshot is taken now: this hotkey's
+                        // override when it has one, else the manager-wide
+                        // default (hold_gated guarantees one exists).
                         self.pending_holds.push(PendingHold {
                             id,
                             side_bit: event.changed_modifier.unwrap(),
                             pressed_at: now,
+                            threshold: self
+                                .hold_threshold(&id)
+                                .expect("hold-gated implies a threshold"),
                         });
                     }
                 } else {
@@ -186,15 +247,18 @@ impl ManagerState {
 
     /// Resolve pending holds whose window has elapsed at `now`: each
     /// survivor activates (emits `Pressed`). Called after every processed
-    /// event and whenever the shortened poll times out.
+    /// event and whenever the shortened poll times out. Every pending
+    /// carries its own window (per-binding override or manager default),
+    /// so a short override resolves beside a long default in one pass.
     fn process_tick(&mut self, now: Instant) -> Vec<HotkeyEvent> {
-        let Some(threshold) = self.single_modifier_hold else {
+        if self.pending_holds.is_empty() {
             return Vec::new();
-        };
+        }
         let mut results = Vec::new();
         let mut index = 0;
         while index < self.pending_holds.len() {
-            if now.duration_since(self.pending_holds[index].pressed_at) >= threshold {
+            let pending = &self.pending_holds[index];
+            if now.duration_since(pending.pressed_at) >= pending.threshold {
                 let pending = self.pending_holds.remove(index);
                 // The hotkey may have been unregistered while pending, or
                 // already activated by a disable-flush.
@@ -349,6 +413,12 @@ impl HotkeyManager {
     /// the threshold and can never trigger, and any other key event during
     /// the window cancels the pending activation.
     ///
+    /// This is the manager-wide DEFAULT window. An individual hotkey can
+    /// carry its own window at registration time via
+    /// [`HotkeyManager::register_with_hold`]; the per-binding window wins
+    /// for that hotkey (and gates it even when this manager-wide policy is
+    /// disabled).
+    ///
     /// Hold-gated hotkeys are never *blocked* from the OS: swallowing the
     /// modifier at press time (before the hold resolves) would break every
     /// normal chord built on that modifier.
@@ -360,8 +430,11 @@ impl HotkeyManager {
         self
     }
 
-    /// Disable (or re-enable) the hold-to-activate window. Disabling drops
-    /// any pending activations (they never fired, so nothing is released).
+    /// Disable (or re-enable) the manager-wide hold-to-activate window.
+    /// Disabling drops any pending activations (they never fired, so
+    /// nothing is released). Per-binding overrides registered through
+    /// [`HotkeyManager::register_with_hold`] survive: they never depended
+    /// on the manager-wide policy.
     pub fn set_single_modifier_hold(&self, threshold: Option<Duration>) {
         if let Ok(mut state) = self.state.lock() {
             state.single_modifier_hold = threshold;
@@ -371,10 +444,29 @@ impl HotkeyManager {
         }
     }
 
-    /// Register a hotkey and return its unique ID
+    /// Register a hotkey under the manager-wide hold policy and return its
+    /// unique ID.
     ///
     /// Returns an error if the hotkey is already registered.
     pub fn register(&self, hotkey: Hotkey) -> Result<HotkeyId> {
+        self.register_with_hold(hotkey, None)
+    }
+
+    /// Register a hotkey with a PER-BINDING hold-to-activate window and
+    /// return its unique ID. `Some(threshold)` stamps this one hotkey with
+    /// its own window, overriding (and independent of) the manager-wide
+    /// [`HotkeyManager::with_single_modifier_hold`] default; `None` is
+    /// exactly [`HotkeyManager::register`].
+    ///
+    /// The override only means anything for a single-modifier hotkey
+    /// ([`Hotkey::is_single_modifier`]): a keyed or multi-modifier combo
+    /// accepts and stores it but still fires on the press, as it always
+    /// did. Cancel-on-any-other-key applies inside the window exactly as
+    /// with the default, so chords built on the bound modifier still
+    /// cannot fire it.
+    ///
+    /// Returns an error if the hotkey is already registered.
+    pub fn register_with_hold(&self, hotkey: Hotkey, hold: Option<Duration>) -> Result<HotkeyId> {
         let mut state = self.state.lock().map_err(|_| Error::MutexPoisoned)?;
 
         // Check if already registered
@@ -387,17 +479,16 @@ impl HotkeyManager {
             }
         }
 
-        let id = HotkeyId(state.next_id);
-        state.next_id += 1;
-        state.hotkeys.insert(id, hotkey);
+        let id = state.register_hotkey(hotkey, hold);
 
         // Add to blocking set. Hold-gated single-modifier hotkeys are
         // deliberately excluded: their modifier key must keep reaching the
         // OS while the hold window runs, or every chord built on that
-        // modifier (Cmd+C, Shift+Tab, ...) would lose its modifier.
+        // modifier (Cmd+C, Shift+Tab, ...) would lose its modifier. The
+        // per-binding override counts: an overridden hotkey is hold-gated
+        // even without the manager-wide policy.
         if let Some(blocking_hotkeys) = &self.blocking_hotkeys {
-            let hold_gated = state.single_modifier_hold.is_some() && hotkey.is_single_modifier();
-            if !hold_gated {
+            if !state.hold_gated(&id) {
                 if let Ok(mut blocking) = blocking_hotkeys.lock() {
                     blocking.insert(hotkey);
                 }
@@ -413,14 +504,12 @@ impl HotkeyManager {
     pub fn unregister(&self, id: HotkeyId) -> Result<()> {
         let mut state = self.state.lock().map_err(|_| Error::MutexPoisoned)?;
 
-        let hotkey = state.hotkeys.remove(&id);
+        // Drops the hotkey, any pending hold for it, its pressed
+        // bookkeeping, and its per-binding hold override in one pass.
+        let hotkey = state.unregister_hotkey(&id);
         if hotkey.is_none() {
             return Err(Error::HotkeyNotFound(id));
         }
-
-        // A pending hold for an unregistered hotkey must not activate later.
-        state.pending_holds.retain(|pending| pending.id != id);
-        state.pressed_hotkeys.remove(&id);
 
         // Remove from blocking set
         if let Some(blocking_hotkeys) = &self.blocking_hotkeys {
@@ -851,12 +940,17 @@ mod tests {
             let t0 = Instant::now();
             assert!(
                 state
-                    .process_event_at(&modifier_down(Modifiers::CMD_RIGHT, Modifiers::CMD_RIGHT), t0)
+                    .process_event_at(
+                        &modifier_down(Modifiers::CMD_RIGHT, Modifiers::CMD_RIGHT),
+                        t0
+                    )
                     .is_empty(),
                 "press must not activate immediately"
             );
             assert!(
-                state.process_tick(t0 + Duration::from_millis(399)).is_empty(),
+                state
+                    .process_tick(t0 + Duration::from_millis(399))
+                    .is_empty(),
                 "activation must wait out the full window"
             );
             let events = state.process_tick(t0 + HOLD);
@@ -865,7 +959,8 @@ mod tests {
             assert_eq!(events[0].state, HotkeyState::Pressed);
 
             // The later release behaves like any hotkey release.
-            let events = state.process_event(&modifier_up(Modifiers::empty(), Modifiers::CMD_RIGHT));
+            let events =
+                state.process_event(&modifier_up(Modifiers::empty(), Modifiers::CMD_RIGHT));
             assert_eq!(events.len(), 1);
             assert_eq!(events[0].state, HotkeyState::Released);
         }
@@ -879,9 +974,18 @@ mod tests {
             let t0 = Instant::now();
             state.process_event_at(&modifier_down(Modifiers::CMD_LEFT, Modifiers::CMD_LEFT), t0);
             // Cmd+C: the C key cancels, the fast Cmd release resolves early.
-            state.process_event_at(&make_key_event(Modifiers::CMD_LEFT, Some(Key::C), true), t0 + Duration::from_millis(30));
-            state.process_event_at(&make_key_event(Modifiers::CMD_LEFT, Some(Key::C), false), t0 + Duration::from_millis(80));
-            state.process_event_at(&modifier_up(Modifiers::empty(), Modifiers::CMD_LEFT), t0 + Duration::from_millis(100));
+            state.process_event_at(
+                &make_key_event(Modifiers::CMD_LEFT, Some(Key::C), true),
+                t0 + Duration::from_millis(30),
+            );
+            state.process_event_at(
+                &make_key_event(Modifiers::CMD_LEFT, Some(Key::C), false),
+                t0 + Duration::from_millis(80),
+            );
+            state.process_event_at(
+                &modifier_up(Modifiers::empty(), Modifiers::CMD_LEFT),
+                t0 + Duration::from_millis(100),
+            );
 
             assert!(
                 state.process_tick(t0 + Duration::from_secs(5)).is_empty(),
@@ -901,9 +1005,18 @@ mod tests {
 
             let t0 = Instant::now();
             state.process_event_at(&modifier_down(Modifiers::CMD_LEFT, Modifiers::CMD_LEFT), t0);
-            state.process_event_at(&make_key_event(Modifiers::CMD_LEFT, Some(Key::V), true), t0 + Duration::from_millis(5));
-            state.process_event_at(&make_key_event(Modifiers::CMD_LEFT, Some(Key::V), false), t0 + Duration::from_millis(60));
-            state.process_event_at(&modifier_up(Modifiers::empty(), Modifiers::CMD_LEFT), t0 + Duration::from_millis(100));
+            state.process_event_at(
+                &make_key_event(Modifiers::CMD_LEFT, Some(Key::V), true),
+                t0 + Duration::from_millis(5),
+            );
+            state.process_event_at(
+                &make_key_event(Modifiers::CMD_LEFT, Some(Key::V), false),
+                t0 + Duration::from_millis(60),
+            );
+            state.process_event_at(
+                &modifier_up(Modifiers::empty(), Modifiers::CMD_LEFT),
+                t0 + Duration::from_millis(100),
+            );
 
             assert!(
                 state.process_tick(t0 + Duration::from_secs(5)).is_empty(),
@@ -918,9 +1031,18 @@ mod tests {
             state.hotkeys.insert(HotkeyId(0), hotkey);
 
             let t0 = Instant::now();
-            state.process_event_at(&modifier_down(Modifiers::SHIFT_RIGHT, Modifiers::SHIFT_RIGHT), t0);
+            state.process_event_at(
+                &modifier_down(Modifiers::SHIFT_RIGHT, Modifiers::SHIFT_RIGHT),
+                t0,
+            );
             // An unrelated modifier press mid-hold is also "another key".
-            state.process_event_at(&modifier_down(Modifiers::SHIFT_RIGHT | Modifiers::CMD_LEFT, Modifiers::CMD_LEFT), t0 + Duration::from_millis(50));
+            state.process_event_at(
+                &modifier_down(
+                    Modifiers::SHIFT_RIGHT | Modifiers::CMD_LEFT,
+                    Modifiers::CMD_LEFT,
+                ),
+                t0 + Duration::from_millis(50),
+            );
 
             assert!(
                 state.process_tick(t0 + HOLD).is_empty(),
@@ -935,15 +1057,23 @@ mod tests {
             state.hotkeys.insert(HotkeyId(0), hotkey);
 
             let t0 = Instant::now();
-            state.process_event_at(&modifier_down(Modifiers::CMD_RIGHT, Modifiers::CMD_RIGHT), t0);
+            state.process_event_at(
+                &modifier_down(Modifiers::CMD_RIGHT, Modifiers::CMD_RIGHT),
+                t0,
+            );
             // Auto-repeat presses of the same modifier keep the window
             // running instead of restarting or multiplying it.
             for _ in 0..5 {
-                state.process_event_at(&modifier_down(Modifiers::CMD_RIGHT, Modifiers::CMD_RIGHT), t0 + Duration::from_millis(200));
+                state.process_event_at(
+                    &modifier_down(Modifiers::CMD_RIGHT, Modifiers::CMD_RIGHT),
+                    t0 + Duration::from_millis(200),
+                );
             }
             assert_eq!(state.pending_holds.len(), 1);
             assert!(
-                state.process_tick(t0 + Duration::from_millis(399)).is_empty(),
+                state
+                    .process_tick(t0 + Duration::from_millis(399))
+                    .is_empty(),
                 "window is measured from the first press"
             );
             assert_eq!(state.process_tick(t0 + HOLD).len(), 1);
@@ -969,7 +1099,8 @@ mod tests {
             state.pressed_hotkeys.clear();
 
             // Cmd+K fires on the key press, unchanged.
-            let events = state.process_event(&make_key_event(Modifiers::CMD_RIGHT, Some(Key::K), true));
+            let events =
+                state.process_event(&make_key_event(Modifiers::CMD_RIGHT, Some(Key::K), true));
             assert_eq!(events.len(), 1);
             assert_eq!(events[0].id, HotkeyId(1));
         }
@@ -980,7 +1111,8 @@ mod tests {
             let hotkey = Hotkey::new(Modifiers::CMD_RIGHT, None).unwrap();
             state.hotkeys.insert(HotkeyId(0), hotkey);
 
-            let events = state.process_event(&modifier_down(Modifiers::CMD_RIGHT, Modifiers::CMD_RIGHT));
+            let events =
+                state.process_event(&modifier_down(Modifiers::CMD_RIGHT, Modifiers::CMD_RIGHT));
             assert_eq!(events.len(), 1, "no hold policy: press fires immediately");
             assert_eq!(events[0].state, HotkeyState::Pressed);
         }
@@ -992,7 +1124,10 @@ mod tests {
             state.hotkeys.insert(HotkeyId(0), hotkey);
 
             let t0 = Instant::now();
-            state.process_event_at(&modifier_down(Modifiers::CMD_RIGHT, Modifiers::CMD_RIGHT), t0);
+            state.process_event_at(
+                &modifier_down(Modifiers::CMD_RIGHT, Modifiers::CMD_RIGHT),
+                t0,
+            );
             state.hotkeys.remove(&HotkeyId(0));
 
             assert!(
@@ -1011,9 +1146,255 @@ mod tests {
                 id: HotkeyId(0),
                 side_bit: Modifiers::CMD_RIGHT,
                 pressed_at: t0,
+                threshold: HOLD,
             });
             let wake = state.next_wake().expect("pending hold schedules a wake");
             assert!(wake <= HOLD, "wake is at most the remaining window");
+        }
+
+        // -----------------------------------------------------------------
+        // Per-binding hold windows: `register_with_hold` stamps one hotkey
+        // with its own threshold instead of the manager-wide default. The
+        // timing matrix below pins the short window the host app binds for
+        // command mode (~150 ms) against every way a press can resolve.
+        // -----------------------------------------------------------------
+
+        /// The command-mode window the host app registers (see the host's
+        /// `COMMAND_MODE_HOLD_THRESHOLD`); anything below HOLD exercises
+        /// the per-binding machinery.
+        const SHORT_HOLD: Duration = Duration::from_millis(150);
+
+        /// State with the manager-wide 400 ms policy ON and one
+        /// single-modifier hotkey (left command) overridden to SHORT_HOLD.
+        fn short_hold_state() -> ManagerState {
+            let mut state = hold_state();
+            state.register_hotkey(
+                Hotkey::new(Modifiers::CMD_LEFT, None).unwrap(),
+                Some(SHORT_HOLD),
+            );
+            state
+        }
+
+        /// press-hold-engage: an overridden hotkey activates when ITS
+        /// window elapses, not when the manager-wide default does. The
+        /// press itself still never activates immediately.
+        #[test]
+        fn per_binding_hold_engages_at_its_own_threshold() {
+            let mut state = short_hold_state();
+            let t0 = Instant::now();
+
+            assert!(
+                state
+                    .process_event_at(&modifier_down(Modifiers::CMD_LEFT, Modifiers::CMD_LEFT), t0)
+                    .is_empty(),
+                "the press must defer behind the hold window"
+            );
+            assert!(
+                state
+                    .process_tick(t0 + Duration::from_millis(149))
+                    .is_empty(),
+                "one millisecond short of the short window: still pending"
+            );
+            let events = state.process_tick(t0 + SHORT_HOLD);
+            assert_eq!(
+                events.len(),
+                1,
+                "the short window elapses at 150 ms, not 400 ms"
+            );
+            assert_eq!(events[0].id, HotkeyId(0));
+            assert_eq!(events[0].state, HotkeyState::Pressed);
+
+            // The later release behaves like any hotkey release.
+            let events = state.process_event(&modifier_up(Modifiers::empty(), Modifiers::CMD_LEFT));
+            assert_eq!(events.len(), 1);
+            assert_eq!(events[0].state, HotkeyState::Released);
+        }
+
+        /// press-tap-cancel: releasing the held modifier before even the
+        /// short window elapses resolves the hold early and it never
+        /// activates.
+        #[test]
+        fn short_window_tap_release_never_activates() {
+            let mut state = short_hold_state();
+            let t0 = Instant::now();
+            state.process_event_at(&modifier_down(Modifiers::CMD_LEFT, Modifiers::CMD_LEFT), t0);
+            state.process_event_at(
+                &modifier_up(Modifiers::empty(), Modifiers::CMD_LEFT),
+                t0 + Duration::from_millis(80),
+            );
+
+            assert!(
+                state.process_tick(t0 + Duration::from_secs(5)).is_empty(),
+                "a tap shorter than the short window must never activate"
+            );
+        }
+
+        /// press-other-key-cancel: ANY other key event inside the short
+        /// window cancels the pending activation, so a chord built on the
+        /// bound modifier still cannot fire it. Both a plain letter key
+        /// and a second modifier count as "another key".
+        #[test]
+        fn short_window_other_key_event_cancels_pending_hold() {
+            // A letter key inside the window (the accidental Cmd+C shape).
+            let mut state = short_hold_state();
+            let t0 = Instant::now();
+            state.process_event_at(&modifier_down(Modifiers::CMD_LEFT, Modifiers::CMD_LEFT), t0);
+            state.process_event_at(
+                &make_key_event(Modifiers::CMD_LEFT, Some(Key::C), true),
+                t0 + Duration::from_millis(50),
+            );
+            assert!(
+                state.process_tick(t0 + Duration::from_secs(5)).is_empty(),
+                "a chord key inside the short window must cancel the activation"
+            );
+
+            // A second modifier inside the window is equally "another key".
+            let mut state = short_hold_state();
+            state.process_event_at(&modifier_down(Modifiers::CMD_LEFT, Modifiers::CMD_LEFT), t0);
+            state.process_event_at(
+                &modifier_down(
+                    Modifiers::CMD_LEFT | Modifiers::SHIFT_LEFT,
+                    Modifiers::SHIFT_LEFT,
+                ),
+                t0 + Duration::from_millis(50),
+            );
+            assert!(
+                state.process_tick(t0 + Duration::from_secs(5)).is_empty(),
+                "a second modifier inside the short window must cancel the activation"
+            );
+        }
+
+        /// per-binding threshold: the override moves exactly one hotkey's
+        /// window. A sibling single-modifier hotkey registered without an
+        /// override keeps the manager-wide default.
+        #[test]
+        fn override_leaves_the_manager_wide_window_intact() {
+            let mut state = hold_state();
+            state.register_hotkey(
+                Hotkey::new(Modifiers::CMD_LEFT, None).unwrap(),
+                Some(SHORT_HOLD),
+            );
+            state.register_hotkey(Hotkey::new(Modifiers::CMD_RIGHT, None).unwrap(), None);
+
+            let t0 = Instant::now();
+            state.process_event_at(
+                &modifier_down(Modifiers::CMD_RIGHT, Modifiers::CMD_RIGHT),
+                t0,
+            );
+            assert!(
+                state.process_tick(t0 + SHORT_HOLD).is_empty(),
+                "the default-window hotkey must not inherit the short window"
+            );
+            let events = state.process_tick(t0 + HOLD);
+            assert_eq!(
+                events.len(),
+                1,
+                "the default-window hotkey activates at the manager-wide threshold"
+            );
+            assert_eq!(events[0].id, HotkeyId(1));
+        }
+
+        /// An override is self-sufficient: it gates its hotkey even when
+        /// no manager-wide hold policy is configured at all.
+        #[test]
+        fn override_gates_without_a_manager_wide_policy() {
+            let mut state = ManagerState::new();
+            state.register_hotkey(
+                Hotkey::new(Modifiers::CMD_LEFT, None).unwrap(),
+                Some(SHORT_HOLD),
+            );
+
+            let t0 = Instant::now();
+            assert!(
+                state
+                    .process_event_at(&modifier_down(Modifiers::CMD_LEFT, Modifiers::CMD_LEFT), t0)
+                    .is_empty(),
+                "the override alone must defer the press"
+            );
+            assert_eq!(
+                state.process_tick(t0 + SHORT_HOLD).len(),
+                1,
+                "the override alone must run the window"
+            );
+        }
+
+        /// The hold gate only exists for single-modifier hotkeys: an
+        /// override stamped on a keyed combo is inert and the combo still
+        /// fires on the press, exactly as before.
+        #[test]
+        fn override_on_a_keyed_hotkey_is_inert() {
+            let mut state = ManagerState::new();
+            state.register_hotkey(
+                Hotkey::new(Modifiers::CMD_LEFT, Key::K).unwrap(),
+                Some(SHORT_HOLD),
+            );
+
+            let events =
+                state.process_event(&make_key_event(Modifiers::CMD_LEFT, Some(Key::K), true));
+            assert_eq!(
+                events.len(),
+                1,
+                "combos fire on the press regardless of any hold override"
+            );
+        }
+
+        /// Mixed pending holds with different thresholds: `next_wake`
+        /// reports the earliest deadline across ALL windows so a short
+        /// override still fires promptly beside a long default.
+        #[test]
+        fn next_wake_spans_per_binding_thresholds() {
+            let mut state = hold_state();
+            state.register_hotkey(
+                Hotkey::new(Modifiers::CMD_LEFT, None).unwrap(),
+                Some(SHORT_HOLD),
+            );
+            state.register_hotkey(Hotkey::new(Modifiers::CMD_RIGHT, None).unwrap(), None);
+            let t0 = Instant::now();
+            state.pending_holds.push(PendingHold {
+                id: HotkeyId(0),
+                side_bit: Modifiers::CMD_LEFT,
+                pressed_at: t0,
+                threshold: SHORT_HOLD,
+            });
+            state.pending_holds.push(PendingHold {
+                id: HotkeyId(1),
+                side_bit: Modifiers::CMD_RIGHT,
+                pressed_at: t0,
+                threshold: HOLD,
+            });
+
+            let wake = state.next_wake().expect("pending holds schedule a wake");
+            assert!(
+                wake <= SHORT_HOLD,
+                "the short window must drive the poll cadence, got {wake:?}"
+            );
+        }
+
+        /// Unregistering a hotkey drops its override with it: a later
+        /// registration of the same chord starts from the manager-wide
+        /// policy again (state-level core of `HotkeyManager::unregister`).
+        #[test]
+        fn unregistering_hotkey_drops_its_override() {
+            let mut state = short_hold_state();
+            assert_eq!(state.hold_threshold(&HotkeyId(0)), Some(SHORT_HOLD));
+
+            state.unregister_hotkey(&HotkeyId(0));
+
+            assert!(state.hold_overrides.is_empty(), "no orphaned override");
+            assert!(
+                !state.hold_gated(&HotkeyId(0)),
+                "a stale id must not gate anything"
+            );
+            // Without the manager-wide policy the stale id resolves to no
+            // window at all; with it, the id falls back to the default
+            // exactly like a fresh registration would.
+            let mut bare = ManagerState::new();
+            bare.register_hotkey(
+                Hotkey::new(Modifiers::CMD_LEFT, None).unwrap(),
+                Some(SHORT_HOLD),
+            );
+            bare.unregister_hotkey(&HotkeyId(0));
+            assert_eq!(bare.hold_threshold(&HotkeyId(0)), None);
         }
     }
 }

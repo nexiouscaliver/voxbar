@@ -1,0 +1,677 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#101014" />
+    <title>VoxBar Companion</title>
+    <style>
+      :root {
+        --bg: #101014;
+        --card: #1a1a20;
+        --card-2: #22222a;
+        --text: #f2f2f5;
+        --muted: #9a9aa5;
+        --accent: #7c5cff;
+        --accent-2: #9d86ff;
+        --rec: #e5484d;
+        --ok: #46a758;
+        --warn: #f5a524;
+      }
+      * {
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        height: 100%;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font:
+          16px/1.45 -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: max(20px, env(safe-area-inset-top)) 20px
+          max(28px, env(safe-area-inset-bottom));
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: manipulation;
+      }
+      header {
+        text-align: center;
+        margin: 8px 0 4px;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 0 0 4px;
+        letter-spacing: 0.2px;
+      }
+      .sub {
+        color: var(--muted);
+        font-size: 14px;
+        max-width: 300px;
+        margin: 0 auto;
+      }
+      #state {
+        margin: 18px 0 6px;
+        padding: 7px 16px;
+        border-radius: 999px;
+        background: var(--card-2);
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      #state .dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--muted);
+      }
+      #state.recording {
+        color: #fff;
+        background: rgba(229, 72, 77, 0.22);
+      }
+      #state.recording .dot {
+        background: var(--rec);
+        animation: pulse 1.1s infinite;
+      }
+      #state.ready .dot {
+        background: var(--ok);
+      }
+      #state.warn .dot {
+        background: var(--warn);
+      }
+      @keyframes pulse {
+        50% {
+          opacity: 0.35;
+        }
+      }
+      #ptt {
+        margin-top: 22px;
+        width: min(72vw, 260px);
+        height: min(72vw, 260px);
+        border-radius: 50%;
+        border: none;
+        background: radial-gradient(
+          circle at 32% 28%,
+          var(--accent-2),
+          var(--accent) 65%
+        );
+        color: #fff;
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        box-shadow:
+          0 14px 40px rgba(124, 92, 255, 0.35),
+          inset 0 2px 6px rgba(255, 255, 255, 0.25);
+        transition:
+          transform 90ms ease,
+          box-shadow 120ms ease,
+          filter 120ms ease;
+      }
+      #ptt:active,
+      #ptt.held {
+        transform: scale(0.96);
+        filter: brightness(1.12);
+        box-shadow:
+          0 8px 24px rgba(124, 92, 255, 0.5),
+          inset 0 2px 6px rgba(255, 255, 255, 0.3);
+      }
+      #ptt.recording {
+        background: radial-gradient(circle at 32% 28%, #ff6b6f, var(--rec) 65%);
+        box-shadow:
+          0 14px 40px rgba(229, 72, 77, 0.4),
+          inset 0 2px 6px rgba(255, 255, 255, 0.25);
+        animation: pulse 1.4s infinite;
+      }
+      #ptt:disabled {
+        filter: grayscale(0.7) brightness(0.7);
+        box-shadow: none;
+      }
+      #hint {
+        color: var(--muted);
+        font-size: 13px;
+        margin-top: 14px;
+        text-align: center;
+        max-width: 320px;
+        min-height: 18px;
+      }
+      #notice {
+        margin-top: 10px;
+        background: var(--card);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 12px;
+        padding: 12px 14px;
+        font-size: 14px;
+        color: var(--text);
+        display: none;
+        max-width: 340px;
+        text-align: center;
+      }
+      #notice.show {
+        display: block;
+      }
+      .linkrow {
+        margin-top: auto;
+        padding-top: 18px;
+      }
+      button.secondary {
+        background: var(--card-2);
+        color: var(--text);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 10px 18px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      #micbar {
+        display: none;
+        width: min(80vw, 300px);
+        margin-top: 16px;
+        height: 4px;
+        border-radius: 4px;
+        background: var(--card-2);
+        overflow: hidden;
+      }
+      #micbar .lvl {
+        height: 100%;
+        width: 0%;
+        background: var(--accent);
+        transition: width 80ms linear;
+      }
+      #micbar.show {
+        display: block;
+      }
+      .cert {
+        margin-top: 14px;
+        color: var(--muted);
+        font-size: 12px;
+        max-width: 330px;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1 id="t-title">VoxBar Companion</h1>
+      <p class="sub" id="t-subtitle">
+        Your phone is now a microphone and trigger for your Mac.
+      </p>
+    </header>
+
+    <div id="state"><span class="dot"></span><span id="stateText"></span></div>
+    <div id="micbar"><div class="lvl"></div></div>
+
+    <button id="ptt" disabled aria-live="polite"></button>
+    <div id="hint"></div>
+    <div id="notice" role="status"></div>
+    <div class="linkrow">
+      <button class="secondary" id="reconnect" style="display: none"></button>
+    </div>
+    <p class="cert" id="t-cert"></p>
+
+    <script>
+      "use strict";
+      // Localized strings: injected by the Mac from the SAME companion.* keys
+      // the app locales ship. `null` in the raw file; a JSON object here.
+      const STRINGS = /*__COMPANION_STRINGS__*/null;
+
+      const S = (function () {
+        const langs =
+          navigator.languages && navigator.languages.length
+            ? navigator.languages
+            : [navigator.language || "en"];
+        for (const tag of langs) {
+          if (!tag) continue;
+          if (STRINGS[tag]) return STRINGS[tag];
+          const base = String(tag).split("-")[0];
+          if (STRINGS[base]) return STRINGS[base];
+        }
+        return STRINGS["en"] || {};
+      })();
+      const t = (key, fallback) => S[key] || fallback || key;
+
+      // ---- DOM ----
+      const stateEl = document.getElementById("state");
+      const stateText = document.getElementById("stateText");
+      const ptt = document.getElementById("ptt");
+      const hint = document.getElementById("hint");
+      const notice = document.getElementById("notice");
+      const reconnectBtn = document.getElementById("reconnect");
+      const micbar = document.getElementById("micbar");
+      const miclvl = micbar.querySelector(".lvl");
+
+      document.getElementById("t-title").textContent = t(
+        "title",
+        "VoxBar Companion",
+      );
+      document.getElementById("t-subtitle").textContent = t("subtitle", "");
+      document.getElementById("t-cert").textContent = t("certNote", "");
+      reconnectBtn.textContent = t("reconnect", "Reconnect");
+
+      // ---- pairing token from the QR URL (https://lan-ip:port/#t=TOKEN) ----
+      const TOKEN = (location.hash.match(/t=([0-9a-fA-F]{32})/) || [])[1] || "";
+      const LANG = (navigator.language || "en").slice(0, 16);
+      const WS_URL =
+        (location.protocol === "https:" ? "wss://" : "ws://") +
+        location.host +
+        "/ws";
+
+      let ws = null;
+      let activation = "push_to_talk"; // set by the Mac from its settings
+      let recording = false; // last state the Mac broadcast
+      let micStream = null;
+      let audioCtx = null;
+      var audioNode = null; // AudioWorkletNode or ScriptProcessorNode
+      let pressing = false; // is the button held down (client view)
+      let deliberateClose = false;
+
+      function setState(cls, text) {
+        stateEl.className = cls;
+        stateText.textContent = text;
+      }
+      function setHint(text) {
+        hint.textContent = text || "";
+      }
+      function showNotice(text) {
+        notice.textContent = text;
+        notice.classList.add("show");
+        window.setTimeout(() => notice.classList.remove("show"), 6000);
+      }
+      function vibrate(ms) {
+        try {
+          if (navigator.vibrate) navigator.vibrate(ms);
+        } catch (e) {}
+      }
+
+      function refreshButton() {
+        if (activation === "toggle") {
+          ptt.textContent = recording
+            ? t("tapToStop", "Tap to stop")
+            : t("tapToTalk", "Tap to talk");
+        } else if (activation === "hold_or_toggle") {
+          ptt.textContent = recording
+            ? t("tapToStop", "Tap to stop")
+            : t("holdToTalk", "Hold to talk");
+        } else {
+          ptt.textContent = recording
+            ? t("release", "Release to finish")
+            : t("holdToTalk", "Hold to talk");
+        }
+        ptt.classList.toggle("recording", recording);
+      }
+
+      // ---- WebSocket ----
+      function connect() {
+        deliberateClose = false;
+        setState("connecting", t("stateConnecting", "Connecting"));
+        ptt.disabled = true;
+        setHint("");
+        reconnectBtn.style.display = "none";
+
+        if (!TOKEN) {
+          setState("error", t("stateError", "Error"));
+          setHint(
+            t("noToken", "Open this page from the QR code in VoxBar settings."),
+          );
+          return;
+        }
+
+        let socket;
+        try {
+          socket = new WebSocket(WS_URL);
+        } catch (e) {
+          setState("error", t("stateError", "Error"));
+          setHint(String((e && e.message) || e));
+          return;
+        }
+        socket.binaryType = "arraybuffer";
+        ws = socket;
+
+        socket.onopen = () => {
+          socket.send(
+            JSON.stringify({
+              type: "hello",
+              token: TOKEN,
+              device:
+                (navigator.userAgent.match(/\(([^)]+)/) || [, "Phone"])[1]
+                  .split(";")[0]
+                  .trim()
+                  .slice(0, 48) || "Phone",
+              lang: LANG,
+            }),
+          );
+          setState("waiting", t("stateWaitMic", "Waiting for microphone"));
+        };
+
+        socket.onmessage = (ev) => {
+          let msg = null;
+          try {
+            msg = JSON.parse(typeof ev.data === "string" ? ev.data : "");
+          } catch (e) {
+            return;
+          }
+          if (!msg || typeof msg !== "object") return;
+          switch (msg.type) {
+            case "welcome":
+              activation = msg.activation || "push_to_talk";
+              recording = !!msg.recording;
+              ptt.disabled = false;
+              setState("ready", t("stateReady", "Ready"));
+              setHint(
+                activation === "toggle"
+                  ? t("tapToTalk", "")
+                  : t("holdToTalk", ""),
+              );
+              refreshButton();
+              ensureMic();
+              break;
+            case "state":
+              recording = !!msg.recording;
+              setState(
+                recording ? "recording" : "ready",
+                recording
+                  ? t("stateRecording", "Recording")
+                  : t("stateReady", "Ready"),
+              );
+              setHint(recording ? "" : "");
+              micbar.classList.toggle("show", recording);
+              if (!recording) {
+                pressing = false;
+                ptt.classList.remove("held");
+              }
+              refreshButton();
+              vibrate(recording ? 40 : 20);
+              break;
+            case "notice":
+              vibrate(30);
+              if (msg.code === "binding_busy") showNotice(t("busy", ""));
+              else if (msg.code === "companion_disconnected_finalized")
+                showNotice(t("disconnectedFinalized", ""));
+              else if (msg.code === "companion_session_capped")
+                showNotice(t("capped", ""));
+              break;
+            case "error":
+              deliberateClose = true;
+              ptt.disabled = true;
+              setState("error", t("stateError", "Error"));
+              if (msg.code === "bad_token") setHint(t("badToken", ""));
+              else if (msg.code === "wrong_subnet")
+                setHint(t("wrongSubnet", ""));
+              else if (msg.code === "rate_limited")
+                setHint(t("rateLimited", ""));
+              else setHint(msg.code || "");
+              try {
+                socket.close();
+              } catch (e) {}
+              reconnectBtn.style.display = "";
+              break;
+            case "goodbye":
+              deliberateClose = true;
+              ptt.disabled = true;
+              setState("warn", t("stateDisconnected", "Disconnected"));
+              if (msg.reason === "server_stopping")
+                setHint(t("serverStopped", ""));
+              else if (msg.reason === "rate_cap") setHint(t("rateLimited", ""));
+              else setHint("");
+              stopMic();
+              reconnectBtn.style.display = "";
+              break;
+          }
+        };
+
+        socket.onclose = () => {
+          ptt.disabled = true;
+          micbar.classList.remove("show");
+          stopMic();
+          if (deliberateClose) return;
+          setState("warn", t("stateDisconnected", "Disconnected"));
+          setHint("");
+          reconnectBtn.style.display = "";
+        };
+        socket.onerror = () => {
+          /* onclose follows */
+        };
+      }
+
+      reconnectBtn.addEventListener("click", connect);
+
+      // ---- microphone capture (AudioWorklet, ScriptProcessorNode fallback) ----
+      const TARGET_RATE = 16000;
+      const CHUNK = 640; // 40 ms of 16 kHz mono
+      let lastLevelAt = 0;
+
+      function ensureMic() {
+        if (micStream) return;
+        navigator.mediaDevices
+          .getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              channelCount: 1,
+            },
+            video: false,
+          })
+          .then((stream) => {
+            micStream = stream;
+            setState("ready", t("stateReady", "Ready"));
+            setupGraph(stream);
+          })
+          .catch(() => {
+            setState("error", t("stateError", "Error"));
+            setHint(t("micDenied", ""));
+            ptt.disabled = true;
+          });
+      }
+
+      function setupGraph(stream) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new Ctx({ sampleRate: TARGET_RATE });
+        const source = audioCtx.createMediaStreamSource(stream);
+        const sink = audioCtx.createGain();
+        sink.gain.value = 0;
+        sink.connect(audioCtx.destination);
+
+        if (audioCtx.audioWorklet) {
+          // Linear resample from the context rate to 16 kHz, buffered into
+          // 640-sample (40 ms) chunks posted to the main thread.
+          const blob = new Blob(
+            [
+              `
+      class R extends AudioWorkletProcessor {
+        constructor() { super(); this.buf = []; this.pos = 0; }
+        process(inputs) {
+          const input = inputs[0] && inputs[0][0];
+          if (input) {
+            const ratio = sampleRate / ${TARGET_RATE};
+            while (this.pos < input.length - 1) {
+              const i0 = Math.floor(this.pos), frac = this.pos - i0;
+              const a = input[i0], b = input[i0 + 1];
+              this.buf.push(a + (b - a) * frac);
+              this.pos += ratio;
+              if (this.buf.length >= ${CHUNK}) {
+                this.port.postMessage(this.buf.slice(0, ${CHUNK}));
+                this.buf = this.buf.slice(${CHUNK});
+              }
+            }
+            this.pos -= input.length;
+          }
+          return true;
+        }
+      }
+      registerProcessor("r", R);`,
+            ],
+            { type: "application/javascript" },
+          );
+          const url = URL.createObjectURL(blob);
+          audioCtx.audioWorklet
+            .addModule(url)
+            .then(() => {
+              audioNode = new AudioWorkletNode(audioCtx, "r", {
+                numberOfOutputs: 1,
+              });
+              audioNode.port.onmessage = (ev) => sendChunk(ev.data);
+              source.connect(audioNode);
+              audioNode.connect(sink);
+            })
+            .catch(() => {
+              scriptProcessorFallback(source, sink);
+            });
+        } else {
+          scriptProcessorFallback(source, sink);
+        }
+      }
+
+      function scriptProcessorFallback(source, sink) {
+        const buf = [];
+        let pos = 0;
+        const ratioHolder = {
+          ratio:
+            (audioCtx && audioCtx.sampleRate
+              ? audioCtx.sampleRate
+              : TARGET_RATE) / TARGET_RATE,
+        };
+        audioNode = audioCtx.createScriptProcessor(4096, 1, 1);
+        audioNode.onaudioprocess = (ev) => {
+          const input = ev.inputBuffer.getChannelData(0);
+          const ratio = ratioHolder.ratio;
+          while (pos < input.length - 1) {
+            const i0 = Math.floor(pos),
+              frac = pos - i0;
+            const a = input[i0],
+              b = input[i0 + 1];
+            buf.push(a + (b - a) * frac);
+            pos += ratio;
+            if (buf.length >= CHUNK) {
+              sendChunk(buf.splice(0, CHUNK));
+            }
+          }
+          pos -= input.length;
+        };
+        source.connect(audioNode);
+        audioNode.connect(sink);
+      }
+
+      function sendChunk(samples) {
+        if (!samples || !samples.length) return;
+        // A cheap level meter so the phone shows life while recording.
+        const now = performance.now();
+        if (now - lastLevelAt > 90) {
+          lastLevelAt = now;
+          let peak = 0;
+          for (let i = 0; i < samples.length; i += 8)
+            peak = Math.max(peak, Math.abs(samples[i]));
+          miclvl.style.width = Math.min(100, Math.round(peak * 220)) + "%";
+        }
+        if (ws && ws.readyState === WebSocket.OPEN && recording) {
+          const view = new Float32Array(samples);
+          ws.send(view.buffer);
+        }
+      }
+
+      function stopMic() {
+        if (audioNode) {
+          try {
+            audioNode.disconnect();
+          } catch (e) {}
+          audioNode = null;
+        }
+        if (audioCtx) {
+          try {
+            audioCtx.close();
+          } catch (e) {}
+          audioCtx = null;
+        }
+        if (micStream) {
+          for (const track of micStream.getTracks()) track.stop();
+          micStream = null;
+        }
+        micbar.classList.remove("show");
+      }
+
+      // ---- PTT edges ----
+      function pressStart(ev) {
+        if (ev) ev.preventDefault();
+        if (ptt.disabled || pressing) return;
+        pressing = true;
+        ptt.classList.add("held");
+        vibrate(15);
+        // Every tap sends a PRESS edge. In toggle mode a press toggles the
+        // locked session (first tap starts, the next stops); a release edge
+        // would be ignored by the Mac by design. In the hold modes the
+        // press starts the session and pressEnd below sends the release.
+        sendPtt(true);
+      }
+      function pressEnd(ev) {
+        if (ev && ev.cancelable) ev.preventDefault();
+        if (!pressing) return;
+        pressing = false;
+        ptt.classList.remove("held");
+        if (activation === "push_to_talk") {
+          sendPtt(false); // every release stops
+        }
+        // toggle: release never stops. hold_or_toggle: the Mac classifies.
+        if (activation === "hold_or_toggle") {
+          sendPtt(false);
+        }
+      }
+
+      function sendPtt(pressed) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "ptt", pressed: !!pressed }));
+        }
+      }
+
+      ptt.addEventListener("pointerdown", pressStart);
+      ptt.addEventListener("pointerup", pressEnd);
+      ptt.addEventListener("pointercancel", pressEnd);
+      ptt.addEventListener("pointerleave", pressEnd);
+      ptt.addEventListener("contextmenu", (ev) => ev.preventDefault());
+      // Long-press text selection / callout suppression on iOS Safari.
+      ptt.addEventListener(
+        "touchstart",
+        (ev) => {
+          ev.preventDefault();
+          pressStart();
+        },
+        { passive: false },
+      );
+      ptt.addEventListener(
+        "touchend",
+        (ev) => {
+          ev.preventDefault();
+          pressEnd();
+        },
+        { passive: false },
+      );
+      ptt.addEventListener("touchcancel", () => pressEnd());
+      document.addEventListener("gesturestart", (ev) => ev.preventDefault());
+
+      document.addEventListener("visibilitychange", () => {
+        // Backgrounded mid-press: treat as release so audio never leaks on.
+        if (document.hidden && pressing) {
+          pressing = false;
+          ptt.classList.remove("held");
+          sendPtt(false);
+        }
+      });
+
+      refreshButton();
+      connect();
+    </script>
+  </body>
+</html>

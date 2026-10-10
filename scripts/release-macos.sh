@@ -38,6 +38,16 @@ IDENTIFIER="com.voxbar.app"
 DR='designated => identifier "com.voxbar.app"'
 
 log() { printf '[release] %s\n' "$*"; }
+
+# Apple Intelligence (FoundationModels) needs the FULL Xcode toolchain: a
+# Command-Line-Tools-only selection compiles the stub and the app then
+# reports AI unavailable on every machine. If full Xcode is installed and
+# the builder did not pin a toolchain, prefer Xcode for this build without
+# touching the machine's global xcode-select.
+if [ -z "${DEVELOPER_DIR:-}" ] && [ -d /Applications/Xcode.app/Contents/Developer ]; then
+  export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+  log "using full Xcode toolchain for this build (DEVELOPER_DIR=$DEVELOPER_DIR)"
+fi
 die() { printf '[release] ERROR: %s\n' "$*" >&2; exit 1; }
 
 # --- 1. Version agreement: tauri.conf.json is the source of truth ----------
@@ -108,7 +118,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: the polish release. Fallbacks and failures now reach you in the overlay, the backend holds up under long sessions, onboarding and settings carry the VoxBar identity with a cleaner UI, Windows and Linux paths are ready for builds, and the README is rewritten." \
+  --arg notes "VoxBar ${VERSION}: post-processing reborn. Local LLM models download and swap like voice models, cloud providers show real model lists you can test, every run is visible end to end and never loses your transcript, and a prompt library covers your language and register; phones on your network can act as microphones and triggers, off by default behind a toggle." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \

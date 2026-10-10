@@ -9,9 +9,11 @@
     "unloadAfterNever": "Nooit",
     "unloadAfterCustom": "Aangepast…",
     "model": "Model",
+    "postProcessModel": "Postprocesmodel",
     "quit": "Afsluiten",
     "cancel": "Annuleren",
-    "secureInputWarning": "⚠ Sneltoetsen geblokkeerd door Secure Input"
+    "secureInputWarning": "⚠ Sneltoetsen geblokkeerd door Secure Input",
+    "postProcessPrompt": "Postprocesprompt"
   },
   "sidebar": {
     "general": "Algemeen",
@@ -220,6 +222,10 @@
           "transcribe_commands": {
             "name": "Commandomodus",
             "description": "Houd deze toets ingedrukt terwijl een dicteersessie actief is om over te schakelen naar commandointerpretatie: alles wat u zegt bewerkt direct de dicteerbuffer (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) en niet-herkende woorden worden weggegooid. Laat de toets los om terug te keren naar normaal dicteren; de uiteindelijke plakactie levert exact de bewerkte buffer. Start nooit een opname en doet op zichzelf niets. Standaard zonder toets."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Postprocesprompt doorschakelen",
+            "description": "Optioneel: schakelt het geselecteerde postprocesjabloon door naar het volgende en bevestigt het nieuwe sjabloon."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "Cijfers",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Companion-apparaten",
+        "description": "Gebruik een telefoon of tablet op hetzelfde wifi als microfoon en drukknop voor deze Mac.",
+        "offNote": "Standaard uit. Er luistert niets en er draait geen thread tot je het aanzet.",
+        "qrTitle": "Apparaat koppelen",
+        "qrHint": "Scan met de camera van de telefoon, open de link en accepteer de certificaatwaarschuwing eenmaal.",
+        "addressLabel": "Adres",
+        "portLabel": "Poort",
+        "devicesLabel": "Verbonden apparaten",
+        "noDevices": "Nog geen apparaten verbonden",
+        "resetPairing": "Koppeling herstellen",
+        "fingerprintLabel": "Certificaat-vingerafdruk (SHA-256)",
+        "firewallNote": "macOS kan bij de eerste keer inschakelen vragen inkomende verbindingen toe te staan. Sta het toe, anders bereiken telefoons deze Mac niet.",
+        "unavailable": "Companion-apparaten vereisen macOS in deze cyclus.",
+        "serverError": "Server mislukt: {{error}}",
+        "refresh": "Vernieuwen",
+        "statusRunning": "Draait",
+        "statusStopped": "Gestopt"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "Kies een model dat door de geselecteerde provider wordt aangeboden.",
           "placeholderWithOptions": "Zoek of selecteer een model",
           "placeholderNoOptions": "Typ een modelnaam",
-          "refreshModels": "Modellen verversen"
+          "refreshModels": "Modellen verversen",
+          "fetchFailed": "Ophalen van de modellenlijst mislukt ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Modellenlijst opgehaald {{time}}",
+          "retry": "Opnieuw proberen"
         },
         "timeout": {
           "title": "Time-out van verzoek",
-          "description": "Hoe lang een cloudverzoek voor nabewerking mag draaien voordat het opgeeft en de ruwe transcriptie wordt gebruikt. Geldt wanneer een endpoint niet meer reageert."
+          "description": "Hoe lang postprocessverzoeken van deze aanbieder mogen draaien voordat ze opgeven en de ruwe transcriptie wordt gebruikt. Terugzetten keert terug naar de {{classDefault}}s-standaard van deze aanbieder."
+        },
+        "testConnection": "Verbinding testen",
+        "testConnectionRunning": "Bezig met testen...",
+        "verdict": {
+          "ok": "Authenticatie OK, {{latencyMs}} ms, model bereikbaar",
+          "okNoModel": "Authenticatie OK, {{latencyMs}} ms. Geen model geselecteerd om te testen.",
+          "localReady": "Lokaal model is gedownload en klaar",
+          "localNotReady": "Lokaal model niet klaar: {{detail}}",
+          "appleReady": "Apple Intelligence is beschikbaar",
+          "appleUnavailable": "Apple Intelligence is niet beschikbaar op dit apparaat",
+          "failed": "Verbinding mislukt: {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "Kan nu niet verwijderen: er wordt een naverwerking uitgevoerd. Probeer het zo opnieuw.",
         "downloadFailed": "Downloaden mislukt: {{error}}",
         "deleteFailed": "Kon het model niet verwijderen: {{error}}",
-        "providerLabel": "Lokaal (op het apparaat)"
+        "providerLabel": "Lokaal (op het apparaat)",
+        "keepWarm": {
+          "title": "Lokaal model vasthouden",
+          "description": "Hoe lang het lokale postprocessmodel in het geheugen blijft na een opruiming in plaats van direct te worden ontladen. Een dictee haalt het geheugen altijd eerst terug.",
+          "off": "Uit"
+        }
+      },
+      "models": {
+        "title": "Postprocesmodellen",
+        "description": "De lokale modellen die je transcripties opschonen. Kleinere modellen laden sneller, grotere poesten beter.",
+        "searchPlaceholder": "Postprocesmodellen zoeken",
+        "downloaded": "Gedownload",
+        "available": "Beschikbaar om te downloaden",
+        "active": "Actief",
+        "select": "Gebruiken",
+        "contextTokens": "Context: {{count}} tokens",
+        "publisher": "door {{publisher}}",
+        "noMatch": "Geen postprocesmodellen die aan je zoekopdracht voldoen.",
+        "browseCatalog": "Meer modellen bekijken",
+        "addFromHf": {
+          "title": "Postprocesmodel toevoegen vanaf Hugging Face",
+          "description": "Plak een openbare repo-URL of owner/repo. GGUFs van taalmodellen (Qwen, Llama, Gemma, Phi) kunnen worden toegevoegd.",
+          "added": "Model toegevoegd. Het staat bij Gedownload."
+        }
       },
       "prompts": {
         "title": "Prompt",
@@ -709,7 +771,85 @@
         "createPrompt": "Prompt maken",
         "cancel": "Annuleren",
         "selectToEdit": "Selecteer hierboven een prompt om de details te bekijken en te bewerken.",
-        "createFirst": "Klik hierboven op 'Nieuwe prompt maken' om je eerste naverwerkingsprompt aan te maken."
+        "createFirst": "Klik hierboven op 'Nieuwe prompt maken' om je eerste naverwerkingsprompt aan te maken.",
+        "registers": {
+          "professional": "Professioneel",
+          "casual": "Informeel",
+          "technical": "Technisch",
+          "minimal": "Minimaal",
+          "general": "Algemeen"
+        },
+        "builtinBadge": "Ingebouwd",
+        "customBadge": "Eigen",
+        "editedBadge": "Bewerkt",
+        "versionLabel": "Versie {{version}}",
+        "duplicate": "Dupliceren",
+        "testOnLastTranscript": "Testen op mijn laatste transcriptie",
+        "testing": "Testen...",
+        "testNoHistory": "Er is nog geen transcriptiegeschiedenis. Neem eerst iets op.",
+        "testPromptNotFound": "Dit sjabloon bestaat niet meer.",
+        "testFailed": "Test mislukt: {{detail}}",
+        "testResultTitle": "Testresultaat",
+        "testBefore": "Voor",
+        "testAfter": "Na",
+        "testOutcome": "Uitkomst: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "De ruwe transcriptie zou worden gehouden.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Engels (professioneel)",
+            "description": "Zakelijk verzorgd Engels: volledige opschoning met gepolijste grammatica."
+          },
+          "english_casual": {
+            "name": "Engels (informeel)",
+            "description": "Spreektaal-Engels dat samenvoegingen en straattaal behoudt."
+          },
+          "english_technical": {
+            "name": "Engels (technisch)",
+            "description": "Codevriendelijk Engels: identifiers, paden en commando's blijven letterlijk."
+          },
+          "english_minimal": {
+            "name": "Engels (minimaal)",
+            "description": "Alleen interpunctie en hoofdletters hersteld; elk woord blijft zoals gedicteerd."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (Devanagari)",
+            "description": "Hindi-opschoning in het Devanagari-schrift met purna viram-leestekens."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (Latijns)",
+            "description": "Behoudt de gesproken mix van Hindi en Engels in Latijns schrift."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Marathi-opschoning in het Devanagari-schrift."
+          },
+          "tamil": {
+            "name": "Tamil",
+            "description": "Tamil-opschoning in het Tamil-schrift."
+          },
+          "spanish": {
+            "name": "Spaans",
+            "description": "Spaanse opschoning met omgekeerde vraag- en uitroeptekens."
+          },
+          "french": {
+            "name": "Frans",
+            "description": "Franse opschoning met Franse spaties en aanhalingstekens."
+          },
+          "german": {
+            "name": "Duits",
+            "description": "Duitse opschoning met hoofdletters voor zelfstandige naamwoorden."
+          },
+          "japanese": {
+            "name": "Japans",
+            "description": "Japanse opschoning met Japanse leestekens en kanji-correcties."
+          },
+          "chinese_simplified": {
+            "name": "Chinees (vereenvoudigd)",
+            "description": "Vereenvoudigd Chinees met correcties van gelijkklinkende tekens."
+          }
+        },
+        "editPrompt": "Bewerken"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "Bewaartermijn"
-      }
+      },
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Probleemoplossing",
@@ -867,6 +1008,20 @@
         "verdictOk": "Toetsgebeurtenissen bereiken VoxBar normaal.",
         "verdictNoEvents": "Geen gebeurtenissen vastgelegd - heb je tijdens de test toetsen ingedrukt?",
         "failed": "Diagnose mislukt: {{error}}"
+      },
+      "ppRuns": {
+        "title": "Nabewerkingsruns",
+        "description": "De recentste bijschaverruns: engine, prompt, latentie en uitkomst. Kopieer de logregels van een run voor diagnose.",
+        "time": "Tijd",
+        "engine": "Aanbieder / model",
+        "prompt": "Prompt",
+        "latency": "Latentie",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Uitkomst",
+        "copyLog": "Logregels van deze run kopiëren",
+        "copied": "Logregels van run {{run}} gekopieerd",
+        "empty": "Nog geen nabewerkingsruns.",
+        "live": "bezig"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "Automatisch downloaden en installeren"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "toegepast",
+      "skipped": "overgeslagen",
+      "failed": "mislukt"
     }
   },
   "footer": {
@@ -1034,9 +1194,16 @@
       "undoNoBuffer": "Nog niets om leeg te maken, de dicteersessie heeft nog geen live tekst.",
       "bindingBusy": "Een andere dicteertoets neemt al op.",
       "waylandTauriHotkeys": "Globale sneltoetsen werken mogelijk niet in native Wayland-apps met deze toetsenbordimplementatie. Schakel de toetsenbordimplementatie om naar VoxBar Keys en voeg je gebruiker toe aan de groep input; zie de Ubuntu-gids.",
-      "gnomeOverlayFallback": "Op GNOME Wayland verschijnt de overlay als een gewoon venster dat focus kan stelen en plakken kan breken. Hier wordt Overlay: Geen aangeraden."
+      "gnomeOverlayFallback": "Op GNOME Wayland verschijnt de overlay als een gewoon venster dat focus kan stelen en plakken kan breken. Hier wordt Overlay: Geen aangeraden.",
+      "postProcessOutputInvalid": "Het bijschaven leverde onbruikbare tekst op, de oorspronkelijke transcriptie is gehouden.",
+      "postProcessCloudFailed": "Het bijschaven mislukte, de oorspronkelijke transcriptie is gehouden: {{detail}}",
+      "postProcessPromptCycled": "Postprocesjabloon: {{name}}",
+      "companionDisconnected": "Telefoon losgekoppeld. Afgerond met wat er was.",
+      "companionServerFailed": "Companion-server mislukt: {{error}}"
     },
-    "commandBadge": "Opdrachtmodus"
+    "commandBadge": "Opdrachtmodus",
+    "ppChip": "Bijschaven ({{model}}) {{seconds}}s",
+    "companionBadge": "Companion-microfoon"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blokkeert mogelijk 1 sneltoets",
@@ -1058,11 +1225,45 @@
       "lengthGuard": "Naverwerking overgeslagen: de uitvoer van het lokale model slaagde niet voor de lengtecontrole. De originele transcriptie is gebruikt.",
       "tooLong": "Naverwerking overgeslagen: deze transcriptie is te lang voor het lokale model. De originele transcriptie is gebruikt."
     },
-    "settingNotSaved": "Deze instelling kon niet worden opgeslagen: {{error}}"
+    "settingNotSaved": "Deze instelling kon niet worden opgeslagen: {{error}}",
+    "postProcessFailure": {
+      "auth": "Bijschaven mislukt: de aanbieder wees de API-sleutel af. De oorspronkelijke transcriptie is geplakt.",
+      "network": "Bijschaven mislukt: de aanbieder is onbereikbaar. De oorspronkelijke transcriptie is geplakt.",
+      "timeout": "Bijschaven mislukt: de aanbieder deed er te lang over. De oorspronkelijke transcriptie is geplakt.",
+      "contextLength": "Bijschaven mislukt: de transcriptie overschrijdt het contextvenster van het model. De oorspronkelijke transcriptie is geplakt.",
+      "outputInvalid": "Bijschaven mislukt: het model leverde onbruikbare tekst op. De oorspronkelijke transcriptie is geplakt.",
+      "oom": "Bijschaven mislukt: te weinig geheugen. De oorspronkelijke transcriptie is geplakt.",
+      "cancelled": "Het bijschaven is geannuleerd. De oorspronkelijke transcriptie is geplakt."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar kan vanaf deze locatie geen updates installeren",
     "translocatedDescription": "VoxBar draait vanaf een tijdelijke alleen-lezen locatie (macOS App Translocation). Sluit VoxBar af, sleep het van de map Downloads naar Programma's en open het vanaf daar.",
     "commandNoSession": "De commandotoets werkt alleen tijdens een actieve dictee. Start eerst de opname, houd de toets vast en spreek de opdracht in."
+  },
+  "companion": {
+    "title": "VoxBar Companion",
+    "subtitle": "Je telefoon is nu microfoon en knop voor je Mac.",
+    "certNote": "Als de browser waarschuwt over de verbinding, vergelijk de vingerafdruk met die in de VoxBar-instellingen en accepteer hem eenmaal.",
+    "noToken": "Open deze pagina via de QR-code in de VoxBar-instellingen.",
+    "micDenied": "Microfoontoegang geweigerd. Sta het toe in de browser en laad opnieuw.",
+    "badToken": "Koppelen mislukt. Scan de QR-code in de VoxBar-instellingen opnieuw.",
+    "wrongSubnet": "Deze telefoon zit in een ander netwerk dan de Mac. Ga naar hetzelfde wifi en koppel opnieuw.",
+    "rateLimited": "Te veel koppelpogingen. Wacht een minuut en probeer opnieuw.",
+    "busy": "De Mac dicteert al via een andere knop.",
+    "disconnectedFinalized": "Verbinding verbroken. De Mac bewaarde wat je zei.",
+    "capped": "Sessie begrensd op 15 minuten. Druk opnieuw om door te gaan.",
+    "serverStopped": "De Mac stopte de companion-server.",
+    "reconnect": "Opnieuw verbinden",
+    "holdToTalk": "Houd ingedrukt om te praten",
+    "tapToTalk": "Tik om te praten",
+    "release": "Laat los om te stoppen",
+    "tapToStop": "Tik om te stoppen",
+    "stateConnecting": "Verbinden",
+    "stateWaitMic": "Wachten op microfoon",
+    "stateReady": "Gereed",
+    "stateRecording": "Opname",
+    "stateDisconnected": "Verbroken",
+    "stateError": "Fout"
   }
 }

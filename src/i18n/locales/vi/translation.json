@@ -9,9 +9,11 @@
     "unloadAfterNever": "Không bao giờ",
     "unloadAfterCustom": "Tùy chỉnh…",
     "model": "Mô hình",
+    "postProcessModel": "Mô hình hậu xử lý",
     "quit": "Thoát",
     "cancel": "Hủy",
-    "secureInputWarning": "⚠ Phím tắt bị Secure Input chặn"
+    "secureInputWarning": "⚠ Phím tắt bị Secure Input chặn",
+    "postProcessPrompt": "Câu lệnh hậu xử lý"
   },
   "sidebar": {
     "general": "Chung",
@@ -272,6 +274,10 @@
           "transcribe_commands": {
             "name": "Chế độ lệnh",
             "description": "Giữ phím này trong khi một phiên đọc chính tả đang hoạt động để chuyển sang diễn giải lệnh: mọi lời bạn nói sẽ chỉnh sửa trực tiếp bộ đệm đọc chính tả (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) và các từ không nhận diện được sẽ bị bỏ qua. Nhả phím để quay lại đọc chính tả bình thường; lần dán cuối cùng trả về đúng bộ đệm đã chỉnh sửa. Không bao giờ tự bắt đầu ghi âm và tự nó không làm gì cả. Mặc định không gán phím."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Chuyển câu lệnh hậu xử lý",
+            "description": "Tùy chọn: chuyển mẫu hậu xử lý đang chọn sang mẫu tiếp theo và xác nhận mẫu mới."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "Chữ số",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Thiết bị đồng hành",
+        "description": "Dùng điện thoại hoặc máy tính bảng trên cùng Wi-Fi làm micrô và nút bấm cho máy Mac này.",
+        "offNote": "Mặc định tắt. Không có gì lắng nghe và không có luồng nào chạy cho đến khi bạn bật.",
+        "qrTitle": "Ghép thiết bị",
+        "qrHint": "Quét bằng máy ảnh điện thoại, mở liên kết và chấp nhận cảnh báo chứng chỉ một lần.",
+        "addressLabel": "Địa chỉ",
+        "portLabel": "Cổng",
+        "devicesLabel": "Thiết bị đã kết nối",
+        "noDevices": "Chưa có thiết bị nào kết nối",
+        "resetPairing": "Đặt lại ghép nối",
+        "fingerprintLabel": "Dấu vân tay chứng chỉ (SHA-256)",
+        "firewallNote": "Lần bật đầu tiên, macOS có thể hỏi cho phép kết nối đến. Hãy cho phép, nếu không điện thoại sẽ không kết nối được với máy Mac này.",
+        "unavailable": "Thiết bị đồng hành cần macOS trong chu kỳ này.",
+        "serverError": "Máy chủ lỗi: {{error}}",
+        "refresh": "Làm mới",
+        "statusRunning": "Đang chạy",
+        "statusStopped": "Đã dừng"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "Chọn một mô hình được cung cấp bởi nhà cung cấp đã chọn.",
           "placeholderWithOptions": "Tìm kiếm hoặc chọn một mô hình",
           "placeholderNoOptions": "Nhập tên mô hình",
-          "refreshModels": "Làm mới mô hình"
+          "refreshModels": "Làm mới mô hình",
+          "fetchFailed": "Không lấy được danh sách mô hình ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Danh sách mô hình đã lấy {{time}}",
+          "retry": "Thử lại"
         },
         "timeout": {
           "title": "Thời gian chờ yêu cầu",
-          "description": "Yêu cầu hậu xử lý trên đám mây có thể chạy bao lâu trước khi từ bỏ và dùng bản ghi thô. Áp dụng khi một endpoint ngừng phản hồi."
+          "description": "Các yêu cầu hậu xử lý của nhà cung cấp này có thể chạy trong bao lâu trước khi từ bỏ và dùng bản ghi thô. Đặt lại quay về mặc định {{classDefault}}giây của nhà cung cấp này."
+        },
+        "testConnection": "Kiểm tra kết nối",
+        "testConnectionRunning": "Đang kiểm tra...",
+        "verdict": {
+          "ok": "Xác thực thành công, {{latencyMs}} ms, có thể truy cập mô hình",
+          "okNoModel": "Xác thực thành công, {{latencyMs}} ms. Chưa chọn mô hình nào để kiểm tra.",
+          "localReady": "Mô hình cục bộ đã được tải xuống và sẵn sàng",
+          "localNotReady": "Mô hình cục bộ chưa sẵn sàng: {{detail}}",
+          "appleReady": "Apple Intelligence khả dụng",
+          "appleUnavailable": "Apple Intelligence không khả dụng trên thiết bị này",
+          "failed": "Kết nối thất bại: {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "Hiện tại không thể xóa: một lượt xử lý sau đang chạy. Hãy thử lại sau ít lâu.",
         "downloadFailed": "Tải xuống thất bại: {{error}}",
         "deleteFailed": "Không thể xóa mô hình: {{error}}",
-        "providerLabel": "Cục bộ (trên thiết bị)"
+        "providerLabel": "Cục bộ (trên thiết bị)",
+        "keepWarm": {
+          "title": "Giữ mô hình cục bộ trong bộ nhớ",
+          "description": "Mô hình hậu xử lý cục bộ ở lại trong bộ nhớ bao lâu sau một lần chau chuốt thay vì dỡ ngay. Lệnh đọc luôn lấy lại bộ nhớ trước.",
+          "off": "Tắt"
+        }
+      },
+      "models": {
+        "title": "Mô hình hậu xử lý",
+        "description": "Các mô hình cục bộ làm sạch bản ghi của bạn. Mô hình nhỏ tải nhanh hơn, mô hình lớn chỉnh sửa tốt hơn.",
+        "searchPlaceholder": "Tìm mô hình hậu xử lý",
+        "downloaded": "Đã tải xuống",
+        "available": "Có thể tải xuống",
+        "active": "Đang dùng",
+        "select": "Dùng",
+        "contextTokens": "Ngữ cảnh: {{count}} token",
+        "publisher": "bởi {{publisher}}",
+        "noMatch": "Không có mô hình hậu xử lý nào khớp với tìm kiếm của bạn.",
+        "browseCatalog": "Xem thêm mô hình",
+        "addFromHf": {
+          "title": "Thêm mô hình hậu xử lý từ Hugging Face",
+          "description": "Dán URL kho công khai hoặc owner/repo. Có thể thêm GGUF của mô hình ngôn ngữ (Qwen, Llama, Gemma, Phi).",
+          "added": "Đã thêm mô hình. Nó xuất hiện trong Đã tải xuống."
+        }
       },
       "prompts": {
         "title": "Câu lệnh",
@@ -709,7 +771,85 @@
         "createPrompt": "Tạo Prompt",
         "cancel": "Hủy",
         "selectToEdit": "Chọn một prompt ở trên để xem và chỉnh sửa chi tiết.",
-        "createFirst": "Nhấn 'Tạo Prompt mới' ở trên để tạo prompt xử lý sau đầu tiên của bạn."
+        "createFirst": "Nhấn 'Tạo Prompt mới' ở trên để tạo prompt xử lý sau đầu tiên của bạn.",
+        "registers": {
+          "professional": "Chuyên nghiệp",
+          "casual": "Thường ngày",
+          "technical": "Kỹ thuật",
+          "minimal": "Tối giản",
+          "general": "Chung"
+        },
+        "builtinBadge": "Có sẵn",
+        "customBadge": "Tự tạo",
+        "editedBadge": "Đã sửa",
+        "versionLabel": "Phiên bản {{version}}",
+        "duplicate": "Nhân bản",
+        "testOnLastTranscript": "Thử trên bản chuyển ngữ gần nhất",
+        "testing": "Đang thử...",
+        "testNoHistory": "Chưa có lịch sử chuyển ngữ. Hãy ghi âm gì đó trước.",
+        "testPromptNotFound": "Mẫu này không còn tồn tại.",
+        "testFailed": "Thử thất bại: {{detail}}",
+        "testResultTitle": "Kết quả thử",
+        "testBefore": "Trước",
+        "testAfter": "Sau",
+        "testOutcome": "Kết quả: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Bản chuyển ngữ gốc sẽ được giữ nguyên.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Tiếng Anh (chuyên nghiệp)",
+            "description": "Tiếng Anh chỉn chu cho công việc: dọn sạch toàn bộ với ngữ pháp được trau chuốt."
+          },
+          "english_casual": {
+            "name": "Tiếng Anh (thường ngày)",
+            "description": "Tiếng Anh hội thoại giữ nguyên từ viết tắt và tiếng lóng."
+          },
+          "english_technical": {
+            "name": "Tiếng Anh (kỹ thuật)",
+            "description": "Tiếng Anh thân thiện với mã: định danh, đường dẫn và lệnh giữ nguyên văn."
+          },
+          "english_minimal": {
+            "name": "Tiếng Anh (tối giản)",
+            "description": "Chỉ sửa dấu câu và chữ hoa; mỗi từ giữ đúng như đã đọc."
+          },
+          "hindi_devanagari": {
+            "name": "Tiếng Hindi (Devanagari)",
+            "description": "Dọn tiếng Hindi bằng chữ Devanagari với dấu câu purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (Latin)",
+            "description": "Giữ nguyên lối pha trộn hindi-anh được nói bằng chữ Latin."
+          },
+          "marathi": {
+            "name": "Tiếng Marathi",
+            "description": "Dọn tiếng Marathi bằng chữ Devanagari."
+          },
+          "tamil": {
+            "name": "Tiếng Tamil",
+            "description": "Dọn tiếng Tamil bằng chữ Tamil."
+          },
+          "spanish": {
+            "name": "Tiếng Tây Ban Nha",
+            "description": "Dọn tiếng Tây Ban Nha với dấu hỏi và chấm than ngược."
+          },
+          "french": {
+            "name": "Tiếng Pháp",
+            "description": "Dọn tiếng Pháp với khoảng trắng và dấu ngoặc kép kiểu Pháp."
+          },
+          "german": {
+            "name": "Tiếng Đức",
+            "description": "Dọn tiếng Đức với danh từ viết hoa."
+          },
+          "japanese": {
+            "name": "Tiếng Nhật",
+            "description": "Dọn tiếng Nhật với dấu câu kiểu Nhật và sửa kanji."
+          },
+          "chinese_simplified": {
+            "name": "Tiếng Trung (giản thể)",
+            "description": "Dọn tiếng Trung giản thể với sửa lỗi đồng âm."
+          }
+        },
+        "editPrompt": "Sửa"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "Lưu trữ"
-      }
+      },
+      "viaPostProcess": "qua {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Gỡ lỗi",
@@ -867,6 +1008,20 @@
         "permissionsButton": "Quyền",
         "modelsButton": "Chọn mô hình",
         "exitButton": "Thoát xem trước"
+      },
+      "ppRuns": {
+        "title": "Các lượt xử lý sau",
+        "description": "Các lượt tinh chỉnh gần nhất: engine, prompt, độ trễ và kết quả. Sao chép dòng nhật ký của một lượt để chẩn đoán.",
+        "time": "Thời gian",
+        "engine": "Nhà cung cấp / mô hình",
+        "prompt": "Prompt",
+        "latency": "Độ trễ",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Kết quả",
+        "copyLog": "Sao chép dòng nhật ký của lượt này",
+        "copied": "Đã sao chép dòng nhật ký của lượt {{run}}",
+        "empty": "Chưa có lượt xử lý sau nào.",
+        "live": "đang chạy"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "Tự động tải và cài đặt"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "đã áp dụng",
+      "skipped": "đã bỏ qua",
+      "failed": "thất bại"
     }
   },
   "footer": {
@@ -1031,9 +1191,16 @@
       "undoNoBuffer": "Chưa có gì để xóa sạch, buổi đọc chính tả chưa có văn bản trực tiếp.",
       "bindingBusy": "Một phím đọc chính tả khác đang ghi âm.",
       "waylandTauriHotkeys": "Phím tắt toàn cầu có thể không hoạt động trong các ứng dụng Wayland gốc với bản triển khai bàn phím này. Chuyển bản triển khai bàn phím sang VoxBar Keys và thêm người dùng của bạn vào nhóm input; xem hướng dẫn Ubuntu.",
-      "gnomeOverlayFallback": "Trên GNOME Wayland, lớp phủ hiển thị như một cửa sổ thường có thể chiếm trọng tâm và làm hỏng thao tác dán. Ở đây nên đặt Lớp phủ: Không có."
+      "gnomeOverlayFallback": "Trên GNOME Wayland, lớp phủ hiển thị như một cửa sổ thường có thể chiếm trọng tâm và làm hỏng thao tác dán. Ở đây nên đặt Lớp phủ: Không có.",
+      "postProcessOutputInvalid": "Bước tinh chỉnh trả về văn bản không dùng được, bản gốc đã được giữ lại.",
+      "postProcessCloudFailed": "Tinh chỉnh thất bại, bản gốc đã được giữ lại: {{detail}}",
+      "postProcessPromptCycled": "Mẫu hậu xử lý: {{name}}",
+      "companionDisconnected": "Điện thoại đã ngắt kết nối. Kết thúc với phần đã ghi.",
+      "companionServerFailed": "Máy chủ đồng hành lỗi: {{error}}"
     },
-    "commandBadge": "Chế độ lệnh"
+    "commandBadge": "Chế độ lệnh",
+    "ppChip": "Đang tinh chỉnh ({{model}}) {{seconds}}s",
+    "companionBadge": "Micrô đồng hành"
   },
   "whatsNew": {
     "title": "Điểm mới trong VoxBar v{{version}}"
@@ -1058,11 +1225,45 @@
       "lengthGuard": "Đã bỏ qua xử lý sau: đầu ra của mô hình cục bộ không vượt qua kiểm tra độ dài. Đã dùng văn bản gốc.",
       "tooLong": "Đã bỏ qua xử lý sau: văn bản này quá dài đối với mô hình cục bộ. Đã dùng văn bản gốc."
     },
-    "settingNotSaved": "Không thể lưu cài đặt này: {{error}}"
+    "settingNotSaved": "Không thể lưu cài đặt này: {{error}}",
+    "postProcessFailure": {
+      "auth": "Tinh chỉnh thất bại: nhà cung cấp từ chối khóa API. Bản gốc đã được dán.",
+      "network": "Tinh chỉnh thất bại: không kết nối được nhà cung cấp. Bản gốc đã được dán.",
+      "timeout": "Tinh chỉnh thất bại: nhà cung cấp mất quá lâu. Bản gốc đã được dán.",
+      "contextLength": "Tinh chỉnh thất bại: bản ghi vượt quá cửa sổ ngữ cảnh của mô hình. Bản gốc đã được dán.",
+      "outputInvalid": "Tinh chỉnh thất bại: mô hình trả về văn bản không dùng được. Bản gốc đã được dán.",
+      "oom": "Tinh chỉnh thất bại: không đủ bộ nhớ. Bản gốc đã được dán.",
+      "cancelled": "Đã hủy tinh chỉnh. Bản gốc đã được dán."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar không thể cài đặt bản cập nhật từ vị trí này",
     "translocatedDescription": "VoxBar đang chạy từ một vị trí tạm thời chỉ đọc (App Translocation của macOS). Thoát VoxBar, kéo nó từ thư mục Downloads vào thư mục Ứng dụng, rồi mở từ đó.",
     "commandNoSession": "Phím lệnh chỉ hoạt động khi đang nghe chính tả. Hãy bắt đầu ghi âm trước, rồi giữ phím và đọc lệnh."
+  },
+  "companion": {
+    "title": "VoxBar Đồng hành",
+    "subtitle": "Điện thoại của bạn giờ là micrô và nút bấm cho máy Mac.",
+    "certNote": "Nếu trình duyệt cảnh báo về kết nối, hãy so dấu vân tay chứng chỉ với dấu trong cài đặt VoxBar và chấp nhận một lần.",
+    "noToken": "Hãy mở trang này từ mã QR trong cài đặt VoxBar.",
+    "micDenied": "Quyền truy cập micrô bị từ chối. Hãy cho phép trong trình duyệt rồi tải lại.",
+    "badToken": "Ghép nối thất bại. Quét lại mã QR trong cài đặt VoxBar.",
+    "wrongSubnet": "Điện thoại này ở mạng khác với máy Mac. Hãy vào cùng Wi-Fi rồi ghép nối lại.",
+    "rateLimited": "Quá nhiều lần thử ghép nối. Chờ một phút rồi thử lại.",
+    "busy": "Máy Mac đang đọc chính tả từ nút bấm khác.",
+    "disconnectedFinalized": "Kết nối bị ngắt. Máy Mac đã giữ lại lời bạn nói.",
+    "capped": "Phiên giới hạn 15 phút. Nhấn lại để tiếp tục.",
+    "serverStopped": "Máy Mac đã dừng máy chủ đồng hành.",
+    "reconnect": "Kết nối lại",
+    "holdToTalk": "Giữ để nói",
+    "tapToTalk": "Nhấn để nói",
+    "release": "Nhả để kết thúc",
+    "tapToStop": "Nhấn để dừng",
+    "stateConnecting": "Đang kết nối",
+    "stateWaitMic": "Đang chờ micrô",
+    "stateReady": "Sẵn sàng",
+    "stateRecording": "Đang ghi",
+    "stateDisconnected": "Đã ngắt",
+    "stateError": "Lỗi"
   }
 }

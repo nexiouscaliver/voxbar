@@ -9,9 +9,11 @@
     "unloadAfterNever": "Aldrig",
     "unloadAfterCustom": "Anpassad…",
     "model": "Modell",
+    "postProcessModel": "Efterbearbetningsmodell",
     "quit": "Avsluta",
     "cancel": "Avbryt",
-    "secureInputWarning": "⚠ Kortkommandon blockeras av Secure Input"
+    "secureInputWarning": "⚠ Kortkommandon blockeras av Secure Input",
+    "postProcessPrompt": "Efterbearbetningsprompt"
   },
   "sidebar": {
     "general": "Allmänt",
@@ -220,6 +222,10 @@
           "transcribe_commands": {
             "name": "Kommandoläge",
             "description": "Håll ned denna tangent medan en dikteringsession är aktiv för att växla till kommandotolkning: allt du säger redigerar dikteringsbufferten direkt (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) och okända ord kastas bort. Släpp tangenten för att återgå till normal diktering; den slutliga inklistringen levererar exakt den redigerade bufferten. Startar aldrig en inspelning och gör inget på egen hand. Utan tangent som standard."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Växla efterbearbetningsprompt",
+            "description": "Valfritt: går vidare till nästa valda efterbearbetningsmall och bekräftar den nya mallen."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "Siffror",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Kompanionenheter",
+        "description": "Använd en telefon eller surfplatta på samma Wi-Fi som mikrofon och knapp för denna Mac.",
+        "offNote": "Av som standard. Inget lyssnar och inga trådar körs förrän du slår på det.",
+        "qrTitle": "Para en enhet",
+        "qrHint": "Skanna med telefonens kamera, öppna länken och acceptera certifikatvarningen en gång.",
+        "addressLabel": "Adress",
+        "portLabel": "Port",
+        "devicesLabel": "Anslutna enheter",
+        "noDevices": "Inga enheter anslutna än",
+        "resetPairing": "Återställ parkoppling",
+        "fingerprintLabel": "Certifikatfingeravtryck (SHA-256)",
+        "firewallNote": "macOS kan vid första aktiveringen fråga om inkommande anslutningar ska tillåtas. Tillåt, annars når telefoner inte den här Macen.",
+        "unavailable": "Kompanionenheter kräver macOS i den här cykeln.",
+        "serverError": "Servern misslyckades: {{error}}",
+        "refresh": "Uppdatera",
+        "statusRunning": "Kör",
+        "statusStopped": "Stoppad"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "Välj en modell som exponeras av den valda leverantören.",
           "placeholderWithOptions": "Sök eller välj en modell",
           "placeholderNoOptions": "Ange ett modellnamn",
-          "refreshModels": "Uppdatera modeller"
+          "refreshModels": "Uppdatera modeller",
+          "fetchFailed": "Misslyckades att hämta modellistan ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Modellistan hämtades {{time}}",
+          "retry": "Försök igen"
         },
         "timeout": {
           "title": "Tidsgräns för begäran",
-          "description": "Hur länge en efterbearbetningsbegäran i molnet får köras innan den ger upp och den råa transkriberingen används. Gäller när en slutpunkt slutar svara."
+          "description": "Hur länge den här leverantörens efterbearbetningsförfrågningar får köra innan de ger upp och den råa transkriptionen används. Återställ går tillbaka till leverantörens {{classDefault}}s-standard."
+        },
+        "testConnection": "Testa anslutningen",
+        "testConnectionRunning": "Testar...",
+        "verdict": {
+          "ok": "Autentisering OK, {{latencyMs}} ms, modellen nås",
+          "okNoModel": "Autentisering OK, {{latencyMs}} ms. Ingen modell vald att testa.",
+          "localReady": "Den lokala modellen är nedladdad och redo",
+          "localNotReady": "Den lokala modellen är inte redo: {{detail}}",
+          "appleReady": "Apple Intelligence är tillgänglig",
+          "appleUnavailable": "Apple Intelligence är inte tillgänglig på den här enheten",
+          "failed": "Anslutningen misslyckades: {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "Kan inte ta bort just nu: en efterbearbetning pågår. Försök igen om en stund.",
         "downloadFailed": "Nedladdningen misslyckades: {{error}}",
         "deleteFailed": "Kunde inte ta bort modellen: {{error}}",
-        "providerLabel": "Lokalt (på enheten)"
+        "providerLabel": "Lokalt (på enheten)",
+        "keepWarm": {
+          "title": "Håll den lokala modellen varm",
+          "description": "Hur länge den lokala efterbearbetningsmodellen finns kvar i minnet efter en putsning i stället för att stängas av direkt. En diktering tar alltid tillbaka minnet först.",
+          "off": "Av"
+        }
+      },
+      "models": {
+        "title": "Efterbearbetningsmodeller",
+        "description": "De lokala modeller som städar dina transkriptioner. Mindre modeller laddar snabbare, större putsar bättre.",
+        "searchPlaceholder": "Sök efterbearbetningsmodeller",
+        "downloaded": "Nedladdade",
+        "available": "Tillgängliga för nedladdning",
+        "active": "Aktiv",
+        "select": "Använd",
+        "contextTokens": "Kontext: {{count}} token",
+        "publisher": "av {{publisher}}",
+        "noMatch": "Inga efterbearbetningsmodeller matchar din sökning.",
+        "browseCatalog": "Bläddra bland fler modeller",
+        "addFromHf": {
+          "title": "Lägg till efterbearbetningsmodell från Hugging Face",
+          "description": "Klistra in en offentlig repo-URL eller owner/repo. GGUF-filer för språkmodeller (Qwen, Llama, Gemma, Phi) kan läggas till.",
+          "added": "Modellen lades till. Den syns under Nedladdade."
+        }
       },
       "prompts": {
         "title": "Prompt",
@@ -709,7 +771,85 @@
         "createPrompt": "Skapa prompt",
         "cancel": "Avbryt",
         "selectToEdit": "Välj en prompt ovan för att visa och redigera dess detaljer.",
-        "createFirst": "Klicka på 'Skapa ny prompt' ovan för att skapa din första prompt för efterbearbetning."
+        "createFirst": "Klicka på 'Skapa ny prompt' ovan för att skapa din första prompt för efterbearbetning.",
+        "registers": {
+          "professional": "Professionell",
+          "casual": "Ledig",
+          "technical": "Teknisk",
+          "minimal": "Minimal",
+          "general": "Allmän"
+        },
+        "builtinBadge": "Inbyggd",
+        "customBadge": "Egen",
+        "editedBadge": "Redigerad",
+        "versionLabel": "Version {{version}}",
+        "duplicate": "Duplicera",
+        "testOnLastTranscript": "Testa på min senaste transkription",
+        "testing": "Testar...",
+        "testNoHistory": "Det finns ingen transkriptionshistorik ännu. Spela in något först.",
+        "testPromptNotFound": "Denna mall finns inte längre.",
+        "testFailed": "Testet misslyckades: {{detail}}",
+        "testResultTitle": "Testresultat",
+        "testBefore": "Före",
+        "testAfter": "Efter",
+        "testOutcome": "Resultat: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Den råa transkriptionen skulle behållas.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Engelska (professionell)",
+            "description": "Snygg engelska för jobbet: fullständig rensning med polerad grammatik."
+          },
+          "english_casual": {
+            "name": "Engelska (ledig)",
+            "description": "Konversationsengelska som behåller förkortningar och slang."
+          },
+          "english_technical": {
+            "name": "Engelska (teknisk)",
+            "description": "Kodvänlig engelska: identifierare, sökvägar och kommandon lämnas ordagrant."
+          },
+          "english_minimal": {
+            "name": "Engelska (minimal)",
+            "description": "Endast skiljetecken och versaler rättas; varje ord blir kvar som det dikterades."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (devanagari)",
+            "description": "Rensning av hindi i devanagariskrift med purna viram-skiljetecken."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (romersk)",
+            "description": "Behåller den talda blandningen av hindi och engelska i romersk skrift."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Rensning av marathi i devanagariskrift."
+          },
+          "tamil": {
+            "name": "Tamil",
+            "description": "Rensning av tamil i tamilska skriften."
+          },
+          "spanish": {
+            "name": "Spanska",
+            "description": "Rensning av spanska med omvända fråge- och utropstecken."
+          },
+          "french": {
+            "name": "Franska",
+            "description": "Rensning av franska med franska mellanslag och citattecken."
+          },
+          "german": {
+            "name": "Tyska",
+            "description": "Rensning av tyska med stor begynnelsebokstav i substantiv."
+          },
+          "japanese": {
+            "name": "Japanska",
+            "description": "Rensning av japanska med japanska skiljetecken och kanji-rättningar."
+          },
+          "chinese_simplified": {
+            "name": "Kinesiska (förenklad)",
+            "description": "Rensning av förenklad kinesiska med rättningar av likalydande tecken."
+          }
+        },
+        "editPrompt": "Redigera"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "Lagring"
-      }
+      },
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Felsökning",
@@ -867,6 +1008,20 @@
         "permissionsButton": "Behörigheter",
         "modelsButton": "Modellval",
         "exitButton": "Avsluta förhandsvisning"
+      },
+      "ppRuns": {
+        "title": "Efterbearbetningskörningar",
+        "description": "De senaste poleringskörningarna: motor, prompt, latens och utfall. Kopiera en körnings loggrader för diagnos.",
+        "time": "Tid",
+        "engine": "Leverantör / modell",
+        "prompt": "Prompt",
+        "latency": "Latens",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Utfall",
+        "copyLog": "Kopiera denna körnings loggrader",
+        "copied": "Kopierade loggrader för körning {{run}}",
+        "empty": "Inga efterbearbetningskörningar än.",
+        "live": "pågår"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "Hämta och installera automatiskt"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "tillämpad",
+      "skipped": "hoppades över",
+      "failed": "misslyckades"
     }
   },
   "footer": {
@@ -1031,9 +1191,16 @@
       "undoNoBuffer": "Det finns inget att rensa än, dikteringen har ingen direkt text.",
       "bindingBusy": "En annan dikteringstangent spelar redan in.",
       "waylandTauriHotkeys": "Globala genvägar kanske inte fungerar i nativa Wayland-appar med den här tangentbordsimplementeringen. Byt tangentbordsimplementering till VoxBar Keys och lägg till din användare i gruppen input; se Ubuntu-guiden.",
-      "gnomeOverlayFallback": "På GNOME Wayland visas overlayet som ett vanligt fönster som kan stjäla fokus och förstöra inklistring. Overlay: Ingen rekommenderas här."
+      "gnomeOverlayFallback": "På GNOME Wayland visas overlayet som ett vanligt fönster som kan stjäla fokus och förstöra inklistring. Overlay: Ingen rekommenderas här.",
+      "postProcessOutputInvalid": "Poleringen returnerade oanvändbar text, den ursprungliga transkriptionen behölls.",
+      "postProcessCloudFailed": "Poleringen misslyckades, den ursprungliga transkriptionen behölls: {{detail}}",
+      "postProcessPromptCycled": "Efterbearbetningsmall: {{name}}",
+      "companionDisconnected": "Telefonen kopplades från. Slutför med det som spelades in.",
+      "companionServerFailed": "Kompanionservern misslyckades: {{error}}"
     },
-    "commandBadge": "Kommandoläge"
+    "commandBadge": "Kommandoläge",
+    "ppChip": "Polerar ({{model}}) {{seconds}}s",
+    "companionBadge": "Kompanionmikrofon"
   },
   "whatsNew": {
     "title": "Nytt i VoxBar v{{version}}"
@@ -1058,11 +1225,45 @@
       "lengthGuard": "Efterbearbetning hoppades över: den lokala modellens utdata klarade inte längdkontrollen. Den ursprungliga transkriptionen användes.",
       "tooLong": "Efterbearbetning hoppades över: denna transkription är för lång för den lokala modellen. Den ursprungliga transkriptionen användes."
     },
-    "settingNotSaved": "Den här inställningen kunde inte sparas: {{error}}"
+    "settingNotSaved": "Den här inställningen kunde inte sparas: {{error}}",
+    "postProcessFailure": {
+      "auth": "Polering misslyckades: leverantören avvisade API-nyckeln. Den ursprungliga transkriptionen klistrades in.",
+      "network": "Polering misslyckades: leverantören kunde inte nås. Den ursprungliga transkriptionen klistrades in.",
+      "timeout": "Polering misslyckades: leverantören tog för lång tid. Den ursprungliga transkriptionen klistrades in.",
+      "contextLength": "Polering misslyckades: transkriptionen överskrider modellens kontextfönster. Den ursprungliga transkriptionen klistrades in.",
+      "outputInvalid": "Polering misslyckades: modellen returnerade oanvändbar text. Den ursprungliga transkriptionen klistrades in.",
+      "oom": "Polering misslyckades: för lite minne. Den ursprungliga transkriptionen klistrades in.",
+      "cancelled": "Poleringen avbröts. Den ursprungliga transkriptionen klistrades in."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar kan inte installera uppdateringar från denna plats",
     "translocatedDescription": "VoxBar körs från en tillfällig skrivskyddad plats (macOS App Translocation). Avsluta VoxBar, dra den från mappen Nedladdningar till Programmappen och öppna den därifrån.",
     "commandNoSession": "Kommandotangenten fungerar bara under en aktiv diktering. Starta inspelningen först, håll sedan tangenten och säg kommandot."
+  },
+  "companion": {
+    "title": "VoxBar Kompanion",
+    "subtitle": "Din telefon är nu mikrofon och knapp för din Mac.",
+    "certNote": "Om webbläsaren varnar för anslutningen, jämför certifikatets fingeravtryck med det i VoxBars inställningar och acceptera en gång.",
+    "noToken": "Öppna den här sidan via QR-koden i VoxBars inställningar.",
+    "micDenied": "Mikrofonåtkomst nekades. Tillåt den i webbläsaren och ladda om.",
+    "badToken": "Parkopplingen misslyckades. Skanna QR-koden i VoxBars inställningar igen.",
+    "wrongSubnet": "Telefonen finns i ett annat nätverk än Macen. Anslut till samma Wi-Fi och para igen.",
+    "rateLimited": "För många parkopplingsförsök. Vänta en minut och försök igen.",
+    "busy": "Macen dikterar redan från en annan knapp.",
+    "disconnectedFinalized": "Anslutningen bröts. Macen sparade det du sa.",
+    "capped": "Sessionen begränsas till 15 minuter. Tryck igen för att fortsätta.",
+    "serverStopped": "Macen stoppade kompanionservern.",
+    "reconnect": "Anslut igen",
+    "holdToTalk": "Håll för att tala",
+    "tapToTalk": "Tryck för att tala",
+    "release": "Släpp för att sluta",
+    "tapToStop": "Tryck för att sluta",
+    "stateConnecting": "Ansluter",
+    "stateWaitMic": "Väntar på mikrofon",
+    "stateReady": "Redo",
+    "stateRecording": "Spelar in",
+    "stateDisconnected": "Frånkopplad",
+    "stateError": "Fel"
   }
 }

@@ -164,6 +164,8 @@ pub const SYNTHESIZED_EVENT_MARKER: i64 = 0x564F_5842_4152;
 /// [`HotkeyManager::with_single_modifier_hold`]). A lone modifier key must
 /// be held this long, with no other key event in between, before its
 /// hotkey activates; chord usage (Cmd+C and friends) releases far faster
-/// than this and can never trigger.
+/// than this and can never trigger. Individual hotkeys can carry their own
+/// window instead of this default via
+/// [`HotkeyManager::register_with_hold`].
 pub const SINGLE_MODIFIER_HOLD_THRESHOLD: std::time::Duration =
     std::time::Duration::from_millis(400);

@@ -14,7 +14,9 @@
 #    field enigo 0.6 exposes for exactly this purpose) re-entered the tap
 #    and could fire hotkeys, re-arming the transcription pipeline.
 # 3. HotkeyManager gained an opt-in hold-to-activate window for
-#    single-modifier hotkeys (see SINGLE_MODIFIER_HOLD_THRESHOLD).
+#    single-modifier hotkeys (see SINGLE_MODIFIER_HOLD_THRESHOLD), plus a
+#    per-binding variant (register_with_hold) so one hotkey can run a
+#    shorter window than the manager-wide default.
 #
 # Upstream these changes, then delete this directory and return to the
 # registry dependency.

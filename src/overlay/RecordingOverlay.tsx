@@ -16,6 +16,7 @@ import type {
   StreamTextEvent,
   StreamWorkKind,
 } from "@/bindings";
+import type { PostProcessRunEvent } from "@/bindings";
 import i18n, { syncLanguageFromSettings } from "@/i18n";
 import { getLanguageDirection } from "@/lib/utils/rtl";
 import {
@@ -83,6 +84,12 @@ function noticeMessage(
       return t("toast.postProcessSkip.lengthGuard");
     case "post_process_too_long":
       return t("toast.postProcessSkip.tooLong");
+    case "post_process_output_invalid":
+      return t("overlay.notice.postProcessOutputInvalid");
+    case "post_process_cloud_failed":
+      return t("overlay.notice.postProcessCloudFailed", {
+        detail: notice.detail ?? "",
+      });
     case "delete_last_word_no_session":
       return t("overlay.notice.deleteLastWordNoSession");
     case "delete_last_word_no_buffer":
@@ -93,13 +100,30 @@ function noticeMessage(
       return t("overlay.notice.undoNoBuffer");
     case "binding_busy":
       return t("overlay.notice.bindingBusy");
+    case "post_process_prompt_cycled":
+      return t("overlay.notice.postProcessPromptCycled", {
+        name: notice.detail ?? "",
+      });
     case "wayland_tauri_hotkeys":
       return t("overlay.notice.waylandTauriHotkeys");
     case "gnome_overlay_fallback":
       return t("overlay.notice.gnomeOverlayFallback");
+    case "companion_disconnected_finalized":
+      return t("overlay.notice.companionDisconnected");
+    case "companion_server_failed":
+      return t("overlay.notice.companionServerFailed", {
+        error: notice.detail ?? "",
+      });
     default:
       return t("overlay.notice.generic");
   }
+}
+
+// The display form of a post-process model id for the polishing chip: the
+// segment after the last '/' (matching the history row's short model chip).
+function shortModelLabel(id: string): string {
+  const tail = id.split("/").pop()?.trim();
+  return tail || id;
 }
 
 // Which tone a notice renders in. Red is reserved for failures; a
@@ -176,6 +200,17 @@ const RecordingOverlay: React.FC = () => {
   // engage/release (and clears it at session end), so the pill shows a subtle
   // CMD chip while speech edits the buffer instead of dictating text.
   const [cmdActive, setCmdActive] = useState(false);
+  // Companion-session indicator: a phone/tablet mic is the capture source
+  // (emitted at remote session start/stop beside the command-mode chip).
+  const [companionActive, setCompanionActive] = useState(false);
+  // A live post-process run (the pp: lifecycle's Requested phase), driving
+  // the "Polishing (model) 1.8s" label on the working row while the run is
+  // in flight; cleared at its Outcome phase and on overlay hide/reset.
+  const [ppRun, setPpRun] = useState<{
+    model: string;
+    startedAt: number;
+  } | null>(null);
+  const [ppElapsedMs, setPpElapsedMs] = useState(0);
 
   const smoothedLevelsRef = useRef<number[]>(Array(16).fill(0));
   // Live-text scroll-back: the text region "sticks" to the newest line while the
@@ -204,6 +239,8 @@ const RecordingOverlay: React.FC = () => {
           setRemovedText(null);
           setNotice(null);
           setCmdActive(false);
+          setCompanionActive(false);
+          setPpRun(null);
           if (noticeTimerRef.current !== null) {
             window.clearTimeout(noticeTimerRef.current);
             noticeTimerRef.current = null;
@@ -232,6 +269,9 @@ const RecordingOverlay: React.FC = () => {
         setIsVisible(false);
         setCaptureReady(false);
         setNotice(null);
+        setCmdActive(false);
+        setCompanionActive(false);
+        setPpRun(null);
         if (noticeTimerRef.current !== null) {
           window.clearTimeout(noticeTimerRef.current);
           noticeTimerRef.current = null;
@@ -297,6 +337,33 @@ const RecordingOverlay: React.FC = () => {
         },
       );
 
+      // A companion device (phone mic) drives this session; the backend
+      // emits at remote session start/stop so the badge never outlives it.
+      const unlistenCompanion = await listen<{ active?: boolean }>(
+        "companion-session-changed",
+        (event) => {
+          setCompanionActive(Boolean(event.payload?.active));
+        },
+      );
+
+      // The pp: lifecycle: Requested arms the polishing chip (model + start
+      // instant); Outcome (applied | skipped | failed) clears it so the
+      // label never outlives the run.
+      const unlistenPpRun = await events.postProcessRunEvent.listen(
+        (event: { payload: PostProcessRunEvent }) => {
+          const { phase, payload } = event.payload;
+          if (phase === "requested") {
+            setPpRun({
+              model: payload.model ?? "",
+              startedAt: Date.now(),
+            });
+            setPpElapsedMs(0);
+          } else if (phase === "outcome") {
+            setPpRun(null);
+          }
+        },
+      );
+
       // Follow settings changes live: a language or overlay-position switch
       // in the settings window lands here immediately (and refreshes the
       // boot cache) instead of waiting for the next hotkey press.
@@ -320,6 +387,8 @@ const RecordingOverlay: React.FC = () => {
         unlistenPhase();
         unlistenNotice();
         unlistenCmd();
+        unlistenCompanion();
+        unlistenPpRun();
         unlistenSettings();
         // Never leave the removal chip's timer running past unmount.
         if (removedTimerRef.current !== null) {
@@ -342,6 +411,16 @@ const RecordingOverlay: React.FC = () => {
     const id = setInterval(() => setElapsed((e) => e + 1), 1000);
     return () => clearInterval(id);
   }, [state, isVisible, captureReady]);
+
+  // The polishing chip's 100 ms elapsed ticker: only while a run is live.
+  useEffect(() => {
+    if (!ppRun) return;
+    const id = setInterval(
+      () => setPpElapsedMs(Date.now() - ppRun.startedAt),
+      100,
+    );
+    return () => clearInterval(id);
+  }, [ppRun]);
 
   // Stick to the bottom as text streams in - but only while pinned, so a user who
   // has scrolled up to read history isn't yanked back down by the next chunk.
@@ -411,6 +490,16 @@ const RecordingOverlay: React.FC = () => {
         {cmdActive && (
           <span className="scmd" aria-label={t("overlay.commandBadge")}>
             CMD
+          </span>
+        )}
+        {companionActive && (
+          <span className="scmd scomp" aria-label={t("overlay.companionBadge")}>
+            <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+              <path
+                d="M3 2 C2.45 2 2 2.45 2 3 L2 13 C2 13.55 2.45 14 3 14 L6 14 C6.55 14 7 13.55 7 13 L7 3 C7 2.45 6.55 2 6 2 Z M11 2 C10.45 2 10 2.45 10 3 L10 13 C10 13.55 10.45 14 11 14 L13 14 C13.55 14 14 13.55 14 13 L14 3 C14 2.45 13.55 2 13 2 Z"
+                fill="currentColor"
+              />
+            </svg>
           </span>
         )}
       </div>
@@ -495,7 +584,12 @@ const RecordingOverlay: React.FC = () => {
           {working
             ? workingRow(
                 workKind === "polishing"
-                  ? t("overlay.processing")
+                  ? ppRun
+                    ? t("overlay.ppChip", {
+                        model: shortModelLabel(ppRun.model),
+                        seconds: (ppElapsedMs / 1000).toFixed(1),
+                      })
+                    : t("overlay.processing")
                   : t("overlay.transcribing"),
                 true,
               )
@@ -514,7 +608,12 @@ const RecordingOverlay: React.FC = () => {
   const working = state === "transcribing" || state === "processing";
   const workLabel =
     state === "processing"
-      ? t("overlay.processing")
+      ? ppRun
+        ? t("overlay.ppChip", {
+            model: shortModelLabel(ppRun.model),
+            seconds: (ppElapsedMs / 1000).toFixed(1),
+          })
+        : t("overlay.processing")
       : t("overlay.transcribing");
 
   return (

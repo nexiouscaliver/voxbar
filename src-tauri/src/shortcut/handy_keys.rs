@@ -24,12 +24,31 @@
 //! ## Hold-to-activate
 //!
 //! A binding that is exactly one modifier key (no main key) activates
-//! only after that modifier has been held ~400ms with no other key event
-//! in between; chord usage (Cmd+C and friends) releases far faster and
-//! can never trigger, and any other key during the window cancels the
-//! pending activation. Combos (`ctrl_left+fn`, `option+space`) fire on
-//! the press as before. This applies on every platform (the arbitration
-//! lives in the platform-agnostic manager).
+//! only after that modifier has been held with no other key event in
+//! between; chord usage (Cmd+C and friends) releases far faster and can
+//! never trigger, and any other key during the window cancels the pending
+//! activation. Combos (`ctrl_left+fn`, `option+space`) fire on the press
+//! as before. This applies on every platform (the arbitration lives in
+//! the platform-agnostic manager).
+//!
+//! The window is PER BINDING: every lone-modifier binding waits out the
+//! vendored manager's default (400 ms) except the command-mode binding,
+//! which waits only [`COMMAND_MODE_HOLD_THRESHOLD`] (150 ms). Command
+//! mode is the one lone key the operator holds on purpose while a
+//! dictation is live: at 400 ms the pending activation was routinely
+//! cancelled by the next keystroke and read as dead. 150 ms still outruns
+//! a deliberate Cmd+letter chord (the letter lands well inside the
+//! window, cancelling the activation), and cancel-on-any-other-key is
+//! kept, so accidental chords never fire it.
+//!
+//! Engagement is visible the moment the gate fires, before any ASR
+//! snapshot arrives: the hold elapses in the vendored manager, which
+//! emits the hotkey `Pressed` event; this thread dispatches it through
+//! `handle_shortcut_event` into
+//! `TranscriptionCoordinator::send_command_modifier`; the coordinator
+//! enqueues and immediately emits `command-modifier-changed`, which the
+//! overlay's command-mode badge renders. No step of that chain waits for
+//! engine audio or text.
 //!
 //! ## Architecture
 //!
@@ -75,6 +94,10 @@ enum ManagerCommand {
     Register {
         binding_id: String,
         hotkey_string: String,
+        /// Per-binding single-modifier hold window (see
+        /// [`single_modifier_hold_for_binding`]); `None` registers under
+        /// the vendored manager's default policy.
+        hold: Option<std::time::Duration>,
         response: Sender<Result<(), String>>,
     },
     Unregister {
@@ -119,6 +142,41 @@ pub struct FrontendKeyEvent {
 /// wedged or starved, which must surface as an init failure rather than a
 /// hotkey-dead app whose only trace is a log line.
 const MANAGER_STARTUP_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// Hold-to-activate window for the command-mode binding
+/// (`transcribe_commands`) when it is bound to a lone modifier key (for
+/// example `command_left`).
+///
+/// This is a fixed constant in the control flow, not a setting: the value
+/// exists to make one specific gesture (hold left command during live
+/// dictation) feel immediate while chord users stay protected. The
+/// vendored manager's 400 ms default exists so chord usage of a bound
+/// modifier releases before the window elapses; 400 ms on the one key the
+/// operator holds DELIBERATELY during dictation read as dead, and any
+/// keystroke inside the window cancelled the pending activation, so the
+/// badge never lit. 150 ms engages visibly fast and still outruns a
+/// deliberate Cmd+letter chord: the chord's key press lands well inside
+/// the window and cancels the activation (see
+/// `short_window_other_key_event_cancels_pending_hold` in the vendored
+/// tests). Cancel-on-any-other-key is kept for exactly that reason.
+pub(crate) const COMMAND_MODE_HOLD_THRESHOLD: std::time::Duration =
+    std::time::Duration::from_millis(150);
+
+/// The single-modifier hold window a binding registers with: `Some` stamps
+/// the binding with its own window (overriding the vendored manager's
+/// 400 ms default), `None` keeps the manager-wide default. Pure over the
+/// binding id, so the per-binding table is unit-testable on any host.
+///
+/// Only the command-mode binding carries its own window today. The
+/// mapping is applied at every registration site (init, `change_binding`,
+/// toggle flips, suspend/resume) because they all funnel through
+/// [`HandyKeysState::register`].
+fn single_modifier_hold_for_binding(binding_id: &str) -> Option<std::time::Duration> {
+    match binding_id {
+        "transcribe_commands" => Some(COMMAND_MODE_HOLD_THRESHOLD),
+        _ => None,
+    }
+}
 
 impl HandyKeysState {
     /// Create a new HandyKeysState
@@ -196,10 +254,13 @@ impl HandyKeysState {
             }
         }
         // A single-modifier binding (e.g. command_right) is also the lead
-        // key of every chord, so it only activates after a deliberate
-        // ~400ms hold with no other key in between; combos like
-        // ctrl_left+fn keep firing on the press. See the vendored crate's
-        // manager for the arbitration rules.
+        // key of every chord, so it only activates after a deliberate hold
+        // with no other key in between; combos like ctrl_left+fn keep
+        // firing on the press. This sets the manager-wide DEFAULT window
+        // (400 ms); the command-mode binding registers with its own
+        // shorter window via register_with_hold (see
+        // COMMAND_MODE_HOLD_THRESHOLD). See the vendored crate's manager
+        // for the arbitration rules.
         .with_single_modifier_hold(handy_keys::SINGLE_MODIFIER_HOLD_THRESHOLD);
 
         // Maps binding IDs to HotkeyIds and hotkey strings
@@ -225,6 +286,7 @@ impl HandyKeysState {
                     ManagerCommand::Register {
                         binding_id,
                         hotkey_string,
+                        hold,
                         response,
                     } => {
                         let result = Self::do_register(
@@ -233,6 +295,7 @@ impl HandyKeysState {
                             &mut hotkey_to_binding,
                             &binding_id,
                             &hotkey_string,
+                            hold,
                         );
                         let _ = response.send(result);
                     }
@@ -266,20 +329,23 @@ impl HandyKeysState {
         info!("handy-keys manager thread stopped");
     }
 
-    /// Register a hotkey
+    /// Register a hotkey. `hold` is the binding's single-modifier hold
+    /// window (see [`single_modifier_hold_for_binding`]); `None` keeps the
+    /// vendored manager's default policy.
     fn do_register(
         manager: &HotkeyManager,
         binding_to_hotkey: &mut HashMap<String, HotkeyId>,
         hotkey_to_binding: &mut HashMap<HotkeyId, (String, String)>,
         binding_id: &str,
         hotkey_string: &str,
+        hold: Option<std::time::Duration>,
     ) -> Result<(), String> {
         let hotkey: Hotkey = hotkey_string
             .parse()
             .map_err(|e| format!("Failed to parse hotkey '{}': {}", hotkey_string, e))?;
 
         let id = manager
-            .register(hotkey)
+            .register_with_hold(hotkey, hold)
             .map_err(|e| format!("Failed to register hotkey: {}", e))?;
 
         binding_to_hotkey.insert(binding_id.to_string(), id);
@@ -309,7 +375,10 @@ impl HandyKeysState {
         Ok(())
     }
 
-    /// Register a shortcut binding
+    /// Register a shortcut binding. The binding's single-modifier hold
+    /// window rides along (see [`single_modifier_hold_for_binding`]), so
+    /// every registration path (init, change_binding, toggle flips,
+    /// suspend/resume) applies the same per-binding window.
     pub fn register(&self, binding: &ShortcutBinding) -> Result<(), String> {
         let (tx, rx) = mpsc::channel();
         self.command_sender
@@ -318,6 +387,7 @@ impl HandyKeysState {
             .send(ManagerCommand::Register {
                 binding_id: binding.id.clone(),
                 hotkey_string: binding.current_binding.clone(),
+                hold: single_modifier_hold_for_binding(&binding.id),
                 response: tx,
             })
             .map_err(|_| "Failed to send register command")?;
@@ -752,6 +822,7 @@ mod tests {
     use super::HandyKeysState;
     use super::MANAGER_STARTUP_TIMEOUT;
     use super::{aggregate_registration_failures, cancel_reconcile_enabled};
+    use super::{single_modifier_hold_for_binding, COMMAND_MODE_HOLD_THRESHOLD};
     use crate::settings::KeyboardImplementation;
 
     // ------------------------------------------------------------------
@@ -863,5 +934,60 @@ mod tests {
             false,
             KeyboardImplementation::HandyKeys
         ));
+    }
+
+    // ------------------------------------------------------------------
+    // Per-binding single-modifier hold windows
+    // ------------------------------------------------------------------
+
+    /// Command mode is the one binding the operator holds on purpose
+    /// during live dictation, so it must not inherit the sluggish
+    /// manager-wide window.
+    #[test]
+    fn command_mode_binding_gets_the_short_hold_window() {
+        assert_eq!(
+            single_modifier_hold_for_binding("transcribe_commands"),
+            Some(COMMAND_MODE_HOLD_THRESHOLD)
+        );
+    }
+
+    /// The window must be a named constant, short enough to read as
+    /// responsive, and strictly below the manager-wide default it
+    /// overrides.
+    #[test]
+    fn command_mode_window_is_shorter_than_the_global_default() {
+        assert!(
+            COMMAND_MODE_HOLD_THRESHOLD < handy_keys::SINGLE_MODIFIER_HOLD_THRESHOLD,
+            "the per-binding window must undercut the 400 ms default"
+        );
+        assert!(
+            COMMAND_MODE_HOLD_THRESHOLD.as_millis() <= 200,
+            "anything slower than ~200 ms reads as dead during dictation"
+        );
+        assert!(
+            COMMAND_MODE_HOLD_THRESHOLD.as_millis() >= 100,
+            "much faster than ~100 ms and accidental chord prefixes would fire it"
+        );
+    }
+
+    /// Every other binding keeps the manager-wide window: the override is
+    /// per binding, not a global retune.
+    #[test]
+    fn other_bindings_keep_the_manager_wide_hold_window() {
+        for id in [
+            "transcribe",
+            "transcribe_with_post_process",
+            "transcribe_companion",
+            "undo",
+            "delete_last_word",
+            "cancel",
+            "cycle_post_process_prompt",
+        ] {
+            assert_eq!(
+                single_modifier_hold_for_binding(id),
+                None,
+                "'{id}' must fall back to the manager-wide window"
+            );
+        }
     }
 }

@@ -2,7 +2,7 @@
 use crate::apple_intelligence;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error, VadPolicy};
-use crate::managers::audio::AudioRecordingManager;
+use crate::managers::audio::{AudioRecordingManager, CaptureSource};
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::{StreamTextEvent, StreamWorkKind, TranscriptionManager};
@@ -70,48 +70,43 @@ pub trait ShortcutAction: Send + Sync {
 // Transcribe Action
 struct TranscribeAction {
     post_process: bool,
+    /// Where this binding's audio comes from: the local cpal microphone, or
+    /// a companion device pushing over the LAN. Everything else about the
+    /// session (model gate, tray, overlay, streaming, chime, transcription,
+    /// post-process, paste) is shared verbatim for both sources.
+    source: CaptureSource,
 }
 
 /// Pure routing table from a transcribe binding id to its
-/// [`TranscribeAction`] configuration: `post_process`.
+/// [`TranscribeAction`] configuration: `post_process` and the capture
+/// source.
 ///
 /// Extracted from the ACTION_MAP literals so a test can pin the safety
 /// property the operator relies on: only the dictation bindings
-/// ("transcribe", "transcribe_with_post_process") route here. The
-/// command-mode binding ("transcribe_commands") is NOT a recording action
-/// at all - it is a during-dictation modifier routed to the coordinator's
-/// `send_command_modifier`, so no binding id can ever start a command
-/// capture recording.
-fn transcribe_action_config(binding_id: &str) -> Option<bool> {
+/// ("transcribe", "transcribe_with_post_process", "transcribe_companion")
+/// route here. The command-mode binding ("transcribe_commands") is NOT a
+/// recording action at all - it is a during-dictation modifier routed to
+/// the coordinator's `send_command_modifier`, so no binding id can ever
+/// start a command capture recording.
+fn transcribe_action_config(binding_id: &str) -> Option<(bool, CaptureSource)> {
     match binding_id {
-        "transcribe" => Some(false),
-        "transcribe_with_post_process" => Some(true),
+        "transcribe" => Some((false, CaptureSource::Local)),
+        "transcribe_with_post_process" => Some((true, CaptureSource::Local)),
+        "transcribe_companion" => Some((false, CaptureSource::Remote)),
         _ => None,
     }
 }
 
-/// Field name for structured output JSON schema. Shared with the local
-/// post-process engine, whose worker output is parsed against the same
-/// schema.
-pub(crate) const TRANSCRIPTION_FIELD: &str = "transcription";
-
-/// Strip invisible Unicode characters that some LLMs may insert
-pub(crate) fn strip_invisible_chars(s: &str) -> String {
-    s.replace(['\u{200B}', '\u{200C}', '\u{200D}', '\u{FEFF}'], "")
-}
-
-/// Strip a leading `<think>...</think>` block. Some endpoints can't disable
-/// reasoning, and some local servers put the reasoning text into `content`
-/// instead of a separate field - without this the user would get the model's
-/// chain of thought pasted along with the cleaned transcription.
-pub(crate) fn strip_think_block(s: &str) -> &str {
-    if let Some(rest) = s.trim_start().strip_prefix("<think>") {
-        if let Some(end) = rest.find("</think>") {
-            return rest[end + "</think>".len()..].trim_start();
-        }
-    }
-    s
-}
+// THE shared output validator lives in post_process_runs.rs (pure,
+// colocated with the lifecycle that reports its failures) and is re-exported
+// here: every engine's success path (cloud structured, cloud legacy, Apple
+// Intelligence, the local swap runner) validates through the one function,
+// so local and cloud enforce identical rules (empty, length ratio both
+// ways, language sanity).
+pub(crate) use crate::post_process_runs::{
+    strip_invisible_chars, strip_think_block, validate_post_process_output, PostProcessOutputMode,
+    TRANSCRIPTION_FIELD,
+};
 
 /// Build a system prompt from the user's prompt template.
 /// Removes `${output}` placeholder since the transcription is sent as the user message.
@@ -217,9 +212,11 @@ pub(crate) fn uses_local_engine(provider_id: &str) -> bool {
     provider_id == crate::settings::LOCAL_LLM_PROVIDER_ID
 }
 
-/// The local branch's availability decision (T28): the pinned model must
-/// be downloaded before the engine can run; when it is not, the branch
-/// skips with the download_missing reason and the raw transcript is used.
+/// The local branch's availability decision (T28): the SELECTED model
+/// (what the swap runner loads; the pinned builtin when no other model is
+/// selected) must be downloaded before the engine can run; when it is not,
+/// the branch skips with the download_missing reason and the raw transcript
+/// is used.
 pub(crate) fn local_engine_availability(
     model_downloaded: bool,
 ) -> Option<(crate::local_llm::SkipReason, Option<String>)> {
@@ -250,22 +247,265 @@ pub(crate) fn post_process_output_schema() -> serde_json::Value {
     })
 }
 
+/// The result of one post-process attempt: the processed text (None means
+/// the raw transcript must be used) plus the run summary for history.
+#[derive(Default)]
+pub(crate) struct PostProcessAttempt {
+    pub text: Option<String>,
+    pub summary: Option<crate::post_process_runs::PostProcessRunSummary>,
+}
+
+/// The injectable seam for cloud completions: production binds llm_client;
+/// tests bind canned responses so the full requested->engine->generation->
+/// outcome lifecycle (and its failure classes) is pinnable without a
+/// network, a provider, or a Tauri app. Failures are the structured
+/// [`PostProcessError`] (class + detail + retry count); success carries the
+/// endpoint's content plus how many bounded network retries it took (the
+/// pp: generation phase reports the total).
+pub(crate) type CloudSendResult =
+    Result<crate::llm_client::PostProcessCompletion, crate::llm_client::PostProcessError>;
+
+pub(crate) trait CloudCompletionSeam: Send {
+    fn send(
+        &mut self,
+        user_content: String,
+        system_prompt: Option<String>,
+        json_schema: Option<serde_json::Value>,
+    ) -> std::pin::Pin<Box<dyn Future<Output = CloudSendResult> + Send + '_>>;
+}
+
+/// The production seam: one `send` per attempt, carrying everything the
+/// provider needs (the legacy prompt shape is the schema-less call). The
+/// stop path's cancellation closure rides along so llm_client's bounded
+/// network retry never re-sends a request the dictation outlived.
+struct LlmClientSeam {
+    provider: crate::settings::PostProcessProvider,
+    api_key: String,
+    model: String,
+    disable_reasoning: bool,
+    timeout_secs: u64,
+    is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+}
+
+impl CloudCompletionSeam for LlmClientSeam {
+    fn send(
+        &mut self,
+        user_content: String,
+        system_prompt: Option<String>,
+        json_schema: Option<serde_json::Value>,
+    ) -> std::pin::Pin<Box<dyn Future<Output = CloudSendResult> + Send + '_>> {
+        let provider = self.provider.clone();
+        let api_key = self.api_key.clone();
+        let model = self.model.clone();
+        let disable_reasoning = self.disable_reasoning;
+        let timeout_secs = self.timeout_secs;
+        let is_cancelled = self.is_cancelled.clone();
+        Box::pin(async move {
+            crate::llm_client::send_chat_completion_with_schema(
+                &provider,
+                api_key,
+                &model,
+                user_content,
+                system_prompt,
+                json_schema,
+                disable_reasoning,
+                timeout_secs,
+                is_cancelled
+                    .as_ref()
+                    .map(|closure| closure.as_ref() as &(dyn Fn() -> bool + Send + Sync)),
+            )
+            .await
+        })
+    }
+}
+
+/// The cloud/Apple lifecycle after the `requested` phase was already
+/// emitted by the caller: engine phase (placeholders; no local swap), one
+/// structured attempt with a legacy retry, validation on every success,
+/// classified outcome on every failure. Returns the processed text or None
+/// (the raw transcript always wins on failure). The generation phase's
+/// retry count totals the transport retries (llm_client's bounded
+/// network-only wrapper) plus the structured-to-legacy fallback.
+async fn run_cloud_lifecycle(
+    app: Option<&AppHandle>,
+    seam: &mut dyn CloudCompletionSeam,
+    run_id: u64,
+    transcript: &str,
+    system_prompt: Option<String>,
+    structured_supported: bool,
+    legacy_prompt: String,
+    template_language: Option<&str>,
+    notify: impl Fn(crate::managers::transcription::NoticeCode, Option<String>),
+) -> Option<String> {
+    use crate::llm_client::PostProcessCompletion;
+    use crate::llm_client::PostProcessFailureClass;
+    use crate::post_process_runs::{runs, PostProcessOutcome};
+    // Engine phase: cloud engines have no model load, no cache, no swap.
+    runs().engine_phase(app, run_id, None, None);
+
+    let generation_started = Instant::now();
+    let mut retries: u32 = 0;
+
+    // The terminal report shared by every arm below: one generation line
+    // (ms + total retries) and one outcome line.
+    macro_rules! conclude_generation {
+        ($outcome:expr) => {{
+            let ms = generation_started.elapsed().as_millis() as u64;
+            runs().generation_phase(app, run_id, Some(ms), Some(retries));
+            runs().finish(app, run_id, $outcome, None);
+        }};
+    }
+
+    // A success carries content plus its transport retries; validation
+    // decides whether the content pastes. Shared by both attempt shapes.
+    macro_rules! handle_completion {
+        ($completion:expr, $mode:expr) => {{
+            let completion: PostProcessCompletion = $completion;
+            retries += completion.transport_retries;
+            match completion.content {
+                Some(content) => {
+                    // THE shared validator: nothing reaches the paste
+                    // without passing it. A validation failure falls back
+                    // to the raw transcript and says so through the notice
+                    // channel.
+                    return match validate_post_process_output(
+                        transcript,
+                        &content,
+                        $mode,
+                        template_language,
+                    ) {
+                        Ok(result) => {
+                            let ms =
+                                generation_started.elapsed().as_millis() as u64;
+                            runs().generation_phase(app, run_id, Some(ms), Some(retries));
+                            runs().finish(
+                                app,
+                                run_id,
+                                PostProcessOutcome::Applied,
+                                Some(result.chars().count() as u64),
+                            );
+                            debug!(
+                                "Post-processing succeeded. Output length: {} chars",
+                                result.len()
+                            );
+                            Some(result)
+                        }
+                        Err(failure) => {
+                            let ms =
+                                generation_started.elapsed().as_millis() as u64;
+                            runs().generation_phase(app, run_id, Some(ms), Some(retries));
+                            runs().finish(
+                                app,
+                                run_id,
+                                PostProcessOutcome::Failed {
+                                    class: PostProcessFailureClass::OutputInvalid,
+                                },
+                                None,
+                            );
+                            warn!(
+                                "Post-process output failed validation: {}. Using the raw transcript.",
+                                failure.detail
+                            );
+                            notify(
+                                crate::managers::transcription::NoticeCode::PostProcessOutputInvalid,
+                                Some(failure.detail.clone()),
+                            );
+                            None
+                        }
+                    };
+                }
+                None => {
+                    warn!("Post-process failed: the API response had no content");
+                    notify(
+                        crate::managers::transcription::NoticeCode::PostProcessCloudFailed,
+                        Some("the API response had no content".to_string()),
+                    );
+                    conclude_generation!(PostProcessOutcome::Failed {
+                        class: PostProcessFailureClass::OutputInvalid,
+                    });
+                    return None;
+                }
+            }
+        }};
+    }
+
+    // ---- Structured attempt (when the provider supports it) ----
+    if structured_supported {
+        let json_schema = post_process_output_schema();
+        match seam
+            .send(
+                transcript.to_string(),
+                system_prompt.clone(),
+                Some(json_schema),
+            )
+            .await
+        {
+            Ok(completion) => {
+                handle_completion!(completion, PostProcessOutputMode::StructuredJson);
+            }
+            Err(e) => {
+                // A cancelled dictation never falls back to a second
+                // request shape: the user is done waiting.
+                if e.class == PostProcessFailureClass::Cancelled {
+                    retries += e.retries;
+                    warn!("Post-process cancelled mid-request: {e}");
+                    conclude_generation!(PostProcessOutcome::Failed {
+                        class: PostProcessFailureClass::Cancelled,
+                    });
+                    return None;
+                }
+                // Every other failure falls through to the legacy attempt;
+                // the fallback counts as one retry (today's behavior, now
+                // visible in the record alongside the transport retries).
+                retries += 1 + e.retries;
+                warn!(
+                    "Structured output failed: {}. Falling back to legacy mode.",
+                    e
+                );
+            }
+        }
+    }
+
+    // ---- Legacy attempt (the retry, or the only mode) ----
+    debug!("Processed prompt length: {} chars", legacy_prompt.len());
+    match seam.send(legacy_prompt, None, None).await {
+        Ok(completion) => {
+            handle_completion!(completion, PostProcessOutputMode::FreeText);
+        }
+        Err(e) => {
+            retries += e.retries;
+            conclude_generation!(PostProcessOutcome::Failed { class: e.class });
+            warn!(
+                "LLM post-processing failed ({}): {}. Using the raw transcript.",
+                crate::post_process_runs::failure_class_str(e.class),
+                e.detail
+            );
+            notify(
+                crate::managers::transcription::NoticeCode::PostProcessCloudFailed,
+                Some(e.detail),
+            );
+            None
+        }
+    }
+}
+
 async fn post_process_transcription(
     app: &AppHandle,
     settings: &AppSettings,
+    binding: &str,
     transcription: &str,
     is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
-) -> Option<String> {
+) -> PostProcessAttempt {
     if is_blank_transcription(transcription) {
         debug!("Post-processing skipped because the transcription is empty");
-        return None;
+        return PostProcessAttempt::default();
     }
 
     let provider = match settings.active_post_process_provider().cloned() {
         Some(provider) => provider,
         None => {
             debug!("Post-processing enabled but no provider is selected");
-            return None;
+            return PostProcessAttempt::default();
         }
     };
 
@@ -280,36 +520,119 @@ async fn post_process_transcription(
             "Post-processing skipped because provider '{}' has no model configured",
             provider.id
         );
-        return None;
+        return PostProcessAttempt::default();
     }
 
     let selected_prompt_id = match &settings.post_process_selected_prompt_id {
         Some(id) => id.clone(),
         None => {
             debug!("Post-processing skipped because no prompt is selected");
-            return None;
+            return PostProcessAttempt::default();
         }
     };
 
-    let prompt = match settings
+    let prompt_entry = match settings
         .post_process_prompts
         .iter()
         .find(|prompt| prompt.id == selected_prompt_id)
     {
-        Some(prompt) => prompt.prompt.clone(),
+        Some(prompt) => prompt.clone(),
         None => {
             debug!(
                 "Post-processing skipped because prompt '{}' was not found",
                 selected_prompt_id
             );
-            return None;
+            return PostProcessAttempt::default();
         }
     };
 
-    if prompt.trim().is_empty() {
-        debug!("Post-processing skipped because the selected prompt is empty");
-        return None;
+    post_process_with_prompt(
+        Some(app),
+        settings,
+        binding,
+        transcription,
+        &prompt_entry,
+        is_cancelled,
+    )
+    .await
+}
+
+/// Run ONE resolved template through the engine lifecycle. Shared by the
+/// dictation path above (the selected template) and the per-template
+/// "test on my last transcript" command, so the pp: lifecycle records both
+/// identically. `app` is optional: the engines that need app state (the
+/// local swap, Apple Intelligence) record an engine skip without it, which
+/// is what the unit tests exercise; the cloud path runs fine without one.
+///
+/// Never pastes and never writes history: those live in the callers.
+async fn post_process_with_prompt(
+    app: Option<&AppHandle>,
+    settings: &AppSettings,
+    binding: &str,
+    transcription: &str,
+    prompt_entry: &crate::settings::LLMPrompt,
+    is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+) -> PostProcessAttempt {
+    if is_blank_transcription(transcription) {
+        debug!("Post-processing skipped because the transcription is empty");
+        return PostProcessAttempt::default();
     }
+
+    let provider = match settings.active_post_process_provider().cloned() {
+        Some(provider) => provider,
+        None => {
+            debug!("Post-processing enabled but no provider is selected");
+            return PostProcessAttempt::default();
+        }
+    };
+
+    let model = settings
+        .post_process_models
+        .get(&provider.id)
+        .cloned()
+        .unwrap_or_default();
+
+    if model.trim().is_empty() {
+        debug!(
+            "Post-processing skipped because provider '{}' has no model configured",
+            provider.id
+        );
+        return PostProcessAttempt::default();
+    }
+
+    if prompt_entry.prompt.trim().is_empty() {
+        debug!("Post-processing skipped because the selected prompt is empty");
+        return PostProcessAttempt::default();
+    }
+
+    // The lifecycle starts here: a resolvable request (provider, model,
+    // prompt) exists, so the run gets its id, its requested line, and its
+    // record. The config-level guards above are pre-run states, not runs.
+    let engine_kind = if uses_local_engine(&provider.id) {
+        crate::post_process_runs::PostProcessEngineKind::Local
+    } else if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
+        crate::post_process_runs::PostProcessEngineKind::AppleIntelligence
+    } else {
+        crate::post_process_runs::PostProcessEngineKind::Cloud
+    };
+    let run_id = crate::post_process_runs::runs().begin(
+        app,
+        crate::post_process_runs::RunRequestMeta {
+            binding: binding.to_string(),
+            engine: engine_kind,
+            provider_id: provider.id.clone(),
+            model: model.clone(),
+            prompt_id: Some(prompt_entry.id.clone()),
+            prompt_name: Some(prompt_entry.name.clone()),
+            // The template library's version and language tokens: stamped
+            // into every run record so the Debug table can tell a user
+            // edit of a template from its seeded original.
+            prompt_version: Some(prompt_entry.version.to_string()),
+            template_language: Some(prompt_entry.language.clone()),
+            chars_in: transcription.chars().count() as u64,
+        },
+    );
+    let summarize = |run_id: u64| build_run_summary(run_id, &provider.id, &model, &prompt_entry.id);
 
     debug!(
         "Starting LLM post-processing with provider '{}' (model: {})",
@@ -327,210 +650,430 @@ async fn post_process_transcription(
     // field the endpoint understands and retries without it if rejected.
     let disable_reasoning = matches!(provider.id.as_str(), "custom" | "openrouter");
 
-    if provider.supports_structured_output {
-        debug!("Using structured outputs for provider '{}'", provider.id);
-
-        let system_prompt = build_system_prompt(&prompt);
-        let user_content = transcription.to_string();
-
-        // Handle Apple Intelligence separately since it uses native Swift APIs
-        if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
-            #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-            {
-                if !apple_intelligence::check_apple_intelligence_availability() {
-                    debug!(
-                        "Apple Intelligence selected but not currently available on this device"
-                    );
-                    return None;
-                }
-
-                let token_limit = model.trim().parse::<i32>().unwrap_or(0);
-                return match apple_intelligence::process_text_with_system_prompt(
-                    &system_prompt,
-                    &user_content,
-                    token_limit,
-                ) {
-                    Ok(result) => {
-                        if result.trim().is_empty() {
-                            debug!("Apple Intelligence returned an empty response");
-                            None
-                        } else {
-                            let result = strip_invisible_chars(&result);
-                            debug!(
-                                "Apple Intelligence post-processing succeeded. Output length: {} chars",
-                                result.len()
-                            );
-                            Some(result)
-                        }
-                    }
-                    Err(err) => {
-                        error!("Apple Intelligence post-processing failed: {}", err);
-                        None
-                    }
-                };
+    let attempt = if uses_local_engine(&provider.id) {
+        match app {
+            Some(app) => {
+                run_local_lifecycle(
+                    app,
+                    run_id,
+                    settings,
+                    transcription,
+                    &prompt_entry.prompt,
+                    &prompt_entry.language,
+                    is_cancelled,
+                )
+                .await
             }
-
-            #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-            {
-                debug!("Apple Intelligence provider selected on unsupported platform");
-                return None;
+            None => {
+                debug!("Local post-process engine needs an app handle; skipping");
+                crate::post_process_runs::runs().finish(
+                    None,
+                    run_id,
+                    crate::post_process_runs::PostProcessOutcome::Skipped {
+                        reason: crate::local_llm::SkipReason::EngineFailed,
+                    },
+                    None,
+                );
+                None
             }
         }
-
-        // The local on-device engine: the same branch shape as Apple
-        // Intelligence (availability check, then the engine), but through
-        // the exclusive swap: voice out (waited), LLM in, generate, LLM
-        // out (waited), voice restore. Every failure returns None so the
-        // raw transcript is pasted; skip events were already emitted by
-        // the swap runner.
-        if uses_local_engine(&provider.id) {
-            let downloaded = app
-                .state::<Arc<ModelManager>>()
-                .get_model_info(crate::local_llm::LOCAL_LLM_MODEL_ID)
-                .is_some_and(|info| info.is_downloaded);
-            if let Some((reason, detail)) = local_engine_availability(downloaded) {
-                debug!("Local post-process unavailable; using the raw transcript");
-                crate::local_llm::manager::emit_post_process_skip(app, reason, detail);
-                return None;
+    } else if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
+        match app {
+            Some(app) => {
+                run_apple_intelligence_lifecycle(
+                    app,
+                    run_id,
+                    transcription,
+                    &prompt_entry.prompt,
+                    &model,
+                    &prompt_entry.language,
+                )
+                .await
             }
-
-            // The grammar is rendered from the exact schema the API path
-            // uses, so both engines answer to the same contract.
-            let grammar = match llama_cpp_2::json_schema_to_grammar(
-                &post_process_output_schema().to_string(),
-            ) {
-                Ok(gbnf) => Some(gbnf),
-                Err(e) => {
-                    warn!(
-                        "Failed to render the post-process grammar: {}. Using the raw transcript.",
-                        e
-                    );
-                    return None;
-                }
-            };
-
-            let request = crate::local_llm::manager::SwapRequest {
-                transcript: user_content.clone(),
-                system_prompt: system_prompt.clone(),
-                grammar,
-                is_cancelled,
-            };
-            let llm = app.state::<Arc<crate::local_llm::manager::LlmManager>>();
-            // The runner is detached and bounded; awaiting the receiver
-            // can be dropped at any instant without abandoning it (L6).
-            let outcome = llm.run_swap(app, request).await;
-            return match outcome {
-                Ok(crate::local_llm::manager::SwapOutcome::Processed(text)) => {
-                    let text = strip_invisible_chars(strip_think_block(&text));
-                    if text.trim().is_empty() {
-                        debug!("Local post-processing returned an empty response");
-                        None
-                    } else {
-                        debug!(
-                            "Local post-processing succeeded. Output length: {} chars",
-                            text.len()
-                        );
-                        Some(text)
-                    }
-                }
-                _ => None,
-            };
+            None => {
+                debug!("Apple Intelligence needs an app handle; skipping");
+                crate::post_process_runs::runs().finish(
+                    None,
+                    run_id,
+                    crate::post_process_runs::PostProcessOutcome::Skipped {
+                        reason: crate::local_llm::SkipReason::EngineFailed,
+                    },
+                    None,
+                );
+                None
+            }
         }
-
-        // The structured-output schema, shared verbatim by the API path
-        // here and the local engine's grammar.
-        let json_schema = post_process_output_schema();
-
-        match crate::llm_client::send_chat_completion_with_schema(
-            &provider,
-            api_key.clone(),
-            &model,
-            user_content,
-            Some(system_prompt),
-            Some(json_schema),
+    } else {
+        let system_prompt = if provider.supports_structured_output {
+            Some(build_system_prompt(&prompt_entry.prompt))
+        } else {
+            None
+        };
+        let legacy_prompt = prompt_entry.prompt.replace("${output}", transcription);
+        let notify = |code: crate::managers::transcription::NoticeCode, detail: Option<String>| {
+            if let Some(app) = app {
+                crate::managers::transcription::emit_overlay_notice(app, code, detail);
+            }
+        };
+        let mut seam = LlmClientSeam {
+            provider: provider.clone(),
+            api_key,
+            model: model.clone(),
             disable_reasoning,
-            settings.post_process_timeout_secs,
+            timeout_secs: settings.post_process_timeout_secs_for(&provider.id),
+            is_cancelled: is_cancelled.clone(),
+        };
+        run_cloud_lifecycle(
+            app,
+            &mut seam,
+            run_id,
+            transcription,
+            system_prompt,
+            provider.supports_structured_output,
+            legacy_prompt,
+            Some(prompt_entry.language.as_str()),
+            notify,
         )
         .await
-        {
-            Ok(Some(content)) => {
-                // Parse the JSON response to extract the transcription field
-                let content = strip_think_block(&content);
-                match serde_json::from_str::<serde_json::Value>(content) {
-                    Ok(json) => {
-                        if let Some(transcription_value) =
-                            json.get(TRANSCRIPTION_FIELD).and_then(|t| t.as_str())
-                        {
-                            let result = strip_invisible_chars(transcription_value);
-                            debug!(
-                                "Structured output post-processing succeeded for provider '{}'. Output length: {} chars",
-                                provider.id,
-                                result.len()
-                            );
-                            return Some(result);
-                        } else {
-                            error!("Structured output response missing 'transcription' field");
-                            return Some(strip_invisible_chars(content));
-                        }
-                    }
-                    Err(e) => {
-                        error!(
-                            "Failed to parse structured output JSON: {}. Returning raw content.",
-                            e
+    };
+
+    PostProcessAttempt {
+        summary: summarize(run_id),
+        text: attempt,
+    }
+}
+
+/// Build the per-run summary history persists. Reads the finished record so
+/// the outcome token and latency are the same ones the Debug table shows.
+fn build_run_summary(
+    run_id: u64,
+    provider_id: &str,
+    model: &str,
+    prompt_id: &str,
+) -> Option<crate::post_process_runs::PostProcessRunSummary> {
+    let record = crate::post_process_runs::runs().snapshot(run_id)?;
+    Some(crate::post_process_runs::PostProcessRunSummary {
+        provider_id: provider_id.to_string(),
+        model: model.to_string(),
+        prompt_id: prompt_id.to_string(),
+        outcome: record.outcome?.token(),
+        latency_ms: record.total_ms.unwrap_or(0),
+    })
+}
+
+/// Binding tag the per-template tester records its pp: run under: the Debug
+/// table's marker separating "the operator pressed Test on a template" from
+/// real dictation runs.
+pub(crate) const PROMPT_TEST_BINDING: &str = "prompt_test";
+
+/// The outcome of testing one template against the last transcript. `after`
+/// is None when the engine failed or skipped (the raw transcript would be
+/// kept on the dictation path); `outcome` is the same token the run record
+/// and history carry (`applied` | `skipped:<reason>` | `failed:<class>`,
+/// or `skipped` for pre-run config states that never mint a run).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, specta::Type)]
+pub struct PromptTestOutcome {
+    pub before: String,
+    pub after: Option<String>,
+    pub outcome: String,
+    pub latency_ms: u64,
+}
+
+/// Structured error for the test command: the tag is the failure the UI
+/// keys on (`no_history` when there is nothing to test against,
+/// `prompt_not_found` for a dangling template id, `other` for a history
+/// store read failure).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TestPromptError {
+    NoHistory,
+    PromptNotFound { id: String },
+    Other { detail: String },
+}
+
+impl std::fmt::Display for TestPromptError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TestPromptError::NoHistory => {
+                write!(f, "no_history: no transcription history to test against")
+            }
+            TestPromptError::PromptNotFound { id } => {
+                write!(f, "prompt_not_found: {id}")
+            }
+            TestPromptError::Other { detail } => write!(f, "other: {detail}"),
+        }
+    }
+}
+
+/// Run one template over a transcript for the "test on my last transcript"
+/// button: the same engine lifecycle a dictation runs (provider, model,
+/// validator, pp: record), but without pasting and without writing any
+/// history row. With `app` None (the unit-test path) the run is recorded
+/// and there is structurally no way to reach the history pipeline.
+pub(crate) async fn run_prompt_test(
+    app: Option<&AppHandle>,
+    settings: &AppSettings,
+    prompt: &crate::settings::LLMPrompt,
+    transcription: &str,
+) -> PromptTestOutcome {
+    let attempt = post_process_with_prompt(
+        app,
+        settings,
+        PROMPT_TEST_BINDING,
+        transcription,
+        prompt,
+        None,
+    )
+    .await;
+    match attempt.summary {
+        Some(summary) => PromptTestOutcome {
+            before: transcription.to_string(),
+            after: attempt.text,
+            outcome: summary.outcome,
+            latency_ms: summary.latency_ms,
+        },
+        None => PromptTestOutcome {
+            before: transcription.to_string(),
+            after: attempt.text,
+            outcome: "skipped".to_string(),
+            latency_ms: 0,
+        },
+    }
+}
+
+/// The local on-device engine: the same branch shape as Apple Intelligence
+/// (availability check, then the engine), but through the exclusive swap:
+/// voice out (waited), LLM in, generate, LLM out (waited), voice restore.
+/// Every failure returns None so the raw transcript is pasted; the runner
+/// reports the engine/generation phases and concludes the run's outcome
+/// itself (skips through the single skip sink, applied/raw at its terminal).
+async fn run_local_lifecycle(
+    app: &AppHandle,
+    run_id: u64,
+    _settings: &AppSettings,
+    transcription: &str,
+    prompt: &str,
+    template_language: &str,
+    is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+) -> Option<String> {
+    // Availability must be decided for the model the swap runner will
+    // actually load: the SELECTED post-process model (which normalizes to
+    // the pinned builtin when the selection is empty or stale). Gating on
+    // the pinned id alone made every dictation silently skip with a false
+    // "not downloaded" notice after the user selected a catalog model and
+    // deleted the pinned one, while Test Connection - which reads the
+    // selection - reported Ready (KB-019).
+    let selected_model = crate::local_llm::manager::selected_llm_model_id(app);
+    let downloaded = app
+        .state::<Arc<ModelManager>>()
+        .get_model_info(&selected_model)
+        .is_some_and(|info| info.is_downloaded);
+    if let Some((reason, detail)) = local_engine_availability(downloaded) {
+        debug!("Local post-process unavailable; using the raw transcript");
+        crate::local_llm::manager::emit_post_process_skip(app, Some(run_id), reason, detail);
+        return None;
+    }
+
+    let system_prompt = build_system_prompt(prompt);
+    let user_content = transcription.to_string();
+
+    // The grammar is rendered from the exact schema the API path
+    // uses, so both engines answer to the same contract.
+    let grammar =
+        match llama_cpp_2::json_schema_to_grammar(&post_process_output_schema().to_string()) {
+            Ok(gbnf) => Some(gbnf),
+            Err(e) => {
+                warn!(
+                    "Failed to render the post-process grammar: {}. Using the raw transcript.",
+                    e
+                );
+                crate::post_process_runs::runs().finish(
+                    Some(app),
+                    run_id,
+                    crate::post_process_runs::PostProcessOutcome::Failed {
+                        class: crate::llm_client::PostProcessFailureClass::OutputInvalid,
+                    },
+                    None,
+                );
+                return None;
+            }
+        };
+
+    let request = crate::local_llm::manager::SwapRequest {
+        transcript: user_content,
+        system_prompt,
+        grammar,
+        template_language: Some(template_language.to_string()),
+        is_cancelled,
+        run_id: Some(run_id),
+    };
+    let llm = app.state::<Arc<crate::local_llm::manager::LlmManager>>();
+    // The runner is detached and bounded; awaiting the receiver
+    // can be dropped at any instant without abandoning it (L6).
+    let outcome = llm.run_swap(app, request).await;
+    match outcome {
+        Ok(crate::local_llm::manager::SwapOutcome::Processed(text)) => {
+            // The runner already validated the structured output; this is
+            // the final belt against a post-validation empty strip.
+            let text = strip_invisible_chars(strip_think_block(&text));
+            if text.trim().is_empty() {
+                debug!("Local post-processing returned an empty response");
+                crate::post_process_runs::runs().finish(
+                    Some(app),
+                    run_id,
+                    crate::post_process_runs::PostProcessOutcome::Failed {
+                        class: crate::llm_client::PostProcessFailureClass::OutputInvalid,
+                    },
+                    None,
+                );
+                None
+            } else {
+                debug!(
+                    "Local post-processing succeeded. Output length: {} chars",
+                    text.len()
+                );
+                Some(text)
+            }
+        }
+        _ => {
+            // The runner concluded the run (skip sink or terminal mapping).
+            // If a panic belt or a failed runner spawn ended it without an
+            // outcome, close the record defensively: those paths exist
+            // precisely for memory exhaustion, so oom is the honest class.
+            let finished = crate::post_process_runs::runs()
+                .snapshot(run_id)
+                .is_some_and(|r| r.outcome.is_some());
+            if !finished {
+                crate::post_process_runs::runs().finish(
+                    Some(app),
+                    run_id,
+                    crate::post_process_runs::PostProcessOutcome::Failed {
+                        class: crate::llm_client::PostProcessFailureClass::Oom,
+                    },
+                    None,
+                );
+            }
+            None
+        }
+    }
+}
+
+/// Apple Intelligence: native Swift APIs, free-text output, so the shared
+/// validator's free-text mode applies. The availability guards record a
+/// skipped run (record-only; no toast, matching today's silent guard).
+#[allow(unused_variables)]
+async fn run_apple_intelligence_lifecycle(
+    app: &AppHandle,
+    run_id: u64,
+    transcription: &str,
+    prompt: &str,
+    model: &str,
+    template_language: &str,
+) -> Option<String> {
+    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+    {
+        use crate::post_process_runs::{runs, PostProcessOutcome};
+
+        if !apple_intelligence::check_apple_intelligence_availability() {
+            debug!("Apple Intelligence selected but not currently available on this device");
+            runs().finish(
+                Some(app),
+                run_id,
+                PostProcessOutcome::Skipped {
+                    reason: crate::local_llm::SkipReason::EngineFailed,
+                },
+                None,
+            );
+            return None;
+        }
+
+        let system_prompt = build_system_prompt(prompt);
+        let token_limit = model.trim().parse::<i32>().unwrap_or(0);
+        runs().engine_phase(Some(app), run_id, None, None);
+        let generation_started = Instant::now();
+        match apple_intelligence::process_text_with_system_prompt(
+            &system_prompt,
+            transcription,
+            token_limit,
+        ) {
+            Ok(result) => {
+                let ms = generation_started.elapsed().as_millis() as u64;
+                runs().generation_phase(Some(app), run_id, Some(ms), Some(0));
+                match validate_post_process_output(
+                    transcription,
+                    &result,
+                    PostProcessOutputMode::FreeText,
+                    Some(template_language),
+                ) {
+                    Ok(clean) => {
+                        runs().finish(
+                            Some(app),
+                            run_id,
+                            PostProcessOutcome::Applied,
+                            Some(clean.len() as u64),
                         );
-                        return Some(strip_invisible_chars(content));
+                        debug!(
+                            "Apple Intelligence post-processing succeeded. Output length: {} chars",
+                            clean.len()
+                        );
+                        Some(clean)
+                    }
+                    Err(failure) => {
+                        runs().finish(
+                            Some(app),
+                            run_id,
+                            PostProcessOutcome::Failed {
+                                class: crate::llm_client::PostProcessFailureClass::OutputInvalid,
+                            },
+                            None,
+                        );
+                        warn!(
+                            "Apple Intelligence output failed validation: {}. Using the raw transcript.",
+                            failure.detail
+                        );
+                        crate::managers::transcription::emit_overlay_notice(
+                            app,
+                            crate::managers::transcription::NoticeCode::PostProcessOutputInvalid,
+                            Some(failure.detail.clone()),
+                        );
+                        None
                     }
                 }
             }
-            Ok(None) => {
-                error!("LLM API response has no content");
-                return None;
-            }
-            Err(e) => {
-                warn!(
-                    "Structured output failed for provider '{}': {}. Falling back to legacy mode.",
-                    provider.id, e
+            Err(err) => {
+                let ms = generation_started.elapsed().as_millis() as u64;
+                runs().generation_phase(Some(app), run_id, Some(ms), Some(0));
+                runs().finish(
+                    Some(app),
+                    run_id,
+                    PostProcessOutcome::Failed {
+                        class: crate::llm_client::PostProcessFailureClass::OutputInvalid,
+                    },
+                    None,
                 );
-                // Fall through to legacy mode below
+                error!("Apple Intelligence post-processing failed: {}", err);
+                crate::managers::transcription::emit_overlay_notice(
+                    app,
+                    crate::managers::transcription::NoticeCode::PostProcessCloudFailed,
+                    Some(err.to_string()),
+                );
+                None
             }
         }
     }
 
-    // Legacy mode: Replace ${output} variable in the prompt with the actual text
-    let processed_prompt = prompt.replace("${output}", transcription);
-    debug!("Processed prompt length: {} chars", processed_prompt.len());
-
-    match crate::llm_client::send_chat_completion(
-        &provider,
-        api_key,
-        &model,
-        processed_prompt,
-        disable_reasoning,
-        settings.post_process_timeout_secs,
-    )
-    .await
+    #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
     {
-        Ok(Some(content)) => {
-            let content = strip_invisible_chars(strip_think_block(&content));
-            debug!(
-                "LLM post-processing succeeded for provider '{}'. Output length: {} chars",
-                provider.id,
-                content.len()
-            );
-            Some(content)
-        }
-        Ok(None) => {
-            error!("LLM API response has no content");
-            None
-        }
-        Err(e) => {
-            error!(
-                "LLM post-processing failed for provider '{}': {}. Falling back to original transcription.",
-                provider.id,
-                e
-            );
-            None
-        }
+        debug!("Apple Intelligence provider selected on unsupported platform");
+        crate::post_process_runs::runs().finish(
+            Some(app),
+            run_id,
+            crate::post_process_runs::PostProcessOutcome::Skipped {
+                reason: crate::local_llm::SkipReason::EngineFailed,
+            },
+            None,
+        );
+        None
     }
 }
 
@@ -538,6 +1081,9 @@ pub(crate) struct ProcessedTranscription {
     pub final_text: String,
     pub post_processed_text: Option<String>,
     pub post_process_prompt: Option<String>,
+    /// The pp: run summary (provider, model, prompt, outcome, latency)
+    /// history persists per entry. None when post-process did not run.
+    pub post_process_summary: Option<crate::post_process_runs::PostProcessRunSummary>,
 }
 
 /// Apply the optional LLM post-process layer to a finished transcription.
@@ -551,6 +1097,7 @@ pub(crate) struct ProcessedTranscription {
 /// feature, not a bug in the command passes.
 pub(crate) async fn process_transcription_output(
     app: &AppHandle,
+    binding: &str,
     transcription: &str,
     post_process: bool,
     is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
@@ -559,11 +1106,13 @@ pub(crate) async fn process_transcription_output(
     let mut final_text = transcription.to_string();
     let mut post_processed_text: Option<String> = None;
     let mut post_process_prompt: Option<String> = None;
+    let mut post_process_summary: Option<crate::post_process_runs::PostProcessRunSummary> = None;
 
     if post_process {
-        if let Some(processed_text) =
-            post_process_transcription(app, &settings, &final_text, is_cancelled).await
-        {
+        let attempt =
+            post_process_transcription(app, &settings, binding, &final_text, is_cancelled).await;
+        post_process_summary = attempt.summary;
+        if let Some(processed_text) = attempt.text {
             post_processed_text = Some(processed_text.clone());
             final_text = processed_text;
 
@@ -583,6 +1132,7 @@ pub(crate) async fn process_transcription_output(
         final_text,
         post_processed_text,
         post_process_prompt,
+        post_process_summary,
     }
 }
 
@@ -598,12 +1148,17 @@ impl ShortcutAction for TranscribeAction {
         // Load ASR model and VAD model in parallel
         let kickoff_started = Instant::now();
         tm.initiate_model_load();
-        let rm_clone = Arc::clone(&rm);
-        std::thread::spawn(move || {
-            if let Err(e) = rm_clone.preload_vad() {
-                debug!("VAD pre-load failed: {}", e);
-            }
-        });
+        // The local VAD warm-up only pays off for the local capture path;
+        // the companion server pre-warms the remote recorder when enabled,
+        // so a phone press skips this entirely.
+        if matches!(self.source, CaptureSource::Local) {
+            let rm_clone = Arc::clone(&rm);
+            std::thread::spawn(move || {
+                if let Err(e) = rm_clone.preload_vad() {
+                    debug!("VAD pre-load failed: {}", e);
+                }
+            });
+        }
         let kickoff_elapsed = kickoff_started.elapsed();
 
         // Don't open the mic if nothing can transcribe the recording; the load
@@ -688,12 +1243,15 @@ impl ShortcutAction for TranscribeAction {
 
         let mut recording_error: Option<String> = None;
         let recording_start_time = Instant::now();
-        match rm.try_start_recording(&binding_id, vad_policy) {
+        match rm.try_start_recording_for(self.source, &binding_id, vad_policy) {
             Ok(readiness) => {
                 debug!(
                     "Recording request accepted in {:?}; waiting for first microphone samples",
                     recording_start_time.elapsed()
                 );
+                if matches!(self.source, CaptureSource::Remote) {
+                    crate::companion::on_session_changed(app, true);
+                }
                 let generation = readiness.generation();
                 let app_clone = app.clone();
                 let rm_clone = Arc::clone(&rm);
@@ -741,6 +1299,11 @@ impl ShortcutAction for TranscribeAction {
             Err(e) => {
                 debug!("Failed to start recording: {}", e);
                 recording_error = Some(e);
+                if matches!(self.source, CaptureSource::Remote) {
+                    // The badge must never outlive a start that did not
+                    // begin recording.
+                    crate::companion::on_session_changed(app, false);
+                }
             }
         }
 
@@ -797,6 +1360,12 @@ impl ShortcutAction for TranscribeAction {
         // FinishGuard::drop (the pipeline's true end) unregisters it.
         let stop_time = Instant::now();
         debug!("TranscribeAction::stop called for binding: {}", binding_id);
+
+        if matches!(self.source, CaptureSource::Remote) {
+            // The phone session ends here; the pipeline below (finalize,
+            // transcribe, paste) is the shared one.
+            crate::companion::on_session_changed(app, false);
+        }
 
         let ah = app.clone();
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
@@ -999,6 +1568,7 @@ impl ShortcutAction for TranscribeAction {
                             let Some(processed) = complete_unless_cancelled(
                                 process_transcription_output(
                                     &ah,
+                                    &binding_id,
                                     &transcription,
                                     post_process,
                                     is_cancelled,
@@ -1008,6 +1578,12 @@ impl ShortcutAction for TranscribeAction {
                             .await
                             else {
                                 debug!("Transcription operation cancelled during output handling");
+                                // The dropped future leaves a cloud run's
+                                // record unconcluded (no detached runner);
+                                // close it as cancelled so the Debug table
+                                // never shows a phantom live run.
+                                crate::post_process_runs::runs()
+                                    .cancel_live_dictation_runs();
                                 utils::hide_recording_overlay(&ah);
                                 set_tray_state(&ah, TrayIconState::Idle);
                                 return;
@@ -1029,6 +1605,7 @@ impl ShortcutAction for TranscribeAction {
                                     processed.post_processed_text.clone(),
                                     processed.post_process_prompt.clone(),
                                     Some(used_model),
+                                    processed.post_process_summary.clone(),
                                 ) {
                                     error!("Failed to save history entry: {}", err);
                                 }
@@ -1239,6 +1816,7 @@ impl ShortcutAction for TranscribeAction {
                                     None,
                                     None,
                                     Some(stream_model),
+                                    None,
                                 ) {
                                     error!("Failed to save failed history entry: {}", save_err);
                                 }
@@ -1383,6 +1961,27 @@ impl ShortcutAction for UndoAction {
     }
 }
 
+// Cycle Post-Process Prompt Action
+struct CyclePromptAction;
+
+impl ShortcutAction for CyclePromptAction {
+    fn start(&self, app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
+        // Ships unbound and rides the post-process master toggle: inert on
+        // stock installs, and off whenever post-processing itself is off.
+        if !get_settings(app).post_process_enabled {
+            debug!("Cycle-prompt action disabled with post-processing off");
+            return;
+        }
+        if let Err(e) = shortcut::cycle_prompt_and_notify(app) {
+            debug!("Cycle post-process prompt refused: {}", e);
+        }
+    }
+
+    fn stop(&self, _app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
+        // One-shot action: nothing to do on release
+    }
+}
+
 // Test Action
 struct TestAction;
 
@@ -1409,12 +2008,19 @@ impl ShortcutAction for TestAction {
 // Static Action Map
 pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::new(|| {
     let mut map = HashMap::new();
-    for binding_id in ["transcribe", "transcribe_with_post_process"] {
-        let post_process =
+    for binding_id in [
+        "transcribe",
+        "transcribe_with_post_process",
+        "transcribe_companion",
+    ] {
+        let (post_process, source) =
             transcribe_action_config(binding_id).expect("known transcribe binding id");
         map.insert(
             binding_id.to_string(),
-            Arc::new(TranscribeAction { post_process }) as Arc<dyn ShortcutAction>,
+            Arc::new(TranscribeAction {
+                post_process,
+                source,
+            }) as Arc<dyn ShortcutAction>,
         );
     }
     map.insert(
@@ -1428,6 +2034,10 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
     map.insert(
         "undo".to_string(),
         Arc::new(UndoAction) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        "cycle_post_process_prompt".to_string(),
+        Arc::new(CyclePromptAction) as Arc<dyn ShortcutAction>,
     );
     map.insert(
         "test".to_string(),
@@ -1530,6 +2140,92 @@ mod tests {
         assert_eq!(result, None);
     }
 
+    /// WS5: a cancelled flag during a cloud call returns within ONE poll
+    /// interval of the flip. The Escape binding's mid-post-process escape
+    /// depends on the poll loop noticing the cancel at the next 25ms tick,
+    /// never on the request's own timeout.
+    #[test]
+    fn cancelled_cloud_call_returns_within_one_poll_interval() {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let cancelled_for_thread = Arc::clone(&cancelled);
+        // A "cloud request" that never resolves on its own: only the
+        // cancel poll can end it.
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(30));
+            let flipped_at = std::time::Instant::now();
+            cancelled_for_thread.store(true, Ordering::Release);
+            flipped_at
+        });
+
+        let started = std::time::Instant::now();
+        let result = tauri::async_runtime::block_on(complete_unless_cancelled(
+            future::pending::<Option<String>>(),
+            || cancelled.load(Ordering::Acquire),
+        ));
+        let elapsed = started.elapsed();
+
+        assert_eq!(
+            result, None,
+            "a cancelled cloud call resolves None: the raw transcript is pasted"
+        );
+        // 30ms flip + at most one poll interval (25ms) + scheduler slack.
+        assert!(
+            elapsed < Duration::from_millis(30 + 25 + 50),
+            "the cancel must land within one poll interval (took {elapsed:?})"
+        );
+    }
+
+    /// WS5: the cancelled cloud run's observability. The stop pipeline
+    /// drops the post-process future and calls
+    /// cancel_live_dictation_runs; the live dictation run must conclude
+    /// failed(cancelled) so the Debug table never shows a phantom live
+    /// run, while a history-retry run stays live (it concludes itself).
+    #[test]
+    fn cancelled_dictation_concludes_its_run_failed_cancelled() {
+        // The pipeline's run, begun the moment the cloud call started. On
+        // an ISOLATED registry: the sweep cancels every live dictation
+        // run, and the parallel tests hold live runs of their own.
+        let registry = crate::post_process_runs::RunsRegistry::isolated_for_test();
+        let run_id = registry.begin(
+            None,
+            crate::post_process_runs::RunRequestMeta {
+                binding: "transcribe_with_post_process".to_string(),
+                engine: crate::post_process_runs::PostProcessEngineKind::Cloud,
+                provider_id: "openai".to_string(),
+                model: "gpt-4o-mini".to_string(),
+                prompt_id: Some("clean".to_string()),
+                prompt_name: None,
+                prompt_version: None,
+                template_language: None,
+                chars_in: 42,
+            },
+        );
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let cancelled_for_thread = Arc::clone(&cancelled);
+        thread::spawn(move || {
+            thread::sleep(Duration::from_millis(10));
+            cancelled_for_thread.store(true, Ordering::Release);
+        });
+
+        let processed = tauri::async_runtime::block_on(complete_unless_cancelled(
+            future::pending::<Option<String>>(),
+            || cancelled.load(Ordering::Acquire),
+        ));
+
+        // The stop pipeline's exact tail on this arm: conclude the run,
+        // keep the raw transcript (processed is None).
+        assert_eq!(processed, None);
+        registry.cancel_live_dictation_runs();
+        let record = registry.snapshot(run_id).unwrap();
+        assert_eq!(
+            record.outcome,
+            Some(crate::post_process_runs::PostProcessOutcome::Failed {
+                class: crate::llm_client::PostProcessFailureClass::Cancelled
+            }),
+            "the cancelled run records failed(cancelled)"
+        );
+    }
+
     #[test]
     fn leading_think_block_is_stripped() {
         assert_eq!(
@@ -1605,11 +2301,15 @@ mod tests {
 
         assert!(ACTION_MAP.contains_key("delete_last_word"));
         assert!(ACTION_MAP.contains_key("undo"));
+        assert!(ACTION_MAP.contains_key("cycle_post_process_prompt"));
         assert!(!crate::transcription_coordinator::is_transcribe_binding(
             "delete_last_word"
         ));
         assert!(!crate::transcription_coordinator::is_transcribe_binding(
             "undo"
+        ));
+        assert!(!crate::transcription_coordinator::is_transcribe_binding(
+            "cycle_post_process_prompt"
         ));
     }
 
@@ -1624,11 +2324,25 @@ mod tests {
     fn command_mode_binding_has_no_recording_action() {
         use super::transcribe_action_config;
         use crate::actions::ACTION_MAP;
+        use crate::managers::audio::CaptureSource;
 
-        assert_eq!(transcribe_action_config("transcribe"), Some(false));
+        assert_eq!(
+            transcribe_action_config("transcribe"),
+            Some((false, CaptureSource::Local))
+        );
         assert_eq!(
             transcribe_action_config("transcribe_with_post_process"),
-            Some(true)
+            Some((true, CaptureSource::Local))
+        );
+        // The companion trigger is the remote capture source: same shared
+        // pipeline, audio from the phone.
+        assert_eq!(
+            transcribe_action_config("transcribe_companion"),
+            Some((false, CaptureSource::Remote))
+        );
+        assert!(
+            ACTION_MAP.contains_key("transcribe_companion"),
+            "the companion binding must dispatch through the shared TranscribeAction"
         );
         assert_eq!(
             transcribe_action_config("transcribe_commands"),
@@ -1642,6 +2356,100 @@ mod tests {
         assert_eq!(transcribe_action_config("delete_last_word"), None);
         assert_eq!(transcribe_action_config("undo"), None);
         assert_eq!(transcribe_action_config("unknown"), None);
+        // The cycle binding is an assignable action, never a recording one.
+        assert_eq!(transcribe_action_config("cycle_post_process_prompt"), None);
+    }
+
+    /// The per-template tester: with a dead endpoint the run is recorded
+    /// under the `prompt_test` binding marker (the Debug table's tag), the
+    /// prompt id/version/language are stamped into the record, the outcome
+    /// is the run's failure class, and the raw transcript comes back as
+    /// `before` with no `after`. No history write is possible on this path:
+    /// it runs without an app handle and shares nothing with the history
+    /// pipeline.
+    #[test]
+    fn prompt_test_records_a_marker_run_and_returns_before_after_outcome() {
+        use super::{run_prompt_test, PROMPT_TEST_BINDING};
+
+        let mut settings = crate::settings::get_default_settings();
+        // A cloud provider aimed at a port nothing listens on: the request
+        // fails fast with a transport error (network class), deterministically.
+        settings.post_process_provider_id = "custom".to_string();
+        if let Some(provider) = settings
+            .post_process_providers
+            .iter_mut()
+            .find(|p| p.id == "custom")
+        {
+            provider.base_url = "http://127.0.0.1:1/v1".to_string();
+        }
+        settings
+            .post_process_models
+            .insert("custom".to_string(), "test-model".to_string());
+
+        let prompt = crate::settings::builtin_prompt_seeds()
+            .into_iter()
+            .find(|p| p.id == "english_casual")
+            .unwrap();
+
+        let outcome = tauri::async_runtime::block_on(run_prompt_test(
+            None,
+            &settings,
+            &prompt,
+            "hey um world",
+        ));
+
+        assert_eq!(outcome.before, "hey um world");
+        assert_eq!(outcome.after, None, "a failed run never rewrites the text");
+        assert!(
+            outcome.outcome.starts_with("failed:"),
+            "the transport failure is classified: {}",
+            outcome.outcome
+        );
+
+        // The run is in the registry under the test marker, with the
+        // template's id/version/language stamped (the WS3 fields). Looked
+        // up by marker (tests share the process-wide registry).
+        let record = crate::post_process_runs::runs()
+            .latest(None)
+            .into_iter()
+            .find(|r| {
+                r.binding == PROMPT_TEST_BINDING && r.prompt_id.as_deref() == Some("english_casual")
+            })
+            .expect("the test run is recorded under the prompt_test marker");
+        assert_eq!(record.prompt_version.as_deref(), Some("1"));
+        assert_eq!(record.template_language.as_deref(), Some("en"));
+    }
+
+    /// The local engine under the tester without an app handle: there is
+    /// no model manager to consult, so the run is recorded as an engine
+    /// skip and the outcome token says so (the raw transcript is kept).
+    #[test]
+    fn prompt_test_local_engine_without_app_records_an_engine_skip() {
+        use super::{run_prompt_test, PROMPT_TEST_BINDING};
+
+        let mut settings = crate::settings::get_default_settings();
+        settings.post_process_provider_id = crate::settings::LOCAL_LLM_PROVIDER_ID.to_string();
+
+        let prompt = crate::settings::builtin_prompt_seeds().remove(0);
+
+        let outcome = tauri::async_runtime::block_on(run_prompt_test(
+            None,
+            &settings,
+            &prompt,
+            "hello there",
+        ));
+
+        assert_eq!(outcome.before, "hello there");
+        assert_eq!(outcome.after, None);
+        assert_eq!(outcome.outcome, "skipped:engine_failed");
+        assert!(
+            crate::post_process_runs::runs()
+                .latest(None)
+                .into_iter()
+                .any(|r| r.binding == PROMPT_TEST_BINDING
+                    && r.prompt_id.as_deref() == Some("default_improve_transcriptions")),
+            "the skip run is recorded under the prompt_test marker"
+        );
     }
 
     /// T28: provider routing. The local provider routes to the on-device
@@ -1671,6 +2479,46 @@ mod tests {
         );
         assert!(local_engine_availability(false).unwrap().1.is_some());
         assert_eq!(local_engine_availability(true), None);
+    }
+
+    /// KB-019: the gate's input is the SELECTED model's download state (the
+    /// same resolution the swap runner loads), never the pinned model's.
+    /// The scenario that was broken: a catalog model downloaded and
+    /// selected, the pinned model deleted - the pinned state is
+    /// not-downloaded, but post-processing must still run. The lookup
+    /// itself is AppHandle-bound; this pins the decision chain the caller
+    /// now assembles (selected_llm_model_id -> get_model_info ->
+    /// local_engine_availability) over the pure halves.
+    #[test]
+    fn local_availability_follows_the_selected_model_not_the_pinned_one() {
+        use crate::local_llm::manager::effective_llm_selection;
+
+        let pinned = crate::local_llm::LOCAL_LLM_MODEL_ID;
+        let catalog = "org/some-model/Q4_K_M.gguf";
+
+        // Catalog model selected and known: the effective model is the
+        // catalog one, so the pinned model's not-downloaded state must not
+        // produce a skip.
+        let effective = effective_llm_selection(catalog, true);
+        assert_eq!(effective, catalog);
+        assert_ne!(effective, pinned);
+        assert_eq!(
+            local_engine_availability(true),
+            None,
+            "the downloaded SELECTED model keeps post-processing alive"
+        );
+
+        // Deleting the pinned model while the catalog model is selected
+        // changes neither the effective model nor availability.
+        assert_eq!(effective_llm_selection(catalog, true), catalog);
+
+        // The off path stays: nothing selected, pinned builtin deleted ->
+        // skip with the download-missing reason.
+        assert_eq!(effective_llm_selection("", false), pinned);
+        assert_eq!(
+            local_engine_availability(false).map(|(r, _)| r),
+            Some(crate::local_llm::SkipReason::DownloadMissing)
+        );
     }
 
     /// T28: the extracted schema is byte-identical to the literal the API
@@ -1713,5 +2561,426 @@ mod tests {
             &matrix,
         );
         assert_eq!(buffer, "hello world");
+    }
+
+    /// WS5: the dictation post-process path driven against a scripted
+    /// cloud "engine" (a one-shot HTTP server) that answers an English
+    /// transcript in Japanese: the shared validator's language-sanity rule
+    /// rejects the output, the run records output_invalid, and None comes
+    /// back so the raw transcript pastes. Driven through
+    /// `post_process_with_prompt` (the engine path the dictation entry
+    /// resolves its selected prompt into; the resolution wrapper needs a
+    /// Wry app handle, the engine path takes Option).
+    #[test]
+    fn post_process_transcription_against_a_garbage_engine_falls_back_raw() {
+        use crate::actions::post_process_with_prompt;
+
+        // One canned 200 whose content is a Japanese "cleanup".
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let address = listener.local_addr().unwrap();
+        let body = format!(
+            "{{\"choices\":[{{\"message\":{{\"content\":\"こんにちは、これはテストです。\"}}}}]}}"
+        );
+        let response = format!(
+            "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+            body.len(),
+            body
+        );
+        thread::spawn(move || {
+            if let Ok((mut stream, _)) = listener.accept() {
+                use std::io::{Read, Write};
+                let mut request = [0_u8; 8192];
+                let _ = stream.read(&mut request);
+                let _ = stream.write_all(response.as_bytes());
+            }
+        });
+
+        let mut settings = crate::settings::get_default_settings();
+        settings.post_process_provider_id = "custom".to_string();
+        if let Some(provider) = settings
+            .post_process_providers
+            .iter_mut()
+            .find(|p| p.id == "custom")
+        {
+            provider.base_url = format!("http://{address}/v1");
+        }
+        settings
+            .post_process_models
+            .insert("custom".to_string(), "test-model".to_string());
+        let seed = crate::settings::builtin_prompt_seeds()
+            .into_iter()
+            .find(|p| p.id == "english_casual")
+            .unwrap();
+        settings.post_process_prompts = vec![seed.clone()];
+        settings.post_process_selected_prompt_id = Some(seed.id.clone());
+
+        let transcript = "hello um world this is a test transcript with words";
+        let attempt = tauri::async_runtime::block_on(post_process_with_prompt(
+            None,
+            &settings,
+            "transcribe_with_post_process",
+            transcript,
+            &seed,
+            None,
+        ));
+
+        assert_eq!(
+            attempt.text, None,
+            "garbage output never replaces the transcript"
+        );
+        let summary = attempt.summary.expect("the run is recorded");
+        assert_eq!(
+            summary.outcome, "failed:output_invalid",
+            "the script switch classifies output_invalid"
+        );
+    }
+
+    // ---- The pp: lifecycle with a mock cloud seam ----
+
+    use super::{run_cloud_lifecycle, CloudCompletionSeam, PostProcessOutputMode};
+
+    /// A scripted cloud seam: each `send` pops the next canned result. The
+    /// recorded calls let tests pin which attempt shape ran (structured vs
+    /// legacy) and how many attempts fired.
+    struct MockCloud {
+        results: Vec<super::CloudSendResult>,
+        calls: std::sync::Mutex<Vec<bool>>, // true = carried a schema
+    }
+
+    impl MockCloud {
+        fn new(results: Vec<super::CloudSendResult>) -> Self {
+            Self {
+                results,
+                calls: std::sync::Mutex::new(Vec::new()),
+            }
+        }
+    }
+
+    /// A canned success carrying content and transport retries.
+    fn cloud_ok(content: &str, transport_retries: u32) -> super::CloudSendResult {
+        Ok(crate::llm_client::PostProcessCompletion {
+            content: Some(content.to_string()),
+            transport_retries,
+        })
+    }
+
+    /// A canned structured failure.
+    fn cloud_err(
+        class: crate::llm_client::PostProcessFailureClass,
+        detail: &str,
+    ) -> super::CloudSendResult {
+        Err(crate::llm_client::PostProcessError::new(
+            class,
+            detail.to_string(),
+        ))
+    }
+
+    impl CloudCompletionSeam for MockCloud {
+        fn send(
+            &mut self,
+            _user_content: String,
+            _system_prompt: Option<String>,
+            json_schema: Option<serde_json::Value>,
+        ) -> std::pin::Pin<Box<dyn std::future::Future<Output = super::CloudSendResult> + Send + '_>>
+        {
+            self.calls.lock().unwrap().push(json_schema.is_some());
+            let result = self.results.pop().expect("no scripted response left");
+            Box::pin(async move { result })
+        }
+    }
+
+    fn begin_cloud_run() -> u64 {
+        crate::post_process_runs::runs().begin(
+            None,
+            crate::post_process_runs::RunRequestMeta {
+                binding: "transcribe_with_post_process".to_string(),
+                engine: crate::post_process_runs::PostProcessEngineKind::Cloud,
+                provider_id: "openai".to_string(),
+                model: "gpt-4o-mini".to_string(),
+                prompt_id: Some("clean".to_string()),
+                prompt_name: Some("Clean up".to_string()),
+                prompt_version: None,
+                template_language: None,
+                chars_in: 42,
+            },
+        )
+    }
+
+    /// One happy cloud run produces the full requested -> engine ->
+    /// generation -> outcome line sequence with matching run ids, and the
+    /// validated text is returned.
+    #[test]
+    fn cloud_lifecycle_emits_the_full_phase_sequence() {
+        let run_id = begin_cloud_run();
+        let mut seam = MockCloud::new(vec![cloud_ok("{\"transcription\":\"Hello, world.\"}", 0)]);
+        let notices: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+        let text = tauri::async_runtime::block_on(run_cloud_lifecycle(
+            None,
+            &mut seam,
+            run_id,
+            "um hello world",
+            Some("clean it".to_string()),
+            true,
+            "clean: um hello world".to_string(),
+            None,
+            |code, _detail| notices.lock().unwrap().push(code.as_str().to_string()),
+        ));
+        assert_eq!(text.as_deref(), Some("Hello, world."));
+
+        let record = crate::post_process_runs::runs().snapshot(run_id).unwrap();
+        assert_eq!(
+            record
+                .log_lines
+                .iter()
+                .map(|l| l.split("phase=").nth(1).unwrap().split(' ').next().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["requested", "engine", "generation", "outcome"],
+            "phases in order: {:?}",
+            record.log_lines
+        );
+        assert!(record
+            .log_lines
+            .iter()
+            .all(|l| l.starts_with(&format!("pp: run={run_id} "))));
+        assert_eq!(
+            record.outcome,
+            Some(crate::post_process_runs::PostProcessOutcome::Applied)
+        );
+        assert_eq!(record.chars_out, Some(13));
+        // One structured attempt, no retry.
+        assert_eq!(*seam.calls.lock().unwrap(), vec![true]);
+        assert!(notices.lock().unwrap().is_empty(), "no notice on success");
+    }
+
+    /// A cloud 401 (structured rejected, legacy retry also rejected with
+    /// 401) classifies as failed(auth) and returns None: the raw
+    /// transcript is what gets pasted. The retry count totals the
+    /// structured-to-legacy fallback (1) plus any transport retries (0:
+    /// auth never earns one).
+    #[test]
+    fn cloud_401_is_failed_auth_and_raw_transcript() {
+        let run_id = begin_cloud_run();
+        // The seam pops from the END: legacy attempt first, structured second.
+        let mut seam = MockCloud::new(vec![
+            cloud_err(
+                crate::llm_client::PostProcessFailureClass::Auth,
+                "API request failed with status 401: unauthorized",
+            ),
+            cloud_err(
+                crate::llm_client::PostProcessFailureClass::Auth,
+                "API request failed with status 401: unauthorized",
+            ),
+        ]);
+        let notices: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+        let text = tauri::async_runtime::block_on(run_cloud_lifecycle(
+            None,
+            &mut seam,
+            run_id,
+            "hello world",
+            Some("clean it".to_string()),
+            true,
+            "clean: hello world".to_string(),
+            None,
+            |code, _detail| notices.lock().unwrap().push(code.as_str().to_string()),
+        ));
+        assert_eq!(text, None, "the raw transcript is used, never model text");
+
+        let record = crate::post_process_runs::runs().snapshot(run_id).unwrap();
+        assert_eq!(
+            record.outcome,
+            Some(crate::post_process_runs::PostProcessOutcome::Failed {
+                class: crate::llm_client::PostProcessFailureClass::Auth
+            })
+        );
+        // The structured failure counted as one retry before legacy; the
+        // auth class earned zero transport retries on either attempt.
+        assert_eq!(record.phases_generation.retries, Some(1));
+        assert_eq!(*seam.calls.lock().unwrap(), vec![true, false]);
+        assert_eq!(
+            notices.lock().unwrap().as_slice(),
+            ["post_process_cloud_failed"],
+            "cloud failures reach the notice channel"
+        );
+    }
+
+    /// Transport retries ride the pp: generation phase on SUCCESS too: a
+    /// request that needed one bounded network retry before answering
+    /// reports retries=1 in the record, and the text still pastes.
+    #[test]
+    fn transport_retries_ride_the_generation_phase_on_success() {
+        let run_id = begin_cloud_run();
+        let mut seam = MockCloud::new(vec![cloud_ok("{\"transcription\":\"Hello, world.\"}", 1)]);
+        let text = tauri::async_runtime::block_on(run_cloud_lifecycle(
+            None,
+            &mut seam,
+            run_id,
+            "um hello world",
+            Some("clean it".to_string()),
+            true,
+            "clean: um hello world".to_string(),
+            None,
+            |_code, _detail| {},
+        ));
+        assert_eq!(text.as_deref(), Some("Hello, world."));
+        let record = crate::post_process_runs::runs().snapshot(run_id).unwrap();
+        assert_eq!(
+            record.phases_generation.retries,
+            Some(1),
+            "the transport retry is visible in the generation phase"
+        );
+        assert_eq!(
+            record.outcome,
+            Some(crate::post_process_runs::PostProcessOutcome::Applied)
+        );
+    }
+
+    /// A cancellation mid-request never falls back to the legacy attempt:
+    /// exactly one call (the structured one), the run concludes
+    /// failed(cancelled), and the raw transcript is used.
+    #[test]
+    fn cancelled_cloud_run_never_falls_back_and_concludes_cancelled() {
+        let run_id = begin_cloud_run();
+        let mut seam = MockCloud::new(vec![cloud_err(
+            crate::llm_client::PostProcessFailureClass::Cancelled,
+            "the dictation was cancelled before the retry ran",
+        )
+        .map_err(|e| e.with_retries(0))]);
+        let text = tauri::async_runtime::block_on(run_cloud_lifecycle(
+            None,
+            &mut seam,
+            run_id,
+            "hello world",
+            Some("clean it".to_string()),
+            true,
+            "clean: hello world".to_string(),
+            None,
+            |_code, _detail| {},
+        ));
+        assert_eq!(text, None, "a cancelled run pastes the raw transcript");
+        assert_eq!(
+            *seam.calls.lock().unwrap(),
+            vec![true],
+            "no legacy attempt after a cancellation"
+        );
+        let record = crate::post_process_runs::runs().snapshot(run_id).unwrap();
+        assert_eq!(
+            record.outcome,
+            Some(crate::post_process_runs::PostProcessOutcome::Failed {
+                class: crate::llm_client::PostProcessFailureClass::Cancelled
+            })
+        );
+    }
+
+    /// The never-lose-the-transcript rule, cloud half: a structured
+    /// response whose JSON cannot be parsed (or is missing the field) used
+    /// to paste the raw model content; now it fails validation, classifies
+    /// output_invalid, notifies, and returns None.
+    #[test]
+    fn unparseable_cloud_output_never_replaces_the_transcript() {
+        for bad in [
+            "not json at all",
+            "{\"wrong\": \"shape\"}",
+            "{\"transcription\": \"\"}",
+        ] {
+            let run_id = begin_cloud_run();
+            let mut seam = MockCloud::new(vec![cloud_ok(bad, 0)]);
+            let notices: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+            let text = tauri::async_runtime::block_on(run_cloud_lifecycle(
+                None,
+                &mut seam,
+                run_id,
+                "hello world this is a longer transcript",
+                Some("clean it".to_string()),
+                true,
+                "clean: hello world this is a longer transcript".to_string(),
+                None,
+                |code, _detail| notices.lock().unwrap().push(code.as_str().to_string()),
+            ));
+            assert_eq!(text, None, "raw model content must not paste: {bad}");
+            let record = crate::post_process_runs::runs().snapshot(run_id).unwrap();
+            assert_eq!(
+                record.outcome,
+                Some(crate::post_process_runs::PostProcessOutcome::Failed {
+                    class: crate::llm_client::PostProcessFailureClass::OutputInvalid
+                }),
+                "bad output: {bad}"
+            );
+            assert_eq!(
+                notices.lock().unwrap().as_slice(),
+                ["post_process_output_invalid"],
+                "the fallback is visible: {bad}"
+            );
+        }
+    }
+
+    /// The shared validator, local-half parity: the same function the
+    /// cloud paths use also guards the local engine's structured output
+    /// and the free-text engines, with the skip vocabulary the local toasts
+    /// key off (engine_failed / length_guard).
+    #[test]
+    fn shared_validator_covers_both_output_modes() {
+        use super::validate_post_process_output;
+        use crate::local_llm::SkipReason;
+
+        // Structured: happy path extracts and strips.
+        assert_eq!(
+            validate_post_process_output(
+                "hello world",
+                "{\"transcription\":\"Hello, world.\"}",
+                PostProcessOutputMode::StructuredJson,
+                None,
+            )
+            .unwrap(),
+            "Hello, world."
+        );
+        // Structured: unparseable and field-missing fold to engine_failed.
+        for bad in ["nope", "{}"] {
+            let failure = validate_post_process_output(
+                "hello world",
+                bad,
+                PostProcessOutputMode::StructuredJson,
+                None,
+            )
+            .unwrap_err();
+            assert_eq!(failure.skip_reason, SkipReason::EngineFailed, "bad: {bad}");
+        }
+        // Fidelity collapse (either mode) is length_guard.
+        let long = "word ".repeat(40);
+        let failure = validate_post_process_output(
+            long.trim(),
+            "{\"transcription\":\"gone\"}",
+            PostProcessOutputMode::StructuredJson,
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(failure.skip_reason, SkipReason::LengthGuard);
+        let failure = validate_post_process_output(
+            long.trim(),
+            "gone",
+            PostProcessOutputMode::FreeText,
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(failure.skip_reason, SkipReason::LengthGuard);
+        // Free text: happy path passes through stripped.
+        assert_eq!(
+            validate_post_process_output(
+                "hello world",
+                "Hello, world.",
+                PostProcessOutputMode::FreeText,
+                None
+            )
+            .unwrap(),
+            "Hello, world."
+        );
+        // Empty free text never validates.
+        let failure = validate_post_process_output(
+            "hello world",
+            "  ",
+            PostProcessOutputMode::FreeText,
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(failure.skip_reason, SkipReason::EngineFailed);
     }
 }

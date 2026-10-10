@@ -74,6 +74,21 @@ struct MenuInputs {
     /// Persisted idle-unload timeout, driving the "Unload After" submenu's
     /// checkmark (and its Custom… seconds hint).
     unload_timeout: ModelUnloadTimeout,
+    /// Whether the local post-process engine is the active provider (and
+    /// post-processing is on at all): the Post-process Model submenu only
+    /// exists in that case, so a cloud/off user keeps the prior menu shape.
+    post_process_local_active: bool,
+    /// The effective post-process model selection (normalized by the same
+    /// helper the swap runner uses).
+    selected_llm_model: String,
+    /// `(id, name)` of DOWNLOADED post-process LLM models, sorted by name -
+    /// the LocalLlm mirror of `downloaded_models` (which excludes them).
+    downloaded_llm_models: Vec<(String, String)>,
+    /// `(id, name)` of every prompt template in the library, in catalog
+    /// order - drives the Post-process Prompt submenu.
+    post_process_prompts: Vec<(String, String)>,
+    /// The selected template id, when one is selected (checkmark state).
+    post_process_selected_prompt_id: Option<String>,
     /// macOS menu-bar title (resident model + compact RAM), set via
     /// `TrayIcon::set_title`. `None` (nothing resident) clears it. Only
     /// computed on macOS - Windows does not support tray titles and showing
@@ -346,6 +361,33 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
         .collect();
     downloaded_models.sort_by(|a, b| a.1.cmp(&b.1));
 
+    // The post-process model submenu's inputs: DOWNLOADED LocalLlm entries
+    // only (never get_available_models, which filters them out), plus the
+    // normalized selection. The submenu exists only when the local engine is
+    // the active post-process provider and post-processing is enabled.
+    let mut downloaded_llm_models: Vec<(String, String)> = app
+        .state::<Arc<ModelManager>>()
+        .get_available_llm_models()
+        .into_iter()
+        .filter(|m| m.is_downloaded)
+        .map(|m| (m.id, m.name))
+        .collect();
+    downloaded_llm_models.sort_by(|a, b| a.1.cmp(&b.1));
+    let post_process_local_active = settings.post_process_enabled
+        && settings.post_process_provider_id == crate::settings::LOCAL_LLM_PROVIDER_ID;
+    let selected_llm_model = crate::local_llm::manager::selected_llm_model_id(app);
+
+    // The Post-process Prompt submenu's inputs: the whole template library
+    // in catalog order plus the selection. Present unconditionally (unlike
+    // the model submenu): the submenu is how an unbound-cycle operator
+    // switches templates from the tray.
+    let post_process_prompts: Vec<(String, String)> = settings
+        .post_process_prompts
+        .iter()
+        .map(|p| (p.id.clone(), p.name.clone()))
+        .collect();
+    let post_process_selected_prompt_id = settings.post_process_selected_prompt_id.clone();
+
     // Resident model (id + display name) via the existing public accessor,
     // mapped through the same downloaded list the submenu builds from; the
     // footprint segment comes from the resident-footprint plumbing (measured
@@ -386,6 +428,11 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
             resident_model,
             model_ram,
             unload_timeout: settings.model_unload_timeout,
+            post_process_local_active,
+            selected_llm_model,
+            downloaded_llm_models,
+            post_process_prompts,
+            post_process_selected_prompt_id,
             title,
         },
     }
@@ -634,6 +681,50 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
             None::<&str>,
         )?;
 
+        // "Post-process Model" submenu: downloaded LocalLlm models with a
+        // checkmark on the effective selection, mirroring the voice model
+        // submenu above. Fed exclusively by the LocalLlm list
+        // (get_available_llm_models); only shown while the local engine is
+        // the active post-process provider, so cloud/off users keep the
+        // exact menu shape they had before.
+        let post_process_model_submenu = if inputs.post_process_local_active {
+            let selected_name = llm_submenu_label_name(inputs)
+                .unwrap_or_else(|| strings.post_process_model.clone());
+            let submenu = Submenu::with_id(
+                app,
+                "post_process_model_submenu",
+                &format!("{}: {}", strings.post_process_model, selected_name),
+                true,
+            )?;
+            for ((id, name), checked) in llm_submenu_checks(inputs) {
+                let item_id = format!("llm_select:{}", id);
+                let item =
+                    CheckMenuItem::with_id(app, &item_id, &name, true, checked, None::<&str>)?;
+                submenu.append(&item)?;
+            }
+            Some(submenu)
+        } else {
+            None
+        };
+
+        // "Post-process Prompt" submenu: the whole template library with a
+        // checkmark on the selection, mirroring the model submenus above.
+        // Present unconditionally: it is the tray surface for picking a
+        // template, independent of which engine runs it.
+        let prompt_selected_name = prompt_submenu_label_name(inputs)
+            .unwrap_or_else(|| strings.post_process_prompt.clone());
+        let post_process_prompt_submenu = Submenu::with_id(
+            app,
+            "post_process_prompt_submenu",
+            &format!("{}: {}", strings.post_process_prompt, prompt_selected_name),
+            true,
+        )?;
+        for ((id, name), checked) in prompt_submenu_checks(inputs) {
+            let item_id = format!("prompt_select:{}", id);
+            let item = CheckMenuItem::with_id(app, &item_id, &name, true, checked, None::<&str>)?;
+            post_process_prompt_submenu.append(&item)?;
+        }
+
         // "Unload After" submenu: preset idle timeouts with a checkmark on
         // the active one, plus a Custom… item that opens Settings focused on
         // the custom-seconds field. Selecting a preset persists immediately
@@ -663,23 +754,37 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
         )?;
         unload_after_submenu.append(&unload_after_custom_i)?;
 
-        Menu::with_items(
-            app,
-            &[
-                &version_i,
-                &separator()?,
-                &copy_last_transcript_i,
-                &separator()?,
-                &model_submenu,
-                &unload_model_i,
-                &unload_after_submenu,
-                &separator()?,
-                &settings_i,
-                &check_updates_i,
-                &separator()?,
-                &quit_i,
-            ],
-        )?
+        // Assembled dynamically: the Post-process Model submenu is
+        // conditional, so the separator after the model block is only
+        // present when that submenu is. Bound items (not temporaries) so
+        // they outlive the builder call.
+        let sep_after_version = separator()?;
+        let sep_after_copy = separator()?;
+        let sep_after_models = separator()?;
+        let sep_after_updates = separator()?;
+        let mut idle_items: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> = vec![
+            &version_i,
+            &sep_after_version,
+            &copy_last_transcript_i,
+            &sep_after_copy,
+            &model_submenu,
+            &unload_model_i,
+            &unload_after_submenu,
+        ];
+        if let Some(submenu) = &post_process_model_submenu {
+            idle_items.push(submenu);
+        }
+        idle_items.push(&post_process_prompt_submenu);
+        for item in [
+            &sep_after_models as &dyn tauri::menu::IsMenuItem<tauri::Wry>,
+            &settings_i,
+            &check_updates_i,
+            &sep_after_updates,
+            &quit_i,
+        ] {
+            idle_items.push(item);
+        }
+        Menu::with_items(app, &idle_items)?
     };
 
     // When update checks are forced off (e.g. HANDY_DISABLE_UPDATER, set by
@@ -740,6 +845,54 @@ fn format_ram_segment(footprint: Option<(u64, bool)>) -> Option<String> {
     } else {
         Some(format!("~{mb} MB"))
     }
+}
+
+/// The Post-process Model submenu's entries with their checkmark state:
+/// every DOWNLOADED LocalLlm model (computed upstream, never the ASR
+/// list), checked exactly when it is the effective selection. Pure, so
+/// the listing/checkmark semantics are unit-testable without an app.
+fn llm_submenu_checks(inputs: &MenuInputs) -> Vec<((String, String), bool)> {
+    inputs
+        .downloaded_llm_models
+        .iter()
+        .map(|(id, name)| ((id.clone(), name.clone()), *id == inputs.selected_llm_model))
+        .collect()
+}
+
+/// The submenu label's name segment: the selected model's display name,
+/// when the selection resolves inside the downloaded list. Pure.
+fn llm_submenu_label_name(inputs: &MenuInputs) -> Option<String> {
+    inputs
+        .downloaded_llm_models
+        .iter()
+        .find(|(id, _)| *id == inputs.selected_llm_model)
+        .map(|(_, name)| name.clone())
+}
+
+/// The Post-process Prompt submenu's entries with their checkmark state:
+/// every template in the library (catalog order), checked exactly when it
+/// is the selection. Pure, mirroring [`llm_submenu_checks`].
+fn prompt_submenu_checks(inputs: &MenuInputs) -> Vec<((String, String), bool)> {
+    inputs
+        .post_process_prompts
+        .iter()
+        .map(|(id, name)| {
+            (
+                (id.clone(), name.clone()),
+                Some(id.as_str()) == inputs.post_process_selected_prompt_id.as_deref(),
+            )
+        })
+        .collect()
+}
+
+/// The prompt submenu label's name segment: the selected template's name,
+/// when the selection resolves inside the library. Pure.
+fn prompt_submenu_label_name(inputs: &MenuInputs) -> Option<String> {
+    inputs
+        .post_process_prompts
+        .iter()
+        .find(|(id, _)| Some(id.as_str()) == inputs.post_process_selected_prompt_id.as_deref())
+        .map(|(_, name)| name.clone())
 }
 
 /// Resolve the model submenu label's name part (pure - extracted from
@@ -1119,7 +1272,8 @@ pub fn copy_last_transcript(app: &AppHandle) {
 mod tests {
     use super::{
         compact_ram, desired_tray_title, format_duration_compact, format_ram_segment,
-        format_tray_title, last_transcript_text, load_tray_icon, native_title_arg,
+        format_tray_title, last_transcript_text, llm_submenu_checks, llm_submenu_label_name,
+        load_tray_icon, native_title_arg, prompt_submenu_checks, prompt_submenu_label_name,
         resolve_model_label_name, title_reconciliation, unload_after_custom_label,
         unload_after_preset_is_active, MenuInputs, TitleAction, TrayDesired, TrayIconState,
         TRAY_TITLE_MAX_CHARS,
@@ -1139,6 +1293,11 @@ mod tests {
             post_process_prompt: None,
             post_process_requested: false,
             model_id: None,
+            post_process_provider: None,
+            post_process_model: None,
+            post_process_prompt_id: None,
+            post_process_outcome: None,
+            post_process_latency_ms: None,
         }
     }
 
@@ -1154,6 +1313,11 @@ mod tests {
             resident_model: None,
             model_ram: None,
             unload_timeout: ModelUnloadTimeout::Min2,
+            post_process_local_active: false,
+            selected_llm_model: crate::local_llm::LOCAL_LLM_MODEL_ID.to_string(),
+            downloaded_llm_models: Vec::new(),
+            post_process_prompts: Vec::new(),
+            post_process_selected_prompt_id: None,
             title: None,
         }
     }
@@ -1188,6 +1352,98 @@ mod tests {
         let mut with_ram = inputs(false);
         with_ram.model_ram = Some("697 MB".to_string());
         assert_ne!(inputs(false), with_ram);
+    }
+
+    /// The Post-process Model submenu lists exactly the downloaded LocalLlm
+    /// models with ONE checkmark, on the effective selection - and a
+    /// selection change drives a menu rebuild through MenuInputs' equality.
+    #[test]
+    fn llm_submenu_checks_list_downloaded_models_with_one_checkmark() {
+        let mut with_llm = inputs(false);
+        with_llm.post_process_local_active = true;
+        with_llm.downloaded_llm_models = vec![
+            (
+                "Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf".to_string(),
+                "Qwen3 0.6B".to_string(),
+            ),
+            ("org/other/model.gguf".to_string(), "Other".to_string()),
+        ];
+        with_llm.selected_llm_model = "org/other/model.gguf".to_string();
+
+        let checks = llm_submenu_checks(&with_llm);
+        assert_eq!(checks.len(), 2, "downloaded LLM models only");
+        let checked: Vec<_> = checks.iter().filter(|(_, c)| *c).collect();
+        assert_eq!(checked.len(), 1, "exactly one checkmark");
+        assert_eq!(checked[0].0 .0, "org/other/model.gguf");
+        assert_eq!(
+            llm_submenu_label_name(&with_llm).as_deref(),
+            Some("Other"),
+            "the label names the selected model"
+        );
+
+        // Selection change => MenuInputs differ => the applier rebuilds.
+        let mut reselected = with_llm.clone();
+        reselected.selected_llm_model = "Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf".to_string();
+        assert_ne!(with_llm, reselected);
+        // And a download joining the list rebuilds too.
+        let mut grown = with_llm.clone();
+        grown
+            .downloaded_llm_models
+            .push(("x/y.gguf".to_string(), "X".to_string()));
+        assert_ne!(with_llm, grown);
+    }
+
+    /// The Post-process Prompt submenu lists the whole library in catalog
+    /// order with ONE checkmark on the selection; an empty library yields
+    /// an empty submenu and the label falls back (the localized title), and
+    /// a selection change drives a rebuild through MenuInputs' equality.
+    #[test]
+    fn prompt_submenu_lists_the_library_with_one_checkmark() {
+        let mut with_prompts = inputs(false);
+        with_prompts.post_process_prompts = vec![
+            (
+                "default_improve_transcriptions".to_string(),
+                "English Professional".to_string(),
+            ),
+            ("english_casual".to_string(), "English Casual".to_string()),
+            ("prompt_42".to_string(), "My Notes copy".to_string()),
+        ];
+        with_prompts.post_process_selected_prompt_id = Some("english_casual".to_string());
+
+        let checks = prompt_submenu_checks(&with_prompts);
+        assert_eq!(checks.len(), 3, "the whole library, builtin or not");
+        assert_eq!(checks[0].0 .0, "default_improve_transcriptions");
+        let checked: Vec<_> = checks.iter().filter(|(_, c)| *c).collect();
+        assert_eq!(checked.len(), 1, "exactly one checkmark");
+        assert_eq!(checked[0].0 .0, "english_casual");
+        assert_eq!(
+            prompt_submenu_label_name(&with_prompts).as_deref(),
+            Some("English Casual"),
+            "the label names the selected template"
+        );
+
+        // Selection change => MenuInputs differ => the applier rebuilds.
+        let mut reselected = with_prompts.clone();
+        reselected.post_process_selected_prompt_id = Some("prompt_42".to_string());
+        assert_ne!(with_prompts, reselected);
+
+        // Nothing selected: no checkmark, no name segment.
+        let mut unselected = with_prompts.clone();
+        unselected.post_process_selected_prompt_id = None;
+        assert!(
+            !prompt_submenu_checks(&unselected).iter().any(|(_, c)| *c),
+            "no checkmark without a selection"
+        );
+        assert_eq!(prompt_submenu_label_name(&unselected), None);
+
+        // A dangling selection (deleted template) resolves to no checkmark.
+        let mut dangling = with_prompts;
+        dangling.post_process_selected_prompt_id = Some("gone".to_string());
+        assert!(
+            !prompt_submenu_checks(&dangling).iter().any(|(_, c)| *c),
+            "a dangling id never checks anything"
+        );
+        assert_eq!(prompt_submenu_label_name(&dangling), None);
     }
 
     #[test]

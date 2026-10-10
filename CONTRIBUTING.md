@@ -160,6 +160,8 @@ We use GitHub Discussions for feature requests rather than issues. This keeps is
 
 3. **Get community feedback for features** - PRs with demonstrated community interest are **much more likely to be merged**. Start a discussion, get feedback, and link to it in your PR. This helps ensure Handy stays focused and useful for the most people without becoming bloated.
 
+4. **Check the quality goldmine before writing code** - [docs/quality-goldmine.md](docs/quality-goldmine.md) is the accumulated knowledge base from the v1.4.0 review rounds: every known defect and rough edge with file and line evidence, what is already fixed (with commits and tests), and the cross-cutting themes where one fix pattern closes many items at once. Search it before filing a bug or opening a PR so fixed items stay closed and new work lands where it helps most.
+
 Community feedback is essential to keeping Handy the best it can be for everyone. It helps prioritize what matters most and prevents feature creep.
 
 ### Development Workflow

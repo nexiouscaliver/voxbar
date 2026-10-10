@@ -12,6 +12,11 @@ use tauri::{AppHandle, Manager};
 const DEBOUNCE: Duration = Duration::from_millis(30);
 const RELEASE_GRACE: Duration = Duration::from_millis(50);
 
+/// The binding id of the phone/tablet companion trigger. Every companion
+/// edge (live presses from the phone, synthesized finalize edges from the
+/// server) routes the lifecycle through this one id.
+const COMPANION_BINDING_ID: &str = "transcribe_companion";
+
 // Operator rule, stated absolutely: the ONLY always-on binding is the
 // transcribe trigger. Every other binding (delete, undo, command modifier)
 // may act while a dictation session is LIVE and never after it ends.
@@ -198,6 +203,11 @@ enum Command {
     CommandModifier {
         is_pressed: bool,
     },
+    /// The companion trigger source is over (phone disconnected, the
+    /// 15-minute session cap fired, the companion server is stopping):
+    /// end the companion's session now, regardless of activation-mode
+    /// locks. Unlike a key release, this edge is deliberate and terminal.
+    FinalizeCompanion,
 }
 
 /// Decide whether a key-up should be deferred (so auto-repeat can cancel it)
@@ -541,6 +551,39 @@ impl CoordinatorState {
         }
     }
 
+    /// The companion trigger source is gone or done (phone disconnected,
+    /// session cap, server stop): end the companion's own session NOW.
+    /// A locked session ignores release edges by design - they model
+    /// accidental key-ups of a physical key - but these edges are not key
+    /// events; they are terminal "the audio source is over" signals. A
+    /// release edge here would strand the recording with no incoming audio
+    /// while the CompanionDisconnected notice claims it was finalized and
+    /// pasted. Also drops a companion press remembered while busy: starting
+    /// a locked session from a vanished phone strands the same way.
+    fn on_finalize_companion(&mut self) -> Option<Effect> {
+        if self
+            .pending_press
+            .as_ref()
+            .is_some_and(|p| p.binding_id == COMPANION_BINDING_ID)
+        {
+            debug!("Forgetting remembered companion press: the source is gone");
+            self.pending_press = None;
+        }
+        if self
+            .pending_release
+            .as_ref()
+            .is_some_and(|p| p.binding_id == COMPANION_BINDING_ID)
+        {
+            self.pending_release = None;
+        }
+        match &self.stage {
+            Stage::Recording(id) if id == COMPANION_BINDING_ID => Some(
+                self.begin_processing(COMPANION_BINDING_ID.to_string(), "companion".to_string()),
+            ),
+            _ => None,
+        }
+    }
+
     fn on_processing_finished(&mut self) -> Option<Effect> {
         self.stage = Stage::Idle;
         self.hold = None;
@@ -664,9 +707,12 @@ pub struct TranscriptionCoordinator {
 /// binding ("transcribe_commands") is NOT one of them: it is a
 /// during-dictation modifier that never starts or stops a recording, so
 /// its events route to [`TranscriptionCoordinator::send_command_modifier`]
-/// instead of the lifecycle input path.
+/// instead of the lifecycle input path. "transcribe_companion" is the
+/// phone/tablet trigger: the same lifecycle, so the one-only-session rule
+/// and the cross-binding busy notice arbitrate local vs companion presses
+/// exactly as they do between the two keyboard bindings.
 pub fn is_transcribe_binding(id: &str) -> bool {
-    id == "transcribe" || id == "transcribe_with_post_process"
+    id == "transcribe" || id == "transcribe_with_post_process" || id == "transcribe_companion"
 }
 
 impl TranscriptionCoordinator {
@@ -737,6 +783,11 @@ impl TranscriptionCoordinator {
                         }
                         Command::CommandModifier { is_pressed } => {
                             if let Some(effect) = state.on_command_modifier(is_pressed) {
+                                run_effect(&app, &mut state, effect);
+                            }
+                        }
+                        Command::FinalizeCompanion => {
+                            if let Some(effect) = state.on_finalize_companion() {
                                 run_effect(&app, &mut state, effect);
                             }
                         }
@@ -846,6 +897,38 @@ impl TranscriptionCoordinator {
             Duration::ZERO,
             true,
         );
+    }
+
+    /// Forward a companion-device (phone/tablet) press or release edge for
+    /// the "transcribe_companion" binding. External like the signal/CLI
+    /// triggers (network edges must never be debounced - dropping one
+    /// desyncs the phone's button state), but honoring the user's activation
+    /// mode and hold threshold so hold-to-talk and tap-to-lock behave from
+    /// the phone exactly as they do from the keyboard.
+    pub fn send_companion_edge(&self, app: &AppHandle, pressed: bool) {
+        let settings = crate::settings::get_settings(app);
+        self.send(
+            COMPANION_BINDING_ID,
+            "companion",
+            pressed,
+            settings.shortcut_activation,
+            Duration::from_millis(settings.hold_threshold_ms),
+            true,
+        );
+    }
+
+    /// Force-finalize the companion's live session: the phone dropped
+    /// mid-dictation, the 15-minute cap fired, or the companion server is
+    /// stopping. Unlike [`Self::send_companion_edge`] with `pressed=false`,
+    /// this ends the session even when it is locked (toggle mode, or a
+    /// locked hold-or-toggle session) - a locked session ignores release
+    /// edges by design, so the ordinary synthesized release strands those
+    /// recordings with no incoming audio while the disconnect notice claims
+    /// they were finalized and pasted.
+    pub fn finalize_companion_session(&self) {
+        if self.tx.send(Command::FinalizeCompanion).is_err() {
+            warn!("Transcription coordinator channel closed");
+        }
     }
 
     /// Send a press/release of the command-mode binding. The binding is a
@@ -1039,12 +1122,303 @@ mod tests {
         assert!(is_transcribe_binding("transcribe"));
         assert!(is_transcribe_binding("transcribe_with_post_process"));
         assert!(
+            is_transcribe_binding("transcribe_companion"),
+            "the companion binding drives the same recording lifecycle as the keyboard triggers"
+        );
+        assert!(
             !is_transcribe_binding("transcribe_commands"),
             "the command binding is a during-dictation modifier, never a recording trigger"
         );
         assert!(!is_transcribe_binding("delete_last_word"));
         assert!(!is_transcribe_binding("undo"));
         assert!(!is_transcribe_binding("cancel"));
+    }
+
+    // ---------------------------------------------------------------------
+    // Companion-device edges (phones/tablets on the LAN). Same lifecycle,
+    // same one-only-session rule; network edges are external, so they are
+    // never debounced (dropping one desyncs the phone's button state).
+    // ---------------------------------------------------------------------
+
+    const COMPANION_BINDING: &str = "transcribe_companion";
+
+    fn companion_edge(pressed: bool, mode: ShortcutActivation) -> InputEvent {
+        InputEvent {
+            binding_id: COMPANION_BINDING.to_string(),
+            hotkey_string: "companion".to_string(),
+            is_pressed: pressed,
+            mode,
+            hold_threshold: Duration::from_millis(300),
+            external: true,
+        }
+    }
+
+    #[test]
+    fn companion_push_to_talk_press_and_release_drive_one_session() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::PushToTalk), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(matches!(state.stage, Stage::Recording(_)));
+        // Push-to-talk: the release is deferred by the same release grace a
+        // physical key gets, then stops the session when the grace expires.
+        assert!(state
+            .on_input(
+                companion_edge(false, ShortcutActivation::PushToTalk),
+                t0 + Duration::from_secs(2)
+            )
+            .is_none());
+        assert!(matches!(
+            state.on_grace_expired(),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(state.stage, Stage::Processing);
+    }
+
+    #[test]
+    fn companion_press_while_local_binding_records_is_arbitrated_not_silent() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0),
+            Some(Effect::Start { .. })
+        ));
+
+        // A phone press during the local hotkey's session is swallowed to
+        // protect the live session - but NOT silently: the busy notice
+        // names the companion binding so it can be forwarded to the phone.
+        let effect = state.on_input(
+            companion_edge(true, ShortcutActivation::PushToTalk),
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(
+            effect,
+            Some(Effect::NotifyRecordingBusy {
+                binding_id: COMPANION_BINDING.to_string()
+            })
+        );
+        // The local session is untouched.
+        assert!(matches!(state.stage, Stage::Recording(_)));
+
+        // Symmetrically, the keyboard pressing during a companion session
+        // gets the same arbitration.
+        let mut state = CoordinatorState::new();
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::Toggle), t0),
+            Some(Effect::Start { .. })
+        ));
+        let effect = state.on_input(
+            toggle_input_for(OTHER_BINDING, true),
+            t0 + Duration::from_millis(50),
+        );
+        assert!(matches!(
+            effect,
+            Some(Effect::NotifyRecordingBusy { binding_id }) if binding_id == OTHER_BINDING
+        ));
+    }
+
+    #[test]
+    fn companion_edges_are_never_debounced() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        // Two presses 10 ms apart (inside the 30 ms debounce window): the
+        // first starts, the second stops the toggle session. A debounced
+        // second edge would wedge the phone's button state on.
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::Toggle), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(matches!(
+            state.on_input(
+                companion_edge(true, ShortcutActivation::Toggle),
+                t0 + Duration::from_millis(10)
+            ),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(state.stage, Stage::Processing);
+    }
+
+    #[test]
+    fn companion_hold_or_toggle_short_tap_locks_and_release_after_hold_stops() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::HoldOrToggle), t0),
+            Some(Effect::Start { .. })
+        ));
+        // Release before the 300 ms threshold: a tap, session locks on
+        // (the release grace finds nothing deferred; a locked session
+        // ignores releases).
+        assert!(state
+            .on_input(
+                companion_edge(false, ShortcutActivation::HoldOrToggle),
+                t0 + Duration::from_millis(120)
+            )
+            .is_none());
+        assert!(state.on_grace_expired().is_none());
+        assert!(matches!(state.stage, Stage::Recording(_)));
+
+        // A second press stops the locked session.
+        assert!(matches!(
+            state.on_input(
+                companion_edge(true, ShortcutActivation::HoldOrToggle),
+                t0 + Duration::from_secs(1)
+            ),
+            Some(Effect::Stop { .. })
+        ));
+    }
+
+    // ---------------------------------------------------------------------
+    // Forced companion finalize: the synthesized "the source is over"
+    // edges (phone disconnect, 15-minute cap, server stop) must end the
+    // companion's session even when it is locked - a locked session ignores
+    // release edges by design, so routing these through a release would
+    // strand the recording with no incoming audio.
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn finalize_companion_ends_a_locked_toggle_session() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::Toggle), t0),
+            Some(Effect::Start { .. })
+        ));
+        // The premise of the bug: a release edge is a no-op on the locked
+        // toggle session.
+        assert!(state
+            .on_input(
+                companion_edge(false, ShortcutActivation::Toggle),
+                t0 + Duration::from_secs(60)
+            )
+            .is_none());
+        assert!(matches!(state.stage, Stage::Recording(_)));
+
+        // The forced finalize ends it: the ordinary Stop effect runs, so
+        // everything captured transcribes and pastes.
+        assert!(matches!(
+            state.on_finalize_companion(),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(state.stage, Stage::Processing);
+    }
+
+    #[test]
+    fn finalize_companion_ends_a_locked_hold_or_toggle_tap_session() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::HoldOrToggle), t0),
+            Some(Effect::Start { .. })
+        ));
+        // Short tap: the session locks on.
+        assert!(state
+            .on_input(
+                companion_edge(false, ShortcutActivation::HoldOrToggle),
+                t0 + Duration::from_millis(120)
+            )
+            .is_none());
+        assert!(state.on_grace_expired().is_none());
+        assert!(state.is_locked());
+
+        assert!(matches!(
+            state.on_finalize_companion(),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(state.stage, Stage::Processing);
+    }
+
+    #[test]
+    fn finalize_companion_drops_a_remembered_companion_press() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        // A companion press remembered while the pipeline is busy would
+        // start a locked session from a phone that no longer exists.
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::Toggle), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(matches!(
+            state.on_input(
+                companion_edge(true, ShortcutActivation::Toggle),
+                t0 + Duration::from_millis(100)
+            ),
+            Some(Effect::Stop { .. })
+        ));
+        assert!(state
+            .on_input(
+                companion_edge(true, ShortcutActivation::Toggle),
+                t0 + Duration::from_millis(200)
+            )
+            .is_none());
+        assert!(state.pending_press.is_some());
+
+        // Finalize during Processing: the remembered press goes with the
+        // session, so the drain starts nothing.
+        assert!(state.on_finalize_companion().is_none());
+        assert!(state.pending_press.is_none());
+        assert!(state.on_processing_finished().is_none());
+        assert_eq!(state.stage, Stage::Idle);
+    }
+
+    #[test]
+    fn finalize_companion_leaves_keyboard_sessions_alone() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        // A locked keyboard toggle session is NOT the companion's to stop.
+        assert!(matches!(
+            state.on_input(toggle_input(false), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(state.is_locked());
+
+        assert_eq!(
+            state.on_finalize_companion(),
+            None,
+            "the forced finalize must not stop a keyboard session"
+        );
+        assert!(matches!(state.stage, Stage::Recording(_)));
+
+        // Idle and already-Processing states are equally untouched.
+        let mut idle = CoordinatorState::new();
+        assert!(idle.on_finalize_companion().is_none());
+    }
+
+    #[test]
+    fn finalize_companion_clears_a_deferred_companion_release() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::PushToTalk), t0),
+            Some(Effect::Start { .. })
+        ));
+        // Deferred release inside its grace window.
+        assert!(state
+            .on_input(
+                companion_edge(false, ShortcutActivation::PushToTalk),
+                t0 + Duration::from_millis(10)
+            )
+            .is_none());
+        assert!(state.pending_release.is_some());
+
+        // Finalize wins: the Stop effect is immediate and no grace timer is
+        // left armed to fire afterwards.
+        assert!(matches!(
+            state.on_finalize_companion(),
+            Some(Effect::Stop { .. })
+        ));
+        assert!(state.pending_release.is_none());
+        assert!(state.on_grace_expired().is_none());
     }
 
     // ---------------------------------------------------------------------

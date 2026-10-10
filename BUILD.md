@@ -102,6 +102,19 @@ cd voxbar
 bun install
 ```
 
+Note: `bun install` also regenerates `src-tauri/src/companion/strings_gen.rs`,
+the embedded strings for the companion web client (phones as microphones).
+Those strings come from the `companion.*` keys of every locale's
+`translation.json`; if you edit them, regenerate with:
+
+```bash
+bun run gen:companion-strings
+```
+
+The generator fails when any locale is missing a key, and
+`bun run check:translations` checks the same completeness for the whole
+locale files.
+
 ### 3. Start Dev Server
 
 ```bash

@@ -38,6 +38,17 @@ static MIGRATIONS: &[M] = &[
         "ALTER TABLE transcription_history ADD COLUMN model_id TEXT;
          UPDATE transcription_history SET model_id = '' WHERE model_id IS NULL;",
     ),
+    // The pp: observability lifecycle's per-run summary (which engine and
+    // prompt polished this entry, how it ended, how long it took). All
+    // nullable: pre-cycle rows and non-post-processed entries read back as
+    // None and render unchanged.
+    M::up(
+        "ALTER TABLE transcription_history ADD COLUMN post_process_provider TEXT;
+         ALTER TABLE transcription_history ADD COLUMN post_process_model TEXT;
+         ALTER TABLE transcription_history ADD COLUMN post_process_prompt_id TEXT;
+         ALTER TABLE transcription_history ADD COLUMN post_process_outcome TEXT;
+         ALTER TABLE transcription_history ADD COLUMN post_process_latency_ms INTEGER;",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -75,6 +86,16 @@ pub struct HistoryEntry {
     /// fallback). `None` for pre-migration entries or when the model was
     /// unknown (e.g. a failed transcription saved for retry).
     pub model_id: Option<String>,
+    /// The pp: run summary (the post-process lifecycle, WS3): which
+    /// provider/model/prompt polished this entry, how the run ended
+    /// (`applied` | `skipped:<reason>` | `failed:<class>`), and its
+    /// latency. `None` for pre-cycle rows and entries whose dictation ran
+    /// without post-processing.
+    pub post_process_provider: Option<String>,
+    pub post_process_model: Option<String>,
+    pub post_process_prompt_id: Option<String>,
+    pub post_process_outcome: Option<String>,
+    pub post_process_latency_ms: Option<i64>,
 }
 
 pub struct HistoryManager {
@@ -224,6 +245,11 @@ impl HistoryManager {
             model_id: row
                 .get::<_, Option<String>>("model_id")?
                 .filter(|model| !model.is_empty()),
+            post_process_provider: row.get("post_process_provider")?,
+            post_process_model: row.get("post_process_model")?,
+            post_process_prompt_id: row.get("post_process_prompt_id")?,
+            post_process_outcome: row.get("post_process_outcome")?,
+            post_process_latency_ms: row.get("post_process_latency_ms")?,
         })
     }
 
@@ -236,6 +262,8 @@ impl HistoryManager {
     /// `model_id` is the model that actually produced the transcription (the
     /// resident model at transcription time - after a RAM auto-fallback this
     /// is the fallback), recorded per entry for auditability.
+    /// `post_process_summary` carries the pp: run's summary (provider,
+    /// model, prompt, outcome, latency) for the row detail.
     pub fn save_entry(
         &self,
         file_name: String,
@@ -244,6 +272,7 @@ impl HistoryManager {
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
         model_id: Option<String>,
+        post_process_summary: Option<crate::post_process_runs::PostProcessRunSummary>,
     ) -> Result<HistoryEntry> {
         let timestamp = Utc::now().timestamp();
         let title = self.format_timestamp_title(timestamp);
@@ -257,6 +286,7 @@ impl HistoryManager {
             post_processed_text,
             post_process_prompt,
             model_id,
+            post_process_summary,
             timestamp,
             title,
         )?;
@@ -288,12 +318,24 @@ impl HistoryManager {
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
         model_id: Option<String>,
+        post_process_summary: Option<crate::post_process_runs::PostProcessRunSummary>,
         timestamp: i64,
         title: String,
     ) -> Result<HistoryEntry> {
         // Unknown model writes as '' (never NULL) so the migration's
         // no-NULL invariant holds for new rows too.
         let stored_model_id = model_id.clone().unwrap_or_default();
+        let (pp_provider, pp_model, pp_prompt_id, pp_outcome, pp_latency) =
+            match &post_process_summary {
+                Some(summary) => (
+                    Some(summary.provider_id.clone()),
+                    Some(summary.model.clone()),
+                    Some(summary.prompt_id.clone()),
+                    Some(summary.outcome.clone()),
+                    Some(summary.latency_ms as i64),
+                ),
+                None => (None, None, None, None, None),
+            };
         conn.execute(
             "INSERT INTO transcription_history (
                 file_name,
@@ -304,8 +346,13 @@ impl HistoryManager {
                 post_processed_text,
                 post_process_prompt,
                 post_process_requested,
-                model_id
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+                model_id,
+                post_process_provider,
+                post_process_model,
+                post_process_prompt_id,
+                post_process_outcome,
+                post_process_latency_ms
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
             params![
                 &file_name,
                 timestamp,
@@ -316,6 +363,11 @@ impl HistoryManager {
                 &post_process_prompt,
                 post_process_requested,
                 &stored_model_id,
+                &pp_provider,
+                &pp_model,
+                &pp_prompt_id,
+                &pp_outcome,
+                &pp_latency,
             ],
         )?;
 
@@ -330,6 +382,11 @@ impl HistoryManager {
             post_process_prompt,
             post_process_requested,
             model_id: (!stored_model_id.is_empty()).then_some(stored_model_id),
+            post_process_provider: pp_provider,
+            post_process_model: pp_model,
+            post_process_prompt_id: pp_prompt_id,
+            post_process_outcome: pp_outcome,
+            post_process_latency_ms: pp_latency,
         })
     }
 
@@ -366,7 +423,9 @@ impl HistoryManager {
 
         let entry = conn
             .query_row(
-                "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id
+                "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id,
+                post_process_provider, post_process_model, post_process_prompt_id,
+                post_process_outcome, post_process_latency_ms
                  FROM transcription_history WHERE id = ?1",
                 params![id],
                 Self::map_history_entry,
@@ -517,7 +576,9 @@ impl HistoryManager {
             (Some(cursor_id), Some(lim)) => {
                 let fetch_count = (lim + 1) as i64;
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id
+                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id,
+                post_process_provider, post_process_model, post_process_prompt_id,
+                post_process_outcome, post_process_latency_ms
                      FROM transcription_history
                      WHERE id < ?1
                      ORDER BY id DESC
@@ -531,7 +592,9 @@ impl HistoryManager {
             (None, Some(lim)) => {
                 let fetch_count = (lim + 1) as i64;
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id
+                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id,
+                post_process_provider, post_process_model, post_process_prompt_id,
+                post_process_outcome, post_process_latency_ms
                      FROM transcription_history
                      ORDER BY id DESC
                      LIMIT ?1",
@@ -543,7 +606,9 @@ impl HistoryManager {
             }
             (_, None) => {
                 let mut stmt = conn.prepare(
-                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id
+                    "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id,
+                post_process_provider, post_process_model, post_process_prompt_id,
+                post_process_outcome, post_process_latency_ms
                      FROM transcription_history
                      ORDER BY id DESC",
                 )?;
@@ -575,7 +640,12 @@ impl HistoryManager {
                 post_processed_text,
                 post_process_prompt,
                 post_process_requested,
-                model_id
+                model_id,
+                post_process_provider,
+                post_process_model,
+                post_process_prompt_id,
+                post_process_outcome,
+                post_process_latency_ms
              FROM transcription_history
              ORDER BY timestamp DESC
              LIMIT 1",
@@ -603,7 +673,12 @@ impl HistoryManager {
                 post_processed_text,
                 post_process_prompt,
                 post_process_requested,
-                model_id
+                model_id,
+                post_process_provider,
+                post_process_model,
+                post_process_prompt_id,
+                post_process_outcome,
+                post_process_latency_ms
              FROM transcription_history
              WHERE transcription_text != ''
              ORDER BY timestamp DESC
@@ -658,7 +733,12 @@ impl HistoryManager {
                 post_processed_text,
                 post_process_prompt,
                 post_process_requested,
-                model_id
+                model_id,
+                post_process_provider,
+                post_process_model,
+                post_process_prompt_id,
+                post_process_outcome,
+                post_process_latency_ms
              FROM transcription_history
              WHERE id = ?1",
         )?;
@@ -728,7 +808,12 @@ mod tests {
                 post_processed_text TEXT,
                 post_process_prompt TEXT,
                 post_process_requested BOOLEAN NOT NULL DEFAULT 0,
-                model_id TEXT
+                model_id TEXT,
+                post_process_provider TEXT,
+                post_process_model TEXT,
+                post_process_prompt_id TEXT,
+                post_process_outcome TEXT,
+                post_process_latency_ms INTEGER
             );",
         )
         .expect("create transcription_history table");
@@ -806,8 +891,10 @@ mod tests {
         let mut conn = Connection::open_in_memory().expect("open in-memory db");
 
         // Build the previous database state: every migration except the
-        // model_id one, tracked via user_version exactly like a live DB.
-        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 1].to_vec());
+        // model_id one and the later pp-summary one (which must not run
+        // here either, or this row would gain those columns too), tracked
+        // via user_version exactly like a live DB.
+        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 2].to_vec());
         previous
             .to_latest(&mut conn)
             .expect("apply pre-model_id migrations");
@@ -866,6 +953,7 @@ mod tests {
             None,
             None,
             Some("whisper-large-v3-turbo".to_string()),
+            None,
             200,
             "Recording 200".to_string(),
         )
@@ -891,6 +979,7 @@ mod tests {
             None,
             None,
             None,
+            None,
             300,
             "Recording 300".to_string(),
         )
@@ -905,5 +994,107 @@ mod tests {
             .expect("query saved row");
         assert_eq!(raw.as_deref(), Some(""), "unknown model is stored as ''");
         assert_eq!(unknown.model_id, None);
+    }
+
+    /// Version-forward migration test: a database at the previous version
+    /// (no pp summary columns) gains the five columns via the migration
+    /// chain, they are all nullable, and pre-existing rows read back with
+    /// every new field as None (pre-cycle rows render unchanged).
+    #[test]
+    fn migration_adds_pp_columns_nullable_and_old_rows_default_none() {
+        let mut conn = Connection::open_in_memory().expect("open in-memory db");
+
+        // Build the previous database state: every migration except the pp
+        // summary one, tracked via user_version exactly like a live DB.
+        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 1].to_vec());
+        previous
+            .to_latest(&mut conn)
+            .expect("apply pre-pp-summary migrations");
+        insert_entry(&conn, 100, "legacy entry", None);
+
+        // Roll forward with the full chain; it continues from user_version.
+        let latest = Migrations::new(MIGRATIONS.to_vec());
+        latest
+            .to_latest(&mut conn)
+            .expect("apply latest migrations");
+
+        let version: i32 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .expect("read user_version");
+        assert_eq!(version as usize, MIGRATIONS.len());
+
+        for column in [
+            "post_process_provider",
+            "post_process_model",
+            "post_process_prompt_id",
+            "post_process_outcome",
+            "post_process_latency_ms",
+        ] {
+            let notnull: i32 = conn
+                .query_row(
+                    "SELECT [notnull] FROM pragma_table_info('transcription_history')
+                     WHERE name = ?1",
+                    params![column],
+                    |row| row.get(0),
+                )
+                .unwrap_or_else(|e| panic!("query pragma_table_info for {column}: {e}"));
+            assert_eq!(notnull, 0, "{column} must remain a nullable column");
+        }
+
+        // The legacy row maps back with every new field None.
+        let mapped = HistoryManager::get_latest_entry_with_conn(&conn)
+            .expect("fetch latest entry")
+            .expect("entry exists");
+        assert_eq!(mapped.transcription_text, "legacy entry");
+        assert_eq!(mapped.post_process_provider, None);
+        assert_eq!(mapped.post_process_model, None);
+        assert_eq!(mapped.post_process_prompt_id, None);
+        assert_eq!(mapped.post_process_outcome, None);
+        assert_eq!(mapped.post_process_latency_ms, None);
+    }
+
+    /// Round-trip: a run summary (e.g. the local Qwen model with the
+    /// Hinglish prompt) lands in the row and reads back field for field.
+    #[test]
+    fn pp_summary_round_trips() {
+        let conn = setup_conn();
+        let entry = HistoryManager::insert_entry_with_conn(
+            &conn,
+            "voxbar-400.wav".to_string(),
+            "namaste duniya".to_string(),
+            true,
+            Some("namaste duniya.".to_string()),
+            None,
+            Some("whisper-large-v3-turbo".to_string()),
+            Some(crate::post_process_runs::PostProcessRunSummary {
+                provider_id: "local".to_string(),
+                model: "Qwen/Qwen3-1.7B".to_string(),
+                prompt_id: "hinglish-clean".to_string(),
+                outcome: "applied".to_string(),
+                latency_ms: 2340,
+            }),
+            400,
+            "Recording 400".to_string(),
+        )
+        .expect("insert entry with pp summary");
+
+        assert_eq!(entry.post_process_provider.as_deref(), Some("local"));
+        assert_eq!(entry.post_process_model.as_deref(), Some("Qwen/Qwen3-1.7B"));
+        assert_eq!(
+            entry.post_process_prompt_id.as_deref(),
+            Some("hinglish-clean")
+        );
+        assert_eq!(entry.post_process_outcome.as_deref(), Some("applied"));
+        assert_eq!(entry.post_process_latency_ms, Some(2340));
+
+        let readback = HistoryManager::get_latest_entry_with_conn(&conn)
+            .expect("fetch latest")
+            .expect("entry exists");
+        assert_eq!(readback.post_process_model, entry.post_process_model);
+        assert_eq!(readback.post_process_outcome, entry.post_process_outcome);
+        assert_eq!(
+            readback.post_process_latency_ms,
+            entry.post_process_latency_ms
+        );
     }
 }

@@ -9,9 +9,11 @@
     "unloadAfterNever": "Mai",
     "unloadAfterCustom": "Personalitzat…",
     "model": "Model",
+    "postProcessModel": "Model de postprocessament",
     "quit": "Surt",
     "cancel": "Cancel·la",
-    "secureInputWarning": "⚠ Dreceres blocades per l'entrada segura"
+    "secureInputWarning": "⚠ Dreceres blocades per l'entrada segura",
+    "postProcessPrompt": "Indicació de postprocessament"
   },
   "sidebar": {
     "general": "General",
@@ -220,6 +222,10 @@
           "transcribe_commands": {
             "name": "Mode d'ordres",
             "description": "Mantén aquesta tecla mentre una sessió de dictat és activa per canviar a interpretació d'ordres: tot el que diguis edita directament la memòria intermèdia del dictat (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) i les paraules no reconegudes es descarten. Deixa anar la tecla per tornar al dictat normal; l'enganxat final lliura exactament la memòria intermèdia editada. Mai no inicia un enregistrament i tot sol no fa res. Sense tecla per defecte."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Canvia la indicació de postprocessament",
+            "description": "Opcional: avança a la següent plantilla de postprocessament seleccionada i confirma la nova."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "Dígits",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Dispositius acompanyants",
+        "description": "Fes servir un mòbil o tauleta a la mateixa Wi-Fi com a micròfon i disparador per a aquest Mac.",
+        "offNote": "Desactivat per defecte. Res no escolta ni cap fil s'executa fins que l'activis.",
+        "qrTitle": "Vincula un dispositiu",
+        "qrHint": "Escaneja amb la càmera del mòbil, obre l'enllaç i accepta una vegada l'avís del certificat.",
+        "addressLabel": "Adreça",
+        "portLabel": "Port",
+        "devicesLabel": "Dispositius connectats",
+        "noDevices": "Encara no hi ha dispositius connectats",
+        "resetPairing": "Restableix la vinculació",
+        "fingerprintLabel": "Empremta del certificat (SHA-256)",
+        "firewallNote": "macOS pot demanar permetre connexions entrants el primer cop que ho activis. Permet-ho, o els mòbils no arribaran a aquest Mac.",
+        "unavailable": "Els dispositius acompanyants requereixen macOS en aquest cicle.",
+        "serverError": "El servidor ha fallat: {{error}}",
+        "refresh": "Actualitza",
+        "statusRunning": "En execució",
+        "statusStopped": "Aturat"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "Trieu un model ofert pel proveïdor seleccionat.",
           "placeholderWithOptions": "Cerqueu o seleccioneu un model",
           "placeholderNoOptions": "Escriviu el nom d'un model",
-          "refreshModels": "Actualitzeu els models"
+          "refreshModels": "Actualitzeu els models",
+          "fetchFailed": "No s'ha pogut obtenir la llista de models ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Llista de models obtinguda {{time}}",
+          "retry": "Torna-ho a provar"
         },
         "timeout": {
           "title": "Temps d'espera de la sol·licitud",
-          "description": "Quant de temps pot executar-se una sol·licitud de postprocessat al núvol abans de renunciar-hi i usar la transcripció en brut. S'aplica quan un endpoint deixa de respondre."
+          "description": "Quant de temps poden córrer les sol·licituds de postprocés d'aquest proveïdor abans de rendir-se i usar la transcripció original. Restablir torna al valor per defecte de {{classDefault}}s d'aquest proveïdor."
+        },
+        "testConnection": "Prova la connexió",
+        "testConnectionRunning": "Provant...",
+        "verdict": {
+          "ok": "Autenticació correcta, {{latencyMs}} ms, model accessible",
+          "okNoModel": "Autenticació correcta, {{latencyMs}} ms. No hi ha cap model seleccionat per provar.",
+          "localReady": "El model local està baixat i a punt",
+          "localNotReady": "El model local no està a punt: {{detail}}",
+          "appleReady": "Apple Intelligence està disponible",
+          "appleUnavailable": "Apple Intelligence no està disponible en aquest dispositiu",
+          "failed": "La connexió ha fallat: {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "Ara no es pot suprimir: hi ha un postprocessament en execució. Torneu-ho a provar d'aquí a un moment.",
         "downloadFailed": "No s'ha pogut descarregar: {{error}}",
         "deleteFailed": "No s'ha pogut suprimir el model: {{error}}",
-        "providerLabel": "Local (al dispositiu)"
+        "providerLabel": "Local (al dispositiu)",
+        "keepWarm": {
+          "title": "Mantén el model local en memòria",
+          "description": "Quant de temps roman a la memòria el model local de postprocés després d'un polit en lloc de descarregar-se de seguida. Un dictat sempre recupera la memòria primer.",
+          "off": "Desactivat"
+        }
+      },
+      "models": {
+        "title": "Models de postprocessament",
+        "description": "Els models locals que poleixen les teves transcripcions. Els més petits carreguen més ràpid; els més grans poleixen millor.",
+        "searchPlaceholder": "Cerca models de postprocessament",
+        "downloaded": "Baixats",
+        "available": "Disponibles per baixar",
+        "active": "Actiu",
+        "select": "Utilitza",
+        "contextTokens": "Context: {{count}} tokens",
+        "publisher": "per {{publisher}}",
+        "noMatch": "Cap model de postprocessament coincideix amb la cerca.",
+        "browseCatalog": "Explora més models",
+        "addFromHf": {
+          "title": "Afegeix un model de postprocessament de Hugging Face",
+          "description": "Enganxa un URL de repositori públic o owner/repo. Es poden afegir GGUF de models de llenguatge (Qwen, Llama, Gemma, Phi).",
+          "added": "Model afegit. Apareix a Baixats."
+        }
       },
       "prompts": {
         "title": "Indicació",
@@ -709,7 +771,85 @@
         "createPrompt": "Creeu la indicació",
         "cancel": "Cancel·leu",
         "selectToEdit": "Seleccioneu una indicació more amunt per veure'n i editar-ne els detalls.",
-        "createFirst": "Feu clic a «Creeu una indicació nova» més amunt per crear la primera indicació de postprocessament."
+        "createFirst": "Feu clic a «Creeu una indicació nova» més amunt per crear la primera indicació de postprocessament.",
+        "registers": {
+          "professional": "Professional",
+          "casual": "Casual",
+          "technical": "Tècnic",
+          "minimal": "Mínim",
+          "general": "General"
+        },
+        "builtinBadge": "Integrada",
+        "customBadge": "Pròpia",
+        "editedBadge": "Editada",
+        "versionLabel": "Versió {{version}}",
+        "duplicate": "Duplica",
+        "testOnLastTranscript": "Prova amb la meva última transcripció",
+        "testing": "Provant...",
+        "testNoHistory": "Encara no hi ha historial de transcripcions. Enregistreu alguna cosa primer.",
+        "testPromptNotFound": "Aquesta plantilla ja no existeix.",
+        "testFailed": "Prova fallida: {{detail}}",
+        "testResultTitle": "Resultat de la prova",
+        "testBefore": "Abans",
+        "testAfter": "Després",
+        "testOutcome": "Resultat: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Es conservaria la transcripció original.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Anglès professional",
+            "description": "Anglès polit per al treball: neteja completa amb gramàtica cuidada."
+          },
+          "english_casual": {
+            "name": "Anglès casual",
+            "description": "Anglès conversacional que manté contraccions i argot."
+          },
+          "english_technical": {
+            "name": "Anglès tècnic",
+            "description": "Anglès apte per a codi: identificadors, rutes i ordres es mantenen literalment."
+          },
+          "english_minimal": {
+            "name": "Anglès mínim",
+            "description": "Només corregeix puntuació i majúscules; cada paraula queda com s'ha dictat."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (devanagari)",
+            "description": "Neteja de l'hindi en escriptura devanagari amb puntuació purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (romà)",
+            "description": "Manté la barreja parlada d'hindi i anglès en escriptura romana."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Neteja del marathi en escriptura devanagari."
+          },
+          "tamil": {
+            "name": "Tàmil",
+            "description": "Neteja del tàmil en escriptura tàmil."
+          },
+          "spanish": {
+            "name": "Espanyol",
+            "description": "Neteja de l'espanyol amb signes d'interrogació i exclamació invertits."
+          },
+          "french": {
+            "name": "Francès",
+            "description": "Neteja del francès amb espais i cometes franceses."
+          },
+          "german": {
+            "name": "Alemany",
+            "description": "Neteja de l'alemany amb substantius en majúscula."
+          },
+          "japanese": {
+            "name": "Japonès",
+            "description": "Neteja del japonès amb puntuació japonesa i correcció de kanji."
+          },
+          "chinese_simplified": {
+            "name": "Xinès (simplificat)",
+            "description": "Neteja del xinès simplificat amb correcció d'homòfons."
+          }
+        },
+        "editPrompt": "Edita"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "Retenció"
-      }
+      },
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Depuració",
@@ -867,6 +1008,20 @@
         "verdictOk": "Els esdeveniments de tecla arriben al VoxBar amb normalitat.",
         "verdictNoEvents": "No s'ha capturat cap esdeveniment. Heu premut alguna tecla durant la prova?",
         "failed": "El diagnòstic ha fallat: {{error}}"
+      },
+      "ppRuns": {
+        "title": "Execucions de postprocessament",
+        "description": "Les execucions de poliment més recents: motor, prompt, latència i resultat. Copieu les línies de registre d'una execució per al diagnòstic.",
+        "time": "Hora",
+        "engine": "Proveïdor / model",
+        "prompt": "Prompt",
+        "latency": "Latència",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Resultat",
+        "copyLog": "Copia les línies de registre d'aquesta execució",
+        "copied": "S'han copiat les línies de registre de l'execució {{run}}",
+        "empty": "Encara no hi ha execucions de postprocessament.",
+        "live": "en curs"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "Baixa i instal·la automàticament"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "aplicat",
+      "skipped": "omès",
+      "failed": "fallat"
     }
   },
   "footer": {
@@ -1034,9 +1194,16 @@
       "undoNoBuffer": "Encara no hi ha res a netejar, el dictat no té text en directe.",
       "bindingBusy": "Una altra tecla de dictat ja està gravant.",
       "waylandTauriHotkeys": "És possible que les dreceres globals no funcionin a les aplicacions Wayland natives amb aquesta implementació de teclat. Canvieu la implementació del teclat a VoxBar Keys i afegiu el vostre usuari al grup input; consulteu la guia d'Ubuntu.",
-      "gnomeOverlayFallback": "Al GNOME Wayland, la finestra superposada apareix com una finestra normal que pot robar el focus i trencar l'enganxat. Aquí es recomana Superposició: Cap."
+      "gnomeOverlayFallback": "Al GNOME Wayland, la finestra superposada apareix com una finestra normal que pot robar el focus i trencar l'enganxat. Aquí es recomana Superposició: Cap.",
+      "postProcessOutputInvalid": "El poliment ha retornat text inútil, s'ha conservat la transcripció original.",
+      "postProcessCloudFailed": "El poliment ha fallat i s'ha conservat la transcripció original: {{detail}}",
+      "postProcessPromptCycled": "Plantilla de postprocessament: {{name}}",
+      "companionDisconnected": "Mòbil desconnectat. Es finalitza amb el capturat.",
+      "companionServerFailed": "El servidor acompanyant ha fallat: {{error}}"
     },
-    "commandBadge": "Mode d'ordres"
+    "commandBadge": "Mode d'ordres",
+    "ppChip": "Polint ({{model}}) {{seconds}}s",
+    "companionBadge": "Micròfon acompanyant"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} pot estar blocant 1 drecera",
@@ -1058,11 +1225,45 @@
       "lengthGuard": "S'ha omès el postprocessament: la sortida del model local no ha passat la comprovació de longitud. S'ha usat la transcripció original.",
       "tooLong": "S'ha omès el postprocessament: aquesta transcripció és massa llarga per al model local. S'ha usat la transcripció original."
     },
-    "settingNotSaved": "No s'ha pogut desar aquesta configuració: {{error}}"
+    "settingNotSaved": "No s'ha pogut desar aquesta configuració: {{error}}",
+    "postProcessFailure": {
+      "auth": "El poliment ha fallat: el proveïdor ha rebutjat la clau de l'API. S'ha enganxat la transcripció original.",
+      "network": "El poliment ha fallat: no s'ha pogut contactar amb el proveïdor. S'ha enganxat la transcripció original.",
+      "timeout": "El poliment ha fallat: el proveïdor ha trigat massa. S'ha enganxat la transcripció original.",
+      "contextLength": "El poliment ha fallat: la transcripció supera la finestra de context del model. S'ha enganxat la transcripció original.",
+      "outputInvalid": "El poliment ha fallat: el model ha retornat text inútil. S'ha enganxat la transcripció original.",
+      "oom": "El poliment ha fallat: no hi ha prou memòria. S'ha enganxat la transcripció original.",
+      "cancelled": "S'ha cancel·lat el poliment. S'ha enganxat la transcripció original."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar no pot instal·lar actualitzacions des d'aquesta ubicació",
     "translocatedDescription": "VoxBar s'està executant des d'una ubicació temporal de només lectura (App Translocation del macOS). Tanqueu VoxBar, arrossegueu-lo de la carpeta Downloads a Applications i obriu-lo des d'allà.",
     "commandNoSession": "La tecla d'ordres només funciona durant un dictat actiu. Primer inicieu la gravació i després manteniu-la i parleu."
+  },
+  "companion": {
+    "title": "VoxBar Acompanyant",
+    "subtitle": "El teu mòbil ara és micròfon i disparador per al teu Mac.",
+    "certNote": "Si el navegador avisa de la connexió, compara l'empremta del certificat amb la dels ajustos de VoxBar i accepta-la una vegada.",
+    "noToken": "Obre aquesta pàgina des del codi QR als ajustos de VoxBar.",
+    "micDenied": "S'ha denegat l'accés al micròfon. Permet-lo al navegador i recarrega.",
+    "badToken": "La vinculació ha fallat. Torna a escanejar el codi QR als ajustos de VoxBar.",
+    "wrongSubnet": "Aquest mòbil és en una altra xarxa diferent del Mac. Uneix-te a la mateixa Wi-Fi i vincula de nou.",
+    "rateLimited": "Masses intents de vinculació. Espera un minut i torna-ho a provar.",
+    "busy": "El Mac ja està dictant des d'un altre disparador.",
+    "disconnectedFinalized": "S'ha perdut la connexió. El Mac ha conservat el que has dit.",
+    "capped": "Sessió limitada a 15 minuts. Torna a prémer per continuar.",
+    "serverStopped": "El Mac ha aturat el servidor acompanyant.",
+    "reconnect": "Torna a connectar",
+    "holdToTalk": "Mantén premut per parlar",
+    "tapToTalk": "Toca per parlar",
+    "release": "Deixa anar per acabar",
+    "tapToStop": "Toca per aturar",
+    "stateConnecting": "Connectant",
+    "stateWaitMic": "Esperant el micròfon",
+    "stateReady": "A punt",
+    "stateRecording": "Enregistrant",
+    "stateDisconnected": "Desconnectat",
+    "stateError": "Error"
   }
 }

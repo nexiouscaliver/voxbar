@@ -9,9 +9,11 @@
     "unloadAfterNever": "Tidak Pernah",
     "unloadAfterCustom": "Kustom…",
     "model": "Model",
+    "postProcessModel": "Model pasca-proses",
     "quit": "Keluar",
     "cancel": "Batal",
-    "secureInputWarning": "⚠ Pintasan diblokir oleh Secure Input"
+    "secureInputWarning": "⚠ Pintasan diblokir oleh Secure Input",
+    "postProcessPrompt": "Prompt pasca-proses"
   },
   "sidebar": {
     "general": "Umum",
@@ -220,6 +222,10 @@
           "transcribe_commands": {
             "name": "Mode perintah",
             "description": "Tahan tombol ini selama sesi dikte sedang berlangsung untuk beralih ke interpretasi perintah: semua yang Anda ucapkan menyunting penyangga dikte secara langsung (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) dan kata yang tidak dikenali dibuang. Lepaskan tombol untuk kembali ke dikte normal; tempel akhir menghasilkan tepat penyangga yang disunting. Tidak pernah memulai perekaman dan tidak melakukan apa pun sendirian. Tanpa tombol secara bawaan."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Putar prompt pasca-proses",
+            "description": "Opsional: memajukan templat pasca-proses terpilih ke berikutnya dan mengonfirmasi templat baru."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "Digit",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Perangkat pendamping",
+        "description": "Gunakan ponsel atau tablet di Wi-Fi yang sama sebagai mikrofon dan pemicu untuk Mac ini.",
+        "offNote": "Nonaktif secara bawaan. Tidak ada yang mendengarkan dan tidak ada utas yang berjalan sampai Anda mengaktifkannya.",
+        "qrTitle": "Pasangkan perangkat",
+        "qrHint": "Pindai dengan kamera ponsel, buka tautan, dan terima peringatan sertifikat satu kali.",
+        "addressLabel": "Alamat",
+        "portLabel": "Port",
+        "devicesLabel": "Perangkat tersambung",
+        "noDevices": "Belum ada perangkat tersambung",
+        "resetPairing": "Atur ulang pemasangan",
+        "fingerprintLabel": "Sidik jari sertifikat (SHA-256)",
+        "firewallNote": "macOS mungkin meminta izin koneksi masuk saat pertama diaktifkan. Izinkan, jika tidak ponsel tidak dapat menjangkau Mac ini.",
+        "unavailable": "Perangkat pendamping memerlukan macOS pada siklus ini.",
+        "serverError": "Server gagal: {{error}}",
+        "refresh": "Segarkan",
+        "statusRunning": "Berjalan",
+        "statusStopped": "Berhenti"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "Pilih model yang disediakan oleh penyedia yang dipilih.",
           "placeholderWithOptions": "Cari atau pilih model",
           "placeholderNoOptions": "Ketik nama model",
-          "refreshModels": "Segarkan model"
+          "refreshModels": "Segarkan model",
+          "fetchFailed": "Gagal mengambil daftar model ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Daftar model diambil {{time}}",
+          "retry": "Coba lagi"
         },
         "timeout": {
           "title": "Batas waktu permintaan",
-          "description": "Berapa lama permintaan pascaproses cloud boleh berjalan sebelum menyerah dan transkripsi mentah dipakai. Berlaku saat endpoint berhenti merespons."
+          "description": "Berapa lama permintaan pascaproses penyedia ini boleh berjalan sebelum menyerah dan memakai transkrip mentah. Reset kembali ke bawaan {{classDefault}}detik penyedia ini."
+        },
+        "testConnection": "Uji koneksi",
+        "testConnectionRunning": "Menguji...",
+        "verdict": {
+          "ok": "Autentikasi OK, {{latencyMs}} ms, model dapat dijangkau",
+          "okNoModel": "Autentikasi OK, {{latencyMs}} ms. Tidak ada model yang dipilih untuk diuji.",
+          "localReady": "Model lokal sudah diunduh dan siap",
+          "localNotReady": "Model lokal belum siap: {{detail}}",
+          "appleReady": "Apple Intelligence tersedia",
+          "appleUnavailable": "Apple Intelligence tidak tersedia di perangkat ini",
+          "failed": "Koneksi gagal: {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "Tidak bisa menghapus saat ini: pascaproses sedang berjalan. Coba lagi beberapa saat lagi.",
         "downloadFailed": "Gagal mengunduh: {{error}}",
         "deleteFailed": "Gagal menghapus model: {{error}}",
-        "providerLabel": "Lokal (di perangkat)"
+        "providerLabel": "Lokal (di perangkat)",
+        "keepWarm": {
+          "title": "Simpan model lokal di memori",
+          "description": "Berapa lama model pascaproses lokal tetap di memori setelah satu pemolesan alih-alih langsung dilepas. Dikotasi selalu mengambil kembali memori lebih dulu.",
+          "off": "Mati"
+        }
+      },
+      "models": {
+        "title": "Model pasca-proses",
+        "description": "Model lokal yang membersihkan transkrip Anda. Model kecil dimuat lebih cepat, model besar memperbaiki lebih baik.",
+        "searchPlaceholder": "Cari model pasca-proses",
+        "downloaded": "Terunduh",
+        "available": "Tersedia untuk diunduh",
+        "active": "Aktif",
+        "select": "Gunakan",
+        "contextTokens": "Konteks: {{count}} token",
+        "publisher": "oleh {{publisher}}",
+        "noMatch": "Tidak ada model pasca-proses yang cocok dengan pencarian Anda.",
+        "browseCatalog": "Jelajahi lebih banyak model",
+        "addFromHf": {
+          "title": "Tambah model pasca-proses dari Hugging Face",
+          "description": "Tempel URL repositori publik atau owner/repo. GGUF model bahasa (Qwen, Llama, Gemma, Phi) dapat ditambahkan.",
+          "added": "Model ditambahkan. Muncul di Terunduh."
+        }
       },
       "prompts": {
         "title": "Prompt",
@@ -709,7 +771,85 @@
         "createPrompt": "Buat Prompt",
         "cancel": "Batal",
         "selectToEdit": "Pilih prompt di atas untuk melihat dan mengedit detailnya.",
-        "createFirst": "Klik 'Buat Prompt Baru' di atas untuk membuat prompt pascaproses pertama Anda."
+        "createFirst": "Klik 'Buat Prompt Baru' di atas untuk membuat prompt pascaproses pertama Anda.",
+        "registers": {
+          "professional": "Profesional",
+          "casual": "Santai",
+          "technical": "Teknis",
+          "minimal": "Minimal",
+          "general": "Umum"
+        },
+        "builtinBadge": "Bawaan",
+        "customBadge": "Sendiri",
+        "editedBadge": "Diedit",
+        "versionLabel": "Versi {{version}}",
+        "duplicate": "Duplikat",
+        "testOnLastTranscript": "Uji pada transkripsi terakhir saya",
+        "testing": "Menguji...",
+        "testNoHistory": "Belum ada riwayat transkripsi. Rekam sesuatu dulu.",
+        "testPromptNotFound": "Templat ini sudah tidak ada.",
+        "testFailed": "Uji gagal: {{detail}}",
+        "testResultTitle": "Hasil uji",
+        "testBefore": "Sebelum",
+        "testAfter": "Sesudah",
+        "testOutcome": "Hasil: {{outcome}}",
+        "testLatency": "{{ms}} md",
+        "testRawKept": "Transkripsi mentah akan tetap dipakai.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Inggris profesional",
+            "description": "Inggris rapi untuk pekerjaan: pembersihan penuh dengan tata bahasa terpoles."
+          },
+          "english_casual": {
+            "name": "Inggris santai",
+            "description": "Inggris percakapan yang mempertahankan kontraksi dan slang."
+          },
+          "english_technical": {
+            "name": "Inggris teknis",
+            "description": "Inggris yang ramah kode: pengenal, path, dan perintah dibiarkan apa adanya."
+          },
+          "english_minimal": {
+            "name": "Inggris minimal",
+            "description": "Hanya memperbaiki tanda baca dan huruf kapital; setiap kata tetap seperti diucapkan."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (Devanagari)",
+            "description": "Pembersihan hindi dengan aksara Devanagari dan tanda baca purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (Latin)",
+            "description": "Mempertahankan campuran hindi-inggris yang diucapkan dalam aksara Latin."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Pembersihan marathi dengan aksara Devanagari."
+          },
+          "tamil": {
+            "name": "Tamil",
+            "description": "Pembersihan tamil dengan aksara Tamil."
+          },
+          "spanish": {
+            "name": "Spanyol",
+            "description": "Pembersihan spanyol dengan tanda tanya dan seru terbalik."
+          },
+          "french": {
+            "name": "Prancis",
+            "description": "Pembersihan prancis dengan spasi dan tanda kutip khas Prancis."
+          },
+          "german": {
+            "name": "Jerman",
+            "description": "Pembersihan jerman dengan huruf kapital untuk kata benda."
+          },
+          "japanese": {
+            "name": "Jepang",
+            "description": "Pembersihan jepang dengan tanda baca Jepang dan perbaikan kanji."
+          },
+          "chinese_simplified": {
+            "name": "Mandarin (sederhana)",
+            "description": "Pembersihan mandarin sederhana dengan perbaikan homofon."
+          }
+        },
+        "editPrompt": "Edit"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "Retensi"
-      }
+      },
+      "viaPostProcess": "lewat {{model}} · {{prompt}} · {{outcome}} · {{latency}} md"
     },
     "debug": {
       "title": "Debug",
@@ -867,6 +1008,20 @@
         "verdictOk": "Peristiwa tombol mencapai VoxBar secara normal.",
         "verdictNoEvents": "Tidak ada peristiwa yang tertangkap - apakah Anda menekan tombol selama pengujian?",
         "failed": "Diagnostik gagal: {{error}}"
+      },
+      "ppRuns": {
+        "title": "Eksekusi pascaproses",
+        "description": "Eksekusi pemolesan terbaru: mesin, prompt, latensi, dan hasil. Salin baris log sebuah eksekusi untuk diagnosis.",
+        "time": "Waktu",
+        "engine": "Penyedia / model",
+        "prompt": "Prompt",
+        "latency": "Latensi",
+        "latencyMs": "{{ms}} md",
+        "outcome": "Hasil",
+        "copyLog": "Salin baris log eksekusi ini",
+        "copied": "Baris log eksekusi {{run}} disalin",
+        "empty": "Belum ada eksekusi pascaproses.",
+        "live": "berjalan"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "Unduh dan pasang otomatis"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "diterapkan",
+      "skipped": "dilewati",
+      "failed": "gagal"
     }
   },
   "footer": {
@@ -1034,9 +1194,16 @@
       "undoNoBuffer": "Belum ada yang bisa dibersihkan, dikte belum memiliki teks langsung.",
       "bindingBusy": "Tombol dikte lain sedang merekam.",
       "waylandTauriHotkeys": "Pintasan global mungkin tidak berfungsi di aplikasi Wayland native dengan implementasi keyboard ini. Ganti implementasi keyboard ke VoxBar Keys dan tambahkan pengguna Anda ke grup input; lihat panduan Ubuntu.",
-      "gnomeOverlayFallback": "Di GNOME Wayland, overlay muncul sebagai jendela biasa yang bisa mencuri fokus dan merusak tempel. Disarankan Overlay: Tidak Ada di sini."
+      "gnomeOverlayFallback": "Di GNOME Wayland, overlay muncul sebagai jendela biasa yang bisa mencuri fokus dan merusak tempel. Disarankan Overlay: Tidak Ada di sini.",
+      "postProcessOutputInvalid": "Pemolesan menghasilkan teks yang tidak dapat dipakai, transkrip asli dipertahankan.",
+      "postProcessCloudFailed": "Pemolesan gagal, transkrip asli dipertahankan: {{detail}}",
+      "postProcessPromptCycled": "Templat pasca-proses: {{name}}",
+      "companionDisconnected": "Ponsel terputus. Menyelesaikan dengan yang terekam.",
+      "companionServerFailed": "Server pendamping gagal: {{error}}"
     },
-    "commandBadge": "Mode perintah"
+    "commandBadge": "Mode perintah",
+    "ppChip": "Memoles ({{model}}) {{seconds}}d",
+    "companionBadge": "Mikrofon pendamping"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} mungkin memblokir 1 pintasan",
@@ -1058,11 +1225,45 @@
       "lengthGuard": "Pascaproses dilewati: keluaran model lokal tidak lulus pemeriksaan panjang. Transkripsi asli yang digunakan.",
       "tooLong": "Pascaproses dilewati: transkripsi ini terlalu panjang untuk model lokal. Transkripsi asli yang digunakan."
     },
-    "settingNotSaved": "Pengaturan ini tidak dapat disimpan: {{error}}"
+    "settingNotSaved": "Pengaturan ini tidak dapat disimpan: {{error}}",
+    "postProcessFailure": {
+      "auth": "Pemolesan gagal: penyedia menolak kunci API. Transkrip asli ditempel.",
+      "network": "Pemolesan gagal: penyedia tidak dapat dihubungi. Transkrip asli ditempel.",
+      "timeout": "Pemolesan gagal: penyedia memakan waktu terlalu lama. Transkrip asli ditempel.",
+      "contextLength": "Pemolesan gagal: transkrip melebihi jendela konteks model. Transkrip asli ditempel.",
+      "outputInvalid": "Pemolesan gagal: model menghasilkan teks yang tidak dapat dipakai. Transkrip asli ditempel.",
+      "oom": "Pemolesan gagal: memori tidak cukup. Transkrip asli ditempel.",
+      "cancelled": "Pemolesan dibatalkan. Transkrip asli ditempel."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar tidak dapat memasang pembaruan dari lokasi ini",
     "translocatedDescription": "VoxBar berjalan dari lokasi sementara yang hanya-baca (App Translocation macOS). Keluar dari VoxBar, seret dari folder Unduhan ke folder Aplikasi, lalu buka dari sana.",
     "commandNoSession": "Tombol perintah hanya berfungsi saat dikte aktif. Mulai perekaman dulu, lalu tahan tombolnya dan ucapkan perintahnya."
+  },
+  "companion": {
+    "title": "VoxBar Pendamping",
+    "subtitle": "Ponsel Anda kini menjadi mikrofon dan pemicu untuk Mac Anda.",
+    "certNote": "Jika peramban memperingatkan koneksi, bandingkan sidik jari sertifikat dengan yang ada di pengaturan VoxBar dan terima satu kali.",
+    "noToken": "Buka halaman ini dari kode QR di pengaturan VoxBar.",
+    "micDenied": "Akses mikrofon ditolak. Izinkan di peramban lalu muat ulang.",
+    "badToken": "Pemasangan gagal. Pindai ulang kode QR di pengaturan VoxBar.",
+    "wrongSubnet": "Ponsel ini berada di jaringan yang berbeda dari Mac. Gabung ke Wi-Fi yang sama lalu pasangkan lagi.",
+    "rateLimited": "Terlalu banyak percobaan pemasangan. Tunggu satu menit lalu coba lagi.",
+    "busy": "Mac sedang mendikte dari pemicu lain.",
+    "disconnectedFinalized": "Koneksi terputus. Mac menyimpan apa yang Anda ucapkan.",
+    "capped": "Sesi dibatasi 15 menit. Tekan lagi untuk melanjutkan.",
+    "serverStopped": "Mac menghentikan server pendamping.",
+    "reconnect": "Sambungkan ulang",
+    "holdToTalk": "Tahan untuk bicara",
+    "tapToTalk": "Ketuk untuk bicara",
+    "release": "Lepaskan untuk selesai",
+    "tapToStop": "Ketuk untuk berhenti",
+    "stateConnecting": "Menyambung",
+    "stateWaitMic": "Menunggu mikrofon",
+    "stateReady": "Siap",
+    "stateRecording": "Merekam",
+    "stateDisconnected": "Terputus",
+    "stateError": "Galat"
   }
 }

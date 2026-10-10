@@ -9,9 +9,11 @@
     "unloadAfterNever": "안 함",
     "unloadAfterCustom": "사용자 지정…",
     "model": "모델",
+    "postProcessModel": "후처리 모델",
     "quit": "종료",
     "cancel": "취소",
-    "secureInputWarning": "⚠ Secure Input으로 단축키가 차단됨"
+    "secureInputWarning": "⚠ Secure Input으로 단축키가 차단됨",
+    "postProcessPrompt": "후처리 프롬프트"
   },
   "sidebar": {
     "general": "일반",
@@ -220,6 +222,10 @@
           "transcribe_commands": {
             "name": "명령 모드",
             "description": "받아쓰기 세션이 진행 중일 때 이 키를 누르고 있으면 명령 해석 모드로 전환됩니다: 말하는 모든 내용이 받아쓰기 버퍼를 직접 편집하고 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) 인식되지 않은 단어는 버려집니다. 키를 떼면 일반 받아쓰기로 돌아가며, 최종 붙여넣기는 편집된 버퍼를 그대로 전달합니다. 단독으로는 녹음을 시작하지 않고 아무 동작도 하지 않습니다. 기본적으로 바인딩되지 않습니다."
+          },
+          "cycle_post_process_prompt": {
+            "name": "후처리 프롬프트 전환",
+            "description": "선택 사항: 선택된 후처리 템플릿을 다음으로 넘기고 새 템플릿을 알려 줍니다."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "숫자",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "컴패니언 기기",
+        "description": "같은 Wi-Fi의 휴대폰이나 태블릿을 이 Mac의 마이크와 버튼으로 사용합니다.",
+        "offNote": "기본값은 꺼짐입니다. 켜기 전까지 아무것도 수신 대기하지 않고 스레드도 실행되지 않습니다.",
+        "qrTitle": "기기 페어링",
+        "qrHint": "휴대폰 카메라로 스캔하고 링크를 연 뒤, 인증서 경고를 한 번만 수락하세요.",
+        "addressLabel": "주소",
+        "portLabel": "포트",
+        "devicesLabel": "연결된 기기",
+        "noDevices": "아직 연결된 기기가 없습니다",
+        "resetPairing": "페어링 재설정",
+        "fingerprintLabel": "인증서 지문(SHA-256)",
+        "firewallNote": "처음 켤 때 macOS가 들어오는 연결 허용을 요청할 수 있습니다. 허용하지 않으면 휴대폰이 이 Mac에 접속할 수 없습니다.",
+        "unavailable": "컴패니언 기기는 이번 주기에는 macOS가 필요합니다.",
+        "serverError": "서버 실패: {{error}}",
+        "refresh": "새로 고침",
+        "statusRunning": "실행 중",
+        "statusStopped": "중지됨"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "선택한 제공자가 제공하는 모델을 선택하세요.",
           "placeholderWithOptions": "모델 검색 또는 선택",
           "placeholderNoOptions": "모델 이름 입력",
-          "refreshModels": "모델 새로고침"
+          "refreshModels": "모델 새로고침",
+          "fetchFailed": "모델 목록을 가져오지 못했습니다 ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "모델 목록을 {{time}}에 가져왔습니다",
+          "retry": "다시 시도"
         },
         "timeout": {
           "title": "요청 시간 제한",
-          "description": "클라우드 후처리 요청이 포기하고 원본 전사를 사용하기 전까지 실행될 수 있는 시간. 엔드포인트가 응답을 멈출 때 적용됩니다."
+          "description": "이 공급자의 후처리 요청이 포기하고 원본 전사를 사용하기 전까지 실행될 수 있는 시간. 재설정하면 이 공급자의 {{classDefault}}초 기본값으로 돌아갑니다."
+        },
+        "testConnection": "연결 테스트",
+        "testConnectionRunning": "테스트 중...",
+        "verdict": {
+          "ok": "인증 성공, {{latencyMs}} ms, 모델 접근 가능",
+          "okNoModel": "인증 성공, {{latencyMs}} ms. 테스트할 모델이 선택되지 않았습니다.",
+          "localReady": "로컬 모델이 다운로드되어 준비되었습니다",
+          "localNotReady": "로컬 모델이 준비되지 않았습니다: {{detail}}",
+          "appleReady": "Apple Intelligence를 사용할 수 있습니다",
+          "appleUnavailable": "이 기기에서는 Apple Intelligence를 사용할 수 없습니다",
+          "failed": "연결 실패: {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "지금은 삭제할 수 없습니다: 후처리가 진행 중입니다. 잠시 후 다시 시도하세요.",
         "downloadFailed": "다운로드 실패: {{error}}",
         "deleteFailed": "모델을 삭제하지 못했습니다: {{error}}",
-        "providerLabel": "로컬(기기에서)"
+        "providerLabel": "로컬(기기에서)",
+        "keepWarm": {
+          "title": "로컬 모델을 메모리에 유지",
+          "description": "다듬기 후 로컬 후처리 모델이 즉시 언로드되지 않고 메모리에 머무는 시간. 받아쓰기는 항상 먼저 메모리를 되찾습니다.",
+          "off": "꺼짐"
+        }
+      },
+      "models": {
+        "title": "후처리 모델",
+        "description": "전사문을 정리해 주는 로컬 모델입니다. 작은 모델은 빠르게 로드되고, 큰 모델은 더 정교하게 다듬습니다.",
+        "searchPlaceholder": "후처리 모델 검색",
+        "downloaded": "다운로드됨",
+        "available": "다운로드 가능",
+        "active": "사용 중",
+        "select": "사용",
+        "contextTokens": "컨텍스트: {{count}}토큰",
+        "publisher": "제공: {{publisher}}",
+        "noMatch": "검색과 일치하는 후처리 모델이 없습니다.",
+        "browseCatalog": "더 많은 모델 둘러보기",
+        "addFromHf": {
+          "title": "Hugging Face에서 후처리 모델 추가",
+          "description": "공개 저장소 URL 또는 owner/repo를 붙여넣으세요. 언어 모델 GGUF(Qwen, Llama, Gemma, Phi)를 추가할 수 있습니다.",
+          "added": "모델을 추가했습니다. 다운로드됨에 표시됩니다."
+        }
       },
       "prompts": {
         "title": "프롬프트",
@@ -709,7 +771,85 @@
         "createPrompt": "프롬프트 만들기",
         "cancel": "취소",
         "selectToEdit": "세부 정보를 보고 편집하려면 위에서 프롬프트를 선택하세요.",
-        "createFirst": "첫 번째 후처리 프롬프트를 만들려면 위의 '새 프롬프트 만들기'를 클릭하세요."
+        "createFirst": "첫 번째 후처리 프롬프트를 만들려면 위의 '새 프롬프트 만들기'를 클릭하세요.",
+        "registers": {
+          "professional": "격식체",
+          "casual": "일상체",
+          "technical": "기술",
+          "minimal": "최소",
+          "general": "일반"
+        },
+        "builtinBadge": "기본 제공",
+        "customBadge": "사용자",
+        "editedBadge": "편집됨",
+        "versionLabel": "버전 {{version}}",
+        "duplicate": "복제",
+        "testOnLastTranscript": "마지막 전사본으로 테스트",
+        "testing": "테스트 중...",
+        "testNoHistory": "아직 전사 기록이 없습니다. 먼저 녹음하세요.",
+        "testPromptNotFound": "이 템플릿은 더 이상 없습니다.",
+        "testFailed": "테스트 실패: {{detail}}",
+        "testResultTitle": "테스트 결과",
+        "testBefore": "이전",
+        "testAfter": "이후",
+        "testOutcome": "결과: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "원본 전사본이 그대로 유지됩니다.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "영어 (격식체)",
+            "description": "업무용으로 매끄러운 영어: 다듬어진 문법으로 전체 정리."
+          },
+          "english_casual": {
+            "name": "영어 (일상체)",
+            "description": "축약형과 속어를 살리는 구어체 영어."
+          },
+          "english_technical": {
+            "name": "영어 (기술)",
+            "description": "코드에 적합한 영어: 식별자, 경로, 명령을 그대로 유지."
+          },
+          "english_minimal": {
+            "name": "영어 (최소)",
+            "description": "문장 부호와 대소문자만 수정; 모든 단어는 받아쓴 그대로."
+          },
+          "hindi_devanagari": {
+            "name": "힌디어 (데바나가리)",
+            "description": "데바나가리 문자로 힌디어 정리, 풀르나 비라ム 문장 부호 적용."
+          },
+          "hinglish_roman": {
+            "name": "힌글리시 (로마자)",
+            "description": "말한 그대로의 힌디어-영어 혼용을 로마자로 유지."
+          },
+          "marathi": {
+            "name": "마라티어",
+            "description": "데바나가리 문자로 마라티어 정리."
+          },
+          "tamil": {
+            "name": "타밀어",
+            "description": "타밀 문자로 타밀어 정리."
+          },
+          "spanish": {
+            "name": "스페인어",
+            "description": "도치된 물음표와 느낌표를 사용한 스페인어 정리."
+          },
+          "french": {
+            "name": "프랑스어",
+            "description": "프랑스식 띄어쓰기와 인용부호를 사용한 프랑스어 정리."
+          },
+          "german": {
+            "name": "독일어",
+            "description": "명사 대문자 규칙을 지키는 독일어 정리."
+          },
+          "japanese": {
+            "name": "일본어",
+            "description": "일본식 문장 부호와 한자 교정을 포함한 일본어 정리."
+          },
+          "chinese_simplified": {
+            "name": "중국어 (간체)",
+            "description": "동음이자 교정을 포함한 간체 중국어 정리."
+          }
+        },
+        "editPrompt": "편집"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "보존"
-      }
+      },
+      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms로 처리"
     },
     "debug": {
       "title": "디버그",
@@ -867,6 +1008,20 @@
         "permissionsButton": "권한",
         "modelsButton": "모델 선택",
         "exitButton": "미리보기 종료"
+      },
+      "ppRuns": {
+        "title": "후처리 실행",
+        "description": "최근 다듬기 실행: 엔진, 프롬프트, 지연 시간, 결과. 진단을 위해 실행의 로그 줄을 복사할 수 있습니다.",
+        "time": "시각",
+        "engine": "공급자 / 모델",
+        "prompt": "프롬프트",
+        "latency": "지연 시간",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "결과",
+        "copyLog": "이 실행의 로그 줄 복사",
+        "copied": "실행 {{run}}의 로그 줄을 복사했습니다",
+        "empty": "아직 후처리 실행이 없습니다.",
+        "live": "실행 중"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "자동으로 다운로드 및 설치"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "적용됨",
+      "skipped": "건너뜀",
+      "failed": "실패"
     }
   },
   "footer": {
@@ -1031,9 +1191,16 @@
       "undoNoBuffer": "아직 지울 내용이 없습니다. 받아쓰기에 실시간 텍스트가 없습니다.",
       "bindingBusy": "다른 받아쓰기 키가 이미 녹음 중입니다.",
       "waylandTauriHotkeys": "이 키보드 구현에서는 네이티브 Wayland 앱에서 전역 단축키가 작동하지 않을 수 있습니다. 키보드 구현을 VoxBar Keys로 전환하고 사용자를 input 그룹에 추가하세요. Ubuntu 가이드를 참고하세요.",
-      "gnomeOverlayFallback": "GNOME Wayland에서는 오버레이가 일반 창으로 표시되어 포커스를 빼앗고 붙여넣기를 망칠 수 있습니다. 여기서는 오버레이: 없음을 권장합니다."
+      "gnomeOverlayFallback": "GNOME Wayland에서는 오버레이가 일반 창으로 표시되어 포커스를 빼앗고 붙여넣기를 망칠 수 있습니다. 여기서는 오버레이: 없음을 권장합니다.",
+      "postProcessOutputInvalid": "다듬기에서 사용할 수 없는 텍스트가 반환되어 원본 전사가 유지되었습니다.",
+      "postProcessCloudFailed": "다듬기가 실패하여 원본 전사가 유지되었습니다: {{detail}}",
+      "postProcessPromptCycled": "후처리 템플릿: {{name}}",
+      "companionDisconnected": "휴대폰 연결이 끊겼습니다. 년음된 내용으로 마무리합니다.",
+      "companionServerFailed": "컴패니언 서버 실패: {{error}}"
     },
-    "commandBadge": "명령 모드"
+    "commandBadge": "명령 모드",
+    "ppChip": "다듬는 중 ({{model}}) {{seconds}}초",
+    "companionBadge": "컴패니언 마이크"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}}의 새 소식"
@@ -1058,11 +1225,45 @@
       "lengthGuard": "후처리를 건너뛰었습니다: 로컬 모델 출력이 길이 검사를 통과하지 못했습니다. 원본 전사 내용을 사용했습니다.",
       "tooLong": "후처리를 건너뛰었습니다: 이 전사 내용은 로컬 모델에 너무 깁니다. 원본 전사 내용을 사용했습니다."
     },
-    "settingNotSaved": "이 설정을 저장할 수 없습니다: {{error}}"
+    "settingNotSaved": "이 설정을 저장할 수 없습니다: {{error}}",
+    "postProcessFailure": {
+      "auth": "다듬기 실패: 공급자가 API 키를 거부했습니다. 원본 전사가 붙여넣어졌습니다.",
+      "network": "다듬기 실패: 공급자에 연결할 수 없습니다. 원본 전사가 붙여넣어졌습니다.",
+      "timeout": "다듬기 실패: 공급자 응답이 너무 오래 걸렸습니다. 원본 전사가 붙여넣어졌습니다.",
+      "contextLength": "다듬기 실패: 전사가 모델의 컨텍스트 창을 초과합니다. 원본 전사가 붙여넣어졌습니다.",
+      "outputInvalid": "다듬기 실패: 모델이 사용할 수 없는 텍스트를 반환했습니다. 원본 전사가 붙여넣어졌습니다.",
+      "oom": "다듬기 실패: 메모리가 부족합니다. 원본 전사가 붙여넣어졌습니다.",
+      "cancelled": "다듬기가 취소되었습니다. 원본 전사가 붙여넣어졌습니다."
+    }
   },
   "app": {
     "translocatedTitle": "이 위치에서는 업데이트를 설치할 수 없습니다",
     "translocatedDescription": "VoxBar가 임시 읽기 전용 위치(macOS App Translocation)에서 실행 중입니다. VoxBar를 종료하고 Downloads 폴더에서 응용 프로그램 폴더로 드래그한 다음 그곳에서 여세요.",
     "commandNoSession": "명령 키는 받아쓰기가 진행 중일 때만 작동합니다. 먼저 녹음을 시작한 다음 키를 누른 채로 명령을 말하세요."
+  },
+  "companion": {
+    "title": "VoxBar 컴패니언",
+    "subtitle": "휴대폰이 이제 Mac의 마이크와 버튼입니다.",
+    "certNote": "브라우저가 연결을 경고하면 인증서 지문을 VoxBar 설정의 값과 비교하고 한 번만 수락하세요.",
+    "noToken": "이 페이지는 VoxBar 설정의 QR 코드에서 여세요.",
+    "micDenied": "마이크 접근이 거부되었습니다. 브라우저에서 허용한 뒤 다시 로드하세요.",
+    "badToken": "페어링에 실패했습니다. VoxBar 설정의 QR 코드를 다시 스캔하세요.",
+    "wrongSubnet": "이 휴대폰은 Mac과 다른 네트워크에 있습니다. 같은 Wi-Fi에 접속하고 다시 페어링하세요.",
+    "rateLimited": "페어링 시도가 너무 많습니다. 1분 후 다시 시도하세요.",
+    "busy": "Mac이 이미 다른 버튼에서 받아쓰기 중입니다.",
+    "disconnectedFinalized": "연결이 끊겼습니다. Mac은 말한 내용을 보관했습니다.",
+    "capped": "세션이 15분으로 제한됩니다. 계속하려면 다시 누르세요.",
+    "serverStopped": "Mac이 컴패니언 서버를 중지했습니다.",
+    "reconnect": "다시 연결",
+    "holdToTalk": "누르고 말하기",
+    "tapToTalk": "탭하여 말하기",
+    "release": "떼서 끝내기",
+    "tapToStop": "탭하여 중지",
+    "stateConnecting": "연결 중",
+    "stateWaitMic": "마이크 대기 중",
+    "stateReady": "준비됨",
+    "stateRecording": "녹음 중",
+    "stateDisconnected": "연결 끊김",
+    "stateError": "오류"
   }
 }

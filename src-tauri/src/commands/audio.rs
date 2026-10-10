@@ -178,15 +178,13 @@ pub fn open_microphone_privacy_settings(app: AppHandle) -> Result<(), String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn update_microphone_mode(app: AppHandle, always_on: bool) -> Result<(), String> {
-    // Update settings (fast, stays inline)
-    let mut settings = get_settings(&app);
-    settings.always_on_microphone = always_on;
-    write_settings(&app, settings);
-
-    // Update the audio manager mode. update_mode can stop/start the cpal stream
-    // (blocking CoreAudio) and takes the manager std mutexes - run it on a
-    // blocking thread, NOT inline on the webview/main run loop (a slow device
-    // open/close would freeze the UI).
+    // Apply the runtime change before persisting it (the same
+    // apply-then-persist rule as set_selected_channel): enabling
+    // always-on can fail to open the stream (no input device, revoked
+    // permission), and persisting first would poison the setting - the
+    // next launch would carry an always-on mode that cannot open. With
+    // apply first, a failed enable leaves the store untouched and the
+    // error surfaces to the toggle that made the attempt.
     let rm = app.state::<Arc<AudioRecordingManager>>().inner().clone();
     let new_mode = if always_on {
         MicrophoneMode::AlwaysOn
@@ -194,10 +192,20 @@ pub async fn update_microphone_mode(app: AppHandle, always_on: bool) -> Result<(
         MicrophoneMode::OnDemand
     };
 
+    // Update the audio manager mode. update_mode can stop/start the cpal stream
+    // (blocking CoreAudio) and takes the manager std mutexes - run it on a
+    // blocking thread, NOT inline on the webview/main run loop (a slow device
+    // open/close would freeze the UI).
     tokio::task::spawn_blocking(move || rm.update_mode(new_mode))
         .await
         .map_err(|e| format!("audio task join failed: {}", e))?
-        .map_err(|e| format!("Failed to update microphone mode: {}", e))
+        .map_err(|e| format!("Failed to update microphone mode: {}", e))?;
+
+    // The runtime flip succeeded; only now is the preference durable.
+    let mut settings = get_settings(&app);
+    settings.always_on_microphone = always_on;
+    write_settings(&app, settings);
+    Ok(())
 }
 
 #[tauri::command]
@@ -236,19 +244,21 @@ pub async fn get_available_microphones() -> Result<Vec<AudioDevice>, String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn set_selected_microphone(app: AppHandle, device_name: String) -> Result<(), String> {
-    let mut settings = get_settings(&app);
-    settings.selected_microphone = if device_name == "default" {
+    // Apply the runtime change before it becomes durable (the same
+    // apply-first rule as set_selected_channel): update_selected_device
+    // rejects the switch outright while a recording is live, so neither
+    // the live capture nor the stored preference changes on rejection.
+    let selection = if device_name == "default" {
         None
     } else {
         Some(device_name)
     };
-    write_settings(&app, settings);
 
-    // Update the audio manager to use the new device. update_selected_device
-    // can restart the cpal stream (blocking CoreAudio) - run it on a blocking
-    // thread, not inline on the webview/main run loop.
+    // update_selected_device can restart the cpal stream (blocking
+    // CoreAudio) - run it on a blocking thread, not inline on the
+    // webview/main run loop.
     let rm = app.state::<Arc<AudioRecordingManager>>().inner().clone();
-    tokio::task::spawn_blocking(move || rm.update_selected_device())
+    tokio::task::spawn_blocking(move || rm.update_selected_device(selection))
         .await
         .map_err(|e| format!("audio task join failed: {}", e))?
         .map_err(|e| format!("Failed to update selected device: {}", e))

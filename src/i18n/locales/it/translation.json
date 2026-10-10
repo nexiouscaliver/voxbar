@@ -9,9 +9,11 @@
     "unloadAfterNever": "Mai",
     "unloadAfterCustom": "Personalizzato…",
     "model": "Modello",
+    "postProcessModel": "Modello di post-elaborazione",
     "quit": "Esci",
     "cancel": "Annulla",
-    "secureInputWarning": "⚠ Scorciatoie bloccate da Secure Input"
+    "secureInputWarning": "⚠ Scorciatoie bloccate da Secure Input",
+    "postProcessPrompt": "Prompt di post-elaborazione"
   },
   "sidebar": {
     "general": "Generale",
@@ -272,6 +274,10 @@
           "transcribe_commands": {
             "name": "Modalità comandi",
             "description": "Tieni premuto questo tasto mentre una sessione di dettatura è attiva per passare all'interpretazione dei comandi: tutto ciò che detti modifica direttamente il buffer della dettatura (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) e le parole non riconosciute vengono scartate. Rilascia il tasto per tornare alla dettatura normale; l'incolla finale consegna esattamente il buffer modificato. Non avvia mai una registrazione e da solo non fa nulla. Senza tasto per impostazione predefinita."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Scorri i prompt di post-elaborazione",
+            "description": "Opzionale: passa al modello di post-elaborazione selezionato successivo e conferma il nuovo modello."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "Cifre",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Dispositivi companion",
+        "description": "Usa un telefono o tablet sulla stessa Wi-Fi come microfono e pulsante per questo Mac.",
+        "offNote": "Disattivato per impostazione predefinita. Nulla resta in ascolto finché non lo attivi.",
+        "qrTitle": "Abbina un dispositivo",
+        "qrHint": "Scansiona con la fotocamera del telefono, apri il link e accetta una volta l'avviso del certificato.",
+        "addressLabel": "Indirizzo",
+        "portLabel": "Porta",
+        "devicesLabel": "Dispositivi collegati",
+        "noDevices": "Nessun dispositivo collegato",
+        "resetPairing": "Reimposta abbinamento",
+        "fingerprintLabel": "Impronta del certificato (SHA-256)",
+        "firewallNote": "al primo attivazione macOS può chiedere di consentire le connessioni in entrata. Consenti, altrimenti i telefoni non raggiungono questo Mac.",
+        "unavailable": "I dispositivi companion richiedono macOS in questo ciclo.",
+        "serverError": "Server non riuscito: {{error}}",
+        "refresh": "Aggiorna",
+        "statusRunning": "In esecuzione",
+        "statusStopped": "Fermato"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "Scegli un modello reso disponibile dal provider selezionato.",
           "placeholderWithOptions": "Cerca o scegli un modello",
           "placeholderNoOptions": "Digita il nome di un modello",
-          "refreshModels": "Aggiorna modelli"
+          "refreshModels": "Aggiorna modelli",
+          "fetchFailed": "Recupero dell'elenco modelli non riuscito ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Elenco modelli ottenuto {{time}}",
+          "retry": "Riprova"
         },
         "timeout": {
           "title": "Timeout della richiesta",
-          "description": "Per quanto tempo una richiesta di post-elaborazione cloud può essere in esecuzione prima di arrendersi e usare la trascrizione grezza. Si applica quando un endpoint smette di rispondere."
+          "description": "Per quanto tempo le richieste di post-elaborazione di questo provider possono durare prima di arrendersi e usare la trascrizione originale. Il ripristino torna al valore predefinito di {{classDefault}}s di questo provider."
+        },
+        "testConnection": "Testa connessione",
+        "testConnectionRunning": "Test in corso...",
+        "verdict": {
+          "ok": "Autenticazione OK, {{latencyMs}} ms, modello raggiungibile",
+          "okNoModel": "Autenticazione OK, {{latencyMs}} ms. Nessun modello selezionato da testare.",
+          "localReady": "Il modello locale è scaricato e pronto",
+          "localNotReady": "Il modello locale non è pronto: {{detail}}",
+          "appleReady": "Apple Intelligence è disponibile",
+          "appleUnavailable": "Apple Intelligence non è disponibile su questo dispositivo",
+          "failed": "Connessione non riuscita: {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "Impossibile eliminare in questo momento: una post-elaborazione è in corso. Riprova tra poco.",
         "downloadFailed": "Download non riuscito: {{error}}",
         "deleteFailed": "Impossibile eliminare il modello: {{error}}",
-        "providerLabel": "Locale (sul dispositivo)"
+        "providerLabel": "Locale (sul dispositivo)",
+        "keepWarm": {
+          "title": "Mantieni il modello locale in memoria",
+          "description": "Per quanto tempo il modello locale di post-elaborazione resta in memoria dopo una rifinitura invece di scaricarsi subito. Una dettatura recupera sempre prima la memoria.",
+          "off": "Disattivato"
+        }
+      },
+      "models": {
+        "title": "Modelli di post-elaborazione",
+        "description": "I modelli locali che ripuliscono le tue trascrizioni. I più piccoli si caricano più in fretta, i più grandi correggono meglio.",
+        "searchPlaceholder": "Cerca modelli di post-elaborazione",
+        "downloaded": "Scaricati",
+        "available": "Disponibili per il download",
+        "active": "Attivo",
+        "select": "Usa",
+        "contextTokens": "Contesto: {{count}} token",
+        "publisher": "di {{publisher}}",
+        "noMatch": "Nessun modello di post-elaborazione corrisponde alla tua ricerca.",
+        "browseCatalog": "Sfoglia altri modelli",
+        "addFromHf": {
+          "title": "Aggiungi modello di post-elaborazione da Hugging Face",
+          "description": "Incolla l'URL di un repository pubblico oppure owner/repo. Si possono aggiungere GGUF di modelli linguistici (Qwen, Llama, Gemma, Phi).",
+          "added": "Modello aggiunto. Compare in Scaricati."
+        }
       },
       "prompts": {
         "title": "Prompt",
@@ -709,7 +771,85 @@
         "createPrompt": "Crea Prompt",
         "cancel": "Annulla",
         "selectToEdit": "Scegli un prompt qui sopra per visualizzare o modificare i dettagli.",
-        "createFirst": "Clicca 'Crea un nuovo prompt' qui sopra per creare il tuo primo prompt di post-elaborazione."
+        "createFirst": "Clicca 'Crea un nuovo prompt' qui sopra per creare il tuo primo prompt di post-elaborazione.",
+        "registers": {
+          "professional": "Professionale",
+          "casual": "Informale",
+          "technical": "Tecnico",
+          "minimal": "Minimale",
+          "general": "Generale"
+        },
+        "builtinBadge": "Integrato",
+        "customBadge": "Personale",
+        "editedBadge": "Modificato",
+        "versionLabel": "Versione {{version}}",
+        "duplicate": "Duplica",
+        "testOnLastTranscript": "Prova sull'ultima trascrizione",
+        "testing": "Test in corso...",
+        "testNoHistory": "Non c'è ancora cronologia delle trascrizioni. Registra qualcosa prima.",
+        "testPromptNotFound": "Questo modello non esiste più.",
+        "testFailed": "Test non riuscito: {{detail}}",
+        "testResultTitle": "Risultato del test",
+        "testBefore": "Prima",
+        "testAfter": "Dopo",
+        "testOutcome": "Esito: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Verrebbe mantenuta la trascrizione originale.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Inglese professionale",
+            "description": "Inglese curato per il lavoro: pulizia completa con grammatica rifinita."
+          },
+          "english_casual": {
+            "name": "Inglese informale",
+            "description": "Inglese colloquiale che mantiene contrazioni e gergo."
+          },
+          "english_technical": {
+            "name": "Inglese tecnico",
+            "description": "Inglese adatto al codice: identificatori, percorsi e comandi restano invariati."
+          },
+          "english_minimal": {
+            "name": "Inglese minimale",
+            "description": "Solo correzioni di punteggiatura e maiuscole; ogni parola resta come dettata."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (devanagari)",
+            "description": "Pulizia dell'hindi in scrittura devanagari con punteggiatura purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (romano)",
+            "description": "Mantiene il mix parlato di hindi e inglese in scrittura romana."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Pulizia del marathi in scrittura devanagari."
+          },
+          "tamil": {
+            "name": "Tamil",
+            "description": "Pulizia del tamil in scrittura tamil."
+          },
+          "spanish": {
+            "name": "Spagnolo",
+            "description": "Pulizia dello spagnolo con punti interrogativi ed esclamativi invertiti."
+          },
+          "french": {
+            "name": "Francese",
+            "description": "Pulizia del francese con spaziatura e virgolette francesi."
+          },
+          "german": {
+            "name": "Tedesco",
+            "description": "Pulizia del tedesco con sostantivi in maiuscolo."
+          },
+          "japanese": {
+            "name": "Giapponese",
+            "description": "Pulizia del giapponese con punteggiatura giapponese e correzione dei kanji."
+          },
+          "chinese_simplified": {
+            "name": "Cinese (semplificato)",
+            "description": "Pulizia del cinese semplificato con correzione degli omofoni."
+          }
+        },
+        "editPrompt": "Modifica"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "Conservazione"
-      }
+      },
+      "viaPostProcess": "tramite {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Debug",
@@ -867,6 +1008,20 @@
         "permissionsButton": "Autorizzazioni",
         "modelsButton": "Selezione del modello",
         "exitButton": "Esci dall’anteprima"
+      },
+      "ppRuns": {
+        "title": "Esecuzioni di post-processing",
+        "description": "Le esecuzioni di rifinitura più recenti: motore, prompt, latenza ed esito. Copia le righe di log di un'esecuzione per la diagnosi.",
+        "time": "Ora",
+        "engine": "Provider / modello",
+        "prompt": "Prompt",
+        "latency": "Latenza",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Esito",
+        "copyLog": "Copia le righe di log di questa esecuzione",
+        "copied": "Righe di log dell'esecuzione {{run}} copiate",
+        "empty": "Nessuna esecuzione di post-processing per ora.",
+        "live": "in corso"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "Scarica e installa automaticamente"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "applicato",
+      "skipped": "saltato",
+      "failed": "non riuscito"
     }
   },
   "footer": {
@@ -1031,9 +1191,16 @@
       "undoNoBuffer": "Ancora niente da svuotare, la dettatura non ha testo in diretta.",
       "bindingBusy": "Un altro tasto di dettatura sta già registrando.",
       "waylandTauriHotkeys": "Le scorciatoie globali potrebbero non funzionare nelle app Wayland native con questa implementazione della tastiera. Passa l'implementazione della tastiera a VoxBar Keys e aggiungi il tuo utente al gruppo input; consulta la guida per Ubuntu.",
-      "gnomeOverlayFallback": "Su GNOME Wayland l'overlay appare come una finestra normale che può rubare il focus e interrompere l'incollamento. Qui si consiglia Overlay: Nessuno."
+      "gnomeOverlayFallback": "Su GNOME Wayland l'overlay appare come una finestra normale che può rubare il focus e interrompere l'incollamento. Qui si consiglia Overlay: Nessuno.",
+      "postProcessOutputInvalid": "La rifinitura ha restituito testo inutilizzabile, la trascrizione originale è stata mantenuta.",
+      "postProcessCloudFailed": "La rifinitura non è riuscita, la trascrizione originale è stata mantenuta: {{detail}}",
+      "postProcessPromptCycled": "Modello di post-elaborazione: {{name}}",
+      "companionDisconnected": "Telefono disconnesso. Concludo con quanto registrato.",
+      "companionServerFailed": "Server companion non riuscito: {{error}}"
     },
-    "commandBadge": "Modalità comandi"
+    "commandBadge": "Modalità comandi",
+    "ppChip": "Rifinitura ({{model}}) {{seconds}}s",
+    "companionBadge": "Microfono companion"
   },
   "whatsNew": {
     "title": "Novità in VoxBar v{{version}}"
@@ -1058,11 +1225,45 @@
       "lengthGuard": "Post-elaborazione saltata: l'output del modello locale non ha superato il controllo di lunghezza. È stata usata la trascrizione originale.",
       "tooLong": "Post-elaborazione saltata: questa trascrizione è troppo lunga per il modello locale. È stata usata la trascrizione originale."
     },
-    "settingNotSaved": "Impossibile salvare questa impostazione: {{error}}"
+    "settingNotSaved": "Impossibile salvare questa impostazione: {{error}}",
+    "postProcessFailure": {
+      "auth": "Rifinitura non riuscita: il provider ha rifiutato la chiave API. La trascrizione originale è stata incollata.",
+      "network": "Rifinitura non riuscita: il provider non è raggiungibile. La trascrizione originale è stata incollata.",
+      "timeout": "Rifinitura non riuscita: il provider ha impiegato troppo tempo. La trascrizione originale è stata incollata.",
+      "contextLength": "Rifinitura non riuscita: la trascrizione supera la finestra di contesto del modello. La trascrizione originale è stata incollata.",
+      "outputInvalid": "Rifinitura non riuscita: il modello ha restituito testo inutilizzabile. La trascrizione originale è stata incollata.",
+      "oom": "Rifinitura non riuscita: memoria insufficiente. La trascrizione originale è stata incollata.",
+      "cancelled": "La rifinitura è stata annullata. La trascrizione originale è stata incollata."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar non può installare aggiornamenti da questa posizione",
     "translocatedDescription": "VoxBar è in esecuzione da una posizione temporanea di sola lettura (App Translocation di macOS). Chiudi VoxBar, trascinalo dalla cartella Scaricati ad Applicazioni e aprilo da lì.",
     "commandNoSession": "Il tasto dei comandi funziona solo durante una dettatura attiva. Avvia prima la registrazione, poi tienilo premuto e pronuncia il comando."
+  },
+  "companion": {
+    "title": "VoxBar Companion",
+    "subtitle": "Il tuo telefono ora è microfono e pulsante per il tuo Mac.",
+    "certNote": "Se il browser avvisa sulla connessione, confronta l'impronta del certificato con quella nelle impostazioni di VoxBar e accettala una volta.",
+    "noToken": "Apri questa pagina dal codice QR nelle impostazioni di VoxBar.",
+    "micDenied": "Accesso al microfono negato. Consentilo nel browser e ricarica.",
+    "badToken": "Abbinamento non riuscito. Scansiona di nuovo il codice QR nelle impostazioni di VoxBar.",
+    "wrongSubnet": "Questo telefono è su una rete diversa dal Mac. Unisciti alla stessa Wi-Fi e abbina di nuovo.",
+    "rateLimited": "Troppi tentativi di abbinamento. Attendi un minuto e riprova.",
+    "busy": "Il Mac sta già dettando da un altro pulsante.",
+    "disconnectedFinalized": "Connessione persa. Il Mac ha conservato ciò che hai detto.",
+    "capped": "Sessione limitata a 15 minuti. Premi di nuovo per continuare.",
+    "serverStopped": "Il Mac ha fermato il server companion.",
+    "reconnect": "Riconnetti",
+    "holdToTalk": "Tieni premuto per parlare",
+    "tapToTalk": "Tocca per parlare",
+    "release": "Rilascia per terminare",
+    "tapToStop": "Tocca per fermare",
+    "stateConnecting": "Connessione",
+    "stateWaitMic": "In attesa del microfono",
+    "stateReady": "Pronto",
+    "stateRecording": "Registrazione",
+    "stateDisconnected": "Disconnesso",
+    "stateError": "Errore"
   }
 }

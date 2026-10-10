@@ -9,9 +9,11 @@
     "unloadAfterNever": "Jamais",
     "unloadAfterCustom": "Personnalisé…",
     "model": "Modèle",
+    "postProcessModel": "Modèle de post-traitement",
     "quit": "Quitter",
     "cancel": "Annuler",
-    "secureInputWarning": "⚠ Raccourcis bloqués par Secure Input"
+    "secureInputWarning": "⚠ Raccourcis bloqués par Secure Input",
+    "postProcessPrompt": "Prompt de post-traitement"
   },
   "sidebar": {
     "general": "Général",
@@ -272,6 +274,10 @@
           "transcribe_commands": {
             "name": "Mode commandes",
             "description": "Maintenez cette touche pendant une dictée active pour passer en interprétation de commandes : tout ce que vous dictez modifie directement la mémoire tampon de la dictée (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) et les mots non reconnus sont ignorés. Relâchez-la pour revenir à la dictée normale ; le collage final livre exactement la mémoire tampon modifiée. Ne démarre jamais un enregistrement et ne fait rien seule. Non assignée par défaut."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Changer le prompt de post-traitement",
+            "description": "Optionnel : passe au modèle de post-traitement suivant et confirme le nouveau modèle."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "Chiffres",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Appareils compagnons",
+        "description": "Utilisez un téléphone ou une tablette sur le même Wi-Fi comme micro et déclencheur pour ce Mac.",
+        "offNote": "Désactivé par défaut. Rien n'écoute et aucun fil ne tourne tant que vous ne l'activez pas.",
+        "qrTitle": "Jumeler un appareil",
+        "qrHint": "Scannez avec la caméra du téléphone, ouvrez le lien et acceptez une fois l'avertissement de certificat.",
+        "addressLabel": "Adresse",
+        "portLabel": "Port",
+        "devicesLabel": "Appareils connectés",
+        "noDevices": "Aucun appareil connecté pour l'instant",
+        "resetPairing": "Réinitialiser le jumelage",
+        "fingerprintLabel": "Empreinte du certificat (SHA-256)",
+        "firewallNote": "macOS peut demander d'autoriser les connexions entrantes au premier activage. Autorisez-les, sinon les téléphones ne peuvent pas joindre ce Mac.",
+        "unavailable": "Les appareils compagnons nécessitent macOS pour ce cycle.",
+        "serverError": "Échec du serveur : {{error}}",
+        "refresh": "Actualiser",
+        "statusRunning": "En cours",
+        "statusStopped": "Arrêté"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "Choisissez un modèle exposé par le fournisseur sélectionné.",
           "placeholderWithOptions": "Rechercher ou sélectionner un modèle",
           "placeholderNoOptions": "Tapez un nom de modèle",
-          "refreshModels": "Actualiser les modèles"
+          "refreshModels": "Actualiser les modèles",
+          "fetchFailed": "Échec de récupération de la liste des modèles ({{failureClass}}) : {{detail}}",
+          "fetchedAtHint": "Liste des modèles récupérée {{time}}",
+          "retry": "Réessayer"
         },
         "timeout": {
           "title": "Délai de requête",
-          "description": "Combien de temps une requête de post-traitement cloud peut durer avant d'abandonner et d'utiliser la transcription brute. S'applique quand un endpoint cesse de répondre."
+          "description": "Combien de temps les requêtes de post-traitement de ce fournisseur peuvent durer avant d'abandonner et d'utiliser la transcription brute. Réinitialiser revient à la valeur par défaut de {{classDefault}}s de ce fournisseur."
+        },
+        "testConnection": "Tester la connexion",
+        "testConnectionRunning": "Test en cours...",
+        "verdict": {
+          "ok": "Authentification OK, {{latencyMs}} ms, modèle joignable",
+          "okNoModel": "Authentification OK, {{latencyMs}} ms. Aucun modèle sélectionné à tester.",
+          "localReady": "Le modèle local est téléchargé et prêt",
+          "localNotReady": "Le modèle local n'est pas prêt : {{detail}}",
+          "appleReady": "Apple Intelligence est disponible",
+          "appleUnavailable": "Apple Intelligence n'est pas disponible sur cet appareil",
+          "failed": "Échec de connexion : {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "Suppression impossible pour le moment : un post-traitement est en cours. Réessayez dans un instant.",
         "downloadFailed": "Échec du téléchargement : {{error}}",
         "deleteFailed": "Impossible de supprimer le modèle : {{error}}",
-        "providerLabel": "Local (sur l'appareil)"
+        "providerLabel": "Local (sur l'appareil)",
+        "keepWarm": {
+          "title": "Garder le modèle local en mémoire",
+          "description": "Combien de temps le modèle local de post-traitement reste en mémoire après une correction au lieu d'être déchargé immédiatement. Une dictée récupère toujours la mémoire en premier.",
+          "off": "Désactivé"
+        }
+      },
+      "models": {
+        "title": "Modèles de post-traitement",
+        "description": "Les modèles locaux qui nettoient vos transcriptions. Les plus petits se chargent plus vite, les plus grands corrigent mieux.",
+        "searchPlaceholder": "Rechercher des modèles de post-traitement",
+        "downloaded": "Téléchargés",
+        "available": "Disponibles au téléchargement",
+        "active": "Actif",
+        "select": "Utiliser",
+        "contextTokens": "Contexte : {{count}} tokens",
+        "publisher": "par {{publisher}}",
+        "noMatch": "Aucun modèle de post-traitement ne correspond à votre recherche.",
+        "browseCatalog": "Parcourir plus de modèles",
+        "addFromHf": {
+          "title": "Ajouter un modèle de post-traitement depuis Hugging Face",
+          "description": "Collez une URL de dépôt public ou owner/repo. Les GGUF de modèles de langue (Qwen, Llama, Gemma, Phi) peuvent être ajoutés.",
+          "added": "Modèle ajouté. Il apparaît dans Téléchargés."
+        }
       },
       "prompts": {
         "title": "Prompt",
@@ -709,7 +771,85 @@
         "createPrompt": "Créer le prompt",
         "cancel": "Annuler",
         "selectToEdit": "Sélectionnez un prompt ci-dessus pour voir et modifier ses détails.",
-        "createFirst": "Cliquez sur 'Créer un nouveau prompt' ci-dessus pour créer votre premier prompt de post-traitement."
+        "createFirst": "Cliquez sur 'Créer un nouveau prompt' ci-dessus pour créer votre premier prompt de post-traitement.",
+        "registers": {
+          "professional": "Professionnel",
+          "casual": "Décontracté",
+          "technical": "Technique",
+          "minimal": "Minimal",
+          "general": "Général"
+        },
+        "builtinBadge": "Intégré",
+        "customBadge": "Personnel",
+        "editedBadge": "Modifié",
+        "versionLabel": "Version {{version}}",
+        "duplicate": "Dupliquer",
+        "testOnLastTranscript": "Tester sur ma dernière transcription",
+        "testing": "Test en cours...",
+        "testNoHistory": "Pas encore d'historique de transcription. Enregistrez d'abord quelque chose.",
+        "testPromptNotFound": "Ce modèle n'existe plus.",
+        "testFailed": "Échec du test : {{detail}}",
+        "testResultTitle": "Résultat du test",
+        "testBefore": "Avant",
+        "testAfter": "Après",
+        "testOutcome": "Résultat : {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "La transcription brute serait conservée.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Anglais professionnel",
+            "description": "Anglais soigné pour le travail : nettoyage complet avec grammaire polie."
+          },
+          "english_casual": {
+            "name": "Anglais décontracté",
+            "description": "Anglais conversationnel qui garde contractions et argot."
+          },
+          "english_technical": {
+            "name": "Anglais technique",
+            "description": "Anglais adapté au code : identifiants, chemins et commandes conservés tels quels."
+          },
+          "english_minimal": {
+            "name": "Anglais minimal",
+            "description": "Corrections de ponctuation et de majuscules seulement ; chaque mot reste dicté."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (devanagari)",
+            "description": "Nettoyage de l'hindi en écriture devanagari avec la ponctuation purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (romain)",
+            "description": "Garde le mélange parlé hindi-anglais en écriture romaine."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Nettoyage du marathi en écriture devanagari."
+          },
+          "tamil": {
+            "name": "Tamoul",
+            "description": "Nettoyage du tamoul en écriture tamoule."
+          },
+          "spanish": {
+            "name": "Espagnol",
+            "description": "Nettoyage de l'espagnol avec points d'interrogation et d'exclamation inversés."
+          },
+          "french": {
+            "name": "Français",
+            "description": "Nettoyage du français avec espaces et guillemets français."
+          },
+          "german": {
+            "name": "Allemand",
+            "description": "Nettoyage de l'allemand avec noms capitalisés."
+          },
+          "japanese": {
+            "name": "Japonais",
+            "description": "Nettoyage du japonais avec ponctuation japonaise et correction des kanji."
+          },
+          "chinese_simplified": {
+            "name": "Chinois (simplifié)",
+            "description": "Nettoyage du chinois simplifié avec correction des homophones."
+          }
+        },
+        "editPrompt": "Modifier"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "Conservation"
-      }
+      },
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Débogage",
@@ -867,6 +1008,20 @@
         "permissionsButton": "Autorisations",
         "modelsButton": "Sélection du modèle",
         "exitButton": "Quitter l’aperçu"
+      },
+      "ppRuns": {
+        "title": "Passes de post-traitement",
+        "description": "Les dernières passes de polissage : moteur, prompt, latence et résultat. Copiez les lignes de journal d'une passe pour le diagnostic.",
+        "time": "Heure",
+        "engine": "Fournisseur / modèle",
+        "prompt": "Prompt",
+        "latency": "Latence",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Résultat",
+        "copyLog": "Copier les lignes de journal de cette passe",
+        "copied": "Lignes de journal de la passe {{run}} copiées",
+        "empty": "Aucune passe de post-traitement pour le moment.",
+        "live": "en cours"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "Télécharger et installer automatiquement"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "appliqué",
+      "skipped": "ignoré",
+      "failed": "échoué"
     }
   },
   "footer": {
@@ -1031,9 +1191,16 @@
       "undoNoBuffer": "Rien à effacer pour l'instant, la dictée n'a pas encore de texte en direct.",
       "bindingBusy": "Une autre touche de dictée est déjà en train d'enregistrer.",
       "waylandTauriHotkeys": "Les raccourcis globaux peuvent ne pas fonctionner dans les applications Wayland natives avec cette implémentation clavier. Passez l'implémentation clavier à VoxBar Keys et ajoutez votre utilisateur au groupe input ; consultez le guide Ubuntu.",
-      "gnomeOverlayFallback": "Sous GNOME Wayland, l'overlay apparaît comme une fenêtre ordinaire qui peut voler le focus et casser le collage. Overlay : Aucune est recommandé ici."
+      "gnomeOverlayFallback": "Sous GNOME Wayland, l'overlay apparaît comme une fenêtre ordinaire qui peut voler le focus et casser le collage. Overlay : Aucune est recommandé ici.",
+      "postProcessOutputInvalid": "Le polissage a renvoyé un texte inutilisable, la transcription brute a été conservée.",
+      "postProcessCloudFailed": "Le polissage a échoué, la transcription brute a été conservée : {{detail}}",
+      "postProcessPromptCycled": "Modèle de post-traitement : {{name}}",
+      "companionDisconnected": "Téléphone déconnecté. On finalise avec ce qui a été capturé.",
+      "companionServerFailed": "Échec du serveur compagnon : {{error}}"
     },
-    "commandBadge": "Mode commandes"
+    "commandBadge": "Mode commandes",
+    "ppChip": "Polish en cours ({{model}}) {{seconds}}s",
+    "companionBadge": "Micro compagnon"
   },
   "whatsNew": {
     "title": "Nouveautés de VoxBar v{{version}}"
@@ -1058,11 +1225,45 @@
       "lengthGuard": "Post-traitement ignoré : la sortie du modèle local n'a pas passé la vérification de longueur. La transcription brute a été utilisée.",
       "tooLong": "Post-traitement ignoré : cette transcription est trop longue pour le modèle local. La transcription brute a été utilisée."
     },
-    "settingNotSaved": "Impossible d'enregistrer ce paramètre : {{error}}"
+    "settingNotSaved": "Impossible d'enregistrer ce paramètre : {{error}}",
+    "postProcessFailure": {
+      "auth": "Polissage échoué : le fournisseur a refusé la clé d'API. La transcription brute a été collée.",
+      "network": "Polissage échoué : le fournisseur est injoignable. La transcription brute a été collée.",
+      "timeout": "Polissage échoué : le fournisseur a mis trop de temps. La transcription brute a été collée.",
+      "contextLength": "Polissage échoué : la transcription dépasse la fenêtre de contexte du modèle. La transcription brute a été collée.",
+      "outputInvalid": "Polissage échoué : le modèle a renvoyé un texte inutilisable. La transcription brute a été collée.",
+      "oom": "Polissage échoué : mémoire insuffisante. La transcription brute a été collée.",
+      "cancelled": "Le polissage a été annulé. La transcription brute a été collée."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar ne peut pas installer de mises à jour depuis cet emplacement",
     "translocatedDescription": "VoxBar s'exécute depuis un emplacement temporaire en lecture seule (App Translocation de macOS). Quittez VoxBar, faites-le glisser du dossier Téléchargements vers Applications, puis ouvrez-le depuis là.",
     "commandNoSession": "La touche de commandes ne fonctionne que pendant une dictée active. Commencez d'abord l'enregistrement, puis maintenez-la et dictez la commande."
+  },
+  "companion": {
+    "title": "VoxBar Compagnon",
+    "subtitle": "Votre téléphone est maintenant le micro et le déclencheur de votre Mac.",
+    "certNote": "Si le navigateur avertit sur la connexion, comparez l'empreinte du certificat avec celle des réglages VoxBar et acceptez-la une fois.",
+    "noToken": "Ouvrez cette page depuis le code QR dans les réglages VoxBar.",
+    "micDenied": "Accès au micro refusé. Autorisez-le dans le navigateur puis rechargez.",
+    "badToken": "Échec du jumelage. Rescannez le code QR dans les réglages VoxBar.",
+    "wrongSubnet": "Ce téléphone est sur un autre réseau que le Mac. Rejoignez le même Wi-Fi et jumelez à nouveau.",
+    "rateLimited": "Trop de tentatives de jumelage. Attendez une minute puis réessayez.",
+    "busy": "Le Mac dicte déjà depuis un autre déclencheur.",
+    "disconnectedFinalized": "Connexion coupée. Le Mac a gardé ce que vous avez dit.",
+    "capped": "Session limitée à 15 minutes. Appuyez à nouveau pour continuer.",
+    "serverStopped": "Le Mac a arrêté le serveur compagnon.",
+    "reconnect": "Reconnecter",
+    "holdToTalk": "Maintenir pour parler",
+    "tapToTalk": "Toucher pour parler",
+    "release": "Relâcher pour finir",
+    "tapToStop": "Toucher pour arrêter",
+    "stateConnecting": "Connexion",
+    "stateWaitMic": "Attente du micro",
+    "stateReady": "Prêt",
+    "stateRecording": "Enregistrement",
+    "stateDisconnected": "Déconnecté",
+    "stateError": "Erreur"
   }
 }

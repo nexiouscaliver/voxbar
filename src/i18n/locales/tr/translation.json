@@ -9,9 +9,11 @@
     "unloadAfterNever": "Asla",
     "unloadAfterCustom": "Özel…",
     "model": "Model",
+    "postProcessModel": "Son işlem modeli",
     "quit": "Çıkış",
     "cancel": "İptal",
-    "secureInputWarning": "⚠ Kısayollar Secure Input tarafından engelleniyor"
+    "secureInputWarning": "⚠ Kısayollar Secure Input tarafından engelleniyor",
+    "postProcessPrompt": "Son işlem promptu"
   },
   "sidebar": {
     "general": "Genel",
@@ -272,6 +274,10 @@
           "transcribe_commands": {
             "name": "Komut modu",
             "description": "Canlı bir dikte oturumu sırasında bu tuşu basılı tutun ve komut yorumuna geçin: söylediğiniz her şey doğrudan dikte arabelleğini düzenler (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) ve tanınmayan kelimeler atılır. Tuşu bırakınca normal dikteye dönülür; son yapıştırma tam olarak düzenlenmiş arabelleği verir. Hiçbir zaman kendi başına kayıt başlatmaz ve tek başına hiçbir şey yapmaz. Varsayılan olarak tuş atanmamıştır."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Son işlem promptunu değiştir",
+            "description": "İsteğe bağlı: seçili son işlem şablonunu bir sonrakine ilerletir ve yeni şablonu onaylar."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "Rakamlar",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Eşlik eden cihazlar",
+        "description": "Aynı Wi-Fi'deki bir telefonu veya tableti bu Mac için mikrofon ve düğme olarak kullan.",
+        "offNote": "Varsayılan olarak kapalı. Sen açana kadar hiçbir şey dinlemez ve hiçbir iş parçacığı çalışmaz.",
+        "qrTitle": "Cihaz eşleştir",
+        "qrHint": "Telefon kamerasıyla tara, bağlantıyı aç ve sertifika uyarısını bir kez kabul et.",
+        "addressLabel": "Adres",
+        "portLabel": "Port",
+        "devicesLabel": "Bağlı cihazlar",
+        "noDevices": "Henüz bağlı cihaz yok",
+        "resetPairing": "Eşleştirmeyi sıfırla",
+        "fingerprintLabel": "Sertifika parmak izi (SHA-256)",
+        "firewallNote": "İlk açışta macOS gelen bağlantılara izin isteyebilir. İzin ver, yoksa telefonlar bu Mac'e ulaşamaz.",
+        "unavailable": "Eşlik eden cihazlar bu döngüde macOS gerektirir.",
+        "serverError": "Sunucu başarısız: {{error}}",
+        "refresh": "Yenile",
+        "statusRunning": "Çalışıyor",
+        "statusStopped": "Durduruldu"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "Seçili sağlayıcının sunduğu bir modeli seçin.",
           "placeholderWithOptions": "Model ara veya seç",
           "placeholderNoOptions": "Model adı yazın",
-          "refreshModels": "Modelleri Yenile"
+          "refreshModels": "Modelleri Yenile",
+          "fetchFailed": "Model listesi alınamadı ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Model listesi {{time}} tarihinde alındı",
+          "retry": "Yeniden dene"
         },
         "timeout": {
           "title": "İstek zaman aşımı",
-          "description": "Bir bulut son işleme isteğinin vazgeçip ham transkriptin kullanıldığı süreye kadar çalışabileceği süre. Bir endpoint yanıt vermeyi bıraktığında geçerlidir."
+          "description": "Bu sağlayıcının son işlem istekleri vazgeçmeden ve ham transkript kullanılmadan önce ne kadar sürebilir. Sıfırlama, sağlayıcının {{classDefault}}sn varsayılanına döner."
+        },
+        "testConnection": "Bağlantıyı test et",
+        "testConnectionRunning": "Test ediliyor...",
+        "verdict": {
+          "ok": "Kimlik doğrulama tamam, {{latencyMs}} ms, modele erişildi",
+          "okNoModel": "Kimlik doğrulama tamam, {{latencyMs}} ms. Test için model seçilmedi.",
+          "localReady": "Yerel model indirildi ve hazır",
+          "localNotReady": "Yerel model hazır değil: {{detail}}",
+          "appleReady": "Apple Intelligence kullanılabilir",
+          "appleUnavailable": "Apple Intelligence bu cihazda kullanılamıyor",
+          "failed": "Bağlantı başarısız: {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "Şu anda silinemiyor: bir son işlem sürüyor. Birazdan tekrar deneyin.",
         "downloadFailed": "İndirme başarısız: {{error}}",
         "deleteFailed": "Model silinemedi: {{error}}",
-        "providerLabel": "Yerel (cihazda)"
+        "providerLabel": "Yerel (cihazda)",
+        "keepWarm": {
+          "title": "Yerel modeli sıcak tut",
+          "description": "Yerel son işlem modeli bir cilalamadan sonra hemen boşaltılmak yerine ne kadar süre bellekte kalır. Bir dikte her zaman önce belleği geri alır.",
+          "off": "Kapalı"
+        }
+      },
+      "models": {
+        "title": "Son işlem modelleri",
+        "description": "Transkriptlerinizi temizleyen yerel modeller. Küçük modeller daha hızlı yüklenir, büyükler daha iyi düzeltir.",
+        "searchPlaceholder": "Son işlem modellerinde ara",
+        "downloaded": "İndirilen",
+        "available": "İndirilebilir",
+        "active": "Etkin",
+        "select": "Kullan",
+        "contextTokens": "Bağlam: {{count}} belirteç",
+        "publisher": "{{publisher}} tarafından",
+        "noMatch": "Aramanıza uyan son işlem modeli yok.",
+        "browseCatalog": "Daha fazla modele göz atın",
+        "addFromHf": {
+          "title": "Hugging Face'ten son işlem modeli ekle",
+          "description": "Herkese açık bir depo URL'si veya owner/repo yapıştırın. Dil modeli GGUF dosyaları (Qwen, Llama, Gemma, Phi) eklenebilir.",
+          "added": "Model eklendi. İndirilenler altında görünür."
+        }
       },
       "prompts": {
         "title": "Prompt",
@@ -709,7 +771,85 @@
         "createPrompt": "Prompt Oluştur",
         "cancel": "İptal",
         "selectToEdit": "Ayrıntılarını görüntülemek ve düzenlemek için yukarıdan bir prompt seçin.",
-        "createFirst": "İlk son işlem promptunuzu oluşturmak için yukarıdaki “Yeni Prompt Oluştur” seçeneğine tıklayın."
+        "createFirst": "İlk son işlem promptunuzu oluşturmak için yukarıdaki “Yeni Prompt Oluştur” seçeneğine tıklayın.",
+        "registers": {
+          "professional": "Profesyonel",
+          "casual": "Gündelik",
+          "technical": "Teknik",
+          "minimal": "Minimal",
+          "general": "Genel"
+        },
+        "builtinBadge": "Yerleşik",
+        "customBadge": "Kendi",
+        "editedBadge": "Düzenlendi",
+        "versionLabel": "Sürüm {{version}}",
+        "duplicate": "Çoğalt",
+        "testOnLastTranscript": "Son transkriptimde dene",
+        "testing": "Deniyor...",
+        "testNoHistory": "Henüz transkript geçmişi yok. Önce bir şey kaydedin.",
+        "testPromptNotFound": "Bu şablon artık yok.",
+        "testFailed": "Test başarısız: {{detail}}",
+        "testResultTitle": "Test sonucu",
+        "testBefore": "Önce",
+        "testAfter": "Sonra",
+        "testOutcome": "Sonuç: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Ham transkript olduğu gibi korunur.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "İngilizce (profesyonel)",
+            "description": "İş için düzgün İngilizce: cilalı dil bilgisiyle eksiksiz temizlik."
+          },
+          "english_casual": {
+            "name": "İngilizce (gündelik)",
+            "description": "Kısaltmaları ve argoyu korayan konuşma dili İngilizcesi."
+          },
+          "english_technical": {
+            "name": "İngilizce (teknik)",
+            "description": "Koda uygun İngilizce: tanımlayıcılar, yollar ve komutlar olduğu gibi kalır."
+          },
+          "english_minimal": {
+            "name": "İngilizce (minimal)",
+            "description": "Yalnızca noktalama ve büyük harf düzeltmeleri; her söz söylendiği gibi kalır."
+          },
+          "hindi_devanagari": {
+            "name": "Hintçe (Devanagari)",
+            "description": "Devanagari yazısıyla hintçe temizliği, purna viram noktalamasıyla."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (Latin)",
+            "description": "Konuşulan hintçe-ingilizce karışımını Latin yazısıyla korur."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Devanagari yazısıyla marathi temizliği."
+          },
+          "tamil": {
+            "name": "Tamilce",
+            "description": "Tamil yazısıyla tamilce temizliği."
+          },
+          "spanish": {
+            "name": "İspanyolca",
+            "description": "Ters soru ve ünlem işaretleriyle ispanyolca temizliği."
+          },
+          "french": {
+            "name": "Fransızca",
+            "description": "Fransız boşlukları ve tırnak işaretleriyle fransızca temizliği."
+          },
+          "german": {
+            "name": "Almanca",
+            "description": "İsimler büyük harfle başlayacak şekilde almanca temizliği."
+          },
+          "japanese": {
+            "name": "Japonca",
+            "description": "Japon noktalaması ve kanji düzeltmeleriyle japonca temizliği."
+          },
+          "chinese_simplified": {
+            "name": "Çince (basitleştirilmiş)",
+            "description": "Basitleştirilmiş çince temizliği, eş sesli düzeltmelerle."
+          }
+        },
+        "editPrompt": "Düzenle"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "Saklama"
-      }
+      },
+      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms ile"
     },
     "debug": {
       "title": "Hata Ayıklama",
@@ -867,6 +1008,20 @@
         "permissionsButton": "İzinler",
         "modelsButton": "Model seçimi",
         "exitButton": "Önizlemeden çık"
+      },
+      "ppRuns": {
+        "title": "Son işlem çalıştırmaları",
+        "description": "En son parlatma çalıştırmaları: motor, istem, gecikme ve sonuç. Teşhis için bir çalıştırmanın günlük satırlarını kopyalayın.",
+        "time": "Saat",
+        "engine": "Sağlayıcı / model",
+        "prompt": "İstem",
+        "latency": "Gecikme",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Sonuç",
+        "copyLog": "Bu çalıştırmanın günlük satırlarını kopyala",
+        "copied": "{{run}} çalıştırmasının günlük satırları kopyalandı",
+        "empty": "Henüz son işlem çalıştırması yok.",
+        "live": "sürüyor"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "Otomatik indir ve kur"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "uygulandı",
+      "skipped": "atlandı",
+      "failed": "başarısız"
     }
   },
   "footer": {
@@ -1031,9 +1191,16 @@
       "undoNoBuffer": "Henüz temizlenecek bir şey yok, diktede canlı metin yok.",
       "bindingBusy": "Başka bir dikte tuşu zaten kaydediyor.",
       "waylandTauriHotkeys": "Bu klavye uygulamasıyla yerel Wayland uygulamalarında genel kısayollar çalışmayabilir. Klavye uygulamasını VoxBar Keys olarak değiştirin ve kullanıcıınızı input grubuna ekleyin; Ubuntu kılavuzuna bakın.",
-      "gnomeOverlayFallback": "GNOME Wayland'de ekran katmanı, odağı çalan ve yapıştırmayı bozan sıradan bir pencere olarak görünür. Burada Ekran Katmanı: Yok önerilir."
+      "gnomeOverlayFallback": "GNOME Wayland'de ekran katmanı, odağı çalan ve yapıştırmayı bozan sıradan bir pencere olarak görünür. Burada Ekran Katmanı: Yok önerilir.",
+      "postProcessOutputInvalid": "Parlatma kullanılamaz metin döndürdü, özgün transkript korundu.",
+      "postProcessCloudFailed": "Parlatma başarısız oldu, özgün transkript korundu: {{detail}}",
+      "postProcessPromptCycled": "Son işlem şablonu: {{name}}",
+      "companionDisconnected": "Telefon bağlantısı kesildi. Kaydedilenle bitiriliyor.",
+      "companionServerFailed": "Eşlik sunucusu başarısız: {{error}}"
     },
-    "commandBadge": "Komut modu"
+    "commandBadge": "Komut modu",
+    "ppChip": "Parlatılıyor ({{model}}) {{seconds}}sn",
+    "companionBadge": "Eşlik mikrofonu"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} yenilikleri"
@@ -1058,11 +1225,45 @@
       "lengthGuard": "Son işlem atlandı: yerel modelin çıktısı uzunluk denetiminden geçemedi. Orijinal transkripsiyon kullanıldı.",
       "tooLong": "Son işlem atlandı: bu transkripsiyon yerel model için çok uzun. Orijinal transkripsiyon kullanıldı."
     },
-    "settingNotSaved": "Bu ayar kaydedilemedi: {{error}}"
+    "settingNotSaved": "Bu ayar kaydedilemedi: {{error}}",
+    "postProcessFailure": {
+      "auth": "Parlatma başarısız: sağlayıcı API anahtarını reddetti. Özgün transkript yapıştırıldı.",
+      "network": "Parlatma başarısız: sağlayıcıya ulaşılamadı. Özgün transkript yapıştırıldı.",
+      "timeout": "Parlatma başarısız: sağlayıcı çok uzun sürdü. Özgün transkript yapıştırıldı.",
+      "contextLength": "Parlatma başarısız: transkript modelin bağlam penceresini aşıyor. Özgün transkript yapıştırıldı.",
+      "outputInvalid": "Parlatma başarısız: model kullanılamaz metin döndürdü. Özgün transkript yapıştırıldı.",
+      "oom": "Parlatma başarısız: yetersiz bellek. Özgün transkript yapıştırıldı.",
+      "cancelled": "Parlatma iptal edildi. Özgün transkript yapıştırıldı."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar bu konumdan güncellemeleri yükleyemez",
     "translocatedDescription": "VoxBar geçici bir salt okunur konumdan çalışıyor (macOS App Translocation). VoxBar'ı kapatın, İndirilenler klasöründen Uygulamalar klasörüne sürükleyin ve oradan açın.",
     "commandNoSession": "Komut tuşu yalnızca canlı dikte sırasında çalışır. Önce kaydı başlatın, sonra tuşu basılı tutup komutu söyleyin."
+  },
+  "companion": {
+    "title": "VoxBar Eşlik",
+    "subtitle": "Telefonun artık Mac'in için mikrofon ve düğme.",
+    "certNote": "Tarayıcı bağlantı konusunda uyarırsa sertifika parmak izini VoxBar ayarlarındaki ile karşılaştır ve bir kez kabul et.",
+    "noToken": "Bu sayfayı VoxBar ayarlarındaki QR koduyla aç.",
+    "micDenied": "Mikrofon erişimi reddedildi. Tarayıcıda izin ver ve yeniden yükle.",
+    "badToken": "Eşleştirme başarısız. VoxBar ayarlarındaki QR kodunu yeniden tara.",
+    "wrongSubnet": "Bu telefon Mac'ten farklı bir ağda. Aynı Wi-Fi'ye katıl ve yeniden eşleştir.",
+    "rateLimited": "Çok fazla eşleştirme denemesi. Bir dakika bekle ve tekrar dene.",
+    "busy": "Mac halihazırda başka bir düğmeden dikte ediyor.",
+    "disconnectedFinalized": "Bağlantı koptu. Mac söylediklerini korudu.",
+    "capped": "Oturum 15 dakikayla sınırlı. Devam etmek için yeniden bas.",
+    "serverStopped": "Mac eşlik sunucusunu durdurdu.",
+    "reconnect": "Yeniden bağlan",
+    "holdToTalk": "Konuşmak için basılı tut",
+    "tapToTalk": "Konuşmak için dokun",
+    "release": "Bitirmek için bırak",
+    "tapToStop": "Durdurmak için dokun",
+    "stateConnecting": "Bağlanıyor",
+    "stateWaitMic": "Mikrofon bekleniyor",
+    "stateReady": "Hazır",
+    "stateRecording": "Kaydediyor",
+    "stateDisconnected": "Bağlantı kesildi",
+    "stateError": "Hata"
   }
 }

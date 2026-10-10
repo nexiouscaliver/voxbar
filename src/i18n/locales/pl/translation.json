@@ -9,9 +9,11 @@
     "unloadAfterNever": "Nigdy",
     "unloadAfterCustom": "Niestandardowe…",
     "model": "Model",
+    "postProcessModel": "Model postprocessingu",
     "quit": "Zamknij",
     "cancel": "Anuluj",
-    "secureInputWarning": "⚠ Skróty zablokowane przez Secure Input"
+    "secureInputWarning": "⚠ Skróty zablokowane przez Secure Input",
+    "postProcessPrompt": "Prompt postprocessingu"
   },
   "sidebar": {
     "general": "Ogólne",
@@ -272,6 +274,10 @@
           "transcribe_commands": {
             "name": "Tryb poleceń",
             "description": "Przytrzymaj ten klawisz podczas aktywnej sesji dyktowania, aby przełączyć ją w tryb interpretacji poleceń: wszystko, co powiesz, edytuje bezpośrednio bufor dyktowania (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), a nierozpoznane słowa są odrzucane. Puść klawisz, aby wrócić do normalnego dyktowania; końcowe wklejenie dostarcza dokładnie edytowany bufor. Nigdy nie rozpoczyna nagrywania i sam z siebie nic nie robi. Domyślnie bez klawisza."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Przełączanie promptu postprocessingu",
+            "description": "Opcjonalne: przechodzi do następnego wybranego szablonu postprocessingu i potwierdza nowy szablon."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "Cyfry",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Urządzenia towarzyszące",
+        "description": "Użyj telefonu lub tabletu w tej samej sieci Wi-Fi jako mikrofonu i przycisku dla tego Maca.",
+        "offNote": "Domyślnie wyłączone. Nic nie nasłuchuje i żadne wątki nie działają, dopóki nie włączysz.",
+        "qrTitle": "Sparuj urządzenie",
+        "qrHint": "Zeskanuj aparatem telefonu, otwórz link i raz zaakceptuj ostrzeżenie o certyfikacie.",
+        "addressLabel": "Adres",
+        "portLabel": "Port",
+        "devicesLabel": "Połączone urządzenia",
+        "noDevices": "Brak połączonych urządzeń",
+        "resetPairing": "Resetuj parowanie",
+        "fingerprintLabel": "Odcisk certyfikatu (SHA-256)",
+        "firewallNote": "macOS może przy pierwszym włączeniu poprosić o zezwolenie na połączenia przychodzące. Zezwól, inaczej telefony nie dotrą do tego Maca.",
+        "unavailable": "Urządzenia towarzyszące w tym cyklu wymagają macOS.",
+        "serverError": "Serwer nie działa: {{error}}",
+        "refresh": "Odśwież",
+        "statusRunning": "Działa",
+        "statusStopped": "Zatrzymany"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "Wybierz model udostępniony przez wybranego dostawcę.",
           "placeholderWithOptions": "Wyszukaj lub wybierz model",
           "placeholderNoOptions": "Wpisz nazwę modelu",
-          "refreshModels": "Odśwież modele"
+          "refreshModels": "Odśwież modele",
+          "fetchFailed": "Nie udało się pobrać listy modeli ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Listę modeli pobrano {{time}}",
+          "retry": "Spróbuj ponownie"
         },
         "timeout": {
           "title": "Limit czasu żądania",
-          "description": "Jak długo żądanie przetwarzania końcowego w chmurze może działać, zanim zrezygnuje i zostanie użyty surowy zapis. Stosowane, gdy endpoint przestaje odpowiadać."
+          "description": "Jak długo żądania postprocessingu tego dostawcy mogą działać, zanim się podadzą i zostanie użyty surowy transkrypt. Reset wraca do domyślnych {{classDefault}}s tego dostawcy."
+        },
+        "testConnection": "Testuj połączenie",
+        "testConnectionRunning": "Testowanie...",
+        "verdict": {
+          "ok": "Uwierzytelnienie OK, {{latencyMs}} ms, model dostępny",
+          "okNoModel": "Uwierzytelnienie OK, {{latencyMs}} ms. Nie wybrano modelu do testu.",
+          "localReady": "Model lokalny jest pobrany i gotowy",
+          "localNotReady": "Model lokalny nie jest gotowy: {{detail}}",
+          "appleReady": "Apple Intelligence jest dostępna",
+          "appleUnavailable": "Apple Intelligence nie jest dostępna na tym urządzeniu",
+          "failed": "Połączenie nie powiodło się: {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "Nie można teraz usunąć: trwa postprocessing. Spróbuj ponownie za chwilę.",
         "downloadFailed": "Pobieranie nie powiodło się: {{error}}",
         "deleteFailed": "Nie udało się usunąć modelu: {{error}}",
-        "providerLabel": "Lokalnie (na urządzeniu)"
+        "providerLabel": "Lokalnie (na urządzeniu)",
+        "keepWarm": {
+          "title": "Utrzymuj model lokalny w pamięci",
+          "description": "Jak długo lokalny model postprocessingu pozostaje w pamięci po czyszczeniu, zamiast być od razu wyładowany. Dyktando zawsze odzyskuje pamięć jako pierwsze.",
+          "off": "Wyłączone"
+        }
+      },
+      "models": {
+        "title": "Modele postprocessingu",
+        "description": "Modele lokalne, które porządkują Twoje transkrypcje. Mniejsze modele ładują się szybciej, większe poprawiają lepiej.",
+        "searchPlaceholder": "Szukaj modeli postprocessingu",
+        "downloaded": "Pobrane",
+        "available": "Dostępne do pobrania",
+        "active": "Aktywny",
+        "select": "Użyj",
+        "contextTokens": "Kontekst: {{count}} tokenów",
+        "publisher": "od {{publisher}}",
+        "noMatch": "Żaden model nie pasuje do wyszukiwania.",
+        "browseCatalog": "Przeglądaj więcej modeli",
+        "addFromHf": {
+          "title": "Dodaj model postprocessingu z Hugging Face",
+          "description": "Wklej publiczny adres repozytorium lub owner/repo. Można dodawać pliki GGUF modeli językowych (Qwen, Llama, Gemma, Phi).",
+          "added": "Model dodany. Pojawi się w sekcji Pobrane."
+        }
       },
       "prompts": {
         "title": "Prompt",
@@ -709,7 +771,85 @@
         "createPrompt": "Utwórz prompt",
         "cancel": "Anuluj",
         "selectToEdit": "Wybierz prompt powyżej, aby zobaczyć i edytować jego szczegóły.",
-        "createFirst": "Kliknij 'Utwórz nowy prompt' powyżej, aby utworzyć pierwszy prompt postprocessingu."
+        "createFirst": "Kliknij 'Utwórz nowy prompt' powyżej, aby utworzyć pierwszy prompt postprocessingu.",
+        "registers": {
+          "professional": "Profesjonalny",
+          "casual": "Swobodny",
+          "technical": "Techniczny",
+          "minimal": "Minimalny",
+          "general": "Ogólny"
+        },
+        "builtinBadge": "Wbudowany",
+        "customBadge": "Własny",
+        "editedBadge": "Edytowany",
+        "versionLabel": "Wersja {{version}}",
+        "duplicate": "Duplikuj",
+        "testOnLastTranscript": "Przetestuj na ostatnim transkrypcie",
+        "testing": "Testowanie...",
+        "testNoHistory": "Nie ma jeszcze historii transkrypcji. Najpierw coś nagraj.",
+        "testPromptNotFound": "Ten szablon już nie istnieje.",
+        "testFailed": "Test nie powiódł się: {{detail}}",
+        "testResultTitle": "Wynik testu",
+        "testBefore": "Przed",
+        "testAfter": "Po",
+        "testOutcome": "Wynik: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Zostałby zachowany surowy transkrypt.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Angielski (profesjonalny)",
+            "description": "Angielski zwięzły i biznesowy: pełne czyszczenie z dopracowaną gramatyką."
+          },
+          "english_casual": {
+            "name": "Angielski (swobodny)",
+            "description": "Angielski rozmówczy, który zachowuje skróty i slang."
+          },
+          "english_technical": {
+            "name": "Angielski (techniczny)",
+            "description": "Angielski przyjazny kodowi: identyfikatory, ścieżki i polecenia zostają bez zmian."
+          },
+          "english_minimal": {
+            "name": "Angielski (minimalny)",
+            "description": "Tylko poprawki interpunkcji i wielkich liter; każde słowo zostaje jak dyktowane."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (dewanagari)",
+            "description": "Czyszczenie hindi w piśmie dewanagari ze znakami purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (łacina)",
+            "description": "Zachowuje mówioną mieszankę hindi i angielskiego w piśmie łacińskim."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Czyszczenie marathi w piśmie dewanagari."
+          },
+          "tamil": {
+            "name": "Tamilski",
+            "description": "Czyszczenie tamilskiego w piśmie tamilskim."
+          },
+          "spanish": {
+            "name": "Hiszpański",
+            "description": "Czyszczenie hiszpańskiego z odwróconymi znakami zapytania i wykrzyknikami."
+          },
+          "french": {
+            "name": "Francuski",
+            "description": "Czyszczenie francuskiego z francuskimi spacjami i cudzysłowami."
+          },
+          "german": {
+            "name": "Niemiecki",
+            "description": "Czyszczenie niemieckiego z wielkimi literami rzeczowników."
+          },
+          "japanese": {
+            "name": "Japoński",
+            "description": "Czyszczenie japońskiego z japońską interpunkcją i poprawkami kanji."
+          },
+          "chinese_simplified": {
+            "name": "Chiński (uproszczony)",
+            "description": "Czyszczenie chińskiego uproszczonego z poprawkami homofonów."
+          }
+        },
+        "editPrompt": "Edytuj"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "Przechowywanie"
-      }
+      },
+      "viaPostProcess": "przez {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Debugowanie",
@@ -867,6 +1008,20 @@
         "permissionsButton": "Uprawnienia",
         "modelsButton": "Wybór modelu",
         "exitButton": "Zakończ podgląd"
+      },
+      "ppRuns": {
+        "title": "Przebiegi przetwarzania",
+        "description": "Najnowsze przebiegi czyszczenia: silnik, prompt, opóźnienie i wynik. Skopiuj wiersze dziennika przebiegu do diagnozy.",
+        "time": "Czas",
+        "engine": "Dostawca / model",
+        "prompt": "Prompt",
+        "latency": "Opóźnienie",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Wynik",
+        "copyLog": "Skopiuj wiersze dziennika tego przebiegu",
+        "copied": "Skopiowano wiersze dziennika przebiegu {{run}}",
+        "empty": "Brak przebiegów przetwarzania.",
+        "live": "w toku"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "Pobieraj i instaluj automatycznie"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "zastosowano",
+      "skipped": "pominięto",
+      "failed": "nie powiodło się"
     }
   },
   "footer": {
@@ -1031,9 +1191,16 @@
       "undoNoBuffer": "Nie ma jeszcze czego czyścić, dyktowanie nie ma tekstu na żywo.",
       "bindingBusy": "Inny klawisz dyktowania już nagrywa.",
       "waylandTauriHotkeys": "Skróty globalne mogą nie działać w natywnych aplikacjach Wayland przy tej implementacji klawiatury. Przełącz implementację klawiatury na VoxBar Keys i dodaj swojego użytkownika do grupy input; zobacz przewodnik dla Ubuntu.",
-      "gnomeOverlayFallback": "Na GNOME Wayland nakładka pojawia się jako zwykłe okno, które może przejąć fokus i zepsuć wklejanie. Zalecane jest tu Nakładka: Brak."
+      "gnomeOverlayFallback": "Na GNOME Wayland nakładka pojawia się jako zwykłe okno, które może przejąć fokus i zepsuć wklejanie. Zalecane jest tu Nakładka: Brak.",
+      "postProcessOutputInvalid": "Czyszczenie zwróciło nieużyteczny tekst, zachowano oryginalną transkrypcję.",
+      "postProcessCloudFailed": "Czyszczenie nie powiodło się, zachowano oryginalną transkrypcję: {{detail}}",
+      "postProcessPromptCycled": "Szablon postprocessingu: {{name}}",
+      "companionDisconnected": "Telefon rozłączony. Kończę z tym, co nagrane.",
+      "companionServerFailed": "Awaria serwera towarzyszącego: {{error}}"
     },
-    "commandBadge": "Tryb poleceń"
+    "commandBadge": "Tryb poleceń",
+    "ppChip": "Czyszczę ({{model}}) {{seconds}}s",
+    "companionBadge": "Mikrofon towarzyszący"
   },
   "whatsNew": {
     "title": "Nowości w VoxBar v{{version}}"
@@ -1058,11 +1225,45 @@
       "lengthGuard": "Pominięto postprocessing: wynik modelu lokalnego nie przeszedł sprawdzania długości. Użyto oryginalnej transkrypcji.",
       "tooLong": "Pominięto postprocessing: ta transkrypcja jest za długa dla modelu lokalnego. Użyto oryginalnej transkrypcji."
     },
-    "settingNotSaved": "Nie udało się zapisać tego ustawienia: {{error}}"
+    "settingNotSaved": "Nie udało się zapisać tego ustawienia: {{error}}",
+    "postProcessFailure": {
+      "auth": "Czyszczenie nie powiodło się: dostawca odrzucił klucz API. Wklejono oryginalną transkrypcję.",
+      "network": "Czyszczenie nie powiodło się: nie można połączyć się z dostawcą. Wklejono oryginalną transkrypcję.",
+      "timeout": "Czyszczenie nie powiodło się: dostawca odpowiadał zbyt długo. Wklejono oryginalną transkrypcję.",
+      "contextLength": "Czyszczenie nie powiodło się: transkrypcja przekracza okno kontekstu modelu. Wklejono oryginalną transkrypcję.",
+      "outputInvalid": "Czyszczenie nie powiodło się: model zwrócił nieużyteczny tekst. Wklejono oryginalną transkrypcję.",
+      "oom": "Czyszczenie nie powiodło się: za mało pamięci. Wklejono oryginalną transkrypcję.",
+      "cancelled": "Czyszczenie zostało anulowane. Wklejono oryginalną transkrypcję."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar nie może instalować aktualizacji z tej lokalizacji",
     "translocatedDescription": "VoxBar działa z tymczasowej lokalizacji tylko do odczytu (App Translocation w macOS). Zamknij VoxBar, przeciągnij go z folderu Pobrane do folderu Aplikacje i uruchom go stamtąd.",
     "commandNoSession": "Klawisz poleceń działa tylko podczas aktywnego dyktowania. Najpierw rozpocznij nagrywanie, przytrzymaj klawisz i powiedz polecenie."
+  },
+  "companion": {
+    "title": "VoxBar Companion",
+    "subtitle": "Twój telefon jest teraz mikrofonem i przyciskiem dla twojego Maca.",
+    "certNote": "Jeśli przeglądarka ostrzega o połączeniu, porównaj odcisk certyfikatu z tym w ustawieniach VoxBar i raz go zaakceptuj.",
+    "noToken": "Otwórz tę stronę z kodu QR w ustawieniach VoxBar.",
+    "micDenied": "Odmówiono dostępu do mikrofonu. Zezwól w przeglądarce i odśwież.",
+    "badToken": "Parowanie nieudane. Zeskanuj kod QR w ustawieniach VoxBar ponownie.",
+    "wrongSubnet": "Ten telefon jest w innej sieci niż Mac. Połącz się z tą samą Wi-Fi i sparuj ponownie.",
+    "rateLimited": "Zbyt wiele prób parowania. Odczekaj minutę i spróbuj znowu.",
+    "busy": "Mac już dyktuje z innego przycisku.",
+    "disconnectedFinalized": "Połączenie zerwane. Mac zachował to, co powiedziałeś.",
+    "capped": "Sesja ograniczona do 15 minut. Naciśnij ponownie, aby kontynuować.",
+    "serverStopped": "Mac zatrzymał serwer towarzyszący.",
+    "reconnect": "Połącz ponownie",
+    "holdToTalk": "Przytrzymaj, aby mówić",
+    "tapToTalk": "Dotknij, aby mówić",
+    "release": "Puść, aby zakończyć",
+    "tapToStop": "Dotknij, aby zatrzymać",
+    "stateConnecting": "Łączenie",
+    "stateWaitMic": "Oczekiwanie na mikrofon",
+    "stateReady": "Gotowe",
+    "stateRecording": "Nagrywanie",
+    "stateDisconnected": "Rozłączono",
+    "stateError": "Błąd"
   }
 }

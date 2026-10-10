@@ -9,9 +9,11 @@
     "unloadAfterNever": "Nikdy",
     "unloadAfterCustom": "Vlastní…",
     "model": "Model",
+    "postProcessModel": "Model následného zpracování",
     "quit": "Ukončit",
     "cancel": "Zrušit",
-    "secureInputWarning": "⚠ Zkratky blokuje Secure Input"
+    "secureInputWarning": "⚠ Zkratky blokuje Secure Input",
+    "postProcessPrompt": "Prompt následného zpracování"
   },
   "sidebar": {
     "general": "Obecné",
@@ -272,6 +274,10 @@
           "transcribe_commands": {
             "name": "Režim příkazů",
             "description": "Podržte tuto klávesu během živé relace diktování, aby se přepla do režimu interpretace příkazů: vše, co řeknete, upravuje přímo vyrovnávací paměť diktování (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) a nerozpoznaná slova se zahazují. Uvolněte klávesu pro návrat k normálnímu diktování; konečné vložení dodá přesně upravenou vyrovnávací paměť. Nikdy nespustí nahrávání a sama o sobě nic nedělá. Ve výchozím nastavení bez klávesy."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Přepínat prompt následného zpracování",
+            "description": "Volitelné: posune vybranou šablonu následného zpracování na další a potvrdí novou šablonu."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "Číslice",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Doprovodná zařízení",
+        "description": "Použijte telefon nebo tablet na stejné Wi-Fi jako mikrofon a spoušť pro tento Mac.",
+        "offNote": "Ve výchozím stavu vypnuto. Nic neposlouchá a žádná vlákna neběží, dokud to nezapnete.",
+        "qrTitle": "Spárovat zařízení",
+        "qrHint": "Naskenujte kamerou telefonu, otevřete odkaz a jednou přijměte upozornění na certifikát.",
+        "addressLabel": "Adresa",
+        "portLabel": "Port",
+        "devicesLabel": "Připojená zařízení",
+        "noDevices": "Zatím žádná připojená zařízení",
+        "resetPairing": "Resetovat párování",
+        "fingerprintLabel": "Otisk certifikátu (SHA-256)",
+        "firewallNote": "macOS může při prvním zapnutí požádat o povolení příchozích spojení. Povolte je, jinak telefony tohoto Maca nenajdou.",
+        "unavailable": "Doprovodná zařízení v tomto cyklu vyžadují macOS.",
+        "serverError": "Server selhal: {{error}}",
+        "refresh": "Obnovit",
+        "statusRunning": "Běží",
+        "statusStopped": "Zastaveno"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "Vyberte model dostupný u vybraného poskytovatele.",
           "placeholderWithOptions": "Vyhledejte nebo vyberte model",
           "placeholderNoOptions": "Zadejte název modelu",
-          "refreshModels": "Obnovit modely"
+          "refreshModels": "Obnovit modely",
+          "fetchFailed": "Stažení seznamu modelů se nezdařilo ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Seznam modelů byl stažen {{time}}",
+          "retry": "Zkusit znovu"
         },
         "timeout": {
           "title": "Časový limit požadavku",
-          "description": "Jak dlouho může cloudový požadavek na dodatečné zpracování běžet, než se vzdá a použije se surový přepis. Platí, když endpoint přestane odpovídat."
+          "description": "Jak dlouho mohou požadavky na následné zpracování tohoto poskytovatele běžet, než se vzdají a použije se surový přepis. Obnovení se vrátí na výchozích {{classDefault}}s tohoto poskytovatele."
+        },
+        "testConnection": "Otestovat připojení",
+        "testConnectionRunning": "Testování...",
+        "verdict": {
+          "ok": "Ověření OK, {{latencyMs}} ms, model je dostupný",
+          "okNoModel": "Ověření OK, {{latencyMs}} ms. Není vybraný žádný model k otestování.",
+          "localReady": "Místní model je stažený a připravený",
+          "localNotReady": "Místní model není připravený: {{detail}}",
+          "appleReady": "Apple Intelligence je dostupná",
+          "appleUnavailable": "Apple Intelligence není na tomto zařízení dostupná",
+          "failed": "Připojení se nezdařilo: {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "Nyní nelze smazat: právě běží následné zpracování. Zkuste to za chvíli znovu.",
         "downloadFailed": "Stažení se nezdařilo: {{error}}",
         "deleteFailed": "Model se nepodařilo odstranit: {{error}}",
-        "providerLabel": "Místní (na zařízení)"
+        "providerLabel": "Místní (na zařízení)",
+        "keepWarm": {
+          "title": "Držet místní model v paměti",
+          "description": "Jak dlouho zůstává místní model následného zpracování v paměti po vyčištění, místo aby se hned uvolnil. Diktát si paměť vždy vezme zpátky jako první.",
+          "off": "Vypnuto"
+        }
+      },
+      "models": {
+        "title": "Modely následného zpracování",
+        "description": "Místní modely, které upravují vaše přepisy. Menší modely se načítají rychleji, větší upraví lépe.",
+        "searchPlaceholder": "Hledat modely následného zpracování",
+        "downloaded": "Stažené",
+        "available": "K dispozici ke stažení",
+        "active": "Aktivní",
+        "select": "Použít",
+        "contextTokens": "Kontext: {{count}} tokenů",
+        "publisher": "od {{publisher}}",
+        "noMatch": "Vašemu hledání neodpovídá žádný model.",
+        "browseCatalog": "Prohlédnout další modely",
+        "addFromHf": {
+          "title": "Přidat model následného zpracování z Hugging Face",
+          "description": "Vložte veřejnou URL adresu repozitáře nebo owner/repo. Přidat lze GGUF jazykových modelů (Qwen, Llama, Gemma, Phi).",
+          "added": "Model přidán. Zobrazí se ve stažených."
+        }
       },
       "prompts": {
         "title": "Prompt",
@@ -709,7 +771,85 @@
         "createPrompt": "Vytvořit prompt",
         "cancel": "Zrušit",
         "selectToEdit": "Vyberte výše prompt, abyste zobrazili a upravili jeho podrobnosti.",
-        "createFirst": "Klikněte nahoře na 'Vytvořit nový prompt' a vytvořte svůj první prompt pro následné zpracování."
+        "createFirst": "Klikněte nahoře na 'Vytvořit nový prompt' a vytvořte svůj první prompt pro následné zpracování.",
+        "registers": {
+          "professional": "Profesionální",
+          "casual": "Neformální",
+          "technical": "Technický",
+          "minimal": "Minimální",
+          "general": "Obecný"
+        },
+        "builtinBadge": "Vestavěná",
+        "customBadge": "Vlastní",
+        "editedBadge": "Upravená",
+        "versionLabel": "Verze {{version}}",
+        "duplicate": "Duplikovat",
+        "testOnLastTranscript": "Vyzkoušet na posledním přepisu",
+        "testing": "Testuji...",
+        "testNoHistory": "Zatím není žádná historie přepisů. Nejprve něco nahrjte.",
+        "testPromptNotFound": "Tato šablona už neexistuje.",
+        "testFailed": "Test selhal: {{detail}}",
+        "testResultTitle": "Výsledek testu",
+        "testBefore": "Před",
+        "testAfter": "Po",
+        "testOutcome": "Výsledek: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Původní přepis by zůstal zachován.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Angličtina (profesionální)",
+            "description": "Uhlazená angličtina pro práci: úplné vyčištění s poupravenou gramatikou."
+          },
+          "english_casual": {
+            "name": "Angličtina (neformální)",
+            "description": "Hovorová angličtina, která zachovává zkratky a slang."
+          },
+          "english_technical": {
+            "name": "Angličtina (technická)",
+            "description": "Angličtina přívětivá ke kódu: identifikátory, cesty a příkazy zůstávají beze změny."
+          },
+          "english_minimal": {
+            "name": "Angličtina (minimální)",
+            "description": "Pouze opravy interpunkce a velkých písmen; každé slovo zůstává diktované."
+          },
+          "hindi_devanagari": {
+            "name": "Hindština (dévanágarí)",
+            "description": "Úprava hindštiny v písmu dévanágarí s interpunkcí purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (latinka)",
+            "description": "Zachovává mluvenou směs hindštiny a angličtiny v latince."
+          },
+          "marathi": {
+            "name": "Maráthština",
+            "description": "Úprava maráthštiny v písmu dévanágarí."
+          },
+          "tamil": {
+            "name": "Tamilština",
+            "description": "Úprava tamilštiny v tamilském písmu."
+          },
+          "spanish": {
+            "name": "Španělština",
+            "description": "Úprava španělštiny s obrácenými otazníky a vykřičníky."
+          },
+          "french": {
+            "name": "Francouzština",
+            "description": "Úprava francouzštiny s francouzskými mezerami a uvozovkami."
+          },
+          "german": {
+            "name": "Němčina",
+            "description": "Úprava němčiny s podstatnými jmény s velkým počátečním písmenem."
+          },
+          "japanese": {
+            "name": "Japonština",
+            "description": "Úprava japonštiny s japonskou interpunkcí a opravami kandži."
+          },
+          "chinese_simplified": {
+            "name": "Čínština (zjednodušená)",
+            "description": "Úprava zjednodušené čínštiny s opravami stejně znějících znaků."
+          }
+        },
+        "editPrompt": "Upravit"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "Uchovávání"
-      }
+      },
+      "viaPostProcess": "přes {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Ladění",
@@ -867,6 +1008,20 @@
         "permissionsButton": "Oprávnění",
         "modelsButton": "Výběr modelu",
         "exitButton": "Ukončit náhled"
+      },
+      "ppRuns": {
+        "title": "Průběhy dodatečného zpracování",
+        "description": "Nejnovější průběhy čištění: engine, prompt, latence a výsledek. Zkopírujte řádky protokolu průběhu pro diagnózu.",
+        "time": "Čas",
+        "engine": "Poskytovatel / model",
+        "prompt": "Prompt",
+        "latency": "Latence",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Výsledek",
+        "copyLog": "Zkopírovat řádky protokolu tohoto průběhu",
+        "copied": "Zkopírovány řádky protokolu průběhu {{run}}",
+        "empty": "Zatím žádné průběhy dodatečného zpracování.",
+        "live": "probíhá"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "Stahovat a instalovat automaticky"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "použito",
+      "skipped": "přeskočeno",
+      "failed": "selhalo"
     }
   },
   "footer": {
@@ -1031,9 +1191,16 @@
       "undoNoBuffer": "Zatím není co vymazat, diktování nemá živý text.",
       "bindingBusy": "Jiná klávesa diktování už nahrává.",
       "waylandTauriHotkeys": "Globální zkratky při této implementaci klávesnice nemusí fungovat v nativních aplikacích Wayland. Přepněte implementaci klávesnice na VoxBar Keys a přidejte svého uživatele do skupiny input; viz průvodce pro Ubuntu.",
-      "gnomeOverlayFallback": "Na GNOME Wayland se překryv zobrazí jako běžné okno, které může ukrást fokus a rozbít vkládání. Doporučuje se zde Překryv: Žádné."
+      "gnomeOverlayFallback": "Na GNOME Wayland se překryv zobrazí jako běžné okno, které může ukrást fokus a rozbít vkládání. Doporučuje se zde Překryv: Žádné.",
+      "postProcessOutputInvalid": "Čištění vrátilo nepoužitelný text, původní přepis byl zachován.",
+      "postProcessCloudFailed": "Čištění selhalo, původní přepis byl zachován: {{detail}}",
+      "postProcessPromptCycled": "Šablona následného zpracování: {{name}}",
+      "companionDisconnected": "Telefon odpojen. Dokončuji s tím, co bylo zachyceno.",
+      "companionServerFailed": "Selhání doprovodného serveru: {{error}}"
     },
-    "commandBadge": "Režim příkazů"
+    "commandBadge": "Režim příkazů",
+    "ppChip": "Čistím ({{model}}) {{seconds}}s",
+    "companionBadge": "Doprovodný mikrofon"
   },
   "whatsNew": {
     "title": "Novinky v VoxBar v{{version}}"
@@ -1058,11 +1225,45 @@
       "lengthGuard": "Následné zpracování bylo přeskočeno: výstup místního modelu neprošel kontrolou délky. Byl použit původní přepis.",
       "tooLong": "Následné zpracování bylo přeskočeno: tento přepis je pro místní model příliš dlouhý. Byl použit původní přepis."
     },
-    "settingNotSaved": "Toto nastavení se nepodařilo uložit: {{error}}"
+    "settingNotSaved": "Toto nastavení se nepodařilo uložit: {{error}}",
+    "postProcessFailure": {
+      "auth": "Čištění selhalo: poskytovatel odmítl klíč API. Původní přepis byl vložen.",
+      "network": "Čištění selhalo: poskytovatele nelze spojit. Původní přepis byl vložen.",
+      "timeout": "Čištění selhalo: poskytovatel odpovídal příliš dlouho. Původní přepis byl vložen.",
+      "contextLength": "Čištění selhalo: přepis překračuje kontextové okno modelu. Původní přepis byl vložen.",
+      "outputInvalid": "Čištění selhalo: model vrátil nepoužitelný text. Původní přepis byl vložen.",
+      "oom": "Čištění selhalo: nedostatek paměti. Původní přepis byl vložen.",
+      "cancelled": "Čištění bylo zrušeno. Původní přepis byl vložen."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar nemůže z tohoto umístění instalovat aktualizace",
     "translocatedDescription": "VoxBar běží z dočasného umístění jen pro čtení (macOS App Translocation). Ukončete VoxBar, přetáhněte jej ze složky Stažené do složky Aplikace a spusťte jej odtud.",
     "commandNoSession": "Příkazová klávesa funguje jen během aktivní dikce. Nejprve spusťte nahrávání, pak ji držte a vyslovte příkaz."
+  },
+  "companion": {
+    "title": "VoxBar Companion",
+    "subtitle": "Váš telefon je teď mikrofon a spoušť pro váš Mac.",
+    "certNote": "Pokud prohlížeč varuje před spojením, porovnejte otisk certifikátu s otiskem v nastavení VoxBar a jednou ho přijměte.",
+    "noToken": "Otevřete tuto stránku z QR kódu v nastavení VoxBar.",
+    "micDenied": "Přístup k mikrofonu zamítnut. Povolte ho v prohlížeči a načtěte znovu.",
+    "badToken": "Párování selhalo. Naskenujte QR kód v nastavení VoxBar znovu.",
+    "wrongSubnet": "Tento telefon je v jiné síti než Mac. Připojte se ke stejné Wi-Fi a spárujte znovu.",
+    "rateLimited": "Příliš mnoho pokusů o párování. Počkejte minutu a zkuste to znovu.",
+    "busy": "Mac už diktuje z jiné spouště.",
+    "disconnectedFinalized": "Spojení přerušeno. Mac si uložil, co jste řekli.",
+    "capped": "Relace omezena na 15 minut. Stiskněte znovu pro pokračování.",
+    "serverStopped": "Mac zastavil doprovodný server.",
+    "reconnect": "Připojit znovu",
+    "holdToTalk": "Držte pro mluvení",
+    "tapToTalk": "Klepněte pro mluvení",
+    "release": "Pusťte pro dokončení",
+    "tapToStop": "Klepněte pro zastavení",
+    "stateConnecting": "Připojování",
+    "stateWaitMic": "Čekání na mikrofon",
+    "stateReady": "Připraveno",
+    "stateRecording": "Nahrávání",
+    "stateDisconnected": "Odpojeno",
+    "stateError": "Chyba"
   }
 }

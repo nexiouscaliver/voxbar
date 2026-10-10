@@ -9,9 +9,11 @@
     "unloadAfterNever": "从不",
     "unloadAfterCustom": "自定义…",
     "model": "模型",
+    "postProcessModel": "后处理模型",
     "quit": "退出",
     "cancel": "取消",
-    "secureInputWarning": "⚠ 快捷键被 Secure Input 阻止"
+    "secureInputWarning": "⚠ 快捷键被 Secure Input 阻止",
+    "postProcessPrompt": "后处理提示词"
   },
   "sidebar": {
     "general": "通用",
@@ -272,6 +274,10 @@
           "transcribe_commands": {
             "name": "命令模式",
             "description": "在听写会话进行期间按住此键可切换到命令解释模式：所说的一切都会直接编辑听写缓冲区 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line)，无法识别的词会被丢弃。松开后恢复普通听写；最终粘贴交付的正是编辑后的缓冲区。它绝不会自行开始录音，单独按下不做任何事。默认不绑定按键。"
+          },
+          "cycle_post_process_prompt": {
+            "name": "切换后处理提示词",
+            "description": "可选：将选定的后处理模板切换到下一个，并确认新模板。"
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "数字",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "伴侣设备",
+        "description": "把同一 Wi-Fi 上的手机或平板当作这台 Mac 的麦克风和触发键。",
+        "offNote": "默认关闭。在你开启之前，不会监听任何连接，也不运行任何线程。",
+        "qrTitle": "配对设备",
+        "qrHint": "用手机相机扫描，打开链接，并一次性接受证书警告。",
+        "addressLabel": "地址",
+        "portLabel": "端口",
+        "devicesLabel": "已连接的设备",
+        "noDevices": "还没有设备连接",
+        "resetPairing": "重置配对",
+        "fingerprintLabel": "证书指纹（SHA-256）",
+        "firewallNote": "首次开启时 macOS 可能请求允许传入连接。请允许，否则手机无法连接这台 Mac。",
+        "unavailable": "伴侣设备在本周期需要 macOS。",
+        "serverError": "服务器失败：{{error}}",
+        "refresh": "刷新",
+        "statusRunning": "运行中",
+        "statusStopped": "已停止"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "选择所选提供商提供的模型。",
           "placeholderWithOptions": "搜索或选择模型",
           "placeholderNoOptions": "输入模型名称",
-          "refreshModels": "刷新模型"
+          "refreshModels": "刷新模型",
+          "fetchFailed": "获取模型列表失败（{{failureClass}}）：{{detail}}",
+          "fetchedAtHint": "模型列表获取于 {{time}}",
+          "retry": "重试"
         },
         "timeout": {
           "title": "请求超时",
-          "description": "云端后处理请求在放弃并改用原始转写文本之前可以运行多久。适用于端点停止响应的情况。"
+          "description": "此提供商的后处理请求最多运行多久后放弃并使用原始转录。重置会回到该提供商 {{classDefault}} 秒的默认值。"
+        },
+        "testConnection": "测试连接",
+        "testConnectionRunning": "测试中...",
+        "verdict": {
+          "ok": "认证成功，{{latencyMs}} 毫秒，模型可访问",
+          "okNoModel": "认证成功，{{latencyMs}} 毫秒。尚未选择要测试的模型。",
+          "localReady": "本地模型已下载，随时可用",
+          "localNotReady": "本地模型未就绪：{{detail}}",
+          "appleReady": "Apple Intelligence 可用",
+          "appleUnavailable": "此设备不支持 Apple Intelligence",
+          "failed": "连接失败：{{failureClass}}。{{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "暂时无法删除：后处理正在进行中，请稍后再试。",
         "downloadFailed": "下载失败：{{error}}",
         "deleteFailed": "无法删除模型：{{error}}",
-        "providerLabel": "本地（设备端）"
+        "providerLabel": "本地（设备端）",
+        "keepWarm": {
+          "title": "本地模型驻留内存",
+          "description": "润色完成后，本地后处理模型在内存中保留多久，而不是立即卸载。听写始终优先收回内存。",
+          "off": "关"
+        }
+      },
+      "models": {
+        "title": "后处理模型",
+        "description": "在本地整理你听写文本的模型。小模型加载更快，大模型润色更好。",
+        "searchPlaceholder": "搜索后处理模型",
+        "downloaded": "已下载",
+        "available": "可下载",
+        "active": "使用中",
+        "select": "使用",
+        "contextTokens": "上下文：{{count}} 词元",
+        "publisher": "来自 {{publisher}}",
+        "noMatch": "没有符合搜索的后处理模型。",
+        "browseCatalog": "浏览更多模型",
+        "addFromHf": {
+          "title": "从 Hugging Face 添加后处理模型",
+          "description": "粘贴公开仓库链接或 owner/repo。可添加语言模型 GGUF（Qwen、Llama、Gemma、Phi）。",
+          "added": "模型已添加，会显示在已下载中。"
+        }
       },
       "prompts": {
         "title": "提示词",
@@ -709,7 +771,85 @@
         "createPrompt": "创建提示词",
         "cancel": "取消",
         "selectToEdit": "选择上方的提示词以查看和编辑其详细信息。",
-        "createFirst": "点击上方的「创建新提示词」来创建您的第一个后处理提示词。"
+        "createFirst": "点击上方的「创建新提示词」来创建您的第一个后处理提示词。",
+        "registers": {
+          "professional": "专业",
+          "casual": "日常",
+          "technical": "技术",
+          "minimal": "极简",
+          "general": "通用"
+        },
+        "builtinBadge": "内置",
+        "customBadge": "自定义",
+        "editedBadge": "已编辑",
+        "versionLabel": "版本 {{version}}",
+        "duplicate": "复制",
+        "testOnLastTranscript": "用最近一段转录试一试",
+        "testing": "测试中...",
+        "testNoHistory": "还没有转录历史。请先录一段。",
+        "testPromptNotFound": "该模板已不存在。",
+        "testFailed": "测试失败：{{detail}}",
+        "testResultTitle": "测试结果",
+        "testBefore": "之前",
+        "testAfter": "之后",
+        "testOutcome": "结果：{{outcome}}",
+        "testLatency": "{{ms}} 毫秒",
+        "testRawKept": "将保留原始转录文本。",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "英语（专业）",
+            "description": "干净、适合办公的英语：全面清理并打磨语法。"
+          },
+          "english_casual": {
+            "name": "英语（日常）",
+            "description": "保留缩写和俚语的口语化英语。"
+          },
+          "english_technical": {
+            "name": "英语（技术）",
+            "description": "适合代码的英语：标识符、路径和命令原样保留。"
+          },
+          "english_minimal": {
+            "name": "英语（极简）",
+            "description": "只修正标点和大小写；每个词保持口述原样。"
+          },
+          "hindi_devanagari": {
+            "name": "印地语（天城文）",
+            "description": "以天城文清理印地语，使用句号点标点。"
+          },
+          "hinglish_roman": {
+            "name": "印地英语（罗马字）",
+            "description": "保留口述中印地语与英语混说的风格，使用罗马字。"
+          },
+          "marathi": {
+            "name": "马拉地语",
+            "description": "以天城文清理马拉地语。"
+          },
+          "tamil": {
+            "name": "泰米尔语",
+            "description": "以泰米尔文清理泰米尔语。"
+          },
+          "spanish": {
+            "name": "西班牙语",
+            "description": "清理西班牙语，使用倒问号和倒叹号。"
+          },
+          "french": {
+            "name": "法语",
+            "description": "清理法语，遵循法语空格与引号规范。"
+          },
+          "german": {
+            "name": "德语",
+            "description": "清理德语，名词保持首字母大写。"
+          },
+          "japanese": {
+            "name": "日语",
+            "description": "清理日语，修正日式标点与汉字。"
+          },
+          "chinese_simplified": {
+            "name": "中文（简体）",
+            "description": "清理简体中文，修正同音错字。"
+          }
+        },
+        "editPrompt": "编辑"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "保留"
-      }
+      },
+      "viaPostProcess": "经 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒处理"
     },
     "debug": {
       "title": "调试",
@@ -867,6 +1008,20 @@
         "permissionsButton": "权限",
         "modelsButton": "模型选择",
         "exitButton": "退出预览"
+      },
+      "ppRuns": {
+        "title": "后处理运行",
+        "description": "最近的润色运行：引擎、提示词、延迟和结果。可复制某次运行的日志行用于诊断。",
+        "time": "时间",
+        "engine": "提供商 / 模型",
+        "prompt": "提示词",
+        "latency": "延迟",
+        "latencyMs": "{{ms}} 毫秒",
+        "outcome": "结果",
+        "copyLog": "复制此次运行的日志行",
+        "copied": "已复制运行 {{run}} 的日志行",
+        "empty": "还没有后处理运行。",
+        "live": "进行中"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "自动下载并安装"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "已应用",
+      "skipped": "已跳过",
+      "failed": "失败"
     }
   },
   "footer": {
@@ -1031,9 +1191,16 @@
       "undoNoBuffer": "还没有可清除的内容，听写中没有实时文本。",
       "bindingBusy": "另一个听写按键已在录音中。",
       "waylandTauriHotkeys": "在此键盘实现下，原生 Wayland 应用中的全局快捷键可能失效。请将键盘实现切换为 VoxBar Keys，并把用户加入 input 组；详见 Ubuntu 故障排除指南。",
-      "gnomeOverlayFallback": "在 GNOME Wayland 上，悬浮窗会以普通窗口形式出现，可能抢走焦点并破坏粘贴。此处建议将悬浮窗设为无。"
+      "gnomeOverlayFallback": "在 GNOME Wayland 上，悬浮窗会以普通窗口形式出现，可能抢走焦点并破坏粘贴。此处建议将悬浮窗设为无。",
+      "postProcessOutputInvalid": "润色返回了不可用的文本，已保留原始转录。",
+      "postProcessCloudFailed": "润色失败，已保留原始转录：{{detail}}",
+      "postProcessPromptCycled": "后处理模板：{{name}}",
+      "companionDisconnected": "手机已断开。正在用已录下的内容收尾。",
+      "companionServerFailed": "伴侣服务器失败：{{error}}"
     },
-    "commandBadge": "命令模式"
+    "commandBadge": "命令模式",
+    "ppChip": "润色中 ({{model}}) {{seconds}}秒",
+    "companionBadge": "伴侣麦克风"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} 新功能"
@@ -1058,11 +1225,45 @@
       "lengthGuard": "已跳过后处理：本地模型的输出未通过长度检查。已使用原始转录。",
       "tooLong": "已跳过后处理：此转录对本地模型来说过长。已使用原始转录。"
     },
-    "settingNotSaved": "无法保存此设置：{{error}}"
+    "settingNotSaved": "无法保存此设置：{{error}}",
+    "postProcessFailure": {
+      "auth": "润色失败：提供商拒绝了 API 密钥。已粘贴原始转录。",
+      "network": "润色失败：无法连接到提供商。已粘贴原始转录。",
+      "timeout": "润色失败：提供商响应超时。已粘贴原始转录。",
+      "contextLength": "润色失败：转录超出模型的上下文窗口。已粘贴原始转录。",
+      "outputInvalid": "润色失败：模型返回了不可用的文本。已粘贴原始转录。",
+      "oom": "润色失败：内存不足。已粘贴原始转录。",
+      "cancelled": "润色已取消。已粘贴原始转录。"
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar 无法从此位置安装更新",
     "translocatedDescription": "VoxBar 正在从临时的只读位置运行（macOS App Translocation）。请退出 VoxBar，将其从下载文件夹拖入应用程序文件夹，再从那里打开。",
     "commandNoSession": "命令键仅在录音进行时有效。请先开始录音，然后按住该键并说出命令。"
+  },
+  "companion": {
+    "title": "VoxBar 伴侣",
+    "subtitle": "你的手机现在是这台 Mac 的麦克风和触发键。",
+    "certNote": "如果浏览器提示连接警告，请将证书指纹与 VoxBar 设置中的比对，然后接受一次。",
+    "noToken": "请从 VoxBar 设置中的二维码打开本页面。",
+    "micDenied": "麦克风权限被拒绝。请在浏览器中允许后重新加载。",
+    "badToken": "配对失败。请重新扫描 VoxBar 设置中的二维码。",
+    "wrongSubnet": "这台手机与 Mac 不在同一网络。请加入同一 Wi-Fi 后重新配对。",
+    "rateLimited": "配对尝试过多。请等待一分钟后再试。",
+    "busy": "Mac 正在通过另一个触发键听写。",
+    "disconnectedFinalized": "连接中断。Mac 已保留你说的内容。",
+    "capped": "会话以 15 分钟为限。再按一次即可继续。",
+    "serverStopped": "Mac 已停止伴侣服务器。",
+    "reconnect": "重新连接",
+    "holdToTalk": "按住说话",
+    "tapToTalk": "点按说话",
+    "release": "松开结束",
+    "tapToStop": "点按停止",
+    "stateConnecting": "连接中",
+    "stateWaitMic": "等待麦克风",
+    "stateReady": "就绪",
+    "stateRecording": "录音中",
+    "stateDisconnected": "已断开",
+    "stateError": "错误"
   }
 }

@@ -9,9 +9,11 @@
     "unloadAfterNever": "Never",
     "unloadAfterCustom": "Custom…",
     "model": "Model",
+    "postProcessModel": "Post-process Model",
     "quit": "Quit",
     "cancel": "Cancel",
-    "secureInputWarning": "⚠ Shortcuts blocked by Secure Input"
+    "secureInputWarning": "⚠ Shortcuts blocked by Secure Input",
+    "postProcessPrompt": "Post-process Prompt"
   },
   "sidebar": {
     "general": "General",
@@ -220,6 +222,10 @@
           "transcribe_commands": {
             "name": "Command Mode",
             "description": "Hold this key while a dictation session is live to switch it into command interpretation: everything you say edits the dictation buffer directly (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) and unrecognized words are discarded. Release it to return to normal dictation; the final paste delivers exactly the edited buffer. It never starts a recording and does nothing on its own. Unbound by default."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Cycle Post-Process Prompt",
+            "description": "Optional: advances the selected post-process template to the next one and confirms the new template."
           }
         },
         "errors": {
@@ -636,6 +642,25 @@
           "digits": "Digits",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Companion Devices",
+        "description": "Use a phone or tablet on the same Wi-Fi as a microphone and trigger for this Mac.",
+        "offNote": "Off by default. Nothing listens and no threads run until you enable it.",
+        "qrTitle": "Pair a device",
+        "qrHint": "Scan with the phone camera, open the link, and accept the certificate warning once.",
+        "addressLabel": "Address",
+        "portLabel": "Port",
+        "devicesLabel": "Connected devices",
+        "noDevices": "No devices connected yet",
+        "resetPairing": "Reset pairing",
+        "fingerprintLabel": "Certificate fingerprint (SHA-256)",
+        "firewallNote": "macOS may ask to allow incoming connections the first time you enable this. Allow it, or phones cannot reach this Mac.",
+        "unavailable": "Companion devices need macOS this cycle.",
+        "serverError": "Server failed: {{error}}",
+        "refresh": "Refresh",
+        "statusRunning": "Running",
+        "statusStopped": "Stopped"
       }
     },
     "postProcessing": {
@@ -667,11 +692,25 @@
           "descriptionDefault": "Choose a model exposed by the selected provider.",
           "placeholderWithOptions": "Search or select a model",
           "placeholderNoOptions": "Type a model name",
-          "refreshModels": "Refresh models"
+          "refreshModels": "Refresh models",
+          "fetchFailed": "Model list fetch failed ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Model list fetched {{time}}",
+          "retry": "Retry"
         },
         "timeout": {
           "title": "Request timeout",
-          "description": "How long a cloud post-process request may run before it gives up and the raw transcript is used. Applies when an endpoint stops responding."
+          "description": "How long this provider's post-process requests may run before giving up and using the raw transcript. Reset returns to the {{classDefault}}s default for this provider."
+        },
+        "testConnection": "Test connection",
+        "testConnectionRunning": "Testing...",
+        "verdict": {
+          "ok": "Auth OK, {{latencyMs}} ms, model reachable",
+          "okNoModel": "Auth OK, {{latencyMs}} ms. No model selected to test.",
+          "localReady": "Local model is downloaded and ready",
+          "localNotReady": "Local model not ready: {{detail}}",
+          "appleReady": "Apple Intelligence is available",
+          "appleUnavailable": "Apple Intelligence is not available on this device",
+          "failed": "Connection failed: {{failureClass}}. {{detail}}"
         }
       },
       "local": {
@@ -688,7 +727,30 @@
         "deleteInUse": "Cannot delete right now: a post-process run is in progress. Try again in a moment.",
         "downloadFailed": "Download failed: {{error}}",
         "deleteFailed": "Could not delete the model: {{error}}",
-        "providerLabel": "Local (on-device)"
+        "providerLabel": "Local (on-device)",
+        "keepWarm": {
+          "title": "Keep local model warm",
+          "description": "How long the local post-processing model stays in memory after a polish instead of unloading right away. A dictation always takes the memory back first.",
+          "off": "Off"
+        }
+      },
+      "models": {
+        "title": "Post-process Models",
+        "description": "The local models that clean up your transcripts. Smaller models load faster; larger ones polish better.",
+        "searchPlaceholder": "Search post-process models",
+        "downloaded": "Downloaded",
+        "available": "Available to download",
+        "active": "Active",
+        "select": "Use",
+        "contextTokens": "Context: {{count}} tokens",
+        "publisher": "by {{publisher}}",
+        "noMatch": "No post-process models match your search.",
+        "browseCatalog": "Browse more models",
+        "addFromHf": {
+          "title": "Add post-process model from Hugging Face",
+          "description": "Paste a public repo URL or owner/repo. Language-model GGUFs (Qwen, Llama, Gemma, Phi) can be added.",
+          "added": "Model added. It appears under Downloaded."
+        }
       },
       "prompts": {
         "title": "Prompt",
@@ -709,7 +771,85 @@
         "createPrompt": "Create Prompt",
         "cancel": "Cancel",
         "selectToEdit": "Select a prompt above to view and edit its details.",
-        "createFirst": "Click 'Create New Prompt' above to create your first post-processing prompt."
+        "createFirst": "Click 'Create New Prompt' above to create your first post-processing prompt.",
+        "registers": {
+          "professional": "Professional",
+          "casual": "Casual",
+          "technical": "Technical",
+          "minimal": "Minimal",
+          "general": "General"
+        },
+        "builtinBadge": "Built-in",
+        "customBadge": "Custom",
+        "editedBadge": "Edited",
+        "versionLabel": "Version {{version}}",
+        "duplicate": "Duplicate",
+        "testOnLastTranscript": "Test on my last transcript",
+        "testing": "Testing...",
+        "testNoHistory": "No transcript history yet. Record something first.",
+        "testPromptNotFound": "This template no longer exists.",
+        "testFailed": "Test failed: {{detail}}",
+        "testResultTitle": "Test result",
+        "testBefore": "Before",
+        "testAfter": "After",
+        "testOutcome": "Outcome: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "The raw transcript would be kept.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "English Professional",
+            "description": "Clean, business-ready English: full cleanup with polished grammar."
+          },
+          "english_casual": {
+            "name": "English Casual",
+            "description": "Conversational English that keeps contractions and slang."
+          },
+          "english_technical": {
+            "name": "English Technical",
+            "description": "Code-friendly English that keeps identifiers, paths, and commands verbatim."
+          },
+          "english_minimal": {
+            "name": "English Minimal",
+            "description": "Punctuation and capitalization fixes only; every word stays as dictated."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (Devanagari)",
+            "description": "Hindi cleanup in the Devanagari script with purna viram punctuation."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (Roman)",
+            "description": "Keeps the spoken Hindi-English mix in the Roman script."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Marathi cleanup in the Devanagari script."
+          },
+          "tamil": {
+            "name": "Tamil",
+            "description": "Tamil cleanup in the Tamil script."
+          },
+          "spanish": {
+            "name": "Spanish",
+            "description": "Spanish cleanup with inverted question and exclamation marks."
+          },
+          "french": {
+            "name": "French",
+            "description": "French cleanup with French spacing and quotation marks."
+          },
+          "german": {
+            "name": "German",
+            "description": "German cleanup with capitalized nouns."
+          },
+          "japanese": {
+            "name": "Japanese",
+            "description": "Japanese cleanup with Japanese punctuation and kanji fixes."
+          },
+          "chinese_simplified": {
+            "name": "Chinese (Simplified)",
+            "description": "Simplified Chinese cleanup with homophone fixes."
+          }
+        },
+        "editPrompt": "Edit"
       }
     },
     "history": {
@@ -734,7 +874,8 @@
       },
       "groups": {
         "retention": "Retention"
-      }
+      },
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Debug",
@@ -867,6 +1008,20 @@
         "verdictOk": "Key events are reaching VoxBar normally.",
         "verdictNoEvents": "No events captured - did you press any keys during the test?",
         "failed": "Diagnostic failed: {{error}}"
+      },
+      "ppRuns": {
+        "title": "Post-process runs",
+        "description": "The most recent polishing runs: engine, prompt, latency, and outcome. Copy a run's log lines for diagnostics.",
+        "time": "Time",
+        "engine": "Provider / model",
+        "prompt": "Prompt",
+        "latency": "Latency",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Outcome",
+        "copyLog": "Copy this run's log lines",
+        "copied": "Copied run {{run}} log lines",
+        "empty": "No post-process runs yet.",
+        "live": "live"
       }
     },
     "about": {
@@ -910,6 +1065,11 @@
           "install": "Download and install automatically"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "applied",
+      "skipped": "skipped",
+      "failed": "failed"
     }
   },
   "footer": {
@@ -1034,9 +1194,16 @@
       "undoNoBuffer": "Nothing to clear yet, the dictation has no live text.",
       "bindingBusy": "Another dictation key is already recording.",
       "waylandTauriHotkeys": "Global shortcuts may not work in native Wayland apps with this keyboard backend. Switch Keyboard implementation to VoxBar Keys and add your user to the input group; see the Ubuntu troubleshooting guide.",
-      "gnomeOverlayFallback": "On GNOME Wayland the overlay appears as a regular window that can steal focus and break pasting. Overlay: None is recommended here."
+      "gnomeOverlayFallback": "On GNOME Wayland the overlay appears as a regular window that can steal focus and break pasting. Overlay: None is recommended here.",
+      "postProcessOutputInvalid": "Polishing returned unusable text, so the raw transcript was kept.",
+      "postProcessCloudFailed": "Polishing failed and the raw transcript was kept: {{detail}}",
+      "postProcessPromptCycled": "Post-process template: {{name}}",
+      "companionDisconnected": "Phone disconnected. Finishing with what was captured.",
+      "companionServerFailed": "Companion server failed: {{error}}"
     },
-    "commandBadge": "Command mode"
+    "commandBadge": "Command mode",
+    "ppChip": "Polishing ({{model}}) {{seconds}}s",
+    "companionBadge": "Companion microphone"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} may be blocking 1 shortcut",
@@ -1058,11 +1225,45 @@
       "lengthGuard": "Post-processing skipped: the local model output failed the length check. The raw transcript was used.",
       "tooLong": "Post-processing skipped: this transcript is too long for the local model. The raw transcript was used."
     },
-    "settingNotSaved": "Could not save this setting: {{error}}"
+    "settingNotSaved": "Could not save this setting: {{error}}",
+    "postProcessFailure": {
+      "auth": "Polishing failed: the provider rejected the API key. The raw transcript was pasted.",
+      "network": "Polishing failed: the provider could not be reached. The raw transcript was pasted.",
+      "timeout": "Polishing failed: the provider took too long. The raw transcript was pasted.",
+      "contextLength": "Polishing failed: the transcript exceeds the model's context window. The raw transcript was pasted.",
+      "outputInvalid": "Polishing failed: the model returned unusable text. The raw transcript was pasted.",
+      "oom": "Polishing failed: not enough memory. The raw transcript was pasted.",
+      "cancelled": "Polishing was cancelled. The raw transcript was pasted."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar cannot install updates from this location",
     "translocatedDescription": "VoxBar is running from a temporary read-only location (macOS App Translocation). Quit VoxBar, drag it from your Downloads folder into Applications, and open it from there.",
     "commandNoSession": "The command key works while a dictation is live. Start recording first, then hold it and speak the command."
+  },
+  "companion": {
+    "title": "VoxBar Companion",
+    "subtitle": "Your phone is now a microphone and trigger for your Mac.",
+    "certNote": "If your browser warns about the connection, compare the certificate fingerprint with the one in VoxBar settings and accept it once.",
+    "noToken": "Open this page from the QR code in VoxBar settings.",
+    "micDenied": "Microphone access was denied. Allow it in the browser and reload.",
+    "badToken": "Pairing failed. Scan the QR code in VoxBar settings again.",
+    "wrongSubnet": "This phone is on a different network than the Mac. Join the same Wi-Fi and pair again.",
+    "rateLimited": "Too many pairing attempts. Wait a minute and try again.",
+    "busy": "The Mac is already dictating from another trigger.",
+    "disconnectedFinalized": "Connection dropped. The Mac kept what you said.",
+    "capped": "Session capped at 15 minutes. Press again to continue.",
+    "serverStopped": "The Mac stopped the companion server.",
+    "reconnect": "Reconnect",
+    "holdToTalk": "Hold to talk",
+    "tapToTalk": "Tap to talk",
+    "release": "Release to finish",
+    "tapToStop": "Tap to stop",
+    "stateConnecting": "Connecting",
+    "stateWaitMic": "Waiting for microphone",
+    "stateReady": "Ready",
+    "stateRecording": "Recording",
+    "stateDisconnected": "Disconnected",
+    "stateError": "Error"
   }
 }
