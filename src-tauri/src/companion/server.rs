@@ -211,6 +211,9 @@ async fn handle_connection<S: AsyncRead + AsyncWrite + Unpin>(
             pos: 0,
             inner: stream,
         };
+        // Err type is tokio-tungstenite's fixed ErrorResponse for
+        // accept_hdr_async callbacks; not shrinkable from this crate.
+        #[allow(clippy::result_large_err)]
         match tokio_tungstenite::accept_hdr_async(replay, |_: &Request, response: Response| {
             Ok(response)
         })

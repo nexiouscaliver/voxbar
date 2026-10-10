@@ -207,8 +207,34 @@ export const HandyKeysShortcutInput: React.FC<HandyKeysShortcutInputProps> = ({
     return () => window.removeEventListener("click", handleClickOutside);
   }, [isRecording, cancelRecording]);
 
+  // KB-160: closing the settings window hides it (prevent_close + hide), so
+  // an armed recorder never sees its click-outside cancel. The backend
+  // suspends every registered shortcut for the capture and only
+  // stopHandyKeysRecording (inside cancelRecording) resumes them - without
+  // this listener every global binding stays suspended until the window is
+  // reopened and clicked. The backend emits main-window-hidden from that
+  // single hide path.
+  useEffect(() => {
+    if (!isRecording) return;
+
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    listen("main-window-hidden", () => cancelRecording()).then((fn) => {
+      if (disposed) fn();
+      else unlisten = fn;
+    });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [isRecording, cancelRecording]);
+
   // Start recording a new shortcut
   const startRecording = async () => {
+    // KB-009: a toggle-off row holds no registration - its recorder must
+    // not arm (the capture suspends every live binding for a dead shortcut).
+    if (disabled) return;
     if (isRecording) return;
 
     // Store the original binding to restore if canceled
@@ -333,8 +359,13 @@ export const HandyKeysShortcutInput: React.FC<HandyKeysShortcutInputProps> = ({
           </div>
         ) : (
           <div
-            className="px-2 py-1 text-sm font-medium bg-mid-gray/10 border border-mid-gray/80 hover:bg-logo-primary/10 rounded-md cursor-pointer hover:border-logo-primary"
+            className={`px-2 py-1 text-sm font-medium bg-mid-gray/10 border border-mid-gray/80 rounded-md ${
+              disabled
+                ? "opacity-50 cursor-not-allowed select-none"
+                : "cursor-pointer hover:bg-logo-primary/10 hover:border-logo-primary"
+            }`}
             onClick={startRecording}
+            aria-disabled={disabled}
           >
             {binding.current_binding
               ? formatKeyCombination(binding.current_binding, osType)
@@ -343,7 +374,7 @@ export const HandyKeysShortcutInput: React.FC<HandyKeysShortcutInputProps> = ({
         )}
         <ResetButton
           onClick={() => resetBinding(shortcutId)}
-          disabled={isUpdating(`binding_${shortcutId}`)}
+          disabled={disabled || isUpdating(`binding_${shortcutId}`)}
         />
       </div>
     </SettingContainer>

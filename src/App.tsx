@@ -452,7 +452,8 @@ function App() {
   // so auto-repeat cannot stack; the Linux setup warnings stay up longer
   // because they carry instructions. When the main window is hidden the
   // toast still renders into its webview for when it next opens, and a
-  // macOS notification (notifyDesktop) reaches the user now.
+  // macOS notification reaches the user now (notifyDesktop gates itself on
+  // the window's real visibility, KB-195).
   const lastNoopNoticeToast = useRef<Record<string, number>>({});
   useEffect(() => {
     const unlisten = events.overlayNoticeEvent.listen((event) => {

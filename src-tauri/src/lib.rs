@@ -485,8 +485,13 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     });
 
     // Apply the autostart preference (SMAppService login item on macOS 13+,
-    // tauri-plugin-autostart elsewhere)
-    autostart::apply_autostart(app_handle, settings.autostart_enabled);
+    // tauri-plugin-autostart elsewhere). Best effort at startup (the
+    // companion-init rule, KB-112): the preference is re-applied on every
+    // launch so a transient failure self-heals, and must not abort
+    // initialization.
+    if let Err(e) = autostart::apply_autostart(app_handle, settings.autostart_enabled) {
+        log::warn!("Failed to apply the autostart preference at startup: {e}");
+    }
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
@@ -1165,6 +1170,14 @@ pub fn run(cli_args: CliArgs) {
                         log::error!("Failed to emit main-window-hidden: {}", e);
                     }
                 }
+
+                // KB-160: an armed shortcut recorder suspends every binding,
+                // and the (now hidden) Settings UI is the only surface that
+                // can cancel it. Tell the frontend the window went hidden so
+                // it can cancel the recorder and resume bindings. Bare
+                // payload, best-effort - the frontend treats a missed event
+                // as "still recording" and recovers on the next interaction.
+                let _ = window.app_handle().emit("main-window-hidden", ());
 
                 #[cfg(target_os = "macos")]
                 {

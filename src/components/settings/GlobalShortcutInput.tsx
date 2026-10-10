@@ -1,5 +1,6 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { listen } from "@tauri-apps/api/event";
 import {
   getKeyName,
   formatKeyCombination,
@@ -38,6 +39,28 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
   const osType = useOsType();
 
   const bindings = getSetting("bindings") || {};
+
+  // Cancel an armed recording: restore the untouched original binding
+  // (defensive - the recorder only writes on commit), release the global
+  // suspension, and reset the armed UI state. Shared by the click-outside
+  // cancel and the main-window-hidden listener below (KB-160).
+  const cancelRecording = useCallback(async () => {
+    if (editingShortcutId === null) return;
+
+    if (editingShortcutId && originalBinding) {
+      try {
+        await updateBinding(editingShortcutId, originalBinding);
+      } catch (error) {
+        console.error("Failed to restore original binding:", error);
+        toast.error(t("settings.general.shortcut.errors.restore"));
+      }
+    }
+    await commands.resumeAllBindings().catch(console.error);
+    setEditingShortcutId(null);
+    setKeyPressed([]);
+    setRecordedKeys([]);
+    setOriginalBinding("");
+  }, [editingShortcutId, originalBinding, updateBinding, t]);
 
   useEffect(() => {
     // Only add event listeners when we're in editing mode
@@ -138,24 +161,12 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
     };
 
     // Add click outside handler
-    const handleClickOutside = async (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent) => {
       if (cleanup) return;
       const activeElement = shortcutRefs.current.get(editingShortcutId);
       if (activeElement && !activeElement.contains(e.target as Node)) {
         // Cancel shortcut recording and restore original binding
-        if (editingShortcutId && originalBinding) {
-          try {
-            await updateBinding(editingShortcutId, originalBinding);
-          } catch (error) {
-            console.error("Failed to restore original binding:", error);
-            toast.error(t("settings.general.shortcut.errors.restore"));
-          }
-        }
-        await commands.resumeAllBindings().catch(console.error);
-        setEditingShortcutId(null);
-        setKeyPressed([]);
-        setRecordedKeys([]);
-        setOriginalBinding("");
+        cancelRecording();
       }
     };
 
@@ -177,10 +188,36 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
     originalBinding,
     updateBinding,
     osType,
+    cancelRecording,
   ]);
+
+  // KB-160: closing the settings window hides it (prevent_close + hide), so
+  // an armed recorder never sees its click-outside cancel - every global
+  // binding stays suspended with zero feedback until the window is reopened
+  // and clicked. The backend emits main-window-hidden from that single hide
+  // path; run the same cancel path here so the suspension is released and
+  // the pending chord discarded even though the component stays mounted.
+  useEffect(() => {
+    if (editingShortcutId === null) return;
+
+    let disposed = false;
+    let unlisten: (() => void) | undefined;
+    listen("main-window-hidden", () => cancelRecording()).then((fn) => {
+      if (disposed) fn();
+      else unlisten = fn;
+    });
+
+    return () => {
+      disposed = true;
+      unlisten?.();
+    };
+  }, [editingShortcutId, cancelRecording]);
 
   // Start recording a new shortcut
   const startRecording = async (id: string) => {
+    // KB-009: a toggle-off row holds no registration - its recorder must
+    // not arm (suspending every live binding for a dead shortcut).
+    if (disabled) return;
     if (editingShortcutId === id) return; // Already editing this shortcut
 
     // Suspend all bindings so no shortcut fires (or swallows the
@@ -285,8 +322,13 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
           </div>
         ) : (
           <div
-            className="px-2 py-1 text-sm font-medium bg-mid-gray/10 border border-mid-gray/80 hover:bg-logo-primary/10 rounded-md cursor-pointer hover:border-logo-primary"
+            className={`px-2 py-1 text-sm font-medium bg-mid-gray/10 border border-mid-gray/80 rounded-md ${
+              disabled
+                ? "opacity-50 cursor-not-allowed select-none"
+                : "cursor-pointer hover:bg-logo-primary/10 hover:border-logo-primary"
+            }`}
             onClick={() => startRecording(shortcutId)}
+            aria-disabled={disabled}
           >
             {binding.current_binding
               ? formatKeyCombination(binding.current_binding, osType)
@@ -295,7 +337,7 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
         )}
         <ResetButton
           onClick={() => resetBinding(shortcutId)}
-          disabled={isUpdating(`binding_${shortcutId}`)}
+          disabled={disabled || isUpdating(`binding_${shortcutId}`)}
         />
       </div>
     </SettingContainer>

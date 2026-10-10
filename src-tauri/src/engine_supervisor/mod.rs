@@ -32,8 +32,8 @@ mod worker;
 #[cfg(target_os = "linux")]
 pub(crate) use worker::set_process_name;
 pub(crate) use worker::{
-    ignore_app_signals, init_logger, record_launched_exe, spawn_stderr_tail,
-    take_stdout_for_protocol, worker_exe, STDERR_TAIL_LINES,
+    ignore_app_signals, init_logger, spawn_stderr_tail, take_stdout_for_protocol, worker_exe,
+    STDERR_TAIL_LINES,
 };
 
 pub use protocol::{DeviceInfo, DeviceSelector, LoadedInfo};

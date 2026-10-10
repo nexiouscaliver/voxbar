@@ -427,7 +427,7 @@ pub fn normalize_and_validate_matrix(
 /// phrases keep their table order). The regex consumers rely on
 /// leftmost-first alternation, so the longest phrase must come first.
 fn sorted_by_word_count_descending<T>(mut items: Vec<T>, words: impl Fn(&T) -> usize) -> Vec<T> {
-    items.sort_by(|a, b| words(b).cmp(&words(a)));
+    items.sort_by_key(|a| std::cmp::Reverse(words(a)));
     items
 }
 

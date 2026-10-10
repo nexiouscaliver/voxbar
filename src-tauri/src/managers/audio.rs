@@ -1185,7 +1185,11 @@ impl AudioRecordingManager {
     /// not the live capture and not the persisted preference. On
     /// acceptance the preference is persisted here (the restart resolves
     /// the device from settings at open time, so it must be on disk before
-    /// the stream reopens) and an open stream restarts on the new device.
+    /// the stream reopens) and an open stream restarts on the new device;
+    /// a failed restart rolls the preference back and reopens the previous
+    /// device (KB-104: the settings UI rolls its dropdown back on this
+    /// error, and the store must agree with it instead of holding a mic
+    /// the capture cannot open).
     pub fn update_selected_device(
         &self,
         selected_microphone: Option<String>,
@@ -1200,6 +1204,7 @@ impl AudioRecordingManager {
         }
 
         let mut settings = get_settings(&self.app_handle);
+        let previous_device = settings.selected_microphone.clone();
         if settings.selected_microphone != selected_microphone {
             settings.selected_microphone = selected_microphone;
             write_settings(&self.app_handle, settings);
@@ -1219,7 +1224,31 @@ impl AudioRecordingManager {
         if was_open {
             self.close_generation.fetch_add(1, Ordering::SeqCst);
             self.stop_microphone_stream();
-            self.start_microphone_stream()?;
+            if let Err(restart_error) = self.start_microphone_stream() {
+                // KB-104: the reopen resolves its device from settings, so
+                // the write above had to precede it - undo it after a failed
+                // reopen and bring the previous device's stream back, or
+                // settings_store.json would keep a microphone the capture
+                // cannot open while the UI (which rolls back on this error)
+                // still shows the old one.
+                let mut settings = get_settings(&self.app_handle);
+                if settings.selected_microphone != previous_device {
+                    settings.selected_microphone = previous_device;
+                    write_settings(&self.app_handle, settings);
+                    let _ = self.app_handle.emit(
+                        "settings-changed",
+                        serde_json::json!({
+                            "setting": "selected_microphone"
+                        }),
+                    );
+                }
+                if let Err(rollback_error) = self.start_microphone_stream() {
+                    error!(
+                        "Failed to restore the microphone stream after a failed device switch: {rollback_error}"
+                    );
+                }
+                return Err(restart_error);
+            }
         }
         Ok(())
     }

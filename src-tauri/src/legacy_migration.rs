@@ -148,7 +148,7 @@ pub fn legacy_log_dir(home: &Path) -> PathBuf {
 /// or a shared/portable dir) - nothing to migrate from in that case.
 pub fn resolve_legacy_data_dir(new_dir: &Path, home: &Path) -> Option<PathBuf> {
     let legacy = legacy_data_dir(home);
-    if &legacy == new_dir {
+    if legacy == new_dir {
         None
     } else {
         Some(legacy)
@@ -186,6 +186,7 @@ pub struct MigrationReport {
 }
 
 impl MigrationReport {
+    #[cfg_attr(not(test), allow(dead_code))] // test-pinned invariant
     pub fn is_noop(&self) -> bool {
         self.migrated.is_empty() && self.failed.is_empty()
     }

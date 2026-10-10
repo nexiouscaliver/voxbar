@@ -70,6 +70,11 @@ log "building (nice -n 15 bunx tauri build); this is the slow step"
 nice -n 15 bunx tauri build
 [ -d "$APP_PATH" ] || die "bundle app not found at $APP_PATH after build"
 
+# Smoke the fresh bundle before re-signing: launch it, confirm the process
+# stays up, then quit it. Signatures and manifests cannot catch a startup
+# crash; this can (and stops the release when it happens).
+bash scripts/smoke-macos.sh "$APP_PATH"
+
 # --- 4. Re-sign with the stable designated requirement ----------------------
 log "re-signing $APP_PATH with the stable designated requirement"
 codesign --force --sign - --timestamp=none --options runtime \
