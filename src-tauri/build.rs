@@ -482,16 +482,54 @@ fn build_apple_intelligence_bridge() {
         .and_then(|p| p.parent())
         .map(|root| root.join("lib/swift/macosx"))
         .expect("Unable to determine Swift toolchain lib directory");
-    let sdk_swift_lib = Path::new(&sdk_path).join("usr/lib/swift");
+
+    // The @Generable macro's compiler plugin (FoundationModelsMacros) ships
+    // with the PLATFORM, not the SDK or the toolchain: Xcode IDE builds find
+    // it implicitly, but a direct swiftc invocation does not search the
+    // platform plugins dir, and the compile dies with "plugin for module
+    // 'FoundationModelsMacros' not found". Resolve the plugin dir from the
+    // SDK path (.../MacOSX.platform/Developer/SDKs/MacOSX.sdk) and load it
+    // explicitly.
+    //
+    // A machine-level SDKROOT pin (parent .cargo/config.toml, per the note
+    // in this repo's own .cargo/config.toml) can hand us a CommandLineTools
+    // SDK while DEVELOPER_DIR points at a full Xcode whose swiftc we are
+    // about to use: that mix cannot compile the macro. When the chosen SDK
+    // has no plugin, retry the resolution against the DEVELOPER_DIR Xcode
+    // platform SDK and compile against THAT instead. Without full Xcode
+    // (plain CLT, nixpkgs) nothing changes: the earlier CLT gate already
+    // selected the stub.
+    let mut swift_sdk = sdk_path.clone();
+    let mut platform_plugins = Path::new(&sdk_path)
+        .ancestors()
+        .nth(3)
+        .map(|platform| platform.join("Developer/usr/lib/swift/host/plugins"))
+        .filter(|dir| dir.join("libFoundationModelsMacros.dylib").exists());
+    if platform_plugins.is_none() {
+        if let Ok(dev_dir) = env::var("DEVELOPER_DIR") {
+            let xcode_plugins = Path::new(&dev_dir)
+                .join("Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins");
+            let xcode_sdk = Path::new(&dev_dir)
+                .join("Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk");
+            if xcode_plugins.join("libFoundationModelsMacros.dylib").exists()
+                && xcode_sdk.exists()
+            {
+                swift_sdk = xcode_sdk.to_string_lossy().into_owned();
+                platform_plugins = Some(xcode_plugins);
+            }
+        }
+    }
+    let sdk_swift_lib = Path::new(&swift_sdk).join("usr/lib/swift");
 
     // Use macOS 11.0 as deployment target for compatibility
     // The @available(macOS 26.0, *) checks in Swift handle runtime availability
     // Weak linking for FoundationModels is handled via cargo:rustc-link-arg below
-    let status = Command::new(&swiftc_path)
+    let mut swiftc = Command::new(&swiftc_path);
+    swiftc
         .args([
             // Without this flag swiftc treats single-file input as script
             // mode and emits its own `_main` symbol into the .o, which can
-            // win the link against Rust's main under some linkers (e.g.
+            // win the link against Rust's main under some linkers (e.g.,
             // open-source ld64 used in nixpkgs' Darwin stdenv), producing a
             // binary whose main() is a 5-instruction no-op that returns 0.
             // `-parse-as-library` keeps the compilation in library mode so
@@ -501,7 +539,7 @@ fn build_apple_intelligence_bridge() {
             "-target",
             "arm64-apple-macosx11.0",
             "-sdk",
-            &sdk_path,
+            &swift_sdk,
             "-O",
             "-import-objc-header",
             BRIDGE_HEADER,
@@ -512,6 +550,20 @@ fn build_apple_intelligence_bridge() {
                 .to_str()
                 .expect("Failed to convert object path to string"),
         ])
+        .args({
+            // See the platform_plugins note above: explicit macro plugin
+            // load for the @Generable macro when the platform ships it.
+            match &platform_plugins {
+                Some(dir) => vec![
+                    "-load-plugin-library".to_string(),
+                    dir.join("libFoundationModelsMacros.dylib")
+                        .to_string_lossy()
+                        .into_owned(),
+                ],
+                None => vec![],
+            }
+        });
+    let status = swiftc
         .status()
         .expect("Failed to invoke swiftc for Apple Intelligence bridge");
 
