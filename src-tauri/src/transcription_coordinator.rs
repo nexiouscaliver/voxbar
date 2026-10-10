@@ -1003,10 +1003,15 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
             hotkey_string,
         } => stop(app, &binding_id, &hotkey_string),
         Effect::NotifyCommandIdle => {
-            use tauri::Emitter;
-            if let Err(e) = app.emit("command-mode-no-session", ()) {
-                warn!("Failed to emit command-mode-no-session: {e}");
-            }
+            // KB-038: this used to be a bare "command-mode-no-session" emit
+            // the main window alone listened for; it now rides the same
+            // notice channel (log + event + card visibility) as every other
+            // no-session feedback.
+            crate::managers::transcription::emit_overlay_notice(
+                app,
+                crate::managers::transcription::NoticeCode::CommandModeNoSession,
+                None,
+            );
         }
         Effect::NotifyRecordingBusy { binding_id } => {
             crate::managers::transcription::emit_overlay_notice(

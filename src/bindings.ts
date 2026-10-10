@@ -69,10 +69,12 @@ async changeMemoryGateHeadroomSetting(headroomMb: number) : Promise<Result<null,
 }
 },
 /**
- * Companion devices master toggle (OFF by default). Beyond persisting the
- * setting, enabling starts the companion server and disabling stops it
- * (finalizing a live phone session first) - the same shape as
- * change_memory_pressure_guard_setting, plus lifecycle side effects.
+ * Companion devices master toggle (OFF by default). Applies the runtime
+ * change before persisting it (the update_microphone_mode rule, KB-027):
+ * enabling starts the companion server and disabling stops it (finalizing
+ * a live phone session first); a failed start throws so the settings store
+ * rolls the toggle back instead of persisting an enabled state with no
+ * server behind it.
  */
 async changeCompanionDevicesSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
@@ -1991,7 +1993,15 @@ code: string;
 /**
  * Diagnostic detail (error text, model names). Optional by design.
  */
-detail?: string | null }
+detail?: string | null; 
+/**
+ * Whether the overlay card could render this notice at emit time
+ * (`overlay_style` not None AND the overlay window visible). When
+ * false the card row is unreachable, so the frontend routes the
+ * notice to a macOS notification instead of a surface nobody sees
+ * (KB-020: hidden-card notices were invisible on every surface).
+ */
+card_visible: boolean }
 /**
  * Tone of an [`OverlayNoticeEvent`]: failures are errors, expected or
  * recoverable conditions are info. Errors carry the error sound; info does

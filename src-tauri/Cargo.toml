@@ -40,6 +40,10 @@ tauri-plugin-log = "2.7.1"
 tauri-plugin-opener = "2.5.2"
 tauri-plugin-store = "2.4.1"
 tauri-plugin-os = "2.3.2"
+# Pinned at 2.4.0, not the 2.5.x line: 2.5+ requires tauri ^2.12, which
+# forces a whole-stack lockfile bump (wry, tao, tray-icon) past the tauri
+# 2.11.5 this repo pins. Revisit alongside the next tauri core bump.
+tauri-plugin-notification = "2.4.0"
 tauri-plugin-clipboard-manager = "2.3.2"
 tauri-plugin-macos-permissions = "2.3.0"
 rusqlite_migration = "2.3"

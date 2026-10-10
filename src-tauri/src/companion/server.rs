@@ -403,6 +403,16 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                     manager.broadcast_frame(&ServerFrame::Notice {
                         code: "companion_session_capped".to_string(),
                     });
+                    // KB-016: the cap notice used to reach the phone only -
+                    // the Mac had no NoticeCode variant and no emit, so a
+                    // force-finalized dictation was silent everywhere the
+                    // user might be looking. Same channel as the disconnect
+                    // notice below; detail names the device.
+                    crate::managers::transcription::emit_overlay_notice(
+                        &app,
+                        crate::managers::transcription::NoticeCode::CompanionSessionCapped,
+                        Some(device_name.clone()),
+                    );
                 }
             }
             Step::Frame(None) => break,

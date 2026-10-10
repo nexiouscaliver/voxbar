@@ -18,7 +18,7 @@ use crate::managers::model::{
 use crate::memory;
 use crate::settings::{
     get_settings, AppSettings, ChineseScript, ModelUnloadTimeout, OrtAcceleratorSetting,
-    TranscribeAcceleratorSetting,
+    OverlayStyle, TranscribeAcceleratorSetting,
 };
 use anyhow::Result;
 use log::{debug, error, info, warn};
@@ -384,6 +384,12 @@ pub struct OverlayNoticeEvent {
     /// Diagnostic detail (error text, model names). Optional by design.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
+    /// Whether the overlay card could render this notice at emit time
+    /// (`overlay_style` not None AND the overlay window visible). When
+    /// false the card row is unreachable, so the frontend routes the
+    /// notice to a macOS notification instead of a surface nobody sees
+    /// (KB-020: hidden-card notices were invisible on every surface).
+    pub card_visible: bool,
 }
 
 /// Every failure or notice site that feeds the overlay notice channel. The
@@ -456,6 +462,13 @@ pub enum NoticeCode {
     /// The companion devices server failed to start or died (bind error,
     /// certificate problem). Error; detail carries the underlying error.
     CompanionServerFailed,
+    /// A companion phone dictation hit the 15-minute session cap and was
+    /// force-finalized. Info. Detail carries the device name.
+    CompanionSessionCapped,
+    /// The command-mode modifier was engaged with no live dictation
+    /// session (replaces the former bare command-mode-no-session event).
+    /// Info.
+    CommandModeNoSession,
 }
 
 impl NoticeCode {
@@ -474,7 +487,9 @@ impl NoticeCode {
             | NoticeCode::WaylandTauriHotkeys
             | NoticeCode::GnomeOverlayFallback
             | NoticeCode::PostProcessPromptCycled
-            | NoticeCode::CompanionDisconnected => OverlayNoticeKind::Info,
+            | NoticeCode::CompanionDisconnected
+            | NoticeCode::CompanionSessionCapped
+            | NoticeCode::CommandModeNoSession => OverlayNoticeKind::Info,
             _ => OverlayNoticeKind::Error,
         }
     }
@@ -508,6 +523,8 @@ impl NoticeCode {
             NoticeCode::PostProcessPromptCycled => "post_process_prompt_cycled",
             NoticeCode::CompanionDisconnected => "companion_disconnected_finalized",
             NoticeCode::CompanionServerFailed => "companion_server_failed",
+            NoticeCode::CompanionSessionCapped => "companion_session_capped",
+            NoticeCode::CommandModeNoSession => "command_mode_no_session",
         }
     }
 
@@ -540,6 +557,11 @@ impl NoticeCode {
 /// renders it only while its card is already visible) plus, for the error
 /// tone, the error sound. The existing main-window toasts and the file log
 /// keep running at their own emit sites, so every notice stays dual-surface.
+///
+/// The event carries `card_visible` - whether the overlay card could show
+/// this notice at emit time - so the frontend can route card-less notices
+/// to a macOS notification instead (KB-020: info notices fired while the
+/// card is hidden were invisible on every surface).
 pub fn emit_overlay_notice(app: &AppHandle, code: NoticeCode, detail: Option<String>) {
     let kind = code.kind();
     info!(
@@ -551,10 +573,19 @@ pub fn emit_overlay_notice(app: &AppHandle, code: NoticeCode, detail: Option<Str
         code.as_str(),
         detail.as_deref().unwrap_or("-")
     );
+    // Cheap read-only probe, same overlay_style lookup the overlay show and
+    // hide paths make: a missing window or a failed is_visible() counts as
+    // not visible, so the probe never panics.
+    let card_visible = get_settings(app).overlay_style != OverlayStyle::None
+        && app
+            .get_webview_window("recording_overlay")
+            .and_then(|window| window.is_visible().ok())
+            .unwrap_or(false);
     let _ = OverlayNoticeEvent {
         kind,
         code: code.as_str().to_string(),
         detail,
+        card_visible,
     }
     .emit(app);
     if kind == OverlayNoticeKind::Error {
@@ -4194,6 +4225,8 @@ mod tests {
             NoticeCode::BindingBusy,
             NoticeCode::WaylandTauriHotkeys,
             NoticeCode::GnomeOverlayFallback,
+            NoticeCode::CompanionSessionCapped,
+            NoticeCode::CommandModeNoSession,
         ];
         let mut codes: Vec<&str> = all.iter().map(|c| c.as_str()).collect();
         assert!(codes.iter().all(|c| !c.is_empty()));
@@ -4235,6 +4268,8 @@ mod tests {
             NoticeCode::BindingBusy,
             NoticeCode::WaylandTauriHotkeys,
             NoticeCode::GnomeOverlayFallback,
+            NoticeCode::CompanionSessionCapped,
+            NoticeCode::CommandModeNoSession,
         ] {
             assert_eq!(code.kind(), OverlayNoticeKind::Info, "{:?} is info", code);
         }

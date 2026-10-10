@@ -918,6 +918,10 @@ pub fn run(cli_args: CliArgs) {
         // frontend flow in src/components/update-checker/.
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_os::init())
+        // Notice routing (KB-020): the frontend posts a macOS notification
+        // for overlay notices that arrive while the card cannot show them
+        // (OverlayNoticeEvent.card_visible == false).
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_macos_permissions::init())
         .plugin(tauri_plugin_opener::init())
