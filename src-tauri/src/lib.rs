@@ -1200,6 +1200,15 @@ pub fn run(cli_args: CliArgs) {
         // async runtime would otherwise keep it (and its footprint probes)
         // alive past the UI it exists to update.
         tauri::RunEvent::Exit => {
+            // KB-151: quitting during an active mute_while_recording session
+            // must not strand the macOS system input muted - restore the
+            // snapshotted prior state (no-op when we did not mute). Best
+            // effort; the process is exiting, so a missing manager is logged
+            // rather than panicked on.
+            match app.try_state::<Arc<AudioRecordingManager>>() {
+                Some(recording) => recording.remove_mute(),
+                None => log::warn!("Exit: recording manager unavailable; skipped mute restore"),
+            }
             tray::stop_ram_refresh(app);
             // Companion server: close the listener and finalize any live
             // phone session. Best effort; the process is exiting.

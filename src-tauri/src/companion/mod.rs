@@ -413,22 +413,28 @@ fn manager(app: &AppHandle) -> Option<Arc<CompanionManager>> {
 
 /// Apply a `companion_devices_enabled` change: start/stop the server with
 /// side effects. Called from the settings command and at startup.
-pub fn apply_enabled(app: &AppHandle, enabled: bool) {
+/// Apply the companion enabled state to the running server: enable starts
+/// the listener, disable finalizes any live phone session and stops it. A
+/// failed start returns Err (already logged, stored on the manager, and
+/// badged on the overlay) so settings callers can apply-then-persist and
+/// roll the toggle back (KB-027); the startup path ignores it.
+pub fn apply_enabled(app: &AppHandle, enabled: bool) -> Result<(), String> {
     let Some(manager) = manager(app) else {
-        return;
+        return Ok(());
     };
     if enabled {
         if let Err(e) = manager.start(app) {
             log::error!("companion: failed to start server: {e}");
             manager.set_last_error(Some(e.clone()));
-            emit_overlay_notice(app, NoticeCode::CompanionServerFailed, Some(e));
-        } else {
-            manager.set_last_error(None);
+            emit_overlay_notice(app, NoticeCode::CompanionServerFailed, Some(e.clone()));
+            return Err(e);
         }
+        manager.set_last_error(None);
     } else {
         manager.stop(app);
         manager.set_last_error(None);
     }
+    Ok(())
 }
 
 /// Companion session boundary, reported by the shared TranscribeAction:
@@ -476,7 +482,9 @@ pub fn init(app: &AppHandle) {
     manager.register_notice_forwarder(app);
 
     if crate::settings::get_settings(app).companion_devices_enabled {
-        apply_enabled(app, true);
+        // Best effort: a failed start is logged and badged inside
+        // apply_enabled and must not abort initialization.
+        let _ = apply_enabled(app, true);
     }
 }
 

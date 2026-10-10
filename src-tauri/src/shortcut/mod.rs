@@ -836,17 +836,19 @@ pub fn change_memory_gate_headroom_setting(app: AppHandle, headroom_mb: u64) -> 
     Ok(())
 }
 
-/// Companion devices master toggle (OFF by default). Beyond persisting the
-/// setting, enabling starts the companion server and disabling stops it
-/// (finalizing a live phone session first) - the same shape as
-/// change_memory_pressure_guard_setting, plus lifecycle side effects.
+/// Companion devices master toggle (OFF by default). Applies the runtime
+/// change before persisting it (the update_microphone_mode rule, KB-027):
+/// enabling starts the companion server and disabling stops it (finalizing
+/// a live phone session first); a failed start throws so the settings store
+/// rolls the toggle back instead of persisting an enabled state with no
+/// server behind it.
 #[tauri::command]
 #[specta::specta]
 pub fn change_companion_devices_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    crate::companion::apply_enabled(&app, enabled)?;
     let mut settings = settings::get_settings(&app);
     settings.companion_devices_enabled = enabled;
     settings::write_settings(&app, settings);
-    crate::companion::apply_enabled(&app, enabled);
     Ok(())
 }
 
@@ -952,6 +954,11 @@ pub fn change_theme_setting(app: AppHandle, theme: String) -> Result<(), String>
     settings::write_settings(&app, settings);
     #[cfg(any(target_os = "windows", target_os = "macos"))]
     apply_window_theme(&app, parsed);
+    // KB-031: the tray icon is theme-dependent - re-sync so the menu bar
+    // picks the icon for the new theme instead of the one chosen the last
+    // time the tray was built. Runs after apply_window_theme, which the
+    // icon lookup reads the window theme from.
+    tray::update_tray_menu(&app);
     // Notify other webviews (the recording overlay) so they re-apply the palette
     // live - they set `data-theme` on their own document and can't see this one.
     let _ = app.emit("theme-changed", parsed);
@@ -1168,6 +1175,11 @@ pub fn change_update_checks_setting(app: AppHandle, enabled: bool) -> Result<(),
     let mut settings = settings::get_settings(&app);
     settings.update_checks_enabled = enabled;
     settings::write_settings(&app, settings);
+
+    // KB-034: the tray's "Check for Updates" item is enabled exactly while
+    // this setting is on - re-sync so the tray reflects the toggle now
+    // instead of after the next restart.
+    tray::update_tray_menu(&app);
 
     let _ = app.emit(
         "settings-changed",
@@ -1493,6 +1505,11 @@ pub fn change_post_process_api_key_setting(
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     validate_provider_exists(&settings, &provider_id)?;
+    // KB-107: a different key can be authorized for a different model set,
+    // and the old key's cached list can be stale or refused - drop the
+    // cached list (like the base-URL handler does) so the dropdown
+    // refetches with the new key instead of re-hydrating the old one.
+    settings.post_process_model_lists.remove(&provider_id);
     settings.post_process_api_keys.insert(provider_id, api_key);
     settings::write_settings(&app, settings);
     Ok(())
@@ -2285,13 +2302,27 @@ pub fn change_transcribe_gpu_device(app: AppHandle, device: Option<String>) -> R
 pub async fn get_available_accelerators(
     app: AppHandle,
 ) -> crate::managers::transcription::AvailableAccelerators {
-    tauri::async_runtime::spawn_blocking(move || {
+    // KB-158: a panic or rejection inside the probe task must not take the
+    // command down with it - panicking here permanently empties the
+    // accelerator dropdowns. Log it and answer with empty lists so the UI
+    // renders its fallback instead of hanging on a rejected promise.
+    match tauri::async_runtime::spawn_blocking(move || {
         let tm =
             app.state::<std::sync::Arc<crate::managers::transcription::TranscriptionManager>>();
         crate::managers::transcription::get_available_accelerators(&tm)
     })
     .await
-    .expect("get_available_accelerators panicked")
+    {
+        Ok(accelerators) => accelerators,
+        Err(err) => {
+            error!("get_available_accelerators task failed: {err}");
+            crate::managers::transcription::AvailableAccelerators {
+                transcribe: vec![],
+                ort: vec![],
+                gpu_devices: vec![],
+            }
+        }
+    }
 }
 
 #[cfg(test)]
