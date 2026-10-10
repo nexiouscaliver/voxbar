@@ -124,5 +124,14 @@ jobs:
       - name: Test frontend
         run: bun run test:frontend
 
+      # The release pipeline runs only at operator release time; keep its
+      # scripts at least syntactically honest in CI (fleet KB-233: the smoke
+      # step shipped unrunnable because nothing checked it).
+      - name: Release scripts syntax gate
+        run: |
+          bash -n scripts/release-macos.sh
+          bash -n scripts/smoke-macos.sh
+          grep -q 'APP_NAME="voxbar"' scripts/smoke-macos.sh
+
       - name: Check translations
         run: bun run check:translations
