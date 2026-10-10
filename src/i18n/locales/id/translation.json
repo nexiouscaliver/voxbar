@@ -20,6 +20,7 @@
     "output": "Keluaran",
     "advanced": "Lanjutan",
     "postProcessing": "Pascaproses",
+    "enableInAdvancedHint": "Aktifkan di Lanjutan",
     "history": "Riwayat",
     "debug": "Debug",
     "about": "Tentang"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Gagal memilih model",
-      "downloadFailed": "Gagal mengunduh {{model}}: {{error}}"
+      "downloadFailed": "Gagal mengunduh {{model}}: {{error}}",
+      "extractFailed": "Gagal mengekstrak {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Izin Diperlukan",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "Tidak ada model yang tersedia",
     "verifying": "Memverifikasi {{modelName}}...",
     "verifyingGeneric": "Memverifikasi...",
+    "verifyingGenericShort": "Memverifikasi",
     "extracting": "Mengekstrak {{modelName}}...",
     "extractingMultiple": "Mengekstrak {{count}} model...",
     "extractingGeneric": "Mengekstrak...",
+    "extractingGenericShort": "Mengekstrak",
     "downloading": "Mengunduh {{percentage}}%",
     "downloadingMultiple": "Mengunduh {{count}} model...",
     "modelReady": "Model Siap",
@@ -161,6 +165,9 @@
     "loadingGeneric": "Memuat...",
     "modelError": "Kesalahan Model",
     "modelUnloaded": "Model Dikeluarkan dari Memori",
+    "checkStatusFailed": "Gagal memeriksa status model",
+    "loadFailed": "Gagal memuat model",
+    "switchFailed": "Gagal mengganti model",
     "noModelDownloadRequired": "Model Belum Tersedia - Perlu Diunduh",
     "deleteModel": "Hapus {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -204,11 +211,11 @@
           },
           "delete_last_word": {
             "name": "Hapus kata terakhir",
-            "description": "Menghapus kata sebelum kursor di aplikasi yang fokus (Option+Backspace di macOS, Ctrl+Backspace di tempat lain). Tetapkan tombol untuk mengaktifkannya."
+            "description": "Menghapus kata terakhir dari teks dikte langsung selama sesi perekaman aktif; selain itu tidak melakukan apa pun. Tetapkan tombol untuk mengaktifkannya."
           },
           "undo": {
             "name": "Urungkan",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Saat dikte sedang berlangsung: menghapusnya dan memulai ulang. Selain itu tidak melakukan apa pun."
           },
           "transcribe_commands": {
             "name": "Mode perintah",
@@ -247,11 +254,11 @@
         "title": "Pintasan penyuntingan",
         "deleteLastWord": {
           "title": "Aksi: hapus kata terakhir",
-          "description": "Mengaktifkan pintasan yang dapat ditetapkan untuk menghapus kata sebelum kursor. Pintasan tetap nonaktif sampai Anda menetapkan tombol di atas."
+          "description": "Mengaktifkan tombol yang dapat ditetapkan yang menghapus kata terakhir dari teks dikte langsung selama sesi perekaman aktif."
         },
         "undo": {
           "title": "Aksi: urungkan",
-          "description": "Mengaktifkan pintasan yang dapat ditetapkan untuk menjalankan Urungkan di aplikasi yang fokus. Pintasan tetap nonaktif sampai Anda menetapkan tombol di atas."
+          "description": "Mengaktifkan tombol yang dapat ditetapkan yang menghapus teks dikte langsung dan memulai ulang selama sesi perekaman aktif."
         }
       },
       "commandMode": {
@@ -381,6 +388,10 @@
           "unsupportedArchUnknown": "File itu tidak bisa dibaca sebagai model GGUF, jadi tidak ditambahkan.",
           "generic": "Terjadi kesalahan."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Model ini adalah engine pascaproses lokal. Model ini memoles transkripsi setelah dikte, tidak dapat mentranskripsi audio.",
+        "generic": "Tidak dapat beralih ke model ini: {{error}}"
       }
     },
     "sound": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "Model dan memori",
         "transcription": "Transkripsi",
-        "experimental": "Eksperimental"
+        "experimental": "Eksperimental",
+        "postProcessing": "Pascaproses"
       },
       "experimentalToggle": {
         "label": "Fitur Eksperimental",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "Cari atau pilih model",
           "placeholderNoOptions": "Ketik nama model",
           "refreshModels": "Segarkan model"
+        },
+        "timeout": {
+          "title": "Batas waktu permintaan",
+          "description": "Berapa lama permintaan pascaproses cloud boleh berjalan sebelum menyerah dan transkripsi mentah dipakai. Berlaku saat endpoint berhenti merespons."
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "Nanti",
       "installedDescription": "VoxBar {{version}} telah dipasang dan akan aktif saat VoxBar dimulai ulang berikutnya.",
       "failedDescription": "Pembaruan tidak dapat diunduh. Periksa koneksi Anda dan coba lagi, atau unduh dari GitHub Releases.",
-      "translocatedDescription": "VoxBar tidak dapat memperbarui dirinya sendiri saat berjalan dari folder Unduhan. Pindahkan ke folder Aplikasi (seret di Finder), buka dari sana, lalu periksa pembaruan lagi."
+      "translocatedDescription": "VoxBar tidak dapat memperbarui dirinya sendiri saat berjalan dari folder Unduhan. Pindahkan ke folder Aplikasi (seret di Finder), buka dari sana, lalu periksa pembaruan lagi.",
+      "manualOnlyPlatform": "Ambil pembaruan dari GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} telah diunduh. Instalasi menutup aplikasi; versi baru mulai saat Anda membuka VoxBar berikutnya.",
+      "restartLaterWindows": "Instal dan tutup"
     }
   },
   "whatsNew": {
@@ -1005,7 +1024,19 @@
   "overlay": {
     "transcribing": "Mentranskripsikan...",
     "processing": "Memproses...",
-    "removedWord": "Dihapus: {{text}}"
+    "removedWord": "Dihapus: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Transkripsi gagal. Rekaman disimpan, coba lagi dari Riwayat.",
+      "generic": "Terjadi kesalahan. Detailnya ada di log.",
+      "deleteLastWordNoSession": "Tombol hapus kata bekerja saat dikte sedang berlangsung. Mulai rekaman dulu.",
+      "deleteLastWordNoBuffer": "Belum ada yang bisa dihapus, dikte belum memiliki teks langsung.",
+      "undoNoSession": "Tombol urungkan bekerja saat dikte sedang berlangsung. Mulai rekaman dulu.",
+      "undoNoBuffer": "Belum ada yang bisa dibersihkan, dikte belum memiliki teks langsung.",
+      "bindingBusy": "Tombol dikte lain sedang merekam.",
+      "waylandTauriHotkeys": "Pintasan global mungkin tidak berfungsi di aplikasi Wayland native dengan implementasi keyboard ini. Ganti implementasi keyboard ke VoxBar Keys dan tambahkan pengguna Anda ke grup input; lihat panduan Ubuntu.",
+      "gnomeOverlayFallback": "Di GNOME Wayland, overlay muncul sebagai jendela biasa yang bisa mencuri fokus dan merusak tempel. Disarankan Overlay: Tidak Ada di sini."
+    },
+    "commandBadge": "Mode perintah"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} mungkin memblokir 1 pintasan",
@@ -1026,7 +1057,8 @@
       "timeout": "Pascaproses dilewati: model lokal memakan waktu terlalu lama. Transkripsi asli yang digunakan.",
       "lengthGuard": "Pascaproses dilewati: keluaran model lokal tidak lulus pemeriksaan panjang. Transkripsi asli yang digunakan.",
       "tooLong": "Pascaproses dilewati: transkripsi ini terlalu panjang untuk model lokal. Transkripsi asli yang digunakan."
-    }
+    },
+    "settingNotSaved": "Pengaturan ini tidak dapat disimpan: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar tidak dapat memasang pembaruan dari lokasi ini",

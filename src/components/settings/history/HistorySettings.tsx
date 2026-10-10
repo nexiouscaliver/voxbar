@@ -44,6 +44,14 @@ const IconButton: React.FC<{
 
 const PAGE_SIZE = 30;
 
+/* The display form of a model id for history chips: the segment after the
+ * last '/' (e.g. "parakeet-unified-en-0.6b-gguf"), falling back to the full
+ * id when there is no slash. */
+const shortModelId = (id: string): string => {
+  const tail = id.split("/").pop()?.trim();
+  return tail || id;
+};
+
 interface OpenRecordingsButtonProps {
   onClick: () => void;
   label: string;
@@ -300,7 +308,7 @@ export const HistorySettings: React.FC = () => {
       <div className="space-y-2">
         <div className="px-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xs font-medium text-mid-gray uppercase tracking-wide">
+            <h2 className="text-xs font-medium text-secondary uppercase tracking-wide">
               {t("settings.history.title")}
             </h2>
           </div>
@@ -394,10 +402,13 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           </p>
           {showModelBadge && entry.model_id ? (
             <span
-              className="px-1.5 py-0.5 text-[10px] leading-none font-medium rounded bg-mid-gray/20 text-text/60 truncate"
+              className="px-1.5 py-0.5 text-xs leading-none font-medium rounded bg-mid-gray/20 text-secondary truncate"
               title={`${t("settings.history.model")}: ${entry.model_id}`}
             >
-              {entry.model_id}
+              {/* The short tail of the id (segment after the last '/') so the
+                  chip names the model instead of truncating mid-path; the
+                  full id rides along as the tooltip. */}
+              {shortModelId(entry.model_id)}
             </span>
           ) : null}
         </div>

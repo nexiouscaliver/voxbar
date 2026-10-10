@@ -1,7 +1,8 @@
 use crate::managers::transcription::TranscriptionManager;
 use crate::settings::{
     get_settings, write_settings, ModelUnloadTimeout, MODEL_UNLOAD_CUSTOM_MAX_SECONDS,
-    MODEL_UNLOAD_CUSTOM_MIN_SECONDS,
+    MODEL_UNLOAD_CUSTOM_MIN_SECONDS, POST_PROCESS_TIMEOUT_MAX_SECONDS,
+    POST_PROCESS_TIMEOUT_MIN_SECONDS,
 };
 use serde::Serialize;
 use specta::Type;
@@ -20,6 +21,24 @@ pub fn set_model_unload_timeout(app: AppHandle, timeout: ModelUnloadTimeout) {
     let mut settings = get_settings(&app);
     settings.model_unload_timeout = timeout;
     write_settings(&app, settings);
+}
+
+/// Set the total-request timeout for cloud post-process calls, in seconds.
+/// Rejects out-of-range values instead of clamping so a UI bug can't
+/// silently write a 1-second or 10-minute timeout the user never saw.
+#[tauri::command]
+#[specta::specta]
+pub fn set_post_process_timeout(app: AppHandle, seconds: u64) -> Result<(), String> {
+    if !(POST_PROCESS_TIMEOUT_MIN_SECONDS..=POST_PROCESS_TIMEOUT_MAX_SECONDS).contains(&seconds) {
+        return Err(format!(
+            "Post-process timeout must be between {} and {} seconds (got {})",
+            POST_PROCESS_TIMEOUT_MIN_SECONDS, POST_PROCESS_TIMEOUT_MAX_SECONDS, seconds
+        ));
+    }
+    let mut settings = get_settings(&app);
+    settings.post_process_timeout_secs = seconds;
+    write_settings(&app, settings);
+    Ok(())
 }
 
 /// Set the idle-unload timeout to a custom seconds value (the Settings

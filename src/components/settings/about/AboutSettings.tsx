@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { getVersion } from "@tauri-apps/api/app";
+import { platform } from "@tauri-apps/plugin-os";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { SettingContainer } from "../../ui/SettingContainer";
@@ -14,23 +14,21 @@ import { ThemeSelector } from "../ThemeSelector";
 import { AccentColorSelector } from "../AccentColorSelector";
 import { LogDirectory } from "../debug";
 import { runUpdateCheck } from "../../update-checker/updaterFlow";
+import { updaterAutoUpdateSupported } from "../../update-checker/updaterPlatform";
+import { fetchAppVersion } from "../../../lib/utils/appVersion";
 
 export const AboutSettings: React.FC = () => {
   const { t } = useTranslation();
   const [version, setVersion] = useState("");
 
   useEffect(() => {
-    const fetchVersion = async () => {
-      try {
-        const appVersion = await getVersion();
-        setVersion(appVersion);
-      } catch (error) {
-        console.error("Failed to get app version:", error);
-        setVersion("0.1.2");
-      }
+    let cancelled = false;
+    void fetchAppVersion().then((appVersion) => {
+      if (!cancelled) setVersion(appVersion);
+    });
+    return () => {
+      cancelled = true;
     };
-
-    fetchVersion();
   }, []);
 
   return (
@@ -47,13 +45,27 @@ export const AboutSettings: React.FC = () => {
           <div className="flex items-center gap-3">
             {/* eslint-disable-next-line i18next/no-literal-string */}
             <span className="text-sm font-mono">v{version}</span>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => void runUpdateCheck({ trigger: "manual" })}
-            >
-              {t("footer.checkForUpdates")}
-            </Button>
+            {updaterAutoUpdateSupported(platform()) ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => void runUpdateCheck({ trigger: "manual" })}
+              >
+                {t("footer.checkForUpdates")}
+              </Button>
+            ) : (
+              // Platforms without shipped updater artifacts: a check here
+              // can only error, so point at the releases page instead.
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  openUrl("https://github.com/nexiouscaliver/voxbar/releases")
+                }
+              >
+                {t("footer.updater.manualOnlyPlatform")}
+              </Button>
+            )}
           </div>
         </SettingContainer>
 
@@ -86,7 +98,7 @@ export const AboutSettings: React.FC = () => {
           grouped={true}
           layout="stacked"
         >
-          <div className="text-sm text-mid-gray">
+          <div className="text-sm text-secondary">
             {t("settings.about.acknowledgments.ggml.details")}
           </div>
         </SettingContainer>
@@ -100,7 +112,7 @@ export const AboutSettings: React.FC = () => {
           {/* eslint-disable i18next/no-literal-string -- proper nouns and an
               upstream credit link; attribution, not navigation, so the link
               stays pointed at the upstream project on purpose. */}
-          <div className="text-sm text-mid-gray">
+          <div className="text-sm text-secondary">
             VoxBar is a fork of{" "}
             <a
               href="https://github.com/cjpais/Handy"

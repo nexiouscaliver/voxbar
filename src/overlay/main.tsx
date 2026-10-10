@@ -1,7 +1,10 @@
-import React from "react";
+import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { listen } from "@tauri-apps/api/event";
 import RecordingOverlay from "./RecordingOverlay";
+import { ErrorBoundary } from "../components/ErrorBoundary";
+import { commands } from "@/bindings";
+import i18n from "@/i18n";
 import {
   applyTheme,
   getStoredTheme,
@@ -12,6 +15,11 @@ import {
   getStoredAccent,
   syncAccentFromSettings,
 } from "@/lib/utils/accent";
+import {
+  overlayCacheStorage,
+  readCachedLanguage,
+  writeCachedLanguage,
+} from "./overlayBootstrap";
 import type { Theme } from "@/bindings";
 import "@/i18n";
 
@@ -31,8 +39,32 @@ applyAccent(getStoredAccent());
 syncAccentFromSettings();
 listen<string>("accent-changed", (event) => applyAccent(event.payload));
 
+// Language boot, same pattern: apply the last-seen language synchronously
+// so the first paint is already localized. RecordingOverlay then reconciles
+// with AppSettings on mount, refreshes the cache, and keeps following
+// "settings-changed" so a language switch in the settings window lands here
+// without waiting for the next hotkey press.
+const cachedLanguage = readCachedLanguage(overlayCacheStorage());
+if (cachedLanguage) {
+  void i18n.changeLanguage(cachedLanguage);
+}
+
+// A render throw inside the overlay must not leave a phantom transparent
+// pill on screen: recover by cancelling the current operation, whose hide
+// path fades the overlay window out from the backend side.
+const OverlayCrashFallback: React.FC = () => {
+  useEffect(() => {
+    commands.cancelOperation().catch(() => {
+      // The window may already be gone; nothing else to do.
+    });
+  }, []);
+  return null;
+};
+
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <RecordingOverlay />
+    <ErrorBoundary context="recording overlay" fallback={OverlayCrashFallback}>
+      <RecordingOverlay />
+    </ErrorBoundary>
   </React.StrictMode>,
 );

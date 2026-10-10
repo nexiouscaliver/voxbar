@@ -2,6 +2,7 @@ import React from "react";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { platform } from "@tauri-apps/plugin-os";
 import { toast } from "sonner";
 import i18n from "../../i18n";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -11,6 +12,7 @@ import {
   RestartPromptCard,
   UpdateProgressBar,
 } from "./UpdateToasts";
+import { updaterAutoUpdateSupported } from "./updaterPlatform";
 
 // Where updates come from. The updater itself downloads from the GitHub
 // release (endpoint configured in tauri.conf.json); this URL is the manual
@@ -62,6 +64,18 @@ function updateChecksAllowed(): boolean {
 function currentPolicy(): UpdatePolicyValue {
   const policy = useSettingsStore.getState().settings?.update_policy;
   return policy === "download" || policy === "install" ? policy : "ask";
+}
+
+// The file-log seam: webview console output never reaches voxbar.log, so
+// every update-flow decision rides through this Rust command and lands as
+// one info line per decision (see commands/updater.rs). Fire-and-forget:
+// a logging failure must never break the flow it describes.
+function logDecision(stage: string, detail?: string): void {
+  commands
+    .logUpdateDecision(stage, detail ?? null)
+    .catch((error) =>
+      console.error(`Failed to log update decision (${stage}):`, error),
+    );
 }
 
 // Update toasts render in the main window's webview, and that window is
@@ -210,6 +224,10 @@ async function downloadUpdate(update: Update): Promise<boolean> {
     contentLength = null;
     downloaded = 0;
     try {
+      logDecision(
+        "download_started",
+        `attempt ${attempt}/${DOWNLOAD_ATTEMPTS}`,
+      );
       await update.download(
         (event) => {
           switch (event.event) {
@@ -233,6 +251,10 @@ async function downloadUpdate(update: Update): Promise<boolean> {
         `Update download attempt ${attempt}/${DOWNLOAD_ATTEMPTS} failed:`,
         error,
       );
+      logDecision(
+        "download_failed",
+        `attempt ${attempt}/${DOWNLOAD_ATTEMPTS}: ${String(error)}`,
+      );
       // No pause before the retry: timers suspend in the hidden tray
       // webview (see the note above CHECK_ATTEMPTS); the download window
       // is only visible during a manual flow, but the same freeze would
@@ -246,24 +268,32 @@ async function downloadUpdate(update: Update): Promise<boolean> {
   return false;
 }
 
-// Install the already-downloaded payload. "Restart now" relaunches into the
-// new version; "Later" swaps the bundle and keeps the session running, so
-// the update is simply active on the next launch (the app never relaunches
-// itself unprompted).
+// Install the already-downloaded payload. On macOS, "Restart now" relaunches
+// into the new version while "Later" swaps the bundle and keeps the session
+// running (the app never relaunches itself unprompted). On Windows the
+// plugin's install() exits the app whichever button was picked, so the
+// restart prompt's copy is platform-split (RestartPromptCard) to keep that
+// promise honest.
 async function finishInstall(
   update: Update,
   restartNow: boolean,
 ): Promise<void> {
   const installId = "updater-install";
   try {
+    logDecision("install_started", update.version);
     toast.loading(t("footer.updater.installingTitle"), { id: installId });
     await update.install();
+    logDecision(
+      "install_finished",
+      `${update.version}${restartNow ? ", relaunching" : ", active on next launch"}`,
+    );
     toast.dismiss(installId);
     if (restartNow) {
       await relaunch();
     }
   } catch (error) {
     console.error("Update install failed:", error);
+    logDecision("install_failed", String(error));
     void showFailureToast(installId);
   }
 }
@@ -300,12 +330,34 @@ export async function runUpdateCheck(
   const trigger: UpdateTrigger =
     options.trigger ?? (silent ? "auto" : "manual");
   if (inFlight || !updateChecksAllowed()) return;
+
+  // Platforms without shipped updater artifacts (Windows/Linux today) are
+  // gated before any network work: a check there can only error or find
+  // nothing. The visible entrypoints render a one-line notice instead of a
+  // button; this guard is the backstop for any path that still calls in
+  // (e.g. an outdated tray menu from before a settings change).
+  if (!updaterAutoUpdateSupported(platform())) {
+    if (trigger === "manual") {
+      await revealMainWindow();
+      toast.info(t("footer.updater.manualOnlyPlatform"), {
+        duration: 8000,
+        action: {
+          label: t("footer.updater.failedAction"),
+          onClick: () => void openUrl(RELEASES_URL),
+        },
+      });
+    }
+    logDecision("check_skipped", "platform has no updater artifacts");
+    return;
+  }
+
   inFlight = true;
   const release = () => {
     inFlight = false;
   };
 
   try {
+    logDecision("check_started", `trigger=${trigger}`);
     if (trigger === "manual") {
       // Instant feedback in a visible window; without this a tray click on a
       // hidden window shows every toast nowhere and reads as "does nothing".
@@ -336,6 +388,7 @@ export async function runUpdateCheck(
     // The policy only ever governs the automatic startup check; a manual
     // check was initiated on purpose and always asks what to do next.
     const policy = trigger === "auto" ? currentPolicy() : "ask";
+    logDecision("offered", `version=${update.version} policy=${policy}`);
 
     if (policy === "install") {
       // Chrome-style: fetch and swap silently (no surprise window for a
@@ -374,13 +427,17 @@ export async function runUpdateCheck(
               }
             })();
           },
-          onLater: () => toast.dismiss(id),
+          onLater: () => {
+            toast.dismiss(id);
+            logDecision("declined", update.version);
+          },
         }),
       { duration: Infinity },
     );
     release();
   } catch (error) {
     console.error("Update check failed:", error);
+    logDecision("check_failed", `trigger=${trigger}: ${String(error)}`);
     if (trigger === "manual") {
       toast.error(t("footer.updater.checkFailedTitle"), {
         id: "updater-checking",

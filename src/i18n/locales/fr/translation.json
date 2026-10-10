@@ -20,6 +20,7 @@
     "output": "Sortie",
     "advanced": "Avancé",
     "postProcessing": "Post-traitement",
+    "enableInAdvancedHint": "Activez-le dans Avancé",
     "history": "Historique",
     "debug": "Débogage",
     "about": "À propos"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Échec de la sélection du modèle",
-      "downloadFailed": "Échec du téléchargement de {{model}} : {{error}}"
+      "downloadFailed": "Échec du téléchargement de {{model}} : {{error}}",
+      "extractFailed": "Échec de l'extraction de {{model}} : {{error}}"
     },
     "permissions": {
       "title": "Autorisations requises",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "Aucun modèle disponible",
     "verifying": "Vérification de {{modelName}}...",
     "verifyingGeneric": "Vérification...",
+    "verifyingGenericShort": "Vérification",
     "extracting": "Extraction de {{modelName}}...",
     "extractingMultiple": "Extraction de {{count}} modèles...",
     "extractingGeneric": "Extraction...",
+    "extractingGenericShort": "Extraction",
     "downloading": "Téléchargement {{percentage}}%",
     "downloadingMultiple": "Téléchargement de {{count}} modèles...",
     "modelReady": "Modèle Prêt",
@@ -160,6 +164,9 @@
     "loadingGeneric": "Chargement...",
     "modelError": "Erreur du Modèle",
     "modelUnloaded": "Modèle Déchargé",
+    "checkStatusFailed": "Impossible de vérifier l'état du modèle",
+    "loadFailed": "Impossible de charger le modèle",
+    "switchFailed": "Impossible de changer de modèle",
     "noModelDownloadRequired": "Aucun Modèle - Téléchargement Requis",
     "deleteModel": "Supprimer {{modelName}}",
     "downloadSpeed": "{{speed}} Mo/s",
@@ -226,6 +233,10 @@
           "unsupportedArchUnknown": "Ce fichier n'a pas pu être lu comme un modèle GGUF, il n'a donc pas été ajouté.",
           "generic": "Une erreur s'est produite."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Ce modèle est le moteur local de post-traitement. Il polit les transcriptions après la dictée, il ne peut pas transcrire l'audio.",
+        "generic": "Impossible de passer à ce modèle : {{error}}"
       }
     },
     "general": {
@@ -252,11 +263,11 @@
           },
           "delete_last_word": {
             "name": "Supprimer le dernier mot",
-            "description": "Supprime le mot avant le curseur dans l'application active (Option+Retour arrière sur macOS, Ctrl+Retour arrière ailleurs). Assignez une touche pour l'activer."
+            "description": "Supprime le dernier mot de la transcription en direct de la dictée pendant qu'une session d'enregistrement est active ; sinon, ne fait rien. Assignez une touche pour l'activer."
           },
           "undo": {
             "name": "Annuler",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Pendant une dictée en cours : l'efface et repart de zéro. Sinon, ne fait rien."
           },
           "transcribe_commands": {
             "name": "Mode commandes",
@@ -295,11 +306,11 @@
         "title": "Raccourcis d'édition",
         "deleteLastWord": {
           "title": "Action : supprimer le dernier mot",
-          "description": "Active le raccourci assignable qui supprime le mot avant le curseur. Le raccourci reste inactif tant qu'aucune touche n'est assignée ci-dessus."
+          "description": "Active le raccourci assignable qui supprime le dernier mot de la transcription en direct de la dictée pendant qu'une session d'enregistrement est active."
         },
         "undo": {
           "title": "Action : annuler",
-          "description": "Active le raccourci assignable qui déclenche Annuler dans l'application active. Le raccourci reste inactif tant qu'aucune touche n'est assignée ci-dessus."
+          "description": "Active le raccourci assignable qui efface la transcription en direct de la dictée et repart de zéro pendant qu'une session d'enregistrement est active."
         }
       },
       "commandMode": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "Modèle et mémoire",
         "transcription": "Transcription",
-        "experimental": "Expérimental"
+        "experimental": "Expérimental",
+        "postProcessing": "Post-traitement"
       },
       "experimentalToggle": {
         "label": "Fonctionnalités Expérimentales",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "Rechercher ou sélectionner un modèle",
           "placeholderNoOptions": "Tapez un nom de modèle",
           "refreshModels": "Actualiser les modèles"
+        },
+        "timeout": {
+          "title": "Délai de requête",
+          "description": "Combien de temps une requête de post-traitement cloud peut durer avant d'abandonner et d'utiliser la transcription brute. S'applique quand un endpoint cesse de répondre."
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "Plus tard",
       "installedDescription": "VoxBar {{version}} a été installé et sera actif au prochain redémarrage de VoxBar.",
       "failedDescription": "Impossible de télécharger la mise à jour. Vérifiez votre connexion et réessayez, ou téléchargez-la depuis GitHub Releases.",
-      "translocatedDescription": "VoxBar ne peut pas se mettre à jour tant qu'il s'exécute depuis le dossier Téléchargements. Déplacez-le dans le dossier Applications (glisser-déposer dans le Finder), ouvrez-le depuis là, puis relancez la vérification des mises à jour."
+      "translocatedDescription": "VoxBar ne peut pas se mettre à jour tant qu'il s'exécute depuis le dossier Téléchargements. Déplacez-le dans le dossier Applications (glisser-déposer dans le Finder), ouvrez-le depuis là, puis relancez la vérification des mises à jour.",
+      "manualOnlyPlatform": "Récupérer les mises à jour sur GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} a été téléchargé. L'installation ferme l'application ; la nouvelle version démarre à la prochaine ouverture de VoxBar.",
+      "restartLaterWindows": "Installer et fermer"
     }
   },
   "common": {
@@ -1002,7 +1021,19 @@
   "overlay": {
     "transcribing": "Transcription...",
     "processing": "Traitement...",
-    "removedWord": "Supprimé : {{text}}"
+    "removedWord": "Supprimé : {{text}}",
+    "notice": {
+      "transcriptionFailed": "La transcription a échoué. L'enregistrement a été conservé, réessaie-le depuis l'historique.",
+      "generic": "Une erreur s'est produite. Les détails sont dans le journal.",
+      "deleteLastWordNoSession": "La touche de suppression de mot fonctionne pendant une dictée active. Commence d'abord un enregistrement.",
+      "deleteLastWordNoBuffer": "Rien à supprimer pour l'instant, la dictée n'a pas encore de texte en direct.",
+      "undoNoSession": "La touche d'annulation fonctionne pendant une dictée active. Commence d'abord un enregistrement.",
+      "undoNoBuffer": "Rien à effacer pour l'instant, la dictée n'a pas encore de texte en direct.",
+      "bindingBusy": "Une autre touche de dictée est déjà en train d'enregistrer.",
+      "waylandTauriHotkeys": "Les raccourcis globaux peuvent ne pas fonctionner dans les applications Wayland natives avec cette implémentation clavier. Passez l'implémentation clavier à VoxBar Keys et ajoutez votre utilisateur au groupe input ; consultez le guide Ubuntu.",
+      "gnomeOverlayFallback": "Sous GNOME Wayland, l'overlay apparaît comme une fenêtre ordinaire qui peut voler le focus et casser le collage. Overlay : Aucune est recommandé ici."
+    },
+    "commandBadge": "Mode commandes"
   },
   "whatsNew": {
     "title": "Nouveautés de VoxBar v{{version}}"
@@ -1026,7 +1057,8 @@
       "timeout": "Post-traitement ignoré : le modèle local a pris trop de temps. La transcription brute a été utilisée.",
       "lengthGuard": "Post-traitement ignoré : la sortie du modèle local n'a pas passé la vérification de longueur. La transcription brute a été utilisée.",
       "tooLong": "Post-traitement ignoré : cette transcription est trop longue pour le modèle local. La transcription brute a été utilisée."
-    }
+    },
+    "settingNotSaved": "Impossible d'enregistrer ce paramètre : {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar ne peut pas installer de mises à jour depuis cet emplacement",

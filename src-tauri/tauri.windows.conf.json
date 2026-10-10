@@ -1,5 +1,6 @@
 {
   "bundle": {
+    "targets": ["msi"],
     "resources": {
       "resources": "resources",
       "transcribe-libs": "."

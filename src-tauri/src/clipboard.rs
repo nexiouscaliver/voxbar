@@ -14,6 +14,141 @@ use tauri_plugin_clipboard_manager::ClipboardExt;
 #[cfg(target_os = "linux")]
 use crate::utils::{is_gnome_wayland, is_kde_wayland, is_wayland};
 
+// ---------------------------------------------------------------------------
+// Direct-typing failure classification (shared decision logic)
+//
+// Compiled on every platform so the decision table is unit-testable on any
+// host; only the tool invocations that feed it are Linux-gated.
+// ---------------------------------------------------------------------------
+
+/// Phase of a typing-tool failure relative to the moment the tool could have
+/// emitted keystrokes. The distinction is what keeps the fallback ladder from
+/// double-typing: falling through to enigo re-types the WHOLE text, which is
+/// only safe when the failed child produced no keystrokes at all.
+// Compiled everywhere for the unit tests; only Linux call sites exist.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ToolFailurePhase {
+    /// The child produced no keystrokes: it never spawned, failed to connect
+    /// to its daemon/compositor, or was refused the input device it needs.
+    PreOutput,
+    /// The child accepted the text and may have emitted some or all of it
+    /// before failing (nonzero exit after a full stdin write, or a broken
+    /// pipe after a partial write).
+    MidOutput,
+    /// The child ran and failed in a way we cannot attribute (for example a
+    /// nonzero exit with unrecognized stderr from an argv-passed tool).
+    Indeterminate,
+}
+
+/// How one direct-typing tool invocation failed, phrased so the classifier
+/// never needs to re-derive it from strings.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) enum DirectTypingFailure {
+    /// `Command::spawn` failed: the binary is missing or not executable, so
+    /// nothing ran and nothing was typed.
+    Spawn(String),
+    /// A piped-stdin tool (dotool): the write of the text command failed or
+    /// broke partway. The child may have consumed, and typed, some of it.
+    PipeWrite { error: String },
+    /// The tool ran with the text in hand (argv or a fully-written stdin
+    /// command) and exited nonzero. `stderr` carries whatever it explained.
+    ExitedNonzero { stderr: String },
+}
+
+/// stderr fragments that mean "failed before any keystroke could leave".
+/// Kept lowercase; matched case-insensitively. Each names a failure the tool
+/// itself reports before it types: daemon/compositor connection refused,
+/// missing socket or device node, permission denied on /dev/uinput or
+/// /dev/input (including the vendored handy-keys text), missing display, or
+/// a compositor that lacks the protocol the tool needs.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const PRE_OUTPUT_STDERR_MARKERS: &[&str] = &[
+    "permission denied",
+    "operation not permitted",
+    "failed to connect",
+    "could not connect",
+    "couldn't connect",
+    "can't connect",
+    "unable to connect",
+    "connection refused",
+    "no such file or directory",
+    "cannot open display",
+    "failed to open display",
+    "failed to open",
+    "not supported",
+    "does not support",
+    "unsupported",
+    "compositor does not",
+];
+
+/// Classify one tool failure into its phase. Pure, so the table is pinned by
+/// unit tests on every host.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub(crate) fn classify_direct_typing_failure(failure: &DirectTypingFailure) -> ToolFailurePhase {
+    match failure {
+        // Nothing executed: no child, no keystrokes.
+        DirectTypingFailure::Spawn(_) => ToolFailurePhase::PreOutput,
+        // A pipe write that completed and then broke still leaves the child
+        // holding the full command; a partial write may have been consumed
+        // and partially typed. Either way keystrokes may exist.
+        DirectTypingFailure::PipeWrite { .. } => ToolFailurePhase::MidOutput,
+        DirectTypingFailure::ExitedNonzero { stderr } => {
+            let lowered = stderr.to_lowercase();
+            if PRE_OUTPUT_STDERR_MARKERS
+                .iter()
+                .any(|marker| lowered.contains(marker))
+            {
+                ToolFailurePhase::PreOutput
+            } else {
+                // The tool had the text and failed without a recognized
+                // pre-output explanation: we cannot know whether it typed.
+                ToolFailurePhase::Indeterminate
+            }
+        }
+    }
+}
+
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+impl std::fmt::Display for DirectTypingFailure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DirectTypingFailure::Spawn(message)
+            | DirectTypingFailure::PipeWrite { error: message, .. } => write!(f, "{}", message),
+            DirectTypingFailure::ExitedNonzero { stderr } => {
+                write!(f, "tool exited with an error: {}", stderr.trim())
+            }
+        }
+    }
+}
+
+/// What the direct-typing ladder does after a tool fails. The paste-key
+/// ladder (one chord per tool) never uses this: a chord is safe to retry, so
+/// that ladder just walks on.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TypingLadderAction {
+    /// PRE-OUTPUT: no keystrokes were emitted, so enigo re-typing the whole
+    /// text cannot duplicate anything.
+    FallThroughToEnigo,
+    /// MID-OUTPUT or INDETERMINATE: some text may already be in the target
+    /// app. Re-typing would duplicate it, so the paste fails loudly (the
+    /// Wave-1 paste_failed notice) instead.
+    Abort,
+}
+
+/// Ladder decision over a classified tool failure. Indeterminate maps to
+/// abort: conservative by construction, because the cost of a wrong fall-
+/// through is doubled text in the user's document.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub(crate) fn typing_ladder_action(phase: ToolFailurePhase) -> TypingLadderAction {
+    match phase {
+        ToolFailurePhase::PreOutput => TypingLadderAction::FallThroughToEnigo,
+        ToolFailurePhase::MidOutput | ToolFailurePhase::Indeterminate => TypingLadderAction::Abort,
+    }
+}
+
 fn with_enigo<T>(
     app_handle: &AppHandle,
     f: impl FnOnce(&mut Enigo) -> Result<T, String>,
@@ -119,6 +254,12 @@ fn paste_via_clipboard(
 
 /// Attempts to send a key combination using Linux-native tools.
 /// Returns `Ok(true)` if a native tool handled it, `Ok(false)` to fall back to enigo.
+///
+/// Each tool sends exactly one chord, so a failed attempt cannot have
+/// half-pasted anything: on a tool's runtime error the ladder logs a warning
+/// and walks to the next tool, and finally to enigo. Only "nothing worked"
+/// reaches the caller as `Ok(false)` (enigo then tries, and its error is the
+/// paste failure the user sees).
 #[cfg(target_os = "linux")]
 fn try_send_key_combo_linux(paste_method: &PasteMethod) -> Result<bool, String> {
     if is_wayland() {
@@ -128,38 +269,88 @@ fn try_send_key_combo_linux(paste_method: &PasteMethod) -> Result<bool, String> 
         // the virtual-keyboard-v1 protocol).
         if !is_kde_wayland() && !is_gnome_wayland() && is_wtype_available() {
             info!("Using wtype for key combo");
-            send_key_combo_via_wtype(paste_method)?;
-            return Ok(true);
+            match send_key_combo_via_wtype(paste_method) {
+                Ok(()) => return Ok(true),
+                Err(e) => log::warn!("wtype key combo failed, trying the next tool: {}", e),
+            }
         }
         if is_dotool_available() {
             info!("Using dotool for key combo");
-            send_key_combo_via_dotool(paste_method)?;
-            return Ok(true);
+            match send_key_combo_via_dotool(paste_method) {
+                Ok(()) => return Ok(true),
+                Err(e) => log::warn!("dotool key combo failed, trying the next tool: {}", e),
+            }
         }
         if is_ydotool_available() {
             info!("Using ydotool for key combo");
-            send_key_combo_via_ydotool(paste_method)?;
-            return Ok(true);
+            match send_key_combo_via_ydotool(paste_method) {
+                Ok(()) => return Ok(true),
+                Err(e) => log::warn!("ydotool key combo failed, trying the next tool: {}", e),
+            }
         }
     } else {
         // X11: prefer xdotool, then ydotool
         if is_xdotool_available() {
             info!("Using xdotool for key combo");
-            send_key_combo_via_xdotool(paste_method)?;
-            return Ok(true);
+            match send_key_combo_via_xdotool(paste_method) {
+                Ok(()) => return Ok(true),
+                Err(e) => log::warn!("xdotool key combo failed, trying the next tool: {}", e),
+            }
         }
         if is_ydotool_available() {
             info!("Using ydotool for key combo");
-            send_key_combo_via_ydotool(paste_method)?;
-            return Ok(true);
+            match send_key_combo_via_ydotool(paste_method) {
+                Ok(()) => return Ok(true),
+                Err(e) => log::warn!("ydotool key combo failed, trying the next tool: {}", e),
+            }
         }
     }
 
     Ok(false)
 }
 
+/// Run one tool attempt through the ladder decision: `Ok(true)` = the tool
+/// typed the text, `Ok(false)` = safe to fall through to enigo, `Err` =
+/// abort the paste.
+#[cfg(target_os = "linux")]
+fn tool_attempt(tool: &str, result: Result<(), DirectTypingFailure>) -> Result<bool, String> {
+    match result {
+        Ok(()) => Ok(true),
+        Err(failure) => handle_direct_typing_failure(tool, failure),
+    }
+}
+
+/// Apply the ladder decision to one tool's failure. `Ok(false)` means "safe
+/// to fall through to enigo" (the child produced no keystrokes); `Err` means
+/// abort the paste (keystrokes may exist, so re-typing would duplicate).
+#[cfg(target_os = "linux")]
+fn handle_direct_typing_failure(tool: &str, failure: DirectTypingFailure) -> Result<bool, String> {
+    let phase = classify_direct_typing_failure(&failure);
+    match typing_ladder_action(phase) {
+        TypingLadderAction::FallThroughToEnigo => {
+            log::warn!(
+                "{} failed before emitting any keystrokes ({}); falling back to enigo",
+                tool,
+                failure
+            );
+            Ok(false)
+        }
+        TypingLadderAction::Abort => Err(format!(
+            "{} may have partially typed the text ({}); aborting so the text is not duplicated. \
+             The transcript is in the clipboard history",
+            tool, failure
+        )),
+    }
+}
+
 /// Attempts to type text directly using Linux-native tools.
 /// Returns `Ok(true)` if a native tool handled it, `Ok(false)` to fall back to enigo.
+///
+/// This is the ladder that must never double-type: a tool that accepted the
+/// text and failed mid-output classifies as MID-OUTPUT or INDETERMINATE and
+/// aborts (surfaced as the paste_failed notice), while a tool that provably
+/// produced no keystrokes (spawn/connect/permission failures) falls through
+/// to enigo safely.
 #[cfg(target_os = "linux")]
 fn try_direct_typing_linux(text: &str, preferred_tool: TypingTool) -> Result<bool, String> {
     // If user specified a tool, try only that one
@@ -167,33 +358,34 @@ fn try_direct_typing_linux(text: &str, preferred_tool: TypingTool) -> Result<boo
         return match preferred_tool {
             TypingTool::Wtype if is_wtype_available() => {
                 info!("Using user-specified wtype");
-                type_text_via_wtype(text)?;
-                Ok(true)
+                tool_attempt("wtype", type_text_via_wtype(text))
             }
             TypingTool::Kwtype if is_kwtype_available() => {
                 info!("Using user-specified kwtype");
-                type_text_via_kwtype(text)?;
-                Ok(true)
+                tool_attempt("kwtype", type_text_via_kwtype(text))
             }
             TypingTool::Dotool if is_dotool_available() => {
                 info!("Using user-specified dotool");
-                type_text_via_dotool(text)?;
-                Ok(true)
+                tool_attempt("dotool", type_text_via_dotool(text))
             }
             TypingTool::Ydotool if is_ydotool_available() => {
                 info!("Using user-specified ydotool");
-                type_text_via_ydotool(text)?;
-                Ok(true)
+                tool_attempt("ydotool", type_text_via_ydotool(text))
             }
             TypingTool::Xdotool if is_xdotool_available() => {
                 info!("Using user-specified xdotool");
-                type_text_via_xdotool(text)?;
-                Ok(true)
+                tool_attempt("xdotool", type_text_via_xdotool(text))
             }
-            _ => Err(format!(
-                "Typing tool {:?} is not available on this system",
-                preferred_tool
-            )),
+            // The tool never ran (the probe itself failed to find it), so no
+            // keystrokes exist: enigo is a safe fallback, with a note that the
+            // user's explicit choice was unavailable.
+            _ => {
+                log::warn!(
+                    "Typing tool {:?} is not available on this system; falling back to enigo",
+                    preferred_tool
+                );
+                Ok(false)
+            }
         };
     }
 
@@ -202,8 +394,7 @@ fn try_direct_typing_linux(text: &str, preferred_tool: TypingTool) -> Result<boo
         // KDE Wayland: prefer kwtype (uses KDE Fake Input protocol, supports umlauts)
         if is_kde_wayland() && is_kwtype_available() {
             info!("Using kwtype for direct text input on KDE Wayland");
-            type_text_via_kwtype(text)?;
-            return Ok(true);
+            return tool_attempt("kwtype", type_text_via_kwtype(text));
         }
         // Wayland: prefer wtype, then dotool, then ydotool
         // Note: wtype doesn't work on KDE (no zwp_virtual_keyboard_manager_v1 support)
@@ -211,30 +402,25 @@ fn try_direct_typing_linux(text: &str, preferred_tool: TypingTool) -> Result<boo
         // the virtual-keyboard-v1 protocol).
         if !is_kde_wayland() && !is_gnome_wayland() && is_wtype_available() {
             info!("Using wtype for direct text input");
-            type_text_via_wtype(text)?;
-            return Ok(true);
+            return tool_attempt("wtype", type_text_via_wtype(text));
         }
         if is_dotool_available() {
             info!("Using dotool for direct text input");
-            type_text_via_dotool(text)?;
-            return Ok(true);
+            return tool_attempt("dotool", type_text_via_dotool(text));
         }
         if is_ydotool_available() {
             info!("Using ydotool for direct text input");
-            type_text_via_ydotool(text)?;
-            return Ok(true);
+            return tool_attempt("ydotool", type_text_via_ydotool(text));
         }
     } else {
         // X11: prefer xdotool, then ydotool
         if is_xdotool_available() {
             info!("Using xdotool for direct text input");
-            type_text_via_xdotool(text)?;
-            return Ok(true);
+            return tool_attempt("xdotool", type_text_via_xdotool(text));
         }
         if is_ydotool_available() {
             info!("Using ydotool for direct text input");
-            type_text_via_ydotool(text)?;
-            return Ok(true);
+            return tool_attempt("ydotool", type_text_via_ydotool(text));
         }
     }
 
@@ -264,24 +450,43 @@ pub fn get_available_typing_tools() -> Vec<String> {
     tools
 }
 
+/// Probe whether an executable is on PATH using the POSIX `command -v`
+/// builtin (`which` is an external binary that not every minimal install
+/// ships; the builtin always exists where `sh` does). Pure probe, cached by
+/// callers where they already cache.
+#[cfg(target_os = "linux")]
+fn is_command_available(tool: &str) -> bool {
+    Command::new("sh")
+        .arg("-c")
+        .arg(format!("command -v {}", shell_safe_probe_name(tool)))
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .status()
+        .map(|status| status.success())
+        .unwrap_or(false)
+}
+
+/// The tool names probed here are fixed literals from this file, never user
+/// input; this guard keeps that contract true (a name with shell metas would
+/// be rejected rather than interpolated).
+#[cfg(target_os = "linux")]
+fn shell_safe_probe_name(tool: &str) -> &str {
+    debug_assert!(tool
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
+    tool
+}
+
 /// Check if wtype is available (Wayland text input tool)
 #[cfg(target_os = "linux")]
 fn is_wtype_available() -> bool {
-    Command::new("which")
-        .arg("wtype")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+    is_command_available("wtype")
 }
 
 /// Check if dotool is available (another Wayland text input tool)
 #[cfg(target_os = "linux")]
 fn is_dotool_available() -> bool {
-    Command::new("which")
-        .arg("dotool")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+    is_command_available("dotool")
 }
 
 #[cfg(target_os = "linux")]
@@ -361,54 +566,40 @@ fn detect_ydotool_key_syntax() -> YdotoolKeySyntax {
 /// Check if ydotool is available (uinput-based, works on both Wayland and X11)
 #[cfg(target_os = "linux")]
 fn is_ydotool_available() -> bool {
-    Command::new("which")
-        .arg("ydotool")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+    is_command_available("ydotool")
 }
 
 #[cfg(target_os = "linux")]
 fn is_xdotool_available() -> bool {
-    Command::new("which")
-        .arg("xdotool")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+    is_command_available("xdotool")
 }
 
 /// Check if kwtype is available (KDE Wayland virtual keyboard input tool)
 #[cfg(target_os = "linux")]
 fn is_kwtype_available() -> bool {
-    Command::new("which")
-        .arg("kwtype")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+    is_command_available("kwtype")
 }
 
 /// Check if wl-copy is available (Wayland clipboard tool)
 #[cfg(target_os = "linux")]
 fn is_wl_copy_available() -> bool {
-    Command::new("which")
-        .arg("wl-copy")
-        .output()
-        .map(|output| output.status.success())
-        .unwrap_or(false)
+    is_command_available("wl-copy")
 }
 
 /// Type text directly via wtype on Wayland.
 #[cfg(target_os = "linux")]
-fn type_text_via_wtype(text: &str) -> Result<(), String> {
+fn type_text_via_wtype(text: &str) -> Result<(), DirectTypingFailure> {
     let output = Command::new("wtype")
         .arg("--") // Protect against text starting with -
         .arg(text)
         .output()
-        .map_err(|e| format!("Failed to execute wtype: {}", e))?;
+        .map_err(|e| DirectTypingFailure::Spawn(format!("Failed to execute wtype: {}", e)))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("wtype failed: {}", stderr));
+        return Err(DirectTypingFailure::ExitedNonzero {
+            stderr: stderr.into_owned(),
+        });
     }
 
     Ok(())
@@ -416,14 +607,14 @@ fn type_text_via_wtype(text: &str) -> Result<(), String> {
 
 /// Type text directly via xdotool on X11.
 #[cfg(target_os = "linux")]
-fn type_text_via_xdotool(text: &str) -> Result<(), String> {
+fn type_text_via_xdotool(text: &str) -> Result<(), DirectTypingFailure> {
     let output = Command::new("xdotool")
         .arg("type")
         .arg("--clearmodifiers")
         .arg("--")
         .arg(text)
         .output()
-        .map_err(|e| format!("Failed to execute xdotool: {}", e))?;
+        .map_err(|e| DirectTypingFailure::Spawn(format!("Failed to execute xdotool: {}", e)))?;
 
     // `--clearmodifiers` restores the modifiers that were held when xdotool
     // started. If the user releases one while xdotool is typing, that synthetic
@@ -468,36 +659,59 @@ fn type_text_via_xdotool(text: &str) -> Result<(), String> {
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("xdotool failed: {}", stderr));
+        return Err(DirectTypingFailure::ExitedNonzero {
+            stderr: stderr.into_owned(),
+        });
     }
 
     Ok(())
 }
 
 /// Type text directly via dotool (works on both Wayland and X11 via uinput).
+///
+/// dotool reads commands from stdin, so the failure shape is richer than the
+/// argv tools: a broken pipe can mean the child died mid-write. The child's
+/// own exit status and stderr settle the classification when they can (a
+/// child that died before typing says so on stderr), and everything else is
+/// treated as mid-output.
 #[cfg(target_os = "linux")]
-fn type_text_via_dotool(text: &str) -> Result<(), String> {
+fn type_text_via_dotool(text: &str) -> Result<(), DirectTypingFailure> {
     use std::io::Write;
     use std::process::Stdio;
 
     let mut child = Command::new("dotool")
         .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| format!("Failed to spawn dotool: {}", e))?;
+        .map_err(|e| DirectTypingFailure::Spawn(format!("Failed to spawn dotool: {}", e)))?;
 
-    if let Some(mut stdin) = child.stdin.take() {
-        // dotool uses "type <text>" command
-        writeln!(stdin, "type {}", text)
-            .map_err(|e| format!("Failed to write to dotool stdin: {}", e))?;
-    }
+    // dotool uses "type <text>" command. The write result is recorded, not
+    // returned: the child's exit evidence below decides the phase.
+    let write_failed = if let Some(mut stdin) = child.stdin.take() {
+        writeln!(stdin, "type {}", text).is_err()
+    } else {
+        false
+    };
 
     let output = child
         .wait_with_output()
-        .map_err(|e| format!("Failed to wait for dotool: {}", e))?;
+        .map_err(|e| DirectTypingFailure::PipeWrite {
+            error: format!("Failed to wait for dotool: {}", e),
+        })?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("dotool failed: {}", stderr));
+        return Err(DirectTypingFailure::ExitedNonzero {
+            stderr: stderr.into_owned(),
+        });
+    }
+    if write_failed {
+        // Exited zero but the pipe broke: the child cannot have read the
+        // full command, yet we cannot prove it typed nothing.
+        return Err(DirectTypingFailure::PipeWrite {
+            error: "dotool stdin closed before the full command was written".into(),
+        });
     }
 
     Ok(())
@@ -505,17 +719,19 @@ fn type_text_via_dotool(text: &str) -> Result<(), String> {
 
 /// Type text directly via ydotool (uinput-based, requires ydotoold daemon).
 #[cfg(target_os = "linux")]
-fn type_text_via_ydotool(text: &str) -> Result<(), String> {
+fn type_text_via_ydotool(text: &str) -> Result<(), DirectTypingFailure> {
     let output = Command::new("ydotool")
         .arg("type")
         .arg("--")
         .arg(text)
         .output()
-        .map_err(|e| format!("Failed to execute ydotool: {}", e))?;
+        .map_err(|e| DirectTypingFailure::Spawn(format!("Failed to execute ydotool: {}", e)))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("ydotool failed: {}", stderr));
+        return Err(DirectTypingFailure::ExitedNonzero {
+            stderr: stderr.into_owned(),
+        });
     }
 
     Ok(())
@@ -523,16 +739,18 @@ fn type_text_via_ydotool(text: &str) -> Result<(), String> {
 
 /// Type text directly via kwtype (KDE Wayland virtual keyboard, uses KDE Fake Input protocol).
 #[cfg(target_os = "linux")]
-fn type_text_via_kwtype(text: &str) -> Result<(), String> {
+fn type_text_via_kwtype(text: &str) -> Result<(), DirectTypingFailure> {
     let output = Command::new("kwtype")
         .arg("--")
         .arg(text)
         .output()
-        .map_err(|e| format!("Failed to execute kwtype: {}", e))?;
+        .map_err(|e| DirectTypingFailure::Spawn(format!("Failed to execute kwtype: {}", e)))?;
 
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
-        return Err(format!("kwtype failed: {}", stderr));
+        return Err(DirectTypingFailure::ExitedNonzero {
+            stderr: stderr.into_owned(),
+        });
     }
 
     Ok(())
@@ -708,6 +926,10 @@ fn paste_via_external_script(text: &str, script_path: &str) -> Result<(), String
 }
 
 /// Types text directly by simulating individual key presses.
+///
+/// On Linux the native tool ladder runs first; its `Err` means a tool may
+/// have partially typed the text (see [`classify_direct_typing_failure`]),
+/// so the error propagates instead of re-typing over it with enigo.
 fn paste_direct(
     text: &str,
     app_handle: &AppHandle,
@@ -867,6 +1089,97 @@ pub fn paste(text: String, app_handle: AppHandle) -> Result<(), String> {
 mod tests {
     use super::*;
     use std::cell::Cell;
+
+    // ------------------------------------------------------------------
+    // Direct-typing failure classification and ladder decision
+    // ------------------------------------------------------------------
+
+    /// The full classification table. PRE-OUTPUT failures are the ones where
+    /// the child provably never typed; everything that handed the tool the
+    /// text and failed afterwards is MID-OUTPUT or INDETERMINATE, and both
+    /// abort.
+    #[test]
+    fn direct_typing_failure_classification_table() {
+        // Spawn failure: nothing ran.
+        assert_eq!(
+            classify_direct_typing_failure(&DirectTypingFailure::Spawn(
+                "No such file or directory (os error 2)".into()
+            )),
+            ToolFailurePhase::PreOutput
+        );
+
+        // Daemon/connect failures the tools themselves report.
+        for stderr in [
+            "Failed to connect to socket /run/user/1000/.ydotool_socket: Connection refused",
+            "ydotool: error: couldn't connect to daemon",
+            "Failed to open /dev/uinput: Permission denied",
+            "dotool: error: open /dev/uinput: Operation not permitted",
+            "Cannot open display.",
+            "Compositor does not support the virtual-keyboard protocol",
+            "wayland: failed to open display",
+            "error: protocol not supported by compositor",
+        ] {
+            assert_eq!(
+                classify_direct_typing_failure(&DirectTypingFailure::ExitedNonzero {
+                    stderr: stderr.into()
+                }),
+                ToolFailurePhase::PreOutput,
+                "expected PRE-OUTPUT for {stderr:?}"
+            );
+        }
+
+        // The vendored handy-keys permission text also classifies
+        // pre-output wherever it may surface.
+        assert_eq!(
+            classify_direct_typing_failure(&DirectTypingFailure::ExitedNonzero {
+                stderr: "permission denied opening 7 device node(s) under /dev input".into()
+            }),
+            ToolFailurePhase::PreOutput
+        );
+
+        // Broken pipe after a partial write: keystrokes may exist.
+        assert_eq!(
+            classify_direct_typing_failure(&DirectTypingFailure::PipeWrite {
+                error: "broken pipe (os error 32)".into()
+            }),
+            ToolFailurePhase::MidOutput
+        );
+
+        // Nonzero exit after accepting the text with no recognizable
+        // pre-output explanation: indeterminate.
+        assert_eq!(
+            classify_direct_typing_failure(&DirectTypingFailure::ExitedNonzero {
+                stderr: "".into()
+            }),
+            ToolFailurePhase::Indeterminate
+        );
+        assert_eq!(
+            classify_direct_typing_failure(&DirectTypingFailure::ExitedNonzero {
+                stderr: "some novel failure nobody predicted".into()
+            }),
+            ToolFailurePhase::Indeterminate
+        );
+    }
+
+    /// The ladder decision: only PRE-OUTPUT falls through to enigo; MID-OUTPUT
+    /// and INDETERMINATE both abort, because re-typing the whole text after a
+    /// possible partial output would duplicate it.
+    #[test]
+    fn typing_ladder_decision_over_ordered_results() {
+        assert_eq!(
+            typing_ladder_action(ToolFailurePhase::PreOutput),
+            TypingLadderAction::FallThroughToEnigo
+        );
+        assert_eq!(
+            typing_ladder_action(ToolFailurePhase::MidOutput),
+            TypingLadderAction::Abort
+        );
+        assert_eq!(
+            typing_ladder_action(ToolFailurePhase::Indeterminate),
+            TypingLadderAction::Abort,
+            "indeterminate must default to abort"
+        );
+    }
 
     #[cfg(target_os = "linux")]
     const YDOTOOL_0_1_8_HELP: &str = r#"

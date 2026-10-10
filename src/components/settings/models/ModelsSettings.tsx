@@ -26,14 +26,30 @@ const modelSupportsLanguage = (model: ModelInfo, langCode: string): boolean => {
 };
 
 // Legacy models are the blob (Url-sourced) .bin/ONNX downloads, superseded by
-// the catalog GGUFs. They stay runnable when already on disk, but we no longer
-// advertise the download.
+// the catalog GGUFs. They stay runnable when already on disk, but we no
+// longer advertise the download.
 const isLegacyModel = (model: ModelInfo): boolean =>
   typeof model.source === "object" && "Url" in model.source;
+
+// Stable prefix of the selection-refusal error string
+// (SELECTION_REFUSAL_PREFIX in src-tauri/src/commands/models.rs). Must stay
+// in sync: the row matches it to word the "this is the post-process engine,
+// not a transcription model" explanation instead of the raw refusal.
+const SELECTION_REFUSAL_PREFIX = "not-an-asr-model";
+
+const isSelectionRefusalError = (error: string): boolean =>
+  error.startsWith(SELECTION_REFUSAL_PREFIX);
 
 export const ModelsSettings: React.FC = () => {
   const { t } = useTranslation();
   const [switchingModelId, setSwitchingModelId] = useState<string | null>(null);
+  // A selection the backend refused, pinned to the row that triggered it so
+  // the error reads in place ("this model cannot transcribe") instead of
+  // vanishing into the console.
+  const [selectionError, setSelectionError] = useState<{
+    modelId: string;
+    message: string;
+  } | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStreaming, setFilterStreaming] = useState(false);
   const [filterTranslation, setFilterTranslation] = useState(false);
@@ -133,8 +149,19 @@ export const ModelsSettings: React.FC = () => {
 
   const handleModelSelect = async (modelId: string) => {
     setSwitchingModelId(modelId);
+    setSelectionError(null);
     try {
-      await selectModel(modelId);
+      const switched = await selectModel(modelId);
+      if (!switched) {
+        const { error } = useModelStore.getState();
+        const raw = typeof error === "string" ? error : "";
+        const message = isSelectionRefusalError(raw)
+          ? t("settings.models.selectionErrors.notAsrModel")
+          : t("settings.models.selectionErrors.generic", {
+              error: raw.replace(/^Failed to switch to model:\s*/, ""),
+            });
+        setSelectionError({ modelId, message });
+      }
     } finally {
       setSwitchingModelId(null);
     }
@@ -241,7 +268,7 @@ export const ModelsSettings: React.FC = () => {
   return (
     <div className="max-w-3xl w-full mx-auto space-y-4">
       <div className="mb-4">
-        <h1 className="text-xl font-semibold mb-2">
+        <h1 className="text-xl font-medium mb-2">
           {t("settings.models.title")}
         </h1>
         <p className="text-sm text-text/60">
@@ -339,7 +366,7 @@ export const ModelsSettings: React.FC = () => {
                 </button>
 
                 {languageDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-56 bg-background border border-mid-gray/80 rounded-lg shadow-lg z-50 overflow-hidden">
+                  <div className="absolute top-full right-0 mt-1 w-56 bg-background border border-mid-gray/20 rounded-lg shadow-lg z-50 overflow-hidden">
                     <div className="p-2 border-b border-mid-gray/40">
                       <input
                         ref={languageSearchInputRef}
@@ -375,7 +402,7 @@ export const ModelsSettings: React.FC = () => {
                         }}
                         className={`w-full px-3 py-1.5 text-sm text-left transition-colors ${
                           languageFilter === "all"
-                            ? "bg-logo-primary/20 text-logo-primary font-semibold"
+                            ? "bg-logo-primary/20 text-logo-primary font-medium"
                             : "hover:bg-mid-gray/10"
                         }`}
                       >
@@ -392,7 +419,7 @@ export const ModelsSettings: React.FC = () => {
                           }}
                           className={`w-full px-3 py-1.5 text-sm text-left transition-colors ${
                             languageFilter === lang.value
-                              ? "bg-logo-primary/20 text-logo-primary font-semibold"
+                              ? "bg-logo-primary/20 text-logo-primary font-medium"
                               : "hover:bg-mid-gray/10"
                           }`}
                         >
@@ -411,18 +438,28 @@ export const ModelsSettings: React.FC = () => {
             </div>
           </div>
           {downloadedModels.map((model: ModelInfo) => (
-            <ModelCard
-              key={model.id}
-              model={model}
-              status={getModelStatus(model.id)}
-              onSelect={handleModelSelect}
-              onDownload={handleModelDownload}
-              onDelete={handleModelDelete}
-              onCancel={handleModelCancel}
-              downloadProgress={getDownloadProgress(model.id)}
-              downloadSpeed={getDownloadSpeed(model.id)}
-              showRecommended={false}
-            />
+            <React.Fragment key={model.id}>
+              <ModelCard
+                model={model}
+                status={getModelStatus(model.id)}
+                onSelect={handleModelSelect}
+                onDownload={handleModelDownload}
+                onDelete={handleModelDelete}
+                onCancel={handleModelCancel}
+                downloadProgress={getDownloadProgress(model.id)}
+                downloadSpeed={getDownloadSpeed(model.id)}
+                showRecommended={false}
+              />
+              {selectionError?.modelId === model.id && (
+                <div
+                  data-testid="model-selection-error"
+                  role="alert"
+                  className="rounded-lg border border-error/30 bg-error/5 px-4 py-2.5 text-sm text-text/80"
+                >
+                  {selectionError.message}
+                </div>
+              )}
+            </React.Fragment>
           ))}
         </div>
 

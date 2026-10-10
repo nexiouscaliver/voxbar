@@ -9,7 +9,7 @@ use crate::audio_toolkit::{
 use crate::chinese_script::{convert_chinese_script, ChineseVariety};
 use crate::engine_supervisor::{
     DeviceInfo, DeviceSelector, EngineError, EngineSupervisor, LoadSpec, LoadedInfo,
-    StreamProgress, Unloading,
+    RenderBackpressure, StreamProgress, Unloading,
 };
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::model::{
@@ -81,14 +81,40 @@ fn fallback_rank(info: &ModelInfo) -> u32 {
 /// Pure routing guard for the ASR load path: the local post-process LLM is
 /// loaded only by the post-process engine's worker process, so an ASR load
 /// of it is refused with this error (never routed into transcribe-cpp or
-/// an ONNX runtime). `None` for every real ASR engine type.
-fn asr_load_refusal(engine_type: &EngineType, model_id: &str) -> Option<String> {
+/// an ONNX runtime). `None` for every real ASR engine type. Shared by the
+/// load path and the selection guard (commands/models.rs) so the same
+/// predicate rules both.
+pub(crate) fn asr_load_refusal(engine_type: &EngineType, model_id: &str) -> Option<String> {
     match engine_type {
         EngineType::LocalLlm => Some(format!(
             "Model '{}' is loaded by the post-process engine, not an ASR engine",
             model_id
         )),
         _ => None,
+    }
+}
+
+/// What the hotkey-path load-failure hook should do, decided purely from the
+/// coordinator's session-liveness mirror (the scripted mirror the unit test
+/// drives): a failure with NO live session is the ordinary settings-driven
+/// case (toast + log already cover it), a failure WITH a live session must
+/// tear the session down or the mic and overlay stay live on a dictation
+/// that can never transcribe.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum LoadFailureAction {
+    /// No session was live: the loading_failed notice, toast, and log stand
+    /// on their own.
+    LogOnly,
+    /// A recording session was live: notify (already done at the
+    /// loading_failed seam) and tear the session down.
+    NotifyAndTearDown,
+}
+
+fn load_failure_action(session_live: bool) -> LoadFailureAction {
+    if session_live {
+        LoadFailureAction::NotifyAndTearDown
+    } else {
+        LoadFailureAction::LogOnly
     }
 }
 
@@ -328,6 +354,187 @@ pub struct StreamPhaseEvent {
     /// Present only when `phase` is `Working`.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub kind: Option<StreamWorkKind>,
+}
+
+/// Tone of an [`OverlayNoticeEvent`]: failures are errors, expected or
+/// recoverable conditions are info. Errors carry the error sound; info does
+/// not (an expected skip must not beep on every dictation).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "lowercase")]
+pub enum OverlayNoticeKind {
+    Error,
+    Info,
+}
+
+/// One feedback notice for the overlay-first user: something went wrong (or
+/// fell back) during a dictation and the person living in the overlay must
+/// hear about it through the overlay, not only through a toast in a window
+/// they never open.
+///
+/// Display rule, stated once: the overlay card renders the notice row ONLY
+/// while the card is already visible; when the overlay is hidden (including
+/// `OverlayStyle::None`, where the show path no-ops) the channel is the
+/// error sound plus the existing main-window toast and the file log. The
+/// backend NEVER force-shows the overlay for a notice, so no flashed pills.
+#[derive(Clone, Debug, Serialize, Deserialize, Type, tauri_specta::Event)]
+pub struct OverlayNoticeEvent {
+    pub kind: OverlayNoticeKind,
+    /// Stable machine code; the frontend maps it to a localized message.
+    pub code: String,
+    /// Diagnostic detail (error text, model names). Optional by design.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub detail: Option<String>,
+}
+
+/// Every failure or notice site that feeds the overlay notice channel. The
+/// pure mapping to `(kind, code)` lives here so the code strings the frontend
+/// localizes against are pinned by unit tests, and every emit site shares one
+/// helper ([`emit_overlay_notice`]) instead of re-deriving tone and sound.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NoticeCode {
+    /// The hotkey fired with no usable ASR selection (actions.rs start path).
+    NoModelSelected,
+    /// Recording could not start: mic permission denied by the OS.
+    MicrophonePermissionDenied,
+    /// Recording could not start: no input device present.
+    NoInputDevice,
+    /// Recording failed to start for any other reason.
+    RecordingFailed,
+    /// The stop path transcribed nothing (engine failure).
+    TranscriptionFailed,
+    /// The final text could not be pasted into the focused app.
+    PasteFailed,
+    /// A voice model load failed (hotkey- or settings-driven).
+    ModelLoadFailed,
+    /// The memory gate swapped to a smaller model for this dictation.
+    ModelFallback,
+    /// Local post-process fell back to the raw transcript (memory gate).
+    PostProcessMemoryGate,
+    /// Local post-process skipped: the LLM model is not downloaded.
+    PostProcessDownloadMissing,
+    /// Local post-process skipped: the engine worker failed.
+    PostProcessEngineFailed,
+    /// Local post-process skipped: bounded wait elapsed.
+    PostProcessTimeout,
+    /// Local post-process output failed the fidelity/length guard.
+    PostProcessLengthGuard,
+    /// Local post-process skipped: transcript exceeds the token cap.
+    PostProcessTooLong,
+    /// Delete-last-word pressed with no live dictation session.
+    DeleteLastWordNoSession,
+    /// A session is live but has no stream buffer to delete from yet.
+    DeleteLastWordNoBuffer,
+    /// Undo pressed with no live dictation session.
+    UndoNoSession,
+    /// A session is live but has no buffer to clear yet.
+    UndoNoBuffer,
+    /// A different transcribe binding is already recording (press swallowed).
+    BindingBusy,
+    /// Linux: Wayland session detected while the Tauri (global-hotkey,
+    /// X11-only) keyboard backend is active; hotkeys may be dead in native
+    /// Wayland apps. Info, once per run at shortcut init.
+    WaylandTauriHotkeys,
+    /// Linux: overlay enabled on GNOME Wayland without layer-shell support,
+    /// where the overlay falls back to a regular focus-stealing window.
+    /// Info, once per setting change.
+    GnomeOverlayFallback,
+}
+
+impl NoticeCode {
+    /// The notice tone. Everything in the error set plays the error sound;
+    /// info notices ride the overlay row / toast only.
+    pub fn kind(self) -> OverlayNoticeKind {
+        match self {
+            NoticeCode::ModelFallback
+            | NoticeCode::PostProcessDownloadMissing
+            | NoticeCode::PostProcessTooLong
+            | NoticeCode::DeleteLastWordNoSession
+            | NoticeCode::DeleteLastWordNoBuffer
+            | NoticeCode::UndoNoSession
+            | NoticeCode::UndoNoBuffer
+            | NoticeCode::BindingBusy
+            | NoticeCode::WaylandTauriHotkeys
+            | NoticeCode::GnomeOverlayFallback => OverlayNoticeKind::Info,
+            _ => OverlayNoticeKind::Error,
+        }
+    }
+
+    /// Stable machine code string; the frontend's i18n keys map off this.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            NoticeCode::NoModelSelected => "no_model_selected",
+            NoticeCode::MicrophonePermissionDenied => "microphone_permission_denied",
+            NoticeCode::NoInputDevice => "no_input_device",
+            NoticeCode::RecordingFailed => "recording_failed",
+            NoticeCode::TranscriptionFailed => "transcription_failed",
+            NoticeCode::PasteFailed => "paste_failed",
+            NoticeCode::ModelLoadFailed => "model_load_failed",
+            NoticeCode::ModelFallback => "model_fallback",
+            NoticeCode::PostProcessMemoryGate => "post_process_memory_gate",
+            NoticeCode::PostProcessDownloadMissing => "post_process_download_missing",
+            NoticeCode::PostProcessEngineFailed => "post_process_engine_failed",
+            NoticeCode::PostProcessTimeout => "post_process_timeout",
+            NoticeCode::PostProcessLengthGuard => "post_process_length_guard",
+            NoticeCode::PostProcessTooLong => "post_process_too_long",
+            NoticeCode::DeleteLastWordNoSession => "delete_last_word_no_session",
+            NoticeCode::DeleteLastWordNoBuffer => "delete_last_word_no_buffer",
+            NoticeCode::UndoNoSession => "undo_no_session",
+            NoticeCode::UndoNoBuffer => "undo_no_buffer",
+            NoticeCode::BindingBusy => "binding_busy",
+            NoticeCode::WaylandTauriHotkeys => "wayland_tauri_hotkeys",
+            NoticeCode::GnomeOverlayFallback => "gnome_overlay_fallback",
+        }
+    }
+
+    /// Map a recording-error `error_type` (the same strings the main-window
+    /// toast switch already keys on) to its notice code.
+    pub fn from_recording_error_type(error_type: &str) -> Self {
+        match error_type {
+            "no_model_selected" => NoticeCode::NoModelSelected,
+            "microphone_permission_denied" => NoticeCode::MicrophonePermissionDenied,
+            "no_input_device" => NoticeCode::NoInputDevice,
+            _ => NoticeCode::RecordingFailed,
+        }
+    }
+
+    /// Map a local post-process skip reason to its notice code.
+    pub fn from_skip_reason(reason: crate::local_llm::SkipReason) -> Self {
+        use crate::local_llm::SkipReason;
+        match reason {
+            SkipReason::MemoryGate => NoticeCode::PostProcessMemoryGate,
+            SkipReason::DownloadMissing => NoticeCode::PostProcessDownloadMissing,
+            SkipReason::EngineFailed => NoticeCode::PostProcessEngineFailed,
+            SkipReason::Timeout => NoticeCode::PostProcessTimeout,
+            SkipReason::LengthGuard => NoticeCode::PostProcessLengthGuard,
+            SkipReason::TooLong => NoticeCode::PostProcessTooLong,
+        }
+    }
+}
+
+/// Emit one notice through the single channel: the specta event (the overlay
+/// renders it only while its card is already visible) plus, for the error
+/// tone, the error sound. The existing main-window toasts and the file log
+/// keep running at their own emit sites, so every notice stays dual-surface.
+pub fn emit_overlay_notice(app: &AppHandle, code: NoticeCode, detail: Option<String>) {
+    let kind = code.kind();
+    info!(
+        "overlay notice: kind={} code={} detail={}",
+        match kind {
+            OverlayNoticeKind::Error => "error",
+            OverlayNoticeKind::Info => "info",
+        },
+        code.as_str(),
+        detail.as_deref().unwrap_or("-")
+    );
+    let _ = OverlayNoticeEvent {
+        kind,
+        code: code.as_str().to_string(),
+        detail,
+    }
+    .emit(app);
+    if kind == OverlayNoticeKind::Error {
+        crate::audio_feedback::play_error_feedback(app);
+    }
 }
 
 /// Commands sent to the streaming worker thread. Audio frames and the finalize
@@ -1105,6 +1312,15 @@ impl Drop for LoadingGuard {
     }
 }
 
+/// The voice gate's runtime-inclusive forecast: max(file size * 3/2,
+/// measured worker RSS), composed through the SAME shared helper the
+/// local-LLM gate uses ([`crate::local_llm::forecast::runtime_inclusive_bytes`]),
+/// so both gates forecast identically. Extracted so the composition is
+/// unit-testable with an injected measurement.
+fn asr_forecast_bytes(file_size_bytes: u64, measured_asr_rss: Option<u64>) -> u64 {
+    crate::local_llm::forecast::runtime_inclusive_bytes(file_size_bytes, measured_asr_rss)
+}
+
 /// RAII guard that clears the streaming worker flags on any worker exit -
 /// normal return, early return, or a panic that unwinds the detached worker
 /// thread. Tokens prevent an older worker from clearing a newer worker's
@@ -1166,6 +1382,14 @@ pub struct TranscriptionManager {
     /// interim overlay text, absorbs manual hotkey edits, and folds into the
     /// finalize path. See [`StreamSessionBuffer`].
     session_buffer: Arc<Mutex<StreamSessionBuffer>>,
+    /// Measured RSS of the transcribe-cpp worker captured after its last
+    /// successful model load (in-memory only, like the LLM gate's
+    /// measured_rss). Feeds the voice gate's runtime-inclusive forecast so
+    /// an ASR model whose true resident footprint (weights + Metal wired
+    /// buffers + compute scratch) exceeds the file-size estimate cannot pass
+    /// the gate on the exact voice/LLM swap cycle that loads both in quick
+    /// succession.
+    measured_asr_rss: Arc<Mutex<Option<u64>>>,
 }
 
 impl TranscriptionManager {
@@ -1187,6 +1411,7 @@ impl TranscriptionManager {
             next_stream_worker_id: Arc::new(AtomicU64::new(1)),
             active_stream_worker: Arc::new(AtomicU64::new(0)),
             session_buffer: Arc::new(Mutex::new(StreamSessionBuffer::default())),
+            measured_asr_rss: Arc::new(Mutex::new(None)),
         };
 
         // Start the idle watcher
@@ -1547,6 +1772,11 @@ impl TranscriptionManager {
                         memory_gate: None,
                     },
                 );
+                emit_overlay_notice(
+                    &self.app_handle,
+                    NoticeCode::ModelLoadFailed,
+                    Some(error_msg.clone()),
+                );
                 return Err(anyhow::anyhow!(error_msg));
             }
         };
@@ -1563,6 +1793,13 @@ impl TranscriptionManager {
                     error: Some(error_msg.to_string()),
                     memory_gate: None,
                 },
+            );
+            // The toast above lands in the (usually hidden) main window; the
+            // notice channel carries the same failure to the overlay user.
+            emit_overlay_notice(
+                &self.app_handle,
+                NoticeCode::ModelLoadFailed,
+                Some(error_msg.to_string()),
             );
         };
 
@@ -1591,7 +1828,17 @@ impl TranscriptionManager {
         // bypasses the gate entirely, the RAM auto-fallback included. The
         // margin is the user's memory_gate_headroom_mb setting (default 0);
         // no hidden headroom is added on top.
-        let forecast = model_info.size_mb.saturating_mul(1024 * 1024);
+        let file_size_bytes = model_info.size_mb.saturating_mul(1024 * 1024);
+        let measured_asr_rss = self
+            .measured_asr_rss
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .filter(|_| matches!(model_info.engine_type, EngineType::TranscribeCpp));
+        // Runtime-inclusive forecast: max(file size * 3/2, measured worker
+        // RSS), the exact composition the local-LLM gate uses (one shared
+        // helper), so a model whose resident footprint runs ~1.5x its file
+        // size cannot pass this gate on the voice/LLM swap cycle.
+        let forecast = asr_forecast_bytes(file_size_bytes, measured_asr_rss);
         let gate_settings = get_settings(&self.app_handle);
         if gate_settings.memory_pressure_guard {
             let headroom = gate_settings
@@ -1621,10 +1868,11 @@ impl TranscriptionManager {
             );
             // The one structured line at every gate decision: probe bytes,
             // the kernel pressure verdict, the inactive factor the probe's
-            // composition applied, the model, its forecast, and the verdict.
-            // This is the field diagnostic for any future misfire.
+            // composition applied, the model, its file size, the measured
+            // RSS term of the forecast, the composed forecast, and the
+            // verdict. This is the field diagnostic for any future misfire.
             info!(
-                "memory gate decision: probe_bytes={} pressure_level={} inactive_factor={} model={} forecast_bytes={} decision={}",
+                "memory gate decision: probe_bytes={} pressure_level={} inactive_factor={} model={} file_size_bytes={} measured_asr_bytes={} forecast_bytes={} decision={}",
                 free.map(|b| b.to_string()).unwrap_or_else(|| "unavailable".to_string()),
                 match probe.pressure_level {
                     Some(level) => level.to_string(),
@@ -1635,6 +1883,10 @@ impl TranscriptionManager {
                     .map(|f| format!("{f:.2}"))
                     .unwrap_or_else(|| "n/a".to_string()),
                 model_id,
+                file_size_bytes,
+                measured_asr_rss
+                    .map(|b| b.to_string())
+                    .unwrap_or_else(|| "unmeasured".to_string()),
                 forecast,
                 decision.as_log_str(),
             );
@@ -1661,8 +1913,15 @@ impl TranscriptionManager {
                         "model-fallback",
                         ModelFallbackEvent {
                             requested_model_name: model_info.name.clone(),
-                            fallback_model_name: fallback_name,
+                            fallback_model_name: fallback_name.clone(),
                         },
+                    );
+                    // Info notice: the dictation continues on another model,
+                    // and the person mid-dictation should be told which one.
+                    emit_overlay_notice(
+                        &self.app_handle,
+                        NoticeCode::ModelFallback,
+                        Some(fallback_name),
                     );
                     return self.load_model_with_device_internal(&fallback_id, device_index, false);
                 }
@@ -1691,6 +1950,11 @@ impl TranscriptionManager {
                                 headroom_bytes: headroom,
                             }),
                         },
+                    );
+                    emit_overlay_notice(
+                        &self.app_handle,
+                        NoticeCode::ModelLoadFailed,
+                        Some(error_msg.clone()),
                     );
                     return Err(anyhow::anyhow!(error_msg));
                 }
@@ -1887,6 +2151,20 @@ impl TranscriptionManager {
         // Reset idle timer so the watcher doesn't immediately unload a just-loaded model
         self.touch_activity();
 
+        // Capture the transcribe-cpp worker's measured RSS now that the
+        // model is resident: the runtime-inclusive term of the next voice
+        // gate decision (the same refinement the LLM gate applies after its
+        // first generation). ONNX engines load in-process with no worker
+        // pid; their loads leave the last measurement alone.
+        if let Some(pid) = self.engine.worker_pid() {
+            if let Some(rss) = memory::rss_bytes_for_pid(pid) {
+                *self
+                    .measured_asr_rss
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = Some(rss);
+            }
+        }
+
         // Emit loading completed event
         let _ = self.app_handle.emit(
             "model-state-changed",
@@ -1910,19 +2188,26 @@ impl TranscriptionManager {
 
     /// Kicks off the model loading in a background thread if it's not already loaded
     pub fn initiate_model_load(&self) {
-        let mut is_loading = self.is_loading.lock().unwrap();
-        if *is_loading {
-            return;
-        }
-
         let reload_pending = self.reload_model_on_next_use.load(Ordering::Acquire);
         if !reload_pending && self.is_model_loaded() {
             return;
         }
 
-        *is_loading = true;
+        // Claim the loading slot through the same atomic claim every other
+        // load path uses (a concurrent loader keeps the old early return).
+        // The guard is MOVED into the loader thread below, so its Drop is
+        // the ONLY clear: a panic inside the loader (e.g. a store failure
+        // inside get_settings) unwinds through the guard, clears the flag,
+        // and wakes every condvar waiter. The manual set/clear this
+        // replaced stranded is_loading=true on exactly that panic, blocking
+        // every later dictation (transcribe_audio / run_stream_worker park
+        // on the condvar) until app restart.
+        let Some(guard) = self.try_start_loading() else {
+            return;
+        };
         let self_clone = self.clone();
         thread::spawn(move || {
+            let _slot = guard;
             if reload_pending {
                 self_clone
                     .reload_model_on_next_use
@@ -1931,11 +2216,54 @@ impl TranscriptionManager {
             let settings = get_settings(&self_clone.app_handle);
             if let Err(e) = self_clone.load_model(&settings.selected_model) {
                 error!("Failed to load model: {}", e);
+                self_clone.handle_hotkey_load_failure(&e);
             }
-            let mut is_loading = self_clone.is_loading.lock().unwrap();
-            *is_loading = false;
-            self_clone.loading_condvar.notify_all();
         });
+    }
+
+    /// The hotkey-path load-failure hook. A model load that fails while a
+    /// recording session is LIVE (the coordinator's recording mirror says
+    /// so) has already opened the microphone and shown the overlay; without
+    /// this hook both stay live while the pipeline waits on audio that can
+    /// never be transcribed (the observed dead sessions: ~16 s of speech
+    /// lost, tray stuck on Recording). The notice itself already fired at
+    /// the loading_failed seam inside `load_model`; this hook adds only the
+    /// teardown, mirroring `cancel_current_operation`'s route (cancel the
+    /// stream and transcription, tray Idle, coordinator cancel) with the
+    /// overlay hide DELAYED so the in-card error stays readable.
+    fn handle_hotkey_load_failure(&self, error: &anyhow::Error) {
+        let session_live = self
+            .app_handle
+            .try_state::<crate::TranscriptionCoordinator>()
+            .is_some_and(|c| c.is_recording_session());
+        if !matches!(
+            load_failure_action(session_live),
+            LoadFailureAction::NotifyAndTearDown
+        ) {
+            return;
+        }
+        warn!(
+            "model load failed while a dictation session was live; tearing the session down ({error})"
+        );
+        crate::shortcut::unregister_cancel_shortcut(&self.app_handle);
+        let recording_was_active = self
+            .app_handle
+            .try_state::<Arc<AudioRecordingManager>>()
+            .is_some_and(|a| a.is_recording());
+        if let Some(rm) = self.app_handle.try_state::<Arc<AudioRecordingManager>>() {
+            rm.cancel_recording();
+        }
+        self.cancel_stream();
+        self.cancel_transcription();
+        crate::tray::set_tray_state(&self.app_handle, crate::tray::TrayIconState::Idle);
+        crate::overlay::hide_recording_overlay_after_error(&self.app_handle);
+        self.maybe_unload_immediately("hotkey model-load failure");
+        if let Some(coordinator) = self
+            .app_handle
+            .try_state::<crate::TranscriptionCoordinator>()
+        {
+            coordinator.notify_cancel(recording_was_active);
+        }
     }
 
     /// Reload the selected voice model under a loading slot the exclusive
@@ -2121,12 +2449,16 @@ impl TranscriptionManager {
             ..Default::default()
         };
 
-        // Feed results arrive on the engine's thread; the progress emitter
-        // (built below, reusable for the low-latency retry) records the
-        // snapshot into the session buffer and emits the rendered interim
-        // text.
+        // Feed results arrive on the engine's owner thread; the progress
+        // emitter (built below, reusable for the low-latency retry) runs on
+        // a DEDICATED emitter thread fed by a lossless queue (the supervisor
+        // hands each snapshot off without blocking), records the snapshot
+        // into the session buffer, and emits the rendered interim text. The
+        // backpressure gauge is shared with the emitter so its perf line can
+        // show render-queue depth and drain lag instead of hiding them.
         let preview_script = PreviewScript::new(settings.chinese_script, &output_language);
         let perf = Arc::new(Mutex::new(StreamPerf::new()));
+        let render_gauge = Arc::new(RenderBackpressure::default());
         // The session buffer goes live before the engine stream starts, so
         // no interim callback can race past `begin`. Toggles and the
         // compiled command matrix are captured here (once per session),
@@ -2162,8 +2494,10 @@ impl TranscriptionManager {
         // not contain the requested tuple rejects it with InvalidArgument and
         // we retry once on pure defaults, so the worst case is exactly the
         // previous behavior.
-        let progress_emitter = |perf: Arc<Mutex<StreamPerf>>, app_handle: tauri::AppHandle| {
-            stream_progress_emitter(Arc::clone(&self.session_buffer), app_handle, perf)
+        let progress_emitter = |perf: Arc<Mutex<StreamPerf>>,
+                                app_handle: tauri::AppHandle,
+                                gauge: Arc<RenderBackpressure>| {
+            stream_progress_emitter(Arc::clone(&self.session_buffer), app_handle, perf, gauge)
         };
 
         let low_latency_ext = low_latency_stream_extension(&info.arch, &info.variant);
@@ -2174,7 +2508,12 @@ impl TranscriptionManager {
         let stream = match self.engine.start_stream(
             run_options.clone(),
             first_options,
-            progress_emitter(Arc::clone(&perf), self.app_handle.clone()),
+            progress_emitter(
+                Arc::clone(&perf),
+                self.app_handle.clone(),
+                Arc::clone(&render_gauge),
+            ),
+            Arc::clone(&render_gauge),
         ) {
             Ok(stream) => {
                 if low_latency_ext.is_some() {
@@ -2192,7 +2531,12 @@ impl TranscriptionManager {
                 match self.engine.start_stream(
                     run_options,
                     StreamOptions::default(),
-                    progress_emitter(Arc::clone(&perf), self.app_handle.clone()),
+                    progress_emitter(
+                        Arc::clone(&perf),
+                        self.app_handle.clone(),
+                        Arc::clone(&render_gauge),
+                    ),
+                    Arc::clone(&render_gauge),
                 ) {
                     Ok(stream) => stream,
                     Err(e) => {
@@ -2885,15 +3229,20 @@ fn lock_perf(perf: &Mutex<StreamPerf>) -> MutexGuard<'_, StreamPerf> {
 /// The per-snapshot streaming callback: records perf counters, renders the
 /// session buffer, and emits the interim display. A free function (not a
 /// closure) so the low-latency start_stream retry can build a fresh copy.
+/// Runs on the supervisor's dedicated emitter thread (fed by the lossless
+/// render queue); `gauge` carries that queue's backpressure so the perf
+/// line shows depth and drain lag instead of hiding them.
 fn stream_progress_emitter(
     session_buffer: Arc<Mutex<StreamSessionBuffer>>,
     app_handle: AppHandle,
     perf: Arc<Mutex<StreamPerf>>,
+    gauge: Arc<RenderBackpressure>,
 ) -> impl FnMut(StreamProgress) + Send + 'static {
     move |progress: StreamProgress| {
         let mut perf = lock_perf(&perf);
         perf.record_compute(progress.elapsed);
         perf.record_update(&progress.update);
+        perf.record_queue(gauge.depth(), gauge.latest_lag_ms());
         if let Some(text) = progress.text {
             perf.record_emit();
             // The command-mode modifier is consulted per snapshot: while it
@@ -2995,6 +3344,13 @@ struct StreamPerf {
     latest_input_received_ms: i64,
     latest_audio_committed_ms: i64,
     latest_buffered_ms: i64,
+    /// Render-queue backpressure (the lossless interim-render queue): the
+    /// depth and drain lag observed at the latest snapshot. Under render
+    /// pressure the unbounded queue grows; the perf line shows it instead
+    /// of hiding it.
+    render_queue_depth: usize,
+    render_queue_max_depth: usize,
+    render_queue_lag_ms: u64,
 }
 
 impl StreamPerf {
@@ -3009,6 +3365,9 @@ impl StreamPerf {
             latest_input_received_ms: 0,
             latest_audio_committed_ms: 0,
             latest_buffered_ms: 0,
+            render_queue_depth: 0,
+            render_queue_max_depth: 0,
+            render_queue_lag_ms: 0,
         }
     }
 
@@ -3032,6 +3391,12 @@ impl StreamPerf {
         self.emit_count += 1;
     }
 
+    fn record_queue(&mut self, depth: usize, lag_ms: u64) {
+        self.render_queue_depth = depth;
+        self.render_queue_max_depth = self.render_queue_max_depth.max(depth);
+        self.render_queue_lag_ms = lag_ms;
+    }
+
     fn maybe_log(&mut self) {
         if self.last_log.elapsed() < STREAM_PERF_LOG_INTERVAL {
             return;
@@ -3042,7 +3407,7 @@ impl StreamPerf {
         debug!(
             "Live preview perf: {:.2}s streamed audio, {:.2}s model compute ({:.2}x real-time), \
              input_received={:.2}s, committed_audio={:.2}s, buffered={}ms, revision={}, \
-             {} frames fed, {} updates emitted",
+             {} frames fed, {} updates emitted, render_queue depth={} max={} lag={}ms",
             audio_secs,
             compute_secs,
             real_time_factor(audio_secs, compute_secs),
@@ -3052,6 +3417,9 @@ impl StreamPerf {
             self.latest_revision,
             self.feed_count,
             self.emit_count,
+            self.render_queue_depth,
+            self.render_queue_max_depth,
+            self.render_queue_lag_ms,
         );
         self.last_log = Instant::now();
     }
@@ -3758,6 +4126,233 @@ pub fn get_available_accelerators(tm: &TranscriptionManager) -> AvailableAcceler
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The notice channel's code table is the contract the frontend
+    /// localizes against: codes must be unique, non-empty, and carry the
+    /// tone the display rule depends on (errors play the error sound, info
+    /// does not beep). A code edit that drifts from the frontend's switch
+    /// must fail here, not in a user's overlay.
+    #[test]
+    fn notice_codes_are_stable_and_toned() {
+        let all = [
+            NoticeCode::NoModelSelected,
+            NoticeCode::MicrophonePermissionDenied,
+            NoticeCode::NoInputDevice,
+            NoticeCode::RecordingFailed,
+            NoticeCode::TranscriptionFailed,
+            NoticeCode::PasteFailed,
+            NoticeCode::ModelLoadFailed,
+            NoticeCode::ModelFallback,
+            NoticeCode::PostProcessMemoryGate,
+            NoticeCode::PostProcessDownloadMissing,
+            NoticeCode::PostProcessEngineFailed,
+            NoticeCode::PostProcessTimeout,
+            NoticeCode::PostProcessLengthGuard,
+            NoticeCode::PostProcessTooLong,
+            NoticeCode::DeleteLastWordNoSession,
+            NoticeCode::DeleteLastWordNoBuffer,
+            NoticeCode::UndoNoSession,
+            NoticeCode::UndoNoBuffer,
+            NoticeCode::BindingBusy,
+            NoticeCode::WaylandTauriHotkeys,
+            NoticeCode::GnomeOverlayFallback,
+        ];
+        let mut codes: Vec<&str> = all.iter().map(|c| c.as_str()).collect();
+        assert!(codes.iter().all(|c| !c.is_empty()));
+        codes.sort_unstable();
+        let unique = codes.len();
+        codes.dedup();
+        assert_eq!(codes.len(), unique, "notice codes must be unique");
+
+        // Error tone: real failures beep; expected conditions and no-op
+        // feedback stay quiet.
+        for code in [
+            NoticeCode::NoModelSelected,
+            NoticeCode::MicrophonePermissionDenied,
+            NoticeCode::NoInputDevice,
+            NoticeCode::RecordingFailed,
+            NoticeCode::TranscriptionFailed,
+            NoticeCode::PasteFailed,
+            NoticeCode::ModelLoadFailed,
+            NoticeCode::PostProcessMemoryGate,
+            NoticeCode::PostProcessEngineFailed,
+            NoticeCode::PostProcessTimeout,
+            NoticeCode::PostProcessLengthGuard,
+        ] {
+            assert_eq!(
+                code.kind(),
+                OverlayNoticeKind::Error,
+                "{:?} is an error",
+                code
+            );
+        }
+        for code in [
+            NoticeCode::ModelFallback,
+            NoticeCode::PostProcessDownloadMissing,
+            NoticeCode::PostProcessTooLong,
+            NoticeCode::DeleteLastWordNoSession,
+            NoticeCode::DeleteLastWordNoBuffer,
+            NoticeCode::UndoNoSession,
+            NoticeCode::UndoNoBuffer,
+            NoticeCode::BindingBusy,
+            NoticeCode::WaylandTauriHotkeys,
+            NoticeCode::GnomeOverlayFallback,
+        ] {
+            assert_eq!(code.kind(), OverlayNoticeKind::Info, "{:?} is info", code);
+        }
+    }
+
+    /// The mapping helpers the emit sites rely on: recording error types and
+    /// post-process skip reasons resolve to the code the frontend expects,
+    /// with unknowns degrading to the generic recording failure.
+    /// The session-liveness failure hook's decision table (the scripted
+    /// coordinator mirror): only a LIVE session tears down; a settings-driven
+    /// load failure (no session) keeps the ordinary toast+log behavior.
+    #[test]
+    fn load_failure_action_follows_session_liveness() {
+        assert_eq!(
+            load_failure_action(true),
+            LoadFailureAction::NotifyAndTearDown,
+            "a live session must be torn down, not left waiting on audio"
+        );
+        assert_eq!(
+            load_failure_action(false),
+            LoadFailureAction::LogOnly,
+            "no session means nothing to tear down"
+        );
+    }
+
+    /// The voice gate's forecast is the shared runtime-inclusive
+    /// composition: max(size * 3/2, measured). Injected measurements pin
+    /// both directions (a larger measurement wins; a smaller one never
+    /// shrinks below the multiplier floor), including the None case a
+    /// first-ever load sees. This is the same table the local-LLM gate
+    /// tests pin for its side, so the two gates cannot drift apart again.
+    #[test]
+    fn voice_gate_forecast_is_max_of_multiplier_floor_and_injected_rss() {
+        let size = 484 * 1024 * 1024u64;
+        // No measurement yet (first load): the 3/2 floor stands alone.
+        assert_eq!(asr_forecast_bytes(size, None), size * 3 / 2);
+        // A measurement above the floor wins: weights + Metal wired
+        // buffers + compute scratch can run ~1.5x the file size.
+        let measured = size * 3 / 2 + 200 * 1024 * 1024;
+        assert_eq!(asr_forecast_bytes(size, Some(measured)), measured);
+        // A measurement below the floor never shrinks the forecast.
+        assert_eq!(asr_forecast_bytes(size, Some(1024)), size * 3 / 2);
+        // Both gates compose through the one shared helper.
+        assert_eq!(
+            asr_forecast_bytes(size, Some(measured)),
+            crate::local_llm::forecast::runtime_inclusive_bytes(size, Some(measured))
+        );
+    }
+
+    /// The panic-stranding path this task closes: the hotkey load's slot is
+    /// a LoadingGuard MOVED into the loader thread (exactly what
+    /// `initiate_model_load` now does), so a panic that unwinds the loader
+    /// clears `is_loading` and wakes the condvar waiters
+    /// (`transcribe_audio` / `run_stream_worker` park there) instead of
+    /// stranding every later dictation until app restart. Fabricates the
+    /// exact flag/guard pair `try_start_loading` hands out (the local_llm
+    /// FakeHost pattern), because building a TranscriptionManager requires
+    /// a live AppHandle.
+    #[test]
+    fn loading_guard_survives_a_loader_panic_and_wakes_waiters() {
+        let is_loading = Arc::new(Mutex::new(false));
+        let condvar = Arc::new(Condvar::new());
+
+        // A waiter parked exactly like transcribe_audio parks: while the
+        // flag is set, wait on the condvar.
+        let waiter_flag = Arc::clone(&is_loading);
+        let waiter_condvar = Arc::clone(&condvar);
+        let waiter = thread::spawn(move || {
+            let mut flag = waiter_flag.lock().unwrap();
+            while *flag {
+                flag = waiter_condvar.wait(flag).unwrap();
+            }
+        });
+
+        // Claim the slot the way initiate_model_load does, then move the
+        // guard into a loader thread that panics before any load happens.
+        *is_loading.lock().unwrap() = true;
+        let guard = LoadingGuard::new(Arc::clone(&is_loading), Arc::clone(&condvar));
+        let loader = thread::spawn(move || {
+            let _slot = guard;
+            panic!("simulated panic inside the model loader");
+        });
+        assert!(
+            loader.join().is_err(),
+            "the loader thread must have panicked"
+        );
+
+        // The unwind dropped the guard: the flag returns to false (with a
+        // bound, so a regression fails the test instead of hanging it).
+        let deadline = Instant::now() + Duration::from_secs(5);
+        {
+            let mut flag = is_loading.lock().unwrap();
+            while *flag {
+                assert!(
+                    Instant::now() < deadline,
+                    "is_loading must clear after the loader panicked"
+                );
+                flag = condvar
+                    .wait_timeout(flag, Duration::from_millis(50))
+                    .unwrap()
+                    .0;
+            }
+        }
+
+        // And the parked waiter (the next dictation) was woken and
+        // completed rather than blocking forever.
+        waiter
+            .join()
+            .expect("the condvar waiter must wake after the loader panic");
+    }
+
+    #[test]
+    fn notice_mapping_helpers_cover_every_source() {
+        use crate::local_llm::SkipReason;
+
+        assert_eq!(
+            NoticeCode::from_recording_error_type("no_model_selected"),
+            NoticeCode::NoModelSelected
+        );
+        assert_eq!(
+            NoticeCode::from_recording_error_type("microphone_permission_denied"),
+            NoticeCode::MicrophonePermissionDenied
+        );
+        assert_eq!(
+            NoticeCode::from_recording_error_type("no_input_device"),
+            NoticeCode::NoInputDevice
+        );
+        assert_eq!(
+            NoticeCode::from_recording_error_type("anything-else"),
+            NoticeCode::RecordingFailed
+        );
+        assert_eq!(
+            NoticeCode::from_recording_error_type(""),
+            NoticeCode::RecordingFailed
+        );
+
+        // Every SkipReason resolves to its own post-process code.
+        let reasons = [
+            SkipReason::MemoryGate,
+            SkipReason::DownloadMissing,
+            SkipReason::EngineFailed,
+            SkipReason::Timeout,
+            SkipReason::LengthGuard,
+            SkipReason::TooLong,
+        ];
+        let mapped: Vec<&str> = reasons
+            .iter()
+            .map(|r| NoticeCode::from_skip_reason(*r).as_str())
+            .collect();
+        let mut unique = mapped.clone();
+        unique.sort_unstable();
+        unique.dedup();
+        assert_eq!(mapped.len(), unique.len(), "skip reasons map 1:1 to codes");
+        assert!(mapped.contains(&"post_process_engine_failed"));
+        assert!(mapped.contains(&"post_process_memory_gate"));
+    }
 
     #[test]
     fn low_latency_extension_by_family() {

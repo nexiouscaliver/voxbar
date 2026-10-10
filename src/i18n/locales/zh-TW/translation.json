@@ -20,6 +20,7 @@
     "output": "輸出",
     "advanced": "進階",
     "postProcessing": "後處理",
+    "enableInAdvancedHint": "在進階設定中啟用",
     "history": "歷史紀錄",
     "debug": "偵錯",
     "about": "關於"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "選擇模型失敗",
-      "downloadFailed": "下載 {{model}} 失敗：{{error}}"
+      "downloadFailed": "下載 {{model}} 失敗：{{error}}",
+      "extractFailed": "解壓 {{model}} 失敗：{{error}}"
     },
     "permissions": {
       "title": "需要權限",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "沒有可用的模型",
     "verifying": "正在驗證 {{modelName}}...",
     "verifyingGeneric": "正在驗證...",
+    "verifyingGenericShort": "正在驗證",
     "extracting": "正在解壓 {{modelName}}...",
     "extractingMultiple": "正在解壓 {{count}} 個模型...",
     "extractingGeneric": "解壓中...",
+    "extractingGenericShort": "解壓中",
     "downloading": "下載中 {{percentage}}%",
     "downloadingMultiple": "正在下載 {{count}} 個模型...",
     "modelReady": "模型已就緒",
@@ -160,6 +164,9 @@
     "loadingGeneric": "載入中...",
     "modelError": "模型錯誤",
     "modelUnloaded": "模型已卸載",
+    "checkStatusFailed": "無法檢查模型狀態",
+    "loadFailed": "無法載入模型",
+    "switchFailed": "無法切換模型",
     "noModelDownloadRequired": "無模型 - 需要下載",
     "deleteModel": "刪除 {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -204,11 +211,11 @@
           },
           "delete_last_word": {
             "name": "刪除上一個詞",
-            "description": "在目前聚焦的應用程式中刪除游標前的一個詞 (macOS 為 Option+Backspace，其他平台為 Ctrl+Backspace)。指派按鍵後才會啟用。"
+            "description": "在錄音工作階段進行期間，刪除即時聽寫文字的最後一個詞；在其他情況下不執行任何動作。指派按鍵即可啟用。"
           },
           "undo": {
             "name": "復原",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "聽寫進行期間：清除本次聽寫並重新開始。其他情況下不執行任何動作。"
           },
           "transcribe_commands": {
             "name": "命令模式",
@@ -247,11 +254,11 @@
         "title": "編輯快捷鍵",
         "deleteLastWord": {
           "title": "動作：刪除上一個詞",
-          "description": "啟用可自訂的快捷鍵來刪除游標前的一個詞。在上方指派按鍵之前該快捷鍵保持停用。"
+          "description": "啟用可指派的按鍵，在錄音工作階段進行期間刪除即時聽寫文字的最後一個詞。"
         },
         "undo": {
           "title": "動作：復原",
-          "description": "啟用可自訂的快捷鍵來在聚焦應用程式中觸發復原。在上方指派按鍵之前該快捷鍵保持停用。"
+          "description": "啟用可指派的按鍵，在錄音工作階段進行期間清除即時聽寫文字並重新開始。"
         }
       },
       "commandMode": {
@@ -381,6 +388,10 @@
           "unsupportedArchUnknown": "該檔案無法作為 GGUF 模型讀取，因此未新增。",
           "generic": "發生問題。"
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "此模型是本機後處理引擎。它會在聽寫後潤飾轉錄文字，無法轉錄音訊。",
+        "generic": "無法切換到此模型：{{error}}"
       }
     },
     "sound": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "模型與記憶體",
         "transcription": "轉錄",
-        "experimental": "實驗性"
+        "experimental": "實驗性",
+        "postProcessing": "後處理"
       },
       "experimentalToggle": {
         "label": "實驗性功能",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "搜尋或選擇模型",
           "placeholderNoOptions": "輸入模型名稱",
           "refreshModels": "重新整理模型"
+        },
+        "timeout": {
+          "title": "請求逾時",
+          "description": "雲端後處理請求在放棄並改用原始轉寫文字之前可以執行多久。適用於端點停止回應的情況。"
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "稍後",
       "installedDescription": "VoxBar {{version}} 已安裝，將於下次啟動 VoxBar 時生效。",
       "failedDescription": "無法下載更新。請檢查網路連線後再試一次，或從 GitHub Releases 手動下載。",
-      "translocatedDescription": "從「下載」資料夾執行時，VoxBar 無法自行更新。請將它移到「應用程式」資料夾（在 Finder 中拖曳），從那裡開啟，然後再次檢查更新。"
+      "translocatedDescription": "從「下載」資料夾執行時，VoxBar 無法自行更新。請將它移到「應用程式」資料夾（在 Finder 中拖曳），從那裡開啟，然後再次檢查更新。",
+      "manualOnlyPlatform": "從 GitHub Releases 取得更新",
+      "restartDescriptionWindows": "VoxBar {{version}} 已下載。安裝會關閉應用程式；下次開啟 VoxBar 時將啟動新版本。",
+      "restartLaterWindows": "安裝並關閉"
     }
   },
   "common": {
@@ -1002,7 +1021,19 @@
   "overlay": {
     "transcribing": "正在轉錄...",
     "processing": "處理中...",
-    "removedWord": "已移除：{{text}}"
+    "removedWord": "已移除：{{text}}",
+    "notice": {
+      "transcriptionFailed": "轉錄失敗。錄音已保留，可從歷史記錄重試。",
+      "generic": "出了點問題。詳細資訊請見日誌。",
+      "deleteLastWordNoSession": "刪除詞按鍵僅在聽寫進行中有效。請先開始錄音。",
+      "deleteLastWordNoBuffer": "還沒有可刪除的內容，聽寫中沒有即時文字。",
+      "undoNoSession": "復原按鍵僅在聽寫進行中有效。請先開始錄音。",
+      "undoNoBuffer": "還沒有可清除的內容，聽寫中沒有即時文字。",
+      "bindingBusy": "另一個聽寫按鍵已在錄音中。",
+      "waylandTauriHotkeys": "在此鍵盤實作下，原生 Wayland 應用程式中的全域快捷鍵可能失效。請將鍵盤實作切換為 VoxBar Keys，並把使用者加入 input 群組；詳見 Ubuntu 疑難排解指南。",
+      "gnomeOverlayFallback": "在 GNOME Wayland 上，懸浮窗會以一般視窗形式出現，可能搶走焦點並破壞貼上。此處建議將懸浮窗設為無。"
+    },
+    "commandBadge": "命令模式"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} 新功能"
@@ -1026,7 +1057,8 @@
       "timeout": "已跳過後處理：本地模型耗時過長。已使用原始轉錄。",
       "lengthGuard": "已跳過後處理：本地模型的輸出未通過長度檢查。已使用原始轉錄。",
       "tooLong": "已跳過後處理：此轉錄對本地模型來說過長。已使用原始轉錄。"
-    }
+    },
+    "settingNotSaved": "無法儲存此設定：{{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar 無法從此位置安裝更新",

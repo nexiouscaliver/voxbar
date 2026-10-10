@@ -55,7 +55,7 @@ const ModelStatusButton: React.FC<ModelStatusButtonProps> = ({
       title={`Model status: ${displayText}`}
     >
       <div className={`w-2 h-2 rounded-full ${getStatusColor(status)}`} />
-      <span className="max-w-28 truncate">{displayText}</span>
+      <span className="max-w-36 truncate">{displayText}</span>
       <svg
         className={`w-3 h-3 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
         fill="none"

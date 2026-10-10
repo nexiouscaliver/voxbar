@@ -166,7 +166,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
         <div className="flex flex-col items-start flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-wrap">
             <h3
-              className={`text-base font-semibold text-text ${isClickable ? "group-hover:text-logo-primary" : ""} transition-colors`}
+              className={`text-base font-medium text-text ${isClickable ? "group-hover:text-logo-primary" : ""} transition-colors`}
             >
               {displayName}
             </h3>
@@ -229,7 +229,7 @@ const ModelCard: React.FC<ModelCardProps> = ({
       <hr className="w-full border-mid-gray/20" />
 
       {/* Bottom row: tags + action buttons (full width) */}
-      <div className="flex items-center gap-3 w-full -mb-0.5 mt-0.5 h-5">
+      <div className="flex items-center gap-3 w-full -mb-0.5 mt-0.5 min-h-5">
         {capabilityLanguages.length > 0 && (
           <div
             className="flex items-center gap-1 text-xs text-text/50"

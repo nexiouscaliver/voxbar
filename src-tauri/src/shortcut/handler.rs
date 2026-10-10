@@ -73,10 +73,18 @@ pub fn handle_shortcut_event(
         return;
     };
 
-    // Cancel binding: only fires when recording and key is pressed
+    // Cancel binding: fires while a recording is live OR while the stop
+    // pipeline is still working (Processing: finalize, batch transcription,
+    // post-processing, paste). Requiring only is_recording() left Escape
+    // dead during Processing, so a wedged post-process request had no
+    // keyboard escape.
     if binding_id == "cancel" {
         let audio_manager = app.state::<Arc<AudioRecordingManager>>();
-        if audio_manager.is_recording() && is_pressed {
+        let recording = audio_manager.is_recording();
+        let processing = app
+            .try_state::<TranscriptionCoordinator>()
+            .is_some_and(|c| c.is_processing());
+        if is_pressed && (recording || processing) {
             action.start(app, binding_id, hotkey_string);
         }
         return;

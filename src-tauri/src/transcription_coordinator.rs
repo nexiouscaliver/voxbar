@@ -175,6 +175,15 @@ enum Effect {
     /// deliberately never starts a recording; without feedback a press
     /// between sessions reads as "commands stopped working").
     NotifyCommandIdle,
+    /// A transcribe binding was pressed while a DIFFERENT binding is already
+    /// recording; the press was swallowed to protect the live session.
+    /// Surfaced through the notice channel so the press is not silent.
+    NotifyRecordingBusy { binding_id: String },
+    /// The command-mode modifier engaged (true) or disengaged (false) for
+    /// the live session; drives the overlay's command-mode badge. Emitted on
+    /// every transition path, session end included, so the badge can never
+    /// outlive the session that armed it.
+    CommandModifierChanged { active: bool },
 }
 
 /// Commands processed sequentially by the coordinator thread.
@@ -246,6 +255,12 @@ struct CoordinatorState {
     /// live session is a complete no-op, so a session that starts later
     /// does not inherit a modifier that was never activated for it.
     command_modifier: bool,
+    /// Pending command-modifier transitions for the overlay badge, drained
+    /// by the coordinator thread after the command that caused them. Every
+    /// real transition of `command_modifier` (engage, release, and the
+    /// session-end clears) enqueues exactly one notification, so the badge
+    /// tracks the modifier without the thread polling the mirror.
+    modifier_notifications: Vec<bool>,
 }
 
 impl CoordinatorState {
@@ -257,7 +272,26 @@ impl CoordinatorState {
             pending_release: None,
             pending_press: None,
             command_modifier: false,
+            modifier_notifications: Vec::new(),
         }
+    }
+
+    /// The single writer of `command_modifier`: flips the flag and enqueues
+    /// a badge notification whenever the value actually changes. No-op
+    /// assignments (clearing an already-clear flag) stay silent.
+    fn set_command_modifier(&mut self, active: bool) {
+        if self.command_modifier != active {
+            self.command_modifier = active;
+            self.modifier_notifications.push(active);
+        }
+    }
+
+    /// Badge notifications waiting for the thread, oldest first.
+    fn drain_modifier_notifications(&mut self) -> Vec<Effect> {
+        std::mem::take(&mut self.modifier_notifications)
+            .into_iter()
+            .map(|active| Effect::CommandModifierChanged { active })
+            .collect()
     }
 
     /// Deadline of the deferred release, if any - drives `recv_timeout`.
@@ -390,10 +424,18 @@ impl CoordinatorState {
                     // recording), so a repeated press means nothing.
                     debug!("Ignoring press for '{}': key is held", input.binding_id);
                 }
-                _ => debug!(
-                    "Ignoring press for '{}': another binding is recording",
-                    input.binding_id
-                ),
+                _ => {
+                    debug!(
+                        "Ignoring press for '{}': another binding is recording",
+                        input.binding_id
+                    );
+                    // Swallowed, but not silently: the usage log showed
+                    // cross-binding presses the operator believed were
+                    // starting dictations. One info notice explains it.
+                    return Some(Effect::NotifyRecordingBusy {
+                        binding_id: input.binding_id.clone(),
+                    });
+                }
             }
         } else if hold_to_talk
             && matches!(&self.stage, Stage::Recording(id) if id == &input.binding_id)
@@ -489,7 +531,7 @@ impl CoordinatorState {
         // asked for silence, not a deferred recording.
         self.pending_press = None;
         // Cancel ends the session: the command modifier cannot outlive it.
-        self.command_modifier = false;
+        self.set_command_modifier(false);
         // Don't reset during processing - wait for the pipeline to finish.
         if !matches!(self.stage, Stage::Processing)
             && (recording_was_active || matches!(self.stage, Stage::Recording(_)))
@@ -522,7 +564,7 @@ impl CoordinatorState {
             self.stage = Stage::Idle;
             self.hold = None;
             // The session never existed; the modifier cannot stay armed.
-            self.command_modifier = false;
+            self.set_command_modifier(false);
         }
     }
 
@@ -549,8 +591,9 @@ impl CoordinatorState {
         self.hold = None;
         // The recording ended: the in-session command modifier goes with it,
         // even if the key is still physically held. Re-engaging requires a
-        // fresh press during the next live session.
-        self.command_modifier = false;
+        // fresh press during the next live session. This is the session-end
+        // badge clear: the notification rides the drain below.
+        self.set_command_modifier(false);
         Effect::Stop {
             binding_id,
             hotkey_string,
@@ -567,7 +610,7 @@ impl CoordinatorState {
         if is_pressed {
             if matches!(self.stage, Stage::Recording(_)) {
                 debug!("Command modifier engaged for the live dictation session");
-                self.command_modifier = true;
+                self.set_command_modifier(true);
                 None
             } else {
                 debug!("Command modifier pressed with no live dictation session; nothing happens");
@@ -575,7 +618,7 @@ impl CoordinatorState {
             }
         } else if self.command_modifier {
             debug!("Command modifier released; dictation returns to normal");
-            self.command_modifier = false;
+            self.set_command_modifier(false);
             None
         } else {
             None
@@ -608,6 +651,13 @@ pub struct TranscriptionCoordinator {
     /// thread. The latch itself is NOT new state: it observes the same
     /// pending_press the drain consumes.
     pending_press: Arc<AtomicBool>,
+    /// Mirror of `Stage::Processing` for lock-free readers outside the
+    /// coordinator thread: the cancel-shortcut handler gate asks "is the
+    /// stop pipeline still working (finalize, batch, post-process, paste)?"
+    /// so Escape stays alive for the whole pipeline, not just while a
+    /// microphone recording is live. Published at the same points as the
+    /// recording mirror.
+    processing: Arc<AtomicBool>,
 }
 
 /// Which binding IDs drive the recording lifecycle. The command-mode
@@ -628,6 +678,8 @@ impl TranscriptionCoordinator {
         let command_modifier_mirror = Arc::clone(&command_modifier);
         let pending_press = Arc::new(AtomicBool::new(false));
         let pending_press_mirror = Arc::clone(&pending_press);
+        let processing = Arc::new(AtomicBool::new(false));
+        let processing_mirror = Arc::clone(&processing);
 
         thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -642,6 +694,8 @@ impl TranscriptionCoordinator {
                         matches!(state.stage, Stage::Recording(_)),
                         Ordering::Release,
                     );
+                    processing_mirror
+                        .store(matches!(state.stage, Stage::Processing), Ordering::Release);
                     command_modifier_mirror.store(state.command_modifier, Ordering::Release);
                     pending_press_mirror.store(state.pending_press.is_some(), Ordering::Release);
                 };
@@ -687,12 +741,18 @@ impl TranscriptionCoordinator {
                             }
                         }
                     }
+                    // Badge notifications the processed command enqueued
+                    // (modifier engage/release and every session-end clear).
+                    for effect in state.drain_modifier_notifications() {
+                        run_effect(&app, &mut state, effect);
+                    }
                     publish_state(&state);
                 }
                 // The coordinator thread is gone (app shutdown); stop
                 // advertising a live recording session, an engaged command
                 // modifier, or a remembered press.
                 recording_mirror.store(false, Ordering::Release);
+                processing_mirror.store(false, Ordering::Release);
                 command_modifier_mirror.store(false, Ordering::Release);
                 pending_press_mirror.store(false, Ordering::Release);
                 debug!("Transcription coordinator exited");
@@ -707,6 +767,7 @@ impl TranscriptionCoordinator {
             recording,
             command_modifier,
             pending_press,
+            processing,
         }
     }
 
@@ -716,6 +777,16 @@ impl TranscriptionCoordinator {
     /// between editing the dictation buffer and injecting keys.
     pub fn is_recording_session(&self) -> bool {
         self.recording.load(Ordering::Acquire)
+    }
+
+    /// Whether the stop pipeline is still working (the coordinator is in
+    /// its Processing stage: after the stop effect, until the pipeline's
+    /// FinishGuard reports completion). The cancel-shortcut handler gate
+    /// reads this so Escape stays alive while finalize, batch
+    /// transcription, post-processing, or the paste still run, even though
+    /// no recording is live anymore.
+    pub fn is_processing(&self) -> bool {
+        self.processing.load(Ordering::Acquire)
     }
 
     /// Whether the command-mode binding is currently modulating the live
@@ -852,6 +923,19 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
             use tauri::Emitter;
             if let Err(e) = app.emit("command-mode-no-session", ()) {
                 warn!("Failed to emit command-mode-no-session: {e}");
+            }
+        }
+        Effect::NotifyRecordingBusy { binding_id } => {
+            crate::managers::transcription::emit_overlay_notice(
+                app,
+                crate::managers::transcription::NoticeCode::BindingBusy,
+                Some(binding_id),
+            );
+        }
+        Effect::CommandModifierChanged { active } => {
+            use tauri::Emitter;
+            if let Err(e) = app.emit_to("recording_overlay", "command-modifier-changed", active) {
+                warn!("Failed to emit command-modifier-changed: {e}");
             }
         }
     }
@@ -1043,6 +1127,112 @@ mod tests {
         assert!(!state.command_modifier);
         assert_eq!(state.on_command_modifier(false), None);
         assert!(!state.command_modifier);
+    }
+
+    /// The overlay badge tracks every real modifier transition through the
+    /// notification queue: engage and release each enqueue one event, idle
+    /// presses and redundant clears enqueue nothing (the badge must not
+    /// flicker on no-ops).
+    #[test]
+    fn command_modifier_badge_notifications_track_every_transition() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        state.on_input(toggle_input(true), t0);
+
+        // Engage during the live session: one badge-on notification.
+        assert_eq!(state.on_command_modifier(true), None);
+        assert_eq!(
+            state.drain_modifier_notifications(),
+            vec![Effect::CommandModifierChanged { active: true }]
+        );
+        assert!(state.drain_modifier_notifications().is_empty(), "drained");
+
+        // Release: one badge-off notification.
+        assert_eq!(state.on_command_modifier(false), None);
+        assert_eq!(
+            state.drain_modifier_notifications(),
+            vec![Effect::CommandModifierChanged { active: false }]
+        );
+
+        // A redundant release (modifier already off) stays silent.
+        assert_eq!(state.on_command_modifier(false), None);
+        assert!(state.drain_modifier_notifications().is_empty());
+
+        // An idle press (session over) notifies idle, never the badge.
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0 + Duration::from_secs(5)),
+            Some(Effect::Stop { .. })
+        ));
+        assert!(matches!(
+            state.on_command_modifier(true),
+            Some(Effect::NotifyCommandIdle)
+        ));
+        assert!(state.drain_modifier_notifications().is_empty());
+    }
+
+    /// The session-end release clears the badge even though no release event
+    /// ever arrives: finalize (begin_processing) and cancel both enqueue the
+    /// badge-off notification while the modifier was engaged.
+    #[test]
+    fn command_modifier_badge_clears_on_session_end() {
+        // Finalize path: dictation stops while the modifier is held.
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        state.on_input(toggle_input(true), t0);
+        assert_eq!(state.on_command_modifier(true), None);
+        state.drain_modifier_notifications();
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0 + Duration::from_secs(5)),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(
+            state.drain_modifier_notifications(),
+            vec![Effect::CommandModifierChanged { active: false }],
+            "the badge must clear when the session finalizes under a held modifier"
+        );
+
+        // Cancel path: session cancelled while held clears it the same way.
+        let mut cancelled = CoordinatorState::new();
+        cancelled.on_input(toggle_input(true), t0);
+        assert_eq!(cancelled.on_command_modifier(true), None);
+        cancelled.drain_modifier_notifications();
+        cancelled.on_cancel(true);
+        assert_eq!(
+            cancelled.drain_modifier_notifications(),
+            vec![Effect::CommandModifierChanged { active: false }]
+        );
+    }
+
+    /// A press for a different transcribe binding while one is recording is
+    /// swallowed to protect the live session, but no longer silently: it
+    /// returns the busy notice effect and leaves the session untouched.
+    #[test]
+    fn cross_binding_press_while_recording_notifies_busy() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0),
+            Some(Effect::Start { .. })
+        ));
+
+        // A different dictation binding presses: swallowed, and surfaced.
+        assert_eq!(
+            state.on_input(
+                toggle_input_for("transcribe_with_post_process", false),
+                t0 + Duration::from_millis(50)
+            ),
+            Some(Effect::NotifyRecordingBusy {
+                binding_id: "transcribe_with_post_process".to_string()
+            })
+        );
+        // The live session is untouched by the swallowed press.
+        assert_eq!(state.stage, Stage::Recording(BINDING.to_string()));
+
+        // The same binding's next press still stops the session normally.
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0 + Duration::from_millis(100)),
+            Some(Effect::Stop { .. })
+        ));
     }
 
     #[test]
@@ -1287,7 +1477,13 @@ mod tests {
             match effect {
                 Some(Effect::Start { .. }) => starts += 1,
                 Some(Effect::Stop { .. }) => stops += 1,
-                Some(Effect::NotifyCommandIdle) | None => {}
+                // The PTT drive never meets these (single binding, no
+                // modifier events), but the match must stay exhaustive as
+                // the Effect set grows.
+                Some(Effect::NotifyCommandIdle)
+                | Some(Effect::NotifyRecordingBusy { .. })
+                | Some(Effect::CommandModifierChanged { .. })
+                | None => {}
             }
         }
 

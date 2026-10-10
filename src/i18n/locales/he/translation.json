@@ -20,6 +20,7 @@
     "output": "פלט",
     "advanced": "מתקדם",
     "postProcessing": "עיבוד משלים",
+    "enableInAdvancedHint": "הפעלה במסך מתקדם",
     "history": "היסטוריה",
     "debug": "ניפוי שגיאות",
     "about": "אודות"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "בחירת המודל נכשלה",
-      "downloadFailed": "הורדת {{model}} נכשלה: {{error}}"
+      "downloadFailed": "הורדת {{model}} נכשלה: {{error}}",
+      "extractFailed": "חילוץ {{model}} נכשל: {{error}}"
     },
     "permissions": {
       "title": "נדרשות הרשאות",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "אין מודלים זמינים",
     "verifying": "מאמת את {{modelName}}...",
     "verifyingGeneric": "מאמת...",
+    "verifyingGenericShort": "מאמת",
     "extracting": "מחלץ את {{modelName}}...",
     "extractingMultiple": "מחלץ {{count}} מודלים...",
     "extractingGeneric": "מחלץ...",
+    "extractingGenericShort": "מחלץ",
     "downloading": "מוריד {{percentage}}%",
     "downloadingMultiple": "מוריד {{count}} מודלים...",
     "modelReady": "המודל מוכן",
@@ -160,6 +164,9 @@
     "loadingGeneric": "טוען...",
     "modelError": "שגיאת מודל",
     "modelUnloaded": "המודל נפרק",
+    "checkStatusFailed": "בדיקת מצב המודל נכשלה",
+    "loadFailed": "טעינת המודל נכשלה",
+    "switchFailed": "החלפת המודל נכשלה",
     "noModelDownloadRequired": "אין מודל, נדרשת הורדה",
     "deleteModel": "מחק את {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -204,11 +211,11 @@
           },
           "delete_last_word": {
             "name": "מחיקת המילה האחרונה",
-            "description": "מוחק את המילה שלפני הסמן באפליקציה הממוקדת (Option+Backspace ב-macOS, Ctrl+Backspace במקומות אחרים). הקצה מקש כדי להפעיל."
+            "description": "מסיר את המילה האחרונה מטקסט ההקלטה החי בזמן שההקלטה פעילה; אחרת לא עושה דבר. הקצו מקש כדי להפעיל אותו."
           },
           "undo": {
             "name": "ביטול פעולה",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "בזמן הקלטה פעילה: מנקה אותה ומתחיל מחדש. אחרת לא עושה דבר."
           },
           "transcribe_commands": {
             "name": "מצב פקודות",
@@ -247,11 +254,11 @@
         "title": "קיצורי עריכה",
         "deleteLastWord": {
           "title": "פעולה: מחיקת המילה האחרונה",
-          "description": "מפעיל את קיצור המקלדת הניתן להקצאה שמוחק את המילה שלפני הסמן. הקיצור יישאר כבוי עד שתקצה מקש למעלה."
+          "description": "מפעיל את המקש הניתן להקצאה שמסיר את המילה האחרונה מטקסט ההקלטה החי בזמן שההקלטה פעילה."
         },
         "undo": {
           "title": "פעולה: ביטול",
-          "description": "מפעיל את קיצור המקלדת הניתן להקצאה שמבטל פעולה באפליקציה הממוקדת. הקיצור יישאר כבוי עד שתקצה מקש למעלה."
+          "description": "מפעיל את המקש הניתן להקצאה שמנקה את טקסט ההקלטה החי ומתחיל מחדש בזמן שההקלטה פעילה."
         }
       },
       "commandMode": {
@@ -381,6 +388,10 @@
           "unsupportedArchUnknown": "לא ניתן היה לקרוא את הקובץ הזה כמודל GGUF, לכן הוא לא נוסף.",
           "generic": "משהו השתבש."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "מודל זה הוא מנוע העיבוד המקומי. הוא משפר תמלילים לאחר הקלטה, אך אינו יכול לתמלל אודיו.",
+        "generic": "לא ניתן היה לעבור למודל זה: {{error}}"
       }
     },
     "sound": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "מודל וזיכרון",
         "transcription": "תמלול",
-        "experimental": "ניסיוני"
+        "experimental": "ניסיוני",
+        "postProcessing": "עיבוד משלים"
       },
       "experimentalToggle": {
         "label": "תכונות ניסיוניות",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "חפש או בחר מודל",
           "placeholderNoOptions": "הקלד שם מודל",
           "refreshModels": "רענן מודלים"
+        },
+        "timeout": {
+          "title": "פסק זמן לבקשה",
+          "description": "כמה זמן יכולה לרוץ בקשת עיבוד עוקב בענן לפני שהיא מוותרת ונעשה שימוש בתמליל הגולמי. חל כאשר נקודת קצה מפסיקה להגיב."
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "מאוחר יותר",
       "installedDescription": "VoxBar {{version}} הותקן ויכנס לתוקף בהפעלה הבאה של VoxBar.",
       "failedDescription": "לא ניתן להוריד את העדכון. בדוק את החיבור ונסה שוב, או הורד אותו מ-GitHub Releases.",
-      "translocatedDescription": "VoxBar לא יכול לעדכן את עצמו בזמן שהוא פועל מתיקיית ההורדות. העבירו אותו לתיקיית Applications (גרירה ב-Finder), פתחו אותו משם ובדקו שוב עדכונים."
+      "translocatedDescription": "VoxBar לא יכול לעדכן את עצמו בזמן שהוא פועל מתיקיית ההורדות. העבירו אותו לתיקיית Applications (גרירה ב-Finder), פתחו אותו משם ובדקו שוב עדכונים.",
+      "manualOnlyPlatform": "קבלו עדכונים מ-GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} הורד. ההתקנה סוגרת את האפליקציה; הגרסה החדשה תיפתח בפעם הבאה שתפתחו את VoxBar.",
+      "restartLaterWindows": "התקנה וסגירה"
     }
   },
   "common": {
@@ -1002,7 +1021,19 @@
   "overlay": {
     "transcribing": "מתמלל...",
     "processing": "מעבד...",
-    "removedWord": "נמחק: {{text}}"
+    "removedWord": "נמחק: {{text}}",
+    "notice": {
+      "transcriptionFailed": "התמלול נכשל. ההקלטה נשמרה, נסה שוב מההיסטוריה.",
+      "generic": "משהו נכשל. הפרטים ביומן.",
+      "deleteLastWordNoSession": "מקש מחיקת מילה עובד בזמן הקלטה פעילה. התחילו הקלטה קודם.",
+      "deleteLastWordNoBuffer": "אין עדיין מה למחוק, אין טקסט חי בהקלטה.",
+      "undoNoSession": "מקש ביטול עובד בזמן הקלטה פעילה. התחילו הקלטה קודם.",
+      "undoNoBuffer": "אין עדיין מה לנקות, אין טקסט חי בהקלטה.",
+      "bindingBusy": "מקש הקלטה אחר כבר מקליט.",
+      "waylandTauriHotkeys": "ייתכן שקיצורי המקלדת הגלובליים לא יעבדו באפליקציות Wayland מקוריות עם מימוש המקלדת הזה. החליפו את מימוש המקלדת ל-VoxBar Keys והוסיפו את המשתמש שלכם לקבוצת input; עיינו במדריך ל-Ubuntu.",
+      "gnomeOverlayFallback": "ב-GNOME Wayland שכבת-העל מופיעה כחלון רגיל שעלול לגנוב את המיקוד ולשבור הדבקה. ההמלצה כאן היא שכבת-על: ללא."
+    },
+    "commandBadge": "מצב פקודות"
   },
   "whatsNew": {
     "title": "חדש ב-VoxBar v{{version}}"
@@ -1026,7 +1057,8 @@
       "timeout": "עיבוד משלים דולג: למודל המקומי לקח יותר מדי זמן. נעשה שימוש בתמליל המקורי.",
       "lengthGuard": "עיבוד משלים דולג: הפלט של המודל המקומי לא עבר את בדיקת האורך. נעשה שימוש בתמליל המקורי.",
       "tooLong": "עיבוד משלים דולג: התמליל הזה ארוך מדי למודל המקומי. נעשה שימוש בתמליל המקורי."
-    }
+    },
+    "settingNotSaved": "לא ניתן לשמור את ההגדרה הזו: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar לא יכול להתקין עדכונים ממיקום זה",

@@ -20,6 +20,7 @@
     "output": "Uitvoer",
     "advanced": "Geavanceerd",
     "postProcessing": "Naverwerking",
+    "enableInAdvancedHint": "Inschakelen bij Geavanceerd",
     "history": "Geschiedenis",
     "debug": "Probleemoplossing",
     "about": "Over VoxBar"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Model selecteren mislukt",
-      "downloadFailed": "Downloaden van {{model}} mislukt: {{error}}"
+      "downloadFailed": "Downloaden van {{model}} mislukt: {{error}}",
+      "extractFailed": "Uitpakken van {{model}} mislukt: {{error}}"
     },
     "permissions": {
       "title": "Machtigingen vereist",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "Geen modellen beschikbaar",
     "verifying": "Verifiëren van {{modelName}}...",
     "verifyingGeneric": "Verifiëren...",
+    "verifyingGenericShort": "Verifiëren",
     "extracting": "Uitpakken van {{modelName}}...",
     "extractingMultiple": "Uitpakken van {{count}} modellen...",
     "extractingGeneric": "Uitpakken...",
+    "extractingGenericShort": "Uitpakken",
     "downloading": "Downloaden {{percentage}}%",
     "downloadingMultiple": "Downloaden van {{count}} modellen...",
     "modelReady": "Model gereed",
@@ -161,6 +165,9 @@
     "loadingGeneric": "Laden...",
     "modelError": "Modelfout",
     "modelUnloaded": "Model ontladen",
+    "checkStatusFailed": "Modelstatus kon niet worden gecontroleerd",
+    "loadFailed": "Model kon niet worden geladen",
+    "switchFailed": "Model kon niet worden gewisseld",
     "noModelDownloadRequired": "Geen model - Download vereist",
     "deleteModel": "{{modelName}} verwijderen",
     "downloadSpeed": "{{speed}} MB/s",
@@ -204,11 +211,11 @@
           },
           "delete_last_word": {
             "name": "Laatste woord verwijderen",
-            "description": "Verwijdert het woord voor de cursor in de actieve app (Optie+Backspace op macOS, Ctrl+Backspace elders). Wijs een toets toe om in te schakelen."
+            "description": "Verwijdert het laatste woord uit de live tekst van de dicteersessie zolang een opname actief is; anders gebeurt er niets. Wijs een toets toe om hem in te schakelen."
           },
           "undo": {
             "name": "Ongedaan maken",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Tijdens een lopende dictatie: wist hem en begint opnieuw. Anders gebeurt er niets."
           },
           "transcribe_commands": {
             "name": "Commandomodus",
@@ -247,11 +254,11 @@
         "title": "Sneltoetsen voor bewerken",
         "deleteLastWord": {
           "title": "Actie: laatste woord verwijderen",
-          "description": "Schakelt de toewijsbare sneltoets in die het woord voor de cursor verwijdert. De sneltoets blijft inactief tot je bovenaan een toets toewijst."
+          "description": "Schakelt de toewijsbare toets in die het laatste woord uit de live tekst van de dicteersessie verwijdert zolang een opname actief is."
         },
         "undo": {
           "title": "Actie: ongedaan maken",
-          "description": "Schakelt de toewijsbare sneltoets in die Ongedaan maken activeert in de actieve app. De sneltoets blijft inactief tot je bovenaan een toets toewijst."
+          "description": "Schakelt de toewijsbare toets in die de live tekst van de dicteersessie wist en opnieuw begint zolang een opname actief is."
         }
       },
       "commandMode": {
@@ -381,6 +388,10 @@
           "unsupportedArchUnknown": "Dit bestand kon niet worden gelezen als een GGUF model en is daarom niet toegevoegd.",
           "generic": "Er ging iets mis."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Dit model is de lokale nabewerkingsengine. Het verbetert transcripties na de dicteersessie, maar kan geen audio transcriberen.",
+        "generic": "Kon niet naar dit model wisselen: {{error}}"
       }
     },
     "sound": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "Model en geheugen",
         "transcription": "Transcriptie",
-        "experimental": "Experimenteel"
+        "experimental": "Experimenteel",
+        "postProcessing": "Naverwerking"
       },
       "experimentalToggle": {
         "label": "Experimentele functies",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "Zoek of selecteer een model",
           "placeholderNoOptions": "Typ een modelnaam",
           "refreshModels": "Modellen verversen"
+        },
+        "timeout": {
+          "title": "Time-out van verzoek",
+          "description": "Hoe lang een cloudverzoek voor nabewerking mag draaien voordat het opgeeft en de ruwe transcriptie wordt gebruikt. Geldt wanneer een endpoint niet meer reageert."
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "Later",
       "installedDescription": "VoxBar {{version}} is geïnstalleerd en wordt actief bij de volgende herstart van VoxBar.",
       "failedDescription": "De update kon niet worden gedownload. Controleer je verbinding en probeer het opnieuw, of download hem via GitHub Releases.",
-      "translocatedDescription": "VoxBar kan zichzelf niet bijwerken zolang het vanuit de map Downloads draait. Verplaats het naar de map Programma's (slepen in de Finder), open het vanaf daar en controleer opnieuw op updates."
+      "translocatedDescription": "VoxBar kan zichzelf niet bijwerken zolang het vanuit de map Downloads draait. Verplaats het naar de map Programma's (slepen in de Finder), open het vanaf daar en controleer opnieuw op updates.",
+      "manualOnlyPlatform": "Haal updates via GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} is gedownload. De installatie sluit de app; de nieuwe versie start de volgende keer dat je VoxBar opent.",
+      "restartLaterWindows": "Installeren en sluiten"
     }
   },
   "whatsNew": {
@@ -1005,7 +1024,19 @@
   "overlay": {
     "transcribing": "Transcriberen...",
     "processing": "Verwerken...",
-    "removedWord": "Verwijderd: {{text}}"
+    "removedWord": "Verwijderd: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Transcriptie mislukt. De opname is bewaard, probeer het opnieuw via de geschiedenis.",
+      "generic": "Er ging iets mis. Details staan in het logboek.",
+      "deleteLastWordNoSession": "De woord-wissen-toets werkt tijdens een actieve dicteersessie. Start eerst een opname.",
+      "deleteLastWordNoBuffer": "Nog niets te wissen, de dicteersessie heeft nog geen live tekst.",
+      "undoNoSession": "De ongedaan-toets werkt tijdens een actieve dicteersessie. Start eerst een opname.",
+      "undoNoBuffer": "Nog niets om leeg te maken, de dicteersessie heeft nog geen live tekst.",
+      "bindingBusy": "Een andere dicteertoets neemt al op.",
+      "waylandTauriHotkeys": "Globale sneltoetsen werken mogelijk niet in native Wayland-apps met deze toetsenbordimplementatie. Schakel de toetsenbordimplementatie om naar VoxBar Keys en voeg je gebruiker toe aan de groep input; zie de Ubuntu-gids.",
+      "gnomeOverlayFallback": "Op GNOME Wayland verschijnt de overlay als een gewoon venster dat focus kan stelen en plakken kan breken. Hier wordt Overlay: Geen aangeraden."
+    },
+    "commandBadge": "Opdrachtmodus"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blokkeert mogelijk 1 sneltoets",
@@ -1026,7 +1057,8 @@
       "timeout": "Naverwerking overgeslagen: het lokale model duurde te lang. De originele transcriptie is gebruikt.",
       "lengthGuard": "Naverwerking overgeslagen: de uitvoer van het lokale model slaagde niet voor de lengtecontrole. De originele transcriptie is gebruikt.",
       "tooLong": "Naverwerking overgeslagen: deze transcriptie is te lang voor het lokale model. De originele transcriptie is gebruikt."
-    }
+    },
+    "settingNotSaved": "Deze instelling kon niet worden opgeslagen: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar kan vanaf deze locatie geen updates installeren",

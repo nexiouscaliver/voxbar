@@ -864,8 +864,10 @@ pub fn run(cli_args: CliArgs) {
             commands::audio::set_selected_channel,
             commands::transcription::set_model_unload_timeout,
             commands::transcription::set_model_unload_timeout_custom_seconds,
+            commands::transcription::set_post_process_timeout,
             commands::transcription::get_model_load_status,
             commands::transcription::unload_model_manually,
+            commands::updater::log_update_decision,
             commands::history::get_history_entries,
             commands::history::toggle_history_entry_saved,
             commands::history::get_audio_file_path,
@@ -879,6 +881,7 @@ pub fn run(cli_args: CliArgs) {
             managers::history::HistoryUpdatePayload,
             managers::transcription::StreamTextEvent,
             managers::transcription::StreamPhaseEvent,
+            managers::transcription::OverlayNoticeEvent,
             local_llm::manager::PostProcessSkipEvent,
         ]);
 
@@ -904,8 +907,14 @@ pub fn run(cli_args: CliArgs) {
         .plugin(
             LogBuilder::new()
                 .level(log::LevelFilter::Trace) // Set to most verbose level globally
-                .max_file_size(500_000)
-                .rotation_strategy(RotationStrategy::KeepOne)
+                // 2 MB x 3 files: the 500 KB keep-one rotation plus the
+                // engine DEBUG flood left roughly two hours of history, far
+                // too little to diagnose an overnight issue. Four-ish times
+                // the bytes across three files keeps days of app-level
+                // lines (the engine targets below are demoted in the file
+                // target, so the growth is slow app logs, not engine spam).
+                .max_file_size(2_000_000)
+                .rotation_strategy(RotationStrategy::KeepSome(3))
                 .clear_targets()
                 .targets([
                     // Console output respects RUST_LOG environment variable. In
@@ -934,7 +943,26 @@ pub fn run(cli_args: CliArgs) {
                     })
                     .filter(|metadata| {
                         let file_level = FILE_LOG_LEVEL.load(Ordering::Relaxed);
-                        metadata.level() <= level_filter_from_u8(file_level)
+                        if metadata.level() > level_filter_from_u8(file_level) {
+                            return false;
+                        }
+                        // The usage survey found ~46% of the file log was
+                        // engine-library DEBUG spam (transcribe_cpp, the
+                        // forwarded worker lines, symphonia, enigo). Demote
+                        // those targets to Info in the FILE target only:
+                        // the console keeps full verbosity, and app targets
+                        // stay at Debug so first-party behavior remains
+                        // diagnosable from voxbar.log.
+                        const NOISY_DEBUG_TARGETS: [&str; 4] =
+                            ["transcribe_cpp", "transcribe_worker", "symphonia", "enigo"];
+                        if metadata.level() > log::LevelFilter::Info
+                            && NOISY_DEBUG_TARGETS
+                                .iter()
+                                .any(|prefix| metadata.target().starts_with(prefix))
+                        {
+                            return false;
+                        }
+                        true
                     }),
                     // Stream logs to the webview (via the `log://log` event) so the
                     // debug panel's live log viewer can show them in real time. Only
@@ -1002,6 +1030,17 @@ pub fn run(cli_args: CliArgs) {
         ))
         .manage(cli_args.clone())
         .setup(move |app| {
+            // One-line boot banner: the survey found no way to tell from
+            // voxbar.log when the app restarted (or which version a session
+            // belonged to). This is the first line of every session.
+            log::info!(
+                "VoxBar {} starting (platform {} {}, debug {})",
+                app.package_info().version,
+                std::env::consts::OS,
+                std::env::consts::ARCH,
+                cfg!(debug_assertions),
+            );
+
             // In-app updater (desktop only, docs-verbatim registration). The
             // update endpoint and signing pubkey live in tauri.conf.json's
             // plugins.updater block; checks are driven by the frontend and

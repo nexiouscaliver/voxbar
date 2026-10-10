@@ -8,6 +8,7 @@ import {
   Dropdown,
   SettingContainer,
   SettingsGroup,
+  Slider,
   Textarea,
 } from "@/components/ui";
 import { Button } from "../../ui/Button";
@@ -22,6 +23,32 @@ import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePos
 import { LocalLlmModelRow } from "./LocalLlmModelRow";
 import { ShortcutInput } from "../ShortcutInput";
 import { useSettings } from "../../../hooks/useSettings";
+
+/// The request timeout row for cloud post-process calls: bounds how long a
+/// wedged endpoint (one that accepts the connection but never answers) can
+/// hold the pipeline before the dictation finishes with the raw transcript.
+/// Only meaningful for API providers, so it renders beside their config.
+const PostProcessTimeoutRow: React.FC = () => {
+  const { t } = useTranslation();
+  const { settings, updateSetting, resetSetting, isUpdating } = useSettings();
+
+  return (
+    <Slider
+      value={settings?.post_process_timeout_secs ?? 60}
+      onChange={(value) => updateSetting("post_process_timeout_secs", value)}
+      onReset={() => resetSetting("post_process_timeout_secs")}
+      isResetting={isUpdating("post_process_timeout_secs")}
+      min={5}
+      max={600}
+      step={5}
+      label={t("settings.postProcessing.api.timeout.title")}
+      description={t("settings.postProcessing.api.timeout.description")}
+      descriptionMode="tooltip"
+      grouped={true}
+      formatValue={(v) => `${v}s`}
+    />
+  );
+};
 
 const PostProcessingSettingsApiComponent: React.FC = () => {
   const { t } = useTranslation();
@@ -144,6 +171,10 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
             </ResetButton>
           </div>
         </SettingContainer>
+      )}
+
+      {!state.isAppleProvider && !state.isLocalProvider && (
+        <PostProcessTimeoutRow />
       )}
     </>
   );
@@ -296,7 +327,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
         {!isCreating && hasPrompts && selectedPrompt && (
           <div className="space-y-3">
             <div className="space-y-2 flex flex-col">
-              <label className="text-sm font-semibold">
+              <label className="text-sm font-medium">
                 {t("settings.postProcessing.prompts.promptLabel")}
               </label>
               <Input
@@ -311,7 +342,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             </div>
 
             <div className="space-y-2 flex flex-col">
-              <label className="text-sm font-semibold">
+              <label className="text-sm font-medium">
                 {t("settings.postProcessing.prompts.promptInstructions")}
               </label>
               <Textarea
@@ -321,7 +352,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
                   "settings.postProcessing.prompts.promptInstructionsPlaceholder",
                 )}
               />
-              <p className="text-xs text-mid-gray/70">
+              <p className="text-xs text-secondary/70">
                 <Trans
                   i18nKey="settings.postProcessing.prompts.promptTip"
                   components={{ code: <code /> }}
@@ -352,7 +383,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
 
         {!isCreating && !selectedPrompt && (
           <div className="p-3 bg-mid-gray/5 rounded-md border border-mid-gray/20">
-            <p className="text-sm text-mid-gray">
+            <p className="text-sm text-secondary">
               {hasPrompts
                 ? t("settings.postProcessing.prompts.selectToEdit")
                 : t("settings.postProcessing.prompts.createFirst")}
@@ -363,7 +394,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
         {isCreating && (
           <div className="space-y-3">
             <div className="space-y-2 block flex flex-col">
-              <label className="text-sm font-semibold text-text">
+              <label className="text-sm font-medium text-text">
                 {t("settings.postProcessing.prompts.promptLabel")}
               </label>
               <Input
@@ -378,7 +409,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             </div>
 
             <div className="space-y-2 flex flex-col">
-              <label className="text-sm font-semibold">
+              <label className="text-sm font-medium">
                 {t("settings.postProcessing.prompts.promptInstructions")}
               </label>
               <Textarea
@@ -388,7 +419,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
                   "settings.postProcessing.prompts.promptInstructionsPlaceholder",
                 )}
               />
-              <p className="text-xs text-mid-gray/70">
+              <p className="text-xs text-secondary/70">
                 <Trans
                   i18nKey="settings.postProcessing.prompts.promptTip"
                   components={{ code: <code /> }}

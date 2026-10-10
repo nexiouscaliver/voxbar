@@ -20,6 +20,7 @@
     "output": "Çıktı",
     "advanced": "Gelişmiş",
     "postProcessing": "Son İşlem",
+    "enableInAdvancedHint": "Gelişmiş bölümünden etkinleştirin",
     "history": "Geçmiş",
     "debug": "Hata Ayıklama",
     "about": "Hakkında"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Model seçilemedi",
-      "downloadFailed": "{{model}} indirilemedi: {{error}}"
+      "downloadFailed": "{{model}} indirilemedi: {{error}}",
+      "extractFailed": "{{model}} çıkarılamadı: {{error}}"
     },
     "permissions": {
       "title": "İzinler Gerekli",
@@ -149,9 +151,11 @@
     "noModelsAvailable": "Kullanılabilir model yok",
     "verifying": "{{modelName}} doğrulanıyor...",
     "verifyingGeneric": "Doğrulanıyor...",
+    "verifyingGenericShort": "Doğrulanıyor",
     "extracting": "{{modelName}} çıkarılıyor...",
     "extractingMultiple": "{{count}} model çıkarılıyor...",
     "extractingGeneric": "Çıkarılıyor...",
+    "extractingGenericShort": "Çıkarılıyor",
     "downloading": "%{{percentage}} indiriliyor",
     "downloadingMultiple": "{{count}} model indiriliyor...",
     "modelReady": "Model Hazır",
@@ -159,6 +163,9 @@
     "loadingGeneric": "Yükleniyor...",
     "modelError": "Model Hatası",
     "modelUnloaded": "Model Boşaltıldı",
+    "checkStatusFailed": "Model durumu kontrol edilemedi",
+    "loadFailed": "Model yüklenemedi",
+    "switchFailed": "Model değiştirilemedi",
     "noModelDownloadRequired": "Model Yok - İndirme Gerekli",
     "deleteModel": "{{modelName}} Sil",
     "switching": "Değiştiriliyor...",
@@ -226,6 +233,10 @@
           "unsupportedArchUnknown": "Bu dosya bir GGUF modeli olarak okunamadığı için eklenmedi.",
           "generic": "Bir şeyler ters gitti."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Bu model yerel son işlem motorudur. Dikte sonrası transkriptleri cilalar, sesi transkribe edemez.",
+        "generic": "Bu modele geçilemedi: {{error}}"
       }
     },
     "general": {
@@ -252,11 +263,11 @@
           },
           "delete_last_word": {
             "name": "Son kelimeyi sil",
-            "description": "Odaklanmış uygulamada imleçten önceki kelimeyi siler (macOS'ta Option+Backspace, diğerlerinde Ctrl+Backspace). Etkinleştirmek için bir tuş atayın."
+            "description": "Kayıt oturumu etkinken canlı dikte metnindeki son sözcüğü siler; aksi halde hiçbir şey yapmaz. Etkinleştirmek için bir tuş atayın."
           },
           "undo": {
             "name": "Geri al",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Canlı bir dikte sırasında: onu temizler ve yeniden başlar. Aksi halde hiçbir şey yapmaz."
           },
           "transcribe_commands": {
             "name": "Komut modu",
@@ -295,11 +306,11 @@
         "title": "Düzenleme kısayolları",
         "deleteLastWord": {
           "title": "Eylem: son kelimeyi sil",
-          "description": "İmleçten önceki kelimeyi silen atanabilir kısayolu etkinleştirir. Kısayol, yukarıda bir tuş atanana kadar etkinsiz kalır."
+          "description": "Kayıt oturumu etkinken canlı dikte metnindeki son sözcüğü silebilen atanabilir tuşu etkinleştirir."
         },
         "undo": {
           "title": "Eylem: geri al",
-          "description": "Odaklanmış uygulamada Geri Al'ı tetikleyen atanabilir kısayolu etkinleştirir. Kısayol, yukarıda bir tuş atanana kadar etkinsiz kalır."
+          "description": "Kayıt oturumu etkinken canlı dikte metnini temizleyip yeniden başlatan atanabilir tuşu etkinleştirir."
         }
       },
       "commandMode": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "Model ve bellek",
         "transcription": "Transkripsiyon",
-        "experimental": "Deneysel"
+        "experimental": "Deneysel",
+        "postProcessing": "Son İşlem"
       },
       "experimentalToggle": {
         "label": "Deneysel Özellikler",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "Model ara veya seç",
           "placeholderNoOptions": "Model adı yazın",
           "refreshModels": "Modelleri Yenile"
+        },
+        "timeout": {
+          "title": "İstek zaman aşımı",
+          "description": "Bir bulut son işleme isteğinin vazgeçip ham transkriptin kullanıldığı süreye kadar çalışabileceği süre. Bir endpoint yanıt vermeyi bıraktığında geçerlidir."
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "Daha sonra",
       "installedDescription": "VoxBar {{version}} kuruldu ve VoxBar'ın bir sonraki açılışında etkin olacak.",
       "failedDescription": "Güncelleme indirilemedi. Bağlantınızı kontrol edip tekrar deneyin ya da GitHub Releases'ten indirin.",
-      "translocatedDescription": "VoxBar, İndirilenler klasöründen çalışırken kendi kendini güncelleyemez. Onu Uygulamalar klasörüne taşıyın (Finder'da sürükleyin), oradan açın ve güncellemeleri tekrar kontrol edin."
+      "translocatedDescription": "VoxBar, İndirilenler klasöründen çalışırken kendi kendini güncelleyemez. Onu Uygulamalar klasörüne taşıyın (Finder'da sürükleyin), oradan açın ve güncellemeleri tekrar kontrol edin.",
+      "manualOnlyPlatform": "Güncellemeleri GitHub Releases'ten alın",
+      "restartDescriptionWindows": "VoxBar {{version}} indirildi. Yükleme uygulamayı kapatır; yeni sürüm, VoxBar'ı bir dahaki açışınızda başlar.",
+      "restartLaterWindows": "Yükle ve kapat"
     }
   },
   "common": {
@@ -1002,7 +1021,19 @@
   "overlay": {
     "transcribing": "Transkribe ediliyor...",
     "processing": "İşleniyor...",
-    "removedWord": "Kaldırıldı: {{text}}"
+    "removedWord": "Kaldırıldı: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Transkripsiyon başarısız oldu. Kayıt saklandı, geçmişten yeniden deneyin.",
+      "generic": "Bir sorun oluştu. Ayrıntılar günlükte.",
+      "deleteLastWordNoSession": "Kelime silme tuşu canlı dikte sırasında çalışır. Önce kaydı başlatın.",
+      "deleteLastWordNoBuffer": "Henüz silinecek bir şey yok, diktede canlı metin yok.",
+      "undoNoSession": "Geri al tuşu canlı dikte sırasında çalışır. Önce kaydı başlatın.",
+      "undoNoBuffer": "Henüz temizlenecek bir şey yok, diktede canlı metin yok.",
+      "bindingBusy": "Başka bir dikte tuşu zaten kaydediyor.",
+      "waylandTauriHotkeys": "Bu klavye uygulamasıyla yerel Wayland uygulamalarında genel kısayollar çalışmayabilir. Klavye uygulamasını VoxBar Keys olarak değiştirin ve kullanıcıınızı input grubuna ekleyin; Ubuntu kılavuzuna bakın.",
+      "gnomeOverlayFallback": "GNOME Wayland'de ekran katmanı, odağı çalan ve yapıştırmayı bozan sıradan bir pencere olarak görünür. Burada Ekran Katmanı: Yok önerilir."
+    },
+    "commandBadge": "Komut modu"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} yenilikleri"
@@ -1026,7 +1057,8 @@
       "timeout": "Son işlem atlandı: yerel model çok uzun sürdü. Orijinal transkripsiyon kullanıldı.",
       "lengthGuard": "Son işlem atlandı: yerel modelin çıktısı uzunluk denetiminden geçemedi. Orijinal transkripsiyon kullanıldı.",
       "tooLong": "Son işlem atlandı: bu transkripsiyon yerel model için çok uzun. Orijinal transkripsiyon kullanıldı."
-    }
+    },
+    "settingNotSaved": "Bu ayar kaydedilemedi: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar bu konumdan güncellemeleri yükleyemez",

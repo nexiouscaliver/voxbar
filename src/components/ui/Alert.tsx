@@ -15,15 +15,17 @@ const variantStyles: Record<
   AlertVariant,
   { container: string; icon: string; text: string }
 > = {
+  // error/warning read the semantic tokens (theme.css) so the whole app
+  // carries one red and one yellow; text colors pass 4.5:1 on both themes.
   error: {
-    container: "bg-red-500/10",
-    icon: "text-red-500",
-    text: "text-red-400",
+    container: "bg-error/10",
+    icon: "text-error",
+    text: "text-error",
   },
   warning: {
-    container: "bg-yellow-500/10",
-    icon: "text-yellow-500",
-    text: "text-yellow-400",
+    container: "bg-warning/10",
+    icon: "text-warning",
+    text: "text-warning",
   },
   info: {
     container: "bg-blue-500/10",

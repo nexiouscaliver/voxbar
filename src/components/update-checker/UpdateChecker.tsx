@@ -1,7 +1,10 @@
 import React, { useEffect, useRef } from "react";
+import { platform } from "@tauri-apps/plugin-os";
+import { openUrl } from "@tauri-apps/plugin-opener";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
-import { runUpdateCheck } from "./updaterFlow";
+import { RELEASES_URL, runUpdateCheck } from "./updaterFlow";
+import { updaterAutoUpdateSupported } from "./updaterPlatform";
 
 interface UpdateCheckerProps {
   className?: string;
@@ -22,6 +25,10 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
   // disabled.
   const updateChecksEnabled =
     (settings?.update_checks_enabled ?? true) && updateChecksLocked === false;
+  // Platforms without shipped updater artifacts never get a check button or
+  // a startup auto-check; they get a one-line pointer to the releases page
+  // instead (a check there can only error or find nothing).
+  const autoUpdateSupported = updaterAutoUpdateSupported(platform());
 
   // One check on startup once settings and the lock state are known; a toast
   // appears only when an update actually exists. No polling loop. The
@@ -29,15 +36,31 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
   // policy) from manual checks (which always ask).
   const hasAutoChecked = useRef(false);
   useEffect(() => {
-    if (!settingsLoaded || !updateChecksEnabled || hasAutoChecked.current) {
+    if (
+      !settingsLoaded ||
+      !updateChecksEnabled ||
+      !autoUpdateSupported ||
+      hasAutoChecked.current
+    ) {
       return;
     }
     hasAutoChecked.current = true;
     void runUpdateCheck({ silent: true, trigger: "auto" });
-  }, [settingsLoaded, updateChecksEnabled]);
+  }, [settingsLoaded, updateChecksEnabled, autoUpdateSupported]);
 
   if (!settingsLoaded) {
     return null;
+  }
+
+  if (!autoUpdateSupported) {
+    return (
+      <button
+        onClick={() => void openUrl(RELEASES_URL)}
+        className={`text-text/60 hover:text-text/80 transition-colors tabular-nums ${className}`}
+      >
+        {t("footer.updater.manualOnlyPlatform")}
+      </button>
+    );
   }
 
   if (!updateChecksEnabled) {

@@ -21,12 +21,15 @@ import { ExperimentalToggle } from "../ExperimentalToggle";
 
 /**
  * Plumbing only: model residency and memory, the transcription passes that
- * rewrite text, and the single gated Experimental group. The model/memory
- * group stays always visible, and with it the ExperimentalToggle, because
- * experimental_enabled defaults to false: a master toggle hidden behind its
- * own flag would be unreachable for every default-config user. The unload
- * timeout also stays under this section id: the tray's "Unload After" ->
- * "Custom..." flow opens the advanced section and focuses its field.
+ * rewrite text, post processing, and the single gated Experimental group.
+ * The model/memory group stays always visible, and with it the
+ * ExperimentalToggle, because experimental_enabled defaults to false: a
+ * master toggle hidden behind its own flag would be unreachable for every
+ * default-config user. Post processing got the same promotion: its toggle
+ * is the on-ramp to the Post Process section, so it renders always rather
+ * than behind the experimental flag. The unload timeout also stays under
+ * this section id: the tray's "Unload After" -> "Custom..." flow opens the
+ * advanced section and focuses its field.
  */
 export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
@@ -35,6 +38,10 @@ export const AdvancedSettings: React.FC = () => {
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
+      <SettingsGroup title={t("settings.advanced.groups.postProcessing")}>
+        <PostProcessingToggle descriptionMode="tooltip" grouped={true} />
+      </SettingsGroup>
+
       <SettingsGroup title={t("settings.advanced.groups.model")}>
         <ModelUnloadTimeoutSetting descriptionMode="tooltip" grouped={true} />
         <MemoryPressureGuard descriptionMode="tooltip" grouped={true} />
@@ -54,7 +61,6 @@ export const AdvancedSettings: React.FC = () => {
 
       {experimentalEnabled && (
         <SettingsGroup title={t("settings.advanced.groups.experimental")}>
-          <PostProcessingToggle descriptionMode="tooltip" grouped={true} />
           <KeyboardImplementationSelector
             descriptionMode="tooltip"
             grouped={true}

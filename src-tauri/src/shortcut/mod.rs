@@ -106,6 +106,26 @@ pub fn init_shortcuts(app: &AppHandle) {
     match user_settings.keyboard_implementation {
         KeyboardImplementation::Tauri => {
             tauri_impl::init_shortcuts(app);
+            // The Tauri backend goes through global-hotkey, which on Linux is
+            // X11-only: on a Wayland session hotkeys work solely through
+            // XWayland and are dead in native Wayland apps. Say so once per
+            // run instead of leaving a hotkey-dead app whose only trace is a
+            // log line (the setup instructions for handy_keys live in the
+            // Ubuntu troubleshooting guide).
+            #[cfg(target_os = "linux")]
+            if crate::utils::is_wayland() {
+                log::warn!(
+                    "Wayland session with the Tauri keyboard backend: global-hotkey is \
+                     X11-only, so hotkeys may not reach native Wayland apps. Consider \
+                     VoxBar Keys (handy_keys) with /dev/uinput access; see \
+                     docs/troubleshooting/ubuntu-26-04-gnome-wayland/README.md"
+                );
+                crate::managers::transcription::emit_overlay_notice(
+                    app,
+                    crate::managers::transcription::NoticeCode::WaylandTauriHotkeys,
+                    None,
+                );
+            }
         }
         KeyboardImplementation::HandyKeys => {
             if let Err(e) = handy_keys::init_shortcuts(app) {
@@ -129,8 +149,9 @@ pub fn init_shortcuts(app: &AppHandle) {
 static CANCEL_REQUESTED: AtomicBool = AtomicBool::new(false);
 
 /// Whether the cancel shortcut is actually registered with the backend.
-/// The lock also serializes reconciliation passes.
-#[cfg(not(target_os = "linux"))]
+/// The lock also serializes reconciliation passes. Tracked on every platform
+/// now: on Linux the guard is the backend choice (see
+/// [`handy_keys::cancel_reconcile_enabled`]), not the platform itself.
 static CANCEL_REGISTERED: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
 
 /// Register the cancel shortcut (called when recording starts)
@@ -164,14 +185,25 @@ fn schedule_cancel_reconcile(app: &AppHandle) {
 }
 
 fn reconcile_cancel_shortcut(app: &AppHandle) {
-    // Cancel shortcut is disabled on Linux due to instability with dynamic shortcut registration
+    // On Linux the guard is the backend: the Tauri global-shortcut plugin's
+    // dynamic registration is the documented instability, so with Tauri
+    // active the cancel shortcut stays off (the tray menu remains the abort
+    // there). With handy_keys active, registration travels the vendored
+    // manager's channel - the same machinery binding changes already use at
+    // runtime - so the cancel key arms only while a session is live.
     #[cfg(target_os = "linux")]
     {
-        let _ = app;
-        return;
+        let backend = get_settings(app).keyboard_implementation;
+        if !handy_keys::cancel_reconcile_enabled("cancel", true, backend) {
+            let mut registered = CANCEL_REGISTERED.lock().unwrap_or_else(|e| e.into_inner());
+            // A backend switch away from handy_keys can leave a stale
+            // registration flag; the actual shortcut is unregistered by the
+            // implementation switch itself.
+            *registered = false;
+            return;
+        }
     }
 
-    #[cfg(not(target_os = "linux"))]
     {
         let mut registered = CANCEL_REGISTERED.lock().unwrap_or_else(|e| e.into_inner());
         let requested = CANCEL_REQUESTED.load(Ordering::SeqCst);
@@ -553,7 +585,7 @@ fn parse_keyboard_implementation(s: &str) -> KeyboardImplementation {
 fn unregister_all_shortcuts(app: &AppHandle, implementation: KeyboardImplementation) {
     let bindings = settings::get_bindings(app);
 
-    for (id, binding) in bindings {
+    for (id, binding) in &bindings {
         // Skip cancel shortcut as it's dynamically registered
         if id == "cancel" {
             continue;
@@ -564,8 +596,10 @@ fn unregister_all_shortcuts(app: &AppHandle, implementation: KeyboardImplementat
         }
 
         let result = match implementation {
-            KeyboardImplementation::Tauri => tauri_impl::unregister_shortcut(app, binding),
-            KeyboardImplementation::HandyKeys => handy_keys::unregister_shortcut(app, binding),
+            KeyboardImplementation::Tauri => tauri_impl::unregister_shortcut(app, binding.clone()),
+            KeyboardImplementation::HandyKeys => {
+                handy_keys::unregister_shortcut(app, binding.clone())
+            }
         };
 
         if let Err(e) = result {
@@ -573,6 +607,31 @@ fn unregister_all_shortcuts(app: &AppHandle, implementation: KeyboardImplementat
                 "Failed to unregister shortcut '{}' during switch: {}",
                 id, e
             );
+        }
+    }
+
+    // The cancel shortcut is dynamically armed, so an implementation switch
+    // mid-session would otherwise leave its registration behind in the
+    // backend being torn down (unblockable by the new backend, e.g. a
+    // handy_keys cancel registration after a rollback to Tauri on Linux).
+    // Tear it down through the OLD implementation; the next reconcile pass
+    // re-arms it under the new one wherever that is allowed.
+    if CANCEL_REQUESTED.load(Ordering::SeqCst) {
+        if let Some(cancel_binding) = bindings.get("cancel").cloned() {
+            let result = match implementation {
+                KeyboardImplementation::Tauri => {
+                    tauri_impl::unregister_shortcut(app, cancel_binding)
+                }
+                KeyboardImplementation::HandyKeys => {
+                    handy_keys::unregister_shortcut(app, cancel_binding)
+                }
+            };
+            if let Err(e) = result {
+                warn!("Failed to unregister cancel shortcut during switch: {}", e);
+            }
+        }
+        if let Ok(mut registered) = CANCEL_REGISTERED.lock() {
+            *registered = false;
         }
     }
 }
@@ -878,6 +937,8 @@ pub fn change_overlay_position_setting(app: AppHandle, position: String) -> Resu
 #[specta::specta]
 pub fn change_overlay_style_setting(app: AppHandle, style: String) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
+    #[cfg_attr(not(target_os = "linux"), allow(unused_variables))]
+    let previous_style = settings.overlay_style;
     let parsed = match style.as_str() {
         "none" => OverlayStyle::None,
         "minimal" => OverlayStyle::Minimal,
@@ -889,6 +950,30 @@ pub fn change_overlay_style_setting(app: AppHandle, style: String) -> Result<(),
     };
     settings.overlay_style = parsed;
     settings::write_settings(&app, settings);
+
+    // Turning the overlay on, on GNOME Wayland without layer-shell support,
+    // silently downgrades to a regular window that steals focus and breaks
+    // pastes into other apps (the project's own Ubuntu guide recommends
+    // Overlay: None there). Warn once per change through the notice channel;
+    // KDE/wlroots compositors have the layer-shell path and stay quiet.
+    #[cfg(target_os = "linux")]
+    if previous_style == OverlayStyle::None
+        && parsed != OverlayStyle::None
+        && crate::utils::is_gnome_wayland()
+        && !crate::overlay::layer_shell_active()
+    {
+        log::warn!(
+            "Overlay enabled on GNOME Wayland without layer-shell support: the overlay \
+             falls back to a regular window that steals focus and breaks pastes. \
+             Recommend Overlay: None here (see \
+             docs/troubleshooting/ubuntu-26-04-gnome-wayland/README.md)"
+        );
+        crate::managers::transcription::emit_overlay_notice(
+            &app,
+            crate::managers::transcription::NoticeCode::GnomeOverlayFallback,
+            None,
+        );
+    }
 
     // Keep the cached overlay-enabled flag in sync so emit_levels stops (or
     // resumes) emitting on the next audio callback.
@@ -1444,7 +1529,7 @@ pub async fn fetch_post_process_models(
         ));
     }
 
-    crate::llm_client::fetch_models(provider, api_key).await
+    crate::llm_client::fetch_models(provider, api_key, settings.post_process_timeout_secs).await
 }
 
 #[tauri::command]

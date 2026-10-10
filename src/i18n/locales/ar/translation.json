@@ -18,6 +18,7 @@
     "commands": "الأوامر",
     "advanced": "متقدم",
     "postProcessing": "معالجة لاحقة",
+    "enableInAdvancedHint": "فعّلها من الإعدادات المتقدمة",
     "history": "السجل",
     "debug": "تصحيح الأخطاء",
     "about": "حول",
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "فشل تحديد النموذج",
-      "downloadFailed": "فشل تنزيل {{model}}: {{error}}"
+      "downloadFailed": "فشل تنزيل {{model}}: {{error}}",
+      "extractFailed": "فشل استخراج {{model}}: {{error}}"
     },
     "permissions": {
       "title": "الأذونات المطلوبة",
@@ -149,9 +151,11 @@
     "noModelsAvailable": "لا توجد نماذج متاحة",
     "verifying": "جارٍ التحقق من {{modelName}}...",
     "verifyingGeneric": "جارٍ التحقق...",
+    "verifyingGenericShort": "جارٍ التحقق",
     "extracting": "...جاري استخراج {{modelName}}",
     "extractingMultiple": "...جاري استخراج {{count}} من النماذج",
     "extractingGeneric": "...جاري الاستخراج",
+    "extractingGenericShort": "جاري الاستخراج",
     "downloading": "جاري التنزيل {{percentage}}%",
     "downloadingMultiple": "جاري تنزيل {{count}} من النماذج...",
     "modelReady": "النموذج جاهز",
@@ -159,6 +163,9 @@
     "loadingGeneric": "...جاري التحميل",
     "modelError": "خطأ في النموذج",
     "modelUnloaded": "تم إلغاء تحميل النموذج",
+    "checkStatusFailed": "فشل التحقق من حالة النموذج",
+    "loadFailed": "فشل تحميل النموذج",
+    "switchFailed": "فشل تبديل النموذج",
     "noModelDownloadRequired": "لا يوجد نموذج - التنزيل مطلوب",
     "deleteModel": "حذف {{modelName}}",
     "switching": "جارٍ التبديل...",
@@ -201,11 +208,11 @@
           },
           "delete_last_word": {
             "name": "حذف الكلمة الأخيرة",
-            "description": "يحذف الكلمة التي قبل المؤشر في التطبيق النشط (Option+Backspace على ماك أو إس، و Ctrl+Backspace في غيره). عيّن مفتاحا لتمكينه."
+            "description": "يزيل آخر كلمة من نص الإملاء المباشر أثناء جلسة تسجيل نشطة، ولا يفعل شيئا فيما عدا ذلك. أسند مفتاحا لتمكينه."
           },
           "undo": {
             "name": "تراجع",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "أثناء الإملاء النشط: يمسحه ويبدأ من جديد. لا يفعل شيئا فيما عدا ذلك."
           },
           "transcribe_commands": {
             "name": "وضع الأوامر",
@@ -244,11 +251,11 @@
         "title": "اختصارات التحرير",
         "deleteLastWord": {
           "title": "إجراء: حذف الكلمة الأخيرة",
-          "description": "يفعّل الاختصار القابل للتعيين الذي يحذف الكلمة التي قبل المؤشر. يبقى الاختصار معطلا حتى تعيّن مفتاحا أعلاه."
+          "description": "يفعّل الاختصار القابل للإسناد الذي يزيل آخر كلمة من نص الإملاء المباشر أثناء جلسة تسجيل نشطة."
         },
         "undo": {
           "title": "إجراء: تراجع",
-          "description": "يفعّل الاختصار القابل للتعيين الذي يشغّل التراجع في التطبيق النشط. يبقى الاختصار معطلا حتى تعيّن مفتاحا أعلاه."
+          "description": "يفعّل الاختصار القابل للإسناد الذي يمسح نص الإملاء المباشر ويبدأ من جديد أثناء جلسة تسجيل نشطة."
         }
       },
       "commandMode": {
@@ -371,7 +378,8 @@
       "groups": {
         "model": "النموذج والذاكرة",
         "transcription": "التفريغ الصوتي",
-        "experimental": "تجريبي"
+        "experimental": "تجريبي",
+        "postProcessing": "المعالجة اللاحقة"
       },
       "experimentalToggle": {
         "label": "الميزات التجريبية",
@@ -605,6 +613,10 @@
           "placeholderWithOptions": "ابحث عن نموذج أو اختره",
           "placeholderNoOptions": "اكتب اسم النموذج",
           "refreshModels": "تحديث النماذج"
+        },
+        "timeout": {
+          "title": "مهلة الطلب",
+          "description": "المدة التي قد يستغرقها طلب المعالجة اللاحقة السحابي قبل التخلي عنه واستخدام النص الأصلي. تنطبق عند توقف نقطة النهاية عن الاستجابة."
         }
       },
       "local": {
@@ -893,6 +905,10 @@
           "unsupportedArchUnknown": "تعذر قراءة هذا الملف كنموذج GGUF، لذلك لم تتم إضافته.",
           "generic": "حدث خطأ ما."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "هذا النموذج هو محرك المعالجة اللاحقة المحلي. يحسّن النصوص بعد الإملاء، ولا يستطيع تحويل الصوت إلى نص.",
+        "generic": "تعذر التبديل إلى هذا النموذج: {{error}}"
       }
     }
   },
@@ -927,7 +943,10 @@
       "restartLater": "لاحقًا",
       "installedDescription": "تم تثبيت VoxBar {{version}} وسيصبح نشطًا عند إعادة تشغيل VoxBar في المرة القادمة.",
       "failedDescription": "تعذّر تنزيل التحديث. تحقق من اتصالك وحاول مجددًا، أو نزّله من GitHub Releases.",
-      "translocatedDescription": "لا يستطيع VoxBar تحديث نفسه أثناء التشغيل من معاينة مجلد Downloads. انقله إلى مجلد Applications (اسحبه في Finder)، وافتحه من هناك، ثم تحقق من التحديثات مجددًا."
+      "translocatedDescription": "لا يستطيع VoxBar تحديث نفسه أثناء التشغيل من معاينة مجلد Downloads. انقله إلى مجلد Applications (اسحبه في Finder)، وافتحه من هناك، ثم تحقق من التحديثات مجددًا.",
+      "manualOnlyPlatform": "احصل على التحديثات من GitHub Releases",
+      "restartDescriptionWindows": "تم تنزيل VoxBar {{version}}. التثبيت يغلق التطبيق؛ ويبدأ الإصدار الجديد في المرة القادمة التي تفتح فيها VoxBar.",
+      "restartLaterWindows": "تثبيت وإغلاق"
     }
   },
   "common": {
@@ -1002,7 +1021,19 @@
   "overlay": {
     "transcribing": "...جاري التفريغ",
     "processing": "...جاري المعالجة",
-    "removedWord": "تمت إزالته: {{text}}"
+    "removedWord": "تمت إزالته: {{text}}",
+    "notice": {
+      "transcriptionFailed": "فشل التحويل. تم الاحتفاظ بالتسجيل، أعد المحاولة من السجل.",
+      "generic": "حدث خطأ. التفاصيل في السجل.",
+      "deleteLastWordNoSession": "مفتاح حذف الكلمة يعمل أثناء الإملاء النشط. ابدأ التسجيل أولا.",
+      "deleteLastWordNoBuffer": "لا يوجد ما يُحذف بعد، الإملاء لا يحتوي على نص مباشر.",
+      "undoNoSession": "مفتاح التراجع يعمل أثناء الإملاء النشط. ابدأ التسجيل أولا.",
+      "undoNoBuffer": "لا يوجد ما يُمسح بعد، الإملاء لا يحتوي على نص مباشر.",
+      "bindingBusy": "مفتاح إملاء آخر يسجل بالفعل.",
+      "waylandTauriHotkeys": "قد لا تعمل الاختصارات العامة في تطبيقات Wayland الأصلية مع هذا الوضع الخلفي للوحة المفاتيح. بدّل تنفيذ لوحة المفاتيح إلى VoxBar Keys وأضف مستخدمك إلى مجموعة input؛ راجع دليل استكشاف أخطاء Ubuntu.",
+      "gnomeOverlayFallback": "على GNOME Wayland يظهر التراكب كنافذة عادية قد تسرق التركيز وتعطّل اللصق. يُنصح هنا بضبط التراكب على بلا."
+    },
+    "commandBadge": "وضع الأوامر"
   },
   "whatsNew": {
     "title": "الجديد في VoxBar v{{version}}"
@@ -1026,7 +1057,8 @@
       "timeout": "تم تخطي المعالجة اللاحقة: استغرق النموذج المحلي وقتا طويلا جدا. تم استخدام النص الأصلي.",
       "lengthGuard": "تم تخطي المعالجة اللاحقة: لم يجتز ناتج النموذج المحلي فحص الطول. تم استخدام النص الأصلي.",
       "tooLong": "تم تخطي المعالجة اللاحقة: هذا النص طويل جدا على النموذج المحلي. تم استخدام النص الأصلي."
-    }
+    },
+    "settingNotSaved": "تعذر حفظ هذا الإعداد: {{error}}"
   },
   "app": {
     "translocatedTitle": "لا يستطيع VoxBar تثبيت التحديثات من هذا الموقع",

@@ -20,6 +20,7 @@
     "output": "出力",
     "advanced": "詳細設定",
     "postProcessing": "後処理",
+    "enableInAdvancedHint": "詳細設定で有効にできます",
     "history": "履歴",
     "debug": "デバッグ",
     "about": "概要"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "モデルの選択に失敗しました",
-      "downloadFailed": "{{model}} のダウンロードに失敗しました: {{error}}"
+      "downloadFailed": "{{model}} のダウンロードに失敗しました: {{error}}",
+      "extractFailed": "{{model}} の展開に失敗しました: {{error}}"
     },
     "permissions": {
       "title": "権限が必要です",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "利用可能なモデルがありません",
     "verifying": "{{modelName}}を検証中…",
     "verifyingGeneric": "検証中…",
+    "verifyingGenericShort": "検証中",
     "extracting": "{{modelName}}を展開中…",
     "extractingMultiple": "{{count}}個のモデルを展開中…",
     "extractingGeneric": "展開中…",
+    "extractingGenericShort": "展開中",
     "downloading": "ダウンロード中 {{percentage}}%",
     "downloadingMultiple": "{{count}}個のモデルをダウンロード中…",
     "modelReady": "モデル準備完了",
@@ -160,6 +164,9 @@
     "loadingGeneric": "読み込み中…",
     "modelError": "モデルエラー",
     "modelUnloaded": "モデルがアンロードされました",
+    "checkStatusFailed": "モデルの状態を確認できませんでした",
+    "loadFailed": "モデルを読み込めませんでした",
+    "switchFailed": "モデルを切り替えられませんでした",
     "noModelDownloadRequired": "モデルなし - ダウンロードが必要",
     "deleteModel": "{{modelName}}を削除",
     "downloadSpeed": "{{speed}} MB/s",
@@ -226,6 +233,10 @@
           "unsupportedArchUnknown": "このファイルは GGUF モデルとして読み取れなかったため、追加されませんでした。",
           "generic": "問題が発生しました。"
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "このモデルはローカルの後処理エンジンです。ディクテーション後に文字起こしを整えますが、音声を文字起こしすることはできません。",
+        "generic": "このモデルに切り替えできませんでした: {{error}}"
       }
     },
     "general": {
@@ -252,11 +263,11 @@
           },
           "delete_last_word": {
             "name": "最後の単語を削除",
-            "description": "フォーカスされたアプリでカーソルの前の単語を削除します (macOS では Option+Backspace、その他では Ctrl+Backspace)。有効にするにはキーを割り当ててください。"
+            "description": "録音セッション中はディクテーションのライブテキストの最後の単語を削除します。それ以外では何もしません。有効にするにはキーを割り当ててください。"
           },
           "undo": {
             "name": "元に戻す",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "ディクテーション中は、それを消去して最初からやり直します。それ以外では何もしません。"
           },
           "transcribe_commands": {
             "name": "コマンドモード",
@@ -295,11 +306,11 @@
         "title": "編集ショートカット",
         "deleteLastWord": {
           "title": "アクション: 最後の単語を削除",
-          "description": "カーソルの前の単語を削除する割り当て可能なホットキーを有効にします。上でキーを割り当てるまで無効のままです。"
+          "description": "録音セッション中にディクテーションのライブテキストの最後の単語を削除する、割り当て可能なキーを有効にします。"
         },
         "undo": {
           "title": "アクション: 元に戻す",
-          "description": "フォーカスされたアプリで元に戻すを実行する割り当て可能なホットキーを有効にします。上でキーを割り当てるまで無効のままです。"
+          "description": "録音セッション中にディクテーションのライブテキストを消去して最初からやり直す、割り当て可能なキーを有効にします。"
         }
       },
       "commandMode": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "モデルとメモリ",
         "transcription": "文字起こし",
-        "experimental": "実験的"
+        "experimental": "実験的",
+        "postProcessing": "後処理"
       },
       "experimentalToggle": {
         "label": "実験的な機能",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "モデルを検索または選択",
           "placeholderNoOptions": "モデル名を入力",
           "refreshModels": "モデルを更新"
+        },
+        "timeout": {
+          "title": "リクエストのタイムアウト",
+          "description": "クラウドの後処理リクエストが諦めて生の書き起こしを使うまでに実行できる時間。エンドポイントが応答しなくなったときに適用されます。"
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "後で",
       "installedDescription": "VoxBar {{version}} はインストール済みで、次回 VoxBar を起動したときに有効になります。",
       "failedDescription": "アップデートをダウンロードできませんでした。接続を確認して再試行するか、GitHub Releases からダウンロードしてください。",
-      "translocatedDescription": "Downloads フォルダから実行している間、VoxBar は自分自身を更新できません。Finder でアプリケーションフォルダへ移動し、そこから開いて、もう一度アップデートを確認してください。"
+      "translocatedDescription": "Downloads フォルダから実行している間、VoxBar は自分自身を更新できません。Finder でアプリケーションフォルダへ移動し、そこから開いて、もう一度アップデートを確認してください。",
+      "manualOnlyPlatform": "GitHub Releasesからアップデートを入手",
+      "restartDescriptionWindows": "VoxBar {{version}}をダウンロードしました。インストールするとアプリが終了し、新しいバージョンは次回VoxBarを開いたときに起動します。",
+      "restartLaterWindows": "インストールして閉じる"
     }
   },
   "common": {
@@ -1002,7 +1021,19 @@
   "overlay": {
     "transcribing": "文字起こし中…",
     "processing": "処理中…",
-    "removedWord": "削除: {{text}}"
+    "removedWord": "削除: {{text}}",
+    "notice": {
+      "transcriptionFailed": "文字起こしに失敗しました。録音は保存されているので、履歴から再試行してください。",
+      "generic": "問題が発生しました。詳細はログにあります。",
+      "deleteLastWordNoSession": "単語削除キーはディクテーション中のみ動作します。まず録音を開始してください。",
+      "deleteLastWordNoBuffer": "まだ削除できるものがありません。ディクテーションにライブテキストがありません。",
+      "undoNoSession": "元に戻すキーはディクテーション中のみ動作します。まず録音を開始してください。",
+      "undoNoBuffer": "まだクリアできるものがありません。ディクテーションにライブテキストがありません。",
+      "bindingBusy": "別のディクテーションキーがすでに録音中です。",
+      "waylandTauriHotkeys": "このキーボード実装では、ネイティブのWaylandアプリでグローバルショートカットが動作しない場合があります。キーボード実装をVoxBar Keysに切り替え、ユーザーをinputグループに追加してください。Ubuntuのガイドを参照してください。",
+      "gnomeOverlayFallback": "GNOME Waylandでは、オーバーレイが通常のウィンドウとして表示され、フォーカスを奪って貼り付けを壊すことがあります。ここではオーバーレイ: なしを推奨します。"
+    },
+    "commandBadge": "コマンドモード"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} の新機能"
@@ -1026,7 +1057,8 @@
       "timeout": "後処理をスキップしました: ローカルモデルの処理に時間がかかりすぎました。元の文字起こしを使用しました。",
       "lengthGuard": "後処理をスキップしました: ローカルモデルの出力が長さチェックを通過しませんでした。元の文字起こしを使用しました。",
       "tooLong": "後処理をスキップしました: この文字起こしはローカルモデルには長すぎます。元の文字起こしを使用しました。"
-    }
+    },
+    "settingNotSaved": "この設定を保存できませんでした: {{error}}"
   },
   "app": {
     "translocatedTitle": "この場所からはアップデートをインストールできません",

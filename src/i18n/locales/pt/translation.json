@@ -20,6 +20,7 @@
     "output": "Saída",
     "advanced": "Avançado",
     "postProcessing": "Pós-Processamento",
+    "enableInAdvancedHint": "Ative em Avançado",
     "history": "Histórico",
     "debug": "Depuração",
     "about": "Sobre"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Falha ao selecionar o modelo",
-      "downloadFailed": "Falha ao baixar {{model}}: {{error}}"
+      "downloadFailed": "Falha ao baixar {{model}}: {{error}}",
+      "extractFailed": "Falha ao extrair {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permissões Necessárias",
@@ -149,9 +151,11 @@
     "noModelsAvailable": "Nenhum modelo disponível",
     "verifying": "Verificando {{modelName}}...",
     "verifyingGeneric": "Verificando...",
+    "verifyingGenericShort": "Verificando",
     "extracting": "Extraindo {{modelName}}...",
     "extractingMultiple": "Extraindo {{count}} modelos...",
     "extractingGeneric": "Extraindo...",
+    "extractingGenericShort": "Extraindo",
     "downloading": "Baixando {{percentage}}%",
     "downloadingMultiple": "Baixando {{count}} modelos...",
     "modelReady": "Modelo Pronto",
@@ -159,6 +163,9 @@
     "loadingGeneric": "Carregando...",
     "modelError": "Erro no Modelo",
     "modelUnloaded": "Modelo Descarregado",
+    "checkStatusFailed": "Falha ao verificar o status do modelo",
+    "loadFailed": "Falha ao carregar o modelo",
+    "switchFailed": "Falha ao trocar o modelo",
     "noModelDownloadRequired": "Sem Modelo - Download Necessário",
     "deleteModel": "Excluir {{modelName}}",
     "switching": "Alternando...",
@@ -204,11 +211,11 @@
           },
           "delete_last_word": {
             "name": "Apagar última palavra",
-            "description": "Apaga a palavra antes do cursor na aplicação focada (Opção+Backspace no macOS, Ctrl+Backspace nos outros). Atribua uma tecla para ativar."
+            "description": "Remove a última palavra da transcrição ao vivo do ditado enquanto uma sessão de gravação está ativa; caso contrário, não faz nada. Atribua uma tecla para ativá-lo."
           },
           "undo": {
             "name": "Desfazer",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Durante um ditado em andamento: apaga-o e recomeça. Caso contrário, não faz nada."
           },
           "transcribe_commands": {
             "name": "Modo de comandos",
@@ -247,11 +254,11 @@
         "title": "Atalhos de edição",
         "deleteLastWord": {
           "title": "Ação: apagar última palavra",
-          "description": "Ativa o atalho atribuível que apaga a palavra antes do cursor. O atalho fica inativo até atribuir uma tecla acima."
+          "description": "Ativa a tecla atribuível que remove a última palavra da transcrição ao vivo do ditado enquanto uma sessão de gravação está ativa."
         },
         "undo": {
           "title": "Ação: desfazer",
-          "description": "Ativa o atalho atribuível que aciona Desfazer na aplicação focada. O atalho fica inativo até atribuir uma tecla acima."
+          "description": "Ativa a tecla atribuível que apaga a transcrição ao vivo do ditado e recomeça enquanto uma sessão de gravação está ativa."
         }
       },
       "commandMode": {
@@ -381,6 +388,10 @@
           "unsupportedArchUnknown": "Esse arquivo não pôde ser lido como um modelo GGUF, então não foi adicionado.",
           "generic": "Algo deu errado."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Este modelo é o motor local de pós-processamento. Ele aprimora transcrições depois do ditado, não pode transcrever áudio.",
+        "generic": "Não foi possível mudar para este modelo: {{error}}"
       }
     },
     "sound": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "Modelo e memória",
         "transcription": "Transcrição",
-        "experimental": "Experimental"
+        "experimental": "Experimental",
+        "postProcessing": "Pós-Processamento"
       },
       "experimentalToggle": {
         "label": "Recursos Experimentais",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "Buscar ou selecionar um modelo",
           "placeholderNoOptions": "Digite o nome de um modelo",
           "refreshModels": "Atualizar modelos"
+        },
+        "timeout": {
+          "title": "Tempo limite da solicitação",
+          "description": "Por quanto tempo uma solicitação de pós-processamento na nuvem pode rodar antes de desistir e usar a transcrição bruta. Aplica-se quando um endpoint para de responder."
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "Mais tarde",
       "installedDescription": "VoxBar {{version}} foi instalado e ficará ativo na próxima vez que o VoxBar reiniciar.",
       "failedDescription": "Não foi possível baixar a atualização. Verifique sua conexão e tente novamente, ou baixe-a do GitHub Releases.",
-      "translocatedDescription": "O VoxBar não pode se atualizar enquanto é executado da pasta Downloads. Mova-o para a pasta Aplicativos (arraste no Finder), abra-o de lá e verifique as atualizações novamente."
+      "translocatedDescription": "O VoxBar não pode se atualizar enquanto é executado da pasta Downloads. Mova-o para a pasta Aplicativos (arraste no Finder), abra-o de lá e verifique as atualizações novamente.",
+      "manualOnlyPlatform": "Obter atualizações do GitHub Releases",
+      "restartDescriptionWindows": "O VoxBar {{version}} foi baixado. A instalação fecha o aplicativo; a nova versão inicia na próxima vez que você abrir o VoxBar.",
+      "restartLaterWindows": "Instalar e fechar"
     }
   },
   "common": {
@@ -1002,7 +1021,19 @@
   "overlay": {
     "transcribing": "Transcrevendo...",
     "processing": "Processando...",
-    "removedWord": "Removido: {{text}}"
+    "removedWord": "Removido: {{text}}",
+    "notice": {
+      "transcriptionFailed": "A transcrição falhou. A gravação foi mantida, tente novamente a partir do histórico.",
+      "generic": "Algo deu errado. Os detalhes estão no registro.",
+      "deleteLastWordNoSession": "A tecla de apagar palavra funciona durante um ditado ativo. Comece a gravação primeiro.",
+      "deleteLastWordNoBuffer": "Ainda não há nada para apagar, o ditado não tem texto ao vivo.",
+      "undoNoSession": "A tecla de desfazer funciona durante um ditado ativo. Comece a gravação primeiro.",
+      "undoNoBuffer": "Ainda não há nada para limpar, o ditado não tem texto ao vivo.",
+      "bindingBusy": "Outra tecla de ditado já está gravando.",
+      "waylandTauriHotkeys": "Os atalhos globais podem não funcionar em aplicativos Wayland nativos com esta implementação de teclado. Mude a implementação de teclado para VoxBar Keys e adicione seu usuário ao grupo input; veja o guia do Ubuntu.",
+      "gnomeOverlayFallback": "No GNOME Wayland a sobreposição aparece como uma janela comum que pode roubar o foco e quebrar a colagem. Aqui o recomendado é Sobreposição: Nenhum."
+    },
+    "commandBadge": "Modo de comandos"
   },
   "whatsNew": {
     "title": "Novidades no VoxBar v{{version}}"
@@ -1026,7 +1057,8 @@
       "timeout": "Pós-processamento ignorado: o modelo local demorou demais. A transcrição original foi usada.",
       "lengthGuard": "Pós-processamento ignorado: a saída do modelo local não passou na verificação de tamanho. A transcrição original foi usada.",
       "tooLong": "Pós-processamento ignorado: esta transcrição é longa demais para o modelo local. A transcrição original foi usada."
-    }
+    },
+    "settingNotSaved": "Não foi possível salvar esta configuração: {{error}}"
   },
   "app": {
     "translocatedTitle": "O VoxBar não pode instalar atualizações deste local",

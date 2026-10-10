@@ -20,6 +20,7 @@
     "output": "Output",
     "advanced": "Advanced",
     "postProcessing": "Post Process",
+    "enableInAdvancedHint": "Enable in Advanced",
     "history": "History",
     "debug": "Debug",
     "about": "About"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Failed to select model",
-      "downloadFailed": "Failed to download {{model}}: {{error}}"
+      "downloadFailed": "Failed to download {{model}}: {{error}}",
+      "extractFailed": "Failed to extract {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permissions Required",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "No models available",
     "verifying": "Verifying {{modelName}}...",
     "verifyingGeneric": "Verifying...",
+    "verifyingGenericShort": "Verifying",
     "extracting": "Extracting {{modelName}}...",
     "extractingMultiple": "Extracting {{count}} models...",
     "extractingGeneric": "Extracting...",
+    "extractingGenericShort": "Extracting",
     "downloading": "Downloading {{percentage}}%",
     "downloadingMultiple": "Downloading {{count}} models...",
     "modelReady": "Model Ready",
@@ -161,6 +165,9 @@
     "loadingGeneric": "Loading...",
     "modelError": "Model Error",
     "modelUnloaded": "Model Unloaded",
+    "checkStatusFailed": "Failed to check model status",
+    "loadFailed": "Failed to load model",
+    "switchFailed": "Failed to switch model",
     "noModelDownloadRequired": "No Model - Download Required",
     "deleteModel": "Delete {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -204,7 +211,7 @@
           },
           "delete_last_word": {
             "name": "Delete Last Word",
-            "description": "Deletes the word before the caret in the focused app (Option+Backspace on macOS, Ctrl+Backspace elsewhere). Assign a key to enable it."
+            "description": "Removes the last word from the live dictation transcript while a recording session is active; does nothing otherwise. Assign a key to enable it."
           },
           "undo": {
             "name": "Undo",
@@ -247,11 +254,11 @@
         "title": "Editing Shortcuts",
         "deleteLastWord": {
           "title": "Delete Last Word Action",
-          "description": "Enable the assignable hotkey that deletes the word before the caret. The hotkey stays inactive until a key is assigned above."
+          "description": "Enable the assignable hotkey that removes the last word from the live dictation transcript while a recording session is active."
         },
         "undo": {
           "title": "Undo Action",
-          "description": "Enable the assignable hotkey that triggers undo in the focused app. The hotkey stays inactive until a key is assigned above."
+          "description": "Enable the assignable hotkey that clears the live dictation transcript and starts over while a recording session is active."
         }
       },
       "commandMode": {
@@ -381,6 +388,10 @@
           "unsupportedArchUnknown": "That file could not be read as a GGUF model, so it was not added.",
           "generic": "Something went wrong."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "This model is the local post-process engine. It polishes transcripts after dictation, it cannot transcribe audio.",
+        "generic": "Could not switch to this model: {{error}}"
       }
     },
     "sound": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "Model & Memory",
         "transcription": "Transcription",
-        "experimental": "Experimental"
+        "experimental": "Experimental",
+        "postProcessing": "Post Processing"
       },
       "experimentalToggle": {
         "label": "Experimental Features",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "Search or select a model",
           "placeholderNoOptions": "Type a model name",
           "refreshModels": "Refresh models"
+        },
+        "timeout": {
+          "title": "Request timeout",
+          "description": "How long a cloud post-process request may run before it gives up and the raw transcript is used. Applies when an endpoint stops responding."
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "Later",
       "installedDescription": "VoxBar {{version}} has been installed and becomes active the next time VoxBar restarts.",
       "failedDescription": "The update could not be downloaded. Check your connection and try again, or download it from GitHub Releases.",
-      "translocatedDescription": "VoxBar cannot update itself while running from the Downloads folder preview. Move it to the Applications folder (drag it in Finder), open it from there, and check for updates again."
+      "translocatedDescription": "VoxBar cannot update itself while running from the Downloads folder preview. Move it to the Applications folder (drag it in Finder), open it from there, and check for updates again.",
+      "manualOnlyPlatform": "Get updates from GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} has been downloaded. Installing closes the app; the new version starts the next time you open VoxBar.",
+      "restartLaterWindows": "Install and close"
     }
   },
   "whatsNew": {
@@ -1005,7 +1024,19 @@
   "overlay": {
     "transcribing": "Transcribing...",
     "processing": "Processing...",
-    "removedWord": "Removed: {{text}}"
+    "removedWord": "Removed: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Transcription failed. The recording was kept, retry it from History.",
+      "generic": "Something went wrong. Details are in the log.",
+      "deleteLastWordNoSession": "Delete word works during a live dictation. Start recording first.",
+      "deleteLastWordNoBuffer": "Nothing to delete yet, the dictation has no live text.",
+      "undoNoSession": "Undo works during a live dictation. Start recording first.",
+      "undoNoBuffer": "Nothing to clear yet, the dictation has no live text.",
+      "bindingBusy": "Another dictation key is already recording.",
+      "waylandTauriHotkeys": "Global shortcuts may not work in native Wayland apps with this keyboard backend. Switch Keyboard implementation to VoxBar Keys and add your user to the input group; see the Ubuntu troubleshooting guide.",
+      "gnomeOverlayFallback": "On GNOME Wayland the overlay appears as a regular window that can steal focus and break pasting. Overlay: None is recommended here."
+    },
+    "commandBadge": "Command mode"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} may be blocking 1 shortcut",
@@ -1026,7 +1057,8 @@
       "timeout": "Post-processing skipped: the local model took too long. The raw transcript was used.",
       "lengthGuard": "Post-processing skipped: the local model output failed the length check. The raw transcript was used.",
       "tooLong": "Post-processing skipped: this transcript is too long for the local model. The raw transcript was used."
-    }
+    },
+    "settingNotSaved": "Could not save this setting: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar cannot install updates from this location",

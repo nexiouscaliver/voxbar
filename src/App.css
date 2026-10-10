@@ -13,13 +13,29 @@
   --color-accent-knob: var(--color-accent-knob);
   --color-text-stroke: var(--color-text-stroke);
   --color-mid-gray: var(--color-mid-gray);
+  --color-secondary: var(--color-secondary);
   --color-warning: var(--color-warning);
   --color-error: var(--color-error);
 }
 
+/* The app's type scale, pinned to whole pixels: 11 / 13 / 15. The rem-based
+   root below is 16px (not 15px) so every Tailwind spacing step lands on the
+   standard 4/8px grid (8 / 12 / 16 instead of 7.5 / 11.25 / 15); these text
+   tokens are absolute px so the rendered sizes stay exactly what the
+   15px-root era drew. Anything else inherits Tailwind defaults off 16px
+   (text-lg 18, text-xl 20), so no fractional size exists anywhere. */
+@theme {
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+}
+
 :root {
-  /* Typography */
-  font-size: 15px;
+  /* Typography. The 16px html size keeps every rem-based spacing step on
+     Tailwind's 4/8px grid; the body rule below then pins unstyled text to
+     the 15px base step of the scale above, so elements without a text-*
+     utility don't drift off-scale. */
+  font-size: 16px;
   line-height: 24px;
   font-weight: 400;
 
@@ -54,6 +70,10 @@
   flex-direction: column;
   justify-content: center;
   text-align: center;
+}
+
+body {
+  font-size: 15px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -109,4 +129,35 @@
   fill: var(--color-logo-stroke);
   stroke: var(--color-logo-stroke);
   stroke-width: 1;
+}
+
+/* ---- Sonner toast tones (unstyled mode) ----
+   One card recipe for status color, shared with the onboarding refusal card
+   and the overlay notice strip: a hairline border at 30% of the status color
+   over a 5% wash of it, on the theme background. Neutral chrome stays for
+   info/success toasts; error and warning earn their color. These rules are
+   unlayered so they win over the Tailwind utility classes on the same
+   element (sonner also tags each card with data-type). */
+[data-sonner-toast][data-type="error"] {
+  border-color: color-mix(in srgb, var(--color-error) 30%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--color-error) 5%,
+    var(--color-background)
+  );
+}
+[data-sonner-toast][data-type="warning"] {
+  border-color: color-mix(in srgb, var(--color-warning) 30%, transparent);
+  background: color-mix(
+    in srgb,
+    var(--color-warning) 5%,
+    var(--color-background)
+  );
+}
+/* Status icons: sonner's built-in error/warning/info marks carry 18px
+   width/height attributes, but the 16px icon frame the Toaster assigns
+   clips them by ~3px. Size the svg to the frame instead. */
+[data-sonner-toast] [data-icon] svg {
+  width: 16px;
+  height: 16px;
 }

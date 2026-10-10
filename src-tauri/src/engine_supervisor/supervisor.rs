@@ -18,6 +18,9 @@ use super::protocol::{
     encode_message, read_message, DeviceInfo, DeviceSelector, LoadedInfo, Request, Response,
 };
 use super::worker::LOG_LINE_PREFIX;
+#[cfg(not(test))]
+use super::worker::{record_launched_exe, worker_exe};
+use super::worker::{spawn_stderr_tail, STDERR_TAIL_LINES};
 use super::{CPU_ONLY_FLAG, LOG_LEVEL_ENV, WORKER_FLAG};
 use log::{debug, error, info, warn, Level};
 use std::collections::VecDeque;
@@ -26,7 +29,7 @@ use std::io::{self, BufRead, BufReader, Write};
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::PathBuf;
 use std::process::{Child, ChildStdin, ChildStdout, Command as ProcessCommand, ExitStatus, Stdio};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering};
 use std::sync::{mpsc, Arc, Mutex, MutexGuard};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -42,9 +45,6 @@ const LOAD_TIMEOUT: Duration = Duration::from_secs(180);
 const CALL_FLOOR: Duration = Duration::from_secs(30);
 /// How long a worker gets to exit after its stdin closes before it's killed.
 const SHUTDOWN_GRACE: Duration = Duration::from_secs(2);
-/// Native stderr lines kept for crash reports (a `GGML_ASSERT` message lands
-/// here right before an abort).
-const STDERR_TAIL_LINES: usize = 64;
 const SAMPLE_RATE: f64 = 16_000.0;
 
 /// How long decoding work may take before its worker counts as hung, by the
@@ -424,26 +424,33 @@ impl EngineSupervisor {
         .unwrap_or_else(|| Err(engine_stopped()))
     }
 
-    /// Begin a live stream on the loaded model. `on_progress` runs on the
-    /// owner thread after every feed, so it must not block or call back into
-    /// the supervisor.
+    /// Begin a live stream on the loaded model. `on_progress` runs on a
+    /// dedicated emitter thread, once per queued feed snapshot, in feed
+    /// order; the owner thread's feed path only hands the snapshot off (an
+    /// unbounded-channel send, which never blocks), so the owner stays pure
+    /// IPC and keeps servicing every audio Feed. `gauge` is the render
+    /// queue's backpressure instrumentation, shared with `on_progress`.
     pub fn start_stream(
         &self,
         run: RunOptions,
         stream: StreamOptions,
         on_progress: impl FnMut(StreamProgress) + Send + 'static,
+        gauge: Arc<RenderBackpressure>,
     ) -> Result<StreamHandle, EngineError> {
         let id = self.shared.next_id();
         // The stream is one piece of cancellable work: a cancel from here on
         // stops its feeds and its finalize.
         let epoch = self.shared.epoch();
         let closed = Arc::new(AtomicBool::new(false));
+        let (progress_tx, emitter) = spawn_progress_emitter(Box::new(on_progress), gauge.clone());
         self.ask(|reply| Command::StreamBegin {
             active: ActiveStream {
                 id,
                 epoch,
                 closed: Arc::clone(&closed),
-                on_progress: Box::new(on_progress),
+                progress_tx: Some(progress_tx),
+                emitter: Some(emitter),
+                gauge,
                 pending_ms: 0,
             },
             run,
@@ -613,10 +620,128 @@ struct ActiveStream {
     epoch: u64,
     /// Set when the caller drops its handle.
     closed: Arc<AtomicBool>,
-    on_progress: OnProgress,
+    /// Lossless handoff to the render emitter thread: every snapshot is
+    /// sent (never blocked, never dropped) and rendered IN ORDER off the
+    /// owner thread. `None` once the stream ended (finalize/cancel).
+    progress_tx: Option<mpsc::Sender<QueuedProgress>>,
+    /// The emitter thread's handle; joined at finalize (before the reply,
+    /// so no snapshot is lost at the seam) and at stream end.
+    emitter: Option<thread::JoinHandle<()>>,
+    /// Backpressure gauge shared with the emitter thread and the render
+    /// callback (which folds it into its perf counters).
+    gauge: Arc<RenderBackpressure>,
     /// Audio received but not yet committed, which finalize must still
     /// decode; sizes the feed and finalize deadlines.
     pending_ms: i64,
+}
+
+/// One queued render: the engine snapshot plus the instant it was handed
+/// off (for drain-lag instrumentation).
+struct QueuedProgress {
+    progress: StreamProgress,
+    enqueued_at: Instant,
+}
+
+/// Render-queue backpressure, shared between the feed side (which counts
+/// depth) and the render callback (which folds the numbers into its perf
+/// counters). Publish-only from the supervisor's threads; relaxed loads are
+/// fine for diagnostics.
+#[derive(Default)]
+pub struct RenderBackpressure {
+    /// Snapshots queued but not yet rendered.
+    depth: AtomicUsize,
+    /// Milliseconds the most-recently-rendered snapshot waited in the queue.
+    latest_lag_ms: AtomicU64,
+    /// High-water mark of [`Self::depth`] this stream.
+    max_depth: AtomicUsize,
+}
+
+impl RenderBackpressure {
+    /// The feed-side bookkeeping for one queued snapshot: bumps the depth
+    /// and the high-water mark. Called right before the (never-blocking)
+    /// channel send.
+    pub fn record_enqueue(&self) {
+        let depth = self.depth.fetch_add(1, Ordering::AcqRel) + 1;
+        self.max_depth.fetch_max(depth, Ordering::AcqRel);
+    }
+
+    /// Snapshots currently queued for the render thread.
+    pub fn depth(&self) -> usize {
+        self.depth.load(Ordering::Relaxed)
+    }
+
+    /// The queue wait of the last rendered snapshot, in milliseconds.
+    pub fn latest_lag_ms(&self) -> u64 {
+        self.latest_lag_ms.load(Ordering::Relaxed)
+    }
+
+    /// The deepest the render queue has been this stream.
+    pub fn max_depth(&self) -> usize {
+        self.max_depth.load(Ordering::Relaxed)
+    }
+}
+
+impl ActiveStream {
+    /// End the render handoff: stop accepting snapshots, then JOIN the
+    /// emitter thread after it drains every queued snapshot. `Ok(())` when
+    /// the emitter finished cleanly; `Err` when the thread died despite the
+    /// per-snapshot containment (e.g. an abort), which finalize maps to a
+    /// failed stream.
+    fn join_progress_emitter(&mut self) -> thread::Result<()> {
+        // Dropping the sender disconnects the channel; the receiver drains
+        // every queued snapshot before it observes the disconnect.
+        self.progress_tx = None;
+        match self.emitter.take() {
+            Some(handle) => handle.join(),
+            None => Ok(()),
+        }
+    }
+}
+
+impl Drop for ActiveStream {
+    fn drop(&mut self) {
+        // The cancel/loss path: still drain+join, so a straggler render can
+        // never land in the NEXT session's buffer (the session buffer's
+        // begin() would otherwise race a lagging render).
+        if let Err(panic) = self.join_progress_emitter() {
+            error!("Live render emitter died during stream teardown: {panic:?}");
+        }
+    }
+}
+
+/// The emitter thread's body: receive every queued snapshot IN ORDER (the
+/// render is a sequential state machine over the session buffer: a dropped
+/// latch-arm tick or deletion surfacing would silently corrupt command
+/// mode), fold backpressure into the gauge, and CONTAIN per-snapshot
+/// panics exactly like the old owner-thread call site did: log, keep going.
+fn run_progress_emitter(
+    mut on_progress: OnProgress,
+    gauge: Arc<RenderBackpressure>,
+    rx: mpsc::Receiver<QueuedProgress>,
+) {
+    for queued in rx {
+        gauge.depth.fetch_sub(1, Ordering::AcqRel);
+        let lag = queued.enqueued_at.elapsed();
+        gauge
+            .latest_lag_ms
+            .store(lag.as_millis() as u64, Ordering::Relaxed);
+        if catch_unwind(AssertUnwindSafe(|| on_progress(queued.progress))).is_err() {
+            error!("Live transcription callback panicked");
+        }
+    }
+}
+
+/// Spawn the emitter thread for a stream's render callback.
+fn spawn_progress_emitter(
+    on_progress: OnProgress,
+    gauge: Arc<RenderBackpressure>,
+) -> (mpsc::Sender<QueuedProgress>, thread::JoinHandle<()>) {
+    let (tx, rx) = mpsc::channel();
+    let handle = thread::Builder::new()
+        .name("stream-render-emitter".into())
+        .spawn(move || run_progress_emitter(on_progress, gauge, rx))
+        .expect("failed to spawn the stream render emitter thread");
+    (tx, handle)
 }
 
 struct Owner {
@@ -978,8 +1103,18 @@ impl Owner {
                     text,
                     elapsed: started.elapsed(),
                 };
-                if catch_unwind(AssertUnwindSafe(|| (stream.on_progress)(progress))).is_err() {
-                    error!("Live transcription callback panicked");
+                // Pure IPC on the owner thread: the unbounded-channel send
+                // never blocks (it allocates), and the dedicated emitter
+                // thread renders the snapshot in order. NO snapshot is ever
+                // dropped: the render is a sequential state machine (the
+                // command latch arms edge-triggered; deletions surface per
+                // tick), so drop-oldest would silently corrupt command mode.
+                if let Some(tx) = stream.progress_tx.as_ref() {
+                    stream.gauge.record_enqueue();
+                    let _ = tx.send(QueuedProgress {
+                        progress,
+                        enqueued_at: Instant::now(),
+                    });
                 }
             }
             Ok(other) => warn!("Stream feed failed: {}", unexpected(&other)),
@@ -1007,7 +1142,7 @@ impl Owner {
             }
             return Err(EngineError::Cancelled);
         }
-        let Some(stream) = self.stream.take_if(|s| s.id == id) else {
+        let Some(mut stream) = self.stream.take_if(|s| s.id == id) else {
             // Lost earlier (or replaced): fall back to batch.
             return Ok(None);
         };
@@ -1021,12 +1156,27 @@ impl Owner {
                 update,
                 text,
                 language,
-            }) => Ok(Some(Finalized {
-                update,
-                text,
-                language,
-                elapsed: started.elapsed(),
-            })),
+            }) => {
+                // FINALIZE DRAIN, before the reply leaves: the emitter must
+                // consume every snapshot queued before finalize, so the
+                // caller's final fold sees the fully-rendered session
+                // buffer. A thread that died DESPITE the per-snapshot
+                // containment (e.g. an abort) is a failed stream: the
+                // caller falls back to batch, never waits on a hang.
+                if let Err(panic) = stream.join_progress_emitter() {
+                    error!(
+                        "Live render emitter died during finalize: {panic:?}; \
+                         treating the stream as failed"
+                    );
+                    return Ok(None);
+                }
+                Ok(Some(Finalized {
+                    update,
+                    text,
+                    language,
+                    elapsed: started.elapsed(),
+                }))
+            }
             Ok(other) => {
                 error!("Stream finalize failed: {}", unexpected(&other));
                 Ok(None)
@@ -1159,9 +1309,14 @@ impl Worker {
 
         let (stdin_tx, frames) = mpsc::channel();
         let (response_tx, responses) = mpsc::channel();
-        let (stderr_done_tx, stderr_done) = mpsc::channel();
         #[cfg(test)]
         LIVE_WORKERS.fetch_add(1, Ordering::SeqCst);
+        // Always drain stderr: a full pipe would block the worker. The
+        // shared tail thread forwards every line into the log and keeps the
+        // last STDERR_TAIL_LINES for crash reporting (the same contract the
+        // local-LLM worker spawns under).
+        let (stderr_tail, stderr_done) =
+            spawn_stderr_tail(stderr, STDERR_TAIL_LINES, "transcribe_worker");
         // Built before the threads so a failure below still reaps the child.
         let worker = Worker {
             control: Arc::new(Control {
@@ -1171,7 +1326,7 @@ impl Worker {
             }),
             responses,
             stderr_done,
-            stderr_tail: Arc::new(Mutex::new(VecDeque::with_capacity(STDERR_TAIL_LINES))),
+            stderr_tail,
             info: None,
         };
 
@@ -1181,27 +1336,6 @@ impl Worker {
         thread::Builder::new()
             .name("transcribe-worker-out".into())
             .spawn(move || read_responses(stdout, response_tx))?;
-        // Always drain stderr: a full pipe would block the worker.
-        let tail = Arc::clone(&worker.stderr_tail);
-        thread::Builder::new()
-            .name("transcribe-worker-err".into())
-            .spawn(move || {
-                // Split on raw bytes: native code may write non-UTF-8 (e.g. a
-                // path in the Windows ANSI code page), and `lines()` would end
-                // the loop there, losing every later line, abort message included.
-                for line in BufReader::new(stderr).split(b'\n') {
-                    let Ok(line) = line else { break };
-                    let line = String::from_utf8_lossy(&line);
-                    let line = line.strip_suffix('\r').unwrap_or(&line).to_string();
-                    forward_worker_log(&line);
-                    let mut tail = lock(&tail);
-                    if tail.len() == STDERR_TAIL_LINES {
-                        tail.pop_front();
-                    }
-                    tail.push_back(line);
-                }
-                let _ = stderr_done_tx.send(());
-            })?;
 
         debug!(
             "Started {}transcription worker (pid {})",
@@ -1346,57 +1480,11 @@ fn wait_exit(child: &mut Child, timeout: Duration) -> Option<ExitStatus> {
 #[cfg(test)]
 static LIVE_WORKERS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
-/// The file Handy was started from, with its identity (device and inode),
-/// recorded at startup; see [`worker_exe`]. `None` if either couldn't be
-/// read, which skips the check.
-#[cfg(all(unix, not(test)))]
-static LAUNCHED_EXE: std::sync::OnceLock<Option<(PathBuf, (u64, u64))>> =
-    std::sync::OnceLock::new();
-
-#[cfg(all(unix, not(test)))]
-fn file_id(path: &std::path::Path) -> io::Result<(u64, u64)> {
-    use std::os::unix::fs::MetadataExt;
-    let metadata = std::fs::metadata(path)?;
-    Ok((metadata.dev(), metadata.ino()))
-}
-
-/// Must run before an upgrade can replace the file, so at startup.
-#[cfg(all(unix, not(test)))]
-fn record_launched_exe() {
-    LAUNCHED_EXE.get_or_init(|| {
-        std::env::current_exe()
-            .and_then(|path| {
-                let id = file_id(&path)?;
-                Ok((path, id))
-            })
-            .inspect_err(|e| warn!("Could not identify Handy's executable: {}", e))
-            .ok()
-    });
-}
-
-/// The executable a worker runs: always this very binary, so the two agree
-/// on the protocol and on transcribe.cpp's backend libraries. Upgrading or
-/// moving Handy while it runs replaces or removes the file it started from,
-/// and a worker started from there would be the new version (macOS), or this
-/// binary loading the new version's backend libraries (Linux). Only a
-/// restart fixes that, so refuse to start one and say so. Windows locks a
-/// running executable against replacement. On Linux the worker runs from
-/// `/proc/self/exe`, which is this binary even once its file is replaced.
-#[cfg(not(test))]
-fn worker_exe() -> io::Result<PathBuf> {
-    #[cfg(unix)]
-    if let Some((path, launched)) = LAUNCHED_EXE.get().and_then(Option::as_ref) {
-        if file_id(path).ok().as_ref() != Some(launched) {
-            return Err(io::Error::other(
-                "Handy was updated or moved while it was running; restart Handy",
-            ));
-        }
-    }
-    #[cfg(target_os = "linux")]
-    return Ok(PathBuf::from("/proc/self/exe"));
-    #[cfg(not(target_os = "linux"))]
-    std::env::current_exe()
-}
+// The exe-identity check (LAUNCHED_EXE / record_launched_exe / worker_exe)
+// and the stderr crash tail live in `worker.rs` now: one shared spawn
+// contract used by BOTH worker kinds (the transcribe-cpp worker and the
+// local-LLM worker), so a self-update applied mid-run can never pair a
+// new-version llm worker with an old parent either.
 
 fn encode_request(request: &Request, pcm: Option<&[f32]>) -> Result<Vec<u8>, Failure> {
     encode_message(request, pcm)
@@ -1447,23 +1535,6 @@ fn request_name(request: &Request) -> &'static str {
     }
 }
 
-/// Re-log a worker stderr line in the parent. Structured lines keep their
-/// level; anything else is raw native output.
-fn forward_worker_log(line: &str) {
-    const TARGET: &str = "transcribe_worker";
-    if let Some(rest) = line.strip_prefix(LOG_LINE_PREFIX) {
-        let mut parts = rest.splitn(3, '\t');
-        if let (Some(level), Some(target), Some(message)) =
-            (parts.next(), parts.next(), parts.next())
-        {
-            let level = level.parse::<Level>().unwrap_or(Level::Info);
-            log::log!(target: TARGET, level, "[{}] {}", target, message);
-            return;
-        }
-    }
-    log::info!(target: TARGET, "{}", line);
-}
-
 #[cfg(test)]
 mod unit_tests {
     use super::*;
@@ -1492,6 +1563,200 @@ mod unit_tests {
 
         assert_eq!(ms_to_samples(1500), 24_000);
         assert_eq!(ms_to_samples(-5), 0);
+    }
+
+    /// Fabricate a snapshot carrying the given raw text at the given
+    /// revision. Text-bearing ticks are what the render state machine
+    /// consumes; the update metadata mirrors a mid-session feed.
+    fn snapshot(revision: i32, full: &str) -> StreamProgress {
+        StreamProgress {
+            update: StreamUpdate {
+                revision,
+                input_received_ms: 1_000 * revision as i64,
+                ..Default::default()
+            },
+            text: Some(StreamText {
+                full: full.to_string(),
+                committed: full.to_string(),
+                tentative: String::new(),
+            }),
+            elapsed: Duration::from_millis(8),
+        }
+    }
+
+    /// The lossless render queue: N snapshots (spanning a command-modifier
+    /// engage/release edge: a held-back proper prefix completing on a later
+    /// delta, which a dropped tick would corrupt) are ALL consumed IN
+    /// ORDER, on a thread that is NOT the producer's, with a per-snapshot
+    /// sequence counter proving no loss and no reorder.
+    #[test]
+    fn render_queue_consumes_every_snapshot_in_order_off_the_producer_thread() {
+        use std::thread::ThreadId;
+
+        let producer_thread = thread::current().id();
+        let seen: Arc<Mutex<Vec<(usize, String, ThreadId)>>> = Arc::new(Mutex::new(Vec::new()));
+        let seen_for_cb = Arc::clone(&seen);
+        let mut seq = 0usize;
+        let on_progress: OnProgress = Box::new(move |progress: StreamProgress| {
+            let text = progress
+                .text
+                .map(|t| t.full)
+                .unwrap_or_else(|| "<no text>".to_string());
+            seen_for_cb
+                .lock()
+                .unwrap()
+                .push((seq, text, thread::current().id()));
+            seq += 1;
+        });
+
+        let gauge = Arc::new(RenderBackpressure::default());
+        let (tx, handle) = spawn_progress_emitter(on_progress, gauge.clone());
+        // The producer-side handoff exactly as feed() performs it: count,
+        // send (never blocks), never drop.
+        let snapshots = vec![
+            snapshot(1, "hello"),
+            // Engage edge: a held-back proper prefix of a command phrase.
+            snapshot(2, "hello new "),
+            snapshot(3, "hello new line"),
+            // Release edge: the held fragment completed on a later delta.
+            snapshot(4, "hello new line world"),
+            snapshot(5, "hello new line world again"),
+        ];
+        for progress in snapshots {
+            gauge.record_enqueue();
+            tx.send(QueuedProgress {
+                progress,
+                enqueued_at: Instant::now(),
+            })
+            .expect("unbounded send never fails while the emitter lives");
+        }
+        drop(tx);
+        handle.join().expect("the emitter must drain and exit");
+
+        let seen = seen.lock().unwrap().clone();
+        assert_eq!(seen.len(), 5, "every snapshot must be consumed: {seen:?}");
+        for (index, (seq, _text, thread)) in seen.iter().enumerate() {
+            assert_eq!(*seq, index, "strict in-order, no loss, no reorder");
+            assert!(
+                *thread != producer_thread,
+                "the render must run off the producer/owner thread"
+            );
+        }
+        assert_eq!(seen[0].1, "hello");
+        assert_eq!(seen[3].1, "hello new line world");
+        assert_eq!(gauge.depth(), 0, "the queue drains to empty");
+        assert!(gauge.max_depth() >= 1);
+    }
+
+    /// Panic containment, re-created inside the consumer: a render callback
+    /// that panics on one snapshot is caught and logged, the emitter thread
+    /// SURVIVES, and every later snapshot is still processed (a dead
+    /// consumer would silently grow the unbounded queue and lose every
+    /// later render for the session).
+    #[test]
+    fn render_queue_contains_callback_panics_and_keeps_consuming() {
+        let seen: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let seen_for_cb = Arc::clone(&seen);
+        let on_progress: OnProgress = Box::new(move |progress: StreamProgress| {
+            let text = progress.text.map(|t| t.full).unwrap_or_default();
+            if text.contains("panic-here") {
+                panic!("render callback panicked on {text}");
+            }
+            seen_for_cb.lock().unwrap().push(text);
+        });
+
+        let gauge = Arc::new(RenderBackpressure::default());
+        let (tx, handle) = spawn_progress_emitter(on_progress, gauge.clone());
+        for progress in [
+            snapshot(1, "before"),
+            snapshot(2, "panic-here"),
+            snapshot(3, "after one"),
+            snapshot(4, "after two"),
+        ] {
+            gauge.record_enqueue();
+            tx.send(QueuedProgress {
+                progress,
+                enqueued_at: Instant::now(),
+            })
+            .unwrap();
+        }
+        drop(tx);
+        // The emitter thread ends normally despite the mid-stream panic:
+        // containment, not propagation.
+        handle
+            .join()
+            .expect("a contained render panic must not kill the emitter");
+
+        let seen = seen.lock().unwrap().clone();
+        assert_eq!(
+            seen,
+            vec![
+                "before".to_string(),
+                "after one".to_string(),
+                "after two".to_string()
+            ],
+            "snapshots around the panicking one still render"
+        );
+        assert_eq!(gauge.depth(), 0);
+    }
+
+    /// The finalize seam: join_progress_emitter drains the queue (no
+    /// snapshot is lost before the caller folds the final text) and reports
+    /// a thread that died despite containment as Err, which finalize maps
+    /// to the failed-stream path (batch fallback), never a silent hang.
+    #[test]
+    fn emitter_join_drains_the_queue_and_reports_a_dead_thread() {
+        // Healthy emitter: queued snapshots render before the join returns.
+        let seen: Arc<Mutex<Vec<String>>> = Arc::new(Mutex::new(Vec::new()));
+        let seen_for_cb = Arc::clone(&seen);
+        let on_progress: OnProgress = Box::new(move |progress: StreamProgress| {
+            if let Some(text) = progress.text {
+                seen_for_cb.lock().unwrap().push(text.full);
+            }
+        });
+        let gauge = Arc::new(RenderBackpressure::default());
+        let (tx, handle) = spawn_progress_emitter(on_progress, Arc::clone(&gauge));
+        for progress in [snapshot(1, "a"), snapshot(2, "b")] {
+            gauge.record_enqueue();
+            tx.send(QueuedProgress {
+                progress,
+                enqueued_at: Instant::now(),
+            })
+            .unwrap();
+        }
+        let mut stream = ActiveStream {
+            id: 1,
+            epoch: 0,
+            closed: Arc::new(AtomicBool::new(false)),
+            progress_tx: Some(tx),
+            emitter: Some(handle),
+            gauge,
+            pending_ms: 0,
+        };
+        stream
+            .join_progress_emitter()
+            .expect("a healthy emitter joins Ok");
+        assert_eq!(
+            seen.lock().unwrap().clone(),
+            vec!["a".to_string(), "b".to_string()],
+            "queued snapshots drain before the join returns"
+        );
+
+        // Dead emitter (died despite containment, e.g. abort): the join
+        // reports Err, the value finalize maps to the failed-stream path.
+        let mut dead = ActiveStream {
+            id: 2,
+            epoch: 0,
+            closed: Arc::new(AtomicBool::new(false)),
+            progress_tx: None,
+            emitter: Some(thread::spawn(|| panic!("emitter aborted"))),
+            gauge: Arc::new(RenderBackpressure::default()),
+            pending_ms: 0,
+        };
+        assert!(
+            dead.join_progress_emitter().is_err(),
+            "a dead emitter thread must surface as Err (failed stream), not hang"
+        );
     }
 }
 
@@ -1558,8 +1823,12 @@ mod tests {
         engine: &EngineSupervisor,
         pcm: &[f32],
     ) -> Result<Option<Finalized>, EngineError> {
-        let stream =
-            engine.start_stream(RunOptions::default(), StreamOptions::default(), |_| {})?;
+        let stream = engine.start_stream(
+            RunOptions::default(),
+            StreamOptions::default(),
+            |_| {},
+            Arc::new(RenderBackpressure::default()),
+        )?;
         feed_paced(&stream, pcm);
         stream.finalize(false)
     }
@@ -1661,7 +1930,12 @@ mod tests {
         let engine = EngineSupervisor::new(true);
         engine.load(spec()).unwrap();
         let stream = engine
-            .start_stream(RunOptions::default(), StreamOptions::default(), |_| {})
+            .start_stream(
+                RunOptions::default(),
+                StreamOptions::default(),
+                |_| {},
+                Arc::new(RenderBackpressure::default()),
+            )
             .unwrap();
         feed_paced(&stream, &pcm);
         let finalize = thread::spawn(move || stream.finalize(false));
@@ -1688,7 +1962,12 @@ mod tests {
         let engine = EngineSupervisor::new(true);
         engine.load(spec()).unwrap();
         let stream = engine
-            .start_stream(RunOptions::default(), StreamOptions::default(), |_| {})
+            .start_stream(
+                RunOptions::default(),
+                StreamOptions::default(),
+                |_| {},
+                Arc::new(RenderBackpressure::default()),
+            )
             .unwrap();
         feed_paced(&stream, &pcm);
         wait_in_flight(&engine, "stream feed");

@@ -1,11 +1,33 @@
 use crate::managers::model::{
     resolve_hf_repo, HfModelError, HfModelResolution, ModelInfo, ModelManager,
 };
-use crate::managers::transcription::{ModelStateEvent, TranscriptionManager};
+use crate::managers::transcription::{asr_load_refusal, ModelStateEvent, TranscriptionManager};
 use crate::settings::{get_settings, write_settings, AppSettings, ModelUnloadTimeout};
 use log::error;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter, Manager, State};
+
+/// Stable prefix marking the selection refusal (the post-process LLM is not
+/// an ASR model). The settings UI matches this prefix to word the row-level
+/// error as a localized explanation instead of the raw refusal text, the
+/// same convention as [`crate::local_llm::SWAP_REFUSAL_PREFIX`].
+pub const SELECTION_REFUSAL_PREFIX: &str = "not-an-asr-model";
+
+/// Pure selection guard, shared by every command that persists an ASR model
+/// selection: the local post-process LLM must never become the selected ASR
+/// model. With `unload_timeout = Immediately` the switch command persists
+/// the selection WITHOUT loading, so without this guard the GGUF only blows
+/// up at the next hotkey press (asr_load_refusal fires mid-session and the
+/// speech is lost). Reusing the load path's own predicate keeps selection
+/// and loading ruled by one table.
+fn selection_guard_error(model_info: &ModelInfo) -> Option<String> {
+    asr_load_refusal(&model_info.engine_type, &model_info.id).map(|msg| {
+        format!(
+            "{}: {} (it powers post-processing, not transcription)",
+            SELECTION_REFUSAL_PREFIX, msg
+        )
+    })
+}
 
 #[tauri::command]
 #[specta::specta]
@@ -109,17 +131,25 @@ pub async fn delete_model(
 /// Shared logic for switching the active model, used by both the Tauri command
 /// and the tray menu handler.
 ///
-/// Validates the model, updates the persisted setting, and loads the model
-/// unless the unload timeout is set to "Immediately" (in which case the model
-/// will be loaded on-demand during the next transcription).
+/// Validates the model and persists the selection synchronously, then runs
+/// the load on a dedicated loader thread holding the loading slot (the same
+/// guard-transfer pattern the post-process restore and the hotkey load use).
+/// The eager load can take up to LOAD_TIMEOUT (180s) on a large GGUF; running
+/// it inline pinned the calling context (an async command's runtime worker
+/// for the settings path), freezing every other command behind it. The
+/// command now returns once the selection is persisted, and load progress
+/// still reaches the frontend through the model-state-changed events
+/// `load_model` emits. Loading is skipped entirely when the unload timeout
+/// is "Immediately" (the model loads on demand at the next transcription).
 pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String> {
     let model_manager = app.state::<Arc<ModelManager>>();
     let transcription_manager = app.state::<Arc<TranscriptionManager>>();
 
     // Atomically claim the loading slot - prevents concurrent model loads
     // from tray double-clicks or overlapping commands. The guard resets the
-    // flag on drop (including early returns, errors, and panics).
-    let _loading_guard = transcription_manager
+    // flag on drop (including early returns, errors, and panics), wherever
+    // it ends up living.
+    let loading_guard = transcription_manager
         .try_start_loading()
         .ok_or_else(|| "Model load already in progress".to_string())?;
 
@@ -130,6 +160,13 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
 
     if !model_info.is_downloaded {
         return Err(format!("Model not downloaded: {}", model_id));
+    }
+
+    // Selection guard: reject the post-process LLM BEFORE anything is
+    // persisted. Nothing was written, so nothing needs reverting; the error
+    // carries the stable prefix the settings UI localizes against.
+    if let Some(error_msg) = selection_guard_error(&model_info) {
+        return Err(error_msg);
     }
 
     let settings = get_settings(app);
@@ -164,17 +201,36 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
             "Model selection changed to {} (not loading - unload set to Immediately).",
             model_id
         );
+        // Nothing loads: the slot releases here and the command is done.
+        drop(loading_guard);
         return Ok(());
     }
 
-    // Load the model. On failure, revert the persisted selection.
-    if let Err(e) = transcription_manager.load_model(model_id) {
-        let mut settings = get_settings(app);
-        settings.selected_model = old_model;
-        settings.onboarding_completed = old_onboarding_completed;
-        write_settings(app, settings);
-        return Err(e.to_string());
-    }
+    // The eager load runs off this calling context (the tray handler already
+    // wrapped this helper in a thread; now the helper itself owns that). The
+    // guard MOVES into the loader thread, so the slot stays held for the
+    // whole load and a panic inside it still clears the flag (the guard's
+    // Drop, the same mechanism every other load path uses).
+    let tm = Arc::clone(&transcription_manager);
+    let app_for_loader = app.clone();
+    let loader_model_id = model_id.to_string();
+    std::thread::spawn(move || {
+        let _slot = loading_guard;
+        // On failure, revert the persisted selection, exactly as the
+        // synchronous path did; the failure itself already reached the
+        // frontend through load_model's loading_failed event.
+        if let Err(e) = tm.load_model(&loader_model_id) {
+            log::error!(
+                "Failed to load model {}: {}; reverting the selection",
+                loader_model_id,
+                e
+            );
+            let mut settings = get_settings(&app_for_loader);
+            settings.selected_model = old_model;
+            settings.onboarding_completed = old_onboarding_completed;
+            write_settings(&app_for_loader, settings);
+        }
+    });
 
     Ok(())
 }
@@ -220,6 +276,12 @@ pub async fn set_active_model_deferred(
 
     if !model_info.is_downloaded {
         return Err(format!("Model not downloaded: {}", model_id));
+    }
+
+    // Same guard as switch_active_model: the deferred path persists without
+    // loading too, so the GGUF must be refused before the store is touched.
+    if let Some(error_msg) = selection_guard_error(&model_info) {
+        return Err(error_msg);
     }
 
     let mut settings = get_settings(&app_handle);
@@ -309,6 +371,7 @@ pub async fn add_hf_model(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::managers::model::{local_llm_model_info, EngineType};
     use crate::settings::get_default_settings;
 
     /// The deferred selection persists the model and completes onboarding
@@ -325,5 +388,45 @@ mod tests {
         apply_deferred_selection(&mut settings, "whisper-tiny-q8");
         assert_eq!(settings.selected_model, "whisper-tiny-q8");
         assert!(settings.onboarding_completed);
+    }
+
+    /// The selection guard rejects the local post-process LLM (the Qwen GGUF)
+    /// at selection time with the stable prefix the settings UI matches, so
+    /// the Immediately branch of `switch_active_model` (persist-without-load)
+    /// can never persist it and blow up at the next hotkey press instead.
+    #[test]
+    fn selection_guard_rejects_the_post_process_llm_up_front() {
+        let llm = local_llm_model_info();
+        let refusal = selection_guard_error(&llm)
+            .expect("the post-process GGUF must be refused at selection time");
+        assert!(
+            refusal.starts_with(SELECTION_REFUSAL_PREFIX),
+            "the refusal must carry the stable prefix, got: {refusal}"
+        );
+        assert!(refusal.contains(&llm.id), "the refusal names the model id");
+    }
+
+    /// Every real ASR engine type passes the guard: only the LocalLlm engine
+    /// is refused, so no legitimate model selection is blocked by it.
+    #[test]
+    fn selection_guard_accepts_every_real_asr_engine() {
+        let engines = [
+            EngineType::TranscribeCpp,
+            EngineType::Parakeet,
+            EngineType::Moonshine,
+            EngineType::MoonshineStreaming,
+            EngineType::SenseVoice,
+            EngineType::GigaAM,
+            EngineType::Canary,
+            EngineType::Cohere,
+        ];
+        for engine in engines {
+            let mut info = local_llm_model_info();
+            info.engine_type = engine.clone();
+            assert!(
+                selection_guard_error(&info).is_none(),
+                "{engine:?} is a real ASR engine and must be selectable"
+            );
+        }
     }
 }

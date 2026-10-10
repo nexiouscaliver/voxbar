@@ -20,6 +20,7 @@
     "output": "Výstup",
     "advanced": "Pokročilé",
     "postProcessing": "Následné zpracování",
+    "enableInAdvancedHint": "Zapněte v Pokročilém nastavení",
     "history": "Historie",
     "debug": "Ladění",
     "about": "O aplikaci"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Nepodařilo se vybrat model",
-      "downloadFailed": "Stažení {{model}} se nezdařilo: {{error}}"
+      "downloadFailed": "Stažení {{model}} se nezdařilo: {{error}}",
+      "extractFailed": "Rozbalení {{model}} se nezdařilo: {{error}}"
     },
     "permissions": {
       "title": "Vyžadována oprávnění",
@@ -149,9 +151,11 @@
     "noModelsAvailable": "Nejsou dostupné žádné modely",
     "verifying": "Ověřování {{modelName}}...",
     "verifyingGeneric": "Ověřování...",
+    "verifyingGenericShort": "Ověřování",
     "extracting": "Rozbaluji {{modelName}}...",
     "extractingMultiple": "Rozbaluji {{count}} modelů...",
     "extractingGeneric": "Rozbalování...",
+    "extractingGenericShort": "Rozbalování",
     "downloading": "Stahování {{percentage}}%",
     "downloadingMultiple": "Stahování {{count}} modelů...",
     "modelReady": "Model připraven",
@@ -159,6 +163,9 @@
     "loadingGeneric": "Načítání...",
     "modelError": "Chyba modelu",
     "modelUnloaded": "Model uvolněn",
+    "checkStatusFailed": "Stav modelu se nepodařilo zkontrolovat",
+    "loadFailed": "Model se nepodařilo načíst",
+    "switchFailed": "Model se nepodařilo přepnout",
     "noModelDownloadRequired": "Žádný model - je nutné stáhnout",
     "deleteModel": "Smazat {{modelName}}",
     "switching": "Přepínání...",
@@ -226,6 +233,10 @@
           "unsupportedArchUnknown": "Tento soubor nešlo přečíst jako GGUF model, takže nebyl přidán.",
           "generic": "Něco se pokazilo."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Tento model je lokální engine pro následné zpracování. Vylepšuje přepisy po diktování, ale nedokáže přepisovat zvuk.",
+        "generic": "Přepnutí na tento model se nezdařilo: {{error}}"
       }
     },
     "general": {
@@ -252,11 +263,11 @@
           },
           "delete_last_word": {
             "name": "Smazat poslední slovo",
-            "description": "Smaže slovo před kurzorem v aktivní aplikaci (Option+Backspace na macOS, Ctrl+Backspace jinde). Přiřaďte klávesu pro aktivaci."
+            "description": "Odstraní poslední slovo ze živého přepisu diktování, dokud běží nahrávací relace; jinak nedělá nic. Přiřazením klávesy jej povolíte."
           },
           "undo": {
             "name": "Zpět",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Probíhá-li diktování: vymaže jej a začne znovu. Jinak nedělá nic."
           },
           "transcribe_commands": {
             "name": "Režim příkazů",
@@ -295,11 +306,11 @@
         "title": "Klávesy pro úpravy",
         "deleteLastWord": {
           "title": "Akce: smazat poslední slovo",
-          "description": "Zapne přiřaditelnou zkratku, která maže slovo před kurzorem. Zkratka zůstává neaktivní, dokud výše nepřiřadíte klávesu."
+          "description": "Povoluje přiřaditelnou klávesu, která odstraní poslední slovo ze živého přepisu diktování, dokud běží nahrávací relace."
         },
         "undo": {
           "title": "Akce: zpět",
-          "description": "Zapne přiřaditelnou zkratku, která spouští Zpět v aktivní aplikaci. Zkratka zůstává neaktivní, dokud výše nepřiřadíte klávesu."
+          "description": "Povoluje přiřaditelnou klávesu, která vymaže živý přepis diktování a začne znovu, dokud běží nahrávací relace."
         }
       },
       "commandMode": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "Model a paměť",
         "transcription": "Přepis",
-        "experimental": "Experimentální"
+        "experimental": "Experimentální",
+        "postProcessing": "Následné zpracování"
       },
       "experimentalToggle": {
         "label": "Experimentální funkce",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "Vyhledejte nebo vyberte model",
           "placeholderNoOptions": "Zadejte název modelu",
           "refreshModels": "Obnovit modely"
+        },
+        "timeout": {
+          "title": "Časový limit požadavku",
+          "description": "Jak dlouho může cloudový požadavek na dodatečné zpracování běžet, než se vzdá a použije se surový přepis. Platí, když endpoint přestane odpovídat."
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "Později",
       "installedDescription": "VoxBar {{version}} byl nainstalován a aktivuje se při příštím restartu VoxBaru.",
       "failedDescription": "Aktualizaci nelze stáhnout. Zkontrolujte připojení a zkuste to znovu, nebo ji stáhněte z GitHub Releases.",
-      "translocatedDescription": "VoxBar se nemůže aktualizovat, dokud běží ze složky Stažené. Přetáhněte jej ve Finderu do složky Aplikace, spusťte jej odtud a znovu zkontrolujte aktualizace."
+      "translocatedDescription": "VoxBar se nemůže aktualizovat, dokud běží ze složky Stažené. Přetáhněte jej ve Finderu do složky Aplikace, spusťte jej odtud a znovu zkontrolujte aktualizace.",
+      "manualOnlyPlatform": "Získejte aktualizace z GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} byl stažen. Instalace aplikaci zavře; nová verze se spustí při příštím otevření VoxBar.",
+      "restartLaterWindows": "Nainstalovat a zavřít"
     }
   },
   "common": {
@@ -1002,7 +1021,19 @@
   "overlay": {
     "transcribing": "Přepisuji...",
     "processing": "Zpracovávám...",
-    "removedWord": "Odebráno: {{text}}"
+    "removedWord": "Odebráno: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Přepis se nezdařil. Nahrávka byla zachována, zkuste to znovu z Historie.",
+      "generic": "Něco se pokazilo. Podrobnosti jsou v protokolu.",
+      "deleteLastWordNoSession": "Klávesa pro smazání slova funguje během aktivního diktování. Nejdřív spusťte nahrávání.",
+      "deleteLastWordNoBuffer": "Zatím není co mazat, diktování nemá živý text.",
+      "undoNoSession": "Klávesa zpět funguje během aktivního diktování. Nejdřív spusťte nahrávání.",
+      "undoNoBuffer": "Zatím není co vymazat, diktování nemá živý text.",
+      "bindingBusy": "Jiná klávesa diktování už nahrává.",
+      "waylandTauriHotkeys": "Globální zkratky při této implementaci klávesnice nemusí fungovat v nativních aplikacích Wayland. Přepněte implementaci klávesnice na VoxBar Keys a přidejte svého uživatele do skupiny input; viz průvodce pro Ubuntu.",
+      "gnomeOverlayFallback": "Na GNOME Wayland se překryv zobrazí jako běžné okno, které může ukrást fokus a rozbít vkládání. Doporučuje se zde Překryv: Žádné."
+    },
+    "commandBadge": "Režim příkazů"
   },
   "whatsNew": {
     "title": "Novinky v VoxBar v{{version}}"
@@ -1026,7 +1057,8 @@
       "timeout": "Následné zpracování bylo přeskočeno: místnímu modelu to trvalo příliš dlouho. Byl použit původní přepis.",
       "lengthGuard": "Následné zpracování bylo přeskočeno: výstup místního modelu neprošel kontrolou délky. Byl použit původní přepis.",
       "tooLong": "Následné zpracování bylo přeskočeno: tento přepis je pro místní model příliš dlouhý. Byl použit původní přepis."
-    }
+    },
+    "settingNotSaved": "Toto nastavení se nepodařilo uložit: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar nemůže z tohoto umístění instalovat aktualizace",

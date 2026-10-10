@@ -3,6 +3,7 @@ pub mod history;
 pub mod local_llm;
 pub mod models;
 pub mod transcription;
+pub mod updater;
 
 use crate::settings::{
     get_settings, update_checks_forced_disabled, write_settings, AppSettings, LogLevel,

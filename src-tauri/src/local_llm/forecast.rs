@@ -103,11 +103,16 @@ pub fn fails_fidelity_guard(input: &str, output: &str) -> bool {
     output_units.saturating_mul(10) < input_units.saturating_mul(4)
 }
 
-/// Runtime-inclusive memory forecast (L5): `max(file_size * 3/2,
-/// measured_rss)`. `measured_rss` is the worker's RSS captured after the
-/// first successful generation this app launch (in-memory only, never
-/// persisted); `None` before that, when the 3/2 multiplier stands alone.
-pub fn llm_forecast_bytes(file_size_bytes: u64, measured_rss: Option<u64>) -> u64 {
+/// Runtime-inclusive memory forecast (L5), shared by BOTH memory gates (the
+/// local-LLM gate and the voice/ASR gate): `max(file_size * 3/2,
+/// measured_rss)`. File size alone undercounts a worker's resident footprint
+/// (KV cache, compute scratch, Metal wired buffers); 3/2 is the conservative
+/// named constant and the measured-RSS refinement corrects it after first
+/// use. `measured_rss` is the worker's RSS captured after its first
+/// successful use this app launch (in-memory only, never persisted); `None`
+/// before that, when the 3/2 multiplier stands alone. A wrong guess fails
+/// safe: the gate refuses and the raw transcript is used.
+pub fn runtime_inclusive_bytes(file_size_bytes: u64, measured_rss: Option<u64>) -> u64 {
     let base = file_size_bytes.saturating_mul(FILE_SIZE_FORECAST_MULTIPLIER_NUM)
         / FILE_SIZE_FORECAST_MULTIPLIER_DEN;
     base.max(measured_rss.unwrap_or(0))
@@ -255,26 +260,35 @@ mod tests {
         assert_eq!(max_gen_tokens(&mixed), 428);
     }
 
-    /// T13: the forecast multiplier floor. Without a measurement the
-    /// forecast is file size * 3/2; a larger measured RSS wins; a smaller
-    /// measurement does not shrink below the floor.
+    /// T13: the shared forecast multiplier floor (both gates compose through
+    /// [`runtime_inclusive_bytes`]). Without a measurement the forecast is
+    /// file size * 3/2; a larger measured RSS wins; a smaller measurement
+    /// does not shrink below the floor; the None case stands alone.
     #[test]
     fn forecast_is_max_of_multiplier_floor_and_measured_rss() {
         let file = 610 * 1024 * 1024;
         assert_eq!(
-            llm_forecast_bytes(file, None),
+            runtime_inclusive_bytes(file, None),
             file * FILE_SIZE_FORECAST_MULTIPLIER_NUM / FILE_SIZE_FORECAST_MULTIPLIER_DEN
         );
         assert_eq!(
-            llm_forecast_bytes(file, Some(file * 3 / 2 + 128 * 1024 * 1024)),
+            runtime_inclusive_bytes(file, Some(file * 3 / 2 + 128 * 1024 * 1024)),
             file * 3 / 2 + 128 * 1024 * 1024,
             "a larger measured RSS wins"
         );
         assert_eq!(
-            llm_forecast_bytes(file, Some(1000)),
+            runtime_inclusive_bytes(file, Some(1000)),
             file * 3 / 2,
             "a smaller measurement never shrinks below the floor"
         );
-        assert_eq!(llm_forecast_bytes(0, None), 0);
+        assert_eq!(runtime_inclusive_bytes(0, None), 0);
+        // A measurement with no file size is still a floor of its own (the
+        // measured worker footprint never forecasts below itself).
+        assert_eq!(runtime_inclusive_bytes(0, Some(2048)), 2048);
+        // Exact ties keep the multiplier floor (max of equal values).
+        assert_eq!(
+            runtime_inclusive_bytes(file, Some(file * 3 / 2)),
+            file * 3 / 2
+        );
     }
 }

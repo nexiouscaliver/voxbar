@@ -20,6 +20,7 @@
     "output": "Sortida",
     "advanced": "Avançat",
     "postProcessing": "Postprocessament",
+    "enableInAdvancedHint": "Activa-ho a Avançat",
     "history": "Historial",
     "debug": "Depuració",
     "about": "Quant a"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "No s'ha pogut seleccionar el model",
-      "downloadFailed": "No s'ha pogut descarregar {{model}}: {{error}}"
+      "downloadFailed": "No s'ha pogut descarregar {{model}}: {{error}}",
+      "extractFailed": "No s'ha pogut extreure {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permisos necessaris",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "No hi ha models disponibles",
     "verifying": "S'està verificant {{modelName}}...",
     "verifyingGeneric": "S'està verificant...",
+    "verifyingGenericShort": "Verificant",
     "extracting": "S'està extraient {{modelName}}...",
     "extractingMultiple": "S'estan extraient {{count}} models...",
     "extractingGeneric": "S'està extraient...",
+    "extractingGenericShort": "Extraient",
     "downloading": "S'està baixant: {{percentage}}%",
     "downloadingMultiple": "S'estan baixant {{count}} models...",
     "modelReady": "Model a punt",
@@ -161,6 +165,9 @@
     "loadingGeneric": "S'està carregant...",
     "modelError": "Error del model",
     "modelUnloaded": "Model alliberat de la memòria",
+    "checkStatusFailed": "No s'ha pogut comprovar l'estat del model",
+    "loadFailed": "No s'ha pogut carregar el model",
+    "switchFailed": "No s'ha pogut canviar de model",
     "noModelDownloadRequired": "No hi ha cap model: cal baixar-ne un",
     "deleteModel": "Suprimiu {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -204,11 +211,11 @@
           },
           "delete_last_word": {
             "name": "Suprimeix l'última paraula",
-            "description": "Suprimeix la paraula anterior al cursor a l'aplicació activa (Opció+Retroés a macOS, Ctrl+Retroés a altres). Assigna una tecla per activar-ho."
+            "description": "Elimina l'última paraula de la transcripció en directe del dictat mentre hi ha una sessió d'enregistrament activa; en qualsevol altre cas no fa res. Assigna una tecla per activar-ho."
           },
           "undo": {
             "name": "Desfés",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Mentre el dictat està en marxa: l'esborra i comença de nou. En qualsevol altre cas no fa res."
           },
           "transcribe_commands": {
             "name": "Mode d'ordres",
@@ -247,11 +254,11 @@
         "title": "Dreceres d'edició",
         "deleteLastWord": {
           "title": "Acció: suprimeix l'última paraula",
-          "description": "Activa la drecera assignable que suprimeix la paraula anterior al cursor. La drecera es manté inactiva fins que assignis una tecla a dalt."
+          "description": "Activa la tecla assignable que elimina l'última paraula de la transcripció en directe del dictat mentre hi ha una sessió d'enregistrament activa."
         },
         "undo": {
           "title": "Acció: desfés",
-          "description": "Activa la drecera assignable que executa Desfés a l'aplicació activa. La drecera es manté inactiva fins que assignis una tecla a dalt."
+          "description": "Activa la tecla assignable que esborra la transcripció en directe del dictat i comença de nou mentre hi ha una sessió d'enregistrament activa."
         }
       },
       "commandMode": {
@@ -381,6 +388,10 @@
           "unsupportedArchUnknown": "Aquest fitxer no s'ha pogut llegir com un model GGUF, per això no s'ha afegit.",
           "generic": "Alguna cosa ha fallat."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Aquest model és el motor local de postprocessat. Poleix les transcripcions després del dictat, no pot transcriure àudio.",
+        "generic": "No s'ha pogut canviar a aquest model: {{error}}"
       }
     },
     "sound": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "Model i memòria",
         "transcription": "Transcripció",
-        "experimental": "Experimental"
+        "experimental": "Experimental",
+        "postProcessing": "Postprocessament"
       },
       "experimentalToggle": {
         "label": "Funcions experimentals",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "Cerqueu o seleccioneu un model",
           "placeholderNoOptions": "Escriviu el nom d'un model",
           "refreshModels": "Actualitzeu els models"
+        },
+        "timeout": {
+          "title": "Temps d'espera de la sol·licitud",
+          "description": "Quant de temps pot executar-se una sol·licitud de postprocessat al núvol abans de renunciar-hi i usar la transcripció en brut. S'aplica quan un endpoint deixa de respondre."
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "Més tard",
       "installedDescription": "VoxBar {{version}} s'ha instal·lat i s'activarà la propera vegada que reinicieu VoxBar.",
       "failedDescription": "No s'ha pogut baixar l'actualització. Comproveu la connexió i torneu-ho a provar, o baixeu-la de GitHub Releases.",
-      "translocatedDescription": "VoxBar no pot actualitzar-se mentre s'executa des de la carpeta Downloads. Moveu-lo a la carpeta Applications (arrossegant-lo al Finder), obriu-lo des d'allà i torneu a comprovar les actualitzacions."
+      "translocatedDescription": "VoxBar no pot actualitzar-se mentre s'executa des de la carpeta Downloads. Moveu-lo a la carpeta Applications (arrossegant-lo al Finder), obriu-lo des d'allà i torneu a comprovar les actualitzacions.",
+      "manualOnlyPlatform": "Obteniu les actualitzacions de GitHub Releases",
+      "restartDescriptionWindows": "S'ha descarregat VoxBar {{version}}. La instal·lació tanca l'aplicació; la versió nova s'inicia la propera vegada que obriu VoxBar.",
+      "restartLaterWindows": "Instal·la i tanca"
     }
   },
   "whatsNew": {
@@ -1005,7 +1024,19 @@
   "overlay": {
     "transcribing": "S'està transcrivint...",
     "processing": "S'està processant...",
-    "removedWord": "Eliminat: {{text}}"
+    "removedWord": "Eliminat: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Ha fallat la transcripció. L'enregistrament s'ha conservat, torna-ho a provar des de l'historial.",
+      "generic": "Alguna cosa ha fallat. Els detalls són al registre.",
+      "deleteLastWordNoSession": "La tecla d'esborrar paraula funciona durant un dictat actiu. Comenceu primer a gravar.",
+      "deleteLastWordNoBuffer": "Encara no hi ha res a esborrar, el dictat no té text en directe.",
+      "undoNoSession": "La tecla de desfer funciona durant un dictat actiu. Comenceu primer a gravar.",
+      "undoNoBuffer": "Encara no hi ha res a netejar, el dictat no té text en directe.",
+      "bindingBusy": "Una altra tecla de dictat ja està gravant.",
+      "waylandTauriHotkeys": "És possible que les dreceres globals no funcionin a les aplicacions Wayland natives amb aquesta implementació de teclat. Canvieu la implementació del teclat a VoxBar Keys i afegiu el vostre usuari al grup input; consulteu la guia d'Ubuntu.",
+      "gnomeOverlayFallback": "Al GNOME Wayland, la finestra superposada apareix com una finestra normal que pot robar el focus i trencar l'enganxat. Aquí es recomana Superposició: Cap."
+    },
+    "commandBadge": "Mode d'ordres"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} pot estar blocant 1 drecera",
@@ -1026,7 +1057,8 @@
       "timeout": "S'ha omès el postprocessament: el model local ha trigat massa. S'ha usat la transcripció original.",
       "lengthGuard": "S'ha omès el postprocessament: la sortida del model local no ha passat la comprovació de longitud. S'ha usat la transcripció original.",
       "tooLong": "S'ha omès el postprocessament: aquesta transcripció és massa llarga per al model local. S'ha usat la transcripció original."
-    }
+    },
+    "settingNotSaved": "No s'ha pogut desar aquesta configuració: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar no pot instal·lar actualitzacions des d'aquesta ubicació",

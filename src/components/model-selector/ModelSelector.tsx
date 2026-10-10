@@ -20,11 +20,7 @@ type ModelStatus =
   | "unloaded"
   | "none";
 
-interface ModelSelectorProps {
-  onError?: (error: string) => void;
-}
-
-const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
+const ModelSelector: React.FC = () => {
   const { t } = useTranslation();
   const {
     models,
@@ -60,7 +56,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
           }
         } catch {
           setModelStatus("error");
-          setModelError("Failed to check model status");
+          setModelError(t("modelSelector.checkStatusFailed"));
         }
       } else {
         setModelStatus("none");
@@ -87,7 +83,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
             break;
           case "loading_failed":
             setModelStatus("error");
-            setModelError(error || "Failed to load model");
+            setModelError(error || t("modelSelector.loadFailed"));
             setPendingModelId(null);
             break;
           case "unloaded":
@@ -149,8 +145,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
     if (!success) {
       setPendingModelId(null);
       setModelStatus("error");
-      setModelError("Failed to switch model");
-      onError?.("Failed to switch model");
+      setModelError(t("modelSelector.switchFailed"));
     }
   };
 
@@ -162,7 +157,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
         const model = models.find((m) => m.id === modelId);
         const modelName = model
           ? getTranslatedModelName(model, t)
-          : t("modelSelector.verifyingGeneric").replace("...", "");
+          : t("modelSelector.verifyingGenericShort");
         return t("modelSelector.verifying", { modelName });
       } else {
         return t("modelSelector.verifyingGeneric");
@@ -176,7 +171,7 @@ const ModelSelector: React.FC<ModelSelectorProps> = ({ onError }) => {
         const model = models.find((m) => m.id === modelId);
         const modelName = model
           ? getTranslatedModelName(model, t)
-          : t("modelSelector.extractingGeneric").replace("...", "");
+          : t("modelSelector.extractingGenericShort");
         return t("modelSelector.extracting", { modelName });
       } else {
         return t("modelSelector.extractingMultiple", {

@@ -35,6 +35,7 @@ use crate::TranscriptionCoordinator;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use specta::Type;
+use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -54,6 +55,86 @@ pub struct PostProcessSkipEvent {
     pub reason: SkipReason,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub detail: Option<String>,
+}
+
+/// Log severity of a skip: engine failures, timeouts, the memory gate, and
+/// the fidelity guard are warnings (something broke); the expected,
+/// recoverable skips (model not downloaded, transcript over the token cap)
+/// are info. Pure, and unit-pinned alongside the line formatters below.
+pub(crate) fn skip_log_level(reason: SkipReason) -> log::Level {
+    match reason {
+        SkipReason::MemoryGate
+        | SkipReason::EngineFailed
+        | SkipReason::Timeout
+        | SkipReason::LengthGuard => log::Level::Warn,
+        SkipReason::DownloadMissing | SkipReason::TooLong => log::Level::Info,
+    }
+}
+
+/// The one structured line every skip writes to voxbar.log. Grep-able on
+/// "local post-process skipped", always carries the snake_case reason and
+/// the detail when there is one; before this existed a skip left no trace,
+/// which is why a raw-fallback dictation was undiagnosable after the fact.
+pub(crate) fn skip_log_line(reason: SkipReason, detail: Option<&str>) -> String {
+    format!(
+        "local post-process skipped: reason={} detail={}",
+        skip_reason_str(reason),
+        detail.unwrap_or("-")
+    )
+}
+
+/// The snake_case name matching the SkipReason serde representation, so log
+/// lines and event payloads always agree on spelling.
+pub(crate) fn skip_reason_str(reason: SkipReason) -> &'static str {
+    match reason {
+        SkipReason::MemoryGate => "memory_gate",
+        SkipReason::DownloadMissing => "download_missing",
+        SkipReason::EngineFailed => "engine_failed",
+        SkipReason::Timeout => "timeout",
+        SkipReason::LengthGuard => "length_guard",
+        SkipReason::TooLong => "too_long",
+    }
+}
+
+/// The terminal success line (matches the cloud path's success shape:
+/// outcome plus output length in chars).
+pub(crate) fn processed_outcome_log_line(output_chars: usize) -> String {
+    format!(
+        "local post-process outcome: processed (output {} chars)",
+        output_chars
+    )
+}
+
+/// The terminal raw-fallback line: why the raw transcript won, carried by
+/// the planner state at loop exit (which aborted path ended the swap).
+pub(crate) fn raw_outcome_log_line(planner_state: super::planner::SwapState) -> String {
+    format!(
+        "local post-process outcome: raw transcript used (planner state at exit: {:?})",
+        planner_state
+    )
+}
+
+/// The single skip sink: one structured log line, the PostProcessSkipEvent
+/// the main window already dedupes into toasts, and the Wave-1 notice
+/// channel (in-card row while the card is visible, error sound for the
+/// error-toned reasons) so the person mid-dictation learns why raw text
+/// landed after the polishing wait.
+pub(crate) fn emit_post_process_skip(app: &AppHandle, reason: SkipReason, detail: Option<String>) {
+    let line = skip_log_line(reason, detail.as_deref());
+    match skip_log_level(reason) {
+        log::Level::Warn => warn!("{line}"),
+        _ => info!("{line}"),
+    }
+    let _ = PostProcessSkipEvent {
+        reason,
+        detail: detail.clone(),
+    }
+    .emit(app);
+    crate::managers::transcription::emit_overlay_notice(
+        app,
+        crate::managers::transcription::NoticeCode::from_skip_reason(reason),
+        detail,
+    );
 }
 
 /// The result handed back to the caller when the swap finishes. `Raw`
@@ -247,6 +328,9 @@ pub(crate) trait SwapEngine: Send {
     fn worker_pid(&self) -> Option<u32> {
         None
     }
+    /// Log the worker's last NATIVE stderr lines (crash diagnostics), once
+    /// teardown observes the exit. Default: nothing to log.
+    fn log_native_tail(&mut self) {}
 }
 
 /// Kill-on-drop child wrapper: if the runner is ever lost (panic), the
@@ -287,6 +371,10 @@ struct ProcessEngine {
     stdin: Option<ChildStdin>,
     responses: Option<Arc<Mutex<Receiver<WorkerResponse>>>>,
     pid: Option<u32>,
+    /// The worker's drained stderr crash tail (kept by the shared tail
+    /// thread) and the drain-done signal, for teardown diagnostics.
+    stderr_tail: Option<Arc<Mutex<VecDeque<String>>>>,
+    stderr_done: Option<Receiver<()>>,
 }
 
 impl ProcessEngine {
@@ -296,6 +384,8 @@ impl ProcessEngine {
             stdin: None,
             responses: None,
             pid: None,
+            stderr_tail: None,
+            stderr_done: None,
         }
     }
 
@@ -303,19 +393,34 @@ impl ProcessEngine {
         if self.child.is_some() {
             return Ok(());
         }
-        let exe = std::env::current_exe()
-            .map_err(|e| format!("cannot resolve the current executable: {}", e))?;
+        // The shared worker spawn contract: the same exe-identity check the
+        // transcribe-cpp worker passes, so a self-update applied mid-run
+        // can never pair a new-version llm worker with an old parent.
+        let exe = crate::engine_supervisor::worker_exe()
+            .map_err(|e| format!("cannot resolve the worker executable: {}", e))?;
         let mut command = Command::new(exe);
         command
             .arg(super::worker::WORKER_FLAG)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::inherit());
+            // Piped and drained (never inherited): the shared tail thread
+            // forwards every line into voxbar.log, keeps a bounded crash
+            // tail, and a full pipe can never block the worker.
+            .stderr(Stdio::piped());
         let mut child = command
             .spawn()
             .map_err(|e| format!("failed to spawn the llm worker: {}", e))?;
         self.pid = Some(child.id());
         let stdin = child.stdin.take();
+        if let Some(stderr) = child.stderr.take() {
+            let (tail, done) = crate::engine_supervisor::spawn_stderr_tail(
+                stderr,
+                crate::engine_supervisor::STDERR_TAIL_LINES,
+                "llm_worker",
+            );
+            self.stderr_tail = Some(tail);
+            self.stderr_done = Some(done);
+        }
         if let Some(stdout) = child.stdout.take() {
             let (tx, rx) = mpsc::channel();
             thread::Builder::new()
@@ -461,6 +566,30 @@ impl SwapEngine for ProcessEngine {
     fn worker_pid(&self) -> Option<u32> {
         self.pid
     }
+
+    fn log_native_tail(&mut self) {
+        // Let the drain thread catch the worker's final lines, then report
+        // only the RAW native output (structured log lines were already
+        // forwarded by the tail thread; re-logging them would be noise).
+        if let Some(done) = self.stderr_done.take() {
+            let _ = done.recv_timeout(Duration::from_secs(1));
+        }
+        let Some(tail) = self.stderr_tail.take() else {
+            return;
+        };
+        let native: Vec<String> = tail
+            .lock()
+            .map(|tail| {
+                tail.iter()
+                    .filter(|line| !line.starts_with('\u{1}'))
+                    .cloned()
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !native.is_empty() {
+            warn!("llm worker native stderr tail:\n{}", native.join("\n"));
+        }
+    }
 }
 
 /// The production host: everything the runner does to the app.
@@ -528,7 +657,7 @@ impl SwapHost for AppSwapHost {
     }
 
     fn emit_skip(&self, reason: SkipReason, detail: Option<String>) {
-        let _ = PostProcessSkipEvent { reason, detail }.emit(&self.app);
+        emit_post_process_skip(&self.app, reason, detail);
     }
 
     fn gate_inputs(&self) -> LlmGateInputs {
@@ -544,9 +673,10 @@ impl SwapHost for AppSwapHost {
             });
         // L5: runtime-inclusive forecast; the measured RSS (captured after
         // the first successful generation this launch) corrects the 3/2
-        // file-size floor once available.
+        // file-size floor once available. The same shared helper the voice
+        // gate composes through, so both gates forecast identically.
         let forecast_bytes =
-            forecast::llm_forecast_bytes(file_size_bytes, self.measured_rss.get().copied());
+            forecast::runtime_inclusive_bytes(file_size_bytes, self.measured_rss.get().copied());
         // The voice model is still resident at gate time and its pages are
         // freed before the LLM's peak: credit its footprint back to free,
         // exactly like the voice loader's drop-old-first credit.
@@ -1030,6 +1160,7 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                     let hard_deadline = start + timing.graceful_exit + timing.kill_wait;
                     loop {
                         if engine.has_exited() {
+                            engine.log_native_tail();
                             signal = Some(Signal::LlmUnloaded);
                             break;
                         }
@@ -1040,6 +1171,7 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                                  the worker slot poisoned and restoring the voice model",
                                 timing.kill_wait
                             );
+                            engine.log_native_tail();
                             signal = Some(Signal::LlmKillTimedOut);
                             break;
                         }
@@ -1080,8 +1212,14 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
     drop(lease_guard);
 
     match (&processed, planner.is_done()) {
-        (Some(clean), true) => SwapOutcome::Processed(clean.clone()),
-        _ => SwapOutcome::Raw,
+        (Some(clean), true) => {
+            info!("{}", processed_outcome_log_line(clean.len()));
+            SwapOutcome::Processed(clean.clone())
+        }
+        _ => {
+            info!("{}", raw_outcome_log_line(planner.state));
+            SwapOutcome::Raw
+        }
     }
 }
 
@@ -1091,6 +1229,52 @@ mod tests {
     use crate::managers::transcription::LoadingGuard as RealLoadingGuard;
     use std::sync::atomic::AtomicUsize;
     use std::sync::Condvar;
+
+    /// Every SkipReason logs one grep-able line at the right severity: the
+    /// broke-something reasons warn, the expected/recoverable ones stay at
+    /// info. The line always carries the snake_case reason so log analysis
+    /// and the event payload agree on spelling.
+    #[test]
+    fn skip_log_lines_cover_every_reason_at_the_right_level() {
+        let cases = [
+            (SkipReason::MemoryGate, log::Level::Warn),
+            (SkipReason::EngineFailed, log::Level::Warn),
+            (SkipReason::Timeout, log::Level::Warn),
+            (SkipReason::LengthGuard, log::Level::Warn),
+            (SkipReason::DownloadMissing, log::Level::Info),
+            (SkipReason::TooLong, log::Level::Info),
+        ];
+        for (reason, level) in cases {
+            assert_eq!(skip_log_level(reason), level, "{reason:?} severity");
+            let line = skip_log_line(reason, Some("because"));
+            assert!(
+                line.starts_with("local post-process skipped: reason="),
+                "line shape: {line}"
+            );
+            assert!(
+                line.contains(skip_reason_str(reason)),
+                "reason in line: {line}"
+            );
+            assert!(line.ends_with("detail=because"), "detail in line: {line}");
+            // No detail still produces a complete line.
+            assert!(skip_log_line(reason, None).ends_with("detail=-"));
+        }
+    }
+
+    /// Both terminal outcomes leave a line: Processed reports the output
+    /// length (the cloud path's success shape), Raw reports the planner
+    /// state at loop exit so the raw fallback is diagnosable from the log
+    /// alone (history id 97's raw fallback left no trace before this).
+    #[test]
+    fn terminal_outcome_log_lines_name_the_outcome() {
+        let processed = processed_outcome_log_line(1234);
+        assert!(processed.starts_with("local post-process outcome: processed"));
+        assert!(processed.contains("1234 chars"), "{processed}");
+
+        let raw = raw_outcome_log_line(super::super::planner::SwapState::Done);
+        assert!(raw.starts_with("local post-process outcome: raw transcript used"));
+        assert!(raw.contains("Done"), "planner state rides the line: {raw}");
+    }
 
     fn mib(mb: u64) -> u64 {
         mb * 1024 * 1024

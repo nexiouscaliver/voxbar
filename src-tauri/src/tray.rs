@@ -692,6 +692,15 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
         menu.remove(&check_updates_i)?;
     }
 
+    // Platforms without shipped updater artifacts get no Check for Updates
+    // item either: only the macOS release pipeline signs and publishes
+    // update payloads (latest.json carries darwin entries alone), so the
+    // in-app check on Windows/Linux can only error or find nothing. The
+    // frontend keeps the same predicate (updaterPlatform.ts); flipping this
+    // requires shipping artifacts first (BUILD.md "Releasing").
+    #[cfg(not(target_os = "macos"))]
+    menu.remove(&check_updates_i)?;
+
     // Both layouts start with [version, separator, ...]; slot the warning in
     // right below the version line so it's the first actionable thing seen.
     // The tooltip mirrors the resident model + footprint segment (spec F4).

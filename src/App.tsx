@@ -336,6 +336,49 @@ function App() {
     };
   }, [t]);
 
+  // No-op key feedback from the notice channel: idle delete/undo presses,
+  // live-session presses with no buffer yet, cross-binding presses
+  // swallowed to protect a recording, and the Linux setup warnings (Wayland
+  // hotkey backend, GNOME overlay fallback). These have no other toast, so
+  // this listener is their main-window surface; the overlay shows the same
+  // message on its card when visible. Rate-limited per code (2s, the same
+  // window command-mode-no-session uses) so auto-repeat cannot stack; the
+  // Linux setup warnings stay up longer because they carry instructions.
+  const lastNoopNoticeToast = useRef<Record<string, number>>({});
+  useEffect(() => {
+    const unlisten = events.overlayNoticeEvent.listen((event) => {
+      const { code } = event.payload;
+      const keySuffix =
+        code === "delete_last_word_no_session"
+          ? "deleteLastWordNoSession"
+          : code === "delete_last_word_no_buffer"
+            ? "deleteLastWordNoBuffer"
+            : code === "undo_no_session"
+              ? "undoNoSession"
+              : code === "undo_no_buffer"
+                ? "undoNoBuffer"
+                : code === "binding_busy"
+                  ? "bindingBusy"
+                  : code === "wayland_tauri_hotkeys"
+                    ? "waylandTauriHotkeys"
+                    : code === "gnome_overlay_fallback"
+                      ? "gnomeOverlayFallback"
+                      : null;
+      if (keySuffix === null) return;
+      const duration =
+        code === "wayland_tauri_hotkeys" || code === "gnome_overlay_fallback"
+          ? 12000
+          : 4000;
+      const now = Date.now();
+      if (now - (lastNoopNoticeToast.current[code] ?? 0) < 2000) return;
+      lastNoopNoticeToast.current[code] = now;
+      toast.info(t(`overlay.notice.${keySuffix}`), { duration });
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
   // Tray "Unload After → Custom…": jump to the Advanced settings section and
   // focus the custom-seconds field. The window event is re-dispatched after a
   // short delay so the section (and the field) has mounted before it arrives.
@@ -446,19 +489,19 @@ function App() {
           toast:
             "bg-background border border-mid-gray/20 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 text-sm w-[360px]",
           title: "font-medium",
-          description: "text-mid-gray text-[13px] leading-relaxed",
+          description: "text-secondary text-sm leading-relaxed",
           // Both buttons need whitespace-nowrap + shrink-0: without sonner's
           // built-in button CSS, a long action label squeezes the cancel
           // button into a one-character-wide column of stacked letters.
           actionButton:
             "px-2.5 py-1.5 text-xs font-medium rounded-lg border bg-mid-gray/10 border-mid-gray/20 hover:bg-background-ui/30 hover:border-logo-primary cursor-pointer whitespace-nowrap shrink-0",
           cancelButton:
-            "px-2.5 py-1.5 text-xs font-medium rounded-lg border bg-transparent border-mid-gray/20 hover:bg-mid-gray/10 cursor-pointer whitespace-nowrap shrink-0 text-mid-gray",
+            "px-2.5 py-1.5 text-xs font-medium rounded-lg border bg-transparent border-mid-gray/20 hover:bg-mid-gray/10 cursor-pointer whitespace-nowrap shrink-0 text-secondary",
           // The loading spinner's own CSS assumes a 16px icon frame; with
           // unstyled mode that frame is gone and the spinner renders as a
           // collapsed starburst floating outside the text line.
           icon: "shrink-0 h-4 w-4 flex items-center justify-center",
-          loader: "text-mid-gray",
+          loader: "text-secondary",
         },
       }}
     />

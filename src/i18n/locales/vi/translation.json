@@ -20,6 +20,7 @@
     "output": "Đầu ra",
     "advanced": "Nâng cao",
     "postProcessing": "Xử lý sau",
+    "enableInAdvancedHint": "Bật trong Nâng cao",
     "history": "Lịch sử",
     "debug": "Gỡ lỗi",
     "about": "Giới thiệu"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Không thể chọn mô hình",
-      "downloadFailed": "Tải xuống {{model}} thất bại: {{error}}"
+      "downloadFailed": "Tải xuống {{model}} thất bại: {{error}}",
+      "extractFailed": "Giải nén {{model}} thất bại: {{error}}"
     },
     "permissions": {
       "title": "Cần cấp quyền",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "Không có mô hình nào",
     "verifying": "Đang xác minh {{modelName}}...",
     "verifyingGeneric": "Đang xác minh...",
+    "verifyingGenericShort": "Đang xác minh",
     "extracting": "Đang giải nén {{modelName}}...",
     "extractingMultiple": "Đang giải nén {{count}} mô hình...",
     "extractingGeneric": "Đang giải nén...",
+    "extractingGenericShort": "Đang giải nén",
     "downloading": "Đang tải xuống {{percentage}}%",
     "downloadingMultiple": "Đang tải xuống {{count}} mô hình...",
     "modelReady": "Mô Hình Sẵn Sàng",
@@ -160,6 +164,9 @@
     "loadingGeneric": "Đang tải...",
     "modelError": "Lỗi Mô Hình",
     "modelUnloaded": "Mô Hình Đã Gỡ",
+    "checkStatusFailed": "Không thể kiểm tra trạng thái mô hình",
+    "loadFailed": "Không thể tải mô hình",
+    "switchFailed": "Không thể chuyển mô hình",
     "noModelDownloadRequired": "Chưa Có Mô Hình - Cần Tải Xuống",
     "deleteModel": "Xóa {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -226,6 +233,10 @@
           "unsupportedArchUnknown": "Không thể đọc tệp đó dưới dạng mô hình GGUF nên đã không thêm.",
           "generic": "Đã xảy ra lỗi."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Mô hình này là engine hậu xử lý cục bộ. Nó trau chuốt bản trích lời sau khi đọc chính tả, không thể trích lời âm thanh.",
+        "generic": "Không thể chuyển sang mô hình này: {{error}}"
       }
     },
     "general": {
@@ -252,11 +263,11 @@
           },
           "delete_last_word": {
             "name": "Xóa từ cuối cùng",
-            "description": "Xóa từ trước con trỏ trong ứng dụng đang tập trung (Option+Backspace trên macOS, Ctrl+Backspace trên nền tảng khác). Gán phím để bật."
+            "description": "Xóa từ cuối cùng khỏi văn bản trực tiếp của buổi đọc chính tả khi phiên ghi âm đang hoạt động; ngoài ra không làm gì. Gán một phím để bật."
           },
           "undo": {
             "name": "Hoàn tác",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Trong lúc đọc chính tả: xóa nó và bắt đầu lại. Ngoài ra không làm gì."
           },
           "transcribe_commands": {
             "name": "Chế độ lệnh",
@@ -295,11 +306,11 @@
         "title": "Phím tắt chỉnh sửa",
         "deleteLastWord": {
           "title": "Hành động: xóa từ cuối cùng",
-          "description": "Bật phím tắt có thể gán để xóa từ trước con trỏ. Phím tắt giữ trạng thái tắt cho đến khi bạn gán phím ở trên."
+          "description": "Bật phím có thể gán để xóa từ cuối cùng khỏi văn bản trực tiếp của buổi đọc chính tả khi phiên ghi âm đang hoạt động."
         },
         "undo": {
           "title": "Hành động: hoàn tác",
-          "description": "Bật phím tắt có thể gán để kích hoạt Hoàn tác trong ứng dụng đang tập trung. Phím tắt giữ trạng thái tắt cho đến khi bạn gán phím ở trên."
+          "description": "Bật phím có thể gán để xóa văn bản trực tiếp của buổi đọc chính tả và bắt đầu lại khi phiên ghi âm đang hoạt động."
         }
       },
       "commandMode": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "Mô hình và bộ nhớ",
         "transcription": "Chuyển đổi",
-        "experimental": "Thử nghiệm"
+        "experimental": "Thử nghiệm",
+        "postProcessing": "Xử lý sau"
       },
       "experimentalToggle": {
         "label": "Tính năng thử nghiệm",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "Tìm kiếm hoặc chọn một mô hình",
           "placeholderNoOptions": "Nhập tên mô hình",
           "refreshModels": "Làm mới mô hình"
+        },
+        "timeout": {
+          "title": "Thời gian chờ yêu cầu",
+          "description": "Yêu cầu hậu xử lý trên đám mây có thể chạy bao lâu trước khi từ bỏ và dùng bản ghi thô. Áp dụng khi một endpoint ngừng phản hồi."
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "Để sau",
       "installedDescription": "VoxBar {{version}} đã được cài đặt và sẽ có hiệu lực lần tới VoxBar khởi động lại.",
       "failedDescription": "Không thể tải bản cập nhật. Kiểm tra kết nối và thử lại, hoặc tải xuống từ GitHub Releases.",
-      "translocatedDescription": "VoxBar không thể tự cập nhật khi chạy từ thư mục Downloads. Chuyển nó sang thư mục Ứng dụng (kéo trong Finder), mở từ đó, rồi kiểm tra bản cập nhật lại."
+      "translocatedDescription": "VoxBar không thể tự cập nhật khi chạy từ thư mục Downloads. Chuyển nó sang thư mục Ứng dụng (kéo trong Finder), mở từ đó, rồi kiểm tra bản cập nhật lại.",
+      "manualOnlyPlatform": "Tải bản cập nhật từ GitHub Releases",
+      "restartDescriptionWindows": "Đã tải xuống VoxBar {{version}}. Cài đặt sẽ đóng ứng dụng; phiên bản mới khởi động lần tới bạn mở VoxBar.",
+      "restartLaterWindows": "Cài đặt và đóng"
     }
   },
   "common": {
@@ -1002,7 +1021,19 @@
   "overlay": {
     "transcribing": "Đang chuyển đổi...",
     "processing": "Đang xử lý...",
-    "removedWord": "Đã xóa: {{text}}"
+    "removedWord": "Đã xóa: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Trích lời thất bại. Bản ghi đã được giữ lại, hãy thử lại từ lịch sử.",
+      "generic": "Đã xảy ra sự cố. Chi tiết nằm trong nhật ký.",
+      "deleteLastWordNoSession": "Phím xóa từ chỉ hoạt động trong lúc đọc chính tả đang bật. Hãy bắt đầu ghi âm trước.",
+      "deleteLastWordNoBuffer": "Chưa có gì để xóa, buổi đọc chính tả chưa có văn bản trực tiếp.",
+      "undoNoSession": "Phím hoàn tác chỉ hoạt động trong lúc đọc chính tả đang bật. Hãy bắt đầu ghi âm trước.",
+      "undoNoBuffer": "Chưa có gì để xóa sạch, buổi đọc chính tả chưa có văn bản trực tiếp.",
+      "bindingBusy": "Một phím đọc chính tả khác đang ghi âm.",
+      "waylandTauriHotkeys": "Phím tắt toàn cầu có thể không hoạt động trong các ứng dụng Wayland gốc với bản triển khai bàn phím này. Chuyển bản triển khai bàn phím sang VoxBar Keys và thêm người dùng của bạn vào nhóm input; xem hướng dẫn Ubuntu.",
+      "gnomeOverlayFallback": "Trên GNOME Wayland, lớp phủ hiển thị như một cửa sổ thường có thể chiếm trọng tâm và làm hỏng thao tác dán. Ở đây nên đặt Lớp phủ: Không có."
+    },
+    "commandBadge": "Chế độ lệnh"
   },
   "whatsNew": {
     "title": "Điểm mới trong VoxBar v{{version}}"
@@ -1026,7 +1057,8 @@
       "timeout": "Đã bỏ qua xử lý sau: mô hình cục bộ mất quá nhiều thời gian. Đã dùng văn bản gốc.",
       "lengthGuard": "Đã bỏ qua xử lý sau: đầu ra của mô hình cục bộ không vượt qua kiểm tra độ dài. Đã dùng văn bản gốc.",
       "tooLong": "Đã bỏ qua xử lý sau: văn bản này quá dài đối với mô hình cục bộ. Đã dùng văn bản gốc."
-    }
+    },
+    "settingNotSaved": "Không thể lưu cài đặt này: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar không thể cài đặt bản cập nhật từ vị trí này",

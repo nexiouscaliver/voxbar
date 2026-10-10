@@ -172,11 +172,42 @@ fn build_headers(provider: &PostProcessProvider, api_key: &str) -> Result<Header
     Ok(headers)
 }
 
-/// Create an HTTP client with provider-specific headers
-fn create_client(provider: &PostProcessProvider, api_key: &str) -> Result<reqwest::Client, String> {
+/// Default total-request timeout for post-process calls, in seconds. Also
+/// the fallback a 0 (hand-edited store) setting resolves to: 0 would mean
+/// "no total timeout" for reqwest, which is exactly the forever-wedge this
+/// bounds.
+pub(crate) const DEFAULT_POST_PROCESS_TIMEOUT_SECS: u64 = 60;
+
+/// Resolve the configured timeout (seconds) into the value the client uses.
+/// 0 resolves to the default; everything else passes through unchanged (the
+/// setting's command enforces its own bounds on writes).
+pub(crate) fn resolve_request_timeout_secs(configured_secs: u64) -> u64 {
+    if configured_secs == 0 {
+        DEFAULT_POST_PROCESS_TIMEOUT_SECS
+    } else {
+        configured_secs
+    }
+}
+
+/// Create an HTTP client with provider-specific headers and a bounded
+/// request lifetime. Without a total timeout, an endpoint that accepts the
+/// connection but never answers hangs the post-process pipeline forever:
+/// during Processing the keyboard cancel path is inert (the handler gate
+/// requires a live recording), so nothing but the tray Cancel escapes.
+/// `timeout_secs` is the resolved post-process setting; the connect phase
+/// is bounded separately so a dead host fails in seconds, not minutes.
+fn create_client(
+    provider: &PostProcessProvider,
+    api_key: &str,
+    timeout_secs: u64,
+) -> Result<reqwest::Client, String> {
     let headers = build_headers(provider, api_key)?;
     reqwest::Client::builder()
         .default_headers(headers)
+        .timeout(std::time::Duration::from_secs(
+            resolve_request_timeout_secs(timeout_secs),
+        ))
+        .connect_timeout(std::time::Duration::from_secs(10))
         .build()
         .map_err(|e| report_reqwest_error("Failed to build HTTP client", &e))
 }
@@ -303,6 +334,7 @@ pub async fn send_chat_completion(
     model: &str,
     prompt: String,
     disable_reasoning: bool,
+    timeout_secs: u64,
 ) -> Result<Option<String>, String> {
     send_chat_completion_with_schema(
         provider,
@@ -312,6 +344,7 @@ pub async fn send_chat_completion(
         None,
         None,
         disable_reasoning,
+        timeout_secs,
     )
     .await
 }
@@ -334,6 +367,7 @@ pub async fn send_chat_completion_with_schema(
     system_prompt: Option<String>,
     json_schema: Option<Value>,
     disable_reasoning: bool,
+    timeout_secs: u64,
 ) -> Result<Option<String>, String> {
     let base_url = provider.base_url.trim_end_matches('/');
     let url = format!("{}/chat/completions", base_url);
@@ -343,7 +377,7 @@ pub async fn send_chat_completion_with_schema(
         sanitized_url_for_log(&url)
     );
 
-    let client = create_client(provider, &api_key)?;
+    let client = create_client(provider, &api_key, timeout_secs)?;
 
     // Build messages vector
     let mut messages = Vec::new();
@@ -466,13 +500,14 @@ pub async fn send_chat_completion_with_schema(
 pub async fn fetch_models(
     provider: &PostProcessProvider,
     api_key: String,
+    timeout_secs: u64,
 ) -> Result<Vec<String>, String> {
     let base_url = provider.base_url.trim_end_matches('/');
     let url = format!("{}/models", base_url);
 
     debug!("Fetching models from: {}", sanitized_url_for_log(&url));
 
-    let client = create_client(provider, &api_key)?;
+    let client = create_client(provider, &api_key, timeout_secs)?;
 
     let response = client
         .get(&url)
@@ -753,5 +788,69 @@ mod tests {
         assert!(is_known_rejected(&key));
         // A different model on the same endpoint is tracked separately
         assert!(!is_known_rejected(&endpoint_key(&deepseek, "other-model")));
+    }
+
+    #[test]
+    fn timeout_resolution_never_disables_the_timeout() {
+        // A 0 setting (hand-edited store) resolves to the default instead of
+        // "no total timeout", which would reintroduce the forever-wedge.
+        assert_eq!(
+            resolve_request_timeout_secs(0),
+            DEFAULT_POST_PROCESS_TIMEOUT_SECS
+        );
+        assert_eq!(resolve_request_timeout_secs(0), 60);
+        // Ordinary values pass through unchanged.
+        assert_eq!(resolve_request_timeout_secs(1), 1);
+        assert_eq!(resolve_request_timeout_secs(30), 30);
+        assert_eq!(resolve_request_timeout_secs(600), 600);
+    }
+
+    /// A listener that accepts the connection but never writes a response:
+    /// the exact wedge shape a stalled endpoint produces. The accepted
+    /// streams are HELD (not dropped) so the connection stays open and the
+    /// client waits on a read that never arrives.
+    async fn serve_never_responding() -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let mut held = Vec::new();
+            while let Ok((stream, _)) = listener.accept().await {
+                held.push(stream);
+            }
+        });
+        format!("http://{address}")
+    }
+
+    /// The wedge fix: against an endpoint that accepts connections but never
+    /// responds, the request must fail with a timeout error (the pipeline
+    /// returns to Idle) rather than hang forever. The 1s configured timeout
+    /// keeps the test fast; the assertion is bounded so a regression fails
+    /// instead of stalling the suite.
+    #[tokio::test]
+    async fn wedged_endpoint_fails_at_the_configured_timeout() {
+        let base_url = serve_never_responding().await;
+        let started = std::time::Instant::now();
+        let result = send_chat_completion_with_schema(
+            &provider("custom", &base_url),
+            String::new(),
+            "test-model",
+            "hi".to_string(),
+            None,
+            None,
+            false,
+            1,
+        )
+        .await;
+        let elapsed = started.elapsed();
+        assert!(result.is_err(), "the wedged request must fail, not hang");
+        let error = result.unwrap_err();
+        assert!(
+            error.contains("kind: ") && error.contains("timeout"),
+            "the failure should be the timeout, got: {error}"
+        );
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "the timeout must bound the request (took {elapsed:?})"
+        );
     }
 }

@@ -20,6 +20,7 @@
     "output": "आउटपुट",
     "advanced": "उन्नत",
     "postProcessing": "पोस्ट प्रोसेस",
+    "enableInAdvancedHint": "उन्नतमा सक्रिय गर्नुहोस्",
     "history": "हिस्ट्री",
     "debug": "डिबग",
     "about": "बारेमा"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "मोडेल चयन गर्न सकिएन",
-      "downloadFailed": "{{model}} डाउनलोड असफल भयो: {{error}}"
+      "downloadFailed": "{{model}} डाउनलोड असफल भयो: {{error}}",
+      "extractFailed": "{{model}} एक्स्ट्र्याक्ट गर्न असफल भयो: {{error}}"
     },
     "permissions": {
       "title": "अनुमतिहरू आवश्यक छन्",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "कुनै मोडेल उपलब्ध छैन",
     "verifying": "{{modelName}} प्रमाणित गरिँदैछ...",
     "verifyingGeneric": "प्रमाणित गरिँदैछ...",
+    "verifyingGenericShort": "प्रमाणित गरिँदैछ",
     "extracting": "{{modelName}} एक्स्ट्र्याक्ट गरिँदैछ...",
     "extractingMultiple": "{{count}} वटा मोडेल एक्स्ट्र्याक्ट गरिँदैछ...",
     "extractingGeneric": "एक्स्ट्र्याक्ट गरिँदैछ...",
+    "extractingGenericShort": "एक्स्ट्र्याक्ट गरिँदैछ",
     "downloading": "डाउनलोड गरिँदैछ {{percentage}}%",
     "downloadingMultiple": "{{count}} वटा मोडेल डाउनलोड गरिँदैछ...",
     "modelReady": "मोडेल तयार छ",
@@ -161,6 +165,9 @@
     "loadingGeneric": "लोड गरिँदैछ...",
     "modelError": "मोडेल त्रुटि",
     "modelUnloaded": "मोडेल अनलोड गरियो",
+    "checkStatusFailed": "मोडेलको स्थिति जाँच्न असफल भयो",
+    "loadFailed": "मोडेल लोड गर्न असफल भयो",
+    "switchFailed": "मोडेल स्विच गर्न असफल भयो",
     "noModelDownloadRequired": "मोडेल छैन - डाउनलोड आवश्यक",
     "deleteModel": "{{modelName}} मेटाउनुहोस्",
     "downloadSpeed": "{{speed}} MB/s",
@@ -204,11 +211,11 @@
           },
           "delete_last_word": {
             "name": "Delete Last Word",
-            "description": "Deletes the word before the caret in the focused app (Option+Backspace on macOS, Ctrl+Backspace elsewhere). Assign a key to enable it."
+            "description": "रेकर्डिङ सत्र सक्रिय रहँदा डिक्टेसनको लाइभ पाठबाट अन्तिम शब्द हटाउँछ; अन्यथा केही गर्दैन। सक्रिय गर्न एउटा कुञ्जी असाइन गर्नुहोस्।"
           },
           "undo": {
             "name": "Undo",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "डिक्टेसन चलिरहेको बेला: यसलाई मेटेर नयाँ सुरु गर्छ। अन्यथा केही गर्दैन।"
           },
           "transcribe_commands": {
             "name": "Command Mode",
@@ -247,11 +254,11 @@
         "title": "Editing Shortcuts",
         "deleteLastWord": {
           "title": "Delete Last Word Action",
-          "description": "Enable the assignable hotkey that deletes the word before the caret. The hotkey stays inactive until a key is assigned above."
+          "description": "रेकर्डिङ सत्र सक्रिय रहँदा डिक्टेसनको लाइभ पाठबाट अन्तिम शब्द हटाउने असाइन गर्न मिल्ने कुञ्जी सक्रिय गर्छ।"
         },
         "undo": {
           "title": "Undo Action",
-          "description": "Enable the assignable hotkey that triggers undo in the focused app. The hotkey stays inactive until a key is assigned above."
+          "description": "रेकर्डिङ सत्र सक्रिय रहँदा डिक्टेसनको लाइभ पाठ मेटेर नयाँ सुरु गर्ने असाइन गर्न मिल्ने कुञ्जी सक्रिय गर्छ।"
         }
       },
       "commandMode": {
@@ -381,6 +388,10 @@
           "unsupportedArchUnknown": "That file could not be read as a GGUF model, so it was not added.",
           "generic": "Something went wrong."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "यो मोडेल स्थानीय पोस्ट-प्रोसेस इन्जिन हो। यसले डिक्टेसनपछि ट्रान्सक्रिप्ट सुधार्छ, अडियो ट्रान्सक्राइब गर्न सक्दैन।",
+        "generic": "यो मोडेलमा स्विच गर्न सकिएन: {{error}}"
       }
     },
     "sound": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "मोडेल र मेमोरी",
         "transcription": "ट्रान्सक्रिप्सन",
-        "experimental": "प्रयोगात्मक"
+        "experimental": "प्रयोगात्मक",
+        "postProcessing": "पोस्ट प्रोसेसिङ"
       },
       "experimentalToggle": {
         "label": "प्रयोगात्मक सुविधाहरू",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "मोडेल खोज्नुहोस् वा चयन गर्नुहोस्",
           "placeholderNoOptions": "मोडेलको नाम टाइप गर्नुहोस्",
           "refreshModels": "मोडेलहरू रिफ्रेस गर्नुहोस्"
+        },
+        "timeout": {
+          "title": "अनुरोध समय सीमा",
+          "description": "क्लाउड पोस्ट-प्रोसेस अनुरोधले हार मानी कच्च ट्रान्सक्रिप्ट प्रयोग गर्नु अघि कति समय चल्न सक्छ। एन्डपोइन्टले जवाफ दिन छोड्दा लागू हुन्छ।"
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "पछि",
       "installedDescription": "VoxBar {{version}} इन्स्टल भयो र VoxBar अर्को पटक खुल्दा सक्रिय हुनेछ।",
       "failedDescription": "अपडेट डाउनलोड गर्न सकिएन। आफ्नो जडान जाँची फेरि प्रयास गर्नुहोस्, वा GitHub Releases बाट डाउनलोड गर्नुहोस्।",
-      "translocatedDescription": "Downloads फोल्डरबाट चल्दा VoxBar आफै अपडेट हुन सक्दैन। यसलाई Finder मा Applications फोल्डरमा सार्नुहोस्, त्यहाँबाट खोल्नुहोस्, र फेरि अपडेट जाँच्नुहोस्।"
+      "translocatedDescription": "Downloads फोल्डरबाट चल्दा VoxBar आफै अपडेट हुन सक्दैन। यसलाई Finder मा Applications फोल्डरमा सार्नुहोस्, त्यहाँबाट खोल्नुहोस्, र फेरि अपडेट जाँच्नुहोस्।",
+      "manualOnlyPlatform": "GitHub Releases बाट अपडेट लिनुहोस्",
+      "restartDescriptionWindows": "VoxBar {{version}} डाउनलोड भयो। स्थापना गर्दा एप बन्द हुन्छ; नयाँ संस्करण पछिल्लो पटक VoxBar खोल्दा सुरु हुन्छ।",
+      "restartLaterWindows": "स्थापना गरेर बन्द गर्नुहोस्"
     }
   },
   "whatsNew": {
@@ -1005,7 +1024,19 @@
   "overlay": {
     "transcribing": "ट्रान्सक्राइब गरिँदैछ...",
     "processing": "प्रशोधन गरिँदैछ...",
-    "removedWord": "हटाइयो: {{text}}"
+    "removedWord": "हटाइयो: {{text}}",
+    "notice": {
+      "transcriptionFailed": "ट्रान्सक्रिप्सन असफल भयो। रेकर्डिङ सुरक्षित छ, इतिहासबाट फेरि प्रयास गर्नुहोस्।",
+      "generic": "केही गडबड भयो। विवरण लगमा छ।",
+      "deleteLastWordNoSession": "शब्द मेट्ने कुञ्जी सक्रिय डिक्टेसनको समयमा मात्र काम गर्छ। पहिले रेकर्डिङ सुरु गर्नुहोस्।",
+      "deleteLastWordNoBuffer": "अझै मेट्नुपर्ने केही छैन, डिक्टेसनमा लाइभ पाठ छैन।",
+      "undoNoSession": "पूर्ववत कुञ्जी सक्रिय डिक्टेसनको समयमा मात्र काम गर्छ। पहिले रेकर्डिङ सुरु गर्नुहोस्।",
+      "undoNoBuffer": "अझै सफा गर्नुपर्ने केही छैन, डिक्टेसनमा लाइभ पाठ छैन।",
+      "bindingBusy": "अर्को डिक्टेसन कुञ्जी पहिले नै रेकर्ड गर्दैछ।",
+      "waylandTauriHotkeys": "यो किबोर्ड कार्यान्वयनसँग नेटिभ Wayland एपहरूमा ग्लोबल सर्टकट काम नगर्न सक्छ। किबोर्ड कार्यान्वयन VoxBar Keys मा बदल्नुहोस् र आफ्नो प्रयोगकर्तालाई input समूहमा थप्नुहोस्; Ubuntu गाइड हेर्नुहोस्।",
+      "gnomeOverlayFallback": "GNOME Wayland मा ओभरले सामान्य सञ्झ्यालजस्तै देखिन्छ, जसले फोकस खोस्न र टाँस्ने काम बिगार्न सक्छ। यहाँ ओभरले: कुनै होइन सिफारिस गरिन्छ।"
+    },
+    "commandBadge": "कमाण्ड मोड"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} ले 1 सर्टकट रोकिरहेको हुन सक्छ",
@@ -1026,7 +1057,8 @@
       "timeout": "पोस्ट प्रोसेस छाडियो: स्थानीय मोडेलले धेरै समय लियो। मूल ट्रान्सक्रिप्ट प्रयोग गरियो।",
       "lengthGuard": "पोस्ट प्रोसेस छाडियो: स्थानीय मोडेलको नतिजा लम्बाइ जाँचमा असफल भयो। मूल ट्रान्सक्रिप्ट प्रयोग गरियो।",
       "tooLong": "पोस्ट प्रोसेस छाडियो: यो ट्रान्सक्रिप्ट स्थानीय मोडेलका लागि धेरै लामो छ। मूल ट्रान्सक्रिप्ट प्रयोग गरियो।"
-    }
+    },
+    "settingNotSaved": "यो सेटिङ सुरक्षित गर्न सकिएन: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar यो स्थानबाट अपडेट इन्स्टल गर्न सक्दैन",

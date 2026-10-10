@@ -295,9 +295,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 11px;
   font-style: normal;
-  color: var(--s-faint);
+  color: var(--s-muted);
   background: color-mix(in srgb, var(--color-text) 8%, transparent);
   border-radius: 8px;
   padding: 3px 8px;
@@ -305,6 +305,46 @@
 .sremoved s {
   text-decoration: line-through;
   text-decoration-thickness: 1px;
+}
+
+/* Notice strip: a failure or fallback the backend surfaced mid-dictation.
+   Chip geometry follows .sremoved (same visual language for transient
+   metadata under the card), with two tones: info keeps the neutral chip,
+   error takes the app's one error treatment (border + faint wash of the
+   shared --color-error token, same recipe as error toasts and the refusal
+   card). The card widens while a notice is up so a sentence remains
+   readable on the compact pill. */
+.snotice {
+  margin: 0 10px 8px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-style: normal;
+  line-height: 1.35;
+  /* Two full lines plus the 8px vertical padding, so the line-clamp row
+     itself is never shaved mid-word (the ellipsis must be visible). */
+  max-height: calc(2 * 1.35em + 8px);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+.snotice.info {
+  color: var(--s-muted);
+  background: color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+.snotice.err {
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
+}
+/* Room for the notice: the collapsed Live working pill steps up to the
+   open-panel width while the strip is visible (its window is the streaming
+   one, which already fits that width). The compact pill keeps its width; the
+   native compact window is narrower, so the strip clamps to two lines there
+   and the sound plus toast carry the full message. */
+.scard.working.has-notice {
+  width: var(--ov-open-w);
 }
 @keyframes scaret-blink {
   50% {
@@ -358,6 +398,25 @@
   opacity: 0.45;
   animation: none;
 }
+/* Command-mode badge: a keycap-styled CMD chip beside the dot while the
+   command modifier is modulating the live session. Subtle by design: it
+   confirms the mode, it does not shout over the text. */
+.scmd {
+  margin-left: 6px;
+  padding: 1px 4px;
+  border-radius: 4px;
+  /* 11px keeps the badge on the xs step of the 13/11/15 scale; the tighter
+     letter-spacing holds the keycap at the same overall width the 10px/0.06em
+     pair drew. */
+  font-size: 11px;
+  font-weight: 500;
+  font-style: normal;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  color: var(--s-accent);
+  background: var(--s-accent-soft);
+  border: 1px solid var(--s-hair);
+}
 @keyframes sdot-pulse {
   0% {
     box-shadow: 0 0 0 0 var(--s-accent-soft);
@@ -367,8 +426,10 @@
   }
 }
 .stimer {
-  font-size: 12px;
-  color: var(--s-faint);
+  font-size: 11px;
+  /* --s-muted, not --s-faint: the timer is glanceable content, and faint
+     measures 2.88:1 on the card. */
+  color: var(--s-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   opacity: 0;
@@ -482,7 +543,7 @@
   }
 }
 .swork-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--s-muted);
   white-space: nowrap;
   padding: 0 8px; /* breathing room from the spinner / cancel when content-sized */

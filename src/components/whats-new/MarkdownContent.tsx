@@ -53,17 +53,13 @@ const isSafeImageSrc = (src: string) => {
 
 const components: Components = {
   h1: ({ children }) => (
-    <h3 className="text-base font-semibold leading-snug text-text">
-      {children}
-    </h3>
+    <h3 className="text-base font-medium leading-snug text-text">{children}</h3>
   ),
   h2: ({ children }) => (
-    <h3 className="text-[15px] font-semibold leading-snug text-text">
-      {children}
-    </h3>
+    <h3 className="text-base font-medium leading-snug text-text">{children}</h3>
   ),
   h3: ({ children }) => (
-    <h3 className="text-sm font-semibold leading-snug text-text">{children}</h3>
+    <h3 className="text-sm font-medium leading-snug text-text">{children}</h3>
   ),
   p: ({ children }) => (
     <p className="text-sm leading-relaxed text-text/80">{children}</p>

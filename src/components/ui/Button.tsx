@@ -34,10 +34,14 @@ export const Button: React.FC<ButtonProps> = ({
     // buttons sitting on warning surfaces like SecureInputWarning
     warning:
       "text-text bg-mid-gray/10 border-mid-gray/20 hover:bg-warning/15 hover:border-warning focus:ring-1 focus:ring-warning",
+    // The app's one error red (--color-error) as a solid fill. Label color
+    // is the theme background so it flips with the token (near-white on the
+    // deep light-theme red, near-black on the lighter dark-theme red), both
+    // passing 4.5:1.
     danger:
-      "text-white bg-red-600 border-mid-gray/20 hover:bg-red-700 hover:border-red-700 focus:ring-1 focus:ring-red-500",
+      "text-background bg-error border-error hover:bg-error/80 hover:border-error/80 focus:ring-1 focus:ring-error",
     "danger-ghost":
-      "text-red-400 border-transparent hover:text-red-300 hover:bg-red-500/10 focus:bg-red-500/20",
+      "text-error border-transparent hover:text-error/80 hover:bg-error/10 focus:bg-error/20",
     ghost:
       "text-current border-transparent hover:bg-mid-gray/10 hover:border-logo-primary focus:bg-mid-gray/20",
   };

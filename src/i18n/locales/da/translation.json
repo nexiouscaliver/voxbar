@@ -20,6 +20,7 @@
     "output": "Output",
     "advanced": "Avanceret",
     "postProcessing": "Efterbehandling",
+    "enableInAdvancedHint": "Aktivér under Avanceret",
     "history": "Historik",
     "debug": "Fejlfinding",
     "about": "Om"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Kunne ikke vælge model",
-      "downloadFailed": "Kunne ikke downloade {{model}}: {{error}}"
+      "downloadFailed": "Kunne ikke downloade {{model}}: {{error}}",
+      "extractFailed": "Kunne ikke udpakke {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Tilladelser påkrævet",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "Ingen modeller tilgængelige",
     "verifying": "Verificerer {{modelName}}...",
     "verifyingGeneric": "Verificerer...",
+    "verifyingGenericShort": "Verificerer",
     "extracting": "Udpakker {{modelName}}...",
     "extractingMultiple": "Udpakker {{count}} modeller...",
     "extractingGeneric": "Udpakker...",
+    "extractingGenericShort": "Udpakker",
     "downloading": "Downloader {{percentage}}%",
     "downloadingMultiple": "Downloader {{count}} modeller...",
     "modelReady": "Model klar",
@@ -161,6 +165,9 @@
     "loadingGeneric": "Indlæser...",
     "modelError": "Modelfejl",
     "modelUnloaded": "Model frigjort",
+    "checkStatusFailed": "Kunne ikke tjekke modelstatus",
+    "loadFailed": "Kunne ikke indlæse modellen",
+    "switchFailed": "Kunne ikke skifte model",
     "noModelDownloadRequired": "Ingen model - download påkrævet",
     "deleteModel": "Slet {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -204,11 +211,11 @@
           },
           "delete_last_word": {
             "name": "Slet sidste ord",
-            "description": "Sletter ordet før markøren i den aktive app (Option+Backspace på macOS, Ctrl+Backspace andre steder). Tildel en tast for at aktivere."
+            "description": "Fjerner det sidste ord fra den live dikteringstekst, mens en optagelsessession er aktiv; ellers sker der intet. Tildel en tast for at aktivere den."
           },
           "undo": {
             "name": "Fortryd",
-            "description": "While a dictation is live: clears it (start over). Does nothing otherwise."
+            "description": "Mens en diktering er i gang: rydder den og starter forfra. Ellers sker der intet."
           },
           "transcribe_commands": {
             "name": "Kommandotilstand",
@@ -247,11 +254,11 @@
         "title": "Redigeringsgenveje",
         "deleteLastWord": {
           "title": "Handling: slet sidste ord",
-          "description": "Aktiverer den tildelbare genvej, der sletter ordet før markøren. Genvejen forbliver inaktiv, til en tast tildeles ovenfor."
+          "description": "Aktiverer den tildelbare genvejstast, der fjerner det sidste ord fra den live dikteringstekst, mens en optagelsessession er aktiv."
         },
         "undo": {
           "title": "Handling: fortryd",
-          "description": "Aktiverer den tildelbare genvej, der udfører Fortryd i den aktive app. Genvejen forbliver inaktiv, til en tast tildeles ovenfor."
+          "description": "Aktiverer den tildelbare genvejstast, der rydder den live dikteringstekst og starter forfra, mens en optagelsessession er aktiv."
         }
       },
       "commandMode": {
@@ -381,6 +388,10 @@
           "unsupportedArchUnknown": "Filen kunne ikke læses som en GGUF model, så den blev ikke tilføjet.",
           "generic": "Noget gik galt."
         }
+      },
+      "selectionErrors": {
+        "notAsrModel": "Denne model er den lokale efterbehandlingsmotor. Den forbedrer transskriptioner efter diktat, men kan ikke transskribere lyd.",
+        "generic": "Kunne ikke skifte til denne model: {{error}}"
       }
     },
     "sound": {
@@ -422,7 +433,8 @@
       "groups": {
         "model": "Model og hukommelse",
         "transcription": "Transskription",
-        "experimental": "Eksperimentel"
+        "experimental": "Eksperimentel",
+        "postProcessing": "Efterbehandling"
       },
       "experimentalToggle": {
         "label": "Eksperimentelle funktioner",
@@ -656,6 +668,10 @@
           "placeholderWithOptions": "Søg eller vælg en model",
           "placeholderNoOptions": "Skriv et modelnavn",
           "refreshModels": "Opdater modeller"
+        },
+        "timeout": {
+          "title": "Anmodningstimeout",
+          "description": "Hvor længe en cloud-efterbehandlingsanmodning må køre, før den giver op og den rå transskription bruges. Gælder, når en endpoint holder op med at svare."
         }
       },
       "local": {
@@ -927,7 +943,10 @@
       "restartLater": "Senere",
       "installedDescription": "VoxBar {{version}} er installeret og bliver aktiv, næste gang VoxBar genstarter.",
       "failedDescription": "Opdateringen kunne ikke downloades. Tjek din forbindelse og prøv igen, eller download den fra GitHub Releases.",
-      "translocatedDescription": "VoxBar kan ikke opdatere sig selv, mens den kører fra Downloads-mappen. Flyt den til mappen Applications (træk den i Finder), åbn den derfra, og tjek efter opdateringer igen."
+      "translocatedDescription": "VoxBar kan ikke opdatere sig selv, mens den kører fra Downloads-mappen. Flyt den til mappen Applications (træk den i Finder), åbn den derfra, og tjek efter opdateringer igen.",
+      "manualOnlyPlatform": "Hent opdateringer fra GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} er downloadet. Installationen lukker appen; den nye version starter, næste gang du åbner VoxBar.",
+      "restartLaterWindows": "Installér og luk"
     }
   },
   "whatsNew": {
@@ -1005,7 +1024,19 @@
   "overlay": {
     "transcribing": "Transskriberer...",
     "processing": "Behandler...",
-    "removedWord": "Fjernet: {{text}}"
+    "removedWord": "Fjernet: {{text}}",
+    "notice": {
+      "transcriptionFailed": "Transskriptionen mislykkedes. Optagelsen blev gemt, prøv igen fra historikken.",
+      "generic": "Noget gik galt. Detaljerne findes i loggen.",
+      "deleteLastWordNoSession": "Slet ord-tasten virker under en aktiv diktatning. Start optagelsen først.",
+      "deleteLastWordNoBuffer": "Der er endnu intet at slette, diktatningen har ingen tekst endnu.",
+      "undoNoSession": "Fortryd-tasten virker under en aktiv diktatning. Start optagelsen først.",
+      "undoNoBuffer": "Der er endnu intet at rydde, diktatningen har ingen tekst endnu.",
+      "bindingBusy": "En anden diktattast optager allerede.",
+      "waylandTauriHotkeys": "Globale genveje fungerer måske ikke i native Wayland-apps med denne tastaturimplementering. Skift tastaturimplementering til VoxBar Keys, og tilføj din bruger til input-gruppen; se Ubuntu-guiden.",
+      "gnomeOverlayFallback": "På GNOME Wayland vises overlayet som et almindeligt vindue, der kan stjæle fokus og ødelægge indsætning. Anbefalingen er her Overlay: Ingen."
+    },
+    "commandBadge": "Kommandotilstand"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blokerer muligvis 1 genvej",
@@ -1026,7 +1057,8 @@
       "timeout": "Efterbehandling sprunget over: den lokale model brugte for lang tid. Den originale transskription blev brugt.",
       "lengthGuard": "Efterbehandling sprunget over: den lokale models output bestod ikke længdekontrollen. Den originale transskription blev brugt.",
       "tooLong": "Efterbehandling sprunget over: denne transskription er for lang til den lokale model. Den originale transskription blev brugt."
-    }
+    },
+    "settingNotSaved": "Denne indstilling kunne ikke gemmes: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar kan ikke installere opdateringer fra denne placering",

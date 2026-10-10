@@ -48,11 +48,14 @@ tauri_panel! {
 // width from 172 (--ov-rest-w) to 216 (--ov-work-w) and expands from center, so
 // the window must fit the widest state plus a little slack.
 const OVERLAY_WIDTH: f64 = 256.0;
-const OVERLAY_HEIGHT: f64 = 50.0;
+// 40px control row + up to two 12px notice lines (~42px) + margin + borders.
+// The extra room is transparent except while a notice strip is visible.
+const OVERLAY_HEIGHT: f64 = 96.0;
 
-// Actual is 394x118, just a little extra
+// Actual card is 394x118; the extra height covers the notice strip (~42px)
+// on top of the live-text region, all transparent when no notice is up.
 const OVERLAY_STREAM_WIDTH: f64 = 400.0;
-const OVERLAY_STREAM_HEIGHT: f64 = 120.0;
+const OVERLAY_STREAM_HEIGHT: f64 = 168.0;
 
 /// Overlay window size (logical) for a given UI state.
 fn overlay_dimensions(state: &str) -> (f64, f64) {
@@ -740,6 +743,25 @@ pub fn hide_recording_overlay(app_handle: &AppHandle) {
     }
 }
 
+/// How long an error notice stays readable on the card before the overlay
+/// hides. Long enough to read one line, short enough not to block the next
+/// dictation's visual start (and the generation guard below makes a new
+/// session's show win over this delayed hide anyway).
+const ERROR_READ_DELAY: std::time::Duration = std::time::Duration::from_millis(2600);
+
+/// Hide the overlay after the error-read delay instead of immediately: the
+/// failure path has just put a notice on the card, and yanking the card
+/// 300 ms later would make the notice unreadable. The eventual hide reuses
+/// [`hide_recording_overlay`], so the show-generation guard cancels it when
+/// a newer session shows the overlay in the meantime.
+pub fn hide_recording_overlay_after_error(app_handle: &AppHandle) {
+    let handle = app_handle.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(ERROR_READ_DELAY);
+        hide_recording_overlay(&handle);
+    });
+}
+
 // Cached "overlay is enabled" flag, kept in sync with overlay_style. Avoids
 // reading the Tauri store on every audio callback (~24 Hz during recording).
 // Defaults to false so the audio path doesn't emit until lib.rs::setup
@@ -750,6 +772,15 @@ static OVERLAY_ENABLED: AtomicBool = AtomicBool::new(false);
 /// Used to skip layer-shell calls when the window is a regular fallback.
 #[cfg(target_os = "linux")]
 static LAYER_SHELL_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// Whether the overlay window is a layer-shell surface (Linux only). False
+/// means the overlay fell back to a regular window, which on GNOME Wayland
+/// steals focus and breaks pastes (see the Ubuntu troubleshooting guide) -
+/// callers use this to warn before the user turns the overlay on.
+#[cfg(target_os = "linux")]
+pub fn layer_shell_active() -> bool {
+    LAYER_SHELL_ACTIVE.load(Ordering::SeqCst)
+}
 
 /// Update the cached overlay-enabled flag. Called from `lib.rs` at
 /// startup after settings load, and from `change_overlay_style_setting`
