@@ -136,6 +136,9 @@ const RecordingOverlay: React.FC = () => {
   // Command-mode indicator: the coordinator emits command-modifier-changed at
   // engage/release (and clears it at session end), so the pill shows a subtle
   // CMD chip while speech edits the buffer instead of dictating text.
+  // KB-227: the engage is emitted only while a live streaming session exists
+  // (the only mode that interprets commands); on non-streaming models the
+  // chip never lights, so it cannot claim commands that paste as text.
   const [cmdActive, setCmdActive] = useState(false);
   // Companion-session indicator: a phone/tablet mic is the capture source
   // (emitted at remote session start/stop beside the command-mode chip).

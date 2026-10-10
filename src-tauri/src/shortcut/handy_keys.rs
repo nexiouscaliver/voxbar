@@ -48,7 +48,11 @@
 //! `TranscriptionCoordinator::send_command_modifier`; the coordinator
 //! enqueues and immediately emits `command-modifier-changed`, which the
 //! overlay's command-mode badge renders. No step of that chain waits for
-//! engine audio or text.
+//! engine audio or text. KB-227: the engage edge reaches the overlay only
+//! while a live streaming run exists (the sole configuration in which
+//! commands are interpreted); on ONNX/batch models the badge stays dark
+//! even though the modifier is engaged, so it never claims an
+//! interpretation that cannot happen.
 //!
 //! ## Architecture
 //!

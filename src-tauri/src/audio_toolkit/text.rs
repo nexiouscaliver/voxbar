@@ -1,5 +1,6 @@
 use super::command_matrix::{
     CompiledCommandMatrix, VoiceDeletionKind, AMBIGUOUS_EVERYDAY_PHRASES, ATTACHED_MARKS,
+    contains_han, is_han_character,
 };
 use super::commands::is_coalescible_symbol;
 use natural::phonetics::soundex;
@@ -553,6 +554,25 @@ pub fn normalize_spoken_punctuation(text: &str, matrix: &CompiledCommandMatrix) 
             && !text[token.end()..].chars().all(char::is_whitespace)
         {
             continue;
+        }
+
+        // Han-boundary gate (KB-226): Han-script aliases compile without
+        // \b anchors (\b never fires between adjacent Han characters in
+        // spaceless Chinese), and the regex crate has no lookahead to
+        // express "not followed by Han" in the pattern itself - so the
+        // boundary is enforced here, at the match-validation layer beside
+        // the everyday gate. The character after the pure command word
+        // (an attached mark already IS a boundary) must not be another
+        // Han character: 切换行业 / 转换行程 stay prose (换行业 / 换行程 are
+        // longer Han words) while 请换行, a standalone 换行, and a final
+        // 句号 still convert - the same recall-for-precision trade the
+        // Latin everyday gate makes.
+        if contains_han(&phrase) {
+            let pure_phrase_end =
+                token.start() + token.as_str().trim_end_matches(ATTACHED_MARKS).len();
+            if text[pure_phrase_end..].chars().next().is_some_and(is_han_character) {
+                continue;
+            }
         }
 
         let mut span = &text[resume..token.start()];
@@ -1713,27 +1733,57 @@ mod tests {
     }
 
     #[test]
-    fn test_spoken_punctuation_cjk_aliases_match_inside_spaceless_text() {
+    fn test_spoken_punctuation_cjk_aliases_match_at_script_boundaries() {
         // The CJK aliases compile without \b anchors (Han characters are
         // word characters, so \b never fires between adjacent Han), so a
-        // command embedded in spaceless Chinese text still converts.
+        // command embedded in spaceless Chinese text converts ONLY at a
+        // non-Han boundary (KB-226): mid-word embeddings whose next
+        // character is another Han character stay verbatim. This test
+        // previously pinned the mid-word conversions ("你好逗号世界" ->
+        // "你好,世界"); the boundary rule deliberately withdraws that
+        // behavior so 换行业 / 换行程 prose cannot fire 换行.
         assert_eq!(
             normalize_spoken_punctuation("你好逗号世界", &dm()),
-            "你好,世界"
+            "你好逗号世界"
         );
-        assert_eq!(normalize_spoken_punctuation("他说句号完", &dm()), "他说.完");
+        assert_eq!(normalize_spoken_punctuation("他说句号完", &dm()), "他说句号完");
         // The anchored group keeps its boundaries: Latin near-misses of
         // "period" still never fire.
         assert_eq!(
             normalize_spoken_punctuation("the periodic table", &dm()),
             "the periodic table"
         );
-        // A full-width mark attached to a CJK command word converts with
-        // it instead of stranding.
+        // A full-width mark attached to a CJK command word IS the
+        // boundary: the command converts with it instead of stranding.
         assert_eq!(
             normalize_spoken_punctuation("你好逗号，世界", &dm()),
             "你好,世界"
         );
+    }
+
+    #[test]
+    fn test_spoken_punctuation_han_aliases_require_a_non_han_boundary_after() {
+        // KB-226: the Han aliases compile unanchored, so the regex alone
+        // matched inside longer Han words - 切换行业 (switch industry) and
+        // 转换行程 (convert an itinerary) both contain 换行 and used to
+        // gain a line break mid-prose. The match-validation layer now
+        // blocks a command whose next character is another Han character.
+        assert_eq!(normalize_spoken_punctuation("切换行业", &dm()), "切换行业");
+        assert_eq!(normalize_spoken_punctuation("转换行程", &dm()), "转换行程");
+        // Prose ABOUT punctuation must not fire the punctuation command:
+        // 标点符号里句号很常见 (periods are common inside punctuation).
+        assert_eq!(
+            normalize_spoken_punctuation("标点符号里句号很常见", &dm()),
+            "标点符号里句号很常见"
+        );
+        // The boundary is only about what FOLLOWS: a preceding Han
+        // character (请换行), a standalone alias, and an alias at the end
+        // of the utterance all still convert.
+        assert_eq!(normalize_spoken_punctuation("请换行", &dm()), "请\n");
+        assert_eq!(normalize_spoken_punctuation("换行", &dm()), "\n");
+        assert_eq!(normalize_spoken_punctuation("你好句号", &dm()), "你好.");
+        // A Latin character after the alias is a boundary too.
+        assert_eq!(normalize_spoken_punctuation("换行next", &dm()), "\nnext");
     }
 
     #[test]

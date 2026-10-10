@@ -1709,6 +1709,19 @@ impl ModelManager {
             }
     }
 
+    /// KB-230 decision, pure so the suppression boundary stays pinnable
+    /// (the same pattern as the KB-117 delete guard in commands/models.rs):
+    /// a finished download may announce `model-download-complete` only
+    /// when the model is STILL registered AND its artifact actually
+    /// landed. A delete that raced the transfer removes the registry
+    /// entry (custom / alternate-quant deletes remove it synchronously)
+    /// or the files (the repo dir removed from under the transfer), and
+    /// either way the completion event for a deleted model must not
+    /// reach the footer's auto-select.
+    fn download_complete_event_allowed(still_registered: bool, artifact_landed: bool) -> bool {
+        still_registered && artifact_landed
+    }
+
     fn selected_model_is_available(models: &HashMap<String, ModelInfo>, model_id: &str) -> bool {
         models
             .get(model_id)
@@ -2513,8 +2526,32 @@ impl ModelManager {
         cleanup.disarmed = true;
         self.update_download_status()?;
         self.cancel_flags.lock().unwrap().remove(&model_id);
-        let _ = self.app_handle.emit("model-download-complete", &model_id);
-        info!("HF model {} downloaded", model_id);
+        // KB-230 belt-and-braces: delete_model cancels this transfer's
+        // token before removing files, but a final-chunk attempt can
+        // still complete after the delete - hf-hub reports Ok even when
+        // the repo dir (and the `.sync_part` with it) was removed from
+        // under the transfer. A completion event for a model whose
+        // registry entry is gone (custom / alternate-quant deletes
+        // remove it synchronously) or whose artifact never landed (the
+        // same probe as the entry check above) must not reach the
+        // footer's auto-select; the log line stays quiet because the
+        // delete already told the UI everything.
+        let still_registered = self
+            .available_models
+            .lock()
+            .unwrap()
+            .contains_key(&model_id);
+        let artifact_landed = self.cached_path_for(model_info).is_some()
+            || self.models_dir.join(&filename).exists();
+        if Self::download_complete_event_allowed(still_registered, artifact_landed) {
+            let _ = self.app_handle.emit("model-download-complete", &model_id);
+            info!("HF model {} downloaded", model_id);
+        } else {
+            warn!(
+                "HF download of {} finished after the model was deleted; not emitting completion",
+                model_id
+            );
+        }
         Ok(())
     }
 
@@ -2746,13 +2783,29 @@ impl ModelManager {
         }
         self.cancel_flags.lock().unwrap().remove(model_id);
 
-        // Emit completion event
-        let _ = self.app_handle.emit("model-download-complete", model_id);
-
-        info!(
-            "Successfully downloaded model {} to {:?}",
-            model_id, model_path
-        );
+        // KB-230 belt-and-braces: a model deleted mid-download (delete
+        // cancels this transfer first, but the final chunk can still
+        // complete) must not announce completion - the registry entry is
+        // gone for custom deletes, and the artifact can have been removed
+        // with the delete. Suppressed quietly; the delete already told
+        // the UI everything.
+        let still_registered = self
+            .available_models
+            .lock()
+            .unwrap()
+            .contains_key(model_id);
+        if Self::download_complete_event_allowed(still_registered, model_path.exists()) {
+            let _ = self.app_handle.emit("model-download-complete", model_id);
+            info!(
+                "Successfully downloaded model {} to {:?}",
+                model_id, model_path
+            );
+        } else {
+            warn!(
+                "Download of {} finished after the model was deleted; not emitting completion",
+                model_id
+            );
+        }
 
         Ok(())
     }
@@ -2767,6 +2820,28 @@ impl ModelManager {
 
         let model_info =
             model_info.ok_or_else(|| anyhow::anyhow!("Model not found: {}", model_id))?;
+
+        // KB-230: abort any in-flight transfer for this model BEFORE its
+        // files are removed. Without the cancel, hf-hub keeps writing to
+        // the unlinked `.sync_part` and its final attempt can still
+        // report Ok - the completion path would then emit
+        // `model-download-complete` for a model the operator just deleted
+        // (tripping the footer auto-select), and the URL path fails on
+        // the vanished `.partial` and surfaces a spurious
+        // `model-download-failed`. Cancelling the token unwinds both
+        // paths through their Cancelled arms, which emit nothing.
+        // Deliberately quiet: no `model-download-cancelled` event (the
+        // delete is the user-visible outcome), and the DownloadCleanup
+        // guard still resets `is_downloading` when the transfer task
+        // unwinds.
+        let in_flight = self.cancel_flags.lock().unwrap().get(model_id).cloned();
+        if let Some(token) = in_flight {
+            token.cancel();
+            info!(
+                "Cancelled in-flight download for deleted model: {}",
+                model_id
+            );
+        }
 
         debug!("ModelManager: Found model info: {:?}", model_info);
 
@@ -3760,6 +3835,33 @@ mod tests {
         assert!(
             !models.contains_key("someone/llama-7b/llama-q8.gguf"),
             "non-ASR gguf must be ignored"
+        );
+    }
+
+    /// KB-230 suppression boundary: a download that finishes after its
+    /// model was deleted must not emit `model-download-complete`. Either
+    /// observable alone suppresses - the registry entry gone (custom /
+    /// alternate-quant deletes remove it synchronously) OR the artifact
+    /// missing (the fleet case: the HF repo dir was removed from under
+    /// the transfer, hf-hub still reported Ok). A normal completion
+    /// (registered, artifact landed) is the only emitting combination.
+    #[test]
+    fn download_complete_event_suppressed_for_a_mid_download_delete() {
+        assert!(
+            ModelManager::download_complete_event_allowed(true, true),
+            "a normal completion (registered, artifact landed) emits"
+        );
+        assert!(
+            !ModelManager::download_complete_event_allowed(true, false),
+            "artifact gone (repo dir deleted mid-transfer) must not emit"
+        );
+        assert!(
+            !ModelManager::download_complete_event_allowed(false, true),
+            "registry entry gone (custom / alternate-quant delete) must not emit"
+        );
+        assert!(
+            !ModelManager::download_complete_event_allowed(false, false),
+            "deleted on both axes must not emit"
         );
     }
 }
