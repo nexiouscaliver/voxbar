@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "התחילו הקלטה בכל עת עם {{hotkey}}.",
-    "hotkeyChangeHint": "ניתן לשנות את קיצור המקלדת הזה בהגדרות > כללי."
+    "hotkeyChangeHint": "ניתן לשנות את קיצור המקלדת הזה בהגדרות > כללי.",
+    "modelError": {
+      "title": "טעינת רשימת הדגמים נכשלה",
+      "body": "VoxBar לא הצליח להגיע לקטלוג הדגמים. בדוק את החיבור ונסה שוב, או דלג על השלב הזה ובחר דגם מאוחר יותר בהגדרות.",
+      "retry": "נסה שוב",
+      "skip": "דלג לעת עתה"
+    }
   },
   "modelSelector": {
     "custom": "מותאם אישית",
@@ -1196,7 +1202,8 @@
       "postProcessCloudFailed": "הליטוש נכשל ונשמר התמליל המקורי: {{detail}}",
       "postProcessPromptCycled": "תבנית עיבוד לאחר: {{name}}",
       "companionDisconnected": "הטלפון התנתק. מסיימים עם מה שנקלט.",
-      "companionServerFailed": "שרת הליווי נכשל: {{error}}"
+      "companionServerFailed": "שרת הליווי נכשל: {{error}}",
+      "companionSessionCapped": "ההכתבה מהמכשיר המלווה הסתיימה: הגעת למגבלת ההפעלה של 15 דקות."
     },
     "commandBadge": "מצב פקודות",
     "ppChip": "מלטש ({{model}}) {{seconds}}שנ׳",

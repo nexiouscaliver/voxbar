@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Inicieu el dictat amb {{hotkey}} en qualsevol moment.",
-    "hotkeyChangeHint": "Podeu canviar aquesta drecera a Configuració > General."
+    "hotkeyChangeHint": "Podeu canviar aquesta drecera a Configuració > General.",
+    "modelError": {
+      "title": "No s'ha pogut carregar la llista de models",
+      "body": "VoxBar no ha pogut accedir al catàleg de models. Comproveu la connexió i torneu-ho a provar, o ometeu aquest pas i trieu un model més tard a Paràmetres.",
+      "retry": "Reintenta",
+      "skip": "Omet per ara"
+    }
   },
   "modelSelector": {
     "custom": "Personalitzat",
@@ -1199,7 +1205,8 @@
       "postProcessCloudFailed": "El poliment ha fallat i s'ha conservat la transcripció original: {{detail}}",
       "postProcessPromptCycled": "Plantilla de postprocessament: {{name}}",
       "companionDisconnected": "Mòbil desconnectat. Es finalitza amb el capturat.",
-      "companionServerFailed": "El servidor acompanyant ha fallat: {{error}}"
+      "companionServerFailed": "El servidor acompanyant ha fallat: {{error}}",
+      "companionSessionCapped": "S'ha finalitzat el dictat del dispositiu acompanyant: s'ha arribat al límit de sessió de 15 minuts."
     },
     "commandBadge": "Mode d'ordres",
     "ppChip": "Polint ({{model}}) {{seconds}}s",

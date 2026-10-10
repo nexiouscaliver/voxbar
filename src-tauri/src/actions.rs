@@ -326,6 +326,7 @@ impl CloudCompletionSeam for LlmClientSeam {
 /// (the raw transcript always wins on failure). The generation phase's
 /// retry count totals the transport retries (llm_client's bounded
 /// network-only wrapper) plus the structured-to-legacy fallback.
+#[allow(clippy::too_many_arguments)] // arity mirrors the session-snapshot precedent at managers/transcription.rs:822
 async fn run_cloud_lifecycle(
     app: Option<&AppHandle>,
     seam: &mut dyn CloudCompletionSeam,

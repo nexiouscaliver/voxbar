@@ -45,6 +45,7 @@ pub struct LlmCatalogModel {
     /// Display publisher for the card ("Qwen", "bartowski", ...).
     pub publisher: String,
     /// GGUF `general.architecture` (must pass [`crate::managers::model_capabilities::LLM_ARCHES`]).
+    #[cfg_attr(not(test), allow(dead_code))] // test-pinned invariant (arch allowlist test)
     pub architecture: String,
     /// Inert display metadata: the languages the model handles.
     pub languages: Vec<String>,
@@ -323,18 +324,17 @@ mod tests {
             );
         }
         // And the allowlist refuses ASR-only archs (the voice path's table
-        // and the LLM table stay disjoint).
+        // and the LLM table stay disjoint). llama.cpp loads granite LLMs, but
+        // transcribe-cpp's granite ASR family is the suffixed variants, so
+        // bare granite belongs to LLM_ARCHES alone (KB-154).
         let disjoint: BTreeSet<&str> = LLM_ARCHES
             .iter()
             .copied()
             .filter(|a| crate::managers::model_capabilities::KNOWN_ARCHES.contains(a))
             .collect();
-        // granite appears in both: transcribe-cpp has a granite ASR family
-        // AND llama.cpp loads granite LLMs. It is the one deliberate overlap;
-        // engine routing is by EngineType, never by architecture alone.
         assert!(
-            disjoint.iter().all(|a| *a == "granite"),
-            "only granite may appear in both allowlists, got {:?}",
+            disjoint.is_empty(),
+            "architectures in both allowlists: {:?}",
             disjoint
         );
     }

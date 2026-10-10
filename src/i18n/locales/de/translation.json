@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Diktat jederzeit mit {{hotkey}} starten.",
-    "hotkeyChangeHint": "Sie können diese Tastenkombination unter Einstellungen > Allgemein ändern."
+    "hotkeyChangeHint": "Sie können diese Tastenkombination unter Einstellungen > Allgemein ändern.",
+    "modelError": {
+      "title": "Modellliste konnte nicht geladen werden",
+      "body": "VoxBar konnte den Modellkatalog nicht erreichen. Prüfe deine Verbindung und versuche es erneut, oder überspringe diesen Schritt und wähle später in den Einstellungen ein Modell.",
+      "retry": "Erneut versuchen",
+      "skip": "Vorerst überspringen"
+    }
   },
   "modelSelector": {
     "custom": "Benutzerdefiniert",
@@ -1196,7 +1202,8 @@
       "postProcessCloudFailed": "Die Bereinigung ist fehlgeschlagen, das ursprüngliche Transkript wurde behalten: {{detail}}",
       "postProcessPromptCycled": "Nachbearbeitungsvorlage: {{name}}",
       "companionDisconnected": "Telefon getrennt. Das Aufgenommene wird fertiggestellt.",
-      "companionServerFailed": "Begleitserver fehlgeschlagen: {{error}}"
+      "companionServerFailed": "Begleitserver fehlgeschlagen: {{error}}",
+      "companionSessionCapped": "Diktat vom Begleitgerät beendet: Das Zeitlimit von 15 Minuten für die Sitzung wurde erreicht."
     },
     "commandBadge": "Befehlsmodus",
     "ppChip": "Bereinige ({{model}}) {{seconds}}s",

@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Dyktowanie uruchomisz klawiszem {{hotkey}} w każdej chwili.",
-    "hotkeyChangeHint": "Ten skrót zmienisz w Ustawienia > Ogólne."
+    "hotkeyChangeHint": "Ten skrót zmienisz w Ustawienia > Ogólne.",
+    "modelError": {
+      "title": "Nie udało się wczytać listy modeli",
+      "body": "VoxBar nie mógł połączyć się z katalogiem modeli. Sprawdź połączenie i spróbuj ponownie albo pomiń ten krok i wybierz model później w Ustawieniach.",
+      "retry": "Spróbuj ponownie",
+      "skip": "Pomiń na razie"
+    }
   },
   "modelSelector": {
     "custom": "Własny",
@@ -1196,7 +1202,8 @@
       "postProcessCloudFailed": "Czyszczenie nie powiodło się, zachowano oryginalną transkrypcję: {{detail}}",
       "postProcessPromptCycled": "Szablon postprocessingu: {{name}}",
       "companionDisconnected": "Telefon rozłączony. Kończę z tym, co nagrane.",
-      "companionServerFailed": "Awaria serwera towarzyszącego: {{error}}"
+      "companionServerFailed": "Awaria serwera towarzyszącego: {{error}}",
+      "companionSessionCapped": "Dyktowanie z urządzenia towarzyszącego zakończone: osiągnięto limit sesji 15 minut."
     },
     "commandBadge": "Tryb poleceń",
     "ppChip": "Czyszczę ({{model}}) {{seconds}}s",

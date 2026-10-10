@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Starta diktering med {{hotkey}} när som helst.",
-    "hotkeyChangeHint": "Du kan ändra denna genväg i Inställningar > Allmänt."
+    "hotkeyChangeHint": "Du kan ändra denna genväg i Inställningar > Allmänt.",
+    "modelError": {
+      "title": "Modellistan kunde inte läsas in",
+      "body": "VoxBar kunde inte nå modellkatalogen. Kontrollera din anslutning och försök igen, eller hoppa över det här steget och välj en modell senare i Inställningar.",
+      "retry": "Försök igen",
+      "skip": "Hoppa över nu"
+    }
   },
   "modelSelector": {
     "custom": "Anpassad",
@@ -1196,7 +1202,8 @@
       "postProcessCloudFailed": "Poleringen misslyckades, den ursprungliga transkriptionen behölls: {{detail}}",
       "postProcessPromptCycled": "Efterbearbetningsmall: {{name}}",
       "companionDisconnected": "Telefonen kopplades från. Slutför med det som spelades in.",
-      "companionServerFailed": "Kompanionservern misslyckades: {{error}}"
+      "companionServerFailed": "Kompanionservern misslyckades: {{error}}",
+      "companionSessionCapped": "Dikteringen från companionenheten avslutades: sessionsgränsen på 15 minuter uppnåddes."
     },
     "commandBadge": "Kommandoläge",
     "ppChip": "Polerar ({{model}}) {{seconds}}s",

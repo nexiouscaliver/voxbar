@@ -45,6 +45,12 @@
       "continueDeferred": "Continue without loading now",
       "guardOffCaveat": "The guard stays off until re-enabled in Settings > Advanced; the model loads on your first dictation."
     },
+    "modelError": {
+      "title": "Couldn't load the model list",
+      "body": "VoxBar couldn't reach the model catalog. Check your connection and try again, or skip this step and pick a model later in Settings.",
+      "retry": "Retry",
+      "skip": "Skip for now"
+    },
     "modelCard": {
       "accuracy": "accuracy",
       "speed": "speed"
@@ -1199,7 +1205,8 @@
       "postProcessCloudFailed": "Polishing failed and the raw transcript was kept: {{detail}}",
       "postProcessPromptCycled": "Post-process template: {{name}}",
       "companionDisconnected": "Phone disconnected. Finishing with what was captured.",
-      "companionServerFailed": "Companion server failed: {{error}}"
+      "companionServerFailed": "Companion server failed: {{error}}",
+      "companionSessionCapped": "Companion dictation ended: the 15-minute session limit was reached."
     },
     "commandBadge": "Command mode",
     "ppChip": "Polishing ({{model}}) {{seconds}}s",

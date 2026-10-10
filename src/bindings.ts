@@ -69,10 +69,12 @@ async changeMemoryGateHeadroomSetting(headroomMb: number) : Promise<Result<null,
 }
 },
 /**
- * Companion devices master toggle (OFF by default). Beyond persisting the
- * setting, enabling starts the companion server and disabling stops it
- * (finalizing a live phone session first) - the same shape as
- * change_memory_pressure_guard_setting, plus lifecycle side effects.
+ * Companion devices master toggle (OFF by default). Applies the runtime
+ * change before persisting it (the update_microphone_mode rule, KB-027):
+ * enabling starts the companion server and disabling stops it (finalizing
+ * a live phone session first); a failed start throws so the settings store
+ * rolls the toggle back instead of persisting an enabled state with no
+ * server behind it.
  */
 async changeCompanionDevicesSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
@@ -166,6 +168,14 @@ async changeStartHiddenSetting(enabled: boolean) : Promise<Result<null, string>>
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Launch-at-login toggle. KB-112: the login-item change is applied BEFORE
+ * persisting and its failure propagates (the update_microphone_mode /
+ * change_companion_devices_setting rule), so a failed enable rolls the
+ * toggle back instead of leaving it on with no login item behind it - the
+ * preference would only self-heal on the NEXT launch, and until then the
+ * toggle lied about the app starting at login.
+ */
 async changeAutostartSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_autostart_setting", { enabled }) };
@@ -321,6 +331,17 @@ async changePostProcessEnabledSetting(enabled: boolean) : Promise<Result<null, s
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * The Experimental master switch. KB-183/KB-145: it is also a kill switch
+ * for the companion LAN server, whose ONLY UI control is unmounted while
+ * experimental is off - so turning it OFF must stop a running server
+ * (apply_enabled(false) finalizes a live phone session first), and turning
+ * it back ON re-arms the server only when the stored companion toggle is
+ * on, mirroring companion::init. The runtime change runs BEFORE persisting
+ * (the update_microphone_mode rule); a failed re-arm is logged and badged
+ * inside apply_enabled and does not veto the toggle, which gates more than
+ * companion.
+ */
 async changeExperimentalEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_experimental_enabled_setting", { enabled }) };
@@ -619,7 +640,13 @@ async changePreviewBeforePasteSetting(enabled: boolean) : Promise<Result<null, s
 /**
  * Flip the delete-last-word master toggle and register or unregister its
  * binding to match, mirroring how the post-processing toggle drives its
- * shortcut.
+ * shortcut. KB-198: apply-then-persist (the KB-027 rule) - the register
+ * attempt runs BEFORE the toggle is persisted and its failure propagates
+ * while ENABLING (Err rolls the settings store's toggle back) instead of
+ * being discarded with `let _ =` (a chord duplicated onto a toggle-off
+ * binding fails "already in use" and left the toggle reading on with a
+ * dead key). The DISABLED direction stays infallible: unregistering is
+ * best-effort teardown and must never trap the toggle off.
  */
 async changeDeleteLastWordEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
@@ -631,7 +658,13 @@ async changeDeleteLastWordEnabledSetting(enabled: boolean) : Promise<Result<null
 },
 /**
  * Flip the undo master toggle and register or unregister its binding to
- * match.
+ * match. KB-198: apply-then-persist (the KB-027 rule) - the register
+ * attempt runs BEFORE the toggle is persisted and its failure propagates
+ * while ENABLING (Err rolls the settings store's toggle back) instead of
+ * being discarded with `let _ =` (a chord duplicated onto a toggle-off
+ * binding fails "already in use" and left the toggle reading on with a
+ * dead key). The DISABLED direction stays infallible: unregistering is
+ * best-effort teardown and must never trap the toggle off.
  */
 async changeUndoEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
@@ -643,7 +676,14 @@ async changeUndoEnabledSetting(enabled: boolean) : Promise<Result<null, string>>
 },
 /**
  * Flip the command-mode master toggle and register or unregister its
- * modifier binding to match.
+ * modifier binding to match. KB-198: apply-then-persist (the KB-027 rule)
+ * - the register attempt runs BEFORE the toggle is persisted and its
+ * failure propagates while ENABLING (Err rolls the settings store's
+ * toggle back) instead of being discarded with `let _ =` (a chord
+ * duplicated onto a toggle-off binding fails "already in use" and left
+ * the toggle reading on with a dead key). The DISABLED direction stays
+ * infallible: unregistering is best-effort teardown and must never trap
+ * the toggle off.
  */
 async changeCommandModeEnabledSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
@@ -1991,7 +2031,15 @@ code: string;
 /**
  * Diagnostic detail (error text, model names). Optional by design.
  */
-detail?: string | null }
+detail?: string | null; 
+/**
+ * Whether the overlay card could render this notice at emit time
+ * (`overlay_style` not None AND the overlay window visible). When
+ * false the card row is unreachable, so the frontend routes the
+ * notice to a macOS notification instead of a surface nobody sees
+ * (KB-020: hidden-card notices were invisible on every surface).
+ */
+card_visible: boolean }
 /**
  * Tone of an [`OverlayNoticeEvent`]: failures are errors, expected or
  * recoverable conditions are info. Errors carry the error sound; info does

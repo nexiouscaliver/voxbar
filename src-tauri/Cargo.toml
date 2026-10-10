@@ -1,6 +1,6 @@
 [package]
 name = "voxbar"
-version = "1.4.0"
+version = "1.5.0"
 description = "VoxBar"
 authors = ["Shahil Kadia"]
 edition = "2021"
@@ -40,13 +40,16 @@ tauri-plugin-log = "2.7.1"
 tauri-plugin-opener = "2.5.2"
 tauri-plugin-store = "2.4.1"
 tauri-plugin-os = "2.3.2"
+# Pinned at 2.4.0, not the 2.5.x line: 2.5+ requires tauri ^2.12, which
+# forces a whole-stack lockfile bump (wry, tao, tray-icon) past the tauri
+# 2.11.5 this repo pins. Revisit alongside the next tauri core bump.
+tauri-plugin-notification = "2.4.0"
 tauri-plugin-clipboard-manager = "2.3.2"
 tauri-plugin-macos-permissions = "2.3.0"
 rusqlite_migration = "2.3"
 tauri-plugin-fs = "2.4.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-rdev = { git = "https://github.com/rustdesk-org/rdev" }
 cpal = "0.16.0"
 rtrb = "0.4.0"
 anyhow = "1.0.95"
@@ -199,6 +202,10 @@ objc2 = "0.6"
 objc2-foundation = "0.3"
 objc2-app-kit = "0.3"
 objc2-service-management = "0.3.2"
+# mach_host_self for the macOS memory-pressure probe (memory.rs); libc's
+# mach bindings are deprecated in favor of this crate. macOS-only target
+# table entry: the crate refuses to compile on non-Apple targets.
+mach2 = "0.7"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk-layer-shell = { version = "0.8", features = ["v0_6"] }

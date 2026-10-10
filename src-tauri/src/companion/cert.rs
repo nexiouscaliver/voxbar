@@ -77,10 +77,10 @@ fn generate_and_persist(
     if let Some(parent) = cert_path.parent() {
         std::fs::create_dir_all(parent).map_err(|e| format!("mkdir failed: {e}"))?;
     }
-    std::fs::write(&cert_path, &cert_pem).map_err(|e| format!("cert write failed: {e}"))?;
-    std::fs::write(&key_path, &key_pem).map_err(|e| format!("key write failed: {e}"))?;
-    restrict_permissions(&cert_path);
-    restrict_permissions(&key_path);
+    std::fs::write(cert_path, &cert_pem).map_err(|e| format!("cert write failed: {e}"))?;
+    std::fs::write(key_path, &key_pem).map_err(|e| format!("key write failed: {e}"))?;
+    restrict_permissions(cert_path);
+    restrict_permissions(key_path);
 
     let der = cert.der().clone();
     let fingerprint = fingerprint_hex(der.as_ref());

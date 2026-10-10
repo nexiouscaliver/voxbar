@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "언제든 {{hotkey}}로 받아쓰기를 시작하세요.",
-    "hotkeyChangeHint": "이 단축키는 설정 > 일반에서 변경할 수 있습니다."
+    "hotkeyChangeHint": "이 단축키는 설정 > 일반에서 변경할 수 있습니다.",
+    "modelError": {
+      "title": "모델 목록을 불러오지 못했습니다",
+      "body": "VoxBar가 모델 카탈로그에 연결하지 못했습니다. 연결을 확인하고 다시 시도하거나, 이 단계를 건너뛰고 나중에 설정에서 모델을 선택하세요.",
+      "retry": "다시 시도",
+      "skip": "지금은 건너뛰기"
+    }
   },
   "modelSelector": {
     "custom": "사용자 정의",
@@ -1196,7 +1202,8 @@
       "postProcessCloudFailed": "다듬기가 실패하여 원본 전사가 유지되었습니다: {{detail}}",
       "postProcessPromptCycled": "후처리 템플릿: {{name}}",
       "companionDisconnected": "휴대폰 연결이 끊겼습니다. 년음된 내용으로 마무리합니다.",
-      "companionServerFailed": "컴패니언 서버 실패: {{error}}"
+      "companionServerFailed": "컴패니언 서버 실패: {{error}}",
+      "companionSessionCapped": "컴패니언 기기 받아쓰기가 종료되었습니다: 15분 세션 제한에 도달했습니다."
     },
     "commandBadge": "명령 모드",
     "ppChip": "다듬는 중 ({{model}}) {{seconds}}초",

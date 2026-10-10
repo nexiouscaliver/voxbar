@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Diktování spustíte klávesou {{hotkey}} kdykoli.",
-    "hotkeyChangeHint": "Tuto zkratku můžete změnit v Nastavení > Obecné."
+    "hotkeyChangeHint": "Tuto zkratku můžete změnit v Nastavení > Obecné.",
+    "modelError": {
+      "title": "Seznam modelů se nepodařilo načíst",
+      "body": "VoxBar se nedostal ke katalogu modelů. Zkontrolujte připojení a zkuste to znovu, nebo tento krok přeskočte a model si vyberte později v Nastavení.",
+      "retry": "Zkusit znovu",
+      "skip": "Nyní přeskočit"
+    }
   },
   "modelSelector": {
     "custom": "Vlastní",
@@ -1196,7 +1202,8 @@
       "postProcessCloudFailed": "Čištění selhalo, původní přepis byl zachován: {{detail}}",
       "postProcessPromptCycled": "Šablona následného zpracování: {{name}}",
       "companionDisconnected": "Telefon odpojen. Dokončuji s tím, co bylo zachyceno.",
-      "companionServerFailed": "Selhání doprovodného serveru: {{error}}"
+      "companionServerFailed": "Selhání doprovodného serveru: {{error}}",
+      "companionSessionCapped": "Diktování z doprovodného zařízení skončilo: bylo dosaženo 15minutového limitu relace."
     },
     "commandBadge": "Režim příkazů",
     "ppChip": "Čistím ({{model}}) {{seconds}}s",

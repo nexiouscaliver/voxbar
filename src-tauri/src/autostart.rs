@@ -16,22 +16,25 @@ use tauri_plugin_autostart::ManagerExt;
 /// Apply the user's autostart preference using the best mechanism for the
 /// current platform.
 ///
-/// Errors are logged rather than returned: the preference is re-applied on
-/// every launch, so a transient failure self-heals and must not block
-/// startup. This mirrors the pre-existing behavior of ignoring
-/// enable()/disable() results.
-pub fn apply_autostart(app: &AppHandle, enabled: bool) {
+/// KB-112: failures are RETURNED, not swallowed - the settings command
+/// propagates them so the toggle rolls back instead of staying on with no
+/// login item behind it. The startup caller keeps the old best-effort
+/// behavior (log-only, the companion-init rule): the preference is
+/// re-applied on every launch, so a transient failure self-heals and must
+/// not block initialization.
+pub fn apply_autostart(app: &AppHandle, enabled: bool) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     if macos::login_item_api_available() {
+        // Legacy cleanup only (a plist tauri-plugin-autostart no longer
+        // writes); a missing file is the normal case, so its removal stays
+        // best-effort and never vetoes the register/unregister contract.
         macos::remove_plugin_launch_agent(app);
-        macos::set_login_item(enabled);
-        return;
+        return macos::set_login_item(enabled);
     }
 
     #[cfg(target_os = "linux")]
     {
-        linux::apply(app, enabled);
-        return;
+        return linux::apply(app, enabled);
     }
 
     let manager = app.autolaunch();
@@ -40,13 +43,7 @@ pub fn apply_autostart(app: &AppHandle, enabled: bool) {
     } else {
         manager.disable()
     };
-    if let Err(e) = result {
-        log::warn!(
-            "Failed to apply autostart setting (enabled={}): {}",
-            enabled,
-            e
-        );
-    }
+    result.map_err(|e| format!("Failed to apply autostart setting (enabled={enabled}): {e}"))
 }
 
 /// Pure .desktop content builders for XDG autostart. Compiled on every
@@ -134,19 +131,25 @@ mod linux {
     }
 
     /// Apply the setting: write (or remove) the autostart entry, creating
-    /// the directory on demand. Errors are logged by the caller's contract.
-    pub(crate) fn apply(app: &AppHandle, enabled: bool) {
+    /// the directory on demand. Failures are returned so the settings
+    /// command can surface them (KB-112); the startup caller logs and
+    /// moves on.
+    pub(crate) fn apply(app: &AppHandle, enabled: bool) -> Result<(), String> {
         let Some(file) = autostart_file(app) else {
-            log::warn!("autostart: could not resolve the autostart file path");
-            return;
+            return Err("autostart: could not resolve the autostart file path".to_string());
         };
         if !enabled {
             match std::fs::remove_file(&file) {
-                Ok(()) => log::info!("Removed autostart entry {:?}", file),
-                Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
-                Err(e) => log::warn!("Failed to remove autostart entry {:?}: {}", file, e),
-            }
-            return;
+                Ok(()) => {
+                    log::info!("Removed autostart entry {:?}", file);
+                    Ok(())
+                }
+                // Already gone is the common case (never enabled, or another
+                // writer removed it): nothing to remove is success.
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(e) => Err(format!("Failed to remove autostart entry {:?}: {}", file, e)),
+            }?;
+            return Ok(());
         }
         let appimage = app
             .env()
@@ -158,19 +161,20 @@ mod linux {
             .ok()
             .and_then(|p| p.to_str().map(|s| s.to_string()));
         let Some(exe_path) = launch_target(appimage.as_deref(), current_exe.as_deref()) else {
-            log::warn!("autostart: could not resolve the executable path");
-            return;
+            return Err("autostart: could not resolve the executable path".to_string());
         };
         let content = desktop_entry_content(&app.package_info().name, &exe_path, &[]);
         if let Some(dir) = file.parent() {
             if let Err(e) = std::fs::create_dir_all(dir) {
-                log::warn!("Failed to create autostart directory {:?}: {}", dir, e);
-                return;
+                return Err(format!("Failed to create autostart directory {:?}: {}", dir, e));
             }
         }
         match std::fs::write(&file, content) {
-            Ok(()) => log::info!("Wrote autostart entry {:?} (exec {:?})", file, exe_path),
-            Err(e) => log::warn!("Failed to write autostart entry {:?}: {}", file, e),
+            Ok(()) => {
+                log::info!("Wrote autostart entry {:?} (exec {:?})", file, exe_path);
+                Ok(())
+            }
+            Err(e) => Err(format!("Failed to write autostart entry {:?}: {}", file, e)),
         }
     }
 }
@@ -194,29 +198,36 @@ mod macos {
     /// Register or unregister the app as a login item, skipping the call when
     /// the service is already in the requested state (unregistering a
     /// never-registered service returns an error on every launch otherwise).
-    pub fn set_login_item(enabled: bool) {
+    /// KB-112: register/unregister failures are returned so the toggle's
+    /// caller can refuse to keep an enabled state with no login item behind
+    /// it (dev builds without a signed app bundle fail here, and so does a
+    /// user's System Settings override - both mean "not enabled").
+    pub fn set_login_item(enabled: bool) -> Result<(), String> {
         let service = unsafe { SMAppService::mainAppService() };
         let status = unsafe { service.status() };
 
         if enabled {
             if status == SMAppServiceStatus::Enabled {
-                return;
+                return Ok(());
             }
             match unsafe { service.registerAndReturnError() } {
-                Ok(()) => log::info!("Registered login item via SMAppService"),
-                // Fails in dev (no signed app bundle) and when the user has
-                // switched the item off in System Settings, which apps are
-                // not allowed to override.
-                Err(e) => log::warn!("Failed to register login item: {}", e),
+                Ok(()) => {
+                    log::info!("Registered login item via SMAppService");
+                    Ok(())
+                }
+                Err(e) => Err(format!("Failed to register login item: {}", e)),
             }
         } else {
             if status == SMAppServiceStatus::NotRegistered || status == SMAppServiceStatus::NotFound
             {
-                return;
+                return Ok(());
             }
             match unsafe { service.unregisterAndReturnError() } {
-                Ok(()) => log::info!("Unregistered login item via SMAppService"),
-                Err(e) => log::warn!("Failed to unregister login item: {}", e),
+                Ok(()) => {
+                    log::info!("Unregistered login item via SMAppService");
+                    Ok(())
+                }
+                Err(e) => Err(format!("Failed to unregister login item: {}", e)),
             }
         }
     }

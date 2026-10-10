@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Lancez la dictée avec {{hotkey}} à tout moment.",
-    "hotkeyChangeHint": "Vous pouvez changer ce raccourci dans Paramètres > Général."
+    "hotkeyChangeHint": "Vous pouvez changer ce raccourci dans Paramètres > Général.",
+    "modelError": {
+      "title": "Impossible de charger la liste des modèles",
+      "body": "VoxBar n'a pas pu joindre le catalogue de modèles. Vérifiez votre connexion et réessayez, ou passez cette étape et choisissez un modèle plus tard dans les Réglages.",
+      "retry": "Réessayer",
+      "skip": "Passer pour l'instant"
+    }
   },
   "modelSelector": {
     "custom": "Personnalisé",
@@ -1196,7 +1202,8 @@
       "postProcessCloudFailed": "Le polissage a échoué, la transcription brute a été conservée : {{detail}}",
       "postProcessPromptCycled": "Modèle de post-traitement : {{name}}",
       "companionDisconnected": "Téléphone déconnecté. On finalise avec ce qui a été capturé.",
-      "companionServerFailed": "Échec du serveur compagnon : {{error}}"
+      "companionServerFailed": "Échec du serveur compagnon : {{error}}",
+      "companionSessionCapped": "La dictée depuis l'appareil compagnon est terminée : la limite de session de 15 minutes a été atteinte."
     },
     "commandBadge": "Mode commandes",
     "ppChip": "Polish en cours ({{model}}) {{seconds}}s",

@@ -96,14 +96,33 @@ jobs:
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml
 
+      # cargo test above regenerated src/bindings.ts via the export_bindings
+      # test; fail when the committed bindings are stale. macOS-gated so
+      # cross-OS line endings can never false-positive.
+      - name: Bindings freshness (tauri-specta)
+        if: runner.os == 'macOS'
+        run: git diff --exit-code src/bindings.ts
+
       - name: Lint frontend
         run: bun run lint
 
       - name: Typecheck frontend
         run: bunx tsc --noEmit -p tsconfig.json
 
+      # tsc --noEmit alone accepts rollup/vite-level failures (asset imports,
+      # the second overlay entry point); build both bundles in CI so they
+      # surface here, not at release time.
+      - name: Build frontend
+        run: bun run build
+
       - name: Test accent palette
         run: bun run test:accent
+
+      - name: Test notice messages
+        run: bun run test:notice
+
+      - name: Test frontend
+        run: bun run test:frontend
 
       - name: Check translations
         run: bun run check:translations

@@ -477,8 +477,13 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     });
 
     // Apply the autostart preference (SMAppService login item on macOS 13+,
-    // tauri-plugin-autostart elsewhere)
-    autostart::apply_autostart(app_handle, settings.autostart_enabled);
+    // tauri-plugin-autostart elsewhere). Best effort at startup (the
+    // companion-init rule, KB-112): the preference is re-applied on every
+    // launch so a transient failure self-heals, and must not abort
+    // initialization.
+    if let Err(e) = autostart::apply_autostart(app_handle, settings.autostart_enabled) {
+        log::warn!("Failed to apply the autostart preference at startup: {e}");
+    }
 
     // Create the recording overlay window (hidden by default)
     utils::create_recording_overlay(app_handle);
@@ -918,6 +923,10 @@ pub fn run(cli_args: CliArgs) {
         // frontend flow in src/components/update-checker/.
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_os::init())
+        // Notice routing (KB-020): the frontend posts a macOS notification
+        // for overlay notices that arrive while the card cannot show them
+        // (OverlayNoticeEvent.card_visible == false).
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_macos_permissions::init())
         .plugin(tauri_plugin_opener::init())
@@ -1144,6 +1153,14 @@ pub fn run(cli_args: CliArgs) {
                 api.prevent_close();
                 let _res = window.hide();
 
+                // KB-160: an armed shortcut recorder suspends every binding,
+                // and the (now hidden) Settings UI is the only surface that
+                // can cancel it. Tell the frontend the window went hidden so
+                // it can cancel the recorder and resume bindings. Bare
+                // payload, best-effort - the frontend treats a missed event
+                // as "still recording" and recovers on the next interaction.
+                let _ = window.app_handle().emit("main-window-hidden", ());
+
                 #[cfg(target_os = "macos")]
                 {
                     let settings = get_settings(window.app_handle());
@@ -1200,6 +1217,15 @@ pub fn run(cli_args: CliArgs) {
         // async runtime would otherwise keep it (and its footprint probes)
         // alive past the UI it exists to update.
         tauri::RunEvent::Exit => {
+            // KB-151: quitting during an active mute_while_recording session
+            // must not strand the macOS system input muted - restore the
+            // snapshotted prior state (no-op when we did not mute). Best
+            // effort; the process is exiting, so a missing manager is logged
+            // rather than panicked on.
+            match app.try_state::<Arc<AudioRecordingManager>>() {
+                Some(recording) => recording.remove_mute(),
+                None => log::warn!("Exit: recording manager unavailable; skipped mute restore"),
+            }
             tray::stop_ram_refresh(app);
             // Companion server: close the listener and finalize any live
             // phone session. Best effort; the process is exiting.

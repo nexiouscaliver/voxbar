@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Inicia el dictado con {{hotkey}} en cualquier momento.",
-    "hotkeyChangeHint": "Puedes cambiar este atajo en Configuración > General."
+    "hotkeyChangeHint": "Puedes cambiar este atajo en Configuración > General.",
+    "modelError": {
+      "title": "No se pudo cargar la lista de modelos",
+      "body": "VoxBar no pudo acceder al catálogo de modelos. Comprueba tu conexión e inténtalo de nuevo, u omite este paso y elige un modelo más tarde en Ajustes.",
+      "retry": "Reintentar",
+      "skip": "Omitir por ahora"
+    }
   },
   "modelSelector": {
     "custom": "Personalizado",
@@ -1196,7 +1202,8 @@
       "postProcessCloudFailed": "El pulido falló y se conservó la transcripción original: {{detail}}",
       "postProcessPromptCycled": "Plantilla de posprocesado: {{name}}",
       "companionDisconnected": "Teléfono desconectado. Se termina con lo capturado.",
-      "companionServerFailed": "El servidor acompañante falló: {{error}}"
+      "companionServerFailed": "El servidor acompañante falló: {{error}}",
+      "companionSessionCapped": "Finalizó el dictado del dispositivo acompañante: se alcanzó el límite de sesión de 15 minutos."
     },
     "commandBadge": "Modo de comandos",
     "ppChip": "Puliendo ({{model}}) {{seconds}}s",

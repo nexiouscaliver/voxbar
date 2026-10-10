@@ -18,6 +18,7 @@ import type {
 } from "@/bindings";
 import type { PostProcessRunEvent } from "@/bindings";
 import i18n, { syncLanguageFromSettings } from "@/i18n";
+import { noticeMessage } from "@/lib/noticeMessage";
 import { getLanguageDirection } from "@/lib/utils/rtl";
 import {
   normalizePlacement,
@@ -43,80 +44,16 @@ const NOTICE_DISMISS_MS = 5000;
 // every overlay form). Mic levels arrive as 16 FFT buckets; we take the first N.
 const WAVE_BARS = 9;
 
-// Localize one notice. Codes deliberately reuse the strings the main-window
-// toasts already ship (one voice for the same failure on both surfaces); the
-// keys below exist in every locale. The post-process skips reuse the toast
-// copy for the same reason.
-function noticeMessage(
+// Localize one notice via the shared mapping (src/lib/noticeMessage.ts, the
+// same table the main-window router toasts from). Unknown codes keep the
+// overlay's generic line instead of the router's silent skip.
+function overlayNoticeText(
   notice: OverlayNoticeEvent,
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
-  switch (notice.code) {
-    case "no_model_selected":
-      return t("errors.noModelSelected");
-    case "microphone_permission_denied":
-      return t("errors.micPermissionDenied.generic");
-    case "no_input_device":
-      return t("errors.noInputDevice");
-    case "recording_failed":
-      return t("errors.recordingFailed", { error: notice.detail ?? "" });
-    case "transcription_failed":
-      return t("overlay.notice.transcriptionFailed");
-    case "paste_failed":
-      return t("errors.pasteFailed");
-    case "model_load_failed":
-      return t("errors.modelLoadFailed", {
-        model: notice.detail ?? t("errors.modelLoadFailedUnknown"),
-      });
-    case "model_fallback":
-      return t("errors.modelFallback", { model: notice.detail ?? "" });
-    case "post_process_memory_gate":
-      return t("toast.postProcessSkip.memoryGate", {
-        detail: notice.detail ?? "",
-      });
-    case "post_process_download_missing":
-      return t("toast.postProcessSkip.downloadMissing");
-    case "post_process_engine_failed":
-      return t("toast.postProcessSkip.engineFailed");
-    case "post_process_timeout":
-      return t("toast.postProcessSkip.timeout");
-    case "post_process_length_guard":
-      return t("toast.postProcessSkip.lengthGuard");
-    case "post_process_too_long":
-      return t("toast.postProcessSkip.tooLong");
-    case "post_process_output_invalid":
-      return t("overlay.notice.postProcessOutputInvalid");
-    case "post_process_cloud_failed":
-      return t("overlay.notice.postProcessCloudFailed", {
-        detail: notice.detail ?? "",
-      });
-    case "delete_last_word_no_session":
-      return t("overlay.notice.deleteLastWordNoSession");
-    case "delete_last_word_no_buffer":
-      return t("overlay.notice.deleteLastWordNoBuffer");
-    case "undo_no_session":
-      return t("overlay.notice.undoNoSession");
-    case "undo_no_buffer":
-      return t("overlay.notice.undoNoBuffer");
-    case "binding_busy":
-      return t("overlay.notice.bindingBusy");
-    case "post_process_prompt_cycled":
-      return t("overlay.notice.postProcessPromptCycled", {
-        name: notice.detail ?? "",
-      });
-    case "wayland_tauri_hotkeys":
-      return t("overlay.notice.waylandTauriHotkeys");
-    case "gnome_overlay_fallback":
-      return t("overlay.notice.gnomeOverlayFallback");
-    case "companion_disconnected_finalized":
-      return t("overlay.notice.companionDisconnected");
-    case "companion_server_failed":
-      return t("overlay.notice.companionServerFailed", {
-        error: notice.detail ?? "",
-      });
-    default:
-      return t("overlay.notice.generic");
-  }
+  return (
+    noticeMessage(t, notice.code, notice.detail) ?? t("overlay.notice.generic")
+  );
 }
 
 // The display form of a post-process model id for the polishing chip: the
@@ -237,11 +174,18 @@ const RecordingOverlay: React.FC = () => {
           setLevels(Array(WAVE_BARS).fill(0));
           setStreamText({ committed: "", tentative: "" });
           setRemovedText(null);
-          setNotice(null);
+          // KB-162: the preview keeps the session's tail notice (e.g. a
+          // post-process skip shown moments earlier) instead of cutting it
+          // off exactly when the user is reading the previewed text. Fresh
+          // sessions (recording / streaming) still start notice-clean, and
+          // hide-overlay still clears it.
+          if (overlayState !== "preview") {
+            setNotice(null);
+          }
           setCmdActive(false);
           setCompanionActive(false);
           setPpRun(null);
-          if (noticeTimerRef.current !== null) {
+          if (overlayState !== "preview" && noticeTimerRef.current !== null) {
             window.clearTimeout(noticeTimerRef.current);
             noticeTimerRef.current = null;
           }
@@ -528,7 +472,7 @@ const RecordingOverlay: React.FC = () => {
   // the removal chip; the error variant carries the app's one red treatment.
   const noticeRow = notice !== null && (
     <div className={`snotice ${noticeTone(notice)}`} role="status">
-      {noticeMessage(notice, t)}
+      {overlayNoticeText(notice, t)}
     </div>
   );
 

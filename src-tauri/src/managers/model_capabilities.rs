@@ -40,7 +40,6 @@ pub const KNOWN_ARCHES: &[&str] = &[
     "moonshine_streaming",
     "sensevoice",
     "gigaam",
-    "granite",
     "granite_speech",
     "granite_nar",
     "granite_speech_nar",
@@ -57,7 +56,10 @@ pub const KNOWN_ARCHES: &[&str] = &[
 /// models), and the post-process add-from-HF flow refuses everything not in
 /// here (so an ASR GGUF like `whisper` can never register as a post-process
 /// model). The two lists are deliberately separate: no architecture should be
-/// loadable by both engines.
+/// loadable by both engines. Bare `granite` is the llama.cpp LLM arch and
+/// lives only here; transcribe-cpp's granite ASR family is the suffixed
+/// variants in [`KNOWN_ARCHES`] (`granite_speech`, `granite_nar`,
+/// `granite_speech_nar`) - keep the two tables disjoint (KB-154).
 pub const LLM_ARCHES: &[&str] = &["qwen3", "llama", "gemma3", "phi3", "phi4", "granite"];
 
 // GGUF metadata keys transcribe-cpp writes for ASR models.
@@ -285,6 +287,24 @@ mod tests {
         assert_eq!(
             CapabilityProbe::from_metadata(&meta).verdict,
             Compatibility::MaybeIncompatible
+        );
+    }
+
+    /// KB-154: the ASR and LLM allowlists must stay disjoint - both
+    /// add-from-HF gates lean on that (an arch loadable by both engines
+    /// would let a post-process GGUF register as an ASR model and vice
+    /// versa). Bare `granite` is the llama.cpp LLM arch; transcribe-cpp's
+    /// granite ASR family is the suffixed variants in KNOWN_ARCHES.
+    #[test]
+    fn asr_and_llm_arch_allowlists_are_disjoint() {
+        let overlap: Vec<&str> = KNOWN_ARCHES
+            .iter()
+            .copied()
+            .filter(|arch| LLM_ARCHES.contains(arch))
+            .collect();
+        assert!(
+            overlap.is_empty(),
+            "architectures loadable by both engines: {overlap:?}"
         );
     }
 }

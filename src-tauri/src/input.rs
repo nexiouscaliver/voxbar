@@ -140,6 +140,7 @@ mod macos {
         command_letter_key(b'v', ANSI_V_KEYCODE)
     }
 
+    #[allow(dead_code)] // kept for paste_tx::key_send's macOS chord resolution (executor currently unwired)
     pub(super) fn command_z_key() -> Key {
         // No documented ANSI fallback keycode constant is needed: 6 is the
         // ANSI Z keycode (kVK_ANSI_Z), the equivalent of the V fallback above.
@@ -183,8 +184,10 @@ impl EnigoState {
         // auto-restart). The field is enigo's supported escape hatch for
         // exactly this (enigo::EVENT_MARKER is its generic default; we
         // use a VoxBar-specific value so only our events are filtered).
-        let mut settings = Settings::default();
-        settings.event_source_user_data = Some(handy_keys::SYNTHESIZED_EVENT_MARKER);
+        let settings = Settings {
+            event_source_user_data: Some(handy_keys::SYNTHESIZED_EVENT_MARKER),
+            ..Default::default()
+        };
         let enigo =
             Enigo::new(&settings).map_err(|e| format!("Failed to initialize Enigo: {}", e))?;
         Ok(Self(Mutex::new(enigo)))
@@ -195,12 +198,14 @@ impl EnigoState {
 /// Other platforms resolve chord keys at their call sites with virtual
 /// key codes or Unicode keys.
 #[cfg(target_os = "macos")]
+#[allow(dead_code)] // kept for paste_tx::key_send's macOS chord resolution (executor currently unwired)
 pub fn command_v_key() -> Key {
     macos::command_v_key()
 }
 
 /// Layout-aware key that types `z` while Command is held (macOS only).
 #[cfg(target_os = "macos")]
+#[allow(dead_code)] // kept for paste_tx::key_send's macOS chord resolution (executor currently unwired)
 pub fn command_z_key() -> Key {
     macos::command_z_key()
 }

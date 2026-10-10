@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Avvia la dettatura con {{hotkey}} in qualsiasi momento.",
-    "hotkeyChangeHint": "Puoi cambiare questa scorciatoia in Impostazioni > Generali."
+    "hotkeyChangeHint": "Puoi cambiare questa scorciatoia in Impostazioni > Generali.",
+    "modelError": {
+      "title": "Impossibile caricare l'elenco dei modelli",
+      "body": "VoxBar non ha raggiunto il catalogo dei modelli. Controlla la connessione e riprova, oppure salta questo passaggio e scegli un modello più tardi nelle Impostazioni.",
+      "retry": "Riprova",
+      "skip": "Salta per ora"
+    }
   },
   "modelSelector": {
     "custom": "Personalizzato",
@@ -1196,7 +1202,8 @@
       "postProcessCloudFailed": "La rifinitura non è riuscita, la trascrizione originale è stata mantenuta: {{detail}}",
       "postProcessPromptCycled": "Modello di post-elaborazione: {{name}}",
       "companionDisconnected": "Telefono disconnesso. Concludo con quanto registrato.",
-      "companionServerFailed": "Server companion non riuscito: {{error}}"
+      "companionServerFailed": "Server companion non riuscito: {{error}}",
+      "companionSessionCapped": "Dettato dal dispositivo companion terminato: raggiunto il limite di sessione di 15 minuti."
     },
     "commandBadge": "Modalità comandi",
     "ppChip": "Rifinitura ({{model}}) {{seconds}}s",

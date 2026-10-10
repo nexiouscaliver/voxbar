@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Start diktering med {{hotkey}} når som helst.",
-    "hotkeyChangeHint": "Du kan ændre denne genvej i Indstillinger > Generelt."
+    "hotkeyChangeHint": "Du kan ændre denne genvej i Indstillinger > Generelt.",
+    "modelError": {
+      "title": "Kunne ikke indlæse modellisten",
+      "body": "VoxBar kunne ikke nå modelkataloget. Tjek din forbindelse og prøv igen, eller spring dette trin over og vælg en model senere i Indstillinger.",
+      "retry": "Prøv igen",
+      "skip": "Spring over nu"
+    }
   },
   "modelSelector": {
     "custom": "Brugerdefineret",
@@ -1199,7 +1205,8 @@
       "postProcessCloudFailed": "Rensningen fejlede, den originale transskription blev beholdt: {{detail}}",
       "postProcessPromptCycled": "Efterbehandlingsskabelon: {{name}}",
       "companionDisconnected": "Telefonen frakoblet. Færdiggør med det optagede.",
-      "companionServerFailed": "Følgeserveren fejlede: {{error}}"
+      "companionServerFailed": "Følgeserveren fejlede: {{error}}",
+      "companionSessionCapped": "Dikteringen fra companion-enheden er afsluttet: grænsen på 15 minutter for sessionen er nået."
     },
     "commandBadge": "Kommandotilstand",
     "ppChip": "Renser ({{model}}) {{seconds}}s",

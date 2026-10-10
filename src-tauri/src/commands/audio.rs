@@ -162,7 +162,7 @@ pub fn open_microphone_privacy_settings(app: AppHandle) -> Result<(), String> {
                 None::<String>,
             )
             .map_err(|e| format!("Failed to open macOS microphone privacy settings: {}", e))?;
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(not(any(target_os = "windows", target_os = "macos")))]
