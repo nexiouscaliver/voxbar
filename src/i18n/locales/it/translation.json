@@ -245,7 +245,8 @@
       "selectionErrors": {
         "notAsrModel": "Questo modello è il motore locale di post-elaborazione. Rifinisce le trascrizioni dopo la dettatura, non può trascrivere audio.",
         "generic": "Impossibile passare a questo modello: {{error}}"
-      }
+      },
+      "deleteRefusedLive": "VoxBar sta dettando con questo modello. Riprova al termine della dettatura."
     },
     "general": {
       "title": "Generale",

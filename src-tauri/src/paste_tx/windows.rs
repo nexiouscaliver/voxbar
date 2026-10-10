@@ -25,7 +25,7 @@ use windows::Win32::Foundation::{
     SetLastError, ERROR_SUCCESS, HANDLE, HGLOBAL, HINSTANCE, HWND, LPARAM, LRESULT, WPARAM,
 };
 
-use super::{evaluate, send_chord, TxState, WaitDecision};
+use super::{auto_submit_owed, chord_failure_error, evaluate, send_chord, TxState, WaitDecision};
 use crate::clipboard::send_return_key;
 use crate::input::EnigoState;
 use crate::settings::{AutoSubmitKey, ClipboardHandling, PasteMethod};
@@ -221,15 +221,16 @@ fn flush_pending() {
     let Some(previous) = previous else {
         return;
     };
-    let receipt = {
+    let (receipt, injection_failed) = {
         let mut st = match previous.state.lock() {
             Ok(st) => st,
             Err(_) => return,
         };
         st.cancelled = true;
-        st.any_receipt_after_injection()
+        (st.any_receipt_after_injection(), st.injection_failed)
     };
-    if previous.auto_submit && receipt {
+    // KB-223: same Enter rule as on_timer - a chord failure owes nothing.
+    if auto_submit_owed(previous.auto_submit, receipt, injection_failed) {
         send_auto_submit(&previous);
     }
     let sequence = *previous.sequence.lock().unwrap();
@@ -456,7 +457,9 @@ fn on_timer(_hwnd: HWND, shared: &WinTxShared) {
 
     // Auto-submit only once the target demonstrably read the transcript;
     // pressing Enter after an unconfirmed paste could submit stale content.
-    if shared.auto_submit && receipt {
+    // KB-223: a chord failure owes no Enter even if an eager third-party read
+    // got recorded after the injection mark - nothing was pasted.
+    if auto_submit_owed(shared.auto_submit, receipt, injection_failed) {
         send_auto_submit(shared);
     }
 
@@ -608,17 +611,20 @@ pub(super) fn run(
     // Mark injection *before* sending: enigo holds the chord for ~100ms and a
     // fast target may legitimately read while the chord is still held.
     shared.state.lock().unwrap().injected_at = Some(Instant::now());
+    // KB-223: a chord failure is a real paste failure, not a silent one. The
+    // worker is already pumping (it restores the clipboard after the short
+    // failed-injection timeout), so the failure is returned to the caller as
+    // the paste error (classified by CHORD_FAILURE_PREFIX; never a
+    // legacy-paste fallback).
     match send_chord(enigo, paste_method) {
         Ok(()) => {
             info!("[reliable-paste] paste chord sent ({paste_method:?})");
+            Ok(())
         }
         Err(e) => {
-            // Keep the transaction alive: the worker restores the clipboard
-            // after the short failed-injection timeout.
             shared.state.lock().unwrap().injection_failed = true;
             error!("[reliable-paste] failed to send paste chord: {e}");
+            Err(chord_failure_error(&e))
         }
     }
-
-    Ok(())
 }

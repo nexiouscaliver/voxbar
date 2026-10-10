@@ -404,7 +404,8 @@
       "selectionErrors": {
         "notAsrModel": "Dit model is de lokale nabewerkingsengine. Het verbetert transcripties na de dicteersessie, maar kan geen audio transcriberen.",
         "generic": "Kon niet naar dit model wisselen: {{error}}"
-      }
+      },
+      "deleteRefusedLive": "VoxBar dicteert momenteel met dit model. Probeer het opnieuw nadat de dicteersessie is afgerond."
     },
     "sound": {
       "title": "Geluid",

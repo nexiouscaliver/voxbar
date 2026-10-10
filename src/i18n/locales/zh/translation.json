@@ -245,7 +245,8 @@
       "selectionErrors": {
         "notAsrModel": "此模型是本地后处理引擎。它在听写后润色转录文本，无法转录音频。",
         "generic": "无法切换到此模型：{{error}}"
-      }
+      },
+      "deleteRefusedLive": "VoxBar 正在使用此模型进行听写。听写结束后请重试。"
     },
     "general": {
       "title": "通用",

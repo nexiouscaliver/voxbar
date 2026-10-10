@@ -404,7 +404,8 @@
       "selectionErrors": {
         "notAsrModel": "Aquest model és el motor local de postprocessat. Poleix les transcripcions després del dictat, no pot transcriure àudio.",
         "generic": "No s'ha pogut canviar a aquest model: {{error}}"
-      }
+      },
+      "deleteRefusedLive": "El VoxBar està dictant amb aquest model. Torneu-ho a provar quan acabi el dictat."
     },
     "sound": {
       "title": "So",

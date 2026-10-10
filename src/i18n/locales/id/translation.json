@@ -404,7 +404,8 @@
       "selectionErrors": {
         "notAsrModel": "Model ini adalah engine pascaproses lokal. Model ini memoles transkripsi setelah dikte, tidak dapat mentranskripsi audio.",
         "generic": "Tidak dapat beralih ke model ini: {{error}}"
-      }
+      },
+      "deleteRefusedLive": "VoxBar sedang mendikte dengan model ini. Coba lagi setelah dikte selesai."
     },
     "sound": {
       "title": "Suara",

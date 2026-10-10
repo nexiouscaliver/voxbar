@@ -64,6 +64,44 @@ pub(crate) const RESTORE_TIMEOUT: Duration = Duration::from_secs(8);
 /// arrive, so restore quickly instead of waiting out the full timeout.
 pub(crate) const FAILED_INJECTION_TIMEOUT: Duration = Duration::from_millis(500);
 
+/// KB-223: stable prefix marking "the transcript was published, but the paste
+/// chord could not be injected" - the paste failed. Unlike the pre-publish
+/// `Err`s (nothing happened, fall back to the legacy paste), this failure
+/// leaves a live transaction behind: the transcript sits on the clipboard as
+/// a promise and the waiter owns the restore after
+/// [`FAILED_INJECTION_TIMEOUT`]. The caller classifies on this prefix the
+/// same way the settings UI classifies the refusal prefixes, and reports the
+/// error as the paste failure instead of falling back over the live
+/// transaction.
+pub(crate) const CHORD_FAILURE_PREFIX: &str = "paste-chord-failed";
+
+/// KB-223: builds the chord-failure error every platform returns when
+/// `send_chord` fails. One constructor so the prefix and the wording stay in
+/// sync with [`is_chord_failure`].
+pub(crate) fn chord_failure_error(cause: &str) -> String {
+    format!("{CHORD_FAILURE_PREFIX}: failed to send paste chord: {cause}")
+}
+
+/// KB-223: whether a `try_reliable_paste` error is the chord failure (the
+/// transcript was published but nothing was pasted) rather than a pre-publish
+/// "cannot start" error the caller may safely retry via the legacy path.
+pub(crate) fn is_chord_failure(error: &str) -> bool {
+    error.starts_with(CHORD_FAILURE_PREFIX)
+}
+
+/// KB-223: whether settling a transaction owes the auto-submit Enter. A
+/// receipt alone is not enough once the chord failed: no paste happened, so
+/// an Enter could submit whatever the target field held before, and the
+/// failure is surfaced as a paste error instead. Pure so both platforms'
+/// settle paths share one table.
+pub(crate) fn auto_submit_owed(
+    auto_submit: bool,
+    receipt_seen: bool,
+    injection_failed: bool,
+) -> bool {
+    auto_submit && receipt_seen && !injection_failed
+}
+
 /// Shared, cross-thread record of one paste transaction.
 #[derive(Debug)]
 pub(crate) struct TxState {
@@ -187,11 +225,17 @@ pub(crate) fn send_chord(
     }
 }
 
-/// Attempts the receipt-sequenced paste. Returns `Err` before anything has
-/// been published when the platform transaction cannot start, in which case
-/// the caller should fall back to the legacy paste path. On `Ok`, publishing
-/// and chord injection have completed and the guarded restore (plus
-/// auto-submit) finishes asynchronously.
+/// Attempts the receipt-sequenced paste. Returns `Err` in two shapes:
+/// - Before anything has been published (the platform transaction cannot
+///   start): the caller should fall back to the legacy paste path.
+/// - Carrying [`CHORD_FAILURE_PREFIX`] (KB-223): the transcript was published
+///   but the paste chord could not be injected, so nothing was pasted. The
+///   transaction stays live - its waiter restores the clipboard (or leaves
+///   the transcript, per the clipboard handling) after
+///   [`FAILED_INJECTION_TIMEOUT`] - so the caller must NOT fall back over it;
+///   the error is the paste failure to surface (the Wave-1 `paste_failed`
+///   notice). On `Ok`, publishing and chord injection have completed and the
+///   guarded restore (plus auto-submit) finishes asynchronously.
 #[cfg(any(target_os = "macos", target_os = "windows"))]
 pub(crate) fn try_reliable_paste(
     text: &str,
@@ -281,5 +325,47 @@ mod tests {
         let mut s = state_after_publish(Duration::from_millis(10));
         s.ownership_lost = true;
         assert!(matches!(evaluate(&s, Instant::now()), WaitDecision::Finish));
+    }
+
+    // ------------------------------------------------------------------
+    // KB-223: chord-failure reporting and the auto-submit it owes
+    // ------------------------------------------------------------------
+
+    /// The chord failure carries the stable prefix the caller classifies on,
+    /// and the pre-publish "cannot start" errors do not: those still mean
+    /// "fall back to the legacy paste", while a chord failure must be
+    /// reported as the paste failure instead.
+    #[test]
+    fn chord_failure_is_classifiable_and_pre_publish_errors_are_not() {
+        assert!(is_chord_failure(&chord_failure_error(
+            "Failed to press Control key: input error"
+        )));
+        // The real pre-publish failure strings from both platforms.
+        assert!(!is_chord_failure("declareTypes:owner: failed"));
+        assert!(!is_chord_failure("OpenClipboard failed: clipboard busy"));
+        assert!(!is_chord_failure(
+            "reliable paste worker died before publishing"
+        ));
+    }
+
+    /// KB-223: the auto-submit Enter is owed only on the success path. A
+    /// chord failure owes nothing even if an eager third-party read got
+    /// recorded after the injection mark - no paste happened, so an Enter
+    /// could submit stale content.
+    #[test]
+    fn auto_submit_is_not_owed_after_a_chord_failure() {
+        assert!(auto_submit_owed(true, true, false), "success owes it");
+        assert!(
+            !auto_submit_owed(true, false, false),
+            "no receipt means unconfirmed paste"
+        );
+        assert!(
+            !auto_submit_owed(false, true, false),
+            "auto-submit disabled owes nothing"
+        );
+        assert!(
+            !auto_submit_owed(true, true, true),
+            "a chord failure owes no Enter, stray receipt or not"
+        );
     }
 }

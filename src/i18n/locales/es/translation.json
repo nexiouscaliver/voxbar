@@ -245,7 +245,8 @@
       "selectionErrors": {
         "notAsrModel": "Este modelo es el motor local de posprocesamiento. Pule las transcripciones después del dictado, no puede transcribir audio.",
         "generic": "No se pudo cambiar a este modelo: {{error}}"
-      }
+      },
+      "deleteRefusedLive": "VoxBar está dictando con este modelo. Inténtalo de nuevo cuando termine el dictado."
     },
     "general": {
       "title": "General",

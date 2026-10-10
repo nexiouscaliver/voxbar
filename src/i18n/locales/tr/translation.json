@@ -245,7 +245,8 @@
       "selectionErrors": {
         "notAsrModel": "Bu model yerel son işlem motorudur. Dikte sonrası transkriptleri cilalar, sesi transkribe edemez.",
         "generic": "Bu modele geçilemedi: {{error}}"
-      }
+      },
+      "deleteRefusedLive": "VoxBar şu anda bu modelle dikte ediyor. Dikte bittikten sonra tekrar deneyin."
     },
     "general": {
       "title": "Genel",

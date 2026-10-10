@@ -439,7 +439,8 @@
       "selectionErrors": {
         "notAsrModel": "이 모델은 로컬 후처리 엔진입니다. 받아쓰기 후 전사를 다듬을 뿐 오디오를 전사할 수 없습니다.",
         "generic": "이 모델로 전환할 수 없습니다: {{error}}"
-      }
+      },
+      "deleteRefusedLive": "VoxBar가 이 모델로 받아쓰는 중입니다. 받아쓰기가 끝난 후 다시 시도하세요."
     },
     "advanced": {
       "groups": {
