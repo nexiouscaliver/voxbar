@@ -1201,15 +1201,20 @@ pub fn change_start_hidden_setting(app: AppHandle, enabled: bool) -> Result<(), 
     Ok(())
 }
 
+/// Launch-at-login toggle. KB-112: the login-item change is applied BEFORE
+/// persisting and its failure propagates (the update_microphone_mode /
+/// change_companion_devices_setting rule), so a failed enable rolls the
+/// toggle back instead of leaving it on with no login item behind it - the
+/// preference would only self-heal on the NEXT launch, and until then the
+/// toggle lied about the app starting at login.
 #[tauri::command]
 #[specta::specta]
 pub fn change_autostart_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    crate::autostart::apply_autostart(&app, enabled)?;
+
     let mut settings = settings::get_settings(&app);
     settings.autostart_enabled = enabled;
     settings::write_settings(&app, settings);
-
-    // Apply the autostart setting immediately
-    crate::autostart::apply_autostart(&app, enabled);
 
     // Notify frontend
     let _ = app.emit(
@@ -1510,13 +1515,39 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
         }
     }
 
+    // KB-188: the tray's Post-process Prompt submenu is enabled exactly
+    // while this setting is on - re-sync so the tray reflects the toggle
+    // now instead of after the next unrelated rebuild (the same rule the
+    // update-checks toggle follows, KB-034).
+    tray::update_tray_menu(&app);
+
     crate::secure_input::reconcile_fallback(&app);
     Ok(())
 }
 
+/// The Experimental master switch. KB-183/KB-145: it is also a kill switch
+/// for the companion LAN server, whose ONLY UI control is unmounted while
+/// experimental is off - so turning it OFF must stop a running server
+/// (apply_enabled(false) finalizes a live phone session first), and turning
+/// it back ON re-arms the server only when the stored companion toggle is
+/// on, mirroring companion::init. The runtime change runs BEFORE persisting
+/// (the update_microphone_mode rule); a failed re-arm is logged and badged
+/// inside apply_enabled and does not veto the toggle, which gates more than
+/// companion.
 #[tauri::command]
 #[specta::specta]
 pub fn change_experimental_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    if enabled {
+        if settings::get_settings(&app).companion_devices_enabled {
+            // Best effort, exactly like init: a failed start is logged and
+            // badged inside apply_enabled and surfaces on the companion
+            // panel this toggle just re-mounted.
+            let _ = crate::companion::apply_enabled(&app, true);
+        }
+    } else {
+        crate::companion::apply_enabled(&app, false)?;
+    }
+
     let mut settings = settings::get_settings(&app);
     settings.experimental_enabled = enabled;
     settings::write_settings(&app, settings);

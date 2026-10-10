@@ -474,14 +474,27 @@ pub fn on_session_changed(app: &AppHandle, active: bool) {
     }
 }
 
+/// KB-183/KB-145: the companion feature is effectively enabled only while
+/// BOTH its own toggle and the Experimental master switch are on. The
+/// Experimental group is the ONLY UI surface for the companion toggle
+/// (unmounted while experimental is off), so arming on
+/// `companion_devices_enabled` alone would leave the LAN TLS server
+/// running - re-armed at every boot - with no control able to reach it.
+pub fn effective_enabled(settings: &crate::settings::AppSettings) -> bool {
+    settings.companion_devices_enabled && settings.experimental_enabled
+}
+
 /// Manage the CompanionManager in app state and honor the persisted
-/// setting at startup (off means an inert manager with no threads).
+/// setting at startup (off means an inert manager with no threads). The
+/// effective gate folds in the Experimental master switch (KB-183): a
+/// stored `companion_devices_enabled` alone must not re-arm the LAN
+/// server at boot while its only UI control is unmounted.
 pub fn init(app: &AppHandle) {
     let manager = Arc::new(CompanionManager::new());
     app.manage(Arc::clone(&manager));
     manager.register_notice_forwarder(app);
 
-    if crate::settings::get_settings(app).companion_devices_enabled {
+    if effective_enabled(&crate::settings::get_settings(app)) {
         // Best effort: a failed start is logged and badged inside
         // apply_enabled and must not abort initialization.
         let _ = apply_enabled(app, true);
@@ -514,5 +527,40 @@ mod tests {
     fn qr_fails_cleanly_on_garbage() {
         // Empty string is technically encodable; oversize input is not.
         assert!(qr_svg_for(&"x".repeat(4000)).is_err());
+    }
+
+    /// KB-183/KB-145: the effective gate `init` arms the LAN server on.
+    /// The companion toggle's only UI control is unmounted while the
+    /// Experimental master switch is off, so `companion_devices_enabled`
+    /// alone must NOT count as enabled - otherwise the server keeps
+    /// running (and re-arms every boot) with no control able to reach it.
+    #[test]
+    fn effective_enabled_requires_both_the_toggle_and_experimental() {
+        let mut settings = crate::settings::AppSettings::default();
+
+        settings.companion_devices_enabled = false;
+        settings.experimental_enabled = false;
+        assert!(
+            !effective_enabled(&settings),
+            "both off: inert, like every default install"
+        );
+
+        settings.companion_devices_enabled = true;
+        assert!(
+            !effective_enabled(&settings),
+            "the stored companion toggle alone must not arm the server while experimental is off"
+        );
+
+        settings.experimental_enabled = true;
+        assert!(
+            effective_enabled(&settings),
+            "both on: the one armed combination"
+        );
+
+        settings.companion_devices_enabled = false;
+        assert!(
+            !effective_enabled(&settings),
+            "experimental on does not arm the server on its own"
+        );
     }
 }

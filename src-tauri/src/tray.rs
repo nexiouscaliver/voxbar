@@ -78,6 +78,12 @@ struct MenuInputs {
     /// post-processing is on at all): the Post-process Model submenu only
     /// exists in that case, so a cloud/off user keeps the prior menu shape.
     post_process_local_active: bool,
+    /// Whether post-processing is on at all: the Post-process Prompt
+    /// submenu stays in the menu while off but renders DISABLED (KB-188) -
+    /// picking a template with the feature off would silently move a
+    /// checkmark that affects nothing. The update-checks item's greyed-out
+    /// pattern, not the forced-off removal.
+    post_process_enabled: bool,
     /// The effective post-process model selection (normalized by the same
     /// helper the swap runner uses).
     selected_llm_model: String,
@@ -379,8 +385,10 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
 
     // The Post-process Prompt submenu's inputs: the whole template library
     // in catalog order plus the selection. Present unconditionally (unlike
-    // the model submenu): the submenu is how an unbound-cycle operator
-    // switches templates from the tray.
+    // the model submenu) but DISABLED while post-processing is off (KB-188):
+    // the submenu is how an unbound-cycle operator switches templates from
+    // the tray, and with the feature off a pick would silently move a
+    // checkmark that affects nothing.
     let post_process_prompts: Vec<(String, String)> = settings
         .post_process_prompts
         .iter()
@@ -429,6 +437,7 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
             model_ram,
             unload_timeout: settings.model_unload_timeout,
             post_process_local_active,
+            post_process_enabled: settings.post_process_enabled,
             selected_llm_model,
             downloaded_llm_models,
             post_process_prompts,
@@ -709,15 +718,18 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
 
         // "Post-process Prompt" submenu: the whole template library with a
         // checkmark on the selection, mirroring the model submenus above.
-        // Present unconditionally: it is the tray surface for picking a
-        // template, independent of which engine runs it.
+        // Present unconditionally (it is the tray surface for picking a
+        // template, independent of which engine runs it) but DISABLED while
+        // post-processing is off - the update-checks item's enabled-flag
+        // pattern - so a pick that would silently move a checkmark
+        // affecting nothing (KB-188) is unclickable instead.
         let prompt_selected_name = prompt_submenu_label_name(inputs)
             .unwrap_or_else(|| strings.post_process_prompt.clone());
         let post_process_prompt_submenu = Submenu::with_id(
             app,
             "post_process_prompt_submenu",
             &format!("{}: {}", strings.post_process_prompt, prompt_selected_name),
-            true,
+            inputs.post_process_enabled,
         )?;
         for ((id, name), checked) in prompt_submenu_checks(inputs) {
             let item_id = format!("prompt_select:{}", id);
@@ -1314,6 +1326,7 @@ mod tests {
             model_ram: None,
             unload_timeout: ModelUnloadTimeout::Min2,
             post_process_local_active: false,
+            post_process_enabled: false,
             selected_llm_model: crate::local_llm::LOCAL_LLM_MODEL_ID.to_string(),
             downloaded_llm_models: Vec::new(),
             post_process_prompts: Vec::new(),
@@ -1352,6 +1365,22 @@ mod tests {
         let mut with_ram = inputs(false);
         with_ram.model_ram = Some("697 MB".to_string());
         assert_ne!(inputs(false), with_ram);
+    }
+
+    /// KB-188: the Post-process Prompt submenu's enabled state rides the
+    /// post_process_enabled flag build_menu passes to Submenu::with_id, so
+    /// flipping the master toggle must change MenuInputs - without that the
+    /// applier would see no diff and the submenu would stay enabled (or
+    /// disabled) until the next unrelated rebuild.
+    #[test]
+    fn post_process_toggle_flip_drives_menu_rebuild() {
+        let mut enabled = inputs(false);
+        enabled.post_process_enabled = true;
+        assert_ne!(
+            inputs(false),
+            enabled,
+            "toggle flip => MenuInputs differ => the menu rebuilds"
+        );
     }
 
     /// The Post-process Model submenu lists exactly the downloaded LocalLlm
