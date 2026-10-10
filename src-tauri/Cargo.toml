@@ -50,7 +50,6 @@ rusqlite_migration = "2.3"
 tauri-plugin-fs = "2.4.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-rdev = { git = "https://github.com/rustdesk-org/rdev" }
 cpal = "0.16.0"
 rtrb = "0.4.0"
 anyhow = "1.0.95"
@@ -203,6 +202,10 @@ objc2 = "0.6"
 objc2-foundation = "0.3"
 objc2-app-kit = "0.3"
 objc2-service-management = "0.3.2"
+# mach_host_self for the macOS memory-pressure probe (memory.rs); libc's
+# mach bindings are deprecated in favor of this crate. macOS-only target
+# table entry: the crate refuses to compile on non-Apple targets.
+mach2 = "0.7"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk-layer-shell = { version = "0.8", features = ["v0_6"] }

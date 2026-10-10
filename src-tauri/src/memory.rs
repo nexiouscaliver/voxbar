@@ -63,7 +63,10 @@ pub fn trim_freed_memory() {}
 /// transient run-time allocations beyond the model file's size. Nothing
 /// computes with this implicitly anymore - the gate uses the user's
 /// `memory_gate_headroom_mb` setting (default 0), and this constant exists
-/// only as the strict preset a memory-constrained user can pick.
+/// only as the strict preset a memory-constrained user can pick. The 1536
+/// preset literal is duplicated in the Advanced UI's preset row
+/// (src/components/settings/memoryMarginInput.ts); change both together.
+#[cfg_attr(not(test), allow(dead_code))] // test-pinned invariant
 pub const DEFAULT_HEADROOM_BYTES: u64 = 1536 * 1024 * 1024;
 
 // --- Kernel pressure verdict (macOS) ---------------------------------------
@@ -287,9 +290,10 @@ fn pressure_adjusted_page_bytes(
 /// problem).
 #[cfg(target_os = "macos")]
 fn host_statistics_probe() -> AvailabilityProbe {
-    use libc::{
-        host_statistics64, mach_host_self, vm_statistics64, vm_statistics64_data_t, HOST_VM_INFO64,
-    };
+    use libc::{host_statistics64, vm_statistics64, vm_statistics64_data_t, HOST_VM_INFO64};
+    // libc's mach_host_self is deprecated in favor of mach2; the returned
+    // port is the same u32 mach_port_t libc's host_statistics64 expects.
+    use mach2::mach_init::mach_host_self;
     let mut vm: vm_statistics64_data_t = unsafe { std::mem::zeroed() };
     let mut count = (std::mem::size_of::<vm_statistics64>()
         / std::mem::size_of::<libc::integer_t>())

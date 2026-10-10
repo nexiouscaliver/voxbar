@@ -354,9 +354,7 @@ impl CompanionManager {
             // to release the port, then bring the server back with the new
             // token.
             std::thread::sleep(Duration::from_millis(150));
-            if let Err(e) = self.start(app) {
-                return Err(e);
-            }
+            self.start(app)?;
         }
         Ok(())
     }
@@ -387,6 +385,12 @@ impl CompanionManager {
             }
         });
         *guard = Some(id);
+    }
+}
+
+impl Default for CompanionManager {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

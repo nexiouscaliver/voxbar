@@ -663,7 +663,6 @@ pub struct VoiceDeletionOutcome {
 /// phrases always match whole. The digit form accepts 1 through 10 only;
 /// "delete last 0 words" and "delete last 99 words" are not commands and
 /// stay verbatim.
-
 /// Word count for a matched "delete last <count> words" command. The pattern
 /// guarantees the count token is one of the accepted forms.
 fn voice_deletion_word_count(phrase: &str) -> usize {

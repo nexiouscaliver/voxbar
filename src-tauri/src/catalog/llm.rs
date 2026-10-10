@@ -45,6 +45,7 @@ pub struct LlmCatalogModel {
     /// Display publisher for the card ("Qwen", "bartowski", ...).
     pub publisher: String,
     /// GGUF `general.architecture` (must pass [`crate::managers::model_capabilities::LLM_ARCHES`]).
+    #[cfg_attr(not(test), allow(dead_code))] // test-pinned invariant (arch allowlist test)
     pub architecture: String,
     /// Inert display metadata: the languages the model handles.
     pub languages: Vec<String>,

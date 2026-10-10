@@ -158,6 +158,7 @@ fn default_prompt_language() -> String {
 /// The keep-language hard rule. Every built-in template body carries this
 /// sentence verbatim (asserted by test), so no template can ever translate
 /// or script-switch the operator's words.
+#[cfg_attr(not(test), allow(dead_code))] // test-pinned invariant
 pub const PROMPT_KEEP_LANGUAGE_RULE: &str =
     "Do not translate and do not switch languages or scripts.";
 
@@ -538,7 +539,7 @@ pub enum VadBackend {
 
 #[derive(Clone, Serialize, Deserialize, Type)]
 #[serde(transparent)]
-pub(crate) struct SecretMap(HashMap<String, String>);
+pub struct SecretMap(HashMap<String, String>);
 
 impl fmt::Debug for SecretMap {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

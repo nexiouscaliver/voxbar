@@ -447,10 +447,12 @@ pub enum NoticeCode {
     /// Linux: Wayland session detected while the Tauri (global-hotkey,
     /// X11-only) keyboard backend is active; hotkeys may be dead in native
     /// Wayland apps. Info, once per run at shortcut init.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     WaylandTauriHotkeys,
     /// Linux: overlay enabled on GNOME Wayland without layer-shell support,
     /// where the overlay falls back to a regular focus-stealing window.
     /// Info, once per setting change.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     GnomeOverlayFallback,
     /// The cycle-prompt hotkey advanced the selected post-process template.
     /// Info; detail carries the new template's name.
