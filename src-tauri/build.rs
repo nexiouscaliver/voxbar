@@ -569,6 +569,14 @@ fn build_apple_intelligence_bridge() {
 fn is_command_line_tools_only() -> bool {
     use std::process::Command;
 
+    // DEVELOPER_DIR takes precedence over xcode-select for every Xcode
+    // toolchain tool, so the CLT-only verdict must honor it too: a build
+    // run with DEVELOPER_DIR pointing at full Xcode has FoundationModels
+    // available even while the machine's xcode-select still says CLT
+    // (which is exactly how the release pipeline now builds).
+    if let Ok(dev_dir) = env::var("DEVELOPER_DIR") {
+        return dev_dir.ends_with("CommandLineTools");
+    }
     Command::new("xcode-select")
         .arg("-p")
         .output()
