@@ -450,6 +450,33 @@ mod imp {
         a.id == b.id && a.current_binding == b.current_binding
     }
 
+    /// Split the previously-registered shadows into those still wanted
+    /// (kept: their live Carbon registration is preserved untouched, see
+    /// #1999) and those no longer wanted (stale: to be unregistered).
+    /// Pure so the KB-231 retry bookkeeping is pinnable by test.
+    fn partition_previous(
+        previous: Vec<ShortcutBinding>,
+        wanted: &[(String, ShortcutBinding, bool)],
+    ) -> (Vec<ShortcutBinding>, Vec<ShortcutBinding>) {
+        previous.into_iter().partition(|prev| {
+            wanted
+                .iter()
+                .any(|(_, shadow, _)| same_shadow(shadow, prev))
+        })
+    }
+
+    /// KB-231 bookkeeping for a stale shadow whose unregister FAILED: the
+    /// plugin still holds the Carbon registration, so it must stay in the
+    /// tracked state (`next.registered`) or no later reconcile sees it as
+    /// previously-registered and retries the teardown - state and plugin
+    /// would diverge permanently, and once secure input lifts both the
+    /// handy_keys tap AND the leaked registration deliver the same press
+    /// (double dispatch). Pure; the plugin call stays at the reconcile
+    /// call site.
+    fn track_failed_unregister(next: &mut FallbackState, binding: ShortcutBinding) {
+        next.registered.push(binding);
+    }
+
     /// Reconcile fallback registrations without replacing unchanged shadows.
     /// The operation mutex serializes reconciliations; fallback state is
     /// unlocked around plugin calls to avoid lock-order inversion.
@@ -498,12 +525,7 @@ mod imp {
         }
 
         // Preserve unchanged registrations; unregister only stale shadows.
-        let (kept, stale): (Vec<ShortcutBinding>, Vec<ShortcutBinding>) =
-            previous.registered.into_iter().partition(|prev| {
-                wanted
-                    .iter()
-                    .any(|(_, shadow, _)| same_shadow(shadow, prev))
-            });
+        let (kept, stale) = partition_previous(previous.registered, &wanted);
 
         if !stale.is_empty() {
             info!(
@@ -513,11 +535,21 @@ mod imp {
             );
         }
         for binding in stale {
-            if let Err(e) = crate::shortcut::tauri_impl::unregister_shortcut(app, binding.clone()) {
-                warn!(
-                    "SecureInput fallback: failed to unregister '{}': {}",
-                    binding.current_binding, e
-                );
+            match crate::shortcut::tauri_impl::unregister_shortcut(app, binding.clone()) {
+                Ok(()) => {}
+                Err(e) => {
+                    warn!(
+                        "SecureInput fallback: failed to unregister '{}': {} - keeping it tracked to retry on the next reconcile",
+                        binding.current_binding, e
+                    );
+                    // KB-231: the registration is still live in the
+                    // plugin; keeping it in next.registered makes the
+                    // next reconcile partition it back into `stale` and
+                    // retry the teardown instead of leaking it. #1999
+                    // semantics are untouched: still-wanted shadows
+                    // partition into `kept` and are never replaced.
+                    track_failed_unregister(&mut next, binding);
+                }
             }
         }
 
@@ -665,6 +697,74 @@ mod imp {
         })
         .await
         .map_err(|e| format!("Diagnostic task failed: {e}"))?
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+
+        fn test_binding(id: &str, binding: &str) -> ShortcutBinding {
+            ShortcutBinding {
+                id: id.to_string(),
+                name: id.to_string(),
+                description: String::new(),
+                default_binding: binding.to_string(),
+                current_binding: binding.to_string(),
+            }
+        }
+
+        /// KB-231 contract: a stale shadow whose unregister failed stays
+        /// tracked, so the NEXT reconcile's partition hands it back to
+        /// the teardown (retry) instead of forgetting it and leaking a
+        /// live Carbon registration that double-fires beside the
+        /// handy_keys tap once secure input lifts.
+        #[test]
+        fn failed_unregister_stays_tracked_and_is_retried_by_the_next_partition() {
+            let binding = test_binding("push_to_talk", "Alt+Space");
+            // No longer wanted (settings changed / fallback stood down).
+            let wanted: Vec<(String, ShortcutBinding, bool)> = Vec::new();
+
+            let (kept, stale) = partition_previous(vec![binding.clone()], &wanted);
+            assert!(kept.is_empty());
+            assert_eq!(stale.len(), 1);
+
+            // The unregister attempt failed: the plugin still holds the
+            // registration, so it must remain in the tracked state.
+            let mut next = FallbackState::default();
+            track_failed_unregister(&mut next, binding.clone());
+            assert_eq!(next.registered.len(), 1);
+
+            // The next reconcile sees it as previously-registered and
+            // partitions it straight back into stale: the teardown is
+            // retried, never silently abandoned.
+            let (kept, stale) = partition_previous(next.registered, &wanted);
+            assert!(kept.is_empty());
+            assert_eq!(stale.len(), 1);
+            assert!(same_shadow(&stale[0], &binding));
+        }
+
+        /// #1999 semantics stay intact: a still-wanted shadow partitions
+        /// into kept (its live registration is never replaced, so a held
+        /// push-to-talk press keeps its release), and only genuinely
+        /// stale shadows - unwanted, or the same id under a different
+        /// binding string - reach the teardown arm.
+        #[test]
+        fn unchanged_shadows_partition_into_kept_and_changed_ones_into_stale() {
+            let binding = test_binding("push_to_talk", "Alt+Space");
+            let wanted = vec![("push_to_talk".to_string(), binding.clone(), false)];
+            let (kept, stale) = partition_previous(vec![binding.clone()], &wanted);
+            assert_eq!(kept.len(), 1);
+            assert!(stale.is_empty());
+            assert!(same_shadow(&kept[0], &binding));
+
+            // Same id, different Carbon string: the old registration is
+            // stale and must be torn down.
+            let changed = test_binding("push_to_talk", "CtrlOrCmd+Shift+Space");
+            let wanted_changed = vec![("push_to_talk".to_string(), changed, false)];
+            let (kept, stale) = partition_previous(vec![binding], &wanted_changed);
+            assert!(kept.is_empty());
+            assert_eq!(stale.len(), 1);
+        }
     }
 }
 

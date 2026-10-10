@@ -258,7 +258,11 @@ const DEVANAGARI_ALIASES: &[(CommandId, &[&str])] = &[
 /// English phrases already cover the Latin script case). These phrases
 /// compile WITHOUT word-boundary anchors: Han characters are word
 /// characters, so \b never fires between adjacent Han characters in
-/// spaceless Chinese text.
+/// spaceless Chinese text. The trailing-boundary rule those phrases need
+/// ("not followed by another Han character") cannot be expressed in the
+/// regex (the crate has no lookahead), so the text pass enforces it at
+/// its match-validation layer (KB-226, see
+/// [`super::text::normalize_spoken_punctuation`]).
 const CJK_ALIASES: &[(CommandId, &[&str])] = &[
     (CommandId::Period, &["句号"]),
     (CommandId::Comma, &["逗号"]),
@@ -443,14 +447,20 @@ fn phrase_regex_fragment(phrase: &str) -> String {
         .join(r"\s+")
 }
 
+/// Whether one character is a Han ideograph (the ranges the CJK aliases
+/// draw from). Single source of truth for both Han-related rules: the
+/// compile-side anchor split below, and the match-side boundary
+/// validation in [`super::text::normalize_spoken_punctuation`] (KB-226).
+pub(crate) fn is_han_character(c: char) -> bool {
+    matches!(c as u32, 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF)
+}
+
 /// Whether the phrase contains Han characters (the CJK aliases): those
 /// phrases must compile WITHOUT `\b` anchors, because Han characters are
 /// word characters and `\b` never fires between adjacent Han characters in
 /// spaceless Chinese text.
-fn contains_han(phrase: &str) -> bool {
-    phrase
-        .chars()
-        .any(|c| matches!(c as u32, 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF))
+pub(crate) fn contains_han(phrase: &str) -> bool {
+    phrase.chars().any(is_han_character)
 }
 
 /// The phrase alternation in two anchor groups: `\b`-anchored on both
