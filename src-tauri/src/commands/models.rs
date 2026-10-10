@@ -13,6 +13,44 @@ use tauri::{AppHandle, Emitter, Manager, State};
 /// same convention as [`crate::local_llm::SWAP_REFUSAL_PREFIX`].
 pub const SELECTION_REFUSAL_PREFIX: &str = "not-an-asr-model";
 
+/// Stable prefix marking the live-session refusal (KB-117/KB-220): a
+/// dictation session is still using the model this action would unload or
+/// delete, so the action is refused until the session ends. The settings UI
+/// matches this prefix to word the row-level error as a localized
+/// "try again after the dictation" instead of the raw refusal text, the
+/// same convention as [`crate::local_llm::SWAP_REFUSAL_PREFIX`] and
+/// [`SELECTION_REFUSAL_PREFIX`].
+pub const SESSION_REFUSAL_PREFIX: &str = "dictation-in-progress";
+
+/// The one live-session probe every destructive model action refuses on
+/// (KB-117/KB-220): the coordinator's end-to-end predicate (Recording OR
+/// the stop pipeline's Processing stage - finalize, batch transcription,
+/// post-process, paste). Reuses the coordinator's stage mirrors; no second
+/// liveness signal is invented. False when the coordinator is not managed
+/// (headless CLI paths) - there is no dictation to destroy there.
+pub(crate) fn dictation_session_live(app: &AppHandle) -> bool {
+    app.try_state::<crate::TranscriptionCoordinator>()
+        .is_some_and(|c| c.is_session_live())
+}
+
+/// The refusal error every live-session guard returns (KB-117/KB-220):
+/// pure so the wording contract stays pinnable, mirroring
+/// [`crate::commands::local_llm::swap_refusal_error`].
+pub(crate) fn session_refusal_error() -> String {
+    format!(
+        "{}: a dictation session is in progress using this model, try again after it ends",
+        SESSION_REFUSAL_PREFIX
+    )
+}
+
+/// Pure decision for the KB-117 delete guard, so the refusal boundary stays
+/// pinnable: refuse ONLY when a dictation session is live AND the deleted
+/// model is the one the session depends on. A live session never blocks
+/// deleting an unrelated model; without a session nothing is blocked.
+fn delete_guard_error(session_live: bool, model_involved: bool) -> Option<String> {
+    (session_live && model_involved).then(session_refusal_error)
+}
+
 /// Pure selection guard, shared by every command that persists an ASR model
 /// selection: the local post-process LLM must never become the selected ASR
 /// model. With `unload_timeout = Immediately` the switch command persists
@@ -105,6 +143,23 @@ pub async fn delete_model(
             "{}: post-processing is in progress, try again in a moment",
             crate::local_llm::SWAP_REFUSAL_PREFIX
         ));
+    }
+
+    // KB-117: refuse while a dictation session is live AND this delete
+    // touches the model the session depends on - the persisted selection
+    // (what the next dictation loads; the selected-model branch below
+    // unloads it before deleting the file, the exact KB-220 kill) or the
+    // resident model (what is transcribing right now, which can differ
+    // from the selection after a RAM auto-fallback). Deleting an UNRELATED
+    // model mid-session stays allowed: no engine holds its file, so
+    // nothing in-flight can lose data. Transient and retryable, exactly
+    // like the swap refusal above; also blunts the KB-230
+    // delete-mid-download confusion for the selected model, which can
+    // never be deleted under a live session anymore.
+    let is_involved = get_settings(&app_handle).selected_model == model_id
+        || transcription_manager.get_current_model().as_deref() == Some(model_id.as_str());
+    if let Some(error) = delete_guard_error(dictation_session_live(&app_handle), is_involved) {
+        return Err(error);
     }
 
     // If deleting the active model, unload it and clear the setting
@@ -436,5 +491,40 @@ mod tests {
                 "{engine:?} is a real ASR engine and must be selectable"
             );
         }
+    }
+
+    /// KB-117/KB-220 contract: the live-session refusal carries the stable
+    /// prefix a settings surface classifies on, and it stays in sync with
+    /// the backend constant (mirrors the local_llm swap-refusal test).
+    #[test]
+    fn session_refusal_error_carries_the_stable_prefix() {
+        let error = session_refusal_error();
+        assert!(
+            error.starts_with(SESSION_REFUSAL_PREFIX),
+            "the refusal must carry the stable prefix, got: {error}"
+        );
+        assert!(error.contains("try again after it ends"));
+    }
+
+    /// The KB-117 delete boundary: a live session refuses ONLY the model it
+    /// depends on (the persisted selection or the resident engine); an
+    /// unrelated model stays deletable mid-session, and without a session
+    /// nothing is blocked.
+    #[test]
+    fn delete_guard_refuses_only_a_live_session_and_an_involved_model() {
+        let refusal = delete_guard_error(true, true)
+            .expect("a live session must refuse deleting the model it depends on");
+        assert!(
+            refusal.starts_with(SESSION_REFUSAL_PREFIX),
+            "the refusal must carry the stable prefix, got: {refusal}"
+        );
+        assert!(
+            delete_guard_error(true, false).is_none(),
+            "a live session must not block deleting an unrelated model"
+        );
+        assert!(
+            delete_guard_error(false, true).is_none(),
+            "without a live session the delete must stay allowed"
+        );
     }
 }

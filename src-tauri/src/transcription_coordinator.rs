@@ -847,6 +847,21 @@ impl TranscriptionCoordinator {
         self.command_modifier.load(Ordering::Acquire)
     }
 
+    /// Whether a dictation session is live END TO END: the Recording stage
+    /// OR the Processing stage (finalize, batch transcription,
+    /// post-processing, and the paste still running). The one predicate
+    /// every destructive model action refuses on - tray "Unload model"
+    /// (KB-220), the settings-side unload, and model delete (KB-117) - so
+    /// no user action can destroy an in-flight dictation. Composes the two
+    /// existing stage mirrors; no new state. The idle watcher's
+    /// recording-only probe would miss the stop pipeline's batch
+    /// transcription, which is exactly where a mid-session unload's damage
+    /// lands (the batch fallback dies at transcribe_audio's residency
+    /// check).
+    pub fn is_session_live(&self) -> bool {
+        self.is_recording_session() || self.is_processing()
+    }
+
     /// Whether a transcribe press is remembered while the pipeline is busy
     /// (Stage::Processing) and will start a recording when it drains. The
     /// exclusive post-process swap polls this every abort tick: dictation

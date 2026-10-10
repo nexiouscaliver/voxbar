@@ -2939,10 +2939,45 @@ impl TranscriptionManager {
             while *is_loading {
                 is_loading = self.loading_condvar.wait(is_loading).unwrap();
             }
+        }
 
-            if !self.is_model_loaded() {
-                return Err(anyhow::anyhow!("Model is not loaded for transcription."));
+        // KB-220: the model can be gone while the audio is still perfectly
+        // good (a tray unload that raced the session's stop, an engine
+        // worker crash). Unload never deletes the files, so reload the
+        // persisted selection instead of failing the dictation - the same
+        // on-demand load the hotkey start path performs
+        // (initiate_model_load), run synchronously because this call IS
+        // the next use, under the same loading-slot claim every other load
+        // path takes so a concurrent loader keeps exclusive ownership. The
+        // "Immediately" unload policy never reaches here from the stop
+        // pipeline: empty_finalize_outcome already routes a
+        // policy-unloaded batch attempt to the quiet empty result.
+        if !self.is_model_loaded() {
+            if let Some(_guard) = self.try_start_loading() {
+                let model_id = get_settings(&self.app_handle).selected_model;
+                info!(
+                    "Model not resident at transcription time; reloading '{}' for the batch attempt (KB-220)",
+                    model_id
+                );
+                if let Err(e) = self.load_model(&model_id) {
+                    // The load path already surfaced the failure (events +
+                    // overlay notice); the residency check below decides
+                    // the dictation's outcome.
+                    error!("Batch-path model reload failed: {}", e);
+                }
             }
+            // Either our own load just finished (the guard's Drop cleared
+            // the flag and woke waiters) or a concurrent loader owns the
+            // slot: re-park until loading settles, so the check below sees
+            // the final state either way.
+            let mut is_loading = self.is_loading.lock().unwrap();
+            while *is_loading {
+                is_loading = self.loading_condvar.wait(is_loading).unwrap();
+            }
+        }
+
+        if !self.is_model_loaded() {
+            return Err(anyhow::anyhow!("Model is not loaded for transcription."));
         }
 
         // Get current settings for configuration

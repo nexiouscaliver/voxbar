@@ -114,11 +114,21 @@ pub fn get_model_load_status(
     })
 }
 
+/// KB-220: the settings-side manual unload carries the same refusal as the
+/// tray's "Unload model" - unloading while a dictation session is live
+/// (recording or the stop pipeline still working) kills the stream and
+/// leaves the batch fallback to fail. The Err carries the stable prefix so
+/// a settings surface can classify it as "try again after the dictation"
+/// instead of a real failure.
 #[tauri::command]
 #[specta::specta]
 pub fn unload_model_manually(
+    app: AppHandle,
     transcription_manager: State<Arc<TranscriptionManager>>,
 ) -> Result<(), String> {
+    if crate::commands::models::dictation_session_live(&app) {
+        return Err(crate::commands::models::session_refusal_error());
+    }
     transcription_manager.request_unload();
     Ok(())
 }
