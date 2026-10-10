@@ -648,11 +648,24 @@ struct AppSwapHost {
     measured_rss: Arc<Mutex<HashMap<String, u64>>>,
 }
 
+/// Pure core of [`selected_llm_model_id`]: the effective model for a stored
+/// selection, given whether the registry still knows that id as a local LLM
+/// entry. Empty or stale selections normalize to the pinned builtin.
+pub(crate) fn effective_llm_selection(stored: &str, stored_is_known_local_llm: bool) -> String {
+    if !stored.is_empty() && stored_is_known_local_llm {
+        stored.to_string()
+    } else {
+        super::LOCAL_LLM_MODEL_ID.to_string()
+    }
+}
+
 /// The effective post-process model id for THIS app right now: the persisted
 /// `post_process_local_model_id`, normalized to the pinned builtin when the
 /// setting is empty or names an entry the registry no longer knows (deleted
-/// while selected). Shared by the swap host, the tray submenu, and the
-/// settings command so all three surfaces agree on one selection.
+/// while selected). Shared by the swap host, the tray submenu, the settings
+/// command, AND the availability gate in actions.rs so every surface -
+/// including the gate that decides whether post-processing runs at all -
+/// agrees on one selection.
 pub(crate) fn selected_llm_model_id(app: &AppHandle) -> String {
     let stored = get_settings(app).post_process_local_model_id;
     if stored.is_empty() {
@@ -662,15 +675,13 @@ pub(crate) fn selected_llm_model_id(app: &AppHandle) -> String {
         .state::<Arc<ModelManager>>()
         .get_model_info(&stored)
         .is_some_and(|info| matches!(info.engine_type, EngineType::LocalLlm));
-    if known {
-        stored
-    } else {
+    if !known {
         warn!(
             "post-process model '{}' is not in the registry; falling back to the pinned model",
             stored
         );
-        super::LOCAL_LLM_MODEL_ID.to_string()
     }
+    effective_llm_selection(&stored, known)
 }
 
 impl AppSwapHost {
@@ -1712,6 +1723,43 @@ mod tests {
     use std::sync::atomic::AtomicU64;
     use std::sync::atomic::AtomicUsize;
     use std::sync::Condvar;
+
+    /// KB-019: the selection resolution every surface shares (swap runner,
+    /// tray, settings command, AND the actions.rs availability gate). A
+    /// known catalog selection stays itself - the pinned model's download
+    /// state must not decide availability for it - while empty or stale
+    /// selections normalize to the pinned builtin.
+    #[test]
+    fn effective_llm_selection_normalizes_only_empty_or_stale() {
+        let pinned = crate::local_llm::LOCAL_LLM_MODEL_ID;
+        let catalog = "org/some-model/Q4_K_M.gguf";
+
+        assert_eq!(
+            effective_llm_selection("", false),
+            pinned,
+            "no selection: the pinned builtin"
+        );
+        assert_eq!(
+            effective_llm_selection("", true),
+            pinned,
+            "an empty selection is the builtin even if some registry quirk knew it"
+        );
+        assert_eq!(
+            effective_llm_selection(catalog, true),
+            catalog,
+            "a known catalog selection stays selected: the gate must read THIS model"
+        );
+        assert_eq!(
+            effective_llm_selection(catalog, false),
+            pinned,
+            "a deleted-while-selected id falls back to the pinned builtin"
+        );
+        assert_eq!(
+            effective_llm_selection(pinned, false),
+            pinned,
+            "the pinned id itself normalizes to itself when its entry is gone"
+        );
+    }
 
     /// Every SkipReason's outcome line carries the snake_case reason at the
     /// right severity (the broke-something reasons warn, the expected/

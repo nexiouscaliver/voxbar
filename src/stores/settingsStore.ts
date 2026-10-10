@@ -103,8 +103,15 @@ const initializeUnlisteners: UnlistenFn[] = [];
 const settingUpdaters: {
   [K in keyof Settings]?: (value: Settings[K]) => Promise<unknown>;
 } = {
-  always_on_microphone: (value) =>
-    commands.updateMicrophoneMode(value as boolean),
+  always_on_microphone: async (value) => {
+    const result = await commands.updateMicrophoneMode(value as boolean);
+    if (result.status === "error") {
+      // A failed enable (no input device, revoked permission) must roll
+      // the toggle back: the backend keeps the prior mode and does not
+      // persist the preference when the runtime flip fails.
+      throw new Error(result.error);
+    }
+  },
   audio_feedback: (value) =>
     commands.changeAudioFeedbackSetting(value as boolean),
   memory_pressure_guard: (value) =>

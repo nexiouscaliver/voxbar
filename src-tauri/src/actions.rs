@@ -212,9 +212,11 @@ pub(crate) fn uses_local_engine(provider_id: &str) -> bool {
     provider_id == crate::settings::LOCAL_LLM_PROVIDER_ID
 }
 
-/// The local branch's availability decision (T28): the pinned model must
-/// be downloaded before the engine can run; when it is not, the branch
-/// skips with the download_missing reason and the raw transcript is used.
+/// The local branch's availability decision (T28): the SELECTED model
+/// (what the swap runner loads; the pinned builtin when no other model is
+/// selected) must be downloaded before the engine can run; when it is not,
+/// the branch skips with the download_missing reason and the raw transcript
+/// is used.
 pub(crate) fn local_engine_availability(
     model_downloaded: bool,
 ) -> Option<(crate::local_llm::SkipReason, Option<String>)> {
@@ -854,9 +856,17 @@ async fn run_local_lifecycle(
     template_language: &str,
     is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
 ) -> Option<String> {
+    // Availability must be decided for the model the swap runner will
+    // actually load: the SELECTED post-process model (which normalizes to
+    // the pinned builtin when the selection is empty or stale). Gating on
+    // the pinned id alone made every dictation silently skip with a false
+    // "not downloaded" notice after the user selected a catalog model and
+    // deleted the pinned one, while Test Connection - which reads the
+    // selection - reported Ready (KB-019).
+    let selected_model = crate::local_llm::manager::selected_llm_model_id(app);
     let downloaded = app
         .state::<Arc<ModelManager>>()
-        .get_model_info(crate::local_llm::LOCAL_LLM_MODEL_ID)
+        .get_model_info(&selected_model)
         .is_some_and(|info| info.is_downloaded);
     if let Some((reason, detail)) = local_engine_availability(downloaded) {
         debug!("Local post-process unavailable; using the raw transcript");
@@ -2469,6 +2479,46 @@ mod tests {
         );
         assert!(local_engine_availability(false).unwrap().1.is_some());
         assert_eq!(local_engine_availability(true), None);
+    }
+
+    /// KB-019: the gate's input is the SELECTED model's download state (the
+    /// same resolution the swap runner loads), never the pinned model's.
+    /// The scenario that was broken: a catalog model downloaded and
+    /// selected, the pinned model deleted - the pinned state is
+    /// not-downloaded, but post-processing must still run. The lookup
+    /// itself is AppHandle-bound; this pins the decision chain the caller
+    /// now assembles (selected_llm_model_id -> get_model_info ->
+    /// local_engine_availability) over the pure halves.
+    #[test]
+    fn local_availability_follows_the_selected_model_not_the_pinned_one() {
+        use crate::local_llm::manager::effective_llm_selection;
+
+        let pinned = crate::local_llm::LOCAL_LLM_MODEL_ID;
+        let catalog = "org/some-model/Q4_K_M.gguf";
+
+        // Catalog model selected and known: the effective model is the
+        // catalog one, so the pinned model's not-downloaded state must not
+        // produce a skip.
+        let effective = effective_llm_selection(catalog, true);
+        assert_eq!(effective, catalog);
+        assert_ne!(effective, pinned);
+        assert_eq!(
+            local_engine_availability(true),
+            None,
+            "the downloaded SELECTED model keeps post-processing alive"
+        );
+
+        // Deleting the pinned model while the catalog model is selected
+        // changes neither the effective model nor availability.
+        assert_eq!(effective_llm_selection(catalog, true), catalog);
+
+        // The off path stays: nothing selected, pinned builtin deleted ->
+        // skip with the download-missing reason.
+        assert_eq!(effective_llm_selection("", false), pinned);
+        assert_eq!(
+            local_engine_availability(false).map(|(r, _)| r),
+            Some(crate::local_llm::SkipReason::DownloadMissing)
+        );
     }
 
     /// T28: the extracted schema is byte-identical to the literal the API

@@ -21,6 +21,39 @@ const SILERO_VAD_THRESHOLD: f32 = 0.3;
 const EARSHOT_VAD_THRESHOLD: f32 = 0.5;
 
 fn set_mute(mute: bool) {
+    // Unit tests record the operation instead of shelling out: the real
+    // body mutates the system volume, which a test must never do.
+    #[cfg(test)]
+    {
+        mute_test_log::record(if mute { "mute" } else { "unmute" });
+    }
+
+    #[cfg(not(test))]
+    {
+        set_mute_platform(mute)
+    }
+}
+
+/// Test-only log of forced-mute operations, so the mute lifecycle (apply on
+/// readiness, restore on stop AND cancel) can be asserted without touching
+/// the real system volume.
+#[cfg(test)]
+mod mute_test_log {
+    use std::sync::Mutex;
+
+    static OPS: Mutex<Vec<&'static str>> = Mutex::new(Vec::new());
+
+    pub fn record(op: &'static str) {
+        OPS.lock().unwrap_or_else(|e| e.into_inner()).push(op);
+    }
+
+    pub fn take() -> Vec<&'static str> {
+        std::mem::take(&mut *OPS.lock().unwrap_or_else(|e| e.into_inner()))
+    }
+}
+
+#[cfg(not(test))]
+fn set_mute_platform(mute: bool) {
     // Expected behavior:
     // - Windows: works on most systems using standard audio drivers.
     // - Linux: works on many systems (PipeWire, PulseAudio, ALSA),
@@ -270,6 +303,15 @@ struct MuteState {
     prev_muted: Option<bool>,
 }
 
+/// The restore action for a forced mute: the snapshotted prior state to
+/// hand to `restore_mute`, taken exactly once while our mute is active.
+/// Shared decision for every teardown path (normal stop, stream close,
+/// cancellation, local or companion source) so none of them can strand
+/// the system muted.
+fn mute_restore_action(state: &MuteState) -> Option<Option<bool>> {
+    state.did_mute.then_some(state.prev_muted)
+}
+
 /// The persisted microphone preference currently in effect. Clamshell and
 /// regular selections are kept distinct so losing a clamshell-only device does
 /// not erase the user's normal microphone preference.
@@ -511,9 +553,20 @@ impl AudioRecordingManager {
             recorder_factory,
         };
 
-        // Always-on?  Open immediately.
+        // Always-on?  Open immediately. Best-effort by design: a machine
+        // with no input device, revoked microphone permission, or a missing
+        // VAD resource must not panic the app at every launch (this runs
+        // during Tauri setup, before any window exists). The manager stays
+        // functional with the stream closed - try_start_recording_for
+        // re-attempts the open on every local start and surfaces the real
+        // error there, where the user can act on it.
         if matches!(mode, MicrophoneMode::AlwaysOn) {
-            manager.start_microphone_stream()?;
+            if let Err(e) = manager.start_microphone_stream() {
+                error!(
+                    "Always-on microphone stream failed to open at startup \
+                     (will retry on the next recording): {e:#}"
+                );
+            }
         }
 
         Ok(manager)
@@ -690,13 +743,10 @@ impl AudioRecordingManager {
     /// (a system already muted before recording stays muted).
     pub fn remove_mute(&self) {
         let mut mute_guard = self.mute_state.lock().unwrap();
-        if mute_guard.did_mute {
-            restore_mute(mute_guard.prev_muted);
+        if let Some(prev_muted) = mute_restore_action(&mute_guard) {
+            restore_mute(prev_muted);
             mute_guard.did_mute = false;
-            debug!(
-                "Mute removed (restored prev_muted={:?})",
-                mute_guard.prev_muted
-            );
+            debug!("Mute removed (restored prev_muted={:?})", prev_muted);
         }
     }
 
@@ -1264,6 +1314,16 @@ impl AudioRecordingManager {
                 self.set_state(&mut state, RecordingState::Idle);
                 drop(state);
 
+                // Restore the forced mute the same way the normal stop path
+                // does (actions.rs calls remove_mute on stop). Without this,
+                // cancellation never restores it: in always-on mode the local
+                // stream stays open so stop_microphone_stream never runs, the
+                // remote path's close_remote_stream has no mute restore, and
+                // the on-demand lazy close defers it by the 30 s idle
+                // timeout - the system stayed muted until the next
+                // NON-cancelled dictation completed (KB-002).
+                self.remove_mute();
+
                 let source = self.active_source();
                 let recorder_slot = match source {
                     CaptureSource::Local => &self.recorder,
@@ -1292,6 +1352,11 @@ impl AudioRecordingManager {
             }
             RecordingState::Stopping => {
                 debug!("Cancellation requested while recording is stopping");
+                // Defensive twin of the restore above: a cancel that lands
+                // while the stop pipeline is finalizing must not leave our
+                // forced mute behind even if the pipeline's own teardown is
+                // interrupted. remove_mute is a no-op when we did not mute.
+                self.remove_mute();
             }
             RecordingState::Idle => {}
         }
@@ -1330,4 +1395,75 @@ mod tests {
     // single-session arbitration - the same rule local hotkeys follow - at
     // the coordinator level (transcription_coordinator tests:
     // companion_edges_*).
+
+    /// The mute-restore decision shared by every teardown path (normal
+    /// stop, stream close, cancellation - local or companion source): a
+    /// forced mute yields the snapshotted prior state exactly once; no
+    /// forced mute yields nothing. This is the seam cancel_recording now
+    /// routes through (remove_mute), so cancelling restores the system
+    /// audio the same instant the normal stop does instead of stranding
+    /// it muted until the next completed dictation (KB-002).
+    #[test]
+    fn mute_restore_action_yields_the_snapshot_only_while_forced() {
+        assert_eq!(
+            mute_restore_action(&MuteState::default()),
+            None,
+            "no forced mute (mute_while_recording off, or readiness never reached): nothing to restore"
+        );
+
+        // The live dictation shape: forced over an unmuted system.
+        assert_eq!(
+            mute_restore_action(&MuteState {
+                did_mute: true,
+                prev_muted: Some(false),
+            }),
+            Some(Some(false)),
+            "a forced mute restores the snapshotted unmuted state"
+        );
+
+        // A system the user had already muted stays muted.
+        assert_eq!(
+            mute_restore_action(&MuteState {
+                did_mute: true,
+                prev_muted: Some(true),
+            }),
+            Some(Some(true)),
+            "the user's own mute is restored, not lifted"
+        );
+
+        // Unknown prior state restores as unknown (restore_mute defaults
+        // to unmuting so audio is never left muted by us).
+        assert_eq!(
+            mute_restore_action(&MuteState {
+                did_mute: true,
+                prev_muted: None,
+            }),
+            Some(None),
+        );
+    }
+
+    /// The restore semantics under the test spy (no real system volume is
+    /// touched): only a snapshot of Some(true) keeps the mute; everything
+    /// else unmutes, and repeated restores are single-shot.
+    #[test]
+    fn restore_mute_unmutes_unless_the_user_was_already_muted() {
+        let _ = mute_test_log::take();
+
+        restore_mute(Some(false));
+        assert_eq!(mute_test_log::take(), vec!["unmute"]);
+
+        restore_mute(None);
+        assert_eq!(
+            mute_test_log::take(),
+            vec!["unmute"],
+            "unknown prior state defaults to unmuting"
+        );
+
+        restore_mute(Some(true));
+        assert_eq!(
+            mute_test_log::take(),
+            Vec::<&'static str>::new(),
+            "a pre-existing user mute is never lifted"
+        );
+    }
 }
