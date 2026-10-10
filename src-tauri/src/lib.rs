@@ -1148,6 +1148,14 @@ pub fn run(cli_args: CliArgs) {
                 api.prevent_close();
                 let _res = window.hide();
 
+                // KB-160: an armed shortcut recorder suspends every binding,
+                // and the (now hidden) Settings UI is the only surface that
+                // can cancel it. Tell the frontend the window went hidden so
+                // it can cancel the recorder and resume bindings. Bare
+                // payload, best-effort - the frontend treats a missed event
+                // as "still recording" and recovers on the next interaction.
+                let _ = window.app_handle().emit("main-window-hidden", ());
+
                 #[cfg(target_os = "macos")]
                 {
                     let settings = get_settings(window.app_handle());

@@ -103,6 +103,24 @@ pub fn binding_is_active(
     }
 }
 
+/// KB-159: whether the chord requested for `id` collides with another
+/// binding that both holds the same chord and is currently active (bound
+/// plus its feature toggle on). A duplicate whose toggle is off owns no
+/// registration, so it does not block the rebind; `id` itself is excluded.
+/// Returns the conflicting binding's id so callers can name the owner.
+fn binding_conflicts_with_active_binding(
+    settings: &crate::settings::AppSettings,
+    id: &str,
+    chord: &str,
+) -> Option<String> {
+    settings.bindings.iter().find_map(|(other_id, other)| {
+        (other_id != id
+            && other.current_binding.trim() == chord.trim()
+            && binding_is_active(settings, other_id, other))
+        .then(|| other_id.clone())
+    })
+}
+
 /// Initialize shortcuts using the configured implementation
 pub fn init_shortcuts(app: &AppHandle) {
     let user_settings = settings::load_or_create_app_settings(app);
@@ -234,6 +252,20 @@ fn reconcile_cancel_shortcut(app: &AppHandle) {
     }
 }
 
+/// KB-036: switching keyboard implementations drops the cancel key's
+/// registration (the switch replaces the backend's whole registration table;
+/// `unregister_all_shortcuts` and the re-init both skip the "cancel" id as
+/// "dynamically registered"), but neither CANCEL_REGISTERED nor a reconcile
+/// pass ran on that path - so a recording straddling the switch kept a stale
+/// flag and, depending on direction, a dead or orphaned cancel key until
+/// something else fired. Reset the flag so the next reconcile re-arms the
+/// key under the NEW implementation; the reconcile itself no-ops when no
+/// live recording requested it (CANCEL_REQUESTED false).
+fn rearm_cancel_after_implementation_switch(app: &AppHandle) {
+    *CANCEL_REGISTERED.lock().unwrap_or_else(|e| e.into_inner()) = false;
+    schedule_cancel_reconcile(app);
+}
+
 /// Register a shortcut using the appropriate implementation
 pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<(), String> {
     let settings = get_settings(app);
@@ -354,6 +386,22 @@ pub fn change_binding(
                 return Err(e);
             }
 
+            // KB-159: reject a chord another ACTIVE binding owns before
+            // anything is touched. Below, the previous registration is
+            // retired and success is returned BEFORE the reconcile actually
+            // registers the new chord - a conflict made that deferred
+            // register fail (log-only), leaving the recording with a dead
+            // cancel key while Settings reported the rebind as saved.
+            if let Some(owner) = binding_conflicts_with_active_binding(&settings, &id, &binding) {
+                let error_msg = format!(
+                    "Shortcut '{}' is already in use by the '{}' action: pick a different combination",
+                    binding.trim(),
+                    owner
+                );
+                warn!("change_binding conflict error: {}", error_msg);
+                return Err(error_msg);
+            }
+
             let previous = b.clone();
             b.current_binding = binding;
             settings.bindings.insert(id.clone(), b.clone());
@@ -398,18 +446,28 @@ pub fn change_binding(
             return Err(e);
         }
 
-        // Register the new binding
+        // Register the new binding. KB-009: only when the POST-update state
+        // leaves this binding active - binding_is_active folds in the
+        // feature's master toggle, and a toggle-off binding that still holds
+        // a registration is a system-swallowed no-op (its handler checks
+        // the toggle). The string persists regardless, so flipping the
+        // toggle on later registers the chord (the toggle commands do
+        // exactly that).
         let mut candidate = binding_to_modify.clone();
         candidate.current_binding = binding.clone();
-        if let Err(e) = register_shortcut(&app, candidate) {
-            let error_msg = format!("Failed to register shortcut: {}", e);
-            error!("change_binding error: {}", error_msg);
-            restore_registration(&app, &binding_to_modify);
-            return Ok(BindingResponse {
-                success: false,
-                binding: None,
-                error: Some(error_msg),
-            });
+        let mut post_update = settings.clone();
+        post_update.bindings.insert(id.clone(), candidate.clone());
+        if binding_is_active(&post_update, &id, &candidate) {
+            if let Err(e) = register_shortcut(&app, candidate) {
+                let error_msg = format!("Failed to register shortcut: {}", e);
+                error!("change_binding error: {}", error_msg);
+                restore_registration(&app, &binding_to_modify);
+                return Ok(BindingResponse {
+                    success: false,
+                    binding: None,
+                    error: Some(error_msg),
+                });
+            }
         }
     }
 
@@ -566,6 +624,7 @@ pub fn change_keyboard_implementation_setting(
     if new_impl == KeyboardImplementation::HandyKeys && initialize_handy_keys_with_rollback(&app)? {
         // Shortcuts already registered during init.
         crate::secure_input::reconcile_fallback(&app);
+        rearm_cancel_after_implementation_switch(&app);
         return Ok(ImplementationChangeResult {
             success: true,
             reset_bindings: vec![],
@@ -575,6 +634,7 @@ pub fn change_keyboard_implementation_setting(
     // Register all shortcuts with new implementation, resetting invalid ones
     let reset_bindings = register_all_shortcuts_for_implementation(&app, new_impl);
     crate::secure_input::reconcile_fallback(&app);
+    rearm_cancel_after_implementation_switch(&app);
 
     // Emit event to notify frontend of the change
     let _ = app.emit(
@@ -1430,6 +1490,21 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
     {
         if enabled {
             let _ = register_shortcut(&app, binding);
+        } else {
+            let _ = unregister_shortcut(&app, binding);
+        }
+    }
+
+    // KB-008: the template-cycle key rides the same master toggle
+    // (binding_is_active gates it on post_process_enabled), so the toggle
+    // must drive its registration too - otherwise a bound cycle key stays
+    // system-swallowed after the toggle goes off while its handler refuses
+    // to fire.
+    if let Some(binding) = settings.bindings.get("cycle_post_process_prompt").cloned() {
+        if enabled {
+            if !binding.current_binding.trim().is_empty() {
+                let _ = register_shortcut(&app, binding);
+            }
         } else {
             let _ = unregister_shortcut(&app, binding);
         }
@@ -2331,8 +2406,8 @@ mod tests {
     use tauri_plugin_global_shortcut::Shortcut;
 
     use super::{
-        bare_key_rejection, binding_is_active, cancel_rebind_retirement, is_bare_key_binding,
-        normalize_headroom_mb,
+        bare_key_rejection, binding_conflicts_with_active_binding, binding_is_active,
+        cancel_rebind_retirement, is_bare_key_binding, normalize_headroom_mb,
     };
 
     #[test]
@@ -2635,6 +2710,56 @@ mod tests {
         let mut whitespace = previous.clone();
         whitespace.current_binding = "   ".to_string();
         assert!(cancel_rebind_retirement(&whitespace).is_none());
+    }
+
+    /// KB-159: the cancel rebind conflict scan. A chord another ACTIVE
+    /// binding owns blocks the rebind; a duplicate whose feature toggle is
+    /// off owns no registration and must not block; the rebinding id is
+    /// never its own conflict; an unowned chord is free.
+    #[test]
+    fn active_binding_conflict_detected_inactive_duplicate_and_self_ignored() {
+        let mut settings = crate::settings::get_default_settings();
+
+        // A distinctive chord on the post-process dictation key with its
+        // master toggle on: an active owner.
+        settings.post_process_enabled = true;
+        settings
+            .bindings
+            .get_mut("transcribe_with_post_process")
+            .unwrap()
+            .current_binding = "option+9".to_string();
+        assert_eq!(
+            binding_conflicts_with_active_binding(&settings, "cancel", "option+9").as_deref(),
+            Some("transcribe_with_post_process"),
+            "an active binding owning the chord is the conflict"
+        );
+
+        // Same chord, master toggle off: holds no registration, so the
+        // rebind must go through (it would register cleanly).
+        settings.post_process_enabled = false;
+        assert!(
+            binding_conflicts_with_active_binding(&settings, "cancel", "option+9").is_none(),
+            "a toggle-off duplicate owns no registration"
+        );
+
+        // Self is excluded: cancel rebinding to its own current chord
+        // (bare escape by default) is a no-op rebind, not a conflict.
+        let cancel_chord = settings
+            .bindings
+            .get("cancel")
+            .unwrap()
+            .current_binding
+            .clone();
+        assert!(
+            binding_conflicts_with_active_binding(&settings, "cancel", &cancel_chord).is_none(),
+            "the rebinding id never conflicts with itself"
+        );
+
+        // A chord nothing owns is free.
+        assert!(
+            binding_conflicts_with_active_binding(&settings, "cancel", "option+0").is_none(),
+            "an unowned chord is no conflict"
+        );
     }
 
     /// The Memory Safety Margin write boundary (the control used to be
