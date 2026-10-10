@@ -275,13 +275,17 @@ const Onboarding: React.FC<OnboardingProps> = ({
       </div>
 
       <div className="max-w-[600px] w-full mx-auto text-center flex-1 flex flex-col min-h-0">
-        <div className="space-y-6 pb-6">
+        {/* min-h-0 + overflow-y-auto: the model list scrolls inside the
+            flex column on short windows instead of pushing the CTAs off
+            screen (the whole step is h-screen, so this region is the only
+            place the overflow can go). */}
+        <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-6">
           {refusalCard && (
             <div
               data-testid="memory-refusal-card"
-              className="rounded-xl border border-red-500/30 bg-red-500/5 p-4 space-y-3 text-left"
+              className="rounded-lg border border-error/30 bg-error/5 p-4 space-y-3 text-left"
             >
-              <h2 className="text-sm font-semibold text-text">
+              <h2 className="text-sm font-medium text-text">
                 {t("onboarding.refusal.title")}
               </h2>
               <p className="text-sm text-text/80">

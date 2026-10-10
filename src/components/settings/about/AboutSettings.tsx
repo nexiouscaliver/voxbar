@@ -98,7 +98,7 @@ export const AboutSettings: React.FC = () => {
           grouped={true}
           layout="stacked"
         >
-          <div className="text-sm text-mid-gray">
+          <div className="text-sm text-secondary">
             {t("settings.about.acknowledgments.ggml.details")}
           </div>
         </SettingContainer>
@@ -112,7 +112,7 @@ export const AboutSettings: React.FC = () => {
           {/* eslint-disable i18next/no-literal-string -- proper nouns and an
               upstream credit link; attribution, not navigation, so the link
               stays pointed at the upstream project on purpose. */}
-          <div className="text-sm text-mid-gray">
+          <div className="text-sm text-secondary">
             VoxBar is a fork of{" "}
             <a
               href="https://github.com/cjpais/Handy"

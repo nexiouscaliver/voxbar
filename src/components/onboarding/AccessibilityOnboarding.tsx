@@ -410,7 +410,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
 
       <div className="max-w-md w-full flex flex-col items-center gap-4">
         <div className="text-center mb-2">
-          <h2 className="text-xl font-semibold text-text mb-2">
+          <h2 className="text-xl font-medium text-text mb-2">
             {t("onboarding.permissions.title")}
           </h2>
           <p className="text-text/70">
@@ -445,7 +445,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={handleOpenMicSettings}
-                        className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium transition-colors"
+                        className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-white text-sm font-medium transition-colors"
                       >
                         {t("onboarding.permissions.microphone.openSettings")}
                       </button>
@@ -465,7 +465,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                 ) : (
                   <button
                     onClick={handleGrantMicrophone}
-                    className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium transition-colors"
+                    className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-white text-sm font-medium transition-colors"
                   >
                     {isWindows
                       ? t("accessibility.openSettings")
@@ -504,7 +504,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                 ) : (
                   <button
                     onClick={handleGrantAccessibility}
-                    className="px-4 py-2 rounded-lg bg-logo-primary hover:bg-logo-primary/90 text-white text-sm font-medium transition-colors"
+                    className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-white text-sm font-medium transition-colors"
                   >
                     {t("onboarding.permissions.grant")}
                   </button>

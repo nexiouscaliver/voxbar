@@ -163,7 +163,7 @@ export const AddModelFromHuggingFace: React.FC = () => {
           type="button"
           onClick={handleResolve}
           disabled={!input.trim() || busy}
-          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-transparent bg-logo-primary text-white hover:bg-logo-primary/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-transparent bg-background-ui text-white hover:bg-background-ui/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
         >
           {phase === "resolving" || phase === "adding" ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -222,7 +222,7 @@ export const AddModelFromHuggingFace: React.FC = () => {
                   <span className="flex items-center gap-2 min-w-0">
                     <span className="truncate">{file.filename}</span>
                     {suggested && (
-                      <span className="shrink-0 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-logo-primary/20 text-logo-primary">
+                      <span className="shrink-0 px-1.5 py-0.5 text-xs font-medium rounded bg-logo-primary/20 text-logo-primary">
                         {t("settings.models.addFromHf.recommended")}
                       </span>
                     )}

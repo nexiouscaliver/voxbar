@@ -267,19 +267,20 @@ export const ACCENTS: readonly AccentDefinition[] = [
   {
     id: DEFAULT_ACCENT_ID,
     swatch: "#f28cbb",
-    // Pins today's palette: logo pink, UI pink fill, white knob, theme-text
-    // content color. Only reachable through the pure mapping (applyAccent
-    // clears overrides instead), kept so the mapping is total.
+    // Pins today's palette: logo pink render color, deep pink fill (white on
+    // it passes 4.5:1), white knob and white content on the fill. Only
+    // reachable through the pure mapping (applyAccent clears overrides
+    // instead), kept so the mapping is total.
     light: {
       color: "#faa2ca",
-      fill: "#da5893",
-      onFill: "#0f0f0f",
+      fill: "#c2417c",
+      onFill: "#ffffff",
       knob: "#ffffff",
     },
     dark: {
       color: "#f28cbb",
-      fill: "#da5893",
-      onFill: "#fbfbfb",
+      fill: "#c2417c",
+      onFill: "#ffffff",
       knob: "#ffffff",
     },
   },

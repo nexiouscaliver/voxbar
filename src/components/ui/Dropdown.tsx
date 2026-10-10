@@ -8,6 +8,19 @@ export interface DropdownOption {
   disabled?: boolean;
 }
 
+/*
+ * The one dropdown chrome, shared by every menu that pops from a control
+ * (this component, the settings search results, the language pickers).
+ * Panels are rounded-lg with a hairline border and the app shadow; rows are
+ * rounded-lg chips inset from the panel edge so the hover/selected fill
+ * reads as a row, not a stripe.
+ */
+export const DROPDOWN_PANEL_CLASS =
+  "absolute bg-background border border-mid-gray/20 rounded-lg shadow-lg z-50 overflow-y-auto";
+
+export const DROPDOWN_ROW_CLASS =
+  "w-full text-start text-sm rounded-lg mx-1 my-0.5 px-2 py-1.5 transition-colors duration-150 hover:bg-logo-primary/10";
+
 interface DropdownProps {
   options: DropdownOption[];
   className?: string;
@@ -65,7 +78,7 @@ export const Dropdown: React.FC<DropdownProps> = ({
     <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         type="button"
-        className={`px-2 py-[5px] text-sm font-semibold bg-mid-gray/10 border border-mid-gray/80 rounded-md min-w-[200px] w-full text-start grid grid-cols-[1fr_auto] gap-2 items-center transition-all duration-150 ${
+        className={`px-2 py-[5px] text-sm font-medium bg-mid-gray/10 border border-mid-gray/20 rounded-lg min-w-[200px] w-full text-start grid grid-cols-[1fr_auto] gap-2 items-center transition-all duration-150 ${
           disabled
             ? "opacity-50 cursor-not-allowed"
             : "hover:bg-logo-primary/10 cursor-pointer hover:border-logo-primary"
@@ -90,12 +103,12 @@ export const Dropdown: React.FC<DropdownProps> = ({
       </button>
       {isOpen && !disabled && (
         <div
-          className={`absolute top-full mt-1 bg-background border border-mid-gray/80 rounded-md shadow-lg z-50 max-h-60 overflow-y-auto ${
+          className={`top-full mt-1 max-h-60 py-1 ${DROPDOWN_PANEL_CLASS} ${
             menuClassName ?? "left-0 right-0"
           }`}
         >
           {options.length === 0 ? (
-            <div className="px-2 py-1 text-sm text-mid-gray">
+            <div className="px-3 py-1.5 text-sm text-secondary">
               {t("common.noOptionsFound")}
             </div>
           ) : (
@@ -103,10 +116,10 @@ export const Dropdown: React.FC<DropdownProps> = ({
               <button
                 key={option.value}
                 type="button"
-                className={`w-full text-sm text-start hover:bg-logo-primary/10 transition-colors duration-150 ${
-                  option.description ? "px-3 py-2" : "px-2 py-1"
-                } ${
-                  selectedValue === option.value ? "bg-logo-primary/20" : ""
+                className={`${DROPDOWN_ROW_CLASS} ${
+                  selectedValue === option.value
+                    ? "bg-logo-primary/20 text-logo-primary"
+                    : ""
                 } ${option.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
                 onClick={() => handleSelect(option.value)}
                 disabled={option.disabled}
@@ -114,14 +127,14 @@ export const Dropdown: React.FC<DropdownProps> = ({
                 <span
                   className={`block whitespace-normal break-words ${
                     option.description || selectedValue === option.value
-                      ? "font-semibold"
+                      ? "font-medium"
                       : ""
                   }`}
                 >
                   {option.label}
                 </span>
                 {option.description && (
-                  <span className="mt-0.5 block whitespace-normal text-xs font-normal leading-snug text-mid-gray">
+                  <span className="mt-0.5 block whitespace-normal text-xs font-normal leading-snug text-secondary">
                     {option.description}
                   </span>
                 )}

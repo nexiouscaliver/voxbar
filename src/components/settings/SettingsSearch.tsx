@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 import { Input } from "../ui/Input";
+import { DROPDOWN_PANEL_CLASS } from "../ui/Dropdown";
 import { SECTIONS_CONFIG, type SidebarSection } from "../Sidebar";
 import { useSettings } from "../../hooks/useSettings";
 import { ALL_COMMAND_IDS } from "./commands/commandGroups";
@@ -282,10 +283,10 @@ export const SettingsSearch: React.FC<SettingsSearchProps> = ({ onSelect }) => {
       {dropdownOpen && (
         <div
           role="listbox"
-          className="absolute inset-x-0 z-20 mt-1 overflow-hidden rounded-lg border border-mid-gray/20 bg-background shadow-lg"
+          className={`top-full z-20 py-1 ${DROPDOWN_PANEL_CLASS} inset-x-0`}
         >
           {results.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-mid-gray">
+            <p className="px-4 py-3 text-sm text-secondary">
               {t("settings.search.noResults")}
             </p>
           ) : (
@@ -302,12 +303,12 @@ export const SettingsSearch: React.FC<SettingsSearchProps> = ({ onSelect }) => {
                 aria-selected={index === selectedIndex}
                 onMouseEnter={() => setSelectedIndex(index)}
                 onClick={() => choose(result.section)}
-                className={`flex w-full cursor-pointer items-baseline justify-between gap-3 px-4 py-2 text-start text-sm transition-colors hover:bg-mid-gray/10 ${
+                className={`flex w-full cursor-pointer items-baseline justify-between gap-3 rounded-lg mx-1 my-0.5 px-3 py-1.5 text-start text-sm transition-colors hover:bg-mid-gray/10 ${
                   index === selectedIndex ? "bg-mid-gray/10" : ""
                 }`}
               >
                 <span className="truncate">{t(result.key)}</span>
-                <span className="shrink-0 text-xs text-mid-gray">
+                <span className="shrink-0 text-xs text-secondary">
                   {t(SECTIONS_CONFIG[result.section].labelKey)}
                 </span>
               </button>

@@ -489,19 +489,19 @@ function App() {
           toast:
             "bg-background border border-mid-gray/20 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 text-sm w-[360px]",
           title: "font-medium",
-          description: "text-mid-gray text-[13px] leading-relaxed",
+          description: "text-secondary text-sm leading-relaxed",
           // Both buttons need whitespace-nowrap + shrink-0: without sonner's
           // built-in button CSS, a long action label squeezes the cancel
           // button into a one-character-wide column of stacked letters.
           actionButton:
             "px-2.5 py-1.5 text-xs font-medium rounded-lg border bg-mid-gray/10 border-mid-gray/20 hover:bg-background-ui/30 hover:border-logo-primary cursor-pointer whitespace-nowrap shrink-0",
           cancelButton:
-            "px-2.5 py-1.5 text-xs font-medium rounded-lg border bg-transparent border-mid-gray/20 hover:bg-mid-gray/10 cursor-pointer whitespace-nowrap shrink-0 text-mid-gray",
+            "px-2.5 py-1.5 text-xs font-medium rounded-lg border bg-transparent border-mid-gray/20 hover:bg-mid-gray/10 cursor-pointer whitespace-nowrap shrink-0 text-secondary",
           // The loading spinner's own CSS assumes a 16px icon frame; with
           // unstyled mode that frame is gone and the spinner renders as a
           // collapsed starburst floating outside the text line.
           icon: "shrink-0 h-4 w-4 flex items-center justify-center",
-          loader: "text-mid-gray",
+          loader: "text-secondary",
         },
       }}
     />

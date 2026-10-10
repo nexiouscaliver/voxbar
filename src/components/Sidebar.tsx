@@ -167,7 +167,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {t(section.labelKey)}
                 </p>
                 {!section.enabledNow && (
-                  <p className="text-[10px] leading-tight text-mid-gray">
+                  <p className="text-xs leading-tight text-secondary">
                     {t("sidebar.enableInAdvancedHint")}
                   </p>
                 )}

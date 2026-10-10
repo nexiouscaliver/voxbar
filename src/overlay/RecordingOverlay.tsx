@@ -102,6 +102,15 @@ function noticeMessage(
   }
 }
 
+// Which tone a notice renders in. Red is reserved for failures; a
+// model_fallback is a successful degradation (dictation continued on the
+// smaller model), so even when the backend tags it "error" it wears the
+// neutral info chip.
+function noticeTone(notice: OverlayNoticeEvent): "err" | "info" {
+  if (notice.code === "model_fallback") return "info";
+  return notice.kind === "error" ? "err" : "info";
+}
+
 const RecordingOverlay: React.FC = () => {
   const { t } = useTranslation();
   const [isVisible, setIsVisible] = useState(false);
@@ -427,13 +436,9 @@ const RecordingOverlay: React.FC = () => {
 
   // The notice strip: a failure or fallback the backend surfaced, shown only
   // while the card is visible (see the notice state comment above). Styled on
-  // the removal chip, with the error variant carrying the refusal card's red
-  // treatment.
+  // the removal chip; the error variant carries the app's one red treatment.
   const noticeRow = notice !== null && (
-    <div
-      className={`snotice ${notice.kind === "error" ? "err" : "info"}`}
-      role="status"
-    >
+    <div className={`snotice ${noticeTone(notice)}`} role="status">
       {noticeMessage(notice, t)}
     </div>
   );

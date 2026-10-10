@@ -31,20 +31,20 @@ const THEME_BACKGROUND: Record<"light" | "dark", string> = {
   dark: "#2c2b29",
 };
 
-/* 1. The default pins today's exact palette - no behavior change until the
-      user picks an accent. */
+/* 1. The default pins today's palette: logo pink render color, deep pink
+      fill, white content and white knob. */
 const pink = ACCENTS.find((a) => a.id === DEFAULT_ACCENT_ID);
 assert.ok(pink, "default pink accent exists");
 assert.deepEqual(effectiveAccentPalette(DEFAULT_ACCENT_ID, "light"), {
   color: "#faa2ca", // --light-color-logo-primary
-  fill: "#da5893", // --color-background-ui
-  onFill: "#0f0f0f", // --light-color-text (badge text today)
+  fill: "#c2417c", // --color-background-ui (accent-for-fill)
+  onFill: "#ffffff", // --light-accent-on
   knob: "#ffffff", // ToggleSwitch knob today
 });
 assert.deepEqual(effectiveAccentPalette(DEFAULT_ACCENT_ID, "dark"), {
   color: "#f28cbb", // --dark-color-logo-primary
-  fill: "#da5893",
-  onFill: "#fbfbfb", // --dark-color-text
+  fill: "#c2417c",
+  onFill: "#ffffff",
   knob: "#ffffff",
 });
 
@@ -92,22 +92,24 @@ for (const accent of ACCENTS) {
   assert.match(accent.swatch, /^#[0-9a-f]{6}$/i);
 }
 
-/* 5. Contrast discipline for every chosen (non-default) accent on both
-      themes:
+/* 5. Contrast discipline for every accent on both themes:
         - render color vs theme background  >= 4.5:1 (text usage)
-        - fill vs onFill                    >= 4.5:1 (badge labels)
+        - fill vs onFill                    >= 4.5:1 (badge/button labels)
         - fill vs knob                      >= 3:1  (WCAG 1.4.11 UI component)
-      The default pink is pinned by (1) instead - its historical values are
-      intentionally not re-litigated here. */
+      The default pink's fill/onFill/knob are held to the same bar as every
+      other accent; only its render-color check is skipped, because the
+      light-theme logo pink is a decorative mark/tint color used at display
+      sizes, not small-text color. */
 for (const accent of ACCENTS) {
-  if (accent.id === DEFAULT_ACCENT_ID) continue;
   for (const theme of ["light", "dark"] as const) {
     const p = effectiveAccentPalette(accent.id, theme);
-    const bg = contrastRatio(p.color, THEME_BACKGROUND[theme]);
-    assert.ok(
-      bg >= 4.5,
-      `${accent.id}/${theme}: render ${p.color} vs ${THEME_BACKGROUND[theme]} = ${bg.toFixed(2)}`,
-    );
+    if (accent.id !== DEFAULT_ACCENT_ID) {
+      const bg = contrastRatio(p.color, THEME_BACKGROUND[theme]);
+      assert.ok(
+        bg >= 4.5,
+        `${accent.id}/${theme}: render ${p.color} vs ${THEME_BACKGROUND[theme]} = ${bg.toFixed(2)}`,
+      );
+    }
     const on = contrastRatio(p.fill, p.onFill);
     assert.ok(
       on >= 4.5,

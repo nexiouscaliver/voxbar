@@ -295,9 +295,9 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 12px;
+  font-size: 11px;
   font-style: normal;
-  color: var(--s-faint);
+  color: var(--s-muted);
   background: color-mix(in srgb, var(--color-text) 8%, transparent);
   border-radius: 8px;
   padding: 3px 8px;
@@ -310,17 +310,20 @@
 /* Notice strip: a failure or fallback the backend surfaced mid-dictation.
    Chip geometry follows .sremoved (same visual language for transient
    metadata under the card), with two tones: info keeps the neutral chip,
-   error takes the refusal card's red treatment (border + faint wash). The
-   card widens while a notice is up so a sentence remains readable on the
-   compact pill. */
+   error takes the app's one error treatment (border + faint wash of the
+   shared --color-error token, same recipe as error toasts and the refusal
+   card). The card widens while a notice is up so a sentence remains
+   readable on the compact pill. */
 .snotice {
   margin: 0 10px 8px;
   padding: 4px 9px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 11px;
   font-style: normal;
   line-height: 1.35;
-  max-height: 3.1em; /* two lines; longer diagnostics live in the log/toast */
+  /* Two full lines plus the 8px vertical padding, so the line-clamp row
+     itself is never shaved mid-word (the ellipsis must be visible). */
+  max-height: calc(2 * 1.35em + 8px);
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -331,26 +334,9 @@
   background: color-mix(in srgb, var(--color-text) 8%, transparent);
 }
 .snotice.err {
-  color: oklch(0.55 0.19 27);
-  background: color-mix(in srgb, oklch(0.55 0.19 27) 5%, transparent);
-  border: 1px solid color-mix(in srgb, oklch(0.55 0.19 27) 30%, transparent);
-}
-@media (prefers-color-scheme: dark) {
-  .snotice.err {
-    color: oklch(0.77 0.12 27);
-    background: color-mix(in srgb, oklch(0.77 0.12 27) 8%, transparent);
-    border-color: color-mix(in srgb, oklch(0.77 0.12 27) 30%, transparent);
-  }
-}
-:root[data-theme="light"] .snotice.err {
-  color: oklch(0.55 0.19 27);
-  background: color-mix(in srgb, oklch(0.55 0.19 27) 5%, transparent);
-  border-color: color-mix(in srgb, oklch(0.55 0.19 27) 30%, transparent);
-}
-:root[data-theme="dark"] .snotice.err {
-  color: oklch(0.77 0.12 27);
-  background: color-mix(in srgb, oklch(0.77 0.12 27) 8%, transparent);
-  border-color: color-mix(in srgb, oklch(0.77 0.12 27) 30%, transparent);
+  color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 5%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-error) 30%, transparent);
 }
 /* Room for the notice: the collapsed Live working pill steps up to the
    open-panel width while the strip is visible (its window is the streaming
@@ -419,8 +405,8 @@
   margin-left: 6px;
   padding: 1px 4px;
   border-radius: 4px;
-  font-size: 9px;
-  font-weight: 600;
+  font-size: 10px;
+  font-weight: 500;
   font-style: normal;
   letter-spacing: 0.06em;
   line-height: 1.4;
@@ -437,8 +423,10 @@
   }
 }
 .stimer {
-  font-size: 12px;
-  color: var(--s-faint);
+  font-size: 11px;
+  /* --s-muted, not --s-faint: the timer is glanceable content, and faint
+     measures 2.88:1 on the card. */
+  color: var(--s-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
   opacity: 0;
@@ -552,7 +540,7 @@
   }
 }
 .swork-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--s-muted);
   white-space: nowrap;
   padding: 0 8px; /* breathing room from the spinner / cancel when content-sized */

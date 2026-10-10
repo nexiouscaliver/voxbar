@@ -268,7 +268,7 @@ export const ModelsSettings: React.FC = () => {
   return (
     <div className="max-w-3xl w-full mx-auto space-y-4">
       <div className="mb-4">
-        <h1 className="text-xl font-semibold mb-2">
+        <h1 className="text-xl font-medium mb-2">
           {t("settings.models.title")}
         </h1>
         <p className="text-sm text-text/60">
@@ -366,7 +366,7 @@ export const ModelsSettings: React.FC = () => {
                 </button>
 
                 {languageDropdownOpen && (
-                  <div className="absolute top-full right-0 mt-1 w-56 bg-background border border-mid-gray/80 rounded-lg shadow-lg z-50 overflow-hidden">
+                  <div className="absolute top-full right-0 mt-1 w-56 bg-background border border-mid-gray/20 rounded-lg shadow-lg z-50 overflow-hidden">
                     <div className="p-2 border-b border-mid-gray/40">
                       <input
                         ref={languageSearchInputRef}
@@ -402,7 +402,7 @@ export const ModelsSettings: React.FC = () => {
                         }}
                         className={`w-full px-3 py-1.5 text-sm text-left transition-colors ${
                           languageFilter === "all"
-                            ? "bg-logo-primary/20 text-logo-primary font-semibold"
+                            ? "bg-logo-primary/20 text-logo-primary font-medium"
                             : "hover:bg-mid-gray/10"
                         }`}
                       >
@@ -419,7 +419,7 @@ export const ModelsSettings: React.FC = () => {
                           }}
                           className={`w-full px-3 py-1.5 text-sm text-left transition-colors ${
                             languageFilter === lang.value
-                              ? "bg-logo-primary/20 text-logo-primary font-semibold"
+                              ? "bg-logo-primary/20 text-logo-primary font-medium"
                               : "hover:bg-mid-gray/10"
                           }`}
                         >
@@ -454,7 +454,7 @@ export const ModelsSettings: React.FC = () => {
                 <div
                   data-testid="model-selection-error"
                   role="alert"
-                  className="rounded-xl border border-red-500/30 bg-red-500/5 px-4 py-2.5 text-sm text-text/80"
+                  className="rounded-lg border border-error/30 bg-error/5 px-4 py-2.5 text-sm text-text/80"
                 >
                   {selectionError.message}
                 </div>

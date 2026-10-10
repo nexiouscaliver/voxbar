@@ -361,7 +361,7 @@ export const CommandsSettings: React.FC = () => {
       ))}
 
       {filtering && visibleGroups.length === 0 && (
-        <p className="px-4 text-sm text-mid-gray">
+        <p className="px-4 text-sm text-secondary">
           {t("settings.commands.noResults")}
         </p>
       )}
