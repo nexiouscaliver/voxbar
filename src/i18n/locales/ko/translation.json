@@ -12,7 +12,8 @@
     "postProcessModel": "후처리 모델",
     "quit": "종료",
     "cancel": "취소",
-    "secureInputWarning": "⚠ Secure Input으로 단축키가 차단됨"
+    "secureInputWarning": "⚠ Secure Input으로 단축키가 차단됨",
+    "postProcessPrompt": "후처리 프롬프트"
   },
   "sidebar": {
     "general": "일반",
@@ -221,6 +222,10 @@
           "transcribe_commands": {
             "name": "명령 모드",
             "description": "받아쓰기 세션이 진행 중일 때 이 키를 누르고 있으면 명령 해석 모드로 전환됩니다: 말하는 모든 내용이 받아쓰기 버퍼를 직접 편집하고 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) 인식되지 않은 단어는 버려집니다. 키를 떼면 일반 받아쓰기로 돌아가며, 최종 붙여넣기는 편집된 버퍼를 그대로 전달합니다. 단독으로는 녹음을 시작하지 않고 아무 동작도 하지 않습니다. 기본적으로 바인딩되지 않습니다."
+          },
+          "cycle_post_process_prompt": {
+            "name": "후처리 프롬프트 전환",
+            "description": "선택 사항: 선택된 후처리 템플릿을 다음으로 넘기고 새 템플릿을 알려 줍니다."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "프롬프트 만들기",
         "cancel": "취소",
         "selectToEdit": "세부 정보를 보고 편집하려면 위에서 프롬프트를 선택하세요.",
-        "createFirst": "첫 번째 후처리 프롬프트를 만들려면 위의 '새 프롬프트 만들기'를 클릭하세요."
+        "createFirst": "첫 번째 후처리 프롬프트를 만들려면 위의 '새 프롬프트 만들기'를 클릭하세요.",
+        "registers": {
+          "professional": "격식체",
+          "casual": "일상체",
+          "technical": "기술",
+          "minimal": "최소",
+          "general": "일반"
+        },
+        "builtinBadge": "기본 제공",
+        "customBadge": "사용자",
+        "editedBadge": "편집됨",
+        "versionLabel": "버전 {{version}}",
+        "duplicate": "복제",
+        "testOnLastTranscript": "마지막 전사본으로 테스트",
+        "testing": "테스트 중...",
+        "testNoHistory": "아직 전사 기록이 없습니다. 먼저 녹음하세요.",
+        "testPromptNotFound": "이 템플릿은 더 이상 없습니다.",
+        "testFailed": "테스트 실패: {{detail}}",
+        "testResultTitle": "테스트 결과",
+        "testBefore": "이전",
+        "testAfter": "이후",
+        "testOutcome": "결과: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "원본 전사본이 그대로 유지됩니다.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "영어 (격식체)",
+            "description": "업무용으로 매끄러운 영어: 다듬어진 문법으로 전체 정리."
+          },
+          "english_casual": {
+            "name": "영어 (일상체)",
+            "description": "축약형과 속어를 살리는 구어체 영어."
+          },
+          "english_technical": {
+            "name": "영어 (기술)",
+            "description": "코드에 적합한 영어: 식별자, 경로, 명령을 그대로 유지."
+          },
+          "english_minimal": {
+            "name": "영어 (최소)",
+            "description": "문장 부호와 대소문자만 수정; 모든 단어는 받아쓴 그대로."
+          },
+          "hindi_devanagari": {
+            "name": "힌디어 (데바나가리)",
+            "description": "데바나가리 문자로 힌디어 정리, 풀르나 비라ム 문장 부호 적용."
+          },
+          "hinglish_roman": {
+            "name": "힌글리시 (로마자)",
+            "description": "말한 그대로의 힌디어-영어 혼용을 로마자로 유지."
+          },
+          "marathi": {
+            "name": "마라티어",
+            "description": "데바나가리 문자로 마라티어 정리."
+          },
+          "tamil": {
+            "name": "타밀어",
+            "description": "타밀 문자로 타밀어 정리."
+          },
+          "spanish": {
+            "name": "스페인어",
+            "description": "도치된 물음표와 느낌표를 사용한 스페인어 정리."
+          },
+          "french": {
+            "name": "프랑스어",
+            "description": "프랑스식 띄어쓰기와 인용부호를 사용한 프랑스어 정리."
+          },
+          "german": {
+            "name": "독일어",
+            "description": "명사 대문자 규칙을 지키는 독일어 정리."
+          },
+          "japanese": {
+            "name": "일본어",
+            "description": "일본식 문장 부호와 한자 교정을 포함한 일본어 정리."
+          },
+          "chinese_simplified": {
+            "name": "중국어 (간체)",
+            "description": "동음이자 교정을 포함한 간체 중국어 정리."
+          }
+        },
+        "editPrompt": "편집"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "이 키보드 구현에서는 네이티브 Wayland 앱에서 전역 단축키가 작동하지 않을 수 있습니다. 키보드 구현을 VoxBar Keys로 전환하고 사용자를 input 그룹에 추가하세요. Ubuntu 가이드를 참고하세요.",
       "gnomeOverlayFallback": "GNOME Wayland에서는 오버레이가 일반 창으로 표시되어 포커스를 빼앗고 붙여넣기를 망칠 수 있습니다. 여기서는 오버레이: 없음을 권장합니다.",
       "postProcessOutputInvalid": "다듬기에서 사용할 수 없는 텍스트가 반환되어 원본 전사가 유지되었습니다.",
-      "postProcessCloudFailed": "다듬기가 실패하여 원본 전사가 유지되었습니다: {{detail}}"
+      "postProcessCloudFailed": "다듬기가 실패하여 원본 전사가 유지되었습니다: {{detail}}",
+      "postProcessPromptCycled": "후처리 템플릿: {{name}}"
     },
     "commandBadge": "명령 모드",
     "ppChip": "다듬는 중 ({{model}}) {{seconds}}초"

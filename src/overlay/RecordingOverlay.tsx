@@ -100,6 +100,10 @@ function noticeMessage(
       return t("overlay.notice.undoNoBuffer");
     case "binding_busy":
       return t("overlay.notice.bindingBusy");
+    case "post_process_prompt_cycled":
+      return t("overlay.notice.postProcessPromptCycled", {
+        name: notice.detail ?? "",
+      });
     case "wayland_tauri_hotkeys":
       return t("overlay.notice.waylandTauriHotkeys");
     case "gnome_overlay_fallback":

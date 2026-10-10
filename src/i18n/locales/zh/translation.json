@@ -12,7 +12,8 @@
     "postProcessModel": "后处理模型",
     "quit": "退出",
     "cancel": "取消",
-    "secureInputWarning": "⚠ 快捷键被 Secure Input 阻止"
+    "secureInputWarning": "⚠ 快捷键被 Secure Input 阻止",
+    "postProcessPrompt": "后处理提示词"
   },
   "sidebar": {
     "general": "通用",
@@ -273,6 +274,10 @@
           "transcribe_commands": {
             "name": "命令模式",
             "description": "在听写会话进行期间按住此键可切换到命令解释模式：所说的一切都会直接编辑听写缓冲区 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line)，无法识别的词会被丢弃。松开后恢复普通听写；最终粘贴交付的正是编辑后的缓冲区。它绝不会自行开始录音，单独按下不做任何事。默认不绑定按键。"
+          },
+          "cycle_post_process_prompt": {
+            "name": "切换后处理提示词",
+            "description": "可选：将选定的后处理模板切换到下一个，并确认新模板。"
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "创建提示词",
         "cancel": "取消",
         "selectToEdit": "选择上方的提示词以查看和编辑其详细信息。",
-        "createFirst": "点击上方的「创建新提示词」来创建您的第一个后处理提示词。"
+        "createFirst": "点击上方的「创建新提示词」来创建您的第一个后处理提示词。",
+        "registers": {
+          "professional": "专业",
+          "casual": "日常",
+          "technical": "技术",
+          "minimal": "极简",
+          "general": "通用"
+        },
+        "builtinBadge": "内置",
+        "customBadge": "自定义",
+        "editedBadge": "已编辑",
+        "versionLabel": "版本 {{version}}",
+        "duplicate": "复制",
+        "testOnLastTranscript": "用最近一段转录试一试",
+        "testing": "测试中...",
+        "testNoHistory": "还没有转录历史。请先录一段。",
+        "testPromptNotFound": "该模板已不存在。",
+        "testFailed": "测试失败：{{detail}}",
+        "testResultTitle": "测试结果",
+        "testBefore": "之前",
+        "testAfter": "之后",
+        "testOutcome": "结果：{{outcome}}",
+        "testLatency": "{{ms}} 毫秒",
+        "testRawKept": "将保留原始转录文本。",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "英语（专业）",
+            "description": "干净、适合办公的英语：全面清理并打磨语法。"
+          },
+          "english_casual": {
+            "name": "英语（日常）",
+            "description": "保留缩写和俚语的口语化英语。"
+          },
+          "english_technical": {
+            "name": "英语（技术）",
+            "description": "适合代码的英语：标识符、路径和命令原样保留。"
+          },
+          "english_minimal": {
+            "name": "英语（极简）",
+            "description": "只修正标点和大小写；每个词保持口述原样。"
+          },
+          "hindi_devanagari": {
+            "name": "印地语（天城文）",
+            "description": "以天城文清理印地语，使用句号点标点。"
+          },
+          "hinglish_roman": {
+            "name": "印地英语（罗马字）",
+            "description": "保留口述中印地语与英语混说的风格，使用罗马字。"
+          },
+          "marathi": {
+            "name": "马拉地语",
+            "description": "以天城文清理马拉地语。"
+          },
+          "tamil": {
+            "name": "泰米尔语",
+            "description": "以泰米尔文清理泰米尔语。"
+          },
+          "spanish": {
+            "name": "西班牙语",
+            "description": "清理西班牙语，使用倒问号和倒叹号。"
+          },
+          "french": {
+            "name": "法语",
+            "description": "清理法语，遵循法语空格与引号规范。"
+          },
+          "german": {
+            "name": "德语",
+            "description": "清理德语，名词保持首字母大写。"
+          },
+          "japanese": {
+            "name": "日语",
+            "description": "清理日语，修正日式标点与汉字。"
+          },
+          "chinese_simplified": {
+            "name": "中文（简体）",
+            "description": "清理简体中文，修正同音错字。"
+          }
+        },
+        "editPrompt": "编辑"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "在此键盘实现下，原生 Wayland 应用中的全局快捷键可能失效。请将键盘实现切换为 VoxBar Keys，并把用户加入 input 组；详见 Ubuntu 故障排除指南。",
       "gnomeOverlayFallback": "在 GNOME Wayland 上，悬浮窗会以普通窗口形式出现，可能抢走焦点并破坏粘贴。此处建议将悬浮窗设为无。",
       "postProcessOutputInvalid": "润色返回了不可用的文本，已保留原始转录。",
-      "postProcessCloudFailed": "润色失败，已保留原始转录：{{detail}}"
+      "postProcessCloudFailed": "润色失败，已保留原始转录：{{detail}}",
+      "postProcessPromptCycled": "后处理模板：{{name}}"
     },
     "commandBadge": "命令模式",
     "ppChip": "润色中 ({{model}}) {{seconds}}秒"

@@ -12,7 +12,8 @@
     "postProcessModel": "Model de postprocessament",
     "quit": "Surt",
     "cancel": "Cancel·la",
-    "secureInputWarning": "⚠ Dreceres blocades per l'entrada segura"
+    "secureInputWarning": "⚠ Dreceres blocades per l'entrada segura",
+    "postProcessPrompt": "Indicació de postprocessament"
   },
   "sidebar": {
     "general": "General",
@@ -221,6 +222,10 @@
           "transcribe_commands": {
             "name": "Mode d'ordres",
             "description": "Mantén aquesta tecla mentre una sessió de dictat és activa per canviar a interpretació d'ordres: tot el que diguis edita directament la memòria intermèdia del dictat (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) i les paraules no reconegudes es descarten. Deixa anar la tecla per tornar al dictat normal; l'enganxat final lliura exactament la memòria intermèdia editada. Mai no inicia un enregistrament i tot sol no fa res. Sense tecla per defecte."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Canvia la indicació de postprocessament",
+            "description": "Opcional: avança a la següent plantilla de postprocessament seleccionada i confirma la nova."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Creeu la indicació",
         "cancel": "Cancel·leu",
         "selectToEdit": "Seleccioneu una indicació more amunt per veure'n i editar-ne els detalls.",
-        "createFirst": "Feu clic a «Creeu una indicació nova» més amunt per crear la primera indicació de postprocessament."
+        "createFirst": "Feu clic a «Creeu una indicació nova» més amunt per crear la primera indicació de postprocessament.",
+        "registers": {
+          "professional": "Professional",
+          "casual": "Casual",
+          "technical": "Tècnic",
+          "minimal": "Mínim",
+          "general": "General"
+        },
+        "builtinBadge": "Integrada",
+        "customBadge": "Pròpia",
+        "editedBadge": "Editada",
+        "versionLabel": "Versió {{version}}",
+        "duplicate": "Duplica",
+        "testOnLastTranscript": "Prova amb la meva última transcripció",
+        "testing": "Provant...",
+        "testNoHistory": "Encara no hi ha historial de transcripcions. Enregistreu alguna cosa primer.",
+        "testPromptNotFound": "Aquesta plantilla ja no existeix.",
+        "testFailed": "Prova fallida: {{detail}}",
+        "testResultTitle": "Resultat de la prova",
+        "testBefore": "Abans",
+        "testAfter": "Després",
+        "testOutcome": "Resultat: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Es conservaria la transcripció original.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Anglès professional",
+            "description": "Anglès polit per al treball: neteja completa amb gramàtica cuidada."
+          },
+          "english_casual": {
+            "name": "Anglès casual",
+            "description": "Anglès conversacional que manté contraccions i argot."
+          },
+          "english_technical": {
+            "name": "Anglès tècnic",
+            "description": "Anglès apte per a codi: identificadors, rutes i ordres es mantenen literalment."
+          },
+          "english_minimal": {
+            "name": "Anglès mínim",
+            "description": "Només corregeix puntuació i majúscules; cada paraula queda com s'ha dictat."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (devanagari)",
+            "description": "Neteja de l'hindi en escriptura devanagari amb puntuació purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (romà)",
+            "description": "Manté la barreja parlada d'hindi i anglès en escriptura romana."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Neteja del marathi en escriptura devanagari."
+          },
+          "tamil": {
+            "name": "Tàmil",
+            "description": "Neteja del tàmil en escriptura tàmil."
+          },
+          "spanish": {
+            "name": "Espanyol",
+            "description": "Neteja de l'espanyol amb signes d'interrogació i exclamació invertits."
+          },
+          "french": {
+            "name": "Francès",
+            "description": "Neteja del francès amb espais i cometes franceses."
+          },
+          "german": {
+            "name": "Alemany",
+            "description": "Neteja de l'alemany amb substantius en majúscula."
+          },
+          "japanese": {
+            "name": "Japonès",
+            "description": "Neteja del japonès amb puntuació japonesa i correcció de kanji."
+          },
+          "chinese_simplified": {
+            "name": "Xinès (simplificat)",
+            "description": "Neteja del xinès simplificat amb correcció d'homòfons."
+          }
+        },
+        "editPrompt": "Edita"
       }
     },
     "history": {
@@ -1088,7 +1171,8 @@
       "waylandTauriHotkeys": "És possible que les dreceres globals no funcionin a les aplicacions Wayland natives amb aquesta implementació de teclat. Canvieu la implementació del teclat a VoxBar Keys i afegiu el vostre usuari al grup input; consulteu la guia d'Ubuntu.",
       "gnomeOverlayFallback": "Al GNOME Wayland, la finestra superposada apareix com una finestra normal que pot robar el focus i trencar l'enganxat. Aquí es recomana Superposició: Cap.",
       "postProcessOutputInvalid": "El poliment ha retornat text inútil, s'ha conservat la transcripció original.",
-      "postProcessCloudFailed": "El poliment ha fallat i s'ha conservat la transcripció original: {{detail}}"
+      "postProcessCloudFailed": "El poliment ha fallat i s'ha conservat la transcripció original: {{detail}}",
+      "postProcessPromptCycled": "Plantilla de postprocessament: {{name}}"
     },
     "commandBadge": "Mode d'ordres",
     "ppChip": "Polint ({{model}}) {{seconds}}s"

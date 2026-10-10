@@ -12,7 +12,8 @@
     "postProcessModel": "Efterbearbetningsmodell",
     "quit": "Avsluta",
     "cancel": "Avbryt",
-    "secureInputWarning": "⚠ Kortkommandon blockeras av Secure Input"
+    "secureInputWarning": "⚠ Kortkommandon blockeras av Secure Input",
+    "postProcessPrompt": "Efterbearbetningsprompt"
   },
   "sidebar": {
     "general": "Allmänt",
@@ -221,6 +222,10 @@
           "transcribe_commands": {
             "name": "Kommandoläge",
             "description": "Håll ned denna tangent medan en dikteringsession är aktiv för att växla till kommandotolkning: allt du säger redigerar dikteringsbufferten direkt (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) och okända ord kastas bort. Släpp tangenten för att återgå till normal diktering; den slutliga inklistringen levererar exakt den redigerade bufferten. Startar aldrig en inspelning och gör inget på egen hand. Utan tangent som standard."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Växla efterbearbetningsprompt",
+            "description": "Valfritt: går vidare till nästa valda efterbearbetningsmall och bekräftar den nya mallen."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Skapa prompt",
         "cancel": "Avbryt",
         "selectToEdit": "Välj en prompt ovan för att visa och redigera dess detaljer.",
-        "createFirst": "Klicka på 'Skapa ny prompt' ovan för att skapa din första prompt för efterbearbetning."
+        "createFirst": "Klicka på 'Skapa ny prompt' ovan för att skapa din första prompt för efterbearbetning.",
+        "registers": {
+          "professional": "Professionell",
+          "casual": "Ledig",
+          "technical": "Teknisk",
+          "minimal": "Minimal",
+          "general": "Allmän"
+        },
+        "builtinBadge": "Inbyggd",
+        "customBadge": "Egen",
+        "editedBadge": "Redigerad",
+        "versionLabel": "Version {{version}}",
+        "duplicate": "Duplicera",
+        "testOnLastTranscript": "Testa på min senaste transkription",
+        "testing": "Testar...",
+        "testNoHistory": "Det finns ingen transkriptionshistorik ännu. Spela in något först.",
+        "testPromptNotFound": "Denna mall finns inte längre.",
+        "testFailed": "Testet misslyckades: {{detail}}",
+        "testResultTitle": "Testresultat",
+        "testBefore": "Före",
+        "testAfter": "Efter",
+        "testOutcome": "Resultat: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Den råa transkriptionen skulle behållas.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Engelska (professionell)",
+            "description": "Snygg engelska för jobbet: fullständig rensning med polerad grammatik."
+          },
+          "english_casual": {
+            "name": "Engelska (ledig)",
+            "description": "Konversationsengelska som behåller förkortningar och slang."
+          },
+          "english_technical": {
+            "name": "Engelska (teknisk)",
+            "description": "Kodvänlig engelska: identifierare, sökvägar och kommandon lämnas ordagrant."
+          },
+          "english_minimal": {
+            "name": "Engelska (minimal)",
+            "description": "Endast skiljetecken och versaler rättas; varje ord blir kvar som det dikterades."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (devanagari)",
+            "description": "Rensning av hindi i devanagariskrift med purna viram-skiljetecken."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (romersk)",
+            "description": "Behåller den talda blandningen av hindi och engelska i romersk skrift."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Rensning av marathi i devanagariskrift."
+          },
+          "tamil": {
+            "name": "Tamil",
+            "description": "Rensning av tamil i tamilska skriften."
+          },
+          "spanish": {
+            "name": "Spanska",
+            "description": "Rensning av spanska med omvända fråge- och utropstecken."
+          },
+          "french": {
+            "name": "Franska",
+            "description": "Rensning av franska med franska mellanslag och citattecken."
+          },
+          "german": {
+            "name": "Tyska",
+            "description": "Rensning av tyska med stor begynnelsebokstav i substantiv."
+          },
+          "japanese": {
+            "name": "Japanska",
+            "description": "Rensning av japanska med japanska skiljetecken och kanji-rättningar."
+          },
+          "chinese_simplified": {
+            "name": "Kinesiska (förenklad)",
+            "description": "Rensning av förenklad kinesiska med rättningar av likalydande tecken."
+          }
+        },
+        "editPrompt": "Redigera"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "Globala genvägar kanske inte fungerar i nativa Wayland-appar med den här tangentbordsimplementeringen. Byt tangentbordsimplementering till VoxBar Keys och lägg till din användare i gruppen input; se Ubuntu-guiden.",
       "gnomeOverlayFallback": "På GNOME Wayland visas overlayet som ett vanligt fönster som kan stjäla fokus och förstöra inklistring. Overlay: Ingen rekommenderas här.",
       "postProcessOutputInvalid": "Poleringen returnerade oanvändbar text, den ursprungliga transkriptionen behölls.",
-      "postProcessCloudFailed": "Poleringen misslyckades, den ursprungliga transkriptionen behölls: {{detail}}"
+      "postProcessCloudFailed": "Poleringen misslyckades, den ursprungliga transkriptionen behölls: {{detail}}",
+      "postProcessPromptCycled": "Efterbearbetningsmall: {{name}}"
     },
     "commandBadge": "Kommandoläge",
     "ppChip": "Polerar ({{model}}) {{seconds}}s"

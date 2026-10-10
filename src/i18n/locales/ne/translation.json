@@ -12,7 +12,8 @@
     "postProcessModel": "पोस्ट-प्रोसेस मोडेल",
     "quit": "बाहिर निस्कनुहोस्",
     "cancel": "रद्द गर्नुहोस्",
-    "secureInputWarning": "⚠ Secure Input ले सर्टकटहरू रोकेको छ"
+    "secureInputWarning": "⚠ Secure Input ले सर्टकटहरू रोकेको छ",
+    "postProcessPrompt": "पोस्ट-प्रोसेस प्रम्प्ट"
   },
   "sidebar": {
     "general": "सामान्य",
@@ -221,6 +222,10 @@
           "transcribe_commands": {
             "name": "Command Mode",
             "description": "Hold this key while a dictation session is live to switch it into command interpretation: everything you say edits the dictation buffer directly (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) and unrecognized words are discarded. Release it to return to normal dictation; the final paste delivers exactly the edited buffer. It never starts a recording and does nothing on its own. Unbound by default."
+          },
+          "cycle_post_process_prompt": {
+            "name": "पोस्ट-प्रोसेस प्रम्प्ट घुमाउने",
+            "description": "इच्छाधीन: छानिएको पोस्ट-प्रोसेस टेम्पलेट अर्कोमा सार्छ र नयाँ टेम्पलेट यकिन गर्छ।"
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "प्रम्प्ट बनाउनुहोस्",
         "cancel": "रद्द गर्नुहोस्",
         "selectToEdit": "विवरण हेर्न र सम्पादन गर्न माथिबाट प्रम्प्ट चयन गर्नुहोस्।",
-        "createFirst": "आफ्नो पहिलो पोस्ट-प्रोसेसिङ प्रम्प्ट बनाउन माथिको 'नयाँ प्रम्प्ट बनाउनुहोस्' क्लिक गर्नुहोस्।"
+        "createFirst": "आफ्नो पहिलो पोस्ट-प्रोसेसिङ प्रम्प्ट बनाउन माथिको 'नयाँ प्रम्प्ट बनाउनुहोस्' क्लिक गर्नुहोस्।",
+        "registers": {
+          "professional": "पेशागत",
+          "casual": "सामान्य बोली",
+          "technical": "प्राविधिक",
+          "minimal": "न्यूनतम",
+          "general": "सामान्य"
+        },
+        "builtinBadge": "बिल्ट-इन",
+        "customBadge": "आफ्नै",
+        "editedBadge": "सम्पादित",
+        "versionLabel": "संस्करण {{version}}",
+        "duplicate": "नक्कली बनाउने",
+        "testOnLastTranscript": "मेरो अन्तिम ट्रान्सक्रिप्शनमा परीक्षण गर्ने",
+        "testing": "परीक्षण भइरहेको छ...",
+        "testNoHistory": "अझै कुनै ट्रान्सक्रिप्शन इतिहास छैन। पहिले केही रेकर्ड गर्नुहोस्।",
+        "testPromptNotFound": "यो टेम्पलेट अब छैन।",
+        "testFailed": "परीक्षण असफल: {{detail}}",
+        "testResultTitle": "परीक्षण नतिजा",
+        "testBefore": "पहिले",
+        "testAfter": "पछि",
+        "testOutcome": "नतिजा: {{outcome}}",
+        "testLatency": "{{ms}} मि.से.",
+        "testRawKept": "कच्चा ट्रान्सक्रिप्शन राखिनेछ।",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "अंग्रेजी (पेशागत)",
+            "description": "कामका लागि सफा अंग्रेजी: राम्रो व्याकरणसहित पूर्ण सफाइ।"
+          },
+          "english_casual": {
+            "name": "अंग्रेजी (सामान्य बोली)",
+            "description": "छोटो रूप र स्ल्याङ राख्ने बोलचालको अंग्रेजी।"
+          },
+          "english_technical": {
+            "name": "अंग्रेजी (प्राविधिक)",
+            "description": "कोडमित्र अंग्रेजी: पहिचान नाम, बाटो र आदेश जस्ताको तस्तै रहन्छन्।"
+          },
+          "english_minimal": {
+            "name": "अंग्रेजी (न्यूनतम)",
+            "description": "विराम चिह्न र ठूलो अक्षर मात्र सुधार; हरेक शब्द बोलेजस्तै रहन्छ।"
+          },
+          "hindi_devanagari": {
+            "name": "हिन्दी (देवनागरी)",
+            "description": "देवनागरी लिपिमा हिन्दी सफाइ, पूर्ण विराम चिह्नसहित।"
+          },
+          "hinglish_roman": {
+            "name": "हिङ्लिश (रोमन)",
+            "description": "बोलिने हिन्दी-अंग्रेजी मिश्रण रोमन लिपिमै राख्छ।"
+          },
+          "marathi": {
+            "name": "मराठी",
+            "description": "देवनागरी लिपिमा मराठी सफाइ।"
+          },
+          "tamil": {
+            "name": "तमिल",
+            "description": "तमिल लिपिमा तमिल सफाइ।"
+          },
+          "spanish": {
+            "name": "स्पेनिस",
+            "description": "उल्टो प्रश्नवाचक र विस्मयादिबोधक चिह्नसहित स्पेनिस सफाइ।"
+          },
+          "french": {
+            "name": "फ्रेन्च",
+            "description": "फ्रेन्च खाली स्थान र उद्धरण चिह्नसहित फ्रेन्च सफाइ।"
+          },
+          "german": {
+            "name": "जर्मन",
+            "description": "संज्ञा ठूलो अक्षरबाट सुरु गर्दै जर्मन सफाइ।"
+          },
+          "japanese": {
+            "name": "जापानी",
+            "description": "जापानी विराम चिह्न र कान्जी सुधारसहित जापानी सफाइ।"
+          },
+          "chinese_simplified": {
+            "name": "चिनियाँ (सरलीकृत)",
+            "description": "समान ध्वनी शब्द सुधारसहित सरलीकृत चिनियाँ सफाइ।"
+          }
+        },
+        "editPrompt": "सम्पादन गर्ने"
       }
     },
     "history": {
@@ -1088,7 +1171,8 @@
       "waylandTauriHotkeys": "यो किबोर्ड कार्यान्वयनसँग नेटिभ Wayland एपहरूमा ग्लोबल सर्टकट काम नगर्न सक्छ। किबोर्ड कार्यान्वयन VoxBar Keys मा बदल्नुहोस् र आफ्नो प्रयोगकर्तालाई input समूहमा थप्नुहोस्; Ubuntu गाइड हेर्नुहोस्।",
       "gnomeOverlayFallback": "GNOME Wayland मा ओभरले सामान्य सञ्झ्यालजस्तै देखिन्छ, जसले फोकस खोस्न र टाँस्ने काम बिगार्न सक्छ। यहाँ ओभरले: कुनै होइन सिफारिस गरिन्छ।",
       "postProcessOutputInvalid": "पोलिसले अनुपयोगी पाठ फर्कायो, त्यसैले मूल ट्रान्सक्रिप्ट राखियो।",
-      "postProcessCloudFailed": "पोलिस असफल भयो, मूल ट्रान्सक्रिप्ट राखियो: {{detail}}"
+      "postProcessCloudFailed": "पोलिस असफल भयो, मूल ट्रान्सक्रिप्ट राखियो: {{detail}}",
+      "postProcessPromptCycled": "पोस्ट-प्रोसेस टेम्पलेट: {{name}}"
     },
     "commandBadge": "कमाण्ड मोड",
     "ppChip": "पोलिस हुँदै ({{model}}) {{seconds}}s"

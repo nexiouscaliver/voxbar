@@ -396,11 +396,13 @@ function App() {
                 ? "undoNoBuffer"
                 : code === "binding_busy"
                   ? "bindingBusy"
-                  : code === "wayland_tauri_hotkeys"
-                    ? "waylandTauriHotkeys"
-                    : code === "gnome_overlay_fallback"
-                      ? "gnomeOverlayFallback"
-                      : null;
+                  : code === "post_process_prompt_cycled"
+                    ? "postProcessPromptCycled"
+                    : code === "wayland_tauri_hotkeys"
+                      ? "waylandTauriHotkeys"
+                      : code === "gnome_overlay_fallback"
+                        ? "gnomeOverlayFallback"
+                        : null;
       if (keySuffix === null) return;
       const duration =
         code === "wayland_tauri_hotkeys" || code === "gnome_overlay_fallback"
@@ -409,7 +411,14 @@ function App() {
       const now = Date.now();
       if (now - (lastNoopNoticeToast.current[code] ?? 0) < 2000) return;
       lastNoopNoticeToast.current[code] = now;
-      toast.info(t(`overlay.notice.${keySuffix}`), { duration });
+      toast.info(
+        code === "post_process_prompt_cycled"
+          ? t(`overlay.notice.${keySuffix}`, {
+              name: event.payload.detail ?? "",
+            })
+          : t(`overlay.notice.${keySuffix}`),
+        { duration },
+      );
     });
     return () => {
       unlisten.then((fn) => fn());

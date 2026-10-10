@@ -12,7 +12,8 @@
     "postProcessModel": "Efterbehandlingsmodel",
     "quit": "Afslut",
     "cancel": "Annuller",
-    "secureInputWarning": "⚠ Genveje blokeret af Secure Input"
+    "secureInputWarning": "⚠ Genveje blokeret af Secure Input",
+    "postProcessPrompt": "Efterbehandlingstekst"
   },
   "sidebar": {
     "general": "Generelt",
@@ -221,6 +222,10 @@
           "transcribe_commands": {
             "name": "Kommandotilstand",
             "description": "Hold denne tast nede, mens en dikteringssession er aktiv, for at skifte til kommandofortolkning: alt hvad du siger, redigerer dikteringsbufferen direkte (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), og ikke-genkendte ord kasseres. Slip tasten for at vende tilbage til normal diktering; den endelige indsættelse leverer præcis den redigerede buffer. Starter aldrig en optagelse og gør intet alene. Som standard uden tast."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Skift efterbehandlingstekst",
+            "description": "Valgfrit: går videre til den næste valgte efterbehandlingsskabelon og bekræfter den nye skabelon."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Opret prompt",
         "cancel": "Annuller",
         "selectToEdit": "Vælg en prompt ovenfor for at se og redigere dens detaljer.",
-        "createFirst": "Klik på 'Opret ny prompt' ovenfor for at oprette din første efterbehandlingsprompt."
+        "createFirst": "Klik på 'Opret ny prompt' ovenfor for at oprette din første efterbehandlingsprompt.",
+        "registers": {
+          "professional": "Professionel",
+          "casual": "Afslappet",
+          "technical": "Teknisk",
+          "minimal": "Minimal",
+          "general": "Generel"
+        },
+        "builtinBadge": "Indbygget",
+        "customBadge": "Egen",
+        "editedBadge": "Redigeret",
+        "versionLabel": "Version {{version}}",
+        "duplicate": "Dupliker",
+        "testOnLastTranscript": "Test på min seneste transskription",
+        "testing": "Tester...",
+        "testNoHistory": "Der er endnu ingen transskriptionshistorik. Optag noget først.",
+        "testPromptNotFound": "Denne skabelon findes ikke længere.",
+        "testFailed": "Testen mislykkedes: {{detail}}",
+        "testResultTitle": "Testresultat",
+        "testBefore": "Før",
+        "testAfter": "Efter",
+        "testOutcome": "Resultat: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Den rå transskription ville blive bevaret.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Engelsk (professionel)",
+            "description": "Pænt engelsk til arbejdet: fuld oprydning med poleret grammatik."
+          },
+          "english_casual": {
+            "name": "Engelsk (afslappet)",
+            "description": "Uformelt engelsk der bevarer sammentrækninger og slang."
+          },
+          "english_technical": {
+            "name": "Engelsk (teknisk)",
+            "description": "Kodevenligt engelsk: identifikatorer, stier og kommandoer bevares ordret."
+          },
+          "english_minimal": {
+            "name": "Engelsk (minimal)",
+            "description": "Kun rettelse af tegnsætning og store bogstaver; hvert ord forbliver som dikteret."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (devanagari)",
+            "description": "Oprydning af hindi i devanagari-skrift med purna viram-tegn."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (romersk)",
+            "description": "Bevarer den talte blanding af hindi og engelsk i romersk skrift."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Oprydning af marathi i devanagari-skrift."
+          },
+          "tamil": {
+            "name": "Tamil",
+            "description": "Oprydning af tamil i tamil-skrift."
+          },
+          "spanish": {
+            "name": "Spansk",
+            "description": "Oprydning af spansk med omvendte spørgsmåls- og udråbstegn."
+          },
+          "french": {
+            "name": "Fransk",
+            "description": "Oprydning af fransk med franske mellemrum og anførselstegn."
+          },
+          "german": {
+            "name": "Tysk",
+            "description": "Oprydning af tysk med store begyndelsesbogstaver i navneord."
+          },
+          "japanese": {
+            "name": "Japansk",
+            "description": "Oprydning af japansk med japansk tegnsætning og kanji-rettelser."
+          },
+          "chinese_simplified": {
+            "name": "Kinesisk (forenklet)",
+            "description": "Oprydning af forenklet kinesisk med rettelse af homofone tegn."
+          }
+        },
+        "editPrompt": "Rediger"
       }
     },
     "history": {
@@ -1088,7 +1171,8 @@
       "waylandTauriHotkeys": "Globale genveje fungerer måske ikke i native Wayland-apps med denne tastaturimplementering. Skift tastaturimplementering til VoxBar Keys, og tilføj din bruger til input-gruppen; se Ubuntu-guiden.",
       "gnomeOverlayFallback": "På GNOME Wayland vises overlayet som et almindeligt vindue, der kan stjæle fokus og ødelægge indsætning. Anbefalingen er her Overlay: Ingen.",
       "postProcessOutputInvalid": "Rensningen returnerede ubrugelig tekst, den originale transskription blev beholdt.",
-      "postProcessCloudFailed": "Rensningen fejlede, den originale transskription blev beholdt: {{detail}}"
+      "postProcessCloudFailed": "Rensningen fejlede, den originale transskription blev beholdt: {{detail}}",
+      "postProcessPromptCycled": "Efterbehandlingsskabelon: {{name}}"
     },
     "commandBadge": "Kommandotilstand",
     "ppChip": "Renser ({{model}}) {{seconds}}s"

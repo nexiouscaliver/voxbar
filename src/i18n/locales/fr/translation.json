@@ -12,7 +12,8 @@
     "postProcessModel": "Modèle de post-traitement",
     "quit": "Quitter",
     "cancel": "Annuler",
-    "secureInputWarning": "⚠ Raccourcis bloqués par Secure Input"
+    "secureInputWarning": "⚠ Raccourcis bloqués par Secure Input",
+    "postProcessPrompt": "Prompt de post-traitement"
   },
   "sidebar": {
     "general": "Général",
@@ -273,6 +274,10 @@
           "transcribe_commands": {
             "name": "Mode commandes",
             "description": "Maintenez cette touche pendant une dictée active pour passer en interprétation de commandes : tout ce que vous dictez modifie directement la mémoire tampon de la dictée (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) et les mots non reconnus sont ignorés. Relâchez-la pour revenir à la dictée normale ; le collage final livre exactement la mémoire tampon modifiée. Ne démarre jamais un enregistrement et ne fait rien seule. Non assignée par défaut."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Changer le prompt de post-traitement",
+            "description": "Optionnel : passe au modèle de post-traitement suivant et confirme le nouveau modèle."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Créer le prompt",
         "cancel": "Annuler",
         "selectToEdit": "Sélectionnez un prompt ci-dessus pour voir et modifier ses détails.",
-        "createFirst": "Cliquez sur 'Créer un nouveau prompt' ci-dessus pour créer votre premier prompt de post-traitement."
+        "createFirst": "Cliquez sur 'Créer un nouveau prompt' ci-dessus pour créer votre premier prompt de post-traitement.",
+        "registers": {
+          "professional": "Professionnel",
+          "casual": "Décontracté",
+          "technical": "Technique",
+          "minimal": "Minimal",
+          "general": "Général"
+        },
+        "builtinBadge": "Intégré",
+        "customBadge": "Personnel",
+        "editedBadge": "Modifié",
+        "versionLabel": "Version {{version}}",
+        "duplicate": "Dupliquer",
+        "testOnLastTranscript": "Tester sur ma dernière transcription",
+        "testing": "Test en cours...",
+        "testNoHistory": "Pas encore d'historique de transcription. Enregistrez d'abord quelque chose.",
+        "testPromptNotFound": "Ce modèle n'existe plus.",
+        "testFailed": "Échec du test : {{detail}}",
+        "testResultTitle": "Résultat du test",
+        "testBefore": "Avant",
+        "testAfter": "Après",
+        "testOutcome": "Résultat : {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "La transcription brute serait conservée.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Anglais professionnel",
+            "description": "Anglais soigné pour le travail : nettoyage complet avec grammaire polie."
+          },
+          "english_casual": {
+            "name": "Anglais décontracté",
+            "description": "Anglais conversationnel qui garde contractions et argot."
+          },
+          "english_technical": {
+            "name": "Anglais technique",
+            "description": "Anglais adapté au code : identifiants, chemins et commandes conservés tels quels."
+          },
+          "english_minimal": {
+            "name": "Anglais minimal",
+            "description": "Corrections de ponctuation et de majuscules seulement ; chaque mot reste dicté."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (devanagari)",
+            "description": "Nettoyage de l'hindi en écriture devanagari avec la ponctuation purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (romain)",
+            "description": "Garde le mélange parlé hindi-anglais en écriture romaine."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Nettoyage du marathi en écriture devanagari."
+          },
+          "tamil": {
+            "name": "Tamoul",
+            "description": "Nettoyage du tamoul en écriture tamoule."
+          },
+          "spanish": {
+            "name": "Espagnol",
+            "description": "Nettoyage de l'espagnol avec points d'interrogation et d'exclamation inversés."
+          },
+          "french": {
+            "name": "Français",
+            "description": "Nettoyage du français avec espaces et guillemets français."
+          },
+          "german": {
+            "name": "Allemand",
+            "description": "Nettoyage de l'allemand avec noms capitalisés."
+          },
+          "japanese": {
+            "name": "Japonais",
+            "description": "Nettoyage du japonais avec ponctuation japonaise et correction des kanji."
+          },
+          "chinese_simplified": {
+            "name": "Chinois (simplifié)",
+            "description": "Nettoyage du chinois simplifié avec correction des homophones."
+          }
+        },
+        "editPrompt": "Modifier"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "Les raccourcis globaux peuvent ne pas fonctionner dans les applications Wayland natives avec cette implémentation clavier. Passez l'implémentation clavier à VoxBar Keys et ajoutez votre utilisateur au groupe input ; consultez le guide Ubuntu.",
       "gnomeOverlayFallback": "Sous GNOME Wayland, l'overlay apparaît comme une fenêtre ordinaire qui peut voler le focus et casser le collage. Overlay : Aucune est recommandé ici.",
       "postProcessOutputInvalid": "Le polissage a renvoyé un texte inutilisable, la transcription brute a été conservée.",
-      "postProcessCloudFailed": "Le polissage a échoué, la transcription brute a été conservée : {{detail}}"
+      "postProcessCloudFailed": "Le polissage a échoué, la transcription brute a été conservée : {{detail}}",
+      "postProcessPromptCycled": "Modèle de post-traitement : {{name}}"
     },
     "commandBadge": "Mode commandes",
     "ppChip": "Polish en cours ({{model}}) {{seconds}}s"

@@ -12,7 +12,8 @@
     "postProcessModel": "Model následného zpracování",
     "quit": "Ukončit",
     "cancel": "Zrušit",
-    "secureInputWarning": "⚠ Zkratky blokuje Secure Input"
+    "secureInputWarning": "⚠ Zkratky blokuje Secure Input",
+    "postProcessPrompt": "Prompt následného zpracování"
   },
   "sidebar": {
     "general": "Obecné",
@@ -273,6 +274,10 @@
           "transcribe_commands": {
             "name": "Režim příkazů",
             "description": "Podržte tuto klávesu během živé relace diktování, aby se přepla do režimu interpretace příkazů: vše, co řeknete, upravuje přímo vyrovnávací paměť diktování (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) a nerozpoznaná slova se zahazují. Uvolněte klávesu pro návrat k normálnímu diktování; konečné vložení dodá přesně upravenou vyrovnávací paměť. Nikdy nespustí nahrávání a sama o sobě nic nedělá. Ve výchozím nastavení bez klávesy."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Přepínat prompt následného zpracování",
+            "description": "Volitelné: posune vybranou šablonu následného zpracování na další a potvrdí novou šablonu."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Vytvořit prompt",
         "cancel": "Zrušit",
         "selectToEdit": "Vyberte výše prompt, abyste zobrazili a upravili jeho podrobnosti.",
-        "createFirst": "Klikněte nahoře na 'Vytvořit nový prompt' a vytvořte svůj první prompt pro následné zpracování."
+        "createFirst": "Klikněte nahoře na 'Vytvořit nový prompt' a vytvořte svůj první prompt pro následné zpracování.",
+        "registers": {
+          "professional": "Profesionální",
+          "casual": "Neformální",
+          "technical": "Technický",
+          "minimal": "Minimální",
+          "general": "Obecný"
+        },
+        "builtinBadge": "Vestavěná",
+        "customBadge": "Vlastní",
+        "editedBadge": "Upravená",
+        "versionLabel": "Verze {{version}}",
+        "duplicate": "Duplikovat",
+        "testOnLastTranscript": "Vyzkoušet na posledním přepisu",
+        "testing": "Testuji...",
+        "testNoHistory": "Zatím není žádná historie přepisů. Nejprve něco nahrjte.",
+        "testPromptNotFound": "Tato šablona už neexistuje.",
+        "testFailed": "Test selhal: {{detail}}",
+        "testResultTitle": "Výsledek testu",
+        "testBefore": "Před",
+        "testAfter": "Po",
+        "testOutcome": "Výsledek: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Původní přepis by zůstal zachován.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Angličtina (profesionální)",
+            "description": "Uhlazená angličtina pro práci: úplné vyčištění s poupravenou gramatikou."
+          },
+          "english_casual": {
+            "name": "Angličtina (neformální)",
+            "description": "Hovorová angličtina, která zachovává zkratky a slang."
+          },
+          "english_technical": {
+            "name": "Angličtina (technická)",
+            "description": "Angličtina přívětivá ke kódu: identifikátory, cesty a příkazy zůstávají beze změny."
+          },
+          "english_minimal": {
+            "name": "Angličtina (minimální)",
+            "description": "Pouze opravy interpunkce a velkých písmen; každé slovo zůstává diktované."
+          },
+          "hindi_devanagari": {
+            "name": "Hindština (dévanágarí)",
+            "description": "Úprava hindštiny v písmu dévanágarí s interpunkcí purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (latinka)",
+            "description": "Zachovává mluvenou směs hindštiny a angličtiny v latince."
+          },
+          "marathi": {
+            "name": "Maráthština",
+            "description": "Úprava maráthštiny v písmu dévanágarí."
+          },
+          "tamil": {
+            "name": "Tamilština",
+            "description": "Úprava tamilštiny v tamilském písmu."
+          },
+          "spanish": {
+            "name": "Španělština",
+            "description": "Úprava španělštiny s obrácenými otazníky a vykřičníky."
+          },
+          "french": {
+            "name": "Francouzština",
+            "description": "Úprava francouzštiny s francouzskými mezerami a uvozovkami."
+          },
+          "german": {
+            "name": "Němčina",
+            "description": "Úprava němčiny s podstatnými jmény s velkým počátečním písmenem."
+          },
+          "japanese": {
+            "name": "Japonština",
+            "description": "Úprava japonštiny s japonskou interpunkcí a opravami kandži."
+          },
+          "chinese_simplified": {
+            "name": "Čínština (zjednodušená)",
+            "description": "Úprava zjednodušené čínštiny s opravami stejně znějících znaků."
+          }
+        },
+        "editPrompt": "Upravit"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "Globální zkratky při této implementaci klávesnice nemusí fungovat v nativních aplikacích Wayland. Přepněte implementaci klávesnice na VoxBar Keys a přidejte svého uživatele do skupiny input; viz průvodce pro Ubuntu.",
       "gnomeOverlayFallback": "Na GNOME Wayland se překryv zobrazí jako běžné okno, které může ukrást fokus a rozbít vkládání. Doporučuje se zde Překryv: Žádné.",
       "postProcessOutputInvalid": "Čištění vrátilo nepoužitelný text, původní přepis byl zachován.",
-      "postProcessCloudFailed": "Čištění selhalo, původní přepis byl zachován: {{detail}}"
+      "postProcessCloudFailed": "Čištění selhalo, původní přepis byl zachován: {{detail}}",
+      "postProcessPromptCycled": "Šablona následného zpracování: {{name}}"
     },
     "commandBadge": "Režim příkazů",
     "ppChip": "Čistím ({{model}}) {{seconds}}s"

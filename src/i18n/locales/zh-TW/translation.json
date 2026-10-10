@@ -12,7 +12,8 @@
     "postProcessModel": "後處理模型",
     "quit": "結束",
     "cancel": "取消",
-    "secureInputWarning": "⚠ 快捷鍵被 Secure Input 阻擋"
+    "secureInputWarning": "⚠ 快捷鍵被 Secure Input 阻擋",
+    "postProcessPrompt": "後處理提示詞"
   },
   "sidebar": {
     "general": "一般",
@@ -221,6 +222,10 @@
           "transcribe_commands": {
             "name": "命令模式",
             "description": "在聽寫會話進行期間按住此鍵可切換到命令解釋模式：所說的一切都會直接編輯聽寫緩衝區 (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line)，無法辨識的詞會被丟棄。放開後恢復一般聽寫；最終貼上交付的正是編輯後的緩衝區。它絕不會自行開始錄音，單獨按下不做任何事。預設不綁定按鍵。"
+          },
+          "cycle_post_process_prompt": {
+            "name": "切換後處理提示詞",
+            "description": "選用：將選定的後處理範本切換到下一個，並確認新範本。"
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "建立提示詞",
         "cancel": "取消",
         "selectToEdit": "選擇上方的提示詞以檢視和編輯其詳細資訊",
-        "createFirst": "點選上方的「建立新提示詞」來建立您的第一個後處理提示詞"
+        "createFirst": "點選上方的「建立新提示詞」來建立您的第一個後處理提示詞",
+        "registers": {
+          "professional": "專業",
+          "casual": "日常",
+          "technical": "技術",
+          "minimal": "極簡",
+          "general": "一般"
+        },
+        "builtinBadge": "內建",
+        "customBadge": "自訂",
+        "editedBadge": "已編輯",
+        "versionLabel": "版本 {{version}}",
+        "duplicate": "複製",
+        "testOnLastTranscript": "用最近一段轉錄測試",
+        "testing": "測試中...",
+        "testNoHistory": "還沒有轉錄歷史。請先錄一段。",
+        "testPromptNotFound": "此範本已不存在。",
+        "testFailed": "測試失敗：{{detail}}",
+        "testResultTitle": "測試結果",
+        "testBefore": "之前",
+        "testAfter": "之後",
+        "testOutcome": "結果：{{outcome}}",
+        "testLatency": "{{ms}} 毫秒",
+        "testRawKept": "將保留原始轉錄文字。",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "英語（專業）",
+            "description": "乾淨、適合辦公的英語：全面清理並打磨文法。"
+          },
+          "english_casual": {
+            "name": "英語（日常）",
+            "description": "保留縮寫與俚語的口語化英語。"
+          },
+          "english_technical": {
+            "name": "英語（技術）",
+            "description": "適合程式碼的英語：識別字、路徑與指令原樣保留。"
+          },
+          "english_minimal": {
+            "name": "英語（極簡）",
+            "description": "只修正標點與大小寫；每個字保持口述原樣。"
+          },
+          "hindi_devanagari": {
+            "name": "印地語（天城文）",
+            "description": "以天城文清理印地語，使用全形句點標點。"
+          },
+          "hinglish_roman": {
+            "name": "印地英語（羅馬字）",
+            "description": "保留口述中印地語與英語混說的風格，使用羅馬字。"
+          },
+          "marathi": {
+            "name": "馬拉提語",
+            "description": "以天城文清理馬拉提語。"
+          },
+          "tamil": {
+            "name": "坦米爾語",
+            "description": "以坦米爾文清理坦米爾語。"
+          },
+          "spanish": {
+            "name": "西班牙語",
+            "description": "清理西班牙語，使用倒問號與倒驚嘆號。"
+          },
+          "french": {
+            "name": "法語",
+            "description": "清理法語，遵循法語空格與引號規範。"
+          },
+          "german": {
+            "name": "德語",
+            "description": "清理德語，名詞保持首字母大寫。"
+          },
+          "japanese": {
+            "name": "日語",
+            "description": "清理日語，修正日式標點與漢字。"
+          },
+          "chinese_simplified": {
+            "name": "中文（簡體）",
+            "description": "清理簡體中文，修正同音錯字。"
+          }
+        },
+        "editPrompt": "編輯"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "在此鍵盤實作下，原生 Wayland 應用程式中的全域快捷鍵可能失效。請將鍵盤實作切換為 VoxBar Keys，並把使用者加入 input 群組；詳見 Ubuntu 疑難排解指南。",
       "gnomeOverlayFallback": "在 GNOME Wayland 上，懸浮窗會以一般視窗形式出現，可能搶走焦點並破壞貼上。此處建議將懸浮窗設為無。",
       "postProcessOutputInvalid": "潤飾回傳了無法使用的文字，已保留原始謄寫。",
-      "postProcessCloudFailed": "潤飾失敗，已保留原始謄寫：{{detail}}"
+      "postProcessCloudFailed": "潤飾失敗，已保留原始謄寫：{{detail}}",
+      "postProcessPromptCycled": "後處理範本：{{name}}"
     },
     "commandBadge": "命令模式",
     "ppChip": "潤飾中 ({{model}}) {{seconds}}秒"

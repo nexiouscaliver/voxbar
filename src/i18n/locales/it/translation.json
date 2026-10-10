@@ -12,7 +12,8 @@
     "postProcessModel": "Modello di post-elaborazione",
     "quit": "Esci",
     "cancel": "Annulla",
-    "secureInputWarning": "⚠ Scorciatoie bloccate da Secure Input"
+    "secureInputWarning": "⚠ Scorciatoie bloccate da Secure Input",
+    "postProcessPrompt": "Prompt di post-elaborazione"
   },
   "sidebar": {
     "general": "Generale",
@@ -273,6 +274,10 @@
           "transcribe_commands": {
             "name": "Modalità comandi",
             "description": "Tieni premuto questo tasto mentre una sessione di dettatura è attiva per passare all'interpretazione dei comandi: tutto ciò che detti modifica direttamente il buffer della dettatura (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) e le parole non riconosciute vengono scartate. Rilascia il tasto per tornare alla dettatura normale; l'incolla finale consegna esattamente il buffer modificato. Non avvia mai una registrazione e da solo non fa nulla. Senza tasto per impostazione predefinita."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Scorri i prompt di post-elaborazione",
+            "description": "Opzionale: passa al modello di post-elaborazione selezionato successivo e conferma il nuovo modello."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Crea Prompt",
         "cancel": "Annulla",
         "selectToEdit": "Scegli un prompt qui sopra per visualizzare o modificare i dettagli.",
-        "createFirst": "Clicca 'Crea un nuovo prompt' qui sopra per creare il tuo primo prompt di post-elaborazione."
+        "createFirst": "Clicca 'Crea un nuovo prompt' qui sopra per creare il tuo primo prompt di post-elaborazione.",
+        "registers": {
+          "professional": "Professionale",
+          "casual": "Informale",
+          "technical": "Tecnico",
+          "minimal": "Minimale",
+          "general": "Generale"
+        },
+        "builtinBadge": "Integrato",
+        "customBadge": "Personale",
+        "editedBadge": "Modificato",
+        "versionLabel": "Versione {{version}}",
+        "duplicate": "Duplica",
+        "testOnLastTranscript": "Prova sull'ultima trascrizione",
+        "testing": "Test in corso...",
+        "testNoHistory": "Non c'è ancora cronologia delle trascrizioni. Registra qualcosa prima.",
+        "testPromptNotFound": "Questo modello non esiste più.",
+        "testFailed": "Test non riuscito: {{detail}}",
+        "testResultTitle": "Risultato del test",
+        "testBefore": "Prima",
+        "testAfter": "Dopo",
+        "testOutcome": "Esito: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Verrebbe mantenuta la trascrizione originale.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Inglese professionale",
+            "description": "Inglese curato per il lavoro: pulizia completa con grammatica rifinita."
+          },
+          "english_casual": {
+            "name": "Inglese informale",
+            "description": "Inglese colloquiale che mantiene contrazioni e gergo."
+          },
+          "english_technical": {
+            "name": "Inglese tecnico",
+            "description": "Inglese adatto al codice: identificatori, percorsi e comandi restano invariati."
+          },
+          "english_minimal": {
+            "name": "Inglese minimale",
+            "description": "Solo correzioni di punteggiatura e maiuscole; ogni parola resta come dettata."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (devanagari)",
+            "description": "Pulizia dell'hindi in scrittura devanagari con punteggiatura purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (romano)",
+            "description": "Mantiene il mix parlato di hindi e inglese in scrittura romana."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Pulizia del marathi in scrittura devanagari."
+          },
+          "tamil": {
+            "name": "Tamil",
+            "description": "Pulizia del tamil in scrittura tamil."
+          },
+          "spanish": {
+            "name": "Spagnolo",
+            "description": "Pulizia dello spagnolo con punti interrogativi ed esclamativi invertiti."
+          },
+          "french": {
+            "name": "Francese",
+            "description": "Pulizia del francese con spaziatura e virgolette francesi."
+          },
+          "german": {
+            "name": "Tedesco",
+            "description": "Pulizia del tedesco con sostantivi in maiuscolo."
+          },
+          "japanese": {
+            "name": "Giapponese",
+            "description": "Pulizia del giapponese con punteggiatura giapponese e correzione dei kanji."
+          },
+          "chinese_simplified": {
+            "name": "Cinese (semplificato)",
+            "description": "Pulizia del cinese semplificato con correzione degli omofoni."
+          }
+        },
+        "editPrompt": "Modifica"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "Le scorciatoie globali potrebbero non funzionare nelle app Wayland native con questa implementazione della tastiera. Passa l'implementazione della tastiera a VoxBar Keys e aggiungi il tuo utente al gruppo input; consulta la guida per Ubuntu.",
       "gnomeOverlayFallback": "Su GNOME Wayland l'overlay appare come una finestra normale che può rubare il focus e interrompere l'incollamento. Qui si consiglia Overlay: Nessuno.",
       "postProcessOutputInvalid": "La rifinitura ha restituito testo inutilizzabile, la trascrizione originale è stata mantenuta.",
-      "postProcessCloudFailed": "La rifinitura non è riuscita, la trascrizione originale è stata mantenuta: {{detail}}"
+      "postProcessCloudFailed": "La rifinitura non è riuscita, la trascrizione originale è stata mantenuta: {{detail}}",
+      "postProcessPromptCycled": "Modello di post-elaborazione: {{name}}"
     },
     "commandBadge": "Modalità comandi",
     "ppChip": "Rifinitura ({{model}}) {{seconds}}s"

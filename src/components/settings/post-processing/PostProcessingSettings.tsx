@@ -1,7 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { RefreshCcw } from "lucide-react";
-import { commands, type TestConnectionResult } from "@/bindings";
+import {
+  commands,
+  type LLMPrompt,
+  type PromptTestOutcome,
+  type TestPromptError,
+  type TestConnectionResult,
+} from "@/bindings";
 
 import { Alert } from "../../ui/Alert";
 import {
@@ -11,6 +17,7 @@ import {
   Slider,
   Textarea,
 } from "@/components/ui";
+import Badge from "../../ui/Badge";
 import { Button } from "../../ui/Button";
 import { ResetButton } from "../../ui/ResetButton";
 import { Input } from "../../ui/Input";
@@ -301,6 +308,159 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
   );
 };
 
+/// One row of the template library list: name, language/register badges,
+/// the catalog description, and the row actions (select happens through the
+/// dropdown above; Edit focuses this template in the editor below).
+const TemplateRow: React.FC<{
+  prompt: LLMPrompt;
+  isSelected: boolean;
+  isBusy: boolean;
+  onSelect: () => void;
+  onEdit: () => void;
+  onDuplicate: () => void;
+  onTest: () => void;
+  onDelete: () => void;
+  canDelete: boolean;
+}> = ({
+  prompt,
+  isSelected,
+  isBusy,
+  onSelect,
+  onEdit,
+  onDuplicate,
+  onTest,
+  onDelete,
+  canDelete,
+}) => {
+  const { t } = useTranslation();
+  const base = "settings.postProcessing.prompts";
+  const displayName = prompt.is_builtin
+    ? t(`${base}.templates.${prompt.id}.name`, { defaultValue: prompt.name })
+    : prompt.name;
+  const description = prompt.is_builtin
+    ? t(`${base}.templates.${prompt.id}.description`, {
+        defaultValue: prompt.description,
+      })
+    : prompt.description;
+
+  return (
+    <div
+      className={`p-3 rounded-md border ${
+        isSelected
+          ? "border-logo-primary bg-logo-primary/5"
+          : "border-mid-gray/20"
+      }`}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-sm font-medium truncate">{displayName}</span>
+            <Badge variant="secondary">{prompt.language}</Badge>
+            <Badge variant="secondary">
+              {t(`${base}.registers.${prompt.register ?? "general"}`, {
+                defaultValue: prompt.register ?? "general",
+              })}
+            </Badge>
+            <Badge variant={prompt.is_builtin ? "primary" : "success"}>
+              {prompt.is_builtin
+                ? t(`${base}.builtinBadge`)
+                : t(`${base}.customBadge`)}
+            </Badge>
+            {(prompt.version ?? 0) > 1 && (
+              <Badge variant="secondary">{t(`${base}.editedBadge`)}</Badge>
+            )}
+          </div>
+          {description && (
+            <p className="mt-1 text-xs text-secondary/80 leading-snug">
+              {description}
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1.5">
+          <Button
+            onClick={onSelect}
+            variant="secondary"
+            size="sm"
+            disabled={isSelected || isBusy}
+          >
+            {t(`${base}.selectPrompt`)}
+          </Button>
+          <Button onClick={onEdit} variant="secondary" size="sm">
+            {t(`${base}.editPrompt`)}
+          </Button>
+          <Button
+            onClick={onDuplicate}
+            variant="secondary"
+            size="sm"
+            disabled={isBusy}
+          >
+            {t(`${base}.duplicate`)}
+          </Button>
+          <Button
+            onClick={onTest}
+            variant="secondary"
+            size="sm"
+            disabled={isBusy}
+          >
+            {t(`${base}.testOnLastTranscript`)}
+          </Button>
+          <Button
+            onClick={onDelete}
+            variant="secondary"
+            size="sm"
+            disabled={!canDelete || isBusy}
+          >
+            {t(`${base}.deletePrompt`)}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/// The before/after panel the Test button renders: the run's outcome token
+/// and latency, the transcript as it was, what it would become, and the
+/// raw-kept note when the engine failed or skipped.
+const PromptTestResultPanel: React.FC<{ result: PromptTestOutcome }> = ({
+  result,
+}) => {
+  const { t } = useTranslation();
+  const base = "settings.postProcessing.prompts";
+  return (
+    <div className="p-3 rounded-md border border-mid-gray/20 space-y-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-sm font-medium">
+          {t(`${base}.testResultTitle`)}
+        </span>
+        <Badge variant="secondary">
+          {t(`${base}.testOutcome`, { outcome: result.outcome })}
+        </Badge>
+        <Badge variant="secondary">
+          {t(`${base}.testLatency`, { ms: result.latency_ms })}
+        </Badge>
+      </div>
+      <div className="grid gap-2 md:grid-cols-2">
+        <div>
+          <p className="text-xs font-medium text-secondary">
+            {t(`${base}.testBefore`)}
+          </p>
+          <p className="mt-1 text-sm whitespace-pre-wrap break-words">
+            {result.before}
+          </p>
+        </div>
+        <div>
+          <p className="text-xs font-medium text-secondary">
+            {t(`${base}.testAfter`)}
+          </p>
+          <p className="mt-1 text-sm whitespace-pre-wrap break-words">
+            {result.after ?? t(`${base}.testRawKept`)}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PostProcessingSettingsPromptsComponent: React.FC = () => {
   const { t } = useTranslation();
   const { getSetting, updateSetting, isUpdating, refreshSettings } =
@@ -308,6 +468,9 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftText, setDraftText] = useState("");
+  const [testingId, setTestingId] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<PromptTestOutcome | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
 
   const prompts = getSetting("post_process_prompts") || [];
   const selectedPromptId = getSetting("post_process_selected_prompt_id") || "";
@@ -382,6 +545,46 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
     }
   };
 
+  const handleDuplicatePrompt = async (promptId: string) => {
+    try {
+      const result = await commands.duplicatePostProcessPrompt(promptId);
+      if (result.status === "ok") {
+        await refreshSettings();
+        // The copy becomes the selection so the editor opens on it.
+        updateSetting("post_process_selected_prompt_id", result.data.id);
+      }
+    } catch (error) {
+      console.error("Failed to duplicate prompt:", error);
+    }
+  };
+
+  const handleTestPrompt = async (promptId: string) => {
+    setTestingId(promptId);
+    setTestResult(null);
+    setTestError(null);
+    const base = "settings.postProcessing.prompts";
+    try {
+      const result = await commands.testPostProcessPrompt(promptId);
+      if (result.status === "ok") {
+        setTestResult(result.data);
+      } else {
+        const error: TestPromptError = result.error;
+        setTestError(
+          error.kind === "no_history"
+            ? t(`${base}.testNoHistory`)
+            : error.kind === "prompt_not_found"
+              ? t(`${base}.testPromptNotFound`)
+              : t(`${base}.testFailed`, { detail: error.detail }),
+        );
+      }
+    } catch (error) {
+      console.error("Failed to test prompt:", error);
+      setTestError(String(error));
+    } finally {
+      setTestingId(null);
+    }
+  };
+
   const handleCancelCreate = () => {
     setIsCreating(false);
     if (selectedPrompt) {
@@ -404,6 +607,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
     !!selectedPrompt &&
     (draftName.trim() !== selectedPrompt.name ||
       draftText.trim() !== selectedPrompt.prompt.trim());
+  const base = "settings.postProcessing.prompts";
 
   return (
     <SettingContainer
@@ -421,7 +625,14 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             selectedValue={selectedPromptId || null}
             options={prompts.map((p) => ({
               value: p.id,
-              label: p.name,
+              label: p.is_builtin
+                ? t(`${base}.templates.${p.id}.name`, { defaultValue: p.name })
+                : p.name,
+              // The dropdown's per-entry badge line: language + register.
+              description: `${p.language ?? "auto"} · ${t(
+                `${base}.registers.${p.register ?? "general"}`,
+                { defaultValue: p.register ?? "general" },
+              )}`,
             }))}
             onSelect={(value) => handlePromptSelect(value)}
             placeholder={
@@ -444,6 +655,39 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             {t("settings.postProcessing.prompts.createNew")}
           </Button>
         </div>
+
+        {!isCreating && hasPrompts && (
+          <div className="space-y-2">
+            {prompts.map((prompt) => (
+              <TemplateRow
+                key={prompt.id}
+                prompt={prompt}
+                isSelected={prompt.id === selectedPromptId}
+                isBusy={testingId === prompt.id}
+                onSelect={() =>
+                  handlePromptSelect(
+                    prompt.id === selectedPromptId ? null : prompt.id,
+                  )
+                }
+                onEdit={() => handlePromptSelect(prompt.id)}
+                onDuplicate={() => handleDuplicatePrompt(prompt.id)}
+                onTest={() => handleTestPrompt(prompt.id)}
+                onDelete={() => handleDeletePrompt(prompt.id)}
+                canDelete={prompts.length > 1}
+              />
+            ))}
+          </div>
+        )}
+
+        {testingId && (
+          <p className="text-xs text-secondary/70">{t(`${base}.testing`)}</p>
+        )}
+        {testError && (
+          <Alert variant="error" contained>
+            {testError}
+          </Alert>
+        )}
+        {testResult && <PromptTestResultPanel result={testResult} />}
 
         {!isCreating && hasPrompts && selectedPrompt && (
           <div className="space-y-3">
@@ -584,6 +828,8 @@ PostProcessingSettingsPrompts.displayName = "PostProcessingSettingsPrompts";
 
 export const PostProcessingSettings: React.FC = () => {
   const { t } = useTranslation();
+  const { getSetting } = useSettings();
+  const postProcessEnabled = getSetting("post_process_enabled") ?? false;
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
@@ -592,6 +838,15 @@ export const PostProcessingSettings: React.FC = () => {
           shortcutId="transcribe_with_post_process"
           descriptionMode="tooltip"
           grouped={true}
+        />
+        {/* The cycle key is inert while the master toggle is off (the
+            backend gate refuses to register it), so the row greys out to
+            match. Unbound by default. */}
+        <ShortcutInput
+          shortcutId="cycle_post_process_prompt"
+          descriptionMode="tooltip"
+          grouped={true}
+          disabled={!postProcessEnabled}
         />
       </SettingsGroup>
 

@@ -12,7 +12,8 @@
     "postProcessModel": "Postprocesmodel",
     "quit": "Afsluiten",
     "cancel": "Annuleren",
-    "secureInputWarning": "⚠ Sneltoetsen geblokkeerd door Secure Input"
+    "secureInputWarning": "⚠ Sneltoetsen geblokkeerd door Secure Input",
+    "postProcessPrompt": "Postprocesprompt"
   },
   "sidebar": {
     "general": "Algemeen",
@@ -221,6 +222,10 @@
           "transcribe_commands": {
             "name": "Commandomodus",
             "description": "Houd deze toets ingedrukt terwijl een dicteersessie actief is om over te schakelen naar commandointerpretatie: alles wat u zegt bewerkt direct de dicteerbuffer (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) en niet-herkende woorden worden weggegooid. Laat de toets los om terug te keren naar normaal dicteren; de uiteindelijke plakactie levert exact de bewerkte buffer. Start nooit een opname en doet op zichzelf niets. Standaard zonder toets."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Postprocesprompt doorschakelen",
+            "description": "Optioneel: schakelt het geselecteerde postprocesjabloon door naar het volgende en bevestigt het nieuwe sjabloon."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Prompt maken",
         "cancel": "Annuleren",
         "selectToEdit": "Selecteer hierboven een prompt om de details te bekijken en te bewerken.",
-        "createFirst": "Klik hierboven op 'Nieuwe prompt maken' om je eerste naverwerkingsprompt aan te maken."
+        "createFirst": "Klik hierboven op 'Nieuwe prompt maken' om je eerste naverwerkingsprompt aan te maken.",
+        "registers": {
+          "professional": "Professioneel",
+          "casual": "Informeel",
+          "technical": "Technisch",
+          "minimal": "Minimaal",
+          "general": "Algemeen"
+        },
+        "builtinBadge": "Ingebouwd",
+        "customBadge": "Eigen",
+        "editedBadge": "Bewerkt",
+        "versionLabel": "Versie {{version}}",
+        "duplicate": "Dupliceren",
+        "testOnLastTranscript": "Testen op mijn laatste transcriptie",
+        "testing": "Testen...",
+        "testNoHistory": "Er is nog geen transcriptiegeschiedenis. Neem eerst iets op.",
+        "testPromptNotFound": "Dit sjabloon bestaat niet meer.",
+        "testFailed": "Test mislukt: {{detail}}",
+        "testResultTitle": "Testresultaat",
+        "testBefore": "Voor",
+        "testAfter": "Na",
+        "testOutcome": "Uitkomst: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "De ruwe transcriptie zou worden gehouden.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Engels (professioneel)",
+            "description": "Zakelijk verzorgd Engels: volledige opschoning met gepolijste grammatica."
+          },
+          "english_casual": {
+            "name": "Engels (informeel)",
+            "description": "Spreektaal-Engels dat samenvoegingen en straattaal behoudt."
+          },
+          "english_technical": {
+            "name": "Engels (technisch)",
+            "description": "Codevriendelijk Engels: identifiers, paden en commando's blijven letterlijk."
+          },
+          "english_minimal": {
+            "name": "Engels (minimaal)",
+            "description": "Alleen interpunctie en hoofdletters hersteld; elk woord blijft zoals gedicteerd."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (Devanagari)",
+            "description": "Hindi-opschoning in het Devanagari-schrift met purna viram-leestekens."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (Latijns)",
+            "description": "Behoudt de gesproken mix van Hindi en Engels in Latijns schrift."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Marathi-opschoning in het Devanagari-schrift."
+          },
+          "tamil": {
+            "name": "Tamil",
+            "description": "Tamil-opschoning in het Tamil-schrift."
+          },
+          "spanish": {
+            "name": "Spaans",
+            "description": "Spaanse opschoning met omgekeerde vraag- en uitroeptekens."
+          },
+          "french": {
+            "name": "Frans",
+            "description": "Franse opschoning met Franse spaties en aanhalingstekens."
+          },
+          "german": {
+            "name": "Duits",
+            "description": "Duitse opschoning met hoofdletters voor zelfstandige naamwoorden."
+          },
+          "japanese": {
+            "name": "Japans",
+            "description": "Japanse opschoning met Japanse leestekens en kanji-correcties."
+          },
+          "chinese_simplified": {
+            "name": "Chinees (vereenvoudigd)",
+            "description": "Vereenvoudigd Chinees met correcties van gelijkklinkende tekens."
+          }
+        },
+        "editPrompt": "Bewerken"
       }
     },
     "history": {
@@ -1088,7 +1171,8 @@
       "waylandTauriHotkeys": "Globale sneltoetsen werken mogelijk niet in native Wayland-apps met deze toetsenbordimplementatie. Schakel de toetsenbordimplementatie om naar VoxBar Keys en voeg je gebruiker toe aan de groep input; zie de Ubuntu-gids.",
       "gnomeOverlayFallback": "Op GNOME Wayland verschijnt de overlay als een gewoon venster dat focus kan stelen en plakken kan breken. Hier wordt Overlay: Geen aangeraden.",
       "postProcessOutputInvalid": "Het bijschaven leverde onbruikbare tekst op, de oorspronkelijke transcriptie is gehouden.",
-      "postProcessCloudFailed": "Het bijschaven mislukte, de oorspronkelijke transcriptie is gehouden: {{detail}}"
+      "postProcessCloudFailed": "Het bijschaven mislukte, de oorspronkelijke transcriptie is gehouden: {{detail}}",
+      "postProcessPromptCycled": "Postprocesjabloon: {{name}}"
     },
     "commandBadge": "Opdrachtmodus",
     "ppChip": "Bijschaven ({{model}}) {{seconds}}s"

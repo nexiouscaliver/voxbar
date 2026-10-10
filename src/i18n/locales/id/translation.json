@@ -12,7 +12,8 @@
     "postProcessModel": "Model pasca-proses",
     "quit": "Keluar",
     "cancel": "Batal",
-    "secureInputWarning": "⚠ Pintasan diblokir oleh Secure Input"
+    "secureInputWarning": "⚠ Pintasan diblokir oleh Secure Input",
+    "postProcessPrompt": "Prompt pasca-proses"
   },
   "sidebar": {
     "general": "Umum",
@@ -221,6 +222,10 @@
           "transcribe_commands": {
             "name": "Mode perintah",
             "description": "Tahan tombol ini selama sesi dikte sedang berlangsung untuk beralih ke interpretasi perintah: semua yang Anda ucapkan menyunting penyangga dikte secara langsung (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) dan kata yang tidak dikenali dibuang. Lepaskan tombol untuk kembali ke dikte normal; tempel akhir menghasilkan tepat penyangga yang disunting. Tidak pernah memulai perekaman dan tidak melakukan apa pun sendirian. Tanpa tombol secara bawaan."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Putar prompt pasca-proses",
+            "description": "Opsional: memajukan templat pasca-proses terpilih ke berikutnya dan mengonfirmasi templat baru."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Buat Prompt",
         "cancel": "Batal",
         "selectToEdit": "Pilih prompt di atas untuk melihat dan mengedit detailnya.",
-        "createFirst": "Klik 'Buat Prompt Baru' di atas untuk membuat prompt pascaproses pertama Anda."
+        "createFirst": "Klik 'Buat Prompt Baru' di atas untuk membuat prompt pascaproses pertama Anda.",
+        "registers": {
+          "professional": "Profesional",
+          "casual": "Santai",
+          "technical": "Teknis",
+          "minimal": "Minimal",
+          "general": "Umum"
+        },
+        "builtinBadge": "Bawaan",
+        "customBadge": "Sendiri",
+        "editedBadge": "Diedit",
+        "versionLabel": "Versi {{version}}",
+        "duplicate": "Duplikat",
+        "testOnLastTranscript": "Uji pada transkripsi terakhir saya",
+        "testing": "Menguji...",
+        "testNoHistory": "Belum ada riwayat transkripsi. Rekam sesuatu dulu.",
+        "testPromptNotFound": "Templat ini sudah tidak ada.",
+        "testFailed": "Uji gagal: {{detail}}",
+        "testResultTitle": "Hasil uji",
+        "testBefore": "Sebelum",
+        "testAfter": "Sesudah",
+        "testOutcome": "Hasil: {{outcome}}",
+        "testLatency": "{{ms}} md",
+        "testRawKept": "Transkripsi mentah akan tetap dipakai.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Inggris profesional",
+            "description": "Inggris rapi untuk pekerjaan: pembersihan penuh dengan tata bahasa terpoles."
+          },
+          "english_casual": {
+            "name": "Inggris santai",
+            "description": "Inggris percakapan yang mempertahankan kontraksi dan slang."
+          },
+          "english_technical": {
+            "name": "Inggris teknis",
+            "description": "Inggris yang ramah kode: pengenal, path, dan perintah dibiarkan apa adanya."
+          },
+          "english_minimal": {
+            "name": "Inggris minimal",
+            "description": "Hanya memperbaiki tanda baca dan huruf kapital; setiap kata tetap seperti diucapkan."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (Devanagari)",
+            "description": "Pembersihan hindi dengan aksara Devanagari dan tanda baca purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (Latin)",
+            "description": "Mempertahankan campuran hindi-inggris yang diucapkan dalam aksara Latin."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Pembersihan marathi dengan aksara Devanagari."
+          },
+          "tamil": {
+            "name": "Tamil",
+            "description": "Pembersihan tamil dengan aksara Tamil."
+          },
+          "spanish": {
+            "name": "Spanyol",
+            "description": "Pembersihan spanyol dengan tanda tanya dan seru terbalik."
+          },
+          "french": {
+            "name": "Prancis",
+            "description": "Pembersihan prancis dengan spasi dan tanda kutip khas Prancis."
+          },
+          "german": {
+            "name": "Jerman",
+            "description": "Pembersihan jerman dengan huruf kapital untuk kata benda."
+          },
+          "japanese": {
+            "name": "Jepang",
+            "description": "Pembersihan jepang dengan tanda baca Jepang dan perbaikan kanji."
+          },
+          "chinese_simplified": {
+            "name": "Mandarin (sederhana)",
+            "description": "Pembersihan mandarin sederhana dengan perbaikan homofon."
+          }
+        },
+        "editPrompt": "Edit"
       }
     },
     "history": {
@@ -1088,7 +1171,8 @@
       "waylandTauriHotkeys": "Pintasan global mungkin tidak berfungsi di aplikasi Wayland native dengan implementasi keyboard ini. Ganti implementasi keyboard ke VoxBar Keys dan tambahkan pengguna Anda ke grup input; lihat panduan Ubuntu.",
       "gnomeOverlayFallback": "Di GNOME Wayland, overlay muncul sebagai jendela biasa yang bisa mencuri fokus dan merusak tempel. Disarankan Overlay: Tidak Ada di sini.",
       "postProcessOutputInvalid": "Pemolesan menghasilkan teks yang tidak dapat dipakai, transkrip asli dipertahankan.",
-      "postProcessCloudFailed": "Pemolesan gagal, transkrip asli dipertahankan: {{detail}}"
+      "postProcessCloudFailed": "Pemolesan gagal, transkrip asli dipertahankan: {{detail}}",
+      "postProcessPromptCycled": "Templat pasca-proses: {{name}}"
     },
     "commandBadge": "Mode perintah",
     "ppChip": "Memoles ({{model}}) {{seconds}}d"

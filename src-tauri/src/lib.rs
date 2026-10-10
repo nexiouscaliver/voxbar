@@ -423,6 +423,28 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                     tray::update_tray_menu(&app_clone);
                 });
             }
+            // Post-process prompt submenu: selects the template through the
+            // same write path the settings dropdown uses, so the tray and
+            // the settings panel can never disagree.
+            id if id.starts_with("prompt_select:") => {
+                let prompt_id = id.strip_prefix("prompt_select:").unwrap().to_string();
+                let current = settings::get_settings(app).post_process_selected_prompt_id;
+                if current.as_ref() == Some(&prompt_id) {
+                    return;
+                }
+                let app_clone = app.clone();
+                std::thread::spawn(move || {
+                    match shortcut::set_post_process_selected_prompt(app_clone.clone(), prompt_id) {
+                        Ok(()) => {
+                            log::info!("Post-process prompt selected via tray.");
+                        }
+                        Err(e) => {
+                            log::error!("Failed to set post-process prompt via tray: {}", e);
+                        }
+                    }
+                    tray::update_tray_menu(&app_clone);
+                });
+            }
             _ => {}
         })
         .build(app_handle)
@@ -1232,7 +1254,10 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             shortcut::add_post_process_prompt,
             shortcut::update_post_process_prompt,
             shortcut::delete_post_process_prompt,
+            shortcut::duplicate_post_process_prompt,
             shortcut::set_post_process_selected_prompt,
+            shortcut::cycle_post_process_prompt,
+            shortcut::test_post_process_prompt,
             shortcut::update_custom_words,
             shortcut::suspend_all_bindings,
             shortcut::resume_all_bindings,

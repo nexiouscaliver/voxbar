@@ -12,7 +12,8 @@
     "postProcessModel": "Mô hình hậu xử lý",
     "quit": "Thoát",
     "cancel": "Hủy",
-    "secureInputWarning": "⚠ Phím tắt bị Secure Input chặn"
+    "secureInputWarning": "⚠ Phím tắt bị Secure Input chặn",
+    "postProcessPrompt": "Câu lệnh hậu xử lý"
   },
   "sidebar": {
     "general": "Chung",
@@ -273,6 +274,10 @@
           "transcribe_commands": {
             "name": "Chế độ lệnh",
             "description": "Giữ phím này trong khi một phiên đọc chính tả đang hoạt động để chuyển sang diễn giải lệnh: mọi lời bạn nói sẽ chỉnh sửa trực tiếp bộ đệm đọc chính tả (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) và các từ không nhận diện được sẽ bị bỏ qua. Nhả phím để quay lại đọc chính tả bình thường; lần dán cuối cùng trả về đúng bộ đệm đã chỉnh sửa. Không bao giờ tự bắt đầu ghi âm và tự nó không làm gì cả. Mặc định không gán phím."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Chuyển câu lệnh hậu xử lý",
+            "description": "Tùy chọn: chuyển mẫu hậu xử lý đang chọn sang mẫu tiếp theo và xác nhận mẫu mới."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Tạo Prompt",
         "cancel": "Hủy",
         "selectToEdit": "Chọn một prompt ở trên để xem và chỉnh sửa chi tiết.",
-        "createFirst": "Nhấn 'Tạo Prompt mới' ở trên để tạo prompt xử lý sau đầu tiên của bạn."
+        "createFirst": "Nhấn 'Tạo Prompt mới' ở trên để tạo prompt xử lý sau đầu tiên của bạn.",
+        "registers": {
+          "professional": "Chuyên nghiệp",
+          "casual": "Thường ngày",
+          "technical": "Kỹ thuật",
+          "minimal": "Tối giản",
+          "general": "Chung"
+        },
+        "builtinBadge": "Có sẵn",
+        "customBadge": "Tự tạo",
+        "editedBadge": "Đã sửa",
+        "versionLabel": "Phiên bản {{version}}",
+        "duplicate": "Nhân bản",
+        "testOnLastTranscript": "Thử trên bản chuyển ngữ gần nhất",
+        "testing": "Đang thử...",
+        "testNoHistory": "Chưa có lịch sử chuyển ngữ. Hãy ghi âm gì đó trước.",
+        "testPromptNotFound": "Mẫu này không còn tồn tại.",
+        "testFailed": "Thử thất bại: {{detail}}",
+        "testResultTitle": "Kết quả thử",
+        "testBefore": "Trước",
+        "testAfter": "Sau",
+        "testOutcome": "Kết quả: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Bản chuyển ngữ gốc sẽ được giữ nguyên.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Tiếng Anh (chuyên nghiệp)",
+            "description": "Tiếng Anh chỉn chu cho công việc: dọn sạch toàn bộ với ngữ pháp được trau chuốt."
+          },
+          "english_casual": {
+            "name": "Tiếng Anh (thường ngày)",
+            "description": "Tiếng Anh hội thoại giữ nguyên từ viết tắt và tiếng lóng."
+          },
+          "english_technical": {
+            "name": "Tiếng Anh (kỹ thuật)",
+            "description": "Tiếng Anh thân thiện với mã: định danh, đường dẫn và lệnh giữ nguyên văn."
+          },
+          "english_minimal": {
+            "name": "Tiếng Anh (tối giản)",
+            "description": "Chỉ sửa dấu câu và chữ hoa; mỗi từ giữ đúng như đã đọc."
+          },
+          "hindi_devanagari": {
+            "name": "Tiếng Hindi (Devanagari)",
+            "description": "Dọn tiếng Hindi bằng chữ Devanagari với dấu câu purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (Latin)",
+            "description": "Giữ nguyên lối pha trộn hindi-anh được nói bằng chữ Latin."
+          },
+          "marathi": {
+            "name": "Tiếng Marathi",
+            "description": "Dọn tiếng Marathi bằng chữ Devanagari."
+          },
+          "tamil": {
+            "name": "Tiếng Tamil",
+            "description": "Dọn tiếng Tamil bằng chữ Tamil."
+          },
+          "spanish": {
+            "name": "Tiếng Tây Ban Nha",
+            "description": "Dọn tiếng Tây Ban Nha với dấu hỏi và chấm than ngược."
+          },
+          "french": {
+            "name": "Tiếng Pháp",
+            "description": "Dọn tiếng Pháp với khoảng trắng và dấu ngoặc kép kiểu Pháp."
+          },
+          "german": {
+            "name": "Tiếng Đức",
+            "description": "Dọn tiếng Đức với danh từ viết hoa."
+          },
+          "japanese": {
+            "name": "Tiếng Nhật",
+            "description": "Dọn tiếng Nhật với dấu câu kiểu Nhật và sửa kanji."
+          },
+          "chinese_simplified": {
+            "name": "Tiếng Trung (giản thể)",
+            "description": "Dọn tiếng Trung giản thể với sửa lỗi đồng âm."
+          }
+        },
+        "editPrompt": "Sửa"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "Phím tắt toàn cầu có thể không hoạt động trong các ứng dụng Wayland gốc với bản triển khai bàn phím này. Chuyển bản triển khai bàn phím sang VoxBar Keys và thêm người dùng của bạn vào nhóm input; xem hướng dẫn Ubuntu.",
       "gnomeOverlayFallback": "Trên GNOME Wayland, lớp phủ hiển thị như một cửa sổ thường có thể chiếm trọng tâm và làm hỏng thao tác dán. Ở đây nên đặt Lớp phủ: Không có.",
       "postProcessOutputInvalid": "Bước tinh chỉnh trả về văn bản không dùng được, bản gốc đã được giữ lại.",
-      "postProcessCloudFailed": "Tinh chỉnh thất bại, bản gốc đã được giữ lại: {{detail}}"
+      "postProcessCloudFailed": "Tinh chỉnh thất bại, bản gốc đã được giữ lại: {{detail}}",
+      "postProcessPromptCycled": "Mẫu hậu xử lý: {{name}}"
     },
     "commandBadge": "Chế độ lệnh",
     "ppChip": "Đang tinh chỉnh ({{model}}) {{seconds}}s"

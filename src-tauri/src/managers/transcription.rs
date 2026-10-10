@@ -446,6 +446,9 @@ pub enum NoticeCode {
     /// where the overlay falls back to a regular focus-stealing window.
     /// Info, once per setting change.
     GnomeOverlayFallback,
+    /// The cycle-prompt hotkey advanced the selected post-process template.
+    /// Info; detail carries the new template's name.
+    PostProcessPromptCycled,
 }
 
 impl NoticeCode {
@@ -462,7 +465,8 @@ impl NoticeCode {
             | NoticeCode::UndoNoBuffer
             | NoticeCode::BindingBusy
             | NoticeCode::WaylandTauriHotkeys
-            | NoticeCode::GnomeOverlayFallback => OverlayNoticeKind::Info,
+            | NoticeCode::GnomeOverlayFallback
+            | NoticeCode::PostProcessPromptCycled => OverlayNoticeKind::Info,
             _ => OverlayNoticeKind::Error,
         }
     }
@@ -493,6 +497,7 @@ impl NoticeCode {
             NoticeCode::BindingBusy => "binding_busy",
             NoticeCode::WaylandTauriHotkeys => "wayland_tauri_hotkeys",
             NoticeCode::GnomeOverlayFallback => "gnome_overlay_fallback",
+            NoticeCode::PostProcessPromptCycled => "post_process_prompt_cycled",
         }
     }
 

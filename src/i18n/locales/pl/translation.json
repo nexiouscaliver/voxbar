@@ -12,7 +12,8 @@
     "postProcessModel": "Model postprocessingu",
     "quit": "Zamknij",
     "cancel": "Anuluj",
-    "secureInputWarning": "⚠ Skróty zablokowane przez Secure Input"
+    "secureInputWarning": "⚠ Skróty zablokowane przez Secure Input",
+    "postProcessPrompt": "Prompt postprocessingu"
   },
   "sidebar": {
     "general": "Ogólne",
@@ -273,6 +274,10 @@
           "transcribe_commands": {
             "name": "Tryb poleceń",
             "description": "Przytrzymaj ten klawisz podczas aktywnej sesji dyktowania, aby przełączyć ją w tryb interpretacji poleceń: wszystko, co powiesz, edytuje bezpośrednio bufor dyktowania (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), a nierozpoznane słowa są odrzucane. Puść klawisz, aby wrócić do normalnego dyktowania; końcowe wklejenie dostarcza dokładnie edytowany bufor. Nigdy nie rozpoczyna nagrywania i sam z siebie nic nie robi. Domyślnie bez klawisza."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Przełączanie promptu postprocessingu",
+            "description": "Opcjonalne: przechodzi do następnego wybranego szablonu postprocessingu i potwierdza nowy szablon."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Utwórz prompt",
         "cancel": "Anuluj",
         "selectToEdit": "Wybierz prompt powyżej, aby zobaczyć i edytować jego szczegóły.",
-        "createFirst": "Kliknij 'Utwórz nowy prompt' powyżej, aby utworzyć pierwszy prompt postprocessingu."
+        "createFirst": "Kliknij 'Utwórz nowy prompt' powyżej, aby utworzyć pierwszy prompt postprocessingu.",
+        "registers": {
+          "professional": "Profesjonalny",
+          "casual": "Swobodny",
+          "technical": "Techniczny",
+          "minimal": "Minimalny",
+          "general": "Ogólny"
+        },
+        "builtinBadge": "Wbudowany",
+        "customBadge": "Własny",
+        "editedBadge": "Edytowany",
+        "versionLabel": "Wersja {{version}}",
+        "duplicate": "Duplikuj",
+        "testOnLastTranscript": "Przetestuj na ostatnim transkrypcie",
+        "testing": "Testowanie...",
+        "testNoHistory": "Nie ma jeszcze historii transkrypcji. Najpierw coś nagraj.",
+        "testPromptNotFound": "Ten szablon już nie istnieje.",
+        "testFailed": "Test nie powiódł się: {{detail}}",
+        "testResultTitle": "Wynik testu",
+        "testBefore": "Przed",
+        "testAfter": "Po",
+        "testOutcome": "Wynik: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Zostałby zachowany surowy transkrypt.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Angielski (profesjonalny)",
+            "description": "Angielski zwięzły i biznesowy: pełne czyszczenie z dopracowaną gramatyką."
+          },
+          "english_casual": {
+            "name": "Angielski (swobodny)",
+            "description": "Angielski rozmówczy, który zachowuje skróty i slang."
+          },
+          "english_technical": {
+            "name": "Angielski (techniczny)",
+            "description": "Angielski przyjazny kodowi: identyfikatory, ścieżki i polecenia zostają bez zmian."
+          },
+          "english_minimal": {
+            "name": "Angielski (minimalny)",
+            "description": "Tylko poprawki interpunkcji i wielkich liter; każde słowo zostaje jak dyktowane."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (dewanagari)",
+            "description": "Czyszczenie hindi w piśmie dewanagari ze znakami purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (łacina)",
+            "description": "Zachowuje mówioną mieszankę hindi i angielskiego w piśmie łacińskim."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Czyszczenie marathi w piśmie dewanagari."
+          },
+          "tamil": {
+            "name": "Tamilski",
+            "description": "Czyszczenie tamilskiego w piśmie tamilskim."
+          },
+          "spanish": {
+            "name": "Hiszpański",
+            "description": "Czyszczenie hiszpańskiego z odwróconymi znakami zapytania i wykrzyknikami."
+          },
+          "french": {
+            "name": "Francuski",
+            "description": "Czyszczenie francuskiego z francuskimi spacjami i cudzysłowami."
+          },
+          "german": {
+            "name": "Niemiecki",
+            "description": "Czyszczenie niemieckiego z wielkimi literami rzeczowników."
+          },
+          "japanese": {
+            "name": "Japoński",
+            "description": "Czyszczenie japońskiego z japońską interpunkcją i poprawkami kanji."
+          },
+          "chinese_simplified": {
+            "name": "Chiński (uproszczony)",
+            "description": "Czyszczenie chińskiego uproszczonego z poprawkami homofonów."
+          }
+        },
+        "editPrompt": "Edytuj"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "Skróty globalne mogą nie działać w natywnych aplikacjach Wayland przy tej implementacji klawiatury. Przełącz implementację klawiatury na VoxBar Keys i dodaj swojego użytkownika do grupy input; zobacz przewodnik dla Ubuntu.",
       "gnomeOverlayFallback": "Na GNOME Wayland nakładka pojawia się jako zwykłe okno, które może przejąć fokus i zepsuć wklejanie. Zalecane jest tu Nakładka: Brak.",
       "postProcessOutputInvalid": "Czyszczenie zwróciło nieużyteczny tekst, zachowano oryginalną transkrypcję.",
-      "postProcessCloudFailed": "Czyszczenie nie powiodło się, zachowano oryginalną transkrypcję: {{detail}}"
+      "postProcessCloudFailed": "Czyszczenie nie powiodło się, zachowano oryginalną transkrypcję: {{detail}}",
+      "postProcessPromptCycled": "Szablon postprocessingu: {{name}}"
     },
     "commandBadge": "Tryb poleceń",
     "ppChip": "Czyszczę ({{model}}) {{seconds}}s"

@@ -12,7 +12,8 @@
     "postProcessModel": "نموذج ما بعد المعالجة",
     "quit": "إنهاء",
     "cancel": "إلغاء",
-    "secureInputWarning": "⚠ الاختصارات محجوبة بواسطة Secure Input"
+    "secureInputWarning": "⚠ الاختصارات محجوبة بواسطة Secure Input",
+    "postProcessPrompt": "مطالبة ما بعد المعالجة"
   },
   "sidebar": {
     "general": "عام",
@@ -218,6 +219,10 @@
           "transcribe_commands": {
             "name": "وضع الأوامر",
             "description": "اضغط هذا المفتاح باستمرار أثناء جلسة إملاء نشطة للتبديل إلى وضع تفسير الأوامر: كل ما تقوله يعدّل مخزن الإملاء المؤقت مباشرة (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) وتُهمَل الكلمات غير المتعرف عليها. اترك المفتاح للعودة إلى الإملاء العادي؛ اللصق النهائي يسلّم المخزن المعدّل كما هو. لا يبدأ تسجيلًا أبدًا ولا يفعل شيئًا بمفرده. افتراضيًا بدون مفتاح."
+          },
+          "cycle_post_process_prompt": {
+            "name": "تبديل مطالبة ما بعد المعالجة",
+            "description": "اختياري: ينتقل بالقالب المختار لما بعد المعالجة إلى التالي ويؤكد القالب الجديد."
           }
         },
         "errors": {
@@ -686,7 +691,85 @@
         "createPrompt": "إنشاء مطالبة",
         "cancel": "إلغاء",
         "selectToEdit": ".اختر مطالبة أعلاه لعرض وتعديل تفاصيلها",
-        "createFirst": ".انقر على 'إنشاء مطالبة جديدة' أعلاه لإنشاء أول مطالبة معالجة لاحقة لك"
+        "createFirst": ".انقر على 'إنشاء مطالبة جديدة' أعلاه لإنشاء أول مطالبة معالجة لاحقة لك",
+        "registers": {
+          "professional": "رسمي",
+          "casual": "عامي",
+          "technical": "تقني",
+          "minimal": "أدنى",
+          "general": "عام"
+        },
+        "builtinBadge": "مدمج",
+        "customBadge": "خاص",
+        "editedBadge": "معدّل",
+        "versionLabel": "إصدار {{version}}",
+        "duplicate": "تكرار",
+        "testOnLastTranscript": "جرّب على آخر تفريغ لي",
+        "testing": "يجري الاختبار...",
+        "testNoHistory": "لا يوجد سجل تفريغات بعد. سجّل شيئًا أولًا.",
+        "testPromptNotFound": "هذا القالب لم يعد موجودًا.",
+        "testFailed": "فشل الاختبار: {{detail}}",
+        "testResultTitle": "نتيجة الاختبار",
+        "testBefore": "قبل",
+        "testAfter": "بعد",
+        "testOutcome": "النتيجة: {{outcome}}",
+        "testLatency": "{{ms}} م.ث",
+        "testRawKept": "سيبقى النص المفرّغ الأصلي كما هو.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "الإنجليزية الرسمية",
+            "description": "إنجليزية أنيقة للعمل: تنظيف كامل مع صقل القواعد."
+          },
+          "english_casual": {
+            "name": "الإنجليزية العامية",
+            "description": "إنجليزية محادثة تحافظ على الاختصارات والعاميات."
+          },
+          "english_technical": {
+            "name": "الإنجليزية التقنية",
+            "description": "إنجليزية مناسبة للكود: تبقي أسماء المتغيرات والمسارات والأوامر كما هي."
+          },
+          "english_minimal": {
+            "name": "الإنجليزية الأدنى",
+            "description": "تصحيح علامات الترقيم والأحرف الكبيرة فقط؛ كل كلمة تبقى كما نُطقت."
+          },
+          "hindi_devanagari": {
+            "name": "الهندية (ديفاناغاري)",
+            "description": "تنظيف الهندية بخط ديفاناغاري مع علامة الوقف الهندية."
+          },
+          "hinglish_roman": {
+            "name": "هنجليش (لاتيني)",
+            "description": "يحافظ على خلط الهندية والإنجليزية كما تُنطق وبالخط اللاتيني."
+          },
+          "marathi": {
+            "name": "المهاراتية",
+            "description": "تنظيف المهاراتية بخط ديفاناغاري."
+          },
+          "tamil": {
+            "name": "التاميلية",
+            "description": "تنظيف التاميلية بالخط التاميلي."
+          },
+          "spanish": {
+            "name": "الإسبانية",
+            "description": "تنظيف الإسبانية مع علامتي الاستفهام والتعجب المقلوبتين."
+          },
+          "french": {
+            "name": "الفرنسية",
+            "description": "تنظيف الفرنسية مع المسافات وعلامات الاقتباس الفرنسية."
+          },
+          "german": {
+            "name": "الألمانية",
+            "description": "تنظيف الألمانية مع بدء الأسماء بأحرف كبيرة."
+          },
+          "japanese": {
+            "name": "اليابانية",
+            "description": "تنظيف اليابانية مع ترقيم ياباني وتصحيح الكانجي."
+          },
+          "chinese_simplified": {
+            "name": "الصينية المبسطة",
+            "description": "تنظيف الصينية المبسطة مع تصحيح الكلمات المتشابهة في النطق."
+          }
+        },
+        "editPrompt": "تحرير"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "قد لا تعمل الاختصارات العامة في تطبيقات Wayland الأصلية مع هذا الوضع الخلفي للوحة المفاتيح. بدّل تنفيذ لوحة المفاتيح إلى VoxBar Keys وأضف مستخدمك إلى مجموعة input؛ راجع دليل استكشاف أخطاء Ubuntu.",
       "gnomeOverlayFallback": "على GNOME Wayland يظهر التراكب كنافذة عادية قد تسرق التركيز وتعطّل اللصق. يُنصح هنا بضبط التراكب على بلا.",
       "postProcessOutputInvalid": "أرجع التلميع نصًا غير صالح، لذا تم الإبقاء على النص الأصلي.",
-      "postProcessCloudFailed": "فشل التلميع وتم الإبقاء على النص الأصلي: {{detail}}"
+      "postProcessCloudFailed": "فشل التلميع وتم الإبقاء على النص الأصلي: {{detail}}",
+      "postProcessPromptCycled": "قالب ما بعد المعالجة: {{name}}"
     },
     "commandBadge": "وضع الأوامر",
     "ppChip": "التلميع ({{model}}) {{seconds}}ث"

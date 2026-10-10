@@ -12,7 +12,8 @@
     "postProcessModel": "Modelo de posprocesado",
     "quit": "Salir",
     "cancel": "Cancelar",
-    "secureInputWarning": "⚠ Atajos bloqueados por Secure Input"
+    "secureInputWarning": "⚠ Atajos bloqueados por Secure Input",
+    "postProcessPrompt": "Prompt de posprocesado"
   },
   "sidebar": {
     "general": "General",
@@ -273,6 +274,10 @@
           "transcribe_commands": {
             "name": "Modo de comandos",
             "description": "Mantén esta tecla mientras una sesión de dictado está activa para pasar a interpretación de comandos: todo lo que digas edita directamente el búfer del dictado (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) y las palabras no reconocidas se descartan. Suelta la tecla para volver al dictado normal; el pegado final entrega exactamente el búfer editado. Nunca inicia una grabación y por sí sola no hace nada. Sin tecla por defecto."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Rotar prompt de posprocesado",
+            "description": "Opcional: avanza a la siguiente plantilla de posprocesado seleccionada y confirma la nueva plantilla."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Crear prompt",
         "cancel": "Cancelar",
         "selectToEdit": "Selecciona un prompt arriba para ver y editar sus detalles.",
-        "createFirst": "Haz clic en 'Crear nuevo prompt' arriba para crear tu primer prompt de post procesamiento."
+        "createFirst": "Haz clic en 'Crear nuevo prompt' arriba para crear tu primer prompt de post procesamiento.",
+        "registers": {
+          "professional": "Profesional",
+          "casual": "Casual",
+          "technical": "Técnico",
+          "minimal": "Mínimo",
+          "general": "General"
+        },
+        "builtinBadge": "Integrada",
+        "customBadge": "Propia",
+        "editedBadge": "Editada",
+        "versionLabel": "Versión {{version}}",
+        "duplicate": "Duplicar",
+        "testOnLastTranscript": "Probar con mi última transcripción",
+        "testing": "Probando...",
+        "testNoHistory": "Aún no hay historial de transcripciones. Graba algo primero.",
+        "testPromptNotFound": "Esta plantilla ya no existe.",
+        "testFailed": "Prueba fallida: {{detail}}",
+        "testResultTitle": "Resultado de la prueba",
+        "testBefore": "Antes",
+        "testAfter": "Después",
+        "testOutcome": "Resultado: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Se conservaría la transcripción original.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Inglés profesional",
+            "description": "Inglés pulido para el trabajo: limpieza completa con gramática cuidada."
+          },
+          "english_casual": {
+            "name": "Inglés casual",
+            "description": "Inglés conversacional que mantiene contracciones y jerga."
+          },
+          "english_technical": {
+            "name": "Inglés técnico",
+            "description": "Inglés apto para código: mantiene identificadores, rutas y comandos tal cual."
+          },
+          "english_minimal": {
+            "name": "Inglés mínimo",
+            "description": "Solo corrige puntuación y mayúsculas; cada palabra queda como fue dictada."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (devanagari)",
+            "description": "Limpieza del hindi en escritura devanagari con puntuación purna viram."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (romano)",
+            "description": "Mantiene la mezcla hablada de hindi e inglés en escritura romana."
+          },
+          "marathi": {
+            "name": "Marati",
+            "description": "Limpieza del marati en escritura devanagari."
+          },
+          "tamil": {
+            "name": "Tamil",
+            "description": "Limpieza del tamil en escritura tamil."
+          },
+          "spanish": {
+            "name": "Español",
+            "description": "Limpieza del español con signos de interrogación y exclamación invertidos."
+          },
+          "french": {
+            "name": "Francés",
+            "description": "Limpieza del francés con espaciado y comillas francesas."
+          },
+          "german": {
+            "name": "Alemán",
+            "description": "Limpieza del alemán con sustantivos capitalizados."
+          },
+          "japanese": {
+            "name": "Japonés",
+            "description": "Limpieza del japonés con puntuación japonesa y corrección de kanji."
+          },
+          "chinese_simplified": {
+            "name": "Chino (simplificado)",
+            "description": "Limpieza del chino simplificado con corrección de homófonos."
+          }
+        },
+        "editPrompt": "Editar"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "Es posible que los atajos globales no funcionen en las aplicaciones nativas de Wayland con esta implementación de teclado. Cambia la implementación de teclado a VoxBar Keys y añade tu usuario al grupo input; consulta la guía de Ubuntu.",
       "gnomeOverlayFallback": "En GNOME Wayland la superposición aparece como una ventana normal que puede robar el foco y romper el pegado. Aquí se recomienda Superposición: Ninguna.",
       "postProcessOutputInvalid": "El pulido devolvió texto inservible, se conservó la transcripción original.",
-      "postProcessCloudFailed": "El pulido falló y se conservó la transcripción original: {{detail}}"
+      "postProcessCloudFailed": "El pulido falló y se conservó la transcripción original: {{detail}}",
+      "postProcessPromptCycled": "Plantilla de posprocesado: {{name}}"
     },
     "commandBadge": "Modo de comandos",
     "ppChip": "Puliendo ({{model}}) {{seconds}}s"

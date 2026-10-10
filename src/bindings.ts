@@ -360,9 +360,52 @@ async deletePostProcessPrompt(id: string) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Duplicate one template from the library: a fresh id, " copy" appended to
+ * the name, `is_builtin` cleared (a duplicate is the operator's own even
+ * when its source is a seed), and version restarted at 1. The source's
+ * language/register/description ride along so the copy lands in the same
+ * catalog bucket.
+ */
+async duplicatePostProcessPrompt(id: string) : Promise<Result<LLMPrompt, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("duplicate_post_process_prompt", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async setPostProcessSelectedPrompt(id: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("set_post_process_selected_prompt", { id }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * The cycle command (the tray and any future surface share it). Advances
+ * the selection and confirms the new template through the overlay notice.
+ */
+async cyclePostProcessPrompt() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("cycle_post_process_prompt") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * "Test on my last transcript": run one template over the most recent
+ * history entry's transcription through the exact engine lifecycle a
+ * dictation uses (provider, model, shared validator, pp: record with the
+ * `prompt_test` binding marker), WITHOUT pasting anything and WITHOUT
+ * writing a history row. Typed errors: `no_history` when nothing exists
+ * to test against, `prompt_not_found` for a dangling template id.
+ */
+async testPostProcessPrompt(promptId: string) : Promise<Result<PromptTestOutcome, TestPromptError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("test_post_process_prompt", { promptId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1683,7 +1726,37 @@ export type KeyboardDiagnosticReport = { secure_input_enabled: boolean; culprit_
  */
 key_down: number; key_up: number; flags_changed: number; mouse: number; duration_ms: number }
 export type KeyboardImplementation = "tauri" | "handy_keys"
-export type LLMPrompt = { id: string; name: string; prompt: string }
+/**
+ * One template in the post-process prompt library. The three original
+ * fields (id, name, prompt) are the pre-library store shape; every newer
+ * field carries `#[serde(default)]` so stores written before the library
+ * existed load unchanged and are upgraded by `ensure_post_process_defaults`
+ * instead of a schema bump.
+ */
+export type LLMPrompt = { id: string; name: string; prompt: string; 
+/**
+ * BCP-47 tag of the output language this template keeps, or "auto" to
+ * follow whatever language was spoken.
+ */
+language?: string; register?: PromptRegister; 
+/**
+ * One-line catalog copy. The built-in seeds ship their description
+ * translated through the frontend locale files; this stored value is
+ * the English fallback.
+ */
+description?: string; 
+/**
+ * True for the seeded templates. Built-ins can be edited in place
+ * (the edit bumps `version`, which stops the seeding migration from
+ * ever touching them again); duplicates and user creations are false.
+ */
+is_builtin?: boolean; 
+/**
+ * Bumped on every user edit. 0 marks a store written before the
+ * library existed (never touched by this build); seeds and fresh
+ * creations start at 1.
+ */
+version?: number }
 /**
  * One post-process model as the settings section and tray see it: the
  * shared [`ModelInfo`] plus the LLM-specific card fields the ASR shape does
@@ -1915,6 +1988,20 @@ log_lines: string[] }
  * in `detail`.
  */
 export type PostProcessSkipEvent = { reason: SkipReason; detail?: string | null }
+/**
+ * The register (tone) a prompt template is written for. Part of the
+ * template catalog's metadata; the settings list and the selected-template
+ * dropdown badge every entry with it.
+ */
+export type PromptRegister = "professional" | "casual" | "technical" | "minimal" | "general"
+/**
+ * The outcome of testing one template against the last transcript. `after`
+ * is None when the engine failed or skipped (the raw transcript would be
+ * kept on the dictation path); `outcome` is the same token the run record
+ * and history carry (`applied` | `skipped:<reason>` | `failed:<class>`,
+ * or `skipped` for pre-run config states that never mint a run).
+ */
+export type PromptTestOutcome = { before: string; after: string | null; outcome: string; latency_ms: number }
 export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "weeks_2" | "months_3"
 export type SecretMap = Partial<{ [key in string]: string }>
 export type SecureInputStatus = { 
@@ -2023,6 +2110,13 @@ export type StreamWorkKind = "transcribing" | "polishing"
  * `latency_ms` is the round-trip of the model-list request.
  */
 export type TestConnectionResult = { model_list_ok: boolean; completion_ok: boolean | null; latency_ms: number | null; failure_class: PostProcessFailureClass | null; detail: string }
+/**
+ * Structured error for the test command: the tag is the failure the UI
+ * keys on (`no_history` when there is nothing to test against,
+ * `prompt_not_found` for a dangling template id, `other` for a history
+ * store read failure).
+ */
+export type TestPromptError = { kind: "no_history" } | { kind: "prompt_not_found"; id: string } | { kind: "other"; detail: string }
 /**
  * UI appearance mode. `System` follows the OS `prefers-color-scheme`; `Light`
  * and `Dark` force one of the two palettes Handy already ships.

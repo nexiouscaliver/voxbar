@@ -629,6 +629,60 @@ async fn post_process_transcription(
         }
     };
 
+    post_process_with_prompt(
+        Some(app),
+        settings,
+        binding,
+        transcription,
+        &prompt_entry,
+        is_cancelled,
+    )
+    .await
+}
+
+/// Run ONE resolved template through the engine lifecycle. Shared by the
+/// dictation path above (the selected template) and the per-template
+/// "test on my last transcript" command, so the pp: lifecycle records both
+/// identically. `app` is optional: the engines that need app state (the
+/// local swap, Apple Intelligence) record an engine skip without it, which
+/// is what the unit tests exercise; the cloud path runs fine without one.
+///
+/// Never pastes and never writes history: those live in the callers.
+async fn post_process_with_prompt(
+    app: Option<&AppHandle>,
+    settings: &AppSettings,
+    binding: &str,
+    transcription: &str,
+    prompt_entry: &crate::settings::LLMPrompt,
+    is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+) -> PostProcessAttempt {
+    if is_blank_transcription(transcription) {
+        debug!("Post-processing skipped because the transcription is empty");
+        return PostProcessAttempt::default();
+    }
+
+    let provider = match settings.active_post_process_provider().cloned() {
+        Some(provider) => provider,
+        None => {
+            debug!("Post-processing enabled but no provider is selected");
+            return PostProcessAttempt::default();
+        }
+    };
+
+    let model = settings
+        .post_process_models
+        .get(&provider.id)
+        .cloned()
+        .unwrap_or_default();
+
+    if model.trim().is_empty() {
+        debug!(
+            "Post-processing skipped because provider '{}' has no model configured",
+            provider.id
+        );
+        return PostProcessAttempt::default();
+    }
+
     if prompt_entry.prompt.trim().is_empty() {
         debug!("Post-processing skipped because the selected prompt is empty");
         return PostProcessAttempt::default();
@@ -645,7 +699,7 @@ async fn post_process_transcription(
         crate::post_process_runs::PostProcessEngineKind::Cloud
     };
     let run_id = crate::post_process_runs::runs().begin(
-        Some(app),
+        app,
         crate::post_process_runs::RunRequestMeta {
             binding: binding.to_string(),
             engine: engine_kind,
@@ -653,11 +707,11 @@ async fn post_process_transcription(
             model: model.clone(),
             prompt_id: Some(prompt_entry.id.clone()),
             prompt_name: Some(prompt_entry.name.clone()),
-            // The prompt library's version/language tokens land here when
-            // WS4's versioned prompts ship; the fields exist now so the
-            // record schema is stable across that change.
-            prompt_version: None,
-            template_language: None,
+            // The template library's version and language tokens: stamped
+            // into every run record so the Debug table can tell a user
+            // edit of a template from its seeded original.
+            prompt_version: Some(prompt_entry.version.to_string()),
+            template_language: Some(prompt_entry.language.clone()),
             chars_in: transcription.chars().count() as u64,
         },
     );
@@ -680,18 +734,56 @@ async fn post_process_transcription(
     let disable_reasoning = matches!(provider.id.as_str(), "custom" | "openrouter");
 
     let attempt = if uses_local_engine(&provider.id) {
-        run_local_lifecycle(
-            app,
-            run_id,
-            settings,
-            transcription,
-            &prompt_entry.prompt,
-            is_cancelled,
-        )
-        .await
+        match app {
+            Some(app) => {
+                run_local_lifecycle(
+                    app,
+                    run_id,
+                    settings,
+                    transcription,
+                    &prompt_entry.prompt,
+                    is_cancelled,
+                )
+                .await
+            }
+            None => {
+                debug!("Local post-process engine needs an app handle; skipping");
+                crate::post_process_runs::runs().finish(
+                    None,
+                    run_id,
+                    crate::post_process_runs::PostProcessOutcome::Skipped {
+                        reason: crate::local_llm::SkipReason::EngineFailed,
+                    },
+                    None,
+                );
+                None
+            }
+        }
     } else if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
-        run_apple_intelligence_lifecycle(app, run_id, transcription, &prompt_entry.prompt, &model)
-            .await
+        match app {
+            Some(app) => {
+                run_apple_intelligence_lifecycle(
+                    app,
+                    run_id,
+                    transcription,
+                    &prompt_entry.prompt,
+                    &model,
+                )
+                .await
+            }
+            None => {
+                debug!("Apple Intelligence needs an app handle; skipping");
+                crate::post_process_runs::runs().finish(
+                    None,
+                    run_id,
+                    crate::post_process_runs::PostProcessOutcome::Skipped {
+                        reason: crate::local_llm::SkipReason::EngineFailed,
+                    },
+                    None,
+                );
+                None
+            }
+        }
     } else {
         let system_prompt = if provider.supports_structured_output {
             Some(build_system_prompt(&prompt_entry.prompt))
@@ -700,7 +792,9 @@ async fn post_process_transcription(
         };
         let legacy_prompt = prompt_entry.prompt.replace("${output}", transcription);
         let notify = |code: crate::managers::transcription::NoticeCode, detail: Option<String>| {
-            crate::managers::transcription::emit_overlay_notice(app, code, detail);
+            if let Some(app) = app {
+                crate::managers::transcription::emit_overlay_notice(app, code, detail);
+            }
         };
         let mut seam = LlmClientSeam {
             provider: provider.clone(),
@@ -710,7 +804,7 @@ async fn post_process_transcription(
             timeout_secs: settings.post_process_timeout_secs,
         };
         run_cloud_lifecycle(
-            Some(app),
+            app,
             &mut seam,
             run_id,
             transcription,
@@ -744,6 +838,86 @@ fn build_run_summary(
         outcome: record.outcome?.token(),
         latency_ms: record.total_ms.unwrap_or(0),
     })
+}
+
+/// Binding tag the per-template tester records its pp: run under: the Debug
+/// table's marker separating "the operator pressed Test on a template" from
+/// real dictation runs.
+pub(crate) const PROMPT_TEST_BINDING: &str = "prompt_test";
+
+/// The outcome of testing one template against the last transcript. `after`
+/// is None when the engine failed or skipped (the raw transcript would be
+/// kept on the dictation path); `outcome` is the same token the run record
+/// and history carry (`applied` | `skipped:<reason>` | `failed:<class>`,
+/// or `skipped` for pre-run config states that never mint a run).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, specta::Type)]
+pub struct PromptTestOutcome {
+    pub before: String,
+    pub after: Option<String>,
+    pub outcome: String,
+    pub latency_ms: u64,
+}
+
+/// Structured error for the test command: the tag is the failure the UI
+/// keys on (`no_history` when there is nothing to test against,
+/// `prompt_not_found` for a dangling template id, `other` for a history
+/// store read failure).
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum TestPromptError {
+    NoHistory,
+    PromptNotFound { id: String },
+    Other { detail: String },
+}
+
+impl std::fmt::Display for TestPromptError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TestPromptError::NoHistory => {
+                write!(f, "no_history: no transcription history to test against")
+            }
+            TestPromptError::PromptNotFound { id } => {
+                write!(f, "prompt_not_found: {id}")
+            }
+            TestPromptError::Other { detail } => write!(f, "other: {detail}"),
+        }
+    }
+}
+
+/// Run one template over a transcript for the "test on my last transcript"
+/// button: the same engine lifecycle a dictation runs (provider, model,
+/// validator, pp: record), but without pasting and without writing any
+/// history row. With `app` None (the unit-test path) the run is recorded
+/// and there is structurally no way to reach the history pipeline.
+pub(crate) async fn run_prompt_test(
+    app: Option<&AppHandle>,
+    settings: &AppSettings,
+    prompt: &crate::settings::LLMPrompt,
+    transcription: &str,
+) -> PromptTestOutcome {
+    let attempt = post_process_with_prompt(
+        app,
+        settings,
+        PROMPT_TEST_BINDING,
+        transcription,
+        prompt,
+        None,
+    )
+    .await;
+    match attempt.summary {
+        Some(summary) => PromptTestOutcome {
+            before: transcription.to_string(),
+            after: attempt.text,
+            outcome: summary.outcome,
+            latency_ms: summary.latency_ms,
+        },
+        None => PromptTestOutcome {
+            before: transcription.to_string(),
+            after: attempt.text,
+            outcome: "skipped".to_string(),
+            latency_ms: 0,
+        },
+    }
 }
 
 /// The local on-device engine: the same branch shape as Apple Intelligence
@@ -1835,6 +2009,27 @@ impl ShortcutAction for UndoAction {
     }
 }
 
+// Cycle Post-Process Prompt Action
+struct CyclePromptAction;
+
+impl ShortcutAction for CyclePromptAction {
+    fn start(&self, app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
+        // Ships unbound and rides the post-process master toggle: inert on
+        // stock installs, and off whenever post-processing itself is off.
+        if !get_settings(app).post_process_enabled {
+            debug!("Cycle-prompt action disabled with post-processing off");
+            return;
+        }
+        if let Err(e) = shortcut::cycle_prompt_and_notify(app) {
+            debug!("Cycle post-process prompt refused: {}", e);
+        }
+    }
+
+    fn stop(&self, _app: &AppHandle, _binding_id: &str, _shortcut_str: &str) {
+        // One-shot action: nothing to do on release
+    }
+}
+
 // Test Action
 struct TestAction;
 
@@ -1880,6 +2075,10 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
     map.insert(
         "undo".to_string(),
         Arc::new(UndoAction) as Arc<dyn ShortcutAction>,
+    );
+    map.insert(
+        "cycle_post_process_prompt".to_string(),
+        Arc::new(CyclePromptAction) as Arc<dyn ShortcutAction>,
     );
     map.insert(
         "test".to_string(),
@@ -2057,11 +2256,15 @@ mod tests {
 
         assert!(ACTION_MAP.contains_key("delete_last_word"));
         assert!(ACTION_MAP.contains_key("undo"));
+        assert!(ACTION_MAP.contains_key("cycle_post_process_prompt"));
         assert!(!crate::transcription_coordinator::is_transcribe_binding(
             "delete_last_word"
         ));
         assert!(!crate::transcription_coordinator::is_transcribe_binding(
             "undo"
+        ));
+        assert!(!crate::transcription_coordinator::is_transcribe_binding(
+            "cycle_post_process_prompt"
         ));
     }
 
@@ -2094,6 +2297,100 @@ mod tests {
         assert_eq!(transcribe_action_config("delete_last_word"), None);
         assert_eq!(transcribe_action_config("undo"), None);
         assert_eq!(transcribe_action_config("unknown"), None);
+        // The cycle binding is an assignable action, never a recording one.
+        assert_eq!(transcribe_action_config("cycle_post_process_prompt"), None);
+    }
+
+    /// The per-template tester: with a dead endpoint the run is recorded
+    /// under the `prompt_test` binding marker (the Debug table's tag), the
+    /// prompt id/version/language are stamped into the record, the outcome
+    /// is the run's failure class, and the raw transcript comes back as
+    /// `before` with no `after`. No history write is possible on this path:
+    /// it runs without an app handle and shares nothing with the history
+    /// pipeline.
+    #[test]
+    fn prompt_test_records_a_marker_run_and_returns_before_after_outcome() {
+        use super::{run_prompt_test, PROMPT_TEST_BINDING};
+
+        let mut settings = crate::settings::get_default_settings();
+        // A cloud provider aimed at a port nothing listens on: the request
+        // fails fast with a transport error (network class), deterministically.
+        settings.post_process_provider_id = "custom".to_string();
+        if let Some(provider) = settings
+            .post_process_providers
+            .iter_mut()
+            .find(|p| p.id == "custom")
+        {
+            provider.base_url = "http://127.0.0.1:1/v1".to_string();
+        }
+        settings
+            .post_process_models
+            .insert("custom".to_string(), "test-model".to_string());
+
+        let prompt = crate::settings::builtin_prompt_seeds()
+            .into_iter()
+            .find(|p| p.id == "english_casual")
+            .unwrap();
+
+        let outcome = tauri::async_runtime::block_on(run_prompt_test(
+            None,
+            &settings,
+            &prompt,
+            "hey um world",
+        ));
+
+        assert_eq!(outcome.before, "hey um world");
+        assert_eq!(outcome.after, None, "a failed run never rewrites the text");
+        assert!(
+            outcome.outcome.starts_with("failed:"),
+            "the transport failure is classified: {}",
+            outcome.outcome
+        );
+
+        // The run is in the registry under the test marker, with the
+        // template's id/version/language stamped (the WS3 fields). Looked
+        // up by marker (tests share the process-wide registry).
+        let record = crate::post_process_runs::runs()
+            .latest(None)
+            .into_iter()
+            .find(|r| {
+                r.binding == PROMPT_TEST_BINDING && r.prompt_id.as_deref() == Some("english_casual")
+            })
+            .expect("the test run is recorded under the prompt_test marker");
+        assert_eq!(record.prompt_version.as_deref(), Some("1"));
+        assert_eq!(record.template_language.as_deref(), Some("en"));
+    }
+
+    /// The local engine under the tester without an app handle: there is
+    /// no model manager to consult, so the run is recorded as an engine
+    /// skip and the outcome token says so (the raw transcript is kept).
+    #[test]
+    fn prompt_test_local_engine_without_app_records_an_engine_skip() {
+        use super::{run_prompt_test, PROMPT_TEST_BINDING};
+
+        let mut settings = crate::settings::get_default_settings();
+        settings.post_process_provider_id = crate::settings::LOCAL_LLM_PROVIDER_ID.to_string();
+
+        let prompt = crate::settings::builtin_prompt_seeds().remove(0);
+
+        let outcome = tauri::async_runtime::block_on(run_prompt_test(
+            None,
+            &settings,
+            &prompt,
+            "hello there",
+        ));
+
+        assert_eq!(outcome.before, "hello there");
+        assert_eq!(outcome.after, None);
+        assert_eq!(outcome.outcome, "skipped:engine_failed");
+        assert!(
+            crate::post_process_runs::runs()
+                .latest(None)
+                .into_iter()
+                .any(|r| r.binding == PROMPT_TEST_BINDING
+                    && r.prompt_id.as_deref() == Some("default_improve_transcriptions")),
+            "the skip run is recorded under the prompt_test marker"
+        );
     }
 
     /// T28: provider routing. The local provider routes to the on-device

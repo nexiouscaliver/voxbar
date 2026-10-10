@@ -12,7 +12,8 @@
     "postProcessModel": "Son işlem modeli",
     "quit": "Çıkış",
     "cancel": "İptal",
-    "secureInputWarning": "⚠ Kısayollar Secure Input tarafından engelleniyor"
+    "secureInputWarning": "⚠ Kısayollar Secure Input tarafından engelleniyor",
+    "postProcessPrompt": "Son işlem promptu"
   },
   "sidebar": {
     "general": "Genel",
@@ -273,6 +274,10 @@
           "transcribe_commands": {
             "name": "Komut modu",
             "description": "Canlı bir dikte oturumu sırasında bu tuşu basılı tutun ve komut yorumuna geçin: söylediğiniz her şey doğrudan dikte arabelleğini düzenler (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) ve tanınmayan kelimeler atılır. Tuşu bırakınca normal dikteye dönülür; son yapıştırma tam olarak düzenlenmiş arabelleği verir. Hiçbir zaman kendi başına kayıt başlatmaz ve tek başına hiçbir şey yapmaz. Varsayılan olarak tuş atanmamıştır."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Son işlem promptunu değiştir",
+            "description": "İsteğe bağlı: seçili son işlem şablonunu bir sonrakine ilerletir ve yeni şablonu onaylar."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Prompt Oluştur",
         "cancel": "İptal",
         "selectToEdit": "Ayrıntılarını görüntülemek ve düzenlemek için yukarıdan bir prompt seçin.",
-        "createFirst": "İlk son işlem promptunuzu oluşturmak için yukarıdaki “Yeni Prompt Oluştur” seçeneğine tıklayın."
+        "createFirst": "İlk son işlem promptunuzu oluşturmak için yukarıdaki “Yeni Prompt Oluştur” seçeneğine tıklayın.",
+        "registers": {
+          "professional": "Profesyonel",
+          "casual": "Gündelik",
+          "technical": "Teknik",
+          "minimal": "Minimal",
+          "general": "Genel"
+        },
+        "builtinBadge": "Yerleşik",
+        "customBadge": "Kendi",
+        "editedBadge": "Düzenlendi",
+        "versionLabel": "Sürüm {{version}}",
+        "duplicate": "Çoğalt",
+        "testOnLastTranscript": "Son transkriptimde dene",
+        "testing": "Deniyor...",
+        "testNoHistory": "Henüz transkript geçmişi yok. Önce bir şey kaydedin.",
+        "testPromptNotFound": "Bu şablon artık yok.",
+        "testFailed": "Test başarısız: {{detail}}",
+        "testResultTitle": "Test sonucu",
+        "testBefore": "Önce",
+        "testAfter": "Sonra",
+        "testOutcome": "Sonuç: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Ham transkript olduğu gibi korunur.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "İngilizce (profesyonel)",
+            "description": "İş için düzgün İngilizce: cilalı dil bilgisiyle eksiksiz temizlik."
+          },
+          "english_casual": {
+            "name": "İngilizce (gündelik)",
+            "description": "Kısaltmaları ve argoyu korayan konuşma dili İngilizcesi."
+          },
+          "english_technical": {
+            "name": "İngilizce (teknik)",
+            "description": "Koda uygun İngilizce: tanımlayıcılar, yollar ve komutlar olduğu gibi kalır."
+          },
+          "english_minimal": {
+            "name": "İngilizce (minimal)",
+            "description": "Yalnızca noktalama ve büyük harf düzeltmeleri; her söz söylendiği gibi kalır."
+          },
+          "hindi_devanagari": {
+            "name": "Hintçe (Devanagari)",
+            "description": "Devanagari yazısıyla hintçe temizliği, purna viram noktalamasıyla."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (Latin)",
+            "description": "Konuşulan hintçe-ingilizce karışımını Latin yazısıyla korur."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Devanagari yazısıyla marathi temizliği."
+          },
+          "tamil": {
+            "name": "Tamilce",
+            "description": "Tamil yazısıyla tamilce temizliği."
+          },
+          "spanish": {
+            "name": "İspanyolca",
+            "description": "Ters soru ve ünlem işaretleriyle ispanyolca temizliği."
+          },
+          "french": {
+            "name": "Fransızca",
+            "description": "Fransız boşlukları ve tırnak işaretleriyle fransızca temizliği."
+          },
+          "german": {
+            "name": "Almanca",
+            "description": "İsimler büyük harfle başlayacak şekilde almanca temizliği."
+          },
+          "japanese": {
+            "name": "Japonca",
+            "description": "Japon noktalaması ve kanji düzeltmeleriyle japonca temizliği."
+          },
+          "chinese_simplified": {
+            "name": "Çince (basitleştirilmiş)",
+            "description": "Basitleştirilmiş çince temizliği, eş sesli düzeltmelerle."
+          }
+        },
+        "editPrompt": "Düzenle"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "Bu klavye uygulamasıyla yerel Wayland uygulamalarında genel kısayollar çalışmayabilir. Klavye uygulamasını VoxBar Keys olarak değiştirin ve kullanıcıınızı input grubuna ekleyin; Ubuntu kılavuzuna bakın.",
       "gnomeOverlayFallback": "GNOME Wayland'de ekran katmanı, odağı çalan ve yapıştırmayı bozan sıradan bir pencere olarak görünür. Burada Ekran Katmanı: Yok önerilir.",
       "postProcessOutputInvalid": "Parlatma kullanılamaz metin döndürdü, özgün transkript korundu.",
-      "postProcessCloudFailed": "Parlatma başarısız oldu, özgün transkript korundu: {{detail}}"
+      "postProcessCloudFailed": "Parlatma başarısız oldu, özgün transkript korundu: {{detail}}",
+      "postProcessPromptCycled": "Son işlem şablonu: {{name}}"
     },
     "commandBadge": "Komut modu",
     "ppChip": "Parlatılıyor ({{model}}) {{seconds}}sn"

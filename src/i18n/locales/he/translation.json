@@ -12,7 +12,8 @@
     "postProcessModel": "מודל לעיבוד לאחר",
     "quit": "יציאה",
     "cancel": "ביטול",
-    "secureInputWarning": "⚠ קיצורי המקשים חסומים על ידי Secure Input"
+    "secureInputWarning": "⚠ קיצורי המקשים חסומים על ידי Secure Input",
+    "postProcessPrompt": "פרומפט לעיבוד לאחר"
   },
   "sidebar": {
     "general": "כללי",
@@ -221,6 +222,10 @@
           "transcribe_commands": {
             "name": "מצב פקודות",
             "description": "החזיקו מקש זה בזמן שהקלטת ההקראה פעילה כדי לעבור לפרשנות פקודות: כל מה שתגידו עורך ישירות את מאגר ההקראה (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) ומילים לא מזוהות נזרקות. שחררו כדי לחזור להקראה רגילה; ההדבקה הסופית מוסרת בדיוק עם המאגר הערוך. לעולם לא מתחיל הקלטה ולבד לא עושה דבר. ברירת מחדל ללא מקש."
+          },
+          "cycle_post_process_prompt": {
+            "name": "מחזור פרומפט העיבוד לאחר",
+            "description": "אופציונלי: מקדם את תבנית העיבוד הנבחרת לבאה ומאשר את התבנית החדשה."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "צור פרומפט",
         "cancel": "ביטול",
         "selectToEdit": "בחר פרומפט למעלה כדי לצפות בפרטים שלו ולערוך אותם.",
-        "createFirst": "לחץ על 'צור פרומפט חדש' למעלה כדי ליצור את פרומפט העיבוד הראשון שלך."
+        "createFirst": "לחץ על 'צור פרומפט חדש' למעלה כדי ליצור את פרומפט העיבוד הראשון שלך.",
+        "registers": {
+          "professional": "מקצועי",
+          "casual": "יומיומי",
+          "technical": "טכני",
+          "minimal": "מינימלי",
+          "general": "כללי"
+        },
+        "builtinBadge": "מובנה",
+        "customBadge": "משלך",
+        "editedBadge": "נערך",
+        "versionLabel": "גרסה {{version}}",
+        "duplicate": "שכפול",
+        "testOnLastTranscript": "בדיקה על התמליל האחרון שלי",
+        "testing": "בודק...",
+        "testNoHistory": "אין עדיין היסטוריית תמלילים. הקליטו משהו קודם.",
+        "testPromptNotFound": "התבנית הזו כבר לא קיימת.",
+        "testFailed": "הבדיקה נכשלה: {{detail}}",
+        "testResultTitle": "תוצאת בדיקה",
+        "testBefore": "לפני",
+        "testAfter": "אחרי",
+        "testOutcome": "תוצאה: {{outcome}}",
+        "testLatency": "{{ms}} מ״ש",
+        "testRawKept": "התמליל הגולמי יישמר.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "אנגלית מקצועית",
+            "description": "אנגלית מהוקצעת לעבודה: ניקוי מלא עם דקדוק מלוטש."
+          },
+          "english_casual": {
+            "name": "אנגלית יומיומית",
+            "description": "אנגלית מדוברת ששומרת על קיצורים וסלנג."
+          },
+          "english_technical": {
+            "name": "אנגלית טכנית",
+            "description": "אנגלית ידידותית לקוד: מזהים, נתיבים ופקודות נשמרים כמו שהם."
+          },
+          "english_minimal": {
+            "name": "אנגלית מינימלית",
+            "description": "תיקוני פיסוק ורישיות בלבד; כל מילה נשארת כפי שנועדה."
+          },
+          "hindi_devanagari": {
+            "name": "הינדית (דוונאגרי)",
+            "description": "ניקוי הינדית בכתב דוונאגרי עם סימני פיסוק הודיים."
+          },
+          "hinglish_roman": {
+            "name": "הינגליש (לטיני)",
+            "description": "שומר על התערובת המדוברת של הינדית ואנגלית בכתב לטיני."
+          },
+          "marathi": {
+            "name": "מראטהית",
+            "description": "ניקוי מראטהית בכתב דוונאגרי."
+          },
+          "tamil": {
+            "name": "טמילית",
+            "description": "ניקוי טמילית בכתב טמילי."
+          },
+          "spanish": {
+            "name": "ספרדית",
+            "description": "ניקוי ספרדית עם סימני שאלה וקריאה הפוכים."
+          },
+          "french": {
+            "name": "צרפתית",
+            "description": "ניקוי צרפתית עם ריווח ומרכאות צרפתיים."
+          },
+          "german": {
+            "name": "גרמנית",
+            "description": "ניקוי גרמנית עם אותיות רישיות לשמות עצם."
+          },
+          "japanese": {
+            "name": "יפנית",
+            "description": "ניקוי יפנית עם פיסוק יפני ותיקוני קאנג׳י."
+          },
+          "chinese_simplified": {
+            "name": "סינית (מפושטת)",
+            "description": "ניקוי סינית מפושטת עם תיקון הומופונים."
+          }
+        },
+        "editPrompt": "עריכה"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "ייתכן שקיצורי המקלדת הגלובליים לא יעבדו באפליקציות Wayland מקוריות עם מימוש המקלדת הזה. החליפו את מימוש המקלדת ל-VoxBar Keys והוסיפו את המשתמש שלכם לקבוצת input; עיינו במדריך ל-Ubuntu.",
       "gnomeOverlayFallback": "ב-GNOME Wayland שכבת-העל מופיעה כחלון רגיל שעלול לגנוב את המיקוד ולשבור הדבקה. ההמלצה כאן היא שכבת-על: ללא.",
       "postProcessOutputInvalid": "הליטוש החזיר טקסט בלתי שמיש, לכן נשמר התמליל המקורי.",
-      "postProcessCloudFailed": "הליטוש נכשל ונשמר התמליל המקורי: {{detail}}"
+      "postProcessCloudFailed": "הליטוש נכשל ונשמר התמליל המקורי: {{detail}}",
+      "postProcessPromptCycled": "תבנית עיבוד לאחר: {{name}}"
     },
     "commandBadge": "מצב פקודות",
     "ppChip": "מלטש ({{model}}) {{seconds}}שנ׳"

@@ -12,7 +12,8 @@
     "postProcessModel": "Nachbearbeitungsmodell",
     "quit": "Beenden",
     "cancel": "Abbrechen",
-    "secureInputWarning": "⚠ Tastenkürzel durch Secure Input blockiert"
+    "secureInputWarning": "⚠ Tastenkürzel durch Secure Input blockiert",
+    "postProcessPrompt": "Nachbearbeitungs-Prompt"
   },
   "sidebar": {
     "general": "Allgemein",
@@ -273,6 +274,10 @@
           "transcribe_commands": {
             "name": "Befehlsmodus",
             "description": "Halten Sie diese Taste, während eine Diktatsitzung läuft, um in die Befehlsinterpretation zu wechseln: Alles Gesprochene bearbeitet direkt den Diktatpuffer (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line), nicht erkannte Wörter werden verworfen. Beim Loslassen kehrt man zum normalen Diktat zurück; das finale Einfügen liefert genau den bearbeiteten Puffer. Startet nie eine Aufnahme und bewirkt allein nichts. Standardmäßig ohne Taste."
+          },
+          "cycle_post_process_prompt": {
+            "name": "Nachbearbeitungs-Prompt durchschalten",
+            "description": "Optional: schaltet die ausgewählte Nachbearbeitungsvorlage weiter und bestätigt die neue Vorlage."
           }
         },
         "errors": {
@@ -741,7 +746,85 @@
         "createPrompt": "Prompt erstellen",
         "cancel": "Abbrechen",
         "selectToEdit": "Wähle oben einen Prompt aus, um dessen Details anzuzeigen und zu bearbeiten.",
-        "createFirst": "Klicke oben auf 'Neuen Prompt erstellen', um deinen ersten Nachbearbeitungs-Prompt zu erstellen."
+        "createFirst": "Klicke oben auf 'Neuen Prompt erstellen', um deinen ersten Nachbearbeitungs-Prompt zu erstellen.",
+        "registers": {
+          "professional": "Professionell",
+          "casual": "Locker",
+          "technical": "Technisch",
+          "minimal": "Minimal",
+          "general": "Allgemein"
+        },
+        "builtinBadge": "Integriert",
+        "customBadge": "Eigene",
+        "editedBadge": "Bearbeitet",
+        "versionLabel": "Version {{version}}",
+        "duplicate": "Duplizieren",
+        "testOnLastTranscript": "An letzter Transkription testen",
+        "testing": "Test läuft...",
+        "testNoHistory": "Noch keine Transkriptionshistorie. Nimm zuerst etwas auf.",
+        "testPromptNotFound": "Diese Vorlage existiert nicht mehr.",
+        "testFailed": "Test fehlgeschlagen: {{detail}}",
+        "testResultTitle": "Testergebnis",
+        "testBefore": "Vorher",
+        "testAfter": "Nachher",
+        "testOutcome": "Ergebnis: {{outcome}}",
+        "testLatency": "{{ms}} ms",
+        "testRawKept": "Die rohe Transkription würde behalten.",
+        "templates": {
+          "default_improve_transcriptions": {
+            "name": "Englisch (professionell)",
+            "description": "Gepflegtes Business-Englisch: vollständige Bereinigung mit polierter Grammatik."
+          },
+          "english_casual": {
+            "name": "Englisch (locker)",
+            "description": "Umgangssprachliches Englisch, das Kurzformen und Slang behält."
+          },
+          "english_technical": {
+            "name": "Englisch (technisch)",
+            "description": "Code-freundliches Englisch, das Bezeichner, Pfade und Befehle unverändert lässt."
+          },
+          "english_minimal": {
+            "name": "Englisch (minimal)",
+            "description": "Nur Punkt- und Großschreibungskorrekturen; jedes Wort bleibt wie diktiert."
+          },
+          "hindi_devanagari": {
+            "name": "Hindi (Devanagari)",
+            "description": "Hindi-Bereinigung in Devanagari-Schrift mit Purna-Viram-Satzzeichen."
+          },
+          "hinglish_roman": {
+            "name": "Hinglish (Roman)",
+            "description": "Behält das gesprochene Hindi-Englisch-Gemisch in römischer Schrift."
+          },
+          "marathi": {
+            "name": "Marathi",
+            "description": "Marathi-Bereinigung in Devanagari-Schrift."
+          },
+          "tamil": {
+            "name": "Tamil",
+            "description": "Tamil-Bereinigung in Tamil-Schrift."
+          },
+          "spanish": {
+            "name": "Spanisch",
+            "description": "Spanische Bereinigung mit umgekehrten Frage- und Ausrufezeichen."
+          },
+          "french": {
+            "name": "Französisch",
+            "description": "Französische Bereinigung mit französischen Abständen und Anführungszeichen."
+          },
+          "german": {
+            "name": "Deutsch",
+            "description": "Deutsche Bereinigung mit großgeschriebenen Substantiven."
+          },
+          "japanese": {
+            "name": "Japanisch",
+            "description": "Japanische Bereinigung mit japanischer Zeichensetzung und Kanji-Korrekturen."
+          },
+          "chinese_simplified": {
+            "name": "Chinesisch (vereinfacht)",
+            "description": "Vereinfachtes Chinesisch mit Korrekturen gleichklingender Zeichen."
+          }
+        },
+        "editPrompt": "Bearbeiten"
       }
     },
     "history": {
@@ -1085,7 +1168,8 @@
       "waylandTauriHotkeys": "Globale Tastenkürzel funktionieren mit dieser Tastatur-Implementierung womöglich nicht in nativen Wayland-Apps. Stelle die Tastatur-Implementierung auf VoxBar Keys um und füge deinen Benutzer der Gruppe input hinzu; siehe die Ubuntu-Anleitung.",
       "gnomeOverlayFallback": "Unter GNOME Wayland erscheint das Overlay als normales Fenster, das den Fokus stehlen und Einfügen verhindern kann. Empfohlen ist hier Overlay: Keine.",
       "postProcessOutputInvalid": "Die Bereinigung lieferte unbrauchbaren Text, daher wurde das ursprüngliche Transkript behalten.",
-      "postProcessCloudFailed": "Die Bereinigung ist fehlgeschlagen, das ursprüngliche Transkript wurde behalten: {{detail}}"
+      "postProcessCloudFailed": "Die Bereinigung ist fehlgeschlagen, das ursprüngliche Transkript wurde behalten: {{detail}}",
+      "postProcessPromptCycled": "Nachbearbeitungsvorlage: {{name}}"
     },
     "commandBadge": "Befehlsmodus",
     "ppChip": "Bereinige ({{model}}) {{seconds}}s"

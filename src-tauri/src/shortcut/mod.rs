@@ -92,6 +92,10 @@ pub fn binding_is_active(
     }
     match id {
         "transcribe_with_post_process" => settings.post_process_enabled,
+        // Same master toggle as the post-process dictation key: cycling
+        // templates while the layer is off can never matter, and the
+        // unbound default keeps stock installs inert either way.
+        "cycle_post_process_prompt" => settings.post_process_enabled,
         "delete_last_word" => settings.delete_last_word_enabled,
         "undo" => settings.undo_enabled,
         "transcribe_commands" => settings.command_mode_enabled,
@@ -1428,16 +1432,166 @@ pub fn add_post_process_prompt(
     // Generate unique ID using timestamp and random component
     let id = format!("prompt_{}", chrono::Utc::now().timestamp_millis());
 
+    // A user creation: never a builtin, first version of its own line.
     let new_prompt = LLMPrompt {
         id: id.clone(),
         name,
         prompt,
+        language: "auto".to_string(),
+        register: crate::settings::PromptRegister::General,
+        description: String::new(),
+        is_builtin: false,
+        version: 1,
     };
 
     settings.post_process_prompts.push(new_prompt.clone());
     settings::write_settings(&app, settings);
 
     Ok(new_prompt)
+}
+
+/// Duplicate one template from the library: a fresh id, " copy" appended to
+/// the name, `is_builtin` cleared (a duplicate is the operator's own even
+/// when its source is a seed), and version restarted at 1. The source's
+/// language/register/description ride along so the copy lands in the same
+/// catalog bucket.
+#[tauri::command]
+#[specta::specta]
+pub fn duplicate_post_process_prompt(app: AppHandle, id: String) -> Result<LLMPrompt, String> {
+    let mut settings = settings::get_settings(&app);
+    let new_id = format!("prompt_{}", chrono::Utc::now().timestamp_millis());
+    let duplicate = duplicate_prompt_in_settings(&mut settings, &id, new_id)
+        .ok_or_else(|| format!("Prompt with id '{}' not found", id))?;
+    settings::write_settings(&app, settings);
+    Ok(duplicate)
+}
+
+/// Pure core of [`duplicate_post_process_prompt`]: clone the source entry
+/// under a fresh id with the copy markers applied, and append it. Unit
+/// tested without an app handle.
+pub(crate) fn duplicate_prompt_in_settings(
+    settings: &mut crate::settings::AppSettings,
+    id: &str,
+    new_id: String,
+) -> Option<LLMPrompt> {
+    let source = settings
+        .post_process_prompts
+        .iter()
+        .find(|p| p.id == id)?
+        .clone();
+    let duplicate = LLMPrompt {
+        id: new_id,
+        name: format!("{} copy", source.name),
+        prompt: source.prompt,
+        language: source.language,
+        register: source.register,
+        description: source.description,
+        is_builtin: false,
+        version: 1,
+    };
+    settings.post_process_prompts.push(duplicate.clone());
+    Some(duplicate)
+}
+
+/// Advance `post_process_selected_prompt_id` to the next template in the
+/// library (catalog order, wrapping around). Refuses when fewer than two
+/// templates exist; an empty/unresolvable selection lands on the first
+/// template. Pure, so the cycling semantics are unit-testable without an
+/// app; the command and the hotkey action share it.
+pub(crate) fn cycle_prompt_selection(
+    settings: &mut crate::settings::AppSettings,
+) -> Result<String, String> {
+    if settings.post_process_prompts.len() < 2 {
+        return Err("Cannot cycle: fewer than two prompt templates".to_string());
+    }
+    let current_index = settings
+        .post_process_selected_prompt_id
+        .as_ref()
+        .and_then(|id| {
+            settings
+                .post_process_prompts
+                .iter()
+                .position(|p| &p.id == id)
+        });
+    let next_index = match current_index {
+        Some(index) => (index + 1) % settings.post_process_prompts.len(),
+        // Nothing selected (or a dangling id): land on the first template.
+        None => 0,
+    };
+    let next_id = settings.post_process_prompts[next_index].id.clone();
+    settings.post_process_selected_prompt_id = Some(next_id.clone());
+    Ok(next_id)
+}
+
+/// Advance the selected template and confirm it: shared by the Tauri
+/// command (the tray's future use and any UI surface) and the
+/// `cycle_post_process_prompt` hotkey action. Errors surface the refusal
+/// (fewer than two templates) to the command caller; the hotkey path
+/// logs it.
+pub(crate) fn cycle_prompt_and_notify(app: &AppHandle) -> Result<(), String> {
+    let mut settings = settings::get_settings(app);
+    let next_id = cycle_prompt_selection(&mut settings)?;
+    let next_name = settings
+        .post_process_prompts
+        .iter()
+        .find(|p| p.id == next_id)
+        .map(|p| p.name.clone())
+        .unwrap_or_default();
+    settings::write_settings(app, settings);
+    crate::managers::transcription::emit_overlay_notice(
+        app,
+        crate::managers::transcription::NoticeCode::PostProcessPromptCycled,
+        Some(next_name),
+    );
+    tray::update_tray_menu(app);
+    Ok(())
+}
+
+/// The cycle command (the tray and any future surface share it). Advances
+/// the selection and confirms the new template through the overlay notice.
+#[tauri::command]
+#[specta::specta]
+pub fn cycle_post_process_prompt(app: AppHandle) -> Result<(), String> {
+    cycle_prompt_and_notify(&app)
+}
+
+/// "Test on my last transcript": run one template over the most recent
+/// history entry's transcription through the exact engine lifecycle a
+/// dictation uses (provider, model, shared validator, pp: record with the
+/// `prompt_test` binding marker), WITHOUT pasting anything and WITHOUT
+/// writing a history row. Typed errors: `no_history` when nothing exists
+/// to test against, `prompt_not_found` for a dangling template id.
+#[tauri::command]
+#[specta::specta]
+pub async fn test_post_process_prompt(
+    app: AppHandle,
+    history_manager: tauri::State<'_, std::sync::Arc<crate::managers::history::HistoryManager>>,
+    prompt_id: String,
+) -> Result<crate::actions::PromptTestOutcome, crate::actions::TestPromptError> {
+    let settings = settings::get_settings(&app);
+    let prompt = settings
+        .post_process_prompts
+        .iter()
+        .find(|p| p.id == prompt_id)
+        .cloned()
+        .ok_or(crate::actions::TestPromptError::PromptNotFound { id: prompt_id })?;
+
+    // Newest-first, first row: the operator's last transcript.
+    let page = history_manager
+        .get_history_entries(None, Some(1))
+        .await
+        .map_err(|e| crate::actions::TestPromptError::Other {
+            detail: e.to_string(),
+        })?;
+    let entry = page
+        .entries
+        .first()
+        .ok_or(crate::actions::TestPromptError::NoHistory)?;
+
+    Ok(
+        crate::actions::run_prompt_test(Some(&app), &settings, &prompt, &entry.transcription_text)
+            .await,
+    )
 }
 
 #[tauri::command]
@@ -1457,6 +1611,9 @@ pub fn update_post_process_prompt(
     {
         existing_prompt.name = name;
         existing_prompt.prompt = prompt;
+        // Every user edit bumps the template's version; run records stamp
+        // it, and the seeding migration never touches a versioned prompt.
+        existing_prompt.version = existing_prompt.version.saturating_add(1);
         settings::write_settings(&app, settings);
         Ok(())
     } else {
@@ -2142,6 +2299,144 @@ mod tests {
         assert!(
             binding_is_active(&settings, "delete_last_word", &delete_last_word),
             "a single-modifier binding stays active (it is hold-gated, not bare)"
+        );
+    }
+
+    /// Template cycling: advances in catalog order, wraps around, lands on
+    /// the first template from an empty selection, and refuses (leaving
+    /// the selection untouched) when the library holds fewer than two.
+    #[test]
+    fn cycle_prompt_selection_advances_wraps_and_refuses() {
+        use super::cycle_prompt_selection;
+
+        let mut settings = crate::settings::get_default_settings();
+        assert_eq!(settings.post_process_prompts.len(), 13);
+        settings.post_process_selected_prompt_id =
+            Some("default_improve_transcriptions".to_string());
+        assert_eq!(
+            cycle_prompt_selection(&mut settings).unwrap(),
+            "english_casual",
+            "advances to the next template in catalog order"
+        );
+
+        // From the last seed, cycling wraps to the first.
+        settings.post_process_selected_prompt_id = Some("chinese_simplified".to_string());
+        assert_eq!(
+            cycle_prompt_selection(&mut settings).unwrap(),
+            "default_improve_transcriptions",
+            "wraps around to the first template"
+        );
+
+        // A dangling selection resolves as "nothing selected": first template.
+        let mut fresh = crate::settings::get_default_settings();
+        fresh.post_process_selected_prompt_id = Some("deleted_long_ago".to_string());
+        assert_eq!(
+            cycle_prompt_selection(&mut fresh).unwrap(),
+            "default_improve_transcriptions"
+        );
+
+        // Fewer than two templates: refused, selection unchanged.
+        let mut one = crate::settings::get_default_settings();
+        one.post_process_prompts.truncate(1);
+        one.post_process_selected_prompt_id = Some("default_improve_transcriptions".to_string());
+        assert!(cycle_prompt_selection(&mut one).is_err());
+        assert_eq!(
+            one.post_process_selected_prompt_id,
+            Some("default_improve_transcriptions".to_string()),
+            "a refusal never moves the selection"
+        );
+    }
+
+    /// Duplicating a template: fresh id, " copy" name, user flags
+    /// (is_builtin=false, version=1), same body/language/register, source
+    /// untouched, appended to the library. Unknown ids refuse.
+    #[test]
+    fn duplicate_prompt_clones_with_fresh_id_and_user_flags() {
+        use super::duplicate_prompt_in_settings;
+        use crate::settings::PromptRegister;
+
+        let mut settings = crate::settings::get_default_settings();
+        let source = settings
+            .post_process_prompts
+            .iter()
+            .find(|p| p.id == "english_casual")
+            .cloned()
+            .unwrap();
+        let before_len = settings.post_process_prompts.len();
+
+        let dup =
+            duplicate_prompt_in_settings(&mut settings, "english_casual", "prompt_999".to_string())
+                .expect("duplicating a seeded template works");
+        assert_eq!(dup.id, "prompt_999", "fresh id");
+        assert_eq!(dup.name, "English Casual copy");
+        assert!(!dup.is_builtin, "a duplicate is the operator's own");
+        assert_eq!(dup.version, 1);
+        assert_eq!(dup.language, source.language);
+        assert_eq!(dup.register, PromptRegister::Casual);
+        assert_eq!(dup.prompt, source.prompt, "the body rides along");
+        assert_eq!(settings.post_process_prompts.len(), before_len + 1);
+        assert!(
+            settings
+                .post_process_prompts
+                .iter()
+                .any(|p| p.id == "prompt_999"),
+            "appended to the library"
+        );
+        assert!(
+            settings
+                .post_process_prompts
+                .iter()
+                .any(|p| p.id == "english_casual" && p.is_builtin),
+            "the source stays a builtin"
+        );
+
+        assert!(
+            duplicate_prompt_in_settings(&mut settings, "missing_id", "x".to_string()).is_none(),
+            "unknown ids refuse"
+        );
+    }
+
+    /// The cycle binding ships unbound and gated on the post-process master
+    /// toggle: with post-processing on but no key recorded, it holds no
+    /// registration (stock installs are inert); a real binding activates
+    /// only while post-processing is on.
+    #[test]
+    fn cycle_prompt_binding_ships_unbound_and_rides_the_post_process_toggle() {
+        let mut settings = crate::settings::get_default_settings();
+        let unbound = settings
+            .bindings
+            .get("cycle_post_process_prompt")
+            .unwrap()
+            .clone();
+        assert_eq!(unbound.default_binding, "");
+        assert_eq!(unbound.current_binding, "");
+
+        settings.post_process_enabled = true;
+        assert!(
+            !binding_is_active(&settings, "cycle_post_process_prompt", &unbound),
+            "unbound means no registration even with post-processing on"
+        );
+
+        settings
+            .bindings
+            .get_mut("cycle_post_process_prompt")
+            .unwrap()
+            .current_binding = "option+p".to_string();
+        let bound = settings
+            .bindings
+            .get("cycle_post_process_prompt")
+            .unwrap()
+            .clone();
+        assert!(binding_is_active(
+            &settings,
+            "cycle_post_process_prompt",
+            &bound
+        ));
+
+        settings.post_process_enabled = false;
+        assert!(
+            !binding_is_active(&settings, "cycle_post_process_prompt", &bound),
+            "the master toggle unregisters the cycle key"
         );
     }
 }
