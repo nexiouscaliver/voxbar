@@ -44,7 +44,7 @@ log() { printf '[release] %s\n' "$*"; }
 # reports AI unavailable on every machine. If full Xcode is installed and
 # the builder did not pin a toolchain, prefer Xcode for this build without
 # touching the machine's global xcode-select.
-if [ -z "$DEVELOPER_DIR" ] && [ -d /Applications/Xcode.app/Contents/Developer ]; then
+if [ -z "${DEVELOPER_DIR:-}" ] && [ -d /Applications/Xcode.app/Contents/Developer ]; then
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
   log "using full Xcode toolchain for this build (DEVELOPER_DIR=$DEVELOPER_DIR)"
 fi
