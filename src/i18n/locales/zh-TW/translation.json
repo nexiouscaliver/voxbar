@@ -20,6 +20,7 @@
     "output": "輸出",
     "advanced": "進階",
     "postProcessing": "後處理",
+    "enableInAdvancedHint": "在進階設定中啟用",
     "history": "歷史紀錄",
     "debug": "偵錯",
     "about": "關於"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "選擇模型失敗",
-      "downloadFailed": "下載 {{model}} 失敗：{{error}}"
+      "downloadFailed": "下載 {{model}} 失敗：{{error}}",
+      "extractFailed": "解壓 {{model}} 失敗：{{error}}"
     },
     "permissions": {
       "title": "需要權限",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "沒有可用的模型",
     "verifying": "正在驗證 {{modelName}}...",
     "verifyingGeneric": "正在驗證...",
+    "verifyingGenericShort": "正在驗證",
     "extracting": "正在解壓 {{modelName}}...",
     "extractingMultiple": "正在解壓 {{count}} 個模型...",
     "extractingGeneric": "解壓中...",
+    "extractingGenericShort": "解壓中",
     "downloading": "下載中 {{percentage}}%",
     "downloadingMultiple": "正在下載 {{count}} 個模型...",
     "modelReady": "模型已就緒",
@@ -160,6 +164,9 @@
     "loadingGeneric": "載入中...",
     "modelError": "模型錯誤",
     "modelUnloaded": "模型已卸載",
+    "checkStatusFailed": "無法檢查模型狀態",
+    "loadFailed": "無法載入模型",
+    "switchFailed": "無法切換模型",
     "noModelDownloadRequired": "無模型 - 需要下載",
     "deleteModel": "刪除 {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "模型與記憶體",
         "transcription": "轉錄",
-        "experimental": "實驗性"
+        "experimental": "實驗性",
+        "postProcessing": "後處理"
       },
       "experimentalToggle": {
         "label": "實驗性功能",
@@ -1044,7 +1052,8 @@
       "timeout": "已跳過後處理：本地模型耗時過長。已使用原始轉錄。",
       "lengthGuard": "已跳過後處理：本地模型的輸出未通過長度檢查。已使用原始轉錄。",
       "tooLong": "已跳過後處理：此轉錄對本地模型來說過長。已使用原始轉錄。"
-    }
+    },
+    "settingNotSaved": "無法儲存此設定：{{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar 無法從此位置安裝更新",

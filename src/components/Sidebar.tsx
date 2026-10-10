@@ -10,8 +10,8 @@ import {
   Cpu,
   Terminal,
 } from "lucide-react";
-import HandyTextLogo from "./icons/HandyTextLogo";
-import HandyHand from "./icons/HandyHand";
+import VoxBarLogo from "./icons/VoxBarLogo";
+import VoxBarMark from "./icons/VoxBarMark";
 import { useSettings } from "../hooks/useSettings";
 import {
   GeneralSettings,
@@ -45,7 +45,7 @@ interface SectionConfig {
 export const SECTIONS_CONFIG = {
   general: {
     labelKey: "sidebar.general",
-    icon: HandyHand,
+    icon: VoxBarMark,
     component: GeneralSettings,
     enabled: () => true,
   },
@@ -111,35 +111,67 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { t } = useTranslation();
   const { settings } = useSettings();
 
+  // Post Processing stays in the nav even while its feature is off: the row
+  // renders disabled with a hint and navigates to Advanced, where the
+  // enabling toggle now always renders. Every other gated section (debug)
+  // stays filtered out entirely.
   const availableSections = Object.entries(SECTIONS_CONFIG)
-    .filter(([_, config]) => config.enabled(settings))
-    .map(([id, config]) => ({ id: id as SidebarSection, ...config }));
+    .filter(
+      ([id, config]) => config.enabled(settings) || id === "postprocessing",
+    )
+    .map(([id, config]) => ({
+      id: id as SidebarSection,
+      ...config,
+      enabledNow: config.enabled(settings),
+    }));
 
   return (
     <div className="flex flex-col w-40 h-full border-e border-mid-gray/20 items-center px-2">
-      <HandyTextLogo width={120} className="m-4" />
+      <VoxBarLogo width={96} variant="compact" className="my-4" />
       <div className="flex flex-col w-full items-center gap-1 pt-2 border-t border-mid-gray/20">
         {availableSections.map((section) => {
           const Icon = section.icon;
-          const isActive = activeSection === section.id;
+          const isActive = section.enabledNow && activeSection === section.id;
 
           return (
             <div
               key={section.id}
-              className={`flex gap-2 items-center p-2 w-full rounded-lg cursor-pointer transition-colors ${
+              className={`flex gap-2 items-center p-2 w-full rounded-lg transition-colors ${
                 isActive
                   ? "bg-logo-primary/80"
                   : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
-              }`}
-              onClick={() => onSectionChange(section.id)}
+              } ${section.enabledNow ? "cursor-pointer" : "cursor-default"}`}
+              aria-disabled={!section.enabledNow}
+              onClick={() =>
+                onSectionChange(
+                  // A disabled Post Process row still goes somewhere useful:
+                  // Advanced hosts the toggle that turns it on.
+                  section.enabledNow ? section.id : "advanced",
+                )
+              }
             >
-              <Icon width={24} height={24} className="shrink-0" />
-              <p
-                className="text-sm font-medium truncate"
-                title={t(section.labelKey)}
-              >
-                {t(section.labelKey)}
-              </p>
+              <Icon
+                width={24}
+                height={24}
+                className={`shrink-0 ${section.enabledNow ? "" : "opacity-50"}`}
+              />
+              <div className="flex flex-col min-w-0">
+                <p
+                  className={`text-sm font-medium truncate ${section.enabledNow ? "" : "opacity-50"}`}
+                  title={
+                    section.enabledNow
+                      ? t(section.labelKey)
+                      : `${t(section.labelKey)}: ${t("sidebar.enableInAdvancedHint")}`
+                  }
+                >
+                  {t(section.labelKey)}
+                </p>
+                {!section.enabledNow && (
+                  <p className="text-[10px] leading-tight text-mid-gray">
+                    {t("sidebar.enableInAdvancedHint")}
+                  </p>
+                )}
+              </div>
             </div>
           );
         })}

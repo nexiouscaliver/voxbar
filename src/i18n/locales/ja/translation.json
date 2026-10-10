@@ -20,6 +20,7 @@
     "output": "出力",
     "advanced": "詳細設定",
     "postProcessing": "後処理",
+    "enableInAdvancedHint": "詳細設定で有効にできます",
     "history": "履歴",
     "debug": "デバッグ",
     "about": "概要"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "モデルの選択に失敗しました",
-      "downloadFailed": "{{model}} のダウンロードに失敗しました: {{error}}"
+      "downloadFailed": "{{model}} のダウンロードに失敗しました: {{error}}",
+      "extractFailed": "{{model}} の展開に失敗しました: {{error}}"
     },
     "permissions": {
       "title": "権限が必要です",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "利用可能なモデルがありません",
     "verifying": "{{modelName}}を検証中…",
     "verifyingGeneric": "検証中…",
+    "verifyingGenericShort": "検証中",
     "extracting": "{{modelName}}を展開中…",
     "extractingMultiple": "{{count}}個のモデルを展開中…",
     "extractingGeneric": "展開中…",
+    "extractingGenericShort": "展開中",
     "downloading": "ダウンロード中 {{percentage}}%",
     "downloadingMultiple": "{{count}}個のモデルをダウンロード中…",
     "modelReady": "モデル準備完了",
@@ -160,6 +164,9 @@
     "loadingGeneric": "読み込み中…",
     "modelError": "モデルエラー",
     "modelUnloaded": "モデルがアンロードされました",
+    "checkStatusFailed": "モデルの状態を確認できませんでした",
+    "loadFailed": "モデルを読み込めませんでした",
+    "switchFailed": "モデルを切り替えられませんでした",
     "noModelDownloadRequired": "モデルなし - ダウンロードが必要",
     "deleteModel": "{{modelName}}を削除",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "モデルとメモリ",
         "transcription": "文字起こし",
-        "experimental": "実験的"
+        "experimental": "実験的",
+        "postProcessing": "後処理"
       },
       "experimentalToggle": {
         "label": "実験的な機能",
@@ -1044,7 +1052,8 @@
       "timeout": "後処理をスキップしました: ローカルモデルの処理に時間がかかりすぎました。元の文字起こしを使用しました。",
       "lengthGuard": "後処理をスキップしました: ローカルモデルの出力が長さチェックを通過しませんでした。元の文字起こしを使用しました。",
       "tooLong": "後処理をスキップしました: この文字起こしはローカルモデルには長すぎます。元の文字起こしを使用しました。"
-    }
+    },
+    "settingNotSaved": "この設定を保存できませんでした: {{error}}"
   },
   "app": {
     "translocatedTitle": "この場所からはアップデートをインストールできません",

@@ -3,6 +3,12 @@ import { Component, type ErrorInfo, type ReactNode } from "react";
 interface ErrorBoundaryProps {
   children: ReactNode;
   context: string;
+  /**
+   * Optional component rendered in the failed state. Omitting it preserves
+   * the historical behavior (render nothing); callers that own the window
+   * the subtree lives in (the overlay) pass a fallback that recovers it.
+   */
+  fallback?: React.ComponentType;
 }
 
 interface ErrorBoundaryState {
@@ -29,7 +35,10 @@ export class ErrorBoundary extends Component<
   }
 
   render(): ReactNode {
-    if (this.state.failed) return null;
+    if (this.state.failed) {
+      const Fallback = this.props.fallback;
+      return Fallback ? <Fallback /> : null;
+    }
     return this.props.children;
   }
 }

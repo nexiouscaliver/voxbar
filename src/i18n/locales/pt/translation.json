@@ -20,6 +20,7 @@
     "output": "Saída",
     "advanced": "Avançado",
     "postProcessing": "Pós-Processamento",
+    "enableInAdvancedHint": "Ative em Avançado",
     "history": "Histórico",
     "debug": "Depuração",
     "about": "Sobre"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Falha ao selecionar o modelo",
-      "downloadFailed": "Falha ao baixar {{model}}: {{error}}"
+      "downloadFailed": "Falha ao baixar {{model}}: {{error}}",
+      "extractFailed": "Falha ao extrair {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permissões Necessárias",
@@ -149,9 +151,11 @@
     "noModelsAvailable": "Nenhum modelo disponível",
     "verifying": "Verificando {{modelName}}...",
     "verifyingGeneric": "Verificando...",
+    "verifyingGenericShort": "Verificando",
     "extracting": "Extraindo {{modelName}}...",
     "extractingMultiple": "Extraindo {{count}} modelos...",
     "extractingGeneric": "Extraindo...",
+    "extractingGenericShort": "Extraindo",
     "downloading": "Baixando {{percentage}}%",
     "downloadingMultiple": "Baixando {{count}} modelos...",
     "modelReady": "Modelo Pronto",
@@ -159,6 +163,9 @@
     "loadingGeneric": "Carregando...",
     "modelError": "Erro no Modelo",
     "modelUnloaded": "Modelo Descarregado",
+    "checkStatusFailed": "Falha ao verificar o status do modelo",
+    "loadFailed": "Falha ao carregar o modelo",
+    "switchFailed": "Falha ao trocar o modelo",
     "noModelDownloadRequired": "Sem Modelo - Download Necessário",
     "deleteModel": "Excluir {{modelName}}",
     "switching": "Alternando...",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Modelo e memória",
         "transcription": "Transcrição",
-        "experimental": "Experimental"
+        "experimental": "Experimental",
+        "postProcessing": "Pós-Processamento"
       },
       "experimentalToggle": {
         "label": "Recursos Experimentais",
@@ -1044,7 +1052,8 @@
       "timeout": "Pós-processamento ignorado: o modelo local demorou demais. A transcrição original foi usada.",
       "lengthGuard": "Pós-processamento ignorado: a saída do modelo local não passou na verificação de tamanho. A transcrição original foi usada.",
       "tooLong": "Pós-processamento ignorado: esta transcrição é longa demais para o modelo local. A transcrição original foi usada."
-    }
+    },
+    "settingNotSaved": "Não foi possível salvar esta configuração: {{error}}"
   },
   "app": {
     "translocatedTitle": "O VoxBar não pode instalar atualizações deste local",

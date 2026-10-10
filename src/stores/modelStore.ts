@@ -409,6 +409,18 @@ export const useModelStore = create<ModelsStore>()(
               state.error = `Failed to extract model: ${event.payload.error}`;
             }),
           );
+          // Same treatment as the sibling download failure: state.error
+          // stays the raw backend string for programmatic use, while the
+          // user gets a localized, model-named toast. Extraction failures
+          // previously failed silently.
+          const modelName =
+            get().models.find((m) => m.id === modelId)?.name ?? modelId;
+          toast.error(
+            i18n.t("onboarding.errors.extractFailed", {
+              model: modelName,
+              error: event.payload.error,
+            }),
+          );
         },
       );
 

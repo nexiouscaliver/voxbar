@@ -20,6 +20,7 @@
     "output": "Output",
     "advanced": "Avanceret",
     "postProcessing": "Efterbehandling",
+    "enableInAdvancedHint": "Aktivér under Avanceret",
     "history": "Historik",
     "debug": "Fejlfinding",
     "about": "Om"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Kunne ikke vælge model",
-      "downloadFailed": "Kunne ikke downloade {{model}}: {{error}}"
+      "downloadFailed": "Kunne ikke downloade {{model}}: {{error}}",
+      "extractFailed": "Kunne ikke udpakke {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Tilladelser påkrævet",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "Ingen modeller tilgængelige",
     "verifying": "Verificerer {{modelName}}...",
     "verifyingGeneric": "Verificerer...",
+    "verifyingGenericShort": "Verificerer",
     "extracting": "Udpakker {{modelName}}...",
     "extractingMultiple": "Udpakker {{count}} modeller...",
     "extractingGeneric": "Udpakker...",
+    "extractingGenericShort": "Udpakker",
     "downloading": "Downloader {{percentage}}%",
     "downloadingMultiple": "Downloader {{count}} modeller...",
     "modelReady": "Model klar",
@@ -161,6 +165,9 @@
     "loadingGeneric": "Indlæser...",
     "modelError": "Modelfejl",
     "modelUnloaded": "Model frigjort",
+    "checkStatusFailed": "Kunne ikke tjekke modelstatus",
+    "loadFailed": "Kunne ikke indlæse modellen",
+    "switchFailed": "Kunne ikke skifte model",
     "noModelDownloadRequired": "Ingen model - download påkrævet",
     "deleteModel": "Slet {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Model og hukommelse",
         "transcription": "Transskription",
-        "experimental": "Eksperimentel"
+        "experimental": "Eksperimentel",
+        "postProcessing": "Efterbehandling"
       },
       "experimentalToggle": {
         "label": "Eksperimentelle funktioner",
@@ -1044,7 +1052,8 @@
       "timeout": "Efterbehandling sprunget over: den lokale model brugte for lang tid. Den originale transskription blev brugt.",
       "lengthGuard": "Efterbehandling sprunget over: den lokale models output bestod ikke længdekontrollen. Den originale transskription blev brugt.",
       "tooLong": "Efterbehandling sprunget over: denne transskription er for lang til den lokale model. Den originale transskription blev brugt."
-    }
+    },
+    "settingNotSaved": "Denne indstilling kunne ikke gemmes: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar kan ikke installere opdateringer fra denne placering",

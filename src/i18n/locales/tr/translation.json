@@ -20,6 +20,7 @@
     "output": "Çıktı",
     "advanced": "Gelişmiş",
     "postProcessing": "Son İşlem",
+    "enableInAdvancedHint": "Gelişmiş bölümünden etkinleştirin",
     "history": "Geçmiş",
     "debug": "Hata Ayıklama",
     "about": "Hakkında"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Model seçilemedi",
-      "downloadFailed": "{{model}} indirilemedi: {{error}}"
+      "downloadFailed": "{{model}} indirilemedi: {{error}}",
+      "extractFailed": "{{model}} çıkarılamadı: {{error}}"
     },
     "permissions": {
       "title": "İzinler Gerekli",
@@ -149,9 +151,11 @@
     "noModelsAvailable": "Kullanılabilir model yok",
     "verifying": "{{modelName}} doğrulanıyor...",
     "verifyingGeneric": "Doğrulanıyor...",
+    "verifyingGenericShort": "Doğrulanıyor",
     "extracting": "{{modelName}} çıkarılıyor...",
     "extractingMultiple": "{{count}} model çıkarılıyor...",
     "extractingGeneric": "Çıkarılıyor...",
+    "extractingGenericShort": "Çıkarılıyor",
     "downloading": "%{{percentage}} indiriliyor",
     "downloadingMultiple": "{{count}} model indiriliyor...",
     "modelReady": "Model Hazır",
@@ -159,6 +163,9 @@
     "loadingGeneric": "Yükleniyor...",
     "modelError": "Model Hatası",
     "modelUnloaded": "Model Boşaltıldı",
+    "checkStatusFailed": "Model durumu kontrol edilemedi",
+    "loadFailed": "Model yüklenemedi",
+    "switchFailed": "Model değiştirilemedi",
     "noModelDownloadRequired": "Model Yok - İndirme Gerekli",
     "deleteModel": "{{modelName}} Sil",
     "switching": "Değiştiriliyor...",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Model ve bellek",
         "transcription": "Transkripsiyon",
-        "experimental": "Deneysel"
+        "experimental": "Deneysel",
+        "postProcessing": "Son İşlem"
       },
       "experimentalToggle": {
         "label": "Deneysel Özellikler",
@@ -1044,7 +1052,8 @@
       "timeout": "Son işlem atlandı: yerel model çok uzun sürdü. Orijinal transkripsiyon kullanıldı.",
       "lengthGuard": "Son işlem atlandı: yerel modelin çıktısı uzunluk denetiminden geçemedi. Orijinal transkripsiyon kullanıldı.",
       "tooLong": "Son işlem atlandı: bu transkripsiyon yerel model için çok uzun. Orijinal transkripsiyon kullanıldı."
-    }
+    },
+    "settingNotSaved": "Bu ayar kaydedilemedi: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar bu konumdan güncellemeleri yükleyemez",

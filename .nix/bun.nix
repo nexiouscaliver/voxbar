@@ -1709,10 +1709,6 @@
     url = "https://registry.npmjs.org/yocto-queue/-/yocto-queue-0.1.0.tgz";
     hash = "sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==";
   };
-  "zod@3.25.76" = fetchurl {
-    url = "https://registry.npmjs.org/zod/-/zod-3.25.76.tgz";
-    hash = "sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==";
-  };
   "zustand@5.0.8" = fetchurl {
     url = "https://registry.npmjs.org/zustand/-/zustand-5.0.8.tgz";
     hash = "sha512-gyPKpIaxY9XcO2vSMrLbiER7QMAMGOQZVRdJ6Zi782jkbzZygq5GI9nG8g+sMgitRtndwaBSl7uiqC49o1SSiw==";

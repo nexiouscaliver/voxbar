@@ -1,5 +1,11 @@
 import { listen } from "@tauri-apps/api/event";
-import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useTranslation } from "react-i18next";
 import "./RecordingOverlay.css";
 import { commands, events } from "@/bindings";
@@ -12,6 +18,13 @@ import type {
 } from "@/bindings";
 import i18n, { syncLanguageFromSettings } from "@/i18n";
 import { getLanguageDirection } from "@/lib/utils/rtl";
+import {
+  normalizePlacement,
+  overlayCacheStorage,
+  readCachedPlacement,
+  writeCachedLanguage,
+  writeCachedPlacement,
+} from "./overlayBootstrap";
 
 type OverlayState =
   | "recording"
@@ -106,7 +119,31 @@ const RecordingOverlay: React.FC = () => {
   const [session, setSession] = useState(0);
   // Overlay placement (top vs bottom of the screen). The Live panel grows downward
   // from a top overlay (oldest line under the pill) and upward from a bottom one.
-  const [position, setPosition] = useState<"top" | "bottom">("bottom");
+  // Seeded from the shared cache so the first paint after show-overlay already
+  // has the right orientation; reconciled with AppSettings in the background.
+  const [position, setPosition] = useState<"top" | "bottom">(() =>
+    readCachedPlacement(overlayCacheStorage()),
+  );
+
+  // Refresh language + placement from the backend without blocking paint:
+  // syncLanguageFromSettings applies the persisted language (never throws),
+  // then one settings read updates the placement cache and state. Every
+  // write also refreshes the cache the next boot paints from. Stable (only
+  // module imports + the setState family), so the mount effect can hold it.
+  const reconcileFromSettings = useCallback(async () => {
+    await syncLanguageFromSettings();
+    writeCachedLanguage(overlayCacheStorage(), i18n.language);
+    try {
+      const result = await commands.getAppSettings();
+      if (result.status === "ok") {
+        const placement = normalizePlacement(result.data.overlay_position);
+        writeCachedPlacement(overlayCacheStorage(), placement);
+        setPosition(placement);
+      }
+    } catch {
+      // Keep the cached placement if settings can't be read.
+    }
+  }, []);
   // True once live text overflows the cap. A top overlay fades its top edge only
   // while overflowing, so the resting first line stays crisp flush under the pill.
   const [overflowing, setOverflowing] = useState(false);
@@ -160,19 +197,10 @@ const RecordingOverlay: React.FC = () => {
           }
         }
 
-        await syncLanguageFromSettings();
-        // The Live panel flows downward from a top overlay and upward from a
-        // bottom one; read the placement so the layout can flip to match.
-        try {
-          const settings = await commands.getAppSettings();
-          if (settings.status === "ok") {
-            setPosition(
-              settings.data.overlay_position === "top" ? "top" : "bottom",
-            );
-          }
-        } catch {
-          // Keep the previous/default placement if settings can't be read.
-        }
+        // Paint immediately from the cached language + placement (applied
+        // at boot and reconciled on mount below); the background reconcile
+        // that follows swaps in fresh values if the backend disagrees. Two
+        // awaited IPC round trips used to sit here, gating every press.
         setState(overlayState);
         if (overlayState === "streaming" || overlayState === "preview") {
           setPhase("listening");
@@ -181,6 +209,10 @@ const RecordingOverlay: React.FC = () => {
           setSession((s) => s + 1); // remount the card fresh for this session
         }
         setIsVisible(true);
+
+        // Now that the overlay is visible, reconcile language + placement
+        // with the backend in the background (no awaited IPC before paint).
+        void reconcileFromSettings();
       });
 
       const unlistenHide = await listen("hide-overlay", () => {
@@ -252,6 +284,20 @@ const RecordingOverlay: React.FC = () => {
         },
       );
 
+      // Follow settings changes live: a language or overlay-position switch
+      // in the settings window lands here immediately (and refreshes the
+      // boot cache) instead of waiting for the next hotkey press.
+      const unlistenSettings = await listen<{ setting?: string }>(
+        "settings-changed",
+        () => {
+          void reconcileFromSettings();
+        },
+      );
+
+      // Boot-order race cover: the cache seeded the first paint, now check
+      // what the backend actually has.
+      void reconcileFromSettings();
+
       return () => {
         unlistenShow();
         unlistenHide();
@@ -261,6 +307,7 @@ const RecordingOverlay: React.FC = () => {
         unlistenPhase();
         unlistenNotice();
         unlistenCmd();
+        unlistenSettings();
         // Never leave the removal chip's timer running past unmount.
         if (removedTimerRef.current !== null) {
           window.clearTimeout(removedTimerRef.current);
@@ -274,7 +321,7 @@ const RecordingOverlay: React.FC = () => {
     };
 
     setupEventListeners();
-  }, []);
+  }, [reconcileFromSettings]);
 
   // Elapsed capture timer starts only once microphone samples are flowing.
   useEffect(() => {

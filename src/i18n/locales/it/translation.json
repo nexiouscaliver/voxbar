@@ -20,6 +20,7 @@
     "output": "Output",
     "advanced": "Avanzate",
     "postProcessing": "Post-Elaborazione",
+    "enableInAdvancedHint": "Attivala in Avanzate",
     "history": "Cronologia",
     "debug": "Debug",
     "about": "Informazioni"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Impossibile selezionare il modello",
-      "downloadFailed": "Download di {{model}} non riuscito: {{error}}"
+      "downloadFailed": "Download di {{model}} non riuscito: {{error}}",
+      "extractFailed": "Estrazione di {{model}} non riuscita: {{error}}"
     },
     "permissions": {
       "title": "Permessi Richiesti",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "Nessun modello disponibile",
     "verifying": "Verifica di {{modelName}}...",
     "verifyingGeneric": "Verifica...",
+    "verifyingGenericShort": "Verifica",
     "extracting": "Estrazione di {{modelName}}...",
     "extractingMultiple": "Estrazione di {{count}} modelli...",
     "extractingGeneric": "Estrazione...",
+    "extractingGenericShort": "Estrazione",
     "downloading": "Download {{percentage}}%",
     "downloadingMultiple": "Download di {{count}} modelli...",
     "modelReady": "Modello Pronto",
@@ -160,6 +164,9 @@
     "loadingGeneric": "Caricamento...",
     "modelError": "Errore del Modello",
     "modelUnloaded": "Modello Disattivato",
+    "checkStatusFailed": "Impossibile verificare lo stato del modello",
+    "loadFailed": "Impossibile caricare il modello",
+    "switchFailed": "Impossibile cambiare modello",
     "noModelDownloadRequired": "Nessun Modello - Download Richiesto",
     "deleteModel": "Elimina {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Modello e memoria",
         "transcription": "Trascrizione",
-        "experimental": "Sperimentale"
+        "experimental": "Sperimentale",
+        "postProcessing": "Post-Elaborazione"
       },
       "experimentalToggle": {
         "label": "Funzionalità Sperimentali",
@@ -1044,7 +1052,8 @@
       "timeout": "Post-elaborazione saltata: il modello locale ha impiegato troppo tempo. È stata usata la trascrizione originale.",
       "lengthGuard": "Post-elaborazione saltata: l'output del modello locale non ha superato il controllo di lunghezza. È stata usata la trascrizione originale.",
       "tooLong": "Post-elaborazione saltata: questa trascrizione è troppo lunga per il modello locale. È stata usata la trascrizione originale."
-    }
+    },
+    "settingNotSaved": "Impossibile salvare questa impostazione: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar non può installare aggiornamenti da questa posizione",

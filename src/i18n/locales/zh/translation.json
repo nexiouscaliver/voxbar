@@ -20,6 +20,7 @@
     "output": "输出",
     "advanced": "高级",
     "postProcessing": "后处理",
+    "enableInAdvancedHint": "在高级设置中启用",
     "history": "历史记录",
     "debug": "调试",
     "about": "关于"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "选择模型失败",
-      "downloadFailed": "下载 {{model}} 失败：{{error}}"
+      "downloadFailed": "下载 {{model}} 失败：{{error}}",
+      "extractFailed": "解压 {{model}} 失败：{{error}}"
     },
     "permissions": {
       "title": "需要权限",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "没有可用的模型",
     "verifying": "正在验证 {{modelName}}...",
     "verifyingGeneric": "正在验证...",
+    "verifyingGenericShort": "正在验证",
     "extracting": "正在解压 {{modelName}}...",
     "extractingMultiple": "正在解压 {{count}} 个模型...",
     "extractingGeneric": "解压中...",
+    "extractingGenericShort": "解压中",
     "downloading": "下载中 {{percentage}}%",
     "downloadingMultiple": "正在下载 {{count}} 个模型...",
     "modelReady": "模型已就绪",
@@ -160,6 +164,9 @@
     "loadingGeneric": "加载中...",
     "modelError": "模型错误",
     "modelUnloaded": "模型已卸载",
+    "checkStatusFailed": "无法检查模型状态",
+    "loadFailed": "无法加载模型",
+    "switchFailed": "无法切换模型",
     "noModelDownloadRequired": "无模型 - 需要下载",
     "deleteModel": "删除 {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "模型与内存",
         "transcription": "转录",
-        "experimental": "实验性"
+        "experimental": "实验性",
+        "postProcessing": "后处理"
       },
       "experimentalToggle": {
         "label": "实验性功能",
@@ -1044,7 +1052,8 @@
       "timeout": "已跳过后处理：本地模型耗时过长。已使用原始转录。",
       "lengthGuard": "已跳过后处理：本地模型的输出未通过长度检查。已使用原始转录。",
       "tooLong": "已跳过后处理：此转录对本地模型来说过长。已使用原始转录。"
-    }
+    },
+    "settingNotSaved": "无法保存此设置：{{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar 无法从此位置安装更新",

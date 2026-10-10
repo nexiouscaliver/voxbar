@@ -20,6 +20,7 @@
     "output": "Sortie",
     "advanced": "Avancé",
     "postProcessing": "Post-traitement",
+    "enableInAdvancedHint": "Activez-le dans Avancé",
     "history": "Historique",
     "debug": "Débogage",
     "about": "À propos"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Échec de la sélection du modèle",
-      "downloadFailed": "Échec du téléchargement de {{model}} : {{error}}"
+      "downloadFailed": "Échec du téléchargement de {{model}} : {{error}}",
+      "extractFailed": "Échec de l'extraction de {{model}} : {{error}}"
     },
     "permissions": {
       "title": "Autorisations requises",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "Aucun modèle disponible",
     "verifying": "Vérification de {{modelName}}...",
     "verifyingGeneric": "Vérification...",
+    "verifyingGenericShort": "Vérification",
     "extracting": "Extraction de {{modelName}}...",
     "extractingMultiple": "Extraction de {{count}} modèles...",
     "extractingGeneric": "Extraction...",
+    "extractingGenericShort": "Extraction",
     "downloading": "Téléchargement {{percentage}}%",
     "downloadingMultiple": "Téléchargement de {{count}} modèles...",
     "modelReady": "Modèle Prêt",
@@ -160,6 +164,9 @@
     "loadingGeneric": "Chargement...",
     "modelError": "Erreur du Modèle",
     "modelUnloaded": "Modèle Déchargé",
+    "checkStatusFailed": "Impossible de vérifier l'état du modèle",
+    "loadFailed": "Impossible de charger le modèle",
+    "switchFailed": "Impossible de changer de modèle",
     "noModelDownloadRequired": "Aucun Modèle - Téléchargement Requis",
     "deleteModel": "Supprimer {{modelName}}",
     "downloadSpeed": "{{speed}} Mo/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Modèle et mémoire",
         "transcription": "Transcription",
-        "experimental": "Expérimental"
+        "experimental": "Expérimental",
+        "postProcessing": "Post-traitement"
       },
       "experimentalToggle": {
         "label": "Fonctionnalités Expérimentales",
@@ -1044,7 +1052,8 @@
       "timeout": "Post-traitement ignoré : le modèle local a pris trop de temps. La transcription brute a été utilisée.",
       "lengthGuard": "Post-traitement ignoré : la sortie du modèle local n'a pas passé la vérification de longueur. La transcription brute a été utilisée.",
       "tooLong": "Post-traitement ignoré : cette transcription est trop longue pour le modèle local. La transcription brute a été utilisée."
-    }
+    },
+    "settingNotSaved": "Impossible d'enregistrer ce paramètre : {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar ne peut pas installer de mises à jour depuis cet emplacement",

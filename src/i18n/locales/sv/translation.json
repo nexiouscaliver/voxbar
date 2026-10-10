@@ -20,6 +20,7 @@
     "output": "Utmatning",
     "advanced": "Avancerat",
     "postProcessing": "Efterbearbetning",
+    "enableInAdvancedHint": "Aktivera under Avancerat",
     "history": "Historik",
     "debug": "Felsökning",
     "about": "Om"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Det gick inte att välja modell",
-      "downloadFailed": "Det gick inte att ladda ner {{model}}: {{error}}"
+      "downloadFailed": "Det gick inte att ladda ner {{model}}: {{error}}",
+      "extractFailed": "Det gick inte att extrahera {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Behörigheter krävs",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "Inga modeller tillgängliga",
     "verifying": "Verifierar {{modelName}}...",
     "verifyingGeneric": "Verifierar...",
+    "verifyingGenericShort": "Verifierar",
     "extracting": "Extraherar {{modelName}}...",
     "extractingMultiple": "Extraherar {{count}} modeller...",
     "extractingGeneric": "Extraherar...",
+    "extractingGenericShort": "Extraherar",
     "downloading": "Laddar ner {{percentage}}%",
     "downloadingMultiple": "Laddar ner {{count}} modeller...",
     "modelReady": "Modell klar",
@@ -160,6 +164,9 @@
     "loadingGeneric": "Laddar...",
     "modelError": "Modellfel",
     "modelUnloaded": "Modell avlastad",
+    "checkStatusFailed": "Det gick inte att kontrollera modellstatus",
+    "loadFailed": "Det gick inte att ladda modellen",
+    "switchFailed": "Det gick inte att byta modell",
     "noModelDownloadRequired": "Ingen modell - Nedladdning krävs",
     "deleteModel": "Ta bort {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Modell och minne",
         "transcription": "Transkription",
-        "experimental": "Experimentellt"
+        "experimental": "Experimentellt",
+        "postProcessing": "Efterbearbetning"
       },
       "experimentalToggle": {
         "label": "Experimentella funktioner",
@@ -1044,7 +1052,8 @@
       "timeout": "Efterbearbetning hoppades över: den lokala modellen tog för lång tid. Den ursprungliga transkriptionen användes.",
       "lengthGuard": "Efterbearbetning hoppades över: den lokala modellens utdata klarade inte längdkontrollen. Den ursprungliga transkriptionen användes.",
       "tooLong": "Efterbearbetning hoppades över: denna transkription är för lång för den lokala modellen. Den ursprungliga transkriptionen användes."
-    }
+    },
+    "settingNotSaved": "Den här inställningen kunde inte sparas: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar kan inte installera uppdateringar från denna plats",

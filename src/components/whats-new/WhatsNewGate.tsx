@@ -3,7 +3,15 @@ import { getVersion } from "@tauri-apps/api/app";
 import { useSettings } from "../../hooks/useSettings";
 import { findReleaseNoteToShow } from "./releaseNotes";
 import type { ReleaseNote } from "./releaseNotes";
-import { WhatsNewModal } from "./WhatsNewModal";
+
+// The modal (and with it react-markdown via MarkdownContent) stays out of
+// the critical bundle: it only loads in the rare moment a release note
+// actually needs to render. The gate itself is what App.tsx renders always.
+const WhatsNewModal = React.lazy(() =>
+  import("./WhatsNewModal").then((module) => ({
+    default: module.WhatsNewModal,
+  })),
+);
 
 export const WhatsNewGate: React.FC = () => {
   const { settings, isLoading, updateSetting } = useSettings();
@@ -68,5 +76,9 @@ export const WhatsNewGate: React.FC = () => {
 
   if (!note) return null;
 
-  return <WhatsNewModal note={note} open={isOpen} onDismiss={dismiss} />;
+  return (
+    <React.Suspense fallback={null}>
+      <WhatsNewModal note={note} open={isOpen} onDismiss={dismiss} />
+    </React.Suspense>
+  );
 };

@@ -15,6 +15,9 @@ import type {
 } from "@/bindings";
 import { commands } from "@/bindings";
 import { toast } from "sonner";
+import i18n from "../i18n";
+import { mapCommandResult } from "./settingsWriteOutcome";
+import type { UnlistenFn } from "@tauri-apps/api/event";
 
 interface SettingsStore {
   settings: Settings | null;
@@ -83,6 +86,10 @@ const DEFAULT_AUDIO_DEVICE: AudioDevice = {
   is_default: true,
 };
 
+// Module-level singleton for initialize(): see the comment on the action.
+let initializePromise: Promise<void> | null = null;
+const initializeUnlisteners: UnlistenFn[] = [];
+
 const settingUpdaters: {
   [K in keyof Settings]?: (value: Settings[K]) => Promise<unknown>;
 } = {
@@ -122,14 +129,8 @@ const settingUpdaters: {
         ? "default"
         : (value as string),
     ),
-  selected_channel: async (value) => {
-    const result = await commands.setSelectedChannel(
-      (value as number | null | undefined) ?? null,
-    );
-    if (result.status === "error") {
-      throw new Error(result.error);
-    }
-  },
+  selected_channel: (value) =>
+    commands.setSelectedChannel((value as number | null | undefined) ?? null),
   clamshell_microphone: (value) =>
     commands.setClamshellMicrophone(
       (value as string) === "Default" ? "default" : (value as string),
@@ -170,12 +171,8 @@ const settingUpdaters: {
   history_limit: (value) => commands.updateHistoryLimit(value as number),
   post_process_enabled: (value) =>
     commands.changePostProcessEnabledSetting(value as boolean),
-  post_process_timeout_secs: async (value) => {
-    const result = await commands.setPostProcessTimeout(value as number);
-    if (result.status === "error") {
-      throw new Error(result.error);
-    }
-  },
+  post_process_timeout_secs: (value) =>
+    commands.setPostProcessTimeout(value as number),
   post_process_selected_prompt_id: (value) =>
     commands.setPostProcessSelectedPrompt(value as string),
   mute_while_recording: (value) =>
@@ -192,15 +189,7 @@ const settingUpdaters: {
     commands.changeLazyStreamCloseSetting(value as boolean),
   overlay_style: (value) => commands.changeOverlayStyleSetting(value as string),
   vad_enabled: (value) => commands.changeVadEnabledSetting(value as boolean),
-  vad_backend: async (value) => {
-    const result = await commands.changeVadBackendSetting(value as VadBackend);
-    if (result.status === "error") {
-      // Rejected switches (e.g. mid-recording) roll the dropdown back via the
-      // throw below; the toast tells the user why.
-      toast.error(result.error);
-      throw new Error(result.error);
-    }
-  },
+  vad_backend: (value) => commands.changeVadBackendSetting(value as VadBackend),
   filler_word_removal_enabled: (value) =>
     commands.changeFillerWordRemovalEnabledSetting(value as boolean),
   spoken_punctuation: (value) =>
@@ -211,17 +200,8 @@ const settingUpdaters: {
     commands.changeTerminalPunctuationSetting(value as boolean),
   voice_deletion_commands: (value) =>
     commands.changeVoiceDeletionCommandsSetting(value as boolean),
-  command_phrases: async (value) => {
-    const result = await commands.updateCommandMatrix(
-      value as CommandMatrixEntry[] | null,
-    );
-    if (result.status === "error") {
-      // Rejected matrix (duplicate, too long, empty phrase): roll the
-      // editor back via the throw below; the toast tells the user why.
-      toast.error(result.error);
-      throw new Error(result.error);
-    }
-  },
+  command_phrases: (value) =>
+    commands.updateCommandMatrix(value as CommandMatrixEntry[] | null),
   preview_before_paste: (value) =>
     commands.changePreviewBeforePasteSetting(value as boolean),
   delete_last_word_enabled: (value) =>
@@ -379,16 +359,41 @@ export const useSettingsStore = create<SettingsStore>()(
         }));
 
         const updater = settingUpdaters[key];
+        let result: unknown = null;
         if (updater) {
-          await updater(value);
+          result = await updater(value);
         } else if (key !== "bindings" && key !== "selected_model") {
+          // Handled elsewhere (bindings via updateBinding, selected_model
+          // via the model store); anything else is a programming slip.
           console.warn(`No handler for setting: ${String(key)}`);
+        }
+
+        // A command that resolves with an error status is as much a failure
+        // as one that throws: roll the optimistic value back and say so,
+        // or the UI keeps showing a setting the backend never accepted.
+        const outcome = mapCommandResult(result, updateKey);
+        if (!outcome.ok) {
+          console.error(
+            `Failed to update setting ${updateKey}:`,
+            outcome.error,
+          );
+          if (settings) {
+            set({ settings: { ...settings, [key]: originalValue } });
+          }
+          toast.error(
+            i18n.t("toast.settingNotSaved", { error: outcome.error ?? "" }),
+          );
         }
       } catch (error) {
         console.error(`Failed to update setting ${String(key)}:`, error);
         if (settings) {
           set({ settings: { ...settings, [key]: originalValue } });
         }
+        toast.error(
+          i18n.t("toast.settingNotSaved", {
+            error: error instanceof Error ? error.message : String(error),
+          }),
+        );
       } finally {
         setUpdating(updateKey, false);
       }
@@ -679,37 +684,51 @@ export const useSettingsStore = create<SettingsStore>()(
       }
     },
 
-    // Initialize everything
-    initialize: async () => {
-      const {
-        refreshSettings,
-        checkCustomSounds,
-        loadDefaultSettings,
-        loadUpdateChecksLocked,
-      } = get();
+    // Initialize everything. App-lifetime listeners are registered exactly
+    // once no matter how many callers race in (React StrictMode mounts every
+    // effect twice in development): the first call's promise is shared, and
+    // the unlisten handles are kept so a future teardown path could use them.
+    initialize: () => {
+      if (!initializePromise) {
+        initializePromise = (async () => {
+          const {
+            refreshSettings,
+            checkCustomSounds,
+            loadDefaultSettings,
+            loadUpdateChecksLocked,
+          } = get();
 
-      // Note: Audio devices are NOT refreshed here. The frontend (App.tsx)
-      // is responsible for calling refreshAudioDevices/refreshOutputDevices
-      // after onboarding completes. This avoids triggering permission dialogs
-      // on macOS before the user is ready.
-      await Promise.all([
-        loadDefaultSettings(),
-        refreshSettings(),
-        checkCustomSounds(),
-        loadUpdateChecksLocked(),
-      ]);
+          // Note: Audio devices are NOT refreshed here. The frontend (App.tsx)
+          // is responsible for calling refreshAudioDevices/refreshOutputDevices
+          // after onboarding completes. This avoids triggering permission dialogs
+          // on macOS before the user is ready.
+          await Promise.all([
+            loadDefaultSettings(),
+            refreshSettings(),
+            checkCustomSounds(),
+            loadUpdateChecksLocked(),
+          ]);
 
-      // Re-fetch settings when the backend changes them (e.g. language
-      // reset during model switch). The backend is the source of truth.
-      listen("model-state-changed", () => {
-        get().refreshSettings();
-      });
-      listen<{ setting?: string }>("settings-changed", (event) => {
-        get().refreshSettings();
-        if (event.payload.setting === "selected_microphone") {
-          get().refreshAudioDevices();
-        }
-      });
+          // Re-fetch settings when the backend changes them (e.g. language
+          // reset during model switch). The backend is the source of truth.
+          const unlistenModelState = await listen("model-state-changed", () => {
+            get().refreshSettings();
+          });
+          const unlistenSettingsChanged = await listen<{
+            setting?: string;
+          }>("settings-changed", (event) => {
+            get().refreshSettings();
+            if (event.payload.setting === "selected_microphone") {
+              get().refreshAudioDevices();
+            }
+          });
+          initializeUnlisteners.push(
+            unlistenModelState,
+            unlistenSettingsChanged,
+          );
+        })();
+      }
+      return initializePromise;
     },
   })),
 );

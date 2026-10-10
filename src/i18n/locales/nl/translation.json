@@ -20,6 +20,7 @@
     "output": "Uitvoer",
     "advanced": "Geavanceerd",
     "postProcessing": "Naverwerking",
+    "enableInAdvancedHint": "Inschakelen bij Geavanceerd",
     "history": "Geschiedenis",
     "debug": "Probleemoplossing",
     "about": "Over VoxBar"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Model selecteren mislukt",
-      "downloadFailed": "Downloaden van {{model}} mislukt: {{error}}"
+      "downloadFailed": "Downloaden van {{model}} mislukt: {{error}}",
+      "extractFailed": "Uitpakken van {{model}} mislukt: {{error}}"
     },
     "permissions": {
       "title": "Machtigingen vereist",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "Geen modellen beschikbaar",
     "verifying": "Verifiëren van {{modelName}}...",
     "verifyingGeneric": "Verifiëren...",
+    "verifyingGenericShort": "Verifiëren",
     "extracting": "Uitpakken van {{modelName}}...",
     "extractingMultiple": "Uitpakken van {{count}} modellen...",
     "extractingGeneric": "Uitpakken...",
+    "extractingGenericShort": "Uitpakken",
     "downloading": "Downloaden {{percentage}}%",
     "downloadingMultiple": "Downloaden van {{count}} modellen...",
     "modelReady": "Model gereed",
@@ -161,6 +165,9 @@
     "loadingGeneric": "Laden...",
     "modelError": "Modelfout",
     "modelUnloaded": "Model ontladen",
+    "checkStatusFailed": "Modelstatus kon niet worden gecontroleerd",
+    "loadFailed": "Model kon niet worden geladen",
+    "switchFailed": "Model kon niet worden gewisseld",
     "noModelDownloadRequired": "Geen model - Download vereist",
     "deleteModel": "{{modelName}} verwijderen",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Model en geheugen",
         "transcription": "Transcriptie",
-        "experimental": "Experimenteel"
+        "experimental": "Experimenteel",
+        "postProcessing": "Naverwerking"
       },
       "experimentalToggle": {
         "label": "Experimentele functies",
@@ -1044,7 +1052,8 @@
       "timeout": "Naverwerking overgeslagen: het lokale model duurde te lang. De originele transcriptie is gebruikt.",
       "lengthGuard": "Naverwerking overgeslagen: de uitvoer van het lokale model slaagde niet voor de lengtecontrole. De originele transcriptie is gebruikt.",
       "tooLong": "Naverwerking overgeslagen: deze transcriptie is te lang voor het lokale model. De originele transcriptie is gebruikt."
-    }
+    },
+    "settingNotSaved": "Deze instelling kon niet worden opgeslagen: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar kan vanaf deze locatie geen updates installeren",

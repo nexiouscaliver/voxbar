@@ -20,6 +20,7 @@
     "output": "Đầu ra",
     "advanced": "Nâng cao",
     "postProcessing": "Xử lý sau",
+    "enableInAdvancedHint": "Bật trong Nâng cao",
     "history": "Lịch sử",
     "debug": "Gỡ lỗi",
     "about": "Giới thiệu"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Không thể chọn mô hình",
-      "downloadFailed": "Tải xuống {{model}} thất bại: {{error}}"
+      "downloadFailed": "Tải xuống {{model}} thất bại: {{error}}",
+      "extractFailed": "Giải nén {{model}} thất bại: {{error}}"
     },
     "permissions": {
       "title": "Cần cấp quyền",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "Không có mô hình nào",
     "verifying": "Đang xác minh {{modelName}}...",
     "verifyingGeneric": "Đang xác minh...",
+    "verifyingGenericShort": "Đang xác minh",
     "extracting": "Đang giải nén {{modelName}}...",
     "extractingMultiple": "Đang giải nén {{count}} mô hình...",
     "extractingGeneric": "Đang giải nén...",
+    "extractingGenericShort": "Đang giải nén",
     "downloading": "Đang tải xuống {{percentage}}%",
     "downloadingMultiple": "Đang tải xuống {{count}} mô hình...",
     "modelReady": "Mô Hình Sẵn Sàng",
@@ -160,6 +164,9 @@
     "loadingGeneric": "Đang tải...",
     "modelError": "Lỗi Mô Hình",
     "modelUnloaded": "Mô Hình Đã Gỡ",
+    "checkStatusFailed": "Không thể kiểm tra trạng thái mô hình",
+    "loadFailed": "Không thể tải mô hình",
+    "switchFailed": "Không thể chuyển mô hình",
     "noModelDownloadRequired": "Chưa Có Mô Hình - Cần Tải Xuống",
     "deleteModel": "Xóa {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Mô hình và bộ nhớ",
         "transcription": "Chuyển đổi",
-        "experimental": "Thử nghiệm"
+        "experimental": "Thử nghiệm",
+        "postProcessing": "Xử lý sau"
       },
       "experimentalToggle": {
         "label": "Tính năng thử nghiệm",
@@ -1044,7 +1052,8 @@
       "timeout": "Đã bỏ qua xử lý sau: mô hình cục bộ mất quá nhiều thời gian. Đã dùng văn bản gốc.",
       "lengthGuard": "Đã bỏ qua xử lý sau: đầu ra của mô hình cục bộ không vượt qua kiểm tra độ dài. Đã dùng văn bản gốc.",
       "tooLong": "Đã bỏ qua xử lý sau: văn bản này quá dài đối với mô hình cục bộ. Đã dùng văn bản gốc."
-    }
+    },
+    "settingNotSaved": "Không thể lưu cài đặt này: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar không thể cài đặt bản cập nhật từ vị trí này",

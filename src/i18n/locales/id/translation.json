@@ -20,6 +20,7 @@
     "output": "Keluaran",
     "advanced": "Lanjutan",
     "postProcessing": "Pascaproses",
+    "enableInAdvancedHint": "Aktifkan di Lanjutan",
     "history": "Riwayat",
     "debug": "Debug",
     "about": "Tentang"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Gagal memilih model",
-      "downloadFailed": "Gagal mengunduh {{model}}: {{error}}"
+      "downloadFailed": "Gagal mengunduh {{model}}: {{error}}",
+      "extractFailed": "Gagal mengekstrak {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Izin Diperlukan",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "Tidak ada model yang tersedia",
     "verifying": "Memverifikasi {{modelName}}...",
     "verifyingGeneric": "Memverifikasi...",
+    "verifyingGenericShort": "Memverifikasi",
     "extracting": "Mengekstrak {{modelName}}...",
     "extractingMultiple": "Mengekstrak {{count}} model...",
     "extractingGeneric": "Mengekstrak...",
+    "extractingGenericShort": "Mengekstrak",
     "downloading": "Mengunduh {{percentage}}%",
     "downloadingMultiple": "Mengunduh {{count}} model...",
     "modelReady": "Model Siap",
@@ -161,6 +165,9 @@
     "loadingGeneric": "Memuat...",
     "modelError": "Kesalahan Model",
     "modelUnloaded": "Model Dikeluarkan dari Memori",
+    "checkStatusFailed": "Gagal memeriksa status model",
+    "loadFailed": "Gagal memuat model",
+    "switchFailed": "Gagal mengganti model",
     "noModelDownloadRequired": "Model Belum Tersedia - Perlu Diunduh",
     "deleteModel": "Hapus {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Model dan memori",
         "transcription": "Transkripsi",
-        "experimental": "Eksperimental"
+        "experimental": "Eksperimental",
+        "postProcessing": "Pascaproses"
       },
       "experimentalToggle": {
         "label": "Fitur Eksperimental",
@@ -1044,7 +1052,8 @@
       "timeout": "Pascaproses dilewati: model lokal memakan waktu terlalu lama. Transkripsi asli yang digunakan.",
       "lengthGuard": "Pascaproses dilewati: keluaran model lokal tidak lulus pemeriksaan panjang. Transkripsi asli yang digunakan.",
       "tooLong": "Pascaproses dilewati: transkripsi ini terlalu panjang untuk model lokal. Transkripsi asli yang digunakan."
-    }
+    },
+    "settingNotSaved": "Pengaturan ini tidak dapat disimpan: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar tidak dapat memasang pembaruan dari lokasi ini",

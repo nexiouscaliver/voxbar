@@ -20,6 +20,7 @@
     "output": "Salida",
     "advanced": "Avanzado",
     "postProcessing": "Post proceso",
+    "enableInAdvancedHint": "Actívalo en Avanzado",
     "history": "Historial",
     "debug": "Depuración",
     "about": "Acerca de"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Error al seleccionar el modelo",
-      "downloadFailed": "Error al descargar {{model}}: {{error}}"
+      "downloadFailed": "Error al descargar {{model}}: {{error}}",
+      "extractFailed": "Error al extraer {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permisos requeridos",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "No hay modelos disponibles",
     "verifying": "Verificando {{modelName}}...",
     "verifyingGeneric": "Verificando...",
+    "verifyingGenericShort": "Verificando",
     "extracting": "Extrayendo {{modelName}}...",
     "extractingMultiple": "Extrayendo {{count}} modelos...",
     "extractingGeneric": "Extrayendo...",
+    "extractingGenericShort": "Extrayendo",
     "downloading": "Descargando {{percentage}}%",
     "downloadingMultiple": "Descargando {{count}} modelos...",
     "modelReady": "Modelo listo",
@@ -160,6 +164,9 @@
     "loadingGeneric": "Cargando...",
     "modelError": "Error del modelo",
     "modelUnloaded": "Modelo descargado",
+    "checkStatusFailed": "Error al comprobar el estado del modelo",
+    "loadFailed": "Error al cargar el modelo",
+    "switchFailed": "Error al cambiar de modelo",
     "noModelDownloadRequired": "Sin modelo - descarga requerida",
     "deleteModel": "Eliminar {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Modelo y memoria",
         "transcription": "Transcripción",
-        "experimental": "Experimental"
+        "experimental": "Experimental",
+        "postProcessing": "Postprocesamiento"
       },
       "experimentalToggle": {
         "label": "Funciones experimentales",
@@ -1044,7 +1052,8 @@
       "timeout": "Post proceso omitido: el modelo local tardó demasiado. Se usó la transcripción original.",
       "lengthGuard": "Post proceso omitido: la salida del modelo local no pasó la comprobación de longitud. Se usó la transcripción original.",
       "tooLong": "Post proceso omitido: esta transcripción es demasiado larga para el modelo local. Se usó la transcripción original."
-    }
+    },
+    "settingNotSaved": "No se pudo guardar este ajuste: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar no puede instalar actualizaciones desde esta ubicación",

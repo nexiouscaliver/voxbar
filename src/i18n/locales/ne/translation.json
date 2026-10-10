@@ -20,6 +20,7 @@
     "output": "आउटपुट",
     "advanced": "उन्नत",
     "postProcessing": "पोस्ट प्रोसेस",
+    "enableInAdvancedHint": "उन्नतमा सक्रिय गर्नुहोस्",
     "history": "हिस्ट्री",
     "debug": "डिबग",
     "about": "बारेमा"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "मोडेल चयन गर्न सकिएन",
-      "downloadFailed": "{{model}} डाउनलोड असफल भयो: {{error}}"
+      "downloadFailed": "{{model}} डाउनलोड असफल भयो: {{error}}",
+      "extractFailed": "{{model}} एक्स्ट्र्याक्ट गर्न असफल भयो: {{error}}"
     },
     "permissions": {
       "title": "अनुमतिहरू आवश्यक छन्",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "कुनै मोडेल उपलब्ध छैन",
     "verifying": "{{modelName}} प्रमाणित गरिँदैछ...",
     "verifyingGeneric": "प्रमाणित गरिँदैछ...",
+    "verifyingGenericShort": "प्रमाणित गरिँदैछ",
     "extracting": "{{modelName}} एक्स्ट्र्याक्ट गरिँदैछ...",
     "extractingMultiple": "{{count}} वटा मोडेल एक्स्ट्र्याक्ट गरिँदैछ...",
     "extractingGeneric": "एक्स्ट्र्याक्ट गरिँदैछ...",
+    "extractingGenericShort": "एक्स्ट्र्याक्ट गरिँदैछ",
     "downloading": "डाउनलोड गरिँदैछ {{percentage}}%",
     "downloadingMultiple": "{{count}} वटा मोडेल डाउनलोड गरिँदैछ...",
     "modelReady": "मोडेल तयार छ",
@@ -161,6 +165,9 @@
     "loadingGeneric": "लोड गरिँदैछ...",
     "modelError": "मोडेल त्रुटि",
     "modelUnloaded": "मोडेल अनलोड गरियो",
+    "checkStatusFailed": "मोडेलको स्थिति जाँच्न असफल भयो",
+    "loadFailed": "मोडेल लोड गर्न असफल भयो",
+    "switchFailed": "मोडेल स्विच गर्न असफल भयो",
     "noModelDownloadRequired": "मोडेल छैन - डाउनलोड आवश्यक",
     "deleteModel": "{{modelName}} मेटाउनुहोस्",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "मोडेल र मेमोरी",
         "transcription": "ट्रान्सक्रिप्सन",
-        "experimental": "प्रयोगात्मक"
+        "experimental": "प्रयोगात्मक",
+        "postProcessing": "पोस्ट प्रोसेसिङ"
       },
       "experimentalToggle": {
         "label": "प्रयोगात्मक सुविधाहरू",
@@ -1044,7 +1052,8 @@
       "timeout": "पोस्ट प्रोसेस छाडियो: स्थानीय मोडेलले धेरै समय लियो। मूल ट्रान्सक्रिप्ट प्रयोग गरियो।",
       "lengthGuard": "पोस्ट प्रोसेस छाडियो: स्थानीय मोडेलको नतिजा लम्बाइ जाँचमा असफल भयो। मूल ट्रान्सक्रिप्ट प्रयोग गरियो।",
       "tooLong": "पोस्ट प्रोसेस छाडियो: यो ट्रान्सक्रिप्ट स्थानीय मोडेलका लागि धेरै लामो छ। मूल ट्रान्सक्रिप्ट प्रयोग गरियो।"
-    }
+    },
+    "settingNotSaved": "यो सेटिङ सुरक्षित गर्न सकिएन: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar यो स्थानबाट अपडेट इन्स्टल गर्न सक्दैन",

@@ -5,6 +5,14 @@ import { Input } from "../ui/Input";
 import { SECTIONS_CONFIG, type SidebarSection } from "../Sidebar";
 import { useSettings } from "../../hooks/useSettings";
 import { ALL_COMMAND_IDS } from "./commands/commandGroups";
+import { searchKeyboardReducer, type SearchKey } from "./searchKeyboardNav";
+
+const HANDLED_KEYS: readonly SearchKey[] = [
+  "ArrowUp",
+  "ArrowDown",
+  "Enter",
+  "Escape",
+];
 
 interface SettingsSearchProps {
   onSelect: (section: SidebarSection) => void;
@@ -186,16 +194,29 @@ export const SettingsSearch: React.FC<SettingsSearchProps> = ({ onSelect }) => {
   const { settings } = useSettings();
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Post Processing entries stay searchable even while the feature is off:
+  // choosing one jumps to Advanced, where the enabling toggle always renders,
+  // so search is never a dead end. Other gated sections (debug) stay hidden.
+  const sectionSearchable = (section: SidebarSection) =>
+    section === "postprocessing" || SECTIONS_CONFIG[section].enabled(settings);
 
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return [];
-    return SEARCH_INDEX.filter((entry) => {
-      if (!SECTIONS_CONFIG[entry.section].enabled(settings)) return false;
-      return t(entry.key).toLowerCase().includes(needle);
-    }).slice(0, MAX_RESULTS);
+    return SEARCH_INDEX.filter(
+      (entry) =>
+        sectionSearchable(entry.section) &&
+        t(entry.key).toLowerCase().includes(needle),
+    ).slice(0, MAX_RESULTS);
   }, [query, t, settings]);
+
+  // Fresh query, fresh highlight: always start on the first row.
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [query]);
 
   // Close the dropdown on any click outside the search field.
   useEffect(() => {
@@ -210,8 +231,14 @@ export const SettingsSearch: React.FC<SettingsSearchProps> = ({ onSelect }) => {
     };
   }, []);
 
+  // A section whose feature is off resolves to the section hosting its
+  // enabling control (Post Process -> Advanced), so a search hit always
+  // lands the user next to the toggle they need.
+  const resolveSection = (section: SidebarSection): SidebarSection =>
+    SECTIONS_CONFIG[section].enabled(settings) ? section : "advanced";
+
   const choose = (section: SidebarSection) => {
-    onSelect(section);
+    onSelect(resolveSection(section));
     setQuery("");
     setFocused(false);
   };
@@ -230,11 +257,20 @@ export const SettingsSearch: React.FC<SettingsSearchProps> = ({ onSelect }) => {
           onChange={(event) => setQuery(event.target.value)}
           onFocus={() => setFocused(true)}
           onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              const first = results[0];
-              if (first) choose(first.section);
-            } else if (event.key === "Escape") {
+            const key = event.key as SearchKey;
+            if (!HANDLED_KEYS.includes(key)) return;
+
+            event.preventDefault();
+            const outcome = searchKeyboardReducer(
+              { selectedIndex, resultCount: results.length },
+              key,
+            );
+            setSelectedIndex(outcome.selectedIndex);
+
+            if (outcome.action === "choose") {
+              const chosen = results[outcome.selectedIndex];
+              if (chosen) choose(chosen.section);
+            } else if (outcome.action === "close") {
               setQuery("");
               setFocused(false);
             }
@@ -253,14 +289,22 @@ export const SettingsSearch: React.FC<SettingsSearchProps> = ({ onSelect }) => {
               {t("settings.search.noResults")}
             </p>
           ) : (
-            results.map((result) => (
+            results.map((result, index) => (
               <button
                 key={`${result.section}:${result.key}`}
+                ref={
+                  index === selectedIndex
+                    ? (node) => node?.scrollIntoView({ block: "nearest" })
+                    : undefined
+                }
                 type="button"
                 role="option"
-                aria-selected={false}
+                aria-selected={index === selectedIndex}
+                onMouseEnter={() => setSelectedIndex(index)}
                 onClick={() => choose(result.section)}
-                className="flex w-full cursor-pointer items-baseline justify-between gap-3 px-4 py-2 text-start text-sm transition-colors hover:bg-mid-gray/10"
+                className={`flex w-full cursor-pointer items-baseline justify-between gap-3 px-4 py-2 text-start text-sm transition-colors hover:bg-mid-gray/10 ${
+                  index === selectedIndex ? "bg-mid-gray/10" : ""
+                }`}
               >
                 <span className="truncate">{t(result.key)}</span>
                 <span className="shrink-0 text-xs text-mid-gray">

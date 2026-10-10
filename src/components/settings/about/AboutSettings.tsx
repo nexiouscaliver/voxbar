@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { getVersion } from "@tauri-apps/api/app";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { SettingContainer } from "../../ui/SettingContainer";
@@ -14,23 +13,20 @@ import { ThemeSelector } from "../ThemeSelector";
 import { AccentColorSelector } from "../AccentColorSelector";
 import { LogDirectory } from "../debug";
 import { runUpdateCheck } from "../../update-checker/updaterFlow";
+import { fetchAppVersion } from "../../../lib/utils/appVersion";
 
 export const AboutSettings: React.FC = () => {
   const { t } = useTranslation();
   const [version, setVersion] = useState("");
 
   useEffect(() => {
-    const fetchVersion = async () => {
-      try {
-        const appVersion = await getVersion();
-        setVersion(appVersion);
-      } catch (error) {
-        console.error("Failed to get app version:", error);
-        setVersion("0.1.2");
-      }
+    let cancelled = false;
+    void fetchAppVersion().then((appVersion) => {
+      if (!cancelled) setVersion(appVersion);
+    });
+    return () => {
+      cancelled = true;
     };
-
-    fetchVersion();
   }, []);
 
   return (

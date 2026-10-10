@@ -20,6 +20,7 @@
     "output": "Вывод",
     "advanced": "Продвинутые",
     "postProcessing": "Постобработка",
+    "enableInAdvancedHint": "Включите в разделе Продвинутые",
     "history": "История",
     "debug": "Отладка",
     "about": "О программе"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Не удалось выбрать модель",
-      "downloadFailed": "Не удалось скачать {{model}}: {{error}}"
+      "downloadFailed": "Не удалось скачать {{model}}: {{error}}",
+      "extractFailed": "Не удалось извлечь {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Требуются разрешения",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "Нет доступных моделей",
     "verifying": "Проверка {{modelName}}...",
     "verifyingGeneric": "Проверка...",
+    "verifyingGenericShort": "Проверка",
     "extracting": "Извлечение {{modelName}}...",
     "extractingMultiple": "Извлечение моделей {{count}}...",
     "extractingGeneric": "Извлечение...",
+    "extractingGenericShort": "Извлечение",
     "downloading": "Загрузка {{percentage}} %",
     "downloadingMultiple": "Загрузка моделей {{count}}...",
     "modelReady": "Модель готова",
@@ -160,6 +164,9 @@
     "loadingGeneric": "Загрузка...",
     "modelError": "Ошибка модели",
     "modelUnloaded": "Модель выгружена",
+    "checkStatusFailed": "Не удалось проверить состояние модели",
+    "loadFailed": "Не удалось загрузить модель",
+    "switchFailed": "Не удалось переключить модель",
     "noModelDownloadRequired": "Нет модели - требуется загрузка",
     "deleteModel": "Удалить {{modelName}}",
     "downloadSpeed": "{{speed}} МБ/с",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Модель и память",
         "transcription": "Транскрипция",
-        "experimental": "Экспериментальное"
+        "experimental": "Экспериментальное",
+        "postProcessing": "Постобработка"
       },
       "experimentalToggle": {
         "label": "Экспериментальные функции",
@@ -1044,7 +1052,8 @@
       "timeout": "Постобработка пропущена: локальная модель работала слишком долго. Использована исходная транскрипция.",
       "lengthGuard": "Постобработка пропущена: результат локальной модели не прошел проверку длины. Использована исходная транскрипция.",
       "tooLong": "Постобработка пропущена: эта транскрипция слишком длинная для локальной модели. Использована исходная транскрипция."
-    }
+    },
+    "settingNotSaved": "Не удалось сохранить этот параметр: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar не может устанавливать обновления из этого расположения",

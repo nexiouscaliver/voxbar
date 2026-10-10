@@ -20,6 +20,7 @@
     "output": "Výstup",
     "advanced": "Pokročilé",
     "postProcessing": "Následné zpracování",
+    "enableInAdvancedHint": "Zapněte v Pokročilém nastavení",
     "history": "Historie",
     "debug": "Ladění",
     "about": "O aplikaci"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Nepodařilo se vybrat model",
-      "downloadFailed": "Stažení {{model}} se nezdařilo: {{error}}"
+      "downloadFailed": "Stažení {{model}} se nezdařilo: {{error}}",
+      "extractFailed": "Rozbalení {{model}} se nezdařilo: {{error}}"
     },
     "permissions": {
       "title": "Vyžadována oprávnění",
@@ -149,9 +151,11 @@
     "noModelsAvailable": "Nejsou dostupné žádné modely",
     "verifying": "Ověřování {{modelName}}...",
     "verifyingGeneric": "Ověřování...",
+    "verifyingGenericShort": "Ověřování",
     "extracting": "Rozbaluji {{modelName}}...",
     "extractingMultiple": "Rozbaluji {{count}} modelů...",
     "extractingGeneric": "Rozbalování...",
+    "extractingGenericShort": "Rozbalování",
     "downloading": "Stahování {{percentage}}%",
     "downloadingMultiple": "Stahování {{count}} modelů...",
     "modelReady": "Model připraven",
@@ -159,6 +163,9 @@
     "loadingGeneric": "Načítání...",
     "modelError": "Chyba modelu",
     "modelUnloaded": "Model uvolněn",
+    "checkStatusFailed": "Stav modelu se nepodařilo zkontrolovat",
+    "loadFailed": "Model se nepodařilo načíst",
+    "switchFailed": "Model se nepodařilo přepnout",
     "noModelDownloadRequired": "Žádný model - je nutné stáhnout",
     "deleteModel": "Smazat {{modelName}}",
     "switching": "Přepínání...",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Model a paměť",
         "transcription": "Přepis",
-        "experimental": "Experimentální"
+        "experimental": "Experimentální",
+        "postProcessing": "Následné zpracování"
       },
       "experimentalToggle": {
         "label": "Experimentální funkce",
@@ -1044,7 +1052,8 @@
       "timeout": "Následné zpracování bylo přeskočeno: místnímu modelu to trvalo příliš dlouho. Byl použit původní přepis.",
       "lengthGuard": "Následné zpracování bylo přeskočeno: výstup místního modelu neprošel kontrolou délky. Byl použit původní přepis.",
       "tooLong": "Následné zpracování bylo přeskočeno: tento přepis je pro místní model příliš dlouhý. Byl použit původní přepis."
-    }
+    },
+    "settingNotSaved": "Toto nastavení se nepodařilo uložit: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar nemůže z tohoto umístění instalovat aktualizace",

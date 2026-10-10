@@ -20,6 +20,7 @@
     "output": "출력",
     "advanced": "고급",
     "postProcessing": "후처리",
+    "enableInAdvancedHint": "고급에서 사용 설정",
     "history": "히스토리",
     "debug": "디버그",
     "about": "정보"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "모델을 선택하지 못했습니다",
-      "downloadFailed": "{{model}} 다운로드 실패: {{error}}"
+      "downloadFailed": "{{model}} 다운로드 실패: {{error}}",
+      "extractFailed": "{{model}} 압축 해제 실패: {{error}}"
     },
     "permissions": {
       "title": "권한 필요",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "사용 가능한 모델이 없습니다",
     "verifying": "{{modelName}} 검증 중...",
     "verifyingGeneric": "검증 중...",
+    "verifyingGenericShort": "검증 중",
     "extracting": "{{modelName}} 압축 해제 중...",
     "extractingMultiple": "{{count}}개 모델 압축 해제 중...",
     "extractingGeneric": "압축 해제 중...",
+    "extractingGenericShort": "압축 해제 중",
     "downloading": "다운로드 중 {{percentage}}%",
     "downloadingMultiple": "{{count}}개 모델 다운로드 중...",
     "modelReady": "모델 준비 완료",
@@ -160,6 +164,9 @@
     "loadingGeneric": "로딩 중...",
     "modelError": "모델 오류",
     "modelUnloaded": "모델 언로드됨",
+    "checkStatusFailed": "모델 상태를 확인하지 못했습니다",
+    "loadFailed": "모델을 로드하지 못했습니다",
+    "switchFailed": "모델을 전환하지 못했습니다",
     "noModelDownloadRequired": "모델 없음 - 다운로드 필요",
     "deleteModel": "{{modelName}} 삭제",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "모델 및 메모리",
         "transcription": "전사",
-        "experimental": "실험적"
+        "experimental": "실험적",
+        "postProcessing": "후처리"
       },
       "experimentalToggle": {
         "label": "실험적 기능",
@@ -1044,7 +1052,8 @@
       "timeout": "후처리를 건너뛰었습니다: 로컬 모델이 너무 오래 걸렸습니다. 원본 전사 내용을 사용했습니다.",
       "lengthGuard": "후처리를 건너뛰었습니다: 로컬 모델 출력이 길이 검사를 통과하지 못했습니다. 원본 전사 내용을 사용했습니다.",
       "tooLong": "후처리를 건너뛰었습니다: 이 전사 내용은 로컬 모델에 너무 깁니다. 원본 전사 내용을 사용했습니다."
-    }
+    },
+    "settingNotSaved": "이 설정을 저장할 수 없습니다: {{error}}"
   },
   "app": {
     "translocatedTitle": "이 위치에서는 업데이트를 설치할 수 없습니다",

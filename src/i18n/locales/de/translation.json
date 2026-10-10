@@ -20,6 +20,7 @@
     "output": "Ausgabe",
     "advanced": "Erweitert",
     "postProcessing": "Nachbearbeitung",
+    "enableInAdvancedHint": "Unter Erweitert aktivieren",
     "history": "Verlauf",
     "debug": "Debug",
     "about": "Info"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Modellauswahl fehlgeschlagen",
-      "downloadFailed": "{{model}} konnte nicht geladen werden: {{error}}"
+      "downloadFailed": "{{model}} konnte nicht geladen werden: {{error}}",
+      "extractFailed": "{{model}} konnte nicht entpackt werden: {{error}}"
     },
     "permissions": {
       "title": "Berechtigungen erforderlich",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "Keine Modelle verfügbar",
     "verifying": "Überprüfung von {{modelName}}...",
     "verifyingGeneric": "Überprüfung...",
+    "verifyingGenericShort": "Überprüfung",
     "extracting": "Entpacke {{modelName}}...",
     "extractingMultiple": "Entpacke {{count}} Modelle...",
     "extractingGeneric": "Wird entpackt...",
+    "extractingGenericShort": "Wird entpackt",
     "downloading": "Herunterladen {{percentage}}%",
     "downloadingMultiple": "Lade {{count}} Modelle herunter...",
     "modelReady": "Modell bereit",
@@ -160,6 +164,9 @@
     "loadingGeneric": "Wird geladen...",
     "modelError": "Modellfehler",
     "modelUnloaded": "Modell entladen",
+    "checkStatusFailed": "Modellstatus konnte nicht geprüft werden",
+    "loadFailed": "Modell konnte nicht geladen werden",
+    "switchFailed": "Modell konnte nicht gewechselt werden",
     "noModelDownloadRequired": "Kein Modell - Download erforderlich",
     "deleteModel": "{{modelName}} löschen",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Modell und Speicher",
         "transcription": "Transkription",
-        "experimental": "Experimentell"
+        "experimental": "Experimentell",
+        "postProcessing": "Nachbearbeitung"
       },
       "experimentalToggle": {
         "label": "Experimentelle Funktionen",
@@ -1044,7 +1052,8 @@
       "timeout": "Nachbearbeitung übersprungen: Das lokale Modell hat zu lange gebraucht. Die unveränderte Transkription wurde eingefügt.",
       "lengthGuard": "Nachbearbeitung übersprungen: Die Ausgabe des lokalen Modells hat die Längenprüfung nicht bestanden. Die unveränderte Transkription wurde eingefügt.",
       "tooLong": "Nachbearbeitung übersprungen: Diese Transkription ist zu lang für das lokale Modell. Die unveränderte Transkription wurde eingefügt."
-    }
+    },
+    "settingNotSaved": "Diese Einstellung konnte nicht gespeichert werden: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar kann von diesem Ort keine Updates installieren",

@@ -20,6 +20,7 @@
     "output": "आउटपुट",
     "advanced": "ऐडवांस",
     "postProcessing": "पोस्ट प्रोसेस",
+    "enableInAdvancedHint": "ऐडवांस में सक्षम करें",
     "history": "इतिहास",
     "debug": "डिबग",
     "about": "के बारे में"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "मॉडल चुना नहीं जा सका",
-      "downloadFailed": "{{model}} डाउनलोड नहीं हो सका: {{error}}"
+      "downloadFailed": "{{model}} डाउनलोड नहीं हो सका: {{error}}",
+      "extractFailed": "{{model}} एक्सट्रैक्ट नहीं हो सका: {{error}}"
     },
     "permissions": {
       "title": "अनुमतियों की ज़रूरत है",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "कोई मॉडल उपलब्ध नहीं है",
     "verifying": "{{modelName}} की पुष्टि हो रही है...",
     "verifyingGeneric": "पुष्टि हो रही है...",
+    "verifyingGenericShort": "पुष्टि हो रही है",
     "extracting": "{{modelName}} एक्सट्रैक्ट हो रहा है...",
     "extractingMultiple": "{{count}} मॉडल एक्सट्रैक्ट हो रहे हैं...",
     "extractingGeneric": "एक्सट्रैक्ट हो रहा है...",
+    "extractingGenericShort": "एक्सट्रैक्ट हो रहा है",
     "downloading": "{{percentage}}% डाउनलोड हो रहा है",
     "downloadingMultiple": "{{count}} मॉडल डाउनलोड हो रहे हैं...",
     "modelReady": "मॉडल तैयार है",
@@ -161,6 +165,9 @@
     "loadingGeneric": "लोड हो रहा है...",
     "modelError": "मॉडल में गड़बड़ी",
     "modelUnloaded": "मॉडल अनलोड किया गया",
+    "checkStatusFailed": "मॉडल की स्थिति जांची नहीं जा सकी",
+    "loadFailed": "मॉडल लोड नहीं हो सका",
+    "switchFailed": "मॉडल स्विच नहीं हो सका",
     "noModelDownloadRequired": "कोई मॉडल नहीं - डाउनलोड करना ज़रूरी है",
     "deleteModel": "{{modelName}} हटाएं",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "मॉडल और मेमोरी",
         "transcription": "ट्रांसक्रिप्शन",
-        "experimental": "प्रायोगिक"
+        "experimental": "प्रायोगिक",
+        "postProcessing": "पोस्ट प्रोसेसिंग"
       },
       "experimentalToggle": {
         "label": "प्रायोगिक सुविधाएं",
@@ -1044,7 +1052,8 @@
       "timeout": "पोस्ट प्रोसेस छोड़ दिया गया: स्थानीय मॉडल को बहुत अधिक समय लगा। मूल ट्रांसक्रिप्ट का उपयोग किया गया।",
       "lengthGuard": "पोस्ट प्रोसेस छोड़ दिया गया: स्थानीय मॉडल का आउटपुट लंबाई जांच में विफल रहा। मूल ट्रांसक्रिप्ट का उपयोग किया गया।",
       "tooLong": "पोस्ट प्रोसेस छोड़ दिया गया: यह ट्रांसक्रिप्ट स्थानीय मॉडल के लिए बहुत लंबा है। मूल ट्रांसक्रिप्ट का उपयोग किया गया।"
-    }
+    },
+    "settingNotSaved": "यह सेटिंग सहेजी नहीं जा सकी: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar इस जगह से अपडेट इंस्टॉल नहीं कर सकता",

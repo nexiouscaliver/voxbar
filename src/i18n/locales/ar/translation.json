@@ -18,6 +18,7 @@
     "commands": "الأوامر",
     "advanced": "متقدم",
     "postProcessing": "معالجة لاحقة",
+    "enableInAdvancedHint": "فعّلها من الإعدادات المتقدمة",
     "history": "السجل",
     "debug": "تصحيح الأخطاء",
     "about": "حول",
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "فشل تحديد النموذج",
-      "downloadFailed": "فشل تنزيل {{model}}: {{error}}"
+      "downloadFailed": "فشل تنزيل {{model}}: {{error}}",
+      "extractFailed": "فشل استخراج {{model}}: {{error}}"
     },
     "permissions": {
       "title": "الأذونات المطلوبة",
@@ -149,9 +151,11 @@
     "noModelsAvailable": "لا توجد نماذج متاحة",
     "verifying": "جارٍ التحقق من {{modelName}}...",
     "verifyingGeneric": "جارٍ التحقق...",
+    "verifyingGenericShort": "جارٍ التحقق",
     "extracting": "...جاري استخراج {{modelName}}",
     "extractingMultiple": "...جاري استخراج {{count}} من النماذج",
     "extractingGeneric": "...جاري الاستخراج",
+    "extractingGenericShort": "جاري الاستخراج",
     "downloading": "جاري التنزيل {{percentage}}%",
     "downloadingMultiple": "جاري تنزيل {{count}} من النماذج...",
     "modelReady": "النموذج جاهز",
@@ -159,6 +163,9 @@
     "loadingGeneric": "...جاري التحميل",
     "modelError": "خطأ في النموذج",
     "modelUnloaded": "تم إلغاء تحميل النموذج",
+    "checkStatusFailed": "فشل التحقق من حالة النموذج",
+    "loadFailed": "فشل تحميل النموذج",
+    "switchFailed": "فشل تبديل النموذج",
     "noModelDownloadRequired": "لا يوجد نموذج - التنزيل مطلوب",
     "deleteModel": "حذف {{modelName}}",
     "switching": "جارٍ التبديل...",
@@ -371,7 +378,8 @@
       "groups": {
         "model": "النموذج والذاكرة",
         "transcription": "التفريغ الصوتي",
-        "experimental": "تجريبي"
+        "experimental": "تجريبي",
+        "postProcessing": "المعالجة اللاحقة"
       },
       "experimentalToggle": {
         "label": "الميزات التجريبية",
@@ -1044,7 +1052,8 @@
       "timeout": "تم تخطي المعالجة اللاحقة: استغرق النموذج المحلي وقتا طويلا جدا. تم استخدام النص الأصلي.",
       "lengthGuard": "تم تخطي المعالجة اللاحقة: لم يجتز ناتج النموذج المحلي فحص الطول. تم استخدام النص الأصلي.",
       "tooLong": "تم تخطي المعالجة اللاحقة: هذا النص طويل جدا على النموذج المحلي. تم استخدام النص الأصلي."
-    }
+    },
+    "settingNotSaved": "تعذر حفظ هذا الإعداد: {{error}}"
   },
   "app": {
     "translocatedTitle": "لا يستطيع VoxBar تثبيت التحديثات من هذا الموقع",

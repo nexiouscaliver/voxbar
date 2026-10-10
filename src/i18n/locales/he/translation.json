@@ -20,6 +20,7 @@
     "output": "פלט",
     "advanced": "מתקדם",
     "postProcessing": "עיבוד משלים",
+    "enableInAdvancedHint": "הפעלה במסך מתקדם",
     "history": "היסטוריה",
     "debug": "ניפוי שגיאות",
     "about": "אודות"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "בחירת המודל נכשלה",
-      "downloadFailed": "הורדת {{model}} נכשלה: {{error}}"
+      "downloadFailed": "הורדת {{model}} נכשלה: {{error}}",
+      "extractFailed": "חילוץ {{model}} נכשל: {{error}}"
     },
     "permissions": {
       "title": "נדרשות הרשאות",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "אין מודלים זמינים",
     "verifying": "מאמת את {{modelName}}...",
     "verifyingGeneric": "מאמת...",
+    "verifyingGenericShort": "מאמת",
     "extracting": "מחלץ את {{modelName}}...",
     "extractingMultiple": "מחלץ {{count}} מודלים...",
     "extractingGeneric": "מחלץ...",
+    "extractingGenericShort": "מחלץ",
     "downloading": "מוריד {{percentage}}%",
     "downloadingMultiple": "מוריד {{count}} מודלים...",
     "modelReady": "המודל מוכן",
@@ -160,6 +164,9 @@
     "loadingGeneric": "טוען...",
     "modelError": "שגיאת מודל",
     "modelUnloaded": "המודל נפרק",
+    "checkStatusFailed": "בדיקת מצב המודל נכשלה",
+    "loadFailed": "טעינת המודל נכשלה",
+    "switchFailed": "החלפת המודל נכשלה",
     "noModelDownloadRequired": "אין מודל, נדרשת הורדה",
     "deleteModel": "מחק את {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "מודל וזיכרון",
         "transcription": "תמלול",
-        "experimental": "ניסיוני"
+        "experimental": "ניסיוני",
+        "postProcessing": "עיבוד משלים"
       },
       "experimentalToggle": {
         "label": "תכונות ניסיוניות",
@@ -1044,7 +1052,8 @@
       "timeout": "עיבוד משלים דולג: למודל המקומי לקח יותר מדי זמן. נעשה שימוש בתמליל המקורי.",
       "lengthGuard": "עיבוד משלים דולג: הפלט של המודל המקומי לא עבר את בדיקת האורך. נעשה שימוש בתמליל המקורי.",
       "tooLong": "עיבוד משלים דולג: התמליל הזה ארוך מדי למודל המקומי. נעשה שימוש בתמליל המקורי."
-    }
+    },
+    "settingNotSaved": "לא ניתן לשמור את ההגדרה הזו: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar לא יכול להתקין עדכונים ממיקום זה",

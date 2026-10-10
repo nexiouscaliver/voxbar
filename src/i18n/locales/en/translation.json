@@ -20,6 +20,7 @@
     "output": "Output",
     "advanced": "Advanced",
     "postProcessing": "Post Process",
+    "enableInAdvancedHint": "Enable in Advanced",
     "history": "History",
     "debug": "Debug",
     "about": "About"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Failed to select model",
-      "downloadFailed": "Failed to download {{model}}: {{error}}"
+      "downloadFailed": "Failed to download {{model}}: {{error}}",
+      "extractFailed": "Failed to extract {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permissions Required",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "No models available",
     "verifying": "Verifying {{modelName}}...",
     "verifyingGeneric": "Verifying...",
+    "verifyingGenericShort": "Verifying",
     "extracting": "Extracting {{modelName}}...",
     "extractingMultiple": "Extracting {{count}} models...",
     "extractingGeneric": "Extracting...",
+    "extractingGenericShort": "Extracting",
     "downloading": "Downloading {{percentage}}%",
     "downloadingMultiple": "Downloading {{count}} models...",
     "modelReady": "Model Ready",
@@ -161,6 +165,9 @@
     "loadingGeneric": "Loading...",
     "modelError": "Model Error",
     "modelUnloaded": "Model Unloaded",
+    "checkStatusFailed": "Failed to check model status",
+    "loadFailed": "Failed to load model",
+    "switchFailed": "Failed to switch model",
     "noModelDownloadRequired": "No Model - Download Required",
     "deleteModel": "Delete {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Model & Memory",
         "transcription": "Transcription",
-        "experimental": "Experimental"
+        "experimental": "Experimental",
+        "postProcessing": "Post Processing"
       },
       "experimentalToggle": {
         "label": "Experimental Features",
@@ -1044,7 +1052,8 @@
       "timeout": "Post-processing skipped: the local model took too long. The raw transcript was used.",
       "lengthGuard": "Post-processing skipped: the local model output failed the length check. The raw transcript was used.",
       "tooLong": "Post-processing skipped: this transcript is too long for the local model. The raw transcript was used."
-    }
+    },
+    "settingNotSaved": "Could not save this setting: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar cannot install updates from this location",

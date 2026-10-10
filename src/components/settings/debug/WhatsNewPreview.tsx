@@ -1,11 +1,19 @@
-import React, { useState } from "react";
+import React, { Suspense, lazy, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { Button } from "../../ui/Button";
 import { SettingContainer } from "../../ui/SettingContainer";
-import { WhatsNewModal } from "../../whats-new/WhatsNewModal";
 import { findLatestReleaseNote } from "../../whats-new/releaseNotes";
 import type { ReleaseNote } from "../../whats-new/releaseNotes";
+
+// Lazy for the same reason as WhatsNewGate: this static import was pulling
+// the modal (and react-markdown) into the critical bundle even though the
+// modal only renders on a deliberate preview click.
+const WhatsNewModal = lazy(() =>
+  import("../../whats-new/WhatsNewModal").then((module) => ({
+    default: module.WhatsNewModal,
+  })),
+);
 
 interface WhatsNewPreviewProps {
   descriptionMode?: "inline" | "tooltip";
@@ -59,11 +67,13 @@ export const WhatsNewPreview: React.FC<WhatsNewPreviewProps> = ({
       </SettingContainer>
 
       {note && (
-        <WhatsNewModal
-          note={note}
-          open={true}
-          onDismiss={() => setNote(null)}
-        />
+        <Suspense fallback={null}>
+          <WhatsNewModal
+            note={note}
+            open={true}
+            onDismiss={() => setNote(null)}
+          />
+        </Suspense>
       )}
     </>
   );

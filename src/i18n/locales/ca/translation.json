@@ -20,6 +20,7 @@
     "output": "Sortida",
     "advanced": "Avançat",
     "postProcessing": "Postprocessament",
+    "enableInAdvancedHint": "Activa-ho a Avançat",
     "history": "Historial",
     "debug": "Depuració",
     "about": "Quant a"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "No s'ha pogut seleccionar el model",
-      "downloadFailed": "No s'ha pogut descarregar {{model}}: {{error}}"
+      "downloadFailed": "No s'ha pogut descarregar {{model}}: {{error}}",
+      "extractFailed": "No s'ha pogut extreure {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Permisos necessaris",
@@ -151,9 +153,11 @@
     "noModelsAvailable": "No hi ha models disponibles",
     "verifying": "S'està verificant {{modelName}}...",
     "verifyingGeneric": "S'està verificant...",
+    "verifyingGenericShort": "Verificant",
     "extracting": "S'està extraient {{modelName}}...",
     "extractingMultiple": "S'estan extraient {{count}} models...",
     "extractingGeneric": "S'està extraient...",
+    "extractingGenericShort": "Extraient",
     "downloading": "S'està baixant: {{percentage}}%",
     "downloadingMultiple": "S'estan baixant {{count}} models...",
     "modelReady": "Model a punt",
@@ -161,6 +165,9 @@
     "loadingGeneric": "S'està carregant...",
     "modelError": "Error del model",
     "modelUnloaded": "Model alliberat de la memòria",
+    "checkStatusFailed": "No s'ha pogut comprovar l'estat del model",
+    "loadFailed": "No s'ha pogut carregar el model",
+    "switchFailed": "No s'ha pogut canviar de model",
     "noModelDownloadRequired": "No hi ha cap model: cal baixar-ne un",
     "deleteModel": "Suprimiu {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Model i memòria",
         "transcription": "Transcripció",
-        "experimental": "Experimental"
+        "experimental": "Experimental",
+        "postProcessing": "Postprocessament"
       },
       "experimentalToggle": {
         "label": "Funcions experimentals",
@@ -1044,7 +1052,8 @@
       "timeout": "S'ha omès el postprocessament: el model local ha trigat massa. S'ha usat la transcripció original.",
       "lengthGuard": "S'ha omès el postprocessament: la sortida del model local no ha passat la comprovació de longitud. S'ha usat la transcripció original.",
       "tooLong": "S'ha omès el postprocessament: aquesta transcripció és massa llarga per al model local. S'ha usat la transcripció original."
-    }
+    },
+    "settingNotSaved": "No s'ha pogut desar aquesta configuració: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar no pot instal·lar actualitzacions des d'aquesta ubicació",

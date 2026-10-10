@@ -20,6 +20,7 @@
     "output": "Изход",
     "advanced": "Разширени",
     "postProcessing": "Постобработка",
+    "enableInAdvancedHint": "Включете в Разширени",
     "history": "История",
     "debug": "Отстраняване",
     "about": "За приложението"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Неуспешно избиране на модел",
-      "downloadFailed": "Неуспешно изтегляне на {{model}}: {{error}}"
+      "downloadFailed": "Неуспешно изтегляне на {{model}}: {{error}}",
+      "extractFailed": "Неуспешно разархивиране на {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Необходими разрешения",
@@ -150,9 +152,11 @@
     "noModelsAvailable": "Няма налични модели",
     "verifying": "Проверка на {{modelName}}...",
     "verifyingGeneric": "Проверка...",
+    "verifyingGenericShort": "Проверка",
     "extracting": "Разархивиране на {{modelName}}...",
     "extractingMultiple": "Разархивиране на {{count}} модела...",
     "extractingGeneric": "Разархивиране...",
+    "extractingGenericShort": "Разархивиране",
     "downloading": "Изтегляне {{percentage}}%",
     "downloadingMultiple": "Изтегляне на {{count}} модела...",
     "modelReady": "Моделът е готов",
@@ -160,6 +164,9 @@
     "loadingGeneric": "Зареждане...",
     "modelError": "Грешка в модела",
     "modelUnloaded": "Моделът е разтоварен",
+    "checkStatusFailed": "Неуспешна проверка на състоянието на модела",
+    "loadFailed": "Моделът не можа да бъде зареден",
+    "switchFailed": "Неуспешна смяна на модела",
     "noModelDownloadRequired": "Няма модел - необходимо е изтегляне",
     "deleteModel": "Изтриване на {{modelName}}",
     "downloadSpeed": "{{speed}} MB/s",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Модел и памет",
         "transcription": "Транскрипция",
-        "experimental": "Експериментални"
+        "experimental": "Експериментални",
+        "postProcessing": "Постобработка"
       },
       "experimentalToggle": {
         "label": "Експериментални функции",
@@ -1044,7 +1052,8 @@
       "timeout": "Постобработката е пропусната: локалният модел отне твърде много време. Използвана е оригиналната транскрипция.",
       "lengthGuard": "Постобработката е пропусната: изходът на локалния модел не премина проверката на дължината. Използвана е оригиналната транскрипция.",
       "tooLong": "Постобработката е пропусната: тази транскрипция е твърде дълга за локалния модел. Използвана е оригиналната транскрипция."
-    }
+    },
+    "settingNotSaved": "Тази настройка не можа да бъде запазена: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar не може да инсталира обновления от това местоположение",

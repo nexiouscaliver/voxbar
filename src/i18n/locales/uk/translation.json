@@ -20,6 +20,7 @@
     "output": "Вивід",
     "advanced": "Розширені",
     "postProcessing": "Постобробка",
+    "enableInAdvancedHint": "Увімкніть у розділі Розширені",
     "history": "Історія",
     "debug": "Дебаг",
     "about": "Інфо"
@@ -114,7 +115,8 @@
     },
     "errors": {
       "selectModel": "Не вдалося вибрати модель",
-      "downloadFailed": "Не вдалося завантажити {{model}}: {{error}}"
+      "downloadFailed": "Не вдалося завантажити {{model}}: {{error}}",
+      "extractFailed": "Не вдалося розпакувати {{model}}: {{error}}"
     },
     "permissions": {
       "title": "Потрібні дозволи",
@@ -149,9 +151,11 @@
     "noModelsAvailable": "Немає доступних моделей",
     "verifying": "Перевірка {{modelName}}...",
     "verifyingGeneric": "Перевірка...",
+    "verifyingGenericShort": "Перевірка",
     "extracting": "Розпакування {{modelName}}...",
     "extractingMultiple": "Розпакування {{count}} моделей...",
     "extractingGeneric": "Розпакування...",
+    "extractingGenericShort": "Розпакування",
     "downloading": "Завантаження {{percentage}}%",
     "downloadingMultiple": "Завантаження {{count}} моделей...",
     "modelReady": "Модель готова",
@@ -159,6 +163,9 @@
     "loadingGeneric": "Завантаження...",
     "modelError": "Помилка моделі",
     "modelUnloaded": "Модель вивантажена",
+    "checkStatusFailed": "Не вдалося перевірити стан моделі",
+    "loadFailed": "Не вдалося завантажити модель",
+    "switchFailed": "Не вдалося перемкнути модель",
     "noModelDownloadRequired": "Немає моделі - потрібно завантажити",
     "deleteModel": "Видалити {{modelName}}",
     "switching": "Перемикання...",
@@ -426,7 +433,8 @@
       "groups": {
         "model": "Модель і памʼять",
         "transcription": "Транскрипція",
-        "experimental": "Експериментальне"
+        "experimental": "Експериментальне",
+        "postProcessing": "Постобробка"
       },
       "experimentalToggle": {
         "label": "Експериментальні функції",
@@ -1044,7 +1052,8 @@
       "timeout": "Постобробку пропущено: локальна модель працювала надто довго. Використано початкову транскрипцію.",
       "lengthGuard": "Постобробку пропущено: результат локальної моделі не пройшов перевірку довжини. Використано початкову транскрипцію.",
       "tooLong": "Постобробку пропущено: ця транскрипція задовга для локальної моделі. Використано початкову транскрипцію."
-    }
+    },
+    "settingNotSaved": "Не вдалося зберегти цей параметр: {{error}}"
   },
   "app": {
     "translocatedTitle": "VoxBar не може встановлювати оновлення з цього розташування",
