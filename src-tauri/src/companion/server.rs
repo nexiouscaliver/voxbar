@@ -318,7 +318,10 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
 
             device_name = device;
             manager.remember_device(&app, &device_name);
-            *manager.session_device.lock().unwrap() = Some(device_name.clone());
+            // KB-197: claim the session slot only while no session is live
+            // (see claim_session_device) - a second phone connecting
+            // mid-dictation is a spectator, not the session's device.
+            manager.claim_session_device(&device_name);
 
             let settings = crate::settings::get_settings(&app);
             let activation = match settings.shortcut_activation {

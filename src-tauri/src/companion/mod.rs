@@ -117,6 +117,20 @@ impl CompanionManager {
         self.session_device.lock().unwrap().clone()
     }
 
+    /// KB-197: an authenticated hello claims the session-device slot - the
+    /// source `on_session_changed` badges the session with and blames on
+    /// cap/disconnect notices - but ONLY while no session is live. Once a
+    /// phone is dictating, an additional hello is a spectator or a
+    /// reconnect: overwriting the slot would rename the session after the
+    /// fact (and the next session's badge) to a phone that never pressed.
+    /// A same-name reconnect mid-session is a no-op by the same guard.
+    pub fn claim_session_device(&self, name: &str) {
+        if self.session_live() {
+            return;
+        }
+        *self.session_device.lock().unwrap() = Some(name.to_string());
+    }
+
     pub fn broadcast_frame(&self, frame: &protocol::ServerFrame) {
         // A send with no subscribers is an expected error, not a failure.
         let _ = self.broadcast.send(frame.to_json());
@@ -531,6 +545,50 @@ mod tests {
     fn qr_fails_cleanly_on_garbage() {
         // Empty string is technically encodable; oversize input is not.
         assert!(qr_svg_for(&"x".repeat(4000)).is_err());
+    }
+
+    /// KB-197: a hello claims the session-device slot (the badge/blame
+    /// source `on_session_changed` reads) only while no session is live.
+    /// Mid-session, another phone's hello is a spectator and must not
+    /// rename the session; a same-name reconnect is a no-op by the same
+    /// guard, so neither changes the slot.
+    #[test]
+    fn hello_claims_the_session_device_only_while_no_session_is_live() {
+        let manager = CompanionManager::new();
+
+        // No session live: the hello claims the slot.
+        manager.claim_session_device("Pixel 8");
+        assert_eq!(manager.session_device().as_deref(), Some("Pixel 8"));
+
+        // Session live: a different phone's hello is a spectator.
+        manager.session_live.store(true, Ordering::Release);
+        manager.claim_session_device("iPhone 15");
+        assert_eq!(
+            manager.session_device().as_deref(),
+            Some("Pixel 8"),
+            "a mid-session hello must not rename the live session's device"
+        );
+
+        // Session live: the same phone reconnecting (rate-cap drop without
+        // finalize, server-side reconnect) updates nothing - the slot
+        // already holds the name it would write.
+        manager.claim_session_device("Pixel 8");
+        assert_eq!(
+            manager.session_device().as_deref(),
+            Some("Pixel 8"),
+            "a same-name reconnect is a no-op"
+        );
+
+        // Session over: the next hello claims the slot again (the
+        // post-session reconnect path - a genuine drop finalizes, clearing
+        // liveness, so the re-hello re-arms the slot for the next press).
+        manager.session_live.store(false, Ordering::Release);
+        manager.claim_session_device("iPhone 15");
+        assert_eq!(
+            manager.session_device().as_deref(),
+            Some("iPhone 15"),
+            "with no session live a hello claims the slot again"
+        );
     }
 
     /// KB-183/KB-145: the effective gate `init` arms the LAN server on.

@@ -1725,6 +1725,13 @@ pub fn set_post_process_provider(app: AppHandle, provider_id: String) -> Result<
     validate_provider_exists(&settings, &provider_id)?;
     settings.post_process_provider_id = provider_id;
     settings::write_settings(&app, settings);
+
+    // KB-201: the provider flip drives post_process_local_active, which
+    // decides whether the WHOLE Post-process Model submenu exists in the
+    // tray - re-sync so the menu shape follows the switch now instead of
+    // after the next unrelated rebuild (the KB-031/034/188 rule).
+    tray::update_tray_menu(&app);
+
     Ok(())
 }
 
@@ -1755,6 +1762,11 @@ pub fn add_post_process_prompt(
     settings.post_process_prompts.push(new_prompt.clone());
     settings::write_settings(&app, settings);
 
+    // KB-201 (KB-066 surface 1): the template library rides MenuInputs
+    // (the Post-process Prompt submenu) - re-sync so a new template shows
+    // up immediately.
+    tray::update_tray_menu(&app);
+
     Ok(new_prompt)
 }
 
@@ -1771,6 +1783,11 @@ pub fn duplicate_post_process_prompt(app: AppHandle, id: String) -> Result<LLMPr
     let duplicate = duplicate_prompt_in_settings(&mut settings, &id, new_id)
         .ok_or_else(|| format!("Prompt with id '{}' not found", id))?;
     settings::write_settings(&app, settings);
+
+    // KB-201 (KB-066 surface 1): the duplicated template joins the prompt
+    // submenu through MenuInputs - re-sync now.
+    tray::update_tray_menu(&app);
+
     Ok(duplicate)
 }
 
@@ -1923,6 +1940,11 @@ pub fn update_post_process_prompt(
         // it, and the seeding migration never touches a versioned prompt.
         existing_prompt.version = existing_prompt.version.saturating_add(1);
         settings::write_settings(&app, settings);
+
+        // KB-201 (KB-066 surface 1): a renamed template relabels its
+        // prompt-submenu entry through MenuInputs - re-sync now.
+        tray::update_tray_menu(&app);
+
         Ok(())
     } else {
         Err(format!("Prompt with id '{}' not found", id))
@@ -1954,6 +1976,12 @@ pub fn delete_post_process_prompt(app: AppHandle, id: String) -> Result<(), Stri
     }
 
     settings::write_settings(&app, settings);
+
+    // KB-201 (KB-066 surface 1): the deleted template leaves the prompt
+    // submenu (and may move its checkmark) through MenuInputs - re-sync
+    // now.
+    tray::update_tray_menu(&app);
+
     Ok(())
 }
 
@@ -2159,6 +2187,11 @@ pub fn set_post_process_selected_prompt(app: AppHandle, id: String) -> Result<()
 
     settings.post_process_selected_prompt_id = Some(id);
     settings::write_settings(&app, settings);
+
+    // KB-201 (KB-066 surface 1): the selection moves the prompt submenu's
+    // checkmark and label through MenuInputs - re-sync now.
+    tray::update_tray_menu(&app);
+
     Ok(())
 }
 
