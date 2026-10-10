@@ -668,11 +668,25 @@
           "descriptionDefault": "Изберете модел, предлаган от избрания доставчик.",
           "placeholderWithOptions": "Търсене или избор на модел",
           "placeholderNoOptions": "Въведете име на модел",
-          "refreshModels": "Опресняване на моделите"
+          "refreshModels": "Опресняване на моделите",
+          "fetchFailed": "Неуспешно получаване на списъка с моделите ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Списъкът с моделите е получен {{time}}",
+          "retry": "Опитайте отново"
         },
         "timeout": {
           "title": "Време за изчакване на заявка",
           "description": "Колко дълго може да тече облачна заявка за последваща обработка, преди да бъде прекратена и да се използва суровият текст. Прилага се, когато endpoint спре да отговаря."
+        },
+        "testConnection": "Тествай връзката",
+        "testConnectionRunning": "Тестване...",
+        "verdict": {
+          "ok": "Удостоверението е ОК, {{latencyMs}} мс, моделът е достъпен",
+          "okNoModel": "Удостоверението е ОК, {{latencyMs}} мс. Няма избран модел за тест.",
+          "localReady": "Локалният модел е изтеглен и готов",
+          "localNotReady": "Локалният модел не е готов: {{detail}}",
+          "appleReady": "Apple Intelligence е налична",
+          "appleUnavailable": "Apple Intelligence не е налична на това устройство",
+          "failed": "Връзката се провали: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

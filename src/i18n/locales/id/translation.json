@@ -668,11 +668,25 @@
           "descriptionDefault": "Pilih model yang disediakan oleh penyedia yang dipilih.",
           "placeholderWithOptions": "Cari atau pilih model",
           "placeholderNoOptions": "Ketik nama model",
-          "refreshModels": "Segarkan model"
+          "refreshModels": "Segarkan model",
+          "fetchFailed": "Gagal mengambil daftar model ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Daftar model diambil {{time}}",
+          "retry": "Coba lagi"
         },
         "timeout": {
           "title": "Batas waktu permintaan",
           "description": "Berapa lama permintaan pascaproses cloud boleh berjalan sebelum menyerah dan transkripsi mentah dipakai. Berlaku saat endpoint berhenti merespons."
+        },
+        "testConnection": "Uji koneksi",
+        "testConnectionRunning": "Menguji...",
+        "verdict": {
+          "ok": "Autentikasi OK, {{latencyMs}} ms, model dapat dijangkau",
+          "okNoModel": "Autentikasi OK, {{latencyMs}} ms. Tidak ada model yang dipilih untuk diuji.",
+          "localReady": "Model lokal sudah diunduh dan siap",
+          "localNotReady": "Model lokal belum siap: {{detail}}",
+          "appleReady": "Apple Intelligence tersedia",
+          "appleUnavailable": "Apple Intelligence tidak tersedia di perangkat ini",
+          "failed": "Koneksi gagal: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

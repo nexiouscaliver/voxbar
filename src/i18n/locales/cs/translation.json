@@ -668,11 +668,25 @@
           "descriptionDefault": "Vyberte model dostupný u vybraného poskytovatele.",
           "placeholderWithOptions": "Vyhledejte nebo vyberte model",
           "placeholderNoOptions": "Zadejte název modelu",
-          "refreshModels": "Obnovit modely"
+          "refreshModels": "Obnovit modely",
+          "fetchFailed": "Stažení seznamu modelů se nezdařilo ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Seznam modelů byl stažen {{time}}",
+          "retry": "Zkusit znovu"
         },
         "timeout": {
           "title": "Časový limit požadavku",
           "description": "Jak dlouho může cloudový požadavek na dodatečné zpracování běžet, než se vzdá a použije se surový přepis. Platí, když endpoint přestane odpovídat."
+        },
+        "testConnection": "Otestovat připojení",
+        "testConnectionRunning": "Testování...",
+        "verdict": {
+          "ok": "Ověření OK, {{latencyMs}} ms, model je dostupný",
+          "okNoModel": "Ověření OK, {{latencyMs}} ms. Není vybraný žádný model k otestování.",
+          "localReady": "Místní model je stažený a připravený",
+          "localNotReady": "Místní model není připravený: {{detail}}",
+          "appleReady": "Apple Intelligence je dostupná",
+          "appleUnavailable": "Apple Intelligence není na tomto zařízení dostupná",
+          "failed": "Připojení se nezdařilo: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

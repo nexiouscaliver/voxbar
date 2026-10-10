@@ -668,11 +668,25 @@
           "descriptionDefault": "चयन गरिएको प्रदायकले उपलब्ध गराएको मोडेल छान्नुहोस्।",
           "placeholderWithOptions": "मोडेल खोज्नुहोस् वा चयन गर्नुहोस्",
           "placeholderNoOptions": "मोडेलको नाम टाइप गर्नुहोस्",
-          "refreshModels": "मोडेलहरू रिफ्रेस गर्नुहोस्"
+          "refreshModels": "मोडेलहरू रिफ्रेस गर्नुहोस्",
+          "fetchFailed": "मोडेल सूची लिन असफल ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "मोडेल सूची {{time}} मा लिइयो",
+          "retry": "फेरि प्रयास गर्नुहोस्"
         },
         "timeout": {
           "title": "अनुरोध समय सीमा",
           "description": "क्लाउड पोस्ट-प्रोसेस अनुरोधले हार मानी कच्च ट्रान्सक्रिप्ट प्रयोग गर्नु अघि कति समय चल्न सक्छ। एन्डपोइन्टले जवाफ दिन छोड्दा लागू हुन्छ।"
+        },
+        "testConnection": "जडान जाँच गर्नुहोस्",
+        "testConnectionRunning": "जाँच भइरहेको छ...",
+        "verdict": {
+          "ok": "प्रमाणीकरण ठीक छ, {{latencyMs}} ms, मोडेल उपलब्ध छ",
+          "okNoModel": "प्रमाणीकरण ठीक छ, {{latencyMs}} ms. जाँच गर्न कुनै मोडेल छानिएको छैन।",
+          "localReady": "स्थानीय मोडेल डाउनलोड भइसकेको छ र तयार छ",
+          "localNotReady": "स्थानीय मोडेल तयार छैन: {{detail}}",
+          "appleReady": "Apple Intelligence उपलब्ध छ",
+          "appleUnavailable": "Apple Intelligence यो यन्त्रमा उपलब्ध छैन",
+          "failed": "जडान असफल: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

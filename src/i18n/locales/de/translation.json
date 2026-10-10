@@ -668,11 +668,25 @@
           "descriptionDefault": "Wähle ein Modell des ausgewählten Anbieters.",
           "placeholderWithOptions": "Modell suchen oder auswählen",
           "placeholderNoOptions": "Modellnamen eingeben",
-          "refreshModels": "Modelle aktualisieren"
+          "refreshModels": "Modelle aktualisieren",
+          "fetchFailed": "Abruf der Modellliste fehlgeschlagen ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Modellliste abgerufen {{time}}",
+          "retry": "Erneut versuchen"
         },
         "timeout": {
           "title": "Anfrage-Timeout",
           "description": "Wie lange eine Cloud-Nachbearbeitungsanfrage laufen darf, bevor sie abgebrochen und das rohe Transkript verwendet wird. Greift, wenn ein Endpunkt nicht mehr antwortet."
+        },
+        "testConnection": "Verbindung testen",
+        "testConnectionRunning": "Test läuft...",
+        "verdict": {
+          "ok": "Authentifizierung OK, {{latencyMs}} ms, Modell erreichbar",
+          "okNoModel": "Authentifizierung OK, {{latencyMs}} ms. Kein Modell zum Testen ausgewählt.",
+          "localReady": "Lokales Modell ist heruntergeladen und bereit",
+          "localNotReady": "Lokales Modell nicht bereit: {{detail}}",
+          "appleReady": "Apple Intelligence ist verfügbar",
+          "appleUnavailable": "Apple Intelligence ist auf diesem Gerät nicht verfügbar",
+          "failed": "Verbindung fehlgeschlagen: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

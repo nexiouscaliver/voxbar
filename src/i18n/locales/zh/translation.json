@@ -668,11 +668,25 @@
           "descriptionDefault": "选择所选提供商提供的模型。",
           "placeholderWithOptions": "搜索或选择模型",
           "placeholderNoOptions": "输入模型名称",
-          "refreshModels": "刷新模型"
+          "refreshModels": "刷新模型",
+          "fetchFailed": "获取模型列表失败（{{failureClass}}）：{{detail}}",
+          "fetchedAtHint": "模型列表获取于 {{time}}",
+          "retry": "重试"
         },
         "timeout": {
           "title": "请求超时",
           "description": "云端后处理请求在放弃并改用原始转写文本之前可以运行多久。适用于端点停止响应的情况。"
+        },
+        "testConnection": "测试连接",
+        "testConnectionRunning": "测试中...",
+        "verdict": {
+          "ok": "认证成功，{{latencyMs}} 毫秒，模型可访问",
+          "okNoModel": "认证成功，{{latencyMs}} 毫秒。尚未选择要测试的模型。",
+          "localReady": "本地模型已下载，随时可用",
+          "localNotReady": "本地模型未就绪：{{detail}}",
+          "appleReady": "Apple Intelligence 可用",
+          "appleUnavailable": "此设备不支持 Apple Intelligence",
+          "failed": "连接失败：{{failureClass}}。{{detail}}"
         }
       },
       "local": {

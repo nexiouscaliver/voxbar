@@ -668,11 +668,25 @@
           "descriptionDefault": "Trieu un model ofert pel proveïdor seleccionat.",
           "placeholderWithOptions": "Cerqueu o seleccioneu un model",
           "placeholderNoOptions": "Escriviu el nom d'un model",
-          "refreshModels": "Actualitzeu els models"
+          "refreshModels": "Actualitzeu els models",
+          "fetchFailed": "No s'ha pogut obtenir la llista de models ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Llista de models obtinguda {{time}}",
+          "retry": "Torna-ho a provar"
         },
         "timeout": {
           "title": "Temps d'espera de la sol·licitud",
           "description": "Quant de temps pot executar-se una sol·licitud de postprocessat al núvol abans de renunciar-hi i usar la transcripció en brut. S'aplica quan un endpoint deixa de respondre."
+        },
+        "testConnection": "Prova la connexió",
+        "testConnectionRunning": "Provant...",
+        "verdict": {
+          "ok": "Autenticació correcta, {{latencyMs}} ms, model accessible",
+          "okNoModel": "Autenticació correcta, {{latencyMs}} ms. No hi ha cap model seleccionat per provar.",
+          "localReady": "El model local està baixat i a punt",
+          "localNotReady": "El model local no està a punt: {{detail}}",
+          "appleReady": "Apple Intelligence està disponible",
+          "appleUnavailable": "Apple Intelligence no està disponible en aquest dispositiu",
+          "failed": "La connexió ha fallat: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

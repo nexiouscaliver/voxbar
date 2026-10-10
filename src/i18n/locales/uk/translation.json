@@ -668,11 +668,25 @@
           "descriptionDefault": "Оберіть модель, надану обраним провайдером",
           "placeholderWithOptions": "Шукайте або оберіть модель",
           "placeholderNoOptions": "Введіть назву моделі",
-          "refreshModels": "Оновити моделі"
+          "refreshModels": "Оновити моделі",
+          "fetchFailed": "Не вдалося отримати список моделей ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Список моделей отримано {{time}}",
+          "retry": "Спробувати ще раз"
         },
         "timeout": {
           "title": "Час очікування запиту",
           "description": "Як довго може виконуватися хмарний запит допрацювання, перш ніж його перервано й використано сирий текст. Застосовується, коли endpoint перестає відповідати."
+        },
+        "testConnection": "Перевірити з'єднання",
+        "testConnectionRunning": "Перевірка...",
+        "verdict": {
+          "ok": "Автентифікація успішна, {{latencyMs}} мс, модель доступна",
+          "okNoModel": "Автентифікація успішна, {{latencyMs}} мс. Модель для перевірки не вибрано.",
+          "localReady": "Локальна модель завантажена і готова",
+          "localNotReady": "Локальна модель не готова: {{detail}}",
+          "appleReady": "Apple Intelligence доступна",
+          "appleUnavailable": "Apple Intelligence недоступна на цьому пристрої",
+          "failed": "Не вдалося з'єднатися: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

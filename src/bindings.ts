@@ -312,9 +312,25 @@ async setPostProcessProvider(providerId: string) : Promise<Result<null, string>>
     else return { status: "error", error: e  as any };
 }
 },
-async fetchPostProcessModels(providerId: string) : Promise<Result<string[], string>> {
+async fetchPostProcessModels(providerId: string) : Promise<Result<string[], PostProcessModelError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("fetch_post_process_models", { providerId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Test Connection: probe the selected provider and return a verdict the
+ * settings panel renders (auth ok, latency, model reachable, or the
+ * failure class). Cloud providers answer a model-list request and, when a
+ * model is configured, a tiny completion on a hard 10 s budget; the local
+ * provider's verdict is its selected model's downloaded state (no worker
+ * spawn); Apple Intelligence maps to its availability check.
+ */
+async testPostProcessConnection(providerId: string) : Promise<Result<TestConnectionResult, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("test_post_process_connection", { providerId }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -938,23 +954,9 @@ async addHfModel(repoId: string, filename: string, revision: string | null) : Pr
     else return { status: "error", error: e  as any };
 }
 },
-async getLocalLlmModelStatus(modelId: string | null = null) : Promise<Result<LocalLlmModelStatus, string>> {
+async getLocalLlmModelStatus(modelId: string | null) : Promise<Result<LocalLlmModelStatus, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_local_llm_model_status", { modelId }) };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-/**
- * Every post-process model (catalog + pinned + user-added) with its card
- * metadata and the selection flag. The settings section and the tray
- * submenu both read this; nothing else should (ASR surfaces keep using
- * get_available_models, which filters LocalLlm entries out).
- */
-async getAvailableLlmModels() : Promise<Result<LlmModelEntry[], string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("get_available_llm_models") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -966,9 +968,9 @@ async getAvailableLlmModels() : Promise<Result<LlmModelEntry[], string>> {
  * verify the sha256 ONCE against the trust anchor (spec 6.1, reviewer
  * finding R12): a mismatch deletes the file and errors so the entry reads
  * not-downloaded again (delete + re-download repairs any corruption).
- * modelId null downloads the pinned builtin, exactly as before.
+ * `model_id: None` downloads the pinned builtin, exactly as before.
  */
-async downloadLocalLlmModel(modelId: string | null = null) : Promise<Result<null, string>> {
+async downloadLocalLlmModel(modelId: string | null) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("download_local_llm_model", { modelId }) };
 } catch (e) {
@@ -980,14 +982,15 @@ async downloadLocalLlmModel(modelId: string | null = null) : Promise<Result<null
  * Delete a post-process model. Refuses with a transient error while a
  * post-process swap is running (L3): the swap may be about to restore a
  * voice model file this delete would remove. Deleting the SELECTED model
- * resets the selection to the pinned builtin.
- *
+ * resets the selection to the pinned builtin so the engine never points at
+ * a missing file.
+ * 
  * DEVIATION 2 (flagged in the plan): unlike the voice-model delete path,
  * there is no unload-with-wait here. The LLM worker exists only inside a
  * swap, and the lease check above has already excluded swaps; outside a
  * swap there is never a resident LLM engine to unload.
  */
-async deleteLocalLlmModel(modelId: string | null = null) : Promise<Result<null, string>> {
+async deleteLocalLlmModel(modelId: string | null) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("delete_local_llm_model", { modelId }) };
 } catch (e) {
@@ -996,9 +999,19 @@ async deleteLocalLlmModel(modelId: string | null = null) : Promise<Result<null, 
 }
 },
 /**
- * Persist the post-process model selection (shared by the settings section
- * and the tray submenu). The model must be a downloaded LocalLlm entry.
+ * Every post-process model (catalog + pinned + user-added) with its card
+ * metadata and the selection flag. The settings section and the tray
+ * submenu both read this; nothing else should (ASR surfaces keep using
+ * `get_available_models`, which filters LocalLlm entries out).
  */
+async getAvailableLlmModels() : Promise<Result<LlmModelEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_available_llm_models") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async setPostProcessLocalModel(modelId: string) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("set_post_process_local_model", { modelId }) };
@@ -1186,9 +1199,6 @@ async setPostProcessTimeout(seconds: number) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
-async logUpdateDecision(stage: string, detail: string | null) : Promise<void> {
-    await TAURI_INVOKE("log_update_decision", { stage, detail });
-},
 async getModelLoadStatus() : Promise<Result<ModelLoadStatus, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_model_load_status") };
@@ -1204,6 +1214,9 @@ async unloadModelManually() : Promise<Result<null, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+async logUpdateDecision(stage: string, detail: string | null) : Promise<void> {
+    await TAURI_INVOKE("log_update_decision", { stage, detail });
 },
 async getHistoryEntries(cursor: number | null, limit: number | null) : Promise<Result<PaginatedHistory, string>> {
     try {
@@ -1381,7 +1394,30 @@ menu_bar_model_title?: boolean; word_correction_threshold?: number; history_limi
 /**
  * Show the compact per-entry model badge in the History list.
  */
-show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; post_process_timeout_secs?: number; post_process_provider_id?: string; post_process_local_model_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null;
+show_history_model?: boolean; recording_retention_period?: RecordingRetentionPeriod; paste_method?: PasteMethod; clipboard_handling?: ClipboardHandling; auto_submit?: boolean; auto_submit_key?: AutoSubmitKey; post_process_enabled?: boolean; 
+/**
+ * Total-request timeout for cloud post-process calls, in seconds.
+ * Bounds a wedged endpoint (one that accepts the connection but never
+ * responds) so the stop pipeline returns to Idle instead of hanging
+ * with only the tray Cancel as an escape. Applies to both the chat
+ * completion and the model-list requests.
+ */
+post_process_timeout_secs?: number; post_process_provider_id?: string; 
+/**
+ * The registry id of the local post-process model the swap runner loads
+ * (catalog entry or the pinned builtin). Defaults to the pinned
+ * Qwen3-0.6B, so stores written before the LLM catalog existed keep
+ * exactly their prior behavior without a migration.
+ */
+post_process_local_model_id?: string; post_process_providers?: PostProcessProvider[]; post_process_api_keys?: SecretMap; post_process_models?: Partial<{ [key in string]: string }>; 
+/**
+ * Last successfully fetched model list per provider id (see
+ * [`CachedModelList`]). Empty on stores written before the cache
+ * existed; the store hydrates the dropdown from it on load. Cleared
+ * for a provider when its base URL changes (a different endpoint
+ * serves a different list).
+ */
+post_process_model_lists?: Partial<{ [key in string]: CachedModelList }>; post_process_prompts?: LLMPrompt[]; post_process_selected_prompt_id?: string | null; 
 /**
  * One-time marker for the local-default post-process migration (spec
  * 5.2): absent on legacy stores (the migration fires once), true on
@@ -1500,6 +1536,17 @@ export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AvailableAccelerators = { transcribe: string[]; ort: string[]; gpu_devices: GpuDeviceOption[] }
 export type BindingResponse = { success: boolean; binding: ShortcutBinding | null; error: string | null }
 /**
+ * The last successfully fetched model list for one provider, persisted so
+ * reopening the settings panel shows the dropdown instantly (and offline).
+ * Only successful fetches are written; failures never clobber a good list.
+ */
+export type CachedModelList = { models: string[]; 
+/**
+ * Unix seconds (UTC) of the successful fetch, shown as a fetched-at
+ * hint next to the dropdown.
+ */
+fetched_at_unix: number }
+/**
  * Script applied to Mandarin and Cantonese output. Other languages are never
  * converted.
  */
@@ -1616,20 +1663,38 @@ key_down: number; key_up: number; flags_changed: number; mouse: number; duration
 export type KeyboardImplementation = "tauri" | "handy_keys"
 export type LLMPrompt = { id: string; name: string; prompt: string }
 /**
- * Status snapshot for the settings row (spec 6.2).
+ * One post-process model as the settings section and tray see it: the
+ * shared [`ModelInfo`] plus the LLM-specific card fields the ASR shape does
+ * not carry.
  */
-export type LocalLlmModelStatus = { downloaded: boolean; downloading: boolean; size_mb: number;
+export type LlmModelEntry = { info: ModelInfo; 
+/**
+ * Quantization of the surfaced file ("Q4_K_M"), when known.
+ */
+quant: string; 
+/**
+ * Context window the swap runner allocates for this model.
+ */
+context_tokens: number; 
+/**
+ * Display publisher ("Qwen", "bartowski"), when known.
+ */
+publisher: string; 
+/**
+ * Whether this is the model the post-process engine runs.
+ */
+selected: boolean }
+/**
+ * Status snapshot for one post-process model row (spec 6.2). `model_id:
+ * None` reads the pinned builtin, the shape the original settings row was
+ * built on.
+ */
+export type LocalLlmModelStatus = { downloaded: boolean; downloading: boolean; size_mb: number; 
 /**
  * 0 to 100 while downloading (partial bytes over the total); 0 or 100
  * otherwise.
  */
 progress: number }
-/**
- * One post-process model as the settings section and tray see it: the
- * shared ModelInfo plus the LLM-specific card fields the ASR shape does
- * not carry.
- */
-export type LlmModelEntry = { info: ModelInfo; quant: string; context_tokens: number; publisher: string; selected: boolean }
 export type LogLevel = "trace" | "debug" | "info" | "warn" | "error"
 export type ModelInfo = { id: string; name: string; description: string; filename: string; source: ModelSource; size_mb: number; is_downloaded: boolean; is_downloading: boolean; partial_size: number; is_directory: boolean; engine_type: EngineType; accuracy_score: number; speed_score: number; supports_translation: boolean; is_recommended: boolean; supported_languages: string[]; supports_language_selection: boolean; is_custom: boolean; supports_streaming: boolean; supports_language_detection: boolean }
 export type ModelLoadStatus = { is_loaded: boolean; current_model: string | null }
@@ -1714,6 +1779,23 @@ export type OverlayStyle = "none" | "minimal" | "live"
 export type PaginatedHistory = { entries: HistoryEntry[]; has_more: boolean }
 export type PasteMethod = "ctrl_v" | "direct" | "none" | "shift_insert" | "ctrl_shift_v" | "external_script"
 export type PermissionAccess = "allowed" | "denied" | "unknown"
+/**
+ * Failure classes shared across the post-process surface: the Test
+ * Connection verdict line here, and the pp: observability lifecycle that
+ * classifies every failed run. The wire values are stable tokens the UI
+ * prints verbatim (auth, network, timeout, context_length,
+ * output_invalid, oom, cancelled), so they are part of the contract with
+ * the frontend and must never be renamed.
+ */
+export type PostProcessFailureClass = "auth" | "network" | "timeout" | "context_length" | "output_invalid" | "oom" | "cancelled"
+/**
+ * Structured error for the cloud model-list path (and the connection
+ * probe), replacing the bare String `fetch_post_process_models` used to
+ * return. The tag/kind is the failure class the UI prints; `detail`
+ * carries the sanitized diagnostics (never key material, never response
+ * payloads that could quote transcription content).
+ */
+export type PostProcessModelError = { kind: "auth"; detail: string } | { kind: "network"; detail: string } | { kind: "timeout"; detail: string } | { kind: "parse"; detail: string } | { kind: "other"; detail: string }
 export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean }
 /**
  * Emitted when a local post-process pass fell back to the raw transcript
@@ -1823,6 +1905,13 @@ deleted?: string | null }
  * Semantic kind of "working" phase, used to localize the spinner label.
  */
 export type StreamWorkKind = "transcribing" | "polishing"
+/**
+ * The Test Connection verdict, assembled by the command from the model
+ * list, the completion probe, or the on-device state. `completion_ok` is
+ * None when no probe ran (local/Apple providers, or no model selected);
+ * `latency_ms` is the round-trip of the model-list request.
+ */
+export type TestConnectionResult = { model_list_ok: boolean; completion_ok: boolean | null; latency_ms: number | null; failure_class: PostProcessFailureClass | null; detail: string }
 /**
  * UI appearance mode. `System` follows the OS `prefers-color-scheme`; `Light`
  * and `Dark` force one of the two palettes Handy already ships.

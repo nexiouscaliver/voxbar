@@ -668,11 +668,25 @@
           "descriptionDefault": "Välj en modell som exponeras av den valda leverantören.",
           "placeholderWithOptions": "Sök eller välj en modell",
           "placeholderNoOptions": "Ange ett modellnamn",
-          "refreshModels": "Uppdatera modeller"
+          "refreshModels": "Uppdatera modeller",
+          "fetchFailed": "Misslyckades att hämta modellistan ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Modellistan hämtades {{time}}",
+          "retry": "Försök igen"
         },
         "timeout": {
           "title": "Tidsgräns för begäran",
           "description": "Hur länge en efterbearbetningsbegäran i molnet får köras innan den ger upp och den råa transkriberingen används. Gäller när en slutpunkt slutar svara."
+        },
+        "testConnection": "Testa anslutningen",
+        "testConnectionRunning": "Testar...",
+        "verdict": {
+          "ok": "Autentisering OK, {{latencyMs}} ms, modellen nås",
+          "okNoModel": "Autentisering OK, {{latencyMs}} ms. Ingen modell vald att testa.",
+          "localReady": "Den lokala modellen är nedladdad och redo",
+          "localNotReady": "Den lokala modellen är inte redo: {{detail}}",
+          "appleReady": "Apple Intelligence är tillgänglig",
+          "appleUnavailable": "Apple Intelligence är inte tillgänglig på den här enheten",
+          "failed": "Anslutningen misslyckades: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

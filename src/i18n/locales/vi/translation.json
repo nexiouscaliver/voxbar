@@ -668,11 +668,25 @@
           "descriptionDefault": "Chọn một mô hình được cung cấp bởi nhà cung cấp đã chọn.",
           "placeholderWithOptions": "Tìm kiếm hoặc chọn một mô hình",
           "placeholderNoOptions": "Nhập tên mô hình",
-          "refreshModels": "Làm mới mô hình"
+          "refreshModels": "Làm mới mô hình",
+          "fetchFailed": "Không lấy được danh sách mô hình ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Danh sách mô hình đã lấy {{time}}",
+          "retry": "Thử lại"
         },
         "timeout": {
           "title": "Thời gian chờ yêu cầu",
           "description": "Yêu cầu hậu xử lý trên đám mây có thể chạy bao lâu trước khi từ bỏ và dùng bản ghi thô. Áp dụng khi một endpoint ngừng phản hồi."
+        },
+        "testConnection": "Kiểm tra kết nối",
+        "testConnectionRunning": "Đang kiểm tra...",
+        "verdict": {
+          "ok": "Xác thực thành công, {{latencyMs}} ms, có thể truy cập mô hình",
+          "okNoModel": "Xác thực thành công, {{latencyMs}} ms. Chưa chọn mô hình nào để kiểm tra.",
+          "localReady": "Mô hình cục bộ đã được tải xuống và sẵn sàng",
+          "localNotReady": "Mô hình cục bộ chưa sẵn sàng: {{detail}}",
+          "appleReady": "Apple Intelligence khả dụng",
+          "appleUnavailable": "Apple Intelligence không khả dụng trên thiết bị này",
+          "failed": "Kết nối thất bại: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

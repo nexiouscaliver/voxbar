@@ -668,11 +668,25 @@
           "descriptionDefault": "從所選供應商的可用模型中選擇",
           "placeholderWithOptions": "搜尋或選擇模型",
           "placeholderNoOptions": "輸入模型名稱",
-          "refreshModels": "重新整理模型"
+          "refreshModels": "重新整理模型",
+          "fetchFailed": "擷取模型清單失敗（{{failureClass}}）：{{detail}}",
+          "fetchedAtHint": "模型清單擷取於 {{time}}",
+          "retry": "重試"
         },
         "timeout": {
           "title": "請求逾時",
           "description": "雲端後處理請求在放棄並改用原始轉寫文字之前可以執行多久。適用於端點停止回應的情況。"
+        },
+        "testConnection": "測試連線",
+        "testConnectionRunning": "測試中...",
+        "verdict": {
+          "ok": "驗證成功，{{latencyMs}} 毫秒，模型可存取",
+          "okNoModel": "驗證成功，{{latencyMs}} 毫秒。尚未選擇要測試的模型。",
+          "localReady": "本機模型已下載並就緒",
+          "localNotReady": "本機模型未就緒：{{detail}}",
+          "appleReady": "Apple Intelligence 可用",
+          "appleUnavailable": "此裝置無法使用 Apple Intelligence",
+          "failed": "連線失敗：{{failureClass}}。{{detail}}"
         }
       },
       "local": {

@@ -19,13 +19,14 @@ use specta::Type;
 use std::sync::atomic::{AtomicBool, Ordering};
 use tauri::{AppHandle, Emitter, Manager};
 
+use crate::llm_client::{PostProcessModelError, TestConnectionResult};
 #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
 use crate::settings::APPLE_INTELLIGENCE_DEFAULT_MODEL_ID;
 use crate::settings::{
-    self, get_settings, AutoSubmitKey, ChineseScript, ClipboardHandling, KeyboardImplementation,
-    LLMPrompt, NumberFormat, OverlayPosition, OverlayStyle, PasteMethod, ShortcutActivation,
-    ShortcutBinding, SoundTheme, Theme, TypingTool, UpdatePolicy, VadBackend,
-    APPLE_INTELLIGENCE_PROVIDER_ID,
+    self, get_settings, AutoSubmitKey, CachedModelList, ChineseScript, ClipboardHandling,
+    KeyboardImplementation, LLMPrompt, NumberFormat, OverlayPosition, OverlayStyle, PasteMethod,
+    ShortcutActivation, ShortcutBinding, SoundTheme, Theme, TypingTool, UpdatePolicy, VadBackend,
+    APPLE_INTELLIGENCE_PROVIDER_ID, LOCAL_LLM_PROVIDER_ID,
 };
 use crate::tray;
 
@@ -1354,6 +1355,10 @@ pub fn change_post_process_base_url_setting(
     }
 
     provider.base_url = base_url;
+    // A different endpoint serves a different model list: drop the cached
+    // list for this provider so the dropdown never shows the old endpoint's
+    // models after a base URL change.
+    settings.post_process_model_lists.remove(&provider_id);
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -1492,7 +1497,7 @@ pub fn delete_post_process_prompt(app: AppHandle, id: String) -> Result<(), Stri
 pub async fn fetch_post_process_models(
     app: AppHandle,
     provider_id: String,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, PostProcessModelError> {
     let settings = settings::get_settings(&app);
 
     // Find the provider
@@ -1500,7 +1505,9 @@ pub async fn fetch_post_process_models(
         .post_process_providers
         .iter()
         .find(|p| p.id == provider_id)
-        .ok_or_else(|| format!("Provider '{}' not found", provider_id))?;
+        .ok_or_else(|| PostProcessModelError::Other {
+            detail: format!("Provider '{}' not found", provider_id),
+        })?;
 
     if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
@@ -1510,7 +1517,9 @@ pub async fn fetch_post_process_models(
 
         #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
         {
-            return Err("Apple Intelligence is only available on Apple silicon Macs running macOS 15 or later.".to_string());
+            return Err(PostProcessModelError::Other {
+                detail: "Apple Intelligence is only available on Apple silicon Macs running macOS 15 or later.".to_string(),
+            });
         }
     }
 
@@ -1523,13 +1532,129 @@ pub async fn fetch_post_process_models(
 
     // Skip fetching if no API key for providers that typically need one
     if api_key.trim().is_empty() && provider.id != "custom" {
-        return Err(format!(
-            "API key is required for {}. Please add an API key to list available models.",
-            provider.label
+        return Err(PostProcessModelError::Auth {
+            detail: format!(
+                "API key is required for {}. Please add an API key to list available models.",
+                provider.label
+            ),
+        });
+    }
+
+    let models =
+        crate::llm_client::fetch_models(provider, api_key, settings.post_process_timeout_secs)
+            .await?;
+
+    // Cache the successful list so reopening the panel is instant and works
+    // offline: the frontend store hydrates its dropdown options from this
+    // field on load. Failures never reach this write, so a good list is
+    // never clobbered by a bad fetch.
+    let mut settings = settings::get_settings(&app);
+    settings.post_process_model_lists.insert(
+        provider_id.clone(),
+        CachedModelList {
+            models: models.clone(),
+            fetched_at_unix: chrono::Utc::now().timestamp(),
+        },
+    );
+    settings::write_settings(&app, settings);
+
+    Ok(models)
+}
+
+/// Test Connection: probe the selected provider and return a verdict the
+/// settings panel renders (auth ok, latency, model reachable, or the
+/// failure class). Cloud providers answer a model-list request and, when a
+/// model is configured, a tiny completion on a hard 10 s budget; the local
+/// provider's verdict is its selected model's downloaded state (no worker
+/// spawn); Apple Intelligence maps to its availability check.
+#[tauri::command]
+#[specta::specta]
+pub async fn test_post_process_connection(
+    app: AppHandle,
+    provider_id: String,
+) -> Result<TestConnectionResult, String> {
+    use crate::llm_client::{
+        apple_intelligence_connection_verdict, assemble_cloud_verdict,
+        local_provider_connection_verdict, probe_completion, CONNECTION_PROBE_TIMEOUT_SECS,
+    };
+
+    let settings = settings::get_settings(&app);
+    let provider = settings
+        .post_process_provider(&provider_id)
+        .ok_or_else(|| format!("Provider '{}' not found", provider_id))?;
+
+    // The local engine: the verdict is the selected model's on-disk state.
+    // Reading manager state never spawns or loads the worker.
+    if provider.id == LOCAL_LLM_PROVIDER_ID {
+        let selected = crate::local_llm::manager::selected_llm_model_id(&app);
+        let model_manager = app.state::<std::sync::Arc<crate::managers::model::ModelManager>>();
+        let (downloaded, downloading) = match model_manager.get_model_info(&selected) {
+            Some(info) => (info.is_downloaded, info.is_downloading),
+            None => (false, false),
+        };
+        return Ok(local_provider_connection_verdict(downloaded, downloading));
+    }
+
+    if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
+        #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+        let available = crate::apple_intelligence::check_apple_intelligence_availability();
+        #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
+        let available = false;
+        return Ok(apple_intelligence_connection_verdict(available));
+    }
+
+    // Cloud providers: a missing key is an auth verdict (not a command
+    // error) so the panel can show it exactly like a 401.
+    let api_key = settings
+        .post_process_api_keys
+        .get(&provider_id)
+        .cloned()
+        .unwrap_or_default();
+    if api_key.trim().is_empty() && provider.id != "custom" {
+        return Ok(assemble_cloud_verdict(
+            Err(PostProcessModelError::Auth {
+                detail: format!(
+                    "API key is required for {}. Please add an API key to test the connection.",
+                    provider.label
+                ),
+            }),
+            None,
         ));
     }
 
-    crate::llm_client::fetch_models(provider, api_key, settings.post_process_timeout_secs).await
+    // (a) the model list: auth, reachability, and the latency the verdict
+    // reports. A failure here short-circuits the probe.
+    let started = std::time::Instant::now();
+    let list_outcome = crate::llm_client::fetch_models(
+        provider,
+        api_key.clone(),
+        settings.post_process_timeout_secs,
+    )
+    .await
+    .map(|models| (models.len(), started.elapsed().as_millis() as u64));
+
+    if list_outcome.is_err() {
+        // No completion probe after a failed list (an unreachable endpoint
+        // would only repeat the failure after another wait).
+        return Ok(assemble_cloud_verdict(list_outcome, None));
+    }
+
+    // (b) the tiny completion, only when a model is configured to probe.
+    let configured_model = settings
+        .post_process_models
+        .get(&provider_id)
+        .map(String::as_str)
+        .map(str::trim)
+        .filter(|model| !model.is_empty());
+
+    let probe_outcome = match configured_model {
+        Some(model) => {
+            Some(probe_completion(provider, api_key, model, CONNECTION_PROBE_TIMEOUT_SECS).await)
+        }
+        None => None,
+    };
+
+    Ok(assemble_cloud_verdict(list_outcome, probe_outcome))
 }
 
 #[tauri::command]

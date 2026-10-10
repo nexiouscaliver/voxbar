@@ -668,11 +668,25 @@
           "descriptionDefault": "Choisissez un modèle exposé par le fournisseur sélectionné.",
           "placeholderWithOptions": "Rechercher ou sélectionner un modèle",
           "placeholderNoOptions": "Tapez un nom de modèle",
-          "refreshModels": "Actualiser les modèles"
+          "refreshModels": "Actualiser les modèles",
+          "fetchFailed": "Échec de récupération de la liste des modèles ({{failureClass}}) : {{detail}}",
+          "fetchedAtHint": "Liste des modèles récupérée {{time}}",
+          "retry": "Réessayer"
         },
         "timeout": {
           "title": "Délai de requête",
           "description": "Combien de temps une requête de post-traitement cloud peut durer avant d'abandonner et d'utiliser la transcription brute. S'applique quand un endpoint cesse de répondre."
+        },
+        "testConnection": "Tester la connexion",
+        "testConnectionRunning": "Test en cours...",
+        "verdict": {
+          "ok": "Authentification OK, {{latencyMs}} ms, modèle joignable",
+          "okNoModel": "Authentification OK, {{latencyMs}} ms. Aucun modèle sélectionné à tester.",
+          "localReady": "Le modèle local est téléchargé et prêt",
+          "localNotReady": "Le modèle local n'est pas prêt : {{detail}}",
+          "appleReady": "Apple Intelligence est disponible",
+          "appleUnavailable": "Apple Intelligence n'est pas disponible sur cet appareil",
+          "failed": "Échec de connexion : {{failureClass}}. {{detail}}"
         }
       },
       "local": {

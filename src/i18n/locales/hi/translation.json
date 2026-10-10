@@ -668,11 +668,25 @@
           "descriptionDefault": "चुने गए प्रोवाइडर का कोई मॉडल चुनें.",
           "placeholderWithOptions": "मॉडल खोजें या चुनें",
           "placeholderNoOptions": "मॉडल का नाम लिखें",
-          "refreshModels": "मॉडल रीफ़्रेश करें"
+          "refreshModels": "मॉडल रीफ़्रेश करें",
+          "fetchFailed": "मॉडल सूची लाना विफल ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "मॉडल सूची {{time}} पर ली गई",
+          "retry": "फिर कोशिश करें"
         },
         "timeout": {
           "title": "अनुरोध समय सीमा",
           "description": "क्लाउ्ड पोस्ट-प्रोसेस अनुरोध कितनी देर तक चल सकता है, इससे पहले कि वह छोड़ दे और कच्चे ट्रांसक्रिप्ट का उपयोग हो। लागू होता है जब कोई एंडपॉइंट जवाब देना बंद कर दे."
+        },
+        "testConnection": "कनेक्शन जाँचें",
+        "testConnectionRunning": "जाँच हो रही है...",
+        "verdict": {
+          "ok": "पुष्टि ठीक है, {{latencyMs}} ms, मॉडल उपलब्ध",
+          "okNoModel": "पुष्टि ठीक है, {{latencyMs}} ms. जाँच के लिए कोई मॉडल चुना नहीं गया है।",
+          "localReady": "लोकल मॉडल डाउनलोड हो चुका है और तैयार है",
+          "localNotReady": "लोकल मॉडल तैयार नहीं है: {{detail}}",
+          "appleReady": "Apple Intelligence उपलब्ध है",
+          "appleUnavailable": "Apple Intelligence इस डिवाइस पर उपलब्ध नहीं है",
+          "failed": "कनेक्शन विफल: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

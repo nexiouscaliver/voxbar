@@ -668,11 +668,25 @@
           "descriptionDefault": "Vælg en model, der udbydes af den valgte udbyder.",
           "placeholderWithOptions": "Søg eller vælg en model",
           "placeholderNoOptions": "Skriv et modelnavn",
-          "refreshModels": "Opdater modeller"
+          "refreshModels": "Opdater modeller",
+          "fetchFailed": "Kunne ikke hente modellisten ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Modelliste hentet {{time}}",
+          "retry": "Prøv igen"
         },
         "timeout": {
           "title": "Anmodningstimeout",
           "description": "Hvor længe en cloud-efterbehandlingsanmodning må køre, før den giver op og den rå transskription bruges. Gælder, når en endpoint holder op med at svare."
+        },
+        "testConnection": "Test forbindelsen",
+        "testConnectionRunning": "Tester...",
+        "verdict": {
+          "ok": "Godkendelse OK, {{latencyMs}} ms, modellen er tilgængelig",
+          "okNoModel": "Godkendelse OK, {{latencyMs}} ms. Ingen model valgt til test.",
+          "localReady": "Den lokale model er downloadet og klar",
+          "localNotReady": "Den lokale model er ikke klar: {{detail}}",
+          "appleReady": "Apple Intelligence er tilgængelig",
+          "appleUnavailable": "Apple Intelligence er ikke tilgængelig på denne enhed",
+          "failed": "Forbindelsen mislykkedes: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

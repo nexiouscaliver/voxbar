@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { RefreshCcw } from "lucide-react";
-import { commands } from "@/bindings";
+import { commands, type TestConnectionResult } from "@/bindings";
 
 import { Alert } from "../../ui/Alert";
 import {
@@ -23,6 +23,69 @@ import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePos
 import { PostProcessModelsSection } from "./PostProcessModelsSection";
 import { ShortcutInput } from "../ShortcutInput";
 import { useSettings } from "../../../hooks/useSettings";
+
+/// One line under the provider selector that renders the Test Connection
+/// verdict: the ok path names auth, latency and model reachability; the
+/// failure path prints the failure class token verbatim (auth, network,
+/// timeout, context_length, output_invalid, oom, cancelled) followed by
+/// the backend's diagnostic detail.
+const ConnectionVerdictLine: React.FC<{
+  result: TestConnectionResult;
+  isLocalProvider: boolean;
+  isAppleProvider: boolean;
+}> = ({ result, isLocalProvider, isAppleProvider }) => {
+  const { t } = useTranslation();
+  const key = "settings.postProcessing.api.verdict";
+
+  if (isLocalProvider) {
+    return result.completion_ok === true ? (
+      <p className="px-4 pb-2 text-xs text-secondary/70">
+        {t(`${key}.localReady`)}
+      </p>
+    ) : (
+      <p className="px-4 pb-2 text-xs text-error">
+        {t(`${key}.localNotReady`, { detail: result.detail })}
+      </p>
+    );
+  }
+
+  if (isAppleProvider) {
+    return result.model_list_ok ? (
+      <p className="px-4 pb-2 text-xs text-secondary/70">
+        {t(`${key}.appleReady`)}
+      </p>
+    ) : (
+      <p className="px-4 pb-2 text-xs text-error">
+        {t(`${key}.appleUnavailable`)}
+      </p>
+    );
+  }
+
+  if (result.model_list_ok && result.completion_ok === true) {
+    return (
+      <p className="px-4 pb-2 text-xs text-secondary/70">
+        {t(`${key}.ok`, { latencyMs: result.latency_ms ?? 0 })}
+      </p>
+    );
+  }
+
+  if (result.model_list_ok && result.completion_ok === null) {
+    return (
+      <p className="px-4 pb-2 text-xs text-secondary/70">
+        {t(`${key}.okNoModel`, { latencyMs: result.latency_ms ?? 0 })}
+      </p>
+    );
+  }
+
+  return (
+    <p className="px-4 pb-2 text-xs text-error">
+      {t(`${key}.failed`, {
+        failureClass: result.failure_class ?? "other",
+        detail: result.detail,
+      })}
+    </p>
+  );
+};
 
 /// The request timeout row for cloud post-process calls: bounds how long a
 /// wedged endpoint (one that accepts the connection but never answers) can
@@ -69,8 +132,27 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
             value={state.selectedProviderId}
             onChange={state.handleProviderSelect}
           />
+          <Button
+            onClick={state.handleTestConnection}
+            variant="secondary"
+            size="md"
+            disabled={state.isTestingConnection}
+            className="shrink-0"
+          >
+            {state.isTestingConnection
+              ? t("settings.postProcessing.api.testConnectionRunning")
+              : t("settings.postProcessing.api.testConnection")}
+          </Button>
         </div>
       </SettingContainer>
+
+      {state.connectionResult && (
+        <ConnectionVerdictLine
+          result={state.connectionResult}
+          isLocalProvider={state.isLocalProvider}
+          isAppleProvider={state.isAppleProvider}
+        />
+      )}
 
       {state.isLocalProvider ? (
         // The local on-device engine: no API fields, no model dropdown,
@@ -142,34 +224,72 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
           layout="stacked"
           grouped={true}
         >
-          <div className="flex items-center gap-2">
-            <ModelSelect
-              value={state.model}
-              options={state.modelOptions}
-              disabled={state.isModelUpdating}
-              isLoading={state.isFetchingModels}
-              placeholder={
-                state.modelOptions.length > 0
-                  ? t(
-                      "settings.postProcessing.api.model.placeholderWithOptions",
-                    )
-                  : t("settings.postProcessing.api.model.placeholderNoOptions")
-              }
-              onSelect={state.handleModelSelect}
-              onCreate={state.handleModelCreate}
-              onBlur={() => {}}
-              className="flex-1 min-w-[380px]"
-            />
-            <ResetButton
-              onClick={state.handleRefreshModels}
-              disabled={state.isFetchingModels}
-              ariaLabel={t("settings.postProcessing.api.model.refreshModels")}
-              className="flex h-10 w-10 items-center justify-center"
-            >
-              <RefreshCcw
-                className={`h-4 w-4 ${state.isFetchingModels ? "animate-spin" : ""}`}
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <ModelSelect
+                value={state.model}
+                options={state.modelOptions}
+                disabled={state.isModelUpdating}
+                isLoading={state.isFetchingModels}
+                placeholder={
+                  state.modelOptions.length > 0
+                    ? t(
+                        "settings.postProcessing.api.model.placeholderWithOptions",
+                      )
+                    : t(
+                        "settings.postProcessing.api.model.placeholderNoOptions",
+                      )
+                }
+                onSelect={state.handleModelSelect}
+                onCreate={state.handleModelCreate}
+                onBlur={() => {}}
+                className="flex-1 min-w-[380px]"
               />
-            </ResetButton>
+              <ResetButton
+                onClick={state.handleRefreshModels}
+                disabled={state.isFetchingModels}
+                ariaLabel={t("settings.postProcessing.api.model.refreshModels")}
+                className="flex h-10 w-10 items-center justify-center"
+              >
+                <RefreshCcw
+                  className={`h-4 w-4 ${state.isFetchingModels ? "animate-spin" : ""}`}
+                />
+              </ResetButton>
+            </div>
+
+            {state.modelFetchError && (
+              <Alert variant="error" contained>
+                <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+                  <span className="text-sm">
+                    {t("settings.postProcessing.api.model.fetchFailed", {
+                      failureClass: state.modelFetchError.kind,
+                      detail: state.modelFetchError.detail,
+                    })}
+                  </span>
+                  <Button
+                    onClick={state.handleRefreshModels}
+                    variant="secondary"
+                    size="sm"
+                    disabled={state.isFetchingModels}
+                    className="shrink-0"
+                  >
+                    {t("settings.postProcessing.api.model.retry")}
+                  </Button>
+                </div>
+              </Alert>
+            )}
+
+            {!state.modelFetchError &&
+              state.modelListFetchedAtUnix !== null &&
+              state.modelOptions.length > 0 && (
+                <p className="text-xs text-secondary/70">
+                  {t("settings.postProcessing.api.model.fetchedAtHint", {
+                    time: new Date(
+                      state.modelListFetchedAtUnix * 1000,
+                    ).toLocaleString(),
+                  })}
+                </p>
+              )}
           </div>
         </SettingContainer>
       )}

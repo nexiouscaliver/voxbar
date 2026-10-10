@@ -668,11 +668,25 @@
           "descriptionDefault": "בחר מודל שהספק הנבחר חושף.",
           "placeholderWithOptions": "חפש או בחר מודל",
           "placeholderNoOptions": "הקלד שם מודל",
-          "refreshModels": "רענן מודלים"
+          "refreshModels": "רענן מודלים",
+          "fetchFailed": "אחזור רשימת המודלים נכשל ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "רשימת המודלים אוחזרה {{time}}",
+          "retry": "נסה שוב"
         },
         "timeout": {
           "title": "פסק זמן לבקשה",
           "description": "כמה זמן יכולה לרוץ בקשת עיבוד עוקב בענן לפני שהיא מוותרת ונעשה שימוש בתמליל הגולמי. חל כאשר נקודת קצה מפסיקה להגיב."
+        },
+        "testConnection": "בדיקת חיבור",
+        "testConnectionRunning": "בודק...",
+        "verdict": {
+          "ok": "אימות תקין, {{latencyMs}} מ״ש, המודל זמין",
+          "okNoModel": "אימות תקין, {{latencyMs}} מ״ש. לא נבחר מודל לבדיקה.",
+          "localReady": "המודל המקומי הורד ומוכן",
+          "localNotReady": "המודל המקומי לא מוכן: {{detail}}",
+          "appleReady": "Apple Intelligence זמין",
+          "appleUnavailable": "Apple Intelligence לא זמין במכשיר הזה",
+          "failed": "החיבור נכשל: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

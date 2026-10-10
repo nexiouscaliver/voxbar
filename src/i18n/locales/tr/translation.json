@@ -668,11 +668,25 @@
           "descriptionDefault": "Seçili sağlayıcının sunduğu bir modeli seçin.",
           "placeholderWithOptions": "Model ara veya seç",
           "placeholderNoOptions": "Model adı yazın",
-          "refreshModels": "Modelleri Yenile"
+          "refreshModels": "Modelleri Yenile",
+          "fetchFailed": "Model listesi alınamadı ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Model listesi {{time}} tarihinde alındı",
+          "retry": "Yeniden dene"
         },
         "timeout": {
           "title": "İstek zaman aşımı",
           "description": "Bir bulut son işleme isteğinin vazgeçip ham transkriptin kullanıldığı süreye kadar çalışabileceği süre. Bir endpoint yanıt vermeyi bıraktığında geçerlidir."
+        },
+        "testConnection": "Bağlantıyı test et",
+        "testConnectionRunning": "Test ediliyor...",
+        "verdict": {
+          "ok": "Kimlik doğrulama tamam, {{latencyMs}} ms, modele erişildi",
+          "okNoModel": "Kimlik doğrulama tamam, {{latencyMs}} ms. Test için model seçilmedi.",
+          "localReady": "Yerel model indirildi ve hazır",
+          "localNotReady": "Yerel model hazır değil: {{detail}}",
+          "appleReady": "Apple Intelligence kullanılabilir",
+          "appleUnavailable": "Apple Intelligence bu cihazda kullanılamıyor",
+          "failed": "Bağlantı başarısız: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

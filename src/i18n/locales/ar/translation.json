@@ -613,11 +613,25 @@
           "descriptionDefault": "اختر نموذجاً يعرضه المزود المختار.",
           "placeholderWithOptions": "ابحث عن نموذج أو اختره",
           "placeholderNoOptions": "اكتب اسم النموذج",
-          "refreshModels": "تحديث النماذج"
+          "refreshModels": "تحديث النماذج",
+          "fetchFailed": "فشل جلب قائمة النماذج ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "تم جلب قائمة النماذج {{time}}",
+          "retry": "إعادة المحاولة"
         },
         "timeout": {
           "title": "مهلة الطلب",
           "description": "المدة التي قد يستغرقها طلب المعالجة اللاحقة السحابي قبل التخلي عنه واستخدام النص الأصلي. تنطبق عند توقف نقطة النهاية عن الاستجابة."
+        },
+        "testConnection": "اختبار الاتصال",
+        "testConnectionRunning": "جارٍ الاختبار...",
+        "verdict": {
+          "ok": "المصادقة ناجحة، {{latencyMs}} مللي ثانية، النموذج متاح",
+          "okNoModel": "المصادقة ناجحة، {{latencyMs}} مللي ثانية. لم يتم اختيار نموذج للاختبار.",
+          "localReady": "النموذج المحلي محمّل وجاهز",
+          "localNotReady": "النموذج المحلي غير جاهز: {{detail}}",
+          "appleReady": "Apple Intelligence متاح",
+          "appleUnavailable": "Apple Intelligence غير متاح على هذا الجهاز",
+          "failed": "فشل الاتصال: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

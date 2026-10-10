@@ -3,9 +3,119 @@ use log::{debug, error, info};
 use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE, REFERER, USER_AGENT};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use specta::Type;
 use std::collections::HashSet;
 use std::error::Error as StdError;
 use std::sync::{Mutex, OnceLock};
+
+/// Failure classes shared across the post-process surface: the Test
+/// Connection verdict line here, and the pp: observability lifecycle that
+/// classifies every failed run. The wire values are stable tokens the UI
+/// prints verbatim (auth, network, timeout, context_length,
+/// output_invalid, oom, cancelled), so they are part of the contract with
+/// the frontend and must never be renamed.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum PostProcessFailureClass {
+    Auth,
+    Network,
+    Timeout,
+    ContextLength,
+    OutputInvalid,
+    Oom,
+    Cancelled,
+}
+
+/// Structured error for the cloud model-list path (and the connection
+/// probe), replacing the bare String `fetch_post_process_models` used to
+/// return. The tag/kind is the failure class the UI prints; `detail`
+/// carries the sanitized diagnostics (never key material, never response
+/// payloads that could quote transcription content).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum PostProcessModelError {
+    Auth { detail: String },
+    Network { detail: String },
+    Timeout { detail: String },
+    Parse { detail: String },
+    Other { detail: String },
+}
+
+impl std::fmt::Display for PostProcessModelError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let (kind, detail) = match self {
+            PostProcessModelError::Auth { detail } => ("auth", detail),
+            PostProcessModelError::Network { detail } => ("network", detail),
+            PostProcessModelError::Timeout { detail } => ("timeout", detail),
+            PostProcessModelError::Parse { detail } => ("parse", detail),
+            PostProcessModelError::Other { detail } => ("other", detail),
+        };
+        write!(f, "{kind}: {detail}")
+    }
+}
+
+impl PostProcessModelError {
+    /// The shared failure class this error maps onto, if any maps. Parse
+    /// failures of a model list or probe response are output-invalid (the
+    /// endpoint produced something unusable); `Other` (an HTTP 500, an
+    /// unknown provider id) has no class token and reports as None with
+    /// its detail.
+    pub fn failure_class(&self) -> Option<PostProcessFailureClass> {
+        match self {
+            PostProcessModelError::Auth { .. } => Some(PostProcessFailureClass::Auth),
+            PostProcessModelError::Network { .. } => Some(PostProcessFailureClass::Network),
+            PostProcessModelError::Timeout { .. } => Some(PostProcessFailureClass::Timeout),
+            PostProcessModelError::Parse { .. } => Some(PostProcessFailureClass::OutputInvalid),
+            PostProcessModelError::Other { .. } => None,
+        }
+    }
+}
+
+/// Keep error details bounded: an error body of arbitrary size must never
+/// blow up the UI verdict row or the log line.
+fn truncate_for_detail(text: &str, max_chars: usize) -> String {
+    if text.len() <= max_chars {
+        return text.to_string();
+    }
+    let mut cut = max_chars;
+    while !text.is_char_boundary(cut) {
+        cut -= 1;
+    }
+    format!("{}...", &text[..cut])
+}
+
+/// Classify a non-success HTTP status from the model list or the probe.
+/// 401/403 are auth failures (bad or missing key); everything else keeps
+/// its status and body in an unclassed detail.
+fn classify_status_error(
+    context: &str,
+    status: reqwest::StatusCode,
+    body: &str,
+) -> PostProcessModelError {
+    let detail = format!(
+        "{} ({}): {}",
+        context,
+        status,
+        truncate_for_detail(body.trim(), 300)
+    );
+    match status.as_u16() {
+        401 | 403 => PostProcessModelError::Auth { detail },
+        _ => PostProcessModelError::Other { detail },
+    }
+}
+
+/// Classify a transport-phase reqwest failure: a request that outran its
+/// deadline is a timeout; anything else (connect refused, DNS, TLS) is a
+/// network failure. The detail comes from `report_reqwest_error`, which
+/// sanitizes URLs and never echoes decode payloads.
+fn classify_transport_error(context: &str, error: &reqwest::Error) -> PostProcessModelError {
+    let detail = report_reqwest_error(context, error);
+    if error.is_timeout() {
+        PostProcessModelError::Timeout { detail }
+    } else {
+        PostProcessModelError::Network { detail }
+    }
+}
 
 #[derive(Debug, Serialize)]
 struct ChatMessage {
@@ -495,25 +605,41 @@ pub async fn send_chat_completion_with_schema(
         .and_then(|choice| choice.message.content.clone()))
 }
 
-/// Fetch available models from an OpenAI-compatible API
-/// Returns a list of model IDs
+/// Resolve the model-list path for a provider: its declared
+/// `models_endpoint` (leading '/' trimmed) when set, else the
+/// OpenAI-style `models` default. On-device providers (local, Apple
+/// Intelligence) declare None and never reach this.
+fn models_list_path(provider: &PostProcessProvider) -> String {
+    provider
+        .models_endpoint
+        .as_deref()
+        .map(str::trim)
+        .filter(|path| !path.is_empty())
+        .map(|path| path.trim_start_matches('/').to_string())
+        .unwrap_or_else(|| "models".to_string())
+}
+
+/// Fetch available models from an provider's declared models endpoint.
+/// Returns a list of model IDs; failures come back classified (auth,
+/// network, timeout, parse) with sanitized detail instead of a raw string.
 pub async fn fetch_models(
     provider: &PostProcessProvider,
     api_key: String,
     timeout_secs: u64,
-) -> Result<Vec<String>, String> {
+) -> Result<Vec<String>, PostProcessModelError> {
     let base_url = provider.base_url.trim_end_matches('/');
-    let url = format!("{}/models", base_url);
+    let url = format!("{}/{}", base_url, models_list_path(provider));
 
     debug!("Fetching models from: {}", sanitized_url_for_log(&url));
 
-    let client = create_client(provider, &api_key, timeout_secs)?;
+    let client = create_client(provider, &api_key, timeout_secs)
+        .map_err(|detail| PostProcessModelError::Other { detail })?;
 
     let response = client
         .get(&url)
         .send()
         .await
-        .map_err(|e| report_reqwest_error("Failed to fetch models", &e))?;
+        .map_err(|e| classify_transport_error("Failed to fetch models", &e))?;
 
     let status = response.status();
     debug!(
@@ -523,24 +649,32 @@ pub async fn fetch_models(
         sanitized_url(response.url())
     );
     if !status.is_success() {
-        let error_text = response
-            .text()
-            .await
-            .unwrap_or_else(|e| report_reqwest_error("Failed to read model list error", &e));
-        return Err(format!(
-            "Model list request failed ({}): {}",
-            status, error_text
+        let error_text = response.text().await.unwrap_or_else(|e| {
+            // Reading the error body failed; classify from the transport
+            // error and keep the status in the detail.
+            let detail = report_reqwest_error("Failed to read model list error", &e);
+            format!("<unreadable body: {detail}>")
+        });
+        return Err(classify_status_error(
+            "Model list request failed",
+            status,
+            &error_text,
         ));
     }
 
-    let parsed: serde_json::Value = response
-        .json()
-        .await
-        .map_err(|e| report_reqwest_error("Failed to parse model list response", &e))?;
+    let parsed: serde_json::Value = response.json().await.map_err(|e| {
+        // report_reqwest_error drops nested causes for decode errors (they
+        // can quote response values), so this detail is safe to surface.
+        PostProcessModelError::Parse {
+            detail: report_reqwest_error("Failed to parse model list response", &e),
+        }
+    })?;
 
     let mut models = Vec::new();
 
-    // Handle OpenAI format: { data: [ { id: "..." }, ... ] }
+    // Handle OpenAI format: { data: [ { id: "..." }, ... ] }. Anthropic's
+    // /v1/models uses the same { data: [ { id, display_name, ... } ] }
+    // shape, so this arm covers it too.
     if let Some(data) = parsed.get("data").and_then(|d| d.as_array()) {
         for entry in data {
             if let Some(id) = entry.get("id").and_then(|i| i.as_str()) {
@@ -560,6 +694,196 @@ pub async fn fetch_models(
     }
 
     Ok(models)
+}
+
+/// Hard total-request timeout for the Test Connection completion probe,
+/// deliberately independent of `post_process_timeout_secs`: the verdict
+/// must arrive in bounded time even when the operator has configured a
+/// long transcription budget.
+pub const CONNECTION_PROBE_TIMEOUT_SECS: u64 = 10;
+
+/// The probe's full instruction: a one-word reply proves the model answers.
+const CONNECTION_PROBE_PROMPT: &str = "Reply with the single word OK";
+
+/// The Test Connection verdict, assembled by the command from the model
+/// list, the completion probe, or the on-device state. `completion_ok` is
+/// None when no probe ran (local/Apple providers, or no model selected);
+/// `latency_ms` is the round-trip of the model-list request.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct TestConnectionResult {
+    pub model_list_ok: bool,
+    pub completion_ok: Option<bool>,
+    pub latency_ms: Option<u64>,
+    pub failure_class: Option<PostProcessFailureClass>,
+    pub detail: String,
+}
+
+/// Send the tiny completion used by Test Connection: one user message,
+/// `max_tokens: 5`, on its own client with its own (hard) timeout. Returns
+/// the message content, or None when the endpoint answers 200 with no
+/// content (the caller reads that as an invalid output).
+pub async fn probe_completion(
+    provider: &PostProcessProvider,
+    api_key: String,
+    model: &str,
+    timeout_secs: u64,
+) -> Result<Option<String>, PostProcessModelError> {
+    let base_url = provider.base_url.trim_end_matches('/');
+    let url = format!("{}/chat/completions", base_url);
+
+    let headers = build_headers(provider, &api_key)
+        .map_err(|detail| PostProcessModelError::Other { detail })?;
+    // The probe builds its own client so its timeout stays independent of
+    // the configured post-process timeout (and of any client the pipeline
+    // holds on to).
+    let client = reqwest::Client::builder()
+        .default_headers(headers)
+        .timeout(std::time::Duration::from_secs(timeout_secs))
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|e| PostProcessModelError::Other {
+            detail: report_reqwest_error("Failed to build probe client", &e),
+        })?;
+
+    let body = serde_json::json!({
+        "model": model,
+        "messages": [
+            { "role": "user", "content": CONNECTION_PROBE_PROMPT }
+        ],
+        "stream": false,
+        "max_tokens": 5,
+    });
+
+    let response = client
+        .post(&url)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| classify_transport_error("Completion probe failed", &e))?;
+
+    let status = response.status();
+    if !status.is_success() {
+        let error_text = response.text().await.unwrap_or_default();
+        return Err(classify_status_error(
+            "Completion probe failed",
+            status,
+            &error_text,
+        ));
+    }
+
+    let completion: ChatCompletionResponse =
+        response
+            .json()
+            .await
+            .map_err(|e| PostProcessModelError::Parse {
+                detail: report_reqwest_error("Failed to parse completion probe response", &e),
+            })?;
+
+    Ok(completion
+        .choices
+        .first()
+        .and_then(|choice| choice.message.content.clone()))
+}
+
+/// Assemble the cloud verdict from the two probes. Pure so the
+/// classification is pinnable without HTTP: a list failure short-circuits
+/// (no completion verdict, no made-up latency), and an answer with no
+/// content is an output-invalid failure, not a success.
+pub(crate) fn assemble_cloud_verdict(
+    list_outcome: Result<(usize, u64), PostProcessModelError>,
+    probe_outcome: Option<Result<Option<String>, PostProcessModelError>>,
+) -> TestConnectionResult {
+    let (model_count, latency_ms) = match list_outcome {
+        Err(error) => {
+            return TestConnectionResult {
+                model_list_ok: false,
+                completion_ok: None,
+                latency_ms: None,
+                failure_class: error.failure_class(),
+                detail: error.to_string(),
+            };
+        }
+        Ok(ok) => ok,
+    };
+
+    match probe_outcome {
+        None => TestConnectionResult {
+            model_list_ok: true,
+            completion_ok: None,
+            latency_ms: Some(latency_ms),
+            failure_class: None,
+            detail: format!("model list ok ({model_count} models); no model selected to probe"),
+        },
+        Some(Err(error)) => TestConnectionResult {
+            model_list_ok: true,
+            completion_ok: Some(false),
+            latency_ms: Some(latency_ms),
+            failure_class: error.failure_class(),
+            detail: error.to_string(),
+        },
+        Some(Ok(content)) => {
+            let answered = content
+                .as_deref()
+                .map(str::trim)
+                .is_some_and(|c| !c.is_empty());
+            if answered {
+                TestConnectionResult {
+                    model_list_ok: true,
+                    completion_ok: Some(true),
+                    latency_ms: Some(latency_ms),
+                    failure_class: None,
+                    detail: String::new(),
+                }
+            } else {
+                TestConnectionResult {
+                    model_list_ok: true,
+                    completion_ok: Some(false),
+                    latency_ms: Some(latency_ms),
+                    failure_class: Some(PostProcessFailureClass::OutputInvalid),
+                    detail: "completion probe returned no content".to_string(),
+                }
+            }
+        }
+    }
+}
+
+/// The local provider's verdict, from the selected model's downloaded
+/// state alone (no worker spawn, no load): the engine is usable exactly
+/// when the selected model is on disk.
+pub(crate) fn local_provider_connection_verdict(
+    downloaded: bool,
+    downloading: bool,
+) -> TestConnectionResult {
+    let detail = if downloaded {
+        String::new()
+    } else if downloading {
+        "the selected local model is still downloading".to_string()
+    } else {
+        "the selected local model is not downloaded".to_string()
+    };
+    TestConnectionResult {
+        model_list_ok: true,
+        completion_ok: Some(downloaded),
+        latency_ms: None,
+        failure_class: None,
+        detail,
+    }
+}
+
+/// The Apple Intelligence verdict: its availability check is the whole
+/// story; there is no list endpoint and no probe to run.
+pub(crate) fn apple_intelligence_connection_verdict(available: bool) -> TestConnectionResult {
+    TestConnectionResult {
+        model_list_ok: available,
+        completion_ok: None,
+        latency_ms: None,
+        failure_class: None,
+        detail: if available {
+            String::new()
+        } else {
+            "Apple Intelligence is not available on this device".to_string()
+        },
+    }
 }
 
 #[cfg(test)]
@@ -597,6 +921,63 @@ mod tests {
             models_endpoint: None,
             supports_structured_output: false,
         }
+    }
+
+    fn provider_with_endpoint(
+        id: &str,
+        base_url: &str,
+        models_endpoint: Option<&str>,
+    ) -> PostProcessProvider {
+        PostProcessProvider {
+            models_endpoint: models_endpoint.map(str::to_string),
+            ..provider(id, base_url)
+        }
+    }
+
+    /// Like `serve_one_response`, but hands the raw request bytes back so a
+    /// test can assert on the request line and headers, not just the reply.
+    async fn serve_one_response_with_request(
+        status: &str,
+        body: &str,
+    ) -> (String, tokio::sync::oneshot::Receiver<String>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let response = format!(
+            "HTTP/1.1 {status}\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}",
+            body.len()
+        );
+
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        tokio::spawn(async move {
+            let (mut stream, _) = listener.accept().await.unwrap();
+            let mut request = [0_u8; 8192];
+            let read = stream.read(&mut request).await.unwrap();
+            let _ = tx.send(String::from_utf8_lossy(&request[..read]).to_string());
+            stream.write_all(response.as_bytes()).await.unwrap();
+        });
+
+        (format!("http://{address}"), rx)
+    }
+
+    /// A server that answers every connection with 401 and counts how many
+    /// connections it served: the "no retry" assertion for auth failures
+    /// needs to see exactly one.
+    async fn serve_counting_401() -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        let count = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = count.clone();
+        tokio::spawn(async move {
+            while let Ok((mut stream, _)) = listener.accept().await {
+                counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                let mut request = [0_u8; 8192];
+                let _ = stream.read(&mut request).await;
+                let response =
+                    "HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                let _ = stream.write_all(response.as_bytes()).await;
+            }
+        });
+        (format!("http://{address}"), count)
     }
 
     fn request_json(reasoning: ReasoningParams) -> Value {
@@ -851,6 +1232,382 @@ mod tests {
         assert!(
             elapsed < std::time::Duration::from_secs(10),
             "the timeout must bound the request (took {elapsed:?})"
+        );
+    }
+
+    /// The declared models_endpoint is the path actually fetched (the field
+    /// used to be declared per provider but never read).
+    #[tokio::test]
+    async fn models_endpoint_is_honored_in_the_fetch_path() {
+        let (base_url, request_rx) =
+            serve_one_response_with_request("200 OK", r#"{"data":[{"id":"m1"}]}"#).await;
+        let provider = provider_with_endpoint("custom", &base_url, Some("/api/models"));
+
+        let models = fetch_models(&provider, String::new(), 5).await.unwrap();
+        assert_eq!(models, vec!["m1".to_string()]);
+
+        let request = request_rx.await.unwrap();
+        let request_line = request.lines().next().unwrap_or_default();
+        assert!(
+            request_line.contains("GET /api/models"),
+            "the declared endpoint path must be fetched, got: {request_line}"
+        );
+    }
+
+    /// A provider without a models_endpoint (or with a blank one) keeps the
+    /// historical OpenAI-style /models path.
+    #[tokio::test]
+    async fn missing_models_endpoint_falls_back_to_the_models_path() {
+        for endpoint in [None, Some(""), Some("   "), Some("/models")] {
+            let (base_url, request_rx) =
+                serve_one_response_with_request("200 OK", r#"{"data":[]}"#).await;
+            let provider = provider_with_endpoint("custom", &base_url, endpoint);
+
+            fetch_models(&provider, String::new(), 5).await.unwrap();
+
+            let request = request_rx.await.unwrap();
+            let request_line = request.lines().next().unwrap_or_default();
+            assert!(
+                request_line.contains("GET /models"),
+                "endpoint {:?} must resolve to /models, got: {request_line}",
+                endpoint
+            );
+        }
+    }
+
+    /// Both wire shapes parse: the OpenAI {data:[{id}]} object (which
+    /// Anthropic shares) and the bare ["model", ...] array.
+    #[tokio::test]
+    async fn model_list_accepts_data_object_and_bare_array_shapes() {
+        let openai = provider(
+            "custom",
+            &serve_one_response(
+                "200 OK",
+                r#"{"data":[{"id":"gpt-4o-mini"},{"name":"legacy-name"}]}"#,
+            )
+            .await,
+        );
+        let models = fetch_models(&openai, String::new(), 5).await.unwrap();
+        assert_eq!(
+            models,
+            vec!["gpt-4o-mini".to_string(), "legacy-name".to_string()]
+        );
+
+        let array = provider(
+            "custom",
+            &serve_one_response("200 OK", r#"["llama3.1:8b","qwen2.5:7b"]"#).await,
+        );
+        let models = fetch_models(&array, String::new(), 5).await.unwrap();
+        assert_eq!(
+            models,
+            vec!["llama3.1:8b".to_string(), "qwen2.5:7b".to_string()]
+        );
+    }
+
+    /// A 401 from the models endpoint is an auth-class failure with the
+    /// status in the detail, not an unclassified raw string.
+    #[tokio::test]
+    async fn unauthorized_model_list_is_an_auth_class_failure() {
+        let base_url = serve_one_response(
+            "401 Unauthorized",
+            r#"{"error":{"message":"Incorrect API key provided"}}"#,
+        )
+        .await;
+        let provider = provider_with_endpoint("openai", &base_url, Some("/models"));
+
+        let error = fetch_models(&provider, "sk-bad".to_string(), 5)
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, PostProcessModelError::Auth { .. }),
+            "a 401 must classify as auth, got: {error}"
+        );
+        assert_eq!(
+            error.failure_class(),
+            Some(PostProcessFailureClass::Auth),
+            "the shared class for the verdict line is auth"
+        );
+        assert!(
+            error.to_string().starts_with("auth: "),
+            "the display form leads with the class, got: {error}"
+        );
+        assert!(error.to_string().contains("401"));
+    }
+
+    /// Anthropic's /v1/models body ({data:[{id, display_name, created_at}],
+    /// has_more, ...}) parses through the OpenAI-shaped arm, and the request
+    /// authenticates with x-api-key + anthropic-version (not a Bearer
+    /// header), per build_headers.
+    #[tokio::test]
+    async fn anthropic_model_list_parses_with_anthropic_auth_headers() {
+        let (base_url, request_rx) = serve_one_response_with_request(
+            "200 OK",
+            r#"{"data":[{"id":"claude-3-5-haiku-20241022","display_name":"Claude 3.5 Haiku","created_at":"2025-01-01T00:00:00Z"}],"first_id":"claude-3-5-haiku-20241022","has_more":false,"last_id":"claude-3-5-haiku-20241022"}"#,
+        )
+        .await;
+        let provider = provider_with_endpoint("anthropic", &base_url, Some("/models"));
+
+        let models = fetch_models(&provider, "sk-ant-probe".to_string(), 5)
+            .await
+            .unwrap();
+        assert_eq!(
+            models,
+            vec!["claude-3-5-haiku-20241022".to_string()],
+            "the Anthropic list shape must parse to model ids"
+        );
+
+        let request = request_rx.await.unwrap();
+        let lowercase = request.to_lowercase();
+        assert!(
+            lowercase.contains("x-api-key: sk-ant-probe"),
+            "Anthropic authenticates with x-api-key, got headers: {request}"
+        );
+        assert!(
+            request.contains("anthropic-version: 2023-06-01"),
+            "the anthropic-version header must be sent, got headers: {request}"
+        );
+        assert!(
+            !lowercase.contains("authorization:"),
+            "Anthropic must not get a Bearer header, got headers: {request}"
+        );
+    }
+
+    /// A models endpoint that accepts the connection but never answers is a
+    /// timeout-class failure bounded by the configured timeout.
+    #[tokio::test]
+    async fn wedged_model_list_endpoint_is_a_timeout_failure() {
+        let base_url = serve_never_responding().await;
+        let provider = provider_with_endpoint("custom", &base_url, Some("/models"));
+
+        let started = std::time::Instant::now();
+        let error = fetch_models(&provider, String::new(), 1).await.unwrap_err();
+        let elapsed = started.elapsed();
+
+        assert!(
+            matches!(error, PostProcessModelError::Timeout { .. }),
+            "a wedged endpoint must classify as timeout, got: {error}"
+        );
+        assert_eq!(
+            error.failure_class(),
+            Some(PostProcessFailureClass::Timeout)
+        );
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "the timeout must bound the fetch (took {elapsed:?})"
+        );
+    }
+
+    /// The wire shape the frontend receives is a tagged object; pin it so
+    /// the enum stays a discriminated union on the TS side.
+    #[test]
+    fn model_error_serializes_as_a_tagged_object() {
+        let error = PostProcessModelError::Auth {
+            detail: "bad key".to_string(),
+        };
+        let json = serde_json::to_value(&error).unwrap();
+        assert_eq!(
+            json,
+            serde_json::json!({ "kind": "auth", "detail": "bad key" })
+        );
+        let round_tripped: PostProcessModelError =
+            serde_json::from_value(serde_json::to_value(&error).unwrap()).unwrap();
+        assert_eq!(round_tripped, error);
+    }
+
+    /// Detail truncation stays on char boundaries and bounds oversized
+    /// error bodies.
+    #[test]
+    fn detail_truncation_bounds_bodies_on_char_boundaries() {
+        assert_eq!(truncate_for_detail("short", 300), "short");
+        let long = "x".repeat(500);
+        let truncated = truncate_for_detail(&long, 300);
+        assert_eq!(truncated.len(), 303);
+        assert!(truncated.ends_with("..."));
+        // A multi-byte character straddling the cut must not panic.
+        let multibyte = "é".repeat(200);
+        let truncated = truncate_for_detail(&multibyte, 301);
+        assert!(truncated.ends_with("..."));
+    }
+
+    /// A 200 with content is the ok verdict: model list ok, completion ok,
+    /// latency carried through, no failure class.
+    #[test]
+    fn cloud_verdict_ok_when_list_and_probe_answer() {
+        let verdict = assemble_cloud_verdict(Ok((3, 42)), Some(Ok(Some("OK".to_string()))));
+        assert!(verdict.model_list_ok);
+        assert_eq!(verdict.completion_ok, Some(true));
+        assert_eq!(verdict.latency_ms, Some(42), "latency is measured");
+        assert_eq!(verdict.failure_class, None);
+        assert!(verdict.detail.is_empty());
+    }
+
+    /// A list failure short-circuits the verdict: the auth class surfaces,
+    /// no completion claim, no fabricated latency, and even a (defensive)
+    /// probe outcome cannot smuggle a success in.
+    #[test]
+    fn cloud_verdict_list_failure_short_circuits() {
+        let verdict = assemble_cloud_verdict(
+            Err(PostProcessModelError::Auth {
+                detail: "401".to_string(),
+            }),
+            Some(Ok(Some("OK".to_string()))),
+        );
+        assert!(!verdict.model_list_ok);
+        assert_eq!(verdict.completion_ok, None);
+        assert_eq!(verdict.latency_ms, None);
+        assert_eq!(verdict.failure_class, Some(PostProcessFailureClass::Auth));
+        assert!(verdict.detail.contains("401"));
+    }
+
+    /// A 200 answer with no content is an output-invalid failure, not a
+    /// success: the probe asked for one word and got nothing usable.
+    #[test]
+    fn cloud_verdict_empty_completion_is_output_invalid() {
+        for content in [None, Some(String::new()), Some("   ".to_string())] {
+            let verdict = assemble_cloud_verdict(Ok((1, 5)), Some(Ok(content)));
+            assert!(verdict.model_list_ok);
+            assert_eq!(verdict.completion_ok, Some(false));
+            assert_eq!(
+                verdict.failure_class,
+                Some(PostProcessFailureClass::OutputInvalid)
+            );
+        }
+    }
+
+    #[test]
+    fn cloud_verdict_probe_error_keeps_the_list_verdict() {
+        let verdict = assemble_cloud_verdict(
+            Ok((2, 7)),
+            Some(Err(PostProcessModelError::Timeout {
+                detail: "wedged".to_string(),
+            })),
+        );
+        assert!(verdict.model_list_ok);
+        assert_eq!(verdict.completion_ok, Some(false));
+        assert_eq!(verdict.latency_ms, Some(7));
+        assert_eq!(
+            verdict.failure_class,
+            Some(PostProcessFailureClass::Timeout)
+        );
+        assert!(verdict.detail.contains("wedged"));
+    }
+
+    /// The local provider's verdict is pure downloaded state: ready when the
+    /// selected model is on disk, a clear detail when it is missing or still
+    /// downloading. No worker is involved in assembling it.
+    #[test]
+    fn local_verdict_reflects_downloaded_state() {
+        let ready = local_provider_connection_verdict(true, false);
+        assert!(ready.model_list_ok);
+        assert_eq!(ready.completion_ok, Some(true));
+        assert_eq!(ready.failure_class, None);
+        assert!(ready.detail.is_empty());
+
+        let missing = local_provider_connection_verdict(false, false);
+        assert_eq!(missing.completion_ok, Some(false));
+        assert!(missing.detail.contains("not downloaded"));
+
+        let downloading = local_provider_connection_verdict(false, true);
+        assert_eq!(downloading.completion_ok, Some(false));
+        assert!(downloading.detail.contains("downloading"));
+    }
+
+    #[test]
+    fn apple_verdict_tracks_availability() {
+        let ready = apple_intelligence_connection_verdict(true);
+        assert!(ready.model_list_ok);
+        assert_eq!(ready.completion_ok, None);
+        assert!(ready.detail.is_empty());
+
+        let unavailable = apple_intelligence_connection_verdict(false);
+        assert!(!unavailable.model_list_ok);
+        assert!(unavailable.detail.contains("not available"));
+    }
+
+    /// The probe prompt is a one-word ask with max_tokens 5 on the wire.
+    #[tokio::test]
+    async fn probe_completion_sends_a_tiny_bounded_request() {
+        let (base_url, request_rx) = serve_one_response_with_request(
+            "200 OK",
+            r#"{"choices":[{"message":{"content":"OK"}}]}"#,
+        )
+        .await;
+        let provider = provider("custom", &base_url);
+
+        let content = probe_completion(&provider, String::new(), "test-model", 5)
+            .await
+            .unwrap();
+        assert_eq!(content.as_deref(), Some("OK"));
+
+        let request = request_rx.await.unwrap();
+        assert!(
+            request.contains("\"max_tokens\":5"),
+            "the probe must cap tokens, got body: {request}"
+        );
+        assert!(
+            request.contains("Reply with the single word OK"),
+            "the probe must send the fixed one-word prompt, got body: {request}"
+        );
+        assert!(
+            request.contains("\"stream\":false"),
+            "the probe must not stream, got body: {request}"
+        );
+    }
+
+    /// A 401 from the completion probe is an auth-class failure, and the
+    /// probe must not retry it (exactly one connection served).
+    #[tokio::test]
+    async fn probe_completion_auth_failure_is_not_retried() {
+        let (base_url, served) = serve_counting_401().await;
+        let provider = provider("custom", &base_url);
+
+        let error = probe_completion(&provider, "sk-bad".to_string(), "test-model", 5)
+            .await
+            .unwrap_err();
+        assert!(
+            matches!(error, PostProcessModelError::Auth { .. }),
+            "a 401 probe must classify as auth, got: {error}"
+        );
+        assert_eq!(error.failure_class(), Some(PostProcessFailureClass::Auth));
+
+        // Give a would-be retry a beat to land, then assert it never came.
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        let connections = served.load(std::sync::atomic::Ordering::SeqCst);
+        assert_eq!(
+            connections, 1,
+            "an auth failure must not be retried, but {connections} connections were made"
+        );
+    }
+
+    /// A wedged endpoint makes the probe fail as a timeout within its own
+    /// budget, and the budget constant stays independent of the
+    /// post-process timeout setting.
+    #[tokio::test]
+    async fn probe_completion_times_out_within_its_own_budget() {
+        let base_url = serve_never_responding().await;
+        let provider = provider("custom", &base_url);
+
+        let started = std::time::Instant::now();
+        let error = probe_completion(&provider, String::new(), "test-model", 1)
+            .await
+            .unwrap_err();
+        let elapsed = started.elapsed();
+
+        assert!(
+            matches!(error, PostProcessModelError::Timeout { .. }),
+            "a wedged endpoint must classify as timeout, got: {error}"
+        );
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "the probe timeout must bound the request (took {elapsed:?})"
+        );
+
+        // The hard budget is its own constant: 10s regardless of a much
+        // longer (or shorter) post_process_timeout_secs.
+        assert_eq!(CONNECTION_PROBE_TIMEOUT_SECS, 10);
+        assert_ne!(
+            CONNECTION_PROBE_TIMEOUT_SECS,
+            DEFAULT_POST_PROCESS_TIMEOUT_SECS
         );
     }
 }

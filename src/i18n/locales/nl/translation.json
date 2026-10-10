@@ -668,11 +668,25 @@
           "descriptionDefault": "Kies een model dat door de geselecteerde provider wordt aangeboden.",
           "placeholderWithOptions": "Zoek of selecteer een model",
           "placeholderNoOptions": "Typ een modelnaam",
-          "refreshModels": "Modellen verversen"
+          "refreshModels": "Modellen verversen",
+          "fetchFailed": "Ophalen van de modellenlijst mislukt ({{failureClass}}): {{detail}}",
+          "fetchedAtHint": "Modellenlijst opgehaald {{time}}",
+          "retry": "Opnieuw proberen"
         },
         "timeout": {
           "title": "Time-out van verzoek",
           "description": "Hoe lang een cloudverzoek voor nabewerking mag draaien voordat het opgeeft en de ruwe transcriptie wordt gebruikt. Geldt wanneer een endpoint niet meer reageert."
+        },
+        "testConnection": "Verbinding testen",
+        "testConnectionRunning": "Bezig met testen...",
+        "verdict": {
+          "ok": "Authenticatie OK, {{latencyMs}} ms, model bereikbaar",
+          "okNoModel": "Authenticatie OK, {{latencyMs}} ms. Geen model geselecteerd om te testen.",
+          "localReady": "Lokaal model is gedownload en klaar",
+          "localNotReady": "Lokaal model niet klaar: {{detail}}",
+          "appleReady": "Apple Intelligence is beschikbaar",
+          "appleUnavailable": "Apple Intelligence is niet beschikbaar op dit apparaat",
+          "failed": "Verbinding mislukt: {{failureClass}}. {{detail}}"
         }
       },
       "local": {

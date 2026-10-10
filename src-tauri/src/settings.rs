@@ -112,6 +112,17 @@ pub struct PostProcessProvider {
     pub supports_structured_output: bool,
 }
 
+/// The last successfully fetched model list for one provider, persisted so
+/// reopening the settings panel shows the dropdown instantly (and offline).
+/// Only successful fetches are written; failures never clobber a good list.
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+pub struct CachedModelList {
+    pub models: Vec<String>,
+    /// Unix seconds (UTC) of the successful fetch, shown as a fetched-at
+    /// hint next to the dropdown.
+    pub fetched_at_unix: i64,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
 #[serde(rename_all = "lowercase")]
 pub enum OverlayPosition {
@@ -614,6 +625,13 @@ pub struct AppSettings {
     pub post_process_api_keys: SecretMap,
     #[serde(default = "default_post_process_models")]
     pub post_process_models: HashMap<String, String>,
+    /// Last successfully fetched model list per provider id (see
+    /// [`CachedModelList`]). Empty on stores written before the cache
+    /// existed; the store hydrates the dropdown from it on load. Cleared
+    /// for a provider when its base URL changes (a different endpoint
+    /// serves a different list).
+    #[serde(default)]
+    pub post_process_model_lists: HashMap<String, CachedModelList>,
     #[serde(default = "default_post_process_prompts")]
     pub post_process_prompts: Vec<LLMPrompt>,
     #[serde(default)]
@@ -1389,6 +1407,7 @@ pub fn get_default_settings() -> AppSettings {
         post_process_providers: default_post_process_providers(),
         post_process_api_keys: default_post_process_api_keys(),
         post_process_models: default_post_process_models(),
+        post_process_model_lists: HashMap::new(),
         post_process_prompts: default_post_process_prompts(),
         post_process_selected_prompt_id: None,
         mute_while_recording: false,
@@ -1795,6 +1814,46 @@ mod tests {
         // prompt is selected, so nothing runs until the user turns it on.
         assert!(!defaults.post_process_enabled);
         assert_eq!(defaults.post_process_selected_prompt_id, None);
+    }
+
+    /// The model-list cache: fresh defaults are empty, a store that carries
+    /// entries round-trips them, and a store written before the field
+    /// existed deserializes with the empty default.
+    #[test]
+    fn post_process_model_list_cache_defaults_and_round_trips() {
+        let defaults = get_default_settings();
+        assert!(defaults.post_process_model_lists.is_empty());
+
+        let mut cached = get_default_settings();
+        cached.post_process_model_lists.insert(
+            "openai".to_string(),
+            CachedModelList {
+                models: vec!["gpt-4o-mini".to_string()],
+                fetched_at_unix: 1_760_000_000,
+            },
+        );
+        let value = serde_json::to_value(&cached).unwrap();
+        assert_eq!(
+            value["post_process_model_lists"]["openai"]["models"][0], "gpt-4o-mini",
+            "the cache serializes under its own settings key"
+        );
+        let reloaded: AppSettings = serde_json::from_value(value).unwrap();
+        let entry = reloaded
+            .post_process_model_lists
+            .get("openai")
+            .expect("the cached entry survives a store round trip");
+        assert_eq!(entry.models, vec!["gpt-4o-mini".to_string()]);
+        assert_eq!(entry.fetched_at_unix, 1_760_000_000);
+
+        // A pre-cache store (the key entirely absent) keeps parsing and
+        // resolves the field to empty.
+        let mut legacy = serde_json::to_value(get_default_settings()).unwrap();
+        legacy
+            .as_object_mut()
+            .unwrap()
+            .remove("post_process_model_lists");
+        let legacy: AppSettings = serde_json::from_value(legacy).unwrap();
+        assert!(legacy.post_process_model_lists.is_empty());
     }
 
     /// T19: the one-time migration predicate via the absent-key marker,
@@ -2464,6 +2523,9 @@ mod tests {
         assert_eq!(settings.sound_theme, SoundTheme::Pop);
         assert!(settings.filler_word_removal_enabled);
         assert_eq!(settings.vad_backend, VadBackend::Silero);
+        // The model-list cache key is absent from this pre-cache store and
+        // must default to empty rather than fail the load.
+        assert!(settings.post_process_model_lists.is_empty());
 
         // The 0.1 integer device index is cleared once for transcribe.cpp 0.2.
         // Without an exact device, the retired generic GPU choice becomes Auto.

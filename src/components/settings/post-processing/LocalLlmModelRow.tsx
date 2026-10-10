@@ -54,7 +54,7 @@ export const LocalLlmModelRow: React.FC = () => {
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const refreshStatus = useCallback(async () => {
-    const result = await commands.getLocalLlmModelStatus();
+    const result = await commands.getLocalLlmModelStatus(null);
     if (result.status === "ok") {
       setStatus(result.data);
     }
@@ -118,7 +118,7 @@ export const LocalLlmModelRow: React.FC = () => {
       downloading: true,
       downloaded: false,
     }));
-    const result = await commands.downloadLocalLlmModel();
+    const result = await commands.downloadLocalLlmModel(null);
     if (result.status === "error") {
       // Keep the failure visible: the row would otherwise silently revert
       // to "Not downloaded" once the status refresh lands.
@@ -132,7 +132,7 @@ export const LocalLlmModelRow: React.FC = () => {
     setDeleteRefused(false);
     setDeleteFailure(null);
     setDownloadError(null);
-    const result = await commands.deleteLocalLlmModel();
+    const result = await commands.deleteLocalLlmModel(null);
     if (result.status === "error") {
       console.error("local model delete failed:", result.error);
       if (isSwapRefusalError(result.error)) {
