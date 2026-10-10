@@ -164,12 +164,15 @@ const STATIC_INDEX: readonly SearchEntry[] = [
   { section: "debug", key: "settings.debug.keyboardDiagnostic.title" },
   { section: "debug", key: "settings.debug.liveLogs.title" },
 
-  // About
+  // About. KB-190: every visible About row is indexed, in tab order - the
+  // App Language and Update Policy rows are reachable by search too.
   { section: "about", key: "sidebar.about" },
   { section: "about", key: "settings.about.title" },
+  { section: "about", key: "appLanguage.title" },
   { section: "about", key: "settings.about.version.title" },
   { section: "about", key: "settings.about.whatsNewUpdates.label" },
   { section: "about", key: "settings.debug.updateChecks.label" },
+  { section: "about", key: "settings.about.updatePolicy.title" },
   { section: "about", key: "settings.about.sourceCode.title" },
   { section: "about", key: "settings.about.appDataDirectory.title" },
   { section: "about", key: "settings.debug.logDirectory.title" },

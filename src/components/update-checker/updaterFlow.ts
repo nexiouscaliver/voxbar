@@ -51,12 +51,14 @@ let inFlight = false;
 let restartPromptId: string | number | null = null;
 
 // The system lock (HANDY_DISABLE_UPDATER) and the user's stored preference
-// gate the whole flow. Unknown lock state fails open, mirroring the store's
-// own loadUpdateChecksLocked fallback (the backend removes the tray item
-// entirely when locked, so a locked install cannot reach here anyway).
+// gate the whole flow. Unknown lock state fails CLOSED (KB-033): while the
+// lock probe is still in flight a locked install must not be able to slip a
+// real network check through the loading window. The store's
+// loadUpdateChecksLocked resolves this quickly and only falls back to
+// "not locked" when the probe itself errors.
 function updateChecksAllowed(): boolean {
   const { settings, updateChecksLocked } = useSettingsStore.getState();
-  if (updateChecksLocked === true) return false;
+  if (updateChecksLocked !== false) return false;
   if (settings && settings.update_checks_enabled === false) return false;
   return true;
 }

@@ -16,10 +16,20 @@ import { LogDirectory } from "../debug";
 import { runUpdateCheck } from "../../update-checker/updaterFlow";
 import { updaterAutoUpdateSupported } from "../../update-checker/updaterPlatform";
 import { fetchAppVersion } from "../../../lib/utils/appVersion";
+import { useSettings } from "../../../hooks/useSettings";
 
 export const AboutSettings: React.FC = () => {
   const { t } = useTranslation();
+  const { settings, updateChecksLocked } = useSettings();
   const [version, setVersion] = useState("");
+
+  // Mirrors updaterFlow's updateChecksAllowed() exactly, fail closed while
+  // the lock state is unknown (KB-033): the button must never offer a check
+  // the flow would silently drop, so it stays disabled until checks are
+  // known-allowed. The tooltip reuses the locked/disabled copy the sibling
+  // update rows already show.
+  const updateChecksAllowed =
+    updateChecksLocked === false && (settings?.update_checks_enabled ?? true);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,12 +53,27 @@ export const AboutSettings: React.FC = () => {
           grouped={true}
         >
           <div className="flex items-center gap-3">
-            {/* eslint-disable-next-line i18next/no-literal-string */}
-            <span className="text-sm font-mono">v{version}</span>
+            {/* KB-193: state starts empty and the IPC roundtrip takes a
+                frame, so an ungated span would flash a bare "v"; render the
+                version only once it has actually loaded. */}
+            {version !== "" && (
+              /* eslint-disable-next-line i18next/no-literal-string */
+              <span className="text-sm font-mono">v{version}</span>
+            )}
             {updaterAutoUpdateSupported(platform()) ? (
               <Button
                 variant="secondary"
                 size="sm"
+                disabled={!updateChecksAllowed}
+                title={
+                  updateChecksAllowed
+                    ? undefined
+                    : t(
+                        updateChecksLocked === true
+                          ? "settings.debug.updateChecks.lockedDescription"
+                          : "footer.updateCheckingDisabled",
+                      )
+                }
                 onClick={() => void runUpdateCheck({ trigger: "manual" })}
               >
                 {t("footer.checkForUpdates")}

@@ -49,8 +49,27 @@ export const ModelUnloadTimeoutSetting: React.FC<ModelUnloadTimeoutProps> = ({
   // Tray "Unload After → Custom…": the backend emits its event after
   // revealing the window; App.tsx re-dispatches it as this window event once
   // the Advanced section has mounted. Focus + select + reveal the field.
+  // KB-185: the event can arrive while a preset is still stored, and the
+  // field only renders in custom mode - switch the stored setting first
+  // (same commit path as handleChange: backend command + optimistic store
+  // update, seeding 90s like the dropdown does), or the focus below lands
+  // on a null ref and the tray item is a silent no-op. updateSetting sets
+  // the store synchronously, so the field has rendered by the time the
+  // await resolves and the ref is attached. getSetting/updateSetting are
+  // stable store actions reading live state, so capturing the first
+  // render's copies is safe here.
   useEffect(() => {
-    const focusField = () => {
+    const focusField = async () => {
+      if (!isCustom(getSetting("model_unload_timeout"))) {
+        try {
+          await commands.setModelUnloadTimeoutCustomSeconds(90);
+          await updateSetting("model_unload_timeout", {
+            custom: { seconds: 90 },
+          });
+        } catch (error) {
+          console.error("Failed to switch to custom unload timeout:", error);
+        }
+      }
       customInputRef.current?.focus();
       customInputRef.current?.select();
       customInputRef.current?.scrollIntoView({

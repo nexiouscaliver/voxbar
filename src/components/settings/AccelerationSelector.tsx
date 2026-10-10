@@ -61,45 +61,53 @@ export const AccelerationSelector: FC<AccelerationSelectorProps> = ({
   const [ortOptions, setOrtOptions] = useState<DropdownOption[]>([]);
 
   useEffect(() => {
-    commands.getAvailableAccelerators().then((available) => {
-      // Build combined transcribe.cpp options: Auto, [GPU devices...], CPU
-      const opts: DropdownOption[] = [];
-      if (available.transcribe.includes("auto")) {
-        opts.push({
-          value: "auto",
-          label: t("settings.advanced.acceleration.gpuDevice.auto"),
-        });
-      }
-
-      if (available.transcribe.includes("gpu")) {
-        for (const dev of available.gpu_devices) {
-          const vramLabel =
-            dev.total_vram_mb >= 1024
-              ? `${(dev.total_vram_mb / 1024).toFixed(1)} GB`
-              : `${dev.total_vram_mb} MB`;
+    commands
+      .getAvailableAccelerators()
+      .then((available) => {
+        // Build combined transcribe.cpp options: Auto, [GPU devices...], CPU
+        const opts: DropdownOption[] = [];
+        if (available.transcribe.includes("auto")) {
           opts.push({
-            value: `gpu:${dev.id}`,
-            label: `${dev.name} (${vramLabel})`,
+            value: "auto",
+            label: t("settings.advanced.acceleration.gpuDevice.auto"),
           });
         }
-      }
 
-      if (available.transcribe.includes("cpu")) {
-        opts.push({ value: "cpu", label: "CPU" });
-      }
-      setTranscribeOptions(opts);
+        if (available.transcribe.includes("gpu")) {
+          for (const dev of available.gpu_devices) {
+            const vramLabel =
+              dev.total_vram_mb >= 1024
+                ? `${(dev.total_vram_mb / 1024).toFixed(1)} GB`
+                : `${dev.total_vram_mb} MB`;
+            opts.push({
+              value: `gpu:${dev.id}`,
+              label: `${dev.name} (${vramLabel})`,
+            });
+          }
+        }
 
-      // ORT options (unchanged)
-      const ortVals = available.ort.includes("auto")
-        ? available.ort
-        : ["auto", ...available.ort];
-      setOrtOptions(
-        ortVals.map((v) => ({
-          value: v,
-          label: ORT_LABELS[v as OrtAcceleratorSetting] ?? v,
-        })),
+        if (available.transcribe.includes("cpu")) {
+          opts.push({ value: "cpu", label: "CPU" });
+        }
+        setTranscribeOptions(opts);
+
+        // ORT options (unchanged)
+        const ortVals = available.ort.includes("auto")
+          ? available.ort
+          : ["auto", ...available.ort];
+        setOrtOptions(
+          ortVals.map((v) => ({
+            value: v,
+            label: ORT_LABELS[v as OrtAcceleratorSetting] ?? v,
+          })),
+        );
+      })
+      // KB-158: a rejected probe must not leave an unhandled promise; the
+      // dropdowns simply stay in their empty fallback state and the error
+      // lands in the console like every other settings failure here.
+      .catch((error) =>
+        console.error("Failed to load available accelerators:", error),
       );
-    });
   }, [t]);
 
   const currentAccelerator = getSetting("transcribe_accelerator") ?? "auto";

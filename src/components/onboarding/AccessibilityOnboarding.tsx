@@ -418,9 +418,12 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
           </p>
         </div>
 
-        {/* Microphone Permission Card */}
+        {/* Microphone Permission Card. bg-white/5 is invisible on the light
+            theme's near-white background; bg-background is the token the
+            settings card chrome (SettingsGroup) uses, so the card reads in
+            both themes (KB-187). */}
         {showMicrophonePermission && (
-          <div className="w-full p-4 rounded-lg bg-white/5 border border-mid-gray/20">
+          <div className="w-full p-4 rounded-lg bg-background border border-mid-gray/20">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-full bg-logo-primary/20 shrink-0">
                 <Mic className="w-6 h-6 text-logo-primary" />
@@ -477,9 +480,10 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
           </div>
         )}
 
-        {/* Accessibility Permission Card */}
+        {/* Accessibility Permission Card (KB-187: bg-background, not
+            bg-white/5, so the fill survives the light theme) */}
         {showAccessibilityPermission && (
-          <div className="w-full p-4 rounded-lg bg-white/5 border border-mid-gray/20">
+          <div className="w-full p-4 rounded-lg bg-background border border-mid-gray/20">
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-full bg-logo-primary/20 shrink-0">
                 <Keyboard className="w-6 h-6 text-logo-primary" />
