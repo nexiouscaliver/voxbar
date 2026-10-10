@@ -1,5 +1,8 @@
 use crate::audio_toolkit::command_matrix::{matrix_from_settings, CompiledCommandMatrix};
-use crate::audio_toolkit::commands::{flush_command_prefix_len, held_prefix_len, CommandAction};
+use crate::audio_toolkit::commands::{
+    command_prefix_span_len, flush_command_prefix_len, held_prefix_len, missed_hold_fold_len,
+    CommandAction,
+};
 use crate::audio_toolkit::{
     apply_custom_words, apply_terminal_punctuation, apply_voice_deletion, detect_output_language,
     interim_display_transform, normalize_spoken_punctuation, normalize_transcription_output,
@@ -765,6 +768,18 @@ struct StreamSessionBuffer {
     /// instant; audio beyond that boundary is post-release speech. None =
     /// not latched (plain `render` semantics, no engine clock available).
     command_latch_until_ms: Option<i64>,
+    /// KB-221: a complete command hold (press..release) that no text-bearing
+    /// snapshot observed - the brisk sub-snapshot hold that used to paste
+    /// the spoken command word as literal dictation. Set by
+    /// [`Self::note_missed_command_hold`] when the coordinator reports the
+    /// pair, consumed ONCE by the next `render_with_clock`/`combine_final`
+    /// that runs in the clean dictation state (no live hold, no latch, no
+    /// held fragment); any stronger state simply drops it. One bit, not a
+    /// press instant: the engine exposes no per-word audio clocks, so a
+    /// press boundary in the snapshot's clock domain could not localize the
+    /// command region inside the delta's text anyway (see
+    /// [`Self::resolve_missed_hold_in`]).
+    pending_missed_hold: bool,
     /// Text removed by the most recent buffer-side deletion (the
     /// delete-word hotkey or a command-mode DeleteWord / DeleteLine), set
     /// by whichever path applied it and drained by [`Self::take_deleted`]
@@ -807,6 +822,7 @@ impl Default for StreamSessionBuffer {
             command_active: false,
             holding: false,
             command_latch_until_ms: None,
+            pending_missed_hold: false,
             last_deleted: None,
             matrix: crate::audio_toolkit::command_matrix::default_compiled_matrix(),
             hinglish: false,
@@ -844,6 +860,7 @@ impl StreamSessionBuffer {
         self.command_active = false;
         self.holding = false;
         self.command_latch_until_ms = None;
+        self.pending_missed_hold = false;
         self.last_deleted = None;
         self.spoken_punctuation = spoken_punctuation;
         self.voice_deletion = voice_deletion;
@@ -862,6 +879,7 @@ impl StreamSessionBuffer {
         self.command_active = false;
         self.holding = false;
         self.command_latch_until_ms = None;
+        self.pending_missed_hold = false;
         self.last_deleted = None;
         self.base.clear();
         self.raw_seen.clear();
@@ -897,6 +915,18 @@ impl StreamSessionBuffer {
     /// any held command fragment. At finalize, an armed latch routes the
     /// final in-flight region through the command grammar too
     /// ([`Self::combine_final`]).
+    ///
+    /// KB-221: a hold that ends BETWEEN two text-bearing snapshots is never
+    /// sampled as `held_now`, so none of the machinery above runs and the
+    /// spoken command pasted as literal dictation. The emitter drains the
+    /// coordinator's completed press..release pair into
+    /// [`Self::note_missed_command_hold`]; this tick then resolves the
+    /// pair against the discovering snapshot's fresh material (an
+    /// engagement tick and a release tick collapsed into one - see
+    /// [`Self::resolve_missed_hold_in`]) whenever the buffer is in the
+    /// clean dictation state. Stronger state (a live hold, an armed latch,
+    /// an observed hold's `command_active`, a held fragment mid-flush)
+    /// already covers the material and simply drops the note.
     fn render_with_clock(
         &mut self,
         committed: &str,
@@ -906,9 +936,26 @@ impl StreamSessionBuffer {
         buffered_ms: i64,
     ) -> String {
         if held_now {
-            // A live hold supersedes any latch state.
+            // A live hold supersedes any latch state and any missed-hold
+            // note (KB-221): the engagement machinery governs from here.
+            self.pending_missed_hold = false;
             self.command_latch_until_ms = None;
             return self.render(committed, tentative, true);
+        }
+        if self.command_active || self.holding || self.command_latch_until_ms.is_some() {
+            // Observed-hold state supersedes the note (KB-221): the
+            // engagement fold, held fragment, or release latch already
+            // covers this snapshot's material.
+            self.pending_missed_hold = false;
+        } else if self.pending_missed_hold {
+            self.pending_missed_hold = false;
+            let snapshot = format!("{committed}{tentative}");
+            let resolved = self.resolve_missed_hold_in(&snapshot);
+            self.last_full = snapshot;
+            if let Some(consumed) = resolved {
+                self.raw_seen = self.last_full[..consumed].to_string();
+            }
+            return self.interim_display();
         }
         if self.command_active && self.command_latch_until_ms.is_none() {
             // The hold just ended (observed on this snapshot): arm the
@@ -924,6 +971,71 @@ impl StreamSessionBuffer {
             None => false,
         };
         self.render(committed, tentative, held)
+    }
+
+    /// KB-221: record that the coordinator observed a complete command
+    /// hold (press..release) no text-bearing snapshot sampled. Called by
+    /// the snapshot emitter (and the finalize fold) right after draining
+    /// the coordinator's pair; the next `render_with_clock`/`combine_final`
+    /// in the clean dictation state consumes it.
+    fn note_missed_command_hold(&mut self) {
+        self.pending_missed_hold = true;
+    }
+
+    /// KB-221: resolve a missed command hold against `text` (the
+    /// discovering snapshot or the final raw) and return the byte count
+    /// consumed from it, or `None` when the resolve aborted (an engine
+    /// rewrite of already consumed bytes - the fold anchor is unreliable
+    /// inside a rewrite, so the material stays dictation per today's
+    /// behavior and the caller must leave `raw_seen` untouched). The hold
+    /// is fully in the past, so this is the engagement tick and the
+    /// release tick collapsed into one:
+    ///
+    /// * the leading span that cannot open a command phrase folds into
+    ///   `base` as dictation (pre-press speech; [`missed_hold_fold_len`]);
+    /// * the remaining region parses through the grammar up to its LAST
+    ///   phrase completion (post-press command speech, filler discarding
+    ///   per the contract; [`command_prefix_span_len`]);
+    /// * everything beyond that span is post-release speech and stays
+    ///   unconsumed, flowing on as ordinary dictation.
+    ///
+    /// The engine reports no per-word audio clocks, so the press/release
+    /// instants cannot localize text inside the delta; the split is purely
+    /// grammatical and mirrors the observed-hold semantics (the engagement
+    /// fold's prefix rule, the release flush's first-word gate and
+    /// fragment-discard contract). Residual exposure, same as the release
+    /// latch's documented over-latch window: pre-press dictation that
+    /// happens to end with a phrase-opening word joins the command region,
+    /// and dictation spoken right after the release that spells a phrase
+    /// fires it - with spoken punctuation enabled (the default) both
+    /// convert in plain dictation anyway.
+    fn resolve_missed_hold_in(&mut self, text: &str) -> Option<usize> {
+        let keep = common_prefix_len(&self.raw_seen, text);
+        if keep < self.raw_seen.len() {
+            debug!(
+                "cmd-mode: missed hold skipped, engine rewrote consumed bytes ({}..{})",
+                keep,
+                self.raw_seen.len()
+            );
+            return None;
+        }
+        let delta = &text[keep..];
+        let fold_to = missed_hold_fold_len(delta, &self.matrix);
+        let region = &delta[fold_to..];
+        let span = command_prefix_span_len(region, &self.matrix);
+        self.base = self.combine(&text[..keep + fold_to]);
+        if span > 0 {
+            self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
+                &mut self.base,
+                &region[..span],
+                &self.matrix,
+            );
+        }
+        debug!(
+            "cmd-mode: resolved missed hold, {} chars folded as dictation, {} parsed as commands",
+            fold_to, span
+        );
+        Some(keep + fold_to + span)
     }
 
     /// Record a snapshot and render what the overlay should display: the
@@ -1213,34 +1325,54 @@ impl StreamSessionBuffer {
     /// residual documented, not silently ignored).
     fn combine_final(&mut self, final_raw: String) -> String {
         let combined = if self.live {
+            if self.pending_missed_hold {
+                // KB-221: the session ended before any text snapshot could
+                // resolve the missed hold, so the final region carries the
+                // command material. Only the clean dictation state resolves
+                // it; observed-hold state (latch, held fragment, a hold
+                // still live at stop) supersedes the note and just drops it.
+                self.pending_missed_hold = false;
+                if !self.command_active
+                    && !self.holding
+                    && self.command_latch_until_ms.is_none()
+                {
+                    if let Some(consumed) = self.resolve_missed_hold_in(&final_raw) {
+                        self.raw_seen = final_raw[..consumed].to_string();
+                    }
+                }
+            }
             if self.command_latch_until_ms.is_some() && !self.holding {
                 // The modifier was released but the engine had not yet
                 // committed the hold's audio when the session ended, so the
                 // final region beyond raw_seen is command material still in
                 // flight: parse it as the command delta (same rule as a
-                // latched tick). Any fragment the parse still holds open
-                // falls through to the holding flush below - nothing
-                // follows finalize to complete it. The cost mirrors the
-                // documented latch window: post-release speech in the same
-                // region parses as commands too.
+                // latched tick), BOUNDED (KB-222) at the region's last
+                // phrase completion - a stop pressed inside the latch
+                // window routinely leaves one commit-lag of ordinary
+                // post-release dictation in the same region, and that
+                // material must fall through to the fold below as text
+                // instead of vanishing into the grammar's discard. The
+                // bound mirrors the documented latch window's own
+                // over-latch trade: filler BETWEEN phrases inside the span
+                // still discards per the command contract, and a trailing
+                // unresolved fragment directly after the last completion
+                // consumes and discards (the release-flush contract).
                 let start = common_prefix_len(&self.raw_seen, &final_raw);
                 if start < final_raw.len() {
                     let delta = final_raw[start..].to_string();
-                    let held = held_prefix_len(&delta, &self.matrix);
-                    let applicable_end = delta.len() - held;
-                    if applicable_end > 0 {
+                    let span = command_prefix_span_len(&delta, &self.matrix);
+                    if span > 0 {
                         self.last_deleted = crate::audio_toolkit::apply_command_delta_to_buffer(
                             &mut self.base,
-                            &delta[..applicable_end],
+                            &delta[..span],
                             &self.matrix,
                         );
                         debug!(
-                            "cmd-mode: finalize parsed {} chars of latched command material",
-                            applicable_end
+                            "cmd-mode: finalize parsed {} chars of latched command material (post-boundary dictation preserved)",
+                            span
                         );
                     }
-                    self.raw_seen = final_raw[..final_raw.len() - held].to_string();
-                    self.holding = held > 0;
+                    self.raw_seen = final_raw[..start + span].to_string();
                 }
             }
             if self.holding {
@@ -2582,6 +2714,17 @@ impl TranscriptionManager {
         // script gating the finalize pipeline resolves from this run's
         // output-language evidence.
         let numbers = crate::number_format::number_pass(&settings, &output_language);
+        // KB-221: a missed-hold pair that outlived the previous session (its
+        // stop pipeline never drained it - e.g. the stream had already died
+        // and finalize returned early) must not resolve against THIS
+        // session's first words; the fresh begin clears it. Pairs published
+        // after this point belong to this session by construction.
+        if let Some(coordinator) = self
+            .app_handle
+            .try_state::<crate::TranscriptionCoordinator>()
+        {
+            coordinator.clear_unobserved_command_hold();
+        }
         self.session_buffer
             .lock()
             .unwrap_or_else(|e| e.into_inner())
@@ -2796,11 +2939,26 @@ impl TranscriptionManager {
         // raw-domain), so no text pass can run twice over the same words.
         // The interim transform is additionally idempotent on its own
         // output (tested), but the architecture does not rely on that.
-        let final_raw = self
-            .session_buffer
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .combine_final(finalized.text);
+        let final_raw = {
+            let mut session = self
+                .session_buffer
+                .lock()
+                .unwrap_or_else(|e| e.into_inner());
+            // KB-221: a hold no text snapshot observed, with the stop
+            // pressed before any snapshot carried its phrase: the pair is
+            // still undrained, and combine_final resolves it against the
+            // final region. (A trailing emitter tick may have drained it
+            // already - the take is once-only, so the resolve happens at
+            // most once.)
+            if self
+                .app_handle
+                .try_state::<crate::TranscriptionCoordinator>()
+                .is_some_and(|c| c.take_unobserved_command_hold(Instant::now()))
+            {
+                session.note_missed_command_hold();
+            }
+            session.combine_final(finalized.text)
+        };
 
         let settings = get_settings(&self.app_handle);
         // Streaming models do not receive a decode prompt, so custom words
@@ -3397,11 +3555,27 @@ fn stream_progress_emitter(
             // is held for this live session the new engine material parses
             // as commands and edits the buffer instead of appending as
             // dictation. A missing coordinator reads as "not held".
-            let command_modifier = app_handle
-                .try_state::<crate::TranscriptionCoordinator>()
+            let coordinator = app_handle.try_state::<crate::TranscriptionCoordinator>();
+            let command_modifier = coordinator
+                .as_ref()
                 .is_some_and(|c| c.is_command_modifier_active());
             let (display, deleted) = {
                 let mut session = session_buffer.lock().unwrap_or_else(|e| e.into_inner());
+                // KB-221: drain a press..release pair no text snapshot ever
+                // sampled (a brisk hold that fell entirely between two
+                // text-bearing snapshots) and hand it to the buffer, which
+                // resolves it against THIS snapshot's fresh material. Only
+                // drained on text-bearing ticks - the phrase material the
+                // hold produced surfaces with text, and a hold currently
+                // down (command_modifier) is governed by the live
+                // engagement path instead.
+                if !command_modifier
+                    && coordinator
+                        .as_ref()
+                        .is_some_and(|c| c.take_unobserved_command_hold(Instant::now()))
+                {
+                    session.note_missed_command_hold();
+                }
                 // The engine clock drives the command-mode release latch:
                 // snapshots lag the key by the chunk+lookahead window, so a
                 // command spoken during a short hold arrives after release.
@@ -5260,6 +5434,158 @@ mod tests {
         // No press ever happened: the false tick is plain dictation.
         session.render_with_clock("hello world question mark", "", false, 7_000, 1_000);
         assert_eq!(session.command_latch_until_ms, None);
+    }
+
+    // -----------------------------------------------------------------
+    // KB-221: a command hold that falls entirely BETWEEN two text-bearing
+    // snapshots (the brisk sub-snapshot hold - worst on the menu-fallback
+    // cadence of ~1.5-2.1 s) is never sampled as held_now, so the
+    // engagement/release-latch machinery above never runs and the spoken
+    // command word pasted as literal dictation. The coordinator boxes the
+    // press..release pair; the discovering snapshot (or, if the session
+    // ends first, the final fold) resolves it.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn session_buffer_missed_hold_parses_command_region() {
+        // The reviewer's exact case: "press, comma, release" between two
+        // snapshots. The comma must apply; pre- and post-hold speech stays
+        // dictation.
+        let mut session = session_buffer();
+        session.render_with_clock("hello world", "", false, 10_000, 0);
+        session.note_missed_command_hold();
+        assert_eq!(
+            session.render_with_clock("hello world comma", "", false, 12_000, 600),
+            "hello world,"
+        );
+        // Dictation after the discovering snapshot flows normally, and the
+        // final paste carries the edit (the command word never re-enters).
+        assert_eq!(
+            session.render_with_clock("hello world comma and more", "", false, 14_000, 0),
+            "hello world, and more"
+        );
+        assert_eq!(
+            session.combine_final("hello world comma and more".to_string()),
+            "hello world, and more"
+        );
+
+        // A multi-word phrase with post-release dictation in the SAME
+        // discovering snapshot: the phrase fires, the tail survives.
+        let mut phrase = session_buffer();
+        phrase.render_with_clock("hello world", "", false, 10_000, 0);
+        phrase.note_missed_command_hold();
+        assert_eq!(
+            phrase.render_with_clock("hello world question mark and more", "", false, 12_000, 600),
+            "hello world? and more"
+        );
+        assert_eq!(
+            phrase.combine_final("hello world question mark and more".to_string()),
+            "hello world? and more"
+        );
+    }
+
+    #[test]
+    fn session_buffer_missed_hold_resolves_at_finalize() {
+        // The stop lands before ANY snapshot carried the hold's phrase: the
+        // final fold resolves the pair against the final region instead.
+        let mut session = session_buffer();
+        session.render_with_clock("hello world", "", false, 10_000, 0);
+        session.note_missed_command_hold();
+        assert_eq!(
+            session.combine_final("hello world comma".to_string()),
+            "hello world,"
+        );
+        assert!(!session.live);
+    }
+
+    #[test]
+    fn session_buffer_missed_hold_prefix_phrase_splits_at_the_opener() {
+        // Pre-press "...a new" + press + "line": the fold stops before the
+        // whole-word opener "new", so "a" stays dictation and "new line"
+        // fires as the command (the observed-hold engagement fold behaves
+        // the same way - the phrase wins its opening words).
+        let mut session = session_buffer();
+        session.render_with_clock("a", "", false, 8_000, 0);
+        session.note_missed_command_hold();
+        assert_eq!(
+            session.render_with_clock("a new line", "", false, 9_500, 300),
+            "a\n"
+        );
+        assert_eq!(session.combine_final("a new line".to_string()), "a\n");
+
+        // No command spoken during the missed hold: everything stays
+        // dictation, byte for byte.
+        let mut quiet = session_buffer();
+        quiet.render_with_clock("just talking", "", false, 8_000, 0);
+        quiet.note_missed_command_hold();
+        assert_eq!(
+            quiet.render_with_clock("just talking more words", "", false, 9_500, 300),
+            "just talking more words"
+        );
+        assert_eq!(
+            quiet.combine_final("just talking more words".to_string()),
+            "just talking more words"
+        );
+    }
+
+    #[test]
+    fn session_buffer_missed_hold_note_superseded_by_observed_hold() {
+        // A fresh press lands before the next snapshot: the live hold (and
+        // its release latch) governs, the stale note is dropped, and no
+        // spurious missed-hold resolve fires afterwards.
+        let mut session = session_buffer();
+        session.render_with_clock("hello world", "", false, 10_000, 0);
+        session.note_missed_command_hold();
+        // The press is now observed by this snapshot: engagement as usual.
+        assert_eq!(
+            session.render_with_clock("hello world", "", true, 12_000, 900),
+            "hello world"
+        );
+        assert_eq!(
+            session.render_with_clock("hello world comma", "", true, 12_500, 400),
+            "hello world,"
+        );
+        // Release observed with everything committed: the latch arms and
+        // clears in the same tick, dictation resumes, nothing re-fires.
+        assert_eq!(
+            session.render_with_clock("hello world comma and more", "", false, 16_000, 0),
+            "hello world, and more"
+        );
+        assert_eq!(session.command_latch_until_ms, None);
+        assert!(!session.command_active);
+    }
+
+    // -----------------------------------------------------------------
+    // KB-222: a stop pressed inside the release-latch window leaves one
+    // commit-lag of ordinary post-release dictation in the same final
+    // region the latch parses as commands. The latched finalize is bounded
+    // at the region's last phrase completion: the commands still fire, the
+    // post-release words join the paste instead of vanishing.
+    // -----------------------------------------------------------------
+
+    #[test]
+    fn session_buffer_finalize_keeps_post_release_dictation_in_latched_region() {
+        let mut session = session_buffer();
+        session.render_with_clock("hello world", "", false, 10_000, 0);
+        session.render_with_clock("hello world", "", true, 12_000, 1_500);
+        // Release observed; the engine still holds 1.2s of hold-time audio,
+        // so the latch arms at 13,200 - and the stop lands inside it.
+        session.render_with_clock("hello world", "", false, 13_200, 1_200);
+        assert_eq!(
+            session.combine_final("hello world question mark and more".to_string()),
+            "hello world? and more"
+        );
+
+        // Filler between the hold's phrases still discards per the command
+        // contract; only material beyond the LAST completion survives.
+        let mut filler = session_buffer();
+        filler.render_with_clock("hello world", "", false, 10_000, 0);
+        filler.render_with_clock("hello world", "", true, 12_000, 1_500);
+        filler.render_with_clock("hello world", "", false, 13_200, 1_200);
+        assert_eq!(
+            filler.combine_final("hello world comma um question mark and bye".to_string()),
+            "hello world,? and bye"
+        );
     }
 
     #[test]
