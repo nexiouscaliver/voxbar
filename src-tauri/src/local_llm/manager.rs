@@ -1158,7 +1158,14 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
     let mut warm_entered = false;
     let mut warm_done_tx: Option<mpsc::Sender<()>> = None;
     let total_start = Instant::now();
-    let abort = |host: &Arc<dyn SwapHost>| -> Option<AbortReason> {
+    // The dictation-wins kill conditions alone (user cancel, a remembered
+    // press, a recording that started). The WarmHold window waits on THESE
+    // only: once the outcome is delivered the 45s total - a budget for
+    // PRODUCING the outcome - no longer applies, so a keep-warm window
+    // longer than the total is not silently truncated and its end can
+    // never masquerade as a Timeout skip for a swap that already
+    // succeeded.
+    let abort_deliberate = |host: &Arc<dyn SwapHost>| -> Option<AbortReason> {
         if let Some(is_cancelled) = &request.is_cancelled {
             if is_cancelled() {
                 return Some(AbortReason::UserCancel);
@@ -1170,10 +1177,12 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
         if host.is_recording() {
             return Some(AbortReason::RecordingStarted);
         }
-        if total_start.elapsed() >= timing.total {
-            return Some(AbortReason::TotalDeadline);
-        }
         None
+    };
+    let abort = |host: &Arc<dyn SwapHost>| -> Option<AbortReason> {
+        abort_deliberate(host).or_else(|| {
+            (total_start.elapsed() >= timing.total).then_some(AbortReason::TotalDeadline)
+        })
     };
 
     let mut engine = (cfg.engine_factory)();
@@ -1590,12 +1599,15 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                 keep_warm_secs, warm_model
             );
             let warm_deadline = Instant::now() + Duration::from_secs(keep_warm_secs);
+            // Bounded ONLY by the window and the kill conditions: the
+            // total deadline is deliberately not consulted here (see
+            // abort_deliberate) - the outcome is already delivered.
             loop {
                 if evict_flag.load(Ordering::Acquire) {
                     signal = Some(Signal::EvictWarm);
                     break;
                 }
-                if let Some(reason) = abort(&cfg.host) {
+                if let Some(reason) = abort_deliberate(&cfg.host) {
                     signal = Some(Signal::Abort(reason));
                     break;
                 }
@@ -1607,8 +1619,11 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
             }
             // Re-acquire the loading slot (bounded, best effort) so the
             // terminal restore handoff runs exactly as a keep-warm-off
-            // swap's; an abort or a contended slot skips it (whatever
-            // waits on the slot has a load serving it).
+            // swap's; a deliberate abort or a contended slot skips it
+            // (whatever waits on the slot has a load serving it). The
+            // total deadline does not apply here either - the warm exit
+            // is silent teardown, and tripping it would skip the restore
+            // for a swap that succeeded.
             if slot.is_none() {
                 let deadline = Instant::now() + timing.slot_deadline;
                 loop {
@@ -1617,7 +1632,7 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                         planner.mark_slot_acquired();
                         break;
                     }
-                    if abort(&cfg.host).is_some() || Instant::now() >= deadline {
+                    if abort_deliberate(&cfg.host).is_some() || Instant::now() >= deadline {
                         break;
                     }
                     thread::sleep(timing.acquire_tick);
@@ -2976,6 +2991,52 @@ mod tests {
         assert!(started.elapsed() >= Duration::from_millis(900));
         assert!(engine_state.exit_sent.load(Ordering::Acquire));
         assert_eq!(restored.load(Ordering::Acquire), 1);
+        assert_eq!(llm.warm_model_id(), None);
+    }
+
+    /// The warm window is bounded ONLY by its own deadline once the
+    /// outcome is delivered: the swap total (45s in production) expiring
+    /// mid-window must neither truncate the window nor surface as a
+    /// Timeout skip - the swap already succeeded and its caller already
+    /// has the text. Before the fix the warm loop consulted the total
+    /// deadline, so any keep-warm slider above the total was cut short at
+    /// 45s AND produced a spurious timeout skip (error notice + error
+    /// sound) for the succeeded swap.
+    #[test]
+    fn total_deadline_during_warm_hold_neither_truncates_nor_skips() {
+        let llm = LlmManager::new();
+        let host = FakeHost::new();
+        // 1s warm window; the total budget (250ms) is plenty for the
+        // pre-warm phases (the fakes answer in milliseconds) and expires
+        // while the worker is already warm.
+        host.keep_warm_secs.store(1, Ordering::Release);
+        let host_skips = Arc::clone(&host.skips);
+        let host_restored = Arc::clone(&host.restored);
+        let (mut cfg, engine_state) = runner_cfg(
+            host,
+            FakeEngine::happy(Ok("{\"transcription\":\"cleaned\"}".to_string())),
+        );
+        cfg.timing.total = Duration::from_millis(250);
+
+        let started = Instant::now();
+        let outcome = swap_runner(&llm, &sample_request(), cfg);
+
+        assert_eq!(outcome, SwapOutcome::Processed("cleaned".to_string()));
+        assert!(
+            started.elapsed() >= Duration::from_millis(950),
+            "the warm window must run to its own deadline, not the swap total (elapsed {:?})",
+            started.elapsed()
+        );
+        assert!(engine_state.exit_sent.load(Ordering::Acquire));
+        assert_eq!(host_restored.load(Ordering::Acquire), 1);
+        assert!(
+            !host_skips
+                .lock()
+                .unwrap()
+                .iter()
+                .any(|(r, _)| *r == SkipReason::Timeout),
+            "a warm-phase exit must never surface as a timeout skip - the outcome was already delivered"
+        );
         assert_eq!(llm.warm_model_id(), None);
     }
 }

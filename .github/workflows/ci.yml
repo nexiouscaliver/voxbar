@@ -120,7 +120,7 @@ jobs:
 
       # KB-136 pattern: package.json grew test:* scripts and assert-only
       # *.test.ts files faster than this workflow, so tests existed that CI
-      # never executed. Run every bun unit-test script plus the three
+      # never executed. Run every bun unit-test script plus the five
       # assert files that have no script of their own; the last line is
       # scripts/ciTestCoverage.test.ts, which fails the build when a new
       # test:* script or assert file is added without a CI invocation.
@@ -134,6 +134,8 @@ jobs:
           bun src/components/settings/commands/commandGroups.test.ts
           bun src/components/settings/post-processing/skipToastDedupe.test.ts
           bun src/components/settings/historyLimitInput.test.ts
+          bun docs/quality-goldmine.test.ts
+          bun ui-shots/shoot.test.ts
           bun scripts/ciTestCoverage.test.ts
 
       # Belt and suspenders: the sweep runs every git-tracked

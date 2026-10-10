@@ -17,9 +17,10 @@ import { fileURLToPath } from "url";
 // may be explicit steps or one chained script.
 //
 // Scope: test:playwright* drive real browsers and are excluded. The
-// assert-file list is the audit's enumeration (commandGroups,
-// skipToastDedupe, historyLimitInput); extending it to the remaining
-// uncovered *.test.ts files is welcome but not required to go green.
+// assert-file list is the audits' enumeration (commandGroups,
+// skipToastDedupe, historyLimitInput, quality-goldmine, shoot); extending
+// it to any further uncovered *.test.ts files is welcome but not required
+// to go green.
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, "..");
@@ -43,11 +44,16 @@ const REQUIRED_ASSERT_FILES = [
   "src/components/settings/commands/commandGroups.test.ts",
   "src/components/settings/post-processing/skipToastDedupe.test.ts",
   "src/components/settings/historyLimitInput.test.ts",
+  "docs/quality-goldmine.test.ts",
+  "ui-shots/shoot.test.ts",
 ];
 
 // Every `run:` command ci.yml executes: inline values plus block scalars
 // (`run: |`, possibly with a strip indicator). `uses:` and `name:` lines
-// are ignored — a comment or step name mentioning a test must never count.
+// are ignored — a comment or step name mentioning a test must never count —
+// and comment lines INSIDE a block scalar are skipped too: they are YAML
+// comments the shell never executes, so counting them would let a `# runs
+// foo.test.ts` note satisfy coverage for a file nothing actually runs.
 function ciRunCommands(yaml: string): string[] {
   const lines = yaml.split(/\r?\n/);
   const commands: string[] = [];
@@ -64,6 +70,10 @@ function ciRunCommands(yaml: string): string[] {
         }
         const lineIndent = line.match(/^\s*/)?.[0]?.length ?? 0;
         if (lineIndent <= indent) break;
+        if (line.trimStart().startsWith("#")) {
+          j++;
+          continue;
+        }
         commands.push(line);
         j++;
       }
@@ -108,15 +118,19 @@ const executedByCi = expandScriptInvocations(
 
 const missing: string[] = [];
 
-// Every non-playwright test:* script must have its .test.ts file executed
-// by CI. A test script without a direct .test.ts argument is a chain node
+// Every non-playwright test:* script must have ALL of its .test.ts files
+// executed by CI. A script may chain several files (test:updater runs
+// two) - matching only the first would let a chained leaf silently rot -
+// and a test script without any direct .test.ts argument is a chain node
 // (its leaves are separately required), so it is skipped here.
 for (const [name, command] of Object.entries(scripts)) {
   if (!name.startsWith("test:") || command.includes("playwright")) continue;
-  const file = command.match(/\S*\.test\.ts/);
-  if (!file) continue;
-  if (!executedByCi.includes(file[0])) {
-    missing.push(`  - ${name} (${command})`);
+  const files = command.match(/\S*\.test\.ts/g) ?? [];
+  if (files.length === 0) continue;
+  for (const file of files) {
+    if (!executedByCi.includes(file)) {
+      missing.push(`  - ${name} (${command}) does not run ${file} in CI`);
+    }
   }
 }
 

@@ -212,17 +212,38 @@ pub fn context_tokens_for(model_id: &str) -> u32 {
     DEFAULT_CONTEXT_TOKENS
 }
 
+/// Resolve `model_id` to its catalog entry plus the owning `files[]` row.
+/// The default quant's registry id (`{repo}/{default filename}`) matches
+/// directly through [`find`]; any OTHER quant's id (`{repo}/{alternate
+/// filename}`) matches by id shape - the catalog pins every quant, and a
+/// download or on-disk check for an alternate quant must not silently skip
+/// the trust anchor just because the file is not the default one.
+fn find_with_file(model_id: &str) -> Option<(&'static LlmCatalogModel, &'static QuantFile)> {
+    if let Some(model) = find(model_id) {
+        return model.default_file().map(|file| (model, file));
+    }
+    LLM_CATALOG.iter().find_map(|m| {
+        let filename = model_id.strip_prefix(&format!("{}/", m.id))?;
+        m.files
+            .iter()
+            .find(|f| f.filename == filename)
+            .map(|file| (m, file))
+    })
+}
+
 /// The download trust anchor for `model_id`: the catalog sha256 for catalog
-/// entries, `None` otherwise (the pinned builtin's constant lives in
+/// entries - the default quant's id AND alternate quant ids, per file - and
+/// `None` otherwise (the pinned builtin's constant lives in
 /// [`crate::local_llm`]; user-added models have no pre-known hash).
 pub fn expected_sha256_for(model_id: &str) -> Option<&'static str> {
-    find(model_id).and_then(|m| m.default_file().and_then(|f| f.sha256.as_deref()))
+    find_with_file(model_id).and_then(|(_, file)| file.sha256.as_deref())
 }
 
 /// The exact expected on-disk byte length for `model_id` from the catalog
-/// (the parent-side cheap integrity check at load time).
+/// (the parent-side cheap integrity check at load time), for the default
+/// and alternate quant ids alike.
 pub fn expected_size_bytes_for(model_id: &str) -> Option<u64> {
-    find(model_id).map(|m| m.default_file().map(|f| f.size_bytes).unwrap_or(0))
+    find_with_file(model_id).map(|(_, file)| file.size_bytes)
 }
 
 /// The display publisher for `model_id`, when it is a catalog entry.
@@ -411,5 +432,51 @@ mod tests {
             "the pinned id's catalog entry and the pinned constant describe the same bytes"
         );
         assert_eq!(expected_size_bytes_for("org/none/x.gguf"), None);
+    }
+
+    /// Alternate quant ids resolve their OWN pins: the catalog pins every
+    /// quant of every entry, so `{repo}/{alternate filename}` must carry
+    /// that file's sha256 and size - not the default quant's, and not
+    /// nothing (the old lookup matched only the default quant's registry
+    /// id, silently skipping the trust anchor for alternate quants).
+    #[test]
+    fn alternate_quant_ids_resolve_their_own_trust_anchor() {
+        let (model, alt_file) = LLM_CATALOG
+            .iter()
+            .find_map(|m| {
+                let alt = m
+                    .files
+                    .iter()
+                    .find(|f| Some(&f.filename) != m.default_file().map(|d| &d.filename))?;
+                Some((m, alt))
+            })
+            .expect("the catalog carries at least one alternate quant");
+        let alt_id = format!("{}/{}", model.id, alt_file.filename);
+
+        assert_eq!(
+            expected_sha256_for(&alt_id),
+            alt_file.sha256.as_deref(),
+            "the alternate quant's own sha flows through"
+        );
+        assert_ne!(
+            expected_sha256_for(&alt_id),
+            expected_sha256_for(&model.registry_id()),
+            "the alternate quant must not silently borrow the default's sha"
+        );
+        assert_eq!(
+            expected_size_bytes_for(&alt_id),
+            Some(alt_file.size_bytes),
+            "the alternate quant's own size flows through"
+        );
+        // A well-shaped id whose filename matches no listed quant resolves
+        // nothing (shape alone is not enough).
+        assert_eq!(
+            expected_sha256_for(&format!("{}/not-a-listed-quant.gguf", model.id)),
+            None
+        );
+        assert_eq!(
+            expected_size_bytes_for(&format!("{}/not-a-listed-quant.gguf", model.id)),
+            None
+        );
     }
 }

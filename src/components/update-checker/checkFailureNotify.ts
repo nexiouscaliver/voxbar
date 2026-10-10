@@ -30,7 +30,10 @@
  */
 export function shouldDesktopNotifyCheckFailure(
   trigger: "manual" | "auto",
-  windowHidden: boolean,
 ): boolean {
-  return trigger === "auto" && windowHidden;
+  // Only the auto trigger: the manual path has its own toast. Window
+  // visibility is NOT an input - notifyDesktop's live query (KB-195) makes
+  // the final deliver/quiet call, which stays correct for minimize and
+  // Cmd+H where any store-fed gate would go stale.
+  return trigger === "auto";
 }

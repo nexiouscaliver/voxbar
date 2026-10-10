@@ -789,6 +789,15 @@ pub fn update_overlay_enabled_cache(enabled: bool) {
     OVERLAY_ENABLED.store(enabled, Ordering::Relaxed);
 }
 
+/// Whether the overlay could ever show (overlay_style != None) per the
+/// cached flag - a single atomic load, no Tauri store read. Callers probing
+/// "could the overlay card render this" per event (e.g. emit_overlay_notice's
+/// card_visible) use this instead of deserializing the full settings on
+/// every emit.
+pub fn overlay_enabled() -> bool {
+    OVERLAY_ENABLED.load(Ordering::Relaxed)
+}
+
 pub fn emit_levels(app_handle: &AppHandle, levels: &[f32]) {
     // Skip emission when the overlay is disabled. The recording_overlay
     // window is created at boot regardless of overlay_style, so without this

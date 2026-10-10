@@ -1562,6 +1562,26 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
     // behind it. The DISABLED direction stays infallible - unregistering
     // is best-effort teardown and must never trap the toggle off.
     let mut settings = settings::get_settings(&app);
+    // The disable arm's ownership set, needed only when turning OFF: the
+    // bindings active in the PRE-toggle state (bound, non-bare, toggle on)
+    // are exactly the live registrations this feature owns and may tear
+    // down. Unregistering anything else by its stored chord could destroy a
+    // FOREIGN registration - KB-194 deliberately lets another binding hold
+    // the same chord live while this toggle is off.
+    let owned_while_enabled: Vec<ShortcutBinding> = if enabled {
+        Vec::new()
+    } else {
+        POST_PROCESS_TOGGLE_BINDINGS
+            .iter()
+            .filter_map(|id| {
+                settings
+                    .bindings
+                    .get(*id)
+                    .filter(|b| binding_is_active(&settings, id, b))
+                    .cloned()
+            })
+            .collect()
+    };
     settings.post_process_enabled = enabled;
 
     if enabled {
@@ -1569,32 +1589,40 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
         // POST-update state leaves active (folds in bound, not a stored
         // bare key, and the now-on toggle) - exactly the set init and
         // resume_all_shortcuts register.
+        //
+        // The rollback unregisters only what THIS call registered. The old
+        // blind loop unregistered every stored chord, which could tear down
+        // a foreign live registration: the failed register means some other
+        // binding already holds that chord live (the KB-194 state), and a
+        // sibling binding's stored chord is only this call's to remove when
+        // this call is what put it live.
+        let mut registered_here: Vec<ShortcutBinding> = Vec::new();
         for id in POST_PROCESS_TOGGLE_BINDINGS {
             if let Some(binding) = settings.bindings.get(id).cloned() {
                 if !binding_is_active(&settings, id, &binding) {
                     continue;
                 }
-                if let Err(e) = register_shortcut(&app, binding) {
-                    // A failure after an earlier binding registered rolls
-                    // that registration back, restoring the pre-toggle
-                    // state (the toggle was off, so nothing was registered)
-                    // before the error surfaces.
-                    for rollback_id in POST_PROCESS_TOGGLE_BINDINGS {
-                        if let Some(b) = settings.bindings.get(rollback_id).cloned() {
-                            if !b.current_binding.trim().is_empty() {
-                                let _ = unregister_shortcut(&app, b);
-                            }
+                match register_shortcut(&app, binding.clone()) {
+                    Ok(()) => registered_here.push(binding),
+                    Err(e) => {
+                        // A failure after an earlier binding registered
+                        // rolls only that registration back, restoring the
+                        // pre-toggle state, before the error surfaces.
+                        for registered in registered_here {
+                            let _ = unregister_shortcut(&app, registered);
                         }
+                        return Err(e);
                     }
-                    return Err(e);
                 }
             }
         }
     } else {
-        for id in POST_PROCESS_TOGGLE_BINDINGS {
-            if let Some(binding) = settings.bindings.get(id).cloned() {
-                let _ = unregister_shortcut(&app, binding);
-            }
+        // Teardown mirrors ownership: unregister only the pre-toggle active
+        // set - the registrations this feature actually holds live. A
+        // stored-but-inactive binding (bare key, or a chord another binding
+        // owns live under the KB-194 collision rule) keeps its chord.
+        for binding in owned_while_enabled {
+            let _ = unregister_shortcut(&app, binding);
         }
     }
 

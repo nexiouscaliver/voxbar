@@ -5,9 +5,12 @@
 // which silently swallowed exactly the OS notifications that state gates.
 // The Rust side instead emits main-window-shown / main-window-hidden
 // (show_main_window and the CloseRequested->hide arm in lib.rs); App.tsx
-// listens once and feeds the setter, and every notifyDesktop gate (the
-// App-level notice router, the update flow) reads getMainWindowVisibility()
-// instead of the DOM.
+// listens once and feeds the setter. The store feeds the permission-prime-
+// on-show logic in App.tsx; it does NOT gate notification delivery -
+// notifyDesktop (desktopNotify.ts) queries the live window state itself
+// (getCurrentWindow, KB-195), because this event-fed store goes stale for
+// minimize and Cmd+H (no Rust event fires for either) and would drop
+// notifications the live query delivers.
 //
 // Pure store by design: importable in bun with no Tauri work at import
 // time, so tests and non-Tauri callers drive it through the setter.

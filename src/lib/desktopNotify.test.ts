@@ -30,11 +30,15 @@ class StubNotification {
   static permission: "default" | "granted" | "denied" = "granted";
   static requestPermission(): Promise<"default" | "granted" | "denied"> {
     requestPermissionCalls++;
+    if (StubNotification.requestPermissionThrows) {
+      return Promise.reject(new Error("stub: permission bridge broken"));
+    }
     const result = StubNotification.permissionOnRequest;
     StubNotification.permission = result;
     return Promise.resolve(result);
   }
   static permissionOnRequest: "default" | "granted" | "denied" = "granted";
+  static requestPermissionThrows = false;
   constructor(title: string, options: { body?: string }) {
     sent.push({ title, body: options.body ?? "" });
   }
@@ -74,24 +78,25 @@ await notifyDesktop("hidden-window notice");
 assert.deepEqual(sent, [{ title: "VoxBar", body: "hidden-window notice" }]);
 
 // Permission-once logic lives in primeNotificationPermission (AUD-03): a
-// "default" permission is resolved by ONE requestPermission call, the
-// denial callback fires once, and notifyDesktop itself never prompts.
+// "default" permission is resolved by ONE requestPermission call, a plain
+// user DENIAL fires no callback (silent - the system prompt is the only
+// way back, and macOS deny-once makes an in-app retry a no-op), only a
+// genuine request FAILURE (the request threw) fires the callback, and
+// notifyDesktop itself never prompts.
 sent.length = 0;
 StubNotification.permission = "default";
 StubNotification.permissionOnRequest = "granted";
-let denials = 0;
+let failures = 0;
 await primeNotificationPermission(() => {
-  denials++;
+  failures++;
 });
 assert.equal(requestPermissionCalls, 1);
-assert.equal(denials, 0);
+assert.equal(failures, 0);
 await notifyDesktop("first-ask notice");
 assert.deepEqual(sent, [{ title: "VoxBar", body: "first-ask notice" }]);
 
 // The prime latch is consumed, so a later "default"/denied state neither
-// re-prompts nor sends: a denial must not re-prompt on every notice. A
-// fresh run (latch reset) primes once more, gets the denial, fires the
-// callback exactly once, and notifyDesktop stays quiet while ungranted.
+// re-prompts nor sends: a denial must not re-prompt on every notice.
 sent.length = 0;
 StubNotification.permission = "default";
 StubNotification.permissionOnRequest = "denied";
@@ -101,15 +106,52 @@ assert.deepEqual(sent, []);
 await notifyDesktop("post-denial notice");
 assert.equal(requestPermissionCalls, 1);
 assert.deepEqual(sent, []);
-resetPrimingLatchForTests();
-denials = 0;
-await primeNotificationPermission(() => {
-  denials++;
-});
-assert.equal(requestPermissionCalls, 2);
-assert.equal(denials, 1);
-await notifyDesktop("post-denial-primed notice");
-assert.deepEqual(sent, []);
+
+// A fresh run (latch reset) whose request comes back DENIED is silent: the
+// request happens once more, the failure callback never fires, and
+// notifyDesktop stays quiet while ungranted. The denial's info log and the
+// throwing scenario's warn below are the product's EXPECTED output - but a
+// warn stack reads like a failure in CI logs, so both are silenced here.
+const originalInfo = console.info;
+const originalWarnBeforePermissionLogs = console.warn;
+console.info = () => {};
+console.warn = () => {};
+try {
+  resetPrimingLatchForTests();
+  failures = 0;
+  await primeNotificationPermission(() => {
+    failures++;
+  });
+  assert.equal(requestPermissionCalls, 2);
+  assert.equal(failures, 0);
+  await notifyDesktop("post-denial-primed notice");
+  assert.deepEqual(sent, []);
+
+  // A fresh run whose permission request genuinely THREW fires the failure
+  // callback exactly once - the once-per-run latch still applies, so a
+  // second prime neither re-requests nor re-fires - and notifyDesktop stays
+  // quiet while ungranted. This is the only path App.tsx toasts
+  // requestFailed for.
+  resetPrimingLatchForTests();
+  StubNotification.requestPermissionThrows = true;
+  failures = 0;
+  await primeNotificationPermission(() => {
+    failures++;
+  });
+  assert.equal(requestPermissionCalls, 3);
+  assert.equal(failures, 1);
+  await primeNotificationPermission(() => {
+    failures++;
+  });
+  assert.equal(requestPermissionCalls, 3);
+  assert.equal(failures, 1);
+  await notifyDesktop("post-failure notice");
+  assert.deepEqual(sent, []);
+  StubNotification.requestPermissionThrows = false;
+} finally {
+  console.info = originalInfo;
+  console.warn = originalWarnBeforePermissionLogs;
+}
 
 // No Tauri window context (isVisible throws): treated as visible - no
 // delivery - and the warning fires exactly once no matter how many calls.

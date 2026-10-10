@@ -99,11 +99,11 @@ const squash = (s: string): string => s.replace(/\s+/g, " ");
 
   assert.ok(
     !body.includes("show and hide paths"),
-    'AUD-14 (2/4) transcription.rs: the probe comment still says "the same overlay_style lookup the overlay show and hide paths make", but the hide path (overlay.rs hide_recording_overlay) hides unconditionally with no overlay_style lookup',
+    'AUD-14 (2/4) transcription.rs: the probe comment must never claim the hide path makes an overlay_style lookup (overlay.rs hide_recording_overlay hides unconditionally)',
   );
   assert.ok(
-    body.includes("show path"),
-    "AUD-14 (2/4) transcription.rs: the corrected probe comment must attribute the overlay_style lookup to the show path(s) only",
+    body.includes("overlay_enabled") && body.includes("atomic"),
+    "AUD-14 (2/4) transcription.rs: the probe comment must describe the cached overlay_enabled atomic (no per-notice get_settings deserialize) and its live is_visible half",
   );
 }
 

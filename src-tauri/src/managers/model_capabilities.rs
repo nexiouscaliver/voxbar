@@ -26,13 +26,16 @@ use super::gguf_meta::{self, GgufError, GgufMetadata};
 /// its `src/arch/`, which is exactly the value stored in `general.architecture`.
 /// Keep this in sync with transcribe-cpp; an arch absent here still parses, it's
 /// just surfaced as [`Compatibility::MaybeIncompatible`] rather than promised.
+/// The names are the registered `Arch .name` values, NOT the `src/arch/`
+/// directory names: the pinned transcribe-cpp-sys 0.3.1 registers `cohere_asr`
+/// (not bare `cohere`) and `granite_speech_nar` (not `granite_nar`), plus
+/// `granite_speech5_ctc` from its granite5_ctc arch.
 pub const KNOWN_ARCHES: &[&str] = &[
     "whisper",
     "parakeet",
     "qwen3_asr",
     "voxtral",
     "voxtral_realtime",
-    "cohere",
     "cohere_asr",
     "canary",
     "canary_qwen",
@@ -41,8 +44,8 @@ pub const KNOWN_ARCHES: &[&str] = &[
     "sensevoice",
     "gigaam",
     "granite_speech",
-    "granite_nar",
     "granite_speech_nar",
+    "granite_speech5_ctc",
     "funasr_nano",
     "medasr",
     "moss",
@@ -58,8 +61,8 @@ pub const KNOWN_ARCHES: &[&str] = &[
 /// model). The two lists are deliberately separate: no architecture should be
 /// loadable by both engines. Bare `granite` is the llama.cpp LLM arch and
 /// lives only here; transcribe-cpp's granite ASR family is the suffixed
-/// variants in [`KNOWN_ARCHES`] (`granite_speech`, `granite_nar`,
-/// `granite_speech_nar`) - keep the two tables disjoint (KB-154).
+/// variants in [`KNOWN_ARCHES`] (`granite_speech`, `granite_speech_nar`,
+/// `granite_speech5_ctc`) - keep the two tables disjoint (KB-154).
 pub const LLM_ARCHES: &[&str] = &["qwen3", "llama", "gemma3", "phi3", "phi4", "granite"];
 
 // GGUF metadata keys transcribe-cpp writes for ASR models.

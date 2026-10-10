@@ -1,55 +1,49 @@
 import assert from "node:assert/strict";
 import { noticeMessage } from "./noticeMessage";
 
-// AUD-02 red test: pin the pure notice-router decision table that must be
-// extracted out of App.tsx into src/lib/noticeRouting.ts.
+// Contract test for the pure notice router (KB-020, AUD-02):
+// routerDecision(code, cardVisible) decides WHICH surfaces - the main-window
+// toast and/or the macOS notification - one notice code may use, given only
+// whether the overlay card could render it at emit time (card_visible,
+// transcription.rs:387-392). Everything with a side effect (rate limiting,
+// the noticeMessage null check, toast durations, the actual toast /
+// notifyDesktop calls) stays in App.tsx; this module only decides.
 //
-// Today the router (App.tsx:400-423) inlines its policy with no seam:
-//   - App.tsx:403  `if (card_visible) return;`
-//   - App.tsx:404  `if (!ROUTED_NOTICE_CODES.has(code)) return;`
-//   - App.tsx:416  notify only when `document.visibilityState !== "visible"`
-// driven by the hand-written ROUTED_NOTICE_CODES table (App.tsx:77-90).
-// That combination:
-//   1. leaves the three orphaned Info codes - model_fallback,
-//      post_process_download_missing, post_process_too_long - with NO
-//      surface when the card AND the window are both hidden: they are not in
-//      ROUTED_NOTICE_CODES, their Info tone plays no sound
-//      (transcription.rs:479-492), and their legacy toasts expire unseen in
-//      the hidden window;
-//   2. dual-toasts companion_server_failed on top of the settings rollback
-//      toast (settingsStore.ts:418) whenever the companion toggle fails;
-//   3. drops command_mode_no_session during the Processing window
-//      (card_visible=true), losing the always-fired main-window toast it
-//      had before the KB-038 migration (transcription_coordinator.rs:1005);
-//   4. never notifies companion_session_capped while the card shows it, even
-//      though the cap notice is emitted AFTER finalize_companion_session
-//      (server.rs:401 runs before the cap emit at server.rs:413) and the
-//      finalize pipeline can overwrite the card's notice row
-//      (RecordingOverlay.tsx:266-274);
-//   5. keeps two hand tables (ROUTED_NOTICE_CODES vs noticeMessage's arms)
-//      with nothing cross-pinning them.
+// The notify booleans are OFFERS, not delivery decisions: notifyDesktop
+// itself queries the live window state (getCurrentWindow, KB-195) and stays
+// quiet while the window is really visible. The router deliberately never
+// sees window state - an earlier design fed it from the Rust-event
+// visibility store, but minimize and Cmd+H emit no Rust event, so that store
+// goes stale-visible and silently drops notifications the live query would
+// have delivered. A { notify: true } decision means "the notification may
+// fire if the live visibility query agrees", nothing more.
 //
-// The fix extracts a pure decision module; this file is its contract. It is
-// red until src/lib/noticeRouting.ts exists and green only when the whole
-// decision table below holds. Rate limiting (App.tsx:407-409), the
-// noticeMessage null check (App.tsx:405-406) and toast durations
-// (App.tsx:410-413) stay in the component: the pure decision is only about
-// WHICH surfaces (main-window toast, macOS notification) a code may use.
+// The decision table also encodes the AUD-02 symptom fixes:
+//   1. the three orphaned Info codes (model_fallback,
+//      post_process_download_missing, post_process_too_long) plus
+//      companion_server_failed never toast from the router (their legacy
+//      listeners and rollback toasts own the main window in every state)
+//      but always offer the notification - the only surface that reaches a
+//      hidden window;
+//   2. command_mode_no_session toasts in every card state (its pre-KB-038
+//      dedicated listener always fired, Processing card included);
+//   3. companion_session_capped offers the notification regardless of the
+//      card gate, because the finalize pipeline that emits right before the
+//      cap can overwrite the card's notice row;
+//   4. NOTICE_ROUTE_POLICIES cross-pins the notice universe so the hand
+//      tables cannot drift (one entry per noticeMessage arm).
 
-// ---- Contract the extracted module must satisfy (src/lib/noticeRouting.ts)
+// ---- Contract the module must satisfy (src/lib/noticeRouting.ts)
 //
 // export type NoticeRoutingDecision = { toast: boolean; notify: boolean };
 //
-// routerDecision(code, cardVisible, windowHidden) is pure and synchronous.
-// `cardVisible` is the event payload's card_visible (could the overlay card
-// render this notice at emit time, transcription.rs:387-392); `windowHidden`
-// is the main window's hidden state (today derived from
-// document.visibilityState !== "visible", App.tsx:416). Codes outside the
-// notice universe are inert ({toast:false, notify:false} in every state),
-// matching today's silent skip at App.tsx:404.
+// routerDecision(code, cardVisible) is pure and synchronous. `cardVisible`
+// is the event payload's card_visible (could the overlay card render this
+// notice at emit time, transcription.rs:387-392). Unknown, empty, and
+// unrouted codes are inert: { toast: false, notify: false }.
 //
 // Exports:
-//   routerDecision(code, cardVisible, windowHidden) -> NoticeRoutingDecision
+//   routerDecision(code, cardVisible) -> NoticeRoutingDecision
 //   ROUTED_NOTICE_CODES: Set<string>    - every code the router owns
 //   NOTICE_ROUTE_POLICIES: Record<string, string> - policy per code, one key
 //     for every code noticeMessage has an arm for (the cross-pinned table)
@@ -60,17 +54,13 @@ interface NoticeRoutingDecision {
 }
 
 interface NoticeRoutingModule {
-  routerDecision: (
-    code: string,
-    cardVisible: boolean,
-    windowHidden: boolean,
-  ) => NoticeRoutingDecision;
+  routerDecision: (code: string, cardVisible: boolean) => NoticeRoutingDecision;
   ROUTED_NOTICE_CODES: Set<string>;
   NOTICE_ROUTE_POLICIES: Record<string, string>;
 }
 
-// Loaded dynamically so the red state (module not yet extracted) surfaces as
-// a clear assertion message instead of a bare resolver crash.
+// Loaded dynamically so a missing/broken module surfaces as a clear
+// assertion message instead of a bare resolver crash.
 let routing: NoticeRoutingModule | null = null;
 let loadError = "";
 try {
@@ -80,7 +70,9 @@ try {
 }
 if (routing === null) {
   assert.fail(
-    "AUD-02 red: src/lib/noticeRouting.ts does not exist yet - extract the pure routerDecision + code tables out of App.tsx (import failed: " +
+    "src/lib/noticeRouting.ts must exist and export routerDecision(code, " +
+      "cardVisible), ROUTED_NOTICE_CODES and NOTICE_ROUTE_POLICIES " +
+      "(import failed: " +
       loadError +
       ")",
   );
@@ -126,8 +118,9 @@ const ALL_NOTICE_CODES = [
 ] as const;
 
 // The three orphaned Info codes (AUD-02 symptom 1) plus the dual-toasting
-// companion server failure (symptom 2): legacy surfaces own the visible
-// window, so the router acts only while the window is hidden.
+// companion server failure (symptom 2): legacy surfaces own toasts in every
+// window state, so the router never toasts - it only adds the live-gated
+// notification offer.
 const ORPHANED_INFO = [
   "model_fallback",
   "post_process_download_missing",
@@ -136,7 +129,8 @@ const ORPHANED_INFO = [
 const LEGACY_SURFACE = [...ORPHANED_INFO, "companion_server_failed"];
 
 // The eight no-op codes App.tsx already routes (key feedback + Linux setup
-// warnings) plus companion_disconnected_finalized: keep today's behavior.
+// warnings) plus companion_disconnected_finalized: keep the pre-AUD-02
+// card-gated behavior.
 const CARD_GATED = [
   "delete_last_word_no_session",
   "delete_last_word_no_buffer",
@@ -153,7 +147,7 @@ const ALWAYS_TOAST = ["command_mode_no_session"];
 const CAP = ["companion_session_capped"];
 
 // Codes whose dedicated legacy listeners own every main-window surface; the
-// router stays inert for them (today's App.tsx:404 behavior, kept as-is).
+// router stays inert for them.
 const UNROUTED = [
   "no_model_selected",
   "microphone_permission_denied",
@@ -189,64 +183,67 @@ assert.equal(
   "test self-check: no notice code may sit in two policy groups",
 );
 
-// ---- The four AUD-02 symptoms, stated as decisions (the exhaustive table
-// below covers every cell; these make each regression legible).
+// ---- The AUD-02 symptoms, stated as decisions (the exhaustive table below
+// covers every cell; these make each regression legible).
 
-// Symptom 1: the orphaned Info codes gain a surface when card AND window are
-// both hidden - today App.tsx:404 drops them before any surface can fire.
+// Symptom 1: the orphaned Info codes gain a hidden-window surface - the
+// notification offer - in EVERY card state. Their legacy toasts own the
+// main window; when the window is hidden those toasts expire unseen, and
+// the notification (delivery decided by notifyDesktop's live query) is the
+// only surface that still reaches the user.
 for (const code of ORPHANED_INFO) {
-  const d = routerDecision(code, false, true);
-  assert.equal(
-    d.toast,
-    true,
-    `${code} must toast when card and window are both hidden (today: not in ROUTED_NOTICE_CODES, App.tsx:77-90/404, so no surface at all)`,
-  );
-  assert.equal(
-    d.notify,
-    true,
-    `${code} must notify when card and window are both hidden (Info tone plays no sound, transcription.rs:479-492; the legacy toast expires unseen)`,
-  );
+  for (const cardVisible of [true, false]) {
+    const d = routerDecision(code, cardVisible);
+    assert.equal(
+      d.notify,
+      true,
+      `${code} must offer the notification in every card state (its legacy toast expires unseen in a hidden window; notifyDesktop's live query decides delivery)`,
+    );
+    assert.equal(
+      d.toast,
+      false,
+      `${code} must never toast from the router - its legacy listener owns the main-window toast in every state`,
+    );
+  }
 }
 
-// Symptom 2: no dual toast - while the window is visible the settings
-// rollback toast (settingsStore.ts:418) alone owns companion_server_failed.
-const companionVisibleWindow = routerDecision(
-  "companion_server_failed",
+// Symptom 2: no dual toast - the settings rollback toast
+// (settingsStore.ts:418) alone owns companion_server_failed's main window;
+// the router only adds the notification offer.
+const companionVisible = routerDecision("companion_server_failed", false);
+assert.equal(
+  companionVisible.toast,
   false,
-  false,
+  "companion_server_failed must never toast from the router - the settings rollback toast already covers a visible window (dual toast)",
 );
 assert.equal(
-  companionVisibleWindow.toast,
-  false,
-  "companion_server_failed must not toast while the window is visible - the settings rollback toast already covers it (dual toast)",
-);
-assert.equal(
-  companionVisibleWindow.notify,
-  false,
-  "companion_server_failed must not notify while the window is visible - the rollback toast is on screen",
+  companionVisible.notify,
+  true,
+  "companion_server_failed must still offer the notification - a hidden window hears nothing from the rollback toast",
 );
 
 // Symptom 3: command_mode_no_session keeps its pre-migration always-fired
 // main-window toast during the Processing window (cardVisible=true).
-const cmdProcessingWindow = routerDecision(
-  "command_mode_no_session",
-  true,
-  false,
-);
+const cmdProcessingWindow = routerDecision("command_mode_no_session", true);
 assert.equal(
   cmdProcessingWindow.toast,
   true,
-  "command_mode_no_session must toast even while the Processing card is visible - App.tsx:403 early-returns on card_visible today, silencing the pre-migration toast (transcription_coordinator.rs:1005)",
+  "command_mode_no_session must toast even while the Processing card is visible - the card_visible early-return silenced the pre-migration toast (transcription_coordinator.rs:1005)",
+);
+assert.equal(
+  cmdProcessingWindow.notify,
+  true,
+  "command_mode_no_session must also offer the notification (delivery gated by notifyDesktop's live visibility query)",
 );
 
-// Symptom 4: the cap notifies while the window is hidden even when the card
-// is showing - the finalize pipeline emitted right before the cap notice can
-// overwrite the card row, so the notification is the surviving surface.
-const capCardShowing = routerDecision("companion_session_capped", true, true);
+// Symptom 4: the cap offers the notification even while the card is showing
+// - the finalize pipeline emitted right before the cap notice can overwrite
+// the card row, so the notification is the surviving surface.
+const capCardShowing = routerDecision("companion_session_capped", true);
 assert.equal(
   capCardShowing.notify,
   true,
-  "companion_session_capped must notify when the window is hidden even though the card is showing (server.rs:401 finalizes before the cap emit at :413; RecordingOverlay.tsx:266-274 can overwrite the row)",
+  "companion_session_capped must offer the notification even though the card is showing (server.rs:401 finalizes before the cap emit at :413; RecordingOverlay.tsx:266-274 can overwrite the row)",
 );
 assert.equal(
   capCardShowing.toast,
@@ -254,73 +251,69 @@ assert.equal(
   "companion_session_capped toast stays card-gated - the card row is the visible surface when present",
 );
 
-// ---- Exhaustive decision table: every routed code in all four
-// cardVisible x windowHidden states.
+// ---- Exhaustive decision table: every routed code in both cardVisible
+// states. There is no windowHidden input by design (see header): the notify
+// leg is an offer that notifyDesktop's live getCurrentWindow query gates at
+// delivery time.
 
-const STATES: Array<readonly [boolean, boolean]> = [
-  [true, true],
-  [true, false],
-  [false, true],
-  [false, false],
-];
+const STATES: readonly boolean[] = [true, false];
 
-// cardVisible-only gate: exactly today's App.tsx behavior (App.tsx:403-417)
-// for the codes the router already routes.
-const expectCardGated = (cardVisible: boolean, windowHidden: boolean) => ({
+// Card-gated: exactly the pre-AUD-02 router behavior - both surfaces act
+// only when the card could not render the notice. The notify offer is
+// likewise card-gated so a card-visible emit never spawns a notification
+// for code the user is already reading.
+const expectCardGated = (cardVisible: boolean) => ({
   toast: !cardVisible,
-  notify: !cardVisible && windowHidden,
+  notify: !cardVisible,
 });
 
-// windowHidden-only gate: act (toast + notify) only while the window is
-// hidden; the legacy surface covers a visible window.
-const expectLegacySurface = (_cardVisible: boolean, windowHidden: boolean) => ({
-  toast: windowHidden,
-  notify: windowHidden,
+// Legacy-surface: legacy listeners own toasts in every state; the router
+// only adds the live-gated notification.
+const expectLegacySurface = (_cardVisible: boolean) => ({
+  toast: false,
+  notify: true,
 });
 
-// The pre-migration command-mode toast fires in every card/window state; the
-// notification still waits for a hidden window.
-const expectAlwaysToast = (_cardVisible: boolean, windowHidden: boolean) => ({
+// The pre-migration command-mode toast fires in every card state; the
+// notification is always offered (live-gated at delivery).
+const expectAlwaysToast = (_cardVisible: boolean) => ({
   toast: true,
-  notify: windowHidden,
+  notify: true,
 });
 
-// The cap: toast stays card-gated, but the notification policy is
-// independent of the toast policy - notify whenever the window is hidden.
-const expectCap = (cardVisible: boolean, windowHidden: boolean) => ({
+// The cap: toast stays card-gated, but the notification offer is
+// independent of the toast gate.
+const expectCap = (cardVisible: boolean) => ({
   toast: !cardVisible,
-  notify: windowHidden,
+  notify: true,
 });
 
 function checkGroup(
   label: string,
   codes: readonly string[],
-  expected: (
-    cardVisible: boolean,
-    windowHidden: boolean,
-  ) => NoticeRoutingDecision,
+  expected: (cardVisible: boolean) => NoticeRoutingDecision,
 ): void {
   for (const code of codes) {
-    for (const [cardVisible, windowHidden] of STATES) {
-      const got = routerDecision(code, cardVisible, windowHidden);
-      const want = expected(cardVisible, windowHidden);
+    for (const cardVisible of STATES) {
+      const got = routerDecision(code, cardVisible);
+      const want = expected(cardVisible);
       assert.equal(
         got.toast,
         want.toast,
-        `${label}: ${code} (cardVisible=${cardVisible}, windowHidden=${windowHidden}) toast`,
+        `${label}: ${code} (cardVisible=${cardVisible}) toast`,
       );
       assert.equal(
         got.notify,
         want.notify,
-        `${label}: ${code} (cardVisible=${cardVisible}, windowHidden=${windowHidden}) notify`,
+        `${label}: ${code} (cardVisible=${cardVisible}) notify`,
       );
     }
   }
 }
 
-checkGroup("card-gated (keep today's behavior)", CARD_GATED, expectCardGated);
+checkGroup("card-gated (pre-AUD-02 behavior)", CARD_GATED, expectCardGated);
 checkGroup(
-  "legacy-surface (act only while the window is hidden)",
+  "legacy-surface (toast stays with the legacy listener)",
   LEGACY_SURFACE,
   expectLegacySurface,
 );
@@ -339,28 +332,33 @@ checkGroup("unrouted (legacy listeners own the surfaces)", UNROUTED, () => ({
   notify: false,
 }));
 
-// Unknown codes stay inert in every state - today's silent skip
-// (App.tsx:404); the router must not invent surfaces for unmapped codes.
-for (const [cardVisible, windowHidden] of STATES) {
+// Unknown codes stay inert in every state - the silent skip; the router
+// must not invent surfaces for unmapped codes.
+for (const cardVisible of STATES) {
   assert.equal(
-    routerDecision("something_unmapped", cardVisible, windowHidden).toast,
+    routerDecision("something_unmapped", cardVisible).toast,
     false,
     "unknown code must not toast",
   );
   assert.equal(
-    routerDecision("something_unmapped", cardVisible, windowHidden).notify,
+    routerDecision("something_unmapped", cardVisible).notify,
     false,
     "unknown code must not notify",
   );
   assert.equal(
-    routerDecision("", cardVisible, windowHidden).toast,
+    routerDecision("", cardVisible).toast,
     false,
     "empty code must not toast",
+  );
+  assert.equal(
+    routerDecision("", cardVisible).notify,
+    false,
+    "empty code must not notify",
   );
 }
 
 // ---- Table integrity: cross-pin the routing tables against noticeMessage
-// (AUD-02 symptom 5 - two hand tables, no pin).
+// (AUD-02 symptom - two hand tables, no pin).
 
 // Every code the routing side knows has a noticeMessage arm.
 for (const code of ALL_NOTICE_CODES) {
@@ -381,11 +379,12 @@ assert.deepEqual(
 );
 
 // ROUTED_NOTICE_CODES is exactly the non-unrouted codes: the three orphaned
-// Info codes and nothing else join the table the router already had.
+// Info codes and companion_server_failed join the table the router already
+// had.
 assert.deepEqual(
   [...ROUTED_NOTICE_CODES].sort(),
   [...CARD_GATED, ...LEGACY_SURFACE, ...ALWAYS_TOAST, ...CAP].sort(),
-  "ROUTED_NOTICE_CODES must be exactly the 15 non-unrouted codes (12 today + model_fallback, post_process_download_missing, post_process_too_long)",
+  "ROUTED_NOTICE_CODES must be exactly the 16 non-unrouted codes (12 pre-AUD-02 + model_fallback, post_process_download_missing, post_process_too_long, companion_server_failed)",
 );
 
 console.log("noticeRouting tests passed");

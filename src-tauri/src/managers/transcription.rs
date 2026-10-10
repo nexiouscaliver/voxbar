@@ -18,7 +18,7 @@ use crate::managers::model::{
 use crate::memory;
 use crate::settings::{
     get_settings, AppSettings, ChineseScript, ModelUnloadTimeout, OrtAcceleratorSetting,
-    OverlayStyle, TranscribeAcceleratorSetting,
+    TranscribeAcceleratorSetting,
 };
 use anyhow::Result;
 use log::{debug, error, info, warn};
@@ -575,11 +575,14 @@ pub fn emit_overlay_notice(app: &AppHandle, code: NoticeCode, detail: Option<Str
         code.as_str(),
         detail.as_deref().unwrap_or("-")
     );
-    // Cheap read-only probe, same overlay_style lookup the overlay
-    // show paths make (the hide path hides unconditionally): a missing
-    // window or a failed is_visible() counts as not visible, so the
-    // probe never panics.
-    let card_visible = get_settings(app).overlay_style != OverlayStyle::None
+    // "Could the overlay card ever show" via the cached overlay-enabled
+    // flag (overlay.rs: fed at startup from the loaded settings and on
+    // every change_overlay_style_setting write): a single atomic load
+    // instead of a full get_settings() deserialize per notice. The
+    // is_visible() half stays a live per-emit query: a missing window or
+    // a failed is_visible() counts as not visible, so the probe never
+    // panics.
+    let card_visible = crate::overlay::overlay_enabled()
         && app
             .get_webview_window("recording_overlay")
             .and_then(|window| window.is_visible().ok())

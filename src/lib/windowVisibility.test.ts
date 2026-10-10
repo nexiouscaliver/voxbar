@@ -1,19 +1,23 @@
 import assert from "node:assert/strict";
 
-// AUD-03 repro: notification delivery must not depend on
+// AUD-03: notification delivery must not depend on
 // document.visibilityState (unreliable in hidden native webviews, tauri#10592)
 // and the OS notification body must not carry the raw interpolated backend
 // error (KB-037 class).
 //
-// Two contracts are pinned here; both are missing from the product code today,
-// so this file fails until the fix lands:
+// Two contracts are pinned here; both are landed product code, and this file
+// keeps them pinned:
 //
 // 1. A shared main-window visibility store in src/lib/windowVisibility.ts.
 //    App.tsx listens to the Rust window event(s) once and feeds
-//    setMainWindowVisibility; every notifyDesktop gate (App.tsx router,
-//    updaterFlow.ts) reads getMainWindowVisibility() instead of
-//    document.visibilityState. The store itself must stay pure (importable in
-//    bun with no Tauri side effects).
+//    setMainWindowVisibility. The store no longer gates notification DELIVERY
+//    anywhere: notifyDesktop (src/lib/desktopNotify.ts) queries the live
+//    window state itself (getCurrentWindow, KB-195), because the Rust-event
+//    store goes stale for minimize and Cmd+H (no event fires) and would drop
+//    notifications the live query delivers. What the store still feeds is the
+//    permission-prime-on-show logic in App.tsx (request notification
+//    permission once, at the first window show). The store itself must stay
+//    pure (importable in bun with no Tauri side effects).
 //
 // 2. A detail-free notification body selector, noticeNotificationBody(t, code,
 //    detail?), exported from src/lib/noticeMessage.ts. The router toast keeps
@@ -155,7 +159,10 @@ const en: Record<string, string> = {
     "Phone disconnected. Finishing with what was captured.",
   "overlay.notice.companionServerFailed": "Companion server failed: {{error}}",
   "overlay.notice.companionSessionCapped":
-    "Companion dictation ended: the 15-minute session limit was reached.",
+    // Verbatim from src/i18n/locales/en/translation.json (the {{device}}
+    // slot is real en copy, not a leftover): keep this table in sync with
+    // the locale file or the notification-body assertions below drift.
+    "Companion dictation ended: the 15-minute session limit was reached on {{device}}.",
 };
 
 const t = (key: string, options?: Record<string, unknown>): string => {
@@ -222,11 +229,6 @@ assert.equal(
 // Routed codes that never interpolate: the notification body is exactly the
 // shared localized line (identical to noticeMessage's output).
 assert.equal(
-  notificationBody(t, "companion_session_capped"),
-  "Companion dictation ended: the 15-minute session limit was reached.",
-  "detail-free routed codes keep their full sentence verbatim",
-);
-assert.equal(
   notificationBody(t, "companion_disconnected_finalized"),
   "Phone disconnected. Finishing with what was captured.",
 );
@@ -237,6 +239,18 @@ assert.equal(
 assert.equal(
   notificationBody(t, "command_mode_no_session"),
   "The command key works while a dictation is live. Start recording first, then hold it and speak the command.",
+);
+
+// companion_session_capped interpolates a device name but is NOT a
+// detail-stripping code (noticeMessage.ts keeps its {{device}} slot - it is
+// user-facing content, not a raw diagnostic), so the notification body is
+// noticeMessage's output verbatim: with no detail the empty device name
+// interpolates to nothing, leaving the real en sentence (including the
+// stranded "on ." the empty slot leaves behind in the en copy).
+assert.equal(
+  notificationBody(t, "companion_session_capped"),
+  "Companion dictation ended: the 15-minute session limit was reached on .",
+  "companion_session_capped keeps its full localized line verbatim; an empty detail interpolates an empty device name",
 );
 
 // Unknown codes stay null so the router keeps skipping them silently (same

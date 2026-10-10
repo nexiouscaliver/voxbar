@@ -1,10 +1,17 @@
 // Pure notice-routing decision for the App-level notice router (KB-020,
-// AUD-02): given a notice code, whether the overlay card could render it at
-// emit time (card_visible, transcription.rs:387-392), and whether the main
-// window is hidden, decide WHICH surfaces — the main-window toast and/or the
-// macOS notification — the code may use. Everything with a side effect (rate
-// limiting, the noticeMessage null check, toast durations, the actual
-// toast/notifyDesktop calls) stays in App.tsx; this module only decides.
+// AUD-02): given a notice code and whether the overlay card could render it
+// at emit time (card_visible, transcription.rs:387-392), decide WHICH
+// surfaces - the main-window toast and/or the macOS notification - the code
+// may use. Everything with a side effect (rate limiting, the noticeMessage
+// null check, toast durations, the actual toast/notifyDesktop calls) stays
+// in App.tsx; this module only decides.
+//
+// The notify leg is deliberately NOT gated on a window-visibility input:
+// notifyDesktop itself queries the live window state (getCurrentWindow,
+// KB-195) and stays quiet when the window is visible. A pre-gate fed by the
+// Rust-event visibility store proved strictly worse - minimize and Cmd+H
+// emit no Rust event, so the store goes stale-visible and silently drops
+// notifications the live query would have delivered.
 //
 // NOTICE_ROUTE_POLICIES carries exactly one entry per notice code — the
 // NoticeCode::as_str universe mirrored from transcription.rs:498-529, the
@@ -17,23 +24,25 @@
 export type NoticeRoutingDecision = { toast: boolean; notify: boolean };
 
 // Per-code routing policies:
-// - "card-gated"      today's router behavior: act only when the card could
-//                     not render (toast), and then only while the window is
-//                     hidden (notify).
-// - "legacy-surface"  a dedicated legacy listener or rollback toast owns a
-//                     VISIBLE main window, so the router acts (toast +
-//                     notify) only while the window is hidden: no dual toast
-//                     when visible, but hidden-window users still get the
-//                     toast-for-reopen and the notification.
+// - "card-gated"      the router behavior for the no-op key feedback:
+//                     toast only when the card could not render; the
+//                     notification leg is decided by notifyDesktop's live
+//                     visibility query.
+// - "legacy-surface"  a dedicated legacy listener owns the toast in every
+//                     window state (it fires unconditionally), so the
+//                     router never toasts - it only adds the notification
+//                     leg, which notifyDesktop gates on real visibility.
+//                     This kills the hidden-window dual toast (legacy
+//                     listener + router stacking) while still giving
+//                     hidden-window users the OS notification.
 // - "always-toast"    the pre-migration dedicated listener fired in every
 //                     state (Processing card included), so the toast is
-//                     unconditional; the notification still waits for a
-//                     hidden window.
+//                     unconditional; the notification leg is live-gated.
 // - "session-cap"     the cap's toast stays card-gated (the card row is the
 //                     visible surface when present) but its notification is
-//                     independent of the toast gate: notify whenever the
-//                     window is hidden, because the finalize pipeline that
-//                     emits right before the cap can overwrite the card row.
+//                     independent of the toast gate, because the finalize
+//                     pipeline that emits right before the cap can
+//                     overwrite the card row.
 // - "unrouted"        legacy listeners own every main-window surface; the
 //                     router is inert (unknown and empty codes included).
 export type NoticeRoutePolicy =
@@ -105,23 +114,23 @@ export const ROUTED_NOTICE_CODES: Set<string> = new Set(
 );
 
 // Pure and synchronous: which surfaces may `code` use given that the overlay
-// card could (cardVisible) or could not render it, and the main window's
-// hidden state. Unknown, empty, and unrouted codes are inert in every state
-// — the silent skip the old allowlist performed.
+// card could (cardVisible) or could not render it. Unknown, empty, and
+// unrouted codes are inert in every state - the silent skip the old
+// allowlist performed. The notify booleans are "offer the notification";
+// notifyDesktop's internal live query makes the final visibility call.
 export function routerDecision(
   code: string,
   cardVisible: boolean,
-  windowHidden: boolean,
 ): NoticeRoutingDecision {
   switch (NOTICE_ROUTE_POLICIES[code]) {
     case "card-gated":
-      return { toast: !cardVisible, notify: !cardVisible && windowHidden };
+      return { toast: !cardVisible, notify: !cardVisible };
     case "legacy-surface":
-      return { toast: windowHidden, notify: windowHidden };
+      return { toast: false, notify: true };
     case "always-toast":
-      return { toast: true, notify: windowHidden };
+      return { toast: true, notify: true };
     case "session-cap":
-      return { toast: !cardVisible, notify: windowHidden };
+      return { toast: !cardVisible, notify: true };
     default:
       return { toast: false, notify: false };
   }

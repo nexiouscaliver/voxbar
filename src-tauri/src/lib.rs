@@ -1159,25 +1159,18 @@ pub fn run(cli_args: CliArgs) {
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
-                // AUD-03: the tray-dwell hide. Emit only for the main
-                // window (the only window with close chrome today) and
-                // only when the hide actually took, so the frontend
-                // visibility store — which gates notifyDesktop in place of
-                // document.visibilityState (tauri#10592) — never records a
-                // phantom transition.
+                // AUD-03/KB-160: the tray-dwell hide. Emit exactly once,
+                // only for the main window (the only window with close
+                // chrome today) and only when the hide actually took, so
+                // the frontend visibility store - which gates notifyDesktop
+                // in place of document.visibilityState (tauri#10592) -
+                // never records a phantom transition, and an armed shortcut
+                // recorder (KB-160) cancels exactly once per hide.
                 if window.hide().is_ok() && window.label() == "main" {
                     if let Err(e) = window.app_handle().emit("main-window-hidden", ()) {
                         log::error!("Failed to emit main-window-hidden: {}", e);
                     }
                 }
-
-                // KB-160: an armed shortcut recorder suspends every binding,
-                // and the (now hidden) Settings UI is the only surface that
-                // can cancel it. Tell the frontend the window went hidden so
-                // it can cancel the recorder and resume bindings. Bare
-                // payload, best-effort - the frontend treats a missed event
-                // as "still recording" and recovers on the next interaction.
-                let _ = window.app_handle().emit("main-window-hidden", ());
 
                 #[cfg(target_os = "macos")]
                 {

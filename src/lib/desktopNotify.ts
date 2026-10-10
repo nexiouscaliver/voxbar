@@ -9,24 +9,35 @@ let permissionPrimed = false;
 
 // Ask for notification permission once per app run, ideally while the main
 // window is visible so the system prompt never appears over a hidden app.
-// Already-granted runs resolve without any prompt. `onDenied` fires at most
-// once per run - on the run whose request came back denied - so the caller
-// can show its single explanatory toast. Never throws: permission is a
-// courtesy surface.
+// Already-granted runs resolve without any prompt. `onFailure` fires at most
+// once per run - only when the permission request genuinely THREW (plugin
+// error), so the caller can show its failure toast. A plain user DENIAL is
+// silent (log only): the system prompt is the only way back and the user
+// just declined it - on macOS a deny-once makes an in-app retry a no-op, so
+// advising "try again" (or re-nagging every run) would be wrong advice.
+// Never throws: permission is a courtesy surface.
 export async function primeNotificationPermission(
-  onDenied?: () => void,
+  onFailure?: () => void,
 ): Promise<void> {
   if (permissionPrimed) return;
   permissionPrimed = true;
+  let granted = false;
   try {
-    let granted = await isPermissionGranted();
+    granted = await isPermissionGranted();
     if (!granted) {
       await requestPermission();
       granted = await isPermissionGranted();
     }
-    if (!granted) onDenied?.();
   } catch (error) {
     console.warn("Notification permission request failed:", error);
+    onFailure?.();
+    return;
+  }
+  if (!granted) {
+    console.info(
+      "Notification permission denied; notifications stay off for this run " +
+        "(re-enable via the system prompt in System Settings).",
+    );
   }
 }
 

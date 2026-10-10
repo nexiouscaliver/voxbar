@@ -39,35 +39,23 @@ import { shouldDesktopNotifyCheckFailure } from "./checkFailureNotify";
 // the ask card. No toast is added for auto failures in either visibility
 // state: a visible window keeps the calm boot.
 
-// The one case AUD-09 is about: auto (boot) check failed AND the main
-// window is hidden — the toast the user would have seen renders nowhere,
-// so the failure must still reach them as an OS notification.
+// The one case AUD-09 is about: the auto (boot) check has no toast arm,
+// so its failure must reach the user as an OS notification. Window
+// visibility is no longer an input here on purpose: notifyDesktop's live
+// getCurrentWindow query (KB-195) makes the final deliver/quiet call, which
+// stays correct for minimize and Cmd+H where any store-fed gate goes
+// stale - a visible window is simply told "no" inside notifyDesktop.
 assert.equal(
-  shouldDesktopNotifyCheckFailure("auto", true),
+  shouldDesktopNotifyCheckFailure("auto"),
   true,
-  "AUD-09: auto check failure with the window hidden must notify via notifyDesktop with footer.updater.checkFailedTitle",
-);
-
-// Calm boot preserved: auto check failed but the window is visible — no
-// toast and no OS notification either; the boot stays quiet.
-assert.equal(
-  shouldDesktopNotifyCheckFailure("auto", false),
-  false,
-  "auto check failure with the window visible stays silent (calm boot)",
+  "AUD-09: auto check failure offers the OS notification; notifyDesktop's live query decides delivery",
 );
 
 // Manual failures keep their existing surface: the manual arm reveals the
-// window before checking (updaterFlow.ts:374-379) and toasts
-// checkFailedTitle on failure (updaterFlow.ts:461-470). The
-// desktop-notify decision is deliberately auto-only, matching the fix
-// scope — manual must not start double-notifying.
+// window before checking and toasts checkFailedTitle on failure, so it
+// must not start double-notifying.
 assert.equal(
-  shouldDesktopNotifyCheckFailure("manual", true),
-  false,
-  "manual failures already reveal the window and toast; no desktop notification",
-);
-assert.equal(
-  shouldDesktopNotifyCheckFailure("manual", false),
+  shouldDesktopNotifyCheckFailure("manual"),
   false,
   "manual failures already reveal the window and toast; no desktop notification",
 );

@@ -1284,11 +1284,11 @@ pub fn copy_last_transcript(app: &AppHandle) {
 mod tests {
     use super::{
         compact_ram, desired_tray_title, format_duration_compact, format_ram_segment,
-        format_tray_title, last_transcript_text, llm_submenu_checks, llm_submenu_label_name,
-        load_tray_icon, native_title_arg, prompt_submenu_checks, prompt_submenu_label_name,
-        resolve_model_label_name, title_reconciliation, unload_after_custom_label,
-        unload_after_preset_is_active, MenuInputs, TitleAction, TrayDesired, TrayIconState,
-        TRAY_TITLE_MAX_CHARS,
+        format_tray_title, get_icon_path, last_transcript_text, llm_submenu_checks,
+        llm_submenu_label_name, load_tray_icon, native_title_arg, prompt_submenu_checks,
+        prompt_submenu_label_name, resolve_model_label_name, title_reconciliation,
+        unload_after_custom_label, unload_after_preset_is_active, AppTheme, MenuInputs,
+        TitleAction, TrayDesired, TrayIconState, TRAY_TITLE_MAX_CHARS,
     };
     use crate::managers::history::HistoryEntry;
     use crate::settings::ModelUnloadTimeout;
@@ -1496,6 +1496,56 @@ mod tests {
         let mut with_title = inputs(false);
         with_title.title = Some("Small · 300M".to_string());
         assert_ne!(inputs(false), with_title);
+    }
+
+    /// KB-034's mirror: the update-checks item's greyed-out state rides
+    /// update_checks_enabled, and the menu renders in the app's locale, so
+    /// flipping either must change MenuInputs - without that the applier
+    /// would see no diff and update_tray_menu's re-sync after
+    /// change_update_checks_enabled_setting (or a language change) would be
+    /// a no-op, leaving the item's state stale until the next unrelated
+    /// rebuild.
+    #[test]
+    fn menu_inputs_differ_on_update_checks_and_locale_change() {
+        let mut no_checks = inputs(false);
+        no_checks.update_checks_enabled = false;
+        assert_ne!(
+            inputs(false),
+            no_checks,
+            "update-checks toggle flip => MenuInputs differ => the menu rebuilds"
+        );
+
+        let mut german = inputs(false);
+        german.locale = "de".to_string();
+        assert_ne!(
+            inputs(false),
+            german,
+            "locale flip => MenuInputs differ => the menu rebuilds (its strings re-localize)"
+        );
+    }
+
+    /// The theme flip lives on the ICON leg of TrayDesired, not MenuInputs
+    /// (the menu carries no theme): a theme switch must pick a different
+    /// icon path per state, which is the diff that makes the tray re-sync
+    /// after a theme change matter.
+    #[test]
+    fn theme_flip_changes_the_tray_icon_path() {
+        for state in [
+            TrayIconState::Idle,
+            TrayIconState::Recording,
+            TrayIconState::Transcribing,
+        ] {
+            assert_ne!(
+                get_icon_path(AppTheme::Dark, state, false),
+                get_icon_path(AppTheme::Light, state, false),
+                "{state:?}: a dark/light theme flip must pick a different icon"
+            );
+        }
+        assert_ne!(
+            get_icon_path(AppTheme::Dark, TrayIconState::Idle, false),
+            get_icon_path(AppTheme::Colored, TrayIconState::Idle, false),
+            "the colored (Linux) theme picks its own icon"
+        );
     }
 
     #[test]

@@ -399,9 +399,10 @@ function App() {
   // window show, never lazily inside notifyDesktop — the old lazy request
   // could surface the macOS system prompt with no window visible (the
   // notice arrived while hidden), and one silent denial then disabled the
-  // surface for the whole run. A denial gets a single dismissible info
-  // toast (existing locale keys; the system prompt is the only way back
-  // and the user just declined it, so no action beyond dismissal).
+  // surface for the whole run. Only a genuine request FAILURE (the request
+  // threw) gets a toast, via the requestFailed key; a plain user denial is
+  // silent - the system prompt is the only way back, the user just
+  // declined it, and macOS deny-once makes an in-app retry a no-op.
   // primeNotificationPermission is a once-per-run no-op after the first
   // call, so the subscription may safely re-arm on language change.
   useEffect(() => {
@@ -458,11 +459,10 @@ function App() {
   useEffect(() => {
     const unlisten = events.overlayNoticeEvent.listen((event) => {
       const { code, detail, kind, card_visible } = event.payload;
-      // AUD-03: the shared store (fed by the Rust shown/hidden events), not
-      // document.visibilityState, which can read "visible" while the window
-      // is hidden (tauri#10592).
-      const windowHidden = getMainWindowVisibility() !== "visible";
-      const decision = routerDecision(code, card_visible, windowHidden);
+      // The notify leg is decided by notifyDesktop's live window query
+      // (KB-195); no Rust-event store pre-gate, which went stale for
+      // minimized/Cmd+H windows and dropped deliverable notifications.
+      const decision = routerDecision(code, card_visible);
       if (!decision.toast && !decision.notify) return;
       const message = noticeMessage(t, code, detail);
       if (message === null) return;
@@ -478,9 +478,10 @@ function App() {
         toastFn(message, { duration });
       }
       if (decision.notify) {
-        // AUD-03: the OS notification carries the detail-free line — the
-        // raw backend diagnostic stays in the toast (KB-037 class on a
-        // system surface).
+        // The OS notification carries the detail-free line - the raw
+        // backend diagnostic stays in the toast (KB-037 class on a system
+        // surface). notifyDesktop's internal visibility query makes the
+        // final deliver/quiet call.
         const body = noticeNotificationBody(t, code, detail);
         if (body !== null) void notifyDesktop(body);
       }

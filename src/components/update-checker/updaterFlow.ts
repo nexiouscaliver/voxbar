@@ -11,7 +11,6 @@ import {
 } from "../../stores/settingsStore";
 import { commands } from "../../bindings";
 import { notifyDesktop } from "../../lib/desktopNotify";
-import { getMainWindowVisibility } from "../../lib/windowVisibility";
 import {
   ConfirmUpdateCard,
   RestartPromptCard,
@@ -520,15 +519,11 @@ export async function runUpdateCheck(
           onClick: () => void openUrl(RELEASES_URL),
         },
       });
-    } else if (
-      shouldDesktopNotifyCheckFailure(
-        trigger,
-        getMainWindowVisibility() !== "visible",
-      )
-    ) {
-      // AUD-09: the auto (boot) check has no toast arm, so when it fails with
-      // the window hidden in the tray the failure vanished completely. Same
-      // hidden gate (KB-148) and failure title as the manual toast above.
+    } else if (shouldDesktopNotifyCheckFailure(trigger)) {
+      // AUD-09: the auto (boot) check has no toast arm, so when it fails
+      // with the window in the tray the failure vanished completely.
+      // notifyDesktop's live visibility query (KB-195) makes the final
+      // call; same failure title as the manual toast above.
       void notifyDesktop(t("footer.updater.checkFailedTitle"));
     }
     release();
