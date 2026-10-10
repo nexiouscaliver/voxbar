@@ -118,7 +118,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: the polish release. Fallbacks and failures now reach you in the overlay, the backend holds up under long sessions, onboarding and settings carry the VoxBar identity with a cleaner UI, Windows and Linux paths are ready for builds, and the README is rewritten." \
+  --arg notes "VoxBar ${VERSION}: post-processing reborn. Local LLM models download and swap like voice models, cloud providers show real model lists you can test, every run is visible end to end and never loses your transcript, and a prompt library covers your language and register; phones on your network can act as microphones and triggers, off by default behind a toggle." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \
