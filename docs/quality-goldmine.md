@@ -22,7 +22,10 @@ a checkmark on the tag means the consolidator repeated it in the final pass. "ca
 nobody looked again in later rounds: verify before fixing.
 
 Status at v1.4.0: no P0 open (the last one, KB-150, was fixed after round 3, see below).
-The open backlog is 38 P1 and roughly 104 P2 items.
+The open backlog is 38 P1 and roughly 104 P2 items. Cycle 3 (audit-fix waves,
+commits a9e1159e..a6997aec) has since closed 17 of them - 12 P1 and 5 P2 -
+with the entries updated in place below; five are partial (KB-020/033/148/154/190)
+and keep a residual line.
 
 ## P0: the one that got away, now fixed
 
@@ -36,7 +39,7 @@ No P0 remains open at v1.4.0.
 
 ## Fixed and verified in code
 
-- **KB-002 · FIXED · cancel leaks the forced system mute.** `cancel_recording` now calls `self.remove_mute()` in **both** the Recording and Stopping branches, with a comment naming KB-002 (audio.rs:1319-1325, 1353-1360 ✓R4); covers the local always-on path, the remote branch (close_remote_stream has no restore), and the lazy-close deferral. R3 ran `cargo test --lib mute_restore` → 1 passed, `managers::audio` → 3 passed. **Follow-up: KB-151** (the quit path still strands the mute).
+- **KB-002 · FIXED · cancel leaks the forced system mute.** `cancel_recording` now calls `self.remove_mute()` in **both** the Recording and Stopping branches, with a comment naming KB-002 (audio.rs:1319-1325, 1353-1360 ✓R4); covers the local always-on path, the remote branch (close_remote_stream has no restore), and the lazy-close deferral. R3 ran `cargo test --lib mute_restore` → 1 passed, `managers::audio` → 3 passed. **Follow-up: KB-151** (the quit path still strands the mute) - closed in cycle 3: a9e1159e makes `RunEvent::Exit` call `remove_mute()`.
 - **KB-019 · FIXED · local post-process gate reads the SELECTED model.** `selected_llm_model_id(app)` now feeds the gate, with a comment naming KB-019 (actions.rs:859-871 ✓R4); same resolution as the swap runner. R3 ran `local_availability_follows_the_selected_model(_not_the_pinned_one)` → 1 passed; actions::tests 27; local_llm::manager 24. Do not re-report.
 - **KB-103 · FIXED · always_on boot panic + poisoned setting.** Constructor's AlwaysOn open is best-effort (`if let Err(e) = … error!`, audio.rs:556-572 ✓R4); `update_microphone_mode` applies the runtime flip (on spawn_blocking) BEFORE persisting, with the rationale comment (commands/audio.rs:181-208 ✓R4); the store updater throws on error so the toggle rolls back (settingsStore.ts:106-114 ✓R4). **Follow-up: KB-104 residual + KB-179** (same boot-panic class, history side).
 - **KB-104 · PARTIALLY FIXED.** `update_microphone_mode` is fixed (above); **`set_selected_microphone` still persists BEFORE applying** (commands/audio.rs:246-263 ✓R4: settings write at :250-254, `update_selected_device` after) and the generic rollback only reverts local state, so a failed switch leaves settings_store.json holding a mic the UI no longer shows until the next stream open self-heals [R3]. Much lower impact now KB-103 is fixed. Residual stays P2.
@@ -48,7 +51,7 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 ---
 
-## P1, MEDIUM, OPEN (38)
+## P1, MEDIUM, OPEN (38 at v1.4.0 - 12 since fixed in cycle 3, entries updated in place)
 
 **KB-008 · OPEN (re-verified 3× at 5bf5b893, mod.rs:1407-1428).** Post-process toggle off unregisters only `transcribe_with_post_process`; cycle key stays registered + system-swallowed while `CyclePromptAction::start` no-ops (actions.rs:1965-1978). Fix template: delete-last-word/undo/command-mode handlers all live-unregister (mod.rs:2110-2185 [R3]). Stale UI comment stands.
 
@@ -62,13 +65,13 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-015 · OPEN (re-verified 2×).** model_load_failed interpolates raw English into the {{model}} slot; full memory-gate refusal sentence lands in the slot (transcription.rs:1953-1984, 234-268 [R3]).
 
-**KB-016 · OPEN (re-verified 3×).** Companion codes have no main-window surface; `companion_session_capped` has **no NoticeCode variant at all** (enum transcription.rs:394-459 [R3]); broadcast to phones only; disconnected is Info (no sound).
+**KB-016 · FIXED · companion codes reach the main window.** As found [R3]: companion codes had no main-window surface; `companion_session_capped` had **no NoticeCode variant at all** (enum transcription.rs:394-459); broadcast to phones only; disconnected is Info (no sound). Fixed in cycle 3: d540241b adds the `CompanionSessionCapped` NoticeCode (Info, detail = device name) and emits it Mac-side from the server cap site; a6997aec routes it through the App.tsx notice router (toast, plus a macOS notification when the window is hidden and the card could not render) with `overlay.notice.companionSessionCapped` copy in all 26 locales; the shared code→message mapping is pinned over the full enum by src/lib/noticeMessage.test.ts. Device-name detail on disconnect remains KB-163 (open).
 
 **KB-017 · OPEN.** Failed reliable-paste chord silent on macOS+Windows AND drops the owed auto-submit Enter + clipboard write (settle requires receipt_seen, impossible after chord failure: macos.rs:142-155 [R3]).
 
 **KB-018 · OPEN (static, all rounds: no dotool on this host).** Multi-line transcript written as one `type` line; later lines execute as dotool commands (clipboard.rs:691-692).
 
-**KB-020 · OPEN (re-verified 3×).** Info-tone notices fired while the card is hidden are invisible on every surface; cycle-prompt is the worst case (pressed between sessions by design) (transcription.rs:458-476, 543-562; RecordingOverlay.tsx:441 [R3]).
+**KB-020 · PARTIALLY FIXED · card-less notices now have surfaces.** As found [R3]: Info-tone notices fired while the card is hidden were invisible on every surface; cycle-prompt was the worst case (pressed between sessions by design) (transcription.rs:458-476, 543-562; RecordingOverlay.tsx:441). Fixed in cycle 3: d540241b computes `card_visible` at emit time on OverlayNoticeEvent; a6997aec turns the App.tsx listener into a router - card-less notices toast (error tone for Error kind) and fire a macOS notification when the main window is hidden - via the shared mapping in src/lib/noticeMessage.ts, pinned over the full enum. Residual: three info codes are now routed hidden-only, and the fade-window TOCTOU stays open - `card_visible` is probed at emit time, so a notice emitted just before the card fades out is still marked card-visible and never routed.
 
 **KB-021 · OPEN (all 26 locales re-swept by R3 python script: start_over=True, scratch_everything=False everywhere).**
 
@@ -78,19 +81,19 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-025 · OPEN + CORRECTION.** Cleanup emits no event (ghost rows; save-before-emit order at history.rs:296-307 [R3]); and the in-tab HistoryLimit/retention controls make ghost rows manifest inside the same view. **Correction: the R1/R2 claim "history_limit=0 pinned by test" is WRONG for this tree: no test anywhere covers cleanup** (R3 ran managers::history → 7 passed; grep found no cleanup test).
 
-**KB-027 · OPEN, sharper: the fix pattern now sits unused beside it.** `change_companion_devices_setting` still persists+Ok unconditionally (mod.rs:845-851) while the always_on updater directly above (landed in 5bf5b893) throws and rolls back [R3].
+**KB-027 · FIXED · companion toggle applies before persisting and rolls back.** As found [R3]: `change_companion_devices_setting` persisted+Ok'd unconditionally (mod.rs:845-851) while the always_on updater directly above (landed in 5bf5b893) threw and rolled back. Fixed in a9e1159e: `companion::apply_enabled` returns Err on a failed start (logged, stored on the manager, noticed) and the command applies it BEFORE persisting, so the settings store rolls the toggle back instead of persisting an enabled state with no server behind it; the startup path stays best-effort.
 
 **KB-028 · OPEN.** Disable-during-local-recording leaks the pre-warmed remote recorder; nothing re-triggers the close after the session ends (mod.rs:285-289; prewarm refuses only while live, audio.rs:1049-1056) [R3].
 
 **KB-029 · OPEN, sharper.** Reset-pairing failures console.error only AND the restart leg calls manager.start() directly so status.error is never set: the panel renders a clean "Stopped" [R3].
 
-**KB-031 · OPEN.** change_theme_setting never syncs the tray (mod.rs:940-959; caller grep: only mod.rs:897/1648/2213 + lib.rs + secure_input.rs:291) [R3].
+**KB-031 · FIXED · change_theme_setting syncs the tray.** As found [R3]: the theme setter never rebuilt the tray, so the menu bar kept the previous theme's icon (mod.rs:940-959). Fixed in a9e1159e: `change_theme_setting` calls `tray::update_tray_menu` after `apply_window_theme` (which the icon lookup reads the window theme from), so the tray re-syncs on every theme change.
 
 **KB-032 · OPEN, impact-sized.** Six text-white-on-accent sites; accent.ts ships white/gray/red/orange/amber dark fills that are light → near-invisible labels (e.g. #fafafa fill + white text) [R3].
 
-**KB-033 · OPEN + NEW ANGLE.** About button ungated, silent no-op (AboutSettings.tsx:49-55; updaterFlow.ts:332 exits before reveal :364). **New: `updateChecksAllowed` fails OPEN while `updateChecksLocked` is still null: a locked install can run a real network check during the loading window** [R3].
+**KB-033 · PARTIALLY FIXED · update checks fail closed while the lock is unknown.** As found [R3]: About button ungated, silent no-op (AboutSettings.tsx:49-55; updaterFlow.ts:332 exits before reveal :364); `updateChecksAllowed` failed OPEN while `updateChecksLocked` was still null - a locked install could run a real network check during the loading window. Fixed in 14369da8: the gate now fails CLOSED (`updateChecksLocked !== false` → not allowed) and the About check button mirrors it exactly (disabled while not known-allowed, locked/disabled tooltip). Residual: the inFlight drop and the tray lock-null window are now handled as well (the update-check gate module, this cycle) - recheck under AUD-10.
 
-**KB-034 · OPEN.** update_checks toggle never rebuilds the tray (mod.rs:1161-1181; en description promises exactly the tray behavior) [R3 ×2].
+**KB-034 · FIXED · update_checks toggle rebuilds the tray.** As found [R3 ×2]: the toggle never re-synced the tray's "Check for Updates" enablement (mod.rs:1161-1181; en description promises exactly the tray behavior). Fixed in a9e1159e: `change_update_checks_setting` calls `tray::update_tray_menu` right after persisting, so the tray reflects the toggle immediately instead of after the next restart.
 
 **KB-035 · OPEN + NEW ANGLE.** Release notes stop at 1.2.0.md vs version 1.3.0 (all three version files [R3]); modal reads only bundled files. **New: pre-key migrants see the stale 1.2.0 notes** (default_whats_new_last_seen_version migration blanks, settings.rs:953-955, 2002-2003 [R3]).
 
@@ -104,7 +107,7 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-106 · OPEN.** Linux default config: failed paste invisible everywhere (App overlayNotice listener drops paste_failed; card never exists under style=none) [R3].
 
-**KB-107 · OPEN.** API-key change re-hydrates the OLD key's cached model list (`[]` treated as absent; base-URL handler clears the cache, api-key handler doesn't: mod.rs:1487-1499 contrast :1441-1470) [R3].
+**KB-107 · FIXED · api-key change drops the stale cached model list.** As found [R3]: the api-key handler re-hydrated the OLD key's cached model list (`[]` treated as absent; base-URL handler clears the cache, api-key handler didn't: mod.rs:1487-1499 contrast :1441-1470). Fixed in a9e1159e: `change_post_process_api_key_setting` removes the provider's `post_process_model_lists` entry before persisting, so the dropdown refetches with the new key.
 
 **KB-108 · OPEN (re-verified 2×).** Built-in template delete not durable: seed loop pushes missing ids on every read (settings.rs:1581-1604), resurrecting at the END of the catalog after selection was reassigned (mod.rs:1728-1752) [R3].
 
@@ -120,11 +123,11 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-144 · OPEN, upgraded to medium.** Search indexes experimental-gated rows (jump targets don't render) AND Companion Devices has no search entry at all [R3 ×3].
 
-**KB-148 · OPEN (re-verified 2×).** Auto-check 'ask' card + install-policy restart prompts live only in the hidden window; no reveal, no tray badge [R3].
+**KB-148 · PARTIALLY FIXED · update-flow prompts notify while the window is hidden.** As found [R3]: the auto-check 'ask' card + install-policy restart prompts lived only in the hidden window; no reveal, no tray badge. Fixed in a6997aec: the ask card, the download/install failure toast and the restart prompt each also fire a macOS notification (`notifyDesktop`) when `document.visibilityState !== "visible"`. Residual: the auto-check-failure path - runUpdateCheck's catch toasts only when `trigger === "manual"`, so a failed AUTO check stays console-only with the window hidden (addressed separately by this cycle's check-failure notify work).
 
-**KB-151 · OPEN · NEW · quitting during an active mute_while_recording session strands the system-wide mute.** `RunEvent::Exit` does tray::stop_ram_refresh + companion::shutdown only: no `remove_mute` (lib.rs:1202-1208 ✓R4); the tray Quit path reaches it via app.exit(0). Same user impact as KB-002 via a narrower window [R3].
+**KB-151 · FIXED · exit restores the system mute.** Was [R3]: quitting during an active mute_while_recording session stranded the system-wide mute - `RunEvent::Exit` did tray::stop_ram_refresh + companion::shutdown only, no `remove_mute` (lib.rs:1202-1208 ✓R4); the tray Quit path reaches it via app.exit(0). Same user impact as KB-002 via a narrower window. Fixed in a9e1159e: Exit now calls `recording.remove_mute()` (best-effort; warn-only when the manager is gone) before the shutdown legs.
 
-**KB-154 · OPEN · NEW · "granite" is in BOTH KNOWN_ARCHES and LLM_ARCHES, breaking the documented disjointness both add-from-HF gates rely on** (model_capabilities.rs:43 and :61 ✓R4): a granite LLM text GGUF registers as an ASR model; a granite ASR GGUF passes the post-process gate. No current catalog model uses bare "granite" (R3 python3 check), no test pins disjointness [R3].
+**KB-154 · PARTIALLY FIXED · arch allowlists are disjoint again.** Was [R3]: "granite" sat in BOTH KNOWN_ARCHES and LLM_ARCHES, breaking the documented disjointness both add-from-HF gates rely on (model_capabilities.rs:43 and :61 ✓R4): a granite LLM text GGUF registers as an ASR model; a granite ASR GGUF passes the post-process gate. Fixed in a9e1159e: bare `granite` removed from KNOWN_ARCHES (llama.cpp's LLM arch lives in LLM_ARCHES alone; transcribe-cpp's granite ASR family is the suffixed variants), with disjointness now pinned by tests in model_capabilities.rs and catalog/llm.rs. Residual: granite_nar/cohere arch-string mismatches remain (pre-existing catalog-metadata drift, not introduced by the fix).
 
 **KB-155 · OPEN · NEW · model delete and download-cancel failures are invisible in the settings UI**: both handlers console.error only and ignore the store's recorded error (ModelsSettings.tsx:189-204; modelStore sets error + returns false), so a swap-guard refusal or fs error leaves the user with zero feedback after confirming a native dialog [R3].
 
@@ -132,7 +135,7 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-160 · OPEN · NEW · closing the settings window while the Tauri-backend shortcut recorder is armed leaves every global binding suspended with zero feedback**: suspension resumes only on commit/cancel inside the component; window close is prevent_close+hide (lib.rs:1142-1145) so the armed state persists hidden; hotkeys dead until the window is reopened and clicked. HandyKeys twin cleans up correctly (contrast at HandyKeysShortcutInput.tsx:175-183) [R3].
 
-**KB-162 · OPEN · NEW · the batch final preview wipes the SAME session's tail notice:** the show listener's reset covers 'preview' (setNotice(null) + noticeTimer cleared), so a post-process skip emitted during transcribing is cut off before its designed 5 s read window: an error-sound skip (memory gate) shows nothing on the card exactly when the user is looking at the previewed text. The streaming branch keeps the notice: asymmetry proving the wipe is unintended [R3].
+**KB-162 · FIXED · the batch final preview keeps the session's tail notice.** Was [R3]: the show listener's reset covered 'preview' (setNotice(null) + noticeTimer cleared), so a post-process skip emitted during transcribing was cut off before its designed 5 s read window - an error-sound skip (memory gate) showed nothing on the card exactly when the user was looking at the previewed text; the streaming branch kept the notice. Fixed in a6997aec: the reset now skips the notice (and its timer) when `overlayState === "preview"`; fresh sessions (recording/streaming) still start notice-clean and hide-overlay still clears it.
 
 **KB-176 · OPEN · NEW · the whisper initial prompt is unbounded and puts custom words at the HEAD**: the default matrix's ~109 Insert phrases (English + Devanagari + romanized + CJK) join ~1.2k chars ahead of custom words with no cap; HF's get_prompt_ids truncates keeping the TAIL, so custom words are first to fall off for every non-Latin output language (transcription.rs:3663-3676, 2995-3012; engine contract read from transcribe-cpp-sys headers). Truncation not executed (no model run); boundlessness/head-placement are code-read [R3].
 
@@ -140,7 +143,7 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-183 · OPEN · NEW · turning Experimental off is not a companion kill switch:** the LAN TLS server keeps running with its only control unmounted (AdvancedSettings gates rendering only; companion::init arms purely on companion_devices_enabled), re-arms every boot, findable by neither search nor tray [R3].
 
-**KB-185 · OPEN · NEW · tray "Unload After → Custom…" is a silent no-op whenever the setting is a preset**: the custom input renders only when the stored value is already Custom (`customActive = isCustom(storedValue)` ✓R4 at ModelUnloadTimeout.tsx:41), so the promised focus lands on a null ref and nothing switches modes [R3].
+**KB-185 · FIXED · tray "Unload After → Custom…" switches mode before focusing.** Was [R3]: a silent no-op whenever the setting was a preset - the custom input rendered only when the stored value was already Custom (`customActive = isCustom(storedValue)` ✓R4 at ModelUnloadTimeout.tsx:41), so the promised focus landed on a null ref and nothing switched modes. Fixed in 14369da8: the tray-focus effect first switches the stored setting to custom (backend command + optimistic store update, seeding 90 s like the dropdown does) when a preset is stored, so the field has rendered by the time the await resolves and the ref is attached.
 
 **KB-186 · OPEN · NEW · first-run onboarding's model step is a silent dead end offline:** the catalog-fetch-failure state renders only logo/subtitle/hotkey hint: no error, no retry, no skip: and onboarding gates the entire app (Onboarding.tsx:331,353; store error never read) [R3].
 
@@ -151,7 +154,7 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 _Re-verified in round 3 (tag `[R3]`) unless marked `carried`:_
 
 - **KB-024** history copies raw only vs tray/paste processed [R3]. **KB-026** limit no-op unless PreserveLimit + star exemption undocumented (de/zh/hi/ja spot-checked) [R3]. **KB-029** see P1. **KB-030** companion_port dead control [R3].
-- **KB-037** raw backend English in toasts (25 locales); _carried_ (referenced by R3's KB-039 evidence; not directly re-read). **KB-038** command-mode no-session bare emit vs sibling notice channel (re-verified ×2 [R3]). **KB-039** reset toast drops the list [R3].
+- **KB-037** raw backend English in toasts (25 locales); _carried_ (referenced by R3's KB-039 evidence; not directly re-read). **KB-038 · FIXED · command-mode no-session rides the notice channel.** Was a bare `command-mode-no-session` emit only the main window heard (re-verified ×2 [R3]); d540241b migrates it to `emit_overlay_notice(CommandModeNoSession)` - log + event + card visibility like every other no-session feedback - and a6997aec's router toasts/notifies it card-less, reusing the existing `app.commandNoSession` copy. **KB-039** reset toast drops the list [R3].
 - **KB-040** custom sound theme silent; error-cue Stop fallback also unchecked (audio*feedback.rs full read [R3]). **KB-042** preview tooltip literal [R3]. **KB-043** 0.5 vs 1.0 flash [R3]. **KB-044** is_downloading wrongly cleared: \_carried* (R2-narrowed). **KB-046** 16 #[ignore] supervisor tests (R3 re-ran: 11 passed/16 ignored) [R3].
 - **KB-048** word-correction f64 unclamped; consumed raw where a huge threshold rewrites ordinary words (mod.rs:1236-1241) [R3]. **KB-049** AccelerationSelector display mismatch [R3]. **KB-050** style→none never hides live card + frontend reconcile handles only language/placement [R3]. **KB-051** streaming preview indistinguishable from working: exact mechanism pinned (only two emit_stream_working sites; caret suppression) [R3]. **KB-052** arming affordances + aria 'cancel' (localized Cancel keys exist to lift) [R3]. **KB-053** Windows preview-size misclassification (static, all rounds) [R3]. **KB-054** dropdown flashes 'live' [R3].
 - **KB-055** stale debug-gated claim [R3]. **KB-056** delay sliders inert with reliable paste [R3]. **KB-057** auto-submit × paste-method None [R3]. **KB-058** Dropdown English placeholder: instances now also: stale custom sound theme (SoundPicker builds Custom only when wavs exist) [R3]. **KB-059** send_edit_action dead + still-false doc (grep exit=1) [R3]. **KB-060** Linux probe forking (static) [R3]. **KB-061** generic paste toast + enigo init console.warn only [R3]. **KB-062** main-thread paste sleeps >10 s worst case [R3]. **KB-063** TypingTool probe staleness [R3].
@@ -167,7 +170,7 @@ _New in round 3 (KB-152, 153, 156-158, 161, 163-175, 177, 178, 180-182, 184, 187
 - **KB-153 ·** play_test_sound is an async command that blocks a worker for the full sound + device enumeration, violating the spawn_blocking convention documented beside it (commands/audio.rs:322-334) [R3].
 - **KB-156 ·** cancelling during post-download sha256 verify stops nothing (hash loop never observes the token) yet the UI reports cancelled; the verify finishes, model marked downloaded, auto-select can switch models after the user cancelled (download.rs:88-116; model.rs:3006-3038) [R3].
 - **KB-157 ·** Footer ModelSelector auto-selects on every model-download-complete without engine filtering; LLM downloads funnel through the shared emit → guaranteed-refused setActiveModel + LLM-name flash + surfaced-nowhere error (ModelSelector.tsx:98-119) [R3].
-- **KB-158 ·** getAvailableAccelerators has .then but no .catch and the backend .expects on JoinError → any rejection permanently empties both accelerator dropdowns (AccelerationSelector.tsx:65; mod.rs:2285-2295) [R3].
+- **KB-158 · FIXED.** Was: getAvailableAccelerators had .then but no .catch and the backend .expected on JoinError → any rejection permanently emptied both accelerator dropdowns (AccelerationSelector.tsx:65; mod.rs:2285-2295) [R3]. Fixed across a9e1159e (backend: the spawn_blocking JoinError is answered with empty lists + error! instead of .expect) and 14369da8 (frontend: the probe promise gets a .catch; the dropdowns keep their empty fallback).
 - **KB-161 ·** lone-modifier transcribe binding under handy_keys: hold measured from the gate-fired press (400 ms activation gate); a 600 ms hold with a 300 ms threshold classifies as a tap-lock; sub-400 ms taps never activate (handy_keys.rs:24-42, 264; coordinator :514-536) [R3].
 - **KB-163 ·** companion_disconnected notice drops its device-name detail: the only companion mapping that ignores notice.detail, so with multiple phones the user can't tell which dropped (RecordingOverlay.tsx:111-112 vs transcription.rs:452-455) [R3 ×2].
 - **KB-164 ·** polishing chip uses locale-invariant '1.8s' decimal in every locale; Intl pattern exists in dateFormat.ts (RecordingOverlay.tsx:590, 614) [R3].
@@ -188,13 +191,13 @@ _New in round 3 (KB-152, 153, 156-158, 161, 163-175, 177, 178, 180-182, 184, 187
 - **KB-181 ·** "Open Recordings Folder" reveals-not-opens on macOS (NSWorkspace activateFileViewerSelectingURLs selects the folder in its parent); deliberate ACL workaround, residual is label-vs-behavior (commands/mod.rs:92-107; plugin source read; static) [R3].
 - **KB-182 ·** a failed history save during dictation is invisible on every surface (both call sites log-only; text pastes normally but never appears in History) (actions.rs:1601-1612, 1812-1813) [R3].
 - **KB-184 ·** the phone vibrates for every forwarded overlay notice but can display only three codes: any other code buzzes with no visible message (client/index.html:400-407; ~25 codes exist) [R3].
-- **KB-187 ·** onboarding permission cards use bg-white/5: invisible fill in light theme (AccessibilityOnboarding.tsx:423, 482) [R3].
+- **KB-187 · FIXED.** Was: onboarding permission cards used bg-white/5 - invisible fill in light theme (AccessibilityOnboarding.tsx:423, 482) [R3]. Fixed in 14369da8: both permission cards fill with `bg-background`, theme-safe in light and dark.
 - **KB-188 ·** tray Post-process Prompt submenu offered unconditionally: with pp off, picking a template silently moves a checkmark that affects nothing (tray.rs:710-726) [R3].
 - **KB-189 ·** nine dead footer updater keys (downloading, installing, preparing, updateAvailableShort, five portableUpdate\*) referenced by zero components but forced into all 26 locales by the parity gate [R3].
-- **KB-190 ·** App Language and Update Policy rows missing from settings search while every other About row is indexed (SettingsSearch.tsx:168-176) [R3].
+- **KB-190 · PARTIALLY FIXED.** Was: App Language and Update Policy rows missing from settings search while every other About row was indexed (SettingsSearch.tsx:168-176) [R3]. Fixed in 14369da8: both rows added to the static index, in AboutSettings tab order. Residual note: the gap was wider than the KB text - the Theme and Accent Color rows are now indexed as well (this cycle's search-index module), so the About index is complete; future About rows must be added on arrival.
 - **KB-191 ·** re-enabling update checks mid-session fires an immediate silent auto check at toggle time (hasAutoChecked only latches when the guard previously passed) (UpdateChecker.tsx:38-49) [R3].
 - **KB-192 ·** app language applies i18n.changeLanguage before persist; failed persist leaves webview in the new language while store/tray keep the old until relaunch: KB-104 family (AppLanguageSelector.tsx:30-33) [R3].
-- **KB-193 ·** About version row renders a bare "v" while the version IPC is in flight (state starts empty; span ungated) (AboutSettings.tsx:22, 47) [R3].
+- **KB-193 · FIXED.** Was: About version row rendered a bare "v" while the version IPC was in flight (state starts empty; span ungated) (AboutSettings.tsx:22, 47) [R3]. Fixed in 14369da8: the span renders only once `version !== ""` - no flash.
 
 ---
 
@@ -204,13 +207,13 @@ _New in round 3 (KB-152, 153, 156-158, 161, 163-175, 177, 178, 180-182, 184, 187
 
 ## Cross-cutting themes (updated)
 
-1. **Hidden-window / hidden-card feedback gap**: still the largest class (~20 items: KB-011 residual, 013 residuals, 016, 020, 029, 038, 061, 087, 106, 124, 139, 143, 148, 155, 180, 182, 184 + device-name KB-163). The routing decision (sound/reveal/notification for card-less notices) remains the single highest-leverage fix.
+1. **Hidden-window / hidden-card feedback gap**: still the largest class (KB-011 residual, 013 residuals, 029, 061, 087, 106, 124, 139, 143, 155, 180, 182, 184 + device-name KB-163). Cycle 3 landed the routing decision itself - `card_visible` + the App.tsx router with toasts and macOS notifications (d540241b + a6997aec) - closing 016/020/038/148 and 162 (020/148 keep residuals); retiring the legacy duplicate failure listeners is the remaining leverage here.
 2. **Hotkey activity gating init-only**: KB-008, 009, 036, 114, 124 (+ new KB-159/160 on the rebind/window-close edges).
-3. **Lying toggles / no-delivery settings**: KB-027 (pattern now unused beside it), 030, 078, 104 residual, 112, 145, 183, 188, 191.
+3. **Lying toggles / no-delivery settings**: 030, 078, 104 residual, 112, 145, 183, 188, 191 (KB-027 fixed in cycle 3, a9e1159e).
 4. **Raw English into localized copy**: KB-122 umbrella (037, 042, 052, 058, 065, 097, 118+LogLevel, 138, 163, 172, 189).
 5. **Persist-before-apply / apply-order**: KB-104 residual, 192 (+ the fixed 103 as template).
 6. **Unclamped numeric setters**: KB-048, 115 (five setters), 116.
-7. **Tray staleness**: KB-031, 034, 066 (three submenus), 146, 185 (+ 143 log-only rejections).
+7. **Tray staleness**: 066 (three submenus), 146 (+ 143 log-only rejections); KB-031/034 fixed in cycle 3 (a9e1159e) and KB-185 in 14369da8.
 8. **Script/number awareness**: KB-076, 077, 134, 135, 178 (+ whisper-prompt bias KB-176).
 9. **Assert-script tests invisible to `bun test`/CI**: KB-136 family, now three files, including a fix's own guard test (KB-005).
 10. **Per-drag full-store writes**: KB-120 family, now ~9 sliders.

@@ -1203,7 +1203,7 @@
       "postProcessPromptCycled": "Шаблон постобробки: {{name}}",
       "companionDisconnected": "Телефон відключився. Завершуємо з тим, що записано.",
       "companionServerFailed": "Збій сервера-супутника: {{error}}",
-      "companionSessionCapped": "Диктування з пристрою-супутника завершено: досягнуто 15-хвилинного ліміту сеансу."
+      "companionSessionCapped": "Диктування з пристрою-супутника завершено: досягнуто 15-хвилинного ліміту сеансу на {{device}}."
     },
     "commandBadge": "Режим команд",
     "ppChip": "Обробка ({{model}}) {{seconds}}с",

@@ -1203,7 +1203,7 @@
       "postProcessPromptCycled": "قالب ما بعد المعالجة: {{name}}",
       "companionDisconnected": "انقطع اتصال الهاتف. يتم الإنهاء بما تم التقاطه.",
       "companionServerFailed": "فشل خادم المرافقة: {{error}}",
-      "companionSessionCapped": "انتهى الإملاء من الهاتف المرافق: بلغت الجلسة حدّها البالغ 15 دقيقة."
+      "companionSessionCapped": "انتهى الإملاء من الهاتف المرافق: بلغت الجلسة حدّها البالغ 15 دقيقة على {{device}}."
     },
     "commandBadge": "وضع الأوامر",
     "ppChip": "التلميع ({{model}}) {{seconds}}ث",

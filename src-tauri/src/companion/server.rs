@@ -403,14 +403,18 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                         // with its audio blocked by the tracker.
                         coordinator.finalize_companion_session();
                     }
-                    manager.broadcast_frame(&ServerFrame::Notice {
-                        code: "companion_session_capped".to_string(),
-                    });
                     // KB-016: the cap notice used to reach the phone only -
                     // the Mac had no NoticeCode variant and no emit, so a
                     // force-finalized dictation was silent everywhere the
                     // user might be looking. Same channel as the disconnect
                     // notice below; detail names the device.
+                    // AUD-01: this emit is the SINGLE source of the cap
+                    // notice. The notice forwarder (companion/mod.rs)
+                    // re-broadcasts overlay notices to the paired phones, so
+                    // a direct broadcast_frame here as well would deliver the
+                    // same Notice frame twice. companion_session_capped stays
+                    // phone-bound in the forwarder's filter, so phones keep
+                    // getting exactly one cap notice.
                     crate::managers::transcription::emit_overlay_notice(
                         &app,
                         crate::managers::transcription::NoticeCode::CompanionSessionCapped,

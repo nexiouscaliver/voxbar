@@ -1,7 +1,14 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 import { useSettings } from "../../hooks/useSettings";
+import { useSettingsStore } from "../../stores/settingsStore";
+import i18n from "../../i18n";
 import { commands, type ModelUnloadTimeout } from "@/bindings";
+import {
+  resolveUnloadTimeoutFocusGate,
+  resolveUnloadTimeoutOutcome,
+} from "./modelUnloadTimeoutFlow";
 import { Dropdown } from "../ui/Dropdown";
 import { SettingContainer } from "../ui/SettingContainer";
 
@@ -58,14 +65,54 @@ export const ModelUnloadTimeoutSetting: React.FC<ModelUnloadTimeoutProps> = ({
   // await resolves and the ref is attached. getSetting/updateSetting are
   // stable store actions reading live state, so capturing the first
   // render's copies is safe here.
+  // AUD-06: two ways this used to lie. (1) The command rejects by
+  // resolving {status: "error"} rather than throwing, and the error was
+  // ignored - the optimistic 90s survived in a store the backend never
+  // accepted. resolveUnloadTimeoutOutcome fails that closed (keep the
+  // previous value, surface the standard console.error + toast path).
+  // (2) On a cold window the event can beat the store's hydration:
+  // getSetting() returns undefined, which is not "a preset is stored",
+  // and an optimistic updateSetting leaves settings null so the field
+  // never renders and the focus silently no-ops even though the backend
+  // committed. resolveUnloadTimeoutFocusGate defers until the shared
+  // initialize() promise resolves (refreshSettings lands the
+  // backend-committed value), then re-evaluates so focus still happens.
   useEffect(() => {
     const focusField = async () => {
-      if (!isCustom(getSetting("model_unload_timeout"))) {
+      const liveStore = () => useSettingsStore.getState();
+      let gate = resolveUnloadTimeoutFocusGate(
+        getSetting("model_unload_timeout"),
+        liveStore().settings !== null,
+      );
+      if (gate.action === "defer") {
         try {
-          await commands.setModelUnloadTimeoutCustomSeconds(90);
-          await updateSetting("model_unload_timeout", {
-            custom: { seconds: 90 },
-          });
+          await liveStore().initialize();
+        } catch (error) {
+          // Hydration failed: stay deferred (no backend write we cannot
+          // reflect in the UI) and still attempt the focus below.
+          console.error("Failed to hydrate settings before focus:", error);
+        }
+        gate = resolveUnloadTimeoutFocusGate(
+          getSetting("model_unload_timeout"),
+          liveStore().settings !== null,
+        );
+      }
+      if (gate.action === "switch") {
+        const prev = getSetting("model_unload_timeout");
+        try {
+          const result = await commands.setModelUnloadTimeoutCustomSeconds(90);
+          const outcome = resolveUnloadTimeoutOutcome(result, 90, prev);
+          if (outcome.apply) {
+            await updateSetting("model_unload_timeout", outcome.value);
+          } else {
+            console.error(
+              "Failed to switch to custom unload timeout:",
+              outcome.error,
+            );
+            toast.error(
+              i18n.t("toast.settingNotSaved", { error: outcome.error }),
+            );
+          }
         } catch (error) {
           console.error("Failed to switch to custom unload timeout:", error);
         }
@@ -129,10 +176,19 @@ export const ModelUnloadTimeoutSetting: React.FC<ModelUnloadTimeoutProps> = ({
 
   const persistCustomSeconds = async (seconds: number) => {
     try {
-      await commands.setModelUnloadTimeoutCustomSeconds(seconds);
-      updateSetting("model_unload_timeout", {
-        custom: { seconds },
-      });
+      const prev = getSetting("model_unload_timeout");
+      const result = await commands.setModelUnloadTimeoutCustomSeconds(seconds);
+      // AUD-06: a backend rejection resolves (it does not throw); applying
+      // the optimistic seconds anyway would leave the field showing a value
+      // the backend rejected. Fail closed like updateSetting's
+      // mapCommandResult standard: keep the previous value, say so.
+      const outcome = resolveUnloadTimeoutOutcome(result, seconds, prev);
+      if (outcome.apply) {
+        await updateSetting("model_unload_timeout", outcome.value);
+      } else {
+        console.error("Failed to update custom unload timeout:", outcome.error);
+        toast.error(i18n.t("toast.settingNotSaved", { error: outcome.error }));
+      }
     } catch (error) {
       console.error("Failed to update custom unload timeout:", error);
     }

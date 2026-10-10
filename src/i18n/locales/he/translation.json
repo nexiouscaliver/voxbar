@@ -1203,7 +1203,7 @@
       "postProcessPromptCycled": "תבנית עיבוד לאחר: {{name}}",
       "companionDisconnected": "הטלפון התנתק. מסיימים עם מה שנקלט.",
       "companionServerFailed": "שרת הליווי נכשל: {{error}}",
-      "companionSessionCapped": "ההכתבה מהמכשיר המלווה הסתיימה: הגעת למגבלת ההפעלה של 15 דקות."
+      "companionSessionCapped": "ההכתבה מהמכשיר המלווה הסתיימה: הגעת למגבלת ההפעלה של 15 דקות במכשיר {{device}}."
     },
     "commandBadge": "מצב פקודות",
     "ppChip": "מלטש ({{model}}) {{seconds}}שנ׳",

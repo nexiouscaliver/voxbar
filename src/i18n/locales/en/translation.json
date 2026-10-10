@@ -1206,7 +1206,7 @@
       "postProcessPromptCycled": "Post-process template: {{name}}",
       "companionDisconnected": "Phone disconnected. Finishing with what was captured.",
       "companionServerFailed": "Companion server failed: {{error}}",
-      "companionSessionCapped": "Companion dictation ended: the 15-minute session limit was reached."
+      "companionSessionCapped": "Companion dictation ended: the 15-minute session limit was reached on {{device}}."
     },
     "commandBadge": "Command mode",
     "ppChip": "Polishing ({{model}}) {{seconds}}s",

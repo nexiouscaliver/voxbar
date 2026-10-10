@@ -23,11 +23,12 @@ export const AboutSettings: React.FC = () => {
   const { settings, updateChecksLocked } = useSettings();
   const [version, setVersion] = useState("");
 
-  // Mirrors updaterFlow's updateChecksAllowed() exactly, fail closed while
-  // the lock state is unknown (KB-033): the button must never offer a check
-  // the flow would silently drop, so it stays disabled until checks are
-  // known-allowed. The tooltip reuses the locked/disabled copy the sibling
-  // update rows already show.
+  // Mirrors the update gate's settled decision (updaterFlow's
+  // updateCheckGateSnapshot via awaitUpdateChecksAllowed) exactly, fail
+  // closed while the lock state is unknown (KB-033): the button must not
+  // offer a check while the outcome is still unknown, so it stays disabled
+  // until checks are known-allowed. The tooltip reuses the locked/disabled
+  // copy the sibling update rows already show.
   const updateChecksAllowed =
     updateChecksLocked === false && (settings?.update_checks_enabled ?? true);
 

@@ -320,6 +320,33 @@ fn mute_restore_action(state: &MuteState) -> Option<Option<bool>> {
     state.did_mute.then_some(state.prev_muted)
 }
 
+/// The apply decision for a forced "mute while recording", shared by every
+/// guard `apply_mute` runs: the setting must be on, a capture path must be
+/// active (local stream open OR a live recording), this session must not
+/// have applied already (a duplicate/late apply would overwrite
+/// `prev_muted` with our own forced-muted state and strand audio muted on
+/// stop), and - the AUD-12 gate - the process-exit teardown must not have
+/// begun. Once `RunEvent::Exit` starts restoring the mute, a readiness
+/// watcher that wakes after the restore must no-op instead of re-stranding
+/// the system OUTPUT muted past process death. The exit flag is loaded
+/// INSIDE `apply_mute`'s `mute_state` critical section, so the watcher's
+/// check-then-act window (generation check, then apply) cannot slip a
+/// re-mute between the flag store and the restore: an apply completing
+/// before the restore leaves `did_mute = true` so `remove_mute` restores
+/// it, and an apply starting after the flag store sees the flag and
+/// no-ops.
+fn should_apply_forced_mute(
+    mute_while_recording: bool,
+    capture_active: bool,
+    already_applied_this_session: bool,
+    exit_teardown_started: bool,
+) -> bool {
+    mute_while_recording
+        && capture_active
+        && !already_applied_this_session
+        && !exit_teardown_started
+}
+
 /// The persisted microphone preference currently in effect. Clamshell and
 /// regular selections are kept distinct so losing a clamshell-only device does
 /// not erase the user's normal microphone preference.
@@ -465,6 +492,12 @@ pub struct AudioRecordingManager {
     /// stopped or cancelled. This prevents a slow device from producing a late
     /// "ready" indication for a session the user already ended.
     capture_generation: Arc<AtomicU64>,
+    /// AUD-12: set by `RunEvent::Exit` BEFORE its `remove_mute()` restore.
+    /// `apply_mute` reads this inside its `mute_state` critical section, so
+    /// the detached readiness watcher (actions.rs) cannot apply the forced
+    /// mute after the exit restore has run and re-strand the system output
+    /// muted past process death. Normal stop/cancel paths leave it false.
+    exit_teardown: Arc<AtomicBool>,
     /// Resolution of a *named* microphone (selected or clamshell) to its cpal
     /// device, cached so on-demand recording starts skip the full device
     /// enumeration (~40-110ms). Keyed by the resolved name, so a settings
@@ -554,6 +587,7 @@ impl AudioRecordingManager {
             stream_router,
             recording_active: Arc::new(AtomicBool::new(false)),
             capture_generation: Arc::new(AtomicU64::new(0)),
+            exit_teardown: Arc::new(AtomicBool::new(false)),
             cached_device: Arc::new(Mutex::new(None)),
             remote_recorder: Arc::new(Mutex::new(None)),
             remote_source: Arc::new(Mutex::new(None)),
@@ -733,18 +767,28 @@ impl AudioRecordingManager {
         // Lock order: is_open before mute_state (matches stop_microphone_stream).
         let is_open = self.is_open.lock().unwrap();
         let mut mute_guard = self.mute_state.lock().unwrap();
-        // Already muted this session - don't re-snapshot, or a duplicate/late
-        // apply would overwrite prev_muted with our own forced-muted state and
-        // strand audio muted on stop.
-        if mute_guard.did_mute {
+        // Every gate in one shared decision (see should_apply_forced_mute):
+        // the duplicate-apply veto (a late apply would overwrite prev_muted
+        // with our own forced-muted state and strand audio muted on stop),
+        // the capture-active guard, and the AUD-12 exit gate. The exit flag
+        // is loaded HERE, inside the mute_state critical section, so the
+        // readiness watcher's check-then-act window cannot re-mute after the
+        // exit restore: an apply holding this lock finishes before
+        // remove_mute runs (did_mute = true -> restored), and an apply
+        // starting later sees the flag and no-ops.
+        let exit_teardown_started = self.exit_teardown.load(Ordering::SeqCst);
+        if !should_apply_forced_mute(
+            settings.mute_while_recording,
+            *is_open || self.is_recording(),
+            mute_guard.did_mute,
+            exit_teardown_started,
+        ) {
             return;
         }
-        if *is_open || self.is_recording() {
-            mute_guard.prev_muted = get_mute();
-            set_mute(true);
-            mute_guard.did_mute = true;
-            debug!("Mute applied (prev_muted={:?})", mute_guard.prev_muted);
-        }
+        mute_guard.prev_muted = get_mute();
+        set_mute(true);
+        mute_guard.did_mute = true;
+        debug!("Mute applied (prev_muted={:?})", mute_guard.prev_muted);
     }
 
     /// Removes mute if it was applied, restoring the system's prior mute state
@@ -1250,6 +1294,18 @@ impl AudioRecordingManager {
         self.capture_generation.fetch_add(1, Ordering::AcqRel);
     }
 
+    /// AUD-12: mark the process-exit teardown as begun. Called by the
+    /// `RunEvent::Exit` handler BEFORE `remove_mute()`, symmetric with how
+    /// stop and cancel invalidate readiness first: the detached readiness
+    /// watcher's generation check then rejects a late wake, and - the real
+    /// gate, because that check is only advisory - `apply_mute` loads the
+    /// flag inside its `mute_state` critical section and no-ops, so the
+    /// watcher can never re-mute the system output after the exit restore.
+    pub fn begin_exit_teardown(&self) {
+        self.exit_teardown.store(true, Ordering::SeqCst);
+        self.invalidate_recording_readiness();
+    }
+
     pub fn is_recording_readiness_current(&self, generation: u64) -> bool {
         self.capture_generation.load(Ordering::Acquire) == generation
     }
@@ -1566,6 +1622,90 @@ mod tests {
             mute_test_log::take(),
             Vec::<&'static str>::new(),
             "a pre-existing user mute is never lifted"
+        );
+    }
+
+    /// AUD-12: the Exit mute restore must be FINAL. The detached readiness
+    /// watcher (spawned at actions.rs:1258) applies the forced mute only
+    /// after blocking first-sample checks, guarded by
+    /// `is_recording_readiness_current(generation)` (actions.rs:1294). Every
+    /// restore path EXCEPT process exit invalidates that readiness first
+    /// (stop: actions.rs:1356-1357; cancel: `cancel_recording`
+    /// audio.rs:1350), but the `RunEvent::Exit` handler (lib.rs:1206-1215)
+    /// calls only `remove_mute()`. A watcher that wakes after the exit
+    /// restore therefore still passes its generation check, and
+    /// `apply_mute`'s capture guard (`*is_open || self.is_recording()`,
+    /// audio.rs:742) is still satisfied - exit closes no stream and clears
+    /// no recording state - so the late apply re-strands the system OUTPUT
+    /// muted past process death.
+    ///
+    /// Manager-level construction is not runnable under tauri::test's
+    /// MockRuntime (see the note above: the manager pins
+    /// `tauri::AppHandle`), so the red test pins the missing pure decision
+    /// core of `apply_mute` instead. CONTRACT the implementer must provide
+    /// (a module-level production fn next to `mute_restore_action`, routed
+    /// through by `AudioRecordingManager::apply_mute` so the real call site
+    /// inherits it):
+    ///
+    /// ```text
+    /// fn should_apply_forced_mute(
+    ///     mute_while_recording: bool,          // the setting (audio.rs:729-731)
+    ///     capture_active: bool,                // is_open || is_recording (audio.rs:742)
+    ///     already_applied_this_session: bool,  // mute_state.did_mute (audio.rs:739-741)
+    ///     exit_teardown_started: bool,         // shutdown flag RunEvent::Exit sets
+    ///                                         // BEFORE remove_mute (lib.rs:1213)
+    /// ) -> bool
+    /// ```
+    ///
+    /// Apply only when every gate passes. `exit_teardown_started` is the new
+    /// AUD-12 gate: once the Exit handler has begun its restore, no late
+    /// readiness apply may re-mute. The flag must be READ INSIDE apply_mute's
+    /// `mute_state` critical section (not only in the watcher's check at
+    /// actions.rs:1294, which is a check-then-act window the exit restore can
+    /// interleave with): an apply completing before the restore leaves
+    /// did_mute = true so remove_mute restores it, and an apply starting
+    /// after the flag store sees the flag and no-ops.
+    #[test]
+    fn late_readiness_apply_cannot_re_mute_after_exit_teardown() {
+        // The watcher's normal path is unchanged: a live session over an
+        // active capture still applies the forced mute on first samples.
+        assert!(
+            should_apply_forced_mute(true, true, false, false),
+            "normal readiness apply: the watcher still mutes on first samples"
+        );
+
+        // AUD-12: exit teardown has begun. The capture is STILL active at
+        // that instant (exit tears down neither the stream nor the recording
+        // state - that is exactly why the late apply strands the mute), so
+        // only the exit gate can veto it.
+        assert!(
+            !should_apply_forced_mute(true, true, false, true),
+            "AUD-12: a readiness watcher waking after the exit restore must not re-mute"
+        );
+
+        // The existing duplicate-apply veto keeps its meaning: a second apply
+        // must never overwrite prev_muted with our own forced state.
+        assert!(
+            !should_apply_forced_mute(true, true, true, false),
+            "duplicate/late apply while already muted: no re-snapshot"
+        );
+        assert!(
+            !should_apply_forced_mute(true, true, true, true),
+            "duplicate apply stays vetoed during exit teardown"
+        );
+
+        // The pre-existing guards keep their meaning.
+        assert!(
+            !should_apply_forced_mute(false, true, false, false),
+            "mute_while_recording off: never apply"
+        );
+        assert!(
+            !should_apply_forced_mute(true, false, false, false),
+            "no active capture path: nothing to mute for"
+        );
+        assert!(
+            !should_apply_forced_mute(true, false, false, true),
+            "exit teardown vetoes the apply regardless of capture state"
         );
     }
 }

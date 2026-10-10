@@ -1,20 +1,39 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   isPermissionGranted,
   requestPermission,
   sendNotification,
 } from "@tauri-apps/plugin-notification";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
-// System-notification wrapper for notices the app's own windows cannot or
-// may not deliver: overlay notices that arrive while the card cannot show
-// them (KB-020) and update-flow prompts that live in the often-hidden main
-// window (KB-148).
+let permissionPrimed = false;
 
-// Permission is requested at most once per app run. On macOS the system
-// prompt only appears the first time anyway; this flag also stops a denial
-// from re-prompting (a denied requestPermission call is a no-op that keeps
-// returning "denied") on every subsequent notice.
-let permissionRequested = false;
+// Ask for notification permission once per app run, ideally while the main
+// window is visible so the system prompt never appears over a hidden app.
+// Already-granted runs resolve without any prompt. `onDenied` fires at most
+// once per run - on the run whose request came back denied - so the caller
+// can show its single explanatory toast. Never throws: permission is a
+// courtesy surface.
+export async function primeNotificationPermission(
+  onDenied?: () => void,
+): Promise<void> {
+  if (permissionPrimed) return;
+  permissionPrimed = true;
+  try {
+    let granted = await isPermissionGranted();
+    if (!granted) {
+      await requestPermission();
+      granted = await isPermissionGranted();
+    }
+    if (!granted) onDenied?.();
+  } catch (error) {
+    console.warn("Notification permission request failed:", error);
+  }
+}
+
+/** Test-only: forget the one-per-run prime latch between scenarios. */
+export function resetPrimingLatchForTests(): void {
+  permissionPrimed = false;
+}
 
 // KB-195: the visibility gate lives HERE, not at the call sites. The old
 // call-site checks read document.visibilityState, which WKWebView keeps
@@ -27,8 +46,10 @@ let warnedVisibilityUnavailable = false;
 // Post one OS notification, but only when this webview's window is not
 // visible. Never throws: a notification is a courtesy surface, so a failure
 // (missing permission, plugin error) is logged and swallowed rather than
-// breaking the flow that tried to tell the user something. "VoxBar" is the
-// product name and intentionally not localized.
+// breaking the flow that tried to tell the user something. Permission is
+// NOT requested here (see primeNotificationPermission): a denial simply
+// means no notification, and the app's own toast surfaces still carry the
+// message. "VoxBar" is the product name and intentionally not localized.
 export async function notifyDesktop(body: string): Promise<void> {
   let visible: boolean;
   try {
@@ -45,13 +66,7 @@ export async function notifyDesktop(body: string): Promise<void> {
   }
   try {
     if (visible) return;
-    let granted = await isPermissionGranted();
-    if (!granted && !permissionRequested) {
-      permissionRequested = true;
-      await requestPermission();
-      granted = await isPermissionGranted();
-    }
-    if (granted) {
+    if (await isPermissionGranted()) {
       sendNotification({ title: "VoxBar", body });
     }
   } catch (error) {

@@ -1203,7 +1203,7 @@
       "postProcessPromptCycled": "Son işlem şablonu: {{name}}",
       "companionDisconnected": "Telefon bağlantısı kesildi. Kaydedilenle bitiriliyor.",
       "companionServerFailed": "Eşlik sunucusu başarısız: {{error}}",
-      "companionSessionCapped": "Eşlik eden cihazdan dikte sona erdi: 15 dakikalık oturum sınırına ulaşıldı."
+      "companionSessionCapped": "Eşlik eden cihazdan dikte sona erdi: {{device}} üzerinde 15 dakikalık oturum sınırına ulaşıldı."
     },
     "commandBadge": "Komut modu",
     "ppChip": "Parlatılıyor ({{model}}) {{seconds}}sn",

@@ -952,6 +952,17 @@ pub fn change_memory_gate_headroom_setting(app: AppHandle, headroom_mb: u64) -> 
 /// a live phone session first); a failed start throws so the settings store
 /// rolls the toggle back instead of persisting an enabled state with no
 /// server behind it.
+///
+/// No stop-the-server cleanup wraps the persist step, by invariant rather
+/// than omission: this command's only Err is the failed start above, which
+/// happens before any server exists, and settings::write_settings cannot
+/// fail gracefully — it returns (), its store bootstrap is an expect and
+/// its serialization an unwrap, the plugin's Store::set is infallible, and
+/// the disk flush is a debounced background auto-save that discards its
+/// errors. A persist failure is therefore panic-shaped and takes the whole
+/// command down with it (no catch_unwind guards settings commands), so
+/// there is no running-server-then-Err window for cleanup code to handle;
+/// building any would be dead code.
 #[tauri::command]
 #[specta::specta]
 pub fn change_companion_devices_setting(app: AppHandle, enabled: bool) -> Result<(), String> {

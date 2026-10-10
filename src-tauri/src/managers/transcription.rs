@@ -575,9 +575,10 @@ pub fn emit_overlay_notice(app: &AppHandle, code: NoticeCode, detail: Option<Str
         code.as_str(),
         detail.as_deref().unwrap_or("-")
     );
-    // Cheap read-only probe, same overlay_style lookup the overlay show and
-    // hide paths make: a missing window or a failed is_visible() counts as
-    // not visible, so the probe never panics.
+    // Cheap read-only probe, same overlay_style lookup the overlay
+    // show paths make (the hide path hides unconditionally): a missing
+    // window or a failed is_visible() counts as not visible, so the
+    // probe never panics.
     let card_visible = get_settings(app).overlay_style != OverlayStyle::None
         && app
             .get_webview_window("recording_overlay")

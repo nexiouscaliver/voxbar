@@ -1203,7 +1203,7 @@
       "postProcessPromptCycled": "Nachbearbeitungsvorlage: {{name}}",
       "companionDisconnected": "Telefon getrennt. Das Aufgenommene wird fertiggestellt.",
       "companionServerFailed": "Begleitserver fehlgeschlagen: {{error}}",
-      "companionSessionCapped": "Diktat vom Begleitgerät beendet: Das Zeitlimit von 15 Minuten für die Sitzung wurde erreicht."
+      "companionSessionCapped": "Diktat vom Begleitgerät beendet: Das Zeitlimit von 15 Minuten für die Sitzung wurde auf {{device}} erreicht."
     },
     "commandBadge": "Befehlsmodus",
     "ppChip": "Bereinige ({{model}}) {{seconds}}s",

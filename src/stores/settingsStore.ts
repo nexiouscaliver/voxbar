@@ -100,6 +100,12 @@ const DEFAULT_AUDIO_DEVICE: AudioDevice = {
 let initializePromise: Promise<void> | null = null;
 const initializeUnlisteners: UnlistenFn[] = [];
 
+// AUD-10: the in-flight (or settled) lock probe from loadUpdateChecksLocked,
+// shared exactly like initializePromise above so every caller - the startup
+// initialize() pass and the update gate (updateCheckGate) - awaits the SAME
+// promise instead of racing a second probe against the first.
+let updateChecksLockedPromise: Promise<void> | null = null;
+
 const settingUpdaters: {
   [K in keyof Settings]?: (value: Settings[K]) => Promise<unknown>;
 } = {
@@ -745,17 +751,25 @@ export const useSettingsStore = create<SettingsStore>()(
     },
 
     // Check whether update checks are locked by system configuration
-    // (e.g. HANDY_DISABLE_UPDATER, set by the Nix package)
-    loadUpdateChecksLocked: async () => {
-      try {
-        const locked = await commands.isUpdateChecksLocked();
-        set({ updateChecksLocked: locked });
-      } catch (error) {
-        console.error("Failed to check update checks lock state:", error);
-        // Fail open: an unknown lock state means "not locked", otherwise the
-        // update checker waits for it forever and checks never start.
-        set({ updateChecksLocked: false });
+    // (e.g. HANDY_DISABLE_UPDATER, set by the Nix package). Shared via the
+    // module-level updateChecksLockedPromise: the first caller runs the
+    // probe and every later caller (the update gate, AUD-10) awaits the
+    // same in-flight promise instead of kicking off a duplicate.
+    loadUpdateChecksLocked: () => {
+      if (!updateChecksLockedPromise) {
+        updateChecksLockedPromise = (async () => {
+          try {
+            const locked = await commands.isUpdateChecksLocked();
+            set({ updateChecksLocked: locked });
+          } catch (error) {
+            console.error("Failed to check update checks lock state:", error);
+            // Fail open: an unknown lock state means "not locked", otherwise the
+            // update checker waits for it forever and checks never start.
+            set({ updateChecksLocked: false });
+          }
+        })();
       }
+      return updateChecksLockedPromise;
     },
 
     // Initialize everything. App-lifetime listeners are registered exactly
@@ -806,3 +820,11 @@ export const useSettingsStore = create<SettingsStore>()(
     },
   })),
 );
+
+// AUD-10: the lock probe the update gate (updateCheckGate) awaits. Routed
+// through the store action so the very first caller starts the probe and
+// every later caller shares it; never null, so the gate always holds on the
+// real in-flight promise rather than deciding against a missing one.
+export function getUpdateChecksLockedProbe(): Promise<void> {
+  return useSettingsStore.getState().loadUpdateChecksLocked();
+}
