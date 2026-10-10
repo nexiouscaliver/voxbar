@@ -123,7 +123,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: post-processing reborn. Local LLM models download and swap like voice models, cloud providers show real model lists you can test, every run is visible end to end and never loses your transcript, and a prompt library covers your language and register; phones on your network can act as microphones and triggers, off by default behind a toggle." \
+  --arg notes "VoxBar ${VERSION}: the honesty pass. Notices reach you when the recording card cannot show them, hotkeys and toggles stop failing silently, rebinding rejects chords another action owns, history retry honors your post-processing setting, onboarding survives an offline catalog, and two reviewer fleets closed about fifty findings." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \
