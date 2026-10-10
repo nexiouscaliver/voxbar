@@ -123,7 +123,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: the memory gate keeps its measurements per model so small models stop being refused for a big model's footprint, the menu bar can no longer unload or delete the model under a live dictation, quick command-key holds are parsed even when streaming misses them, paste keystroke failures surface instead of reporting success, and pairing prefers your Wi-Fi over a corporate VPN." \
+  --arg notes "VoxBar ${VERSION}: a failed auto-install no longer claims success while a second notification stacks on the error, settings rollbacks touch only the key that failed, the tray menu stays live after every prompt, provider, and unload-timeout change, history limits clean up before saving, channel switches recover their stream, and a second phone can no longer steal the live session badge." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \
