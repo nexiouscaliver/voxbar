@@ -1196,7 +1196,8 @@
       "postProcessCloudFailed": "O polimento falhou e a transcrição original foi mantida: {{detail}}",
       "postProcessPromptCycled": "Modelo de pós-processamento: {{name}}",
       "companionDisconnected": "Telefone desconectado. Finalizando com o que foi capturado.",
-      "companionServerFailed": "Falha no servidor companheiro: {{error}}"
+      "companionServerFailed": "Falha no servidor companheiro: {{error}}",
+      "companionSessionCapped": "Ditado do dispositivo companion encerrado: limite de sessão de 15 minutos atingido."
     },
     "commandBadge": "Modo de comandos",
     "ppChip": "Polindo ({{model}}) {{seconds}}s",

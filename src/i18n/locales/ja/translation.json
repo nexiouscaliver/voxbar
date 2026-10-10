@@ -1196,7 +1196,8 @@
       "postProcessCloudFailed": "整形に失敗したため、元の文字起こしが保持されました: {{detail}}",
       "postProcessPromptCycled": "後処理テンプレート: {{name}}",
       "companionDisconnected": "スマホが切断されました。録音済みの内容で確定します。",
-      "companionServerFailed": "コンパニオンサーバーが失敗しました: {{error}}"
+      "companionServerFailed": "コンパニオンサーバーが失敗しました: {{error}}",
+      "companionSessionCapped": "コンパニオン端末のディクテーションを終了しました:15分のセッション上限に達しました。"
     },
     "commandBadge": "コマンドモード",
     "ppChip": "整形中 ({{model}}) {{seconds}}秒",

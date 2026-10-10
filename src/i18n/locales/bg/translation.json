@@ -1196,7 +1196,8 @@
       "postProcessCloudFailed": "Изчистването се провали, запазен е оригиналният запис: {{detail}}",
       "postProcessPromptCycled": "Шаблон за последваща обработка: {{name}}",
       "companionDisconnected": "Телефонът се откъсна. Завършваме с уловеното.",
-      "companionServerFailed": "Провал на придружаващия сървър: {{error}}"
+      "companionServerFailed": "Провал на придружаващия сървър: {{error}}",
+      "companionSessionCapped": "Диктуването от придружаващото устройство приключи: достигнато е 15-минутното ограничение на сесията."
     },
     "commandBadge": "Команден режим",
     "ppChip": "Изчистване ({{model}}) {{seconds}}с",

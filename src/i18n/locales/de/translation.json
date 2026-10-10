@@ -1196,7 +1196,8 @@
       "postProcessCloudFailed": "Die Bereinigung ist fehlgeschlagen, das ursprüngliche Transkript wurde behalten: {{detail}}",
       "postProcessPromptCycled": "Nachbearbeitungsvorlage: {{name}}",
       "companionDisconnected": "Telefon getrennt. Das Aufgenommene wird fertiggestellt.",
-      "companionServerFailed": "Begleitserver fehlgeschlagen: {{error}}"
+      "companionServerFailed": "Begleitserver fehlgeschlagen: {{error}}",
+      "companionSessionCapped": "Diktat vom Begleitgerät beendet: Das Zeitlimit von 15 Minuten für die Sitzung wurde erreicht."
     },
     "commandBadge": "Befehlsmodus",
     "ppChip": "Bereinige ({{model}}) {{seconds}}s",

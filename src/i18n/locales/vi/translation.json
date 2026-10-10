@@ -1196,7 +1196,8 @@
       "postProcessCloudFailed": "Tinh chỉnh thất bại, bản gốc đã được giữ lại: {{detail}}",
       "postProcessPromptCycled": "Mẫu hậu xử lý: {{name}}",
       "companionDisconnected": "Điện thoại đã ngắt kết nối. Kết thúc với phần đã ghi.",
-      "companionServerFailed": "Máy chủ đồng hành lỗi: {{error}}"
+      "companionServerFailed": "Máy chủ đồng hành lỗi: {{error}}",
+      "companionSessionCapped": "Đọc chính tả từ thiết bị đồng hành đã kết thúc: đã đạt giới hạn phiên 15 phút."
     },
     "commandBadge": "Chế độ lệnh",
     "ppChip": "Đang tinh chỉnh ({{model}}) {{seconds}}s",

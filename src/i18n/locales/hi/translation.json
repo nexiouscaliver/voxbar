@@ -1199,7 +1199,8 @@
       "postProcessCloudFailed": "पॉलिश विफल रहा, मूल ट्रांसक्रिप्ट रखा गया: {{detail}}",
       "postProcessPromptCycled": "पोस्ट-प्रोसेस टेम्पलेट: {{name}}",
       "companionDisconnected": "फ़ोन का कनेक्शन कट गया। जो रिकॉर्ड हुआ उसी के साथ पूरा किया जा रहा है।",
-      "companionServerFailed": "कॉम्पैनियन सर्वर विफल: {{error}}"
+      "companionServerFailed": "कॉम्पैनियन सर्वर विफल: {{error}}",
+      "companionSessionCapped": "कंपेनियन डिवाइस से डिक्टेशन समाप्त: 15 मिनट की सेशन सीमा पूरी हुई।"
     },
     "commandBadge": "कमांड मोड",
     "ppChip": "पॉलिश हो रहा है ({{model}}) {{seconds}}s",

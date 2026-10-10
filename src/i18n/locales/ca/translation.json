@@ -1199,7 +1199,8 @@
       "postProcessCloudFailed": "El poliment ha fallat i s'ha conservat la transcripció original: {{detail}}",
       "postProcessPromptCycled": "Plantilla de postprocessament: {{name}}",
       "companionDisconnected": "Mòbil desconnectat. Es finalitza amb el capturat.",
-      "companionServerFailed": "El servidor acompanyant ha fallat: {{error}}"
+      "companionServerFailed": "El servidor acompanyant ha fallat: {{error}}",
+      "companionSessionCapped": "S'ha finalitzat el dictat del dispositiu acompanyant: s'ha arribat al límit de sessió de 15 minuts."
     },
     "commandBadge": "Mode d'ordres",
     "ppChip": "Polint ({{model}}) {{seconds}}s",

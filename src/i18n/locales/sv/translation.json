@@ -1196,7 +1196,8 @@
       "postProcessCloudFailed": "Poleringen misslyckades, den ursprungliga transkriptionen behölls: {{detail}}",
       "postProcessPromptCycled": "Efterbearbetningsmall: {{name}}",
       "companionDisconnected": "Telefonen kopplades från. Slutför med det som spelades in.",
-      "companionServerFailed": "Kompanionservern misslyckades: {{error}}"
+      "companionServerFailed": "Kompanionservern misslyckades: {{error}}",
+      "companionSessionCapped": "Dikteringen från companionenheten avslutades: sessionsgränsen på 15 minuter uppnåddes."
     },
     "commandBadge": "Kommandoläge",
     "ppChip": "Polerar ({{model}}) {{seconds}}s",

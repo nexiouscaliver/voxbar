@@ -1199,7 +1199,8 @@
       "postProcessCloudFailed": "पोलिस असफल भयो, मूल ट्रान्सक्रिप्ट राखियो: {{detail}}",
       "postProcessPromptCycled": "पोस्ट-प्रोसेस टेम्पलेट: {{name}}",
       "companionDisconnected": "फोन विच्छेद भयो। रेकर्ड भएकै कुराले टुंग्याइँदैछ।",
-      "companionServerFailed": "साथी सर्भर असफल: {{error}}"
+      "companionServerFailed": "साथी सर्भर असफल: {{error}}",
+      "companionSessionCapped": "कम्प्यानियन डिभाइसबाट भएको डिक्टेसन समाप्त भयो: १५ मिनेटको सत्र सीमा पुग्‍यो।"
     },
     "commandBadge": "कमाण्ड मोड",
     "ppChip": "पोलिस हुँदै ({{model}}) {{seconds}}s",

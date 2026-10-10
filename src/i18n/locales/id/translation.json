@@ -1199,7 +1199,8 @@
       "postProcessCloudFailed": "Pemolesan gagal, transkrip asli dipertahankan: {{detail}}",
       "postProcessPromptCycled": "Templat pasca-proses: {{name}}",
       "companionDisconnected": "Ponsel terputus. Menyelesaikan dengan yang terekam.",
-      "companionServerFailed": "Server pendamping gagal: {{error}}"
+      "companionServerFailed": "Server pendamping gagal: {{error}}",
+      "companionSessionCapped": "Dikte dari perangkat pendamping berakhir: batas sesi 15 menit telah tercapai."
     },
     "commandBadge": "Mode perintah",
     "ppChip": "Memoles ({{model}}) {{seconds}}d",

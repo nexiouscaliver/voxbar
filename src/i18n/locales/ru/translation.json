@@ -1196,7 +1196,8 @@
       "postProcessCloudFailed": "Обработка не удалась, исходный транскрипт сохранён: {{detail}}",
       "postProcessPromptCycled": "Шаблон постобработки: {{name}}",
       "companionDisconnected": "Телефон отключился. Завершаем с тем, что записано.",
-      "companionServerFailed": "Сбой сервера-спутника: {{error}}"
+      "companionServerFailed": "Сбой сервера-спутника: {{error}}",
+      "companionSessionCapped": "Диктовка с сопутствующего устройства завершена: достигнут 15-минутный лимит сеанса."
     },
     "commandBadge": "Режим команд",
     "ppChip": "Обработка ({{model}}) {{seconds}}с",

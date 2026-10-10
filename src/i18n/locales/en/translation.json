@@ -1199,7 +1199,8 @@
       "postProcessCloudFailed": "Polishing failed and the raw transcript was kept: {{detail}}",
       "postProcessPromptCycled": "Post-process template: {{name}}",
       "companionDisconnected": "Phone disconnected. Finishing with what was captured.",
-      "companionServerFailed": "Companion server failed: {{error}}"
+      "companionServerFailed": "Companion server failed: {{error}}",
+      "companionSessionCapped": "Companion dictation ended: the 15-minute session limit was reached."
     },
     "commandBadge": "Command mode",
     "ppChip": "Polishing ({{model}}) {{seconds}}s",

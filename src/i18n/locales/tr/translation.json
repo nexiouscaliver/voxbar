@@ -1196,7 +1196,8 @@
       "postProcessCloudFailed": "Parlatma başarısız oldu, özgün transkript korundu: {{detail}}",
       "postProcessPromptCycled": "Son işlem şablonu: {{name}}",
       "companionDisconnected": "Telefon bağlantısı kesildi. Kaydedilenle bitiriliyor.",
-      "companionServerFailed": "Eşlik sunucusu başarısız: {{error}}"
+      "companionServerFailed": "Eşlik sunucusu başarısız: {{error}}",
+      "companionSessionCapped": "Eşlik eden cihazdan dikte sona erdi: 15 dakikalık oturum sınırına ulaşıldı."
     },
     "commandBadge": "Komut modu",
     "ppChip": "Parlatılıyor ({{model}}) {{seconds}}sn",

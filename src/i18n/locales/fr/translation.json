@@ -1196,7 +1196,8 @@
       "postProcessCloudFailed": "Le polissage a échoué, la transcription brute a été conservée : {{detail}}",
       "postProcessPromptCycled": "Modèle de post-traitement : {{name}}",
       "companionDisconnected": "Téléphone déconnecté. On finalise avec ce qui a été capturé.",
-      "companionServerFailed": "Échec du serveur compagnon : {{error}}"
+      "companionServerFailed": "Échec du serveur compagnon : {{error}}",
+      "companionSessionCapped": "La dictée depuis l'appareil compagnon est terminée : la limite de session de 15 minutes a été atteinte."
     },
     "commandBadge": "Mode commandes",
     "ppChip": "Polish en cours ({{model}}) {{seconds}}s",

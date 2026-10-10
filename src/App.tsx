@@ -41,6 +41,8 @@ import {
   type SkipReason,
 } from "@/bindings";
 import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
+import { noticeMessage } from "@/lib/noticeMessage";
+import { notifyDesktop } from "@/lib/desktopNotify";
 import {
   failureClassToastKey,
   shouldToast,
@@ -61,6 +63,31 @@ const toastedSkipReasons = new Set<SkipReason>();
 // once-per-token dedupe, so a dead API key cannot re-toast every
 // dictation. The raw transcript is always pasted regardless.
 const toastedFailureClasses = new Set<PostProcessFailureClass>();
+
+// Overlay notice codes the App-level router owns: the ones with NO other
+// main-window surface. The no-op key feedback and the Linux setup warnings
+// (today's allowlist), the companion codes (KB-016: they had zero Mac-side
+// surface before this), and command-mode with no live dictation (KB-038,
+// formerly a dedicated listener). Every failure code with a dedicated
+// legacy listener (paste, recording start, model load/fallback,
+// transcription, the post-process skips) is deliberately absent: those
+// keep their legacy toast plus the error sound, and routing them here too
+// stacked two toasts for one failure whenever the card was hidden.
+// Retiring those legacy listeners is follow-up work.
+const ROUTED_NOTICE_CODES = new Set([
+  "delete_last_word_no_session",
+  "delete_last_word_no_buffer",
+  "undo_no_session",
+  "undo_no_buffer",
+  "binding_busy",
+  "post_process_prompt_cycled",
+  "wayland_tauri_hotkeys",
+  "gnome_overlay_fallback",
+  "companion_disconnected_finalized",
+  "companion_server_failed",
+  "companion_session_capped",
+  "command_mode_no_session",
+]);
 
 const renderSettingsContent = (
   section: SidebarSection,
@@ -356,69 +383,39 @@ function App() {
     })();
   }, []);
 
-  // The command-mode key pressed with no live dictation: the binding never
-  // starts a recording, so without feedback the press reads as "commands
-  // stopped working". Rate-limited: a key held through auto-repeat would
-  // otherwise stack toasts.
-  const lastCommandIdleToast = useRef(0);
-  useEffect(() => {
-    const unlisten = listen("command-mode-no-session", () => {
-      const now = Date.now();
-      if (now - lastCommandIdleToast.current < 2000) return;
-      lastCommandIdleToast.current = now;
-      toast.info(t("app.commandNoSession"), { duration: 4000 });
-    });
-    return () => {
-      unlisten.then((fn) => fn());
-    };
-  }, [t]);
-
-  // No-op key feedback from the notice channel: idle delete/undo presses,
-  // live-session presses with no buffer yet, cross-binding presses
-  // swallowed to protect a recording, and the Linux setup warnings (Wayland
-  // hotkey backend, GNOME overlay fallback). These have no other toast, so
-  // this listener is their main-window surface; the overlay shows the same
-  // message on its card when visible. Rate-limited per code (2s, the same
-  // window command-mode-no-session uses) so auto-repeat cannot stack; the
-  // Linux setup warnings stay up longer because they carry instructions.
+  // Notice router (KB-020): the overlay card renders a notice itself while
+  // it can (payload.card_visible); only card-less notices - the overlay was
+  // hidden or disabled at emit time - reach this router, and only for the
+  // codes it owns (ROUTED_NOTICE_CODES). Failure codes outside that set are
+  // ignored entirely (no toast, no notification, no rate-limit entry):
+  // their dedicated legacy listeners plus the error sound already cover
+  // the main window, and toasting them here too would stack two toasts for
+  // one failure. Codes the router owns but the shared mapping cannot
+  // localize skip silently (same as today). Rate-limited per code (2s) so
+  // auto-repeat cannot stack; the Linux setup warnings stay up longer
+  // because they carry instructions. When the main window is hidden the
+  // toast still renders into its webview for when it next opens, and a
+  // macOS notification (notifyDesktop) reaches the user now.
   const lastNoopNoticeToast = useRef<Record<string, number>>({});
   useEffect(() => {
     const unlisten = events.overlayNoticeEvent.listen((event) => {
-      const { code } = event.payload;
-      const keySuffix =
-        code === "delete_last_word_no_session"
-          ? "deleteLastWordNoSession"
-          : code === "delete_last_word_no_buffer"
-            ? "deleteLastWordNoBuffer"
-            : code === "undo_no_session"
-              ? "undoNoSession"
-              : code === "undo_no_buffer"
-                ? "undoNoBuffer"
-                : code === "binding_busy"
-                  ? "bindingBusy"
-                  : code === "post_process_prompt_cycled"
-                    ? "postProcessPromptCycled"
-                    : code === "wayland_tauri_hotkeys"
-                      ? "waylandTauriHotkeys"
-                      : code === "gnome_overlay_fallback"
-                        ? "gnomeOverlayFallback"
-                        : null;
-      if (keySuffix === null) return;
+      const { code, detail, kind, card_visible } = event.payload;
+      if (card_visible) return;
+      if (!ROUTED_NOTICE_CODES.has(code)) return;
+      const message = noticeMessage(t, code, detail);
+      if (message === null) return;
+      const now = Date.now();
+      if (now - (lastNoopNoticeToast.current[code] ?? 0) < 2000) return;
+      lastNoopNoticeToast.current[code] = now;
       const duration =
         code === "wayland_tauri_hotkeys" || code === "gnome_overlay_fallback"
           ? 12000
           : 4000;
-      const now = Date.now();
-      if (now - (lastNoopNoticeToast.current[code] ?? 0) < 2000) return;
-      lastNoopNoticeToast.current[code] = now;
-      toast.info(
-        code === "post_process_prompt_cycled"
-          ? t(`overlay.notice.${keySuffix}`, {
-              name: event.payload.detail ?? "",
-            })
-          : t(`overlay.notice.${keySuffix}`),
-        { duration },
-      );
+      const toastFn = kind === "error" ? toast.error : toast.info;
+      toastFn(message, { duration });
+      if (document.visibilityState !== "visible") {
+        void notifyDesktop(message);
+      }
     });
     return () => {
       unlisten.then((fn) => fn());

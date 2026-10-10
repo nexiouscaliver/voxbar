@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import i18n from "../../i18n";
 import { useSettingsStore } from "../../stores/settingsStore";
 import { commands } from "../../bindings";
+import { notifyDesktop } from "../../lib/desktopNotify";
 import {
   ConfirmUpdateCard,
   RestartPromptCard,
@@ -151,6 +152,11 @@ async function showFailureToast(id?: string | number): Promise<void> {
       onClick: () => void openUrl(RELEASES_URL),
     },
   });
+  // KB-148: this toast renders in the (often hidden) main window, so the
+  // same failure also rides an OS notification when nobody can see it.
+  if (document.visibilityState !== "visible") {
+    void notifyDesktop(t("footer.updater.failedTitle"));
+  }
 }
 
 // Download with a throttled progress toast (MB counter plus a real progress
@@ -323,6 +329,11 @@ function showRestartPrompt(update: Update, autoInstalled: boolean): void {
       }),
     { duration: Infinity },
   );
+  // KB-148: the restart prompt sits in the (often hidden) main window; the
+  // OS notification carries its title when the window cannot be seen.
+  if (document.visibilityState !== "visible") {
+    void notifyDesktop(t("footer.updater.restartTitle"));
+  }
 }
 
 export async function runUpdateCheck(
@@ -415,6 +426,13 @@ export async function runUpdateCheck(
     // release date and a notes excerpt. On download it transitions into the
     // progress toast and then the restart prompt; the card itself is
     // dismissed before any of that starts.
+    // KB-148: the ask card lives in the (often hidden) main window, so its
+    // title also rides an OS notification when the window cannot be seen.
+    if (document.visibilityState !== "visible") {
+      void notifyDesktop(
+        t("footer.updater.availableTitle", { version: update.version }),
+      );
+    }
     toast.custom(
       (id) =>
         React.createElement(ConfirmUpdateCard, {

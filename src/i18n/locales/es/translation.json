@@ -1196,7 +1196,8 @@
       "postProcessCloudFailed": "El pulido falló y se conservó la transcripción original: {{detail}}",
       "postProcessPromptCycled": "Plantilla de posprocesado: {{name}}",
       "companionDisconnected": "Teléfono desconectado. Se termina con lo capturado.",
-      "companionServerFailed": "El servidor acompañante falló: {{error}}"
+      "companionServerFailed": "El servidor acompañante falló: {{error}}",
+      "companionSessionCapped": "Finalizó el dictado del dispositivo acompañante: se alcanzó el límite de sesión de 15 minutos."
     },
     "commandBadge": "Modo de comandos",
     "ppChip": "Puliendo ({{model}}) {{seconds}}s",

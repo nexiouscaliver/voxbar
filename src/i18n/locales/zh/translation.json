@@ -1196,7 +1196,8 @@
       "postProcessCloudFailed": "润色失败，已保留原始转录：{{detail}}",
       "postProcessPromptCycled": "后处理模板：{{name}}",
       "companionDisconnected": "手机已断开。正在用已录下的内容收尾。",
-      "companionServerFailed": "伴侣服务器失败：{{error}}"
+      "companionServerFailed": "伴侣服务器失败：{{error}}",
+      "companionSessionCapped": "伴侣设备听写已结束：已达到 15 分钟的会话上限。"
     },
     "commandBadge": "命令模式",
     "ppChip": "润色中 ({{model}}) {{seconds}}秒",

@@ -4218,6 +4218,9 @@ mod tests {
             NoticeCode::PostProcessTimeout,
             NoticeCode::PostProcessLengthGuard,
             NoticeCode::PostProcessTooLong,
+            NoticeCode::PostProcessOutputInvalid,
+            NoticeCode::PostProcessCloudFailed,
+            NoticeCode::PostProcessPromptCycled,
             NoticeCode::DeleteLastWordNoSession,
             NoticeCode::DeleteLastWordNoBuffer,
             NoticeCode::UndoNoSession,
@@ -4225,6 +4228,8 @@ mod tests {
             NoticeCode::BindingBusy,
             NoticeCode::WaylandTauriHotkeys,
             NoticeCode::GnomeOverlayFallback,
+            NoticeCode::CompanionDisconnected,
+            NoticeCode::CompanionServerFailed,
             NoticeCode::CompanionSessionCapped,
             NoticeCode::CommandModeNoSession,
         ];
@@ -4249,6 +4254,9 @@ mod tests {
             NoticeCode::PostProcessEngineFailed,
             NoticeCode::PostProcessTimeout,
             NoticeCode::PostProcessLengthGuard,
+            NoticeCode::PostProcessOutputInvalid,
+            NoticeCode::PostProcessCloudFailed,
+            NoticeCode::CompanionServerFailed,
         ] {
             assert_eq!(
                 code.kind(),
@@ -4268,6 +4276,8 @@ mod tests {
             NoticeCode::BindingBusy,
             NoticeCode::WaylandTauriHotkeys,
             NoticeCode::GnomeOverlayFallback,
+            NoticeCode::PostProcessPromptCycled,
+            NoticeCode::CompanionDisconnected,
             NoticeCode::CompanionSessionCapped,
             NoticeCode::CommandModeNoSession,
         ] {
