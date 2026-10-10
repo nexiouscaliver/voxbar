@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Uchovávání"
-      }
+      },
+      "viaPostProcess": "přes {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Ladění",
@@ -899,6 +900,20 @@
         "permissionsButton": "Oprávnění",
         "modelsButton": "Výběr modelu",
         "exitButton": "Ukončit náhled"
+      },
+      "ppRuns": {
+        "title": "Průběhy dodatečného zpracování",
+        "description": "Nejnovější průběhy čištění: engine, prompt, latence a výsledek. Zkopírujte řádky protokolu průběhu pro diagnózu.",
+        "time": "Čas",
+        "engine": "Poskytovatel / model",
+        "prompt": "Prompt",
+        "latency": "Latence",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Výsledek",
+        "copyLog": "Zkopírovat řádky protokolu tohoto průběhu",
+        "copied": "Zkopírovány řádky protokolu průběhu {{run}}",
+        "empty": "Zatím žádné průběhy dodatečného zpracování.",
+        "live": "probíhá"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Stahovat a instalovat automaticky"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "použito",
+      "skipped": "přeskočeno",
+      "failed": "selhalo"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "Zatím není co vymazat, diktování nemá živý text.",
       "bindingBusy": "Jiná klávesa diktování už nahrává.",
       "waylandTauriHotkeys": "Globální zkratky při této implementaci klávesnice nemusí fungovat v nativních aplikacích Wayland. Přepněte implementaci klávesnice na VoxBar Keys a přidejte svého uživatele do skupiny input; viz průvodce pro Ubuntu.",
-      "gnomeOverlayFallback": "Na GNOME Wayland se překryv zobrazí jako běžné okno, které může ukrást fokus a rozbít vkládání. Doporučuje se zde Překryv: Žádné."
+      "gnomeOverlayFallback": "Na GNOME Wayland se překryv zobrazí jako běžné okno, které může ukrást fokus a rozbít vkládání. Doporučuje se zde Překryv: Žádné.",
+      "postProcessOutputInvalid": "Čištění vrátilo nepoužitelný text, původní přepis byl zachován.",
+      "postProcessCloudFailed": "Čištění selhalo, původní přepis byl zachován: {{detail}}"
     },
-    "commandBadge": "Režim příkazů"
+    "commandBadge": "Režim příkazů",
+    "ppChip": "Čistím ({{model}}) {{seconds}}s"
   },
   "whatsNew": {
     "title": "Novinky v VoxBar v{{version}}"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Následné zpracování bylo přeskočeno: výstup místního modelu neprošel kontrolou délky. Byl použit původní přepis.",
       "tooLong": "Následné zpracování bylo přeskočeno: tento přepis je pro místní model příliš dlouhý. Byl použit původní přepis."
     },
-    "settingNotSaved": "Toto nastavení se nepodařilo uložit: {{error}}"
+    "settingNotSaved": "Toto nastavení se nepodařilo uložit: {{error}}",
+    "postProcessFailure": {
+      "auth": "Čištění selhalo: poskytovatel odmítl klíč API. Původní přepis byl vložen.",
+      "network": "Čištění selhalo: poskytovatele nelze spojit. Původní přepis byl vložen.",
+      "timeout": "Čištění selhalo: poskytovatel odpovídal příliš dlouho. Původní přepis byl vložen.",
+      "contextLength": "Čištění selhalo: přepis překračuje kontextové okno modelu. Původní přepis byl vložen.",
+      "outputInvalid": "Čištění selhalo: model vrátil nepoužitelný text. Původní přepis byl vložen.",
+      "oom": "Čištění selhalo: nedostatek paměti. Původní přepis byl vložen.",
+      "cancelled": "Čištění bylo zrušeno. Původní přepis byl vložen."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar nemůže z tohoto umístění instalovat aktualizace",

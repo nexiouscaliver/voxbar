@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Conservation"
-      }
+      },
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Débogage",
@@ -899,6 +900,20 @@
         "permissionsButton": "Autorisations",
         "modelsButton": "Sélection du modèle",
         "exitButton": "Quitter l’aperçu"
+      },
+      "ppRuns": {
+        "title": "Passes de post-traitement",
+        "description": "Les dernières passes de polissage : moteur, prompt, latence et résultat. Copiez les lignes de journal d'une passe pour le diagnostic.",
+        "time": "Heure",
+        "engine": "Fournisseur / modèle",
+        "prompt": "Prompt",
+        "latency": "Latence",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Résultat",
+        "copyLog": "Copier les lignes de journal de cette passe",
+        "copied": "Lignes de journal de la passe {{run}} copiées",
+        "empty": "Aucune passe de post-traitement pour le moment.",
+        "live": "en cours"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Télécharger et installer automatiquement"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "appliqué",
+      "skipped": "ignoré",
+      "failed": "échoué"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "Rien à effacer pour l'instant, la dictée n'a pas encore de texte en direct.",
       "bindingBusy": "Une autre touche de dictée est déjà en train d'enregistrer.",
       "waylandTauriHotkeys": "Les raccourcis globaux peuvent ne pas fonctionner dans les applications Wayland natives avec cette implémentation clavier. Passez l'implémentation clavier à VoxBar Keys et ajoutez votre utilisateur au groupe input ; consultez le guide Ubuntu.",
-      "gnomeOverlayFallback": "Sous GNOME Wayland, l'overlay apparaît comme une fenêtre ordinaire qui peut voler le focus et casser le collage. Overlay : Aucune est recommandé ici."
+      "gnomeOverlayFallback": "Sous GNOME Wayland, l'overlay apparaît comme une fenêtre ordinaire qui peut voler le focus et casser le collage. Overlay : Aucune est recommandé ici.",
+      "postProcessOutputInvalid": "Le polissage a renvoyé un texte inutilisable, la transcription brute a été conservée.",
+      "postProcessCloudFailed": "Le polissage a échoué, la transcription brute a été conservée : {{detail}}"
     },
-    "commandBadge": "Mode commandes"
+    "commandBadge": "Mode commandes",
+    "ppChip": "Polish en cours ({{model}}) {{seconds}}s"
   },
   "whatsNew": {
     "title": "Nouveautés de VoxBar v{{version}}"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Post-traitement ignoré : la sortie du modèle local n'a pas passé la vérification de longueur. La transcription brute a été utilisée.",
       "tooLong": "Post-traitement ignoré : cette transcription est trop longue pour le modèle local. La transcription brute a été utilisée."
     },
-    "settingNotSaved": "Impossible d'enregistrer ce paramètre : {{error}}"
+    "settingNotSaved": "Impossible d'enregistrer ce paramètre : {{error}}",
+    "postProcessFailure": {
+      "auth": "Polissage échoué : le fournisseur a refusé la clé d'API. La transcription brute a été collée.",
+      "network": "Polissage échoué : le fournisseur est injoignable. La transcription brute a été collée.",
+      "timeout": "Polissage échoué : le fournisseur a mis trop de temps. La transcription brute a été collée.",
+      "contextLength": "Polissage échoué : la transcription dépasse la fenêtre de contexte du modèle. La transcription brute a été collée.",
+      "outputInvalid": "Polissage échoué : le modèle a renvoyé un texte inutilisable. La transcription brute a été collée.",
+      "oom": "Polissage échoué : mémoire insuffisante. La transcription brute a été collée.",
+      "cancelled": "Le polissage a été annulé. La transcription brute a été collée."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar ne peut pas installer de mises à jour depuis cet emplacement",

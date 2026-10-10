@@ -76,7 +76,7 @@ const OpenRecordingsButton: React.FC<OpenRecordingsButtonProps> = ({
 export const HistorySettings: React.FC = () => {
   const { t } = useTranslation();
   const osType = useOsType();
-  const { getSetting, updateSetting, isUpdating } = useSettings();
+  const { settings, getSetting, updateSetting, isUpdating } = useSettings();
 
   const showModelBadge = getSetting("show_history_model") ?? true;
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
@@ -268,6 +268,13 @@ export const HistorySettings: React.FC = () => {
                 key={entry.id}
                 entry={entry}
                 showModelBadge={showModelBadge}
+                promptName={
+                  entry.post_process_prompt_id
+                    ? settings?.post_process_prompts?.find(
+                        (prompt) => prompt.id === entry.post_process_prompt_id,
+                      )?.name
+                    : undefined
+                }
                 onToggleSaved={() => toggleSaved(entry.id)}
                 onCopyText={() => copyToClipboard(entry.transcription_text)}
                 getAudioUrl={getAudioUrl}
@@ -328,6 +335,9 @@ export const HistorySettings: React.FC = () => {
 interface HistoryEntryProps {
   entry: HistoryEntry;
   showModelBadge: boolean;
+  /** The selected prompt's display name for the entry's prompt id, when
+   * the entry carries a post-process summary and the prompt still exists. */
+  promptName?: string;
   onToggleSaved: () => void;
   onCopyText: () => Promise<boolean>;
   getAudioUrl: (fileName: string) => Promise<string | null>;
@@ -335,9 +345,18 @@ interface HistoryEntryProps {
   retryTranscription: (id: number) => Promise<void>;
 }
 
+/* The localized word for a pp outcome token's base ("applied" |
+ * "skipped:<reason>" | "failed:<class>"); the full token rides the row's
+ * tooltip. */
+const outcomeWord = (outcome: string, t: (key: string) => string): string => {
+  const base = outcome.split(":")[0];
+  return t(`settings.ppOutcome.${base}`);
+};
+
 const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   entry,
   showModelBadge,
+  promptName,
   onToggleSaved,
   onCopyText,
   getAudioUrl,
@@ -409,6 +428,31 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
                   chip names the model instead of truncating mid-path; the
                   full id rides along as the tooltip. */}
               {shortModelId(entry.model_id)}
+            </span>
+          ) : null}
+          {/* The pp: run summary (WS3): which engine and prompt polished
+           * this entry, how it ended, how long it took. Gated by the same
+           * show_history_model toggle as the ASR chip; pre-cycle entries
+           * carry no summary and render exactly as before. */}
+          {showModelBadge && entry.post_process_model ? (
+            <span
+              className="px-1.5 py-0.5 text-xs leading-none font-medium rounded bg-mid-gray/10 text-text/60 truncate"
+              title={`${t("settings.history.viaPostProcess", {
+                model: entry.post_process_model,
+                prompt: promptName ?? entry.post_process_prompt_id ?? "-",
+                outcome: entry.post_process_outcome ?? "-",
+                latency: entry.post_process_latency_ms ?? 0,
+              })}`}
+            >
+              {t("settings.history.viaPostProcess", {
+                model: shortModelId(entry.post_process_model),
+                prompt: promptName ?? entry.post_process_prompt_id ?? "-",
+                outcome: outcomeWord(
+                  entry.post_process_outcome ?? "applied",
+                  t,
+                ),
+                latency: entry.post_process_latency_ms ?? 0,
+              })}
             </span>
           ) : null}
         </div>

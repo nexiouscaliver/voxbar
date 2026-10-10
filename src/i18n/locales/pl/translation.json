@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Przechowywanie"
-      }
+      },
+      "viaPostProcess": "przez {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Debugowanie",
@@ -899,6 +900,20 @@
         "permissionsButton": "Uprawnienia",
         "modelsButton": "Wybór modelu",
         "exitButton": "Zakończ podgląd"
+      },
+      "ppRuns": {
+        "title": "Przebiegi przetwarzania",
+        "description": "Najnowsze przebiegi czyszczenia: silnik, prompt, opóźnienie i wynik. Skopiuj wiersze dziennika przebiegu do diagnozy.",
+        "time": "Czas",
+        "engine": "Dostawca / model",
+        "prompt": "Prompt",
+        "latency": "Opóźnienie",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Wynik",
+        "copyLog": "Skopiuj wiersze dziennika tego przebiegu",
+        "copied": "Skopiowano wiersze dziennika przebiegu {{run}}",
+        "empty": "Brak przebiegów przetwarzania.",
+        "live": "w toku"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Pobieraj i instaluj automatycznie"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "zastosowano",
+      "skipped": "pominięto",
+      "failed": "nie powiodło się"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "Nie ma jeszcze czego czyścić, dyktowanie nie ma tekstu na żywo.",
       "bindingBusy": "Inny klawisz dyktowania już nagrywa.",
       "waylandTauriHotkeys": "Skróty globalne mogą nie działać w natywnych aplikacjach Wayland przy tej implementacji klawiatury. Przełącz implementację klawiatury na VoxBar Keys i dodaj swojego użytkownika do grupy input; zobacz przewodnik dla Ubuntu.",
-      "gnomeOverlayFallback": "Na GNOME Wayland nakładka pojawia się jako zwykłe okno, które może przejąć fokus i zepsuć wklejanie. Zalecane jest tu Nakładka: Brak."
+      "gnomeOverlayFallback": "Na GNOME Wayland nakładka pojawia się jako zwykłe okno, które może przejąć fokus i zepsuć wklejanie. Zalecane jest tu Nakładka: Brak.",
+      "postProcessOutputInvalid": "Czyszczenie zwróciło nieużyteczny tekst, zachowano oryginalną transkrypcję.",
+      "postProcessCloudFailed": "Czyszczenie nie powiodło się, zachowano oryginalną transkrypcję: {{detail}}"
     },
-    "commandBadge": "Tryb poleceń"
+    "commandBadge": "Tryb poleceń",
+    "ppChip": "Czyszczę ({{model}}) {{seconds}}s"
   },
   "whatsNew": {
     "title": "Nowości w VoxBar v{{version}}"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Pominięto postprocessing: wynik modelu lokalnego nie przeszedł sprawdzania długości. Użyto oryginalnej transkrypcji.",
       "tooLong": "Pominięto postprocessing: ta transkrypcja jest za długa dla modelu lokalnego. Użyto oryginalnej transkrypcji."
     },
-    "settingNotSaved": "Nie udało się zapisać tego ustawienia: {{error}}"
+    "settingNotSaved": "Nie udało się zapisać tego ustawienia: {{error}}",
+    "postProcessFailure": {
+      "auth": "Czyszczenie nie powiodło się: dostawca odrzucił klucz API. Wklejono oryginalną transkrypcję.",
+      "network": "Czyszczenie nie powiodło się: nie można połączyć się z dostawcą. Wklejono oryginalną transkrypcję.",
+      "timeout": "Czyszczenie nie powiodło się: dostawca odpowiadał zbyt długo. Wklejono oryginalną transkrypcję.",
+      "contextLength": "Czyszczenie nie powiodło się: transkrypcja przekracza okno kontekstu modelu. Wklejono oryginalną transkrypcję.",
+      "outputInvalid": "Czyszczenie nie powiodło się: model zwrócił nieużyteczny tekst. Wklejono oryginalną transkrypcję.",
+      "oom": "Czyszczenie nie powiodło się: za mało pamięci. Wklejono oryginalną transkrypcję.",
+      "cancelled": "Czyszczenie zostało anulowane. Wklejono oryginalną transkrypcję."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar nie może instalować aktualizacji z tej lokalizacji",

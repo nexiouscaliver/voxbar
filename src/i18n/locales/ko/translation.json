@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "보존"
-      }
+      },
+      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms로 처리"
     },
     "debug": {
       "title": "디버그",
@@ -899,6 +900,20 @@
         "permissionsButton": "권한",
         "modelsButton": "모델 선택",
         "exitButton": "미리보기 종료"
+      },
+      "ppRuns": {
+        "title": "후처리 실행",
+        "description": "최근 다듬기 실행: 엔진, 프롬프트, 지연 시간, 결과. 진단을 위해 실행의 로그 줄을 복사할 수 있습니다.",
+        "time": "시각",
+        "engine": "공급자 / 모델",
+        "prompt": "프롬프트",
+        "latency": "지연 시간",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "결과",
+        "copyLog": "이 실행의 로그 줄 복사",
+        "copied": "실행 {{run}}의 로그 줄을 복사했습니다",
+        "empty": "아직 후처리 실행이 없습니다.",
+        "live": "실행 중"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "자동으로 다운로드 및 설치"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "적용됨",
+      "skipped": "건너뜀",
+      "failed": "실패"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "아직 지울 내용이 없습니다. 받아쓰기에 실시간 텍스트가 없습니다.",
       "bindingBusy": "다른 받아쓰기 키가 이미 녹음 중입니다.",
       "waylandTauriHotkeys": "이 키보드 구현에서는 네이티브 Wayland 앱에서 전역 단축키가 작동하지 않을 수 있습니다. 키보드 구현을 VoxBar Keys로 전환하고 사용자를 input 그룹에 추가하세요. Ubuntu 가이드를 참고하세요.",
-      "gnomeOverlayFallback": "GNOME Wayland에서는 오버레이가 일반 창으로 표시되어 포커스를 빼앗고 붙여넣기를 망칠 수 있습니다. 여기서는 오버레이: 없음을 권장합니다."
+      "gnomeOverlayFallback": "GNOME Wayland에서는 오버레이가 일반 창으로 표시되어 포커스를 빼앗고 붙여넣기를 망칠 수 있습니다. 여기서는 오버레이: 없음을 권장합니다.",
+      "postProcessOutputInvalid": "다듬기에서 사용할 수 없는 텍스트가 반환되어 원본 전사가 유지되었습니다.",
+      "postProcessCloudFailed": "다듬기가 실패하여 원본 전사가 유지되었습니다: {{detail}}"
     },
-    "commandBadge": "명령 모드"
+    "commandBadge": "명령 모드",
+    "ppChip": "다듬는 중 ({{model}}) {{seconds}}초"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}}의 새 소식"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "후처리를 건너뛰었습니다: 로컬 모델 출력이 길이 검사를 통과하지 못했습니다. 원본 전사 내용을 사용했습니다.",
       "tooLong": "후처리를 건너뛰었습니다: 이 전사 내용은 로컬 모델에 너무 깁니다. 원본 전사 내용을 사용했습니다."
     },
-    "settingNotSaved": "이 설정을 저장할 수 없습니다: {{error}}"
+    "settingNotSaved": "이 설정을 저장할 수 없습니다: {{error}}",
+    "postProcessFailure": {
+      "auth": "다듬기 실패: 공급자가 API 키를 거부했습니다. 원본 전사가 붙여넣어졌습니다.",
+      "network": "다듬기 실패: 공급자에 연결할 수 없습니다. 원본 전사가 붙여넣어졌습니다.",
+      "timeout": "다듬기 실패: 공급자 응답이 너무 오래 걸렸습니다. 원본 전사가 붙여넣어졌습니다.",
+      "contextLength": "다듬기 실패: 전사가 모델의 컨텍스트 창을 초과합니다. 원본 전사가 붙여넣어졌습니다.",
+      "outputInvalid": "다듬기 실패: 모델이 사용할 수 없는 텍스트를 반환했습니다. 원본 전사가 붙여넣어졌습니다.",
+      "oom": "다듬기 실패: 메모리가 부족합니다. 원본 전사가 붙여넣어졌습니다.",
+      "cancelled": "다듬기가 취소되었습니다. 원본 전사가 붙여넣어졌습니다."
+    }
   },
   "app": {
     "translocatedTitle": "이 위치에서는 업데이트를 설치할 수 없습니다",

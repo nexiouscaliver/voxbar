@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Retenció"
-      }
+      },
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Depuració",
@@ -899,6 +900,20 @@
         "verdictOk": "Els esdeveniments de tecla arriben al VoxBar amb normalitat.",
         "verdictNoEvents": "No s'ha capturat cap esdeveniment. Heu premut alguna tecla durant la prova?",
         "failed": "El diagnòstic ha fallat: {{error}}"
+      },
+      "ppRuns": {
+        "title": "Execucions de postprocessament",
+        "description": "Les execucions de poliment més recents: motor, prompt, latència i resultat. Copieu les línies de registre d'una execució per al diagnòstic.",
+        "time": "Hora",
+        "engine": "Proveïdor / model",
+        "prompt": "Prompt",
+        "latency": "Latència",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Resultat",
+        "copyLog": "Copia les línies de registre d'aquesta execució",
+        "copied": "S'han copiat les línies de registre de l'execució {{run}}",
+        "empty": "Encara no hi ha execucions de postprocessament.",
+        "live": "en curs"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Baixa i instal·la automàticament"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "aplicat",
+      "skipped": "omès",
+      "failed": "fallat"
     }
   },
   "footer": {
@@ -1066,9 +1086,12 @@
       "undoNoBuffer": "Encara no hi ha res a netejar, el dictat no té text en directe.",
       "bindingBusy": "Una altra tecla de dictat ja està gravant.",
       "waylandTauriHotkeys": "És possible que les dreceres globals no funcionin a les aplicacions Wayland natives amb aquesta implementació de teclat. Canvieu la implementació del teclat a VoxBar Keys i afegiu el vostre usuari al grup input; consulteu la guia d'Ubuntu.",
-      "gnomeOverlayFallback": "Al GNOME Wayland, la finestra superposada apareix com una finestra normal que pot robar el focus i trencar l'enganxat. Aquí es recomana Superposició: Cap."
+      "gnomeOverlayFallback": "Al GNOME Wayland, la finestra superposada apareix com una finestra normal que pot robar el focus i trencar l'enganxat. Aquí es recomana Superposició: Cap.",
+      "postProcessOutputInvalid": "El poliment ha retornat text inútil, s'ha conservat la transcripció original.",
+      "postProcessCloudFailed": "El poliment ha fallat i s'ha conservat la transcripció original: {{detail}}"
     },
-    "commandBadge": "Mode d'ordres"
+    "commandBadge": "Mode d'ordres",
+    "ppChip": "Polint ({{model}}) {{seconds}}s"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} pot estar blocant 1 drecera",
@@ -1090,7 +1113,16 @@
       "lengthGuard": "S'ha omès el postprocessament: la sortida del model local no ha passat la comprovació de longitud. S'ha usat la transcripció original.",
       "tooLong": "S'ha omès el postprocessament: aquesta transcripció és massa llarga per al model local. S'ha usat la transcripció original."
     },
-    "settingNotSaved": "No s'ha pogut desar aquesta configuració: {{error}}"
+    "settingNotSaved": "No s'ha pogut desar aquesta configuració: {{error}}",
+    "postProcessFailure": {
+      "auth": "El poliment ha fallat: el proveïdor ha rebutjat la clau de l'API. S'ha enganxat la transcripció original.",
+      "network": "El poliment ha fallat: no s'ha pogut contactar amb el proveïdor. S'ha enganxat la transcripció original.",
+      "timeout": "El poliment ha fallat: el proveïdor ha trigat massa. S'ha enganxat la transcripció original.",
+      "contextLength": "El poliment ha fallat: la transcripció supera la finestra de context del model. S'ha enganxat la transcripció original.",
+      "outputInvalid": "El poliment ha fallat: el model ha retornat text inútil. S'ha enganxat la transcripció original.",
+      "oom": "El poliment ha fallat: no hi ha prou memòria. S'ha enganxat la transcripció original.",
+      "cancelled": "S'ha cancel·lat el poliment. S'ha enganxat la transcripció original."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar no pot instal·lar actualitzacions des d'aquesta ubicació",

@@ -34,9 +34,15 @@ import { WhatsNewGate } from "./components/whats-new";
 import { runUpdateCheck } from "./components/update-checker/updaterFlow";
 import { useSettings } from "./hooks/useSettings";
 import { useSettingsStore } from "./stores/settingsStore";
-import { commands, events, type SkipReason } from "@/bindings";
+import {
+  commands,
+  events,
+  type PostProcessFailureClass,
+  type SkipReason,
+} from "@/bindings";
 import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
 import {
+  failureClassToastKey,
   shouldToast,
   skipToastKey,
 } from "./components/settings/post-processing/skipToastDedupe";
@@ -50,6 +56,11 @@ const NOOP = () => {};
 // at most one toast per reason per session). Module-level by design so
 // re-renders and remounts never reset the dedupe window.
 const toastedSkipReasons = new Set<SkipReason>();
+
+// Post-process failure classes already toasted this app session: the same
+// once-per-token dedupe, so a dead API key cannot re-toast every
+// dictation. The raw transcript is always pasted regardless.
+const toastedFailureClasses = new Set<PostProcessFailureClass>();
 
 const renderSettingsContent = (
   section: SidebarSection,
@@ -273,6 +284,32 @@ function App() {
       } else {
         toastFn(t(key));
       }
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
+  // The pp: lifecycle's outcome (WS3): a FAILED cloud run toasts once per
+  // failure class per app session with class-specific copy (before this,
+  // cloud failures only warn!ed voxbar.log). Skips keep their existing
+  // PostProcessSkipEvent toasts below; the overlay card carries the same
+  // failure through the notice channel while it is visible. The raw
+  // transcript is always pasted; the toast names why.
+  useEffect(() => {
+    const unlisten = events.postProcessRunEvent.listen((event) => {
+      const { phase, payload } = event.payload;
+      if (phase !== "outcome") return;
+      if (payload.outcome?.kind !== "failed") return;
+      const cls = payload.outcome.class;
+      if (!shouldToast(toastedFailureClasses, cls)) return;
+      const key = `toast.postProcessFailure.${failureClassToastKey(cls)}`;
+      const description = [payload.provider_id, payload.model]
+        .filter(Boolean)
+        .join("/");
+      toast.error(t(key), {
+        description: description || undefined,
+      });
     });
     return () => {
       unlisten.then((fn) => fn());

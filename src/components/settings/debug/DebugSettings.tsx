@@ -5,6 +5,7 @@ import { LiveLogViewer } from "./LiveLogViewer";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { WhatsNewPreview } from "./WhatsNewPreview";
 import { KeyboardDiagnostic } from "./KeyboardDiagnostic";
+import { PostProcessRunsTable } from "./PostProcessRunsTable";
 import {
   OnboardingPreview,
   type OnboardingPreviewStep,
@@ -15,9 +16,10 @@ interface DebugSettingsProps {
 }
 
 /**
- * Actual diagnostics only: log level, live log, preview hooks and the
- * keyboard event diagnostic. Every setting that used to hide here has moved
- * to the tab that owns the behavior it configures.
+ * Actual diagnostics only: log level, live log, the post-process runs
+ * table, preview hooks and the keyboard event diagnostic. Every setting
+ * that used to hide here has moved to the tab that owns the behavior it
+ * configures.
  */
 export const DebugSettings: React.FC<DebugSettingsProps> = ({
   onPreviewOnboarding,
@@ -37,6 +39,7 @@ export const DebugSettings: React.FC<DebugSettingsProps> = ({
           />
         )}
         <KeyboardDiagnostic />
+        <PostProcessRunsTable descriptionMode="tooltip" grouped={true} />
         <LiveLogViewer descriptionMode="tooltip" grouped={true} />
       </SettingsGroup>
     </div>

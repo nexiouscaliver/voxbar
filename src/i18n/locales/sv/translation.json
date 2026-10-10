@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Lagring"
-      }
+      },
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Felsökning",
@@ -899,6 +900,20 @@
         "permissionsButton": "Behörigheter",
         "modelsButton": "Modellval",
         "exitButton": "Avsluta förhandsvisning"
+      },
+      "ppRuns": {
+        "title": "Efterbearbetningskörningar",
+        "description": "De senaste poleringskörningarna: motor, prompt, latens och utfall. Kopiera en körnings loggrader för diagnos.",
+        "time": "Tid",
+        "engine": "Leverantör / modell",
+        "prompt": "Prompt",
+        "latency": "Latens",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Utfall",
+        "copyLog": "Kopiera denna körnings loggrader",
+        "copied": "Kopierade loggrader för körning {{run}}",
+        "empty": "Inga efterbearbetningskörningar än.",
+        "live": "pågår"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Hämta och installera automatiskt"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "tillämpad",
+      "skipped": "hoppades över",
+      "failed": "misslyckades"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "Det finns inget att rensa än, dikteringen har ingen direkt text.",
       "bindingBusy": "En annan dikteringstangent spelar redan in.",
       "waylandTauriHotkeys": "Globala genvägar kanske inte fungerar i nativa Wayland-appar med den här tangentbordsimplementeringen. Byt tangentbordsimplementering till VoxBar Keys och lägg till din användare i gruppen input; se Ubuntu-guiden.",
-      "gnomeOverlayFallback": "På GNOME Wayland visas overlayet som ett vanligt fönster som kan stjäla fokus och förstöra inklistring. Overlay: Ingen rekommenderas här."
+      "gnomeOverlayFallback": "På GNOME Wayland visas overlayet som ett vanligt fönster som kan stjäla fokus och förstöra inklistring. Overlay: Ingen rekommenderas här.",
+      "postProcessOutputInvalid": "Poleringen returnerade oanvändbar text, den ursprungliga transkriptionen behölls.",
+      "postProcessCloudFailed": "Poleringen misslyckades, den ursprungliga transkriptionen behölls: {{detail}}"
     },
-    "commandBadge": "Kommandoläge"
+    "commandBadge": "Kommandoläge",
+    "ppChip": "Polerar ({{model}}) {{seconds}}s"
   },
   "whatsNew": {
     "title": "Nytt i VoxBar v{{version}}"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Efterbearbetning hoppades över: den lokala modellens utdata klarade inte längdkontrollen. Den ursprungliga transkriptionen användes.",
       "tooLong": "Efterbearbetning hoppades över: denna transkription är för lång för den lokala modellen. Den ursprungliga transkriptionen användes."
     },
-    "settingNotSaved": "Den här inställningen kunde inte sparas: {{error}}"
+    "settingNotSaved": "Den här inställningen kunde inte sparas: {{error}}",
+    "postProcessFailure": {
+      "auth": "Polering misslyckades: leverantören avvisade API-nyckeln. Den ursprungliga transkriptionen klistrades in.",
+      "network": "Polering misslyckades: leverantören kunde inte nås. Den ursprungliga transkriptionen klistrades in.",
+      "timeout": "Polering misslyckades: leverantören tog för lång tid. Den ursprungliga transkriptionen klistrades in.",
+      "contextLength": "Polering misslyckades: transkriptionen överskrider modellens kontextfönster. Den ursprungliga transkriptionen klistrades in.",
+      "outputInvalid": "Polering misslyckades: modellen returnerade oanvändbar text. Den ursprungliga transkriptionen klistrades in.",
+      "oom": "Polering misslyckades: för lite minne. Den ursprungliga transkriptionen klistrades in.",
+      "cancelled": "Poleringen avbröts. Den ursprungliga transkriptionen klistrades in."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar kan inte installera uppdateringar från denna plats",

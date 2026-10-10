@@ -97,9 +97,14 @@ pub async fn retry_history_entry_transcription(
     // The history retry owns no cancel generation (no recording session is
     // live); the swap runner still has its own abort signals (pending
     // press, recording started) and its total deadline.
-    let processed =
-        process_transcription_output(&app, &transcription, entry.post_process_requested, None)
-            .await;
+    let processed = process_transcription_output(
+        &app,
+        "history_retry",
+        &transcription,
+        entry.post_process_requested,
+        None,
+    )
+    .await;
     history_manager
         .update_transcription(
             id,

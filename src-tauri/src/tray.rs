@@ -1229,6 +1229,11 @@ mod tests {
             post_process_prompt: None,
             post_process_requested: false,
             model_id: None,
+            post_process_provider: None,
+            post_process_model: None,
+            post_process_prompt_id: None,
+            post_process_outcome: None,
+            post_process_latency_ms: None,
         }
     }
 

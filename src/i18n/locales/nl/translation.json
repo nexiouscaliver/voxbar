@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Bewaartermijn"
-      }
+      },
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Probleemoplossing",
@@ -899,6 +900,20 @@
         "verdictOk": "Toetsgebeurtenissen bereiken VoxBar normaal.",
         "verdictNoEvents": "Geen gebeurtenissen vastgelegd - heb je tijdens de test toetsen ingedrukt?",
         "failed": "Diagnose mislukt: {{error}}"
+      },
+      "ppRuns": {
+        "title": "Nabewerkingsruns",
+        "description": "De recentste bijschaverruns: engine, prompt, latentie en uitkomst. Kopieer de logregels van een run voor diagnose.",
+        "time": "Tijd",
+        "engine": "Aanbieder / model",
+        "prompt": "Prompt",
+        "latency": "Latentie",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Uitkomst",
+        "copyLog": "Logregels van deze run kopiëren",
+        "copied": "Logregels van run {{run}} gekopieerd",
+        "empty": "Nog geen nabewerkingsruns.",
+        "live": "bezig"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Automatisch downloaden en installeren"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "toegepast",
+      "skipped": "overgeslagen",
+      "failed": "mislukt"
     }
   },
   "footer": {
@@ -1066,9 +1086,12 @@
       "undoNoBuffer": "Nog niets om leeg te maken, de dicteersessie heeft nog geen live tekst.",
       "bindingBusy": "Een andere dicteertoets neemt al op.",
       "waylandTauriHotkeys": "Globale sneltoetsen werken mogelijk niet in native Wayland-apps met deze toetsenbordimplementatie. Schakel de toetsenbordimplementatie om naar VoxBar Keys en voeg je gebruiker toe aan de groep input; zie de Ubuntu-gids.",
-      "gnomeOverlayFallback": "Op GNOME Wayland verschijnt de overlay als een gewoon venster dat focus kan stelen en plakken kan breken. Hier wordt Overlay: Geen aangeraden."
+      "gnomeOverlayFallback": "Op GNOME Wayland verschijnt de overlay als een gewoon venster dat focus kan stelen en plakken kan breken. Hier wordt Overlay: Geen aangeraden.",
+      "postProcessOutputInvalid": "Het bijschaven leverde onbruikbare tekst op, de oorspronkelijke transcriptie is gehouden.",
+      "postProcessCloudFailed": "Het bijschaven mislukte, de oorspronkelijke transcriptie is gehouden: {{detail}}"
     },
-    "commandBadge": "Opdrachtmodus"
+    "commandBadge": "Opdrachtmodus",
+    "ppChip": "Bijschaven ({{model}}) {{seconds}}s"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blokkeert mogelijk 1 sneltoets",
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Naverwerking overgeslagen: de uitvoer van het lokale model slaagde niet voor de lengtecontrole. De originele transcriptie is gebruikt.",
       "tooLong": "Naverwerking overgeslagen: deze transcriptie is te lang voor het lokale model. De originele transcriptie is gebruikt."
     },
-    "settingNotSaved": "Deze instelling kon niet worden opgeslagen: {{error}}"
+    "settingNotSaved": "Deze instelling kon niet worden opgeslagen: {{error}}",
+    "postProcessFailure": {
+      "auth": "Bijschaven mislukt: de aanbieder wees de API-sleutel af. De oorspronkelijke transcriptie is geplakt.",
+      "network": "Bijschaven mislukt: de aanbieder is onbereikbaar. De oorspronkelijke transcriptie is geplakt.",
+      "timeout": "Bijschaven mislukt: de aanbieder deed er te lang over. De oorspronkelijke transcriptie is geplakt.",
+      "contextLength": "Bijschaven mislukt: de transcriptie overschrijdt het contextvenster van het model. De oorspronkelijke transcriptie is geplakt.",
+      "outputInvalid": "Bijschaven mislukt: het model leverde onbruikbare tekst op. De oorspronkelijke transcriptie is geplakt.",
+      "oom": "Bijschaven mislukt: te weinig geheugen. De oorspronkelijke transcriptie is geplakt.",
+      "cancelled": "Het bijschaven is geannuleerd. De oorspronkelijke transcriptie is geplakt."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar kan vanaf deze locatie geen updates installeren",

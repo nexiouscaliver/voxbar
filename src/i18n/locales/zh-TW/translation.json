@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "保留"
-      }
+      },
+      "viaPostProcess": "經 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒處理"
     },
     "debug": {
       "title": "偵錯",
@@ -899,6 +900,20 @@
         "permissionsButton": "權限",
         "modelsButton": "模型選擇",
         "exitButton": "結束預覽"
+      },
+      "ppRuns": {
+        "title": "後處理執行",
+        "description": "最近的潤飾執行：引擎、提示詞、延遲與結果。可複製某次執行的日誌行用於診斷。",
+        "time": "時間",
+        "engine": "供應商 / 模型",
+        "prompt": "提示詞",
+        "latency": "延遲",
+        "latencyMs": "{{ms}} 毫秒",
+        "outcome": "結果",
+        "copyLog": "複製此次執行的日誌行",
+        "copied": "已複製執行 {{run}} 的日誌行",
+        "empty": "還沒有後處理執行。",
+        "live": "進行中"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "自動下載並安裝"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "已套用",
+      "skipped": "已略過",
+      "failed": "失敗"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "還沒有可清除的內容，聽寫中沒有即時文字。",
       "bindingBusy": "另一個聽寫按鍵已在錄音中。",
       "waylandTauriHotkeys": "在此鍵盤實作下，原生 Wayland 應用程式中的全域快捷鍵可能失效。請將鍵盤實作切換為 VoxBar Keys，並把使用者加入 input 群組；詳見 Ubuntu 疑難排解指南。",
-      "gnomeOverlayFallback": "在 GNOME Wayland 上，懸浮窗會以一般視窗形式出現，可能搶走焦點並破壞貼上。此處建議將懸浮窗設為無。"
+      "gnomeOverlayFallback": "在 GNOME Wayland 上，懸浮窗會以一般視窗形式出現，可能搶走焦點並破壞貼上。此處建議將懸浮窗設為無。",
+      "postProcessOutputInvalid": "潤飾回傳了無法使用的文字，已保留原始謄寫。",
+      "postProcessCloudFailed": "潤飾失敗，已保留原始謄寫：{{detail}}"
     },
-    "commandBadge": "命令模式"
+    "commandBadge": "命令模式",
+    "ppChip": "潤飾中 ({{model}}) {{seconds}}秒"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} 新功能"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "已跳過後處理：本地模型的輸出未通過長度檢查。已使用原始轉錄。",
       "tooLong": "已跳過後處理：此轉錄對本地模型來說過長。已使用原始轉錄。"
     },
-    "settingNotSaved": "無法儲存此設定：{{error}}"
+    "settingNotSaved": "無法儲存此設定：{{error}}",
+    "postProcessFailure": {
+      "auth": "潤飾失敗：供應商拒絕了 API 金鑰。已貼上原始謄寫。",
+      "network": "潤飾失敗：無法連線到供應商。已貼上原始謄寫。",
+      "timeout": "潤飾失敗：供應商回應過久。已貼上原始謄寫。",
+      "contextLength": "潤飾失敗：謄寫超過模型的上下文視窗。已貼上原始謄寫。",
+      "outputInvalid": "潤飾失敗：模型回傳了無法使用的文字。已貼上原始謄寫。",
+      "oom": "潤飾失敗：記憶體不足。已貼上原始謄寫。",
+      "cancelled": "潤飾已取消。已貼上原始謄寫。"
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar 無法從此位置安裝更新",

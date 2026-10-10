@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Conservazione"
-      }
+      },
+      "viaPostProcess": "tramite {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Debug",
@@ -899,6 +900,20 @@
         "permissionsButton": "Autorizzazioni",
         "modelsButton": "Selezione del modello",
         "exitButton": "Esci dall’anteprima"
+      },
+      "ppRuns": {
+        "title": "Esecuzioni di post-processing",
+        "description": "Le esecuzioni di rifinitura più recenti: motore, prompt, latenza ed esito. Copia le righe di log di un'esecuzione per la diagnosi.",
+        "time": "Ora",
+        "engine": "Provider / modello",
+        "prompt": "Prompt",
+        "latency": "Latenza",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Esito",
+        "copyLog": "Copia le righe di log di questa esecuzione",
+        "copied": "Righe di log dell'esecuzione {{run}} copiate",
+        "empty": "Nessuna esecuzione di post-processing per ora.",
+        "live": "in corso"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Scarica e installa automaticamente"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "applicato",
+      "skipped": "saltato",
+      "failed": "non riuscito"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "Ancora niente da svuotare, la dettatura non ha testo in diretta.",
       "bindingBusy": "Un altro tasto di dettatura sta già registrando.",
       "waylandTauriHotkeys": "Le scorciatoie globali potrebbero non funzionare nelle app Wayland native con questa implementazione della tastiera. Passa l'implementazione della tastiera a VoxBar Keys e aggiungi il tuo utente al gruppo input; consulta la guida per Ubuntu.",
-      "gnomeOverlayFallback": "Su GNOME Wayland l'overlay appare come una finestra normale che può rubare il focus e interrompere l'incollamento. Qui si consiglia Overlay: Nessuno."
+      "gnomeOverlayFallback": "Su GNOME Wayland l'overlay appare come una finestra normale che può rubare il focus e interrompere l'incollamento. Qui si consiglia Overlay: Nessuno.",
+      "postProcessOutputInvalid": "La rifinitura ha restituito testo inutilizzabile, la trascrizione originale è stata mantenuta.",
+      "postProcessCloudFailed": "La rifinitura non è riuscita, la trascrizione originale è stata mantenuta: {{detail}}"
     },
-    "commandBadge": "Modalità comandi"
+    "commandBadge": "Modalità comandi",
+    "ppChip": "Rifinitura ({{model}}) {{seconds}}s"
   },
   "whatsNew": {
     "title": "Novità in VoxBar v{{version}}"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Post-elaborazione saltata: l'output del modello locale non ha superato il controllo di lunghezza. È stata usata la trascrizione originale.",
       "tooLong": "Post-elaborazione saltata: questa trascrizione è troppo lunga per il modello locale. È stata usata la trascrizione originale."
     },
-    "settingNotSaved": "Impossibile salvare questa impostazione: {{error}}"
+    "settingNotSaved": "Impossibile salvare questa impostazione: {{error}}",
+    "postProcessFailure": {
+      "auth": "Rifinitura non riuscita: il provider ha rifiutato la chiave API. La trascrizione originale è stata incollata.",
+      "network": "Rifinitura non riuscita: il provider non è raggiungibile. La trascrizione originale è stata incollata.",
+      "timeout": "Rifinitura non riuscita: il provider ha impiegato troppo tempo. La trascrizione originale è stata incollata.",
+      "contextLength": "Rifinitura non riuscita: la trascrizione supera la finestra di contesto del modello. La trascrizione originale è stata incollata.",
+      "outputInvalid": "Rifinitura non riuscita: il modello ha restituito testo inutilizzabile. La trascrizione originale è stata incollata.",
+      "oom": "Rifinitura non riuscita: memoria insufficiente. La trascrizione originale è stata incollata.",
+      "cancelled": "La rifinitura è stata annullata. La trascrizione originale è stata incollata."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar non può installare aggiornamenti da questa posizione",

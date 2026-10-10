@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Retención"
-      }
+      },
+      "viaPostProcess": "vía {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Depuración",
@@ -899,6 +900,20 @@
         "permissionsButton": "Permisos",
         "modelsButton": "Selección de modelo",
         "exitButton": "Salir de la vista previa"
+      },
+      "ppRuns": {
+        "title": "Ejecuciones de posprocesado",
+        "description": "Las ejecuciones de pulido más recientes: motor, prompt, latencia y resultado. Copia las líneas de registro de una ejecución para el diagnóstico.",
+        "time": "Hora",
+        "engine": "Proveedor / modelo",
+        "prompt": "Prompt",
+        "latency": "Latencia",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Resultado",
+        "copyLog": "Copiar las líneas de registro de esta ejecución",
+        "copied": "Líneas de registro de la ejecución {{run}} copiadas",
+        "empty": "Aún no hay ejecuciones de posprocesado.",
+        "live": "en curso"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Descargar e instalar automáticamente"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "aplicado",
+      "skipped": "omitido",
+      "failed": "fallido"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "Aún no hay nada que limpiar, el dictado no tiene texto en vivo.",
       "bindingBusy": "Otra tecla de dictado ya está grabando.",
       "waylandTauriHotkeys": "Es posible que los atajos globales no funcionen en las aplicaciones nativas de Wayland con esta implementación de teclado. Cambia la implementación de teclado a VoxBar Keys y añade tu usuario al grupo input; consulta la guía de Ubuntu.",
-      "gnomeOverlayFallback": "En GNOME Wayland la superposición aparece como una ventana normal que puede robar el foco y romper el pegado. Aquí se recomienda Superposición: Ninguna."
+      "gnomeOverlayFallback": "En GNOME Wayland la superposición aparece como una ventana normal que puede robar el foco y romper el pegado. Aquí se recomienda Superposición: Ninguna.",
+      "postProcessOutputInvalid": "El pulido devolvió texto inservible, se conservó la transcripción original.",
+      "postProcessCloudFailed": "El pulido falló y se conservó la transcripción original: {{detail}}"
     },
-    "commandBadge": "Modo de comandos"
+    "commandBadge": "Modo de comandos",
+    "ppChip": "Puliendo ({{model}}) {{seconds}}s"
   },
   "whatsNew": {
     "title": "Nuevo en VoxBar v{{version}}"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Post proceso omitido: la salida del modelo local no pasó la comprobación de longitud. Se usó la transcripción original.",
       "tooLong": "Post proceso omitido: esta transcripción es demasiado larga para el modelo local. Se usó la transcripción original."
     },
-    "settingNotSaved": "No se pudo guardar este ajuste: {{error}}"
+    "settingNotSaved": "No se pudo guardar este ajuste: {{error}}",
+    "postProcessFailure": {
+      "auth": "El pulido falló: el proveedor rechazó la clave de API. Se pegó la transcripción original.",
+      "network": "El pulido falló: no se pudo alcanzar el proveedor. Se pegó la transcripción original.",
+      "timeout": "El pulido falló: el proveedor tardó demasiado. Se pegó la transcripción original.",
+      "contextLength": "El pulido falló: la transcripción supera la ventana de contexto del modelo. Se pegó la transcripción original.",
+      "outputInvalid": "El pulido falló: el modelo devolvió texto inservible. Se pegó la transcripción original.",
+      "oom": "El pulido falló: memoria insuficiente. Se pegó la transcripción original.",
+      "cancelled": "El pulido fue cancelado. Se pegó la transcripción original."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar no puede instalar actualizaciones desde esta ubicación",

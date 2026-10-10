@@ -1275,6 +1275,18 @@ async updateRecordingRetentionPeriod(period: string) : Promise<Result<null, stri
 }
 },
 /**
+ * The Tauri command the Debug tab's table calls. Returns the most recent
+ * runs, newest first.
+ */
+async getPostProcessRuns(limit: number | null) : Promise<Result<PostProcessRunRecord[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_post_process_runs", { limit }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Checks if the Mac is a laptop by detecting battery presence
  * 
  * This uses pmset to check for battery information.
@@ -1296,12 +1308,14 @@ async isLaptop() : Promise<Result<boolean, string>> {
 export const events = __makeEvents__<{
 historyUpdatePayload: HistoryUpdatePayload,
 overlayNoticeEvent: OverlayNoticeEvent,
+postProcessRunEvent: PostProcessRunEvent,
 postProcessSkipEvent: PostProcessSkipEvent,
 streamPhaseEvent: StreamPhaseEvent,
 streamTextEvent: StreamTextEvent
 }>({
 historyUpdatePayload: "history-update-payload",
 overlayNoticeEvent: "overlay-notice-event",
+postProcessRunEvent: "post-process-run-event",
 postProcessSkipEvent: "post-process-skip-event",
 streamPhaseEvent: "stream-phase-event",
 streamTextEvent: "stream-text-event"
@@ -1645,7 +1659,15 @@ export type HistoryEntry = { id: number; file_name: string; timestamp: number; s
  * fallback). `None` for pre-migration entries or when the model was
  * unknown (e.g. a failed transcription saved for retry).
  */
-model_id: string | null }
+model_id: string | null; 
+/**
+ * The pp: run summary (the post-process lifecycle, WS3): which
+ * provider/model/prompt polished this entry, how the run ended
+ * (`applied` | `skipped:<reason>` | `failed:<class>`), and its
+ * latency. `None` for pre-cycle rows and entries whose dictation ran
+ * without post-processing.
+ */
+post_process_provider: string | null; post_process_model: string | null; post_process_prompt_id: string | null; post_process_outcome: string | null; post_process_latency_ms: number | null }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
  * Result of changing keyboard implementation
@@ -1780,6 +1802,20 @@ export type PaginatedHistory = { entries: HistoryEntry[]; has_more: boolean }
 export type PasteMethod = "ctrl_v" | "direct" | "none" | "shift_insert" | "ctrl_shift_v" | "external_script"
 export type PermissionAccess = "allowed" | "denied" | "unknown"
 /**
+ * Which engine kind produced a run. Rides the `requested` line so a log
+ * reader can tell the three paths apart before any other field.
+ */
+export type PostProcessEngineKind = "cloud" | "local" | "apple_intelligence"
+/**
+ * The engine phase facts (local engine): how long the model load took,
+ * whether the model was already resident (it never is today - the swap
+ * spawns a fresh worker - but the field is the honest place for a future
+ * keep-alive), and how long the run waited on the swap machinery (lease,
+ * slot, gate, voice unload) before the load began. Cloud runs carry None
+ * for all three.
+ */
+export type PostProcessEnginePhase = { model_load_ms: number | null; cache_hit: boolean | null; swap_wait_ms: number | null }
+/**
  * Failure classes shared across the post-process surface: the Test
  * Connection verdict line here, and the pp: observability lifecycle that
  * classifies every failed run. The wire values are stable tokens the UI
@@ -1789,6 +1825,11 @@ export type PermissionAccess = "allowed" | "denied" | "unknown"
  */
 export type PostProcessFailureClass = "auth" | "network" | "timeout" | "context_length" | "output_invalid" | "oom" | "cancelled"
 /**
+ * The generation phase facts: wall-clock ms and retry count (a structured
+ * attempt that fell back to the legacy prompt shape counts as one retry).
+ */
+export type PostProcessGenerationPhase = { ms: number | null; retries: number | null }
+/**
  * Structured error for the cloud model-list path (and the connection
  * probe), replacing the bare String `fetch_post_process_models` used to
  * return. The tag/kind is the failure class the UI prints; `detail`
@@ -1796,7 +1837,77 @@ export type PostProcessFailureClass = "auth" | "network" | "timeout" | "context_
  * payloads that could quote transcription content).
  */
 export type PostProcessModelError = { kind: "auth"; detail: string } | { kind: "network"; detail: string } | { kind: "timeout"; detail: string } | { kind: "parse"; detail: string } | { kind: "other"; detail: string }
+/**
+ * How one run ended.
+ */
+export type PostProcessOutcome = 
+/**
+ * The processed text was pasted.
+ */
+{ kind: "applied" } | 
+/**
+ * The engine never produced output (expected, recoverable); the raw
+ * transcript was used. Carries the local-engine skip vocabulary.
+ */
+{ kind: "skipped"; reason: SkipReason } | 
+/**
+ * The engine tried and failed; the raw transcript was used. Carries
+ * the failure class.
+ */
+{ kind: "failed"; class: PostProcessFailureClass }
 export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean }
+/**
+ * Emitted once per lifecycle phase. The overlay window drives its
+ * "Polishing (model) 1.8s" chip off Requested/Outcome; the main window
+ * toasts failure classes off Outcome.
+ */
+export type PostProcessRunEvent = { run_id: number; phase: PostProcessRunPhase; payload: PostProcessRunPayload }
+/**
+ * The per-phase event payload. Only the fields belonging to the event's
+ * phase are populated; the rest stay None.
+ */
+export type PostProcessRunPayload = { binding: string | null; engine: PostProcessEngineKind | null; provider_id: string | null; model: string | null; prompt_name: string | null; model_load_ms: number | null; cache_hit: boolean | null; swap_wait_ms: number | null; generation_ms: number | null; retries: number | null; outcome: PostProcessOutcome | null; chars_in: number | null; chars_out: number | null; total_ms: number | null }
+/**
+ * The lifecycle phases, in order. Exactly one `pp:` line and one
+ * [`PostProcessRunEvent`] per phase per run.
+ */
+export type PostProcessRunPhase = "requested" | "engine" | "generation" | "outcome"
+/**
+ * One completed (or in-flight) post-process run. Everything the Debug
+ * table shows and everything the copy button returns lives here.
+ */
+export type PostProcessRunRecord = { 
+/**
+ * Monotonic per-app-launch id, starting at 1.
+ */
+run_id: number; 
+/**
+ * Unix epoch milliseconds (UTC) when the requested phase fired.
+ */
+started_at_unix_ms: number; binding: string; engine: PostProcessEngineKind; provider_id: string; model: string; prompt_id: string | null; prompt_name: string | null; 
+/**
+ * The prompt template's version token, when the prompt carries one.
+ */
+prompt_version: string | null; 
+/**
+ * The template's target language (the per-language prompt library),
+ * when the prompt carries one.
+ */
+template_language: string | null; phases_engine: PostProcessEnginePhase; phases_generation: PostProcessGenerationPhase; 
+/**
+ * `None` while the run is still live.
+ */
+outcome: PostProcessOutcome | null; chars_in: number | null; chars_out: number | null; 
+/**
+ * chars_out / chars_in (how much of the transcript survived), None
+ * when chars_in is 0 or the run produced no output.
+ */
+changed_ratio: number | null; total_ms: number | null; 
+/**
+ * The run's own captured `pp:` lines, in order. This is exactly what
+ * the Debug table's copy button puts on the clipboard.
+ */
+log_lines: string[] }
 /**
  * Emitted when a local post-process pass fell back to the raw transcript
  * (spec 7.3). The frontend toasts it at most once per reason per app

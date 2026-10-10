@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Aufbewahrung"
-      }
+      },
+      "viaPostProcess": "über {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Debug",
@@ -899,6 +900,20 @@
         "permissionsButton": "Berechtigungen",
         "modelsButton": "Modellauswahl",
         "exitButton": "Vorschau beenden"
+      },
+      "ppRuns": {
+        "title": "Nachbearbeitungsläufe",
+        "description": "Die letzten Bereinigungsläufe: Engine, Prompt, Latenz und Ergebnis. Kopiere die Protokollzeilen eines Laufs für die Diagnose.",
+        "time": "Zeit",
+        "engine": "Anbieter / Modell",
+        "prompt": "Prompt",
+        "latency": "Latenz",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Ergebnis",
+        "copyLog": "Protokollzeilen dieses Laufs kopieren",
+        "copied": "Protokollzeilen von Lauf {{run}} kopiert",
+        "empty": "Noch keine Nachbearbeitungsläufe.",
+        "live": "läuft"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Automatisch laden und installieren"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "angewendet",
+      "skipped": "übersprungen",
+      "failed": "fehlgeschlagen"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "Noch nichts zu leeren, das Diktat hat noch keinen Live-Text.",
       "bindingBusy": "Eine andere Diktattaste nimmt bereits auf.",
       "waylandTauriHotkeys": "Globale Tastenkürzel funktionieren mit dieser Tastatur-Implementierung womöglich nicht in nativen Wayland-Apps. Stelle die Tastatur-Implementierung auf VoxBar Keys um und füge deinen Benutzer der Gruppe input hinzu; siehe die Ubuntu-Anleitung.",
-      "gnomeOverlayFallback": "Unter GNOME Wayland erscheint das Overlay als normales Fenster, das den Fokus stehlen und Einfügen verhindern kann. Empfohlen ist hier Overlay: Keine."
+      "gnomeOverlayFallback": "Unter GNOME Wayland erscheint das Overlay als normales Fenster, das den Fokus stehlen und Einfügen verhindern kann. Empfohlen ist hier Overlay: Keine.",
+      "postProcessOutputInvalid": "Die Bereinigung lieferte unbrauchbaren Text, daher wurde das ursprüngliche Transkript behalten.",
+      "postProcessCloudFailed": "Die Bereinigung ist fehlgeschlagen, das ursprüngliche Transkript wurde behalten: {{detail}}"
     },
-    "commandBadge": "Befehlsmodus"
+    "commandBadge": "Befehlsmodus",
+    "ppChip": "Bereinige ({{model}}) {{seconds}}s"
   },
   "whatsNew": {
     "title": "Neu in VoxBar v{{version}}"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Nachbearbeitung übersprungen: Die Ausgabe des lokalen Modells hat die Längenprüfung nicht bestanden. Die unveränderte Transkription wurde eingefügt.",
       "tooLong": "Nachbearbeitung übersprungen: Diese Transkription ist zu lang für das lokale Modell. Die unveränderte Transkription wurde eingefügt."
     },
-    "settingNotSaved": "Diese Einstellung konnte nicht gespeichert werden: {{error}}"
+    "settingNotSaved": "Diese Einstellung konnte nicht gespeichert werden: {{error}}",
+    "postProcessFailure": {
+      "auth": "Bereinigung fehlgeschlagen: der Anbieter hat den API-Schlüssel abgelehnt. Das ursprüngliche Transkript wurde eingefügt.",
+      "network": "Bereinigung fehlgeschlagen: der Anbieter ist nicht erreichbar. Das ursprüngliche Transkript wurde eingefügt.",
+      "timeout": "Bereinigung fehlgeschlagen: der Anbieter brauchte zu lange. Das ursprüngliche Transkript wurde eingefügt.",
+      "contextLength": "Bereinigung fehlgeschlagen: das Transkript überschreitet das Kontextfenster des Modells. Das ursprüngliche Transkript wurde eingefügt.",
+      "outputInvalid": "Bereinigung fehlgeschlagen: das Modell lieferte unbrauchbaren Text. Das ursprüngliche Transkript wurde eingefügt.",
+      "oom": "Bereinigung fehlgeschlagen: zu wenig Speicher. Das ursprüngliche Transkript wurde eingefügt.",
+      "cancelled": "Die Bereinigung wurde abgebrochen. Das ursprüngliche Transkript wurde eingefügt."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar kann von diesem Ort keine Updates installieren",

@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Retenção"
-      }
+      },
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Depuração",
@@ -899,6 +900,20 @@
         "permissionsButton": "Permissões",
         "modelsButton": "Seleção de modelo",
         "exitButton": "Sair da pré-visualização"
+      },
+      "ppRuns": {
+        "title": "Execuções de pós-processamento",
+        "description": "As execuções de polimento mais recentes: motor, prompt, latência e resultado. Copie as linhas de registro de uma execução para o diagnóstico.",
+        "time": "Hora",
+        "engine": "Provedor / modelo",
+        "prompt": "Prompt",
+        "latency": "Latência",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Resultado",
+        "copyLog": "Copiar as linhas de registro desta execução",
+        "copied": "Linhas de registro da execução {{run}} copiadas",
+        "empty": "Ainda não há execuções de pós-processamento.",
+        "live": "em andamento"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Baixar e instalar automaticamente"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "aplicado",
+      "skipped": "ignorado",
+      "failed": "falhou"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "Ainda não há nada para limpar, o ditado não tem texto ao vivo.",
       "bindingBusy": "Outra tecla de ditado já está gravando.",
       "waylandTauriHotkeys": "Os atalhos globais podem não funcionar em aplicativos Wayland nativos com esta implementação de teclado. Mude a implementação de teclado para VoxBar Keys e adicione seu usuário ao grupo input; veja o guia do Ubuntu.",
-      "gnomeOverlayFallback": "No GNOME Wayland a sobreposição aparece como uma janela comum que pode roubar o foco e quebrar a colagem. Aqui o recomendado é Sobreposição: Nenhum."
+      "gnomeOverlayFallback": "No GNOME Wayland a sobreposição aparece como uma janela comum que pode roubar o foco e quebrar a colagem. Aqui o recomendado é Sobreposição: Nenhum.",
+      "postProcessOutputInvalid": "O polimento devolveu texto inutilizável, a transcrição original foi mantida.",
+      "postProcessCloudFailed": "O polimento falhou e a transcrição original foi mantida: {{detail}}"
     },
-    "commandBadge": "Modo de comandos"
+    "commandBadge": "Modo de comandos",
+    "ppChip": "Polindo ({{model}}) {{seconds}}s"
   },
   "whatsNew": {
     "title": "Novidades no VoxBar v{{version}}"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Pós-processamento ignorado: a saída do modelo local não passou na verificação de tamanho. A transcrição original foi usada.",
       "tooLong": "Pós-processamento ignorado: esta transcrição é longa demais para o modelo local. A transcrição original foi usada."
     },
-    "settingNotSaved": "Não foi possível salvar esta configuração: {{error}}"
+    "settingNotSaved": "Não foi possível salvar esta configuração: {{error}}",
+    "postProcessFailure": {
+      "auth": "O polimento falhou: o provedor rejeitou a chave de API. A transcrição original foi colada.",
+      "network": "O polimento falhou: o provedor não pôde ser contatado. A transcrição original foi colada.",
+      "timeout": "O polimento falhou: o provedor demorou demais. A transcrição original foi colada.",
+      "contextLength": "O polimento falhou: a transcrição excede a janela de contexto do modelo. A transcrição original foi colada.",
+      "outputInvalid": "O polimento falhou: o modelo devolveu texto inutilizável. A transcrição original foi colada.",
+      "oom": "O polimento falhou: memória insuficiente. A transcrição original foi colada.",
+      "cancelled": "O polimento foi cancelado. A transcrição original foi colada."
+    }
   },
   "app": {
     "translocatedTitle": "O VoxBar não pode instalar atualizações deste local",

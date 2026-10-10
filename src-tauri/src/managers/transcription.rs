@@ -420,6 +420,14 @@ pub enum NoticeCode {
     PostProcessLengthGuard,
     /// Local post-process skipped: transcript exceeds the token cap.
     PostProcessTooLong,
+    /// Post-process output failed validation on ANY engine (the shared
+    /// validator), so the raw transcript was kept. The visible fallback
+    /// for the never-lose-the-transcript rule on the cloud path.
+    PostProcessOutputInvalid,
+    /// A cloud post-process run failed (transport, auth, provider error);
+    /// the raw transcript was kept. Detail carries provider/model and the
+    /// classified cause.
+    PostProcessCloudFailed,
     /// Delete-last-word pressed with no live dictation session.
     DeleteLastWordNoSession,
     /// A session is live but has no stream buffer to delete from yet.
@@ -476,6 +484,8 @@ impl NoticeCode {
             NoticeCode::PostProcessTimeout => "post_process_timeout",
             NoticeCode::PostProcessLengthGuard => "post_process_length_guard",
             NoticeCode::PostProcessTooLong => "post_process_too_long",
+            NoticeCode::PostProcessOutputInvalid => "post_process_output_invalid",
+            NoticeCode::PostProcessCloudFailed => "post_process_cloud_failed",
             NoticeCode::DeleteLastWordNoSession => "delete_last_word_no_session",
             NoticeCode::DeleteLastWordNoBuffer => "delete_last_word_no_buffer",
             NoticeCode::UndoNoSession => "undo_no_session",

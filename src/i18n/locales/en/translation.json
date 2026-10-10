@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Retention"
-      }
+      },
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Debug",
@@ -899,6 +900,20 @@
         "verdictOk": "Key events are reaching VoxBar normally.",
         "verdictNoEvents": "No events captured - did you press any keys during the test?",
         "failed": "Diagnostic failed: {{error}}"
+      },
+      "ppRuns": {
+        "title": "Post-process runs",
+        "description": "The most recent polishing runs: engine, prompt, latency, and outcome. Copy a run's log lines for diagnostics.",
+        "time": "Time",
+        "engine": "Provider / model",
+        "prompt": "Prompt",
+        "latency": "Latency",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Outcome",
+        "copyLog": "Copy this run's log lines",
+        "copied": "Copied run {{run}} log lines",
+        "empty": "No post-process runs yet.",
+        "live": "live"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Download and install automatically"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "applied",
+      "skipped": "skipped",
+      "failed": "failed"
     }
   },
   "footer": {
@@ -1066,9 +1086,12 @@
       "undoNoBuffer": "Nothing to clear yet, the dictation has no live text.",
       "bindingBusy": "Another dictation key is already recording.",
       "waylandTauriHotkeys": "Global shortcuts may not work in native Wayland apps with this keyboard backend. Switch Keyboard implementation to VoxBar Keys and add your user to the input group; see the Ubuntu troubleshooting guide.",
-      "gnomeOverlayFallback": "On GNOME Wayland the overlay appears as a regular window that can steal focus and break pasting. Overlay: None is recommended here."
+      "gnomeOverlayFallback": "On GNOME Wayland the overlay appears as a regular window that can steal focus and break pasting. Overlay: None is recommended here.",
+      "postProcessOutputInvalid": "Polishing returned unusable text, so the raw transcript was kept.",
+      "postProcessCloudFailed": "Polishing failed and the raw transcript was kept: {{detail}}"
     },
-    "commandBadge": "Command mode"
+    "commandBadge": "Command mode",
+    "ppChip": "Polishing ({{model}}) {{seconds}}s"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} may be blocking 1 shortcut",
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Post-processing skipped: the local model output failed the length check. The raw transcript was used.",
       "tooLong": "Post-processing skipped: this transcript is too long for the local model. The raw transcript was used."
     },
-    "settingNotSaved": "Could not save this setting: {{error}}"
+    "settingNotSaved": "Could not save this setting: {{error}}",
+    "postProcessFailure": {
+      "auth": "Polishing failed: the provider rejected the API key. The raw transcript was pasted.",
+      "network": "Polishing failed: the provider could not be reached. The raw transcript was pasted.",
+      "timeout": "Polishing failed: the provider took too long. The raw transcript was pasted.",
+      "contextLength": "Polishing failed: the transcript exceeds the model's context window. The raw transcript was pasted.",
+      "outputInvalid": "Polishing failed: the model returned unusable text. The raw transcript was pasted.",
+      "oom": "Polishing failed: not enough memory. The raw transcript was pasted.",
+      "cancelled": "Polishing was cancelled. The raw transcript was pasted."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar cannot install updates from this location",

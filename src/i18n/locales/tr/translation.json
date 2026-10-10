@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Saklama"
-      }
+      },
+      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms ile"
     },
     "debug": {
       "title": "Hata Ayıklama",
@@ -899,6 +900,20 @@
         "permissionsButton": "İzinler",
         "modelsButton": "Model seçimi",
         "exitButton": "Önizlemeden çık"
+      },
+      "ppRuns": {
+        "title": "Son işlem çalıştırmaları",
+        "description": "En son parlatma çalıştırmaları: motor, istem, gecikme ve sonuç. Teşhis için bir çalıştırmanın günlük satırlarını kopyalayın.",
+        "time": "Saat",
+        "engine": "Sağlayıcı / model",
+        "prompt": "İstem",
+        "latency": "Gecikme",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Sonuç",
+        "copyLog": "Bu çalıştırmanın günlük satırlarını kopyala",
+        "copied": "{{run}} çalıştırmasının günlük satırları kopyalandı",
+        "empty": "Henüz son işlem çalıştırması yok.",
+        "live": "sürüyor"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Otomatik indir ve kur"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "uygulandı",
+      "skipped": "atlandı",
+      "failed": "başarısız"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "Henüz temizlenecek bir şey yok, diktede canlı metin yok.",
       "bindingBusy": "Başka bir dikte tuşu zaten kaydediyor.",
       "waylandTauriHotkeys": "Bu klavye uygulamasıyla yerel Wayland uygulamalarında genel kısayollar çalışmayabilir. Klavye uygulamasını VoxBar Keys olarak değiştirin ve kullanıcıınızı input grubuna ekleyin; Ubuntu kılavuzuna bakın.",
-      "gnomeOverlayFallback": "GNOME Wayland'de ekran katmanı, odağı çalan ve yapıştırmayı bozan sıradan bir pencere olarak görünür. Burada Ekran Katmanı: Yok önerilir."
+      "gnomeOverlayFallback": "GNOME Wayland'de ekran katmanı, odağı çalan ve yapıştırmayı bozan sıradan bir pencere olarak görünür. Burada Ekran Katmanı: Yok önerilir.",
+      "postProcessOutputInvalid": "Parlatma kullanılamaz metin döndürdü, özgün transkript korundu.",
+      "postProcessCloudFailed": "Parlatma başarısız oldu, özgün transkript korundu: {{detail}}"
     },
-    "commandBadge": "Komut modu"
+    "commandBadge": "Komut modu",
+    "ppChip": "Parlatılıyor ({{model}}) {{seconds}}sn"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} yenilikleri"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Son işlem atlandı: yerel modelin çıktısı uzunluk denetiminden geçemedi. Orijinal transkripsiyon kullanıldı.",
       "tooLong": "Son işlem atlandı: bu transkripsiyon yerel model için çok uzun. Orijinal transkripsiyon kullanıldı."
     },
-    "settingNotSaved": "Bu ayar kaydedilemedi: {{error}}"
+    "settingNotSaved": "Bu ayar kaydedilemedi: {{error}}",
+    "postProcessFailure": {
+      "auth": "Parlatma başarısız: sağlayıcı API anahtarını reddetti. Özgün transkript yapıştırıldı.",
+      "network": "Parlatma başarısız: sağlayıcıya ulaşılamadı. Özgün transkript yapıştırıldı.",
+      "timeout": "Parlatma başarısız: sağlayıcı çok uzun sürdü. Özgün transkript yapıştırıldı.",
+      "contextLength": "Parlatma başarısız: transkript modelin bağlam penceresini aşıyor. Özgün transkript yapıştırıldı.",
+      "outputInvalid": "Parlatma başarısız: model kullanılamaz metin döndürdü. Özgün transkript yapıştırıldı.",
+      "oom": "Parlatma başarısız: yetersiz bellek. Özgün transkript yapıştırıldı.",
+      "cancelled": "Parlatma iptal edildi. Özgün transkript yapıştırıldı."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar bu konumdan güncellemeleri yükleyemez",

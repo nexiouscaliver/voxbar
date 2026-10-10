@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Opbevaring"
-      }
+      },
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Fejlfinding",
@@ -899,6 +900,20 @@
         "verdictOk": "Tastehændelser når frem til VoxBar som normalt.",
         "verdictNoEvents": "Ingen hændelser registreret - trykkede du på nogen taster under testen?",
         "failed": "Diagnostik mislykkedes: {{error}}"
+      },
+      "ppRuns": {
+        "title": "Efterbehandlingskøringer",
+        "description": "De seneste renseforløb: motor, prompt, latenstid og udfald. Kopiér et forløbs loglinjer til diagnose.",
+        "time": "Tid",
+        "engine": "Udbyder / model",
+        "prompt": "Prompt",
+        "latency": "Latenstid",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Udfald",
+        "copyLog": "Kopiér dette forløbs loglinjer",
+        "copied": "Kopierede loglinjer for forløb {{run}}",
+        "empty": "Ingen efterbehandlingskøringer endnu.",
+        "live": "kører"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Download og installer automatisk"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "anvendt",
+      "skipped": "sprunget over",
+      "failed": "fejlede"
     }
   },
   "footer": {
@@ -1066,9 +1086,12 @@
       "undoNoBuffer": "Der er endnu intet at rydde, diktatningen har ingen tekst endnu.",
       "bindingBusy": "En anden diktattast optager allerede.",
       "waylandTauriHotkeys": "Globale genveje fungerer måske ikke i native Wayland-apps med denne tastaturimplementering. Skift tastaturimplementering til VoxBar Keys, og tilføj din bruger til input-gruppen; se Ubuntu-guiden.",
-      "gnomeOverlayFallback": "På GNOME Wayland vises overlayet som et almindeligt vindue, der kan stjæle fokus og ødelægge indsætning. Anbefalingen er her Overlay: Ingen."
+      "gnomeOverlayFallback": "På GNOME Wayland vises overlayet som et almindeligt vindue, der kan stjæle fokus og ødelægge indsætning. Anbefalingen er her Overlay: Ingen.",
+      "postProcessOutputInvalid": "Rensningen returnerede ubrugelig tekst, den originale transskription blev beholdt.",
+      "postProcessCloudFailed": "Rensningen fejlede, den originale transskription blev beholdt: {{detail}}"
     },
-    "commandBadge": "Kommandotilstand"
+    "commandBadge": "Kommandotilstand",
+    "ppChip": "Renser ({{model}}) {{seconds}}s"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blokerer muligvis 1 genvej",
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Efterbehandling sprunget over: den lokale models output bestod ikke længdekontrollen. Den originale transskription blev brugt.",
       "tooLong": "Efterbehandling sprunget over: denne transskription er for lang til den lokale model. Den originale transskription blev brugt."
     },
-    "settingNotSaved": "Denne indstilling kunne ikke gemmes: {{error}}"
+    "settingNotSaved": "Denne indstilling kunne ikke gemmes: {{error}}",
+    "postProcessFailure": {
+      "auth": "Rensning fejlede: udbyderen afviste API-nøglen. Den originale transskription blev indsat.",
+      "network": "Rensning fejlede: udbyderen kunne ikke nås. Den originale transskription blev indsat.",
+      "timeout": "Rensning fejlede: udbyderen brugte for lang tid. Den originale transskription blev indsat.",
+      "contextLength": "Rensning fejlede: transskriptionen overstiger modellens kontekstvindue. Den originale transskription blev indsat.",
+      "outputInvalid": "Rensning fejlede: modellen returnerede ubrugelig tekst. Den originale transskription blev indsat.",
+      "oom": "Rensning fejlede: for lidt hukommelse. Den originale transskription blev indsat.",
+      "cancelled": "Rensningen blev annulleret. Den originale transskription blev indsat."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar kan ikke installere opdateringer fra denne placering",

@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Retensi"
-      }
+      },
+      "viaPostProcess": "lewat {{model}} · {{prompt}} · {{outcome}} · {{latency}} md"
     },
     "debug": {
       "title": "Debug",
@@ -899,6 +900,20 @@
         "verdictOk": "Peristiwa tombol mencapai VoxBar secara normal.",
         "verdictNoEvents": "Tidak ada peristiwa yang tertangkap - apakah Anda menekan tombol selama pengujian?",
         "failed": "Diagnostik gagal: {{error}}"
+      },
+      "ppRuns": {
+        "title": "Eksekusi pascaproses",
+        "description": "Eksekusi pemolesan terbaru: mesin, prompt, latensi, dan hasil. Salin baris log sebuah eksekusi untuk diagnosis.",
+        "time": "Waktu",
+        "engine": "Penyedia / model",
+        "prompt": "Prompt",
+        "latency": "Latensi",
+        "latencyMs": "{{ms}} md",
+        "outcome": "Hasil",
+        "copyLog": "Salin baris log eksekusi ini",
+        "copied": "Baris log eksekusi {{run}} disalin",
+        "empty": "Belum ada eksekusi pascaproses.",
+        "live": "berjalan"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Unduh dan pasang otomatis"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "diterapkan",
+      "skipped": "dilewati",
+      "failed": "gagal"
     }
   },
   "footer": {
@@ -1066,9 +1086,12 @@
       "undoNoBuffer": "Belum ada yang bisa dibersihkan, dikte belum memiliki teks langsung.",
       "bindingBusy": "Tombol dikte lain sedang merekam.",
       "waylandTauriHotkeys": "Pintasan global mungkin tidak berfungsi di aplikasi Wayland native dengan implementasi keyboard ini. Ganti implementasi keyboard ke VoxBar Keys dan tambahkan pengguna Anda ke grup input; lihat panduan Ubuntu.",
-      "gnomeOverlayFallback": "Di GNOME Wayland, overlay muncul sebagai jendela biasa yang bisa mencuri fokus dan merusak tempel. Disarankan Overlay: Tidak Ada di sini."
+      "gnomeOverlayFallback": "Di GNOME Wayland, overlay muncul sebagai jendela biasa yang bisa mencuri fokus dan merusak tempel. Disarankan Overlay: Tidak Ada di sini.",
+      "postProcessOutputInvalid": "Pemolesan menghasilkan teks yang tidak dapat dipakai, transkrip asli dipertahankan.",
+      "postProcessCloudFailed": "Pemolesan gagal, transkrip asli dipertahankan: {{detail}}"
     },
-    "commandBadge": "Mode perintah"
+    "commandBadge": "Mode perintah",
+    "ppChip": "Memoles ({{model}}) {{seconds}}d"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} mungkin memblokir 1 pintasan",
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Pascaproses dilewati: keluaran model lokal tidak lulus pemeriksaan panjang. Transkripsi asli yang digunakan.",
       "tooLong": "Pascaproses dilewati: transkripsi ini terlalu panjang untuk model lokal. Transkripsi asli yang digunakan."
     },
-    "settingNotSaved": "Pengaturan ini tidak dapat disimpan: {{error}}"
+    "settingNotSaved": "Pengaturan ini tidak dapat disimpan: {{error}}",
+    "postProcessFailure": {
+      "auth": "Pemolesan gagal: penyedia menolak kunci API. Transkrip asli ditempel.",
+      "network": "Pemolesan gagal: penyedia tidak dapat dihubungi. Transkrip asli ditempel.",
+      "timeout": "Pemolesan gagal: penyedia memakan waktu terlalu lama. Transkrip asli ditempel.",
+      "contextLength": "Pemolesan gagal: transkrip melebihi jendela konteks model. Transkrip asli ditempel.",
+      "outputInvalid": "Pemolesan gagal: model menghasilkan teks yang tidak dapat dipakai. Transkrip asli ditempel.",
+      "oom": "Pemolesan gagal: memori tidak cukup. Transkrip asli ditempel.",
+      "cancelled": "Pemolesan dibatalkan. Transkrip asli ditempel."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar tidak dapat memasang pembaruan dari lokasi ini",

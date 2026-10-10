@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "保留"
-      }
+      },
+      "viaPostProcess": "经 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒处理"
     },
     "debug": {
       "title": "调试",
@@ -899,6 +900,20 @@
         "permissionsButton": "权限",
         "modelsButton": "模型选择",
         "exitButton": "退出预览"
+      },
+      "ppRuns": {
+        "title": "后处理运行",
+        "description": "最近的润色运行：引擎、提示词、延迟和结果。可复制某次运行的日志行用于诊断。",
+        "time": "时间",
+        "engine": "提供商 / 模型",
+        "prompt": "提示词",
+        "latency": "延迟",
+        "latencyMs": "{{ms}} 毫秒",
+        "outcome": "结果",
+        "copyLog": "复制此次运行的日志行",
+        "copied": "已复制运行 {{run}} 的日志行",
+        "empty": "还没有后处理运行。",
+        "live": "进行中"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "自动下载并安装"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "已应用",
+      "skipped": "已跳过",
+      "failed": "失败"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "还没有可清除的内容，听写中没有实时文本。",
       "bindingBusy": "另一个听写按键已在录音中。",
       "waylandTauriHotkeys": "在此键盘实现下，原生 Wayland 应用中的全局快捷键可能失效。请将键盘实现切换为 VoxBar Keys，并把用户加入 input 组；详见 Ubuntu 故障排除指南。",
-      "gnomeOverlayFallback": "在 GNOME Wayland 上，悬浮窗会以普通窗口形式出现，可能抢走焦点并破坏粘贴。此处建议将悬浮窗设为无。"
+      "gnomeOverlayFallback": "在 GNOME Wayland 上，悬浮窗会以普通窗口形式出现，可能抢走焦点并破坏粘贴。此处建议将悬浮窗设为无。",
+      "postProcessOutputInvalid": "润色返回了不可用的文本，已保留原始转录。",
+      "postProcessCloudFailed": "润色失败，已保留原始转录：{{detail}}"
     },
-    "commandBadge": "命令模式"
+    "commandBadge": "命令模式",
+    "ppChip": "润色中 ({{model}}) {{seconds}}秒"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} 新功能"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "已跳过后处理：本地模型的输出未通过长度检查。已使用原始转录。",
       "tooLong": "已跳过后处理：此转录对本地模型来说过长。已使用原始转录。"
     },
-    "settingNotSaved": "无法保存此设置：{{error}}"
+    "settingNotSaved": "无法保存此设置：{{error}}",
+    "postProcessFailure": {
+      "auth": "润色失败：提供商拒绝了 API 密钥。已粘贴原始转录。",
+      "network": "润色失败：无法连接到提供商。已粘贴原始转录。",
+      "timeout": "润色失败：提供商响应超时。已粘贴原始转录。",
+      "contextLength": "润色失败：转录超出模型的上下文窗口。已粘贴原始转录。",
+      "outputInvalid": "润色失败：模型返回了不可用的文本。已粘贴原始转录。",
+      "oom": "润色失败：内存不足。已粘贴原始转录。",
+      "cancelled": "润色已取消。已粘贴原始转录。"
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar 无法从此位置安装更新",

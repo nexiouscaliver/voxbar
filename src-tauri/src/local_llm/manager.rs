@@ -22,7 +22,6 @@ use super::planner::{
 };
 use super::protocol::{self, WorkerRequest, WorkerResponse};
 use super::SkipReason;
-use crate::actions::{strip_invisible_chars, strip_think_block, TRANSCRIPTION_FIELD};
 use crate::managers::audio::AudioRecordingManager;
 use crate::managers::model::{EngineType, ModelManager};
 use crate::managers::transcription::{
@@ -71,18 +70,6 @@ pub(crate) fn skip_log_level(reason: SkipReason) -> log::Level {
     }
 }
 
-/// The one structured line every skip writes to voxbar.log. Grep-able on
-/// "local post-process skipped", always carries the snake_case reason and
-/// the detail when there is one; before this existed a skip left no trace,
-/// which is why a raw-fallback dictation was undiagnosable after the fact.
-pub(crate) fn skip_log_line(reason: SkipReason, detail: Option<&str>) -> String {
-    format!(
-        "local post-process skipped: reason={} detail={}",
-        skip_reason_str(reason),
-        detail.unwrap_or("-")
-    )
-}
-
 /// The snake_case name matching the SkipReason serde representation, so log
 /// lines and event payloads always agree on spelling.
 pub(crate) fn skip_reason_str(reason: SkipReason) -> &'static str {
@@ -96,35 +83,52 @@ pub(crate) fn skip_reason_str(reason: SkipReason) -> &'static str {
     }
 }
 
-/// The terminal success line (matches the cloud path's success shape:
-/// outcome plus output length in chars).
-pub(crate) fn processed_outcome_log_line(output_chars: usize) -> String {
-    format!(
-        "local post-process outcome: processed (output {} chars)",
-        output_chars
-    )
-}
+/// The single skip sink: the pp: outcome line (written and appended by the
+/// runs registry, which also concludes the run's record when a run is
+/// live), the PostProcessSkipEvent the main window already dedupes into
+/// toasts, and the notice channel (in-card row while the card is visible,
+/// error sound for the error-toned reasons) so the person mid-dictation
+/// learns why raw text landed after the polishing wait.
+pub(crate) fn emit_post_process_skip(
+    app: &AppHandle,
+    run_id: Option<u64>,
+    reason: SkipReason,
+    detail: Option<String>,
+) {
+    // No live run (defensive: every call site carries one today): still
+    // leave the greppable line so the session stays diagnosable.
+    let Some(run_id) = run_id else {
+        let line = format!(
+            "pp: run=- phase=outcome outcome=skipped reason={} detail={}",
+            skip_reason_str(reason),
+            detail.as_deref().unwrap_or("-")
+        );
+        match skip_log_level(reason) {
+            log::Level::Warn => warn!("{line}"),
+            _ => info!("{line}"),
+        }
+        let _ = PostProcessSkipEvent {
+            reason,
+            detail: detail.clone(),
+        }
+        .emit(app);
+        crate::managers::transcription::emit_overlay_notice(
+            app,
+            crate::managers::transcription::NoticeCode::from_skip_reason(reason),
+            detail,
+        );
+        return;
+    };
 
-/// The terminal raw-fallback line: why the raw transcript won, carried by
-/// the planner state at loop exit (which aborted path ended the swap).
-pub(crate) fn raw_outcome_log_line(planner_state: super::planner::SwapState) -> String {
-    format!(
-        "local post-process outcome: raw transcript used (planner state at exit: {:?})",
-        planner_state
-    )
-}
-
-/// The single skip sink: one structured log line, the PostProcessSkipEvent
-/// the main window already dedupes into toasts, and the Wave-1 notice
-/// channel (in-card row while the card is visible, error sound for the
-/// error-toned reasons) so the person mid-dictation learns why raw text
-/// landed after the polishing wait.
-pub(crate) fn emit_post_process_skip(app: &AppHandle, reason: SkipReason, detail: Option<String>) {
-    let line = skip_log_line(reason, detail.as_deref());
-    match skip_log_level(reason) {
-        log::Level::Warn => warn!("{line}"),
-        _ => info!("{line}"),
-    }
+    // First writer wins: the runner's later terminal report adds no second
+    // outcome line; the registry writes the line at the mapped severity.
+    crate::post_process_runs::runs().finish_with_detail(
+        Some(app),
+        run_id,
+        crate::post_process_runs::PostProcessOutcome::Skipped { reason },
+        None,
+        detail.as_deref(),
+    );
     let _ = PostProcessSkipEvent {
         reason,
         detail: detail.clone(),
@@ -150,13 +154,27 @@ pub enum SwapOutcome {
 /// pre-rendered GBNF string (json_schema_to_grammar of the structured
 /// output schema); `is_cancelled` is the stop path's cancel-generation
 /// closure so user cancellation reaches the runner with zero new plumbing
-/// (it is polled, never awaited).
+/// (it is polled, never awaited); `run_id` is the pp: observability run the
+/// phases report into (None only in legacy tests).
 #[derive(Clone)]
 pub struct SwapRequest {
     pub transcript: String,
     pub system_prompt: String,
     pub grammar: Option<String>,
     pub is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+    pub run_id: Option<u64>,
+}
+
+/// The pp: phase facts the runner observes and reports into the run
+/// registry through the host (testable via the fake host).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum RunnerPhaseReport {
+    /// The worker Load completed in `model_load_ms`. cache_hit is always
+    /// false today: every swap spawns a fresh worker process (the field
+    /// exists for a future keep-alive).
+    Engine { model_load_ms: u64 },
+    /// One generation completed in `ms` (the local engine never retries).
+    Generation { ms: u64 },
 }
 
 /// The bounds the runner enforces. Defaults are the planner's constant
@@ -271,40 +289,21 @@ pub(crate) fn gate_refusal(inputs: &LlmGateInputs) -> (MemoryGateRefusalPayload,
     )
 }
 
-/// Validate the worker's completion against the transcript: strip the
-/// think belt and invisibles, parse the JSON, extract the transcription
-/// field, then apply the CJK-aware fidelity guard. Every failure folds to
-/// the raw transcript with its skip reason; the unload path is identical
-/// either way.
+/// Validate the worker's completion against the transcript through THE
+/// shared validator (actions.rs): strip, parse the JSON, extract the
+/// transcription field, apply the CJK-aware fidelity guard, and never
+/// accept an empty extraction. Every failure folds to the raw transcript
+/// with its skip reason; the unload path is identical either way.
 fn validate_output(
     transcript: &str,
     generated: &str,
 ) -> Result<String, (SkipReason, Option<String>)> {
-    let content = strip_invisible_chars(strip_think_block(generated));
-    let extracted = match serde_json::from_str::<serde_json::Value>(&content) {
-        Ok(json) => match json.get(TRANSCRIPTION_FIELD).and_then(|t| t.as_str()) {
-            Some(field) => strip_invisible_chars(strip_think_block(field)),
-            None => {
-                return Err((
-                    SkipReason::EngineFailed,
-                    Some("the local model output had no transcription field".to_string()),
-                ))
-            }
-        },
-        Err(_) => {
-            return Err((
-                SkipReason::EngineFailed,
-                Some("the local model output was not valid JSON".to_string()),
-            ))
-        }
-    };
-    if forecast::fails_fidelity_guard(transcript, &extracted) {
-        return Err((
-            SkipReason::LengthGuard,
-            Some("the cleaned text collapsed below the fidelity threshold".to_string()),
-        ));
-    }
-    Ok(extracted)
+    crate::actions::validate_post_process_output(
+        transcript,
+        generated,
+        crate::actions::PostProcessOutputMode::StructuredJson,
+    )
+    .map_err(|failure| (failure.skip_reason, Some(failure.detail)))
 }
 
 /// Everything the runner does to the app, injectable for tests. Production
@@ -331,8 +330,12 @@ pub(crate) trait SwapHost: Send + Sync {
     /// change mid-swap can never swap the file under a forecast made for a
     /// different model.
     fn model_path(&self, model_id: &str) -> String;
-    /// Emit the post-process skip event to the frontend.
-    fn emit_skip(&self, reason: SkipReason, detail: Option<String>);
+    /// Emit the post-process skip event to the frontend (and conclude the
+    /// pp: run when one is live).
+    fn emit_skip(&self, run_id: Option<u64>, reason: SkipReason, detail: Option<String>);
+    /// Report a pp: phase fact (engine load timing, generation timing)
+    /// into the run registry.
+    fn report_pp(&self, run_id: Option<u64>, report: RunnerPhaseReport);
     /// The memory gate's inputs + per-swap model plan for this swap (L4).
     fn gate_inputs(&self) -> LlmGateInputs;
 }
@@ -744,8 +747,31 @@ impl SwapHost for AppSwapHost {
         path.to_string_lossy().into_owned()
     }
 
-    fn emit_skip(&self, reason: SkipReason, detail: Option<String>) {
-        emit_post_process_skip(&self.app, reason, detail);
+    fn emit_skip(&self, run_id: Option<u64>, reason: SkipReason, detail: Option<String>) {
+        emit_post_process_skip(&self.app, run_id, reason, detail);
+    }
+
+    fn report_pp(&self, run_id: Option<u64>, report: RunnerPhaseReport) {
+        let Some(run_id) = run_id else { return };
+        match report {
+            RunnerPhaseReport::Engine { model_load_ms } => {
+                // cache_hit=false: every swap spawns a fresh worker process.
+                crate::post_process_runs::runs().engine_phase(
+                    Some(&self.app),
+                    run_id,
+                    Some(model_load_ms),
+                    Some(false),
+                );
+            }
+            RunnerPhaseReport::Generation { ms } => {
+                crate::post_process_runs::runs().generation_phase(
+                    Some(&self.app),
+                    run_id,
+                    Some(ms),
+                    Some(0),
+                );
+            }
+        }
     }
 
     fn gate_inputs(&self) -> LlmGateInputs {
@@ -967,6 +993,7 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
     // transcript out. This is the tiny-model quality cliff.
     if forecast::input_exceeds_cap(&request.transcript) {
         cfg.host.emit_skip(
+            request.run_id,
             SkipReason::TooLong,
             Some(format!(
                 "transcript exceeds the {}-token local budget",
@@ -1005,6 +1032,10 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
     let mut lease_guard: Option<MutexGuard<'_, ()>> = None;
     let mut processed: Option<String> = None;
     let mut signal: Option<Signal> = Some(Signal::Start);
+    // The last signal fed to the planner, so the terminal arm can map a
+    // raw exit with no prior skip (lease/slot denial, a deliberate abort)
+    // onto its pp: outcome.
+    let mut last_signal: Option<Signal> = None;
     // The per-swap model plan, snapshotted at the gate (the first phase
     // that resolves the selection) and used for the load, the context, and
     // the RSS refinement: a settings change between the gate and the load
@@ -1032,6 +1063,7 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
         let step_signal = signal
             .take()
             .expect("signal set above or by the prior step");
+        last_signal = Some(step_signal.clone());
         let actions = planner.step(step_signal, cfg.host.is_recording());
 
         'actions: for action in actions {
@@ -1180,11 +1212,18 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                         n_ctx: protocol::WORKER_N_CTX,
                     });
                     let path = cfg.host.model_path(&plan.model_id);
+                    let load_started = Instant::now();
                     let rx = engine.begin_load(path, plan.n_ctx);
                     let deadline = Instant::now() + budget;
                     loop {
                         match rx.recv_timeout(timing.poll) {
                             Ok(Ok(())) => {
+                                cfg.host.report_pp(
+                                    request.run_id,
+                                    RunnerPhaseReport::Engine {
+                                        model_load_ms: load_started.elapsed().as_millis() as u64,
+                                    },
+                                );
                                 signal = Some(Signal::LlmLoaded);
                                 break;
                             }
@@ -1232,10 +1271,17 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                         request.grammar.clone(),
                         forecast::max_gen_tokens(&request.transcript),
                     );
+                    let generate_started = Instant::now();
                     let deadline = Instant::now() + budget;
                     loop {
                         match rx.recv_timeout(timing.poll) {
                             Ok(Ok(text)) => {
+                                cfg.host.report_pp(
+                                    request.run_id,
+                                    RunnerPhaseReport::Generation {
+                                        ms: generate_started.elapsed().as_millis() as u64,
+                                    },
+                                );
                                 // L5: capture the worker's RSS after the
                                 // first successful generation of THIS model
                                 // this launch, keyed per model id so later
@@ -1264,7 +1310,7 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                                     Err((reason, detail)) => {
                                         // Invalid output folds to raw; the
                                         // unload path below is identical.
-                                        cfg.host.emit_skip(reason, detail);
+                                        cfg.host.emit_skip(request.run_id, reason, detail);
                                     }
                                 }
                                 signal = Some(Signal::LlmGenerated { text });
@@ -1347,7 +1393,7 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                     drop(lease_guard.take());
                 }
                 Action::EmitSkip { reason, detail } => {
-                    cfg.host.emit_skip(reason, detail);
+                    cfg.host.emit_skip(request.run_id, reason, detail);
                 }
             }
         }
@@ -1357,15 +1403,85 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
     drop(slot);
     drop(lease_guard);
 
+    // The pp: lifecycle's terminal: a processed swap is the applied
+    // outcome; a raw exit was ALREADY concluded by the skip sink when a
+    // skip fired (first-writer-wins in the registry), and only the
+    // skip-less raw exits (lease/slot denial, a deliberate abort) are
+    // mapped here.
     match (&processed, planner.is_done()) {
         (Some(clean), true) => {
-            info!("{}", processed_outcome_log_line(clean.len()));
+            if let Some(run_id) = request.run_id {
+                crate::post_process_runs::runs().finish(
+                    None,
+                    run_id,
+                    crate::post_process_runs::PostProcessOutcome::Applied,
+                    Some(clean.chars().count() as u64),
+                );
+            }
             SwapOutcome::Processed(clean.clone())
         }
         _ => {
-            info!("{}", raw_outcome_log_line(planner.state));
+            if let Some(run_id) = request.run_id {
+                let unfinished = crate::post_process_runs::runs()
+                    .snapshot(run_id)
+                    .is_some_and(|r| r.outcome.is_none());
+                if unfinished {
+                    let (outcome, detail) = terminal_raw_outcome(last_signal.as_ref());
+                    crate::post_process_runs::runs().finish_with_detail(
+                        None,
+                        run_id,
+                        outcome,
+                        None,
+                        detail.as_deref(),
+                    );
+                }
+            }
+            debug!(
+                "local post-process swap exit (planner state at exit: {:?})",
+                planner.state
+            );
             SwapOutcome::Raw
         }
+    }
+}
+
+/// Map a skip-less raw exit onto its pp: outcome. The deliberate aborts
+/// (dictation wins: a remembered press, a recording that started, a user
+/// cancel) are the `cancelled` failure class - the run was superseded, not
+/// broken, and stays silent in the toast channels exactly as before; the
+/// lease/slot denials are contention skips (engine_failed with the
+/// contended resource in the detail).
+fn terminal_raw_outcome(
+    last_signal: Option<&Signal>,
+) -> (crate::post_process_runs::PostProcessOutcome, Option<String>) {
+    use crate::post_process_runs::PostProcessOutcome;
+    match last_signal {
+        Some(Signal::Abort(reason)) => (
+            PostProcessOutcome::Failed {
+                class: crate::llm_client::PostProcessFailureClass::Cancelled,
+            },
+            Some(format!(
+                "aborted before completion ({reason:?}); dictation wins"
+            )),
+        ),
+        Some(Signal::LeaseDenied) => (
+            PostProcessOutcome::Skipped {
+                reason: SkipReason::EngineFailed,
+            },
+            Some("another swap holds the lease".to_string()),
+        ),
+        Some(Signal::SlotDenied) => (
+            PostProcessOutcome::Skipped {
+                reason: SkipReason::EngineFailed,
+            },
+            Some("a model load holds the loading slot".to_string()),
+        ),
+        _ => (
+            PostProcessOutcome::Skipped {
+                reason: SkipReason::EngineFailed,
+            },
+            Some("the local engine did not produce output".to_string()),
+        ),
     }
 }
 
@@ -1376,12 +1492,13 @@ mod tests {
     use std::sync::atomic::AtomicUsize;
     use std::sync::Condvar;
 
-    /// Every SkipReason logs one grep-able line at the right severity: the
-    /// broke-something reasons warn, the expected/recoverable ones stay at
-    /// info. The line always carries the snake_case reason so log analysis
-    /// and the event payload agree on spelling.
+    /// Every SkipReason's outcome line carries the snake_case reason at the
+    /// right severity (the broke-something reasons warn, the expected/
+    /// recoverable ones stay at info) and the run id, so log analysis and
+    /// the event payload agree on spelling. The line is the pp: lifecycle's
+    /// outcome line, written by the runs registry.
     #[test]
-    fn skip_log_lines_cover_every_reason_at_the_right_level() {
+    fn skip_outcomes_line_and_severity_table() {
         let cases = [
             (SkipReason::MemoryGate, log::Level::Warn),
             (SkipReason::EngineFailed, log::Level::Warn),
@@ -1391,35 +1508,153 @@ mod tests {
             (SkipReason::TooLong, log::Level::Info),
         ];
         for (reason, level) in cases {
-            assert_eq!(skip_log_level(reason), level, "{reason:?} severity");
-            let line = skip_log_line(reason, Some("because"));
+            assert_eq!(
+                crate::post_process_runs::outcome_log_level(
+                    &crate::post_process_runs::PostProcessOutcome::Skipped { reason }
+                ),
+                level,
+                "{reason:?} severity"
+            );
+            let run_id = crate::post_process_runs::runs().begin(
+                None,
+                crate::post_process_runs::RunRequestMeta {
+                    binding: "transcribe_with_post_process".to_string(),
+                    engine: crate::post_process_runs::PostProcessEngineKind::Local,
+                    provider_id: "local".to_string(),
+                    model: "qwen".to_string(),
+                    prompt_id: Some("p".to_string()),
+                    prompt_name: None,
+                    prompt_version: None,
+                    template_language: None,
+                    chars_in: 10,
+                },
+            );
+            crate::post_process_runs::runs().finish_with_detail(
+                None,
+                run_id,
+                crate::post_process_runs::PostProcessOutcome::Skipped { reason },
+                None,
+                Some("because"),
+            );
+            let line = crate::post_process_runs::runs()
+                .snapshot(run_id)
+                .unwrap()
+                .log_lines
+                .last()
+                .unwrap()
+                .clone();
             assert!(
-                line.starts_with("local post-process skipped: reason="),
+                line.starts_with(&format!(
+                    "pp: run={} phase=outcome outcome=skipped:{}",
+                    run_id,
+                    skip_reason_str(reason)
+                )),
                 "line shape: {line}"
             );
-            assert!(
-                line.contains(skip_reason_str(reason)),
-                "reason in line: {line}"
-            );
             assert!(line.ends_with("detail=because"), "detail in line: {line}");
-            // No detail still produces a complete line.
-            assert!(skip_log_line(reason, None).ends_with("detail=-"));
         }
     }
 
-    /// Both terminal outcomes leave a line: Processed reports the output
-    /// length (the cloud path's success shape), Raw reports the planner
-    /// state at loop exit so the raw fallback is diagnosable from the log
-    /// alone (history id 97's raw fallback left no trace before this).
+    /// Both terminal outcomes conclude the run in the pp: vocabulary:
+    /// Processed is the applied outcome with the output length, a raw exit
+    /// with no prior skip maps its exit signal onto an outcome, and a raw
+    /// exit AFTER a skip keeps the skip as the one outcome.
     #[test]
-    fn terminal_outcome_log_lines_name_the_outcome() {
-        let processed = processed_outcome_log_line(1234);
-        assert!(processed.starts_with("local post-process outcome: processed"));
-        assert!(processed.contains("1234 chars"), "{processed}");
+    fn terminal_outcomes_conclude_the_run() {
+        use crate::post_process_runs::{runs, PostProcessOutcome, RunRequestMeta};
 
-        let raw = raw_outcome_log_line(super::super::planner::SwapState::Done);
-        assert!(raw.starts_with("local post-process outcome: raw transcript used"));
-        assert!(raw.contains("Done"), "planner state rides the line: {raw}");
+        let begin_run = || {
+            runs().begin(
+                None,
+                RunRequestMeta {
+                    binding: "transcribe_with_post_process".to_string(),
+                    engine: crate::post_process_runs::PostProcessEngineKind::Local,
+                    provider_id: "local".to_string(),
+                    model: "qwen".to_string(),
+                    prompt_id: Some("p".to_string()),
+                    prompt_name: None,
+                    prompt_version: None,
+                    template_language: None,
+                    chars_in: 12,
+                },
+            )
+        };
+
+        // Processed: applied, output chars recorded, full 4-line sequence.
+        let host = FakeHost::new();
+        let (cfg, engine_state) = runner_cfg(
+            host,
+            FakeEngine::happy(Ok("{\"transcription\":\"cleaned text\"}".to_string())),
+        );
+        let run_id = begin_run();
+        let outcome = swap_runner(&LlmManager::new(), &sample_request_with_run(run_id), cfg);
+        assert_eq!(outcome, SwapOutcome::Processed("cleaned text".to_string()));
+        let record = runs().snapshot(run_id).expect("record");
+        assert_eq!(record.outcome, Some(PostProcessOutcome::Applied));
+        assert_eq!(record.chars_out, Some(12)); // "cleaned text"
+        assert_eq!(engine_state.loads.lock().unwrap().len(), 1);
+        assert_eq!(
+            record.log_lines.len(),
+            4,
+            "requested, engine, generation, outcome: {:?}",
+            record.log_lines
+        );
+
+        // A gate refusal (skip) ends the run as skipped; the runner's
+        // terminal raw report adds no second outcome.
+        let host = FakeHost::new();
+        let gate_refuse = Arc::clone(&host.gate_refuse);
+        let (cfg, _engine_state) = runner_cfg(
+            host,
+            FakeEngine::happy(Ok("{\"transcription\":\"x\"}".to_string())),
+        );
+        gate_refuse.store(true, Ordering::Release);
+        let run_id = begin_run();
+        let outcome = swap_runner(&LlmManager::new(), &sample_request_with_run(run_id), cfg);
+        assert_eq!(outcome, SwapOutcome::Raw);
+        let record = runs().snapshot(run_id).expect("record");
+        assert_eq!(
+            record.outcome,
+            Some(PostProcessOutcome::Skipped {
+                reason: SkipReason::MemoryGate
+            })
+        );
+        assert_eq!(
+            record
+                .log_lines
+                .iter()
+                .filter(|l| l.contains("phase=outcome"))
+                .count(),
+            1,
+            "exactly one outcome line after the runner's terminal report"
+        );
+
+        // A slot denial (contention, no skip event) maps at the terminal.
+        let host = FakeHost::new();
+        let slot_denied = Arc::clone(&host.slot_denied);
+        let (cfg, _engine_state) = runner_cfg(
+            host,
+            FakeEngine::happy(Ok("{\"transcription\":\"x\"}".to_string())),
+        );
+        slot_denied.store(true, Ordering::Release);
+        let run_id = begin_run();
+        let outcome = swap_runner(&LlmManager::new(), &sample_request_with_run(run_id), cfg);
+        assert_eq!(outcome, SwapOutcome::Raw);
+        let record = runs().snapshot(run_id).expect("record");
+        assert_eq!(
+            record.outcome,
+            Some(PostProcessOutcome::Skipped {
+                reason: SkipReason::EngineFailed
+            })
+        );
+        assert!(
+            record
+                .log_lines
+                .last()
+                .unwrap()
+                .contains("detail=a model load holds the loading slot"),
+            "contention detail rides the line"
+        );
     }
 
     fn mib(mb: u64) -> u64 {
@@ -1574,8 +1809,41 @@ mod tests {
             }
         }
 
-        fn emit_skip(&self, reason: SkipReason, detail: Option<String>) {
+        fn emit_skip(&self, run_id: Option<u64>, reason: SkipReason, detail: Option<String>) {
+            // Mirror the real sink's registry behavior so the lifecycle
+            // tests observe the same first-writer-wins conclusion.
+            if let Some(run_id) = run_id {
+                crate::post_process_runs::runs().finish_with_detail(
+                    None,
+                    run_id,
+                    crate::post_process_runs::PostProcessOutcome::Skipped { reason },
+                    None,
+                    detail.as_deref(),
+                );
+            }
             self.skips.lock().unwrap().push((reason, detail));
+        }
+
+        fn report_pp(&self, run_id: Option<u64>, report: RunnerPhaseReport) {
+            let Some(run_id) = run_id else { return };
+            match report {
+                RunnerPhaseReport::Engine { model_load_ms } => {
+                    crate::post_process_runs::runs().engine_phase(
+                        None,
+                        run_id,
+                        Some(model_load_ms),
+                        Some(false),
+                    );
+                }
+                RunnerPhaseReport::Generation { ms } => {
+                    crate::post_process_runs::runs().generation_phase(
+                        None,
+                        run_id,
+                        Some(ms),
+                        Some(0),
+                    );
+                }
+            }
         }
 
         fn gate_inputs(&self) -> LlmGateInputs {
@@ -1730,6 +1998,14 @@ mod tests {
             system_prompt: "clean the transcript".to_string(),
             grammar: Some("root ::= ...".to_string()),
             is_cancelled: None,
+            run_id: None,
+        }
+    }
+
+    fn sample_request_with_run(run_id: u64) -> SwapRequest {
+        SwapRequest {
+            run_id: Some(run_id),
+            ..sample_request()
         }
     }
 
@@ -2050,6 +2326,7 @@ mod tests {
             system_prompt: String::new(),
             grammar: None,
             is_cancelled: None,
+            run_id: None,
         };
         let host = FakeHost::new();
         let skips = Arc::clone(&host.skips);
@@ -2078,6 +2355,7 @@ mod tests {
             system_prompt: String::new(),
             grammar: None,
             is_cancelled: None,
+            run_id: None,
         };
         assert_eq!(swap_runner(&llm, &request, cfg), SwapOutcome::Raw);
         assert!(skips

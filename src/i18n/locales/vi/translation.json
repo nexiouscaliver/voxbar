@@ -766,7 +766,8 @@
       },
       "groups": {
         "retention": "Lưu trữ"
-      }
+      },
+      "viaPostProcess": "qua {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
     },
     "debug": {
       "title": "Gỡ lỗi",
@@ -899,6 +900,20 @@
         "permissionsButton": "Quyền",
         "modelsButton": "Chọn mô hình",
         "exitButton": "Thoát xem trước"
+      },
+      "ppRuns": {
+        "title": "Các lượt xử lý sau",
+        "description": "Các lượt tinh chỉnh gần nhất: engine, prompt, độ trễ và kết quả. Sao chép dòng nhật ký của một lượt để chẩn đoán.",
+        "time": "Thời gian",
+        "engine": "Nhà cung cấp / mô hình",
+        "prompt": "Prompt",
+        "latency": "Độ trễ",
+        "latencyMs": "{{ms}} ms",
+        "outcome": "Kết quả",
+        "copyLog": "Sao chép dòng nhật ký của lượt này",
+        "copied": "Đã sao chép dòng nhật ký của lượt {{run}}",
+        "empty": "Chưa có lượt xử lý sau nào.",
+        "live": "đang chạy"
       }
     },
     "about": {
@@ -942,6 +957,11 @@
           "install": "Tự động tải và cài đặt"
         }
       }
+    },
+    "ppOutcome": {
+      "applied": "đã áp dụng",
+      "skipped": "đã bỏ qua",
+      "failed": "thất bại"
     }
   },
   "footer": {
@@ -1063,9 +1083,12 @@
       "undoNoBuffer": "Chưa có gì để xóa sạch, buổi đọc chính tả chưa có văn bản trực tiếp.",
       "bindingBusy": "Một phím đọc chính tả khác đang ghi âm.",
       "waylandTauriHotkeys": "Phím tắt toàn cầu có thể không hoạt động trong các ứng dụng Wayland gốc với bản triển khai bàn phím này. Chuyển bản triển khai bàn phím sang VoxBar Keys và thêm người dùng của bạn vào nhóm input; xem hướng dẫn Ubuntu.",
-      "gnomeOverlayFallback": "Trên GNOME Wayland, lớp phủ hiển thị như một cửa sổ thường có thể chiếm trọng tâm và làm hỏng thao tác dán. Ở đây nên đặt Lớp phủ: Không có."
+      "gnomeOverlayFallback": "Trên GNOME Wayland, lớp phủ hiển thị như một cửa sổ thường có thể chiếm trọng tâm và làm hỏng thao tác dán. Ở đây nên đặt Lớp phủ: Không có.",
+      "postProcessOutputInvalid": "Bước tinh chỉnh trả về văn bản không dùng được, bản gốc đã được giữ lại.",
+      "postProcessCloudFailed": "Tinh chỉnh thất bại, bản gốc đã được giữ lại: {{detail}}"
     },
-    "commandBadge": "Chế độ lệnh"
+    "commandBadge": "Chế độ lệnh",
+    "ppChip": "Đang tinh chỉnh ({{model}}) {{seconds}}s"
   },
   "whatsNew": {
     "title": "Điểm mới trong VoxBar v{{version}}"
@@ -1090,7 +1113,16 @@
       "lengthGuard": "Đã bỏ qua xử lý sau: đầu ra của mô hình cục bộ không vượt qua kiểm tra độ dài. Đã dùng văn bản gốc.",
       "tooLong": "Đã bỏ qua xử lý sau: văn bản này quá dài đối với mô hình cục bộ. Đã dùng văn bản gốc."
     },
-    "settingNotSaved": "Không thể lưu cài đặt này: {{error}}"
+    "settingNotSaved": "Không thể lưu cài đặt này: {{error}}",
+    "postProcessFailure": {
+      "auth": "Tinh chỉnh thất bại: nhà cung cấp từ chối khóa API. Bản gốc đã được dán.",
+      "network": "Tinh chỉnh thất bại: không kết nối được nhà cung cấp. Bản gốc đã được dán.",
+      "timeout": "Tinh chỉnh thất bại: nhà cung cấp mất quá lâu. Bản gốc đã được dán.",
+      "contextLength": "Tinh chỉnh thất bại: bản ghi vượt quá cửa sổ ngữ cảnh của mô hình. Bản gốc đã được dán.",
+      "outputInvalid": "Tinh chỉnh thất bại: mô hình trả về văn bản không dùng được. Bản gốc đã được dán.",
+      "oom": "Tinh chỉnh thất bại: không đủ bộ nhớ. Bản gốc đã được dán.",
+      "cancelled": "Đã hủy tinh chỉnh. Bản gốc đã được dán."
+    }
   },
   "app": {
     "translocatedTitle": "VoxBar không thể cài đặt bản cập nhật từ vị trí này",
