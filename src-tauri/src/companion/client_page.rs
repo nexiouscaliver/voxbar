@@ -38,7 +38,7 @@ pub fn render_client_page() -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{render_client_page, MARKER};
+    use super::{render_client_page, CLIENT_HTML, MARKER};
 
     #[test]
     fn rendered_page_carries_the_locale_strings() {
@@ -74,5 +74,32 @@ mod tests {
         assert!(rendered.contains(MARKER));
         assert!(!rendered.contains(&format!("{MARKER}null")));
         assert!(!rendered.contains(&format!("{MARKER} null")));
+    }
+
+    /// Regression test for the phone stop-tap no-op: the button's tap
+    /// handler must send a PRESS edge, never a release, as its stop action.
+    /// In toggle mode the Mac ignores release edges by design (accidental
+    /// key-ups must not stop a toggle dictation), so a "Tap to stop" that
+    /// sends pressed=false can never stop a phone-started toggle session -
+    /// only a press toggles it off. The handler may still send releases
+    /// elsewhere (pressEnd for the hold modes, backgrounding); this pins
+    /// the tap path.
+    #[test]
+    fn tap_handler_stops_with_a_press_edge_not_a_release() {
+        let press_start = CLIENT_HTML
+            .find("function pressStart")
+            .expect("pressStart handler in the committed asset");
+        let press_end = CLIENT_HTML
+            .find("function pressEnd")
+            .expect("pressEnd handler in the committed asset");
+        let body = &CLIENT_HTML[press_start..press_end];
+        assert!(
+            body.contains("sendPtt(true);"),
+            "the tap path must send a press edge (sendPtt(true))"
+        );
+        assert!(
+            !body.contains("sendPtt(false)"),
+            "the tap path must not send a release edge: toggle sessions ignore releases, so a release stop-tap is a silent no-op"
+        );
     }
 }

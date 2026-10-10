@@ -54,6 +54,21 @@ async changeMemoryPressureGuardSetting(enabled: boolean) : Promise<Result<null, 
 }
 },
 /**
+ * Persist the memory-gate safety margin (Advanced settings). Mirrors the
+ * store-side load guard: margins of 1-4 MB are invalid (neither off nor a
+ * usable margin) and normalize to 0, so a value written here can never be
+ * silently rewritten on the next load. The UI already rejects 1-4; this is
+ * the same rule enforced at the write boundary for any other caller.
+ */
+async changeMemoryGateHeadroomSetting(headroomMb: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_memory_gate_headroom_setting", { headroomMb }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * Companion devices master toggle (OFF by default). Beyond persisting the
  * setting, enabling starts the companion server and disabling stops it
  * (finalizing a live phone session first) - the same shape as

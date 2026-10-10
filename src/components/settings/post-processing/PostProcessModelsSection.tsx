@@ -30,6 +30,12 @@ export const PostProcessModelsSection: React.FC = () => {
   const [entries, setEntries] = useState<LlmModelEntry[] | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [progress, setProgress] = useState<Record<string, number>>({});
+  // The explicit entry into the catalog grid. The pinned-only row is the
+  // default surface; without this reveal it would be a closed loop (the
+  // only UI that downloads a second model or moves the selection lives in
+  // the grid). Session state, not a persisted setting: users who never
+  // engage keep the exact prior row on every visit.
+  const [catalogRevealed, setCatalogRevealed] = useState(false);
 
   const refresh = useCallback(async () => {
     const result = await commands.getAvailableLlmModels();
@@ -80,9 +86,26 @@ export const PostProcessModelsSection: React.FC = () => {
   }, [entries]);
 
   // The off path: until the user downloads or selects anything beyond the
-  // pinned model, the section renders the original pinned row unchanged.
-  if (entries !== null && showPinnedOnlyRow(entries, selectedId)) {
-    return <LocalLlmModelRow />;
+  // pinned model (or asks for the catalog), the section renders the
+  // original pinned row unchanged, with the browse affordance under it.
+  if (
+    entries !== null &&
+    showPinnedOnlyRow(entries, selectedId, catalogRevealed)
+  ) {
+    return (
+      <div className="space-y-2">
+        <LocalLlmModelRow />
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => setCatalogRevealed(true)}
+            className="text-xs text-text/60 hover:text-text underline underline-offset-2"
+          >
+            {t("settings.postProcessing.models.browseCatalog")}
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const q = searchQuery.trim().toLowerCase();

@@ -745,6 +745,7 @@
         "contextTokens": "Kontext: {{count}} Tokens",
         "publisher": "von {{publisher}}",
         "noMatch": "Keine Nachbearbeitungsmodelle passen zu deiner Suche.",
+        "browseCatalog": "Weitere Modelle ansehen",
         "addFromHf": {
           "title": "Nachbearbeitungsmodell von Hugging Face hinzufügen",
           "description": "Füge eine öffentliche Repo-URL oder owner/repo ein. GGUF-Dateien von Sprachmodellen (Qwen, Llama, Gemma, Phi) können hinzugefügt werden.",

@@ -690,6 +690,7 @@
         "contextTokens": "السياق: {{count}} رمز",
         "publisher": "بواسطة {{publisher}}",
         "noMatch": "لا توجد نماذج مطابقة لبحثك.",
+        "browseCatalog": "استعرض مزيدًا من النماذج",
         "addFromHf": {
           "title": "إضافة نموذج ما بعد معالجة من Hugging Face",
           "description": "الصق رابط مستودع عام أو owner/repo. يمكن إضافة ملفات GGUF لنماذج اللغة (Qwen وLlama وGemma وPhi).",

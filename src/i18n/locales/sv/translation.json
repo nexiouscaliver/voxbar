@@ -745,6 +745,7 @@
         "contextTokens": "Kontext: {{count}} token",
         "publisher": "av {{publisher}}",
         "noMatch": "Inga efterbearbetningsmodeller matchar din sökning.",
+        "browseCatalog": "Bläddra bland fler modeller",
         "addFromHf": {
           "title": "Lägg till efterbearbetningsmodell från Hugging Face",
           "description": "Klistra in en offentlig repo-URL eller owner/repo. GGUF-filer för språkmodeller (Qwen, Llama, Gemma, Phi) kan läggas till.",

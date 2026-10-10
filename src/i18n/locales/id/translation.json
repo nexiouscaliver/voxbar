@@ -745,6 +745,7 @@
         "contextTokens": "Konteks: {{count}} token",
         "publisher": "oleh {{publisher}}",
         "noMatch": "Tidak ada model pasca-proses yang cocok dengan pencarian Anda.",
+        "browseCatalog": "Jelajahi lebih banyak model",
         "addFromHf": {
           "title": "Tambah model pasca-proses dari Hugging Face",
           "description": "Tempel URL repositori publik atau owner/repo. GGUF model bahasa (Qwen, Llama, Gemma, Phi) dapat ditambahkan.",

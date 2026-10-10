@@ -745,6 +745,7 @@
         "contextTokens": "Context: {{count}} tokens",
         "publisher": "door {{publisher}}",
         "noMatch": "Geen postprocesmodellen die aan je zoekopdracht voldoen.",
+        "browseCatalog": "Meer modellen bekijken",
         "addFromHf": {
           "title": "Postprocesmodel toevoegen vanaf Hugging Face",
           "description": "Plak een openbare repo-URL of owner/repo. GGUFs van taalmodellen (Qwen, Llama, Gemma, Phi) kunnen worden toegevoegd.",

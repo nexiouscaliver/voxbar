@@ -254,20 +254,22 @@ impl CompanionManager {
         Ok(())
     }
 
-    /// Stop the server: finalize a live companion session first (the
-    /// synthesized release edge runs the ordinary Stop pipeline, which
-    /// closes the remote recorder itself), then close the listener and all
-    /// connections. Idempotent.
+    /// Stop the server: finalize a live companion session first (the forced
+    /// finalize runs the ordinary Stop pipeline, which closes the remote
+    /// recorder itself), then close the listener and all connections.
+    /// Idempotent.
     pub fn stop(&self, app: &AppHandle) {
         if !self.is_running() {
             return;
         }
 
-        // Graceful finalize: if a phone session is live, synthesize the
-        // release edge so everything captured is transcribed and pasted.
+        // Graceful finalize: if a phone session is live, finalize it so
+        // everything captured is transcribed and pasted. Forced rather than
+        // a synthesized release edge: a locked (toggle) session ignores
+        // release edges by design and would otherwise strand the recording.
         if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
             if self.session_live() {
-                coordinator.send_companion_edge(app, false);
+                coordinator.finalize_companion_session();
             }
         }
         self.session_live.store(false, Ordering::Release);

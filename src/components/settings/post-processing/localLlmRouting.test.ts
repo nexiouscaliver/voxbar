@@ -166,6 +166,40 @@ assert.equal(
   "a moved selection switches to the full section",
 );
 
+// The catalog entry point: the browse affordance under the pinned row must
+// open the grid even in the exact states the off path covers (fresh
+// install, pinned downloaded). Without the reveal flag the section is a
+// closed loop - downloading a second model or moving the selection is only
+// possible inside the suppressed grid.
+assert.equal(
+  showPinnedOnlyRow([], LOCAL_LLM_MODEL_ID, true),
+  false,
+  "a revealed catalog renders the grid even before any entry loads",
+);
+assert.equal(
+  showPinnedOnlyRow(
+    [card(LOCAL_LLM_MODEL_ID, false)],
+    LOCAL_LLM_MODEL_ID,
+    true,
+  ),
+  false,
+  "a revealed catalog renders the grid on a fresh install",
+);
+assert.equal(
+  showPinnedOnlyRow([card(LOCAL_LLM_MODEL_ID, true)], LOCAL_LLM_MODEL_ID, true),
+  false,
+  "a revealed catalog renders the grid with only the pinned model downloaded",
+);
+assert.equal(
+  showPinnedOnlyRow(
+    [card(LOCAL_LLM_MODEL_ID, true)],
+    LOCAL_LLM_MODEL_ID,
+    false,
+  ),
+  true,
+  "the unrevealed state keeps the pinned row (the off path is unchanged)",
+);
+
 // The section split: downloaded (plus the selected entry) vs the rest.
 const split = splitLlmModels([
   card("a", false),

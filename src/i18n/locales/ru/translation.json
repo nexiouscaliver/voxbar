@@ -745,6 +745,7 @@
         "contextTokens": "Контекст: {{count}} токенов",
         "publisher": "от {{publisher}}",
         "noMatch": "Нет моделей, соответствующих вашему запросу.",
+        "browseCatalog": "Просмотреть другие модели",
         "addFromHf": {
           "title": "Добавить модель постобработки с Hugging Face",
           "description": "Вставьте публичный URL репозитория или owner/repo. Можно добавить GGUF языковых моделей (Qwen, Llama, Gemma, Phi).",

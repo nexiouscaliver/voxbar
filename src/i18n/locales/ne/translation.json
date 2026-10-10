@@ -745,6 +745,7 @@
         "contextTokens": "सन्दर्भ: {{count}} टोकन",
         "publisher": "{{publisher}} द्वारा",
         "noMatch": "तपाईंको खोजीसँग मिल्ने मोडेल छैन।",
+        "browseCatalog": "थप मोडेलहरू हेर्नुहोस्",
         "addFromHf": {
           "title": "Hugging Face बाट पोस्ट-प्रोसेस मोडेल थप्नुहोस्",
           "description": "सार्वजनिक रेपो URL वा owner/repo टाँस्नुहोस्। भाषा-मोडेल GGUF (Qwen, Llama, Gemma, Phi) थप्न सकिन्छ।",

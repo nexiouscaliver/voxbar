@@ -394,7 +394,11 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 if tracker.cap_exceeded(Instant::now()) {
                     log::info!("companion: session cap reached for {device_name}; finalizing");
                     if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
-                        coordinator.send_companion_edge(&app, false);
+                        // Forced finalize: the cap must end the session even
+                        // when it is locked (toggle mode), where a synthesized
+                        // release edge is ignored and the session would run on
+                        // with its audio blocked by the tracker.
+                        coordinator.finalize_companion_session();
                     }
                     manager.broadcast_frame(&ServerFrame::Notice {
                         code: "companion_session_capped".to_string(),
@@ -504,10 +508,12 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 Some(device_name.clone()),
             );
             if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
-                // Synthesize the release edge: the ordinary Stop effect
-                // runs, everything captured (ring backlog included)
-                // transcribes and pastes.
-                coordinator.send_companion_edge(&app, false);
+                // Forced finalize: the ordinary Stop effect runs, everything
+                // captured (ring backlog included) transcribes and pastes -
+                // and it works against locked (toggle) sessions too, which a
+                // synthesized release edge would silently drop, stranding the
+                // recording the notice above just claimed was finalized.
+                coordinator.finalize_companion_session();
             }
         }
     }

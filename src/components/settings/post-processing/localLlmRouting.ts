@@ -59,11 +59,19 @@ export interface LlmCardModel {
 // is still the pinned default AND at most the pinned model is downloaded,
 // the section shows the original LocalLlmModelRow instead of the card
 // grid. Users who never download or select another model keep the exact
-// prior UI.
+// prior UI. `catalogRevealed` is the explicit entry point out of that
+// state: the browse affordance under the pinned row sets it, because the
+// only UI that can download a second model or move the selection lives
+// INSIDE the grid - without the reveal, the off path would be a deadlock
+// (the pinned row alone can never produce a second downloaded model).
 export function showPinnedOnlyRow(
   models: LlmCardModel[],
   selectedId: string,
+  catalogRevealed = false,
 ): boolean {
+  if (catalogRevealed) {
+    return false;
+  }
   const downloaded = models.filter((m) => m.info.is_downloaded || m.selected);
   return selectedId === LOCAL_LLM_MODEL_ID && downloaded.length <= 1;
 }

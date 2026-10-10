@@ -745,6 +745,7 @@
         "contextTokens": "Kontext: {{count}} tokenů",
         "publisher": "od {{publisher}}",
         "noMatch": "Vašemu hledání neodpovídá žádný model.",
+        "browseCatalog": "Prohlédnout další modely",
         "addFromHf": {
           "title": "Přidat model následného zpracování z Hugging Face",
           "description": "Vložte veřejnou URL adresu repozitáře nebo owner/repo. Přidat lze GGUF jazykových modelů (Qwen, Llama, Gemma, Phi).",

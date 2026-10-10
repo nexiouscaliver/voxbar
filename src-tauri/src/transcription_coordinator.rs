@@ -12,6 +12,11 @@ use tauri::{AppHandle, Manager};
 const DEBOUNCE: Duration = Duration::from_millis(30);
 const RELEASE_GRACE: Duration = Duration::from_millis(50);
 
+/// The binding id of the phone/tablet companion trigger. Every companion
+/// edge (live presses from the phone, synthesized finalize edges from the
+/// server) routes the lifecycle through this one id.
+const COMPANION_BINDING_ID: &str = "transcribe_companion";
+
 // Operator rule, stated absolutely: the ONLY always-on binding is the
 // transcribe trigger. Every other binding (delete, undo, command modifier)
 // may act while a dictation session is LIVE and never after it ends.
@@ -198,6 +203,11 @@ enum Command {
     CommandModifier {
         is_pressed: bool,
     },
+    /// The companion trigger source is over (phone disconnected, the
+    /// 15-minute session cap fired, the companion server is stopping):
+    /// end the companion's session now, regardless of activation-mode
+    /// locks. Unlike a key release, this edge is deliberate and terminal.
+    FinalizeCompanion,
 }
 
 /// Decide whether a key-up should be deferred (so auto-repeat can cancel it)
@@ -541,6 +551,39 @@ impl CoordinatorState {
         }
     }
 
+    /// The companion trigger source is gone or done (phone disconnected,
+    /// session cap, server stop): end the companion's own session NOW.
+    /// A locked session ignores release edges by design - they model
+    /// accidental key-ups of a physical key - but these edges are not key
+    /// events; they are terminal "the audio source is over" signals. A
+    /// release edge here would strand the recording with no incoming audio
+    /// while the CompanionDisconnected notice claims it was finalized and
+    /// pasted. Also drops a companion press remembered while busy: starting
+    /// a locked session from a vanished phone strands the same way.
+    fn on_finalize_companion(&mut self) -> Option<Effect> {
+        if self
+            .pending_press
+            .as_ref()
+            .is_some_and(|p| p.binding_id == COMPANION_BINDING_ID)
+        {
+            debug!("Forgetting remembered companion press: the source is gone");
+            self.pending_press = None;
+        }
+        if self
+            .pending_release
+            .as_ref()
+            .is_some_and(|p| p.binding_id == COMPANION_BINDING_ID)
+        {
+            self.pending_release = None;
+        }
+        match &self.stage {
+            Stage::Recording(id) if id == COMPANION_BINDING_ID => Some(
+                self.begin_processing(COMPANION_BINDING_ID.to_string(), "companion".to_string()),
+            ),
+            _ => None,
+        }
+    }
+
     fn on_processing_finished(&mut self) -> Option<Effect> {
         self.stage = Stage::Idle;
         self.hold = None;
@@ -743,6 +786,11 @@ impl TranscriptionCoordinator {
                                 run_effect(&app, &mut state, effect);
                             }
                         }
+                        Command::FinalizeCompanion => {
+                            if let Some(effect) = state.on_finalize_companion() {
+                                run_effect(&app, &mut state, effect);
+                            }
+                        }
                     }
                     // Badge notifications the processed command enqueued
                     // (modifier engage/release and every session-end clear).
@@ -860,13 +908,27 @@ impl TranscriptionCoordinator {
     pub fn send_companion_edge(&self, app: &AppHandle, pressed: bool) {
         let settings = crate::settings::get_settings(app);
         self.send(
-            "transcribe_companion",
+            COMPANION_BINDING_ID,
             "companion",
             pressed,
             settings.shortcut_activation,
             Duration::from_millis(settings.hold_threshold_ms),
             true,
         );
+    }
+
+    /// Force-finalize the companion's live session: the phone dropped
+    /// mid-dictation, the 15-minute cap fired, or the companion server is
+    /// stopping. Unlike [`Self::send_companion_edge`] with `pressed=false`,
+    /// this ends the session even when it is locked (toggle mode, or a
+    /// locked hold-or-toggle session) - a locked session ignores release
+    /// edges by design, so the ordinary synthesized release strands those
+    /// recordings with no incoming audio while the disconnect notice claims
+    /// they were finalized and pasted.
+    pub fn finalize_companion_session(&self) {
+        if self.tx.send(Command::FinalizeCompanion).is_err() {
+            warn!("Transcription coordinator channel closed");
+        }
     }
 
     /// Send a press/release of the command-mode binding. The binding is a
@@ -1209,6 +1271,154 @@ mod tests {
             ),
             Some(Effect::Stop { .. })
         ));
+    }
+
+    // ---------------------------------------------------------------------
+    // Forced companion finalize: the synthesized "the source is over"
+    // edges (phone disconnect, 15-minute cap, server stop) must end the
+    // companion's session even when it is locked - a locked session ignores
+    // release edges by design, so routing these through a release would
+    // strand the recording with no incoming audio.
+    // ---------------------------------------------------------------------
+
+    #[test]
+    fn finalize_companion_ends_a_locked_toggle_session() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::Toggle), t0),
+            Some(Effect::Start { .. })
+        ));
+        // The premise of the bug: a release edge is a no-op on the locked
+        // toggle session.
+        assert!(state
+            .on_input(
+                companion_edge(false, ShortcutActivation::Toggle),
+                t0 + Duration::from_secs(60)
+            )
+            .is_none());
+        assert!(matches!(state.stage, Stage::Recording(_)));
+
+        // The forced finalize ends it: the ordinary Stop effect runs, so
+        // everything captured transcribes and pastes.
+        assert!(matches!(
+            state.on_finalize_companion(),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(state.stage, Stage::Processing);
+    }
+
+    #[test]
+    fn finalize_companion_ends_a_locked_hold_or_toggle_tap_session() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::HoldOrToggle), t0),
+            Some(Effect::Start { .. })
+        ));
+        // Short tap: the session locks on.
+        assert!(state
+            .on_input(
+                companion_edge(false, ShortcutActivation::HoldOrToggle),
+                t0 + Duration::from_millis(120)
+            )
+            .is_none());
+        assert!(state.on_grace_expired().is_none());
+        assert!(state.is_locked());
+
+        assert!(matches!(
+            state.on_finalize_companion(),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(state.stage, Stage::Processing);
+    }
+
+    #[test]
+    fn finalize_companion_drops_a_remembered_companion_press() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        // A companion press remembered while the pipeline is busy would
+        // start a locked session from a phone that no longer exists.
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::Toggle), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(matches!(
+            state.on_input(
+                companion_edge(true, ShortcutActivation::Toggle),
+                t0 + Duration::from_millis(100)
+            ),
+            Some(Effect::Stop { .. })
+        ));
+        assert!(state
+            .on_input(
+                companion_edge(true, ShortcutActivation::Toggle),
+                t0 + Duration::from_millis(200)
+            )
+            .is_none());
+        assert!(state.pending_press.is_some());
+
+        // Finalize during Processing: the remembered press goes with the
+        // session, so the drain starts nothing.
+        assert!(state.on_finalize_companion().is_none());
+        assert!(state.pending_press.is_none());
+        assert!(state.on_processing_finished().is_none());
+        assert_eq!(state.stage, Stage::Idle);
+    }
+
+    #[test]
+    fn finalize_companion_leaves_keyboard_sessions_alone() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        // A locked keyboard toggle session is NOT the companion's to stop.
+        assert!(matches!(
+            state.on_input(toggle_input(false), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(state.is_locked());
+
+        assert_eq!(
+            state.on_finalize_companion(),
+            None,
+            "the forced finalize must not stop a keyboard session"
+        );
+        assert!(matches!(state.stage, Stage::Recording(_)));
+
+        // Idle and already-Processing states are equally untouched.
+        let mut idle = CoordinatorState::new();
+        assert!(idle.on_finalize_companion().is_none());
+    }
+
+    #[test]
+    fn finalize_companion_clears_a_deferred_companion_release() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::PushToTalk), t0),
+            Some(Effect::Start { .. })
+        ));
+        // Deferred release inside its grace window.
+        assert!(state
+            .on_input(
+                companion_edge(false, ShortcutActivation::PushToTalk),
+                t0 + Duration::from_millis(10)
+            )
+            .is_none());
+        assert!(state.pending_release.is_some());
+
+        // Finalize wins: the Stop effect is immediate and no grace timer is
+        // left armed to fire afterwards.
+        assert!(matches!(
+            state.on_finalize_companion(),
+            Some(Effect::Stop { .. })
+        ));
+        assert!(state.pending_release.is_none());
+        assert!(state.on_grace_expired().is_none());
     }
 
     // ---------------------------------------------------------------------

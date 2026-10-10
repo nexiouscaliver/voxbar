@@ -745,6 +745,7 @@
         "contextTokens": "Контекст: {{count}} токена",
         "publisher": "от {{publisher}}",
         "noMatch": "Няма модели, отговарящи на търсенето.",
+        "browseCatalog": "Разгледайте още модели",
         "addFromHf": {
           "title": "Добавяне на модел от Hugging Face",
           "description": "Поставете публичен URL адрес или owner/repo. Могат да се добавят GGUF файлове за езикови модели (Qwen, Llama, Gemma, Phi).",

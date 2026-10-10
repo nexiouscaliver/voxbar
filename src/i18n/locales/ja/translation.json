@@ -745,6 +745,7 @@
         "contextTokens": "コンテキスト: {{count}}トークン",
         "publisher": "提供: {{publisher}}",
         "noMatch": "検索に一致する後処理モデルはありません。",
+        "browseCatalog": "他のモデルを見る",
         "addFromHf": {
           "title": "Hugging Face から後処理モデルを追加",
           "description": "公開リポジトリの URL または owner/repo を貼り付けてください。言語モデルの GGUF（Qwen、Llama、Gemma、Phi）を追加できます。",

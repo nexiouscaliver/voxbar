@@ -745,6 +745,7 @@
         "contextTokens": "컨텍스트: {{count}}토큰",
         "publisher": "제공: {{publisher}}",
         "noMatch": "검색과 일치하는 후처리 모델이 없습니다.",
+        "browseCatalog": "더 많은 모델 둘러보기",
         "addFromHf": {
           "title": "Hugging Face에서 후처리 모델 추가",
           "description": "공개 저장소 URL 또는 owner/repo를 붙여넣으세요. 언어 모델 GGUF(Qwen, Llama, Gemma, Phi)를 추가할 수 있습니다.",

@@ -610,11 +610,11 @@
         pressing = true;
         ptt.classList.add("held");
         vibrate(15);
-        if (activation === "toggle" && recording) {
-          sendPtt(false); // tap to stop
-        } else {
-          sendPtt(true);
-        }
+        // Every tap sends a PRESS edge. In toggle mode a press toggles the
+        // locked session (first tap starts, the next stops); a release edge
+        // would be ignored by the Mac by design. In the hold modes the
+        // press starts the session and pressEnd below sends the release.
+        sendPtt(true);
       }
       function pressEnd(ev) {
         if (ev && ev.cancelable) ev.preventDefault();

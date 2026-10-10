@@ -745,6 +745,7 @@
         "contextTokens": "上下文：{{count}} 詞元",
         "publisher": "來自 {{publisher}}",
         "noMatch": "沒有符合搜尋的後處理模型。",
+        "browseCatalog": "瀏覽更多模型",
         "addFromHf": {
           "title": "從 Hugging Face 新增後處理模型",
           "description": "貼上公開儲存庫連結或 owner/repo。可新增語言模型 GGUF（Qwen、Llama、Gemma、Phi）。",

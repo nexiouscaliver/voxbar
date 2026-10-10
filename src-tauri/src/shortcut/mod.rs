@@ -243,6 +243,29 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
     }
 }
 
+/// The registration a cancel rebind must retire: the PREVIOUS binding's
+/// hotkey, when it held one. The reconcile pass reads the binding from
+/// settings - by then the NEW string - so it can never unregister the old
+/// registration itself; without this retirement a mid-session rebind
+/// leaves the old key registered (and its key events consumed
+/// system-wide) until app restart. None means the previous binding was
+/// unbound, so nothing was ever registered for it.
+fn cancel_rebind_retirement(previous: &ShortcutBinding) -> Option<ShortcutBinding> {
+    (!previous.current_binding.trim().is_empty()).then(|| previous.clone())
+}
+
+/// The memory-gate safety margin as storable: 1-4 MB is neither off (0)
+/// nor a usable margin, and normalizes to 0 - the same rule the settings
+/// loader enforces on stale stored values, applied at the write boundary
+/// so a value written here can never be silently rewritten on next load.
+fn normalize_headroom_mb(headroom_mb: u64) -> u64 {
+    if (1..=4).contains(&headroom_mb) {
+        0
+    } else {
+        headroom_mb
+    }
+}
+
 /// Unregister a shortcut using the appropriate implementation
 pub fn unregister_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<(), String> {
     let settings = get_settings(app);
@@ -313,14 +336,40 @@ pub fn change_binding(
         return Err(bare_key_rejection(&binding));
     }
 
-    // If this is the cancel binding, just update the settings and return
-    // It's managed dynamically, so we don't register/unregister here
+    // If this is the cancel binding, update the settings and reconcile the
+    // dynamic registration. The cancel key is armed only while a recording
+    // is live, so a mid-session rebind must swap the armed hotkey: the
+    // registration under the previous string is dropped here (the reconcile
+    // below only knows the new string) and, if a recording is still live,
+    // re-armed under the new one. Skipping the drop would leave the old key
+    // registered and consumed system-wide until app restart.
     if id == "cancel" {
         if let Some(mut b) = settings.bindings.get(&id).cloned() {
+            // Validate before any registration is touched, so a bad string
+            // cannot strip the cancel key from a live recording.
+            if let Err(e) =
+                validate_shortcut_for_implementation(&binding, settings.keyboard_implementation)
+            {
+                warn!("change_binding validation error: {}", e);
+                return Err(e);
+            }
+
+            let previous = b.clone();
             b.current_binding = binding;
             settings.bindings.insert(id.clone(), b.clone());
             settings::write_settings(&app, settings);
+
+            if let Some(retired) = cancel_rebind_retirement(&previous) {
+                if let Err(e) = unregister_shortcut(&app, retired) {
+                    error!("Failed to unregister previous cancel shortcut: {}", e);
+                }
+            }
+            // Force the next reconcile pass to register rather than assume
+            // the (now dropped) registration still satisfies the request.
+            *CANCEL_REGISTERED.lock().unwrap_or_else(|e| e.into_inner()) = false;
+
             crate::secure_input::reconcile_fallback(&app);
+            schedule_cancel_reconcile(&app);
             return Ok(BindingResponse {
                 success: true,
                 binding: Some(b.clone()),
@@ -769,6 +818,20 @@ pub fn change_audio_feedback_setting(app: AppHandle, enabled: bool) -> Result<()
 pub fn change_memory_pressure_guard_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.memory_pressure_guard = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// Persist the memory-gate safety margin (Advanced settings). Mirrors the
+/// store-side load guard: margins of 1-4 MB are invalid (neither off nor a
+/// usable margin) and normalize to 0, so a value written here can never be
+/// silently rewritten on the next load. The UI already rejects 1-4; this is
+/// the same rule enforced at the write boundary for any other caller.
+#[tauri::command]
+#[specta::specta]
+pub fn change_memory_gate_headroom_setting(app: AppHandle, headroom_mb: u64) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.memory_gate_headroom_mb = normalize_headroom_mb(headroom_mb);
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -2236,7 +2299,10 @@ mod tests {
     use handy_keys::Hotkey;
     use tauri_plugin_global_shortcut::Shortcut;
 
-    use super::{bare_key_rejection, binding_is_active, is_bare_key_binding};
+    use super::{
+        bare_key_rejection, binding_is_active, cancel_rebind_retirement, is_bare_key_binding,
+        normalize_headroom_mb,
+    };
 
     #[test]
     fn compound_shortcut_keys_parse_on_both_backends() {
@@ -2502,5 +2568,64 @@ mod tests {
             !binding_is_active(&settings, "cycle_post_process_prompt", &bound),
             "the master toggle unregisters the cycle key"
         );
+    }
+
+    /// The rebind retirement seam: a mid-session cancel rebind must retire
+    /// the registration held under the PREVIOUS string (the reconcile pass
+    /// reads the new string from settings and can never see the old one),
+    /// or the old key stays registered - and its key events consumed
+    /// system-wide in every app - until restart. Pins both the bound and
+    /// the unbound prior state. The live swap itself (unregister + flag
+    /// reset + re-arm) is AppHandle-typed and exercised through the
+    /// change_binding command path; this pins the decision it executes.
+    #[test]
+    fn cancel_rebind_retires_the_previous_binding_only() {
+        let mut previous = crate::settings::get_default_settings()
+            .bindings
+            .get("cancel")
+            .unwrap()
+            .clone();
+        previous.current_binding = "f13".to_string();
+        let retired =
+            cancel_rebind_retirement(&previous).expect("a bound previous binding is retired");
+        assert_eq!(
+            retired.current_binding, "f13",
+            "the retirement must carry the PREVIOUS string"
+        );
+        assert_eq!(retired.id, "cancel");
+
+        // An unbound previous binding held no registration to drop.
+        let mut unbound = previous.clone();
+        unbound.current_binding = String::new();
+        assert!(
+            cancel_rebind_retirement(&unbound).is_none(),
+            "an unbound previous binding retires nothing"
+        );
+        let mut whitespace = previous.clone();
+        whitespace.current_binding = "   ".to_string();
+        assert!(cancel_rebind_retirement(&whitespace).is_none());
+    }
+
+    /// The Memory Safety Margin write boundary (the control used to be
+    /// dead: no command, no store updater). Values 1-4 MB normalize to 0
+    /// (off) - the same rule the store enforces on load - and everything
+    /// else persists verbatim.
+    #[test]
+    fn headroom_normalization_matches_the_store_guard() {
+        assert_eq!(normalize_headroom_mb(0), 0, "off stays off");
+        for mb in 1..=4 {
+            assert_eq!(
+                normalize_headroom_mb(mb),
+                0,
+                "{mb} MB is neither off nor usable"
+            );
+        }
+        assert_eq!(
+            normalize_headroom_mb(5),
+            5,
+            "the smallest usable margin persists"
+        );
+        assert_eq!(normalize_headroom_mb(512), 512);
+        assert_eq!(normalize_headroom_mb(2048), 2048);
     }
 }

@@ -745,6 +745,7 @@
         "contextTokens": "Contexto: {{count}} tokens",
         "publisher": "por {{publisher}}",
         "noMatch": "Nenhum modelo de pós-processamento corresponde à sua pesquisa.",
+        "browseCatalog": "Explorar mais modelos",
         "addFromHf": {
           "title": "Adicionar modelo de pós-processamento do Hugging Face",
           "description": "Cole uma URL de repositório público ou owner/repo. É possível adicionar GGUFs de modelos de linguagem (Qwen, Llama, Gemma, Phi).",

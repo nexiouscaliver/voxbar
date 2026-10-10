@@ -745,6 +745,7 @@
         "contextTokens": "Ngữ cảnh: {{count}} token",
         "publisher": "bởi {{publisher}}",
         "noMatch": "Không có mô hình hậu xử lý nào khớp với tìm kiếm của bạn.",
+        "browseCatalog": "Xem thêm mô hình",
         "addFromHf": {
           "title": "Thêm mô hình hậu xử lý từ Hugging Face",
           "description": "Dán URL kho công khai hoặc owner/repo. Có thể thêm GGUF của mô hình ngôn ngữ (Qwen, Llama, Gemma, Phi).",

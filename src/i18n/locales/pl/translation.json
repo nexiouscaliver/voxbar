@@ -745,6 +745,7 @@
         "contextTokens": "Kontekst: {{count}} tokenów",
         "publisher": "od {{publisher}}",
         "noMatch": "Żaden model nie pasuje do wyszukiwania.",
+        "browseCatalog": "Przeglądaj więcej modeli",
         "addFromHf": {
           "title": "Dodaj model postprocessingu z Hugging Face",
           "description": "Wklej publiczny adres repozytorium lub owner/repo. Można dodawać pliki GGUF modeli językowych (Qwen, Llama, Gemma, Phi).",

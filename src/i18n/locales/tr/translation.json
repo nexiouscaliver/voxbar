@@ -745,6 +745,7 @@
         "contextTokens": "Bağlam: {{count}} belirteç",
         "publisher": "{{publisher}} tarafından",
         "noMatch": "Aramanıza uyan son işlem modeli yok.",
+        "browseCatalog": "Daha fazla modele göz atın",
         "addFromHf": {
           "title": "Hugging Face'ten son işlem modeli ekle",
           "description": "Herkese açık bir depo URL'si veya owner/repo yapıştırın. Dil modeli GGUF dosyaları (Qwen, Llama, Gemma, Phi) eklenebilir.",
