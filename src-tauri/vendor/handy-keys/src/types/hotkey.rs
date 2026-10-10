@@ -468,7 +468,11 @@ mod tests {
         }
 
         // Any keyed hotkey, modifier or not, is not a single modifier.
-        assert!(!Hotkey::new(Modifiers::CMD, Key::K).unwrap().is_single_modifier());
-        assert!(!Hotkey::new(Modifiers::empty(), Key::F1).unwrap().is_single_modifier());
+        assert!(!Hotkey::new(Modifiers::CMD, Key::K)
+            .unwrap()
+            .is_single_modifier());
+        assert!(!Hotkey::new(Modifiers::empty(), Key::F1)
+            .unwrap()
+            .is_single_modifier());
     }
 }

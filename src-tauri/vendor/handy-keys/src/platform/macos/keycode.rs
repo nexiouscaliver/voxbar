@@ -331,14 +331,27 @@ mod tests {
         assert_eq!(keycode_to_modifier(0x36), Some(Modifiers::CMD_RIGHT));
 
         // Device-dependent codes (built-in Apple keyboards).
-        assert_eq!(keycode_to_modifier(DEVICE_RIGHT_SHIFT), Some(Modifiers::SHIFT_RIGHT));
-        assert_eq!(keycode_to_modifier(DEVICE_RIGHT_OPTION), Some(Modifiers::OPT_RIGHT));
-        assert_eq!(keycode_to_modifier(DEVICE_RIGHT_CONTROL), Some(Modifiers::CTRL_RIGHT));
+        assert_eq!(
+            keycode_to_modifier(DEVICE_RIGHT_SHIFT),
+            Some(Modifiers::SHIFT_RIGHT)
+        );
+        assert_eq!(
+            keycode_to_modifier(DEVICE_RIGHT_OPTION),
+            Some(Modifiers::OPT_RIGHT)
+        );
+        assert_eq!(
+            keycode_to_modifier(DEVICE_RIGHT_CONTROL),
+            Some(Modifiers::CTRL_RIGHT)
+        );
 
         // Left side and non-modifiers.
         assert_eq!(keycode_to_modifier(0x38), Some(Modifiers::SHIFT_LEFT));
         assert_eq!(keycode_to_modifier(0x37), Some(Modifiers::CMD_LEFT));
-        assert_eq!(keycode_to_modifier(0x00), None, "letter A is not a modifier");
+        assert_eq!(
+            keycode_to_modifier(0x00),
+            None,
+            "letter A is not a modifier"
+        );
     }
 
     /// The device-dependent codes collide with real key codes; only the

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+Fixed: Command Mode bound to a lone modifier key (for example left
+command) now engages after a short 150 ms hold instead of the 400 ms
+default, and the overlay command badge lights the moment the hold fires,
+before any live text updates.
+
+- The hold window is per binding: every other lone-modifier binding keeps
+  the 400 ms default.
+- Releasing the key early or pressing any other key inside the window
+  still cancels the activation, so accidental Cmd+letter chords never
+  trigger command mode.
+
 Companion devices: use a phone or tablet on the same Wi-Fi as a microphone
 and push-to-talk trigger, with your Mac as the engine. Off by default in
 Settings, Advanced, Experimental.
