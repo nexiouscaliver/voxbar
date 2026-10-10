@@ -453,8 +453,14 @@ pub fn change_binding(
         }
     }
 
-    // Unregister the existing binding (nothing to do when it was unbound)
-    if !binding_to_modify.current_binding.trim().is_empty() {
+    // Unregister the existing binding (nothing to do when it was unbound).
+    // KB-235: skip when the OLD binding is inactive - no register path ever
+    // hands a registration to a toggle-off binding (KB-009), while the
+    // Tauri unregister is chord-keyed and would destroy a live sibling
+    // that legally owns the same chord after a KB-194-permitted rebind.
+    if !binding_to_modify.current_binding.trim().is_empty()
+        && binding_is_active(&settings, &id, &binding_to_modify)
+    {
         if let Err(e) = unregister_shortcut(&app, binding_to_modify.clone()) {
             let error_msg = format!("Failed to unregister shortcut: {}", e);
             error!("change_binding error: {}", error_msg);
@@ -1558,6 +1564,7 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
         // POST-update state leaves active (folds in bound, not a stored
         // bare key, and the now-on toggle) - exactly the set init and
         // resume_all_shortcuts register.
+        let mut registered_this_call: Vec<&str> = Vec::new();
         for id in POST_PROCESS_TOGGLE_BINDINGS {
             if let Some(binding) = settings.bindings.get(id).cloned() {
                 if !binding_is_active(&settings, id, &binding) {
@@ -1565,18 +1572,20 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
                 }
                 if let Err(e) = register_shortcut(&app, binding) {
                     // A failure after an earlier binding registered rolls
-                    // that registration back, restoring the pre-toggle
-                    // state (the toggle was off, so nothing was registered)
-                    // before the error surfaces.
-                    for rollback_id in POST_PROCESS_TOGGLE_BINDINGS {
+                    // THOSE registrations back. KB-235: unregister only the
+                    // ids this call actually registered - unregistering is
+                    // chord-keyed on the Tauri backend, so unregistering a
+                    // binding whose register never ran (its chord can be
+                    // owned by a live sibling after a KB-194-legal rebind)
+                    // would kill that sibling's registration instead.
+                    for rollback_id in registered_this_call {
                         if let Some(b) = settings.bindings.get(rollback_id).cloned() {
-                            if !b.current_binding.trim().is_empty() {
-                                let _ = unregister_shortcut(&app, b);
-                            }
+                            let _ = unregister_shortcut(&app, b);
                         }
                     }
                     return Err(e);
                 }
+                registered_this_call.push(id);
             }
         }
     } else {
