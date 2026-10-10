@@ -123,7 +123,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: a failed auto-install no longer claims success while a second notification stacks on the error, settings rollbacks touch only the key that failed, the tray menu stays live after every prompt, provider, and unload-timeout change, history limits clean up before saving, channel switches recover their stream, and a second phone can no longer steal the live session badge." \
+  --arg notes "VoxBar ${VERSION}: Chinese and Japanese spoken commands no longer trigger inside ordinary words, the command badge only appears when the model can actually interpret commands, deleting a model mid-download no longer reports it as completed, a stuck fallback hotkey now heals itself, and CI now checks the release scripts." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \
