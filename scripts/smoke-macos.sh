@@ -18,7 +18,7 @@ BUNDLE="$1"
 # can never see the app (and misses an already-running instance).
 APP_NAME="voxbar"
 APP_ID="com.voxbar.app"   # tauri.conf.json identifier
-LAUNCH_TIMEOUT_S=20
+LAUNCH_TIMEOUT_S=45  # first launch of a freshly built bundle can take well over 20s through LaunchServices
 QUIT_GRACE_S=10
 
 log() { printf '[smoke] %s\n' "$*"; }
