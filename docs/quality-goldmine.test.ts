@@ -25,8 +25,23 @@ const goldmine = readFileSync(join(docsDir, "quality-goldmine.md"), "utf8");
 
 // The 17 ids the wave-1 commits (a9e1159e..a6997aec) claim fixed.
 const WAVE_1_FIXED = [
-  "016", "020", "027", "031", "033", "034", "038", "107", "148",
-  "151", "154", "158", "162", "185", "187", "190", "193",
+  "016",
+  "020",
+  "027",
+  "031",
+  "033",
+  "034",
+  "038",
+  "107",
+  "148",
+  "151",
+  "154",
+  "158",
+  "162",
+  "185",
+  "187",
+  "190",
+  "193",
 ] as const;
 
 // Status-slot contract: the first non-empty `·`-separated segment after the

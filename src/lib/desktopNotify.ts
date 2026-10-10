@@ -30,6 +30,11 @@ export async function primeNotificationPermission(
   }
 }
 
+/** Test-only: forget the one-per-run prime latch between scenarios. */
+export function resetPrimingLatchForTests(): void {
+  permissionPrimed = false;
+}
+
 // KB-195: the visibility gate lives HERE, not at the call sites. The old
 // call-site checks read document.visibilityState, which WKWebView keeps
 // reporting as "visible" for an ordered-out Tauri window - silently no-oping

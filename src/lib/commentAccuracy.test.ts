@@ -57,9 +57,17 @@ const squash = (s: string): string => s.replace(/\s+/g, " ");
 {
   const src = read("src-tauri/src/lib.rs");
   const armStart = src.indexOf("tauri::RunEvent::Exit => {");
-  assert.notEqual(armStart, -1, "AUD-14 setup: RunEvent::Exit arm not found in lib.rs");
+  assert.notEqual(
+    armStart,
+    -1,
+    "AUD-14 setup: RunEvent::Exit arm not found in lib.rs",
+  );
   const armEnd = src.indexOf("companion::shutdown(app);", armStart);
-  assert.notEqual(armEnd, -1, "AUD-14 setup: companion::shutdown anchor not found in lib.rs Exit arm");
+  assert.notEqual(
+    armEnd,
+    -1,
+    "AUD-14 setup: companion::shutdown anchor not found in lib.rs Exit arm",
+  );
   const arm = squash(src.slice(armStart, armEnd));
 
   assert.ok(
@@ -76,9 +84,17 @@ const squash = (s: string): string => s.replace(/\s+/g, " ");
 {
   const src = read("src-tauri/src/managers/transcription.rs");
   const fnStart = src.indexOf("pub fn emit_overlay_notice");
-  assert.notEqual(fnStart, -1, "AUD-14 setup: emit_overlay_notice not found in managers/transcription.rs");
+  assert.notEqual(
+    fnStart,
+    -1,
+    "AUD-14 setup: emit_overlay_notice not found in managers/transcription.rs",
+  );
   const fnEnd = src.indexOf("\n}", fnStart);
-  assert.notEqual(fnEnd, -1, "AUD-14 setup: end of emit_overlay_notice not found");
+  assert.notEqual(
+    fnEnd,
+    -1,
+    "AUD-14 setup: end of emit_overlay_notice not found",
+  );
   const body = squash(src.slice(fnStart, fnEnd));
 
   assert.ok(
@@ -95,20 +111,28 @@ const squash = (s: string): string => s.replace(/\s+/g, " ");
 {
   const src = read("src-tauri/src/companion/mod.rs");
   const fnIdx = src.indexOf("pub fn apply_enabled");
-  assert.notEqual(fnIdx, -1, "AUD-14 setup: apply_enabled not found in companion/mod.rs");
+  assert.notEqual(
+    fnIdx,
+    -1,
+    "AUD-14 setup: apply_enabled not found in companion/mod.rs",
+  );
   const head = src.slice(0, fnIdx);
   const prevClose = head.lastIndexOf("\n}\n");
-  assert.notEqual(prevClose, -1, "AUD-14 setup: preceding item end not found before apply_enabled");
+  assert.notEqual(
+    prevClose,
+    -1,
+    "AUD-14 setup: preceding item end not found before apply_enabled",
+  );
   // The doc-comment lines sit between the previous top-level item and the fn.
   const doc = squash(src.slice(prevClose, fnIdx));
 
   assert.ok(
     !doc.includes("Apply a `companion_devices_enabled` change"),
-    "AUD-14 (3/4) companion/mod.rs: the old void-era rustdoc block (\"Apply a `companion_devices_enabled` change: start/stop the server with side effects...\") is still stacked on apply_enabled",
+    'AUD-14 (3/4) companion/mod.rs: the old void-era rustdoc block ("Apply a `companion_devices_enabled` change: start/stop the server with side effects...") is still stacked on apply_enabled',
   );
   assert.ok(
     doc.includes("Apply the companion enabled state"),
-    "AUD-14 (3/4) companion/mod.rs: the current rustdoc block (\"Apply the companion enabled state ...\") must remain as apply_enabled's single doc block",
+    'AUD-14 (3/4) companion/mod.rs: the current rustdoc block ("Apply the companion enabled state ...") must remain as apply_enabled\'s single doc block',
   );
 }
 

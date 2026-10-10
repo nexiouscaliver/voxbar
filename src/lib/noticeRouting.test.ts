@@ -210,7 +210,11 @@ for (const code of ORPHANED_INFO) {
 
 // Symptom 2: no dual toast - while the window is visible the settings
 // rollback toast (settingsStore.ts:418) alone owns companion_server_failed.
-const companionVisibleWindow = routerDecision("companion_server_failed", false, false);
+const companionVisibleWindow = routerDecision(
+  "companion_server_failed",
+  false,
+  false,
+);
 assert.equal(
   companionVisibleWindow.toast,
   false,
@@ -224,7 +228,11 @@ assert.equal(
 
 // Symptom 3: command_mode_no_session keeps its pre-migration always-fired
 // main-window toast during the Processing window (cardVisible=true).
-const cmdProcessingWindow = routerDecision("command_mode_no_session", true, false);
+const cmdProcessingWindow = routerDecision(
+  "command_mode_no_session",
+  true,
+  false,
+);
 assert.equal(
   cmdProcessingWindow.toast,
   true,
@@ -326,11 +334,10 @@ checkGroup(
   CAP,
   expectCap,
 );
-checkGroup(
-  "unrouted (legacy listeners own the surfaces)",
-  UNROUTED,
-  () => ({ toast: false, notify: false }),
-);
+checkGroup("unrouted (legacy listeners own the surfaces)", UNROUTED, () => ({
+  toast: false,
+  notify: false,
+}));
 
 // Unknown codes stay inert in every state - today's silent skip
 // (App.tsx:404); the router must not invent surfaces for unmapped codes.

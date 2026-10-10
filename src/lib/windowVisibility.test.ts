@@ -147,8 +147,7 @@ const en: Record<string, string> = {
     "The command key works while a dictation is live. Start recording first, then hold it and speak the command.",
   "toast.postProcessSkip.memoryGate":
     "Post-processing skipped to protect system memory. {{detail}}",
-  "overlay.notice.bindingBusy":
-    "Another dictation key is already recording.",
+  "overlay.notice.bindingBusy": "Another dictation key is already recording.",
   "overlay.notice.postProcessCloudFailed":
     "Polishing failed and the raw transcript was kept: {{detail}}",
   "overlay.notice.postProcessPromptCycled": "Post-process template: {{name}}",
@@ -197,7 +196,11 @@ const notificationBody = notice.noticeNotificationBody;
 // notification body is the localized line WITHOUT the raw error and WITHOUT
 // the orphaned ": " separator the removed interpolation leaves behind.
 assert.equal(
-  notificationBody(t, "companion_server_failed", "bind 0.0.0.0:8443: EADDRINUSE"),
+  notificationBody(
+    t,
+    "companion_server_failed",
+    "bind 0.0.0.0:8443: EADDRINUSE",
+  ),
   "Companion server failed",
   "companion_server_failed notification body strips the raw backend error " +
     "and its separator",
@@ -274,7 +277,11 @@ for (const [code, detail] of interpolatingCases) {
 // Contrast, documenting the split the fix intends (this part passes today):
 // the TOAST keeps the interpolated detail via noticeMessage, unchanged.
 assert.equal(
-  notice.noticeMessage(t, "companion_server_failed", "bind 0.0.0.0:8443: EADDRINUSE"),
+  notice.noticeMessage(
+    t,
+    "companion_server_failed",
+    "bind 0.0.0.0:8443: EADDRINUSE",
+  ),
   "Companion server failed: bind 0.0.0.0:8443: EADDRINUSE",
   "the toast path (noticeMessage) keeps the interpolated detail",
 );

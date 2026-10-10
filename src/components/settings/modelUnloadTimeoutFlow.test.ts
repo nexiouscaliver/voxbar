@@ -35,11 +35,9 @@ assert.deepEqual(
 // 2. A failed re-switch from an existing custom value keeps that custom
 //    value (the numeric-field path at :132 refines an already-custom value).
 assert.deepEqual(
-  resolveUnloadTimeoutOutcome(
-    { status: "error", error: "unload busy" },
-    300,
-    { custom: { seconds: 300 } },
-  ),
+  resolveUnloadTimeoutOutcome({ status: "error", error: "unload busy" }, 300, {
+    custom: { seconds: 300 },
+  }),
   { apply: false, keep: { custom: { seconds: 300 } }, error: "unload busy" },
   "error result keeps the previous custom seconds",
 );
@@ -106,10 +104,9 @@ assert.deepEqual(
 );
 
 // 8. Hydrated with a preset stored: switch (KB-185 preserved).
-assert.deepEqual(
-  resolveUnloadTimeoutFocusGate("min_5", true),
-  { action: "switch" },
-);
+assert.deepEqual(resolveUnloadTimeoutFocusGate("min_5", true), {
+  action: "switch",
+});
 
 // 9. Hydrated and already custom: focus only - no redundant backend write.
 assert.deepEqual(

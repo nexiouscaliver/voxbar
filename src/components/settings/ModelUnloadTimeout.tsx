@@ -186,13 +186,8 @@ export const ModelUnloadTimeoutSetting: React.FC<ModelUnloadTimeoutProps> = ({
       if (outcome.apply) {
         await updateSetting("model_unload_timeout", outcome.value);
       } else {
-        console.error(
-          "Failed to update custom unload timeout:",
-          outcome.error,
-        );
-        toast.error(
-          i18n.t("toast.settingNotSaved", { error: outcome.error }),
-        );
+        console.error("Failed to update custom unload timeout:", outcome.error);
+        toast.error(i18n.t("toast.settingNotSaved", { error: outcome.error }));
       }
     } catch (error) {
       console.error("Failed to update custom unload timeout:", error);

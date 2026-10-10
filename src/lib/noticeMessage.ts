@@ -153,6 +153,8 @@ export function noticeNotificationBody(
   const message = noticeMessage(t, code, detail);
   if (message === null) return null;
   if (!DETAIL_INTERPOLATING_CODES.has(code)) return message;
-  const stripped = stripInterpolationArtifacts(noticeMessage(t, code, ""));
+  const stripped = stripInterpolationArtifacts(
+    noticeMessage(t, code, "") ?? "",
+  );
   return stripped.length > 0 ? stripped : null;
 }

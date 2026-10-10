@@ -3222,7 +3222,7 @@ mod tests {
             out.extend_from_slice(&0u64.to_le_bytes());
             let kv_count: u64 = if context.is_some() { 3 } else { 1 };
             out.extend_from_slice(&kv_count.to_le_bytes());
-            let mut push_str = |out: &mut Vec<u8>, key: &str, val: &str| {
+            let push_str = |out: &mut Vec<u8>, key: &str, val: &str| {
                 out.extend_from_slice(&(key.len() as u64).to_le_bytes());
                 out.extend_from_slice(key.as_bytes());
                 out.extend_from_slice(&8u32.to_le_bytes());

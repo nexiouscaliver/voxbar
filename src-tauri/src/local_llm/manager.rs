@@ -2481,7 +2481,7 @@ mod tests {
 
         // Phase: gate refusal (terminal before any LLM work).
         {
-            let mut host = FakeHost::new();
+            let host = FakeHost::new();
             host.gate_refuse.store(true, Ordering::Release);
             let (cfg, _engine_state) = runner_cfg(host, FakeEngine::happy(Ok(String::new())));
             let (rx, handle) = llm.spawn_runner(sample_request(), cfg);
@@ -2495,7 +2495,7 @@ mod tests {
 
         // Phase: blocked voice unload (times out while the caller is gone).
         {
-            let mut host = FakeHost::new();
+            let host = FakeHost::new();
             host.block_unload.store(true, Ordering::Release);
             let (mut cfg, _engine_state) = runner_cfg(host, FakeEngine::happy(Ok(String::new())));
             cfg.timing.voice_unload = Duration::from_millis(80);

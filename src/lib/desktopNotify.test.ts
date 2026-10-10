@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
-import { notifyDesktop } from "./desktopNotify";
+import {
+  notifyDesktop,
+  primeNotificationPermission,
+  resetPrimingLatchForTests,
+} from "./desktopNotify";
 
 // KB-195: notifyDesktop gates itself on the current Tauri window's REAL
 // visibility (an IPC roundtrip), not document.visibilityState - WKWebView
@@ -69,19 +73,25 @@ windowVisible = false;
 await notifyDesktop("hidden-window notice");
 assert.deepEqual(sent, [{ title: "VoxBar", body: "hidden-window notice" }]);
 
-// Permission-once logic survives the gate move: a "default" permission is
-// resolved by ONE requestPermission call, and the notification still goes
-// out only after the grant.
+// Permission-once logic lives in primeNotificationPermission (AUD-03): a
+// "default" permission is resolved by ONE requestPermission call, the
+// denial callback fires once, and notifyDesktop itself never prompts.
 sent.length = 0;
 StubNotification.permission = "default";
 StubNotification.permissionOnRequest = "granted";
-await notifyDesktop("first-ask notice");
+let denials = 0;
+await primeNotificationPermission(() => {
+  denials++;
+});
 assert.equal(requestPermissionCalls, 1);
+assert.equal(denials, 0);
+await notifyDesktop("first-ask notice");
 assert.deepEqual(sent, [{ title: "VoxBar", body: "first-ask notice" }]);
 
-// The one-ask latch is already consumed by the first request above, so a
-// later "default"/denied state neither re-prompts nor sends: a denial must
-// not re-prompt on every subsequent notice.
+// The prime latch is consumed, so a later "default"/denied state neither
+// re-prompts nor sends: a denial must not re-prompt on every notice. A
+// fresh run (latch reset) primes once more, gets the denial, fires the
+// callback exactly once, and notifyDesktop stays quiet while ungranted.
 sent.length = 0;
 StubNotification.permission = "default";
 StubNotification.permissionOnRequest = "denied";
@@ -90,6 +100,15 @@ assert.equal(requestPermissionCalls, 1);
 assert.deepEqual(sent, []);
 await notifyDesktop("post-denial notice");
 assert.equal(requestPermissionCalls, 1);
+assert.deepEqual(sent, []);
+resetPrimingLatchForTests();
+denials = 0;
+await primeNotificationPermission(() => {
+  denials++;
+});
+assert.equal(requestPermissionCalls, 2);
+assert.equal(denials, 1);
+await notifyDesktop("post-denial-primed notice");
 assert.deepEqual(sent, []);
 
 // No Tauri window context (isVisible throws): treated as visible - no

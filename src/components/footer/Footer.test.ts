@@ -58,7 +58,13 @@ const guardedVersionSpan = new RegExp(
 // AboutSettings row has to match it. If this fails, the regex (not the
 // footer) drifted and this file needs updating.
 const aboutSrc = fs.readFileSync(
-  path.join(import.meta.dirname, "..", "settings", "about", "AboutSettings.tsx"),
+  path.join(
+    import.meta.dirname,
+    "..",
+    "settings",
+    "about",
+    "AboutSettings.tsx",
+  ),
   "utf8",
 );
 assert.ok(

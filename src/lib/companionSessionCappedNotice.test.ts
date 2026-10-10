@@ -102,10 +102,7 @@ const resolveKey = (root: unknown, key: string): string | undefined => {
 
 const readLocale = (locale: string): unknown =>
   JSON.parse(
-    fs.readFileSync(
-      path.join(localesDir, locale, "translation.json"),
-      "utf8",
-    ),
+    fs.readFileSync(path.join(localesDir, locale, "translation.json"), "utf8"),
   );
 
 // 1-3: every locale's capped copy carries the device slot, keeps the

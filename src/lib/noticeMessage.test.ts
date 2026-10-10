@@ -119,7 +119,11 @@ assert.equal(
 // The two new routing codes (KB-016 / KB-038).
 assert.equal(
   noticeMessage(t, "companion_session_capped"),
-  "overlay.notice.companionSessionCapped",
+  "overlay.notice.companionSessionCapped[device=]",
+);
+assert.equal(
+  noticeMessage(t, "companion_session_capped", "Pixel 9"),
+  "overlay.notice.companionSessionCapped[device=Pixel 9]",
 );
 assert.equal(
   noticeMessage(t, "command_mode_no_session"),
