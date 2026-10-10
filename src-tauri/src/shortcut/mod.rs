@@ -108,6 +108,11 @@ pub fn binding_is_active(
 /// plus its feature toggle on). A duplicate whose toggle is off owns no
 /// registration, so it does not block the rebind; `id` itself is excluded.
 /// Returns the conflicting binding's id so callers can name the owner.
+/// KB-194: both change_binding branches run this up front - the cancel
+/// branch before its registration swap, the generic branch before the old
+/// chord is unregistered (while the recorder is armed the suspend has
+/// already cleared every registration, so only this scan can see the
+/// conflict; the deferred register/resume failure is debug-level).
 fn binding_conflicts_with_active_binding(
     settings: &crate::settings::AppSettings,
     id: &str,
@@ -426,6 +431,28 @@ pub fn change_binding(
         }
     }
 
+    // KB-194: the same chord-conflict pre-check the cancel branch runs
+    // (KB-159), here in the generic branch and BEFORE the old registration
+    // is dropped. While the recorder UI is armed, suspend_all_shortcuts has
+    // already unregistered everything, so the register below commits onto a
+    // chord another ACTIVE binding still owns in settings without a peep -
+    // the duplicate only bites at resume, as a debug-level failure: one of
+    // the pair is silently dead, chosen by map iteration order. Refusing up
+    // front names the owner instead. An empty target is an unbind and never
+    // conflicts; self rebinds and toggle-off duplicates pass (the helper's
+    // rules).
+    if !binding.trim().is_empty() {
+        if let Some(owner) = binding_conflicts_with_active_binding(&settings, &id, &binding) {
+            let error_msg = format!(
+                "Shortcut '{}' is already in use by the '{}' action: pick a different combination",
+                binding.trim(),
+                owner
+            );
+            warn!("change_binding conflict error: {}", error_msg);
+            return Err(error_msg);
+        }
+    }
+
     // Unregister the existing binding (nothing to do when it was unbound)
     if !binding_to_modify.current_binding.trim().is_empty() {
         if let Err(e) = unregister_shortcut(&app, binding_to_modify.clone()) {
@@ -491,8 +518,8 @@ pub fn change_binding(
 /// Best-effort re-register of the previous binding after a failed change,
 /// so a failure leaves the user's shortcut working exactly as before.
 fn restore_registration(app: &AppHandle, binding: &ShortcutBinding) {
-    if binding.current_binding.trim().is_empty() {
-        return; // Was unbound before the failed change; nothing to restore
+    if !restore_registration_is_due(&get_settings(app), binding) {
+        return;
     }
     if let Err(e) = register_shortcut(app, binding.clone()) {
         error!(
@@ -500,6 +527,21 @@ fn restore_registration(app: &AppHandle, binding: &ShortcutBinding) {
             binding.id, binding.current_binding, e
         );
     }
+}
+
+/// KB-212: whether a failed change should re-register the previous chord.
+/// The register that failed was KB-009-gated (it only runs for a binding
+/// the POST-update state leaves active), so a previous binding whose own
+/// feature toggle was off held NO registration to begin with - restoring
+/// its chord anyway would resurrect exactly the system-swallowed
+/// registration the normal path refuses to create. The settings passed in
+/// are still the pre-failure state: both restore_registration call sites
+/// run before the change is persisted.
+fn restore_registration_is_due(
+    settings: &crate::settings::AppSettings,
+    binding: &ShortcutBinding,
+) -> bool {
+    !binding.current_binding.trim().is_empty() && binding_is_active(settings, &binding.id, binding)
 }
 
 #[tauri::command]
@@ -829,6 +871,14 @@ fn initialize_handy_keys_with_rollback(app: &AppHandle) -> Result<bool, String> 
         settings::write_settings(app, settings);
         crate::secure_input::reconcile_fallback(app);
         tauri_impl::init_shortcuts(app);
+        // KB-199: this Err is the switch command's ONLY error exit, and the
+        // `?` on it short-circuits past both rearm_cancel_after_implementation_switch
+        // call sites - so a failed handy-keys init mid-recording left the
+        // cancel key dead under the rolled-back Tauri backend until
+        // something else fired a reconcile. The CANCEL_REGISTERED flag was
+        // already reset by unregister_all_shortcuts; a bare reconcile
+        // schedule re-arms the key wherever a recording still wants it.
+        schedule_cancel_reconcile(app);
         return Err(format!(
             "Failed to initialize VoxBar Keys: {}. Reverted to Tauri.",
             e
@@ -1480,40 +1530,64 @@ pub fn change_auto_submit_key_setting(app: AppHandle, key: String) -> Result<(),
     Ok(())
 }
 
+/// The two bindings that ride the post-process master toggle, in the order
+/// the toggle arms them (the dictation key first, the cycle key second).
+/// KB-008: the template-cycle key is gated on the same toggle as the
+/// post-process dictation key (binding_is_active), so one toggle drives
+/// both registrations - otherwise a bound cycle key stays system-swallowed
+/// after the toggle goes off while its handler refuses to fire.
+const POST_PROCESS_TOGGLE_BINDINGS: [&str; 2] =
+    ["transcribe_with_post_process", "cycle_post_process_prompt"];
+
 #[tauri::command]
 #[specta::specta]
 pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    // KB-198: apply-then-persist (the KB-027 rule). While ENABLING, the
+    // register attempts run BEFORE the toggle is persisted and a failure
+    // propagates (Err rolls the settings store's toggle back) instead of
+    // being discarded with `let _ =`: a chord duplicated onto a binding
+    // whose toggle is off makes the register fail "already in use", and
+    // the discarded shape left the toggle reading on with a dead key
+    // behind it. The DISABLED direction stays infallible - unregistering
+    // is best-effort teardown and must never trap the toggle off.
     let mut settings = settings::get_settings(&app);
     settings.post_process_enabled = enabled;
-    settings::write_settings(&app, settings.clone());
 
-    // Register or unregister the post-processing shortcut
-    if let Some(binding) = settings
-        .bindings
-        .get("transcribe_with_post_process")
-        .cloned()
-    {
-        if enabled {
-            let _ = register_shortcut(&app, binding);
-        } else {
-            let _ = unregister_shortcut(&app, binding);
-        }
-    }
-
-    // KB-008: the template-cycle key rides the same master toggle
-    // (binding_is_active gates it on post_process_enabled), so the toggle
-    // must drive its registration too - otherwise a bound cycle key stays
-    // system-swallowed after the toggle goes off while its handler refuses
-    // to fire.
-    if let Some(binding) = settings.bindings.get("cycle_post_process_prompt").cloned() {
-        if enabled {
-            if !binding.current_binding.trim().is_empty() {
-                let _ = register_shortcut(&app, binding);
+    if enabled {
+        // KB-009: attempt a registration only for a binding the
+        // POST-update state leaves active (folds in bound, not a stored
+        // bare key, and the now-on toggle) - exactly the set init and
+        // resume_all_shortcuts register.
+        for id in POST_PROCESS_TOGGLE_BINDINGS {
+            if let Some(binding) = settings.bindings.get(id).cloned() {
+                if !binding_is_active(&settings, id, &binding) {
+                    continue;
+                }
+                if let Err(e) = register_shortcut(&app, binding) {
+                    // A failure after an earlier binding registered rolls
+                    // that registration back, restoring the pre-toggle
+                    // state (the toggle was off, so nothing was registered)
+                    // before the error surfaces.
+                    for rollback_id in POST_PROCESS_TOGGLE_BINDINGS {
+                        if let Some(b) = settings.bindings.get(rollback_id).cloned() {
+                            if !b.current_binding.trim().is_empty() {
+                                let _ = unregister_shortcut(&app, b);
+                            }
+                        }
+                    }
+                    return Err(e);
+                }
             }
-        } else {
-            let _ = unregister_shortcut(&app, binding);
+        }
+    } else {
+        for id in POST_PROCESS_TOGGLE_BINDINGS {
+            if let Some(binding) = settings.bindings.get(id).cloned() {
+                let _ = unregister_shortcut(&app, binding);
+            }
         }
     }
+
+    settings::write_settings(&app, settings);
 
     // KB-188: the tray's Post-process Prompt submenu is enabled exactly
     // while this setting is on - re-sync so the tray reflects the toggle
@@ -2227,7 +2301,13 @@ pub fn change_preview_before_paste_setting(app: AppHandle, enabled: bool) -> Res
 
 /// Flip the delete-last-word master toggle and register or unregister its
 /// binding to match, mirroring how the post-processing toggle drives its
-/// shortcut.
+/// shortcut. KB-198: apply-then-persist (the KB-027 rule) - the register
+/// attempt runs BEFORE the toggle is persisted and its failure propagates
+/// while ENABLING (Err rolls the settings store's toggle back) instead of
+/// being discarded with `let _ =` (a chord duplicated onto a toggle-off
+/// binding fails "already in use" and left the toggle reading on with a
+/// dead key). The DISABLED direction stays infallible: unregistering is
+/// best-effort teardown and must never trap the toggle off.
 #[tauri::command]
 #[specta::specta]
 pub fn change_delete_last_word_enabled_setting(
@@ -2236,63 +2316,88 @@ pub fn change_delete_last_word_enabled_setting(
 ) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.delete_last_word_enabled = enabled;
-    settings::write_settings(&app, settings.clone());
 
     if let Some(binding) = settings.bindings.get("delete_last_word").cloned() {
         if enabled {
-            if !binding.current_binding.trim().is_empty() {
-                let _ = register_shortcut(&app, binding);
+            // KB-009: register only a binding the POST-update state leaves
+            // active (folds in bound and the stored bare-key rule, not just
+            // non-emptiness) - the same set init registers.
+            if binding_is_active(&settings, "delete_last_word", &binding) {
+                register_shortcut(&app, binding)?;
             }
         } else {
             let _ = unregister_shortcut(&app, binding);
         }
     }
+
+    settings::write_settings(&app, settings);
 
     crate::secure_input::reconcile_fallback(&app);
     Ok(())
 }
 
 /// Flip the undo master toggle and register or unregister its binding to
-/// match.
+/// match. KB-198: apply-then-persist (the KB-027 rule) - the register
+/// attempt runs BEFORE the toggle is persisted and its failure propagates
+/// while ENABLING (Err rolls the settings store's toggle back) instead of
+/// being discarded with `let _ =` (a chord duplicated onto a toggle-off
+/// binding fails "already in use" and left the toggle reading on with a
+/// dead key). The DISABLED direction stays infallible: unregistering is
+/// best-effort teardown and must never trap the toggle off.
 #[tauri::command]
 #[specta::specta]
 pub fn change_undo_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.undo_enabled = enabled;
-    settings::write_settings(&app, settings.clone());
 
     if let Some(binding) = settings.bindings.get("undo").cloned() {
         if enabled {
-            if !binding.current_binding.trim().is_empty() {
-                let _ = register_shortcut(&app, binding);
+            // KB-009: register only a binding the POST-update state leaves
+            // active (folds in bound and the stored bare-key rule, not just
+            // non-emptiness) - the same set init registers.
+            if binding_is_active(&settings, "undo", &binding) {
+                register_shortcut(&app, binding)?;
             }
         } else {
             let _ = unregister_shortcut(&app, binding);
         }
     }
+
+    settings::write_settings(&app, settings);
 
     crate::secure_input::reconcile_fallback(&app);
     Ok(())
 }
 
 /// Flip the command-mode master toggle and register or unregister its
-/// modifier binding to match.
+/// modifier binding to match. KB-198: apply-then-persist (the KB-027 rule)
+/// - the register attempt runs BEFORE the toggle is persisted and its
+/// failure propagates while ENABLING (Err rolls the settings store's
+/// toggle back) instead of being discarded with `let _ =` (a chord
+/// duplicated onto a toggle-off binding fails "already in use" and left
+/// the toggle reading on with a dead key). The DISABLED direction stays
+/// infallible: unregistering is best-effort teardown and must never trap
+/// the toggle off.
 #[tauri::command]
 #[specta::specta]
 pub fn change_command_mode_enabled_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.command_mode_enabled = enabled;
-    settings::write_settings(&app, settings.clone());
 
     if let Some(binding) = settings.bindings.get("transcribe_commands").cloned() {
         if enabled {
-            if !binding.current_binding.trim().is_empty() {
-                let _ = register_shortcut(&app, binding);
+            // KB-009: register only a binding the POST-update state leaves
+            // active (folds in bound and the stored bare-key rule, not just
+            // non-emptiness) - the same set init registers.
+            if binding_is_active(&settings, "transcribe_commands", &binding) {
+                register_shortcut(&app, binding)?;
             }
         } else {
             let _ = unregister_shortcut(&app, binding);
         }
     }
+
+    settings::write_settings(&app, settings);
 
     crate::secure_input::reconcile_fallback(&app);
     Ok(())
@@ -2439,6 +2544,7 @@ mod tests {
     use super::{
         bare_key_rejection, binding_conflicts_with_active_binding, binding_is_active,
         cancel_rebind_retirement, is_bare_key_binding, normalize_headroom_mb,
+        restore_registration_is_due,
     };
 
     #[test]
@@ -2790,6 +2896,63 @@ mod tests {
         assert!(
             binding_conflicts_with_active_binding(&settings, "cancel", "option+0").is_none(),
             "an unowned chord is no conflict"
+        );
+
+        // KB-194: the generic branch runs this scan with the target still
+        // possibly empty (its unbind path - the cancel branch never sees an
+        // empty string). An empty chord never reports a conflict: no other
+        // binding's empty string is ever active.
+        assert!(
+            binding_conflicts_with_active_binding(&settings, "undo", "").is_none(),
+            "unbinding never reports a conflict"
+        );
+    }
+
+    /// KB-212: the failed-rebind restore only re-registers a chord that
+    /// held a registration before the failure - a binding whose feature
+    /// toggle was off (or a stored bare key, or an unbound string) owned
+    /// nothing after KB-009's gate, so restoring it would resurrect a
+    /// system-swallowed registration the normal path refuses to create.
+    #[test]
+    fn restore_registration_skips_inactive_previous_bindings() {
+        let mut settings = crate::settings::get_default_settings();
+
+        // A bound undo chord with its master toggle ON held a registration.
+        settings.undo_enabled = true;
+        settings
+            .bindings
+            .get_mut("undo")
+            .unwrap()
+            .current_binding = "option+u".to_string();
+        let undo = settings.bindings.get("undo").unwrap().clone();
+        assert!(
+            restore_registration_is_due(&settings, &undo),
+            "an active previous binding is restored on failure"
+        );
+
+        // Same chord, master toggle OFF: nothing was registered to restore.
+        settings.undo_enabled = false;
+        assert!(
+            !restore_registration_is_due(&settings, &undo),
+            "a toggle-off previous binding owns no registration to restore"
+        );
+
+        // Unbound previous: nothing to restore.
+        settings.undo_enabled = true;
+        let mut unbound = undo.clone();
+        unbound.current_binding = String::new();
+        assert!(
+            !restore_registration_is_due(&settings, &unbound),
+            "an unbound previous binding restores nothing"
+        );
+
+        // Stored bare key (accepted by earlier versions): loads as
+        // unbound, so it is never restored either.
+        let mut bare = undo.clone();
+        bare.current_binding = "z".to_string();
+        assert!(
+            !restore_registration_is_due(&settings, &bare),
+            "a stored bare key never held a registration"
         );
     }
 

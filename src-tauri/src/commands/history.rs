@@ -59,6 +59,23 @@ pub async fn delete_history_entry(
         .map_err(|e| e.to_string())
 }
 
+/// KB-109 (privacy): whether a history retry runs the LLM post-process
+/// leg. The per-entry snapshot alone must not decide - with the
+/// post-process master toggle off, a retry that re-ran the leg would ship
+/// the stored transcript to the CURRENT provider/model (possibly paid
+/// cloud), which the entry was not necessarily recorded against. The
+/// master toggle gates the leg exactly as it gates the dictation hotkey's
+/// registration (binding_is_active), so off means the retry re-transcribes
+/// and updates the raw transcript only. Pure so the gate is unit-testable;
+/// pinning the retry to the entry's recorded provider is a separate,
+/// larger fix.
+fn retry_runs_post_process(
+    entry_requested: bool,
+    settings: &crate::settings::AppSettings,
+) -> bool {
+    entry_requested && settings.post_process_enabled
+}
+
 #[tauri::command]
 #[specta::specta]
 pub async fn retry_history_entry_transcription(
@@ -96,12 +113,17 @@ pub async fn retry_history_entry_transcription(
 
     // The history retry owns no cancel generation (no recording session is
     // live); the swap runner still has its own abort signals (pending
-    // press, recording started) and its total deadline.
+    // press, recording started) and its total deadline. KB-109: the pp leg
+    // is gated on the master toggle as well as the entry's snapshot.
+    let post_process = retry_runs_post_process(
+        entry.post_process_requested,
+        &crate::settings::get_settings(&app),
+    );
     let processed = process_transcription_output(
         &app,
         "history_retry",
         &transcription,
-        entry.post_process_requested,
+        post_process,
         None,
     )
     .await;
@@ -162,4 +184,37 @@ pub async fn update_recording_retention_period(
         .map_err(|e| e.to_string())?;
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::retry_runs_post_process;
+    use crate::settings::get_default_settings;
+
+    /// KB-109: the retry's post-process leg needs BOTH the per-entry
+    /// snapshot and the master toggle. With the layer off, a snapshot
+    /// recorded with it on must not re-run the leg - that would ship the
+    /// stored transcript to the CURRENT (possibly paid cloud) provider the
+    /// entry was never recorded against; the retry re-transcribes and
+    /// updates the raw transcript instead.
+    #[test]
+    fn retry_post_process_requires_snapshot_and_master_toggle() {
+        let mut settings = get_default_settings();
+
+        settings.post_process_enabled = false;
+        assert!(
+            !retry_runs_post_process(true, &settings),
+            "the master toggle off means no post-processing on retry, regardless of the snapshot"
+        );
+
+        settings.post_process_enabled = true;
+        assert!(
+            retry_runs_post_process(true, &settings),
+            "snapshot on plus master toggle on runs the leg"
+        );
+        assert!(
+            !retry_runs_post_process(false, &settings),
+            "an entry recorded without post-processing never gains the leg on retry"
+        );
+    }
 }
