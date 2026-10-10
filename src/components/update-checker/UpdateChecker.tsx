@@ -4,6 +4,7 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
 import { RELEASES_URL, runUpdateCheck } from "./updaterFlow";
+import { resolveAutoCheck } from "./updaterAutoCheck";
 import { updaterAutoUpdateSupported } from "./updaterPlatform";
 
 interface UpdateCheckerProps {
@@ -33,19 +34,23 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
   // One check on startup once settings and the lock state are known; a toast
   // appears only when an update actually exists. No polling loop. The
   // trigger distinguishes this automatic pass (which obeys the user's update
-  // policy) from manual checks (which always ask).
+  // policy) from manual checks (which always ask). The latch is also
+  // consumed while the loaded settings say checks are off, so re-enabling
+  // checks mid-session never phones home as a direct result of the toggle
+  // flip (KB-191); a fresh launch still auto-checks once, and manual checks
+  // are unaffected. See updaterAutoCheck.ts for the decision table.
   const hasAutoChecked = useRef(false);
   useEffect(() => {
-    if (
-      !settingsLoaded ||
-      !updateChecksEnabled ||
-      !autoUpdateSupported ||
-      hasAutoChecked.current
-    ) {
-      return;
+    const decision = resolveAutoCheck({
+      settingsLoaded,
+      updateChecksEnabled,
+      autoUpdateSupported,
+      hasAutoChecked: hasAutoChecked.current,
+    });
+    hasAutoChecked.current = decision.hasAutoChecked;
+    if (decision.shouldRunCheck) {
+      void runUpdateCheck({ silent: true, trigger: "auto" });
     }
-    hasAutoChecked.current = true;
-    void runUpdateCheck({ silent: true, trigger: "auto" });
   }, [settingsLoaded, updateChecksEnabled, autoUpdateSupported]);
 
   if (!settingsLoaded) {
