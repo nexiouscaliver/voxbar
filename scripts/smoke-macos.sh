@@ -13,9 +13,12 @@ if [ "$#" -ne 1 ]; then
 fi
 
 BUNDLE="$1"
-APP_NAME="VoxBar"         # tauri.conf.json productName (the executable name)
+# The launched process name is the LOWERCASE binary (Cargo name "voxbar"),
+# not the productName; pgrep -x is case-sensitive, so matching "VoxBar"
+# can never see the app (and misses an already-running instance).
+APP_NAME="voxbar"
 APP_ID="com.voxbar.app"   # tauri.conf.json identifier
-LAUNCH_TIMEOUT_S=20
+LAUNCH_TIMEOUT_S=45  # first launch of a freshly built bundle can take well over 20s through LaunchServices
 QUIT_GRACE_S=10
 
 log() { printf '[smoke] %s\n' "$*"; }
@@ -31,6 +34,9 @@ if pgrep -x "$APP_NAME" >/dev/null; then
 fi
 
 log "launching $BUNDLE"
+smoke_launched=1
+cleanup() { [ "${smoke_launched:-0}" -eq 1 ] && osascript -e 'quit app id "com.voxbar.app"' >/dev/null 2>&1; }
+trap cleanup EXIT
 open "$BUNDLE"
 
 launched=0

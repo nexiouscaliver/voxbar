@@ -218,16 +218,16 @@
             "description": "वैकल्पिक: तपाईंको ट्रान्सक्रिप्सनमा सधैँ AI पोस्ट-प्रोसेसिङ लागू गर्ने छुट्टै हटकी।"
           },
           "delete_last_word": {
-            "name": "Delete Last Word",
+            "name": "अन्तिम शब्द मेटाउनुहोस्",
             "description": "रेकर्डिङ सत्र सक्रिय रहँदा डिक्टेसनको लाइभ पाठबाट अन्तिम शब्द हटाउँछ; अन्यथा केही गर्दैन। सक्रिय गर्न एउटा कुञ्जी असाइन गर्नुहोस्।"
           },
           "undo": {
-            "name": "Undo",
+            "name": "पूर्ववत्",
             "description": "डिक्टेसन चलिरहेको बेला: यसलाई मेटेर नयाँ सुरु गर्छ। अन्यथा केही गर्दैन।"
           },
           "transcribe_commands": {
-            "name": "Command Mode",
-            "description": "Hold this key while a dictation session is live to switch it into command interpretation: everything you say edits the dictation buffer directly (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) and unrecognized words are discarded. Release it to return to normal dictation; the final paste delivers exactly the edited buffer. It never starts a recording and does nothing on its own. Unbound by default."
+            "name": "कमाण्ड मोड",
+            "description": "यो कुञ्जीलाई डिक्टेसन सेसन चालु रहँदा होल्ड गर्नुहोस् र बोलेका सबै कुरा सिधै आदेशको रूपमा व्याख्या हुन्छन् (प्रश्न चिन्ह, पूर्ण विराम, अल्प विराम, नयाँ लाइन, नयाँ अनुच्छेद, शब्द मेटाउने, लाइन मेटाउने) र तिनले डिक्टेसन बफरलाई सिधै सम्पादन गर्छन्; नचिनिएका शब्दहरू छाडिन्छन्। छोड्दा सामान्य डिक्टेसनमा फर्किन्छ; अन्तिम पेस्टले ठ्याक्कै सम्पादित बफर दिन्छ। यसले रेकर्डिङ सुरु गर्दैन र आफैं केही गर्दैन। पूर्वनिर्धारित रूपमा बाइन्ड गरिएको छैन।"
           },
           "cycle_post_process_prompt": {
             "name": "पोस्ट-प्रोसेस प्रम्प्ट घुमाउने",
@@ -239,7 +239,7 @@
           "set": "सर्टकट सेट गर्न सकिएन: {{error}}",
           "reset": "सर्टकटलाई मूल मानमा रिसेट गर्न सकिएन"
         },
-        "unbound": "Not bound"
+        "unbound": "बाइन्ड गरिएको छैन"
       },
       "language": {
         "title": "भाषा",
@@ -263,21 +263,21 @@
         }
       },
       "editingShortcuts": {
-        "title": "Editing Shortcuts",
+        "title": "सम्पादन सर्टकटहरू",
         "deleteLastWord": {
-          "title": "Delete Last Word Action",
+          "title": "अन्तिम शब्द मेटाउने क्रिया",
           "description": "रेकर्डिङ सत्र सक्रिय रहँदा डिक्टेसनको लाइभ पाठबाट अन्तिम शब्द हटाउने असाइन गर्न मिल्ने कुञ्जी सक्रिय गर्छ।"
         },
         "undo": {
-          "title": "Undo Action",
+          "title": "पूर्ववत् क्रिया",
           "description": "रेकर्डिङ सत्र सक्रिय रहँदा डिक्टेसनको लाइभ पाठ मेटेर नयाँ सुरु गर्ने असाइन गर्न मिल्ने कुञ्जी सक्रिय गर्छ।"
         }
       },
       "commandMode": {
-        "title": "Command Mode",
+        "title": "कमाण्ड मोड",
         "toggle": {
-          "title": "Command Mode",
-          "description": "Enable the assignable command-mode modifier key. Hold it while a dictation session is live to interpret your speech as commands (question mark, full stop or period, comma, new line, new paragraph, delete word, delete line) that edit the dictation buffer directly; unrecognized words are discarded. It never starts a recording on its own."
+          "title": "कमाण्ड मोड",
+          "description": "असाइन गर्न मिल्ने कमाण्ड-मोड कुञ्जी सक्षम गर्नुहोस्। डिक्टेसन सेसन चालु रहँदा यसलाई होल्ड गर्दा तपाईंको बोली आदेशको रूपमा व्याख्या हुन्छ (प्रश्न चिन्ह, पूर्ण विराम, अल्प विराम, नयाँ लाइन, नयाँ अनुच्छेद, शब्द मेटाउने, लाइन मेटाउने) जसले डिक्टेसन बफरलाई सिधै सम्पादन गर्छ; नचिनिएका शब्दहरू छाडिन्छन्। यसले आफैं रेकर्डिङ सुरु गर्दैन।"
         }
       },
       "groups": {
@@ -373,32 +373,32 @@
         "tooltip": "VoxBar बाहिरबाट मोडेल फोल्डर वा Hugging Face क्यासमा थपिएका मोडेलहरू फेरि स्क्यान गर्नुहोस्"
       },
       "noModelsMatch": "यो फिल्टरसँग कुनै मोडेल मिल्दैन।",
-      "rescanModels": "Rescan models",
+      "rescanModels": "मोडेलहरू पुनः स्क्यान गर्नुहोस्",
       "addFromHf": {
-        "title": "Add model from Hugging Face",
-        "description": "Paste a public repo URL or owner/repo, for example https://huggingface.co/owner/repo.",
-        "placeholder": "https://huggingface.co/owner/repo or owner/repo",
-        "add": "Add",
-        "cancel": "Cancel",
-        "pickFile": "Choose a file from {{repo}}:",
-        "recommended": "Recommended",
+        "title": "हगिङ फेसबाट मोडेल थप्नुहोस्",
+        "description": "सार्वजनिक रिपो URL वा owner/repo पेस्ट गर्नुहोस्, जस्तै https://huggingface.co/owner/repo।",
+        "placeholder": "https://huggingface.co/owner/repo वा owner/repo",
+        "add": "थप्नुहोस्",
+        "cancel": "रद्द गर्नुहोस्",
+        "pickFile": "{{repo}} बाट फाइल छान्नुहोस्:",
+        "recommended": "सिफारिस गरिएको",
         "status": {
-          "resolving": "Resolving repository...",
-          "adding": "Downloading and checking the model...",
-          "added": "Model added. It appears under Downloaded Models."
+          "resolving": "रिपोजिटरी पत्ता लगाउँदै...",
+          "adding": "मोडेल डाउनलोड र जाँच गर्दै...",
+          "added": "मोडेल थपियो। यो डाउनलोड गरिएका मोडेलहरू अन्तर्गत देखिन्छ।"
         },
         "errors": {
-          "invalidInput": "Could not read that as a Hugging Face repo: {{detail}}",
-          "notFound": "Repository {{repo}} was not found on Hugging Face.",
-          "inaccessible": "{{repo}} could not be reached on Hugging Face. It may not exist, or it may be private or gated. Only public repositories are supported for now.",
-          "fileNotFound": "File {{filename}} was not found in {{repo}}.",
-          "noGguf": "{{repo}} contains no GGUF files.",
-          "network": "Could not reach Hugging Face: {{detail}}",
-          "downloadFailed": "Download failed: {{detail}}",
-          "cancelled": "Download cancelled.",
-          "unsupportedArch": "The model architecture {{arch}} is not supported. Supported: {{supported}}.",
-          "unsupportedArchUnknown": "That file could not be read as a GGUF model, so it was not added.",
-          "generic": "Something went wrong."
+          "invalidInput": "त्यो हगिङ फेस रिपोजिटरीको रूपमा पढ्न सकिएन: {{detail}}",
+          "notFound": "रिपोजिटरी {{repo}} हगिङ फेसमा भेटिएन।",
+          "inaccessible": "{{repo}} हगिङ फेसमा पुग्न सकिएन। यो अवस्थित नहुन सक्छ, वा निजी वा संरक्षित हुन सक्छ। हालका लागि सार्वजनिक रिपोजिटरीहरू मात्र समर्थित छन्।",
+          "fileNotFound": "फाइल {{filename}} {{repo}} मा भेटिएन।",
+          "noGguf": "{{repo}} मा कुनै GGUF फाइलहरू छैनन्।",
+          "network": "हगिङ फेसमा पुग्न सकिएन: {{detail}}",
+          "downloadFailed": "डाउनलोड असफल भयो: {{detail}}",
+          "cancelled": "डाउनलोड रद्द गरियो।",
+          "unsupportedArch": "मोडेल आर्किटेक्चर {{arch}} समर्थित छैन। समर्थित: {{supported}}।",
+          "unsupportedArchUnknown": "त्यो फाइललाई GGUF मोडेलको रूपमा पढ्न सकिएन, त्यसैले थपिएन।",
+          "generic": "केही गडबड भयो।"
         }
       },
       "selectionErrors": {
@@ -646,7 +646,7 @@
         "options": {
           "asTranscribed": "ट्रान्सक्राइब भए अनुसार",
           "digits": "अंक",
-          "smart": "Smart"
+          "smart": "स्मार्ट"
         }
       },
       "companionDevices": {

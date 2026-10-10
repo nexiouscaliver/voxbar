@@ -333,3 +333,75 @@ queue is now: KB-194, KB-195, KB-109, KB-198, KB-186 (offline onboarding dead
 end, re-confirmed HIGH by the UI reviewer). Highest-leverage wave-5 pattern:
 honest hotkey commits (KB-194 + KB-198 + KB-199 + KB-212 share one file) and
 the notification-gate rework (KB-195 unblocks the whole KB-148 surface).
+
+---
+
+# Round 5 (20-agent fleet, 2026-10-11, main @ a10ae0ee + merge ff77be71)
+
+Twenty reviewers over twenty areas (eight never reviewed before: streaming
+buffer, command mode, memory gate, engine supervisor, paste pipeline, secure
+input, onboarding, release tooling). All 20 delivered (4 after rate-limit
+re-dispatch). Every wave-5/6 fix claim re-verified; none false.
+
+## Verified this round (additions to the solid map)
+
+All cycle-3 fixes held, incl. KB-194/198/199/212 (hotkey honesty, with tests),
+KB-195 (notification gate on real window visibility, CI-wired test),
+KB-205/206/033/191/211-closed-by-mechanism, KB-109 master-toggle half (test),
+KB-186 end-to-end (note: the catalog is bundled, so the card is an
+IPC-failure surface, not an offline one - reachability caveat when closing).
+NEVER-BEFORE-MAPPED SOLID: the four v1.2.3 command-mode miss paths, the GGUF
+menu fallback chain down to the crate, render-queue lossless ordering,
+never-lose-the-transcript across every engine, LLM swap lifecycle (no leaks),
+supervisor invariants (no restart loops, exact worker accounting), secure-
+input toggle consistency (error legs skip persist), HF add-flow validation.
+
+## New findings (the next cycle's queue)
+
+CRITICAL: KB-217 smoke-macos.sh can never pass (pgrep -x "VoxBar" vs lowercase
+voxbar; unconditional release blocker) - FIXED in ff77be71+ (name + trap).
+HIGH: KB-218 voice gate forecasts from the outgoing model's stale un-keyed
+measured_asr_rss (refuses small models, phantom fallbacks); KB-219 fallback
+resolver's fit test 1.5x looser than the load gate (terminal refusal blames
+the fallback; two parity comments now false); KB-022 confirmed both layers.
+MEDIUM: KB-220 tray Unload mid-dictation kills the whole dictation (one
+shared refuse-while-live pattern also closes KB-117); KB-221 unobserved
+command holds silently dictation (worst on menu-fallback models; the latch's
+own motivating failure one layer down); KB-222 latched finalize discards
+post-release speech; KB-223 reliable-paste chord failure fully silent AND
+invisible to paste_failed (Windows: check-then-act clipboard restore race +
+structural auto-submit lock loss); KB-224 minimized window defeats the KB-195
+gate; KB-225 VPN interface wins the companion bind (10/8 beats home Wi-Fi);
+KB-226 CJK command aliases unanchored/ungated (换行 fires inside prose);
+KB-227 CMD badge lies on non-streaming models; KB-228 Nepali ~33 untranslated
+strings - FIXED in ff77be71+; KB-229 1.5.0.md overclaimed KB-210 - FIXED
+(code fixed instead of weakening the note); KB-230 delete/cancel during
+transfer emits completion for the deleted model (footer auto-select lies);
+KB-231 secure-input unregister failure leaks a double-firing Carbon shadow;
+KB-232 release notes hardcoded in release-macos.sh jq arg; KB-233 nothing in
+CI gates the release scripts (bash -n would have caught KB-217); KB-234
+1.5.0.md + 1.3.0/1.4.0 notes are English-only in all locales (scope call).
+LOW tail: KB-207 300ms unmap race; KB-208 companion detail dropped; KB-209
+prompt-id collision + false comment; KB-212r register-alias conflicts
+bypass the string-equality pre-check; KB-235 Tauri chord-keyed unregister
+kills an active sibling's registration (gate on binding_is_active);
+KB-236 handy-keys recorder bricked by impl-switch-while-armed; KB-237
+always-on flip during remote session strands local mic hot; KB-238
+doomed-mic-preference broadcast before restart outcome; KB-239 AI FFI
+blocks an async worker + chars_out in bytes; KB-240 retry desyncs the five
+pp summary columns (toggle-off retry now deletes output while the stale
+applied-chip survives); KB-241 dead is_model_loading API; KB-242 unit-
+returning setters; KB-243 log-only unregister-old in change_binding;
+KB-244 search index micro-gaps (pp models/timeout/keep-warm, debug runs);
+KB-245 KB-136 family third instance (searchKeyboardNav unwired); KB-100
+half-closed (test:updater still not in CI); run-frontend-tests misses
+uncommitted files; BUILD.md runbook lacks the smoke step.
+
+## Merge note
+
+The parallel session's 123-commit voxbar branch merged as ff77be71: its Rust
+series was already cherry-picked into main across earlier cycles, so main's
+fleet-verified versions won every same-intent overlap; content delta is the
+bun.lock/.nix correction (plain main failed frozen-lockfile) plus the locale
+union of both sides' keys. Full gates green post-merge (809/0 Rust, 19/19
+frontend files, translations, text-style, lint, tsc).

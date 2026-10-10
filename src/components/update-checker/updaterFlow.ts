@@ -296,7 +296,18 @@ async function finishInstall(
     );
     toast.dismiss(installId);
     if (restartNow) {
-      await relaunch();
+      try {
+        await relaunch();
+      } catch (relaunchError) {
+        // KB-210: the bundle swap already succeeded - a relaunch failure is
+        // not an install failure; the update is active on the next launch.
+        console.error("Update relaunch failed:", relaunchError);
+        logDecision("relaunch_failed", String(relaunchError));
+        toast.success(t("footer.updater.restartTitle"), {
+          id: installId,
+          description: t("footer.updater.installedDescription"),
+        });
+      }
     }
   } catch (error) {
     console.error("Update install failed:", error);
