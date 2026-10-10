@@ -201,7 +201,10 @@ enum Effect {
     /// The command-mode modifier engaged (true) or disengaged (false) for
     /// the live session; drives the overlay's command-mode badge. Emitted on
     /// every transition path, session end included, so the badge can never
-    /// outlive the session that armed it.
+    /// outlive the session that armed it. KB-227: the engage edge is
+    /// published only while a live streaming run exists (the gate lives in
+    /// [`run_effect`]) - the only configuration in which anything interprets
+    /// commands - while every false edge publishes unconditionally.
     CommandModifierChanged { active: bool },
 }
 
@@ -1126,6 +1129,19 @@ impl TranscriptionCoordinator {
     }
 }
 
+/// KB-227: whether a command-modifier badge transition may be published to
+/// the overlay. The engage edge (`true`) is honest only while a live
+/// streaming run exists: the streaming snapshot emitter is the modifier's
+/// ONLY backend consumer, and it runs only for a stream actually in flight
+/// - on ONNX/batch models (and after a failed stream start) spoken commands
+/// paste as text, so an ungated chip would claim an interpretation that
+/// never happens. Every disengage edge (`false` - key release, cancel,
+/// failed-start rollback, session end) publishes UNCONDITIONALLY so the
+/// badge can never get stuck on; the gate never blocks it.
+fn command_modifier_badge_publishable(active: bool, stream_live: bool) -> bool {
+    !active || stream_live
+}
+
 fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
     match effect {
         Effect::Start {
@@ -1158,6 +1174,27 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
             );
         }
         Effect::CommandModifierChanged { active } => {
+            // KB-227: gate the ENGAGE edge on the transcription manager's
+            // streaming flag - the honest "this session can consume
+            // commands" signal. It flips true the moment the engine stream
+            // is in flight (before any snapshot arrives, so a press right
+            // after stream begin still lights the badge) and is never set
+            // for ONNX/batch models or after a failed start_stream. A
+            // missing manager reads as "no stream": the badge stays dark
+            // rather than lying. The mirror (`is_command_modifier_active`)
+            // is deliberately NOT gated - a press held through the
+            // stream-start window must still modulate the session once the
+            // consumer appears.
+            let stream_live = app
+                .try_state::<Arc<crate::managers::transcription::TranscriptionManager>>()
+                .is_some_and(|tm| tm.is_streaming());
+            if !command_modifier_badge_publishable(active, stream_live) {
+                debug!(
+                    "Command modifier engaged with no live stream to interpret \
+                     commands; badge suppressed (KB-227)"
+                );
+                return;
+            }
             use tauri::Emitter;
             if let Err(e) = app.emit_to("recording_overlay", "command-modifier-changed", active) {
                 warn!("Failed to emit command-modifier-changed: {e}");
@@ -1819,6 +1856,35 @@ mod tests {
             cancelled.drain_modifier_notifications(),
             vec![Effect::CommandModifierChanged { active: false }]
         );
+    }
+
+    /// KB-227: the run_effect badge gate. The state machine still enqueues
+    /// every engage transition (the notification tests above), but the shell
+    /// may only PUBLISH the engage while a live streaming run exists - the
+    /// snapshot emitter, the modifier's only consumer, runs only then; on
+    /// ONNX/batch models the chip must stay dark because nothing interprets
+    /// commands. The pure predicate below is the exact decision the emit arm
+    /// applies (the arm itself needs the Tauri app handle, which the pure
+    /// harness cannot build - that is the test boundary).
+    #[test]
+    fn command_modifier_badge_engage_requires_a_live_stream() {
+        // No stream (ONNX/batch model, or before the stream begins): the
+        // engage edge is suppressed - the badge must not claim commands.
+        assert!(!command_modifier_badge_publishable(true, false));
+        // A stream in flight (set before the first snapshot): published.
+        assert!(command_modifier_badge_publishable(true, true));
+    }
+
+    /// KB-227: every disengage edge publishes unconditionally - key release,
+    /// cancel, failed-start rollback, session end - whatever the stream
+    /// state, so a suppressed engage can never leave the badge stuck on.
+    #[test]
+    fn command_modifier_badge_disengage_publishes_unconditionally() {
+        assert!(
+            command_modifier_badge_publishable(false, false),
+            "release/session-end clear must publish even with no stream"
+        );
+        assert!(command_modifier_badge_publishable(false, true));
     }
 
     /// A press for a different transcribe binding while one is recording is

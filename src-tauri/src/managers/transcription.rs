@@ -6318,7 +6318,9 @@ mod tests {
             "मुझे, चाहिए"
         );
 
-        // zh: the CJK alias embedded in spaceless Chinese text matches.
+        // zh: KB-226 - a Han alias converts only at a non-Han boundary, so
+        // an alias embedded mid-word (逗号 followed by 世) stays verbatim
+        // while the same alias at the boundary still converts.
         let zh = OutputLanguageEvidence::UserSelected("zh".to_string());
         let chinese = AppSettings {
             chinese_script: ChineseScript::AsTranscribed,
@@ -6334,7 +6336,17 @@ mod tests {
                 &zh,
                 &languages(&["zh"]),
             ),
-            "你好,世界"
+            "你好逗号世界"
+        );
+        assert_eq!(
+            post_process_transcription_text(
+                "你好逗号".to_string(),
+                &chinese,
+                false,
+                &zh,
+                &languages(&["zh"]),
+            ),
+            "你好,"
         );
     }
 
