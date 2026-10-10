@@ -1200,7 +1200,7 @@
       "postProcessPromptCycled": "Efterbehandlingsskabelon: {{name}}",
       "companionDisconnected": "Telefonen frakoblet. Færdiggør med det optagede.",
       "companionServerFailed": "Følgeserveren fejlede: {{error}}",
-      "companionSessionCapped": "Dikteringen fra companion-enheden er afsluttet: grænsen på 15 minutter for sessionen er nået."
+      "companionSessionCapped": "Dikteringen fra Følgeenheden er afsluttet: grænsen på 15 minutter for sessionen er nået på {{device}}."
     },
     "commandBadge": "Kommandotilstand",
     "ppChip": "Renser ({{model}}) {{seconds}}s",

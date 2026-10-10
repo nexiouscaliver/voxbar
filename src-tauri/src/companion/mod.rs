@@ -380,14 +380,38 @@ impl CompanionManager {
             let payload = event.payload();
             if let Ok(value) = serde_json::from_str::<serde_json::Value>(payload) {
                 if let Some(code) = value.get("code").and_then(|c| c.as_str()) {
-                    manager.broadcast_frame(&protocol::ServerFrame::Notice {
-                        code: code.to_string(),
-                    });
+                    // AUD-01: Mac-only feedback (keyboard notices the phone
+                    // can neither trigger nor render) stops here; every
+                    // other code, known or unknown, keeps riding.
+                    if should_forward_notice_to_phones(code) {
+                        manager.broadcast_frame(&protocol::ServerFrame::Notice {
+                            code: code.to_string(),
+                        });
+                    }
                 }
             }
         });
         *guard = Some(id);
     }
+}
+
+/// Overlay-notice codes that describe Mac-keyboard-only feedback and must
+/// never ride to the paired phones. The phone client has no display branch
+/// for them (just a 30 ms vibration), and the Mac emits them per
+/// auto-repeated press, so forwarding them buzzes the phone in a pocket
+/// with nothing to show.
+///
+/// Denylist, not allowlist: every code NOT listed here, known or unknown,
+/// errors included, keeps riding the forwarder, so phone behavior stays
+/// otherwise identical.
+const MAC_ONLY_NOTICE_CODES: &[&str] = &["command_mode_no_session"];
+
+/// AUD-01: may this overlay-notice code be forwarded to the paired phones?
+/// `false` is exactly the Mac-only skip set above; everything else
+/// forwards. Pure so the forwarder's drop policy is testable without a
+/// live TLS server.
+pub fn should_forward_notice_to_phones(code: &str) -> bool {
+    !MAC_ONLY_NOTICE_CODES.contains(&code)
 }
 
 fn qr_svg_for(url: &str) -> Result<String, String> {
@@ -411,8 +435,6 @@ fn manager(app: &AppHandle) -> Option<Arc<CompanionManager>> {
         .map(|s| s.inner().clone())
 }
 
-/// Apply a `companion_devices_enabled` change: start/stop the server with
-/// side effects. Called from the settings command and at startup.
 /// Apply the companion enabled state to the running server: enable starts
 /// the listener, disable finalizes any live phone session and stops it. A
 /// failed start returns Err (already logged, stored on the manager, and
@@ -514,5 +536,56 @@ mod tests {
     fn qr_fails_cleanly_on_garbage() {
         // Empty string is technically encodable; oversize input is not.
         assert!(qr_svg_for(&"x".repeat(4000)).is_err());
+    }
+
+    /// Contract under test (AUD-01): a pure forwarder filter
+    /// `pub fn should_forward_notice_to_phones(code: &str) -> bool` decides,
+    /// for one overlay-notice code string (exactly what the forwarder's
+    /// JSON payload parsing extracts), whether the notice may be broadcast
+    /// to the paired phones. `false` is the Mac-only skip set: feedback only
+    /// the Mac keyboard can trigger, which the phone must never see.
+    #[test]
+    fn forwarder_drops_mac_only_notice_codes() {
+        // command_mode_no_session is Mac-keyboard-only feedback: the
+        // coordinator emits it per (auto-repeated) command-mode press with
+        // no live session, and a phone can never trigger or act on it. The
+        // phone client has no display branch for the code - just a 30 ms
+        // vibration - so every auto-repeat buzzes the phone in the pocket.
+        assert!(
+            !should_forward_notice_to_phones("command_mode_no_session"),
+            "command_mode_no_session is Mac-keyboard-only feedback and must never ride to phones"
+        );
+    }
+
+    /// AUD-01 (double-broadcast): the session-cap tick used to broadcast
+    /// the cap Notice directly to phones AND emit the Mac-side overlay
+    /// notice, which the forwarder above re-broadcast - one cap, two
+    /// identical Notice frames on the phone. The fix makes the forwarder
+    /// the single phone path for the cap code (the server's direct
+    /// broadcast is dropped, the Mac emit stays), so the filter MUST keep
+    /// the cap code phone-bound or phones would lose the cap notice
+    /// entirely. The skip set is a denylist, not an allowlist: every code
+    /// not explicitly Mac-only keeps riding the forwarder, so phone
+    /// behavior stays otherwise identical.
+    #[test]
+    fn cap_notice_reaches_phones_exactly_once_via_the_forwarder() {
+        assert!(
+            should_forward_notice_to_phones("companion_session_capped"),
+            "with the direct cap broadcast dropped, the forwarder is the only phone path for companion_session_capped; the filter must forward it"
+        );
+        // The codes the phone client renders (busy press, disconnect
+        // finalize) stay forwarded.
+        for code in ["binding_busy", "companion_disconnected_finalized"] {
+            assert!(
+                should_forward_notice_to_phones(code),
+                "{code} is rendered by the phone client and must stay forwarded"
+            );
+        }
+        // Denylist semantics: an unknown or not-explicitly-Mac-only code
+        // keeps riding, exactly as the unfiltered forwarder sends it today.
+        assert!(
+            should_forward_notice_to_phones("transcription_failed"),
+            "the skip set must not become an allowlist: codes the phone received before the fix (errors included) keep flowing"
+        );
     }
 }

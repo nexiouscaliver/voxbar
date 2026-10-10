@@ -105,5 +105,23 @@ jobs:
       - name: Test accent palette
         run: bun run test:accent
 
+      # KB-136 pattern: package.json grew test:* scripts and assert-only
+      # *.test.ts files faster than this workflow, so tests existed that CI
+      # never executed. Run every bun unit-test script plus the three
+      # assert files that have no script of their own; the last line is
+      # scripts/ciTestCoverage.test.ts, which fails the build when a new
+      # test:* script or assert file is added without a CI invocation.
+      - name: Run bun unit tests
+        run: |
+          bun run test:keyboard
+          bun run test:notice
+          bun run test:settings
+          bun run test:onboarding
+          bun run test:updater
+          bun src/components/settings/commands/commandGroups.test.ts
+          bun src/components/settings/post-processing/skipToastDedupe.test.ts
+          bun src/components/settings/historyLimitInput.test.ts
+          bun scripts/ciTestCoverage.test.ts
+
       - name: Check translations
         run: bun run check:translations

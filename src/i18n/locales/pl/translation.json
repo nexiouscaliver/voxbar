@@ -1197,7 +1197,7 @@
       "postProcessPromptCycled": "Szablon postprocessingu: {{name}}",
       "companionDisconnected": "Telefon rozłączony. Kończę z tym, co nagrane.",
       "companionServerFailed": "Awaria serwera towarzyszącego: {{error}}",
-      "companionSessionCapped": "Dyktowanie z urządzenia towarzyszącego zakończone: osiągnięto limit sesji 15 minut."
+      "companionSessionCapped": "Dyktowanie z urządzenia towarzyszącego zakończone: osiągnięto limit sesji 15 minut na {{device}}."
     },
     "commandBadge": "Tryb poleceń",
     "ppChip": "Czyszczę ({{model}}) {{seconds}}s",

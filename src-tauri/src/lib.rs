@@ -107,9 +107,7 @@ fn show_main_window(app: &AppHandle) {
         if let Err(e) = main_window.unminimize() {
             log::error!("Failed to unminimize webview window: {}", e);
         }
-        if let Err(e) = main_window.show() {
-            log::error!("Failed to show webview window: {}", e);
-        }
+        let shown = main_window.show().is_ok();
         if let Err(e) = main_window.set_focus() {
             log::error!("Failed to focus webview window: {}", e);
         }
@@ -117,6 +115,16 @@ fn show_main_window(app: &AppHandle) {
         {
             if let Err(e) = app.set_activation_policy(tauri::ActivationPolicy::Regular) {
                 log::error!("Failed to set activation policy to Regular: {}", e);
+            }
+        }
+        // AUD-03: tell the frontend the main window is visible. The
+        // webview's document.visibilityState is unreliable while hidden
+        // (tauri#10592), so src/lib/windowVisibility.ts is fed from this
+        // event instead and every notifyDesktop gate reads it. Emitted on
+        // every show call; the frontend store dedupes same-state repeats.
+        if shown {
+            if let Err(e) = app.emit("main-window-shown", ()) {
+                log::error!("Failed to emit main-window-shown: {}", e);
             }
         }
         return;
@@ -1146,7 +1154,17 @@ pub fn run(cli_args: CliArgs) {
         .on_window_event(|window, event| match event {
             tauri::WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
-                let _res = window.hide();
+                // AUD-03: the tray-dwell hide. Emit only for the main
+                // window (the only window with close chrome today) and
+                // only when the hide actually took, so the frontend
+                // visibility store — which gates notifyDesktop in place of
+                // document.visibilityState (tauri#10592) — never records a
+                // phantom transition.
+                if window.hide().is_ok() && window.label() == "main" {
+                    if let Err(e) = window.app_handle().emit("main-window-hidden", ()) {
+                        log::error!("Failed to emit main-window-hidden: {}", e);
+                    }
+                }
 
                 #[cfg(target_os = "macos")]
                 {
@@ -1205,12 +1223,19 @@ pub fn run(cli_args: CliArgs) {
         // alive past the UI it exists to update.
         tauri::RunEvent::Exit => {
             // KB-151: quitting during an active mute_while_recording session
-            // must not strand the macOS system input muted - restore the
+            // must not strand the macOS system output muted - restore the
             // snapshotted prior state (no-op when we did not mute). Best
             // effort; the process is exiting, so a missing manager is logged
             // rather than panicked on.
             match app.try_state::<Arc<AudioRecordingManager>>() {
-                Some(recording) => recording.remove_mute(),
+                Some(recording) => {
+                    // AUD-12: arm the exit gate (and drop the readiness
+                    // generation, like stop/cancel do) BEFORE the restore, so
+                    // the detached readiness watcher cannot apply the forced
+                    // mute after it and re-strand the system muted.
+                    recording.begin_exit_teardown();
+                    recording.remove_mute();
+                }
                 None => log::warn!("Exit: recording manager unavailable; skipped mute restore"),
             }
             tray::stop_ram_refresh(app);

@@ -537,7 +537,8 @@ const shots = [
       "toast-stack-mixed",
       [
         ["recording-error", { error_type: "no_model_selected", detail: null }],
-        ["command-mode-no-session", null],
+        // prettier-ignore
+        ["overlay-notice-event", { kind: "info", code: "command_mode_no_session", card_visible: false }],
         ["post-process-skip-event", { reason: "timeout" }],
       ],
     ],

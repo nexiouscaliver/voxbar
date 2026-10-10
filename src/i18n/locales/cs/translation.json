@@ -1197,7 +1197,7 @@
       "postProcessPromptCycled": "Šablona následného zpracování: {{name}}",
       "companionDisconnected": "Telefon odpojen. Dokončuji s tím, co bylo zachyceno.",
       "companionServerFailed": "Selhání doprovodného serveru: {{error}}",
-      "companionSessionCapped": "Diktování z doprovodného zařízení skončilo: bylo dosaženo 15minutového limitu relace."
+      "companionSessionCapped": "Diktování z doprovodného zařízení skončilo: bylo dosaženo 15minutového limitu relace na {{device}}."
     },
     "commandBadge": "Režim příkazů",
     "ppChip": "Čistím ({{model}}) {{seconds}}s",

@@ -5,15 +5,24 @@ import { openUrl } from "@tauri-apps/plugin-opener";
 import { platform } from "@tauri-apps/plugin-os";
 import { toast } from "sonner";
 import i18n from "../../i18n";
-import { useSettingsStore } from "../../stores/settingsStore";
+import {
+  getUpdateChecksLockedProbe,
+  useSettingsStore,
+} from "../../stores/settingsStore";
 import { commands } from "../../bindings";
 import { notifyDesktop } from "../../lib/desktopNotify";
+import { getMainWindowVisibility } from "../../lib/windowVisibility";
 import {
   ConfirmUpdateCard,
   RestartPromptCard,
   UpdateProgressBar,
 } from "./UpdateToasts";
+import { shouldDesktopNotifyCheckFailure } from "./checkFailureNotify";
 import { updaterAutoUpdateSupported } from "./updaterPlatform";
+import {
+  awaitUpdateChecksAllowed,
+  type UpdateCheckGateSnapshot,
+} from "./updateCheckGate";
 
 // Where updates come from. The updater itself downloads from the GitHub
 // release (endpoint configured in tauri.conf.json); this URL is the manual
@@ -38,6 +47,14 @@ const DOWNLOAD_TIMEOUT_MS = 600000;
 // toast per chunk churns the webview and makes the download feel slower than
 // it is. Coalesce renders to a fixed rhythm.
 const PROGRESS_RENDER_INTERVAL_MS = 250;
+// How long a manual check will HOLD on an unknown lock state (null) before
+// failing closed (AUD-10). The probe is a local Tauri command reading an env
+// var, so milliseconds are the norm; the bound only exists so a wedged probe
+// can never hang a click (KB-033). The hold normally ends on the probe's own
+// promise resolution, which is not timer-dependent and therefore fires even
+// where macOS suspends setTimeout in a hidden webview; only the fail-safe
+// bound rides the timer.
+const LOCK_PROBE_WAIT_MS = 5000;
 
 export type UpdateTrigger = "manual" | "auto";
 export type UpdatePolicyValue = "ask" | "download" | "install";
@@ -52,16 +69,20 @@ let inFlight = false;
 let restartPromptId: string | number | null = null;
 
 // The system lock (HANDY_DISABLE_UPDATER) and the user's stored preference
-// gate the whole flow. Unknown lock state fails CLOSED (KB-033): while the
-// lock probe is still in flight a locked install must not be able to slip a
-// real network check through the loading window. The store's
-// loadUpdateChecksLocked resolves this quickly and only falls back to
-// "not locked" when the probe itself errors.
-function updateChecksAllowed(): boolean {
+// gate the whole flow. Read as a fresh snapshot for awaitUpdateChecksAllowed
+// (updateCheckGate.ts): the gate re-reads this AFTER the lock probe settles,
+// so a tray click landing inside the probe's in-flight window is held and
+// then decided instead of silently dropped (AUD-10). Unknown lock state
+// still fails CLOSED (KB-033): while the probe is in flight a locked
+// install must not be able to slip a real network check through the loading
+// window. The store's loadUpdateChecksLocked resolves this quickly and only
+// falls back to "not locked" when the probe itself errors.
+function updateCheckGateSnapshot(): UpdateCheckGateSnapshot {
   const { settings, updateChecksLocked } = useSettingsStore.getState();
-  if (updateChecksLocked !== false) return false;
-  if (settings && settings.update_checks_enabled === false) return false;
-  return true;
+  return {
+    locked: updateChecksLocked,
+    checksEnabled: settings?.update_checks_enabled !== false,
+  };
 }
 
 function currentPolicy(): UpdatePolicyValue {
@@ -154,7 +175,9 @@ async function showFailureToast(id?: string | number): Promise<void> {
   });
   // KB-148: this toast renders in the (often hidden) main window, so the
   // same failure also rides an OS notification when nobody can see it.
-  if (document.visibilityState !== "visible") {
+  // AUD-03: hidden state comes from the Rust-fed visibility store, not
+  // document.visibilityState (unreliable in hidden webviews, tauri#10592).
+  if (getMainWindowVisibility() !== "visible") {
     void notifyDesktop(t("footer.updater.failedTitle"));
   }
 }
@@ -331,7 +354,8 @@ function showRestartPrompt(update: Update, autoInstalled: boolean): void {
   );
   // KB-148: the restart prompt sits in the (often hidden) main window; the
   // OS notification carries its title when the window cannot be seen.
-  if (document.visibilityState !== "visible") {
+  // AUD-03: hidden state from the Rust-fed visibility store (tauri#10592).
+  if (getMainWindowVisibility() !== "visible") {
     void notifyDesktop(t("footer.updater.restartTitle"));
   }
 }
@@ -342,7 +366,26 @@ export async function runUpdateCheck(
   const silent = options.silent ?? false;
   const trigger: UpdateTrigger =
     options.trigger ?? (silent ? "auto" : "manual");
-  if (inFlight || !updateChecksAllowed()) return;
+  if (inFlight) return;
+  // AUD-10: await the lock-probe settlement instead of reading the possibly
+  // still-null state synchronously. The tray handler reveals the window
+  // before emitting request-update-check, so deciding instantly on
+  // locked === null was the silently-dropped click; the gate holds this
+  // call (bounded by LOCK_PROBE_WAIT_MS) and decides from the settled
+  // state, still failing closed if it never settles.
+  if (
+    !(await awaitUpdateChecksAllowed(
+      updateCheckGateSnapshot,
+      getUpdateChecksLockedProbe(),
+      LOCK_PROBE_WAIT_MS,
+    ))
+  ) {
+    return;
+  }
+  // The gate may have held this call while the probe settled, and a second
+  // click that arrived during the hold must not let both flows through:
+  // re-claim the single-flight slot before taking it below.
+  if (inFlight) return;
 
   // Platforms without shipped updater artifacts (Windows/Linux today) are
   // gated before any network work: a check there can only error or find
@@ -428,7 +471,8 @@ export async function runUpdateCheck(
     // dismissed before any of that starts.
     // KB-148: the ask card lives in the (often hidden) main window, so its
     // title also rides an OS notification when the window cannot be seen.
-    if (document.visibilityState !== "visible") {
+    // AUD-03: hidden state from the Rust-fed visibility store (tauri#10592).
+    if (getMainWindowVisibility() !== "visible") {
       void notifyDesktop(
         t("footer.updater.availableTitle", { version: update.version }),
       );
@@ -467,6 +511,16 @@ export async function runUpdateCheck(
           onClick: () => void openUrl(RELEASES_URL),
         },
       });
+    } else if (
+      shouldDesktopNotifyCheckFailure(
+        trigger,
+        getMainWindowVisibility() !== "visible",
+      )
+    ) {
+      // AUD-09: the auto (boot) check has no toast arm, so when it fails with
+      // the window hidden in the tray the failure vanished completely. Same
+      // hidden gate (KB-148) and failure title as the manual toast above.
+      void notifyDesktop(t("footer.updater.checkFailedTitle"));
     }
     release();
   }

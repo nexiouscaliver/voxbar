@@ -1197,7 +1197,7 @@
       "postProcessPromptCycled": "Modello di post-elaborazione: {{name}}",
       "companionDisconnected": "Telefono disconnesso. Concludo con quanto registrato.",
       "companionServerFailed": "Server companion non riuscito: {{error}}",
-      "companionSessionCapped": "Dettato dal dispositivo companion terminato: raggiunto il limite di sessione di 15 minuti."
+      "companionSessionCapped": "Dettato dal dispositivo companion terminato: raggiunto il limite di sessione di 15 minuti su {{device}}."
     },
     "commandBadge": "Modalità comandi",
     "ppChip": "Rifinitura ({{model}}) {{seconds}}s",

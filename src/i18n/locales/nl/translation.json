@@ -1200,7 +1200,7 @@
       "postProcessPromptCycled": "Postprocesjabloon: {{name}}",
       "companionDisconnected": "Telefoon losgekoppeld. Afgerond met wat er was.",
       "companionServerFailed": "Companion-server mislukt: {{error}}",
-      "companionSessionCapped": "Dicteren vanaf het companionapparaat is beëindigd: de sessielimiet van 15 minuten is bereikt."
+      "companionSessionCapped": "Dicteren vanaf het companionapparaat is beëindigd: de sessielimiet van 15 minuten is bereikt op {{device}}."
     },
     "commandBadge": "Opdrachtmodus",
     "ppChip": "Bijschaven ({{model}}) {{seconds}}s",

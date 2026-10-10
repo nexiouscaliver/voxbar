@@ -8,6 +8,7 @@ import {
 import { toast, Toaster } from "sonner";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { platform } from "@tauri-apps/plugin-os";
 import {
   checkAccessibilityPermission,
@@ -41,8 +42,17 @@ import {
   type SkipReason,
 } from "@/bindings";
 import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
-import { noticeMessage } from "@/lib/noticeMessage";
-import { notifyDesktop } from "@/lib/desktopNotify";
+import { noticeMessage, noticeNotificationBody } from "@/lib/noticeMessage";
+import { routerDecision } from "@/lib/noticeRouting";
+import {
+  notifyDesktop,
+  primeNotificationPermission,
+} from "@/lib/desktopNotify";
+import {
+  getMainWindowVisibility,
+  setMainWindowVisibility,
+  subscribeMainWindowVisibility,
+} from "@/lib/windowVisibility";
 import {
   failureClassToastKey,
   shouldToast,
@@ -63,31 +73,6 @@ const toastedSkipReasons = new Set<SkipReason>();
 // once-per-token dedupe, so a dead API key cannot re-toast every
 // dictation. The raw transcript is always pasted regardless.
 const toastedFailureClasses = new Set<PostProcessFailureClass>();
-
-// Overlay notice codes the App-level router owns: the ones with NO other
-// main-window surface. The no-op key feedback and the Linux setup warnings
-// (today's allowlist), the companion codes (KB-016: they had zero Mac-side
-// surface before this), and command-mode with no live dictation (KB-038,
-// formerly a dedicated listener). Every failure code with a dedicated
-// legacy listener (paste, recording start, model load/fallback,
-// transcription, the post-process skips) is deliberately absent: those
-// keep their legacy toast plus the error sound, and routing them here too
-// stacked two toasts for one failure whenever the card was hidden.
-// Retiring those legacy listeners is follow-up work.
-const ROUTED_NOTICE_CODES = new Set([
-  "delete_last_word_no_session",
-  "delete_last_word_no_buffer",
-  "undo_no_session",
-  "undo_no_buffer",
-  "binding_busy",
-  "post_process_prompt_cycled",
-  "wayland_tauri_hotkeys",
-  "gnome_overlay_fallback",
-  "companion_disconnected_finalized",
-  "companion_server_failed",
-  "companion_session_capped",
-  "command_mode_no_session",
-]);
 
 const renderSettingsContent = (
   section: SidebarSection,
@@ -383,16 +368,88 @@ function App() {
     })();
   }, []);
 
+  // Main-window visibility (AUD-03): document.visibilityState can keep
+  // reading "visible" in a hidden native webview (tauri#10592), silently
+  // swallowing exactly the notifications that state gates. The Rust side
+  // emits main-window-shown (show_main_window) and main-window-hidden (the
+  // CloseRequested -> hide arm); this listener feeds the shared store that
+  // every notifyDesktop gate reads instead of the DOM. The startup show
+  // fires before this listener attaches, so the current state is also
+  // probed once through the real window API — isVisible() round-trips to
+  // Rust for the window's actual state, unlike visibilityState.
+  useEffect(() => {
+    const unlistens = [
+      listen("main-window-shown", () => setMainWindowVisibility("visible")),
+      listen("main-window-hidden", () => setMainWindowVisibility("hidden")),
+    ];
+    getCurrentWindow()
+      .isVisible()
+      .then((visible) =>
+        setMainWindowVisibility(visible ? "visible" : "hidden"),
+      )
+      .catch((e) => console.warn("Failed to probe window visibility:", e));
+    return () => {
+      for (const unlisten of unlistens) {
+        unlisten.then((fn) => fn());
+      }
+    };
+  }, []);
+
+  // Notification permission (AUD-03): requested eagerly ONCE at the FIRST
+  // window show, never lazily inside notifyDesktop — the old lazy request
+  // could surface the macOS system prompt with no window visible (the
+  // notice arrived while hidden), and one silent denial then disabled the
+  // surface for the whole run. A denial gets a single dismissible info
+  // toast (existing locale keys; the system prompt is the only way back
+  // and the user just declined it, so no action beyond dismissal).
+  // primeNotificationPermission is a once-per-run no-op after the first
+  // call, so the subscription may safely re-arm on language change.
+  useEffect(() => {
+    const requestOnce = () => {
+      void primeNotificationPermission(() => {
+        const id = toast.info(
+          t("onboarding.permissions.errors.requestFailed"),
+          {
+            duration: 10000,
+            action: {
+              label: t("secureInput.dismiss"),
+              onClick: () => toast.dismiss(id),
+            },
+          },
+        );
+      });
+    };
+    const unsubscribe = subscribeMainWindowVisibility((state) => {
+      if (state === "visible") requestOnce();
+    });
+    // The window may already be showing (seeded by the probe above, or
+    // shown before this effect first ran): prime now too.
+    if (getMainWindowVisibility() === "visible") requestOnce();
+    return () => unsubscribe();
+  }, [t]);
+
   // Notice router (KB-020): the overlay card renders a notice itself while
-  // it can (payload.card_visible); only card-less notices - the overlay was
-  // hidden or disabled at emit time - reach this router, and only for the
-  // codes it owns (ROUTED_NOTICE_CODES). Failure codes outside that set are
-  // ignored entirely (no toast, no notification, no rate-limit entry):
-  // their dedicated legacy listeners plus the error sound already cover
-  // the main window, and toasting them here too would stack two toasts for
-  // one failure. Codes the router owns but the shared mapping cannot
-  // localize skip silently (same as today). Rate-limited per code (2s) so
-  // auto-repeat cannot stack; the Linux setup warnings stay up longer
+  // it can (payload.card_visible); the pure per-code decision in
+  // lib/noticeRouting (routerDecision) picks which main-window surfaces may
+  // carry it in this card/window state. Card-gated codes (the no-op key
+  // feedback, the Linux setup warnings, companion_disconnected_finalized)
+  // act only when the card could not render and, then, only while the window
+  // is hidden - the pre-AUD-02 behavior. Legacy-surface codes
+  // (model_fallback, post_process_download_missing, post_process_too_long,
+  // companion_server_failed) act only while the window is hidden: their
+  // legacy listeners and rollback toasts own a visible window (no dual
+  // toast), but a hidden window still gets the toast and the notification.
+  // command_mode_no_session toasts in every state - its pre-KB-038 dedicated
+  // listener always fired, Processing card included. companion_session_capped
+  // toasts card-gated but notifies whenever the window is hidden, because
+  // the finalize pipeline that emits right before the cap can overwrite the
+  // card's notice row. Failure codes outside NOTICE_ROUTE_POLICIES decide
+  // inert and are ignored entirely (no toast, no notification, no
+  // rate-limit entry): their dedicated legacy listeners plus the error sound
+  // already cover the main window, and toasting them here too would stack
+  // two toasts for one failure. Codes the router owns but the shared mapping
+  // cannot localize skip silently (same as today). Rate-limited per code (2s)
+  // so auto-repeat cannot stack; the Linux setup warnings stay up longer
   // because they carry instructions. When the main window is hidden the
   // toast still renders into its webview for when it next opens, and a
   // macOS notification (notifyDesktop) reaches the user now.
@@ -400,21 +457,31 @@ function App() {
   useEffect(() => {
     const unlisten = events.overlayNoticeEvent.listen((event) => {
       const { code, detail, kind, card_visible } = event.payload;
-      if (card_visible) return;
-      if (!ROUTED_NOTICE_CODES.has(code)) return;
+      // AUD-03: the shared store (fed by the Rust shown/hidden events), not
+      // document.visibilityState, which can read "visible" while the window
+      // is hidden (tauri#10592).
+      const windowHidden = getMainWindowVisibility() !== "visible";
+      const decision = routerDecision(code, card_visible, windowHidden);
+      if (!decision.toast && !decision.notify) return;
       const message = noticeMessage(t, code, detail);
       if (message === null) return;
       const now = Date.now();
       if (now - (lastNoopNoticeToast.current[code] ?? 0) < 2000) return;
       lastNoopNoticeToast.current[code] = now;
-      const duration =
-        code === "wayland_tauri_hotkeys" || code === "gnome_overlay_fallback"
-          ? 12000
-          : 4000;
-      const toastFn = kind === "error" ? toast.error : toast.info;
-      toastFn(message, { duration });
-      if (document.visibilityState !== "visible") {
-        void notifyDesktop(message);
+      if (decision.toast) {
+        const duration =
+          code === "wayland_tauri_hotkeys" || code === "gnome_overlay_fallback"
+            ? 12000
+            : 4000;
+        const toastFn = kind === "error" ? toast.error : toast.info;
+        toastFn(message, { duration });
+      }
+      if (decision.notify) {
+        // AUD-03: the OS notification carries the detail-free line — the
+        // raw backend diagnostic stays in the toast (KB-037 class on a
+        // system surface).
+        const body = noticeNotificationBody(t, code, detail);
+        if (body !== null) void notifyDesktop(body);
       }
     });
     return () => {

@@ -1197,7 +1197,7 @@
       "postProcessPromptCycled": "후처리 템플릿: {{name}}",
       "companionDisconnected": "휴대폰 연결이 끊겼습니다. 년음된 내용으로 마무리합니다.",
       "companionServerFailed": "컴패니언 서버 실패: {{error}}",
-      "companionSessionCapped": "컴패니언 기기 받아쓰기가 종료되었습니다: 15분 세션 제한에 도달했습니다."
+      "companionSessionCapped": "컴패니언 기기 받아쓰기가 종료되었습니다: {{device}}에서 15분 세션 제한에 도달했습니다."
     },
     "commandBadge": "명령 모드",
     "ppChip": "다듬는 중 ({{model}}) {{seconds}}초",

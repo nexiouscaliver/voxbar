@@ -9,8 +9,8 @@
 // main-window router skips the code silently (App.tsx).
 
 // The translate function react-i18next's useTranslation hands to components;
-// typed structurally (as the other shared modules take it) so both the
-// overlay component and non-React callers (updaterFlow) can pass theirs.
+// typed structurally (as the other shared modules take it) so both React
+// callers (App and the overlay component) can pass theirs.
 export type NoticeTranslateFn = (
   key: string,
   options?: Record<string, unknown>,
@@ -89,9 +89,12 @@ export function noticeMessage(
         error: detail ?? "",
       });
     // A companion phone dictation hit the 15-minute session cap (KB-016);
-    // the key ships in every locale.
+    // the key ships in every locale and interpolates the device name the
+    // cap event carries as its detail.
     case "companion_session_capped":
-      return t("overlay.notice.companionSessionCapped");
+      return t("overlay.notice.companionSessionCapped", {
+        device: detail ?? "",
+      });
     // The command-mode modifier engaged with no live dictation (KB-038);
     // reuses the key the former dedicated toast used, so no new locale
     // strings ride along.
@@ -100,4 +103,56 @@ export function noticeMessage(
     default:
       return null;
   }
+}
+
+// The codes whose localized line ends in (or carries) a raw diagnostic
+// detail that must not leave the app's own surfaces — the same arms above
+// that pass `detail` into t()'s options, except companion_session_capped:
+// its {{device}} slot is user-facing content (which phone's session
+// capped), sits mid-sentence in most locales, and removing it would break
+// the localized grammar ("wurde auf erreicht."), so the cap's notification
+// body keeps the full line.
+const DETAIL_INTERPOLATING_CODES = new Set([
+  "recording_failed",
+  "model_load_failed",
+  "model_fallback",
+  "post_process_memory_gate",
+  "post_process_cloud_failed",
+  "post_process_prompt_cycled",
+  "companion_server_failed",
+]);
+
+// Clean up what a removed {{detail}} interpolation leaves behind: the
+// separator punctuation the slot orphaned (": " and friends, also at line
+// start for RTL locales), the double space a mid-sentence slot leaves, and
+// any placeholder that still survived — i18next leaves an options variable
+// it does not have as the literal "{{var}}" (skipOnVariables defaults to
+// true), so it is dropped rather than shown.
+function stripInterpolationArtifacts(line: string): string {
+  return line
+    .replace(/\{\{\s*\w+\s*\}\}/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[\s:：\-–—]+$/u, "")
+    .replace(/^[\s:：\-–—]+/u, "")
+    .trim();
+}
+
+// AUD-03: the body the OS notification shows for one notice code. Same
+// code space and null discipline as noticeMessage, but detail-free — the
+// raw backend diagnostic (KB-037 class on a brand-new system surface)
+// stays in the toast, which keeps the interpolated noticeMessage output.
+// Interpolating codes re-localize with an empty detail (an options
+// variable that IS present interpolates its value even when empty) and the
+// orphaned separator is then stripped. If the stripped line somehow came
+// out empty, null skips the notification rather than showing a blank body.
+export function noticeNotificationBody(
+  t: NoticeTranslateFn,
+  code: string,
+  detail?: string | null,
+): string | null {
+  const message = noticeMessage(t, code, detail);
+  if (message === null) return null;
+  if (!DETAIL_INTERPOLATING_CODES.has(code)) return message;
+  const stripped = stripInterpolationArtifacts(noticeMessage(t, code, ""));
+  return stripped.length > 0 ? stripped : null;
 }
