@@ -47,6 +47,8 @@ const Onboarding: React.FC<OnboardingProps> = ({
   const { t } = useTranslation();
   const {
     models,
+    error,
+    loadModels,
     downloadModel,
     selectModel,
     downloadingModels,
@@ -61,6 +63,9 @@ const Onboarding: React.FC<OnboardingProps> = ({
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [refusalCard, setRefusalCard] = useState<RefusalCardState | null>(null);
+  // loadModels() only flips `loading` on the very first run, so the retry
+  // button tracks its own in-flight state to disable against.
+  const [isRetryingCatalog, setIsRetryingCatalog] = useState(false);
   const hasStartedSelection = useRef(false);
   // The pending selection at event time: the refusal card must only answer
   // the load this component itself started.
@@ -100,6 +105,13 @@ const Onboarding: React.FC<OnboardingProps> = ({
   // When nothing recommended remains to download (e.g. all already on disk),
   // there is no curated subset to collapse, so just show the full list.
   const showRest = showAll || !hasRecommended;
+
+  // The offline dead end (KB-186): both model lists are conditional on
+  // catalog content, so a failed fetch used to leave the step with nothing
+  // below the header and no way forward. Surface the failure only when the
+  // catalog is empty AND the store carries an error; with models on screen
+  // the happy path stays pixel-identical.
+  const catalogFailed = models.length === 0 && error !== null;
 
   // Watch for the selected model to finish downloading + verifying + extracting
   useEffect(() => {
@@ -235,6 +247,23 @@ const Onboarding: React.FC<OnboardingProps> = ({
     setSelectedModelId(modelId);
   };
 
+  const handleRetryCatalog = async () => {
+    if (preview) return;
+
+    setIsRetryingCatalog(true);
+    await loadModels();
+    setIsRetryingCatalog(false);
+  };
+
+  // Leaving without a model is a supported state: the main app explains a
+  // hotkey press with no model via the no_model_selected notice, and picking
+  // a model later in Settings completes onboarding for good.
+  const handleSkipModelSelection = () => {
+    if (preview) return;
+
+    onModelSelected();
+  };
+
   const getModelStatus = (modelId: string): ModelCardStatus => {
     if (modelId in extractingModels) return "extracting";
     if (modelId in verifyingModels) return "verifying";
@@ -280,6 +309,37 @@ const Onboarding: React.FC<OnboardingProps> = ({
             screen (the whole step is h-screen, so this region is the only
             place the overflow can go). */}
         <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-6">
+          {catalogFailed && (
+            <div
+              data-testid="catalog-error-card"
+              className="rounded-lg border border-error/30 bg-error/5 p-4 space-y-3 text-left"
+            >
+              <h2 className="text-sm font-medium text-text">
+                {t("onboarding.modelError.title")}
+              </h2>
+              <p className="text-sm text-text/80">
+                {t("onboarding.modelError.body")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleRetryCatalog}
+                  disabled={isRetryingCatalog}
+                  className="rounded-lg bg-text text-background px-3 py-1.5 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {t("onboarding.modelError.retry")}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSkipModelSelection}
+                  className="rounded-lg border border-text/20 px-3 py-1.5 text-sm font-medium text-text hover:bg-text/10 transition-colors"
+                >
+                  {t("onboarding.modelError.skip")}
+                </button>
+              </div>
+            </div>
+          )}
+
           {refusalCard && (
             <div
               data-testid="memory-refusal-card"

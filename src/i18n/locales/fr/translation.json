@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Lancez la dictée avec {{hotkey}} à tout moment.",
-    "hotkeyChangeHint": "Vous pouvez changer ce raccourci dans Paramètres > Général."
+    "hotkeyChangeHint": "Vous pouvez changer ce raccourci dans Paramètres > Général.",
+    "modelError": {
+      "title": "Impossible de charger la liste des modèles",
+      "body": "VoxBar n'a pas pu joindre le catalogue de modèles. Vérifiez votre connexion et réessayez, ou passez cette étape et choisissez un modèle plus tard dans les Réglages.",
+      "retry": "Réessayer",
+      "skip": "Passer pour l'instant"
+    }
   },
   "modelSelector": {
     "custom": "Personnalisé",

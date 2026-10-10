@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Mulai dikte dengan {{hotkey}} kapan saja.",
-    "hotkeyChangeHint": "Pintasan ini bisa diubah di Pengaturan > Umum."
+    "hotkeyChangeHint": "Pintasan ini bisa diubah di Pengaturan > Umum.",
+    "modelError": {
+      "title": "Daftar model gagal dimuat",
+      "body": "VoxBar tidak dapat menjangkau katalog model. Periksa koneksi Anda dan coba lagi, atau lewati langkah ini dan pilih model nanti di Pengaturan.",
+      "retry": "Coba lagi",
+      "skip": "Lewati dulu"
+    }
   },
   "modelSelector": {
     "custom": "Kustom",

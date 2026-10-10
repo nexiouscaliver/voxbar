@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Inicia el dictado con {{hotkey}} en cualquier momento.",
-    "hotkeyChangeHint": "Puedes cambiar este atajo en Configuración > General."
+    "hotkeyChangeHint": "Puedes cambiar este atajo en Configuración > General.",
+    "modelError": {
+      "title": "No se pudo cargar la lista de modelos",
+      "body": "VoxBar no pudo acceder al catálogo de modelos. Comprueba tu conexión e inténtalo de nuevo, u omite este paso y elige un modelo más tarde en Ajustes.",
+      "retry": "Reintentar",
+      "skip": "Omitir por ahora"
+    }
   },
   "modelSelector": {
     "custom": "Personalizado",

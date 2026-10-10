@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Bắt đầu đọc chính tả bằng {{hotkey}} bất cứ lúc nào.",
-    "hotkeyChangeHint": "Bạn có thể đổi phím tắt này trong Cài đặt > Chung."
+    "hotkeyChangeHint": "Bạn có thể đổi phím tắt này trong Cài đặt > Chung.",
+    "modelError": {
+      "title": "Không thể tải danh sách mô hình",
+      "body": "VoxBar không thể truy cập danh mục mô hình. Kiểm tra kết nối và thử lại, hoặc bỏ qua bước này và chọn mô hình sau trong Cài đặt.",
+      "retry": "Thử lại",
+      "skip": "Bỏ qua tạm thời"
+    }
   },
   "modelSelector": {
     "custom": "Tùy chỉnh",

@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Inicie o ditado com {{hotkey}} a qualquer momento.",
-    "hotkeyChangeHint": "Você pode mudar este atalho em Configurações > Geral."
+    "hotkeyChangeHint": "Você pode mudar este atalho em Configurações > Geral.",
+    "modelError": {
+      "title": "Não foi possível carregar a lista de modelos",
+      "body": "O VoxBar não conseguiu acessar o catálogo de modelos. Verifique sua conexão e tente novamente, ou pule esta etapa e escolha um modelo depois nas Configurações.",
+      "retry": "Tentar novamente",
+      "skip": "Pular por agora"
+    }
   },
   "modelSelector": {
     "custom": "Personalizado",

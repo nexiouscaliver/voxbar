@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "随时按 {{hotkey}} 开始听写。",
-    "hotkeyChangeHint": "可以在 设置 > 通用 中更改此快捷键。"
+    "hotkeyChangeHint": "可以在 设置 > 通用 中更改此快捷键。",
+    "modelError": {
+      "title": "无法加载模型列表",
+      "body": "VoxBar 无法连接到模型目录。请检查网络连接后重试，或跳过此步骤，稍后在设置中选择模型。",
+      "retry": "重试",
+      "skip": "暂时跳过"
+    }
   },
   "modelSelector": {
     "custom": "自定义",

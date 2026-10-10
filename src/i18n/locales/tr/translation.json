@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Dikteyi istediğiniz zaman {{hotkey}} ile başlatın.",
-    "hotkeyChangeHint": "Bu kısayolu Ayarlar > Genel bölümünden değiştirebilirsiniz."
+    "hotkeyChangeHint": "Bu kısayolu Ayarlar > Genel bölümünden değiştirebilirsiniz.",
+    "modelError": {
+      "title": "Model listesi yüklenemedi",
+      "body": "VoxBar model kataloğuna ulaşamadı. Bağlantınızı kontrol edip tekrar deneyin ya da bu adımı atlayıp daha sonra Ayarlar'dan bir model seçin.",
+      "retry": "Tekrar dene",
+      "skip": "Şimdilik atla"
+    }
   },
   "modelSelector": {
     "custom": "Özel",

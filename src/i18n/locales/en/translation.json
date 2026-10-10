@@ -45,6 +45,12 @@
       "continueDeferred": "Continue without loading now",
       "guardOffCaveat": "The guard stays off until re-enabled in Settings > Advanced; the model loads on your first dictation."
     },
+    "modelError": {
+      "title": "Couldn't load the model list",
+      "body": "VoxBar couldn't reach the model catalog. Check your connection and try again, or skip this step and pick a model later in Settings.",
+      "retry": "Retry",
+      "skip": "Skip for now"
+    },
     "modelCard": {
       "accuracy": "accuracy",
       "speed": "speed"

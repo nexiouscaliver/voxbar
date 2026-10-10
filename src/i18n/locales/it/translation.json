@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Avvia la dettatura con {{hotkey}} in qualsiasi momento.",
-    "hotkeyChangeHint": "Puoi cambiare questa scorciatoia in Impostazioni > Generali."
+    "hotkeyChangeHint": "Puoi cambiare questa scorciatoia in Impostazioni > Generali.",
+    "modelError": {
+      "title": "Impossibile caricare l'elenco dei modelli",
+      "body": "VoxBar non ha raggiunto il catalogo dei modelli. Controlla la connessione e riprova, oppure salta questo passaggio e scegli un modello più tardi nelle Impostazioni.",
+      "retry": "Riprova",
+      "skip": "Salta per ora"
+    }
   },
   "modelSelector": {
     "custom": "Personalizzato",

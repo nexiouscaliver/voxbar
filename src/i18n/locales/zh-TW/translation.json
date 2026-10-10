@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "隨時按 {{hotkey}} 開始聽寫。",
-    "hotkeyChangeHint": "可以在 設定 > 一般 中變更此快捷鍵。"
+    "hotkeyChangeHint": "可以在 設定 > 一般 中變更此快捷鍵。",
+    "modelError": {
+      "title": "無法載入模型清單",
+      "body": "VoxBar 無法連線到模型目錄。請檢查網路連線後重試，或略過此步驟，稍後在設定中選擇模型。",
+      "retry": "重試",
+      "skip": "暫時略過"
+    }
   },
   "modelSelector": {
     "custom": "自訂",

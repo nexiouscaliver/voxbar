@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Start dicteren met {{hotkey}}, altijd.",
-    "hotkeyChangeHint": "Je kunt deze sneltoets wijzigen via Instellingen > Algemeen."
+    "hotkeyChangeHint": "Je kunt deze sneltoets wijzigen via Instellingen > Algemeen.",
+    "modelError": {
+      "title": "Modellenlijst kon niet worden geladen",
+      "body": "VoxBar kon de modelcatalogus niet bereiken. Controleer je verbinding en probeer het opnieuw, of sla deze stap over en kies later een model in Instellingen.",
+      "retry": "Opnieuw proberen",
+      "skip": "Nu overslaan"
+    }
   },
   "modelSelector": {
     "custom": "Aangepast",

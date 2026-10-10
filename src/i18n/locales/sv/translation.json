@@ -144,7 +144,13 @@
       }
     },
     "hotkeyHint": "Starta diktering med {{hotkey}} när som helst.",
-    "hotkeyChangeHint": "Du kan ändra denna genväg i Inställningar > Allmänt."
+    "hotkeyChangeHint": "Du kan ändra denna genväg i Inställningar > Allmänt.",
+    "modelError": {
+      "title": "Modellistan kunde inte läsas in",
+      "body": "VoxBar kunde inte nå modellkatalogen. Kontrollera din anslutning och försök igen, eller hoppa över det här steget och välj en modell senare i Inställningar.",
+      "retry": "Försök igen",
+      "skip": "Hoppa över nu"
+    }
   },
   "modelSelector": {
     "custom": "Anpassad",
