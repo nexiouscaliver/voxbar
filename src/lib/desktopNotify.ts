@@ -1,3 +1,4 @@
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   isPermissionGranted,
   requestPermission,
@@ -15,12 +16,35 @@ import {
 // returning "denied") on every subsequent notice.
 let permissionRequested = false;
 
-// Post one OS notification. Never throws: a notification is a courtesy
-// surface, so a failure (missing permission, plugin error) is logged and
-// swallowed rather than breaking the flow that tried to tell the user
-// something. "VoxBar" is the product name and intentionally not localized.
+// KB-195: the visibility gate lives HERE, not at the call sites. The old
+// call-site checks read document.visibilityState, which WKWebView keeps
+// reporting as "visible" for an ordered-out Tauri window - silently no-oping
+// every notification. The window's real state is the only trustworthy
+// signal. When even that cannot be queried (no Tauri window context), warn
+// once and stay quiet: a context that cannot know must not notify.
+let warnedVisibilityUnavailable = false;
+
+// Post one OS notification, but only when this webview's window is not
+// visible. Never throws: a notification is a courtesy surface, so a failure
+// (missing permission, plugin error) is logged and swallowed rather than
+// breaking the flow that tried to tell the user something. "VoxBar" is the
+// product name and intentionally not localized.
 export async function notifyDesktop(body: string): Promise<void> {
+  let visible: boolean;
   try {
+    visible = await getCurrentWindow().isVisible();
+  } catch (error) {
+    if (!warnedVisibilityUnavailable) {
+      warnedVisibilityUnavailable = true;
+      console.warn(
+        "Desktop notification skipped: window visibility unavailable:",
+        error,
+      );
+    }
+    return;
+  }
+  try {
+    if (visible) return;
     let granted = await isPermissionGranted();
     if (!granted && !permissionRequested) {
       permissionRequested = true;

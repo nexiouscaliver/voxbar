@@ -164,11 +164,16 @@ const STATIC_INDEX: readonly SearchEntry[] = [
   { section: "debug", key: "settings.debug.keyboardDiagnostic.title" },
   { section: "debug", key: "settings.debug.liveLogs.title" },
 
-  // About. KB-190: every visible About row is indexed, in tab order - the
-  // App Language and Update Policy rows are reachable by search too.
+  // About. KB-190/KB-206: the About settings rows are indexed in tab order
+  // - the App Language, Theme, Accent Color, and Update Policy rows are
+  // reachable by search too. The acknowledgment sub-rows (ggml credit, the
+  // upstream attribution literal) are content, not settings, and stay
+  // unindexed.
   { section: "about", key: "sidebar.about" },
   { section: "about", key: "settings.about.title" },
   { section: "about", key: "appLanguage.title" },
+  { section: "about", key: "theme.title" },
+  { section: "about", key: "theme.accentColor.label" },
   { section: "about", key: "settings.about.version.title" },
   { section: "about", key: "settings.about.whatsNewUpdates.label" },
   { section: "about", key: "settings.debug.updateChecks.label" },

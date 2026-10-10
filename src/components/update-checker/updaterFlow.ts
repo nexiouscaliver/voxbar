@@ -152,11 +152,10 @@ async function showFailureToast(id?: string | number): Promise<void> {
       onClick: () => void openUrl(RELEASES_URL),
     },
   });
-  // KB-148: this toast renders in the (often hidden) main window, so the
-  // same failure also rides an OS notification when nobody can see it.
-  if (document.visibilityState !== "visible") {
-    void notifyDesktop(t("footer.updater.failedTitle"));
-  }
+  // KB-148/KB-195: this toast renders in the (often hidden) main window, so
+  // the same failure also rides an OS notification; notifyDesktop itself
+  // queries the window's real visibility and stays quiet when it is shown.
+  void notifyDesktop(t("footer.updater.failedTitle"));
 }
 
 // Download with a throttled progress toast (MB counter plus a real progress
@@ -329,11 +328,10 @@ function showRestartPrompt(update: Update, autoInstalled: boolean): void {
       }),
     { duration: Infinity },
   );
-  // KB-148: the restart prompt sits in the (often hidden) main window; the
-  // OS notification carries its title when the window cannot be seen.
-  if (document.visibilityState !== "visible") {
-    void notifyDesktop(t("footer.updater.restartTitle"));
-  }
+  // KB-148/KB-195: the restart prompt sits in the (often hidden) main
+  // window; the OS notification carries its title, gated by notifyDesktop
+  // on the window's real visibility.
+  void notifyDesktop(t("footer.updater.restartTitle"));
 }
 
 export async function runUpdateCheck(
@@ -342,7 +340,19 @@ export async function runUpdateCheck(
   const silent = options.silent ?? false;
   const trigger: UpdateTrigger =
     options.trigger ?? (silent ? "auto" : "manual");
-  if (inFlight || !updateChecksAllowed()) return;
+  // KB-205: a manual click while another flow still holds the latch (the
+  // silent install policy can hold it for many minutes) used to return
+  // with zero feedback and read as a dead button. Reveal the main window so
+  // the running flow's own toast (progress bar, confirm card, or restart
+  // prompt) is where the user can see it. Auto triggers stay silent, and
+  // the locked/disabled gate below never reveals anything.
+  if (inFlight) {
+    if (trigger === "manual") {
+      await revealMainWindow();
+    }
+    return;
+  }
+  if (!updateChecksAllowed()) return;
 
   // Platforms without shipped updater artifacts (Windows/Linux today) are
   // gated before any network work: a check there can only error or find
@@ -426,13 +436,12 @@ export async function runUpdateCheck(
     // release date and a notes excerpt. On download it transitions into the
     // progress toast and then the restart prompt; the card itself is
     // dismissed before any of that starts.
-    // KB-148: the ask card lives in the (often hidden) main window, so its
-    // title also rides an OS notification when the window cannot be seen.
-    if (document.visibilityState !== "visible") {
-      void notifyDesktop(
-        t("footer.updater.availableTitle", { version: update.version }),
-      );
-    }
+    // KB-148/KB-195: the ask card lives in the (often hidden) main window,
+    // so its title also rides an OS notification, gated by notifyDesktop on
+    // the window's real visibility.
+    void notifyDesktop(
+      t("footer.updater.availableTitle", { version: update.version }),
+    );
     toast.custom(
       (id) =>
         React.createElement(ConfirmUpdateCard, {
