@@ -274,6 +274,14 @@ pub enum RecordingState {
     Stopping,
 }
 
+/// Whether a capture-restarting settings change must be rejected right
+/// now: any live recording (Recording or Stopping) would have its captured
+/// samples discarded by the restart, silently killing the dictation. The
+/// shared rule behind the device/channel/VAD switch guards.
+fn capture_restart_forbidden(state: &RecordingState) -> bool {
+    !matches!(state, RecordingState::Idle)
+}
+
 #[derive(Clone, Debug)]
 pub enum MicrophoneMode {
     AlwaysOn,
@@ -1126,7 +1134,41 @@ impl AudioRecordingManager {
         Ok(())
     }
 
-    pub fn update_selected_device(&self) -> Result<(), anyhow::Error> {
+    /// Switch the capture to a newly selected microphone. Rejected while a
+    /// recording is live: restarting an active capture would discard its
+    /// samples and desync the recording state - the same rule as
+    /// [`Self::update_selected_channel`]. On rejection nothing changes,
+    /// not the live capture and not the persisted preference. On
+    /// acceptance the preference is persisted here (the restart resolves
+    /// the device from settings at open time, so it must be on disk before
+    /// the stream reopens) and an open stream restarts on the new device.
+    pub fn update_selected_device(
+        &self,
+        selected_microphone: Option<String>,
+    ) -> Result<(), anyhow::Error> {
+        // Serialize against recording start/stop for the whole switch,
+        // like the channel change does.
+        let state = self.state.lock().unwrap();
+        if capture_restart_forbidden(&state) {
+            return Err(anyhow::anyhow!(
+                "Cannot change the selected microphone while recording"
+            ));
+        }
+
+        let mut settings = get_settings(&self.app_handle);
+        if settings.selected_microphone != selected_microphone {
+            settings.selected_microphone = selected_microphone;
+            write_settings(&self.app_handle, settings);
+            // The same convergence signal the fallback path emits when it
+            // rewrites this field, so every open surface re-reads the store.
+            let _ = self.app_handle.emit(
+                "settings-changed",
+                serde_json::json!({
+                    "setting": "selected_microphone"
+                }),
+            );
+        }
+
         // Device settings changed; re-enumerate the device and restart capture.
         self.invalidate_device_cache();
         let was_open = *self.is_open.lock().unwrap();
@@ -1395,6 +1437,37 @@ mod tests {
     // single-session arbitration - the same rule local hotkeys follow - at
     // the coordinator level (transcription_coordinator tests:
     // companion_edges_*).
+
+    /// The mute-restore decision shared by every teardown path (normal
+    /// stop, stream close, cancellation - local or companion source): a
+    /// forced mute yields the snapshotted prior state exactly once; no
+    /// forced mute yields nothing. This is the seam cancel_recording now
+    /// routes through (remove_mute), so cancelling restores the system
+    /// audio the same instant the normal stop does instead of stranding
+    /// it muted until the next completed dictation (KB-002).
+    /// The capture-restart guard behind the device/channel/VAD switch
+    /// rejections: a live recording (Recording or Stopping) must never be
+    /// restarted underneath, because the restart discards its captured
+    /// samples - switching the microphone mid-dictation used to kill the
+    /// recording silently (round 3). Idle is the only state that permits a
+    /// capture-shape change.
+    #[test]
+    fn capture_restart_is_forbidden_while_recording_or_stopping() {
+        assert!(
+            !capture_restart_forbidden(&RecordingState::Idle),
+            "idle: the capture may be restarted"
+        );
+        assert!(
+            capture_restart_forbidden(&RecordingState::Recording {
+                binding_id: "transcribe".to_string()
+            }),
+            "a live recording must never have its capture restarted"
+        );
+        assert!(
+            capture_restart_forbidden(&RecordingState::Stopping),
+            "a recording in its stop pipeline still holds samples: no restart"
+        );
+    }
 
     /// The mute-restore decision shared by every teardown path (normal
     /// stop, stream close, cancellation - local or companion source): a

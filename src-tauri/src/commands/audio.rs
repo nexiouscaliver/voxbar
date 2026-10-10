@@ -244,19 +244,21 @@ pub async fn get_available_microphones() -> Result<Vec<AudioDevice>, String> {
 #[tauri::command]
 #[specta::specta]
 pub async fn set_selected_microphone(app: AppHandle, device_name: String) -> Result<(), String> {
-    let mut settings = get_settings(&app);
-    settings.selected_microphone = if device_name == "default" {
+    // Apply the runtime change before it becomes durable (the same
+    // apply-first rule as set_selected_channel): update_selected_device
+    // rejects the switch outright while a recording is live, so neither
+    // the live capture nor the stored preference changes on rejection.
+    let selection = if device_name == "default" {
         None
     } else {
         Some(device_name)
     };
-    write_settings(&app, settings);
 
-    // Update the audio manager to use the new device. update_selected_device
-    // can restart the cpal stream (blocking CoreAudio) - run it on a blocking
-    // thread, not inline on the webview/main run loop.
+    // update_selected_device can restart the cpal stream (blocking
+    // CoreAudio) - run it on a blocking thread, not inline on the
+    // webview/main run loop.
     let rm = app.state::<Arc<AudioRecordingManager>>().inner().clone();
-    tokio::task::spawn_blocking(move || rm.update_selected_device())
+    tokio::task::spawn_blocking(move || rm.update_selected_device(selection))
         .await
         .map_err(|e| format!("audio task join failed: {}", e))?
         .map_err(|e| format!("Failed to update selected device: {}", e))
