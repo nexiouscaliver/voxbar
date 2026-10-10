@@ -876,6 +876,26 @@ pub struct AppSettings {
     /// `overlay_position` (position `none` → style `None`).
     #[serde(default = "default_overlay_style")]
     pub overlay_style: OverlayStyle,
+    /// Companion devices: use a phone/tablet on the same Wi-Fi as a remote
+    /// microphone and push-to-talk trigger, with this Mac as the engine.
+    /// OFF by default - the off path leaves no listener, no threads, and
+    /// the local recorder path untouched.
+    #[serde(default)]
+    pub companion_devices_enabled: bool,
+    /// Port for the companion TLS/WebSocket server on the LAN interface.
+    #[serde(default = "default_companion_port")]
+    pub companion_port: u16,
+    /// 128-bit hex pairing token, generated on enable/reset and bound to
+    /// the advertised interface's /24 subnet. A peer from a different
+    /// subnet is refused with a re-pair notice.
+    #[serde(default)]
+    pub companion_pairing_token: Option<String>,
+    /// The /24 (as "a.b.c.0/24") the pairing token was issued for.
+    #[serde(default)]
+    pub companion_pairing_subnet: Option<String>,
+    /// Name of the last device that completed a hello handshake.
+    #[serde(default)]
+    pub companion_last_device: Option<String>,
 }
 
 fn default_model() -> String {
@@ -886,6 +906,12 @@ const CURRENT_SETTINGS_SCHEMA_VERSION: u32 = 2;
 
 fn default_settings_schema_version() -> u32 {
     CURRENT_SETTINGS_SCHEMA_VERSION
+}
+
+/// The companion server's default port. Unprivileged and outside the
+/// well-known ranges, so nothing on a stock Mac or router claims it.
+fn default_companion_port() -> u16 {
+    4177
 }
 
 fn default_hold_threshold_ms() -> u64 {
@@ -1508,9 +1534,7 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
                 {
                     debug!(
                         "Updating default_timeout_secs for provider '{}' from {} to {}",
-                        provider.id,
-                        existing.default_timeout_secs,
-                        provider.default_timeout_secs
+                        provider.id, existing.default_timeout_secs, provider.default_timeout_secs
                     );
                     existing.default_timeout_secs = provider.default_timeout_secs;
                     changed = true;
@@ -1783,6 +1807,11 @@ pub fn get_default_settings() -> AppSettings {
         vad_enabled: default_vad_enabled(),
         vad_backend: VadBackend::default(),
         overlay_style: default_overlay_style(),
+        companion_devices_enabled: false,
+        companion_port: default_companion_port(),
+        companion_pairing_token: None,
+        companion_pairing_subnet: None,
+        companion_last_device: None,
     }
 }
 
@@ -3642,7 +3671,10 @@ mod tests {
             .iter()
             .find(|p| p.id == "groq")
             .unwrap();
-        assert_eq!(groq.default_timeout_secs, FAST_PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS);
+        assert_eq!(
+            groq.default_timeout_secs,
+            FAST_PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS
+        );
         let openai = settings
             .post_process_providers
             .iter()
@@ -3658,8 +3690,7 @@ mod tests {
             .find(|p| p.id == "tuned")
             .unwrap();
         assert_eq!(
-            tuned.default_timeout_secs,
-            PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
+            tuned.default_timeout_secs, PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
             "a hand-tuned class default is never clobbered"
         );
     }

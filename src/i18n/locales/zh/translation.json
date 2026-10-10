@@ -642,6 +642,25 @@
           "digits": "数字",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "伴侣设备",
+        "description": "把同一 Wi-Fi 上的手机或平板当作这台 Mac 的麦克风和触发键。",
+        "offNote": "默认关闭。在你开启之前，不会监听任何连接，也不运行任何线程。",
+        "qrTitle": "配对设备",
+        "qrHint": "用手机相机扫描，打开链接，并一次性接受证书警告。",
+        "addressLabel": "地址",
+        "portLabel": "端口",
+        "devicesLabel": "已连接的设备",
+        "noDevices": "还没有设备连接",
+        "resetPairing": "重置配对",
+        "fingerprintLabel": "证书指纹（SHA-256）",
+        "firewallNote": "首次开启时 macOS 可能请求允许传入连接。请允许，否则手机无法连接这台 Mac。",
+        "unavailable": "伴侣设备在本周期需要 macOS。",
+        "serverError": "服务器失败：{{error}}",
+        "refresh": "刷新",
+        "statusRunning": "运行中",
+        "statusStopped": "已停止"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "在 GNOME Wayland 上，悬浮窗会以普通窗口形式出现，可能抢走焦点并破坏粘贴。此处建议将悬浮窗设为无。",
       "postProcessOutputInvalid": "润色返回了不可用的文本，已保留原始转录。",
       "postProcessCloudFailed": "润色失败，已保留原始转录：{{detail}}",
-      "postProcessPromptCycled": "后处理模板：{{name}}"
+      "postProcessPromptCycled": "后处理模板：{{name}}",
+      "companionDisconnected": "手机已断开。正在用已录下的内容收尾。",
+      "companionServerFailed": "伴侣服务器失败：{{error}}"
     },
     "commandBadge": "命令模式",
-    "ppChip": "润色中 ({{model}}) {{seconds}}秒"
+    "ppChip": "润色中 ({{model}}) {{seconds}}秒",
+    "companionBadge": "伴侣麦克风"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} 新功能"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar 无法从此位置安装更新",
     "translocatedDescription": "VoxBar 正在从临时的只读位置运行（macOS App Translocation）。请退出 VoxBar，将其从下载文件夹拖入应用程序文件夹，再从那里打开。",
     "commandNoSession": "命令键仅在录音进行时有效。请先开始录音，然后按住该键并说出命令。"
+  },
+  "companion": {
+    "title": "VoxBar 伴侣",
+    "subtitle": "你的手机现在是这台 Mac 的麦克风和触发键。",
+    "certNote": "如果浏览器提示连接警告，请将证书指纹与 VoxBar 设置中的比对，然后接受一次。",
+    "noToken": "请从 VoxBar 设置中的二维码打开本页面。",
+    "micDenied": "麦克风权限被拒绝。请在浏览器中允许后重新加载。",
+    "badToken": "配对失败。请重新扫描 VoxBar 设置中的二维码。",
+    "wrongSubnet": "这台手机与 Mac 不在同一网络。请加入同一 Wi-Fi 后重新配对。",
+    "rateLimited": "配对尝试过多。请等待一分钟后再试。",
+    "busy": "Mac 正在通过另一个触发键听写。",
+    "disconnectedFinalized": "连接中断。Mac 已保留你说的内容。",
+    "capped": "会话以 15 分钟为限。再按一次即可继续。",
+    "serverStopped": "Mac 已停止伴侣服务器。",
+    "reconnect": "重新连接",
+    "holdToTalk": "按住说话",
+    "tapToTalk": "点按说话",
+    "release": "松开结束",
+    "tapToStop": "点按停止",
+    "stateConnecting": "连接中",
+    "stateWaitMic": "等待麦克风",
+    "stateReady": "就绪",
+    "stateRecording": "录音中",
+    "stateDisconnected": "已断开",
+    "stateError": "错误"
   }
 }

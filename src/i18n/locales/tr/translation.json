@@ -642,6 +642,25 @@
           "digits": "Rakamlar",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Eşlik eden cihazlar",
+        "description": "Aynı Wi-Fi'deki bir telefonu veya tableti bu Mac için mikrofon ve düğme olarak kullan.",
+        "offNote": "Varsayılan olarak kapalı. Sen açana kadar hiçbir şey dinlemez ve hiçbir iş parçacığı çalışmaz.",
+        "qrTitle": "Cihaz eşleştir",
+        "qrHint": "Telefon kamerasıyla tara, bağlantıyı aç ve sertifika uyarısını bir kez kabul et.",
+        "addressLabel": "Adres",
+        "portLabel": "Port",
+        "devicesLabel": "Bağlı cihazlar",
+        "noDevices": "Henüz bağlı cihaz yok",
+        "resetPairing": "Eşleştirmeyi sıfırla",
+        "fingerprintLabel": "Sertifika parmak izi (SHA-256)",
+        "firewallNote": "İlk açışta macOS gelen bağlantılara izin isteyebilir. İzin ver, yoksa telefonlar bu Mac'e ulaşamaz.",
+        "unavailable": "Eşlik eden cihazlar bu döngüde macOS gerektirir.",
+        "serverError": "Sunucu başarısız: {{error}}",
+        "refresh": "Yenile",
+        "statusRunning": "Çalışıyor",
+        "statusStopped": "Durduruldu"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "GNOME Wayland'de ekran katmanı, odağı çalan ve yapıştırmayı bozan sıradan bir pencere olarak görünür. Burada Ekran Katmanı: Yok önerilir.",
       "postProcessOutputInvalid": "Parlatma kullanılamaz metin döndürdü, özgün transkript korundu.",
       "postProcessCloudFailed": "Parlatma başarısız oldu, özgün transkript korundu: {{detail}}",
-      "postProcessPromptCycled": "Son işlem şablonu: {{name}}"
+      "postProcessPromptCycled": "Son işlem şablonu: {{name}}",
+      "companionDisconnected": "Telefon bağlantısı kesildi. Kaydedilenle bitiriliyor.",
+      "companionServerFailed": "Eşlik sunucusu başarısız: {{error}}"
     },
     "commandBadge": "Komut modu",
-    "ppChip": "Parlatılıyor ({{model}}) {{seconds}}sn"
+    "ppChip": "Parlatılıyor ({{model}}) {{seconds}}sn",
+    "companionBadge": "Eşlik mikrofonu"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} yenilikleri"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar bu konumdan güncellemeleri yükleyemez",
     "translocatedDescription": "VoxBar geçici bir salt okunur konumdan çalışıyor (macOS App Translocation). VoxBar'ı kapatın, İndirilenler klasöründen Uygulamalar klasörüne sürükleyin ve oradan açın.",
     "commandNoSession": "Komut tuşu yalnızca canlı dikte sırasında çalışır. Önce kaydı başlatın, sonra tuşu basılı tutup komutu söyleyin."
+  },
+  "companion": {
+    "title": "VoxBar Eşlik",
+    "subtitle": "Telefonun artık Mac'in için mikrofon ve düğme.",
+    "certNote": "Tarayıcı bağlantı konusunda uyarırsa sertifika parmak izini VoxBar ayarlarındaki ile karşılaştır ve bir kez kabul et.",
+    "noToken": "Bu sayfayı VoxBar ayarlarındaki QR koduyla aç.",
+    "micDenied": "Mikrofon erişimi reddedildi. Tarayıcıda izin ver ve yeniden yükle.",
+    "badToken": "Eşleştirme başarısız. VoxBar ayarlarındaki QR kodunu yeniden tara.",
+    "wrongSubnet": "Bu telefon Mac'ten farklı bir ağda. Aynı Wi-Fi'ye katıl ve yeniden eşleştir.",
+    "rateLimited": "Çok fazla eşleştirme denemesi. Bir dakika bekle ve tekrar dene.",
+    "busy": "Mac halihazırda başka bir düğmeden dikte ediyor.",
+    "disconnectedFinalized": "Bağlantı koptu. Mac söylediklerini korudu.",
+    "capped": "Oturum 15 dakikayla sınırlı. Devam etmek için yeniden bas.",
+    "serverStopped": "Mac eşlik sunucusunu durdurdu.",
+    "reconnect": "Yeniden bağlan",
+    "holdToTalk": "Konuşmak için basılı tut",
+    "tapToTalk": "Konuşmak için dokun",
+    "release": "Bitirmek için bırak",
+    "tapToStop": "Durdurmak için dokun",
+    "stateConnecting": "Bağlanıyor",
+    "stateWaitMic": "Mikrofon bekleniyor",
+    "stateReady": "Hazır",
+    "stateRecording": "Kaydediyor",
+    "stateDisconnected": "Bağlantı kesildi",
+    "stateError": "Hata"
   }
 }

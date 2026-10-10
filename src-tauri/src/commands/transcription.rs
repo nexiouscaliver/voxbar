@@ -67,9 +67,7 @@ pub fn set_post_process_timeout_for_provider(
     {
         return Err(format!("unknown post-process provider: {provider_id}"));
     }
-    settings
-        .post_process_timeouts
-        .insert(provider_id, seconds);
+    settings.post_process_timeouts.insert(provider_id, seconds);
     write_settings(&app, settings);
     Ok(())
 }

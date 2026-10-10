@@ -109,6 +109,8 @@ const settingUpdaters: {
     commands.changeAudioFeedbackSetting(value as boolean),
   memory_pressure_guard: (value) =>
     commands.changeMemoryPressureGuardSetting(value as boolean),
+  companion_devices_enabled: (value) =>
+    commands.changeCompanionDevicesSetting(value as boolean),
   auto_fallback: (value) =>
     commands.changeAutoFallbackSetting(value as boolean),
   menu_bar_model_title: (value) =>

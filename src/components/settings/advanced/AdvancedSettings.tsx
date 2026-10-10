@@ -18,6 +18,7 @@ import { WordCorrectionThreshold } from "../debug/WordCorrectionThreshold";
 import { ChineseScriptSetting } from "../ChineseScript";
 import { VadBackendSelector } from "../VadBackendSelector";
 import { ExperimentalToggle } from "../ExperimentalToggle";
+import { CompanionDevices } from "../CompanionDevices";
 
 /**
  * Plumbing only: model residency and memory, the transcription passes that
@@ -68,6 +69,9 @@ export const AdvancedSettings: React.FC = () => {
           <AccelerationSelector descriptionMode="tooltip" grouped={true} />
           <LazyStreamClose descriptionMode="tooltip" grouped={true} />
           <VadBackendSelector descriptionMode="tooltip" grouped={true} />
+          {/* Companion devices carry their own OFF-by-default toggle; it
+              lives behind the experimental flag this cycle. */}
+          <CompanionDevices />
         </SettingsGroup>
       )}
     </div>

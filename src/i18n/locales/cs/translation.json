@@ -642,6 +642,25 @@
           "digits": "Číslice",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Doprovodná zařízení",
+        "description": "Použijte telefon nebo tablet na stejné Wi-Fi jako mikrofon a spoušť pro tento Mac.",
+        "offNote": "Ve výchozím stavu vypnuto. Nic neposlouchá a žádná vlákna neběží, dokud to nezapnete.",
+        "qrTitle": "Spárovat zařízení",
+        "qrHint": "Naskenujte kamerou telefonu, otevřete odkaz a jednou přijměte upozornění na certifikát.",
+        "addressLabel": "Adresa",
+        "portLabel": "Port",
+        "devicesLabel": "Připojená zařízení",
+        "noDevices": "Zatím žádná připojená zařízení",
+        "resetPairing": "Resetovat párování",
+        "fingerprintLabel": "Otisk certifikátu (SHA-256)",
+        "firewallNote": "macOS může při prvním zapnutí požádat o povolení příchozích spojení. Povolte je, jinak telefony tohoto Maca nenajdou.",
+        "unavailable": "Doprovodná zařízení v tomto cyklu vyžadují macOS.",
+        "serverError": "Server selhal: {{error}}",
+        "refresh": "Obnovit",
+        "statusRunning": "Běží",
+        "statusStopped": "Zastaveno"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "Na GNOME Wayland se překryv zobrazí jako běžné okno, které může ukrást fokus a rozbít vkládání. Doporučuje se zde Překryv: Žádné.",
       "postProcessOutputInvalid": "Čištění vrátilo nepoužitelný text, původní přepis byl zachován.",
       "postProcessCloudFailed": "Čištění selhalo, původní přepis byl zachován: {{detail}}",
-      "postProcessPromptCycled": "Šablona následného zpracování: {{name}}"
+      "postProcessPromptCycled": "Šablona následného zpracování: {{name}}",
+      "companionDisconnected": "Telefon odpojen. Dokončuji s tím, co bylo zachyceno.",
+      "companionServerFailed": "Selhání doprovodného serveru: {{error}}"
     },
     "commandBadge": "Režim příkazů",
-    "ppChip": "Čistím ({{model}}) {{seconds}}s"
+    "ppChip": "Čistím ({{model}}) {{seconds}}s",
+    "companionBadge": "Doprovodný mikrofon"
   },
   "whatsNew": {
     "title": "Novinky v VoxBar v{{version}}"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar nemůže z tohoto umístění instalovat aktualizace",
     "translocatedDescription": "VoxBar běží z dočasného umístění jen pro čtení (macOS App Translocation). Ukončete VoxBar, přetáhněte jej ze složky Stažené do složky Aplikace a spusťte jej odtud.",
     "commandNoSession": "Příkazová klávesa funguje jen během aktivní dikce. Nejprve spusťte nahrávání, pak ji držte a vyslovte příkaz."
+  },
+  "companion": {
+    "title": "VoxBar Companion",
+    "subtitle": "Váš telefon je teď mikrofon a spoušť pro váš Mac.",
+    "certNote": "Pokud prohlížeč varuje před spojením, porovnejte otisk certifikátu s otiskem v nastavení VoxBar a jednou ho přijměte.",
+    "noToken": "Otevřete tuto stránku z QR kódu v nastavení VoxBar.",
+    "micDenied": "Přístup k mikrofonu zamítnut. Povolte ho v prohlížeči a načtěte znovu.",
+    "badToken": "Párování selhalo. Naskenujte QR kód v nastavení VoxBar znovu.",
+    "wrongSubnet": "Tento telefon je v jiné síti než Mac. Připojte se ke stejné Wi-Fi a spárujte znovu.",
+    "rateLimited": "Příliš mnoho pokusů o párování. Počkejte minutu a zkuste to znovu.",
+    "busy": "Mac už diktuje z jiné spouště.",
+    "disconnectedFinalized": "Spojení přerušeno. Mac si uložil, co jste řekli.",
+    "capped": "Relace omezena na 15 minut. Stiskněte znovu pro pokračování.",
+    "serverStopped": "Mac zastavil doprovodný server.",
+    "reconnect": "Připojit znovu",
+    "holdToTalk": "Držte pro mluvení",
+    "tapToTalk": "Klepněte pro mluvení",
+    "release": "Pusťte pro dokončení",
+    "tapToStop": "Klepněte pro zastavení",
+    "stateConnecting": "Připojování",
+    "stateWaitMic": "Čekání na mikrofon",
+    "stateReady": "Připraveno",
+    "stateRecording": "Nahrávání",
+    "stateDisconnected": "Odpojeno",
+    "stateError": "Chyba"
   }
 }

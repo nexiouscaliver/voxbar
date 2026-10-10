@@ -642,6 +642,25 @@
           "digits": "Chữ số",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Thiết bị đồng hành",
+        "description": "Dùng điện thoại hoặc máy tính bảng trên cùng Wi-Fi làm micrô và nút bấm cho máy Mac này.",
+        "offNote": "Mặc định tắt. Không có gì lắng nghe và không có luồng nào chạy cho đến khi bạn bật.",
+        "qrTitle": "Ghép thiết bị",
+        "qrHint": "Quét bằng máy ảnh điện thoại, mở liên kết và chấp nhận cảnh báo chứng chỉ một lần.",
+        "addressLabel": "Địa chỉ",
+        "portLabel": "Cổng",
+        "devicesLabel": "Thiết bị đã kết nối",
+        "noDevices": "Chưa có thiết bị nào kết nối",
+        "resetPairing": "Đặt lại ghép nối",
+        "fingerprintLabel": "Dấu vân tay chứng chỉ (SHA-256)",
+        "firewallNote": "Lần bật đầu tiên, macOS có thể hỏi cho phép kết nối đến. Hãy cho phép, nếu không điện thoại sẽ không kết nối được với máy Mac này.",
+        "unavailable": "Thiết bị đồng hành cần macOS trong chu kỳ này.",
+        "serverError": "Máy chủ lỗi: {{error}}",
+        "refresh": "Làm mới",
+        "statusRunning": "Đang chạy",
+        "statusStopped": "Đã dừng"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "Trên GNOME Wayland, lớp phủ hiển thị như một cửa sổ thường có thể chiếm trọng tâm và làm hỏng thao tác dán. Ở đây nên đặt Lớp phủ: Không có.",
       "postProcessOutputInvalid": "Bước tinh chỉnh trả về văn bản không dùng được, bản gốc đã được giữ lại.",
       "postProcessCloudFailed": "Tinh chỉnh thất bại, bản gốc đã được giữ lại: {{detail}}",
-      "postProcessPromptCycled": "Mẫu hậu xử lý: {{name}}"
+      "postProcessPromptCycled": "Mẫu hậu xử lý: {{name}}",
+      "companionDisconnected": "Điện thoại đã ngắt kết nối. Kết thúc với phần đã ghi.",
+      "companionServerFailed": "Máy chủ đồng hành lỗi: {{error}}"
     },
     "commandBadge": "Chế độ lệnh",
-    "ppChip": "Đang tinh chỉnh ({{model}}) {{seconds}}s"
+    "ppChip": "Đang tinh chỉnh ({{model}}) {{seconds}}s",
+    "companionBadge": "Micrô đồng hành"
   },
   "whatsNew": {
     "title": "Điểm mới trong VoxBar v{{version}}"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar không thể cài đặt bản cập nhật từ vị trí này",
     "translocatedDescription": "VoxBar đang chạy từ một vị trí tạm thời chỉ đọc (App Translocation của macOS). Thoát VoxBar, kéo nó từ thư mục Downloads vào thư mục Ứng dụng, rồi mở từ đó.",
     "commandNoSession": "Phím lệnh chỉ hoạt động khi đang nghe chính tả. Hãy bắt đầu ghi âm trước, rồi giữ phím và đọc lệnh."
+  },
+  "companion": {
+    "title": "VoxBar Đồng hành",
+    "subtitle": "Điện thoại của bạn giờ là micrô và nút bấm cho máy Mac.",
+    "certNote": "Nếu trình duyệt cảnh báo về kết nối, hãy so dấu vân tay chứng chỉ với dấu trong cài đặt VoxBar và chấp nhận một lần.",
+    "noToken": "Hãy mở trang này từ mã QR trong cài đặt VoxBar.",
+    "micDenied": "Quyền truy cập micrô bị từ chối. Hãy cho phép trong trình duyệt rồi tải lại.",
+    "badToken": "Ghép nối thất bại. Quét lại mã QR trong cài đặt VoxBar.",
+    "wrongSubnet": "Điện thoại này ở mạng khác với máy Mac. Hãy vào cùng Wi-Fi rồi ghép nối lại.",
+    "rateLimited": "Quá nhiều lần thử ghép nối. Chờ một phút rồi thử lại.",
+    "busy": "Máy Mac đang đọc chính tả từ nút bấm khác.",
+    "disconnectedFinalized": "Kết nối bị ngắt. Máy Mac đã giữ lại lời bạn nói.",
+    "capped": "Phiên giới hạn 15 phút. Nhấn lại để tiếp tục.",
+    "serverStopped": "Máy Mac đã dừng máy chủ đồng hành.",
+    "reconnect": "Kết nối lại",
+    "holdToTalk": "Giữ để nói",
+    "tapToTalk": "Nhấn để nói",
+    "release": "Nhả để kết thúc",
+    "tapToStop": "Nhấn để dừng",
+    "stateConnecting": "Đang kết nối",
+    "stateWaitMic": "Đang chờ micrô",
+    "stateReady": "Sẵn sàng",
+    "stateRecording": "Đang ghi",
+    "stateDisconnected": "Đã ngắt",
+    "stateError": "Lỗi"
   }
 }

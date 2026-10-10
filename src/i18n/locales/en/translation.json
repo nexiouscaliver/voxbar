@@ -642,6 +642,25 @@
           "digits": "Digits",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Companion Devices",
+        "description": "Use a phone or tablet on the same Wi-Fi as a microphone and trigger for this Mac.",
+        "offNote": "Off by default. Nothing listens and no threads run until you enable it.",
+        "qrTitle": "Pair a device",
+        "qrHint": "Scan with the phone camera, open the link, and accept the certificate warning once.",
+        "addressLabel": "Address",
+        "portLabel": "Port",
+        "devicesLabel": "Connected devices",
+        "noDevices": "No devices connected yet",
+        "resetPairing": "Reset pairing",
+        "fingerprintLabel": "Certificate fingerprint (SHA-256)",
+        "firewallNote": "macOS may ask to allow incoming connections the first time you enable this. Allow it, or phones cannot reach this Mac.",
+        "unavailable": "Companion devices need macOS this cycle.",
+        "serverError": "Server failed: {{error}}",
+        "refresh": "Refresh",
+        "statusRunning": "Running",
+        "statusStopped": "Stopped"
       }
     },
     "postProcessing": {
@@ -1177,10 +1196,13 @@
       "gnomeOverlayFallback": "On GNOME Wayland the overlay appears as a regular window that can steal focus and break pasting. Overlay: None is recommended here.",
       "postProcessOutputInvalid": "Polishing returned unusable text, so the raw transcript was kept.",
       "postProcessCloudFailed": "Polishing failed and the raw transcript was kept: {{detail}}",
-      "postProcessPromptCycled": "Post-process template: {{name}}"
+      "postProcessPromptCycled": "Post-process template: {{name}}",
+      "companionDisconnected": "Phone disconnected. Finishing with what was captured.",
+      "companionServerFailed": "Companion server failed: {{error}}"
     },
     "commandBadge": "Command mode",
-    "ppChip": "Polishing ({{model}}) {{seconds}}s"
+    "ppChip": "Polishing ({{model}}) {{seconds}}s",
+    "companionBadge": "Companion microphone"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} may be blocking 1 shortcut",
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar cannot install updates from this location",
     "translocatedDescription": "VoxBar is running from a temporary read-only location (macOS App Translocation). Quit VoxBar, drag it from your Downloads folder into Applications, and open it from there.",
     "commandNoSession": "The command key works while a dictation is live. Start recording first, then hold it and speak the command."
+  },
+  "companion": {
+    "title": "VoxBar Companion",
+    "subtitle": "Your phone is now a microphone and trigger for your Mac.",
+    "certNote": "If your browser warns about the connection, compare the certificate fingerprint with the one in VoxBar settings and accept it once.",
+    "noToken": "Open this page from the QR code in VoxBar settings.",
+    "micDenied": "Microphone access was denied. Allow it in the browser and reload.",
+    "badToken": "Pairing failed. Scan the QR code in VoxBar settings again.",
+    "wrongSubnet": "This phone is on a different network than the Mac. Join the same Wi-Fi and pair again.",
+    "rateLimited": "Too many pairing attempts. Wait a minute and try again.",
+    "busy": "The Mac is already dictating from another trigger.",
+    "disconnectedFinalized": "Connection dropped. The Mac kept what you said.",
+    "capped": "Session capped at 15 minutes. Press again to continue.",
+    "serverStopped": "The Mac stopped the companion server.",
+    "reconnect": "Reconnect",
+    "holdToTalk": "Hold to talk",
+    "tapToTalk": "Tap to talk",
+    "release": "Release to finish",
+    "tapToStop": "Tap to stop",
+    "stateConnecting": "Connecting",
+    "stateWaitMic": "Waiting for microphone",
+    "stateReady": "Ready",
+    "stateRecording": "Recording",
+    "stateDisconnected": "Disconnected",
+    "stateError": "Error"
   }
 }

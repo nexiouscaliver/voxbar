@@ -664,9 +664,12 @@ pub struct TranscriptionCoordinator {
 /// binding ("transcribe_commands") is NOT one of them: it is a
 /// during-dictation modifier that never starts or stops a recording, so
 /// its events route to [`TranscriptionCoordinator::send_command_modifier`]
-/// instead of the lifecycle input path.
+/// instead of the lifecycle input path. "transcribe_companion" is the
+/// phone/tablet trigger: the same lifecycle, so the one-only-session rule
+/// and the cross-binding busy notice arbitrate local vs companion presses
+/// exactly as they do between the two keyboard bindings.
 pub fn is_transcribe_binding(id: &str) -> bool {
-    id == "transcribe" || id == "transcribe_with_post_process"
+    id == "transcribe" || id == "transcribe_with_post_process" || id == "transcribe_companion"
 }
 
 impl TranscriptionCoordinator {
@@ -844,6 +847,24 @@ impl TranscriptionCoordinator {
             true,
             ShortcutActivation::Toggle,
             Duration::ZERO,
+            true,
+        );
+    }
+
+    /// Forward a companion-device (phone/tablet) press or release edge for
+    /// the "transcribe_companion" binding. External like the signal/CLI
+    /// triggers (network edges must never be debounced - dropping one
+    /// desyncs the phone's button state), but honoring the user's activation
+    /// mode and hold threshold so hold-to-talk and tap-to-lock behave from
+    /// the phone exactly as they do from the keyboard.
+    pub fn send_companion_edge(&self, app: &AppHandle, pressed: bool) {
+        let settings = crate::settings::get_settings(app);
+        self.send(
+            "transcribe_companion",
+            "companion",
+            pressed,
+            settings.shortcut_activation,
+            Duration::from_millis(settings.hold_threshold_ms),
             true,
         );
     }
@@ -1039,12 +1060,155 @@ mod tests {
         assert!(is_transcribe_binding("transcribe"));
         assert!(is_transcribe_binding("transcribe_with_post_process"));
         assert!(
+            is_transcribe_binding("transcribe_companion"),
+            "the companion binding drives the same recording lifecycle as the keyboard triggers"
+        );
+        assert!(
             !is_transcribe_binding("transcribe_commands"),
             "the command binding is a during-dictation modifier, never a recording trigger"
         );
         assert!(!is_transcribe_binding("delete_last_word"));
         assert!(!is_transcribe_binding("undo"));
         assert!(!is_transcribe_binding("cancel"));
+    }
+
+    // ---------------------------------------------------------------------
+    // Companion-device edges (phones/tablets on the LAN). Same lifecycle,
+    // same one-only-session rule; network edges are external, so they are
+    // never debounced (dropping one desyncs the phone's button state).
+    // ---------------------------------------------------------------------
+
+    const COMPANION_BINDING: &str = "transcribe_companion";
+
+    fn companion_edge(pressed: bool, mode: ShortcutActivation) -> InputEvent {
+        InputEvent {
+            binding_id: COMPANION_BINDING.to_string(),
+            hotkey_string: "companion".to_string(),
+            is_pressed: pressed,
+            mode,
+            hold_threshold: Duration::from_millis(300),
+            external: true,
+        }
+    }
+
+    #[test]
+    fn companion_push_to_talk_press_and_release_drive_one_session() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::PushToTalk), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(matches!(state.stage, Stage::Recording(_)));
+        // Push-to-talk: the release is deferred by the same release grace a
+        // physical key gets, then stops the session when the grace expires.
+        assert!(state
+            .on_input(
+                companion_edge(false, ShortcutActivation::PushToTalk),
+                t0 + Duration::from_secs(2)
+            )
+            .is_none());
+        assert!(matches!(
+            state.on_grace_expired(),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(state.stage, Stage::Processing);
+    }
+
+    #[test]
+    fn companion_press_while_local_binding_records_is_arbitrated_not_silent() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0),
+            Some(Effect::Start { .. })
+        ));
+
+        // A phone press during the local hotkey's session is swallowed to
+        // protect the live session - but NOT silently: the busy notice
+        // names the companion binding so it can be forwarded to the phone.
+        let effect = state.on_input(
+            companion_edge(true, ShortcutActivation::PushToTalk),
+            t0 + Duration::from_millis(100),
+        );
+        assert_eq!(
+            effect,
+            Some(Effect::NotifyRecordingBusy {
+                binding_id: COMPANION_BINDING.to_string()
+            })
+        );
+        // The local session is untouched.
+        assert!(matches!(state.stage, Stage::Recording(_)));
+
+        // Symmetrically, the keyboard pressing during a companion session
+        // gets the same arbitration.
+        let mut state = CoordinatorState::new();
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::Toggle), t0),
+            Some(Effect::Start { .. })
+        ));
+        let effect = state.on_input(
+            toggle_input_for(OTHER_BINDING, true),
+            t0 + Duration::from_millis(50),
+        );
+        assert!(matches!(
+            effect,
+            Some(Effect::NotifyRecordingBusy { binding_id }) if binding_id == OTHER_BINDING
+        ));
+    }
+
+    #[test]
+    fn companion_edges_are_never_debounced() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        // Two presses 10 ms apart (inside the 30 ms debounce window): the
+        // first starts, the second stops the toggle session. A debounced
+        // second edge would wedge the phone's button state on.
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::Toggle), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(matches!(
+            state.on_input(
+                companion_edge(true, ShortcutActivation::Toggle),
+                t0 + Duration::from_millis(10)
+            ),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(state.stage, Stage::Processing);
+    }
+
+    #[test]
+    fn companion_hold_or_toggle_short_tap_locks_and_release_after_hold_stops() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::HoldOrToggle), t0),
+            Some(Effect::Start { .. })
+        ));
+        // Release before the 300 ms threshold: a tap, session locks on
+        // (the release grace finds nothing deferred; a locked session
+        // ignores releases).
+        assert!(state
+            .on_input(
+                companion_edge(false, ShortcutActivation::HoldOrToggle),
+                t0 + Duration::from_millis(120)
+            )
+            .is_none());
+        assert!(state.on_grace_expired().is_none());
+        assert!(matches!(state.stage, Stage::Recording(_)));
+
+        // A second press stops the locked session.
+        assert!(matches!(
+            state.on_input(
+                companion_edge(true, ShortcutActivation::HoldOrToggle),
+                t0 + Duration::from_secs(1)
+            ),
+            Some(Effect::Stop { .. })
+        ));
     }
 
     // ---------------------------------------------------------------------

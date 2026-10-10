@@ -9,7 +9,8 @@ pub mod vad;
 
 pub use audio::{
     is_microphone_access_denied, is_no_input_device_error, list_input_devices, list_output_devices,
-    read_wav_samples, save_wav_file, verify_wav_file, AudioRecorder, CpalDeviceInfo, VadPolicy,
+    read_wav_samples, save_wav_file, verify_wav_file, AudioRecorder, CpalDeviceInfo,
+    RemoteAudioSource, VadPolicy,
 };
 pub use command_matrix::{
     compile_command_matrix, default_command_matrix, default_compiled_matrix, matrix_from_settings,

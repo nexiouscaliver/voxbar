@@ -642,6 +642,25 @@
           "digits": "數字",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "伴侶裝置",
+        "description": "把同一 Wi-Fi 上的手機或平板當作這台 Mac 的麥克風和觸發鍵。",
+        "offNote": "預設關閉。在你開啟之前，不會監聽任何連線，也不執行任何執行緒。",
+        "qrTitle": "配對裝置",
+        "qrHint": "用手機相機掃描，開啟連結，並一次性接受憑證警告。",
+        "addressLabel": "位址",
+        "portLabel": "連接埠",
+        "devicesLabel": "已連線的裝置",
+        "noDevices": "還沒有裝置連線",
+        "resetPairing": "重設配對",
+        "fingerprintLabel": "憑證指紋（SHA-256）",
+        "firewallNote": "首次開啟時 macOS 可能請求允許傳入連線。請允許，否則手機無法連到這台 Mac。",
+        "unavailable": "伴侶裝置在本週期需要 macOS。",
+        "serverError": "伺服器失敗：{{error}}",
+        "refresh": "重新整理",
+        "statusRunning": "執行中",
+        "statusStopped": "已停止"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "在 GNOME Wayland 上，懸浮窗會以一般視窗形式出現，可能搶走焦點並破壞貼上。此處建議將懸浮窗設為無。",
       "postProcessOutputInvalid": "潤飾回傳了無法使用的文字，已保留原始謄寫。",
       "postProcessCloudFailed": "潤飾失敗，已保留原始謄寫：{{detail}}",
-      "postProcessPromptCycled": "後處理範本：{{name}}"
+      "postProcessPromptCycled": "後處理範本：{{name}}",
+      "companionDisconnected": "手機已斷線。正在以已錄下的內容收尾。",
+      "companionServerFailed": "伴侶伺服器失敗：{{error}}"
     },
     "commandBadge": "命令模式",
-    "ppChip": "潤飾中 ({{model}}) {{seconds}}秒"
+    "ppChip": "潤飾中 ({{model}}) {{seconds}}秒",
+    "companionBadge": "伴侶麥克風"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} 新功能"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar 無法從此位置安裝更新",
     "translocatedDescription": "VoxBar 正在從暫時的唯讀位置執行（macOS App Translocation）。請結束 VoxBar，將它從「下載」資料夾拖入「應用程式」資料夾，再從那裡開啟。",
     "commandNoSession": "命令鍵僅在錄音進行時有效。請先開始錄音，然後按住該鍵並說出命令。"
+  },
+  "companion": {
+    "title": "VoxBar 伴侶",
+    "subtitle": "你的手機現在是這台 Mac 的麥克風和觸發鍵。",
+    "certNote": "如果瀏覽器提示連線警告，請將憑證指紋與 VoxBar 設定中的比對，然後接受一次。",
+    "noToken": "請從 VoxBar 設定中的 QR 碼開啟本頁面。",
+    "micDenied": "麥克風權限遭拒。請在瀏覽器中允許後重新載入。",
+    "badToken": "配對失敗。請重新掃描 VoxBar 設定中的 QR 碼。",
+    "wrongSubnet": "這台手機與 Mac 不在同一網路。請加入同一 Wi-Fi 後重新配對。",
+    "rateLimited": "配對嘗試過多。請等待一分鐘後再試。",
+    "busy": "Mac 正在透過另一個觸發鍵聽寫。",
+    "disconnectedFinalized": "連線中斷。Mac 已保留你說的內容。",
+    "capped": "工作階段以 15 分鐘為限。再按一次即可繼續。",
+    "serverStopped": "Mac 已停止伴侶伺服器。",
+    "reconnect": "重新連線",
+    "holdToTalk": "按住說話",
+    "tapToTalk": "點按說話",
+    "release": "放開結束",
+    "tapToStop": "點按停止",
+    "stateConnecting": "連線中",
+    "stateWaitMic": "等待麥克風",
+    "stateReady": "就緒",
+    "stateRecording": "錄音中",
+    "stateDisconnected": "已斷線",
+    "stateError": "錯誤"
   }
 }

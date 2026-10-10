@@ -773,6 +773,45 @@ pub fn change_memory_pressure_guard_setting(app: AppHandle, enabled: bool) -> Re
     Ok(())
 }
 
+/// Companion devices master toggle (OFF by default). Beyond persisting the
+/// setting, enabling starts the companion server and disabling stops it
+/// (finalizing a live phone session first) - the same shape as
+/// change_memory_pressure_guard_setting, plus lifecycle side effects.
+#[tauri::command]
+#[specta::specta]
+pub fn change_companion_devices_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.companion_devices_enabled = enabled;
+    settings::write_settings(&app, settings);
+    crate::companion::apply_enabled(&app, enabled);
+    Ok(())
+}
+
+/// Issue a fresh pairing token (rebound to the current LAN /24) and
+/// restart the server if it is running, so the QR changes and phones
+/// holding the old token are refused.
+#[tauri::command]
+#[specta::specta]
+pub fn reset_companion_pairing(app: AppHandle) -> Result<(), String> {
+    let manager = app
+        .state::<std::sync::Arc<crate::companion::CompanionManager>>()
+        .inner()
+        .clone();
+    manager.reset_pairing(&app)
+}
+
+/// Snapshot for the settings panel: QR (SVG), URL, port, fingerprint,
+/// connected devices, and any server error.
+#[tauri::command]
+#[specta::specta]
+pub fn get_companion_status(app: AppHandle) -> crate::companion::CompanionStatus {
+    let manager = app
+        .state::<std::sync::Arc<crate::companion::CompanionManager>>()
+        .inner()
+        .clone();
+    manager.status(&app)
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn change_auto_fallback_setting(app: AppHandle, enabled: bool) -> Result<(), String> {

@@ -642,6 +642,25 @@
           "digits": "Siffror",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Kompanionenheter",
+        "description": "Använd en telefon eller surfplatta på samma Wi-Fi som mikrofon och knapp för denna Mac.",
+        "offNote": "Av som standard. Inget lyssnar och inga trådar körs förrän du slår på det.",
+        "qrTitle": "Para en enhet",
+        "qrHint": "Skanna med telefonens kamera, öppna länken och acceptera certifikatvarningen en gång.",
+        "addressLabel": "Adress",
+        "portLabel": "Port",
+        "devicesLabel": "Anslutna enheter",
+        "noDevices": "Inga enheter anslutna än",
+        "resetPairing": "Återställ parkoppling",
+        "fingerprintLabel": "Certifikatfingeravtryck (SHA-256)",
+        "firewallNote": "macOS kan vid första aktiveringen fråga om inkommande anslutningar ska tillåtas. Tillåt, annars når telefoner inte den här Macen.",
+        "unavailable": "Kompanionenheter kräver macOS i den här cykeln.",
+        "serverError": "Servern misslyckades: {{error}}",
+        "refresh": "Uppdatera",
+        "statusRunning": "Kör",
+        "statusStopped": "Stoppad"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "På GNOME Wayland visas overlayet som ett vanligt fönster som kan stjäla fokus och förstöra inklistring. Overlay: Ingen rekommenderas här.",
       "postProcessOutputInvalid": "Poleringen returnerade oanvändbar text, den ursprungliga transkriptionen behölls.",
       "postProcessCloudFailed": "Poleringen misslyckades, den ursprungliga transkriptionen behölls: {{detail}}",
-      "postProcessPromptCycled": "Efterbearbetningsmall: {{name}}"
+      "postProcessPromptCycled": "Efterbearbetningsmall: {{name}}",
+      "companionDisconnected": "Telefonen kopplades från. Slutför med det som spelades in.",
+      "companionServerFailed": "Kompanionservern misslyckades: {{error}}"
     },
     "commandBadge": "Kommandoläge",
-    "ppChip": "Polerar ({{model}}) {{seconds}}s"
+    "ppChip": "Polerar ({{model}}) {{seconds}}s",
+    "companionBadge": "Kompanionmikrofon"
   },
   "whatsNew": {
     "title": "Nytt i VoxBar v{{version}}"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar kan inte installera uppdateringar från denna plats",
     "translocatedDescription": "VoxBar körs från en tillfällig skrivskyddad plats (macOS App Translocation). Avsluta VoxBar, dra den från mappen Nedladdningar till Programmappen och öppna den därifrån.",
     "commandNoSession": "Kommandotangenten fungerar bara under en aktiv diktering. Starta inspelningen först, håll sedan tangenten och säg kommandot."
+  },
+  "companion": {
+    "title": "VoxBar Kompanion",
+    "subtitle": "Din telefon är nu mikrofon och knapp för din Mac.",
+    "certNote": "Om webbläsaren varnar för anslutningen, jämför certifikatets fingeravtryck med det i VoxBars inställningar och acceptera en gång.",
+    "noToken": "Öppna den här sidan via QR-koden i VoxBars inställningar.",
+    "micDenied": "Mikrofonåtkomst nekades. Tillåt den i webbläsaren och ladda om.",
+    "badToken": "Parkopplingen misslyckades. Skanna QR-koden i VoxBars inställningar igen.",
+    "wrongSubnet": "Telefonen finns i ett annat nätverk än Macen. Anslut till samma Wi-Fi och para igen.",
+    "rateLimited": "För många parkopplingsförsök. Vänta en minut och försök igen.",
+    "busy": "Macen dikterar redan från en annan knapp.",
+    "disconnectedFinalized": "Anslutningen bröts. Macen sparade det du sa.",
+    "capped": "Sessionen begränsas till 15 minuter. Tryck igen för att fortsätta.",
+    "serverStopped": "Macen stoppade kompanionservern.",
+    "reconnect": "Anslut igen",
+    "holdToTalk": "Håll för att tala",
+    "tapToTalk": "Tryck för att tala",
+    "release": "Släpp för att sluta",
+    "tapToStop": "Tryck för att sluta",
+    "stateConnecting": "Ansluter",
+    "stateWaitMic": "Väntar på mikrofon",
+    "stateReady": "Redo",
+    "stateRecording": "Spelar in",
+    "stateDisconnected": "Frånkopplad",
+    "stateError": "Fel"
   }
 }

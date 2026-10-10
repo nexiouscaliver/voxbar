@@ -642,6 +642,25 @@
           "digits": "ספרות",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "מכשירים מלווים",
+        "description": "השתמשו בטלפון או טאבלט באותו Wi-Fi כמיקרופון וכפתור הקלטה עבור ה־Mac הזה.",
+        "offNote": "כבוי כברירת מחדל. שום דבר לא מאזין ואף תהליך לא רץ עד שתפעילו.",
+        "qrTitle": "צירוף מכשיר",
+        "qrHint": "סרקו במצלמת הטלפון, פתחו את הקישור וקבלו את אזהרת התעודה פעם אחת.",
+        "addressLabel": "כתובת",
+        "portLabel": "פתחה",
+        "devicesLabel": "מכשירים מחוברים",
+        "noDevices": "עדיין אין מכשירים מחוברים",
+        "resetPairing": "איפוס הצירוף",
+        "fingerprintLabel": "טביעת אצבע של התעודה (SHA-256)",
+        "firewallNote": "בהפעלה הראשונה macOS עשוי לבקש לאפשר חיבורים נכנסים. אפשרו זאת, אחרת טלפונים לא יגיעו ל־Mac הזה.",
+        "unavailable": "מכשירים מלווים דורשים macOS במחזור הזה.",
+        "serverError": "השרת נכשל: {{error}}",
+        "refresh": "רענון",
+        "statusRunning": "פועל",
+        "statusStopped": "מופסק"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "ב-GNOME Wayland שכבת-העל מופיעה כחלון רגיל שעלול לגנוב את המיקוד ולשבור הדבקה. ההמלצה כאן היא שכבת-על: ללא.",
       "postProcessOutputInvalid": "הליטוש החזיר טקסט בלתי שמיש, לכן נשמר התמליל המקורי.",
       "postProcessCloudFailed": "הליטוש נכשל ונשמר התמליל המקורי: {{detail}}",
-      "postProcessPromptCycled": "תבנית עיבוד לאחר: {{name}}"
+      "postProcessPromptCycled": "תבנית עיבוד לאחר: {{name}}",
+      "companionDisconnected": "הטלפון התנתק. מסיימים עם מה שנקלט.",
+      "companionServerFailed": "שרת הליווי נכשל: {{error}}"
     },
     "commandBadge": "מצב פקודות",
-    "ppChip": "מלטש ({{model}}) {{seconds}}שנ׳"
+    "ppChip": "מלטש ({{model}}) {{seconds}}שנ׳",
+    "companionBadge": "מיקרופון מלווה"
   },
   "whatsNew": {
     "title": "חדש ב-VoxBar v{{version}}"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar לא יכול להתקין עדכונים ממיקום זה",
     "translocatedDescription": "VoxBar פועל ממיקום זמני לקריאה בלבד (App Translocation ב-macOS). סגרו את VoxBar, גררו אותו מתיקיית ההורדות אל Applications ופתחו אותו משם.",
     "commandNoSession": "מקש הפקודות עובד רק בזמן הקלטה פעילה. התחילו הקלטה, ואז החזיקו אותו ואמרו את הפקודה."
+  },
+  "companion": {
+    "title": "VoxBar מלווה",
+    "subtitle": "הטלפון שלכם הוא עכשיו המיקרופון והכפתור של ה־Mac.",
+    "certNote": "אם הדפדפן מזהיר על החיבור, השוו את טביעת האצבע של התעודה מול זו שבהגדרות VoxBar וקבלו אותה פעם אחת.",
+    "noToken": "פתחו את העמוד הזה מקוד ה־QR בהגדרות VoxBar.",
+    "micDenied": "הגישה למיקרופון נדחתה. אפשרו אותה בדפדפן וטענו מחדש.",
+    "badToken": "הצירוף נכשל. סרקו שוב את קוד ה־QR בהגדרות VoxBar.",
+    "wrongSubnet": "הטלפון הזה ברשת אחרת מה־Mac. הצטרפו לאותו Wi-Fi וצרפו שוב.",
+    "rateLimited": "יותר מדי ניסיונות צירוף. המתינו דקה ונסו שוב.",
+    "busy": "ה־Mac כבר מכתיב מטריגר אחר.",
+    "disconnectedFinalized": "החיבור נותק. ה־Mac שמר את מה שאמרתם.",
+    "capped": "ההקלטה מוגבלת ל־15 דקות. לחצו שוב כדי להמשיך.",
+    "serverStopped": "ה־Mac עצר את שרת הליווי.",
+    "reconnect": "התחברות מחדש",
+    "holdToTalk": "החזיקו כדי לדבר",
+    "tapToTalk": "הקישו כדי לדבר",
+    "release": "שחררו כדי לסיים",
+    "tapToStop": "הקישו כדי לעצור",
+    "stateConnecting": "מתחבר",
+    "stateWaitMic": "ממתין למיקרופון",
+    "stateReady": "מוכן",
+    "stateRecording": "מקליט",
+    "stateDisconnected": "מנותק",
+    "stateError": "שגיאה"
   }
 }

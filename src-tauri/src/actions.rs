@@ -2,7 +2,7 @@
 use crate::apple_intelligence;
 use crate::audio_feedback::{play_feedback_sound, play_feedback_sound_blocking, SoundType};
 use crate::audio_toolkit::{is_microphone_access_denied, is_no_input_device_error, VadPolicy};
-use crate::managers::audio::AudioRecordingManager;
+use crate::managers::audio::{AudioRecordingManager, CaptureSource};
 use crate::managers::history::HistoryManager;
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::{StreamTextEvent, StreamWorkKind, TranscriptionManager};
@@ -70,22 +70,29 @@ pub trait ShortcutAction: Send + Sync {
 // Transcribe Action
 struct TranscribeAction {
     post_process: bool,
+    /// Where this binding's audio comes from: the local cpal microphone, or
+    /// a companion device pushing over the LAN. Everything else about the
+    /// session (model gate, tray, overlay, streaming, chime, transcription,
+    /// post-process, paste) is shared verbatim for both sources.
+    source: CaptureSource,
 }
 
 /// Pure routing table from a transcribe binding id to its
-/// [`TranscribeAction`] configuration: `post_process`.
+/// [`TranscribeAction`] configuration: `post_process` and the capture
+/// source.
 ///
 /// Extracted from the ACTION_MAP literals so a test can pin the safety
 /// property the operator relies on: only the dictation bindings
-/// ("transcribe", "transcribe_with_post_process") route here. The
-/// command-mode binding ("transcribe_commands") is NOT a recording action
-/// at all - it is a during-dictation modifier routed to the coordinator's
-/// `send_command_modifier`, so no binding id can ever start a command
-/// capture recording.
-fn transcribe_action_config(binding_id: &str) -> Option<bool> {
+/// ("transcribe", "transcribe_with_post_process", "transcribe_companion")
+/// route here. The command-mode binding ("transcribe_commands") is NOT a
+/// recording action at all - it is a during-dictation modifier routed to
+/// the coordinator's `send_command_modifier`, so no binding id can ever
+/// start a command capture recording.
+fn transcribe_action_config(binding_id: &str) -> Option<(bool, CaptureSource)> {
     match binding_id {
-        "transcribe" => Some(false),
-        "transcribe_with_post_process" => Some(true),
+        "transcribe" => Some((false, CaptureSource::Local)),
+        "transcribe_with_post_process" => Some((true, CaptureSource::Local)),
+        "transcribe_companion" => Some((false, CaptureSource::Remote)),
         _ => None,
     }
 }
@@ -97,8 +104,8 @@ fn transcribe_action_config(binding_id: &str) -> Option<bool> {
 // so local and cloud enforce identical rules (empty, length ratio both
 // ways, language sanity).
 pub(crate) use crate::post_process_runs::{
-    strip_invisible_chars, strip_think_block, validate_post_process_output,
-    PostProcessOutputMode, TRANSCRIPTION_FIELD,
+    strip_invisible_chars, strip_think_block, validate_post_process_output, PostProcessOutputMode,
+    TRANSCRIPTION_FIELD,
 };
 
 /// Build a system prompt from the user's prompt template.
@@ -1131,12 +1138,17 @@ impl ShortcutAction for TranscribeAction {
         // Load ASR model and VAD model in parallel
         let kickoff_started = Instant::now();
         tm.initiate_model_load();
-        let rm_clone = Arc::clone(&rm);
-        std::thread::spawn(move || {
-            if let Err(e) = rm_clone.preload_vad() {
-                debug!("VAD pre-load failed: {}", e);
-            }
-        });
+        // The local VAD warm-up only pays off for the local capture path;
+        // the companion server pre-warms the remote recorder when enabled,
+        // so a phone press skips this entirely.
+        if matches!(self.source, CaptureSource::Local) {
+            let rm_clone = Arc::clone(&rm);
+            std::thread::spawn(move || {
+                if let Err(e) = rm_clone.preload_vad() {
+                    debug!("VAD pre-load failed: {}", e);
+                }
+            });
+        }
         let kickoff_elapsed = kickoff_started.elapsed();
 
         // Don't open the mic if nothing can transcribe the recording; the load
@@ -1221,12 +1233,15 @@ impl ShortcutAction for TranscribeAction {
 
         let mut recording_error: Option<String> = None;
         let recording_start_time = Instant::now();
-        match rm.try_start_recording(&binding_id, vad_policy) {
+        match rm.try_start_recording_for(self.source, &binding_id, vad_policy) {
             Ok(readiness) => {
                 debug!(
                     "Recording request accepted in {:?}; waiting for first microphone samples",
                     recording_start_time.elapsed()
                 );
+                if matches!(self.source, CaptureSource::Remote) {
+                    crate::companion::on_session_changed(app, true);
+                }
                 let generation = readiness.generation();
                 let app_clone = app.clone();
                 let rm_clone = Arc::clone(&rm);
@@ -1274,6 +1289,11 @@ impl ShortcutAction for TranscribeAction {
             Err(e) => {
                 debug!("Failed to start recording: {}", e);
                 recording_error = Some(e);
+                if matches!(self.source, CaptureSource::Remote) {
+                    // The badge must never outlive a start that did not
+                    // begin recording.
+                    crate::companion::on_session_changed(app, false);
+                }
             }
         }
 
@@ -1330,6 +1350,12 @@ impl ShortcutAction for TranscribeAction {
         // FinishGuard::drop (the pipeline's true end) unregisters it.
         let stop_time = Instant::now();
         debug!("TranscribeAction::stop called for binding: {}", binding_id);
+
+        if matches!(self.source, CaptureSource::Remote) {
+            // The phone session ends here; the pipeline below (finalize,
+            // transcribe, paste) is the shared one.
+            crate::companion::on_session_changed(app, false);
+        }
 
         let ah = app.clone();
         let rm = Arc::clone(&app.state::<Arc<AudioRecordingManager>>());
@@ -1972,12 +1998,19 @@ impl ShortcutAction for TestAction {
 // Static Action Map
 pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::new(|| {
     let mut map = HashMap::new();
-    for binding_id in ["transcribe", "transcribe_with_post_process"] {
-        let post_process =
+    for binding_id in [
+        "transcribe",
+        "transcribe_with_post_process",
+        "transcribe_companion",
+    ] {
+        let (post_process, source) =
             transcribe_action_config(binding_id).expect("known transcribe binding id");
         map.insert(
             binding_id.to_string(),
-            Arc::new(TranscribeAction { post_process }) as Arc<dyn ShortcutAction>,
+            Arc::new(TranscribeAction {
+                post_process,
+                source,
+            }) as Arc<dyn ShortcutAction>,
         );
     }
     map.insert(
@@ -2281,11 +2314,25 @@ mod tests {
     fn command_mode_binding_has_no_recording_action() {
         use super::transcribe_action_config;
         use crate::actions::ACTION_MAP;
+        use crate::managers::audio::CaptureSource;
 
-        assert_eq!(transcribe_action_config("transcribe"), Some(false));
+        assert_eq!(
+            transcribe_action_config("transcribe"),
+            Some((false, CaptureSource::Local))
+        );
         assert_eq!(
             transcribe_action_config("transcribe_with_post_process"),
-            Some(true)
+            Some((true, CaptureSource::Local))
+        );
+        // The companion trigger is the remote capture source: same shared
+        // pipeline, audio from the phone.
+        assert_eq!(
+            transcribe_action_config("transcribe_companion"),
+            Some((false, CaptureSource::Remote))
+        );
+        assert!(
+            ACTION_MAP.contains_key("transcribe_companion"),
+            "the companion binding must dispatch through the shared TranscribeAction"
         );
         assert_eq!(
             transcribe_action_config("transcribe_commands"),
@@ -2527,7 +2574,10 @@ mod tests {
             None,
         ));
 
-        assert_eq!(attempt.text, None, "garbage output never replaces the transcript");
+        assert_eq!(
+            attempt.text, None,
+            "garbage output never replaces the transcript"
+        );
         let summary = attempt.summary.expect("the run is recorded");
         assert_eq!(
             summary.outcome, "failed:output_invalid",
@@ -2612,10 +2662,7 @@ mod tests {
     #[test]
     fn cloud_lifecycle_emits_the_full_phase_sequence() {
         let run_id = begin_cloud_run();
-        let mut seam = MockCloud::new(vec![cloud_ok(
-            "{\"transcription\":\"Hello, world.\"}",
-            0,
-        )]);
+        let mut seam = MockCloud::new(vec![cloud_ok("{\"transcription\":\"Hello, world.\"}", 0)]);
         let notices: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
         let text = tauri::async_runtime::block_on(run_cloud_lifecycle(
             None,
@@ -2712,10 +2759,7 @@ mod tests {
     #[test]
     fn transport_retries_ride_the_generation_phase_on_success() {
         let run_id = begin_cloud_run();
-        let mut seam = MockCloud::new(vec![cloud_ok(
-            "{\"transcription\":\"Hello, world.\"}",
-            1,
-        )]);
+        let mut seam = MockCloud::new(vec![cloud_ok("{\"transcription\":\"Hello, world.\"}", 1)]);
         let text = tauri::async_runtime::block_on(run_cloud_lifecycle(
             None,
             &mut seam,
@@ -2730,7 +2774,8 @@ mod tests {
         assert_eq!(text.as_deref(), Some("Hello, world."));
         let record = crate::post_process_runs::runs().snapshot(run_id).unwrap();
         assert_eq!(
-            record.phases_generation.retries, Some(1),
+            record.phases_generation.retries,
+            Some(1),
             "the transport retry is visible in the generation phase"
         );
         assert_eq!(
@@ -2883,7 +2928,7 @@ mod tests {
             "hello world",
             "  ",
             PostProcessOutputMode::FreeText,
-            None
+            None,
         )
         .unwrap_err();
         assert_eq!(failure.skip_reason, SkipReason::EngineFailed);

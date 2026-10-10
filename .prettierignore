@@ -15,6 +15,9 @@ src-tauri/gen
 # Generated files
 src/bindings.ts
 src-tauri/src/catalog/catalog.json
+# The embedded companion web client: its STRINGS placeholder must stay
+# byte-stable for the Rust-side injection (scripts/embed-companion-strings.ts).
+src-tauri/src/companion
 
 # Misc
 .DS_Store

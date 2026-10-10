@@ -9,6 +9,7 @@ mod chinese_script;
 pub mod cli;
 mod clipboard;
 mod commands;
+pub mod companion;
 pub mod engine_supervisor;
 mod helpers;
 mod hindi_script;
@@ -236,6 +237,10 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     manage_local_llm(app_handle);
     app_handle.manage(tray::TrayState::new());
     app_handle.manage(tray::TrayRamRefresh::new());
+
+    // Companion devices (phones as remote mics). Honors the OFF-by-default
+    // setting: an inert manager with no listener/threads until enabled.
+    companion::init(app_handle);
 
     // Note: Shortcuts are NOT initialized here.
     // The frontend is responsible for calling the `initialize_shortcuts` command
@@ -1196,6 +1201,9 @@ pub fn run(cli_args: CliArgs) {
         // alive past the UI it exists to update.
         tauri::RunEvent::Exit => {
             tray::stop_ram_refresh(app);
+            // Companion server: close the listener and finalize any live
+            // phone session. Best effort; the process is exiting.
+            companion::shutdown(app);
         }
         // No transcription teardown on exit: transcribe.cpp runs only in the
         // worker process, which exits by itself as soon as this process's end
@@ -1216,6 +1224,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             shortcut::change_hold_threshold_ms_setting,
             shortcut::change_audio_feedback_setting,
             shortcut::change_memory_pressure_guard_setting,
+            shortcut::change_companion_devices_setting,
+            shortcut::reset_companion_pairing,
+            shortcut::get_companion_status,
             shortcut::change_auto_fallback_setting,
             shortcut::change_menu_bar_model_title_setting,
             shortcut::change_show_history_model_setting,

@@ -642,6 +642,25 @@
           "digits": "Digit",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Perangkat pendamping",
+        "description": "Gunakan ponsel atau tablet di Wi-Fi yang sama sebagai mikrofon dan pemicu untuk Mac ini.",
+        "offNote": "Nonaktif secara bawaan. Tidak ada yang mendengarkan dan tidak ada utas yang berjalan sampai Anda mengaktifkannya.",
+        "qrTitle": "Pasangkan perangkat",
+        "qrHint": "Pindai dengan kamera ponsel, buka tautan, dan terima peringatan sertifikat satu kali.",
+        "addressLabel": "Alamat",
+        "portLabel": "Port",
+        "devicesLabel": "Perangkat tersambung",
+        "noDevices": "Belum ada perangkat tersambung",
+        "resetPairing": "Atur ulang pemasangan",
+        "fingerprintLabel": "Sidik jari sertifikat (SHA-256)",
+        "firewallNote": "macOS mungkin meminta izin koneksi masuk saat pertama diaktifkan. Izinkan, jika tidak ponsel tidak dapat menjangkau Mac ini.",
+        "unavailable": "Perangkat pendamping memerlukan macOS pada siklus ini.",
+        "serverError": "Server gagal: {{error}}",
+        "refresh": "Segarkan",
+        "statusRunning": "Berjalan",
+        "statusStopped": "Berhenti"
       }
     },
     "postProcessing": {
@@ -1177,10 +1196,13 @@
       "gnomeOverlayFallback": "Di GNOME Wayland, overlay muncul sebagai jendela biasa yang bisa mencuri fokus dan merusak tempel. Disarankan Overlay: Tidak Ada di sini.",
       "postProcessOutputInvalid": "Pemolesan menghasilkan teks yang tidak dapat dipakai, transkrip asli dipertahankan.",
       "postProcessCloudFailed": "Pemolesan gagal, transkrip asli dipertahankan: {{detail}}",
-      "postProcessPromptCycled": "Templat pasca-proses: {{name}}"
+      "postProcessPromptCycled": "Templat pasca-proses: {{name}}",
+      "companionDisconnected": "Ponsel terputus. Menyelesaikan dengan yang terekam.",
+      "companionServerFailed": "Server pendamping gagal: {{error}}"
     },
     "commandBadge": "Mode perintah",
-    "ppChip": "Memoles ({{model}}) {{seconds}}d"
+    "ppChip": "Memoles ({{model}}) {{seconds}}d",
+    "companionBadge": "Mikrofon pendamping"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} mungkin memblokir 1 pintasan",
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar tidak dapat memasang pembaruan dari lokasi ini",
     "translocatedDescription": "VoxBar berjalan dari lokasi sementara yang hanya-baca (App Translocation macOS). Keluar dari VoxBar, seret dari folder Unduhan ke folder Aplikasi, lalu buka dari sana.",
     "commandNoSession": "Tombol perintah hanya berfungsi saat dikte aktif. Mulai perekaman dulu, lalu tahan tombolnya dan ucapkan perintahnya."
+  },
+  "companion": {
+    "title": "VoxBar Pendamping",
+    "subtitle": "Ponsel Anda kini menjadi mikrofon dan pemicu untuk Mac Anda.",
+    "certNote": "Jika peramban memperingatkan koneksi, bandingkan sidik jari sertifikat dengan yang ada di pengaturan VoxBar dan terima satu kali.",
+    "noToken": "Buka halaman ini dari kode QR di pengaturan VoxBar.",
+    "micDenied": "Akses mikrofon ditolak. Izinkan di peramban lalu muat ulang.",
+    "badToken": "Pemasangan gagal. Pindai ulang kode QR di pengaturan VoxBar.",
+    "wrongSubnet": "Ponsel ini berada di jaringan yang berbeda dari Mac. Gabung ke Wi-Fi yang sama lalu pasangkan lagi.",
+    "rateLimited": "Terlalu banyak percobaan pemasangan. Tunggu satu menit lalu coba lagi.",
+    "busy": "Mac sedang mendikte dari pemicu lain.",
+    "disconnectedFinalized": "Koneksi terputus. Mac menyimpan apa yang Anda ucapkan.",
+    "capped": "Sesi dibatasi 15 menit. Tekan lagi untuk melanjutkan.",
+    "serverStopped": "Mac menghentikan server pendamping.",
+    "reconnect": "Sambungkan ulang",
+    "holdToTalk": "Tahan untuk bicara",
+    "tapToTalk": "Ketuk untuk bicara",
+    "release": "Lepaskan untuk selesai",
+    "tapToStop": "Ketuk untuk berhenti",
+    "stateConnecting": "Menyambung",
+    "stateWaitMic": "Menunggu mikrofon",
+    "stateReady": "Siap",
+    "stateRecording": "Merekam",
+    "stateDisconnected": "Terputus",
+    "stateError": "Galat"
   }
 }

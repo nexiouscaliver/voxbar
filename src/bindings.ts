@@ -53,6 +53,40 @@ async changeMemoryPressureGuardSetting(enabled: boolean) : Promise<Result<null, 
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Companion devices master toggle (OFF by default). Beyond persisting the
+ * setting, enabling starts the companion server and disabling stops it
+ * (finalizing a live phone session first) - the same shape as
+ * change_memory_pressure_guard_setting, plus lifecycle side effects.
+ */
+async changeCompanionDevicesSetting(enabled: boolean) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_companion_devices_setting", { enabled }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Issue a fresh pairing token (rebound to the current LAN /24) and
+ * restart the server if it is running, so the QR changes and phones
+ * holding the old token are refused.
+ */
+async resetCompanionPairing() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("reset_companion_pairing") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Snapshot for the settings panel: QR (SVG), URL, port, fingerprint,
+ * connected devices, and any server error.
+ */
+async getCompanionStatus() : Promise<CompanionStatus> {
+    return await TAURI_INVOKE("get_companion_status");
+},
 async changeAutoFallbackSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_auto_fallback_setting", { enabled }) };
@@ -1643,7 +1677,32 @@ vad_backend?: VadBackend;
  * not gated on this - that follows model capability. Migrated from the old
  * `overlay_position` (position `none` → style `None`).
  */
-overlay_style?: OverlayStyle }
+overlay_style?: OverlayStyle; 
+/**
+ * Companion devices: use a phone/tablet on the same Wi-Fi as a remote
+ * microphone and push-to-talk trigger, with this Mac as the engine.
+ * OFF by default - the off path leaves no listener, no threads, and
+ * the local recorder path untouched.
+ */
+companion_devices_enabled?: boolean; 
+/**
+ * Port for the companion TLS/WebSocket server on the LAN interface.
+ */
+companion_port?: number; 
+/**
+ * 128-bit hex pairing token, generated on enable/reset and bound to
+ * the advertised interface's /24 subnet. A peer from a different
+ * subnet is refused with a re-pair notice.
+ */
+companion_pairing_token?: string | null; 
+/**
+ * The /24 (as "a.b.c.0/24") the pairing token was issued for.
+ */
+companion_pairing_subnet?: string | null; 
+/**
+ * Name of the last device that completed a hello handshake.
+ */
+companion_last_device?: string | null }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AvailableAccelerators = { transcribe: string[]; ort: string[]; gpu_devices: GpuDeviceOption[] }
@@ -1678,6 +1737,11 @@ export type CommandId = "period" | "comma" | "questionMark" | "exclamation" | "c
  * One matrix row: a command and its editable spoken phrases.
  */
 export type CommandMatrixEntry = { command: CommandId; phrases: string[] }
+/**
+ * The status snapshot the settings panel renders (QR, URL, devices,
+ * fingerprint, error).
+ */
+export type CompanionStatus = { enabled: boolean; running: boolean; supported: boolean; url: string | null; port: number; qr_svg: string | null; fingerprint: string | null; token: string | null; subnet: string | null; last_device: string | null; devices: string[]; error: string | null }
 export type CustomSounds = { start: boolean; stop: boolean }
 export type EngineType = 
 /**

@@ -642,6 +642,25 @@
           "digits": "Cyfry",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Urządzenia towarzyszące",
+        "description": "Użyj telefonu lub tabletu w tej samej sieci Wi-Fi jako mikrofonu i przycisku dla tego Maca.",
+        "offNote": "Domyślnie wyłączone. Nic nie nasłuchuje i żadne wątki nie działają, dopóki nie włączysz.",
+        "qrTitle": "Sparuj urządzenie",
+        "qrHint": "Zeskanuj aparatem telefonu, otwórz link i raz zaakceptuj ostrzeżenie o certyfikacie.",
+        "addressLabel": "Adres",
+        "portLabel": "Port",
+        "devicesLabel": "Połączone urządzenia",
+        "noDevices": "Brak połączonych urządzeń",
+        "resetPairing": "Resetuj parowanie",
+        "fingerprintLabel": "Odcisk certyfikatu (SHA-256)",
+        "firewallNote": "macOS może przy pierwszym włączeniu poprosić o zezwolenie na połączenia przychodzące. Zezwól, inaczej telefony nie dotrą do tego Maca.",
+        "unavailable": "Urządzenia towarzyszące w tym cyklu wymagają macOS.",
+        "serverError": "Serwer nie działa: {{error}}",
+        "refresh": "Odśwież",
+        "statusRunning": "Działa",
+        "statusStopped": "Zatrzymany"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "Na GNOME Wayland nakładka pojawia się jako zwykłe okno, które może przejąć fokus i zepsuć wklejanie. Zalecane jest tu Nakładka: Brak.",
       "postProcessOutputInvalid": "Czyszczenie zwróciło nieużyteczny tekst, zachowano oryginalną transkrypcję.",
       "postProcessCloudFailed": "Czyszczenie nie powiodło się, zachowano oryginalną transkrypcję: {{detail}}",
-      "postProcessPromptCycled": "Szablon postprocessingu: {{name}}"
+      "postProcessPromptCycled": "Szablon postprocessingu: {{name}}",
+      "companionDisconnected": "Telefon rozłączony. Kończę z tym, co nagrane.",
+      "companionServerFailed": "Awaria serwera towarzyszącego: {{error}}"
     },
     "commandBadge": "Tryb poleceń",
-    "ppChip": "Czyszczę ({{model}}) {{seconds}}s"
+    "ppChip": "Czyszczę ({{model}}) {{seconds}}s",
+    "companionBadge": "Mikrofon towarzyszący"
   },
   "whatsNew": {
     "title": "Nowości w VoxBar v{{version}}"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar nie może instalować aktualizacji z tej lokalizacji",
     "translocatedDescription": "VoxBar działa z tymczasowej lokalizacji tylko do odczytu (App Translocation w macOS). Zamknij VoxBar, przeciągnij go z folderu Pobrane do folderu Aplikacje i uruchom go stamtąd.",
     "commandNoSession": "Klawisz poleceń działa tylko podczas aktywnego dyktowania. Najpierw rozpocznij nagrywanie, przytrzymaj klawisz i powiedz polecenie."
+  },
+  "companion": {
+    "title": "VoxBar Companion",
+    "subtitle": "Twój telefon jest teraz mikrofonem i przyciskiem dla twojego Maca.",
+    "certNote": "Jeśli przeglądarka ostrzega o połączeniu, porównaj odcisk certyfikatu z tym w ustawieniach VoxBar i raz go zaakceptuj.",
+    "noToken": "Otwórz tę stronę z kodu QR w ustawieniach VoxBar.",
+    "micDenied": "Odmówiono dostępu do mikrofonu. Zezwól w przeglądarce i odśwież.",
+    "badToken": "Parowanie nieudane. Zeskanuj kod QR w ustawieniach VoxBar ponownie.",
+    "wrongSubnet": "Ten telefon jest w innej sieci niż Mac. Połącz się z tą samą Wi-Fi i sparuj ponownie.",
+    "rateLimited": "Zbyt wiele prób parowania. Odczekaj minutę i spróbuj znowu.",
+    "busy": "Mac już dyktuje z innego przycisku.",
+    "disconnectedFinalized": "Połączenie zerwane. Mac zachował to, co powiedziałeś.",
+    "capped": "Sesja ograniczona do 15 minut. Naciśnij ponownie, aby kontynuować.",
+    "serverStopped": "Mac zatrzymał serwer towarzyszący.",
+    "reconnect": "Połącz ponownie",
+    "holdToTalk": "Przytrzymaj, aby mówić",
+    "tapToTalk": "Dotknij, aby mówić",
+    "release": "Puść, aby zakończyć",
+    "tapToStop": "Dotknij, aby zatrzymać",
+    "stateConnecting": "Łączenie",
+    "stateWaitMic": "Oczekiwanie na mikrofon",
+    "stateReady": "Gotowe",
+    "stateRecording": "Nagrywanie",
+    "stateDisconnected": "Rozłączono",
+    "stateError": "Błąd"
   }
 }

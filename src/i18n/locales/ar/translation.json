@@ -587,6 +587,25 @@
           "digits": "أرقام",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "الأجهزة المرافقة",
+        "description": "استخدم هاتفًا أو جهازًا لوحيًا على نفس شبكة Wi-Fi كميكروفون وزر تشغيل لهذا الـ Mac.",
+        "offNote": "معطل افتراضيًا. لا شيء يستمع ولا تعمل أي خيوط حتى تقوم بتمكينه.",
+        "qrTitle": "إقران جهاز",
+        "qrHint": "امسح بكاميرا الهاتف وافتح الرابط واقبل تحذير الشهادة مرة واحدة.",
+        "addressLabel": "العنوان",
+        "portLabel": "المنفذ",
+        "devicesLabel": "الأجهزة المتصلة",
+        "noDevices": "لا توجد أجهزة متصلة بعد",
+        "resetPairing": "إعادة ضبط الإقران",
+        "fingerprintLabel": "بصمة الشهادة (SHA-256)",
+        "firewallNote": "قد يطلب macOS السماح بالاتصالات الواردة عند أول تمكين. اسمح بذلك، وإلا فلن تتمكن الهواتف من الوصول إلى هذا الـ Mac.",
+        "unavailable": "الأجهزة المرافقة تتطلب macOS في هذه الدورة.",
+        "serverError": "فشل الخادم: {{error}}",
+        "refresh": "تحديث",
+        "statusRunning": "يعمل",
+        "statusStopped": "متوقف"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "على GNOME Wayland يظهر التراكب كنافذة عادية قد تسرق التركيز وتعطّل اللصق. يُنصح هنا بضبط التراكب على بلا.",
       "postProcessOutputInvalid": "أرجع التلميع نصًا غير صالح، لذا تم الإبقاء على النص الأصلي.",
       "postProcessCloudFailed": "فشل التلميع وتم الإبقاء على النص الأصلي: {{detail}}",
-      "postProcessPromptCycled": "قالب ما بعد المعالجة: {{name}}"
+      "postProcessPromptCycled": "قالب ما بعد المعالجة: {{name}}",
+      "companionDisconnected": "انقطع اتصال الهاتف. يتم الإنهاء بما تم التقاطه.",
+      "companionServerFailed": "فشل خادم المرافقة: {{error}}"
     },
     "commandBadge": "وضع الأوامر",
-    "ppChip": "التلميع ({{model}}) {{seconds}}ث"
+    "ppChip": "التلميع ({{model}}) {{seconds}}ث",
+    "companionBadge": "ميكروفون مرافق"
   },
   "whatsNew": {
     "title": "الجديد في VoxBar v{{version}}"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "لا يستطيع VoxBar تثبيت التحديثات من هذا الموقع",
     "translocatedDescription": "يعمل VoxBar من موقع مؤقت للقراءة فقط (App Translocation في macOS). أنهِ VoxBar، واسحبه من مجلد Downloads إلى Applications، ثم افتحه من هناك.",
     "commandNoSession": "مفتاح الأوامر يعمل أثناء الإملاء النشط فقط. ابدأ التسجيل أولا، ثم اضغط عليه وانطق الأمر."
+  },
+  "companion": {
+    "title": "VoxBar المرافق",
+    "subtitle": "هاتفك الآن ميكروفون وزر تشغيل لجهاز الـ Mac الخاص بك.",
+    "certNote": "إذا حذرك المتصفح من الاتصال، فقارن بصمة الشهادة بالبصمة في إعدادات VoxBar واقبلها مرة واحدة.",
+    "noToken": "افتح هذه الصفحة من رمز QR في إعدادات VoxBar.",
+    "micDenied": "تم رفض الوصول إلى الميكروفون. اسمح به في المتصفح وأعد التحميل.",
+    "badToken": "فشل الإقران. امسح رمز QR في إعدادات VoxBar مرة أخرى.",
+    "wrongSubnet": "هذا الهاتف على شبكة مختلفة عن الـ Mac. انضم إلى نفس Wi-Fi وأعد الإقران.",
+    "rateLimited": "محاولات إقران كثيرة جدًا. انتظر دقيقة ثم حاول مجددًا.",
+    "busy": "الـ Mac يملي بالفعل من زر آخر.",
+    "disconnectedFinalized": "انقطع الاتصال. احتفظ الـ Mac بما قلته.",
+    "capped": "تنتهي الجلسة عند 15 دقيقة. اضغط مرة أخرى للمتابعة.",
+    "serverStopped": "أوقف الـ Mac خادم المرافقة.",
+    "reconnect": "إعادة الاتصال",
+    "holdToTalk": "استمر بالضغط للكلام",
+    "tapToTalk": "انقر للكلام",
+    "release": "حرر للإنهاء",
+    "tapToStop": "انقر للإيقاف",
+    "stateConnecting": "جارٍ الاتصال",
+    "stateWaitMic": "في انتظار الميكروفون",
+    "stateReady": "جاهز",
+    "stateRecording": "يسجل",
+    "stateDisconnected": "غير متصل",
+    "stateError": "خطأ"
   }
 }

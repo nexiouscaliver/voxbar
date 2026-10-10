@@ -781,9 +781,10 @@ async fn send_chat_completion_once(
     }
 
     if !status.is_success() {
-        let error_text = response.text().await.unwrap_or_else(|e| {
-            report_reqwest_error("Failed to read API error response", &e)
-        });
+        let error_text = response
+            .text()
+            .await
+            .unwrap_or_else(|e| report_reqwest_error("Failed to read API error response", &e));
         return Err(classify_completion_status(status, &error_text));
     }
 
@@ -1555,9 +1556,7 @@ mod tests {
         let flag = std::sync::Arc::clone(&checks);
         // Cancel fires on the SECOND check (after the failed attempt,
         // before the retry decision sleeps).
-        let is_cancelled = move || {
-            flag.fetch_add(1, std::sync::atomic::Ordering::SeqCst) >= 1
-        };
+        let is_cancelled = move || flag.fetch_add(1, std::sync::atomic::Ordering::SeqCst) >= 1;
 
         let started = std::time::Instant::now();
         let error = send_chat_completion_with_schema(
@@ -1621,16 +1620,18 @@ mod tests {
                 "This model's maximum context length is 4096 tokens",
                 Class::ContextLength,
             ),
-            (422, "request exceeds the context window", Class::ContextLength),
+            (
+                422,
+                "request exceeds the context window",
+                Class::ContextLength,
+            ),
             (408, "request timeout", Class::Timeout),
             (504, "gateway timeout", Class::Timeout),
             (500, "internal error", Class::Network),
         ];
         for (status, body, class) in cases {
-            let error = classify_completion_status(
-                reqwest::StatusCode::from_u16(status).unwrap(),
-                body,
-            );
+            let error =
+                classify_completion_status(reqwest::StatusCode::from_u16(status).unwrap(), body);
             assert_eq!(error.class, class, "status {status} body {body}");
             assert!(
                 error.detail.contains(&status.to_string()),
@@ -1650,7 +1651,11 @@ mod tests {
             reqwest::StatusCode::from_u16(500).unwrap(),
             &"x".repeat(10_000),
         );
-        assert!(huge.detail.len() < 500, "detail bounded: {}", huge.detail.len());
+        assert!(
+            huge.detail.len() < 500,
+            "detail bounded: {}",
+            huge.detail.len()
+        );
     }
 
     /// A 200 whose body is not a chat completion is output_invalid (the
@@ -1727,10 +1732,7 @@ mod tests {
             PostProcessFailureClass::Timeout,
             "the failure should be the timeout, got: {error}"
         );
-        assert_eq!(
-            error.retries, 0,
-            "a timeout must never be retried: {error}"
-        );
+        assert_eq!(error.retries, 0, "a timeout must never be retried: {error}");
         assert!(
             elapsed < std::time::Duration::from_secs(10),
             "the timeout must bound the request (took {elapsed:?})"

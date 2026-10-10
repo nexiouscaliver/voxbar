@@ -642,6 +642,25 @@
           "digits": "Dígitos",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Dispositivos companheiro",
+        "description": "Use um telefone ou tablet no mesmo Wi-Fi como microfone e gatilho para este Mac.",
+        "offNote": "Desativado por padrão. Nada escuta e nenhum processo corre até você ativar.",
+        "qrTitle": "Parear um dispositivo",
+        "qrHint": "Escaneie com a câmera do telefone, abra o link e aceite uma vez o aviso de certificado.",
+        "addressLabel": "Endereço",
+        "portLabel": "Porta",
+        "devicesLabel": "Dispositivos conectados",
+        "noDevices": "Nenhum dispositivo conectado ainda",
+        "resetPairing": "Redefinir pareamento",
+        "fingerprintLabel": "Impressão digital do certificado (SHA-256)",
+        "firewallNote": "O macOS pode pedir para permitir conexões de entrada na primeira ativação. Permita, ou os telefones não alcançam este Mac.",
+        "unavailable": "Dispositivos companheiro exigem macOS neste ciclo.",
+        "serverError": "Falha no servidor: {{error}}",
+        "refresh": "Atualizar",
+        "statusRunning": "Em execução",
+        "statusStopped": "Parado"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "No GNOME Wayland a sobreposição aparece como uma janela comum que pode roubar o foco e quebrar a colagem. Aqui o recomendado é Sobreposição: Nenhum.",
       "postProcessOutputInvalid": "O polimento devolveu texto inutilizável, a transcrição original foi mantida.",
       "postProcessCloudFailed": "O polimento falhou e a transcrição original foi mantida: {{detail}}",
-      "postProcessPromptCycled": "Modelo de pós-processamento: {{name}}"
+      "postProcessPromptCycled": "Modelo de pós-processamento: {{name}}",
+      "companionDisconnected": "Telefone desconectado. Finalizando com o que foi capturado.",
+      "companionServerFailed": "Falha no servidor companheiro: {{error}}"
     },
     "commandBadge": "Modo de comandos",
-    "ppChip": "Polindo ({{model}}) {{seconds}}s"
+    "ppChip": "Polindo ({{model}}) {{seconds}}s",
+    "companionBadge": "Microfone companheiro"
   },
   "whatsNew": {
     "title": "Novidades no VoxBar v{{version}}"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "O VoxBar não pode instalar atualizações deste local",
     "translocatedDescription": "O VoxBar está em execução a partir de um local temporário somente leitura (App Translocation do macOS). Encerre o VoxBar, arraste-o da pasta Downloads para a pasta Aplicativos e abra-o de lá.",
     "commandNoSession": "A tecla de comandos só funciona durante um ditado ativo. Comece a gravação primeiro, depois segure a tecla e fale o comando."
+  },
+  "companion": {
+    "title": "VoxBar Companheiro",
+    "subtitle": "Seu telefone agora é microfone e gatilho para o seu Mac.",
+    "certNote": "Se o navegador avisar sobre a conexão, compare a impressão digital do certificado com a das configurações do VoxBar e aceite uma vez.",
+    "noToken": "Abra esta página pelo código QR nas configurações do VoxBar.",
+    "micDenied": "Acesso ao microfone negado. Permita no navegador e recarregue.",
+    "badToken": "Falha no pareamento. Escaneie novamente o código QR nas configurações do VoxBar.",
+    "wrongSubnet": "Este telefone está em outra rede diferente do Mac. Entre no mesmo Wi-Fi e pareie de novo.",
+    "rateLimited": "Tentativas de pareamento em excesso. Espere um minuto e tente de novo.",
+    "busy": "O Mac já está ditando por outro gatilho.",
+    "disconnectedFinalized": "Conexão caiu. O Mac guardou o que você disse.",
+    "capped": "Sessão limitada a 15 minutos. Pressione de novo para continuar.",
+    "serverStopped": "O Mac parou o servidor companheiro.",
+    "reconnect": "Reconectar",
+    "holdToTalk": "Segure para falar",
+    "tapToTalk": "Toque para falar",
+    "release": "Solte para terminar",
+    "tapToStop": "Toque para parar",
+    "stateConnecting": "Conectando",
+    "stateWaitMic": "Aguardando microfone",
+    "stateReady": "Pronto",
+    "stateRecording": "Gravando",
+    "stateDisconnected": "Desconectado",
+    "stateError": "Erro"
   }
 }

@@ -642,6 +642,25 @@
           "digits": "数字",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "コンパニオンデバイス",
+        "description": "同じWi-Fi上のスマホやタブレットを、このMacのマイクとトリガーとして使います。",
+        "offNote": "既定ではオフです。有効にするまで、何も待ち受けせずスレッドも動きません。",
+        "qrTitle": "デバイスをペアリング",
+        "qrHint": "スマホのカメラでスキャンし、リンクを開いて、証明書の警告を一度だけ承認してください。",
+        "addressLabel": "アドレス",
+        "portLabel": "ポート",
+        "devicesLabel": "接続中のデバイス",
+        "noDevices": "まだデバイスは接続されていません",
+        "resetPairing": "ペアリングをリセット",
+        "fingerprintLabel": "証明書のフィンガープリント（SHA-256）",
+        "firewallNote": "初回の有効化時にmacOSが受信接続の許可を求めることがあります。許可しないとスマホはこのMacに接続できません。",
+        "unavailable": "コンパニオンデバイスはこのサイクルではmacOSが必要です。",
+        "serverError": "サーバーが失敗しました: {{error}}",
+        "refresh": "更新",
+        "statusRunning": "実行中",
+        "statusStopped": "停止"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "GNOME Waylandでは、オーバーレイが通常のウィンドウとして表示され、フォーカスを奪って貼り付けを壊すことがあります。ここではオーバーレイ: なしを推奨します。",
       "postProcessOutputInvalid": "整形結果が利用できないテキストだったため、元の文字起こしが保持されました。",
       "postProcessCloudFailed": "整形に失敗したため、元の文字起こしが保持されました: {{detail}}",
-      "postProcessPromptCycled": "後処理テンプレート: {{name}}"
+      "postProcessPromptCycled": "後処理テンプレート: {{name}}",
+      "companionDisconnected": "スマホが切断されました。録音済みの内容で確定します。",
+      "companionServerFailed": "コンパニオンサーバーが失敗しました: {{error}}"
     },
     "commandBadge": "コマンドモード",
-    "ppChip": "整形中 ({{model}}) {{seconds}}秒"
+    "ppChip": "整形中 ({{model}}) {{seconds}}秒",
+    "companionBadge": "コンパニオンマイク"
   },
   "whatsNew": {
     "title": "VoxBar v{{version}} の新機能"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "この場所からはアップデートをインストールできません",
     "translocatedDescription": "VoxBar は一時的な読み取り専用の場所 (macOS の App Translocation) から実行されています。VoxBar を終了し、Downloads フォルダからアプリケーションフォルダへドラッグして、そこから開いてください。",
     "commandNoSession": "コマンドキーは録音中のみ動作します。まず録音を開始し、キーを押しながらコマンドを話してください。"
+  },
+  "companion": {
+    "title": "VoxBarコンパニオン",
+    "subtitle": "スマホがこのMacのマイクとトリガーになります。",
+    "certNote": "ブラウザが接続を警告したら、証明書のフィンガープリントをVoxBar設定のものと照合し、一度だけ承認してください。",
+    "noToken": "このページはVoxBar設定のQRコードから開いてください。",
+    "micDenied": "マイクへのアクセスが拒否されました。ブラウザで許可して再読み込みしてください。",
+    "badToken": "ペアリングに失敗しました。VoxBar設定のQRコードを再スキャンしてください。",
+    "wrongSubnet": "このスマホはMacと別のネットワークにいます。同じWi-Fiに接続して再度ペアリングしてください。",
+    "rateLimited": "ペアリングの試行が多すぎます。1分待って再試行してください。",
+    "busy": "Macはすでに別のトリガーから口述中です。",
+    "disconnectedFinalized": "接続が切れました。Macは話した内容を保持しています。",
+    "capped": "セッションは15分で打ち切られます。続けるにはもう一度押してください。",
+    "serverStopped": "Macがコンパニオンサーバーを停止しました。",
+    "reconnect": "再接続",
+    "holdToTalk": "押しながら話す",
+    "tapToTalk": "タップして話す",
+    "release": "離して終了",
+    "tapToStop": "タップして停止",
+    "stateConnecting": "接続中",
+    "stateWaitMic": "マイク待ち",
+    "stateReady": "準備完了",
+    "stateRecording": "録音中",
+    "stateDisconnected": "切断",
+    "stateError": "エラー"
   }
 }

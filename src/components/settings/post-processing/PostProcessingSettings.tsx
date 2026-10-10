@@ -184,7 +184,9 @@ const PostProcessKeepWarmRow: React.FC = () => {
       description={t("settings.postProcessing.local.keepWarm.description")}
       descriptionMode="tooltip"
       grouped={true}
-      formatValue={(v) => (v === 0 ? t("settings.postProcessing.local.keepWarm.off") : `${v}s`)}
+      formatValue={(v) =>
+        v === 0 ? t("settings.postProcessing.local.keepWarm.off") : `${v}s`
+      }
     />
   );
 };

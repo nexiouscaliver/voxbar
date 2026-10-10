@@ -642,6 +642,25 @@
           "digits": "Cijfers",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Companion-apparaten",
+        "description": "Gebruik een telefoon of tablet op hetzelfde wifi als microfoon en drukknop voor deze Mac.",
+        "offNote": "Standaard uit. Er luistert niets en er draait geen thread tot je het aanzet.",
+        "qrTitle": "Apparaat koppelen",
+        "qrHint": "Scan met de camera van de telefoon, open de link en accepteer de certificaatwaarschuwing eenmaal.",
+        "addressLabel": "Adres",
+        "portLabel": "Poort",
+        "devicesLabel": "Verbonden apparaten",
+        "noDevices": "Nog geen apparaten verbonden",
+        "resetPairing": "Koppeling herstellen",
+        "fingerprintLabel": "Certificaat-vingerafdruk (SHA-256)",
+        "firewallNote": "macOS kan bij de eerste keer inschakelen vragen inkomende verbindingen toe te staan. Sta het toe, anders bereiken telefoons deze Mac niet.",
+        "unavailable": "Companion-apparaten vereisen macOS in deze cyclus.",
+        "serverError": "Server mislukt: {{error}}",
+        "refresh": "Vernieuwen",
+        "statusRunning": "Draait",
+        "statusStopped": "Gestopt"
       }
     },
     "postProcessing": {
@@ -1177,10 +1196,13 @@
       "gnomeOverlayFallback": "Op GNOME Wayland verschijnt de overlay als een gewoon venster dat focus kan stelen en plakken kan breken. Hier wordt Overlay: Geen aangeraden.",
       "postProcessOutputInvalid": "Het bijschaven leverde onbruikbare tekst op, de oorspronkelijke transcriptie is gehouden.",
       "postProcessCloudFailed": "Het bijschaven mislukte, de oorspronkelijke transcriptie is gehouden: {{detail}}",
-      "postProcessPromptCycled": "Postprocesjabloon: {{name}}"
+      "postProcessPromptCycled": "Postprocesjabloon: {{name}}",
+      "companionDisconnected": "Telefoon losgekoppeld. Afgerond met wat er was.",
+      "companionServerFailed": "Companion-server mislukt: {{error}}"
     },
     "commandBadge": "Opdrachtmodus",
-    "ppChip": "Bijschaven ({{model}}) {{seconds}}s"
+    "ppChip": "Bijschaven ({{model}}) {{seconds}}s",
+    "companionBadge": "Companion-microfoon"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blokkeert mogelijk 1 sneltoets",
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar kan vanaf deze locatie geen updates installeren",
     "translocatedDescription": "VoxBar draait vanaf een tijdelijke alleen-lezen locatie (macOS App Translocation). Sluit VoxBar af, sleep het van de map Downloads naar Programma's en open het vanaf daar.",
     "commandNoSession": "De commandotoets werkt alleen tijdens een actieve dictee. Start eerst de opname, houd de toets vast en spreek de opdracht in."
+  },
+  "companion": {
+    "title": "VoxBar Companion",
+    "subtitle": "Je telefoon is nu microfoon en knop voor je Mac.",
+    "certNote": "Als de browser waarschuwt over de verbinding, vergelijk de vingerafdruk met die in de VoxBar-instellingen en accepteer hem eenmaal.",
+    "noToken": "Open deze pagina via de QR-code in de VoxBar-instellingen.",
+    "micDenied": "Microfoontoegang geweigerd. Sta het toe in de browser en laad opnieuw.",
+    "badToken": "Koppelen mislukt. Scan de QR-code in de VoxBar-instellingen opnieuw.",
+    "wrongSubnet": "Deze telefoon zit in een ander netwerk dan de Mac. Ga naar hetzelfde wifi en koppel opnieuw.",
+    "rateLimited": "Te veel koppelpogingen. Wacht een minuut en probeer opnieuw.",
+    "busy": "De Mac dicteert al via een andere knop.",
+    "disconnectedFinalized": "Verbinding verbroken. De Mac bewaarde wat je zei.",
+    "capped": "Sessie begrensd op 15 minuten. Druk opnieuw om door te gaan.",
+    "serverStopped": "De Mac stopte de companion-server.",
+    "reconnect": "Opnieuw verbinden",
+    "holdToTalk": "Houd ingedrukt om te praten",
+    "tapToTalk": "Tik om te praten",
+    "release": "Laat los om te stoppen",
+    "tapToStop": "Tik om te stoppen",
+    "stateConnecting": "Verbinden",
+    "stateWaitMic": "Wachten op microfoon",
+    "stateReady": "Gereed",
+    "stateRecording": "Opname",
+    "stateDisconnected": "Verbroken",
+    "stateError": "Fout"
   }
 }

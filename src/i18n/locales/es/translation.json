@@ -642,6 +642,25 @@
           "digits": "Dígitos",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Dispositivos acompañantes",
+        "description": "Usa un teléfono o tablet en la misma Wi-Fi como micrófono y disparador para este Mac.",
+        "offNote": "Desactivado por defecto. Nada escucha y no hay hilos activos hasta que lo actives.",
+        "qrTitle": "Vincular un dispositivo",
+        "qrHint": "Escanea con la cámara del teléfono, abre el enlace y acepta una vez la advertencia del certificado.",
+        "addressLabel": "Dirección",
+        "portLabel": "Puerto",
+        "devicesLabel": "Dispositivos conectados",
+        "noDevices": "Aún no hay dispositivos conectados",
+        "resetPairing": "Restablecer vinculación",
+        "fingerprintLabel": "Huella del certificado (SHA-256)",
+        "firewallNote": "macOS puede pedir permitir conexiones entrantes la primera vez que actives esto. Permítelo, o los teléfonos no podrán llegar a este Mac.",
+        "unavailable": "Los dispositivos acompañantes requieren macOS en este ciclo.",
+        "serverError": "El servidor falló: {{error}}",
+        "refresh": "Actualizar",
+        "statusRunning": "En ejecución",
+        "statusStopped": "Detenido"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "En GNOME Wayland la superposición aparece como una ventana normal que puede robar el foco y romper el pegado. Aquí se recomienda Superposición: Ninguna.",
       "postProcessOutputInvalid": "El pulido devolvió texto inservible, se conservó la transcripción original.",
       "postProcessCloudFailed": "El pulido falló y se conservó la transcripción original: {{detail}}",
-      "postProcessPromptCycled": "Plantilla de posprocesado: {{name}}"
+      "postProcessPromptCycled": "Plantilla de posprocesado: {{name}}",
+      "companionDisconnected": "Teléfono desconectado. Se termina con lo capturado.",
+      "companionServerFailed": "El servidor acompañante falló: {{error}}"
     },
     "commandBadge": "Modo de comandos",
-    "ppChip": "Puliendo ({{model}}) {{seconds}}s"
+    "ppChip": "Puliendo ({{model}}) {{seconds}}s",
+    "companionBadge": "Micrófono acompañante"
   },
   "whatsNew": {
     "title": "Nuevo en VoxBar v{{version}}"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar no puede instalar actualizaciones desde esta ubicación",
     "translocatedDescription": "VoxBar se está ejecutando desde una ubicación temporal de solo lectura (App Translocation de macOS). Sal de VoxBar, arrástralo de la carpeta Descargas a Aplicaciones y ábrelo desde allí.",
     "commandNoSession": "La tecla de comandos solo funciona durante un dictado activo. Primero inicia la grabación, luego manténla pulsada y di el comando."
+  },
+  "companion": {
+    "title": "VoxBar Compañero",
+    "subtitle": "Tu teléfono ya es micrófono y disparador para tu Mac.",
+    "certNote": "Si el navegador advierte sobre la conexión, compara la huella del certificado con la de los ajustes de VoxBar y acéptala una vez.",
+    "noToken": "Abre esta página desde el código QR en los ajustes de VoxBar.",
+    "micDenied": "Se denegó el acceso al micrófono. Permítelo en el navegador y recarga.",
+    "badToken": "Vinculación fallida. Escanea de nuevo el código QR en los ajustes de VoxBar.",
+    "wrongSubnet": "Este teléfono está en otra red distinta del Mac. Únete a la misma Wi-Fi y vincula de nuevo.",
+    "rateLimited": "Demasiados intentos de vinculación. Espera un minuto y prueba otra vez.",
+    "busy": "El Mac ya está dictando desde otro disparador.",
+    "disconnectedFinalized": "Conexión perdida. El Mac conservó lo que dijiste.",
+    "capped": "Sesión limitada a 15 minutos. Pulsa de nuevo para continuar.",
+    "serverStopped": "El Mac detuvo el servidor acompañante.",
+    "reconnect": "Reconectar",
+    "holdToTalk": "Mantén pulsado para hablar",
+    "tapToTalk": "Toca para hablar",
+    "release": "Suelta para terminar",
+    "tapToStop": "Toca para detener",
+    "stateConnecting": "Conectando",
+    "stateWaitMic": "Esperando micrófono",
+    "stateReady": "Listo",
+    "stateRecording": "Grabando",
+    "stateDisconnected": "Desconectado",
+    "stateError": "Error"
   }
 }

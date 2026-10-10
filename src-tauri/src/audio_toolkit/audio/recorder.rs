@@ -85,6 +85,130 @@ impl VadConfig {
 pub type AudioFrameCallback = Arc<dyn Fn(&[f32]) + Send + Sync + 'static>;
 pub type LevelCallback = Arc<dyn Fn(Vec<f32>) + Send + Sync + 'static>;
 
+/// The push side of a recorder opened by [`AudioRecorder::open_remote`].
+///
+/// A companion device (phone/tablet on the LAN) hands 16 kHz mono f32 chunks
+/// to `push_chunk`, which fills the exact ring a cpal callback would fill for
+/// a local capture, with the same drop-newest-and-count overrun semantics and
+/// the same stop-pause acknowledgement handshake. Clonable so the companion
+/// server can hold one end while the recording manager holds the other; the
+/// ring's producer dies with the last clone, and that drop acknowledges any
+/// in-flight stop-pause so a vanished phone can never hang Stop on the 2 s
+/// `PAUSE_ACK_TIMEOUT`.
+pub struct RemoteAudioSource {
+    inner: Arc<RemoteAudioInner>,
+}
+
+struct RemoteAudioInner {
+    producer: Mutex<Option<Producer<f32>>>,
+    transport: Arc<CaptureTransportState>,
+}
+
+impl Clone for RemoteAudioSource {
+    fn clone(&self) -> Self {
+        RemoteAudioSource {
+            inner: Arc::clone(&self.inner),
+        }
+    }
+}
+
+impl RemoteAudioSource {
+    fn new(producer: Producer<f32>, transport: Arc<CaptureTransportState>) -> Self {
+        RemoteAudioSource {
+            inner: Arc::new(RemoteAudioInner {
+                producer: Mutex::new(Some(producer)),
+                transport,
+            }),
+        }
+    }
+
+    /// Push one chunk of 16 kHz mono f32 samples into the capture ring.
+    /// Mirrors the mono path of [`AudioRecorder::write_input_to_ring`]: a
+    /// paused-and-acknowledged transport drops the chunk silently (that is
+    /// the post-stop quiesce, not an overrun), a full ring takes what fits
+    /// and counts the dropped tail, and every write publishes the boundary
+    /// before acknowledging an in-flight pause request.
+    pub fn push_chunk(&self, samples: &[f32]) {
+        let transport = &self.inner.transport;
+        if transport.pause_requested.load(Ordering::Acquire)
+            && transport.pause_acknowledged.load(Ordering::Acquire)
+        {
+            return;
+        }
+
+        let mut guard = self.inner.producer.lock().unwrap();
+        let Some(producer) = guard.as_mut() else {
+            return; // closed: the recorder worker is gone
+        };
+        let writable_frames = producer.slots().min(samples.len());
+        let written = if writable_frames == 0 {
+            0
+        } else {
+            let chunk = producer
+                .write_chunk_uninit(writable_frames)
+                .expect("the producer just reported this many writable slots");
+            chunk.fill_from_iter(samples.iter().take(writable_frames).copied())
+        };
+        debug_assert_eq!(written, writable_frames);
+
+        let dropped = samples.len() - written;
+        if dropped > 0 {
+            transport
+                .overrun_samples
+                .fetch_add(dropped as u64, Ordering::Relaxed);
+        }
+
+        // Publish the boundary write before acknowledging, exactly like the
+        // cpal callback path.
+        acknowledge_pause_after_write(transport);
+    }
+
+    /// Acknowledge an in-flight stop-pause without forwarding audio. The
+    /// companion server calls this when its socket dies mid-session so the
+    /// recorder's Stop never waits out the 2 s pause timeout.
+    pub fn ack_pause(&self) {
+        acknowledge_pause_after_write(&self.inner.transport);
+    }
+
+    /// Samples the ring could not fit since the last read. Exposed for the
+    /// companion server's diagnostics and the recorder tests.
+    pub fn overrun_samples(&self) -> u64 {
+        self.inner.transport.overrun_samples.load(Ordering::Relaxed)
+    }
+
+    /// Whether the consumer's Stop has raised the pause request. Test seam
+    /// for sequencing an acknowledgement inside the handshake window.
+    #[cfg(test)]
+    pub fn pause_requested(&self) -> bool {
+        self.inner.transport.pause_requested.load(Ordering::Acquire)
+    }
+
+    /// True while the underlying producer is still live (the recorder worker
+    /// has not been closed).
+    pub fn is_open(&self) -> bool {
+        self.inner.producer.lock().unwrap().is_some()
+    }
+
+    /// Drop the producer half. Audio pushed afterwards is discarded; the
+    /// consumer drains what is left and exits on the next command cycle.
+    /// Acknowledges an in-flight pause, like every other teardown path.
+    pub fn close(&self) {
+        *self.inner.producer.lock().unwrap() = None;
+        acknowledge_pause_after_write(&self.inner.transport);
+    }
+}
+
+impl Drop for RemoteAudioInner {
+    fn drop(&mut self) {
+        // Last handle gone (server dropped, manager closed the session):
+        // release the producer and unblock a Stop waiting on the pause
+        // handshake. There is no boundary block to forward, so the samples
+        // already in the ring are what this recording finalizes with.
+        *self.producer.lock().unwrap() = None;
+        acknowledge_pause_after_write(&self.transport);
+    }
+}
+
 pub struct AudioRecorder {
     device: Option<Device>,
     cmd_tx: Option<mpsc::Sender<Cmd>>,
@@ -371,6 +495,72 @@ impl AudioRecorder {
                 ))))
             }
         }
+    }
+
+    /// Open the recorder for a REMOTE capture source (a companion device on
+    /// the LAN) instead of a local cpal device. The worker/consumer loop,
+    /// CaptureProcessor, VAD/level/audio callbacks, and command channel are
+    /// IDENTICAL to [`AudioRecorder::open`]; the only difference is the
+    /// producer side of the ring, which is handed to the returned
+    /// [`RemoteAudioSource`] for the network path to push 16 kHz mono f32
+    /// chunks into. `in_sample_rate` is fixed at 16 kHz, so the
+    /// FrameResampler's same-rate fast path simply re-chunks input into
+    /// VAD-sized frames.
+    pub fn open_remote(&mut self) -> Result<RemoteAudioSource, Box<dyn std::error::Error>> {
+        if self.worker_handle.is_some() {
+            if !self.needs_reopen() {
+                return Err(Error::other("Remote capture source is already open").into());
+            }
+            self.close()?;
+        }
+
+        let (cmd_tx, cmd_rx) = mpsc::channel::<Cmd>();
+        let ring_capacity = constants::WHISPER_SAMPLE_RATE as usize * AUDIO_RING_SECONDS;
+        let (mut sample_producer, mut sample_consumer) = RingBuffer::new(ring_capacity);
+
+        // Touch rtrb's uninitialized pages up front, mirroring build_stream:
+        // commit a full ring of zeros and immediately read them back out, so
+        // the network push path never takes ring page faults mid-session
+        // and the ring starts empty.
+        {
+            let chunk = sample_producer
+                .write_chunk(ring_capacity)
+                .expect("new audio ring has its full capacity available");
+            chunk.commit_all();
+        }
+        {
+            let chunk = sample_consumer
+                .read_chunk(ring_capacity)
+                .expect("pre-filled audio ring is readable");
+            chunk.commit_all();
+        }
+
+        let transport = Arc::new(CaptureTransportState::default());
+        let vad = self.vad.clone();
+        let level_cb = self.level_cb.clone();
+        let audio_cb = self.audio_cb.clone();
+        let worker_transport = Arc::clone(&transport);
+        let worker = std::thread::spawn(move || {
+            let processor = CaptureProcessor::new(
+                constants::WHISPER_SAMPLE_RATE,
+                vad,
+                level_cb,
+                audio_cb,
+                Instant::now(),
+            );
+            run_consumer(
+                processor,
+                sample_consumer,
+                cmd_rx,
+                worker_transport,
+                Arc::new(AtomicBool::new(false)),
+            );
+        });
+
+        self.device = None;
+        self.cmd_tx = Some(cmd_tx);
+        self.worker_handle = Some(worker);
+        Ok(RemoteAudioSource::new(sample_producer, transport))
     }
 
     /// Queue a recording start and return a one-shot receiver that resolves only

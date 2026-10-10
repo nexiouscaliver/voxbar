@@ -642,6 +642,25 @@
           "digits": "Cifre",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Følgeenheder",
+        "description": "Brug en telefon eller tablet på samme Wi-Fi som mikrofon og knap til denne Mac.",
+        "offNote": "Slukket som standard. Intet lytter, og ingen tråde kører, før du slår det til.",
+        "qrTitle": "Par en enhed",
+        "qrHint": "Scan med telefonens kamera, åbn linket og accepter certifikatadvarslen én gang.",
+        "addressLabel": "Adresse",
+        "portLabel": "Port",
+        "devicesLabel": "Tilsluttede enheder",
+        "noDevices": "Ingen enheder tilsluttet endnu",
+        "resetPairing": "Nulstil parring",
+        "fingerprintLabel": "Certifikatfingeraftryk (SHA-256)",
+        "firewallNote": "macOS kan ved første aktivering spørge om indgående forbindelser skal tillades. Tillad det, ellers kan telefoner ikke nå denne Mac.",
+        "unavailable": "Følgeenheder kræver macOS i denne cyklus.",
+        "serverError": "Serveren fejlede: {{error}}",
+        "refresh": "Opdater",
+        "statusRunning": "Kører",
+        "statusStopped": "Stoppet"
       }
     },
     "postProcessing": {
@@ -1177,10 +1196,13 @@
       "gnomeOverlayFallback": "På GNOME Wayland vises overlayet som et almindeligt vindue, der kan stjæle fokus og ødelægge indsætning. Anbefalingen er her Overlay: Ingen.",
       "postProcessOutputInvalid": "Rensningen returnerede ubrugelig tekst, den originale transskription blev beholdt.",
       "postProcessCloudFailed": "Rensningen fejlede, den originale transskription blev beholdt: {{detail}}",
-      "postProcessPromptCycled": "Efterbehandlingsskabelon: {{name}}"
+      "postProcessPromptCycled": "Efterbehandlingsskabelon: {{name}}",
+      "companionDisconnected": "Telefonen frakoblet. Færdiggør med det optagede.",
+      "companionServerFailed": "Følgeserveren fejlede: {{error}}"
     },
     "commandBadge": "Kommandotilstand",
-    "ppChip": "Renser ({{model}}) {{seconds}}s"
+    "ppChip": "Renser ({{model}}) {{seconds}}s",
+    "companionBadge": "Følgeomikrofon"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blokerer muligvis 1 genvej",
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar kan ikke installere opdateringer fra denne placering",
     "translocatedDescription": "VoxBar kører fra en midlertidig skrivebeskyttet placering (macOS App Translocation). Luk VoxBar, træk den fra mappen Downloads til Applications, og åbn den derfra.",
     "commandNoSession": "Kommandotasten virker kun under en aktiv diktering. Start optagelsen først, hold tasten nede, og sig kommandoen."
+  },
+  "companion": {
+    "title": "VoxBar Følge",
+    "subtitle": "Din telefon er nu mikrofon og knap til din Mac.",
+    "certNote": "Hvis browseren advarer om forbindelsen, skal du sammenligne certifikatets fingeraftryk med det i VoxBars indstillinger og acceptere det én gang.",
+    "noToken": "Åbn denne side fra QR-koden i VoxBars indstillinger.",
+    "micDenied": "Mikrofonadgang blev nægtet. Tillad den i browseren og genindlæs.",
+    "badToken": "Parringen mislykkedes. Scan QR-koden i VoxBars indstillinger igen.",
+    "wrongSubnet": "Telefonen er på et andet netværk end Macen. Slut dig til det samme Wi-Fi og par igen.",
+    "rateLimited": "For mange parringsforsøg. Vent et minut og prøv igen.",
+    "busy": "Macen dikterer allerede fra en anden knap.",
+    "disconnectedFinalized": "Forbindelsen blev afbrudt. Macen gemte det, du sagde.",
+    "capped": "Sessionen er begrænset til 15 minutter. Tryk igen for at fortsætte.",
+    "serverStopped": "Macen stoppede følgeserveren.",
+    "reconnect": "Genopret forbindelse",
+    "holdToTalk": "Hold nede for at tale",
+    "tapToTalk": "Tryk for at tale",
+    "release": "Slip for at afslutte",
+    "tapToStop": "Tryk for at stoppe",
+    "stateConnecting": "Forbinder",
+    "stateWaitMic": "Venter på mikrofon",
+    "stateReady": "Klar",
+    "stateRecording": "Optager",
+    "stateDisconnected": "Afbrudt",
+    "stateError": "Fejl"
   }
 }

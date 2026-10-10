@@ -839,7 +839,8 @@ pub(crate) fn fails_expansion_guard(input: &str, output: &str) -> bool {
     if input_units < 20 {
         return false;
     }
-    crate::local_llm::forecast::text_units(output) > input_units.saturating_mul(EXPANSION_GUARD_RATIO)
+    crate::local_llm::forecast::text_units(output)
+        > input_units.saturating_mul(EXPANSION_GUARD_RATIO)
 }
 
 /// THE shared output validator: every post-process success path (cloud
@@ -1160,11 +1161,17 @@ mod tests {
         assert_eq!(dominant_script("1234 !? ..."), None);
         assert_eq!(dominant_script("hi"), None, "under the signal floor");
         assert_eq!(dominant_script("hello world"), Some(TextScript::Latin));
-        assert_eq!(dominant_script("Привет мир как дела"), Some(TextScript::Cyrillic));
+        assert_eq!(
+            dominant_script("Привет мир как дела"),
+            Some(TextScript::Cyrillic)
+        );
         assert_eq!(dominant_script("こんにちは世界"), Some(TextScript::Kana));
         assert_eq!(dominant_script("你好世界今天"), Some(TextScript::Han));
         assert_eq!(dominant_script("안녕하세요 세계"), Some(TextScript::Hangul));
-        assert_eq!(dominant_script("नमस्ते दुनिया कैसी है"), Some(TextScript::Devanagari));
+        assert_eq!(
+            dominant_script("नमस्ते दुनिया कैसी है"),
+            Some(TextScript::Devanagari)
+        );
         // Mixed but led: zh with a couple of English words stays Han.
         assert_eq!(
             dominant_script(&format!("你好世界测试 {} ok", "字".repeat(10))),
@@ -1182,7 +1189,10 @@ mod tests {
         use TextScript::*;
         assert!(!fails_script_guard(Latin, Latin, None));
         assert!(!fails_script_guard(Han, Han, Some("zh")));
-        assert!(fails_script_guard(Latin, Han, None), "an English transcript answered in Chinese fails");
+        assert!(
+            fails_script_guard(Latin, Han, None),
+            "an English transcript answered in Chinese fails"
+        );
         assert!(fails_script_guard(Latin, Han, Some("auto")));
         assert!(fails_script_guard(Latin, Kana, Some("en")));
         // hi-Latn: Latin output for a Devanagari transcript is sanctioned.
@@ -1202,7 +1212,10 @@ mod tests {
         let input_20 = "one two three four five six seven eight nine ten \
                         eleven twelve thirteen fourteen fifteen sixteen \
                         seventeen eighteen nineteen twenty";
-        assert!(fails_expansion_guard(input_20, &format!("word {}", "pad ".repeat(200))));
+        assert!(fails_expansion_guard(
+            input_20,
+            &format!("word {}", "pad ".repeat(200))
+        ));
         assert!(!fails_expansion_guard(input_20, "one two three four"));
         // Short inputs are exempt.
         assert!(!fails_expansion_guard("hi", &"x ".repeat(500)));
@@ -1225,19 +1238,13 @@ mod tests {
             PostProcessOutputMode::FreeText,
         ] {
             let (transcript_text, output_text) = match mode {
-                PostProcessOutputMode::StructuredJson => (
-                    transcript,
-                    format!("{{\"transcription\":\"{japanese}\"}}"),
-                ),
+                PostProcessOutputMode::StructuredJson => {
+                    (transcript, format!("{{\"transcription\":\"{japanese}\"}}"))
+                }
                 PostProcessOutputMode::FreeText => (transcript, japanese.to_string()),
             };
-            let failure = validate_post_process_output(
-                transcript_text,
-                &output_text,
-                mode,
-                None,
-            )
-            .unwrap_err();
+            let failure = validate_post_process_output(transcript_text, &output_text, mode, None)
+                .unwrap_err();
             assert!(
                 failure.detail.contains("switched script"),
                 "mode {mode:?}: {}",
@@ -1364,7 +1371,10 @@ mod tests {
                 "m",
             ),
         );
-        let retry = registry.begin(None, meta("history_retry", PostProcessEngineKind::Cloud, "m"));
+        let retry = registry.begin(
+            None,
+            meta("history_retry", PostProcessEngineKind::Cloud, "m"),
+        );
         registry.cancel_live_dictation_runs();
         assert_eq!(
             registry.snapshot(dictation).unwrap().outcome,

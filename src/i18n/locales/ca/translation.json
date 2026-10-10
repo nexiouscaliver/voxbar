@@ -642,6 +642,25 @@
           "digits": "Dígits",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Dispositius acompanyants",
+        "description": "Fes servir un mòbil o tauleta a la mateixa Wi-Fi com a micròfon i disparador per a aquest Mac.",
+        "offNote": "Desactivat per defecte. Res no escolta ni cap fil s'executa fins que l'activis.",
+        "qrTitle": "Vincula un dispositiu",
+        "qrHint": "Escaneja amb la càmera del mòbil, obre l'enllaç i accepta una vegada l'avís del certificat.",
+        "addressLabel": "Adreça",
+        "portLabel": "Port",
+        "devicesLabel": "Dispositius connectats",
+        "noDevices": "Encara no hi ha dispositius connectats",
+        "resetPairing": "Restableix la vinculació",
+        "fingerprintLabel": "Empremta del certificat (SHA-256)",
+        "firewallNote": "macOS pot demanar permetre connexions entrants el primer cop que ho activis. Permet-ho, o els mòbils no arribaran a aquest Mac.",
+        "unavailable": "Els dispositius acompanyants requereixen macOS en aquest cicle.",
+        "serverError": "El servidor ha fallat: {{error}}",
+        "refresh": "Actualitza",
+        "statusRunning": "En execució",
+        "statusStopped": "Aturat"
       }
     },
     "postProcessing": {
@@ -1177,10 +1196,13 @@
       "gnomeOverlayFallback": "Al GNOME Wayland, la finestra superposada apareix com una finestra normal que pot robar el focus i trencar l'enganxat. Aquí es recomana Superposició: Cap.",
       "postProcessOutputInvalid": "El poliment ha retornat text inútil, s'ha conservat la transcripció original.",
       "postProcessCloudFailed": "El poliment ha fallat i s'ha conservat la transcripció original: {{detail}}",
-      "postProcessPromptCycled": "Plantilla de postprocessament: {{name}}"
+      "postProcessPromptCycled": "Plantilla de postprocessament: {{name}}",
+      "companionDisconnected": "Mòbil desconnectat. Es finalitza amb el capturat.",
+      "companionServerFailed": "El servidor acompanyant ha fallat: {{error}}"
     },
     "commandBadge": "Mode d'ordres",
-    "ppChip": "Polint ({{model}}) {{seconds}}s"
+    "ppChip": "Polint ({{model}}) {{seconds}}s",
+    "companionBadge": "Micròfon acompanyant"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} pot estar blocant 1 drecera",
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar no pot instal·lar actualitzacions des d'aquesta ubicació",
     "translocatedDescription": "VoxBar s'està executant des d'una ubicació temporal de només lectura (App Translocation del macOS). Tanqueu VoxBar, arrossegueu-lo de la carpeta Downloads a Applications i obriu-lo des d'allà.",
     "commandNoSession": "La tecla d'ordres només funciona durant un dictat actiu. Primer inicieu la gravació i després manteniu-la i parleu."
+  },
+  "companion": {
+    "title": "VoxBar Acompanyant",
+    "subtitle": "El teu mòbil ara és micròfon i disparador per al teu Mac.",
+    "certNote": "Si el navegador avisa de la connexió, compara l'empremta del certificat amb la dels ajustos de VoxBar i accepta-la una vegada.",
+    "noToken": "Obre aquesta pàgina des del codi QR als ajustos de VoxBar.",
+    "micDenied": "S'ha denegat l'accés al micròfon. Permet-lo al navegador i recarrega.",
+    "badToken": "La vinculació ha fallat. Torna a escanejar el codi QR als ajustos de VoxBar.",
+    "wrongSubnet": "Aquest mòbil és en una altra xarxa diferent del Mac. Uneix-te a la mateixa Wi-Fi i vincula de nou.",
+    "rateLimited": "Masses intents de vinculació. Espera un minut i torna-ho a provar.",
+    "busy": "El Mac ja està dictant des d'un altre disparador.",
+    "disconnectedFinalized": "S'ha perdut la connexió. El Mac ha conservat el que has dit.",
+    "capped": "Sessió limitada a 15 minuts. Torna a prémer per continuar.",
+    "serverStopped": "El Mac ha aturat el servidor acompanyant.",
+    "reconnect": "Torna a connectar",
+    "holdToTalk": "Mantén premut per parlar",
+    "tapToTalk": "Toca per parlar",
+    "release": "Deixa anar per acabar",
+    "tapToStop": "Toca per aturar",
+    "stateConnecting": "Connectant",
+    "stateWaitMic": "Esperant el micròfon",
+    "stateReady": "A punt",
+    "stateRecording": "Enregistrant",
+    "stateDisconnected": "Desconnectat",
+    "stateError": "Error"
   }
 }

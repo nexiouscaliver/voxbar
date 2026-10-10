@@ -642,6 +642,25 @@
           "digits": "Chiffres",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Appareils compagnons",
+        "description": "Utilisez un téléphone ou une tablette sur le même Wi-Fi comme micro et déclencheur pour ce Mac.",
+        "offNote": "Désactivé par défaut. Rien n'écoute et aucun fil ne tourne tant que vous ne l'activez pas.",
+        "qrTitle": "Jumeler un appareil",
+        "qrHint": "Scannez avec la caméra du téléphone, ouvrez le lien et acceptez une fois l'avertissement de certificat.",
+        "addressLabel": "Adresse",
+        "portLabel": "Port",
+        "devicesLabel": "Appareils connectés",
+        "noDevices": "Aucun appareil connecté pour l'instant",
+        "resetPairing": "Réinitialiser le jumelage",
+        "fingerprintLabel": "Empreinte du certificat (SHA-256)",
+        "firewallNote": "macOS peut demander d'autoriser les connexions entrantes au premier activage. Autorisez-les, sinon les téléphones ne peuvent pas joindre ce Mac.",
+        "unavailable": "Les appareils compagnons nécessitent macOS pour ce cycle.",
+        "serverError": "Échec du serveur : {{error}}",
+        "refresh": "Actualiser",
+        "statusRunning": "En cours",
+        "statusStopped": "Arrêté"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "Sous GNOME Wayland, l'overlay apparaît comme une fenêtre ordinaire qui peut voler le focus et casser le collage. Overlay : Aucune est recommandé ici.",
       "postProcessOutputInvalid": "Le polissage a renvoyé un texte inutilisable, la transcription brute a été conservée.",
       "postProcessCloudFailed": "Le polissage a échoué, la transcription brute a été conservée : {{detail}}",
-      "postProcessPromptCycled": "Modèle de post-traitement : {{name}}"
+      "postProcessPromptCycled": "Modèle de post-traitement : {{name}}",
+      "companionDisconnected": "Téléphone déconnecté. On finalise avec ce qui a été capturé.",
+      "companionServerFailed": "Échec du serveur compagnon : {{error}}"
     },
     "commandBadge": "Mode commandes",
-    "ppChip": "Polish en cours ({{model}}) {{seconds}}s"
+    "ppChip": "Polish en cours ({{model}}) {{seconds}}s",
+    "companionBadge": "Micro compagnon"
   },
   "whatsNew": {
     "title": "Nouveautés de VoxBar v{{version}}"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar ne peut pas installer de mises à jour depuis cet emplacement",
     "translocatedDescription": "VoxBar s'exécute depuis un emplacement temporaire en lecture seule (App Translocation de macOS). Quittez VoxBar, faites-le glisser du dossier Téléchargements vers Applications, puis ouvrez-le depuis là.",
     "commandNoSession": "La touche de commandes ne fonctionne que pendant une dictée active. Commencez d'abord l'enregistrement, puis maintenez-la et dictez la commande."
+  },
+  "companion": {
+    "title": "VoxBar Compagnon",
+    "subtitle": "Votre téléphone est maintenant le micro et le déclencheur de votre Mac.",
+    "certNote": "Si le navigateur avertit sur la connexion, comparez l'empreinte du certificat avec celle des réglages VoxBar et acceptez-la une fois.",
+    "noToken": "Ouvrez cette page depuis le code QR dans les réglages VoxBar.",
+    "micDenied": "Accès au micro refusé. Autorisez-le dans le navigateur puis rechargez.",
+    "badToken": "Échec du jumelage. Rescannez le code QR dans les réglages VoxBar.",
+    "wrongSubnet": "Ce téléphone est sur un autre réseau que le Mac. Rejoignez le même Wi-Fi et jumelez à nouveau.",
+    "rateLimited": "Trop de tentatives de jumelage. Attendez une minute puis réessayez.",
+    "busy": "Le Mac dicte déjà depuis un autre déclencheur.",
+    "disconnectedFinalized": "Connexion coupée. Le Mac a gardé ce que vous avez dit.",
+    "capped": "Session limitée à 15 minutes. Appuyez à nouveau pour continuer.",
+    "serverStopped": "Le Mac a arrêté le serveur compagnon.",
+    "reconnect": "Reconnecter",
+    "holdToTalk": "Maintenir pour parler",
+    "tapToTalk": "Toucher pour parler",
+    "release": "Relâcher pour finir",
+    "tapToStop": "Toucher pour arrêter",
+    "stateConnecting": "Connexion",
+    "stateWaitMic": "Attente du micro",
+    "stateReady": "Prêt",
+    "stateRecording": "Enregistrement",
+    "stateDisconnected": "Déconnecté",
+    "stateError": "Erreur"
   }
 }

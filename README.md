@@ -174,6 +174,35 @@ re-transcribe any entry with a different model, copy it, or delete it, and
 the recordings folder opens from Settings. A failed transcription keeps its
 recording so you can retry it from History.
 
+### Companion devices
+
+Your phone can be the microphone and the trigger, with your Mac as the
+engine. Turn on Companion Devices in Settings, Advanced, Experimental, scan
+the QR code with the phone camera, and the phone opens a web page with one
+big talk button. No app to install; the page is served by your Mac over the
+local network.
+
+- Hold to talk, tap to lock, or toggle, matching your keyboard shortcut
+  behavior. The same session rules apply: the phone and the keyboard
+  arbitrate over one recording, and a press that gets swallowed shows a
+  notice on both surfaces.
+- Audio rides the same path the built-in microphone uses, so the overlay,
+  live text, voice commands, post-processing, and paste into the focused app
+  all behave the same. The overlay shows a phone badge while a companion
+  session is live.
+- If the phone leaves the network mid-dictation, the session finishes with
+  everything captured up to that moment and pastes it, with a notice saying
+  so.
+- It stays private: everything runs on your Wi-Fi with no cloud relay. The
+  connection is TLS with a self-signed certificate VoxBar generates once;
+  Settings shows its fingerprint so you can check the browser's warning the
+  first time. A pairing token, bound to your network, gates every phone,
+  sessions cap at 15 minutes, and off by default means no listener and no
+  threads until you switch it on. Reset pairing any time to revoke phones.
+
+This cycle companion devices need macOS. The phone page works in mobile
+Safari and Chrome.
+
 ### Updates
 
 VoxBar updates itself in the app and shows what changed before restarting

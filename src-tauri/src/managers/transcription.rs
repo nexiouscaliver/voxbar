@@ -449,6 +449,13 @@ pub enum NoticeCode {
     /// The cycle-prompt hotkey advanced the selected post-process template.
     /// Info; detail carries the new template's name.
     PostProcessPromptCycled,
+    /// A companion device (phone mic) disconnected mid-dictation; the
+    /// session finalized and pasted everything captured up to the drop.
+    /// Info. Detail carries the device name.
+    CompanionDisconnected,
+    /// The companion devices server failed to start or died (bind error,
+    /// certificate problem). Error; detail carries the underlying error.
+    CompanionServerFailed,
 }
 
 impl NoticeCode {
@@ -466,7 +473,8 @@ impl NoticeCode {
             | NoticeCode::BindingBusy
             | NoticeCode::WaylandTauriHotkeys
             | NoticeCode::GnomeOverlayFallback
-            | NoticeCode::PostProcessPromptCycled => OverlayNoticeKind::Info,
+            | NoticeCode::PostProcessPromptCycled
+            | NoticeCode::CompanionDisconnected => OverlayNoticeKind::Info,
             _ => OverlayNoticeKind::Error,
         }
     }
@@ -498,6 +506,8 @@ impl NoticeCode {
             NoticeCode::WaylandTauriHotkeys => "wayland_tauri_hotkeys",
             NoticeCode::GnomeOverlayFallback => "gnome_overlay_fallback",
             NoticeCode::PostProcessPromptCycled => "post_process_prompt_cycled",
+            NoticeCode::CompanionDisconnected => "companion_disconnected_finalized",
+            NoticeCode::CompanionServerFailed => "companion_server_failed",
         }
     }
 

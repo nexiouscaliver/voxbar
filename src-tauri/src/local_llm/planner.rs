@@ -1286,8 +1286,7 @@ mod tests {
                             Action::EmitSkip {
                                 reason: SkipReason::Timeout,
                                 detail: Some(
-                                    "local post-process exceeded its total time budget"
-                                        .to_string()
+                                    "local post-process exceeded its total time budget".to_string()
                                 )
                             },
                             Action::WaitExit
@@ -1296,11 +1295,7 @@ mod tests {
                     );
                 }
                 _ => {
-                    assert_eq!(
-                        actions,
-                        vec![Action::WaitExit],
-                        "silent exit {exit:?}"
-                    );
+                    assert_eq!(actions, vec![Action::WaitExit], "silent exit {exit:?}");
                 }
             }
             // The teardown completes and the terminal handoff runs exactly
@@ -1358,5 +1353,4 @@ mod tests {
         p.step(Signal::EvictWarm, false);
         assert_eq!(p.state, SwapState::UnloadingLlm);
     }
-
 }

@@ -108,6 +108,12 @@ function noticeMessage(
       return t("overlay.notice.waylandTauriHotkeys");
     case "gnome_overlay_fallback":
       return t("overlay.notice.gnomeOverlayFallback");
+    case "companion_disconnected_finalized":
+      return t("overlay.notice.companionDisconnected");
+    case "companion_server_failed":
+      return t("overlay.notice.companionServerFailed", {
+        error: notice.detail ?? "",
+      });
     default:
       return t("overlay.notice.generic");
   }
@@ -194,6 +200,9 @@ const RecordingOverlay: React.FC = () => {
   // engage/release (and clears it at session end), so the pill shows a subtle
   // CMD chip while speech edits the buffer instead of dictating text.
   const [cmdActive, setCmdActive] = useState(false);
+  // Companion-session indicator: a phone/tablet mic is the capture source
+  // (emitted at remote session start/stop beside the command-mode chip).
+  const [companionActive, setCompanionActive] = useState(false);
   // A live post-process run (the pp: lifecycle's Requested phase), driving
   // the "Polishing (model) 1.8s" label on the working row while the run is
   // in flight; cleared at its Outcome phase and on overlay hide/reset.
@@ -230,6 +239,7 @@ const RecordingOverlay: React.FC = () => {
           setRemovedText(null);
           setNotice(null);
           setCmdActive(false);
+          setCompanionActive(false);
           setPpRun(null);
           if (noticeTimerRef.current !== null) {
             window.clearTimeout(noticeTimerRef.current);
@@ -259,6 +269,8 @@ const RecordingOverlay: React.FC = () => {
         setIsVisible(false);
         setCaptureReady(false);
         setNotice(null);
+        setCmdActive(false);
+        setCompanionActive(false);
         setPpRun(null);
         if (noticeTimerRef.current !== null) {
           window.clearTimeout(noticeTimerRef.current);
@@ -325,6 +337,15 @@ const RecordingOverlay: React.FC = () => {
         },
       );
 
+      // A companion device (phone mic) drives this session; the backend
+      // emits at remote session start/stop so the badge never outlives it.
+      const unlistenCompanion = await listen<{ active?: boolean }>(
+        "companion-session-changed",
+        (event) => {
+          setCompanionActive(Boolean(event.payload?.active));
+        },
+      );
+
       // The pp: lifecycle: Requested arms the polishing chip (model + start
       // instant); Outcome (applied | skipped | failed) clears it so the
       // label never outlives the run.
@@ -366,6 +387,7 @@ const RecordingOverlay: React.FC = () => {
         unlistenPhase();
         unlistenNotice();
         unlistenCmd();
+        unlistenCompanion();
         unlistenPpRun();
         unlistenSettings();
         // Never leave the removal chip's timer running past unmount.
@@ -468,6 +490,16 @@ const RecordingOverlay: React.FC = () => {
         {cmdActive && (
           <span className="scmd" aria-label={t("overlay.commandBadge")}>
             CMD
+          </span>
+        )}
+        {companionActive && (
+          <span className="scmd scomp" aria-label={t("overlay.companionBadge")}>
+            <svg viewBox="0 0 16 16" width="10" height="10" aria-hidden="true">
+              <path
+                d="M3 2 C2.45 2 2 2.45 2 3 L2 13 C2 13.55 2.45 14 3 14 L6 14 C6.55 14 7 13.55 7 13 L7 3 C7 2.45 6.55 2 6 2 Z M11 2 C10.45 2 10 2.45 10 3 L10 13 C10 13.55 10.45 14 11 14 L13 14 C13.55 14 14 13.55 14 13 L14 3 C14 2.45 13.55 2 13 2 Z"
+                fill="currentColor"
+              />
+            </svg>
           </span>
         )}
       </div>

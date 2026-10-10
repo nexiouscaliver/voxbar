@@ -642,6 +642,25 @@
           "digits": "Ziffern",
           "smart": "Smart"
         }
+      },
+      "companionDevices": {
+        "label": "Begleitgeräte",
+        "description": "Nutze ein Telefon oder Tablet im selben WLAN als Mikrofon und Auslöser für diesen Mac.",
+        "offNote": "Standardmäßig aus. Es lauscht nichts und es laufen keine Threads, bis du es aktivierst.",
+        "qrTitle": "Gerät koppeln",
+        "qrHint": "Mit der Telefonkamera scannen, Link öffnen und die Zertifikatswarnung einmal bestätigen.",
+        "addressLabel": "Adresse",
+        "portLabel": "Port",
+        "devicesLabel": "Verbundene Geräte",
+        "noDevices": "Noch keine Geräte verbunden",
+        "resetPairing": "Kopplung zurücksetzen",
+        "fingerprintLabel": "Zertifikat-Fingerprint (SHA-256)",
+        "firewallNote": "macOS fragt beim ersten Aktivieren möglicherweise nach eingehenden Verbindungen. Erlaube sie, sonst erreichen Telefone diesen Mac nicht.",
+        "unavailable": "Begleitgeräte brauchen in diesem Zyklus macOS.",
+        "serverError": "Server fehlgeschlagen: {{error}}",
+        "refresh": "Aktualisieren",
+        "statusRunning": "Läuft",
+        "statusStopped": "Gestoppt"
       }
     },
     "postProcessing": {
@@ -1174,10 +1193,13 @@
       "gnomeOverlayFallback": "Unter GNOME Wayland erscheint das Overlay als normales Fenster, das den Fokus stehlen und Einfügen verhindern kann. Empfohlen ist hier Overlay: Keine.",
       "postProcessOutputInvalid": "Die Bereinigung lieferte unbrauchbaren Text, daher wurde das ursprüngliche Transkript behalten.",
       "postProcessCloudFailed": "Die Bereinigung ist fehlgeschlagen, das ursprüngliche Transkript wurde behalten: {{detail}}",
-      "postProcessPromptCycled": "Nachbearbeitungsvorlage: {{name}}"
+      "postProcessPromptCycled": "Nachbearbeitungsvorlage: {{name}}",
+      "companionDisconnected": "Telefon getrennt. Das Aufgenommene wird fertiggestellt.",
+      "companionServerFailed": "Begleitserver fehlgeschlagen: {{error}}"
     },
     "commandBadge": "Befehlsmodus",
-    "ppChip": "Bereinige ({{model}}) {{seconds}}s"
+    "ppChip": "Bereinige ({{model}}) {{seconds}}s",
+    "companionBadge": "Begleitmikrofon"
   },
   "whatsNew": {
     "title": "Neu in VoxBar v{{version}}"
@@ -1217,5 +1239,30 @@
     "translocatedTitle": "VoxBar kann von diesem Ort keine Updates installieren",
     "translocatedDescription": "VoxBar läuft von einem temporären schreibgeschützten Ort (macOS App Translocation). Beende VoxBar, ziehe es aus dem Ordner Downloads nach Programme und starte es von dort.",
     "commandNoSession": "Die Befehlstaste funktioniert nur während einer aktiven Diktierens. Starte zuerst die Aufnahme, halte dann die Taste und sprich den Befehl."
+  },
+  "companion": {
+    "title": "VoxBar Begleit",
+    "subtitle": "Dein Telefon ist jetzt Mikrofon und Auslöser für deinen Mac.",
+    "certNote": "Warnt der Browser vor der Verbindung, vergleiche den Zertifikat-Fingerprint mit dem in den VoxBar-Einstellungen und bestätige einmal.",
+    "noToken": "Öffne diese Seite über den QR-Code in den VoxBar-Einstellungen.",
+    "micDenied": "Mikrofonzugriff verweigert. Erlaube ihn im Browser und lade neu.",
+    "badToken": "Kopplung fehlgeschlagen. Scanne den QR-Code in den VoxBar-Einstellungen erneut.",
+    "wrongSubnet": "Dieses Telefon ist in einem anderen Netzwerk als der Mac. Verbinde dich mit demselben WLAN und koppel erneut.",
+    "rateLimited": "Zu viele Kopplungsversuche. Warte eine Minute und versuche es wieder.",
+    "busy": "Der Mac diktiert bereits über einen anderen Auslöser.",
+    "disconnectedFinalized": "Verbindung getrennt. Der Mac hat behalten, was du gesagt hast.",
+    "capped": "Sitzung nach 15 Minuten begrenzt. Drücke erneut, um weiterzumachen.",
+    "serverStopped": "Der Mac hat den Begleitserver gestoppt.",
+    "reconnect": "Erneut verbinden",
+    "holdToTalk": "Zum Sprechen halten",
+    "tapToTalk": "Tippen zum Sprechen",
+    "release": "Loslassen zum Beenden",
+    "tapToStop": "Tippen zum Stoppen",
+    "stateConnecting": "Verbinde",
+    "stateWaitMic": "Warte auf Mikrofon",
+    "stateReady": "Bereit",
+    "stateRecording": "Aufnahme",
+    "stateDisconnected": "Getrennt",
+    "stateError": "Fehler"
   }
 }

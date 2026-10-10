@@ -54,7 +54,7 @@ rubato = "0.16.2"
 hound = "3.5.1"
 log = "0.4.25"
 env_filter = "0.1.0"
-tokio = "1.43.0"
+tokio = { version = "1.43.0", features = ["net", "time", "rt", "sync", "io-util", "macros"] }
 vad-rs = { git = "https://github.com/cjpais/vad-rs", default-features = false }
 earshot = "1.2.2"
 # x11rb + wayland so enigo (the last-resort typing/paste fallback, see
@@ -112,6 +112,12 @@ tauri-plugin-dialog = "2.6"
 hf-hub = { git = "https://github.com/cjpais/hf-hub", branch = "cancellable-downloads", features = [
   "tokio",
 ] }
+tokio-tungstenite = { version = "0.30.0", default-features = false, features = ["handshake"] }
+rcgen = { version = "0.14.10", default-features = false, features = ["crypto", "pem", "ring"] }
+qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
+getrandom = "0.4.3"
+tokio-rustls = "0.26"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12", "logging"] }
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"

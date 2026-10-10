@@ -2850,7 +2850,11 @@ mod tests {
         let outcome = runner.join().unwrap();
         assert_eq!(outcome, SwapOutcome::Processed("cleaned text".to_string()));
         assert!(engine_state.exit_sent.load(Ordering::Acquire));
-        assert_eq!(restored.load(Ordering::Acquire), 1, "the voice model restore ran");
+        assert_eq!(
+            restored.load(Ordering::Acquire),
+            1,
+            "the voice model restore ran"
+        );
         assert_eq!(llm.warm_model_id(), None, "the warm registration cleared");
     }
 
@@ -2926,5 +2930,4 @@ mod tests {
         assert_eq!(restored.load(Ordering::Acquire), 1);
         assert_eq!(llm.warm_model_id(), None);
     }
-
 }
