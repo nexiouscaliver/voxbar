@@ -114,7 +114,17 @@ bun tauri dev
 bun run tauri build
 ```
 
-This compiles a release binary and generates platform-specific bundles (deb, rpm, AppImage on Linux; dmg on macOS; msi on Windows).
+This compiles a release binary and generates the bundles selected by the platform overlay configs, which Tauri merges over `src-tauri/tauri.conf.json` automatically:
+
+- **Linux** (`src-tauri/tauri.linux.conf.json`): `deb`, `rpm`, and `AppImage` under `src-tauri/target/release/bundle/`. The deb/rpm dependency lists and the AppImage layout live in the base config's `bundle.linux` block.
+- **Windows** (`src-tauri/tauri.windows.conf.json`): an `msi` under `src-tauri/target/release/bundle/msi/` (plus the Windows resource mapping in the same overlay).
+- **macOS** (base config, `bundle.targets: ["app"]`): the `VoxBar.app` bundle under `src-tauri/target/release/bundle/macos/`, no dmg. Release artifacts are produced by `scripts/release-macos.sh` (see below).
+
+To build just one format on Linux (for example when the AppImage step fails on a rolling-release distro, see the linuxdeploy note in Troubleshooting):
+
+```bash
+bun run tauri build -- --bundles deb
+```
 
 ## Linux Install (from source)
 
@@ -183,6 +193,20 @@ The order is load-bearing: the build deliberately does not set `createUpdaterArt
 
 The identifier-only designated requirement is a deliberate tradeoff for an unnotarized open-source app: it keeps the macOS code identity stable so Accessibility grants survive updates, but any binary claiming the `com.voxbar.app` identifier satisfies it. The stronger variant also pins a certificate leaf, which requires a self-signed code-signing certificate on the release machine.
 
+## Releasing (Linux)
+
+Linux installers are built by `scripts/release-linux.sh` on a Linux machine (there is nothing to sign: the in-app updater ships macOS artifacts only, so Linux users install from the release files):
+
+```bash
+nice -n 15 bash scripts/release-linux.sh            # deb + rpm + appimage
+nice -n 15 bash scripts/release-linux.sh deb appimage  # or a subset
+```
+
+The script reads the version from `src-tauri/tauri.conf.json` (failing unless `package.json` and `src-tauri/Cargo.toml` agree), builds with `bunx tauri build` (the `tauri.linux.conf.json` overlay selects the deb/rpm/AppImage targets), prints sha256 checksums for every artifact, and copies them to
+`voxbar-build-docs/v<version>/release-assets-linux/` (overridable as the last argument). `NO_STRIP=true` is passed through to the build for the linuxdeploy old-strip problem described in Troubleshooting.
+
+Publishing the GitHub release (tag + uploads) is the same manual, operator-only step as on macOS. Do not add the Linux files to `latest.json`: the updater manifest is macOS-only until signed Linux update artifacts exist (see `src/components/update-checker/updaterPlatform.ts`).
+
 ## Troubleshooting
 
 ### macOS Accessibility remains enabled after a local rebuild
@@ -236,11 +260,19 @@ cd src-tauri/target/release/bundle/appimage
   --appdir VoxBar.AppDir --plugin gtk --output appimage
 ```
 
-**Workaround:** The binary, deb, and rpm bundles all build fine - only the AppImage step fails. To skip it:
+**Workaround:** The binary, deb, and rpm bundles all build fine - only the AppImage step fails. Either skip the AppImage target:
 
 ```bash
 bun run tauri build -- --bundles deb
 ```
+
+or tell linuxdeploy not to strip at all (it then leaves the binaries' symbols in place):
+
+```bash
+NO_STRIP=true bun run tauri build
+```
+
+`scripts/release-linux.sh` passes `NO_STRIP` through to the build, so `NO_STRIP=true bash scripts/release-linux.sh deb` covers this case in one step.
 
 Then install using the deb extraction method above.
 

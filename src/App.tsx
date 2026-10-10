@@ -337,16 +337,18 @@ function App() {
   }, [t]);
 
   // No-op key feedback from the notice channel: idle delete/undo presses,
-  // live-session presses with no buffer yet, and cross-binding presses
-  // swallowed to protect a recording. These have no other toast, so this
-  // listener is their main-window surface; the overlay shows the same
+  // live-session presses with no buffer yet, cross-binding presses
+  // swallowed to protect a recording, and the Linux setup warnings (Wayland
+  // hotkey backend, GNOME overlay fallback). These have no other toast, so
+  // this listener is their main-window surface; the overlay shows the same
   // message on its card when visible. Rate-limited per code (2s, the same
-  // window command-mode-no-session uses) so auto-repeat cannot stack.
+  // window command-mode-no-session uses) so auto-repeat cannot stack; the
+  // Linux setup warnings stay up longer because they carry instructions.
   const lastNoopNoticeToast = useRef<Record<string, number>>({});
   useEffect(() => {
     const unlisten = events.overlayNoticeEvent.listen((event) => {
       const { code } = event.payload;
-      const key = `overlay.notice.${
+      const keySuffix =
         code === "delete_last_word_no_session"
           ? "deleteLastWordNoSession"
           : code === "delete_last_word_no_buffer"
@@ -357,13 +359,20 @@ function App() {
                 ? "undoNoBuffer"
                 : code === "binding_busy"
                   ? "bindingBusy"
-                  : null
-      }`;
-      if (key === null) return;
+                  : code === "wayland_tauri_hotkeys"
+                    ? "waylandTauriHotkeys"
+                    : code === "gnome_overlay_fallback"
+                      ? "gnomeOverlayFallback"
+                      : null;
+      if (keySuffix === null) return;
+      const duration =
+        code === "wayland_tauri_hotkeys" || code === "gnome_overlay_fallback"
+          ? 12000
+          : 4000;
       const now = Date.now();
       if (now - (lastNoopNoticeToast.current[code] ?? 0) < 2000) return;
       lastNoopNoticeToast.current[code] = now;
-      toast.info(t(key), { duration: 4000 });
+      toast.info(t(`overlay.notice.${keySuffix}`), { duration });
     });
     return () => {
       unlisten.then((fn) => fn());

@@ -943,7 +943,10 @@
       "restartLater": "Later",
       "installedDescription": "VoxBar {{version}} has been installed and becomes active the next time VoxBar restarts.",
       "failedDescription": "The update could not be downloaded. Check your connection and try again, or download it from GitHub Releases.",
-      "translocatedDescription": "VoxBar cannot update itself while running from the Downloads folder preview. Move it to the Applications folder (drag it in Finder), open it from there, and check for updates again."
+      "translocatedDescription": "VoxBar cannot update itself while running from the Downloads folder preview. Move it to the Applications folder (drag it in Finder), open it from there, and check for updates again.",
+      "manualOnlyPlatform": "Get updates from GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} has been downloaded. Installing closes the app; the new version starts the next time you open VoxBar.",
+      "restartLaterWindows": "Install and close"
     }
   },
   "whatsNew": {
@@ -1029,7 +1032,9 @@
       "deleteLastWordNoBuffer": "Nothing to delete yet, the dictation has no live text.",
       "undoNoSession": "Undo works during a live dictation. Start recording first.",
       "undoNoBuffer": "Nothing to clear yet, the dictation has no live text.",
-      "bindingBusy": "Another dictation key is already recording."
+      "bindingBusy": "Another dictation key is already recording.",
+      "waylandTauriHotkeys": "Global shortcuts may not work in native Wayland apps with this keyboard backend. Switch Keyboard implementation to VoxBar Keys and add your user to the input group; see the Ubuntu troubleshooting guide.",
+      "gnomeOverlayFallback": "On GNOME Wayland the overlay appears as a regular window that can steal focus and break pasting. Overlay: None is recommended here."
     },
     "commandBadge": "Command mode"
   },

@@ -943,7 +943,10 @@
       "restartLater": "Nanti",
       "installedDescription": "VoxBar {{version}} telah dipasang dan akan aktif saat VoxBar dimulai ulang berikutnya.",
       "failedDescription": "Pembaruan tidak dapat diunduh. Periksa koneksi Anda dan coba lagi, atau unduh dari GitHub Releases.",
-      "translocatedDescription": "VoxBar tidak dapat memperbarui dirinya sendiri saat berjalan dari folder Unduhan. Pindahkan ke folder Aplikasi (seret di Finder), buka dari sana, lalu periksa pembaruan lagi."
+      "translocatedDescription": "VoxBar tidak dapat memperbarui dirinya sendiri saat berjalan dari folder Unduhan. Pindahkan ke folder Aplikasi (seret di Finder), buka dari sana, lalu periksa pembaruan lagi.",
+      "manualOnlyPlatform": "Ambil pembaruan dari GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} telah diunduh. Instalasi menutup aplikasi; versi baru mulai saat Anda membuka VoxBar berikutnya.",
+      "restartLaterWindows": "Instal dan tutup"
     }
   },
   "whatsNew": {
@@ -1029,7 +1032,9 @@
       "deleteLastWordNoBuffer": "Belum ada yang bisa dihapus, dikte belum memiliki teks langsung.",
       "undoNoSession": "Tombol urungkan bekerja saat dikte sedang berlangsung. Mulai rekaman dulu.",
       "undoNoBuffer": "Belum ada yang bisa dibersihkan, dikte belum memiliki teks langsung.",
-      "bindingBusy": "Tombol dikte lain sedang merekam."
+      "bindingBusy": "Tombol dikte lain sedang merekam.",
+      "waylandTauriHotkeys": "Pintasan global mungkin tidak berfungsi di aplikasi Wayland native dengan implementasi keyboard ini. Ganti implementasi keyboard ke VoxBar Keys dan tambahkan pengguna Anda ke grup input; lihat panduan Ubuntu.",
+      "gnomeOverlayFallback": "Di GNOME Wayland, overlay muncul sebagai jendela biasa yang bisa mencuri fokus dan merusak tempel. Disarankan Overlay: Tidak Ada di sini."
     },
     "commandBadge": "Mode perintah"
   },

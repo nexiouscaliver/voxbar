@@ -943,7 +943,10 @@
       "restartLater": "나중에",
       "installedDescription": "VoxBar {{version}}이(가) 설치되었으며 다음에 VoxBar를 다시 시작할 때 적용됩니다.",
       "failedDescription": "업데이트를 다운로드할 수 없습니다. 연결을 확인하고 다시 시도하거나 GitHub Releases에서 다운로드하세요.",
-      "translocatedDescription": "Downloads 폴더에서 실행 중일 때는 VoxBar가 스스로 업데이트할 수 없습니다. Finder에서 응용 프로그램 폴더로 이동시키고 그곳에서 연 다음 다시 업데이트를 확인하세요."
+      "translocatedDescription": "Downloads 폴더에서 실행 중일 때는 VoxBar가 스스로 업데이트할 수 없습니다. Finder에서 응용 프로그램 폴더로 이동시키고 그곳에서 연 다음 다시 업데이트를 확인하세요.",
+      "manualOnlyPlatform": "GitHub Releases에서 업데이트 받기",
+      "restartDescriptionWindows": "VoxBar {{version}}을(를) 다운로드했습니다. 설치하면 앱이 종료되며, 새 버전은 다음에 VoxBar를 열 때 시작됩니다.",
+      "restartLaterWindows": "설치 후 닫기"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "아직 삭제할 내용이 없습니다. 받아쓰기에 실시간 텍스트가 없습니다.",
       "undoNoSession": "되돌리기 키는 받아쓰기 중에만 동작합니다. 먼저 녹음을 시작하세요.",
       "undoNoBuffer": "아직 지울 내용이 없습니다. 받아쓰기에 실시간 텍스트가 없습니다.",
-      "bindingBusy": "다른 받아쓰기 키가 이미 녹음 중입니다."
+      "bindingBusy": "다른 받아쓰기 키가 이미 녹음 중입니다.",
+      "waylandTauriHotkeys": "이 키보드 구현에서는 네이티브 Wayland 앱에서 전역 단축키가 작동하지 않을 수 있습니다. 키보드 구현을 VoxBar Keys로 전환하고 사용자를 input 그룹에 추가하세요. Ubuntu 가이드를 참고하세요.",
+      "gnomeOverlayFallback": "GNOME Wayland에서는 오버레이가 일반 창으로 표시되어 포커스를 빼앗고 붙여넣기를 망칠 수 있습니다. 여기서는 오버레이: 없음을 권장합니다."
     },
     "commandBadge": "명령 모드"
   },

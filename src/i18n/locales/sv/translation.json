@@ -943,7 +943,10 @@
       "restartLater": "Senare",
       "installedDescription": "VoxBar {{version}} har installerats och blir aktiv nästa gång VoxBar startas om.",
       "failedDescription": "Uppdateringen kunde inte hämtas. Kontrollera din anslutning och försök igen, eller hämta den från GitHub Releases.",
-      "translocatedDescription": "VoxBar kan inte uppdatera sig själv medan den körs från Nedladdningsmappen. Flytta den till Programmappen (dra i Finder), öppna den därifrån och sök efter uppdateringar igen."
+      "translocatedDescription": "VoxBar kan inte uppdatera sig själv medan den körs från Nedladdningsmappen. Flytta den till Programmappen (dra i Finder), öppna den därifrån och sök efter uppdateringar igen.",
+      "manualOnlyPlatform": "Hämta uppdateringar från GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} har laddats ner. Installationen stänger appen; den nya versionen startar nästa gång du öppnar VoxBar.",
+      "restartLaterWindows": "Installera och stäng"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "Det finns inget att radera än, dikteringen har ingen direkt text.",
       "undoNoSession": "Ångra-tangenten fungerar under en aktiv diktering. Starta inspelningen först.",
       "undoNoBuffer": "Det finns inget att rensa än, dikteringen har ingen direkt text.",
-      "bindingBusy": "En annan dikteringstangent spelar redan in."
+      "bindingBusy": "En annan dikteringstangent spelar redan in.",
+      "waylandTauriHotkeys": "Globala genvägar kanske inte fungerar i nativa Wayland-appar med den här tangentbordsimplementeringen. Byt tangentbordsimplementering till VoxBar Keys och lägg till din användare i gruppen input; se Ubuntu-guiden.",
+      "gnomeOverlayFallback": "På GNOME Wayland visas overlayet som ett vanligt fönster som kan stjäla fokus och förstöra inklistring. Overlay: Ingen rekommenderas här."
     },
     "commandBadge": "Kommandoläge"
   },

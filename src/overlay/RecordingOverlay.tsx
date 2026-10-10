@@ -93,6 +93,10 @@ function noticeMessage(
       return t("overlay.notice.undoNoBuffer");
     case "binding_busy":
       return t("overlay.notice.bindingBusy");
+    case "wayland_tauri_hotkeys":
+      return t("overlay.notice.waylandTauriHotkeys");
+    case "gnome_overlay_fallback":
+      return t("overlay.notice.gnomeOverlayFallback");
     default:
       return t("overlay.notice.generic");
   }

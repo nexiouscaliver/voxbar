@@ -943,7 +943,10 @@
       "restartLater": "Później",
       "installedDescription": "VoxBar {{version}} został zainstalowany i stanie się aktywny przy następnym uruchomieniu VoxBar.",
       "failedDescription": "Nie udało się pobrać aktualizacji. Sprawdź połączenie i spróbuj ponownie albo pobierz ją z GitHub Releases.",
-      "translocatedDescription": "VoxBar nie może się aktualizować, działając z folderu Pobrane. Przenieś go do folderu Aplikacje (przeciągnij w Finderze), uruchom stamtąd i sprawdź aktualizacje ponownie."
+      "translocatedDescription": "VoxBar nie może się aktualizować, działając z folderu Pobrane. Przenieś go do folderu Aplikacje (przeciągnij w Finderze), uruchom stamtąd i sprawdź aktualizacje ponownie.",
+      "manualOnlyPlatform": "Pobierz aktualizacje z GitHub Releases",
+      "restartDescriptionWindows": "Pobrano VoxBar {{version}}. Instalacja zamyka aplikację; nowa wersja wystartuje przy następnym otwarciu VoxBar.",
+      "restartLaterWindows": "Zainstaluj i zamknij"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "Nie ma jeszcze czego usuwać, dyktowanie nie ma tekstu na żywo.",
       "undoNoSession": "Klawisz cofania działa podczas aktywnego dyktowania. Najpierw rozpocznij nagrywanie.",
       "undoNoBuffer": "Nie ma jeszcze czego czyścić, dyktowanie nie ma tekstu na żywo.",
-      "bindingBusy": "Inny klawisz dyktowania już nagrywa."
+      "bindingBusy": "Inny klawisz dyktowania już nagrywa.",
+      "waylandTauriHotkeys": "Skróty globalne mogą nie działać w natywnych aplikacjach Wayland przy tej implementacji klawiatury. Przełącz implementację klawiatury na VoxBar Keys i dodaj swojego użytkownika do grupy input; zobacz przewodnik dla Ubuntu.",
+      "gnomeOverlayFallback": "Na GNOME Wayland nakładka pojawia się jako zwykłe okno, które może przejąć fokus i zepsuć wklejanie. Zalecane jest tu Nakładka: Brak."
     },
     "commandBadge": "Tryb poleceń"
   },

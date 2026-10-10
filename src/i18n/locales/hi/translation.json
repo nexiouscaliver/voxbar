@@ -943,7 +943,10 @@
       "restartLater": "बाद में",
       "installedDescription": "VoxBar {{version}} इंस्टॉल हो गया है और VoxBar के अगली बार चालू होने पर सक्रिय हो जाएगा।",
       "failedDescription": "अपडेट डाउनलोड नहीं हो सका। अपना कनेक्शन जांचें और फिर कोशिश करें, या इसे GitHub Releases से डाउनलोड करें।",
-      "translocatedDescription": "Downloads फोल्डर से चलते हुए VoxBar खुद को अपडेट नहीं कर सकता। इसे Finder में Applications फोल्डर में खींचें, वहाँ से खोलें, और फिर अपडेट जांचें।"
+      "translocatedDescription": "Downloads फोल्डर से चलते हुए VoxBar खुद को अपडेट नहीं कर सकता। इसे Finder में Applications फोल्डर में खींचें, वहाँ से खोलें, और फिर अपडेट जांचें।",
+      "manualOnlyPlatform": "अपडेट GitHub Releases से लें",
+      "restartDescriptionWindows": "VoxBar {{version}} डाउनलोड हो गया है। इंस्टॉल करने पर ऐप बंद हो जाएगा; नया वर्ज़न VoxBar खोलने की अगली बार शुरू होगा।",
+      "restartLaterWindows": "इंस्टॉल करके बंद करें"
     }
   },
   "whatsNew": {
@@ -1029,7 +1032,9 @@
       "deleteLastWordNoBuffer": "अभी मिटाने को कुछ नहीं है, डिक्टेशन में कोई लाइव टेक्स्ट नहीं है।",
       "undoNoSession": "पूर्ववत कुंजी सक्रिय डिक्टेशन के दौरान काम करती है। पहले रिकॉर्डिंग शुरू करें।",
       "undoNoBuffer": "अभी साफ़ करने को कुछ नहीं है, डिक्टेशन में कोई लाइव टेक्स्ट नहीं है।",
-      "bindingBusy": "दूसरी डिक्टेशन कुंजी पहले से रिकॉर्ड कर रही है।"
+      "bindingBusy": "दूसरी डिक्टेशन कुंजी पहले से रिकॉर्ड कर रही है।",
+      "waylandTauriHotkeys": "इस कीबोर्ड बैकएंड के साथ नेटिव Wayland ऐप्स में ग्लोबल शॉर्टकट काम नहीं कर सकते। कीबोर्ड बैकएंड को VoxBar Keys पर बदलें और अपने यूज़र को input ग्रुप में जोड़ें; Ubuntu गाइड देखें।",
+      "gnomeOverlayFallback": "GNOME Wayland पर ओवरले एक सामान्य विंडो की तरह दिखता है जो फोकस ले सकती है और पेस्ट बिगाड़ सकती है। यहाँ ओवरले: कोई नहीं की सलाह है।"
     },
     "commandBadge": "कमांड मोड"
   },

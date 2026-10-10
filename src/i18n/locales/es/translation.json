@@ -943,7 +943,10 @@
       "restartLater": "Más tarde",
       "installedDescription": "VoxBar {{version}} se ha instalado y se activará la próxima vez que reinicies VoxBar.",
       "failedDescription": "No se pudo descargar la actualización. Comprueba tu conexión e inténtalo de nuevo, o descárgala de GitHub Releases.",
-      "translocatedDescription": "VoxBar no puede actualizarse mientras se ejecuta desde la carpeta Descargas. Muévelo a la carpeta Aplicaciones (arrastrándolo en el Finder), ábrelo desde allí y vuelve a buscar actualizaciones."
+      "translocatedDescription": "VoxBar no puede actualizarse mientras se ejecuta desde la carpeta Descargas. Muévelo a la carpeta Aplicaciones (arrastrándolo en el Finder), ábrelo desde allí y vuelve a buscar actualizaciones.",
+      "manualOnlyPlatform": "Obtén las actualizaciones de GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} se ha descargado. La instalación cierra la aplicación; la nueva versión se inicia la próxima vez que abras VoxBar.",
+      "restartLaterWindows": "Instalar y cerrar"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "Aún no hay nada que borrar, el dictado no tiene texto en vivo.",
       "undoNoSession": "La tecla de deshacer funciona durante un dictado activo. Comienza a grabar primero.",
       "undoNoBuffer": "Aún no hay nada que limpiar, el dictado no tiene texto en vivo.",
-      "bindingBusy": "Otra tecla de dictado ya está grabando."
+      "bindingBusy": "Otra tecla de dictado ya está grabando.",
+      "waylandTauriHotkeys": "Es posible que los atajos globales no funcionen en las aplicaciones nativas de Wayland con esta implementación de teclado. Cambia la implementación de teclado a VoxBar Keys y añade tu usuario al grupo input; consulta la guía de Ubuntu.",
+      "gnomeOverlayFallback": "En GNOME Wayland la superposición aparece como una ventana normal que puede robar el foco y romper el pegado. Aquí se recomienda Superposición: Ninguna."
     },
     "commandBadge": "Modo de comandos"
   },

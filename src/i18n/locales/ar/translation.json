@@ -943,7 +943,10 @@
       "restartLater": "لاحقًا",
       "installedDescription": "تم تثبيت VoxBar {{version}} وسيصبح نشطًا عند إعادة تشغيل VoxBar في المرة القادمة.",
       "failedDescription": "تعذّر تنزيل التحديث. تحقق من اتصالك وحاول مجددًا، أو نزّله من GitHub Releases.",
-      "translocatedDescription": "لا يستطيع VoxBar تحديث نفسه أثناء التشغيل من معاينة مجلد Downloads. انقله إلى مجلد Applications (اسحبه في Finder)، وافتحه من هناك، ثم تحقق من التحديثات مجددًا."
+      "translocatedDescription": "لا يستطيع VoxBar تحديث نفسه أثناء التشغيل من معاينة مجلد Downloads. انقله إلى مجلد Applications (اسحبه في Finder)، وافتحه من هناك، ثم تحقق من التحديثات مجددًا.",
+      "manualOnlyPlatform": "احصل على التحديثات من GitHub Releases",
+      "restartDescriptionWindows": "تم تنزيل VoxBar {{version}}. التثبيت يغلق التطبيق؛ ويبدأ الإصدار الجديد في المرة القادمة التي تفتح فيها VoxBar.",
+      "restartLaterWindows": "تثبيت وإغلاق"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "لا يوجد ما يُحذف بعد، الإملاء لا يحتوي على نص مباشر.",
       "undoNoSession": "مفتاح التراجع يعمل أثناء الإملاء النشط. ابدأ التسجيل أولا.",
       "undoNoBuffer": "لا يوجد ما يُمسح بعد، الإملاء لا يحتوي على نص مباشر.",
-      "bindingBusy": "مفتاح إملاء آخر يسجل بالفعل."
+      "bindingBusy": "مفتاح إملاء آخر يسجل بالفعل.",
+      "waylandTauriHotkeys": "قد لا تعمل الاختصارات العامة في تطبيقات Wayland الأصلية مع هذا الوضع الخلفي للوحة المفاتيح. بدّل تنفيذ لوحة المفاتيح إلى VoxBar Keys وأضف مستخدمك إلى مجموعة input؛ راجع دليل استكشاف أخطاء Ubuntu.",
+      "gnomeOverlayFallback": "على GNOME Wayland يظهر التراكب كنافذة عادية قد تسرق التركيز وتعطّل اللصق. يُنصح هنا بضبط التراكب على بلا."
     },
     "commandBadge": "وضع الأوامر"
   },

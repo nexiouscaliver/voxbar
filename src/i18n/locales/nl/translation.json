@@ -943,7 +943,10 @@
       "restartLater": "Later",
       "installedDescription": "VoxBar {{version}} is geïnstalleerd en wordt actief bij de volgende herstart van VoxBar.",
       "failedDescription": "De update kon niet worden gedownload. Controleer je verbinding en probeer het opnieuw, of download hem via GitHub Releases.",
-      "translocatedDescription": "VoxBar kan zichzelf niet bijwerken zolang het vanuit de map Downloads draait. Verplaats het naar de map Programma's (slepen in de Finder), open het vanaf daar en controleer opnieuw op updates."
+      "translocatedDescription": "VoxBar kan zichzelf niet bijwerken zolang het vanuit de map Downloads draait. Verplaats het naar de map Programma's (slepen in de Finder), open het vanaf daar en controleer opnieuw op updates.",
+      "manualOnlyPlatform": "Haal updates via GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} is gedownload. De installatie sluit de app; de nieuwe versie start de volgende keer dat je VoxBar opent.",
+      "restartLaterWindows": "Installeren en sluiten"
     }
   },
   "whatsNew": {
@@ -1029,7 +1032,9 @@
       "deleteLastWordNoBuffer": "Nog niets te wissen, de dicteersessie heeft nog geen live tekst.",
       "undoNoSession": "De ongedaan-toets werkt tijdens een actieve dicteersessie. Start eerst een opname.",
       "undoNoBuffer": "Nog niets om leeg te maken, de dicteersessie heeft nog geen live tekst.",
-      "bindingBusy": "Een andere dicteertoets neemt al op."
+      "bindingBusy": "Een andere dicteertoets neemt al op.",
+      "waylandTauriHotkeys": "Globale sneltoetsen werken mogelijk niet in native Wayland-apps met deze toetsenbordimplementatie. Schakel de toetsenbordimplementatie om naar VoxBar Keys en voeg je gebruiker toe aan de groep input; zie de Ubuntu-gids.",
+      "gnomeOverlayFallback": "Op GNOME Wayland verschijnt de overlay als een gewoon venster dat focus kan stelen en plakken kan breken. Hier wordt Overlay: Geen aangeraden."
     },
     "commandBadge": "Opdrachtmodus"
   },

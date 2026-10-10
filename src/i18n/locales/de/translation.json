@@ -943,7 +943,10 @@
       "restartLater": "Später",
       "installedDescription": "VoxBar {{version}} wurde installiert und wird beim nächsten Start von VoxBar aktiv.",
       "failedDescription": "Das Update konnte nicht geladen werden. Prüfe deine Verbindung und versuche es erneut, oder lade es von GitHub Releases herunter.",
-      "translocatedDescription": "VoxBar kann sich nicht selbst aktualisieren, solange es aus dem Downloads-Ordner läuft. Verschiebe es in den Programme-Ordner (per Drag im Finder), öffne es von dort und prüfe erneut nach Updates."
+      "translocatedDescription": "VoxBar kann sich nicht selbst aktualisieren, solange es aus dem Downloads-Ordner läuft. Verschiebe es in den Programme-Ordner (per Drag im Finder), öffne es von dort und prüfe erneut nach Updates.",
+      "manualOnlyPlatform": "Updates von GitHub Releases holen",
+      "restartDescriptionWindows": "VoxBar {{version}} wurde heruntergeladen. Die Installation schließt die App; die neue Version startet, wenn du VoxBar das nächste Mal öffnest.",
+      "restartLaterWindows": "Installieren und schließen"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "Noch nichts zu löschen, das Diktat hat noch keinen Live-Text.",
       "undoNoSession": "Die Rückgängig-Taste funktioniert nur während einer laufenden Diktatsitzung. Starte zuerst die Aufnahme.",
       "undoNoBuffer": "Noch nichts zu leeren, das Diktat hat noch keinen Live-Text.",
-      "bindingBusy": "Eine andere Diktattaste nimmt bereits auf."
+      "bindingBusy": "Eine andere Diktattaste nimmt bereits auf.",
+      "waylandTauriHotkeys": "Globale Tastenkürzel funktionieren mit dieser Tastatur-Implementierung womöglich nicht in nativen Wayland-Apps. Stelle die Tastatur-Implementierung auf VoxBar Keys um und füge deinen Benutzer der Gruppe input hinzu; siehe die Ubuntu-Anleitung.",
+      "gnomeOverlayFallback": "Unter GNOME Wayland erscheint das Overlay als normales Fenster, das den Fokus stehlen und Einfügen verhindern kann. Empfohlen ist hier Overlay: Keine."
     },
     "commandBadge": "Befehlsmodus"
   },

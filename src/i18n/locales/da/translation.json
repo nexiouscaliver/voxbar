@@ -943,7 +943,10 @@
       "restartLater": "Senere",
       "installedDescription": "VoxBar {{version}} er installeret og bliver aktiv, næste gang VoxBar genstarter.",
       "failedDescription": "Opdateringen kunne ikke downloades. Tjek din forbindelse og prøv igen, eller download den fra GitHub Releases.",
-      "translocatedDescription": "VoxBar kan ikke opdatere sig selv, mens den kører fra Downloads-mappen. Flyt den til mappen Applications (træk den i Finder), åbn den derfra, og tjek efter opdateringer igen."
+      "translocatedDescription": "VoxBar kan ikke opdatere sig selv, mens den kører fra Downloads-mappen. Flyt den til mappen Applications (træk den i Finder), åbn den derfra, og tjek efter opdateringer igen.",
+      "manualOnlyPlatform": "Hent opdateringer fra GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} er downloadet. Installationen lukker appen; den nye version starter, næste gang du åbner VoxBar.",
+      "restartLaterWindows": "Installér og luk"
     }
   },
   "whatsNew": {
@@ -1029,7 +1032,9 @@
       "deleteLastWordNoBuffer": "Der er endnu intet at slette, diktatningen har ingen tekst endnu.",
       "undoNoSession": "Fortryd-tasten virker under en aktiv diktatning. Start optagelsen først.",
       "undoNoBuffer": "Der er endnu intet at rydde, diktatningen har ingen tekst endnu.",
-      "bindingBusy": "En anden diktattast optager allerede."
+      "bindingBusy": "En anden diktattast optager allerede.",
+      "waylandTauriHotkeys": "Globale genveje fungerer måske ikke i native Wayland-apps med denne tastaturimplementering. Skift tastaturimplementering til VoxBar Keys, og tilføj din bruger til input-gruppen; se Ubuntu-guiden.",
+      "gnomeOverlayFallback": "På GNOME Wayland vises overlayet som et almindeligt vindue, der kan stjæle fokus og ødelægge indsætning. Anbefalingen er her Overlay: Ingen."
     },
     "commandBadge": "Kommandotilstand"
   },

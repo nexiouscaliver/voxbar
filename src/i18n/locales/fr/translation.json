@@ -943,7 +943,10 @@
       "restartLater": "Plus tard",
       "installedDescription": "VoxBar {{version}} a été installé et sera actif au prochain redémarrage de VoxBar.",
       "failedDescription": "Impossible de télécharger la mise à jour. Vérifiez votre connexion et réessayez, ou téléchargez-la depuis GitHub Releases.",
-      "translocatedDescription": "VoxBar ne peut pas se mettre à jour tant qu'il s'exécute depuis le dossier Téléchargements. Déplacez-le dans le dossier Applications (glisser-déposer dans le Finder), ouvrez-le depuis là, puis relancez la vérification des mises à jour."
+      "translocatedDescription": "VoxBar ne peut pas se mettre à jour tant qu'il s'exécute depuis le dossier Téléchargements. Déplacez-le dans le dossier Applications (glisser-déposer dans le Finder), ouvrez-le depuis là, puis relancez la vérification des mises à jour.",
+      "manualOnlyPlatform": "Récupérer les mises à jour sur GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} a été téléchargé. L'installation ferme l'application ; la nouvelle version démarre à la prochaine ouverture de VoxBar.",
+      "restartLaterWindows": "Installer et fermer"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "Rien à supprimer pour l'instant, la dictée n'a pas encore de texte en direct.",
       "undoNoSession": "La touche d'annulation fonctionne pendant une dictée active. Commence d'abord un enregistrement.",
       "undoNoBuffer": "Rien à effacer pour l'instant, la dictée n'a pas encore de texte en direct.",
-      "bindingBusy": "Une autre touche de dictée est déjà en train d'enregistrer."
+      "bindingBusy": "Une autre touche de dictée est déjà en train d'enregistrer.",
+      "waylandTauriHotkeys": "Les raccourcis globaux peuvent ne pas fonctionner dans les applications Wayland natives avec cette implémentation clavier. Passez l'implémentation clavier à VoxBar Keys et ajoutez votre utilisateur au groupe input ; consultez le guide Ubuntu.",
+      "gnomeOverlayFallback": "Sous GNOME Wayland, l'overlay apparaît comme une fenêtre ordinaire qui peut voler le focus et casser le collage. Overlay : Aucune est recommandé ici."
     },
     "commandBadge": "Mode commandes"
   },

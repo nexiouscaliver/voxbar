@@ -943,7 +943,10 @@
       "restartLater": "稍后",
       "installedDescription": "VoxBar {{version}} 已安装，将在下次启动 VoxBar 时生效。",
       "failedDescription": "无法下载更新。请检查网络连接后重试，或从 GitHub Releases 手动下载。",
-      "translocatedDescription": "从下载文件夹运行时，VoxBar 无法自行更新。请把它移到应用程序文件夹（在 Finder 中拖动），从那里打开，然后再次检查更新。"
+      "translocatedDescription": "从下载文件夹运行时，VoxBar 无法自行更新。请把它移到应用程序文件夹（在 Finder 中拖动），从那里打开，然后再次检查更新。",
+      "manualOnlyPlatform": "从 GitHub Releases 获取更新",
+      "restartDescriptionWindows": "VoxBar {{version}} 已下载。安装会关闭应用；下次打开 VoxBar 时将启动新版本。",
+      "restartLaterWindows": "安装并关闭"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "还没有可删除的内容，听写中没有实时文本。",
       "undoNoSession": "撤销按键仅在听写进行中有效。请先开始录音。",
       "undoNoBuffer": "还没有可清除的内容，听写中没有实时文本。",
-      "bindingBusy": "另一个听写按键已在录音中。"
+      "bindingBusy": "另一个听写按键已在录音中。",
+      "waylandTauriHotkeys": "在此键盘实现下，原生 Wayland 应用中的全局快捷键可能失效。请将键盘实现切换为 VoxBar Keys，并把用户加入 input 组；详见 Ubuntu 故障排除指南。",
+      "gnomeOverlayFallback": "在 GNOME Wayland 上，悬浮窗会以普通窗口形式出现，可能抢走焦点并破坏粘贴。此处建议将悬浮窗设为无。"
     },
     "commandBadge": "命令模式"
   },

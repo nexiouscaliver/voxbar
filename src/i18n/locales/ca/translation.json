@@ -943,7 +943,10 @@
       "restartLater": "Més tard",
       "installedDescription": "VoxBar {{version}} s'ha instal·lat i s'activarà la propera vegada que reinicieu VoxBar.",
       "failedDescription": "No s'ha pogut baixar l'actualització. Comproveu la connexió i torneu-ho a provar, o baixeu-la de GitHub Releases.",
-      "translocatedDescription": "VoxBar no pot actualitzar-se mentre s'executa des de la carpeta Downloads. Moveu-lo a la carpeta Applications (arrossegant-lo al Finder), obriu-lo des d'allà i torneu a comprovar les actualitzacions."
+      "translocatedDescription": "VoxBar no pot actualitzar-se mentre s'executa des de la carpeta Downloads. Moveu-lo a la carpeta Applications (arrossegant-lo al Finder), obriu-lo des d'allà i torneu a comprovar les actualitzacions.",
+      "manualOnlyPlatform": "Obteniu les actualitzacions de GitHub Releases",
+      "restartDescriptionWindows": "S'ha descarregat VoxBar {{version}}. La instal·lació tanca l'aplicació; la versió nova s'inicia la propera vegada que obriu VoxBar.",
+      "restartLaterWindows": "Instal·la i tanca"
     }
   },
   "whatsNew": {
@@ -1029,7 +1032,9 @@
       "deleteLastWordNoBuffer": "Encara no hi ha res a esborrar, el dictat no té text en directe.",
       "undoNoSession": "La tecla de desfer funciona durant un dictat actiu. Comenceu primer a gravar.",
       "undoNoBuffer": "Encara no hi ha res a netejar, el dictat no té text en directe.",
-      "bindingBusy": "Una altra tecla de dictat ja està gravant."
+      "bindingBusy": "Una altra tecla de dictat ja està gravant.",
+      "waylandTauriHotkeys": "És possible que les dreceres globals no funcionin a les aplicacions Wayland natives amb aquesta implementació de teclat. Canvieu la implementació del teclat a VoxBar Keys i afegiu el vostre usuari al grup input; consulteu la guia d'Ubuntu.",
+      "gnomeOverlayFallback": "Al GNOME Wayland, la finestra superposada apareix com una finestra normal que pot robar el focus i trencar l'enganxat. Aquí es recomana Superposició: Cap."
     },
     "commandBadge": "Mode d'ordres"
   },

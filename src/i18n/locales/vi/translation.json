@@ -943,7 +943,10 @@
       "restartLater": "Để sau",
       "installedDescription": "VoxBar {{version}} đã được cài đặt và sẽ có hiệu lực lần tới VoxBar khởi động lại.",
       "failedDescription": "Không thể tải bản cập nhật. Kiểm tra kết nối và thử lại, hoặc tải xuống từ GitHub Releases.",
-      "translocatedDescription": "VoxBar không thể tự cập nhật khi chạy từ thư mục Downloads. Chuyển nó sang thư mục Ứng dụng (kéo trong Finder), mở từ đó, rồi kiểm tra bản cập nhật lại."
+      "translocatedDescription": "VoxBar không thể tự cập nhật khi chạy từ thư mục Downloads. Chuyển nó sang thư mục Ứng dụng (kéo trong Finder), mở từ đó, rồi kiểm tra bản cập nhật lại.",
+      "manualOnlyPlatform": "Tải bản cập nhật từ GitHub Releases",
+      "restartDescriptionWindows": "Đã tải xuống VoxBar {{version}}. Cài đặt sẽ đóng ứng dụng; phiên bản mới khởi động lần tới bạn mở VoxBar.",
+      "restartLaterWindows": "Cài đặt và đóng"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "Chưa có gì để xóa, buổi đọc chính tả chưa có văn bản trực tiếp.",
       "undoNoSession": "Phím hoàn tác chỉ hoạt động trong lúc đọc chính tả đang bật. Hãy bắt đầu ghi âm trước.",
       "undoNoBuffer": "Chưa có gì để xóa sạch, buổi đọc chính tả chưa có văn bản trực tiếp.",
-      "bindingBusy": "Một phím đọc chính tả khác đang ghi âm."
+      "bindingBusy": "Một phím đọc chính tả khác đang ghi âm.",
+      "waylandTauriHotkeys": "Phím tắt toàn cầu có thể không hoạt động trong các ứng dụng Wayland gốc với bản triển khai bàn phím này. Chuyển bản triển khai bàn phím sang VoxBar Keys và thêm người dùng của bạn vào nhóm input; xem hướng dẫn Ubuntu.",
+      "gnomeOverlayFallback": "Trên GNOME Wayland, lớp phủ hiển thị như một cửa sổ thường có thể chiếm trọng tâm và làm hỏng thao tác dán. Ở đây nên đặt Lớp phủ: Không có."
     },
     "commandBadge": "Chế độ lệnh"
   },

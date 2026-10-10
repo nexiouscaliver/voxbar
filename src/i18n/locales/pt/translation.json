@@ -943,7 +943,10 @@
       "restartLater": "Mais tarde",
       "installedDescription": "VoxBar {{version}} foi instalado e ficará ativo na próxima vez que o VoxBar reiniciar.",
       "failedDescription": "Não foi possível baixar a atualização. Verifique sua conexão e tente novamente, ou baixe-a do GitHub Releases.",
-      "translocatedDescription": "O VoxBar não pode se atualizar enquanto é executado da pasta Downloads. Mova-o para a pasta Aplicativos (arraste no Finder), abra-o de lá e verifique as atualizações novamente."
+      "translocatedDescription": "O VoxBar não pode se atualizar enquanto é executado da pasta Downloads. Mova-o para a pasta Aplicativos (arraste no Finder), abra-o de lá e verifique as atualizações novamente.",
+      "manualOnlyPlatform": "Obter atualizações do GitHub Releases",
+      "restartDescriptionWindows": "O VoxBar {{version}} foi baixado. A instalação fecha o aplicativo; a nova versão inicia na próxima vez que você abrir o VoxBar.",
+      "restartLaterWindows": "Instalar e fechar"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "Ainda não há nada para apagar, o ditado não tem texto ao vivo.",
       "undoNoSession": "A tecla de desfazer funciona durante um ditado ativo. Comece a gravação primeiro.",
       "undoNoBuffer": "Ainda não há nada para limpar, o ditado não tem texto ao vivo.",
-      "bindingBusy": "Outra tecla de ditado já está gravando."
+      "bindingBusy": "Outra tecla de ditado já está gravando.",
+      "waylandTauriHotkeys": "Os atalhos globais podem não funcionar em aplicativos Wayland nativos com esta implementação de teclado. Mude a implementação de teclado para VoxBar Keys e adicione seu usuário ao grupo input; veja o guia do Ubuntu.",
+      "gnomeOverlayFallback": "No GNOME Wayland a sobreposição aparece como uma janela comum que pode roubar o foco e quebrar a colagem. Aqui o recomendado é Sobreposição: Nenhum."
     },
     "commandBadge": "Modo de comandos"
   },

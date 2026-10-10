@@ -2,6 +2,7 @@ import React from "react";
 import { check, type Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
 import { openUrl } from "@tauri-apps/plugin-opener";
+import { platform } from "@tauri-apps/plugin-os";
 import { toast } from "sonner";
 import i18n from "../../i18n";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -11,6 +12,7 @@ import {
   RestartPromptCard,
   UpdateProgressBar,
 } from "./UpdateToasts";
+import { updaterAutoUpdateSupported } from "./updaterPlatform";
 
 // Where updates come from. The updater itself downloads from the GitHub
 // release (endpoint configured in tauri.conf.json); this URL is the manual
@@ -266,10 +268,12 @@ async function downloadUpdate(update: Update): Promise<boolean> {
   return false;
 }
 
-// Install the already-downloaded payload. "Restart now" relaunches into the
-// new version; "Later" swaps the bundle and keeps the session running, so
-// the update is simply active on the next launch (the app never relaunches
-// itself unprompted).
+// Install the already-downloaded payload. On macOS, "Restart now" relaunches
+// into the new version while "Later" swaps the bundle and keeps the session
+// running (the app never relaunches itself unprompted). On Windows the
+// plugin's install() exits the app whichever button was picked, so the
+// restart prompt's copy is platform-split (RestartPromptCard) to keep that
+// promise honest.
 async function finishInstall(
   update: Update,
   restartNow: boolean,
@@ -326,6 +330,27 @@ export async function runUpdateCheck(
   const trigger: UpdateTrigger =
     options.trigger ?? (silent ? "auto" : "manual");
   if (inFlight || !updateChecksAllowed()) return;
+
+  // Platforms without shipped updater artifacts (Windows/Linux today) are
+  // gated before any network work: a check there can only error or find
+  // nothing. The visible entrypoints render a one-line notice instead of a
+  // button; this guard is the backstop for any path that still calls in
+  // (e.g. an outdated tray menu from before a settings change).
+  if (!updaterAutoUpdateSupported(platform())) {
+    if (trigger === "manual") {
+      await revealMainWindow();
+      toast.info(t("footer.updater.manualOnlyPlatform"), {
+        duration: 8000,
+        action: {
+          label: t("footer.updater.failedAction"),
+          onClick: () => void openUrl(RELEASES_URL),
+        },
+      });
+    }
+    logDecision("check_skipped", "platform has no updater artifacts");
+    return;
+  }
+
   inFlight = true;
   const release = () => {
     inFlight = false;

@@ -1,4 +1,5 @@
 import React from "react";
+import { platform } from "@tauri-apps/plugin-os";
 import { useTranslation } from "react-i18next";
 
 // Shared button chrome for the update-flow cards. These render inside sonner
@@ -81,19 +82,28 @@ export const RestartPromptCard: React.FC<RestartPromptCardProps> = ({
   onLater,
 }) => {
   const { t } = useTranslation();
+  // The updater plugin's install() exits the app on Windows whichever button
+  // the user picks, so the copy must say so instead of promising the
+  // macOS behavior ("Later keeps the session running"). See updaterFlow.ts
+  // finishInstall.
+  const isWindows = platform() === "windows";
   return (
     <div className="flex w-full flex-col gap-2 text-left">
       <div className="text-sm font-medium">
         {t("footer.updater.restartTitle")}
       </div>
       <div className="text-[13px] leading-relaxed text-mid-gray">
-        {autoInstalled
-          ? t("footer.updater.installedDescription", { version })
-          : t("footer.updater.restartDescription", { version })}
+        {isWindows
+          ? t("footer.updater.restartDescriptionWindows", { version })
+          : autoInstalled
+            ? t("footer.updater.installedDescription", { version })
+            : t("footer.updater.restartDescription", { version })}
       </div>
       <div className="mt-1 flex justify-end gap-2">
         <button onClick={onLater} className={secondaryButtonClass}>
-          {t("footer.updater.restartLater")}
+          {isWindows
+            ? t("footer.updater.restartLaterWindows")
+            : t("footer.updater.restartLater")}
         </button>
         <button onClick={onRestartNow} className={primaryButtonClass}>
           {t("footer.updater.restartNow")}

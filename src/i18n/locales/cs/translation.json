@@ -943,7 +943,10 @@
       "restartLater": "Později",
       "installedDescription": "VoxBar {{version}} byl nainstalován a aktivuje se při příštím restartu VoxBaru.",
       "failedDescription": "Aktualizaci nelze stáhnout. Zkontrolujte připojení a zkuste to znovu, nebo ji stáhněte z GitHub Releases.",
-      "translocatedDescription": "VoxBar se nemůže aktualizovat, dokud běží ze složky Stažené. Přetáhněte jej ve Finderu do složky Aplikace, spusťte jej odtud a znovu zkontrolujte aktualizace."
+      "translocatedDescription": "VoxBar se nemůže aktualizovat, dokud běží ze složky Stažené. Přetáhněte jej ve Finderu do složky Aplikace, spusťte jej odtud a znovu zkontrolujte aktualizace.",
+      "manualOnlyPlatform": "Získejte aktualizace z GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} byl stažen. Instalace aplikaci zavře; nová verze se spustí při příštím otevření VoxBar.",
+      "restartLaterWindows": "Nainstalovat a zavřít"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "Zatím není co mazat, diktování nemá živý text.",
       "undoNoSession": "Klávesa zpět funguje během aktivního diktování. Nejdřív spusťte nahrávání.",
       "undoNoBuffer": "Zatím není co vymazat, diktování nemá živý text.",
-      "bindingBusy": "Jiná klávesa diktování už nahrává."
+      "bindingBusy": "Jiná klávesa diktování už nahrává.",
+      "waylandTauriHotkeys": "Globální zkratky při této implementaci klávesnice nemusí fungovat v nativních aplikacích Wayland. Přepněte implementaci klávesnice na VoxBar Keys a přidejte svého uživatele do skupiny input; viz průvodce pro Ubuntu.",
+      "gnomeOverlayFallback": "Na GNOME Wayland se překryv zobrazí jako běžné okno, které může ukrást fokus a rozbít vkládání. Doporučuje se zde Překryv: Žádné."
     },
     "commandBadge": "Režim příkazů"
   },

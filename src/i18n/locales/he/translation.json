@@ -943,7 +943,10 @@
       "restartLater": "מאוחר יותר",
       "installedDescription": "VoxBar {{version}} הותקן ויכנס לתוקף בהפעלה הבאה של VoxBar.",
       "failedDescription": "לא ניתן להוריד את העדכון. בדוק את החיבור ונסה שוב, או הורד אותו מ-GitHub Releases.",
-      "translocatedDescription": "VoxBar לא יכול לעדכן את עצמו בזמן שהוא פועל מתיקיית ההורדות. העבירו אותו לתיקיית Applications (גרירה ב-Finder), פתחו אותו משם ובדקו שוב עדכונים."
+      "translocatedDescription": "VoxBar לא יכול לעדכן את עצמו בזמן שהוא פועל מתיקיית ההורדות. העבירו אותו לתיקיית Applications (גרירה ב-Finder), פתחו אותו משם ובדקו שוב עדכונים.",
+      "manualOnlyPlatform": "קבלו עדכונים מ-GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} הורד. ההתקנה סוגרת את האפליקציה; הגרסה החדשה תיפתח בפעם הבאה שתפתחו את VoxBar.",
+      "restartLaterWindows": "התקנה וסגירה"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "אין עדיין מה למחוק, אין טקסט חי בהקלטה.",
       "undoNoSession": "מקש ביטול עובד בזמן הקלטה פעילה. התחילו הקלטה קודם.",
       "undoNoBuffer": "אין עדיין מה לנקות, אין טקסט חי בהקלטה.",
-      "bindingBusy": "מקש הקלטה אחר כבר מקליט."
+      "bindingBusy": "מקש הקלטה אחר כבר מקליט.",
+      "waylandTauriHotkeys": "ייתכן שקיצורי המקלדת הגלובליים לא יעבדו באפליקציות Wayland מקוריות עם מימוש המקלדת הזה. החליפו את מימוש המקלדת ל-VoxBar Keys והוסיפו את המשתמש שלכם לקבוצת input; עיינו במדריך ל-Ubuntu.",
+      "gnomeOverlayFallback": "ב-GNOME Wayland שכבת-העל מופיעה כחלון רגיל שעלול לגנוב את המיקוד ולשבור הדבקה. ההמלצה כאן היא שכבת-על: ללא."
     },
     "commandBadge": "מצב פקודות"
   },

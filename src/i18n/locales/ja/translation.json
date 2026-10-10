@@ -943,7 +943,10 @@
       "restartLater": "後で",
       "installedDescription": "VoxBar {{version}} はインストール済みで、次回 VoxBar を起動したときに有効になります。",
       "failedDescription": "アップデートをダウンロードできませんでした。接続を確認して再試行するか、GitHub Releases からダウンロードしてください。",
-      "translocatedDescription": "Downloads フォルダから実行している間、VoxBar は自分自身を更新できません。Finder でアプリケーションフォルダへ移動し、そこから開いて、もう一度アップデートを確認してください。"
+      "translocatedDescription": "Downloads フォルダから実行している間、VoxBar は自分自身を更新できません。Finder でアプリケーションフォルダへ移動し、そこから開いて、もう一度アップデートを確認してください。",
+      "manualOnlyPlatform": "GitHub Releasesからアップデートを入手",
+      "restartDescriptionWindows": "VoxBar {{version}}をダウンロードしました。インストールするとアプリが終了し、新しいバージョンは次回VoxBarを開いたときに起動します。",
+      "restartLaterWindows": "インストールして閉じる"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "まだ削除できるものがありません。ディクテーションにライブテキストがありません。",
       "undoNoSession": "元に戻すキーはディクテーション中のみ動作します。まず録音を開始してください。",
       "undoNoBuffer": "まだクリアできるものがありません。ディクテーションにライブテキストがありません。",
-      "bindingBusy": "別のディクテーションキーがすでに録音中です。"
+      "bindingBusy": "別のディクテーションキーがすでに録音中です。",
+      "waylandTauriHotkeys": "このキーボード実装では、ネイティブのWaylandアプリでグローバルショートカットが動作しない場合があります。キーボード実装をVoxBar Keysに切り替え、ユーザーをinputグループに追加してください。Ubuntuのガイドを参照してください。",
+      "gnomeOverlayFallback": "GNOME Waylandでは、オーバーレイが通常のウィンドウとして表示され、フォーカスを奪って貼り付けを壊すことがあります。ここではオーバーレイ: なしを推奨します。"
     },
     "commandBadge": "コマンドモード"
   },

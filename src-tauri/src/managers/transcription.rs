@@ -430,6 +430,14 @@ pub enum NoticeCode {
     UndoNoBuffer,
     /// A different transcribe binding is already recording (press swallowed).
     BindingBusy,
+    /// Linux: Wayland session detected while the Tauri (global-hotkey,
+    /// X11-only) keyboard backend is active; hotkeys may be dead in native
+    /// Wayland apps. Info, once per run at shortcut init.
+    WaylandTauriHotkeys,
+    /// Linux: overlay enabled on GNOME Wayland without layer-shell support,
+    /// where the overlay falls back to a regular focus-stealing window.
+    /// Info, once per setting change.
+    GnomeOverlayFallback,
 }
 
 impl NoticeCode {
@@ -444,7 +452,9 @@ impl NoticeCode {
             | NoticeCode::DeleteLastWordNoBuffer
             | NoticeCode::UndoNoSession
             | NoticeCode::UndoNoBuffer
-            | NoticeCode::BindingBusy => OverlayNoticeKind::Info,
+            | NoticeCode::BindingBusy
+            | NoticeCode::WaylandTauriHotkeys
+            | NoticeCode::GnomeOverlayFallback => OverlayNoticeKind::Info,
             _ => OverlayNoticeKind::Error,
         }
     }
@@ -471,6 +481,8 @@ impl NoticeCode {
             NoticeCode::UndoNoSession => "undo_no_session",
             NoticeCode::UndoNoBuffer => "undo_no_buffer",
             NoticeCode::BindingBusy => "binding_busy",
+            NoticeCode::WaylandTauriHotkeys => "wayland_tauri_hotkeys",
+            NoticeCode::GnomeOverlayFallback => "gnome_overlay_fallback",
         }
     }
 
@@ -4142,6 +4154,8 @@ mod tests {
             NoticeCode::UndoNoSession,
             NoticeCode::UndoNoBuffer,
             NoticeCode::BindingBusy,
+            NoticeCode::WaylandTauriHotkeys,
+            NoticeCode::GnomeOverlayFallback,
         ];
         let mut codes: Vec<&str> = all.iter().map(|c| c.as_str()).collect();
         assert!(codes.iter().all(|c| !c.is_empty()));
@@ -4181,6 +4195,8 @@ mod tests {
             NoticeCode::UndoNoSession,
             NoticeCode::UndoNoBuffer,
             NoticeCode::BindingBusy,
+            NoticeCode::WaylandTauriHotkeys,
+            NoticeCode::GnomeOverlayFallback,
         ] {
             assert_eq!(code.kind(), OverlayNoticeKind::Info, "{:?} is info", code);
         }

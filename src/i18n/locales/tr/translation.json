@@ -943,7 +943,10 @@
       "restartLater": "Daha sonra",
       "installedDescription": "VoxBar {{version}} kuruldu ve VoxBar'ın bir sonraki açılışında etkin olacak.",
       "failedDescription": "Güncelleme indirilemedi. Bağlantınızı kontrol edip tekrar deneyin ya da GitHub Releases'ten indirin.",
-      "translocatedDescription": "VoxBar, İndirilenler klasöründen çalışırken kendi kendini güncelleyemez. Onu Uygulamalar klasörüne taşıyın (Finder'da sürükleyin), oradan açın ve güncellemeleri tekrar kontrol edin."
+      "translocatedDescription": "VoxBar, İndirilenler klasöründen çalışırken kendi kendini güncelleyemez. Onu Uygulamalar klasörüne taşıyın (Finder'da sürükleyin), oradan açın ve güncellemeleri tekrar kontrol edin.",
+      "manualOnlyPlatform": "Güncellemeleri GitHub Releases'ten alın",
+      "restartDescriptionWindows": "VoxBar {{version}} indirildi. Yükleme uygulamayı kapatır; yeni sürüm, VoxBar'ı bir dahaki açışınızda başlar.",
+      "restartLaterWindows": "Yükle ve kapat"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "Henüz silinecek bir şey yok, diktede canlı metin yok.",
       "undoNoSession": "Geri al tuşu canlı dikte sırasında çalışır. Önce kaydı başlatın.",
       "undoNoBuffer": "Henüz temizlenecek bir şey yok, diktede canlı metin yok.",
-      "bindingBusy": "Başka bir dikte tuşu zaten kaydediyor."
+      "bindingBusy": "Başka bir dikte tuşu zaten kaydediyor.",
+      "waylandTauriHotkeys": "Bu klavye uygulamasıyla yerel Wayland uygulamalarında genel kısayollar çalışmayabilir. Klavye uygulamasını VoxBar Keys olarak değiştirin ve kullanıcıınızı input grubuna ekleyin; Ubuntu kılavuzuna bakın.",
+      "gnomeOverlayFallback": "GNOME Wayland'de ekran katmanı, odağı çalan ve yapıştırmayı bozan sıradan bir pencere olarak görünür. Burada Ekran Katmanı: Yok önerilir."
     },
     "commandBadge": "Komut modu"
   },

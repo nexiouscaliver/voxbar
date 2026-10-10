@@ -943,7 +943,10 @@
       "restartLater": "Più tardi",
       "installedDescription": "VoxBar {{version}} è stato installato e sarà attivo al prossimo riavvio di VoxBar.",
       "failedDescription": "Impossibile scaricare l'aggiornamento. Controlla la connessione e riprova, oppure scaricalo da GitHub Releases.",
-      "translocatedDescription": "VoxBar non può aggiornarsi mentre è in esecuzione dalla cartella Scaricati. Spostalo nella cartella Applicazioni (trascinandolo nel Finder), aprilo da lì e controlla di nuovo gli aggiornamenti."
+      "translocatedDescription": "VoxBar non può aggiornarsi mentre è in esecuzione dalla cartella Scaricati. Spostalo nella cartella Applicazioni (trascinandolo nel Finder), aprilo da lì e controlla di nuovo gli aggiornamenti.",
+      "manualOnlyPlatform": "Ottieni gli aggiornamenti da GitHub Releases",
+      "restartDescriptionWindows": "VoxBar {{version}} è stato scaricato. L'installazione chiude l'app; la nuova versione parte alla prossima apertura di VoxBar.",
+      "restartLaterWindows": "Installa e chiudi"
     }
   },
   "common": {
@@ -1026,7 +1029,9 @@
       "deleteLastWordNoBuffer": "Ancora niente da cancellare, la dettatura non ha testo in diretta.",
       "undoNoSession": "Il tasto di annullamento funziona durante una dettatura attiva. Avvia prima la registrazione.",
       "undoNoBuffer": "Ancora niente da svuotare, la dettatura non ha testo in diretta.",
-      "bindingBusy": "Un altro tasto di dettatura sta già registrando."
+      "bindingBusy": "Un altro tasto di dettatura sta già registrando.",
+      "waylandTauriHotkeys": "Le scorciatoie globali potrebbero non funzionare nelle app Wayland native con questa implementazione della tastiera. Passa l'implementazione della tastiera a VoxBar Keys e aggiungi il tuo utente al gruppo input; consulta la guida per Ubuntu.",
+      "gnomeOverlayFallback": "Su GNOME Wayland l'overlay appare come una finestra normale che può rubare il focus e interrompere l'incollamento. Qui si consiglia Overlay: Nessuno."
     },
     "commandBadge": "Modalità comandi"
   },

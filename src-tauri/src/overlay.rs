@@ -773,6 +773,15 @@ static OVERLAY_ENABLED: AtomicBool = AtomicBool::new(false);
 #[cfg(target_os = "linux")]
 static LAYER_SHELL_ACTIVE: AtomicBool = AtomicBool::new(false);
 
+/// Whether the overlay window is a layer-shell surface (Linux only). False
+/// means the overlay fell back to a regular window, which on GNOME Wayland
+/// steals focus and breaks pastes (see the Ubuntu troubleshooting guide) -
+/// callers use this to warn before the user turns the overlay on.
+#[cfg(target_os = "linux")]
+pub fn layer_shell_active() -> bool {
+    LAYER_SHELL_ACTIVE.load(Ordering::SeqCst)
+}
+
 /// Update the cached overlay-enabled flag. Called from `lib.rs` at
 /// startup after settings load, and from `change_overlay_style_setting`
 /// whenever the user changes whether the overlay is shown.
