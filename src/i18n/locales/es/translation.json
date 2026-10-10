@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Tiempo de espera de la solicitud",
-          "description": "Cuánto tiempo puede ejecutarse una solicitud de posprocesado en la nube antes de renunciar y usar la transcripción sin procesar. Se aplica cuando un endpoint deja de responder."
+          "description": "Cuánto pueden tardar las solicitudes de posproceso de este proveedor antes de renunciar y usar la transcripción original. Restablecer vuelve al valor por defecto de {{classDefault}}s de este proveedor."
         },
         "testConnection": "Probar conexión",
         "testConnectionRunning": "Probando...",
@@ -708,7 +708,12 @@
         "deleteInUse": "No se puede eliminar ahora mismo: hay un post proceso en ejecución. Inténtalo de nuevo en un momento.",
         "downloadFailed": "Error al descargar: {{error}}",
         "deleteFailed": "No se pudo eliminar el modelo: {{error}}",
-        "providerLabel": "Local (en el dispositivo)"
+        "providerLabel": "Local (en el dispositivo)",
+        "keepWarm": {
+          "title": "Mantener el modelo local caliente",
+          "description": "Cuánto tiempo permanece en memoria el modelo local de posproceso tras un pulido en lugar de descargarse de inmediato. Un dictado siempre recupera antes la memoria.",
+          "off": "Apagado"
+        }
       },
       "models": {
         "title": "Modelos de posprocesado",

@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Časový limit požadavku",
-          "description": "Jak dlouho může cloudový požadavek na dodatečné zpracování běžet, než se vzdá a použije se surový přepis. Platí, když endpoint přestane odpovídat."
+          "description": "Jak dlouho mohou požadavky na následné zpracování tohoto poskytovatele běžet, než se vzdají a použije se surový přepis. Obnovení se vrátí na výchozích {{classDefault}}s tohoto poskytovatele."
         },
         "testConnection": "Otestovat připojení",
         "testConnectionRunning": "Testování...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Nyní nelze smazat: právě běží následné zpracování. Zkuste to za chvíli znovu.",
         "downloadFailed": "Stažení se nezdařilo: {{error}}",
         "deleteFailed": "Model se nepodařilo odstranit: {{error}}",
-        "providerLabel": "Místní (na zařízení)"
+        "providerLabel": "Místní (na zařízení)",
+        "keepWarm": {
+          "title": "Držet místní model v paměti",
+          "description": "Jak dlouho zůstává místní model následného zpracování v paměti po vyčištění, místo aby se hned uvolnil. Diktát si paměť vždy vezme zpátky jako první.",
+          "off": "Vypnuto"
+        }
       },
       "models": {
         "title": "Modely následného zpracování",

@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Timeout della richiesta",
-          "description": "Per quanto tempo una richiesta di post-elaborazione cloud può essere in esecuzione prima di arrendersi e usare la trascrizione grezza. Si applica quando un endpoint smette di rispondere."
+          "description": "Per quanto tempo le richieste di post-elaborazione di questo provider possono durare prima di arrendersi e usare la trascrizione originale. Il ripristino torna al valore predefinito di {{classDefault}}s di questo provider."
         },
         "testConnection": "Testa connessione",
         "testConnectionRunning": "Test in corso...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Impossibile eliminare in questo momento: una post-elaborazione è in corso. Riprova tra poco.",
         "downloadFailed": "Download non riuscito: {{error}}",
         "deleteFailed": "Impossibile eliminare il modello: {{error}}",
-        "providerLabel": "Locale (sul dispositivo)"
+        "providerLabel": "Locale (sul dispositivo)",
+        "keepWarm": {
+          "title": "Mantieni il modello locale in memoria",
+          "description": "Per quanto tempo il modello locale di post-elaborazione resta in memoria dopo una rifinitura invece di scaricarsi subito. Una dettatura recupera sempre prima la memoria.",
+          "off": "Disattivato"
+        }
       },
       "models": {
         "title": "Modelli di post-elaborazione",

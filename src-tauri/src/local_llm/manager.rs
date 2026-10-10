@@ -152,7 +152,10 @@ pub enum SwapOutcome {
 
 /// Everything one swap needs from the caller. The grammar is the
 /// pre-rendered GBNF string (json_schema_to_grammar of the structured
-/// output schema); `is_cancelled` is the stop path's cancel-generation
+/// output schema); `template_language` is the prompt template's language
+/// tag, threaded so the shared output validator's language-sanity rule
+/// (identical for local and cloud) can honor a declared script switch
+/// such as hi-Latn; `is_cancelled` is the stop path's cancel-generation
 /// closure so user cancellation reaches the runner with zero new plumbing
 /// (it is polled, never awaited); `run_id` is the pp: observability run the
 /// phases report into (None only in legacy tests).
@@ -161,6 +164,7 @@ pub struct SwapRequest {
     pub transcript: String,
     pub system_prompt: String,
     pub grammar: Option<String>,
+    pub template_language: Option<String>,
     pub is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
     pub run_id: Option<u64>,
 }
@@ -290,18 +294,22 @@ pub(crate) fn gate_refusal(inputs: &LlmGateInputs) -> (MemoryGateRefusalPayload,
 }
 
 /// Validate the worker's completion against the transcript through THE
-/// shared validator (actions.rs): strip, parse the JSON, extract the
-/// transcription field, apply the CJK-aware fidelity guard, and never
-/// accept an empty extraction. Every failure folds to the raw transcript
-/// with its skip reason; the unload path is identical either way.
+/// shared validator (post_process_runs.rs, the same function the cloud
+/// paths use): strip, parse the JSON, extract the transcription field,
+/// apply the CJK-aware length guards, honor a template-declared script
+/// switch, and never accept an empty extraction. Every failure folds to
+/// the raw transcript with its skip reason; the unload path is identical
+/// either way.
 fn validate_output(
     transcript: &str,
     generated: &str,
+    template_language: Option<&str>,
 ) -> Result<String, (SkipReason, Option<String>)> {
     crate::actions::validate_post_process_output(
         transcript,
         generated,
         crate::actions::PostProcessOutputMode::StructuredJson,
+        template_language,
     )
     .map_err(|failure| (failure.skip_reason, Some(failure.detail)))
 }
@@ -336,6 +344,9 @@ pub(crate) trait SwapHost: Send + Sync {
     /// Report a pp: phase fact (engine load timing, generation timing)
     /// into the run registry.
     fn report_pp(&self, run_id: Option<u64>, report: RunnerPhaseReport);
+    /// The keep-warm window (seconds) this swap runs under: 0 means the
+    /// exclusive swap of v1.3.0 (unload after every generation).
+    fn keep_warm_secs(&self) -> u64;
     /// The memory gate's inputs + per-swap model plan for this swap (L4).
     fn gate_inputs(&self) -> LlmGateInputs;
 }
@@ -774,6 +785,10 @@ impl SwapHost for AppSwapHost {
         }
     }
 
+    fn keep_warm_secs(&self) -> u64 {
+        get_settings(&self.app).post_process_local_keep_warm_secs
+    }
+
     fn gate_inputs(&self) -> LlmGateInputs {
         let settings = get_settings(&self.app);
         let model_id = selected_llm_model_id(&self.app);
@@ -825,16 +840,30 @@ impl SwapHost for AppSwapHost {
     }
 }
 
+/// The live keep-warm worker: the model it holds resident, the eviction
+/// flag the warm loop polls, and the done channel whose sender the runner
+/// drops (or fires) when the worker has exited. Held in the manager so a
+/// voice model load (or a new swap) can evict the warm worker BEFORE
+/// touching model RAM (the never-co-resident invariant, spec L2).
+#[derive(Debug)]
+struct WarmHandle {
+    model_id: String,
+    evict: Arc<AtomicBool>,
+    done: mpsc::Receiver<()>,
+}
+
 /// The exclusive swap manager: one swap at a time (`swap_running` is the
 /// L3 lease probe the delete paths consult), the lease mutex the runner
-/// actually holds, and this launch's measured worker RSS keyed by model id
+/// actually holds, this launch's measured worker RSS keyed by model id
 /// (never persisted, never shared across models: a 0.6B reading must not
-/// vouch for a 4B model's footprint).
+/// vouch for a 4B model's footprint), and the live keep-warm worker (if
+/// any).
 #[derive(Clone)]
 pub struct LlmManager {
     lease: Arc<Mutex<()>>,
     swap_running: Arc<AtomicBool>,
     measured_rss: Arc<Mutex<HashMap<String, u64>>>,
+    warm: Arc<Mutex<Option<WarmHandle>>>,
 }
 
 impl Default for LlmManager {
@@ -849,6 +878,7 @@ impl LlmManager {
             lease: Arc::new(Mutex::new(())),
             swap_running: Arc::new(AtomicBool::new(false)),
             measured_rss: Arc::new(Mutex::new(HashMap::new())),
+            warm: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -876,9 +906,87 @@ impl LlmManager {
         self.swap_running.load(Ordering::Acquire)
     }
 
+    /// Register the warm worker a runner just entered WarmHold for.
+    /// Returns the eviction flag the warm loop polls and the done sender
+    /// whose DROP (or send) is the teardown-complete signal an evicting
+    /// caller waits on; the runner keeps the sender alive until its worker
+    /// has exited (a panic unwinds past it, which disconnects the channel
+    /// and unblocks the evictor). A stale entry (a runner that died
+    /// without unregistering, belt-only) is evicted and replaced: its
+    /// channel is already disconnected, and its flag's remaining Arc
+    /// holder (the dead loop) cannot observe it, so `evict_warm`'s
+    /// Disconnected arm clears the way.
+    fn warm_begin(&self, model_id: &str) -> (Arc<AtomicBool>, mpsc::Sender<()>) {
+        let evict = Arc::new(AtomicBool::new(false));
+        let (done_tx, done_rx) = mpsc::channel();
+        if let Ok(mut warm) = self.warm.lock() {
+            if let Some(stale) = warm.as_ref() {
+                stale.evict.store(true, Ordering::Release);
+            }
+            *warm = Some(WarmHandle {
+                model_id: model_id.to_string(),
+                evict: Arc::clone(&evict),
+                done: done_rx,
+            });
+        }
+        (evict, done_tx)
+    }
+
+    /// Unregister the warm worker (its teardown completed).
+    fn warm_end(&self) {
+        let _ = self.warm.lock().ok().and_then(|mut warm| warm.take());
+    }
+
+    /// The model id of the live warm worker, if any (the delete paths'
+    /// probe and the manager tests' pin).
+    pub fn warm_model_id(&self) -> Option<String> {
+        self.warm
+            .lock()
+            .ok()
+            .and_then(|warm| warm.as_ref().map(|handle| handle.model_id.clone()))
+    }
+
+    /// Evict the warm worker and WAIT for its teardown (the worker process
+    /// exited, its RAM freed), bounded by the graceful-exit + kill-wait
+    /// timeouts plus slack. This is what a voice model load (or a new
+    /// swap) calls BEFORE touching model RAM, preserving the
+    /// never-co-resident invariant. No-op when nothing is warm. Returns
+    /// whether a warm worker was found.
+    pub fn evict_warm(&self, reason: &str) -> bool {
+        let handle = match self.warm.lock() {
+            Ok(mut warm) => warm.take(),
+            Err(_) => return false,
+        };
+        let Some(handle) = handle else {
+            return false;
+        };
+        info!(
+            "evicting the warm local post-process worker ({}, reason: {})",
+            handle.model_id, reason
+        );
+        handle.evict.store(true, Ordering::Release);
+        let bound = super::planner::WORKER_GRACEFUL_EXIT_TIMEOUT
+            + super::planner::WORKER_KILL_WAIT_TIMEOUT
+            + std::time::Duration::from_secs(2);
+        match handle.done.recv_timeout(bound) {
+            Ok(()) | Err(mpsc::RecvTimeoutError::Disconnected) => true,
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                error!(
+                    "the warm llm worker did not tear down within {:?}; proceeding (the \
+                     kill-on-drop belt and the OS reclaim it)",
+                    bound
+                );
+                true
+            }
+        }
+    }
+
     /// Run one exclusive swap and return ONLY the outcome receiver. The
     /// runner thread is detached: dropping the receiver never abandons the
     /// state machine, kills the worker, or strands the loading slot (L6).
+    /// The receiver resolves the moment the swap's work is done - for a
+    /// keep-warm swap that is at generation (the runner keeps tending the
+    /// warm window afterwards; the delivery slot is first-wins).
     pub fn run_swap(
         &self,
         app: &AppHandle,
@@ -893,6 +1001,7 @@ impl LlmManager {
                     Arc::clone(&self.measured_rss),
                 )),
                 engine_factory: Box::new(|| Box::new(ProcessEngine::new())),
+                deliver: Arc::new(|_| {}),
             },
         );
         // Detach: the runner owns everything and always terminates.
@@ -902,7 +1011,7 @@ impl LlmManager {
     fn spawn_runner(
         &self,
         request: SwapRequest,
-        cfg: RunnerConfig,
+        mut cfg: RunnerConfig,
     ) -> (
         tokio::sync::oneshot::Receiver<SwapOutcome>,
         Option<thread::JoinHandle<()>>,
@@ -911,6 +1020,18 @@ impl LlmManager {
         // this call can never slip between spawn and acquisition.
         self.swap_running.store(true, Ordering::Release);
         let (tx, rx) = tokio::sync::oneshot::channel();
+        // First-wins delivery: the warm entry may deliver the outcome long
+        // before the runner ends; whichever send comes first wins and the
+        // other is a no-op. A dropped receiver is harmless either way.
+        let sender_slot = Arc::new(Mutex::new(Some(tx)));
+        let early_slot = Arc::clone(&sender_slot);
+        cfg.deliver = Arc::new(move |outcome| {
+            if let Ok(mut slot) = early_slot.lock() {
+                if let Some(tx) = slot.take() {
+                    let _ = tx.send(outcome);
+                }
+            }
+        });
         let llm = self.clone();
         let spawned = thread::Builder::new()
             .name("llm-swap".into())
@@ -930,9 +1051,11 @@ impl LlmManager {
                     SwapOutcome::Raw
                 });
                 llm.swap_running.store(false, Ordering::Release);
-                // A dropped receiver is harmless: the runner is done either
-                // way and never blocks on the send.
-                let _ = tx.send(outcome);
+                if let Ok(mut slot) = sender_slot.lock() {
+                    if let Some(tx) = slot.take() {
+                        let _ = tx.send(outcome);
+                    }
+                }
             });
         let handle = self.recover_from_failed_spawn(spawned);
         (rx, handle)
@@ -981,6 +1104,12 @@ struct RunnerConfig {
     timing: SwapTiming,
     host: Arc<dyn SwapHost>,
     engine_factory: Box<dyn FnOnce() -> Box<dyn SwapEngine> + Send>,
+    /// Early outcome delivery: the keep-warm path hands the caller its
+    /// result the moment generation completes (the paste never waits on
+    /// the warm window); every path also delivers at runner end through
+    /// the same first-wins slot. A no-op for tests that read the return
+    /// value directly.
+    deliver: Arc<dyn Fn(SwapOutcome) + Send + Sync>,
 }
 
 /// The executor. Synchronous and test-callable: every wait is a bounded
@@ -1007,6 +1136,16 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
         cfg.host.voice_model_is_loaded(),
         cfg.host.unload_timeout_is_immediately(),
     );
+    // WS5 keep-warm (default OFF): the setting arms the WarmHold phase.
+    // A previous swap's warm worker must never coexist with this one's
+    // (two workers would double the RAM): evict it before anything loads.
+    let keep_warm_secs = cfg.host.keep_warm_secs();
+    if keep_warm_secs > 0 {
+        planner.enable_keep_warm();
+    }
+    llm.evict_warm("a new local post-process swap started");
+    let mut warm_entered = false;
+    let mut warm_done_tx: Option<mpsc::Sender<()>> = None;
     let total_start = Instant::now();
     let abort = |host: &Arc<dyn SwapHost>| -> Option<AbortReason> {
         if let Some(is_cancelled) = &request.is_cancelled {
@@ -1054,7 +1193,10 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                 "only the restore decision produces no signal of its own"
             );
             let restore = planner.restore_decision(cfg.host.is_recording());
-            signal = Some(if restore {
+            // The handoff consumes the loading slot the runner holds; a
+            // warm exit that failed to re-acquire one (another load is
+            // already serving whatever is waiting) skips the restore.
+            signal = Some(if restore && slot.is_some() {
                 Signal::RestoreHandedOff
             } else {
                 Signal::RestoreSkipped
@@ -1303,7 +1445,11 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                                         );
                                     }
                                 }
-                                match validate_output(&request.transcript, &text) {
+                                match validate_output(
+                                    &request.transcript,
+                                    &text,
+                                    request.template_language.as_deref(),
+                                ) {
                                     Ok(clean) => {
                                         processed = Some(clean);
                                     }
@@ -1397,9 +1543,83 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                 }
             }
         }
+
+        // ---- WarmHold: generation is done; hold the worker resident ----
+        // The caller's outcome and the pp: run's outcome both conclude
+        // HERE (the paste never waits on the warm window), the warm worker
+        // registers itself for eviction, and the poll loop waits on the
+        // window, the dictation-wins triggers, and the evict flag.
+        if planner.state == SwapState::WarmHold && !warm_entered {
+            warm_entered = true;
+            let outcome = match &processed {
+                Some(clean) => {
+                    if let Some(run_id) = request.run_id {
+                        crate::post_process_runs::runs().finish(
+                            None,
+                            run_id,
+                            crate::post_process_runs::PostProcessOutcome::Applied,
+                            Some(clean.chars().count() as u64),
+                        );
+                    }
+                    SwapOutcome::Processed(clean.clone())
+                }
+                None => SwapOutcome::Raw,
+            };
+            (cfg.deliver)(outcome);
+
+            let warm_model = swap_model
+                .as_ref()
+                .map(|plan| plan.model_id.clone())
+                .unwrap_or_else(|| super::LOCAL_LLM_MODEL_ID.to_string());
+            let (evict_flag, done_tx) = llm.warm_begin(&warm_model);
+            warm_done_tx = Some(done_tx);
+            info!(
+                "local post-process model staying warm for {}s ({}); a dictation or a new \
+                 swap evicts it",
+                keep_warm_secs, warm_model
+            );
+            let warm_deadline = Instant::now() + Duration::from_secs(keep_warm_secs);
+            loop {
+                if evict_flag.load(Ordering::Acquire) {
+                    signal = Some(Signal::EvictWarm);
+                    break;
+                }
+                if let Some(reason) = abort(&cfg.host) {
+                    signal = Some(Signal::Abort(reason));
+                    break;
+                }
+                if Instant::now() >= warm_deadline {
+                    signal = Some(Signal::WarmWindowExpired);
+                    break;
+                }
+                thread::sleep(timing.poll);
+            }
+            // Re-acquire the loading slot (bounded, best effort) so the
+            // terminal restore handoff runs exactly as a keep-warm-off
+            // swap's; an abort or a contended slot skips it (whatever
+            // waits on the slot has a load serving it).
+            if slot.is_none() {
+                let deadline = Instant::now() + timing.slot_deadline;
+                loop {
+                    if let Some(guard) = cfg.host.try_acquire_slot() {
+                        slot = Some(guard);
+                        planner.mark_slot_acquired();
+                        break;
+                    }
+                    if abort(&cfg.host).is_some() || Instant::now() >= deadline {
+                        break;
+                    }
+                    thread::sleep(timing.acquire_tick);
+                }
+            }
+        }
     }
 
     // Final belt: nothing may leak past the loop whatever happened above.
+    // The warm registration clears and its done sender drops here: an
+    // evictor waiting in evict_warm unblocks exactly now.
+    llm.warm_end();
+    drop(warm_done_tx);
     drop(slot);
     drop(lease_guard);
 
@@ -1489,6 +1709,7 @@ fn terminal_raw_outcome(
 mod tests {
     use super::*;
     use crate::managers::transcription::LoadingGuard as RealLoadingGuard;
+    use std::sync::atomic::AtomicU64;
     use std::sync::atomic::AtomicUsize;
     use std::sync::Condvar;
 
@@ -1677,6 +1898,9 @@ mod tests {
         immediately: Arc<AtomicBool>,
         gate_refuse: Arc<AtomicBool>,
         panic_at_restore: Arc<AtomicBool>,
+        /// The keep-warm window (seconds) the host reports; 0 (the
+        /// default) keeps every test on the v1.3.0 exclusive swap.
+        keep_warm_secs: Arc<AtomicU64>,
         /// The live selection the gate reads ("a" = pinned-like plan,
         /// "b" = the other model). The mid-swap test flips it after the
         /// gate to simulate the settings write landing mid-run.
@@ -1722,6 +1946,7 @@ mod tests {
                 immediately: Arc::new(AtomicBool::new(false)),
                 gate_refuse: Arc::new(AtomicBool::new(false)),
                 panic_at_restore: Arc::new(AtomicBool::new(false)),
+                keep_warm_secs: Arc::new(AtomicU64::new(0)),
                 selection: Arc::new(Mutex::new("a")),
                 flip_selection_after_gate: Arc::new(AtomicBool::new(false)),
             }
@@ -1844,6 +2069,10 @@ mod tests {
                     );
                 }
             }
+        }
+
+        fn keep_warm_secs(&self) -> u64 {
+            self.keep_warm_secs.load(Ordering::Acquire)
         }
 
         fn gate_inputs(&self) -> LlmGateInputs {
@@ -1988,6 +2217,7 @@ mod tests {
             timing: tiny_timing(),
             host: Arc::new(host),
             engine_factory: Box::new(move || Box::new(engine)),
+            deliver: Arc::new(|_| {}),
         };
         (cfg, engine_state)
     }
@@ -1997,6 +2227,7 @@ mod tests {
             transcript: "um hello world this is a test transcript".to_string(),
             system_prompt: "clean the transcript".to_string(),
             grammar: Some("root ::= ...".to_string()),
+            template_language: None,
             is_cancelled: None,
             run_id: None,
         }
@@ -2325,6 +2556,7 @@ mod tests {
             transcript: "word ".repeat(40).trim_end().to_string(),
             system_prompt: String::new(),
             grammar: None,
+            template_language: None,
             is_cancelled: None,
             run_id: None,
         };
@@ -2354,6 +2586,7 @@ mod tests {
             transcript: "word".repeat(4801),
             system_prompt: String::new(),
             grammar: None,
+            template_language: None,
             is_cancelled: None,
             run_id: None,
         };
@@ -2554,4 +2787,144 @@ mod tests {
         assert_eq!(llm.measured_rss_for("model-b"), Some(mib(1500)));
         assert_eq!(llm.measured_rss_for("model-a"), Some(mib(700)));
     }
+    // ---- WS5 keep-warm: the runner against the fakes ----
+
+    /// The warm window holds NO loading slot at rest and no lease: after
+    /// generation, the swap's outcome is delivered (the caller's receiver
+    /// resolves) while the worker stays resident, and a voice-model load
+    /// during the window evicts it and completes.
+    #[test]
+    fn warm_window_holds_nothing_and_a_voice_load_evicts_it() {
+        let llm = LlmManager::new();
+        let host = FakeHost::new();
+        host.keep_warm_secs.store(60, Ordering::Release); // outlive the test
+        let restored = Arc::clone(&host.restored);
+        let host_flag = Arc::clone(&host.slot_flag);
+        let (mut cfg, engine_state) = runner_cfg(
+            host,
+            FakeEngine::happy(Ok("{\"transcription\":\"cleaned text\"}".to_string())),
+        );
+        // Early delivery lands the instant generation completes.
+        let delivered = Arc::new(Mutex::new(Vec::<SwapOutcome>::new()));
+        let delivered_clone = Arc::clone(&delivered);
+        cfg.deliver = Arc::new(move |outcome| delivered_clone.lock().unwrap().push(outcome));
+
+        // swap_runner blocks for the warm window, so drive it on a thread
+        // and interact with the warm state from here (exactly what the
+        // stop pipeline's async task and the hotkey thread do).
+        let request = sample_request();
+        let llm_for_runner = llm.clone();
+        let runner = thread::spawn(move || swap_runner(&llm_for_runner, &request, cfg));
+
+        // Wait for the warm registration (generation + validation done).
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while llm.warm_model_id().is_none() {
+            assert!(Instant::now() < deadline, "the worker never went warm");
+            thread::sleep(Duration::from_millis(5));
+        }
+        assert_eq!(llm.warm_model_id().as_deref(), Some("a"));
+        {
+            let delivered = delivered.lock().unwrap();
+            assert_eq!(
+                *delivered,
+                vec![SwapOutcome::Processed("cleaned text".to_string())],
+                "the outcome is delivered at generation, not at warm exit"
+            );
+        }
+
+        // AT REST: the loading slot is free (a dictation press's
+        // initiate_model_load would NOT hit the "Model load already in
+        // progress" refusal) and so is the swap lease; the worker has NOT
+        // exited (still warm, no Exit sent).
+        assert!(
+            host_slot_is_free(&host_flag),
+            "the warm window must hold no loading slot at rest"
+        );
+        assert!(!engine_state.exit_sent.load(Ordering::Acquire));
+        // The voice model load's exact first move (initiate_model_load):
+        evict_warm_probe(&llm, &host_flag);
+
+        // The eviction unblocks the runner; it tears down and completes
+        // the terminal handoff exactly as a keep-warm-off swap (voice was
+        // loaded, unload is not Immediately -> restore handoff).
+        let outcome = runner.join().unwrap();
+        assert_eq!(outcome, SwapOutcome::Processed("cleaned text".to_string()));
+        assert!(engine_state.exit_sent.load(Ordering::Acquire));
+        assert_eq!(restored.load(Ordering::Acquire), 1, "the voice model restore ran");
+        assert_eq!(llm.warm_model_id(), None, "the warm registration cleared");
+    }
+
+    /// A tiny fake of what initiate_model_load does first: the slot and the
+    /// lease must be claimable while the worker is warm (the warm holder
+    /// released both), and evict_warm must return after the worker's
+    /// teardown.
+    fn evict_warm_probe(llm: &LlmManager, host_flag: &Arc<Mutex<bool>>) {
+        assert!(
+            host_slot_is_free(host_flag),
+            "the slot must be free right before the load claims it"
+        );
+        let lease_free = llm.lease.try_lock().map(|_| ()).is_ok();
+        assert!(lease_free, "the warm holder must not hold the swap lease");
+        let found = llm.evict_warm("a voice model load");
+        assert!(found, "the warm worker must be found and evicted");
+    }
+
+    /// The fake host's loading-slot flag, read from outside the host.
+    fn host_slot_is_free(flag: &Arc<Mutex<bool>>) -> bool {
+        !*flag.lock().unwrap()
+    }
+
+    /// Keep-warm 0 (the default) is byte-identical to today: no warm
+    /// registration ever happens, the outcome arrives only at the runner's
+    /// end, and the worker unloads right after generation.
+    #[test]
+    fn keep_warm_zero_never_registers_a_warm_worker() {
+        let llm = LlmManager::new();
+        let host = FakeHost::new();
+        assert_eq!(host.keep_warm_secs.load(Ordering::Acquire), 0);
+        let (mut cfg, engine_state) = runner_cfg(
+            host,
+            FakeEngine::happy(Ok("{\"transcription\":\"cleaned\"}".to_string())),
+        );
+        let delivered = Arc::new(Mutex::new(Vec::<SwapOutcome>::new()));
+        let delivered_clone = Arc::clone(&delivered);
+        cfg.deliver = Arc::new(move |outcome| delivered_clone.lock().unwrap().push(outcome));
+
+        let outcome = swap_runner(&llm, &sample_request(), cfg);
+
+        assert_eq!(outcome, SwapOutcome::Processed("cleaned".to_string()));
+        assert_eq!(
+            delivered.lock().unwrap().len(),
+            0,
+            "no early delivery on the off path: the caller reads the return value"
+        );
+        assert!(engine_state.exit_sent.load(Ordering::Acquire));
+        assert_eq!(llm.warm_model_id(), None, "nothing registered warm");
+        assert!(!llm.evict_warm("nothing should be warm"));
+    }
+
+    /// The warm window expires on its own: the runner tears down, restores
+    /// the voice model under the re-acquired slot, and unregisters.
+    #[test]
+    fn warm_window_expires_and_restores_on_its_own() {
+        let llm = LlmManager::new();
+        let host = FakeHost::new();
+        host.keep_warm_secs.store(1, Ordering::Release); // 1s window
+        let restored = Arc::clone(&host.restored);
+        let (cfg, engine_state) = runner_cfg(
+            host,
+            FakeEngine::happy(Ok("{\"transcription\":\"cleaned\"}".to_string())),
+        );
+
+        let started = Instant::now();
+        let outcome = swap_runner(&llm, &sample_request(), cfg);
+
+        assert_eq!(outcome, SwapOutcome::Processed("cleaned".to_string()));
+        // The window ran (~1s) and then teardown + restore completed.
+        assert!(started.elapsed() >= Duration::from_millis(900));
+        assert!(engine_state.exit_sent.load(Ordering::Acquire));
+        assert_eq!(restored.load(Ordering::Acquire), 1);
+        assert_eq!(llm.warm_model_id(), None);
+    }
+
 }

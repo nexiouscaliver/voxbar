@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Request timeout",
-          "description": "How long a cloud post-process request may run before it gives up and the raw transcript is used. Applies when an endpoint stops responding."
+          "description": "How long this provider's post-process requests may run before giving up and using the raw transcript. Reset returns to the {{classDefault}}s default for this provider."
         },
         "testConnection": "Test connection",
         "testConnectionRunning": "Testing...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Cannot delete right now: a post-process run is in progress. Try again in a moment.",
         "downloadFailed": "Download failed: {{error}}",
         "deleteFailed": "Could not delete the model: {{error}}",
-        "providerLabel": "Local (on-device)"
+        "providerLabel": "Local (on-device)",
+        "keepWarm": {
+          "title": "Keep local model warm",
+          "description": "How long the local post-processing model stays in memory after a polish instead of unloading right away. A dictation always takes the memory back first.",
+          "off": "Off"
+        }
       },
       "models": {
         "title": "Post-process Models",

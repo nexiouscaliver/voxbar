@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Temps d'espera de la sol·licitud",
-          "description": "Quant de temps pot executar-se una sol·licitud de postprocessat al núvol abans de renunciar-hi i usar la transcripció en brut. S'aplica quan un endpoint deixa de respondre."
+          "description": "Quant de temps poden córrer les sol·licituds de postprocés d'aquest proveïdor abans de rendir-se i usar la transcripció original. Restablir torna al valor per defecte de {{classDefault}}s d'aquest proveïdor."
         },
         "testConnection": "Prova la connexió",
         "testConnectionRunning": "Provant...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Ara no es pot suprimir: hi ha un postprocessament en execució. Torneu-ho a provar d'aquí a un moment.",
         "downloadFailed": "No s'ha pogut descarregar: {{error}}",
         "deleteFailed": "No s'ha pogut suprimir el model: {{error}}",
-        "providerLabel": "Local (al dispositiu)"
+        "providerLabel": "Local (al dispositiu)",
+        "keepWarm": {
+          "title": "Mantén el model local en memòria",
+          "description": "Quant de temps roman a la memòria el model local de postprocés després d'un polit en lloc de descarregar-se de seguida. Un dictat sempre recupera la memòria primer.",
+          "off": "Desactivat"
+        }
       },
       "models": {
         "title": "Models de postprocessament",

@@ -71,6 +71,134 @@ impl PostProcessModelError {
     }
 }
 
+/// Structured failure for the completion path (the dictation pipeline's
+/// chat request and its legacy retry), replacing the bare String errors
+/// `send_chat_completion_with_schema` used to return. `class` is the same
+/// vocabulary the pp: observability lifecycle and Test Connection print;
+/// `detail` carries the sanitized diagnostics (never key material, never
+/// decode payloads that could quote transcription content); `retries` is
+/// how many bounded network retries the request consumed (0 on every
+/// non-network class; a request is never retried after a cancellation).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+pub struct PostProcessError {
+    pub class: PostProcessFailureClass,
+    pub detail: String,
+    pub retries: u32,
+}
+
+impl std::fmt::Display for PostProcessError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}: {}",
+            crate::post_process_runs::failure_class_str(self.class),
+            self.detail
+        )
+    }
+}
+
+impl PostProcessError {
+    pub fn new(class: PostProcessFailureClass, detail: String) -> Self {
+        Self {
+            class,
+            detail,
+            retries: 0,
+        }
+    }
+
+    /// The same error with `retries` stamped in (the retry wrapper's report
+    /// to the pp: generation phase).
+    pub fn with_retries(mut self, retries: u32) -> Self {
+        self.retries = retries;
+        self
+    }
+}
+
+/// How many bounded retries a network-class failure earns: 2 (so a flaky
+/// connect or a 5xx gets three total attempts), then the run fails network
+/// and the raw transcript is used.
+pub const POST_PROCESS_NETWORK_RETRIES: u32 = 2;
+
+/// The backoff schedule between network retries: 500 ms, then 1 s. Indexed
+/// by retries already consumed.
+pub const POST_PROCESS_RETRY_BACKOFF_MS: [u64; POST_PROCESS_NETWORK_RETRIES as usize] = [500, 1000];
+
+/// The bounded retry policy, pure so it is pinnable without a network:
+/// ONLY network-class failures retry (auth keys, timeouts, context-length
+/// rejections, and invalid output are deterministic; retrying them wastes
+/// the dictation's latency budget), and only twice, on the fixed backoff
+/// schedule. Everything else, and every request past the budget, returns.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum RetryDecision {
+    Return,
+    RetryAfterMillis(u64),
+}
+
+pub(crate) fn network_retry_decision(
+    class: PostProcessFailureClass,
+    retries_used: u32,
+) -> RetryDecision {
+    if class != PostProcessFailureClass::Network {
+        return RetryDecision::Return;
+    }
+    match POST_PROCESS_RETRY_BACKOFF_MS
+        .get(retries_used as usize)
+        .copied()
+    {
+        Some(backoff_ms) => RetryDecision::RetryAfterMillis(backoff_ms),
+        None => RetryDecision::Return,
+    }
+}
+
+/// Classify a transport-phase reqwest failure from the completion path: a
+/// request that outran its deadline is a timeout; a decode failure (the
+/// endpoint answered something unparseable) is output-invalid; everything
+/// else (connect refused, DNS, TLS, reset) is a network failure.
+fn classify_completion_transport(context: &str, error: &reqwest::Error) -> PostProcessError {
+    let detail = report_reqwest_error(context, error);
+    let class = if error.is_timeout() {
+        PostProcessFailureClass::Timeout
+    } else if error.is_decode() {
+        PostProcessFailureClass::OutputInvalid
+    } else {
+        PostProcessFailureClass::Network
+    };
+    PostProcessError::new(class, detail)
+}
+
+/// Does this error body text name a context-length rejection? Providers
+/// word it differently ("maximum context length", "context window", "too
+/// many tokens"); the markers are lowercase.
+fn body_names_context_length(lower_body: &str) -> bool {
+    lower_body.contains("context length")
+        || lower_body.contains("context window")
+        || lower_body.contains("maximum context")
+        || lower_body.contains("too many tokens")
+}
+
+/// Classify a non-success HTTP status from the completion path: 401/403
+/// are auth (bad or missing key), 413 and the context-length wordings of
+/// 400/422 are context-length rejections, gateway timeouts (408/504) are
+/// timeouts, and every other status is network class (the endpoint was
+/// unreachable or misbehaved; a bounded retry is the right response).
+fn classify_completion_status(status: reqwest::StatusCode, body: &str) -> PostProcessError {
+    let detail = format!(
+        "API request failed with status {}: {}",
+        status,
+        truncate_for_detail(body.trim(), 300)
+    );
+    let class = match status.as_u16() {
+        401 | 403 => PostProcessFailureClass::Auth,
+        413 => PostProcessFailureClass::ContextLength,
+        400 | 422 if body_names_context_length(&body.to_lowercase()) => {
+            PostProcessFailureClass::ContextLength
+        }
+        408 | 504 => PostProcessFailureClass::Timeout,
+        _ => PostProcessFailureClass::Network,
+    };
+    PostProcessError::new(class, detail)
+}
+
 /// Keep error details bounded: an error body of arbitrary size must never
 /// blow up the UI verdict row or the log line.
 fn truncate_for_detail(text: &str, max_chars: usize) -> String {
@@ -435,40 +563,26 @@ fn report_reqwest_error(context: &str, error: &reqwest::Error) -> String {
     details
 }
 
-/// Send a chat completion request to an OpenAI-compatible API
-/// Returns Ok(Some(content)) on success, Ok(None) if response has no content,
-/// or Err on actual errors (HTTP, parsing, etc.)
-pub async fn send_chat_completion(
-    provider: &PostProcessProvider,
-    api_key: String,
-    model: &str,
-    prompt: String,
-    disable_reasoning: bool,
-    timeout_secs: u64,
-) -> Result<Option<String>, String> {
-    send_chat_completion_with_schema(
-        provider,
-        api_key,
-        model,
-        prompt,
-        None,
-        None,
-        disable_reasoning,
-        timeout_secs,
-    )
-    .await
+/// One completed request cycle through the bounded retry wrapper: the
+/// endpoint's answer (None = a 200 with no content, an output-invalid
+/// failure the caller classifies) and how many network-class transport
+/// retries it took. The retry count rides here so the pp: generation
+/// phase can report it on SUCCESS too, not only on the final failure.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PostProcessCompletion {
+    pub content: Option<String>,
+    pub transport_retries: u32,
 }
 
-/// Send a chat completion request with structured output support.
-/// When json_schema is provided, uses structured outputs mode.
-/// system_prompt is used as the system message when provided.
-///
-/// When disable_reasoning is set, the request carries the reasoning-disable
-/// fields the endpoint is expected to understand. Not every OpenAI-compatible
-/// endpoint accepts them (DeepSeek, Gemini's compat layer, and some OpenRouter
-/// upstreams reject with 400), so a 400/422 answer to such a request triggers
-/// one retry without the fields, and the rejection is remembered per
-/// (base_url, model) so later requests skip the failing attempt entirely.
+/// Send a chat completion request to an OpenAI-compatible API with the
+/// bounded network-only retry policy: a network-class failure (connect
+/// refused, DNS, TLS, a 5xx) is retried twice on the 500 ms / 1 s backoff
+/// schedule; every other class (auth, timeout, context_length,
+/// output_invalid) and every cancelled request returns at once. The
+/// cancellation flag is polled before each attempt and after each backoff,
+/// so a request that outlived the dictation is never retried and never
+/// started. `retries` on the error (or on [`PostProcessCompletion`]) is
+/// the count the pp: generation phase reports.
 pub async fn send_chat_completion_with_schema(
     provider: &PostProcessProvider,
     api_key: String,
@@ -478,7 +592,89 @@ pub async fn send_chat_completion_with_schema(
     json_schema: Option<Value>,
     disable_reasoning: bool,
     timeout_secs: u64,
-) -> Result<Option<String>, String> {
+    is_cancelled: Option<&(dyn Fn() -> bool + Send + Sync)>,
+) -> Result<PostProcessCompletion, PostProcessError> {
+    let mut retries: u32 = 0;
+    loop {
+        // A cancelled dictation never sends (or re-sends) a request.
+        if let Some(is_cancelled) = is_cancelled {
+            if is_cancelled() {
+                return Err(PostProcessError::new(
+                    PostProcessFailureClass::Cancelled,
+                    "the dictation was cancelled before the request ran".to_string(),
+                ));
+            }
+        }
+        match send_chat_completion_once(
+            provider,
+            api_key.clone(),
+            model,
+            user_content.clone(),
+            system_prompt.clone(),
+            json_schema.clone(),
+            disable_reasoning,
+            timeout_secs,
+        )
+        .await
+        {
+            Ok(content) => {
+                return Ok(PostProcessCompletion {
+                    content,
+                    transport_retries: retries,
+                })
+            }
+            Err(error) => {
+                let decision = network_retry_decision(error.class, retries);
+                let backoff_ms = match decision {
+                    RetryDecision::Return => return Err(error.with_retries(retries)),
+                    RetryDecision::RetryAfterMillis(backoff_ms) => backoff_ms,
+                };
+                // Cancellation wins over the retry: no new request, no
+                // lingering backoff, the run reports cancelled.
+                if let Some(is_cancelled) = is_cancelled {
+                    if is_cancelled() {
+                        return Err(PostProcessError::new(
+                            PostProcessFailureClass::Cancelled,
+                            "the dictation was cancelled before the retry ran".to_string(),
+                        )
+                        .with_retries(retries));
+                    }
+                }
+                debug!(
+                    "post-process request failed ({}); network retry {}/{} after {}ms",
+                    error,
+                    retries + 1,
+                    POST_PROCESS_NETWORK_RETRIES,
+                    backoff_ms
+                );
+                tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
+                retries += 1;
+            }
+        }
+    }
+}
+
+/// ONE chat completion request, no transport retry. Structured output
+/// support: when json_schema is provided, uses structured outputs mode.
+/// system_prompt is used as the system message when provided.
+///
+/// When disable_reasoning is set, the request carries the reasoning-disable
+/// fields the endpoint is expected to understand. Not every OpenAI-compatible
+/// endpoint accepts them (DeepSeek, Gemini's compat layer, and some OpenRouter
+/// upstreams reject with 400), so a 400/422 answer to such a request triggers
+/// one retry without the fields, and the rejection is remembered per
+/// (base_url, model) so later requests skip the failing attempt entirely.
+/// That prompt-shape retry is orthogonal to the network retry wrapper above.
+async fn send_chat_completion_once(
+    provider: &PostProcessProvider,
+    api_key: String,
+    model: &str,
+    user_content: String,
+    system_prompt: Option<String>,
+    json_schema: Option<Value>,
+    disable_reasoning: bool,
+    timeout_secs: u64,
+) -> Result<Option<String>, PostProcessError> {
     let base_url = provider.base_url.trim_end_matches('/');
     let url = format!("{}/chat/completions", base_url);
 
@@ -487,7 +683,8 @@ pub async fn send_chat_completion_with_schema(
         sanitized_url_for_log(&url)
     );
 
-    let client = create_client(provider, &api_key, timeout_secs)?;
+    let client = create_client(provider, &api_key, timeout_secs)
+        .map_err(|detail| PostProcessError::new(PostProcessFailureClass::Network, detail))?;
 
     // Build messages vector
     let mut messages = Vec::new();
@@ -536,7 +733,7 @@ pub async fn send_chat_completion_with_schema(
         .json(&request_body)
         .send()
         .await
-        .map_err(|e| report_reqwest_error("HTTP request failed", &e))?;
+        .map_err(|e| classify_completion_transport("HTTP request failed", &e))?;
     let mut status = response.status();
     debug!(
         "Chat completion response received with status {} over {:?} from {}",
@@ -565,7 +762,7 @@ pub async fn send_chat_completion_with_schema(
             .json(&request_body)
             .send()
             .await
-            .map_err(|e| report_reqwest_error("HTTP retry failed", &e))?;
+            .map_err(|e| classify_completion_transport("HTTP retry failed", &e))?;
         status = response.status();
         debug!(
             "Chat completion retry response received with status {} over {:?} from {}",
@@ -584,20 +781,21 @@ pub async fn send_chat_completion_with_schema(
     }
 
     if !status.is_success() {
-        let error_text = response
-            .text()
-            .await
-            .unwrap_or_else(|e| report_reqwest_error("Failed to read API error response", &e));
-        return Err(format!(
-            "API request failed with status {}: {}",
-            status, error_text
-        ));
+        let error_text = response.text().await.unwrap_or_else(|e| {
+            report_reqwest_error("Failed to read API error response", &e)
+        });
+        return Err(classify_completion_status(status, &error_text));
     }
 
-    let completion: ChatCompletionResponse = response
-        .json()
-        .await
-        .map_err(|e| report_reqwest_error("Failed to parse API response", &e))?;
+    let completion: ChatCompletionResponse = response.json().await.map_err(|e| {
+        // report_reqwest_error drops nested causes for decode errors (they
+        // can quote response values, which can quote transcription
+        // content), so the detail is safe to surface.
+        PostProcessError::new(
+            PostProcessFailureClass::OutputInvalid,
+            report_reqwest_error("Failed to parse API response", &e),
+        )
+    })?;
 
     Ok(completion
         .choices
@@ -719,10 +917,48 @@ pub struct TestConnectionResult {
 }
 
 /// Send the tiny completion used by Test Connection: one user message,
-/// `max_tokens: 5`, on its own client with its own (hard) timeout. Returns
+/// `max_tokens: 5`, on its own client with its own (hard) timeout. Shares
+/// the post-process retry policy (bounded, network-class only) with the
+/// dictation path so a flaky connect does not fail the verdict. Returns
 /// the message content, or None when the endpoint answers 200 with no
 /// content (the caller reads that as an invalid output).
 pub async fn probe_completion(
+    provider: &PostProcessProvider,
+    api_key: String,
+    model: &str,
+    timeout_secs: u64,
+) -> Result<Option<String>, PostProcessModelError> {
+    let mut retries: u32 = 0;
+    loop {
+        match probe_completion_once(provider, api_key.clone(), model, timeout_secs).await {
+            Ok(content) => return Ok(content),
+            Err(error) => {
+                // Other-class failures (a 5xx and friends) retry like the
+                // completion path's else-network rule; auth, timeout, and
+                // parse failures are deterministic and return at once.
+                let retry_class = error
+                    .failure_class()
+                    .unwrap_or(PostProcessFailureClass::Network);
+                let backoff_ms = match network_retry_decision(retry_class, retries) {
+                    RetryDecision::Return => return Err(error),
+                    RetryDecision::RetryAfterMillis(backoff_ms) => backoff_ms,
+                };
+                debug!(
+                    "completion probe failed ({}); retry {}/{} after {}ms",
+                    error,
+                    retries + 1,
+                    POST_PROCESS_NETWORK_RETRIES,
+                    backoff_ms
+                );
+                tokio::time::sleep(std::time::Duration::from_millis(backoff_ms)).await;
+                retries += 1;
+            }
+        }
+    }
+}
+
+/// ONE probe request, no retry (the wrapper above owns the policy).
+async fn probe_completion_once(
     provider: &PostProcessProvider,
     api_key: String,
     model: &str,
@@ -920,6 +1156,7 @@ mod tests {
             allow_base_url_edit: true,
             models_endpoint: None,
             supports_structured_output: false,
+            default_timeout_secs: crate::settings::PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
         }
     }
 
@@ -1186,6 +1423,264 @@ mod tests {
         assert_eq!(resolve_request_timeout_secs(600), 600);
     }
 
+    /// The bounded retry policy, pure: network failures retry exactly twice
+    /// on the fixed 500 ms / 1 s schedule; every other class returns at
+    /// once at any retry count; network past the budget returns.
+    #[test]
+    fn network_retry_policy_is_bounded_and_network_only() {
+        use PostProcessFailureClass as Class;
+        use RetryDecision::*;
+
+        for class in [
+            Class::Auth,
+            Class::Timeout,
+            Class::ContextLength,
+            Class::OutputInvalid,
+            Class::Oom,
+            Class::Cancelled,
+        ] {
+            assert_eq!(
+                network_retry_decision(class, 0),
+                Return,
+                "{class:?} must never retry"
+            );
+            assert_eq!(
+                network_retry_decision(class, 1),
+                Return,
+                "{class:?} must never retry, even mid-budget"
+            );
+        }
+        assert_eq!(
+            network_retry_decision(Class::Network, 0),
+            RetryAfterMillis(500)
+        );
+        assert_eq!(
+            network_retry_decision(Class::Network, 1),
+            RetryAfterMillis(1000)
+        );
+        assert_eq!(network_retry_decision(Class::Network, 2), Return);
+        assert_eq!(network_retry_decision(Class::Network, 99), Return);
+    }
+
+    /// An address whose port is closed: every connection attempt is refused
+    /// (reqwest reports is_connect), the canonical network-class failure.
+    async fn refused_base_url() -> String {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let address = listener.local_addr().unwrap();
+        drop(listener);
+        format!("http://{address}")
+    }
+
+    /// A connect error is network class: the wrapper retries exactly twice
+    /// (the backoff schedule is observable as wall clock) and then fails
+    /// with the retry count stamped on the error.
+    #[tokio::test]
+    async fn connect_error_retries_twice_then_fails_network() {
+        let base_url = refused_base_url().await;
+        let started = std::time::Instant::now();
+        let error = send_chat_completion_with_schema(
+            &provider("custom", &base_url),
+            String::new(),
+            "test-model",
+            "hi".to_string(),
+            None,
+            None,
+            false,
+            5,
+            None,
+        )
+        .await
+        .unwrap_err();
+        let elapsed = started.elapsed();
+
+        assert_eq!(
+            error.class,
+            PostProcessFailureClass::Network,
+            "a refused connect is network class: {error}"
+        );
+        assert_eq!(
+            error.retries, POST_PROCESS_NETWORK_RETRIES,
+            "exactly two retries before giving up: {error}"
+        );
+        assert!(
+            elapsed >= std::time::Duration::from_millis(1500),
+            "the 500ms + 1s backoff must run between attempts (took {elapsed:?})"
+        );
+        assert!(
+            elapsed < std::time::Duration::from_secs(10),
+            "the retries stay bounded (took {elapsed:?})"
+        );
+    }
+
+    /// A 401 from the completion endpoint is auth class and is NEVER
+    /// retried: the endpoint served exactly one connection.
+    #[tokio::test]
+    async fn auth_401_completion_is_not_retried() {
+        let (base_url, served) = serve_counting_401().await;
+        let error = send_chat_completion_with_schema(
+            &provider("custom", &base_url),
+            "sk-bad".to_string(),
+            "test-model",
+            "hi".to_string(),
+            None,
+            None,
+            false,
+            5,
+            None,
+        )
+        .await
+        .unwrap_err();
+
+        assert_eq!(error.class, PostProcessFailureClass::Auth, "{error}");
+        assert_eq!(error.retries, 0, "an auth failure never retries: {error}");
+        assert!(error.to_string().starts_with("auth: "), "{error}");
+        assert!(error.detail.contains("401"), "{error}");
+
+        // Give a would-be retry a beat to land, then assert it never came.
+        tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+        let connections = served.load(std::sync::atomic::Ordering::SeqCst);
+        assert_eq!(
+            connections, 1,
+            "an auth failure must not be retried, but {connections} connections were made"
+        );
+    }
+
+    /// A cancelled dictation never retries: the cancel flag checked after a
+    /// failed attempt stops the wrapper before the backoff (and any second
+    /// request), reporting the cancelled class with zero retries.
+    #[tokio::test]
+    async fn cancelled_requests_are_never_retried() {
+        let base_url = refused_base_url().await;
+        let checks = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let flag = std::sync::Arc::clone(&checks);
+        // Cancel fires on the SECOND check (after the failed attempt,
+        // before the retry decision sleeps).
+        let is_cancelled = move || {
+            flag.fetch_add(1, std::sync::atomic::Ordering::SeqCst) >= 1
+        };
+
+        let started = std::time::Instant::now();
+        let error = send_chat_completion_with_schema(
+            &provider("custom", &base_url),
+            String::new(),
+            "test-model",
+            "hi".to_string(),
+            None,
+            None,
+            false,
+            5,
+            Some(&is_cancelled),
+        )
+        .await
+        .unwrap_err();
+        let elapsed = started.elapsed();
+
+        assert_eq!(
+            error.class,
+            PostProcessFailureClass::Cancelled,
+            "a cancelled run reports the cancelled class: {error}"
+        );
+        assert_eq!(error.retries, 0, "no retry may follow a cancellation");
+        assert!(
+            elapsed < std::time::Duration::from_millis(500),
+            "the wrapper must stop before the first backoff (took {elapsed:?})"
+        );
+
+        // Already-cancelled before the first attempt: no request at all.
+        let always_cancelled = || true;
+        let error = send_chat_completion_with_schema(
+            &provider("custom", &base_url),
+            String::new(),
+            "test-model",
+            "hi".to_string(),
+            None,
+            None,
+            false,
+            5,
+            Some(&always_cancelled),
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(error.class, PostProcessFailureClass::Cancelled, "{error}");
+        assert_eq!(error.retries, 0, "{error}");
+    }
+
+    /// The completion status classifier, pure over status + body: 401/403
+    /// auth; 413 and the context-length wordings of 400/422
+    /// context_length; 408/504 timeout; everything else (500, a plain 400)
+    /// network, which is what earns the bounded retry.
+    #[test]
+    fn completion_status_classification_table() {
+        use PostProcessFailureClass as Class;
+        let cases: [(u16, &str, Class); 8] = [
+            (401, r#"{"error":"bad key"}"#, Class::Auth),
+            (403, "forbidden", Class::Auth),
+            (413, "payload too large", Class::ContextLength),
+            (
+                400,
+                "This model's maximum context length is 4096 tokens",
+                Class::ContextLength,
+            ),
+            (422, "request exceeds the context window", Class::ContextLength),
+            (408, "request timeout", Class::Timeout),
+            (504, "gateway timeout", Class::Timeout),
+            (500, "internal error", Class::Network),
+        ];
+        for (status, body, class) in cases {
+            let error = classify_completion_status(
+                reqwest::StatusCode::from_u16(status).unwrap(),
+                body,
+            );
+            assert_eq!(error.class, class, "status {status} body {body}");
+            assert!(
+                error.detail.contains(&status.to_string()),
+                "the status rides the detail: {error}"
+            );
+        }
+        // A plain 400 (no context wording) is network class: it may retry,
+        // bounded, like a 5xx.
+        let plain_400 = classify_completion_status(
+            reqwest::StatusCode::from_u16(400).unwrap(),
+            "invalid request",
+        );
+        assert_eq!(plain_400.class, Class::Network);
+        // Error bodies are truncated so a huge provider error cannot blow
+        // up the log line or the overlay notice.
+        let huge = classify_completion_status(
+            reqwest::StatusCode::from_u16(500).unwrap(),
+            &"x".repeat(10_000),
+        );
+        assert!(huge.detail.len() < 500, "detail bounded: {}", huge.detail.len());
+    }
+
+    /// A 200 whose body is not a chat completion is output_invalid (the
+    /// endpoint answered something unusable), never retried, and the
+    /// detail never quotes the malformed payload.
+    #[tokio::test]
+    async fn unparseable_completion_is_output_invalid_without_retry() {
+        let base_url = serve_one_response("200 OK", r#"{"choices":"PRIVATE CONTENT"}"#).await;
+        let error = send_chat_completion_with_schema(
+            &provider("custom", &base_url),
+            String::new(),
+            "test-model",
+            "hi".to_string(),
+            None,
+            None,
+            false,
+            5,
+            None,
+        )
+        .await
+        .unwrap_err();
+        assert_eq!(
+            error.class,
+            PostProcessFailureClass::OutputInvalid,
+            "{error}"
+        );
+        assert_eq!(error.retries, 0, "a parse failure never retries: {error}");
+        assert!(!error.detail.contains("PRIVATE CONTENT"), "{error}");
+    }
+
     /// A listener that accepts the connection but never writes a response:
     /// the exact wedge shape a stalled endpoint produces. The accepted
     /// streams are HELD (not dropped) so the connection stays open and the
@@ -1206,7 +1701,8 @@ mod tests {
     /// responds, the request must fail with a timeout error (the pipeline
     /// returns to Idle) rather than hang forever. The 1s configured timeout
     /// keeps the test fast; the assertion is bounded so a regression fails
-    /// instead of stalling the suite.
+    /// instead of stalling the suite. A timeout is deterministic, so it is
+    /// never retried (retries == 0) even under the network retry policy.
     #[tokio::test]
     async fn wedged_endpoint_fails_at_the_configured_timeout() {
         let base_url = serve_never_responding().await;
@@ -1220,14 +1716,20 @@ mod tests {
             None,
             false,
             1,
+            None,
         )
         .await;
         let elapsed = started.elapsed();
         assert!(result.is_err(), "the wedged request must fail, not hang");
         let error = result.unwrap_err();
-        assert!(
-            error.contains("kind: ") && error.contains("timeout"),
+        assert_eq!(
+            error.class,
+            PostProcessFailureClass::Timeout,
             "the failure should be the timeout, got: {error}"
+        );
+        assert_eq!(
+            error.retries, 0,
+            "a timeout must never be retried: {error}"
         );
         assert!(
             elapsed < std::time::Duration::from_secs(10),

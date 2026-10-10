@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Délai de requête",
-          "description": "Combien de temps une requête de post-traitement cloud peut durer avant d'abandonner et d'utiliser la transcription brute. S'applique quand un endpoint cesse de répondre."
+          "description": "Combien de temps les requêtes de post-traitement de ce fournisseur peuvent durer avant d'abandonner et d'utiliser la transcription brute. Réinitialiser revient à la valeur par défaut de {{classDefault}}s de ce fournisseur."
         },
         "testConnection": "Tester la connexion",
         "testConnectionRunning": "Test en cours...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Suppression impossible pour le moment : un post-traitement est en cours. Réessayez dans un instant.",
         "downloadFailed": "Échec du téléchargement : {{error}}",
         "deleteFailed": "Impossible de supprimer le modèle : {{error}}",
-        "providerLabel": "Local (sur l'appareil)"
+        "providerLabel": "Local (sur l'appareil)",
+        "keepWarm": {
+          "title": "Garder le modèle local en mémoire",
+          "description": "Combien de temps le modèle local de post-traitement reste en mémoire après une correction au lieu d'être déchargé immédiatement. Une dictée récupère toujours la mémoire en premier.",
+          "off": "Désactivé"
+        }
       },
       "models": {
         "title": "Modèles de post-traitement",

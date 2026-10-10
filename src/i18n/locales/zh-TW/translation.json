@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "請求逾時",
-          "description": "雲端後處理請求在放棄並改用原始轉寫文字之前可以執行多久。適用於端點停止回應的情況。"
+          "description": "此供應商的後處理請求最多執行多久後放棄並使用原始逐字稿。重設會回到該供應商 {{classDefault}} 秒的預設值。"
         },
         "testConnection": "測試連線",
         "testConnectionRunning": "測試中...",
@@ -708,7 +708,12 @@
         "deleteInUse": "目前無法刪除：後處理正在執行中，請稍後再試。",
         "downloadFailed": "下載失敗：{{error}}",
         "deleteFailed": "無法刪除模型：{{error}}",
-        "providerLabel": "本機（裝置上）"
+        "providerLabel": "本機（裝置上）",
+        "keepWarm": {
+          "title": "本機模型駐留記憶體",
+          "description": "潤飾完成後，本機後處理模型在記憶體中保留多久，而不是立即卸載。聽寫一律優先收回記憶體。",
+          "off": "關"
+        }
       },
       "models": {
         "title": "後處理模型",

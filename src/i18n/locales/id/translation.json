@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Batas waktu permintaan",
-          "description": "Berapa lama permintaan pascaproses cloud boleh berjalan sebelum menyerah dan transkripsi mentah dipakai. Berlaku saat endpoint berhenti merespons."
+          "description": "Berapa lama permintaan pascaproses penyedia ini boleh berjalan sebelum menyerah dan memakai transkrip mentah. Reset kembali ke bawaan {{classDefault}}detik penyedia ini."
         },
         "testConnection": "Uji koneksi",
         "testConnectionRunning": "Menguji...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Tidak bisa menghapus saat ini: pascaproses sedang berjalan. Coba lagi beberapa saat lagi.",
         "downloadFailed": "Gagal mengunduh: {{error}}",
         "deleteFailed": "Gagal menghapus model: {{error}}",
-        "providerLabel": "Lokal (di perangkat)"
+        "providerLabel": "Lokal (di perangkat)",
+        "keepWarm": {
+          "title": "Simpan model lokal di memori",
+          "description": "Berapa lama model pascaproses lokal tetap di memori setelah satu pemolesan alih-alih langsung dilepas. Dikotasi selalu mengambil kembali memori lebih dulu.",
+          "off": "Mati"
+        }
       },
       "models": {
         "title": "Model pasca-proses",

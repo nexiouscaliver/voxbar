@@ -183,6 +183,8 @@ const settingUpdaters: {
     commands.changePostProcessEnabledSetting(value as boolean),
   post_process_timeout_secs: (value) =>
     commands.setPostProcessTimeout(value as number),
+  post_process_local_keep_warm_secs: (value) =>
+    commands.changePostProcessLocalKeepWarmSecsSetting(value as number),
   post_process_selected_prompt_id: (value) =>
     commands.setPostProcessSelectedPrompt(value as string),
   mute_while_recording: (value) =>

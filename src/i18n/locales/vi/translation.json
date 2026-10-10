@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Thời gian chờ yêu cầu",
-          "description": "Yêu cầu hậu xử lý trên đám mây có thể chạy bao lâu trước khi từ bỏ và dùng bản ghi thô. Áp dụng khi một endpoint ngừng phản hồi."
+          "description": "Các yêu cầu hậu xử lý của nhà cung cấp này có thể chạy trong bao lâu trước khi từ bỏ và dùng bản ghi thô. Đặt lại quay về mặc định {{classDefault}}giây của nhà cung cấp này."
         },
         "testConnection": "Kiểm tra kết nối",
         "testConnectionRunning": "Đang kiểm tra...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Hiện tại không thể xóa: một lượt xử lý sau đang chạy. Hãy thử lại sau ít lâu.",
         "downloadFailed": "Tải xuống thất bại: {{error}}",
         "deleteFailed": "Không thể xóa mô hình: {{error}}",
-        "providerLabel": "Cục bộ (trên thiết bị)"
+        "providerLabel": "Cục bộ (trên thiết bị)",
+        "keepWarm": {
+          "title": "Giữ mô hình cục bộ trong bộ nhớ",
+          "description": "Mô hình hậu xử lý cục bộ ở lại trong bộ nhớ bao lâu sau một lần chau chuốt thay vì dỡ ngay. Lệnh đọc luôn lấy lại bộ nhớ trước.",
+          "off": "Tắt"
+        }
       },
       "models": {
         "title": "Mô hình hậu xử lý",

@@ -4,6 +4,7 @@ import { RefreshCcw } from "lucide-react";
 import {
   commands,
   type LLMPrompt,
+  type PostProcessProvider,
   type PromptTestOutcome,
   type TestPromptError,
   type TestConnectionResult,
@@ -94,28 +95,96 @@ const ConnectionVerdictLine: React.FC<{
   );
 };
 
-/// The request timeout row for cloud post-process calls: bounds how long a
-/// wedged endpoint (one that accepts the connection but never answers) can
-/// hold the pipeline before the dictation finishes with the raw transcript.
-/// Only meaningful for API providers, so it renders beside their config.
-const PostProcessTimeoutRow: React.FC = () => {
+/// The per-provider request timeout row for cloud post-process calls:
+/// bounds how long a wedged endpoint (one that accepts the connection but
+/// never answers) can hold THIS provider's requests before the dictation
+/// finishes with the raw transcript. The row edits the selected provider's
+/// own value; the reset target is the provider's class default (Groq and
+/// Cerebras 30s, the others 60s), shown in the description.
+const PostProcessTimeoutRow: React.FC<{
+  provider: PostProcessProvider;
+}> = ({ provider }) => {
   const { t } = useTranslation();
-  const { settings, updateSetting, resetSetting, isUpdating } = useSettings();
+  const { settings, refreshSettings } = useSettings();
+  const [isPending, setIsPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const override = settings?.post_process_timeouts?.[provider.id];
+  const classDefault = provider.default_timeout_secs ?? 60;
+  const value = override ?? classDefault;
+
+  const apply = async (seconds: number) => {
+    setIsPending(true);
+    setError(null);
+    const result = await commands.setPostProcessTimeoutForProvider(
+      provider.id,
+      seconds,
+    );
+    if (result.status === "error") setError(result.error);
+    await refreshSettings();
+    setIsPending(false);
+  };
+
+  const reset = async () => {
+    setIsPending(true);
+    setError(null);
+    await commands.resetPostProcessTimeoutForProvider(provider.id);
+    await refreshSettings();
+    setIsPending(false);
+  };
+
+  return (
+    <>
+      <Slider
+        value={value}
+        onChange={(value) => apply(value)}
+        onReset={override === undefined ? undefined : reset}
+        isResetting={isPending}
+        min={5}
+        max={600}
+        step={5}
+        label={t("settings.postProcessing.api.timeout.title")}
+        description={t("settings.postProcessing.api.timeout.description", {
+          classDefault,
+        })}
+        descriptionMode="tooltip"
+        grouped={true}
+        formatValue={(v) => `${v}s`}
+      />
+      {error && (
+        <Alert variant="error" contained>
+          {error}
+        </Alert>
+      )}
+    </>
+  );
+};
+
+/// The keep-warm row for the LOCAL post-process model: how long the model
+/// worker stays in memory after a polish instead of unloading immediately
+/// (the default). 0 is exactly the v1.3.0 exclusive swap; anything longer
+/// holds the model resident for back-to-back polishing, and a dictation
+/// always evicts it first.
+const PostProcessKeepWarmRow: React.FC = () => {
+  const { t } = useTranslation();
+  const { settings, updateSetting, isUpdating } = useSettings();
 
   return (
     <Slider
-      value={settings?.post_process_timeout_secs ?? 60}
-      onChange={(value) => updateSetting("post_process_timeout_secs", value)}
-      onReset={() => resetSetting("post_process_timeout_secs")}
-      isResetting={isUpdating("post_process_timeout_secs")}
-      min={5}
+      value={settings?.post_process_local_keep_warm_secs ?? 0}
+      onChange={(value) =>
+        updateSetting("post_process_local_keep_warm_secs", value)
+      }
+      onReset={() => updateSetting("post_process_local_keep_warm_secs", 0)}
+      isResetting={isUpdating("post_process_local_keep_warm_secs")}
+      min={0}
       max={600}
       step={5}
-      label={t("settings.postProcessing.api.timeout.title")}
-      description={t("settings.postProcessing.api.timeout.description")}
+      label={t("settings.postProcessing.local.keepWarm.title")}
+      description={t("settings.postProcessing.local.keepWarm.description")}
       descriptionMode="tooltip"
       grouped={true}
-      formatValue={(v) => `${v}s`}
+      formatValue={(v) => (v === 0 ? t("settings.postProcessing.local.keepWarm.off") : `${v}s`)}
     />
   );
 };
@@ -165,8 +234,12 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         // The local on-device engine: no API fields, no model dropdown,
         // just the models section (spec 7.2, generalized). The section
         // itself renders the original pinned row unchanged until the user
-        // downloads or selects anything beyond the pinned model.
-        <PostProcessModelsSection />
+        // downloads or selects anything beyond the pinned model. The
+        // keep-warm row follows: it governs the local worker's lifetime.
+        <>
+          <PostProcessModelsSection />
+          <PostProcessKeepWarmRow />
+        </>
       ) : state.isAppleProvider ? (
         state.appleIntelligenceUnavailable ? (
           <Alert variant="error" contained>
@@ -301,9 +374,11 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         </SettingContainer>
       )}
 
-      {!state.isAppleProvider && !state.isLocalProvider && (
-        <PostProcessTimeoutRow />
-      )}
+      {!state.isAppleProvider &&
+        !state.isLocalProvider &&
+        state.selectedProvider && (
+          <PostProcessTimeoutRow provider={state.selectedProvider} />
+        )}
     </>
   );
 };

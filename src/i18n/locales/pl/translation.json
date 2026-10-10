@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Limit czasu żądania",
-          "description": "Jak długo żądanie przetwarzania końcowego w chmurze może działać, zanim zrezygnuje i zostanie użyty surowy zapis. Stosowane, gdy endpoint przestaje odpowiadać."
+          "description": "Jak długo żądania postprocessingu tego dostawcy mogą działać, zanim się podadzą i zostanie użyty surowy transkrypt. Reset wraca do domyślnych {{classDefault}}s tego dostawcy."
         },
         "testConnection": "Testuj połączenie",
         "testConnectionRunning": "Testowanie...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Nie można teraz usunąć: trwa postprocessing. Spróbuj ponownie za chwilę.",
         "downloadFailed": "Pobieranie nie powiodło się: {{error}}",
         "deleteFailed": "Nie udało się usunąć modelu: {{error}}",
-        "providerLabel": "Lokalnie (na urządzeniu)"
+        "providerLabel": "Lokalnie (na urządzeniu)",
+        "keepWarm": {
+          "title": "Utrzymuj model lokalny w pamięci",
+          "description": "Jak długo lokalny model postprocessingu pozostaje w pamięci po czyszczeniu, zamiast być od razu wyładowany. Dyktando zawsze odzyskuje pamięć jako pierwsze.",
+          "off": "Wyłączone"
+        }
       },
       "models": {
         "title": "Modele postprocessingu",

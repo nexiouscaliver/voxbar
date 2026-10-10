@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "请求超时",
-          "description": "云端后处理请求在放弃并改用原始转写文本之前可以运行多久。适用于端点停止响应的情况。"
+          "description": "此提供商的后处理请求最多运行多久后放弃并使用原始转录。重置会回到该提供商 {{classDefault}} 秒的默认值。"
         },
         "testConnection": "测试连接",
         "testConnectionRunning": "测试中...",
@@ -708,7 +708,12 @@
         "deleteInUse": "暂时无法删除：后处理正在进行中，请稍后再试。",
         "downloadFailed": "下载失败：{{error}}",
         "deleteFailed": "无法删除模型：{{error}}",
-        "providerLabel": "本地（设备端）"
+        "providerLabel": "本地（设备端）",
+        "keepWarm": {
+          "title": "本地模型驻留内存",
+          "description": "润色完成后，本地后处理模型在内存中保留多久，而不是立即卸载。听写始终优先收回内存。",
+          "off": "关"
+        }
       },
       "models": {
         "title": "后处理模型",

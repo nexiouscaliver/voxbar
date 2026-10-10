@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Tidsgräns för begäran",
-          "description": "Hur länge en efterbearbetningsbegäran i molnet får köras innan den ger upp och den råa transkriberingen används. Gäller när en slutpunkt slutar svara."
+          "description": "Hur länge den här leverantörens efterbearbetningsförfrågningar får köra innan de ger upp och den råa transkriptionen används. Återställ går tillbaka till leverantörens {{classDefault}}s-standard."
         },
         "testConnection": "Testa anslutningen",
         "testConnectionRunning": "Testar...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Kan inte ta bort just nu: en efterbearbetning pågår. Försök igen om en stund.",
         "downloadFailed": "Nedladdningen misslyckades: {{error}}",
         "deleteFailed": "Kunde inte ta bort modellen: {{error}}",
-        "providerLabel": "Lokalt (på enheten)"
+        "providerLabel": "Lokalt (på enheten)",
+        "keepWarm": {
+          "title": "Håll den lokala modellen varm",
+          "description": "Hur länge den lokala efterbearbetningsmodellen finns kvar i minnet efter en putsning i stället för att stängas av direkt. En diktering tar alltid tillbaka minnet först.",
+          "off": "Av"
+        }
       },
       "models": {
         "title": "Efterbearbetningsmodeller",

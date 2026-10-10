@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "İstek zaman aşımı",
-          "description": "Bir bulut son işleme isteğinin vazgeçip ham transkriptin kullanıldığı süreye kadar çalışabileceği süre. Bir endpoint yanıt vermeyi bıraktığında geçerlidir."
+          "description": "Bu sağlayıcının son işlem istekleri vazgeçmeden ve ham transkript kullanılmadan önce ne kadar sürebilir. Sıfırlama, sağlayıcının {{classDefault}}sn varsayılanına döner."
         },
         "testConnection": "Bağlantıyı test et",
         "testConnectionRunning": "Test ediliyor...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Şu anda silinemiyor: bir son işlem sürüyor. Birazdan tekrar deneyin.",
         "downloadFailed": "İndirme başarısız: {{error}}",
         "deleteFailed": "Model silinemedi: {{error}}",
-        "providerLabel": "Yerel (cihazda)"
+        "providerLabel": "Yerel (cihazda)",
+        "keepWarm": {
+          "title": "Yerel modeli sıcak tut",
+          "description": "Yerel son işlem modeli bir cilalamadan sonra hemen boşaltılmak yerine ne kadar süre bellekte kalır. Bir dikte her zaman önce belleği geri alır.",
+          "off": "Kapalı"
+        }
       },
       "models": {
         "title": "Son işlem modelleri",

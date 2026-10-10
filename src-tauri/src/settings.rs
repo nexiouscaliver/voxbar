@@ -177,6 +177,26 @@ pub struct PostProcessProvider {
     pub models_endpoint: Option<String>,
     #[serde(default)]
     pub supports_structured_output: bool,
+    /// The provider class's default total-request timeout, in seconds.
+    /// Fast inference hosts (Groq, Cerebras) default tighter (30) than the
+    /// general 60; a per-provider user override
+    /// (`post_process_timeouts`) beats it, and 0 falls through to the
+    /// global `post_process_timeout_secs` at resolution time.
+    #[serde(default = "default_provider_timeout_secs")]
+    pub default_timeout_secs: u64,
+}
+
+/// The provider-class timeout default when a store's provider entry predates
+/// the field (serde default) and for hand-written provider literals.
+pub const PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS: u64 = 60;
+
+/// The fast-inference hosts' tighter class default (Groq, Cerebras): these
+/// answer in well under a second when healthy, so a 60s wedge budget buys
+/// nothing but waiting.
+pub const FAST_PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS: u64 = 30;
+
+fn default_provider_timeout_secs() -> u64 {
+    PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS
 }
 
 /// The last successfully fetched model list for one provider, persisted so
@@ -678,6 +698,22 @@ pub struct AppSettings {
     /// completion and the model-list requests.
     #[serde(default = "default_post_process_timeout_secs")]
     pub post_process_timeout_secs: u64,
+    /// Per-provider user overrides of the post-process timeout, keyed by
+    /// provider id. Empty (the default) means every provider resolves
+    /// through its class default (see
+    /// [`PostProcessProvider::default_timeout_secs`]) and then the global
+    /// `post_process_timeout_secs`; a stored 0 resolves the same way (the
+    /// reset target), never "no timeout".
+    #[serde(default)]
+    pub post_process_timeouts: HashMap<String, u64>,
+    /// Keep-warm window for the LOCAL post-process model, in seconds. 0
+    /// (the default) is exactly today's behavior: the swap runner unloads
+    /// the worker after every generation and restores the voice model (the
+    /// L2 exclusive swap). When > 0, the runner holds the worker resident
+    /// for the window AFTER the paste, polling the dictation-wins triggers
+    /// and an evict request; any voice model load evicts it first.
+    #[serde(default)]
+    pub post_process_local_keep_warm_secs: u64,
     #[serde(default = "default_post_process_provider_id")]
     pub post_process_provider_id: String,
     /// The registry id of the local post-process model the swap runner loads
@@ -1104,6 +1140,8 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
         // platforms (CPU everywhere, Metal on arm64 macOS). The sentinel
         // base_url mirrors apple-intelligence://local and is never
         // fetched; models_endpoint is None so no model list is fetched.
+        // The timeout fields are inert on-device (no HTTP requests run);
+        // the class default keeps the registry uniform.
         PostProcessProvider {
             id: LOCAL_LLM_PROVIDER_ID.to_string(),
             label: "Local (on-device)".to_string(),
@@ -1111,6 +1149,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: None,
             supports_structured_output: true,
+            default_timeout_secs: PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
         },
         PostProcessProvider {
             id: "openai".to_string(),
@@ -1119,6 +1158,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: true,
+            default_timeout_secs: PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
         },
         PostProcessProvider {
             id: "zai".to_string(),
@@ -1127,6 +1167,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: true,
+            default_timeout_secs: PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
         },
         PostProcessProvider {
             id: "openrouter".to_string(),
@@ -1135,6 +1176,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: true,
+            default_timeout_secs: PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
         },
         PostProcessProvider {
             id: "anthropic".to_string(),
@@ -1143,7 +1185,10 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: false,
+            default_timeout_secs: PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
         },
+        // The fast inference hosts answer in well under a second when
+        // healthy, so their class default is the tighter 30s wedge budget.
         PostProcessProvider {
             id: "groq".to_string(),
             label: "Groq".to_string(),
@@ -1151,6 +1196,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: false,
+            default_timeout_secs: FAST_PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
         },
         PostProcessProvider {
             id: "cerebras".to_string(),
@@ -1159,6 +1205,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: Some("/models".to_string()),
             supports_structured_output: true,
+            default_timeout_secs: FAST_PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
         },
     ];
 
@@ -1175,6 +1222,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
             allow_base_url_edit: false,
             models_endpoint: None,
             supports_structured_output: true,
+            default_timeout_secs: PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
         });
     }
 
@@ -1186,6 +1234,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
         allow_base_url_edit: false,
         models_endpoint: Some("/models".to_string()),
         supports_structured_output: true,
+        default_timeout_secs: PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
     });
 
     // Custom provider always comes last
@@ -1196,6 +1245,7 @@ fn default_post_process_providers() -> Vec<PostProcessProvider> {
         allow_base_url_edit: true,
         models_endpoint: Some("/models".to_string()),
         supports_structured_output: false,
+        default_timeout_secs: PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
     });
 
     providers
@@ -1447,6 +1497,24 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
                     existing.supports_structured_output = provider.supports_structured_output;
                     changed = true;
                 }
+                // Sync the provider-class timeout default (WS5): stores
+                // written before the field existed deserialize it as the
+                // standard 60; the fast hosts' tighter 30s class default
+                // reaches them the same way. Only entries still carrying
+                // the pre-field value are upgraded: a hand-tuned class
+                // default is the operator's and stays.
+                if existing.default_timeout_secs == PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS
+                    && existing.default_timeout_secs != provider.default_timeout_secs
+                {
+                    debug!(
+                        "Updating default_timeout_secs for provider '{}' from {} to {}",
+                        provider.id,
+                        existing.default_timeout_secs,
+                        provider.default_timeout_secs
+                    );
+                    existing.default_timeout_secs = provider.default_timeout_secs;
+                    changed = true;
+                }
             }
             None => {
                 // Provider doesn't exist, add it
@@ -1667,6 +1735,8 @@ pub fn get_default_settings() -> AppSettings {
         auto_submit_key: AutoSubmitKey::default(),
         post_process_enabled: default_post_process_enabled(),
         post_process_timeout_secs: default_post_process_timeout_secs(),
+        post_process_timeouts: HashMap::new(),
+        post_process_local_keep_warm_secs: 0,
         post_process_provider_id: default_post_process_provider_id(),
         post_process_local_model_id: default_post_process_local_model_id(),
         // Fresh installs start on the local default; the marker exists so
@@ -1723,6 +1793,32 @@ impl Default for AppSettings {
 }
 
 impl AppSettings {
+    /// Resolve the post-process timeout (seconds) one provider's requests
+    /// run under. Order, first match wins: the operator's per-provider
+    /// override (a stored 0 is the reset target, not a value), the
+    /// provider class default from the registry (0 means the class
+    /// declined to pick, which today never happens), then the global
+    /// `post_process_timeout_secs`. The caller (llm_client) additionally
+    /// maps a resolved 0 to the built-in default, so no path can disable
+    /// the total-request timeout.
+    pub fn post_process_timeout_secs_for(&self, provider_id: &str) -> u64 {
+        if let Some(user_secs) = self.post_process_timeouts.get(provider_id) {
+            if *user_secs > 0 {
+                return *user_secs;
+            }
+        }
+        let class_default = self
+            .post_process_providers
+            .iter()
+            .find(|provider| provider.id == provider_id)
+            .map(|provider| provider.default_timeout_secs)
+            .unwrap_or(0);
+        if class_default > 0 {
+            return class_default;
+        }
+        self.post_process_timeout_secs
+    }
+
     pub fn active_post_process_provider(&self) -> Option<&PostProcessProvider> {
         self.post_process_providers
             .iter()
@@ -3440,5 +3536,184 @@ mod tests {
         let out = format!("{:?}", map);
         assert!(!out.contains("secret"));
         assert!(out.contains("[REDACTED]"));
+    }
+
+    /// WS5: the per-provider timeout resolution order, pinned per provider:
+    /// the operator's override > the provider class default > the global
+    /// setting; a stored 0 (the reset shape a hand-edited store can carry)
+    /// resolves to the class default; an unknown provider falls to the
+    /// global value.
+    #[test]
+    fn post_process_timeout_resolution_order_is_pinned() {
+        let mut settings = get_default_settings();
+        settings.post_process_timeout_secs = 90;
+
+        // No override: the class default, not the global.
+        assert_eq!(
+            settings.post_process_timeout_secs_for("openai"),
+            PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS
+        );
+        // The fast inference hosts carry the tighter class default.
+        assert_eq!(
+            settings.post_process_timeout_secs_for("groq"),
+            FAST_PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS
+        );
+        assert_eq!(
+            settings.post_process_timeout_secs_for("cerebras"),
+            FAST_PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS
+        );
+        // The operator's override beats every default.
+        settings
+            .post_process_timeouts
+            .insert("groq".to_string(), 120);
+        assert_eq!(settings.post_process_timeout_secs_for("groq"), 120);
+        // A stored 0 is the reset shape: it resolves to the class default,
+        // never to "no timeout".
+        settings.post_process_timeouts.insert("groq".to_string(), 0);
+        assert_eq!(
+            settings.post_process_timeout_secs_for("groq"),
+            FAST_PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS
+        );
+        // Unknown provider: no class default exists, so the global value.
+        assert_eq!(settings.post_process_timeout_secs_for("nope"), 90);
+        // A provider whose class default is 0 (a hand-edited registry)
+        // also falls through to the global value.
+        settings.post_process_providers.push(PostProcessProvider {
+            id: "zeroed".to_string(),
+            label: "Zeroed".to_string(),
+            base_url: "https://zeroed.example/v1".to_string(),
+            allow_base_url_edit: false,
+            models_endpoint: None,
+            supports_structured_output: false,
+            default_timeout_secs: 0,
+        });
+        assert_eq!(settings.post_process_timeout_secs_for("zeroed"), 90);
+    }
+
+    /// WS5: the per-provider set command enforces the same inclusive
+    /// bounds as the global one (5..=600), rejecting below, above, and the
+    /// 0 reset shape alike; 0 belongs to the reset command.
+    #[test]
+    fn per_provider_timeout_bounds_match_the_global_bounds() {
+        assert_eq!(POST_PROCESS_TIMEOUT_MIN_SECONDS, 5);
+        assert_eq!(POST_PROCESS_TIMEOUT_MAX_SECONDS, 600);
+        for seconds in [0u64, 1, 4, 601, 1000] {
+            assert!(
+                !(POST_PROCESS_TIMEOUT_MIN_SECONDS..=POST_PROCESS_TIMEOUT_MAX_SECONDS)
+                    .contains(&seconds),
+                "{seconds} must be out of bounds"
+            );
+        }
+        for seconds in [5u64, 30, 60, 600] {
+            assert!(
+                (POST_PROCESS_TIMEOUT_MIN_SECONDS..=POST_PROCESS_TIMEOUT_MAX_SECONDS)
+                    .contains(&seconds),
+                "{seconds} must be in bounds"
+            );
+        }
+    }
+
+    /// WS5: a store written before provider class timeouts existed
+    /// upgrades through ensure_post_process_defaults: the fast hosts pick
+    /// up their tighter 30s class default, a hand-tuned class default is
+    /// left alone, and fresh providers arrive with theirs.
+    #[test]
+    fn ensure_backfills_provider_class_timeout_defaults() {
+        let mut settings = get_default_settings();
+        // Simulate a pre-WS5 store: every entry carries the old flat 60.
+        for provider in settings.post_process_providers.iter_mut() {
+            provider.default_timeout_secs = PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS;
+        }
+        // One hand-tuned entry that must survive the upgrade.
+        settings.post_process_providers.push(PostProcessProvider {
+            id: "tuned".to_string(),
+            label: "Tuned".to_string(),
+            base_url: "https://tuned.example/v1".to_string(),
+            allow_base_url_edit: false,
+            models_endpoint: None,
+            supports_structured_output: false,
+            default_timeout_secs: PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
+        });
+
+        ensure_post_process_defaults(&mut settings);
+
+        let groq = settings
+            .post_process_providers
+            .iter()
+            .find(|p| p.id == "groq")
+            .unwrap();
+        assert_eq!(groq.default_timeout_secs, FAST_PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS);
+        let openai = settings
+            .post_process_providers
+            .iter()
+            .find(|p| p.id == "openai")
+            .unwrap();
+        assert_eq!(
+            openai.default_timeout_secs,
+            PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS
+        );
+        let tuned = settings
+            .post_process_providers
+            .iter()
+            .find(|p| p.id == "tuned")
+            .unwrap();
+        assert_eq!(
+            tuned.default_timeout_secs,
+            PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS,
+            "a hand-tuned class default is never clobbered"
+        );
+    }
+
+    /// WS5 defaults audit: with every new setting at its default, the
+    /// stability envelope is invisible. The per-provider override map is
+    /// empty (every provider resolves through its class default), the
+    /// keep-warm window is 0 (the exclusive swap of v1.3.0), and the class
+    /// defaults cover every registered provider.
+    #[test]
+    fn stability_envelope_defaults_are_off_path() {
+        let defaults = get_default_settings();
+        assert!(
+            defaults.post_process_timeouts.is_empty(),
+            "no per-provider override ships by default"
+        );
+        assert_eq!(
+            defaults.post_process_local_keep_warm_secs, 0,
+            "keep-warm defaults OFF: unload after every swap, exactly v1.3.0"
+        );
+        for provider in &defaults.post_process_providers {
+            assert!(
+                (POST_PROCESS_TIMEOUT_MIN_SECONDS..=POST_PROCESS_TIMEOUT_MAX_SECONDS)
+                    .contains(&provider.default_timeout_secs),
+                "provider {} class default {} must be inside the setting bounds",
+                provider.id,
+                provider.default_timeout_secs
+            );
+            // The two fast hosts pin the tighter class default; everyone
+            // else the standard one.
+            let expected = if provider.id == "groq" || provider.id == "cerebras" {
+                FAST_PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS
+            } else {
+                PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS
+            };
+            assert_eq!(
+                provider.default_timeout_secs, expected,
+                "provider {}",
+                provider.id
+            );
+        }
+        // A store written before this workstream (no new fields) loads
+        // with the same effective values: the serde defaults are the
+        // off-path values.
+        let legacy_json = serde_json::json!({
+            "post_process_timeout_secs": 90,
+        });
+        let legacy: AppSettings =
+            serde_json::from_value(legacy_json).expect("a minimal store deserializes");
+        assert!(legacy.post_process_timeouts.is_empty());
+        assert_eq!(legacy.post_process_local_keep_warm_secs, 0);
+        assert_eq!(
+            legacy.post_process_timeout_secs_for("groq"),
+            FAST_PROVIDER_CLASS_DEFAULT_TIMEOUT_SECS
+        );
     }
 }

@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Time-out van verzoek",
-          "description": "Hoe lang een cloudverzoek voor nabewerking mag draaien voordat het opgeeft en de ruwe transcriptie wordt gebruikt. Geldt wanneer een endpoint niet meer reageert."
+          "description": "Hoe lang postprocessverzoeken van deze aanbieder mogen draaien voordat ze opgeven en de ruwe transcriptie wordt gebruikt. Terugzetten keert terug naar de {{classDefault}}s-standaard van deze aanbieder."
         },
         "testConnection": "Verbinding testen",
         "testConnectionRunning": "Bezig met testen...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Kan nu niet verwijderen: er wordt een naverwerking uitgevoerd. Probeer het zo opnieuw.",
         "downloadFailed": "Downloaden mislukt: {{error}}",
         "deleteFailed": "Kon het model niet verwijderen: {{error}}",
-        "providerLabel": "Lokaal (op het apparaat)"
+        "providerLabel": "Lokaal (op het apparaat)",
+        "keepWarm": {
+          "title": "Lokaal model vasthouden",
+          "description": "Hoe lang het lokale postprocessmodel in het geheugen blijft na een opruiming in plaats van direct te worden ontladen. Een dictee haalt het geheugen altijd eerst terug.",
+          "off": "Uit"
+        }
       },
       "models": {
         "title": "Postprocesmodellen",

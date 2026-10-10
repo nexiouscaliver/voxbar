@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Tempo limite da solicitação",
-          "description": "Por quanto tempo uma solicitação de pós-processamento na nuvem pode rodar antes de desistir e usar a transcrição bruta. Aplica-se quando um endpoint para de responder."
+          "description": "Quanto tempo os pedidos de pós-processo deste fornecedor podem correr antes de desistir e usar a transcrição original. Repor volta ao padrão de {{classDefault}}s deste fornecedor."
         },
         "testConnection": "Testar conexão",
         "testConnectionRunning": "Testando...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Não é possível excluir agora: uma execução de pós-processamento está em andamento. Tente novamente em instantes.",
         "downloadFailed": "Falha no download: {{error}}",
         "deleteFailed": "Não foi possível excluir o modelo: {{error}}",
-        "providerLabel": "Local (no dispositivo)"
+        "providerLabel": "Local (no dispositivo)",
+        "keepWarm": {
+          "title": "Manter o modelo local em memória",
+          "description": "Quanto tempo o modelo local de pós-processo fica em memória após um polimento, em vez de descarregar de imediato. Um ditado recupera sempre a memória primeiro.",
+          "off": "Desligado"
+        }
       },
       "models": {
         "title": "Modelos de pós-processamento",

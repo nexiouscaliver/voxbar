@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Anfrage-Timeout",
-          "description": "Wie lange eine Cloud-Nachbearbeitungsanfrage laufen darf, bevor sie abgebrochen und das rohe Transkript verwendet wird. Greift, wenn ein Endpunkt nicht mehr antwortet."
+          "description": "Wie lange Post-Processing-Anfragen dieses Anbieters laufen dürfen, bevor aufgegeben und das Rohtranskript verwendet wird. Zurücksetzen kehrt zum {{classDefault}}s-Standard dieses Anbieters zurück."
         },
         "testConnection": "Verbindung testen",
         "testConnectionRunning": "Test läuft...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Löschen ist gerade nicht möglich: Eine Nachbearbeitung läuft. Versuche es gleich noch einmal.",
         "downloadFailed": "Herunterladen fehlgeschlagen: {{error}}",
         "deleteFailed": "Das Modell konnte nicht gelöscht werden: {{error}}",
-        "providerLabel": "Lokal (auf dem Gerät)"
+        "providerLabel": "Lokal (auf dem Gerät)",
+        "keepWarm": {
+          "title": "Lokales Modell warm halten",
+          "description": "Wie lange das lokale Post-Processing-Modell nach einem Polieren im Speicher bleibt, statt sofort entladen zu werden. Ein Diktat holt sich den Speicher immer zuerst zurück.",
+          "off": "Aus"
+        }
       },
       "models": {
         "title": "Nachbearbeitungsmodelle",

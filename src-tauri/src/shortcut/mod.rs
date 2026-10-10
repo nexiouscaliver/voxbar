@@ -1697,9 +1697,12 @@ pub async fn fetch_post_process_models(
         });
     }
 
-    let models =
-        crate::llm_client::fetch_models(provider, api_key, settings.post_process_timeout_secs)
-            .await?;
+    let models = crate::llm_client::fetch_models(
+        provider,
+        api_key,
+        settings.post_process_timeout_secs_for(&provider.id),
+    )
+    .await?;
 
     // Cache the successful list so reopening the panel is instant and works
     // offline: the frontend store hydrates its dropdown options from this
@@ -1785,7 +1788,7 @@ pub async fn test_post_process_connection(
     let list_outcome = crate::llm_client::fetch_models(
         provider,
         api_key.clone(),
-        settings.post_process_timeout_secs,
+        settings.post_process_timeout_secs_for(&provider.id),
     )
     .await
     .map(|models| (models.len(), started.elapsed().as_millis() as u64));
@@ -1812,6 +1815,28 @@ pub async fn test_post_process_connection(
     };
 
     Ok(assemble_cloud_verdict(list_outcome, probe_outcome))
+}
+
+/// Set the keep-warm window for the LOCAL post-process model, in seconds.
+/// 0 (the default) is the exclusive swap of v1.3.0 (unload after every
+/// generation); up to 600 keeps the worker resident that long after the
+/// paste. Out-of-range values are rejected, never clamped.
+#[tauri::command]
+#[specta::specta]
+pub fn change_post_process_local_keep_warm_secs_setting(
+    app: AppHandle,
+    seconds: u64,
+) -> Result<(), String> {
+    const KEEP_WARM_MAX_SECONDS: u64 = 600;
+    if seconds > KEEP_WARM_MAX_SECONDS {
+        return Err(format!(
+            "Keep-warm window must be between 0 and {KEEP_WARM_MAX_SECONDS} seconds (got {seconds})"
+        ));
+    }
+    let mut settings = settings::get_settings(&app);
+    settings.post_process_local_keep_warm_secs = seconds;
+    settings::write_settings(&app, settings);
+    Ok(())
 }
 
 #[tauri::command]

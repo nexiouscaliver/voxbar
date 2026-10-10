@@ -41,6 +41,51 @@ pub fn set_post_process_timeout(app: AppHandle, seconds: u64) -> Result<(), Stri
     Ok(())
 }
 
+/// Set the per-provider override of the post-process timeout, in seconds.
+/// Same inclusive bounds as the global setting (rejecting out-of-range
+/// values instead of clamping); the provider's requests then run under
+/// this value instead of its class default. The reset command below
+/// removes the override; a stored 0 also resolves to the class default.
+#[tauri::command]
+#[specta::specta]
+pub fn set_post_process_timeout_for_provider(
+    app: AppHandle,
+    provider_id: String,
+    seconds: u64,
+) -> Result<(), String> {
+    if !(POST_PROCESS_TIMEOUT_MIN_SECONDS..=POST_PROCESS_TIMEOUT_MAX_SECONDS).contains(&seconds) {
+        return Err(format!(
+            "Post-process timeout must be between {} and {} seconds (got {})",
+            POST_PROCESS_TIMEOUT_MIN_SECONDS, POST_PROCESS_TIMEOUT_MAX_SECONDS, seconds
+        ));
+    }
+    let mut settings = get_settings(&app);
+    if !settings
+        .post_process_providers
+        .iter()
+        .any(|provider| provider.id == provider_id)
+    {
+        return Err(format!("unknown post-process provider: {provider_id}"));
+    }
+    settings
+        .post_process_timeouts
+        .insert(provider_id, seconds);
+    write_settings(&app, settings);
+    Ok(())
+}
+
+/// Remove the per-provider post-process timeout override: the provider's
+/// requests resolve through its class default again (Groq/Cerebras 30s,
+/// the others 60s), which is what the settings row shows as the reset
+/// target.
+#[tauri::command]
+#[specta::specta]
+pub fn reset_post_process_timeout_for_provider(app: AppHandle, provider_id: String) {
+    let mut settings = get_settings(&app);
+    settings.post_process_timeouts.remove(&provider_id);
+    write_settings(&app, settings);
+}
+
 /// Set the idle-unload timeout to a custom seconds value (the Settings
 /// numeric field and any future UI that speaks seconds). Rejects
 /// out-of-range values instead of clamping so a UI bug can't silently write

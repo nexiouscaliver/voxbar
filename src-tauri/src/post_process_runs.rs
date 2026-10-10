@@ -264,6 +264,22 @@ impl RunsRegistry {
         }
     }
 
+    /// A registry whose run ids can never collide with the process-wide
+    /// singleton's: `pp_log` appends lines to the SINGLETON by run id, so
+    /// a private registry minting ids from 1 would cross-contaminate the
+    /// parallel tests' records. Tests that exercise registry semantics in
+    /// isolation (the cancel sweep) use this instead.
+    #[cfg(test)]
+    pub(crate) fn isolated_for_test() -> Self {
+        static INSTANCE: AtomicU64 = AtomicU64::new(0);
+        let instance = INSTANCE.fetch_add(1, Ordering::Relaxed);
+        Self {
+            runs: Mutex::new(VecDeque::with_capacity(MAX_RUNS)),
+            starts: Mutex::new(std::collections::HashMap::new()),
+            next_run_id: AtomicU64::new(1_000_000_000 + instance * 1_000_000),
+        }
+    }
+
     /// The `requested` phase: mint the run id, push the record, write the
     /// line, emit the event. Returns the run id every later phase uses.
     pub fn begin(&self, app: Option<&AppHandle>, meta: RunRequestMeta) -> u64 {
@@ -625,35 +641,280 @@ pub(crate) fn outcome_log_level(outcome: &PostProcessOutcome) -> log::Level {
     }
 }
 
-/// Classify a cloud (llm_client) error detail into the failure class. The
-/// detail strings come from `send_chat_completion_with_schema` (HTTP status
-/// lines, sanitized transport diagnostics); the mapping is deliberately
-/// conservative: only markers that name a class map, everything unmatched
-/// is a network failure (the endpoint was unreachable or misbehaved).
-pub(crate) fn classify_cloud_failure(detail: &str) -> PostProcessFailureClass {
-    let lower = detail.to_lowercase();
-    if lower.contains("status 401") || lower.contains("status 403") {
-        return PostProcessFailureClass::Auth;
+// ---- THE shared output validator (both engines) ----
+
+// (Cloud failure classification moved into llm_client as the structured
+// PostProcessError when send_chat_completion_with_schema stopped returning
+// bare Strings; the pp: outcome layer now reads the class off the error.)
+
+/// Field name for structured output JSON schema. Shared by the cloud
+/// structured mode and the local engine, whose worker output is parsed
+/// against the same schema.
+pub(crate) const TRANSCRIPTION_FIELD: &str = "transcription";
+
+/// Strip invisible Unicode characters that some LLMs may insert.
+pub(crate) fn strip_invisible_chars(s: &str) -> String {
+    s.replace(['\u{200B}', '\u{200C}', '\u{200D}', '\u{FEFF}'], "")
+}
+
+/// Strip a leading `<think>...</think>` block. Some endpoints can't disable
+/// reasoning, and some local servers put the reasoning text into `content`
+/// instead of a separate field - without this the user would get the model's
+/// chain of thought pasted along with the cleaned transcription.
+pub(crate) fn strip_think_block(s: &str) -> &str {
+    if let Some(rest) = s.trim_start().strip_prefix("<think>") {
+        if let Some(end) = rest.find("</think>") {
+            return rest[end + "</think>".len()..].trim_start();
+        }
     }
-    if lower.contains("status 400")
-        && (lower.contains("context length")
-            || lower.contains("context window")
-            || lower.contains("maximum context")
-            || lower.contains("too many tokens"))
+    s
+}
+
+/// Which shape a post-process engine's raw output has, for the shared
+/// validator: structured engines answer JSON against the schema; free-text
+/// engines (the legacy prompt shape, Apple Intelligence) answer prose.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PostProcessOutputMode {
+    StructuredJson,
+    FreeText,
+}
+
+/// Why the shared validator rejected an engine's output. Carries the
+/// local-engine skip vocabulary (the local path's existing toast UX keys
+/// off it) plus a human diagnostic; every failure classifies as
+/// output_invalid at the outcome layer (the WS3 rule: fall back to the raw
+/// transcript).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct PostProcessValidationFailure {
+    pub skip_reason: crate::local_llm::SkipReason,
+    pub detail: String,
+}
+
+fn validation_failure(
+    skip_reason: crate::local_llm::SkipReason,
+    detail: impl Into<String>,
+) -> PostProcessValidationFailure {
+    PostProcessValidationFailure {
+        skip_reason,
+        detail: detail.into(),
+    }
+}
+
+/// The scripts the language-sanity check can tell apart. Coarse on
+/// purpose: it exists to catch a model that ANSWERED in the wrong language
+/// (or translated against the template's keep-language rule), not to
+/// police mixed-script text. Kana and Hangul are distinct from Han so a
+/// zh transcript answered in Japanese or Korean still trips.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub(crate) enum TextScript {
+    Latin,
+    Cyrillic,
+    Greek,
+    Arabic,
+    Hebrew,
+    Devanagari,
+    Bengali,
+    Thai,
+    Han,
+    Kana,
+    Hangul,
+}
+
+impl TextScript {
+    pub fn name(self) -> &'static str {
+        match self {
+            TextScript::Latin => "latin",
+            TextScript::Cyrillic => "cyrillic",
+            TextScript::Greek => "greek",
+            TextScript::Arabic => "arabic",
+            TextScript::Hebrew => "hebrew",
+            TextScript::Devanagari => "devanagari",
+            TextScript::Bengali => "bengali",
+            TextScript::Thai => "thai",
+            TextScript::Han => "han",
+            TextScript::Kana => "kana",
+            TextScript::Hangul => "hangul",
+        }
+    }
+
+    fn from_char(c: char) -> Option<TextScript> {
+        let cp = c as u32;
+        Some(match cp {
+            // ASCII letters + Latin-1 supplement + Latin extended A/B.
+            0x41..=0x5A | 0x61..=0x7A | 0xC0..=0x24F => TextScript::Latin,
+            0x370..=0x3FF | 0x1F00..=0x1FFF => TextScript::Greek,
+            0x400..=0x52F => TextScript::Cyrillic,
+            0x590..=0x5FF => TextScript::Hebrew,
+            0x600..=0x6FF | 0xFB50..=0xFDFF | 0xFE70..=0xFEFF => TextScript::Arabic,
+            0x900..=0x97F => TextScript::Devanagari,
+            0x980..=0x9FF => TextScript::Bengali,
+            0xE00..=0xE7F => TextScript::Thai,
+            // Hiragana + katakana (plus kana supplement block tail).
+            0x3040..=0x30FF | 0x31F0..=0x31FF => TextScript::Kana,
+            // CJK ideographs + extension A + compatibility ideographs.
+            0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF => TextScript::Han,
+            0xAC00..=0xD7AF | 0x1100..=0x11FF => TextScript::Hangul,
+            _ => return None,
+        })
+    }
+}
+
+/// A text's dominant script: the most frequent script-classified
+/// character, when at least [`SCRIPT_SIGNAL_MIN`] characters carry a
+/// script and one script strictly leads. Digits, punctuation, whitespace,
+/// and weak signals read as None (the check is skipped, never guessed).
+pub(crate) const SCRIPT_SIGNAL_MIN: usize = 3;
+
+pub(crate) fn dominant_script(text: &str) -> Option<TextScript> {
+    let mut counts = std::collections::BTreeMap::<TextScript, usize>::new();
+    let mut total = 0usize;
+    for script in text.chars().filter_map(TextScript::from_char) {
+        *counts.entry(script).or_default() += 1;
+        total += 1;
+    }
+    if total < SCRIPT_SIGNAL_MIN {
+        return None;
+    }
+    let mut ranked: Vec<(TextScript, usize)> = counts.into_iter().collect();
+    ranked.sort_by(|a, b| b.1.cmp(&a.1));
+    match ranked.as_slice() {
+        // A strict leader only: a tie is genuinely mixed text, and mixed
+        // text must never fail a script check.
+        [(first, first_n), (second, second_n), ..] if first_n > second_n => Some(*first),
+        [(only, _)] => Some(*only),
+        _ => None,
+    }
+}
+
+/// The script a template's language tag DECLARES for its output, from the
+/// tag's ISO 15924 subtag (hi-Latn declares Latin). `auto`, bare language
+/// tags, and unknown script subtags declare nothing.
+pub(crate) fn declared_script(template_language: &str) -> Option<TextScript> {
+    let declared = template_language
+        .split('-')
+        .find(|part| part.len() == 4 && part.chars().all(|c| c.is_ascii_alphabetic()))?;
+    match declared.to_ascii_lowercase().as_str() {
+        "latn" => Some(TextScript::Latin),
+        "cyrl" => Some(TextScript::Cyrillic),
+        "grek" => Some(TextScript::Greek),
+        "arab" => Some(TextScript::Arabic),
+        "hebr" => Some(TextScript::Hebrew),
+        "deva" => Some(TextScript::Devanagari),
+        "beng" => Some(TextScript::Bengali),
+        "thai" => Some(TextScript::Thai),
+        "hani" | "hans" | "hant" => Some(TextScript::Han),
+        "hrkt" | "hira" | "kana" => Some(TextScript::Kana),
+        "hang" => Some(TextScript::Hangul),
+        _ => None,
+    }
+}
+
+/// The language-sanity rule: the output's dominant script must match the
+/// transcript's unless the template's language tag sanctions the change
+/// (hi-Latn asks for Latin; a Serbian cyrillic->latin template declares
+/// Cyrl->Latn the same way).
+pub(crate) fn fails_script_guard(
+    transcript_script: TextScript,
+    output_script: TextScript,
+    template_language: Option<&str>,
+) -> bool {
+    if transcript_script == output_script {
+        return false;
+    }
+    match template_language.and_then(declared_script) {
+        Some(declared) => declared != output_script,
+        None => true,
+    }
+}
+
+/// The upper fidelity bound, the mirror of forecast::fails_fidelity_guard
+/// (which catches COLLAPSE): a cleanup that EXPANDED the text more than
+/// 10x is not a cleanup (the model answered the transcript, or padded it).
+/// Same >= 20-unit floor as the collapse guard, so short inputs are exempt
+/// from ratio checks entirely. Pure and CJK-aware through text_units.
+pub(crate) const EXPANSION_GUARD_RATIO: u64 = 10;
+
+pub(crate) fn fails_expansion_guard(input: &str, output: &str) -> bool {
+    let input_units = crate::local_llm::forecast::text_units(input);
+    if input_units < 20 {
+        return false;
+    }
+    crate::local_llm::forecast::text_units(output) > input_units.saturating_mul(EXPANSION_GUARD_RATIO)
+}
+
+/// THE shared output validator: every post-process success path (cloud
+/// structured, cloud legacy, Apple Intelligence, the local engine) routes
+/// its raw output through here before any `Some(..)` can be returned, so
+/// the never-lose-the-transcript rule is enforced in exactly one place.
+/// Pure, and colocated with the lifecycle that reports its failures.
+///
+/// Structured mode strips the think belt and invisibles, parses the JSON,
+/// extracts the transcription field, and strips again; free-text mode
+/// strips only. Both modes then apply, against the transcript:
+///
+/// 1. non-empty (an empty extraction never pastes),
+/// 2. the CJK-aware length guards (collapse via forecast::
+///    fails_fidelity_guard, expansion via fails_expansion_guard),
+/// 3. language sanity (the dominant script must match unless the
+///    template's language tag sanctions the change).
+///
+/// Every failure means the caller must fall back to the raw transcript.
+pub(crate) fn validate_post_process_output(
+    transcript: &str,
+    generated: &str,
+    mode: PostProcessOutputMode,
+    template_language: Option<&str>,
+) -> Result<String, PostProcessValidationFailure> {
+    use crate::local_llm::SkipReason;
+    let engine_invalid =
+        |detail: &str| validation_failure(SkipReason::EngineFailed, detail.to_string());
+
+    let extracted = match mode {
+        PostProcessOutputMode::StructuredJson => {
+            let content = strip_invisible_chars(strip_think_block(generated));
+            match serde_json::from_str::<serde_json::Value>(&content) {
+                Ok(json) => match json.get(TRANSCRIPTION_FIELD).and_then(|t| t.as_str()) {
+                    Some(field) => strip_invisible_chars(strip_think_block(field)),
+                    None => {
+                        return Err(engine_invalid(
+                            "the model output had no transcription field",
+                        ))
+                    }
+                },
+                Err(_) => {
+                    return Err(engine_invalid("the model output was not valid JSON"));
+                }
+            }
+        }
+        PostProcessOutputMode::FreeText => strip_invisible_chars(strip_think_block(generated)),
+    };
+    if extracted.trim().is_empty() {
+        return Err(engine_invalid("the model output was empty"));
+    }
+    if crate::local_llm::forecast::fails_fidelity_guard(transcript, &extracted) {
+        return Err(validation_failure(
+            SkipReason::LengthGuard,
+            "the cleaned text collapsed below the fidelity threshold",
+        ));
+    }
+    if fails_expansion_guard(transcript, &extracted) {
+        return Err(validation_failure(
+            SkipReason::LengthGuard,
+            "the cleaned text expanded past the fidelity ceiling",
+        ));
+    }
+    if let (Some(transcript_script), Some(output_script)) =
+        (dominant_script(transcript), dominant_script(&extracted))
     {
-        return PostProcessFailureClass::ContextLength;
+        if fails_script_guard(transcript_script, output_script, template_language) {
+            return Err(engine_invalid(&format!(
+                "the output switched script from {} to {}",
+                transcript_script.name(),
+                output_script.name()
+            )));
+        }
     }
-    if lower.contains("failed to parse") || lower.contains("could not parse") {
-        return PostProcessFailureClass::OutputInvalid;
-    }
-    if lower.contains("timeout")
-        || lower.contains("timed out")
-        || lower.contains("status 408")
-        || lower.contains("status 504")
-    {
-        return PostProcessFailureClass::Timeout;
-    }
-    PostProcessFailureClass::Network
+    Ok(extracted)
 }
 
 /// The per-run summary history persists (the two save_entry call sites).
@@ -752,16 +1013,20 @@ mod tests {
     /// monotonic, and latest() returns newest-first.
     #[test]
     fn ring_caps_at_max_runs() {
-        let first = runs().begin(None, meta("b", PostProcessEngineKind::Cloud, "m"));
+        // An isolated registry: this test mints 100+ runs to prove the
+        // ring cap, and doing that on the process-wide singleton would
+        // evict the live runs the parallel tests hold mid-flight.
+        let registry = RunsRegistry::isolated_for_test();
+        let first = registry.begin(None, meta("b", PostProcessEngineKind::Cloud, "m"));
         for _ in 0..(MAX_RUNS + 2) {
-            runs().begin(None, meta("b", PostProcessEngineKind::Cloud, "m"));
+            registry.begin(None, meta("b", PostProcessEngineKind::Cloud, "m"));
         }
-        let all = runs().latest(None);
+        let all = registry.latest(None);
         assert_eq!(all.len(), MAX_RUNS, "ring holds at most MAX_RUNS");
         // Newest first.
         assert!(all[0].run_id > all[all.len() - 1].run_id);
         // The very first run fell off the front.
-        assert!(runs().snapshot(first).is_none(), "oldest run evicted");
+        assert!(registry.snapshot(first).is_none(), "oldest run evicted");
         let ids: Vec<u64> = all.iter().map(|r| r.run_id).collect();
         let mut sorted = ids.clone();
         sorted.sort_unstable();
@@ -858,40 +1123,213 @@ mod tests {
         );
     }
 
-    /// Cloud error details classify onto the failure-class vocabulary: a
-    /// 401 is auth, timeouts are timeouts, context-window rejections are
-    /// context_length, parse failures are output_invalid, and an unknown
-    /// transport failure is network.
+    /// Cloud error classification moved into llm_client as the structured
+    /// PostProcessError; its table is pinned there
+    /// (completion_status_classification_table). The registry-level class
+    /// tokens stay pinned here.
     #[test]
-    fn cloud_failures_classify() {
+    fn failure_class_tokens_stay_snake_case() {
+        assert_eq!(failure_class_str(PostProcessFailureClass::Auth), "auth");
         assert_eq!(
-            classify_cloud_failure(
-                "API request failed with status 401: {\"error\":{\"code\":401}}"
-            ),
-            PostProcessFailureClass::Auth
+            failure_class_str(PostProcessFailureClass::ContextLength),
+            "context_length"
         );
         assert_eq!(
-            classify_cloud_failure("API request failed with status 403: forbidden"),
-            PostProcessFailureClass::Auth
+            failure_class_str(PostProcessFailureClass::OutputInvalid),
+            "output_invalid"
         );
         assert_eq!(
-            classify_cloud_failure(
-                "HTTP request failed (kind: connect, timeout, url: https://api/x)"
-            ),
-            PostProcessFailureClass::Timeout
+            failure_class_str(PostProcessFailureClass::Cancelled),
+            "cancelled"
         );
+    }
+
+    // ---- The shared output validator (both engines) ----
+
+    use super::{
+        dominant_script, fails_expansion_guard, fails_script_guard, validate_post_process_output,
+        PostProcessOutputMode, TextScript,
+    };
+
+    /// The dominant-script classifier over the pure tables: strong signals
+    /// read their script, weak signals read None, ties read None, and
+    /// digits/punctuation never carry a script.
+    #[test]
+    fn dominant_script_tables() {
+        assert_eq!(dominant_script(""), None);
+        assert_eq!(dominant_script("1234 !? ..."), None);
+        assert_eq!(dominant_script("hi"), None, "under the signal floor");
+        assert_eq!(dominant_script("hello world"), Some(TextScript::Latin));
+        assert_eq!(dominant_script("Привет мир как дела"), Some(TextScript::Cyrillic));
+        assert_eq!(dominant_script("こんにちは世界"), Some(TextScript::Kana));
+        assert_eq!(dominant_script("你好世界今天"), Some(TextScript::Han));
+        assert_eq!(dominant_script("안녕하세요 세계"), Some(TextScript::Hangul));
+        assert_eq!(dominant_script("नमस्ते दुनिया कैसी है"), Some(TextScript::Devanagari));
+        // Mixed but led: zh with a couple of English words stays Han.
         assert_eq!(
-            classify_cloud_failure("API request failed with status 400: This model's maximum context length is 4096 tokens"),
-            PostProcessFailureClass::ContextLength
+            dominant_script(&format!("你好世界测试 {} ok", "字".repeat(10))),
+            Some(TextScript::Han)
         );
+        // An exact tie is genuinely mixed: no dominant script, no check.
+        assert_eq!(dominant_script("ab你好"), None);
+    }
+
+    /// The script guard: same script passes; a switch fails unless the
+    /// template's language tag declares the output script (hi-Latn), and
+    /// auto/None/unknown tags sanction nothing.
+    #[test]
+    fn script_guard_sanctions_only_declared_switches() {
+        use TextScript::*;
+        assert!(!fails_script_guard(Latin, Latin, None));
+        assert!(!fails_script_guard(Han, Han, Some("zh")));
+        assert!(fails_script_guard(Latin, Han, None), "an English transcript answered in Chinese fails");
+        assert!(fails_script_guard(Latin, Han, Some("auto")));
+        assert!(fails_script_guard(Latin, Kana, Some("en")));
+        // hi-Latn: Latin output for a Devanagari transcript is sanctioned.
+        assert!(!fails_script_guard(Devanagari, Latin, Some("hi-Latn")));
+        assert!(fails_script_guard(Devanagari, Latin, Some("hi")));
+        assert!(fails_script_guard(Devanagari, Latin, Some("hi-Deva")));
+        // The declared script must be the OUTPUT's: hi-Latn does not
+        // sanction a Han answer.
+        assert!(fails_script_guard(Devanagari, Han, Some("hi-Latn")));
+    }
+
+    /// The expansion guard: a cleanup that grew the text more than 10x
+    /// fails on meaningful inputs, mirrors the collapse guard's 20-unit
+    /// floor, and is CJK-aware through text_units.
+    #[test]
+    fn expansion_guard_bounds_runaway_output() {
+        let input_20 = "one two three four five six seven eight nine ten \
+                        eleven twelve thirteen fourteen fifteen sixteen \
+                        seventeen eighteen nineteen twenty";
+        assert!(fails_expansion_guard(input_20, &format!("word {}", "pad ".repeat(200))));
+        assert!(!fails_expansion_guard(input_20, "one two three four"));
+        // Short inputs are exempt.
+        assert!(!fails_expansion_guard("hi", &"x ".repeat(500)));
+        // CJK counts per character.
+        let zh_input: String = "字".repeat(30);
+        assert!(fails_expansion_guard(&zh_input, &"字".repeat(400)));
+        assert!(!fails_expansion_guard(&zh_input, &"字".repeat(200)));
+    }
+
+    /// The shared validator's language sanity: an English transcript whose
+    /// cleaned output came back in Japanese fails (the model answered or
+    /// translated); the same switch under an explicit hi-Latn template
+    /// passes; a legitimate same-script cleanup passes in both modes.
+    #[test]
+    fn validator_rejects_script_switches_unless_sanctioned() {
+        let transcript = "hello um world this is a test transcript with words";
+        let japanese = "こんにちは、これはテストの書き起こしです。";
+        for mode in [
+            PostProcessOutputMode::StructuredJson,
+            PostProcessOutputMode::FreeText,
+        ] {
+            let (transcript_text, output_text) = match mode {
+                PostProcessOutputMode::StructuredJson => (
+                    transcript,
+                    format!("{{\"transcription\":\"{japanese}\"}}"),
+                ),
+                PostProcessOutputMode::FreeText => (transcript, japanese.to_string()),
+            };
+            let failure = validate_post_process_output(
+                transcript_text,
+                &output_text,
+                mode,
+                None,
+            )
+            .unwrap_err();
+            assert!(
+                failure.detail.contains("switched script"),
+                "mode {mode:?}: {}",
+                failure.detail
+            );
+        }
+
+        // Sanctioned: a Devanagari transcript under an hi-Latn template may
+        // come back Latin.
+        let hindi = "नमस्ते दुनिया यह एक परीक्षण प्रतिलिपि है जिसमें कई शब्द हैं";
+        let latin = "Namaste duniya yah ek parikshan pratilipi hai jis mein kai shabd hain";
+        assert!(validate_post_process_output(
+            hindi,
+            &format!("{{\"transcription\":\"{latin}\"}}"),
+            PostProcessOutputMode::StructuredJson,
+            Some("hi-Latn"),
+        )
+        .is_ok());
+        // Without the sanction the same output fails.
+        assert!(validate_post_process_output(
+            hindi,
+            &format!("{{\"transcription\":\"{latin}\"}}"),
+            PostProcessOutputMode::StructuredJson,
+            Some("hi"),
+        )
+        .is_err());
+    }
+
+    /// The shared validator's length guards: a 10x expansion fails, a
+    /// collapse fails (the existing forecast guard, still applied), and a
+    /// faithful cleanup passes in both modes. This is the same function
+    /// the local engine's validate_output delegates to.
+    #[test]
+    fn validator_length_guards_pin_both_directions() {
+        let input_20 = "one two three four five six seven eight nine ten \
+                        eleven twelve thirteen fourteen fifteen sixteen \
+                        seventeen eighteen nineteen twenty";
+        // 10x expansion.
+        let expanded = format!("{} {}", input_20, "pad ".repeat(200).trim_end());
+        let failure = validate_post_process_output(
+            input_20,
+            &format!("{{\"transcription\":\"{expanded}\"}}"),
+            PostProcessOutputMode::StructuredJson,
+            None,
+        )
+        .unwrap_err();
         assert_eq!(
-            classify_cloud_failure("Failed to parse API response (kind: decode)"),
-            PostProcessFailureClass::OutputInvalid
+            failure.skip_reason,
+            crate::local_llm::SkipReason::LengthGuard
         );
+        // Collapse (the pre-existing guard).
+        let failure = validate_post_process_output(
+            input_20,
+            "{\"transcription\":\"gone\"}",
+            PostProcessOutputMode::StructuredJson,
+            None,
+        )
+        .unwrap_err();
         assert_eq!(
-            classify_cloud_failure("HTTP request failed (kind: connect)"),
-            PostProcessFailureClass::Network
+            failure.skip_reason,
+            crate::local_llm::SkipReason::LengthGuard
         );
+        // Empty output.
+        let failure = validate_post_process_output(
+            input_20,
+            "{\"transcription\":\"\"}",
+            PostProcessOutputMode::StructuredJson,
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(
+            failure.skip_reason,
+            crate::local_llm::SkipReason::EngineFailed
+        );
+        // Faithful cleanup passes in both modes.
+        assert_eq!(
+            validate_post_process_output(
+                input_20,
+                "{\"transcription\":\"One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty.\"}",
+                PostProcessOutputMode::StructuredJson,
+                None,
+            )
+            .unwrap(),
+            "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty."
+        );
+        assert!(validate_post_process_output(
+            input_20,
+            "One two three four five six seven eight nine ten.",
+            PostProcessOutputMode::FreeText,
+            None,
+        )
+        .is_ok());
     }
 
     /// The local engine's swap_wait rides the engine line (measured from
@@ -912,9 +1350,13 @@ mod tests {
     /// A user cancel closes every live dictation run as failed(cancelled)
     /// (a dropped cloud future has no detached runner to conclude it),
     /// while history-retry runs are left alone to conclude themselves.
+    /// Runs against a PRIVATE registry: the production sweep operates on
+    /// the process-wide singleton, and a test sweeping the singleton would
+    /// cancel whatever live runs the parallel registry tests hold.
     #[test]
     fn cancel_closes_live_dictation_runs_but_not_retries() {
-        let dictation = runs().begin(
+        let registry = RunsRegistry::isolated_for_test();
+        let dictation = registry.begin(
             None,
             meta(
                 "transcribe_with_post_process",
@@ -922,17 +1364,14 @@ mod tests {
                 "m",
             ),
         );
-        let retry = runs().begin(
-            None,
-            meta("history_retry", PostProcessEngineKind::Cloud, "m"),
-        );
-        runs().cancel_live_dictation_runs();
+        let retry = registry.begin(None, meta("history_retry", PostProcessEngineKind::Cloud, "m"));
+        registry.cancel_live_dictation_runs();
         assert_eq!(
-            runs().snapshot(dictation).unwrap().outcome,
+            registry.snapshot(dictation).unwrap().outcome,
             Some(PostProcessOutcome::Failed {
                 class: PostProcessFailureClass::Cancelled
             })
         );
-        assert_eq!(runs().snapshot(retry).unwrap().outcome, None);
+        assert_eq!(registry.snapshot(retry).unwrap().outcome, None);
     }
 }

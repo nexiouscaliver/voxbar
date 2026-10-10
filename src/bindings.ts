@@ -384,6 +384,20 @@ async setPostProcessSelectedPrompt(id: string) : Promise<Result<null, string>> {
 }
 },
 /**
+ * Set the keep-warm window for the LOCAL post-process model, in seconds.
+ * 0 (the default) is the exclusive swap of v1.3.0 (unload after every
+ * generation); up to 600 keeps the worker resident that long after the
+ * paste. Out-of-range values are rejected, never clamped.
+ */
+async changePostProcessLocalKeepWarmSecsSetting(seconds: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_post_process_local_keep_warm_secs_setting", { seconds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
  * The cycle command (the tray and any future surface share it). Advances
  * the selection and confirms the new template through the overlay notice.
  */
@@ -1242,6 +1256,30 @@ async setPostProcessTimeout(seconds: number) : Promise<Result<null, string>> {
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * Set the per-provider override of the post-process timeout, in seconds.
+ * Same inclusive bounds as the global setting (rejecting out-of-range
+ * values instead of clamping); the provider's requests then run under
+ * this value instead of its class default. The reset command below
+ * removes the override; a stored 0 also resolves to the class default.
+ */
+async setPostProcessTimeoutForProvider(providerId: string, seconds: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("set_post_process_timeout_for_provider", { providerId, seconds }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * Remove the per-provider post-process timeout override: the provider's
+ * requests resolve through its class default again (Groq/Cerebras 30s,
+ * the others 60s), which is what the settings row shows as the reset
+ * target.
+ */
+async resetPostProcessTimeoutForProvider(providerId: string) : Promise<void> {
+    await TAURI_INVOKE("reset_post_process_timeout_for_provider", { providerId });
+},
 async getModelLoadStatus() : Promise<Result<ModelLoadStatus, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_model_load_status") };
@@ -1459,7 +1497,25 @@ show_history_model?: boolean; recording_retention_period?: RecordingRetentionPer
  * with only the tray Cancel as an escape. Applies to both the chat
  * completion and the model-list requests.
  */
-post_process_timeout_secs?: number; post_process_provider_id?: string; 
+post_process_timeout_secs?: number; 
+/**
+ * Per-provider user overrides of the post-process timeout, keyed by
+ * provider id. Empty (the default) means every provider resolves
+ * through its class default (see
+ * [`PostProcessProvider::default_timeout_secs`]) and then the global
+ * `post_process_timeout_secs`; a stored 0 resolves the same way (the
+ * reset target), never "no timeout".
+ */
+post_process_timeouts?: Partial<{ [key in string]: number }>; 
+/**
+ * Keep-warm window for the LOCAL post-process model, in seconds. 0
+ * (the default) is exactly today's behavior: the swap runner unloads
+ * the worker after every generation and restores the voice model (the
+ * L2 exclusive swap). When > 0, the runner holds the worker resident
+ * for the window AFTER the paste, polling the dictation-wins triggers
+ * and an evict request; any voice model load evicts it first.
+ */
+post_process_local_keep_warm_secs?: number; post_process_provider_id?: string; 
 /**
  * The registry id of the local post-process model the swap runner loads
  * (catalog entry or the pinned builtin). Defaults to the pinned
@@ -1928,7 +1984,15 @@ export type PostProcessOutcome =
  * the failure class.
  */
 { kind: "failed"; class: PostProcessFailureClass }
-export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean }
+export type PostProcessProvider = { id: string; label: string; base_url: string; allow_base_url_edit?: boolean; models_endpoint?: string | null; supports_structured_output?: boolean; 
+/**
+ * The provider class's default total-request timeout, in seconds.
+ * Fast inference hosts (Groq, Cerebras) default tighter (30) than the
+ * general 60; a per-provider user override
+ * (`post_process_timeouts`) beats it, and 0 falls through to the
+ * global `post_process_timeout_secs` at resolution time.
+ */
+default_timeout_secs?: number }
 /**
  * Emitted once per lifecycle phase. The overlay window drives its
  * "Polishing (model) 1.8s" chip off Requested/Outcome; the main window

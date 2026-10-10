@@ -145,6 +145,14 @@ pub fn switch_active_model(app: &AppHandle, model_id: &str) -> Result<(), String
     let model_manager = app.state::<Arc<ModelManager>>();
     let transcription_manager = app.state::<Arc<TranscriptionManager>>();
 
+    // A keep-warm local post-process worker holds the model RAM this
+    // voice load needs (never co-resident): evict it first, bounded by
+    // the worker's kill/wait timeouts. Instant no-op when nothing is
+    // warm (the default).
+    if let Some(llm) = app.try_state::<Arc<crate::local_llm::manager::LlmManager>>() {
+        llm.evict_warm("the active voice model changed");
+    }
+
     // Atomically claim the loading slot - prevents concurrent model loads
     // from tray double-clicks or overlapping commands. The guard resets the
     // flag on drop (including early returns, errors, and panics), wherever

@@ -680,7 +680,7 @@
         },
         "timeout": {
           "title": "Anmodningstimeout",
-          "description": "Hvor længe en cloud-efterbehandlingsanmodning må køre, før den giver op og den rå transskription bruges. Gælder, når en endpoint holder op med at svare."
+          "description": "Hvor længe denne udbyders efterbehandlingsforespørgsler må køre, før de giver op og den rå transskription bruges. Nulstil vender tilbage til udbyderens {{classDefault}}s-standard."
         },
         "testConnection": "Test forbindelsen",
         "testConnectionRunning": "Tester...",
@@ -708,7 +708,12 @@
         "deleteInUse": "Kan ikke slette lige nu: en efterbehandling kører. Prøv igen om et øjeblik.",
         "downloadFailed": "Kunne ikke downloade: {{error}}",
         "deleteFailed": "Kunne ikke slette modellen: {{error}}",
-        "providerLabel": "Lokalt (på enheden)"
+        "providerLabel": "Lokalt (på enheden)",
+        "keepWarm": {
+          "title": "Hold den lokale model varm",
+          "description": "Hvor længe den lokale efterbehandlingsmodel bliver i hukommelsen efter en oprydning i stedet for at blive lukket ned med det samme. En diktering henter altid hukommelsen først.",
+          "off": "Fra"
+        }
       },
       "models": {
         "title": "Efterbehandlingsmodeller",

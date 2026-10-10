@@ -2208,6 +2208,19 @@ impl TranscriptionManager {
             return;
         }
 
+        // A keep-warm local post-process worker holds the model RAM this
+        // voice load needs (never co-resident, spec L2): evict it FIRST,
+        // bounded by the worker's graceful-exit + kill-wait timeouts. The
+        // warm window releases the loading slot, so the claim below never
+        // sees it; no-op (an instant return) when nothing is warm, which
+        // is the default (keep-warm off).
+        if let Some(llm) = self
+            .app_handle
+            .try_state::<Arc<crate::local_llm::manager::LlmManager>>()
+        {
+            llm.evict_warm("a voice model load");
+        }
+
         // Claim the loading slot through the same atomic claim every other
         // load path uses (a concurrent loader keeps the old early return).
         // The guard is MOVED into the loader thread below, so its Drop is
