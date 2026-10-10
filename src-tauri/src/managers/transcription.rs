@@ -24,6 +24,7 @@ use anyhow::Result;
 use log::{debug, error, info, warn};
 use serde::{Deserialize, Serialize};
 use specta::Type;
+use std::collections::HashMap;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{mpsc, Arc, Condvar, Mutex, MutexGuard};
@@ -155,7 +156,14 @@ fn fallback_candidate_list(
         })
         .map(|info| memory::FallbackCandidate {
             rank: fallback_rank(info),
-            footprint_bytes: info.size_mb.saturating_mul(1024 * 1024),
+            // KB-219: the SAME runtime-inclusive forecast the recursive
+            // fallback load re-gates with (max(size * 3/2, measured), the
+            // unmeasured term here), so a candidate this resolver accepts
+            // cannot be terminally refused by the no-cascade load's own
+            // forecast for the same free memory. The retired bare-size
+            // footprint under-counted by the 3/2 runtime multiplier and let
+            // the resolver hand the recursion a model it then refused.
+            footprint_bytes: asr_forecast_bytes(info.size_mb.saturating_mul(1024 * 1024), None),
             id: info.id.clone(),
         })
         .collect()
@@ -1379,6 +1387,24 @@ fn asr_forecast_bytes(file_size_bytes: u64, measured_asr_rss: Option<u64>) -> u6
     crate::local_llm::forecast::runtime_inclusive_bytes(file_size_bytes, measured_asr_rss)
 }
 
+/// KB-218: the per-model lookup behind the voice gate's measured-RSS floor.
+/// The measurement map is keyed by the id of the model that was actually
+/// loaded (the same semantics as the LLM gate's `measured_rss`): a reading
+/// captured for one model never floors a different model's forecast, and a
+/// missing key means NO floor at all - the size-derived 3/2 multiplier
+/// stands alone, exactly like a first-ever load. Only TranscribeCpp
+/// engines have a worker whose RSS is captured, so non-worker (ONNX)
+/// engines read no floor even if their id somehow carries an entry.
+fn measured_asr_rss_for(
+    measured: &HashMap<String, u64>,
+    model_id: &str,
+    is_transcribe_cpp: bool,
+) -> Option<u64> {
+    is_transcribe_cpp
+        .then(|| measured.get(model_id).copied())
+        .flatten()
+}
+
 /// RAII guard that clears the streaming worker flags on any worker exit -
 /// normal return, early return, or a panic that unwinds the detached worker
 /// thread. Tokens prevent an older worker from clearing a newer worker's
@@ -1440,14 +1466,19 @@ pub struct TranscriptionManager {
     /// interim overlay text, absorbs manual hotkey edits, and folds into the
     /// finalize path. See [`StreamSessionBuffer`].
     session_buffer: Arc<Mutex<StreamSessionBuffer>>,
-    /// Measured RSS of the transcribe-cpp worker captured after its last
-    /// successful model load (in-memory only, like the LLM gate's
-    /// measured_rss). Feeds the voice gate's runtime-inclusive forecast so
-    /// an ASR model whose true resident footprint (weights + Metal wired
-    /// buffers + compute scratch) exceeds the file-size estimate cannot pass
-    /// the gate on the exact voice/LLM swap cycle that loads both in quick
-    /// succession.
-    measured_asr_rss: Arc<Mutex<Option<u64>>>,
+    /// Measured RSS of the transcribe-cpp worker, captured after each
+    /// successful model load and KEYED BY MODEL ID (KB-218; in-memory only,
+    /// like the LLM gate's measured_rss map, which never persists and never
+    /// shares a reading across models). Feeds the voice gate's
+    /// runtime-inclusive forecast so an ASR model whose true resident
+    /// footprint (weights + Metal wired buffers + compute scratch) exceeds
+    /// the file-size estimate cannot pass the gate on the exact voice/LLM
+    /// swap cycle that loads both in quick succession. Per-model keying
+    /// means switching big->small forecasts the small model from its own
+    /// key (or plain size math when unmeasured), never the big model's RSS.
+    /// Entries survive unload/switch: a reading for a model id is still a
+    /// valid floor if that model is re-selected, matching the LLM gate.
+    measured_asr_rss: Arc<Mutex<HashMap<String, u64>>>,
 }
 
 impl TranscriptionManager {
@@ -1469,7 +1500,7 @@ impl TranscriptionManager {
             next_stream_worker_id: Arc::new(AtomicU64::new(1)),
             active_stream_worker: Arc::new(AtomicU64::new(0)),
             session_buffer: Arc::new(Mutex::new(StreamSessionBuffer::default())),
-            measured_asr_rss: Arc::new(Mutex::new(None)),
+            measured_asr_rss: Arc::new(Mutex::new(HashMap::new())),
         };
 
         // Start the idle watcher
@@ -1625,8 +1656,10 @@ impl TranscriptionManager {
     /// gate in `load_model_with_device_internal`): every downloaded model
     /// except the one that just failed: catalog entries at their editorial
     /// rank, user-added Hugging Face and custom models after them (see
-    /// [`fallback_rank`]), with the same size-derived footprint the gate
-    /// compares. Nothing is ever downloaded for this list: it only inventories
+    /// [`fallback_rank`]), with the same runtime-inclusive footprint the
+    /// recursive fallback load's gate re-checks (KB-219: the resolver and
+    /// the gate can never disagree on whether a candidate fits). Nothing is
+    /// ever downloaded for this list: it only inventories
     /// what is already on disk.
     fn fallback_candidates(&self, failed_id: &str) -> Vec<memory::FallbackCandidate> {
         let language_intent = get_settings(&self.app_handle).selected_language;
@@ -1887,11 +1920,17 @@ impl TranscriptionManager {
         // margin is the user's memory_gate_headroom_mb setting (default 0);
         // no hidden headroom is added on top.
         let file_size_bytes = model_info.size_mb.saturating_mul(1024 * 1024);
-        let measured_asr_rss = self
-            .measured_asr_rss
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .filter(|_| matches!(model_info.engine_type, EngineType::TranscribeCpp));
+        // KB-218: THIS model's own measured RSS (captured after its own
+        // first successful load this launch), never a different model's
+        // reading: the per-model lookup mirrors the LLM gate's measured_rss
+        // map, so switching big->small forecasts the small model from its
+        // own key - or plain size math when unmeasured - instead of
+        // refusing it against the big model's phantom RSS.
+        let measured_asr_rss = measured_asr_rss_for(
+            &self.measured_asr_rss.lock().unwrap_or_else(|e| e.into_inner()),
+            model_id,
+            matches!(model_info.engine_type, EngineType::TranscribeCpp),
+        );
         // Runtime-inclusive forecast: max(file size * 3/2, measured worker
         // RSS), the exact composition the local-LLM gate uses (one shared
         // helper), so a model whose resident footprint runs ~1.5x its file
@@ -2210,16 +2249,19 @@ impl TranscriptionManager {
         self.touch_activity();
 
         // Capture the transcribe-cpp worker's measured RSS now that the
-        // model is resident: the runtime-inclusive term of the next voice
-        // gate decision (the same refinement the LLM gate applies after its
-        // first generation). ONNX engines load in-process with no worker
-        // pid; their loads leave the last measurement alone.
+        // model is resident, KEYED BY THE LOADED MODEL'S ID (KB-218): the
+        // runtime-inclusive term of THIS model's next gate decision (the
+        // same per-model refinement the LLM gate applies after its first
+        // generation). ONNX engines load in-process with no worker pid;
+        // their loads leave the map alone. Entries are never deleted on
+        // unload/switch: a reading for a model id is still a valid floor
+        // when that model is re-selected, matching the LLM gate.
         if let Some(pid) = self.engine.worker_pid() {
             if let Some(rss) = memory::rss_bytes_for_pid(pid) {
-                *self
-                    .measured_asr_rss
+                self.measured_asr_rss
                     .lock()
-                    .unwrap_or_else(|e| e.into_inner()) = Some(rss);
+                    .unwrap_or_else(|e| e.into_inner())
+                    .insert(model_id.to_string(), rss);
             }
         }
 
@@ -4331,6 +4373,147 @@ mod tests {
         );
     }
 
+    /// KB-218: the voice gate's measured-RSS floor is keyed per model id
+    /// (the LLM gate's measured_rss semantics, mirrored). A big model's
+    /// reading must never floor a DIFFERENT small model's forecast - the
+    /// small model reads no floor and its forecast falls back to
+    /// size * 3/2 alone, the exact first-load behavior the un-keyed cell
+    /// used to destroy - while re-selecting a measured model uses its own
+    /// reading. The refusal message follows: the "needs" figure is always
+    /// the model actually being loaded, never another model's RSS.
+    #[test]
+    fn asr_measured_rss_floor_is_keyed_per_model() {
+        let mut measured = HashMap::new();
+        measured.insert("big-model".to_string(), 1300 * 1024 * 1024u64);
+        let big_size = 800 * 1024 * 1024u64;
+        let small_size = 43 * 1024 * 1024u64; // whisper tiny's file
+
+        // (a) The big model's 1.3 GiB reading does not floor the SMALL
+        // model: its lookup misses, and its forecast is size * 3/2 alone.
+        assert_eq!(measured_asr_rss_for(&measured, "small-model", true), None);
+        let small_forecast = asr_forecast_bytes(
+            small_size,
+            measured_asr_rss_for(&measured, "small-model", true),
+        );
+        assert_eq!(small_forecast, small_size * 3 / 2);
+
+        // (b) Re-selecting the measured model uses its OWN reading (the
+        // 1300 MiB RSS is above its 1200 MiB size floor, so it wins).
+        assert_eq!(
+            measured_asr_rss_for(&measured, "big-model", true),
+            Some(1300 * 1024 * 1024)
+        );
+        assert_eq!(
+            asr_forecast_bytes(big_size, measured_asr_rss_for(&measured, "big-model", true)),
+            1300 * 1024 * 1024
+        );
+
+        // A second measured model replaces only its own entry (the mirror
+        // of the LLM gate's measured_rss_is_keyed_per_model), and its
+        // forecast then floors at its own reading.
+        measured.insert("small-model".to_string(), 100 * 1024 * 1024);
+        assert_eq!(
+            measured_asr_rss_for(&measured, "small-model", true),
+            Some(100 * 1024 * 1024)
+        );
+        assert_eq!(
+            measured_asr_rss_for(&measured, "big-model", true),
+            Some(1300 * 1024 * 1024)
+        );
+        assert_eq!(
+            asr_forecast_bytes(
+                small_size,
+                measured_asr_rss_for(&measured, "small-model", true)
+            ),
+            100 * 1024 * 1024
+        );
+
+        // ONNX engines have no worker RSS captured; they read no floor even
+        // when the id somehow carries a measurement.
+        assert_eq!(measured_asr_rss_for(&measured, "big-model", false), None);
+
+        // The refusal message names the SMALL model's own forecast ("64 MB"
+        // for 67,633,152 B), never the big model's 1.3 GB RSS - the exact
+        // phantom "needs ~1.2 GB" refusal KB-218 retires.
+        let msg = memory_gate_refusal_message("Small ASR", small_forecast, 900 * 1024 * 1024, 0);
+        assert!(
+            msg.contains("64 MB"),
+            "the small model's own forecast must be the 'needs' figure: {msg}"
+        );
+        assert!(
+            !msg.contains("1.3 GB"),
+            "never a different model's RSS in the refusal: {msg}"
+        );
+    }
+
+    /// KB-219: the resolver's candidate footprint is the SAME
+    /// runtime-inclusive forecast the recursive fallback load re-gates
+    /// with, so the resolver can never hand the no-cascade load
+    /// (allow_fallback = false) a model its own gate then terminally
+    /// refuses and blames. Reviewer 15's boundary: free 900 MiB, a 650 MiB
+    /// candidate forecasts 650 * 3/2 = 975 MiB > 900 MiB, so the resolver
+    /// REFUSES it (the retired bare-size footprint of 650 MiB would have
+    /// resolved it into a certain terminal refusal).
+    #[test]
+    fn fallback_candidates_carry_the_runtime_inclusive_forecast() {
+        const MIB: u64 = 1024 * 1024;
+        let candidate_model = model_info_for("cand-650", 650, true);
+        let selected = model_info_for("selected", 2000, true);
+        let candidates = fallback_candidate_list(&[candidate_model, selected], "selected", "auto");
+
+        // The candidate's footprint is the gate's own forecast for that
+        // model (max(size * 3/2, measured); unmeasured here), not the bare
+        // file size.
+        assert_eq!(candidates.len(), 1);
+        assert_eq!(
+            candidates[0].footprint_bytes,
+            asr_forecast_bytes(650 * MIB, None),
+            "the resolver's footprint must be the gate's forecast"
+        );
+        assert_eq!(candidates[0].footprint_bytes, 975 * MIB);
+
+        // Reviewer 15's boundary: 975 > 900 at margin 0 -> the resolver
+        // refuses the candidate, exactly because the recursive load's gate
+        // would refuse the same forecast against the same free reading.
+        let free = Some(900 * MIB);
+        assert_eq!(
+            memory::resolve_fallback_model(free, &candidates, "selected", 0),
+            None,
+            "a 650 MiB candidate must not resolve against 900 MiB free (975 forecast)"
+        );
+        assert!(memory::gate_should_refuse(free, candidates[0].footprint_bytes, 0));
+        // The full decision is a terminal Refuse, not a Fallback that would
+        // recurse into a certain refusal (the selected model itself does
+        // not fit the tight reading).
+        assert_eq!(
+            decide_memory_gate(
+                true,
+                true,
+                true,
+                free,
+                3 * 1024 * MIB, // the selected model's forecast: refuses
+                0,
+                || candidates.clone(),
+                "selected",
+            ),
+            MemoryGateDecision::Refuse
+        );
+
+        // One byte over the boundary on the free side and both agree again:
+        // the resolver offers exactly what the gate allows (equality fits).
+        let free_exact = Some(975 * MIB);
+        assert!(!memory::gate_should_refuse(
+            free_exact,
+            candidates[0].footprint_bytes,
+            0
+        ));
+        assert_eq!(
+            memory::resolve_fallback_model(free_exact, &candidates, "selected", 0)
+                .map(|c| c.id.as_str()),
+            Some("cand-650")
+        );
+    }
+
     /// The panic-stranding path this task closes: the hotkey load's slot is
     /// a LoadingGuard MOVED into the loader thread (exactly what
     /// `initiate_model_load` now does), so a panic that unwinds the loader
@@ -6266,8 +6449,8 @@ mod tests {
         assert_eq!(added_candidate.rank, u32::MAX);
         assert_eq!(
             added_candidate.footprint_bytes,
-            700u64 * 1024 * 1024,
-            "footprint must stay the size-derived estimate the gate compares"
+            700u64 * 1024 * 1024 * 3 / 2,
+            "footprint must be the runtime-inclusive forecast the gate compares (KB-219)"
         );
     }
 
@@ -6423,7 +6606,8 @@ mod tests {
             .map(|c| c.id.as_str()),
             Some("org/custom-asr/model-Q8_0.gguf")
         );
-        // Too tight for it (700 MiB + 1.5 GiB headroom > 2 GiB): nothing.
+        // Too tight for it (KB-219 runtime footprint 700 MiB * 3/2 = 1050 MiB
+        // + 1.5 GiB headroom > 2 GiB): nothing.
         assert_eq!(
             memory::resolve_fallback_model(
                 Some(2 * GIB),
@@ -6542,12 +6726,13 @@ mod tests {
     #[test]
     fn single_downloaded_model_refusal_is_terminal() {
         let whisper_tiny = model_info_for("whisper-tiny-q8", 43, true);
-        let forecast = 45_088_768_u64; // size_mb 43 x 1 MiB
+        let size_bytes = whisper_tiny.size_mb.saturating_mul(1024 * 1024);
         assert_eq!(
-            whisper_tiny.size_mb.saturating_mul(1024 * 1024),
-            forecast,
-            "fixture must be whisper tiny's real forecast"
+            size_bytes, 45_088_768_u64,
+            "fixture must be whisper tiny's real file size"
         );
+        // The gate's own unmeasured forecast (KB-218/KB-219): size * 3/2.
+        let forecast = asr_forecast_bytes(size_bytes, None);
         let decision = decide_memory_gate(
             true,
             true,
