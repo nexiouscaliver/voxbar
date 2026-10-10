@@ -92,6 +92,8 @@ const settingUpdaters: {
     commands.changeAudioFeedbackSetting(value as boolean),
   memory_pressure_guard: (value) =>
     commands.changeMemoryPressureGuardSetting(value as boolean),
+  memory_gate_headroom_mb: (value) =>
+    commands.changeMemoryGateHeadroomSetting(value as number),
   auto_fallback: (value) =>
     commands.changeAutoFallbackSetting(value as boolean),
   menu_bar_model_title: (value) =>

@@ -206,6 +206,18 @@ pub fn register_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<()
     }
 }
 
+/// The memory-gate safety margin as storable: 1-4 MB is neither off (0)
+/// nor a usable margin, and normalizes to 0 - the same rule the settings
+/// loader enforces on stale stored values, applied at the write boundary
+/// so a value written here can never be silently rewritten on next load.
+fn normalize_headroom_mb(headroom_mb: u64) -> u64 {
+    if (1..=4).contains(&headroom_mb) {
+        0
+    } else {
+        headroom_mb
+    }
+}
+
 /// Unregister a shortcut using the appropriate implementation
 pub fn unregister_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<(), String> {
     let settings = get_settings(app);
@@ -705,6 +717,20 @@ pub fn change_audio_feedback_setting(app: AppHandle, enabled: bool) -> Result<()
 pub fn change_memory_pressure_guard_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
     let mut settings = settings::get_settings(&app);
     settings.memory_pressure_guard = enabled;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// Persist the memory-gate safety margin (Advanced settings). Mirrors the
+/// store-side load guard: margins of 1-4 MB are invalid (neither off nor a
+/// usable margin) and normalize to 0, so a value written here can never be
+/// silently rewritten on the next load. The UI already rejects 1-4; this is
+/// the same rule enforced at the write boundary for any other caller.
+#[tauri::command]
+#[specta::specta]
+pub fn change_memory_gate_headroom_setting(app: AppHandle, headroom_mb: u64) -> Result<(), String> {
+    let mut settings = settings::get_settings(&app);
+    settings.memory_gate_headroom_mb = normalize_headroom_mb(headroom_mb);
     settings::write_settings(&app, settings);
     Ok(())
 }
@@ -1805,7 +1831,9 @@ mod tests {
     use handy_keys::Hotkey;
     use tauri_plugin_global_shortcut::Shortcut;
 
-    use super::{bare_key_rejection, binding_is_active, is_bare_key_binding};
+    use super::{
+        bare_key_rejection, binding_is_active, is_bare_key_binding, normalize_headroom_mb,
+    };
 
     #[test]
     fn compound_shortcut_keys_parse_on_both_backends() {
@@ -1933,5 +1961,27 @@ mod tests {
             binding_is_active(&settings, "delete_last_word", &delete_last_word),
             "a single-modifier binding stays active (it is hold-gated, not bare)"
         );
+    }
+    /// The Memory Safety Margin write boundary (the control used to be
+    /// dead: no command, no store updater). Values 1-4 MB normalize to 0
+    /// (off) - the same rule the store enforces on load - and everything
+    /// else persists verbatim.
+    #[test]
+    fn headroom_normalization_matches_the_store_guard() {
+        assert_eq!(normalize_headroom_mb(0), 0, "off stays off");
+        for mb in 1..=4 {
+            assert_eq!(
+                normalize_headroom_mb(mb),
+                0,
+                "{mb} MB is neither off nor usable"
+            );
+        }
+        assert_eq!(
+            normalize_headroom_mb(5),
+            5,
+            "the smallest usable margin persists"
+        );
+        assert_eq!(normalize_headroom_mb(512), 512);
+        assert_eq!(normalize_headroom_mb(2048), 2048);
     }
 }
