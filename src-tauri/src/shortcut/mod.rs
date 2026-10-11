@@ -952,6 +952,22 @@ pub fn change_memory_gate_headroom_setting(app: AppHandle, headroom_mb: u64) -> 
     Ok(())
 }
 
+/// KB-183: the runtime value a companion-toggle change must apply. The IPC
+/// surface cannot lean on the UI unmount (the Experimental group is the
+/// ONLY UI surface for the companion toggle, unmounted while experimental
+/// is off): an IPC caller is not the UI, so enabling the toggle with
+/// experimental off must NOT arm the LAN TLS server, and disabling it must
+/// still stop a running one. The gate is the both-toggles conjunction
+/// (`effective_enabled`) on the settings this change would persist, the
+/// same rule `companion::init` and `change_experimental_enabled_setting`
+/// already enforce. Pure so the disabled-either-toggle paths are
+/// unit-testable without a settings store or a live server.
+fn companion_toggle_runtime_value(requested: bool, settings: &settings::AppSettings) -> bool {
+    let mut would_persist = settings.clone();
+    would_persist.companion_devices_enabled = requested;
+    crate::companion::effective_enabled(&would_persist)
+}
+
 /// Companion devices master toggle (OFF by default). Applies the runtime
 /// change before persisting it (the update_microphone_mode rule, KB-027):
 /// enabling starts the companion server and disabling stops it (finalizing
@@ -959,10 +975,17 @@ pub fn change_memory_gate_headroom_setting(app: AppHandle, headroom_mb: u64) -> 
 /// rolls the toggle back instead of persisting an enabled state with no
 /// server behind it.
 ///
+/// KB-183: the runtime apply is the both-toggles conjunction
+/// (companion_toggle_runtime_value), never the raw flag - a direct invoke
+/// with the Experimental master off must not start (or keep) the LAN
+/// server just because this toggle turned on. The raw toggle still
+/// persists: `companion::init` and `change_experimental_enabled_setting`
+/// re-arm from the stored pair exactly as they do at boot.
+///
 /// No stop-the-server cleanup wraps the persist step, by invariant rather
 /// than omission: this command's only Err is the failed start above, which
 /// happens before any server exists, and settings::write_settings cannot
-/// fail gracefully — it returns (), its store bootstrap is an expect and
+/// fail gracefully - it returns (), its store bootstrap is an expect and
 /// its serialization an unwrap, the plugin's Store::set is infallible, and
 /// the disk flush is a debounced background auto-save that discards its
 /// errors. A persist failure is therefore panic-shaped and takes the whole
@@ -972,8 +995,8 @@ pub fn change_memory_gate_headroom_setting(app: AppHandle, headroom_mb: u64) -> 
 #[tauri::command]
 #[specta::specta]
 pub fn change_companion_devices_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
-    crate::companion::apply_enabled(&app, enabled)?;
     let mut settings = settings::get_settings(&app);
+    crate::companion::apply_enabled(&app, companion_toggle_runtime_value(enabled, &settings))?;
     settings.companion_devices_enabled = enabled;
     settings::write_settings(&app, settings);
     Ok(())
@@ -2621,8 +2644,8 @@ mod tests {
 
     use super::{
         bare_key_rejection, binding_conflicts_with_active_binding, binding_is_active,
-        cancel_rebind_retirement, is_bare_key_binding, normalize_headroom_mb,
-        restore_registration_is_due,
+        cancel_rebind_retirement, companion_toggle_runtime_value, is_bare_key_binding,
+        normalize_headroom_mb, restore_registration_is_due,
     };
 
     #[test]
@@ -3055,5 +3078,48 @@ mod tests {
         );
         assert_eq!(normalize_headroom_mb(512), 512);
         assert_eq!(normalize_headroom_mb(2048), 2048);
+    }
+
+    /// KB-183: the companion toggle command's runtime apply value is the
+    /// both-toggles conjunction, never the raw flag. With EITHER toggle
+    /// leaving the feature effectively disabled the IPC call applies
+    /// disabled (no server start, and a stop for anything already
+    /// running); only both-on arms the server. The stored toggle itself
+    /// keeps persisting raw - init and the Experimental switch re-arm from
+    /// the stored pair - so this table pins the gate the command consults,
+    /// not what lands on disk.
+    #[test]
+    fn companion_toggle_runtime_value_gates_on_both_toggles() {
+        let mut settings = crate::settings::AppSettings::default();
+        settings.companion_devices_enabled = false;
+        settings.experimental_enabled = false;
+
+        // The KB-183 hole: a direct invoke turning the companion toggle on
+        // while the Experimental master is off must not arm the LAN server
+        // (the UI unmount of the toggle is not a gate for IPC callers).
+        assert!(
+            !companion_toggle_runtime_value(true, &settings),
+            "toggle on with experimental off must apply disabled"
+        );
+
+        // The plain-off path: requesting off applies disabled regardless of
+        // the Experimental switch (and stops a running server).
+        settings.experimental_enabled = true;
+        assert!(
+            !companion_toggle_runtime_value(false, &settings),
+            "toggle off with experimental on must apply disabled"
+        );
+        settings.experimental_enabled = false;
+        assert!(
+            !companion_toggle_runtime_value(false, &settings),
+            "both off stays disabled"
+        );
+
+        // The one armed combination: both toggles on.
+        settings.experimental_enabled = true;
+        assert!(
+            companion_toggle_runtime_value(true, &settings),
+            "both on is the only combination that arms the server"
+        );
     }
 }
