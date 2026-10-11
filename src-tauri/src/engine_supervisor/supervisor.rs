@@ -19,7 +19,9 @@ use super::protocol::{
 };
 use super::worker::LOG_LINE_PREFIX;
 #[cfg(not(test))]
-use super::worker::{record_launched_exe, worker_exe};
+use super::worker::worker_exe;
+#[cfg(all(unix, not(test)))]
+use super::worker::record_launched_exe;
 use super::worker::{spawn_stderr_tail, STDERR_TAIL_LINES};
 use super::{CPU_ONLY_FLAG, LOG_LEVEL_ENV, WORKER_FLAG};
 use log::{debug, error, info, warn};

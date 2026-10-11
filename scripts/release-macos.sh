@@ -66,9 +66,30 @@ KEY_MODE="$(stat -f '%Lp' "$KEY_FILE")"
 log "signing key present with mode 600"
 
 # --- 3. Build (no updater artifacts; this pipeline signs manually) ----------
+# The build log is kept (repo root) because the AI gate below greps it, and
+# because it is the post-mortem record when a release goes wrong.
+BUILD_LOG="$ROOT/release-build.log"
 log "building (nice -n 15 bunx tauri build); this is the slow step"
-nice -n 15 bunx tauri build
+nice -n 15 bunx tauri build 2>&1 | tee "$BUILD_LOG"
 [ -d "$APP_PATH" ] || die "bundle app not found at $APP_PATH after build"
+
+# --- 3b. AI build-integrity gate ---------------------------------------------
+# Nothing above PROVES the release binary linked the real FoundationModels:
+# if the DEVELOPER_DIR export silently failed, the build.rs auto-detection
+# compiles the stub and the app reports AI unavailable on every machine.
+# Prove both the linkage and the build log before signing or smoking.
+BIN_PATH="$APP_PATH/Contents/MacOS/voxbar"
+[ -f "$BIN_PATH" ] || die "bundle binary not found at $BIN_PATH"
+if ! otool -L "$BIN_PATH" | grep -q 'FoundationModels.framework'; then
+  die "$BIN_PATH does not link FoundationModels.framework: the toolchain resolved without full Xcode and the build used stubs. Install Xcode, verify the DEVELOPER_DIR export above, then rebuild."
+fi
+if grep -q 'Building Apple Intelligence with stubs' "$BUILD_LOG"; then
+  die "build log $BUILD_LOG contains 'Building Apple Intelligence with stubs'; refusing to ship a stub-linked AI build"
+fi
+if grep -q 'Apple Intelligence SDK not found' "$BUILD_LOG"; then
+  die "build log $BUILD_LOG contains 'Apple Intelligence SDK not found'; refusing to ship a stub-linked AI build"
+fi
+log "AI gate: $BIN_PATH links FoundationModels.framework and the build log shows no stub fallback"
 
 # Smoke the fresh bundle before re-signing: launch it, confirm the process
 # stays up, then quit it. Signatures and manifests cannot catch a startup

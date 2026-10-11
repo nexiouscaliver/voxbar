@@ -455,13 +455,6 @@ impl RecordingReadiness {
         self.receiver.recv().is_ok()
     }
 
-    /// Bounded variant of [`RecordingReadiness::wait`] for tests: resolves
-    /// after `timeout` instead of blocking forever on a stalled capture.
-    #[cfg(test)]
-    pub fn wait_timeout(self, timeout: std::time::Duration) -> bool {
-        self.receiver.recv_timeout(timeout).is_ok()
-    }
-
     pub fn generation(&self) -> u64 {
         self.generation
     }

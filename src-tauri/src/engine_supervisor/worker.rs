@@ -511,7 +511,9 @@ pub(crate) fn launched_exe_replaced(launched: Option<&(PathBuf, (u64, u64))>) ->
     launched.is_some_and(|(path, id)| file_id(path).ok().as_ref() != Some(id))
 }
 
-/// Must run before an upgrade can replace the file, so at startup.
+/// Must run before an upgrade can replace the file, so at startup. Only
+/// compiled for real unix builds: test and non-unix builds have no identity
+/// to record (and no caller).
 #[cfg(all(unix, not(test)))]
 pub(crate) fn record_launched_exe() {
     LAUNCHED_EXE.get_or_init(|| {
@@ -524,10 +526,6 @@ pub(crate) fn record_launched_exe() {
             .ok()
     });
 }
-
-/// Test and non-unix builds have no identity to record.
-#[cfg(any(not(unix), test))]
-pub(crate) fn record_launched_exe() {}
 
 /// The executable a same-binary worker runs: always this very binary, so the
 /// two agree on the protocol and on the native libraries. Upgrading or

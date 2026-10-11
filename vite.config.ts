@@ -19,6 +19,10 @@ export default defineConfig(async () => ({
 
   // Multiple entry points for main app and overlay
   build: {
+    // Local Tauri app: bundles load from disk, so chunk size is not a
+    // delivery concern; 2000 kB sits above the largest chunk (the
+    // noticeMessage translation bundle) and silences the 500 kB nag.
+    chunkSizeWarningLimit: 2000,
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
