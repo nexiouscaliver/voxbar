@@ -1,5 +1,7 @@
-// Runs every assert-style frontend test file (git-tracked src, docs, and
-// ui-shots *.test.ts).
+// Runs every assert-style frontend test file (src, docs, and ui-shots
+// *.test.ts): git-tracked plus untracked-but-not-ignored files, so a
+// brand-new local test file runs before it is ever committed (what CI
+// would see on the next fresh checkout).
 //
 // These tests are node:assert scripts, not bun:test modules, so `bun test`
 // cannot collect them; each file is executed directly and must exit 0. The
@@ -24,10 +26,16 @@ const TEST_GLOBS = [
 
 const files: string[] = [];
 for (const glob of TEST_GLOBS) {
-  const listing = Bun.spawnSync(["git", "ls-files", glob], {
-    stdout: "pipe",
-    stderr: "inherit",
-  });
+  // --cached lists tracked files, --others --exclude-standard adds
+  // untracked files git does not ignore; plain `git ls-files` alone
+  // would hide uncommitted local test files from the sweep.
+  const listing = Bun.spawnSync(
+    ["git", "ls-files", "--cached", "--others", "--exclude-standard", glob],
+    {
+      stdout: "pipe",
+      stderr: "inherit",
+    },
+  );
   if (listing.exitCode !== 0) {
     console.error(`failed to list test files: git ls-files "${glob}"`);
     process.exit(listing.exitCode ?? 1);
