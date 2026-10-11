@@ -394,6 +394,14 @@ fn build_apple_intelligence_bridge() {
     println!("cargo:rerun-if-changed={REAL_SWIFT_FILE}");
     println!("cargo:rerun-if-changed={STUB_SWIFT_FILE}");
     println!("cargo:rerun-if-changed={BRIDGE_HEADER}");
+    // Toolchain switches must retrigger the script too: each of these picks
+    // the SDK, the compiler, or the real-vs-stub selection below, and a
+    // stale build after `xcode-select -s` (or an SDKROOT/DEVELOPER_DIR
+    // override change) would compile with the previous toolchain's choice.
+    println!("cargo:rerun-if-env-changed=SDKROOT");
+    println!("cargo:rerun-if-env-changed=DEVELOPER_DIR");
+    println!("cargo:rerun-if-env-changed=SWIFTC");
+    println!("cargo:rerun-if-env-changed=HANDY_FORCE_AI_STUB");
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
     let object_path = out_dir.join("apple_intelligence.o");
@@ -493,12 +501,17 @@ fn build_apple_intelligence_bridge() {
     //
     // A machine-level SDKROOT pin (parent .cargo/config.toml, per the note
     // in this repo's own .cargo/config.toml) can hand us a CommandLineTools
-    // SDK while DEVELOPER_DIR points at a full Xcode whose swiftc we are
-    // about to use: that mix cannot compile the macro. When the chosen SDK
-    // has no plugin, retry the resolution against the DEVELOPER_DIR Xcode
-    // platform SDK and compile against THAT instead. Without full Xcode
-    // (plain CLT, nixpkgs) nothing changes: the earlier CLT gate already
-    // selected the stub.
+    // SDK while a full Xcode's swiftc is what we are about to use: that
+    // mix cannot compile the macro. When the chosen SDK has no plugin,
+    // retry the resolution against a full Xcode's platform SDK and compile
+    // against THAT instead. Candidate developer dirs, in precedence order:
+    // an explicit DEVELOPER_DIR first (it overrides xcode-select for every
+    // toolchain tool), then the machine's xcode-select-ed developer dir -
+    // an Xcode selected via `sudo xcode-select -s` exports no DEVELOPER_DIR,
+    // but its platform dir carries the macro plugin all the same. Without
+    // full Xcode (plain CLT, nixpkgs) nothing changes: the earlier CLT
+    // gate already selected the stub, and neither candidate yields a
+    // usable plugin dir.
     let mut swift_sdk = sdk_path.clone();
     let mut platform_plugins = Path::new(&sdk_path)
         .ancestors()
@@ -506,7 +519,17 @@ fn build_apple_intelligence_bridge() {
         .map(|platform| platform.join("Developer/usr/lib/swift/host/plugins"))
         .filter(|dir| dir.join("libFoundationModelsMacros.dylib").exists());
     if platform_plugins.is_none() {
+        let mut candidates: Vec<String> = Vec::new();
         if let Ok(dev_dir) = env::var("DEVELOPER_DIR") {
+            candidates.push(dev_dir);
+        }
+        let selected = active_developer_dir();
+        if let Some(dev_dir) = selected {
+            if !candidates.iter().any(|c| c == &dev_dir) {
+                candidates.push(dev_dir);
+            }
+        }
+        for dev_dir in candidates {
             let xcode_plugins = Path::new(&dev_dir)
                 .join("Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins");
             let xcode_sdk = Path::new(&dev_dir)
@@ -516,6 +539,7 @@ fn build_apple_intelligence_bridge() {
             {
                 swift_sdk = xcode_sdk.to_string_lossy().into_owned();
                 platform_plugins = Some(xcode_plugins);
+                break;
             }
         }
     }
@@ -637,4 +661,23 @@ fn is_command_line_tools_only() -> bool {
         .and_then(|out| String::from_utf8(out.stdout).ok())
         .map(|path| path.trim().ends_with("CommandLineTools"))
         .unwrap_or(false)
+}
+
+/// The machine's active developer dir per `xcode-select -p` (no
+/// DEVELOPER_DIR folding - callers apply their own precedence). `None` when
+/// xcode-select is missing or refuses; used by the FoundationModels macro
+/// plugin fallback so an xcode-select-ed Xcode (which exports no
+/// DEVELOPER_DIR) is still discoverable.
+#[cfg(all(target_os = "macos", target_arch = "aarch64"))]
+fn active_developer_dir() -> Option<String> {
+    use std::process::Command;
+
+    Command::new("xcode-select")
+        .arg("-p")
+        .output()
+        .ok()
+        .filter(|out| out.status.success())
+        .and_then(|out| String::from_utf8(out.stdout).ok())
+        .map(|path| path.trim().to_string())
+        .filter(|path| !path.is_empty())
 }

@@ -612,7 +612,6 @@ fn forward_stderr_line(line: &str, log_target: &'static str) {
 #[cfg(test)]
 mod spawn_contract_tests {
     use super::*;
-    use std::io::Write;
 
     /// The exe-identity decision: an untouched recorded file is NOT
     /// replaced; a file replaced underneath (new inode, the macOS updater

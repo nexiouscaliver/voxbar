@@ -28,8 +28,13 @@ const Footer: React.FC = () => {
         <div className="flex items-center gap-1">
           <UpdateChecker />
           <span>•</span>
-          {/* eslint-disable-next-line i18next/no-literal-string */}
-          <span>v{version}</span>
+          {/* AUD-07 / KB-193: state starts empty and the IPC roundtrip takes
+              a frame, so an ungated span would flash a bare "v"; render the
+              version only once it has actually loaded. */}
+          {version !== "" && (
+            /* eslint-disable-next-line i18next/no-literal-string */
+            <span>v{version}</span>
+          )}
         </div>
       </div>
     </div>
