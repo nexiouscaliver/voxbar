@@ -562,17 +562,20 @@ statements found were the ledger's own stale statuses, corrected above.
   dead everywhere it compiled), the never-called FakeHost::slot_is_free/
   skips_contain, and the RecordingReadness::wait_timeout test helpers.
 
-Not filed this pass: the cycle brief also names "CI exit-semantics and
-discovery nits" as a new fix, but no such change exists to verify or cite
-(checked at 1360d5ec: the cycle's own commits, a read-only fetch of
-origin/main, and the sibling worktrees; re-checked after this lane landed).
-The entry was deliberately not invented. KB-251 stays reserved for it, and
-the intended content is most plausibly round 5's tail nits, all still
-present in the tree: the frontend test sweep exits on the FIRST failing
-file instead of collecting every failure (scripts/run-frontend-tests.ts:8,
-"Exits nonzero on the first failing file"), the sweep's git ls-files
-discovery never sees uncommitted test files (it spawns `git ls-files` for
-every glob), and BUILD.md's runbook still lacks the smoke step (zero
-"smoke" mentions in BUILD.md). When that fix lands, file KB-251 against
-the real commit; if the cycle dropped it, delete this note so the next
-free id is KB-251 again.
+- **KB-251 · OPEN · CI exit-semantics and discovery nits (fix owned by
+  this cycle's CI lane, W2-L6, in flight on this same branch).** The cycle
+  brief's sixth named fix; recorded here as a finding because no fix
+  exists to cite at this write (verified at fe971bd5: this branch's
+  commits, a read-only fetch of origin/main, and the sibling worktrees).
+  Three nits, all verified in the tree: the frontend test sweep exits on
+  the FIRST failing file instead of collecting every failure
+  (scripts/run-frontend-tests.ts:8, "Exits nonzero on the first failing
+  file"), the sweep's per-glob `git ls-files` discovery never sees
+  uncommitted test files (:27), and BUILD.md's release runbook lacked the
+  smoke step. This pass landed only the docs half of the third nit, an
+  orchestrator-authorized one-line addition to BUILD.md's release-script
+  paragraph documenting `scripts/smoke-macos.sh` (which the script itself
+  has run since 4ebe1d4f; the runbook never mentioned it). The
+  exit-semantics fix, the uncommitted-file discovery, and any CI wiring
+  are W2-L6's to land on this branch; when that commit exists, flip this
+  entry to FIXED against it.
