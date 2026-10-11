@@ -2664,7 +2664,7 @@ mod tests {
     use super::{
         bare_key_rejection, binding_conflicts_with_active_binding, binding_is_active,
         cancel_rebind_retirement, companion_toggle_runtime_value, is_bare_key_binding,
-        normalize_headroom_mb, restore_registration_is_due,
+        normalize_headroom_mb, restore_registration_is_due, POST_PROCESS_TOGGLE_BINDINGS,
     };
 
     #[test]
@@ -2930,6 +2930,22 @@ mod tests {
         assert!(
             !binding_is_active(&settings, "cycle_post_process_prompt", &bound),
             "the master toggle unregisters the cycle key"
+        );
+    }
+
+    /// KB-008: the master toggle drives BOTH post-process registrations.
+    /// The activation predicate is pinned above (binding_is_active, the
+    /// same test); this pins the roster the toggle's enable and disable
+    /// arms actually walk. If the cycle key drops off this list, a bound
+    /// cycle key stays registered - its chord system-swallowed in every
+    /// app - after the toggle goes off while its handler refuses to fire,
+    /// and no other test goes red against that regression.
+    #[test]
+    fn post_process_toggle_bindings_cover_dictation_and_cycle_keys() {
+        assert_eq!(
+            POST_PROCESS_TOGGLE_BINDINGS,
+            ["transcribe_with_post_process", "cycle_post_process_prompt"],
+            "one toggle must drive both the dictation and the cycle key (KB-008)"
         );
     }
 
