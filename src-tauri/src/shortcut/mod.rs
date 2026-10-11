@@ -2270,6 +2270,12 @@ pub fn update_post_process_prompt(
         // prompt-submenu entry through MenuInputs - re-sync now.
         tray::update_tray_menu(&app);
 
+        // v1.6.0 W1-L7 review residual: the badge names the SELECTED
+        // template by its display name, so an edit that renames it must
+        // refresh a lit badge (a body-only edit re-emits the same name;
+        // the helper is a no-op unless a session's badge is lit).
+        crate::transcription_coordinator::refresh_lit_post_process_badge(&app);
+
         Ok(())
     } else {
         Err(format!("Prompt with id '{}' not found", id))
@@ -2306,6 +2312,12 @@ pub fn delete_post_process_prompt(app: AppHandle, id: String) -> Result<(), Stri
     // submenu (and may move its checkmark) through MenuInputs - re-sync
     // now.
     tray::update_tray_menu(&app);
+
+    // v1.6.0 W1-L7 review residual: deleting the SELECTED template
+    // silently moved the selection to the fallback (first) template above,
+    // and the stop pipeline resolves whatever is selected at run time - a
+    // lit badge must hear the new name, not keep naming the deleted one.
+    crate::transcription_coordinator::refresh_lit_post_process_badge(&app);
 
     Ok(())
 }
@@ -3144,19 +3156,22 @@ mod tests {
         assert_eq!(cycle_notice_detail(&settings, "deleted_long_ago"), "");
     }
 
-    /// Review finding (W1-L7 round 2): every path that moves the selected
-    /// template mid-session must refresh a lit PP badge - the badge names
-    /// the ACTIVE template, and the stop pipeline resolves the selection
-    /// at run time, so a stale chip would lie about what is about to run.
-    /// The two write paths need a full app a unit test cannot mount (a
-    /// Tauri command each), so both are pinned against this committed
-    /// source, the same convention as actions.rs's stop-pipeline pin: the
-    /// cycle confirm and set_post_process_selected_prompt (the one write
-    /// behind BOTH the settings dropdown and the tray prompt submenu, per
-    /// lib.rs's prompt_select routing) must keep calling the shared
-    /// refresh helper.
+    /// Review findings (W1-L7 rounds 2 and 3): every path that can change
+    /// what a lit PP badge names mid-session must refresh it - the badge
+    /// names the ACTIVE template, and the stop pipeline resolves the
+    /// selection at run time, so a stale chip would lie about what is
+    /// about to run. The write paths need a full app a unit test cannot
+    /// mount (Tauri commands each), so each is pinned against this
+    /// committed source, the same convention as actions.rs's stop-pipeline
+    /// pin. The complete set of production writers of the selection (and
+    /// of the selected template's display name) is exactly these four:
+    /// the cycle confirm, the set command (the one write behind BOTH the
+    /// settings dropdown and the tray prompt submenu, per lib.rs's
+    /// prompt_select routing), the delete command (which silently moves
+    /// the selection to the fallback template), and the edit command
+    /// (which renames the selected template).
     #[test]
-    fn every_selection_change_refreshes_a_lit_pp_badge() {
+    fn every_template_change_refreshes_a_lit_pp_badge() {
         let source = include_str!("mod.rs");
 
         for (marker, label) in [
@@ -3164,6 +3179,14 @@ mod tests {
             (
                 "fn set_post_process_selected_prompt",
                 "the settings dropdown + tray submenu write path",
+            ),
+            (
+                "fn delete_post_process_prompt",
+                "the delete path that moves a deleted selection to the fallback",
+            ),
+            (
+                "fn update_post_process_prompt",
+                "the edit path that can rename the selected template",
             ),
         ] {
             let at = source.find(marker).expect(label);
@@ -3174,7 +3197,7 @@ mod tests {
             let body = &rest[..body_end];
             assert!(
                 body.contains("refresh_lit_post_process_badge"),
-                "{label} must refresh a lit PP badge after moving the selection"
+                "{label} must refresh a lit PP badge after changing what it names"
             );
         }
     }

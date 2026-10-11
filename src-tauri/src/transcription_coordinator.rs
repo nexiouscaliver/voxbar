@@ -1369,14 +1369,16 @@ pub(crate) fn emit_post_process_badge(app: &AppHandle, active: bool) {
     }
 }
 
-/// v1.6.0 W1-L7 review fix: refresh a LIT PP badge after the selected
-/// template changed through any path (the cycle hotkey, the settings
-/// dropdown, and the tray prompt submenu - the latter two both write
-/// through set_post_process_selected_prompt). The badge names the ACTIVE
-/// template and the stop pipeline resolves the selection at run time, so a
-/// live post-process session must hear the new name; a dark badge stays
-/// dark (no live session is consuming templates, and the next session's
-/// start arm lights it fresh).
+/// v1.6.0 W1-L7 review fix: refresh a LIT PP badge after anything changed
+/// what it names - the cycle hotkey, the settings dropdown, the tray prompt
+/// submenu (the latter two both write through
+/// set_post_process_selected_prompt), deleting the selected template (which
+/// silently moves the selection to the fallback), and editing the selected
+/// template (which can rename it). The badge names the ACTIVE template and
+/// the stop pipeline resolves the selection at run time, so a live
+/// post-process session must hear the change; a dark badge stays dark (no
+/// live session is consuming templates, and the next session's start arm
+/// lights it fresh).
 pub(crate) fn refresh_lit_post_process_badge(app: &AppHandle) {
     if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
         if coordinator.is_session_post_process_active() {
