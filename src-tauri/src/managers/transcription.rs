@@ -1825,6 +1825,21 @@ impl TranscriptionManager {
         None
     }
 
+    /// KB-218 seam for the tray's models status block (W1-L8): the measured
+    /// worker RSS the voice gate's per-model map holds for the CURRENTLY
+    /// loaded model, when the resident engine is transcribe-cpp (only its
+    /// worker has a captured RSS; in-process ONNX engines read None by
+    /// construction). A load-time reading that stays valid even when the
+    /// live pid probe in [`Self::resident_model_footprint`] fails, which is
+    /// exactly why the tray composes the two (live first, this as the
+    /// measured fallback before any size-derived estimate).
+    pub fn measured_asr_rss_current(&self) -> Option<u64> {
+        let model_id = self.get_current_model()?;
+        let is_transcribe_cpp = self.engine.loaded().is_some();
+        let measured = self.measured_asr_rss.lock().ok()?;
+        measured_asr_rss_for(&measured, &model_id, is_transcribe_cpp)
+    }
+
     /// Downloaded-model candidates for the RAM auto-fallback (see the memory
     /// gate in `load_model_with_device_internal`): every downloaded model
     /// except the one that just failed: catalog entries at their editorial

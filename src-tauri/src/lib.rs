@@ -246,6 +246,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     manage_local_llm(app_handle);
     app_handle.manage(tray::TrayState::new());
     app_handle.manage(tray::TrayRamRefresh::new());
+    app_handle.manage(tray::TrayHistory::new());
 
     // Companion devices (phones as remote mics). Honors the OFF-by-default
     // setting: an inert manager with no listener/threads until enabled.
@@ -340,6 +341,13 @@ fn initialize_core_logic(app_handle: &AppHandle) {
             "copy_last_transcript" => {
                 tray::copy_last_transcript(app);
             }
+            // Recent Dictations submenu (W1-L8): copies that entry's FINAL
+            // text (post-processed when present, else raw). tray owns the
+            // snapshot lookup and the clipboard write.
+            id if id.starts_with("history_copy:") => match tray::parse_history_copy_id(id) {
+                Some(entry_id) => tray::copy_recent_dictation(app, entry_id),
+                None => log::warn!("Ignoring malformed tray history-copy id: {id}"),
+            },
             "unload_model" => {
                 let transcription_manager = app.state::<Arc<TranscriptionManager>>();
                 if !transcription_manager.is_model_loaded() {
@@ -483,6 +491,9 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Initialize tray menu with idle state
     tray::update_tray_menu(app_handle);
+    // Fill the Recent Dictations submenu's snapshot (background thread; the
+    // query never runs on the UI thread) and re-sync the menu when it lands.
+    tray::refresh_tray_history(app_handle);
 
     // Apply show_tray_icon setting
     let settings = settings::get_settings(app_handle);
@@ -499,6 +510,14 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         // and menu-bar title track the live worker footprint. No-op when the
         // task is already in the right state.
         tray::reconcile_ram_refresh(&app_handle_for_listener);
+    });
+
+    // Keep the tray's Recent Dictations submenu current: every history
+    // write (added/updated/deleted/toggled) refreshes the snapshot off the
+    // UI thread, which re-syncs the menu when it lands (W1-L8).
+    let app_handle_for_history = app_handle.clone();
+    app_handle.listen("history-update-payload", move |_| {
+        tray::refresh_tray_history(&app_handle_for_history);
     });
 
     // Apply the autostart preference (SMAppService login item on macOS 13+,

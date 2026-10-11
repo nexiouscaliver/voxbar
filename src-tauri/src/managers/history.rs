@@ -828,6 +828,44 @@ impl HistoryManager {
         self.recordings_dir.join(file_name)
     }
 
+    /// The last `limit` completed entries (non-empty transcript), newest
+    /// first, for the tray's Recent Dictations submenu (W1-L8). Same
+    /// completed filter as [`Self::get_latest_completed_entry`]; a
+    /// menu-input seam the tray refreshes OFF the UI thread (see
+    /// `tray::refresh_tray_history`), never synchronously from the menu
+    /// builder.
+    pub fn recent_completed_entries(&self, limit: usize) -> Result<Vec<HistoryEntry>> {
+        let conn = self.get_connection()?;
+        let mut stmt = conn.prepare(
+            "SELECT
+                id,
+                file_name,
+                timestamp,
+                saved,
+                title,
+                transcription_text,
+                post_processed_text,
+                post_process_prompt,
+                post_process_requested,
+                model_id,
+                post_process_provider,
+                post_process_model,
+                post_process_prompt_id,
+                post_process_outcome,
+                post_process_latency_ms,
+                capture_source,
+                delivery_destination
+             FROM transcription_history
+             WHERE transcription_text != ''
+             ORDER BY timestamp DESC
+             LIMIT ?1",
+        )?;
+        let entries = stmt
+            .query_map(params![limit as i64], Self::map_history_entry)?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(entries)
+    }
+
     pub async fn get_entry_by_id(&self, id: i64) -> Result<Option<HistoryEntry>> {
         let conn = self.get_connection()?;
         let mut stmt = conn.prepare(

@@ -194,6 +194,16 @@ impl CompanionManager {
         *self.pending_prefs.lock().unwrap() = prefs;
     }
 
+    /// v1.6.0: the preferences the NEXT companion session will run with
+    /// (armed by the phone's press edges, defaults before any). The tray's
+    /// companion status block reads this as the active output target: it
+    /// is what the next press will actually do, unlike
+    /// [`Self::live_session_prefs`] which stays frozen at the last
+    /// session's start.
+    pub fn pending_session_prefs(&self) -> protocol::SessionPrefs {
+        *self.pending_prefs.lock().unwrap()
+    }
+
     /// v1.6.0: the preferences of the live (or most recently finished)
     /// companion session. Frozen at session start, so a later press edge
     /// (busy-remembered or on another phone) cannot retarget a session that
@@ -556,6 +566,14 @@ impl CompanionManager {
             tls_manual: inner.tls_manual,
             restart_pending,
         }
+    }
+
+    /// Paired-device count for the tray's companion status block (W1-L8):
+    /// a cheap lock read, deliberately NOT the full [`Self::status`]
+    /// snapshot, which enumerates network interfaces on every call - far
+    /// too heavy for a value the tray re-reads on every menu sync.
+    pub fn paired_device_count(&self) -> usize {
+        self.inner.lock().unwrap().devices.len()
     }
 
     pub fn set_last_error(&self, error: Option<String>) {

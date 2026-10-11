@@ -1018,6 +1018,9 @@ pub fn change_companion_devices_setting(app: AppHandle, enabled: bool) -> Result
     let mut settings = settings::get_settings(&app);
     settings.companion_devices_enabled = enabled;
     settings::write_settings(&app, settings);
+    // W1-L8: the tray's companion status block reads this toggle; re-sync
+    // so the line flips with the click, exactly like the sibling toggles.
+    tray::update_tray_menu(&app);
     Ok(())
 }
 
@@ -1838,6 +1841,9 @@ pub fn change_experimental_enabled_setting(app: AppHandle, enabled: bool) -> Res
     let mut settings = settings::get_settings(&app);
     settings.experimental_enabled = enabled;
     settings::write_settings(&app, settings);
+    // W1-L8: the tray's companion status reads the effective gate
+    // (this switch AND the companion toggle), so it must re-sync here too.
+    tray::update_tray_menu(&app);
     Ok(())
 }
 

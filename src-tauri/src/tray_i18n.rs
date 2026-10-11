@@ -49,7 +49,7 @@ pub fn get_tray_translations(locale: Option<String>) -> TrayStrings {
 
 #[cfg(test)]
 mod tests {
-    use super::{get_tray_translations, TRANSLATIONS};
+    use super::{get_tray_translations, TrayStrings, TRANSLATIONS};
 
     #[test]
     fn resolves_locale_fallbacks() {
@@ -71,6 +71,41 @@ mod tests {
                 format!("{:?}", TRANSLATIONS[expected]),
                 "{locale} should resolve to {expected}"
             );
+        }
+    }
+
+    /// The generated-translations contract for the W1-L8 tray sections
+    /// (status / models / recent dictations / companion blocks): build.rs
+    /// emits an empty String for a key a locale file omits, and a blank
+    /// menu line would otherwise ship silently. Every generated locale
+    /// must carry a non-empty value for each new key.
+    #[test]
+    fn every_locale_translates_the_new_tray_sections() {
+        let keys_of = |s: &TrayStrings| {
+            vec![
+                ("statusIdle", s.status_idle.clone()),
+                ("statusRecording", s.status_recording.clone()),
+                ("statusTranscribing", s.status_transcribing.clone()),
+                ("asrModel", s.asr_model.clone()),
+                ("modelsNone", s.models_none.clone()),
+                ("recentDictations", s.recent_dictations.clone()),
+                ("recentDictationsEmpty", s.recent_dictations_empty.clone()),
+                ("companionLabel", s.companion_label.clone()),
+                ("companionOn", s.companion_on.clone()),
+                ("companionOff", s.companion_off.clone()),
+                ("companionPairedDevices", s.companion_paired_devices.clone()),
+                ("companionTarget", s.companion_target.clone()),
+                ("companionTargetMac", s.companion_target_mac.clone()),
+                ("companionTargetPhone", s.companion_target_phone.clone()),
+            ]
+        };
+        for (code, strings) in TRANSLATIONS.iter() {
+            for (key, value) in keys_of(strings) {
+                assert!(
+                    !value.is_empty(),
+                    "{code} tray.{key} is empty in the generated translations"
+                );
+            }
         }
     }
 }
