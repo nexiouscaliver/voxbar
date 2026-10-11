@@ -26,7 +26,8 @@
     "history": "Cronologia",
     "debug": "Debug",
     "about": "Informazioni",
-    "notifications": "Notifiche"
+    "notifications": "Notifiche",
+    "promptStudio": "Studio dei prompt"
   },
   "onboarding": {
     "subtitle": "Per cominciare, scegli un modello di riconoscimento vocale",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Conservazione"
       },
-      "viaPostProcess": "tramite {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "tramite {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Visualizza modifiche",
+      "hideChanges": "Nascondi modifiche"
     },
     "debug": {
       "title": "Debug",
@@ -1123,6 +1126,48 @@
         "description": "Gli ultimi 50 avvisi di errori ed esiti. Nuove voci vengono registrate solo mentre le notifiche di sistema sono attive.",
         "empty": "Ancora nessuna notifica.",
         "clear": "Cancella tutto"
+      }
+    },
+    "studio": {
+      "title": "Studio dei prompt",
+      "intro": "Esegui uno o più prompt su una trascrizione reale e confronta i motori fianco a fianco. Le esecuzioni dello studio usano la stessa pipeline della dettatura, ma non incollano nulla e non scrivono cronologia.",
+      "source": {
+        "label": "Testo di origine",
+        "description": "La trascrizione che lo studio rifinisce: l'ultima dettatura o qualsiasi voce della cronologia.",
+        "last": "Ultima trascrizione",
+        "loading": "Caricamento voci..."
+      },
+      "prompts": {
+        "label": "Prompt",
+        "description": "Scegli uno o più modelli da eseguire."
+      },
+      "engines": {
+        "label": "Motori",
+        "description": "Scegli uno o più motori su cui eseguirli.",
+        "appleUnavailable": "Apple Intelligence non è disponibile su questo Mac",
+        "noModel": "Nessun modello configurato"
+      },
+      "run_one": "Esegui 1 coppia",
+      "run_other": "Esegui {{count}} coppie",
+      "runHint_one": "1 coppia prompt e motore selezionata",
+      "runHint_other": "{{count}} coppie prompt e motore selezionate",
+      "running": "Esecuzione...",
+      "rerun": "Esegui di nuovo",
+      "latency": "{{ms}} ms",
+      "rawKept": "Il motore ha fallito o è stato saltato, quindi la trascrizione grezza verrebbe mantenuta.",
+      "partialFailure": "Alcune esecuzioni sono fallite o saltate mentre altre hanno prodotto output. Controlla ogni scheda.",
+      "results_one": "1 risultato",
+      "results_other": "{{count}} risultati",
+      "errors": {
+        "engineNotFound": "Il motore '{{id}}' non è configurato.",
+        "entryNotFound": "La voce della cronologia scelta non esiste più.",
+        "emptyBatch": "Scegli almeno un prompt e un motore."
+      },
+      "diff": {
+        "lines": "righe",
+        "charsChanged_one": "1 carattere modificato",
+        "charsChanged_other": "{{count}} caratteri modificati",
+        "identical": "Nessuna modifica."
       }
     }
   },

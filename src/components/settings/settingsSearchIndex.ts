@@ -147,6 +147,14 @@ const STATIC_INDEX: readonly SearchEntry[] = [
   { section: "postprocessing", key: "settings.postProcessing.api.title" },
   { section: "postprocessing", key: "settings.postProcessing.prompts.title" },
 
+  // Prompt Studio (always enabled: it is the testing ground for the
+  // post-processing feature, reachable while the feature itself is off)
+  { section: "promptStudio", key: "sidebar.promptStudio" },
+  { section: "promptStudio", key: "settings.studio.title" },
+  { section: "promptStudio", key: "settings.studio.source.label" },
+  { section: "promptStudio", key: "settings.studio.prompts.label" },
+  { section: "promptStudio", key: "settings.studio.engines.label" },
+
   // Debug (gated on debug_mode)
   { section: "debug", key: "sidebar.debug" },
   { section: "debug", key: "settings.debug.logLevel.title" },

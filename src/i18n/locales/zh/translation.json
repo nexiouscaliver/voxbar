@@ -26,7 +26,8 @@
     "history": "历史记录",
     "debug": "调试",
     "about": "关于",
-    "notifications": "通知"
+    "notifications": "通知",
+    "promptStudio": "提示词工作室"
   },
   "onboarding": {
     "subtitle": "请选择一个转录模型以开始使用",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "保留"
       },
-      "viaPostProcess": "经 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒处理"
+      "viaPostProcess": "经 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒处理",
+      "viewChanges": "查看更改",
+      "hideChanges": "收起更改"
     },
     "debug": {
       "title": "调试",
@@ -1123,6 +1126,48 @@
         "description": "最近 50 条错误与结果通知。仅当系统通知开启时记录新条目。",
         "empty": "暂无通知。",
         "clear": "全部清除"
+      }
+    },
+    "studio": {
+      "title": "提示词工作室",
+      "intro": "在真实转录文本上运行一个或多个提示词，并排比较不同引擎的效果。工作室运行使用与听写相同的流水线，但不会粘贴任何内容，也不会写入历史记录。",
+      "source": {
+        "label": "源文本",
+        "description": "工作室要润色的转录文本：最近一次听写或任意历史条目。",
+        "last": "最近转录",
+        "loading": "正在加载条目..."
+      },
+      "prompts": {
+        "label": "提示词",
+        "description": "选择一个或多个要运行的模板。"
+      },
+      "engines": {
+        "label": "引擎",
+        "description": "选择一个或多个要运行的引擎。",
+        "appleUnavailable": "此 Mac 不支持 Apple Intelligence",
+        "noModel": "未配置模型"
+      },
+      "run_one": "运行 1 组",
+      "run_other": "运行 {{count}} 组",
+      "runHint_one": "已选择 1 组提示词和引擎",
+      "runHint_other": "已选择 {{count}} 组提示词和引擎",
+      "running": "运行中...",
+      "rerun": "重新运行",
+      "latency": "{{ms}} 毫秒",
+      "rawKept": "引擎失败或被跳过，因此将保留原始转录。",
+      "partialFailure": "部分运行失败或被跳过，其他运行已产生结果。请检查每张卡片。",
+      "results_one": "1 个结果",
+      "results_other": "{{count}} 个结果",
+      "errors": {
+        "engineNotFound": "引擎 '{{id}}' 未配置。",
+        "entryNotFound": "所选的历史条目已不存在。",
+        "emptyBatch": "请至少选择一个提示词和一个引擎。"
+      },
+      "diff": {
+        "lines": "行",
+        "charsChanged_one": "1 个字符变更",
+        "charsChanged_other": "{{count}} 个字符变更",
+        "identical": "无更改。"
       }
     }
   },

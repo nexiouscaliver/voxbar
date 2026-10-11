@@ -569,6 +569,34 @@ async testPostProcessPrompt(promptId: string) : Promise<Result<PromptTestOutcome
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * The Prompt Studio batch (v1.6.0 W1-L6): run a batch of (template,
+ * engine) pairs over ONE source transcript. Every pair runs through the
+ * exact engine lifecycle a dictation uses (provider + its configured
+ * model, shared validator, pp: record under the `prompt_studio` marker),
+ * WITHOUT pasting anything and WITHOUT writing any history row: the seam
+ * it drives never touches the paste or history pipelines.
+ * 
+ * Validation is pre-flight and refuses the whole batch: an empty batch,
+ * a dangling template id, or an engine id that is not a configured
+ * provider errors before any run starts. Per-run engine failures are NOT
+ * command errors: they come back as outcome tokens (`failed:<class>`,
+ * `skipped:<reason>`) on their own card, so one dead engine never hides
+ * its siblings' results (the studio's partial-failure state).
+ * 
+ * Runs are sequential on purpose: the local engine is an exclusive memory
+ * swap (voice out, LLM in), so two concurrent local generations would
+ * fight over the swap on a memory-constrained machine. Results return in
+ * request order, each labeled with its request.
+ */
+async testPostProcessPromptBatch(source: StudioSource, runs: StudioRunRequest[]) : Promise<Result<StudioRunResult[], TestPromptError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("test_post_process_prompt_batch", { source, runs }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async updateCustomWords(words: string[]) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("update_custom_words", { words }) };
@@ -2499,6 +2527,24 @@ deleted?: string | null }
  */
 export type StreamWorkKind = "transcribing" | "polishing"
 /**
+ * One studio run: a (template, engine) pair. The engine is the provider
+ * id (local | apple_intelligence | a configured cloud id), exactly the
+ * vocabulary the settings store and the run records use.
+ */
+export type StudioRunRequest = { prompt_id: string; provider_id: string }
+/**
+ * One studio result, labeled by the request that produced it so the cards
+ * can render side by side no matter how the batch was ordered.
+ */
+export type StudioRunResult = { request: StudioRunRequest; outcome: PromptTestOutcome }
+/**
+ * Where a Prompt Studio batch polishes from (v1.6.0 W1-L6): the newest
+ * history entry's transcript, or one picked entry. The RAW transcript in
+ * both cases: that is what a dictation feeds the engine, so studio runs
+ * replay the real input, not an already-polished output.
+ */
+export type StudioSource = { kind: "last_transcript" } | { kind: "history_entry"; id: number }
+/**
  * The Test Connection verdict, assembled by the command from the model
  * list, the completion probe, or the on-device state. `completion_ok` is
  * None when no probe ran (local/Apple providers, or no model selected);
@@ -2506,12 +2552,13 @@ export type StreamWorkKind = "transcribing" | "polishing"
  */
 export type TestConnectionResult = { model_list_ok: boolean; completion_ok: boolean | null; latency_ms: number | null; failure_class: PostProcessFailureClass | null; detail: string }
 /**
- * Structured error for the test command: the tag is the failure the UI
+ * Structured error for the test commands: the tag is the failure the UI
  * keys on (`no_history` when there is nothing to test against,
- * `prompt_not_found` for a dangling template id, `other` for a history
- * store read failure).
+ * `prompt_not_found` for a dangling template id, `engine_not_found` and
+ * `empty_batch` for studio batch validation, `entry_not_found` for a
+ * deleted source entry, `other` for a history store read failure).
  */
-export type TestPromptError = { kind: "no_history" } | { kind: "prompt_not_found"; id: string } | { kind: "other"; detail: string }
+export type TestPromptError = { kind: "no_history" } | { kind: "prompt_not_found"; id: string } | { kind: "engine_not_found"; id: string } | { kind: "entry_not_found"; id: number } | { kind: "empty_batch" } | { kind: "other"; detail: string }
 /**
  * UI appearance mode. `System` follows the OS `prefers-color-scheme`; `Light`
  * and `Dark` force one of the two palettes Handy already ships.

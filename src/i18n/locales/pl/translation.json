@@ -26,7 +26,8 @@
     "history": "Historia",
     "debug": "Debugowanie",
     "about": "O programie",
-    "notifications": "Powiadomienia"
+    "notifications": "Powiadomienia",
+    "promptStudio": "Studio promptów"
   },
   "onboarding": {
     "subtitle": "Aby rozpocząć, wybierz model transkrypcji",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Przechowywanie"
       },
-      "viaPostProcess": "przez {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "przez {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Pokaż zmiany",
+      "hideChanges": "Ukryj zmiany"
     },
     "debug": {
       "title": "Debugowanie",
@@ -1123,6 +1126,48 @@
         "description": "Ostatnie 50 powiadomień o błędach i wynikach. Nowe wpisy są zapisywane tylko wtedy, gdy powiadomienia systemowe są włączone.",
         "empty": "Brak powiadomień.",
         "clear": "Wyczyść wszystko"
+      }
+    },
+    "studio": {
+      "title": "Studio promptów",
+      "intro": "Uruchom jeden lub więcej promptów na prawdziwej transkrypcji i porównaj silniki obok siebie. Uruchomienia studia używają tego samego potoku co dyktowanie, ale niczego nie wklejają i nie zapisują historii.",
+      "source": {
+        "label": "Tekst źródłowy",
+        "description": "Transkrypcja, którą studio szlifuje: ostatnie dyktowanie lub dowolny wpis historii.",
+        "last": "Ostatnia transkrypcja",
+        "loading": "Wczytywanie wpisów..."
+      },
+      "prompts": {
+        "label": "Prompty",
+        "description": "Wybierz jeden lub więcej szablonów do uruchomienia."
+      },
+      "engines": {
+        "label": "Silniki",
+        "description": "Wybierz jeden lub więcej silników do uruchomienia.",
+        "appleUnavailable": "Apple Intelligence jest niedostępny na tym Macu",
+        "noModel": "Brak skonfigurowanego modelu"
+      },
+      "run_one": "Uruchom 1 parę",
+      "run_other": "Uruchom pary: {{count}}",
+      "runHint_one": "Wybrano 1 parę prompt i silnik",
+      "runHint_other": "Wybrano par prompt i silnik: {{count}}",
+      "running": "Uruchamianie...",
+      "rerun": "Uruchom ponownie",
+      "latency": "{{ms}} ms",
+      "rawKept": "Silnik nie powiódł się lub został pominięty, więc surowa transkrypcja zostałaby zachowana.",
+      "partialFailure": "Niektóre uruchomienia nie powiodły się lub zostały pominięte, a inne dały wynik. Sprawdź każdą kartę.",
+      "results_one": "1 wynik",
+      "results_other": "Wyników: {{count}}",
+      "errors": {
+        "engineNotFound": "Silnik '{{id}}' nie jest skonfigurowany.",
+        "entryNotFound": "Wybrany wpis historii już nie istnieje.",
+        "emptyBatch": "Wybierz co najmniej jeden prompt i jeden silnik."
+      },
+      "diff": {
+        "lines": "linii",
+        "charsChanged_one": "Zmieniono 1 znak",
+        "charsChanged_other": "Zmieniono znaków: {{count}}",
+        "identical": "Brak zmian."
       }
     }
   },

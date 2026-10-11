@@ -26,7 +26,8 @@
     "history": "Historie",
     "debug": "Ladění",
     "about": "O aplikaci",
-    "notifications": "Oznámení"
+    "notifications": "Oznámení",
+    "promptStudio": "Studio promptů"
   },
   "onboarding": {
     "subtitle": "Pro začátek vyberte model pro přepis",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Uchovávání"
       },
-      "viaPostProcess": "přes {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "přes {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Zobrazit změny",
+      "hideChanges": "Skrýt změny"
     },
     "debug": {
       "title": "Ladění",
@@ -1123,6 +1126,48 @@
         "description": "Posledních 50 upozornění na chyby a výsledky. Nové záznamy se ukládají pouze při zapnutých systémových oznámeních.",
         "empty": "Zatím žádná oznámení.",
         "clear": "Vymazat vše"
+      }
+    },
+    "studio": {
+      "title": "Studio promptů",
+      "intro": "Spusťte jeden nebo více promptů na skutečném přepisu a porovnejte enginy vedle sebe. Běhy studia používají stejný kanál jako diktování, ale nic nevkládají a nezapisují historii.",
+      "source": {
+        "label": "Zdrojový text",
+        "description": "Přepis, který studio upravuje: poslední diktát nebo libovolná položka historie.",
+        "last": "Poslední přepis",
+        "loading": "Načítání položek..."
+      },
+      "prompts": {
+        "label": "Prompty",
+        "description": "Vyberte jednu nebo více šablon ke spuštění."
+      },
+      "engines": {
+        "label": "Enginy",
+        "description": "Vyberte jeden nebo více enginů ke spuštění.",
+        "appleUnavailable": "Apple Intelligence není na tomto Macu k dispozici",
+        "noModel": "Není nakonfigurován žádný model"
+      },
+      "run_one": "Spustit 1 pár",
+      "run_other": "Spustit párů: {{count}}",
+      "runHint_one": "Vybrán 1 pár prompt a engin",
+      "runHint_other": "Vybráno párů prompt a engin: {{count}}",
+      "running": "Běží...",
+      "rerun": "Spustit znovu",
+      "latency": "{{ms}} ms",
+      "rawKept": "Engin selhal nebo byl přeskočen, proto by zůstal původní přepis.",
+      "partialFailure": "Některé běhy selhaly nebo byly přeskočeny, zatímco jiné daly výsledek. Zkontrolujte každou kartu.",
+      "results_one": "1 výsledek",
+      "results_other": "Výsledků: {{count}}",
+      "errors": {
+        "engineNotFound": "Engin '{{id}}' není nakonfigurován.",
+        "entryNotFound": "Zvolená položka historie už neexistuje.",
+        "emptyBatch": "Vyberte alespoň jeden prompt a jeden engin."
+      },
+      "diff": {
+        "lines": "řádků",
+        "charsChanged_one": "Změněn 1 znak",
+        "charsChanged_other": "Změněno znaků: {{count}}",
+        "identical": "Žádné změny."
       }
     }
   },

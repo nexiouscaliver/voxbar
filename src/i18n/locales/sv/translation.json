@@ -26,7 +26,8 @@
     "history": "Historik",
     "debug": "Felsökning",
     "about": "Om",
-    "notifications": "Aviseringar"
+    "notifications": "Aviseringar",
+    "promptStudio": "Promptstudio"
   },
   "onboarding": {
     "subtitle": "För att komma igång, välj en transkriptionsmodell",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Lagring"
       },
-      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Visa ändringar",
+      "hideChanges": "Dölj ändringar"
     },
     "debug": {
       "title": "Felsökning",
@@ -1123,6 +1126,48 @@
         "description": "De senaste 50 fel- och resultatmeddelandena. Nya poster registreras bara medan systemaviseringar är på.",
         "empty": "Inga aviseringar än.",
         "clear": "Rensa alla"
+      }
+    },
+    "studio": {
+      "title": "Promptstudio",
+      "intro": "Kör en eller flera prompts på en verklig transkription och jämför motorer sida vid sida. Studiokörningar använder samma pipeline som diktering, men klistrar aldrig in något och skriver aldrig historik.",
+      "source": {
+        "label": "Källtext",
+        "description": "Transkriptionen som studiet finslipar: din senaste diktering eller valfri historikpost.",
+        "last": "Senaste transkriptionen",
+        "loading": "Läser in poster..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Välj en eller flera mallar att köra."
+      },
+      "engines": {
+        "label": "Motorer",
+        "description": "Välj en eller flera motorer att köra dem på.",
+        "appleUnavailable": "Apple Intelligence är inte tillgänglig på den här Macen",
+        "noModel": "Ingen modell konfigurerad"
+      },
+      "run_one": "Kör 1 par",
+      "run_other": "Kör {{count}} par",
+      "runHint_one": "1 prompt- och motorpar valt",
+      "runHint_other": "{{count}} prompt- och motorpar valda",
+      "running": "Kör...",
+      "rerun": "Kör igen",
+      "latency": "{{ms}} ms",
+      "rawKept": "Motorn misslyckades eller hoppades över, så råtranskriptionen skulle behållas.",
+      "partialFailure": "Vissa körningar misslyckades eller hoppades över medan andra gav resultat. Kontrollera varje kort.",
+      "results_one": "1 resultat",
+      "results_other": "{{count}} resultat",
+      "errors": {
+        "engineNotFound": "Motorn '{{id}}' är inte konfigurerad.",
+        "entryNotFound": "Den valda historikposten finns inte längre.",
+        "emptyBatch": "Välj minst en prompt och en motor."
+      },
+      "diff": {
+        "lines": "rader",
+        "charsChanged_one": "1 tecken ändrat",
+        "charsChanged_other": "{{count}} tecken ändrade",
+        "identical": "Inga ändringar."
       }
     }
   },

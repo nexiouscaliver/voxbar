@@ -26,7 +26,8 @@
     "history": "History",
     "debug": "Debug",
     "about": "About",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "promptStudio": "Prompt Studio"
   },
   "onboarding": {
     "subtitle": "To get started, choose a transcription model",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Retention"
       },
-      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "View changes",
+      "hideChanges": "Hide changes"
     },
     "debug": {
       "title": "Debug",
@@ -1123,6 +1126,48 @@
         "description": "The last 50 error and outcome notices. New entries are recorded only while system notifications are on.",
         "empty": "No notifications yet.",
         "clear": "Clear all"
+      }
+    },
+    "studio": {
+      "title": "Prompt Studio",
+      "intro": "Run one or more prompts on a real transcript and compare engines side by side. Studio runs use the same pipeline as dictation, but never paste and never write history.",
+      "source": {
+        "label": "Source text",
+        "description": "The transcript the studio polishes: your latest dictation or any history entry.",
+        "last": "Last transcript",
+        "loading": "Loading entries..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Pick one or more templates to run."
+      },
+      "engines": {
+        "label": "Engines",
+        "description": "Pick one or more engines to run them on.",
+        "appleUnavailable": "Apple Intelligence is not available on this Mac",
+        "noModel": "No model configured"
+      },
+      "run_one": "Run 1 pair",
+      "run_other": "Run {{count}} pairs",
+      "runHint_one": "1 prompt and engine pair selected",
+      "runHint_other": "{{count}} prompt and engine pairs selected",
+      "running": "Running...",
+      "rerun": "Re-run",
+      "latency": "{{ms}} ms",
+      "rawKept": "The engine failed or skipped, so the raw transcript would be kept.",
+      "partialFailure": "Some runs failed or skipped while others produced output. Check each card.",
+      "results_one": "1 result",
+      "results_other": "{{count}} results",
+      "errors": {
+        "engineNotFound": "Engine '{{id}}' is not configured.",
+        "entryNotFound": "The picked history entry no longer exists.",
+        "emptyBatch": "Pick at least one prompt and one engine."
+      },
+      "diff": {
+        "lines": "lines",
+        "charsChanged_one": "1 char changed",
+        "charsChanged_other": "{{count}} chars changed",
+        "identical": "No changes."
       }
     }
   },

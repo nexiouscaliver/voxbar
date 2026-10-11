@@ -26,7 +26,8 @@
     "history": "Historique",
     "debug": "Débogage",
     "about": "À propos",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "promptStudio": "Studio de prompts"
   },
   "onboarding": {
     "subtitle": "Pour commencer, choisissez un modèle de transcription",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Conservation"
       },
-      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Voir les modifications",
+      "hideChanges": "Masquer les modifications"
     },
     "debug": {
       "title": "Débogage",
@@ -1123,6 +1126,48 @@
         "description": "Les 50 derniers avis d'erreurs et de résultats. De nouvelles entrées ne sont enregistrées que lorsque les notifications système sont activées.",
         "empty": "Aucune notification pour l'instant.",
         "clear": "Tout effacer"
+      }
+    },
+    "studio": {
+      "title": "Studio de prompts",
+      "intro": "Exécutez un ou plusieurs prompts sur une vraie transcription et comparez les moteurs côte à côte. Les exécutions du studio utilisent le même pipeline que la dictée, mais ne collent jamais rien et n'écrivent jamais dans l'historique.",
+      "source": {
+        "label": "Texte source",
+        "description": "La transcription que le studio retouche : votre dernière dictée ou n'importe quelle entrée d'historique.",
+        "last": "Dernière transcription",
+        "loading": "Chargement des entrées..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Choisissez un ou plusieurs modèles à exécuter."
+      },
+      "engines": {
+        "label": "Moteurs",
+        "description": "Choisissez un ou plusieurs moteurs sur lesquels les exécuter.",
+        "appleUnavailable": "Apple Intelligence n'est pas disponible sur ce Mac",
+        "noModel": "Aucun modèle configuré"
+      },
+      "run_one": "Exécuter 1 paire",
+      "run_other": "Exécuter {{count}} paires",
+      "runHint_one": "1 paire prompt et moteur sélectionnée",
+      "runHint_other": "{{count}} paires prompt et moteur sélectionnées",
+      "running": "Exécution...",
+      "rerun": "Relancer",
+      "latency": "{{ms}} ms",
+      "rawKept": "Le moteur a échoué ou a été ignoré, la transcription brute serait donc conservée.",
+      "partialFailure": "Certaines exécutions ont échoué ou été ignorées tandis que d'autres ont produit un résultat. Vérifiez chaque carte.",
+      "results_one": "1 résultat",
+      "results_other": "{{count}} résultats",
+      "errors": {
+        "engineNotFound": "Le moteur '{{id}}' n'est pas configuré.",
+        "entryNotFound": "L'entrée d'historique choisie n'existe plus.",
+        "emptyBatch": "Choisissez au moins un prompt et un moteur."
+      },
+      "diff": {
+        "lines": "lignes",
+        "charsChanged_one": "1 caractère modifié",
+        "charsChanged_other": "{{count}} caractères modifiés",
+        "identical": "Aucune modification."
       }
     }
   },

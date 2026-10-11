@@ -2123,6 +2123,98 @@ pub async fn test_post_process_prompt(
     )
 }
 
+/// The Prompt Studio batch (v1.6.0 W1-L6): run a batch of (template,
+/// engine) pairs over ONE source transcript. Every pair runs through the
+/// exact engine lifecycle a dictation uses (provider + its configured
+/// model, shared validator, pp: record under the `prompt_studio` marker),
+/// WITHOUT pasting anything and WITHOUT writing any history row: the seam
+/// it drives never touches the paste or history pipelines.
+///
+/// Validation is pre-flight and refuses the whole batch: an empty batch,
+/// a dangling template id, or an engine id that is not a configured
+/// provider errors before any run starts. Per-run engine failures are NOT
+/// command errors: they come back as outcome tokens (`failed:<class>`,
+/// `skipped:<reason>`) on their own card, so one dead engine never hides
+/// its siblings' results (the studio's partial-failure state).
+///
+/// Runs are sequential on purpose: the local engine is an exclusive memory
+/// swap (voice out, LLM in), so two concurrent local generations would
+/// fight over the swap on a memory-constrained machine. Results return in
+/// request order, each labeled with its request.
+#[tauri::command]
+#[specta::specta]
+pub async fn test_post_process_prompt_batch(
+    app: AppHandle,
+    history_manager: tauri::State<'_, std::sync::Arc<crate::managers::history::HistoryManager>>,
+    source: crate::actions::StudioSource,
+    runs: Vec<crate::actions::StudioRunRequest>,
+) -> Result<Vec<crate::actions::StudioRunResult>, crate::actions::TestPromptError> {
+    use crate::actions::{StudioRunResult, StudioSource, TestPromptError};
+
+    if runs.is_empty() {
+        return Err(TestPromptError::EmptyBatch);
+    }
+
+    let settings = settings::get_settings(&app);
+    crate::actions::validate_studio_batch(&settings, &runs)?;
+
+    // The source transcript is the RAW text a dictation would feed the
+    // engine: the newest entry's transcript, or the picked entry's.
+    let source_text = match &source {
+        StudioSource::LastTranscript => {
+            let page = history_manager
+                .get_history_entries(None, Some(1))
+                .await
+                .map_err(|e| TestPromptError::Other {
+                    detail: e.to_string(),
+                })?;
+            page.entries
+                .first()
+                .ok_or(TestPromptError::NoHistory)?
+                .transcription_text
+                .clone()
+        }
+        StudioSource::HistoryEntry { id } => {
+            history_manager
+                .get_entry_by_id(*id)
+                .await
+                .map_err(|e| TestPromptError::Other {
+                    detail: e.to_string(),
+                })?
+                .ok_or(TestPromptError::EntryNotFound { id: *id })?
+                .transcription_text
+        }
+    };
+
+    let mut results = Vec::with_capacity(runs.len());
+    for run in &runs {
+        // Re-resolve instead of holding borrows across the await below.
+        // validate_studio_batch already guaranteed these exist; the
+        // ok_or is the defensive backstop, not a second opinion.
+        let prompt = settings
+            .post_process_prompts
+            .iter()
+            .find(|p| p.id == run.prompt_id)
+            .cloned()
+            .ok_or_else(|| TestPromptError::PromptNotFound {
+                id: run.prompt_id.clone(),
+            })?;
+        let outcome = crate::actions::run_prompt_test_with_engine(
+            Some(&app),
+            &settings,
+            &prompt,
+            &source_text,
+            Some(&run.provider_id),
+        )
+        .await;
+        results.push(StudioRunResult {
+            request: run.clone(),
+            outcome,
+        });
+    }
+    Ok(results)
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn update_post_process_prompt(

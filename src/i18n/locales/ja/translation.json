@@ -26,7 +26,8 @@
     "history": "履歴",
     "debug": "デバッグ",
     "about": "概要",
-    "notifications": "通知"
+    "notifications": "通知",
+    "promptStudio": "プロンプトスタジオ"
   },
   "onboarding": {
     "subtitle": "開始するには、文字起こしのモデルを選択してください",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "保存期間"
       },
-      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms で処理"
+      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms で処理",
+      "viewChanges": "変更を表示",
+      "hideChanges": "変更を閉じる"
     },
     "debug": {
       "title": "デバッグ",
@@ -1123,6 +1126,48 @@
         "description": "直近50件のエラーと結果の通知。新しい記録はシステム通知が有効な間だけ行われます。",
         "empty": "通知はまだありません。",
         "clear": "すべてクリア"
+      }
+    },
+    "studio": {
+      "title": "プロンプトスタジオ",
+      "intro": "実際の文字起こしに対して 1 つ以上のプロンプトを実行し、エンジンを並べて比較します。スタジオの実行は口述と同じパイプラインを使いますが、貼り付けも履歴の保存も行いません。",
+      "source": {
+        "label": "ソーステキスト",
+        "description": "スタジオが加工する文字起こし：直近の口述または任意の履歴エントリ。",
+        "last": "最新の文字起こし",
+        "loading": "エントリを読み込み中..."
+      },
+      "prompts": {
+        "label": "プロンプト",
+        "description": "実行するテンプレートを 1 つ以上選択してください。"
+      },
+      "engines": {
+        "label": "エンジン",
+        "description": "実行するエンジンを 1 つ以上選択してください。",
+        "appleUnavailable": "この Mac では Apple Intelligence を利用できません",
+        "noModel": "モデルが未設定です"
+      },
+      "run_one": "1 ペアを実行",
+      "run_other": "{{count}} ペアを実行",
+      "runHint_one": "プロンプトとエンジンのペアを 1 件選択中",
+      "runHint_other": "プロンプトとエンジンのペアを {{count}} 件選択中",
+      "running": "実行中...",
+      "rerun": "再実行",
+      "latency": "{{ms}} ミリ秒",
+      "rawKept": "エンジンが失敗またはスキップされたため、元の文字起こしが保持されます。",
+      "partialFailure": "一部の実行は失敗またはスキップされ、他の実行は結果を生成しました。各カードを確認してください。",
+      "results_one": "1 件の結果",
+      "results_other": "{{count}} 件の結果",
+      "errors": {
+        "engineNotFound": "エンジン '{{id}}' は設定されていません。",
+        "entryNotFound": "選択した履歴エントリは存在しません。",
+        "emptyBatch": "プロンプトとエンジンをそれぞれ 1 つ以上選択してください。"
+      },
+      "diff": {
+        "lines": "行",
+        "charsChanged_one": "1 文字変更",
+        "charsChanged_other": "{{count}} 文字変更",
+        "identical": "変更なし。"
       }
     }
   },

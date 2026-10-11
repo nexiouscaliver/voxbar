@@ -26,7 +26,8 @@
     "history": "Lịch sử",
     "debug": "Gỡ lỗi",
     "about": "Giới thiệu",
-    "notifications": "Thông báo"
+    "notifications": "Thông báo",
+    "promptStudio": "Xưởng prompt"
   },
   "onboarding": {
     "subtitle": "Để bắt đầu, hãy chọn một mô hình chuyển đổi giọng nói",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Lưu trữ"
       },
-      "viaPostProcess": "qua {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "qua {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Xem thay đổi",
+      "hideChanges": "Ẩn thay đổi"
     },
     "debug": {
       "title": "Gỡ lỗi",
@@ -1123,6 +1126,48 @@
         "description": "50 thông báo lỗi và kết quả gần nhất. Chỉ ghi mục mới khi thông báo hệ thống đang bật.",
         "empty": "Chưa có thông báo nào.",
         "clear": "Xóa tất cả"
+      }
+    },
+    "studio": {
+      "title": "Xưởng prompt",
+      "intro": "Chạy một hoặc nhiều prompt trên một bản ghi thực và so sánh các engine cạnh nhau. Các lần chạy trong xưởng dùng cùng đường ống như đọc chính tả, nhưng không bao giờ dán gì và không bao giờ ghi lịch sử.",
+      "source": {
+        "label": "Văn bản nguồn",
+        "description": "Bản ghi mà xưởng tôi sửa: lần đọc chính tả gần nhất hoặc bất kỳ mục lịch sử nào.",
+        "last": "Bản ghi gần nhất",
+        "loading": "Đang tải các mục..."
+      },
+      "prompts": {
+        "label": "Prompt",
+        "description": "Chọn một hoặc nhiều mẫu để chạy."
+      },
+      "engines": {
+        "label": "Engine",
+        "description": "Chọn một hoặc nhiều engine để chạy chúng.",
+        "appleUnavailable": "Apple Intelligence không khả dụng trên Mac này",
+        "noModel": "Chưa cấu hình mô hình"
+      },
+      "run_one": "Chạy 1 cặp",
+      "run_other": "Chạy {{count}} cặp",
+      "runHint_one": "Đã chọn 1 cặp prompt và engine",
+      "runHint_other": "Đã chọn {{count}} cặp prompt và engine",
+      "running": "Đang chạy...",
+      "rerun": "Chạy lại",
+      "latency": "{{ms}} ms",
+      "rawKept": "Engine lỗi hoặc bị bỏ qua nên bản ghi thô sẽ được giữ nguyên.",
+      "partialFailure": "Một số lần chạy lỗi hoặc bị bỏ qua trong khi số khác tạo ra kết quả. Kiểm tra từng thẻ.",
+      "results_one": "1 kết quả",
+      "results_other": "{{count}} kết quả",
+      "errors": {
+        "engineNotFound": "Engine '{{id}}' chưa được cấu hình.",
+        "entryNotFound": "Mục lịch sử đã chọn không còn tồn tại.",
+        "emptyBatch": "Chọn ít nhất một prompt và một engine."
+      },
+      "diff": {
+        "lines": "dòng",
+        "charsChanged_one": "1 ký tự thay đổi",
+        "charsChanged_other": "{{count}} ký tự thay đổi",
+        "identical": "Không có thay đổi."
       }
     }
   },

@@ -30,6 +30,10 @@ import {
 } from "./components/settings";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
+import {
+  OPEN_PROMPT_STUDIO_EVENT,
+  PRELOAD_PROMPT_STUDIO_EVENT,
+} from "./components/settings/studio/studioEvents";
 import { SettingsSearch } from "./components/settings/SettingsSearch";
 import { WhatsNewGate } from "./components/whats-new";
 import { runUpdateCheck } from "./components/update-checker/updaterFlow";
@@ -586,6 +590,24 @@ function App() {
     return () => {
       unlisten.then((fn) => fn());
     };
+  }, []);
+
+  // v1.6.0 W1-L6: the per-template Test button opens the Prompt Studio
+  // with that template preselected. Same re-dispatch pattern as the
+  // unload-timeout jump above: the studio hears the preload event only
+  // after it has mounted on the section switch.
+  useEffect(() => {
+    const listener = (event: Event) => {
+      setCurrentSection("promptStudio");
+      const detail = (event as CustomEvent<{ promptId: string }>).detail;
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent(PRELOAD_PROMPT_STUDIO_EVENT, { detail }),
+        );
+      }, 150);
+    };
+    window.addEventListener(OPEN_PROMPT_STUDIO_EVENT, listener);
+    return () => window.removeEventListener(OPEN_PROMPT_STUDIO_EVENT, listener);
   }, []);
 
   const revealMainWindowForPermissions = async () => {

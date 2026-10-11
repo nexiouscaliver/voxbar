@@ -26,7 +26,8 @@
     "history": "Historial",
     "debug": "Depuración",
     "about": "Acerca de",
-    "notifications": "Notificaciones"
+    "notifications": "Notificaciones",
+    "promptStudio": "Estudio de prompts"
   },
   "onboarding": {
     "subtitle": "Para comenzar, elige un modelo de transcripción",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Retención"
       },
-      "viaPostProcess": "vía {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "vía {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Ver cambios",
+      "hideChanges": "Ocultar cambios"
     },
     "debug": {
       "title": "Depuración",
@@ -1123,6 +1126,48 @@
         "description": "Los últimos 50 avisos de errores y resultados. Solo se registran entradas nuevas mientras las notificaciones del sistema estén activadas.",
         "empty": "Todavía no hay notificaciones.",
         "clear": "Limpiar todo"
+      }
+    },
+    "studio": {
+      "title": "Estudio de prompts",
+      "intro": "Ejecuta uno o más prompts sobre una transcripción real y compara motores lado a lado. Las ejecuciones del estudio usan el mismo pipeline que el dictado, pero nunca pegan nada ni escriben en el historial.",
+      "source": {
+        "label": "Texto de origen",
+        "description": "La transcripción que el estudio pule: tu último dictado o cualquier entrada del historial.",
+        "last": "Última transcripción",
+        "loading": "Cargando entradas..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Elige una o más plantillas para ejecutar."
+      },
+      "engines": {
+        "label": "Motores",
+        "description": "Elige uno o más motores donde ejecutarlas.",
+        "appleUnavailable": "Apple Intelligence no está disponible en este Mac",
+        "noModel": "Ningún modelo configurado"
+      },
+      "run_one": "Ejecutar 1 par",
+      "run_other": "Ejecutar {{count}} pares",
+      "runHint_one": "1 par de prompt y motor seleccionado",
+      "runHint_other": "{{count}} pares de prompt y motor seleccionados",
+      "running": "Ejecutando...",
+      "rerun": "Reejecutar",
+      "latency": "{{ms}} ms",
+      "rawKept": "El motor falló o se omitió, así que se conservaría la transcripción sin procesar.",
+      "partialFailure": "Algunas ejecuciones fallaron o se omitieron mientras otras produjeron resultados. Revisa cada tarjeta.",
+      "results_one": "1 resultado",
+      "results_other": "{{count}} resultados",
+      "errors": {
+        "engineNotFound": "El motor '{{id}}' no está configurado.",
+        "entryNotFound": "La entrada del historial elegida ya no existe.",
+        "emptyBatch": "Elige al menos un prompt y un motor."
+      },
+      "diff": {
+        "lines": "líneas",
+        "charsChanged_one": "1 carácter cambiado",
+        "charsChanged_other": "{{count}} caracteres cambiados",
+        "identical": "Sin cambios."
       }
     }
   },

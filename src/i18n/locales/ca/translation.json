@@ -26,7 +26,8 @@
     "history": "Historial",
     "debug": "Depuració",
     "about": "Quant a",
-    "notifications": "Notificacions"
+    "notifications": "Notificacions",
+    "promptStudio": "Estudi de prompts"
   },
   "onboarding": {
     "subtitle": "Per començar, trieu un model de transcripció",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Retenció"
       },
-      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Veure els canvis",
+      "hideChanges": "Amagar els canvis"
     },
     "debug": {
       "title": "Depuració",
@@ -1123,6 +1126,48 @@
         "description": "Els últims 50 avisos d'errors i resultats. Només es registren entrades noves mentre les notificacions del sistema estiguin actives.",
         "empty": "Encara no hi ha notificacions.",
         "clear": "Esborra-ho tot"
+      }
+    },
+    "studio": {
+      "title": "Estudi de prompts",
+      "intro": "Executa un o més prompts sobre una transcripció real i compara motors costat per costat. Les execucions de l'estudi fan servir el mateix pipeline que el dictat, però mai enganxen res ni escriuen a l'historial.",
+      "source": {
+        "label": "Text d'origen",
+        "description": "La transcripció que l'estudi polit: l'últim dictat o qualsevol entrada de l'historial.",
+        "last": "Última transcripció",
+        "loading": "Carregant entrades..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Tria una o més plantilles per executar."
+      },
+      "engines": {
+        "label": "Motors",
+        "description": "Tria un o més motors per executar-les.",
+        "appleUnavailable": "Apple Intelligence no està disponible en aquest Mac",
+        "noModel": "Cap model configurat"
+      },
+      "run_one": "Executar 1 parell",
+      "run_other": "Executar {{count}} parells",
+      "runHint_one": "1 parell de prompt i motor seleccionat",
+      "runHint_other": "{{count}} parells de prompt i motor seleccionats",
+      "running": "S'està executant...",
+      "rerun": "Tornar a executar",
+      "latency": "{{ms}} ms",
+      "rawKept": "El motor ha fallat o s'ha omès, per tant es mantindria la transcripció en brut.",
+      "partialFailure": "Algunes execucions han fallat o s'han omès mentre d'altres han produït resultats. Comprova cada targeta.",
+      "results_one": "1 resultat",
+      "results_other": "{{count}} resultats",
+      "errors": {
+        "engineNotFound": "El motor '{{id}}' no està configurat.",
+        "entryNotFound": "L'entrada de l'historial triada ja no existeix.",
+        "emptyBatch": "Tria com a mínim un prompt i un motor."
+      },
+      "diff": {
+        "lines": "línies",
+        "charsChanged_one": "1 caràcter canviat",
+        "charsChanged_other": "{{count}} caràcters canviats",
+        "identical": "Sense canvis."
       }
     }
   },

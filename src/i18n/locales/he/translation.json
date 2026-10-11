@@ -26,7 +26,8 @@
     "history": "היסטוריה",
     "debug": "ניפוי שגיאות",
     "about": "אודות",
-    "notifications": "התראות"
+    "notifications": "התראות",
+    "promptStudio": "סטודיו פרומפטים"
   },
   "onboarding": {
     "subtitle": "כדי להתחיל, בחר מודל תמלול",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "שמירה"
       },
-      "viaPostProcess": "דרך {{model}} · {{prompt}} · {{outcome}} · {{latency}} מ״ש"
+      "viaPostProcess": "דרך {{model}} · {{prompt}} · {{outcome}} · {{latency}} מ״ש",
+      "viewChanges": "הצגת שינויים",
+      "hideChanges": "הסתרת שינויים"
     },
     "debug": {
       "title": "ניפוי שגיאות",
@@ -1123,6 +1126,48 @@
         "description": "50 ההתראות האחרונות על שגיאות ותוצאות. רשומות חדשות נשמרות רק כשהתראות מערכת פועלות.",
         "empty": "אין עדיין התראות.",
         "clear": "ניקוי הכול"
+      }
+    },
+    "studio": {
+      "title": "סטודיו פרומפטים",
+      "intro": "הריצו פרומפט אחד או יותר על תמליל אמיתי והשוו מנועים זה לצד זה. הרצות הסטודיו משתמשות באותו צינור כמו ההקלטה, אבל לעולם לא מדביקות דבר ולא כותבות להיסטוריה.",
+      "source": {
+        "label": "טקסט מקור",
+        "description": "התמליל שהסטודיו מלטש: ההקלטה האחרונה שלכם או כל רשומה בהיסטוריה.",
+        "last": "התמליל האחרון",
+        "loading": "טוען רשומות..."
+      },
+      "prompts": {
+        "label": "פרומפטים",
+        "description": "בחרו תבנית אחת או יותר להרצה."
+      },
+      "engines": {
+        "label": "מנועים",
+        "description": "בחרו מנוע אחד או יותר להרצה.",
+        "appleUnavailable": "Apple Intelligence אינו זמין ב-Mac הזה",
+        "noModel": "לא הוגדר מודל"
+      },
+      "run_one": "הרצת זוג אחד",
+      "run_other": "הרצת {{count}} זוגות",
+      "runHint_one": "נבחר זוג אחד של פרומפט ומנוע",
+      "runHint_other": "נבחרו {{count}} זוגות של פרומפט ומנוע",
+      "running": "מריץ...",
+      "rerun": "הרצה חוזרת",
+      "latency": "{{ms}} מ״ש",
+      "rawKept": "המנוע נכשל או דולג, ולכן התמליל הגולמי יישמר.",
+      "partialFailure": "חלק מההרצות נכשלו או דולגו בעוד אחרות הניבו תוצאה. בדקו כל כרטיס.",
+      "results_one": "תוצאה אחת",
+      "results_other": "{{count}} תוצאות",
+      "errors": {
+        "engineNotFound": "המנוע '{{id}}' אינו מוגדר.",
+        "entryNotFound": "רשומת ההיסטוריה שנבחרה כבר אינה קיימת.",
+        "emptyBatch": "בחרו לפחות פרומפט אחד ומנוע אחד."
+      },
+      "diff": {
+        "lines": "שורות",
+        "charsChanged_one": "תו אחד השתנה",
+        "charsChanged_other": "{{count}} תווים השתנו",
+        "identical": "אין שינויים."
       }
     }
   },

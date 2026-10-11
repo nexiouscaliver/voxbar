@@ -5,8 +5,6 @@ import {
   commands,
   type LLMPrompt,
   type PostProcessProvider,
-  type PromptTestOutcome,
-  type TestPromptError,
   type TestConnectionResult,
 } from "@/bindings";
 
@@ -31,6 +29,7 @@ import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePos
 import { PostProcessModelsSection } from "./PostProcessModelsSection";
 import { ShortcutInput } from "../ShortcutInput";
 import { shortcutRowDisabled } from "../shortcutGating";
+import { openPromptStudio } from "../studio/studioEvents";
 import { useSettings } from "../../../hooks/useSettings";
 
 /// One line under the provider selector that renders the Test Connection
@@ -388,11 +387,11 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
 
 /// One row of the template library list: name, language/register badges,
 /// the catalog description, and the row actions (select happens through the
-/// dropdown above; Edit focuses this template in the editor below).
+/// dropdown above; Edit focuses this template in the editor below; Test
+/// opens the Prompt Studio preloaded with this template, v1.6.0 W1-L6).
 const TemplateRow: React.FC<{
   prompt: LLMPrompt;
   isSelected: boolean;
-  isBusy: boolean;
   onSelect: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
@@ -402,7 +401,6 @@ const TemplateRow: React.FC<{
 }> = ({
   prompt,
   isSelected,
-  isBusy,
   onSelect,
   onEdit,
   onDuplicate,
@@ -459,80 +457,27 @@ const TemplateRow: React.FC<{
             onClick={onSelect}
             variant="secondary"
             size="sm"
-            disabled={isSelected || isBusy}
+            disabled={isSelected}
           >
             {t(`${base}.selectPrompt`)}
           </Button>
           <Button onClick={onEdit} variant="secondary" size="sm">
             {t(`${base}.editPrompt`)}
           </Button>
-          <Button
-            onClick={onDuplicate}
-            variant="secondary"
-            size="sm"
-            disabled={isBusy}
-          >
+          <Button onClick={onDuplicate} variant="secondary" size="sm">
             {t(`${base}.duplicate`)}
           </Button>
-          <Button
-            onClick={onTest}
-            variant="secondary"
-            size="sm"
-            disabled={isBusy}
-          >
+          <Button onClick={onTest} variant="secondary" size="sm">
             {t(`${base}.testOnLastTranscript`)}
           </Button>
           <Button
             onClick={onDelete}
             variant="secondary"
             size="sm"
-            disabled={!canDelete || isBusy}
+            disabled={!canDelete}
           >
             {t(`${base}.deletePrompt`)}
           </Button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/// The before/after panel the Test button renders: the run's outcome token
-/// and latency, the transcript as it was, what it would become, and the
-/// raw-kept note when the engine failed or skipped.
-const PromptTestResultPanel: React.FC<{ result: PromptTestOutcome }> = ({
-  result,
-}) => {
-  const { t } = useTranslation();
-  const base = "settings.postProcessing.prompts";
-  return (
-    <div className="p-3 rounded-md border border-mid-gray/20 space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium">
-          {t(`${base}.testResultTitle`)}
-        </span>
-        <Badge variant="secondary">
-          {t(`${base}.testOutcome`, { outcome: result.outcome })}
-        </Badge>
-        <Badge variant="secondary">
-          {t(`${base}.testLatency`, { ms: result.latency_ms })}
-        </Badge>
-      </div>
-      <div className="grid gap-2 md:grid-cols-2">
-        <div>
-          <p className="text-xs font-medium text-secondary">
-            {t(`${base}.testBefore`)}
-          </p>
-          <p className="mt-1 text-sm whitespace-pre-wrap break-words">
-            {result.before}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-secondary">
-            {t(`${base}.testAfter`)}
-          </p>
-          <p className="mt-1 text-sm whitespace-pre-wrap break-words">
-            {result.after ?? t(`${base}.testRawKept`)}
-          </p>
         </div>
       </div>
     </div>
@@ -546,9 +491,6 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftText, setDraftText] = useState("");
-  const [testingId, setTestingId] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<PromptTestOutcome | null>(null);
-  const [testError, setTestError] = useState<string | null>(null);
 
   const prompts = getSetting("post_process_prompts") || [];
   const selectedPromptId = getSetting("post_process_selected_prompt_id") || "";
@@ -636,31 +578,12 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
     }
   };
 
-  const handleTestPrompt = async (promptId: string) => {
-    setTestingId(promptId);
-    setTestResult(null);
-    setTestError(null);
-    const base = "settings.postProcessing.prompts";
-    try {
-      const result = await commands.testPostProcessPrompt(promptId);
-      if (result.status === "ok") {
-        setTestResult(result.data);
-      } else {
-        const error: TestPromptError = result.error;
-        setTestError(
-          error.kind === "no_history"
-            ? t(`${base}.testNoHistory`)
-            : error.kind === "prompt_not_found"
-              ? t(`${base}.testPromptNotFound`)
-              : t(`${base}.testFailed`, { detail: error.detail }),
-        );
-      }
-    } catch (error) {
-      console.error("Failed to test prompt:", error);
-      setTestError(String(error));
-    } finally {
-      setTestingId(null);
-    }
+  const handleTestPrompt = (promptId: string) => {
+    // v1.6.0 W1-L6: Test opens the Prompt Studio preloaded with this
+    // template instead of rendering the buried inline panel. The studio
+    // runs the same engine lifecycle with visible diffs, engine choice,
+    // and re-runs; nothing about the template library itself changes.
+    openPromptStudio(promptId);
   };
 
   const handleCancelCreate = () => {
@@ -741,7 +664,6 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
                 key={prompt.id}
                 prompt={prompt}
                 isSelected={prompt.id === selectedPromptId}
-                isBusy={testingId === prompt.id}
                 onSelect={() =>
                   handlePromptSelect(
                     prompt.id === selectedPromptId ? null : prompt.id,
@@ -756,16 +678,6 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             ))}
           </div>
         )}
-
-        {testingId && (
-          <p className="text-xs text-secondary/70">{t(`${base}.testing`)}</p>
-        )}
-        {testError && (
-          <Alert variant="error" contained>
-            {testError}
-          </Alert>
-        )}
-        {testResult && <PromptTestResultPanel result={testResult} />}
 
         {!isCreating && hasPrompts && selectedPrompt && (
           <div className="space-y-3">

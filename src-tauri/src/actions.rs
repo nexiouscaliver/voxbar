@@ -281,6 +281,23 @@ pub(crate) fn uses_local_engine(provider_id: &str) -> bool {
     provider_id == crate::settings::LOCAL_LLM_PROVIDER_ID
 }
 
+/// Which engine kind a post-process provider id routes to. The single
+/// source of truth for the run-record's `engine` line (v1.6.0 W1-L6:
+/// extracted from the inline chain so the Prompt Studio's engine override
+/// and the dictation path classify identically, and so the classification
+/// is exhaustively testable).
+pub(crate) fn engine_kind_for_provider(
+    provider_id: &str,
+) -> crate::post_process_runs::PostProcessEngineKind {
+    if uses_local_engine(provider_id) {
+        crate::post_process_runs::PostProcessEngineKind::Local
+    } else if provider_id == APPLE_INTELLIGENCE_PROVIDER_ID {
+        crate::post_process_runs::PostProcessEngineKind::AppleIntelligence
+    } else {
+        crate::post_process_runs::PostProcessEngineKind::Cloud
+    }
+}
+
 /// The local branch's availability decision (T28): the SELECTED model
 /// (what the swap runner loads; the pinned builtin when no other model is
 /// selected) must be downloaded before the engine can run; when it is not,
@@ -701,6 +718,7 @@ async fn post_process_transcription(
         transcription,
         &prompt_entry,
         is_cancelled,
+        None,
     )
     .await
 }
@@ -712,6 +730,15 @@ async fn post_process_transcription(
 /// local swap, Apple Intelligence) record an engine skip without it, which
 /// is what the unit tests exercise; the cloud path runs fine without one.
 ///
+/// `provider_override` (v1.6.0 W1-L6) pins the engine to one provider id
+/// regardless of the operator's active selection: the Prompt Studio runs
+/// the SAME lifecycle a dictation runs, just on a chosen engine. None (the
+/// dictation and the legacy tester) resolves the active provider. An
+/// override naming an unknown provider refuses to run rather than silently
+/// falling back to the active engine (a mislabeled result is worse than a
+/// skipped one); the command layer validates ids up front, so this guard
+/// is the pure seam's backstop.
+///
 /// Never pastes and never writes history: those live in the callers.
 async fn post_process_with_prompt(
     app: Option<&AppHandle>,
@@ -720,18 +747,31 @@ async fn post_process_with_prompt(
     transcription: &str,
     prompt_entry: &crate::settings::LLMPrompt,
     is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
+    provider_override: Option<&str>,
 ) -> PostProcessAttempt {
     if is_blank_transcription(transcription) {
         debug!("Post-processing skipped because the transcription is empty");
         return PostProcessAttempt::default();
     }
 
-    let provider = match settings.active_post_process_provider().cloned() {
-        Some(provider) => provider,
-        None => {
-            debug!("Post-processing enabled but no provider is selected");
-            return PostProcessAttempt::default();
-        }
+    let provider = match provider_override {
+        Some(engine_id) => match settings.post_process_provider(engine_id) {
+            Some(provider) => provider.clone(),
+            None => {
+                debug!(
+                    "Post-processing skipped because the engine override '{}' is not a configured provider",
+                    engine_id
+                );
+                return PostProcessAttempt::default();
+            }
+        },
+        None => match settings.active_post_process_provider() {
+            Some(provider) => provider.clone(),
+            None => {
+                debug!("Post-processing enabled but no provider is selected");
+                return PostProcessAttempt::default();
+            }
+        },
     };
 
     let model = settings
@@ -756,13 +796,7 @@ async fn post_process_with_prompt(
     // The lifecycle starts here: a resolvable request (provider, model,
     // prompt) exists, so the run gets its id, its requested line, and its
     // record. The config-level guards above are pre-run states, not runs.
-    let engine_kind = if uses_local_engine(&provider.id) {
-        crate::post_process_runs::PostProcessEngineKind::Local
-    } else if provider.id == APPLE_INTELLIGENCE_PROVIDER_ID {
-        crate::post_process_runs::PostProcessEngineKind::AppleIntelligence
-    } else {
-        crate::post_process_runs::PostProcessEngineKind::Cloud
-    };
+    let engine_kind = engine_kind_for_provider(&provider.id);
     let run_id = crate::post_process_runs::runs().begin(
         app,
         crate::post_process_runs::RunRequestMeta {
@@ -914,6 +948,11 @@ fn build_run_summary(
 /// real dictation runs.
 pub(crate) const PROMPT_TEST_BINDING: &str = "prompt_test";
 
+/// Binding tag the Prompt Studio records its runs under (v1.6.0 W1-L6):
+/// same Debug-table separation as the tester marker, its own tag so studio
+/// batches are distinguishable from single-template tests.
+pub(crate) const STUDIO_BINDING: &str = "prompt_studio";
+
 /// The outcome of testing one template against the last transcript. `after`
 /// is None when the engine failed or skipped (the raw transcript would be
 /// kept on the dictation path); `outcome` is the same token the run record
@@ -927,15 +966,47 @@ pub struct PromptTestOutcome {
     pub latency_ms: u64,
 }
 
-/// Structured error for the test command: the tag is the failure the UI
+/// Where a Prompt Studio batch polishes from (v1.6.0 W1-L6): the newest
+/// history entry's transcript, or one picked entry. The RAW transcript in
+/// both cases: that is what a dictation feeds the engine, so studio runs
+/// replay the real input, not an already-polished output.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum StudioSource {
+    LastTranscript,
+    HistoryEntry { id: i64 },
+}
+
+/// One studio run: a (template, engine) pair. The engine is the provider
+/// id (local | apple_intelligence | a configured cloud id), exactly the
+/// vocabulary the settings store and the run records use.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
+pub struct StudioRunRequest {
+    pub prompt_id: String,
+    pub provider_id: String,
+}
+
+/// One studio result, labeled by the request that produced it so the cards
+/// can render side by side no matter how the batch was ordered.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, specta::Type)]
+pub struct StudioRunResult {
+    pub request: StudioRunRequest,
+    pub outcome: PromptTestOutcome,
+}
+
+/// Structured error for the test commands: the tag is the failure the UI
 /// keys on (`no_history` when there is nothing to test against,
-/// `prompt_not_found` for a dangling template id, `other` for a history
-/// store read failure).
+/// `prompt_not_found` for a dangling template id, `engine_not_found` and
+/// `empty_batch` for studio batch validation, `entry_not_found` for a
+/// deleted source entry, `other` for a history store read failure).
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, specta::Type)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum TestPromptError {
     NoHistory,
     PromptNotFound { id: String },
+    EngineNotFound { id: String },
+    EntryNotFound { id: i64 },
+    EmptyBatch,
     Other { detail: String },
 }
 
@@ -948,8 +1019,72 @@ impl std::fmt::Display for TestPromptError {
             TestPromptError::PromptNotFound { id } => {
                 write!(f, "prompt_not_found: {id}")
             }
+            TestPromptError::EngineNotFound { id } => {
+                write!(f, "engine_not_found: {id}")
+            }
+            TestPromptError::EntryNotFound { id } => {
+                write!(f, "entry_not_found: {id}")
+            }
+            TestPromptError::EmptyBatch => {
+                write!(f, "empty_batch: no (prompt, engine) pairs to run")
+            }
             TestPromptError::Other { detail } => write!(f, "other: {detail}"),
         }
+    }
+}
+
+/// Pre-flight validation for a studio batch: every (prompt, engine) pair
+/// must name an existing template and a configured provider BEFORE any run
+/// starts, so a bad pair refuses the whole batch instead of half-running
+/// it. Pure over settings, so the refusal rules are unit-testable without
+/// an app. Duplicates are allowed (the UI re-runs a pair by sending it as
+/// a single-pair batch, and a deliberate repeat comparison is harmless).
+pub(crate) fn validate_studio_batch(
+    settings: &AppSettings,
+    runs: &[StudioRunRequest],
+) -> Result<(), TestPromptError> {
+    if runs.is_empty() {
+        return Err(TestPromptError::EmptyBatch);
+    }
+    for run in runs {
+        if !settings
+            .post_process_prompts
+            .iter()
+            .any(|prompt| prompt.id == run.prompt_id)
+        {
+            return Err(TestPromptError::PromptNotFound {
+                id: run.prompt_id.clone(),
+            });
+        }
+        if settings.post_process_provider(&run.provider_id).is_none() {
+            return Err(TestPromptError::EngineNotFound {
+                id: run.provider_id.clone(),
+            });
+        }
+    }
+    Ok(())
+}
+
+/// Map one engine attempt to the tester/studio outcome frame both surfaces
+/// share: the summary's outcome token and latency when a run minted, the
+/// bare pre-run `skipped` token otherwise.
+fn prompt_test_outcome_from_attempt(
+    transcription: &str,
+    attempt: PostProcessAttempt,
+) -> PromptTestOutcome {
+    match attempt.summary {
+        Some(summary) => PromptTestOutcome {
+            before: transcription.to_string(),
+            after: attempt.text,
+            outcome: summary.outcome,
+            latency_ms: summary.latency_ms,
+        },
+        None => PromptTestOutcome {
+            before: transcription.to_string(),
+            after: attempt.text,
+            outcome: "skipped".to_string(),
+            latency_ms: 0,
+        },
     }
 }
 
@@ -971,22 +1106,36 @@ pub(crate) async fn run_prompt_test(
         transcription,
         prompt,
         None,
+        None,
     )
     .await;
-    match attempt.summary {
-        Some(summary) => PromptTestOutcome {
-            before: transcription.to_string(),
-            after: attempt.text,
-            outcome: summary.outcome,
-            latency_ms: summary.latency_ms,
-        },
-        None => PromptTestOutcome {
-            before: transcription.to_string(),
-            after: attempt.text,
-            outcome: "skipped".to_string(),
-            latency_ms: 0,
-        },
-    }
+    prompt_test_outcome_from_attempt(transcription, attempt)
+}
+
+/// The engine-override form of [`run_prompt_test`] the Prompt Studio drives
+/// (v1.6.0 W1-L6): `engine_provider_id` Some pins the engine regardless of
+/// the operator's active selection; None behaves like the legacy tester
+/// (the active provider). Everything else is identical: same validator
+/// lifecycle, same pp: record (under the studio marker), same no-paste
+/// no-history guarantees.
+pub(crate) async fn run_prompt_test_with_engine(
+    app: Option<&AppHandle>,
+    settings: &AppSettings,
+    prompt: &crate::settings::LLMPrompt,
+    transcription: &str,
+    engine_provider_id: Option<&str>,
+) -> PromptTestOutcome {
+    let attempt = post_process_with_prompt(
+        app,
+        settings,
+        STUDIO_BINDING,
+        transcription,
+        prompt,
+        None,
+        engine_provider_id,
+    )
+    .await;
+    prompt_test_outcome_from_attempt(transcription, attempt)
 }
 
 /// The local on-device engine: the same branch shape as Apple Intelligence
@@ -2887,6 +3036,259 @@ mod tests {
         );
     }
 
+    /// W1-L6 studio batch validation: an empty batch refuses, a dangling
+    /// template id names itself, an engine id that is not a configured
+    /// provider names itself, and a fully valid batch (including a
+    /// deliberate duplicate pair) passes.
+    #[test]
+    fn validate_studio_batch_refuses_empty_dangling_prompts_and_engines() {
+        use super::{validate_studio_batch, StudioRunRequest, TestPromptError};
+
+        let settings = crate::settings::get_default_settings();
+
+        assert_eq!(
+            validate_studio_batch(&settings, &[]),
+            Err(TestPromptError::EmptyBatch),
+            "an empty batch is refused before anything runs"
+        );
+
+        assert_eq!(
+            validate_studio_batch(
+                &settings,
+                &[StudioRunRequest {
+                    prompt_id: "no_such_prompt".to_string(),
+                    provider_id: "custom".to_string(),
+                }],
+            ),
+            Err(TestPromptError::PromptNotFound {
+                id: "no_such_prompt".to_string()
+            }),
+            "a dangling template id refuses the whole batch"
+        );
+
+        assert_eq!(
+            validate_studio_batch(
+                &settings,
+                &[StudioRunRequest {
+                    prompt_id: "english_casual".to_string(),
+                    provider_id: "no_such_engine".to_string(),
+                }],
+            ),
+            Err(TestPromptError::EngineNotFound {
+                id: "no_such_engine".to_string()
+            }),
+            "an engine id that is not a configured provider refuses the batch"
+        );
+
+        let valid = [
+            StudioRunRequest {
+                prompt_id: "english_casual".to_string(),
+                provider_id: crate::settings::LOCAL_LLM_PROVIDER_ID.to_string(),
+            },
+            // A duplicate pair is allowed: re-runs are single-pair batches
+            // and a deliberate repeat comparison is harmless.
+            StudioRunRequest {
+                prompt_id: "english_casual".to_string(),
+                provider_id: crate::settings::LOCAL_LLM_PROVIDER_ID.to_string(),
+            },
+            StudioRunRequest {
+                prompt_id: "english_casual".to_string(),
+                provider_id: "custom".to_string(),
+            },
+        ];
+        assert_eq!(validate_studio_batch(&settings, &valid), Ok(()));
+    }
+
+    /// W1-L6 engine override: with the ACTIVE provider set to local (which
+    /// records an engine skip without an app handle) the same template run
+    /// with a custom-engine override aimed at a dead endpoint records a
+    /// network failure instead. The override routed the run; the active
+    /// selection did not. The studio marker binds the record.
+    #[test]
+    fn studio_engine_override_routes_the_run_through_the_overridden_engine() {
+        use super::{run_prompt_test_with_engine, STUDIO_BINDING};
+
+        let mut settings = crate::settings::get_default_settings();
+        settings.post_process_provider_id = crate::settings::LOCAL_LLM_PROVIDER_ID.to_string();
+        // The override target: a cloud provider aimed at a port nothing
+        // listens on, with a model configured so the run actually starts.
+        if let Some(provider) = settings
+            .post_process_providers
+            .iter_mut()
+            .find(|p| p.id == "custom")
+        {
+            provider.base_url = "http://127.0.0.1:1/v1".to_string();
+        }
+        settings
+            .post_process_models
+            .insert("custom".to_string(), "test-model".to_string());
+
+        let prompt = crate::settings::builtin_prompt_seeds()
+            .into_iter()
+            .find(|p| p.id == "english_casual")
+            .unwrap();
+
+        // Sanity anchor: no override, the ACTIVE local engine records an
+        // engine skip (no app handle in the unit-test path).
+        let active = tauri::async_runtime::block_on(run_prompt_test_with_engine(
+            None,
+            &settings,
+            &prompt,
+            "hey um world",
+            None,
+        ));
+        assert_eq!(active.outcome, "skipped:engine_failed");
+
+        // The override: same settings, same prompt, pinned to custom. The
+        // transport failure class proves the run reached the cloud path.
+        let overridden = tauri::async_runtime::block_on(run_prompt_test_with_engine(
+            None,
+            &settings,
+            &prompt,
+            "hey um world",
+            Some("custom"),
+        ));
+        assert_eq!(overridden.before, "hey um world");
+        assert_eq!(overridden.after, None);
+        assert!(
+            overridden.outcome.starts_with("failed:"),
+            "the overridden engine actually ran: {}",
+            overridden.outcome
+        );
+
+        assert!(
+            crate::post_process_runs::runs()
+                .latest(None)
+                .into_iter()
+                .any(|r| r.binding == STUDIO_BINDING
+                    && r.provider_id == "custom"
+                    && r.prompt_id.as_deref() == Some("english_casual")),
+            "the studio run is recorded under the prompt_studio marker with the overridden engine"
+        );
+
+        // An override naming an unknown provider refuses to run rather
+        // than silently falling back to the active engine: no run record,
+        // the bare pre-run skip token.
+        let unknown = tauri::async_runtime::block_on(run_prompt_test_with_engine(
+            None,
+            &settings,
+            &prompt,
+            "hey um world",
+            Some("no_such_engine"),
+        ));
+        assert_eq!(unknown.outcome, "skipped");
+        assert_eq!(unknown.latency_ms, 0);
+    }
+
+    /// W1-L6 engine classification: the single-list macro pattern from
+    /// companion/mod.rs's phone_visibility test. One invocation generates
+    /// BOTH the exhaustive classification match (no wildcard arm, so a new
+    /// provider family added to the defaults breaks compilation of this
+    /// test until it consciously joins a group) AND the iterated id array,
+    /// so the classified match and the runtime check cannot drift apart.
+    /// The loop pins that `engine_kind_for_provider` agrees for every id,
+    /// that every default-registry provider id is classified, and that an
+    /// unregistered id classifies as cloud (the residual family).
+    #[test]
+    fn every_provider_id_has_a_deliberate_engine_classification() {
+        use super::engine_kind_for_provider;
+        use crate::post_process_runs::PostProcessEngineKind;
+
+        macro_rules! engine_classification {
+            (
+                local [ $( $local:literal ),* $(,)? ]
+                apple [ $( $apple:literal ),* $(,)? ]
+                cloud [ $( $cloud:literal ),* $(,)? ]
+            ) => {
+                // A str match can never be exhaustive (rustc demands a
+                // wildcard), so the generated classifier is an if-chain
+                // terminated by unreachable: the drift guard is the loop
+                // below plus the disjointness assert, not the match
+                // exhaustiveness the enum-backed pattern gets for free.
+                fn classified(id: &str) -> PostProcessEngineKind {
+                    $( if id == $local { return PostProcessEngineKind::Local; } )*
+                    $( if id == $apple { return PostProcessEngineKind::AppleIntelligence; } )*
+                    $( if id == $cloud { return PostProcessEngineKind::Cloud; } )*
+                    unreachable!("every classification list member is covered above")
+                }
+                fn every_id() -> Vec<&'static str> {
+                    vec![ $( $local, )* $( $apple, )* $( $cloud, )* ]
+                }
+            };
+        }
+
+        // The sentinel ids are pinned to their literals before the list
+        // uses them: this pin is what breaks first if a sentinel value
+        // ever changes.
+        assert_eq!(crate::settings::LOCAL_LLM_PROVIDER_ID, "local");
+        assert_eq!(
+            crate::settings::APPLE_INTELLIGENCE_PROVIDER_ID,
+            "apple_intelligence"
+        );
+
+        engine_classification! {
+            local [
+                // The on-device swap engine ("local", the sentinel
+                // LOCAL_LLM_PROVIDER_ID pins above).
+                "local",
+            ]
+            apple [
+                "apple_intelligence",
+            ]
+            cloud [
+                // Every cloud provider the default registry carries, plus
+                // the two shape probes: an unknown id and the empty id.
+                "openai",
+                "zai",
+                "openrouter",
+                "anthropic",
+                "groq",
+                "cerebras",
+                "bedrock_mantle",
+                "custom",
+                "mystery_provider",
+                "",
+            ]
+        }
+
+        // Disjointness: an id joining two groups would make the first
+        // group silently win, so refuse duplicates outright.
+        let all_ids = every_id();
+        assert_eq!(
+            all_ids.len(),
+            all_ids
+                .iter()
+                .collect::<std::collections::HashSet<_>>()
+                .len(),
+            "each id must sit in exactly one classification group"
+        );
+
+        for id in every_id() {
+            assert_eq!(
+                engine_kind_for_provider(id),
+                classified(id),
+                "engine classification for '{id}'"
+            );
+        }
+
+        // The default registry is fully covered: no provider id ships
+        // unclassified (which would silently mean cloud).
+        let settings = crate::settings::get_default_settings();
+        for provider in &settings.post_process_providers {
+            assert!(
+                every_id().contains(&provider.id.as_str()),
+                "default provider '{}' must join the classification list",
+                provider.id
+            );
+            assert_eq!(
+                engine_kind_for_provider(&provider.id),
+                classified(&provider.id),
+                "default provider '{}' classifies correctly",
+                provider.id
+            );
+        }
+    }
+
     /// T28: provider routing. The local provider routes to the on-device
     /// engine; every API provider (including custom and openai, the off
     /// path) keeps today's llm_client behavior.
@@ -3056,6 +3458,7 @@ mod tests {
             "transcribe_with_post_process",
             transcript,
             &seed,
+            None,
             None,
         ));
 

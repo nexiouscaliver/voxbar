@@ -26,7 +26,8 @@
     "history": "歷史紀錄",
     "debug": "偵錯",
     "about": "關於",
-    "notifications": "通知"
+    "notifications": "通知",
+    "promptStudio": "提示詞工作室"
   },
   "onboarding": {
     "subtitle": "首先，請選擇一種模型",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "保留"
       },
-      "viaPostProcess": "經 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒處理"
+      "viaPostProcess": "經 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒處理",
+      "viewChanges": "檢視變更",
+      "hideChanges": "收合變更"
     },
     "debug": {
       "title": "偵錯",
@@ -1123,6 +1126,48 @@
         "description": "最近 50 筆錯誤與結果通知。僅在系統通知開啟時記錄新項目。",
         "empty": "目前沒有通知。",
         "clear": "全部清除"
+      }
+    },
+    "studio": {
+      "title": "提示詞工作室",
+      "intro": "在真實轉錄文字上執行一或多個提示詞，並排比較不同引擎的效果。工作室執行使用與聽寫相同的管線，但不會貼上任何內容，也不會寫入歷史記錄。",
+      "source": {
+        "label": "來源文字",
+        "description": "工作室要潤飾的轉錄文字：最近一次聽寫或任意歷史項目。",
+        "last": "最近轉錄",
+        "loading": "正在載入項目..."
+      },
+      "prompts": {
+        "label": "提示詞",
+        "description": "選擇一或多個要執行的範本。"
+      },
+      "engines": {
+        "label": "引擎",
+        "description": "選擇一或多個要執行的引擎。",
+        "appleUnavailable": "此 Mac 不支援 Apple Intelligence",
+        "noModel": "未設定模型"
+      },
+      "run_one": "執行 1 組",
+      "run_other": "執行 {{count}} 組",
+      "runHint_one": "已選取 1 組提示詞與引擎",
+      "runHint_other": "已選取 {{count}} 組提示詞與引擎",
+      "running": "執行中...",
+      "rerun": "重新執行",
+      "latency": "{{ms}} 毫秒",
+      "rawKept": "引擎失敗或被略過，因此將保留原始轉錄。",
+      "partialFailure": "部分執行失敗或被略過，其他執行已產生結果。請檢查每張卡片。",
+      "results_one": "1 個結果",
+      "results_other": "{{count}} 個結果",
+      "errors": {
+        "engineNotFound": "引擎 '{{id}}' 未設定。",
+        "entryNotFound": "所選的歷史項目已不存在。",
+        "emptyBatch": "請至少選擇一個提示詞和一個引擎。"
+      },
+      "diff": {
+        "lines": "行",
+        "charsChanged_one": "1 個字元變更",
+        "charsChanged_other": "{{count}} 個字元變更",
+        "identical": "無變更。"
       }
     }
   },

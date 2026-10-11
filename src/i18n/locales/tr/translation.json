@@ -26,7 +26,8 @@
     "history": "Geçmiş",
     "debug": "Hata Ayıklama",
     "about": "Hakkında",
-    "notifications": "Bildirimler"
+    "notifications": "Bildirimler",
+    "promptStudio": "Prompt Stüdyosu"
   },
   "onboarding": {
     "subtitle": "Başlamak için bir transkripsiyon modeli seçin",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Saklama"
       },
-      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms ile"
+      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms ile",
+      "viewChanges": "Değişiklikleri göster",
+      "hideChanges": "Değişiklikleri gizle"
     },
     "debug": {
       "title": "Hata Ayıklama",
@@ -1123,6 +1126,48 @@
         "description": "Son 50 hata ve sonuç bildirimi. Yeni kayıtlar yalnızca sistem bildirimleri açıkken tutulur.",
         "empty": "Henüz bildirim yok.",
         "clear": "Tümünü temizle"
+      }
+    },
+    "studio": {
+      "title": "Prompt Stüdyosu",
+      "intro": "Gerçek bir transkript üzerinde bir veya daha fazla prompt çalıştırın ve motorları yan yana karşılaştırın. Stüdyo çalışmaları dikte ile aynı hattı kullanır ancak hiçbir şey yapıştırmaz ve geçmişe kaydetmez.",
+      "source": {
+        "label": "Kaynak metin",
+        "description": "Stüdyonun işlediği transkript: son diktiniz veya geçmişteki herhangi bir kayıt.",
+        "last": "Son transkript",
+        "loading": "Kayıtlar yükleniyor..."
+      },
+      "prompts": {
+        "label": "Promptlar",
+        "description": "Çalıştırılacak bir veya daha fazla şablon seçin."
+      },
+      "engines": {
+        "label": "Motorlar",
+        "description": "Bunları çalıştıracağınız bir veya daha fazla motor seçin.",
+        "appleUnavailable": "Apple Intelligence bu Mac'te kullanılamıyor",
+        "noModel": "Yapılandırılmış model yok"
+      },
+      "run_one": "1 çift çalıştır",
+      "run_other": "{{count}} çift çalıştır",
+      "runHint_one": "1 prompt ve motor çifti seçildi",
+      "runHint_other": "{{count}} prompt ve motor çifti seçildi",
+      "running": "Çalışıyor...",
+      "rerun": "Yeniden çalıştır",
+      "latency": "{{ms}} ms",
+      "rawKept": "Motor başarısız oldu veya atlandı, bu nedenle ham transkript korunurdu.",
+      "partialFailure": "Bazı çalışmalar başarısız oldu veya atlanırken diğerleri sonuç üretti. Her kartı kontrol edin.",
+      "results_one": "1 sonuç",
+      "results_other": "{{count}} sonuç",
+      "errors": {
+        "engineNotFound": "'{{id}}' motoru yapılandırılmamış.",
+        "entryNotFound": "Seçilen geçmiş kaydı artık yok.",
+        "emptyBatch": "En az bir prompt ve bir motor seçin."
+      },
+      "diff": {
+        "lines": "satır",
+        "charsChanged_one": "1 karakter değişti",
+        "charsChanged_other": "{{count}} karakter değişti",
+        "identical": "Değişiklik yok."
       }
     }
   },

@@ -26,7 +26,8 @@
     "history": "Geschiedenis",
     "debug": "Probleemoplossing",
     "about": "Over VoxBar",
-    "notifications": "Meldingen"
+    "notifications": "Meldingen",
+    "promptStudio": "Promptstudio"
   },
   "onboarding": {
     "subtitle": "Kies een transcriptiemodel om aan de slag te gaan",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Bewaartermijn"
       },
-      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Wijzigingen bekijken",
+      "hideChanges": "Wijzigingen verbergen"
     },
     "debug": {
       "title": "Probleemoplossing",
@@ -1123,6 +1126,48 @@
         "description": "De laatste 50 fout- en resultaatmeldingen. Nieuwe items worden alleen bijgehouden zolang systeemmeldingen aan staan.",
         "empty": "Nog geen meldingen.",
         "clear": "Alles wissen"
+      }
+    },
+    "studio": {
+      "title": "Promptstudio",
+      "intro": "Voer een of meer prompts uit op een echte transcriptie en vergelijk engines zij aan zij. Studioruns gebruiken dezelfde pipeline als dicteren, maar plakken nooit iets en schrijven geen geschiedenis weg.",
+      "source": {
+        "label": "Brontekst",
+        "description": "De transcriptie die de studio bijschaaft: je laatste dicteersessie of een geschiedenisitem.",
+        "last": "Laatste transcriptie",
+        "loading": "Items laden..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Kies een of meer sjablonen om uit te voeren."
+      },
+      "engines": {
+        "label": "Engines",
+        "description": "Kies een of meer engines om ze op uit te voeren.",
+        "appleUnavailable": "Apple Intelligence is niet beschikbaar op deze Mac",
+        "noModel": "Geen model geconfigureerd"
+      },
+      "run_one": "1 paar uitvoeren",
+      "run_other": "{{count}} paren uitvoeren",
+      "runHint_one": "1 prompt- en enginepaar geselecteerd",
+      "runHint_other": "{{count}} prompt- en engineparen geselecteerd",
+      "running": "Bezig met uitvoeren...",
+      "rerun": "Opnieuw uitvoeren",
+      "latency": "{{ms}} ms",
+      "rawKept": "De engine mislukte of werd overgeslagen, dus de ruwe transcriptie zou behouden blijven.",
+      "partialFailure": "Sommige runs mislukten of werden overgeslagen terwijl anderen output leverden. Controleer elke kaart.",
+      "results_one": "1 resultaat",
+      "results_other": "{{count}} resultaten",
+      "errors": {
+        "engineNotFound": "Engine '{{id}}' is niet geconfigureerd.",
+        "entryNotFound": "Het gekozen geschiedenisitem bestaat niet meer.",
+        "emptyBatch": "Kies minstens één prompt en één engine."
+      },
+      "diff": {
+        "lines": "regels",
+        "charsChanged_one": "1 teken gewijzigd",
+        "charsChanged_other": "{{count}} tekens gewijzigd",
+        "identical": "Geen wijzigingen."
       }
     }
   },

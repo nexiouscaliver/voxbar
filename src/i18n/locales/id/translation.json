@@ -26,7 +26,8 @@
     "history": "Riwayat",
     "debug": "Debug",
     "about": "Tentang",
-    "notifications": "Notifikasi"
+    "notifications": "Notifikasi",
+    "promptStudio": "Studio Prompt"
   },
   "onboarding": {
     "subtitle": "Untuk memulai, pilih model transkripsi",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Retensi"
       },
-      "viaPostProcess": "lewat {{model}} · {{prompt}} · {{outcome}} · {{latency}} md"
+      "viaPostProcess": "lewat {{model}} · {{prompt}} · {{outcome}} · {{latency}} md",
+      "viewChanges": "Lihat perubahan",
+      "hideChanges": "Sembunyikan perubahan"
     },
     "debug": {
       "title": "Debug",
@@ -1123,6 +1126,48 @@
         "description": "50 pemberitahuan kesalahan dan hasil terakhir. Entri baru hanya dicatat selama notifikasi sistem aktif.",
         "empty": "Belum ada notifikasi.",
         "clear": "Hapus semua"
+      }
+    },
+    "studio": {
+      "title": "Studio Prompt",
+      "intro": "Jalankan satu atau lebih prompt pada transkripsi nyata dan bandingkan mesin berdampingan. Eksekusi studio memakai pipeline yang sama dengan dikte, tetapi tidak pernah menempelkan apa pun dan tidak pernah menulis riwayat.",
+      "source": {
+        "label": "Teks sumber",
+        "description": "Transkripsi yang disempurnakan studio: dikte terakhir Anda atau entri riwayat mana pun.",
+        "last": "Transkripsi terakhir",
+        "loading": "Memuat entri..."
+      },
+      "prompts": {
+        "label": "Prompt",
+        "description": "Pilih satu atau lebih templat untuk dijalankan."
+      },
+      "engines": {
+        "label": "Mesin",
+        "description": "Pilih satu atau lebih mesin untuk menjalankannya.",
+        "appleUnavailable": "Apple Intelligence tidak tersedia di Mac ini",
+        "noModel": "Belum ada model yang dikonfigurasi"
+      },
+      "run_one": "Jalankan 1 pasangan",
+      "run_other": "Jalankan {{count}} pasangan",
+      "runHint_one": "1 pasangan prompt dan mesin dipilih",
+      "runHint_other": "{{count}} pasangan prompt dan mesin dipilih",
+      "running": "Sedang berjalan...",
+      "rerun": "Jalankan lagi",
+      "latency": "{{ms}} md",
+      "rawKept": "Mesin gagal atau dilewati, sehingga transkripsi mentah akan dipertahankan.",
+      "partialFailure": "Beberapa eksekusi gagal atau dilewati sementara yang lain menghasilkan keluaran. Periksa setiap kartu.",
+      "results_one": "1 hasil",
+      "results_other": "{{count}} hasil",
+      "errors": {
+        "engineNotFound": "Mesin '{{id}}' belum dikonfigurasi.",
+        "entryNotFound": "Entri riwayat yang dipilih sudah tidak ada.",
+        "emptyBatch": "Pilih setidaknya satu prompt dan satu mesin."
+      },
+      "diff": {
+        "lines": "baris",
+        "charsChanged_one": "1 karakter berubah",
+        "charsChanged_other": "{{count}} karakter berubah",
+        "identical": "Tidak ada perubahan."
       }
     }
   },

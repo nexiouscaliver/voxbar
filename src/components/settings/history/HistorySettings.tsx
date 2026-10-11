@@ -1,7 +1,22 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { readFile } from "@tauri-apps/plugin-fs";
-import { Check, Copy, FolderOpen, RotateCcw, Star, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  FolderOpen,
+  RotateCcw,
+  Star,
+  Trash2,
+} from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import {
@@ -12,6 +27,7 @@ import {
 } from "@/bindings";
 import { useOsType } from "@/hooks/useOsType";
 import { useSettings } from "@/hooks/useSettings";
+import { diffText } from "@/lib/diff";
 import { formatDateTime } from "@/utils/dateFormat";
 import { AudioPlayer, AudioPlayerGroup } from "../../ui/AudioPlayer";
 import { ToggleSwitch } from "../../ui/ToggleSwitch";
@@ -19,6 +35,7 @@ import { Button } from "../../ui/Button";
 import { SettingsGroup } from "../../ui/SettingsGroup";
 import { HistoryLimit } from "../HistoryLimit";
 import { RecordingRetentionPeriodSelector } from "../RecordingRetentionPeriod";
+import { DiffSummaryBadge, DiffView } from "../studio/DiffView";
 import { copyToClipboard } from "./clipboard";
 
 const IconButton: React.FC<{
@@ -276,7 +293,14 @@ export const HistorySettings: React.FC = () => {
                     : undefined
                 }
                 onToggleSaved={() => toggleSaved(entry.id)}
-                onCopyText={() => copyToClipboard(entry.transcription_text)}
+                onCopyText={() =>
+                  // The FINAL text: what a polished dictation actually
+                  // pasted (v1.6.0 W1-L6). Entries without post-processing
+                  // keep copying the raw transcript, byte for byte.
+                  copyToClipboard(
+                    entry.post_processed_text ?? entry.transcription_text,
+                  )
+                }
                 getAudioUrl={getAudioUrl}
                 deleteAudio={deleteAudioEntry}
                 retryTranscription={retryHistoryEntry}
@@ -366,8 +390,27 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   const { t, i18n } = useTranslation();
   const [showCopied, setShowCopied] = useState(false);
   const [retrying, setRetrying] = useState(false);
+  const [showChanges, setShowChanges] = useState(false);
 
   const hasTranscription = entry.transcription_text.trim().length > 0;
+
+  // The FINAL text (v1.6.0 W1-L6): a polished dictation's body is what was
+  // actually pasted, the persisted post-processed output, not the raw
+  // transcript the polish consumed. Entries whose run failed, skipped, or
+  // echoed the transcript byte-identically keep the pre-cycle body, so no
+  // post-processing means an unchanged UI.
+  const processedText = entry.post_processed_text;
+  const hasChanges =
+    processedText !== null && processedText !== entry.transcription_text;
+  const finalText = processedText ?? entry.transcription_text;
+
+  const changesSummary = useMemo(
+    () =>
+      hasChanges
+        ? diffText(entry.transcription_text, processedText ?? "")
+        : null,
+    [hasChanges, entry.transcription_text, processedText],
+  );
 
   const handleLoadAudio = useCallback(
     () => getAudioUrl(entry.file_name),
@@ -534,9 +577,45 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
         {retrying
           ? t("settings.history.transcribing")
           : hasTranscription
-            ? entry.transcription_text
+            ? finalText
             : t("settings.history.transcriptionFailed")}
       </p>
+
+      {/* The raw-to-processed diff (v1.6.0 W1-L6): only entries whose polish
+          actually changed the text offer it; the expander summary chip names
+          the volume of the change before anything opens. */}
+      {hasChanges && !retrying && changesSummary ? (
+        <div className="space-y-1.5">
+          <button
+            onClick={() => setShowChanges((open) => !open)}
+            className="flex items-center gap-1.5 text-xs text-secondary hover:text-logo-primary cursor-pointer"
+          >
+            {showChanges ? (
+              <ChevronDown width={14} height={14} />
+            ) : (
+              <ChevronRight width={14} height={14} />
+            )}
+            <span>
+              {showChanges
+                ? t("settings.history.hideChanges")
+                : t("settings.history.viewChanges")}
+            </span>
+            <DiffSummaryBadge
+              addedLines={changesSummary.summary.addedLines}
+              removedLines={changesSummary.summary.removedLines}
+              addedChars={changesSummary.summary.addedChars}
+              removedChars={changesSummary.summary.removedChars}
+              className="ml-1"
+            />
+          </button>
+          {showChanges ? (
+            <DiffView
+              oldText={entry.transcription_text}
+              newText={processedText ?? ""}
+            />
+          ) : null}
+        </div>
+      ) : null}
 
       <AudioPlayer onLoadRequest={handleLoadAudio} className="w-full" />
     </div>

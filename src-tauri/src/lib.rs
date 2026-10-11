@@ -1335,6 +1335,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             shortcut::change_post_process_local_keep_warm_secs_setting,
             shortcut::cycle_post_process_prompt,
             shortcut::test_post_process_prompt,
+            shortcut::test_post_process_prompt_batch,
             shortcut::update_custom_words,
             shortcut::suspend_all_bindings,
             shortcut::resume_all_bindings,

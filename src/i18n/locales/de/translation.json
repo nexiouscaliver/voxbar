@@ -26,7 +26,8 @@
     "history": "Verlauf",
     "debug": "Debug",
     "about": "Info",
-    "notifications": "Benachrichtigungen"
+    "notifications": "Benachrichtigungen",
+    "promptStudio": "Prompt-Studio"
   },
   "onboarding": {
     "subtitle": "Wähle ein Transkriptionsmodell, um loszulegen",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Aufbewahrung"
       },
-      "viaPostProcess": "über {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "über {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Änderungen anzeigen",
+      "hideChanges": "Änderungen ausblenden"
     },
     "debug": {
       "title": "Debug",
@@ -1123,6 +1126,48 @@
         "description": "Die letzten 50 Fehler- und Ergebnismeldungen. Neue Einträge werden nur erfasst, solange Systembenachrichtigungen aktiviert sind.",
         "empty": "Noch keine Benachrichtigungen.",
         "clear": "Alle leeren"
+      }
+    },
+    "studio": {
+      "title": "Prompt-Studio",
+      "intro": "Führe einen oder mehrere Prompts auf einem echten Transkript aus und vergleiche Engines direkt nebeneinander. Studio-Läufe nutzen dieselbe Pipeline wie Diktate, fügen aber nichts ein und schreiben keine Verlaufszeilen.",
+      "source": {
+        "label": "Quelltext",
+        "description": "Das Transkript, das das Studio verarbeitet: dein letztes Diktat oder ein beliebiger Verlaufseintrag.",
+        "last": "Letztes Transkript",
+        "loading": "Einträge werden geladen..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Wähle eine oder mehrere Vorlagen zum Ausführen."
+      },
+      "engines": {
+        "label": "Engines",
+        "description": "Wähle eine oder mehrere Engines, auf denen sie laufen.",
+        "appleUnavailable": "Apple Intelligence ist auf diesem Mac nicht verfügbar",
+        "noModel": "Kein Modell konfiguriert"
+      },
+      "run_one": "1 Paar ausführen",
+      "run_other": "{{count}} Paare ausführen",
+      "runHint_one": "1 Prompt- und Engine-Paar ausgewählt",
+      "runHint_other": "{{count}} Prompt- und Engine-Paare ausgewählt",
+      "running": "Wird ausgeführt...",
+      "rerun": "Erneut ausführen",
+      "latency": "{{ms}} ms",
+      "rawKept": "Die Engine ist fehlgeschlagen oder wurde übersprungen, daher würde das rohe Transkript behalten.",
+      "partialFailure": "Einige Läufe sind fehlgeschlagen oder wurden übersprungen, während andere Ausgaben erzeugt haben. Prüfe jede Karte.",
+      "results_one": "1 Ergebnis",
+      "results_other": "{{count}} Ergebnisse",
+      "errors": {
+        "engineNotFound": "Engine '{{id}}' ist nicht konfiguriert.",
+        "entryNotFound": "Der gewählte Verlaufseintrag existiert nicht mehr.",
+        "emptyBatch": "Wähle mindestens einen Prompt und eine Engine."
+      },
+      "diff": {
+        "lines": "Zeilen",
+        "charsChanged_one": "1 Zeichen geändert",
+        "charsChanged_other": "{{count}} Zeichen geändert",
+        "identical": "Keine Änderungen."
       }
     }
   },

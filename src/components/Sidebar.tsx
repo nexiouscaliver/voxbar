@@ -10,6 +10,7 @@ import {
   Sparkles,
   Cpu,
   Terminal,
+  Wand2,
 } from "lucide-react";
 import VoxBarLogo from "./icons/VoxBarLogo";
 import VoxBarMark from "./icons/VoxBarMark";
@@ -25,6 +26,7 @@ import {
   ModelsSettings,
   OutputSettings,
   NotificationsSettings,
+  PromptStudio,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -95,6 +97,17 @@ export const SECTIONS_CONFIG = {
     icon: Sparkles,
     component: PostProcessingSettings,
     enabled: (settings) => settings?.post_process_enabled ?? false,
+  },
+  // v1.6.0 W1-L6: the compare surface for prompt templates and engines.
+  // Always enabled: the studio is the testing ground that helps decide
+  // whether to turn post-processing on at all, so it must be reachable
+  // while the feature itself is off (its runs never paste and never write
+  // history).
+  promptStudio: {
+    labelKey: "sidebar.promptStudio",
+    icon: Wand2,
+    component: PromptStudio,
+    enabled: () => true,
   },
   debug: {
     labelKey: "sidebar.debug",

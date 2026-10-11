@@ -26,7 +26,8 @@
     "history": "Historik",
     "debug": "Fejlfinding",
     "about": "Om",
-    "notifications": "Underretninger"
+    "notifications": "Underretninger",
+    "promptStudio": "Prompt-studio"
   },
   "onboarding": {
     "subtitle": "For at komme i gang skal du vælge en transskriptionsmodel",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Opbevaring"
       },
-      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Vis ændringer",
+      "hideChanges": "Skjul ændringer"
     },
     "debug": {
       "title": "Fejlfinding",
@@ -1123,6 +1126,48 @@
         "description": "De seneste 50 fejl- og resultatmeddelelser. Nye poster registreres kun, mens systemunderretninger er slået til.",
         "empty": "Ingen underretninger endnu.",
         "clear": "Ryd alle"
+      }
+    },
+    "studio": {
+      "title": "Prompt-studio",
+      "intro": "Kør en eller flere prompts på en rigtig transskription og sammenlign motorer side om side. Studio-kørsler bruger samme pipeline som diktering, men indsætter aldrig noget og skriver aldrig historik.",
+      "source": {
+        "label": "Kildetekst",
+        "description": "Transskriptionen som studiet pudser: din seneste diktering eller en vilkårlig historikpost.",
+        "last": "Seneste transskription",
+        "loading": "Indlæser poster..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Vælg en eller flere skabeloner at køre."
+      },
+      "engines": {
+        "label": "Motorer",
+        "description": "Vælg en eller flere motorer at køre dem på.",
+        "appleUnavailable": "Apple Intelligence er ikke tilgængelig på denne Mac",
+        "noModel": "Ingen model konfigureret"
+      },
+      "run_one": "Kør 1 par",
+      "run_other": "Kør {{count}} par",
+      "runHint_one": "1 prompt- og motorpar valgt",
+      "runHint_other": "{{count}} prompt- og motorpar valgt",
+      "running": "Kører...",
+      "rerun": "Kør igen",
+      "latency": "{{ms}} ms",
+      "rawKept": "Motoren fejlede eller blev sprunget over, så råtransskriptionen ville blive beholdt.",
+      "partialFailure": "Nogle kørsler fejlede eller blev sprunget over, mens andre gav output. Tjek hvert kort.",
+      "results_one": "1 resultat",
+      "results_other": "{{count}} resultater",
+      "errors": {
+        "engineNotFound": "Motoren '{{id}}' er ikke konfigureret.",
+        "entryNotFound": "Den valgte historikpost findes ikke længere.",
+        "emptyBatch": "Vælg mindst én prompt og én motor."
+      },
+      "diff": {
+        "lines": "linjer",
+        "charsChanged_one": "1 tegn ændret",
+        "charsChanged_other": "{{count}} tegn ændret",
+        "identical": "Ingen ændringer."
       }
     }
   },

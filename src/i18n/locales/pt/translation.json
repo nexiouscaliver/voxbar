@@ -26,7 +26,8 @@
     "history": "Histórico",
     "debug": "Depuração",
     "about": "Sobre",
-    "notifications": "Notificações"
+    "notifications": "Notificações",
+    "promptStudio": "Estúdio de prompts"
   },
   "onboarding": {
     "subtitle": "Para começar, escolha um modelo de transcrição",
@@ -911,7 +912,9 @@
       "groups": {
         "retention": "Retenção"
       },
-      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Ver alterações",
+      "hideChanges": "Ocultar alterações"
     },
     "debug": {
       "title": "Depuração",
@@ -1123,6 +1126,48 @@
         "description": "As últimas 50 notificações de erros e resultados. Novas entradas só são registadas enquanto as notificações do sistema estiverem ativadas.",
         "empty": "Ainda não há notificações.",
         "clear": "Limpar tudo"
+      }
+    },
+    "studio": {
+      "title": "Estúdio de prompts",
+      "intro": "Execute um ou mais prompts numa transcrição real e compare motores lado a lado. As execuções do estúdio usam o mesmo pipeline do ditado, mas nunca colam nada e nunca gravam no histórico.",
+      "source": {
+        "label": "Texto de origem",
+        "description": "A transcrição que o estúdio aperfeiçoa: seu último ditado ou qualquer entrada do histórico.",
+        "last": "Última transcrição",
+        "loading": "Carregando entradas..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Escolha um ou mais modelos para executar."
+      },
+      "engines": {
+        "label": "Motores",
+        "description": "Escolha um ou mais motores para executá-los.",
+        "appleUnavailable": "O Apple Intelligence não está disponível neste Mac",
+        "noModel": "Nenhum modelo configurado"
+      },
+      "run_one": "Executar 1 par",
+      "run_other": "Executar {{count}} pares",
+      "runHint_one": "1 par de prompt e motor selecionado",
+      "runHint_other": "{{count}} pares de prompt e motor selecionados",
+      "running": "Executando...",
+      "rerun": "Executar novamente",
+      "latency": "{{ms}} ms",
+      "rawKept": "O motor falhou ou foi ignorado, então a transcrição bruta seria mantida.",
+      "partialFailure": "Algumas execuções falharam ou foram ignoradas enquanto outras produziram resultado. Verifique cada cartão.",
+      "results_one": "1 resultado",
+      "results_other": "{{count}} resultados",
+      "errors": {
+        "engineNotFound": "O motor '{{id}}' não está configurado.",
+        "entryNotFound": "A entrada do histórico escolhida não existe mais.",
+        "emptyBatch": "Escolha pelo menos um prompt e um motor."
+      },
+      "diff": {
+        "lines": "linhas",
+        "charsChanged_one": "1 caractere alterado",
+        "charsChanged_other": "{{count}} caracteres alterados",
+        "identical": "Nenhuma alteração."
       }
     }
   },
