@@ -86,8 +86,39 @@ pub fn post_persistent_notice(
     Ok(())
 }
 
+/// The bundle identity notifications attribute to: the configured app id,
+/// or Terminal in dev (a bare `cargo tauri dev` binary has no bundle to
+/// impersonate). Mirrors the plugin's desktop.rs choice exactly, so
+/// whichever leg sends first latches the SAME identity (pure, unit-tested).
+#[cfg(target_os = "macos")]
+fn sender_identity(is_dev: bool, configured_identifier: &str) -> String {
+    if is_dev {
+        "com.apple.Terminal".to_string()
+    } else {
+        configured_identifier.to_string()
+    }
+}
+
 #[cfg(target_os = "macos")]
 fn post_and_watch(app: &AppHandle, body: String, payload: NoticeNotificationClick) {
+    // Identity FIRST, before any send: mac-notification-sys latches the
+    // sending app process-wide on the first notification (it swizzles
+    // NSBundle.mainBundle.bundleIdentifier, objc/notify.h
+    // installNSBundleHook, and the Once in its set_application refuses
+    // every later call), and when nobody set an identity it defaults to
+    // com.apple.Finder (lib.rs get_bundle_identifier_or_default) - which
+    // would attribute our notifications to Finder AND report Finder's
+    // bundle id to every later native reader for the rest of the run.
+    // This direct leg is typically the process's FIRST sender (with the
+    // master toggle on, the persistent surface replaces the legacy hidden
+    // offer), so it must set the identity itself instead of relying on the
+    // plugin's leg having sent first. An AlreadySet error is the expected
+    // outcome when the plugin's leg did send first; it is discarded
+    // exactly like desktop.rs discards it.
+    let _ = mac_notification_sys::set_application(&sender_identity(
+        tauri::is_dev(),
+        &app.config().identifier,
+    ));
     let app = app.clone();
     // The blocking send parks this thread until the user interacts or the
     // banner auto-dismisses (mac-notification-sys resolves that via a main
@@ -151,6 +182,21 @@ mod tests {
         );
         // The event name is a wire contract with the webview listener.
         assert_eq!(NOTICE_CLICK_EVENT, "notice-notification-click");
+    }
+
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn sender_identity_mirrors_the_plugin_desktop_choice() {
+        // Dev builds impersonate Terminal (a bare cargo-tauri-dev binary
+        // has no bundle); production uses the configured bundle id
+        // verbatim (tauri.conf.json: com.voxbar.app). Both legs (this
+        // direct sender and the plugin's desktop.rs) must resolve to the
+        // SAME identity, or whichever sends first would latch the other's.
+        assert_eq!(
+            sender_identity(true, "com.voxbar.app"),
+            "com.apple.Terminal"
+        );
+        assert_eq!(sender_identity(false, "com.voxbar.app"), "com.voxbar.app");
     }
 
     #[test]
