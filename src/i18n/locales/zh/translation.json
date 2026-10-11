@@ -751,7 +751,11 @@
           "emptyTitle": "列表中没有模型",
           "emptyHint": "刷新以加载此密钥可见的模型，或在下方输入模型 ID。",
           "customSet": "设置",
-          "customHint": "只要服务商支持，未列出的模型 ID 也可以使用。"
+          "customHint": "只要服务商支持，未列出的模型 ID 也可以使用。",
+          "filterPlaceholder": "筛选模型",
+          "showAll_one": "显示全部（{{count}}）",
+          "showAll_other": "显示全部（{{count}}）",
+          "showFewer": "收起"
         },
         "timeout": {
           "title": "请求超时",

@@ -751,7 +751,11 @@
           "emptyTitle": "Listede model yok",
           "emptyHint": "Bu anahtarın gördüğü modelleri yüklemek için yenileyin veya aşağıya bir model kimliği yazın.",
           "customSet": "Ayarla",
-          "customHint": "Listede olmasa bile sağlayıcınızın sunduğu her model kimliği çalışır."
+          "customHint": "Listede olmasa bile sağlayıcınızın sunduğu her model kimliği çalışır.",
+          "filterPlaceholder": "Modelleri filtrele",
+          "showAll_one": "Tümünü göster ({{count}})",
+          "showAll_other": "Tümünü göster ({{count}})",
+          "showFewer": "Daha az göster"
         },
         "timeout": {
           "title": "İstek zaman aşımı",

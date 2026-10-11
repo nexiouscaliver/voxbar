@@ -751,7 +751,11 @@
           "emptyTitle": "Inga modeller i listan",
           "emptyHint": "Uppdatera för att läsa in de modeller den här nyckeln ser, eller skriv ett modell-id nedan.",
           "customSet": "Ange",
-          "customHint": "Alla modell-id från din leverantör fungerar, även om de inte listas."
+          "customHint": "Alla modell-id från din leverantör fungerar, även om de inte listas.",
+          "filterPlaceholder": "Filtrera modeller",
+          "showAll_one": "Visa alla ({{count}})",
+          "showAll_other": "Visa alla ({{count}})",
+          "showFewer": "Visa färre"
         },
         "timeout": {
           "title": "Tidsgräns för begäran",

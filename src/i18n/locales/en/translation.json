@@ -751,7 +751,11 @@
           "emptyTitle": "No models listed",
           "emptyHint": "Refresh to load the models this key can see, or type a model id below.",
           "customSet": "Set",
-          "customHint": "Any model id your provider offers works, even if it is not listed."
+          "customHint": "Any model id your provider offers works, even if it is not listed.",
+          "filterPlaceholder": "Filter models",
+          "showAll_one": "Show all ({{count}})",
+          "showAll_other": "Show all ({{count}})",
+          "showFewer": "Show fewer"
         },
         "timeout": {
           "title": "Request timeout",

@@ -751,7 +751,11 @@
           "emptyTitle": "No hay modelos en la lista",
           "emptyHint": "Actualiza para cargar los modelos que ve esta clave, o escribe un id de modelo abajo.",
           "customSet": "Establecer",
-          "customHint": "Cualquier id de modelo de tu proveedor funciona, aunque no esté en la lista."
+          "customHint": "Cualquier id de modelo de tu proveedor funciona, aunque no esté en la lista.",
+          "filterPlaceholder": "Filtrar modelos",
+          "showAll_one": "Mostrar todos ({{count}})",
+          "showAll_other": "Mostrar todos ({{count}})",
+          "showFewer": "Mostrar menos"
         },
         "timeout": {
           "title": "Tiempo de espera de la solicitud",

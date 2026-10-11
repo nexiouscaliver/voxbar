@@ -751,7 +751,11 @@
           "emptyTitle": "Brak modeli na liście",
           "emptyHint": "Odśwież, aby wczytać modele widoczne dla tego klucza, albo wpisz poniżej identyfikator modelu.",
           "customSet": "Ustaw",
-          "customHint": "Działa dowolny identyfikator modelu od dostawcy, nawet jeśli nie ma go na liście."
+          "customHint": "Działa dowolny identyfikator modelu od dostawcy, nawet jeśli nie ma go na liście.",
+          "filterPlaceholder": "Filtruj modele",
+          "showAll_one": "Pokaż wszystkie ({{count}})",
+          "showAll_other": "Pokaż wszystkie ({{count}})",
+          "showFewer": "Pokaż mniej"
         },
         "timeout": {
           "title": "Limit czasu żądania",

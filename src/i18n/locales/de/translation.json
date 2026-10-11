@@ -751,7 +751,11 @@
           "emptyTitle": "Keine Modelle gelistet",
           "emptyHint": "Lade die Modelle neu, die dieser Schlüssel sieht, oder tippe unten eine Modell-ID ein.",
           "customSet": "Setzen",
-          "customHint": "Jede Modell-ID deines Anbieters funktioniert, auch wenn sie nicht gelistet ist."
+          "customHint": "Jede Modell-ID deines Anbieters funktioniert, auch wenn sie nicht gelistet ist.",
+          "filterPlaceholder": "Modelle filteren",
+          "showAll_one": "Alle anzeigen ({{count}})",
+          "showAll_other": "Alle anzeigen ({{count}})",
+          "showFewer": "Weniger anzeigen"
         },
         "timeout": {
           "title": "Anfrage-Timeout",

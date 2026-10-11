@@ -751,7 +751,11 @@
           "emptyTitle": "Tidak ada model tercantum",
           "emptyHint": "Muat ulang untuk memuat model yang terlihat oleh kunci ini, atau ketik id model di bawah.",
           "customSet": "Atur",
-          "customHint": "Id model apa pun dari penyedia Anda berfungsi, bahkan jika tidak tercantum."
+          "customHint": "Id model apa pun dari penyedia Anda berfungsi, bahkan jika tidak tercantum.",
+          "filterPlaceholder": "Filter model",
+          "showAll_one": "Tampilkan semua ({{count}})",
+          "showAll_other": "Tampilkan semua ({{count}})",
+          "showFewer": "Tampilkan lebih sedikit"
         },
         "timeout": {
           "title": "Batas waktu permintaan",

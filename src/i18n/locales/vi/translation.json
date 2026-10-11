@@ -751,7 +751,11 @@
           "emptyTitle": "Không có mô hình nào trong danh sách",
           "emptyHint": "Làm mới để tải các mô hình mà khóa này nhìn thấy, hoặc gõ id mô hình bên dưới.",
           "customSet": "Đặt",
-          "customHint": "Bất kỳ id mô hình nào nhà cung cấp của bạn hỗ trợ đều dùng được, kể cả khi không có trong danh sách."
+          "customHint": "Bất kỳ id mô hình nào nhà cung cấp của bạn hỗ trợ đều dùng được, kể cả khi không có trong danh sách.",
+          "filterPlaceholder": "Lọc mô hình",
+          "showAll_one": "Hiện tất cả ({{count}})",
+          "showAll_other": "Hiện tất cả ({{count}})",
+          "showFewer": "Thu gọn"
         },
         "timeout": {
           "title": "Thời gian chờ yêu cầu",

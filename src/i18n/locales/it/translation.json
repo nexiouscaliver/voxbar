@@ -751,7 +751,11 @@
           "emptyTitle": "Nessun modello in elenco",
           "emptyHint": "Aggiorna per caricare i modelli visibili con questa chiave, oppure digita un id modello sotto.",
           "customSet": "Imposta",
-          "customHint": "Qualsiasi id modello del tuo provider funziona, anche se non è in elenco."
+          "customHint": "Qualsiasi id modello del tuo provider funziona, anche se non è in elenco.",
+          "filterPlaceholder": "Filtra modelli",
+          "showAll_one": "Mostra tutti ({{count}})",
+          "showAll_other": "Mostra tutti ({{count}})",
+          "showFewer": "Mostra meno"
         },
         "timeout": {
           "title": "Timeout della richiesta",

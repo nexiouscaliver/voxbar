@@ -751,7 +751,11 @@
           "emptyTitle": "Cap model a la llista",
           "emptyHint": "Actualitza per carregar els models que veu aquesta clau, o escriu un id de model a sota.",
           "customSet": "Estableix",
-          "customHint": "Qualsevol id de model del teu proveïdor funciona, encara que no surti a la llista."
+          "customHint": "Qualsevol id de model del teu proveïdor funciona, encara que no surti a la llista.",
+          "filterPlaceholder": "Filtra models",
+          "showAll_one": "Mostra'ls tots ({{count}})",
+          "showAll_other": "Mostra'ls tots ({{count}})",
+          "showFewer": "Mostra'n menys"
         },
         "timeout": {
           "title": "Temps d'espera de la sol·licitud",

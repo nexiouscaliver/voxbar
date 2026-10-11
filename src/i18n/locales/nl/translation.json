@@ -751,7 +751,11 @@
           "emptyTitle": "Geen modellen in de lijst",
           "emptyHint": "Ververs om de modellen te laden die deze sleutel ziet, of typ hieronder een model-id.",
           "customSet": "Instellen",
-          "customHint": "Elke model-id van je provider werkt, ook als die niet in de lijst staat."
+          "customHint": "Elke model-id van je provider werkt, ook als die niet in de lijst staat.",
+          "filterPlaceholder": "Modellen filteren",
+          "showAll_one": "Alles tonen ({{count}})",
+          "showAll_other": "Alles tonen ({{count}})",
+          "showFewer": "Minder tonen"
         },
         "timeout": {
           "title": "Time-out van verzoek",

@@ -751,7 +751,11 @@
           "emptyTitle": "清單中沒有模型",
           "emptyHint": "重新整理以載入此金鑰可見的模型，或在下方輸入模型 ID。",
           "customSet": "設定",
-          "customHint": "只要服務商支援，未列出的模型 ID 也可以使用。"
+          "customHint": "只要服務商支援，未列出的模型 ID 也可以使用。",
+          "filterPlaceholder": "篩選模型",
+          "showAll_one": "顯示全部（{{count}}）",
+          "showAll_other": "顯示全部（{{count}}）",
+          "showFewer": "收合"
         },
         "timeout": {
           "title": "請求逾時",

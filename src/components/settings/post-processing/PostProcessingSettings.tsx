@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { RefreshCcw } from "lucide-react";
+import { RefreshCcw, Search } from "lucide-react";
 import {
   commands,
   type LLMPrompt,
@@ -366,9 +366,16 @@ const ModelOptionRow: React.FC<{
 /// The cloud model selection surface (W1-L9 visual pass): a visible list
 /// of the models the provider's key can see (radio rows), an explicit
 /// custom-id input for anything not listed, a labeled refresh action with
-/// the fetched-at hint, and honest empty/loading/error states. Replaces
-/// the bare creatable combobox whose only affordance was a closed box
-/// with an unlabeled icon button next to it.
+/// the fetched-at hint, and honest empty/loading states. Replaces the
+/// bare creatable combobox whose only affordance was a closed box
+/// with an unlabeled icon button next to it. Review round: provider
+/// catalogs can run to dozens of ids (OpenAI /v1/models also returns
+/// embedding/tts/whisper models), so the grid carries a type-to-filter
+/// input (the affordance the deleted combobox had) and renders a capped
+/// first page with a Show-all toggle; the currently selected model is
+/// always kept visible, filter or no filter.
+const MAX_MODEL_ROWS = 8;
+
 const CloudModelPicker: React.FC<{
   model: string;
   modelOptions: { value: string; label: string }[];
@@ -396,6 +403,8 @@ const CloudModelPicker: React.FC<{
 }) => {
   const { t } = useTranslation();
   const [customId, setCustomId] = useState("");
+  const [filter, setFilter] = useState("");
+  const [showAll, setShowAll] = useState(false);
   const base = "settings.postProcessing.api.model";
 
   const applyCustomId = () => {
@@ -404,6 +413,25 @@ const CloudModelPicker: React.FC<{
     onCreate(trimmed);
     setCustomId("");
   };
+
+  const query = filter.trim().toLowerCase();
+  // The selected model stays pinned at the top of the filtered view so the
+  // Active row never disappears under the user's own filter.
+  const matching = modelOptions.filter((option) =>
+    option.value.toLowerCase().includes(query),
+  );
+  const rows =
+    model && !matching.some((option) => option.value === model)
+      ? [
+          modelOptions.find((option) => option.value === model),
+          ...matching,
+        ].filter((option): option is { value: string; label: string } =>
+          Boolean(option),
+        )
+      : matching;
+  const visibleRows = showAll ? rows : rows.slice(0, MAX_MODEL_ROWS);
+  const hiddenCount = rows.length - visibleRows.length;
+  const showFilterInput = modelOptions.length > MAX_MODEL_ROWS;
 
   return (
     <SettingContainer
@@ -416,17 +444,19 @@ const CloudModelPicker: React.FC<{
       <div className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-secondary/70">
+            {/* Honesty rule (review round): the fetched-at summary may only
+                appear when a list fetch actually succeeded. When options
+                hold nothing but the upserted current model (e.g. a custom
+                id was Set with no list fetched yet) the line must say no
+                list exists, never "fetched " with a dangling empty time. */}
             {isFetchingModels
               ? t(`${base}.fetchingList`)
-              : modelOptions.length > 0
+              : modelListFetchedAtUnix !== null && modelOptions.length > 0
                 ? t(`${base}.listSummary`, {
                     count: modelOptions.length,
-                    time:
-                      modelListFetchedAtUnix !== null
-                        ? new Date(
-                            modelListFetchedAtUnix * 1000,
-                          ).toLocaleTimeString()
-                        : "",
+                    time: new Date(
+                      modelListFetchedAtUnix * 1000,
+                    ).toLocaleTimeString(),
                   })
                 : t(`${base}.notFetched`)}
           </p>
@@ -465,22 +495,51 @@ const CloudModelPicker: React.FC<{
             </div>
           </Alert>
         ) : modelOptions.length > 0 ? (
-          <div
-            role="radiogroup"
-            aria-label={t(`${base}.title`)}
-            className="grid gap-1.5 sm:grid-cols-2"
-          >
-            {modelOptions.map((option) => (
-              <ModelOptionRow
-                key={option.value}
-                modelId={option.value}
-                selected={model === option.value}
-                disabled={isModelUpdating}
-                onSelect={() => onSelect(option.value)}
-                activeLabel={t("settings.postProcessing.models.active")}
-              />
-            ))}
-          </div>
+          <>
+            {showFilterInput && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text/40 pointer-events-none" />
+                <input
+                  type="text"
+                  value={filter}
+                  onChange={(event) => {
+                    setFilter(event.target.value);
+                    setShowAll(false);
+                  }}
+                  placeholder={t(`${base}.filterPlaceholder`)}
+                  aria-label={t(`${base}.filterPlaceholder`)}
+                  className="w-full pl-8 pr-3 py-1.5 text-sm bg-mid-gray/10 border border-mid-gray/40 rounded-lg focus:outline-none focus:ring-1 focus:ring-logo-primary placeholder:text-text/40"
+                />
+              </div>
+            )}
+            <div
+              role="radiogroup"
+              aria-label={t(`${base}.title`)}
+              className="grid gap-1.5 sm:grid-cols-2"
+            >
+              {visibleRows.map((option) => (
+                <ModelOptionRow
+                  key={option.value}
+                  modelId={option.value}
+                  selected={model === option.value}
+                  disabled={isModelUpdating}
+                  onSelect={() => onSelect(option.value)}
+                  activeLabel={t("settings.postProcessing.models.active")}
+                />
+              ))}
+            </div>
+            {(showAll || hiddenCount > 0) && (
+              <button
+                type="button"
+                onClick={() => setShowAll((open) => !open)}
+                className="text-xs text-text/60 hover:text-text underline underline-offset-2 cursor-pointer"
+              >
+                {showAll
+                  ? t(`${base}.showFewer`)
+                  : t(`${base}.showAll`, { count: rows.length })}
+              </button>
+            )}
+          </>
         ) : (
           !isFetchingModels && (
             <div className="rounded-md border border-dashed border-mid-gray/40 px-3 py-4 text-center">

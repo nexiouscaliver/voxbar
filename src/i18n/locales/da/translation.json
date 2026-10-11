@@ -751,7 +751,11 @@
           "emptyTitle": "Ingen modeller på listen",
           "emptyHint": "Opdater for at indlæse de modeller, denne nøgle kan se, eller skriv et model-id herunder.",
           "customSet": "Angiv",
-          "customHint": "Ethvert model-id fra din udbyder virker, også hvis det ikke er på listen."
+          "customHint": "Ethvert model-id fra din udbyder virker, også hvis det ikke er på listen.",
+          "filterPlaceholder": "Filtrér modeller",
+          "showAll_one": "Vis alle ({{count}})",
+          "showAll_other": "Vis alle ({{count}})",
+          "showFewer": "Vis færre"
         },
         "timeout": {
           "title": "Anmodningstimeout",

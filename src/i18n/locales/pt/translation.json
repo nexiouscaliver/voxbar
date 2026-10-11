@@ -751,7 +751,11 @@
           "emptyTitle": "Nenhum modelo listado",
           "emptyHint": "Atualize para carregar os modelos que esta chave vê, ou escreva um id de modelo abaixo.",
           "customSet": "Definir",
-          "customHint": "Qualquer id de modelo do seu fornecedor funciona, mesmo que não esteja listado."
+          "customHint": "Qualquer id de modelo do seu fornecedor funciona, mesmo que não esteja listado.",
+          "filterPlaceholder": "Filtrar modelos",
+          "showAll_one": "Mostrar todos ({{count}})",
+          "showAll_other": "Mostrar todos ({{count}})",
+          "showFewer": "Mostrar menos"
         },
         "timeout": {
           "title": "Tempo limite da solicitação",

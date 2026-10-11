@@ -751,7 +751,11 @@
           "emptyTitle": "モデルが一覧にありません",
           "emptyHint": "更新するとこのキーが参照できるモデルを読み込みます。または下にモデル ID を入力してください。",
           "customSet": "設定",
-          "customHint": "一覧になくても、プロバイダーが提供するモデル ID なら使用できます。"
+          "customHint": "一覧になくても、プロバイダーが提供するモデル ID なら使用できます。",
+          "filterPlaceholder": "モデルを絞り込み",
+          "showAll_one": "すべて表示（{{count}}）",
+          "showAll_other": "すべて表示（{{count}}）",
+          "showFewer": "表示を減らす"
         },
         "timeout": {
           "title": "リクエストのタイムアウト",

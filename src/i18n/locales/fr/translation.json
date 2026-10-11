@@ -751,7 +751,11 @@
           "emptyTitle": "Aucun modèle listé",
           "emptyHint": "Actualisez pour charger les modèles visibles avec cette clé, ou saisissez un identifiant de modèle ci-dessous.",
           "customSet": "Définir",
-          "customHint": "Tout identifiant de modèle proposé par votre fournisseur fonctionne, même s'il n'est pas listé."
+          "customHint": "Tout identifiant de modèle proposé par votre fournisseur fonctionne, même s'il n'est pas listé.",
+          "filterPlaceholder": "Filtrer les modèles",
+          "showAll_one": "Tout afficher ({{count}})",
+          "showAll_other": "Tout afficher ({{count}})",
+          "showFewer": "Afficher moins"
         },
         "timeout": {
           "title": "Délai de requête",

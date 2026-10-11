@@ -751,7 +751,11 @@
           "emptyTitle": "목록에 모델 없음",
           "emptyHint": "새로 고침하면 이 키로 볼 수 있는 모델을 불러옵니다. 또는 아래에 모델 ID를 입력하세요.",
           "customSet": "설정",
-          "customHint": "목록에 없어도 공급자가 제공하는 모델 ID라면 사용할 수 있습니다."
+          "customHint": "목록에 없어도 공급자가 제공하는 모델 ID라면 사용할 수 있습니다.",
+          "filterPlaceholder": "모델 필터",
+          "showAll_one": "모두 표시 ({{count}})",
+          "showAll_other": "모두 표시 ({{count}})",
+          "showFewer": "적게 표시"
         },
         "timeout": {
           "title": "요청 시간 제한",

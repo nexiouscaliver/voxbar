@@ -465,6 +465,15 @@
       s.settings.post_process_provider_id = "openai";
       s.settings.post_process_api_keys.openai = "sk-mock-key-0123456789abcdef";
     },
+    // Cloud provider picked but no key yet: the model list never fetches,
+    // so the picker must say no list exists rather than claiming a fetch
+    // (the honest-summary state; the current model rides the grid alone).
+    "settings-pp-cloud-nokey": (s) => {
+      SCENARIOS["settings-default"](s);
+      s.settings.post_process_enabled = true;
+      s.settings.post_process_provider_id = "openai";
+      s.settings.post_process_api_keys.openai = "";
+    },
     // User who upgraded but has not seen the release notes yet.
     "whats-new": (s) => {
       SCENARIOS["settings-default"](s);
@@ -863,12 +872,42 @@
     },
     fetch_post_process_models: (args) => {
       const providerId = args.providerId ?? args.provider_id;
+      // OpenAI's real /v1/models also returns embedding/tts/whisper ids;
+      // the dozen-entry list keeps the model picker's filter + cap honest
+      // in shots instead of hiding them behind a 3-entry fixture.
       const table = {
-        openai: ["gpt-4.1-mini", "gpt-4o-mini", "gpt-4.1"],
+        openai: [
+          "gpt-4.1-mini",
+          "gpt-4o-mini",
+          "gpt-4.1",
+          "gpt-4o",
+          "o4-mini",
+          "gpt-4-turbo",
+          "gpt-3.5-turbo",
+          "whisper-1",
+          "tts-1",
+          "tts-1-hd",
+          "text-embedding-3-small",
+          "text-embedding-3-large",
+        ],
         zai: ["glm-4.7-flash", "glm-4.7"],
         openrouter: ["openai/gpt-4o-mini", "anthropic/claude-3.5-haiku"],
       };
-      return table[providerId] ?? [];
+      const models = table[providerId] ?? [];
+      // Mirror the backend contract (settings.rs CachedModelList): the
+      // list is persisted into the settings cache with fetched_at_unix,
+      // and the frontend re-reads settings after the fetch to render the
+      // fetched-at hint. Without this the mock could never exercise the
+      // "N models, fetched <time>" summary.
+      if (models.length > 0) {
+        state.settings.post_process_model_lists =
+          state.settings.post_process_model_lists ?? {};
+        state.settings.post_process_model_lists[providerId] = {
+          models,
+          fetched_at_unix: Math.floor(Date.now() / 1000),
+        };
+      }
+      return models;
     },
   };
 

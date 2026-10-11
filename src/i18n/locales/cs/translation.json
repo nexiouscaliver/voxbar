@@ -751,7 +751,11 @@
           "emptyTitle": "Žádné modely v seznamu",
           "emptyHint": "Obnovte, aby se načetly modely dostupné s tímto klíčem, nebo níže zadejte id modelu.",
           "customSet": "Nastavit",
-          "customHint": "Funguje jakékoli id modelu od vašeho poskytovatele, i když není v seznamu."
+          "customHint": "Funguje jakékoli id modelu od vašeho poskytovatele, i když není v seznamu.",
+          "filterPlaceholder": "Filtrovat modely",
+          "showAll_one": "Zobrazit vše ({{count}})",
+          "showAll_other": "Zobrazit vše ({{count}})",
+          "showFewer": "Zobrazit méně"
         },
         "timeout": {
           "title": "Časový limit požadavku",
