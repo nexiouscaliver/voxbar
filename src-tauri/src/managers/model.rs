@@ -2523,6 +2523,53 @@ impl ModelManager {
             }
         }
 
+        // KB-171 residual: a user-added repo has no catalog trust anchor, so
+        // the download verifies against the Hub's own LFS digest for the
+        // exact pinned revision instead. This gate sits at the single funnel
+        // every HF download goes through, so the voice add flow, the
+        // post-process LLM add flow, and plain redownloads of user-added
+        // entries are all covered. Catalog entries keep their own anchors
+        // (the post-process command's post-download check, the mirror
+        // fallback's catalog sha) and skip this. Files the Hub lists
+        // without an LFS digest, and a digest listing that itself fails,
+        // are logged and left unverified: no anchor exists to fail against.
+        // Only bytes this call fetched are at stake - the entry short
+        // circuit above already returned when the artifact pre-existed.
+        if !Self::has_static_trust_anchor(&model_id, &repo_id, &filename) {
+            match hf_add::hf_file_sha256(&repo_id, &revision, &filename).await {
+                Some(expected) => {
+                    let _ = self.app_handle.emit("model-verification-started", &model_id);
+                    let verified = if let Some(pointer) = self.cached_path_for(model_info) {
+                        let id = model_id.clone();
+                        let path = pointer.clone();
+                        let digest = expected.clone();
+                        tokio::task::spawn_blocking(move || {
+                            Self::verify_user_added_download(&path, &digest, &id)
+                        })
+                        .await
+                        .map_err(|e| anyhow::anyhow!("SHA256 task panicked: {}", e))?
+                    } else {
+                        warn!(
+                            "no landed artifact to verify for {}; skipping the digest check",
+                            model_id
+                        );
+                        Ok(())
+                    };
+                    // Same pairing as the HTTP path's verify_file_with_events:
+                    // completed only lands on success, so the store's
+                    // verifying flag never outlives a refused download.
+                    if verified.is_ok() {
+                        let _ = self.app_handle.emit("model-verification-completed", &model_id);
+                    }
+                    verified?;
+                }
+                None => warn!(
+                    "KB-171: no Hub digest available for {} at revision {}; download left unverified",
+                    model_id, revision
+                ),
+            }
+        }
+
         cleanup.disarmed = true;
         self.update_download_status()?;
         self.cancel_flags.lock().unwrap().remove(&model_id);

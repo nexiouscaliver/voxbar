@@ -25,7 +25,10 @@ Status at v1.4.0: no P0 open (the last one, KB-150, was fixed after round 3, see
 The open backlog is 38 P1 and roughly 104 P2 items. Cycle 3 (audit-fix waves,
 commits a9e1159e..a6997aec) has since closed 17 of them - 12 P1 and 5 P2 -
 with the entries updated in place below; five are partial (KB-020/033/148/154/190)
-and keep a residual line.
+and keep a residual line. (That 17 was a mid-cycle count covering waves 1-2
+only; by cycle 3's end waves 1-6 closed 30 items - the round 4 standing
+verdict said 29 and missed KB-112, corrected in the round 6 reconciliation
+below.)
 
 ## P0: the one that got away, now fixed
 
@@ -42,7 +45,7 @@ No P0 remains open at v1.4.0.
 - **KB-002 · FIXED · cancel leaks the forced system mute.** `cancel_recording` now calls `self.remove_mute()` in **both** the Recording and Stopping branches, with a comment naming KB-002 (audio.rs:1319-1325, 1353-1360 ✓R4); covers the local always-on path, the remote branch (close_remote_stream has no restore), and the lazy-close deferral. R3 ran `cargo test --lib mute_restore` → 1 passed, `managers::audio` → 3 passed. **Follow-up: KB-151** (the quit path still strands the mute) - closed in cycle 3: a9e1159e makes `RunEvent::Exit` call `remove_mute()`.
 - **KB-019 · FIXED · local post-process gate reads the SELECTED model.** `selected_llm_model_id(app)` now feeds the gate, with a comment naming KB-019 (actions.rs:859-871 ✓R4); same resolution as the swap runner. R3 ran `local_availability_follows_the_selected_model(_not_the_pinned_one)` → 1 passed; actions::tests 27; local_llm::manager 24. Do not re-report.
 - **KB-103 · FIXED · always_on boot panic + poisoned setting.** Constructor's AlwaysOn open is best-effort (`if let Err(e) = … error!`, audio.rs:556-572 ✓R4); `update_microphone_mode` applies the runtime flip (on spawn_blocking) BEFORE persisting, with the rationale comment (commands/audio.rs:181-208 ✓R4); the store updater throws on error so the toggle rolls back (settingsStore.ts:106-114 ✓R4). **Follow-up: KB-104 residual + KB-179** (same boot-panic class, history side).
-- **KB-104 · PARTIALLY FIXED.** `update_microphone_mode` is fixed (above); **`set_selected_microphone` still persists BEFORE applying** (commands/audio.rs:246-263 ✓R4: settings write at :250-254, `update_selected_device` after) and the generic rollback only reverts local state, so a failed switch leaves settings_store.json holding a mic the UI no longer shows until the next stream open self-heals [R3]. Much lower impact now KB-103 is fixed. Residual stays P2.
+- **KB-104 · FIXED · both setters now apply before persisting (device residual closed in cycle 3, fcb3e742).** `update_microphone_mode` is fixed (above); the device setter no longer persists-first either: `set_selected_microphone` (commands/audio.rs:246-273) applies through `update_selected_device` BEFORE anything is written and propagates its error, and `update_selected_device` (managers/audio.rs:1186-1226) rejects the switch while a recording is live, persists only after the reopen resolves its device from settings, and on a failed reopen undoes the write and brings the previous device's stream back (the KB-104 comment block). Round 4 verified this fix (its list names "KB-104 residual") but the entry kept the stale residual sentence until the round 6 pass flipped it.
 - **KB-005 · still FIXED, but its guard test is unwired:** historyLimitInput.test.ts registers 0 tests under `bun test`, no package.json script, not in CI (R3 ran both invocations); third instance of the KB-136 class.
 
 Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-007, KB-041-core, KB-096 (residual: FALLBACK_APP_VERSION '0.1.2' at appVersion.ts:9; re-verified [R3 ×2]).
@@ -117,7 +120,7 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-111 · OPEN.** Either phone dropping finalizes the shared session while the other streams (disconnect tests active_source==Remote only) (server.rs:492-519) [R3].
 
-**KB-112 · OPEN.** Autostart lying toggle (apply_autostart returns (); all failures warn-only; command Ok unconditionally) [R3].
+**KB-112 · FIXED · autostart failures propagate and roll the toggle back (cycle 3 wave 4, fcb3e742).** Was [R3]: `apply_autostart` returned (), failures were warn-only, the command Ok'd unconditionally. Fixed: `apply_autostart` returns `Result` and its doc comment names KB-112 (autostart.rs:25-46); `change_autostart_setting` applies the login item BEFORE persisting and propagates failures so the settings store rolls the toggle back (shortcut/mod.rs:1313-1331); the startup call stays deliberately best-effort (lib.rs:510-513, the companion-init rule: the preference is re-applied every launch so a transient failure self-heals). Missed by the round 4 verified list although it shipped in the same wave 4 commit as KB-104/145/183/188; corrected in the round 6 pass (which also adjusts the round 4 closed count from 29 to 30).
 
 **KB-113 · OPEN (re-verified 2×).** Successful download never dismisses the loading toast (only the failure path reuses the id; sonner loading toasts never auto-dismiss) [R3].
 
@@ -141,7 +144,7 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-179 · OPEN · NEW · a corrupted or unwritable history.db panics the app at every launch**: `HistoryManager::new(...).expect(...)` in setup; new() propagates create_dir_all/Connection/migrations errors. Same class 5bf5b893 just fixed for audio; recovery requires deleting history.db outside the app. Medium (needs external corruption/disk-full, no in-app toggle arms it) [R3].
 
-**KB-183 · OPEN · NEW · turning Experimental off is not a companion kill switch:** the LAN TLS server keeps running with its only control unmounted (AdvancedSettings gates rendering only; companion::init arms purely on companion_devices_enabled), re-arms every boot, findable by neither search nor tray [R3].
+**KB-183 · FIXED · Experimental off is now a companion kill switch (cycle 3 wave 4 fcb3e742; hardened in the v1.5.4 cycle 69a7820c + da66553a).** Was [R3]: the LAN TLS server kept running with its only control unmounted (AdvancedSettings gates rendering only; companion::init armed purely on companion_devices_enabled), re-armed every boot, findable by neither search nor tray. Fixed: `effective_enabled` requires BOTH toggles with a 4-combination test (companion/mod.rs:537-539, 783-815); `init` arms on the conjunction (mod.rs:551); the toggle command applies the conjunction, never the raw flag - including for direct IPC callers the UI unmount cannot gate (shortcut/mod.rs:955-990, `companion_toggle_runtime_value`, this cycle); the Experimental switch itself stops the server (shortcut/mod.rs:1689). The persist re-reads settings AFTER apply so the pairing token `start()` regenerates mid-enable survives the full-store write (da66553a). Round 4's list already verified the wave 4 half; the entry above was the stale part.
 
 **KB-185 · FIXED · tray "Unload After → Custom…" switches mode before focusing.** Was [R3]: a silent no-op whenever the setting was a preset - the custom input rendered only when the stored value was already Custom (`customActive = isCustom(storedValue)` ✓R4 at ModelUnloadTimeout.tsx:41), so the promised focus landed on a null ref and nothing switched modes. Fixed in 14369da8: the tray-focus effect first switches the stored setting to custom (backend command + optimistic store update, seeding 90 s like the dropdown does) when a preset is stored, so the field has rendered by the time the await resolves and the ref is attached.
 
@@ -180,7 +183,7 @@ _New in round 3 (KB-152, 153, 156-158, 161, 163-175, 177, 178, 180-182, 184, 187
 - **KB-168 ·** every slider Reset is a silent no-op if loadDefaultSettings failed (errors console-only; resetSetting returns when defaults null) (settingsStore.ts:437-444, 733-745) [R3].
 - **KB-169 ·** Test Connection verdict race across provider switch: no staleness guard: previous provider's verdict renders under the new panel; .catch console-only (usePostProcessProviderState.ts:246-268) [R3].
 - **KB-170 ·** custom-provider base URL validated nowhere at set time (no scheme check; typo fails only at next use) (BaseUrlField.tsx:27-33; mod.rs:1441-1470); KB-125 family, distinct component [R3].
-- **KB-171 ·** LLM catalog per-file trust anchors are dead for non-default quants: expected_sha256_for resolves only the default file's id, so alternate quants download unverified and skip the load-time check though the catalog pins them (catalog/llm.rs:198-219; every_file_is_fully_pinned test asserts the anchors exist) [R3].
+- **KB-171 · FIXED.** LLM catalog per-file trust anchors were dead for non-default quants: expected_sha256_for resolved only the default file's id, so alternate quants downloaded unverified and skipped the load-time check though the catalog pinned them (catalog/llm.rs:198-219 at the time; every_file_is_fully_pinned test asserts the anchors exist) [R3]. The alternate-quant half landed in ca098651: `find_with_file` resolves every catalog quant's id - default and alternate alike - so `expected_sha256_for`/`expected_size_bytes_for` return the file's own anchor (catalog/llm.rs:221-246, pinned by `alternate_quant_ids_resolve_their_own_trust_anchor` at catalog/llm.rs:443). The user-added half (Add-from-HuggingFace downloads verified NOTHING: expected_sha256 returned None for user repos, ModelManager::verify_sha256 skipped on None, the add flows probed only the GGUF architecture) closed in the v1.5.4 integrity cycle: `download_hf_model` - the single funnel every HF download goes through - fetches the Hub tree listing's LFS sha256 for the exact pinned revision (hf_add.rs `hf_file_sha256`, endpoint derived from hf-hub's own resolve URL so listing and download can never disagree) and verifies every user-added download against it; on mismatch the artifact (snapshot pointer plus blob) is deleted, the existing corruption notice fires, and the add flows refuse registration (download.rs `verify_user_added_download` + model.rs gate; tests: user_added_digest_mismatch_refuses_and_deletes_the_artifact and siblings). Disclosed remainder, deliberately unverified: files the Hub lists without an LFS digest (non-LFS, under the Hub's LFS size threshold), digest listings that themselves fail (metadata outage must not break an anchor-less download), artifacts already complete on disk before the call (no bytes fetched; the entry short circuit returns first), and voice-catalog models' primary HF path (the catalog anchor exists but the primary path still does not app-side hash it - only the mirror fallback does; a pre-existing gap outside this fix's scope).
 - **KB-172 ·** BaseUrlField's disabled tooltip is hardcoded English AND wrong for its only reachable state ("managed by the selected provider": it renders only for custom) (BaseUrlField.tsx:20-22) [R3].
 - **KB-173 ·** the four prompt CRUD handlers drop backend error statuses (specta resolves {status:"error"}, handlers never check); a refused add/update/delete/duplicate leaves the UI silently unsaved; worst on Update where the draft keeps showing the edit that never persisted (PostProcessingSettings.tsx:584-632) [R3].
 - **KB-174 ·** user templates can never carry language/register/description (add hardcodes auto/General/empty; update takes only name+prompt; no editor controls); badges are read-only decoration and the script guard can never sanction a custom script-switch template (mod.rs:1538-1547) [R3].
@@ -286,10 +289,15 @@ path anymore; the stuck-toast defect has no trigger surface. Mark closed.
 - **KB-199** KB-036's error exit (failed handy-keys init rollback) skips the
   cancel rearm; mid-recording switch with failing init leaves cancel dead
   (mod.rs:624 short-circuits before both rearm sites).
-- **KB-200** unload-timeout settings writes (incl. the tray Custom flow's own
-  seed) never rebuild the tray submenu (commands/transcription.rs:20/93).
-- **KB-201** set_post_process_provider never rebuilds; the pp Model submenu
-  appears/disappears only on the next unrelated rebuild (mod.rs:1638-1646).
+- **KB-200 · FIXED (cycle 6, df44255c).** unload-timeout settings writes (incl. the tray Custom flow's own
+  seed) never rebuilt the tray submenu; now the timeout rides MenuInputs so
+  every write rebuilds (commands/transcription.rs:25/110, KB-200 comments).
+- **KB-201 · FIXED (cycle 6, df44255c).** set_post_process_provider never
+  rebuilt; the provider flip now drives post_process_local_active and the pp
+  Model submenu through MenuInputs (shortcut/mod.rs:1807; the template CRUD
+  legs at :1843/1865/2022 carry the KB-201/KB-066 surface 1 comments, and
+  this cycle's 69a7820c added the add/delete equality pins in tray.rs
+  tests - see KB-249).
 - **KB-202** history setters are the inverse KB-104 shape: persist succeeds,
   cleanup fails, Err rolls the UI back while disk keeps the value
   (commands/history.rs:122-163).
@@ -300,16 +308,25 @@ path anymore; the stuck-toast defect has no trigger surface. Mark closed.
 - **KB-205** manual check click during an in-flight silent auto-check is a
   dead click for up to ~21 minutes (runUpdateCheck early-returns on
   inFlight with no feedback; updaterFlow.ts:345).
-- **KB-206** Theme + Accent Color rows still missing from settings search;
-  the "every About row indexed" comment is now false (SettingsSearch.tsx:167).
+- **KB-206 · FIXED (cycle 3 wave 5, b63cd215).** Theme + Accent Color rows
+  were still missing from settings search; both are indexed now
+  (settingsSearchIndex.ts:152-158, the AUD-11 comment: "the Theme and
+  Accent Color rows (theme.title, theme.accentColor.label) are reachable by
+  search"). Round 5 verified this; the entry above was the stale part.
 - **KB-207** 300ms hide-unmap race: card_visible=true while the overlay
   already returned null; an info notice in the window is invisible on every
   surface (overlay.rs:731-742 vs RecordingOverlay.tsx:385).
 
 ## New findings (P3)
 
-- **KB-208** (folds into KB-163) companion capped + disconnected both drop
-  the device-name detail in the shared mapping (noticeMessage.ts:85-99).
+- **KB-208 · HALF FIXED (capped half, cycle 3 wave 2, a6997aec).** (folds
+  into KB-163) companion capped + disconnected both dropped the device-name
+  detail in the shared mapping. The capped half now interpolates it:
+  `companion_session_capped` passes `device: detail` into
+  `overlay.notice.companionSessionCapped` (src/lib/noticeMessage.ts:97-101;
+  en copy: "...the 15-minute session limit was reached on {{device}}."). The
+  disconnected half still drops the detail (noticeMessage.ts:86-87) - that
+  is the remaining KB-163 residual.
 - **KB-209** prompt ids can collide on the same millisecond
   (mod.rs:1658/1687; the "random component" comment is not implemented).
 - **KB-210** a relaunch() failure after a successful install shows the
@@ -320,8 +337,18 @@ path anymore; the stuck-toast defect has no trigger surface. Mark closed.
   failure exits (mod.rs:493-503); narrow reach after KB-009.
 - **KB-213** GlobalShortcutInput has no unmount-time resume, unlike its
   HandyKeys twin (only listener removal in cleanup).
-- **KB-214** KB-136 family grows: shortcutGating.test.ts unwired; CI still
-  never runs test:updater (now two tests) (ci.yml:106-109).
+- **KB-214 · FIXED by mechanism.** KB-136 family grows: shortcutGating.test.ts
+  was unwired; CI never ran test:updater. Both halves closed: the "Run bun
+  unit tests" step runs `bun run test:updater` (which chains both updater
+  test files, package.json:23; the step entered CI in 2bdd6049), and the
+  "Test frontend sweep" step (`bun run test:frontend` ->
+  scripts/run-frontend-tests.ts, from 4ebe1d4f) executes EVERY git-tracked
+  src/**/*.test.ts - shortcutGating.test.ts included - so a file with no
+  script of its own still runs; scripts/ciTestCoverage.test.ts then fails
+  the build when a test is added without an invocation. The same mechanism
+  retires round 5's KB-245 note (searchKeyboardNav unwired) and KB-100's
+  test:updater half; check:text-style is still absent from CI, so KB-100's
+  other half stays open.
 - **KB-215** silent value coercion: theme/sound-theme/overlay-position/style
   setters warn + substitute defaults yet return Ok (mod.rs:986-1123).
 - **KB-216** write_settings is unobservable (no error surface); persist
@@ -330,6 +357,19 @@ path anymore; the stuck-toast defect has no trigger surface. Mark closed.
   in the desktop-notification body via noticeMessage.
 
 ## Standing verdict
+
+[Round 6 correction: the paragraph below was true at round 4 but was
+superseded within the same cycle - every named "open" item was fixed by
+waves 5-6 and verified by round 5: KB-194/198/199/212 and KB-109's
+master-toggle half in b746d17a (with tests; spot re-verified in the round 6
+pass at shortcut/mod.rs:116/400/445 for KB-194 and :1604/2424/2460/2493 for
+KB-198, and commands/history.rs:62-75 for KB-109), KB-195/205/206 in
+b63cd215, KB-186 in 0b0e3323 (bundled-catalog reachability caveat stands).
+Still open from that queue: KB-109's provider-pinning half (the doc comment
+at commands/history.rs:69-71 names it "a separate, larger fix") and KB-195's
+minimized-window edge (KB-224). The closed count below also missed KB-112,
+which shipped in the same wave 4 commit (fcb3e742) as three counted items:
+cycle 3 closed 30, not 29.]
 
 Cycle 3 closed 29 goldmine items with zero false fix claims. The open P1
 queue is now: KB-194, KB-195, KB-109, KB-198, KB-186 (offline onboarding dead
@@ -408,3 +448,122 @@ fleet-verified versions won every same-intent overlap; content delta is the
 bun.lock/.nix correction (plain main failed frozen-lockfile) plus the locale
 union of both sides' keys. Full gates green post-merge (809/0 Rust, 19/19
 frontend files, translations, text-style, lint, tsc).
+
+---
+
+# Round 6 (v1.5.4 integrity cycle, 2026-10-11, branch cycle7/v1.5.4-integrity)
+
+A truth pass over the ledger itself, plus the model-integrity fix that
+closed KB-171's user-added half. Every correction below was made against
+the code at cycle7/v1.5.4-integrity (base 623cbc51 + the cycle's three
+commits); each entry names the path or commit it was verified against.
+
+## Round 6 reconciliation (every correction made this pass)
+
+1. **KB-112 OPEN -> FIXED** (fcb3e742, cycle 3 wave 4). The round 4 fleet
+   verified three siblings from the same commit (KB-104/145/183/188) but
+   missed this one, and the entry above still read OPEN. Verified:
+   autostart.rs:25-46 (Result + KB-112 doc), shortcut/mod.rs:1313-1331
+   (apply before persist, `?` propagation), lib.rs:510-513 (startup stays
+   best-effort by design).
+2. **KB-104 residual -> FIXED** (fcb3e742). Round 4's verified list names
+   "KB-104 residual" but the entry above kept the stale persist-first
+   residual sentence. Verified: commands/audio.rs:246-273 (apply-first,
+   error propagation, no command-side write) and managers/audio.rs:1186-1226
+   (live-recording refusal + rollback of the persisted preference on a
+   failed reopen, KB-104 comment).
+3. **KB-183 OPEN -> FIXED** (fcb3e742 + this cycle 69a7820c/da66553a).
+   Round 4's list names KB-145/183 as verified; the entry above was never
+   flipped. Verified: companion/mod.rs:537-539 (effective_enabled
+   conjunction) + :551 (init) + :783-815 (4-combination test);
+   shortcut/mod.rs:955-990 (IPC gate) and :1689 (Experimental kill switch).
+4. **KB-206 -> FIXED** (b63cd215, cycle 3 wave 5; round 5 verified). The
+   entry above was never flipped. Verified: settingsSearchIndex.ts:152-158
+   indexes theme.title + theme.accentColor.label.
+5. **KB-214 -> FIXED by mechanism.** test:updater now runs in CI
+   (ci.yml "Run bun unit tests"; the step entered CI in 2bdd6049) and the
+   git-tracked sweep (scripts/run-frontend-tests.ts, from 4ebe1d4f) runs
+   shortcutGating.test.ts and every other tracked *.test.ts;
+   scripts/ciTestCoverage.test.ts fails CI on any future unwired test. This
+   also retires round 5's KB-245 note and KB-100's test:updater half;
+   check:text-style remains out of CI (KB-100's other half still open).
+6. **KB-208 capped-half -> FIXED** (a6997aec). companion_session_capped
+   interpolates the device name (noticeMessage.ts:97-101, en copy
+   "...reached on {{device}}."). The disconnected half still drops the
+   detail (noticeMessage.ts:86-87); that is the live KB-163 residual.
+7. **Round 4 standing verdict corrected in place** (bracketed note added):
+   the "open P1 queue" it names (KB-194/195/109/198/186) was closed by
+   waves 5-6 (b746d17a, b63cd215, 0b0e3323) and verified by round 5. Spot
+   re-verified this pass: KB-194 at shortcut/mod.rs:116/400/445, KB-198 at
+   :1604/2424/2460/2493, KB-109's master-toggle half at
+   commands/history.rs:62-75 with its provider-pinning half still open (the
+   code's own doc comment calls it "a separate, larger fix").
+8. **Round 4 closed-count 29 -> 30** (and the intro's mid-cycle 17
+   annotated): the miss was KB-112 (see 1). Counting method: the round 4
+   verified list has 30 distinct ids, KB-019 was a hold (fixed before
+   cycle 3, not a closure), KB-113 closed by removal, so the list itself
+   supports 29 - plus the unlisted KB-112 makes 30.
+9. **KB-171 -> FIXED** (alternate quants: ca098651, verified at
+   catalog/llm.rs:221-246 + the pin test at :443; user-added downloads:
+   this cycle, see the entry). The entry above was still describing the
+   pre-fix state in full.
+10. **KB-200/201 (round 4 new findings) -> FIXED** (df44255c, cycle 6).
+    Verified: commands/transcription.rs:25/110 (KB-200),
+    shortcut/mod.rs:1807/1843/1865/2022 (KB-201 + KB-066 surface 1).
+
+Spot-verification count this pass: 9 entries against live code (KB-104,
+112, 171, 183, 194, 198, 206, 208, 214, plus the KB-109 gate read; KB-200/
+201 verified by comment-cited paths) - all fix claims held; the only false
+statements found were the ledger's own stale statuses, corrected above.
+
+## New fixes this cycle (new ledger entries)
+
+- **KB-246 · release AI-integrity gate (57e36528).** release-macos.sh tees
+  the build to release-build.log and, after the bundle-exists check and
+  before signing/smoke, dies unless `otool -L` on VoxBar.app/Contents/MacOS/
+  voxbar lists FoundationModels.framework AND the build log shows neither
+  stub warning ("Building Apple Intelligence with stubs" / "Apple
+  Intelligence SDK not found"): a CLT-only toolchain can no longer ship a
+  stub-linked AI build silently. ci.yml greps the release script for the
+  three gate strings so a refactor cannot drop the gate (KB-217/233
+  family). Same commit: vite.config.ts documents the 2000 kB chunk warning
+  limit (the app loads bundles from disk).
+- **KB-247 · AUD-01 phone-forwarder denylist completion (69a7820c).** The
+  denylist grew from one Mac-only code to four (command_mode_no_session,
+  delete_last_word_no_session, undo_no_session, post_process_prompt_cycled)
+  and classification is now exhaustive by construction:
+  every_notice_code_has_a_deliberate_phone_visibility_classification
+  matches EVERY NoticeCode variant with no wildcard arm (a new variant
+  breaks compilation until it is consciously classified), pins that the
+  runtime denylist agrees with the classification for every emittable code
+  string, and refuses denylist entries no variant backs (companion/mod.rs,
+  MAC_ONLY_NOTICE_CODES + the test). The buffer variants stay forwarded,
+  scoped and documented inside the test.
+- **KB-248 · settings hydration guard on the companion toggle persist
+  (da66553a).** change_companion_devices_setting keeps the KB-183
+  both-toggles gate but re-reads settings AFTER apply and persists that
+  snapshot: CompanionManager::start regenerates a stale pairing token (and
+  subnet) mid-apply and persists it, so persisting the pre-apply snapshot
+  reverted the token the running server just armed - first enable: the QR
+  never renders; subnet change: the QR advertises a dead token. The
+  load-bearing read ordering is documented on the command.
+- **KB-249 · tray refresh pins for the prompt-CRUD legs (69a7820c).** The
+  rebuild calls themselves landed in cycle 6 (df44255c, KB-200/201); this
+  cycle pins the missing leg as tests: MenuInputs equality now drives a
+  rebuild when a template is added or deleted (tray.rs tests, the
+  KB-066/201 comment), so the prompt submenu cannot silently go stale
+  again. KB-066's other surfaces remain open: the local-LLM submenu still
+  has no post-process-model-changed listener (the event is emitted at
+  commands/local_llm.rs:357 with zero listeners; only model-state-changed
+  rebuilds, lib.rs:496), and the voice Models submenu still rebuilds only
+  on model-state-changed.
+- **KB-250 · dead-code cleanup (57e36528).** Deleted the orphaned
+  record_launched_exe no-op (its cfg(any(not(unix), test)) variant was
+  dead everywhere it compiled), the never-called FakeHost::slot_is_free/
+  skips_contain, and the RecordingReadness::wait_timeout test helpers.
+
+Not filed this pass: the cycle brief also names "CI exit-semantics and
+discovery nits" as a new fix, but no such change exists in this worktree
+at 57e36528..da66553a to verify or cite; the entry was deliberately not
+invented and should be filed by the lane that lands it (next free id then:
+KB-251).

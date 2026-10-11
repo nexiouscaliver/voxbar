@@ -78,6 +78,134 @@ fn test_verify_sha256_fails_and_deletes_partial_when_file_missing() {
     assert!(result.is_err(), "missing file must return an error");
 }
 
+// ── User-added download digest gate (KB-171 residual) ────────────────────
+//
+// The gate verifies the artifact a user-added HF download just landed
+// against the Hub's own LFS digest. Its mismatch error is what the add
+// flows (hf_add.rs) turn into a registration refusal: add_hf_model and
+// add_llm_hf_model drop the provisional entry and emit
+// model-download-failed whenever download_model returns Err, so proving
+// the gate errors AND deletes the artifact here pins the refusal
+// contract's half that is testable without an AppHandle.
+
+/// A synthetic hf-hub cache: `models--org--repo/blobs/<etag>` plus a
+/// `snapshots/<rev>/<filename>` pointer to it. On unix the pointer is a
+/// symlink (the layout hf-hub writes), so blob deletion is observable;
+/// elsewhere the pointer is a plain file and only its removal is asserted.
+fn synthetic_user_added_cache(
+    contents: &[u8],
+) -> (TempDir, std::path::PathBuf, std::path::PathBuf) {
+    let dir = TempDir::new().unwrap();
+    let repo_dir = dir.path().join("models--org--user-added");
+    let snapshot = repo_dir.join("snapshots").join("deadbeef");
+    let blobs = repo_dir.join("blobs");
+    fs::create_dir_all(&snapshot).unwrap();
+    fs::create_dir_all(&blobs).unwrap();
+    let blob = blobs.join("0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef");
+    fs::write(&blob, contents).unwrap();
+    let pointer = snapshot.join("model-Q8_0.gguf");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&blob, &pointer).unwrap();
+    #[cfg(not(unix))]
+    fs::write(&pointer, contents).unwrap();
+    (dir, pointer, blob)
+}
+
+#[test]
+fn user_added_digest_mismatch_refuses_and_deletes_the_artifact() {
+    let (_dir, pointer, blob) = synthetic_user_added_cache(b"corrupted bytes, not the model");
+    let wrong_digest = "1111111111111111111111111111111111111111111111111111111111111111";
+
+    let result = ModelManager::verify_user_added_download(
+        &pointer,
+        wrong_digest,
+        "org/user-added/model-Q8_0.gguf",
+    );
+
+    let err = result.expect_err("a mismatched digest must refuse the download");
+    assert!(
+        err.to_string().contains("corrupt"),
+        "the refusal must use the corruption notice, got: {err}"
+    );
+    assert!(
+        !pointer.exists(),
+        "the corrupt snapshot pointer must be deleted"
+    );
+    #[cfg(unix)]
+    assert!(
+        !blob.exists(),
+        "the corrupt blob must not linger in the cache for discovery to register"
+    );
+}
+
+#[test]
+fn user_added_digest_match_keeps_the_artifact() {
+    let contents = b"a perfectly fine little gguf";
+    let (_dir, pointer, blob) = synthetic_user_added_cache(contents);
+    let digest = sha_hex(contents);
+
+    ModelManager::verify_user_added_download(&pointer, &digest, "org/user-added/model-Q8_0.gguf")
+        .expect("a matching digest passes");
+
+    assert!(pointer.exists(), "a verified artifact stays put");
+    #[cfg(unix)]
+    assert!(blob.exists(), "a verified blob stays put");
+}
+
+#[test]
+fn user_added_digest_read_error_deletes_and_fails() {
+    let dir = TempDir::new().unwrap();
+    let repo_dir = dir.path().join("models--org--user-added");
+    let snapshot = repo_dir
+        .join("snapshots")
+        .join("deadbeef")
+        .join("gone.gguf");
+    fs::create_dir_all(snapshot.parent().unwrap()).unwrap();
+    // No file at the pointer: hashing fails, and the gate must still end
+    // in the error shape callers translate into a refusal.
+    let result = ModelManager::verify_user_added_download(
+        &snapshot,
+        "1111111111111111111111111111111111111111111111111111111111111111",
+        "org/user-added/gone.gguf",
+    );
+    assert!(result.is_err(), "an unreadable artifact must fail the gate");
+}
+
+/// The digest gate covers exactly the models with no anchor of their own:
+/// the pinned builtin, LLM catalog quants (alternate quants included, per
+/// find_with_file), and voice catalog files verify elsewhere; every other
+/// HF repo file is user-added and must go through the Hub-digest check.
+#[test]
+fn trust_anchor_detection_covers_catalog_entries_not_user_added() {
+    use crate::local_llm::LOCAL_LLM_MODEL_ID;
+
+    // The pinned builtin (also an LLM catalog entry).
+    assert!(ModelManager::has_static_trust_anchor(
+        LOCAL_LLM_MODEL_ID,
+        "Qwen/Qwen3-0.6B-GGUF",
+        "Qwen3-0.6B-Q8_0.gguf"
+    ));
+    // An LLM catalog alternate quant (its registry id differs from the
+    // default's, the exact case KB-171's landed half pins).
+    assert!(ModelManager::has_static_trust_anchor(
+        "unsloth/Qwen3-1.7B-GGUF/Qwen3-1.7B-Q8_0.gguf",
+        "unsloth/Qwen3-1.7B-GGUF",
+        "Qwen3-1.7B-Q8_0.gguf"
+    ));
+    // A voice catalog file.
+    assert!(ModelManager::has_static_trust_anchor(
+        "handy-computer/parakeet-unified-en-0.6b-gguf/parakeet-unified-en-0.6b-Q4_K_M.gguf",
+        "handy-computer/parakeet-unified-en-0.6b-gguf",
+        "parakeet-unified-en-0.6b-Q4_K_M.gguf"
+    ));
+    // A user-added repo: no catalog knows it, so the Hub digest gate owns it.
+    assert!(!ModelManager::has_static_trust_anchor(
+        "someone/custom-asr/model-Q8_0.gguf",
+        "someone/custom-asr",
+        "model-Q8_0.gguf"
+    ));
+}
+
 // ── Resumable HTTP downloader tests ───────────────────────────────────────
 //
 // Each test drives `download_http_resumable_with_events` against a scripted
