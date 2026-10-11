@@ -131,6 +131,13 @@ assert.equal(
   "command_mode_no_session reuses the existing key, no locale additions",
 );
 
+// v1.6.0 zero-audio fix: the companion session captured nothing; the key
+// ships in every locale and interpolates nothing.
+assert.equal(
+  noticeMessage(t, "companion_zero_audio"),
+  "overlay.notice.companionZeroAudio",
+);
+
 // Unknown codes return null: the main-window router skips them silently and
 // the overlay card falls back to its generic line.
 assert.equal(noticeMessage(t, "something_unmapped"), null);

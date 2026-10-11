@@ -1204,7 +1204,8 @@
       "postProcessPromptCycled": "後処理テンプレート: {{name}}",
       "companionDisconnected": "スマホが切断されました。録音済みの内容で確定します。",
       "companionServerFailed": "コンパニオンサーバーが失敗しました: {{error}}",
-      "companionSessionCapped": "コンパニオン端末のディクテーションを終了しました: {{device}}で15分のセッション上限に達しました。"
+      "companionSessionCapped": "コンパニオン端末のディクテーションを終了しました: {{device}}で15分のセッション上限に達しました。",
+      "companionZeroAudio": "コンパニオン端末のディクテーションが音声なしで終了しました。文字起こしは行われていません。"
     },
     "commandBadge": "コマンドモード",
     "ppChip": "整形中 ({{model}}) {{seconds}}秒",

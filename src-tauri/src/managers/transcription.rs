@@ -478,6 +478,15 @@ pub enum NoticeCode {
     /// A companion phone dictation hit the 15-minute session cap and was
     /// force-finalized. Info. Detail carries the device name.
     CompanionSessionCapped,
+    /// A companion session ended having captured zero audio samples, so
+    /// nothing was transcribed and no history entry exists (v1.6.0: this
+    /// used to be a silent drop, which is why phone output "vanished").
+    /// The dominant cause is a suspended AudioContext on the phone (iOS
+    /// Safari autoplay policy: no chunks are ever posted). Error tone.
+    /// Detail carries the device name. Classified phone-forwarding in the
+    /// AUD-01 table: the phone triggered the session and must hear why
+    /// nothing came back.
+    CompanionZeroAudio,
     /// The command-mode modifier was engaged with no live dictation
     /// session (replaces the former bare command-mode-no-session event).
     /// Info.
@@ -537,6 +546,7 @@ impl NoticeCode {
             NoticeCode::CompanionDisconnected => "companion_disconnected_finalized",
             NoticeCode::CompanionServerFailed => "companion_server_failed",
             NoticeCode::CompanionSessionCapped => "companion_session_capped",
+            NoticeCode::CompanionZeroAudio => "companion_zero_audio",
             NoticeCode::CommandModeNoSession => "command_mode_no_session",
         }
     }

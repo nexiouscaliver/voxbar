@@ -1204,7 +1204,8 @@
       "postProcessPromptCycled": "Modèle de post-traitement : {{name}}",
       "companionDisconnected": "Téléphone déconnecté. On finalise avec ce qui a été capturé.",
       "companionServerFailed": "Échec du serveur compagnon : {{error}}",
-      "companionSessionCapped": "La dictée depuis l'appareil compagnon est terminée : la limite de session de 15 minutes a été atteinte sur {{device}}."
+      "companionSessionCapped": "La dictée depuis l'appareil compagnon est terminée : la limite de session de 15 minutes a été atteinte sur {{device}}.",
+      "companionZeroAudio": "La dictée depuis l'appareil compagnon s'est terminée sans audio. Rien n'a été transcrit."
     },
     "commandBadge": "Mode commandes",
     "ppChip": "Polish en cours ({{model}}) {{seconds}}s",

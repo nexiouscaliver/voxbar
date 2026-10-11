@@ -1430,6 +1430,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             commands::transcription::unload_model_manually,
             commands::updater::log_update_decision,
             commands::history::get_history_entries,
+            commands::history::get_recent_companion_entries,
             commands::history::toggle_history_entry_saved,
             commands::history::get_audio_file_path,
             commands::history::delete_history_entry,

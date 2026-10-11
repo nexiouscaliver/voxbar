@@ -1204,7 +1204,8 @@
       "postProcessPromptCycled": "Mẫu hậu xử lý: {{name}}",
       "companionDisconnected": "Điện thoại đã ngắt kết nối. Kết thúc với phần đã ghi.",
       "companionServerFailed": "Máy chủ đồng hành lỗi: {{error}}",
-      "companionSessionCapped": "Đọc chính tả từ thiết bị đồng hành đã kết thúc: đã đạt giới hạn phiên 15 phút trên {{device}}."
+      "companionSessionCapped": "Đọc chính tả từ thiết bị đồng hành đã kết thúc: đã đạt giới hạn phiên 15 phút trên {{device}}.",
+      "companionZeroAudio": "Buộc đọc từ thiết bị đồng hành kết thúc mà không có âm thanh. Không có nội dung nào được chuyển thành văn bản."
     },
     "commandBadge": "Chế độ lệnh",
     "ppChip": "Đang tinh chỉnh ({{model}}) {{seconds}}s",

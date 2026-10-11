@@ -65,6 +65,10 @@ export const NOTICE_ROUTE_POLICIES: Record<string, NoticeRoutePolicy> = {
   wayland_tauri_hotkeys: "card-gated",
   gnome_overlay_fallback: "card-gated",
   companion_disconnected_finalized: "card-gated",
+  // v1.6.0 zero-audio fix: the phone session captured nothing; same shape
+  // as the finalized-companion notice (card row when present, toast plus
+  // notification when the card could not render).
+  companion_zero_audio: "card-gated",
 
   // Legacy-surface: the three orphaned Info codes (their tone plays no sound
   // and, off the old allowlist, they had NO surface once the card and window

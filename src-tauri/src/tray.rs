@@ -1310,6 +1310,8 @@ mod tests {
             post_process_prompt_id: None,
             post_process_outcome: None,
             post_process_latency_ms: None,
+            capture_source: "local".to_string(),
+            delivery_destination: "mac".to_string(),
         }
     }
 

@@ -1204,7 +1204,8 @@
       "postProcessPromptCycled": "後處理範本：{{name}}",
       "companionDisconnected": "手機已斷線。正在以已錄下的內容收尾。",
       "companionServerFailed": "伴侶伺服器失敗：{{error}}",
-      "companionSessionCapped": "伴侶裝置聽寫已結束：已達到 {{device}} 上的 15 分鐘工作階段上限。"
+      "companionSessionCapped": "伴侶裝置聽寫已結束：已達到 {{device}} 上的 15 分鐘工作階段上限。",
+      "companionZeroAudio": "伴侶裝置聽寫結束時沒有收到任何音訊，未轉錄任何內容。"
     },
     "commandBadge": "命令模式",
     "ppChip": "潤飾中 ({{model}}) {{seconds}}秒",

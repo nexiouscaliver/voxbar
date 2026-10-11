@@ -30,6 +30,65 @@ pub fn decode_f32_le(bytes: &[u8]) -> Vec<f32> {
         .collect()
 }
 
+/// How many companion-source history entries the RecentHistory frame (and
+/// the matching Tauri command) carries: the phone's recent list window.
+pub const RECENT_HISTORY_LIMIT: usize = 5;
+
+/// Where a companion session's final transcript lands. The wire values are
+/// the strings the phone sends on its Ptt edges ("pc" | "phone").
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum OutputTarget {
+    /// Paste on the Mac, exactly as every session behaved before v1.6.0.
+    #[default]
+    Pc,
+    /// Deliver the transcript to the phone as a TranscriptResult frame; no
+    /// Mac paste.
+    Phone,
+}
+
+impl OutputTarget {
+    /// Parse one wire value; None means the field was absent or carried an
+    /// unrecognized string (the connection keeps its previous value).
+    pub fn from_wire(s: &str) -> Option<Self> {
+        match s {
+            "pc" => Some(OutputTarget::Pc),
+            "phone" => Some(OutputTarget::Phone),
+            _ => None,
+        }
+    }
+}
+
+/// The per-session preferences the server honors for one companion
+/// connection's dictations: where the transcript goes and whether the
+/// post-process leg runs. Defaults are exactly the pre-v1.6.0 behavior.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SessionPrefs {
+    pub output_target: OutputTarget,
+    pub post_process: bool,
+}
+
+/// The preference fields one Ptt edge may carry. Every field is optional:
+/// absent (or unrecognized) means "unchanged", so an older phone that sends
+/// the bare frame keeps working and a newer phone only needs to send a
+/// field when it wants to change it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SessionPrefsUpdate {
+    pub target: Option<OutputTarget>,
+    pub post_process: Option<bool>,
+}
+
+impl SessionPrefs {
+    /// Fold one edge's partial update into the connection's prefs.
+    pub fn apply(&mut self, update: SessionPrefsUpdate) {
+        if let Some(target) = update.target {
+            self.output_target = target;
+        }
+        if let Some(post_process) = update.post_process {
+            self.post_process = post_process;
+        }
+    }
+}
+
 /// Client-to-server TEXT control frames.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClientFrame {
@@ -41,8 +100,13 @@ pub enum ClientFrame {
         lang: Option<String>,
     },
     /// Push-to-talk edges. The Mac resolves mode/hold-threshold from its
-    /// own settings, exactly like the keyboard binding.
-    Ptt { pressed: bool },
+    /// own settings, exactly like the keyboard binding. The optional
+    /// per-session preferences ride every edge (v1.6.0); the server snaps
+    /// them up on the press edge that starts a session.
+    Ptt {
+        pressed: bool,
+        prefs: SessionPrefsUpdate,
+    },
 }
 
 /// Parse one TEXT frame. Unknown types and malformed JSON return None (the
@@ -68,9 +132,27 @@ pub fn parse_client_frame(text: &str) -> Option<ClientFrame> {
         }),
         "ptt" => Some(ClientFrame::Ptt {
             pressed: value.get("pressed")?.as_bool()?,
+            prefs: SessionPrefsUpdate {
+                target: value
+                    .get("target")
+                    .and_then(|t| t.as_str())
+                    .and_then(OutputTarget::from_wire),
+                post_process: value
+                    .get("postProcess")
+                    .and_then(|p| p.as_bool()),
+            },
         }),
         _ => None,
     }
+}
+
+/// One companion-source history entry, as the phone's recent list renders
+/// it: the deliverable text (post-processed when the session polished it,
+/// else the raw transcript) plus the entry timestamp.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, specta::Type)]
+pub struct RecentHistoryEntry {
+    pub text: String,
+    pub timestamp: i64,
 }
 
 /// Server-to-client TEXT control frames.
@@ -89,6 +171,19 @@ pub enum ServerFrame {
     /// arbitration, disconnects) so a swallowed press is never silent on
     /// the phone either.
     Notice { code: String },
+    /// Phone-target delivery (v1.6.0): the final transcript of a companion
+    /// session whose output target is the phone. `post_processed` says the
+    /// text went through the post-process leg; `model` is the model id that
+    /// actually produced it (empty when unknown).
+    TranscriptResult {
+        text: String,
+        post_processed: bool,
+        model: String,
+    },
+    /// The last few companion-source history entries (text + timestamp), so
+    /// the phone can render its recent list at welcome and refresh it after
+    /// every companion session. Broadcast; see RECENT_HISTORY_LIMIT.
+    RecentHistory { entries: Vec<RecentHistoryEntry> },
     /// A refused hello (bad token, wrong subnet, rate limited).
     Error { code: &'static str },
     /// The server is closing the connection (session cap, rate cap, stop).
@@ -117,6 +212,25 @@ impl ServerFrame {
             ServerFrame::Notice { code } => serde_json::json!({
                 "type": "notice",
                 "code": code,
+            })
+            .to_string(),
+            ServerFrame::TranscriptResult {
+                text,
+                post_processed,
+                model,
+            } => serde_json::json!({
+                "type": "transcript",
+                "text": text,
+                "postProcessed": post_processed,
+                "model": model,
+            })
+            .to_string(),
+            ServerFrame::RecentHistory { entries } => serde_json::json!({
+                "type": "recentHistory",
+                "entries": entries.iter().map(|e| serde_json::json!({
+                    "text": e.text,
+                    "timestamp": e.timestamp,
+                })).collect::<Vec<_>>(),
             })
             .to_string(),
             ServerFrame::Error { code } => serde_json::json!({
@@ -252,14 +366,99 @@ mod tests {
 
     #[test]
     fn ptt_edges_parse() {
+        // The bare pre-v1.6.0 shape still parses: absent preference fields
+        // mean "unchanged", so an older phone keeps working.
         assert_eq!(
             parse_client_frame(r#"{"type":"ptt","pressed":true}"#),
-            Some(ClientFrame::Ptt { pressed: true })
+            Some(ClientFrame::Ptt {
+                pressed: true,
+                prefs: SessionPrefsUpdate::default(),
+            })
         );
         assert_eq!(
             parse_client_frame(r#"{"type":"ptt","pressed":false}"#),
-            Some(ClientFrame::Ptt { pressed: false })
+            Some(ClientFrame::Ptt {
+                pressed: false,
+                prefs: SessionPrefsUpdate::default(),
+            })
         );
+    }
+
+    /// v1.6.0: a Ptt edge may carry the phone's per-session preferences.
+    /// Both fields are optional and independently parsed; a non-bool
+    /// postProcess or an unrecognized target string reads as "unchanged"
+    /// rather than failing the frame (the edge itself must never be
+    /// dropped, or the phone's button state desyncs).
+    #[test]
+    fn ptt_edges_parse_session_preferences() {
+        assert_eq!(
+            parse_client_frame(
+                r#"{"type":"ptt","pressed":true,"target":"phone","postProcess":true}"#
+            ),
+            Some(ClientFrame::Ptt {
+                pressed: true,
+                prefs: SessionPrefsUpdate {
+                    target: Some(OutputTarget::Phone),
+                    post_process: Some(true),
+                },
+            })
+        );
+        // Partial updates carry whichever fields the phone sent.
+        assert_eq!(
+            parse_client_frame(r#"{"type":"ptt","pressed":true,"target":"pc"}"#),
+            Some(ClientFrame::Ptt {
+                pressed: true,
+                prefs: SessionPrefsUpdate {
+                    target: Some(OutputTarget::Pc),
+                    post_process: None,
+                },
+            })
+        );
+        // Unrecognized target and non-bool postProcess read as unchanged.
+        assert_eq!(
+            parse_client_frame(
+                r#"{"type":"ptt","pressed":false,"target":"tv","postProcess":"yes"}"#
+            ),
+            Some(ClientFrame::Ptt {
+                pressed: false,
+                prefs: SessionPrefsUpdate::default(),
+            })
+        );
+    }
+
+    /// Prefs are sticky per connection: each edge's partial update folds
+    /// into the current values, and defaults reproduce the pre-v1.6.0
+    /// behavior (paste on the Mac, no post-process).
+    #[test]
+    fn session_prefs_apply_partial_updates_over_defaults() {
+        let mut prefs = SessionPrefs::default();
+        assert_eq!(prefs.output_target, OutputTarget::Pc);
+        assert!(!prefs.post_process);
+
+        prefs.apply(SessionPrefsUpdate {
+            target: Some(OutputTarget::Phone),
+            post_process: None,
+        });
+        assert_eq!(prefs.output_target, OutputTarget::Phone);
+        assert!(!prefs.post_process, "an absent field never changes a value");
+
+        prefs.apply(SessionPrefsUpdate {
+            target: None,
+            post_process: Some(true),
+        });
+        assert_eq!(prefs.output_target, OutputTarget::Phone);
+        assert!(prefs.post_process);
+
+        // A no-op update changes nothing.
+        prefs.apply(SessionPrefsUpdate::default());
+        assert_eq!(prefs.output_target, OutputTarget::Phone);
+        assert!(prefs.post_process);
+
+        prefs.apply(SessionPrefsUpdate {
+            target: Some(OutputTarget::Pc),
+            post_process: Some(false),
+        });
+        assert_eq!(prefs, SessionPrefs::default());
     }
 
     #[test]
@@ -307,6 +506,48 @@ mod tests {
         }
         .to_json()
         .contains("session_cap"));
+    }
+
+    /// v1.6.0 wire shapes: the phone-target transcript delivery frame and
+    /// the recent-history list frame serialize to the exact JSON the phone
+    /// client's switch keys on ("transcript" / "recentHistory", camelCase
+    /// field names matching the Welcome frame's style).
+    #[test]
+    fn transcript_and_recent_history_frames_serialize_to_the_wire_shape() {
+        let transcript = ServerFrame::TranscriptResult {
+            text: "hello world".to_string(),
+            post_processed: true,
+            model: "whisper-large-v3-turbo".to_string(),
+        }
+        .to_json();
+        assert!(transcript.contains(r#""type":"transcript""#));
+        assert!(transcript.contains(r#""text":"hello world""#));
+        assert!(transcript.contains(r#""postProcessed":true"#));
+        assert!(transcript.contains(r#""model":"whisper-large-v3-turbo""#));
+
+        let history = ServerFrame::RecentHistory {
+            entries: vec![
+                RecentHistoryEntry {
+                    text: "first entry".to_string(),
+                    timestamp: 1_750_000_000,
+                },
+                RecentHistoryEntry {
+                    text: "second entry".to_string(),
+                    timestamp: 1_750_000_060,
+                },
+            ],
+        }
+        .to_json();
+        assert!(history.contains(r#""type":"recentHistory""#));
+        assert!(history.contains(r#""text":"first entry""#));
+        assert!(history.contains(r#""timestamp":1750000000"#));
+        assert!(history.contains(r#""text":"second entry""#));
+
+        // The empty list frame is still a valid frame (a fresh install has
+        // no companion history yet).
+        let empty = ServerFrame::RecentHistory { entries: vec![] }.to_json();
+        assert!(empty.contains(r#""type":"recentHistory""#));
+        assert!(empty.contains(r#""entries":[]"#));
     }
 
     #[test]

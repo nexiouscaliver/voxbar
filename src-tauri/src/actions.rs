@@ -92,9 +92,77 @@ fn transcribe_action_config(binding_id: &str) -> Option<(bool, CaptureSource)> {
     match binding_id {
         "transcribe" => Some((false, CaptureSource::Local)),
         "transcribe_with_post_process" => Some((true, CaptureSource::Local)),
+        // Static post_process is false: a companion session's post-process
+        // leg is a PER-SESSION preference (v1.6.0), resolved at stop time by
+        // session_runs_post_process, not a property of the binding.
         "transcribe_companion" => Some((false, CaptureSource::Remote)),
         _ => None,
     }
+}
+
+/// Where a finished session's transcript lands (v1.6.0). Local sessions
+/// always paste on the Mac; a companion session pastes on the Mac unless
+/// its per-session preference redirected output to the phone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum TranscriptDelivery {
+    /// The pre-v1.6.0 behavior verbatim: preview, paste, clipboard
+    /// handling, auto-submit.
+    MacPaste,
+    /// Skip every Mac paste step; broadcast a TranscriptResult frame to the
+    /// phone and still write history.
+    PhoneSend,
+}
+
+/// The pure routing decision for one finished session: `source` is the
+/// binding's capture source, `target` the companion session's frozen
+/// output-target preference. Extracted so the phone-delivery path is
+/// unit-testable without a pipeline.
+fn transcript_delivery(
+    source: CaptureSource,
+    target: crate::companion::protocol::OutputTarget,
+) -> TranscriptDelivery {
+    match (source, target) {
+        (CaptureSource::Remote, crate::companion::protocol::OutputTarget::Phone) => {
+            TranscriptDelivery::PhoneSend
+        }
+        _ => TranscriptDelivery::MacPaste,
+    }
+}
+
+/// The pure post-process resolution for one finished session (v1.6.0): the
+/// static binding value (the pp hotkey) OR a companion session's
+/// per-session preference, the latter still gated on the master
+/// post-process toggle - the same off promise the pp hotkey's registration
+/// enforces (a globally disabled layer must not ship transcripts to any
+/// provider just because a phone asked).
+fn session_runs_post_process(
+    static_post_process: bool,
+    source: CaptureSource,
+    session_pref: bool,
+    master_enabled: bool,
+) -> bool {
+    static_post_process
+        || (matches!(source, CaptureSource::Remote) && session_pref && master_enabled)
+}
+
+/// The history provenance pair for one session: where the audio came from
+/// and where the transcript was (or was meant to be) delivered.
+fn history_provenance(
+    source: CaptureSource,
+    delivery: TranscriptDelivery,
+) -> (String, String) {
+    (
+        match source {
+            CaptureSource::Local => "local",
+            CaptureSource::Remote => "companion",
+        }
+        .to_string(),
+        match delivery {
+            TranscriptDelivery::MacPaste => "mac",
+            TranscriptDelivery::PhoneSend => "phone",
+        }
+        .to_string(),
+    )
 }
 
 // THE shared output validator lives in post_process_runs.rs (pure,
@@ -186,7 +254,8 @@ pub(crate) struct SessionOutcomeSummary {
     pub source: &'static str,
     /// "off" | "processed" | "raw-fallback" | "failed".
     pub post_process: &'static str,
-    /// "ok" | "failed" | "skipped-empty" | "dispatch-failed" | "error".
+    /// "ok" | "failed" | "skipped-empty" | "dispatch-failed" | "error" |
+    /// "sent-to-phone" (v1.6.0: delivered to the phone, no Mac paste).
     pub paste: &'static str,
     /// Key release (stop) to the pipeline's true end, in milliseconds.
     pub stop_to_end_ms: u128,
@@ -1395,7 +1464,22 @@ impl ShortcutAction for TranscribeAction {
         play_feedback_sound(app, SoundType::Stop);
 
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
-        let post_process = self.post_process;
+        // v1.6.0 companion preferences, resolved ONCE here on the
+        // coordinator's stop call (before any await): the per-session prefs
+        // were frozen at the press edge that started the session, so a
+        // press racing this pipeline can only arm the NEXT session's prefs
+        // and cannot retarget this one.
+        let capture_source = self.source;
+        let session_prefs = crate::companion::session_prefs(app);
+        let delivery = transcript_delivery(capture_source, session_prefs.output_target);
+        let post_process = session_runs_post_process(
+            self.post_process,
+            capture_source,
+            session_prefs.post_process,
+            get_settings(app).post_process_enabled,
+        );
+        let (history_capture_source, history_destination) =
+            history_provenance(capture_source, delivery);
         let cancel_generation = rm.cancel_generation();
 
         // The stop pipeline runs on a dedicated std::thread (mirroring
@@ -1435,6 +1519,23 @@ impl ShortcutAction for TranscribeAction {
 
                 if samples.is_empty() {
                     debug!("Recording produced no audio samples; skipping persistence");
+                    if matches!(capture_source, CaptureSource::Remote) {
+                        // v1.6.0 zero-audio fix: a companion session that
+                        // captured nothing used to drop SILENTLY here - no
+                        // notice, no history - which is why phone output
+                        // "vanished" (the dominant cause is a suspended
+                        // AudioContext on the phone, which posts no chunks
+                        // at all). This single emit reaches the Mac overlay
+                        // through the notice channel AND the phone through
+                        // the forwarder (companion_zero_audio is classified
+                        // phone-forwarding); emitting anywhere else would
+                        // double-broadcast.
+                        crate::managers::transcription::emit_overlay_notice(
+                            &ah,
+                            crate::managers::transcription::NoticeCode::CompanionZeroAudio,
+                            crate::companion::session_device_name(&ah),
+                        );
+                    }
                     // Tear down any streaming worker so its channel doesn't leak
                     // and block the next start_stream.
                     tm.cancel_stream();
@@ -1599,16 +1700,28 @@ impl ShortcutAction for TranscribeAction {
 
                             // Save to history if WAV was saved
                             if wav_saved {
-                                if let Err(err) = hm.save_entry(
-                                    file_name,
+                                match hm.save_entry(
+                                    file_name.clone(),
                                     transcription,
                                     post_process,
                                     processed.post_processed_text.clone(),
                                     processed.post_process_prompt.clone(),
-                                    Some(used_model),
+                                    Some(used_model.clone()),
                                     processed.post_process_summary.clone(),
+                                    history_capture_source.clone(),
+                                    history_destination.clone(),
                                 ) {
-                                    error!("Failed to save history entry: {}", err);
+                                    Ok(_) => {
+                                        // v1.6.0: every companion write
+                                        // refreshes the phones' recent list
+                                        // (the RecentHistory frame). Best
+                                        // effort; the write itself already
+                                        // succeeded.
+                                        if matches!(capture_source, CaptureSource::Remote) {
+                                            crate::companion::broadcast_recent_history(&ah);
+                                        }
+                                    }
+                                    Err(err) => error!("Failed to save history entry: {}", err),
                                 }
                             }
 
@@ -1632,6 +1745,37 @@ impl ShortcutAction for TranscribeAction {
                                         source: outcome_source,
                                         post_process: post_process_term,
                                         paste: "skipped-empty",
+                                        stop_to_end_ms: stop_time.elapsed().as_millis(),
+                                    })
+                                );
+                                utils::hide_recording_overlay(&ah);
+                                set_tray_state(&ah, TrayIconState::Idle);
+                            } else if matches!(delivery, TranscriptDelivery::PhoneSend) {
+                                // v1.6.0 phone-target delivery: skip every
+                                // Mac paste step (preview, paste, clipboard
+                                // handling, auto-submit all live inside the
+                                // paste path below) and broadcast the final
+                                // transcript to the phone instead. History
+                                // was already written above with
+                                // destination=phone; the RecentHistory
+                                // refresh rode that write. A send with no
+                                // subscribers (the phone dropped) is a
+                                // no-op - the transcript is safe in history.
+                                crate::companion::deliver_transcript_to_phone(
+                                    &ah,
+                                    &processed.final_text,
+                                    processed.post_processed_text.is_some(),
+                                    &used_model,
+                                );
+                                info!(
+                                    "{}",
+                                    format_session_outcome(&SessionOutcomeSummary {
+                                        binding: binding_id.clone(),
+                                        audio_seconds: sample_count as f64 / 16_000.0,
+                                        sample_count,
+                                        source: outcome_source,
+                                        post_process: post_process_term,
+                                        paste: "sent-to-phone",
                                         stop_to_end_ms: stop_time.elapsed().as_millis(),
                                     })
                                 );
@@ -1818,6 +1962,8 @@ impl ShortcutAction for TranscribeAction {
                                     None,
                                     Some(stream_model),
                                     None,
+                                    history_capture_source.clone(),
+                                    history_destination.clone(),
                                 ) {
                                     error!("Failed to save failed history entry: {}", save_err);
                                 }
@@ -2359,6 +2505,113 @@ mod tests {
         assert_eq!(transcribe_action_config("unknown"), None);
         // The cycle binding is an assignable action, never a recording one.
         assert_eq!(transcribe_action_config("cycle_post_process_prompt"), None);
+    }
+
+    /// v1.6.0 routing table: the exhaustive delivery decision for every
+    /// (capture source, output target) pair. Only one combination sends to
+    /// the phone; everything else - including a phone session that did not
+    /// opt in - pastes on the Mac exactly as before.
+    #[test]
+    fn transcript_delivery_routes_only_companion_phone_sessions_to_the_phone() {
+        use super::{transcript_delivery, TranscriptDelivery};
+        use crate::companion::protocol::OutputTarget;
+        use crate::managers::audio::CaptureSource;
+
+        assert_eq!(
+            transcript_delivery(CaptureSource::Remote, OutputTarget::Phone),
+            TranscriptDelivery::PhoneSend,
+            "the one phone-target combination"
+        );
+        assert_eq!(
+            transcript_delivery(CaptureSource::Remote, OutputTarget::Pc),
+            TranscriptDelivery::MacPaste,
+            "a companion session without the phone preference keeps today's behavior"
+        );
+        assert_eq!(
+            transcript_delivery(CaptureSource::Local, OutputTarget::Pc),
+            TranscriptDelivery::MacPaste
+        );
+        assert_eq!(
+            transcript_delivery(CaptureSource::Local, OutputTarget::Phone),
+            TranscriptDelivery::MacPaste,
+            "the phone preference is companion-only: keyboard sessions always paste on the Mac"
+        );
+    }
+
+    /// v1.6.0 post-process resolution: the static binding value wins
+    /// unchanged (the pp hotkey), a companion session's per-session pref
+    /// runs the leg only with the master toggle on, and everything off
+    /// means off.
+    #[test]
+    fn session_post_process_resolution_honors_the_pref_and_the_master_toggle() {
+        use super::session_runs_post_process;
+        use crate::managers::audio::CaptureSource;
+
+        // The pp hotkey's static value is unaffected by the new machinery.
+        assert!(session_runs_post_process(
+            true,
+            CaptureSource::Local,
+            false,
+            false
+        ));
+        assert!(!session_runs_post_process(
+            false,
+            CaptureSource::Local,
+            true,
+            true
+        ));
+
+        // A companion session's pref runs the leg with the master toggle on.
+        assert!(session_runs_post_process(
+            false,
+            CaptureSource::Remote,
+            true,
+            true
+        ));
+        // Master toggle off: no transcript ships to any provider, even when
+        // the phone asked (the same off promise the pp hotkey's
+        // registration enforces).
+        assert!(!session_runs_post_process(
+            false,
+            CaptureSource::Remote,
+            true,
+            false
+        ));
+        // Pref off: today's behavior, no leg.
+        assert!(!session_runs_post_process(
+            false,
+            CaptureSource::Remote,
+            false,
+            true
+        ));
+    }
+
+    /// v1.6.0 provenance pair: the history row records where the audio came
+    /// from and where the transcript went, for every combination.
+    #[test]
+    fn history_provenance_pairs_source_with_destination() {
+        use super::{history_provenance, transcript_delivery, TranscriptDelivery};
+        use crate::companion::protocol::OutputTarget;
+        use crate::managers::audio::CaptureSource;
+
+        assert_eq!(
+            history_provenance(CaptureSource::Local, TranscriptDelivery::MacPaste),
+            ("local".to_string(), "mac".to_string())
+        );
+        assert_eq!(
+            history_provenance(
+                CaptureSource::Remote,
+                transcript_delivery(CaptureSource::Remote, OutputTarget::Pc)
+            ),
+            ("companion".to_string(), "mac".to_string())
+        );
+        assert_eq!(
+            history_provenance(
+                CaptureSource::Remote,
+                transcript_delivery(CaptureSource::Remote, OutputTarget::Phone)
+            ),
+            ("companion".to_string(), "phone".to_string())
+        );
     }
 
     /// The per-template tester: with a dead endpoint the run is recorded

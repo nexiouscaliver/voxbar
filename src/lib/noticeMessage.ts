@@ -95,6 +95,12 @@ export function noticeMessage(
       return t("overlay.notice.companionSessionCapped", {
         device: detail ?? "",
       });
+    // v1.6.0: a companion session ended having captured zero audio (the
+    // suspended-AudioContext defect class), so nothing was transcribed and
+    // no history entry exists; previously this dropped silently. No
+    // interpolation: the device detail stays in the log line.
+    case "companion_zero_audio":
+      return t("overlay.notice.companionZeroAudio");
     // The command-mode modifier engaged with no live dictation (KB-038);
     // reuses the key the former dedicated toast used, so no new locale
     // strings ride along.

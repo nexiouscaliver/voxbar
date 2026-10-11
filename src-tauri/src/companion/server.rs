@@ -337,6 +337,13 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             if sink.send(Message::text(welcome.to_json())).await.is_err() {
                 return;
             }
+            // v1.6.0: the phone's recent companion history rides along with
+            // the welcome, so the client can render its recent list right
+            // away (and a reconnecting phone catches up on sessions it
+            // missed). Broadcast: every paired phone shares the same Mac
+            // history, and this connection's subscription predates the
+            // handshake.
+            crate::companion::broadcast_recent_history(&app);
         }
         _ => {
             // No valid hello in the window: drop without revealing why.
@@ -348,6 +355,12 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     log::info!("companion: {device_name} paired from {peer}");
 
     // ---- session loop ----
+    // v1.6.0 per-session preferences, sticky for this connection: every
+    // Ptt edge folds its optional fields into these, and the press edge
+    // that starts a session snapshots them into the manager so the shared
+    // pipeline honors them for that session (a mid-session press from the
+    // same or another phone only arms the NEXT session's prefs).
+    let mut prefs = protocol::SessionPrefs::default();
     let mut ping_ticker = tokio::time::interval(PING_INTERVAL);
     ping_ticker.tick().await; // the first tick fires immediately
     let mut server_stopping = false;
@@ -431,7 +444,17 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 last_rx = Instant::now();
                 match message {
                     Message::Text(text) => match protocol::parse_client_frame(&text) {
-                        Some(ClientFrame::Ptt { pressed }) => {
+                        Some(ClientFrame::Ptt { pressed, prefs: update }) => {
+                            prefs.apply(update);
+                            if pressed {
+                                // Arm the prefs the session this press starts
+                                // will run with. The freeze into the live
+                                // slot happens at session start
+                                // (on_session_changed), so a press racing a
+                                // live session's stop cannot retarget the
+                                // session that is already finishing.
+                                manager.set_pending_session_prefs(prefs);
+                            }
                             if let Some(coordinator) =
                                 app.try_state::<crate::TranscriptionCoordinator>()
                             {

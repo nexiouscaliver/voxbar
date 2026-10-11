@@ -1204,7 +1204,8 @@
       "postProcessPromptCycled": "Efterbearbetningsmall: {{name}}",
       "companionDisconnected": "Telefonen kopplades från. Slutför med det som spelades in.",
       "companionServerFailed": "Kompanionservern misslyckades: {{error}}",
-      "companionSessionCapped": "Dikteringen från Kompanionenheten avslutades: sessionsgränsen på 15 minuter uppnåddes på {{device}}."
+      "companionSessionCapped": "Dikteringen från Kompanionenheten avslutades: sessionsgränsen på 15 minuter uppnåddes på {{device}}.",
+      "companionZeroAudio": "Dikteringen från kompanjonenheten avslutades utan ljud. Inget transkriberades."
     },
     "commandBadge": "Kommandoläge",
     "ppChip": "Polerar ({{model}}) {{seconds}}s",

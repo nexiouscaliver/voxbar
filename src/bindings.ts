@@ -1434,6 +1434,21 @@ async getHistoryEntries(cursor: number | null, limit: number | null) : Promise<R
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * v1.6.0: the phone-facing recent list for the Mac UI's companion chip -
+ * the last companion-source entries (deliverable text + timestamp),
+ * newest first. The same query feeds the RecentHistory wire frame the
+ * phones receive; the window is fixed by the protocol constant so the two
+ * surfaces can never disagree.
+ */
+async getRecentCompanionEntries() : Promise<Result<RecentCompanionEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_recent_companion_entries") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async toggleHistoryEntrySaved(id: number) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("toggle_history_entry_saved", { id }) };
@@ -1923,7 +1938,18 @@ model_id: string | null;
  * latency. `None` for pre-cycle rows and entries whose dictation ran
  * without post-processing.
  */
-post_process_provider: string | null; post_process_model: string | null; post_process_prompt_id: string | null; post_process_outcome: string | null; post_process_latency_ms: number | null }
+post_process_provider: string | null; post_process_model: string | null; post_process_prompt_id: string | null; post_process_outcome: string | null; post_process_latency_ms: number | null; 
+/**
+ * v1.6.0: where the audio came from, "local" (keyboard session) or
+ * "companion" (phone session). Pre-migration rows read "local".
+ */
+capture_source: string; 
+/**
+ * v1.6.0: where the transcript was (or, for a failed entry, was meant
+ * to be) delivered, "mac" (pasted on the Mac) or "phone" (sent to the
+ * phone). Pre-migration rows read "mac".
+ */
+delivery_destination: string }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
  * Result of changing keyboard implementation
@@ -2231,6 +2257,14 @@ export type PromptRegister = "professional" | "casual" | "technical" | "minimal"
  * or `skipped` for pre-run config states that never mint a run).
  */
 export type PromptTestOutcome = { before: string; after: string | null; outcome: string; latency_ms: number }
+/**
+ * One entry of the phone-facing recent list (v1.6.0): the deliverable text
+ * of a companion-source history row (post-processed when the session
+ * polished it, else the raw transcript) plus the entry timestamp. The
+ * RecentHistory wire frame and the get_recent_companion_entries command
+ * both carry these.
+ */
+export type RecentCompanionEntry = { text: string; timestamp: number }
 export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "weeks_2" | "months_3"
 export type SecretMap = Partial<{ [key in string]: string }>
 export type SecureInputStatus = { 

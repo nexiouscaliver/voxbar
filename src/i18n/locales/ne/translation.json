@@ -1207,7 +1207,8 @@
       "postProcessPromptCycled": "पोस्ट-प्रोसेस टेम्पलेट: {{name}}",
       "companionDisconnected": "फोन विच्छेद भयो। रेकर्ड भएकै कुराले टुंग्याइँदैछ।",
       "companionServerFailed": "साथी सर्भर असफल: {{error}}",
-      "companionSessionCapped": "साथी डिभाइसबाट भएको डिक्टेसन समाप्त भयो: १५ मिनेटको सत्र सीमा {{device}} मा पुग्‍यो।"
+      "companionSessionCapped": "साथी डिभाइसबाट भएको डिक्टेसन समाप्त भयो: १५ मिनेटको सत्र सीमा {{device}} मा पुग्‍यो।",
+      "companionZeroAudio": "साथी उपकरणबाट भएको डिक्टेसन कुनै अडियो बिना समाप्त भयो। केही पनि ट्रान्सक्रिप्ट भएन।"
     },
     "commandBadge": "कमाण्ड मोड",
     "ppChip": "पोलिस हुँदै ({{model}}) {{seconds}}s",

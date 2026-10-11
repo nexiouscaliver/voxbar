@@ -72,6 +72,16 @@ pub struct CompanionManager {
     session_live: AtomicBool,
     /// The device name behind the live session, if any.
     session_device: Mutex<Option<String>>,
+    /// v1.6.0: the preferences the NEXT companion session will run with.
+    /// Armed by the press edge that starts it (server.rs), consumed when
+    /// the session actually starts.
+    pending_prefs: Mutex<protocol::SessionPrefs>,
+    /// v1.6.0: the preferences of the live (or most recently finished)
+    /// companion session, frozen at session start so nothing can retarget a
+    /// session that is already recording or transcribing. The stop pipeline
+    /// reads this to decide paste-vs-phone delivery and the post-process
+    /// leg. Defaults reproduce the pre-v1.6.0 behavior exactly.
+    live_prefs: Mutex<protocol::SessionPrefs>,
     /// Per-IP auth-failure limiting shared across connections.
     failure_limiter: Mutex<auth::FailureLimiter>,
     /// The Rust-side notice listener id (registered once at init).
@@ -95,6 +105,8 @@ impl CompanionManager {
             shutdown_tx,
             session_live: AtomicBool::new(false),
             session_device: Mutex::new(None),
+            pending_prefs: Mutex::new(protocol::SessionPrefs::default()),
+            live_prefs: Mutex::new(protocol::SessionPrefs::default()),
             failure_limiter: Mutex::new(auth::FailureLimiter::new(
                 5,
                 Duration::from_secs(60),
@@ -129,6 +141,29 @@ impl CompanionManager {
             return;
         }
         *self.session_device.lock().unwrap() = Some(name.to_string());
+    }
+
+    /// v1.6.0: arm the preferences the next companion session will run
+    /// with. Called by the server on the press edge that starts a session
+    /// (the release edge never touches them: the session's shape was fixed
+    /// by the press that began it).
+    pub fn set_pending_session_prefs(&self, prefs: protocol::SessionPrefs) {
+        *self.pending_prefs.lock().unwrap() = prefs;
+    }
+
+    /// v1.6.0: the preferences of the live (or most recently finished)
+    /// companion session. Frozen at session start, so a later press edge
+    /// (busy-remembered or on another phone) cannot retarget a session that
+    /// is already recording or mid-pipeline.
+    pub fn live_session_prefs(&self) -> protocol::SessionPrefs {
+        *self.live_prefs.lock().unwrap()
+    }
+
+    /// v1.6.0: freeze the pending prefs as the live session's. Called from
+    /// [`on_session_changed`] exactly when a companion recording begins.
+    fn freeze_session_prefs(&self) {
+        let pending = *self.pending_prefs.lock().unwrap();
+        *self.live_prefs.lock().unwrap() = pending;
     }
 
     pub fn broadcast_frame(&self, frame: &protocol::ServerFrame) {
@@ -497,6 +532,13 @@ pub fn on_session_changed(app: &AppHandle, active: bool) {
     if let Some(manager) = manager(app) {
         manager.session_live.store(active, Ordering::Release);
         if active {
+            // v1.6.0: the session's prefs freeze here, at the single moment
+            // the session begins. NOT cleared on the false edge: the stop
+            // pipeline reads the frozen prefs after this broadcast (target
+            // delivery, post-process leg), and no new companion session can
+            // start until that pipeline drains (the coordinator's busy
+            // arbitration), so the slot cannot go stale under it.
+            manager.freeze_session_prefs();
             let device = manager
                 .session_device()
                 .or_else(|| crate::settings::get_settings(app).companion_last_device)
@@ -524,6 +566,72 @@ pub fn on_session_changed(app: &AppHandle, active: bool) {
             "companion-session-changed",
             serde_json::json!({ "active": active, "device": null }),
         );
+    }
+}
+
+/// v1.6.0: the live companion session's preferences (output target,
+/// post-process request), frozen at the press edge that started the
+/// session. Reads as the defaults (paste on the Mac, no post-process -
+/// exactly the pre-v1.6.0 behavior) when no manager is initialized or no
+/// companion session has run, so keyboard sessions and test contexts need
+/// no special-casing.
+pub fn session_prefs(app: &AppHandle) -> protocol::SessionPrefs {
+    manager(app)
+        .map(|m| m.live_session_prefs())
+        .unwrap_or_default()
+}
+
+/// v1.6.0: the device name of the live (or most recent) companion session,
+/// for notice detail lines. None outside a companion context.
+pub fn session_device_name(app: &AppHandle) -> Option<String> {
+    manager(app).and_then(|m| m.session_device())
+}
+
+/// v1.6.0 phone-target delivery: broadcast the final transcript of a
+/// companion session whose output target is the phone. One frame, one
+/// emission site (the stop pipeline's phone-delivery branch) - the
+/// double-broadcast hazard documented on the cap notice applies here too,
+/// so nothing else may broadcast transcripts. A send with no subscribers
+/// (the phone dropped) is a no-op; the transcript is already in history,
+/// and the disconnect finalize's notice says exactly that.
+pub fn deliver_transcript_to_phone(
+    app: &AppHandle,
+    text: &str,
+    post_processed: bool,
+    model: &str,
+) {
+    if let Some(manager) = manager(app) {
+        manager.broadcast_frame(&protocol::ServerFrame::TranscriptResult {
+            text: text.to_string(),
+            post_processed,
+            model: model.to_string(),
+        });
+    }
+}
+
+/// v1.6.0: broadcast the RecentHistory frame (the last companion-source
+/// entries) to every paired phone. Emitted at welcome (a fresh or
+/// reconnecting phone catches up) and after every companion history write
+/// (the list stays current). Best effort: a query failure logs and skips -
+/// history delivery must never break the pipeline that just wrote it.
+pub fn broadcast_recent_history(app: &AppHandle) {
+    let Some(manager) = manager(app) else {
+        return;
+    };
+    let Some(hm) = app.try_state::<Arc<crate::managers::history::HistoryManager>>() else {
+        return;
+    };
+    match hm.recent_companion_entries(protocol::RECENT_HISTORY_LIMIT) {
+        Ok(entries) => manager.broadcast_frame(&protocol::ServerFrame::RecentHistory {
+            entries: entries
+                .into_iter()
+                .map(|e| protocol::RecentHistoryEntry {
+                    text: e.text,
+                    timestamp: e.timestamp,
+                })
+                .collect(),
+        }),
+        Err(e) => log::warn!("companion: recent history query failed: {e}"),
     }
 }
 
@@ -719,6 +827,12 @@ mod tests {
                 CompanionDisconnected,
                 CompanionServerFailed,
                 CompanionSessionCapped,
+                // v1.6.0 zero-audio fix: the phone's own session captured
+                // no samples (the iOS suspended-AudioContext defect class).
+                // The phone triggered it and must hear about it, or its
+                // output vanishes silently - the exact bug the code exists
+                // to fix.
+                CompanionZeroAudio,
             ]
         }
 
@@ -787,6 +901,69 @@ mod tests {
             "the skip set must not become an allowlist: codes the phone received before the fix (errors included) keep flowing"
 
         );
+        // v1.6.0: the zero-audio notice rides to the phone that pressed -
+        // its session captured nothing, and without the frame the phone's
+        // output would vanish silently (the bug the code fixes). The Mac
+        // emit is the single source; the forwarder is the single phone
+        // path, same shape as the cap notice above.
+        assert!(
+            should_forward_notice_to_phones("companion_zero_audio"),
+            "the phone triggered the zero-audio session; it must hear why nothing came back"
+        );
+    }
+
+    /// v1.6.0: the per-session preference lifecycle. Prefs arm on the
+    /// press edge (set_pending_session_prefs), freeze at session start
+    /// (on_session_changed active=true), and the frozen copy survives both
+    /// later pending updates (a mid-session press must not retarget the
+    /// live session) and the session's own stop (the pipeline reads the
+    /// frozen copy after the false edge). Defaults reproduce the
+    /// pre-v1.6.0 behavior: paste on the Mac, no post-process.
+    #[test]
+    fn session_prefs_freeze_at_start_and_survive_the_stop_pipeline() {
+        let manager = CompanionManager::new();
+
+        // No session has run: defaults.
+        assert_eq!(manager.live_session_prefs(), Default::default());
+
+        // A press arms phone-target delivery; the session start freezes it.
+        manager.set_pending_session_prefs(protocol::SessionPrefs {
+            output_target: protocol::OutputTarget::Phone,
+            post_process: true,
+        });
+        manager.session_live.store(true, Ordering::Release);
+        // (freeze_session_prefs runs inside on_session_changed; the seam
+        // itself is exercised directly here so no AppHandle is needed.)
+        manager.freeze_session_prefs();
+        assert_eq!(
+            manager.live_session_prefs(),
+            protocol::SessionPrefs {
+                output_target: protocol::OutputTarget::Phone,
+                post_process: true,
+            }
+        );
+
+        // A mid-session press on the same or another phone only arms the
+        // NEXT session; the live session keeps its frozen prefs.
+        manager.set_pending_session_prefs(protocol::SessionPrefs::default());
+        assert_eq!(
+            manager.live_session_prefs().output_target,
+            protocol::OutputTarget::Phone,
+            "the live session's prefs are frozen; a later press cannot retarget it"
+        );
+
+        // The session ends; the stop pipeline still reads the frozen copy.
+        manager.session_live.store(false, Ordering::Release);
+        assert_eq!(
+            manager.live_session_prefs().output_target,
+            protocol::OutputTarget::Phone,
+            "the false edge must not clear the prefs the stop pipeline is about to read"
+        );
+
+        // The NEXT session freezes the new pending values.
+        manager.session_live.store(true, Ordering::Release);
+        manager.freeze_session_prefs();
+        assert_eq!(manager.live_session_prefs(), Default::default());
     }
 
     /// KB-183/KB-145: the effective gate `init` arms the LAN server on.

@@ -1,6 +1,6 @@
 use crate::actions::process_transcription_output;
 use crate::managers::{
-    history::{HistoryManager, PaginatedHistory},
+    history::{HistoryManager, PaginatedHistory, RecentCompanionEntry},
     transcription::TranscriptionManager,
 };
 use std::sync::Arc;
@@ -17,6 +17,22 @@ pub async fn get_history_entries(
     history_manager
         .get_history_entries(cursor, limit)
         .await
+        .map_err(|e| e.to_string())
+}
+
+/// v1.6.0: the phone-facing recent list for the Mac UI's companion chip -
+/// the last companion-source entries (deliverable text + timestamp),
+/// newest first. The same query feeds the RecentHistory wire frame the
+/// phones receive; the window is fixed by the protocol constant so the two
+/// surfaces can never disagree.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_recent_companion_entries(
+    _app: AppHandle,
+    history_manager: State<'_, Arc<HistoryManager>>,
+) -> Result<Vec<RecentCompanionEntry>, String> {
+    history_manager
+        .recent_companion_entries(crate::companion::protocol::RECENT_HISTORY_LIMIT)
         .map_err(|e| e.to_string())
 }
 

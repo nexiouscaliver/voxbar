@@ -49,6 +49,17 @@ static MIGRATIONS: &[M] = &[
          ALTER TABLE transcription_history ADD COLUMN post_process_outcome TEXT;
          ALTER TABLE transcription_history ADD COLUMN post_process_latency_ms INTEGER;",
     ),
+    // v1.6.0 companion provenance: where each entry's audio came from
+    // ('local' keyboard session | 'companion' phone session) and where the
+    // transcript was delivered ('mac' pasted on the Mac | 'phone' sent to
+    // the phone as a TranscriptResult frame). NOT NULL with the legacy
+    // defaults, so every pre-migration row reads local/mac (the only
+    // distinguishable truth: pre-v1.6.0 companion rows are indistinguishable
+    // from local ones and default with them).
+    M::up(
+        "ALTER TABLE transcription_history ADD COLUMN capture_source TEXT NOT NULL DEFAULT 'local';
+         ALTER TABLE transcription_history ADD COLUMN delivery_destination TEXT NOT NULL DEFAULT 'mac';",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -96,6 +107,24 @@ pub struct HistoryEntry {
     pub post_process_prompt_id: Option<String>,
     pub post_process_outcome: Option<String>,
     pub post_process_latency_ms: Option<i64>,
+    /// v1.6.0: where the audio came from, "local" (keyboard session) or
+    /// "companion" (phone session). Pre-migration rows read "local".
+    pub capture_source: String,
+    /// v1.6.0: where the transcript was (or, for a failed entry, was meant
+    /// to be) delivered, "mac" (pasted on the Mac) or "phone" (sent to the
+    /// phone). Pre-migration rows read "mac".
+    pub delivery_destination: String,
+}
+
+/// One entry of the phone-facing recent list (v1.6.0): the deliverable text
+/// of a companion-source history row (post-processed when the session
+/// polished it, else the raw transcript) plus the entry timestamp. The
+/// RecentHistory wire frame and the get_recent_companion_entries command
+/// both carry these.
+#[derive(Clone, Debug, Serialize, Deserialize, Type)]
+pub struct RecentCompanionEntry {
+    pub text: String,
+    pub timestamp: i64,
 }
 
 pub struct HistoryManager {
@@ -250,6 +279,8 @@ impl HistoryManager {
             post_process_prompt_id: row.get("post_process_prompt_id")?,
             post_process_outcome: row.get("post_process_outcome")?,
             post_process_latency_ms: row.get("post_process_latency_ms")?,
+            capture_source: row.get("capture_source")?,
+            delivery_destination: row.get("delivery_destination")?,
         })
     }
 
@@ -264,6 +295,8 @@ impl HistoryManager {
     /// is the fallback), recorded per entry for auditability.
     /// `post_process_summary` carries the pp: run's summary (provider,
     /// model, prompt, outcome, latency) for the row detail.
+    /// `capture_source` is "local" or "companion"; `delivery_destination`
+    /// is "mac" or "phone" (v1.6.0 provenance columns).
     pub fn save_entry(
         &self,
         file_name: String,
@@ -273,6 +306,8 @@ impl HistoryManager {
         post_process_prompt: Option<String>,
         model_id: Option<String>,
         post_process_summary: Option<crate::post_process_runs::PostProcessRunSummary>,
+        capture_source: String,
+        delivery_destination: String,
     ) -> Result<HistoryEntry> {
         let timestamp = Utc::now().timestamp();
         let title = self.format_timestamp_title(timestamp);
@@ -287,6 +322,8 @@ impl HistoryManager {
             post_process_prompt,
             model_id,
             post_process_summary,
+            capture_source,
+            delivery_destination,
             timestamp,
             title,
         )?;
@@ -319,6 +356,8 @@ impl HistoryManager {
         post_process_prompt: Option<String>,
         model_id: Option<String>,
         post_process_summary: Option<crate::post_process_runs::PostProcessRunSummary>,
+        capture_source: String,
+        delivery_destination: String,
         timestamp: i64,
         title: String,
     ) -> Result<HistoryEntry> {
@@ -351,8 +390,10 @@ impl HistoryManager {
                 post_process_model,
                 post_process_prompt_id,
                 post_process_outcome,
-                post_process_latency_ms
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                post_process_latency_ms,
+                capture_source,
+                delivery_destination
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
             params![
                 &file_name,
                 timestamp,
@@ -368,6 +409,8 @@ impl HistoryManager {
                 &pp_prompt_id,
                 &pp_outcome,
                 &pp_latency,
+                &capture_source,
+                &delivery_destination,
             ],
         )?;
 
@@ -387,7 +430,48 @@ impl HistoryManager {
             post_process_prompt_id: pp_prompt_id,
             post_process_outcome: pp_outcome,
             post_process_latency_ms: pp_latency,
+            capture_source,
+            delivery_destination,
         })
+    }
+
+    /// The phone-facing recent list (v1.6.0): the last `limit`
+    /// companion-source entries with non-empty deliverable text, newest
+    /// first. The deliverable text is the post-processed transcript when
+    /// the session polished it, else the raw transcription; entries whose
+    /// deliverable text is blank (failed sessions saved for retry) are
+    /// skipped - the phone list shows what was actually dictated. Split on
+    /// a connection so tests exercise the real query in memory.
+    fn recent_companion_entries_with_conn(
+        conn: &Connection,
+        limit: usize,
+    ) -> Result<Vec<RecentCompanionEntry>> {
+        let mut stmt = conn.prepare(
+            "SELECT COALESCE(NULLIF(post_processed_text, ''), transcription_text) AS deliverable,
+                    timestamp
+             FROM transcription_history
+             WHERE capture_source = 'companion'
+               AND TRIM(COALESCE(NULLIF(post_processed_text, ''), transcription_text)) != ''
+             ORDER BY id DESC
+             LIMIT ?1",
+        )?;
+        let entries = stmt
+            .query_map(params![limit as i64], |row| {
+                Ok(RecentCompanionEntry {
+                    text: row.get("deliverable")?,
+                    timestamp: row.get("timestamp")?,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(entries)
+    }
+
+    /// The phone-facing recent list (see
+    /// [`recent_companion_entries_with_conn`](Self::recent_companion_entries_with_conn)):
+    /// the last companion-source entries, newest first.
+    pub fn recent_companion_entries(&self, limit: usize) -> Result<Vec<RecentCompanionEntry>> {
+        let conn = self.get_connection()?;
+        Self::recent_companion_entries_with_conn(&conn, limit)
     }
 
     /// Update an existing history entry with new transcription results (used by retry).
@@ -425,7 +509,8 @@ impl HistoryManager {
             .query_row(
                 "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id,
                 post_process_provider, post_process_model, post_process_prompt_id,
-                post_process_outcome, post_process_latency_ms
+                post_process_outcome, post_process_latency_ms,
+                capture_source, delivery_destination
                  FROM transcription_history WHERE id = ?1",
                 params![id],
                 Self::map_history_entry,
@@ -594,7 +679,8 @@ impl HistoryManager {
                 let mut stmt = conn.prepare(
                     "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id,
                 post_process_provider, post_process_model, post_process_prompt_id,
-                post_process_outcome, post_process_latency_ms
+                post_process_outcome, post_process_latency_ms,
+                capture_source, delivery_destination
                      FROM transcription_history
                      WHERE id < ?1
                      ORDER BY id DESC
@@ -610,7 +696,8 @@ impl HistoryManager {
                 let mut stmt = conn.prepare(
                     "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id,
                 post_process_provider, post_process_model, post_process_prompt_id,
-                post_process_outcome, post_process_latency_ms
+                post_process_outcome, post_process_latency_ms,
+                capture_source, delivery_destination
                      FROM transcription_history
                      ORDER BY id DESC
                      LIMIT ?1",
@@ -624,7 +711,8 @@ impl HistoryManager {
                 let mut stmt = conn.prepare(
                     "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id,
                 post_process_provider, post_process_model, post_process_prompt_id,
-                post_process_outcome, post_process_latency_ms
+                post_process_outcome, post_process_latency_ms,
+                capture_source, delivery_destination
                      FROM transcription_history
                      ORDER BY id DESC",
                 )?;
@@ -661,7 +749,9 @@ impl HistoryManager {
                 post_process_model,
                 post_process_prompt_id,
                 post_process_outcome,
-                post_process_latency_ms
+                post_process_latency_ms,
+                capture_source,
+                delivery_destination
              FROM transcription_history
              ORDER BY timestamp DESC
              LIMIT 1",
@@ -694,7 +784,9 @@ impl HistoryManager {
                 post_process_model,
                 post_process_prompt_id,
                 post_process_outcome,
-                post_process_latency_ms
+                post_process_latency_ms,
+                capture_source,
+                delivery_destination
              FROM transcription_history
              WHERE transcription_text != ''
              ORDER BY timestamp DESC
@@ -754,7 +846,9 @@ impl HistoryManager {
                 post_process_model,
                 post_process_prompt_id,
                 post_process_outcome,
-                post_process_latency_ms
+                post_process_latency_ms,
+                capture_source,
+                delivery_destination
              FROM transcription_history
              WHERE id = ?1",
         )?;
@@ -829,7 +923,9 @@ mod tests {
                 post_process_model TEXT,
                 post_process_prompt_id TEXT,
                 post_process_outcome TEXT,
-                post_process_latency_ms INTEGER
+                post_process_latency_ms INTEGER,
+                capture_source TEXT NOT NULL DEFAULT 'local',
+                delivery_destination TEXT NOT NULL DEFAULT 'mac'
             );",
         )
         .expect("create transcription_history table");
@@ -907,10 +1003,10 @@ mod tests {
         let mut conn = Connection::open_in_memory().expect("open in-memory db");
 
         // Build the previous database state: every migration except the
-        // model_id one and the later pp-summary one (which must not run
-        // here either, or this row would gain those columns too), tracked
-        // via user_version exactly like a live DB.
-        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 2].to_vec());
+        // model_id one and the later pp-summary and provenance ones (which
+        // must not run here either, or this row would gain those columns
+        // too), tracked via user_version exactly like a live DB.
+        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 3].to_vec());
         previous
             .to_latest(&mut conn)
             .expect("apply pre-model_id migrations");
@@ -970,6 +1066,8 @@ mod tests {
             None,
             Some("whisper-large-v3-turbo".to_string()),
             None,
+            "local".to_string(),
+            "mac".to_string(),
             200,
             "Recording 200".to_string(),
         )
@@ -996,6 +1094,8 @@ mod tests {
             None,
             None,
             None,
+            "local".to_string(),
+            "mac".to_string(),
             300,
             "Recording 300".to_string(),
         )
@@ -1021,8 +1121,9 @@ mod tests {
         let mut conn = Connection::open_in_memory().expect("open in-memory db");
 
         // Build the previous database state: every migration except the pp
-        // summary one, tracked via user_version exactly like a live DB.
-        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 1].to_vec());
+        // summary and provenance ones, tracked via user_version exactly
+        // like a live DB.
+        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 2].to_vec());
         previous
             .to_latest(&mut conn)
             .expect("apply pre-pp-summary migrations");
@@ -1089,6 +1190,8 @@ mod tests {
                 outcome: "applied".to_string(),
                 latency_ms: 2340,
             }),
+            "local".to_string(),
+            "mac".to_string(),
             400,
             "Recording 400".to_string(),
         )
@@ -1112,5 +1215,174 @@ mod tests {
             readback.post_process_latency_ms,
             entry.post_process_latency_ms
         );
+    }
+
+    /// Version-forward migration test (v1.6.0 provenance columns): a
+    /// database at the previous version (no capture_source /
+    /// delivery_destination) gains both columns via the migration chain,
+    /// they are NOT NULL with the legacy defaults, and pre-existing rows
+    /// read back as local/mac.
+    #[test]
+    fn migration_adds_provenance_columns_and_defaults_legacy_rows() {
+        let mut conn = Connection::open_in_memory().expect("open in-memory db");
+
+        // Build the previous database state: every migration except the
+        // provenance one, tracked via user_version exactly like a live DB.
+        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 1].to_vec());
+        previous
+            .to_latest(&mut conn)
+            .expect("apply pre-provenance migrations");
+        insert_entry(&conn, 100, "legacy entry", None);
+
+        // Roll forward with the full chain; it continues from user_version.
+        let latest = Migrations::new(MIGRATIONS.to_vec());
+        latest
+            .to_latest(&mut conn)
+            .expect("apply latest migrations");
+
+        let version: i32 = conn
+            .pragma_query_value(None, "user_version", |row| row.get(0))
+            .expect("read user_version");
+        assert_eq!(version as usize, MIGRATIONS.len());
+
+        for column in ["capture_source", "delivery_destination"] {
+            let notnull: i32 = conn
+                .query_row(
+                    "SELECT [notnull] FROM pragma_table_info('transcription_history')
+                     WHERE name = ?1",
+                    params![column],
+                    |row| row.get(0),
+                )
+                .unwrap_or_else(|e| panic!("query pragma_table_info for {column}: {e}"));
+            assert_eq!(notnull, 1, "{column} must be NOT NULL (it always has a value)");
+        }
+
+        // The legacy row reads back with the legacy defaults.
+        let mapped = HistoryManager::get_latest_entry_with_conn(&conn)
+            .expect("fetch latest entry")
+            .expect("entry exists");
+        assert_eq!(mapped.transcription_text, "legacy entry");
+        assert_eq!(mapped.capture_source, "local");
+        assert_eq!(mapped.delivery_destination, "mac");
+    }
+
+    /// Save path: the provenance pair lands in the row and reads back
+    /// field for field, for both the local/mac and companion/phone shapes.
+    #[test]
+    fn save_path_records_capture_source_and_delivery_destination() {
+        let conn = setup_conn();
+
+        let companion = HistoryManager::insert_entry_with_conn(
+            &conn,
+            "voxbar-500.wav".to_string(),
+            "from the phone".to_string(),
+            false,
+            None,
+            None,
+            Some("whisper-large-v3-turbo".to_string()),
+            None,
+            "companion".to_string(),
+            "phone".to_string(),
+            500,
+            "Recording 500".to_string(),
+        )
+        .expect("insert companion entry");
+        assert_eq!(companion.capture_source, "companion");
+        assert_eq!(companion.delivery_destination, "phone");
+
+        let row: (String, String) = conn
+            .query_row(
+                "SELECT capture_source, delivery_destination FROM transcription_history WHERE id = ?1",
+                params![companion.id],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("query saved row");
+        assert_eq!(row, ("companion".to_string(), "phone".to_string()));
+
+        // The plain keyboard shape round-trips identically.
+        let local = HistoryManager::insert_entry_with_conn(
+            &conn,
+            "voxbar-600.wav".to_string(),
+            "from the keyboard".to_string(),
+            false,
+            None,
+            None,
+            None,
+            None,
+            "local".to_string(),
+            "mac".to_string(),
+            600,
+            "Recording 600".to_string(),
+        )
+        .expect("insert local entry");
+        assert_eq!(local.capture_source, "local");
+        assert_eq!(local.delivery_destination, "mac");
+    }
+
+    /// The phone-facing recent list (v1.6.0): companion entries only,
+    /// newest first, capped at the limit, with the post-processed text
+    /// preferred over the raw transcript, blank (failed-for-retry) entries
+    /// skipped, and an empty history reading as an empty list.
+    #[test]
+    fn recent_companion_entries_exact_contract() {
+        let conn = setup_conn();
+
+        let insert = |id: i64, source: &str, raw: &str, processed: Option<&str>| {
+            conn.execute(
+                "INSERT INTO transcription_history (
+                    file_name, timestamp, saved, title, transcription_text,
+                    post_processed_text, post_process_prompt, post_process_requested,
+                    capture_source, delivery_destination
+                ) VALUES (?1, ?2, 0, ?3, ?4, ?5, NULL, 0, ?6, 'mac')",
+                params![
+                    format!("voxbar-{id}.wav"),
+                    id,
+                    format!("Recording {id}"),
+                    raw,
+                    processed,
+                    source,
+                ],
+            )
+            .expect("insert entry");
+        };
+
+        insert(100, "local", "keyboard session", None);
+        insert(200, "companion", "raw two", Some("polished two"));
+        insert(300, "companion", "raw three", None);
+        insert(400, "companion", "", None); // failed session: skipped
+        insert(500, "companion", "raw five", Some("polished five"));
+        insert(600, "companion", "raw six", None);
+
+        // Newest first, processed preferred, blanks skipped, local excluded.
+        let entries = HistoryManager::recent_companion_entries_with_conn(&conn, 5)
+            .expect("query recent companion entries");
+        assert_eq!(
+            entries
+                .iter()
+                .map(|e| (e.text.as_str(), e.timestamp))
+                .collect::<Vec<_>>(),
+            vec![
+                ("raw six", 600),
+                ("polished five", 500),
+                ("raw three", 300),
+                ("polished two", 200),
+            ],
+            "newest first; processed text wins; blank and local rows never appear"
+        );
+
+        // The limit window caps the list (the protocol's RecentHistory
+        // frame carries 5).
+        let capped = HistoryManager::recent_companion_entries_with_conn(&conn, 2)
+            .expect("query capped");
+        assert_eq!(
+            capped.iter().map(|e| e.timestamp).collect::<Vec<_>>(),
+            vec![600, 500]
+        );
+
+        // An empty history is an empty list, not an error.
+        let empty_conn = setup_conn();
+        assert!(HistoryManager::recent_companion_entries_with_conn(&empty_conn, 5)
+            .expect("query empty history")
+            .is_empty());
     }
 }

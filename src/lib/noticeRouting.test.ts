@@ -114,6 +114,7 @@ const ALL_NOTICE_CODES = [
   "companion_disconnected_finalized",
   "companion_server_failed",
   "companion_session_capped",
+  "companion_zero_audio",
   "command_mode_no_session",
 ] as const;
 
@@ -141,6 +142,7 @@ const CARD_GATED = [
   "wayland_tauri_hotkeys",
   "gnome_overlay_fallback",
   "companion_disconnected_finalized",
+  "companion_zero_audio",
 ];
 
 const ALWAYS_TOAST = ["command_mode_no_session"];

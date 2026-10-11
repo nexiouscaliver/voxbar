@@ -1204,7 +1204,8 @@
       "postProcessPromptCycled": "Modelo de pós-processamento: {{name}}",
       "companionDisconnected": "Telefone desconectado. Finalizando com o que foi capturado.",
       "companionServerFailed": "Falha no servidor companheiro: {{error}}",
-      "companionSessionCapped": "Ditado do dispositivo companheiro encerrado: limite de sessão de 15 minutos atingido em {{device}}."
+      "companionSessionCapped": "Ditado do dispositivo companheiro encerrado: limite de sessão de 15 minutos atingido em {{device}}.",
+      "companionZeroAudio": "O ditado do dispositivo companheiro terminou sem áudio. Nada foi transcrito."
     },
     "commandBadge": "Modo de comandos",
     "ppChip": "Polindo ({{model}}) {{seconds}}s",
