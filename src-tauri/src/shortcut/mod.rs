@@ -958,6 +958,17 @@ pub fn change_memory_gate_headroom_setting(app: AppHandle, headroom_mb: u64) -> 
 /// a live phone session first); a failed start throws so the settings store
 /// rolls the toggle back instead of persisting an enabled state with no
 /// server behind it.
+///
+/// No stop-the-server cleanup wraps the persist step, by invariant rather
+/// than omission: this command's only Err is the failed start above, which
+/// happens before any server exists, and settings::write_settings cannot
+/// fail gracefully — it returns (), its store bootstrap is an expect and
+/// its serialization an unwrap, the plugin's Store::set is infallible, and
+/// the disk flush is a debounced background auto-save that discards its
+/// errors. A persist failure is therefore panic-shaped and takes the whole
+/// command down with it (no catch_unwind guards settings commands), so
+/// there is no running-server-then-Err window for cleanup code to handle;
+/// building any would be dead code.
 #[tauri::command]
 #[specta::specta]
 pub fn change_companion_devices_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
@@ -1557,6 +1568,26 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
     // behind it. The DISABLED direction stays infallible - unregistering
     // is best-effort teardown and must never trap the toggle off.
     let mut settings = settings::get_settings(&app);
+    // The disable arm's ownership set, needed only when turning OFF: the
+    // bindings active in the PRE-toggle state (bound, non-bare, toggle on)
+    // are exactly the live registrations this feature owns and may tear
+    // down. Unregistering anything else by its stored chord could destroy a
+    // FOREIGN registration - KB-194 deliberately lets another binding hold
+    // the same chord live while this toggle is off.
+    let owned_while_enabled: Vec<ShortcutBinding> = if enabled {
+        Vec::new()
+    } else {
+        POST_PROCESS_TOGGLE_BINDINGS
+            .iter()
+            .filter_map(|id| {
+                settings
+                    .bindings
+                    .get(*id)
+                    .filter(|b| binding_is_active(&settings, id, b))
+                    .cloned()
+            })
+            .collect()
+    };
     settings.post_process_enabled = enabled;
 
     if enabled {
@@ -1564,35 +1595,40 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
         // POST-update state leaves active (folds in bound, not a stored
         // bare key, and the now-on toggle) - exactly the set init and
         // resume_all_shortcuts register.
-        let mut registered_this_call: Vec<&str> = Vec::new();
+        //
+        // The rollback unregisters only what THIS call registered. The old
+        // blind loop unregistered every stored chord, which could tear down
+        // a foreign live registration: the failed register means some other
+        // binding already holds that chord live (the KB-194 state), and a
+        // sibling binding's stored chord is only this call's to remove when
+        // this call is what put it live.
+        let mut registered_here: Vec<ShortcutBinding> = Vec::new();
         for id in POST_PROCESS_TOGGLE_BINDINGS {
             if let Some(binding) = settings.bindings.get(id).cloned() {
                 if !binding_is_active(&settings, id, &binding) {
                     continue;
                 }
-                if let Err(e) = register_shortcut(&app, binding) {
-                    // A failure after an earlier binding registered rolls
-                    // THOSE registrations back. KB-235: unregister only the
-                    // ids this call actually registered - unregistering is
-                    // chord-keyed on the Tauri backend, so unregistering a
-                    // binding whose register never ran (its chord can be
-                    // owned by a live sibling after a KB-194-legal rebind)
-                    // would kill that sibling's registration instead.
-                    for rollback_id in registered_this_call {
-                        if let Some(b) = settings.bindings.get(rollback_id).cloned() {
-                            let _ = unregister_shortcut(&app, b);
+                match register_shortcut(&app, binding.clone()) {
+                    Ok(()) => registered_here.push(binding),
+                    Err(e) => {
+                        // A failure after an earlier binding registered
+                        // rolls only that registration back, restoring the
+                        // pre-toggle state, before the error surfaces.
+                        for registered in registered_here {
+                            let _ = unregister_shortcut(&app, registered);
                         }
+                        return Err(e);
                     }
-                    return Err(e);
                 }
-                registered_this_call.push(id);
             }
         }
     } else {
-        for id in POST_PROCESS_TOGGLE_BINDINGS {
-            if let Some(binding) = settings.bindings.get(id).cloned() {
-                let _ = unregister_shortcut(&app, binding);
-            }
+        // Teardown mirrors ownership: unregister only the pre-toggle active
+        // set - the registrations this feature actually holds live. A
+        // stored-but-inactive binding (bare key, or a chord another binding
+        // owns live under the KB-194 collision rule) keeps its chord.
+        for binding in owned_while_enabled {
+            let _ = unregister_shortcut(&app, binding);
         }
     }
 

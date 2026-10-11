@@ -487,25 +487,25 @@ impl SwapPlanner {
             (SwapState::Generating, _) => Vec::new(),
 
             // ---- WarmHold: worker resident, nothing held, window ticking ----
-            // Every exit trigger ends in UnloadLlm: window expiry and an
-            // eviction go gracefully (the worker is idle; WaitExit
-            // escalates to a kill if it stalls), a dictation-wins abort
-            // carries the total-deadline skip exactly like every other
-            // phase, and the deliberate aborts (press, recording, user
-            // cancel) complete silently with the raw text as before. The
-            // runner re-acquired the loading slot before stepping these
+            // Every exit trigger ends in UnloadLlm and is SILENT: window
+            // expiry and an eviction go gracefully (the worker is idle;
+            // WaitExit escalates to a kill if it stalls), and aborts
+            // complete with the already-delivered outcome as was. No
+            // warm-phase exit may surface as a Timeout skip - in WarmHold
+            // the caller's outcome was already delivered and the pp: run
+            // concluded, so a skip here would be an error notice + error
+            // sound for a swap that SUCCEEDED. The runner feeds only the
+            // deliberate (dictation-wins) aborts here - the total deadline
+            // does not govern the window - and this arm keeps the
+            // invariant even for a future producer that feeds one anyway.
+            // The runner re-acquired the loading slot before stepping these
             // signals when it could, so the terminal handoff at
             // RestoringVoice behaves exactly as a keep-warm-off swap's.
             (SwapState::WarmHold, Signal::WarmWindowExpired)
-            | (SwapState::WarmHold, Signal::EvictWarm) => {
+            | (SwapState::WarmHold, Signal::EvictWarm)
+            | (SwapState::WarmHold, Signal::Abort(_)) => {
                 self.state = SwapState::UnloadingLlm;
                 vec![Action::WaitExit]
-            }
-            (SwapState::WarmHold, Signal::Abort(reason)) => {
-                self.state = SwapState::UnloadingLlm;
-                let mut actions = deadline_skip(reason);
-                actions.push(Action::WaitExit);
-                actions
             }
             // Out-of-phase signals are no-ops: the machine never rewinds
             // and never invents resource state.
@@ -1259,9 +1259,11 @@ mod tests {
         );
     }
 
-    /// Warm exits: window expiry, an evict request, and every
-    /// dictation-wins abort end in UnloadLlm with the graceful exit (the
-    /// idle worker); the total-deadline abort alone carries its skip.
+    /// Warm exits: window expiry, an evict request, and every abort - the
+    /// dictation-wins ones AND a (runner-prevented) total deadline - end
+    /// in UnloadLlm with the graceful exit (the idle worker) and NOTHING
+    /// else: the outcome was already delivered, so no warm exit may carry
+    /// a skip (a Timeout notice + error sound for a swap that succeeded).
     #[test]
     fn warm_exits_all_end_in_unload_with_the_graceful_exit() {
         let exits = [
@@ -1278,26 +1280,7 @@ mod tests {
             drive_to_warm(&mut p);
             let actions = p.step(exit.clone(), false);
             assert_eq!(p.state, SwapState::UnloadingLlm, "exit {exit:?}");
-            match exit {
-                Signal::Abort(AbortReason::TotalDeadline) => {
-                    assert_eq!(
-                        actions,
-                        vec![
-                            Action::EmitSkip {
-                                reason: SkipReason::Timeout,
-                                detail: Some(
-                                    "local post-process exceeded its total time budget".to_string()
-                                )
-                            },
-                            Action::WaitExit
-                        ],
-                        "total deadline {exit:?}"
-                    );
-                }
-                _ => {
-                    assert_eq!(actions, vec![Action::WaitExit], "silent exit {exit:?}");
-                }
-            }
+            assert_eq!(actions, vec![Action::WaitExit], "silent exit {exit:?}");
             // The teardown completes and the terminal handoff runs exactly
             // as a keep-warm-off swap's: recording forces the restore
             // handoff, no recording drops the guard.
