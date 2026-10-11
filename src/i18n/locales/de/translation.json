@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "Die Bereinigung lieferte unbrauchbaren Text, daher wurde das ursprüngliche Transkript behalten.",
       "postProcessCloudFailed": "Die Bereinigung ist fehlgeschlagen, das ursprüngliche Transkript wurde behalten: {{detail}}",
       "postProcessPromptCycled": "Nachbearbeitungsvorlage: {{name}}",
+      "postProcessPromptCycledPosition": "Nachbearbeitungsvorlage: {{name}} ({{position}} von {{total}})",
+      "postProcessSessionUpgraded": "Nachbearbeitung für diese Sitzung aktiviert: {{name}}",
+      "postProcessSessionDowngraded": "Nachbearbeitung für diese Sitzung deaktiviert",
       "companionDisconnected": "Telefon getrennt. Das Aufgenommene wird fertiggestellt.",
       "companionServerFailed": "Begleitserver fehlgeschlagen: {{error}}",
       "companionSessionCapped": "Diktat vom Begleitgerät beendet: Das Zeitlimit von 15 Minuten für die Sitzung wurde auf {{device}} erreicht.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "Die Nachbearbeitung lief nicht: {{detail}}. Das unverarbeitete Transkript wurde behalten."
     },
     "commandBadge": "Befehlsmodus",
+    "ppBadge": "Nachbearbeitung",
     "ppChip": "Bereinige ({{model}}) {{seconds}}s",
     "companionBadge": "Begleitmikrofon"
   },

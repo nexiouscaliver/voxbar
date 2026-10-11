@@ -1982,6 +1982,19 @@ impl AppSettings {
             .find(|provider| provider.id == self.post_process_provider_id)
     }
 
+    /// v1.6.0 W1-L7: the display name of the selected post-process template,
+    /// for the overlay's PP badge and the session-mode notices. None when no
+    /// template is selected (or the selection dangles) - callers render
+    /// their bare fallback and the stop pipeline surfaces the configuration
+    /// gap through its own notice.
+    pub fn selected_post_process_prompt_name(&self) -> Option<String> {
+        let id = self.post_process_selected_prompt_id.as_ref()?;
+        self.post_process_prompts
+            .iter()
+            .find(|prompt| &prompt.id == id)
+            .map(|prompt| prompt.name.clone())
+    }
+
     pub fn post_process_provider(&self, provider_id: &str) -> Option<&PostProcessProvider> {
         self.post_process_providers
             .iter()
@@ -2335,6 +2348,28 @@ mod tests {
         // prompt is selected, so nothing runs until the user turns it on.
         assert!(!defaults.post_process_enabled);
         assert_eq!(defaults.post_process_selected_prompt_id, None);
+    }
+
+    /// v1.6.0 W1-L7: the selected template's display name (the overlay PP
+    /// badge and the session-mode notices). None for no selection and for a
+    /// dangling id - callers render their bare fallback.
+    #[test]
+    fn selected_post_process_prompt_name_resolves_the_selection() {
+        let mut settings = get_default_settings();
+        assert_eq!(settings.selected_post_process_prompt_name(), None);
+
+        settings.post_process_selected_prompt_id = Some("english_casual".to_string());
+        assert_eq!(
+            settings.selected_post_process_prompt_name(),
+            Some("English Casual".to_string())
+        );
+
+        settings.post_process_selected_prompt_id = Some("deleted_long_ago".to_string());
+        assert_eq!(
+            settings.selected_post_process_prompt_name(),
+            None,
+            "a dangling selection resolves to no name, never to a guess"
+        );
     }
 
     /// The model-list cache: fresh defaults are empty, a store that carries

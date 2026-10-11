@@ -1297,6 +1297,9 @@
       "postProcessOutputInvalid": "Polishing returned unusable text, so the raw transcript was kept.",
       "postProcessCloudFailed": "Polishing failed and the raw transcript was kept: {{detail}}",
       "postProcessPromptCycled": "Post-process template: {{name}}",
+      "postProcessPromptCycledPosition": "Post-process template: {{name}} ({{position}} of {{total}})",
+      "postProcessSessionUpgraded": "Post-process on for this session: {{name}}",
+      "postProcessSessionDowngraded": "Post-process off for this session",
       "companionDisconnected": "Phone disconnected. Finishing with what was captured.",
       "companionServerFailed": "Companion server failed: {{error}}",
       "companionSessionCapped": "Companion dictation ended: the 15-minute session limit was reached on {{device}}.",
@@ -1305,6 +1308,7 @@
       "postProcessNotConfigured": "Post-processing did not run: {{detail}}. The raw transcript was kept."
     },
     "commandBadge": "Command mode",
+    "ppBadge": "Post-process",
     "ppChip": "Polishing ({{model}}) {{seconds}}s",
     "companionBadge": "Companion microphone"
   },

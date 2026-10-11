@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "整形結果が利用できないテキストだったため、元の文字起こしが保持されました。",
       "postProcessCloudFailed": "整形に失敗したため、元の文字起こしが保持されました: {{detail}}",
       "postProcessPromptCycled": "後処理テンプレート: {{name}}",
+      "postProcessPromptCycledPosition": "後処理テンプレート: {{name}}（{{total}}件中{{position}}件目）",
+      "postProcessSessionUpgraded": "このセッションの後処理はオン: {{name}}",
+      "postProcessSessionDowngraded": "このセッションの後処理はオフ",
       "companionDisconnected": "スマホが切断されました。録音済みの内容で確定します。",
       "companionServerFailed": "コンパニオンサーバーが失敗しました: {{error}}",
       "companionSessionCapped": "コンパニオン端末のディクテーションを終了しました: {{device}}で15分のセッション上限に達しました。",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "後処理は実行されませんでした: {{detail}}。元の書き起こしがそのまま保持されました。"
     },
     "commandBadge": "コマンドモード",
+    "ppBadge": "後処理",
     "ppChip": "整形中 ({{model}}) {{seconds}}秒",
     "companionBadge": "コンパニオンマイク"
   },

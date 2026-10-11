@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "다듬기에서 사용할 수 없는 텍스트가 반환되어 원본 전사가 유지되었습니다.",
       "postProcessCloudFailed": "다듬기가 실패하여 원본 전사가 유지되었습니다: {{detail}}",
       "postProcessPromptCycled": "후처리 템플릿: {{name}}",
+      "postProcessPromptCycledPosition": "후처리 템플릿: {{name}} ({{total}}개 중 {{position}}번째)",
+      "postProcessSessionUpgraded": "이 세션의 후처리 켜짐: {{name}}",
+      "postProcessSessionDowngraded": "이 세션의 후처리 꺼짐",
       "companionDisconnected": "휴대폰 연결이 끊겼습니다. 년음된 내용으로 마무리합니다.",
       "companionServerFailed": "컴패니언 서버 실패: {{error}}",
       "companionSessionCapped": "컴패니언 기기 받아쓰기가 종료되었습니다: {{device}}에서 15분 세션 제한에 도달했습니다.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "후처리가 실행되지 않았습니다: {{detail}}. 원본 전사가 유지되었습니다."
     },
     "commandBadge": "명령 모드",
+    "ppBadge": "후처리",
     "ppChip": "다듬는 중 ({{model}}) {{seconds}}초",
     "companionBadge": "컴패니언 마이크"
   },

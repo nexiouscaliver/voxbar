@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "O polimento devolveu texto inutilizável, a transcrição original foi mantida.",
       "postProcessCloudFailed": "O polimento falhou e a transcrição original foi mantida: {{detail}}",
       "postProcessPromptCycled": "Modelo de pós-processamento: {{name}}",
+      "postProcessPromptCycledPosition": "Modelo de pós-processamento: {{name}} ({{position}} de {{total}})",
+      "postProcessSessionUpgraded": "Pós-processamento ativado para esta sessão: {{name}}",
+      "postProcessSessionDowngraded": "Pós-processamento desativado para esta sessão",
       "companionDisconnected": "Telefone desconectado. Finalizando com o que foi capturado.",
       "companionServerFailed": "Falha no servidor companheiro: {{error}}",
       "companionSessionCapped": "Ditado do dispositivo companheiro encerrado: limite de sessão de 15 minutos atingido em {{device}}.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "O pós-processamento não foi executado: {{detail}}. A transcrição bruta foi mantida."
     },
     "commandBadge": "Modo de comandos",
+    "ppBadge": "Pós-processamento",
     "ppChip": "Polindo ({{model}}) {{seconds}}s",
     "companionBadge": "Microfone companheiro"
   },

@@ -1297,6 +1297,9 @@
       "postProcessOutputInvalid": "पोलिसले अनुपयोगी पाठ फर्कायो, त्यसैले मूल ट्रान्सक्रिप्ट राखियो।",
       "postProcessCloudFailed": "पोलिस असफल भयो, मूल ट्रान्सक्रिप्ट राखियो: {{detail}}",
       "postProcessPromptCycled": "पोस्ट-प्रोसेस टेम्पलेट: {{name}}",
+      "postProcessPromptCycledPosition": "पोस्ट-प्रोसेस टेम्पलेट: {{name}} ({{total}} मध्ये {{position}})",
+      "postProcessSessionUpgraded": "यो सेसनका लागि पोस्ट-प्रोसेस अन: {{name}}",
+      "postProcessSessionDowngraded": "यो सेसनका लागि पोस्ट-प्रोसेस बन्द",
       "companionDisconnected": "फोन विच्छेद भयो। रेकर्ड भएकै कुराले टुंग्याइँदैछ।",
       "companionServerFailed": "साथी सर्भर असफल: {{error}}",
       "companionSessionCapped": "साथी डिभाइसबाट भएको डिक्टेसन समाप्त भयो: १५ मिनेटको सत्र सीमा {{device}} मा पुग्‍यो।",
@@ -1305,6 +1308,7 @@
       "postProcessNotConfigured": "पोस्ट-प्रोसेसिङ चलेन: {{detail}}। कच्चा ट्रान्स्क्रिप्ट राखियो।"
     },
     "commandBadge": "कमाण्ड मोड",
+    "ppBadge": "पोस्ट-प्रोसेस",
     "ppChip": "पोलिस हुँदै ({{model}}) {{seconds}}s",
     "companionBadge": "साथी माइक्रोफोन"
   },

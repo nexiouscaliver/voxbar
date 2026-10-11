@@ -1297,6 +1297,9 @@
       "postProcessOutputInvalid": "Pemolesan menghasilkan teks yang tidak dapat dipakai, transkrip asli dipertahankan.",
       "postProcessCloudFailed": "Pemolesan gagal, transkrip asli dipertahankan: {{detail}}",
       "postProcessPromptCycled": "Templat pasca-proses: {{name}}",
+      "postProcessPromptCycledPosition": "Templat pasca-proses: {{name}} ({{position}} dari {{total}})",
+      "postProcessSessionUpgraded": "Pasca-proses aktif untuk sesi ini: {{name}}",
+      "postProcessSessionDowngraded": "Pasca-proses nonaktif untuk sesi ini",
       "companionDisconnected": "Ponsel terputus. Menyelesaikan dengan yang terekam.",
       "companionServerFailed": "Server pendamping gagal: {{error}}",
       "companionSessionCapped": "Dikte dari perangkat pendamping berakhir: batas sesi 15 menit telah tercapai di {{device}}.",
@@ -1305,6 +1308,7 @@
       "postProcessNotConfigured": "Pascapemrosesan tidak berjalan: {{detail}}. Transkrip mentah tetap dipakai."
     },
     "commandBadge": "Mode perintah",
+    "ppBadge": "Pasca-proses",
     "ppChip": "Memoles ({{model}}) {{seconds}}d",
     "companionBadge": "Mikrofon pendamping"
   },

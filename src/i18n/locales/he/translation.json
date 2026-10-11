@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "הליטוש החזיר טקסט בלתי שמיש, לכן נשמר התמליל המקורי.",
       "postProcessCloudFailed": "הליטוש נכשל ונשמר התמליל המקורי: {{detail}}",
       "postProcessPromptCycled": "תבנית עיבוד לאחר: {{name}}",
+      "postProcessPromptCycledPosition": "תבנית עיבוד לאחר: {{name}} ({{position}} מתוך {{total}})",
+      "postProcessSessionUpgraded": "עיבוד לאחר פעיל להקלטה זו: {{name}}",
+      "postProcessSessionDowngraded": "עיבוד לאחר כבוי להקלטה זו",
       "companionDisconnected": "הטלפון התנתק. מסיימים עם מה שנקלט.",
       "companionServerFailed": "שרת הליווי נכשל: {{error}}",
       "companionSessionCapped": "ההכתבה מהמכשיר המלווה הסתיימה: הגעת למגבלת ההפעלה של 15 דקות במכשיר {{device}}.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "העיבוד המאוחר לא הופעל: {{detail}}. התמליל הגולמי נשמר."
     },
     "commandBadge": "מצב פקודות",
+    "ppBadge": "עיבוד לאחר",
     "ppChip": "מלטש ({{model}}) {{seconds}}שנ׳",
     "companionBadge": "מיקרופון מלווה"
   },

@@ -64,6 +64,11 @@ export const NOTICE_ROUTE_POLICIES: Record<string, NoticeRoutePolicy> = {
   undo_no_buffer: "card-gated",
   binding_busy: "card-gated",
   post_process_prompt_cycled: "card-gated",
+  // v1.6.0 W1-L7: the pp hotkey's mid-session mode toggles - transient
+  // keypress feedback on a live session, the same card-gated class as the
+  // cycle confirm.
+  post_process_session_upgraded: "card-gated",
+  post_process_session_downgraded: "card-gated",
   wayland_tauri_hotkeys: "card-gated",
   gnome_overlay_fallback: "card-gated",
   companion_disconnected_finalized: "card-gated",
@@ -255,6 +260,11 @@ export const NOTICE_CHANNEL_TABLE: Record<string, NoticeChannelEntry> = {
   undo_no_buffer: { channel: "overlay-only" },
   binding_busy: { channel: "overlay-only" },
   post_process_prompt_cycled: { channel: "overlay-only" },
+  // v1.6.0 W1-L7: the mid-session mode toggles are transient keypress
+  // feedback (the badge and the notice row carry them); nothing durable
+  // happened to persist.
+  post_process_session_upgraded: { channel: "overlay-only" },
+  post_process_session_downgraded: { channel: "overlay-only" },
   wayland_tauri_hotkeys: { channel: "overlay-only" },
   gnome_overlay_fallback: { channel: "overlay-only" },
   command_mode_no_session: { channel: "overlay-only" },

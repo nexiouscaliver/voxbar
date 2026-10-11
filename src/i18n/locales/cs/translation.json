@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "Čištění vrátilo nepoužitelný text, původní přepis byl zachován.",
       "postProcessCloudFailed": "Čištění selhalo, původní přepis byl zachován: {{detail}}",
       "postProcessPromptCycled": "Šablona následného zpracování: {{name}}",
+      "postProcessPromptCycledPosition": "Šablona následného zpracování: {{name}} ({{position}} z {{total}})",
+      "postProcessSessionUpgraded": "Následné zpracování zapnuto pro tuto relaci: {{name}}",
+      "postProcessSessionDowngraded": "Následné zpracování vypnuto pro tuto relaci",
       "companionDisconnected": "Telefon odpojen. Dokončuji s tím, co bylo zachyceno.",
       "companionServerFailed": "Selhání doprovodného serveru: {{error}}",
       "companionSessionCapped": "Diktování z doprovodného zařízení skončilo: bylo dosaženo 15minutového limitu relace na {{device}}.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "Následné zpracování neproběhlo: {{detail}}. Nezpracovaný přepis byl zachován."
     },
     "commandBadge": "Režim příkazů",
+    "ppBadge": "Následné zpracování",
     "ppChip": "Čistím ({{model}}) {{seconds}}s",
     "companionBadge": "Doprovodný mikrofon"
   },

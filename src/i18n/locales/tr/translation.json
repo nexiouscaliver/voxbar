@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "Parlatma kullanılamaz metin döndürdü, özgün transkript korundu.",
       "postProcessCloudFailed": "Parlatma başarısız oldu, özgün transkript korundu: {{detail}}",
       "postProcessPromptCycled": "Son işlem şablonu: {{name}}",
+      "postProcessPromptCycledPosition": "Son işlem şablonu: {{name}} ({{position}}/{{total}})",
+      "postProcessSessionUpgraded": "Bu oturum için son işlem açık: {{name}}",
+      "postProcessSessionDowngraded": "Bu oturum için son işlem kapalı",
       "companionDisconnected": "Telefon bağlantısı kesildi. Kaydedilenle bitiriliyor.",
       "companionServerFailed": "Eşlik sunucusu başarısız: {{error}}",
       "companionSessionCapped": "Eşlik eden cihazdan dikte sona erdi: {{device}} üzerinde 15 dakikalık oturum sınırına ulaşıldı.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "Son işlem çalıştırılmadı: {{detail}}. Ham transkript korundu."
     },
     "commandBadge": "Komut modu",
+    "ppBadge": "Son işlem",
     "ppChip": "Parlatılıyor ({{model}}) {{seconds}}sn",
     "companionBadge": "Eşlik mikrofonu"
   },

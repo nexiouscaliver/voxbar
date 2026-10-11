@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "أرجع التلميع نصًا غير صالح، لذا تم الإبقاء على النص الأصلي.",
       "postProcessCloudFailed": "فشل التلميع وتم الإبقاء على النص الأصلي: {{detail}}",
       "postProcessPromptCycled": "قالب ما بعد المعالجة: {{name}}",
+      "postProcessPromptCycledPosition": "قالب ما بعد المعالجة: {{name}} ({{position}} من {{total}})",
+      "postProcessSessionUpgraded": "ما بعد المعالجة مفعّل لهذه الجلسة: {{name}}",
+      "postProcessSessionDowngraded": "ما بعد المعالجة معطّل لهذه الجلسة",
       "companionDisconnected": "انقطع اتصال الهاتف. يتم الإنهاء بما تم التقاطه.",
       "companionServerFailed": "فشل خادم المرافقة: {{error}}",
       "companionSessionCapped": "انتهى الإملاء من الهاتف المرافق: بلغت الجلسة حدّها البالغ 15 دقيقة على {{device}}.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "لم تعمل المعالجة اللاحقة: {{detail}}. تم الاحتفاظ بالنص الخام."
     },
     "commandBadge": "وضع الأوامر",
+    "ppBadge": "ما بعد المعالجة",
     "ppChip": "التلميع ({{model}}) {{seconds}}ث",
     "companionBadge": "ميكروفون مرافق"
   },

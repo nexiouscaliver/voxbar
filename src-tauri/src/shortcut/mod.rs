@@ -2052,6 +2052,34 @@ pub(crate) fn cycle_prompt_selection(
     Ok(next_id)
 }
 
+/// v1.6.0 W1-L7: the cycle notice's detail payload. The notice line shows
+/// the template name AND its position in the library (for example "2 of
+/// 5"), so the detail carries all three facts separated by the ASCII unit
+/// separator (0x1f - a control character no real template name contains),
+/// and the frontend (noticeMessage.ts) splits it back out for localized
+/// interpolation. A dangling selection degrades to the empty detail the
+/// frontend renders through its bare-name fallback. Pure so the encoding
+/// is pinnable without an app.
+pub(crate) fn cycle_notice_detail(
+    settings: &crate::settings::AppSettings,
+    next_id: &str,
+) -> String {
+    let Some(index) = settings
+        .post_process_prompts
+        .iter()
+        .position(|p| p.id == next_id)
+    else {
+        return String::new();
+    };
+    let total = settings.post_process_prompts.len();
+    format!(
+        "{}\u{1f}{}\u{1f}{}",
+        settings.post_process_prompts[index].name,
+        index + 1,
+        total
+    )
+}
+
 /// Advance the selected template and confirm it: shared by the Tauri
 /// command (the tray's future use and any UI surface) and the
 /// `cycle_post_process_prompt` hotkey action. Errors surface the refusal
@@ -2060,18 +2088,23 @@ pub(crate) fn cycle_prompt_selection(
 pub(crate) fn cycle_prompt_and_notify(app: &AppHandle) -> Result<(), String> {
     let mut settings = settings::get_settings(app);
     let next_id = cycle_prompt_selection(&mut settings)?;
-    let next_name = settings
-        .post_process_prompts
-        .iter()
-        .find(|p| p.id == next_id)
-        .map(|p| p.name.clone())
-        .unwrap_or_default();
+    let detail = cycle_notice_detail(&settings, &next_id);
     settings::write_settings(app, settings);
     crate::managers::transcription::emit_overlay_notice(
         app,
         crate::managers::transcription::NoticeCode::PostProcessPromptCycled,
-        Some(next_name),
+        Some(detail),
     );
+    // v1.6.0 W1-L7: the same name rides in the overlay badge. A live
+    // post-process session's badge names the ACTIVE template, so a
+    // mid-session cycle refreshes it - but only while the badge is lit; a
+    // dark badge stays dark (the cycle armed the NEXT session's template,
+    // nothing current).
+    if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
+        if coordinator.is_session_post_process_active() {
+            crate::transcription_coordinator::emit_post_process_badge(app, true);
+        }
+    }
     tray::update_tray_menu(app);
     Ok(())
 }
@@ -3058,6 +3091,54 @@ mod tests {
             Some("default_improve_transcriptions".to_string()),
             "a refusal never moves the selection"
         );
+    }
+
+    /// v1.6.0 W1-L7: the cycle notice's detail carries the template name
+    /// plus its 1-based position and the library total, unit-separator
+    /// encoded so the frontend can interpolate all three into the localized
+    /// "2 of 5" phrasing. The encoding round-trips the exact bytes the
+    /// frontend splits on (noticeMessage.ts CYCLE_DETAIL_SEPARATOR).
+    #[test]
+    fn cycle_notice_detail_names_the_template_and_its_position() {
+        use super::cycle_notice_detail;
+
+        let mut settings = crate::settings::get_default_settings();
+        // The seeded library: english_casual is the second entry.
+        let second_id = settings.post_process_prompts[1].id.clone();
+        let second_name = settings.post_process_prompts[1].name.clone();
+        let total = settings.post_process_prompts.len();
+        assert_eq!(total, 14);
+
+        let detail = cycle_notice_detail(&settings, &second_id);
+        let parts: Vec<&str> = detail.split('\u{1f}').collect();
+        assert_eq!(
+            parts,
+            vec![second_name.as_str(), "2", &total.to_string()],
+            "name, 1-based position, and total, in that order"
+        );
+
+        // The first template is "1 of N"; the last is "N of N".
+        let first_id = settings.post_process_prompts[0].id.clone();
+        assert_eq!(
+            cycle_notice_detail(&settings, &first_id)
+                .split('\u{1f}')
+                .nth(1),
+            Some("1"),
+            "positions are 1-based"
+        );
+        let last_id = settings.post_process_prompts[total - 1].id.clone();
+        let total_str = total.to_string();
+        assert_eq!(
+            cycle_notice_detail(&settings, &last_id)
+                .split('\u{1f}')
+                .nth(1),
+            Some(total_str.as_str()),
+            "the last template reports the total as its position"
+        );
+
+        // A dangling id degrades to the empty detail rather than panicking
+        // or inventing facts.
+        assert_eq!(cycle_notice_detail(&settings, "deleted_long_ago"), "");
     }
 
     /// Duplicating a template: fresh id, " copy" name, user flags

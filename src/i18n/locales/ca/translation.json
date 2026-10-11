@@ -1297,6 +1297,9 @@
       "postProcessOutputInvalid": "El poliment ha retornat text inútil, s'ha conservat la transcripció original.",
       "postProcessCloudFailed": "El poliment ha fallat i s'ha conservat la transcripció original: {{detail}}",
       "postProcessPromptCycled": "Plantilla de postprocessament: {{name}}",
+      "postProcessPromptCycledPosition": "Plantilla de postprocessament: {{name}} ({{position}} de {{total}})",
+      "postProcessSessionUpgraded": "Postprocessament activat per a aquesta sessió: {{name}}",
+      "postProcessSessionDowngraded": "Postprocessament desactivat per a aquesta sessió",
       "companionDisconnected": "Mòbil desconnectat. Es finalitza amb el capturat.",
       "companionServerFailed": "El servidor acompanyant ha fallat: {{error}}",
       "companionSessionCapped": "S'ha finalitzat el dictat del dispositiu acompanyant: s'ha arribat al límit de sessió de 15 minuts a {{device}}.",
@@ -1305,6 +1308,7 @@
       "postProcessNotConfigured": "El postprocessament no s'ha executat: {{detail}}. S'ha conservat la transcripció en brut."
     },
     "commandBadge": "Mode d'ordres",
+    "ppBadge": "Postprocessament",
     "ppChip": "Polint ({{model}}) {{seconds}}s",
     "companionBadge": "Micròfon acompanyant"
   },

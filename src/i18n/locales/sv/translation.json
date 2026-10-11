@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "Poleringen returnerade oanvändbar text, den ursprungliga transkriptionen behölls.",
       "postProcessCloudFailed": "Poleringen misslyckades, den ursprungliga transkriptionen behölls: {{detail}}",
       "postProcessPromptCycled": "Efterbearbetningsmall: {{name}}",
+      "postProcessPromptCycledPosition": "Efterbearbetningsmall: {{name}} ({{position}} av {{total}})",
+      "postProcessSessionUpgraded": "Efterbearbetning på för den här sessionen: {{name}}",
+      "postProcessSessionDowngraded": "Efterbearbetning av för den här sessionen",
       "companionDisconnected": "Telefonen kopplades från. Slutför med det som spelades in.",
       "companionServerFailed": "Kompanionservern misslyckades: {{error}}",
       "companionSessionCapped": "Dikteringen från Kompanionenheten avslutades: sessionsgränsen på 15 minuter uppnåddes på {{device}}.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "Efterbearbetningen kördes inte: {{detail}}. Råtranskriptet behölls."
     },
     "commandBadge": "Kommandoläge",
+    "ppBadge": "Efterbearbetning",
     "ppChip": "Polerar ({{model}}) {{seconds}}s",
     "companionBadge": "Kompanionmikrofon"
   },

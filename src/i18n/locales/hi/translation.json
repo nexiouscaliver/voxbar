@@ -1297,6 +1297,9 @@
       "postProcessOutputInvalid": "पॉलिश से बेकार टेक्स्ट आया, इसलिए मूल ट्रांसक्रिप्ट रखा गया।",
       "postProcessCloudFailed": "पॉलिश विफल रहा, मूल ट्रांसक्रिप्ट रखा गया: {{detail}}",
       "postProcessPromptCycled": "पोस्ट-प्रोसेस टेम्पलेट: {{name}}",
+      "postProcessPromptCycledPosition": "पोस्ट-प्रोसेस टेम्पलेट: {{name}} ({{total}} में से {{position}})",
+      "postProcessSessionUpgraded": "इस सेशन के लिए पोस्ट-प्रोसेस चालू: {{name}}",
+      "postProcessSessionDowngraded": "इस सेशन के लिए पोस्ट-प्रोसेस बंद",
       "companionDisconnected": "फ़ोन का कनेक्शन कट गया। जो रिकॉर्ड हुआ उसी के साथ पूरा किया जा रहा है।",
       "companionServerFailed": "कॉम्पैनियन सर्वर विफल: {{error}}",
       "companionSessionCapped": "कॉम्पैनियन डिवाइस से डिक्टेशन समाप्त: 15 मिनट की सेशन सीमा {{device}} पर पूरी हुई।",
@@ -1305,6 +1308,7 @@
       "postProcessNotConfigured": "पोस्ट-प्रोसेसिंग नहीं चला: {{detail}}। कच्चा ट्रांस्क्रिप्ट रखा गया।"
     },
     "commandBadge": "कमांड मोड",
+    "ppBadge": "पोस्ट-प्रोसेस",
     "ppChip": "पॉलिश हो रहा है ({{model}}) {{seconds}}s",
     "companionBadge": "कॉम्पैनियन माइक्रोफ़ोन"
   },

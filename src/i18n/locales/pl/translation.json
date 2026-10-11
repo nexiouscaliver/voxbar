@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "Czyszczenie zwróciło nieużyteczny tekst, zachowano oryginalną transkrypcję.",
       "postProcessCloudFailed": "Czyszczenie nie powiodło się, zachowano oryginalną transkrypcję: {{detail}}",
       "postProcessPromptCycled": "Szablon postprocessingu: {{name}}",
+      "postProcessPromptCycledPosition": "Szablon postprocessingu: {{name}} ({{position}} z {{total}})",
+      "postProcessSessionUpgraded": "Postprocessing włączony dla tej sesji: {{name}}",
+      "postProcessSessionDowngraded": "Postprocessing wyłączony dla tej sesji",
       "companionDisconnected": "Telefon rozłączony. Kończę z tym, co nagrane.",
       "companionServerFailed": "Awaria serwera towarzyszącego: {{error}}",
       "companionSessionCapped": "Dyktowanie z urządzenia towarzyszącego zakończone: osiągnięto limit sesji 15 minut na {{device}}.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "Przetwarzanie końcowe nie zostało uruchomione: {{detail}}. Zachowano surową transkrypcję."
     },
     "commandBadge": "Tryb poleceń",
+    "ppBadge": "Postprocessing",
     "ppChip": "Czyszczę ({{model}}) {{seconds}}s",
     "companionBadge": "Mikrofon towarzyszący"
   },

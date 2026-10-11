@@ -1297,6 +1297,9 @@
       "postProcessOutputInvalid": "Het bijschaven leverde onbruikbare tekst op, de oorspronkelijke transcriptie is gehouden.",
       "postProcessCloudFailed": "Het bijschaven mislukte, de oorspronkelijke transcriptie is gehouden: {{detail}}",
       "postProcessPromptCycled": "Postprocesjabloon: {{name}}",
+      "postProcessPromptCycledPosition": "Postprocesjabloon: {{name}} ({{position}} van {{total}})",
+      "postProcessSessionUpgraded": "Postproces aan voor deze sessie: {{name}}",
+      "postProcessSessionDowngraded": "Postproces uit voor deze sessie",
       "companionDisconnected": "Telefoon losgekoppeld. Afgerond met wat er was.",
       "companionServerFailed": "Companion-server mislukt: {{error}}",
       "companionSessionCapped": "Dicteren vanaf het companionapparaat is beëindigd: de sessielimiet van 15 minuten is bereikt op {{device}}.",
@@ -1305,6 +1308,7 @@
       "postProcessNotConfigured": "Nabewerking is niet uitgevoerd: {{detail}}. De ruwe transcriptie is behouden."
     },
     "commandBadge": "Opdrachtmodus",
+    "ppBadge": "Postproces",
     "ppChip": "Bijschaven ({{model}}) {{seconds}}s",
     "companionBadge": "Companion-microfoon"
   },

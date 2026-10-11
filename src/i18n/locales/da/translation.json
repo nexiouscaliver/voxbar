@@ -1297,6 +1297,9 @@
       "postProcessOutputInvalid": "Rensningen returnerede ubrugelig tekst, den originale transskription blev beholdt.",
       "postProcessCloudFailed": "Rensningen fejlede, den originale transskription blev beholdt: {{detail}}",
       "postProcessPromptCycled": "Efterbehandlingsskabelon: {{name}}",
+      "postProcessPromptCycledPosition": "Efterbehandlingsskabelon: {{name}} ({{position}} af {{total}})",
+      "postProcessSessionUpgraded": "Efterbehandling slået til for denne session: {{name}}",
+      "postProcessSessionDowngraded": "Efterbehandling slået fra for denne session",
       "companionDisconnected": "Telefonen frakoblet. Færdiggør med det optagede.",
       "companionServerFailed": "Følgeserveren fejlede: {{error}}",
       "companionSessionCapped": "Dikteringen fra Følgeenheden er afsluttet: grænsen på 15 minutter for sessionen er nået på {{device}}.",
@@ -1305,6 +1308,7 @@
       "postProcessNotConfigured": "Efterbehandlingen blev ikke kørt: {{detail}}. Råtransskriptionen blev beholdt."
     },
     "commandBadge": "Kommandotilstand",
+    "ppBadge": "Efterbehandling",
     "ppChip": "Renser ({{model}}) {{seconds}}s",
     "companionBadge": "Følgeomikrofon"
   },

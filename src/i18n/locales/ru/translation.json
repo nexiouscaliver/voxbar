@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "Обработка вернула непригодный текст, исходный транскрипт сохранён.",
       "postProcessCloudFailed": "Обработка не удалась, исходный транскрипт сохранён: {{detail}}",
       "postProcessPromptCycled": "Шаблон постобработки: {{name}}",
+      "postProcessPromptCycledPosition": "Шаблон постобработки: {{name}} ({{position}} из {{total}})",
+      "postProcessSessionUpgraded": "Постобработка включена для этого сеанса: {{name}}",
+      "postProcessSessionDowngraded": "Постобработка отключена для этого сеанса",
       "companionDisconnected": "Телефон отключился. Завершаем с тем, что записано.",
       "companionServerFailed": "Сбой сервера-спутника: {{error}}",
       "companionSessionCapped": "Диктовка с устройства-спутника завершена: достигнут 15-минутный лимит сеанса на {{device}}.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "Постобработка не была запущена: {{detail}}. Исходная расшифровка сохранена."
     },
     "commandBadge": "Режим команд",
+    "ppBadge": "Постобработка",
     "ppChip": "Обработка ({{model}}) {{seconds}}с",
     "companionBadge": "Микрофон-спутник"
   },

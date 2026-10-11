@@ -479,8 +479,18 @@ pub enum NoticeCode {
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     GnomeOverlayFallback,
     /// The cycle-prompt hotkey advanced the selected post-process template.
-    /// Info; detail carries the new template's name.
+    /// Info; detail carries the new template's name plus its position in
+    /// the library (v1.6.0 W1-L7, unit-separator encoded - see
+    /// `cycle_notice_detail`).
     PostProcessPromptCycled,
+    /// The post-process hotkey upgraded the live session to post-processed
+    /// (v1.6.0 W1-L7 mid-session switching). Info; detail carries the
+    /// selected template's name (empty when none is selected).
+    PostProcessSessionUpgraded,
+    /// The post-process hotkey reverted the live session to a normal one
+    /// (v1.6.0 W1-L7 mid-session switching: a further press on an already
+    /// post-process session). Info; no detail.
+    PostProcessSessionDowngraded,
     /// A companion device (phone mic) disconnected mid-dictation; the
     /// session finalized and pasted everything captured up to the drop.
     /// Info. Detail carries the device name.
@@ -522,6 +532,8 @@ impl NoticeCode {
             | NoticeCode::WaylandTauriHotkeys
             | NoticeCode::GnomeOverlayFallback
             | NoticeCode::PostProcessPromptCycled
+            | NoticeCode::PostProcessSessionUpgraded
+            | NoticeCode::PostProcessSessionDowngraded
             | NoticeCode::CompanionDisconnected
             | NoticeCode::CompanionSessionCapped
             | NoticeCode::CommandModeNoSession
@@ -559,6 +571,8 @@ impl NoticeCode {
             NoticeCode::WaylandTauriHotkeys => "wayland_tauri_hotkeys",
             NoticeCode::GnomeOverlayFallback => "gnome_overlay_fallback",
             NoticeCode::PostProcessPromptCycled => "post_process_prompt_cycled",
+            NoticeCode::PostProcessSessionUpgraded => "post_process_session_upgraded",
+            NoticeCode::PostProcessSessionDowngraded => "post_process_session_downgraded",
             NoticeCode::CompanionDisconnected => "companion_disconnected_finalized",
             NoticeCode::CompanionServerFailed => "companion_server_failed",
             NoticeCode::CompanionSessionCapped => "companion_session_capped",
@@ -4506,6 +4520,8 @@ mod tests {
             NoticeCode::PostProcessNotConfigured,
             NoticeCode::PostProcessUnchanged,
             NoticeCode::PostProcessPromptCycled,
+            NoticeCode::PostProcessSessionUpgraded,
+            NoticeCode::PostProcessSessionDowngraded,
             NoticeCode::DeleteLastWordNoSession,
             NoticeCode::DeleteLastWordNoBuffer,
             NoticeCode::UndoNoSession,
@@ -4569,6 +4585,8 @@ mod tests {
             NoticeCode::WaylandTauriHotkeys,
             NoticeCode::GnomeOverlayFallback,
             NoticeCode::PostProcessPromptCycled,
+            NoticeCode::PostProcessSessionUpgraded,
+            NoticeCode::PostProcessSessionDowngraded,
             NoticeCode::CompanionDisconnected,
             NoticeCode::CompanionSessionCapped,
             NoticeCode::CommandModeNoSession,

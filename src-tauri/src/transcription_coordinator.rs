@@ -31,6 +31,13 @@ fn missed_hold_pair_is_fresh(released_at: Instant, now: Instant) -> bool {
 /// server) routes the lifecycle through this one id.
 const COMPANION_BINDING_ID: &str = "transcribe_companion";
 
+/// The binding id of the post-process dictation hotkey (v1.6.0 W1-L7). A
+/// press with no live session starts a post-processed recording as always;
+/// a press while ANOTHER binding's session is live upgrades that session
+/// to post-processed (a further press reverts it) instead of competing
+/// with it - never a second recording, never the busy notice.
+const POST_PROCESS_BINDING_ID: &str = "transcribe_with_post_process";
+
 // Operator rule, stated absolutely: the ONLY always-on binding is the
 // transcribe trigger. Every other binding (delete, undo, command modifier)
 // may act while a dictation session is LIVE and never after it ends.
@@ -206,6 +213,18 @@ enum Effect {
     /// [`run_effect`]) - the only configuration in which anything interprets
     /// commands - while every false edge publishes unconditionally.
     CommandModifierChanged { active: bool },
+    /// The post-process hotkey was pressed while another binding's session
+    /// is live (v1.6.0 W1-L7): the executor resolves the session's current
+    /// mode and flips it ([`CoordinatorState::set_session_post_process`]),
+    /// confirming through the notice channel and the badge event. The
+    /// recording lifecycle is untouched - no second recording.
+    ToggleSessionPostProcess,
+    /// The live session's post-process badge lit (true) or cleared (false).
+    /// Drives the overlay's PP chip the same way
+    /// [`Effect::CommandModifierChanged`] drives the CMD chip: emitted on
+    /// every real transition, session end and cancel included, so the badge
+    /// can never outlive the session that armed it.
+    PostProcessModeChanged { active: bool },
 }
 
 /// Commands processed sequentially by the coordinator thread.
@@ -302,6 +321,27 @@ struct CoordinatorState {
     /// engagement/latch machinery never ran and the spoken command word
     /// pasted as literal dictation.
     command_hold_edges: Option<(Instant, Instant)>,
+    /// v1.6.0 W1-L7: the live (or just-stopped, pre-drain) session's
+    /// post-process mode as an EXPLICIT in-session decision. Some(true) is
+    /// set when a session that will post-process begins recording (the pp
+    /// hotkey's own start, or the start arm resolving a companion session's
+    /// frozen preference) and flipped by each in-session pp-hotkey press;
+    /// Some(false) is an explicitly reverted session; None means no
+    /// in-session decision (the legacy stop-time resolution applies). Read
+    /// by the stop pipeline through the mirror: it deliberately survives
+    /// [`CoordinatorState::begin_processing`] so the pipeline honors the
+    /// FINAL mode, and is cleared on cancel, failed-start rollback, and
+    /// every new [`CoordinatorState::begin_recording`].
+    session_post_process: Option<bool>,
+    /// Whether the overlay's PP badge is currently lit. Cleared on every
+    /// path that ends the session (finalize, cancel, failed-start
+    /// rollback), so the badge can never go stale; the override above
+    /// deliberately survives those clears for the stop pipeline.
+    pp_badge: bool,
+    /// Pending PP badge transitions for the overlay, drained by the
+    /// coordinator thread after the command that caused them (the same
+    /// discipline as `modifier_notifications`).
+    post_process_notifications: Vec<bool>,
 }
 
 impl CoordinatorState {
@@ -316,6 +356,9 @@ impl CoordinatorState {
             modifier_notifications: Vec::new(),
             command_press_at: None,
             command_hold_edges: None,
+            session_post_process: None,
+            pp_badge: false,
+            post_process_notifications: Vec::new(),
         }
     }
 
@@ -334,6 +377,38 @@ impl CoordinatorState {
         std::mem::take(&mut self.modifier_notifications)
             .into_iter()
             .map(|active| Effect::CommandModifierChanged { active })
+            .collect()
+    }
+
+    /// The single writer of the session's post-process mode (v1.6.0 W1-L7):
+    /// records the override and lights or clears the badge with it,
+    /// enqueueing exactly one badge notification per real on/off
+    /// transition. No-op assignments (setting an already-held value) stay
+    /// silent, so the badge never flickers on a redundant write.
+    fn set_session_post_process(&mut self, mode: Option<bool>) {
+        self.session_post_process = mode;
+        let badge = mode == Some(true);
+        if self.pp_badge != badge {
+            self.pp_badge = badge;
+            self.post_process_notifications.push(badge);
+        }
+    }
+
+    /// The session is ending: the badge must not outlive it. The override
+    /// deliberately survives - the stop pipeline reads the session's FINAL
+    /// mode through the mirror - so this clears only the badge half.
+    fn clear_pp_badge(&mut self) {
+        if self.pp_badge {
+            self.pp_badge = false;
+            self.post_process_notifications.push(false);
+        }
+    }
+
+    /// PP badge notifications waiting for the thread, oldest first.
+    fn drain_post_process_notifications(&mut self) -> Vec<Effect> {
+        std::mem::take(&mut self.post_process_notifications)
+            .into_iter()
+            .map(|active| Effect::PostProcessModeChanged { active })
             .collect()
     }
 
@@ -467,6 +542,15 @@ impl CoordinatorState {
                     // recording), so a repeated press means nothing.
                     debug!("Ignoring press for '{}': key is held", input.binding_id);
                 }
+                // v1.6.0 W1-L7: the post-process hotkey pressed while
+                // ANOTHER binding's session is live never competes with it.
+                // The press upgrades that session to post-processed, or (on
+                // an already-post-process session) reverts it; the executor
+                // resolves which. No second recording, no busy notice.
+                Stage::Recording(_) if input.binding_id == POST_PROCESS_BINDING_ID => {
+                    debug!("Post-process hotkey pressed during a live session; toggling its mode");
+                    return Some(Effect::ToggleSessionPostProcess);
+                }
                 _ => {
                     debug!(
                         "Ignoring press for '{}': another binding is recording",
@@ -579,6 +663,10 @@ impl CoordinatorState {
         self.forget_command_press();
         self.command_hold_edges = None;
         self.set_command_modifier(false);
+        // The session is gone: the PP badge and the in-session mode decision
+        // go with it (a cancelled session runs no stop pipeline, so nothing
+        // consumes the override either).
+        self.set_session_post_process(None);
         // Don't reset during processing - wait for the pipeline to finish.
         if !matches!(self.stage, Stage::Processing)
             && (recording_was_active || matches!(self.stage, Stage::Recording(_)))
@@ -624,7 +712,14 @@ impl CoordinatorState {
     fn on_processing_finished(&mut self) -> Option<Effect> {
         self.stage = Stage::Idle;
         self.hold = None;
-        let pending = self.pending_press.take()?;
+        let Some(pending) = self.pending_press.take() else {
+            // The pipeline drained with no successor: the finished session's
+            // post-process override has nothing left to serve (its stop
+            // pipeline already consumed it) and must not leak toward a
+            // future session.
+            self.set_session_post_process(None);
+            return None;
+        };
         debug!(
             "Pipeline drained; starting remembered press for '{}'",
             pending.binding_id
@@ -644,10 +739,13 @@ impl CoordinatorState {
             self.stage = Stage::Idle;
             self.hold = None;
             // The session never existed; the modifier cannot stay armed
-            // (KB-221: nor can any press/hold bookkeeping of it).
+            // (KB-221: nor can any press/hold bookkeeping of it), and the
+            // PP badge a pp start would have lit must go dark with the
+            // rollback (the override too: no pipeline will read it).
             self.forget_command_press();
             self.command_hold_edges = None;
             self.set_command_modifier(false);
+            self.set_session_post_process(None);
         }
     }
 
@@ -663,6 +761,10 @@ impl CoordinatorState {
     ) -> Effect {
         self.stage = Stage::Recording(binding_id.clone());
         self.hold = Some(Hold { pressed_at, locked });
+        // A fresh session starts with no in-session post-process decision;
+        // the executor's start arm sets Some(true) for a session that will
+        // post-process (the pp hotkey's own, or a companion pp session).
+        self.set_session_post_process(None);
         Effect::Start {
             binding_id,
             hotkey_string,
@@ -672,6 +774,10 @@ impl CoordinatorState {
     fn begin_processing(&mut self, binding_id: String, hotkey_string: String) -> Effect {
         self.stage = Stage::Processing;
         self.hold = None;
+        // The recording ended: the PP badge goes dark with it (an explicit
+        // clear, not a mode write - the override below must survive for the
+        // stop pipeline, which reads the session's FINAL mode).
+        self.clear_pp_badge();
         // The recording ended: the in-session command modifier goes with it,
         // even if the key is still physically held. Re-engaging requires a
         // fresh press during the next live session. This is the session-end
@@ -778,6 +884,16 @@ pub struct TranscriptionCoordinator {
     /// exit, and when the next session's stream begins (a pair that
     /// outlived its session must not resolve against the next one's words).
     missed_hold: Arc<Mutex<Option<(Instant, Instant)>>>,
+    /// v1.6.0 W1-L7: mirror of `CoordinatorState::session_post_process`
+    /// for the stop pipeline. TranscribeAction::stop runs INSIDE the Stop
+    /// effect on the coordinator thread, before this mirror republishes,
+    /// so it always reads the final mode of the session that just ended.
+    session_post_process: Arc<Mutex<Option<bool>>>,
+    /// v1.6.0 W1-L7: mirror of `CoordinatorState::pp_badge` for the
+    /// cycle-prompt path: true while a live post-process session's badge is
+    /// lit, so cycling templates refreshes the name the badge shows only
+    /// while the badge is actually on screen.
+    pp_badge: Arc<AtomicBool>,
 }
 
 /// Which binding IDs drive the recording lifecycle. The command-mode
@@ -805,6 +921,10 @@ impl TranscriptionCoordinator {
         let processing_mirror = Arc::clone(&processing);
         let missed_hold: Arc<Mutex<Option<(Instant, Instant)>>> = Arc::new(Mutex::new(None));
         let missed_hold_mirror = Arc::clone(&missed_hold);
+        let session_post_process: Arc<Mutex<Option<bool>>> = Arc::new(Mutex::new(None));
+        let session_post_process_mirror = Arc::clone(&session_post_process);
+        let pp_badge = Arc::new(AtomicBool::new(false));
+        let pp_badge_mirror = Arc::clone(&pp_badge);
 
         thread::spawn(move || {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -823,6 +943,10 @@ impl TranscriptionCoordinator {
                         .store(matches!(state.stage, Stage::Processing), Ordering::Release);
                     command_modifier_mirror.store(state.command_modifier, Ordering::Release);
                     pending_press_mirror.store(state.pending_press.is_some(), Ordering::Release);
+                    *session_post_process_mirror
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner()) = state.session_post_process;
+                    pp_badge_mirror.store(state.pp_badge, Ordering::Release);
                 };
                 publish_state(&state);
 
@@ -890,20 +1014,29 @@ impl TranscriptionCoordinator {
                         *missed_hold_mirror.lock().unwrap_or_else(|e| e.into_inner()) = Some(edges);
                     }
                     // Badge notifications the processed command enqueued
-                    // (modifier engage/release and every session-end clear).
+                    // (modifier engage/release, PP badge transitions, and
+                    // every session-end clear).
                     for effect in state.drain_modifier_notifications() {
+                        run_effect(&app, &mut state, effect);
+                    }
+                    for effect in state.drain_post_process_notifications() {
                         run_effect(&app, &mut state, effect);
                     }
                     publish_state(&state);
                 }
                 // The coordinator thread is gone (app shutdown); stop
                 // advertising a live recording session, an engaged command
-                // modifier, a remembered press, or an undrained hold.
+                // modifier, a remembered press, an undrained hold, a
+                // post-process session mode, or a lit PP badge.
                 recording_mirror.store(false, Ordering::Release);
                 processing_mirror.store(false, Ordering::Release);
                 command_modifier_mirror.store(false, Ordering::Release);
                 pending_press_mirror.store(false, Ordering::Release);
                 *missed_hold_mirror.lock().unwrap_or_else(|e| e.into_inner()) = None;
+                *session_post_process_mirror
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner()) = None;
+                pp_badge_mirror.store(false, Ordering::Release);
                 debug!("Transcription coordinator exited");
             }));
             if let Err(e) = result {
@@ -918,6 +1051,8 @@ impl TranscriptionCoordinator {
             pending_press,
             processing,
             missed_hold,
+            session_post_process,
+            pp_badge,
         }
     }
 
@@ -998,6 +1133,30 @@ impl TranscriptionCoordinator {
     /// never disagree with what the coordinator will actually fire.
     pub fn has_pending_press(&self) -> bool {
         self.pending_press.load(Ordering::Acquire)
+    }
+
+    /// v1.6.0 W1-L7: the session's FINAL post-process decision, as the stop
+    /// pipeline must honor it. Some(true) - the session will post-process
+    /// (the pp hotkey's own start, or an in-session upgrade that was never
+    /// reverted); Some(false) - an in-session revert of a session that would
+    /// otherwise have post-processed; None - no in-session decision, so the
+    /// stop pipeline's legacy resolution (static binding value, companion
+    /// preference, master toggle) applies. Read inside the Stop effect,
+    /// before the mirror republishes, so it is the mode the just-ended
+    /// session actually had.
+    pub fn session_post_process_override(&self) -> Option<bool> {
+        *self
+            .session_post_process
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+    }
+
+    /// v1.6.0 W1-L7: whether the live session's PP badge is lit. The
+    /// cycle-prompt path refreshes the badge's template name only while a
+    /// post-process session is actually recording; a dark badge stays dark
+    /// (the cycle armed the NEXT session's template, nothing current).
+    pub fn is_session_post_process_active(&self) -> bool {
+        self.pp_badge.load(Ordering::Acquire)
     }
 
     /// Whether the Undo action may fire right now: ONLY while a recording
@@ -1144,6 +1303,55 @@ fn command_modifier_badge_publishable(active: bool, stream_live: bool) -> bool {
     !active || stream_live
 }
 
+/// v1.6.0 W1-L7: the mode an in-session pp-hotkey press flips the session
+/// to. None (no in-session decision: the session is not post-processed)
+/// upgrades; an explicit mode - the pp hotkey's own session, a companion pp
+/// session the start arm resolved, or a previous upgrade - reverts, and a
+/// reverted session upgrades again. Pure so the toggle's truth table is
+/// pinnable without an app handle.
+fn toggled_session_post_process(current: Option<bool>) -> bool {
+    !current.unwrap_or(false)
+}
+
+/// v1.6.0 W1-L7: whether a session that just began recording will be
+/// post-processed, from the facts only the executor can see at start time:
+/// the pp hotkey's own session always will; a companion session will while
+/// its frozen per-session preference asks AND the master toggle is on (the
+/// same off promise the pp hotkey's registration enforces). A keyboard
+/// normal session will not. Pure truth table, mirroring the stop pipeline's
+/// legacy resolution (`actions::session_runs_post_process`) for the
+/// no-override case.
+fn started_session_post_processes(
+    pp_binding_start: bool,
+    companion_session: bool,
+    companion_pref: bool,
+    master_enabled: bool,
+) -> bool {
+    pp_binding_start || (companion_session && companion_pref && master_enabled)
+}
+
+/// v1.6.0 W1-L7: emit one PP badge edge to the overlay. `active` lights the
+/// chip naming the selected template (None when no template is selected:
+/// the chip falls back to its bare PP label, and the stop pipeline surfaces
+/// the configuration gap); the off edge carries no name. Shared by the
+/// coordinator's badge notifications and the cycle-prompt refresh, so every
+/// emitter resolves the name from the same settings.
+pub(crate) fn emit_post_process_badge(app: &AppHandle, active: bool) {
+    use tauri::Emitter;
+    let template = if active {
+        crate::settings::get_settings(app).selected_post_process_prompt_name()
+    } else {
+        None
+    };
+    if let Err(e) = app.emit_to(
+        "recording_overlay",
+        "post-process-changed",
+        serde_json::json!({ "active": active, "template": template }),
+    ) {
+        warn!("Failed to emit post-process-changed: {e}");
+    }
+}
+
 fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
     match effect {
         Effect::Start {
@@ -1152,6 +1360,21 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
         } => {
             let started = start(app, &binding_id, &hotkey_string);
             state.on_start_result(&binding_id, started);
+            // v1.6.0 W1-L7: a session that actually began recording and
+            // will post-process lights the PP badge from the single moment
+            // every fact is known (the binding, the companion prefs frozen
+            // inside start(), the master toggle). A failed start already
+            // cleared it through the rollback above.
+            if started
+                && started_session_post_processes(
+                    binding_id == POST_PROCESS_BINDING_ID,
+                    binding_id == COMPANION_BINDING_ID,
+                    crate::companion::session_prefs(app).post_process,
+                    crate::settings::get_settings(app).post_process_enabled,
+                )
+            {
+                state.set_session_post_process(Some(true));
+            }
         }
         Effect::Stop {
             binding_id,
@@ -1202,6 +1425,34 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
                 warn!("Failed to emit command-modifier-changed: {e}");
             }
         }
+        Effect::ToggleSessionPostProcess => {
+            // Only a live recording can be toggled (on_input routes the
+            // press here exclusively from the Recording stage); a stray
+            // effect with no session is inert rather than fatal.
+            if !matches!(state.stage, Stage::Recording(_)) {
+                debug!("Post-process toggle with no live session; nothing happens");
+                return;
+            }
+            let next = toggled_session_post_process(state.session_post_process);
+            state.set_session_post_process(Some(next));
+            // The badge edge rides the notification drain below; the notice
+            // confirms the flip now, naming the template that will run.
+            let detail = if next {
+                crate::settings::get_settings(app).selected_post_process_prompt_name()
+            } else {
+                None
+            };
+            crate::managers::transcription::emit_overlay_notice(
+                app,
+                if next {
+                    crate::managers::transcription::NoticeCode::PostProcessSessionUpgraded
+                } else {
+                    crate::managers::transcription::NoticeCode::PostProcessSessionDowngraded
+                },
+                detail,
+            );
+        }
+        Effect::PostProcessModeChanged { active } => emit_post_process_badge(app, active),
     }
 }
 
@@ -1385,19 +1636,19 @@ mod tests {
         assert!(matches!(state.stage, Stage::Recording(_)));
 
         // Symmetrically, the keyboard pressing during a companion session
-        // gets the same arbitration.
+        // gets the same arbitration. v1.6.0 W1-L7: the NORMAL hotkey is the
+        // arbitration case here - the pp hotkey pressed during a companion
+        // session deliberately toggles the session's mode instead (see
+        // pp_press_during_live_companion_session_toggles).
         let mut state = CoordinatorState::new();
         assert!(matches!(
             state.on_input(companion_edge(true, ShortcutActivation::Toggle), t0),
             Some(Effect::Start { .. })
         ));
-        let effect = state.on_input(
-            toggle_input_for(OTHER_BINDING, true),
-            t0 + Duration::from_millis(50),
-        );
+        let effect = state.on_input(toggle_input(true), t0 + Duration::from_millis(50));
         assert!(matches!(
             effect,
-            Some(Effect::NotifyRecordingBusy { binding_id }) if binding_id == OTHER_BINDING
+            Some(Effect::NotifyRecordingBusy { binding_id }) if binding_id == BINDING
         ));
     }
 
@@ -1901,6 +2152,9 @@ mod tests {
     /// A press for a different transcribe binding while one is recording is
     /// swallowed to protect the live session, but no longer silently: it
     /// returns the busy notice effect and leaves the session untouched.
+    /// v1.6.0 W1-L7: the pp hotkey is the one deliberate exception (it
+    /// toggles the session's mode instead), so this pin uses the companion
+    /// binding as the generic other-binding press.
     #[test]
     fn cross_binding_press_while_recording_notifies_busy() {
         let mut state = CoordinatorState::new();
@@ -1913,11 +2167,11 @@ mod tests {
         // A different dictation binding presses: swallowed, and surfaced.
         assert_eq!(
             state.on_input(
-                toggle_input_for("transcribe_with_post_process", false),
-                t0 + Duration::from_millis(50)
+                companion_edge(true, ShortcutActivation::Toggle),
+                t0 + Duration::from_millis(50),
             ),
             Some(Effect::NotifyRecordingBusy {
-                binding_id: "transcribe_with_post_process".to_string()
+                binding_id: COMPANION_BINDING.to_string()
             })
         );
         // The live session is untouched by the swallowed press.
@@ -1928,6 +2182,327 @@ mod tests {
             state.on_input(toggle_input(true), t0 + Duration::from_millis(100)),
             Some(Effect::Stop { .. })
         ));
+    }
+
+    // ---------------------------------------------------------------------
+    // v1.6.0 W1-L7: post-process mode clarity + mid-session switching.
+    //
+    // The pp hotkey pressed while ANOTHER binding's session is live never
+    // competes with it: the press toggles that session's post-process mode
+    // (upgrade, revert, upgrade again), the badge tracks every transition,
+    // and the override survives the session end for the stop pipeline to
+    // honor the FINAL mode. The pp hotkey's OWN session keeps its lifecycle
+    // semantics (the press stops it, as every same-binding press does).
+    // ---------------------------------------------------------------------
+
+    fn pp_toggle_input() -> InputEvent {
+        toggle_input_for(POST_PROCESS_BINDING_ID, false)
+    }
+
+    /// The routing decision itself: a pp press during a live normal session
+    /// produces the toggle effect - never a second Start, never a Stop of
+    /// the live session, never the busy notice - and leaves the session
+    /// recording under its original binding.
+    #[test]
+    fn pp_press_during_live_normal_session_toggles_instead_of_competing() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0),
+            Some(Effect::Start { .. })
+        ));
+
+        assert_eq!(
+            state.on_input(pp_toggle_input(), t0 + Duration::from_millis(500)),
+            Some(Effect::ToggleSessionPostProcess),
+            "a pp press during a live normal session toggles its mode"
+        );
+        // The live session is exactly as it was: still recording, same
+        // binding, no second recording started.
+        assert_eq!(state.stage, Stage::Recording(BINDING.to_string()));
+
+        // The release of the pp hotkey is equally inert for the lifecycle.
+        let release = InputEvent {
+            is_pressed: false,
+            ..pp_toggle_input()
+        };
+        assert!(state
+            .on_input(release, t0 + Duration::from_millis(600))
+            .is_none());
+        assert_eq!(state.stage, Stage::Recording(BINDING.to_string()));
+    }
+
+    /// The toggle applies to a companion session identically: a live phone
+    /// session can be upgraded (or, when its own preference already armed
+    /// post-process, reverted) from the keyboard hotkey without touching
+    /// the recording.
+    #[test]
+    fn pp_press_during_live_companion_session_toggles() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::Toggle), t0),
+            Some(Effect::Start { .. })
+        ));
+
+        assert_eq!(
+            state.on_input(pp_toggle_input(), t0 + Duration::from_millis(400)),
+            Some(Effect::ToggleSessionPostProcess)
+        );
+        assert_eq!(state.stage, Stage::Recording(COMPANION_BINDING.to_string()));
+    }
+
+    /// The pp hotkey's OWN session keeps its lifecycle semantics: the press
+    /// stops the locked session (the only way a toggle-mode pp session
+    /// ends), it does not toggle its own mode.
+    #[test]
+    fn pp_press_on_own_session_stops_it_instead_of_toggling() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        assert!(matches!(
+            state.on_input(pp_toggle_input(), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert_eq!(
+            state.stage,
+            Stage::Recording(POST_PROCESS_BINDING_ID.to_string())
+        );
+
+        assert!(matches!(
+            state.on_input(pp_toggle_input(), t0 + Duration::from_secs(2)),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(state.stage, Stage::Processing);
+    }
+
+    /// The busy-pipeline window keeps the pre-v1.6.0 semantics for the pp
+    /// binding: a press while the PREVIOUS session is still processing is a
+    /// remembered press for the next session, not a mode toggle (the live
+    /// session is gone; there is nothing to toggle).
+    #[test]
+    fn pp_press_during_processing_is_remembered_not_a_toggle() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        drive_into_processing(&mut state, t0);
+
+        assert!(state
+            .on_input(pp_toggle_input(), t0 + Duration::from_millis(200))
+            .is_none());
+        assert!(
+            state
+                .pending_press
+                .as_ref()
+                .is_some_and(|p| p.binding_id == POST_PROCESS_BINDING_ID),
+            "the busy pp press queues the next session as it always did"
+        );
+        match state.on_processing_finished() {
+            Some(Effect::Start { binding_id, .. }) => {
+                assert_eq!(binding_id, POST_PROCESS_BINDING_ID)
+            }
+            other => panic!("expected a pp Start on the drain, got {other:?}"),
+        }
+    }
+
+    /// The mode flip's truth table: a session with no in-session decision
+    /// upgrades; an armed mode (pp start, companion pp, or a previous
+    /// upgrade) reverts; a reverted session upgrades again.
+    #[test]
+    fn toggled_session_post_process_flips_every_state() {
+        assert!(toggled_session_post_process(None), "normal -> upgraded");
+        assert!(
+            !toggled_session_post_process(Some(true)),
+            "post-processed -> reverted"
+        );
+        assert!(
+            toggled_session_post_process(Some(false)),
+            "reverted -> upgraded again"
+        );
+    }
+
+    /// The badge tracks every real mode transition through the notification
+    /// queue: arming lights it once, a revert clears it once, redundant
+    /// writes stay silent (the chip must not flicker on no-ops).
+    #[test]
+    fn pp_badge_notifications_track_every_mode_transition() {
+        let mut state = CoordinatorState::new();
+
+        // Arm (what the start arm or the toggle arm does for a pp session).
+        state.set_session_post_process(Some(true));
+        assert_eq!(
+            state.drain_post_process_notifications(),
+            vec![Effect::PostProcessModeChanged { active: true }]
+        );
+        assert!(
+            state.drain_post_process_notifications().is_empty(),
+            "drained"
+        );
+
+        // A redundant write of the same mode enqueues nothing.
+        state.set_session_post_process(Some(true));
+        assert!(state.drain_post_process_notifications().is_empty());
+
+        // The in-session revert (the toggle arm's second press).
+        state.set_session_post_process(Some(false));
+        assert_eq!(
+            state.drain_post_process_notifications(),
+            vec![Effect::PostProcessModeChanged { active: false }]
+        );
+
+        // And back on (the third press).
+        state.set_session_post_process(Some(true));
+        assert_eq!(
+            state.drain_post_process_notifications(),
+            vec![Effect::PostProcessModeChanged { active: true }]
+        );
+    }
+
+    /// The session-end discipline: finalize clears the badge (it must never
+    /// outlive its session) while the override SURVIVES for the stop
+    /// pipeline - the session's FINAL mode is what the pipeline honors.
+    #[test]
+    fn pp_badge_clears_on_session_end_while_the_override_survives_for_the_pipeline() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        state.on_input(toggle_input(true), t0);
+        // The upgrade, as the toggle arm applies it.
+        state.set_session_post_process(Some(true));
+        state.drain_post_process_notifications();
+
+        // Stop the session: badge off, override kept.
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0 + Duration::from_secs(5)),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(
+            state.drain_post_process_notifications(),
+            vec![Effect::PostProcessModeChanged { active: false }],
+            "the badge must clear when the session finalizes"
+        );
+        assert_eq!(
+            state.session_post_process,
+            Some(true),
+            "the override survives into the stop pipeline (the final mode)"
+        );
+
+        // A fresh session starts clean: the drain retires the finished
+        // session's override (nothing may consume it anymore), and no badge
+        // survives into the idle gap.
+        assert!(state.on_processing_finished().is_none());
+        assert_eq!(state.stage, Stage::Idle);
+        assert_eq!(
+            state.session_post_process, None,
+            "the drain retires the finished session's in-session decision"
+        );
+        assert!(!state.pp_badge);
+    }
+
+    /// Cancel clears both halves: no stop pipeline follows a cancel, so
+    /// nothing would consume the override, and the badge must not outlive
+    /// the session the user abandoned.
+    #[test]
+    fn pp_state_clears_on_cancel() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        state.on_input(toggle_input(true), t0);
+        state.set_session_post_process(Some(true));
+        state.drain_post_process_notifications();
+
+        state.on_cancel(true);
+        assert_eq!(state.session_post_process, None);
+        assert!(!state.pp_badge);
+        assert_eq!(
+            state.drain_post_process_notifications(),
+            vec![Effect::PostProcessModeChanged { active: false }],
+            "cancel retires the badge with the session"
+        );
+    }
+
+    /// A failed start (microphone denied) rolls the optimistic transition
+    /// back to idle: the badge a pp start would have lit goes dark with it,
+    /// and the override cannot leak into the next session.
+    #[test]
+    fn pp_state_clears_on_failed_start_rollback() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        assert!(matches!(
+            state.on_input(pp_toggle_input(), t0),
+            Some(Effect::Start { .. })
+        ));
+        // What the start arm does for a pp-binding start that succeeded.
+        state.set_session_post_process(Some(true));
+        state.drain_post_process_notifications();
+
+        state.on_start_result(POST_PROCESS_BINDING_ID, false);
+        assert_eq!(state.stage, Stage::Idle);
+        assert_eq!(state.session_post_process, None);
+        assert!(!state.pp_badge);
+        assert_eq!(
+            state.drain_post_process_notifications(),
+            vec![Effect::PostProcessModeChanged { active: false }],
+            "the rollback retires the badge with the session that never was"
+        );
+    }
+
+    /// The start-time resolution truth table: the pp hotkey's own session
+    /// always post-processes; a companion session post-processes only when
+    /// its frozen preference asks AND the master toggle is on; a keyboard
+    /// normal session never does (without an in-session upgrade).
+    #[test]
+    fn started_session_post_processes_truth_table() {
+        use started_session_post_processes as will_pp;
+        // The pp hotkey's own session: unconditional.
+        for (companion_pref, master) in [(false, false), (true, false), (true, true)] {
+            assert!(will_pp(true, false, companion_pref, master));
+        }
+        // A keyboard normal session: never by start alone.
+        for (companion_pref, master) in [(false, false), (true, false), (true, true)] {
+            assert!(!will_pp(false, false, companion_pref, master));
+        }
+        // A companion session: the frozen preference, gated on the master.
+        assert!(will_pp(false, true, true, true));
+        assert!(!will_pp(false, true, true, false), "master off wins");
+        assert!(!will_pp(false, true, false, true), "pref off stays off");
+        assert!(!will_pp(false, true, false, false));
+    }
+
+    /// The full mid-session switching story on the pure machine: a normal
+    /// session upgrades on the first pp press, reverts on the second, and
+    /// the stop pipeline's final mode is the reverted one.
+    #[test]
+    fn mid_session_switching_upgrades_then_reverts() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0),
+            Some(Effect::Start { .. })
+        ));
+
+        // First press: the toggle effect; the arm applies Some(true).
+        assert_eq!(
+            state.on_input(pp_toggle_input(), t0 + Duration::from_millis(500)),
+            Some(Effect::ToggleSessionPostProcess)
+        );
+        state.set_session_post_process(Some(toggled_session_post_process(
+            state.session_post_process,
+        )));
+        assert_eq!(state.session_post_process, Some(true));
+
+        // Second press during the same live session: reverts.
+        assert_eq!(
+            state.on_input(pp_toggle_input(), t0 + Duration::from_millis(900)),
+            Some(Effect::ToggleSessionPostProcess)
+        );
+        state.set_session_post_process(Some(toggled_session_post_process(
+            state.session_post_process,
+        )));
+        assert_eq!(state.session_post_process, Some(false));
+
+        // Stop: the pipeline reads Some(false) - the FINAL mode.
+        assert!(matches!(
+            state.on_input(toggle_input(true), t0 + Duration::from_secs(5)),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(state.session_post_process, Some(false));
     }
 
     #[test]
@@ -2178,6 +2753,8 @@ mod tests {
                 Some(Effect::NotifyCommandIdle)
                 | Some(Effect::NotifyRecordingBusy { .. })
                 | Some(Effect::CommandModifierChanged { .. })
+                | Some(Effect::ToggleSessionPostProcess)
+                | Some(Effect::PostProcessModeChanged { .. })
                 | None => {}
             }
         }

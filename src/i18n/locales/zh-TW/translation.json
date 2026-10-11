@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "潤飾回傳了無法使用的文字，已保留原始謄寫。",
       "postProcessCloudFailed": "潤飾失敗，已保留原始謄寫：{{detail}}",
       "postProcessPromptCycled": "後處理範本：{{name}}",
+      "postProcessPromptCycledPosition": "後處理範本：{{name}}（第{{position}}個，共{{total}}個）",
+      "postProcessSessionUpgraded": "本次聽寫已開啟後處理：{{name}}",
+      "postProcessSessionDowngraded": "本次聽寫已關閉後處理",
       "companionDisconnected": "手機已斷線。正在以已錄下的內容收尾。",
       "companionServerFailed": "伴侶伺服器失敗：{{error}}",
       "companionSessionCapped": "伴侶裝置聽寫已結束：已達到 {{device}} 上的 15 分鐘工作階段上限。",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "後處理未執行：{{detail}}。已保留原始轉寫。"
     },
     "commandBadge": "命令模式",
+    "ppBadge": "後處理",
     "ppChip": "潤飾中 ({{model}}) {{seconds}}秒",
     "companionBadge": "伴侶麥克風"
   },

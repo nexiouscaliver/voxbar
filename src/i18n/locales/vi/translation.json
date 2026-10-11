@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "Bước tinh chỉnh trả về văn bản không dùng được, bản gốc đã được giữ lại.",
       "postProcessCloudFailed": "Tinh chỉnh thất bại, bản gốc đã được giữ lại: {{detail}}",
       "postProcessPromptCycled": "Mẫu hậu xử lý: {{name}}",
+      "postProcessPromptCycledPosition": "Mẫu hậu xử lý: {{name}} ({{position}} trên {{total}})",
+      "postProcessSessionUpgraded": "Hậu xử lý đã bật cho phiên này: {{name}}",
+      "postProcessSessionDowngraded": "Hậu xử lý đã tắt cho phiên này",
       "companionDisconnected": "Điện thoại đã ngắt kết nối. Kết thúc với phần đã ghi.",
       "companionServerFailed": "Máy chủ đồng hành lỗi: {{error}}",
       "companionSessionCapped": "Đọc chính tả từ thiết bị đồng hành đã kết thúc: đã đạt giới hạn phiên 15 phút trên {{device}}.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "Hậu xử lý đã không chạy: {{detail}}. Bản tốc ký thô đã được giữ nguyên."
     },
     "commandBadge": "Chế độ lệnh",
+    "ppBadge": "Hậu xử lý",
     "ppChip": "Đang tinh chỉnh ({{model}}) {{seconds}}s",
     "companionBadge": "Micrô đồng hành"
   },

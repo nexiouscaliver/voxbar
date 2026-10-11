@@ -118,6 +118,37 @@ assert.equal(
   "overlay.notice.postProcessPromptCycled[name=Concise]",
   "prompt cycled interpolates the template name",
 );
+// v1.6.0 W1-L7: the cycle detail carries name, 1-based position, and total
+// (unit-separator encoded by cycle_notice_detail), and the line localizes
+// the "2 of 5" phrasing through the position key. A bare-name detail (the
+// pre-v1.6.0 shape) keeps the plain key.
+assert.equal(
+  noticeMessage(t, "post_process_prompt_cycled", "Concise 2 5"),
+  "overlay.notice.postProcessPromptCycled[name=Concise 2 5]",
+  "a detail without separators is a plain name, never split",
+);
+assert.equal(
+  noticeMessage(t, "post_process_prompt_cycled", "Meeting Notes\u001f2\u001f5"),
+  "overlay.notice.postProcessPromptCycledPosition[name=Meeting Notes,position=2,total=5]",
+  "the encoded detail interpolates name, position, and total",
+);
+// The mid-session switching notices: the upgrade names the template, the
+// revert interpolates nothing.
+assert.equal(
+  noticeMessage(t, "post_process_session_upgraded", "Meeting Notes"),
+  "overlay.notice.postProcessSessionUpgraded[name=Meeting Notes]",
+  "an upgrade names the template that will run",
+);
+assert.equal(
+  noticeMessage(t, "post_process_session_upgraded"),
+  "overlay.notice.postProcessSessionUpgraded[name=]",
+  "an upgrade with no selected template interpolates empty, never 'undefined'",
+);
+assert.equal(
+  noticeMessage(t, "post_process_session_downgraded"),
+  "overlay.notice.postProcessSessionDowngraded",
+  "a revert carries no template name",
+);
 assert.equal(
   noticeMessage(t, "wayland_tauri_hotkeys"),
   "overlay.notice.waylandTauriHotkeys",

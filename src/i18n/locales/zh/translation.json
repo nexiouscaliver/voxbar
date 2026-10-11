@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "润色返回了不可用的文本，已保留原始转录。",
       "postProcessCloudFailed": "润色失败，已保留原始转录：{{detail}}",
       "postProcessPromptCycled": "后处理模板：{{name}}",
+      "postProcessPromptCycledPosition": "后处理模板：{{name}}（第{{position}}个，共{{total}}个）",
+      "postProcessSessionUpgraded": "本次听写已开启后处理：{{name}}",
+      "postProcessSessionDowngraded": "本次听写已关闭后处理",
       "companionDisconnected": "手机已断开。正在用已录下的内容收尾。",
       "companionServerFailed": "伴侣服务器失败：{{error}}",
       "companionSessionCapped": "伴侣设备听写已结束：已达到 {{device}} 上的 15 分钟会话上限。",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "后处理未运行：{{detail}}。已保留原始转写。"
     },
     "commandBadge": "命令模式",
+    "ppBadge": "后处理",
     "ppChip": "润色中 ({{model}}) {{seconds}}秒",
     "companionBadge": "伴侣麦克风"
   },

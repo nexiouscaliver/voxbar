@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "El pulido devolvió texto inservible, se conservó la transcripción original.",
       "postProcessCloudFailed": "El pulido falló y se conservó la transcripción original: {{detail}}",
       "postProcessPromptCycled": "Plantilla de posprocesado: {{name}}",
+      "postProcessPromptCycledPosition": "Plantilla de posprocesado: {{name}} ({{position}} de {{total}})",
+      "postProcessSessionUpgraded": "Posprocesado activado para esta sesión: {{name}}",
+      "postProcessSessionDowngraded": "Posprocesado desactivado para esta sesión",
       "companionDisconnected": "Teléfono desconectado. Se termina con lo capturado.",
       "companionServerFailed": "El servidor acompañante falló: {{error}}",
       "companionSessionCapped": "Finalizó el dictado del dispositivo acompañante: se alcanzó el límite de sesión de 15 minutos en {{device}}.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "El procesado no se ejecutó: {{detail}}. Se conservó la transcripción sin procesar."
     },
     "commandBadge": "Modo de comandos",
+    "ppBadge": "Posprocesado",
     "ppChip": "Puliendo ({{model}}) {{seconds}}s",
     "companionBadge": "Micrófono acompañante"
   },

@@ -1294,6 +1294,9 @@
       "postProcessOutputInvalid": "Обробка повернула непридатний текст, збережено оригінальний транскрипт.",
       "postProcessCloudFailed": "Обробка не вдалася, збережено оригінальний транскрипт: {{detail}}",
       "postProcessPromptCycled": "Шаблон постобробки: {{name}}",
+      "postProcessPromptCycledPosition": "Шаблон постобробки: {{name}} ({{position}} з {{total}})",
+      "postProcessSessionUpgraded": "Постобробку увімкнено для цього сеансу: {{name}}",
+      "postProcessSessionDowngraded": "Постобробку вимкнено для цього сеансу",
       "companionDisconnected": "Телефон відключився. Завершуємо з тим, що записано.",
       "companionServerFailed": "Збій сервера-супутника: {{error}}",
       "companionSessionCapped": "Диктування з пристрою-супутника завершено: досягнуто 15-хвилинного ліміту сеансу на {{device}}.",
@@ -1302,6 +1305,7 @@
       "postProcessNotConfigured": "Постобробка не була запущена: {{detail}}. Початкову розшифровку збережено."
     },
     "commandBadge": "Режим команд",
+    "ppBadge": "Постобробка",
     "ppChip": "Обробка ({{model}}) {{seconds}}с",
     "companionBadge": "Мікрофон-супутник"
   },

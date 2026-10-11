@@ -636,6 +636,10 @@ const MAC_ONLY_NOTICE_CODES: &[&str] = &[
     "undo_no_session",
     // The cycle-prompt hotkey/tray command confirmed the next template.
     "post_process_prompt_cycled",
+    // v1.6.0 W1-L7: the pp hotkey upgraded or reverted the live session's
+    // post-process mode (coordinator, Mac keyboard only).
+    "post_process_session_upgraded",
+    "post_process_session_downgraded",
 ];
 
 /// AUD-01: may this overlay-notice code be forwarded to the paired phones?
@@ -1053,6 +1057,14 @@ mod tests {
                 DeleteLastWordNoSession,
                 UndoNoSession,
                 PostProcessPromptCycled,
+                // v1.6.0 W1-L7: the pp hotkey's mid-session mode toggles.
+                // The phone can toggle its own session's post-process leg
+                // through its pp preference, but these two codes fire only
+                // from the Mac keyboard's pp hotkey pressing during a live
+                // session; the phone neither triggers them nor renders
+                // them (its notice branch vibrates anything unrecognized).
+                PostProcessSessionUpgraded,
+                PostProcessSessionDowngraded,
             ]
             allow [
                 // Everything else keeps riding the forwarder (denylist

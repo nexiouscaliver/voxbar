@@ -134,15 +134,21 @@ fn transcript_delivery(
 /// per-session preference, the latter still gated on the master
 /// post-process toggle - the same off promise the pp hotkey's registration
 /// enforces (a globally disabled layer must not ship transcripts to any
-/// provider just because a phone asked).
+/// provider just because a phone asked). v1.6.0 W1-L7: an in-session
+/// decision (the pp hotkey pressed mid-recording: an upgrade, or a revert
+/// of a session that would otherwise have post-processed) ALWAYS wins -
+/// the pipeline honors the session's final mode.
 fn session_runs_post_process(
     static_post_process: bool,
     source: CaptureSource,
     session_pref: bool,
     master_enabled: bool,
+    session_override: Option<bool>,
 ) -> bool {
-    static_post_process
-        || (matches!(source, CaptureSource::Remote) && session_pref && master_enabled)
+    session_override.unwrap_or(
+        static_post_process
+            || (matches!(source, CaptureSource::Remote) && session_pref && master_enabled),
+    )
 }
 
 /// The history provenance pair for one session: where the audio came from
@@ -1717,11 +1723,20 @@ impl ShortcutAction for TranscribeAction {
         let capture_source = self.source;
         let session_prefs = crate::companion::session_prefs(app);
         let delivery = transcript_delivery(capture_source, session_prefs.output_target);
+        // v1.6.0 W1-L7: the coordinator's in-session decision (the pp hotkey
+        // pressed mid-recording) rides above the legacy resolution, so the
+        // pipeline honors the session's FINAL mode. stop() runs inside the
+        // coordinator's Stop effect, before its mirror republishes, so this
+        // reads exactly the mode the just-ended session had.
+        let session_pp_override = app
+            .try_state::<TranscriptionCoordinator>()
+            .and_then(|c| c.session_post_process_override());
         let post_process = session_runs_post_process(
             self.post_process,
             capture_source,
             session_prefs.post_process,
             get_settings(app).post_process_enabled,
+            session_pp_override,
         );
         let (history_capture_source, history_destination) =
             history_provenance(capture_source, delivery);
@@ -2796,7 +2811,8 @@ mod tests {
     /// v1.6.0 post-process resolution: the static binding value wins
     /// unchanged (the pp hotkey), a companion session's per-session pref
     /// runs the leg only with the master toggle on, and everything off
-    /// means off.
+    /// means off. W1-L7: an in-session decision (None here) changes
+    /// nothing - the legacy table applies verbatim.
     #[test]
     fn session_post_process_resolution_honors_the_pref_and_the_master_toggle() {
         use super::session_runs_post_process;
@@ -2807,13 +2823,15 @@ mod tests {
             true,
             CaptureSource::Local,
             false,
-            false
+            false,
+            None
         ));
         assert!(!session_runs_post_process(
             false,
             CaptureSource::Local,
             true,
-            true
+            true,
+            None
         ));
 
         // A companion session's pref runs the leg with the master toggle on.
@@ -2821,7 +2839,8 @@ mod tests {
             false,
             CaptureSource::Remote,
             true,
-            true
+            true,
+            None
         ));
         // Master toggle off: no transcript ships to any provider, even when
         // the phone asked (the same off promise the pp hotkey's
@@ -2830,14 +2849,59 @@ mod tests {
             false,
             CaptureSource::Remote,
             true,
-            false
+            false,
+            None
         ));
         // Pref off: today's behavior, no leg.
         assert!(!session_runs_post_process(
             false,
             CaptureSource::Remote,
             false,
-            true
+            true,
+            None
+        ));
+    }
+
+    /// W1-L7 mid-session switching: the coordinator's in-session decision
+    /// overrides every legacy input, in both directions - an upgrade runs
+    /// the leg for an otherwise-normal session, and a revert skips it for
+    /// a session that would otherwise have post-processed (the pp hotkey's
+    /// own start, a phone pp session, or a prior upgrade).
+    #[test]
+    fn session_post_process_override_wins_in_both_directions() {
+        use super::session_runs_post_process;
+        use crate::managers::audio::CaptureSource;
+
+        // An upgrade: everything else off, the override alone runs the leg.
+        assert!(session_runs_post_process(
+            false,
+            CaptureSource::Local,
+            false,
+            false,
+            Some(true)
+        ));
+        assert!(session_runs_post_process(
+            false,
+            CaptureSource::Remote,
+            false,
+            false,
+            Some(true)
+        ));
+
+        // A revert: static true, a phone pp session, master on - still off.
+        assert!(!session_runs_post_process(
+            true,
+            CaptureSource::Local,
+            false,
+            true,
+            Some(false)
+        ));
+        assert!(!session_runs_post_process(
+            false,
+            CaptureSource::Remote,
+            true,
+            true,
+            Some(false)
         ));
     }
 

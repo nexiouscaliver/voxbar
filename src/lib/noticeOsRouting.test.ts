@@ -135,6 +135,8 @@ const ALL_NOTICE_CODES = [
   "wayland_tauri_hotkeys",
   "gnome_overlay_fallback",
   "post_process_prompt_cycled",
+  "post_process_session_upgraded",
+  "post_process_session_downgraded",
   "companion_disconnected_finalized",
   "companion_server_failed",
   "companion_session_capped",
@@ -190,6 +192,10 @@ const OVERLAY_ONLY = [
   "undo_no_buffer",
   "binding_busy",
   "post_process_prompt_cycled",
+  // v1.6.0 W1-L7: transient mid-session mode toggles; the badge carries
+  // the durable state, nothing to persist.
+  "post_process_session_upgraded",
+  "post_process_session_downgraded",
   "wayland_tauri_hotkeys",
   "gnome_overlay_fallback",
   "command_mode_no_session",
