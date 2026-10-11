@@ -3055,11 +3055,7 @@ mod tests {
 
         // A bound undo chord with its master toggle ON held a registration.
         settings.undo_enabled = true;
-        settings
-            .bindings
-            .get_mut("undo")
-            .unwrap()
-            .current_binding = "option+u".to_string();
+        settings.bindings.get_mut("undo").unwrap().current_binding = "option+u".to_string();
         let undo = settings.bindings.get("undo").unwrap().clone();
         assert!(
             restore_registration_is_due(&settings, &undo),

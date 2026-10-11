@@ -99,7 +99,7 @@ const squash = (s: string): string => s.replace(/\s+/g, " ");
 
   assert.ok(
     !body.includes("show and hide paths"),
-    'AUD-14 (2/4) transcription.rs: the probe comment must never claim the hide path makes an overlay_style lookup (overlay.rs hide_recording_overlay hides unconditionally)',
+    "AUD-14 (2/4) transcription.rs: the probe comment must never claim the hide path makes an overlay_style lookup (overlay.rs hide_recording_overlay hides unconditionally)",
   );
   assert.ok(
     body.includes("overlay_enabled") && body.includes("atomic"),

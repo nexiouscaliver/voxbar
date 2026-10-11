@@ -1336,10 +1336,7 @@ impl StreamSessionBuffer {
                 // it; observed-hold state (latch, held fragment, a hold
                 // still live at stop) supersedes the note and just drops it.
                 self.pending_missed_hold = false;
-                if !self.command_active
-                    && !self.holding
-                    && self.command_latch_until_ms.is_none()
-                {
+                if !self.command_active && !self.holding && self.command_latch_until_ms.is_none() {
                     if let Some(consumed) = self.resolve_missed_hold_in(&final_raw) {
                         self.raw_seen = final_raw[..consumed].to_string();
                     }
@@ -2063,7 +2060,10 @@ impl TranscriptionManager {
         // own key - or plain size math when unmeasured - instead of
         // refusing it against the big model's phantom RSS.
         let measured_asr_rss = measured_asr_rss_for(
-            &self.measured_asr_rss.lock().unwrap_or_else(|e| e.into_inner()),
+            &self
+                .measured_asr_rss
+                .lock()
+                .unwrap_or_else(|e| e.into_inner()),
             model_id,
             matches!(model_info.engine_type, EngineType::TranscribeCpp),
         );
@@ -4694,7 +4694,11 @@ mod tests {
             None,
             "a 650 MiB candidate must not resolve against 900 MiB free (975 forecast)"
         );
-        assert!(memory::gate_should_refuse(free, candidates[0].footprint_bytes, 0));
+        assert!(memory::gate_should_refuse(
+            free,
+            candidates[0].footprint_bytes,
+            0
+        ));
         // The full decision is a terminal Refuse, not a Fallback that would
         // recurse into a certain refusal (the selected model itself does
         // not fit the tight reading).

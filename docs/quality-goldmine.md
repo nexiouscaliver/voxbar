@@ -343,7 +343,7 @@ path anymore; the stuck-toast defect has no trigger surface. Mark closed.
   test files, package.json:23; the step entered CI in 2bdd6049), and the
   "Test frontend sweep" step (`bun run test:frontend` ->
   scripts/run-frontend-tests.ts, from 4ebe1d4f) executes EVERY git-tracked
-  src/**/*.test.ts - shortcutGating.test.ts included - so a file with no
+  `src/**/*.test.ts` - shortcutGating.test.ts included - so a file with no
   script of its own still runs; scripts/ciTestCoverage.test.ts then fails
   the build when a test is added without an invocation. The same mechanism
   retires round 5's KB-245 note (searchKeyboardNav unwired) and KB-100's
@@ -483,7 +483,7 @@ commits); each entry names the path or commit it was verified against.
 5. **KB-214 -> FIXED by mechanism.** test:updater now runs in CI
    (ci.yml "Run bun unit tests"; the step entered CI in 2bdd6049) and the
    git-tracked sweep (scripts/run-frontend-tests.ts, from 4ebe1d4f) runs
-   shortcutGating.test.ts and every other tracked *.test.ts;
+   shortcutGating.test.ts and every other tracked `*.test.ts`;
    scripts/ciTestCoverage.test.ts fails CI on any future unwired test. This
    also retires round 5's KB-245 note and KB-100's test:updater half;
    check:text-style remains out of CI (KB-100's other half still open).

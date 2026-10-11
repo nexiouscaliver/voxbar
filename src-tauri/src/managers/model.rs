@@ -2588,8 +2588,8 @@ impl ModelManager {
             .lock()
             .unwrap()
             .contains_key(&model_id);
-        let artifact_landed = self.cached_path_for(model_info).is_some()
-            || self.models_dir.join(&filename).exists();
+        let artifact_landed =
+            self.cached_path_for(model_info).is_some() || self.models_dir.join(&filename).exists();
         if Self::download_complete_event_allowed(still_registered, artifact_landed) {
             let _ = self.app_handle.emit("model-download-complete", &model_id);
             info!("HF model {} downloaded", model_id);
@@ -2836,11 +2836,7 @@ impl ModelManager {
         // gone for custom deletes, and the artifact can have been removed
         // with the delete. Suppressed quietly; the delete already told
         // the UI everything.
-        let still_registered = self
-            .available_models
-            .lock()
-            .unwrap()
-            .contains_key(model_id);
+        let still_registered = self.available_models.lock().unwrap().contains_key(model_id);
         if Self::download_complete_event_allowed(still_registered, model_path.exists()) {
             let _ = self.app_handle.emit("model-download-complete", model_id);
             info!(

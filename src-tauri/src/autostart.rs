@@ -147,7 +147,10 @@ mod linux {
                 // Already gone is the common case (never enabled, or another
                 // writer removed it): nothing to remove is success.
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-                Err(e) => Err(format!("Failed to remove autostart entry {:?}: {}", file, e)),
+                Err(e) => Err(format!(
+                    "Failed to remove autostart entry {:?}: {}",
+                    file, e
+                )),
             }?;
             return Ok(());
         }
@@ -166,7 +169,10 @@ mod linux {
         let content = desktop_entry_content(&app.package_info().name, &exe_path, &[]);
         if let Some(dir) = file.parent() {
             if let Err(e) = std::fs::create_dir_all(dir) {
-                return Err(format!("Failed to create autostart directory {:?}: {}", dir, e));
+                return Err(format!(
+                    "Failed to create autostart directory {:?}: {}",
+                    dir, e
+                ));
             }
         }
         match std::fs::write(&file, content) {

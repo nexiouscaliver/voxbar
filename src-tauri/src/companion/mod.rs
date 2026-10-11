@@ -437,7 +437,6 @@ const MAC_ONLY_NOTICE_CODES: &[&str] = &[
 /// live TLS server.
 pub fn should_forward_notice_to_phones(code: &str) -> bool {
     !MAC_ONLY_NOTICE_CODES.contains(&code)
-
 }
 
 impl Default for CompanionManager {
