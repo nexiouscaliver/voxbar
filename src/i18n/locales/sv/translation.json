@@ -742,7 +742,16 @@
           "refreshModels": "Uppdatera modeller",
           "fetchFailed": "Misslyckades att hämta modellistan ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Modellistan hämtades {{time}}",
-          "retry": "Försök igen"
+          "retry": "Försök igen",
+          "visibleDescription": "Modellen som skriver om din transkription efter varje diktering.",
+          "fetchingList": "Hämtar modellistan...",
+          "listSummary_one": "1 modell, hämtad {{time}}",
+          "listSummary_other": "{{count}} modeller, hämtade {{time}}",
+          "notFetched": "Ingen modelllista ännu.",
+          "emptyTitle": "Inga modeller i listan",
+          "emptyHint": "Uppdatera för att läsa in de modeller den här nyckeln ser, eller skriv ett modell-id nedan.",
+          "customSet": "Ange",
+          "customHint": "Alla modell-id från din leverantör fungerar, även om de inte listas."
         },
         "timeout": {
           "title": "Tidsgräns för begäran",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence är tillgänglig",
           "appleUnavailable": "Apple Intelligence är inte tillgänglig på den här enheten",
           "failed": "Anslutningen misslyckades: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Motor"
       },
       "local": {
         "label": "Lokal modell",
@@ -900,7 +910,9 @@
             "description": "Gör en dikterad instruktion till en tydlig, strukturerad prompt för en AI-agent eller app."
           }
         },
-        "editPrompt": "Redigera"
+        "editPrompt": "Redigera",
+        "testShort": "Testa",
+        "deleteShort": "Ta bort"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Promptstudio",
-      "intro": "Kör en eller flera prompts på en verklig transkription och jämför motorer sida vid sida. Studiokörningar använder samma pipeline som diktering, men klistrar aldrig in något och skriver aldrig historik.",
+      "intro": "Testa prompts på en riktig transkription och jämför motorer sida vid sida. Körningar använder samma pipeline som en riktig diktering, men inget skrivs i andra appar och inget sparas i historiken.",
       "source": {
         "label": "Källtext",
         "description": "Transkriptionen som studiet finslipar: din senaste diktering eller valfri historikpost.",
@@ -1159,12 +1171,13 @@
         "label": "Motorer",
         "description": "Välj en eller flera motorer att köra dem på.",
         "appleUnavailable": "Apple Intelligence är inte tillgänglig på den här Macen",
-        "noModel": "Ingen modell konfigurerad"
+        "noModel": "Ingen modell konfigurerad",
+        "noModelHint": "Ingen modell vald. Välj en under Post Process."
       },
       "run_one": "Kör 1 par",
       "run_other": "Kör {{count}} par",
-      "runHint_one": "1 prompt- och motorpar valt",
-      "runHint_other": "{{count}} prompt- och motorpar valda",
+      "runHint_one": "1 prompt på 1 motor. Inget skrivs eller sparas.",
+      "runHint_other": "{{count}} prompt-motor-par. Inget skrivs eller sparas.",
       "running": "Kör...",
       "rerun": "Kör igen",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 tecken ändrat",
         "charsChanged_other": "{{count}} tecken ändrade",
         "identical": "Inga ändringar."
-      }
+      },
+      "resultsEmptyTitle": "Resultaten visas här",
+      "resultsEmptyHint": "Välj källa, prompts och motorer ovan och kör. Varje kort visar den putsade texten, ändringarna och hastigheten."
     }
   },
   "footer": {

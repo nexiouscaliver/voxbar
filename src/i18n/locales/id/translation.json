@@ -742,7 +742,16 @@
           "refreshModels": "Segarkan model",
           "fetchFailed": "Gagal mengambil daftar model ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Daftar model diambil {{time}}",
-          "retry": "Coba lagi"
+          "retry": "Coba lagi",
+          "visibleDescription": "Model yang menulis ulang transkrip Anda setelah setiap dikte.",
+          "fetchingList": "Mengambil daftar model...",
+          "listSummary_one": "1 model, diambil {{time}}",
+          "listSummary_other": "{{count}} model, diambil {{time}}",
+          "notFetched": "Belum ada daftar model.",
+          "emptyTitle": "Tidak ada model tercantum",
+          "emptyHint": "Muat ulang untuk memuat model yang terlihat oleh kunci ini, atau ketik id model di bawah.",
+          "customSet": "Atur",
+          "customHint": "Id model apa pun dari penyedia Anda berfungsi, bahkan jika tidak tercantum."
         },
         "timeout": {
           "title": "Batas waktu permintaan",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence tersedia",
           "appleUnavailable": "Apple Intelligence tidak tersedia di perangkat ini",
           "failed": "Koneksi gagal: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Mesin"
       },
       "local": {
         "label": "Model lokal",
@@ -900,7 +910,9 @@
             "description": "Mengubah instruksi yang didiktekan menjadi prompt yang jelas dan terstruktur untuk agen AI atau aplikasi."
           }
         },
-        "editPrompt": "Edit"
+        "editPrompt": "Edit",
+        "testShort": "Uji",
+        "deleteShort": "Hapus"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Studio Prompt",
-      "intro": "Jalankan satu atau lebih prompt pada transkripsi nyata dan bandingkan mesin berdampingan. Eksekusi studio memakai pipeline yang sama dengan dikte, tetapi tidak pernah menempelkan apa pun dan tidak pernah menulis riwayat.",
+      "intro": "Uji prompt pada transkrip nyata dan bandingkan mesin berdampingan. Eksekusi memakai alur yang sama dengan dikte nyata, tetapi tidak ada yang diketik di aplikasi lain dan tidak ada yang disimpan ke riwayat.",
       "source": {
         "label": "Teks sumber",
         "description": "Transkripsi yang disempurnakan studio: dikte terakhir Anda atau entri riwayat mana pun.",
@@ -1159,12 +1171,13 @@
         "label": "Mesin",
         "description": "Pilih satu atau lebih mesin untuk menjalankannya.",
         "appleUnavailable": "Apple Intelligence tidak tersedia di Mac ini",
-        "noModel": "Belum ada model yang dikonfigurasi"
+        "noModel": "Belum ada model yang dikonfigurasi",
+        "noModelHint": "Belum ada model dipilih. Pilih di Post Process."
       },
       "run_one": "Jalankan 1 pasangan",
       "run_other": "Jalankan {{count}} pasangan",
-      "runHint_one": "1 pasangan prompt dan mesin dipilih",
-      "runHint_other": "{{count}} pasangan prompt dan mesin dipilih",
+      "runHint_one": "1 prompt pada 1 mesin. Tidak ada yang diketik atau disimpan.",
+      "runHint_other": "{{count}} pasangan prompt-mesin. Tidak ada yang diketik atau disimpan.",
       "running": "Sedang berjalan...",
       "rerun": "Jalankan lagi",
       "latency": "{{ms}} md",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 karakter berubah",
         "charsChanged_other": "{{count}} karakter berubah",
         "identical": "Tidak ada perubahan."
-      }
+      },
+      "resultsEmptyTitle": "Hasil akan muncul di sini",
+      "resultsEmptyHint": "Pilih sumber, prompt, dan mesin di atas, lalu jalankan. Setiap kartu menampilkan teks yang dipoles, perubahannya, dan kecepatannya."
     }
   },
   "footer": {

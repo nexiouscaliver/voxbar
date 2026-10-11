@@ -742,7 +742,16 @@
           "refreshModels": "Modellen verversen",
           "fetchFailed": "Ophalen van de modellenlijst mislukt ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Modellenlijst opgehaald {{time}}",
-          "retry": "Opnieuw proberen"
+          "retry": "Opnieuw proberen",
+          "visibleDescription": "Het model dat je transcript na elke dicteersessie herschrijft.",
+          "fetchingList": "Modellenlijst ophalen...",
+          "listSummary_one": "1 model, opgehaald {{time}}",
+          "listSummary_other": "{{count}} modellen, opgehaald {{time}}",
+          "notFetched": "Nog geen modellenlijst.",
+          "emptyTitle": "Geen modellen in de lijst",
+          "emptyHint": "Ververs om de modellen te laden die deze sleutel ziet, of typ hieronder een model-id.",
+          "customSet": "Instellen",
+          "customHint": "Elke model-id van je provider werkt, ook als die niet in de lijst staat."
         },
         "timeout": {
           "title": "Time-out van verzoek",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence is beschikbaar",
           "appleUnavailable": "Apple Intelligence is niet beschikbaar op dit apparaat",
           "failed": "Verbinding mislukt: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Engine"
       },
       "local": {
         "label": "Lokaal model",
@@ -900,7 +910,9 @@
             "description": "Maakt van een gedicteerde instructie een duidelijke, gestructureerde prompt voor een AI-agent of app."
           }
         },
-        "editPrompt": "Bewerken"
+        "editPrompt": "Bewerken",
+        "testShort": "Testen",
+        "deleteShort": "Verwijderen"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Promptstudio",
-      "intro": "Voer een of meer prompts uit op een echte transcriptie en vergelijk engines zij aan zij. Studioruns gebruiken dezelfde pipeline als dicteren, maar plakken nooit iets en schrijven geen geschiedenis weg.",
+      "intro": "Test prompts op een echte transcript en vergelijk engines naast elkaar. Runs gebruiken dezelfde pipeline als een echte dicteersessie, maar er wordt niets in andere apps getypt en niets in de geschiedenis opgeslagen.",
       "source": {
         "label": "Brontekst",
         "description": "De transcriptie die de studio bijschaaft: je laatste dicteersessie of een geschiedenisitem.",
@@ -1159,12 +1171,13 @@
         "label": "Engines",
         "description": "Kies een of meer engines om ze op uit te voeren.",
         "appleUnavailable": "Apple Intelligence is niet beschikbaar op deze Mac",
-        "noModel": "Geen model geconfigureerd"
+        "noModel": "Geen model geconfigureerd",
+        "noModelHint": "Geen model ingesteld. Kies er een bij Post Process."
       },
       "run_one": "1 paar uitvoeren",
       "run_other": "{{count}} paren uitvoeren",
-      "runHint_one": "1 prompt- en enginepaar geselecteerd",
-      "runHint_other": "{{count}} prompt- en engineparen geselecteerd",
+      "runHint_one": "1 prompt op 1 engine. Er wordt niets getypt of opgeslagen.",
+      "runHint_other": "{{count}} prompt-engineparen. Er wordt niets getypt of opgeslagen.",
       "running": "Bezig met uitvoeren...",
       "rerun": "Opnieuw uitvoeren",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 teken gewijzigd",
         "charsChanged_other": "{{count}} tekens gewijzigd",
         "identical": "Geen wijzigingen."
-      }
+      },
+      "resultsEmptyTitle": "Resultaten verschijnen hier",
+      "resultsEmptyHint": "Kies hierboven een bron, prompts en engines en voer ze uit. Elke kaart toont de gepolijste tekst, de wijzigingen en de snelheid."
     }
   },
   "footer": {

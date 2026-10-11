@@ -742,7 +742,16 @@
           "refreshModels": "モデルを更新",
           "fetchFailed": "モデル一覧の取得に失敗しました ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "モデル一覧を {{time}} に取得しました",
-          "retry": "再試行"
+          "retry": "再試行",
+          "visibleDescription": "ディテーションごとに文字起こしを書き直すモデルです。",
+          "fetchingList": "モデル一覧を取得中...",
+          "listSummary_one": "1 件のモデル、{{time}} に取得",
+          "listSummary_other": "{{count}} 件のモデル、{{time}} に取得",
+          "notFetched": "モデル一覧はまだありません。",
+          "emptyTitle": "モデルが一覧にありません",
+          "emptyHint": "更新するとこのキーが参照できるモデルを読み込みます。または下にモデル ID を入力してください。",
+          "customSet": "設定",
+          "customHint": "一覧になくても、プロバイダーが提供するモデル ID なら使用できます。"
         },
         "timeout": {
           "title": "リクエストのタイムアウト",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence は利用できます",
           "appleUnavailable": "Apple Intelligence はこのデバイスでは利用できません",
           "failed": "接続に失敗しました: {{failureClass}}。{{detail}}"
-        }
+        },
+        "titleLocal": "エンジン"
       },
       "local": {
         "label": "ローカルモデル",
@@ -900,7 +910,9 @@
             "description": "音声で指示した内容を、AIエージェントやアプリ向けの明確で構造化されたプロンプトに変換します。"
           }
         },
-        "editPrompt": "編集"
+        "editPrompt": "編集",
+        "testShort": "テスト",
+        "deleteShort": "削除"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "プロンプトスタジオ",
-      "intro": "実際の文字起こしに対して 1 つ以上のプロンプトを実行し、エンジンを並べて比較します。スタジオの実行は口述と同じパイプラインを使いますが、貼り付けも履歴の保存も行いません。",
+      "intro": "実際の文字起こしでプロンプトを試し、エンジンを並べて比較します。実行は実際の口述と同じエンジンパイプラインを使いますが、他のアプリに入力せず、履歴にも保存しません。",
       "source": {
         "label": "ソーステキスト",
         "description": "スタジオが加工する文字起こし：直近の口述または任意の履歴エントリ。",
@@ -1159,12 +1171,13 @@
         "label": "エンジン",
         "description": "実行するエンジンを 1 つ以上選択してください。",
         "appleUnavailable": "この Mac では Apple Intelligence を利用できません",
-        "noModel": "モデルが未設定です"
+        "noModel": "モデルが未設定です",
+        "noModelHint": "モデルが未設定です。Post Process で選択してください。"
       },
       "run_one": "1 ペアを実行",
       "run_other": "{{count}} ペアを実行",
-      "runHint_one": "プロンプトとエンジンのペアを 1 件選択中",
-      "runHint_other": "プロンプトとエンジンのペアを {{count}} 件選択中",
+      "runHint_one": "1 つのプロンプトを 1 つのエンジンで実行。入力も保存もされません。",
+      "runHint_other": "プロンプトとエンジンの組み合わせ {{count}} 件。入力も保存もされません。",
       "running": "実行中...",
       "rerun": "再実行",
       "latency": "{{ms}} ミリ秒",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 文字変更",
         "charsChanged_other": "{{count}} 文字変更",
         "identical": "変更なし。"
-      }
+      },
+      "resultsEmptyTitle": "結果はここに表示されます",
+      "resultsEmptyHint": "上でソース、プロンプト、エンジンを選んで実行してください。各カードに整形後のテキスト、変更点、所要時間が表示されます。"
     }
   },
   "footer": {

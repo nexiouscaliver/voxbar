@@ -742,7 +742,16 @@
           "refreshModels": "Refresh models",
           "fetchFailed": "Model list fetch failed ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Model list fetched {{time}}",
-          "retry": "Retry"
+          "retry": "Retry",
+          "visibleDescription": "The model that rewrites your transcript after each dictation.",
+          "fetchingList": "Fetching the model list...",
+          "listSummary_one": "1 model, fetched {{time}}",
+          "listSummary_other": "{{count}} models, fetched {{time}}",
+          "notFetched": "No model list yet.",
+          "emptyTitle": "No models listed",
+          "emptyHint": "Refresh to load the models this key can see, or type a model id below.",
+          "customSet": "Set",
+          "customHint": "Any model id your provider offers works, even if it is not listed."
         },
         "timeout": {
           "title": "Request timeout",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence is available",
           "appleUnavailable": "Apple Intelligence is not available on this device",
           "failed": "Connection failed: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Engine"
       },
       "local": {
         "label": "Local Model",
@@ -900,7 +910,9 @@
             "description": "Turns a dictated instruction into a clear, structured prompt for an AI agent or app."
           }
         },
-        "editPrompt": "Edit"
+        "editPrompt": "Edit",
+        "testShort": "Test",
+        "deleteShort": "Delete"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Prompt Studio",
-      "intro": "Run one or more prompts on a real transcript and compare engines side by side. Studio runs use the same pipeline as dictation, but never paste and never write history.",
+      "intro": "Test prompts on a real transcript and compare engines side by side. Runs use the same engine pipeline as a real dictation, but nothing is typed into other apps and nothing is saved to history.",
       "source": {
         "label": "Source text",
         "description": "The transcript the studio polishes: your latest dictation or any history entry.",
@@ -1159,12 +1171,13 @@
         "label": "Engines",
         "description": "Pick one or more engines to run them on.",
         "appleUnavailable": "Apple Intelligence is not available on this Mac",
-        "noModel": "No model configured"
+        "noModel": "No model configured",
+        "noModelHint": "No model set. Choose one in Post Process."
       },
       "run_one": "Run 1 pair",
       "run_other": "Run {{count}} pairs",
-      "runHint_one": "1 prompt and engine pair selected",
-      "runHint_other": "{{count}} prompt and engine pairs selected",
+      "runHint_one": "1 prompt on 1 engine. Nothing is typed or saved.",
+      "runHint_other": "{{count}} prompt-engine pairs. Nothing is typed or saved.",
       "running": "Running...",
       "rerun": "Re-run",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 char changed",
         "charsChanged_other": "{{count}} chars changed",
         "identical": "No changes."
-      }
+      },
+      "resultsEmptyTitle": "Results will appear here",
+      "resultsEmptyHint": "Pick a source, prompts, and engines above, then run. Each card shows the polished text, its changes, and how fast it ran."
     }
   },
   "footer": {

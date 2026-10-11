@@ -742,7 +742,16 @@
           "refreshModels": "Odśwież modele",
           "fetchFailed": "Nie udało się pobrać listy modeli ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Listę modeli pobrano {{time}}",
-          "retry": "Spróbuj ponownie"
+          "retry": "Spróbuj ponownie",
+          "visibleDescription": "Model, który przepisuje transkrypcję po każdym dyktowaniu.",
+          "fetchingList": "Pobieranie listy modeli...",
+          "listSummary_one": "1 model, pobrano {{time}}",
+          "listSummary_other": "{{count}} modeli, pobrano {{time}}",
+          "notFetched": "Nie ma jeszcze listy modeli.",
+          "emptyTitle": "Brak modeli na liście",
+          "emptyHint": "Odśwież, aby wczytać modele widoczne dla tego klucza, albo wpisz poniżej identyfikator modelu.",
+          "customSet": "Ustaw",
+          "customHint": "Działa dowolny identyfikator modelu od dostawcy, nawet jeśli nie ma go na liście."
         },
         "timeout": {
           "title": "Limit czasu żądania",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence jest dostępna",
           "appleUnavailable": "Apple Intelligence nie jest dostępna na tym urządzeniu",
           "failed": "Połączenie nie powiodło się: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Silnik"
       },
       "local": {
         "label": "Model lokalny",
@@ -900,7 +910,9 @@
             "description": "Zamienia zdyktowaną instrukcję w jasny, ustrukturyzowany prompt dla agenta AI lub aplikacji."
           }
         },
-        "editPrompt": "Edytuj"
+        "editPrompt": "Edytuj",
+        "testShort": "Testuj",
+        "deleteShort": "Usuń"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Studio promptów",
-      "intro": "Uruchom jeden lub więcej promptów na prawdziwej transkrypcji i porównaj silniki obok siebie. Uruchomienia studia używają tego samego potoku co dyktowanie, ale niczego nie wklejają i nie zapisują historii.",
+      "intro": "Testuj prompty na prawdziwej transkrypcji i porównuj silniki obok siebie. Uruchomienia używają tej samej procedury co prawdziwe dyktowanie, ale nic nie jest wpisywane w inne aplikacje i nic nie trafia do historii.",
       "source": {
         "label": "Tekst źródłowy",
         "description": "Transkrypcja, którą studio szlifuje: ostatnie dyktowanie lub dowolny wpis historii.",
@@ -1159,12 +1171,13 @@
         "label": "Silniki",
         "description": "Wybierz jeden lub więcej silników do uruchomienia.",
         "appleUnavailable": "Apple Intelligence jest niedostępny na tym Macu",
-        "noModel": "Brak skonfigurowanego modelu"
+        "noModel": "Brak skonfigurowanego modelu",
+        "noModelHint": "Nie ustawiono modelu. Wybierz go w Post Process."
       },
       "run_one": "Uruchom 1 parę",
       "run_other": "Uruchom pary: {{count}}",
-      "runHint_one": "Wybrano 1 parę prompt i silnik",
-      "runHint_other": "Wybrano par prompt i silnik: {{count}}",
+      "runHint_one": "1 prompt na 1 silniku. Nic nie jest wpisywane ani zapisywane.",
+      "runHint_other": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "running": "Uruchamianie...",
       "rerun": "Uruchom ponownie",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "Zmieniono 1 znak",
         "charsChanged_other": "Zmieniono znaków: {{count}}",
         "identical": "Brak zmian."
-      }
+      },
+      "resultsEmptyTitle": "Wyniki pojawią się tutaj",
+      "resultsEmptyHint": "Wybierz wyżej źródło, prompty i silniki, a potem uruchom. Każda karta pokazuje dopracowany tekst, zmiany i czas działania."
     }
   },
   "footer": {

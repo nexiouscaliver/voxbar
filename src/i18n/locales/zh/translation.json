@@ -742,7 +742,16 @@
           "refreshModels": "刷新模型",
           "fetchFailed": "获取模型列表失败（{{failureClass}}）：{{detail}}",
           "fetchedAtHint": "模型列表获取于 {{time}}",
-          "retry": "重试"
+          "retry": "重试",
+          "visibleDescription": "每次听写后改写转录文本的模型。",
+          "fetchingList": "正在获取模型列表...",
+          "listSummary_one": "1 个模型，获取于 {{time}}",
+          "listSummary_other": "{{count}} 个模型，获取于 {{time}}",
+          "notFetched": "尚未获取模型列表。",
+          "emptyTitle": "列表中没有模型",
+          "emptyHint": "刷新以加载此密钥可见的模型，或在下方输入模型 ID。",
+          "customSet": "设置",
+          "customHint": "只要服务商支持，未列出的模型 ID 也可以使用。"
         },
         "timeout": {
           "title": "请求超时",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence 可用",
           "appleUnavailable": "此设备不支持 Apple Intelligence",
           "failed": "连接失败：{{failureClass}}。{{detail}}"
-        }
+        },
+        "titleLocal": "引擎"
       },
       "local": {
         "label": "本地模型",
@@ -900,7 +910,9 @@
             "description": "将口述的指令转换为面向 AI 智能体或应用的清晰、结构化的提示词。"
           }
         },
-        "editPrompt": "编辑"
+        "editPrompt": "编辑",
+        "testShort": "测试",
+        "deleteShort": "删除"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "提示词工作室",
-      "intro": "在真实转录文本上运行一个或多个提示词，并排比较不同引擎的效果。工作室运行使用与听写相同的流水线，但不会粘贴任何内容，也不会写入历史记录。",
+      "intro": "在真实转录文本上测试提示词，并排比较各引擎。运行使用与真实听写相同的引擎流水线，但不会向其他应用输入任何内容，也不会保存到历史记录。",
       "source": {
         "label": "源文本",
         "description": "工作室要润色的转录文本：最近一次听写或任意历史条目。",
@@ -1159,12 +1171,13 @@
         "label": "引擎",
         "description": "选择一个或多个要运行的引擎。",
         "appleUnavailable": "此 Mac 不支持 Apple Intelligence",
-        "noModel": "未配置模型"
+        "noModel": "未配置模型",
+        "noModelHint": "未设置模型。请在 Post Process 中选择。"
       },
       "run_one": "运行 1 组",
       "run_other": "运行 {{count}} 组",
-      "runHint_one": "已选择 1 组提示词和引擎",
-      "runHint_other": "已选择 {{count}} 组提示词和引擎",
+      "runHint_one": "1 个提示词在 1 个引擎上运行。不会输入或保存任何内容。",
+      "runHint_other": "{{count}} 组提示词和引擎。不会输入或保存任何内容。",
       "running": "运行中...",
       "rerun": "重新运行",
       "latency": "{{ms}} 毫秒",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 个字符变更",
         "charsChanged_other": "{{count}} 个字符变更",
         "identical": "无更改。"
-      }
+      },
+      "resultsEmptyTitle": "结果将显示在这里",
+      "resultsEmptyHint": "在上方选择来源、提示词和引擎后运行。每张卡片会显示润色后的文本、改动内容和运行速度。"
     }
   },
   "footer": {

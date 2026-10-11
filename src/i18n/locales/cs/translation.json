@@ -742,7 +742,16 @@
           "refreshModels": "Obnovit modely",
           "fetchFailed": "Stažení seznamu modelů se nezdařilo ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Seznam modelů byl stažen {{time}}",
-          "retry": "Zkusit znovu"
+          "retry": "Zkusit znovu",
+          "visibleDescription": "Model, který přepíše váš přepis po každém diktování.",
+          "fetchingList": "Načítá se seznam modelů...",
+          "listSummary_one": "1 model, načteno {{time}}",
+          "listSummary_other": "{{count}} modelů, načteno {{time}}",
+          "notFetched": "Zatím žádný seznam modelů.",
+          "emptyTitle": "Žádné modely v seznamu",
+          "emptyHint": "Obnovte, aby se načetly modely dostupné s tímto klíčem, nebo níže zadejte id modelu.",
+          "customSet": "Nastavit",
+          "customHint": "Funguje jakékoli id modelu od vašeho poskytovatele, i když není v seznamu."
         },
         "timeout": {
           "title": "Časový limit požadavku",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence je dostupná",
           "appleUnavailable": "Apple Intelligence není na tomto zařízení dostupná",
           "failed": "Připojení se nezdařilo: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Motor"
       },
       "local": {
         "label": "Místní model",
@@ -900,7 +910,9 @@
             "description": "Z dikované instrukce vytvoří jasnou, strukturovanou výzvu pro AI agenta nebo aplikaci."
           }
         },
-        "editPrompt": "Upravit"
+        "editPrompt": "Upravit",
+        "testShort": "Vyzkoušet",
+        "deleteShort": "Smazat"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Studio promptů",
-      "intro": "Spusťte jeden nebo více promptů na skutečném přepisu a porovnejte enginy vedle sebe. Běhy studia používají stejný kanál jako diktování, ale nic nevkládají a nezapisují historii.",
+      "intro": "Testujte prompty na skutečném přepisu a porovnávejte enginy vedle sebe. Spuštění používají stejný postup jako skutečné diktování, ale nikam se nic nepíše a do historie se nic neukládá.",
       "source": {
         "label": "Zdrojový text",
         "description": "Přepis, který studio upravuje: poslední diktát nebo libovolná položka historie.",
@@ -1159,12 +1171,13 @@
         "label": "Enginy",
         "description": "Vyberte jeden nebo více enginů ke spuštění.",
         "appleUnavailable": "Apple Intelligence není na tomto Macu k dispozici",
-        "noModel": "Není nakonfigurován žádný model"
+        "noModel": "Není nakonfigurován žádný model",
+        "noModelHint": "Není nastaven žádný model. Vyberte ho v Post Process."
       },
       "run_one": "Spustit 1 pár",
       "run_other": "Spustit párů: {{count}}",
-      "runHint_one": "Vybrán 1 pár prompt a engin",
-      "runHint_other": "Vybráno párů prompt a engin: {{count}}",
+      "runHint_one": "1 prompt na 1 enginu. Nic se nepíše ani neukládá.",
+      "runHint_other": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
       "running": "Běží...",
       "rerun": "Spustit znovu",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "Změněn 1 znak",
         "charsChanged_other": "Změněno znaků: {{count}}",
         "identical": "Žádné změny."
-      }
+      },
+      "resultsEmptyTitle": "Výsledky se zobrazí zde",
+      "resultsEmptyHint": "Vyberte výše zdroj, prompty a enginy a spusťte. Každá karta ukazuje upravený text, změny a rychlost."
     }
   },
   "footer": {

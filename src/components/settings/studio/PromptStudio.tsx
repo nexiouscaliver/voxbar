@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Play, RotateCcw } from "lucide-react";
+import { FlaskConical, Play, RotateCcw } from "lucide-react";
 import {
   commands,
   type HistoryEntry,
@@ -376,7 +376,7 @@ export const PromptStudio: React.FC = () => {
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <div>
-        <h2 className="text-sm font-medium text-secondary uppercase tracking-wide">
+        <h2 className="text-sm font-semibold text-text/70 uppercase tracking-wide">
           {t("settings.studio.title")}
         </h2>
         <p className="mt-1 text-xs text-secondary/80">
@@ -432,9 +432,15 @@ export const PromptStudio: React.FC = () => {
                 toggle(selectedPrompts, setSelectedPrompts, prompt.id)
               }
               label={promptName(prompt.id)}
-              note={`${prompt.language ?? "auto"} - ${
-                prompt.register ?? "general"
-              }`}
+              /* W1-L9: the note localizes the register word (the row above
+                 showed the raw token, e.g. "auto - general") and separates
+                 the two facts with a middot. */
+              note={`${prompt.language ?? "auto"} \u00b7 ${t(
+                `settings.postProcessing.prompts.registers.${
+                  prompt.register ?? "general"
+                }`,
+                { defaultValue: prompt.register ?? "general" },
+              )}`}
             />
           ))}
         </div>
@@ -455,7 +461,7 @@ export const PromptStudio: React.FC = () => {
               ? t("settings.studio.engines.appleUnavailable")
               : model
                 ? shortModelId(model)
-                : t("settings.studio.engines.noModel");
+                : t("settings.studio.engines.noModelHint");
             return (
               <CheckRow
                 key={provider.id}
@@ -505,7 +511,7 @@ export const PromptStudio: React.FC = () => {
 
       {cards.length > 0 ? (
         <div className="space-y-2">
-          <h3 className="text-xs font-medium text-secondary uppercase tracking-wide">
+          <h3 className="text-xs font-semibold text-text/70 uppercase tracking-wide">
             {t("settings.studio.results", { count: doneCards.length })}
           </h3>
           <div className="grid gap-3 md:grid-cols-2">
@@ -521,7 +527,23 @@ export const PromptStudio: React.FC = () => {
             ))}
           </div>
         </div>
-      ) : null}
+      ) : (
+        /* W1-L9 visual pass: before the first run the page ended at the
+           Run button, so a first-time user could not tell WHERE results
+           would land or that the run is safe. This panel holds the space
+           and answers both. */
+        !runError && (
+          <div className="rounded-lg border border-dashed border-mid-gray/40 px-4 py-8 flex flex-col items-center gap-2 text-center">
+            <FlaskConical className="h-5 w-5 text-text/40" aria-hidden="true" />
+            <p className="text-sm text-secondary">
+              {t("settings.studio.resultsEmptyTitle")}
+            </p>
+            <p className="text-xs text-secondary/70 max-w-sm">
+              {t("settings.studio.resultsEmptyHint")}
+            </p>
+          </div>
+        )
+      )}
     </div>
   );
 };

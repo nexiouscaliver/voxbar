@@ -742,7 +742,16 @@
           "refreshModels": "Opdater modeller",
           "fetchFailed": "Kunne ikke hente modellisten ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Modelliste hentet {{time}}",
-          "retry": "Prøv igen"
+          "retry": "Prøv igen",
+          "visibleDescription": "Modellen, der omskriver din transskription efter hver diktéring.",
+          "fetchingList": "Henter modellisten...",
+          "listSummary_one": "1 model, hentet {{time}}",
+          "listSummary_other": "{{count}} modeller, hentet {{time}}",
+          "notFetched": "Endnu ingen modelliste.",
+          "emptyTitle": "Ingen modeller på listen",
+          "emptyHint": "Opdater for at indlæse de modeller, denne nøgle kan se, eller skriv et model-id herunder.",
+          "customSet": "Angiv",
+          "customHint": "Ethvert model-id fra din udbyder virker, også hvis det ikke er på listen."
         },
         "timeout": {
           "title": "Anmodningstimeout",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence er tilgængelig",
           "appleUnavailable": "Apple Intelligence er ikke tilgængelig på denne enhed",
           "failed": "Forbindelsen mislykkedes: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Motor"
       },
       "local": {
         "label": "Lokal model",
@@ -900,7 +910,9 @@
             "description": "Gør en dikteret instruktion til en klar, struktureret prompt til en AI-agent eller app."
           }
         },
-        "editPrompt": "Rediger"
+        "editPrompt": "Rediger",
+        "testShort": "Test",
+        "deleteShort": "Slet"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Prompt-studio",
-      "intro": "Kør en eller flere prompts på en rigtig transskription og sammenlign motorer side om side. Studio-kørsler bruger samme pipeline som diktering, men indsætter aldrig noget og skriver aldrig historik.",
+      "intro": "Test prompts på en rigtig transskription og sammenlign motorer side om side. Kørsel bruger samme pipeline som en rigtig diktéring, men der tastes intet i andre apps, og intet gemmes i historikken.",
       "source": {
         "label": "Kildetekst",
         "description": "Transskriptionen som studiet pudser: din seneste diktering eller en vilkårlig historikpost.",
@@ -1159,12 +1171,13 @@
         "label": "Motorer",
         "description": "Vælg en eller flere motorer at køre dem på.",
         "appleUnavailable": "Apple Intelligence er ikke tilgængelig på denne Mac",
-        "noModel": "Ingen model konfigureret"
+        "noModel": "Ingen model konfigureret",
+        "noModelHint": "Ingen model valgt. Vælg en under Post Process."
       },
       "run_one": "Kør 1 par",
       "run_other": "Kør {{count}} par",
-      "runHint_one": "1 prompt- og motorpar valgt",
-      "runHint_other": "{{count}} prompt- og motorpar valgt",
+      "runHint_one": "1 prompt på 1 motor. Der tastes eller gemmes intet.",
+      "runHint_other": "{{count}} prompt-motor-par. Der tastes eller gemmes intet.",
       "running": "Kører...",
       "rerun": "Kør igen",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 tegn ændret",
         "charsChanged_other": "{{count}} tegn ændret",
         "identical": "Ingen ændringer."
-      }
+      },
+      "resultsEmptyTitle": "Resultater vises her",
+      "resultsEmptyHint": "Vælg kilde, prompts og motorer ovenfor og kør. Hvert kort viser den polerede tekst, ændringerne og hastigheden."
     }
   },
   "footer": {

@@ -742,7 +742,16 @@
           "refreshModels": "Atualizar modelos",
           "fetchFailed": "Falha ao obter a lista de modelos ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Lista de modelos obtida {{time}}",
-          "retry": "Tentar novamente"
+          "retry": "Tentar novamente",
+          "visibleDescription": "O modelo que reescreve a sua transcrição após cada ditado.",
+          "fetchingList": "A obter a lista de modelos...",
+          "listSummary_one": "1 modelo, obtido {{time}}",
+          "listSummary_other": "{{count}} modelos, obtidos {{time}}",
+          "notFetched": "Ainda sem lista de modelos.",
+          "emptyTitle": "Nenhum modelo listado",
+          "emptyHint": "Atualize para carregar os modelos que esta chave vê, ou escreva um id de modelo abaixo.",
+          "customSet": "Definir",
+          "customHint": "Qualquer id de modelo do seu fornecedor funciona, mesmo que não esteja listado."
         },
         "timeout": {
           "title": "Tempo limite da solicitação",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence está disponível",
           "appleUnavailable": "Apple Intelligence não está disponível neste dispositivo",
           "failed": "Falha na conexão: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Motor"
       },
       "local": {
         "label": "Modelo local",
@@ -900,7 +910,9 @@
             "description": "Transforma uma instrução ditada em um prompt claro e estruturado para um agente de IA ou um aplicativo."
           }
         },
-        "editPrompt": "Editar"
+        "editPrompt": "Editar",
+        "testShort": "Testar",
+        "deleteShort": "Eliminar"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Estúdio de prompts",
-      "intro": "Execute um ou mais prompts numa transcrição real e compare motores lado a lado. As execuções do estúdio usam o mesmo pipeline do ditado, mas nunca colam nada e nunca gravam no histórico.",
+      "intro": "Teste prompts numa transcrição real e compare motores lado a lado. As execuções usam o mesmo pipeline de um ditado real, mas nada é digitado noutras apps e nada é guardado no histórico.",
       "source": {
         "label": "Texto de origem",
         "description": "A transcrição que o estúdio aperfeiçoa: seu último ditado ou qualquer entrada do histórico.",
@@ -1159,12 +1171,13 @@
         "label": "Motores",
         "description": "Escolha um ou mais motores para executá-los.",
         "appleUnavailable": "O Apple Intelligence não está disponível neste Mac",
-        "noModel": "Nenhum modelo configurado"
+        "noModel": "Nenhum modelo configurado",
+        "noModelHint": "Sem modelo definido. Escolha um em Post Process."
       },
       "run_one": "Executar 1 par",
       "run_other": "Executar {{count}} pares",
-      "runHint_one": "1 par de prompt e motor selecionado",
-      "runHint_other": "{{count}} pares de prompt e motor selecionados",
+      "runHint_one": "1 prompt em 1 motor. Nada é digitado ou guardado.",
+      "runHint_other": "{{count}} pares prompt-motor. Nada é digitado ou guardado.",
       "running": "Executando...",
       "rerun": "Executar novamente",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 caractere alterado",
         "charsChanged_other": "{{count}} caracteres alterados",
         "identical": "Nenhuma alteração."
-      }
+      },
+      "resultsEmptyTitle": "Os resultados aparecerão aqui",
+      "resultsEmptyHint": "Escolha acima a origem, os prompts e os motores e execute. Cada cartão mostra o texto polido, as alterações e a velocidade."
     }
   },
   "footer": {

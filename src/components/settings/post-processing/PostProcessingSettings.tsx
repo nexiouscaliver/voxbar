@@ -18,19 +18,18 @@ import {
 } from "@/components/ui";
 import Badge from "../../ui/Badge";
 import { Button } from "../../ui/Button";
-import { ResetButton } from "../../ui/ResetButton";
 import { Input } from "../../ui/Input";
 
 import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
 import { BaseUrlField } from "../PostProcessingSettingsApi/BaseUrlField";
 import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
-import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { PostProcessModelsSection } from "./PostProcessModelsSection";
 import { ShortcutInput } from "../ShortcutInput";
 import { shortcutRowDisabled } from "../shortcutGating";
 import { openPromptStudio } from "../studio/studioEvents";
 import { useSettings } from "../../../hooks/useSettings";
+import { showLocalRow } from "./localLlmRouting";
 
 /// One line under the provider selector that renders the Test Connection
 /// verdict: the ok path names auth, latency and model reachability; the
@@ -295,85 +294,22 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
       )}
 
       {!state.isAppleProvider && !state.isLocalProvider && (
-        <SettingContainer
-          title={t("settings.postProcessing.api.model.title")}
+        <CloudModelPicker
+          model={state.model}
+          modelOptions={state.modelOptions}
+          isModelUpdating={state.isModelUpdating}
+          isFetchingModels={state.isFetchingModels}
+          modelFetchError={state.modelFetchError}
+          modelListFetchedAtUnix={state.modelListFetchedAtUnix}
           description={
             state.isCustomProvider
               ? t("settings.postProcessing.api.model.descriptionCustom")
-              : t("settings.postProcessing.api.model.descriptionDefault")
+              : t("settings.postProcessing.api.model.visibleDescription")
           }
-          descriptionMode="tooltip"
-          layout="stacked"
-          grouped={true}
-        >
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <ModelSelect
-                value={state.model}
-                options={state.modelOptions}
-                disabled={state.isModelUpdating}
-                isLoading={state.isFetchingModels}
-                placeholder={
-                  state.modelOptions.length > 0
-                    ? t(
-                        "settings.postProcessing.api.model.placeholderWithOptions",
-                      )
-                    : t(
-                        "settings.postProcessing.api.model.placeholderNoOptions",
-                      )
-                }
-                onSelect={state.handleModelSelect}
-                onCreate={state.handleModelCreate}
-                onBlur={() => {}}
-                className="flex-1 min-w-[380px]"
-              />
-              <ResetButton
-                onClick={state.handleRefreshModels}
-                disabled={state.isFetchingModels}
-                ariaLabel={t("settings.postProcessing.api.model.refreshModels")}
-                className="flex h-10 w-10 items-center justify-center"
-              >
-                <RefreshCcw
-                  className={`h-4 w-4 ${state.isFetchingModels ? "animate-spin" : ""}`}
-                />
-              </ResetButton>
-            </div>
-
-            {state.modelFetchError && (
-              <Alert variant="error" contained>
-                <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
-                  <span className="text-sm">
-                    {t("settings.postProcessing.api.model.fetchFailed", {
-                      failureClass: state.modelFetchError.kind,
-                      detail: state.modelFetchError.detail,
-                    })}
-                  </span>
-                  <Button
-                    onClick={state.handleRefreshModels}
-                    variant="secondary"
-                    size="sm"
-                    disabled={state.isFetchingModels}
-                    className="shrink-0"
-                  >
-                    {t("settings.postProcessing.api.model.retry")}
-                  </Button>
-                </div>
-              </Alert>
-            )}
-
-            {!state.modelFetchError &&
-              state.modelListFetchedAtUnix !== null &&
-              state.modelOptions.length > 0 && (
-                <p className="text-xs text-secondary/70">
-                  {t("settings.postProcessing.api.model.fetchedAtHint", {
-                    time: new Date(
-                      state.modelListFetchedAtUnix * 1000,
-                    ).toLocaleString(),
-                  })}
-                </p>
-              )}
-          </div>
-        </SettingContainer>
+          onSelect={state.handleModelSelect}
+          onCreate={state.handleModelCreate}
+          onRefresh={state.handleRefreshModels}
+        />
       )}
 
       {!state.isAppleProvider &&
@@ -382,6 +318,209 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
           <PostProcessTimeoutRow provider={state.selectedProvider} />
         )}
     </>
+  );
+};
+
+/// One selectable model id in the cloud model list (W1-L9 visual pass):
+/// the same check-row pattern the Prompt Studio uses, so picking a model
+/// reads as an explicit, visible choice instead of a value hidden inside
+/// a closed combobox.
+const ModelOptionRow: React.FC<{
+  modelId: string;
+  selected: boolean;
+  disabled?: boolean;
+  onSelect: () => void;
+  activeLabel: string;
+}> = ({ modelId, selected, disabled, onSelect, activeLabel }) => (
+  <button
+    type="button"
+    role="radio"
+    aria-checked={selected}
+    onClick={onSelect}
+    disabled={disabled}
+    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md border text-left transition-colors ${
+      selected
+        ? "border-logo-primary bg-logo-primary/5"
+        : "border-mid-gray/20 hover:bg-mid-gray/10"
+    } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+  >
+    <span
+      className={`h-3.5 w-3.5 shrink-0 rounded-full border ${
+        selected
+          ? "border-logo-primary bg-logo-primary/80"
+          : "border-mid-gray/50"
+      }`}
+      aria-hidden="true"
+    />
+    <span className="min-w-0 flex-1 font-mono text-xs truncate" title={modelId}>
+      {modelId}
+    </span>
+    {selected ? (
+      <Badge variant="primary" className="shrink-0 px-1.5 py-0.5">
+        {activeLabel}
+      </Badge>
+    ) : null}
+  </button>
+);
+
+/// The cloud model selection surface (W1-L9 visual pass): a visible list
+/// of the models the provider's key can see (radio rows), an explicit
+/// custom-id input for anything not listed, a labeled refresh action with
+/// the fetched-at hint, and honest empty/loading/error states. Replaces
+/// the bare creatable combobox whose only affordance was a closed box
+/// with an unlabeled icon button next to it.
+const CloudModelPicker: React.FC<{
+  model: string;
+  modelOptions: { value: string; label: string }[];
+  isModelUpdating: boolean;
+  isFetchingModels: boolean;
+  modelFetchError: { kind: string; detail: string } | null;
+  modelListFetchedAtUnix: number | null;
+  /** The row description: provider-class aware (custom endpoints need the
+   * "identifier your endpoint expects" wording). */
+  description: string;
+  onSelect: (value: string) => void;
+  onCreate: (value: string) => void;
+  onRefresh: () => void;
+}> = ({
+  model,
+  modelOptions,
+  isModelUpdating,
+  isFetchingModels,
+  modelFetchError,
+  modelListFetchedAtUnix,
+  description,
+  onSelect,
+  onCreate,
+  onRefresh,
+}) => {
+  const { t } = useTranslation();
+  const [customId, setCustomId] = useState("");
+  const base = "settings.postProcessing.api.model";
+
+  const applyCustomId = () => {
+    const trimmed = customId.trim();
+    if (!trimmed) return;
+    onCreate(trimmed);
+    setCustomId("");
+  };
+
+  return (
+    <SettingContainer
+      title={t(`${base}.title`)}
+      description={isFetchingModels ? t(`${base}.fetchingList`) : description}
+      descriptionMode="inline"
+      layout="stacked"
+      grouped={true}
+    >
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-secondary/70">
+            {isFetchingModels
+              ? t(`${base}.fetchingList`)
+              : modelOptions.length > 0
+                ? t(`${base}.listSummary`, {
+                    count: modelOptions.length,
+                    time:
+                      modelListFetchedAtUnix !== null
+                        ? new Date(
+                            modelListFetchedAtUnix * 1000,
+                          ).toLocaleTimeString()
+                        : "",
+                  })
+                : t(`${base}.notFetched`)}
+          </p>
+          <Button
+            onClick={onRefresh}
+            variant="secondary"
+            size="sm"
+            disabled={isFetchingModels}
+            className="shrink-0 flex items-center gap-1.5"
+          >
+            <RefreshCcw
+              className={`h-3.5 w-3.5 ${isFetchingModels ? "animate-spin" : ""}`}
+            />
+            {t(`${base}.refreshModels`)}
+          </Button>
+        </div>
+
+        {modelFetchError ? (
+          <Alert variant="error" contained>
+            <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+              <span className="text-sm">
+                {t(`${base}.fetchFailed`, {
+                  failureClass: modelFetchError.kind,
+                  detail: modelFetchError.detail,
+                })}
+              </span>
+              <Button
+                onClick={onRefresh}
+                variant="secondary"
+                size="sm"
+                disabled={isFetchingModels}
+                className="shrink-0"
+              >
+                {t(`${base}.retry`)}
+              </Button>
+            </div>
+          </Alert>
+        ) : modelOptions.length > 0 ? (
+          <div
+            role="radiogroup"
+            aria-label={t(`${base}.title`)}
+            className="grid gap-1.5 sm:grid-cols-2"
+          >
+            {modelOptions.map((option) => (
+              <ModelOptionRow
+                key={option.value}
+                modelId={option.value}
+                selected={model === option.value}
+                disabled={isModelUpdating}
+                onSelect={() => onSelect(option.value)}
+                activeLabel={t("settings.postProcessing.models.active")}
+              />
+            ))}
+          </div>
+        ) : (
+          !isFetchingModels && (
+            <div className="rounded-md border border-dashed border-mid-gray/40 px-3 py-4 text-center">
+              <p className="text-sm text-secondary">
+                {t(`${base}.emptyTitle`)}
+              </p>
+              <p className="mt-1 text-xs text-secondary/70">
+                {t(`${base}.emptyHint`)}
+              </p>
+            </div>
+          )
+        )}
+
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center gap-2">
+            <Input
+              type="text"
+              value={customId}
+              onChange={(event) => setCustomId(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") applyCustomId();
+              }}
+              placeholder={t(`${base}.placeholderNoOptions`)}
+              variant="compact"
+              className="flex-1 min-w-0 font-mono"
+            />
+            <Button
+              onClick={applyCustomId}
+              variant="secondary"
+              size="sm"
+              disabled={!customId.trim() || isModelUpdating}
+              className="shrink-0"
+            >
+              {t(`${base}.customSet`)}
+            </Button>
+          </div>
+          <p className="text-xs text-secondary/70">{t(`${base}.customHint`)}</p>
+        </div>
+      </div>
+    </SettingContainer>
   );
 };
 
@@ -427,8 +566,12 @@ const TemplateRow: React.FC<{
           : "border-mid-gray/20"
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+      {/* W1-L9 visual pass: the actions moved to their own wrapping row
+          below the identity block. The old single line (name + 4 badges +
+          5 buttons, one of them labeled "Test on my last transcript")
+          overflowed the card horizontally at the default window width. */}
+      <div className="flex flex-col gap-2">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm font-medium truncate">{displayName}</span>
             <Badge variant="secondary">{prompt.language}</Badge>
@@ -452,7 +595,7 @@ const TemplateRow: React.FC<{
             </p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Button
             onClick={onSelect}
             variant="secondary"
@@ -467,8 +610,13 @@ const TemplateRow: React.FC<{
           <Button onClick={onDuplicate} variant="secondary" size="sm">
             {t(`${base}.duplicate`)}
           </Button>
-          <Button onClick={onTest} variant="secondary" size="sm">
-            {t(`${base}.testOnLastTranscript`)}
+          <Button
+            onClick={onTest}
+            variant="secondary"
+            size="sm"
+            title={t(`${base}.testOnLastTranscript`)}
+          >
+            {t(`${base}.testShort`)}
           </Button>
           <Button
             onClick={onDelete}
@@ -476,7 +624,7 @@ const TemplateRow: React.FC<{
             size="sm"
             disabled={!canDelete}
           >
-            {t(`${base}.deletePrompt`)}
+            {t(`${base}.deleteShort`)}
           </Button>
         </div>
       </div>
@@ -843,7 +991,16 @@ export const PostProcessingSettings: React.FC = () => {
         />
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.postProcessing.api.title")}>
+      <SettingsGroup
+        // W1-L9 visual pass: "API (OpenAI Compatible)" lied when the local
+        // on-device engine was the selected provider; the group header now
+        // names the surface it actually shows.
+        title={
+          showLocalRow(settings?.post_process_provider_id ?? "")
+            ? t("settings.postProcessing.api.titleLocal")
+            : t("settings.postProcessing.api.title")
+        }
+      >
         <PostProcessingSettingsApi />
       </SettingsGroup>
 

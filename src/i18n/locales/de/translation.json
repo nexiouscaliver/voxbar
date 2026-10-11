@@ -742,7 +742,16 @@
           "refreshModels": "Modelle aktualisieren",
           "fetchFailed": "Abruf der Modellliste fehlgeschlagen ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Modellliste abgerufen {{time}}",
-          "retry": "Erneut versuchen"
+          "retry": "Erneut versuchen",
+          "visibleDescription": "Das Modell, das dein Transkript nach jedem Diktat neu schreibt.",
+          "fetchingList": "Modellliste wird geladen...",
+          "listSummary_one": "1 Modell, geladen {{time}}",
+          "listSummary_other": "{{count}} Modelle, geladen {{time}}",
+          "notFetched": "Noch keine Modellliste.",
+          "emptyTitle": "Keine Modelle gelistet",
+          "emptyHint": "Lade die Modelle neu, die dieser Schlüssel sieht, oder tippe unten eine Modell-ID ein.",
+          "customSet": "Setzen",
+          "customHint": "Jede Modell-ID deines Anbieters funktioniert, auch wenn sie nicht gelistet ist."
         },
         "timeout": {
           "title": "Anfrage-Timeout",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence ist verfügbar",
           "appleUnavailable": "Apple Intelligence ist auf diesem Gerät nicht verfügbar",
           "failed": "Verbindung fehlgeschlagen: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Engine"
       },
       "local": {
         "label": "Lokales Modell",
@@ -900,7 +910,9 @@
             "description": "Macht eine diktierte Anweisung zu einem klaren, strukturierten Prompt für einen KI-Agenten oder eine App."
           }
         },
-        "editPrompt": "Bearbeiten"
+        "editPrompt": "Bearbeiten",
+        "testShort": "Testen",
+        "deleteShort": "Löschen"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Prompt-Studio",
-      "intro": "Führe einen oder mehrere Prompts auf einem echten Transkript aus und vergleiche Engines direkt nebeneinander. Studio-Läufe nutzen dieselbe Pipeline wie Diktate, fügen aber nichts ein und schreiben keine Verlaufszeilen.",
+      "intro": "Teste Prompts auf einem echten Transkript und vergleiche Engines nebeneinander. Läufe nutzen dieselbe Engine-Pipeline wie ein echtes Diktat, aber es wird nichts in andere Apps eingetippt und nichts im Verlauf gespeichert.",
       "source": {
         "label": "Quelltext",
         "description": "Das Transkript, das das Studio verarbeitet: dein letztes Diktat oder ein beliebiger Verlaufseintrag.",
@@ -1159,12 +1171,13 @@
         "label": "Engines",
         "description": "Wähle eine oder mehrere Engines, auf denen sie laufen.",
         "appleUnavailable": "Apple Intelligence ist auf diesem Mac nicht verfügbar",
-        "noModel": "Kein Modell konfiguriert"
+        "noModel": "Kein Modell konfiguriert",
+        "noModelHint": "Kein Modell gesetzt. Wähle eines unter Post Process."
       },
       "run_one": "1 Paar ausführen",
       "run_other": "{{count}} Paare ausführen",
-      "runHint_one": "1 Prompt- und Engine-Paar ausgewählt",
-      "runHint_other": "{{count}} Prompt- und Engine-Paare ausgewählt",
+      "runHint_one": "1 Prompt auf 1 Engine. Es wird nichts eingetippt oder gespeichert.",
+      "runHint_other": "{{count}} Prompt-Engine-Paare. Es wird nichts eingetippt oder gespeichert.",
       "running": "Wird ausgeführt...",
       "rerun": "Erneut ausführen",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 Zeichen geändert",
         "charsChanged_other": "{{count}} Zeichen geändert",
         "identical": "Keine Änderungen."
-      }
+      },
+      "resultsEmptyTitle": "Ergebnisse erscheinen hier",
+      "resultsEmptyHint": "Wähle oben Quelle, Prompts und Engines und führe sie aus. Jede Karte zeigt den bearbeiteten Text, seine Änderungen und wie schnell er lief."
     }
   },
   "footer": {

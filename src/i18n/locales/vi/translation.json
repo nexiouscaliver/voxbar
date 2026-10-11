@@ -742,7 +742,16 @@
           "refreshModels": "Làm mới mô hình",
           "fetchFailed": "Không lấy được danh sách mô hình ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Danh sách mô hình đã lấy {{time}}",
-          "retry": "Thử lại"
+          "retry": "Thử lại",
+          "visibleDescription": "Mô hình viết lại bản ghi của bạn sau mỗi lần đọc chính tả.",
+          "fetchingList": "Đang tải danh sách mô hình...",
+          "listSummary_one": "1 mô hình, tải lúc {{time}}",
+          "listSummary_other": "{{count}} mô hình, tải lúc {{time}}",
+          "notFetched": "Chưa có danh sách mô hình.",
+          "emptyTitle": "Không có mô hình nào trong danh sách",
+          "emptyHint": "Làm mới để tải các mô hình mà khóa này nhìn thấy, hoặc gõ id mô hình bên dưới.",
+          "customSet": "Đặt",
+          "customHint": "Bất kỳ id mô hình nào nhà cung cấp của bạn hỗ trợ đều dùng được, kể cả khi không có trong danh sách."
         },
         "timeout": {
           "title": "Thời gian chờ yêu cầu",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence khả dụng",
           "appleUnavailable": "Apple Intelligence không khả dụng trên thiết bị này",
           "failed": "Kết nối thất bại: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Engine"
       },
       "local": {
         "label": "Mô hình cục bộ",
@@ -900,7 +910,9 @@
             "description": "Biến chỉ dẫn được đọc thành một prompt rõ ràng, có cấu trúc cho agent AI hoặc ứng dụng."
           }
         },
-        "editPrompt": "Sửa"
+        "editPrompt": "Sửa",
+        "testShort": "Thử",
+        "deleteShort": "Xóa"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Xưởng prompt",
-      "intro": "Chạy một hoặc nhiều prompt trên một bản ghi thực và so sánh các engine cạnh nhau. Các lần chạy trong xưởng dùng cùng đường ống như đọc chính tả, nhưng không bao giờ dán gì và không bao giờ ghi lịch sử.",
+      "intro": "Thử prompt trên bản ghi thật và so sánh các engine cạnh nhau. Lần chạy dùng cùng đường ống engine như một lần đọc chính tả thật, nhưng không gõ gì vào ứng dụng khác và không lưu gì vào lịch sử.",
       "source": {
         "label": "Văn bản nguồn",
         "description": "Bản ghi mà xưởng tôi sửa: lần đọc chính tả gần nhất hoặc bất kỳ mục lịch sử nào.",
@@ -1159,12 +1171,13 @@
         "label": "Engine",
         "description": "Chọn một hoặc nhiều engine để chạy chúng.",
         "appleUnavailable": "Apple Intelligence không khả dụng trên Mac này",
-        "noModel": "Chưa cấu hình mô hình"
+        "noModel": "Chưa cấu hình mô hình",
+        "noModelHint": "Chưa đặt mô hình. Chọn một mô hình trong Post Process."
       },
       "run_one": "Chạy 1 cặp",
       "run_other": "Chạy {{count}} cặp",
-      "runHint_one": "Đã chọn 1 cặp prompt và engine",
-      "runHint_other": "Đã chọn {{count}} cặp prompt và engine",
+      "runHint_one": "1 prompt trên 1 engine. Không gõ hay lưu gì.",
+      "runHint_other": "{{count}} cặp prompt-engine. Không gõ hay lưu gì.",
       "running": "Đang chạy...",
       "rerun": "Chạy lại",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 ký tự thay đổi",
         "charsChanged_other": "{{count}} ký tự thay đổi",
         "identical": "Không có thay đổi."
-      }
+      },
+      "resultsEmptyTitle": "Kết quả sẽ hiện ở đây",
+      "resultsEmptyHint": "Chọn nguồn, prompt và engine ở trên rồi chạy. Mỗi thẻ hiển thị văn bản đã chỉnh, các thay đổi và tốc độ."
     }
   },
   "footer": {

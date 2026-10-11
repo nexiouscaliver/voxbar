@@ -457,6 +457,14 @@
       s.settings.debug_mode = true;
       s.settings.post_process_enabled = true;
     },
+    // Post-process on with a cloud provider selected and a key present:
+    // the cloud model-selection surface (API key, model dropdown, timeout).
+    "settings-pp-cloud": (s) => {
+      SCENARIOS["settings-default"](s);
+      s.settings.post_process_enabled = true;
+      s.settings.post_process_provider_id = "openai";
+      s.settings.post_process_api_keys.openai = "sk-mock-key-0123456789abcdef";
+    },
     // User who upgraded but has not seen the release notes yet.
     "whats-new": (s) => {
       SCENARIOS["settings-default"](s);
@@ -624,6 +632,42 @@
       size_mb: 644,
       progress: 100,
     }),
+    // The local post-process catalog: the pinned Qwen model downloaded and
+    // selected, one more available to download. This drives the default
+    // pinned-only surface (row + "Browse more models" affordance); the
+    // catalog grid appears once that affordance is clicked (session state).
+    get_available_llm_models: () => [
+      {
+        info: {
+          id: "Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf",
+          name: "Qwen3 0.6B (post-process)",
+          description: "Small, fast on-device polisher for transcripts.",
+          size_mb: 644,
+          is_downloaded: true,
+          is_downloading: false,
+          context_tokens: 8192,
+        },
+        quant: "Q8_0",
+        context_tokens: 8192,
+        publisher: "Qwen",
+        selected: true,
+      },
+      {
+        info: {
+          id: "Qwen/Qwen3-1.7B-GGUF/Qwen3-1.7B-Q4_K_M.gguf",
+          name: "Qwen3 1.7B (post-process)",
+          description: "Larger polisher with better grammar fixes.",
+          size_mb: 1120,
+          is_downloaded: false,
+          is_downloading: false,
+          context_tokens: 8192,
+        },
+        quant: "Q4_K_M",
+        context_tokens: 8192,
+        publisher: "Qwen",
+        selected: false,
+      },
+    ],
     download_local_llm_model: () => null,
     delete_local_llm_model: () => null,
     get_available_accelerators: () => ({

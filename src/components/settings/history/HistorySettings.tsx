@@ -339,7 +339,7 @@ export const HistorySettings: React.FC = () => {
       <div className="space-y-2">
         <div className="px-4 flex items-center justify-between">
           <div>
-            <h2 className="text-xs font-medium text-secondary uppercase tracking-wide">
+            <h2 className="text-xs font-semibold text-text/70 uppercase tracking-wide">
               {t("settings.history.title")}
             </h2>
           </div>
@@ -464,7 +464,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           </p>
           {showModelBadge && entry.model_id ? (
             <span
-              className="px-1.5 py-0.5 text-xs leading-none font-medium rounded bg-mid-gray/20 text-secondary truncate"
+              className="px-1.5 py-0.5 text-xs leading-none font-medium rounded bg-mid-gray/20 text-secondary truncate min-w-0 max-w-[16rem]"
               title={`${t("settings.history.model")}: ${entry.model_id}`}
             >
               {/* The short tail of the id (segment after the last '/') so the
@@ -479,7 +479,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
            * carry no summary and render exactly as before. */}
           {showModelBadge && entry.post_process_model ? (
             <span
-              className="px-1.5 py-0.5 text-xs leading-none font-medium rounded bg-mid-gray/10 text-text/60 truncate"
+              className="px-1.5 py-0.5 text-xs leading-none font-medium rounded bg-mid-gray/10 text-text/60 truncate min-w-0 max-w-[16rem]"
               title={`${t("settings.history.viaPostProcess", {
                 model: entry.post_process_model,
                 prompt: promptName ?? entry.post_process_prompt_id ?? "-",
@@ -557,7 +557,10 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           retrying
             ? ""
             : hasTranscription
-              ? "text-text/90 select-text cursor-text whitespace-pre-wrap break-words"
+              ? // W1-L9 visual pass: the transcript is the payload of this
+                // tab, so it carries full-strength text; metadata around it
+                // stays secondary.
+                "text-text select-text cursor-text whitespace-pre-wrap break-words"
               : "text-text/40"
         }`}
         style={

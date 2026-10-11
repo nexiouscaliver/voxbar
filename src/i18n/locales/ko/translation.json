@@ -742,7 +742,16 @@
           "refreshModels": "모델 새로고침",
           "fetchFailed": "모델 목록을 가져오지 못했습니다 ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "모델 목록을 {{time}}에 가져왔습니다",
-          "retry": "다시 시도"
+          "retry": "다시 시도",
+          "visibleDescription": "받아쓰기가 끝날 때마다 전사문을 다시 써 주는 모델입니다.",
+          "fetchingList": "모델 목록을 가져오는 중...",
+          "listSummary_one": "모델 1개, {{time}}에 가져옴",
+          "listSummary_other": "모델 {{count}}개, {{time}}에 가져옴",
+          "notFetched": "아직 모델 목록이 없습니다.",
+          "emptyTitle": "목록에 모델 없음",
+          "emptyHint": "새로 고침하면 이 키로 볼 수 있는 모델을 불러옵니다. 또는 아래에 모델 ID를 입력하세요.",
+          "customSet": "설정",
+          "customHint": "목록에 없어도 공급자가 제공하는 모델 ID라면 사용할 수 있습니다."
         },
         "timeout": {
           "title": "요청 시간 제한",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence를 사용할 수 있습니다",
           "appleUnavailable": "이 기기에서는 Apple Intelligence를 사용할 수 없습니다",
           "failed": "연결 실패: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "엔진"
       },
       "local": {
         "label": "로컬 모델",
@@ -900,7 +910,9 @@
             "description": "받아쓴 지시를 AI 에이전트나 앱을 위한 명확하고 구조화된 프롬프트로 바꿉니다."
           }
         },
-        "editPrompt": "편집"
+        "editPrompt": "편집",
+        "testShort": "테스트",
+        "deleteShort": "삭제"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "프롬프트 스튜디오",
-      "intro": "실제 전사 텍스트에 하나 이상의 프롬프트를 실행하고 엔진을 나란히 비교합니다. 스튜디오 실행은 받아쓰기와 동일한 파이프라인을 사용하지만 붙여넣기도 기록 저장도 하지 않습니다.",
+      "intro": "실제 전사문으로 프롬프트를 테스트하고 엔진을 나란히 비교하세요. 실행은 실제 받아쓰기와 같은 엔진 파이프라인을 사용하지만 다른 앱에 아무것도 입력하지 않고 기록에도 저장하지 않습니다.",
       "source": {
         "label": "원본 텍스트",
         "description": "스튜디오가 다듬을 전사 텍스트: 최근 받아쓰기 또는 아무 기록 항목.",
@@ -1159,12 +1171,13 @@
         "label": "엔진",
         "description": "실행할 엔진을 하나 이상 선택하세요.",
         "appleUnavailable": "이 Mac에서는 Apple Intelligence를 사용할 수 없습니다",
-        "noModel": "모델이 구성되지 않았습니다"
+        "noModel": "모델이 구성되지 않았습니다",
+        "noModelHint": "모델이 설정되지 않았습니다. Post Process에서 선택하세요."
       },
       "run_one": "1쌍 실행",
       "run_other": "{{count}}쌍 실행",
-      "runHint_one": "프롬프트와 엔진 1쌍 선택됨",
-      "runHint_other": "프롬프트와 엔진 {{count}}쌍 선택됨",
+      "runHint_one": "엔진 1개에 프롬프트 1개. 아무것도 입력하거나 저장하지 않습니다.",
+      "runHint_other": "프롬프트-엔진 조합 {{count}}개. 아무것도 입력하거나 저장하지 않습니다.",
       "running": "실행 중...",
       "rerun": "다시 실행",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1자 변경됨",
         "charsChanged_other": "{{count}}자 변경됨",
         "identical": "변경 사항 없음."
-      }
+      },
+      "resultsEmptyTitle": "결과가 여기에 표시됩니다",
+      "resultsEmptyHint": "위에서 소스, 프롬프트, 엔진을 선택하고 실행하세요. 각 카드에 다듬은 텍스트, 변경 사항, 속도가 표시됩니다."
     }
   },
   "footer": {

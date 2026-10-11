@@ -742,7 +742,16 @@
           "refreshModels": "Aggiorna modelli",
           "fetchFailed": "Recupero dell'elenco modelli non riuscito ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Elenco modelli ottenuto {{time}}",
-          "retry": "Riprova"
+          "retry": "Riprova",
+          "visibleDescription": "Il modello che riscrive la trascrizione dopo ogni dettatura.",
+          "fetchingList": "Recupero dell'elenco dei modelli...",
+          "listSummary_one": "1 modello, recuperato {{time}}",
+          "listSummary_other": "{{count}} modelli, recuperati {{time}}",
+          "notFetched": "Nessun elenco di modelli.",
+          "emptyTitle": "Nessun modello in elenco",
+          "emptyHint": "Aggiorna per caricare i modelli visibili con questa chiave, oppure digita un id modello sotto.",
+          "customSet": "Imposta",
+          "customHint": "Qualsiasi id modello del tuo provider funziona, anche se non è in elenco."
         },
         "timeout": {
           "title": "Timeout della richiesta",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence è disponibile",
           "appleUnavailable": "Apple Intelligence non è disponibile su questo dispositivo",
           "failed": "Connessione non riuscita: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Motore"
       },
       "local": {
         "label": "Modello locale",
@@ -900,7 +910,9 @@
             "description": "Trasforma un'istruzione dettata in un prompt chiaro e strutturato per un agente IA o un'app."
           }
         },
-        "editPrompt": "Modifica"
+        "editPrompt": "Modifica",
+        "testShort": "Prova",
+        "deleteShort": "Elimina"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Studio dei prompt",
-      "intro": "Esegui uno o più prompt su una trascrizione reale e confronta i motori fianco a fianco. Le esecuzioni dello studio usano la stessa pipeline della dettatura, ma non incollano nulla e non scrivono cronologia.",
+      "intro": "Prova i prompt su una trascrizione reale e confronta i motori fianco a fianco. Le esecuzioni usano la stessa pipeline di una dettatura reale, ma nulla viene digitato in altre app e nulla viene salvato nella cronologia.",
       "source": {
         "label": "Testo di origine",
         "description": "La trascrizione che lo studio rifinisce: l'ultima dettatura o qualsiasi voce della cronologia.",
@@ -1159,12 +1171,13 @@
         "label": "Motori",
         "description": "Scegli uno o più motori su cui eseguirli.",
         "appleUnavailable": "Apple Intelligence non è disponibile su questo Mac",
-        "noModel": "Nessun modello configurato"
+        "noModel": "Nessun modello configurato",
+        "noModelHint": "Nessun modello impostato. Scegline uno in Post Process."
       },
       "run_one": "Esegui 1 coppia",
       "run_other": "Esegui {{count}} coppie",
-      "runHint_one": "1 coppia prompt e motore selezionata",
-      "runHint_other": "{{count}} coppie prompt e motore selezionate",
+      "runHint_one": "1 prompt su 1 motore. Nulla viene digitato o salvato.",
+      "runHint_other": "{{count}} coppie prompt-motore. Nulla viene digitato o salvato.",
       "running": "Esecuzione...",
       "rerun": "Esegui di nuovo",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 carattere modificato",
         "charsChanged_other": "{{count}} caratteri modificati",
         "identical": "Nessuna modifica."
-      }
+      },
+      "resultsEmptyTitle": "I risultati appariranno qui",
+      "resultsEmptyHint": "Scegli sopra origine, prompt e motori, quindi esegui. Ogni scheda mostra il testo rifinito, le modifiche e la velocità."
     }
   },
   "footer": {

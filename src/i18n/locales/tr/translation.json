@@ -742,7 +742,16 @@
           "refreshModels": "Modelleri Yenile",
           "fetchFailed": "Model listesi alınamadı ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Model listesi {{time}} tarihinde alındı",
-          "retry": "Yeniden dene"
+          "retry": "Yeniden dene",
+          "visibleDescription": "Her diktemden sonra transkriptinizi yeniden yazan model.",
+          "fetchingList": "Model listesi alınıyor...",
+          "listSummary_one": "1 model, {{time}} tarihinde alındı",
+          "listSummary_other": "{{count}} model, {{time}} tarihinde alındı",
+          "notFetched": "Henüz model listesi yok.",
+          "emptyTitle": "Listede model yok",
+          "emptyHint": "Bu anahtarın gördüğü modelleri yüklemek için yenileyin veya aşağıya bir model kimliği yazın.",
+          "customSet": "Ayarla",
+          "customHint": "Listede olmasa bile sağlayıcınızın sunduğu her model kimliği çalışır."
         },
         "timeout": {
           "title": "İstek zaman aşımı",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence kullanılabilir",
           "appleUnavailable": "Apple Intelligence bu cihazda kullanılamıyor",
           "failed": "Bağlantı başarısız: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Motor"
       },
       "local": {
         "label": "Yerel model",
@@ -900,7 +910,9 @@
             "description": "Dikte edilen bir talimatı, bir yapay zeka ajanı veya uygulama için net, yapılandırılmış bir isteğe dönüştürür."
           }
         },
-        "editPrompt": "Düzenle"
+        "editPrompt": "Düzenle",
+        "testShort": "Test et",
+        "deleteShort": "Sil"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Prompt Stüdyosu",
-      "intro": "Gerçek bir transkript üzerinde bir veya daha fazla prompt çalıştırın ve motorları yan yana karşılaştırın. Stüdyo çalışmaları dikte ile aynı hattı kullanır ancak hiçbir şey yapıştırmaz ve geçmişe kaydetmez.",
+      "intro": "Promptları gerçek bir transkript üzerinde test edin ve motorları yan yana karşılaştırın. Çalıştırmalar gerçek bir diktemle aynı motor hattını kullanır ama başka uygulamalara hiçbir şey yazılmaz ve geçmişe hiçbir şey kaydedilmez.",
       "source": {
         "label": "Kaynak metin",
         "description": "Stüdyonun işlediği transkript: son diktiniz veya geçmişteki herhangi bir kayıt.",
@@ -1159,12 +1171,13 @@
         "label": "Motorlar",
         "description": "Bunları çalıştıracağınız bir veya daha fazla motor seçin.",
         "appleUnavailable": "Apple Intelligence bu Mac'te kullanılamıyor",
-        "noModel": "Yapılandırılmış model yok"
+        "noModel": "Yapılandırılmış model yok",
+        "noModelHint": "Model ayarlanmadı. Post Process altından seçin."
       },
       "run_one": "1 çift çalıştır",
       "run_other": "{{count}} çift çalıştır",
-      "runHint_one": "1 prompt ve motor çifti seçildi",
-      "runHint_other": "{{count}} prompt ve motor çifti seçildi",
+      "runHint_one": "1 motorda 1 prompt. Hiçbir şey yazılmaz veya kaydedilmez.",
+      "runHint_other": "{{count}} prompt-motor çifti. Hiçbir şey yazılmaz veya kaydedilmez.",
       "running": "Çalışıyor...",
       "rerun": "Yeniden çalıştır",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 karakter değişti",
         "charsChanged_other": "{{count}} karakter değişti",
         "identical": "Değişiklik yok."
-      }
+      },
+      "resultsEmptyTitle": "Sonuçlar burada görünecek",
+      "resultsEmptyHint": "Yukarıdan bir kaynak, promptlar ve motorlar seçip çalıştırın. Her kart cilalanmış metni, değişiklikleri ve hızını gösterir."
     }
   },
   "footer": {

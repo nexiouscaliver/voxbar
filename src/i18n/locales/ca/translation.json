@@ -742,7 +742,16 @@
           "refreshModels": "Actualitzeu els models",
           "fetchFailed": "No s'ha pogut obtenir la llista de models ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Llista de models obtinguda {{time}}",
-          "retry": "Torna-ho a provar"
+          "retry": "Torna-ho a provar",
+          "visibleDescription": "El model que reescriu la teva transcripció després de cada dictat.",
+          "fetchingList": "S'està obtenint la llista de models...",
+          "listSummary_one": "1 model, obtingut {{time}}",
+          "listSummary_other": "{{count}} models, obtinguts {{time}}",
+          "notFetched": "Encara no hi ha llista de models.",
+          "emptyTitle": "Cap model a la llista",
+          "emptyHint": "Actualitza per carregar els models que veu aquesta clau, o escriu un id de model a sota.",
+          "customSet": "Estableix",
+          "customHint": "Qualsevol id de model del teu proveïdor funciona, encara que no surti a la llista."
         },
         "timeout": {
           "title": "Temps d'espera de la sol·licitud",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence està disponible",
           "appleUnavailable": "Apple Intelligence no està disponible en aquest dispositiu",
           "failed": "La connexió ha fallat: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Motor"
       },
       "local": {
         "label": "Model local",
@@ -900,7 +910,9 @@
             "description": "Converteix una instrucció dictada en un prompt clar i estructurat per a un agent d'IA o una aplicació."
           }
         },
-        "editPrompt": "Edita"
+        "editPrompt": "Edita",
+        "testShort": "Prova",
+        "deleteShort": "Suprimeix"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "Estudi de prompts",
-      "intro": "Executa un o més prompts sobre una transcripció real i compara motors costat per costat. Les execucions de l'estudi fan servir el mateix pipeline que el dictat, però mai enganxen res ni escriuen a l'historial.",
+      "intro": "Prova prompts sobre una transcripció real i compara motors en paral·lel. Les execucions fan servir el mateix pipeline que un dictat real, però no s'escriu res a altres aplicacions i no es desa res a l'historial.",
       "source": {
         "label": "Text d'origen",
         "description": "La transcripció que l'estudi polit: l'últim dictat o qualsevol entrada de l'historial.",
@@ -1159,12 +1171,13 @@
         "label": "Motors",
         "description": "Tria un o més motors per executar-les.",
         "appleUnavailable": "Apple Intelligence no està disponible en aquest Mac",
-        "noModel": "Cap model configurat"
+        "noModel": "Cap model configurat",
+        "noModelHint": "Cap model establert. Tria'n un a Post Process."
       },
       "run_one": "Executar 1 parell",
       "run_other": "Executar {{count}} parells",
-      "runHint_one": "1 parell de prompt i motor seleccionat",
-      "runHint_other": "{{count}} parells de prompt i motor seleccionats",
+      "runHint_one": "1 prompt en 1 motor. No s'escriu ni es desa res.",
+      "runHint_other": "{{count}} parells prompt-motor. No s'escriu ni es desa res.",
       "running": "S'està executant...",
       "rerun": "Tornar a executar",
       "latency": "{{ms}} ms",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 caràcter canviat",
         "charsChanged_other": "{{count}} caràcters canviats",
         "identical": "Sense canvis."
-      }
+      },
+      "resultsEmptyTitle": "Els resultats apareixeran aquí",
+      "resultsEmptyHint": "Tria a dalt una font, prompts i motors i executa. Cada targeta mostra el text polit, els canvis i la velocitat."
     }
   },
   "footer": {

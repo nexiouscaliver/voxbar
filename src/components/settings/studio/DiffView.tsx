@@ -57,9 +57,10 @@ const DiffLineRow: React.FC<{ line: DiffLine }> = ({ line }) => {
   );
 };
 
-/** The "+2 -1 lines, 3 chars changed" chip above a diff: the numbers that
+/** The "+2 -1 lines · 3 chars changed" chip above a diff: the numbers that
  * make a 1-character polish in a wall of text visible before the diff
- * opens. */
+ * opens. The middot separates the line count from the char count so the
+ * summary reads as two facts, not one run-on sentence (W1-L9). */
 export const DiffSummaryBadge: React.FC<{
   addedLines: number;
   removedLines: number;
@@ -75,6 +76,9 @@ export const DiffSummaryBadge: React.FC<{
       <span className="text-green-500">+{addedLines}</span>
       <span className="text-red-500">-{removedLines}</span>
       <span className="text-secondary">{t("settings.studio.diff.lines")}</span>
+      <span className="text-secondary/50" aria-hidden="true">
+        &middot;
+      </span>
       <span className="text-secondary">
         {t("settings.studio.diff.charsChanged", {
           count: addedChars + removedChars,

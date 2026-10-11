@@ -742,7 +742,16 @@
           "refreshModels": "重新整理模型",
           "fetchFailed": "擷取模型清單失敗（{{failureClass}}）：{{detail}}",
           "fetchedAtHint": "模型清單擷取於 {{time}}",
-          "retry": "重試"
+          "retry": "重試",
+          "visibleDescription": "每次聽寫後改寫轉錄文字的模型。",
+          "fetchingList": "正在取得模型清單...",
+          "listSummary_one": "1 個模型，取得於 {{time}}",
+          "listSummary_other": "{{count}} 個模型，取得於 {{time}}",
+          "notFetched": "尚未取得模型清單。",
+          "emptyTitle": "清單中沒有模型",
+          "emptyHint": "重新整理以載入此金鑰可見的模型，或在下方輸入模型 ID。",
+          "customSet": "設定",
+          "customHint": "只要服務商支援，未列出的模型 ID 也可以使用。"
         },
         "timeout": {
           "title": "請求逾時",
@@ -758,7 +767,8 @@
           "appleReady": "Apple Intelligence 可用",
           "appleUnavailable": "此裝置無法使用 Apple Intelligence",
           "failed": "連線失敗：{{failureClass}}。{{detail}}"
-        }
+        },
+        "titleLocal": "引擎"
       },
       "local": {
         "label": "本地模型",
@@ -900,7 +910,9 @@
             "description": "將口述的指令轉換為面向 AI 代理或應用程式的清晰、結構化提示詞。"
           }
         },
-        "editPrompt": "編輯"
+        "editPrompt": "編輯",
+        "testShort": "測試",
+        "deleteShort": "刪除"
       }
     },
     "history": {
@@ -1144,7 +1156,7 @@
     },
     "studio": {
       "title": "提示詞工作室",
-      "intro": "在真實轉錄文字上執行一或多個提示詞，並排比較不同引擎的效果。工作室執行使用與聽寫相同的管線，但不會貼上任何內容，也不會寫入歷史記錄。",
+      "intro": "在真實轉錄文字上測試提示詞，並排比較各引擎。執行使用與真實聽寫相同的引擎管線，但不會向其他應用輸入任何內容，也不會存入歷史記錄。",
       "source": {
         "label": "來源文字",
         "description": "工作室要潤飾的轉錄文字：最近一次聽寫或任意歷史項目。",
@@ -1159,12 +1171,13 @@
         "label": "引擎",
         "description": "選擇一或多個要執行的引擎。",
         "appleUnavailable": "此 Mac 不支援 Apple Intelligence",
-        "noModel": "未設定模型"
+        "noModel": "未設定模型",
+        "noModelHint": "未設定模型。請在 Post Process 中選擇。"
       },
       "run_one": "執行 1 組",
       "run_other": "執行 {{count}} 組",
-      "runHint_one": "已選取 1 組提示詞與引擎",
-      "runHint_other": "已選取 {{count}} 組提示詞與引擎",
+      "runHint_one": "1 個提示詞在 1 個引擎上執行。不會輸入或儲存任何內容。",
+      "runHint_other": "{{count}} 組提示詞與引擎。不會輸入或儲存任何內容。",
       "running": "執行中...",
       "rerun": "重新執行",
       "latency": "{{ms}} 毫秒",
@@ -1182,7 +1195,9 @@
         "charsChanged_one": "1 個字元變更",
         "charsChanged_other": "{{count}} 個字元變更",
         "identical": "無變更。"
-      }
+      },
+      "resultsEmptyTitle": "結果會顯示在這裡",
+      "resultsEmptyHint": "在上方選擇來源、提示詞與引擎後執行。每張卡片會顯示潤飾後的文字、變更內容與執行速度。"
     }
   },
   "footer": {

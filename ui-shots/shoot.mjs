@@ -453,6 +453,32 @@ const shots = [
     },
   })),
 
+  // ---- Prompt Studio (v1.6.0 W1-L6: always enabled) ----
+  {
+    name: "settings-studio",
+    scenario: "settings-default",
+    url: MAIN,
+    viewport: { width: 680, height: 570 },
+    prepare: async (page) => {
+      await openMain(page);
+      await clickSidebar(page, "Prompt Studio");
+    },
+  },
+
+  // ---- Post Process tab on a cloud provider (model selection surface) ----
+  {
+    name: "settings-postprocessing-cloud",
+    scenario: "settings-pp-cloud",
+    url: MAIN,
+    viewport: { width: 680, height: 570 },
+    prepare: async (page) => {
+      await openMain(page);
+      await clickSidebar(page, "Post Process");
+      // Let the on-open model-list fetch resolve and render.
+      await settle(900);
+    },
+  },
+
   // ---- footer (clipped to the footer element on the general tab) ----
   {
     name: "footer",
