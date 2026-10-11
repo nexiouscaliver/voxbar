@@ -27,6 +27,11 @@ import {
   writeCachedLanguage,
   writeCachedPlacement,
 } from "./overlayBootstrap";
+import {
+  POST_PROCESS_BADGE_EVENT,
+  ppBadgeStateFromPayload,
+  type PpBadgePayload,
+} from "./ppBadge";
 
 type OverlayState =
   | "recording"
@@ -309,15 +314,19 @@ const RecordingOverlay: React.FC = () => {
       // The session's post-process badge (v1.6.0 W1-L7): lit while the live
       // session will be post-processed, naming the active template. The
       // coordinator emits on/off on every path (start, mid-session toggle,
-      // session end, cancel) and the cycle-prompt path re-emits the on edge
-      // with a fresh name, so the chip tracks the truth without polling.
-      const unlistenPpBadge = await listen<{
-        active?: boolean;
-        template?: string | null;
-      }>("post-process-changed", (event) => {
-        setPpActive(Boolean(event.payload?.active));
-        setPpTemplate(event.payload?.template ?? null);
-      });
+      // session end, cancel) and every selection change (the cycle hotkey,
+      // the settings dropdown, the tray submenu) re-emits the on edge with
+      // a fresh name, so the chip tracks the truth without polling. The
+      // event name and payload mapping live in ./ppBadge (tested against
+      // the Rust side's own pins).
+      const unlistenPpBadge = await listen<PpBadgePayload>(
+        POST_PROCESS_BADGE_EVENT,
+        (event) => {
+          const badge = ppBadgeStateFromPayload(event.payload);
+          setPpActive(badge.active);
+          setPpTemplate(badge.template);
+        },
+      );
 
       // The pp: lifecycle: Requested arms the polishing chip (model + start
       // instant); Outcome (applied | skipped | failed) clears it so the

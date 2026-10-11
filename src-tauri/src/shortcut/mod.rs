@@ -2100,11 +2100,7 @@ pub(crate) fn cycle_prompt_and_notify(app: &AppHandle) -> Result<(), String> {
     // mid-session cycle refreshes it - but only while the badge is lit; a
     // dark badge stays dark (the cycle armed the NEXT session's template,
     // nothing current).
-    if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
-        if coordinator.is_session_post_process_active() {
-            crate::transcription_coordinator::emit_post_process_badge(app, true);
-        }
-    }
+    crate::transcription_coordinator::refresh_lit_post_process_badge(app);
     tray::update_tray_menu(app);
     Ok(())
 }
@@ -2520,6 +2516,13 @@ pub fn set_post_process_selected_prompt(app: AppHandle, id: String) -> Result<()
     // KB-201 (KB-066 surface 1): the selection moves the prompt submenu's
     // checkmark and label through MenuInputs - re-sync now.
     tray::update_tray_menu(&app);
+
+    // v1.6.0 W1-L7 review fix: the settings dropdown and the tray submenu
+    // both land here, and a live post-process session's badge names the
+    // ACTIVE template - the same refresh the cycle hotkey performs, so the
+    // chip can never keep naming the template the pipeline just stopped
+    // using.
+    crate::transcription_coordinator::refresh_lit_post_process_badge(&app);
 
     Ok(())
 }
@@ -3139,6 +3142,41 @@ mod tests {
         // A dangling id degrades to the empty detail rather than panicking
         // or inventing facts.
         assert_eq!(cycle_notice_detail(&settings, "deleted_long_ago"), "");
+    }
+
+    /// Review finding (W1-L7 round 2): every path that moves the selected
+    /// template mid-session must refresh a lit PP badge - the badge names
+    /// the ACTIVE template, and the stop pipeline resolves the selection
+    /// at run time, so a stale chip would lie about what is about to run.
+    /// The two write paths need a full app a unit test cannot mount (a
+    /// Tauri command each), so both are pinned against this committed
+    /// source, the same convention as actions.rs's stop-pipeline pin: the
+    /// cycle confirm and set_post_process_selected_prompt (the one write
+    /// behind BOTH the settings dropdown and the tray prompt submenu, per
+    /// lib.rs's prompt_select routing) must keep calling the shared
+    /// refresh helper.
+    #[test]
+    fn every_selection_change_refreshes_a_lit_pp_badge() {
+        let source = include_str!("mod.rs");
+
+        for (marker, label) in [
+            ("fn cycle_prompt_and_notify", "the cycle hotkey/tray command"),
+            (
+                "fn set_post_process_selected_prompt",
+                "the settings dropdown + tray submenu write path",
+            ),
+        ] {
+            let at = source.find(marker).expect(label);
+            // Scope to the function body: from its opening brace to the
+            // next top-level `#[tauri::command]` or `///` doc boundary.
+            let rest = &source[at..];
+            let body_end = rest.find("\n#[tauri::command]").unwrap_or(rest.len());
+            let body = &rest[..body_end];
+            assert!(
+                body.contains("refresh_lit_post_process_badge"),
+                "{label} must refresh a lit PP badge after moving the selection"
+            );
+        }
     }
 
     /// Duplicating a template: fresh id, " copy" name, user flags

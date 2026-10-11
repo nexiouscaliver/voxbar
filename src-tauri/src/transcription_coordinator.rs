@@ -1330,12 +1330,29 @@ fn started_session_post_processes(
     pp_binding_start || (companion_session && companion_pref && master_enabled)
 }
 
+/// v1.6.0 W1-L7: the event name the overlay's PP badge listens for. The
+/// frontend pins the same literal (POST_PROCESS_BADGE_EVENT in
+/// src/overlay/ppBadge.ts); both sides' tests assert it, so the seam
+/// cannot drift silently.
+pub(crate) const POST_PROCESS_BADGE_EVENT: &str = "post-process-changed";
+
+/// The exact JSON the overlay's `post-process-changed` listener consumes
+/// (RecordingOverlay.tsx via ppBadgeStateFromPayload): `active` gates the
+/// chip, `template` names it (null on the off edge and when no template is
+/// selected - the chip falls back to its bare PP label, and the stop
+/// pipeline surfaces the configuration gap). Pure so the payload seam is
+/// pinnable on both sides.
+pub(crate) fn post_process_badge_payload(
+    active: bool,
+    template: Option<&str>,
+) -> serde_json::Value {
+    serde_json::json!({ "active": active, "template": template })
+}
+
 /// v1.6.0 W1-L7: emit one PP badge edge to the overlay. `active` lights the
-/// chip naming the selected template (None when no template is selected:
-/// the chip falls back to its bare PP label, and the stop pipeline surfaces
-/// the configuration gap); the off edge carries no name. Shared by the
-/// coordinator's badge notifications and the cycle-prompt refresh, so every
-/// emitter resolves the name from the same settings.
+/// chip naming the selected template; the off edge carries no name. Shared
+/// by the coordinator's badge notifications and the selection-change
+/// refresh, so every emitter resolves the name from the same settings.
 pub(crate) fn emit_post_process_badge(app: &AppHandle, active: bool) {
     use tauri::Emitter;
     let template = if active {
@@ -1345,10 +1362,26 @@ pub(crate) fn emit_post_process_badge(app: &AppHandle, active: bool) {
     };
     if let Err(e) = app.emit_to(
         "recording_overlay",
-        "post-process-changed",
-        serde_json::json!({ "active": active, "template": template }),
+        POST_PROCESS_BADGE_EVENT,
+        post_process_badge_payload(active, template.as_deref()),
     ) {
-        warn!("Failed to emit post-process-changed: {e}");
+        warn!("Failed to emit {POST_PROCESS_BADGE_EVENT}: {e}");
+    }
+}
+
+/// v1.6.0 W1-L7 review fix: refresh a LIT PP badge after the selected
+/// template changed through any path (the cycle hotkey, the settings
+/// dropdown, and the tray prompt submenu - the latter two both write
+/// through set_post_process_selected_prompt). The badge names the ACTIVE
+/// template and the stop pipeline resolves the selection at run time, so a
+/// live post-process session must hear the new name; a dark badge stays
+/// dark (no live session is consuming templates, and the next session's
+/// start arm lights it fresh).
+pub(crate) fn refresh_lit_post_process_badge(app: &AppHandle) {
+    if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
+        if coordinator.is_session_post_process_active() {
+            emit_post_process_badge(app, true);
+        }
     }
 }
 
@@ -2503,6 +2536,124 @@ mod tests {
             Some(Effect::Stop { .. })
         ));
         assert_eq!(state.session_post_process, Some(false));
+    }
+
+    /// The badge payload's exact shape, pinned against the frontend mapper
+    /// (ppBadgeStateFromPayload, src/overlay/ppBadge.ts): `active` gates
+    /// the chip, `template` names it, and the off edge (or an on edge with
+    /// no selected template) carries null - never a missing key.
+    #[test]
+    fn post_process_badge_payload_matches_the_frontend_contract() {
+        assert_eq!(
+            post_process_badge_payload(true, Some("Meeting Notes")),
+            serde_json::json!({ "active": true, "template": "Meeting Notes" })
+        );
+        // On with no selected template: the chip renders its bare PP label.
+        assert_eq!(
+            post_process_badge_payload(true, None),
+            serde_json::json!({ "active": true, "template": null })
+        );
+        // The off edge never names a template.
+        assert_eq!(
+            post_process_badge_payload(false, None),
+            serde_json::json!({ "active": false, "template": null })
+        );
+    }
+
+    /// The event name the frontend listens for, cross-pinned with the
+    /// overlay module's POST_PROCESS_BADGE_EVENT (both sides assert the
+    /// same literal, so renaming one without the other fails a test).
+    #[test]
+    fn post_process_badge_event_name_is_pinned() {
+        assert_eq!(POST_PROCESS_BADGE_EVENT, "post-process-changed");
+    }
+
+    /// Review finding (W1-L7 round 2): the emit arms need a Tauri
+    /// AppHandle a unit test cannot mount, so the WIRING that lights the
+    /// badge on each path - the Start arm's fact list, the toggle arm's
+    /// resolution and notices, and the emit's window/event/payload - is
+    /// pinned against this committed source, the same convention as
+    /// actions.rs's stop-pipeline pin. A dropped companion term in the
+    /// Start arm, a renamed payload key, or an emit aimed at the wrong
+    /// window or event fails HERE even though every pure test above stays
+    /// green.
+    #[test]
+    fn badge_wiring_is_pinned_against_the_source() {
+        let source = include_str!("transcription_coordinator.rs");
+
+        // The Start arm: gates on `started`, feeds the resolver ALL four
+        // facts (pp binding, companion binding, frozen companion pref,
+        // master toggle), and arms the mode through the single setter.
+        let run_effect_at = source.find("fn run_effect").expect("run_effect");
+        let start_arm_at = run_effect_at
+            + source[run_effect_at..]
+                .find("Effect::Start {")
+                .expect("the Start arm");
+        let start_arm_end = start_arm_at
+            + source[start_arm_at..]
+                .find("Effect::Stop {")
+                .expect("the arm boundary");
+        let start_arm = &source[start_arm_at..start_arm_end];
+        for needle in [
+            "if started",
+            "started_session_post_processes(",
+            "binding_id == POST_PROCESS_BINDING_ID",
+            "binding_id == COMPANION_BINDING_ID",
+            "session_prefs(app).post_process",
+            "post_process_enabled",
+            "set_session_post_process(Some(true))",
+        ] {
+            assert!(
+                start_arm.contains(needle),
+                "the Start arm must keep wiring `{needle}` (badge-on for a pp or companion-pp start)"
+            );
+        }
+
+        // The toggle arm: resolves through the pure flip, applies it through
+        // the single setter, and confirms both directions through the
+        // notice channel with the template's name.
+        let toggle_arm_at = run_effect_at
+            + source[run_effect_at..]
+                .find("Effect::ToggleSessionPostProcess =>")
+                .expect("the toggle arm");
+        let toggle_arm_end = toggle_arm_at
+            + source[toggle_arm_at..]
+                .find("Effect::PostProcessModeChanged")
+                .expect("the arm boundary");
+        let toggle_arm = &source[toggle_arm_at..toggle_arm_end];
+        for needle in [
+            "toggled_session_post_process(",
+            "set_session_post_process(Some(next))",
+            "NoticeCode::PostProcessSessionUpgraded",
+            "NoticeCode::PostProcessSessionDowngraded",
+            "selected_post_process_prompt_name()",
+        ] {
+            assert!(
+                toggle_arm.contains(needle),
+                "the toggle arm must keep wiring `{needle}` (mid-session switch + its confirmation)"
+            );
+        }
+
+        // The emit: the overlay window, the pinned event name, and the
+        // shared payload builder - never a hand-rolled json!.
+        let emit_at = source
+            .find("fn emit_post_process_badge")
+            .expect("emit_post_process_badge");
+        let emit_end = emit_at + source[emit_at..].find("pub(crate) fn refresh_lit").expect(
+            "the refresh helper that follows the emit fn",
+        );
+        let emit_fn = &source[emit_at..emit_end];
+        for needle in [
+            "emit_to(",
+            "\"recording_overlay\"",
+            "POST_PROCESS_BADGE_EVENT",
+            "post_process_badge_payload(",
+        ] {
+            assert!(
+                emit_fn.contains(needle),
+                "emit_post_process_badge must keep wiring `{needle}` (the overlay consumes it)"
+            );
+        }
     }
 
     #[test]
