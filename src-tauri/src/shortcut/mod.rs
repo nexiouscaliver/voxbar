@@ -982,6 +982,18 @@ fn companion_toggle_runtime_value(requested: bool, settings: &settings::AppSetti
 /// persists: `companion::init` and `change_experimental_enabled_setting`
 /// re-arm from the stored pair exactly as they do at boot.
 ///
+/// Read ordering is load-bearing (the pre-lane command and
+/// `change_experimental_enabled_setting` both keep it): the gate reads the
+/// persisted settings BEFORE apply, but the persist must re-read AFTER
+/// apply. On the enable path `CompanionManager::start` regenerates a stale
+/// pairing token and persists it mid-apply (companion/mod.rs), and the
+/// running server authenticates against that regenerated token;
+/// write_settings overwrites the whole settings object, so persisting a
+/// pre-apply snapshot would revert the token the server just armed (first
+/// enable: the QR never renders; subnet change: the QR advertises a dead
+/// token) and would stretch the lost-update window across the whole
+/// server start.
+///
 /// No stop-the-server cleanup wraps the persist step, by invariant rather
 /// than omission: this command's only Err is the failed start above, which
 /// happens before any server exists, and settings::write_settings cannot
@@ -995,8 +1007,15 @@ fn companion_toggle_runtime_value(requested: bool, settings: &settings::AppSetti
 #[tauri::command]
 #[specta::specta]
 pub fn change_companion_devices_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
+    // The gate reads the persisted settings the change lands on (the
+    // Experimental master switch); only the bool is needed, so this
+    // pre-apply read is never written back.
+    let runtime_value = companion_toggle_runtime_value(enabled, &settings::get_settings(&app));
+    crate::companion::apply_enabled(&app, runtime_value)?;
+    // Re-read AFTER apply: a fresh snapshot for the persist, so the pairing
+    // token/subnet start() may have regenerated mid-enable survive the
+    // full-store write below instead of being reverted to pre-start values.
     let mut settings = settings::get_settings(&app);
-    crate::companion::apply_enabled(&app, companion_toggle_runtime_value(enabled, &settings))?;
     settings.companion_devices_enabled = enabled;
     settings::write_settings(&app, settings);
     Ok(())
