@@ -582,14 +582,25 @@ statements found were the ledger's own stale statuses, corrected above.
 
 ## Round 7: the post-processing truth pass (the operator's "no effect" report)
 
-The trigger: the operator reported post-processing "has no effect, ever". A
-forge-time audit against his live history.db and settings store settled the
-verdict before any code was read: the pipeline WORKS. His one completed run
-(row 122, local Qwen3-0.6B, outcome=applied, 10.9s) was pasted and saved; the
-processed text differed from the raw by exactly one character in 2353 (a bare
-newline became ". ", +1 char), which no human would notice; his two later
-attempts (rows 124/125) were refused by the memory gate with a once-per-session
-info toast; and the History UI shows only the raw transcription_text anyway, so
+The trigger: the operator reported post-processing "has no effect, ever", and
+his report arrived with a live-data note saying his one post_processed_text
+row looked IDENTICAL to its raw transcription. The forge-time audit (whose
+facts the lane was told to trust) measured otherwise, and this pass re-verified
+the dispute directly, read-only, against the live history.db: row 122 holds
+transcription_text of 2353 chars and post_processed_text of 2354 chars, and
+the texts diverge at exactly one spot - the raw's bare newline in "resolve
+them as well\nunattended workflow run" became "as well. Unattended workflow
+run" (period, space, capital; +1 char). So the row is a one-character
+near-echo, not byte-identical: apparent identity, the auditor's verdict, and
+now a repeatable sqlite3 check all agree. (The repo carries no audit artifact;
+the evidence lives in the operator's history.db. Nothing else in this entry
+rests on it - the guard is pinned behaviorally either way.)
+
+The verdict: the pipeline WORKS. His one completed run (row 122, local
+Qwen3-0.6B, outcome=applied, 10.9s) was pasted and saved; the one-character
+change was imperceptible in the pasted wall of text; his two later attempts
+(rows 124/125) were refused by the memory gate with a once-per-session info
+toast; and the History UI shows only the raw transcription_text anyway, so
 the processed text is unreachable anywhere in the app. The jq nulls that
 suggested "not configured" were wrong key names at the wrong nesting: the real
 keys (.settings.post_process_enabled=true, .settings.post_process_provider_id,
@@ -614,8 +625,8 @@ fixed on this branch.
   arm, the local runner's WarmHold and terminal arms); near-echoes (one
   character in thousands) stay `applied` with their changed ratio on the
   outcome line, which is the honest limit of a one-run guard. Pinned by:
-  no_op_guard_is_exact_identity_after_trim (which includes the row-122
-  one-character case as NOT a no-op), finish_applied_distinguishes_changed_
+  no_op_guard_is_exact_identity_after_trim (which includes a one-character
+  near-echo as NOT a no-op), finish_applied_distinguishes_changed_
   from_unchanged, verbatim_echo_records_unchanged_not_applied (local runner
   fakes), and verbatim_echo_cloud_run_records_unchanged_and_notices (cloud
   seam, which also pins the info notice).
@@ -636,13 +647,21 @@ fixed on this branch.
   and the frontend routing tables (noticeRouting.ts, noticeMessage.ts, both
   pinned test mirrors) carry the code exhaustively.
 - **KB-254 · FIXED · the pp runs table could say "skipped" but never why
-  (round 7).** finish_with_detail wrote the skip explanation / cloud error /
-  no-op reason onto the pp: log line only; the Debug table's record (and the
-  copy button) never carried it, and changed_ratio was log-only too. Fix:
-  `PostProcessRunRecord.outcome_detail` (bindings regenerated) records the
-  reason at finish time, and the Debug table's OutcomeCell tooltip now shows
-  the token AND the reason. Pinned by
-  finish_with_detail_surfaces_the_reason_in_the_record.
+  (round 7).** finish_with_detail wrote the skip explanation onto the pp:
+  log line only; the Debug table's record (and the copy button) never
+  carried it, and the cloud failure arms concluded through finish() with no
+  detail at all. Fix: `PostProcessRunRecord.outcome_detail` (bindings
+  regenerated) records the reason at finish time - local skip explanations,
+  the no-op reason, and now every cloud failure cause too (the
+  conclude_generation! macro and the validation-failure arm pass their
+  detail; the review pass caught that the first cut left the cloud path
+  detail-free, exactly the gap the field docs claimed was closed) - and the
+  Debug table's OutcomeCell tooltip shows the token AND the reason.
+  (changed_ratio was already a record field before this pass; the table
+  renders neither it nor anything else new.) Pinned by
+  finish_with_detail_surfaces_the_reason_in_the_record,
+  cloud_401_is_failed_auth_and_raw_transcript (transport-failure detail),
+  and the garbage-engine test (validation-failure detail).
 - **KB-255 · FIXED · the built-in templates never said the input was an ASR
   transcript (round 7).** Every seed body opened with "a transcript generated
   by a speech-to-text model" and a cleanup list, so the model met homophones,
@@ -656,20 +675,22 @@ fixed on this branch.
   (BUILTIN_PROMPT_GENERATION). The versioned reseed in
   ensure_post_process_defaults upgrades a stored builtin ONLY when its
   version is below the current generation AND its body still byte-matches
-  a reconstructed generation-1 body. There are TWO such bodies per
-  template, and this pass caught why by comparing the reconstruction to
-  the operator's live store: the library shipped its first scaffold, then
-  fc465b49 appended the E.g. example to the question rule WITHOUT bumping
-  the seed version, so stores seeded before that commit still carry the
-  original revision (his does; the reconstruction was verified
-  byte-identical to his live english_casual, his selected template, before
-  the migration test was trusted). prior_generation_seed_bodies returns
-  both revisions; a user edit bumps the version and changes the body, so
-  it is doubly protected.
+  the ONE generation-1 scaffold (prior_generation_seed_body). Provenance,
+  verified against the repo history during the review pass: the library's
+  introduction (13b354b6) seeded that scaffold and no later commit changed
+  it before generation 2; the E.g. example line this build's scaffold
+  carries was borrowed from the PRE-LIBRARY legacy prompt (fc465b49, which
+  predates the library and touched only the single default prompt). A first
+  cut of this entry wrongly claimed a second generation-1 scaffold revision
+  existed; it did not, and the phantom was removed. The reconstruction was
+  verified byte-identical to the operator's live english_casual (his
+  selected template, still version 1) before the migration was trusted -
+  evidence from the live settings store, read-only, not a repo artifact. A
+  user edit bumps the version and changes the body, so edits are doubly
+  protected.
   Pinned by: every_builtin_template_carries_the_asr_preamble,
   builtin_templates_contain_no_em_or_en_dashes, and
-  generation_bump_reseeds_untouched_builtins_and_never_clobbers_edits
-  (which reseeds BOTH revisions and pins the never-clobber legs).
+  generation_bump_reseeds_untouched_builtins_and_never_clobbers_edits.
 - **KB-256 · NEW · the Prompt Enhancer built-in (round 7).** A fourteenth
   seed: the input is a roughly dictated instruction for an AI agent or app,
   the output is one clear structured prompt (Goal / Context / Constraints /

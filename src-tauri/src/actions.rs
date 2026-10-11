@@ -417,12 +417,14 @@ async fn run_cloud_lifecycle(
     let mut retries: u32 = 0;
 
     // The terminal report shared by every arm below: one generation line
-    // (ms + total retries) and one outcome line.
+    // (ms + total retries) and one outcome line, with the failure's
+    // detail riding the record (round 7: the Debug table's
+    // fallback-reason surface) and the log line.
     macro_rules! conclude_generation {
-        ($outcome:expr) => {{
+        ($outcome:expr, $detail:expr) => {{
             let ms = generation_started.elapsed().as_millis() as u64;
             runs().generation_phase(app, run_id, Some(ms), Some(retries));
-            runs().finish(app, run_id, $outcome, None);
+            runs().finish_with_detail(app, run_id, $outcome, None, Some(&$detail));
         }};
     }
 
@@ -474,13 +476,14 @@ async fn run_cloud_lifecycle(
                             let ms =
                                 generation_started.elapsed().as_millis() as u64;
                             runs().generation_phase(app, run_id, Some(ms), Some(retries));
-                            runs().finish(
+                            runs().finish_with_detail(
                                 app,
                                 run_id,
                                 PostProcessOutcome::Failed {
                                     class: PostProcessFailureClass::OutputInvalid,
                                 },
                                 None,
+                                Some(&failure.detail),
                             );
                             warn!(
                                 "Post-process output failed validation: {}. Using the raw transcript.",
@@ -500,9 +503,12 @@ async fn run_cloud_lifecycle(
                         crate::managers::transcription::NoticeCode::PostProcessCloudFailed,
                         Some("the API response had no content".to_string()),
                     );
-                    conclude_generation!(PostProcessOutcome::Failed {
-                        class: PostProcessFailureClass::OutputInvalid,
-                    });
+                    conclude_generation!(
+                        PostProcessOutcome::Failed {
+                            class: PostProcessFailureClass::OutputInvalid,
+                        },
+                        "the API response had no content"
+                    );
                     return None;
                 }
             }
@@ -529,9 +535,12 @@ async fn run_cloud_lifecycle(
                 if e.class == PostProcessFailureClass::Cancelled {
                     retries += e.retries;
                     warn!("Post-process cancelled mid-request: {e}");
-                    conclude_generation!(PostProcessOutcome::Failed {
-                        class: PostProcessFailureClass::Cancelled,
-                    });
+                    conclude_generation!(
+                        PostProcessOutcome::Failed {
+                            class: PostProcessFailureClass::Cancelled,
+                        },
+                        e.detail
+                    );
                     return None;
                 }
                 // Every other failure falls through to the legacy attempt;
@@ -554,7 +563,10 @@ async fn run_cloud_lifecycle(
         }
         Err(e) => {
             retries += e.retries;
-            conclude_generation!(PostProcessOutcome::Failed { class: e.class });
+            conclude_generation!(
+                PostProcessOutcome::Failed { class: e.class },
+                e.detail.clone()
+            );
             warn!(
                 "LLM post-processing failed ({}): {}. Using the raw transcript.",
                 crate::post_process_runs::failure_class_str(e.class),
@@ -3056,6 +3068,22 @@ mod tests {
             summary.outcome, "failed:output_invalid",
             "the script switch classifies output_invalid"
         );
+        // Round 7: the validation failure's reason rides the run record
+        // (the Debug table's fallback-reason surface), matching the
+        // script-switch detail the shared validator reports.
+        let record = crate::post_process_runs::runs()
+            .latest(None)
+            .into_iter()
+            .find(|r| {
+                r.binding == "transcribe_with_post_process"
+                    && r.prompt_id.as_deref() == Some("english_casual")
+            })
+            .expect("the run is in the registry");
+        assert_eq!(
+            record.outcome_detail.as_deref(),
+            Some("the output switched script from latin to kana"),
+            "the cloud validation failure's cause surfaces in the record"
+        );
     }
 
     /// Round 7's config-gap table, pinned exhaustively: every pre-run
@@ -3339,6 +3367,12 @@ mod tests {
             Some(crate::post_process_runs::PostProcessOutcome::Failed {
                 class: crate::llm_client::PostProcessFailureClass::Auth
             })
+        );
+        // Round 7: the cloud failure's cause rides the record too (the
+        // Debug table's fallback-reason surface), not just the notice.
+        assert_eq!(
+            record.outcome_detail.as_deref(),
+            Some("API request failed with status 401: unauthorized")
         );
         // The structured failure counted as one retry before legacy; the
         // auth class earned zero transport retries on either attempt.

@@ -1425,9 +1425,9 @@ mod tests {
             ),
             "a capitalization-plus-period cleanup changed something"
         );
-        // The auditor's live case (row 122): a bare newline became period
-        // plus space plus a capital. One character of real change means
-        // NOT a no-op, whatever the engine's competence.
+        // A near-echo with one real edit (a bare newline became period
+        // plus space plus a capital - the weak-engine failure mode the
+        // truth pass chased): any real change means NOT a no-op.
         assert!(!is_no_op_output(
             "resolve them as well\nunattended workflow run",
             "resolve them as well. Unattended workflow run",
