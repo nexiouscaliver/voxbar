@@ -23,6 +23,10 @@ import {
   withModelFetchError,
   type ModelFetchErrors,
 } from "./postProcessModelCache";
+import {
+  PRE_HYDRATION_STASH_LIMIT,
+  PreHydrationUpdateQueue,
+} from "./settingsHydrationQueue";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 
 interface SettingsStore {
@@ -105,6 +109,15 @@ const initializeUnlisteners: UnlistenFn[] = [];
 // initialize() pass and the update gate (updateCheckGate) - awaits the SAME
 // promise instead of racing a second probe against the first.
 let updateChecksLockedPromise: Promise<void> | null = null;
+
+// W1-L4 pre-hydration intents: updateSetting calls that land while
+// settings === null (the boot window before the first getAppSettings
+// response) are stashed here instead of running. See
+// settingsHydrationQueue.ts for the why and the bound. The queue is
+// strictly boot-scoped: nothing ever sets settings back to null, so it is
+// filled before the first hydration and drained exactly once, right after
+// the first successful refreshSettings.
+const preHydrationUpdates = new PreHydrationUpdateQueue();
 
 const settingUpdaters: {
   [K in keyof Settings]?: (value: Settings[K]) => Promise<unknown>;
@@ -312,6 +325,21 @@ export const useSettingsStore = create<SettingsStore>()(
               state.postProcessModelOptions,
             ),
           }));
+
+          // W1-L4: hydration just completed. Replay any updateSetting
+          // intents stashed while settings was null, serially and through
+          // the normal updateSetting path, so each one gets the full
+          // optimistic-write / backend-write / rollback treatment a direct
+          // call would. drain() empties the queue synchronously, so a
+          // concurrent refreshSettings (a settings-changed event landing
+          // mid-replay) finds it empty and cannot double-apply.
+          const replayable = preHydrationUpdates.drain();
+          for (const [replayKey, replayValue] of replayable) {
+            await get().updateSetting(
+              replayKey,
+              replayValue as Settings[typeof replayKey],
+            );
+          }
         } else {
           console.error("Failed to load settings:", result.error);
           set({ isLoading: false });
@@ -387,6 +415,27 @@ export const useSettingsStore = create<SettingsStore>()(
       key: K,
       value: Settings[K],
     ) => {
+      // W1-L4 hydration guard: while settings === null (the boot window
+      // before the first getAppSettings response) do NOTHING observable:
+      // no optimistic write, no backend write, no isUpdating spinner. The
+      // old code skipped only the optimistic write but still ran the
+      // backend updater, and the in-flight hydration response then
+      // overwrote the store with the pre-write value, silently losing the
+      // user's change. Instead, stash the intent and replay it on
+      // hydration (refreshSettings, above). The stash is bounded; a
+      // refused intent (a runaway caller touching more distinct keys than
+      // the queue holds) is dropped with a warn rather than growing
+      // without limit.
+      if (!get().settings) {
+        const stash = preHydrationUpdates.stash(key, value);
+        if (!stash.stashed) {
+          console.warn(
+            `Pre-hydration updateSetting(${String(key)}) dropped: stash already holds ${preHydrationUpdates.size} distinct keys (limit ${PRE_HYDRATION_STASH_LIMIT}); the setting was not written`,
+          );
+        }
+        return;
+      }
+
       const { settings, setUpdating } = get();
       const updateKey = String(key);
       const originalValue = settings?.[key];
