@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Inschakelen bij Geavanceerd",
     "history": "Geschiedenis",
     "debug": "Probleemoplossing",
-    "about": "Over VoxBar"
+    "about": "Over VoxBar",
+    "notifications": "Meldingen"
   },
   "onboarding": {
     "subtitle": "Kies een transcriptiemodel om aan de slag te gaan",
@@ -1101,6 +1102,23 @@
       "applied": "toegepast",
       "skipped": "overgeslagen",
       "failed": "mislukt"
+    },
+    "notifications": {
+      "title": "Meldingen",
+      "toggle": {
+        "label": "Systeemmeldingen",
+        "description": "Toon fouten en sessieresultaten als systeemmeldingen. Ze blijven in het meldingencentrum staan tot je ze verwijdert."
+      },
+      "outcomes": {
+        "label": "Resultaatmeldingen",
+        "description": "Meld ook wanneer een phonesessie eindigt, bijvoorbeeld bij het bereiken van het sessielimiet of wanneer de telefoon de verbinding verbreekt. Uit betekent alleen fouten."
+      },
+      "log": {
+        "title": "Meldingenlog",
+        "description": "De laatste 50 fout- en resultaatmeldingen, zodat een gemiste melding nooit verloren gaat.",
+        "empty": "Nog geen meldingen.",
+        "clear": "Alles wissen"
+      }
     }
   },
   "footer": {

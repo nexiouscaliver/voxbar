@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Activez-le dans Avancé",
     "history": "Historique",
     "debug": "Débogage",
-    "about": "À propos"
+    "about": "À propos",
+    "notifications": "Notifications"
   },
   "onboarding": {
     "subtitle": "Pour commencer, choisissez un modèle de transcription",
@@ -1101,6 +1102,23 @@
       "applied": "appliqué",
       "skipped": "ignoré",
       "failed": "échoué"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "toggle": {
+        "label": "Notifications système",
+        "description": "Affiche les erreurs et les résultats de session sous forme de notifications système. Elles restent dans le centre de notifications jusqu'à ce que vous les supprimiez."
+      },
+      "outcomes": {
+        "label": "Notifications de résultats",
+        "description": "Notifie aussi la fin d'une session téléphone, par exemple à la limite de durée ou lorsque le téléphone se déconnecte. Désactivé signifie erreurs uniquement."
+      },
+      "log": {
+        "title": "Journal des notifications",
+        "description": "Les 50 derniers avis d'erreurs et de résultats, pour qu'un message manqué ne soit jamais perdu.",
+        "empty": "Aucune notification pour l'instant.",
+        "clear": "Tout effacer"
+      }
     }
   },
   "footer": {

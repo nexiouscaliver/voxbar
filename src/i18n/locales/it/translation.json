@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Attivala in Avanzate",
     "history": "Cronologia",
     "debug": "Debug",
-    "about": "Informazioni"
+    "about": "Informazioni",
+    "notifications": "Notifiche"
   },
   "onboarding": {
     "subtitle": "Per cominciare, scegli un modello di riconoscimento vocale",
@@ -1101,6 +1102,23 @@
       "applied": "applicato",
       "skipped": "saltato",
       "failed": "non riuscito"
+    },
+    "notifications": {
+      "title": "Notifiche",
+      "toggle": {
+        "label": "Notifiche di sistema",
+        "description": "Mostra errori ed esiti delle sessioni come notifiche di sistema. Restano nel centro notifiche finché non vengono ignorate."
+      },
+      "outcomes": {
+        "label": "Notifiche degli esiti",
+        "description": "Notifica anche quando termina una sessione del telefono, ad esempio al raggiungimento del limite o alla disconnessione del telefono. Disattivato significa solo errori."
+      },
+      "log": {
+        "title": "Registro delle notifiche",
+        "description": "Gli ultimi 50 avvisi di errori ed esiti, così un avviso mancato non va mai perso.",
+        "empty": "Ancora nessuna notifica.",
+        "clear": "Cancella tutto"
+      }
     }
   },
   "footer": {

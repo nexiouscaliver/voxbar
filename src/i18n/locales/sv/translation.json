@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Aktivera under Avancerat",
     "history": "Historik",
     "debug": "Felsökning",
-    "about": "Om"
+    "about": "Om",
+    "notifications": "Aviseringar"
   },
   "onboarding": {
     "subtitle": "För att komma igång, välj en transkriptionsmodell",
@@ -1101,6 +1102,23 @@
       "applied": "tillämpad",
       "skipped": "hoppades över",
       "failed": "misslyckades"
+    },
+    "notifications": {
+      "title": "Aviseringar",
+      "toggle": {
+        "label": "Systemaviseringar",
+        "description": "Visa fel och sessionsresultat som systemaviseringar. De finns kvar i aviseringscentret tills du stänger dem."
+      },
+      "outcomes": {
+        "label": "Resultataviseringar",
+        "description": "Avisera även när en telefonsession avslutas, till exempel när sessionsgränsen nås eller telefonen kopplas från. Av betyder endast fel."
+      },
+      "log": {
+        "title": "Aviseringslogg",
+        "description": "De senaste 50 fel- och resultatmeddelandena, så att ett missat meddelande aldrig går förlorat.",
+        "empty": "Inga aviseringar än.",
+        "clear": "Rensa alla"
+      }
     }
   },
   "footer": {

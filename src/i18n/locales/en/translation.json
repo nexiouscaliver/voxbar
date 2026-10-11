@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Enable in Advanced",
     "history": "History",
     "debug": "Debug",
-    "about": "About"
+    "about": "About",
+    "notifications": "Notifications"
   },
   "onboarding": {
     "subtitle": "To get started, choose a transcription model",
@@ -1101,6 +1102,23 @@
       "applied": "applied",
       "skipped": "skipped",
       "failed": "failed"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "toggle": {
+        "label": "System notifications",
+        "description": "Show errors and session outcomes as system notifications. They stay in the notification center until you dismiss them."
+      },
+      "outcomes": {
+        "label": "Outcome notifications",
+        "description": "Also notify when a phone session ends, for example when the session limit is reached or the phone disconnects. Off means errors only."
+      },
+      "log": {
+        "title": "Notification log",
+        "description": "The last 50 error and outcome notices, so a missed message is never lost.",
+        "empty": "No notifications yet.",
+        "clear": "Clear all"
+      }
     }
   },
   "footer": {

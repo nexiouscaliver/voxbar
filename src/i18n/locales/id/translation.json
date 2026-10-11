@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Aktifkan di Lanjutan",
     "history": "Riwayat",
     "debug": "Debug",
-    "about": "Tentang"
+    "about": "Tentang",
+    "notifications": "Notifikasi"
   },
   "onboarding": {
     "subtitle": "Untuk memulai, pilih model transkripsi",
@@ -1101,6 +1102,23 @@
       "applied": "diterapkan",
       "skipped": "dilewati",
       "failed": "gagal"
+    },
+    "notifications": {
+      "title": "Notifikasi",
+      "toggle": {
+        "label": "Notifikasi sistem",
+        "description": "Tampilkan kesalahan dan hasil sesi sebagai notifikasi sistem. Notifikasi tetap ada di pusat notifikasi sampai Anda menutupnya."
+      },
+      "outcomes": {
+        "label": "Notifikasi hasil",
+        "description": "Juga beri tahu saat sesi ponsel berakhir, misalnya saat batas sesi tercapai atau ponsel terputus. Nonaktif berarti hanya kesalahan."
+      },
+      "log": {
+        "title": "Log notifikasi",
+        "description": "50 pemberitahuan kesalahan dan hasil terakhir, agar pesan yang terlewat tidak pernah hilang.",
+        "empty": "Belum ada notifikasi.",
+        "clear": "Hapus semua"
+      }
     }
   },
   "footer": {

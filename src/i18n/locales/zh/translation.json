@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "在高级设置中启用",
     "history": "历史记录",
     "debug": "调试",
-    "about": "关于"
+    "about": "关于",
+    "notifications": "通知"
   },
   "onboarding": {
     "subtitle": "请选择一个转录模型以开始使用",
@@ -1101,6 +1102,23 @@
       "applied": "已应用",
       "skipped": "已跳过",
       "failed": "失败"
+    },
+    "notifications": {
+      "title": "通知",
+      "toggle": {
+        "label": "系统通知",
+        "description": "将错误和会话结果以系统通知显示。通知会保留在通知中心，直到你将其关闭。"
+      },
+      "outcomes": {
+        "label": "结果通知",
+        "description": "手机会话结束时也通知，例如达到会话时长上限或手机断开连接时。关闭后仅通知错误。"
+      },
+      "log": {
+        "title": "通知记录",
+        "description": "最近 50 条错误与结果通知，让错过的消息不再丢失。",
+        "empty": "暂无通知。",
+        "clear": "全部清除"
+      }
     }
   },
   "footer": {

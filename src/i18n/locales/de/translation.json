@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Unter Erweitert aktivieren",
     "history": "Verlauf",
     "debug": "Debug",
-    "about": "Info"
+    "about": "Info",
+    "notifications": "Benachrichtigungen"
   },
   "onboarding": {
     "subtitle": "Wähle ein Transkriptionsmodell, um loszulegen",
@@ -1101,6 +1102,23 @@
       "applied": "angewendet",
       "skipped": "übersprungen",
       "failed": "fehlgeschlagen"
+    },
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "toggle": {
+        "label": "Systembenachrichtigungen",
+        "description": "Fehler und Sitzungsergebnisse als Systembenachrichtigungen anzeigen. Sie bleiben im Mitteilungszentrum, bis sie entfernt werden."
+      },
+      "outcomes": {
+        "label": "Benachrichtigungen zu Sitzungsergebnissen",
+        "description": "Außerdem benachrichtigen, wenn eine Telefonsitzung endet, etwa beim Erreichen des Sitzungslimits oder beim Trennen der Verbindung. Aus bedeutet nur Fehler."
+      },
+      "log": {
+        "title": "Benachrichtigungsprotokoll",
+        "description": "Die letzten 50 Fehler- und Ergebnismeldungen, damit eine verpasste Meldung nie verloren geht.",
+        "empty": "Noch keine Benachrichtigungen.",
+        "clear": "Alle leeren"
+      }
     }
   },
   "footer": {

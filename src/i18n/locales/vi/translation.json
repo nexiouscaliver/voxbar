@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Bật trong Nâng cao",
     "history": "Lịch sử",
     "debug": "Gỡ lỗi",
-    "about": "Giới thiệu"
+    "about": "Giới thiệu",
+    "notifications": "Thông báo"
   },
   "onboarding": {
     "subtitle": "Để bắt đầu, hãy chọn một mô hình chuyển đổi giọng nói",
@@ -1101,6 +1102,23 @@
       "applied": "đã áp dụng",
       "skipped": "đã bỏ qua",
       "failed": "thất bại"
+    },
+    "notifications": {
+      "title": "Thông báo",
+      "toggle": {
+        "label": "Thông báo hệ thống",
+        "description": "Hiển thị lỗi và kết quả phiên dưới dạng thông báo hệ thống. Chúng nằm trong trung tâm thông báo cho đến khi bạn bỏ qua chúng."
+      },
+      "outcomes": {
+        "label": "Thông báo kết quả",
+        "description": "Cũng thông báo khi phiên điện thoại kết thúc, ví dụ khi đạt giới hạn phiên hoặc điện thoại ngắt kết nối. Tắt nghĩa là chỉ lỗi."
+      },
+      "log": {
+        "title": "Nhật ký thông báo",
+        "description": "50 thông báo lỗi và kết quả gần nhất, để thông báo bị lỡ không bao giờ bị mất.",
+        "empty": "Chưa có thông báo nào.",
+        "clear": "Xóa tất cả"
+      }
     }
   },
   "footer": {

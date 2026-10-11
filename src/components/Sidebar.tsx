@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import {
+  Bell,
   ClipboardPaste,
   Cog,
   FlaskConical,
@@ -23,6 +24,7 @@ import {
   PostProcessingSettings,
   ModelsSettings,
   OutputSettings,
+  NotificationsSettings,
 } from "./settings";
 
 export type SidebarSection = keyof typeof SECTIONS_CONFIG;
@@ -59,6 +61,15 @@ export const SECTIONS_CONFIG = {
     labelKey: "sidebar.history",
     icon: History,
     component: HistorySettings,
+    enabled: () => true,
+  },
+  // v1.6.0 W1-L4: the OS-notification toggles plus the in-app notification
+  // log live here; notification clicks on errors deep-navigate to this
+  // section (App.tsx click-through wiring).
+  notifications: {
+    labelKey: "sidebar.notifications",
+    icon: Bell,
+    component: NotificationsSettings,
     enabled: () => true,
   },
   models: {

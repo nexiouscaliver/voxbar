@@ -43,11 +43,26 @@ import {
 } from "@/bindings";
 import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
 import { noticeMessage, noticeNotificationBody } from "@/lib/noticeMessage";
-import { routerDecision } from "@/lib/noticeRouting";
 import {
+  noticeChannelClass,
+  noticeClickTarget,
+  planNoticeDispatch,
+} from "@/lib/noticeRouting";
+import {
+  attachNoticeNotificationClickSource,
   notifyDesktop,
+  notifyDesktopPersistent,
   primeNotificationPermission,
+  subscribeNoticeNotificationClicks,
 } from "@/lib/desktopNotify";
+import {
+  initNotificationLog,
+  pushNotificationLogEntry,
+} from "@/lib/notificationLog";
+import {
+  getOsNotificationPrefs,
+  initNotificationPrefs,
+} from "@/lib/notificationPrefs";
 import {
   getMainWindowVisibility,
   setMainWindowVisibility,
@@ -455,21 +470,48 @@ function App() {
   // toast still renders into its webview for when it next opens, and a
   // macOS notification reaches the user now (notifyDesktop gates itself on
   // the window's real visibility, KB-195).
+  //
+  // v1.6.0 W1-L4: planNoticeDispatch composes that transient decision with
+  // the persistent OS-notification classification (noticeRouting.ts): error
+  // and outcome codes also post a real Notification Center notification,
+  // independent of window visibility, and that persistent post REPLACES the
+  // hidden-window offer so the two surfaces never double-post. With the
+  // settings toggle off the plan degrades to the exact pre-v1.6.0 dispatch.
+  // Error and outcome codes are additionally appended to the in-app
+  // notification log regardless of the toggles (lib/notificationLog.ts), so
+  // a missed toast is never lost even with OS notifications disabled.
   const lastNoopNoticeToast = useRef<Record<string, number>>({});
   useEffect(() => {
     const unlisten = events.overlayNoticeEvent.listen((event) => {
       const { code, detail, kind, card_visible } = event.payload;
-      // The notify leg is decided by notifyDesktop's live window query
-      // (KB-195); no Rust-event store pre-gate, which went stale for
-      // minimized/Cmd+H windows and dropped deliverable notifications.
-      const decision = routerDecision(code, card_visible);
-      if (!decision.toast && !decision.notify) return;
+      const plan = planNoticeDispatch(
+        code,
+        card_visible,
+        getOsNotificationPrefs(),
+      );
+      const logWorthy = noticeChannelClass(code) !== "overlay-only";
+      if (
+        !plan.toast &&
+        !plan.persistentOs &&
+        !plan.legacyHiddenOsOffer &&
+        !logWorthy
+      ) {
+        return;
+      }
       const message = noticeMessage(t, code, detail);
       if (message === null) return;
       const now = Date.now();
       if (now - (lastNoopNoticeToast.current[code] ?? 0) < 2000) return;
       lastNoopNoticeToast.current[code] = now;
-      if (decision.toast) {
+      if (logWorthy) {
+        pushNotificationLogEntry({
+          code,
+          detail: detail ?? null,
+          kind,
+          receivedAt: now,
+        });
+      }
+      if (plan.toast) {
         const duration =
           code === "wayland_tauri_hotkeys" || code === "gnome_overlay_fallback"
             ? 12000
@@ -477,11 +519,21 @@ function App() {
         const toastFn = kind === "error" ? toast.error : toast.info;
         toastFn(message, { duration });
       }
-      if (decision.notify) {
-        // The OS notification carries the detail-free line - the raw
-        // backend diagnostic stays in the toast (KB-037 class on a system
-        // surface). notifyDesktop's internal visibility query makes the
-        // final deliver/quiet call.
+      // The OS notification carries the detail-free line - the raw
+      // backend diagnostic stays in the toast (KB-037 class on a system
+      // surface). notifyDesktop's internal visibility query makes the
+      // final deliver/quiet call on the legacy leg; the persistent leg is
+      // visibility-independent by design.
+      if (plan.persistentOs) {
+        const body = noticeNotificationBody(t, code, detail);
+        if (body !== null) {
+          void notifyDesktopPersistent({
+            body,
+            code,
+            target: noticeClickTarget(code) ?? "notifications",
+          });
+        }
+      } else if (plan.legacyHiddenOsOffer) {
         const body = noticeNotificationBody(t, code, detail);
         if (body !== null) void notifyDesktop(body);
       }
@@ -490,6 +542,33 @@ function App() {
       unlisten.then((fn) => fn());
     };
   }, [t]);
+
+  // v1.6.0 W1-L4 boot: hydrate the notification prefs and the notification
+  // log from localStorage once (both stores default safely on their own if
+  // storage is unavailable).
+  useEffect(() => {
+    initNotificationPrefs();
+    initNotificationLog();
+  }, []);
+
+  // v1.6.0 W1-L4 click-through: activating a posted notification focuses
+  // the app (showMainWindowCommand also raises a hidden-to-tray window)
+  // and navigates to the classified target: errors go to the in-app
+  // notifications log section, session outcomes to history. The click
+  // event itself arrives from the plugin's onAction channel where the
+  // platform provides one (desktopNotify.ts documents the macOS gap).
+  useEffect(() => {
+    void attachNoticeNotificationClickSource();
+    const unsubscribe = subscribeNoticeNotificationClicks((click) => {
+      void commands.showMainWindowCommand().catch((e) => {
+        console.warn("Failed to show main window for notification click:", e);
+      });
+      setCurrentSection(
+        click.target === "history" ? "history" : "notifications",
+      );
+    });
+    return unsubscribe;
+  }, []);
 
   // Tray "Unload After → Custom…": jump to the Advanced settings section and
   // focus the custom-seconds field. The window event is re-dispatched after a

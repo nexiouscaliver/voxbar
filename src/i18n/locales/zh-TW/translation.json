@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "在進階設定中啟用",
     "history": "歷史紀錄",
     "debug": "偵錯",
-    "about": "關於"
+    "about": "關於",
+    "notifications": "通知"
   },
   "onboarding": {
     "subtitle": "首先，請選擇一種模型",
@@ -1101,6 +1102,23 @@
       "applied": "已套用",
       "skipped": "已略過",
       "failed": "失敗"
+    },
+    "notifications": {
+      "title": "通知",
+      "toggle": {
+        "label": "系統通知",
+        "description": "將錯誤和工作階段結果以系統通知顯示。通知會保留在通知中心，直到你將其關閉。"
+      },
+      "outcomes": {
+        "label": "結果通知",
+        "description": "手機工作階段結束時也通知，例如達到工作階段上限或手機中斷連線時。關閉後僅通知錯誤。"
+      },
+      "log": {
+        "title": "通知記錄",
+        "description": "最近 50 筆錯誤與結果通知，讓錯過的訊息不再遺失。",
+        "empty": "目前沒有通知。",
+        "clear": "全部清除"
+      }
     }
   },
   "footer": {

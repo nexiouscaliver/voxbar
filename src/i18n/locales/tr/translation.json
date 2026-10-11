@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Gelişmiş bölümünden etkinleştirin",
     "history": "Geçmiş",
     "debug": "Hata Ayıklama",
-    "about": "Hakkında"
+    "about": "Hakkında",
+    "notifications": "Bildirimler"
   },
   "onboarding": {
     "subtitle": "Başlamak için bir transkripsiyon modeli seçin",
@@ -1101,6 +1102,23 @@
       "applied": "uygulandı",
       "skipped": "atlandı",
       "failed": "başarısız"
+    },
+    "notifications": {
+      "title": "Bildirimler",
+      "toggle": {
+        "label": "Sistem bildirimleri",
+        "description": "Hataları ve oturum sonuçlarını sistem bildirimleri olarak göster. Bildirimler, sen onları kapatana kadar bildirim merkezinde kalır."
+      },
+      "outcomes": {
+        "label": "Sonuç bildirimleri",
+        "description": "Telefon oturumu bittiğinde de bildir; örneğin oturum sınırına ulaşıldığında veya telefon bağlantısı koptuğunda. Kapalı, yalnızca hatalar demektir."
+      },
+      "log": {
+        "title": "Bildirim günlüğü",
+        "description": "Son 50 hata ve sonuç bildirimi, böylece gözden kaçan bir ileti asla kaybolmaz.",
+        "empty": "Henüz bildirim yok.",
+        "clear": "Tümünü temizle"
+      }
     }
   },
   "footer": {

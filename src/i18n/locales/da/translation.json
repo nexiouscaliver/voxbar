@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Aktivér under Avanceret",
     "history": "Historik",
     "debug": "Fejlfinding",
-    "about": "Om"
+    "about": "Om",
+    "notifications": "Underretninger"
   },
   "onboarding": {
     "subtitle": "For at komme i gang skal du vælge en transskriptionsmodel",
@@ -1101,6 +1102,23 @@
       "applied": "anvendt",
       "skipped": "sprunget over",
       "failed": "fejlede"
+    },
+    "notifications": {
+      "title": "Underretninger",
+      "toggle": {
+        "label": "Systemunderretninger",
+        "description": "Vis fejl og sessionsresultater som systemunderretninger. De forbliver i underretningscentret, indtil du fjerner dem."
+      },
+      "outcomes": {
+        "label": "Underretninger om resultater",
+        "description": "Giv også underretning, når en telefonsession slutter, f.eks. når sessionsgrænsen nås, eller telefonen frakobles. Fra betyder kun fejl."
+      },
+      "log": {
+        "title": "Underretningslog",
+        "description": "De seneste 50 fejl- og resultatmeddelelser, så en overset meddelelse aldrig går tabt.",
+        "empty": "Ingen underretninger endnu.",
+        "clear": "Ryd alle"
+      }
     }
   },
   "footer": {

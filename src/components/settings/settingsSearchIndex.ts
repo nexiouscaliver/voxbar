@@ -75,6 +75,13 @@ const STATIC_INDEX: readonly SearchEntry[] = [
   { section: "history", key: "settings.history.showModel.label" },
   { section: "history", key: "settings.history.title" },
 
+  // Notifications
+  { section: "notifications", key: "sidebar.notifications" },
+  { section: "notifications", key: "settings.notifications.title" },
+  { section: "notifications", key: "settings.notifications.toggle.label" },
+  { section: "notifications", key: "settings.notifications.outcomes.label" },
+  { section: "notifications", key: "settings.notifications.log.title" },
+
   // Models
   { section: "models", key: "sidebar.models" },
   { section: "models", key: "settings.models.title" },

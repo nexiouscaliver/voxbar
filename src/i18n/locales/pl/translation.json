@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Włącz w Zaawansowanych",
     "history": "Historia",
     "debug": "Debugowanie",
-    "about": "O programie"
+    "about": "O programie",
+    "notifications": "Powiadomienia"
   },
   "onboarding": {
     "subtitle": "Aby rozpocząć, wybierz model transkrypcji",
@@ -1101,6 +1102,23 @@
       "applied": "zastosowano",
       "skipped": "pominięto",
       "failed": "nie powiodło się"
+    },
+    "notifications": {
+      "title": "Powiadomienia",
+      "toggle": {
+        "label": "Powiadomienia systemowe",
+        "description": "Pokazuj błędy i wyniki sesji jako powiadomienia systemowe. Zostają w centrum powiadomień, dopóki ich nie odrzucisz."
+      },
+      "outcomes": {
+        "label": "Powiadomienia o wynikach",
+        "description": "Powiadamiaj także o zakończeniu sesji telefonu, na przykład po osiągnięciu limitu sesji lub rozłączeniu telefonu. Wyłączone oznacza tylko błędy."
+      },
+      "log": {
+        "title": "Dziennik powiadomień",
+        "description": "Ostatnie 50 powiadomień o błędach i wynikach, żeby przeoczona wiadomość nigdy nie przepadła.",
+        "empty": "Brak powiadomień.",
+        "clear": "Wyczyść wszystko"
+      }
     }
   },
   "footer": {

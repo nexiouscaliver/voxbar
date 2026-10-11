@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Activa-ho a Avançat",
     "history": "Historial",
     "debug": "Depuració",
-    "about": "Quant a"
+    "about": "Quant a",
+    "notifications": "Notificacions"
   },
   "onboarding": {
     "subtitle": "Per començar, trieu un model de transcripció",
@@ -1101,6 +1102,23 @@
       "applied": "aplicat",
       "skipped": "omès",
       "failed": "fallat"
+    },
+    "notifications": {
+      "title": "Notificacions",
+      "toggle": {
+        "label": "Notificacions del sistema",
+        "description": "Mostra els errors i els resultats de sessió com a notificacions del sistema. Es mantenen al centre de notificacions fins que les descartis."
+      },
+      "outcomes": {
+        "label": "Notificacions de resultats",
+        "description": "Notifica també quan acaba una sessió del mòbil, per exemple en arribar al límit de sessió o quan el mòbil es desconnecta. Desactivat significa només errors."
+      },
+      "log": {
+        "title": "Registre de notificacions",
+        "description": "Els últims 50 avisos d'errors i resultats, perquè un avís passat per alt no es perdi mai.",
+        "empty": "Encara no hi ha notificacions.",
+        "clear": "Esborra-ho tot"
+      }
     }
   },
   "footer": {

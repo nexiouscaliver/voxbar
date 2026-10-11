@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "詳細設定で有効にできます",
     "history": "履歴",
     "debug": "デバッグ",
-    "about": "概要"
+    "about": "概要",
+    "notifications": "通知"
   },
   "onboarding": {
     "subtitle": "開始するには、文字起こしのモデルを選択してください",
@@ -1101,6 +1102,23 @@
       "applied": "適用",
       "skipped": "スキップ",
       "failed": "失敗"
+    },
+    "notifications": {
+      "title": "通知",
+      "toggle": {
+        "label": "システム通知",
+        "description": "エラーやセッションの結果をシステム通知として表示します。通知は閉じるまで通知センターに残ります。"
+      },
+      "outcomes": {
+        "label": "結果の通知",
+        "description": "電話セッションの終了時（セッション上限への到達や電話の切断など）にも通知します。オフの場合はエラーのみです。"
+      },
+      "log": {
+        "title": "通知ログ",
+        "description": "直近50件のエラーと結果の通知を残し、見逃した通知が失われないようにします。",
+        "empty": "通知はまだありません。",
+        "clear": "すべてクリア"
+      }
     }
   },
   "footer": {

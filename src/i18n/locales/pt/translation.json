@@ -25,7 +25,8 @@
     "enableInAdvancedHint": "Ative em Avançado",
     "history": "Histórico",
     "debug": "Depuração",
-    "about": "Sobre"
+    "about": "Sobre",
+    "notifications": "Notificações"
   },
   "onboarding": {
     "subtitle": "Para começar, escolha um modelo de transcrição",
@@ -1101,6 +1102,23 @@
       "applied": "aplicado",
       "skipped": "ignorado",
       "failed": "falhou"
+    },
+    "notifications": {
+      "title": "Notificações",
+      "toggle": {
+        "label": "Notificações do sistema",
+        "description": "Mostra erros e resultados de sessão como notificações do sistema. Estas permanecem no centro de notificações até serem dispensadas."
+      },
+      "outcomes": {
+        "label": "Notificações de resultados",
+        "description": "Notifica também quando uma sessão do telefone termina, por exemplo ao atingir o limite de sessão ou quando o telefone se desliga. Desativado significa apenas erros."
+      },
+      "log": {
+        "title": "Registo de notificações",
+        "description": "As últimas 50 notificações de erros e resultados, para que um aviso ignorado nunca se perca.",
+        "empty": "Ainda não há notificações.",
+        "clear": "Limpar tudo"
+      }
     }
   },
   "footer": {
