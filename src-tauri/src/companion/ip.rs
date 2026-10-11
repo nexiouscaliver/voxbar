@@ -142,19 +142,13 @@ mod tests {
 
     #[test]
     fn vpn_range_loses_to_192_168_even_when_first() {
-        let picked = pick_lan_ipv4(&[
-            Ipv4Addr::new(10, 20, 0, 5),
-            Ipv4Addr::new(192, 168, 1, 42),
-        ]);
+        let picked = pick_lan_ipv4(&[Ipv4Addr::new(10, 20, 0, 5), Ipv4Addr::new(192, 168, 1, 42)]);
         assert_eq!(picked, Some(Ipv4Addr::new(192, 168, 1, 42)));
     }
 
     #[test]
     fn vpn_range_loses_to_172_16_31_even_when_first() {
-        let picked = pick_lan_ipv4(&[
-            Ipv4Addr::new(10, 0, 30, 2),
-            Ipv4Addr::new(172, 20, 0, 9),
-        ]);
+        let picked = pick_lan_ipv4(&[Ipv4Addr::new(10, 0, 30, 2), Ipv4Addr::new(172, 20, 0, 9)]);
         assert_eq!(picked, Some(Ipv4Addr::new(172, 20, 0, 9)));
     }
 

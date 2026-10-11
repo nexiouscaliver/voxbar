@@ -99,6 +99,69 @@ impl ModelManager {
         Ok(format!("{:x}", hasher.finalize()))
     }
 
+    /// Whether `model_id` is pinned by a trust anchor this download flow
+    /// does not own: the pinned builtin's constant, an LLM catalog quant
+    /// (the default or any alternate, per `find_with_file`), or a voice
+    /// catalog file. Those verify against their own anchors elsewhere (the
+    /// post-process download command's post-download check; the mirror
+    /// fallback verifies mirror bytes against the catalog sha), so the
+    /// user-added digest gate in `download_hf_model` skips them and covers
+    /// exactly the user-added remainder (KB-171 residual).
+    pub(super) fn has_static_trust_anchor(model_id: &str, repo_id: &str, filename: &str) -> bool {
+        model_id == crate::local_llm::LOCAL_LLM_MODEL_ID
+            || crate::catalog::llm::expected_sha256_for(model_id).is_some()
+            || crate::catalog::file_in_catalog(filename, Some(repo_id)).is_some()
+    }
+
+    /// The user-added download gate (KB-171 residual): verify the artifact a
+    /// download just landed, at its hf-hub cache `pointer`, against the Hub
+    /// digest the caller fetched for the pinned revision. Unlike
+    /// [`Self::verify_sha256`] (a flat file that is removed outright), this
+    /// removes the cache POINTER plus its blob via
+    /// [`Self::remove_cache_pointer`], so a corrupt download cannot linger
+    /// in the cache for a later discovery scan to register as a real model.
+    /// The mismatch error is the same corruption notice the HTTP path uses;
+    /// the add flows and download commands turn it into the
+    /// `model-download-failed` notice and a registration refusal.
+    pub(super) fn verify_user_added_download(
+        pointer: &Path,
+        expected_sha256: &str,
+        model_id: &str,
+    ) -> Result<()> {
+        match Self::compute_sha256(pointer) {
+            Ok(actual) if actual == expected_sha256 => {
+                info!(
+                    "SHA256 verified against the Hub digest for model {}",
+                    model_id
+                );
+                Ok(())
+            }
+            Ok(actual) => {
+                warn!(
+                    "SHA256 mismatch for model {}: expected {}, got {}; deleting the artifact",
+                    model_id, expected_sha256, actual
+                );
+                Self::remove_cache_pointer(pointer);
+                Err(anyhow::anyhow!(
+                    "Download verification failed for model {}: file is corrupt. Please retry.",
+                    model_id
+                ))
+            }
+            Err(e) => {
+                warn!(
+                    "could not hash model {} for verification: {}; deleting the artifact",
+                    model_id, e
+                );
+                Self::remove_cache_pointer(pointer);
+                Err(anyhow::anyhow!(
+                    "Failed to verify download for model {}: {}. Please retry.",
+                    model_id,
+                    e
+                ))
+            }
+        }
+    }
+
     /// Emit verification events around a blocking sha256 check of `path`.
     /// On mismatch `verify_sha256` deletes the file, so the next attempt (or
     /// next source) starts clean. A `None` hash skips checking (custom models).

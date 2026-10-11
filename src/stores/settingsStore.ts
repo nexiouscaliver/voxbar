@@ -23,6 +23,10 @@ import {
   withModelFetchError,
   type ModelFetchErrors,
 } from "./postProcessModelCache";
+import {
+  PRE_HYDRATION_STASH_LIMIT,
+  PreHydrationUpdateQueue,
+} from "./settingsHydrationQueue";
 import type { UnlistenFn } from "@tauri-apps/api/event";
 
 interface SettingsStore {
@@ -105,6 +109,101 @@ const initializeUnlisteners: UnlistenFn[] = [];
 // initialize() pass and the update gate (updateCheckGate) - awaits the SAME
 // promise instead of racing a second probe against the first.
 let updateChecksLockedPromise: Promise<void> | null = null;
+
+// W1-L4 pre-hydration intents: updateSetting calls that land while
+// settings === null (the boot window before the first getAppSettings
+// response) are stashed here instead of running. See
+// settingsHydrationQueue.ts for the why and the bound. The queue is
+// strictly boot-scoped: nothing ever sets settings back to null, so it is
+// filled before the first hydration and drained exactly once, right after
+// the first successful refreshSettings.
+const preHydrationUpdates = new PreHydrationUpdateQueue();
+
+// W1-L4: a FAILED hydration must not be silent about queued intents. The
+// intents are RETAINED, not dropped: the lane contract prefers never
+// losing user intent, the queue is bounded so lingering is safe, and the
+// next successful refreshSettings (the settings-changed / model-state-
+// changed listeners initialize() registers fire one) still replays them.
+// The warn exists so the retain-and-replay-later is visible in the
+// console instead of applying at an arbitrary later moment with no trace.
+function warnPreHydrationIntentsPending(): void {
+  if (preHydrationUpdates.size > 0) {
+    console.warn(
+      `Settings hydration failed; ${preHydrationUpdates.size} pre-hydration update intent(s) stay queued and will replay on the next successful settings load`,
+    );
+  }
+}
+
+// W1-L4 numeric clamps (cycle-3 wave residual): the backend writes several
+// numeric settings raw and unclamped (no load-time clamp in settings.rs,
+// no range check in the change_* commands), so the store setter is the
+// chokepoint. Each bound below is transcribed from the per-setting UI,
+// which already declares it: touch a bound here and the component beside
+// the citation must move with it.
+//
+//   hold_threshold_ms           100..1000   HoldThreshold.tsx:28-29
+//   audio_feedback_volume       0..1        VolumeSlider.tsx:19-20
+//   word_correction_threshold   0..1        WordCorrectionThreshold.tsx:27-28
+//   paste_delay_ms              10..5000    PasteDelay.tsx:36-37
+//   paste_delay_after_ms        10..5000    PasteDelay.tsx:36-37 (shared row)
+//   history_limit               0..1000     HistoryLimit.tsx:117-118
+//   extra_recording_buffer_ms   0..1500     RecordingBuffer.tsx:28-29
+//   streaming_release_tail_ms   0..1000     StreamingReleaseTail.tsx:35-36
+//
+// memory_gate_headroom_mb is not a min/max: the rule is 0 (guard off) or
+// >= 5 MB, and the UI REJECTS 1-4 rather than clamping (see the rule
+// stated in memoryMarginInput.ts lines 4-8: "a deliberate 3 is never
+// rewritten behind the user's back"), with the backend normalizing stale
+// stored 1-4 down to 0 on load. The setter mirrors that backend
+// normalization (1-4 land as 0), never an invented clamp to 5.
+//
+// post_process_timeout_secs and post_process_local_keep_warm_secs are
+// deliberately absent: the backend already rejects out-of-range values for
+// them (commands/transcription.rs, shortcut/mod.rs:2244), so no frontend
+// clamp is needed.
+type SettingNumericClamp =
+  | { kind: "minMax"; min: number; max: number }
+  | { kind: "zeroOrAtLeast"; least: number };
+
+export const SETTING_NUMERIC_CLAMPS: Partial<
+  Record<keyof Settings, SettingNumericClamp>
+> = {
+  hold_threshold_ms: { kind: "minMax", min: 100, max: 1000 },
+  audio_feedback_volume: { kind: "minMax", min: 0, max: 1 },
+  word_correction_threshold: { kind: "minMax", min: 0, max: 1 },
+  paste_delay_ms: { kind: "minMax", min: 10, max: 5000 },
+  paste_delay_after_ms: { kind: "minMax", min: 10, max: 5000 },
+  history_limit: { kind: "minMax", min: 0, max: 1000 },
+  extra_recording_buffer_ms: { kind: "minMax", min: 0, max: 1500 },
+  streaming_release_tail_ms: { kind: "minMax", min: 0, max: 1000 },
+  memory_gate_headroom_mb: { kind: "zeroOrAtLeast", least: 5 },
+};
+
+/** Clamp a numeric setting to its declared bound at the setter, so an
+ * out-of-range value (typed into a number field, sent by a stray caller)
+ * is corrected before the optimistic write AND the backend write. Values
+ * for keys without a declared bound, and non-numeric values, pass through
+ * untouched; a non-finite number lands on the bound's floor.
+ */
+export function clampSettingValue<K extends keyof Settings>(
+  key: K,
+  value: Settings[K],
+): Settings[K] {
+  const clamp = SETTING_NUMERIC_CLAMPS[key];
+  if (!clamp || typeof value !== "number") {
+    return value;
+  }
+  if (!Number.isFinite(value)) {
+    return (clamp.kind === "minMax" ? clamp.min : 0) as Settings[K];
+  }
+  if (clamp.kind === "minMax") {
+    return Math.min(clamp.max, Math.max(clamp.min, value)) as Settings[K];
+  }
+  // zeroOrAtLeast: 0 is valid (the off value); anything positive below the
+  // threshold normalizes to 0, mirroring the backend's load-time guard;
+  // negatives are garbage and also land on 0.
+  return (value >= clamp.least ? value : 0) as Settings[K];
+}
 
 const settingUpdaters: {
   [K in keyof Settings]?: (value: Settings[K]) => Promise<unknown>;
@@ -312,12 +411,29 @@ export const useSettingsStore = create<SettingsStore>()(
               state.postProcessModelOptions,
             ),
           }));
+
+          // W1-L4: hydration just completed. Replay any updateSetting
+          // intents stashed while settings was null, serially and through
+          // the normal updateSetting path, so each one gets the full
+          // optimistic-write / backend-write / rollback treatment a direct
+          // call would. drain() empties the queue synchronously, so a
+          // concurrent refreshSettings (a settings-changed event landing
+          // mid-replay) finds it empty and cannot double-apply.
+          const replayable = preHydrationUpdates.drain();
+          for (const [replayKey, replayValue] of replayable) {
+            await get().updateSetting(
+              replayKey,
+              replayValue as Settings[typeof replayKey],
+            );
+          }
         } else {
           console.error("Failed to load settings:", result.error);
+          warnPreHydrationIntentsPending();
           set({ isLoading: false });
         }
       } catch (error) {
         console.error("Failed to load settings:", error);
+        warnPreHydrationIntentsPending();
         set({ isLoading: false });
       }
     },
@@ -387,6 +503,33 @@ export const useSettingsStore = create<SettingsStore>()(
       key: K,
       value: Settings[K],
     ) => {
+      // W1-L4 numeric clamp: bounds declared by the per-setting UI are
+      // enforced here (see SETTING_NUMERIC_CLAMPS above) so an
+      // out-of-range value is corrected before ANY write, optimistic or
+      // backend, direct or replayed.
+      const clampedValue = clampSettingValue(key, value);
+
+      // W1-L4 hydration guard: while settings === null (the boot window
+      // before the first getAppSettings response) do NOTHING observable:
+      // no optimistic write, no backend write, no isUpdating spinner. The
+      // old code skipped only the optimistic write but still ran the
+      // backend updater, and the in-flight hydration response then
+      // overwrote the store with the pre-write value, silently losing the
+      // user's change. Instead, stash the intent and replay it on
+      // hydration (refreshSettings, above). The stash is bounded; a
+      // refused intent (a runaway caller touching more distinct keys than
+      // the queue holds) is dropped with a warn rather than growing
+      // without limit.
+      if (!get().settings) {
+        const stash = preHydrationUpdates.stash(key, clampedValue);
+        if (!stash.stashed) {
+          console.warn(
+            `Pre-hydration updateSetting(${String(key)}) dropped: stash already holds ${preHydrationUpdates.size} distinct keys (limit ${PRE_HYDRATION_STASH_LIMIT}); the setting was not written`,
+          );
+        }
+        return;
+      }
+
       const { settings, setUpdating } = get();
       const updateKey = String(key);
       const originalValue = settings?.[key];
@@ -395,13 +538,15 @@ export const useSettingsStore = create<SettingsStore>()(
 
       try {
         set((state) => ({
-          settings: state.settings ? { ...state.settings, [key]: value } : null,
+          settings: state.settings
+            ? { ...state.settings, [key]: clampedValue }
+            : null,
         }));
 
         const updater = settingUpdaters[key];
         let result: unknown = null;
         if (updater) {
-          result = await updater(value);
+          result = await updater(clampedValue);
         } else if (key !== "bindings" && key !== "selected_model") {
           // Handled elsewhere (bindings via updateBinding, selected_model
           // via the model store); anything else is a programming slip.

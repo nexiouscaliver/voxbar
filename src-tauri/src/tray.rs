@@ -1480,6 +1480,23 @@ mod tests {
         reselected.post_process_selected_prompt_id = Some("prompt_42".to_string());
         assert_ne!(with_prompts, reselected);
 
+        // KB-066/KB-201: the CRUD commands (add/duplicate/delete rewrite the
+        // library list itself) re-sync through update_tray_menu after every
+        // mutation, so a library change must drive a rebuild through
+        // MenuInputs' equality - the prompt-submenu twin of the LLM list's
+        // grown pin above.
+        let mut added = with_prompts.clone();
+        added
+            .post_process_prompts
+            .push(("prompt_43".to_string(), "Added".to_string()));
+        assert_ne!(with_prompts, added, "a template added => the menu rebuilds");
+        let mut deleted = with_prompts.clone();
+        deleted.post_process_prompts.truncate(2);
+        assert_ne!(
+            with_prompts, deleted,
+            "a template deleted => the menu rebuilds"
+        );
+
         // Nothing selected: no checkmark, no name segment.
         let mut unselected = with_prompts.clone();
         unselected.post_process_selected_prompt_id = None;

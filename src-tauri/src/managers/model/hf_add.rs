@@ -393,6 +393,148 @@ async fn list_repo_ggufs(
     Ok((info.sha, files))
 }
 
+/// One entry of the Hub tree listing (`/api/models/{repo}/tree/{revision}`
+/// with `?recursive=true`). Only the fields the digest lookup needs: the
+/// entry-level `oid` is a git blob sha1 and deliberately NOT parsed, because
+/// a git object id is not a content hash; only an LFS pointer's `oid` is a
+/// sha256 of the file bytes.
+#[derive(Deserialize)]
+struct HfApiTreeEntry {
+    path: String,
+    #[serde(default)]
+    lfs: Option<HfApiLfs>,
+}
+
+#[derive(Deserialize)]
+struct HfApiLfs {
+    oid: String,
+}
+
+/// The LFS content sha256 a Hub tree listing carries for `filename`, parsed
+/// from the raw listing body. `None` when the path is absent, the file is
+/// not LFS-hosted (no content digest exists for it), or the oid is not a
+/// 64-char hex string (a git sha1 or garbage must never stand in for a
+/// content hash). Lowercased: the Hub serves lowercase and the app's own
+/// digests are lowercase, so comparison stays shape-insensitive.
+pub(super) fn lfs_sha256_from_tree(tree_json: &str, filename: &str) -> Option<String> {
+    let entries: Vec<HfApiTreeEntry> = serde_json::from_str(tree_json).ok()?;
+    let oid = entries
+        .iter()
+        .find(|entry| entry.path == filename)?
+        .lfs
+        .as_ref()?
+        .oid
+        .to_ascii_lowercase();
+    (oid.len() == 64 && oid.bytes().all(|b| b.is_ascii_hexdigit())).then_some(oid)
+}
+
+/// The Hub's own content digest for one repo file at `revision`, read
+/// through the tree API. This is the metadata digest the Add-from-Hugging-
+/// Face flow verifies every user-added download against (the KB-171
+/// residual): the Hub lists each LFS-hosted file with its sha256 pinned to
+/// the exact revision the download resolves, so a corrupted or substituted
+/// transfer cannot register.
+///
+/// `None` means no digest is available - the file is not LFS-hosted, or the
+/// listing itself could not be fetched. The caller logs and leaves the
+/// download unverified rather than failing it: a metadata outage must not
+/// break downloads that carry no other trust anchor, and non-LFS GGUFs
+/// (under the Hub's LFS size threshold) have no content digest to check.
+///
+/// The endpoint is derived from hf-hub's own resolve URL for the same repo
+/// and revision, so the listing, the digest, and the download can never
+/// disagree about which Hub (HF_ENDPOINT) they address.
+pub(super) async fn hf_file_sha256(
+    repo_id: &str,
+    revision: &str,
+    filename: &str,
+) -> Option<String> {
+    let api = ApiBuilder::from_env()
+        .with_token(None)
+        .with_progress(false)
+        .build()
+        .map_err(|e| {
+            warn!(
+                "KB-171: could not init the Hub API client for a digest lookup: {}",
+                e
+            );
+        })
+        .ok()?;
+    let repo = api.repo(Repo::with_revision(
+        repo_id.to_string(),
+        RepoType::Model,
+        revision.to_string(),
+    ));
+    // `{endpoint}/{repo_id}/resolve/{revision}/{filename}` with an empty
+    // filename: split off the resolve suffix to recover the endpoint plus
+    // the revision hf-hub itself escaped (url_revision %2F-escapes slashes),
+    // then address the tree listing for that same commit.
+    let resolve_url = repo.url("");
+    let marker = format!("/{}/resolve/", repo_id);
+    let idx = resolve_url.find(&marker)?;
+    let endpoint = &resolve_url[..idx];
+    let escaped_revision = resolve_url[idx + marker.len()..]
+        .trim_end_matches('/')
+        .to_string();
+    let url = format!(
+        "{}/api/models/{}/tree/{}?recursive=true",
+        endpoint, repo_id, escaped_revision
+    );
+
+    let client = reqwest::Client::builder()
+        .connect_timeout(HF_METADATA_TIMEOUT)
+        .build()
+        .map_err(|e| warn!("KB-171: digest lookup client failed to init: {}", e))
+        .ok()?;
+    let response = match tokio::time::timeout(HF_METADATA_TIMEOUT, client.get(&url).send()).await {
+        Ok(Ok(response)) => response,
+        Ok(Err(e)) => {
+            warn!("KB-171: digest lookup for {} failed: {}", filename, e);
+            return None;
+        }
+        Err(_) => {
+            warn!(
+                "KB-171: digest lookup for {} timed out after {}s",
+                filename,
+                HF_METADATA_TIMEOUT.as_secs()
+            );
+            return None;
+        }
+    };
+    let status = response.status();
+    if !status.is_success() {
+        warn!(
+            "KB-171: digest lookup for {} returned HTTP {}; leaving the download unverified",
+            filename, status
+        );
+        return None;
+    }
+    // The body read is raced against the same bound as `send()` (and as the
+    // sibling listing's json() read above in list_repo_ggufs): a server that
+    // sends headers and then stalls must not hang the download critical
+    // path - this lookup runs AFTER the artifact already landed, with the
+    // transfer watchdog already aborted, so nothing else would fire.
+    let body = match tokio::time::timeout(HF_METADATA_TIMEOUT, response.text()).await {
+        Ok(Ok(body)) => body,
+        Ok(Err(e)) => {
+            warn!(
+                "KB-171: digest lookup for {} failed to read the body: {}",
+                filename, e
+            );
+            return None;
+        }
+        Err(_) => {
+            warn!(
+                "KB-171: digest lookup for {} timed out reading the listing body after {}s",
+                filename,
+                HF_METADATA_TIMEOUT.as_secs()
+            );
+            return None;
+        }
+    };
+    lfs_sha256_from_tree(&body, filename)
+}
+
 /// Resolve pasted input against the Hub: parse it, list the repo's GGUF files
 /// with sizes, and suggest one. Errors are structured ([`HfModelError`]) so
 /// the UI can localize them.
@@ -988,6 +1130,64 @@ mod tests {
         assert_eq!(
             parse_hf_input("org/repo/MODEL.GGUF"),
             Ok(parsed("org/repo", Some("MODEL.GGUF"), None))
+        );
+    }
+
+    /// The Hub tree listing shape the digest lookup parses (verified
+    /// against a live listing of Qwen/Qwen3-0.6B-GGUF: the LFS oid equals
+    /// the app's own pinned sha256 for that file).
+    #[test]
+    fn tree_listing_yields_the_lfs_digest_for_the_named_file() {
+        let listing = r#"[
+            {"type":"file","oid":"e1d1e4f56dfb09e2f8179b74589e7533dff34072","size":1808,"path":".gitattributes"},
+            {"type":"file","oid":"11bf194c8059f3b03e4454376ac67813a1e0eb52","size":639446688,
+             "lfs":{"oid":"9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031","size":639446688,"pointerSize":134},
+             "path":"Qwen3-0.6B-Q8_0.gguf"}
+        ]"#;
+        assert_eq!(
+            lfs_sha256_from_tree(listing, "Qwen3-0.6B-Q8_0.gguf").as_deref(),
+            Some("9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"),
+            "the LFS oid is the content digest"
+        );
+        // Subfolder paths match verbatim.
+        assert_eq!(
+            lfs_sha256_from_tree(listing, ".gitattributes"),
+            None,
+            "a non-LFS file has no content digest"
+        );
+        assert_eq!(
+            lfs_sha256_from_tree(listing, "not-there.gguf"),
+            None,
+            "a missing path yields no digest"
+        );
+        assert_eq!(lfs_sha256_from_tree("not json", "x.gguf"), None);
+    }
+
+    /// A git blob sha1 (40 hex chars) or a malformed oid must never be
+    /// mistaken for a sha256 content digest: only a 64-char hex oid is.
+    #[test]
+    fn tree_listing_rejects_non_sha256_oids() {
+        let listing = r#"[
+            {"type":"file","oid":"40charsha1oid00000000000000000000000000000",
+             "lfs":{"oid":"40charsha1oid00000000000000000000000000000","size":10,"pointerSize":134},
+             "path":"a.gguf"},
+            {"type":"file","oid":"ok","lfs":{"oid":"zz65e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031","size":10,"pointerSize":134},"path":"b.gguf"},
+            {"type":"file","oid":"ok","lfs":{"oid":"9465E63A22ADD5354D9BB4B99E90117043C7124007664907259BD16D043BB031","size":10,"pointerSize":134},"path":"c.gguf"}
+        ]"#;
+        assert_eq!(
+            lfs_sha256_from_tree(listing, "a.gguf"),
+            None,
+            "a 40-char git sha1 must not pass as a content digest"
+        );
+        assert_eq!(
+            lfs_sha256_from_tree(listing, "b.gguf"),
+            None,
+            "non-hex oid must be rejected"
+        );
+        assert_eq!(
+            lfs_sha256_from_tree(listing, "c.gguf").as_deref(),
+            Some("9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031"),
+            "uppercase hex normalizes to the app's lowercase digests"
         );
     }
 

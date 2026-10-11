@@ -868,7 +868,9 @@ impl TranscriptionCoordinator {
                             }
                         }
                         Command::CommandModifier { is_pressed } => {
-                            if let Some(effect) = state.on_command_modifier(is_pressed, Instant::now()) {
+                            if let Some(effect) =
+                                state.on_command_modifier(is_pressed, Instant::now())
+                            {
                                 run_effect(&app, &mut state, effect);
                             }
                         }
@@ -1678,7 +1680,10 @@ mod tests {
             Some(Effect::Stop { .. })
         ));
         assert!(!state.command_modifier);
-        assert_eq!(state.on_command_modifier(false, t0 + Duration::from_secs(6)), None);
+        assert_eq!(
+            state.on_command_modifier(false, t0 + Duration::from_secs(6)),
+            None
+        );
         assert!(!state.command_modifier);
     }
 
@@ -1705,7 +1710,10 @@ mod tests {
             "the pair completes only on release"
         );
         state.on_command_modifier(false, release_at);
-        assert_eq!(state.take_command_hold_edges(), Some((press_at, release_at)));
+        assert_eq!(
+            state.take_command_hold_edges(),
+            Some((press_at, release_at))
+        );
         assert!(
             state.take_command_hold_edges().is_none(),
             "the outbox is consumed exactly once"
@@ -1754,7 +1762,10 @@ mod tests {
         completed.on_command_modifier(false, t0 + Duration::from_millis(1_400));
         assert_eq!(
             completed.take_command_hold_edges(),
-            Some((t0 + Duration::from_secs(1), t0 + Duration::from_millis(1_400)))
+            Some((
+                t0 + Duration::from_secs(1),
+                t0 + Duration::from_millis(1_400)
+            ))
         );
         // ...and the finalize transition itself keeps the boxed pair.
         let mut kept = CoordinatorState::new();

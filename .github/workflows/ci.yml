@@ -72,11 +72,16 @@ jobs:
       - name: Install SPIRV-Headers (Windows)
         if: runner.os == 'Windows'
         shell: pwsh
+        # pwsh exits with only the last command's status, so a failed
+        # non-final cmake would be swallowed; guard each command instead.
         run: |
           $prefix = Join-Path $env:RUNNER_TEMP 'spirv-install'
           cmake -S spirv-headers-src -B spirv-headers-build "-DCMAKE_INSTALL_PREFIX=$prefix"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --build spirv-headers-build --config Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           cmake --install spirv-headers-build --config Release
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "TRANSCRIBE_CMAKE_ARGS=-DCMAKE_PREFIX_PATH=$prefix" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Install Rust toolchain
@@ -98,7 +103,9 @@ jobs:
 
       # cargo test above regenerated src/bindings.ts via the export_bindings
       # test; fail when the committed bindings are stale. macOS-gated so
-      # cross-OS line endings can never false-positive.
+      # cross-OS line endings can never false-positive: Windows checkouts
+      # may rewrite EOLs (autocrlf), failing this diff without any content
+      # change, and no trivially correct cross-platform form exists.
       - name: Bindings freshness (tauri-specta)
         if: runner.os == 'macOS'
         run: git diff --exit-code src/bindings.ts
@@ -125,33 +132,49 @@ jobs:
       # scripts/ciTestCoverage.test.ts, which fails the build when a new
       # test:* script or assert file is added without a CI invocation.
       - name: Run bun unit tests
+        # Chained so any command's failure fails the step: the default
+        # shell on Windows is pwsh, which exits with only the last
+        # command's status (bash -e already propagates per command).
         run: |
-          bun run test:keyboard
-          bun run test:notice
-          bun run test:settings
-          bun run test:onboarding
-          bun run test:updater
-          bun src/components/settings/commands/commandGroups.test.ts
-          bun src/components/settings/post-processing/skipToastDedupe.test.ts
-          bun src/components/settings/historyLimitInput.test.ts
-          bun docs/quality-goldmine.test.ts
-          bun ui-shots/shoot.test.ts
+          bun run test:keyboard &&
+          bun run test:notice &&
+          bun run test:settings &&
+          bun run test:onboarding &&
+          bun run test:updater &&
+          bun src/components/settings/commands/commandGroups.test.ts &&
+          bun src/components/settings/post-processing/skipToastDedupe.test.ts &&
+          bun src/components/settings/historyLimitInput.test.ts &&
+          bun docs/quality-goldmine.test.ts &&
+          bun ui-shots/shoot.test.ts &&
           bun scripts/ciTestCoverage.test.ts
 
-      # Belt and suspenders: the sweep runs every git-tracked
-      # src/**/*.test.ts directly, so a file added with neither a script
-      # nor a list entry above still executes.
+      # Belt and suspenders: the sweep runs every src/**/*.test.ts it can
+      # discover (tracked or untracked-but-not-ignored) directly, so a file
+      # added with neither a script nor a list entry above still executes.
       - name: Test frontend sweep
         run: bun run test:frontend
 
       # The release pipeline runs only at operator release time; keep its
       # scripts at least syntactically honest in CI (fleet KB-233: the smoke
       # step shipped unrunnable because nothing checked it).
+      # Skipped on Windows: an autocrlf checkout rewrites these scripts to
+      # CRLF and bash -n then fails on the \r line endings, a checkout
+      # artifact rather than a script regression (the same EOL
+      # false-positive class the bindings freshness step gates away).
       - name: Release scripts syntax gate
+        if: runner.os != 'Windows'
+        # Chained so any command's failure fails the step even under a
+        # shell without bash -e semantics.
         run: |
-          bash -n scripts/release-macos.sh
-          bash -n scripts/smoke-macos.sh
-          grep -q 'APP_NAME="voxbar"' scripts/smoke-macos.sh
+          # The AI build-integrity gate must stay in the release pipeline:
+          # without the FoundationModels greps below the gate could be
+          # dropped in a refactor and a stub-linked app would ship again.
+          bash -n scripts/release-macos.sh &&
+          bash -n scripts/smoke-macos.sh &&
+          grep -q 'APP_NAME="voxbar"' scripts/smoke-macos.sh &&
+          grep -q 'FoundationModels.framework' scripts/release-macos.sh &&
+          grep -q 'Building Apple Intelligence with stubs' scripts/release-macos.sh &&
+          grep -q 'Apple Intelligence SDK not found' scripts/release-macos.sh
 
       - name: Check translations
         run: bun run check:translations

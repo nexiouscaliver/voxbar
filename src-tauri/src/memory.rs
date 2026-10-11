@@ -707,7 +707,10 @@ mod tests {
 
         // 975 > 900 at margin 0: the resolver refuses...
         let free = Some(900 * 1024 * 1024);
-        assert_eq!(resolve_fallback_model(free, &candidates, "selected", 0), None);
+        assert_eq!(
+            resolve_fallback_model(free, &candidates, "selected", 0),
+            None
+        );
         // ...and so does the load gate for the same numbers - this is the
         // exact decision the recursive fallback load would make, so the
         // resolver never hands it a certain terminal refusal.
@@ -718,8 +721,7 @@ mod tests {
         let free_exact = Some(footprint);
         assert!(!gate_should_refuse(free_exact, footprint, 0));
         assert_eq!(
-            resolve_fallback_model(free_exact, &candidates, "selected", 0)
-                .map(|c| c.id.as_str()),
+            resolve_fallback_model(free_exact, &candidates, "selected", 0).map(|c| c.id.as_str()),
             Some("reviewer-15")
         );
     }

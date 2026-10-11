@@ -1,6 +1,6 @@
 use super::command_matrix::{
-    CompiledCommandMatrix, VoiceDeletionKind, AMBIGUOUS_EVERYDAY_PHRASES, ATTACHED_MARKS,
-    contains_han, is_han_character,
+    contains_han, is_han_character, CompiledCommandMatrix, VoiceDeletionKind,
+    AMBIGUOUS_EVERYDAY_PHRASES, ATTACHED_MARKS,
 };
 use super::commands::is_coalescible_symbol;
 use natural::phonetics::soundex;
@@ -570,7 +570,11 @@ pub fn normalize_spoken_punctuation(text: &str, matrix: &CompiledCommandMatrix) 
         if contains_han(&phrase) {
             let pure_phrase_end =
                 token.start() + token.as_str().trim_end_matches(ATTACHED_MARKS).len();
-            if text[pure_phrase_end..].chars().next().is_some_and(is_han_character) {
+            if text[pure_phrase_end..]
+                .chars()
+                .next()
+                .is_some_and(is_han_character)
+            {
                 continue;
             }
         }
@@ -1746,7 +1750,10 @@ mod tests {
             normalize_spoken_punctuation("你好逗号世界", &dm()),
             "你好逗号世界"
         );
-        assert_eq!(normalize_spoken_punctuation("他说句号完", &dm()), "他说句号完");
+        assert_eq!(
+            normalize_spoken_punctuation("他说句号完", &dm()),
+            "他说句号完"
+        );
         // The anchored group keeps its boundaries: Latin near-misses of
         // "period" still never fire.
         assert_eq!(

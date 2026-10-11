@@ -66,9 +66,30 @@ KEY_MODE="$(stat -f '%Lp' "$KEY_FILE")"
 log "signing key present with mode 600"
 
 # --- 3. Build (no updater artifacts; this pipeline signs manually) ----------
+# The build log is kept (repo root) because the AI gate below greps it, and
+# because it is the post-mortem record when a release goes wrong.
+BUILD_LOG="$ROOT/release-build.log"
 log "building (nice -n 15 bunx tauri build); this is the slow step"
-nice -n 15 bunx tauri build
+nice -n 15 bunx tauri build 2>&1 | tee "$BUILD_LOG"
 [ -d "$APP_PATH" ] || die "bundle app not found at $APP_PATH after build"
+
+# --- 3b. AI build-integrity gate ---------------------------------------------
+# Nothing above PROVES the release binary linked the real FoundationModels:
+# if the DEVELOPER_DIR export silently failed, the build.rs auto-detection
+# compiles the stub and the app reports AI unavailable on every machine.
+# Prove both the linkage and the build log before signing or smoking.
+BIN_PATH="$APP_PATH/Contents/MacOS/voxbar"
+[ -f "$BIN_PATH" ] || die "bundle binary not found at $BIN_PATH"
+if ! otool -L "$BIN_PATH" | grep -q 'FoundationModels.framework'; then
+  die "$BIN_PATH does not link FoundationModels.framework: the toolchain resolved without full Xcode and the build used stubs. Install Xcode, verify the DEVELOPER_DIR export above, then rebuild."
+fi
+if grep -q 'Building Apple Intelligence with stubs' "$BUILD_LOG"; then
+  die "build log $BUILD_LOG contains 'Building Apple Intelligence with stubs'; refusing to ship a stub-linked AI build"
+fi
+if grep -q 'Apple Intelligence SDK not found' "$BUILD_LOG"; then
+  die "build log $BUILD_LOG contains 'Apple Intelligence SDK not found'; refusing to ship a stub-linked AI build"
+fi
+log "AI gate: $BIN_PATH links FoundationModels.framework and the build log shows no stub fallback"
 
 # Smoke the fresh bundle before re-signing: launch it, confirm the process
 # stays up, then quit it. Signatures and manifests cannot catch a startup
@@ -123,7 +144,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: Chinese and Japanese spoken commands no longer trigger inside ordinary words, the command badge only appears when the model can actually interpret commands, deleting a model mid-download no longer reports it as completed, a stuck fallback hotkey now heals itself, and CI now checks the release scripts." \
+  --arg notes "VoxBar ${VERSION}: the macOS release now hard-verifies real Apple Intelligence linkage, Mac-only keyboard feedback like undo and delete-word no longer buzzes the paired phone, HuggingFace downloads are sha256-verified, settings changes made before the store hydrates are no longer lost or double-written, the tray menu stays accurate after prompt and provider changes, and CI and tests gained another hardening pass." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \

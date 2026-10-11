@@ -532,9 +532,11 @@ fn build_apple_intelligence_bridge() {
         for dev_dir in candidates {
             let xcode_plugins = Path::new(&dev_dir)
                 .join("Platforms/MacOSX.platform/Developer/usr/lib/swift/host/plugins");
-            let xcode_sdk = Path::new(&dev_dir)
-                .join("Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk");
-            if xcode_plugins.join("libFoundationModelsMacros.dylib").exists()
+            let xcode_sdk =
+                Path::new(&dev_dir).join("Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk");
+            if xcode_plugins
+                .join("libFoundationModelsMacros.dylib")
+                .exists()
                 && xcode_sdk.exists()
             {
                 swift_sdk = xcode_sdk.to_string_lossy().into_owned();

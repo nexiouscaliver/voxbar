@@ -306,12 +306,7 @@ pub(crate) fn missed_hold_fold_len(delta: &str, matrix: &CompiledCommandMatrix) 
     for window_len in (1..=tokens.len()).rev() {
         let first_range = tokens[tokens.len() - window_len];
         let first = normalize_token(&delta[first_range.0..first_range.1]);
-        if !first.is_empty()
-            && matrix
-                .parser
-                .iter()
-                .any(|(phrase, _)| phrase[0] == first)
-        {
+        if !first.is_empty() && matrix.parser.iter().any(|(phrase, _)| phrase[0] == first) {
             // The separator run before the region's first token stays with
             // the dictation prefix (the region re-enters parsing whole).
             let before = &delta[..first_range.0];
@@ -882,10 +877,16 @@ mod tests {
         assert_eq!(missed_hold_fold_len("a new line", &dm()), 1);
         // Two commands in one hold: the region covers both.
         assert_eq!(missed_hold_fold_len(" comma question", &dm()), 0);
-        assert_eq!(missed_hold_fold_len(" comma question mark and more", &dm()), 0);
+        assert_eq!(
+            missed_hold_fold_len(" comma question mark and more", &dm()),
+            0
+        );
         // Post-release dictation keeps the region's first word an opener:
         // the fold stops before "question".
-        assert_eq!(missed_hold_fold_len("hello question mark and more", &dm()), 5);
+        assert_eq!(
+            missed_hold_fold_len("hello question mark and more", &dm()),
+            5
+        );
         // A PARTIAL word never opens the region (whole-word gate): the cut
         // "com" stays dictation, exactly like an ordinary word.
         assert_eq!(missed_hold_fold_len("hello com", &dm()), 9);
@@ -900,7 +901,10 @@ mod tests {
     fn command_prefix_span_len_bounds_at_the_last_completion() {
         // KB-222 shape: phrase + post-release dictation - the span stops at
         // the last completion and the tail survives as dictation.
-        assert_eq!(command_prefix_span_len(" question mark and more", &dm()), 14);
+        assert_eq!(
+            command_prefix_span_len(" question mark and more", &dm()),
+            14
+        );
         // Filler BETWEEN phrases discards per the command contract; the
         // phrases on both sides of it still fire.
         assert_eq!(

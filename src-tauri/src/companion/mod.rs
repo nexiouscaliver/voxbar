@@ -408,15 +408,28 @@ impl CompanionManager {
 }
 
 /// Overlay-notice codes that describe Mac-keyboard-only feedback and must
-/// never ride to the paired phones. The phone client has no display branch
-/// for them (just a 30 ms vibration), and the Mac emits them per
-/// auto-repeated press, so forwarding them buzzes the phone in a pocket
-/// with nothing to show.
+/// never ride to the paired phones. Membership rule (verified at each
+/// emitter): the code fires only from a Mac keyboard action or desktop
+/// surface (a ShortcutAction handler, the coordinator's command-mode press,
+/// a tray/UI command), and the paired phone can neither trigger it (the
+/// client speaks only hello/ptt frames) nor act on it (the client's notice
+/// branch renders only the companion trio; every other code is a bare
+/// 30 ms vibration), so forwarding would buzz the phone in a pocket with
+/// nothing to show.
 ///
 /// Denylist, not allowlist: every code NOT listed here, known or unknown,
 /// errors included, keeps riding the forwarder, so phone behavior stays
 /// otherwise identical.
-const MAC_ONLY_NOTICE_CODES: &[&str] = &["command_mode_no_session"];
+const MAC_ONLY_NOTICE_CODES: &[&str] = &[
+    // Command-mode modifier engaged with no live session (per press).
+    "command_mode_no_session",
+    // Delete-last-word key pressed with no live dictation session.
+    "delete_last_word_no_session",
+    // Undo key pressed with no live dictation session.
+    "undo_no_session",
+    // The cycle-prompt hotkey/tray command confirmed the next template.
+    "post_process_prompt_cycled",
+];
 
 /// AUD-01: may this overlay-notice code be forwarded to the paired phones?
 /// `false` is exactly the Mac-only skip set above; everything else
@@ -424,7 +437,6 @@ const MAC_ONLY_NOTICE_CODES: &[&str] = &["command_mode_no_session"];
 /// live TLS server.
 pub fn should_forward_notice_to_phones(code: &str) -> bool {
     !MAC_ONLY_NOTICE_CODES.contains(&code)
-
 }
 
 impl Default for CompanionManager {
@@ -620,17 +632,128 @@ mod tests {
     /// JSON payload parsing extracts), whether the notice may be broadcast
     /// to the paired phones. `false` is the Mac-only skip set: feedback only
     /// the Mac keyboard can trigger, which the phone must never see.
+    ///
+    /// Exhaustive by construction, both halves: the single
+    /// `phone_visibility!` list below generates BOTH the exhaustive
+    /// `classified_phone_visibility` match (no wildcard arm, so adding a
+    /// variant breaks compilation of this test until it consciously joins
+    /// a group there) AND the `every_variant()` array the
+    /// runtime-agreement loop iterates. Because both halves expand from
+    /// one list, a variant cannot be classified yet silently skipped by
+    /// the loop the way a separately hand-maintained array would allow.
+    /// The loop then pins that the runtime denylist
+    /// (should_forward_notice_to_phones over MAC_ONLY_NOTICE_CODES) agrees
+    /// with that classification for every code string the enum can emit,
+    /// and the denylist-entry check refuses strings no variant backs.
     #[test]
-    fn forwarder_drops_mac_only_notice_codes() {
-        // command_mode_no_session is Mac-keyboard-only feedback: the
-        // coordinator emits it per (auto-repeated) command-mode press with
-        // no live session, and a phone can never trigger or act on it. The
-        // phone client has no display branch for the code - just a 30 ms
-        // vibration - so every auto-repeat buzzes the phone in the pocket.
-        assert!(
-            !should_forward_notice_to_phones("command_mode_no_session"),
-            "command_mode_no_session is Mac-keyboard-only feedback and must never ride to phones"
+    fn every_notice_code_has_a_deliberate_phone_visibility_classification() {
+        // One list, two generated halves: the match and the iterated
+        // array cannot drift apart, because both expand from this single
+        // invocation. A new NoticeCode variant makes the generated match
+        // non-exhaustive and breaks compilation until the variant joins a
+        // group here, which simultaneously feeds the loop.
+        macro_rules! phone_visibility {
+            (
+                deny [ $( $deny:ident ),* $(,)? ]
+                allow [ $( $allow:ident ),* $(,)? ]
+            ) => {
+                fn classified_phone_visibility(code: NoticeCode) -> bool {
+                    match code {
+                        $( NoticeCode::$deny => false, )*
+                        $( NoticeCode::$allow => true, )*
+                    }
+                }
+                fn every_variant() -> Vec<NoticeCode> {
+                    vec![ $( NoticeCode::$deny, )* $( NoticeCode::$allow, )* ]
+                }
+            };
+        }
+
+        phone_visibility! {
+            deny [
+                // Mac-keyboard-only feedback. Each fires only from a Mac
+                // keyboard action or desktop surface: the command-mode
+                // press (coordinator), the delete-last-word and undo
+                // ShortcutActions (actions.rs), the cycle-prompt hotkey and
+                // tray/UI command (shortcut/mod.rs). The paired phone can
+                // neither trigger these (its client speaks only hello/ptt
+                // frames) nor act on them (its notice branch renders only
+                // the companion trio; anything else is a 30 ms vibration),
+                // so forwarding would buzz a pocket with nothing to show.
+                CommandModeNoSession,
+                DeleteLastWordNoSession,
+                UndoNoSession,
+                PostProcessPromptCycled,
+            ]
+            allow [
+                // Everything else keeps riding the forwarder (denylist
+                // semantics): the phone triggers its own dictation
+                // pipeline failures through the shared recorder path and
+                // renders the companion trio. The buffer variants
+                // (delete_last_word_no_buffer/undo_no_buffer) also fire
+                // only from Mac keyboard actions but deliberately stay
+                // forwarded: this cycle's denylist extension is scoped to
+                // the no-session feedback and the cycle confirm above, and
+                // changes nothing else about what phones received before.
+                NoModelSelected,
+                MicrophonePermissionDenied,
+                NoInputDevice,
+                RecordingFailed,
+                TranscriptionFailed,
+                PasteFailed,
+                ModelLoadFailed,
+                ModelFallback,
+                PostProcessMemoryGate,
+                PostProcessDownloadMissing,
+                PostProcessEngineFailed,
+                PostProcessTimeout,
+                PostProcessLengthGuard,
+                PostProcessTooLong,
+                PostProcessOutputInvalid,
+                PostProcessCloudFailed,
+                DeleteLastWordNoBuffer,
+                UndoNoBuffer,
+                BindingBusy,
+                WaylandTauriHotkeys,
+                GnomeOverlayFallback,
+                CompanionDisconnected,
+                CompanionServerFailed,
+                CompanionSessionCapped,
+            ]
+        }
+
+        // The generated list stays duplicate-free (a variant placed in
+        // both groups would shadow one classification behind an
+        // unreachable pattern instead of failing the build).
+        let every_variant = every_variant();
+        let mut listed: Vec<&str> = every_variant.iter().map(|c| c.as_str()).collect();
+        listed.sort_unstable();
+        let unique = listed.len();
+        listed.dedup();
+        assert_eq!(
+            listed.len(),
+            unique,
+            "a NoticeCode variant is listed twice in phone_visibility!"
         );
+
+        for code in &every_variant {
+            assert_eq!(
+                should_forward_notice_to_phones(code.as_str()),
+                classified_phone_visibility(*code),
+                "{}: the forwarder's denylist must match this variant's AUD-01 classification",
+                code.as_str(),
+            );
+        }
+
+        // The denylist itself stays variant-backed: a stray string entry
+        // that no NoticeCode emits would silently darken forwarding for a
+        // future code that reuses the name.
+        for entry in MAC_ONLY_NOTICE_CODES {
+            assert!(
+                every_variant.iter().any(|code| code.as_str() == *entry),
+                "MAC_ONLY_NOTICE_CODES entry {entry} matches no NoticeCode variant"
+            );
+        }
     }
 
     /// AUD-01 (double-broadcast): the session-cap tick used to broadcast

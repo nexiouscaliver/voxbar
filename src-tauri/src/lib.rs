@@ -358,9 +358,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                 // demand now (transcribe_audio), so even a refusal that
                 // races the stop recovers the audio.
                 if commands::models::dictation_session_live(app) {
-                    log::warn!(
-                        "Refusing tray model unload: a dictation session is live (KB-220)."
-                    );
+                    log::warn!("Refusing tray model unload: a dictation session is live (KB-220).");
                     return;
                 }
                 transcription_manager.request_unload();

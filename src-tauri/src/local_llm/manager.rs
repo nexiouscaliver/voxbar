@@ -2015,14 +2015,6 @@ mod tests {
             }
         }
 
-        fn slot_is_free(&self) -> bool {
-            !*self.slot_flag.lock().unwrap()
-        }
-
-        fn skips_contain(&self, reason: SkipReason) -> bool {
-            self.skips.lock().unwrap().iter().any(|(r, _)| *r == reason)
-        }
-
         /// The plan the live selection names (id, path, n_ctx, forecast).
         fn current_plan(&self) -> (&'static str, String, u32, u64) {
             let key = *self.selection.lock().unwrap();

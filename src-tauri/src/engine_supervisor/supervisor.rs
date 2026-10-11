@@ -17,9 +17,11 @@
 use super::protocol::{
     encode_message, read_message, DeviceInfo, DeviceSelector, LoadedInfo, Request, Response,
 };
-use super::worker::LOG_LINE_PREFIX;
+#[cfg(all(unix, not(test)))]
+use super::worker::record_launched_exe;
 #[cfg(not(test))]
-use super::worker::{record_launched_exe, worker_exe};
+use super::worker::worker_exe;
+use super::worker::LOG_LINE_PREFIX;
 use super::worker::{spawn_stderr_tail, STDERR_TAIL_LINES};
 use super::{CPU_ONLY_FLAG, LOG_LEVEL_ENV, WORKER_FLAG};
 use log::{debug, error, info, warn};

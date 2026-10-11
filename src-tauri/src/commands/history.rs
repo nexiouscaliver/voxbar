@@ -69,10 +69,7 @@ pub async fn delete_history_entry(
 /// and updates the raw transcript only. Pure so the gate is unit-testable;
 /// pinning the retry to the entry's recorded provider is a separate,
 /// larger fix.
-fn retry_runs_post_process(
-    entry_requested: bool,
-    settings: &crate::settings::AppSettings,
-) -> bool {
+fn retry_runs_post_process(entry_requested: bool, settings: &crate::settings::AppSettings) -> bool {
     entry_requested && settings.post_process_enabled
 }
 
@@ -119,14 +116,9 @@ pub async fn retry_history_entry_transcription(
         entry.post_process_requested,
         &crate::settings::get_settings(&app),
     );
-    let processed = process_transcription_output(
-        &app,
-        "history_retry",
-        &transcription,
-        post_process,
-        None,
-    )
-    .await;
+    let processed =
+        process_transcription_output(&app, "history_retry", &transcription, post_process, None)
+            .await;
     history_manager
         .update_transcription(
             id,
