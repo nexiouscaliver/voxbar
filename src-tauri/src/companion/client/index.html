@@ -29,7 +29,7 @@
       body {
         margin: 0;
         padding: 0;
-        height: 100%;
+        min-height: 100%;
       }
       body {
         background: var(--bg);
@@ -165,6 +165,213 @@
       #notice.show {
         display: block;
       }
+      .card {
+        background: var(--card);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 14px;
+        padding: 14px;
+        width: min(88vw, 360px);
+        font-size: 14px;
+      }
+      .card-title {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.6px;
+      }
+      #micError {
+        margin-top: 12px;
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        text-align: center;
+        border-color: rgba(245, 165, 36, 0.35);
+      }
+      #micError.show {
+        display: flex;
+      }
+      #micError p {
+        margin: 0;
+        color: var(--warn);
+        font-size: 14px;
+      }
+      #controls {
+        margin-top: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .ctl-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .ctl-label {
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .seg {
+        display: flex;
+        background: var(--card-2);
+        border-radius: 10px;
+        padding: 3px;
+        gap: 3px;
+      }
+      .seg button {
+        border: none;
+        background: transparent;
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+        padding: 7px 12px;
+        border-radius: 8px;
+      }
+      .seg button.active {
+        background: var(--accent);
+        color: #fff;
+      }
+      .switch {
+        width: 48px;
+        height: 28px;
+        border-radius: 999px;
+        border: none;
+        background: var(--card-2);
+        position: relative;
+        padding: 0;
+        flex-shrink: 0;
+        transition: background 120ms ease;
+      }
+      .switch .knob {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: var(--muted);
+        transition:
+          transform 120ms ease,
+          background 120ms ease;
+      }
+      .switch.on {
+        background: var(--accent);
+      }
+      .switch.on .knob {
+        transform: translateX(20px);
+        background: #fff;
+      }
+      #result {
+        margin-top: 18px;
+        display: none;
+      }
+      #result.show {
+        display: block;
+      }
+      .result-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        min-width: 0;
+      }
+      #resultBadge {
+        background: rgba(124, 92, 255, 0.25);
+        color: var(--accent-2);
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 8px;
+        border-radius: 999px;
+        flex-shrink: 0;
+      }
+      #resultModel {
+        color: var(--muted);
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      #resultCopy {
+        margin-left: auto;
+        border: none;
+        border-radius: 10px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+        padding: 8px 16px;
+        flex-shrink: 0;
+      }
+      #resultCopy.copied {
+        background: var(--ok);
+      }
+      #resultText {
+        user-select: text;
+        -webkit-user-select: text;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 15px;
+        line-height: 1.5;
+        max-height: 32vh;
+        overflow-y: auto;
+      }
+      #recent {
+        margin-top: 18px;
+        display: none;
+      }
+      #recent.show {
+        display: block;
+      }
+      #recentList {
+        list-style: none;
+        margin: 10px 0 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .recent-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .recent-body {
+        flex: 1;
+        min-width: 0;
+      }
+      .recent-text {
+        user-select: text;
+        -webkit-user-select: text;
+        font-size: 13px;
+        line-height: 1.4;
+        color: var(--text);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .recent-time {
+        color: var(--muted);
+        font-size: 11px;
+        margin-top: 2px;
+      }
+      .copy-mini {
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: var(--card-2);
+        color: var(--text);
+        font-size: 12px;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 6px 10px;
+        flex-shrink: 0;
+      }
+      .copy-mini.copied {
+        background: var(--ok);
+        border-color: var(--ok);
+      }
       .linkrow {
         margin-top: auto;
         padding-top: 18px;
@@ -219,6 +426,44 @@
     <button id="ptt" disabled aria-live="polite"></button>
     <div id="hint"></div>
     <div id="notice" role="status"></div>
+
+    <div id="micError" class="card" role="alert">
+      <p id="micErrorMsg"></p>
+      <button class="secondary" id="micRetry"></button>
+    </div>
+
+    <section id="controls" class="card">
+      <div class="ctl-row">
+        <span class="ctl-label" id="t-target-label"></span>
+        <div class="seg" id="targetSeg">
+          <button type="button" id="tgtPc"></button>
+          <button type="button" id="tgtPhone"></button>
+        </div>
+      </div>
+      <div class="ctl-row">
+        <span class="ctl-label" id="t-pp-label"></span>
+        <button type="button" id="ppToggle" class="switch" role="switch">
+          <span class="knob"></span>
+        </button>
+      </div>
+    </section>
+
+    <section id="result" class="card">
+      <div class="result-head">
+        <span class="card-title" id="t-result-title"></span>
+        <span id="resultBadge"></span>
+        <span id="resultModel"></span>
+        <button type="button" id="resultCopy"></button>
+      </div>
+      <div id="resultText"></div>
+    </section>
+
+    <section id="recent" class="card">
+      <span class="card-title" id="t-history-title"></span>
+      <ul id="recentList"></ul>
+      <p id="recentEmpty"></p>
+    </section>
+
     <div class="linkrow">
       <button class="secondary" id="reconnect" style="display: none"></button>
     </div>
@@ -226,8 +471,8 @@
 
     <script>
       "use strict";
-      // Localized strings: injected by the Mac from the SAME companion.* keys
-      // the app locales ship. `null` in the raw file; a JSON object here.
+      // Localized strings: injected by the Mac from the SAME companion.*
+      // keys the app locales ship. `null` in the raw file; a JSON object here.
       const STRINGS = /*__COMPANION_STRINGS__*/null;
 
       const S = (function () {
@@ -254,6 +499,20 @@
       const reconnectBtn = document.getElementById("reconnect");
       const micbar = document.getElementById("micbar");
       const miclvl = micbar.querySelector(".lvl");
+      const micErrorCard = document.getElementById("micError");
+      const micErrorMsg = document.getElementById("micErrorMsg");
+      const micRetryBtn = document.getElementById("micRetry");
+      const tgtPcBtn = document.getElementById("tgtPc");
+      const tgtPhoneBtn = document.getElementById("tgtPhone");
+      const ppToggle = document.getElementById("ppToggle");
+      const resultCard = document.getElementById("result");
+      const resultBadge = document.getElementById("resultBadge");
+      const resultModel = document.getElementById("resultModel");
+      const resultCopyBtn = document.getElementById("resultCopy");
+      const resultTextEl = document.getElementById("resultText");
+      const recentCard = document.getElementById("recent");
+      const recentList = document.getElementById("recentList");
+      const recentEmpty = document.getElementById("recentEmpty");
 
       document.getElementById("t-title").textContent = t(
         "title",
@@ -262,6 +521,30 @@
       document.getElementById("t-subtitle").textContent = t("subtitle", "");
       document.getElementById("t-cert").textContent = t("certNote", "");
       reconnectBtn.textContent = t("reconnect", "Reconnect");
+      document.getElementById("t-target-label").textContent = t(
+        "targetLabel",
+        "Send to",
+      );
+      tgtPcBtn.textContent = t("targetPc", "To PC");
+      tgtPhoneBtn.textContent = t("targetPhone", "To Phone");
+      document.getElementById("t-pp-label").textContent = t(
+        "postProcessLabel",
+        "Polish text",
+      );
+      document.getElementById("t-result-title").textContent = t(
+        "resultTitle",
+        "Transcript",
+      );
+      document.getElementById("t-history-title").textContent = t(
+        "historyTitle",
+        "Recent",
+      );
+      recentEmpty.textContent = t(
+        "historyEmpty",
+        "Dictations from this phone appear here.",
+      );
+      micRetryBtn.textContent = t("micRetry", "Try again");
+      resultCopyBtn.textContent = t("copy", "Copy");
 
       // ---- pairing token from the QR URL (https://lan-ip:port/#t=TOKEN) ----
       const TOKEN = (location.hash.match(/t=([0-9a-fA-F]{32})/) || [])[1] || "";
@@ -314,6 +597,160 @@
         }
         ptt.classList.toggle("recording", recording);
       }
+
+      // ---- per-session preferences (v1.6.0) ----
+      // Where the transcript lands (the Mac pastes it, or this phone shows
+      // it) and whether the post-process leg runs. Both ride every Ptt
+      // edge, so the server always holds the phone's current choice, and
+      // both persist so a reopening phone remembers them.
+      const TARGET_KEY = "voxbarCompanion.target";
+      const PP_KEY = "voxbarCompanion.postProcess";
+      let outputTarget = "pc"; // "pc" | "phone"
+      let postProcess = false;
+
+      function loadPrefs() {
+        try {
+          const savedTarget = localStorage.getItem(TARGET_KEY);
+          if (savedTarget === "pc" || savedTarget === "phone")
+            outputTarget = savedTarget;
+          const savedPp = localStorage.getItem(PP_KEY);
+          if (savedPp === "1" || savedPp === "0")
+            postProcess = savedPp === "1";
+        } catch (e) {}
+      }
+      function savePrefs() {
+        try {
+          localStorage.setItem(TARGET_KEY, outputTarget);
+          localStorage.setItem(PP_KEY, postProcess ? "1" : "0");
+        } catch (e) {}
+      }
+      function refreshControls() {
+        tgtPcBtn.classList.toggle("active", outputTarget === "pc");
+        tgtPhoneBtn.classList.toggle("active", outputTarget === "phone");
+        tgtPcBtn.setAttribute("aria-pressed", String(outputTarget === "pc"));
+        tgtPhoneBtn.setAttribute(
+          "aria-pressed",
+          String(outputTarget === "phone"),
+        );
+        ppToggle.classList.toggle("on", postProcess);
+        ppToggle.setAttribute("aria-checked", String(postProcess));
+      }
+      tgtPcBtn.addEventListener("click", () => {
+        outputTarget = "pc";
+        savePrefs();
+        refreshControls();
+      });
+      tgtPhoneBtn.addEventListener("click", () => {
+        outputTarget = "phone";
+        savePrefs();
+        refreshControls();
+      });
+      ppToggle.addEventListener("click", () => {
+        postProcess = !postProcess;
+        savePrefs();
+        refreshControls();
+      });
+
+      // ---- transcript delivery to the phone (target: phone) ----
+      let lastTranscript = null; // { text, polished, model }
+      let flashTimer = 0;
+
+      function copyText(text, btn) {
+        if (!text) return;
+        // clipboard.writeText called from a click handler carries the
+        // gesture the platform requires; the automatic attempt right after
+        // a transcript frame may be refused, and then this button (or the
+        // recent-list copy buttons) is the reliable path.
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(text).then(
+            () => {
+              if (btn) flashCopied(btn);
+            },
+            () => {},
+          );
+        }
+      }
+      function flashCopied(btn) {
+        const orig = btn.getAttribute("data-label") || btn.textContent;
+        btn.setAttribute("data-label", orig);
+        btn.textContent = t("copied", "Copied");
+        btn.classList.add("copied");
+        window.clearTimeout(flashTimer);
+        flashTimer = window.setTimeout(() => {
+          btn.textContent = orig;
+          btn.classList.remove("copied");
+        }, 1500);
+      }
+
+      function showTranscript(text, polished, model) {
+        if (!text) return;
+        lastTranscript = { text: text, polished: !!polished, model: model };
+        resultTextEl.textContent = text;
+        resultBadge.textContent = t("polished", "Polished");
+        resultBadge.style.display = polished ? "" : "none";
+        resultModel.textContent = model || "";
+        resultCopyBtn.textContent = t("copy", "Copy");
+        resultCard.classList.add("show");
+        // Auto-copy where the platform allows a write outside a gesture;
+        // where it does not, the Copy button above does it inside the tap.
+        copyText(text, resultCopyBtn);
+      }
+      resultCopyBtn.addEventListener("click", () => {
+        if (lastTranscript) copyText(lastTranscript.text, resultCopyBtn);
+      });
+
+      // ---- recent companion history (last 5, newest first) ----
+      const RECENT_LIMIT = 5;
+      let recentEntries = [];
+      let recentReceived = false; // the section waits for the first frame
+
+      function fmtTime(ts) {
+        if (!ts) return "";
+        try {
+          return new Date(ts * 1000).toLocaleString(undefined, {
+            month: "short",
+            day: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+        } catch (e) {
+          return "";
+        }
+      }
+      function renderRecent() {
+        if (!recentReceived) return;
+        recentCard.classList.add("show");
+        recentList.textContent = "";
+        recentEmpty.style.display = recentEntries.length ? "none" : "";
+        recentEntries.forEach((entry, idx) => {
+          const li = document.createElement("li");
+          li.className = "recent-item";
+          const body = document.createElement("div");
+          body.className = "recent-body";
+          const txt = document.createElement("div");
+          txt.className = "recent-text";
+          txt.textContent = entry.text;
+          const time = document.createElement("div");
+          time.className = "recent-time";
+          time.textContent = fmtTime(entry.timestamp);
+          const btn = document.createElement("button");
+          btn.type = "button";
+          btn.className = "copy-mini";
+          btn.textContent = t("copy", "Copy");
+          btn.setAttribute("data-idx", String(idx));
+          body.appendChild(txt);
+          body.appendChild(time);
+          li.appendChild(body);
+          li.appendChild(btn);
+          recentList.appendChild(li);
+        });
+      }
+      recentList.addEventListener("click", (ev) => {
+        const btn = ev.target.closest("button.copy-mini");
+        if (!btn) return;
+        const entry = recentEntries[Number(btn.getAttribute("data-idx"))];
+        if (entry) copyText(entry.text, btn);
+      });
 
       // ---- WebSocket ----
       function connect() {
@@ -378,7 +815,11 @@
                   : t("holdToTalk", ""),
               );
               refreshButton();
-              ensureMic();
+              // Warm the microphone (permission prompt, stream) but NEVER
+              // the AudioContext: it is created and resumed inside the
+              // press gesture, or engines that start it suspended
+              // (iOS Safari autoplay policy) capture silence forever.
+              openMic();
               break;
             case "state":
               recording = !!msg.recording;
@@ -404,6 +845,31 @@
                 showNotice(t("disconnectedFinalized", ""));
               else if (msg.code === "companion_session_capped")
                 showNotice(t("capped", ""));
+              else if (msg.code === "companion_zero_audio")
+                showNotice(t("zeroAudio", ""));
+              break;
+            case "transcript":
+              // Phone-target delivery: the Mac skipped its paste and sent
+              // the final transcript here instead.
+              vibrate(30);
+              showTranscript(
+                typeof msg.text === "string" ? msg.text : "",
+                !!msg.postProcessed,
+                typeof msg.model === "string" ? msg.model : "",
+              );
+              break;
+            case "recentHistory":
+              if (Array.isArray(msg.entries)) {
+                recentEntries = msg.entries
+                  .filter((e) => e && typeof e.text === "string")
+                  .slice(0, RECENT_LIMIT)
+                  .map((e) => ({
+                    text: e.text,
+                    timestamp: Number(e.timestamp) || 0,
+                  }));
+                recentReceived = true;
+                renderRecent();
+              }
               break;
             case "error":
               deliberateClose = true;
@@ -454,10 +920,37 @@
       const TARGET_RATE = 16000;
       const CHUNK = 640; // 40 ms of 16 kHz mono
       let lastLevelAt = 0;
+      let micFailed = false;
+      let openMicPromise = null;
+      let graphBuilding = false;
+      let workletUrl = null;
 
-      function ensureMic() {
-        if (micStream) return;
-        navigator.mediaDevices
+      function showMicError() {
+        micErrorMsg.textContent = t(
+          "micDenied",
+          "Microphone access failed. Allow it in the browser, then try again.",
+        );
+        micErrorCard.classList.add("show");
+      }
+      function hideMicError() {
+        micErrorCard.classList.remove("show");
+      }
+
+      function openMic() {
+        // Acquires (or reacquires after stopMic) the microphone stream.
+        // Safe from any context: a gesture, the welcome handler, or the
+        // retry button. The AudioContext is NOT touched here.
+        if (micStream) return Promise.resolve(micStream);
+        if (openMicPromise) return openMicPromise;
+        if (
+          !navigator.mediaDevices ||
+          !navigator.mediaDevices.getUserMedia
+        ) {
+          micFailed = true;
+          showMicError();
+          return Promise.reject(new Error("no mediaDevices"));
+        }
+        openMicPromise = navigator.mediaDevices
           .getUserMedia({
             audio: {
               echoCancellation: true,
@@ -468,19 +961,60 @@
           })
           .then((stream) => {
             micStream = stream;
-            setState("ready", t("stateReady", "Ready"));
-            setupGraph(stream);
+            micFailed = false;
+            openMicPromise = null;
+            hideMicError();
+            if (audioCtx) setupGraph(stream);
+            return stream;
           })
           .catch(() => {
-            setState("error", t("stateError", "Error"));
-            setHint(t("micDenied", ""));
-            ptt.disabled = true;
+            openMicPromise = null;
+            micFailed = true;
+            // Inline error with a retry; the talk button stays alive and
+            // its next press retries the microphone too.
+            showMicError();
+            throw new Error("getUserMedia failed");
           });
+        return openMicPromise;
+      }
+      micRetryBtn.addEventListener("click", () => {
+        openMic().catch(() => {});
+      });
+
+      function ensureAudio() {
+        // MUST run inside the pointerdown/touchstart gesture: engines that
+        // start AudioContexts suspended (iOS Safari autoplay policy) only
+        // run the capture graph after a create-or-resume made inside the
+        // gesture, and a resume made outside one stays rejected. Rebuilt
+        // here too, so a graph torn down between sessions (stopMic on
+        // goodbye/disconnect) comes back inside the next press.
+        if (!audioCtx) {
+          const Ctx = window.AudioContext || window.webkitAudioContext;
+          if (!Ctx) {
+            micFailed = true;
+            showMicError();
+            return;
+          }
+          try {
+            audioCtx = new Ctx({ sampleRate: TARGET_RATE });
+          } catch (e) {
+            micFailed = true;
+            showMicError();
+            return;
+          }
+        }
+        if (audioCtx.state === "suspended") {
+          audioCtx.resume().catch(() => {});
+        }
+        if (!micStream) {
+          openMic().catch(() => {});
+        } else if (!audioNode) {
+          setupGraph(micStream);
+        }
       }
 
       function setupGraph(stream) {
-        const Ctx = window.AudioContext || window.webkitAudioContext;
-        audioCtx = new Ctx({ sampleRate: TARGET_RATE });
+        if (audioNode || graphBuilding || !audioCtx) return;
         const source = audioCtx.createMediaStreamSource(stream);
         const sink = audioCtx.createGain();
         sink.gain.value = 0;
@@ -489,6 +1023,7 @@
         if (audioCtx.audioWorklet) {
           // Linear resample from the context rate to 16 kHz, buffered into
           // 640-sample (40 ms) chunks posted to the main thread.
+          graphBuilding = true;
           const blob = new Blob(
             [
               `
@@ -517,10 +1052,14 @@
             ],
             { type: "application/javascript" },
           );
-          const url = URL.createObjectURL(blob);
+          workletUrl = URL.createObjectURL(blob);
           audioCtx.audioWorklet
-            .addModule(url)
+            .addModule(workletUrl)
             .then(() => {
+              graphBuilding = false;
+              URL.revokeObjectURL(workletUrl);
+              workletUrl = null;
+              if (audioNode || !audioCtx) return;
               audioNode = new AudioWorkletNode(audioCtx, "r", {
                 numberOfOutputs: 1,
               });
@@ -529,6 +1068,9 @@
               audioNode.connect(sink);
             })
             .catch(() => {
+              graphBuilding = false;
+              URL.revokeObjectURL(workletUrl);
+              workletUrl = null;
               scriptProcessorFallback(source, sink);
             });
         } else {
@@ -584,11 +1126,23 @@
       }
 
       function stopMic() {
+        // Full teardown when the connection is gone (goodbye, error,
+        // network drop): releases the microphone hardware. The next press
+        // rebuilds everything inside its own gesture (ensureAudio), and
+        // between sessions the graph is NEVER torn down, so back-to-back
+        // dictations reuse it.
         if (audioNode) {
           try {
             audioNode.disconnect();
           } catch (e) {}
           audioNode = null;
+        }
+        graphBuilding = false;
+        if (workletUrl) {
+          try {
+            URL.revokeObjectURL(workletUrl);
+          } catch (e) {}
+          workletUrl = null;
         }
         if (audioCtx) {
           try {
@@ -607,6 +1161,13 @@
       function pressStart(ev) {
         if (ev) ev.preventDefault();
         if (ptt.disabled || pressing) return;
+        ensureAudio();
+        if (micFailed) {
+          // A session with no microphone is a guaranteed zero-audio
+          // capture; this press retries the microphone instead. The
+          // button stays alive, never dead.
+          return;
+        }
         pressing = true;
         ptt.classList.add("held");
         vibrate(15);
@@ -632,7 +1193,18 @@
 
       function sendPtt(pressed) {
         if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: "ptt", pressed: !!pressed }));
+          // The per-session preferences ride EVERY edge (v1.6.0): the
+          // server folds them in as they arrive and snaps them up on the
+          // press that starts a session, so a reconnecting phone re-arms
+          // its choice without any extra frame.
+          ws.send(
+            JSON.stringify({
+              type: "ptt",
+              pressed: !!pressed,
+              target: outputTarget,
+              postProcess: postProcess,
+            }),
+          );
         }
       }
 
@@ -670,6 +1242,8 @@
         }
       });
 
+      loadPrefs();
+      refreshControls();
       refreshButton();
       connect();
     </script>
