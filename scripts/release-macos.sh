@@ -144,7 +144,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: Chinese and Japanese spoken commands no longer trigger inside ordinary words, the command badge only appears when the model can actually interpret commands, deleting a model mid-download no longer reports it as completed, a stuck fallback hotkey now heals itself, and CI now checks the release scripts." \
+  --arg notes "VoxBar ${VERSION}: the macOS release now hard-verifies real Apple Intelligence linkage, Mac-only keyboard feedback like undo and delete-word no longer buzzes the paired phone, HuggingFace downloads are sha256-verified, settings changes made before the store hydrates are no longer lost or double-written, the tray menu stays accurate after prompt and provider changes, and CI and tests gained another hardening pass." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \
