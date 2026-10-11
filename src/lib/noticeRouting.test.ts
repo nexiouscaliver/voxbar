@@ -142,11 +142,14 @@ const CARD_GATED = [
   "wayland_tauri_hotkeys",
   "gnome_overlay_fallback",
   "companion_disconnected_finalized",
-  "companion_zero_audio",
 ];
 
 const ALWAYS_TOAST = ["command_mode_no_session"];
-const CAP = ["companion_session_capped"];
+// Codes emitted right before the pipeline retires the card (the cap's
+// finalize; the zero-audio stop pipeline's error-read delayed hide): the
+// toast stays card-gated but the notification must not depend on the card
+// still being visible when the emit lands.
+const CAP = ["companion_session_capped", "companion_zero_audio"];
 
 // Codes whose dedicated legacy listeners own every main-window surface; the
 // router stays inert for them.
@@ -251,6 +254,25 @@ assert.equal(
   capCardShowing.toast,
   false,
   "companion_session_capped toast stays card-gated - the card row is the visible surface when present",
+);
+
+// v1.6.0 zero-audio: same hazard class as the cap. The stop pipeline emits
+// the notice while the transcribing card is up, then hides the card via the
+// 2600 ms error-read delay (actions.rs zero-audio branch calls
+// hide_recording_overlay_after_error); the ~readable window is finite, so
+// the notification must be offered even with the card showing - a plain
+// card-gated policy reduced the whole Mac surface to the error sound plus
+// a flash (review finding).
+const zeroAudioCardShowing = routerDecision("companion_zero_audio", true);
+assert.equal(
+  zeroAudioCardShowing.notify,
+  true,
+  "companion_zero_audio must offer the notification even though the card is showing (the stop pipeline retires the card via the error-read hide shortly after the emit)",
+);
+assert.equal(
+  zeroAudioCardShowing.toast,
+  false,
+  "companion_zero_audio toast stays card-gated - the card row is the visible surface while the error-read delay keeps it up",
 );
 
 // ---- Exhaustive decision table: every routed code in both cardVisible

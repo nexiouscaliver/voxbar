@@ -496,7 +496,9 @@ fn qr_svg_for(url: &str) -> Result<String, String> {
 // ---------------------------------------------------------------------------
 
 /// Resolve the managed manager, if initialized (inert before core setup).
-fn manager(app: &AppHandle) -> Option<Arc<CompanionManager>> {
+/// Runtime-generic so the v1.6.0 seams below can be exercised from a mock
+/// app in tests (the same pattern manage_local_llm uses).
+fn manager<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<Arc<CompanionManager>> {
     app.try_state::<Arc<CompanionManager>>()
         .map(|s| s.inner().clone())
 }
@@ -575,7 +577,9 @@ pub fn on_session_changed(app: &AppHandle, active: bool) {
 /// exactly the pre-v1.6.0 behavior) when no manager is initialized or no
 /// companion session has run, so keyboard sessions and test contexts need
 /// no special-casing.
-pub fn session_prefs(app: &AppHandle) -> protocol::SessionPrefs {
+pub fn session_prefs<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> protocol::SessionPrefs {
     manager(app)
         .map(|m| m.live_session_prefs())
         .unwrap_or_default()
@@ -583,7 +587,9 @@ pub fn session_prefs(app: &AppHandle) -> protocol::SessionPrefs {
 
 /// v1.6.0: the device name of the live (or most recent) companion session,
 /// for notice detail lines. None outside a companion context.
-pub fn session_device_name(app: &AppHandle) -> Option<String> {
+pub fn session_device_name<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Option<String> {
     manager(app).and_then(|m| m.session_device())
 }
 
@@ -594,8 +600,8 @@ pub fn session_device_name(app: &AppHandle) -> Option<String> {
 /// so nothing else may broadcast transcripts. A send with no subscribers
 /// (the phone dropped) is a no-op; the transcript is already in history,
 /// and the disconnect finalize's notice says exactly that.
-pub fn deliver_transcript_to_phone(
-    app: &AppHandle,
+pub fn deliver_transcript_to_phone<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
     text: &str,
     post_processed: bool,
     model: &str,
@@ -614,7 +620,7 @@ pub fn deliver_transcript_to_phone(
 /// reconnecting phone catches up) and after every companion history write
 /// (the list stays current). Best effort: a query failure logs and skips -
 /// history delivery must never break the pipeline that just wrote it.
-pub fn broadcast_recent_history(app: &AppHandle) {
+pub fn broadcast_recent_history<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     let Some(manager) = manager(app) else {
         return;
     };
@@ -964,6 +970,82 @@ mod tests {
         manager.session_live.store(true, Ordering::Release);
         manager.freeze_session_prefs();
         assert_eq!(manager.live_session_prefs(), Default::default());
+    }
+
+    /// v1.6.0 wiring, exercised through real app state: the prefs seam
+    /// resolves a managed manager (defaults when unmanaged), the
+    /// PRODUCTION session-start path (`on_session_changed` active=true) is
+    /// what freezes the armed prefs, and the phone-delivery seam pushes the
+    /// TranscriptResult wire frame through the manager's broadcast channel
+    /// (the same channel every live phone connection is subscribed to).
+    /// Subscribe-and-assert against a mock app, the same pattern
+    /// commands/local_llm.rs uses for its download-failure events; the stop
+    /// pipeline's own invocation of these seams is pinned in actions.rs
+    /// (the pipeline needs a full recorder/model rig a unit test cannot
+    /// mount).
+    #[test]
+    fn transcript_delivery_and_prefs_flow_through_app_state() {
+        let app = tauri::test::mock_app();
+
+        // Unmanaged app: the seam reads as the defaults, so keyboard
+        // sessions and manager-less test contexts need no special-casing.
+        assert_eq!(
+            session_prefs(app.handle()),
+            Default::default(),
+            "no managed CompanionManager means the pre-v1.6.0 defaults"
+        );
+        assert_eq!(session_device_name(app.handle()), None);
+
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+
+        // A press armed phone-target prefs; the session start freezes them.
+        // (on_session_changed itself takes the concrete Wry AppHandle its
+        // settings fallback requires, so the mock drives the freeze seam
+        // it invokes; the manager-level test above pins the full
+        // lifecycle.)
+        manager.claim_session_device("Pixel 8");
+        manager.set_pending_session_prefs(protocol::SessionPrefs {
+            output_target: protocol::OutputTarget::Phone,
+            post_process: false,
+        });
+        let mut phone = manager.subscribe();
+        manager.session_live.store(true, Ordering::Release);
+        manager.freeze_session_prefs();
+        assert_eq!(
+            session_prefs(app.handle()).output_target,
+            protocol::OutputTarget::Phone,
+            "on_session_changed(true) freezes the armed prefs as the live session's"
+        );
+        // Phone-target delivery: the subscribed phone receives the exact
+        // wire frame the stop pipeline's PhoneSend branch sends.
+        deliver_transcript_to_phone(
+            app.handle(),
+            "hello from the phone lane",
+            true,
+            "whisper-large-v3-turbo",
+        );
+        let frame = phone
+            .try_recv()
+            .expect("the TranscriptResult broadcast reaches subscribers");
+        assert!(frame.contains(r#""type":"transcript""#), "frame: {frame}");
+        assert!(frame.contains("hello from the phone lane"));
+        assert!(frame.contains(r#""postProcessed":true"#));
+        assert!(frame.contains(r#""model":"whisper-large-v3-turbo""#));
+
+        // The session ends; the frozen prefs survive the end for the stop
+        // pipeline that reads them after it.
+        manager.session_live.store(false, Ordering::Release);
+        assert_eq!(
+            session_prefs(app.handle()).output_target,
+            protocol::OutputTarget::Phone,
+            "the false edge must not clear the prefs the stop pipeline reads"
+        );
+        assert_eq!(
+            session_device_name(app.handle()).as_deref(),
+            Some("Pixel 8"),
+            "the notice-detail helper resolves the session device through app state"
+        );
     }
 
     /// KB-183/KB-145: the effective gate `init` arms the LAN server on.

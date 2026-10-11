@@ -1535,6 +1535,16 @@ impl ShortcutAction for TranscribeAction {
                             crate::managers::transcription::NoticeCode::CompanionZeroAudio,
                             crate::companion::session_device_name(&ah),
                         );
+                        // The notice just landed on the card the stop path
+                        // showed; the error-read hide keeps it readable
+                        // (the same convention as every other error notice)
+                        // while the frontend's session-cap-class routing
+                        // offers the macOS notification independently of the
+                        // card, because this hide WILL retire the card.
+                        tm.cancel_stream();
+                        set_tray_state(&ah, TrayIconState::Idle);
+                        utils::hide_recording_overlay_after_error(&ah);
+                        return;
                     }
                     // Tear down any streaming worker so its channel doesn't leak
                     // and block the next start_stream.
@@ -2611,6 +2621,78 @@ mod tests {
                 transcript_delivery(CaptureSource::Remote, OutputTarget::Phone)
             ),
             ("companion".to_string(), "phone".to_string())
+        );
+    }
+
+    /// v1.6.0 wiring pin for the stop pipeline itself. The pipeline needs a
+    /// full app (recorder, resident model, history dirs) a unit test
+    /// cannot mount, and every pure helper above stays green if the
+    /// pipeline simply stops CALLING them - so the two v1.6.0 companion
+    /// branches are pinned against this committed source, the same
+    /// technique companion/client_page.rs uses to pin the phone asset's
+    /// tap handler. Deleting the phone-delivery branch, the zero-audio
+    /// emit, the error-read hide, or the provenance-bearing history writes
+    /// fails HERE even though every other test would stay green.
+    #[test]
+    fn stop_pipeline_keeps_the_v160_companion_wiring() {
+        let source = include_str!("actions.rs");
+        // Scope to TranscribeAction::stop's own body: the pure helpers
+        // above live outside it, so a match here means the pipeline calls
+        // the seam, not that the seam exists.
+        let impl_at = source
+            .find("impl ShortcutAction for TranscribeAction")
+            .expect("the TranscribeAction impl");
+        let stop_at = impl_at + source[impl_at..].find("fn stop(").expect("its stop fn");
+        let end_at = stop_at
+            + source[stop_at..]
+                .find("\n// Cancel Action")
+                .expect("the end of the impl");
+        let stop_body = &source[stop_at..end_at];
+
+        // The zero-audio emit exists, and its arm hides through the
+        // error-read delay: a plain hide retires the card ~300 ms after
+        // the notice landed on it (review finding: the notice was
+        // effectively unreadable on the Mac).
+        let emit_at = stop_body
+            .find("NoticeCode::CompanionZeroAudio")
+            .expect("the zero-audio emit in the empty-samples branch");
+        let local_cleanup_at = stop_body
+            .find("// Tear down any streaming worker")
+            .expect("the local-empty cleanup that follows the remote arm");
+        let zero_audio_arm = &stop_body[emit_at..local_cleanup_at];
+        assert!(
+            zero_audio_arm.contains("hide_recording_overlay_after_error"),
+            "the zero-audio notice must stay readable: the arm hides through the error-read delay, not the plain 300 ms hide"
+        );
+
+        // The phone-delivery branch: the transcript goes to the broadcast
+        // seam and the outcome line records the delivery.
+        let phone_branch_at = stop_body
+            .find("TranscriptDelivery::PhoneSend")
+            .expect("the PhoneSend branch");
+        let phone_arm = &stop_body[phone_branch_at..];
+        assert!(
+            phone_arm.contains("deliver_transcript_to_phone"),
+            "the branch must deliver through the companion broadcast seam"
+        );
+        assert!(
+            phone_arm.contains("\"sent-to-phone\""),
+            "the outcome line must record the phone delivery"
+        );
+
+        // The history writes carry the provenance pair, and every
+        // companion write refreshes the phones' recent list.
+        assert!(
+            stop_body.contains("history_capture_source.clone()"),
+            "the pipeline must pass the capture source into the history write"
+        );
+        assert!(
+            stop_body.contains("history_destination.clone()"),
+            "the pipeline must pass the delivery destination into the history write"
+        );
+        assert!(
+            stop_body.contains("broadcast_recent_history"),
+            "a companion history write must refresh the phones' recent list"
         );
     }
 
