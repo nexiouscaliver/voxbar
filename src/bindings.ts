@@ -76,10 +76,29 @@ async changeMemoryGateHeadroomSetting(headroomMb: number) : Promise<Result<null,
  * rolls the toggle back instead of persisting an enabled state with no
  * server behind it.
  * 
+ * KB-183: the runtime apply is the both-toggles conjunction
+ * (companion_toggle_runtime_value), never the raw flag - a direct invoke
+ * with the Experimental master off must not start (or keep) the LAN
+ * server just because this toggle turned on. The raw toggle still
+ * persists: `companion::init` and `change_experimental_enabled_setting`
+ * re-arm from the stored pair exactly as they do at boot.
+ * 
+ * Read ordering is load-bearing (the pre-lane command and
+ * `change_experimental_enabled_setting` both keep it): the gate reads the
+ * persisted settings BEFORE apply, but the persist must re-read AFTER
+ * apply. On the enable path `CompanionManager::start` regenerates a stale
+ * pairing token and persists it mid-apply (companion/mod.rs), and the
+ * running server authenticates against that regenerated token;
+ * write_settings overwrites the whole settings object, so persisting a
+ * pre-apply snapshot would revert the token the server just armed (first
+ * enable: the QR never renders; subnet change: the QR advertises a dead
+ * token) and would stretch the lost-update window across the whole
+ * server start.
+ * 
  * No stop-the-server cleanup wraps the persist step, by invariant rather
  * than omission: this command's only Err is the failed start above, which
  * happens before any server exists, and settings::write_settings cannot
- * fail gracefully — it returns (), its store bootstrap is an expect and
+ * fail gracefully - it returns (), its store bootstrap is an expect and
  * its serialization an unwrap, the plugin's Store::set is infallible, and
  * the disk flush is a debounced background auto-save that discards its
  * errors. A persist failure is therefore panic-shaped and takes the whole
