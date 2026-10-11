@@ -24,10 +24,12 @@ import {
 // This file is the contract test for the pure queue module, the same
 // split the repo uses for store-coupled decisions (settingsWriteOutcome,
 // updateCheckGate, noticeRouting): the queue decides what is retained and
-// in what order; the store performs the effects. The store chain itself
-// cannot be imported under bun (it pulls src/i18n, whose import.meta.glob
-// is a Vite-only transform), so the wiring is pinned here by contract,
-// exactly like updateCheckGate.test.ts pins its gate for runUpdateCheck:
+// in what order; the store performs the effects. The store WIRING (the
+// guard in updateSetting, the drain-and-replay in refreshSettings, the
+// failed-hydration warn) is exercised against the real store in
+// settingsStore.test.ts, which mocks only the Tauri edges (@/bindings,
+// ../i18n, sonner) with bun's mock.module; this file pins the queue's own
+// semantics:
 //
 //   1. A pre-hydration updateSetting(key, value) call must resolve
 //      without touching zustand state (settings stays null) and without
