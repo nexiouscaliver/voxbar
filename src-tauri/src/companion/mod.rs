@@ -474,7 +474,11 @@ impl CompanionManager {
     /// the server is stopped; `restart_pending` flags a running server
     /// started with a since-changed configuration, and a chosen
     /// interface that no longer resolves keeps the LIVE values with the
-    /// resolution error on `bind_error`.
+    /// resolution error on `bind_error`. The QR is suppressed while the
+    /// stored pairing token is bound to a different subnet than the
+    /// effective address implies (advertised_url_qr): the next start
+    /// regenerates that token, so advertising the old one would pair
+    /// phones against a dead token.
     pub fn status(&self, app: &AppHandle) -> CompanionStatus {
         let settings = crate::settings::get_settings(app);
         let candidates = ip::interface_candidates();
@@ -497,18 +501,14 @@ impl CompanionManager {
             (Err(e), true) => (inner.bind_ip, Some(e.clone())),
             (Err(e), false) => (None, Some(e.clone())),
         };
-        let url_host = advertised_host
-            .clone()
-            .unwrap_or_else(|| effective_ip.map(|ip| ip.to_string()).unwrap_or_default());
 
-        let (url, qr_svg) = match (effective_ip, token.as_deref()) {
-            (Some(_), Some(token)) if !token.is_empty() && !url_host.is_empty() => {
-                let url = format!("https://{url_host}:{port}/#t={token}");
-                let qr = qr_svg_for(&url).ok();
-                (Some(url), qr)
-            }
-            _ => (None, None),
-        };
+        let (url, qr_svg) = advertised_url_qr(
+            advertised_host.as_deref(),
+            effective_ip,
+            token.as_deref(),
+            settings.companion_pairing_subnet.as_deref(),
+            port,
+        );
 
         let restart_pending = inner.running && {
             let live = inner
@@ -895,6 +895,40 @@ fn restart_needed(
     persisted_port != live.port
         || advertised_host != live.advertised_host.as_deref()
         || tls_manual_now != live.tls_manual
+}
+
+/// v1.6.0: the pairing URL and QR the panel may advertise for one
+/// effective address (the resolved choice, or the live bind when the
+/// choice no longer resolves while the server runs). The advertised-host
+/// override replaces the host; None (no URL, no QR) when there is no
+/// address, no token, or the stored token is bound to a DIFFERENT
+/// subnet than the effective address implies - start() regenerates a
+/// stale token at the next start, so advertising it would hand the
+/// phone a bad_token exactly after the restart the preview promised.
+fn advertised_url_qr(
+    advertised_host: Option<&str>,
+    effective_ip: Option<Ipv4Addr>,
+    token: Option<&str>,
+    stored_pairing_subnet: Option<&str>,
+    port: u16,
+) -> (Option<String>, Option<String>) {
+    let Some(ip) = effective_ip else {
+        return (None, None);
+    };
+    let Some(token) = token.filter(|t| !t.is_empty()) else {
+        return (None, None);
+    };
+    // A token issued for another subnet never validates (auth::same_subnet
+    // refuses); pairing_subnet_for widens Tailscale binds to the CGNAT /10.
+    if stored_pairing_subnet != Some(ip::pairing_subnet_for(ip).as_str()) {
+        return (None, None);
+    }
+    let host = advertised_host
+        .map(str::to_string)
+        .unwrap_or_else(|| ip.to_string());
+    let url = format!("https://{host}:{port}/#t={token}");
+    let qr = qr_svg_for(&url).ok();
+    (Some(url), qr)
 }
 
 #[cfg(test)]
@@ -1339,25 +1373,90 @@ mod tests {
         assert!(!restart_needed(&same, 4177, None, true, &live_manual));
     }
 
-    /// v1.6.0: the QR/URL seam rides the advertised-host override when
-    /// set and the bound interface's IP otherwise, so the pairing URL
-    /// always reflects the chosen or manual address.
+    /// v1.6.0, brief item 4: the QR/URL seam EXECUTED (the same
+    /// advertised_url_qr status() calls, not a re-implementation). The
+    /// URL rides the advertised-host override when set and the
+    /// effective interface IP otherwise, on the configured port, and is
+    /// suppressed outright when there is no address or no token.
     #[test]
     fn pairing_url_prefers_the_advertised_host_override() {
-        let ip = Ipv4Addr::new(192, 168, 1, 42);
-        let plain = format!("https://{ip}:4177/#t=tok");
-        assert_eq!(plain, "https://192.168.1.42:4177/#t=tok");
+        let lan = Ipv4Addr::new(192, 168, 1, 42);
+        let lan_subnet = Some("192.168.1.0/24");
 
-        // The host string status() interpolates: override wins, else the
-        // resolved IP (mirrors the url_host computation in status()).
-        let host = effective_advertised_host(Some("mac.tail1234.ts.net"))
-            .unwrap_or_else(|| ip.to_string());
-        assert_eq!(
-            format!("https://{host}:4177/#t=tok"),
-            "https://mac.tail1234.ts.net:4177/#t=tok"
+        // Override wins over the interface IP.
+        let (url, qr) = advertised_url_qr(
+            Some("mac.tail1234.ts.net"),
+            Some(lan),
+            Some("tok"),
+            lan_subnet,
+            4177,
         );
-        let host = effective_advertised_host(None).unwrap_or_else(|| ip.to_string());
-        assert_eq!(format!("https://{host}:4177/#t=tok"), plain);
+        assert_eq!(url.as_deref(), Some("https://mac.tail1234.ts.net:4177/#t=tok"));
+        assert!(qr.is_some(), "a valid URL always carries a QR");
+
+        // No override: the effective IP, on the configured port.
+        let (url, _) = advertised_url_qr(None, Some(lan), Some("tok"), lan_subnet, 8443);
+        assert_eq!(url.as_deref(), Some("https://192.168.1.42:8443/#t=tok"));
+
+        // Tailscale effective address with a token bound for it (the /10).
+        let ts = Ipv4Addr::new(100, 101, 7, 24);
+        let (url, _) = advertised_url_qr(None, Some(ts), Some("tok"), Some("100.64.0.0/10"), 4177);
+        assert_eq!(url.as_deref(), Some("https://100.101.7.24:4177/#t=tok"));
+
+        // No effective address (stopped, unresolvable choice) or no
+        // token: nothing to advertise.
+        assert_eq!(
+            advertised_url_qr(None, None, Some("tok"), lan_subnet, 4177),
+            (None, None)
+        );
+        assert_eq!(
+            advertised_url_qr(None, Some(lan), None, lan_subnet, 4177),
+            (None, None)
+        );
+        assert_eq!(
+            advertised_url_qr(None, Some(lan), Some(""), lan_subnet, 4177),
+            (None, None)
+        );
+    }
+
+    /// v1.6.0 review finding: the preview QR must never advertise a
+    /// token the next start invalidates. After an interface switch
+    /// across subnets (LAN /24 to Tailscale /10 and back), the stored
+    /// token is stale for the newly resolved address; start()
+    /// regenerates it (token_stale), so the preview with the OLD token
+    /// would pair the phone against a dead token right after the
+    /// restart the preview note told it to wait for. The seam suppresses
+    /// the URL and QR until the stored subnet matches again (which the
+    /// next start's regeneration restores).
+    #[test]
+    fn a_stale_token_for_the_resolved_subnet_is_never_advertised() {
+        let lan = Ipv4Addr::new(192, 168, 1, 42);
+        let tailscale = Ipv4Addr::new(100, 101, 7, 24);
+
+        // LAN token, Tailscale choice pending: no URL, no QR.
+        assert_eq!(
+            advertised_url_qr(None, Some(tailscale), Some("tok"), Some("192.168.1.0/24"), 4177),
+            (None, None),
+            "a /24 token advertised on a /10 address pairs against a dead token after restart"
+        );
+
+        // The reverse switch is equally suppressed.
+        assert_eq!(
+            advertised_url_qr(None, Some(lan), Some("tok"), Some("100.64.0.0/10"), 4177),
+            (None, None)
+        );
+
+        // A same-/24 interface change (en0 to a bridge on the same LAN)
+        // keeps the token valid, so the preview stays honest there.
+        let bridge = Ipv4Addr::new(192, 168, 1, 50);
+        let (url, _) = advertised_url_qr(None, Some(bridge), Some("tok"), Some("192.168.1.0/24"), 4177);
+        assert_eq!(url.as_deref(), Some("https://192.168.1.50:4177/#t=tok"));
+
+        // Never-paired state (no stored subnet): nothing yet.
+        assert_eq!(
+            advertised_url_qr(None, Some(lan), Some("tok"), None, 4177),
+            (None, None)
+        );
     }
 
     /// KB-183/KB-145: the effective gate `init` arms the LAN server on.

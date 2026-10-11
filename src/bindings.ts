@@ -141,7 +141,7 @@ async getCompanionStatus() : Promise<CompanionStatus> {
  * is NOT bounced here: the settings panel's restart button applies the
  * new configuration, with restart_pending flagging the difference.
  */
-async changeCompanionNetworkSetting(bindIp : string | null, advertisedHost : string | null, port : number) : Promise<Result<null, string>> {
+async changeCompanionNetworkSetting(bindIp: string | null, advertisedHost: string | null, port: number) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_companion_network_setting", { bindIp, advertisedHost, port }) };
 } catch (e) {
@@ -156,7 +156,7 @@ async changeCompanionNetworkSetting(bindIp : string | null, advertisedHost : str
  * a restart can never arm a broken certificate. Unset keeps the
  * self-signed behavior exactly.
  */
-async changeCompanionTlsSetting(certPath : string | null, keyPath : string | null) : Promise<Result<null, string>> {
+async changeCompanionTlsSetting(certPath: string | null, keyPath: string | null) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_companion_tls_setting", { certPath, keyPath }) };
 } catch (e) {
@@ -1850,30 +1850,30 @@ companion_pairing_token?: string | null;
 /**
  * The /24 (as "a.b.c.0/24") the pairing token was issued for.
  */
-companion_pairing_subnet?: string | null;
+companion_pairing_subnet?: string | null; 
 /**
  * Name of the last device that completed a hello handshake.
  */
-companion_last_device?: string | null;
+companion_last_device?: string | null; 
 /**
  * v1.6.0: the interface IP the companion server binds and advertises
  * (chosen in the settings picker). None/empty means the automatic
  * LAN-preferred ranking, the pre-v1.6.0 behavior. A Tailscale
  * 100.64/10 interface is selectable here.
  */
-companion_bind_ip?: string | null;
+companion_bind_ip?: string | null; 
 /**
  * v1.6.0: manual hostname or IPv4 advertised in the pairing URL
  * instead of the bound interface's IP (e.g. a MagicDNS name).
  * None/empty advertises the bound IP, the pre-v1.6.0 behavior.
  */
-companion_advertised_host?: string | null;
+companion_advertised_host?: string | null; 
 /**
  * v1.6.0: manual TLS certificate pair for the companion listener
  * (tailscale-issued or own certs). BOTH set means manual; anything
  * else keeps the self-signed certificate behavior.
  */
-companion_tls_cert_path?: string | null;
+companion_tls_cert_path?: string | null; 
 /**
  * The key file paired with `companion_tls_cert_path`.
  */
@@ -1913,11 +1913,45 @@ export type CommandId = "period" | "comma" | "questionMark" | "exclamation" | "c
  */
 export type CommandMatrixEntry = { command: CommandId; phrases: string[] }
 /**
+ * One picker row: an interface address with its name and kind.
+ */
+export type CompanionInterface = { ip: string; name: string; kind: string }
+/**
  * The status snapshot the settings panel renders (QR, URL, devices,
  * fingerprint, error).
  */
-export type CompanionStatus = { enabled: boolean; running: boolean; supported: boolean; url: string | null; port: number; qr_svg: string | null; fingerprint: string | null; token: string | null; subnet: string | null; last_device: string | null; devices: string[]; error: string | null; interfaces: CompanionInterface[]; bind_ip: string | null; advertised_host: string | null; bind_error: string | null; tls_manual: boolean; restart_pending: boolean }
-export type CompanionInterface = { ip: string; name: string; kind: string }
+export type CompanionStatus = { enabled: boolean; running: boolean; supported: boolean; url: string | null; port: number; qr_svg: string | null; fingerprint: string | null; token: string | null; subnet: string | null; last_device: string | null; devices: string[]; error: string | null; 
+/**
+ * v1.6.0: every candidate interface the picker can surface, with
+ * its OS name and classification ("lan" | "tailscale" | "vpn").
+ */
+interfaces: CompanionInterface[]; 
+/**
+ * The IPv4 the current configuration resolves to bind (live while
+ * running, a preview of the next start while stopped). None when
+ * the configured choice cannot resolve.
+ */
+bind_ip: string | null; 
+/**
+ * The manual hostname/IP override for the pairing URL, when set.
+ */
+advertised_host: string | null; 
+/**
+ * Why `bind_ip` could not resolve (a chosen interface that is no
+ * longer present, or a malformed stored value).
+ */
+bind_error: string | null; 
+/**
+ * True when the running server was started with a manual
+ * certificate pair rather than the self-signed one.
+ */
+tls_manual: boolean; 
+/**
+ * True while the server runs with a configuration the persisted
+ * settings no longer match (interface, host, port, or TLS source
+ * changed since start): a restart applies them.
+ */
+restart_pending: boolean }
 export type CustomSounds = { start: boolean; stop: boolean }
 export type EngineType = 
 /**
