@@ -667,7 +667,31 @@
         "serverError": "Server mislukt: {{error}}",
         "refresh": "Vernieuwen",
         "statusRunning": "Draait",
-        "statusStopped": "Gestopt"
+        "statusStopped": "Gestopt",
+        "interfaceTitle": "Netwerkinterface",
+        "interfaceAuto": "Automatisch (LAN heeft voorrang)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Nog geen netwerkinterfaces gevonden",
+        "bindError": "Interfaceprobleem: {{error}}",
+        "manualTitle": "Handmatige instelling",
+        "hostLabel": "Te gebruiken host of IP",
+        "hostPlaceholder": "Leeg gebruikt het adres van de interface",
+        "hostInvalid": "Voer een IPv4-adres of hostnaam in, zonder schema, poort of slashes",
+        "portInvalid": "De poort moet een getal tussen 1 en 65535 zijn",
+        "tlsTitle": "TLS-certificaat",
+        "tlsCertLabel": "Certificaatbestand",
+        "tlsKeyLabel": "Sleutelbestand",
+        "tlsSelfSigned": "Het ingebouwde zelfondertekende certificaat is actief",
+        "tlsManual": "Je eigen certificaat is actief",
+        "tlsPairInvalid": "Stel beide bestanden in of laat beide leeg",
+        "restartButton": "Server herstarten",
+        "restartPending": "Wijzigingen worden toegepast na een herstart",
+        "qrPreviewNote": "Voorbeeld: deze URL geldt zodra de server opnieuw start.",
+        "sharedNetworkNote": "De telefoon en deze Mac moeten een netwerk delen: hetzelfde Wi-Fi of LAN, of hetzelfde tailnet (bijvoorbeeld beide op Tailscale)."
       }
     },
     "postProcessing": {

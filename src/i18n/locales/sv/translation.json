@@ -667,7 +667,31 @@
         "serverError": "Servern misslyckades: {{error}}",
         "refresh": "Uppdatera",
         "statusRunning": "Kör",
-        "statusStopped": "Stoppad"
+        "statusStopped": "Stoppad",
+        "interfaceTitle": "Nätverksgränssnitt",
+        "interfaceAuto": "Automatiskt (LAN föredras)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Inga nätverksgränssnitt hittades än",
+        "bindError": "Gränssnittsproblem: {{error}}",
+        "manualTitle": "Manuell inställning",
+        "hostLabel": "Använd värd eller IP",
+        "hostPlaceholder": "Tomt använder gränssnittets adress",
+        "hostInvalid": "Ange en IPv4-adress eller ett värdnamn utan schema, port eller snedstreck",
+        "portInvalid": "Porten måste vara ett tal mellan 1 och 65535",
+        "tlsTitle": "TLS-certifikat",
+        "tlsCertLabel": "Certifikatfil",
+        "tlsKeyLabel": "Nyckelfil",
+        "tlsSelfSigned": "Det inbyggda självsignerade certifikatet används",
+        "tlsManual": "Ditt eget certifikat används",
+        "tlsPairInvalid": "Ange båda filerna eller lämna båda tomma",
+        "restartButton": "Starta om servern",
+        "restartPending": "Ändringarna tillämpas efter en omstart",
+        "qrPreviewNote": "Förhandsvisning: Denna URL används nästa gång servern startar.",
+        "sharedNetworkNote": "Telefonen och denna Mac måste dela nätverk: samma Wi-Fi eller LAN, eller samma tailnet (till exempel båda på Tailscale)."
       }
     },
     "postProcessing": {

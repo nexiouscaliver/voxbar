@@ -667,7 +667,31 @@
         "serverError": "Sunucu başarısız: {{error}}",
         "refresh": "Yenile",
         "statusRunning": "Çalışıyor",
-        "statusStopped": "Durduruldu"
+        "statusStopped": "Durduruldu",
+        "interfaceTitle": "Ağ arayüzü",
+        "interfaceAuto": "Otomatik (LAN öncelikli)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Henüz ağ arayüzü bulunamadı",
+        "bindError": "Arayüz sorunu: {{error}}",
+        "manualTitle": "El ile ayar",
+        "hostLabel": "Duyurulan ana makine veya IP",
+        "hostPlaceholder": "Boşsa arayüz adresi kullanılır",
+        "hostInvalid": "Şema, bağlantı noktası veya eğik çizgi olmadan bir IPv4 adresi veya ana makine adı girin",
+        "portInvalid": "Bağlantı noktası 1 ile 65535 arasında bir sayı olmalıdır",
+        "tlsTitle": "TLS sertifikası",
+        "tlsCertLabel": "Sertifika dosyası",
+        "tlsKeyLabel": "Anahtar dosyası",
+        "tlsSelfSigned": "Yerleşik kendinden imzalı sertifika kullanılıyor",
+        "tlsManual": "Kendi sertifikanız kullanılıyor",
+        "tlsPairInvalid": "İki dosyayı da belirtin veya ikisini de boş bırakın",
+        "restartButton": "Sunucuyu yeniden başlat",
+        "restartPending": "Değişiklikler yeniden başlatmadan sonra uygulanır",
+        "qrPreviewNote": "Önizleme: Bu URL, sunucu bir dahaki sefere başladığında duyurulacak.",
+        "sharedNetworkNote": "Telefon ve bu Mac aynı ağı paylaşmalıdır: aynı Wi-Fi veya LAN ya da aynı tailnet (örneğin ikisi de Tailscale'de)."
       }
     },
     "postProcessing": {

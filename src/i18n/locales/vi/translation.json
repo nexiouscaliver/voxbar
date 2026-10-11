@@ -667,7 +667,31 @@
         "serverError": "Máy chủ lỗi: {{error}}",
         "refresh": "Làm mới",
         "statusRunning": "Đang chạy",
-        "statusStopped": "Đã dừng"
+        "statusStopped": "Đã dừng",
+        "interfaceTitle": "Giao diện mạng",
+        "interfaceAuto": "Tự động (ưu tiên LAN)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Chưa tìm thấy giao diện mạng nào",
+        "bindError": "Lỗi giao diện: {{error}}",
+        "manualTitle": "Thiết lập thủ công",
+        "hostLabel": "Tên máy chủ hoặc IP được quảng bá",
+        "hostPlaceholder": "Để trống sẽ dùng địa chỉ của giao diện",
+        "hostInvalid": "Nhập địa chỉ IPv4 hoặc tên máy chủ, không kèm giao thức, cổng hay dấu gạch chéo",
+        "portInvalid": "Cổng phải là số từ 1 đến 65535",
+        "tlsTitle": "Chứng chỉ TLS",
+        "tlsCertLabel": "Tệp chứng chỉ",
+        "tlsKeyLabel": "Tệp khóa",
+        "tlsSelfSigned": "Đang dùng chứng chỉ tự ký có sẵn",
+        "tlsManual": "Đang dùng chứng chỉ của bạn",
+        "tlsPairInvalid": "Đặt cả hai tệp hoặc để cả hai trống",
+        "restartButton": "Khởi động lại máy chủ",
+        "restartPending": "Thay đổi sẽ áp dụng sau khi khởi động lại",
+        "qrPreviewNote": "Xem trước: URL này sẽ được quảng bá lần tới máy chủ khởi động.",
+        "sharedNetworkNote": "Điện thoại và Mac này phải dùng chung mạng: cùng Wi-Fi hoặc LAN, hoặc cùng tailnet (ví dụ cả hai đều trên Tailscale)."
       }
     },
     "postProcessing": {

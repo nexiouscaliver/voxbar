@@ -667,7 +667,31 @@
         "serverError": "Сървърът се провали: {{error}}",
         "refresh": "Опресняване",
         "statusRunning": "Работи",
-        "statusStopped": "Спрян"
+        "statusStopped": "Спрян",
+        "interfaceTitle": "Мрежов интерфейс",
+        "interfaceAuto": "Автоматично (с предпочитание за LAN)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Все още не са открити мрежови интерфейси",
+        "bindError": "Проблем с интерфейса: {{error}}",
+        "manualTitle": "Ръчна настройка",
+        "hostLabel": "Обявен хост или IP",
+        "hostPlaceholder": "Празно използва адреса на интерфейса",
+        "hostInvalid": "Въведете IPv4 адрес или име на хост без схема, порт и наклонени черти",
+        "portInvalid": "Портът трябва да е число между 1 и 65535",
+        "tlsTitle": "TLS сертификат",
+        "tlsCertLabel": "Файл на сертификата",
+        "tlsKeyLabel": "Файл на ключа",
+        "tlsSelfSigned": "Използва се вграденият самоподписан сертификат",
+        "tlsManual": "Използва се вашият сертификат",
+        "tlsPairInvalid": "Задайте и двата файла или оставете и двата празни",
+        "restartButton": "Рестартиране на сървъра",
+        "restartPending": "Промените се прилагат след рестарт",
+        "qrPreviewNote": "Преглед: този URL адрес ще бъде обявен при следващото стартиране на сървъра.",
+        "sharedNetworkNote": "Телефонът и този Mac трябва да споделят мрежа: една и съща Wi-Fi или LAN, или един и същ tailnet (например и двата в Tailscale)."
       }
     },
     "postProcessing": {

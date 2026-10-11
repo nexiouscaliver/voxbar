@@ -667,7 +667,31 @@
         "serverError": "サーバーが失敗しました: {{error}}",
         "refresh": "更新",
         "statusRunning": "実行中",
-        "statusStopped": "停止"
+        "statusStopped": "停止",
+        "interfaceTitle": "ネットワークインターフェース",
+        "interfaceAuto": "自動選択（LAN 優先）",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "ネットワークインターフェースが見つかりません",
+        "bindError": "インターフェースの問題: {{error}}",
+        "manualTitle": "手動設定",
+        "hostLabel": "案内するホストまたは IP",
+        "hostPlaceholder": "空欄ならインターフェースのアドレスを使用",
+        "hostInvalid": "IPv4 アドレスまたはホスト名を入力してください（スキーム・ポート・スラッシュは不可）",
+        "portInvalid": "ポートは 1 から 65535 の数値で指定してください",
+        "tlsTitle": "TLS 証明書",
+        "tlsCertLabel": "証明書ファイル",
+        "tlsKeyLabel": "鍵ファイル",
+        "tlsSelfSigned": "内蔵の自己署名証明書を使用中",
+        "tlsManual": "あなたの証明書を使用中",
+        "tlsPairInvalid": "両方のファイルを指定するか、両方空欄にしてください",
+        "restartButton": "サーバーを再起動",
+        "restartPending": "変更は再起動後に適用されます",
+        "qrPreviewNote": "プレビュー: サーバーが次に起動したとき、この URL が案内されます。",
+        "sharedNetworkNote": "スマホとこの Mac は同じネットワークにいる必要があります: 同じ Wi-Fi または LAN、または同じテールネット（例: 両方とも Tailscale）。"
       }
     },
     "postProcessing": {

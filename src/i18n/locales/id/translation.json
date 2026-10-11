@@ -667,7 +667,31 @@
         "serverError": "Server gagal: {{error}}",
         "refresh": "Segarkan",
         "statusRunning": "Berjalan",
-        "statusStopped": "Berhenti"
+        "statusStopped": "Berhenti",
+        "interfaceTitle": "Antarmuka jaringan",
+        "interfaceAuto": "Otomatis (LAN diutamakan)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Belum ada antarmuka jaringan yang ditemukan",
+        "bindError": "Masalah antarmuka: {{error}}",
+        "manualTitle": "Pengaturan manual",
+        "hostLabel": "Host atau IP yang diiklankan",
+        "hostPlaceholder": "Kosong memakai alamat antarmuka",
+        "hostInvalid": "Masukkan alamat IPv4 atau nama host, tanpa skema, port, atau garis miring",
+        "portInvalid": "Port harus berupa angka antara 1 dan 65535",
+        "tlsTitle": "Sertifikat TLS",
+        "tlsCertLabel": "Berkas sertifikat",
+        "tlsKeyLabel": "Berkas kunci",
+        "tlsSelfSigned": "Memakai sertifikat tandatangan-sendiri bawaan",
+        "tlsManual": "Memakai sertifikat milikmu sendiri",
+        "tlsPairInvalid": "Atur kedua berkas atau biarkan keduanya kosong",
+        "restartButton": "Mulai ulang server",
+        "restartPending": "Perubahan diterapkan setelah mulai ulang",
+        "qrPreviewNote": "Pratinjau: URL ini akan diiklankan saat server berikutnya menyala.",
+        "sharedNetworkNote": "Ponsel dan Mac ini harus berada di jaringan yang sama: Wi-Fi atau LAN yang sama, atau tailnet yang sama (misalnya keduanya di Tailscale)."
       }
     },
     "postProcessing": {

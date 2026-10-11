@@ -667,7 +667,31 @@
         "serverError": "Сбой сервера: {{error}}",
         "refresh": "Обновить",
         "statusRunning": "Работает",
-        "statusStopped": "Остановлен"
+        "statusStopped": "Остановлен",
+        "interfaceTitle": "Сетевой интерфейс",
+        "interfaceAuto": "Автоматически (приоритет LAN)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Сетевые интерфейсы пока не найдены",
+        "bindError": "Проблема с интерфейсом: {{error}}",
+        "manualTitle": "Ручная настройка",
+        "hostLabel": "Указываемый хост или IP",
+        "hostPlaceholder": "Пусто: используется адрес интерфейса",
+        "hostInvalid": "Введите IPv4-адрес или имя хоста без схемы, порта и слэшей",
+        "portInvalid": "Порт должен быть числом от 1 до 65535",
+        "tlsTitle": "Сертификат TLS",
+        "tlsCertLabel": "Файл сертификата",
+        "tlsKeyLabel": "Файл ключа",
+        "tlsSelfSigned": "Используется встроенный самоподписанный сертификат",
+        "tlsManual": "Используется ваш сертификат",
+        "tlsPairInvalid": "Укажите оба файла или оставьте оба пустыми",
+        "restartButton": "Перезапустить сервер",
+        "restartPending": "Изменения применятся после перезапуска",
+        "qrPreviewNote": "Предпросмотр: этот адрес начнёт действовать при следующем запуске сервера.",
+        "sharedNetworkNote": "Телефон и этот Mac должны быть в одной сети: одна Wi-Fi или LAN либо один tailnet (например, оба в Tailscale)."
       }
     },
     "postProcessing": {

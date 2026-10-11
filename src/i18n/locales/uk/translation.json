@@ -667,7 +667,31 @@
         "serverError": "Збій сервера: {{error}}",
         "refresh": "Оновити",
         "statusRunning": "Працює",
-        "statusStopped": "Зупинено"
+        "statusStopped": "Зупинено",
+        "interfaceTitle": "Мережний інтерфейс",
+        "interfaceAuto": "Автоматично (пріоритет LAN)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Мережні інтерфейси ще не знайдено",
+        "bindError": "Проблема з інтерфейсом: {{error}}",
+        "manualTitle": "Ручне перевизначення",
+        "hostLabel": "Заданий хост або IP",
+        "hostPlaceholder": "Якщо порожньо, використовується адреса інтерфейсу",
+        "hostInvalid": "Введіть IPv4-адресу або ім'я хоста без схеми, порту та слешів",
+        "portInvalid": "Порт має бути числом від 1 до 65535",
+        "tlsTitle": "Сертифікат TLS",
+        "tlsCertLabel": "Файл сертифіката",
+        "tlsKeyLabel": "Файл ключа",
+        "tlsSelfSigned": "Використовується вбудований самопідписаний сертифікат",
+        "tlsManual": "Використовується ваш сертифікат",
+        "tlsPairInvalid": "Вкажіть обидва файли або залиште обидва порожніми",
+        "restartButton": "Перезапустити сервер",
+        "restartPending": "Зміни застосуються після перезапуску",
+        "qrPreviewNote": "Попередній перегляд: ця URL-адреса почне діяти під час наступного запуску сервера.",
+        "sharedNetworkNote": "Телефон і цей Mac мають бути в одній мережі: одна Wi-Fi або LAN чи один tailnet (наприклад, обидва в Tailscale)."
       }
     },
     "postProcessing": {

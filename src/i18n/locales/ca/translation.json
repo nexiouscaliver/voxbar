@@ -667,7 +667,31 @@
         "serverError": "El servidor ha fallat: {{error}}",
         "refresh": "Actualitza",
         "statusRunning": "En execució",
-        "statusStopped": "Aturat"
+        "statusStopped": "Aturat",
+        "interfaceTitle": "Interfície de xarxa",
+        "interfaceAuto": "Automàtic (LAN preferida)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Encara no s'han trobat interfícies de xarxa",
+        "bindError": "Problema d'interfície: {{error}}",
+        "manualTitle": "Configuració manual",
+        "hostLabel": "Amfitrió o IP anunciat",
+        "hostPlaceholder": "Buit: s'utilitza l'adreça de la interfície",
+        "hostInvalid": "Introdueix una adreça IPv4 o un nom d'amfitrió, sense esquema, port ni barres",
+        "portInvalid": "El port ha de ser un número entre 1 i 65535",
+        "tlsTitle": "Certificat TLS",
+        "tlsCertLabel": "Fitxer del certificat",
+        "tlsKeyLabel": "Fitxer de la clau",
+        "tlsSelfSigned": "S'està usant el certificat autosignat integrat",
+        "tlsManual": "S'està usant el teu certificat",
+        "tlsPairInvalid": "Defineix tots dos fitxers o deixa'ls tots dos buits",
+        "restartButton": "Reinicia el servidor",
+        "restartPending": "Els canvis s'apliquen després de reiniciar",
+        "qrPreviewNote": "Previsualització: aquest URL s'anunciarà la propera vegada que arrenqui el servidor.",
+        "sharedNetworkNote": "El telèfon i aquest Mac han de compartir xarxa: el mateix Wi-Fi o LAN, o el mateix tailnet (per exemple, tots dos al Tailscale)."
       }
     },
     "postProcessing": {

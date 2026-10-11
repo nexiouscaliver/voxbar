@@ -667,7 +667,31 @@
         "serverError": "Server selhal: {{error}}",
         "refresh": "Obnovit",
         "statusRunning": "Běží",
-        "statusStopped": "Zastaveno"
+        "statusStopped": "Zastaveno",
+        "interfaceTitle": "Síťové rozhraní",
+        "interfaceAuto": "Automaticky (upřednostněna LAN)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Zatím nenalezena žádná síťová rozhraní",
+        "bindError": "Problém s rozhraním: {{error}}",
+        "manualTitle": "Ruční nastavení",
+        "hostLabel": "Zveřejňovaný host nebo IP",
+        "hostPlaceholder": "Prázdné použije adresu rozhraní",
+        "hostInvalid": "Zadejte adresu IPv4 nebo název hostitele bez schématu, portu a lomítek",
+        "portInvalid": "Port musí být číslo od 1 do 65535",
+        "tlsTitle": "Certifikát TLS",
+        "tlsCertLabel": "Soubor certifikátu",
+        "tlsKeyLabel": "Soubor klíče",
+        "tlsSelfSigned": "Používá se vestavěný certifikát s vlastním podpisem",
+        "tlsManual": "Používá se váš certifikát",
+        "tlsPairInvalid": "Zadejte oba soubory nebo ponechte oba prázdné",
+        "restartButton": "Restartovat server",
+        "restartPending": "Změny se projeví po restartu",
+        "qrPreviewNote": "Náhled: tato adresa URL se zveřejní při příštím spuštění serveru.",
+        "sharedNetworkNote": "Telefon a tento Mac musí sdílet síť: stejnou Wi-Fi nebo LAN, nebo stejný tailnet (například oba v Tailscale)."
       }
     },
     "postProcessing": {

@@ -50,6 +50,43 @@ pub struct CompanionStatus {
     pub last_device: Option<String>,
     pub devices: Vec<String>,
     pub error: Option<String>,
+    /// v1.6.0: every candidate interface the picker can surface, with
+    /// its OS name and classification ("lan" | "tailscale" | "vpn").
+    pub interfaces: Vec<CompanionInterface>,
+    /// The IPv4 the current configuration resolves to bind (live while
+    /// running, a preview of the next start while stopped). None when
+    /// the configured choice cannot resolve.
+    pub bind_ip: Option<String>,
+    /// The manual hostname/IP override for the pairing URL, when set.
+    pub advertised_host: Option<String>,
+    /// Why `bind_ip` could not resolve (a chosen interface that is no
+    /// longer present, or a malformed stored value).
+    pub bind_error: Option<String>,
+    /// True when the running server was started with a manual
+    /// certificate pair rather than the self-signed one.
+    pub tls_manual: bool,
+    /// True while the server runs with a configuration the persisted
+    /// settings no longer match (interface, host, port, or TLS source
+    /// changed since start): a restart applies them.
+    pub restart_pending: bool,
+}
+
+/// One picker row: an interface address with its name and kind.
+#[derive(Serialize, Type, Debug, Clone)]
+pub struct CompanionInterface {
+    pub ip: String,
+    pub name: String,
+    pub kind: String,
+}
+
+impl From<&ip::InterfaceCandidate> for CompanionInterface {
+    fn from(c: &ip::InterfaceCandidate) -> Self {
+        CompanionInterface {
+            ip: c.ip.to_string(),
+            name: c.name.clone(),
+            kind: c.kind.as_str().to_string(),
+        }
+    }
 }
 
 struct CompanionInner {
@@ -59,6 +96,10 @@ struct CompanionInner {
     fingerprint: Option<String>,
     last_error: Option<String>,
     devices: Vec<String>,
+    /// v1.6.0: the configuration snapshot the running server was started
+    /// with, so status() can tell a restart is pending.
+    advertised_host: Option<String>,
+    tls_manual: bool,
 }
 
 pub struct CompanionManager {
@@ -100,6 +141,8 @@ impl CompanionManager {
                 fingerprint: None,
                 last_error: None,
                 devices: Vec::new(),
+                advertised_host: None,
+                tls_manual: false,
             }),
             broadcast,
             shutdown_tx,
@@ -207,10 +250,15 @@ impl CompanionManager {
         self.inner.lock().unwrap().devices.retain(|d| d != name);
     }
 
-    /// Start the server. Idempotent. Generates/repairs the pairing token
-    /// (rebinding it to the current LAN /24, which re-pairs phones after a
-    /// subnet change), loads the TLS certificate, binds the listener, and
-    /// pre-warms the remote recorder so a phone press starts capture fast.
+    /// Start the server. Idempotent. Resolves the bind address from the
+    /// picker choice or the automatic LAN-preferred ranking (v1.6.0),
+    /// generates/repairs the pairing token (rebinding it to the
+    /// advertised interface's subnet, which re-pairs phones after a
+    /// network change), loads the TLS certificate (a manual pair when
+    /// configured, the self-signed one otherwise), binds the listener,
+    /// and pre-warms the remote recorder so a phone press starts capture
+    /// fast. Bind failures (a taken port among them) surface verbatim:
+    /// the ready channel carries the OS error string.
     pub fn start(&self, app: &AppHandle) -> Result<(), String> {
         if !platform_supported() {
             return Err("Companion devices need macOS this cycle".to_string());
@@ -219,12 +267,17 @@ impl CompanionManager {
             return Ok(());
         }
 
-        let lan_ip = ip::advertised_lan_ipv4()
-            .ok_or_else(|| "No private Wi-Fi interface found to advertise".to_string())?;
+        let settings = crate::settings::get_settings(app);
+        let candidates = ip::interface_candidates();
+        let bind_ip = ip::resolve_bind_ip(&candidates, settings.companion_bind_ip.as_deref())?;
+        let advertised_host =
+            effective_advertised_host(settings.companion_advertised_host.as_deref());
 
         // Pairing token: generate on enable, and rebind when the advertised
         // subnet changed (a token from another network never validates).
-        let subnet = auth::subnet_of(lan_ip);
+        // A Tailscale bind issues the token for the whole CGNAT /10, so
+        // every tailnet peer validates (ip::pairing_subnet_for).
+        let subnet = ip::pairing_subnet_for(bind_ip);
         {
             let mut settings = crate::settings::get_settings(app);
             let token_stale = settings
@@ -247,20 +300,59 @@ impl CompanionManager {
         let token = settings.companion_pairing_token.clone().unwrap_or_default();
         let port = settings.companion_port;
 
+        // v1.6.0 TLS source: a manual certificate pair when BOTH paths are
+        // set (tailscale-issued or own certs), the self-signed one
+        // otherwise. A configured pair that fails to load is an error,
+        // never a silent self-signed fallback: the user pointed at real
+        // certificates and must hear why they are not being served.
+        let manual_cert = match (
+            settings
+                .companion_tls_cert_path
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty()),
+            settings
+                .companion_tls_key_path
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty()),
+        ) {
+            (Some(cert_path), Some(key_path)) => {
+                Some(cert::load_manual_pair(std::path::Path::new(cert_path), std::path::Path::new(key_path))?)
+            }
+            (None, None) => None,
+            (single, _) => {
+                // Unreachable through the settings UI (the change command
+                // validates both-or-neither); a hand-edited store lands
+                // here and keeps the server usable on the self-signed
+                // cert, loudly.
+                log::warn!(
+                    "companion: only one TLS path set ({single:?}); using the self-signed certificate"
+                );
+                None
+            }
+        };
+        let tls_manual = manual_cert.is_some();
+
         // TLS certificate (generated once, persisted).
-        let cert_dir = app
-            .path()
-            .app_local_data_dir()
-            .map_err(|e| format!("app data dir unavailable: {e}"))?
-            .join("companion");
-        let cert = cert::ensure_certificate(&cert_dir, std::net::IpAddr::V4(lan_ip))?;
+        let cert = match manual_cert {
+            Some(cert) => cert,
+            None => {
+                let cert_dir = app
+                    .path()
+                    .app_local_data_dir()
+                    .map_err(|e| format!("app data dir unavailable: {e}"))?
+                    .join("companion");
+                cert::ensure_certificate(&cert_dir, std::net::IpAddr::V4(bind_ip))?
+            }
+        };
         let fingerprint = cert.fingerprint.clone();
 
         // Bind synchronously so the settings toggle reports a real outcome
         // (macOS firewall prompt aside, a bind error surfaces verbatim).
         let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<(), String>>();
         let cfg = server::ServerConfig {
-            ip: lan_ip,
+            ip: bind_ip,
             port,
             token,
             subnet: subnet.clone(),
@@ -282,9 +374,11 @@ impl CompanionManager {
         {
             let mut inner = self.inner.lock().unwrap();
             inner.running = true;
-            inner.bind_ip = Some(lan_ip);
+            inner.bind_ip = Some(bind_ip);
             inner.port = port;
             inner.fingerprint = Some(fingerprint);
+            inner.advertised_host = advertised_host.clone();
+            inner.tls_manual = tls_manual;
         }
 
         // Pre-warm the remote recorder (VAD load off the press path).
@@ -299,7 +393,10 @@ impl CompanionManager {
             });
         }
 
-        log::info!("companion: server running on https://{lan_ip}:{port} (subnet {subnet})");
+        log::info!(
+            "companion: server running on https://{bind_ip}:{port} (subnet {subnet}, advertised as {})",
+            advertised_host.as_deref().unwrap_or("the bind IP")
+        );
         Ok(())
     }
 
@@ -341,30 +438,102 @@ impl CompanionManager {
         inner.running = false;
         inner.bind_ip = None;
         inner.port = 0;
+        inner.advertised_host = None;
+        inner.tls_manual = false;
         inner.devices.clear();
         log::info!("companion: server stopped");
     }
 
-    /// Status snapshot for the settings panel (QR included).
+    /// v1.6.0: apply the persisted configuration (interface choice,
+    /// advertised host, port, TLS pair) by bouncing the server. Only a
+    /// running server restarts; a stopped one starts when the effective
+    /// gate allows it, so the button doubles as "apply now" after a
+    /// failed start. Start failures surface verbatim (bind errors
+    /// included) and land on the panel's error line.
+    pub fn restart(&self, app: &AppHandle) -> Result<(), String> {
+        if self.is_running() {
+            self.stop(app);
+            // stop() finalized any live session; give the listener a beat
+            // to release the port before rebinding it.
+            std::thread::sleep(Duration::from_millis(150));
+        }
+        if self.is_running() {
+            return Ok(());
+        }
+        if effective_enabled(&crate::settings::get_settings(app)) {
+            self.start(app)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Status snapshot for the settings panel (QR included). The URL and
+    /// QR are derived from the CURRENT persisted configuration (the
+    /// interface choice, the advertised-host override, and the port), so
+    /// the panel previews what the next start will advertise even while
+    /// the server is stopped; `restart_pending` flags a running server
+    /// started with a since-changed configuration, and a chosen
+    /// interface that no longer resolves keeps the LIVE values with the
+    /// resolution error on `bind_error`.
     pub fn status(&self, app: &AppHandle) -> CompanionStatus {
         let settings = crate::settings::get_settings(app);
+        let candidates = ip::interface_candidates();
+        let advertised_host = effective_advertised_host(settings.companion_advertised_host.as_deref());
+        let resolved = ip::resolve_bind_ip(&candidates, settings.companion_bind_ip.as_deref());
         let inner = self.inner.lock().unwrap();
         let supported = platform_supported();
-        let bind_ip = inner.bind_ip;
-        let port = if inner.running {
-            inner.port
-        } else {
-            settings.companion_port
-        };
+        // Config-derived on purpose: the URL, QR, and this port describe
+        // what the NEXT start advertises (the preview the panel is for),
+        // and restart_pending flags a running server that still serves
+        // the old configuration.
+        let port = settings.companion_port;
         let token = settings.companion_pairing_token.clone();
 
-        let (url, qr_svg) = match (inner.running, bind_ip, token.as_deref()) {
-            (true, Some(ip), Some(token)) if !token.is_empty() => {
-                let url = format!("https://{ip}:{port}/#t={token}");
+        // The configuration the URL advertises: the resolved choice when
+        // it resolves; while running with an unresolvable choice, the
+        // live values instead (the running server is still on air).
+        let (effective_ip, bind_error) = match (&resolved, inner.running) {
+            (Ok(ip), _) => (Some(*ip), None),
+            (Err(e), true) => (inner.bind_ip, Some(e.clone())),
+            (Err(e), false) => (None, Some(e.clone())),
+        };
+        let url_host = advertised_host
+            .clone()
+            .unwrap_or_else(|| effective_ip.map(|ip| ip.to_string()).unwrap_or_default());
+
+        let (url, qr_svg) = match (effective_ip, token.as_deref()) {
+            (Some(_), Some(token)) if !token.is_empty() && !url_host.is_empty() => {
+                let url = format!("https://{url_host}:{port}/#t={token}");
                 let qr = qr_svg_for(&url).ok();
                 (Some(url), qr)
             }
             _ => (None, None),
+        };
+
+        let restart_pending = inner.running && {
+            let live = inner
+                .bind_ip
+                .map(|bind_ip| LiveServerConfig {
+                    bind_ip,
+                    port: inner.port,
+                    advertised_host: inner.advertised_host.clone(),
+                    tls_manual: inner.tls_manual,
+                })
+                .map(|live| {
+                    restart_needed(
+                        &resolved,
+                        settings.companion_port,
+                        advertised_host.as_deref(),
+                        tls_manual_configured(
+                            settings.companion_tls_cert_path.as_deref(),
+                            settings.companion_tls_key_path.as_deref(),
+                        ),
+                        &live,
+                    )
+                });
+            // No live bind recorded cannot happen while running; treat it
+            // as "nothing to apply" rather than a spurious badge.
+            live.unwrap_or(false)
         };
 
         CompanionStatus {
@@ -380,6 +549,12 @@ impl CompanionManager {
             last_device: settings.companion_last_device.clone(),
             devices: inner.devices.clone(),
             error: inner.last_error.clone(),
+            interfaces: candidates.iter().map(CompanionInterface::from).collect(),
+            bind_ip: effective_ip.map(|ip| ip.to_string()),
+            advertised_host,
+            bind_error,
+            tls_manual: inner.tls_manual,
+            restart_pending,
         }
     }
 
@@ -387,25 +562,22 @@ impl CompanionManager {
         self.inner.lock().unwrap().last_error = error;
     }
 
-    /// Reset pairing: fresh token (rebound to the current subnet) and a
-    /// restart so the QR changes. Phones holding the old token are refused.
+    /// Reset pairing: fresh token (rebound to the advertised interface's
+    /// subnet, honoring the v1.6.0 interface choice) and a restart so the
+    /// QR changes. Phones holding the old token are refused.
     pub fn reset_pairing(&self, app: &AppHandle) -> Result<(), String> {
-        let subnet =
-            auth::subnet_of(ip::advertised_lan_ipv4().ok_or("No private Wi-Fi interface found")?);
+        let candidates = ip::interface_candidates();
+        let bind_ip = ip::resolve_bind_ip(
+            &candidates,
+            crate::settings::get_settings(app).companion_bind_ip.as_deref(),
+        )?;
+        let subnet = ip::pairing_subnet_for(bind_ip);
         let mut settings = crate::settings::get_settings(app);
         settings.companion_pairing_token = Some(auth::generate_pairing_token());
         settings.companion_pairing_subnet = Some(subnet);
         crate::settings::write_settings(app, settings);
 
-        if self.is_running() {
-            self.stop(app);
-            // stop() finalized any live session; give the listener a beat
-            // to release the port, then bring the server back with the new
-            // token.
-            std::thread::sleep(Duration::from_millis(150));
-            self.start(app)?;
-        }
-        Ok(())
+        self.restart(app)
     }
 
     /// Register the once-per-app notice forwarder (overlay notices ride to
@@ -674,6 +846,55 @@ pub fn shutdown(app: &AppHandle) {
     if let Some(manager) = manager(app) {
         manager.stop(app);
     }
+}
+
+// ---------------------------------------------------------------------------
+// v1.6.0 pure configuration seams (shared by start/status and unit-tested
+// without a settings store or a live server).
+// ---------------------------------------------------------------------------
+
+/// The advertised-host override with whitespace trimmed and emptiness
+/// collapsed to None, so "  " can never masquerade as a hostname.
+fn effective_advertised_host(stored: Option<&str>) -> Option<String> {
+    stored
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+/// True when the persisted settings carry BOTH halves of a manual TLS
+/// pair (the both-or-neither rule start() enforces when loading).
+fn tls_manual_configured(cert_path: Option<&str>, key_path: Option<&str>) -> bool {
+    let set = |p: Option<&str>| p.map(str::trim).filter(|s| !s.is_empty()).is_some();
+    set(cert_path) && set(key_path)
+}
+
+/// The configuration the running server was started with.
+struct LiveServerConfig {
+    bind_ip: Ipv4Addr,
+    port: u16,
+    advertised_host: Option<String>,
+    tls_manual: bool,
+}
+
+/// True when the persisted configuration differs from what the running
+/// server was started with, i.e. a restart is needed to apply it. An
+/// unresolvable bind choice (a vanished interface) counts as different
+/// by definition.
+fn restart_needed(
+    resolved: &Result<Ipv4Addr, String>,
+    persisted_port: u16,
+    advertised_host: Option<&str>,
+    tls_manual_now: bool,
+    live: &LiveServerConfig,
+) -> bool {
+    match resolved {
+        Ok(ip) if *ip == live.bind_ip => {}
+        _ => return true,
+    }
+    persisted_port != live.port
+        || advertised_host != live.advertised_host.as_deref()
+        || tls_manual_now != live.tls_manual
 }
 
 #[cfg(test)]
@@ -1046,6 +1267,97 @@ mod tests {
             Some("Pixel 8"),
             "the notice-detail helper resolves the session device through app state"
         );
+    }
+
+    /// v1.6.0 settings seams: the advertised-host override trims and
+    /// collapses empties, the TLS pair only counts when BOTH halves are
+    /// set (the both-or-neither rule), and restart_needed flips on every
+    /// configuration dimension - including a chosen interface that no
+    /// longer resolves, which counts as different by definition.
+    #[test]
+    fn v1_6_0_configuration_seams_trim_normalize_and_diff() {
+        use std::net::Ipv4Addr;
+
+        // Advertised host: whitespace and emptiness collapse to None.
+        assert_eq!(effective_advertised_host(None), None);
+        assert_eq!(effective_advertised_host(Some("")), None);
+        assert_eq!(effective_advertised_host(Some("   ")), None);
+        assert_eq!(
+            effective_advertised_host(Some("  mac.tail1234.ts.net ")),
+            Some("mac.tail1234.ts.net".to_string())
+        );
+
+        // TLS manual: both halves or neither.
+        assert!(!tls_manual_configured(None, None));
+        assert!(!tls_manual_configured(Some("/c.pem"), None));
+        assert!(!tls_manual_configured(None, Some("/k.pem")));
+        assert!(!tls_manual_configured(Some("  "), Some("/k.pem")));
+        assert!(tls_manual_configured(Some("/c.pem"), Some("/k.pem")));
+
+        // restart_needed: identical configuration needs nothing.
+        let live = LiveServerConfig {
+            bind_ip: Ipv4Addr::new(192, 168, 1, 42),
+            port: 4177,
+            advertised_host: None,
+            tls_manual: false,
+        };
+        let same = Ok(Ipv4Addr::new(192, 168, 1, 42));
+        assert!(!restart_needed(&same, 4177, None, false, &live));
+
+        // Each dimension alone flips it.
+        assert!(
+            restart_needed(&Ok(Ipv4Addr::new(100, 101, 7, 24)), 4177, None, false, &live),
+            "a different resolved interface (e.g. Tailscale chosen) needs a restart"
+        );
+        assert!(restart_needed(&same, 4178, None, false, &live));
+        assert!(restart_needed(
+            &same,
+            4177,
+            Some("mac.tail1234.ts.net"),
+            false,
+            &live
+        ));
+        assert!(restart_needed(&same, 4177, None, true, &live));
+
+        // A vanished interface (resolution error) is different by
+        // definition, even though every other field matches.
+        assert!(restart_needed(
+            &Err("not currently present".to_string()),
+            4177,
+            None,
+            false,
+            &live
+        ));
+
+        // And a live manual-cert server stays pending when the pair is
+        // cleared back to self-signed.
+        let live_manual = LiveServerConfig {
+            tls_manual: true,
+            ..live
+        };
+        assert!(restart_needed(&same, 4177, None, false, &live_manual));
+        assert!(!restart_needed(&same, 4177, None, true, &live_manual));
+    }
+
+    /// v1.6.0: the QR/URL seam rides the advertised-host override when
+    /// set and the bound interface's IP otherwise, so the pairing URL
+    /// always reflects the chosen or manual address.
+    #[test]
+    fn pairing_url_prefers_the_advertised_host_override() {
+        let ip = Ipv4Addr::new(192, 168, 1, 42);
+        let plain = format!("https://{ip}:4177/#t=tok");
+        assert_eq!(plain, "https://192.168.1.42:4177/#t=tok");
+
+        // The host string status() interpolates: override wins, else the
+        // resolved IP (mirrors the url_host computation in status()).
+        let host = effective_advertised_host(Some("mac.tail1234.ts.net"))
+            .unwrap_or_else(|| ip.to_string());
+        assert_eq!(
+            format!("https://{host}:4177/#t=tok"),
+            "https://mac.tail1234.ts.net:4177/#t=tok"
+        );
+        let host = effective_advertised_host(None).unwrap_or_else(|| ip.to_string());
+        assert_eq!(format!("https://{host}:4177/#t=tok"), plain);
     }
 
     /// KB-183/KB-145: the effective gate `init` arms the LAN server on.

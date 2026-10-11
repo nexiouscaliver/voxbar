@@ -667,7 +667,31 @@
         "serverError": "Server fehlgeschlagen: {{error}}",
         "refresh": "Aktualisieren",
         "statusRunning": "Läuft",
-        "statusStopped": "Gestoppt"
+        "statusStopped": "Gestoppt",
+        "interfaceTitle": "Netzwerkinterface",
+        "interfaceAuto": "Automatisch (LAN bevorzugt)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Noch keine Netzwerkinterfaces gefunden",
+        "bindError": "Interfaceproblem: {{error}}",
+        "manualTitle": "Manuelle Überschreibung",
+        "hostLabel": "Angegebener Host oder IP",
+        "hostPlaceholder": "Leer lässt die Interface-Adresse gelten",
+        "hostInvalid": "Gib eine IPv4-Adresse oder einen Hostnamen ein, ohne Schema, Port oder Schrägstriche",
+        "portInvalid": "Der Port muss eine Zahl zwischen 1 und 65535 sein",
+        "tlsTitle": "TLS-Zertifikat",
+        "tlsCertLabel": "Zertifikatsdatei",
+        "tlsKeyLabel": "Schlüsseldatei",
+        "tlsSelfSigned": "Das integrierte selbstsignierte Zertifikat ist aktiv",
+        "tlsManual": "Dein eigenes Zertifikat ist aktiv",
+        "tlsPairInvalid": "Lege beide Dateien fest oder lass beide leer",
+        "restartButton": "Server neu starten",
+        "restartPending": "Änderungen greifen nach einem Neustart",
+        "qrPreviewNote": "Vorschau: Diese URL gilt, sobald der Server das nächste Mal startet.",
+        "sharedNetworkNote": "Das Telefon und dieser Mac müssen ein Netzwerk teilen: dasselbe WLAN oder LAN oder dasselbe Tailnet (zum Beispiel beide in Tailscale)."
       }
     },
     "postProcessing": {

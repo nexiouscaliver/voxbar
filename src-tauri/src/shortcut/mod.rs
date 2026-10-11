@@ -1046,6 +1046,132 @@ pub fn get_companion_status(app: AppHandle) -> crate::companion::CompanionStatus
     manager.status(&app)
 }
 
+/// v1.6.0: validate the manual network override fields before anything
+/// persists. Pure so the settings-command tests cover every rejection
+/// without a settings store: a chosen interface must be a syntactically
+/// valid IPv4 in a classifiable range (LAN, VPN, or Tailscale; the
+/// picker only offers such addresses, this guards hand-typed values),
+/// the advertised host must be an IPv4 or plain hostname (no scheme,
+/// port, or slashes), and the port must be nonzero. Empty strings mean
+/// "not set" everywhere (the automatic pre-v1.6.0 behavior).
+fn validate_companion_network_override(
+    bind_ip: Option<&str>,
+    advertised_host: Option<&str>,
+    port: u16,
+) -> Result<(), String> {
+    if let Some(ip) = bind_ip.map(str::trim).filter(|s| !s.is_empty()) {
+        let parsed: std::net::Ipv4Addr = ip
+            .parse()
+            .map_err(|_| format!("Interface must be an IPv4 address, got {ip:?}"))?;
+        if crate::companion::ip::classify_v4(parsed).is_none() {
+            return Err(format!(
+                "Interface {ip} is not a private LAN, VPN, or Tailscale address"
+            ));
+        }
+    }
+    if let Some(host) = advertised_host.map(str::trim).filter(|s| !s.is_empty()) {
+        if !crate::companion::ip::is_valid_advertised_host(host) {
+            return Err(format!(
+                "Advertised host must be an IPv4 address or a hostname without scheme, port, or slashes, got {host:?}"
+            ));
+        }
+    }
+    if port == 0 {
+        return Err("Port must be between 1 and 65535".to_string());
+    }
+    Ok(())
+}
+
+/// v1.6.0: persist the companion network configuration (interface
+/// choice, advertised-host override, port). Validation happens BEFORE
+/// the write (see validate_companion_network_override), and the server
+/// is NOT bounced here: the settings panel's restart button applies the
+/// new configuration, with restart_pending flagging the difference.
+#[tauri::command]
+#[specta::specta]
+pub fn change_companion_network_setting(
+    app: AppHandle,
+    bind_ip: Option<String>,
+    advertised_host: Option<String>,
+    port: u16,
+) -> Result<(), String> {
+    validate_companion_network_override(
+        bind_ip.as_deref(),
+        advertised_host.as_deref(),
+        port,
+    )?;
+    let mut settings = settings::get_settings(&app);
+    settings.companion_bind_ip = normalize_optional_setting(bind_ip);
+    settings.companion_advertised_host = normalize_optional_setting(advertised_host);
+    settings.companion_port = port;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// v1.6.0: normalize a manual-override string field: trimmed, with empty
+/// meaning None (unset), so "  " can never masquerade as a choice.
+fn normalize_optional_setting(raw: Option<String>) -> Option<String> {
+    raw.map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+}
+
+/// v1.6.0: persist the manual TLS certificate pair for the companion
+/// listener. Both paths or neither: one without the other is rejected,
+/// and a set pair must actually load (readable files, parseable PEM) so
+/// a restart can never arm a broken certificate. Unset keeps the
+/// self-signed behavior exactly.
+#[tauri::command]
+#[specta::specta]
+pub fn change_companion_tls_setting(
+    app: AppHandle,
+    cert_path: Option<String>,
+    key_path: Option<String>,
+) -> Result<(), String> {
+    let cert_path = normalize_optional_setting(cert_path);
+    let key_path = normalize_optional_setting(key_path);
+    match (&cert_path, &key_path) {
+        (None, None) => {}
+        (Some(cert), Some(key)) => {
+            crate::companion::cert::load_manual_pair(std::path::Path::new(cert), std::path::Path::new(key))?;
+        }
+        (single, _) => {
+            return Err(format!(
+                "Set both the certificate and the key file, or leave both empty (found {})",
+                single.as_deref().unwrap_or("only one path")
+            ));
+        }
+    }
+    let mut settings = settings::get_settings(&app);
+    settings.companion_tls_cert_path = cert_path;
+    settings.companion_tls_key_path = key_path;
+    settings::write_settings(&app, settings);
+    Ok(())
+}
+
+/// v1.6.0: apply the persisted companion configuration by bouncing the
+/// server (the settings panel's restart button). Start failures surface
+/// verbatim, port conflicts included: the OS bind error is the error
+/// string. A stopped server starts when the effective gate allows it.
+#[tauri::command]
+#[specta::specta]
+pub fn restart_companion_server(app: AppHandle) -> Result<(), String> {
+    let manager = app
+        .state::<std::sync::Arc<crate::companion::CompanionManager>>()
+        .inner()
+        .clone();
+    if let Err(e) = manager.restart(&app) {
+        manager.set_last_error(Some(e.clone()));
+        crate::managers::transcription::emit_overlay_notice(
+            &app,
+            crate::managers::transcription::NoticeCode::CompanionServerFailed,
+            Some(e.clone()),
+        );
+        return Err(e);
+    }
+    manager.set_last_error(None);
+    Ok(())
+}
+
 #[tauri::command]
 #[specta::specta]
 pub fn change_auto_fallback_setting(app: AppHandle, enabled: bool) -> Result<(), String> {
@@ -2664,7 +2790,8 @@ mod tests {
     use super::{
         bare_key_rejection, binding_conflicts_with_active_binding, binding_is_active,
         cancel_rebind_retirement, companion_toggle_runtime_value, is_bare_key_binding,
-        normalize_headroom_mb, restore_registration_is_due, POST_PROCESS_TOGGLE_BINDINGS,
+        normalize_headroom_mb, normalize_optional_setting, restore_registration_is_due,
+        validate_companion_network_override, POST_PROCESS_TOGGLE_BINDINGS,
     };
 
     #[test]
@@ -3151,6 +3278,78 @@ mod tests {
         assert!(
             companion_toggle_runtime_value(true, &settings),
             "both on is the only combination that arms the server"
+        );
+    }
+
+    /// v1.6.0: the manual network override validation
+    /// (validate_companion_network_override) gates what
+    /// change_companion_network_setting may persist. Every rejection is
+    /// pure: no settings store, no server. Accepts the automatic
+    /// pre-v1.6.0 shape (empty fields, default port) untouched.
+    #[test]
+    fn companion_network_override_validation_accepts_and_rejects() {
+        // The automatic shape: nothing set, default port.
+        assert!(
+            validate_companion_network_override(None, None, 4177).is_ok(),
+            "the pre-v1.6.0 automatic shape is untouched"
+        );
+        // Empties mean unset.
+        assert!(validate_companion_network_override(Some(""), Some("   "), 4177).is_ok());
+
+        // A LAN interface, a Tailscale CGNAT interface, a hostname
+        // override, and a plain IP override all pass.
+        assert!(validate_companion_network_override(Some("192.168.1.42"), None, 4177).is_ok());
+        assert!(
+            validate_companion_network_override(Some("100.101.7.24"), None, 4177).is_ok(),
+            "the Tailscale range is a valid choice"
+        );
+        assert!(
+            validate_companion_network_override(None, Some("mac.tail1234.ts.net"), 4177).is_ok()
+        );
+        assert!(validate_companion_network_override(None, Some("192.168.1.42"), 8443).is_ok());
+        assert!(validate_companion_network_override(Some(" 10.20.0.5 "), None, 1).is_ok());
+
+        // Interface rejections: garbage, and a public address outside
+        // every classifiable range (the picker only offers LAN/VPN/
+        // Tailscale addresses; hand-typed values get the same rule).
+        let garbage = validate_companion_network_override(Some("not an ip"), None, 4177)
+            .err()
+            .expect("garbage interface must fail");
+        assert!(garbage.contains("IPv4"), "{garbage}");
+        let public = validate_companion_network_override(Some("8.8.8.8"), None, 4177)
+            .err()
+            .expect("a public interface must fail");
+        assert!(public.contains("not a private"), "{public}");
+
+        // Host rejections: URL, port suffix, spaces.
+        for bad in ["https://mac.ts.net", "mac.ts.net:4177", "mac host"] {
+            let err = validate_companion_network_override(None, Some(bad), 4177)
+                .err()
+                .expect("bad host must fail");
+            assert!(err.contains("host"), "{bad}: {err}");
+        }
+
+        // Port rejection: zero.
+        let port = validate_companion_network_override(None, None, 0)
+            .err()
+            .expect("port 0 must fail");
+        assert!(port.contains("1 and 65535"), "{port}");
+        assert!(validate_companion_network_override(None, None, 65535).is_ok());
+    }
+
+    /// v1.6.0: the manual TLS pair shape rule. One path without the
+    /// other never persists (the command rejects before writing); both
+    /// empty restores the self-signed behavior. The pair LOADS rule is
+    /// exercised in companion::cert (it needs real files); this pins
+    /// the both-or-neither normalization seam the command applies.
+    #[test]
+    fn companion_tls_override_normalizes_to_both_or_neither() {
+        assert_eq!(normalize_optional_setting(None), None);
+        assert_eq!(normalize_optional_setting(Some("".to_string())), None);
+        assert_eq!(normalize_optional_setting(Some("   ".to_string())), None);
+        assert_eq!(
+            normalize_optional_setting(Some("  /path/cert.pem ".to_string())),
+            Some("/path/cert.pem".to_string())
         );
     }
 }

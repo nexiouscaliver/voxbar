@@ -38,15 +38,43 @@ pub fn ensure_certificate(dir: &Path, lan_ip: std::net::IpAddr) -> Result<Compan
 fn load_persisted(cert_path: &Path, key_path: &Path) -> Option<CompanionCert> {
     let cert_pem = std::fs::read_to_string(cert_path).ok()?;
     let key_pem = std::fs::read_to_string(key_path).ok()?;
-    let cert = CertificateDer::from_pem_slice(cert_pem.as_bytes()).ok()?;
-    let key = PrivateKeyDer::from_pem_slice(key_pem.as_bytes()).ok()?;
+    let loaded = parse_pair(&cert_pem, &key_pem).ok()?;
+    log::info!("companion: loaded persisted TLS certificate ({})", loaded.fingerprint);
+    Some(loaded)
+}
+
+/// Parse a certificate/key PEM pair into a [`CompanionCert`]. The
+/// fingerprint is of the supplied certificate (manual pairs included),
+/// so Settings shows what the phone will actually verify.
+fn parse_pair(cert_pem: &str, key_pem: &str) -> Result<CompanionCert, String> {
+    let cert = CertificateDer::from_pem_slice(cert_pem.as_bytes())
+        .map_err(|e| format!("certificate is not valid PEM: {e}"))?;
+    let key = PrivateKeyDer::from_pem_slice(key_pem.as_bytes())
+        .map_err(|e| format!("key is not valid PEM: {e}"))?;
     let fingerprint = fingerprint_hex(cert.as_ref());
-    log::info!("companion: loaded persisted TLS certificate ({fingerprint})");
-    Some(CompanionCert {
+    Ok(CompanionCert {
         cert,
         key,
         fingerprint,
     })
+}
+
+/// v1.6.0: load a user-supplied certificate pair (tailscale-issued or
+/// own) for the companion TLS listener. Both files must exist and parse;
+/// every failure names the file and the reason so the settings panel can
+/// show exactly what is wrong before a restart is attempted.
+pub fn load_manual_pair(cert_path: &Path, key_path: &Path) -> Result<CompanionCert, String> {
+    let cert_pem = std::fs::read_to_string(cert_path)
+        .map_err(|e| format!("cannot read certificate {cert_path:?}: {e}"))?;
+    let key_pem = std::fs::read_to_string(key_path)
+        .map_err(|e| format!("cannot read key {key_path:?}: {e}"))?;
+    let loaded = parse_pair(&cert_pem, &key_pem)?;
+    log::info!(
+        "companion: loaded manual TLS certificate {} ({})",
+        cert_path.display(),
+        loaded.fingerprint
+    );
+    Ok(loaded)
 }
 
 fn generate_and_persist(
@@ -146,5 +174,53 @@ mod tests {
         assert_eq!(fingerprint_hex(&der).len(), 64);
         // Deterministic.
         assert_eq!(fingerprint_hex(&der), fingerprint_hex(&der));
+    }
+
+    /// v1.6.0: a manual pair (tailscale-issued or own certs) loads from
+    /// any two PEM files, and every failure mode names the offending
+    /// file or part. The loaded fingerprint is the manual cert's own, so
+    /// the panel shows what the phone will verify.
+    #[test]
+    fn a_manual_pair_loads_and_failures_name_the_cause() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let ip = std::net::IpAddr::V4(Ipv4Addr::new(192, 168, 1, 20));
+
+        // Any generated self-signed pair stands in for a user-supplied
+        // one: copy its persisted PEM files elsewhere and load them as a
+        // manual pair from the new paths.
+        let source = ensure_certificate(dir.path(), ip).expect("source pair");
+        let cert_pem = std::fs::read_to_string(dir.path().join(CERT_FILE)).expect("cert pem");
+        let key_pem = std::fs::read_to_string(dir.path().join(KEY_FILE)).expect("key pem");
+
+        let manual_dir = tempfile::tempdir().expect("manual tempdir");
+        std::fs::write(manual_dir.path().join("manual-cert.pem"), &cert_pem).unwrap();
+        std::fs::write(manual_dir.path().join("manual-key.pem"), &key_pem).unwrap();
+
+        let manual = load_manual_pair(
+            &manual_dir.path().join("manual-cert.pem"),
+            &manual_dir.path().join("manual-key.pem"),
+        )
+        .expect("manual pair loads");
+        assert_eq!(manual.fingerprint, source.fingerprint);
+        assert_eq!(manual.cert.as_ref(), source.cert.as_ref());
+
+        // Missing file: the error names the unreadable path.
+        let missing = load_manual_pair(
+            &manual_dir.path().join("nope.pem"),
+            &manual_dir.path().join("manual-key.pem"),
+        )
+        .err()
+        .expect("missing file must fail");
+        assert!(missing.contains("nope.pem"), "missing error: {missing}");
+
+        // Garbage PEM: the error names which half failed to parse.
+        std::fs::write(manual_dir.path().join("manual-key.pem"), "not a key").unwrap();
+        let garbage = load_manual_pair(
+            &manual_dir.path().join("manual-cert.pem"),
+            &manual_dir.path().join("manual-key.pem"),
+        )
+        .err()
+        .expect("garbage key must fail");
+        assert!(garbage.contains("key"), "garbage error: {garbage}");
     }
 }

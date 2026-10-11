@@ -667,7 +667,31 @@
         "serverError": "Server failed: {{error}}",
         "refresh": "Refresh",
         "statusRunning": "Running",
-        "statusStopped": "Stopped"
+        "statusStopped": "Stopped",
+        "interfaceTitle": "Interface",
+        "interfaceAuto": "Automatic (LAN preferred)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "No network interfaces discovered yet",
+        "bindError": "Interface problem: {{error}}",
+        "manualTitle": "Manual override",
+        "hostLabel": "Advertised host or IP",
+        "hostPlaceholder": "Interface address when empty",
+        "hostInvalid": "Enter an IPv4 address or a hostname, without scheme, port, or slashes",
+        "portInvalid": "Port must be a number between 1 and 65535",
+        "tlsTitle": "TLS certificate",
+        "tlsCertLabel": "Certificate file",
+        "tlsKeyLabel": "Key file",
+        "tlsSelfSigned": "Using the built-in self-signed certificate",
+        "tlsManual": "Using your certificate",
+        "tlsPairInvalid": "Set both files or leave both empty",
+        "restartButton": "Restart server",
+        "restartPending": "Changes apply after a restart",
+        "qrPreviewNote": "Preview: this URL is advertised when the server next starts.",
+        "sharedNetworkNote": "The phone and this Mac must share a network: the same Wi-Fi or LAN, or the same tailnet (for example both on Tailscale)."
       }
     },
     "postProcessing": {

@@ -667,7 +667,31 @@
         "serverError": "Serveren fejlede: {{error}}",
         "refresh": "Opdater",
         "statusRunning": "Kører",
-        "statusStopped": "Stoppet"
+        "statusStopped": "Stoppet",
+        "interfaceTitle": "Netværksinterface",
+        "interfaceAuto": "Automatisk (LAN foretrækkes)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Ingen netværksinterfaces fundet endnu",
+        "bindError": "Interfaceproblem: {{error}}",
+        "manualTitle": "Manuel indstilling",
+        "hostLabel": "Anvendt vært eller IP",
+        "hostPlaceholder": "Tom bruger interfaceadressen",
+        "hostInvalid": "Angiv en IPv4-adresse eller et værtsnavn uden skema, port eller skråstreger",
+        "portInvalid": "Porten skal være et tal mellem 1 og 65535",
+        "tlsTitle": "TLS-certifikat",
+        "tlsCertLabel": "Certifikatfil",
+        "tlsKeyLabel": "Nøglefil",
+        "tlsSelfSigned": "Det indbyggede selvsignerede certifikat er i brug",
+        "tlsManual": "Dit eget certifikat er i brug",
+        "tlsPairInvalid": "Angiv begge filer, eller lad dem begge stå tomme",
+        "restartButton": "Genstart serveren",
+        "restartPending": "Ændringerne træder i kraft efter en genstart",
+        "qrPreviewNote": "Forhåndsvisning: Denne URL anvendes, næste gang serveren starter.",
+        "sharedNetworkNote": "Telefonen og denne Mac skal dele et netværk: det samme Wi-Fi eller LAN, eller det samme tailnet (f.eks. begge på Tailscale)."
       }
     },
     "postProcessing": {

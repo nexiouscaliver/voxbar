@@ -667,7 +667,31 @@
         "serverError": "सर्वर विफल: {{error}}",
         "refresh": "रिफ़्रेश",
         "statusRunning": "चालू",
-        "statusStopped": "बंद"
+        "statusStopped": "बंद",
+        "interfaceTitle": "नेटवर्क इंटरफ़ेस",
+        "interfaceAuto": "स्वतः (LAN पसंदीदा)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "अभी कोई नेटवर्क इंटरफ़ेस नहीं मिला",
+        "bindError": "इंटरफ़ेस की समस्या: {{error}}",
+        "manualTitle": "मैनुअल सेटिंग",
+        "hostLabel": "घोषित होस्ट या IP",
+        "hostPlaceholder": "खाली छोड़ने पर इंटरफ़ेस का पता उपयोग होता है",
+        "hostInvalid": "स्कीम, पोर्ट या स्लैश के बिना IPv4 पता या होस्टनाम दर्ज करें",
+        "portInvalid": "पोर्ट 1 से 65535 के बीच का नंबर होना चाहिए",
+        "tlsTitle": "TLS प्रमाणपत्र",
+        "tlsCertLabel": "प्रमाणपत्र फ़ाइल",
+        "tlsKeyLabel": "कुंजी फ़ाइल",
+        "tlsSelfSigned": "बिल्ट-इन सेल्फ-साइन्ड प्रमाणपत्र उपयोग में है",
+        "tlsManual": "आपका प्रमाणपत्र उपयोग में है",
+        "tlsPairInvalid": "दोनों फ़ाइलें सेट करें या दोनों खाली छोड़ें",
+        "restartButton": "सर्वर पुनः आरंभ करें",
+        "restartPending": "बदलाव पुनः आरंभ के बाद लागू होंगे",
+        "qrPreviewNote": "पूर्वावलोकन: सर्वर के अगले शुरू होने पर यह URL घोषित किया जाएगा।",
+        "sharedNetworkNote": "फ़ोन और यह Mac एक ही नेटवर्क पर होने चाहिए: एक ही Wi-Fi या LAN, या एक ही tailnet (जैसे दोनों Tailscale पर)।"
       }
     },
     "postProcessing": {

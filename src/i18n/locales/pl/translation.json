@@ -667,7 +667,31 @@
         "serverError": "Serwer nie działa: {{error}}",
         "refresh": "Odśwież",
         "statusRunning": "Działa",
-        "statusStopped": "Zatrzymany"
+        "statusStopped": "Zatrzymany",
+        "interfaceTitle": "Interfejs sieciowy",
+        "interfaceAuto": "Automatycznie (preferowana sieć LAN)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Nie znaleziono jeszcze interfejsów sieciowych",
+        "bindError": "Problem z interfejsem: {{error}}",
+        "manualTitle": "Ustawienie ręczne",
+        "hostLabel": "Rozgłaszany host lub IP",
+        "hostPlaceholder": "Puste używa adresu interfejsu",
+        "hostInvalid": "Podaj adres IPv4 lub nazwę hosta, bez schematu, portu i ukośników",
+        "portInvalid": "Port musi być liczbą od 1 do 65535",
+        "tlsTitle": "Certyfikat TLS",
+        "tlsCertLabel": "Plik certyfikatu",
+        "tlsKeyLabel": "Plik klucza",
+        "tlsSelfSigned": "W użyciu wbudowany certyfikat z podpisem własnym",
+        "tlsManual": "W użyciu Twój certyfikat",
+        "tlsPairInvalid": "Podaj oba pliki lub zostaw oba puste",
+        "restartButton": "Uruchom serwer ponownie",
+        "restartPending": "Zmiany zostaną zastosowane po ponownym uruchomieniu",
+        "qrPreviewNote": "Podgląd: ten adres URL będzie rozgłaszany przy następnym uruchomieniu serwera.",
+        "sharedNetworkNote": "Telefon i ten Mac muszą mieć wspólną sieć: tę samą sieć Wi-Fi lub LAN albo ten sam tailnet (na przykład oba w Tailscale)."
       }
     },
     "postProcessing": {

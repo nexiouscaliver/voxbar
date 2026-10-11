@@ -611,7 +611,31 @@
         "serverError": "فشل الخادم: {{error}}",
         "refresh": "تحديث",
         "statusRunning": "يعمل",
-        "statusStopped": "متوقف"
+        "statusStopped": "متوقف",
+        "interfaceTitle": "واجهة الشبكة",
+        "interfaceAuto": "تلقائي (تفضيل الشبكة المحلية)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "لم يتم العثور على واجهات شبكة بعد",
+        "bindError": "مشكلة في الواجهة: {{error}}",
+        "manualTitle": "إعداد يدوي",
+        "hostLabel": "المضيف أو IP المُعلن",
+        "hostPlaceholder": "اتركه فارغًا لاستخدام عنوان الواجهة",
+        "hostInvalid": "أدخل عنوان IPv4 أو اسم مضيف، بدون بروتوكول أو منفذ أو شرطات مائلة",
+        "portInvalid": "يجب أن يكون المنفذ رقمًا بين 1 و65535",
+        "tlsTitle": "شهادة TLS",
+        "tlsCertLabel": "ملف الشهادة",
+        "tlsKeyLabel": "ملف المفتاح",
+        "tlsSelfSigned": "يتم استخدام الشهادة الموقعة ذاتيًا المدمجة",
+        "tlsManual": "يتم استخدام شهادتك الخاصة",
+        "tlsPairInvalid": "حدد الملفين معًا أو اتركهما فارغين",
+        "restartButton": "إعادة تشغيل الخادم",
+        "restartPending": "تُطبق التغييرات بعد إعادة التشغيل",
+        "qrPreviewNote": "معاينة: سيتم الإعلان عن هذا الرابط عند تشغيل الخادم في المرة القادمة.",
+        "sharedNetworkNote": "يجب أن يتشارك الهاتف وهذا الـ Mac الشبكة نفسها: نفس شبكة Wi-Fi أو الشبكة المحلية، أو نفس شبكة tailnet (مثل انضمامهما إلى Tailscale)."
       }
     },
     "postProcessing": {

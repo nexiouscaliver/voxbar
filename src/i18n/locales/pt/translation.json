@@ -667,7 +667,31 @@
         "serverError": "Falha no servidor: {{error}}",
         "refresh": "Atualizar",
         "statusRunning": "Em execução",
-        "statusStopped": "Parado"
+        "statusStopped": "Parado",
+        "interfaceTitle": "Interface de rede",
+        "interfaceAuto": "Automático (LAN preferida)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Nenhuma interface de rede encontrada",
+        "bindError": "Problema de interface: {{error}}",
+        "manualTitle": "Configuração manual",
+        "hostLabel": "Host ou IP divulgado",
+        "hostPlaceholder": "Vazio usa o endereço da interface",
+        "hostInvalid": "Introduza um endereço IPv4 ou um nome de host, sem esquema, porta ou barras",
+        "portInvalid": "A porta deve ser um número entre 1 e 65535",
+        "tlsTitle": "Certificado TLS",
+        "tlsCertLabel": "Ficheiro do certificado",
+        "tlsKeyLabel": "Ficheiro da chave",
+        "tlsSelfSigned": "A usar o certificado autoassinado incorporado",
+        "tlsManual": "A usar o seu certificado",
+        "tlsPairInvalid": "Defina ambos os ficheiros ou deixe ambos vazios",
+        "restartButton": "Reiniciar o servidor",
+        "restartPending": "As alterações aplicam-se depois de reiniciar",
+        "qrPreviewNote": "Pré-visualização: este URL será divulgado na próxima vez que o servidor arrancar.",
+        "sharedNetworkNote": "O telefone e este Mac têm de partilhar uma rede: a mesma Wi-Fi ou LAN, ou o mesmo tailnet (por exemplo, ambos no Tailscale)."
       }
     },
     "postProcessing": {

@@ -667,7 +667,31 @@
         "serverError": "सर्भर असफल: {{error}}",
         "refresh": "ताजा पार्नुहोस्",
         "statusRunning": "चलिरहेको",
-        "statusStopped": "रोकिएको"
+        "statusStopped": "रोकिएको",
+        "interfaceTitle": "नेटवर्क इन्टरफेस",
+        "interfaceAuto": "स्वतः (LAN रुचाइएको)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "अझै कुनै नेटवर्क इन्टरफेस भेटिएको छैन",
+        "bindError": "इन्टरफेस समस्या: {{error}}",
+        "manualTitle": "म्यानुअल सेटिङ",
+        "hostLabel": "घोषणा गरिने होस्ट वा IP",
+        "hostPlaceholder": "खाली छोड्दा इन्टरफेसको ठेगाना प्रयोग हुन्छ",
+        "hostInvalid": "स्किम, पोर्ट वा स्ल्यास बिना IPv4 ठेगाना वा होस्टनाम राख्नुहोस्",
+        "portInvalid": "पोर्ट १ देखि ६५५३५ बीचको सङ्ख्या हुनुपर्छ",
+        "tlsTitle": "TLS प्रमाणपत्र",
+        "tlsCertLabel": "प्रमाणपत्र फाइल",
+        "tlsKeyLabel": "कुञ्जी फाइल",
+        "tlsSelfSigned": "भित्री स्व-हस्ताक्षरित प्रमाणपत्र प्रयोग भइरहेको छ",
+        "tlsManual": "तपाईंको आफ्नै प्रमाणपत्र प्रयोग भइरहेको छ",
+        "tlsPairInvalid": "दुवै फाइल सेट गर्नुहोस् वा दुवै खाली छोड्नुहोस्",
+        "restartButton": "सर्भर पुनः सुरु गर्नुहोस्",
+        "restartPending": "पुनः सुरु गरेपछि परिवर्तनहरू लागू हुन्छन्",
+        "qrPreviewNote": "पूर्वावलोकन: सर्भर अर्को पटक सुरु हुँदा यो URL घोषणा गरिनेछ।",
+        "sharedNetworkNote": "फोन र यो Mac ले एउटै सञ्जाल साझा गर्नुपर्छ: उही Wi-Fi वा LAN, वा उही tailnet (जस्तै दुवै Tailscale मा)।"
       }
     },
     "postProcessing": {

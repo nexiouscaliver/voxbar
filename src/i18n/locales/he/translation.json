@@ -667,7 +667,31 @@
         "serverError": "השרת נכשל: {{error}}",
         "refresh": "רענון",
         "statusRunning": "פועל",
-        "statusStopped": "מופסק"
+        "statusStopped": "מופסק",
+        "interfaceTitle": "ממשק רשת",
+        "interfaceAuto": "אוטומטי (עדיפות ל-LAN)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "טרם נמצאו ממשקי רשת",
+        "bindError": "בעיית ממשק: {{error}}",
+        "manualTitle": "הגדרה ידנית",
+        "hostLabel": "שם המארח או ה-IP המפורסם",
+        "hostPlaceholder": "ריק משתמש בכתובת הממשק",
+        "hostInvalid": "הזן כתובת IPv4 או שם מארח, ללא סכמה, פורט או קווים נטויים",
+        "portInvalid": "הפורט חייב להיות מספר בין 1 ל-65535",
+        "tlsTitle": "תעודת TLS",
+        "tlsCertLabel": "קובץ התעודה",
+        "tlsKeyLabel": "קובץ המפתח",
+        "tlsSelfSigned": "בשימוש התעודה החתומה עצמית המובנית",
+        "tlsManual": "בשימוש התעודה שלך",
+        "tlsPairInvalid": "הגדר את שני הקבצים או השאר את שניהם ריקים",
+        "restartButton": "הפעלת השרת מחדש",
+        "restartPending": "השינויים ייכנסו לתוקף לאחר הפעלה מחדש",
+        "qrPreviewNote": "תצוגה מקדימה: כתובת URL זו תפורסם בהפעלה הבאה של השרת.",
+        "sharedNetworkNote": "הטלפון וה-Mac הזה חייבים לחלוק רשת: אותו Wi-Fi או LAN, או אותו tailnet (למשל שניהם ב-Tailscale)."
       }
     },
     "postProcessing": {

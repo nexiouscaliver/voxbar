@@ -897,6 +897,25 @@ pub struct AppSettings {
     /// Name of the last device that completed a hello handshake.
     #[serde(default)]
     pub companion_last_device: Option<String>,
+    /// v1.6.0: the interface IP the companion server binds and advertises
+    /// (chosen in the settings picker). None/empty means the automatic
+    /// LAN-preferred ranking, the pre-v1.6.0 behavior. A Tailscale
+    /// 100.64/10 interface is selectable here.
+    #[serde(default)]
+    pub companion_bind_ip: Option<String>,
+    /// v1.6.0: manual hostname or IPv4 advertised in the pairing URL
+    /// instead of the bound interface's IP (e.g. a MagicDNS name).
+    /// None/empty advertises the bound IP, the pre-v1.6.0 behavior.
+    #[serde(default)]
+    pub companion_advertised_host: Option<String>,
+    /// v1.6.0: manual TLS certificate pair for the companion listener
+    /// (tailscale-issued or own certs). BOTH set means manual; anything
+    /// else keeps the self-signed certificate behavior.
+    #[serde(default)]
+    pub companion_tls_cert_path: Option<String>,
+    /// The key file paired with `companion_tls_cert_path`.
+    #[serde(default)]
+    pub companion_tls_key_path: Option<String>,
 }
 
 fn default_model() -> String {
@@ -1813,6 +1832,10 @@ pub fn get_default_settings() -> AppSettings {
         companion_pairing_token: None,
         companion_pairing_subnet: None,
         companion_last_device: None,
+        companion_bind_ip: None,
+        companion_advertised_host: None,
+        companion_tls_cert_path: None,
+        companion_tls_key_path: None,
     }
 }
 

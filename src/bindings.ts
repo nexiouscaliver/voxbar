@@ -134,6 +134,50 @@ async resetCompanionPairing() : Promise<Result<null, string>> {
 async getCompanionStatus() : Promise<CompanionStatus> {
     return await TAURI_INVOKE("get_companion_status");
 },
+/**
+ * v1.6.0: persist the companion network configuration (interface
+ * choice, advertised-host override, port). Validation happens BEFORE
+ * the write (see validate_companion_network_override), and the server
+ * is NOT bounced here: the settings panel's restart button applies the
+ * new configuration, with restart_pending flagging the difference.
+ */
+async changeCompanionNetworkSetting(bindIp : string | null, advertisedHost : string | null, port : number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_companion_network_setting", { bindIp, advertisedHost, port }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * v1.6.0: persist the manual TLS certificate pair for the companion
+ * listener. Both paths or neither: one without the other is rejected,
+ * and a set pair must actually load (readable files, parseable PEM) so
+ * a restart can never arm a broken certificate. Unset keeps the
+ * self-signed behavior exactly.
+ */
+async changeCompanionTlsSetting(certPath : string | null, keyPath : string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_companion_tls_setting", { certPath, keyPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * v1.6.0: apply the persisted companion configuration by bouncing the
+ * server (the settings panel's restart button). Start failures surface
+ * verbatim, port conflicts included: the OS bind error is the error
+ * string. A stopped server starts when the effective gate allows it.
+ */
+async restartCompanionServer() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("restart_companion_server") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeAutoFallbackSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_auto_fallback_setting", { enabled }) };
@@ -1806,11 +1850,34 @@ companion_pairing_token?: string | null;
 /**
  * The /24 (as "a.b.c.0/24") the pairing token was issued for.
  */
-companion_pairing_subnet?: string | null; 
+companion_pairing_subnet?: string | null;
 /**
  * Name of the last device that completed a hello handshake.
  */
-companion_last_device?: string | null }
+companion_last_device?: string | null;
+/**
+ * v1.6.0: the interface IP the companion server binds and advertises
+ * (chosen in the settings picker). None/empty means the automatic
+ * LAN-preferred ranking, the pre-v1.6.0 behavior. A Tailscale
+ * 100.64/10 interface is selectable here.
+ */
+companion_bind_ip?: string | null;
+/**
+ * v1.6.0: manual hostname or IPv4 advertised in the pairing URL
+ * instead of the bound interface's IP (e.g. a MagicDNS name).
+ * None/empty advertises the bound IP, the pre-v1.6.0 behavior.
+ */
+companion_advertised_host?: string | null;
+/**
+ * v1.6.0: manual TLS certificate pair for the companion listener
+ * (tailscale-issued or own certs). BOTH set means manual; anything
+ * else keeps the self-signed certificate behavior.
+ */
+companion_tls_cert_path?: string | null;
+/**
+ * The key file paired with `companion_tls_cert_path`.
+ */
+companion_tls_key_path?: string | null }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AvailableAccelerators = { transcribe: string[]; ort: string[]; gpu_devices: GpuDeviceOption[] }
@@ -1849,7 +1916,8 @@ export type CommandMatrixEntry = { command: CommandId; phrases: string[] }
  * The status snapshot the settings panel renders (QR, URL, devices,
  * fingerprint, error).
  */
-export type CompanionStatus = { enabled: boolean; running: boolean; supported: boolean; url: string | null; port: number; qr_svg: string | null; fingerprint: string | null; token: string | null; subnet: string | null; last_device: string | null; devices: string[]; error: string | null }
+export type CompanionStatus = { enabled: boolean; running: boolean; supported: boolean; url: string | null; port: number; qr_svg: string | null; fingerprint: string | null; token: string | null; subnet: string | null; last_device: string | null; devices: string[]; error: string | null; interfaces: CompanionInterface[]; bind_ip: string | null; advertised_host: string | null; bind_error: string | null; tls_manual: boolean; restart_pending: boolean }
+export type CompanionInterface = { ip: string; name: string; kind: string }
 export type CustomSounds = { start: boolean; stop: boolean }
 export type EngineType = 
 /**

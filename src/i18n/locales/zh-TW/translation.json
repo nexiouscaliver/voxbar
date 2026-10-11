@@ -667,7 +667,31 @@
         "serverError": "伺服器失敗：{{error}}",
         "refresh": "重新整理",
         "statusRunning": "執行中",
-        "statusStopped": "已停止"
+        "statusStopped": "已停止",
+        "interfaceTitle": "網路介面",
+        "interfaceAuto": "自動（優先區域網路）",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "尚未找到網路介面",
+        "bindError": "介面問題：{{error}}",
+        "manualTitle": "手動覆寫",
+        "hostLabel": "對外公布的主機或 IP",
+        "hostPlaceholder": "留空時使用介面位址",
+        "hostInvalid": "請輸入 IPv4 位址或主機名稱（不含通訊協定、連接埠或斜線）",
+        "portInvalid": "連接埠必須是 1 到 65535 之間的數字",
+        "tlsTitle": "TLS 憑證",
+        "tlsCertLabel": "憑證檔案",
+        "tlsKeyLabel": "金鑰檔案",
+        "tlsSelfSigned": "正在使用內建的自簽憑證",
+        "tlsManual": "正在使用你自己的憑證",
+        "tlsPairInvalid": "兩個檔案都填寫，或都留空",
+        "restartButton": "重新啟動伺服器",
+        "restartPending": "變更會在重新啟動後生效",
+        "qrPreviewNote": "預覽：伺服器下次啟動後會公布此 URL。",
+        "sharedNetworkNote": "手機和這台 Mac 必須處於同一網路：同一 Wi-Fi 或區域網路，或同一 tailnet（例如都加入 Tailscale）。"
       }
     },
     "postProcessing": {

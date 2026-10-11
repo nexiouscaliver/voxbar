@@ -667,7 +667,31 @@
         "serverError": "服务器失败：{{error}}",
         "refresh": "刷新",
         "statusRunning": "运行中",
-        "statusStopped": "已停止"
+        "statusStopped": "已停止",
+        "interfaceTitle": "网络接口",
+        "interfaceAuto": "自动（优先局域网）",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "尚未发现网络接口",
+        "bindError": "接口问题：{{error}}",
+        "manualTitle": "手动覆盖",
+        "hostLabel": "对外公布的主机或 IP",
+        "hostPlaceholder": "留空时使用接口地址",
+        "hostInvalid": "请输入 IPv4 地址或主机名（不含协议、端口或斜杠）",
+        "portInvalid": "端口必须是 1 到 65535 之间的数字",
+        "tlsTitle": "TLS 证书",
+        "tlsCertLabel": "证书文件",
+        "tlsKeyLabel": "密钥文件",
+        "tlsSelfSigned": "正在使用内置的自签名证书",
+        "tlsManual": "正在使用你自己的证书",
+        "tlsPairInvalid": "两个文件都填写，或都留空",
+        "restartButton": "重启服务器",
+        "restartPending": "更改将在重启后生效",
+        "qrPreviewNote": "预览：服务器下次启动后将公布此 URL。",
+        "sharedNetworkNote": "手机和这台 Mac 必须处于同一网络：同一 Wi-Fi 或局域网，或同一 tailnet（例如都加入 Tailscale）。"
       }
     },
     "postProcessing": {
