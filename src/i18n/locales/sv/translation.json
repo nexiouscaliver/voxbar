@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Aviseringslogg",
-        "description": "De senaste 50 fel- och resultatmeddelandena, så att ett missat meddelande aldrig går förlorat.",
+        "description": "De senaste 50 fel- och resultatmeddelandena. Nya poster registreras bara medan systemaviseringar är på.",
         "empty": "Inga aviseringar än.",
         "clear": "Rensa alla"
       }

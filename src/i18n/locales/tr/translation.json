@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Bildirim günlüğü",
-        "description": "Son 50 hata ve sonuç bildirimi, böylece gözden kaçan bir ileti asla kaybolmaz.",
+        "description": "Son 50 hata ve sonuç bildirimi. Yeni kayıtlar yalnızca sistem bildirimleri açıkken tutulur.",
         "empty": "Henüz bildirim yok.",
         "clear": "Tümünü temizle"
       }

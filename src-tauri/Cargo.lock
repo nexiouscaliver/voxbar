@@ -7860,6 +7860,7 @@ dependencies = [
  "libc",
  "llama-cpp-2",
  "log",
+ "mac-notification-sys",
  "mach2 0.7.0",
  "natural",
  "objc2",

@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Journal des notifications",
-        "description": "Les 50 derniers avis d'erreurs et de résultats, pour qu'un message manqué ne soit jamais perdu.",
+        "description": "Les 50 derniers avis d'erreurs et de résultats. De nouvelles entrées ne sont enregistrées que lorsque les notifications système sont activées.",
         "empty": "Aucune notification pour l'instant.",
         "clear": "Tout effacer"
       }

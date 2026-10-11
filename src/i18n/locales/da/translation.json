@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Underretningslog",
-        "description": "De seneste 50 fejl- og resultatmeddelelser, så en overset meddelelse aldrig går tabt.",
+        "description": "De seneste 50 fejl- og resultatmeddelelser. Nye poster registreres kun, mens systemunderretninger er slået til.",
         "empty": "Ingen underretninger endnu.",
         "clear": "Ryd alle"
       }

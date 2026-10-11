@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Registo de notificações",
-        "description": "As últimas 50 notificações de erros e resultados, para que um aviso ignorado nunca se perca.",
+        "description": "As últimas 50 notificações de erros e resultados. Novas entradas só são registadas enquanto as notificações do sistema estiverem ativadas.",
         "empty": "Ainda não há notificações.",
         "clear": "Limpar tudo"
       }

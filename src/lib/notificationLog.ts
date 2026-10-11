@@ -11,10 +11,12 @@
 // bun with no Tauri or DOM work at import time. Storage is a structural
 // seam (localStorage-like) so tests drive persistence with a plain map.
 //
-// Scope note: the log records every error/outcome-classified notice
-// regardless of the OS-notification settings toggles. The toggles govern
-// the OS surface only; the log is the in-app list and stays populated even
-// with notifications off (it then becomes the replacement surface).
+// Scope note: the log is part of the notification SYSTEM, not an always-on
+// recorder. planNoticeDispatch (noticeRouting.ts) sets its log leg only
+// while the master toggle is on, so the off path restores the pre-v1.6.0
+// behavior exactly: no persistent posts, no suppression, and no new
+// durable state written here. Entries recorded while the system was on
+// stay readable (and hydrate across relaunches) after it is turned off.
 
 export interface NotificationLogEntry {
   /** Monotonic id so React keys survive identical repeated notices. */

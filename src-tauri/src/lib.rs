@@ -22,6 +22,7 @@ mod memory;
 mod number_format;
 mod overlay;
 mod paste_tx;
+mod persistent_notice;
 pub mod portable;
 pub mod post_process_runs;
 mod secure_input;
@@ -102,7 +103,7 @@ fn build_console_filter() -> env_filter::Filter {
     builder.build()
 }
 
-fn show_main_window(app: &AppHandle) {
+pub(crate) fn show_main_window(app: &AppHandle) {
     if let Some(main_window) = app.get_webview_window("main") {
         if let Err(e) = main_window.unminimize() {
             log::error!("Failed to unminimize webview window: {}", e);
@@ -1442,6 +1443,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             commands::history::update_recording_retention_period,
             post_process_runs::get_post_process_runs,
             helpers::clamshell::is_laptop,
+            persistent_notice::post_persistent_notice,
         ])
         .events(collect_events![
             managers::history::HistoryUpdatePayload,

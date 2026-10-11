@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Protokol oznámení",
-        "description": "Posledních 50 upozornění na chyby a výsledky, aby přehlédnutá zpráva nikdy nebyla ztracena.",
+        "description": "Posledních 50 upozornění na chyby a výsledky. Nové záznamy se ukládají pouze při zapnutých systémových oznámeních.",
         "empty": "Zatím žádná oznámení.",
         "clear": "Vymazat vše"
       }

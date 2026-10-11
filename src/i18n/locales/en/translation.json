@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Notification log",
-        "description": "The last 50 error and outcome notices, so a missed message is never lost.",
+        "description": "The last 50 error and outcome notices. New entries are recorded only while system notifications are on.",
         "empty": "No notifications yet.",
         "clear": "Clear all"
       }

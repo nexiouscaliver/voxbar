@@ -296,9 +296,12 @@ export function osNoticeDecision(
 // consults. Composes the transient router decision with the persistent
 // classification so the two surfaces can never double-post: when the
 // persistent notification fires it REPLACES today's hidden-window offer
-// (strictly more reach: it also fires while the window is visible); when
+// (strictly more reach: it also fires while the window is visible). When
 // the master toggle is off the plan degrades to exactly the pre-v1.6.0
-// dispatch (toast + hidden-window offer per routerDecision alone).
+// dispatch (toast + hidden-window offer per routerDecision alone) AND no
+// log write: "off restores today's behavior exactly" includes the in-app
+// notification log, which is new durable state v1.6.0 must not add while
+// the feature is disabled.
 export interface NoticeDispatchPlan {
   /** Main-window toast, unchanged semantics from routerDecision. */
   toast: boolean;
@@ -307,6 +310,11 @@ export interface NoticeDispatchPlan {
   /** Today's notifyDesktop offer; delivery still gated by its live
    *  window-visibility query. Suppressed exactly when persistentOs fires. */
   legacyHiddenOsOffer: boolean;
+  /** Append the notice to the in-app notification log (and persist it).
+   *  True only while the master toggle is on: the log is part of the
+   *  notification system, not an always-on recorder, so the off path adds
+   *  no durable state the pre-v1.6.0 app did not write. */
+  log: boolean;
 }
 
 export function planNoticeDispatch(
@@ -320,5 +328,25 @@ export function planNoticeDispatch(
     toast: routing.toast,
     persistentOs: persistent,
     legacyHiddenOsOffer: routing.notify && !persistent,
+    log: prefs.enabled && noticeChannelClass(code) !== "overlay-only",
   };
+}
+
+// Structural shape desktopNotify's click bus delivers (kept local so this
+// pure module does not import the side-effect module).
+export interface NoticeNotificationClickLike {
+  code?: string;
+  target?: string;
+}
+
+// The navigation one notification click performs (App.tsx wiring): errors
+// and anything unmapped land on the notifications log section; session
+// outcomes (the history-target codes) land on history. Total by design:
+// a garbage or missing target never throws and never strands the click.
+export type NoticeClickSection = "notifications" | "history";
+
+export function noticeClickSection(
+  click: NoticeNotificationClickLike,
+): NoticeClickSection {
+  return click.target === "history" ? "history" : "notifications";
 }

@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Dziennik powiadomień",
-        "description": "Ostatnie 50 powiadomień o błędach i wynikach, żeby przeoczona wiadomość nigdy nie przepadła.",
+        "description": "Ostatnie 50 powiadomień o błędach i wynikach. Nowe wpisy są zapisywane tylko wtedy, gdy powiadomienia systemowe są włączone.",
         "empty": "Brak powiadomień.",
         "clear": "Wyczyść wszystko"
       }

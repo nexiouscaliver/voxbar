@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Nhật ký thông báo",
-        "description": "50 thông báo lỗi và kết quả gần nhất, để thông báo bị lỡ không bao giờ bị mất.",
+        "description": "50 thông báo lỗi và kết quả gần nhất. Chỉ ghi mục mới khi thông báo hệ thống đang bật.",
         "empty": "Chưa có thông báo nào.",
         "clear": "Xóa tất cả"
       }

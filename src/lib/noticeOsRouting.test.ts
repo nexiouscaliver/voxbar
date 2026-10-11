@@ -10,11 +10,16 @@ import assert from "node:assert/strict";
 //    a new Rust notice code FAILS this test until it joins a group here.
 // 2. Click-through: the classification's target table is total (every
 //    notifying code navigates somewhere known; overlay-only codes never
-//    do), and the click bus delivers the extra payload to subscribers.
+//    do), the click bus delivers the extra payload to subscribers
+//    (noticeNotificationSurface.test.ts), and the App leg's navigation
+//    seam noticeClickSection maps every click, degenerate ones included,
+//    onto a section.
 // 3. Toggle-off parity: with the master toggle off, planNoticeDispatch
 //    degrades to EXACTLY the pre-v1.6.0 dispatch for every code and card
 //    state (toast + hidden-window offer per routerDecision alone, no
-//    persistent post, no suppression).
+//    persistent post, no suppression) AND no log write: the emit path in
+//    App.tsx writes the log purely off plan.log, so the off path adds no
+//    durable state the pre-v1.6.0 app did not write.
 // 4. Log cap: the notification log keeps the last 50 entries, newest
 //    first, and clears completely.
 
@@ -33,6 +38,7 @@ interface RoutingModule {
   NOTICE_CHANNEL_TABLE: Record<string, ChannelEntry>;
   noticeChannelClass(code: string): string;
   noticeClickTarget(code: string): string | null;
+  noticeClickSection(click: { code?: string; target?: string }): string;
   osNoticeDecision(
     code: string,
     prefs: { enabled: boolean; outcomes: boolean },
@@ -45,6 +51,7 @@ interface RoutingModule {
     toast: boolean;
     persistentOs: boolean;
     legacyHiddenOsOffer: boolean;
+    log: boolean;
   };
   DEFAULT_OS_NOTIFICATION_PREFS: { enabled: boolean; outcomes: boolean };
   routerDecision(
@@ -78,6 +85,7 @@ const {
   NOTICE_CHANNEL_TABLE,
   noticeChannelClass,
   noticeClickTarget,
+  noticeClickSection,
   osNoticeDecision,
   planNoticeDispatch,
   DEFAULT_OS_NOTIFICATION_PREFS,
@@ -319,6 +327,13 @@ for (const code of ALL_NOTICE_CODES) {
         routerDecision(code, cardVisible).toast,
         `${code} toast leg unchanged by the OS classification`,
       );
+      // The log leg is gated on the master toggle alone (not the outcomes
+      // sub-toggle, not the card state, not whether the OS post fired).
+      assert.equal(
+        plan.log,
+        prefs.enabled && entry.channel !== "overlay-only",
+        `${code} log leg (cardVisible=${cardVisible}) under ${JSON.stringify(prefs)}`,
+      );
     }
   }
 }
@@ -329,7 +344,12 @@ for (const prefs of PREFS_MATRIX) {
     const plan = planNoticeDispatch("something_unmapped", cardVisible, prefs);
     assert.deepEqual(
       plan,
-      { toast: false, persistentOs: false, legacyHiddenOsOffer: false },
+      {
+        toast: false,
+        persistentOs: false,
+        legacyHiddenOsOffer: false,
+        log: false,
+      },
       "unknown codes stay inert on every surface",
     );
   }
@@ -340,7 +360,10 @@ for (const prefs of PREFS_MATRIX) {
 //
 // The off path must restore today's behavior EXACTLY: for every code and
 // card state, the plan is the pre-v1.6.0 dispatch (routerDecision alone)
-// with persistentOs always false and no suppression of the legacy offer.
+// with persistentOs always false, no suppression of the legacy offer, and
+// NO log write - the log is new durable state v1.6.0 must not add while
+// the notification system is disabled, so the emit path (App.tsx writes
+// the log purely off plan.log) is covered by this same assertion.
 // ---------------------------------------------------------------------------
 
 for (const code of ALL_NOTICE_CODES) {
@@ -357,6 +380,7 @@ for (const code of ALL_NOTICE_CODES) {
           toast: legacy.toast,
           persistentOs: false,
           legacyHiddenOsOffer: legacy.notify,
+          log: false,
         },
         `toggle OFF must restore the exact pre-v1.6.0 dispatch for ${code} (cardVisible=${cardVisible}, outcomes=${outcomes})`,
       );
@@ -380,12 +404,26 @@ for (const code of OUTCOME_GROUP) {
     `${code} (outcome group) must go quiet in errors-only mode`,
   );
 }
+// Errors-only mode still LOGS outcome codes: the sub-toggle governs the OS
+// surface only; the in-app log keeps the full error+outcome record while
+// the master toggle is on.
+for (const code of [...ERROR_GROUP, ...OUTCOME_GROUP]) {
+  assert.equal(
+    planNoticeDispatch(code, false, { enabled: true, outcomes: false }).log,
+    true,
+    `${code} must still be logged in errors-only mode while the master toggle is on`,
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Part 4: click-through mapping
 //
 // Target totality: every code that can post a persistent notification
 // navigates somewhere known; overlay-only and unknown codes never do.
+// noticeClickSection is the App-level navigation seam (App.tsx feeds it
+// whatever the click bus delivered and setCurrentSection's its result), so
+// its totality is what makes the App leg regression-safe: garbage or
+// missing targets can never strand a click or crash the handler.
 // ---------------------------------------------------------------------------
 
 for (const code of [...ERROR_GROUP, ...OUTCOME_GROUP]) {
@@ -404,5 +442,20 @@ for (const code of OVERLAY_ONLY) {
 }
 assert.equal(noticeClickTarget("something_unmapped"), null);
 assert.equal(noticeClickTarget(""), null);
+
+// The App leg's navigation decision, end to end over the real table: the
+// section a click lands on always equals the classified target.
+for (const code of [...ERROR_GROUP, ...OUTCOME_GROUP]) {
+  assert.equal(
+    noticeClickSection({ target: noticeClickTarget(code) ?? undefined }),
+    NOTICE_CHANNEL_TABLE[code].target,
+    `${code} click must navigate to its classified target section`,
+  );
+}
+// Degenerate clicks fall back to the log section, never a throw.
+assert.equal(noticeClickSection({}), "notifications");
+assert.equal(noticeClickSection({ code: "x" }), "notifications");
+assert.equal(noticeClickSection({ target: "garbage" }), "notifications");
+assert.equal(noticeClickSection({ target: "history" }), "history");
 
 console.log("noticeOsRouting classification tests passed");

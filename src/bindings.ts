@@ -1566,6 +1566,18 @@ async isLaptop() : Promise<Result<boolean, string>> {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * Post one persistent notice. The command returns as soon as the notice
+ * is handed to the platform; the click wait happens on its own thread.
+ */
+async postPersistentNotice(body: string, code: string, target: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("post_persistent_notice", { body, code, target }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
 }
 }
 

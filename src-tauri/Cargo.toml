@@ -206,6 +206,11 @@ objc2-service-management = "0.3.2"
 # mach bindings are deprecated in favor of this crate. macOS-only target
 # table entry: the crate refuses to compile on non-Apple targets.
 mach2 = "0.7"
+# The persistent-notice sender and its click leg (persistent_notice.rs).
+# Already in the tree as the tauri notification plugin's macOS backend
+# (notify-rust depends on it at this exact version), so promoting it to a
+# direct dependency downloads nothing new.
+mac-notification-sys = "0.6.15"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk-layer-shell = { version = "0.8", features = ["v0_6"] }

@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Log notifikasi",
-        "description": "50 pemberitahuan kesalahan dan hasil terakhir, agar pesan yang terlewat tidak pernah hilang.",
+        "description": "50 pemberitahuan kesalahan dan hasil terakhir. Entri baru hanya dicatat selama notifikasi sistem aktif.",
         "empty": "Belum ada notifikasi.",
         "clear": "Hapus semua"
       }

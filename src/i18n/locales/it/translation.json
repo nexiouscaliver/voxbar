@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Registro delle notifiche",
-        "description": "Gli ultimi 50 avvisi di errori ed esiti, così un avviso mancato non va mai perso.",
+        "description": "Gli ultimi 50 avvisi di errori ed esiti. Nuove voci vengono registrate solo mentre le notifiche di sistema sono attive.",
         "empty": "Ancora nessuna notifica.",
         "clear": "Cancella tutto"
       }

@@ -44,11 +44,12 @@ import {
 import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
 import { noticeMessage, noticeNotificationBody } from "@/lib/noticeMessage";
 import {
-  noticeChannelClass,
+  noticeClickSection,
   noticeClickTarget,
   planNoticeDispatch,
 } from "@/lib/noticeRouting";
 import {
+  attachNativeNoticeClickSource,
   attachNoticeNotificationClickSource,
   notifyDesktop,
   notifyDesktopPersistent,
@@ -476,10 +477,10 @@ function App() {
   // and outcome codes also post a real Notification Center notification,
   // independent of window visibility, and that persistent post REPLACES the
   // hidden-window offer so the two surfaces never double-post. With the
-  // settings toggle off the plan degrades to the exact pre-v1.6.0 dispatch.
-  // Error and outcome codes are additionally appended to the in-app
-  // notification log regardless of the toggles (lib/notificationLog.ts), so
-  // a missed toast is never lost even with OS notifications disabled.
+  // settings toggle off the plan degrades to the exact pre-v1.6.0 dispatch
+  // INCLUDING the log: no persistent post, no suppression, and no log write
+  // (the log is part of the notification system, so the off path adds no
+  // durable state the pre-v1.6.0 app did not write).
   const lastNoopNoticeToast = useRef<Record<string, number>>({});
   useEffect(() => {
     const unlisten = events.overlayNoticeEvent.listen((event) => {
@@ -489,12 +490,11 @@ function App() {
         card_visible,
         getOsNotificationPrefs(),
       );
-      const logWorthy = noticeChannelClass(code) !== "overlay-only";
       if (
         !plan.toast &&
         !plan.persistentOs &&
         !plan.legacyHiddenOsOffer &&
-        !logWorthy
+        !plan.log
       ) {
         return;
       }
@@ -503,7 +503,7 @@ function App() {
       const now = Date.now();
       if (now - (lastNoopNoticeToast.current[code] ?? 0) < 2000) return;
       lastNoopNoticeToast.current[code] = now;
-      if (logWorthy) {
+      if (plan.log) {
         pushNotificationLogEntry({
           code,
           detail: detail ?? null,
@@ -552,20 +552,23 @@ function App() {
   }, []);
 
   // v1.6.0 W1-L4 click-through: activating a posted notification focuses
-  // the app (showMainWindowCommand also raises a hidden-to-tray window)
-  // and navigates to the classified target: errors go to the in-app
-  // notifications log section, session outcomes to history. The click
-  // event itself arrives from the plugin's onAction channel where the
-  // platform provides one (desktopNotify.ts documents the macOS gap).
+  // the app and navigates via the pure noticeClickSection seam: errors go
+  // to the in-app notifications log section, session outcomes to history.
+  // On macOS the native path delivers this: the Rust send leg
+  // (persistent_notice.rs) raises the main window on the click itself and
+  // emits notice-notification-click, which attachNativeNoticeClickSource
+  // funnels into the bus (the showMainWindowCommand call below covers the
+  // plugin-source path and is a harmless idempotent re-show on the native
+  // path). The plugin's onAction channel feeds the same bus where the
+  // platform provides it.
   useEffect(() => {
+    void attachNativeNoticeClickSource();
     void attachNoticeNotificationClickSource();
     const unsubscribe = subscribeNoticeNotificationClicks((click) => {
       void commands.showMainWindowCommand().catch((e) => {
         console.warn("Failed to show main window for notification click:", e);
       });
-      setCurrentSection(
-        click.target === "history" ? "history" : "notifications",
-      );
+      setCurrentSection(noticeClickSection(click));
     });
     return unsubscribe;
   }, []);

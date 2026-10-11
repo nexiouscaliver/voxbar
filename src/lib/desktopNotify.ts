@@ -5,6 +5,8 @@ import {
   sendNotification,
 } from "@tauri-apps/plugin-notification";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { listen } from "@tauri-apps/api/event";
+import { commands } from "@/bindings";
 
 let permissionPrimed = false;
 
@@ -90,21 +92,25 @@ export async function notifyDesktop(body: string): Promise<void> {
 // v1.6.0 W1-L4: the persistent notification surface plus its click bus.
 //
 // notifyDesktop above is the TRANSIENT surface: gated on the window being
-// hidden, delivered as a plain banner. The persistent surface below posts
-// the notice to Notification Center regardless of window visibility, so an
-// error or a session outcome cannot flash by in the overlay and vanish:
-// the post stays in Notification Center until the user dismisses it (the
-// mail-notification model). Honest platform note: whether the banner form
-// itself stays on screen (alert style) or auto-hides into Notification
-// Center (banner style) is the user's per-app System Settings choice; the
-// app cannot force the alert style through this plugin. Either way the
-// notification remains listed in Notification Center until dismissed.
+// hidden, delivered as a plain banner through the notification plugin.
+// The persistent surface below posts the notice to Notification Center
+// regardless of window visibility, so an error or a session outcome cannot
+// flash by in the overlay and vanish: the post stays in Notification
+// Center until the user dismisses it (the mail-notification model).
+// Honest platform note: whether the banner form itself stays on screen
+// (alert style) or auto-hides into Notification Center (banner style) is
+// the user's per-app System Settings choice; no app API can force the
+// alert style. Either way the notification remains listed in Notification
+// Center until dismissed.
 //
-// The group/extra fields ride along for click-through: the plugin's
-// desktop bridge (tauri-plugin-notification 2.4.0 desktop.rs) currently
-// forwards only title/body/icon/sound to the OS and drops both, but the
-// JS Options model carries them and a future bridge that honors them (or
-// a mobile surface) gets the routing payload for free.
+// Sending goes through ONE Rust seam (commands.postPersistentNotice,
+// src-tauri/src/persistent_notice.rs): on macOS the Rust side sends via
+// mac-notification-sys with wait_for_click, so a real content click raises
+// the main window and arrives here as the notice-notification-click event
+// (the plugin's desktop build cannot do this: it registers no action
+// listener and drops the routing payload before the OS). On other desktop
+// platforms the Rust seam forwards to the same notification plugin this
+// file's transient surface uses, so nothing diverges.
 
 export type NoticeNotificationTarget = "notifications" | "history";
 
@@ -117,24 +123,20 @@ export interface PersistentNoticeNotification {
   target: NoticeNotificationTarget;
 }
 
-// Thread identifier so notice posts stack as one group wherever the
-// platform honors grouping (iOS/macOS threadIdentifier, Android channels).
-const NOTICE_GROUP = "voxbar-notices";
-
 // Post one persistent notification. No visibility gate by design (that is
 // the point of this surface); still permission-gated and never prompting,
-// never throwing. Delivery is fire-and-forget like notifyDesktop.
+// never throwing. Delivery is fire-and-forget like notifyDesktop: the
+// command returns once the notice is handed to the platform.
 export async function notifyDesktopPersistent(
   notification: PersistentNoticeNotification,
 ): Promise<void> {
   try {
     if (await isPermissionGranted()) {
-      sendNotification({
-        title: "VoxBar",
-        body: notification.body,
-        group: NOTICE_GROUP,
-        extra: { code: notification.code, target: notification.target },
-      });
+      await commands.postPersistentNotice(
+        notification.body,
+        notification.code,
+        notification.target,
+      );
     }
   } catch (error) {
     console.warn("Persistent desktop notification failed:", error);
@@ -144,16 +146,20 @@ export async function notifyDesktopPersistent(
 // ---- The click bus ----
 //
 // When a notification the app posted is activated, subscribers hear
-// { code, target } and App.tsx focuses the main window and navigates to
-// the target section. Honest platform note: the plugin's desktop side
-// (tauri-plugin-notification 2.4.0) registers only the notify/permission
-// commands and emits no actionPerformed events, so on macOS today the
-// click bus is wired but dormant: the OS still brings the app forward on
-// a notification click (the system default action); the in-webview
-// navigation event will start flowing the moment a plugin build wires
-// desktop action events, with no caller changes. attachNoticeNotificationClickSource
-// therefore treats a rejected registration as an expected, log-once gap,
-// not an error.
+// { code, target } and App.tsx navigates via noticeClickSection
+// (noticeRouting.ts). Two sources feed the bus:
+// 1. NATIVE (macOS production path): the Rust send leg
+//    (src-tauri/src/persistent_notice.rs) posts through mac-notification-sys
+//    with wait_for_click; on a content click it raises the main window and
+//    emits notice-notification-click, which attachNativeNoticeClickSource
+//    funnels into the bus.
+// 2. PLUGIN (mobile, or a future desktop plugin build that wires action
+//    events): attachNoticeNotificationClickSource wires the plugin's
+//    onAction channel. The installed desktop plugin (2.4.0) registers no
+//    action listener (verified against its commands.rs), so on desktop
+//    this registration rejects; that is logged once at info level as an
+//    expected capability gap, not an error - source 1 already covers
+//    desktop.
 
 export interface NoticeNotificationClick {
   code?: string;
@@ -164,6 +170,7 @@ type NoticeNotificationClickListener = (click: NoticeNotificationClick) => void;
 
 const clickListeners = new Set<NoticeNotificationClickListener>();
 let clickSourceAttached = false;
+let nativeClickSourceAttached = false;
 
 /** Hear notification activations; returns the unsubscribe function. */
 export function subscribeNoticeNotificationClicks(
@@ -176,45 +183,73 @@ export function subscribeNoticeNotificationClicks(
 }
 
 /**
- * Test/dispatch seam: deliver one activation to the current subscribers,
- * exactly as the plugin's onAction callback would. Not called by app code;
- * exported so the click-through wiring is testable without the OS.
+ * Deliver one activation to the current subscribers: the single funnel both
+ * click sources (and the tests) feed. Accepts the plugin Options shape
+ * (payload under `extra`) or the native event payload ({ code, target }
+ * directly); non-string fields are dropped, never coerced.
  */
-export function dispatchNoticeNotificationClickForTests(
-  notification: { extra?: Record<string, unknown> } | null | undefined,
+export function dispatchNoticeNotificationClick(
+  notification:
+    | { extra?: Record<string, unknown> }
+    | NoticeNotificationClick
+    | null
+    | undefined,
 ): void {
-  const extra = notification?.extra;
   const click: NoticeNotificationClick = {};
-  if (extra && typeof extra === "object") {
-    if (typeof extra.code === "string") click.code = extra.code;
-    if (typeof extra.target === "string") click.target = extra.target;
+  const source =
+    notification && typeof notification === "object"
+      ? "extra" in notification &&
+        notification.extra &&
+        typeof notification.extra === "object"
+        ? (notification.extra as Record<string, unknown>)
+        : (notification as Record<string, unknown>)
+      : null;
+  if (source) {
+    if (typeof source.code === "string") click.code = source.code;
+    if (typeof source.target === "string") click.target = source.target;
   }
   for (const listener of [...clickListeners]) {
     listener(click);
   }
 }
 
-// Wire the plugin's onAction into the bus, once per run. On platforms
-// without plugin action events the registration rejects; that is logged
-// once at info level (an expected capability gap, not a failure) and the
-// bus stays dormant for the run. Never throws.
+// Wire the plugin's onAction channel into the bus, once per run. See the
+// source list above for where this does and does not work. Never throws.
 export async function attachNoticeNotificationClickSource(): Promise<void> {
   if (clickSourceAttached) return;
   clickSourceAttached = true;
   try {
     await onAction((notification) => {
-      dispatchNoticeNotificationClickForTests(notification);
+      dispatchNoticeNotificationClick(notification);
     });
   } catch (error) {
     console.info(
-      "Notification click events unavailable on this platform; " +
-        "notification clicks will focus the app but not deep-navigate:",
+      "Plugin notification action events unavailable on this platform; " +
+        "using the native click event instead where the sender supports it:",
       error,
     );
   }
 }
 
-/** Test-only: forget the once-per-run attach latch between scenarios. */
+// Wire the native Rust click event (NOTICE_CLICK_EVENT in
+// persistent_notice.rs) into the bus, once per run. The listener lives for
+// the app's lifetime by design. On platforms whose Rust sender has no
+// click leg (non-macOS desktop today) the event simply never fires. Never
+// throws.
+export async function attachNativeNoticeClickSource(): Promise<void> {
+  if (nativeClickSourceAttached) return;
+  nativeClickSourceAttached = true;
+  try {
+    await listen("notice-notification-click", (event) => {
+      dispatchNoticeNotificationClick(event.payload ?? null);
+    });
+  } catch (error) {
+    console.warn("Native notification click listener failed to attach:", error);
+  }
+}
+
+/** Test-only: forget the once-per-run attach latches between scenarios. */
 export function resetClickSourceLatchForTests(): void {
   clickSourceAttached = false;
+  nativeClickSourceAttached = false;
 }

@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Benachrichtigungsprotokoll",
-        "description": "Die letzten 50 Fehler- und Ergebnismeldungen, damit eine verpasste Meldung nie verloren geht.",
+        "description": "Die letzten 50 Fehler- und Ergebnismeldungen. Neue Einträge werden nur erfasst, solange Systembenachrichtigungen aktiviert sind.",
         "empty": "Noch keine Benachrichtigungen.",
         "clear": "Alle leeren"
       }

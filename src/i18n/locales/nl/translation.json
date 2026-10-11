@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Meldingenlog",
-        "description": "De laatste 50 fout- en resultaatmeldingen, zodat een gemiste melding nooit verloren gaat.",
+        "description": "De laatste 50 fout- en resultaatmeldingen. Nieuwe items worden alleen bijgehouden zolang systeemmeldingen aan staan.",
         "empty": "Nog geen meldingen.",
         "clear": "Alles wissen"
       }

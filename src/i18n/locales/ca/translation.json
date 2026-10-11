@@ -1115,7 +1115,7 @@
       },
       "log": {
         "title": "Registre de notificacions",
-        "description": "Els últims 50 avisos d'errors i resultats, perquè un avís passat per alt no es perdi mai.",
+        "description": "Els últims 50 avisos d'errors i resultats. Només es registren entrades noves mentre les notificacions del sistema estiguin actives.",
         "empty": "Encara no hi ha notificacions.",
         "clear": "Esborra-ho tot"
       }

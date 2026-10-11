@@ -13,14 +13,17 @@ import assert from "node:assert/strict";
 // Pinned contracts:
 // 1. notifyDesktopPersistent posts regardless of window visibility (no
 //    is_visible roundtrip at all), permission-gated and never prompting,
-//    carrying the click-through routing payload.
+//    through ONE Rust seam (the post_persistent_notice command) that
+//    carries the click-through routing payload.
 // 2. attachNoticeNotificationClickSource wires the plugin's onAction into
 //    the bus; a platform without plugin action events (the tauri-plugin-
 //    notification 2.4.0 desktop build) rejects the registration, which is
-//    swallowed as an expected gap, once per run.
-// 3. Click-through: a plugin action event carrying extra { code, target }
-//    reaches subscribers as { code, target }; garbage payloads degrade to
-//    an empty click, never a throw; unsubscribed listeners hear nothing.
+//    swallowed as an expected gap, once per run. The NATIVE source
+//    (attachNativeNoticeClickSource) wires the Rust click event the macOS
+//    sender emits, and delivers its payload to the same bus.
+// 3. Click-through: a click carrying { code, target } reaches subscribers
+//    as { code, target } from both source shapes; garbage payloads degrade
+//    to an empty click, never a throw; unsubscribed listeners hear nothing.
 // 4. The notification log: newest-first append, hard cap at the last 50,
 //    full clear, and a storage round-trip that survives corrupt input.
 // 5. The prefs store: defaults, coercion of malformed stored values, and
@@ -30,33 +33,29 @@ import assert from "node:assert/strict";
 // The Tauri stub
 // ---------------------------------------------------------------------------
 
-interface RecordedNotification {
-  title: string;
-  body?: string;
-  group?: string;
-  extra?: Record<string, unknown>;
-}
-
-const sent: RecordedNotification[] = [];
-const invokedCommands: string[] = [];
+const sent: string[] = [];
+const invokedCommands: { cmd: string; args?: Record<string, unknown> }[] = [];
 
 class StubNotification {
   static permission: "default" | "granted" | "denied" = "granted";
   static requestPermission(): Promise<"default" | "granted" | "denied"> {
     return Promise.resolve(StubNotification.permission);
   }
-  constructor(_title: string, options: RecordedNotification) {
-    sent.push({ ...options });
+  constructor(title: string) {
+    sent.push(title);
   }
 }
 
-// The channel callbacks the plugin registers (transformCallback): keyed by
-// id so the test can PLAY a real plugin action event into the wiring.
+// The channel callbacks the plugin/event listeners register
+// (transformCallback): keyed by id so the test can PLAY real plugin action
+// events and native Rust click events into the wiring.
 const channelCallbacks = new Map<number, (message: unknown) => void>();
 let nextCallbackId = 1;
 
 let windowVisible = true;
 let registerListenerBehavior: "resolve" | "reject" = "reject";
+let eventListenBehavior: "resolve" | "reject" = "resolve";
+let eventListenFailure = "";
 
 const stubWindow = {
   __TAURI_INTERNALS__: {
@@ -69,8 +68,11 @@ const stubWindow = {
     unregisterCallback: (id: number): void => {
       channelCallbacks.delete(id);
     },
-    invoke: async (cmd: string): Promise<unknown> => {
-      invokedCommands.push(cmd);
+    invoke: async (
+      cmd: string,
+      args?: Record<string, unknown>,
+    ): Promise<unknown> => {
+      invokedCommands.push({ cmd, args });
       if (cmd === "plugin:window|is_visible") return windowVisible;
       if (cmd === "plugin:notification|is_permission_granted")
         return StubNotification.permission === "granted";
@@ -80,6 +82,12 @@ const stubWindow = {
       ) {
         if (registerListenerBehavior === "reject") {
           throw new Error(`stub: ${cmd} not registered on desktop`);
+        }
+        return null;
+      }
+      if (cmd === "plugin:event|listen") {
+        if (eventListenBehavior === "reject") {
+          throw new Error(eventListenFailure || "stub: event listen failed");
         }
         return null;
       }
@@ -94,9 +102,10 @@ const stubWindow = {
 const desktop = await import("./desktopNotify");
 const {
   notifyDesktopPersistent,
+  attachNativeNoticeClickSource,
   attachNoticeNotificationClickSource,
   subscribeNoticeNotificationClicks,
-  dispatchNoticeNotificationClickForTests,
+  dispatchNoticeNotificationClick,
   resetClickSourceLatchForTests,
 } = desktop;
 
@@ -105,13 +114,12 @@ const {
 // ---------------------------------------------------------------------------
 
 // Window VISIBLE: the persistent surface still posts (this is the point of
-// the surface). With the web Notification permission already "granted" the
-// permission check short-circuits on the static property, so the IPC log
-// stays empty - and in particular there is deliberately NO
-// plugin:window|is_visible roundtrip here (that query is the legacy
-// surface's gate, pinned below).
+// the surface), through the single Rust seam. With the web Notification
+// permission already "granted" the permission check short-circuits on the
+// static property, so the only IPC traffic is the command itself - and in
+// particular there is deliberately NO plugin:window|is_visible roundtrip
+// here (that query is the legacy surface's gate, pinned below).
 invokedCommands.length = 0;
-sent.length = 0;
 windowVisible = true;
 await notifyDesktopPersistent({
   body: "Polishing failed and the raw transcript was kept",
@@ -119,31 +127,38 @@ await notifyDesktopPersistent({
   target: "notifications",
 });
 assert.deepEqual(
-  sent,
+  invokedCommands,
   [
     {
-      title: "VoxBar",
-      body: "Polishing failed and the raw transcript was kept",
-      group: "voxbar-notices",
-      extra: { code: "post_process_cloud_failed", target: "notifications" },
+      cmd: "post_persistent_notice",
+      args: {
+        body: "Polishing failed and the raw transcript was kept",
+        code: "post_process_cloud_failed",
+        target: "notifications",
+      },
     },
   ],
-  "the persistent post carries the routing payload under the product title",
+  "the persistent post goes through the single Rust seam, carrying the routing payload",
 );
 assert.ok(
-  !invokedCommands.includes("plugin:window|is_visible"),
+  !invokedCommands.some((entry) => entry.cmd === "plugin:window|is_visible"),
   "the persistent surface must not query window visibility (contrast notifyDesktop)",
 );
 
 // Window HIDDEN: identical post (visibility is simply not an input).
-sent.length = 0;
+invokedCommands.length = 0;
 windowVisible = false;
 await notifyDesktopPersistent({
   body: "Companion server failed",
   code: "companion_server_failed",
   target: "notifications",
 });
-assert.equal(sent.length, 1, "hidden window posts the same persistent notice");
+assert.equal(
+  invokedCommands.filter((entry) => entry.cmd === "post_persistent_notice")
+    .length,
+  1,
+  "hidden window posts the same persistent notice",
+);
 
 // Contrast pin: the legacy notifyDesktop surface DOES gate on visibility
 // (pre-existing behavior this file keeps honest).
@@ -153,50 +168,108 @@ windowVisible = true;
 await desktop.notifyDesktop("transient banner");
 assert.deepEqual(sent, [], "legacy surface stays quiet while visible");
 
-// Permission denied: silent, no prompt (a notification is a courtesy
-// surface; priming is primeNotificationPermission's job).
-sent.length = 0;
+// Permission denied: silent, no prompt, no command (a notification is a
+// courtesy surface; priming is primeNotificationPermission's job).
 invokedCommands.length = 0;
 StubNotification.permission = "denied";
 await notifyDesktopPersistent({ body: "b", code: "c", target: "history" });
-assert.deepEqual(sent, [], "denied permission means no post");
 assert.ok(
-  !invokedCommands.includes("plugin:notification|request_permission"),
+  !invokedCommands.some((entry) => entry.cmd === "post_persistent_notice"),
+  "denied permission means no post",
+);
+assert.ok(
+  !invokedCommands.some(
+    (entry) => entry.cmd === "plugin:notification|request_permission",
+  ),
   "the persistent surface must never prompt for permission",
 );
 StubNotification.permission = "granted";
 
 // ---------------------------------------------------------------------------
 // 2 + 3. The click-through bus
+//
+// Two sources feed one funnel (dispatchNoticeNotificationClick):
+// A. NATIVE: attachNativeNoticeClickSource listens for the
+//    notice-notification-click event the macOS Rust sender emits on a real
+//    notification click (src-tauri/src/persistent_notice.rs). This is the
+//    production macOS path, exercised below by playing the event exactly
+//    as Tauri delivers it through the event Channel.
+// B. PLUGIN: attachNoticeNotificationClickSource wires the plugin's
+//    DOCUMENTED onAction contract (onAction -> addPluginListener ->
+//    Channel callback with the notification Options, extra included). The
+//    installed desktop backend implements none of it (the reject block
+//    below pins that reality), so on desktop that registration refuses and
+//    the native source carries the feature; on platforms whose plugin
+//    build delivers actionPerformed (mobile, future desktop builds) the
+//    wiring below works unchanged.
 // ---------------------------------------------------------------------------
 
-// The bus delivers a plugin action event's extra payload to subscribers.
+// The bus delivers a click payload to subscribers.
 const clicks: unknown[] = [];
 const unsubscribe = subscribeNoticeNotificationClicks((click) => {
   clicks.push(click);
 });
 
-// Play a REAL plugin action event through the wiring: attach resolves the
-// registration, then the plugin fires the channel callback with the
-// notification (Options) whose extra carries the routing payload.
-registerListenerBehavior = "resolve";
+// Source A, the production macOS path: attach registers the Tauri event
+// listener, then the Rust click leg's event arrives through the event
+// Channel with the { code, target } payload shape persistent_notice.rs
+// emits (pinned by its Rust unit test).
 resetClickSourceLatchForTests();
-await attachNoticeNotificationClickSource();
-const handler = channelCallbacks.get(nextCallbackId - 1);
-assert.ok(handler, "attach must have registered a plugin action handler");
-// The Channel callback receives { index, message } envelopes (message order
-// is part of the Channel contract), so events are played in that shape.
-let eventIndex = 0;
-const playActionEvent = (message: unknown): void => {
-  handler({ index: eventIndex++, message });
+await attachNativeNoticeClickSource();
+assert.ok(
+  invokedCommands.some(
+    (entry) =>
+      entry.cmd === "plugin:event|listen" &&
+      (entry.args as { event?: string } | undefined)?.event ===
+        "notice-notification-click",
+  ),
+  "the native click source must listen for the Rust event by its wire name",
+);
+const nativeHandler = channelCallbacks.get(nextCallbackId - 1);
+assert.ok(nativeHandler, "attach must have registered an event handler");
+let nativeEventIndex = 0;
+const playNativeClickEvent = (payload: unknown): void => {
+  // listen registers a plain transformCallback (not a Channel), so the
+  // handler receives the Event object itself: { event, id, payload }.
+  nativeEventIndex++;
+  nativeHandler({
+    event: "notice-notification-click",
+    id: nativeEventIndex,
+    payload,
+  });
 };
-playActionEvent({
-  title: "VoxBar",
-  extra: { code: "companion_session_capped", target: "history" },
-});
+playNativeClickEvent({ code: "companion_session_capped", target: "history" });
 assert.deepEqual(
   clicks,
   [{ code: "companion_session_capped", target: "history" }],
+  "the native click event routes its payload to click subscribers",
+);
+// Garbage native payloads degrade to an empty click; nothing throws.
+playNativeClickEvent(null);
+assert.deepEqual(
+  clicks[1],
+  {},
+  "a null native payload degrades to an empty click",
+);
+
+// Source B, the plugin contract path: attach resolves the registration,
+// then the plugin fires the channel callback with the notification
+// (Options) whose extra carries the routing payload.
+registerListenerBehavior = "resolve";
+await attachNoticeNotificationClickSource();
+const pluginHandler = channelCallbacks.get(nextCallbackId - 1);
+assert.ok(pluginHandler, "attach must have registered a plugin action handler");
+let pluginEventIndex = 0;
+const playActionEvent = (message: unknown): void => {
+  pluginHandler({ index: pluginEventIndex++, message });
+};
+playActionEvent({
+  title: "VoxBar",
+  extra: { code: "recording_failed", target: "notifications" },
+});
+assert.deepEqual(
+  clicks[2],
+  { code: "recording_failed", target: "notifications" },
   "a plugin action event routes its extra payload to click subscribers",
 );
 
@@ -205,34 +278,39 @@ playActionEvent({ title: "VoxBar" });
 playActionEvent(null);
 playActionEvent({ extra: "not-an-object" });
 playActionEvent({ extra: { code: 42, target: null } });
-assert.equal(clicks.length, 5, "every activation notifies subscribers");
+assert.equal(clicks.length, 7, "every activation notifies subscribers");
 assert.deepEqual(
-  clicks[4],
+  clicks[6],
   {},
   "non-string extra fields are dropped, not coerced",
 );
 
-// The dispatch seam behaves identically (it is what the plugin callback
-// funnels through).
-dispatchNoticeNotificationClickForTests({
-  extra: { code: "recording_failed", target: "notifications" },
+// The dispatch funnel behaves identically for both payload shapes (it is
+// what both sources funnel through).
+dispatchNoticeNotificationClick({
+  extra: { code: "paste_failed", target: "notifications" },
 });
-assert.deepEqual(clicks[5], {
-  code: "recording_failed",
+assert.deepEqual(clicks[7], {
+  code: "paste_failed",
   target: "notifications",
 });
-dispatchNoticeNotificationClickForTests(undefined);
-assert.deepEqual(clicks[6], {});
+dispatchNoticeNotificationClick({ code: "c", target: "history" });
+assert.deepEqual(clicks[8], { code: "c", target: "history" });
+dispatchNoticeNotificationClick(undefined);
+assert.deepEqual(clicks[9], {});
 
 // Unsubscribed listeners hear nothing further.
 unsubscribe();
 playActionEvent({ extra: { code: "paste_failed", target: "notifications" } });
-assert.equal(clicks.length, 7, "an unsubscribed click listener hears nothing");
+assert.equal(clicks.length, 10, "an unsubscribed click listener hears nothing");
 
-// The platform-gap path (today's macOS desktop build): the plugin rejects
-// the registration; attach swallows it as an expected gap (info log, no
-// throw) and the once-per-run latch prevents retry storms. The console is
-// silenced because the info line is expected output.
+// The plugin platform-gap path (what the installed macOS desktop build
+// actually does: no register_listener command exists in the plugin's Rust
+// commands.rs, so both spellings reject): attach swallows it as an expected
+// gap (info log, no throw) and the once-per-run latch prevents retry
+// storms. The console is silenced because the info line is expected
+// output. The native source above is unaffected and remains the macOS
+// delivery path.
 let infos = 0;
 const originalInfo = console.info;
 console.info = () => {
@@ -247,7 +325,7 @@ try {
   await attachNoticeNotificationClickSource();
   assert.equal(infos, 1, "the once-per-run latch suppresses re-attachment");
   assert.deepEqual(
-    invokedCommands,
+    invokedCommands.map((entry) => entry.cmd),
     [
       "plugin:notification|register_listener",
       "plugin:notification|registerListener",
@@ -258,6 +336,24 @@ try {
   console.info = originalInfo;
 }
 registerListenerBehavior = "resolve";
+
+// The native attach also degrades safely when the event listener cannot be
+// registered: swallowed once, never thrown.
+let nativeWarns = 0;
+const originalWarn = console.warn;
+console.warn = () => {
+  nativeWarns++;
+};
+try {
+  eventListenBehavior = "reject";
+  resetClickSourceLatchForTests();
+  await attachNativeNoticeClickSource();
+  await attachNativeNoticeClickSource();
+} finally {
+  console.warn = originalWarn;
+  eventListenBehavior = "resolve";
+}
+assert.equal(nativeWarns, 1, "a failed native attach warns exactly once");
 
 // ---------------------------------------------------------------------------
 // 4. The notification log
