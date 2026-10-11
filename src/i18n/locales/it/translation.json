@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Cinese (semplificato)",
             "description": "Pulizia del cinese semplificato con correzione degli omofoni."
+          },
+          "prompt_enhancer": {
+            "name": "Miglioratore di prompt",
+            "description": "Trasforma un'istruzione dettata in un prompt chiaro e strutturato per un agente IA o un'app."
           }
         },
         "editPrompt": "Modifica"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "applicato",
       "skipped": "saltato",
-      "failed": "non riuscito"
+      "failed": "non riuscito",
+      "unchanged": "invariato"
     },
     "notifications": {
       "title": "Notifiche",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "Telefono disconnesso. Concludo con quanto registrato.",
       "companionServerFailed": "Server companion non riuscito: {{error}}",
       "companionSessionCapped": "Dettato dal dispositivo companion terminato: raggiunto il limite di sessione di 15 minuti su {{device}}.",
-      "companionZeroAudio": "La dettatura dal dispositivo companion è terminata senza audio. Non è stato trascritto nulla."
+      "companionZeroAudio": "La dettatura dal dispositivo companion è terminata senza audio. Non è stato trascritto nulla.",
+      "postProcessUnchanged": "La rifinitura è terminata senza cambiare nulla; la trascrizione è stata incollata esattamente come dettata.",
+      "postProcessNotConfigured": "La post-elaborazione non è stata eseguita: {{detail}}. La trascrizione grezza è stata mantenuta."
     },
     "commandBadge": "Modalità comandi",
     "ppChip": "Rifinitura ({{model}}) {{seconds}}s",

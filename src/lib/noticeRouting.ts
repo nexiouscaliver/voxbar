@@ -67,6 +67,11 @@ export const NOTICE_ROUTE_POLICIES: Record<string, NoticeRoutePolicy> = {
   wayland_tauri_hotkeys: "card-gated",
   gnome_overlay_fallback: "card-gated",
   companion_disconnected_finalized: "card-gated",
+  // Round 7: a requested polish that could not start (config gap) and one
+  // that ran but changed nothing both fire at dictation end, where the
+  // card row is the natural surface; a hidden window gets the toast.
+  post_process_not_configured: "card-gated",
+  post_process_unchanged: "card-gated",
 
   // Legacy-surface: the three orphaned Info codes (their tone plays no sound
   // and, off the old allowlist, they had NO surface once the card and window
@@ -215,6 +220,12 @@ export const NOTICE_CHANNEL_TABLE: Record<string, NoticeChannelEntry> = {
   post_process_length_guard: NOTIFICATION("error", "notifications"),
   post_process_output_invalid: NOTIFICATION("error", "notifications"),
   post_process_cloud_failed: NOTIFICATION("error", "notifications"),
+  // Round 7: "post-processing is on but nothing ever runs" is a persistent
+  // misconfiguration in the same class as a missing model download - it
+  // never self-heals and the operator must change something in Settings,
+  // so it posts like the other pp errors. The unchanged echo, by
+  // contrast, is a transient per-dictation state (overlay-only below).
+  post_process_not_configured: NOTIFICATION("error", "notifications"),
   companion_server_failed: NOTIFICATION("error", "notifications"),
   // Error tone, but a session outcome in shape: it navigates to the log
   // (not history) precisely because NO history entry exists - the log row
@@ -234,6 +245,10 @@ export const NOTICE_CHANNEL_TABLE: Record<string, NoticeChannelEntry> = {
   // gives it, including the hidden-window offers.
   model_fallback: { channel: "overlay-only" },
   post_process_too_long: { channel: "overlay-only" },
+  // Round 7: the engine finished and changed nothing - a per-dictation
+  // state the Debug table's run record already durables; a persistent
+  // post per dictation would only nag.
+  post_process_unchanged: { channel: "overlay-only" },
   delete_last_word_no_session: { channel: "overlay-only" },
   delete_last_word_no_buffer: { channel: "overlay-only" },
   undo_no_session: { channel: "overlay-only" },

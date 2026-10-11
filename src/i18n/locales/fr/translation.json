@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Chinois (simplifié)",
             "description": "Nettoyage du chinois simplifié avec correction des homophones."
+          },
+          "prompt_enhancer": {
+            "name": "Améliorateur d'invite",
+            "description": "Transforme une instruction dictée en une invite claire et structurée pour un agent IA ou une application."
           }
         },
         "editPrompt": "Modifier"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "appliqué",
       "skipped": "ignoré",
-      "failed": "échoué"
+      "failed": "échoué",
+      "unchanged": "inchangé"
     },
     "notifications": {
       "title": "Notifications",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "Téléphone déconnecté. On finalise avec ce qui a été capturé.",
       "companionServerFailed": "Échec du serveur compagnon : {{error}}",
       "companionSessionCapped": "La dictée depuis l'appareil compagnon est terminée : la limite de session de 15 minutes a été atteinte sur {{device}}.",
-      "companionZeroAudio": "La dictée depuis l'appareil compagnon s'est terminée sans audio. Rien n'a été transcrit."
+      "companionZeroAudio": "La dictée depuis l'appareil compagnon s'est terminée sans audio. Rien n'a été transcrit.",
+      "postProcessUnchanged": "Le polissage s'est terminé sans rien changer ; la transcription a été collée exactement telle qu'elle a été dictée.",
+      "postProcessNotConfigured": "Le post-traitement n'a pas été exécuté : {{detail}}. La transcription brute a été conservée."
     },
     "commandBadge": "Mode commandes",
     "ppChip": "Polish en cours ({{model}}) {{seconds}}s",

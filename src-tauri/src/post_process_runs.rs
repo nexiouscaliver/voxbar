@@ -14,8 +14,8 @@
 //! 2. `engine`    - model load ms / cache hit / swap wait (local engine; the
 //!    cloud engines print `-` placeholders so both paths emit the same set)
 //! 3. `generation`- ms and retries
-//! 4. `outcome`   - applied | skipped(reason) | failed(class), chars in/out,
-//!    changed ratio, total ms
+//! 4. `outcome`   - applied | unchanged | skipped(reason) | failed(class),
+//!    chars in/out, changed ratio, total ms, fallback reason detail
 //!
 //! The hard rule lives here too: on ANY failure the raw transcript is what
 //! gets pasted; the outcome line and the notice say why. This module records,
@@ -71,6 +71,13 @@ impl PostProcessEngineKind {
 pub enum PostProcessOutcome {
     /// The processed text was pasted.
     Applied,
+    /// The engine returned the transcript byte-identical (after trim): it
+    /// ran, validated, and changed nothing, so the pasted text equals the
+    /// raw transcript either way. Round 7's no-op guard: before this
+    /// variant a verbatim echo from a weak engine recorded as `applied`,
+    /// which made "the polish did nothing" indistinguishable from a real
+    /// cleanup in the outcome column and in history.
+    Unchanged,
     /// The engine never produced output (expected, recoverable); the raw
     /// transcript was used. Carries the local-engine skip vocabulary.
     Skipped { reason: SkipReason },
@@ -81,11 +88,12 @@ pub enum PostProcessOutcome {
 
 impl PostProcessOutcome {
     /// The token written on the outcome line and into history
-    /// (`applied` | `skipped:<reason>` | `failed:<class>`), one greppable
-    /// word either way.
+    /// (`applied` | `unchanged` | `skipped:<reason>` | `failed:<class>`),
+    /// one greppable word either way.
     pub fn token(&self) -> String {
         match self {
             PostProcessOutcome::Applied => "applied".to_string(),
+            PostProcessOutcome::Unchanged => "unchanged".to_string(),
             PostProcessOutcome::Skipped { reason } => {
                 format!(
                     "skipped:{}",
@@ -180,6 +188,13 @@ pub struct PostProcessRunRecord {
     pub phases_generation: PostProcessGenerationPhase,
     /// `None` while the run is still live.
     pub outcome: Option<PostProcessOutcome>,
+    /// Why the run ended the way it did, when a reason exists: the skip
+    /// reason's explanation, the cloud failure's error text, or the no-op
+    /// guard's "engine returned the transcript unchanged". This is the
+    /// fallback-reason surface the Debug table renders (round 7: before
+    /// this field the detail rode only the pp: log line, so the table
+    /// could say "skipped" but never why).
+    pub outcome_detail: Option<String>,
     pub chars_in: Option<u64>,
     pub chars_out: Option<u64>,
     /// chars_out / chars_in (how much of the transcript survived), None
@@ -298,6 +313,7 @@ impl RunsRegistry {
             phases_engine: PostProcessEnginePhase::default(),
             phases_generation: PostProcessGenerationPhase::default(),
             outcome: None,
+            outcome_detail: None,
             chars_in: Some(meta.chars_in),
             chars_out: None,
             changed_ratio: None,
@@ -478,6 +494,7 @@ impl RunsRegistry {
                 already_finished = true;
             } else {
                 record.outcome = Some(outcome.clone());
+                record.outcome_detail = detail.map(|d| d.to_string());
                 record.chars_out = chars_out;
                 record.changed_ratio = match (record.chars_in, chars_out) {
                     (Some(chars_in), Some(chars_out)) if chars_in > 0 => {
@@ -550,6 +567,37 @@ impl RunsRegistry {
             }
             .emit(app);
         });
+    }
+
+    /// Conclude a validated success as `applied` or, when the engine
+    /// returned the transcript unchanged ([`is_no_op_output`]), as
+    /// `unchanged` with the no-op detail. THE single success seam every
+    /// engine's validated-Ok arm must call, so the no-op guard can never
+    /// be skipped by one engine (round 7: the three lifecycles each
+    /// finished `Applied` on their own before this). Returns the outcome
+    /// recorded, so the caller's unchanged notice can never disagree with
+    /// the record.
+    pub fn finish_applied(
+        &self,
+        app: Option<&AppHandle>,
+        run_id: u64,
+        transcript: &str,
+        extracted: &str,
+    ) -> PostProcessOutcome {
+        let chars_out = extracted.chars().count() as u64;
+        if is_no_op_output(transcript, extracted) {
+            self.finish_with_detail(
+                app,
+                run_id,
+                PostProcessOutcome::Unchanged,
+                Some(chars_out),
+                Some(NO_OP_OUTPUT_DETAIL),
+            );
+            PostProcessOutcome::Unchanged
+        } else {
+            self.finish(app, run_id, PostProcessOutcome::Applied, Some(chars_out));
+            PostProcessOutcome::Applied
+        }
     }
 
     /// Conclude every still-live dictation run as `failed(cancelled)`.
@@ -628,12 +676,12 @@ pub(crate) fn pp_log(run_id: u64, level: log::Level, line: String) {
     runs().append_line(run_id, line);
 }
 
-/// The log severity of an outcome line: applied is routine info; skips
-/// keep the local sink's severity table (expected/recoverable at info,
-/// something-broke at warn); failures always warn.
+/// The log severity of an outcome line: applied and unchanged are routine
+/// info; skips keep the local sink's severity table (expected/recoverable
+/// at info, something-broke at warn); failures always warn.
 pub(crate) fn outcome_log_level(outcome: &PostProcessOutcome) -> log::Level {
     match outcome {
-        PostProcessOutcome::Applied => log::Level::Info,
+        PostProcessOutcome::Applied | PostProcessOutcome::Unchanged => log::Level::Info,
         PostProcessOutcome::Skipped { reason } => {
             crate::local_llm::manager::skip_log_level(*reason)
         }
@@ -841,6 +889,22 @@ pub(crate) fn fails_expansion_guard(input: &str, output: &str) -> bool {
     }
     crate::local_llm::forecast::text_units(output)
         > input_units.saturating_mul(EXPANSION_GUARD_RATIO)
+}
+
+/// The no-op guard's detail, surfaced on the outcome line, the run record
+/// (the Debug table's fallback-reason column), and the notice channel.
+pub(crate) const NO_OP_OUTPUT_DETAIL: &str = "the engine returned the transcript unchanged";
+
+/// The identity check the shared validator's guards never had (round 7):
+/// a validated output that equals the transcript (after trim) changed
+/// nothing. Deliberately EXACT: punctuation and capitalization fixes are
+/// the core value of post-processing, so any looser normalization (case,
+/// punctuation, whitespace collapse) would flag a legitimate minimal
+/// cleanup of an already-clean transcript as a no-op. Purity is trimmed
+/// comparison only; near-echoes (a weak engine changing one character in
+/// thousands) stay `applied` with their changed ratio on the outcome line.
+pub(crate) fn is_no_op_output(transcript: &str, extracted: &str) -> bool {
+    transcript.trim() == extracted.trim()
 }
 
 /// THE shared output validator: every post-process success path (cloud
@@ -1108,6 +1172,7 @@ mod tests {
     #[test]
     fn outcome_tokens() {
         assert_eq!(PostProcessOutcome::Applied.token(), "applied");
+        assert_eq!(PostProcessOutcome::Unchanged.token(), "unchanged");
         assert_eq!(
             PostProcessOutcome::Skipped {
                 reason: SkipReason::DownloadMissing
@@ -1337,6 +1402,93 @@ mod tests {
             None,
         )
         .is_ok());
+    }
+
+    /// Round 7's no-op guard, pinned on the pure table: exact echo is a
+    /// no-op, surrounding whitespace alone is still a no-op, and any real
+    /// edit (the one-character newline-to-period fix a weak engine makes,
+    /// a punctuation cleanup) is NOT. The guard must stay exact: looser
+    /// normalization would flag legitimate minimal cleanups.
+    #[test]
+    fn no_op_guard_is_exact_identity_after_trim() {
+        use super::{is_no_op_output, NO_OP_OUTPUT_DETAIL};
+        let transcript = "hello um world this is a test transcript with words";
+        assert!(is_no_op_output(transcript, transcript));
+        assert!(
+            is_no_op_output(transcript, &format!("  {transcript}\n")),
+            "surrounding whitespace is not a change"
+        );
+        assert!(
+            !is_no_op_output(
+                transcript,
+                "Hello um world this is a test transcript with words."
+            ),
+            "a capitalization-plus-period cleanup changed something"
+        );
+        // The auditor's live case (row 122): a bare newline became period
+        // plus space plus a capital. One character of real change means
+        // NOT a no-op, whatever the engine's competence.
+        assert!(!is_no_op_output(
+            "resolve them as well\nunattended workflow run",
+            "resolve them as well. Unattended workflow run",
+        ));
+        assert_eq!(
+            NO_OP_OUTPUT_DETAIL,
+            "the engine returned the transcript unchanged"
+        );
+    }
+
+    /// finish_applied is the shared success seam: a changed output records
+    /// `applied` with no detail; a verbatim echo records `unchanged` with
+    /// the no-op detail on the line AND in the record (the Debug table's
+    /// fallback-reason surface).
+    #[test]
+    fn finish_applied_distinguishes_changed_from_unchanged() {
+        let changed = runs().begin(None, meta("b", PostProcessEngineKind::Cloud, "m"));
+        runs().finish_applied(None, changed, "um hello world", "Hello, world.");
+        let rec = runs().snapshot(changed).unwrap();
+        assert_eq!(rec.outcome, Some(PostProcessOutcome::Applied));
+        assert_eq!(rec.outcome_detail, None);
+        assert!(rec
+            .log_lines
+            .iter()
+            .any(|l| l.contains("outcome=applied") && l.contains("detail=-")));
+
+        let echoed = runs().begin(None, meta("b", PostProcessEngineKind::Cloud, "m"));
+        runs().finish_applied(None, echoed, "um hello world", "um hello world");
+        let rec = runs().snapshot(echoed).unwrap();
+        assert_eq!(rec.outcome, Some(PostProcessOutcome::Unchanged));
+        assert_eq!(
+            rec.outcome_detail.as_deref(),
+            Some("the engine returned the transcript unchanged")
+        );
+        assert!(rec
+            .log_lines
+            .iter()
+            .any(|l| l.contains("outcome=unchanged") && l.contains("chars_out=14")));
+    }
+
+    /// The outcome_detail surface: a skip's explanation lands in the
+    /// record (not just the log line), so the Debug table can show WHY a
+    /// run fell back to raw.
+    #[test]
+    fn finish_with_detail_surfaces_the_reason_in_the_record() {
+        let id = runs().begin(None, meta("b", PostProcessEngineKind::Local, "m"));
+        runs().finish_with_detail(
+            None,
+            id,
+            PostProcessOutcome::Skipped {
+                reason: SkipReason::MemoryGate,
+            },
+            None,
+            Some("need 610 MB free, have 480 MB"),
+        );
+        let rec = runs().snapshot(id).unwrap();
+        assert_eq!(
+            rec.outcome_detail.as_deref(),
+            Some("need 610 MB free, have 480 MB"),
+            "the fallback reason rides the record, not just the log line"
+        );
     }
 
     /// The local engine's swap_wait rides the engine line (measured from

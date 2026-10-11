@@ -1080,6 +1080,12 @@ mod tests {
                 PostProcessTooLong,
                 PostProcessOutputInvalid,
                 PostProcessCloudFailed,
+                // Round 7 truth pass: a phone dictation with post-processing
+                // on hits these exactly like a Mac one (the polish runs on
+                // the Mac either way), so they keep riding the forwarder
+                // with the other post-process codes.
+                PostProcessNotConfigured,
+                PostProcessUnchanged,
                 DeleteLastWordNoBuffer,
                 UndoNoBuffer,
                 BindingBusy,

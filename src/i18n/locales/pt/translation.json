@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Chinês (simplificado)",
             "description": "Limpeza do chinês simplificado com correções de homófonos."
+          },
+          "prompt_enhancer": {
+            "name": "Aprimorador de prompts",
+            "description": "Transforma uma instrução ditada em um prompt claro e estruturado para um agente de IA ou um aplicativo."
           }
         },
         "editPrompt": "Editar"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "aplicado",
       "skipped": "ignorado",
-      "failed": "falhou"
+      "failed": "falhou",
+      "unchanged": "inalterado"
     },
     "notifications": {
       "title": "Notificações",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "Telefone desconectado. Finalizando com o que foi capturado.",
       "companionServerFailed": "Falha no servidor companheiro: {{error}}",
       "companionSessionCapped": "Ditado do dispositivo companheiro encerrado: limite de sessão de 15 minutos atingido em {{device}}.",
-      "companionZeroAudio": "O ditado do dispositivo companheiro terminou sem áudio. Nada foi transcrito."
+      "companionZeroAudio": "O ditado do dispositivo companheiro terminou sem áudio. Nada foi transcrito.",
+      "postProcessUnchanged": "O polimento terminou sem alterar nada; a transcrição foi colada exatamente como ditada.",
+      "postProcessNotConfigured": "O pós-processamento não foi executado: {{detail}}. A transcrição bruta foi mantida."
     },
     "commandBadge": "Modo de comandos",
     "ppChip": "Polindo ({{model}}) {{seconds}}s",

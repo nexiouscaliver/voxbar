@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Mandarin (sederhana)",
             "description": "Pembersihan mandarin sederhana dengan perbaikan homofon."
+          },
+          "prompt_enhancer": {
+            "name": "Peningkat Prompt",
+            "description": "Mengubah instruksi yang didiktekan menjadi prompt yang jelas dan terstruktur untuk agen AI atau aplikasi."
           }
         },
         "editPrompt": "Edit"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "diterapkan",
       "skipped": "dilewati",
-      "failed": "gagal"
+      "failed": "gagal",
+      "unchanged": "tidak berubah"
     },
     "notifications": {
       "title": "Notifikasi",
@@ -1250,7 +1255,9 @@
       "companionDisconnected": "Ponsel terputus. Menyelesaikan dengan yang terekam.",
       "companionServerFailed": "Server pendamping gagal: {{error}}",
       "companionSessionCapped": "Dikte dari perangkat pendamping berakhir: batas sesi 15 menit telah tercapai di {{device}}.",
-      "companionZeroAudio": "Dikte dari perangkat pendamping berakhir tanpa audio. Tidak ada yang ditranskripsi."
+      "companionZeroAudio": "Dikte dari perangkat pendamping berakhir tanpa audio. Tidak ada yang ditranskripsi.",
+      "postProcessUnchanged": "Pemolesan selesai tetapi tidak mengubah apa pun; transkrip ditempel persis seperti diucapkan.",
+      "postProcessNotConfigured": "Pascapemrosesan tidak berjalan: {{detail}}. Transkrip mentah tetap dipakai."
     },
     "commandBadge": "Mode perintah",
     "ppChip": "Memoles ({{model}}) {{seconds}}d",

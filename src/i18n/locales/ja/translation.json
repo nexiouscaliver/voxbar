@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "中国語（簡体字）",
             "description": "簡体字中国語を同音異字の修正付きで整える。"
+          },
+          "prompt_enhancer": {
+            "name": "プロンプト強化",
+            "description": "音声で指示した内容を、AIエージェントやアプリ向けの明確で構造化されたプロンプトに変換します。"
           }
         },
         "editPrompt": "編集"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "適用",
       "skipped": "スキップ",
-      "failed": "失敗"
+      "failed": "失敗",
+      "unchanged": "変更なし"
     },
     "notifications": {
       "title": "通知",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "スマホが切断されました。録音済みの内容で確定します。",
       "companionServerFailed": "コンパニオンサーバーが失敗しました: {{error}}",
       "companionSessionCapped": "コンパニオン端末のディクテーションを終了しました: {{device}}で15分のセッション上限に達しました。",
-      "companionZeroAudio": "コンパニオン端末のディクテーションが音声なしで終了しました。文字起こしは行われていません。"
+      "companionZeroAudio": "コンパニオン端末のディクテーションが音声なしで終了しました。文字起こしは行われていません。",
+      "postProcessUnchanged": "ポリッシュは完了しましたが、何も変更されませんでした。書き起こしは話された通りにそのまま貼り付けられました。",
+      "postProcessNotConfigured": "後処理は実行されませんでした: {{detail}}。元の書き起こしがそのまま保持されました。"
     },
     "commandBadge": "コマンドモード",
     "ppChip": "整形中 ({{model}}) {{seconds}}秒",

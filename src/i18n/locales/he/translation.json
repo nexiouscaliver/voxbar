@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "סינית (מפושטת)",
             "description": "ניקוי סינית מפושטת עם תיקון הומופונים."
+          },
+          "prompt_enhancer": {
+            "name": "משפר פרומפטים",
+            "description": "הופך הוראה מוכתבת לפרומפט ברור ומובנה עבור סוכן AI או אפליקציה."
           }
         },
         "editPrompt": "עריכה"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "הוחל",
       "skipped": "דולג",
-      "failed": "נכשל"
+      "failed": "נכשל",
+      "unchanged": "ללא שינוי"
     },
     "notifications": {
       "title": "התראות",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "הטלפון התנתק. מסיימים עם מה שנקלט.",
       "companionServerFailed": "שרת הליווי נכשל: {{error}}",
       "companionSessionCapped": "ההכתבה מהמכשיר המלווה הסתיימה: הגעת למגבלת ההפעלה של 15 דקות במכשיר {{device}}.",
-      "companionZeroAudio": "ההקלטה מהמכשיר המלווה הסתיימה ללא אודיו. לא תועתק דבר."
+      "companionZeroAudio": "ההקלטה מהמכשיר המלווה הסתיימה ללא אודיו. לא תועתק דבר.",
+      "postProcessUnchanged": "הליטוש הסתיים אך לא שינה דבר; התמליל הודבק בדיוק כפי שנאמר.",
+      "postProcessNotConfigured": "העיבוד המאוחר לא הופעל: {{detail}}. התמליל הגולמי נשמר."
     },
     "commandBadge": "מצב פקודות",
     "ppChip": "מלטש ({{model}}) {{seconds}}שנ׳",

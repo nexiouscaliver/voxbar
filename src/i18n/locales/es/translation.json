@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Chino (simplificado)",
             "description": "Limpieza del chino simplificado con corrección de homófonos."
+          },
+          "prompt_enhancer": {
+            "name": "Mejorador de prompts",
+            "description": "Convierte una instrucción dictada en un prompt claro y estructurado para un agente de IA o una aplicación."
           }
         },
         "editPrompt": "Editar"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "aplicado",
       "skipped": "omitido",
-      "failed": "fallido"
+      "failed": "fallido",
+      "unchanged": "sin cambios"
     },
     "notifications": {
       "title": "Notificaciones",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "Teléfono desconectado. Se termina con lo capturado.",
       "companionServerFailed": "El servidor acompañante falló: {{error}}",
       "companionSessionCapped": "Finalizó el dictado del dispositivo acompañante: se alcanzó el límite de sesión de 15 minutos en {{device}}.",
-      "companionZeroAudio": "El dictado del dispositivo acompañante terminó sin audio. No se transcribió nada."
+      "companionZeroAudio": "El dictado del dispositivo acompañante terminó sin audio. No se transcribió nada.",
+      "postProcessUnchanged": "El procesado terminó pero no cambió nada; la transcripción se pegó exactamente como se dictó.",
+      "postProcessNotConfigured": "El procesado no se ejecutó: {{detail}}. Se conservó la transcripción sin procesar."
     },
     "commandBadge": "Modo de comandos",
     "ppChip": "Puliendo ({{model}}) {{seconds}}s",

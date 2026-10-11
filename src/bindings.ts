@@ -2280,6 +2280,15 @@ export type PostProcessOutcome =
  */
 { kind: "applied" } | 
 /**
+ * The engine returned the transcript byte-identical (after trim): it
+ * ran, validated, and changed nothing, so the pasted text equals the
+ * raw transcript either way. Round 7's no-op guard: before this
+ * variant a verbatim echo from a weak engine recorded as `applied`,
+ * which made "the polish did nothing" indistinguishable from a real
+ * cleanup in the outcome column and in history.
+ */
+{ kind: "unchanged" } | 
+/**
  * The engine never produced output (expected, recoverable); the raw
  * transcript was used. Carries the local-engine skip vocabulary.
  */
@@ -2339,7 +2348,16 @@ template_language: string | null; phases_engine: PostProcessEnginePhase; phases_
 /**
  * `None` while the run is still live.
  */
-outcome: PostProcessOutcome | null; chars_in: number | null; chars_out: number | null; 
+outcome: PostProcessOutcome | null; 
+/**
+ * Why the run ended the way it did, when a reason exists: the skip
+ * reason's explanation, the cloud failure's error text, or the no-op
+ * guard's "engine returned the transcript unchanged". This is the
+ * fallback-reason surface the Debug table renders (round 7: before
+ * this field the detail rode only the pp: log line, so the table
+ * could say "skipped" but never why).
+ */
+outcome_detail: string | null; chars_in: number | null; chars_out: number | null; 
 /**
  * chars_out / chars_in (how much of the transcript survived), None
  * when chars_in is 0 or the run produced no output.

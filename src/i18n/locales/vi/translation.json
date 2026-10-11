@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Tiếng Trung (giản thể)",
             "description": "Dọn tiếng Trung giản thể với sửa lỗi đồng âm."
+          },
+          "prompt_enhancer": {
+            "name": "Trình tăng cường prompt",
+            "description": "Biến chỉ dẫn được đọc thành một prompt rõ ràng, có cấu trúc cho agent AI hoặc ứng dụng."
           }
         },
         "editPrompt": "Sửa"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "đã áp dụng",
       "skipped": "đã bỏ qua",
-      "failed": "thất bại"
+      "failed": "thất bại",
+      "unchanged": "không đổi"
     },
     "notifications": {
       "title": "Thông báo",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "Điện thoại đã ngắt kết nối. Kết thúc với phần đã ghi.",
       "companionServerFailed": "Máy chủ đồng hành lỗi: {{error}}",
       "companionSessionCapped": "Đọc chính tả từ thiết bị đồng hành đã kết thúc: đã đạt giới hạn phiên 15 phút trên {{device}}.",
-      "companionZeroAudio": "Buộc đọc từ thiết bị đồng hành kết thúc mà không có âm thanh. Không có nội dung nào được chuyển thành văn bản."
+      "companionZeroAudio": "Buộc đọc từ thiết bị đồng hành kết thúc mà không có âm thanh. Không có nội dung nào được chuyển thành văn bản.",
+      "postProcessUnchanged": "Tốc ký đã hoàn tất nhưng không thay đổi gì; bản tốc ký được dán đúng như đã đọc.",
+      "postProcessNotConfigured": "Hậu xử lý đã không chạy: {{detail}}. Bản tốc ký thô đã được giữ nguyên."
     },
     "commandBadge": "Chế độ lệnh",
     "ppChip": "Đang tinh chỉnh ({{model}}) {{seconds}}s",

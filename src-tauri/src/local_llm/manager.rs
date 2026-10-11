@@ -1574,11 +1574,15 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
             let outcome = match &processed {
                 Some(clean) => {
                     if let Some(run_id) = request.run_id {
-                        crate::post_process_runs::runs().finish(
+                        // finish_applied (round 7): a verbatim echo records
+                        // `unchanged`, not `applied`, so a weak engine that
+                        // did nothing is distinguishable in the outcome
+                        // column.
+                        crate::post_process_runs::runs().finish_applied(
                             None,
                             run_id,
-                            crate::post_process_runs::PostProcessOutcome::Applied,
-                            Some(clean.chars().count() as u64),
+                            &request.transcript,
+                            clean,
                         );
                     }
                     SwapOutcome::Processed(clean.clone())
@@ -1657,11 +1661,11 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
     match (&processed, planner.is_done()) {
         (Some(clean), true) => {
             if let Some(run_id) = request.run_id {
-                crate::post_process_runs::runs().finish(
+                crate::post_process_runs::runs().finish_applied(
                     None,
                     run_id,
-                    crate::post_process_runs::PostProcessOutcome::Applied,
-                    Some(clean.chars().count() as u64),
+                    &request.transcript,
+                    clean,
                 );
             }
             SwapOutcome::Processed(clean.clone())
@@ -1837,6 +1841,50 @@ mod tests {
             );
             assert!(line.ends_with("detail=because"), "detail in line: {line}");
         }
+    }
+
+    /// Round 7's no-op guard on the local engine: a worker that echoes the
+    /// transcript verbatim (the weak-engine failure mode behind the
+    /// operator's "post-processing does nothing" report) still validates,
+    /// but the runner's success seam records `unchanged` with the no-op
+    /// fallback reason instead of `applied`.
+    #[test]
+    fn verbatim_echo_records_unchanged_not_applied() {
+        use crate::post_process_runs::{runs, PostProcessOutcome, RunRequestMeta};
+
+        let run_id = runs().begin(
+            None,
+            RunRequestMeta {
+                binding: "transcribe_with_post_process".to_string(),
+                engine: crate::post_process_runs::PostProcessEngineKind::Local,
+                provider_id: "local".to_string(),
+                model: "qwen".to_string(),
+                prompt_id: Some("p".to_string()),
+                prompt_name: None,
+                prompt_version: None,
+                template_language: None,
+                chars_in: 40,
+            },
+        );
+        let host = FakeHost::new();
+        let (cfg, _engine_state) = runner_cfg(
+            host,
+            FakeEngine::happy(Ok(
+                "{\"transcription\":\"um hello world this is a test transcript\"}".to_string(),
+            )),
+        );
+        let outcome = swap_runner(&LlmManager::new(), &sample_request_with_run(run_id), cfg);
+        assert_eq!(
+            outcome,
+            SwapOutcome::Processed("um hello world this is a test transcript".to_string())
+        );
+        let record = runs().snapshot(run_id).expect("record");
+        assert_eq!(record.outcome, Some(PostProcessOutcome::Unchanged));
+        assert_eq!(
+            record.outcome_detail.as_deref(),
+            Some(crate::post_process_runs::NO_OP_OUTPUT_DETAIL)
+        );
+        assert_eq!(record.changed_ratio, Some(1.0));
     }
 
     /// Both terminal outcomes conclude the run in the pp: vocabulary:

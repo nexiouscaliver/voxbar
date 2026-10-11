@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Chinese (Simplified)",
             "description": "Simplified Chinese cleanup with homophone fixes."
+          },
+          "prompt_enhancer": {
+            "name": "Prompt Enhancer",
+            "description": "Turns a dictated instruction into a clear, structured prompt for an AI agent or app."
           }
         },
         "editPrompt": "Edit"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "applied",
       "skipped": "skipped",
-      "failed": "failed"
+      "failed": "failed",
+      "unchanged": "unchanged"
     },
     "notifications": {
       "title": "Notifications",
@@ -1250,7 +1255,9 @@
       "companionDisconnected": "Phone disconnected. Finishing with what was captured.",
       "companionServerFailed": "Companion server failed: {{error}}",
       "companionSessionCapped": "Companion dictation ended: the 15-minute session limit was reached on {{device}}.",
-      "companionZeroAudio": "Companion dictation ended with no audio. Nothing was transcribed."
+      "companionZeroAudio": "Companion dictation ended with no audio. Nothing was transcribed.",
+      "postProcessUnchanged": "Polishing finished but changed nothing; the transcript was pasted exactly as spoken.",
+      "postProcessNotConfigured": "Post-processing did not run: {{detail}}. The raw transcript was kept."
     },
     "commandBadge": "Command mode",
     "ppChip": "Polishing ({{model}}) {{seconds}}s",

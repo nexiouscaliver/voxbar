@@ -80,6 +80,25 @@ assert.equal(
   noticeMessage(t, "post_process_cloud_failed", "openai/gpt-4o-mini: 401"),
   "overlay.notice.postProcessCloudFailed[detail=openai/gpt-4o-mini: 401]",
 );
+// Round 7 truth pass: the config-gap fallback (detail names the gap) and
+// the no-op guard's unchanged outcome (nothing interpolated).
+assert.equal(
+  noticeMessage(
+    t,
+    "post_process_not_configured",
+    "no prompt template is selected",
+  ),
+  "overlay.notice.postProcessNotConfigured[detail=no prompt template is selected]",
+);
+assert.equal(
+  noticeMessage(t, "post_process_not_configured"),
+  "overlay.notice.postProcessNotConfigured[detail=]",
+  "a missing gap detail interpolates as empty, never as 'undefined'",
+);
+assert.equal(
+  noticeMessage(t, "post_process_unchanged"),
+  "overlay.notice.postProcessUnchanged",
+);
 assert.equal(
   noticeMessage(t, "delete_last_word_no_session"),
   "overlay.notice.deleteLastWordNoSession",

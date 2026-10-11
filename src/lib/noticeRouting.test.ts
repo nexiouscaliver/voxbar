@@ -103,6 +103,8 @@ const ALL_NOTICE_CODES = [
   "post_process_too_long",
   "post_process_output_invalid",
   "post_process_cloud_failed",
+  "post_process_not_configured",
+  "post_process_unchanged",
   "delete_last_word_no_session",
   "delete_last_word_no_buffer",
   "undo_no_session",
@@ -130,8 +132,10 @@ const ORPHANED_INFO = [
 const LEGACY_SURFACE = [...ORPHANED_INFO, "companion_server_failed"];
 
 // The eight no-op codes App.tsx already routes (key feedback + Linux setup
-// warnings) plus companion_disconnected_finalized: keep the pre-AUD-02
-// card-gated behavior.
+// warnings) plus companion_disconnected_finalized, plus round 7's two
+// post-process truth-pass codes (a requested polish that could not start,
+// and one that ran but changed nothing): keep the pre-AUD-02 card-gated
+// behavior.
 const CARD_GATED = [
   "delete_last_word_no_session",
   "delete_last_word_no_buffer",
@@ -142,6 +146,8 @@ const CARD_GATED = [
   "wayland_tauri_hotkeys",
   "gnome_overlay_fallback",
   "companion_disconnected_finalized",
+  "post_process_not_configured",
+  "post_process_unchanged",
 ];
 
 const ALWAYS_TOAST = ["command_mode_no_session"];
@@ -408,7 +414,7 @@ assert.deepEqual(
 assert.deepEqual(
   [...ROUTED_NOTICE_CODES].sort(),
   [...CARD_GATED, ...LEGACY_SURFACE, ...ALWAYS_TOAST, ...CAP].sort(),
-  "ROUTED_NOTICE_CODES must be exactly the 16 non-unrouted codes (12 pre-AUD-02 + model_fallback, post_process_download_missing, post_process_too_long, companion_server_failed)",
+  "ROUTED_NOTICE_CODES must be exactly the 18 non-unrouted codes (12 pre-AUD-02 + model_fallback, post_process_download_missing, post_process_too_long, companion_server_failed + round 7's post_process_not_configured and post_process_unchanged)",
 );
 
 console.log("noticeRouting tests passed");

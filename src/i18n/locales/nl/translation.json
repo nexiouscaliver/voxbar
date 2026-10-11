@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Chinees (vereenvoudigd)",
             "description": "Vereenvoudigd Chinees met correcties van gelijkklinkende tekens."
+          },
+          "prompt_enhancer": {
+            "name": "Promptverbeteraar",
+            "description": "Maakt van een gedicteerde instructie een duidelijke, gestructureerde prompt voor een AI-agent of app."
           }
         },
         "editPrompt": "Bewerken"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "toegepast",
       "skipped": "overgeslagen",
-      "failed": "mislukt"
+      "failed": "mislukt",
+      "unchanged": "onveranderd"
     },
     "notifications": {
       "title": "Meldingen",
@@ -1250,7 +1255,9 @@
       "companionDisconnected": "Telefoon losgekoppeld. Afgerond met wat er was.",
       "companionServerFailed": "Companion-server mislukt: {{error}}",
       "companionSessionCapped": "Dicteren vanaf het companionapparaat is beëindigd: de sessielimiet van 15 minuten is bereikt op {{device}}.",
-      "companionZeroAudio": "De dicteersessie van het companion-apparaat eindigde zonder audio. Er is niets getranscribeerd."
+      "companionZeroAudio": "De dicteersessie van het companion-apparaat eindigde zonder audio. Er is niets getranscribeerd.",
+      "postProcessUnchanged": "Het oppoetsen is klaar maar veranderde niets; de transcriptie is exact zoals gedicteerd geplakt.",
+      "postProcessNotConfigured": "Nabewerking is niet uitgevoerd: {{detail}}. De ruwe transcriptie is behouden."
     },
     "commandBadge": "Opdrachtmodus",
     "ppChip": "Bijschaven ({{model}}) {{seconds}}s",

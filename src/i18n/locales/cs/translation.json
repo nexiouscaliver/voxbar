@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Čínština (zjednodušená)",
             "description": "Úprava zjednodušené čínštiny s opravami stejně znějících znaků."
+          },
+          "prompt_enhancer": {
+            "name": "Vylepšovač promptů",
+            "description": "Z dikované instrukce vytvoří jasnou, strukturovanou výzvu pro AI agenta nebo aplikaci."
           }
         },
         "editPrompt": "Upravit"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "použito",
       "skipped": "přeskočeno",
-      "failed": "selhalo"
+      "failed": "selhalo",
+      "unchanged": "beze změny"
     },
     "notifications": {
       "title": "Oznámení",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "Telefon odpojen. Dokončuji s tím, co bylo zachyceno.",
       "companionServerFailed": "Selhání doprovodného serveru: {{error}}",
       "companionSessionCapped": "Diktování z doprovodného zařízení skončilo: bylo dosaženo 15minutového limitu relace na {{device}}.",
-      "companionZeroAudio": "Diktování z doprovodného zařízení skončilo bez zvuku. Nebylo přepsáno nic."
+      "companionZeroAudio": "Diktování z doprovodného zařízení skončilo bez zvuku. Nebylo přepsáno nic.",
+      "postProcessUnchanged": "Doladění skončilo, ale nic nezměnilo; přepis byl vložen přesně tak, jak byl diktován.",
+      "postProcessNotConfigured": "Následné zpracování neproběhlo: {{detail}}. Nezpracovaný přepis byl zachován."
     },
     "commandBadge": "Režim příkazů",
     "ppChip": "Čistím ({{model}}) {{seconds}}s",

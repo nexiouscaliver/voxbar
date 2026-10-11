@@ -448,12 +448,22 @@ async fn run_cloud_lifecycle(
                             let ms =
                                 generation_started.elapsed().as_millis() as u64;
                             runs().generation_phase(app, run_id, Some(ms), Some(retries));
-                            runs().finish(
-                                app,
-                                run_id,
-                                PostProcessOutcome::Applied,
-                                Some(result.chars().count() as u64),
-                            );
+                            // finish_applied (round 7): a verbatim echo of
+                            // the transcript records `unchanged`, never
+                            // `applied`, on every engine; the notice tells
+                            // the operator the polish changed nothing (it
+                            // did not fail, it did nothing).
+                            let outcome =
+                                runs().finish_applied(app, run_id, transcript, &result);
+                            if outcome == PostProcessOutcome::Unchanged {
+                                notify(
+                                    crate::managers::transcription::NoticeCode::PostProcessUnchanged,
+                                    Some(
+                                        crate::post_process_runs::NO_OP_OUTPUT_DETAIL
+                                            .to_string(),
+                                    ),
+                                );
+                            }
                             debug!(
                                 "Post-processing succeeded. Output length: {} chars",
                                 result.len()
@@ -559,6 +569,47 @@ async fn run_cloud_lifecycle(
     }
 }
 
+/// Why a REQUESTED post-process run can never start, as a stable
+/// human-readable cause for the fallback notice (round 7). Pure and
+/// exhaustive over the dictation seam's pre-run guards, mirroring their
+/// resolution order exactly; `None` means the request is runnable. Before
+/// this classifier those states only debug!-logged, so an enabled but
+/// unusable polish silently pasted raw on every dictation - the exact
+/// "post-processing has no effect" perception the truth pass chased.
+pub(crate) fn post_process_request_gap(settings: &AppSettings) -> Option<String> {
+    let provider = match settings.active_post_process_provider() {
+        Some(provider) => provider,
+        None => return Some("no post-process provider is selected".to_string()),
+    };
+    let model = settings
+        .post_process_models
+        .get(&provider.id)
+        .cloned()
+        .unwrap_or_default();
+    if model.trim().is_empty() {
+        return Some(format!(
+            "the '{}' provider has no model configured",
+            provider.id
+        ));
+    }
+    let selected_prompt_id = match &settings.post_process_selected_prompt_id {
+        Some(id) => id,
+        None => return Some("no prompt template is selected".to_string()),
+    };
+    let prompt = match settings
+        .post_process_prompts
+        .iter()
+        .find(|prompt| &prompt.id == selected_prompt_id)
+    {
+        Some(prompt) => prompt,
+        None => return Some("the selected prompt template no longer exists".to_string()),
+    };
+    if prompt.prompt.trim().is_empty() {
+        return Some("the selected prompt template is empty".to_string());
+    }
+    None
+}
+
 async fn post_process_transcription(
     app: &AppHandle,
     settings: &AppSettings,
@@ -568,6 +619,21 @@ async fn post_process_transcription(
 ) -> PostProcessAttempt {
     if is_blank_transcription(transcription) {
         debug!("Post-processing skipped because the transcription is empty");
+        return PostProcessAttempt::default();
+    }
+
+    // Round 7: the config-level fallback states (no provider, no model, no
+    // usable template) are pre-run, not engine, states - the engines never
+    // mint a run or emit anything for them. Emit the fallback notice here
+    // so the operator learns the polish they asked for did not run and the
+    // raw transcript is what they got.
+    if let Some(cause) = post_process_request_gap(settings) {
+        debug!("Post-processing skipped because {cause}");
+        crate::managers::transcription::emit_overlay_notice(
+            app,
+            crate::managers::transcription::NoticeCode::PostProcessNotConfigured,
+            Some(cause),
+        );
         return PostProcessAttempt::default();
     }
 
@@ -998,6 +1064,18 @@ async fn run_local_lifecycle(
                 );
                 None
             } else {
+                // Round 7: the runner's finish_applied already recorded
+                // `unchanged` for a verbatim echo; this is the local
+                // engine's app-side notice for that outcome (the runner
+                // has no app handle - the same reason its skips route
+                // through the host's emit_skip).
+                if crate::post_process_runs::is_no_op_output(transcription, &text) {
+                    crate::managers::transcription::emit_overlay_notice(
+                        app,
+                        crate::managers::transcription::NoticeCode::PostProcessUnchanged,
+                        Some(crate::post_process_runs::NO_OP_OUTPUT_DETAIL.to_string()),
+                    );
+                }
                 debug!(
                     "Local post-processing succeeded. Output length: {} chars",
                     text.len()
@@ -1076,12 +1154,18 @@ async fn run_apple_intelligence_lifecycle(
                     Some(template_language),
                 ) {
                     Ok(clean) => {
-                        runs().finish(
-                            Some(app),
-                            run_id,
-                            PostProcessOutcome::Applied,
-                            Some(clean.len() as u64),
-                        );
+                        // finish_applied (round 7): the no-op guard applies
+                        // to this engine exactly like the cloud and local
+                        // ones.
+                        let outcome =
+                            runs().finish_applied(Some(app), run_id, transcription, &clean);
+                        if outcome == PostProcessOutcome::Unchanged {
+                            crate::managers::transcription::emit_overlay_notice(
+                                app,
+                                crate::managers::transcription::NoticeCode::PostProcessUnchanged,
+                                Some(crate::post_process_runs::NO_OP_OUTPUT_DETAIL.to_string()),
+                            );
+                        }
                         debug!(
                             "Apple Intelligence post-processing succeeded. Output length: {} chars",
                             clean.len()
@@ -2752,7 +2836,10 @@ mod tests {
                 r.binding == PROMPT_TEST_BINDING && r.prompt_id.as_deref() == Some("english_casual")
             })
             .expect("the test run is recorded under the prompt_test marker");
-        assert_eq!(record.prompt_version.as_deref(), Some("1"));
+        assert_eq!(
+            record.prompt_version,
+            Some(crate::settings::BUILTIN_PROMPT_GENERATION.to_string())
+        );
         assert_eq!(record.template_language.as_deref(), Some("en"));
     }
 
@@ -2971,6 +3058,74 @@ mod tests {
         );
     }
 
+    /// Round 7's config-gap table, pinned exhaustively: every pre-run
+    /// state that makes a REQUESTED post-process run fall back to raw
+    /// names its cause (the fallback notice's detail), and a fully
+    /// resolved request reads as runnable (None). These are the states
+    /// that previously only debug!-logged while the operator pressed the
+    /// post-process binding and saw nothing happen.
+    #[test]
+    fn post_process_request_gap_tables_every_config_fallback() {
+        use crate::actions::post_process_request_gap;
+
+        // Stock defaults: provider local, model the pinned builtin, but no
+        // template selected - the default-selection trap.
+        let mut settings = crate::settings::get_default_settings();
+        assert_eq!(
+            post_process_request_gap(&settings).as_deref(),
+            Some("no prompt template is selected"),
+            "enabled with no selection: the most common silent no-op"
+        );
+
+        // A dangling selection (the template was deleted).
+        settings.post_process_selected_prompt_id = Some("deleted_long_ago".to_string());
+        assert_eq!(
+            post_process_request_gap(&settings).as_deref(),
+            Some("the selected prompt template no longer exists")
+        );
+
+        // An empty prompt body on an otherwise valid selection.
+        settings.post_process_selected_prompt_id = Some("english_casual".to_string());
+        if let Some(prompt) = settings
+            .post_process_prompts
+            .iter_mut()
+            .find(|p| p.id == "english_casual")
+        {
+            prompt.prompt = "   ".to_string();
+        }
+        assert_eq!(
+            post_process_request_gap(&settings).as_deref(),
+            Some("the selected prompt template is empty")
+        );
+
+        // No provider resolves the stored provider id.
+        settings.post_process_provider_id = "ghost".to_string();
+        assert_eq!(
+            post_process_request_gap(&settings).as_deref(),
+            Some("no post-process provider is selected")
+        );
+
+        // A resolvable provider with no model configured.
+        settings.post_process_provider_id = "openai".to_string();
+        settings
+            .post_process_models
+            .insert("openai".to_string(), String::new());
+        assert_eq!(
+            post_process_request_gap(&settings).as_deref(),
+            Some("the 'openai' provider has no model configured")
+        );
+
+        // Fully resolved: runnable (the local default model is non-empty).
+        settings.post_process_provider_id = "local".to_string();
+        settings.post_process_prompts = crate::settings::builtin_prompt_seeds();
+        settings.post_process_selected_prompt_id = Some("english_casual".to_string());
+        assert_eq!(
+            post_process_request_gap(&settings),
+            None,
+            "a resolved request must run"
+        );
+    }
+
     // ---- The pp: lifecycle with a mock cloud seam ----
 
     use super::{run_cloud_lifecycle, CloudCompletionSeam, PostProcessOutputMode};
@@ -3086,6 +3241,63 @@ mod tests {
         // One structured attempt, no retry.
         assert_eq!(*seam.calls.lock().unwrap(), vec![true]);
         assert!(notices.lock().unwrap().is_empty(), "no notice on success");
+    }
+
+    /// Round 7's no-op guard end to end on the cloud path: an engine that
+    /// answers with the transcript VERBATIM still validates (same text,
+    /// same script, same length), but the run records `unchanged` with the
+    /// no-op fallback reason, the text still returns (the pasted bytes are
+    /// identical either way), and the unchanged notice fires through the
+    /// same channel the failure notices use.
+    #[test]
+    fn verbatim_echo_cloud_run_records_unchanged_and_notices() {
+        let run_id = begin_cloud_run();
+        let transcript = "um hello world this is a test transcript with words";
+        // Structured mode: the echo rides the transcription field verbatim.
+        let echo = format!("{{\"transcription\":\"{transcript}\"}}");
+        let mut seam = MockCloud::new(vec![cloud_ok(&echo, 0)]);
+        let notices: std::sync::Mutex<Vec<String>> = std::sync::Mutex::new(Vec::new());
+        let text = tauri::async_runtime::block_on(run_cloud_lifecycle(
+            None,
+            &mut seam,
+            run_id,
+            transcript,
+            Some("clean it".to_string()),
+            true,
+            format!("clean: {transcript}"),
+            None,
+            |code, _detail| notices.lock().unwrap().push(code.as_str().to_string()),
+        ));
+        assert_eq!(
+            text.as_deref(),
+            Some(transcript),
+            "an unchanged output still pastes (identical bytes to the raw)"
+        );
+
+        let record = crate::post_process_runs::runs().snapshot(run_id).unwrap();
+        assert_eq!(
+            record.outcome,
+            Some(crate::post_process_runs::PostProcessOutcome::Unchanged),
+            "a verbatim echo is never `applied`"
+        );
+        assert_eq!(
+            record.outcome_detail.as_deref(),
+            Some(crate::post_process_runs::NO_OP_OUTPUT_DETAIL)
+        );
+        assert_eq!(
+            record.chars_out,
+            Some(transcript.chars().count() as u64),
+            "the echo's output is the transcript itself"
+        );
+        // The run meta fixture carries chars_in=42, so the ratio here is
+        // output/input against that fixture, not 1.0; the
+        // finish_applied-distinguishes test pins the true 1.0 case.
+        assert!(record.changed_ratio.is_some());
+        assert_eq!(
+            notices.lock().unwrap().as_slice(),
+            ["post_process_unchanged"],
+            "the unchanged notice fires once, at info level, not a failure"
+        );
     }
 
     /// A cloud 401 (structured rejected, legacy retry also rejected with

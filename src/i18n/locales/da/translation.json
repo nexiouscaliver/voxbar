@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Kinesisk (forenklet)",
             "description": "Oprydning af forenklet kinesisk med rettelse af homofone tegn."
+          },
+          "prompt_enhancer": {
+            "name": "Promptforbedrer",
+            "description": "Gør en dikteret instruktion til en klar, struktureret prompt til en AI-agent eller app."
           }
         },
         "editPrompt": "Rediger"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "anvendt",
       "skipped": "sprunget over",
-      "failed": "fejlede"
+      "failed": "fejlede",
+      "unchanged": "uændret"
     },
     "notifications": {
       "title": "Underretninger",
@@ -1250,7 +1255,9 @@
       "companionDisconnected": "Telefonen frakoblet. Færdiggør med det optagede.",
       "companionServerFailed": "Følgeserveren fejlede: {{error}}",
       "companionSessionCapped": "Dikteringen fra Følgeenheden er afsluttet: grænsen på 15 minutter for sessionen er nået på {{device}}.",
-      "companionZeroAudio": "Diktéringen fra følgeenheden sluttede uden lyd. Intet blev transkriberet."
+      "companionZeroAudio": "Diktéringen fra følgeenheden sluttede uden lyd. Intet blev transkriberet.",
+      "postProcessUnchanged": "Efterbehandlingen er færdig, men ændrede intet; transskriptionen blev indsat præcis som dikteret.",
+      "postProcessNotConfigured": "Efterbehandlingen blev ikke kørt: {{detail}}. Råtransskriptionen blev beholdt."
     },
     "commandBadge": "Kommandotilstand",
     "ppChip": "Renser ({{model}}) {{seconds}}s",

@@ -441,6 +441,19 @@ pub enum NoticeCode {
     /// validator), so the raw transcript was kept. The visible fallback
     /// for the never-lose-the-transcript rule on the cloud path.
     PostProcessOutputInvalid,
+    /// Post-processing was requested (the dedicated binding or the master
+    /// toggle) but a configuration gap means no engine ever ran; the raw
+    /// transcript was pasted with zero processing (round 7: these states
+    /// previously only debug!-logged, so an enabled-but-unusable polish
+    /// looked like the feature doing nothing). Error tone: the operator's
+    /// explicit request did not run and needs a Settings fix. Detail
+    /// carries the specific gap.
+    PostProcessNotConfigured,
+    /// A post-process run completed and validated, but the engine returned
+    /// the transcript unchanged (the round 7 no-op guard): the pasted text
+    /// equals the raw transcript because nothing was changed, not because
+    /// the run failed. Info. Detail carries the no-op detail line.
+    PostProcessUnchanged,
     /// A cloud post-process run failed (transport, auth, provider error);
     /// the raw transcript was kept. Detail carries provider/model and the
     /// classified cause.
@@ -511,7 +524,8 @@ impl NoticeCode {
             | NoticeCode::PostProcessPromptCycled
             | NoticeCode::CompanionDisconnected
             | NoticeCode::CompanionSessionCapped
-            | NoticeCode::CommandModeNoSession => OverlayNoticeKind::Info,
+            | NoticeCode::CommandModeNoSession
+            | NoticeCode::PostProcessUnchanged => OverlayNoticeKind::Info,
             _ => OverlayNoticeKind::Error,
         }
     }
@@ -534,6 +548,8 @@ impl NoticeCode {
             NoticeCode::PostProcessLengthGuard => "post_process_length_guard",
             NoticeCode::PostProcessTooLong => "post_process_too_long",
             NoticeCode::PostProcessOutputInvalid => "post_process_output_invalid",
+            NoticeCode::PostProcessNotConfigured => "post_process_not_configured",
+            NoticeCode::PostProcessUnchanged => "post_process_unchanged",
             NoticeCode::PostProcessCloudFailed => "post_process_cloud_failed",
             NoticeCode::DeleteLastWordNoSession => "delete_last_word_no_session",
             NoticeCode::DeleteLastWordNoBuffer => "delete_last_word_no_buffer",
@@ -4487,6 +4503,8 @@ mod tests {
             NoticeCode::PostProcessTooLong,
             NoticeCode::PostProcessOutputInvalid,
             NoticeCode::PostProcessCloudFailed,
+            NoticeCode::PostProcessNotConfigured,
+            NoticeCode::PostProcessUnchanged,
             NoticeCode::PostProcessPromptCycled,
             NoticeCode::DeleteLastWordNoSession,
             NoticeCode::DeleteLastWordNoBuffer,
@@ -4498,6 +4516,10 @@ mod tests {
             NoticeCode::CompanionDisconnected,
             NoticeCode::CompanionServerFailed,
             NoticeCode::CompanionSessionCapped,
+            // Round 7 drive-by: this variant joined the enum in the
+            // zero-audio fix but was never added to this pin list, so the
+            // table below silently stopped covering the universe.
+            NoticeCode::CompanionZeroAudio,
             NoticeCode::CommandModeNoSession,
         ];
         let mut codes: Vec<&str> = all.iter().map(|c| c.as_str()).collect();
@@ -4523,7 +4545,10 @@ mod tests {
             NoticeCode::PostProcessLengthGuard,
             NoticeCode::PostProcessOutputInvalid,
             NoticeCode::PostProcessCloudFailed,
+            NoticeCode::PostProcessNotConfigured,
             NoticeCode::CompanionServerFailed,
+            // Error tone per its enum doc (a vanished phone session).
+            NoticeCode::CompanionZeroAudio,
         ] {
             assert_eq!(
                 code.kind(),
@@ -4547,6 +4572,7 @@ mod tests {
             NoticeCode::CompanionDisconnected,
             NoticeCode::CompanionSessionCapped,
             NoticeCode::CommandModeNoSession,
+            NoticeCode::PostProcessUnchanged,
         ] {
             assert_eq!(code.kind(), OverlayNoticeKind::Info, "{:?} is info", code);
         }

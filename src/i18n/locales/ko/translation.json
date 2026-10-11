@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "중국어 (간체)",
             "description": "동음이자 교정을 포함한 간체 중국어 정리."
+          },
+          "prompt_enhancer": {
+            "name": "프롬프트 강화",
+            "description": "받아쓴 지시를 AI 에이전트나 앱을 위한 명확하고 구조화된 프롬프트로 바꿉니다."
           }
         },
         "editPrompt": "편집"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "적용됨",
       "skipped": "건너뜀",
-      "failed": "실패"
+      "failed": "실패",
+      "unchanged": "변경 없음"
     },
     "notifications": {
       "title": "알림",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "휴대폰 연결이 끊겼습니다. 년음된 내용으로 마무리합니다.",
       "companionServerFailed": "컴패니언 서버 실패: {{error}}",
       "companionSessionCapped": "컴패니언 기기 받아쓰기가 종료되었습니다: {{device}}에서 15분 세션 제한에 도달했습니다.",
-      "companionZeroAudio": "컴패니언 기기 받아쓰기가 오디오 없이 종료되었습니다. 전사된 내용이 없습니다."
+      "companionZeroAudio": "컴패니언 기기 받아쓰기가 오디오 없이 종료되었습니다. 전사된 내용이 없습니다.",
+      "postProcessUnchanged": "후처리가 완료되었지만 아무 것도 변경하지 않았습니다. 전사는 받아쓴 그대로 붙여넣었습니다.",
+      "postProcessNotConfigured": "후처리가 실행되지 않았습니다: {{detail}}. 원본 전사가 유지되었습니다."
     },
     "commandBadge": "명령 모드",
     "ppChip": "다듬는 중 ({{model}}) {{seconds}}초",

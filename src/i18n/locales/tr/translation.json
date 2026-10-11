@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Çince (basitleştirilmiş)",
             "description": "Basitleştirilmiş çince temizliği, eş sesli düzeltmelerle."
+          },
+          "prompt_enhancer": {
+            "name": "İstem Geliştirici",
+            "description": "Dikte edilen bir talimatı, bir yapay zeka ajanı veya uygulama için net, yapılandırılmış bir isteğe dönüştürür."
           }
         },
         "editPrompt": "Düzenle"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "uygulandı",
       "skipped": "atlandı",
-      "failed": "başarısız"
+      "failed": "başarısız",
+      "unchanged": "değişmedi"
     },
     "notifications": {
       "title": "Bildirimler",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "Telefon bağlantısı kesildi. Kaydedilenle bitiriliyor.",
       "companionServerFailed": "Eşlik sunucusu başarısız: {{error}}",
       "companionSessionCapped": "Eşlik eden cihazdan dikte sona erdi: {{device}} üzerinde 15 dakikalık oturum sınırına ulaşıldı.",
-      "companionZeroAudio": "Eşlik cihazından dikten ses olmadan sona erdi. Hiçbir şey yazıya dökülmedi."
+      "companionZeroAudio": "Eşlik cihazından dikten ses olmadan sona erdi. Hiçbir şey yazıya dökülmedi.",
+      "postProcessUnchanged": "Parlatma bitti ama hiçbir şeyi değiştirmedi; transkript tam dikte edildiği gibi yapıştırıldı.",
+      "postProcessNotConfigured": "Son işlem çalıştırılmadı: {{detail}}. Ham transkript korundu."
     },
     "commandBadge": "Komut modu",
     "ppChip": "Parlatılıyor ({{model}}) {{seconds}}sn",

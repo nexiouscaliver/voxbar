@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Chinesisch (vereinfacht)",
             "description": "Vereinfachtes Chinesisch mit Korrekturen gleichklingender Zeichen."
+          },
+          "prompt_enhancer": {
+            "name": "Prompt-Verbesserer",
+            "description": "Macht eine diktierte Anweisung zu einem klaren, strukturierten Prompt für einen KI-Agenten oder eine App."
           }
         },
         "editPrompt": "Bearbeiten"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "angewendet",
       "skipped": "übersprungen",
-      "failed": "fehlgeschlagen"
+      "failed": "fehlgeschlagen",
+      "unchanged": "unverändert"
     },
     "notifications": {
       "title": "Benachrichtigungen",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "Telefon getrennt. Das Aufgenommene wird fertiggestellt.",
       "companionServerFailed": "Begleitserver fehlgeschlagen: {{error}}",
       "companionSessionCapped": "Diktat vom Begleitgerät beendet: Das Zeitlimit von 15 Minuten für die Sitzung wurde auf {{device}} erreicht.",
-      "companionZeroAudio": "Diktat vom Begleitgerät endete ohne Audio. Es wurde nichts transkribiert."
+      "companionZeroAudio": "Diktat vom Begleitgerät endete ohne Audio. Es wurde nichts transkribiert.",
+      "postProcessUnchanged": "Die Nachbearbeitung lief, änderte aber nichts; das Transkript wurde genau wie diktiert eingefügt.",
+      "postProcessNotConfigured": "Die Nachbearbeitung lief nicht: {{detail}}. Das unverarbeitete Transkript wurde behalten."
     },
     "commandBadge": "Befehlsmodus",
     "ppChip": "Bereinige ({{model}}) {{seconds}}s",

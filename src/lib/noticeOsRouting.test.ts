@@ -125,6 +125,8 @@ const ALL_NOTICE_CODES = [
   "post_process_too_long",
   "post_process_output_invalid",
   "post_process_cloud_failed",
+  "post_process_not_configured",
+  "post_process_unchanged",
   "delete_last_word_no_session",
   "delete_last_word_no_buffer",
   "undo_no_session",
@@ -159,6 +161,9 @@ const ERROR_GROUP = [
   "post_process_length_guard",
   "post_process_output_invalid",
   "post_process_cloud_failed",
+  // Round 7: a requested-but-unusable polish is a persistent
+  // misconfiguration in the download_missing class.
+  "post_process_not_configured",
   "companion_server_failed",
   "companion_zero_audio",
 ] as const;
@@ -176,6 +181,9 @@ const OUTCOME_GROUP = [
 const OVERLAY_ONLY = [
   "model_fallback",
   "post_process_too_long",
+  // Round 7: the engine ran and changed nothing - transient per-dictation
+  // state; the run record is the durable surface.
+  "post_process_unchanged",
   "delete_last_word_no_session",
   "delete_last_word_no_buffer",
   "undo_no_session",

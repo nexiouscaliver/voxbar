@@ -2930,7 +2930,7 @@ mod tests {
         use super::cycle_prompt_selection;
 
         let mut settings = crate::settings::get_default_settings();
-        assert_eq!(settings.post_process_prompts.len(), 13);
+        assert_eq!(settings.post_process_prompts.len(), 14);
         settings.post_process_selected_prompt_id =
             Some("default_improve_transcriptions".to_string());
         assert_eq!(
@@ -2939,8 +2939,9 @@ mod tests {
             "advances to the next template in catalog order"
         );
 
-        // From the last seed, cycling wraps to the first.
-        settings.post_process_selected_prompt_id = Some("chinese_simplified".to_string());
+        // From the last seed (the Prompt Enhancer, round 7), cycling wraps
+        // to the first.
+        settings.post_process_selected_prompt_id = Some("prompt_enhancer".to_string());
         assert_eq!(
             cycle_prompt_selection(&mut settings).unwrap(),
             "default_improve_transcriptions",

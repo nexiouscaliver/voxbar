@@ -823,6 +823,10 @@
           "chinese_simplified": {
             "name": "الصينية المبسطة",
             "description": "تنظيف الصينية المبسطة مع تصحيح الكلمات المتشابهة في النطق."
+          },
+          "prompt_enhancer": {
+            "name": "محسّن المطالبات",
+            "description": "يحوّل تعليمة منطوقة إلى مطالبة واضحة ومنظمة لوكيل ذكاء اصطناعي أو تطبيق."
           }
         },
         "editPrompt": "تحرير"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "مُطبَّق",
       "skipped": "متخطى",
-      "failed": "فشل"
+      "failed": "فشل",
+      "unchanged": "دون تغيير"
     },
     "notifications": {
       "title": "الإشعارات",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "انقطع اتصال الهاتف. يتم الإنهاء بما تم التقاطه.",
       "companionServerFailed": "فشل خادم المرافقة: {{error}}",
       "companionSessionCapped": "انتهى الإملاء من الهاتف المرافق: بلغت الجلسة حدّها البالغ 15 دقيقة على {{device}}.",
-      "companionZeroAudio": "انتهى الإملاء من الجهاز المرافق دون أي صوت. لم يتم نسخ أي شيء."
+      "companionZeroAudio": "انتهى الإملاء من الجهاز المرافق دون أي صوت. لم يتم نسخ أي شيء.",
+      "postProcessUnchanged": "انتهى التلميع دون أي تغيير؛ تم لصق النص المنطوق تمامًا كما نُطق.",
+      "postProcessNotConfigured": "لم تعمل المعالجة اللاحقة: {{detail}}. تم الاحتفاظ بالنص الخام."
     },
     "commandBadge": "وضع الأوامر",
     "ppChip": "التلميع ({{model}}) {{seconds}}ث",

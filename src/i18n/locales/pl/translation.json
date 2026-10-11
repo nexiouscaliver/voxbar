@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Chiński (uproszczony)",
             "description": "Czyszczenie chińskiego uproszczonego z poprawkami homofonów."
+          },
+          "prompt_enhancer": {
+            "name": "Ulepszacz promptów",
+            "description": "Zamienia zdyktowaną instrukcję w jasny, ustrukturyzowany prompt dla agenta AI lub aplikacji."
           }
         },
         "editPrompt": "Edytuj"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "zastosowano",
       "skipped": "pominięto",
-      "failed": "nie powiodło się"
+      "failed": "nie powiodło się",
+      "unchanged": "bez zmian"
     },
     "notifications": {
       "title": "Powiadomienia",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "Telefon rozłączony. Kończę z tym, co nagrane.",
       "companionServerFailed": "Awaria serwera towarzyszącego: {{error}}",
       "companionSessionCapped": "Dyktowanie z urządzenia towarzyszącego zakończone: osiągnięto limit sesji 15 minut na {{device}}.",
-      "companionZeroAudio": "Dyktowanie z urządzenia towarzyszącego zakończyło się bez dźwięku. Nic nie zostało przetranskrybowane."
+      "companionZeroAudio": "Dyktowanie z urządzenia towarzyszącego zakończyło się bez dźwięku. Nic nie zostało przetranskrybowane.",
+      "postProcessUnchanged": "Polerowanie zakończyło się, ale nic nie zmieniło; transkrypcja została wklejona dokładnie tak, jak była dyktowana.",
+      "postProcessNotConfigured": "Przetwarzanie końcowe nie zostało uruchomione: {{detail}}. Zachowano surową transkrypcję."
     },
     "commandBadge": "Tryb poleceń",
     "ppChip": "Czyszczę ({{model}}) {{seconds}}s",

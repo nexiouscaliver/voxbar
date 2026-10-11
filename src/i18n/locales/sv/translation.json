@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "Kinesiska (förenklad)",
             "description": "Rensning av förenklad kinesiska med rättningar av likalydande tecken."
+          },
+          "prompt_enhancer": {
+            "name": "Promptförbättrare",
+            "description": "Gör en dikterad instruktion till en tydlig, strukturerad prompt för en AI-agent eller app."
           }
         },
         "editPrompt": "Redigera"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "tillämpad",
       "skipped": "hoppades över",
-      "failed": "misslyckades"
+      "failed": "misslyckades",
+      "unchanged": "oförändrad"
     },
     "notifications": {
       "title": "Aviseringar",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "Telefonen kopplades från. Slutför med det som spelades in.",
       "companionServerFailed": "Kompanionservern misslyckades: {{error}}",
       "companionSessionCapped": "Dikteringen från Kompanionenheten avslutades: sessionsgränsen på 15 minuter uppnåddes på {{device}}.",
-      "companionZeroAudio": "Dikteringen från kompanjonenheten avslutades utan ljud. Inget transkriberades."
+      "companionZeroAudio": "Dikteringen från kompanjonenheten avslutades utan ljud. Inget transkriberades.",
+      "postProcessUnchanged": "Efterbearbetningen är klar men ändrade inget; transkriptet klistrades in exakt som det dikterades.",
+      "postProcessNotConfigured": "Efterbearbetningen kördes inte: {{detail}}. Råtranskriptet behölls."
     },
     "commandBadge": "Kommandoläge",
     "ppChip": "Polerar ({{model}}) {{seconds}}s",

@@ -879,6 +879,10 @@
           "chinese_simplified": {
             "name": "中文（簡體）",
             "description": "清理簡體中文，修正同音錯字。"
+          },
+          "prompt_enhancer": {
+            "name": "提示詞增強",
+            "description": "將口述的指令轉換為面向 AI 代理或應用程式的清晰、結構化提示詞。"
           }
         },
         "editPrompt": "編輯"
@@ -1101,7 +1105,8 @@
     "ppOutcome": {
       "applied": "已套用",
       "skipped": "已略過",
-      "failed": "失敗"
+      "failed": "失敗",
+      "unchanged": "未變更"
     },
     "notifications": {
       "title": "通知",
@@ -1247,7 +1252,9 @@
       "companionDisconnected": "手機已斷線。正在以已錄下的內容收尾。",
       "companionServerFailed": "伴侶伺服器失敗：{{error}}",
       "companionSessionCapped": "伴侶裝置聽寫已結束：已達到 {{device}} 上的 15 分鐘工作階段上限。",
-      "companionZeroAudio": "伴侶裝置聽寫結束時沒有收到任何音訊，未轉錄任何內容。"
+      "companionZeroAudio": "伴侶裝置聽寫結束時沒有收到任何音訊，未轉錄任何內容。",
+      "postProcessUnchanged": "潤飾已完成，但未做任何變更；轉寫依原話原樣貼上。",
+      "postProcessNotConfigured": "後處理未執行：{{detail}}。已保留原始轉寫。"
     },
     "commandBadge": "命令模式",
     "ppChip": "潤飾中 ({{model}}) {{seconds}}秒",

@@ -60,6 +60,18 @@ export function noticeMessage(
       return t("toast.postProcessSkip.tooLong");
     case "post_process_output_invalid":
       return t("overlay.notice.postProcessOutputInvalid");
+    // Round 7 truth pass: the polish was requested but a config gap (no
+    // provider, no model, no usable template) meant no engine ever ran;
+    // the raw transcript pasted. Detail carries the specific gap.
+    case "post_process_not_configured":
+      return t("overlay.notice.postProcessNotConfigured", {
+        detail: detail ?? "",
+      });
+    // Round 7 no-op guard: the engine ran, validated, and changed nothing
+    // (a verbatim echo); the pasted text equals the raw transcript because
+    // nothing was changed, not because the run failed.
+    case "post_process_unchanged":
+      return t("overlay.notice.postProcessUnchanged");
     case "post_process_cloud_failed":
       return t("overlay.notice.postProcessCloudFailed", {
         detail: detail ?? "",
@@ -126,6 +138,7 @@ const DETAIL_INTERPOLATING_CODES = new Set([
   "post_process_cloud_failed",
   "post_process_prompt_cycled",
   "companion_server_failed",
+  "post_process_not_configured",
 ]);
 
 // Clean up what a removed {{detail}} interpolation leaves behind: the
