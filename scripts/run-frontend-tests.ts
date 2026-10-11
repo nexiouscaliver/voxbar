@@ -7,7 +7,9 @@
 // cannot collect them; each file is executed directly and must exit 0. The
 // sweep exists so CI runs the whole suite (the KB-136 failure class: test
 // files that exist but are wired to no script and no CI step rot silently).
-// Exits nonzero on the first failing file.
+// Runs every file even when earlier ones fail, reports each failing file,
+// and exits nonzero if any file failed (KB-251: the first failure must not
+// mask the state of the rest of the suite).
 //
 // The globs are explicit (not a bare **/*.test.ts) so scripts/ stays out:
 // ciTestCoverage.test.ts is a meta-guard with its own CI step, not an app
@@ -61,6 +63,9 @@ if (uniqueFiles.length === 0) {
 
 console.log(`running ${uniqueFiles.length} frontend test files`);
 
+// Collect every failure instead of exiting at the first: one broken test
+// file must not mask whether the rest of the suite still passes (KB-251).
+const failures: Array<{ file: string; exitCode: number }> = [];
 for (const file of uniqueFiles) {
   const run = Bun.spawnSync(["bun", file], {
     stdout: "inherit",
@@ -68,9 +73,18 @@ for (const file of uniqueFiles) {
   });
   if (run.exitCode !== 0) {
     console.error(`FAIL ${file} (exit ${run.exitCode})`);
-    process.exit(run.exitCode ?? 1);
+    failures.push({ file, exitCode: run.exitCode ?? 1 });
+    continue;
   }
   console.log(`ok   ${file}`);
+}
+
+if (failures.length > 0) {
+  console.error(
+    `${failures.length} of ${uniqueFiles.length} frontend test files failed:` +
+      failures.map((f) => `\n  ${f.file} (exit ${f.exitCode})`).join(""),
+  );
+  process.exit(failures[0].exitCode);
 }
 
 console.log(`all ${uniqueFiles.length} frontend test files passed`);

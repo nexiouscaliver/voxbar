@@ -562,20 +562,20 @@ statements found were the ledger's own stale statuses, corrected above.
   dead everywhere it compiled), the never-called FakeHost::slot_is_free/
   skips_contain, and the RecordingReadness::wait_timeout test helpers.
 
-- **KB-251 · OPEN · CI exit-semantics and discovery nits (fix owned by
-  this cycle's CI lane, W2-L6, in flight on this same branch).** The cycle
-  brief's sixth named fix; recorded here as a finding because no fix
-  exists to cite at this write (verified at fe971bd5: this branch's
-  commits, a read-only fetch of origin/main, and the sibling worktrees).
-  Three nits, all verified in the tree: the frontend test sweep exits on
-  the FIRST failing file instead of collecting every failure
-  (scripts/run-frontend-tests.ts:8, "Exits nonzero on the first failing
-  file"), the sweep's per-glob `git ls-files` discovery never sees
-  uncommitted test files (:27), and BUILD.md's release runbook lacked the
-  smoke step. This pass landed only the docs half of the third nit, an
-  orchestrator-authorized one-line addition to BUILD.md's release-script
-  paragraph documenting `scripts/smoke-macos.sh` (which the script itself
-  has run since 4ebe1d4f; the runbook never mentioned it). The
-  exit-semantics fix, the uncommitted-file discovery, and any CI wiring
-  are W2-L6's to land on this branch; when that commit exists, flip this
-  entry to FIXED against it.
+- **KB-251 · FIXED · CI exit-semantics and discovery nits (df8e936c plus
+  the collect-every-failure commit that flipped this entry).** Was
+  recorded OPEN at fe971bd5 because no fix existed to cite then; three
+  nits, all since landed on this branch. The pwsh exit-semantics and
+  discovery halves are df8e936c: every cmake in the Windows
+  SPIRV-Headers step guards with `exit $LASTEXITCODE`, the bun unit
+  tests and the release scripts syntax gate run as single && chains
+  (the cross-shell form that propagates any failure on bash -e and
+  pwsh alike), and the sweep's per-glob `git ls-files` adds --cached
+  --others --exclude-standard so untracked \*.test.ts files run in local
+  sweeps exactly as CI's next fresh checkout would see them
+  (run-frontend-tests.ts). BUILD.md's release-script paragraph documents
+  the `scripts/smoke-macos.sh` smoke step (the docs half, 332888c7). The first nit - the sweep exiting on the FIRST
+  failing file, masking the state of the rest of the suite - is fixed
+  in this entry's own commit: the loop records each failure and keeps
+  running every remaining file, prints an "N of M frontend test files
+  failed" summary listing every one, and exits nonzero on any failure.
