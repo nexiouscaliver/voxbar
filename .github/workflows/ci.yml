@@ -157,10 +157,14 @@ jobs:
       # The release pipeline runs only at operator release time; keep its
       # scripts at least syntactically honest in CI (fleet KB-233: the smoke
       # step shipped unrunnable because nothing checked it).
+      # Skipped on Windows: an autocrlf checkout rewrites these scripts to
+      # CRLF and bash -n then fails on the \r line endings, a checkout
+      # artifact rather than a script regression (the same EOL
+      # false-positive class the bindings freshness step gates away).
       - name: Release scripts syntax gate
-        # Chained so any command's failure fails the step (pwsh on Windows
-        # exits with only the last command's status; bash -e already
-        # propagates per command).
+        if: runner.os != 'Windows'
+        # Chained so any command's failure fails the step even under a
+        # shell without bash -e semantics.
         run: |
           # The AI build-integrity gate must stay in the release pipeline:
           # without the FoundationModels greps below the gate could be
