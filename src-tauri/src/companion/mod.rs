@@ -254,10 +254,17 @@ impl CompanionManager {
             settings.companion_last_device = Some(name.to_string());
             crate::settings::write_settings(app, settings);
         }
+        // W1-L8: the paired-device count the tray's companion status block
+        // shows just changed; re-sync so the count tracks the connection,
+        // not the next unrelated sync point. Runs on the server's task
+        // thread, so the snapshot compute never lands on the UI thread.
+        crate::tray::update_tray_menu(app);
     }
 
-    pub fn forget_device(&self, name: &str) {
+    pub fn forget_device(&self, app: &AppHandle, name: &str) {
         self.inner.lock().unwrap().devices.retain(|d| d != name);
+        // W1-L8: same re-sync as remember_device for the disconnect edge.
+        crate::tray::update_tray_menu(app);
     }
 
     /// Start the server. Idempotent. Resolves the bind address from the

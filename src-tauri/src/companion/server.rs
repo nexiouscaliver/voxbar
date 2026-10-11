@@ -519,7 +519,7 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
 
     // ---- disconnect: graceful finalize ----
     let _ = sink.close().await;
-    manager.forget_device(&device_name);
+    manager.forget_device(&app, &device_name);
 
     // Acknowledge the recorder's stop-pause handshake so Stop never waits
     // the 2 s timeout on a vanished phone.

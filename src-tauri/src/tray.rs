@@ -946,7 +946,8 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
             &strings.recent_dictations,
             true,
         )?;
-        if inputs.recent_dictations.is_empty() {
+        let recent_rows = recent_dictations_submenu_rows(inputs);
+        if recent_rows.is_empty() {
             let empty_i = MenuItem::with_id(
                 app,
                 "recent_dictations_empty",
@@ -956,9 +957,8 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
             )?;
             recent_dictations_submenu.append(&empty_i)?;
         } else {
-            for (entry_id, label) in &inputs.recent_dictations {
-                let item_id = format!("history_copy:{entry_id}");
-                let item = MenuItem::with_id(app, &item_id, label, true, None::<&str>)?;
+            for (item_id, label) in &recent_rows {
+                let item = MenuItem::with_id(app, item_id, label, true, None::<&str>)?;
                 recent_dictations_submenu.append(&item)?;
             }
         }
@@ -1647,11 +1647,34 @@ fn recent_dictation_label(
     )
 }
 
+/// Build one Recent Dictations row's menu item id - the copy action's
+/// payload. Pure, and pinned against [`parse_history_copy_id`] in the
+/// tests: the producer and the consumer must agree, and with the producer
+/// previously an inline `format!` a prefix rename would break every click
+/// while the parser's own tests still passed.
+fn history_copy_menu_id(entry_id: i64) -> String {
+    format!("history_copy:{entry_id}")
+}
+
 /// Parse a `history_copy:{id}` menu item id back into the entry id. Pure.
 pub fn parse_history_copy_id(menu_id: &str) -> Option<i64> {
     menu_id
         .strip_prefix("history_copy:")
         .and_then(|id| id.parse::<i64>().ok())
+}
+
+/// The Recent Dictations submenu's rows as `(menu item id, label)` pairs,
+/// newest first, straight from MenuInputs. Empty output means "render the
+/// localized empty-state placeholder" - the exact decision build_menu's
+/// two branches implement. Pure, so the submenu's construction with and
+/// without history (and every row's copy payload) is unit-testable
+/// without an app.
+fn recent_dictations_submenu_rows(inputs: &MenuInputs) -> Vec<(String, String)> {
+    inputs
+        .recent_dictations
+        .iter()
+        .map(|(entry_id, label)| (history_copy_menu_id(*entry_id), label.clone()))
+        .collect()
 }
 
 /// Write text to the clipboard on the main thread. Returns `false` on a
@@ -1758,10 +1781,11 @@ mod tests {
     use super::{
         asr_status_rss, compact_ram, companion_status_lines, desired_tray_title,
         format_duration_compact, format_ram_segment, format_tray_title, get_icon_path,
-        last_transcript_text, llm_submenu_checks, llm_submenu_label_name, load_tray_icon,
-        models_status_lines, native_title_arg, parse_history_copy_id, prompt_submenu_checks,
-        prompt_submenu_label_name, recent_dictation_label, resolve_model_label_name,
-        status_line_text, title_reconciliation, truncate_chars, unload_after_custom_label,
+        history_copy_menu_id, last_transcript_text, llm_submenu_checks, llm_submenu_label_name,
+        load_tray_icon, models_status_lines, native_title_arg, parse_history_copy_id,
+        prompt_submenu_checks, prompt_submenu_label_name, recent_dictation_label,
+        recent_dictations_submenu_rows, resolve_model_label_name, status_line_text,
+        title_reconciliation, truncate_chars, unload_after_custom_label,
         unload_after_preset_is_active, AppTheme, CompanionMenuStatus, MenuInputs, ModelStatusLine,
         TitleAction, TrayIconState, RECENT_WORDS_MAX_CHARS, TRAY_TITLE_MAX_CHARS,
     };
@@ -2633,6 +2657,60 @@ mod tests {
         assert_eq!(parse_history_copy_id("history_copy:abc"), None);
         assert_eq!(parse_history_copy_id("model_select:42"), None);
         assert_eq!(parse_history_copy_id("history_copy"), None);
+    }
+
+    /// The producer and consumer of the copy action's payload are pinned
+    /// TOGETHER: whatever id `history_copy_menu_id` emits must parse back
+    /// to the same entry id (the click handler's contract). This is the
+    /// test a bare producer-prefix rename fails, which the parser tests
+    /// above never would.
+    #[test]
+    fn history_copy_id_producer_and_consumer_agree() {
+        for entry_id in [0, 1, 42, -7, i64::MAX] {
+            let menu_id = history_copy_menu_id(entry_id);
+            assert_eq!(
+                parse_history_copy_id(&menu_id),
+                Some(entry_id),
+                "menu id {menu_id} must round-trip to {entry_id}"
+            );
+        }
+    }
+
+    /// The Recent Dictations submenu's construction decision, with and
+    /// without history: no rows => build_menu renders the disabled
+    /// empty-state placeholder; otherwise exactly one row per entry, in
+    /// MenuInputs order, each carrying its copy payload id and label.
+    #[test]
+    fn recent_dictations_submenu_rows_without_and_with_history() {
+        // Without history: no rows, which is build_menu's placeholder
+        // branch (the localized "No dictations yet" line).
+        assert!(
+            recent_dictations_submenu_rows(&inputs()).is_empty(),
+            "empty history => the placeholder branch renders"
+        );
+
+        // With history: one row per entry, newest first, labels verbatim,
+        // ids carrying the entry id payload.
+        let mut with_history = inputs();
+        with_history.recent_dictations = vec![
+            (7, "14:32 · hello world".to_string()),
+            (6, "2026-10-10 · earlier one".to_string()),
+        ];
+        let rows = recent_dictations_submenu_rows(&with_history);
+        assert_eq!(
+            rows,
+            vec![
+                ("history_copy:7".to_string(), "14:32 · hello world".to_string()),
+                (
+                    "history_copy:6".to_string(),
+                    "2026-10-10 · earlier one".to_string()
+                ),
+            ],
+            "rows preserve MenuInputs order and labels"
+        );
+        // Every row's id parses back to its entry id (click contract).
+        assert_eq!(parse_history_copy_id(&rows[0].0), Some(7));
+        assert_eq!(parse_history_copy_id(&rows[1].0), Some(6));
     }
 
     /// The copy action's payload carries the history entry id; the FINAL

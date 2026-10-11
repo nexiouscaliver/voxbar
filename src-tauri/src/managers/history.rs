@@ -836,6 +836,17 @@ impl HistoryManager {
     /// builder.
     pub fn recent_completed_entries(&self, limit: usize) -> Result<Vec<HistoryEntry>> {
         let conn = self.get_connection()?;
+        Self::recent_completed_entries_with_conn(&conn, limit)
+    }
+
+    /// The `_with_conn` twin of [`Self::recent_completed_entries`], so the
+    /// completed filter, newest-first ordering, and limit are unit-testable
+    /// against the same in-memory schema the sibling queries pin (see
+    /// `get_latest_completed_entry_skips_empty_entries`).
+    fn recent_completed_entries_with_conn(
+        conn: &Connection,
+        limit: usize,
+    ) -> Result<Vec<HistoryEntry>> {
         let mut stmt = conn.prepare(
             "SELECT
                 id,
@@ -1030,6 +1041,52 @@ mod tests {
 
         assert_eq!(entry.timestamp, 100);
         assert_eq!(entry.transcription_text, "completed");
+    }
+
+    /// W1-L8: the Recent Dictations submenu's feed. Pins the whole query
+    /// contract against the same in-memory schema as the sibling above:
+    /// the completed filter (empty transcripts never surface), newest-first
+    /// ordering, and the caller's limit.
+    #[test]
+    fn recent_completed_entries_skip_empty_order_newest_first_and_limit() {
+        let conn = setup_conn();
+
+        // Empty history: no rows, which the tray renders as the localized
+        // empty-state placeholder.
+        let empty = HistoryManager::recent_completed_entries_with_conn(&conn, 5)
+            .expect("query empty history");
+        assert!(empty.is_empty(), "no rows => the tray renders the empty state");
+
+        insert_entry(&conn, 100, "first", None);
+        insert_entry(&conn, 300, "", None); // in-flight or failed: never listed
+        insert_entry(&conn, 200, "second", Some("polished second"));
+        insert_entry(&conn, 400, "third", None);
+        insert_entry(&conn, 500, "fourth", None);
+
+        // Newest first, empty transcript skipped, both text columns mapped.
+        let entries = HistoryManager::recent_completed_entries_with_conn(&conn, 5)
+            .expect("query recent completed entries");
+        let timestamps: Vec<i64> = entries.iter().map(|e| e.timestamp).collect();
+        assert_eq!(timestamps, vec![500, 400, 200, 100]);
+        assert_eq!(entries[0].transcription_text, "fourth");
+        assert_eq!(
+            entries[1].post_processed_text.as_deref(),
+            None,
+            "entries[1] is 'third' (raw-only), not the polished one"
+        );
+        assert_eq!(entries[2].transcription_text, "second");
+        assert_eq!(
+            entries[2].post_processed_text.as_deref(),
+            Some("polished second"),
+            "the FINAL text columns ride along for the tray's copy action"
+        );
+
+        // The limit truncates from the newest end: asking for 2 keeps the
+        // two newest completed entries.
+        let limited = HistoryManager::recent_completed_entries_with_conn(&conn, 2)
+            .expect("query limited recent completed entries");
+        let timestamps: Vec<i64> = limited.iter().map(|e| e.timestamp).collect();
+        assert_eq!(timestamps, vec![500, 400]);
     }
 
     /// Version-forward migration test: a database at the previous version
