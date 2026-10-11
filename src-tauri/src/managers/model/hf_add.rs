@@ -509,12 +509,25 @@ pub(super) async fn hf_file_sha256(
         );
         return None;
     }
-    let body = match response.text().await {
-        Ok(body) => body,
-        Err(e) => {
+    // The body read is raced against the same bound as `send()` (and as the
+    // sibling listing's json() read above in list_repo_ggufs): a server that
+    // sends headers and then stalls must not hang the download critical
+    // path - this lookup runs AFTER the artifact already landed, with the
+    // transfer watchdog already aborted, so nothing else would fire.
+    let body = match tokio::time::timeout(HF_METADATA_TIMEOUT, response.text()).await {
+        Ok(Ok(body)) => body,
+        Ok(Err(e)) => {
             warn!(
                 "KB-171: digest lookup for {} failed to read the body: {}",
                 filename, e
+            );
+            return None;
+        }
+        Err(_) => {
+            warn!(
+                "KB-171: digest lookup for {} timed out reading the listing body after {}s",
+                filename,
+                HF_METADATA_TIMEOUT.as_secs()
             );
             return None;
         }

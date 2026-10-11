@@ -563,7 +563,16 @@ statements found were the ledger's own stale statuses, corrected above.
   skips_contain, and the RecordingReadness::wait_timeout test helpers.
 
 Not filed this pass: the cycle brief also names "CI exit-semantics and
-discovery nits" as a new fix, but no such change exists in this worktree
-at 57e36528..da66553a to verify or cite; the entry was deliberately not
-invented and should be filed by the lane that lands it (next free id then:
-KB-251).
+discovery nits" as a new fix, but no such change exists to verify or cite
+(checked at 1360d5ec: the cycle's own commits, a read-only fetch of
+origin/main, and the sibling worktrees; re-checked after this lane landed).
+The entry was deliberately not invented. KB-251 stays reserved for it, and
+the intended content is most plausibly round 5's tail nits, all still
+present in the tree: the frontend test sweep exits on the FIRST failing
+file instead of collecting every failure (scripts/run-frontend-tests.ts:8,
+"Exits nonzero on the first failing file"), the sweep's git ls-files
+discovery never sees uncommitted test files (it spawns `git ls-files` for
+every glob), and BUILD.md's runbook still lacks the smoke step (zero
+"smoke" mentions in BUILD.md). When that fix lands, file KB-251 against
+the real commit; if the cycle dropped it, delete this note so the next
+free id is KB-251 again.
