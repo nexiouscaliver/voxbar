@@ -1,5 +1,9 @@
-// The five-bar VoxBar mark as a small nav icon, themed with the text color
-// so it reads on every surface the sidebar uses it on.
+// The five-bar VoxBar mark as a small nav icon. It fills with currentColor
+// so it always reads on every surface the sidebar places it on: in an
+// unselected row that is the theme text color (inherited), and inside the
+// selected pill it follows the row's on-accent content color (white label
+// white mark) instead of pinning the theme text color, which on the solid
+// light-theme accent fill dropped the mark to ~3.9:1.
 const VoxBarMark = ({
   width,
   height,
@@ -11,7 +15,7 @@ const VoxBarMark = ({
     width={width || 126}
     height={height || 135}
     viewBox="0 0 126 135"
-    className="fill-text"
+    className="fill-current"
     xmlns="http://www.w3.org/2000/svg"
   >
     {/* VoxBar mark: five voice bars */}
