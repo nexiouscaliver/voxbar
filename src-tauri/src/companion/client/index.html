@@ -480,11 +480,30 @@
           navigator.languages && navigator.languages.length
             ? navigator.languages
             : [navigator.language || "en"];
+        // Script-aware fallback mirroring the app UI (src/i18n/index.ts) and
+        // the tray (tray_i18n.rs): zh-Hant / TW / HK / MO / yue pick the
+        // Traditional zh-TW strings, not Simplified zh.
+        const resolveTag = (tag) => {
+          if (STRINGS[tag]) return STRINGS[tag];
+          const subtags = String(tag).toLowerCase().split("-");
+          const base = subtags[0];
+          let fallback = base;
+          if (
+            base === "zh" &&
+            (subtags.includes("hant") ||
+              (!subtags.includes("hans") &&
+                ["tw", "hk", "mo"].some((r) => subtags.includes(r))))
+          ) {
+            fallback = "zh-tw";
+          } else if (base === "yue") {
+            fallback = subtags.includes("hans") ? "zh" : "zh-tw";
+          }
+          return STRINGS[fallback] || STRINGS[base];
+        };
         for (const tag of langs) {
           if (!tag) continue;
-          if (STRINGS[tag]) return STRINGS[tag];
-          const base = String(tag).split("-")[0];
-          if (STRINGS[base]) return STRINGS[base];
+          const resolved = resolveTag(tag);
+          if (resolved) return resolved;
         }
         return STRINGS["en"] || {};
       })();
@@ -960,6 +979,14 @@
             video: false,
           })
           .then((stream) => {
+            // A grant that lands AFTER the page tore the mic down (goodbye or
+            // socket loss ran stopMic while the permission prompt was up)
+            // must not resurrect live hardware on a dead page: reap it
+            // immediately instead of keeping the mic-in-use indicator lit.
+            if (deliberateClose || !ws || ws.readyState !== WebSocket.OPEN) {
+              for (const track of stream.getTracks()) track.stop();
+              return stream;
+            }
             micStream = stream;
             micFailed = false;
             openMicPromise = null;
@@ -1004,7 +1031,14 @@
           }
         }
         if (audioCtx.state === "suspended") {
-          audioCtx.resume().catch(() => {});
+          // A resume the OS refuses leaves the graph silent: the whole session
+          // would record nothing and the user would only learn at the
+          // end-of-session zero-audio notice, after talking the entire time.
+          // Surface it now, exactly like a getUserMedia failure.
+          audioCtx.resume().catch(() => {
+            micFailed = true;
+            showMicError();
+          });
         }
         if (!micStream) {
           openMic().catch(() => {});

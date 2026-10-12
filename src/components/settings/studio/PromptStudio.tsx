@@ -330,12 +330,15 @@ export const PromptStudio: React.FC = () => {
       if (result.status === "ok") {
         setCards((prev) => mergeResults(prev, result.data));
       } else {
-        setCards([]);
+        // A refused batch must not destroy finished results: a fresh run
+        // resets to its idle cards, a re-run keeps the grid untouched and
+        // only surfaces the error for the pair that failed.
+        if (fresh) setCards(initCards(pairs));
         setRunError(errorText(result.error));
       }
     } catch (error) {
       console.error("Studio batch failed:", error);
-      setCards([]);
+      if (fresh) setCards(initCards(pairs));
       setRunError(String(error));
     } finally {
       setBatchInFlight(false);

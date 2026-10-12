@@ -508,8 +508,11 @@ function App() {
       const message = noticeMessage(t, code, detail);
       if (message === null) return;
       const now = Date.now();
-      if (now - (lastNoopNoticeToast.current[code] ?? 0) < 2000) return;
-      lastNoopNoticeToast.current[code] = now;
+      // The log leg is exempt from the same-code throttle: its contract is
+      // that a notice is never lost, and two same-code failures within the
+      // window (for example consecutive failing studio pairs) are two events.
+      // The throttle below only dedupes the transient toast and the
+      // persistent banner, both of which outlive the window on screen.
       if (plan.log) {
         pushNotificationLogEntry({
           code,
@@ -518,6 +521,8 @@ function App() {
           receivedAt: now,
         });
       }
+      if (now - (lastNoopNoticeToast.current[code] ?? 0) < 2000) return;
+      lastNoopNoticeToast.current[code] = now;
       if (plan.toast) {
         const duration =
           code === "wayland_tauri_hotkeys" || code === "gnome_overlay_fallback"

@@ -99,7 +99,7 @@ export async function notifyDesktop(body: string): Promise<void> {
     if (visible) return;
     const state = await commands.notificationPermissionState();
     if (state === "granted") {
-      sendNotification({ title: "VoxBar", body });
+      await sendNotification({ title: "VoxBar", body });
     } else if (!warnedPermissionUnavailable) {
       warnedPermissionUnavailable = true;
       console.warn(
