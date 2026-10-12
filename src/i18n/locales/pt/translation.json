@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Ver alterações",
-      "hideChanges": "Ocultar alterações"
+      "hideChanges": "Ocultar alterações",
+      "dbRecoveredNotice": "O banco de dados do seu histórico de transcrições não pôde ser lido, então um novo foi iniciado. O banco de dados anterior foi mantido como {{file}}."
     },
     "debug": {
       "title": "Depuração",

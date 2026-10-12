@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Voir les modifications",
-      "hideChanges": "Masquer les modifications"
+      "hideChanges": "Masquer les modifications",
+      "dbRecoveredNotice": "La base de données de votre historique de transcription était illisible, une nouvelle a donc été démarrée. La base de données précédente a été conservée sous le nom {{file}}."
     },
     "debug": {
       "title": "Débogage",

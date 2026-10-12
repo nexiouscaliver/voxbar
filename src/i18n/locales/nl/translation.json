@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Wijzigingen bekijken",
-      "hideChanges": "Wijzigingen verbergen"
+      "hideChanges": "Wijzigingen verbergen",
+      "dbRecoveredNotice": "De database van uw transcriptiegeschiedenis was onleesbaar, dus er is een nieuwe gestart. De vorige database is bewaard als {{file}}."
     },
     "debug": {
       "title": "Probleemoplossing",

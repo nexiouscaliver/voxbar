@@ -2263,11 +2263,20 @@ pub fn update_post_process_prompt(
         .iter_mut()
         .find(|p| p.id == id)
     {
+        // KB-256: only a BODY change bumps the version. The version
+        // separates a user-edited template from its seeded original (run
+        // records stamp it; the seed migration never touches a versioned
+        // prompt), so a name-only edit keeps it - which is what lets a
+        // v1.5.x rename of an untouched gen-1 builtin still take the
+        // generation reseed instead of being stranded as a fake user edit.
+        let version = settings::next_prompt_version(
+            existing_prompt.version,
+            &existing_prompt.prompt,
+            &prompt,
+        );
         existing_prompt.name = name;
         existing_prompt.prompt = prompt;
-        // Every user edit bumps the template's version; run records stamp
-        // it, and the seeding migration never touches a versioned prompt.
-        existing_prompt.version = existing_prompt.version.saturating_add(1);
+        existing_prompt.version = version;
         settings::write_settings(&app, settings);
 
         // KB-201 (KB-066 surface 1): a renamed template relabels its
@@ -2298,9 +2307,14 @@ pub fn delete_post_process_prompt(app: AppHandle, id: String) -> Result<(), Stri
 
     // Find and remove the prompt
     let original_len = settings.post_process_prompts.len();
+    // KB-108: deleting a BUILTIN records a persisted tombstone, or the
+    // seed loop pushes the built-in back at the catalog end on the very
+    // next settings read (the delete looked like it never happened).
+    // User templates record nothing: they have no seed to resurrect.
+    let tombstoned = settings::record_deleted_builtin_prompt(&mut settings, &id);
     settings.post_process_prompts.retain(|p| p.id != id);
 
-    if settings.post_process_prompts.len() == original_len {
+    if settings.post_process_prompts.len() == original_len && !tombstoned {
         return Err(format!("Prompt with id '{}' not found", id));
     }
 
@@ -3592,6 +3606,50 @@ mod tests {
         assert_eq!(
             normalize_optional_setting(Some("  /path/cert.pem ".to_string())),
             Some("/path/cert.pem".to_string())
+        );
+    }
+
+    /// KB-108 + KB-256 wiring pins. Both commands need a live AppHandle a
+    /// unit test cannot mount, so the wiring is pinned against this
+    /// committed source (the same convention as the lit-badge pin above):
+    /// the delete path records the builtin tombstone BEFORE the row leaves
+    /// the library (the seam reads is_builtin off the row), and the edit
+    /// path derives the version from the body-change seam instead of a
+    /// blind increment.
+    #[test]
+    fn prompt_commands_wire_the_tombstone_and_version_seams() {
+        let source = include_str!("mod.rs");
+
+        let at = source
+            .find("pub fn delete_post_process_prompt")
+            .expect("delete_post_process_prompt");
+        let rest = &source[at..];
+        let body_end = rest.find("\n#[tauri::command]").unwrap_or(rest.len());
+        let delete_body = &rest[..body_end];
+        let tombstone = delete_body
+            .find("settings::record_deleted_builtin_prompt(&mut settings, &id)")
+            .expect("the delete records the builtin tombstone");
+        let retain = delete_body
+            .find("settings.post_process_prompts.retain(|p| p.id != id)")
+            .expect("the delete removes the row");
+        assert!(
+            tombstone < retain,
+            "the tombstone is recorded while the row is still readable"
+        );
+
+        let at = source
+            .find("pub fn update_post_process_prompt")
+            .expect("update_post_process_prompt");
+        let rest = &source[at..];
+        let body_end = rest.find("\n#[tauri::command]").unwrap_or(rest.len());
+        let update_body = &rest[..body_end];
+        assert!(
+            update_body.contains("settings::next_prompt_version("),
+            "the edit derives the version from the body-change seam (KB-256)"
+        );
+        assert!(
+            !update_body.contains("saturating_add(1)"),
+            "no blind version increment remains in the edit path"
         );
     }
 }

@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms ile",
       "viewChanges": "Değişiklikleri göster",
-      "hideChanges": "Değişiklikleri gizle"
+      "hideChanges": "Değişiklikleri gizle",
+      "dbRecoveredNotice": "Transkripsiyon geçmişi veritabanınız okunamadığı için yenisi başlatıldı. Önceki veritabanı {{file}} olarak saklandı."
     },
     "debug": {
       "title": "Hata Ayıklama",

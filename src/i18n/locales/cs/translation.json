@@ -948,7 +948,8 @@
       },
       "viaPostProcess": "přes {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Zobrazit změny",
-      "hideChanges": "Skrýt změny"
+      "hideChanges": "Skrýt změny",
+      "dbRecoveredNotice": "Databáze vaší historie přepisů byla nečitelná, proto byla spuštěna nová. Předchozí databáze byla zachována jako {{file}}."
     },
     "debug": {
       "title": "Ladění",

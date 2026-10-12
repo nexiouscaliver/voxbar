@@ -1,4 +1,3 @@
-use crate::actions::process_transcription_output;
 use crate::managers::{
     history::{HistoryManager, PaginatedHistory, RecentCompanionEntry},
     transcription::TranscriptionManager,
@@ -78,13 +77,15 @@ pub async fn delete_history_entry(
 /// KB-109 (privacy): whether a history retry runs the LLM post-process
 /// leg. The per-entry snapshot alone must not decide - with the
 /// post-process master toggle off, a retry that re-ran the leg would ship
-/// the stored transcript to the CURRENT provider/model (possibly paid
-/// cloud), which the entry was not necessarily recorded against. The
-/// master toggle gates the leg exactly as it gates the dictation hotkey's
-/// registration (binding_is_active), so off means the retry re-transcribes
-/// and updates the raw transcript only. Pure so the gate is unit-testable;
-/// pinning the retry to the entry's recorded provider is a separate,
-/// larger fix.
+/// the stored transcript to a provider the entry was not necessarily
+/// recorded against. The master toggle gates the leg exactly as it gates
+/// the dictation hotkey's registration (binding_is_active), so off means
+/// the retry re-transcribes and updates the raw transcript only. Pure so
+/// the gate is unit-testable. When the leg DOES run, its
+/// provider/model/prompt resolve from the entry's recorded summary first
+/// (process_retry_transcription_output), so the toggle-on retry also
+/// never re-targets the transcript at a different engine than the
+/// recorded one.
 fn retry_runs_post_process(entry_requested: bool, settings: &crate::settings::AppSettings) -> bool {
     entry_requested && settings.post_process_enabled
 }
@@ -127,14 +128,31 @@ pub async fn retry_history_entry_transcription(
     // The history retry owns no cancel generation (no recording session is
     // live); the swap runner still has its own abort signals (pending
     // press, recording started) and its total deadline. KB-109: the pp leg
-    // is gated on the master toggle as well as the entry's snapshot.
+    // is gated on the master toggle as well as the entry's snapshot, and
+    // resolves its engine from the entry's recorded summary when present.
     let post_process = retry_runs_post_process(
         entry.post_process_requested,
         &crate::settings::get_settings(&app),
     );
-    let processed =
-        process_transcription_output(&app, "history_retry", &transcription, post_process, None)
-            .await;
+    let processed = if post_process {
+        let recorded = crate::actions::RetryPostProcessTarget {
+            provider_id: entry.post_process_provider.clone(),
+            model: entry.post_process_model.clone(),
+            prompt_id: entry.post_process_prompt_id.clone(),
+        };
+        crate::actions::process_retry_transcription_output(&app, &transcription, &recorded).await
+    } else {
+        // The leg did not run: no processed text, no summary. Passing the
+        // empty result through update_transcription clears the pp summary
+        // columns (KB-023 + KB-240) instead of leaving the stale run on
+        // the row.
+        crate::actions::ProcessedTranscription {
+            final_text: transcription.clone(),
+            post_processed_text: None,
+            post_process_prompt: None,
+            post_process_summary: None,
+        }
+    };
     history_manager
         .update_transcription(
             id,
@@ -142,9 +160,22 @@ pub async fn retry_history_entry_transcription(
             processed.post_processed_text,
             processed.post_process_prompt,
             Some(used_model),
+            processed.post_process_summary,
         )
         .map(|_| ())
         .map_err(|e| e.to_string())
+}
+
+/// KB-179: the launch-time history database recovery record, if this
+/// launch quarantined an unreadable history.db and started fresh. The
+/// frontend pulls this once on mount (the recovery happens before any
+/// webview listener exists) and posts the persistent notice.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_history_db_recovery(
+    history_manager: State<'_, Arc<HistoryManager>>,
+) -> Result<Option<crate::managers::history::HistoryDbRecovery>, String> {
+    Ok(history_manager.db_recovery().cloned())
 }
 
 /// KB-202: whether a history setter may persist its change, given the

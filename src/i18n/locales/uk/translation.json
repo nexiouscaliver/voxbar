@@ -948,7 +948,8 @@
       },
       "viaPostProcess": "через {{model}} · {{prompt}} · {{outcome}} · {{latency}} мс",
       "viewChanges": "Показати зміни",
-      "hideChanges": "Сховати зміни"
+      "hideChanges": "Сховати зміни",
+      "dbRecoveredNotice": "Базу даних історії розшифровок не вдалося прочитати, тому розпочато нову. Попередню базу даних збережено як {{file}}."
     },
     "debug": {
       "title": "Дебаг",

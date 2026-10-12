@@ -1460,6 +1460,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             commands::history::get_audio_file_path,
             commands::history::delete_history_entry,
             commands::history::retry_history_entry_transcription,
+            commands::history::get_history_db_recovery,
             commands::history::update_history_limit,
             commands::history::update_recording_retention_period,
             post_process_runs::get_post_process_runs,

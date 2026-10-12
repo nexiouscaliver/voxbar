@@ -174,9 +174,16 @@ export const HistorySettings: React.FC = () => {
         setEntries((prev) =>
           prev.map((e) => (e.id === payload.entry.id ? payload.entry : e)),
         );
+      } else if (payload.action === "deleted") {
+        // KB-025: cleanup paths (retention by count/time) delete rows with
+        // per-id events; filtering by id is idempotent, so the user's own
+        // optimistic delete and this listener-side removal can never
+        // double-mutate. Without this, retention-cleaned rows persisted as
+        // ghosts in an already-open tab.
+        setEntries((prev) => prev.filter((e) => e.id !== payload.id));
       }
-      // "deleted" and "toggled" are handled by optimistic updates only,
-      // so we intentionally ignore them here to avoid double-mutation.
+      // "toggled" is handled by optimistic updates only, so we
+      // intentionally ignore it here to avoid double-mutation.
     });
 
     return () => {

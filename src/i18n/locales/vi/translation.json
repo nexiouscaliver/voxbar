@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "qua {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Xem thay đổi",
-      "hideChanges": "Ẩn thay đổi"
+      "hideChanges": "Ẩn thay đổi",
+      "dbRecoveredNotice": "Không thể đọc cơ sở dữ liệu lịch sử bản ghi của bạn, nên một cơ sở dữ liệu mới đã được bắt đầu. Cơ sở dữ liệu trước đó được giữ lại dưới dạng {{file}}."
     },
     "debug": {
       "title": "Gỡ lỗi",

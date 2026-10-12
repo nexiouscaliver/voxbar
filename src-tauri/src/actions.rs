@@ -741,6 +741,7 @@ async fn post_process_transcription(
         &prompt_entry,
         is_cancelled,
         None,
+        None,
     )
     .await
 }
@@ -761,7 +762,15 @@ async fn post_process_transcription(
 /// skipped one); the command layer validates ids up front, so this guard
 /// is the pure seam's backstop.
 ///
+/// `model_override` (KB-109) pins the model the same way: the history
+/// retry resolves the entry's RECORDED model and must not silently fall
+/// back to whatever model is configured for that provider today. None
+/// (every other caller) resolves the settings' model map as before. An
+/// empty override falls through to the settings map (an empty model is
+/// no model).
+///
 /// Never pastes and never writes history: those live in the callers.
+#[allow(clippy::too_many_arguments)] // the resolved request rides with its cancellation and pins
 async fn post_process_with_prompt(
     app: Option<&AppHandle>,
     settings: &AppSettings,
@@ -770,6 +779,7 @@ async fn post_process_with_prompt(
     prompt_entry: &crate::settings::LLMPrompt,
     is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
     provider_override: Option<&str>,
+    model_override: Option<&str>,
 ) -> PostProcessAttempt {
     if is_blank_transcription(transcription) {
         debug!("Post-processing skipped because the transcription is empty");
@@ -796,11 +806,14 @@ async fn post_process_with_prompt(
         },
     };
 
-    let model = settings
-        .post_process_models
-        .get(&provider.id)
-        .cloned()
-        .unwrap_or_default();
+    let model = match model_override {
+        Some(pinned) if !pinned.trim().is_empty() => pinned.to_string(),
+        _ => settings
+            .post_process_models
+            .get(&provider.id)
+            .cloned()
+            .unwrap_or_default(),
+    };
 
     if model.trim().is_empty() {
         debug!(
@@ -1132,6 +1145,7 @@ pub(crate) async fn run_prompt_test(
         prompt,
         None,
         None,
+        None,
     )
     .await;
     prompt_test_outcome_from_attempt(transcription, attempt)
@@ -1158,6 +1172,7 @@ pub(crate) async fn run_prompt_test_with_engine(
         prompt,
         None,
         engine_provider_id,
+        None,
     )
     .await;
     prompt_test_outcome_from_attempt(transcription, attempt)
@@ -1470,6 +1485,196 @@ pub(crate) async fn process_transcription_output(
                 }
             }
         }
+    }
+
+    ProcessedTranscription {
+        final_text,
+        post_processed_text,
+        post_process_prompt,
+        post_process_summary,
+    }
+}
+
+/// KB-109: the engine triple a history retry's post-process leg targets.
+/// Each field carries the entry's RECORDED value when it has one; the
+/// resolver falls back to the current settings only for fields the entry
+/// never recorded (pre-cycle rows carry no summary at all).
+#[derive(Clone, Debug, PartialEq, Eq, Default)]
+pub(crate) struct RetryPostProcessTarget {
+    pub provider_id: Option<String>,
+    pub model: Option<String>,
+    pub prompt_id: Option<String>,
+}
+
+/// KB-109: resolve the retry's provider/model/prompt. A recorded value
+/// always wins (never re-ship the stored transcript to a different
+/// engine, model, or template than the one that produced the original);
+/// only fields with NO recorded value fall back to the current settings,
+/// so an entry polished by a provider the operator has since unselected
+/// still retries against that recorded provider. A recorded provider the
+/// settings no longer know about fails later in the runner's
+/// provider-lookup guard (a skip with a notice, never a silent
+/// re-target).
+pub(crate) fn resolve_retry_post_process_target(
+    recorded: &RetryPostProcessTarget,
+    settings: &AppSettings,
+) -> RetryPostProcessTarget {
+    let provider_id = recorded
+        .provider_id
+        .clone()
+        .filter(|provider| !provider.trim().is_empty())
+        .or_else(|| {
+            settings
+                .active_post_process_provider()
+                .map(|provider| provider.id.clone())
+        });
+    let model = recorded
+        .model
+        .clone()
+        .filter(|model| !model.trim().is_empty())
+        .or_else(|| {
+            provider_id
+                .as_ref()
+                .and_then(|provider| settings.post_process_models.get(provider).cloned())
+        });
+    let prompt_id = recorded
+        .prompt_id
+        .clone()
+        .filter(|prompt| !prompt.trim().is_empty())
+        .or_else(|| settings.post_process_selected_prompt_id.clone());
+    RetryPostProcessTarget {
+        provider_id,
+        model,
+        prompt_id,
+    }
+}
+
+/// KB-109: the history retry's post-process leg. Same lifecycle as the
+/// dictation's [`process_transcription_output`], but the engine triple is
+/// resolved from the entry's recorded summary first (see
+/// [`resolve_retry_post_process_target`]) instead of the current settings;
+/// the config-level fallbacks (provider gone, model empty, template
+/// missing or empty) emit the same round-7 PostProcessNotConfigured
+/// notice so the operator learns the polish did not run. The retry owns
+/// no cancel generation (no recording session is live).
+pub(crate) async fn process_retry_transcription_output(
+    app: &AppHandle,
+    transcription: &str,
+    recorded: &RetryPostProcessTarget,
+) -> ProcessedTranscription {
+    let settings = get_settings(app);
+    let mut final_text = transcription.to_string();
+    let mut post_processed_text: Option<String> = None;
+    let mut post_process_prompt: Option<String> = None;
+    let mut post_process_summary: Option<crate::post_process_runs::PostProcessRunSummary> = None;
+
+    if is_blank_transcription(transcription) {
+        debug!("Post-processing skipped because the transcription is empty");
+        return ProcessedTranscription {
+            final_text,
+            post_processed_text,
+            post_process_prompt,
+            post_process_summary,
+        };
+    }
+
+    let target = resolve_retry_post_process_target(recorded, &settings);
+
+    let cause = if target.provider_id.is_none() {
+        Some("no post-process provider is recorded or selected".to_string())
+    } else if target
+        .provider_id
+        .as_deref()
+        .is_some_and(|id| settings.post_process_provider(id).is_none())
+    {
+        Some(format!(
+            "the recorded provider '{}' is no longer configured",
+            target.provider_id.clone().unwrap_or_default()
+        ))
+    } else if target
+        .model
+        .as_deref()
+        .map(|model| model.trim().is_empty())
+        .unwrap_or(true)
+    {
+        Some("no model is recorded or configured for the provider".to_string())
+    } else {
+        None
+    };
+    if let Some(cause) = cause {
+        debug!("History retry post-processing skipped because {cause}");
+        crate::managers::transcription::emit_overlay_notice(
+            app,
+            crate::managers::transcription::NoticeCode::PostProcessNotConfigured,
+            Some(cause),
+        );
+        return ProcessedTranscription {
+            final_text,
+            post_processed_text,
+            post_process_prompt,
+            post_process_summary,
+        };
+    }
+
+    // The recorded prompt id must still name a template in the library:
+    // re-polishing with a DIFFERENT template than the recorded one would
+    // mislabel the entry, so a dangling id skips the leg (notice above
+    // the surface, summary columns clear via KB-023).
+    let prompt_entry = target.prompt_id.as_deref().and_then(|prompt_id| {
+        settings
+            .post_process_prompts
+            .iter()
+            .find(|prompt| prompt.id == prompt_id)
+            .cloned()
+    });
+    let Some(prompt_entry) = prompt_entry else {
+        let cause = "the recorded prompt template no longer exists".to_string();
+        debug!("History retry post-processing skipped because {cause}");
+        crate::managers::transcription::emit_overlay_notice(
+            app,
+            crate::managers::transcription::NoticeCode::PostProcessNotConfigured,
+            Some(cause),
+        );
+        return ProcessedTranscription {
+            final_text,
+            post_processed_text,
+            post_process_prompt,
+            post_process_summary,
+        };
+    };
+    if prompt_entry.prompt.trim().is_empty() {
+        let cause = "the recorded prompt template is empty".to_string();
+        debug!("History retry post-processing skipped because {cause}");
+        crate::managers::transcription::emit_overlay_notice(
+            app,
+            crate::managers::transcription::NoticeCode::PostProcessNotConfigured,
+            Some(cause),
+        );
+        return ProcessedTranscription {
+            final_text,
+            post_processed_text,
+            post_process_prompt,
+            post_process_summary,
+        };
+    }
+
+    let attempt = post_process_with_prompt(
+        Some(app),
+        &settings,
+        "history_retry",
+        &final_text,
+        &prompt_entry,
+        None,
+        target.provider_id.as_deref(),
+        target.model.as_deref(),
+    )
+    .await;
+
+    post_process_summary = attempt.summary;
+    if let Some(processed_text) = attempt.text {
+        post_processed_text = Some(processed_text.clone());
+        final_text = processed_text;
+        post_process_prompt = Some(prompt_entry.prompt.clone());
     }
 
     ProcessedTranscription {
@@ -3709,6 +3914,7 @@ mod tests {
             &seed,
             None,
             None,
+            None,
         ));
 
         assert_eq!(
@@ -4321,5 +4527,89 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(failure.skip_reason, SkipReason::LengthGuard);
+    }
+
+    /// KB-109: the history retry's post-process leg resolves its
+    /// provider/model/prompt from the entry's RECORDED summary first.
+    /// Recorded values always win (the retry never re-ships the stored
+    /// transcript to a different engine than the recorded one); only
+    /// fields the entry never recorded fall back to the current settings.
+    #[test]
+    fn retry_post_process_resolution_prefers_the_recorded_summary() {
+        use super::{resolve_retry_post_process_target, RetryPostProcessTarget};
+        use crate::settings::get_default_settings;
+
+        let mut settings = get_default_settings();
+        let active_provider = settings
+            .active_post_process_provider()
+            .expect("defaults carry an active provider")
+            .id
+            .clone();
+        let active_model = settings
+            .post_process_models
+            .get(&active_provider)
+            .cloned()
+            .unwrap_or_default();
+        settings.post_process_selected_prompt_id = Some("english_casual".to_string());
+
+        // A fully recorded entry: every field survives untouched, even
+        // though the settings now point somewhere else entirely.
+        let recorded = RetryPostProcessTarget {
+            provider_id: Some("anthropic".to_string()),
+            model: Some("claude-3-haiku".to_string()),
+            prompt_id: Some("german".to_string()),
+        };
+        assert_eq!(
+            resolve_retry_post_process_target(&recorded, &settings),
+            recorded,
+            "recorded provider, model, and prompt win over the current settings"
+        );
+
+        // A pre-cycle entry (nothing recorded): everything falls back to
+        // the current settings - the active provider, that provider's
+        // configured model, and the selected template.
+        let fallback =
+            resolve_retry_post_process_target(&RetryPostProcessTarget::default(), &settings);
+        assert_eq!(
+            fallback.provider_id.as_deref(),
+            Some(active_provider.as_str())
+        );
+        assert_eq!(fallback.model.as_deref(), Some(active_model.as_str()));
+        assert_eq!(fallback.prompt_id.as_deref(), Some("english_casual"));
+
+        // A partially recorded entry resolves per FIELD: the recorded
+        // provider and prompt stand, but the model it never recorded falls
+        // back to the RECORDED provider's configured model (not the active
+        // provider's).
+        settings
+            .post_process_models
+            .insert("anthropic".to_string(), "claude-3-opus".to_string());
+        let partial = resolve_retry_post_process_target(
+            &RetryPostProcessTarget {
+                provider_id: Some("anthropic".to_string()),
+                model: None,
+                prompt_id: Some("german".to_string()),
+            },
+            &settings,
+        );
+        assert_eq!(partial.provider_id.as_deref(), Some("anthropic"));
+        assert_eq!(partial.model.as_deref(), Some("claude-3-opus"));
+        assert_eq!(partial.prompt_id.as_deref(), Some("german"));
+
+        // Blank recordings (empty strings read back from nullable columns)
+        // count as absent: the settings fallback applies.
+        let blank = resolve_retry_post_process_target(
+            &RetryPostProcessTarget {
+                provider_id: Some("   ".to_string()),
+                model: Some(String::new()),
+                prompt_id: Some(String::new()),
+            },
+            &settings,
+        );
+        assert_eq!(
+            blank,
+            resolve_retry_post_process_target(&RetryPostProcessTarget::default(), &settings),
+            "blank recorded values behave exactly like absent ones"
+        );
     }
 }

@@ -946,7 +946,8 @@
       },
       "viaPostProcess": "דרך {{model}} · {{prompt}} · {{outcome}} · {{latency}} מ״ש",
       "viewChanges": "הצגת שינויים",
-      "hideChanges": "הסתרת שינויים"
+      "hideChanges": "הסתרת שינויים",
+      "dbRecoveredNotice": "מסד הנתונים של היסטוריית התמלילים שלך לא ניתן לקריאה, לכן הוחל במסד חדש. מסד הנתונים הקודם נשמר בשם {{file}}."
     },
     "debug": {
       "title": "ניפוי שגיאות",

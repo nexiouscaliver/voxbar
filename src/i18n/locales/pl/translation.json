@@ -948,7 +948,8 @@
       },
       "viaPostProcess": "przez {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Pokaż zmiany",
-      "hideChanges": "Ukryj zmiany"
+      "hideChanges": "Ukryj zmiany",
+      "dbRecoveredNotice": "Baza danych historii transkrypcji była nieczytelna, więc rozpoczęto nową. Poprzednia baza danych została zachowana jako {{file}}."
     },
     "debug": {
       "title": "Debugowanie",

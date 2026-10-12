@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms で処理",
       "viewChanges": "変更を表示",
-      "hideChanges": "変更を閉じる"
+      "hideChanges": "変更を閉じる",
+      "dbRecoveredNotice": "文字起こし履歴のデータベースを読み込めなかったため、新しいデータベースを開始しました。以前のデータベースは {{file}} として保存されています。"
     },
     "debug": {
       "title": "デバッグ",

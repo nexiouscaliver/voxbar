@@ -593,10 +593,19 @@ impl Drop for RescanGuard {
 /// RAII guard that cleans up download state (`is_downloading` flag and cancel flag)
 /// when dropped, unless explicitly disarmed. This ensures consistent cleanup on
 /// every error path without requiring manual cleanup at each `?` or `return Err`.
+///
+/// KB-047: the guard removes ONLY ITS OWN token (identity compared through
+/// the Arc). The old unconditional remove let any guard drop - including a
+/// superseded or aborted transfer unwinding late - yank the token of a
+/// DIFFERENT live download for the same model id, silently disarming
+/// cancel_download for it.
 struct DownloadCleanup<'a> {
     available_models: &'a Mutex<HashMap<String, ModelInfo>>,
-    cancel_flags: &'a Arc<Mutex<HashMap<String, CancellationToken>>>,
+    cancel_flags: &'a Arc<Mutex<HashMap<String, Arc<CancellationToken>>>>,
     model_id: String,
+    /// The token THIS transfer registered; drop removes the map entry only
+    /// while it is still this one (KB-047).
+    token: Arc<CancellationToken>,
     disarmed: bool,
 }
 
@@ -611,7 +620,8 @@ impl<'a> Drop for DownloadCleanup<'a> {
                 model.is_downloading = false;
             }
         }
-        self.cancel_flags.lock().unwrap().remove(&self.model_id);
+        let mut flags = self.cancel_flags.lock().unwrap();
+        ModelManager::remove_token_if_owner(&mut flags, &self.model_id, &self.token);
     }
 }
 
@@ -623,7 +633,7 @@ pub struct ModelManager {
     /// the grandfathered pinned Qwen3-0.6B keeps resolving.
     llm_models_dir: PathBuf,
     available_models: Mutex<HashMap<String, ModelInfo>>,
-    cancel_flags: Arc<Mutex<HashMap<String, CancellationToken>>>,
+    cancel_flags: Arc<Mutex<HashMap<String, Arc<CancellationToken>>>>,
     extracting_models: Arc<Mutex<HashSet<String>>>,
     /// Single-flight guard for [`Self::rescan_local_models`] so concurrent
     /// refresh requests coalesce instead of scanning the disk in parallel.
@@ -1588,6 +1598,57 @@ impl ModelManager {
         Ok(())
     }
 
+    /// KB-045: claim a model's download slot in the token registry,
+    /// atomically. None means a live transfer already owns the model id:
+    /// the caller must NOT start a second download (the old overwrite
+    /// replaced the first transfer's token, so a cancel then hit whichever
+    /// transfer registered last and the guard drop of the other removed
+    /// the survivor's token). Pure over the registry so the guard is
+    /// unit-testable without a manager.
+    fn claim_download_slot(
+        flags: &mut HashMap<String, Arc<CancellationToken>>,
+        model_id: &str,
+    ) -> Option<Arc<CancellationToken>> {
+        if flags.contains_key(model_id) {
+            return None;
+        }
+        let token: Arc<CancellationToken> = Arc::new(CancellationToken::new());
+        flags.insert(model_id.to_string(), token.clone());
+        Some(token)
+    }
+
+    /// KB-047: remove the model's token ONLY while it is still THIS
+    /// transfer's token (Arc identity). Pure over the registry so the
+    /// ownership rule is unit-testable without a manager.
+    fn remove_token_if_owner(
+        flags: &mut HashMap<String, Arc<CancellationToken>>,
+        model_id: &str,
+        token: &Arc<CancellationToken>,
+    ) {
+        if flags
+            .get(model_id)
+            .map(|live| Arc::ptr_eq(live, token))
+            .unwrap_or(false)
+        {
+            flags.remove(model_id);
+        }
+    }
+
+    /// KB-045: the download-entry gate both transfer paths share: claim
+    /// the slot first, and only when the claim wins mark the model
+    /// downloading. Some(token) proceeds; None means another transfer is
+    /// live and this caller returns Ok without touching any state (the
+    /// live transfer's own events drive the UI).
+    fn try_begin_download(&self, model_id: &str) -> Option<Arc<CancellationToken>> {
+        let mut models = self.available_models.lock().unwrap();
+        let mut flags = self.cancel_flags.lock().unwrap();
+        let token = Self::claim_download_slot(&mut flags, model_id)?;
+        if let Some(model) = models.get_mut(model_id) {
+            model.is_downloading = true;
+        }
+        Some(token)
+    }
+
     fn update_download_status(&self) -> Result<()> {
         // Snapshot in-flight download ids before taking the registry lock (the
         // two locks are never nested) so a mid-download entry is never dropped.
@@ -2288,26 +2349,29 @@ impl ModelManager {
             return Ok(());
         }
 
-        // Mark downloading; the guard resets the flag on any error path.
-        {
-            let mut models = self.available_models.lock().unwrap();
-            if let Some(model) = models.get_mut(&model_id) {
-                model.is_downloading = true;
+        // KB-045: claim the download slot BEFORE marking anything. A live
+        // transfer already owning this model id means this caller is a
+        // duplicate start (double-click, two surfaces): return Ok without
+        // touching state - the live transfer's events drive the UI, and
+        // overwriting its token would break cancel for it.
+        let cancel_token = match self.try_begin_download(&model_id) {
+            Some(token) => token,
+            None => {
+                info!(
+                    "Download of {} already in progress; ignoring the duplicate start",
+                    model_id
+                );
+                return Ok(());
             }
-        }
+        };
 
-        // Register a cancellation token so `cancel_download` can abort this
-        // transfer promptly. The guard removes it on every exit path.
-        let cancel_token = CancellationToken::new();
-        {
-            let mut flags = self.cancel_flags.lock().unwrap();
-            flags.insert(model_id.clone(), cancel_token.clone());
-        }
-
+        // Guard resets the flag on any error path and removes only this
+        // transfer's own token (KB-047).
         let mut cleanup = DownloadCleanup {
             available_models: &self.available_models,
             cancel_flags: &self.cancel_flags,
             model_id: model_id.clone(),
+            token: cancel_token.clone(),
             disarmed: false,
         };
 
@@ -2572,7 +2636,14 @@ impl ModelManager {
 
         cleanup.disarmed = true;
         self.update_download_status()?;
-        self.cancel_flags.lock().unwrap().remove(&model_id);
+        // KB-047: owner-checked removal (disarmed above, so this is the
+        // success path's own cleanup): a token that is no longer this
+        // transfer's must belong to a newer live download.
+        Self::remove_token_if_owner(
+            &mut self.cancel_flags.lock().unwrap(),
+            &model_id,
+            &cancel_token,
+        );
         // KB-230 belt-and-braces: delete_model cancels this transfer's
         // token before removing files, but a final-chunk attempt can
         // still complete after the delete - hf-hub reports Ok even when
@@ -2610,7 +2681,7 @@ impl ModelManager {
         model_id: &str,
         filename: &str,
         mirror: &crate::catalog::MirrorFile,
-        cancel_token: CancellationToken,
+        cancel_token: Arc<CancellationToken>,
     ) -> Result<bool> {
         fs::create_dir_all(&self.models_dir)?;
         let model_path = self.models_dir.join(filename);
@@ -2678,27 +2749,28 @@ impl ModelManager {
             return Ok(());
         }
 
-        // Mark as downloading
-        {
-            let mut models = self.available_models.lock().unwrap();
-            if let Some(model) = models.get_mut(model_id) {
-                model.is_downloading = true;
+        // KB-045: claim the download slot BEFORE marking anything; a
+        // duplicate start (the model already has a live transfer) returns
+        // Ok without touching state, and the live transfer keeps its token.
+        let cancel_token = match self.try_begin_download(model_id) {
+            Some(token) => token,
+            None => {
+                info!(
+                    "Download of {} already in progress; ignoring the duplicate start",
+                    model_id
+                );
+                return Ok(());
             }
-        }
-
-        // Create cancellation token for this download
-        let cancel_token = CancellationToken::new();
-        {
-            let mut flags = self.cancel_flags.lock().unwrap();
-            flags.insert(model_id.to_string(), cancel_token.clone());
-        }
+        };
 
         // Guard ensures is_downloading and cancel_flags are cleaned up on every
-        // error path. Disarmed only on success (which sets is_downloaded = true).
+        // error path, removing only this transfer's own token (KB-047).
+        // Disarmed only on success (which sets is_downloaded = true).
         let mut cleanup = DownloadCleanup {
             available_models: &self.available_models,
             cancel_flags: &self.cancel_flags,
             model_id: model_id.to_string(),
+            token: cancel_token.clone(),
             disarmed: false,
         };
 
@@ -2828,7 +2900,13 @@ impl ModelManager {
                 model.partial_size = 0;
             }
         }
-        self.cancel_flags.lock().unwrap().remove(model_id);
+        // KB-047: owner-checked removal (the guard is disarmed on this
+        // success path): never yank a newer live transfer's token.
+        Self::remove_token_if_owner(
+            &mut self.cancel_flags.lock().unwrap(),
+            model_id,
+            &cancel_token,
+        );
 
         // KB-230 belt-and-braces: a model deleted mid-download (delete
         // cancels this transfer first, but the final chunk can still
@@ -3124,18 +3202,32 @@ impl ModelManager {
     pub fn cancel_download(&self, model_id: &str) -> Result<()> {
         debug!("ModelManager: cancel_download called for: {}", model_id);
 
+        // KB-047: no registered token means no live download for this
+        // model. The old path still cleared is_downloading, re-synced the
+        // status registry, and emitted model-download-cancelled - so a
+        // stray cancel (a late UI button, a double cancel) reported a
+        // cancellation that cancelled nothing and could clear the flag of
+        // a download that had just claimed the slot between the checks.
+        // A no-op with a quiet log instead: no state, no event, no error.
+        let token = {
+            let flags = self.cancel_flags.lock().unwrap();
+            match flags.get(model_id) {
+                Some(token) => token.clone(),
+                None => {
+                    debug!(
+                        "cancel_download for {} with no live download: nothing to do",
+                        model_id
+                    );
+                    return Ok(());
+                }
+            }
+        };
+
         // Trigger the cancellation token to stop the download. The HF path
         // aborts its in-flight chunk tasks and unwinds promptly; the URL path
         // observes it on the next chunk of its stream loop.
-        {
-            let flags = self.cancel_flags.lock().unwrap();
-            if let Some(token) = flags.get(model_id) {
-                token.cancel();
-                info!("Cancellation token triggered for: {}", model_id);
-            } else {
-                warn!("No active download found for: {}", model_id);
-            }
-        }
+        token.cancel();
+        info!("Cancellation token triggered for: {}", model_id);
 
         // Update state immediately for UI responsiveness
         {
@@ -3905,6 +3997,138 @@ mod tests {
         assert!(
             !ModelManager::download_complete_event_allowed(false, false),
             "deleted on both axes must not emit"
+        );
+    }
+
+    /// KB-045: the download slot is claimed atomically. The first claim
+    /// wins and registers its token; a second claim for the same model id
+    /// gets None (the duplicate start no-ops instead of overwriting the
+    /// live transfer's token, which used to disarm cancel for whichever
+    /// transfer had registered first). A DIFFERENT model's slot is
+    /// unaffected.
+    #[test]
+    fn download_slot_claim_is_exclusive_per_model() {
+        let mut flags: HashMap<String, Arc<CancellationToken>> = HashMap::new();
+
+        let first =
+            ModelManager::claim_download_slot(&mut flags, "small").expect("the first claim wins");
+        assert!(
+            ModelManager::claim_download_slot(&mut flags, "small").is_none(),
+            "a second claim for the same model is refused"
+        );
+        // The refusal did not touch the live transfer's token.
+        let live = flags.get("small").expect("the live token stays registered");
+        assert!(
+            Arc::ptr_eq(&first, live),
+            "the refused claim never overwrote the live token"
+        );
+
+        // A different model claims its own slot fine.
+        let other = ModelManager::claim_download_slot(&mut flags, "large")
+            .expect("another model's slot is independent");
+        assert!(!Arc::ptr_eq(&first, &other));
+        assert!(flags.contains_key("large"));
+    }
+
+    /// KB-047: token removal is ownership-checked. A guard (or success
+    /// path) removes the map entry ONLY while it is still ITS token: a
+    /// superseded transfer unwinding late must not yank the newer live
+    /// transfer's token, and its own token always comes out.
+    #[test]
+    fn token_removal_is_scoped_to_the_owning_transfer() {
+        let mut flags: HashMap<String, Arc<CancellationToken>> = HashMap::new();
+
+        // Own token: removed.
+        let mine = ModelManager::claim_download_slot(&mut flags, "small").unwrap();
+        ModelManager::remove_token_if_owner(&mut flags, "small", &mine);
+        assert!(!flags.contains_key("small"), "the owner's token is removed");
+
+        // Someone else's token: kept.
+        let live = ModelManager::claim_download_slot(&mut flags, "small").unwrap();
+        let stale = Arc::new(CancellationToken::new());
+        ModelManager::remove_token_if_owner(&mut flags, "small", &stale);
+        assert!(
+            flags.contains_key("small"),
+            "a stale transfer's cleanup never removes the live token"
+        );
+        let kept = flags.get("small").unwrap();
+        assert!(Arc::ptr_eq(&kept, &live));
+
+        // An absent entry is a quiet no-op.
+        ModelManager::remove_token_if_owner(&mut flags, "ghost", &stale);
+    }
+
+    /// KB-045 + KB-047 wiring pins. Both transfer paths and cancel_download
+    /// need a live AppHandle a unit test cannot mount headless, so the
+    /// wiring is pinned against this committed source (the same convention
+    /// as the authorization-gate pin in persistent_notice.rs): every
+    /// download path gates its start on try_begin_download (the shared
+    /// claim), the cleanup guard carries its own token, and cancel_download
+    /// returns BEFORE touching state or emitting when no token exists.
+    #[test]
+    fn download_paths_gate_on_the_slot_claim_and_cancel_no_ops_without_a_token() {
+        let source = include_str!("model.rs");
+
+        // Both transfer paths call try_begin_download before marking state.
+        for marker in ["async fn download_hf_model", "pub async fn download_model"] {
+            let at = source
+                .find(marker)
+                .unwrap_or_else(|| panic!("the download path `{marker}` must stay in model.rs"));
+            let rest = &source[at..];
+            let body_end = rest
+                .find("\n    pub fn cancel_download")
+                .unwrap_or(rest.len());
+            let body = &rest[..body_end];
+            let claim = body
+                .find("match self.try_begin_download(")
+                .unwrap_or_else(|| panic!("`{marker}` gates its start on the slot claim"));
+            let transfer = body
+                .find("download_http_resumable(")
+                .or_else(|| body.find("download_with_progress_cancellable("))
+                .expect("the transfer itself");
+            assert!(
+                claim < transfer,
+                "`{marker}` claims the slot before any transfer starts"
+            );
+        }
+
+        // The cleanup guard owns its token for the owner-checked removal.
+        let guard_at = source.find("struct DownloadCleanup").expect("the guard");
+        let guard_end = source[guard_at..]
+            .find("\npub struct ModelManager")
+            .map(|end| guard_at + end)
+            .unwrap_or(source.len());
+        let guard_body = &source[guard_at..guard_end];
+        assert!(
+            guard_body.contains("remove_token_if_owner"),
+            "the guard's drop is ownership-checked (KB-047)"
+        );
+        assert!(
+            guard_body.contains("token: Arc<CancellationToken>"),
+            "the guard struct carries its own token"
+        );
+
+        // cancel_download's no-op return precedes every state mutation and
+        // the cancelled event.
+        let at = source
+            .find("pub fn cancel_download")
+            .expect("cancel_download");
+        let rest = &source[at..];
+        let body_end = rest.find("\n}").unwrap_or(rest.len());
+        let body = &rest[..body_end];
+        let no_token_return = body.find("None => {").expect("the no-token arm exists");
+        let no_op_return = body
+            .find("return Ok(());")
+            .expect("the no-token arm returns without error");
+        let state_clear = body
+            .find("model.is_downloading = false")
+            .expect("the state clear");
+        let emit = body
+            .find(".emit(\"model-download-cancelled\"")
+            .expect("the cancel event emit call");
+        assert!(
+            no_token_return < no_op_return && no_op_return < state_clear && no_op_return < emit,
+            "without a token, cancel touches no state and emits nothing"
         );
     }
 }

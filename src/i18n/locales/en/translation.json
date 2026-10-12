@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "View changes",
-      "hideChanges": "Hide changes"
+      "hideChanges": "Hide changes",
+      "dbRecoveredNotice": "Your transcription history database was unreadable, so a fresh one was started. The previous database was kept as {{file}}."
     },
     "debug": {
       "title": "Debug",

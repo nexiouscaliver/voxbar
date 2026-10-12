@@ -64,6 +64,7 @@ import {
   initNotificationLog,
   pushNotificationLogEntry,
 } from "@/lib/notificationLog";
+import { postHistoryDbRecoveryNoticeOnce } from "@/lib/historyDbRecovery";
 import {
   getOsNotificationPrefs,
   initNotificationPrefs,
@@ -562,6 +563,14 @@ function App() {
     initNotificationPrefs();
     initNotificationLog();
   }, []);
+
+  // KB-179 boot: pull the history-database recovery record once (the
+  // backend quarantined an unreadable history.db before any webview
+  // existed) and post the persistent notice naming the quarantined file.
+  // The helper's session flag keeps a remount from re-posting.
+  useEffect(() => {
+    void postHistoryDbRecoveryNoticeOnce(t);
+  }, [t]);
 
   // v1.6.0 W1-L4 click-through: activating a posted notification focuses
   // the app and navigates via the pure noticeClickSection seam: errors go

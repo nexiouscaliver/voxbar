@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Veure els canvis",
-      "hideChanges": "Amagar els canvis"
+      "hideChanges": "Amagar els canvis",
+      "dbRecoveredNotice": "La base de dades de l'historial de transcripcions no es podia llegir, així que se n'ha iniciat una de nova. La base de dades anterior s'ha conservat com a {{file}}."
     },
     "debug": {
       "title": "Depuració",

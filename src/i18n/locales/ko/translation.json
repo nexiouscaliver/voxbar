@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms로 처리",
       "viewChanges": "변경 사항 보기",
-      "hideChanges": "변경 사항 접기"
+      "hideChanges": "변경 사항 접기",
+      "dbRecoveredNotice": "전사 기록 데이터베이스를 읽을 수 없어 새 데이터베이스가 시작되었습니다. 이전 데이터베이스는 {{file}}(으)로 보관되었습니다."
     },
     "debug": {
       "title": "디버그",

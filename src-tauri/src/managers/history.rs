@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Local, Utc};
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use rusqlite::{params, Connection, OptionalExtension};
 use rusqlite_migration::{Migrations, M};
 use serde::{Deserialize, Serialize};
@@ -140,10 +140,114 @@ pub struct RecentCompanionEntry {
     pub timestamp: i64,
 }
 
+/// KB-179: what a launch-time database recovery wants the user to know.
+/// Surfaced through the `get_history_db_recovery` command so the frontend
+/// can post one persistent notice (the recovery happens before any webview
+/// is listening, so a push would be missed; the pull is the reliable leg).
+#[derive(Clone, Debug, Serialize, Deserialize, Type)]
+pub struct HistoryDbRecovery {
+    /// The file name the unreadable database was quarantined under (inside
+    /// the app data dir), so the notice can name where the old data lives.
+    pub quarantined_file: String,
+}
+
+/// Open (creating if needed) the history database at `db_path` and bring it
+/// to the latest migration. Free of the manager so the KB-179 recovery
+/// path and its unit tests can run it against a bare path (the corrupt
+/// fixture needs no app handle).
+fn init_database_at(db_path: &std::path::Path) -> Result<()> {
+    let mut conn = Connection::open(db_path)?;
+
+    // Handle migration from tauri-plugin-sql to rusqlite_migration
+    // tauri-plugin-sql used _sqlx_migrations table, rusqlite_migration uses user_version pragma
+    HistoryManager::migrate_from_tauri_plugin_sql(&conn)?;
+
+    // Create migrations object and run to latest version
+    let migrations = Migrations::new(MIGRATIONS.to_vec());
+
+    // Validate migrations in debug builds
+    #[cfg(debug_assertions)]
+    migrations.validate().expect("Invalid migrations");
+
+    // Get current version before migration
+    let version_before: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+    debug!("Database version before migration: {}", version_before);
+
+    // Apply any pending migrations
+    migrations.to_latest(&mut conn)?;
+
+    // Get version after migration
+    let version_after: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
+
+    if version_after > version_before {
+        info!(
+            "Database migrated from version {} to {}",
+            version_before, version_after
+        );
+    } else {
+        debug!("Database already at latest version {}", version_after);
+    }
+
+    Ok(())
+}
+
+/// KB-179 (operator decision D3): move an unreadable history database out
+/// of the way so the next open starts fresh. The first quarantine takes
+/// the plain `history.db.corrupt` name; when that already exists (an
+/// earlier corrupt file was kept) the timestamp suffix keeps both. A
+/// stale rollback journal belonging to the dead database is removed so it
+/// can never try to roll back into the fresh one. Returns the quarantine
+/// path. Free of the manager so the corrupt-file fixture tests run
+/// without an app handle.
+fn quarantine_history_db(db_path: &std::path::Path, timestamp_secs: i64) -> Result<PathBuf> {
+    let file_name = db_path
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or_else(|| anyhow!("history database path has no file name"))?;
+
+    let quarantine_path = if db_path
+        .parent()
+        .map(|dir| dir.join(format!("{}.corrupt", file_name)))
+        .map(|plain| plain.exists())
+        .unwrap_or(false)
+    {
+        db_path
+            .parent()
+            .ok_or_else(|| anyhow!("history database path has no parent dir"))?
+            .join(format!("{}.corrupt.{}", file_name, timestamp_secs))
+    } else {
+        db_path
+            .parent()
+            .ok_or_else(|| anyhow!("history database path has no parent dir"))?
+            .join(format!("{}.corrupt", file_name))
+    };
+
+    // The dead database's rollback journal, if one was left behind, belongs
+    // to the file being quarantined: drop it rather than let SQLite consider
+    // rolling it back into the fresh database that takes this path next.
+    let journal_path = db_path
+        .parent()
+        .ok_or_else(|| anyhow!("history database path has no parent dir"))?
+        .join(format!("{}-journal", file_name));
+    if journal_path.exists() {
+        let _ = fs::remove_file(&journal_path);
+    }
+
+    if db_path.exists() {
+        fs::rename(db_path, &quarantine_path)?;
+    }
+
+    Ok(quarantine_path)
+}
+
 pub struct HistoryManager {
     app_handle: AppHandle,
     recordings_dir: PathBuf,
     db_path: PathBuf,
+    /// KB-179: set when this launch found the stored history database
+    /// unreadable, quarantined it, and started a fresh database. None on
+    /// every healthy launch.
+    db_recovery: Option<HistoryDbRecovery>,
 }
 
 impl HistoryManager {
@@ -159,62 +263,54 @@ impl HistoryManager {
             debug!("Created recordings directory: {:?}", recordings_dir);
         }
 
+        // KB-179: a corrupted or unwritable history.db used to panic the
+        // app at every launch (the caller's expect). Operator decision D3:
+        // on init failure quarantine the unreadable file, start a fresh
+        // database, and record the recovery so a persistent notice can be
+        // surfaced; only a genuinely unrecoverable app data dir (nothing
+        // can be renamed or created in it) still fails construction.
+        let mut db_recovery = None;
+        if let Err(first_error) = init_database_at(&db_path) {
+            error!(
+                "History database at {:?} failed to initialize ({}); quarantining it and starting a fresh database",
+                db_path, first_error
+            );
+            let quarantined = quarantine_history_db(&db_path, Utc::now().timestamp())?;
+            init_database_at(&db_path)?;
+            db_recovery = Some(HistoryDbRecovery {
+                quarantined_file: quarantined
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .unwrap_or_default()
+                    .to_string(),
+            });
+            warn!(
+                "Started a fresh history database; the unreadable one was kept as {:?}",
+                quarantined
+            );
+        }
+
         let manager = Self {
             app_handle: app_handle.clone(),
             recordings_dir,
             db_path,
+            db_recovery,
         };
-
-        // Initialize database and run migrations synchronously
-        manager.init_database()?;
 
         Ok(manager)
     }
 
-    fn init_database(&self) -> Result<()> {
-        info!("Initializing database at {:?}", self.db_path);
-
-        let mut conn = Connection::open(&self.db_path)?;
-
-        // Handle migration from tauri-plugin-sql to rusqlite_migration
-        // tauri-plugin-sql used _sqlx_migrations table, rusqlite_migration uses user_version pragma
-        self.migrate_from_tauri_plugin_sql(&conn)?;
-
-        // Create migrations object and run to latest version
-        let migrations = Migrations::new(MIGRATIONS.to_vec());
-
-        // Validate migrations in debug builds
-        #[cfg(debug_assertions)]
-        migrations.validate().expect("Invalid migrations");
-
-        // Get current version before migration
-        let version_before: i32 =
-            conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
-        debug!("Database version before migration: {}", version_before);
-
-        // Apply any pending migrations
-        migrations.to_latest(&mut conn)?;
-
-        // Get version after migration
-        let version_after: i32 = conn.pragma_query_value(None, "user_version", |row| row.get(0))?;
-
-        if version_after > version_before {
-            info!(
-                "Database migrated from version {} to {}",
-                version_before, version_after
-            );
-        } else {
-            debug!("Database already at latest version {}", version_after);
-        }
-
-        Ok(())
+    /// KB-179: the recovery record for this launch, if any (see
+    /// [`HistoryDbRecovery`]).
+    pub fn db_recovery(&self) -> Option<&HistoryDbRecovery> {
+        self.db_recovery.as_ref()
     }
 
     /// Migrate from tauri-plugin-sql's migration tracking to rusqlite_migration's.
-    /// tauri-plugin-sql used a _sqlx_migrations table, while rusqlite_migration uses
+    /// tauri-plugin-sql used _sqlx_migrations table, while rusqlite_migration uses
     /// SQLite's user_version pragma. This function checks if the old system was in use
     /// and sets the user_version accordingly so migrations don't re-run.
-    fn migrate_from_tauri_plugin_sql(&self, conn: &Connection) -> Result<()> {
+    fn migrate_from_tauri_plugin_sql(conn: &Connection) -> Result<()> {
         // Check if the old _sqlx_migrations table exists
         let has_sqlx_migrations: bool = conn
             .query_row(
@@ -551,6 +647,13 @@ impl HistoryManager {
 
     /// Update an existing history entry with new transcription results (used by retry).
     /// `model_id` is the model that produced this retry's transcription.
+    /// `post_process_summary` is the retry's pp: run summary; the five
+    /// summary columns are rewritten ATOMICALLY with the text (KB-023 +
+    /// KB-240: the old update left the previous run's provider/model/
+    /// prompt/outcome/latency on the row while swapping the text under
+    /// them, so the chip described a run that no longer produced the
+    /// entry; a retry whose leg did not run passes None and the columns
+    /// clear to NULL instead of keeping the stale run).
     pub fn update_transcription(
         &self,
         id: i64,
@@ -558,20 +661,79 @@ impl HistoryManager {
         post_processed_text: Option<String>,
         post_process_prompt: Option<String>,
         model_id: Option<String>,
+        post_process_summary: Option<crate::post_process_runs::PostProcessRunSummary>,
     ) -> Result<HistoryEntry> {
         let conn = self.get_connection()?;
+        let entry = Self::update_transcription_with_conn(
+            &conn,
+            id,
+            transcription_text,
+            post_processed_text,
+            post_process_prompt,
+            model_id,
+            post_process_summary,
+        )?;
+
+        debug!("Updated transcription for history entry {}", id);
+
+        if let Err(e) = (HistoryUpdatePayload::Updated {
+            entry: entry.clone(),
+        })
+        .emit(&self.app_handle)
+        {
+            error!("Failed to emit history-updated event: {}", e);
+        }
+
+        Ok(entry)
+    }
+
+    /// The `_with_conn` twin of [`Self::update_transcription`], so the
+    /// KB-023/KB-240 column contract (all five summary columns move with
+    /// the text, NULL when the leg did not run) is pinnable against an
+    /// in-memory schema.
+    #[allow(clippy::too_many_arguments)] // the retry's whole result rides together
+    fn update_transcription_with_conn(
+        conn: &Connection,
+        id: i64,
+        transcription_text: String,
+        post_processed_text: Option<String>,
+        post_process_prompt: Option<String>,
+        model_id: Option<String>,
+        post_process_summary: Option<crate::post_process_runs::PostProcessRunSummary>,
+    ) -> Result<HistoryEntry> {
+        let (pp_provider, pp_model, pp_prompt_id, pp_outcome, pp_latency) =
+            match &post_process_summary {
+                Some(summary) => (
+                    Some(summary.provider_id.clone()),
+                    Some(summary.model.clone()),
+                    Some(summary.prompt_id.clone()),
+                    Some(summary.outcome.clone()),
+                    Some(summary.latency_ms as i64),
+                ),
+                None => (None, None, None, None, None),
+            };
         let updated = conn.execute(
             "UPDATE transcription_history
              SET transcription_text = ?1,
                  post_processed_text = ?2,
                  post_process_prompt = ?3,
-                 model_id = ?4
-             WHERE id = ?5",
+                 model_id = ?4,
+                 post_process_provider = ?5,
+                 post_process_model = ?6,
+                 post_process_prompt_id = ?7,
+                 post_process_outcome = ?8,
+                 post_process_latency_ms = ?9
+             WHERE id = ?10",
             params![
                 transcription_text,
                 post_processed_text,
                 post_process_prompt,
                 model_id.unwrap_or_default(),
+                pp_provider,
+                pp_model,
+                pp_prompt_id,
+                pp_outcome,
+                pp_latency,
                 id
             ],
         )?;
@@ -590,16 +752,6 @@ impl HistoryManager {
                 params![id],
                 Self::map_history_entry,
             )?;
-
-        debug!("Updated transcription for history entry {}", id);
-
-        if let Err(e) = (HistoryUpdatePayload::Updated {
-            entry: entry.clone(),
-        })
-        .emit(&self.app_handle)
-        {
-            error!("Failed to emit history-updated event: {}", e);
-        }
 
         Ok(entry)
     }
@@ -640,6 +792,13 @@ impl HistoryManager {
         }
     }
 
+    /// Delete the given rows and their WAV files. KB-025: every row that
+    /// leaves the database emits its own `Deleted { id }` event - the
+    /// cleanup paths used to delete with zero emission while the frontend
+    /// listener ignored 'deleted' anyway, so retention-cleaned rows lived
+    /// on as ghosts in an already-open History tab. The event fires right
+    /// after each row's delete (even when the WAV removal then fails: the
+    /// row is gone either way).
     fn delete_entries_and_files(&self, entries: &[(i64, String)]) -> Result<usize> {
         if entries.is_empty() {
             return Ok(0);
@@ -654,6 +813,11 @@ impl HistoryManager {
                 "DELETE FROM transcription_history WHERE id = ?1",
                 params![id],
             )?;
+
+            // KB-025: the row is gone; tell every listening surface now.
+            if let Err(e) = (HistoryUpdatePayload::Deleted { id: *id }).emit(&self.app_handle) {
+                error!("Failed to emit history-deleted event: {}", e);
+            }
 
             // Delete WAV file
             let file_path = self.recordings_dir.join(file_name);
@@ -672,7 +836,27 @@ impl HistoryManager {
 
     fn cleanup_by_count(&self, limit: usize) -> Result<()> {
         let conn = self.get_connection()?;
+        let entries = Self::unsaved_entries_beyond_limit_with_conn(&conn, limit)?;
 
+        if !entries.is_empty() {
+            let deleted_count = self.delete_entries_and_files(&entries)?;
+
+            if deleted_count > 0 {
+                debug!("Cleaned up {} old history entries by count", deleted_count);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// KB-025: the count-based cleanup's selection, split onto a connection
+    /// so the pass is unit-testable (previously NO cleanup test existed).
+    /// Unsaved entries only, newest first; everything past the newest
+    /// `limit` rows is selected for deletion.
+    fn unsaved_entries_beyond_limit_with_conn(
+        conn: &Connection,
+        limit: usize,
+    ) -> Result<Vec<(i64, String)>> {
         // Get all entries that are not saved, ordered by timestamp desc
         let mut stmt = conn.prepare(
             "SELECT id, file_name FROM transcription_history WHERE saved = 0 ORDER BY timestamp DESC"
@@ -688,15 +872,10 @@ impl HistoryManager {
         }
 
         if entries.len() > limit {
-            let entries_to_delete = &entries[limit..];
-            let deleted_count = self.delete_entries_and_files(entries_to_delete)?;
-
-            if deleted_count > 0 {
-                debug!("Cleaned up {} old history entries by count", deleted_count);
-            }
+            Ok(entries.split_off(limit))
+        } else {
+            Ok(Vec::new())
         }
-
-        Ok(())
     }
 
     fn cleanup_by_time(
@@ -714,6 +893,28 @@ impl HistoryManager {
             _ => unreachable!("Should not reach here"),
         };
 
+        let entries_to_delete =
+            Self::unsaved_entries_older_than_with_conn(&conn, cutoff_timestamp)?;
+
+        let deleted_count = self.delete_entries_and_files(&entries_to_delete)?;
+
+        if deleted_count > 0 {
+            debug!(
+                "Cleaned up {} old history entries based on retention period",
+                deleted_count
+            );
+        }
+
+        Ok(())
+    }
+
+    /// KB-025: the time-based cleanup's selection, split onto a connection
+    /// so the pass is unit-testable. Unsaved entries strictly older than
+    /// the cutoff are selected; saved entries are never touched.
+    fn unsaved_entries_older_than_with_conn(
+        conn: &Connection,
+        cutoff_timestamp: i64,
+    ) -> Result<Vec<(i64, String)>> {
         // Get all unsaved entries older than the cutoff timestamp
         let mut stmt = conn.prepare(
             "SELECT id, file_name FROM transcription_history WHERE saved = 0 AND timestamp < ?1",
@@ -727,17 +928,7 @@ impl HistoryManager {
         for row in rows {
             entries_to_delete.push(row?);
         }
-
-        let deleted_count = self.delete_entries_and_files(&entries_to_delete)?;
-
-        if deleted_count > 0 {
-            debug!(
-                "Cleaned up {} old history entries based on retention period",
-                deleted_count
-            );
-        }
-
-        Ok(())
+        Ok(entries_to_delete)
     }
 
     pub async fn get_history_entries(
@@ -1796,5 +1987,302 @@ mod tests {
         )
         .expect("query capped per-phone recents");
         assert_eq!(capped.iter().map(|e| e.timestamp).collect::<Vec<_>>(), vec![300]);
+    }
+
+    /// KB-179 (operator decision D3): a corrupt history.db must not take
+    /// the app down with it. The quarantine seam renames the unreadable
+    /// file to history.db.corrupt, the retry init at the same path
+    /// succeeds (a fresh database), and the ORIGINAL bytes survive in the
+    /// quarantine for inspection. Corrupt-file fixture: garbage bytes
+    /// that make SQLite's first pragma fail as "file is not a database".
+    #[test]
+    fn corrupt_db_is_quarantined_and_a_fresh_one_starts() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("history.db");
+        let corrupt_bytes = b"this is definitely not a sqlite database, not even close";
+        std::fs::write(&db_path, corrupt_bytes).expect("write corrupt fixture");
+
+        // The pre-fix behavior this pins away: init on the corrupt file
+        // errors (the caller used to expect() on exactly this).
+        assert!(
+            init_database_at(&db_path).is_err(),
+            "the corrupt fixture must actually fail init"
+        );
+
+        let quarantined = quarantine_history_db(&db_path, 1_700_000_000)
+            .expect("quarantine the corrupt database");
+        assert_eq!(
+            quarantined,
+            dir.path().join("history.db.corrupt"),
+            "the first quarantine takes the plain .corrupt name"
+        );
+        assert!(
+            !db_path.exists(),
+            "the corrupt file no longer sits at the live path"
+        );
+        assert_eq!(
+            std::fs::read(&quarantined).expect("read quarantine"),
+            corrupt_bytes.to_vec(),
+            "the unreadable database is kept, not destroyed"
+        );
+
+        // The recovery's second leg: a fresh database initializes at the
+        // same path and is queryable.
+        init_database_at(&db_path).expect("fresh database initializes");
+        let conn = Connection::open(&db_path).expect("open fresh database");
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM transcription_history", [], |row| {
+                row.get(0)
+            })
+            .expect("query fresh database");
+        assert_eq!(count, 0, "the fresh database starts empty");
+    }
+
+    /// KB-179: when history.db.corrupt already exists (an earlier corrupt
+    /// database was kept), the next quarantine takes the timestamped name
+    /// so BOTH files survive.
+    #[test]
+    fn second_quarantine_takes_the_timestamped_suffix() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("history.db");
+        std::fs::write(&db_path, b"first corrupt payload").expect("first fixture");
+        std::fs::write(
+            dir.path().join("history.db.corrupt"),
+            b"older corrupt payload",
+        )
+        .expect("existing quarantine");
+
+        let quarantined = quarantine_history_db(&db_path, 1_700_000_000).expect("quarantine");
+        assert_eq!(
+            quarantined,
+            dir.path().join("history.db.corrupt.1700000000"),
+            "the timestamped suffix keeps the older quarantine intact"
+        );
+        assert_eq!(
+            std::fs::read(dir.path().join("history.db.corrupt")).expect("older quarantine"),
+            b"older corrupt payload".to_vec(),
+            "the earlier corrupt file is not overwritten"
+        );
+        assert_eq!(
+            std::fs::read(&quarantined).expect("new quarantine"),
+            b"first corrupt payload".to_vec()
+        );
+    }
+
+    /// KB-179: a stale rollback journal left next to the dead database is
+    /// dropped by the quarantine, so it can never try to roll back into
+    /// the fresh database that takes the path next.
+    #[test]
+    fn quarantine_drops_the_stale_rollback_journal() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("history.db");
+        std::fs::write(&db_path, b"corrupt payload").expect("fixture");
+        let journal = dir.path().join("history.db-journal");
+        std::fs::write(&journal, b"stale journal").expect("journal fixture");
+
+        quarantine_history_db(&db_path, 1_700_000_000).expect("quarantine");
+        assert!(!journal.exists(), "the stale journal is gone");
+    }
+
+    /// KB-179 wiring pin: `new()` must attempt the quarantine-and-retry
+    /// instead of failing (the caller's expect panicked the whole app at
+    /// every launch on a corrupt database). The manager needs a full app
+    /// handle a unit test cannot mount headless, so the wiring is pinned
+    /// against this committed source (the same convention as the
+    /// companion-delete pin above): the init failure falls into
+    /// quarantine + fresh init, and the recovery is recorded for the
+    /// frontend's persistent notice.
+    #[test]
+    fn init_failure_quarantines_and_retries_instead_of_failing() {
+        let source = include_str!("history.rs");
+        let at = source
+            .find("pub fn new(app_handle: &AppHandle)")
+            .expect("new()");
+        let end = at
+            + source[at..]
+                .find("pub fn db_recovery")
+                .expect("the fn after new()");
+        let body = &source[at..end];
+        let first_init = body
+            .find("if let Err(first_error) = init_database_at(&db_path)")
+            .expect("the first init's failure is handled, not propagated");
+        let quarantine = body
+            .find("quarantine_history_db(&db_path, Utc::now().timestamp())?")
+            .expect("the unreadable database is quarantined");
+        let retry = body
+            .find("init_database_at(&db_path)?;")
+            .expect("a fresh database initializes at the same path");
+        let record = body
+            .find("db_recovery = Some(HistoryDbRecovery {")
+            .expect("the recovery is recorded for the persistent notice");
+        assert!(
+            first_init < quarantine && quarantine < retry && retry < record,
+            "the recovery order is: fail, quarantine, fresh init, record"
+        );
+    }
+
+    /// KB-023 + KB-240: update_transcription rewrites the five pp summary
+    /// columns ATOMICALLY with the text. A toggle-on retry (the leg ran,
+    /// summary present) replaces all five values; a toggle-off retry (the
+    /// leg did not run, summary None) clears all five to NULL - the chip
+    /// on the row disappears instead of describing a run that no longer
+    /// produced the entry.
+    #[test]
+    fn update_transcription_rewrites_all_five_summary_columns() {
+        let conn = setup_conn();
+        insert_entry(&conn, 100, "raw one", Some("polished one"));
+        let id = conn.last_insert_rowid();
+        // Seed the row with a PREVIOUS run's summary.
+        conn.execute(
+            "UPDATE transcription_history SET
+                post_process_provider = 'openai',
+                post_process_model = 'gpt-4o-mini',
+                post_process_prompt_id = 'english_casual',
+                post_process_outcome = 'applied',
+                post_process_latency_ms = 2500
+             WHERE id = ?1",
+            params![id],
+        )
+        .expect("seed prior summary");
+
+        // Toggle-on retry: the leg re-ran and produced a fresh summary.
+        let updated = HistoryManager::update_transcription_with_conn(
+            &conn,
+            id,
+            "raw one again".to_string(),
+            Some("polished again".to_string()),
+            Some("Polish this".to_string()),
+            Some("large-v3".to_string()),
+            Some(crate::post_process_runs::PostProcessRunSummary {
+                provider_id: "anthropic".to_string(),
+                model: "claude-3-haiku".to_string(),
+                prompt_id: "english_formal".to_string(),
+                outcome: "applied".to_string(),
+                latency_ms: 1800,
+            }),
+        )
+        .expect("update with summary");
+        assert_eq!(updated.transcription_text, "raw one again");
+        assert_eq!(updated.post_process_provider.as_deref(), Some("anthropic"));
+        assert_eq!(
+            updated.post_process_model.as_deref(),
+            Some("claude-3-haiku")
+        );
+        assert_eq!(
+            updated.post_process_prompt_id.as_deref(),
+            Some("english_formal")
+        );
+        assert_eq!(updated.post_process_outcome.as_deref(), Some("applied"));
+        assert_eq!(updated.post_process_latency_ms, Some(1800));
+
+        // Toggle-off retry: the leg did not run, and ALL five columns
+        // clear (the chip goes away).
+        let cleared = HistoryManager::update_transcription_with_conn(
+            &conn,
+            id,
+            "raw only".to_string(),
+            None,
+            None,
+            Some("large-v3".to_string()),
+            None,
+        )
+        .expect("update without summary");
+        assert_eq!(cleared.post_process_provider, None);
+        assert_eq!(cleared.post_process_model, None);
+        assert_eq!(cleared.post_process_prompt_id, None);
+        assert_eq!(cleared.post_process_outcome, None);
+        assert_eq!(cleared.post_process_latency_ms, None);
+    }
+
+    /// KB-025: the count-based cleanup selects exactly the unsaved rows
+    /// beyond the newest `limit` (newest first); saved rows never count
+    /// against the limit and are never selected.
+    #[test]
+    fn count_cleanup_selects_unsaved_rows_beyond_the_limit() {
+        let conn = setup_conn();
+        for ts in 100..106 {
+            insert_entry(&conn, ts, &format!("entry {ts}"), None);
+        }
+        // One saved row in the middle: immune to cleanup.
+        conn.execute(
+            "UPDATE transcription_history SET saved = 1 WHERE timestamp = 103",
+            [],
+        )
+        .expect("save one row");
+
+        let selected = HistoryManager::unsaved_entries_beyond_limit_with_conn(&conn, 3)
+            .expect("select beyond limit");
+        let selected_ids: Vec<i64> = selected.iter().map(|(id, _)| *id).collect();
+        // Unsaved newest-first: 105, 104, 102 (103 is saved, immune),
+        // 101, 100. Keeping the newest 3 unsaved (105, 104, 102) selects
+        // 101 and 100.
+        assert_eq!(
+            selected_ids.len(),
+            2,
+            "only the unsaved rows past the limit are selected"
+        );
+        let file_names: Vec<&str> = selected.iter().map(|(_, f)| f.as_str()).collect();
+        assert_eq!(
+            file_names,
+            vec!["voxbar-101.wav", "voxbar-100.wav"],
+            "the OLDEST unsaved rows are the ones selected"
+        );
+
+        // At or below the limit: nothing is selected.
+        assert!(
+            HistoryManager::unsaved_entries_beyond_limit_with_conn(&conn, 5)
+                .expect("select at limit")
+                .is_empty()
+        );
+    }
+
+    /// KB-025: the time-based cleanup selects only UNSAVED entries older
+    /// than the cutoff; saved entries of any age and unsaved entries on
+    /// the fresh side of the cutoff stay.
+    #[test]
+    fn time_cleanup_selects_only_old_unsaved_rows() {
+        let conn = setup_conn();
+        let now = 1_700_000_000;
+        insert_entry(&conn, now - 100, "recent unsaved", None);
+        insert_entry(&conn, now - 10_000, "old unsaved", None);
+        insert_entry(&conn, now - 10_000, "old saved", None);
+        conn.execute(
+            "UPDATE transcription_history SET saved = 1 WHERE transcription_text = 'old saved'",
+            [],
+        )
+        .expect("save the old row");
+
+        let selected = HistoryManager::unsaved_entries_older_than_with_conn(&conn, now - 1_000)
+            .expect("select older than cutoff");
+        assert_eq!(selected.len(), 1, "only the old unsaved row is selected");
+        assert_eq!(selected[0].1, format!("voxbar-{}.wav", now - 10_000));
+    }
+
+    /// KB-025 wiring pin: the delete path the cleanup loops share emits a
+    /// per-id Deleted event AFTER each row leaves the table (so the open
+    /// History tab's listener can drop the ghost row). Needs a full
+    /// manager + app handle a conn-level test cannot mount, so pinned
+    /// against this committed source like the companion-delete pin above.
+    #[test]
+    fn cleanup_delete_path_emits_per_id_deleted_events() {
+        let source = include_str!("history.rs");
+        let at = source
+            .find("fn delete_entries_and_files")
+            .expect("delete_entries_and_files");
+        let end = at
+            + source[at..]
+                .find("fn cleanup_by_count")
+                .expect("the fn after delete_entries_and_files");
+        let body = &source[at..end];
+        let row_delete = body
+            .find("DELETE FROM transcription_history WHERE id = ?1")
+            .expect("the row delete");
+        let emit = body
+            .find("HistoryUpdatePayload::Deleted { id: *id }")
+            .expect("the per-id Deleted event");
+        assert!(
+            row_delete < emit,
+            "the event fires after the row is actually gone"
+        );
     }
 }

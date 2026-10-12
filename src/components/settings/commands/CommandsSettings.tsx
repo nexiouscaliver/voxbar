@@ -30,6 +30,10 @@ interface CommandRowProps {
   command: CommandId;
   entries: CommandMatrixEntry[];
   defaultCount: number | null;
+  /** KB-022: true while the default phrases have not resolved yet; add
+   * and remove wait so a pre-resolution edit cannot persist zero-phrase
+   * rows for every command it does not name. */
+  defaultsPending: boolean;
   collision: RowResetCollision | null;
   busy: boolean;
   onAdd: (command: CommandId, phrase: string) => void;
@@ -48,6 +52,7 @@ const CommandRow: React.FC<CommandRowProps> = ({
   command,
   entries,
   defaultCount,
+  defaultsPending,
   collision,
   busy,
   onAdd,
@@ -61,9 +66,12 @@ const CommandRow: React.FC<CommandRowProps> = ({
   const phrases =
     entries.find((entry) => entry.command === command)?.phrases ?? [];
 
+  // KB-022: edits disabled while defaults are unresolved (see the prop).
+  const editsLocked = busy || defaultsPending;
+
   const tryAdd = () => {
     const normalized = normalizePhrase(draft);
-    if (!normalized || busy) return;
+    if (!normalized || editsLocked) return;
     const failure = validateNewPhrase(draft, entries);
     if (failure) {
       setError(failure);
@@ -107,7 +115,7 @@ const CommandRow: React.FC<CommandRowProps> = ({
               <button
                 type="button"
                 onClick={() => onRemove(command, phrase)}
-                disabled={busy}
+                disabled={editsLocked}
                 aria-label={t("settings.commands.removePhrase", { phrase })}
                 className="shrink-0 cursor-pointer rounded-sm text-mid-gray transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
               >
@@ -132,13 +140,13 @@ const CommandRow: React.FC<CommandRowProps> = ({
             }}
             placeholder={t("settings.commands.placeholder")}
             aria-label={t(`settings.commands.names.${command}`)}
-            disabled={busy}
+            disabled={editsLocked}
           />
           <Button
             variant="secondary"
             size="sm"
             onClick={tryAdd}
-            disabled={busy || !normalizePhrase(draft)}
+            disabled={editsLocked || !normalizePhrase(draft)}
           >
             {t("settings.commands.addPhrase")}
           </Button>
@@ -229,10 +237,19 @@ export const CommandsSettings: React.FC = () => {
     [query, entries, t],
   );
 
+  // KB-022: add/remove must not commit before the default phrases have
+  // resolved. With the stored table absent and the defaults still null,
+  // every command the edit does not name would persist as a zero-phrase
+  // row (the ~29 empty commands bug); the rows wait for the defaults
+  // instead. Reset was already gated the same way.
+  const defaultsPending = defaults === null;
+
   const addPhrase = (command: CommandId, phrase: string) => {
     const current =
       entries.find((entry) => entry.command === command)?.phrases ?? [];
-    commit(replaceCommandPhrases(command, [...current, phrase], entries, null));
+    commit(
+      replaceCommandPhrases(command, [...current, phrase], entries, defaults),
+    );
     setCollisions((current2) => {
       const { [command]: _removed, ...rest } = current2;
       return rest;
@@ -247,7 +264,7 @@ export const CommandsSettings: React.FC = () => {
           entries.find((entry) => entry.command === command)?.phrases ?? []
         ).filter((existing) => existing !== phrase),
         entries,
-        null,
+        defaults,
       ),
     );
     setCollisions((current) => {
@@ -263,7 +280,12 @@ export const CommandsSettings: React.FC = () => {
             latest.find((entry) => entry.command === command)?.phrases ?? [];
           if (phrases.includes(phrase)) return;
           commit(
-            replaceCommandPhrases(command, [...phrases, phrase], latest, null),
+            replaceCommandPhrases(
+              command,
+              [...phrases, phrase],
+              latest,
+              defaults,
+            ),
           );
         },
       },
@@ -350,6 +372,7 @@ export const CommandsSettings: React.FC = () => {
                 defaults?.find((entry) => entry.command === command)?.phrases
                   .length ?? null
               }
+              defaultsPending={defaultsPending}
               collision={collisions[command] ?? null}
               busy={busy}
               onAdd={addPhrase}

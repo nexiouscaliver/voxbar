@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Visa ändringar",
-      "hideChanges": "Dölj ändringar"
+      "hideChanges": "Dölj ändringar",
+      "dbRecoveredNotice": "Databasen för din transkriberingshistorik kunde inte läsas, så en ny har startats. Den tidigare databasen sparades som {{file}}."
     },
     "debug": {
       "title": "Felsökning",

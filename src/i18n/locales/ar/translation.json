@@ -896,7 +896,8 @@
       },
       "viaPostProcess": "عبر {{model}} · {{prompt}} · {{outcome}} · {{latency}} م.ث",
       "viewChanges": "عرض التغييرات",
-      "hideChanges": "إخفاء التغييرات"
+      "hideChanges": "إخفاء التغييرات",
+      "dbRecoveredNotice": "تعذر قراءة قاعدة بيانات سجل النسخ لديك، لذلك تم بدء قاعدة جديدة. تم الاحتفاظ بقاعدة البيانات السابقة باسم {{file}}."
     },
     "debug": {
       "title": "تصحيح الأخطاء",

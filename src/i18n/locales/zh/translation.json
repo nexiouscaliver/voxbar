@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "经 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒处理",
       "viewChanges": "查看更改",
-      "hideChanges": "收起更改"
+      "hideChanges": "收起更改",
+      "dbRecoveredNotice": "转录历史数据库无法读取，因此已启动一个新数据库。原数据库已保留为 {{file}}。"
     },
     "debug": {
       "title": "调试",

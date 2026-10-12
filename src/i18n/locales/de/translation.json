@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "über {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Änderungen anzeigen",
-      "hideChanges": "Änderungen ausblenden"
+      "hideChanges": "Änderungen ausblenden",
+      "dbRecoveredNotice": "Die Datenbank Ihres Transkriptionsverlaufs war unlesbar, daher wurde eine neue gestartet. Die vorherige Datenbank wurde als {{file}} aufbewahrt."
     },
     "debug": {
       "title": "Debug",

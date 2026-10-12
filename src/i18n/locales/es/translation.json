@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "vía {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Ver cambios",
-      "hideChanges": "Ocultar cambios"
+      "hideChanges": "Ocultar cambios",
+      "dbRecoveredNotice": "La base de datos del historial de transcripciones no se podía leer, así que se inició una nueva. La base de datos anterior se conservó como {{file}}."
     },
     "debug": {
       "title": "Depuración",

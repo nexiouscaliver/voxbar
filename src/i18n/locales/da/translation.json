@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Vis ændringer",
-      "hideChanges": "Skjul ændringer"
+      "hideChanges": "Skjul ændringer",
+      "dbRecoveredNotice": "Din transskriptionshistorik-database kunne ikke læses, så en ny blev startet. Den tidligere database blev gemt som {{file}}."
     },
     "debug": {
       "title": "Fejlfinding",

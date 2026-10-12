@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "經 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒處理",
       "viewChanges": "檢視變更",
-      "hideChanges": "收合變更"
+      "hideChanges": "收合變更",
+      "dbRecoveredNotice": "轉錄歷史資料庫無法讀取，因此已啟動新的資料庫。原本的資料庫已保留為 {{file}}。"
     },
     "debug": {
       "title": "偵錯",

@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms के साथ",
       "viewChanges": "बदलाव देखें",
-      "hideChanges": "बदलाव छिपाएँ"
+      "hideChanges": "बदलाव छिपाएँ",
+      "dbRecoveredNotice": "आपके ट्रांस्क्रिप्शन इतिहास का डेटाबेस नहीं पढ़ा जा सका, इसलिए एक नया डेटाबेस शुरू किया गया। पिछला डेटाबेस {{file}} के रूप में सुरक्षित रखा गया है।"
     },
     "debug": {
       "title": "डिबग",

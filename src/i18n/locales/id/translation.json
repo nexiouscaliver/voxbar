@@ -944,7 +944,8 @@
       },
       "viaPostProcess": "lewat {{model}} · {{prompt}} · {{outcome}} · {{latency}} md",
       "viewChanges": "Lihat perubahan",
-      "hideChanges": "Sembunyikan perubahan"
+      "hideChanges": "Sembunyikan perubahan",
+      "dbRecoveredNotice": "Database riwayat transkripsi Anda tidak dapat dibaca, sehingga database baru dimulai. Database sebelumnya disimpan sebagai {{file}}."
     },
     "debug": {
       "title": "Debug",
