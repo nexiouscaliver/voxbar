@@ -1355,7 +1355,8 @@
     "companionBadge": "Микрофон-спутник"
   },
   "whatsNew": {
-    "title": "Новое в VoxBar v{{version}}"
+    "title": "Новое в VoxBar v{{version}}",
+    "gotIt": "Понятно"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} может блокировать 1 сочетание клавиш",

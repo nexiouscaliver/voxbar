@@ -1343,7 +1343,8 @@
     "companionBadge": "Eşlik mikrofonu"
   },
   "whatsNew": {
-    "title": "VoxBar v{{version}} yenilikleri"
+    "title": "VoxBar v{{version}} yenilikleri",
+    "gotIt": "Anladım"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} 1 kısayolu engelliyor olabilir",

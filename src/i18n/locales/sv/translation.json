@@ -1343,7 +1343,8 @@
     "companionBadge": "Kompanionmikrofon"
   },
   "whatsNew": {
-    "title": "Nytt i VoxBar v{{version}}"
+    "title": "Nytt i VoxBar v{{version}}",
+    "gotIt": "Uppfattat"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} kanske blockerar 1 kortkommando",

@@ -1242,7 +1242,8 @@
     }
   },
   "whatsNew": {
-    "title": "Baru di VoxBar v{{version}}"
+    "title": "Baru di VoxBar v{{version}}",
+    "gotIt": "Mengerti"
   },
   "common": {
     "loading": "Memuat...",

@@ -128,7 +128,15 @@ function App() {
     (state) => state.refreshOutputDevices,
   );
   const hasCompletedPostOnboardingInit = useRef(false);
-  const settingsScrollRef = useRef<HTMLDivElement>(null);
+  const settingsScrollRef = useRef<HTMLDivElement | null>(null);
+  // Whether the settings pane still has content below the fold. Drives the
+  // bottom fade above the footer so a pane that clips mid-row at its resting
+  // scroll reads as scrollable instead of as a rendering defect.
+  const [contentScrollable, setContentScrollable] = useState(false);
+  // Flips when the settings scroll container mounts/unmounts (it only
+  // exists once onboarding is out of the way), so the fade-tracking effect
+  // below attaches to the real node instead of running once against null.
+  const [settingsShellMounted, setSettingsShellMounted] = useState(false);
   const isShowingOnboarding =
     onboardingPreview !== null ||
     onboardingStep === "accessibility" ||
@@ -147,6 +155,31 @@ function App() {
   useLayoutEffect(() => {
     settingsScrollRef.current?.scrollTo({ top: 0 });
   }, [currentSection]);
+
+  // Track whether the settings scroller can still move: the fade must appear
+  // and disappear as content loads, the section changes, or the user scrolls.
+  // A ResizeObserver on the scroller and its children catches async content
+  // growth (history entries, model lists) without polling.
+  useEffect(() => {
+    const scroller = settingsScrollRef.current;
+    if (!scroller || !settingsShellMounted) return;
+    const measure = () => {
+      setContentScrollable(
+        scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight > 4,
+      );
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(scroller);
+    Array.from(scroller.children).forEach((child) =>
+      observer.observe(child as Element),
+    );
+    scroller.addEventListener("scroll", measure);
+    measure();
+    return () => {
+      observer.disconnect();
+      scroller.removeEventListener("scroll", measure);
+    };
+  }, [settingsShellMounted]);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -782,17 +815,38 @@ function App() {
             onSectionChange={setCurrentSection}
           />
           {/* Scrollable content area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div ref={settingsScrollRef} className="flex-1 overflow-y-auto">
-              <div className="flex flex-col items-center p-4 gap-4">
+          <div className="relative flex-1 flex flex-col overflow-hidden">
+            {/* Settings-wide search, pinned above the scrolling content the
+                way macOS System Settings pins its search: it stays put while
+                the pane below scrolls. Picking a match jumps to the section
+                that owns the setting. */}
+            <div className="shrink-0 border-b border-mid-gray/20 px-4 pb-3 pt-4">
+              <SettingsSearch onSelect={setCurrentSection} />
+            </div>
+            <div
+              ref={(node) => {
+                settingsScrollRef.current = node;
+                setSettingsShellMounted(Boolean(node));
+              }}
+              data-settings-scroll=""
+              className="settings-scroll flex-1 overflow-y-auto"
+            >
+              <div className="flex flex-col items-center px-4 pb-10 pt-4 gap-4">
                 <AccessibilityPermissions />
                 <SecureInputWarning />
-                {/* Settings-wide search sits above the tab content; picking a
-                    match jumps to the section that owns the setting. */}
-                <SettingsSearch onSelect={setCurrentSection} />
                 {renderSettingsContent(currentSection, setOnboardingPreview)}
               </div>
             </div>
+            {/* Bottom fade above the footer: only while content continues
+                below the fold, so a pane that ends mid-row at its resting
+                scroll reads as scrollable (with the inset scrollbar) instead
+                of as a clipped edge. */}
+            {contentScrollable && (
+              <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-b from-transparent to-background"
+              />
+            )}
           </div>
         </div>
         {/* Fixed footer at bottom */}

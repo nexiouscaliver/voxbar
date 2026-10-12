@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { RefreshCcw, Search } from "lucide-react";
 import {
@@ -232,15 +232,13 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
       )}
 
       {state.isLocalProvider ? (
-        // The local on-device engine: no API fields, no model dropdown,
-        // just the models section (spec 7.2, generalized). The section
-        // itself renders the original pinned row unchanged until the user
-        // downloads or selects anything beyond the pinned model. The
-        // keep-warm row follows: it governs the local worker's lifetime.
-        <>
-          <PostProcessModelsSection />
-          <PostProcessKeepWarmRow />
-        </>
+        // The local on-device engine: no API fields, no model dropdown.
+        // The models catalog lives in its own section below this card
+        // (rendered by PostProcessingSettings at page level, so its header
+        // and padding match the sibling sections instead of nesting a card
+        // inside this card). The keep-warm row stays here: it governs the
+        // local worker's lifetime, which is engine config.
+        <PostProcessKeepWarmRow />
       ) : state.isAppleProvider ? (
         state.appleIntelligenceUnavailable ? (
           <Alert variant="error" contained>
@@ -698,6 +696,10 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftText, setDraftText] = useState("");
+  // The create form's Save/Cancel row: entering create mode scrolls it into
+  // view so the actions that commit the draft render fully above the fold
+  // instead of being clipped at the window bottom.
+  const createActionRef = useRef<HTMLDivElement>(null);
 
   const prompts = getSetting("post_process_prompts") || [];
   const selectedPromptId = getSetting("post_process_selected_prompt_id") || "";
@@ -808,6 +810,11 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
     setIsCreating(true);
     setDraftName("");
     setDraftText("");
+    // The form renders below the fold on short windows; bring its commit
+    // row into view once it exists.
+    requestAnimationFrame(() => {
+      createActionRef.current?.scrollIntoView({ block: "end" });
+    });
   };
 
   const hasPrompts = prompts.length > 0;
@@ -853,14 +860,19 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             }
             className="flex-1 min-w-0"
           />
+          {/* While the create form is open this row swaps from the (now
+              pointless, disabled) Create New Prompt to an enabled Cancel, so
+              an actionable affordance always sits inside the visible area
+              even when the form's own Save/Cancel row is below the fold. */}
           <Button
-            onClick={handleStartCreate}
-            variant="primary"
+            onClick={isCreating ? handleCancelCreate : handleStartCreate}
+            variant={isCreating ? "secondary" : "primary"}
             size="md"
-            disabled={isCreating}
             className="shrink-0"
           >
-            {t("settings.postProcessing.prompts.createNew")}
+            {isCreating
+              ? t("settings.postProcessing.prompts.cancel")
+              : t("settings.postProcessing.prompts.createNew")}
           </Button>
         </div>
 
@@ -989,7 +1001,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div ref={createActionRef} className="flex gap-2 pt-2">
               <Button
                 onClick={handleCreatePrompt}
                 variant="primary"
@@ -1062,6 +1074,15 @@ export const PostProcessingSettings: React.FC = () => {
       >
         <PostProcessingSettingsApi />
       </SettingsGroup>
+
+      {/* The local models catalog: a page-level sibling of the ENGINE card,
+          not a nested card inside it. Rendering it here gives its header the
+          same clearance and its content the same inner padding as the
+          HOTKEY/ENGINE/PROMPTS sections (the old nesting glued the header to
+          the ENGINE card's border). */}
+      {showLocalRow(settings?.post_process_provider_id ?? "") && (
+        <PostProcessModelsSection />
+      )}
 
       <SettingsGroup title={t("settings.postProcessing.prompts.title")}>
         <PostProcessingSettingsPrompts />

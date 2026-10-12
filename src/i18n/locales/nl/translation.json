@@ -1242,7 +1242,8 @@
     }
   },
   "whatsNew": {
-    "title": "Nieuw in VoxBar v{{version}}"
+    "title": "Nieuw in VoxBar v{{version}}",
+    "gotIt": "Begrepen"
   },
   "common": {
     "loading": "Laden...",

@@ -1343,7 +1343,8 @@
     "companionBadge": "Придружаващ микрофон"
   },
   "whatsNew": {
-    "title": "Ново в VoxBar v{{version}}"
+    "title": "Ново в VoxBar v{{version}}",
+    "gotIt": "Ясно"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} може да блокира 1 бърз клавиш",

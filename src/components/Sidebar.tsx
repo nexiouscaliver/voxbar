@@ -150,9 +150,22 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }));
 
   return (
-    <div className="flex flex-col w-40 h-full border-e border-mid-gray/20 items-center px-2">
-      <VoxBarLogo width={96} variant="compact" className="my-4" />
-      <div className="flex flex-col w-full items-center gap-1 pt-2 border-t border-mid-gray/20">
+    <div className="flex flex-col w-52 h-full border-e border-mid-gray/20 items-center px-2">
+      {/* The brand is pinned: an explicit height plus shrink-0 keep the
+          column flex layout from squashing the lockup when the nav below is
+          taller than the window (the defect where the logo+wordmark
+          collapsed into a 16px waveform sliver on scrolled panes). */}
+      <VoxBarLogo
+        width={64}
+        height={64}
+        variant="compact"
+        className="my-3 shrink-0"
+      />
+      {/* The nav never scrolls with the content pane: it owns its own
+          scroll area (visible inset scrollbar) so only it moves when the
+          section list outgrows the window, and never at the cost of the
+          brand above. */}
+      <div className="settings-scroll flex flex-col w-full items-center flex-1 min-h-0 gap-0.5 pt-2 border-t border-mid-gray/20 overflow-y-auto">
         {availableSections.map((section) => {
           const Icon = section.icon;
           const isActive = section.enabledNow && activeSection === section.id;
@@ -160,7 +173,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           return (
             <div
               key={section.id}
-              className={`flex gap-2 items-center p-2 w-full rounded-lg transition-colors ${
+              className={`flex gap-2 items-center py-1.5 px-2 w-full shrink-0 rounded-lg transition-colors ${
                 isActive
                   ? "bg-logo-primary/80"
                   : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
@@ -191,7 +204,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {t(section.labelKey)}
                 </p>
                 {!section.enabledNow && (
-                  <p className="text-xs leading-tight text-secondary">
+                  <p
+                    className="text-xs leading-tight text-secondary truncate"
+                    title={t("sidebar.enableInAdvancedHint")}
+                  >
                     {t("sidebar.enableInAdvancedHint")}
                   </p>
                 )}

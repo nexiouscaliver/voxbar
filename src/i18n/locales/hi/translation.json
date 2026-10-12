@@ -1242,7 +1242,8 @@
     }
   },
   "whatsNew": {
-    "title": "VoxBar v{{version}} में नया क्या है"
+    "title": "VoxBar v{{version}} में नया क्या है",
+    "gotIt": "समझ गया"
   },
   "common": {
     "loading": "लोड हो रहा है...",

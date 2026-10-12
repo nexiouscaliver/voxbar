@@ -1355,7 +1355,8 @@
     "companionBadge": "Doprovodný mikrofon"
   },
   "whatsNew": {
-    "title": "Novinky v VoxBar v{{version}}"
+    "title": "Novinky v VoxBar v{{version}}",
+    "gotIt": "Rozumím"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} může blokovat 1 zkratku",

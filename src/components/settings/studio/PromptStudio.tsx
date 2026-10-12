@@ -480,7 +480,11 @@ export const PromptStudio: React.FC = () => {
         </div>
       </SettingContainer>
 
-      <div className="flex flex-wrap items-center gap-3">
+      {/* The run controls pin to the bottom of the visible area while the
+          pickers above them are scrolled: at the minimum window size the
+          idle layout is taller than the pane, and a statically placed Run
+          button rendered as a clipped sliver above the footer on load. */}
+      <div className="sticky bottom-0 z-10 -mx-2 flex flex-wrap items-center gap-3 rounded-lg bg-background px-2 py-2 shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.25)]">
         <Button
           onClick={handleRun}
           variant="primary"

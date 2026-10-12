@@ -1242,7 +1242,8 @@
     }
   },
   "whatsNew": {
-    "title": "VoxBar v{{version}} मा नयाँ"
+    "title": "VoxBar v{{version}} मा नयाँ",
+    "gotIt": "बुझें"
   },
   "common": {
     "loading": "लोड गरिँदैछ...",

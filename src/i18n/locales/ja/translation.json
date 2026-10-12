@@ -1343,7 +1343,8 @@
     "companionBadge": "コンパニオンマイク"
   },
   "whatsNew": {
-    "title": "VoxBar v{{version}} の新機能"
+    "title": "VoxBar v{{version}} の新機能",
+    "gotIt": "了解しました"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} が1個のショートカットをブロックしている可能性があります",

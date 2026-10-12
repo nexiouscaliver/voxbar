@@ -50,7 +50,7 @@ export const Slider: React.FC<SliderProps> = ({
       disabled={disabled}
     >
       <div className="w-full">
-        <div className="flex items-center space-x-1 h-6">
+        <div className="flex items-center gap-2 h-6">
           <input
             type="range"
             min={min}
@@ -69,7 +69,14 @@ export const Slider: React.FC<SliderProps> = ({
             }}
           />
           {showValue && (
-            <span className="text-sm font-medium text-text/90 w-12 text-end">
+            // Content-fitting width: a fixed w-12 clipped longer localized
+            // labels (it-IT "Disattivato") under the reset icon. The value
+            // now grows with its text (min-w-12 floor keeps numbers aligned)
+            // and never wraps or collides with the reset button.
+            <span
+              className="min-w-12 max-w-32 shrink-0 truncate text-end text-sm font-medium text-text/90"
+              title={formatValue(value)}
+            >
               {formatValue(value)}
             </span>
           )}

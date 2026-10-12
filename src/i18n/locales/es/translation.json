@@ -1343,7 +1343,8 @@
     "companionBadge": "Micrófono acompañante"
   },
   "whatsNew": {
-    "title": "Nuevo en VoxBar v{{version}}"
+    "title": "Nuevo en VoxBar v{{version}}",
+    "gotIt": "Entendido"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} puede estar bloqueando 1 atajo",

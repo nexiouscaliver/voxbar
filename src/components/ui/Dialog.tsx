@@ -193,7 +193,7 @@ export const Dialog: React.FC<DialogProps> = ({
           )}
         </div>
         <div
-          className={`min-h-0 overflow-y-auto px-4 pb-4 pt-3 ${contentClassName}`}
+          className={`settings-scroll min-h-0 overflow-y-auto px-4 pb-4 pt-3 ${contentClassName}`}
           style={contentStyle}
         >
           {children}

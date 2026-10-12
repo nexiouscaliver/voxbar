@@ -297,18 +297,6 @@ export const ModelsSettings: React.FC = () => {
         </p>
       </div>
 
-      {/* Search bar - filter the catalog by name or description */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text/40 pointer-events-none" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={t("settings.models.searchPlaceholder")}
-          className="w-full pl-9 pr-3 py-2 text-sm bg-mid-gray/10 border border-mid-gray/40 rounded-lg focus:outline-none focus:ring-1 focus:ring-logo-primary placeholder:text-text/40"
-        />
-      </div>
-
       {/* Add a model by pasting a Hugging Face repo, plus a prominent rescan */}
       <AddModelFromHuggingFace />
 
@@ -457,6 +445,21 @@ export const ModelsSettings: React.FC = () => {
                 )}
               </div>
             </div>
+          </div>
+          {/* Search bar - filters the downloaded/available model lists by
+              name or description. It lives INSIDE the models section (above
+              the first card) so it reads as filtering the list, not the
+              Hugging Face card that used to sit directly beneath it. */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text/40 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("settings.models.searchPlaceholder")}
+              aria-label={t("settings.models.searchPlaceholder")}
+              className="w-full pl-9 pr-3 py-2 text-sm bg-mid-gray/10 border border-mid-gray/40 rounded-lg focus:outline-none focus:ring-1 focus:ring-logo-primary placeholder:text-text/40"
+            />
           </div>
           {downloadedModels.map((model: ModelInfo) => (
             <React.Fragment key={model.id}>

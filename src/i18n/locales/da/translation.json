@@ -1242,7 +1242,8 @@
     }
   },
   "whatsNew": {
-    "title": "Nyt i VoxBar v{{version}}"
+    "title": "Nyt i VoxBar v{{version}}",
+    "gotIt": "Forstået"
   },
   "common": {
     "loading": "Indlæser...",

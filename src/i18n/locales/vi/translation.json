@@ -1343,7 +1343,8 @@
     "companionBadge": "Micrô đồng hành"
   },
   "whatsNew": {
-    "title": "Điểm mới trong VoxBar v{{version}}"
+    "title": "Điểm mới trong VoxBar v{{version}}",
+    "gotIt": "Đã hiểu"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} có thể đang chặn 1 phím tắt",

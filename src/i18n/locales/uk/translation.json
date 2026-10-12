@@ -1355,7 +1355,8 @@
     "companionBadge": "Мікрофон-супутник"
   },
   "whatsNew": {
-    "title": "Нове в VoxBar v{{version}}"
+    "title": "Нове в VoxBar v{{version}}",
+    "gotIt": "Зрозуміло"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} може блокувати 1 комбінацію клавіш",

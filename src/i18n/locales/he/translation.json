@@ -1349,7 +1349,8 @@
     "companionBadge": "מיקרופון מלווה"
   },
   "whatsNew": {
-    "title": "חדש ב-VoxBar v{{version}}"
+    "title": "חדש ב-VoxBar v{{version}}",
+    "gotIt": "הבנתי"
   },
   "secureInput": {
     "blockedWithCulprit_one": "ייתכן ש-{{name}} חוסם קיצור דרך אחד",

@@ -1343,7 +1343,8 @@
     "companionBadge": "伴侶麥克風"
   },
   "whatsNew": {
-    "title": "VoxBar v{{version}} 新功能"
+    "title": "VoxBar v{{version}} 新功能",
+    "gotIt": "知道了"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} 可能正在阻擋 1 個快捷鍵",

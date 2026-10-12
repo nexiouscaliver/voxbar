@@ -86,12 +86,20 @@ export const SettingsSearch: React.FC<SettingsSearchProps> = ({ onSelect }) => {
 
   return (
     <div ref={containerRef} className="relative w-full max-w-3xl">
-      <div className="flex w-full items-center gap-2">
-        <Search className="h-4 w-4 shrink-0 text-mid-gray" aria-hidden="true" />
+      {/* The glyph lives inside the field: a relative wrapper with the
+          magnifier absolutely positioned over the input's left inset, so the
+          icon reads as part of the field instead of floating outside its
+          border (the pattern the Models tab and every native macOS search
+          field use). */}
+      <div className="relative w-full">
+        <Search
+          className="pointer-events-none absolute start-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text/40"
+          aria-hidden="true"
+        />
         <Input
           type="text"
           variant="compact"
-          className="w-full"
+          className="w-full ps-8"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onFocus={() => setFocused(true)}

@@ -1242,7 +1242,8 @@
     }
   },
   "whatsNew": {
-    "title": "Novetats del VoxBar v{{version}}"
+    "title": "Novetats del VoxBar v{{version}}",
+    "gotIt": "Entesos"
   },
   "common": {
     "loading": "S'està carregant...",

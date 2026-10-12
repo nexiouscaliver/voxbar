@@ -1367,7 +1367,8 @@
     "companionBadge": "ميكروفون مرافق"
   },
   "whatsNew": {
-    "title": "الجديد في VoxBar v{{version}}"
+    "title": "الجديد في VoxBar v{{version}}",
+    "gotIt": "فهمت"
   },
   "secureInput": {
     "blockedWithCulprit_one": "قد يحظر {{name}} اختصارًا واحدًا",

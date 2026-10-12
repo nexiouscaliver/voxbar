@@ -688,7 +688,7 @@ const shots = [
       // The companion devices panel sits at the bottom of the Experimental
       // group; bring it into the viewport.
       await page.evaluate(() => {
-        const scroller = document.querySelector(".overflow-y-auto");
+        const scroller = document.querySelector("[data-settings-scroll]");
         if (scroller) scroller.scrollTop = scroller.scrollHeight;
       });
       await settle(600);
@@ -719,7 +719,7 @@ const shots = [
       // render below the run controls) into the viewport.
       await settle(1400);
       await page.evaluate(() => {
-        const scroller = document.querySelector(".overflow-y-auto");
+        const scroller = document.querySelector("[data-settings-scroll]");
         if (scroller) scroller.scrollTop = scroller.scrollHeight;
       });
       await settle(400);
@@ -737,7 +737,7 @@ const shots = [
       });
       await settle(1000);
       await page.evaluate(() => {
-        const scroller = document.querySelector(".overflow-y-auto");
+        const scroller = document.querySelector("[data-settings-scroll]");
         if (scroller) scroller.scrollTop = scroller.scrollHeight;
       });
       await settle(400);
@@ -867,7 +867,7 @@ const shots = [
       await settle(900);
       // The live log viewer is the section's last row; bring it into view.
       await page.evaluate(() => {
-        const scroller = document.querySelector(".overflow-y-auto");
+        const scroller = document.querySelector("[data-settings-scroll]");
         if (scroller) scroller.scrollTop = scroller.scrollHeight;
       });
       await settle(400);

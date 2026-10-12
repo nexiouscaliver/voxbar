@@ -1343,7 +1343,8 @@
     "companionBadge": "Micro compagnon"
   },
   "whatsNew": {
-    "title": "Nouveautés de VoxBar v{{version}}"
+    "title": "Nouveautés de VoxBar v{{version}}",
+    "gotIt": "Compris"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} bloque peut-être 1 raccourci",
