@@ -44,6 +44,16 @@ log() { printf '[release] %s\n' "$*"; }
 # reports AI unavailable on every machine. If full Xcode is installed and
 # the builder did not pin a toolchain, prefer Xcode for this build without
 # touching the machine's global xcode-select.
+# The Swift AI bridge links FoundationModels from the SDK it compiled
+# against; a stale or unset SDKROOT resolves a CommandLineTools SDK whose
+# FoundationModels lacks the GenerationOptions init the bridge references
+# (link-time undefined symbol on a fresh compile). Export the full-Xcode SDK
+# for this build whenever it is unset, mirroring DEVELOPER_DIR above.
+if [ -z "${SDKROOT:-}" ] && [ -d /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk ]; then
+  export SDKROOT=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+  log "using full Xcode SDK for this build (SDKROOT=$SDKROOT)"
+fi
+
 if [ -z "${DEVELOPER_DIR:-}" ] && [ -d /Applications/Xcode.app/Contents/Developer ]; then
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
   log "using full Xcode toolchain for this build (DEVELOPER_DIR=$DEVELOPER_DIR)"
