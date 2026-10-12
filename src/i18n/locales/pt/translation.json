@@ -31,6 +31,7 @@
   },
   "trayCopyOutcome": {
     "copied": "O ditado foi copiado para a área de transferência.",
+    "empty": "Ainda não há nada para copiar.",
     "failed": "Não foi possível copiar o ditado para a área de transferência."
   },
   "sidebar": {

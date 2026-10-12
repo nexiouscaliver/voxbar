@@ -2619,7 +2619,10 @@ impl TranscriptionManager {
             .app_handle
             .try_state::<crate::TranscriptionCoordinator>()
         {
-            coordinator.notify_cancel(recording_was_active);
+            // Fleet pass: the machine teardown follows the SAME resolution
+            // the audio cancel above made - only the cancelled lane's
+            // machine (or the keyboard's) resets.
+            coordinator.notify_cancel(recording_was_active, cancel_session_key);
         }
     }
 

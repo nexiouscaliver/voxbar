@@ -265,6 +265,13 @@ enum Command {
     Input(InputEvent),
     Cancel {
         recording_was_active: bool,
+        /// Fleet pass: the machine teardown follows the SAME resolution the
+        /// audio side's `cancel_recording` made. `Some(lane)` cancels
+        /// exactly that lane's machine; `None` belongs to the keyboard
+        /// machine (a local resolution, or the nothing-recording abort).
+        /// The audio teardown removes exactly one target's recorder, so a
+        /// cancel may never reset machines whose recorders still record.
+        lane: Option<u64>,
     },
     /// One stop pipeline drained. v1.6.2 W1-L2: `lane` says whose - a
     /// companion lane's machine resumes from ITS remembered press, the
@@ -1242,10 +1249,28 @@ impl TranscriptionCoordinator {
                         }
                         Command::Cancel {
                             recording_was_active,
+                            lane,
                         } => {
-                            keyboard.on_cancel(recording_was_active);
-                            for machine in lanes.values_mut() {
-                                machine.on_cancel(recording_was_active);
+                            // Fleet pass: the machine teardown follows the
+                            // SAME resolution the audio side's cancel made -
+                            // exactly the cancelled lane's machine, or the
+                            // keyboard machine for a local / no-target
+                            // resolution. The unconditional fan-out below
+                            // reset EVERY lane machine while cancel_recording
+                            // tears down exactly one target: with two phones
+                            // recording, one Escape stranded the other
+                            // phone's machine at Idle while its recorder
+                            // kept recording and its session record stayed
+                            // live - the next stop-tap then discarded the
+                            // whole dictation and wedged the recording
+                            // surfaces until a second manual Escape.
+                            match lane {
+                                Some(lane) => {
+                                    if let Some(machine) = lanes.get_mut(&lane) {
+                                        machine.on_cancel(recording_was_active);
+                                    }
+                                }
+                                None => keyboard.on_cancel(recording_was_active),
                             }
                             // KB-221: no finalize drain follows a cancel, so
                             // any published missed-hold pair dies with the
@@ -1634,11 +1659,18 @@ impl TranscriptionCoordinator {
         }
     }
 
-    pub fn notify_cancel(&self, recording_was_active: bool) {
+    /// Report a cancel. `lane` is the SAME resolution the audio side's
+    /// `cancel_recording` made: `Some(lane)` for a cancelled phone session
+    /// (exactly that lane's machine resets), `None` for the keyboard's own
+    /// resolution or the nothing-recording abort. The machine teardown must
+    /// never widen past the audio teardown - a lane whose recorder still
+    /// records keeps its machine Recording.
+    pub fn notify_cancel(&self, recording_was_active: bool, lane: Option<u64>) {
         if self
             .tx
             .send(Command::Cancel {
                 recording_was_active,
+                lane,
             })
             .is_err()
         {
@@ -5007,5 +5039,67 @@ the badge lie (dark-badge session silently post-processing at stop)"
             "nothing remembered: the drain must land on idle"
         );
         assert_eq!(state.stage, Stage::Idle);
+    }
+
+    /// Fleet pass, source pin: Command::Cancel's machine teardown is scoped
+    /// to the SAME target the audio side's cancel_recording resolved -
+    /// exactly the cancelled lane's machine, or the keyboard machine for a
+    /// local / no-target resolution. The arm's old shape fanned
+    /// `for machine in lanes.values_mut() { machine.on_cancel(...) }` over
+    /// EVERY lane while the audio teardown removes exactly one target's
+    /// recorder: with two phones recording, one Escape stranded the other
+    /// phone's machine at Idle while its recorder kept recording and its
+    /// session record stayed live - the next stop-tap then hit "Already
+    /// recording", rolled back through discard_session, and silently threw
+    /// away the whole dictation while the recording surfaces stayed wedged
+    /// until a second manual Escape. The coordinator thread needs a channel
+    /// and an AppHandle, so the arm is pinned against this committed source
+    /// (the convention above).
+    #[test]
+    fn cancel_command_teardown_follows_the_resolved_target() {
+        let source = include_str!("transcription_coordinator.rs");
+        let arm_at = source
+            .find("Command::Cancel {")
+            .expect("the Cancel command arm");
+        let arm_end = arm_at
+            + source[arm_at..]
+                .find("Command::ProcessingFinished")
+                .expect("the next arm");
+        let arm = &source[arm_at..arm_end];
+        assert!(
+            !arm.contains("for machine in lanes.values_mut()"),
+            "a cancel must never reset every lane machine: the audio teardown resolves exactly one target"
+        );
+        assert!(
+            arm.contains("Some(lane) =>")
+                && arm.contains("if let Some(machine) = lanes.get_mut(&lane)"),
+            "a lane-resolved cancel resets exactly that lane's machine"
+        );
+        assert!(
+            arm.contains("None => keyboard.on_cancel(recording_was_active)"),
+            "a local or no-target resolution resets the keyboard machine only"
+        );
+
+        // Both production callers must forward the resolution they made.
+        let utils = include_str!("utils.rs");
+        let fn_at = utils
+            .find("pub fn cancel_current_operation")
+            .expect("cancel_current_operation");
+        let body_end = fn_at + utils[fn_at..].find("\n}\n").expect("fn end");
+        assert!(
+            utils[fn_at..body_end]
+                .contains("coordinator.notify_cancel(recording_was_active, cancel_session_key);"),
+            "the Escape route must pass the resolved lane to the coordinator"
+        );
+        let tm = include_str!("managers/transcription.rs");
+        let teardown_at = tm
+            .find("fn handle_hotkey_load_failure")
+            .expect("the model-load-failure teardown");
+        let teardown_end = teardown_at + tm[teardown_at..].find("\n    }\n").expect("fn end");
+        assert!(
+            tm[teardown_at..teardown_end]
+                .contains("coordinator.notify_cancel(recording_was_active, cancel_session_key);"),
+            "the model-load-failure teardown must pass the resolved lane too"
+        );
     }
 }

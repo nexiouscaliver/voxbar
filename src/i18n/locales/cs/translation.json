@@ -31,6 +31,7 @@
   },
   "trayCopyOutcome": {
     "copied": "Přepis byl zkopírován do schránky.",
+    "empty": "Zatím není co kopírovat.",
     "failed": "Přepis se nepodařilo zkopírovat do schránky."
   },
   "sidebar": {

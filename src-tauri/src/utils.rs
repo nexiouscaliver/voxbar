@@ -173,9 +173,14 @@ pub fn cancel_current_operation(app: &AppHandle) {
     // doesn't wait for the cancelled work, so it never blocks this thread.
     tm.maybe_unload_immediately("cancellation");
 
-    // Notify coordinator so it can keep lifecycle state coherent.
+    // Notify coordinator so it can keep lifecycle state coherent. Fleet
+    // pass: the machine teardown carries the SAME resolution the audio
+    // cancel made (cancel_session_key is exactly the cancelled session's
+    // lane, None for the keyboard's) - a lane whose recorder still records
+    // keeps its machine Recording, so its next stop-tap runs a normal
+    // pipeline instead of discarding the dictation.
     if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
-        coordinator.notify_cancel(recording_was_active);
+        coordinator.notify_cancel(recording_was_active, cancel_session_key);
     }
 
     info!("Operation cancellation completed - returned to idle state");
@@ -334,7 +339,9 @@ mod tests {
         let body_end = fn_at + source[fn_at..].find("\n}\n").expect("fn end");
         let body = &source[fn_at..body_end];
         assert!(
-            body.contains("if let crate::managers::audio::CancelTarget::Lane(lane) = cancel_target"),
+            body.contains(
+                "if let crate::managers::audio::CancelTarget::Lane(lane) = cancel_target"
+            ),
             "the lane-resolved cancel must be branched on before the teardown below"
         );
         assert!(

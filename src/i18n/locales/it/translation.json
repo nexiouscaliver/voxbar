@@ -31,6 +31,7 @@
   },
   "trayCopyOutcome": {
     "copied": "La dettatura è stata copiata negli appunti.",
+    "empty": "Non c'è ancora nulla da copiare.",
     "failed": "Impossibile copiare la dettatura negli appunti."
   },
   "sidebar": {

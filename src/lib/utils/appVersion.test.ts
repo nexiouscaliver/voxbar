@@ -44,4 +44,43 @@ assert.ok(
   "vite.config.ts must define __APP_VERSION__ from package.json's version",
 );
 
+// Fleet pass 2 (the v1.6.2 version bump pin): a bump must be COMPLETE or
+// the What's New modal can never show it. findReleaseNoteToShow requires a
+// note strictly newer than whats_new_last_seen_version and not newer than
+// the running app version, so a branch that fixes things but never bumps
+// (or bumps but ships no note) is invisible to every upgrader - exactly
+// what happened to the whole v1.6.2 backlog line. All four version
+// locations must agree, and a release note for the shipping version must
+// exist.
+const root = path.join(import.meta.dirname, "../../..");
+const tauriConf = JSON.parse(
+  fs.readFileSync(path.join(root, "src-tauri/tauri.conf.json"), "utf8"),
+) as { version: string };
+assert.equal(
+  tauriConf.version,
+  pkg.version,
+  `tauri.conf.json's version (${tauriConf.version}) must match package.json's (${pkg.version})`,
+);
+const cargo = fs.readFileSync(path.join(root, "src-tauri/Cargo.toml"), "utf8");
+const cargoLines = cargo.split("\n");
+const packageIdx = cargoLines.findIndex((l) => l.trim() === "[package]");
+assert.ok(packageIdx >= 0, "Cargo.toml must have a [package] section");
+const cargoVersion = cargoLines
+  .slice(packageIdx, packageIdx + 6)
+  .find((l) => l.startsWith("version ="));
+assert.equal(
+  cargoVersion,
+  `version = "${pkg.version}"`,
+  `Cargo.toml's package version (${cargoVersion}) must match package.json's (${pkg.version})`,
+);
+const releaseNote = path.join(
+  root,
+  "src/content/release-notes",
+  `${pkg.version}.md`,
+);
+assert.ok(
+  fs.existsSync(releaseNote),
+  `a release note for the shipping version must exist at src/content/release-notes/${pkg.version}.md, or the What's New modal can never show this version's changes`,
+);
+
 console.log("appVersion tests passed");

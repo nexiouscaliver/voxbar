@@ -21,19 +21,29 @@ const appCss = fs.readFileSync(path.join(here, "App.css"), "utf8");
 
 // App.tsx listens for the Rust event and posts the OS notification through
 // the routing decision, so the notifications master toggle governs it.
-const trayListenerAt = appSrc.indexOf(
-  'listen<{ ok: boolean }>("tray-copy-outcome"',
-);
+// Fleet pass: the payload also carries the REASON, so "nothing to copy"
+// and "the clipboard write failed" render as different messages, and the
+// failure legs write the in-app notification log row while the master
+// toggle is on - the backstop that survives a denied macOS notification
+// permission or a hidden window (the historyDbRecovery discipline),
+// because notifyDesktop alone silently no-ops on exactly that machine.
+const trayEventAt = appSrc.indexOf('"tray-copy-outcome"');
 assert.ok(
-  trayListenerAt >= 0,
+  trayEventAt >= 0,
   'KB-087: App.tsx must listen for the "tray-copy-outcome" event',
 );
+const trayListenerAt = appSrc.lastIndexOf("listen<{", trayEventAt);
+assert.ok(trayListenerAt >= 0, "KB-087: the listener call must be findable");
 const trayListener = appSrc.slice(
   trayListenerAt,
-  appSrc.indexOf("}, [t]);", trayListenerAt),
+  appSrc.indexOf("}, [t]);", trayEventAt),
 );
 assert.ok(
-  trayListener.includes("trayCopyOutcomeDispatch(getOsNotificationPrefs())"),
+  trayListener.includes('reason?: "copied" | "empty" | "failed"'),
+  "KB-087: the listener must read the outcome's reason from the payload",
+);
+assert.ok(
+  trayListener.includes("trayCopyOutcomeDispatch(prefs)"),
   "KB-087: the tray copy notification must respect the notifications toggle",
 );
 assert.ok(
@@ -42,9 +52,38 @@ assert.ok(
 );
 assert.ok(
   trayListener.includes('t("trayCopyOutcome.copied")') &&
-    trayListener.includes('t("trayCopyOutcome.failed")'),
-  "KB-087: both outcome bodies come from the locale keys",
+    trayListener.includes('t("trayCopyOutcome.failed")') &&
+    trayListener.includes('t("trayCopyOutcome.empty")'),
+  "KB-087: all three outcome bodies come from the locale keys",
 );
+assert.ok(
+  trayListener.includes("pushNotificationLogEntry") &&
+    trayListener.includes("prefs.enabled"),
+  "KB-087: the failure legs must write the in-app notification log row (the denied-permission backstop)",
+);
+
+// The empty key ships in every locale (the copied/failed pair already was).
+const localesDir = path.join(here, "i18n/locales");
+const locales = fs
+  .readdirSync(localesDir)
+  .filter((entry) => fs.statSync(path.join(localesDir, entry)).isDirectory());
+assert.ok(
+  locales.length >= 26,
+  `expected at least 26 locales, found ${locales.length}`,
+);
+for (const locale of locales) {
+  const bundle = JSON.parse(
+    fs.readFileSync(path.join(localesDir, locale, "translation.json"), "utf8"),
+  ) as Record<string, Record<string, string>>;
+  const block = bundle.trayCopyOutcome;
+  assert.ok(block, `${locale}: trayCopyOutcome block must exist`);
+  for (const key of ["copied", "empty", "failed"]) {
+    assert.ok(
+      typeof block[key] === "string" && block[key].length > 0,
+      `${locale}: trayCopyOutcome.${key} must be a non-empty string`,
+    );
+  }
+}
 
 /* ---- KB-088: the debug chord auto-repeat guard ---- */
 

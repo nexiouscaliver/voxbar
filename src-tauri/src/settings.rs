@@ -1743,19 +1743,41 @@ fn ensure_post_process_defaults(settings: &mut AppSettings) -> bool {
                         existing.name = user_name;
                     }
                     changed = true;
-                } else if existing.is_builtin && existing.version < seed.version {
-                    // An untouched generation-1 builtin: take the new body.
-                    // Any edit (bumped version, changed body) falls through
-                    // untouched.
-                    if let Some(prior_body) = prior_generation_seed_body(&spec) {
-                        if existing.prompt.trim() == prior_body.trim() {
-                            debug!(
-                                "Reseeding untouched builtin prompt '{}' from generation {} to {}",
-                                spec.id, existing.version, seed.version
-                            );
-                            *existing = seed;
-                            changed = true;
-                        }
+                } else if existing.is_builtin {
+                    // KB-256 fleet pass: "untouched" means the body
+                    // byte-matches ANY seed generation this build knows -
+                    // never the version alone, and never only the
+                    // immediately-prior generation. A v1.6.x rename bumped
+                    // the row's version without touching its body (the old
+                    // bump-always behavior), stranding gen-1 bodies at
+                    // version == the current generation: the old
+                    // `existing.version < seed.version` gate was 2 < 2 and
+                    // could never heal them, and a body match against only
+                    // the prior generation's body misses again at
+                    // generation 3+. A seed-matched body proves the words
+                    // were never edited, so the reseed takes the new body
+                    // and generation while the operator's custom NAME
+                    // survives it exactly as the v0 branch preserves it (a
+                    // rename edits the name, not the words). A row whose
+                    // version is ABOVE this build's generation belongs to a
+                    // newer build and is left alone.
+                    let current_body = seed_prompt_body(&spec);
+                    let body_matches_a_seed = existing.prompt.trim() == current_body.trim()
+                        || prior_generation_seed_body(&spec)
+                            .is_some_and(|prior| existing.prompt.trim() == prior.trim());
+                    if existing.version <= seed.version
+                        && body_matches_a_seed
+                        && (existing.version < seed.version
+                            || existing.prompt.trim() != current_body.trim())
+                    {
+                        debug!(
+                            "Reseeding untouched builtin prompt '{}' from version {} (body matched a known seed generation) to {}",
+                            spec.id, existing.version, seed.version
+                        );
+                        let operator_name = existing.name.clone();
+                        *existing = seed;
+                        existing.name = operator_name;
+                        changed = true;
                     }
                 }
             }
@@ -4378,12 +4400,81 @@ mod tests {
         assert!(ensure_post_process_defaults(&mut v15_store));
         let reseeded = v15_store
             .post_process_prompts
-            .iter()
+            .iter_mut()
             .find(|p| p.id == "english_casual")
             .unwrap();
         assert_eq!(
             reseeded.version, BUILTIN_PROMPT_GENERATION,
             "the untouched-body gen-1 builtin took the reseed despite the rename"
+        );
+        assert_eq!(
+            reseeded.name, "My Casual Name",
+            "the reseed takes the new body, never the operator's custom name"
+        );
+
+        // KB-256 fleet pass, the stranded store the fix actually exists
+        // for: the v1.6.0/1.6.1 rename path bumped the version WITHOUT
+        // changing the body, leaving gen-1 bodies at version ==
+        // BUILTIN_PROMPT_GENERATION. The old gate was 2 < 2 (never true),
+        // so those rows could never reseed - and every future generation
+        // compared only against the immediately-prior body, so they could
+        // never match again either. The seed-matched body must heal them.
+        let mut stranded = get_default_settings();
+        {
+            let prompt = stranded
+                .post_process_prompts
+                .iter_mut()
+                .find(|p| p.id == "english_casual")
+                .unwrap();
+            prompt.version = BUILTIN_PROMPT_GENERATION;
+            prompt.prompt = gen1_body.clone();
+            prompt.name = "Stranded Rename".to_string();
+        }
+        assert!(
+            ensure_post_process_defaults(&mut stranded),
+            "the stranded gen-1-body-at-gen-2 row must be healed by a reseed pass"
+        );
+        let healed = stranded
+            .post_process_prompts
+            .iter()
+            .find(|p| p.id == "english_casual")
+            .unwrap();
+        let spec = builtin_prompt_seed_specs()
+            .into_iter()
+            .find(|spec| spec.id == "english_casual")
+            .unwrap();
+        assert_eq!(
+            healed.prompt,
+            seed_prompt_body(&spec),
+            "the stranded row's body is the current generation's seed"
+        );
+        assert_eq!(
+            healed.name, "Stranded Rename",
+            "the heal keeps the operator's custom name"
+        );
+
+        // A row from a NEWER build (version above this generation) is
+        // never touched, even with a recognizable body.
+        let mut future = get_default_settings();
+        {
+            let prompt = future
+                .post_process_prompts
+                .iter_mut()
+                .find(|p| p.id == "english_casual")
+                .unwrap();
+            prompt.version = BUILTIN_PROMPT_GENERATION + 1;
+            prompt.prompt = gen1_body.clone();
+        }
+        assert!(!ensure_post_process_defaults(&mut future));
+        let kept = future
+            .post_process_prompts
+            .iter()
+            .find(|p| p.id == "english_casual")
+            .unwrap();
+        assert_eq!(
+            kept.version,
+            BUILTIN_PROMPT_GENERATION + 1,
+            "a newer build's row is left for that build"
         );
     }
 }

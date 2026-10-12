@@ -31,6 +31,7 @@
   },
   "trayCopyOutcome": {
     "copied": "已将听写文本复制到剪贴板。",
+    "empty": "还没有可复制的内容。",
     "failed": "无法将听写文本复制到剪贴板。"
   },
   "sidebar": {

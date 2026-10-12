@@ -31,6 +31,7 @@
   },
   "trayCopyOutcome": {
     "copied": "Das Diktat wurde in die Zwischenablage kopiert.",
+    "empty": "Es gibt noch nichts zu kopieren.",
     "failed": "Das Diktat konnte nicht in die Zwischenablage kopiert werden."
   },
   "sidebar": {

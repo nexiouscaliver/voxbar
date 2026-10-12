@@ -31,6 +31,7 @@
   },
   "trayCopyOutcome": {
     "copied": "已將聽寫文字複製到剪貼板。",
+    "empty": "還沒有可複製的內容。",
     "failed": "無法將聽寫文字複製到剪貼板。"
   },
   "sidebar": {

@@ -1717,6 +1717,26 @@ fn write_clipboard_on_main(app: &AppHandle, text: &str) -> bool {
 #[derive(Clone, Copy, Debug, serde::Serialize, PartialEq, Eq)]
 pub struct TrayCopyOutcome {
     pub ok: bool,
+    /// Fleet pass: WHAT happened, so the surface can say it. The old
+    /// single bool conflated "nothing to copy" with "the clipboard write
+    /// failed", and every failure leg rendered as "Could not copy the
+    /// transcript to the clipboard." - false on a machine that had simply
+    /// never dictated anything.
+    pub reason: TrayCopyOutcomeReason,
+}
+
+/// Fleet pass: the tray copy outcome's cause. `Empty` is the nothing-to-
+/// copy class (no completed entry yet, an empty transcript, an entry that
+/// fell out of the store); `Failed` is a real failure (query error,
+/// clipboard write refused); `Copied` is success.
+#[derive(Clone, Copy, Debug, serde::Serialize, PartialEq, Eq)]
+pub enum TrayCopyOutcomeReason {
+    #[serde(rename = "copied")]
+    Copied,
+    #[serde(rename = "empty")]
+    Empty,
+    #[serde(rename = "failed")]
+    Failed,
 }
 
 /// The event name the webview listens for (App.tsx). Plain string event,
@@ -1725,8 +1745,9 @@ pub const TRAY_COPY_OUTCOME_EVENT: &str = "tray-copy-outcome";
 
 /// Report one tray copy outcome to the frontend. Never throws the caller's
 /// flow: a failed emit is logged, not propagated.
-fn emit_tray_copy_outcome(app: &AppHandle, ok: bool) {
-    if let Err(err) = app.emit(TRAY_COPY_OUTCOME_EVENT, TrayCopyOutcome { ok }) {
+fn emit_tray_copy_outcome(app: &AppHandle, reason: TrayCopyOutcomeReason) {
+    let ok = matches!(reason, TrayCopyOutcomeReason::Copied);
+    if let Err(err) = app.emit(TRAY_COPY_OUTCOME_EVENT, TrayCopyOutcome { ok, reason }) {
         error!("Failed to emit {TRAY_COPY_OUTCOME_EVENT}: {err}");
     }
 }
@@ -1742,7 +1763,7 @@ pub fn copy_last_transcript(app: &AppHandle) {
             Ok(Some(entry)) => entry,
             Ok(None) => {
                 warn!("No completed transcription history entries available for tray copy.");
-                emit_tray_copy_outcome(&handle, false);
+                emit_tray_copy_outcome(&handle, TrayCopyOutcomeReason::Empty);
                 return;
             }
             Err(err) => {
@@ -1750,7 +1771,7 @@ pub fn copy_last_transcript(app: &AppHandle) {
                     "Failed to fetch last completed transcription entry: {}",
                     err
                 );
-                emit_tray_copy_outcome(&handle, false);
+                emit_tray_copy_outcome(&handle, TrayCopyOutcomeReason::Failed);
                 return;
             }
         };
@@ -1758,7 +1779,7 @@ pub fn copy_last_transcript(app: &AppHandle) {
         let text = last_transcript_text(&entry).to_string();
         if text.trim().is_empty() {
             warn!("Last completed transcription is empty; skipping tray copy.");
-            emit_tray_copy_outcome(&handle, false);
+            emit_tray_copy_outcome(&handle, TrayCopyOutcomeReason::Empty);
             return;
         }
         let write_handle = handle.clone();
@@ -1767,7 +1788,14 @@ pub fn copy_last_transcript(app: &AppHandle) {
             if ok {
                 info!("Copied last transcript to clipboard via tray.");
             }
-            emit_tray_copy_outcome(&write_handle, ok);
+            emit_tray_copy_outcome(
+                &write_handle,
+                if ok {
+                    TrayCopyOutcomeReason::Copied
+                } else {
+                    TrayCopyOutcomeReason::Failed
+                },
+            );
         });
     });
 }
@@ -1788,14 +1816,21 @@ pub fn copy_recent_dictation(app: &AppHandle, entry_id: i64) {
     }) {
         if text.trim().is_empty() {
             warn!("Recent dictation {entry_id} is empty; skipping tray copy.");
-            emit_tray_copy_outcome(app, false);
+            emit_tray_copy_outcome(app, TrayCopyOutcomeReason::Empty);
             return;
         }
         let ok = write_clipboard_on_main(app, &text);
         if ok {
             info!("Copied recent dictation {entry_id} to clipboard via tray.");
         }
-        emit_tray_copy_outcome(app, ok);
+        emit_tray_copy_outcome(
+            app,
+            if ok {
+                TrayCopyOutcomeReason::Copied
+            } else {
+                TrayCopyOutcomeReason::Failed
+            },
+        );
         return;
     }
 
@@ -1809,7 +1844,7 @@ pub fn copy_recent_dictation(app: &AppHandle, entry_id: i64) {
                 let text = last_transcript_text(&entry).to_string();
                 if text.trim().is_empty() {
                     warn!("Recent dictation {entry_id} is empty; skipping tray copy.");
-                    emit_tray_copy_outcome(&handle, false);
+                    emit_tray_copy_outcome(&handle, TrayCopyOutcomeReason::Empty);
                     return;
                 }
                 let write_handle = handle.clone();
@@ -1818,16 +1853,23 @@ pub fn copy_recent_dictation(app: &AppHandle, entry_id: i64) {
                     if ok {
                         info!("Copied recent dictation {entry_id} to clipboard via tray.");
                     }
-                    emit_tray_copy_outcome(&write_handle, ok);
+                    emit_tray_copy_outcome(
+                        &write_handle,
+                        if ok {
+                            TrayCopyOutcomeReason::Copied
+                        } else {
+                            TrayCopyOutcomeReason::Failed
+                        },
+                    );
                 });
             }
             Ok(None) => {
                 warn!("Recent dictation {entry_id} no longer exists; skipping tray copy.");
-                emit_tray_copy_outcome(&handle, false);
+                emit_tray_copy_outcome(&handle, TrayCopyOutcomeReason::Empty);
             }
             Err(err) => {
                 error!("Failed to fetch recent dictation {entry_id}: {err}");
-                emit_tray_copy_outcome(&handle, false);
+                emit_tray_copy_outcome(&handle, TrayCopyOutcomeReason::Failed);
             }
         }
     });
@@ -1844,7 +1886,7 @@ mod tests {
         recent_dictations_submenu_rows, resolve_model_label_name, status_line_text,
         title_reconciliation, truncate_chars, unload_after_custom_label,
         unload_after_preset_is_active, AppTheme, CompanionMenuStatus, MenuInputs, ModelStatusLine,
-        TitleAction, TrayCopyOutcome, TrayIconState, RECENT_WORDS_MAX_CHARS,
+        TitleAction, TrayCopyOutcome, TrayCopyOutcomeReason, TrayIconState, RECENT_WORDS_MAX_CHARS,
         TRAY_COPY_OUTCOME_EVENT, TRAY_TITLE_MAX_CHARS,
     };
     use crate::managers::history::HistoryEntry;
@@ -2870,10 +2912,45 @@ mod tests {
 
         // The event name is a wire contract with the App.tsx listener.
         assert_eq!(TRAY_COPY_OUTCOME_EVENT, "tray-copy-outcome");
-        // The payload serializes to the shape the listener reads.
+        // The payload serializes to the shape the listener reads: the
+        // legacy ok bool plus the fleet-pass reason, so the surface can
+        // tell "nothing to copy" from "the clipboard write failed".
         assert_eq!(
-            serde_json::to_value(TrayCopyOutcome { ok: true }).unwrap(),
-            serde_json::json!({ "ok": true })
+            serde_json::to_value(TrayCopyOutcome {
+                ok: true,
+                reason: TrayCopyOutcomeReason::Copied,
+            })
+            .unwrap(),
+            serde_json::json!({ "ok": true, "reason": "copied" })
         );
+        assert_eq!(
+            serde_json::to_value(TrayCopyOutcome {
+                ok: false,
+                reason: TrayCopyOutcomeReason::Empty,
+            })
+            .unwrap(),
+            serde_json::json!({ "ok": false, "reason": "empty" })
+        );
+        assert_eq!(
+            serde_json::to_value(TrayCopyOutcome {
+                ok: false,
+                reason: TrayCopyOutcomeReason::Failed,
+            })
+            .unwrap(),
+            serde_json::json!({ "ok": false, "reason": "failed" })
+        );
+
+        // Fleet pass: the reason classes must be routed to the right
+        // legs. Nothing-to-copy (no entry, empty text, entry gone) is
+        // Empty; a query error or a refused clipboard write is Failed.
+        // Pinned against this committed source (the handlers need an
+        // AppHandle with history and a clipboard).
+        let reasons_in = |body: &str, reason: &str| body.matches(reason).count();
+        let copy_last = fn_at("pub fn copy_last_transcript(");
+        assert_eq!(reasons_in(copy_last, "TrayCopyOutcomeReason::Empty"), 2);
+        assert_eq!(reasons_in(copy_last, "TrayCopyOutcomeReason::Failed"), 2);
+        let copy_recent = fn_at("pub fn copy_recent_dictation(");
+        assert_eq!(reasons_in(copy_recent, "TrayCopyOutcomeReason::Empty"), 3);
+        assert_eq!(reasons_in(copy_recent, "TrayCopyOutcomeReason::Failed"), 3);
     }
 }

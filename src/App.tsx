@@ -279,13 +279,39 @@ function App() {
   // which is right: the banner earns its place exactly when the window is
   // hidden and the tray was the reachable surface.
   useEffect(() => {
-    const unlisten = listen<{ ok: boolean }>("tray-copy-outcome", (event) => {
-      if (!trayCopyOutcomeDispatch(getOsNotificationPrefs()).notify) return;
-      void notifyDesktop(
-        event.payload?.ok
-          ? t("trayCopyOutcome.copied")
-          : t("trayCopyOutcome.failed"),
-      );
+    const unlisten = listen<{
+      ok: boolean;
+      reason?: "copied" | "empty" | "failed";
+    }>("tray-copy-outcome", (event) => {
+      // Fleet pass: the outcome names WHAT happened. The old single bool
+      // conflated "nothing to copy" with "the clipboard write failed", so
+      // a machine that had never dictated read "Could not copy the
+      // transcript to the clipboard."
+      const reason = event.payload?.reason;
+      const message =
+        reason === "empty"
+          ? t("trayCopyOutcome.empty")
+          : event.payload?.ok
+            ? t("trayCopyOutcome.copied")
+            : t("trayCopyOutcome.failed");
+      // Fleet pass: the failure legs also write the in-app notification
+      // log row while the master toggle is on - the backstop that
+      // survives a denied macOS notification permission or a hidden
+      // window (the historyDbRecovery discipline), so the operator's
+      // denied-notifications machine still gets feedback on a surface.
+      // The off path adds no durable state, exactly like every other
+      // log leg.
+      const prefs = getOsNotificationPrefs();
+      const failure = reason === "empty" || event.payload?.ok === false;
+      if (failure && prefs.enabled) {
+        pushNotificationLogEntry({
+          code: reason === "empty" ? "tray_copy_empty" : "tray_copy_failed",
+          kind: reason === "empty" ? "info" : "error",
+          receivedAt: Date.now(),
+        });
+      }
+      if (!trayCopyOutcomeDispatch(prefs).notify) return;
+      void notifyDesktop(message);
     });
     return () => {
       unlisten.then((fn) => fn());

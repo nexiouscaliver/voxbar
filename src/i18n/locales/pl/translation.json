@@ -31,6 +31,7 @@
   },
   "trayCopyOutcome": {
     "copied": "Dyktando zostało skopiowane do schowka.",
+    "empty": "Nie ma jeszcze niczego do skopiowania.",
     "failed": "Nie udało się skopiować dyktanda do schowka."
   },
   "sidebar": {

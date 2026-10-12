@@ -31,6 +31,7 @@
   },
   "trayCopyOutcome": {
     "copied": "Dikte panoya kopyalandı.",
+    "empty": "Henüz kopyalanacak bir şey yok.",
     "failed": "Dikte panoya kopyalanamadı."
   },
   "sidebar": {

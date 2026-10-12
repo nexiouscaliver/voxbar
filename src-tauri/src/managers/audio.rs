@@ -1396,6 +1396,16 @@ impl AudioRecordingManager {
                     std::thread::sleep(remaining.min(Duration::from_millis(25)));
                 }
             }
+            // Fleet pass: this entry is out of the map, so no push can
+            // reach its ring any more (the map lookup is the only route
+            // in, and the server's admission already refuses the
+            // not-live session) - nothing exists to acknowledge the
+            // stop-pause handshake, so every healthy phone stop paid the
+            // full 2 s PAUSE_ACK_TIMEOUT inside stop() before
+            // transcription even began. Closing the SOURCE first marks
+            // the producer gone, which the consumer reads as an immediate
+            // acknowledgement: fast return, the ring's samples intact.
+            entry.source.close();
             match entry.recorder.stop() {
                 Ok(buf) => buf,
                 Err(e) => {
@@ -1531,23 +1541,36 @@ impl AudioRecordingManager {
     /// no-more-audio-source teardowns take (the graceful stop finalizes
     /// each live session BEFORE calling here).
     pub fn close_remote_stream(&self) {
-        let mut lanes = self.remote_lanes.lock().unwrap();
-        let live: Vec<u64> = lanes
-            .iter()
-            .filter(|(_, l)| l.recording)
-            .map(|(l, _)| *l)
-            .collect();
-        for lane in live {
-            if let Some(entry) = lanes.get_mut(&lane) {
+        // Fleet pass: take the whole map under the lock, then stop and
+        // close OUTSIDE it. stop()'s pause handshake is acknowledged
+        // through push_remote_chunk / ack_remote_pause, which need this
+        // same lock - stopping under it serialized the full 2 s
+        // PAUSE_ACK_TIMEOUT per recording lane with every phone's pushes
+        // locked out.
+        let drained: Vec<_> = {
+            let mut lanes = self.remote_lanes.lock().unwrap();
+            lanes.drain().collect()
+        };
+        for (_, mut entry) in drained {
+            if entry.recording {
+                // The teardown discards this lane's samples and its map
+                // entry is already gone (no push route left): close the
+                // source first so the stop cannot wait out the pause
+                // timeout - without it a force teardown spent 2 s per
+                // recording lane.
+                entry.source.close();
                 let _ = entry.recorder.stop();
-                entry.recording = false;
             }
-        }
-        for (_, mut entry) in lanes.drain() {
             let _ = entry.recorder.close();
         }
-        drop(lanes);
-        self.remote_lanes_recording.store(false, Ordering::SeqCst);
+        // Recompute under the lock (not a blind false): a lane start that
+        // committed after the drain must keep its truth, and the store
+        // shares the start's critical section so the two cannot interleave.
+        {
+            let lanes = self.remote_lanes.lock().unwrap();
+            let still = lanes.values().any(|l| l.recording);
+            self.remote_lanes_recording.store(still, Ordering::SeqCst);
+        }
         self.last_recording_lane.store(0, Ordering::SeqCst);
         // Fold the shared mirror with the local machine's state and the
         // lanes' CURRENT truth: a lane start can commit between the drain
@@ -2172,20 +2195,30 @@ impl AudioRecordingManager {
         if let Some(lane) = cancel_lane {
             self.bump_cancel_generation(cancel_bump_lane(CancelTarget::Lane(lane)));
             drop(state);
-            let mut lanes = self.remote_lanes.lock().unwrap();
-            if let Some(entry) = lanes.get_mut(&lane) {
+            // Fleet pass: the entry leaves the map under the lock and the
+            // recorder stops OUTSIDE it. stop()'s pause handshake is
+            // acknowledged through push_remote_chunk / ack_remote_pause,
+            // which need this same lock - stopping under it deadlocked the
+            // ack for the full 2 s PAUSE_ACK_TIMEOUT with every phone's
+            // pushes locked out and the shortcut dispatch thread blocked.
+            let cancelled = {
+                let mut lanes = self.remote_lanes.lock().unwrap();
+                let entry = lanes.remove(&lane);
+                let still_recording = lanes.values().any(|l| l.recording);
+                self.remote_lanes_recording
+                    .store(still_recording, Ordering::SeqCst);
+                entry
+            };
+            if let Some(mut entry) = cancelled {
+                // A removed entry has no push route left and the cancel
+                // discards the audio anyway: close the source first so the
+                // stop cannot wait out the pause timeout.
+                entry.source.close();
                 if entry.recording {
                     let _ = entry.recorder.stop(); // Discard the result
-                    entry.recording = false;
                 }
-            }
-            let still_recording = lanes.values().any(|l| l.recording);
-            self.remote_lanes_recording
-                .store(still_recording, Ordering::SeqCst);
-            if let Some(mut entry) = lanes.remove(&lane) {
                 let _ = entry.recorder.close();
             }
-            drop(lanes);
             // Fleet pass 3: fold from the lanes' CURRENT truth (the atomic),
             // never the still_recording snapshot - another lane can start in
             // the gap between the snapshot and this fold, and the snapshot
@@ -2332,13 +2365,12 @@ mod tests {
         let stop_at = source
             .find("pub fn stop_remote_lane_recording(")
             .expect("the lane stop");
-        let stop_body =
-            &source[stop_at..source.find("pub fn lane_is_recording").expect("its end")];
+        let stop_body = &source[stop_at..source.find("pub fn lane_is_recording").expect("its end")];
         let cancel_at = source
             .find("pub fn cancel_recording(&self) -> CancelTarget")
             .expect("cancel_recording");
-        let cancel_body =
-            &source[cancel_at..cancel_at + source[cancel_at..].find("\n    }\n}\n").expect("fn end")];
+        let cancel_body = &source
+            [cancel_at..cancel_at + source[cancel_at..].find("\n    }\n}\n").expect("fn end")];
         let close_at = source
             .find("pub fn close_remote_stream(&self)")
             .expect("close_remote_stream");
@@ -2382,8 +2414,9 @@ mod tests {
         let at = source
             .find("fn restart_open_stream_on_new_device(&self)")
             .expect("the capture-environment restart");
-        let body =
-            &source[at..source.find("pub fn update_clamshell_microphone").expect("its end")];
+        let body = &source[at..source
+            .find("pub fn update_clamshell_microphone")
+            .expect("its end")];
         let lock_at = body
             .find("let state = self.state.lock().unwrap();")
             .expect("the restart takes the state lock");
@@ -2444,8 +2477,9 @@ mod tests {
         let at = source
             .find("fn restart_open_stream_on_new_device(&self)")
             .expect("the capture-environment restart");
-        let body =
-            &source[at..source.find("pub fn update_clamshell_microphone").expect("its end")];
+        let body = &source[at..source
+            .find("pub fn update_clamshell_microphone")
+            .expect("its end")];
         let stop_at = body
             .find("self.stop_microphone_stream();")
             .expect("the stop");
@@ -2468,6 +2502,81 @@ mod tests {
         assert!(
             deferred_body.contains("MicrophoneMode::AlwaysOn"),
             "the deferred re-resolve must stay gated on the always-on mode"
+        );
+    }
+
+    /// Fleet pass, source pin (the interleavings need real sockets, so the
+    /// scopes are pinned against this committed source, the convention
+    /// above): no lane path may call recorder.stop() while holding the
+    /// remote_lanes lock, and every lane stop closes the source BEFORE
+    /// stopping the recorder. stop()'s pause handshake is acknowledged
+    /// through push_remote_chunk / ack_remote_pause, which take that same
+    /// lock - a stop under it deadlocks its own ack for the full 2 s
+    /// PAUSE_ACK_TIMEOUT, stalling every phone's audio ingestion and (on
+    /// the cancel path) the shortcut dispatch thread. And a lane whose map
+    /// entry is gone has no push route left, so without the source-close
+    /// first the stop pays the same timeout on every healthy phone stop.
+    #[test]
+    fn lane_stops_run_outside_the_lanes_lock_and_close_the_source_first() {
+        let source = include_str!("audio.rs");
+
+        // The healthy stop: the source closes immediately before the stop.
+        let stop_at = source
+            .find("pub fn stop_remote_lane_recording(")
+            .expect("the lane stop");
+        let stop_body = &source[stop_at..source.find("pub fn lane_is_recording").expect("its end")];
+        let source_close_at = stop_body
+            .find("entry.source.close();")
+            .expect("the healthy stop closes the source first");
+        let recorder_stop_at = stop_body
+            .find("entry.recorder.stop()")
+            .expect("the recorder stop");
+        assert!(
+            source_close_at < recorder_stop_at,
+            "the source must be closed before the recorder stops, or the pause handshake waits out its timeout"
+        );
+
+        // The cancel arm: the entry is removed under the lock inside a
+        // scoped block, and the stop runs only on the taken entry after
+        // that block ends.
+        let cancel_at = source
+            .find("pub fn cancel_recording(&self) -> CancelTarget")
+            .expect("cancel_recording");
+        let cancel_body = &source
+            [cancel_at..cancel_at + source[cancel_at..].find("\n    }\n}\n").expect("fn end")];
+        let remove_at = cancel_body
+            .find("lanes.remove(&lane)")
+            .expect("the cancel removes the entry under the lock");
+        let handoff_at = cancel_body
+            .find("if let Some(mut entry) = cancelled {")
+            .expect("the cancel stops outside the lock, on the taken entry");
+        let cancel_stop_at = cancel_body
+            .find("entry.recorder.stop()")
+            .expect("the cancel's recorder stop");
+        assert!(
+            remove_at < handoff_at && handoff_at < cancel_stop_at,
+            "the cancel's stop must run on the entry AFTER it left the map, never under the lanes lock"
+        );
+
+        // The force teardown: the whole map drains inside a scoped block
+        // and the stops run in the drained loop after it.
+        let close_at = source
+            .find("pub fn close_remote_stream(&self)")
+            .expect("close_remote_stream");
+        let close_body =
+            &source[close_at..source.find("pub fn set_stream_owner").expect("its end")];
+        let drain_at = close_body
+            .find("lanes.drain()")
+            .expect("the force teardown drains under the lock");
+        let loop_at = close_body
+            .find("for (_, mut entry) in drained {")
+            .expect("the teardown loop on the drained entries");
+        let teardown_stop_at = close_body
+            .find("entry.recorder.stop()")
+            .expect("the teardown's recorder stop");
+        assert!(
+            drain_at < loop_at && loop_at < teardown_stop_at,
+            "the teardown's stops must run on drained entries AFTER the map lock was released"
         );
     }
 

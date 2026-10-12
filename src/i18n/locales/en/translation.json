@@ -31,6 +31,7 @@
   },
   "trayCopyOutcome": {
     "copied": "Copied the transcript to the clipboard.",
+    "empty": "Nothing to copy yet.",
     "failed": "Could not copy the transcript to the clipboard."
   },
   "sidebar": {

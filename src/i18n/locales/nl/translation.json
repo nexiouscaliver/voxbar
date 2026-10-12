@@ -31,6 +31,7 @@
   },
   "trayCopyOutcome": {
     "copied": "De transcriptie is naar het klembord gekopieerd.",
+    "empty": "Er is nog niets om te kopiëren.",
     "failed": "Kon de transcriptie niet naar het klembord kopiëren."
   },
   "sidebar": {

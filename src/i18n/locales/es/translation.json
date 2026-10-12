@@ -31,6 +31,7 @@
   },
   "trayCopyOutcome": {
     "copied": "El dictado se copió al portapapeles.",
+    "empty": "Todavía no hay nada que copiar.",
     "failed": "No se pudo copiar el dictado al portapapeles."
   },
   "sidebar": {
