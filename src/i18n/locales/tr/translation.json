@@ -750,6 +750,7 @@
           "notFetched": "Henüz model listesi yok.",
           "emptyTitle": "Listede model yok",
           "emptyHint": "Bu anahtarın gördüğü modelleri yüklemek için yenileyin veya aşağıya bir model kimliği yazın.",
+          "emptyNoKey": "Modelleri yüklemek için önce yukarıya API anahtarınızı girin, sonra yenileyin.",
           "customSet": "Ayarla",
           "customHint": "Listede olmasa bile sağlayıcınızın sunduğu her model kimliği çalışır.",
           "filterPlaceholder": "Modelleri filtrele",
@@ -791,8 +792,7 @@
         "providerLabel": "Yerel (cihazda)",
         "keepWarm": {
           "title": "Yerel modeli sıcak tut",
-          "description": "Yerel son işlem modeli bir cilalamadan sonra hemen boşaltılmak yerine ne kadar süre bellekte kalır. Bir dikte her zaman önce belleği geri alır.",
-          "off": "Kapalı"
+          "description": "Yerel son işlem modeli bir cilalamadan sonra hemen boşaltılmak yerine ne kadar süre bellekte kalır. Bir dikte her zaman önce belleği geri alır."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "Geçmiş",
       "openFolder": "Kayıtlar Klasörünü Aç",
       "loading": "Geçmiş yükleniyor...",
-      "empty": "Henüz transkripsiyon yok. Geçmişinizi oluşturmak için kayda başlayın!",
+      "emptyTitle": "Henüz transkripsiyon yok",
+      "emptyHint": "İlk diktinizi kaydetmek için kayıt kısayolunuza basın.",
       "copyToClipboard": "Transkripsiyonu panoya kopyala",
       "copyError": "Transkripsiyon panoya kopyalanamadı.",
       "save": "Transkripsiyonu kaydet",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms ile",
       "viewChanges": "Değişiklikleri göster",
-      "hideChanges": "Değişiklikleri gizle"
+      "hideChanges": "Değişiklikleri gizle",
+      "today": "Bugün",
+      "yesterday": "Dün"
     },
     "debug": {
       "title": "Hata Ayıklama",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Sonuç bildirimleri",
-        "description": "Telefon oturumu bittiğinde de bildir; örneğin oturum sınırına ulaşıldığında veya telefon bağlantısı koptuğunda. Kapalı, yalnızca hatalar demektir."
+        "description": "Telefon oturumu bittiğinde de bildir; örneğin oturum sınırına ulaşıldığında veya telefon bağlantısı koptuğunda. Kapalı, yalnızca hatalar demektir.",
+        "requiresMaster": "Yalnızca sistem bildirimleri açıkken kullanılabilir."
       },
       "log": {
         "title": "Bildirim günlüğü",

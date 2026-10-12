@@ -750,6 +750,7 @@
           "notFetched": "尚未取得模型清單。",
           "emptyTitle": "清單中沒有模型",
           "emptyHint": "重新整理以載入此金鑰可見的模型，或在下方輸入模型 ID。",
+          "emptyNoKey": "請先在上方輸入你的 API 金鑰，然後重新整理以載入模型列表。",
           "customSet": "設定",
           "customHint": "只要服務商支援，未列出的模型 ID 也可以使用。",
           "filterPlaceholder": "篩選模型",
@@ -791,8 +792,7 @@
         "providerLabel": "本機（裝置上）",
         "keepWarm": {
           "title": "本機模型駐留記憶體",
-          "description": "潤飾完成後，本機後處理模型在記憶體中保留多久，而不是立即卸載。聽寫一律優先收回記憶體。",
-          "off": "關"
+          "description": "潤飾完成後，本機後處理模型在記憶體中保留多久，而不是立即卸載。聽寫一律優先收回記憶體。"
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "歷史紀錄",
       "openFolder": "開啟錄音資料夾",
       "loading": "載入歷史紀錄中...",
-      "empty": "還沒有轉錄紀錄。開始錄製以建立您的歷史紀錄！",
+      "emptyTitle": "還沒有聽寫記錄",
+      "emptyHint": "按下錄音快速鍵，開始你的第一次聽寫。",
       "copyToClipboard": "複製轉錄到剪貼簿",
       "copyError": "無法將轉錄複製到剪貼簿。",
       "save": "儲存轉錄",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "經 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒處理",
       "viewChanges": "檢視變更",
-      "hideChanges": "收合變更"
+      "hideChanges": "收合變更",
+      "today": "今天",
+      "yesterday": "昨天"
     },
     "debug": {
       "title": "偵錯",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "結果通知",
-        "description": "手機工作階段結束時也通知，例如達到工作階段上限或手機中斷連線時。關閉後僅通知錯誤。"
+        "description": "手機工作階段結束時也通知，例如達到工作階段上限或手機中斷連線時。關閉後僅通知錯誤。",
+        "requiresMaster": "僅在系統通知開啟時可用。"
       },
       "log": {
         "title": "通知記錄",

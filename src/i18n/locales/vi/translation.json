@@ -750,6 +750,7 @@
           "notFetched": "Chưa có danh sách mô hình.",
           "emptyTitle": "Không có mô hình nào trong danh sách",
           "emptyHint": "Làm mới để tải các mô hình mà khóa này nhìn thấy, hoặc gõ id mô hình bên dưới.",
+          "emptyNoKey": "Nhập khóa API của bạn vào ô trên, rồi làm mới để tải các mô hình.",
           "customSet": "Đặt",
           "customHint": "Bất kỳ id mô hình nào nhà cung cấp của bạn hỗ trợ đều dùng được, kể cả khi không có trong danh sách.",
           "filterPlaceholder": "Lọc mô hình",
@@ -791,8 +792,7 @@
         "providerLabel": "Cục bộ (trên thiết bị)",
         "keepWarm": {
           "title": "Giữ mô hình cục bộ trong bộ nhớ",
-          "description": "Mô hình hậu xử lý cục bộ ở lại trong bộ nhớ bao lâu sau một lần chau chuốt thay vì dỡ ngay. Lệnh đọc luôn lấy lại bộ nhớ trước.",
-          "off": "Tắt"
+          "description": "Mô hình hậu xử lý cục bộ ở lại trong bộ nhớ bao lâu sau một lần chau chuốt thay vì dỡ ngay. Lệnh đọc luôn lấy lại bộ nhớ trước."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "Lịch sử",
       "openFolder": "Mở thư mục ghi âm",
       "loading": "Đang tải lịch sử...",
-      "empty": "Chưa có bản ghi nào. Bắt đầu ghi âm để xây dựng lịch sử của bạn!",
+      "emptyTitle": "Chưa có bản chép lời nào",
+      "emptyHint": "Nhấn phím tắt ghi âm để thực hiện lần đọc đầu tiên của bạn.",
       "copyToClipboard": "Sao chép bản ghi vào clipboard",
       "copyError": "Không thể sao chép bản ghi vào bộ nhớ tạm.",
       "save": "Lưu bản ghi",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "qua {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Xem thay đổi",
-      "hideChanges": "Ẩn thay đổi"
+      "hideChanges": "Ẩn thay đổi",
+      "today": "Hôm nay",
+      "yesterday": "Hôm qua"
     },
     "debug": {
       "title": "Gỡ lỗi",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Thông báo kết quả",
-        "description": "Cũng thông báo khi phiên điện thoại kết thúc, ví dụ khi đạt giới hạn phiên hoặc điện thoại ngắt kết nối. Tắt nghĩa là chỉ lỗi."
+        "description": "Cũng thông báo khi phiên điện thoại kết thúc, ví dụ khi đạt giới hạn phiên hoặc điện thoại ngắt kết nối. Tắt nghĩa là chỉ lỗi.",
+        "requiresMaster": "Chỉ khả dụng khi thông báo hệ thống đang bật."
       },
       "log": {
         "title": "Nhật ký thông báo",

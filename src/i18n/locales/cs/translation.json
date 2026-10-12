@@ -752,6 +752,7 @@
           "notFetched": "Zatím žádný seznam modelů.",
           "emptyTitle": "Žádné modely v seznamu",
           "emptyHint": "Obnovte, aby se načetly modely dostupné s tímto klíčem, nebo níže zadejte id modelu.",
+          "emptyNoKey": "Zadejte výše svůj klíč API a poté obnovte, aby se načetly modely.",
           "customSet": "Nastavit",
           "customHint": "Funguje jakékoli id modelu od vašeho poskytovatele, i když není v seznamu.",
           "filterPlaceholder": "Filtrovat modely",
@@ -795,8 +796,7 @@
         "providerLabel": "Místní (na zařízení)",
         "keepWarm": {
           "title": "Držet místní model v paměti",
-          "description": "Jak dlouho zůstává místní model následného zpracování v paměti po vyčištění, místo aby se hned uvolnil. Diktát si paměť vždy vezme zpátky jako první.",
-          "off": "Vypnuto"
+          "description": "Jak dlouho zůstává místní model následného zpracování v paměti po vyčištění, místo aby se hned uvolnil. Diktát si paměť vždy vezme zpátky jako první."
         }
       },
       "models": {
@@ -927,7 +927,8 @@
       "title": "Historie",
       "openFolder": "Otevřít složku nahrávek",
       "loading": "Načítám historii...",
-      "empty": "Zatím žádné přepisy. Začněte nahrávat a vytvořte si historii!",
+      "emptyTitle": "Zatím žádné přepisy",
+      "emptyHint": "Stiskněte klávesovou zkratku nahrávání a pořiďte svůj první diktát.",
       "copyToClipboard": "Kopírovat přepis do schránky",
       "copyError": "Přepis se nepodařilo zkopírovat do schránky.",
       "save": "Uložit přepis",
@@ -948,7 +949,9 @@
       },
       "viaPostProcess": "přes {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Zobrazit změny",
-      "hideChanges": "Skrýt změny"
+      "hideChanges": "Skrýt změny",
+      "today": "Dnes",
+      "yesterday": "Včera"
     },
     "debug": {
       "title": "Ladění",
@@ -1153,7 +1156,8 @@
       },
       "outcomes": {
         "label": "Oznámení o výsledcích",
-        "description": "Upozorňovat také na konec relace telefonu, například při dosažení limitu relace nebo odpojení telefonu. Vypnuto znamená pouze chyby."
+        "description": "Upozorňovat také na konec relace telefonu, například při dosažení limitu relace nebo odpojení telefonu. Vypnuto znamená pouze chyby.",
+        "requiresMaster": "Dostupné pouze když jsou systémová oznámení zapnutá."
       },
       "log": {
         "title": "Protokol oznámení",

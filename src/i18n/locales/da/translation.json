@@ -750,6 +750,7 @@
           "notFetched": "Endnu ingen modelliste.",
           "emptyTitle": "Ingen modeller på listen",
           "emptyHint": "Opdater for at indlæse de modeller, denne nøgle kan se, eller skriv et model-id herunder.",
+          "emptyNoKey": "Indtast din API-nøgle ovenfor, og opdater derefter for at indlæse modeller.",
           "customSet": "Angiv",
           "customHint": "Ethvert model-id fra din udbyder virker, også hvis det ikke er på listen.",
           "filterPlaceholder": "Filtrér modeller",
@@ -791,8 +792,7 @@
         "providerLabel": "Lokalt (på enheden)",
         "keepWarm": {
           "title": "Hold den lokale model varm",
-          "description": "Hvor længe den lokale efterbehandlingsmodel bliver i hukommelsen efter en oprydning i stedet for at blive lukket ned med det samme. En diktering henter altid hukommelsen først.",
-          "off": "Fra"
+          "description": "Hvor længe den lokale efterbehandlingsmodel bliver i hukommelsen efter en oprydning i stedet for at blive lukket ned med det samme. En diktering henter altid hukommelsen først."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "Historik",
       "openFolder": "Åbn optagelsesmappe",
       "loading": "Indlæser historik...",
-      "empty": "Ingen transskriptioner endnu. Start optagelse for at opbygge din historik!",
+      "emptyTitle": "Ingen transskriptioner endnu",
+      "emptyHint": "Tryk på din optagegenvej for at lave din første diktering.",
       "copyToClipboard": "Kopiér transskription til udklipsholder",
       "copyError": "Kunne ikke kopiere transskriptionen til udklipsholderen.",
       "save": "Gem transskription",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Vis ændringer",
-      "hideChanges": "Skjul ændringer"
+      "hideChanges": "Skjul ændringer",
+      "today": "I dag",
+      "yesterday": "I går"
     },
     "debug": {
       "title": "Fejlfinding",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Underretninger om resultater",
-        "description": "Giv også underretning, når en telefonsession slutter, f.eks. når sessionsgrænsen nås, eller telefonen frakobles. Fra betyder kun fejl."
+        "description": "Giv også underretning, når en telefonsession slutter, f.eks. når sessionsgrænsen nås, eller telefonen frakobles. Fra betyder kun fejl.",
+        "requiresMaster": "Kun tilgængelig, mens systemmeddelelser er slået til."
       },
       "log": {
         "title": "Underretningslog",

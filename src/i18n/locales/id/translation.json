@@ -750,6 +750,7 @@
           "notFetched": "Belum ada daftar model.",
           "emptyTitle": "Tidak ada model tercantum",
           "emptyHint": "Muat ulang untuk memuat model yang terlihat oleh kunci ini, atau ketik id model di bawah.",
+          "emptyNoKey": "Masukkan kunci API Anda di atas, lalu muat ulang untuk memuat model.",
           "customSet": "Atur",
           "customHint": "Id model apa pun dari penyedia Anda berfungsi, bahkan jika tidak tercantum.",
           "filterPlaceholder": "Filter model",
@@ -791,8 +792,7 @@
         "providerLabel": "Lokal (di perangkat)",
         "keepWarm": {
           "title": "Simpan model lokal di memori",
-          "description": "Berapa lama model pascaproses lokal tetap di memori setelah satu pemolesan alih-alih langsung dilepas. Dikotasi selalu mengambil kembali memori lebih dulu.",
-          "off": "Mati"
+          "description": "Berapa lama model pascaproses lokal tetap di memori setelah satu pemolesan alih-alih langsung dilepas. Dikotasi selalu mengambil kembali memori lebih dulu."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "Riwayat",
       "openFolder": "Buka Folder Rekaman",
       "loading": "Memuat riwayat...",
-      "empty": "Belum ada transkripsi. Mulai merekam untuk mengisi riwayat Anda!",
+      "emptyTitle": "Belum ada transkripsi",
+      "emptyHint": "Tekan pintasan rekam Anda untuk menangkap dikte pertama Anda.",
       "copyToClipboard": "Salin transkripsi ke papan klip",
       "copyError": "Gagal menyalin transkripsi ke papan klip.",
       "save": "Simpan transkripsi",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "lewat {{model}} · {{prompt}} · {{outcome}} · {{latency}} md",
       "viewChanges": "Lihat perubahan",
-      "hideChanges": "Sembunyikan perubahan"
+      "hideChanges": "Sembunyikan perubahan",
+      "today": "Hari ini",
+      "yesterday": "Kemarin"
     },
     "debug": {
       "title": "Debug",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Notifikasi hasil",
-        "description": "Juga beri tahu saat sesi ponsel berakhir, misalnya saat batas sesi tercapai atau ponsel terputus. Nonaktif berarti hanya kesalahan."
+        "description": "Juga beri tahu saat sesi ponsel berakhir, misalnya saat batas sesi tercapai atau ponsel terputus. Nonaktif berarti hanya kesalahan.",
+        "requiresMaster": "Hanya tersedia saat notifikasi sistem aktif."
       },
       "log": {
         "title": "Log notifikasi",

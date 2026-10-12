@@ -125,3 +125,29 @@ export const formatRelativeTime = (
     return formatDateTime(timestamp, locale); // Fallback to absolute time
   }
 };
+
+/**
+ * Format a date string or timestamp to a localized time-only string
+ * (e.g. "10:48 PM"): the per-row label under a history day-section header.
+ * @param timestamp - Unix timestamp in seconds (as string)
+ * @param locale - BCP 47 language tag (e.g., 'en', 'es', 'fr')
+ * @returns Formatted time string
+ */
+export const formatTimeOnly = (timestamp: string, locale: string): string => {
+  try {
+    const timestampMs = parseInt(timestamp, 10) * 1000;
+    const date = new Date(timestampMs);
+
+    if (isNaN(date.getTime())) {
+      return timestamp;
+    }
+
+    return new Intl.DateTimeFormat(locale, {
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(date);
+  } catch (error) {
+    console.error("Failed to format time:", error);
+    return timestamp;
+  }
+};

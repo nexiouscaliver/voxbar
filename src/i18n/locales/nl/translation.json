@@ -750,6 +750,7 @@
           "notFetched": "Nog geen modellenlijst.",
           "emptyTitle": "Geen modellen in de lijst",
           "emptyHint": "Ververs om de modellen te laden die deze sleutel ziet, of typ hieronder een model-id.",
+          "emptyNoKey": "Voer hierboven je API-sleutel in en ververs vervolgens om modellen te laden.",
           "customSet": "Instellen",
           "customHint": "Elke model-id van je provider werkt, ook als die niet in de lijst staat.",
           "filterPlaceholder": "Modellen filteren",
@@ -791,8 +792,7 @@
         "providerLabel": "Lokaal (op het apparaat)",
         "keepWarm": {
           "title": "Lokaal model vasthouden",
-          "description": "Hoe lang het lokale postprocessmodel in het geheugen blijft na een opruiming in plaats van direct te worden ontladen. Een dictee haalt het geheugen altijd eerst terug.",
-          "off": "Uit"
+          "description": "Hoe lang het lokale postprocessmodel in het geheugen blijft na een opruiming in plaats van direct te worden ontladen. Een dictee haalt het geheugen altijd eerst terug."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "Geschiedenis",
       "openFolder": "Opnamemap openen",
       "loading": "Geschiedenis laden...",
-      "empty": "Nog geen transcripties. Start met opnemen om je geschiedenis op te bouwen!",
+      "emptyTitle": "Nog geen transcripties",
+      "emptyHint": "Druk op je opname-sneltoets om je eerste dictaat vast te leggen.",
       "copyToClipboard": "Transcriptie naar klembord kopiëren",
       "copyError": "Transcriptie naar het klembord kopiëren mislukt.",
       "save": "Transcriptie opslaan",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Wijzigingen bekijken",
-      "hideChanges": "Wijzigingen verbergen"
+      "hideChanges": "Wijzigingen verbergen",
+      "today": "Vandaag",
+      "yesterday": "Gisteren"
     },
     "debug": {
       "title": "Probleemoplossing",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Resultaatmeldingen",
-        "description": "Meld ook wanneer een phonesessie eindigt, bijvoorbeeld bij het bereiken van het sessielimiet of wanneer de telefoon de verbinding verbreekt. Uit betekent alleen fouten."
+        "description": "Meld ook wanneer een phonesessie eindigt, bijvoorbeeld bij het bereiken van het sessielimiet of wanneer de telefoon de verbinding verbreekt. Uit betekent alleen fouten.",
+        "requiresMaster": "Alleen beschikbaar als systeemmeldingen aan staan."
       },
       "log": {
         "title": "Meldingenlog",

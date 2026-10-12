@@ -766,6 +766,12 @@ function App() {
   const toaster = (
     <Toaster
       theme="system"
+      // Every toast carries its own dismiss control; without it a toast
+      // that covers content is un-dismissable until its timer runs out.
+      closeButton
+      // 16px clearance above the status bar so the stack floats as an
+      // inset layer instead of sitting on the status text.
+      offset={16}
       toastOptions={{
         unstyled: true,
         classNames: {
@@ -775,6 +781,12 @@ function App() {
           toast:
             "bg-background border border-mid-gray/20 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 text-sm w-[360px]",
           title: "font-medium",
+          // Sonner's own close-button chrome only applies to styled
+          // toasts; in unstyled mode the whole look is these classes
+          // (absolute top-right inside the fixed-width card, secondary
+          // until hovered).
+          closeButton:
+            "absolute top-1.5 right-1.5 rounded-md p-1 flex items-center justify-center text-secondary hover:text-text hover:bg-mid-gray/10 cursor-pointer",
           description: "text-secondary text-sm leading-relaxed",
           // Both buttons need whitespace-nowrap + shrink-0: without sonner's
           // built-in button CSS, a long action label squeezes the cancel

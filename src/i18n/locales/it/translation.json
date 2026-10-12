@@ -750,6 +750,7 @@
           "notFetched": "Nessun elenco di modelli.",
           "emptyTitle": "Nessun modello in elenco",
           "emptyHint": "Aggiorna per caricare i modelli visibili con questa chiave, oppure digita un id modello sotto.",
+          "emptyNoKey": "Inserisci la tua chiave API qui sopra, poi aggiorna per caricare i modelli.",
           "customSet": "Imposta",
           "customHint": "Qualsiasi id modello del tuo provider funziona, anche se non è in elenco.",
           "filterPlaceholder": "Filtra modelli",
@@ -791,8 +792,7 @@
         "providerLabel": "Locale (sul dispositivo)",
         "keepWarm": {
           "title": "Mantieni il modello locale in memoria",
-          "description": "Per quanto tempo il modello locale di post-elaborazione resta in memoria dopo una rifinitura invece di scaricarsi subito. Una dettatura recupera sempre prima la memoria.",
-          "off": "Disattivato"
+          "description": "Per quanto tempo il modello locale di post-elaborazione resta in memoria dopo una rifinitura invece di scaricarsi subito. Una dettatura recupera sempre prima la memoria."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "Cronologia",
       "openFolder": "Apri la cartella delle registrazioni",
       "loading": "Caricamento cronologia...",
-      "empty": "Non ci sono ancora trascrizioni. Comincia a registrare per costruire la tua cronologia!",
+      "emptyTitle": "Ancora nessuna trascrizione",
+      "emptyHint": "Premi la scorciatoia di registrazione per acquisire la prima dettatura.",
       "copyToClipboard": "Copia la trascrizione negli appunti",
       "copyError": "Impossibile copiare la trascrizione negli appunti.",
       "save": "Salva la trascrizione",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "tramite {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Visualizza modifiche",
-      "hideChanges": "Nascondi modifiche"
+      "hideChanges": "Nascondi modifiche",
+      "today": "Oggi",
+      "yesterday": "Ieri"
     },
     "debug": {
       "title": "Debug",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Notifiche degli esiti",
-        "description": "Notifica anche quando termina una sessione del telefono, ad esempio al raggiungimento del limite o alla disconnessione del telefono. Disattivato significa solo errori."
+        "description": "Notifica anche quando termina una sessione del telefono, ad esempio al raggiungimento del limite o alla disconnessione del telefono. Disattivato significa solo errori.",
+        "requiresMaster": "Disponibile solo mentre le notifiche di sistema sono attive."
       },
       "log": {
         "title": "Registro delle notifiche",

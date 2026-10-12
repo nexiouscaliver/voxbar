@@ -752,6 +752,7 @@
           "notFetched": "Nie ma jeszcze listy modeli.",
           "emptyTitle": "Brak modeli na liście",
           "emptyHint": "Odśwież, aby wczytać modele widoczne dla tego klucza, albo wpisz poniżej identyfikator modelu.",
+          "emptyNoKey": "Wpisz powyżej swój klucz API, a następnie odśwież, aby pobrać modele.",
           "customSet": "Ustaw",
           "customHint": "Działa dowolny identyfikator modelu od dostawcy, nawet jeśli nie ma go na liście.",
           "filterPlaceholder": "Filtruj modele",
@@ -795,8 +796,7 @@
         "providerLabel": "Lokalnie (na urządzeniu)",
         "keepWarm": {
           "title": "Utrzymuj model lokalny w pamięci",
-          "description": "Jak długo lokalny model postprocessingu pozostaje w pamięci po czyszczeniu, zamiast być od razu wyładowany. Dyktando zawsze odzyskuje pamięć jako pierwsze.",
-          "off": "Wyłączone"
+          "description": "Jak długo lokalny model postprocessingu pozostaje w pamięci po czyszczeniu, zamiast być od razu wyładowany. Dyktando zawsze odzyskuje pamięć jako pierwsze."
         }
       },
       "models": {
@@ -927,7 +927,8 @@
       "title": "Historia",
       "openFolder": "Otwórz folder nagrań",
       "loading": "Wczytywanie historii...",
-      "empty": "Brak transkrypcji. Rozpocznij nagrywanie, aby zbudować historię!",
+      "emptyTitle": "Brak transkrypcji",
+      "emptyHint": "Naciśnij skrót nagrywania, aby przechwycić swoje pierwsze polecenie.",
       "copyToClipboard": "Kopiuj transkrypcję do schowka",
       "copyError": "Nie udało się skopiować transkrypcji do schowka.",
       "save": "Zapisz transkrypcję",
@@ -948,7 +949,9 @@
       },
       "viaPostProcess": "przez {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Pokaż zmiany",
-      "hideChanges": "Ukryj zmiany"
+      "hideChanges": "Ukryj zmiany",
+      "today": "Dzisiaj",
+      "yesterday": "Wczoraj"
     },
     "debug": {
       "title": "Debugowanie",
@@ -1153,7 +1156,8 @@
       },
       "outcomes": {
         "label": "Powiadomienia o wynikach",
-        "description": "Powiadamiaj także o zakończeniu sesji telefonu, na przykład po osiągnięciu limitu sesji lub rozłączeniu telefonu. Wyłączone oznacza tylko błędy."
+        "description": "Powiadamiaj także o zakończeniu sesji telefonu, na przykład po osiągnięciu limitu sesji lub rozłączeniu telefonu. Wyłączone oznacza tylko błędy.",
+        "requiresMaster": "Dostępne tylko przy włączonych powiadomieniach systemowych."
       },
       "log": {
         "title": "Dziennik powiadomień",

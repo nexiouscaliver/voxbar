@@ -750,6 +750,7 @@
           "notFetched": "Todavía no hay lista de modelos.",
           "emptyTitle": "No hay modelos en la lista",
           "emptyHint": "Actualiza para cargar los modelos que ve esta clave, o escribe un id de modelo abajo.",
+          "emptyNoKey": "Introduce tu clave de API arriba y actualiza para cargar los modelos.",
           "customSet": "Establecer",
           "customHint": "Cualquier id de modelo de tu proveedor funciona, aunque no esté en la lista.",
           "filterPlaceholder": "Filtrar modelos",
@@ -791,8 +792,7 @@
         "providerLabel": "Local (en el dispositivo)",
         "keepWarm": {
           "title": "Mantener el modelo local caliente",
-          "description": "Cuánto tiempo permanece en memoria el modelo local de posproceso tras un pulido en lugar de descargarse de inmediato. Un dictado siempre recupera antes la memoria.",
-          "off": "Apagado"
+          "description": "Cuánto tiempo permanece en memoria el modelo local de posproceso tras un pulido en lugar de descargarse de inmediato. Un dictado siempre recupera antes la memoria."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "Historial",
       "openFolder": "Abrir carpeta de grabaciones",
       "loading": "Cargando historial...",
-      "empty": "Aún no hay transcripciones. ¡Comienza a grabar para crear tu historial!",
+      "emptyTitle": "Aún no hay transcripciones",
+      "emptyHint": "Pulsa tu atajo de grabación para capturar tu primer dictado.",
       "copyToClipboard": "Copiar transcripción al portapapeles",
       "copyError": "No se pudo copiar la transcripción al portapapeles.",
       "save": "Guardar transcripción",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "vía {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Ver cambios",
-      "hideChanges": "Ocultar cambios"
+      "hideChanges": "Ocultar cambios",
+      "today": "Hoy",
+      "yesterday": "Ayer"
     },
     "debug": {
       "title": "Depuración",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Notificaciones de resultados",
-        "description": "Avisa también cuando termina una sesión del teléfono, por ejemplo al alcanzar el límite de sesión o al desconectarse el teléfono. Desactivado significa solo errores."
+        "description": "Avisa también cuando termina una sesión del teléfono, por ejemplo al alcanzar el límite de sesión o al desconectarse el teléfono. Desactivado significa solo errores.",
+        "requiresMaster": "Disponible solo mientras las notificaciones del sistema están activadas."
       },
       "log": {
         "title": "Registro de notificaciones",

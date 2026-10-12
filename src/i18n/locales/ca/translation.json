@@ -750,6 +750,7 @@
           "notFetched": "Encara no hi ha llista de models.",
           "emptyTitle": "Cap model a la llista",
           "emptyHint": "Actualitza per carregar els models que veu aquesta clau, o escriu un id de model a sota.",
+          "emptyNoKey": "Introduïu la vostra clau API a dalt i actualitzeu per carregar els models.",
           "customSet": "Estableix",
           "customHint": "Qualsevol id de model del teu proveïdor funciona, encara que no surti a la llista.",
           "filterPlaceholder": "Filtra models",
@@ -791,8 +792,7 @@
         "providerLabel": "Local (al dispositiu)",
         "keepWarm": {
           "title": "Mantén el model local en memòria",
-          "description": "Quant de temps roman a la memòria el model local de postprocés després d'un polit en lloc de descarregar-se de seguida. Un dictat sempre recupera la memòria primer.",
-          "off": "Desactivat"
+          "description": "Quant de temps roman a la memòria el model local de postprocés després d'un polit en lloc de descarregar-se de seguida. Un dictat sempre recupera la memòria primer."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "Historial",
       "openFolder": "Obriu la carpeta d'enregistraments",
       "loading": "S'està carregant l'historial...",
-      "empty": "Encara no hi ha transcripcions. Comenceu a enregistrar per crear l'historial!",
+      "emptyTitle": "Encara no hi ha transcripcions",
+      "emptyHint": "Premeu la drecera d'enregistrament per capturar el vostre primer dictat.",
       "copyToClipboard": "Copia la transcripció al porta-retalls",
       "copyError": "No s'ha pogut copiar la transcripció al porta-retalls.",
       "save": "Desa la transcripció",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Veure els canvis",
-      "hideChanges": "Amagar els canvis"
+      "hideChanges": "Amagar els canvis",
+      "today": "Avui",
+      "yesterday": "Ahir"
     },
     "debug": {
       "title": "Depuració",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Notificacions de resultats",
-        "description": "Notifica també quan acaba una sessió del mòbil, per exemple en arribar al límit de sessió o quan el mòbil es desconnecta. Desactivat significa només errors."
+        "description": "Notifica també quan acaba una sessió del mòbil, per exemple en arribar al límit de sessió o quan el mòbil es desconnecta. Desactivat significa només errors.",
+        "requiresMaster": "Disponible només mentre les notificacions del sistema estan activades."
       },
       "log": {
         "title": "Registre de notificacions",

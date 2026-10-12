@@ -353,7 +353,7 @@ export const CompanionDevices: React.FC = () => {
               <input
                 id="companion-advertised-host"
                 type="text"
-                className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-background-ui/40 px-2 py-1 font-mono text-xs text-text focus:border-logo-primary focus:outline-none"
+                className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-mid-gray/10 px-2 py-1 font-mono text-xs text-text placeholder:text-text/40 focus:border-logo-primary focus:outline-none"
                 placeholder={t(
                   "settings.advanced.companionDevices.hostPlaceholder",
                 )}
@@ -375,7 +375,7 @@ export const CompanionDevices: React.FC = () => {
                 id="companion-port"
                 type="text"
                 inputMode="numeric"
-                className="w-24 rounded-md border border-mid-gray/30 bg-background-ui/40 px-2 py-1 font-mono text-xs text-text focus:border-logo-primary focus:outline-none"
+                className="w-24 rounded-md border border-mid-gray/30 bg-mid-gray/10 px-2 py-1 font-mono text-xs text-text placeholder:text-text/40 focus:border-logo-primary focus:outline-none"
                 value={portValue}
                 onChange={(e) => setPortDraft(e.target.value)}
                 onBlur={() =>
@@ -410,7 +410,7 @@ export const CompanionDevices: React.FC = () => {
               <input
                 id="companion-tls-cert"
                 type="text"
-                className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-background-ui/40 px-2 py-1 font-mono text-xs text-text focus:border-logo-primary focus:outline-none"
+                className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-mid-gray/10 px-2 py-1 font-mono text-xs text-text placeholder:text-text/40 focus:border-logo-primary focus:outline-none"
                 placeholder="/path/to/cert.pem"
                 value={certValue}
                 onChange={(e) => setCertDraft(e.target.value)}
@@ -427,7 +427,7 @@ export const CompanionDevices: React.FC = () => {
               <input
                 id="companion-tls-key"
                 type="text"
-                className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-background-ui/40 px-2 py-1 font-mono text-xs text-text focus:border-logo-primary focus:outline-none"
+                className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-mid-gray/10 px-2 py-1 font-mono text-xs text-text placeholder:text-text/40 focus:border-logo-primary focus:outline-none"
                 placeholder="/path/to/key.pem"
                 value={keyValue}
                 onChange={(e) => setKeyDraft(e.target.value)}

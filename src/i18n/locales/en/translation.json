@@ -750,6 +750,7 @@
           "notFetched": "No model list yet.",
           "emptyTitle": "No models listed",
           "emptyHint": "Refresh to load the models this key can see, or type a model id below.",
+          "emptyNoKey": "Enter your API key above, then refresh to load models.",
           "customSet": "Set",
           "customHint": "Any model id your provider offers works, even if it is not listed.",
           "filterPlaceholder": "Filter models",
@@ -791,8 +792,7 @@
         "providerLabel": "Local (on-device)",
         "keepWarm": {
           "title": "Keep local model warm",
-          "description": "How long the local post-processing model stays in memory after a polish instead of unloading right away. A dictation always takes the memory back first.",
-          "off": "Off"
+          "description": "How long the local post-processing model stays in memory after a polish instead of unloading right away. A dictation always takes the memory back first."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "History",
       "openFolder": "Open Recordings Folder",
       "loading": "Loading history...",
-      "empty": "No transcriptions yet. Start recording to build your history!",
+      "emptyTitle": "No transcriptions yet",
+      "emptyHint": "Press your record shortcut to capture your first dictation.",
       "copyToClipboard": "Copy transcription to clipboard",
       "copyError": "Failed to copy transcription to clipboard.",
       "save": "Save transcription",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "View changes",
-      "hideChanges": "Hide changes"
+      "hideChanges": "Hide changes",
+      "today": "Today",
+      "yesterday": "Yesterday"
     },
     "debug": {
       "title": "Debug",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Outcome notifications",
-        "description": "Also notify when a phone session ends, for example when the session limit is reached or the phone disconnects. Off means errors only."
+        "description": "Also notify when a phone session ends, for example when the session limit is reached or the phone disconnects. Off means errors only.",
+        "requiresMaster": "Available only while System notifications is on."
       },
       "log": {
         "title": "Notification log",

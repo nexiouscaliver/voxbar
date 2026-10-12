@@ -750,6 +750,7 @@
           "notFetched": "Noch keine Modellliste.",
           "emptyTitle": "Keine Modelle gelistet",
           "emptyHint": "Lade die Modelle neu, die dieser Schlüssel sieht, oder tippe unten eine Modell-ID ein.",
+          "emptyNoKey": "Gib oben deinen API-Schlüssel ein und lade dann neu, um die Modelle zu laden.",
           "customSet": "Setzen",
           "customHint": "Jede Modell-ID deines Anbieters funktioniert, auch wenn sie nicht gelistet ist.",
           "filterPlaceholder": "Modelle filteren",
@@ -791,8 +792,7 @@
         "providerLabel": "Lokal (auf dem Gerät)",
         "keepWarm": {
           "title": "Lokales Modell warm halten",
-          "description": "Wie lange das lokale Post-Processing-Modell nach einem Polieren im Speicher bleibt, statt sofort entladen zu werden. Ein Diktat holt sich den Speicher immer zuerst zurück.",
-          "off": "Aus"
+          "description": "Wie lange das lokale Post-Processing-Modell nach einem Polieren im Speicher bleibt, statt sofort entladen zu werden. Ein Diktat holt sich den Speicher immer zuerst zurück."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "Verlauf",
       "openFolder": "Aufnahmeordner öffnen",
       "loading": "Verlauf wird geladen...",
-      "empty": "Noch keine Transkriptionen. Starte eine Aufnahme, um deinen Verlauf aufzubauen!",
+      "emptyTitle": "Noch keine Transkriptionen",
+      "emptyHint": "Drücke deine Aufnahme-Tastenkombination, um dein erstes Diktat aufzunehmen.",
       "copyToClipboard": "Transkription in Zwischenablage kopieren",
       "copyError": "Transkription konnte nicht in die Zwischenablage kopiert werden.",
       "save": "Transkription speichern",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "über {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Änderungen anzeigen",
-      "hideChanges": "Änderungen ausblenden"
+      "hideChanges": "Änderungen ausblenden",
+      "today": "Heute",
+      "yesterday": "Gestern"
     },
     "debug": {
       "title": "Debug",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Benachrichtigungen zu Sitzungsergebnissen",
-        "description": "Außerdem benachrichtigen, wenn eine Telefonsitzung endet, etwa beim Erreichen des Sitzungslimits oder beim Trennen der Verbindung. Aus bedeutet nur Fehler."
+        "description": "Außerdem benachrichtigen, wenn eine Telefonsitzung endet, etwa beim Erreichen des Sitzungslimits oder beim Trennen der Verbindung. Aus bedeutet nur Fehler.",
+        "requiresMaster": "Nur verfügbar, solange Systembenachrichtigungen aktiviert sind."
       },
       "log": {
         "title": "Benachrichtigungsprotokoll",

@@ -750,6 +750,7 @@
           "notFetched": "아직 모델 목록이 없습니다.",
           "emptyTitle": "목록에 모델 없음",
           "emptyHint": "새로 고침하면 이 키로 볼 수 있는 모델을 불러옵니다. 또는 아래에 모델 ID를 입력하세요.",
+          "emptyNoKey": "위에 API 키를 입력한 다음 새로 고쳐 모델을 불러오세요.",
           "customSet": "설정",
           "customHint": "목록에 없어도 공급자가 제공하는 모델 ID라면 사용할 수 있습니다.",
           "filterPlaceholder": "모델 필터",
@@ -791,8 +792,7 @@
         "providerLabel": "로컬(기기에서)",
         "keepWarm": {
           "title": "로컬 모델을 메모리에 유지",
-          "description": "다듬기 후 로컬 후처리 모델이 즉시 언로드되지 않고 메모리에 머무는 시간. 받아쓰기는 항상 먼저 메모리를 되찾습니다.",
-          "off": "꺼짐"
+          "description": "다듬기 후 로컬 후처리 모델이 즉시 언로드되지 않고 메모리에 머무는 시간. 받아쓰기는 항상 먼저 메모리를 되찾습니다."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "히스토리",
       "openFolder": "녹음 폴더 열기",
       "loading": "히스토리 로딩 중...",
-      "empty": "아직 변환된 내용이 없습니다. 녹음을 시작하여 히스토리를 만드세요!",
+      "emptyTitle": "아직 변환된 텍스트가 없습니다",
+      "emptyHint": "녹음 단축키를 눌러 첫 번째 받아쓰기를 기록하세요.",
       "copyToClipboard": "녹음 내용을 클립보드에 복사",
       "copyError": "전사 내용을 클립보드에 복사하지 못했습니다.",
       "save": "변환된 텍스트 저장",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms로 처리",
       "viewChanges": "변경 사항 보기",
-      "hideChanges": "변경 사항 접기"
+      "hideChanges": "변경 사항 접기",
+      "today": "오늘",
+      "yesterday": "어제"
     },
     "debug": {
       "title": "디버그",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "결과 알림",
-        "description": "전화 세션이 끝날 때(세션 한도 도달, 전화 연결 끊김 등)도 알립니다. 끄면 오류만 알립니다."
+        "description": "전화 세션이 끝날 때(세션 한도 도달, 전화 연결 끊김 등)도 알립니다. 끄면 오류만 알립니다.",
+        "requiresMaster": "시스템 알림이 켜져 있을 때만 사용할 수 있습니다."
       },
       "log": {
         "title": "알림 기록",

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { FlaskConical, Play, RotateCcw } from "lucide-react";
+import { FlaskConical, Loader2, Play, RotateCcw } from "lucide-react";
 import {
   commands,
   type HistoryEntry,
@@ -116,7 +116,13 @@ const ResultCard: React.FC<{
       </div>
 
       {card.status === "running" ? (
-        <p className="text-xs text-secondary">{t("settings.studio.running")}</p>
+        <p className="flex items-center gap-1.5 text-xs text-secondary">
+          {/* In-flight feedback: the spinner keeps the running state visibly
+           * alive instead of static gray text a stalled run would render
+           * exactly like. */}
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+          {t("settings.studio.running")}
+        </p>
       ) : card.result ? (
         <>
           <div className="flex flex-wrap items-center gap-2">
@@ -286,7 +292,15 @@ export const PromptStudio: React.FC = () => {
     () => buildBatch([...selectedPrompts], [...selectedEngines]),
     [selectedPrompts, selectedEngines],
   );
-  const canRun = batch.length > 0 && !batchInFlight && !entriesLoading;
+  // "Last transcript" needs at least one history row to exist: with an
+  // empty history that source can only be refused by the backend, so Run
+  // stays disabled (the note under the picker says why) instead of letting
+  // the user trigger a guaranteed failure.
+  const sourceUsable =
+    sourceValue !== LAST_TRANSCRIPT_VALUE ||
+    entries.some((entry) => entry.transcription_text.trim().length > 0);
+  const canRun =
+    batch.length > 0 && !batchInFlight && !entriesLoading && sourceUsable;
 
   const sourceForRun = (): StudioSource =>
     sourceValue === LAST_TRANSCRIPT_VALUE
@@ -328,15 +342,18 @@ export const PromptStudio: React.FC = () => {
       if (result.status === "ok") {
         setCards((prev) => mergeResults(prev, result.data));
       } else {
-        // A refused batch must not destroy finished results: a fresh run
-        // resets to its idle cards, a re-run keeps the grid untouched and
-        // only surfaces the error for the pair that failed.
-        if (fresh) setCards(initCards(pairs));
+        // A refused batch must not destroy finished results (a re-run keeps
+        // the grid untouched), but a REFUSED FRESH run settles every card:
+        // the grid clears to its idle state so the error banner is the one
+        // failure signal. Cards that keep status "running" here would sit
+        // stuck as "Running..." forever while the Run button re-enables -
+        // three contradictory states on one screen.
+        if (fresh) setCards([]);
         setRunError(errorText(result.error));
       }
     } catch (error) {
       console.error("Studio batch failed:", error);
-      if (fresh) setCards(initCards(pairs));
+      if (fresh) setCards([]);
       setRunError(String(error));
     } finally {
       setBatchInFlight(false);

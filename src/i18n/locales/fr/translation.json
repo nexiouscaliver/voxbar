@@ -750,6 +750,7 @@
           "notFetched": "Aucune liste de modèles pour l'instant.",
           "emptyTitle": "Aucun modèle listé",
           "emptyHint": "Actualisez pour charger les modèles visibles avec cette clé, ou saisissez un identifiant de modèle ci-dessous.",
+          "emptyNoKey": "Saisissez votre clé API ci-dessus, puis actualisez pour charger les modèles.",
           "customSet": "Définir",
           "customHint": "Tout identifiant de modèle proposé par votre fournisseur fonctionne, même s'il n'est pas listé.",
           "filterPlaceholder": "Filtrer les modèles",
@@ -791,8 +792,7 @@
         "providerLabel": "Local (sur l'appareil)",
         "keepWarm": {
           "title": "Garder le modèle local en mémoire",
-          "description": "Combien de temps le modèle local de post-traitement reste en mémoire après une correction au lieu d'être déchargé immédiatement. Une dictée récupère toujours la mémoire en premier.",
-          "off": "Désactivé"
+          "description": "Combien de temps le modèle local de post-traitement reste en mémoire après une correction au lieu d'être déchargé immédiatement. Une dictée récupère toujours la mémoire en premier."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "Historique",
       "openFolder": "Ouvrir le dossier des enregistrements",
       "loading": "Chargement de l'historique...",
-      "empty": "Pas encore de transcriptions. Commencez à enregistrer pour créer votre historique !",
+      "emptyTitle": "Aucune transcription pour le moment",
+      "emptyHint": "Appuyez sur votre raccourci d'enregistrement pour capturer votre première dictée.",
       "copyToClipboard": "Copier la transcription dans le presse-papiers",
       "copyError": "Impossible de copier la transcription dans le presse-papiers.",
       "save": "Enregistrer la transcription",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Voir les modifications",
-      "hideChanges": "Masquer les modifications"
+      "hideChanges": "Masquer les modifications",
+      "today": "Aujourd'hui",
+      "yesterday": "Hier"
     },
     "debug": {
       "title": "Débogage",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Notifications de résultats",
-        "description": "Notifie aussi la fin d'une session téléphone, par exemple à la limite de durée ou lorsque le téléphone se déconnecte. Désactivé signifie erreurs uniquement."
+        "description": "Notifie aussi la fin d'une session téléphone, par exemple à la limite de durée ou lorsque le téléphone se déconnecte. Désactivé signifie erreurs uniquement.",
+        "requiresMaster": "Disponible uniquement lorsque les notifications système sont activées."
       },
       "log": {
         "title": "Journal des notifications",

@@ -750,6 +750,7 @@
           "notFetched": "Ingen modelllista ännu.",
           "emptyTitle": "Inga modeller i listan",
           "emptyHint": "Uppdatera för att läsa in de modeller den här nyckeln ser, eller skriv ett modell-id nedan.",
+          "emptyNoKey": "Ange din API-nyckel ovan och uppdatera sedan för att läsa in modellerna.",
           "customSet": "Ange",
           "customHint": "Alla modell-id från din leverantör fungerar, även om de inte listas.",
           "filterPlaceholder": "Filtrera modeller",
@@ -791,8 +792,7 @@
         "providerLabel": "Lokalt (på enheten)",
         "keepWarm": {
           "title": "Håll den lokala modellen varm",
-          "description": "Hur länge den lokala efterbearbetningsmodellen finns kvar i minnet efter en putsning i stället för att stängas av direkt. En diktering tar alltid tillbaka minnet först.",
-          "off": "Av"
+          "description": "Hur länge den lokala efterbearbetningsmodellen finns kvar i minnet efter en putsning i stället för att stängas av direkt. En diktering tar alltid tillbaka minnet först."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "Historik",
       "openFolder": "Öppna mapp för inspelningar",
       "loading": "Laddar historik...",
-      "empty": "Inga transkriptioner ännu. Börja spela in för att bygga upp din historik!",
+      "emptyTitle": "Inga transkriptioner än",
+      "emptyHint": "Tryck på din inspelningsgenväg för att fånga din första diktering.",
       "copyToClipboard": "Kopiera transkription till urklipp",
       "copyError": "Det gick inte att kopiera transkriptionen till urklipp.",
       "save": "Spara transkription",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Visa ändringar",
-      "hideChanges": "Dölj ändringar"
+      "hideChanges": "Dölj ändringar",
+      "today": "Idag",
+      "yesterday": "Igår"
     },
     "debug": {
       "title": "Felsökning",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Resultataviseringar",
-        "description": "Avisera även när en telefonsession avslutas, till exempel när sessionsgränsen nås eller telefonen kopplas från. Av betyder endast fel."
+        "description": "Avisera även när en telefonsession avslutas, till exempel när sessionsgränsen nås eller telefonen kopplas från. Av betyder endast fel.",
+        "requiresMaster": "Endast tillgänglig medan systemaviseringar är på."
       },
       "log": {
         "title": "Aviseringslogg",

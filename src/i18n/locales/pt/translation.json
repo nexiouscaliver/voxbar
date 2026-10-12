@@ -750,6 +750,7 @@
           "notFetched": "Ainda sem lista de modelos.",
           "emptyTitle": "Nenhum modelo listado",
           "emptyHint": "Atualize para carregar os modelos que esta chave vê, ou escreva um id de modelo abaixo.",
+          "emptyNoKey": "Insira sua chave de API acima e atualize para carregar os modelos.",
           "customSet": "Definir",
           "customHint": "Qualquer id de modelo do seu fornecedor funciona, mesmo que não esteja listado.",
           "filterPlaceholder": "Filtrar modelos",
@@ -791,8 +792,7 @@
         "providerLabel": "Local (no dispositivo)",
         "keepWarm": {
           "title": "Manter o modelo local em memória",
-          "description": "Quanto tempo o modelo local de pós-processo fica em memória após um polimento, em vez de descarregar de imediato. Um ditado recupera sempre a memória primeiro.",
-          "off": "Desligado"
+          "description": "Quanto tempo o modelo local de pós-processo fica em memória após um polimento, em vez de descarregar de imediato. Um ditado recupera sempre a memória primeiro."
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "Histórico",
       "openFolder": "Abrir Pasta de Gravações",
       "loading": "Carregando histórico...",
-      "empty": "Nenhuma transcrição ainda. Comece a gravar para construir seu histórico!",
+      "emptyTitle": "Ainda não há transcrições",
+      "emptyHint": "Pressione seu atalho de gravação para capturar seu primeiro ditado.",
       "copyToClipboard": "Copiar transcrição para área de transferência",
       "copyError": "Não foi possível copiar a transcrição para a área de transferência.",
       "save": "Salvar transcrição",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Ver alterações",
-      "hideChanges": "Ocultar alterações"
+      "hideChanges": "Ocultar alterações",
+      "today": "Hoje",
+      "yesterday": "Ontem"
     },
     "debug": {
       "title": "Depuração",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "Notificações de resultados",
-        "description": "Notifica também quando uma sessão do telefone termina, por exemplo ao atingir o limite de sessão ou quando o telefone se desliga. Desativado significa apenas erros."
+        "description": "Notifica também quando uma sessão do telefone termina, por exemplo ao atingir o limite de sessão ou quando o telefone se desliga. Desativado significa apenas erros.",
+        "requiresMaster": "Disponível apenas enquanto as notificações do sistema estiverem ativadas."
       },
       "log": {
         "title": "Registo de notificações",

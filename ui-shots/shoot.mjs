@@ -158,6 +158,49 @@ const server = createServer(async (req, res) => {
       res.end(injected);
       return;
     }
+    // Mock recordings: the browser-side mock's convertFileSrc routes every
+    // get_audio_file_path result here. A synthesized WAV with a duration
+    // deterministically derived from the file name gives the history audio
+    // players a REAL total length to resolve via preload="metadata" (the
+    // old asset://mock/ URL could never load, so every player read 0:00).
+    if (urlPath.startsWith("/mock-asset/")) {
+      const raw = decodeURIComponent(urlPath.slice("/mock-asset/".length));
+      const name = raw.split("/").pop() || "clip";
+      let hash = 0;
+      for (const ch of name) hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
+      const seconds = 8 + (hash % 53); // 8..60s, stable per file name
+      const sampleRate = 8000;
+      const dataSize = seconds * sampleRate * 2;
+      const buffer = Buffer.alloc(44 + dataSize);
+      buffer.write("RIFF", 0);
+      buffer.writeUInt32LE(36 + dataSize, 4);
+      buffer.write("WAVE", 8);
+      buffer.write("fmt ", 12);
+      buffer.writeUInt32LE(16, 16);
+      buffer.writeUInt16LE(1, 20); // PCM
+      buffer.writeUInt16LE(1, 22); // mono
+      buffer.writeUInt32LE(sampleRate, 24);
+      buffer.writeUInt32LE(sampleRate * 2, 28);
+      buffer.writeUInt16LE(2, 32);
+      buffer.writeUInt16LE(16, 34);
+      buffer.write("data", 36);
+      buffer.writeUInt32LE(dataSize, 40);
+      // One second of 440Hz tone up front, silence after: valid, tiny, and
+      // enough for Chromium to report a real duration.
+      for (let i = 0; i < sampleRate; i++) {
+        buffer.writeInt16LE(
+          Math.round(6000 * Math.sin((2 * Math.PI * 440 * i) / sampleRate)),
+          44 + i * 2,
+        );
+      }
+      res.writeHead(200, {
+        "content-type": "audio/wav",
+        "accept-ranges": "bytes",
+        "content-length": buffer.length,
+      });
+      res.end(buffer);
+      return;
+    }
     let filePath = path.join(distDir, urlPath);
     if (!existsSync(filePath)) {
       res.writeHead(404).end("not found");
@@ -1225,19 +1268,24 @@ const shots = [
     name: "overlay-notice-error",
     scenario: "overlay",
     url: OVERLAY,
-    viewport: { width: 340, height: 240 },
+    // The native streaming window (overlay.rs: OVERLAY_STREAM_* = 400x168):
+    // the old 340x240 capture framed a window size the app never opens.
+    viewport: { width: 400, height: 168 },
     prepare: async (page) => {
       await page.waitForFunction(() => Boolean(window.__voxshot), {
         timeout: 10000,
       });
       await settle(800);
       await page.evaluate(() => {
-        window.__voxshot.emit("show-overlay", "recording");
+        window.__voxshot.emit("show-overlay", "streaming");
         window.__voxshot.emit("recording-ready", null);
         window.__voxshot.startMicLevels();
+        // A real error code: the backend classifies model_fallback as
+        // kind=error too, but transcription_failed is the unambiguous
+        // failure the error tone exists for.
         window.__voxshot.emit("overlay-notice-event", {
           kind: "error",
-          code: "model_fallback",
+          code: "transcription_failed",
           detail: "Canary 180M Flash",
         });
       });

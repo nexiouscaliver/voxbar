@@ -157,6 +157,16 @@ body {
   background-color: var(--settings-scroll-thumb-hover);
 }
 
+/* ---- Toast stack (sonner, unstyled mode) ----
+   Sonner's collapsed-stack rule that fades out a behind toast's content
+   only targets [data-styled='true']; our unstyled toasts kept rendering
+   their raw body text through the front toast's edge, sliced mid-line.
+   Mirror the rule for unstyled toasts so the collapsed stack peeks as a
+   bare card sliver (hover expands and restores content, as designed). */
+[data-sonner-toast][data-expanded="false"][data-front="false"] > * {
+  opacity: 0;
+}
+
 @layer utilities {
   .text-stroke {
     -webkit-text-stroke: 2px var(--color-text-stroke);

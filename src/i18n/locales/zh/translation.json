@@ -750,6 +750,7 @@
           "notFetched": "尚未获取模型列表。",
           "emptyTitle": "列表中没有模型",
           "emptyHint": "刷新以加载此密钥可见的模型，或在下方输入模型 ID。",
+          "emptyNoKey": "请先在上方输入你的 API 密钥，然后刷新以加载模型列表。",
           "customSet": "设置",
           "customHint": "只要服务商支持，未列出的模型 ID 也可以使用。",
           "filterPlaceholder": "筛选模型",
@@ -791,8 +792,7 @@
         "providerLabel": "本地（设备端）",
         "keepWarm": {
           "title": "本地模型驻留内存",
-          "description": "润色完成后，本地后处理模型在内存中保留多久，而不是立即卸载。听写始终优先收回内存。",
-          "off": "关"
+          "description": "润色完成后，本地后处理模型在内存中保留多久，而不是立即卸载。听写始终优先收回内存。"
         }
       },
       "models": {
@@ -923,7 +923,8 @@
       "title": "历史记录",
       "openFolder": "打开录音文件夹",
       "loading": "加载历史记录中...",
-      "empty": "还没有转录记录。开始录制以建立您的历史记录！",
+      "emptyTitle": "还没有听写记录",
+      "emptyHint": "按下录音快捷键，开始你的第一次听写。",
       "copyToClipboard": "复制转录到剪贴板",
       "copyError": "无法将转录复制到剪贴板。",
       "save": "保存转录",
@@ -944,7 +945,9 @@
       },
       "viaPostProcess": "经 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒处理",
       "viewChanges": "查看更改",
-      "hideChanges": "收起更改"
+      "hideChanges": "收起更改",
+      "today": "今天",
+      "yesterday": "昨天"
     },
     "debug": {
       "title": "调试",
@@ -1149,7 +1152,8 @@
       },
       "outcomes": {
         "label": "结果通知",
-        "description": "手机会话结束时也通知，例如达到会话时长上限或手机断开连接时。关闭后仅通知错误。"
+        "description": "手机会话结束时也通知，例如达到会话时长上限或手机断开连接时。关闭后仅通知错误。",
+        "requiresMaster": "仅在系统通知开启时可用。"
       },
       "log": {
         "title": "通知记录",
