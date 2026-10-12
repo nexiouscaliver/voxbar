@@ -594,8 +594,11 @@ async fn run_cloud_lifecycle(
                                 );
                             }
                             debug!(
+                                // KB-239: str::len() is BYTES; the label
+                                // says chars, and non-ASCII post-processed
+                                // text makes the two disagree.
                                 "Post-processing succeeded. Output length: {} chars",
-                                result.len()
+                                result.chars().count()
                             );
                             Some(result)
                         }
@@ -683,7 +686,12 @@ async fn run_cloud_lifecycle(
     }
 
     // ---- Legacy attempt (the retry, or the only mode) ----
-    debug!("Processed prompt length: {} chars", legacy_prompt.len());
+    // KB-239: chars, not str::len()'s bytes - a non-ASCII template body
+    // (any localized prompt) made the label overcount by its UTF-8 width.
+    debug!(
+        "Processed prompt length: {} chars",
+        legacy_prompt.chars().count()
+    );
     match seam.send(legacy_prompt, None, None).await {
         Ok(completion) => {
             handle_completion!(completion, PostProcessOutputMode::FreeText);
@@ -3001,6 +3009,36 @@ mod tests {
         assert!(is_blank_transcription(""));
         assert!(is_blank_transcription("   "));
         assert!(is_blank_transcription("\t\n  \r\n"));
+    }
+
+    /// KB-239: every log whose label says "chars" must be fed by
+    /// chars().count(), never str::len() (bytes). The engines' outputs are
+    /// routinely non-ASCII (any localized template or transcript), where the
+    /// byte count overstates the char count by the UTF-8 width. Pinned
+    /// against this committed source because the values only exist at
+    /// runtime inside debug! calls (the KB-242 source-pin convention).
+    #[test]
+    fn output_length_logs_count_chars_not_bytes_kb239() {
+        let source = include_str!("actions.rs");
+        for needle in [
+            "\"Post-processing succeeded. Output length: {} chars\"",
+            "\"Processed prompt length: {} chars\"",
+            "\"Local post-processing succeeded. Output length: {} chars\"",
+            "\"Apple Intelligence post-processing succeeded. Output length: {} chars\"",
+        ] {
+            let mut from = 0usize;
+            let mut hits = 0usize;
+            while let Some(at) = source[from..].find(needle) {
+                let window = &source[from + at..from + at + needle.len() + 200];
+                assert!(
+                    window.contains("chars().count()"),
+                    "a \"chars\" log line is not fed by chars().count(): {needle}"
+                );
+                hits += 1;
+                from += at + needle.len();
+            }
+            assert!(hits > 0, "the log line this pin guards is gone: {needle}");
+        }
     }
 
     #[test]

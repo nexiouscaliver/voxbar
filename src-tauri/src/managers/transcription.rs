@@ -1248,9 +1248,12 @@ impl StreamSessionBuffer {
             let region = snapshot[start..].to_string();
             let consumed = self.flush_held_region(&region);
             debug!(
+                // KB-239: the two counts are chars, not bytes; the consumed
+                // span's byte offset only ever feeds the slice arithmetic
+                // below, never the log.
                 "cmd-mode: release flush resolved {} of {} held-region chars",
-                consumed,
-                region.len()
+                region[..consumed].chars().count(),
+                region.chars().count()
             );
             self.raw_seen = snapshot[..start + consumed].to_string();
             self.holding = false;
@@ -2983,8 +2986,11 @@ impl TranscriptionManager {
                             Err(e)
                         }
                     };
+                    // KB-239: chars, not str::len()'s bytes - the finalized
+                    // text is regularly non-ASCII (every non-English
+                    // dictation), where bytes overstate the char count.
                     let chars = match &result {
-                        Ok(Some(finalized)) => finalized.text.len(),
+                        Ok(Some(finalized)) => finalized.text.chars().count(),
                         _ => 0,
                     };
                     lock_perf(&perf).log_finalized(chars);
@@ -4643,6 +4649,43 @@ pub fn get_available_accelerators(tm: &TranscriptionManager) -> AvailableAcceler
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// KB-239: the two "chars"-labeled logs in this file count chars, not
+    /// str::len() bytes. Dictation text is regularly non-ASCII, where the
+    /// byte count overstates the char count by the UTF-8 width. Pinned
+    /// against this committed source because the values only exist at
+    /// runtime inside debug!/info! calls (the KB-242 source-pin convention).
+    #[test]
+    fn chars_labeled_logs_count_chars_not_bytes_kb239() {
+        let source = include_str!("transcription.rs");
+        let flush_at = source
+            .find("cmd-mode: release flush resolved {} of {} held-region chars")
+            .expect("the cmd-mode flush log line is gone");
+        let flush_window = &source[flush_at..flush_at + 260];
+        assert!(
+            flush_window.contains("region[..consumed].chars().count()"),
+            "the resolved count is not the consumed span's char count"
+        );
+        assert!(
+            flush_window.contains("region.chars().count()"),
+            "the held-region total is not a char count"
+        );
+        assert!(
+            !flush_window.contains("region.len()"),
+            "a byte length leaked back into the chars-labeled log"
+        );
+        assert!(
+            source.contains("finalized.text.chars().count()"),
+            "the finalize log's char count regressed to bytes"
+        );
+        // Assembled at runtime so this test's own source never satisfies
+        // (or trips) the check on itself.
+        let byte_len_call = ["finalized.text", ".len()"].concat();
+        assert!(
+            !source.contains(&byte_len_call),
+            "the finalize log is fed by a byte length again"
+        );
+    }
 
     /// The notice channel's code table is the contract the frontend
     /// localizes against: codes must be unique, non-empty, and carry the
