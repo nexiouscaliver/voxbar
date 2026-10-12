@@ -12,6 +12,20 @@
     "postProcessModel": "Postprocesmodel",
     "quit": "Afsluiten",
     "cancel": "Annuleren",
+    "statusIdle": "Inactief",
+    "statusRecording": "Opnemen…",
+    "statusTranscribing": "Transcriberen…",
+    "asrModel": "ASR-model",
+    "modelsNone": "Geen modellen geladen",
+    "recentDictations": "Recente transcripties",
+    "recentDictationsEmpty": "Nog geen transcripties",
+    "companionLabel": "Metgezel",
+    "companionOn": "Aan",
+    "companionOff": "Uit",
+    "companionPairedDevices": "Gekoppelde apparaten",
+    "companionTarget": "Doel",
+    "companionTargetMac": "Deze Mac",
+    "companionTargetPhone": "Telefoon",
     "secureInputWarning": "⚠ Sneltoetsen geblokkeerd door Secure Input",
     "postProcessPrompt": "Postprocesprompt"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "Inschakelen bij Geavanceerd",
     "history": "Geschiedenis",
     "debug": "Probleemoplossing",
-    "about": "Over VoxBar"
+    "about": "Over VoxBar",
+    "notifications": "Meldingen",
+    "promptStudio": "Promptstudio"
   },
   "onboarding": {
     "subtitle": "Kies een transcriptiemodel om aan de slag te gaan",
@@ -667,7 +683,31 @@
         "serverError": "Server mislukt: {{error}}",
         "refresh": "Vernieuwen",
         "statusRunning": "Draait",
-        "statusStopped": "Gestopt"
+        "statusStopped": "Gestopt",
+        "interfaceTitle": "Netwerkinterface",
+        "interfaceAuto": "Automatisch (LAN heeft voorrang)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Nog geen netwerkinterfaces gevonden",
+        "bindError": "Interfaceprobleem: {{error}}",
+        "manualTitle": "Handmatige instelling",
+        "hostLabel": "Te gebruiken host of IP",
+        "hostPlaceholder": "Leeg gebruikt het adres van de interface",
+        "hostInvalid": "Voer een IPv4-adres of hostnaam in, zonder schema, poort of slashes",
+        "portInvalid": "De poort moet een getal tussen 1 en 65535 zijn",
+        "tlsTitle": "TLS-certificaat",
+        "tlsCertLabel": "Certificaatbestand",
+        "tlsKeyLabel": "Sleutelbestand",
+        "tlsSelfSigned": "Het ingebouwde zelfondertekende certificaat is actief",
+        "tlsManual": "Je eigen certificaat is actief",
+        "tlsPairInvalid": "Stel beide bestanden in of laat beide leeg",
+        "restartButton": "Server herstarten",
+        "restartPending": "Wijzigingen worden toegepast na een herstart",
+        "qrPreviewNote": "Voorbeeld: deze URL geldt zodra de server opnieuw start.",
+        "sharedNetworkNote": "De telefoon en deze Mac moeten een netwerk delen: hetzelfde Wi-Fi of LAN, of hetzelfde tailnet (bijvoorbeeld beide op Tailscale)."
       }
     },
     "postProcessing": {
@@ -702,7 +742,20 @@
           "refreshModels": "Modellen verversen",
           "fetchFailed": "Ophalen van de modellenlijst mislukt ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Modellenlijst opgehaald {{time}}",
-          "retry": "Opnieuw proberen"
+          "retry": "Opnieuw proberen",
+          "visibleDescription": "Het model dat je transcript na elke dicteersessie herschrijft.",
+          "fetchingList": "Modellenlijst ophalen...",
+          "listSummary_one": "1 model, opgehaald {{time}}",
+          "listSummary_other": "{{count}} modellen, opgehaald {{time}}",
+          "notFetched": "Nog geen modellenlijst.",
+          "emptyTitle": "Geen modellen in de lijst",
+          "emptyHint": "Ververs om de modellen te laden die deze sleutel ziet, of typ hieronder een model-id.",
+          "customSet": "Instellen",
+          "customHint": "Elke model-id van je provider werkt, ook als die niet in de lijst staat.",
+          "filterPlaceholder": "Modellen filteren",
+          "showAll_one": "Alles tonen ({{count}})",
+          "showAll_other": "Alles tonen ({{count}})",
+          "showFewer": "Minder tonen"
         },
         "timeout": {
           "title": "Time-out van verzoek",
@@ -718,7 +771,8 @@
           "appleReady": "Apple Intelligence is beschikbaar",
           "appleUnavailable": "Apple Intelligence is niet beschikbaar op dit apparaat",
           "failed": "Verbinding mislukt: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Engine"
       },
       "local": {
         "label": "Lokaal model",
@@ -854,9 +908,15 @@
           "chinese_simplified": {
             "name": "Chinees (vereenvoudigd)",
             "description": "Vereenvoudigd Chinees met correcties van gelijkklinkende tekens."
+          },
+          "prompt_enhancer": {
+            "name": "Promptverbeteraar",
+            "description": "Maakt van een gedicteerde instructie een duidelijke, gestructureerde prompt voor een AI-agent of app."
           }
         },
-        "editPrompt": "Bewerken"
+        "editPrompt": "Bewerken",
+        "testShort": "Testen",
+        "deleteShort": "Verwijderen"
       }
     },
     "history": {
@@ -882,7 +942,9 @@
       "groups": {
         "retention": "Bewaartermijn"
       },
-      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Wijzigingen bekijken",
+      "hideChanges": "Wijzigingen verbergen"
     },
     "debug": {
       "title": "Probleemoplossing",
@@ -1076,7 +1138,70 @@
     "ppOutcome": {
       "applied": "toegepast",
       "skipped": "overgeslagen",
-      "failed": "mislukt"
+      "failed": "mislukt",
+      "unchanged": "onveranderd"
+    },
+    "notifications": {
+      "title": "Meldingen",
+      "toggle": {
+        "label": "Systeemmeldingen",
+        "description": "Toon fouten en sessieresultaten als systeemmeldingen. Ze blijven in het meldingencentrum staan tot je ze verwijdert."
+      },
+      "outcomes": {
+        "label": "Resultaatmeldingen",
+        "description": "Meld ook wanneer een phonesessie eindigt, bijvoorbeeld bij het bereiken van het sessielimiet of wanneer de telefoon de verbinding verbreekt. Uit betekent alleen fouten."
+      },
+      "log": {
+        "title": "Meldingenlog",
+        "description": "De laatste 50 fout- en resultaatmeldingen. Nieuwe items worden alleen bijgehouden zolang systeemmeldingen aan staan.",
+        "empty": "Nog geen meldingen.",
+        "clear": "Alles wissen"
+      }
+    },
+    "studio": {
+      "title": "Promptstudio",
+      "intro": "Test prompts op een echte transcript en vergelijk engines naast elkaar. Runs gebruiken dezelfde pipeline als een echte dicteersessie, maar er wordt niets in andere apps getypt en niets in de geschiedenis opgeslagen.",
+      "source": {
+        "label": "Brontekst",
+        "description": "De transcriptie die de studio bijschaaft: je laatste dicteersessie of een geschiedenisitem.",
+        "last": "Laatste transcriptie",
+        "loading": "Items laden..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Kies een of meer sjablonen om uit te voeren."
+      },
+      "engines": {
+        "label": "Engines",
+        "description": "Kies een of meer engines om ze op uit te voeren.",
+        "appleUnavailable": "Apple Intelligence is niet beschikbaar op deze Mac",
+        "noModel": "Geen model geconfigureerd",
+        "noModelHint": "Geen model ingesteld. Kies er een bij Post Process."
+      },
+      "run_one": "1 paar uitvoeren",
+      "run_other": "{{count}} paren uitvoeren",
+      "runHint_one": "1 prompt op 1 engine. Er wordt niets getypt of opgeslagen.",
+      "runHint_other": "{{count}} prompt-engineparen. Er wordt niets getypt of opgeslagen.",
+      "running": "Bezig met uitvoeren...",
+      "rerun": "Opnieuw uitvoeren",
+      "latency": "{{ms}} ms",
+      "rawKept": "De engine mislukte of werd overgeslagen, dus de ruwe transcriptie zou behouden blijven.",
+      "partialFailure": "Sommige runs mislukten of werden overgeslagen terwijl anderen output leverden. Controleer elke kaart.",
+      "results_one": "1 resultaat",
+      "results_other": "{{count}} resultaten",
+      "errors": {
+        "engineNotFound": "Engine '{{id}}' is niet geconfigureerd.",
+        "entryNotFound": "Het gekozen geschiedenisitem bestaat niet meer.",
+        "emptyBatch": "Kies minstens één prompt en één engine."
+      },
+      "diff": {
+        "lines": "regels",
+        "charsChanged_one": "1 teken gewijzigd",
+        "charsChanged_other": "{{count}} tekens gewijzigd",
+        "identical": "Geen wijzigingen."
+      },
+      "resultsEmptyTitle": "Resultaten verschijnen hier",
+      "resultsEmptyHint": "Kies hierboven een bron, prompts en engines en voer ze uit. Elke kaart toont de gepolijste tekst, de wijzigingen en de snelheid."
     }
   },
   "footer": {
@@ -1205,11 +1330,18 @@
       "postProcessOutputInvalid": "Het bijschaven leverde onbruikbare tekst op, de oorspronkelijke transcriptie is gehouden.",
       "postProcessCloudFailed": "Het bijschaven mislukte, de oorspronkelijke transcriptie is gehouden: {{detail}}",
       "postProcessPromptCycled": "Postprocesjabloon: {{name}}",
+      "postProcessPromptCycledPosition": "Postprocesjabloon: {{name}} ({{position}} van {{total}})",
+      "postProcessSessionUpgraded": "Postproces aan voor deze sessie: {{name}}",
+      "postProcessSessionDowngraded": "Postproces uit voor deze sessie",
       "companionDisconnected": "Telefoon losgekoppeld. Afgerond met wat er was.",
       "companionServerFailed": "Companion-server mislukt: {{error}}",
-      "companionSessionCapped": "Dicteren vanaf het companionapparaat is beëindigd: de sessielimiet van 15 minuten is bereikt op {{device}}."
+      "companionSessionCapped": "Dicteren vanaf het companionapparaat is beëindigd: de sessielimiet van 15 minuten is bereikt op {{device}}.",
+      "companionZeroAudio": "De dicteersessie van het companion-apparaat eindigde zonder audio. Er is niets getranscribeerd.",
+      "postProcessUnchanged": "Het oppoetsen is klaar maar veranderde niets; de transcriptie is exact zoals gedicteerd geplakt.",
+      "postProcessNotConfigured": "Nabewerking is niet uitgevoerd: {{detail}}. De ruwe transcriptie is behouden."
     },
     "commandBadge": "Opdrachtmodus",
+    "ppBadge": "Postproces",
     "ppChip": "Bijschaven ({{model}}) {{seconds}}s",
     "companionBadge": "Companion-microfoon"
   },
@@ -1254,13 +1386,15 @@
     "subtitle": "Je telefoon is nu microfoon en knop voor je Mac.",
     "certNote": "Als de browser waarschuwt over de verbinding, vergelijk de vingerafdruk met die in de VoxBar-instellingen en accepteer hem eenmaal.",
     "noToken": "Open deze pagina via de QR-code in de VoxBar-instellingen.",
-    "micDenied": "Microfoontoegang geweigerd. Sta het toe in de browser en laad opnieuw.",
+    "micDenied": "Microfoontoegang mislukte. Sta het toe in de browser en probeer het opnieuw.",
+    "micRetry": "Opnieuw proberen",
     "badToken": "Koppelen mislukt. Scan de QR-code in de VoxBar-instellingen opnieuw.",
     "wrongSubnet": "Deze telefoon zit in een ander netwerk dan de Mac. Ga naar hetzelfde wifi en koppel opnieuw.",
     "rateLimited": "Te veel koppelpogingen. Wacht een minuut en probeer opnieuw.",
     "busy": "De Mac dicteert al via een andere knop.",
     "disconnectedFinalized": "Verbinding verbroken. De Mac bewaarde wat je zei.",
     "capped": "Sessie begrensd op 15 minuten. Druk opnieuw om door te gaan.",
+    "zeroAudio": "Geen audio bereikte de Mac. Houd de knop ingedrukt en spreek.",
     "serverStopped": "De Mac stopte de companion-server.",
     "reconnect": "Opnieuw verbinden",
     "holdToTalk": "Houd ingedrukt om te praten",
@@ -1272,6 +1406,16 @@
     "stateReady": "Gereed",
     "stateRecording": "Opname",
     "stateDisconnected": "Verbroken",
-    "stateError": "Fout"
+    "stateError": "Fout",
+    "targetLabel": "Versturen naar",
+    "targetPc": "Naar pc",
+    "targetPhone": "Naar telefoon",
+    "postProcessLabel": "Tekst polijsten",
+    "resultTitle": "Transcript",
+    "copy": "Kopiëren",
+    "copied": "Gekopieerd",
+    "polished": "Gepolijst",
+    "historyTitle": "Recent",
+    "historyEmpty": "Dicteeropnames van deze telefoon verschijnen hier."
   }
 }

@@ -12,6 +12,20 @@
     "postProcessModel": "Model pasca-proses",
     "quit": "Keluar",
     "cancel": "Batal",
+    "statusIdle": "Menganggur",
+    "statusRecording": "Merekam…",
+    "statusTranscribing": "Mentranskripsi…",
+    "asrModel": "Model ASR",
+    "modelsNone": "Tidak ada model dimuat",
+    "recentDictations": "Transkripsi Terbaru",
+    "recentDictationsEmpty": "Belum ada transkripsi",
+    "companionLabel": "Pendamping",
+    "companionOn": "Aktif",
+    "companionOff": "Nonaktif",
+    "companionPairedDevices": "Perangkat yang dipasangkan",
+    "companionTarget": "Tujuan",
+    "companionTargetMac": "Mac ini",
+    "companionTargetPhone": "Ponsel",
     "secureInputWarning": "⚠ Pintasan diblokir oleh Secure Input",
     "postProcessPrompt": "Prompt pasca-proses"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "Aktifkan di Lanjutan",
     "history": "Riwayat",
     "debug": "Debug",
-    "about": "Tentang"
+    "about": "Tentang",
+    "notifications": "Notifikasi",
+    "promptStudio": "Studio Prompt"
   },
   "onboarding": {
     "subtitle": "Untuk memulai, pilih model transkripsi",
@@ -667,7 +683,31 @@
         "serverError": "Server gagal: {{error}}",
         "refresh": "Segarkan",
         "statusRunning": "Berjalan",
-        "statusStopped": "Berhenti"
+        "statusStopped": "Berhenti",
+        "interfaceTitle": "Antarmuka jaringan",
+        "interfaceAuto": "Otomatis (LAN diutamakan)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Belum ada antarmuka jaringan yang ditemukan",
+        "bindError": "Masalah antarmuka: {{error}}",
+        "manualTitle": "Pengaturan manual",
+        "hostLabel": "Host atau IP yang diiklankan",
+        "hostPlaceholder": "Kosong memakai alamat antarmuka",
+        "hostInvalid": "Masukkan alamat IPv4 atau nama host, tanpa skema, port, atau garis miring",
+        "portInvalid": "Port harus berupa angka antara 1 dan 65535",
+        "tlsTitle": "Sertifikat TLS",
+        "tlsCertLabel": "Berkas sertifikat",
+        "tlsKeyLabel": "Berkas kunci",
+        "tlsSelfSigned": "Memakai sertifikat tandatangan-sendiri bawaan",
+        "tlsManual": "Memakai sertifikat milikmu sendiri",
+        "tlsPairInvalid": "Atur kedua berkas atau biarkan keduanya kosong",
+        "restartButton": "Mulai ulang server",
+        "restartPending": "Perubahan diterapkan setelah mulai ulang",
+        "qrPreviewNote": "Pratinjau: URL ini akan diiklankan saat server berikutnya menyala.",
+        "sharedNetworkNote": "Ponsel dan Mac ini harus berada di jaringan yang sama: Wi-Fi atau LAN yang sama, atau tailnet yang sama (misalnya keduanya di Tailscale)."
       }
     },
     "postProcessing": {
@@ -702,7 +742,20 @@
           "refreshModels": "Segarkan model",
           "fetchFailed": "Gagal mengambil daftar model ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Daftar model diambil {{time}}",
-          "retry": "Coba lagi"
+          "retry": "Coba lagi",
+          "visibleDescription": "Model yang menulis ulang transkrip Anda setelah setiap dikte.",
+          "fetchingList": "Mengambil daftar model...",
+          "listSummary_one": "1 model, diambil {{time}}",
+          "listSummary_other": "{{count}} model, diambil {{time}}",
+          "notFetched": "Belum ada daftar model.",
+          "emptyTitle": "Tidak ada model tercantum",
+          "emptyHint": "Muat ulang untuk memuat model yang terlihat oleh kunci ini, atau ketik id model di bawah.",
+          "customSet": "Atur",
+          "customHint": "Id model apa pun dari penyedia Anda berfungsi, bahkan jika tidak tercantum.",
+          "filterPlaceholder": "Filter model",
+          "showAll_one": "Tampilkan semua ({{count}})",
+          "showAll_other": "Tampilkan semua ({{count}})",
+          "showFewer": "Tampilkan lebih sedikit"
         },
         "timeout": {
           "title": "Batas waktu permintaan",
@@ -718,7 +771,8 @@
           "appleReady": "Apple Intelligence tersedia",
           "appleUnavailable": "Apple Intelligence tidak tersedia di perangkat ini",
           "failed": "Koneksi gagal: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Mesin"
       },
       "local": {
         "label": "Model lokal",
@@ -854,9 +908,15 @@
           "chinese_simplified": {
             "name": "Mandarin (sederhana)",
             "description": "Pembersihan mandarin sederhana dengan perbaikan homofon."
+          },
+          "prompt_enhancer": {
+            "name": "Peningkat Prompt",
+            "description": "Mengubah instruksi yang didiktekan menjadi prompt yang jelas dan terstruktur untuk agen AI atau aplikasi."
           }
         },
-        "editPrompt": "Edit"
+        "editPrompt": "Edit",
+        "testShort": "Uji",
+        "deleteShort": "Hapus"
       }
     },
     "history": {
@@ -882,7 +942,9 @@
       "groups": {
         "retention": "Retensi"
       },
-      "viaPostProcess": "lewat {{model}} · {{prompt}} · {{outcome}} · {{latency}} md"
+      "viaPostProcess": "lewat {{model}} · {{prompt}} · {{outcome}} · {{latency}} md",
+      "viewChanges": "Lihat perubahan",
+      "hideChanges": "Sembunyikan perubahan"
     },
     "debug": {
       "title": "Debug",
@@ -1076,7 +1138,70 @@
     "ppOutcome": {
       "applied": "diterapkan",
       "skipped": "dilewati",
-      "failed": "gagal"
+      "failed": "gagal",
+      "unchanged": "tidak berubah"
+    },
+    "notifications": {
+      "title": "Notifikasi",
+      "toggle": {
+        "label": "Notifikasi sistem",
+        "description": "Tampilkan kesalahan dan hasil sesi sebagai notifikasi sistem. Notifikasi tetap ada di pusat notifikasi sampai Anda menutupnya."
+      },
+      "outcomes": {
+        "label": "Notifikasi hasil",
+        "description": "Juga beri tahu saat sesi ponsel berakhir, misalnya saat batas sesi tercapai atau ponsel terputus. Nonaktif berarti hanya kesalahan."
+      },
+      "log": {
+        "title": "Log notifikasi",
+        "description": "50 pemberitahuan kesalahan dan hasil terakhir. Entri baru hanya dicatat selama notifikasi sistem aktif.",
+        "empty": "Belum ada notifikasi.",
+        "clear": "Hapus semua"
+      }
+    },
+    "studio": {
+      "title": "Studio Prompt",
+      "intro": "Uji prompt pada transkrip nyata dan bandingkan mesin berdampingan. Eksekusi memakai alur yang sama dengan dikte nyata, tetapi tidak ada yang diketik di aplikasi lain dan tidak ada yang disimpan ke riwayat.",
+      "source": {
+        "label": "Teks sumber",
+        "description": "Transkripsi yang disempurnakan studio: dikte terakhir Anda atau entri riwayat mana pun.",
+        "last": "Transkripsi terakhir",
+        "loading": "Memuat entri..."
+      },
+      "prompts": {
+        "label": "Prompt",
+        "description": "Pilih satu atau lebih templat untuk dijalankan."
+      },
+      "engines": {
+        "label": "Mesin",
+        "description": "Pilih satu atau lebih mesin untuk menjalankannya.",
+        "appleUnavailable": "Apple Intelligence tidak tersedia di Mac ini",
+        "noModel": "Belum ada model yang dikonfigurasi",
+        "noModelHint": "Belum ada model dipilih. Pilih di Post Process."
+      },
+      "run_one": "Jalankan 1 pasangan",
+      "run_other": "Jalankan {{count}} pasangan",
+      "runHint_one": "1 prompt pada 1 mesin. Tidak ada yang diketik atau disimpan.",
+      "runHint_other": "{{count}} pasangan prompt-mesin. Tidak ada yang diketik atau disimpan.",
+      "running": "Sedang berjalan...",
+      "rerun": "Jalankan lagi",
+      "latency": "{{ms}} md",
+      "rawKept": "Mesin gagal atau dilewati, sehingga transkripsi mentah akan dipertahankan.",
+      "partialFailure": "Beberapa eksekusi gagal atau dilewati sementara yang lain menghasilkan keluaran. Periksa setiap kartu.",
+      "results_one": "1 hasil",
+      "results_other": "{{count}} hasil",
+      "errors": {
+        "engineNotFound": "Mesin '{{id}}' belum dikonfigurasi.",
+        "entryNotFound": "Entri riwayat yang dipilih sudah tidak ada.",
+        "emptyBatch": "Pilih setidaknya satu prompt dan satu mesin."
+      },
+      "diff": {
+        "lines": "baris",
+        "charsChanged_one": "1 karakter berubah",
+        "charsChanged_other": "{{count}} karakter berubah",
+        "identical": "Tidak ada perubahan."
+      },
+      "resultsEmptyTitle": "Hasil akan muncul di sini",
+      "resultsEmptyHint": "Pilih sumber, prompt, dan mesin di atas, lalu jalankan. Setiap kartu menampilkan teks yang dipoles, perubahannya, dan kecepatannya."
     }
   },
   "footer": {
@@ -1205,11 +1330,18 @@
       "postProcessOutputInvalid": "Pemolesan menghasilkan teks yang tidak dapat dipakai, transkrip asli dipertahankan.",
       "postProcessCloudFailed": "Pemolesan gagal, transkrip asli dipertahankan: {{detail}}",
       "postProcessPromptCycled": "Templat pasca-proses: {{name}}",
+      "postProcessPromptCycledPosition": "Templat pasca-proses: {{name}} ({{position}} dari {{total}})",
+      "postProcessSessionUpgraded": "Pasca-proses aktif untuk sesi ini: {{name}}",
+      "postProcessSessionDowngraded": "Pasca-proses nonaktif untuk sesi ini",
       "companionDisconnected": "Ponsel terputus. Menyelesaikan dengan yang terekam.",
       "companionServerFailed": "Server pendamping gagal: {{error}}",
-      "companionSessionCapped": "Dikte dari perangkat pendamping berakhir: batas sesi 15 menit telah tercapai di {{device}}."
+      "companionSessionCapped": "Dikte dari perangkat pendamping berakhir: batas sesi 15 menit telah tercapai di {{device}}.",
+      "companionZeroAudio": "Dikte dari perangkat pendamping berakhir tanpa audio. Tidak ada yang ditranskripsi.",
+      "postProcessUnchanged": "Pemolesan selesai tetapi tidak mengubah apa pun; transkrip ditempel persis seperti diucapkan.",
+      "postProcessNotConfigured": "Pascapemrosesan tidak berjalan: {{detail}}. Transkrip mentah tetap dipakai."
     },
     "commandBadge": "Mode perintah",
+    "ppBadge": "Pasca-proses",
     "ppChip": "Memoles ({{model}}) {{seconds}}d",
     "companionBadge": "Mikrofon pendamping"
   },
@@ -1254,13 +1386,15 @@
     "subtitle": "Ponsel Anda kini menjadi mikrofon dan pemicu untuk Mac Anda.",
     "certNote": "Jika peramban memperingatkan koneksi, bandingkan sidik jari sertifikat dengan yang ada di pengaturan VoxBar dan terima satu kali.",
     "noToken": "Buka halaman ini dari kode QR di pengaturan VoxBar.",
-    "micDenied": "Akses mikrofon ditolak. Izinkan di peramban lalu muat ulang.",
+    "micDenied": "Akses mikrofon gagal. Izinkan di peramban lalu coba lagi.",
+    "micRetry": "Coba lagi",
     "badToken": "Pemasangan gagal. Pindai ulang kode QR di pengaturan VoxBar.",
     "wrongSubnet": "Ponsel ini berada di jaringan yang berbeda dari Mac. Gabung ke Wi-Fi yang sama lalu pasangkan lagi.",
     "rateLimited": "Terlalu banyak percobaan pemasangan. Tunggu satu menit lalu coba lagi.",
     "busy": "Mac sedang mendikte dari pemicu lain.",
     "disconnectedFinalized": "Koneksi terputus. Mac menyimpan apa yang Anda ucapkan.",
     "capped": "Sesi dibatasi 15 menit. Tekan lagi untuk melanjutkan.",
+    "zeroAudio": "Tidak ada audio yang sampai ke Mac. Tahan tombol lalu bicara.",
     "serverStopped": "Mac menghentikan server pendamping.",
     "reconnect": "Sambungkan ulang",
     "holdToTalk": "Tahan untuk bicara",
@@ -1272,6 +1406,16 @@
     "stateReady": "Siap",
     "stateRecording": "Merekam",
     "stateDisconnected": "Terputus",
-    "stateError": "Galat"
+    "stateError": "Galat",
+    "targetLabel": "Kirim ke",
+    "targetPc": "Ke PC",
+    "targetPhone": "Ke ponsel",
+    "postProcessLabel": "Poles teks",
+    "resultTitle": "Transkrip",
+    "copy": "Salin",
+    "copied": "Tersalin",
+    "polished": "Dipoles",
+    "historyTitle": "Terbaru",
+    "historyEmpty": "Dikte dari ponsel ini muncul di sini."
   }
 }

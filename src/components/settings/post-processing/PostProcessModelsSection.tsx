@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
-import { Search } from "lucide-react";
+import { ChevronsDown, Loader2, Search } from "lucide-react";
 import { commands, type LlmModelEntry } from "@/bindings";
 import { SettingsGroup } from "@/components/ui";
 import { LlmModelCard, LocalLlmModelRow } from "./LocalLlmModelRow";
@@ -95,15 +95,17 @@ export const PostProcessModelsSection: React.FC = () => {
     return (
       <div className="space-y-2">
         <LocalLlmModelRow />
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={() => setCatalogRevealed(true)}
-            className="text-xs text-text/60 hover:text-text underline underline-offset-2"
-          >
-            {t("settings.postProcessing.models.browseCatalog")}
-          </button>
-        </div>
+        {/* W1-L9 visual pass: the catalog reveal was a bare right-aligned
+            underlined text link; it is now a visible, full-width bordered
+            affordance so the multi-model catalog reads as reachable. */}
+        <button
+          type="button"
+          onClick={() => setCatalogRevealed(true)}
+          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-mid-gray/40 px-3 py-2 text-xs text-text/60 transition-colors hover:border-logo-primary/50 hover:text-text cursor-pointer"
+        >
+          <ChevronsDown className="h-3.5 w-3.5" aria-hidden="true" />
+          {t("settings.postProcessing.models.browseCatalog")}
+        </button>
       </div>
     );
   }
@@ -138,9 +140,15 @@ export const PostProcessModelsSection: React.FC = () => {
         <AddLlmModelFromHuggingFace onChanged={refresh} />
 
         {entries === null ? (
-          <p className="text-xs text-text/50">
+          // W1-L9 visual pass: a spinner rides the loading line so
+          // "Checking status" reads as in-flight work, not a dead end.
+          <div className="flex items-center gap-2 text-xs text-text/50">
+            <Loader2
+              className="h-3.5 w-3.5 animate-spin shrink-0"
+              aria-hidden="true"
+            />
             {t("settings.postProcessing.local.modelStatus.checking")}
-          </p>
+          </div>
         ) : (
           <>
             <div className="space-y-3">

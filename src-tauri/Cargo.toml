@@ -1,6 +1,6 @@
 [package]
 name = "voxbar"
-version = "1.5.4"
+version = "1.6.0"
 description = "VoxBar"
 authors = ["Shahil Kadia"]
 edition = "2021"
@@ -206,6 +206,22 @@ objc2-service-management = "0.3.2"
 # mach bindings are deprecated in favor of this crate. macOS-only target
 # table entry: the crate refuses to compile on non-Apple targets.
 mach2 = "0.7"
+# The persistent-notice sender and its click leg (persistent_notice.rs).
+# Already in the tree as the tauri notification plugin's macOS backend
+# (notify-rust depends on it at this exact version), so promoting it to a
+# direct dependency downloads nothing new.
+mac-notification-sys = "0.6.15"
+# The REAL notification-authorization query/request (notification_permission.rs):
+# UNUserNotificationCenter bindings the tauri plugin's desktop build stubs as
+# always-granted. Both already sit in the tree through tauri's macOS stack at
+# these exact lock versions, so promoting them downloads nothing new.
+objc2-user-notifications = { version = "0.3.2", default-features = false, features = [
+    "UNUserNotificationCenter",
+    "UNNotificationSettings",
+    "block2",
+    "std",
+] }
+block2 = "0.6"
 
 [target.'cfg(target_os = "linux")'.dependencies]
 gtk-layer-shell = { version = "0.8", features = ["v0_6"] }

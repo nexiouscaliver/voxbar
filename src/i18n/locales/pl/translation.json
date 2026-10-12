@@ -12,6 +12,20 @@
     "postProcessModel": "Model postprocessingu",
     "quit": "Zamknij",
     "cancel": "Anuluj",
+    "statusIdle": "Bezczynny",
+    "statusRecording": "Nagrywanie…",
+    "statusTranscribing": "Transkrypcja…",
+    "asrModel": "Model ASR",
+    "modelsNone": "Brak załadowanych modeli",
+    "recentDictations": "Ostatnie transkrypcje",
+    "recentDictationsEmpty": "Brak transkrypcji",
+    "companionLabel": "Towarzysz",
+    "companionOn": "Włączony",
+    "companionOff": "Wyłączony",
+    "companionPairedDevices": "Sparowane urządzenia",
+    "companionTarget": "Cel",
+    "companionTargetMac": "Ten Mac",
+    "companionTargetPhone": "Telefon",
     "secureInputWarning": "⚠ Skróty zablokowane przez Secure Input",
     "postProcessPrompt": "Prompt postprocessingu"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "Włącz w Zaawansowanych",
     "history": "Historia",
     "debug": "Debugowanie",
-    "about": "O programie"
+    "about": "O programie",
+    "notifications": "Powiadomienia",
+    "promptStudio": "Studio promptów"
   },
   "onboarding": {
     "subtitle": "Aby rozpocząć, wybierz model transkrypcji",
@@ -667,7 +683,31 @@
         "serverError": "Serwer nie działa: {{error}}",
         "refresh": "Odśwież",
         "statusRunning": "Działa",
-        "statusStopped": "Zatrzymany"
+        "statusStopped": "Zatrzymany",
+        "interfaceTitle": "Interfejs sieciowy",
+        "interfaceAuto": "Automatycznie (preferowana sieć LAN)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Nie znaleziono jeszcze interfejsów sieciowych",
+        "bindError": "Problem z interfejsem: {{error}}",
+        "manualTitle": "Ustawienie ręczne",
+        "hostLabel": "Rozgłaszany host lub IP",
+        "hostPlaceholder": "Puste używa adresu interfejsu",
+        "hostInvalid": "Podaj adres IPv4 lub nazwę hosta, bez schematu, portu i ukośników",
+        "portInvalid": "Port musi być liczbą od 1 do 65535",
+        "tlsTitle": "Certyfikat TLS",
+        "tlsCertLabel": "Plik certyfikatu",
+        "tlsKeyLabel": "Plik klucza",
+        "tlsSelfSigned": "W użyciu wbudowany certyfikat z podpisem własnym",
+        "tlsManual": "W użyciu Twój certyfikat",
+        "tlsPairInvalid": "Podaj oba pliki lub zostaw oba puste",
+        "restartButton": "Uruchom serwer ponownie",
+        "restartPending": "Zmiany zostaną zastosowane po ponownym uruchomieniu",
+        "qrPreviewNote": "Podgląd: ten adres URL będzie rozgłaszany przy następnym uruchomieniu serwera.",
+        "sharedNetworkNote": "Telefon i ten Mac muszą mieć wspólną sieć: tę samą sieć Wi-Fi lub LAN albo ten sam tailnet (na przykład oba w Tailscale)."
       }
     },
     "postProcessing": {
@@ -702,7 +742,24 @@
           "refreshModels": "Odśwież modele",
           "fetchFailed": "Nie udało się pobrać listy modeli ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Listę modeli pobrano {{time}}",
-          "retry": "Spróbuj ponownie"
+          "retry": "Spróbuj ponownie",
+          "visibleDescription": "Model, który przepisuje transkrypcję po każdym dyktowaniu.",
+          "fetchingList": "Pobieranie listy modeli...",
+          "listSummary_one": "1 model, pobrano {{time}}",
+          "listSummary_few": "{{count}} modele, pobrano {{time}}",
+          "listSummary_many": "{{count}} modeli, pobrano {{time}}",
+          "listSummary_other": "{{count}} modeli, pobrano {{time}}",
+          "notFetched": "Nie ma jeszcze listy modeli.",
+          "emptyTitle": "Brak modeli na liście",
+          "emptyHint": "Odśwież, aby wczytać modele widoczne dla tego klucza, albo wpisz poniżej identyfikator modelu.",
+          "customSet": "Ustaw",
+          "customHint": "Działa dowolny identyfikator modelu od dostawcy, nawet jeśli nie ma go na liście.",
+          "filterPlaceholder": "Filtruj modele",
+          "showAll_one": "Pokaż wszystkie ({{count}})",
+          "showAll_few": "Pokaż wszystkie ({{count}})",
+          "showAll_many": "Pokaż wszystkie ({{count}})",
+          "showAll_other": "Pokaż wszystkie ({{count}})",
+          "showFewer": "Pokaż mniej"
         },
         "timeout": {
           "title": "Limit czasu żądania",
@@ -718,7 +775,8 @@
           "appleReady": "Apple Intelligence jest dostępna",
           "appleUnavailable": "Apple Intelligence nie jest dostępna na tym urządzeniu",
           "failed": "Połączenie nie powiodło się: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Silnik"
       },
       "local": {
         "label": "Model lokalny",
@@ -854,9 +912,15 @@
           "chinese_simplified": {
             "name": "Chiński (uproszczony)",
             "description": "Czyszczenie chińskiego uproszczonego z poprawkami homofonów."
+          },
+          "prompt_enhancer": {
+            "name": "Ulepszacz promptów",
+            "description": "Zamienia zdyktowaną instrukcję w jasny, ustrukturyzowany prompt dla agenta AI lub aplikacji."
           }
         },
-        "editPrompt": "Edytuj"
+        "editPrompt": "Edytuj",
+        "testShort": "Testuj",
+        "deleteShort": "Usuń"
       }
     },
     "history": {
@@ -882,7 +946,9 @@
       "groups": {
         "retention": "Przechowywanie"
       },
-      "viaPostProcess": "przez {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "przez {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Pokaż zmiany",
+      "hideChanges": "Ukryj zmiany"
     },
     "debug": {
       "title": "Debugowanie",
@@ -1076,7 +1142,78 @@
     "ppOutcome": {
       "applied": "zastosowano",
       "skipped": "pominięto",
-      "failed": "nie powiodło się"
+      "failed": "nie powiodło się",
+      "unchanged": "bez zmian"
+    },
+    "notifications": {
+      "title": "Powiadomienia",
+      "toggle": {
+        "label": "Powiadomienia systemowe",
+        "description": "Pokazuj błędy i wyniki sesji jako powiadomienia systemowe. Zostają w centrum powiadomień, dopóki ich nie odrzucisz."
+      },
+      "outcomes": {
+        "label": "Powiadomienia o wynikach",
+        "description": "Powiadamiaj także o zakończeniu sesji telefonu, na przykład po osiągnięciu limitu sesji lub rozłączeniu telefonu. Wyłączone oznacza tylko błędy."
+      },
+      "log": {
+        "title": "Dziennik powiadomień",
+        "description": "Ostatnie 50 powiadomień o błędach i wynikach. Nowe wpisy są zapisywane tylko wtedy, gdy powiadomienia systemowe są włączone.",
+        "empty": "Brak powiadomień.",
+        "clear": "Wyczyść wszystko"
+      }
+    },
+    "studio": {
+      "title": "Studio promptów",
+      "intro": "Testuj prompty na prawdziwej transkrypcji i porównuj silniki obok siebie. Uruchomienia używają tej samej procedury co prawdziwe dyktowanie, ale nic nie jest wpisywane w inne aplikacje i nic nie trafia do historii.",
+      "source": {
+        "label": "Tekst źródłowy",
+        "description": "Transkrypcja, którą studio szlifuje: ostatnie dyktowanie lub dowolny wpis historii.",
+        "last": "Ostatnia transkrypcja",
+        "loading": "Wczytywanie wpisów..."
+      },
+      "prompts": {
+        "label": "Prompty",
+        "description": "Wybierz jeden lub więcej szablonów do uruchomienia."
+      },
+      "engines": {
+        "label": "Silniki",
+        "description": "Wybierz jeden lub więcej silników do uruchomienia.",
+        "appleUnavailable": "Apple Intelligence jest niedostępny na tym Macu",
+        "noModel": "Brak skonfigurowanego modelu",
+        "noModelHint": "Nie ustawiono modelu. Wybierz go w Post Process."
+      },
+      "run_one": "Uruchom 1 parę",
+      "run_few": "Uruchom {{count}} pary",
+      "run_many": "Uruchom {{count}} par",
+      "run_other": "Uruchom pary: {{count}}",
+      "runHint_one": "1 prompt na 1 silniku. Nic nie jest wpisywane ani zapisywane.",
+      "runHint_few": "{{count}} pary prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
+      "runHint_many": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
+      "runHint_other": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
+      "running": "Uruchamianie...",
+      "rerun": "Uruchom ponownie",
+      "latency": "{{ms}} ms",
+      "rawKept": "Silnik nie powiódł się lub został pominięty, więc surowa transkrypcja zostałaby zachowana.",
+      "partialFailure": "Niektóre uruchomienia nie powiodły się lub zostały pominięte, a inne dały wynik. Sprawdź każdą kartę.",
+      "results_one": "1 wynik",
+      "results_few": "{{count}} wyniki",
+      "results_many": "{{count}} wyników",
+      "results_other": "Wyników: {{count}}",
+      "errors": {
+        "engineNotFound": "Silnik '{{id}}' nie jest skonfigurowany.",
+        "entryNotFound": "Wybrany wpis historii już nie istnieje.",
+        "emptyBatch": "Wybierz co najmniej jeden prompt i jeden silnik."
+      },
+      "diff": {
+        "lines": "linii",
+        "charsChanged_one": "Zmieniono 1 znak",
+        "charsChanged_few": "Zmieniono {{count}} znaki",
+        "charsChanged_many": "Zmieniono {{count}} znaków",
+        "charsChanged_other": "Zmieniono znaków: {{count}}",
+        "identical": "Brak zmian."
+      },
+      "resultsEmptyTitle": "Wyniki pojawią się tutaj",
+      "resultsEmptyHint": "Wybierz wyżej źródło, prompty i silniki, a potem uruchom. Każda karta pokazuje dopracowany tekst, zmiany i czas działania."
     }
   },
   "footer": {
@@ -1202,11 +1339,18 @@
       "postProcessOutputInvalid": "Czyszczenie zwróciło nieużyteczny tekst, zachowano oryginalną transkrypcję.",
       "postProcessCloudFailed": "Czyszczenie nie powiodło się, zachowano oryginalną transkrypcję: {{detail}}",
       "postProcessPromptCycled": "Szablon postprocessingu: {{name}}",
+      "postProcessPromptCycledPosition": "Szablon postprocessingu: {{name}} ({{position}} z {{total}})",
+      "postProcessSessionUpgraded": "Postprocessing włączony dla tej sesji: {{name}}",
+      "postProcessSessionDowngraded": "Postprocessing wyłączony dla tej sesji",
       "companionDisconnected": "Telefon rozłączony. Kończę z tym, co nagrane.",
       "companionServerFailed": "Awaria serwera towarzyszącego: {{error}}",
-      "companionSessionCapped": "Dyktowanie z urządzenia towarzyszącego zakończone: osiągnięto limit sesji 15 minut na {{device}}."
+      "companionSessionCapped": "Dyktowanie z urządzenia towarzyszącego zakończone: osiągnięto limit sesji 15 minut na {{device}}.",
+      "companionZeroAudio": "Dyktowanie z urządzenia towarzyszącego zakończyło się bez dźwięku. Nic nie zostało przetranskrybowane.",
+      "postProcessUnchanged": "Polerowanie zakończyło się, ale nic nie zmieniło; transkrypcja została wklejona dokładnie tak, jak była dyktowana.",
+      "postProcessNotConfigured": "Przetwarzanie końcowe nie zostało uruchomione: {{detail}}. Zachowano surową transkrypcję."
     },
     "commandBadge": "Tryb poleceń",
+    "ppBadge": "Postprocessing",
     "ppChip": "Czyszczę ({{model}}) {{seconds}}s",
     "companionBadge": "Mikrofon towarzyszący"
   },
@@ -1254,13 +1398,15 @@
     "subtitle": "Twój telefon jest teraz mikrofonem i przyciskiem dla twojego Maca.",
     "certNote": "Jeśli przeglądarka ostrzega o połączeniu, porównaj odcisk certyfikatu z tym w ustawieniach VoxBar i raz go zaakceptuj.",
     "noToken": "Otwórz tę stronę z kodu QR w ustawieniach VoxBar.",
-    "micDenied": "Odmówiono dostępu do mikrofonu. Zezwól w przeglądarce i odśwież.",
+    "micDenied": "Nie udało się uzyskać dostępu do mikrofonu. Zezwól na niego w przeglądarce i spróbuj ponownie.",
+    "micRetry": "Spróbuj ponownie",
     "badToken": "Parowanie nieudane. Zeskanuj kod QR w ustawieniach VoxBar ponownie.",
     "wrongSubnet": "Ten telefon jest w innej sieci niż Mac. Połącz się z tą samą Wi-Fi i sparuj ponownie.",
     "rateLimited": "Zbyt wiele prób parowania. Odczekaj minutę i spróbuj znowu.",
     "busy": "Mac już dyktuje z innego przycisku.",
     "disconnectedFinalized": "Połączenie zerwane. Mac zachował to, co powiedziałeś.",
     "capped": "Sesja ograniczona do 15 minut. Naciśnij ponownie, aby kontynuować.",
+    "zeroAudio": "Dźwięk nie dotarł do Maca. Przytrzymaj przycisk i mów.",
     "serverStopped": "Mac zatrzymał serwer towarzyszący.",
     "reconnect": "Połącz ponownie",
     "holdToTalk": "Przytrzymaj, aby mówić",
@@ -1272,6 +1418,16 @@
     "stateReady": "Gotowe",
     "stateRecording": "Nagrywanie",
     "stateDisconnected": "Rozłączono",
-    "stateError": "Błąd"
+    "stateError": "Błąd",
+    "targetLabel": "Wyślij do",
+    "targetPc": "Na komputer",
+    "targetPhone": "Na telefon",
+    "postProcessLabel": "Wygładź tekst",
+    "resultTitle": "Transkrypcja",
+    "copy": "Kopiuj",
+    "copied": "Skopiowano",
+    "polished": "Wygładzony",
+    "historyTitle": "Ostatnie",
+    "historyEmpty": "Dyktowania z tego telefonu pojawią się tutaj."
   }
 }

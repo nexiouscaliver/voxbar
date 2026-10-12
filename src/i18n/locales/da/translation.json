@@ -12,6 +12,20 @@
     "postProcessModel": "Efterbehandlingsmodel",
     "quit": "Afslut",
     "cancel": "Annuller",
+    "statusIdle": "Inaktiv",
+    "statusRecording": "Optager…",
+    "statusTranscribing": "Transskriberer…",
+    "asrModel": "ASR-model",
+    "modelsNone": "Ingen modeller indlæst",
+    "recentDictations": "Seneste transskriptioner",
+    "recentDictationsEmpty": "Ingen transskriptioner endnu",
+    "companionLabel": "Ledsager",
+    "companionOn": "Til",
+    "companionOff": "Fra",
+    "companionPairedDevices": "Parrede enheder",
+    "companionTarget": "Mål",
+    "companionTargetMac": "Denne Mac",
+    "companionTargetPhone": "Telefon",
     "secureInputWarning": "⚠ Genveje blokeret af Secure Input",
     "postProcessPrompt": "Efterbehandlingstekst"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "Aktivér under Avanceret",
     "history": "Historik",
     "debug": "Fejlfinding",
-    "about": "Om"
+    "about": "Om",
+    "notifications": "Underretninger",
+    "promptStudio": "Prompt-studio"
   },
   "onboarding": {
     "subtitle": "For at komme i gang skal du vælge en transskriptionsmodel",
@@ -667,7 +683,31 @@
         "serverError": "Serveren fejlede: {{error}}",
         "refresh": "Opdater",
         "statusRunning": "Kører",
-        "statusStopped": "Stoppet"
+        "statusStopped": "Stoppet",
+        "interfaceTitle": "Netværksinterface",
+        "interfaceAuto": "Automatisk (LAN foretrækkes)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Ingen netværksinterfaces fundet endnu",
+        "bindError": "Interfaceproblem: {{error}}",
+        "manualTitle": "Manuel indstilling",
+        "hostLabel": "Anvendt vært eller IP",
+        "hostPlaceholder": "Tom bruger interfaceadressen",
+        "hostInvalid": "Angiv en IPv4-adresse eller et værtsnavn uden skema, port eller skråstreger",
+        "portInvalid": "Porten skal være et tal mellem 1 og 65535",
+        "tlsTitle": "TLS-certifikat",
+        "tlsCertLabel": "Certifikatfil",
+        "tlsKeyLabel": "Nøglefil",
+        "tlsSelfSigned": "Det indbyggede selvsignerede certifikat er i brug",
+        "tlsManual": "Dit eget certifikat er i brug",
+        "tlsPairInvalid": "Angiv begge filer, eller lad dem begge stå tomme",
+        "restartButton": "Genstart serveren",
+        "restartPending": "Ændringerne træder i kraft efter en genstart",
+        "qrPreviewNote": "Forhåndsvisning: Denne URL anvendes, næste gang serveren starter.",
+        "sharedNetworkNote": "Telefonen og denne Mac skal dele et netværk: det samme Wi-Fi eller LAN, eller det samme tailnet (f.eks. begge på Tailscale)."
       }
     },
     "postProcessing": {
@@ -702,7 +742,20 @@
           "refreshModels": "Opdater modeller",
           "fetchFailed": "Kunne ikke hente modellisten ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Modelliste hentet {{time}}",
-          "retry": "Prøv igen"
+          "retry": "Prøv igen",
+          "visibleDescription": "Modellen, der omskriver din transskription efter hver diktéring.",
+          "fetchingList": "Henter modellisten...",
+          "listSummary_one": "1 model, hentet {{time}}",
+          "listSummary_other": "{{count}} modeller, hentet {{time}}",
+          "notFetched": "Endnu ingen modelliste.",
+          "emptyTitle": "Ingen modeller på listen",
+          "emptyHint": "Opdater for at indlæse de modeller, denne nøgle kan se, eller skriv et model-id herunder.",
+          "customSet": "Angiv",
+          "customHint": "Ethvert model-id fra din udbyder virker, også hvis det ikke er på listen.",
+          "filterPlaceholder": "Filtrér modeller",
+          "showAll_one": "Vis alle ({{count}})",
+          "showAll_other": "Vis alle ({{count}})",
+          "showFewer": "Vis færre"
         },
         "timeout": {
           "title": "Anmodningstimeout",
@@ -718,7 +771,8 @@
           "appleReady": "Apple Intelligence er tilgængelig",
           "appleUnavailable": "Apple Intelligence er ikke tilgængelig på denne enhed",
           "failed": "Forbindelsen mislykkedes: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Motor"
       },
       "local": {
         "label": "Lokal model",
@@ -854,9 +908,15 @@
           "chinese_simplified": {
             "name": "Kinesisk (forenklet)",
             "description": "Oprydning af forenklet kinesisk med rettelse af homofone tegn."
+          },
+          "prompt_enhancer": {
+            "name": "Promptforbedrer",
+            "description": "Gør en dikteret instruktion til en klar, struktureret prompt til en AI-agent eller app."
           }
         },
-        "editPrompt": "Rediger"
+        "editPrompt": "Rediger",
+        "testShort": "Test",
+        "deleteShort": "Slet"
       }
     },
     "history": {
@@ -882,7 +942,9 @@
       "groups": {
         "retention": "Opbevaring"
       },
-      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Vis ændringer",
+      "hideChanges": "Skjul ændringer"
     },
     "debug": {
       "title": "Fejlfinding",
@@ -1076,7 +1138,70 @@
     "ppOutcome": {
       "applied": "anvendt",
       "skipped": "sprunget over",
-      "failed": "fejlede"
+      "failed": "fejlede",
+      "unchanged": "uændret"
+    },
+    "notifications": {
+      "title": "Underretninger",
+      "toggle": {
+        "label": "Systemunderretninger",
+        "description": "Vis fejl og sessionsresultater som systemunderretninger. De forbliver i underretningscentret, indtil du fjerner dem."
+      },
+      "outcomes": {
+        "label": "Underretninger om resultater",
+        "description": "Giv også underretning, når en telefonsession slutter, f.eks. når sessionsgrænsen nås, eller telefonen frakobles. Fra betyder kun fejl."
+      },
+      "log": {
+        "title": "Underretningslog",
+        "description": "De seneste 50 fejl- og resultatmeddelelser. Nye poster registreres kun, mens systemunderretninger er slået til.",
+        "empty": "Ingen underretninger endnu.",
+        "clear": "Ryd alle"
+      }
+    },
+    "studio": {
+      "title": "Prompt-studio",
+      "intro": "Test prompts på en rigtig transskription og sammenlign motorer side om side. Kørsel bruger samme pipeline som en rigtig diktéring, men der tastes intet i andre apps, og intet gemmes i historikken.",
+      "source": {
+        "label": "Kildetekst",
+        "description": "Transskriptionen som studiet pudser: din seneste diktering eller en vilkårlig historikpost.",
+        "last": "Seneste transskription",
+        "loading": "Indlæser poster..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Vælg en eller flere skabeloner at køre."
+      },
+      "engines": {
+        "label": "Motorer",
+        "description": "Vælg en eller flere motorer at køre dem på.",
+        "appleUnavailable": "Apple Intelligence er ikke tilgængelig på denne Mac",
+        "noModel": "Ingen model konfigureret",
+        "noModelHint": "Ingen model valgt. Vælg en under Post Process."
+      },
+      "run_one": "Kør 1 par",
+      "run_other": "Kør {{count}} par",
+      "runHint_one": "1 prompt på 1 motor. Der tastes eller gemmes intet.",
+      "runHint_other": "{{count}} prompt-motor-par. Der tastes eller gemmes intet.",
+      "running": "Kører...",
+      "rerun": "Kør igen",
+      "latency": "{{ms}} ms",
+      "rawKept": "Motoren fejlede eller blev sprunget over, så råtransskriptionen ville blive beholdt.",
+      "partialFailure": "Nogle kørsler fejlede eller blev sprunget over, mens andre gav output. Tjek hvert kort.",
+      "results_one": "1 resultat",
+      "results_other": "{{count}} resultater",
+      "errors": {
+        "engineNotFound": "Motoren '{{id}}' er ikke konfigureret.",
+        "entryNotFound": "Den valgte historikpost findes ikke længere.",
+        "emptyBatch": "Vælg mindst én prompt og én motor."
+      },
+      "diff": {
+        "lines": "linjer",
+        "charsChanged_one": "1 tegn ændret",
+        "charsChanged_other": "{{count}} tegn ændret",
+        "identical": "Ingen ændringer."
+      },
+      "resultsEmptyTitle": "Resultater vises her",
+      "resultsEmptyHint": "Vælg kilde, prompts og motorer ovenfor og kør. Hvert kort viser den polerede tekst, ændringerne og hastigheden."
     }
   },
   "footer": {
@@ -1205,11 +1330,18 @@
       "postProcessOutputInvalid": "Rensningen returnerede ubrugelig tekst, den originale transskription blev beholdt.",
       "postProcessCloudFailed": "Rensningen fejlede, den originale transskription blev beholdt: {{detail}}",
       "postProcessPromptCycled": "Efterbehandlingsskabelon: {{name}}",
+      "postProcessPromptCycledPosition": "Efterbehandlingsskabelon: {{name}} ({{position}} af {{total}})",
+      "postProcessSessionUpgraded": "Efterbehandling slået til for denne session: {{name}}",
+      "postProcessSessionDowngraded": "Efterbehandling slået fra for denne session",
       "companionDisconnected": "Telefonen frakoblet. Færdiggør med det optagede.",
       "companionServerFailed": "Følgeserveren fejlede: {{error}}",
-      "companionSessionCapped": "Dikteringen fra Følgeenheden er afsluttet: grænsen på 15 minutter for sessionen er nået på {{device}}."
+      "companionSessionCapped": "Dikteringen fra Følgeenheden er afsluttet: grænsen på 15 minutter for sessionen er nået på {{device}}.",
+      "companionZeroAudio": "Diktéringen fra følgeenheden sluttede uden lyd. Intet blev transkriberet.",
+      "postProcessUnchanged": "Efterbehandlingen er færdig, men ændrede intet; transskriptionen blev indsat præcis som dikteret.",
+      "postProcessNotConfigured": "Efterbehandlingen blev ikke kørt: {{detail}}. Råtransskriptionen blev beholdt."
     },
     "commandBadge": "Kommandotilstand",
+    "ppBadge": "Efterbehandling",
     "ppChip": "Renser ({{model}}) {{seconds}}s",
     "companionBadge": "Følgeomikrofon"
   },
@@ -1254,13 +1386,15 @@
     "subtitle": "Din telefon er nu mikrofon og knap til din Mac.",
     "certNote": "Hvis browseren advarer om forbindelsen, skal du sammenligne certifikatets fingeraftryk med det i VoxBars indstillinger og acceptere det én gang.",
     "noToken": "Åbn denne side fra QR-koden i VoxBars indstillinger.",
-    "micDenied": "Mikrofonadgang blev nægtet. Tillad den i browseren og genindlæs.",
+    "micDenied": "Mikrofonadgang mislykkedes. Giv adgang i browseren, og prøv igen.",
+    "micRetry": "Prøv igen",
     "badToken": "Parringen mislykkedes. Scan QR-koden i VoxBars indstillinger igen.",
     "wrongSubnet": "Telefonen er på et andet netværk end Macen. Slut dig til det samme Wi-Fi og par igen.",
     "rateLimited": "For mange parringsforsøg. Vent et minut og prøv igen.",
     "busy": "Macen dikterer allerede fra en anden knap.",
     "disconnectedFinalized": "Forbindelsen blev afbrudt. Macen gemte det, du sagde.",
     "capped": "Sessionen er begrænset til 15 minutter. Tryk igen for at fortsætte.",
+    "zeroAudio": "Ingen lyd nåede Mac'en. Hold knappen nede, og tal.",
     "serverStopped": "Macen stoppede følgeserveren.",
     "reconnect": "Genopret forbindelse",
     "holdToTalk": "Hold nede for at tale",
@@ -1272,6 +1406,16 @@
     "stateReady": "Klar",
     "stateRecording": "Optager",
     "stateDisconnected": "Afbrudt",
-    "stateError": "Fejl"
+    "stateError": "Fejl",
+    "targetLabel": "Send til",
+    "targetPc": "Til pc",
+    "targetPhone": "Til telefonen",
+    "postProcessLabel": "Polér teksten",
+    "resultTitle": "Transskription",
+    "copy": "Kopiér",
+    "copied": "Kopieret",
+    "polished": "Poleret",
+    "historyTitle": "Seneste",
+    "historyEmpty": "Diktater fra denne telefon vises her."
   }
 }

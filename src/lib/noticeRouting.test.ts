@@ -103,6 +103,8 @@ const ALL_NOTICE_CODES = [
   "post_process_too_long",
   "post_process_output_invalid",
   "post_process_cloud_failed",
+  "post_process_not_configured",
+  "post_process_unchanged",
   "delete_last_word_no_session",
   "delete_last_word_no_buffer",
   "undo_no_session",
@@ -111,9 +113,12 @@ const ALL_NOTICE_CODES = [
   "wayland_tauri_hotkeys",
   "gnome_overlay_fallback",
   "post_process_prompt_cycled",
+  "post_process_session_upgraded",
+  "post_process_session_downgraded",
   "companion_disconnected_finalized",
   "companion_server_failed",
   "companion_session_capped",
+  "companion_zero_audio",
   "command_mode_no_session",
 ] as const;
 
@@ -129,8 +134,10 @@ const ORPHANED_INFO = [
 const LEGACY_SURFACE = [...ORPHANED_INFO, "companion_server_failed"];
 
 // The eight no-op codes App.tsx already routes (key feedback + Linux setup
-// warnings) plus companion_disconnected_finalized: keep the pre-AUD-02
-// card-gated behavior.
+// warnings) plus companion_disconnected_finalized, plus round 7's two
+// post-process truth-pass codes (a requested polish that could not start,
+// and one that ran but changed nothing): keep the pre-AUD-02 card-gated
+// behavior.
 const CARD_GATED = [
   "delete_last_word_no_session",
   "delete_last_word_no_buffer",
@@ -138,13 +145,21 @@ const CARD_GATED = [
   "undo_no_buffer",
   "binding_busy",
   "post_process_prompt_cycled",
+  "post_process_session_upgraded",
+  "post_process_session_downgraded",
   "wayland_tauri_hotkeys",
   "gnome_overlay_fallback",
   "companion_disconnected_finalized",
+  "post_process_not_configured",
+  "post_process_unchanged",
 ];
 
 const ALWAYS_TOAST = ["command_mode_no_session"];
-const CAP = ["companion_session_capped"];
+// Codes emitted right before the pipeline retires the card (the cap's
+// finalize; the zero-audio stop pipeline's error-read delayed hide): the
+// toast stays card-gated but the notification must not depend on the card
+// still being visible when the emit lands.
+const CAP = ["companion_session_capped", "companion_zero_audio"];
 
 // Codes whose dedicated legacy listeners own every main-window surface; the
 // router stays inert for them.
@@ -249,6 +264,25 @@ assert.equal(
   capCardShowing.toast,
   false,
   "companion_session_capped toast stays card-gated - the card row is the visible surface when present",
+);
+
+// v1.6.0 zero-audio: same hazard class as the cap. The stop pipeline emits
+// the notice while the transcribing card is up, then hides the card via the
+// 2600 ms error-read delay (actions.rs zero-audio branch calls
+// hide_recording_overlay_after_error); the ~readable window is finite, so
+// the notification must be offered even with the card showing - a plain
+// card-gated policy reduced the whole Mac surface to the error sound plus
+// a flash (review finding).
+const zeroAudioCardShowing = routerDecision("companion_zero_audio", true);
+assert.equal(
+  zeroAudioCardShowing.notify,
+  true,
+  "companion_zero_audio must offer the notification even though the card is showing (the stop pipeline retires the card via the error-read hide shortly after the emit)",
+);
+assert.equal(
+  zeroAudioCardShowing.toast,
+  false,
+  "companion_zero_audio toast stays card-gated - the card row is the visible surface while the error-read delay keeps it up",
 );
 
 // ---- Exhaustive decision table: every routed code in both cardVisible
@@ -384,7 +418,7 @@ assert.deepEqual(
 assert.deepEqual(
   [...ROUTED_NOTICE_CODES].sort(),
   [...CARD_GATED, ...LEGACY_SURFACE, ...ALWAYS_TOAST, ...CAP].sort(),
-  "ROUTED_NOTICE_CODES must be exactly the 16 non-unrouted codes (12 pre-AUD-02 + model_fallback, post_process_download_missing, post_process_too_long, companion_server_failed)",
+  "ROUTED_NOTICE_CODES must be exactly the 18 non-unrouted codes (12 pre-AUD-02 + model_fallback, post_process_download_missing, post_process_too_long, companion_server_failed + round 7's post_process_not_configured and post_process_unchanged)",
 );
 
 console.log("noticeRouting tests passed");

@@ -425,6 +425,17 @@
   letter-spacing: 0;
   line-height: 1;
 }
+/* Post-process badge (v1.6.0 W1-L7): the session will be post-processed.
+   Same chip anatomy as CMD, but outlined (transparent fill, accent text)
+   so the two modes read apart at a glance, and clamped with an ellipsis so
+   a long template name cannot stretch the listening row. */
+.spp {
+  background: transparent;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 @keyframes sdot-pulse {
   0% {
     box-shadow: 0 0 0 0 var(--s-accent-soft);

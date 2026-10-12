@@ -5,8 +5,10 @@ export { AdvancedSettings } from "./advanced/AdvancedSettings";
 export { DebugSettings } from "./debug/DebugSettings";
 export type { OnboardingPreviewStep } from "./debug/OnboardingPreview";
 export { HistorySettings } from "./history/HistorySettings";
+export { NotificationsSettings } from "./notifications/NotificationsSettings";
 export { AboutSettings } from "./about/AboutSettings";
 export { PostProcessingSettings } from "./post-processing/PostProcessingSettings";
+export { PromptStudio } from "./studio/PromptStudio";
 export { ModelsSettings } from "./models/ModelsSettings";
 export { OutputSettings } from "./output/OutputSettings";
 

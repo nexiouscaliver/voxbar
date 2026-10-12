@@ -15,7 +15,10 @@ export const SettingsGroup: React.FC<SettingsGroupProps> = ({
     <div className="space-y-2">
       {title && (
         <div className="px-4">
-          <h2 className="text-xs font-medium text-secondary uppercase tracking-wide">
+          {/* W1-L9 visual pass: group headers carry semibold text-text/70 so
+              section boundaries read at a glance; they were secondary grey
+              at the same weight as row descriptions. */}
+          <h2 className="text-xs font-semibold text-text/70 uppercase tracking-wide">
             {title}
           </h2>
           {description && (

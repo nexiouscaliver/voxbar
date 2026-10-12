@@ -12,6 +12,20 @@
     "postProcessModel": "Model de postprocessament",
     "quit": "Surt",
     "cancel": "Cancel·la",
+    "statusIdle": "Inactiu",
+    "statusRecording": "Enregistrament…",
+    "statusTranscribing": "Transcrivint…",
+    "asrModel": "Model d'ASR",
+    "modelsNone": "Cap model carregat",
+    "recentDictations": "Transcripcions recents",
+    "recentDictationsEmpty": "Encara no hi ha transcripcions",
+    "companionLabel": "Acompanyant",
+    "companionOn": "Activat",
+    "companionOff": "Desactivat",
+    "companionPairedDevices": "Dispositius emparellats",
+    "companionTarget": "Destí",
+    "companionTargetMac": "Aquest Mac",
+    "companionTargetPhone": "Telèfon",
     "secureInputWarning": "⚠ Dreceres blocades per l'entrada segura",
     "postProcessPrompt": "Indicació de postprocessament"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "Activa-ho a Avançat",
     "history": "Historial",
     "debug": "Depuració",
-    "about": "Quant a"
+    "about": "Quant a",
+    "notifications": "Notificacions",
+    "promptStudio": "Estudi de prompts"
   },
   "onboarding": {
     "subtitle": "Per començar, trieu un model de transcripció",
@@ -667,7 +683,31 @@
         "serverError": "El servidor ha fallat: {{error}}",
         "refresh": "Actualitza",
         "statusRunning": "En execució",
-        "statusStopped": "Aturat"
+        "statusStopped": "Aturat",
+        "interfaceTitle": "Interfície de xarxa",
+        "interfaceAuto": "Automàtic (LAN preferida)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Encara no s'han trobat interfícies de xarxa",
+        "bindError": "Problema d'interfície: {{error}}",
+        "manualTitle": "Configuració manual",
+        "hostLabel": "Amfitrió o IP anunciat",
+        "hostPlaceholder": "Buit: s'utilitza l'adreça de la interfície",
+        "hostInvalid": "Introdueix una adreça IPv4 o un nom d'amfitrió, sense esquema, port ni barres",
+        "portInvalid": "El port ha de ser un número entre 1 i 65535",
+        "tlsTitle": "Certificat TLS",
+        "tlsCertLabel": "Fitxer del certificat",
+        "tlsKeyLabel": "Fitxer de la clau",
+        "tlsSelfSigned": "S'està usant el certificat autosignat integrat",
+        "tlsManual": "S'està usant el teu certificat",
+        "tlsPairInvalid": "Defineix tots dos fitxers o deixa'ls tots dos buits",
+        "restartButton": "Reinicia el servidor",
+        "restartPending": "Els canvis s'apliquen després de reiniciar",
+        "qrPreviewNote": "Previsualització: aquest URL s'anunciarà la propera vegada que arrenqui el servidor.",
+        "sharedNetworkNote": "El telèfon i aquest Mac han de compartir xarxa: el mateix Wi-Fi o LAN, o el mateix tailnet (per exemple, tots dos al Tailscale)."
       }
     },
     "postProcessing": {
@@ -702,7 +742,20 @@
           "refreshModels": "Actualitzeu els models",
           "fetchFailed": "No s'ha pogut obtenir la llista de models ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Llista de models obtinguda {{time}}",
-          "retry": "Torna-ho a provar"
+          "retry": "Torna-ho a provar",
+          "visibleDescription": "El model que reescriu la teva transcripció després de cada dictat.",
+          "fetchingList": "S'està obtenint la llista de models...",
+          "listSummary_one": "1 model, obtingut {{time}}",
+          "listSummary_other": "{{count}} models, obtinguts {{time}}",
+          "notFetched": "Encara no hi ha llista de models.",
+          "emptyTitle": "Cap model a la llista",
+          "emptyHint": "Actualitza per carregar els models que veu aquesta clau, o escriu un id de model a sota.",
+          "customSet": "Estableix",
+          "customHint": "Qualsevol id de model del teu proveïdor funciona, encara que no surti a la llista.",
+          "filterPlaceholder": "Filtra models",
+          "showAll_one": "Mostra'ls tots ({{count}})",
+          "showAll_other": "Mostra'ls tots ({{count}})",
+          "showFewer": "Mostra'n menys"
         },
         "timeout": {
           "title": "Temps d'espera de la sol·licitud",
@@ -718,7 +771,8 @@
           "appleReady": "Apple Intelligence està disponible",
           "appleUnavailable": "Apple Intelligence no està disponible en aquest dispositiu",
           "failed": "La connexió ha fallat: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Motor"
       },
       "local": {
         "label": "Model local",
@@ -854,9 +908,15 @@
           "chinese_simplified": {
             "name": "Xinès (simplificat)",
             "description": "Neteja del xinès simplificat amb correcció d'homòfons."
+          },
+          "prompt_enhancer": {
+            "name": "Millorador de prompts",
+            "description": "Converteix una instrucció dictada en un prompt clar i estructurat per a un agent d'IA o una aplicació."
           }
         },
-        "editPrompt": "Edita"
+        "editPrompt": "Edita",
+        "testShort": "Prova",
+        "deleteShort": "Suprimeix"
       }
     },
     "history": {
@@ -882,7 +942,9 @@
       "groups": {
         "retention": "Retenció"
       },
-      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Veure els canvis",
+      "hideChanges": "Amagar els canvis"
     },
     "debug": {
       "title": "Depuració",
@@ -1076,7 +1138,70 @@
     "ppOutcome": {
       "applied": "aplicat",
       "skipped": "omès",
-      "failed": "fallat"
+      "failed": "fallat",
+      "unchanged": "sense canvis"
+    },
+    "notifications": {
+      "title": "Notificacions",
+      "toggle": {
+        "label": "Notificacions del sistema",
+        "description": "Mostra els errors i els resultats de sessió com a notificacions del sistema. Es mantenen al centre de notificacions fins que les descartis."
+      },
+      "outcomes": {
+        "label": "Notificacions de resultats",
+        "description": "Notifica també quan acaba una sessió del mòbil, per exemple en arribar al límit de sessió o quan el mòbil es desconnecta. Desactivat significa només errors."
+      },
+      "log": {
+        "title": "Registre de notificacions",
+        "description": "Els últims 50 avisos d'errors i resultats. Només es registren entrades noves mentre les notificacions del sistema estiguin actives.",
+        "empty": "Encara no hi ha notificacions.",
+        "clear": "Esborra-ho tot"
+      }
+    },
+    "studio": {
+      "title": "Estudi de prompts",
+      "intro": "Prova prompts sobre una transcripció real i compara motors en paral·lel. Les execucions fan servir el mateix pipeline que un dictat real, però no s'escriu res a altres aplicacions i no es desa res a l'historial.",
+      "source": {
+        "label": "Text d'origen",
+        "description": "La transcripció que l'estudi polit: l'últim dictat o qualsevol entrada de l'historial.",
+        "last": "Última transcripció",
+        "loading": "Carregant entrades..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Tria una o més plantilles per executar."
+      },
+      "engines": {
+        "label": "Motors",
+        "description": "Tria un o més motors per executar-les.",
+        "appleUnavailable": "Apple Intelligence no està disponible en aquest Mac",
+        "noModel": "Cap model configurat",
+        "noModelHint": "Cap model establert. Tria'n un a Post Process."
+      },
+      "run_one": "Executar 1 parell",
+      "run_other": "Executar {{count}} parells",
+      "runHint_one": "1 prompt en 1 motor. No s'escriu ni es desa res.",
+      "runHint_other": "{{count}} parells prompt-motor. No s'escriu ni es desa res.",
+      "running": "S'està executant...",
+      "rerun": "Tornar a executar",
+      "latency": "{{ms}} ms",
+      "rawKept": "El motor ha fallat o s'ha omès, per tant es mantindria la transcripció en brut.",
+      "partialFailure": "Algunes execucions han fallat o s'han omès mentre d'altres han produït resultats. Comprova cada targeta.",
+      "results_one": "1 resultat",
+      "results_other": "{{count}} resultats",
+      "errors": {
+        "engineNotFound": "El motor '{{id}}' no està configurat.",
+        "entryNotFound": "L'entrada de l'historial triada ja no existeix.",
+        "emptyBatch": "Tria com a mínim un prompt i un motor."
+      },
+      "diff": {
+        "lines": "línies",
+        "charsChanged_one": "1 caràcter canviat",
+        "charsChanged_other": "{{count}} caràcters canviats",
+        "identical": "Sense canvis."
+      },
+      "resultsEmptyTitle": "Els resultats apareixeran aquí",
+      "resultsEmptyHint": "Tria a dalt una font, prompts i motors i executa. Cada targeta mostra el text polit, els canvis i la velocitat."
     }
   },
   "footer": {
@@ -1205,11 +1330,18 @@
       "postProcessOutputInvalid": "El poliment ha retornat text inútil, s'ha conservat la transcripció original.",
       "postProcessCloudFailed": "El poliment ha fallat i s'ha conservat la transcripció original: {{detail}}",
       "postProcessPromptCycled": "Plantilla de postprocessament: {{name}}",
+      "postProcessPromptCycledPosition": "Plantilla de postprocessament: {{name}} ({{position}} de {{total}})",
+      "postProcessSessionUpgraded": "Postprocessament activat per a aquesta sessió: {{name}}",
+      "postProcessSessionDowngraded": "Postprocessament desactivat per a aquesta sessió",
       "companionDisconnected": "Mòbil desconnectat. Es finalitza amb el capturat.",
       "companionServerFailed": "El servidor acompanyant ha fallat: {{error}}",
-      "companionSessionCapped": "S'ha finalitzat el dictat del dispositiu acompanyant: s'ha arribat al límit de sessió de 15 minuts a {{device}}."
+      "companionSessionCapped": "S'ha finalitzat el dictat del dispositiu acompanyant: s'ha arribat al límit de sessió de 15 minuts a {{device}}.",
+      "companionZeroAudio": "El dictat del dispositiu acompanyant ha acabat sense àudio. No s'ha transcrit res.",
+      "postProcessUnchanged": "El polit ha acabat sense canviar res; la transcripció s'ha enganxat exactament com es va dictar.",
+      "postProcessNotConfigured": "El postprocessament no s'ha executat: {{detail}}. S'ha conservat la transcripció en brut."
     },
     "commandBadge": "Mode d'ordres",
+    "ppBadge": "Postprocessament",
     "ppChip": "Polint ({{model}}) {{seconds}}s",
     "companionBadge": "Micròfon acompanyant"
   },
@@ -1254,13 +1386,15 @@
     "subtitle": "El teu mòbil ara és micròfon i disparador per al teu Mac.",
     "certNote": "Si el navegador avisa de la connexió, compara l'empremta del certificat amb la dels ajustos de VoxBar i accepta-la una vegada.",
     "noToken": "Obre aquesta pàgina des del codi QR als ajustos de VoxBar.",
-    "micDenied": "S'ha denegat l'accés al micròfon. Permet-lo al navegador i recarrega.",
+    "micDenied": "L'accés al micròfon ha fallat. Permet-lo al navegador i torna-ho a provar.",
+    "micRetry": "Torna-ho a provar",
     "badToken": "La vinculació ha fallat. Torna a escanejar el codi QR als ajustos de VoxBar.",
     "wrongSubnet": "Aquest mòbil és en una altra xarxa diferent del Mac. Uneix-te a la mateixa Wi-Fi i vincula de nou.",
     "rateLimited": "Masses intents de vinculació. Espera un minut i torna-ho a provar.",
     "busy": "El Mac ja està dictant des d'un altre disparador.",
     "disconnectedFinalized": "S'ha perdut la connexió. El Mac ha conservat el que has dit.",
     "capped": "Sessió limitada a 15 minuts. Torna a prémer per continuar.",
+    "zeroAudio": "Cap àudio no ha arribat al Mac. Mantén premut el botó i parla.",
     "serverStopped": "El Mac ha aturat el servidor acompanyant.",
     "reconnect": "Torna a connectar",
     "holdToTalk": "Mantén premut per parlar",
@@ -1272,6 +1406,16 @@
     "stateReady": "A punt",
     "stateRecording": "Enregistrant",
     "stateDisconnected": "Desconnectat",
-    "stateError": "Error"
+    "stateError": "Error",
+    "targetLabel": "Envia a",
+    "targetPc": "Al PC",
+    "targetPhone": "Al mòbil",
+    "postProcessLabel": "Poleix el text",
+    "resultTitle": "Transcripció",
+    "copy": "Copia",
+    "copied": "Copiat",
+    "polished": "Polit",
+    "historyTitle": "Recents",
+    "historyEmpty": "Els dictats d'aquest mòbil apareixen aquí."
   }
 }

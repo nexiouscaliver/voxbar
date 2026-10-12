@@ -579,3 +579,172 @@ statements found were the ledger's own stale statuses, corrected above.
   in this entry's own commit: the loop records each failure and keeps
   running every remaining file, prints an "N of M frontend test files
   failed" summary listing every one, and exits nonzero on any failure.
+
+## Round 7: the post-processing truth pass (the operator's "no effect" report)
+
+The trigger: the operator reported post-processing "has no effect, ever", and
+his report arrived with a live-data note saying his one post_processed_text
+row looked IDENTICAL to its raw transcription. The forge-time audit (whose
+facts the lane was told to trust) measured otherwise, and this pass re-verified
+the dispute directly, read-only, against the live history.db: row 122 holds
+transcription_text of 2353 chars and post_processed_text of 2354 chars, and
+the texts diverge at exactly one spot - the raw's bare newline in "resolve
+them as well\nunattended workflow run" became "as well. Unattended workflow
+run" (period, space, capital; +1 char). So the row is a one-character
+near-echo, not byte-identical: apparent identity, the auditor's verdict, and
+now a repeatable sqlite3 check all agree. (The repo carries no audit artifact;
+the evidence lives in the operator's history.db. Nothing else in this entry
+rests on it - the guard is pinned behaviorally either way.)
+
+The verdict: the pipeline WORKS. His one completed run (row 122, local
+Qwen3-0.6B, outcome=applied, 10.9s) was pasted and saved; the one-character
+change was imperceptible in the pasted wall of text; his two later attempts
+(rows 124/125) were refused by the memory gate with a once-per-session info
+toast; and the History UI shows only the raw transcription_text anyway, so
+the processed text is unreachable anywhere in the app. The jq nulls that
+suggested "not configured" were wrong key names at the wrong nesting: the real
+keys (.settings.post_process_enabled=true, .settings.post_process_provider_id,
+.settings.post_process_models, .settings.post_process_selected_prompt_id) were
+all set. "I see no change" was the expected perception of a working pipeline
+with three visibility defects and one genuine product defect - all four now
+fixed on this branch.
+
+- **KB-252 · FIXED · the validator had no identity guard: a verbatim echo
+  recorded as `applied` (round 7).** `validate_post_process_output` checked
+  non-empty, collapse, expansion, and script - never output-vs-input - so a
+  weak local model that near-echoes the transcript (the 0.6B on row 122)
+  sailed through and the outcome column could not distinguish "cleaned" from
+  "did nothing". Fix: the exact identity guard `is_no_op_output` (trimmed
+  byte equality, deliberately NOT looser: punctuation and capitalization
+  fixes are the feature's core value, and any normalization past trim would
+  flag a legitimate minimal cleanup of already-clean text) plus the
+  `PostProcessOutcome::Unchanged` token. The single success seam
+  `RunsRegistry::finish_applied` (post_process_runs.rs) records `unchanged`
+  with the no-op fallback reason and is now the one finish every engine's
+  validated-Ok arm calls (cloud's handle_completion, Apple Intelligence's Ok
+  arm, the local runner's WarmHold and terminal arms); near-echoes (one
+  character in thousands) stay `applied` with their changed ratio on the
+  outcome line, which is the honest limit of a one-run guard. Pinned by:
+  no_op_guard_is_exact_identity_after_trim (which includes a one-character
+  near-echo as NOT a no-op),
+  `finish_applied_distinguishes_changed_from_unchanged`,
+  `verbatim_echo_records_unchanged_not_applied` (local runner fakes), and verbatim_echo_cloud_run_records_unchanged_and_notices (cloud
+  seam, which also pins the info notice).
+- **KB-253 · FIXED · a requested-but-unstartable polish was completely
+  silent (round 7).** The dictation seam's pre-run config guards (no provider
+  resolves, the provider has no model, no prompt selected, the selection
+  dangles, the template body is empty) only debug!-logged and returned raw -
+  the exact "post-processing has no effect" machine: the operator presses the
+  pp binding, raw text lands, nothing anywhere says why. And the default
+  `selected_prompt_id` is None, so "toggle on, never pick a template" walks
+  straight into it. Fix: the pure, exhaustive classifier
+  `post_process_request_gap` (actions.rs) names the specific gap, and
+  post_process_transcription emits the new error-tone
+  `post_process_not_configured` notice (overlay card row, hidden-window
+  toast, persistent OS notification in the download_missing class) with that
+  cause as detail. Pinned by
+  `post_process_request_gap_tables_every_config_fallback`; the phone-forwarder classification (companion/mod.rs allow list)
+  and the frontend routing tables (noticeRouting.ts, noticeMessage.ts, both
+  pinned test mirrors) carry the code exhaustively.
+- **KB-254 · FIXED · the pp runs table could say "skipped" but never why
+  (round 7).** finish_with_detail wrote the skip explanation onto the pp:
+  log line only; the Debug table's record (and the copy button) never
+  carried it, and the cloud failure arms concluded through finish() with no
+  detail at all. Fix: `PostProcessRunRecord.outcome_detail` (bindings
+  regenerated) records the reason at finish time - local skip explanations,
+  the no-op reason, and now every cloud failure cause too (the
+  conclude_generation! macro and the validation-failure arm pass their
+  detail; the review pass caught that the first cut left the cloud path
+  detail-free, exactly the gap the field docs claimed was closed) - and the
+  Debug table's OutcomeCell tooltip shows the token AND the reason.
+  (changed_ratio was already a record field before this pass; the table
+  renders neither it nor anything else new.) Pinned by
+  finish_with_detail_surfaces_the_reason_in_the_record,
+  cloud_401_is_failed_auth_and_raw_transcript (transport-failure detail),
+  and the garbage-engine test (validation-failure detail).
+- **KB-255 · FIXED · the built-in templates never said the input was an ASR
+  transcript (round 7).** Every seed body opened with "a transcript generated
+  by a speech-to-text model" and a cleanup list, so the model met homophones,
+  missing punctuation, spoken-punctuation words, hallucinated fragments, and
+  broken spacing with no instruction to fix them first - a conservative
+  template plus a 0.6B engine converges on echo. Fix: the shared
+  `PROMPT_ASR_PREAMBLE` (settings.rs) opens every body - fix obvious ASR
+  artifacts silently BEFORE the role applies, never invent content - each
+  role keeps its specialization (minimal explicitly scopes the preamble down
+  to marks, never words), and the seeds ship at generation 2
+  (BUILTIN_PROMPT_GENERATION). The versioned reseed in
+  ensure_post_process_defaults upgrades a stored builtin ONLY when its
+  version is below the current generation AND its body still byte-matches
+  the ONE generation-1 scaffold (prior_generation_seed_body). Provenance,
+  verified against the repo history during the review pass: the library's
+  introduction (13b354b6) seeded that scaffold and no later commit changed
+  it before generation 2; the E.g. example line this build's scaffold
+  carries was borrowed from the PRE-LIBRARY legacy prompt (fc465b49, which
+  predates the library and touched only the single default prompt). A first
+  cut of this entry wrongly claimed a second generation-1 scaffold revision
+  existed; it did not, and the phantom was removed. The reconstruction was
+  verified byte-identical to the operator's live english_casual (his
+  selected template, still version 1) before the migration was trusted -
+  evidence from the live settings store, read-only, not a repo artifact. A
+  user edit bumps the version and changes the body, so edits are doubly
+  protected.
+  Pinned by: every_builtin_template_carries_the_asr_preamble,
+  builtin_templates_contain_no_em_or_en_dashes, and
+  generation_bump_reseeds_untouched_builtins_and_never_clobbers_edits.
+- **KB-256 · NEW · the Prompt Enhancer built-in (round 7).** A fourteenth
+  seed: the input is a roughly dictated instruction for an AI agent or app,
+  the output is one clear structured prompt (Goal / Context / Constraints /
+  Desired format) preserving every intent, adding no facts, with no preamble
+  or commentary. language=auto (it restructures in whatever language was
+  dictated), so its keep-language line pins the same-language rule the other
+  templates carry. Locale name/description ship in en plus every locale
+  file. Pinned by prompt_enhancer_seed_pins_the_restructuring_contract and
+  the fourteen-template catalog pin.
+
+Still open after this pass (deliberately, other lanes own the files): the
+History UI still renders and copies only entry.transcription_text, so a
+successful run's output stays invisible there (the auditor's primary
+visibility defect - the History panel is not this lane's surface); the
+main-window skip/failure toasts dedupe once per reason per app session
+(App.tsx + skipToastDedupe.ts), which mutes a persistently memory-pressured
+machine's second-and-later memory-gate refusals; and Apple Intelligence has
+still never been exercised as a pp engine on the operator's machine (he
+switched after the 10:05PM refusals; no run exists post-switch).
+
+## Round 8 queue: the six structural lows kept open after the v1.6.0 fleet (2026-10-12)
+
+All six verified by the fleet consolidator with path:line evidence; each is
+low severity today and needs a design decision or connection-identity work
+rather than a one-line fix, so v1.6.0 ships with them disclosed.
+
+- **KB-254 · OPEN · zero-audio notice can name the wrong phone.**
+  session_device is claimed only at hello-while-idle (mod.rs:182-187,
+  KB-197) and on_session_changed(true) re-reads the stale slot
+  (mod.rs:745-749), so phone B's zero-audio session after spectating phone
+  A names A in the notice detail (actions.rs:1793-1797). Needs per-connection
+  device identity carried with the session, not the manager slot.
+- **KB-255 · OPEN · quick reconnect can zero the tray's paired count.**
+  forget_device removes by NAME on every connection end (server.rs:520-522,
+  mod.rs:264-268) while keepalive death detection lags 20s, so a stale
+  socket's death can erase a fresh same-name registration (mod.rs:410-416
+  feeds the tray count). Needs generation/identity on registrations.
+- **KB-256 · OPEN · a v1.5.x built-in rename strands the template on the
+  gen-1 body.** update_post_process_prompt always bumps version on a
+  name-only edit (shortcut/mod.rs:2268-2272), so the migration's
+  version<seed guard (settings.rs:1711) never reaches its body-match
+  fallback. Decide: bump only on body change, or add a body-match pass.
+- **KB-257 · OPEN · studio batches have no cancellation and outlive their
+  UI.** The backend loop has no cancel token (shortcut/mod.rs:2224-2250,
+  cloud timeout up to 600s) and unmounting PromptStudio discards the cards
+  while the batch runs; a second batch can stack on the first (local pairs
+  degrade to LeaseDenied). Needs a cancel affordance + run registry.
+- **KB-258 · OPEN · the phone 'Polish text' toggle only arms the NEXT
+  session.** Prefs freeze at session start (mod.rs:738-744, pinned), while
+  the keyboard pp hotkey flips the live session; the phone surface does not
+  say so (index.html:530-533). Either fold mid-session pref updates or label
+  the toggle with a next-dictation hint (one new string x26 locales).
+- **KB-259 · OPEN · Tailscale classification is range-based only.** Any
+  100.64.0.0/10 address is labeled Tailscale and widens the pairing token to
+  the whole /10 regardless of interface (ip.rs:61-95); an ISP-CGNAT LAN can
+  present as Tailscale in the picker. Consider interface-name corroboration
+  (utun) plus a README security note on org-tailnet token scope.

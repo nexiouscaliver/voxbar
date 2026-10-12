@@ -20,6 +20,7 @@ mod strings_gen;
 use crate::managers::transcription::{emit_overlay_notice, NoticeCode};
 use serde::Serialize;
 use specta::Type;
+use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -50,6 +51,43 @@ pub struct CompanionStatus {
     pub last_device: Option<String>,
     pub devices: Vec<String>,
     pub error: Option<String>,
+    /// v1.6.0: every candidate interface the picker can surface, with
+    /// its OS name and classification ("lan" | "tailscale" | "vpn").
+    pub interfaces: Vec<CompanionInterface>,
+    /// The IPv4 the current configuration resolves to bind (live while
+    /// running, a preview of the next start while stopped). None when
+    /// the configured choice cannot resolve.
+    pub bind_ip: Option<String>,
+    /// The manual hostname/IP override for the pairing URL, when set.
+    pub advertised_host: Option<String>,
+    /// Why `bind_ip` could not resolve (a chosen interface that is no
+    /// longer present, or a malformed stored value).
+    pub bind_error: Option<String>,
+    /// True when the running server was started with a manual
+    /// certificate pair rather than the self-signed one.
+    pub tls_manual: bool,
+    /// True while the server runs with a configuration the persisted
+    /// settings no longer match (interface, host, port, or TLS source
+    /// changed since start): a restart applies them.
+    pub restart_pending: bool,
+}
+
+/// One picker row: an interface address with its name and kind.
+#[derive(Serialize, Type, Debug, Clone)]
+pub struct CompanionInterface {
+    pub ip: String,
+    pub name: String,
+    pub kind: String,
+}
+
+impl From<&ip::InterfaceCandidate> for CompanionInterface {
+    fn from(c: &ip::InterfaceCandidate) -> Self {
+        CompanionInterface {
+            ip: c.ip.to_string(),
+            name: c.name.clone(),
+            kind: c.kind.as_str().to_string(),
+        }
+    }
 }
 
 struct CompanionInner {
@@ -59,6 +97,10 @@ struct CompanionInner {
     fingerprint: Option<String>,
     last_error: Option<String>,
     devices: Vec<String>,
+    /// v1.6.0: the configuration snapshot the running server was started
+    /// with, so status() can tell a restart is pending.
+    advertised_host: Option<String>,
+    tls_manual: bool,
 }
 
 pub struct CompanionManager {
@@ -72,6 +114,35 @@ pub struct CompanionManager {
     session_live: AtomicBool,
     /// The device name behind the live session, if any.
     session_device: Mutex<Option<String>>,
+    /// v1.6.0: the preferences the NEXT companion session will run with.
+    /// Armed by the press edge that starts it (server.rs), consumed when
+    /// the session actually starts.
+    pending_prefs: Mutex<protocol::SessionPrefs>,
+    /// v1.6.0: one targeted text lane per authenticated connection, keyed
+    /// by a SERVER-assigned lane id (never the client-controlled hello
+    /// name, which any paired phone can repeat to seize a name-keyed
+    /// lane). Frames the whole fleet must not see (the phone-target
+    /// transcript) reach exactly the owning connection's lane.
+    device_lanes: Mutex<HashMap<u64, tokio::sync::mpsc::UnboundedSender<String>>>,
+    /// The lane-id allocator; strictly monotonic, so a lane id is bound to
+    /// exactly one connection for the process's lifetime.
+    next_lane_id: std::sync::atomic::AtomicU64,
+    /// v1.6.0: the lane of the companion session being (or most recently)
+    /// run, frozen from the starting press's own edge on the coordinator
+    /// thread at the instant that start is committed - the same
+    /// handoff-at-commit that protects the session's prefs. The stop
+    /// pipeline's phone-target delivery resolves THIS lane, so neither a
+    /// hello claiming the session-device name during the transcription
+    /// window nor a same-name connection registering a fresh lane can
+    /// redirect the transcript to another phone.
+    session_lane: Mutex<Option<u64>>,
+    /// v1.6.0: the preferences of the live (or most recently finished)
+    /// companion session, set from the starting press's own edge on the
+    /// coordinator thread so nothing can retarget a session that is
+    /// recording or transcribing. The stop pipeline reads this to decide
+    /// paste-vs-phone delivery and the post-process leg. Defaults
+    /// reproduce the pre-v1.6.0 behavior exactly.
+    live_prefs: Mutex<protocol::SessionPrefs>,
     /// Per-IP auth-failure limiting shared across connections.
     failure_limiter: Mutex<auth::FailureLimiter>,
     /// The Rust-side notice listener id (registered once at init).
@@ -90,11 +161,18 @@ impl CompanionManager {
                 fingerprint: None,
                 last_error: None,
                 devices: Vec::new(),
+                advertised_host: None,
+                tls_manual: false,
             }),
             broadcast,
             shutdown_tx,
             session_live: AtomicBool::new(false),
             session_device: Mutex::new(None),
+            pending_prefs: Mutex::new(protocol::SessionPrefs::default()),
+            device_lanes: Mutex::new(HashMap::new()),
+            next_lane_id: std::sync::atomic::AtomicU64::new(1),
+            session_lane: Mutex::new(None),
+            live_prefs: Mutex::new(protocol::SessionPrefs::default()),
             failure_limiter: Mutex::new(auth::FailureLimiter::new(
                 5,
                 Duration::from_secs(60),
@@ -131,6 +209,48 @@ impl CompanionManager {
         *self.session_device.lock().unwrap() = Some(name.to_string());
     }
 
+    /// v1.6.0: arm the preferences the next companion session will run
+    /// with. Called by the server on every press edge, so the tray's
+    /// companion status block shows the latest phone choice as "what the
+    /// next press will do". The session ITSELF never reads this slot: its
+    /// prefs ride the edge into the coordinator, which applies them to the
+    /// live slot at the single serialized instant it commits the start -
+    /// the pending slot is display-and-default only, so a concurrent press
+    /// from another phone cannot overwrite a starting session's prefs in
+    /// the old arm-to-freeze window.
+    pub fn set_pending_session_prefs(&self, prefs: protocol::SessionPrefs) {
+        *self.pending_prefs.lock().unwrap() = prefs;
+    }
+
+    /// v1.6.0: the preferences the NEXT companion session will run with
+    /// (armed by the phone's press edges, defaults before any). The tray's
+    /// companion status block reads this as the active output target: it
+    /// is what the next press will actually do, unlike
+    /// [`Self::live_session_prefs`] which stays frozen at the last
+    /// session's start.
+    pub fn pending_session_prefs(&self) -> protocol::SessionPrefs {
+        *self.pending_prefs.lock().unwrap()
+    }
+
+    /// v1.6.0: the preferences of the live (or most recently finished)
+    /// companion session. Set from the starting press's own edge at the
+    /// instant the coordinator commits the start, so a later press edge
+    /// (busy-remembered or on another phone) cannot retarget a session that
+    /// is already recording or mid-pipeline.
+    pub fn live_session_prefs(&self) -> protocol::SessionPrefs {
+        *self.live_prefs.lock().unwrap()
+    }
+
+    /// v1.6.0: set the preferences the session being committed will run
+    /// with. Called ONLY from the coordinator thread (through
+    /// [`begin_session_prefs`], at the instant a start effect is committed)
+    /// with the prefs that arrived ON the starting press's edge - never
+    /// read back from the pending slot, which other connections can write
+    /// concurrently.
+    fn set_live_session_prefs(&self, prefs: protocol::SessionPrefs) {
+        *self.live_prefs.lock().unwrap() = prefs;
+    }
+
     pub fn broadcast_frame(&self, frame: &protocol::ServerFrame) {
         // A send with no subscribers is an expected error, not a failure.
         let _ = self.broadcast.send(frame.to_json());
@@ -142,6 +262,50 @@ impl CompanionManager {
 
     pub fn subscribe(&self) -> tokio::sync::broadcast::Receiver<String> {
         self.broadcast.subscribe()
+    }
+
+    /// v1.6.0: claim one targeted lane for an authenticated connection.
+    /// Returns the SERVER-assigned lane id (the connection passes it on
+    /// every Ptt edge and uses it to release the lane) and the receiver
+    /// its select drains. Ids are never reused and never derive from the
+    /// client-controlled device name, so no later connection can seize or
+    /// supersede an existing lane.
+    pub fn register_device_lane(&self) -> (u64, tokio::sync::mpsc::UnboundedReceiver<String>) {
+        let lane = self
+            .next_lane_id
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        self.device_lanes.lock().unwrap().insert(lane, tx);
+        (lane, rx)
+    }
+
+    /// Release the connection's lane (its socket ended). A session still
+    /// pointing at this lane reads it as the documented dropped-phone
+    /// no-op; the id is never reused.
+    pub fn unregister_device_lane(&self, lane: u64) {
+        self.device_lanes.lock().unwrap().remove(&lane);
+    }
+
+    /// Send one frame down exactly one connection's targeted lane. False
+    /// when that lane is gone (the phone dropped): the caller treats it as
+    /// the documented no-subscriber no-op.
+    pub fn send_frame_to_lane(&self, lane: u64, frame: &protocol::ServerFrame) -> bool {
+        let lanes = self.device_lanes.lock().unwrap();
+        match lanes.get(&lane) {
+            Some(tx) => tx.send(frame.to_json()).is_ok(),
+            None => false,
+        }
+    }
+
+    /// v1.6.0: freeze the lane of the companion session being committed.
+    /// Called ONLY from the coordinator thread's Start effect with the
+    /// lane id that arrived ON the starting press's edge, before the start
+    /// preamble - the same serialized handoff-at-commit that protects the
+    /// session's prefs, so the stop pipeline's delivery (which resolves
+    /// minutes later, after transcription and post-process) can never be
+    /// redirected by a later hello or lane registration.
+    fn set_session_lane(&self, lane: u64) {
+        *self.session_lane.lock().unwrap() = Some(lane);
     }
 
     pub fn shutdown_signal(&self) -> watch::Receiver<bool> {
@@ -166,16 +330,28 @@ impl CompanionManager {
             settings.companion_last_device = Some(name.to_string());
             crate::settings::write_settings(app, settings);
         }
+        // W1-L8: the paired-device count the tray's companion status block
+        // shows just changed; re-sync so the count tracks the connection,
+        // not the next unrelated sync point. Runs on the server's task
+        // thread, so the snapshot compute never lands on the UI thread.
+        crate::tray::update_tray_menu(app);
     }
 
-    pub fn forget_device(&self, name: &str) {
+    pub fn forget_device(&self, app: &AppHandle, name: &str) {
         self.inner.lock().unwrap().devices.retain(|d| d != name);
+        // W1-L8: same re-sync as remember_device for the disconnect edge.
+        crate::tray::update_tray_menu(app);
     }
 
-    /// Start the server. Idempotent. Generates/repairs the pairing token
-    /// (rebinding it to the current LAN /24, which re-pairs phones after a
-    /// subnet change), loads the TLS certificate, binds the listener, and
-    /// pre-warms the remote recorder so a phone press starts capture fast.
+    /// Start the server. Idempotent. Resolves the bind address from the
+    /// picker choice or the automatic LAN-preferred ranking (v1.6.0),
+    /// generates/repairs the pairing token (rebinding it to the
+    /// advertised interface's subnet, which re-pairs phones after a
+    /// network change), loads the TLS certificate (a manual pair when
+    /// configured, the self-signed one otherwise), binds the listener,
+    /// and pre-warms the remote recorder so a phone press starts capture
+    /// fast. Bind failures (a taken port among them) surface verbatim:
+    /// the ready channel carries the OS error string.
     pub fn start(&self, app: &AppHandle) -> Result<(), String> {
         if !platform_supported() {
             return Err("Companion devices need macOS this cycle".to_string());
@@ -184,12 +360,17 @@ impl CompanionManager {
             return Ok(());
         }
 
-        let lan_ip = ip::advertised_lan_ipv4()
-            .ok_or_else(|| "No private Wi-Fi interface found to advertise".to_string())?;
+        let settings = crate::settings::get_settings(app);
+        let candidates = ip::interface_candidates();
+        let bind_ip = ip::resolve_bind_ip(&candidates, settings.companion_bind_ip.as_deref())?;
+        let advertised_host =
+            effective_advertised_host(settings.companion_advertised_host.as_deref());
 
         // Pairing token: generate on enable, and rebind when the advertised
         // subnet changed (a token from another network never validates).
-        let subnet = auth::subnet_of(lan_ip);
+        // A Tailscale bind issues the token for the whole CGNAT /10, so
+        // every tailnet peer validates (ip::pairing_subnet_for).
+        let subnet = ip::pairing_subnet_for(bind_ip);
         {
             let mut settings = crate::settings::get_settings(app);
             let token_stale = settings
@@ -212,20 +393,60 @@ impl CompanionManager {
         let token = settings.companion_pairing_token.clone().unwrap_or_default();
         let port = settings.companion_port;
 
+        // v1.6.0 TLS source: a manual certificate pair when BOTH paths are
+        // set (tailscale-issued or own certs), the self-signed one
+        // otherwise. A configured pair that fails to load is an error,
+        // never a silent self-signed fallback: the user pointed at real
+        // certificates and must hear why they are not being served.
+        let manual_cert = match (
+            settings
+                .companion_tls_cert_path
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty()),
+            settings
+                .companion_tls_key_path
+                .as_deref()
+                .map(str::trim)
+                .filter(|s| !s.is_empty()),
+        ) {
+            (Some(cert_path), Some(key_path)) => Some(cert::load_manual_pair(
+                std::path::Path::new(cert_path),
+                std::path::Path::new(key_path),
+            )?),
+            (None, None) => None,
+            (single, _) => {
+                // Unreachable through the settings UI (the change command
+                // validates both-or-neither); a hand-edited store lands
+                // here and keeps the server usable on the self-signed
+                // cert, loudly.
+                log::warn!(
+                    "companion: only one TLS path set ({single:?}); using the self-signed certificate"
+                );
+                None
+            }
+        };
+        let tls_manual = manual_cert.is_some();
+
         // TLS certificate (generated once, persisted).
-        let cert_dir = app
-            .path()
-            .app_local_data_dir()
-            .map_err(|e| format!("app data dir unavailable: {e}"))?
-            .join("companion");
-        let cert = cert::ensure_certificate(&cert_dir, std::net::IpAddr::V4(lan_ip))?;
+        let cert = match manual_cert {
+            Some(cert) => cert,
+            None => {
+                let cert_dir = app
+                    .path()
+                    .app_local_data_dir()
+                    .map_err(|e| format!("app data dir unavailable: {e}"))?
+                    .join("companion");
+                cert::ensure_certificate(&cert_dir, std::net::IpAddr::V4(bind_ip))?
+            }
+        };
         let fingerprint = cert.fingerprint.clone();
 
         // Bind synchronously so the settings toggle reports a real outcome
         // (macOS firewall prompt aside, a bind error surfaces verbatim).
         let (ready_tx, ready_rx) = std::sync::mpsc::channel::<Result<(), String>>();
         let cfg = server::ServerConfig {
-            ip: lan_ip,
+            ip: bind_ip,
             port,
             token,
             subnet: subnet.clone(),
@@ -247,9 +468,11 @@ impl CompanionManager {
         {
             let mut inner = self.inner.lock().unwrap();
             inner.running = true;
-            inner.bind_ip = Some(lan_ip);
+            inner.bind_ip = Some(bind_ip);
             inner.port = port;
             inner.fingerprint = Some(fingerprint);
+            inner.advertised_host = advertised_host.clone();
+            inner.tls_manual = tls_manual;
         }
 
         // Pre-warm the remote recorder (VAD load off the press path).
@@ -264,7 +487,10 @@ impl CompanionManager {
             });
         }
 
-        log::info!("companion: server running on https://{lan_ip}:{port} (subnet {subnet})");
+        log::info!(
+            "companion: server running on https://{bind_ip}:{port} (subnet {subnet}, advertised as {})",
+            advertised_host.as_deref().unwrap_or("the bind IP")
+        );
         Ok(())
     }
 
@@ -306,30 +532,103 @@ impl CompanionManager {
         inner.running = false;
         inner.bind_ip = None;
         inner.port = 0;
+        inner.advertised_host = None;
+        inner.tls_manual = false;
         inner.devices.clear();
         log::info!("companion: server stopped");
     }
 
-    /// Status snapshot for the settings panel (QR included).
+    /// v1.6.0: apply the persisted configuration (interface choice,
+    /// advertised host, port, TLS pair) by bouncing the server. Only a
+    /// running server restarts; a stopped one starts when the effective
+    /// gate allows it, so the button doubles as "apply now" after a
+    /// failed start. Start failures surface verbatim (bind errors
+    /// included) and land on the panel's error line.
+    pub fn restart(&self, app: &AppHandle) -> Result<(), String> {
+        if self.is_running() {
+            self.stop(app);
+            // stop() finalized any live session; give the listener a beat
+            // to release the port before rebinding it.
+            std::thread::sleep(Duration::from_millis(150));
+        }
+        if self.is_running() {
+            return Ok(());
+        }
+        if effective_enabled(&crate::settings::get_settings(app)) {
+            self.start(app)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Status snapshot for the settings panel (QR included). The URL and
+    /// QR are derived from the CURRENT persisted configuration (the
+    /// interface choice, the advertised-host override, and the port), so
+    /// the panel previews what the next start will advertise even while
+    /// the server is stopped; `restart_pending` flags a running server
+    /// started with a since-changed configuration, and a chosen
+    /// interface that no longer resolves keeps the LIVE values with the
+    /// resolution error on `bind_error`. The QR is suppressed while the
+    /// stored pairing token is bound to a different subnet than the
+    /// effective address implies (advertised_url_qr): the next start
+    /// regenerates that token, so advertising the old one would pair
+    /// phones against a dead token.
     pub fn status(&self, app: &AppHandle) -> CompanionStatus {
         let settings = crate::settings::get_settings(app);
+        let candidates = ip::interface_candidates();
+        let advertised_host =
+            effective_advertised_host(settings.companion_advertised_host.as_deref());
+        let resolved = ip::resolve_bind_ip(&candidates, settings.companion_bind_ip.as_deref());
         let inner = self.inner.lock().unwrap();
         let supported = platform_supported();
-        let bind_ip = inner.bind_ip;
-        let port = if inner.running {
-            inner.port
-        } else {
-            settings.companion_port
-        };
+        // Config-derived on purpose: the URL, QR, and this port describe
+        // what the NEXT start advertises (the preview the panel is for),
+        // and restart_pending flags a running server that still serves
+        // the old configuration.
+        let port = settings.companion_port;
         let token = settings.companion_pairing_token.clone();
 
-        let (url, qr_svg) = match (inner.running, bind_ip, token.as_deref()) {
-            (true, Some(ip), Some(token)) if !token.is_empty() => {
-                let url = format!("https://{ip}:{port}/#t={token}");
-                let qr = qr_svg_for(&url).ok();
-                (Some(url), qr)
-            }
-            _ => (None, None),
+        // The configuration the URL advertises: the resolved choice when
+        // it resolves; while running with an unresolvable choice, the
+        // live values instead (the running server is still on air).
+        let (effective_ip, bind_error) = match (&resolved, inner.running) {
+            (Ok(ip), _) => (Some(*ip), None),
+            (Err(e), true) => (inner.bind_ip, Some(e.clone())),
+            (Err(e), false) => (None, Some(e.clone())),
+        };
+
+        let (url, qr_svg) = advertised_url_qr(
+            advertised_host.as_deref(),
+            effective_ip,
+            token.as_deref(),
+            settings.companion_pairing_subnet.as_deref(),
+            port,
+        );
+
+        let restart_pending = inner.running && {
+            let live = inner
+                .bind_ip
+                .map(|bind_ip| LiveServerConfig {
+                    bind_ip,
+                    port: inner.port,
+                    advertised_host: inner.advertised_host.clone(),
+                    tls_manual: inner.tls_manual,
+                })
+                .map(|live| {
+                    restart_needed(
+                        &resolved,
+                        settings.companion_port,
+                        advertised_host.as_deref(),
+                        tls_manual_configured(
+                            settings.companion_tls_cert_path.as_deref(),
+                            settings.companion_tls_key_path.as_deref(),
+                        ),
+                        &live,
+                    )
+                });
+            // No live bind recorded cannot happen while running; treat it
+            // as "nothing to apply" rather than a spurious badge.
+            live.unwrap_or(false)
         };
 
         CompanionStatus {
@@ -345,32 +644,45 @@ impl CompanionManager {
             last_device: settings.companion_last_device.clone(),
             devices: inner.devices.clone(),
             error: inner.last_error.clone(),
+            interfaces: candidates.iter().map(CompanionInterface::from).collect(),
+            bind_ip: effective_ip.map(|ip| ip.to_string()),
+            advertised_host,
+            bind_error,
+            tls_manual: inner.tls_manual,
+            restart_pending,
         }
+    }
+
+    /// Paired-device count for the tray's companion status block (W1-L8):
+    /// a cheap lock read, deliberately NOT the full [`Self::status`]
+    /// snapshot, which enumerates network interfaces on every call - far
+    /// too heavy for a value the tray re-reads on every menu sync.
+    pub fn paired_device_count(&self) -> usize {
+        self.inner.lock().unwrap().devices.len()
     }
 
     pub fn set_last_error(&self, error: Option<String>) {
         self.inner.lock().unwrap().last_error = error;
     }
 
-    /// Reset pairing: fresh token (rebound to the current subnet) and a
-    /// restart so the QR changes. Phones holding the old token are refused.
+    /// Reset pairing: fresh token (rebound to the advertised interface's
+    /// subnet, honoring the v1.6.0 interface choice) and a restart so the
+    /// QR changes. Phones holding the old token are refused.
     pub fn reset_pairing(&self, app: &AppHandle) -> Result<(), String> {
-        let subnet =
-            auth::subnet_of(ip::advertised_lan_ipv4().ok_or("No private Wi-Fi interface found")?);
+        let candidates = ip::interface_candidates();
+        let bind_ip = ip::resolve_bind_ip(
+            &candidates,
+            crate::settings::get_settings(app)
+                .companion_bind_ip
+                .as_deref(),
+        )?;
+        let subnet = ip::pairing_subnet_for(bind_ip);
         let mut settings = crate::settings::get_settings(app);
         settings.companion_pairing_token = Some(auth::generate_pairing_token());
         settings.companion_pairing_subnet = Some(subnet);
         crate::settings::write_settings(app, settings);
 
-        if self.is_running() {
-            self.stop(app);
-            // stop() finalized any live session; give the listener a beat
-            // to release the port, then bring the server back with the new
-            // token.
-            std::thread::sleep(Duration::from_millis(150));
-            self.start(app)?;
-        }
-        Ok(())
+        self.restart(app)
     }
 
     /// Register the once-per-app notice forwarder (overlay notices ride to
@@ -429,6 +741,10 @@ const MAC_ONLY_NOTICE_CODES: &[&str] = &[
     "undo_no_session",
     // The cycle-prompt hotkey/tray command confirmed the next template.
     "post_process_prompt_cycled",
+    // v1.6.0 W1-L7: the pp hotkey upgraded or reverted the live session's
+    // post-process mode (coordinator, Mac keyboard only).
+    "post_process_session_upgraded",
+    "post_process_session_downgraded",
 ];
 
 /// AUD-01: may this overlay-notice code be forwarded to the paired phones?
@@ -461,7 +777,9 @@ fn qr_svg_for(url: &str) -> Result<String, String> {
 // ---------------------------------------------------------------------------
 
 /// Resolve the managed manager, if initialized (inert before core setup).
-fn manager(app: &AppHandle) -> Option<Arc<CompanionManager>> {
+/// Runtime-generic so the v1.6.0 seams below can be exercised from a mock
+/// app in tests (the same pattern manage_local_llm uses).
+fn manager<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<Arc<CompanionManager>> {
     app.try_state::<Arc<CompanionManager>>()
         .map(|s| s.inner().clone())
 }
@@ -497,6 +815,16 @@ pub fn on_session_changed(app: &AppHandle, active: bool) {
     if let Some(manager) = manager(app) {
         manager.session_live.store(active, Ordering::Release);
         if active {
+            // v1.6.0: the session's prefs were already applied on the
+            // coordinator thread (begin_session_prefs, from the starting
+            // press's own edge) BEFORE start()'s preamble reached this
+            // broadcast - freezing them here, after the preamble, was the
+            // arm-to-freeze race another phone's press could overwrite.
+            // NOT cleared on the false edge: the stop pipeline reads the
+            // session's prefs after this broadcast (target delivery,
+            // post-process leg), and no new companion session can start
+            // until that pipeline drains (the coordinator's busy
+            // arbitration), so the slot cannot go stale under it.
             let device = manager
                 .session_device()
                 .or_else(|| crate::settings::get_settings(app).companion_last_device)
@@ -524,6 +852,122 @@ pub fn on_session_changed(app: &AppHandle, active: bool) {
             "companion-session-changed",
             serde_json::json!({ "active": active, "device": null }),
         );
+    }
+}
+
+/// v1.6.0: the live companion session's preferences (output target,
+/// post-process request), carried by the press edge that started the
+/// session and applied when the coordinator commits that start. Reads as
+/// the defaults (paste on the Mac, no post-process - exactly the
+/// pre-v1.6.0 behavior) when no manager is initialized or no companion
+/// session has run, so keyboard sessions and test contexts need no
+/// special-casing.
+pub fn session_prefs<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> protocol::SessionPrefs {
+    manager(app)
+        .map(|m| m.live_session_prefs())
+        .unwrap_or_default()
+}
+
+/// v1.6.0: apply the preferences a starting press edge carried as the live
+/// session's. Called ONLY from the coordinator thread's Start effect, at
+/// the single serialized instant the start is committed and before
+/// start()'s preamble, so the session runs with exactly the prefs of the
+/// press that started it - a concurrent press from another phone is
+/// queued behind the same coordinator command and can only arm the NEXT
+/// session (the pending slot the server writes stays display-only).
+pub fn begin_session_prefs<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    prefs: protocol::SessionPrefs,
+) {
+    if let Some(manager) = manager(app) {
+        manager.set_live_session_prefs(prefs);
+    }
+}
+
+/// v1.6.0: freeze the lane of the companion session being committed, from
+/// the starting press's own edge (see [`CompanionManager::set_session_lane`]).
+/// Same call site and same serialized instant as [`begin_session_prefs`]:
+/// the coordinator thread's Start effect, before the start preamble.
+pub fn begin_session_lane<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
+    if let Some(manager) = manager(app) {
+        manager.set_session_lane(lane);
+    }
+}
+
+/// v1.6.0: the device name of the live (or most recent) companion session,
+/// for notice detail lines. None outside a companion context.
+pub fn session_device_name<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<String> {
+    manager(app).and_then(|m| m.session_device())
+}
+
+/// v1.6.0 phone-target delivery: send the final transcript of a companion
+/// session whose output target is the phone down the session's OWN frozen
+/// lane, never the broadcast channel every paired phone subscribes to and
+/// never anything resolved from the claimable session-device name - a
+/// bystander phone must not render (and silently clipboard-write) a
+/// dictation it did not make, and a phone that connected during the
+/// transcription window must not inherit it either. The lane was frozen
+/// from the starting press's edge at the moment the coordinator committed
+/// the start; by delivery time (minutes later, after transcription and
+/// post-process) the name slot and the lane registry may both have
+/// changed, and neither can redirect this frame. One frame, one emission
+/// site (the stop pipeline's phone-delivery branch). A session with no
+/// frozen lane (pre-v1.6.0 test contexts) or a gone lane (the phone
+/// dropped) is a no-op; the transcript is already in history, and the
+/// disconnect finalize's notice says exactly that.
+pub fn deliver_transcript_to_phone<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    text: &str,
+    post_processed: bool,
+    model: &str,
+) {
+    let Some(manager) = manager(app) else {
+        return;
+    };
+    let lane = *manager.session_lane.lock().unwrap();
+    let Some(lane) = lane else {
+        log::warn!(
+            "companion: phone-target transcript has no session lane to target; history keeps it"
+        );
+        return;
+    };
+    if !manager.send_frame_to_lane(
+        lane,
+        &protocol::ServerFrame::TranscriptResult {
+            text: text.to_string(),
+            post_processed,
+            model: model.to_string(),
+        },
+    ) {
+        log::debug!(
+            "companion: session lane {lane} is gone (the phone dropped); the transcript stays in history"
+        );
+    }
+}
+
+/// v1.6.0: broadcast the RecentHistory frame (the last companion-source
+/// entries) to every paired phone. Emitted at welcome (a fresh or
+/// reconnecting phone catches up) and after every companion history write
+/// (the list stays current). Best effort: a query failure logs and skips -
+/// history delivery must never break the pipeline that just wrote it.
+pub fn broadcast_recent_history<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    let Some(manager) = manager(app) else {
+        return;
+    };
+    let Some(hm) = app.try_state::<Arc<crate::managers::history::HistoryManager>>() else {
+        return;
+    };
+    match hm.recent_companion_entries(protocol::RECENT_HISTORY_LIMIT) {
+        Ok(entries) => manager.broadcast_frame(&protocol::ServerFrame::RecentHistory {
+            entries: entries
+                .into_iter()
+                .map(|e| protocol::RecentHistoryEntry {
+                    text: e.text,
+                    timestamp: e.timestamp,
+                })
+                .collect(),
+        }),
+        Err(e) => log::warn!("companion: recent history query failed: {e}"),
     }
 }
 
@@ -560,6 +1004,89 @@ pub fn shutdown(app: &AppHandle) {
     if let Some(manager) = manager(app) {
         manager.stop(app);
     }
+}
+
+// ---------------------------------------------------------------------------
+// v1.6.0 pure configuration seams (shared by start/status and unit-tested
+// without a settings store or a live server).
+// ---------------------------------------------------------------------------
+
+/// The advertised-host override with whitespace trimmed and emptiness
+/// collapsed to None, so "  " can never masquerade as a hostname.
+fn effective_advertised_host(stored: Option<&str>) -> Option<String> {
+    stored
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .map(str::to_string)
+}
+
+/// True when the persisted settings carry BOTH halves of a manual TLS
+/// pair (the both-or-neither rule start() enforces when loading).
+fn tls_manual_configured(cert_path: Option<&str>, key_path: Option<&str>) -> bool {
+    let set = |p: Option<&str>| p.map(str::trim).filter(|s| !s.is_empty()).is_some();
+    set(cert_path) && set(key_path)
+}
+
+/// The configuration the running server was started with.
+struct LiveServerConfig {
+    bind_ip: Ipv4Addr,
+    port: u16,
+    advertised_host: Option<String>,
+    tls_manual: bool,
+}
+
+/// True when the persisted configuration differs from what the running
+/// server was started with, i.e. a restart is needed to apply it. An
+/// unresolvable bind choice (a vanished interface) counts as different
+/// by definition.
+fn restart_needed(
+    resolved: &Result<Ipv4Addr, String>,
+    persisted_port: u16,
+    advertised_host: Option<&str>,
+    tls_manual_now: bool,
+    live: &LiveServerConfig,
+) -> bool {
+    match resolved {
+        Ok(ip) if *ip == live.bind_ip => {}
+        _ => return true,
+    }
+    persisted_port != live.port
+        || advertised_host != live.advertised_host.as_deref()
+        || tls_manual_now != live.tls_manual
+}
+
+/// v1.6.0: the pairing URL and QR the panel may advertise for one
+/// effective address (the resolved choice, or the live bind when the
+/// choice no longer resolves while the server runs). The advertised-host
+/// override replaces the host; None (no URL, no QR) when there is no
+/// address, no token, or the stored token is bound to a DIFFERENT
+/// subnet than the effective address implies - start() regenerates a
+/// stale token at the next start, so advertising it would hand the
+/// phone a bad_token exactly after the restart the preview promised.
+fn advertised_url_qr(
+    advertised_host: Option<&str>,
+    effective_ip: Option<Ipv4Addr>,
+    token: Option<&str>,
+    stored_pairing_subnet: Option<&str>,
+    port: u16,
+) -> (Option<String>, Option<String>) {
+    let Some(ip) = effective_ip else {
+        return (None, None);
+    };
+    let Some(token) = token.filter(|t| !t.is_empty()) else {
+        return (None, None);
+    };
+    // A token issued for another subnet never validates (auth::same_subnet
+    // refuses); pairing_subnet_for widens Tailscale binds to the CGNAT /10.
+    if stored_pairing_subnet != Some(ip::pairing_subnet_for(ip).as_str()) {
+        return (None, None);
+    }
+    let host = advertised_host
+        .map(str::to_string)
+        .unwrap_or_else(|| ip.to_string());
+    let url = format!("https://{host}:{port}/#t={token}");
+    let qr = qr_svg_for(&url).ok();
+    (Some(url), qr)
 }
 
 #[cfg(test)]
@@ -684,6 +1211,14 @@ mod tests {
                 DeleteLastWordNoSession,
                 UndoNoSession,
                 PostProcessPromptCycled,
+                // v1.6.0 W1-L7: the pp hotkey's mid-session mode toggles.
+                // The phone can toggle its own session's post-process leg
+                // through its pp preference, but these two codes fire only
+                // from the Mac keyboard's pp hotkey pressing during a live
+                // session; the phone neither triggers them nor renders
+                // them (its notice branch vibrates anything unrecognized).
+                PostProcessSessionUpgraded,
+                PostProcessSessionDowngraded,
             ]
             allow [
                 // Everything else keeps riding the forwarder (denylist
@@ -711,6 +1246,12 @@ mod tests {
                 PostProcessTooLong,
                 PostProcessOutputInvalid,
                 PostProcessCloudFailed,
+                // Round 7 truth pass: a phone dictation with post-processing
+                // on hits these exactly like a Mac one (the polish runs on
+                // the Mac either way), so they keep riding the forwarder
+                // with the other post-process codes.
+                PostProcessNotConfigured,
+                PostProcessUnchanged,
                 DeleteLastWordNoBuffer,
                 UndoNoBuffer,
                 BindingBusy,
@@ -719,6 +1260,12 @@ mod tests {
                 CompanionDisconnected,
                 CompanionServerFailed,
                 CompanionSessionCapped,
+                // v1.6.0 zero-audio fix: the phone's own session captured
+                // no samples (the iOS suspended-AudioContext defect class).
+                // The phone triggered it and must hear about it, or its
+                // output vanishes silently - the exact bug the code exists
+                // to fix.
+                CompanionZeroAudio,
             ]
         }
 
@@ -786,6 +1333,424 @@ mod tests {
             should_forward_notice_to_phones("transcription_failed"),
             "the skip set must not become an allowlist: codes the phone received before the fix (errors included) keep flowing"
 
+        );
+        // v1.6.0: the zero-audio notice rides to the phone that pressed -
+        // its session captured nothing, and without the frame the phone's
+        // output would vanish silently (the bug the code fixes). The Mac
+        // emit is the single source; the forwarder is the single phone
+        // path, same shape as the cap notice above.
+        assert!(
+            should_forward_notice_to_phones("companion_zero_audio"),
+            "the phone triggered the zero-audio session; it must hear why nothing came back"
+        );
+    }
+
+    /// v1.6.0: the per-session preference lifecycle. The session's prefs
+    /// ride the STARTING press's edge and are applied to the live slot by
+    /// the coordinator's Start-effect seam (begin_session_prefs) at the
+    /// single serialized instant the start is committed - never read back
+    /// from the pending slot another connection can write concurrently,
+    /// which was the arm-to-freeze race. The applied copy survives both
+    /// later pending arms (a concurrent press from another phone must not
+    /// retarget the live session) and the session's own stop (the pipeline
+    /// reads the copy after the false edge). Defaults reproduce the
+    /// pre-v1.6.0 behavior: paste on the Mac, no post-process.
+    #[test]
+    fn session_prefs_apply_from_the_starting_edge_and_survive_the_stop_pipeline() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+
+        // No session has run: defaults.
+        assert_eq!(manager.live_session_prefs(), Default::default());
+
+        // Phone A's press carries phone-target prefs; the coordinator's
+        // Start-effect seam applies exactly those as the session's own.
+        begin_session_prefs(
+            app.handle(),
+            protocol::SessionPrefs {
+                output_target: protocol::OutputTarget::Phone,
+                post_process: true,
+            },
+        );
+        assert_eq!(
+            manager.live_session_prefs(),
+            protocol::SessionPrefs {
+                output_target: protocol::OutputTarget::Phone,
+                post_process: true,
+            }
+        );
+
+        // A concurrent press from another phone only arms the pending
+        // slot (the tray's next-press display); the live session keeps
+        // the prefs of the edge that started it.
+        manager.set_pending_session_prefs(protocol::SessionPrefs::default());
+        assert_eq!(
+            manager.live_session_prefs().output_target,
+            protocol::OutputTarget::Phone,
+            "the live session keeps its own prefs; a later press cannot retarget it"
+        );
+
+        // The session ends; the stop pipeline still reads the session's
+        // copy.
+        manager.session_live.store(false, Ordering::Release);
+        assert_eq!(
+            manager.live_session_prefs().output_target,
+            protocol::OutputTarget::Phone,
+            "the false edge must not clear the prefs the stop pipeline is about to read"
+        );
+
+        // The NEXT session applies ITS starting edge's prefs, whatever
+        // later presses left in the pending slot.
+        begin_session_prefs(app.handle(), protocol::SessionPrefs::default());
+        assert_eq!(manager.live_session_prefs(), Default::default());
+    }
+
+    /// v1.6.0 wiring, exercised through real app state: the prefs seam
+    /// resolves a managed manager (defaults when unmanaged), the
+    /// coordinator's Start-effect seam applies the starting edge's prefs,
+    /// and the phone-delivery seam pushes the TranscriptResult wire frame
+    /// down the session device's TARGETED lane - never the broadcast
+    /// channel every paired phone subscribes to, so a bystander phone
+    /// neither renders the dictation nor silently replaces its clipboard.
+    /// Two registered lanes plus a broadcast subscriber, asserted from a
+    /// mock app (the same pattern commands/local_llm.rs uses for its
+    /// download-failure events); the stop pipeline's own invocation of
+    /// these seams is pinned in actions.rs (the pipeline needs a full
+    /// recorder/model rig a unit test cannot mount).
+    #[test]
+    fn transcript_delivery_and_prefs_flow_through_app_state() {
+        let app = tauri::test::mock_app();
+
+        // Unmanaged app: the seam reads as the defaults, so keyboard
+        // sessions and manager-less test contexts need no special-casing.
+        assert_eq!(
+            session_prefs(app.handle()),
+            Default::default(),
+            "no managed CompanionManager means the pre-v1.6.0 defaults"
+        );
+        assert_eq!(session_device_name(app.handle()), None);
+
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+
+        // Two paired phones' connections, each with its own server-assigned
+        // lane; the broadcast subscriber stands in for every connection's
+        // broadcast arm.
+        let (pixel_lane, mut pixel_lane_rx) = manager.register_device_lane();
+        let (_bystander_lane, mut bystander_lane_rx) = manager.register_device_lane();
+        let mut broadcast = manager.subscribe();
+
+        // The session: Pixel 8's press carried phone-target prefs AND its
+        // connection's lane id; the Start-effect seams froze both, and the
+        // session badge claims the device.
+        manager.claim_session_device("Pixel 8");
+        begin_session_prefs(
+            app.handle(),
+            protocol::SessionPrefs {
+                output_target: protocol::OutputTarget::Phone,
+                post_process: false,
+            },
+        );
+        begin_session_lane(app.handle(), pixel_lane);
+        manager.session_live.store(true, Ordering::Release);
+        assert_eq!(
+            session_prefs(app.handle()).output_target,
+            protocol::OutputTarget::Phone,
+            "the Start-effect seam applies the starting edge's prefs as the live session's"
+        );
+        // Phone-target delivery: the session's own phone receives the
+        // exact wire frame the stop pipeline's PhoneSend branch sends.
+        deliver_transcript_to_phone(
+            app.handle(),
+            "hello from the phone lane",
+            true,
+            "whisper-large-v3-turbo",
+        );
+        let frame = pixel_lane_rx
+            .try_recv()
+            .expect("the TranscriptResult reaches the session device's lane");
+        assert!(frame.contains(r#""type":"transcript""#), "frame: {frame}");
+        assert!(frame.contains("hello from the phone lane"));
+        assert!(frame.contains(r#""postProcessed":true"#));
+        assert!(frame.contains(r#""model":"whisper-large-v3-turbo""#));
+        // The bystander phone's lane stays empty, and so does the
+        // broadcast channel: the transcript is targeted, full stop.
+        assert!(
+            bystander_lane_rx.try_recv().is_err(),
+            "a bystander phone must not receive another phone's transcript"
+        );
+        assert!(
+            broadcast.try_recv().is_err(),
+            "transcripts must never ride the broadcast channel"
+        );
+
+        // The session ends; the session's prefs survive the end for the
+        // stop pipeline that reads them after it.
+        manager.session_live.store(false, Ordering::Release);
+        assert_eq!(
+            session_prefs(app.handle()).output_target,
+            protocol::OutputTarget::Phone,
+            "the false edge must not clear the prefs the stop pipeline reads"
+        );
+        assert_eq!(
+            session_device_name(app.handle()).as_deref(),
+            Some("Pixel 8"),
+            "the notice-detail helper resolves the session device through app state"
+        );
+
+        // The stop pipeline flipped session_live false long before this
+        // point; a NEW phone's hello during that window claims the
+        // session-device name, and its connection registers a fresh lane -
+        // neither can redirect the frozen session's delivery.
+        manager.claim_session_device("iPhone 15");
+        let (_late_lane, mut late_lane_rx) = manager.register_device_lane();
+        deliver_transcript_to_phone(app.handle(), "frozen aim", false, "m");
+        assert!(
+            pixel_lane_rx
+                .try_recv()
+                .is_ok_and(|frame| frame.contains("frozen aim")),
+            "the frozen lane keeps receiving even after a later claim and lane registration"
+        );
+        assert!(late_lane_rx.try_recv().is_err());
+
+        // Delivery with no live lane for the session (the phone dropped) is
+        // the documented no-op, not a bystander broadcast.
+        manager.unregister_device_lane(pixel_lane);
+        deliver_transcript_to_phone(app.handle(), "after the drop", false, "m");
+        assert!(pixel_lane_rx.try_recv().is_err());
+        assert!(
+            late_lane_rx.try_recv().is_err(),
+            "a dropped phone's transcript must not fall back to bystanders"
+        );
+        assert!(broadcast.try_recv().is_err());
+    }
+
+    /// The targeted lanes' registry semantics (wrong-phone fix): lane ids
+    /// are SERVER-assigned per connection and never derive from the
+    /// client-controlled hello name, so two connections claiming the SAME
+    /// device name get distinct lanes - neither can seize or supersede the
+    /// other - and a frozen session's lane cannot be redirected by any
+    /// later registration. Release removes exactly the named lane; a
+    /// session still pointing at a released lane reads the documented
+    /// no-op.
+    #[test]
+    fn device_lanes_are_per_connection_and_never_name_seizable() {
+        let manager = CompanionManager::new();
+
+        // Two connections claiming the SAME name: distinct lanes, both
+        // live, no supersession.
+        let (lane_a, mut rx_a) = manager.register_device_lane();
+        let (lane_b, mut rx_b) = manager.register_device_lane();
+        assert_ne!(lane_a, lane_b, "lane ids are per connection, not per name");
+
+        assert!(
+            manager.send_frame_to_lane(lane_a, &protocol::ServerFrame::State { recording: true })
+        );
+        assert!(rx_a.try_recv().is_ok());
+        assert!(
+            rx_b.try_recv().is_err(),
+            "a same-name connection cannot seize another connection's lane"
+        );
+
+        // A frozen session keeps its own lane even after later
+        // registrations; a send to the frozen lane is unaffected.
+        let (_lane_c, mut rx_c) = manager.register_device_lane();
+        assert!(
+            manager.send_frame_to_lane(lane_a, &protocol::ServerFrame::State { recording: false })
+        );
+        assert!(rx_a.try_recv().is_ok());
+        assert!(rx_c.try_recv().is_err());
+
+        // Release removes exactly one lane; ids are never reused.
+        manager.unregister_device_lane(lane_a);
+        assert!(
+            !manager.send_frame_to_lane(lane_a, &protocol::ServerFrame::State { recording: false }),
+            "a released lane reads as the dropped-phone no-op"
+        );
+        assert!(
+            manager.send_frame_to_lane(lane_b, &protocol::ServerFrame::State { recording: false })
+        );
+        assert!(rx_b.try_recv().is_ok());
+        assert!(rx_c.try_recv().is_err());
+        let (lane_d, _rx_d) = manager.register_device_lane();
+        assert_ne!(lane_d, lane_a, "lane ids are never reused");
+    }
+
+    /// v1.6.0 settings seams: the advertised-host override trims and
+    /// collapses empties, the TLS pair only counts when BOTH halves are
+    /// set (the both-or-neither rule), and restart_needed flips on every
+    /// configuration dimension - including a chosen interface that no
+    /// longer resolves, which counts as different by definition.
+    #[test]
+    fn v1_6_0_configuration_seams_trim_normalize_and_diff() {
+        use std::net::Ipv4Addr;
+
+        // Advertised host: whitespace and emptiness collapse to None.
+        assert_eq!(effective_advertised_host(None), None);
+        assert_eq!(effective_advertised_host(Some("")), None);
+        assert_eq!(effective_advertised_host(Some("   ")), None);
+        assert_eq!(
+            effective_advertised_host(Some("  mac.tail1234.ts.net ")),
+            Some("mac.tail1234.ts.net".to_string())
+        );
+
+        // TLS manual: both halves or neither.
+        assert!(!tls_manual_configured(None, None));
+        assert!(!tls_manual_configured(Some("/c.pem"), None));
+        assert!(!tls_manual_configured(None, Some("/k.pem")));
+        assert!(!tls_manual_configured(Some("  "), Some("/k.pem")));
+        assert!(tls_manual_configured(Some("/c.pem"), Some("/k.pem")));
+
+        // restart_needed: identical configuration needs nothing.
+        let live = LiveServerConfig {
+            bind_ip: Ipv4Addr::new(192, 168, 1, 42),
+            port: 4177,
+            advertised_host: None,
+            tls_manual: false,
+        };
+        let same = Ok(Ipv4Addr::new(192, 168, 1, 42));
+        assert!(!restart_needed(&same, 4177, None, false, &live));
+
+        // Each dimension alone flips it.
+        assert!(
+            restart_needed(
+                &Ok(Ipv4Addr::new(100, 101, 7, 24)),
+                4177,
+                None,
+                false,
+                &live
+            ),
+            "a different resolved interface (e.g. Tailscale chosen) needs a restart"
+        );
+        assert!(restart_needed(&same, 4178, None, false, &live));
+        assert!(restart_needed(
+            &same,
+            4177,
+            Some("mac.tail1234.ts.net"),
+            false,
+            &live
+        ));
+        assert!(restart_needed(&same, 4177, None, true, &live));
+
+        // A vanished interface (resolution error) is different by
+        // definition, even though every other field matches.
+        assert!(restart_needed(
+            &Err("not currently present".to_string()),
+            4177,
+            None,
+            false,
+            &live
+        ));
+
+        // And a live manual-cert server stays pending when the pair is
+        // cleared back to self-signed.
+        let live_manual = LiveServerConfig {
+            tls_manual: true,
+            ..live
+        };
+        assert!(restart_needed(&same, 4177, None, false, &live_manual));
+        assert!(!restart_needed(&same, 4177, None, true, &live_manual));
+    }
+
+    /// v1.6.0, brief item 4: the QR/URL seam EXECUTED (the same
+    /// advertised_url_qr status() calls, not a re-implementation). The
+    /// URL rides the advertised-host override when set and the
+    /// effective interface IP otherwise, on the configured port, and is
+    /// suppressed outright when there is no address or no token.
+    #[test]
+    fn pairing_url_prefers_the_advertised_host_override() {
+        let lan = Ipv4Addr::new(192, 168, 1, 42);
+        let lan_subnet = Some("192.168.1.0/24");
+
+        // Override wins over the interface IP.
+        let (url, qr) = advertised_url_qr(
+            Some("mac.tail1234.ts.net"),
+            Some(lan),
+            Some("tok"),
+            lan_subnet,
+            4177,
+        );
+        assert_eq!(
+            url.as_deref(),
+            Some("https://mac.tail1234.ts.net:4177/#t=tok")
+        );
+        assert!(qr.is_some(), "a valid URL always carries a QR");
+
+        // No override: the effective IP, on the configured port.
+        let (url, _) = advertised_url_qr(None, Some(lan), Some("tok"), lan_subnet, 8443);
+        assert_eq!(url.as_deref(), Some("https://192.168.1.42:8443/#t=tok"));
+
+        // Tailscale effective address with a token bound for it (the /10).
+        let ts = Ipv4Addr::new(100, 101, 7, 24);
+        let (url, _) = advertised_url_qr(None, Some(ts), Some("tok"), Some("100.64.0.0/10"), 4177);
+        assert_eq!(url.as_deref(), Some("https://100.101.7.24:4177/#t=tok"));
+
+        // No effective address (stopped, unresolvable choice) or no
+        // token: nothing to advertise.
+        assert_eq!(
+            advertised_url_qr(None, None, Some("tok"), lan_subnet, 4177),
+            (None, None)
+        );
+        assert_eq!(
+            advertised_url_qr(None, Some(lan), None, lan_subnet, 4177),
+            (None, None)
+        );
+        assert_eq!(
+            advertised_url_qr(None, Some(lan), Some(""), lan_subnet, 4177),
+            (None, None)
+        );
+    }
+
+    /// v1.6.0 review finding: the preview QR must never advertise a
+    /// token the next start invalidates. After an interface switch
+    /// across subnets (LAN /24 to Tailscale /10 and back), the stored
+    /// token is stale for the newly resolved address; start()
+    /// regenerates it (token_stale), so the preview with the OLD token
+    /// would pair the phone against a dead token right after the
+    /// restart the preview note told it to wait for. The seam suppresses
+    /// the URL and QR until the stored subnet matches again (which the
+    /// next start's regeneration restores).
+    #[test]
+    fn a_stale_token_for_the_resolved_subnet_is_never_advertised() {
+        let lan = Ipv4Addr::new(192, 168, 1, 42);
+        let tailscale = Ipv4Addr::new(100, 101, 7, 24);
+
+        // LAN token, Tailscale choice pending: no URL, no QR.
+        assert_eq!(
+            advertised_url_qr(
+                None,
+                Some(tailscale),
+                Some("tok"),
+                Some("192.168.1.0/24"),
+                4177
+            ),
+            (None, None),
+            "a /24 token advertised on a /10 address pairs against a dead token after restart"
+        );
+
+        // The reverse switch is equally suppressed.
+        assert_eq!(
+            advertised_url_qr(None, Some(lan), Some("tok"), Some("100.64.0.0/10"), 4177),
+            (None, None)
+        );
+
+        // A same-/24 interface change (en0 to a bridge on the same LAN)
+        // keeps the token valid, so the preview stays honest there.
+        let bridge = Ipv4Addr::new(192, 168, 1, 50);
+        let (url, _) = advertised_url_qr(
+            None,
+            Some(bridge),
+            Some("tok"),
+            Some("192.168.1.0/24"),
+            4177,
+        );
+        assert_eq!(url.as_deref(), Some("https://192.168.1.50:4177/#t=tok"));
+
+        // Never-paired state (no stored subnet): nothing yet.
+        assert_eq!(
+            advertised_url_qr(None, Some(lan), Some("tok"), None, 4177),
+            (None, None)
         );
     }
 

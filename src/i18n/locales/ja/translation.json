@@ -12,6 +12,20 @@
     "postProcessModel": "後処理モデル",
     "quit": "終了",
     "cancel": "キャンセル",
+    "statusIdle": "アイドル",
+    "statusRecording": "録音中…",
+    "statusTranscribing": "文字起こし中…",
+    "asrModel": "音声認識モデル",
+    "modelsNone": "モデルは読み込まれていません",
+    "recentDictations": "最近の文字起こし",
+    "recentDictationsEmpty": "まだ文字起こしはありません",
+    "companionLabel": "コンパニオン",
+    "companionOn": "オン",
+    "companionOff": "オフ",
+    "companionPairedDevices": "ペアリング済みデバイス",
+    "companionTarget": "送信先",
+    "companionTargetMac": "このMac",
+    "companionTargetPhone": "電話",
     "secureInputWarning": "⚠ Secure Input でショートカットがブロック中",
     "postProcessPrompt": "後処理プロンプト"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "詳細設定で有効にできます",
     "history": "履歴",
     "debug": "デバッグ",
-    "about": "概要"
+    "about": "概要",
+    "notifications": "通知",
+    "promptStudio": "プロンプトスタジオ"
   },
   "onboarding": {
     "subtitle": "開始するには、文字起こしのモデルを選択してください",
@@ -667,7 +683,31 @@
         "serverError": "サーバーが失敗しました: {{error}}",
         "refresh": "更新",
         "statusRunning": "実行中",
-        "statusStopped": "停止"
+        "statusStopped": "停止",
+        "interfaceTitle": "ネットワークインターフェース",
+        "interfaceAuto": "自動選択（LAN 優先）",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "ネットワークインターフェースが見つかりません",
+        "bindError": "インターフェースの問題: {{error}}",
+        "manualTitle": "手動設定",
+        "hostLabel": "案内するホストまたは IP",
+        "hostPlaceholder": "空欄ならインターフェースのアドレスを使用",
+        "hostInvalid": "IPv4 アドレスまたはホスト名を入力してください（スキーム・ポート・スラッシュは不可）",
+        "portInvalid": "ポートは 1 から 65535 の数値で指定してください",
+        "tlsTitle": "TLS 証明書",
+        "tlsCertLabel": "証明書ファイル",
+        "tlsKeyLabel": "鍵ファイル",
+        "tlsSelfSigned": "内蔵の自己署名証明書を使用中",
+        "tlsManual": "あなたの証明書を使用中",
+        "tlsPairInvalid": "両方のファイルを指定するか、両方空欄にしてください",
+        "restartButton": "サーバーを再起動",
+        "restartPending": "変更は再起動後に適用されます",
+        "qrPreviewNote": "プレビュー: サーバーが次に起動したとき、この URL が案内されます。",
+        "sharedNetworkNote": "スマホとこの Mac は同じネットワークにいる必要があります: 同じ Wi-Fi または LAN、または同じテールネット（例: 両方とも Tailscale）。"
       }
     },
     "postProcessing": {
@@ -702,7 +742,20 @@
           "refreshModels": "モデルを更新",
           "fetchFailed": "モデル一覧の取得に失敗しました ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "モデル一覧を {{time}} に取得しました",
-          "retry": "再試行"
+          "retry": "再試行",
+          "visibleDescription": "ディテーションごとに文字起こしを書き直すモデルです。",
+          "fetchingList": "モデル一覧を取得中...",
+          "listSummary_one": "1 件のモデル、{{time}} に取得",
+          "listSummary_other": "{{count}} 件のモデル、{{time}} に取得",
+          "notFetched": "モデル一覧はまだありません。",
+          "emptyTitle": "モデルが一覧にありません",
+          "emptyHint": "更新するとこのキーが参照できるモデルを読み込みます。または下にモデル ID を入力してください。",
+          "customSet": "設定",
+          "customHint": "一覧になくても、プロバイダーが提供するモデル ID なら使用できます。",
+          "filterPlaceholder": "モデルを絞り込み",
+          "showAll_one": "すべて表示（{{count}}）",
+          "showAll_other": "すべて表示（{{count}}）",
+          "showFewer": "表示を減らす"
         },
         "timeout": {
           "title": "リクエストのタイムアウト",
@@ -718,7 +771,8 @@
           "appleReady": "Apple Intelligence は利用できます",
           "appleUnavailable": "Apple Intelligence はこのデバイスでは利用できません",
           "failed": "接続に失敗しました: {{failureClass}}。{{detail}}"
-        }
+        },
+        "titleLocal": "エンジン"
       },
       "local": {
         "label": "ローカルモデル",
@@ -854,9 +908,15 @@
           "chinese_simplified": {
             "name": "中国語（簡体字）",
             "description": "簡体字中国語を同音異字の修正付きで整える。"
+          },
+          "prompt_enhancer": {
+            "name": "プロンプト強化",
+            "description": "音声で指示した内容を、AIエージェントやアプリ向けの明確で構造化されたプロンプトに変換します。"
           }
         },
-        "editPrompt": "編集"
+        "editPrompt": "編集",
+        "testShort": "テスト",
+        "deleteShort": "削除"
       }
     },
     "history": {
@@ -882,7 +942,9 @@
       "groups": {
         "retention": "保存期間"
       },
-      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms で処理"
+      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms で処理",
+      "viewChanges": "変更を表示",
+      "hideChanges": "変更を閉じる"
     },
     "debug": {
       "title": "デバッグ",
@@ -1076,7 +1138,70 @@
     "ppOutcome": {
       "applied": "適用",
       "skipped": "スキップ",
-      "failed": "失敗"
+      "failed": "失敗",
+      "unchanged": "変更なし"
+    },
+    "notifications": {
+      "title": "通知",
+      "toggle": {
+        "label": "システム通知",
+        "description": "エラーやセッションの結果をシステム通知として表示します。通知は閉じるまで通知センターに残ります。"
+      },
+      "outcomes": {
+        "label": "結果の通知",
+        "description": "電話セッションの終了時（セッション上限への到達や電話の切断など）にも通知します。オフの場合はエラーのみです。"
+      },
+      "log": {
+        "title": "通知ログ",
+        "description": "直近50件のエラーと結果の通知。新しい記録はシステム通知が有効な間だけ行われます。",
+        "empty": "通知はまだありません。",
+        "clear": "すべてクリア"
+      }
+    },
+    "studio": {
+      "title": "プロンプトスタジオ",
+      "intro": "実際の文字起こしでプロンプトを試し、エンジンを並べて比較します。実行は実際の口述と同じエンジンパイプラインを使いますが、他のアプリに入力せず、履歴にも保存しません。",
+      "source": {
+        "label": "ソーステキスト",
+        "description": "スタジオが加工する文字起こし：直近の口述または任意の履歴エントリ。",
+        "last": "最新の文字起こし",
+        "loading": "エントリを読み込み中..."
+      },
+      "prompts": {
+        "label": "プロンプト",
+        "description": "実行するテンプレートを 1 つ以上選択してください。"
+      },
+      "engines": {
+        "label": "エンジン",
+        "description": "実行するエンジンを 1 つ以上選択してください。",
+        "appleUnavailable": "この Mac では Apple Intelligence を利用できません",
+        "noModel": "モデルが未設定です",
+        "noModelHint": "モデルが未設定です。Post Process で選択してください。"
+      },
+      "run_one": "1 ペアを実行",
+      "run_other": "{{count}} ペアを実行",
+      "runHint_one": "1 つのプロンプトを 1 つのエンジンで実行。入力も保存もされません。",
+      "runHint_other": "プロンプトとエンジンの組み合わせ {{count}} 件。入力も保存もされません。",
+      "running": "実行中...",
+      "rerun": "再実行",
+      "latency": "{{ms}} ミリ秒",
+      "rawKept": "エンジンが失敗またはスキップされたため、元の文字起こしが保持されます。",
+      "partialFailure": "一部の実行は失敗またはスキップされ、他の実行は結果を生成しました。各カードを確認してください。",
+      "results_one": "1 件の結果",
+      "results_other": "{{count}} 件の結果",
+      "errors": {
+        "engineNotFound": "エンジン '{{id}}' は設定されていません。",
+        "entryNotFound": "選択した履歴エントリは存在しません。",
+        "emptyBatch": "プロンプトとエンジンをそれぞれ 1 つ以上選択してください。"
+      },
+      "diff": {
+        "lines": "行",
+        "charsChanged_one": "1 文字変更",
+        "charsChanged_other": "{{count}} 文字変更",
+        "identical": "変更なし。"
+      },
+      "resultsEmptyTitle": "結果はここに表示されます",
+      "resultsEmptyHint": "上でソース、プロンプト、エンジンを選んで実行してください。各カードに整形後のテキスト、変更点、所要時間が表示されます。"
     }
   },
   "footer": {
@@ -1202,11 +1327,18 @@
       "postProcessOutputInvalid": "整形結果が利用できないテキストだったため、元の文字起こしが保持されました。",
       "postProcessCloudFailed": "整形に失敗したため、元の文字起こしが保持されました: {{detail}}",
       "postProcessPromptCycled": "後処理テンプレート: {{name}}",
+      "postProcessPromptCycledPosition": "後処理テンプレート: {{name}}（{{total}}件中{{position}}件目）",
+      "postProcessSessionUpgraded": "このセッションの後処理はオン: {{name}}",
+      "postProcessSessionDowngraded": "このセッションの後処理はオフ",
       "companionDisconnected": "スマホが切断されました。録音済みの内容で確定します。",
       "companionServerFailed": "コンパニオンサーバーが失敗しました: {{error}}",
-      "companionSessionCapped": "コンパニオン端末のディクテーションを終了しました: {{device}}で15分のセッション上限に達しました。"
+      "companionSessionCapped": "コンパニオン端末のディクテーションを終了しました: {{device}}で15分のセッション上限に達しました。",
+      "companionZeroAudio": "コンパニオン端末のディクテーションが音声なしで終了しました。文字起こしは行われていません。",
+      "postProcessUnchanged": "ポリッシュは完了しましたが、何も変更されませんでした。書き起こしは話された通りにそのまま貼り付けられました。",
+      "postProcessNotConfigured": "後処理は実行されませんでした: {{detail}}。元の書き起こしがそのまま保持されました。"
     },
     "commandBadge": "コマンドモード",
+    "ppBadge": "後処理",
     "ppChip": "整形中 ({{model}}) {{seconds}}秒",
     "companionBadge": "コンパニオンマイク"
   },
@@ -1254,13 +1386,15 @@
     "subtitle": "スマホがこのMacのマイクとトリガーになります。",
     "certNote": "ブラウザが接続を警告したら、証明書のフィンガープリントをVoxBar設定のものと照合し、一度だけ承認してください。",
     "noToken": "このページはVoxBar設定のQRコードから開いてください。",
-    "micDenied": "マイクへのアクセスが拒否されました。ブラウザで許可して再読み込みしてください。",
+    "micDenied": "マイクへのアクセスに失敗しました。ブラウザで許可して、もう一度お試しください。",
+    "micRetry": "再試行する",
     "badToken": "ペアリングに失敗しました。VoxBar設定のQRコードを再スキャンしてください。",
     "wrongSubnet": "このスマホはMacと別のネットワークにいます。同じWi-Fiに接続して再度ペアリングしてください。",
     "rateLimited": "ペアリングの試行が多すぎます。1分待って再試行してください。",
     "busy": "Macはすでに別のトリガーから口述中です。",
     "disconnectedFinalized": "接続が切れました。Macは話した内容を保持しています。",
     "capped": "セッションは15分で打ち切られます。続けるにはもう一度押してください。",
+    "zeroAudio": "音声がMacに届きませんでした。ボタンを押したまま話してください。",
     "serverStopped": "Macがコンパニオンサーバーを停止しました。",
     "reconnect": "再接続",
     "holdToTalk": "押しながら話す",
@@ -1272,6 +1406,16 @@
     "stateReady": "準備完了",
     "stateRecording": "録音中",
     "stateDisconnected": "切断",
-    "stateError": "エラー"
+    "stateError": "エラー",
+    "targetLabel": "送り先",
+    "targetPc": "PCへ",
+    "targetPhone": "スマホへ",
+    "postProcessLabel": "テキストを整える",
+    "resultTitle": "文字起こし",
+    "copy": "コピー",
+    "copied": "コピーしました",
+    "polished": "整形済み",
+    "historyTitle": "最近",
+    "historyEmpty": "このスマホでのディクテーションがここに表示されます。"
   }
 }

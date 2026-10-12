@@ -19,9 +19,11 @@ mod llm_client;
 pub mod local_llm;
 mod managers;
 mod memory;
+mod notification_permission;
 mod number_format;
 mod overlay;
 mod paste_tx;
+mod persistent_notice;
 pub mod portable;
 pub mod post_process_runs;
 mod secure_input;
@@ -102,7 +104,7 @@ fn build_console_filter() -> env_filter::Filter {
     builder.build()
 }
 
-fn show_main_window(app: &AppHandle) {
+pub(crate) fn show_main_window(app: &AppHandle) {
     if let Some(main_window) = app.get_webview_window("main") {
         if let Err(e) = main_window.unminimize() {
             log::error!("Failed to unminimize webview window: {}", e);
@@ -245,6 +247,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     manage_local_llm(app_handle);
     app_handle.manage(tray::TrayState::new());
     app_handle.manage(tray::TrayRamRefresh::new());
+    app_handle.manage(tray::TrayHistory::new());
 
     // Companion devices (phones as remote mics). Honors the OFF-by-default
     // setting: an inert manager with no listener/threads until enabled.
@@ -339,6 +342,13 @@ fn initialize_core_logic(app_handle: &AppHandle) {
             "copy_last_transcript" => {
                 tray::copy_last_transcript(app);
             }
+            // Recent Dictations submenu (W1-L8): copies that entry's FINAL
+            // text (post-processed when present, else raw). tray owns the
+            // snapshot lookup and the clipboard write.
+            id if id.starts_with("history_copy:") => match tray::parse_history_copy_id(id) {
+                Some(entry_id) => tray::copy_recent_dictation(app, entry_id),
+                None => log::warn!("Ignoring malformed tray history-copy id: {id}"),
+            },
             "unload_model" => {
                 let transcription_manager = app.state::<Arc<TranscriptionManager>>();
                 if !transcription_manager.is_model_loaded() {
@@ -482,6 +492,9 @@ fn initialize_core_logic(app_handle: &AppHandle) {
 
     // Initialize tray menu with idle state
     tray::update_tray_menu(app_handle);
+    // Fill the Recent Dictations submenu's snapshot (background thread; the
+    // query never runs on the UI thread) and re-sync the menu when it lands.
+    tray::refresh_tray_history(app_handle);
 
     // Apply show_tray_icon setting
     let settings = settings::get_settings(app_handle);
@@ -498,6 +511,14 @@ fn initialize_core_logic(app_handle: &AppHandle) {
         // and menu-bar title track the live worker footprint. No-op when the
         // task is already in the right state.
         tray::reconcile_ram_refresh(&app_handle_for_listener);
+    });
+
+    // Keep the tray's Recent Dictations submenu current: every history
+    // write (added/updated/deleted/toggled) refreshes the snapshot off the
+    // UI thread, which re-syncs the menu when it lands (W1-L8).
+    let app_handle_for_history = app_handle.clone();
+    app_handle.listen("history-update-payload", move |_| {
+        tray::refresh_tray_history(&app_handle_for_history);
     });
 
     // Apply the autostart preference (SMAppService login item on macOS 13+,
@@ -1288,6 +1309,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             shortcut::change_companion_devices_setting,
             shortcut::reset_companion_pairing,
             shortcut::get_companion_status,
+            shortcut::change_companion_network_setting,
+            shortcut::change_companion_tls_setting,
+            shortcut::restart_companion_server,
             shortcut::change_auto_fallback_setting,
             shortcut::change_menu_bar_model_title_setting,
             shortcut::change_show_history_model_setting,
@@ -1331,6 +1355,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             shortcut::change_post_process_local_keep_warm_secs_setting,
             shortcut::cycle_post_process_prompt,
             shortcut::test_post_process_prompt,
+            shortcut::test_post_process_prompt_batch,
             shortcut::update_custom_words,
             shortcut::suspend_all_bindings,
             shortcut::resume_all_bindings,
@@ -1430,6 +1455,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             commands::transcription::unload_model_manually,
             commands::updater::log_update_decision,
             commands::history::get_history_entries,
+            commands::history::get_recent_companion_entries,
             commands::history::toggle_history_entry_saved,
             commands::history::get_audio_file_path,
             commands::history::delete_history_entry,
@@ -1438,6 +1464,9 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             commands::history::update_recording_retention_period,
             post_process_runs::get_post_process_runs,
             helpers::clamshell::is_laptop,
+            notification_permission::notification_permission_state,
+            notification_permission::request_notification_permission,
+            persistent_notice::post_persistent_notice,
         ])
         .events(collect_events![
             managers::history::HistoryUpdatePayload,

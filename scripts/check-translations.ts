@@ -39,41 +39,68 @@ function colorize(text: string, color: string): string {
   return `${colors[color]}${text}${colors.reset}`;
 }
 
-function getAllKeyPaths(
+// i18next count-plural suffixes: a locale legitimately carries ONLY the
+// categories its own CLDR plural rules select (ru needs _few/_many, ar
+// needs _zero/_two/_few/_many, en needs just _one/_other), so suffix sets
+// DIFFER between locales by design. Parity is therefore compared at the
+// FAMILY level: a group of >= 2 sibling keys sharing a base name and
+// differing only in a plural suffix collapses to the one family path.
+// Everything else (all plain keys, and the presence of every family)
+// stays an exact-set comparison, so this is not a loosening: a missing
+// plain key or family, or an invented key or family, still fails.
+const PLURAL_SUFFIXES = new Set(["zero", "one", "two", "few", "many", "other"]);
+
+function pluralFamilyOf(
+  key: string,
+  siblingKeys: string[],
+): { base: string; suffix: string } | null {
+  const lastUnderscore = key.lastIndexOf("_");
+  if (lastUnderscore <= 0) return null;
+  const base = key.slice(0, lastUnderscore);
+  const suffix = key.slice(lastUnderscore + 1);
+  if (!PLURAL_SUFFIXES.has(suffix)) return null;
+  // A lone key that merely ENDS in a plural-suffix word (say a plain
+  // "no_one") is not a plural family: require at least one sibling of the
+  // same base with a DIFFERENT plural suffix in the same node.
+  const hasPluralSibling = siblingKeys.some(
+    (sibling) =>
+      sibling !== key &&
+      sibling.startsWith(`${base}_`) &&
+      PLURAL_SUFFIXES.has(sibling.slice(base.length + 1)),
+  );
+  return hasPluralSibling ? { base, suffix } : null;
+}
+
+function getNormalizedKeyPaths(
   obj: TranslationData,
   prefix: string[] = [],
 ): string[][] {
   let paths: string[][] = [];
-  for (const key in obj) {
+  const keys = Object.keys(obj);
+  const collapsedFamilies = new Set<string>();
+  for (const key of keys) {
     if (!Object.hasOwn(obj, key)) continue;
 
-    const currentPath = prefix.concat([key]);
     const value = obj[key];
+    const family = pluralFamilyOf(key, keys);
+    if (family) {
+      // One path per family, emitted from its first suffix in key order.
+      if (!collapsedFamilies.has(family.base)) {
+        collapsedFamilies.add(family.base);
+        paths.push(prefix.concat([family.base]));
+      }
+      continue;
+    }
 
     if (typeof value === "object" && value !== null && !Array.isArray(value)) {
       paths = paths.concat(
-        getAllKeyPaths(value as TranslationData, currentPath),
+        getNormalizedKeyPaths(value as TranslationData, prefix.concat([key])),
       );
     } else {
-      paths.push(currentPath);
+      paths.push(prefix.concat([key]));
     }
   }
   return paths;
-}
-
-function hasKeyPath(obj: TranslationData, keyPath: string[]): boolean {
-  let current: unknown = obj;
-  for (const key of keyPath) {
-    if (
-      typeof current !== "object" ||
-      current === null ||
-      (current as Record<string, unknown>)[key] === undefined
-    ) {
-      return false;
-    }
-    current = (current as Record<string, unknown>)[key];
-  }
-  return true;
 }
 
 function loadTranslationFile(lang: string): TranslationData | null {
@@ -103,9 +130,11 @@ function validateTranslations(): void {
     process.exit(1);
   }
 
-  // Get all key paths from reference
-  const referenceKeyPaths = getAllKeyPaths(referenceData);
-  console.log(`Reference has ${referenceKeyPaths.length} keys\n`);
+  // Get all key paths from reference (plural families collapsed to one)
+  const referenceKeyPaths = getNormalizedKeyPaths(referenceData);
+  console.log(
+    `Reference has ${referenceKeyPaths.length} keys (plural families counted once)\n`,
+  );
 
   // Track validation results
   let hasErrors = false;
@@ -121,15 +150,21 @@ function validateTranslations(): void {
       continue;
     }
 
-    // Find missing keys
+    // Find missing keys (families collapsed, so a locale satisfies a
+    // reference plural family by carrying its own category set)
+    const langKeyPaths = getNormalizedKeyPaths(langData);
+    const langKeySet = new Set(langKeyPaths.map((path) => path.join(".")));
     const missing = referenceKeyPaths.filter(
-      (keyPath) => !hasKeyPath(langData, keyPath),
+      (keyPath) => !langKeySet.has(keyPath.join(".")),
     );
 
-    // Find extra keys (keys in language but not in reference)
-    const langKeyPaths = getAllKeyPaths(langData);
+    // Find extra keys (keys or families in the language but not in the
+    // reference: inventing either still fails)
+    const referenceKeySet = new Set(
+      referenceKeyPaths.map((path) => path.join(".")),
+    );
     const extra = langKeyPaths.filter(
-      (keyPath) => !hasKeyPath(referenceData, keyPath),
+      (keyPath) => !referenceKeySet.has(keyPath.join(".")),
     );
 
     results[lang] = {

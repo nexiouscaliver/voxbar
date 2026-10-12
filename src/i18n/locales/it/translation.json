@@ -12,6 +12,20 @@
     "postProcessModel": "Modello di post-elaborazione",
     "quit": "Esci",
     "cancel": "Annulla",
+    "statusIdle": "Inattivo",
+    "statusRecording": "Registrazione…",
+    "statusTranscribing": "Trascrizione…",
+    "asrModel": "Modello ASR",
+    "modelsNone": "Nessun modello caricato",
+    "recentDictations": "Trascrizioni recenti",
+    "recentDictationsEmpty": "Ancora nessuna trascrizione",
+    "companionLabel": "Compagno",
+    "companionOn": "Attivo",
+    "companionOff": "Disattivato",
+    "companionPairedDevices": "Dispositivi associati",
+    "companionTarget": "Destinazione",
+    "companionTargetMac": "Questo Mac",
+    "companionTargetPhone": "Telefono",
     "secureInputWarning": "⚠ Scorciatoie bloccate da Secure Input",
     "postProcessPrompt": "Prompt di post-elaborazione"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "Attivala in Avanzate",
     "history": "Cronologia",
     "debug": "Debug",
-    "about": "Informazioni"
+    "about": "Informazioni",
+    "notifications": "Notifiche",
+    "promptStudio": "Studio dei prompt"
   },
   "onboarding": {
     "subtitle": "Per cominciare, scegli un modello di riconoscimento vocale",
@@ -667,7 +683,31 @@
         "serverError": "Server non riuscito: {{error}}",
         "refresh": "Aggiorna",
         "statusRunning": "In esecuzione",
-        "statusStopped": "Fermato"
+        "statusStopped": "Fermato",
+        "interfaceTitle": "Interfaccia di rete",
+        "interfaceAuto": "Automatico (LAN preferita)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Nessuna interfaccia di rete trovata",
+        "bindError": "Problema di interfaccia: {{error}}",
+        "manualTitle": "Configurazione manuale",
+        "hostLabel": "Host o IP annunciato",
+        "hostPlaceholder": "Se vuoto viene usato l'indirizzo dell'interfaccia",
+        "hostInvalid": "Inserisci un indirizzo IPv4 o un nome host, senza schema, porta o barre",
+        "portInvalid": "La porta deve essere un numero tra 1 e 65535",
+        "tlsTitle": "Certificato TLS",
+        "tlsCertLabel": "File del certificato",
+        "tlsKeyLabel": "File della chiave",
+        "tlsSelfSigned": "In uso il certificato autofirmato integrato",
+        "tlsManual": "In uso il tuo certificato",
+        "tlsPairInvalid": "Imposta entrambi i file o lasciali entrambi vuoti",
+        "restartButton": "Riavvia il server",
+        "restartPending": "Le modifiche si applicano dopo un riavvio",
+        "qrPreviewNote": "Anteprima: questo URL verrà annunciato al prossimo avvio del server.",
+        "sharedNetworkNote": "Il telefono e questo Mac devono condividere una rete: la stessa Wi-Fi o LAN, o lo stesso tailnet (ad esempio entrambi su Tailscale)."
       }
     },
     "postProcessing": {
@@ -702,7 +742,20 @@
           "refreshModels": "Aggiorna modelli",
           "fetchFailed": "Recupero dell'elenco modelli non riuscito ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Elenco modelli ottenuto {{time}}",
-          "retry": "Riprova"
+          "retry": "Riprova",
+          "visibleDescription": "Il modello che riscrive la trascrizione dopo ogni dettatura.",
+          "fetchingList": "Recupero dell'elenco dei modelli...",
+          "listSummary_one": "1 modello, recuperato {{time}}",
+          "listSummary_other": "{{count}} modelli, recuperati {{time}}",
+          "notFetched": "Nessun elenco di modelli.",
+          "emptyTitle": "Nessun modello in elenco",
+          "emptyHint": "Aggiorna per caricare i modelli visibili con questa chiave, oppure digita un id modello sotto.",
+          "customSet": "Imposta",
+          "customHint": "Qualsiasi id modello del tuo provider funziona, anche se non è in elenco.",
+          "filterPlaceholder": "Filtra modelli",
+          "showAll_one": "Mostra tutti ({{count}})",
+          "showAll_other": "Mostra tutti ({{count}})",
+          "showFewer": "Mostra meno"
         },
         "timeout": {
           "title": "Timeout della richiesta",
@@ -718,7 +771,8 @@
           "appleReady": "Apple Intelligence è disponibile",
           "appleUnavailable": "Apple Intelligence non è disponibile su questo dispositivo",
           "failed": "Connessione non riuscita: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Motore"
       },
       "local": {
         "label": "Modello locale",
@@ -854,9 +908,15 @@
           "chinese_simplified": {
             "name": "Cinese (semplificato)",
             "description": "Pulizia del cinese semplificato con correzione degli omofoni."
+          },
+          "prompt_enhancer": {
+            "name": "Miglioratore di prompt",
+            "description": "Trasforma un'istruzione dettata in un prompt chiaro e strutturato per un agente IA o un'app."
           }
         },
-        "editPrompt": "Modifica"
+        "editPrompt": "Modifica",
+        "testShort": "Prova",
+        "deleteShort": "Elimina"
       }
     },
     "history": {
@@ -882,7 +942,9 @@
       "groups": {
         "retention": "Conservazione"
       },
-      "viaPostProcess": "tramite {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "tramite {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Visualizza modifiche",
+      "hideChanges": "Nascondi modifiche"
     },
     "debug": {
       "title": "Debug",
@@ -1076,7 +1138,70 @@
     "ppOutcome": {
       "applied": "applicato",
       "skipped": "saltato",
-      "failed": "non riuscito"
+      "failed": "non riuscito",
+      "unchanged": "invariato"
+    },
+    "notifications": {
+      "title": "Notifiche",
+      "toggle": {
+        "label": "Notifiche di sistema",
+        "description": "Mostra errori ed esiti delle sessioni come notifiche di sistema. Restano nel centro notifiche finché non vengono ignorate."
+      },
+      "outcomes": {
+        "label": "Notifiche degli esiti",
+        "description": "Notifica anche quando termina una sessione del telefono, ad esempio al raggiungimento del limite o alla disconnessione del telefono. Disattivato significa solo errori."
+      },
+      "log": {
+        "title": "Registro delle notifiche",
+        "description": "Gli ultimi 50 avvisi di errori ed esiti. Nuove voci vengono registrate solo mentre le notifiche di sistema sono attive.",
+        "empty": "Ancora nessuna notifica.",
+        "clear": "Cancella tutto"
+      }
+    },
+    "studio": {
+      "title": "Studio dei prompt",
+      "intro": "Prova i prompt su una trascrizione reale e confronta i motori fianco a fianco. Le esecuzioni usano la stessa pipeline di una dettatura reale, ma nulla viene digitato in altre app e nulla viene salvato nella cronologia.",
+      "source": {
+        "label": "Testo di origine",
+        "description": "La trascrizione che lo studio rifinisce: l'ultima dettatura o qualsiasi voce della cronologia.",
+        "last": "Ultima trascrizione",
+        "loading": "Caricamento voci..."
+      },
+      "prompts": {
+        "label": "Prompt",
+        "description": "Scegli uno o più modelli da eseguire."
+      },
+      "engines": {
+        "label": "Motori",
+        "description": "Scegli uno o più motori su cui eseguirli.",
+        "appleUnavailable": "Apple Intelligence non è disponibile su questo Mac",
+        "noModel": "Nessun modello configurato",
+        "noModelHint": "Nessun modello impostato. Scegline uno in Post Process."
+      },
+      "run_one": "Esegui 1 coppia",
+      "run_other": "Esegui {{count}} coppie",
+      "runHint_one": "1 prompt su 1 motore. Nulla viene digitato o salvato.",
+      "runHint_other": "{{count}} coppie prompt-motore. Nulla viene digitato o salvato.",
+      "running": "Esecuzione...",
+      "rerun": "Esegui di nuovo",
+      "latency": "{{ms}} ms",
+      "rawKept": "Il motore ha fallito o è stato saltato, quindi la trascrizione grezza verrebbe mantenuta.",
+      "partialFailure": "Alcune esecuzioni sono fallite o saltate mentre altre hanno prodotto output. Controlla ogni scheda.",
+      "results_one": "1 risultato",
+      "results_other": "{{count}} risultati",
+      "errors": {
+        "engineNotFound": "Il motore '{{id}}' non è configurato.",
+        "entryNotFound": "La voce della cronologia scelta non esiste più.",
+        "emptyBatch": "Scegli almeno un prompt e un motore."
+      },
+      "diff": {
+        "lines": "righe",
+        "charsChanged_one": "1 carattere modificato",
+        "charsChanged_other": "{{count}} caratteri modificati",
+        "identical": "Nessuna modifica."
+      },
+      "resultsEmptyTitle": "I risultati appariranno qui",
+      "resultsEmptyHint": "Scegli sopra origine, prompt e motori, quindi esegui. Ogni scheda mostra il testo rifinito, le modifiche e la velocità."
     }
   },
   "footer": {
@@ -1202,11 +1327,18 @@
       "postProcessOutputInvalid": "La rifinitura ha restituito testo inutilizzabile, la trascrizione originale è stata mantenuta.",
       "postProcessCloudFailed": "La rifinitura non è riuscita, la trascrizione originale è stata mantenuta: {{detail}}",
       "postProcessPromptCycled": "Modello di post-elaborazione: {{name}}",
+      "postProcessPromptCycledPosition": "Modello di post-elaborazione: {{name}} ({{position}} di {{total}})",
+      "postProcessSessionUpgraded": "Post-elaborazione attiva per questa sessione: {{name}}",
+      "postProcessSessionDowngraded": "Post-elaborazione disattivata per questa sessione",
       "companionDisconnected": "Telefono disconnesso. Concludo con quanto registrato.",
       "companionServerFailed": "Server companion non riuscito: {{error}}",
-      "companionSessionCapped": "Dettato dal dispositivo companion terminato: raggiunto il limite di sessione di 15 minuti su {{device}}."
+      "companionSessionCapped": "Dettato dal dispositivo companion terminato: raggiunto il limite di sessione di 15 minuti su {{device}}.",
+      "companionZeroAudio": "La dettatura dal dispositivo companion è terminata senza audio. Non è stato trascritto nulla.",
+      "postProcessUnchanged": "La rifinitura è terminata senza cambiare nulla; la trascrizione è stata incollata esattamente come dettata.",
+      "postProcessNotConfigured": "La post-elaborazione non è stata eseguita: {{detail}}. La trascrizione grezza è stata mantenuta."
     },
     "commandBadge": "Modalità comandi",
+    "ppBadge": "Post-elaborazione",
     "ppChip": "Rifinitura ({{model}}) {{seconds}}s",
     "companionBadge": "Microfono companion"
   },
@@ -1254,13 +1386,15 @@
     "subtitle": "Il tuo telefono ora è microfono e pulsante per il tuo Mac.",
     "certNote": "Se il browser avvisa sulla connessione, confronta l'impronta del certificato con quella nelle impostazioni di VoxBar e accettala una volta.",
     "noToken": "Apri questa pagina dal codice QR nelle impostazioni di VoxBar.",
-    "micDenied": "Accesso al microfono negato. Consentilo nel browser e ricarica.",
+    "micDenied": "L'accesso al microfono non è riuscito. Consentilo nel browser e riprova.",
+    "micRetry": "Riprova",
     "badToken": "Abbinamento non riuscito. Scansiona di nuovo il codice QR nelle impostazioni di VoxBar.",
     "wrongSubnet": "Questo telefono è su una rete diversa dal Mac. Unisciti alla stessa Wi-Fi e abbina di nuovo.",
     "rateLimited": "Troppi tentativi di abbinamento. Attendi un minuto e riprova.",
     "busy": "Il Mac sta già dettando da un altro pulsante.",
     "disconnectedFinalized": "Connessione persa. Il Mac ha conservato ciò che hai detto.",
     "capped": "Sessione limitata a 15 minuti. Premi di nuovo per continuare.",
+    "zeroAudio": "Nessun audio ha raggiunto il Mac. Tieni premuto il pulsante e parla.",
     "serverStopped": "Il Mac ha fermato il server companion.",
     "reconnect": "Riconnetti",
     "holdToTalk": "Tieni premuto per parlare",
@@ -1272,6 +1406,16 @@
     "stateReady": "Pronto",
     "stateRecording": "Registrazione",
     "stateDisconnected": "Disconnesso",
-    "stateError": "Errore"
+    "stateError": "Errore",
+    "targetLabel": "Invia a",
+    "targetPc": "Al PC",
+    "targetPhone": "Al telefono",
+    "postProcessLabel": "Rifinisci il testo",
+    "resultTitle": "Trascrizione",
+    "copy": "Copia",
+    "copied": "Copiato",
+    "polished": "Rifinito",
+    "historyTitle": "Recenti",
+    "historyEmpty": "Le dettature da questo telefono compaiono qui."
   }
 }

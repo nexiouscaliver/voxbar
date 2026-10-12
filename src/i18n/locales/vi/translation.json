@@ -12,6 +12,20 @@
     "postProcessModel": "Mô hình hậu xử lý",
     "quit": "Thoát",
     "cancel": "Hủy",
+    "statusIdle": "Nhàn rỗi",
+    "statusRecording": "Đang ghi âm…",
+    "statusTranscribing": "Đang chuyển thành văn bản…",
+    "asrModel": "Mô hình ASR",
+    "modelsNone": "Chưa có mô hình nào được nạp",
+    "recentDictations": "Bản chép lời gần đây",
+    "recentDictationsEmpty": "Chưa có bản chép lời nào",
+    "companionLabel": "Companion",
+    "companionOn": "Bật",
+    "companionOff": "Tắt",
+    "companionPairedDevices": "Thiết bị đã ghép đôi",
+    "companionTarget": "Đích",
+    "companionTargetMac": "Mac này",
+    "companionTargetPhone": "Điện thoại",
     "secureInputWarning": "⚠ Phím tắt bị Secure Input chặn",
     "postProcessPrompt": "Câu lệnh hậu xử lý"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "Bật trong Nâng cao",
     "history": "Lịch sử",
     "debug": "Gỡ lỗi",
-    "about": "Giới thiệu"
+    "about": "Giới thiệu",
+    "notifications": "Thông báo",
+    "promptStudio": "Xưởng prompt"
   },
   "onboarding": {
     "subtitle": "Để bắt đầu, hãy chọn một mô hình chuyển đổi giọng nói",
@@ -667,7 +683,31 @@
         "serverError": "Máy chủ lỗi: {{error}}",
         "refresh": "Làm mới",
         "statusRunning": "Đang chạy",
-        "statusStopped": "Đã dừng"
+        "statusStopped": "Đã dừng",
+        "interfaceTitle": "Giao diện mạng",
+        "interfaceAuto": "Tự động (ưu tiên LAN)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Chưa tìm thấy giao diện mạng nào",
+        "bindError": "Lỗi giao diện: {{error}}",
+        "manualTitle": "Thiết lập thủ công",
+        "hostLabel": "Tên máy chủ hoặc IP được quảng bá",
+        "hostPlaceholder": "Để trống sẽ dùng địa chỉ của giao diện",
+        "hostInvalid": "Nhập địa chỉ IPv4 hoặc tên máy chủ, không kèm giao thức, cổng hay dấu gạch chéo",
+        "portInvalid": "Cổng phải là số từ 1 đến 65535",
+        "tlsTitle": "Chứng chỉ TLS",
+        "tlsCertLabel": "Tệp chứng chỉ",
+        "tlsKeyLabel": "Tệp khóa",
+        "tlsSelfSigned": "Đang dùng chứng chỉ tự ký có sẵn",
+        "tlsManual": "Đang dùng chứng chỉ của bạn",
+        "tlsPairInvalid": "Đặt cả hai tệp hoặc để cả hai trống",
+        "restartButton": "Khởi động lại máy chủ",
+        "restartPending": "Thay đổi sẽ áp dụng sau khi khởi động lại",
+        "qrPreviewNote": "Xem trước: URL này sẽ được quảng bá lần tới máy chủ khởi động.",
+        "sharedNetworkNote": "Điện thoại và Mac này phải dùng chung mạng: cùng Wi-Fi hoặc LAN, hoặc cùng tailnet (ví dụ cả hai đều trên Tailscale)."
       }
     },
     "postProcessing": {
@@ -702,7 +742,20 @@
           "refreshModels": "Làm mới mô hình",
           "fetchFailed": "Không lấy được danh sách mô hình ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Danh sách mô hình đã lấy {{time}}",
-          "retry": "Thử lại"
+          "retry": "Thử lại",
+          "visibleDescription": "Mô hình viết lại bản ghi của bạn sau mỗi lần đọc chính tả.",
+          "fetchingList": "Đang tải danh sách mô hình...",
+          "listSummary_one": "1 mô hình, tải lúc {{time}}",
+          "listSummary_other": "{{count}} mô hình, tải lúc {{time}}",
+          "notFetched": "Chưa có danh sách mô hình.",
+          "emptyTitle": "Không có mô hình nào trong danh sách",
+          "emptyHint": "Làm mới để tải các mô hình mà khóa này nhìn thấy, hoặc gõ id mô hình bên dưới.",
+          "customSet": "Đặt",
+          "customHint": "Bất kỳ id mô hình nào nhà cung cấp của bạn hỗ trợ đều dùng được, kể cả khi không có trong danh sách.",
+          "filterPlaceholder": "Lọc mô hình",
+          "showAll_one": "Hiện tất cả ({{count}})",
+          "showAll_other": "Hiện tất cả ({{count}})",
+          "showFewer": "Thu gọn"
         },
         "timeout": {
           "title": "Thời gian chờ yêu cầu",
@@ -718,7 +771,8 @@
           "appleReady": "Apple Intelligence khả dụng",
           "appleUnavailable": "Apple Intelligence không khả dụng trên thiết bị này",
           "failed": "Kết nối thất bại: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Engine"
       },
       "local": {
         "label": "Mô hình cục bộ",
@@ -854,9 +908,15 @@
           "chinese_simplified": {
             "name": "Tiếng Trung (giản thể)",
             "description": "Dọn tiếng Trung giản thể với sửa lỗi đồng âm."
+          },
+          "prompt_enhancer": {
+            "name": "Trình tăng cường prompt",
+            "description": "Biến chỉ dẫn được đọc thành một prompt rõ ràng, có cấu trúc cho agent AI hoặc ứng dụng."
           }
         },
-        "editPrompt": "Sửa"
+        "editPrompt": "Sửa",
+        "testShort": "Thử",
+        "deleteShort": "Xóa"
       }
     },
     "history": {
@@ -882,7 +942,9 @@
       "groups": {
         "retention": "Lưu trữ"
       },
-      "viaPostProcess": "qua {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "qua {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Xem thay đổi",
+      "hideChanges": "Ẩn thay đổi"
     },
     "debug": {
       "title": "Gỡ lỗi",
@@ -1076,7 +1138,70 @@
     "ppOutcome": {
       "applied": "đã áp dụng",
       "skipped": "đã bỏ qua",
-      "failed": "thất bại"
+      "failed": "thất bại",
+      "unchanged": "không đổi"
+    },
+    "notifications": {
+      "title": "Thông báo",
+      "toggle": {
+        "label": "Thông báo hệ thống",
+        "description": "Hiển thị lỗi và kết quả phiên dưới dạng thông báo hệ thống. Chúng nằm trong trung tâm thông báo cho đến khi bạn bỏ qua chúng."
+      },
+      "outcomes": {
+        "label": "Thông báo kết quả",
+        "description": "Cũng thông báo khi phiên điện thoại kết thúc, ví dụ khi đạt giới hạn phiên hoặc điện thoại ngắt kết nối. Tắt nghĩa là chỉ lỗi."
+      },
+      "log": {
+        "title": "Nhật ký thông báo",
+        "description": "50 thông báo lỗi và kết quả gần nhất. Chỉ ghi mục mới khi thông báo hệ thống đang bật.",
+        "empty": "Chưa có thông báo nào.",
+        "clear": "Xóa tất cả"
+      }
+    },
+    "studio": {
+      "title": "Xưởng prompt",
+      "intro": "Thử prompt trên bản ghi thật và so sánh các engine cạnh nhau. Lần chạy dùng cùng đường ống engine như một lần đọc chính tả thật, nhưng không gõ gì vào ứng dụng khác và không lưu gì vào lịch sử.",
+      "source": {
+        "label": "Văn bản nguồn",
+        "description": "Bản ghi mà xưởng tôi sửa: lần đọc chính tả gần nhất hoặc bất kỳ mục lịch sử nào.",
+        "last": "Bản ghi gần nhất",
+        "loading": "Đang tải các mục..."
+      },
+      "prompts": {
+        "label": "Prompt",
+        "description": "Chọn một hoặc nhiều mẫu để chạy."
+      },
+      "engines": {
+        "label": "Engine",
+        "description": "Chọn một hoặc nhiều engine để chạy chúng.",
+        "appleUnavailable": "Apple Intelligence không khả dụng trên Mac này",
+        "noModel": "Chưa cấu hình mô hình",
+        "noModelHint": "Chưa đặt mô hình. Chọn một mô hình trong Post Process."
+      },
+      "run_one": "Chạy 1 cặp",
+      "run_other": "Chạy {{count}} cặp",
+      "runHint_one": "1 prompt trên 1 engine. Không gõ hay lưu gì.",
+      "runHint_other": "{{count}} cặp prompt-engine. Không gõ hay lưu gì.",
+      "running": "Đang chạy...",
+      "rerun": "Chạy lại",
+      "latency": "{{ms}} ms",
+      "rawKept": "Engine lỗi hoặc bị bỏ qua nên bản ghi thô sẽ được giữ nguyên.",
+      "partialFailure": "Một số lần chạy lỗi hoặc bị bỏ qua trong khi số khác tạo ra kết quả. Kiểm tra từng thẻ.",
+      "results_one": "1 kết quả",
+      "results_other": "{{count}} kết quả",
+      "errors": {
+        "engineNotFound": "Engine '{{id}}' chưa được cấu hình.",
+        "entryNotFound": "Mục lịch sử đã chọn không còn tồn tại.",
+        "emptyBatch": "Chọn ít nhất một prompt và một engine."
+      },
+      "diff": {
+        "lines": "dòng",
+        "charsChanged_one": "1 ký tự thay đổi",
+        "charsChanged_other": "{{count}} ký tự thay đổi",
+        "identical": "Không có thay đổi."
+      },
+      "resultsEmptyTitle": "Kết quả sẽ hiện ở đây",
+      "resultsEmptyHint": "Chọn nguồn, prompt và engine ở trên rồi chạy. Mỗi thẻ hiển thị văn bản đã chỉnh, các thay đổi và tốc độ."
     }
   },
   "footer": {
@@ -1202,11 +1327,18 @@
       "postProcessOutputInvalid": "Bước tinh chỉnh trả về văn bản không dùng được, bản gốc đã được giữ lại.",
       "postProcessCloudFailed": "Tinh chỉnh thất bại, bản gốc đã được giữ lại: {{detail}}",
       "postProcessPromptCycled": "Mẫu hậu xử lý: {{name}}",
+      "postProcessPromptCycledPosition": "Mẫu hậu xử lý: {{name}} ({{position}} trên {{total}})",
+      "postProcessSessionUpgraded": "Hậu xử lý đã bật cho phiên này: {{name}}",
+      "postProcessSessionDowngraded": "Hậu xử lý đã tắt cho phiên này",
       "companionDisconnected": "Điện thoại đã ngắt kết nối. Kết thúc với phần đã ghi.",
       "companionServerFailed": "Máy chủ đồng hành lỗi: {{error}}",
-      "companionSessionCapped": "Đọc chính tả từ thiết bị đồng hành đã kết thúc: đã đạt giới hạn phiên 15 phút trên {{device}}."
+      "companionSessionCapped": "Đọc chính tả từ thiết bị đồng hành đã kết thúc: đã đạt giới hạn phiên 15 phút trên {{device}}.",
+      "companionZeroAudio": "Buộc đọc từ thiết bị đồng hành kết thúc mà không có âm thanh. Không có nội dung nào được chuyển thành văn bản.",
+      "postProcessUnchanged": "Tốc ký đã hoàn tất nhưng không thay đổi gì; bản tốc ký được dán đúng như đã đọc.",
+      "postProcessNotConfigured": "Hậu xử lý đã không chạy: {{detail}}. Bản tốc ký thô đã được giữ nguyên."
     },
     "commandBadge": "Chế độ lệnh",
+    "ppBadge": "Hậu xử lý",
     "ppChip": "Đang tinh chỉnh ({{model}}) {{seconds}}s",
     "companionBadge": "Micrô đồng hành"
   },
@@ -1254,13 +1386,15 @@
     "subtitle": "Điện thoại của bạn giờ là micrô và nút bấm cho máy Mac.",
     "certNote": "Nếu trình duyệt cảnh báo về kết nối, hãy so dấu vân tay chứng chỉ với dấu trong cài đặt VoxBar và chấp nhận một lần.",
     "noToken": "Hãy mở trang này từ mã QR trong cài đặt VoxBar.",
-    "micDenied": "Quyền truy cập micrô bị từ chối. Hãy cho phép trong trình duyệt rồi tải lại.",
+    "micDenied": "Không truy cập được micrô. Hãy cho phép trong trình duyệt rồi thử lại.",
+    "micRetry": "Thử lại",
     "badToken": "Ghép nối thất bại. Quét lại mã QR trong cài đặt VoxBar.",
     "wrongSubnet": "Điện thoại này ở mạng khác với máy Mac. Hãy vào cùng Wi-Fi rồi ghép nối lại.",
     "rateLimited": "Quá nhiều lần thử ghép nối. Chờ một phút rồi thử lại.",
     "busy": "Máy Mac đang đọc chính tả từ nút bấm khác.",
     "disconnectedFinalized": "Kết nối bị ngắt. Máy Mac đã giữ lại lời bạn nói.",
     "capped": "Phiên giới hạn 15 phút. Nhấn lại để tiếp tục.",
+    "zeroAudio": "Không có âm thanh nào tới được Mac. Giữ nút rồi nói.",
     "serverStopped": "Máy Mac đã dừng máy chủ đồng hành.",
     "reconnect": "Kết nối lại",
     "holdToTalk": "Giữ để nói",
@@ -1272,6 +1406,16 @@
     "stateReady": "Sẵn sàng",
     "stateRecording": "Đang ghi",
     "stateDisconnected": "Đã ngắt",
-    "stateError": "Lỗi"
+    "stateError": "Lỗi",
+    "targetLabel": "Gửi đến",
+    "targetPc": "Tới máy tính",
+    "targetPhone": "Tới điện thoại",
+    "postProcessLabel": "Đánh bóng văn bản",
+    "resultTitle": "Bản chuyển ngữ",
+    "copy": "Sao chép",
+    "copied": "Đã sao chép",
+    "polished": "Đã đánh bóng",
+    "historyTitle": "Gần đây",
+    "historyEmpty": "Những lần đọc từ điện thoại này sẽ hiện ở đây."
   }
 }

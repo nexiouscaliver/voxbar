@@ -261,6 +261,12 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
 
     // ---- hello handshake ----
     let device_name: String;
+    // This connection's targeted frame lane: a SERVER-assigned id (never
+    // the client-controlled device name), claimed once the hello
+    // authenticates and passed on every Ptt edge so the session freezes
+    // exactly this connection as its delivery target.
+    let device_lane: u64;
+    let mut device_lane_rx: tokio::sync::mpsc::UnboundedReceiver<String>;
     let mut tracker = protocol::SessionTracker::new();
     let mut rate_cap = protocol::InputRateCap::new(Instant::now());
     let mut last_rx = Instant::now();
@@ -322,6 +328,16 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             // (see claim_session_device) - a second phone connecting
             // mid-dictation is a spectator, not the session's device.
             manager.claim_session_device(&device_name);
+            // v1.6.0: claim this connection's targeted frame lane.
+            // Phone-target transcripts ride it (never the broadcast every
+            // paired phone sees), so a bystander phone cannot render or
+            // clipboard-write a dictation it did not make. The lane is
+            // keyed by a server-assigned id, not the hello name: a paired
+            // phone repeating another phone's name cannot seize the lane,
+            // and same-named connections coexist.
+            let (lane, rx) = manager.register_device_lane();
+            device_lane = lane;
+            device_lane_rx = rx;
 
             let settings = crate::settings::get_settings(&app);
             let activation = match settings.shortcut_activation {
@@ -337,6 +353,13 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             if sink.send(Message::text(welcome.to_json())).await.is_err() {
                 return;
             }
+            // v1.6.0: the phone's recent companion history rides along with
+            // the welcome, so the client can render its recent list right
+            // away (and a reconnecting phone catches up on sessions it
+            // missed). Broadcast: every paired phone shares the same Mac
+            // history, and this connection's subscription predates the
+            // handshake.
+            crate::companion::broadcast_recent_history(&app);
         }
         _ => {
             // No valid hello in the window: drop without revealing why.
@@ -348,6 +371,12 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     log::info!("companion: {device_name} paired from {peer}");
 
     // ---- session loop ----
+    // v1.6.0 per-session preferences, sticky for this connection: every
+    // Ptt edge folds its optional fields into these, and the press edge
+    // that starts a session snapshots them into the manager so the shared
+    // pipeline honors them for that session (a mid-session press from the
+    // same or another phone only arms the NEXT session's prefs).
+    let mut prefs = protocol::SessionPrefs::default();
     let mut ping_ticker = tokio::time::interval(PING_INTERVAL);
     ping_ticker.tick().await; // the first tick fires immediately
     let mut server_stopping = false;
@@ -356,6 +385,7 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
         enum Step {
             Frame(Option<Result<Message, tokio_tungstenite::tungstenite::Error>>),
             Broadcast(String),
+            Targeted(String),
             Tick,
             Stop,
         }
@@ -366,6 +396,13 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 Ok(text) => Step::Broadcast(text),
                 Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
                 Err(tokio::sync::broadcast::error::RecvError::Closed) => Step::Stop,
+            },
+            out = device_lane_rx.recv() => match out {
+                Some(text) => Step::Targeted(text),
+                // Unreachable while this connection holds its lane (the
+                // map keeps the sender alive); kept as a safe wind-down if
+                // the lane is ever released elsewhere.
+                None => break,
             },
             _ = ping_ticker.tick() => Step::Tick,
         };
@@ -384,6 +421,11 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 break;
             }
             Step::Broadcast(text) => {
+                if sink.send(Message::text(text)).await.is_err() {
+                    break;
+                }
+            }
+            Step::Targeted(text) => {
                 if sink.send(Message::text(text)).await.is_err() {
                     break;
                 }
@@ -431,11 +473,28 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 last_rx = Instant::now();
                 match message {
                     Message::Text(text) => match protocol::parse_client_frame(&text) {
-                        Some(ClientFrame::Ptt { pressed }) => {
+                        Some(ClientFrame::Ptt {
+                            pressed,
+                            prefs: update,
+                        }) => {
+                            prefs.apply(update);
+                            if pressed {
+                                // Arm the pending slot the tray's companion
+                                // status block reads as "what the next press
+                                // will do". The session ITSELF is armed by
+                                // the prefs riding the edge below: the
+                                // coordinator applies them to the live slot
+                                // at the single serialized instant it commits
+                                // the start, so a concurrent press from
+                                // another phone (whose command queues behind
+                                // this one) cannot overwrite them in any
+                                // arm-to-freeze window.
+                                manager.set_pending_session_prefs(prefs);
+                            }
                             if let Some(coordinator) =
                                 app.try_state::<crate::TranscriptionCoordinator>()
                             {
-                                coordinator.send_companion_edge(&app, pressed);
+                                coordinator.send_companion_edge(&app, pressed, prefs, device_lane);
                             }
                             if pressed {
                                 tracker.press(Instant::now());
@@ -496,7 +555,11 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
 
     // ---- disconnect: graceful finalize ----
     let _ = sink.close().await;
-    manager.forget_device(&device_name);
+    manager.forget_device(&app, &device_name);
+    // Release the targeted lane this connection claimed. Ids are never
+    // reused, so a session still pointing at it reads the miss as the
+    // documented dropped-phone no-op.
+    manager.unregister_device_lane(device_lane);
 
     // Acknowledge the recorder's stop-pause handshake so Stop never waits
     // the 2 s timeout on a vanished phone.

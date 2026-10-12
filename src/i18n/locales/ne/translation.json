@@ -12,6 +12,20 @@
     "postProcessModel": "पोस्ट-प्रोसेस मोडेल",
     "quit": "बाहिर निस्कनुहोस्",
     "cancel": "रद्द गर्नुहोस्",
+    "statusIdle": "निष्क्रिय",
+    "statusRecording": "रेकर्ड गर्दै…",
+    "statusTranscribing": "ट्रान्सक्राइब गर्दै…",
+    "asrModel": "ASR मोडेल",
+    "modelsNone": "कुनै मोडेल लोड भएको छैन",
+    "recentDictations": "हालका ट्रान्सक्रिप्ट",
+    "recentDictationsEmpty": "अझै कुनै ट्रान्सक्रिप्ट छैन",
+    "companionLabel": "कम्प्यानियन",
+    "companionOn": "सञ्चालित",
+    "companionOff": "बन्द",
+    "companionPairedDevices": "पेयर गरिएका यन्त्रहरू",
+    "companionTarget": "लक्ष्य",
+    "companionTargetMac": "यो Mac",
+    "companionTargetPhone": "फोन",
     "secureInputWarning": "⚠ Secure Input ले सर्टकटहरू रोकेको छ",
     "postProcessPrompt": "पोस्ट-प्रोसेस प्रम्प्ट"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "उन्नतमा सक्रिय गर्नुहोस्",
     "history": "हिस्ट्री",
     "debug": "डिबग",
-    "about": "बारेमा"
+    "about": "बारेमा",
+    "notifications": "सूचनाहरू",
+    "promptStudio": "प्रम्प्ट स्टुडियो"
   },
   "onboarding": {
     "subtitle": "सुरु गर्न, एउटा ट्रान्सक्रिप्सन मोडेल छान्नुहोस्",
@@ -667,7 +683,31 @@
         "serverError": "सर्भर असफल: {{error}}",
         "refresh": "ताजा पार्नुहोस्",
         "statusRunning": "चलिरहेको",
-        "statusStopped": "रोकिएको"
+        "statusStopped": "रोकिएको",
+        "interfaceTitle": "नेटवर्क इन्टरफेस",
+        "interfaceAuto": "स्वतः (LAN रुचाइएको)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "अझै कुनै नेटवर्क इन्टरफेस भेटिएको छैन",
+        "bindError": "इन्टरफेस समस्या: {{error}}",
+        "manualTitle": "म्यानुअल सेटिङ",
+        "hostLabel": "घोषणा गरिने होस्ट वा IP",
+        "hostPlaceholder": "खाली छोड्दा इन्टरफेसको ठेगाना प्रयोग हुन्छ",
+        "hostInvalid": "स्किम, पोर्ट वा स्ल्यास बिना IPv4 ठेगाना वा होस्टनाम राख्नुहोस्",
+        "portInvalid": "पोर्ट १ देखि ६५५३५ बीचको सङ्ख्या हुनुपर्छ",
+        "tlsTitle": "TLS प्रमाणपत्र",
+        "tlsCertLabel": "प्रमाणपत्र फाइल",
+        "tlsKeyLabel": "कुञ्जी फाइल",
+        "tlsSelfSigned": "भित्री स्व-हस्ताक्षरित प्रमाणपत्र प्रयोग भइरहेको छ",
+        "tlsManual": "तपाईंको आफ्नै प्रमाणपत्र प्रयोग भइरहेको छ",
+        "tlsPairInvalid": "दुवै फाइल सेट गर्नुहोस् वा दुवै खाली छोड्नुहोस्",
+        "restartButton": "सर्भर पुनः सुरु गर्नुहोस्",
+        "restartPending": "पुनः सुरु गरेपछि परिवर्तनहरू लागू हुन्छन्",
+        "qrPreviewNote": "पूर्वावलोकन: सर्भर अर्को पटक सुरु हुँदा यो URL घोषणा गरिनेछ।",
+        "sharedNetworkNote": "फोन र यो Mac ले एउटै सञ्जाल साझा गर्नुपर्छ: उही Wi-Fi वा LAN, वा उही tailnet (जस्तै दुवै Tailscale मा)।"
       }
     },
     "postProcessing": {
@@ -702,7 +742,20 @@
           "refreshModels": "मोडेलहरू रिफ्रेस गर्नुहोस्",
           "fetchFailed": "मोडेल सूची लिन असफल ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "मोडेल सूची {{time}} मा लिइयो",
-          "retry": "फेरि प्रयास गर्नुहोस्"
+          "retry": "फेरि प्रयास गर्नुहोस्",
+          "visibleDescription": "हरेक डिक्टेसन पछि तपाईंको ट्रान्सक्रिप्ट फेरि लेख्ने मोडेल।",
+          "fetchingList": "मोडेल सूची लोड हुँदै...",
+          "listSummary_one": "{{count}} मोडेल, {{time}} मा ल्याइयो",
+          "listSummary_other": "{{count}} मोडेलहरू, {{time}} मा ल्याइयो",
+          "notFetched": "अझै कुनै मोडेल सूची छैन।",
+          "emptyTitle": "सूचीमा कुनै मोडेल छैन",
+          "emptyHint": "यो कुञ्जीले देख्ने मोडेलहरू लोड गर्न रिफ्रेस गर्नुहोस्, वा तल मोडेल आईडी टाइप गर्नुहोस्।",
+          "customSet": "सेट गर्नुहोस्",
+          "customHint": "सूचीमा नभए पनि तपाईंको प्रोभाइडरको कुनै पनि मोडेल आईडी चल्छ।",
+          "filterPlaceholder": "मोडेल फिल्टर गर्नुहोस्",
+          "showAll_one": "सबै देखाउनुहोस् ({{count}})",
+          "showAll_other": "सबै देखाउनुहोस् ({{count}})",
+          "showFewer": "कम देखाउनुहोस्"
         },
         "timeout": {
           "title": "अनुरोध समय सीमा",
@@ -718,7 +771,8 @@
           "appleReady": "Apple Intelligence उपलब्ध छ",
           "appleUnavailable": "Apple Intelligence यो यन्त्रमा उपलब्ध छैन",
           "failed": "जडान असफल: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "इन्जिन"
       },
       "local": {
         "label": "स्थानीय मोडेल",
@@ -854,9 +908,15 @@
           "chinese_simplified": {
             "name": "चिनियाँ (सरलीकृत)",
             "description": "समान ध्वनी शब्द सुधारसहित सरलीकृत चिनियाँ सफाइ।"
+          },
+          "prompt_enhancer": {
+            "name": "प्रम्प्ट सुधारक",
+            "description": "बोलिएको निर्देशलाई AI एजेन्ट वा एपका लागि स्पष्ट, संरचित प्रम्प्टमा बदल्छ।"
           }
         },
-        "editPrompt": "सम्पादन गर्ने"
+        "editPrompt": "सम्पादन गर्ने",
+        "testShort": "परीक्षण",
+        "deleteShort": "मेट्नुहोस्"
       }
     },
     "history": {
@@ -882,7 +942,9 @@
       "groups": {
         "retention": "प्रतिधारण"
       },
-      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms मार्फत"
+      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms मार्फत",
+      "viewChanges": "परिवर्तनहरू हेर्नुहोस्",
+      "hideChanges": "परिवर्तनहरू लुकाउनुहोस्"
     },
     "debug": {
       "title": "डिबग",
@@ -1076,7 +1138,70 @@
     "ppOutcome": {
       "applied": "लागू",
       "skipped": "छाडियो",
-      "failed": "असफल"
+      "failed": "असफल",
+      "unchanged": "अपरिवर्तित"
+    },
+    "notifications": {
+      "title": "सूचनाहरू",
+      "toggle": {
+        "label": "प्रणाली सूचनाहरू",
+        "description": "त्रुटि र सत्र परिणामहरू प्रणाली सूचनाका रूपमा देखाउनुहोस्। तपाईंले हटाउञ्जेल तिनीहरू सूचना केन्द्रमा रहन्छन्।"
+      },
+      "outcomes": {
+        "label": "परिणाम सूचनाहरू",
+        "description": "फोन सत्र समाप्त हुँदा पनि सूचित गर्नुहोस्, जस्तै सत्र सीमा पुग्दा वा फोन विच्छेद हुँदा। बन्द भनेको त्रुटि मात्र।"
+      },
+      "log": {
+        "title": "सूचना लग",
+        "description": "ताजा ५० त्रुटि र परिणाम सूचना। नयाँ प्रविष्टि प्रणाली सूचना चालु रहेको बेला मात्र राखिन्छ।",
+        "empty": "अझै कुनै सूचना छैन।",
+        "clear": "सबै खाली गर्नुहोस्"
+      }
+    },
+    "studio": {
+      "title": "प्रम्प्ट स्टुडियो",
+      "intro": "वास्तविक ट्रान्सक्रिप्टमा प्रम्प्ट परीक्षण गर्नुहोस् र इन्जिनहरू सँगसँगै तुलना गर्नुहोस्। चलाउने क्रमले वास्तविक डिक्टेसन जस्तै इन्जिन पाइपलाइन प्रयोग गर्छ, तर अन्य एपमा केही टाइप हुँदैन र इतिहासमा केही सुरक्षित हुँदैन।",
+      "source": {
+        "label": "स्रोत पाठ",
+        "description": "स्टुडियोले निखार्ने ट्रान्सक्रिप्ट: तपाईंको पछिल्लो डिक्टेसन वा इतिहासको कुनै पनि प्रविष्टि।",
+        "last": "पछिल्लो ट्रान्सक्रिप्ट",
+        "loading": "प्रविष्टिहरू लोड हुँदैछन्..."
+      },
+      "prompts": {
+        "label": "प्रम्प्टहरू",
+        "description": "चलाउन एक वा बढी टेम्प्लेट छान्नुहोस्।"
+      },
+      "engines": {
+        "label": "इन्जिनहरू",
+        "description": "तिनलाई चलाउन एक वा बढी इन्जिन छान्नुहोस्।",
+        "appleUnavailable": "यो Mac मा Apple Intelligence उपलब्ध छैन",
+        "noModel": "कुनै मोडेल कन्फिगर गरिएको छैन",
+        "noModelHint": "मोडेल सेट छैन। Post Process मा छान्नुहोस्।"
+      },
+      "run_one": "{{count}} जोडी चलाउनुहोस्",
+      "run_other": "{{count}} जोडी चलाउनुहोस्",
+      "runHint_one": "१ इन्जिनमा {{count}} प्रम्प्ट। केही टाइप वा सुरक्षित हुँदैन।",
+      "runHint_other": "{{count}} प्रम्प्ट-इन्जिन जोडी। केही टाइप वा सुरक्षित हुँदैन।",
+      "running": "चलिरहेको छ...",
+      "rerun": "फेरि चलाउनुहोस्",
+      "latency": "{{ms}} ms",
+      "rawKept": "इन्जिन असफल भयो वा छाडियो, त्यसैले कच्चा ट्रान्सक्रिप्ट राखिनेथ्यो।",
+      "partialFailure": "केही चलाउने काम असफल भए वा छाडिए, अरूले नतिजा दिए। हरेक कार्ड जाँच्नुहोस्।",
+      "results_one": "{{count}} नतिजा",
+      "results_other": "{{count}} नतिजा",
+      "errors": {
+        "engineNotFound": "इन्जिन '{{id}}' कन्फिगर गरिएको छैन।",
+        "entryNotFound": "छानिएको इतिहास प्रविष्टि अब छैन।",
+        "emptyBatch": "कम्तीमा एक प्रम्प्ट र एक इन्जिन छान्नुहोस्।"
+      },
+      "diff": {
+        "lines": "लाइनहरू",
+        "charsChanged_one": "{{count}} अक्षर परिवर्तन",
+        "charsChanged_other": "{{count}} अक्षर परिवर्तन",
+        "identical": "कुनै परिवर्तन छैन।"
+      },
+      "resultsEmptyTitle": "नतिजा यहाँ देखिनेछ",
+      "resultsEmptyHint": "माथि स्रोत, प्रम्प्ट र इन्जिन छानी चलाउनुहोस्। हरेक कार्डमा परिमार्जित पाठ, परिवर्तनहरू र गति देखिन्छ।"
     }
   },
   "footer": {
@@ -1205,11 +1330,18 @@
       "postProcessOutputInvalid": "पोलिसले अनुपयोगी पाठ फर्कायो, त्यसैले मूल ट्रान्सक्रिप्ट राखियो।",
       "postProcessCloudFailed": "पोलिस असफल भयो, मूल ट्रान्सक्रिप्ट राखियो: {{detail}}",
       "postProcessPromptCycled": "पोस्ट-प्रोसेस टेम्पलेट: {{name}}",
+      "postProcessPromptCycledPosition": "पोस्ट-प्रोसेस टेम्पलेट: {{name}} ({{total}} मध्ये {{position}})",
+      "postProcessSessionUpgraded": "यो सेसनका लागि पोस्ट-प्रोसेस अन: {{name}}",
+      "postProcessSessionDowngraded": "यो सेसनका लागि पोस्ट-प्रोसेस बन्द",
       "companionDisconnected": "फोन विच्छेद भयो। रेकर्ड भएकै कुराले टुंग्याइँदैछ।",
       "companionServerFailed": "साथी सर्भर असफल: {{error}}",
-      "companionSessionCapped": "साथी डिभाइसबाट भएको डिक्टेसन समाप्त भयो: १५ मिनेटको सत्र सीमा {{device}} मा पुग्‍यो।"
+      "companionSessionCapped": "साथी डिभाइसबाट भएको डिक्टेसन समाप्त भयो: १५ मिनेटको सत्र सीमा {{device}} मा पुग्‍यो।",
+      "companionZeroAudio": "साथी उपकरणबाट भएको डिक्टेसन कुनै अडियो बिना समाप्त भयो। केही पनि ट्रान्सक्रिप्ट भएन।",
+      "postProcessUnchanged": "पोलिसिङ सकियो तर केही पनि बदलेन; ट्रान्स्क्रिप्ट बोझै भएअनुसार टाँसियो।",
+      "postProcessNotConfigured": "पोस्ट-प्रोसेसिङ चलेन: {{detail}}। कच्चा ट्रान्स्क्रिप्ट राखियो।"
     },
     "commandBadge": "कमाण्ड मोड",
+    "ppBadge": "पोस्ट-प्रोसेस",
     "ppChip": "पोलिस हुँदै ({{model}}) {{seconds}}s",
     "companionBadge": "साथी माइक्रोफोन"
   },
@@ -1254,13 +1386,15 @@
     "subtitle": "तपाईंको फोन अब तपाईंको Mac को माइक्रोफोन र बटन हो।",
     "certNote": "ब्राउजरले कनेक्सनमा चेतावनी देखाएमा प्रमाणपत्र फिंगरप्रिन्टलाई VoxBar सेटिङमा भएकोसँग तुलना गरी एक पटक स्वीकार गर्नुहोस्।",
     "noToken": "यो पृष्ठ VoxBar सेटिङको QR कोडबाट खोल्नुहोस्।",
-    "micDenied": "माइक्रोफोन पहुँच अस्वीकार भयो। ब्राउजरमा अनुमति दिई पुनः लोड गर्नुहोस्।",
+    "micDenied": "माइक्रोफोन पहुँच असफल भयो। ब्राउजरमा अनुमति दिई फेरि प्रयास गर्नुहोस्।",
+    "micRetry": "फेरि प्रयास गर्नुहोस्",
     "badToken": "जोडी असफल भयो। VoxBar सेटिङको QR कोड फेरि स्क्यान गर्नुहोस्।",
     "wrongSubnet": "यो फोन Mac भन्ना फरक नेटवर्कमा छ। उही Wi-Fi मा जोडिनुहोस् र फेरि जोड्नुहोस्।",
     "rateLimited": "धेरै जोडी प्रयास भयो। एक मिनेट प्रतीक्षा गरी फेरि प्रयास गर्नुहोस्।",
     "busy": "Mac पहिले नै अर्को बटनबाट डिक्टेट गरिरहेको छ।",
     "disconnectedFinalized": "कनेक्सन विच्छेद भयो। Mac ले तपाईंले भनेको कुरा राख्यो।",
     "capped": "सेसन १५ मिनेटमा सीमित छ। जारी राख्न फेरि थिच्नुहोस्।",
+    "zeroAudio": "कुनै अडियो Mac मा पुगेन। बटन थिचिराख्नुहोस् र बोल्नुहोस्।",
     "serverStopped": "Mac ले साथी सर्भर रोक्यो।",
     "reconnect": "पुनः जोड्नुहोस्",
     "holdToTalk": "बोल्न थिचिराख्नुहोस्",
@@ -1272,6 +1406,16 @@
     "stateReady": "तयार",
     "stateRecording": "रेकर्डिङ",
     "stateDisconnected": "विच्छेद",
-    "stateError": "त्रुटि"
+    "stateError": "त्रुटि",
+    "targetLabel": "पठाउने",
+    "targetPc": "कम्प्युटरमा",
+    "targetPhone": "फोनमा",
+    "postProcessLabel": "पाठ निखार्नुहोस्",
+    "resultTitle": "ट्रान्स्क्रिप्ट",
+    "copy": "कपी गर्नुहोस्",
+    "copied": "कपी भयो",
+    "polished": "निखारिएको",
+    "historyTitle": "हालका",
+    "historyEmpty": "यो फोनबाट गरिएका डिक्टेशन यहाँ देखिन्छन्।"
   }
 }

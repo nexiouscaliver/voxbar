@@ -30,6 +30,10 @@ import {
 } from "./components/settings";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { Sidebar, SidebarSection, SECTIONS_CONFIG } from "./components/Sidebar";
+import {
+  OPEN_PROMPT_STUDIO_EVENT,
+  PRELOAD_PROMPT_STUDIO_EVENT,
+} from "./components/settings/studio/studioEvents";
 import { SettingsSearch } from "./components/settings/SettingsSearch";
 import { WhatsNewGate } from "./components/whats-new";
 import { runUpdateCheck } from "./components/update-checker/updaterFlow";
@@ -43,11 +47,27 @@ import {
 } from "@/bindings";
 import { getLanguageDirection, initializeRTL } from "@/lib/utils/rtl";
 import { noticeMessage, noticeNotificationBody } from "@/lib/noticeMessage";
-import { routerDecision } from "@/lib/noticeRouting";
 import {
+  noticeClickSection,
+  noticeClickTarget,
+  planNoticeDispatch,
+} from "@/lib/noticeRouting";
+import {
+  attachNativeNoticeClickSource,
+  attachNoticeNotificationClickSource,
   notifyDesktop,
+  notifyDesktopPersistent,
   primeNotificationPermission,
+  subscribeNoticeNotificationClicks,
 } from "@/lib/desktopNotify";
+import {
+  initNotificationLog,
+  pushNotificationLogEntry,
+} from "@/lib/notificationLog";
+import {
+  getOsNotificationPrefs,
+  initNotificationPrefs,
+} from "@/lib/notificationPrefs";
 import {
   getMainWindowVisibility,
   setMainWindowVisibility,
@@ -399,10 +419,13 @@ function App() {
   // window show, never lazily inside notifyDesktop — the old lazy request
   // could surface the macOS system prompt with no window visible (the
   // notice arrived while hidden), and one silent denial then disabled the
-  // surface for the whole run. Only a genuine request FAILURE (the request
-  // threw) gets a toast, via the requestFailed key; a plain user denial is
-  // silent - the system prompt is the only way back, the user just
-  // declined it, and macOS deny-once makes an in-app retry a no-op.
+  // surface for the whole run. Fleet pass 2: the ask goes through the Rust
+  // seam (real UNUserNotificationCenter state on macOS; the plugin's
+  // desktop stub never asked). Only a genuine FAILURE (the state could not
+  // be resolved, or the request threw) gets a toast, via the requestFailed
+  // key; a plain user denial is silent - the system prompt is the only way
+  // back, the user just declined it, and macOS deny-once makes an in-app
+  // retry a no-op.
   // primeNotificationPermission is a once-per-run no-op after the first
   // call, so the subscription may safely re-arm on language change.
   useEffect(() => {
@@ -455,21 +478,52 @@ function App() {
   // toast still renders into its webview for when it next opens, and a
   // macOS notification reaches the user now (notifyDesktop gates itself on
   // the window's real visibility, KB-195).
+  //
+  // v1.6.0 W1-L4: planNoticeDispatch composes that transient decision with
+  // the persistent OS-notification classification (noticeRouting.ts): error
+  // and outcome codes also post a real Notification Center notification,
+  // independent of window visibility, and that persistent post REPLACES the
+  // hidden-window offer so the two surfaces never double-post. With the
+  // settings toggle off the plan degrades to the exact pre-v1.6.0 dispatch
+  // INCLUDING the log: no persistent post, no suppression, and no log write
+  // (the log is part of the notification system, so the off path adds no
+  // durable state the pre-v1.6.0 app did not write).
   const lastNoopNoticeToast = useRef<Record<string, number>>({});
   useEffect(() => {
     const unlisten = events.overlayNoticeEvent.listen((event) => {
       const { code, detail, kind, card_visible } = event.payload;
-      // The notify leg is decided by notifyDesktop's live window query
-      // (KB-195); no Rust-event store pre-gate, which went stale for
-      // minimized/Cmd+H windows and dropped deliverable notifications.
-      const decision = routerDecision(code, card_visible);
-      if (!decision.toast && !decision.notify) return;
+      const plan = planNoticeDispatch(
+        code,
+        card_visible,
+        getOsNotificationPrefs(),
+      );
+      if (
+        !plan.toast &&
+        !plan.persistentOs &&
+        !plan.legacyHiddenOsOffer &&
+        !plan.log
+      ) {
+        return;
+      }
       const message = noticeMessage(t, code, detail);
       if (message === null) return;
       const now = Date.now();
+      // The log leg is exempt from the same-code throttle: its contract is
+      // that a notice is never lost, and two same-code failures within the
+      // window (for example consecutive failing studio pairs) are two events.
+      // The throttle below only dedupes the transient toast and the
+      // persistent banner, both of which outlive the window on screen.
+      if (plan.log) {
+        pushNotificationLogEntry({
+          code,
+          detail: detail ?? null,
+          kind,
+          receivedAt: now,
+        });
+      }
       if (now - (lastNoopNoticeToast.current[code] ?? 0) < 2000) return;
       lastNoopNoticeToast.current[code] = now;
-      if (decision.toast) {
+      if (plan.toast) {
         const duration =
           code === "wayland_tauri_hotkeys" || code === "gnome_overlay_fallback"
             ? 12000
@@ -477,11 +531,21 @@ function App() {
         const toastFn = kind === "error" ? toast.error : toast.info;
         toastFn(message, { duration });
       }
-      if (decision.notify) {
-        // The OS notification carries the detail-free line - the raw
-        // backend diagnostic stays in the toast (KB-037 class on a system
-        // surface). notifyDesktop's internal visibility query makes the
-        // final deliver/quiet call.
+      // The OS notification carries the detail-free line - the raw
+      // backend diagnostic stays in the toast (KB-037 class on a system
+      // surface). notifyDesktop's internal visibility query makes the
+      // final deliver/quiet call on the legacy leg; the persistent leg is
+      // visibility-independent by design.
+      if (plan.persistentOs) {
+        const body = noticeNotificationBody(t, code, detail);
+        if (body !== null) {
+          void notifyDesktopPersistent({
+            body,
+            code,
+            target: noticeClickTarget(code) ?? "notifications",
+          });
+        }
+      } else if (plan.legacyHiddenOsOffer) {
         const body = noticeNotificationBody(t, code, detail);
         if (body !== null) void notifyDesktop(body);
       }
@@ -490,6 +554,36 @@ function App() {
       unlisten.then((fn) => fn());
     };
   }, [t]);
+
+  // v1.6.0 W1-L4 boot: hydrate the notification prefs and the notification
+  // log from localStorage once (both stores default safely on their own if
+  // storage is unavailable).
+  useEffect(() => {
+    initNotificationPrefs();
+    initNotificationLog();
+  }, []);
+
+  // v1.6.0 W1-L4 click-through: activating a posted notification focuses
+  // the app and navigates via the pure noticeClickSection seam: errors go
+  // to the in-app notifications log section, session outcomes to history.
+  // On macOS the native path delivers this: the Rust send leg
+  // (persistent_notice.rs) raises the main window on the click itself and
+  // emits notice-notification-click, which attachNativeNoticeClickSource
+  // funnels into the bus (the showMainWindowCommand call below covers the
+  // plugin-source path and is a harmless idempotent re-show on the native
+  // path). The plugin's onAction channel feeds the same bus where the
+  // platform provides it.
+  useEffect(() => {
+    void attachNativeNoticeClickSource();
+    void attachNoticeNotificationClickSource();
+    const unsubscribe = subscribeNoticeNotificationClicks((click) => {
+      void commands.showMainWindowCommand().catch((e) => {
+        console.warn("Failed to show main window for notification click:", e);
+      });
+      setCurrentSection(noticeClickSection(click));
+    });
+    return unsubscribe;
+  }, []);
 
   // Tray "Unload After → Custom…": jump to the Advanced settings section and
   // focus the custom-seconds field. The window event is re-dispatched after a
@@ -504,6 +598,24 @@ function App() {
     return () => {
       unlisten.then((fn) => fn());
     };
+  }, []);
+
+  // v1.6.0 W1-L6: the per-template Test button opens the Prompt Studio
+  // with that template preselected. Same re-dispatch pattern as the
+  // unload-timeout jump above: the studio hears the preload event only
+  // after it has mounted on the section switch.
+  useEffect(() => {
+    const listener = (event: Event) => {
+      setCurrentSection("promptStudio");
+      const detail = (event as CustomEvent<{ promptId: string }>).detail;
+      setTimeout(() => {
+        window.dispatchEvent(
+          new CustomEvent(PRELOAD_PROMPT_STUDIO_EVENT, { detail }),
+        );
+      }, 150);
+    };
+    window.addEventListener(OPEN_PROMPT_STUDIO_EVENT, listener);
+    return () => window.removeEventListener(OPEN_PROMPT_STUDIO_EVENT, listener);
   }, []);
 
   const revealMainWindowForPermissions = async () => {

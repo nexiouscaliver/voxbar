@@ -21,9 +21,10 @@ const formatClock = (unixMs: number): string => {
   )}`;
 };
 
-/* The outcome token (`applied` | `skipped:<reason>` | `failed:<class>`)
- * built from the wire shape { kind, reason?/class? }, matching the token
- * the backend writes into history and the pp: log line. */
+/* The outcome token (`applied` | `unchanged` | `skipped:<reason>` |
+ * `failed:<class>`) built from the wire shape { kind, reason?/class? },
+ * matching the token the backend writes into history and the pp: log
+ * line. */
 const outcomeToken = (
   outcome: NonNullable<PostProcessRunRecord["outcome"]>,
 ): string => {
@@ -33,11 +34,17 @@ const outcomeToken = (
   if (outcome.kind === "failed") {
     return `failed:${outcome.class}`;
   }
+  if (outcome.kind === "unchanged") {
+    return "unchanged";
+  }
   return "applied";
 };
 
 /* The outcome cell: the base word plus the failure class when the run
- * failed. The token's full form rides the tooltip. */
+ * failed. The tooltip carries the token AND the run's fallback reason
+ * (round 7: why a skip skipped, why a validation failed, why an
+ * "unchanged" echo changed nothing - the same detail the pp: outcome line
+ * logs). */
 const OutcomeCell: React.FC<{ record: PostProcessRunRecord }> = ({
   record,
 }) => {
@@ -52,16 +59,19 @@ const OutcomeCell: React.FC<{ record: PostProcessRunRecord }> = ({
   const detail = token.includes(":")
     ? token.split(":").slice(1).join(":")
     : null;
+  const tooltip = record.outcome_detail
+    ? `${token}\n${record.outcome_detail}`
+    : token;
   return (
     <span
       className={
         base === "failed"
           ? "text-red-600 dark:text-red-400"
-          : base === "skipped"
+          : base === "skipped" || base === "unchanged"
             ? "text-amber-600 dark:text-amber-400"
             : "text-emerald-600 dark:text-emerald-400"
       }
-      title={token}
+      title={tooltip}
     >
       {t(`settings.ppOutcome.${base}`)}
       {detail ? ` (${detail})` : ""}

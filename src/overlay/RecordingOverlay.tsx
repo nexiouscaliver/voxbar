@@ -27,6 +27,11 @@ import {
   writeCachedLanguage,
   writeCachedPlacement,
 } from "./overlayBootstrap";
+import {
+  POST_PROCESS_BADGE_EVENT,
+  ppBadgeStateFromPayload,
+  type PpBadgePayload,
+} from "./ppBadge";
 
 type OverlayState =
   | "recording"
@@ -143,6 +148,15 @@ const RecordingOverlay: React.FC = () => {
   // Companion-session indicator: a phone/tablet mic is the capture source
   // (emitted at remote session start/stop beside the command-mode chip).
   const [companionActive, setCompanionActive] = useState(false);
+  // Post-process badge (v1.6.0 W1-L7): the live session will be
+  // post-processed (started via the pp hotkey, upgraded mid-session, or a
+  // phone session with the pp toggle). The coordinator emits
+  // post-process-changed on every transition path, session end and cancel
+  // included, so the chip can never outlive its session; it names the
+  // active template and falls back to the bare PP label when none is
+  // selected (the stop pipeline surfaces that configuration gap itself).
+  const [ppActive, setPpActive] = useState(false);
+  const [ppTemplate, setPpTemplate] = useState<string | null>(null);
   // A live post-process run (the pp: lifecycle's Requested phase), driving
   // the "Polishing (model) 1.8s" label on the working row while the run is
   // in flight; cleared at its Outcome phase and on overlay hide/reset.
@@ -187,6 +201,8 @@ const RecordingOverlay: React.FC = () => {
           }
           setCmdActive(false);
           setCompanionActive(false);
+          setPpActive(false);
+          setPpTemplate(null);
           setPpRun(null);
           if (overlayState !== "preview" && noticeTimerRef.current !== null) {
             window.clearTimeout(noticeTimerRef.current);
@@ -218,6 +234,8 @@ const RecordingOverlay: React.FC = () => {
         setNotice(null);
         setCmdActive(false);
         setCompanionActive(false);
+        setPpActive(false);
+        setPpTemplate(null);
         setPpRun(null);
         if (noticeTimerRef.current !== null) {
           window.clearTimeout(noticeTimerRef.current);
@@ -293,6 +311,23 @@ const RecordingOverlay: React.FC = () => {
         },
       );
 
+      // The session's post-process badge (v1.6.0 W1-L7): lit while the live
+      // session will be post-processed, naming the active template. The
+      // coordinator emits on/off on every path (start, mid-session toggle,
+      // session end, cancel) and every selection change (the cycle hotkey,
+      // the settings dropdown, the tray submenu) re-emits the on edge with
+      // a fresh name, so the chip tracks the truth without polling. The
+      // event name and payload mapping live in ./ppBadge (tested against
+      // the Rust side's own pins).
+      const unlistenPpBadge = await listen<PpBadgePayload>(
+        POST_PROCESS_BADGE_EVENT,
+        (event) => {
+          const badge = ppBadgeStateFromPayload(event.payload);
+          setPpActive(badge.active);
+          setPpTemplate(badge.template);
+        },
+      );
+
       // The pp: lifecycle: Requested arms the polishing chip (model + start
       // instant); Outcome (applied | skipped | failed) clears it so the
       // label never outlives the run.
@@ -335,6 +370,7 @@ const RecordingOverlay: React.FC = () => {
         unlistenNotice();
         unlistenCmd();
         unlistenCompanion();
+        unlistenPpBadge();
         unlistenPpRun();
         unlistenSettings();
         // Never leave the removal chip's timer running past unmount.
@@ -437,6 +473,11 @@ const RecordingOverlay: React.FC = () => {
         {cmdActive && (
           <span className="scmd" aria-label={t("overlay.commandBadge")}>
             CMD
+          </span>
+        )}
+        {ppActive && (
+          <span className="scmd spp" aria-label={t("overlay.ppBadge")}>
+            {ppTemplate?.trim() ? ppTemplate : "PP"}
           </span>
         )}
         {companionActive && (

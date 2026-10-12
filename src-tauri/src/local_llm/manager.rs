@@ -155,16 +155,20 @@ pub enum SwapOutcome {
 /// output schema); `template_language` is the prompt template's language
 /// tag, threaded so the shared output validator's language-sanity rule
 /// (identical for local and cloud) can honor a declared script switch
-/// such as hi-Latn; `is_cancelled` is the stop path's cancel-generation
-/// closure so user cancellation reaches the runner with zero new plumbing
-/// (it is polled, never awaited); `run_id` is the pp: observability run the
-/// phases report into (None only in legacy tests).
+/// such as hi-Latn; `template_id` is the template's store id, threaded so
+/// the same validator can exempt the restructuring Prompt Enhancer from
+/// the cleanup templates' length-collapse guard; `is_cancelled` is the
+/// stop path's cancel-generation closure so user cancellation reaches the
+/// runner with zero new plumbing (it is polled, never awaited); `run_id`
+/// is the pp: observability run the phases report into (None only in
+/// legacy tests).
 #[derive(Clone)]
 pub struct SwapRequest {
     pub transcript: String,
     pub system_prompt: String,
     pub grammar: Option<String>,
     pub template_language: Option<String>,
+    pub template_id: Option<String>,
     pub is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
     pub run_id: Option<u64>,
 }
@@ -304,12 +308,14 @@ fn validate_output(
     transcript: &str,
     generated: &str,
     template_language: Option<&str>,
+    template_id: Option<&str>,
 ) -> Result<String, (SkipReason, Option<String>)> {
     crate::actions::validate_post_process_output(
         transcript,
         generated,
         crate::actions::PostProcessOutputMode::StructuredJson,
         template_language,
+        template_id,
     )
     .map_err(|failure| (failure.skip_reason, Some(failure.detail)))
 }
@@ -1469,6 +1475,7 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                                     &request.transcript,
                                     &text,
                                     request.template_language.as_deref(),
+                                    request.template_id.as_deref(),
                                 ) {
                                     Ok(clean) => {
                                         processed = Some(clean);
@@ -1574,11 +1581,15 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
             let outcome = match &processed {
                 Some(clean) => {
                     if let Some(run_id) = request.run_id {
-                        crate::post_process_runs::runs().finish(
+                        // finish_applied (round 7): a verbatim echo records
+                        // `unchanged`, not `applied`, so a weak engine that
+                        // did nothing is distinguishable in the outcome
+                        // column.
+                        crate::post_process_runs::runs().finish_applied(
                             None,
                             run_id,
-                            crate::post_process_runs::PostProcessOutcome::Applied,
-                            Some(clean.chars().count() as u64),
+                            &request.transcript,
+                            clean,
                         );
                     }
                     SwapOutcome::Processed(clean.clone())
@@ -1657,11 +1668,11 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
     match (&processed, planner.is_done()) {
         (Some(clean), true) => {
             if let Some(run_id) = request.run_id {
-                crate::post_process_runs::runs().finish(
+                crate::post_process_runs::runs().finish_applied(
                     None,
                     run_id,
-                    crate::post_process_runs::PostProcessOutcome::Applied,
-                    Some(clean.chars().count() as u64),
+                    &request.transcript,
+                    clean,
                 );
             }
             SwapOutcome::Processed(clean.clone())
@@ -1837,6 +1848,50 @@ mod tests {
             );
             assert!(line.ends_with("detail=because"), "detail in line: {line}");
         }
+    }
+
+    /// Round 7's no-op guard on the local engine: a worker that echoes the
+    /// transcript verbatim (the weak-engine failure mode behind the
+    /// operator's "post-processing does nothing" report) still validates,
+    /// but the runner's success seam records `unchanged` with the no-op
+    /// fallback reason instead of `applied`.
+    #[test]
+    fn verbatim_echo_records_unchanged_not_applied() {
+        use crate::post_process_runs::{runs, PostProcessOutcome, RunRequestMeta};
+
+        let run_id = runs().begin(
+            None,
+            RunRequestMeta {
+                binding: "transcribe_with_post_process".to_string(),
+                engine: crate::post_process_runs::PostProcessEngineKind::Local,
+                provider_id: "local".to_string(),
+                model: "qwen".to_string(),
+                prompt_id: Some("p".to_string()),
+                prompt_name: None,
+                prompt_version: None,
+                template_language: None,
+                chars_in: 40,
+            },
+        );
+        let host = FakeHost::new();
+        let (cfg, _engine_state) = runner_cfg(
+            host,
+            FakeEngine::happy(Ok(
+                "{\"transcription\":\"um hello world this is a test transcript\"}".to_string(),
+            )),
+        );
+        let outcome = swap_runner(&LlmManager::new(), &sample_request_with_run(run_id), cfg);
+        assert_eq!(
+            outcome,
+            SwapOutcome::Processed("um hello world this is a test transcript".to_string())
+        );
+        let record = runs().snapshot(run_id).expect("record");
+        assert_eq!(record.outcome, Some(PostProcessOutcome::Unchanged));
+        assert_eq!(
+            record.outcome_detail.as_deref(),
+            Some(crate::post_process_runs::NO_OP_OUTPUT_DETAIL)
+        );
+        assert_eq!(record.changed_ratio, Some(1.0));
     }
 
     /// Both terminal outcomes conclude the run in the pp: vocabulary:
@@ -2283,6 +2338,7 @@ mod tests {
             system_prompt: "clean the transcript".to_string(),
             grammar: Some("root ::= ...".to_string()),
             template_language: None,
+            template_id: None,
             is_cancelled: None,
             run_id: None,
         }
@@ -2612,6 +2668,7 @@ mod tests {
             system_prompt: String::new(),
             grammar: None,
             template_language: None,
+            template_id: None,
             is_cancelled: None,
             run_id: None,
         };
@@ -2642,6 +2699,7 @@ mod tests {
             system_prompt: String::new(),
             grammar: None,
             template_language: None,
+            template_id: None,
             is_cancelled: None,
             run_id: None,
         };

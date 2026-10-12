@@ -20,11 +20,14 @@
 //! a hidden tray relies on tray-icon recreating it from the last applied
 //! icon/menu/tooltip, so those must only ever be set through the applier.
 
+use crate::companion::CompanionManager;
+use crate::local_llm::manager::LlmManager;
 use crate::managers::history::{HistoryEntry, HistoryManager};
 use crate::managers::model::ModelManager;
 use crate::managers::transcription::TranscriptionManager;
 use crate::settings::{self, ModelUnloadTimeout};
 use crate::tray_i18n::get_tray_translations;
+use chrono::{Local, TimeZone};
 use log::{debug, error, info, trace, warn};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -44,10 +47,43 @@ pub enum TrayIconState {
 }
 
 impl TrayIconState {
-    /// Recording and Transcribing share the same menu ("Cancel" instead of the
-    /// model submenu), so only the idle/busy distinction matters for the menu.
+    /// Recording and Transcribing share the same menu SHAPE ("Cancel"
+    /// instead of the model submenu); the exact state still matters for
+    /// the status block's first line, which is why [`MenuInputs`] carries
+    /// the full state rather than this bool.
     fn is_busy(self) -> bool {
         self != TrayIconState::Idle
+    }
+}
+
+/// One non-interactive line of the tray's models status block: a loaded
+/// model's display name plus its formatted RSS segment when one resolved.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct ModelStatusLine {
+    name: String,
+    /// Formatted resident segment (`697 MB`), `None` when no reading or
+    /// estimate resolved.
+    rss: Option<String>,
+}
+
+/// The companion status block's data: the effective enable gate, how many
+/// devices are paired, and where the next companion session's transcript
+/// would land (the phone-armed per-session target, Mac paste by default).
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct CompanionMenuStatus {
+    enabled: bool,
+    paired_devices: usize,
+    phone_target: bool,
+}
+
+impl Default for CompanionMenuStatus {
+    /// No manager in state (tests, early startup): reads as fully off.
+    fn default() -> Self {
+        CompanionMenuStatus {
+            enabled: false,
+            paired_devices: 0,
+            phone_target: false,
+        }
     }
 }
 
@@ -55,7 +91,11 @@ impl TrayIconState {
 /// compare equal the menu is not rebuilt.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct MenuInputs {
-    busy: bool,
+    /// The exact activity state, driving the status block's first line
+    /// (Idle / Recording / Transcribing). Supersedes the old `busy` bool:
+    /// the status line is localized per state, so a Recording ->
+    /// Transcribing transition is a real menu change now.
+    status: TrayIconState,
     warning: bool,
     model_loaded: bool,
     selected_model: String,
@@ -67,10 +107,32 @@ struct MenuInputs {
     /// submenu label prefers this over `selected_model` - the two diverge in
     /// the failed-switch and pending-unload states (spec F4).
     resident_model: Option<(String, String)>,
+    /// The models status block's ASR line (W1-L8): the resident model's
+    /// display name plus the composed RSS segment (live measured footprint
+    /// first, then the KB-218 captured reading, then the size estimate).
+    /// `None` when nothing is resident. A change drives a menu rebuild via
+    /// this struct's `PartialEq`.
+    asr_model_status: Option<ModelStatusLine>,
+    /// The models status block's post-process line (W1-L8): the keep-warm
+    /// local LLM worker's model, with its measured RSS when one was
+    /// captured. `None` when no local post-process worker is warm - the
+    /// block then shows at most the ASR line, or the idle line when both
+    /// are absent.
+    pp_model_status: Option<ModelStatusLine>,
     /// Pre-formatted resident-footprint segment for the submenu label and
     /// tooltip (`697 MB` measured / `~697 MB` estimate); `None` omits the
-    /// segment. A change drives a menu rebuild via this struct's `PartialEq`.
+    /// segment. Composed from the same footprint reading as
+    /// `asr_model_status` so the submenu label and the status line can
+    /// never disagree. A change drives a menu rebuild via this struct's
+    /// `PartialEq`.
     model_ram: Option<String>,
+    /// The Recent Dictations submenu's rows (W1-L8): `(entry id, display
+    /// label)` newest first, at most [`TRAY_RECENT_DICTATIONS`] of them.
+    /// Fed from the off-thread [`TrayHistory`] snapshot, never a
+    /// synchronous query. Empty renders the localized empty-state line.
+    recent_dictations: Vec<(i64, String)>,
+    /// The companion status block's data (W1-L8).
+    companion: CompanionMenuStatus,
     /// Persisted idle-unload timeout, driving the "Unload After" submenu's
     /// checkmark (and its Custom… seconds hint).
     unload_timeout: ModelUnloadTimeout,
@@ -399,15 +461,69 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
     // Resident model (id + display name) via the existing public accessor,
     // mapped through the same downloaded list the submenu builds from; the
     // footprint segment comes from the resident-footprint plumbing (measured
-    // worker RSS for transcribe-cpp, size estimate for in-process ONNX).
+    // worker RSS for transcribe-cpp, size estimate for in-process ONNX),
+    // composed with the KB-218 captured reading so a live-probe failure
+    // still shows a real measured figure before any estimate.
     let resident_model = transcription.get_current_model().and_then(|id| {
         downloaded_models
             .iter()
             .find(|(mid, _)| *mid == id)
             .map(|(_, name)| (id, name.clone()))
     });
-    let footprint = transcription.resident_model_footprint();
+    let footprint = asr_status_rss(
+        transcription.resident_model_footprint(),
+        transcription.measured_asr_rss_current(),
+    );
     let model_ram = format_ram_segment(footprint);
+    let asr_model_status = resident_model.as_ref().map(|(_, name)| ModelStatusLine {
+        name: name.clone(),
+        rss: model_ram.clone(),
+    });
+
+    // The post-process leg of the models status block: the keep-warm local
+    // LLM worker (only present when the local engine is the provider and
+    // the keep-warm window is on), with its per-model measured RSS.
+    let pp_model_status = app.try_state::<Arc<LlmManager>>().and_then(|llm| {
+        llm.warm_model_id().map(|id| {
+            let name = downloaded_llm_models
+                .iter()
+                .find(|(mid, _)| *mid == id)
+                .map(|(_, name)| name.clone())
+                .unwrap_or_else(|| id.clone());
+            let rss = llm
+                .measured_rss_for(&id)
+                .and_then(|bytes| format_ram_segment(Some((bytes, true))));
+            ModelStatusLine { name, rss }
+        })
+    });
+
+    // The Recent Dictations submenu's rows, read from the off-thread
+    // snapshot (never a synchronous DB query here - compute_desired can run
+    // on the main thread, e.g. the startup sync).
+    let recent_dictations: Vec<(i64, String)> = app
+        .try_state::<TrayHistory>()
+        .map(|snapshot| {
+            snapshot
+                .lock()
+                .iter()
+                .map(|row| (row.id, row.label.clone()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    // The companion status block: the effective gate (companion toggle AND
+    // the Experimental master switch), the paired-device count via the
+    // cheap lock read, and the target the NEXT companion session would use
+    // (armed by the phone's press edges, Mac paste by default).
+    let companion = app
+        .try_state::<Arc<CompanionManager>>()
+        .map(|manager| CompanionMenuStatus {
+            enabled: crate::companion::effective_enabled(&settings),
+            paired_devices: manager.paired_device_count(),
+            phone_target: manager.pending_session_prefs().output_target
+                == crate::companion::protocol::OutputTarget::Phone,
+        })
+        .unwrap_or_default();
     // Menu-bar title (macOS only; see MenuInputs::title). Computed from the
     // load/unload-driven snapshot as the menu is, PLUS the periodic RAM
     // refresh loop (see [`start_ram_refresh`]) while a model is resident, and
@@ -426,7 +542,7 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
     TrayDesired {
         icon_path: get_icon_path(theme, icon_state, warning),
         menu: MenuInputs {
-            busy: icon_state.is_busy(),
+            status: icon_state,
             warning,
             model_loaded,
             selected_model: settings.selected_model,
@@ -434,7 +550,11 @@ fn compute_desired(app: &AppHandle, icon_state: TrayIconState) -> TrayDesired {
             locale: settings.app_language,
             update_checks_enabled: settings.update_checks_enabled,
             resident_model,
+            asr_model_status,
+            pp_model_status,
             model_ram,
+            recent_dictations,
+            companion,
             unload_timeout: settings.model_unload_timeout,
             post_process_local_active,
             post_process_enabled: settings.post_process_enabled,
@@ -560,7 +680,7 @@ fn apply_on_main(app: &AppHandle) {
             "unchanged"
         },
         if menu_changed { "rebuilt" } else { "unchanged" },
-        desired.menu.busy,
+        desired.menu.status.is_busy(),
         started.elapsed()
     );
 }
@@ -643,13 +763,27 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
     let quit_i = MenuItem::with_id(app, "quit", &strings.quit, true, quit_accelerator)?;
     let separator = || PredefinedMenuItem::separator(app);
 
-    let menu = if inputs.busy {
+    // --- W1-L8: the status-first sections every layout shares -------------
+    //
+    // The status block is the first section of the menu: what the app is
+    // doing right now (Idle / Recording / Transcribing), always disabled -
+    // the actionable Cancel item follows it in the busy layout.
+    let status_i = MenuItem::with_id(
+        app,
+        "tray_status",
+        &status_line_text(inputs.status, &strings),
+        false,
+        None::<&str>,
+    )?;
+
+    let menu = if inputs.status.is_busy() {
         let cancel_i = MenuItem::with_id(app, "cancel", &strings.cancel, true, None::<&str>)?;
         Menu::with_items(
             app,
             &[
                 &version_i,
                 &separator()?,
+                &status_i,
                 &cancel_i,
                 &separator()?,
                 &copy_last_transcript_i,
@@ -766,23 +900,96 @@ fn build_menu(app: &AppHandle, inputs: &MenuInputs) -> tauri::Result<(Menu<tauri
         )?;
         unload_after_submenu.append(&unload_after_custom_i)?;
 
-        // Assembled dynamically: the Post-process Model submenu is
-        // conditional, so the separator after the model block is only
-        // present when that submenu is. Bound items (not temporaries) so
-        // they outlive the builder call.
+        // The models block: one disabled line per loaded model (ASR first,
+        // then the keep-warm local post-process worker), or a single idle
+        // line when neither is resident.
+        let model_line_items = models_status_lines(inputs, &strings)
+            .into_iter()
+            .enumerate()
+            .map(|(idx, line)| {
+                MenuItem::with_id(
+                    app,
+                    format!("model_status_{idx}"),
+                    &line,
+                    false,
+                    None::<&str>,
+                )
+            })
+            .collect::<tauri::Result<Vec<_>>>()?;
+
+        // The companion block: On/Off, then the paired-device count and
+        // the next session's output target while enabled (one collapsed
+        // line while off - a disabled feature's target is meaningless).
+        let companion_line_items = companion_status_lines(&inputs.companion, &strings)
+            .into_iter()
+            .enumerate()
+            .map(|(idx, line)| {
+                MenuItem::with_id(
+                    app,
+                    format!("companion_status_{idx}"),
+                    &line,
+                    false,
+                    None::<&str>,
+                )
+            })
+            .collect::<tauri::Result<Vec<_>>>()?;
+
+        // "Recent Dictations" submenu (W1-L8): the last few history
+        // entries, newest first, labeled with the local time and the
+        // first words of the FINAL text. Clicking one copies that FINAL
+        // text (post-processed when present, else the raw transcript) -
+        // the same selection rule as Copy Last Transcript. Empty history
+        // renders a single disabled placeholder line instead.
+        let recent_dictations_submenu = Submenu::with_id(
+            app,
+            "recent_dictations_submenu",
+            &strings.recent_dictations,
+            true,
+        )?;
+        let recent_rows = recent_dictations_submenu_rows(inputs);
+        if recent_rows.is_empty() {
+            let empty_i = MenuItem::with_id(
+                app,
+                "recent_dictations_empty",
+                &strings.recent_dictations_empty,
+                false,
+                None::<&str>,
+            )?;
+            recent_dictations_submenu.append(&empty_i)?;
+        } else {
+            for (item_id, label) in &recent_rows {
+                let item = MenuItem::with_id(app, item_id, label, true, None::<&str>)?;
+                recent_dictations_submenu.append(&item)?;
+            }
+        }
+
+        // Assembled dynamically: the status-first blocks contribute a
+        // variable number of lines and the Post-process Model submenu is
+        // conditional. Bound items (not temporaries) so they outlive the
+        // builder call.
         let sep_after_version = separator()?;
-        let sep_after_copy = separator()?;
+        let sep_after_status = separator()?;
+        let sep_after_models_block = separator()?;
+        let sep_after_recent = separator()?;
+        let sep_after_companion = separator()?;
         let sep_after_models = separator()?;
         let sep_after_updates = separator()?;
-        let mut idle_items: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> = vec![
-            &version_i,
-            &sep_after_version,
-            &copy_last_transcript_i,
-            &sep_after_copy,
-            &model_submenu,
-            &unload_model_i,
-            &unload_after_submenu,
-        ];
+        let mut idle_items: Vec<&dyn tauri::menu::IsMenuItem<tauri::Wry>> =
+            vec![&version_i, &sep_after_version, &status_i, &sep_after_status];
+        for item in &model_line_items {
+            idle_items.push(item);
+        }
+        idle_items.push(&sep_after_models_block);
+        idle_items.push(&recent_dictations_submenu);
+        idle_items.push(&copy_last_transcript_i);
+        idle_items.push(&sep_after_recent);
+        for item in &companion_line_items {
+            idle_items.push(item);
+        }
+        idle_items.push(&sep_after_companion);
+        idle_items.push(&model_submenu);
+        idle_items.push(&unload_model_i);
+        idle_items.push(&unload_after_submenu);
         if let Some(submenu) = &post_process_model_submenu {
             idle_items.push(submenu);
         }
@@ -842,6 +1049,84 @@ fn last_transcript_text(entry: &HistoryEntry) -> &str {
         .post_processed_text
         .as_deref()
         .unwrap_or(&entry.transcription_text)
+}
+
+/// Compose the ASR model's resident RSS reading for the models status
+/// block and the submenu label (W1-L8): the LIVE measured footprint wins;
+/// otherwise the KB-218 captured per-model reading (a real measurement,
+/// taken at that model's last load) beats the size-derived estimate; the
+/// estimate stands only when no measurement exists at all. Pure, so the
+/// precedence is unit-testable without an app or a worker.
+fn asr_status_rss(live: Option<(u64, bool)>, captured: Option<u64>) -> Option<(u64, bool)> {
+    match live {
+        Some((bytes, true)) => Some((bytes, true)),
+        Some((bytes, false)) => captured.map(|bytes| (bytes, true)).or(Some((bytes, false))),
+        None => captured.map(|bytes| (bytes, true)),
+    }
+}
+
+/// The status block's single line: what the app is doing right now.
+/// Pure.
+fn status_line_text(status: TrayIconState, strings: &crate::tray_i18n::TrayStrings) -> String {
+    match status {
+        TrayIconState::Recording => strings.status_recording.clone(),
+        TrayIconState::Transcribing => strings.status_transcribing.clone(),
+        TrayIconState::Idle => strings.status_idle.clone(),
+    }
+}
+
+/// The models status block's line texts (all non-interactive): the ASR
+/// line when a model is resident, the post-process line when a local LLM
+/// worker is warm, and a single localized idle line when neither is. Pure,
+/// so the section's shape is unit-testable without an app.
+fn models_status_lines(
+    inputs: &MenuInputs,
+    strings: &crate::tray_i18n::TrayStrings,
+) -> Vec<String> {
+    let line = |label: &str, status: &ModelStatusLine| match &status.rss {
+        Some(rss) => format!("{label}: {} ({rss})", status.name),
+        None => format!("{label}: {}", status.name),
+    };
+    let mut lines = Vec::new();
+    if let Some(asr) = &inputs.asr_model_status {
+        lines.push(line(&strings.asr_model, asr));
+    }
+    if let Some(pp) = &inputs.pp_model_status {
+        lines.push(line(&strings.post_process_model, pp));
+    }
+    if lines.is_empty() {
+        lines.push(strings.models_none.clone());
+    }
+    lines
+}
+
+/// The companion status block's line texts (all non-interactive): the
+/// On/Off line always, the paired-device count and the next session's
+/// output target only while enabled (a disabled feature's target and
+/// device list are meaningless noise). Pure.
+fn companion_status_lines(
+    companion: &CompanionMenuStatus,
+    strings: &crate::tray_i18n::TrayStrings,
+) -> Vec<String> {
+    let state = if companion.enabled {
+        &strings.companion_on
+    } else {
+        &strings.companion_off
+    };
+    let mut lines = vec![format!("{}: {state}", strings.companion_label)];
+    if companion.enabled {
+        lines.push(format!(
+            "{}: {}",
+            strings.companion_paired_devices, companion.paired_devices
+        ));
+        let target = if companion.phone_target {
+            &strings.companion_target_phone
+        } else {
+            &strings.companion_target_mac
+        };
+        lines.push(format!("{}: {target}", strings.companion_target));
+    }
+    lines
 }
 
 /// Format the resident-footprint segment shown after the model name:
@@ -1249,49 +1534,265 @@ pub fn recreate_tray_icon(app: &AppHandle) {
     }
 }
 
-pub fn copy_last_transcript(app: &AppHandle) {
-    let history_manager = app.state::<Arc<HistoryManager>>();
-    let entry = match history_manager.get_latest_completed_entry() {
-        Ok(Some(entry)) => entry,
-        Ok(None) => {
-            warn!("No completed transcription history entries available for tray copy.");
+// --- Recent Dictations submenu (W1-L8) ---------------------------------------
+
+/// How many history entries the Recent Dictations submenu lists.
+const TRAY_RECENT_DICTATIONS: usize = 5;
+
+/// Char budget for the first-words segment of a Recent Dictations label.
+/// Char-based (not bytes), so CJK text never panics or overruns.
+const RECENT_WORDS_MAX_CHARS: usize = 48;
+
+/// One cached row behind the Recent Dictations submenu: the history entry
+/// id (the copy action's payload), the pre-formatted display label, and
+/// the FINAL text a click copies (post-processed when present, else the
+/// raw transcript - the same rule as Copy Last Transcript).
+#[derive(Clone, Debug)]
+pub struct RecentDictation {
+    pub id: i64,
+    pub label: String,
+    pub final_text: String,
+}
+
+/// Tauri-managed snapshot of the recent-dictations rows. Filled ONLY by
+/// [`refresh_tray_history`] on a background thread (never a synchronous
+/// history query on the UI thread - `compute_desired` can run there, e.g.
+/// the startup sync); the menu builder reads it under the lock, the same
+/// lock-guarded-in-memory class as the settings snapshot it already reads.
+#[derive(Default)]
+pub struct TrayHistory(Mutex<Vec<RecentDictation>>);
+
+impl TrayHistory {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn lock(&self) -> MutexGuard<'_, Vec<RecentDictation>> {
+        self.0.lock().unwrap_or_else(|poisoned| {
+            warn!("Tray history mutex was poisoned, recovering");
+            poisoned.into_inner()
+        })
+    }
+}
+
+/// Refresh the Recent Dictations snapshot from history, then re-sync the
+/// tray. The query runs on a spawned thread and the clipboard is never
+/// touched here, so calling this from the UI thread (startup, the
+/// history-updated listener) never blocks it on the database.
+pub fn refresh_tray_history(app: &AppHandle) {
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        let Some(history) = handle.try_state::<Arc<HistoryManager>>() else {
             return;
+        };
+        let entries = match history.recent_completed_entries(TRAY_RECENT_DICTATIONS) {
+            Ok(entries) => entries,
+            Err(err) => {
+                error!("Failed to load recent dictations for the tray menu: {err}");
+                return;
+            }
+        };
+        let now = Local::now();
+        let rows: Vec<RecentDictation> = entries
+            .iter()
+            .map(|entry| RecentDictation {
+                id: entry.id,
+                label: recent_dictation_label(entry.timestamp, last_transcript_text(entry), now),
+                final_text: last_transcript_text(entry).to_string(),
+            })
+            .collect();
+        debug!("tray history: {} recent dictation(s) cached", rows.len());
+        if let Some(snapshot) = handle.try_state::<TrayHistory>() {
+            *snapshot.lock() = rows;
         }
-        Err(err) => {
-            error!(
-                "Failed to fetch last completed transcription entry: {}",
-                err
-            );
-            return;
+        update_tray_menu(&handle);
+    });
+}
+
+/// Truncate to at most `max` CHARS, appending an ellipsis when anything
+/// was cut. Char-based, so multi-byte scripts are safe. Pure.
+fn truncate_chars(text: &str, max: usize) -> String {
+    let mut chars: Vec<char> = text.chars().collect();
+    if chars.len() <= max {
+        return text.to_string();
+    }
+    chars.truncate(max);
+    let mut truncated: String = chars.into_iter().collect();
+    truncated.push('…');
+    truncated
+}
+
+/// One Recent Dictations label: `14:32 · first words of the final text…`.
+/// The time segment is today's local time for same-day entries and the
+/// plain date for older ones; the words segment is whitespace-collapsed
+/// (a transcript with newlines must never break the label) and truncated
+/// char-safely. Pure over the entry and the caller's now, so the whole
+/// contract is unit-testable.
+fn recent_dictation_label(
+    timestamp: i64,
+    final_text: &str,
+    now: chrono::DateTime<Local>,
+) -> String {
+    let time_segment = match Local.timestamp_opt(timestamp, 0).single() {
+        Some(entry_time) if entry_time.date_naive() == now.date_naive() => {
+            entry_time.format("%H:%M").to_string()
         }
+        Some(entry_time) => entry_time.format("%Y-%m-%d").to_string(),
+        None => timestamp.to_string(),
     };
+    let words = final_text.split_whitespace().collect::<Vec<_>>().join(" ");
+    format!(
+        "{time_segment} · {}",
+        truncate_chars(&words, RECENT_WORDS_MAX_CHARS)
+    )
+}
 
-    let text = last_transcript_text(&entry);
-    if text.trim().is_empty() {
-        warn!("Last completed transcription is empty; skipping tray copy.");
+/// Build one Recent Dictations row's menu item id - the copy action's
+/// payload. Pure, and pinned against [`parse_history_copy_id`] in the
+/// tests: the producer and the consumer must agree, and with the producer
+/// previously an inline `format!` a prefix rename would break every click
+/// while the parser's own tests still passed.
+fn history_copy_menu_id(entry_id: i64) -> String {
+    format!("history_copy:{entry_id}")
+}
+
+/// Parse a `history_copy:{id}` menu item id back into the entry id. Pure.
+pub fn parse_history_copy_id(menu_id: &str) -> Option<i64> {
+    menu_id
+        .strip_prefix("history_copy:")
+        .and_then(|id| id.parse::<i64>().ok())
+}
+
+/// The Recent Dictations submenu's rows as `(menu item id, label)` pairs,
+/// newest first, straight from MenuInputs. Empty output means "render the
+/// localized empty-state placeholder" - the exact decision build_menu's
+/// two branches implement. Pure, so the submenu's construction with and
+/// without history (and every row's copy payload) is unit-testable
+/// without an app.
+fn recent_dictations_submenu_rows(inputs: &MenuInputs) -> Vec<(String, String)> {
+    inputs
+        .recent_dictations
+        .iter()
+        .map(|(entry_id, label)| (history_copy_menu_id(*entry_id), label.clone()))
+        .collect()
+}
+
+/// Write text to the clipboard on the main thread. Returns `false` on a
+/// failure the caller has already logged.
+fn write_clipboard_on_main(app: &AppHandle, text: &str) -> bool {
+    match app.clipboard().write_text(text) {
+        Ok(()) => true,
+        Err(err) => {
+            error!("Failed to copy to clipboard via tray: {err}");
+            false
+        }
+    }
+}
+
+pub fn copy_last_transcript(app: &AppHandle) {
+    // The history query runs on a spawned thread (W1-L8: no synchronous
+    // history queries on the UI thread - this handler runs there), with
+    // the clipboard write marshalled back to the main thread.
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        let history_manager = handle.state::<Arc<HistoryManager>>();
+        let entry = match history_manager.get_latest_completed_entry() {
+            Ok(Some(entry)) => entry,
+            Ok(None) => {
+                warn!("No completed transcription history entries available for tray copy.");
+                return;
+            }
+            Err(err) => {
+                error!(
+                    "Failed to fetch last completed transcription entry: {}",
+                    err
+                );
+                return;
+            }
+        };
+
+        let text = last_transcript_text(&entry).to_string();
+        if text.trim().is_empty() {
+            warn!("Last completed transcription is empty; skipping tray copy.");
+            return;
+        }
+        let write_handle = handle.clone();
+        let _ = handle.run_on_main_thread(move || {
+            if write_clipboard_on_main(&write_handle, &text) {
+                info!("Copied last transcript to clipboard via tray.");
+            }
+        });
+    });
+}
+
+/// Copy one Recent Dictations entry's FINAL text to the clipboard. The
+/// common path reads the cached snapshot (no query at all); a stale menu
+/// whose entry fell out of the snapshot falls back to a by-id fetch on a
+/// background thread. The clipboard write always happens on the main
+/// thread.
+pub fn copy_recent_dictation(app: &AppHandle, entry_id: i64) {
+    // Snapshot hit: pure in-memory lookup, safe on the UI thread.
+    if let Some(text) = app.try_state::<TrayHistory>().and_then(|snapshot| {
+        snapshot
+            .lock()
+            .iter()
+            .find(|row| row.id == entry_id)
+            .map(|row| row.final_text.clone())
+    }) {
+        if text.trim().is_empty() {
+            warn!("Recent dictation {entry_id} is empty; skipping tray copy.");
+            return;
+        }
+        if write_clipboard_on_main(app, &text) {
+            info!("Copied recent dictation {entry_id} to clipboard via tray.");
+        }
         return;
     }
 
-    if let Err(err) = app.clipboard().write_text(text) {
-        error!("Failed to copy last transcript to clipboard: {}", err);
-        return;
-    }
-
-    info!("Copied last transcript to clipboard via tray.");
+    // Snapshot miss (the menu predates a refresh that dropped the entry):
+    // fetch by id off the UI thread, then copy on the main thread.
+    let handle = app.clone();
+    std::thread::spawn(move || {
+        let history_manager = handle.state::<Arc<HistoryManager>>();
+        match tauri::async_runtime::block_on(history_manager.get_entry_by_id(entry_id)) {
+            Ok(Some(entry)) => {
+                let text = last_transcript_text(&entry).to_string();
+                if text.trim().is_empty() {
+                    warn!("Recent dictation {entry_id} is empty; skipping tray copy.");
+                    return;
+                }
+                let write_handle = handle.clone();
+                let _ = handle.run_on_main_thread(move || {
+                    if write_clipboard_on_main(&write_handle, &text) {
+                        info!("Copied recent dictation {entry_id} to clipboard via tray.");
+                    }
+                });
+            }
+            Ok(None) => {
+                warn!("Recent dictation {entry_id} no longer exists; skipping tray copy.")
+            }
+            Err(err) => error!("Failed to fetch recent dictation {entry_id}: {err}"),
+        }
+    });
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        compact_ram, desired_tray_title, format_duration_compact, format_ram_segment,
-        format_tray_title, get_icon_path, last_transcript_text, llm_submenu_checks,
-        llm_submenu_label_name, load_tray_icon, native_title_arg, prompt_submenu_checks,
-        prompt_submenu_label_name, resolve_model_label_name, title_reconciliation,
-        unload_after_custom_label, unload_after_preset_is_active, AppTheme, MenuInputs,
-        TitleAction, TrayDesired, TrayIconState, TRAY_TITLE_MAX_CHARS,
+        asr_status_rss, compact_ram, companion_status_lines, desired_tray_title,
+        format_duration_compact, format_ram_segment, format_tray_title, get_icon_path,
+        history_copy_menu_id, last_transcript_text, llm_submenu_checks, llm_submenu_label_name,
+        load_tray_icon, models_status_lines, native_title_arg, parse_history_copy_id,
+        prompt_submenu_checks, prompt_submenu_label_name, recent_dictation_label,
+        recent_dictations_submenu_rows, resolve_model_label_name, status_line_text,
+        title_reconciliation, truncate_chars, unload_after_custom_label,
+        unload_after_preset_is_active, AppTheme, CompanionMenuStatus, MenuInputs, ModelStatusLine,
+        TitleAction, TrayIconState, RECENT_WORDS_MAX_CHARS, TRAY_TITLE_MAX_CHARS,
     };
     use crate::managers::history::HistoryEntry;
     use crate::settings::ModelUnloadTimeout;
+    use crate::tray_i18n::get_tray_translations;
+    use chrono::{Local, TimeZone};
 
     fn build_entry(transcription: &str, post_processed: Option<&str>) -> HistoryEntry {
         HistoryEntry {
@@ -1310,12 +1811,14 @@ mod tests {
             post_process_prompt_id: None,
             post_process_outcome: None,
             post_process_latency_ms: None,
+            capture_source: "local".to_string(),
+            delivery_destination: "mac".to_string(),
         }
     }
 
-    fn inputs(busy: bool) -> MenuInputs {
+    fn inputs() -> MenuInputs {
         MenuInputs {
-            busy,
+            status: TrayIconState::Idle,
             warning: false,
             model_loaded: true,
             selected_model: "small".to_string(),
@@ -1323,7 +1826,11 @@ mod tests {
             locale: "en".to_string(),
             update_checks_enabled: true,
             resident_model: None,
+            asr_model_status: None,
+            pp_model_status: None,
             model_ram: None,
+            recent_dictations: Vec::new(),
+            companion: CompanionMenuStatus::default(),
             unload_timeout: ModelUnloadTimeout::Min2,
             post_process_local_active: false,
             post_process_enabled: false,
@@ -1333,6 +1840,10 @@ mod tests {
             post_process_selected_prompt_id: None,
             title: None,
         }
+    }
+
+    fn en_strings() -> crate::tray_i18n::TrayStrings {
+        get_tray_translations(Some("en".to_string()))
     }
 
     #[test]
@@ -1362,9 +1873,9 @@ mod tests {
 
     #[test]
     fn menu_inputs_differ_on_model_ram_change() {
-        let mut with_ram = inputs(false);
+        let mut with_ram = inputs();
         with_ram.model_ram = Some("697 MB".to_string());
-        assert_ne!(inputs(false), with_ram);
+        assert_ne!(inputs(), with_ram);
     }
 
     /// KB-188: the Post-process Prompt submenu's enabled state rides the
@@ -1374,10 +1885,10 @@ mod tests {
     /// disabled) until the next unrelated rebuild.
     #[test]
     fn post_process_toggle_flip_drives_menu_rebuild() {
-        let mut enabled = inputs(false);
+        let mut enabled = inputs();
         enabled.post_process_enabled = true;
         assert_ne!(
-            inputs(false),
+            inputs(),
             enabled,
             "toggle flip => MenuInputs differ => the menu rebuilds"
         );
@@ -1390,18 +1901,18 @@ mod tests {
     /// update_tray_menu is enough for the applier to see a diff and rebuild.
     #[test]
     fn unload_timeout_and_provider_changes_drive_menu_rebuild() {
-        let mut custom = inputs(false);
+        let mut custom = inputs();
         custom.unload_timeout = ModelUnloadTimeout::Custom { seconds: 90 };
         assert_ne!(
-            inputs(false),
+            inputs(),
             custom,
             "unload-timeout change => MenuInputs differ => the menu rebuilds"
         );
 
-        let mut local = inputs(false);
+        let mut local = inputs();
         local.post_process_local_active = true;
         assert_ne!(
-            inputs(false),
+            inputs(),
             local,
             "provider flip => MenuInputs differ => the Post-process Model submenu appears/disappears"
         );
@@ -1412,7 +1923,7 @@ mod tests {
     /// selection change drives a menu rebuild through MenuInputs' equality.
     #[test]
     fn llm_submenu_checks_list_downloaded_models_with_one_checkmark() {
-        let mut with_llm = inputs(false);
+        let mut with_llm = inputs();
         with_llm.post_process_local_active = true;
         with_llm.downloaded_llm_models = vec![
             (
@@ -1452,7 +1963,7 @@ mod tests {
     /// a selection change drives a rebuild through MenuInputs' equality.
     #[test]
     fn prompt_submenu_lists_the_library_with_one_checkmark() {
-        let mut with_prompts = inputs(false);
+        let mut with_prompts = inputs();
         with_prompts.post_process_prompts = vec![
             (
                 "default_improve_transcriptions".to_string(),
@@ -1518,25 +2029,25 @@ mod tests {
 
     #[test]
     fn menu_inputs_differ_on_resident_model_change() {
-        let mut with_resident = inputs(false);
+        let mut with_resident = inputs();
         with_resident.resident_model = Some(("small".to_string(), "Small".to_string()));
-        assert_ne!(inputs(false), with_resident);
+        assert_ne!(inputs(), with_resident);
     }
 
     #[test]
     fn menu_inputs_differ_on_unload_timeout_change() {
         // Selecting an "Unload After" preset must rebuild the menu so the
         // checkmark moves.
-        let mut other_timeout = inputs(false);
+        let mut other_timeout = inputs();
         other_timeout.unload_timeout = ModelUnloadTimeout::Custom { seconds: 90 };
-        assert_ne!(inputs(false), other_timeout);
+        assert_ne!(inputs(), other_timeout);
     }
 
     #[test]
     fn menu_inputs_differ_on_title_change() {
-        let mut with_title = inputs(false);
+        let mut with_title = inputs();
         with_title.title = Some("Small · 300M".to_string());
-        assert_ne!(inputs(false), with_title);
+        assert_ne!(inputs(), with_title);
     }
 
     /// KB-034's mirror: the update-checks item's greyed-out state rides
@@ -1548,18 +2059,18 @@ mod tests {
     /// rebuild.
     #[test]
     fn menu_inputs_differ_on_update_checks_and_locale_change() {
-        let mut no_checks = inputs(false);
+        let mut no_checks = inputs();
         no_checks.update_checks_enabled = false;
         assert_ne!(
-            inputs(false),
+            inputs(),
             no_checks,
             "update-checks toggle flip => MenuInputs differ => the menu rebuilds"
         );
 
-        let mut german = inputs(false);
+        let mut german = inputs();
         german.locale = "de".to_string();
         assert_ne!(
-            inputs(false),
+            inputs(),
             german,
             "locale flip => MenuInputs differ => the menu rebuilds (its strings re-localize)"
         );
@@ -1887,24 +2398,376 @@ mod tests {
         assert!(load_tray_icon(Ok(missing)).is_err());
     }
 
+    /// W1-L8 re-pins the old "share a menu" contract: the status block's
+    /// first line is localized per exact state (Recording vs
+    /// Transcribing), so that transition is a REAL menu change now. The
+    /// icon still differs too, and both stay distinct from Idle.
     #[test]
-    fn recording_and_transcribing_share_a_menu() {
-        // The icon differs but the menu inputs are identical, so a
-        // Recording -> Transcribing transition must not rebuild the menu.
-        let recording = TrayDesired {
-            icon_path: "resources/tray_recording.png",
-            menu: inputs(TrayIconState::Recording.is_busy()),
-        };
-        let transcribing = TrayDesired {
-            icon_path: "resources/tray_transcribing.png",
-            menu: inputs(TrayIconState::Transcribing.is_busy()),
-        };
-        assert_ne!(recording.icon_path, transcribing.icon_path);
-        assert_eq!(recording.menu, transcribing.menu);
+    fn recording_and_transcribing_transition_rebuilds_the_menu_status_line() {
+        let mut recording = inputs();
+        recording.status = TrayIconState::Recording;
+        let mut transcribing = inputs();
+        transcribing.status = TrayIconState::Transcribing;
+        assert_ne!(
+            recording, transcribing,
+            "the status line text differs => the applier rebuilds the menu"
+        );
+
+        let strings = en_strings();
+        assert_eq!(
+            status_line_text(TrayIconState::Recording, &strings),
+            "Recording…"
+        );
+        assert_eq!(
+            status_line_text(TrayIconState::Transcribing, &strings),
+            "Transcribing…"
+        );
+        assert_eq!(status_line_text(TrayIconState::Idle, &strings), "Idle");
     }
 
     #[test]
     fn idle_and_busy_menus_differ() {
-        assert_ne!(inputs(false), inputs(true));
+        let mut busy = inputs();
+        busy.status = TrayIconState::Recording;
+        assert_ne!(inputs(), busy);
+    }
+
+    // --- W1-L8: models status block ---------------------------------------
+
+    #[test]
+    fn asr_status_rss_prefers_live_then_captured_then_estimate() {
+        let mib = 1024 * 1024;
+        // Live measured wins over everything.
+        assert_eq!(
+            asr_status_rss(Some((700 * mib, true)), Some(650 * mib)),
+            Some((700 * mib, true))
+        );
+        // Live probe failed but the KB-218 map has a captured reading: the
+        // real measurement replaces the size-derived estimate.
+        assert_eq!(
+            asr_status_rss(Some((500 * mib, false)), Some(650 * mib)),
+            Some((650 * mib, true))
+        );
+        // No captured reading: the estimate stands, still marked estimated.
+        assert_eq!(
+            asr_status_rss(Some((500 * mib, false)), None),
+            Some((500 * mib, false))
+        );
+        // A captured reading alone still resolves (the status line keys
+        // residency off the resident model, not off this composition).
+        assert_eq!(
+            asr_status_rss(None, Some(650 * mib)),
+            Some((650 * mib, true))
+        );
+        assert_eq!(asr_status_rss(None, None), None);
+    }
+
+    /// The models block's exhaustive shapes: ASR only, ASR + post-process,
+    /// post-process only, and the idle line when neither is loaded. RSS
+    /// present and absent variants render with and without the segment.
+    #[test]
+    fn models_status_lines_cover_every_load_combination() {
+        let strings = en_strings();
+
+        // Nothing loaded: the single localized idle line.
+        assert_eq!(
+            models_status_lines(&inputs(), &strings),
+            vec!["No models loaded".to_string()]
+        );
+
+        // ASR only, with and without a resolved RSS segment.
+        let mut asr_only = inputs();
+        asr_only.asr_model_status = Some(ModelStatusLine {
+            name: "Parakeet EN".to_string(),
+            rss: Some("697 MB".to_string()),
+        });
+        assert_eq!(
+            models_status_lines(&asr_only, &strings),
+            vec!["ASR Model: Parakeet EN (697 MB)".to_string()]
+        );
+        asr_only.asr_model_status = Some(ModelStatusLine {
+            name: "Parakeet EN".to_string(),
+            rss: None,
+        });
+        assert_eq!(
+            models_status_lines(&asr_only, &strings),
+            vec!["ASR Model: Parakeet EN".to_string()]
+        );
+
+        // Both legs loaded: ASR first, post-process second.
+        let mut both = inputs();
+        both.asr_model_status = Some(ModelStatusLine {
+            name: "Parakeet EN".to_string(),
+            rss: Some("697 MB".to_string()),
+        });
+        both.pp_model_status = Some(ModelStatusLine {
+            name: "Qwen3 0.6B".to_string(),
+            rss: Some("449 MB".to_string()),
+        });
+        assert_eq!(
+            models_status_lines(&both, &strings),
+            vec![
+                "ASR Model: Parakeet EN (697 MB)".to_string(),
+                "Post-process Model: Qwen3 0.6B (449 MB)".to_string(),
+            ]
+        );
+
+        // A warm post-process worker with the ASR model unloaded: the
+        // block shows it alone, never the idle line.
+        let mut pp_only = inputs();
+        pp_only.pp_model_status = Some(ModelStatusLine {
+            name: "Qwen3 0.6B".to_string(),
+            rss: None,
+        });
+        assert_eq!(
+            models_status_lines(&pp_only, &strings),
+            vec!["Post-process Model: Qwen3 0.6B".to_string()]
+        );
+
+        // Every load-state change drives a menu rebuild through equality.
+        assert_ne!(inputs(), asr_only);
+        assert_ne!(asr_only, both);
+        assert_ne!(inputs(), pp_only);
+    }
+
+    // --- W1-L8: companion status block ------------------------------------
+
+    #[test]
+    fn companion_status_lines_collapse_when_disabled() {
+        let strings = en_strings();
+
+        // Off: a single On/Off line, no device count, no target.
+        assert_eq!(
+            companion_status_lines(&CompanionMenuStatus::default(), &strings),
+            vec!["Companion: Off".to_string()]
+        );
+
+        // On: all three lines, Mac default target.
+        let on_mac = CompanionMenuStatus {
+            enabled: true,
+            paired_devices: 2,
+            phone_target: false,
+        };
+        assert_eq!(
+            companion_status_lines(&on_mac, &strings),
+            vec![
+                "Companion: On".to_string(),
+                "Paired devices: 2".to_string(),
+                "Target: This Mac".to_string(),
+            ]
+        );
+
+        // On with the phone-armed target.
+        let on_phone = CompanionMenuStatus {
+            enabled: true,
+            paired_devices: 0,
+            phone_target: true,
+        };
+        assert_eq!(
+            companion_status_lines(&on_phone, &strings),
+            vec![
+                "Companion: On".to_string(),
+                "Paired devices: 0".to_string(),
+                "Target: Phone".to_string(),
+            ]
+        );
+
+        // Enable flips and target flips drive menu rebuilds through
+        // MenuInputs' equality (the toggle commands re-sync the tray).
+        let mut base = inputs();
+        base.companion = on_mac;
+        let mut flipped = base.clone();
+        flipped.companion.enabled = false;
+        assert_ne!(base, flipped);
+        let mut retargeted = base.clone();
+        retargeted.companion.phone_target = true;
+        assert_ne!(base, retargeted);
+    }
+
+    // --- W1-L8: Recent Dictations submenu ---------------------------------
+
+    #[test]
+    fn recent_dictation_labels_use_time_then_collapsed_first_words() {
+        let now = Local::now();
+        let today = now.timestamp();
+
+        // Same-day entry: local time, then the words.
+        let label = recent_dictation_label(today - 90, "hello world", now);
+        let time_segment = Local
+            .timestamp_opt(today - 90, 0)
+            .single()
+            .unwrap()
+            .format("%H:%M")
+            .to_string();
+        assert_eq!(label, format!("{time_segment} · hello world"));
+
+        // Newlines and repeated whitespace collapse to single spaces so a
+        // multi-paragraph transcript can never break the label.
+        assert_eq!(
+            recent_dictation_label(today - 90, "one\n\n two   three", now),
+            format!("{time_segment} · one two three")
+        );
+
+        // An older entry shows the plain date, not a misleading time.
+        let last_week = now - chrono::Duration::days(7);
+        let label = recent_dictation_label(last_week.timestamp(), "hello", now);
+        let date_segment = Local
+            .timestamp_opt(last_week.timestamp(), 0)
+            .single()
+            .unwrap()
+            .format("%Y-%m-%d")
+            .to_string();
+        assert_eq!(label, format!("{date_segment} · hello"));
+    }
+
+    #[test]
+    fn recent_dictation_labels_truncate_char_safely() {
+        let now = Local::now();
+        let today = now.timestamp();
+        let long_text = "word ".repeat(40);
+        let label = recent_dictation_label(today, long_text.trim(), now);
+        let words_segment = label.split_once(" · ").unwrap().1;
+        assert!(words_segment.chars().count() <= RECENT_WORDS_MAX_CHARS + 1);
+        assert!(words_segment.ends_with('…'), "{label}");
+
+        // CJK text truncates by chars, never mid-byte-sequence, and a
+        // short entry is untouched.
+        let cjk = "语音".repeat(60);
+        let label = recent_dictation_label(today, &cjk, now);
+        let words_segment = label.split_once(" · ").unwrap().1;
+        assert!(words_segment.chars().count() <= RECENT_WORDS_MAX_CHARS + 1);
+        assert!(words_segment.ends_with('…'), "{label}");
+        let short = recent_dictation_label(today, "hi", now);
+        assert!(short.ends_with("· hi"), "{short}");
+
+        // The underlying truncator's own contract: under budget is exact,
+        // over budget is budget + one ellipsis char.
+        assert_eq!(truncate_chars("abc", 5), "abc");
+        assert_eq!(truncate_chars("abcdef", 5), "abcde…");
+        assert_eq!(truncate_chars(&"音".repeat(7), 5), "音音音音音…");
+        assert_eq!(truncate_chars("", 5), "");
+    }
+
+    #[test]
+    fn history_copy_menu_id_round_trips() {
+        assert_eq!(parse_history_copy_id("history_copy:42"), Some(42));
+        assert_eq!(parse_history_copy_id("history_copy:-7"), Some(-7));
+        // Malformed payloads the event handler must refuse, not guess.
+        assert_eq!(parse_history_copy_id("history_copy:"), None);
+        assert_eq!(parse_history_copy_id("history_copy:abc"), None);
+        assert_eq!(parse_history_copy_id("model_select:42"), None);
+        assert_eq!(parse_history_copy_id("history_copy"), None);
+    }
+
+    /// The producer and consumer of the copy action's payload are pinned
+    /// TOGETHER: whatever id `history_copy_menu_id` emits must parse back
+    /// to the same entry id (the click handler's contract). This is the
+    /// test a bare producer-prefix rename fails, which the parser tests
+    /// above never would.
+    #[test]
+    fn history_copy_id_producer_and_consumer_agree() {
+        for entry_id in [0, 1, 42, -7, i64::MAX] {
+            let menu_id = history_copy_menu_id(entry_id);
+            assert_eq!(
+                parse_history_copy_id(&menu_id),
+                Some(entry_id),
+                "menu id {menu_id} must round-trip to {entry_id}"
+            );
+        }
+    }
+
+    /// The Recent Dictations submenu's construction decision, with and
+    /// without history: no rows => build_menu renders the disabled
+    /// empty-state placeholder; otherwise exactly one row per entry, in
+    /// MenuInputs order, each carrying its copy payload id and label.
+    #[test]
+    fn recent_dictations_submenu_rows_without_and_with_history() {
+        // Without history: no rows, which is build_menu's placeholder
+        // branch (the localized "No dictations yet" line).
+        assert!(
+            recent_dictations_submenu_rows(&inputs()).is_empty(),
+            "empty history => the placeholder branch renders"
+        );
+
+        // With history: one row per entry, newest first, labels verbatim,
+        // ids carrying the entry id payload.
+        let mut with_history = inputs();
+        with_history.recent_dictations = vec![
+            (7, "14:32 · hello world".to_string()),
+            (6, "2026-10-10 · earlier one".to_string()),
+        ];
+        let rows = recent_dictations_submenu_rows(&with_history);
+        assert_eq!(
+            rows,
+            vec![
+                (
+                    "history_copy:7".to_string(),
+                    "14:32 · hello world".to_string()
+                ),
+                (
+                    "history_copy:6".to_string(),
+                    "2026-10-10 · earlier one".to_string()
+                ),
+            ],
+            "rows preserve MenuInputs order and labels"
+        );
+        // Every row's id parses back to its entry id (click contract).
+        assert_eq!(parse_history_copy_id(&rows[0].0), Some(7));
+        assert_eq!(parse_history_copy_id(&rows[1].0), Some(6));
+    }
+
+    /// The copy action's payload carries the history entry id; the FINAL
+    /// text selection (post-processed over raw) is the shared rule pinned
+    /// by the last_transcript tests above. The submenu's rows ride
+    /// MenuInputs, so a history change must rebuild the menu.
+    #[test]
+    fn recent_dictations_changes_drive_menu_rebuild() {
+        let mut with_history = inputs();
+        with_history.recent_dictations = vec![
+            (7, "14:32 · hello".to_string()),
+            (6, "14:01 · bye".to_string()),
+        ];
+        assert_ne!(inputs(), with_history, "history grew => the menu rebuilds");
+
+        // A new dictation (id 8) changes the list => rebuild.
+        let mut grown = with_history.clone();
+        grown
+            .recent_dictations
+            .insert(0, (8, "15:00 · new".to_string()));
+        assert_ne!(with_history, grown);
+
+        // A deletion empties back to the empty state => rebuild.
+        let mut emptied = with_history.clone();
+        emptied.recent_dictations.clear();
+        assert_ne!(
+            with_history, emptied,
+            "history emptied => the menu rebuilds"
+        );
+    }
+
+    #[test]
+    fn asr_model_status_change_drives_menu_rebuild() {
+        let mut with_status = inputs();
+        with_status.asr_model_status = Some(ModelStatusLine {
+            name: "Small".to_string(),
+            rss: Some("300 MB".to_string()),
+        });
+        assert_ne!(inputs(), with_status);
+
+        // The RSS segment moving (live worker growth) rebuilds too.
+        let mut grown_rss = with_status.clone();
+        grown_rss.asr_model_status = Some(ModelStatusLine {
+            name: "Small".to_string(),
+            rss: Some("305 MB".to_string()),
+        });
+        assert_ne!(with_status, grown_rss);
+
+        // Same for the post-process leg.
+        let mut with_pp = inputs();
+        with_pp.pp_model_status = Some(ModelStatusLine {
+            name: "Qwen3 0.6B".to_string(),
+            rss: Some("449 MB".to_string()),
+        });
+        assert_ne!(inputs(), with_pp);
     }
 }

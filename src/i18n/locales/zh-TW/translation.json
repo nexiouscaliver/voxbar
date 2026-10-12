@@ -12,6 +12,20 @@
     "postProcessModel": "後處理模型",
     "quit": "結束",
     "cancel": "取消",
+    "statusIdle": "閒置",
+    "statusRecording": "錄音中…",
+    "statusTranscribing": "轉寫中…",
+    "asrModel": "語音辨識模型",
+    "modelsNone": "未載入任何模型",
+    "recentDictations": "最近轉錄",
+    "recentDictationsEmpty": "尚無轉錄",
+    "companionLabel": "伴侶裝置",
+    "companionOn": "開啟",
+    "companionOff": "關閉",
+    "companionPairedDevices": "已配對裝置",
+    "companionTarget": "目標",
+    "companionTargetMac": "本機 Mac",
+    "companionTargetPhone": "手機",
     "secureInputWarning": "⚠ 快捷鍵被 Secure Input 阻擋",
     "postProcessPrompt": "後處理提示詞"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "在進階設定中啟用",
     "history": "歷史紀錄",
     "debug": "偵錯",
-    "about": "關於"
+    "about": "關於",
+    "notifications": "通知",
+    "promptStudio": "提示詞工作室"
   },
   "onboarding": {
     "subtitle": "首先，請選擇一種模型",
@@ -667,7 +683,31 @@
         "serverError": "伺服器失敗：{{error}}",
         "refresh": "重新整理",
         "statusRunning": "執行中",
-        "statusStopped": "已停止"
+        "statusStopped": "已停止",
+        "interfaceTitle": "網路介面",
+        "interfaceAuto": "自動（優先區域網路）",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "尚未找到網路介面",
+        "bindError": "介面問題：{{error}}",
+        "manualTitle": "手動覆寫",
+        "hostLabel": "對外公布的主機或 IP",
+        "hostPlaceholder": "留空時使用介面位址",
+        "hostInvalid": "請輸入 IPv4 位址或主機名稱（不含通訊協定、連接埠或斜線）",
+        "portInvalid": "連接埠必須是 1 到 65535 之間的數字",
+        "tlsTitle": "TLS 憑證",
+        "tlsCertLabel": "憑證檔案",
+        "tlsKeyLabel": "金鑰檔案",
+        "tlsSelfSigned": "正在使用內建的自簽憑證",
+        "tlsManual": "正在使用你自己的憑證",
+        "tlsPairInvalid": "兩個檔案都填寫，或都留空",
+        "restartButton": "重新啟動伺服器",
+        "restartPending": "變更會在重新啟動後生效",
+        "qrPreviewNote": "預覽：伺服器下次啟動後會公布此 URL。",
+        "sharedNetworkNote": "手機和這台 Mac 必須處於同一網路：同一 Wi-Fi 或區域網路，或同一 tailnet（例如都加入 Tailscale）。"
       }
     },
     "postProcessing": {
@@ -702,7 +742,20 @@
           "refreshModels": "重新整理模型",
           "fetchFailed": "擷取模型清單失敗（{{failureClass}}）：{{detail}}",
           "fetchedAtHint": "模型清單擷取於 {{time}}",
-          "retry": "重試"
+          "retry": "重試",
+          "visibleDescription": "每次聽寫後改寫轉錄文字的模型。",
+          "fetchingList": "正在取得模型清單...",
+          "listSummary_one": "1 個模型，取得於 {{time}}",
+          "listSummary_other": "{{count}} 個模型，取得於 {{time}}",
+          "notFetched": "尚未取得模型清單。",
+          "emptyTitle": "清單中沒有模型",
+          "emptyHint": "重新整理以載入此金鑰可見的模型，或在下方輸入模型 ID。",
+          "customSet": "設定",
+          "customHint": "只要服務商支援，未列出的模型 ID 也可以使用。",
+          "filterPlaceholder": "篩選模型",
+          "showAll_one": "顯示全部（{{count}}）",
+          "showAll_other": "顯示全部（{{count}}）",
+          "showFewer": "收合"
         },
         "timeout": {
           "title": "請求逾時",
@@ -718,7 +771,8 @@
           "appleReady": "Apple Intelligence 可用",
           "appleUnavailable": "此裝置無法使用 Apple Intelligence",
           "failed": "連線失敗：{{failureClass}}。{{detail}}"
-        }
+        },
+        "titleLocal": "引擎"
       },
       "local": {
         "label": "本地模型",
@@ -854,9 +908,15 @@
           "chinese_simplified": {
             "name": "中文（簡體）",
             "description": "清理簡體中文，修正同音錯字。"
+          },
+          "prompt_enhancer": {
+            "name": "提示詞增強",
+            "description": "將口述的指令轉換為面向 AI 代理或應用程式的清晰、結構化提示詞。"
           }
         },
-        "editPrompt": "編輯"
+        "editPrompt": "編輯",
+        "testShort": "測試",
+        "deleteShort": "刪除"
       }
     },
     "history": {
@@ -882,7 +942,9 @@
       "groups": {
         "retention": "保留"
       },
-      "viaPostProcess": "經 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒處理"
+      "viaPostProcess": "經 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒處理",
+      "viewChanges": "檢視變更",
+      "hideChanges": "收合變更"
     },
     "debug": {
       "title": "偵錯",
@@ -1076,7 +1138,70 @@
     "ppOutcome": {
       "applied": "已套用",
       "skipped": "已略過",
-      "failed": "失敗"
+      "failed": "失敗",
+      "unchanged": "未變更"
+    },
+    "notifications": {
+      "title": "通知",
+      "toggle": {
+        "label": "系統通知",
+        "description": "將錯誤和工作階段結果以系統通知顯示。通知會保留在通知中心，直到你將其關閉。"
+      },
+      "outcomes": {
+        "label": "結果通知",
+        "description": "手機工作階段結束時也通知，例如達到工作階段上限或手機中斷連線時。關閉後僅通知錯誤。"
+      },
+      "log": {
+        "title": "通知記錄",
+        "description": "最近 50 筆錯誤與結果通知。僅在系統通知開啟時記錄新項目。",
+        "empty": "目前沒有通知。",
+        "clear": "全部清除"
+      }
+    },
+    "studio": {
+      "title": "提示詞工作室",
+      "intro": "在真實轉錄文字上測試提示詞，並排比較各引擎。執行使用與真實聽寫相同的引擎管線，但不會向其他應用輸入任何內容，也不會存入歷史記錄。",
+      "source": {
+        "label": "來源文字",
+        "description": "工作室要潤飾的轉錄文字：最近一次聽寫或任意歷史項目。",
+        "last": "最近轉錄",
+        "loading": "正在載入項目..."
+      },
+      "prompts": {
+        "label": "提示詞",
+        "description": "選擇一或多個要執行的範本。"
+      },
+      "engines": {
+        "label": "引擎",
+        "description": "選擇一或多個要執行的引擎。",
+        "appleUnavailable": "此 Mac 不支援 Apple Intelligence",
+        "noModel": "未設定模型",
+        "noModelHint": "未設定模型。請在 Post Process 中選擇。"
+      },
+      "run_one": "執行 1 組",
+      "run_other": "執行 {{count}} 組",
+      "runHint_one": "1 個提示詞在 1 個引擎上執行。不會輸入或儲存任何內容。",
+      "runHint_other": "{{count}} 組提示詞與引擎。不會輸入或儲存任何內容。",
+      "running": "執行中...",
+      "rerun": "重新執行",
+      "latency": "{{ms}} 毫秒",
+      "rawKept": "引擎失敗或被略過，因此將保留原始轉錄。",
+      "partialFailure": "部分執行失敗或被略過，其他執行已產生結果。請檢查每張卡片。",
+      "results_one": "1 個結果",
+      "results_other": "{{count}} 個結果",
+      "errors": {
+        "engineNotFound": "引擎 '{{id}}' 未設定。",
+        "entryNotFound": "所選的歷史項目已不存在。",
+        "emptyBatch": "請至少選擇一個提示詞和一個引擎。"
+      },
+      "diff": {
+        "lines": "行",
+        "charsChanged_one": "1 個字元變更",
+        "charsChanged_other": "{{count}} 個字元變更",
+        "identical": "無變更。"
+      },
+      "resultsEmptyTitle": "結果會顯示在這裡",
+      "resultsEmptyHint": "在上方選擇來源、提示詞與引擎後執行。每張卡片會顯示潤飾後的文字、變更內容與執行速度。"
     }
   },
   "footer": {
@@ -1202,11 +1327,18 @@
       "postProcessOutputInvalid": "潤飾回傳了無法使用的文字，已保留原始謄寫。",
       "postProcessCloudFailed": "潤飾失敗，已保留原始謄寫：{{detail}}",
       "postProcessPromptCycled": "後處理範本：{{name}}",
+      "postProcessPromptCycledPosition": "後處理範本：{{name}}（第{{position}}個，共{{total}}個）",
+      "postProcessSessionUpgraded": "本次聽寫已開啟後處理：{{name}}",
+      "postProcessSessionDowngraded": "本次聽寫已關閉後處理",
       "companionDisconnected": "手機已斷線。正在以已錄下的內容收尾。",
       "companionServerFailed": "伴侶伺服器失敗：{{error}}",
-      "companionSessionCapped": "伴侶裝置聽寫已結束：已達到 {{device}} 上的 15 分鐘工作階段上限。"
+      "companionSessionCapped": "伴侶裝置聽寫已結束：已達到 {{device}} 上的 15 分鐘工作階段上限。",
+      "companionZeroAudio": "伴侶裝置聽寫結束時沒有收到任何音訊，未轉錄任何內容。",
+      "postProcessUnchanged": "潤飾已完成，但未做任何變更；轉寫依原話原樣貼上。",
+      "postProcessNotConfigured": "後處理未執行：{{detail}}。已保留原始轉寫。"
     },
     "commandBadge": "命令模式",
+    "ppBadge": "後處理",
     "ppChip": "潤飾中 ({{model}}) {{seconds}}秒",
     "companionBadge": "伴侶麥克風"
   },
@@ -1254,13 +1386,15 @@
     "subtitle": "你的手機現在是這台 Mac 的麥克風和觸發鍵。",
     "certNote": "如果瀏覽器提示連線警告，請將憑證指紋與 VoxBar 設定中的比對，然後接受一次。",
     "noToken": "請從 VoxBar 設定中的 QR 碼開啟本頁面。",
-    "micDenied": "麥克風權限遭拒。請在瀏覽器中允許後重新載入。",
+    "micDenied": "麥克風存取失敗。請在瀏覽器中允許，然後再試一次。",
+    "micRetry": "再試一次",
     "badToken": "配對失敗。請重新掃描 VoxBar 設定中的 QR 碼。",
     "wrongSubnet": "這台手機與 Mac 不在同一網路。請加入同一 Wi-Fi 後重新配對。",
     "rateLimited": "配對嘗試過多。請等待一分鐘後再試。",
     "busy": "Mac 正在透過另一個觸發鍵聽寫。",
     "disconnectedFinalized": "連線中斷。Mac 已保留你說的內容。",
     "capped": "工作階段以 15 分鐘為限。再按一次即可繼續。",
+    "zeroAudio": "沒有聲音傳到 Mac。請按住按鈕再說話。",
     "serverStopped": "Mac 已停止伴侶伺服器。",
     "reconnect": "重新連線",
     "holdToTalk": "按住說話",
@@ -1272,6 +1406,16 @@
     "stateReady": "就緒",
     "stateRecording": "錄音中",
     "stateDisconnected": "已斷線",
-    "stateError": "錯誤"
+    "stateError": "錯誤",
+    "targetLabel": "傳送到",
+    "targetPc": "傳到電腦",
+    "targetPhone": "傳到手機",
+    "postProcessLabel": "潤飾文字",
+    "resultTitle": "轉寫文字",
+    "copy": "複製",
+    "copied": "已複製",
+    "polished": "已潤飾",
+    "historyTitle": "最近",
+    "historyEmpty": "來自這支手機的聽寫會顯示在這裡。"
   }
 }

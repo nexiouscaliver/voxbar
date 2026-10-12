@@ -12,6 +12,20 @@
     "postProcessModel": "نموذج ما بعد المعالجة",
     "quit": "إنهاء",
     "cancel": "إلغاء",
+    "statusIdle": "خامل",
+    "statusRecording": "جارٍ التسجيل…",
+    "statusTranscribing": "جارٍ التفريغ النصي…",
+    "asrModel": "نموذج ASR",
+    "modelsNone": "لا توجد نماذج محمّلة",
+    "recentDictations": "التفريغات الأخيرة",
+    "recentDictationsEmpty": "لا توجد تفريغات بعد",
+    "companionLabel": "المرافق",
+    "companionOn": "مُفعّل",
+    "companionOff": "مُعطّل",
+    "companionPairedDevices": "الأجهزة المقترنة",
+    "companionTarget": "الوجهة",
+    "companionTargetMac": "هذا الـ Mac",
+    "companionTargetPhone": "الهاتف",
     "secureInputWarning": "⚠ الاختصارات محجوبة بواسطة Secure Input",
     "postProcessPrompt": "مطالبة ما بعد المعالجة"
   },
@@ -25,7 +39,9 @@
     "debug": "تصحيح الأخطاء",
     "about": "حول",
     "models": "النماذج",
-    "output": "الإخراج"
+    "output": "الإخراج",
+    "notifications": "الإشعارات",
+    "promptStudio": "استوديو البرومبت"
   },
   "onboarding": {
     "subtitle": "للبدء، اختر نموذج التفريغ الصوتي",
@@ -611,7 +627,31 @@
         "serverError": "فشل الخادم: {{error}}",
         "refresh": "تحديث",
         "statusRunning": "يعمل",
-        "statusStopped": "متوقف"
+        "statusStopped": "متوقف",
+        "interfaceTitle": "واجهة الشبكة",
+        "interfaceAuto": "تلقائي (تفضيل الشبكة المحلية)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "لم يتم العثور على واجهات شبكة بعد",
+        "bindError": "مشكلة في الواجهة: {{error}}",
+        "manualTitle": "إعداد يدوي",
+        "hostLabel": "المضيف أو IP المُعلن",
+        "hostPlaceholder": "اتركه فارغًا لاستخدام عنوان الواجهة",
+        "hostInvalid": "أدخل عنوان IPv4 أو اسم مضيف، بدون بروتوكول أو منفذ أو شرطات مائلة",
+        "portInvalid": "يجب أن يكون المنفذ رقمًا بين 1 و65535",
+        "tlsTitle": "شهادة TLS",
+        "tlsCertLabel": "ملف الشهادة",
+        "tlsKeyLabel": "ملف المفتاح",
+        "tlsSelfSigned": "يتم استخدام الشهادة الموقعة ذاتيًا المدمجة",
+        "tlsManual": "يتم استخدام شهادتك الخاصة",
+        "tlsPairInvalid": "حدد الملفين معًا أو اتركهما فارغين",
+        "restartButton": "إعادة تشغيل الخادم",
+        "restartPending": "تُطبق التغييرات بعد إعادة التشغيل",
+        "qrPreviewNote": "معاينة: سيتم الإعلان عن هذا الرابط عند تشغيل الخادم في المرة القادمة.",
+        "sharedNetworkNote": "يجب أن يتشارك الهاتف وهذا الـ Mac الشبكة نفسها: نفس شبكة Wi-Fi أو الشبكة المحلية، أو نفس شبكة tailnet (مثل انضمامهما إلى Tailscale)."
       }
     },
     "postProcessing": {
@@ -646,7 +686,28 @@
           "refreshModels": "تحديث النماذج",
           "fetchFailed": "فشل جلب قائمة النماذج ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "تم جلب قائمة النماذج {{time}}",
-          "retry": "إعادة المحاولة"
+          "retry": "إعادة المحاولة",
+          "visibleDescription": "النموذج الذي يعيد صياغة النسخ بعد كل إملاء.",
+          "fetchingList": "جارٍ جلب قائمة النماذج...",
+          "listSummary_one": "نموذج واحد، تم جلبه {{time}}",
+          "listSummary_zero": "{{count}} نماذج، تم جلبها {{time}}",
+          "listSummary_two": "{{count}} نموذجين، تم جلبهما {{time}}",
+          "listSummary_few": "{{count}} نماذج، تم جلبها {{time}}",
+          "listSummary_many": "{{count}} نموذجًا، تم جلبها {{time}}",
+          "listSummary_other": "{{count}} نموذجًا، تم جلبها {{time}}",
+          "notFetched": "لا توجد قائمة نماذج بعد.",
+          "emptyTitle": "لا توجد نماذج في القائمة",
+          "emptyHint": "حدّث لتحميل النماذج التي يراها هذا المفتاح، أو اكتب معرّف نموذج بالأسفل.",
+          "customSet": "تعيين",
+          "customHint": "أي معرّف نموذج يقدمه مزودك يعمل حتى لو لم يكن في القائمة.",
+          "filterPlaceholder": "تصفية النماذج",
+          "showAll_one": "إظهار الكل ({{count}})",
+          "showAll_zero": "إظهار الكل ({{count}})",
+          "showAll_two": "إظهار الكل ({{count}})",
+          "showAll_few": "إظهار الكل ({{count}})",
+          "showAll_many": "إظهار الكل ({{count}})",
+          "showAll_other": "إظهار الكل ({{count}})",
+          "showFewer": "إظهار أقل"
         },
         "timeout": {
           "title": "مهلة الطلب",
@@ -662,7 +723,8 @@
           "appleReady": "Apple Intelligence متاح",
           "appleUnavailable": "Apple Intelligence غير متاح على هذا الجهاز",
           "failed": "فشل الاتصال: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "المحرّك"
       },
       "local": {
         "label": "نموذج محلي",
@@ -798,9 +860,15 @@
           "chinese_simplified": {
             "name": "الصينية المبسطة",
             "description": "تنظيف الصينية المبسطة مع تصحيح الكلمات المتشابهة في النطق."
+          },
+          "prompt_enhancer": {
+            "name": "محسّن المطالبات",
+            "description": "يحوّل تعليمة منطوقة إلى مطالبة واضحة ومنظمة لوكيل ذكاء اصطناعي أو تطبيق."
           }
         },
-        "editPrompt": "تحرير"
+        "editPrompt": "تحرير",
+        "testShort": "اختبار",
+        "deleteShort": "حذف"
       }
     },
     "history": {
@@ -826,7 +894,9 @@
       "groups": {
         "retention": "الاحتفاظ"
       },
-      "viaPostProcess": "عبر {{model}} · {{prompt}} · {{outcome}} · {{latency}} م.ث"
+      "viaPostProcess": "عبر {{model}} · {{prompt}} · {{outcome}} · {{latency}} م.ث",
+      "viewChanges": "عرض التغييرات",
+      "hideChanges": "إخفاء التغييرات"
     },
     "debug": {
       "title": "تصحيح الأخطاء",
@@ -1076,7 +1146,86 @@
     "ppOutcome": {
       "applied": "مُطبَّق",
       "skipped": "متخطى",
-      "failed": "فشل"
+      "failed": "فشل",
+      "unchanged": "دون تغيير"
+    },
+    "notifications": {
+      "title": "الإشعارات",
+      "toggle": {
+        "label": "إشعارات النظام",
+        "description": "إظهار الأخطاء ونتائج الجلسات كإشعارات نظام. وتبقى في مركز الإشعارات حتى تجاهلها."
+      },
+      "outcomes": {
+        "label": "إشعارات النتائج",
+        "description": "الإشعار أيضًا عند انتهاء جلسة الهاتف، مثل بلوغ حد الجلسة أو انقطاع اتصال الهاتف. الإيقاف يعني الأخطاء فقط."
+      },
+      "log": {
+        "title": "سجل الإشعارات",
+        "description": "آخر 50 إشعارًا بالأخطاء والنتائج. تُسجَّل الإدخالات الجديدة فقط أثناء تشغيل إشعارات النظام.",
+        "empty": "لا توجد إشعارات بعد.",
+        "clear": "مسح الكل"
+      }
+    },
+    "studio": {
+      "title": "استوديو البرومبت",
+      "intro": "اختبر القوالب على نسخة حقيقية وقارن المحرّكات جنبًا إلى جنب. تستخدم التشغيلات نفس مسار المحرّك كالإملاء الحقيقي، لكن لا يُكتب شيء في التطبيقات الأخرى ولا يُحفظ شيء في السجل.",
+      "source": {
+        "label": "النص المصدر",
+        "description": "النص المكتوب الذي يحسّنه الاستوديو: آخر إملاء أو أي إدخال في السجل.",
+        "last": "آخر نص مكتوب",
+        "loading": "جارٍ تحميل الإدخالات..."
+      },
+      "prompts": {
+        "label": "البرومبتات",
+        "description": "اختر قالبًا واحدًا أو أكثر للتشغيل."
+      },
+      "engines": {
+        "label": "المحركات",
+        "description": "اختر محركًا واحدًا أو أكثر للتشغيل عليها.",
+        "appleUnavailable": "Apple Intelligence غير متاح على هذا الـ Mac",
+        "noModel": "لا يوجد نموذج مضبوط",
+        "noModelHint": "لم يتم تعيين نموذج. اختر واحدًا في Post Process."
+      },
+      "run_one": "تشغيل زوج واحد",
+      "run_zero": "تشغيل {{count}} أزواج",
+      "run_two": "تشغيل {{count}} زوجين",
+      "run_few": "تشغيل {{count}} أزواج",
+      "run_many": "تشغيل {{count}} زوجًا",
+      "run_other": "تشغيل {{count}} أزواج",
+      "runHint_one": "قالب واحد على محرّك واحد. لا يُكتب أو يُحفظ أي شيء.",
+      "runHint_zero": "{{count}} من أزواج القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
+      "runHint_two": "{{count}} زوجان من القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
+      "runHint_few": "{{count}} من أزواج القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
+      "runHint_many": "{{count}} زوجًا من القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
+      "runHint_other": "{{count}} من أزواج القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
+      "running": "قيد التشغيل...",
+      "rerun": "إعادة التشغيل",
+      "latency": "{{ms}} مللي ثانية",
+      "rawKept": "فشل المحرك أو تم تخطيه، لذا سيُحتفظ بالنص المكتوب الخام.",
+      "partialFailure": "فشلت بعض التشغيلات أو تم تخطيها بينما أنتجت أخرى نتائج. تحقق من كل بطاقة.",
+      "results_one": "نتيجة واحدة",
+      "results_zero": "{{count}} نتائج",
+      "results_two": "{{count}} نتيجتين",
+      "results_few": "{{count}} نتائج",
+      "results_many": "{{count}} نتيجة",
+      "results_other": "{{count}} نتائج",
+      "errors": {
+        "engineNotFound": "المحرك '{{id}}' غير مضبوط.",
+        "entryNotFound": "إدخال السجل المختار لم يعد موجودًا.",
+        "emptyBatch": "اختر برومبتًا واحدًا ومحركًا واحدًا على الأقل."
+      },
+      "diff": {
+        "lines": "أسطر",
+        "charsChanged_one": "تغيّر حرف واحد",
+        "charsChanged_zero": "تغيّر {{count}} حرف",
+        "charsChanged_two": "تغيّر {{count}} حرفين",
+        "charsChanged_few": "تغيّر {{count}} أحرف",
+        "charsChanged_many": "تغيّر {{count}} حرفًا",
+        "charsChanged_other": "تغيّر {{count}} حرفًا",
+        "identical": "لا توجد تغييرات."
+      },
+      "resultsEmptyTitle": "ستظهر النتائج هنا",
+      "resultsEmptyHint": "اختر أعلاه المصدر والقوالب والمحرّكات ثم شغّل. تعرض كل بطاقة النص المحسّن وتغييراته وسرعته."
     }
   },
   "footer": {
@@ -1202,11 +1351,18 @@
       "postProcessOutputInvalid": "أرجع التلميع نصًا غير صالح، لذا تم الإبقاء على النص الأصلي.",
       "postProcessCloudFailed": "فشل التلميع وتم الإبقاء على النص الأصلي: {{detail}}",
       "postProcessPromptCycled": "قالب ما بعد المعالجة: {{name}}",
+      "postProcessPromptCycledPosition": "قالب ما بعد المعالجة: {{name}} ({{position}} من {{total}})",
+      "postProcessSessionUpgraded": "ما بعد المعالجة مفعّل لهذه الجلسة: {{name}}",
+      "postProcessSessionDowngraded": "ما بعد المعالجة معطّل لهذه الجلسة",
       "companionDisconnected": "انقطع اتصال الهاتف. يتم الإنهاء بما تم التقاطه.",
       "companionServerFailed": "فشل خادم المرافقة: {{error}}",
-      "companionSessionCapped": "انتهى الإملاء من الهاتف المرافق: بلغت الجلسة حدّها البالغ 15 دقيقة على {{device}}."
+      "companionSessionCapped": "انتهى الإملاء من الهاتف المرافق: بلغت الجلسة حدّها البالغ 15 دقيقة على {{device}}.",
+      "companionZeroAudio": "انتهى الإملاء من الجهاز المرافق دون أي صوت. لم يتم نسخ أي شيء.",
+      "postProcessUnchanged": "انتهى التلميع دون أي تغيير؛ تم لصق النص المنطوق تمامًا كما نُطق.",
+      "postProcessNotConfigured": "لم تعمل المعالجة اللاحقة: {{detail}}. تم الاحتفاظ بالنص الخام."
     },
     "commandBadge": "وضع الأوامر",
+    "ppBadge": "ما بعد المعالجة",
     "ppChip": "التلميع ({{model}}) {{seconds}}ث",
     "companionBadge": "ميكروفون مرافق"
   },
@@ -1254,13 +1410,15 @@
     "subtitle": "هاتفك الآن ميكروفون وزر تشغيل لجهاز الـ Mac الخاص بك.",
     "certNote": "إذا حذرك المتصفح من الاتصال، فقارن بصمة الشهادة بالبصمة في إعدادات VoxBar واقبلها مرة واحدة.",
     "noToken": "افتح هذه الصفحة من رمز QR في إعدادات VoxBar.",
-    "micDenied": "تم رفض الوصول إلى الميكروفون. اسمح به في المتصفح وأعد التحميل.",
+    "micDenied": "فشل الوصول إلى الميكروفون. اسمح به في المتصفح ثم حاول مجددًا.",
+    "micRetry": "حاول مجددًا",
     "badToken": "فشل الإقران. امسح رمز QR في إعدادات VoxBar مرة أخرى.",
     "wrongSubnet": "هذا الهاتف على شبكة مختلفة عن الـ Mac. انضم إلى نفس Wi-Fi وأعد الإقران.",
     "rateLimited": "محاولات إقران كثيرة جدًا. انتظر دقيقة ثم حاول مجددًا.",
     "busy": "الـ Mac يملي بالفعل من زر آخر.",
     "disconnectedFinalized": "انقطع الاتصال. احتفظ الـ Mac بما قلته.",
     "capped": "تنتهي الجلسة عند 15 دقيقة. اضغط مرة أخرى للمتابعة.",
+    "zeroAudio": "لم يصل أي صوت إلى الـ Mac. استمر بالضغط على الزر ثم تحدث.",
     "serverStopped": "أوقف الـ Mac خادم المرافقة.",
     "reconnect": "إعادة الاتصال",
     "holdToTalk": "استمر بالضغط للكلام",
@@ -1272,6 +1430,16 @@
     "stateReady": "جاهز",
     "stateRecording": "يسجل",
     "stateDisconnected": "غير متصل",
-    "stateError": "خطأ"
+    "stateError": "خطأ",
+    "targetLabel": "إرسال إلى",
+    "targetPc": "إلى الحاسوب",
+    "targetPhone": "إلى الهاتف",
+    "postProcessLabel": "تنقيح النص",
+    "resultTitle": "التفريغ",
+    "copy": "نسخ",
+    "copied": "تم النسخ",
+    "polished": "منقّح",
+    "historyTitle": "الأحدث",
+    "historyEmpty": "تظهر هنا الإملاءات الصادرة من هذا الهاتف."
   }
 }

@@ -16,6 +16,25 @@ export type NoticeTranslateFn = (
   options?: Record<string, unknown>,
 ) => string;
 
+// v1.6.0 W1-L7: the cycle notice's detail carries three facts (template
+// name, 1-based position, library total) separated by the ASCII unit
+// separator (0x1f) - a control character no real template name contains -
+// so one plain string can feed localized interpolation. The Rust emitter is
+// cycle_notice_detail (shortcut/mod.rs); both sides pin the separator.
+const CYCLE_DETAIL_SEPARATOR = "\u001f";
+
+function parseCycleDetail(detail: string): {
+  name: string;
+  position?: string;
+  total?: string;
+} {
+  const parts = detail.split(CYCLE_DETAIL_SEPARATOR);
+  if (parts.length === 3 && parts[1] !== "" && parts[2] !== "") {
+    return { name: parts[0], position: parts[1], total: parts[2] };
+  }
+  return { name: detail };
+}
+
 // Localize one notice code. `detail` is the event's optional diagnostic
 // (error text, model names); the codes that interpolate it fall back to
 // empty strings, except model_load_failed whose fallback names the unknown
@@ -60,6 +79,18 @@ export function noticeMessage(
       return t("toast.postProcessSkip.tooLong");
     case "post_process_output_invalid":
       return t("overlay.notice.postProcessOutputInvalid");
+    // Round 7 truth pass: the polish was requested but a config gap (no
+    // provider, no model, no usable template) meant no engine ever ran;
+    // the raw transcript pasted. Detail carries the specific gap.
+    case "post_process_not_configured":
+      return t("overlay.notice.postProcessNotConfigured", {
+        detail: detail ?? "",
+      });
+    // Round 7 no-op guard: the engine ran, validated, and changed nothing
+    // (a verbatim echo); the pasted text equals the raw transcript because
+    // nothing was changed, not because the run failed.
+    case "post_process_unchanged":
+      return t("overlay.notice.postProcessUnchanged");
     case "post_process_cloud_failed":
       return t("overlay.notice.postProcessCloudFailed", {
         detail: detail ?? "",
@@ -74,10 +105,31 @@ export function noticeMessage(
       return t("overlay.notice.undoNoBuffer");
     case "binding_busy":
       return t("overlay.notice.bindingBusy");
-    case "post_process_prompt_cycled":
+    case "post_process_prompt_cycled": {
+      // v1.6.0 W1-L7: the detail carries name, 1-based position, and total
+      // (unit-separator encoded by cycle_notice_detail) so the line can say
+      // "2 of 5" in the locale's own grammar; a detail without the
+      // separators is the pre-v1.6.0 bare-name shape.
+      const cycle = parseCycleDetail(detail ?? "");
+      if (cycle.position !== undefined && cycle.total !== undefined) {
+        return t("overlay.notice.postProcessPromptCycledPosition", {
+          name: cycle.name,
+          position: cycle.position,
+          total: cycle.total,
+        });
+      }
       return t("overlay.notice.postProcessPromptCycled", {
+        name: cycle.name,
+      });
+    }
+    // v1.6.0 W1-L7 mid-session switching: the pp hotkey upgraded the live
+    // session (the template name rides the detail) or reverted it.
+    case "post_process_session_upgraded":
+      return t("overlay.notice.postProcessSessionUpgraded", {
         name: detail ?? "",
       });
+    case "post_process_session_downgraded":
+      return t("overlay.notice.postProcessSessionDowngraded");
     case "wayland_tauri_hotkeys":
       return t("overlay.notice.waylandTauriHotkeys");
     case "gnome_overlay_fallback":
@@ -95,6 +147,12 @@ export function noticeMessage(
       return t("overlay.notice.companionSessionCapped", {
         device: detail ?? "",
       });
+    // v1.6.0: a companion session ended having captured zero audio (the
+    // suspended-AudioContext defect class), so nothing was transcribed and
+    // no history entry exists; previously this dropped silently. No
+    // interpolation: the device detail stays in the log line.
+    case "companion_zero_audio":
+      return t("overlay.notice.companionZeroAudio");
     // The command-mode modifier engaged with no live dictation (KB-038);
     // reuses the key the former dedicated toast used, so no new locale
     // strings ride along.
@@ -119,7 +177,9 @@ const DETAIL_INTERPOLATING_CODES = new Set([
   "post_process_memory_gate",
   "post_process_cloud_failed",
   "post_process_prompt_cycled",
+  "post_process_session_upgraded",
   "companion_server_failed",
+  "post_process_not_configured",
 ]);
 
 // Clean up what a removed {{detail}} interpolation leaves behind: the

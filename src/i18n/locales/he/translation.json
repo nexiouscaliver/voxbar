@@ -12,6 +12,20 @@
     "postProcessModel": "מודל לעיבוד לאחר",
     "quit": "יציאה",
     "cancel": "ביטול",
+    "statusIdle": "לא פעיל",
+    "statusRecording": "מקליט…",
+    "statusTranscribing": "מתמלל…",
+    "asrModel": "מודל ASR",
+    "modelsNone": "אין מודלים טעונים",
+    "recentDictations": "תמלולים אחרונים",
+    "recentDictationsEmpty": "אין עדיין תמלולים",
+    "companionLabel": "מלווה",
+    "companionOn": "מופעל",
+    "companionOff": "כבוי",
+    "companionPairedDevices": "מכשירים מותאמים",
+    "companionTarget": "יעד",
+    "companionTargetMac": "ה־Mac הזה",
+    "companionTargetPhone": "טלפון",
     "secureInputWarning": "⚠ קיצורי המקשים חסומים על ידי Secure Input",
     "postProcessPrompt": "פרומפט לעיבוד לאחר"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "הפעלה במסך מתקדם",
     "history": "היסטוריה",
     "debug": "ניפוי שגיאות",
-    "about": "אודות"
+    "about": "אודות",
+    "notifications": "התראות",
+    "promptStudio": "סטודיו פרומפטים"
   },
   "onboarding": {
     "subtitle": "כדי להתחיל, בחר מודל תמלול",
@@ -667,7 +683,31 @@
         "serverError": "השרת נכשל: {{error}}",
         "refresh": "רענון",
         "statusRunning": "פועל",
-        "statusStopped": "מופסק"
+        "statusStopped": "מופסק",
+        "interfaceTitle": "ממשק רשת",
+        "interfaceAuto": "אוטומטי (עדיפות ל-LAN)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "טרם נמצאו ממשקי רשת",
+        "bindError": "בעיית ממשק: {{error}}",
+        "manualTitle": "הגדרה ידנית",
+        "hostLabel": "שם המארח או ה-IP המפורסם",
+        "hostPlaceholder": "ריק משתמש בכתובת הממשק",
+        "hostInvalid": "הזן כתובת IPv4 או שם מארח, ללא סכמה, פורט או קווים נטויים",
+        "portInvalid": "הפורט חייב להיות מספר בין 1 ל-65535",
+        "tlsTitle": "תעודת TLS",
+        "tlsCertLabel": "קובץ התעודה",
+        "tlsKeyLabel": "קובץ המפתח",
+        "tlsSelfSigned": "בשימוש התעודה החתומה עצמית המובנית",
+        "tlsManual": "בשימוש התעודה שלך",
+        "tlsPairInvalid": "הגדר את שני הקבצים או השאר את שניהם ריקים",
+        "restartButton": "הפעלת השרת מחדש",
+        "restartPending": "השינויים ייכנסו לתוקף לאחר הפעלה מחדש",
+        "qrPreviewNote": "תצוגה מקדימה: כתובת URL זו תפורסם בהפעלה הבאה של השרת.",
+        "sharedNetworkNote": "הטלפון וה-Mac הזה חייבים לחלוק רשת: אותו Wi-Fi או LAN, או אותו tailnet (למשל שניהם ב-Tailscale)."
       }
     },
     "postProcessing": {
@@ -702,7 +742,22 @@
           "refreshModels": "רענן מודלים",
           "fetchFailed": "אחזור רשימת המודלים נכשל ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "רשימת המודלים אוחזרה {{time}}",
-          "retry": "נסה שוב"
+          "retry": "נסה שוב",
+          "visibleDescription": "המודל שכותב מחדש את התמליל אחרי כל הקלטה.",
+          "fetchingList": "טוען את רשימת המודלים...",
+          "listSummary_one": "מודל אחד, נטען {{time}}",
+          "listSummary_two": "{{count}} מודלים, נטענו {{time}}",
+          "listSummary_other": "{{count}} מודלים, נטענו {{time}}",
+          "notFetched": "עדיין אין רשימת מודלים.",
+          "emptyTitle": "אין מודלים ברשימה",
+          "emptyHint": "רענן כדי לטעון את המודלים שהמפתח רואה, או הקלד מזהה מודל למטה.",
+          "customSet": "הגדר",
+          "customHint": "כל מזהה מודל שהספק שלך מציע עובד, גם אם הוא לא ברשימה.",
+          "filterPlaceholder": "סינון מודלים",
+          "showAll_one": "הצג הכול ({{count}})",
+          "showAll_two": "הצג הכול ({{count}})",
+          "showAll_other": "הצג הכול ({{count}})",
+          "showFewer": "הצג פחות"
         },
         "timeout": {
           "title": "פסק זמן לבקשה",
@@ -718,7 +773,8 @@
           "appleReady": "Apple Intelligence זמין",
           "appleUnavailable": "Apple Intelligence לא זמין במכשיר הזה",
           "failed": "החיבור נכשל: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "מנוע"
       },
       "local": {
         "label": "מודל מקומי",
@@ -854,9 +910,15 @@
           "chinese_simplified": {
             "name": "סינית (מפושטת)",
             "description": "ניקוי סינית מפושטת עם תיקון הומופונים."
+          },
+          "prompt_enhancer": {
+            "name": "משפר פרומפטים",
+            "description": "הופך הוראה מוכתבת לפרומפט ברור ומובנה עבור סוכן AI או אפליקציה."
           }
         },
-        "editPrompt": "עריכה"
+        "editPrompt": "עריכה",
+        "testShort": "בדיקה",
+        "deleteShort": "מחיקה"
       }
     },
     "history": {
@@ -882,7 +944,9 @@
       "groups": {
         "retention": "שמירה"
       },
-      "viaPostProcess": "דרך {{model}} · {{prompt}} · {{outcome}} · {{latency}} מ״ש"
+      "viaPostProcess": "דרך {{model}} · {{prompt}} · {{outcome}} · {{latency}} מ״ש",
+      "viewChanges": "הצגת שינויים",
+      "hideChanges": "הסתרת שינויים"
     },
     "debug": {
       "title": "ניפוי שגיאות",
@@ -1076,7 +1140,74 @@
     "ppOutcome": {
       "applied": "הוחל",
       "skipped": "דולג",
-      "failed": "נכשל"
+      "failed": "נכשל",
+      "unchanged": "ללא שינוי"
+    },
+    "notifications": {
+      "title": "התראות",
+      "toggle": {
+        "label": "התראות מערכת",
+        "description": "הצגת שגיאות ותוצאות הפעלה כהתראות מערכת. הן נשארות במרכז ההתראות עד שתבטל אותן."
+      },
+      "outcomes": {
+        "label": "התראות על תוצאות",
+        "description": "גם להתריע כשמסתיימת הפעלה של הטלפון, למשל בהגעה למגבלת ההפעלה או כשהטלפון מתנתק. כבוי פירושו שגיאות בלבד."
+      },
+      "log": {
+        "title": "יומן התראות",
+        "description": "50 ההתראות האחרונות על שגיאות ותוצאות. רשומות חדשות נשמרות רק כשהתראות מערכת פועלות.",
+        "empty": "אין עדיין התראות.",
+        "clear": "ניקוי הכול"
+      }
+    },
+    "studio": {
+      "title": "סטודיו פרומפטים",
+      "intro": "בדוק פרומפטים על תמליל אמיתי והשווה מנועים זה לצד זה. ההרצות משתמשות באותו צינור כמו הקלטה אמיתית, אבל שום דבר לא מוקלד באפליקציות אחרות ושום דבר לא נשמר בהיסטוריה.",
+      "source": {
+        "label": "טקסט מקור",
+        "description": "התמליל שהסטודיו מלטש: ההקלטה האחרונה שלכם או כל רשומה בהיסטוריה.",
+        "last": "התמליל האחרון",
+        "loading": "טוען רשומות..."
+      },
+      "prompts": {
+        "label": "פרומפטים",
+        "description": "בחרו תבנית אחת או יותר להרצה."
+      },
+      "engines": {
+        "label": "מנועים",
+        "description": "בחרו מנוע אחד או יותר להרצה.",
+        "appleUnavailable": "Apple Intelligence אינו זמין ב-Mac הזה",
+        "noModel": "לא הוגדר מודל",
+        "noModelHint": "לא הוגדר מודל. בחר אחד ב-Post Process."
+      },
+      "run_one": "הרצת זוג אחד",
+      "run_two": "הרצת {{count}} זוגות",
+      "run_other": "הרצת {{count}} זוגות",
+      "runHint_one": "פרומפט אחד על מנוע אחד. שום דבר לא מוקלד או נשמר.",
+      "runHint_two": "{{count}} זוגות פרומפט-מנוע. שום דבר לא מוקלד או נשמר.",
+      "runHint_other": "{{count}} זוגות פרומפט-מנוע. שום דבר לא מוקלד או נשמר.",
+      "running": "מריץ...",
+      "rerun": "הרצה חוזרת",
+      "latency": "{{ms}} מ״ש",
+      "rawKept": "המנוע נכשל או דולג, ולכן התמליל הגולמי יישמר.",
+      "partialFailure": "חלק מההרצות נכשלו או דולגו בעוד אחרות הניבו תוצאה. בדקו כל כרטיס.",
+      "results_one": "תוצאה אחת",
+      "results_two": "{{count}} תוצאות",
+      "results_other": "{{count}} תוצאות",
+      "errors": {
+        "engineNotFound": "המנוע '{{id}}' אינו מוגדר.",
+        "entryNotFound": "רשומת ההיסטוריה שנבחרה כבר אינה קיימת.",
+        "emptyBatch": "בחרו לפחות פרומפט אחד ומנוע אחד."
+      },
+      "diff": {
+        "lines": "שורות",
+        "charsChanged_one": "תו אחד השתנה",
+        "charsChanged_two": "{{count}} תווים השתנו",
+        "charsChanged_other": "{{count}} תווים השתנו",
+        "identical": "אין שינויים."
+      },
+      "resultsEmptyTitle": "התוצאות יופיעו כאן",
+      "resultsEmptyHint": "בחר למעלה מקור, פרומפטים ומנועים והרץ. כל כרטיס מציג את הטקסט המלוטש, את השינויים ואת המהירות."
     }
   },
   "footer": {
@@ -1202,11 +1333,18 @@
       "postProcessOutputInvalid": "הליטוש החזיר טקסט בלתי שמיש, לכן נשמר התמליל המקורי.",
       "postProcessCloudFailed": "הליטוש נכשל ונשמר התמליל המקורי: {{detail}}",
       "postProcessPromptCycled": "תבנית עיבוד לאחר: {{name}}",
+      "postProcessPromptCycledPosition": "תבנית עיבוד לאחר: {{name}} ({{position}} מתוך {{total}})",
+      "postProcessSessionUpgraded": "עיבוד לאחר פעיל להקלטה זו: {{name}}",
+      "postProcessSessionDowngraded": "עיבוד לאחר כבוי להקלטה זו",
       "companionDisconnected": "הטלפון התנתק. מסיימים עם מה שנקלט.",
       "companionServerFailed": "שרת הליווי נכשל: {{error}}",
-      "companionSessionCapped": "ההכתבה מהמכשיר המלווה הסתיימה: הגעת למגבלת ההפעלה של 15 דקות במכשיר {{device}}."
+      "companionSessionCapped": "ההכתבה מהמכשיר המלווה הסתיימה: הגעת למגבלת ההפעלה של 15 דקות במכשיר {{device}}.",
+      "companionZeroAudio": "ההקלטה מהמכשיר המלווה הסתיימה ללא אודיו. לא תועתק דבר.",
+      "postProcessUnchanged": "הליטוש הסתיים אך לא שינה דבר; התמליל הודבק בדיוק כפי שנאמר.",
+      "postProcessNotConfigured": "העיבוד המאוחר לא הופעל: {{detail}}. התמליל הגולמי נשמר."
     },
     "commandBadge": "מצב פקודות",
+    "ppBadge": "עיבוד לאחר",
     "ppChip": "מלטש ({{model}}) {{seconds}}שנ׳",
     "companionBadge": "מיקרופון מלווה"
   },
@@ -1254,13 +1392,15 @@
     "subtitle": "הטלפון שלכם הוא עכשיו המיקרופון והכפתור של ה־Mac.",
     "certNote": "אם הדפדפן מזהיר על החיבור, השוו את טביעת האצבע של התעודה מול זו שבהגדרות VoxBar וקבלו אותה פעם אחת.",
     "noToken": "פתחו את העמוד הזה מקוד ה־QR בהגדרות VoxBar.",
-    "micDenied": "הגישה למיקרופון נדחתה. אפשרו אותה בדפדפן וטענו מחדש.",
+    "micDenied": "הגישה למיקרופון נכשלה. אפשרו אותה בדפדפן ונסו שוב.",
+    "micRetry": "נסו שוב",
     "badToken": "הצירוף נכשל. סרקו שוב את קוד ה־QR בהגדרות VoxBar.",
     "wrongSubnet": "הטלפון הזה ברשת אחרת מה־Mac. הצטרפו לאותו Wi-Fi וצרפו שוב.",
     "rateLimited": "יותר מדי ניסיונות צירוף. המתינו דקה ונסו שוב.",
     "busy": "ה־Mac כבר מכתיב מטריגר אחר.",
     "disconnectedFinalized": "החיבור נותק. ה־Mac שמר את מה שאמרתם.",
     "capped": "ההקלטה מוגבלת ל־15 דקות. לחצו שוב כדי להמשיך.",
+    "zeroAudio": "אף צליל לא הגיע ל־Mac. החזיקו את הכפתור ודברו.",
     "serverStopped": "ה־Mac עצר את שרת הליווי.",
     "reconnect": "התחברות מחדש",
     "holdToTalk": "החזיקו כדי לדבר",
@@ -1272,6 +1412,16 @@
     "stateReady": "מוכן",
     "stateRecording": "מקליט",
     "stateDisconnected": "מנותק",
-    "stateError": "שגיאה"
+    "stateError": "שגיאה",
+    "targetLabel": "שליחה אל",
+    "targetPc": "אל המחשב",
+    "targetPhone": "אל הטלפון",
+    "postProcessLabel": "ליטוש הטקסט",
+    "resultTitle": "תמליל",
+    "copy": "העתק",
+    "copied": "הועתק",
+    "polished": "מלוטש",
+    "historyTitle": "אחרונים",
+    "historyEmpty": "הקלטות מהטלפון הזה יופיעו כאן."
   }
 }

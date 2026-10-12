@@ -12,6 +12,20 @@
     "postProcessModel": "后处理模型",
     "quit": "退出",
     "cancel": "取消",
+    "statusIdle": "空闲",
+    "statusRecording": "录音中…",
+    "statusTranscribing": "转写中…",
+    "asrModel": "语音识别模型",
+    "modelsNone": "未加载任何模型",
+    "recentDictations": "最近转录",
+    "recentDictationsEmpty": "暂无转录",
+    "companionLabel": "伴侣设备",
+    "companionOn": "开启",
+    "companionOff": "关闭",
+    "companionPairedDevices": "已配对设备",
+    "companionTarget": "目标",
+    "companionTargetMac": "本机 Mac",
+    "companionTargetPhone": "手机",
     "secureInputWarning": "⚠ 快捷键被 Secure Input 阻止",
     "postProcessPrompt": "后处理提示词"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "在高级设置中启用",
     "history": "历史记录",
     "debug": "调试",
-    "about": "关于"
+    "about": "关于",
+    "notifications": "通知",
+    "promptStudio": "提示词工作室"
   },
   "onboarding": {
     "subtitle": "请选择一个转录模型以开始使用",
@@ -667,7 +683,31 @@
         "serverError": "服务器失败：{{error}}",
         "refresh": "刷新",
         "statusRunning": "运行中",
-        "statusStopped": "已停止"
+        "statusStopped": "已停止",
+        "interfaceTitle": "网络接口",
+        "interfaceAuto": "自动（优先局域网）",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "尚未发现网络接口",
+        "bindError": "接口问题：{{error}}",
+        "manualTitle": "手动覆盖",
+        "hostLabel": "对外公布的主机或 IP",
+        "hostPlaceholder": "留空时使用接口地址",
+        "hostInvalid": "请输入 IPv4 地址或主机名（不含协议、端口或斜杠）",
+        "portInvalid": "端口必须是 1 到 65535 之间的数字",
+        "tlsTitle": "TLS 证书",
+        "tlsCertLabel": "证书文件",
+        "tlsKeyLabel": "密钥文件",
+        "tlsSelfSigned": "正在使用内置的自签名证书",
+        "tlsManual": "正在使用你自己的证书",
+        "tlsPairInvalid": "两个文件都填写，或都留空",
+        "restartButton": "重启服务器",
+        "restartPending": "更改将在重启后生效",
+        "qrPreviewNote": "预览：服务器下次启动后将公布此 URL。",
+        "sharedNetworkNote": "手机和这台 Mac 必须处于同一网络：同一 Wi-Fi 或局域网，或同一 tailnet（例如都加入 Tailscale）。"
       }
     },
     "postProcessing": {
@@ -702,7 +742,20 @@
           "refreshModels": "刷新模型",
           "fetchFailed": "获取模型列表失败（{{failureClass}}）：{{detail}}",
           "fetchedAtHint": "模型列表获取于 {{time}}",
-          "retry": "重试"
+          "retry": "重试",
+          "visibleDescription": "每次听写后改写转录文本的模型。",
+          "fetchingList": "正在获取模型列表...",
+          "listSummary_one": "1 个模型，获取于 {{time}}",
+          "listSummary_other": "{{count}} 个模型，获取于 {{time}}",
+          "notFetched": "尚未获取模型列表。",
+          "emptyTitle": "列表中没有模型",
+          "emptyHint": "刷新以加载此密钥可见的模型，或在下方输入模型 ID。",
+          "customSet": "设置",
+          "customHint": "只要服务商支持，未列出的模型 ID 也可以使用。",
+          "filterPlaceholder": "筛选模型",
+          "showAll_one": "显示全部（{{count}}）",
+          "showAll_other": "显示全部（{{count}}）",
+          "showFewer": "收起"
         },
         "timeout": {
           "title": "请求超时",
@@ -718,7 +771,8 @@
           "appleReady": "Apple Intelligence 可用",
           "appleUnavailable": "此设备不支持 Apple Intelligence",
           "failed": "连接失败：{{failureClass}}。{{detail}}"
-        }
+        },
+        "titleLocal": "引擎"
       },
       "local": {
         "label": "本地模型",
@@ -854,9 +908,15 @@
           "chinese_simplified": {
             "name": "中文（简体）",
             "description": "清理简体中文，修正同音错字。"
+          },
+          "prompt_enhancer": {
+            "name": "提示词增强",
+            "description": "将口述的指令转换为面向 AI 智能体或应用的清晰、结构化的提示词。"
           }
         },
-        "editPrompt": "编辑"
+        "editPrompt": "编辑",
+        "testShort": "测试",
+        "deleteShort": "删除"
       }
     },
     "history": {
@@ -882,7 +942,9 @@
       "groups": {
         "retention": "保留"
       },
-      "viaPostProcess": "经 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒处理"
+      "viaPostProcess": "经 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒处理",
+      "viewChanges": "查看更改",
+      "hideChanges": "收起更改"
     },
     "debug": {
       "title": "调试",
@@ -1076,7 +1138,70 @@
     "ppOutcome": {
       "applied": "已应用",
       "skipped": "已跳过",
-      "failed": "失败"
+      "failed": "失败",
+      "unchanged": "未更改"
+    },
+    "notifications": {
+      "title": "通知",
+      "toggle": {
+        "label": "系统通知",
+        "description": "将错误和会话结果以系统通知显示。通知会保留在通知中心，直到你将其关闭。"
+      },
+      "outcomes": {
+        "label": "结果通知",
+        "description": "手机会话结束时也通知，例如达到会话时长上限或手机断开连接时。关闭后仅通知错误。"
+      },
+      "log": {
+        "title": "通知记录",
+        "description": "最近 50 条错误与结果通知。仅当系统通知开启时记录新条目。",
+        "empty": "暂无通知。",
+        "clear": "全部清除"
+      }
+    },
+    "studio": {
+      "title": "提示词工作室",
+      "intro": "在真实转录文本上测试提示词，并排比较各引擎。运行使用与真实听写相同的引擎流水线，但不会向其他应用输入任何内容，也不会保存到历史记录。",
+      "source": {
+        "label": "源文本",
+        "description": "工作室要润色的转录文本：最近一次听写或任意历史条目。",
+        "last": "最近转录",
+        "loading": "正在加载条目..."
+      },
+      "prompts": {
+        "label": "提示词",
+        "description": "选择一个或多个要运行的模板。"
+      },
+      "engines": {
+        "label": "引擎",
+        "description": "选择一个或多个要运行的引擎。",
+        "appleUnavailable": "此 Mac 不支持 Apple Intelligence",
+        "noModel": "未配置模型",
+        "noModelHint": "未设置模型。请在 Post Process 中选择。"
+      },
+      "run_one": "运行 1 组",
+      "run_other": "运行 {{count}} 组",
+      "runHint_one": "1 个提示词在 1 个引擎上运行。不会输入或保存任何内容。",
+      "runHint_other": "{{count}} 组提示词和引擎。不会输入或保存任何内容。",
+      "running": "运行中...",
+      "rerun": "重新运行",
+      "latency": "{{ms}} 毫秒",
+      "rawKept": "引擎失败或被跳过，因此将保留原始转录。",
+      "partialFailure": "部分运行失败或被跳过，其他运行已产生结果。请检查每张卡片。",
+      "results_one": "1 个结果",
+      "results_other": "{{count}} 个结果",
+      "errors": {
+        "engineNotFound": "引擎 '{{id}}' 未配置。",
+        "entryNotFound": "所选的历史条目已不存在。",
+        "emptyBatch": "请至少选择一个提示词和一个引擎。"
+      },
+      "diff": {
+        "lines": "行",
+        "charsChanged_one": "1 个字符变更",
+        "charsChanged_other": "{{count}} 个字符变更",
+        "identical": "无更改。"
+      },
+      "resultsEmptyTitle": "结果将显示在这里",
+      "resultsEmptyHint": "在上方选择来源、提示词和引擎后运行。每张卡片会显示润色后的文本、改动内容和运行速度。"
     }
   },
   "footer": {
@@ -1202,11 +1327,18 @@
       "postProcessOutputInvalid": "润色返回了不可用的文本，已保留原始转录。",
       "postProcessCloudFailed": "润色失败，已保留原始转录：{{detail}}",
       "postProcessPromptCycled": "后处理模板：{{name}}",
+      "postProcessPromptCycledPosition": "后处理模板：{{name}}（第{{position}}个，共{{total}}个）",
+      "postProcessSessionUpgraded": "本次听写已开启后处理：{{name}}",
+      "postProcessSessionDowngraded": "本次听写已关闭后处理",
       "companionDisconnected": "手机已断开。正在用已录下的内容收尾。",
       "companionServerFailed": "伴侣服务器失败：{{error}}",
-      "companionSessionCapped": "伴侣设备听写已结束：已达到 {{device}} 上的 15 分钟会话上限。"
+      "companionSessionCapped": "伴侣设备听写已结束：已达到 {{device}} 上的 15 分钟会话上限。",
+      "companionZeroAudio": "伴侣设备听写结束时没有收到任何音频，未转录任何内容。",
+      "postProcessUnchanged": "润色已完成，但没有做任何更改；转写按原话原样粘贴。",
+      "postProcessNotConfigured": "后处理未运行：{{detail}}。已保留原始转写。"
     },
     "commandBadge": "命令模式",
+    "ppBadge": "后处理",
     "ppChip": "润色中 ({{model}}) {{seconds}}秒",
     "companionBadge": "伴侣麦克风"
   },
@@ -1254,13 +1386,15 @@
     "subtitle": "你的手机现在是这台 Mac 的麦克风和触发键。",
     "certNote": "如果浏览器提示连接警告，请将证书指纹与 VoxBar 设置中的比对，然后接受一次。",
     "noToken": "请从 VoxBar 设置中的二维码打开本页面。",
-    "micDenied": "麦克风权限被拒绝。请在浏览器中允许后重新加载。",
+    "micDenied": "麦克风访问失败。请在浏览器中允许，然后重试。",
+    "micRetry": "重试",
     "badToken": "配对失败。请重新扫描 VoxBar 设置中的二维码。",
     "wrongSubnet": "这台手机与 Mac 不在同一网络。请加入同一 Wi-Fi 后重新配对。",
     "rateLimited": "配对尝试过多。请等待一分钟后再试。",
     "busy": "Mac 正在通过另一个触发键听写。",
     "disconnectedFinalized": "连接中断。Mac 已保留你说的内容。",
     "capped": "会话以 15 分钟为限。再按一次即可继续。",
+    "zeroAudio": "没有声音传到 Mac。请按住按钮后说话。",
     "serverStopped": "Mac 已停止伴侣服务器。",
     "reconnect": "重新连接",
     "holdToTalk": "按住说话",
@@ -1272,6 +1406,16 @@
     "stateReady": "就绪",
     "stateRecording": "录音中",
     "stateDisconnected": "已断开",
-    "stateError": "错误"
+    "stateError": "错误",
+    "targetLabel": "发送到",
+    "targetPc": "发到电脑",
+    "targetPhone": "发到手机",
+    "postProcessLabel": "润色文字",
+    "resultTitle": "转写文本",
+    "copy": "复制",
+    "copied": "已复制",
+    "polished": "已润色",
+    "historyTitle": "最近",
+    "historyEmpty": "来自这台手机的听写会显示在这里。"
   }
 }

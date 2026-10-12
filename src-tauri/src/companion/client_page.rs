@@ -102,4 +102,230 @@ mod tests {
             "the tap path must not send a release edge: toggle sessions ignore releases, so a release stop-tap is a silent no-op"
         );
     }
+
+    /// The slice of the committed asset between two literal anchors (the
+    /// anchors are function headers or switch arms, so the slice is one
+    /// whole handler).
+    fn between<'a>(html: &'a str, start: &str, end: &str) -> &'a str {
+        let at = html
+            .find(start)
+            .unwrap_or_else(|| panic!("anchor '{start}' missing from the committed asset"));
+        let rest = &html[at..];
+        let until = rest
+            .find(end)
+            .unwrap_or_else(|| panic!("closing anchor '{end}' missing after '{start}'"));
+        &rest[..until]
+    }
+
+    /// v1.6.0 zero-audio fix: the AudioContext must be created AND resumed
+    /// inside the press gesture (engines that start contexts suspended,
+    /// like iOS Safari under its autoplay policy, otherwise capture
+    /// silence forever), the old welcome-time context creation must be
+    /// gone, and the mic may be warmed outside a gesture (getUserMedia
+    /// prompts on its own) while the context never is.
+    #[test]
+    fn audio_context_is_created_and_resumed_inside_the_press_gesture() {
+        // The press handler runs the audio bootstrap before it sends the
+        // edge, so the very first press of a fresh page already carries a
+        // live graph.
+        let press = between(CLIENT_HTML, "function pressStart", "function pressEnd");
+        let boot = press
+            .find("ensureAudio();")
+            .expect("press calls ensureAudio");
+        let edge = press.find("sendPtt(true);").expect("press sends the edge");
+        assert!(
+            boot < edge,
+            "ensureAudio must run inside the gesture, before the Ptt edge"
+        );
+
+        // Create-or-resume on every press: a fresh context is created when
+        // missing and a suspended one (backgrounded tab, first run) resumed.
+        let ensure = between(CLIENT_HTML, "function ensureAudio", "function setupGraph");
+        assert!(
+            ensure.contains("new Ctx("),
+            "ensureAudio creates the AudioContext when missing"
+        );
+        assert!(
+            ensure.contains("audioCtx.state === \"suspended\""),
+            "ensureAudio checks the suspended state"
+        );
+        assert!(
+            ensure.contains("audioCtx.resume()"),
+            "ensureAudio resumes a suspended context"
+        );
+
+        // The pre-v1.6.0 welcome-time graph bootstrap is gone: the welcome
+        // handler may warm the microphone stream but must never touch the
+        // audio context (checked on the code identifiers, not comments; a
+        // context created off-gesture starts suspended).
+        let welcome = between(CLIENT_HTML, "case \"welcome\":", "break;");
+        assert!(
+            welcome.contains("openMic();"),
+            "the welcome handler warms the microphone stream"
+        );
+        assert!(
+            !welcome.contains("setupGraph"),
+            "the welcome handler must not build the audio graph"
+        );
+        assert!(
+            !welcome.contains("audioCtx"),
+            "the welcome handler must not create or resume the context"
+        );
+        assert!(
+            !welcome.contains("new Ctx("),
+            "the welcome handler must not construct an audio context"
+        );
+        assert!(
+            !CLIENT_HTML.contains("ensureMic"),
+            "the old non-gesture ensureMic path must be gone"
+        );
+    }
+
+    /// A getUserMedia failure must surface as an inline error with a retry
+    /// control, and must never disable the talk button (the pre-v1.6.0
+    /// path killed the button until a full reload). The next press retries
+    /// the microphone instead of starting a guaranteed zero-audio session.
+    #[test]
+    fn mic_failure_keeps_the_button_alive_and_offers_a_retry() {
+        assert!(
+            CLIENT_HTML.contains("id=\"micError\""),
+            "the page carries an inline mic error card"
+        );
+        assert!(
+            CLIENT_HTML.contains("id=\"micRetry\""),
+            "the error card carries a retry button"
+        );
+        assert!(
+            CLIENT_HTML.contains("micRetryBtn.addEventListener(\"click\""),
+            "the retry button is wired to reopen the microphone"
+        );
+
+        let open = between(
+            CLIENT_HTML,
+            "function openMic",
+            "micRetryBtn.addEventListener",
+        );
+        assert!(
+            open.contains("showMicError();"),
+            "a getUserMedia failure shows the inline error"
+        );
+        assert!(
+            !open.contains("ptt.disabled = true"),
+            "a mic failure must not disable the talk button"
+        );
+
+        // A press while the mic is broken retries the mic and must not
+        // send a Ptt edge: the Mac would record a silent session.
+        let press = between(CLIENT_HTML, "function pressStart", "function pressEnd");
+        assert!(
+            press.contains("if (micFailed && !recording)"),
+            "the press handler checks the mic failure flag"
+        );
+    }
+
+    /// The mic-failure gate must only block NEW sessions. A start-tap can
+    /// pass the gate while getUserMedia is still pending (the permission
+    /// prompt is up), arm the Mac's locked toggle session, and only then
+    /// have the denial set micFailed - so the NEXT tap is the session's
+    /// only stop edge. Gating it on micFailed alone strands the locked
+    /// session with zero audio until the 15-minute cap; the gate must let
+    /// the stop-tap through whenever the Mac reports a live session.
+    #[test]
+    fn mic_failure_gate_still_forwards_the_stop_tap_of_a_live_session() {
+        let press = between(CLIENT_HTML, "function pressStart", "function pressEnd");
+        assert!(
+            press.contains("if (micFailed && !recording)"),
+            "the gate is scoped to sessions that have not started (recording flag)"
+        );
+        assert!(
+            press.contains("return;\n        }\n        pressing = true;"),
+            "the gate's early return sits before the edge send, so a live-session press falls through to sendPtt(true)"
+        );
+    }
+
+    /// v1.6.0 per-session preferences: every Ptt edge carries the output
+    /// target and the post-process flag (the wire names the server parses
+    /// are target/postProcess), and the phone persists its last choice in
+    /// localStorage so a reopening phone remembers it.
+    #[test]
+    fn ptt_edges_carry_the_per_session_preferences() {
+        let send = between(CLIENT_HTML, "function sendPtt", "ptt.addEventListener");
+        assert!(
+            send.contains("target: outputTarget"),
+            "every edge carries the output target"
+        );
+        assert!(
+            send.contains("postProcess: postProcess"),
+            "every edge carries the post-process flag"
+        );
+        assert!(
+            send.contains("type: \"ptt\""),
+            "the frame type is unchanged so old servers keep parsing it"
+        );
+        assert!(
+            CLIENT_HTML.contains("localStorage.getItem(TARGET_KEY)"),
+            "the output target is loaded from localStorage"
+        );
+        assert!(
+            CLIENT_HTML.contains("localStorage.setItem(TARGET_KEY, outputTarget)"),
+            "the output target persists to localStorage"
+        );
+        assert!(
+            CLIENT_HTML.contains("localStorage.getItem(PP_KEY)"),
+            "the post-process flag is loaded from localStorage"
+        );
+        assert!(
+            CLIENT_HTML.contains("localStorage.setItem(PP_KEY,"),
+            "the post-process flag persists to localStorage"
+        );
+    }
+
+    /// Phone-target delivery and the recent list: the client handles the
+    /// transcript and recentHistory frames, copies through
+    /// navigator.clipboard.writeText (the automatic attempt on arrival,
+    /// plus the gesture-driven buttons), and caps the recent list at the
+    /// protocol's five entries.
+    #[test]
+    fn transcript_and_recent_history_frames_are_handled() {
+        let transcript = between(CLIENT_HTML, "case \"transcript\":", "break;");
+        assert!(
+            transcript.contains("showTranscript("),
+            "the transcript frame renders on the page"
+        );
+
+        let recent = between(CLIENT_HTML, "case \"recentHistory\":", "break;");
+        assert!(
+            recent.contains("RECENT_LIMIT"),
+            "the recent list is capped at the protocol limit"
+        );
+
+        let show = between(
+            CLIENT_HTML,
+            "function showTranscript",
+            "resultCopyBtn.addEventListener",
+        );
+        assert!(
+            show.contains("copyText(text, resultCopyBtn)"),
+            "a transcript arrival attempts the automatic copy"
+        );
+        assert!(
+            show.contains("resultBadge.style.display = polished ? \"\" : \"none\""),
+            "the post-processed state is surfaced as a badge"
+        );
+
+        let copy = between(CLIENT_HTML, "function copyText", "function flashCopied");
+        assert!(
+            copy.contains("navigator.clipboard.writeText"),
+            "copies go through navigator.clipboard.writeText"
+        );
+
+        assert!(
+            CLIENT_HTML.contains("resultCopyBtn.addEventListener(\"click\""),
+            "the prominent Copy button copies inside its tap gesture"
+        );
+        assert!(
+            CLIENT_HTML.contains("recentList.addEventListener(\"click\""),
+            "each recent entry has a working copy button"
+        );
+    }
 }

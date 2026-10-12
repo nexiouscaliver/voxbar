@@ -75,6 +75,13 @@ const STATIC_INDEX: readonly SearchEntry[] = [
   { section: "history", key: "settings.history.showModel.label" },
   { section: "history", key: "settings.history.title" },
 
+  // Notifications
+  { section: "notifications", key: "sidebar.notifications" },
+  { section: "notifications", key: "settings.notifications.title" },
+  { section: "notifications", key: "settings.notifications.toggle.label" },
+  { section: "notifications", key: "settings.notifications.outcomes.label" },
+  { section: "notifications", key: "settings.notifications.log.title" },
+
   // Models
   { section: "models", key: "sidebar.models" },
   { section: "models", key: "settings.models.title" },
@@ -139,6 +146,14 @@ const STATIC_INDEX: readonly SearchEntry[] = [
   { section: "postprocessing", key: "settings.postProcessing.hotkey.title" },
   { section: "postprocessing", key: "settings.postProcessing.api.title" },
   { section: "postprocessing", key: "settings.postProcessing.prompts.title" },
+
+  // Prompt Studio (always enabled: it is the testing ground for the
+  // post-processing feature, reachable while the feature itself is off)
+  { section: "promptStudio", key: "sidebar.promptStudio" },
+  { section: "promptStudio", key: "settings.studio.title" },
+  { section: "promptStudio", key: "settings.studio.source.label" },
+  { section: "promptStudio", key: "settings.studio.prompts.label" },
+  { section: "promptStudio", key: "settings.studio.engines.label" },
 
   // Debug (gated on debug_mode)
   { section: "debug", key: "sidebar.debug" },

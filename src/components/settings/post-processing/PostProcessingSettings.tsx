@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { RefreshCcw } from "lucide-react";
+import { RefreshCcw, Search } from "lucide-react";
 import {
   commands,
   type LLMPrompt,
   type PostProcessProvider,
-  type PromptTestOutcome,
-  type TestPromptError,
   type TestConnectionResult,
 } from "@/bindings";
 
@@ -20,18 +18,18 @@ import {
 } from "@/components/ui";
 import Badge from "../../ui/Badge";
 import { Button } from "../../ui/Button";
-import { ResetButton } from "../../ui/ResetButton";
 import { Input } from "../../ui/Input";
 
 import { ProviderSelect } from "../PostProcessingSettingsApi/ProviderSelect";
 import { BaseUrlField } from "../PostProcessingSettingsApi/BaseUrlField";
 import { ApiKeyField } from "../PostProcessingSettingsApi/ApiKeyField";
-import { ModelSelect } from "../PostProcessingSettingsApi/ModelSelect";
 import { usePostProcessProviderState } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 import { PostProcessModelsSection } from "./PostProcessModelsSection";
 import { ShortcutInput } from "../ShortcutInput";
 import { shortcutRowDisabled } from "../shortcutGating";
+import { openPromptStudio } from "../studio/studioEvents";
 import { useSettings } from "../../../hooks/useSettings";
+import { showLocalRow } from "./localLlmRouting";
 
 /// One line under the provider selector that renders the Test Connection
 /// verdict: the ok path names auth, latency and model reachability; the
@@ -296,85 +294,22 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
       )}
 
       {!state.isAppleProvider && !state.isLocalProvider && (
-        <SettingContainer
-          title={t("settings.postProcessing.api.model.title")}
+        <CloudModelPicker
+          model={state.model}
+          modelOptions={state.modelOptions}
+          isModelUpdating={state.isModelUpdating}
+          isFetchingModels={state.isFetchingModels}
+          modelFetchError={state.modelFetchError}
+          modelListFetchedAtUnix={state.modelListFetchedAtUnix}
           description={
             state.isCustomProvider
               ? t("settings.postProcessing.api.model.descriptionCustom")
-              : t("settings.postProcessing.api.model.descriptionDefault")
+              : t("settings.postProcessing.api.model.visibleDescription")
           }
-          descriptionMode="tooltip"
-          layout="stacked"
-          grouped={true}
-        >
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <ModelSelect
-                value={state.model}
-                options={state.modelOptions}
-                disabled={state.isModelUpdating}
-                isLoading={state.isFetchingModels}
-                placeholder={
-                  state.modelOptions.length > 0
-                    ? t(
-                        "settings.postProcessing.api.model.placeholderWithOptions",
-                      )
-                    : t(
-                        "settings.postProcessing.api.model.placeholderNoOptions",
-                      )
-                }
-                onSelect={state.handleModelSelect}
-                onCreate={state.handleModelCreate}
-                onBlur={() => {}}
-                className="flex-1 min-w-[380px]"
-              />
-              <ResetButton
-                onClick={state.handleRefreshModels}
-                disabled={state.isFetchingModels}
-                ariaLabel={t("settings.postProcessing.api.model.refreshModels")}
-                className="flex h-10 w-10 items-center justify-center"
-              >
-                <RefreshCcw
-                  className={`h-4 w-4 ${state.isFetchingModels ? "animate-spin" : ""}`}
-                />
-              </ResetButton>
-            </div>
-
-            {state.modelFetchError && (
-              <Alert variant="error" contained>
-                <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
-                  <span className="text-sm">
-                    {t("settings.postProcessing.api.model.fetchFailed", {
-                      failureClass: state.modelFetchError.kind,
-                      detail: state.modelFetchError.detail,
-                    })}
-                  </span>
-                  <Button
-                    onClick={state.handleRefreshModels}
-                    variant="secondary"
-                    size="sm"
-                    disabled={state.isFetchingModels}
-                    className="shrink-0"
-                  >
-                    {t("settings.postProcessing.api.model.retry")}
-                  </Button>
-                </div>
-              </Alert>
-            )}
-
-            {!state.modelFetchError &&
-              state.modelListFetchedAtUnix !== null &&
-              state.modelOptions.length > 0 && (
-                <p className="text-xs text-secondary/70">
-                  {t("settings.postProcessing.api.model.fetchedAtHint", {
-                    time: new Date(
-                      state.modelListFetchedAtUnix * 1000,
-                    ).toLocaleString(),
-                  })}
-                </p>
-              )}
-          </div>
-        </SettingContainer>
+          onSelect={state.handleModelSelect}
+          onCreate={state.handleModelCreate}
+          onRefresh={state.handleRefreshModels}
+        />
       )}
 
       {!state.isAppleProvider &&
@@ -386,13 +321,275 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
   );
 };
 
+/// One selectable model id in the cloud model list (W1-L9 visual pass):
+/// the same check-row pattern the Prompt Studio uses, so picking a model
+/// reads as an explicit, visible choice instead of a value hidden inside
+/// a closed combobox.
+const ModelOptionRow: React.FC<{
+  modelId: string;
+  selected: boolean;
+  disabled?: boolean;
+  onSelect: () => void;
+  activeLabel: string;
+}> = ({ modelId, selected, disabled, onSelect, activeLabel }) => (
+  <button
+    type="button"
+    role="radio"
+    aria-checked={selected}
+    onClick={onSelect}
+    disabled={disabled}
+    className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-md border text-left transition-colors ${
+      selected
+        ? "border-logo-primary bg-logo-primary/5"
+        : "border-mid-gray/20 hover:bg-mid-gray/10"
+    } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
+  >
+    <span
+      className={`h-3.5 w-3.5 shrink-0 rounded-full border ${
+        selected
+          ? "border-logo-primary bg-logo-primary/80"
+          : "border-mid-gray/50"
+      }`}
+      aria-hidden="true"
+    />
+    <span className="min-w-0 flex-1 font-mono text-xs truncate" title={modelId}>
+      {modelId}
+    </span>
+    {selected ? (
+      <Badge variant="primary" className="shrink-0 px-1.5 py-0.5">
+        {activeLabel}
+      </Badge>
+    ) : null}
+  </button>
+);
+
+/// The cloud model selection surface (W1-L9 visual pass): a visible list
+/// of the models the provider's key can see (radio rows), an explicit
+/// custom-id input for anything not listed, a labeled refresh action with
+/// the fetched-at hint, and honest empty/loading states. Replaces the
+/// bare creatable combobox whose only affordance was a closed box
+/// with an unlabeled icon button next to it. Review round: provider
+/// catalogs can run to dozens of ids (OpenAI /v1/models also returns
+/// embedding/tts/whisper models), so the grid carries a type-to-filter
+/// input (the affordance the deleted combobox had) and renders a capped
+/// first page with a Show-all toggle; the currently selected model is
+/// always kept visible, filter or no filter.
+const MAX_MODEL_ROWS = 8;
+
+const CloudModelPicker: React.FC<{
+  model: string;
+  modelOptions: { value: string; label: string }[];
+  isModelUpdating: boolean;
+  isFetchingModels: boolean;
+  modelFetchError: { kind: string; detail: string } | null;
+  modelListFetchedAtUnix: number | null;
+  /** The row description: provider-class aware (custom endpoints need the
+   * "identifier your endpoint expects" wording). */
+  description: string;
+  onSelect: (value: string) => void;
+  onCreate: (value: string) => void;
+  onRefresh: () => void;
+}> = ({
+  model,
+  modelOptions,
+  isModelUpdating,
+  isFetchingModels,
+  modelFetchError,
+  modelListFetchedAtUnix,
+  description,
+  onSelect,
+  onCreate,
+  onRefresh,
+}) => {
+  const { t } = useTranslation();
+  const [customId, setCustomId] = useState("");
+  const [filter, setFilter] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const base = "settings.postProcessing.api.model";
+
+  const applyCustomId = () => {
+    const trimmed = customId.trim();
+    if (!trimmed) return;
+    onCreate(trimmed);
+    setCustomId("");
+  };
+
+  const query = filter.trim().toLowerCase();
+  // The selected model stays pinned at the top of the filtered view so the
+  // Active row never disappears under the user's own filter.
+  const matching = modelOptions.filter((option) =>
+    option.value.toLowerCase().includes(query),
+  );
+  const rows =
+    model && !matching.some((option) => option.value === model)
+      ? [
+          modelOptions.find((option) => option.value === model),
+          ...matching,
+        ].filter((option): option is { value: string; label: string } =>
+          Boolean(option),
+        )
+      : matching;
+  const visibleRows = showAll ? rows : rows.slice(0, MAX_MODEL_ROWS);
+  const hiddenCount = rows.length - visibleRows.length;
+  const showFilterInput = modelOptions.length > MAX_MODEL_ROWS;
+
+  return (
+    <SettingContainer
+      title={t(`${base}.title`)}
+      description={isFetchingModels ? t(`${base}.fetchingList`) : description}
+      descriptionMode="inline"
+      layout="stacked"
+      grouped={true}
+    >
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs text-secondary/70">
+            {/* Honesty rule (review round): the fetched-at summary may only
+                appear when a list fetch actually succeeded. When options
+                hold nothing but the upserted current model (e.g. a custom
+                id was Set with no list fetched yet) the line must say no
+                list exists, never "fetched " with a dangling empty time. */}
+            {isFetchingModels
+              ? t(`${base}.fetchingList`)
+              : modelListFetchedAtUnix !== null && modelOptions.length > 0
+                ? t(`${base}.listSummary`, {
+                    count: modelOptions.length,
+                    time: new Date(
+                      modelListFetchedAtUnix * 1000,
+                    ).toLocaleTimeString(),
+                  })
+                : t(`${base}.notFetched`)}
+          </p>
+          <Button
+            onClick={onRefresh}
+            variant="secondary"
+            size="sm"
+            disabled={isFetchingModels}
+            className="shrink-0 flex items-center gap-1.5"
+          >
+            <RefreshCcw
+              className={`h-3.5 w-3.5 ${isFetchingModels ? "animate-spin" : ""}`}
+            />
+            {t(`${base}.refreshModels`)}
+          </Button>
+        </div>
+
+        {modelFetchError ? (
+          <Alert variant="error" contained>
+            <div className="flex flex-1 flex-wrap items-center justify-between gap-3">
+              <span className="text-sm">
+                {t(`${base}.fetchFailed`, {
+                  failureClass: modelFetchError.kind,
+                  detail: modelFetchError.detail,
+                })}
+              </span>
+              <Button
+                onClick={onRefresh}
+                variant="secondary"
+                size="sm"
+                disabled={isFetchingModels}
+                className="shrink-0"
+              >
+                {t(`${base}.retry`)}
+              </Button>
+            </div>
+          </Alert>
+        ) : modelOptions.length > 0 ? (
+          <>
+            {showFilterInput && (
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-text/40 pointer-events-none" />
+                <input
+                  type="text"
+                  value={filter}
+                  onChange={(event) => {
+                    setFilter(event.target.value);
+                    setShowAll(false);
+                  }}
+                  placeholder={t(`${base}.filterPlaceholder`)}
+                  aria-label={t(`${base}.filterPlaceholder`)}
+                  className="w-full pl-8 pr-3 py-1.5 text-sm bg-mid-gray/10 border border-mid-gray/40 rounded-lg focus:outline-none focus:ring-1 focus:ring-logo-primary placeholder:text-text/40"
+                />
+              </div>
+            )}
+            <div
+              role="radiogroup"
+              aria-label={t(`${base}.title`)}
+              className="grid gap-1.5 sm:grid-cols-2"
+            >
+              {visibleRows.map((option) => (
+                <ModelOptionRow
+                  key={option.value}
+                  modelId={option.value}
+                  selected={model === option.value}
+                  disabled={isModelUpdating}
+                  onSelect={() => onSelect(option.value)}
+                  activeLabel={t("settings.postProcessing.models.active")}
+                />
+              ))}
+            </div>
+            {(showAll || hiddenCount > 0) && (
+              <button
+                type="button"
+                onClick={() => setShowAll((open) => !open)}
+                className="text-xs text-text/60 hover:text-text underline underline-offset-2 cursor-pointer"
+              >
+                {showAll
+                  ? t(`${base}.showFewer`)
+                  : t(`${base}.showAll`, { count: rows.length })}
+              </button>
+            )}
+          </>
+        ) : (
+          !isFetchingModels && (
+            <div className="rounded-md border border-dashed border-mid-gray/40 px-3 py-4 text-center">
+              <p className="text-sm text-secondary">
+                {t(`${base}.emptyTitle`)}
+              </p>
+              <p className="mt-1 text-xs text-secondary/70">
+                {t(`${base}.emptyHint`)}
+              </p>
+            </div>
+          )
+        )}
+
+        <div className="space-y-1.5 pt-1">
+          <div className="flex items-center gap-2">
+            <Input
+              type="text"
+              value={customId}
+              onChange={(event) => setCustomId(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") applyCustomId();
+              }}
+              placeholder={t(`${base}.placeholderNoOptions`)}
+              variant="compact"
+              className="flex-1 min-w-0 font-mono"
+            />
+            <Button
+              onClick={applyCustomId}
+              variant="secondary"
+              size="sm"
+              disabled={!customId.trim() || isModelUpdating}
+              className="shrink-0"
+            >
+              {t(`${base}.customSet`)}
+            </Button>
+          </div>
+          <p className="text-xs text-secondary/70">{t(`${base}.customHint`)}</p>
+        </div>
+      </div>
+    </SettingContainer>
+  );
+};
+
 /// One row of the template library list: name, language/register badges,
 /// the catalog description, and the row actions (select happens through the
-/// dropdown above; Edit focuses this template in the editor below).
+/// dropdown above; Edit focuses this template in the editor below; Test
+/// opens the Prompt Studio preloaded with this template, v1.6.0 W1-L6).
 const TemplateRow: React.FC<{
   prompt: LLMPrompt;
   isSelected: boolean;
-  isBusy: boolean;
   onSelect: () => void;
   onEdit: () => void;
   onDuplicate: () => void;
@@ -402,7 +599,6 @@ const TemplateRow: React.FC<{
 }> = ({
   prompt,
   isSelected,
-  isBusy,
   onSelect,
   onEdit,
   onDuplicate,
@@ -429,8 +625,12 @@ const TemplateRow: React.FC<{
           : "border-mid-gray/20"
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+      {/* W1-L9 visual pass: the actions moved to their own wrapping row
+          below the identity block. The old single line (name + 4 badges +
+          5 buttons, one of them labeled "Test on my last transcript")
+          overflowed the card horizontally at the default window width. */}
+      <div className="flex flex-col gap-2">
+        <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm font-medium truncate">{displayName}</span>
             <Badge variant="secondary">{prompt.language}</Badge>
@@ -454,85 +654,37 @@ const TemplateRow: React.FC<{
             </p>
           )}
         </div>
-        <div className="flex shrink-0 items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <Button
             onClick={onSelect}
             variant="secondary"
             size="sm"
-            disabled={isSelected || isBusy}
+            disabled={isSelected}
           >
             {t(`${base}.selectPrompt`)}
           </Button>
           <Button onClick={onEdit} variant="secondary" size="sm">
             {t(`${base}.editPrompt`)}
           </Button>
-          <Button
-            onClick={onDuplicate}
-            variant="secondary"
-            size="sm"
-            disabled={isBusy}
-          >
+          <Button onClick={onDuplicate} variant="secondary" size="sm">
             {t(`${base}.duplicate`)}
           </Button>
           <Button
             onClick={onTest}
             variant="secondary"
             size="sm"
-            disabled={isBusy}
+            title={t(`${base}.testOnLastTranscript`)}
           >
-            {t(`${base}.testOnLastTranscript`)}
+            {t(`${base}.testShort`)}
           </Button>
           <Button
             onClick={onDelete}
             variant="secondary"
             size="sm"
-            disabled={!canDelete || isBusy}
+            disabled={!canDelete}
           >
-            {t(`${base}.deletePrompt`)}
+            {t(`${base}.deleteShort`)}
           </Button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/// The before/after panel the Test button renders: the run's outcome token
-/// and latency, the transcript as it was, what it would become, and the
-/// raw-kept note when the engine failed or skipped.
-const PromptTestResultPanel: React.FC<{ result: PromptTestOutcome }> = ({
-  result,
-}) => {
-  const { t } = useTranslation();
-  const base = "settings.postProcessing.prompts";
-  return (
-    <div className="p-3 rounded-md border border-mid-gray/20 space-y-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="text-sm font-medium">
-          {t(`${base}.testResultTitle`)}
-        </span>
-        <Badge variant="secondary">
-          {t(`${base}.testOutcome`, { outcome: result.outcome })}
-        </Badge>
-        <Badge variant="secondary">
-          {t(`${base}.testLatency`, { ms: result.latency_ms })}
-        </Badge>
-      </div>
-      <div className="grid gap-2 md:grid-cols-2">
-        <div>
-          <p className="text-xs font-medium text-secondary">
-            {t(`${base}.testBefore`)}
-          </p>
-          <p className="mt-1 text-sm whitespace-pre-wrap break-words">
-            {result.before}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs font-medium text-secondary">
-            {t(`${base}.testAfter`)}
-          </p>
-          <p className="mt-1 text-sm whitespace-pre-wrap break-words">
-            {result.after ?? t(`${base}.testRawKept`)}
-          </p>
         </div>
       </div>
     </div>
@@ -546,9 +698,6 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftText, setDraftText] = useState("");
-  const [testingId, setTestingId] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<PromptTestOutcome | null>(null);
-  const [testError, setTestError] = useState<string | null>(null);
 
   const prompts = getSetting("post_process_prompts") || [];
   const selectedPromptId = getSetting("post_process_selected_prompt_id") || "";
@@ -636,31 +785,12 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
     }
   };
 
-  const handleTestPrompt = async (promptId: string) => {
-    setTestingId(promptId);
-    setTestResult(null);
-    setTestError(null);
-    const base = "settings.postProcessing.prompts";
-    try {
-      const result = await commands.testPostProcessPrompt(promptId);
-      if (result.status === "ok") {
-        setTestResult(result.data);
-      } else {
-        const error: TestPromptError = result.error;
-        setTestError(
-          error.kind === "no_history"
-            ? t(`${base}.testNoHistory`)
-            : error.kind === "prompt_not_found"
-              ? t(`${base}.testPromptNotFound`)
-              : t(`${base}.testFailed`, { detail: error.detail }),
-        );
-      }
-    } catch (error) {
-      console.error("Failed to test prompt:", error);
-      setTestError(String(error));
-    } finally {
-      setTestingId(null);
-    }
+  const handleTestPrompt = (promptId: string) => {
+    // v1.6.0 W1-L6: Test opens the Prompt Studio preloaded with this
+    // template instead of rendering the buried inline panel. The studio
+    // runs the same engine lifecycle with visible diffs, engine choice,
+    // and re-runs; nothing about the template library itself changes.
+    openPromptStudio(promptId);
   };
 
   const handleCancelCreate = () => {
@@ -741,7 +871,6 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
                 key={prompt.id}
                 prompt={prompt}
                 isSelected={prompt.id === selectedPromptId}
-                isBusy={testingId === prompt.id}
                 onSelect={() =>
                   handlePromptSelect(
                     prompt.id === selectedPromptId ? null : prompt.id,
@@ -756,16 +885,6 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             ))}
           </div>
         )}
-
-        {testingId && (
-          <p className="text-xs text-secondary/70">{t(`${base}.testing`)}</p>
-        )}
-        {testError && (
-          <Alert variant="error" contained>
-            {testError}
-          </Alert>
-        )}
-        {testResult && <PromptTestResultPanel result={testResult} />}
 
         {!isCreating && hasPrompts && selectedPrompt && (
           <div className="space-y-3">
@@ -931,7 +1050,16 @@ export const PostProcessingSettings: React.FC = () => {
         />
       </SettingsGroup>
 
-      <SettingsGroup title={t("settings.postProcessing.api.title")}>
+      <SettingsGroup
+        // W1-L9 visual pass: "API (OpenAI Compatible)" lied when the local
+        // on-device engine was the selected provider; the group header now
+        // names the surface it actually shows.
+        title={
+          showLocalRow(settings?.post_process_provider_id ?? "")
+            ? t("settings.postProcessing.api.titleLocal")
+            : t("settings.postProcessing.api.title")
+        }
+      >
         <PostProcessingSettingsApi />
       </SettingsGroup>
 

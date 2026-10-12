@@ -12,6 +12,20 @@
     "postProcessModel": "Post-process Model",
     "quit": "Quit",
     "cancel": "Cancel",
+    "statusIdle": "Idle",
+    "statusRecording": "Recording…",
+    "statusTranscribing": "Transcribing…",
+    "asrModel": "ASR Model",
+    "modelsNone": "No models loaded",
+    "recentDictations": "Recent Dictations",
+    "recentDictationsEmpty": "No dictations yet",
+    "companionLabel": "Companion",
+    "companionOn": "On",
+    "companionOff": "Off",
+    "companionPairedDevices": "Paired devices",
+    "companionTarget": "Target",
+    "companionTargetMac": "This Mac",
+    "companionTargetPhone": "Phone",
     "secureInputWarning": "⚠ Shortcuts blocked by Secure Input",
     "postProcessPrompt": "Post-process Prompt"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "Enable in Advanced",
     "history": "History",
     "debug": "Debug",
-    "about": "About"
+    "about": "About",
+    "notifications": "Notifications",
+    "promptStudio": "Prompt Studio"
   },
   "onboarding": {
     "subtitle": "To get started, choose a transcription model",
@@ -667,7 +683,31 @@
         "serverError": "Server failed: {{error}}",
         "refresh": "Refresh",
         "statusRunning": "Running",
-        "statusStopped": "Stopped"
+        "statusStopped": "Stopped",
+        "interfaceTitle": "Interface",
+        "interfaceAuto": "Automatic (LAN preferred)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "No network interfaces discovered yet",
+        "bindError": "Interface problem: {{error}}",
+        "manualTitle": "Manual override",
+        "hostLabel": "Advertised host or IP",
+        "hostPlaceholder": "Interface address when empty",
+        "hostInvalid": "Enter an IPv4 address or a hostname, without scheme, port, or slashes",
+        "portInvalid": "Port must be a number between 1 and 65535",
+        "tlsTitle": "TLS certificate",
+        "tlsCertLabel": "Certificate file",
+        "tlsKeyLabel": "Key file",
+        "tlsSelfSigned": "Using the built-in self-signed certificate",
+        "tlsManual": "Using your certificate",
+        "tlsPairInvalid": "Set both files or leave both empty",
+        "restartButton": "Restart server",
+        "restartPending": "Changes apply after a restart",
+        "qrPreviewNote": "Preview: this URL is advertised when the server next starts.",
+        "sharedNetworkNote": "The phone and this Mac must share a network: the same Wi-Fi or LAN, or the same tailnet (for example both on Tailscale)."
       }
     },
     "postProcessing": {
@@ -702,7 +742,20 @@
           "refreshModels": "Refresh models",
           "fetchFailed": "Model list fetch failed ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Model list fetched {{time}}",
-          "retry": "Retry"
+          "retry": "Retry",
+          "visibleDescription": "The model that rewrites your transcript after each dictation.",
+          "fetchingList": "Fetching the model list...",
+          "listSummary_one": "1 model, fetched {{time}}",
+          "listSummary_other": "{{count}} models, fetched {{time}}",
+          "notFetched": "No model list yet.",
+          "emptyTitle": "No models listed",
+          "emptyHint": "Refresh to load the models this key can see, or type a model id below.",
+          "customSet": "Set",
+          "customHint": "Any model id your provider offers works, even if it is not listed.",
+          "filterPlaceholder": "Filter models",
+          "showAll_one": "Show all ({{count}})",
+          "showAll_other": "Show all ({{count}})",
+          "showFewer": "Show fewer"
         },
         "timeout": {
           "title": "Request timeout",
@@ -718,7 +771,8 @@
           "appleReady": "Apple Intelligence is available",
           "appleUnavailable": "Apple Intelligence is not available on this device",
           "failed": "Connection failed: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Engine"
       },
       "local": {
         "label": "Local Model",
@@ -854,9 +908,15 @@
           "chinese_simplified": {
             "name": "Chinese (Simplified)",
             "description": "Simplified Chinese cleanup with homophone fixes."
+          },
+          "prompt_enhancer": {
+            "name": "Prompt Enhancer",
+            "description": "Turns a dictated instruction into a clear, structured prompt for an AI agent or app."
           }
         },
-        "editPrompt": "Edit"
+        "editPrompt": "Edit",
+        "testShort": "Test",
+        "deleteShort": "Delete"
       }
     },
     "history": {
@@ -882,7 +942,9 @@
       "groups": {
         "retention": "Retention"
       },
-      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "View changes",
+      "hideChanges": "Hide changes"
     },
     "debug": {
       "title": "Debug",
@@ -1076,7 +1138,70 @@
     "ppOutcome": {
       "applied": "applied",
       "skipped": "skipped",
-      "failed": "failed"
+      "failed": "failed",
+      "unchanged": "unchanged"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "toggle": {
+        "label": "System notifications",
+        "description": "Show errors and session outcomes as system notifications. They stay in the notification center until you dismiss them."
+      },
+      "outcomes": {
+        "label": "Outcome notifications",
+        "description": "Also notify when a phone session ends, for example when the session limit is reached or the phone disconnects. Off means errors only."
+      },
+      "log": {
+        "title": "Notification log",
+        "description": "The last 50 error and outcome notices. New entries are recorded only while system notifications are on.",
+        "empty": "No notifications yet.",
+        "clear": "Clear all"
+      }
+    },
+    "studio": {
+      "title": "Prompt Studio",
+      "intro": "Test prompts on a real transcript and compare engines side by side. Runs use the same engine pipeline as a real dictation, but nothing is typed into other apps and nothing is saved to history.",
+      "source": {
+        "label": "Source text",
+        "description": "The transcript the studio polishes: your latest dictation or any history entry.",
+        "last": "Last transcript",
+        "loading": "Loading entries..."
+      },
+      "prompts": {
+        "label": "Prompts",
+        "description": "Pick one or more templates to run."
+      },
+      "engines": {
+        "label": "Engines",
+        "description": "Pick one or more engines to run them on.",
+        "appleUnavailable": "Apple Intelligence is not available on this Mac",
+        "noModel": "No model configured",
+        "noModelHint": "No model set. Choose one in Post Process."
+      },
+      "run_one": "Run 1 pair",
+      "run_other": "Run {{count}} pairs",
+      "runHint_one": "1 prompt on 1 engine. Nothing is typed or saved.",
+      "runHint_other": "{{count}} prompt-engine pairs. Nothing is typed or saved.",
+      "running": "Running...",
+      "rerun": "Re-run",
+      "latency": "{{ms}} ms",
+      "rawKept": "The engine failed or skipped, so the raw transcript would be kept.",
+      "partialFailure": "Some runs failed or skipped while others produced output. Check each card.",
+      "results_one": "1 result",
+      "results_other": "{{count}} results",
+      "errors": {
+        "engineNotFound": "Engine '{{id}}' is not configured.",
+        "entryNotFound": "The picked history entry no longer exists.",
+        "emptyBatch": "Pick at least one prompt and one engine."
+      },
+      "diff": {
+        "lines": "lines",
+        "charsChanged_one": "1 char changed",
+        "charsChanged_other": "{{count}} chars changed",
+        "identical": "No changes."
+      },
+      "resultsEmptyTitle": "Results will appear here",
+      "resultsEmptyHint": "Pick a source, prompts, and engines above, then run. Each card shows the polished text, its changes, and how fast it ran."
     }
   },
   "footer": {
@@ -1205,11 +1330,18 @@
       "postProcessOutputInvalid": "Polishing returned unusable text, so the raw transcript was kept.",
       "postProcessCloudFailed": "Polishing failed and the raw transcript was kept: {{detail}}",
       "postProcessPromptCycled": "Post-process template: {{name}}",
+      "postProcessPromptCycledPosition": "Post-process template: {{name}} ({{position}} of {{total}})",
+      "postProcessSessionUpgraded": "Post-process on for this session: {{name}}",
+      "postProcessSessionDowngraded": "Post-process off for this session",
       "companionDisconnected": "Phone disconnected. Finishing with what was captured.",
       "companionServerFailed": "Companion server failed: {{error}}",
-      "companionSessionCapped": "Companion dictation ended: the 15-minute session limit was reached on {{device}}."
+      "companionSessionCapped": "Companion dictation ended: the 15-minute session limit was reached on {{device}}.",
+      "companionZeroAudio": "Companion dictation ended with no audio. Nothing was transcribed.",
+      "postProcessUnchanged": "Polishing finished but changed nothing; the transcript was pasted exactly as spoken.",
+      "postProcessNotConfigured": "Post-processing did not run: {{detail}}. The raw transcript was kept."
     },
     "commandBadge": "Command mode",
+    "ppBadge": "Post-process",
     "ppChip": "Polishing ({{model}}) {{seconds}}s",
     "companionBadge": "Companion microphone"
   },
@@ -1254,13 +1386,15 @@
     "subtitle": "Your phone is now a microphone and trigger for your Mac.",
     "certNote": "If your browser warns about the connection, compare the certificate fingerprint with the one in VoxBar settings and accept it once.",
     "noToken": "Open this page from the QR code in VoxBar settings.",
-    "micDenied": "Microphone access was denied. Allow it in the browser and reload.",
+    "micDenied": "Microphone access failed. Allow it in the browser, then try again.",
+    "micRetry": "Try again",
     "badToken": "Pairing failed. Scan the QR code in VoxBar settings again.",
     "wrongSubnet": "This phone is on a different network than the Mac. Join the same Wi-Fi and pair again.",
     "rateLimited": "Too many pairing attempts. Wait a minute and try again.",
     "busy": "The Mac is already dictating from another trigger.",
     "disconnectedFinalized": "Connection dropped. The Mac kept what you said.",
     "capped": "Session capped at 15 minutes. Press again to continue.",
+    "zeroAudio": "No audio reached the Mac. Hold the button, then speak.",
     "serverStopped": "The Mac stopped the companion server.",
     "reconnect": "Reconnect",
     "holdToTalk": "Hold to talk",
@@ -1272,6 +1406,16 @@
     "stateReady": "Ready",
     "stateRecording": "Recording",
     "stateDisconnected": "Disconnected",
-    "stateError": "Error"
+    "stateError": "Error",
+    "targetLabel": "Send to",
+    "targetPc": "To PC",
+    "targetPhone": "To Phone",
+    "postProcessLabel": "Polish text",
+    "resultTitle": "Transcript",
+    "copy": "Copy",
+    "copied": "Copied",
+    "polished": "Polished",
+    "historyTitle": "Recent",
+    "historyEmpty": "Dictations from this phone appear here."
   }
 }

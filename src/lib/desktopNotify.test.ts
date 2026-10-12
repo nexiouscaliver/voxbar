@@ -46,15 +46,39 @@ class StubNotification {
 
 let windowVisible = true;
 
+// The Rust permission commands the fleet-pass-2 flow consults (the plugin's
+// desktop stub is vacuous). `stubRequestOutcome` is what a REQUEST resolves
+// to; `stubPermissionThrows` simulates the command genuinely failing.
+let stubRequestOutcome: "granted" | "denied" | "not_determined" | "unknown" =
+  "granted";
+
 const stubWindow = {
   __TAURI_INTERNALS__: {
     metadata: { currentWindow: { label: "main" } },
     invoke: async (cmd: string): Promise<unknown> => {
       invokedCommands.push(cmd);
       if (cmd === "plugin:window|is_visible") return windowVisible;
-      // "default" is not granted yet - only an explicit grant is.
       if (cmd === "plugin:notification|is_permission_granted")
         return StubNotification.permission === "granted";
+      if (cmd === "notification_permission_state") {
+        // The real state mirrors the stub's plugin-visible state so legacy
+        // assertions about delivery stay meaningful.
+        if (StubNotification.permission === "granted") return "granted";
+        if (StubNotification.permission === "denied") return "denied";
+        return "not_determined";
+      }
+      if (cmd === "request_notification_permission") {
+        requestPermissionCalls++;
+        if (StubNotification.requestPermissionThrows)
+          throw new Error("stub: permission bridge broken");
+        StubNotification.permission =
+          stubRequestOutcome === "granted"
+            ? "granted"
+            : stubRequestOutcome === "denied"
+              ? "denied"
+              : "default";
+        return stubRequestOutcome;
+      }
       return null;
     },
   },
@@ -72,20 +96,28 @@ assert.deepEqual(sent, []);
 assert.deepEqual(invokedCommands, ["plugin:window|is_visible"]);
 
 // Hidden window (the ordered-out case visibilityState cannot see): the
-// notice is delivered under the product title.
+// notice is delivered under the product title, and the permission gate is
+// the REAL Rust state query (fleet pass 2), not the plugin's stub.
+invokedCommands.length = 0;
 windowVisible = false;
+StubNotification.permission = "granted";
 await notifyDesktop("hidden-window notice");
 assert.deepEqual(sent, [{ title: "VoxBar", body: "hidden-window notice" }]);
+assert.deepEqual(invokedCommands, [
+  "plugin:window|is_visible",
+  "notification_permission_state",
+]);
 
-// Permission-once logic lives in primeNotificationPermission (AUD-03): a
-// "default" permission is resolved by ONE requestPermission call, a plain
-// user DENIAL fires no callback (silent - the system prompt is the only
-// way back, and macOS deny-once makes an in-app retry a no-op), only a
-// genuine request FAILURE (the request threw) fires the callback, and
+// Permission-once logic lives in primeNotificationPermission (AUD-03):
+// the ask is ONE real request through the Rust command (the plugin's
+// desktop stub never asked at all - the fleet-pass-2 fix), a plain user
+// DENIAL fires no callback (silent - the system prompt is the only way
+// back, and macOS deny-once makes an in-app retry a no-op), only an
+// unresolvable state or a genuine command FAILURE fires the callback, and
 // notifyDesktop itself never prompts.
 sent.length = 0;
 StubNotification.permission = "default";
-StubNotification.permissionOnRequest = "granted";
+stubRequestOutcome = "granted";
 let failures = 0;
 await primeNotificationPermission(() => {
   failures++;
@@ -99,7 +131,7 @@ assert.deepEqual(sent, [{ title: "VoxBar", body: "first-ask notice" }]);
 // re-prompts nor sends: a denial must not re-prompt on every notice.
 sent.length = 0;
 StubNotification.permission = "default";
-StubNotification.permissionOnRequest = "denied";
+stubRequestOutcome = "denied";
 await notifyDesktop("denied-ask notice");
 assert.equal(requestPermissionCalls, 1);
 assert.deepEqual(sent, []);
@@ -122,7 +154,7 @@ assert.deepEqual(sent, []);
 sent.length = 0;
 requestPermissionCalls = 0;
 StubNotification.permission = "denied";
-StubNotification.permissionOnRequest = "denied";
+stubRequestOutcome = "denied";
 const freshModulePath = "./desktopNotify.ts?kb204";
 const { notifyDesktop: notifyDesktopFresh } = await import(freshModulePath);
 await notifyDesktopFresh("kb204 first notice");

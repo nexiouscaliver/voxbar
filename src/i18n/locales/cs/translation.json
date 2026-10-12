@@ -12,6 +12,20 @@
     "postProcessModel": "Model následného zpracování",
     "quit": "Ukončit",
     "cancel": "Zrušit",
+    "statusIdle": "Nečinné",
+    "statusRecording": "Nahrávání…",
+    "statusTranscribing": "Přepisování…",
+    "asrModel": "ASR model",
+    "modelsNone": "Nejsou načteny žádné modely",
+    "recentDictations": "Nedávné přepisy",
+    "recentDictationsEmpty": "Zatím žádné přepisy",
+    "companionLabel": "Průvodce",
+    "companionOn": "Zapnuto",
+    "companionOff": "Vypnuto",
+    "companionPairedDevices": "Spárovaná zařízení",
+    "companionTarget": "Cíl",
+    "companionTargetMac": "Tento Mac",
+    "companionTargetPhone": "Telefon",
     "secureInputWarning": "⚠ Zkratky blokuje Secure Input",
     "postProcessPrompt": "Prompt následného zpracování"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "Zapněte v Pokročilém nastavení",
     "history": "Historie",
     "debug": "Ladění",
-    "about": "O aplikaci"
+    "about": "O aplikaci",
+    "notifications": "Oznámení",
+    "promptStudio": "Studio promptů"
   },
   "onboarding": {
     "subtitle": "Pro začátek vyberte model pro přepis",
@@ -667,7 +683,31 @@
         "serverError": "Server selhal: {{error}}",
         "refresh": "Obnovit",
         "statusRunning": "Běží",
-        "statusStopped": "Zastaveno"
+        "statusStopped": "Zastaveno",
+        "interfaceTitle": "Síťové rozhraní",
+        "interfaceAuto": "Automaticky (upřednostněna LAN)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Zatím nenalezena žádná síťová rozhraní",
+        "bindError": "Problém s rozhraním: {{error}}",
+        "manualTitle": "Ruční nastavení",
+        "hostLabel": "Zveřejňovaný host nebo IP",
+        "hostPlaceholder": "Prázdné použije adresu rozhraní",
+        "hostInvalid": "Zadejte adresu IPv4 nebo název hostitele bez schématu, portu a lomítek",
+        "portInvalid": "Port musí být číslo od 1 do 65535",
+        "tlsTitle": "Certifikát TLS",
+        "tlsCertLabel": "Soubor certifikátu",
+        "tlsKeyLabel": "Soubor klíče",
+        "tlsSelfSigned": "Používá se vestavěný certifikát s vlastním podpisem",
+        "tlsManual": "Používá se váš certifikát",
+        "tlsPairInvalid": "Zadejte oba soubory nebo ponechte oba prázdné",
+        "restartButton": "Restartovat server",
+        "restartPending": "Změny se projeví po restartu",
+        "qrPreviewNote": "Náhled: tato adresa URL se zveřejní při příštím spuštění serveru.",
+        "sharedNetworkNote": "Telefon a tento Mac musí sdílet síť: stejnou Wi-Fi nebo LAN, nebo stejný tailnet (například oba v Tailscale)."
       }
     },
     "postProcessing": {
@@ -702,7 +742,24 @@
           "refreshModels": "Obnovit modely",
           "fetchFailed": "Stažení seznamu modelů se nezdařilo ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Seznam modelů byl stažen {{time}}",
-          "retry": "Zkusit znovu"
+          "retry": "Zkusit znovu",
+          "visibleDescription": "Model, který přepíše váš přepis po každém diktování.",
+          "fetchingList": "Načítá se seznam modelů...",
+          "listSummary_one": "1 model, načteno {{time}}",
+          "listSummary_few": "{{count}} modely, načteno {{time}}",
+          "listSummary_many": "{{count}} modelů, načteno {{time}}",
+          "listSummary_other": "{{count}} modelů, načteno {{time}}",
+          "notFetched": "Zatím žádný seznam modelů.",
+          "emptyTitle": "Žádné modely v seznamu",
+          "emptyHint": "Obnovte, aby se načetly modely dostupné s tímto klíčem, nebo níže zadejte id modelu.",
+          "customSet": "Nastavit",
+          "customHint": "Funguje jakékoli id modelu od vašeho poskytovatele, i když není v seznamu.",
+          "filterPlaceholder": "Filtrovat modely",
+          "showAll_one": "Zobrazit vše ({{count}})",
+          "showAll_few": "Zobrazit vše ({{count}})",
+          "showAll_many": "Zobrazit vše ({{count}})",
+          "showAll_other": "Zobrazit vše ({{count}})",
+          "showFewer": "Zobrazit méně"
         },
         "timeout": {
           "title": "Časový limit požadavku",
@@ -718,7 +775,8 @@
           "appleReady": "Apple Intelligence je dostupná",
           "appleUnavailable": "Apple Intelligence není na tomto zařízení dostupná",
           "failed": "Připojení se nezdařilo: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Motor"
       },
       "local": {
         "label": "Místní model",
@@ -854,9 +912,15 @@
           "chinese_simplified": {
             "name": "Čínština (zjednodušená)",
             "description": "Úprava zjednodušené čínštiny s opravami stejně znějících znaků."
+          },
+          "prompt_enhancer": {
+            "name": "Vylepšovač promptů",
+            "description": "Z dikované instrukce vytvoří jasnou, strukturovanou výzvu pro AI agenta nebo aplikaci."
           }
         },
-        "editPrompt": "Upravit"
+        "editPrompt": "Upravit",
+        "testShort": "Vyzkoušet",
+        "deleteShort": "Smazat"
       }
     },
     "history": {
@@ -882,7 +946,9 @@
       "groups": {
         "retention": "Uchovávání"
       },
-      "viaPostProcess": "přes {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms"
+      "viaPostProcess": "přes {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
+      "viewChanges": "Zobrazit změny",
+      "hideChanges": "Skrýt změny"
     },
     "debug": {
       "title": "Ladění",
@@ -1076,7 +1142,78 @@
     "ppOutcome": {
       "applied": "použito",
       "skipped": "přeskočeno",
-      "failed": "selhalo"
+      "failed": "selhalo",
+      "unchanged": "beze změny"
+    },
+    "notifications": {
+      "title": "Oznámení",
+      "toggle": {
+        "label": "Systémová oznámení",
+        "description": "Zobrazovat chyby a výsledky relací jako systémová oznámení. Zůstanou v centru oznámení, dokud je nezamítnete."
+      },
+      "outcomes": {
+        "label": "Oznámení o výsledcích",
+        "description": "Upozorňovat také na konec relace telefonu, například při dosažení limitu relace nebo odpojení telefonu. Vypnuto znamená pouze chyby."
+      },
+      "log": {
+        "title": "Protokol oznámení",
+        "description": "Posledních 50 upozornění na chyby a výsledky. Nové záznamy se ukládají pouze při zapnutých systémových oznámeních.",
+        "empty": "Zatím žádná oznámení.",
+        "clear": "Vymazat vše"
+      }
+    },
+    "studio": {
+      "title": "Studio promptů",
+      "intro": "Testujte prompty na skutečném přepisu a porovnávejte enginy vedle sebe. Spuštění používají stejný postup jako skutečné diktování, ale nikam se nic nepíše a do historie se nic neukládá.",
+      "source": {
+        "label": "Zdrojový text",
+        "description": "Přepis, který studio upravuje: poslední diktát nebo libovolná položka historie.",
+        "last": "Poslední přepis",
+        "loading": "Načítání položek..."
+      },
+      "prompts": {
+        "label": "Prompty",
+        "description": "Vyberte jednu nebo více šablon ke spuštění."
+      },
+      "engines": {
+        "label": "Enginy",
+        "description": "Vyberte jeden nebo více enginů ke spuštění.",
+        "appleUnavailable": "Apple Intelligence není na tomto Macu k dispozici",
+        "noModel": "Není nakonfigurován žádný model",
+        "noModelHint": "Není nastaven žádný model. Vyberte ho v Post Process."
+      },
+      "run_one": "Spustit 1 pár",
+      "run_few": "Spustit {{count}} páry",
+      "run_many": "Spustit {{count}} párů",
+      "run_other": "Spustit párů: {{count}}",
+      "runHint_one": "1 prompt na 1 enginu. Nic se nepíše ani neukládá.",
+      "runHint_few": "{{count}} páry prompt-engin. Nic se nepíše ani neukládá.",
+      "runHint_many": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
+      "runHint_other": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
+      "running": "Běží...",
+      "rerun": "Spustit znovu",
+      "latency": "{{ms}} ms",
+      "rawKept": "Engin selhal nebo byl přeskočen, proto by zůstal původní přepis.",
+      "partialFailure": "Některé běhy selhaly nebo byly přeskočeny, zatímco jiné daly výsledek. Zkontrolujte každou kartu.",
+      "results_one": "1 výsledek",
+      "results_few": "{{count}} výsledky",
+      "results_many": "{{count}} výsledků",
+      "results_other": "Výsledků: {{count}}",
+      "errors": {
+        "engineNotFound": "Engin '{{id}}' není nakonfigurován.",
+        "entryNotFound": "Zvolená položka historie už neexistuje.",
+        "emptyBatch": "Vyberte alespoň jeden prompt a jeden engin."
+      },
+      "diff": {
+        "lines": "řádků",
+        "charsChanged_one": "Změněn 1 znak",
+        "charsChanged_few": "Změněny {{count}} znaky",
+        "charsChanged_many": "Změněno {{count}} znaků",
+        "charsChanged_other": "Změněno znaků: {{count}}",
+        "identical": "Žádné změny."
+      },
+      "resultsEmptyTitle": "Výsledky se zobrazí zde",
+      "resultsEmptyHint": "Vyberte výše zdroj, prompty a enginy a spusťte. Každá karta ukazuje upravený text, změny a rychlost."
     }
   },
   "footer": {
@@ -1202,11 +1339,18 @@
       "postProcessOutputInvalid": "Čištění vrátilo nepoužitelný text, původní přepis byl zachován.",
       "postProcessCloudFailed": "Čištění selhalo, původní přepis byl zachován: {{detail}}",
       "postProcessPromptCycled": "Šablona následného zpracování: {{name}}",
+      "postProcessPromptCycledPosition": "Šablona následného zpracování: {{name}} ({{position}} z {{total}})",
+      "postProcessSessionUpgraded": "Následné zpracování zapnuto pro tuto relaci: {{name}}",
+      "postProcessSessionDowngraded": "Následné zpracování vypnuto pro tuto relaci",
       "companionDisconnected": "Telefon odpojen. Dokončuji s tím, co bylo zachyceno.",
       "companionServerFailed": "Selhání doprovodného serveru: {{error}}",
-      "companionSessionCapped": "Diktování z doprovodného zařízení skončilo: bylo dosaženo 15minutového limitu relace na {{device}}."
+      "companionSessionCapped": "Diktování z doprovodného zařízení skončilo: bylo dosaženo 15minutového limitu relace na {{device}}.",
+      "companionZeroAudio": "Diktování z doprovodného zařízení skončilo bez zvuku. Nebylo přepsáno nic.",
+      "postProcessUnchanged": "Doladění skončilo, ale nic nezměnilo; přepis byl vložen přesně tak, jak byl diktován.",
+      "postProcessNotConfigured": "Následné zpracování neproběhlo: {{detail}}. Nezpracovaný přepis byl zachován."
     },
     "commandBadge": "Režim příkazů",
+    "ppBadge": "Následné zpracování",
     "ppChip": "Čistím ({{model}}) {{seconds}}s",
     "companionBadge": "Doprovodný mikrofon"
   },
@@ -1254,13 +1398,15 @@
     "subtitle": "Váš telefon je teď mikrofon a spoušť pro váš Mac.",
     "certNote": "Pokud prohlížeč varuje před spojením, porovnejte otisk certifikátu s otiskem v nastavení VoxBar a jednou ho přijměte.",
     "noToken": "Otevřete tuto stránku z QR kódu v nastavení VoxBar.",
-    "micDenied": "Přístup k mikrofonu zamítnut. Povolte ho v prohlížeči a načtěte znovu.",
+    "micDenied": "Přístup k mikrofonu se nezdařil. Povolte ho v prohlížeči a zkuste to znovu.",
+    "micRetry": "Zkusit znovu",
     "badToken": "Párování selhalo. Naskenujte QR kód v nastavení VoxBar znovu.",
     "wrongSubnet": "Tento telefon je v jiné síti než Mac. Připojte se ke stejné Wi-Fi a spárujte znovu.",
     "rateLimited": "Příliš mnoho pokusů o párování. Počkejte minutu a zkuste to znovu.",
     "busy": "Mac už diktuje z jiné spouště.",
     "disconnectedFinalized": "Spojení přerušeno. Mac si uložil, co jste řekli.",
     "capped": "Relace omezena na 15 minut. Stiskněte znovu pro pokračování.",
+    "zeroAudio": "K Macu se nedostal žádný zvuk. Podržte tlačítko a mluvte.",
     "serverStopped": "Mac zastavil doprovodný server.",
     "reconnect": "Připojit znovu",
     "holdToTalk": "Držte pro mluvení",
@@ -1272,6 +1418,16 @@
     "stateReady": "Připraveno",
     "stateRecording": "Nahrávání",
     "stateDisconnected": "Odpojeno",
-    "stateError": "Chyba"
+    "stateError": "Chyba",
+    "targetLabel": "Odeslat na",
+    "targetPc": "Na počítač",
+    "targetPhone": "Na telefon",
+    "postProcessLabel": "Uhladit text",
+    "resultTitle": "Přepis",
+    "copy": "Kopírovat",
+    "copied": "Zkopírováno",
+    "polished": "Uhlazený",
+    "historyTitle": "Nedávné",
+    "historyEmpty": "Diktáty z tohoto telefonu se zobrazí zde."
   }
 }

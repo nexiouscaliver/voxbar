@@ -457,6 +457,23 @@
       s.settings.debug_mode = true;
       s.settings.post_process_enabled = true;
     },
+    // Post-process on with a cloud provider selected and a key present:
+    // the cloud model-selection surface (API key, model dropdown, timeout).
+    "settings-pp-cloud": (s) => {
+      SCENARIOS["settings-default"](s);
+      s.settings.post_process_enabled = true;
+      s.settings.post_process_provider_id = "openai";
+      s.settings.post_process_api_keys.openai = "sk-mock-key-0123456789abcdef";
+    },
+    // Cloud provider picked but no key yet: the model list never fetches,
+    // so the picker must say no list exists rather than claiming a fetch
+    // (the honest-summary state; the current model rides the grid alone).
+    "settings-pp-cloud-nokey": (s) => {
+      SCENARIOS["settings-default"](s);
+      s.settings.post_process_enabled = true;
+      s.settings.post_process_provider_id = "openai";
+      s.settings.post_process_api_keys.openai = "";
+    },
     // User who upgraded but has not seen the release notes yet.
     "whats-new": (s) => {
       SCENARIOS["settings-default"](s);
@@ -624,6 +641,42 @@
       size_mb: 644,
       progress: 100,
     }),
+    // The local post-process catalog: the pinned Qwen model downloaded and
+    // selected, one more available to download. This drives the default
+    // pinned-only surface (row + "Browse more models" affordance); the
+    // catalog grid appears once that affordance is clicked (session state).
+    get_available_llm_models: () => [
+      {
+        info: {
+          id: "Qwen/Qwen3-0.6B-GGUF/Qwen3-0.6B-Q8_0.gguf",
+          name: "Qwen3 0.6B (post-process)",
+          description: "Small, fast on-device polisher for transcripts.",
+          size_mb: 644,
+          is_downloaded: true,
+          is_downloading: false,
+          context_tokens: 8192,
+        },
+        quant: "Q8_0",
+        context_tokens: 8192,
+        publisher: "Qwen",
+        selected: true,
+      },
+      {
+        info: {
+          id: "Qwen/Qwen3-1.7B-GGUF/Qwen3-1.7B-Q4_K_M.gguf",
+          name: "Qwen3 1.7B (post-process)",
+          description: "Larger polisher with better grammar fixes.",
+          size_mb: 1120,
+          is_downloaded: false,
+          is_downloading: false,
+          context_tokens: 8192,
+        },
+        quant: "Q4_K_M",
+        context_tokens: 8192,
+        publisher: "Qwen",
+        selected: false,
+      },
+    ],
     download_local_llm_model: () => null,
     delete_local_llm_model: () => null,
     get_available_accelerators: () => ({
@@ -819,12 +872,42 @@
     },
     fetch_post_process_models: (args) => {
       const providerId = args.providerId ?? args.provider_id;
+      // OpenAI's real /v1/models also returns embedding/tts/whisper ids;
+      // the dozen-entry list keeps the model picker's filter + cap honest
+      // in shots instead of hiding them behind a 3-entry fixture.
       const table = {
-        openai: ["gpt-4.1-mini", "gpt-4o-mini", "gpt-4.1"],
+        openai: [
+          "gpt-4.1-mini",
+          "gpt-4o-mini",
+          "gpt-4.1",
+          "gpt-4o",
+          "o4-mini",
+          "gpt-4-turbo",
+          "gpt-3.5-turbo",
+          "whisper-1",
+          "tts-1",
+          "tts-1-hd",
+          "text-embedding-3-small",
+          "text-embedding-3-large",
+        ],
         zai: ["glm-4.7-flash", "glm-4.7"],
         openrouter: ["openai/gpt-4o-mini", "anthropic/claude-3.5-haiku"],
       };
-      return table[providerId] ?? [];
+      const models = table[providerId] ?? [];
+      // Mirror the backend contract (settings.rs CachedModelList): the
+      // list is persisted into the settings cache with fetched_at_unix,
+      // and the frontend re-reads settings after the fetch to render the
+      // fetched-at hint. Without this the mock could never exercise the
+      // "N models, fetched <time>" summary.
+      if (models.length > 0) {
+        state.settings.post_process_model_lists =
+          state.settings.post_process_model_lists ?? {};
+        state.settings.post_process_model_lists[providerId] = {
+          models,
+          fetched_at_unix: Math.floor(Date.now() / 1000),
+        };
+      }
+      return models;
     },
   };
 

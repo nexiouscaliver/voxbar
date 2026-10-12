@@ -12,6 +12,20 @@
     "postProcessModel": "Son işlem modeli",
     "quit": "Çıkış",
     "cancel": "İptal",
+    "statusIdle": "Boşta",
+    "statusRecording": "Kaydediyor…",
+    "statusTranscribing": "Yazıya döküyor…",
+    "asrModel": "ASR modeli",
+    "modelsNone": "Yüklü model yok",
+    "recentDictations": "Son Transkriptler",
+    "recentDictationsEmpty": "Henüz transkript yok",
+    "companionLabel": "Yoldaş",
+    "companionOn": "Açık",
+    "companionOff": "Kapalı",
+    "companionPairedDevices": "Eşleştirilmiş cihazlar",
+    "companionTarget": "Hedef",
+    "companionTargetMac": "Bu Mac",
+    "companionTargetPhone": "Telefon",
     "secureInputWarning": "⚠ Kısayollar Secure Input tarafından engelleniyor",
     "postProcessPrompt": "Son işlem promptu"
   },
@@ -25,7 +39,9 @@
     "enableInAdvancedHint": "Gelişmiş bölümünden etkinleştirin",
     "history": "Geçmiş",
     "debug": "Hata Ayıklama",
-    "about": "Hakkında"
+    "about": "Hakkında",
+    "notifications": "Bildirimler",
+    "promptStudio": "Prompt Stüdyosu"
   },
   "onboarding": {
     "subtitle": "Başlamak için bir transkripsiyon modeli seçin",
@@ -667,7 +683,31 @@
         "serverError": "Sunucu başarısız: {{error}}",
         "refresh": "Yenile",
         "statusRunning": "Çalışıyor",
-        "statusStopped": "Durduruldu"
+        "statusStopped": "Durduruldu",
+        "interfaceTitle": "Ağ arayüzü",
+        "interfaceAuto": "Otomatik (LAN öncelikli)",
+        "interfaceKind": {
+          "lan": "LAN",
+          "tailscale": "Tailscale",
+          "vpn": "VPN"
+        },
+        "noInterfaces": "Henüz ağ arayüzü bulunamadı",
+        "bindError": "Arayüz sorunu: {{error}}",
+        "manualTitle": "El ile ayar",
+        "hostLabel": "Duyurulan ana makine veya IP",
+        "hostPlaceholder": "Boşsa arayüz adresi kullanılır",
+        "hostInvalid": "Şema, bağlantı noktası veya eğik çizgi olmadan bir IPv4 adresi veya ana makine adı girin",
+        "portInvalid": "Bağlantı noktası 1 ile 65535 arasında bir sayı olmalıdır",
+        "tlsTitle": "TLS sertifikası",
+        "tlsCertLabel": "Sertifika dosyası",
+        "tlsKeyLabel": "Anahtar dosyası",
+        "tlsSelfSigned": "Yerleşik kendinden imzalı sertifika kullanılıyor",
+        "tlsManual": "Kendi sertifikanız kullanılıyor",
+        "tlsPairInvalid": "İki dosyayı da belirtin veya ikisini de boş bırakın",
+        "restartButton": "Sunucuyu yeniden başlat",
+        "restartPending": "Değişiklikler yeniden başlatmadan sonra uygulanır",
+        "qrPreviewNote": "Önizleme: Bu URL, sunucu bir dahaki sefere başladığında duyurulacak.",
+        "sharedNetworkNote": "Telefon ve bu Mac aynı ağı paylaşmalıdır: aynı Wi-Fi veya LAN ya da aynı tailnet (örneğin ikisi de Tailscale'de)."
       }
     },
     "postProcessing": {
@@ -702,7 +742,20 @@
           "refreshModels": "Modelleri Yenile",
           "fetchFailed": "Model listesi alınamadı ({{failureClass}}): {{detail}}",
           "fetchedAtHint": "Model listesi {{time}} tarihinde alındı",
-          "retry": "Yeniden dene"
+          "retry": "Yeniden dene",
+          "visibleDescription": "Her diktemden sonra transkriptinizi yeniden yazan model.",
+          "fetchingList": "Model listesi alınıyor...",
+          "listSummary_one": "1 model, {{time}} tarihinde alındı",
+          "listSummary_other": "{{count}} model, {{time}} tarihinde alındı",
+          "notFetched": "Henüz model listesi yok.",
+          "emptyTitle": "Listede model yok",
+          "emptyHint": "Bu anahtarın gördüğü modelleri yüklemek için yenileyin veya aşağıya bir model kimliği yazın.",
+          "customSet": "Ayarla",
+          "customHint": "Listede olmasa bile sağlayıcınızın sunduğu her model kimliği çalışır.",
+          "filterPlaceholder": "Modelleri filtrele",
+          "showAll_one": "Tümünü göster ({{count}})",
+          "showAll_other": "Tümünü göster ({{count}})",
+          "showFewer": "Daha az göster"
         },
         "timeout": {
           "title": "İstek zaman aşımı",
@@ -718,7 +771,8 @@
           "appleReady": "Apple Intelligence kullanılabilir",
           "appleUnavailable": "Apple Intelligence bu cihazda kullanılamıyor",
           "failed": "Bağlantı başarısız: {{failureClass}}. {{detail}}"
-        }
+        },
+        "titleLocal": "Motor"
       },
       "local": {
         "label": "Yerel model",
@@ -854,9 +908,15 @@
           "chinese_simplified": {
             "name": "Çince (basitleştirilmiş)",
             "description": "Basitleştirilmiş çince temizliği, eş sesli düzeltmelerle."
+          },
+          "prompt_enhancer": {
+            "name": "İstem Geliştirici",
+            "description": "Dikte edilen bir talimatı, bir yapay zeka ajanı veya uygulama için net, yapılandırılmış bir isteğe dönüştürür."
           }
         },
-        "editPrompt": "Düzenle"
+        "editPrompt": "Düzenle",
+        "testShort": "Test et",
+        "deleteShort": "Sil"
       }
     },
     "history": {
@@ -882,7 +942,9 @@
       "groups": {
         "retention": "Saklama"
       },
-      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms ile"
+      "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms ile",
+      "viewChanges": "Değişiklikleri göster",
+      "hideChanges": "Değişiklikleri gizle"
     },
     "debug": {
       "title": "Hata Ayıklama",
@@ -1076,7 +1138,70 @@
     "ppOutcome": {
       "applied": "uygulandı",
       "skipped": "atlandı",
-      "failed": "başarısız"
+      "failed": "başarısız",
+      "unchanged": "değişmedi"
+    },
+    "notifications": {
+      "title": "Bildirimler",
+      "toggle": {
+        "label": "Sistem bildirimleri",
+        "description": "Hataları ve oturum sonuçlarını sistem bildirimleri olarak göster. Bildirimler, sen onları kapatana kadar bildirim merkezinde kalır."
+      },
+      "outcomes": {
+        "label": "Sonuç bildirimleri",
+        "description": "Telefon oturumu bittiğinde de bildir; örneğin oturum sınırına ulaşıldığında veya telefon bağlantısı koptuğunda. Kapalı, yalnızca hatalar demektir."
+      },
+      "log": {
+        "title": "Bildirim günlüğü",
+        "description": "Son 50 hata ve sonuç bildirimi. Yeni kayıtlar yalnızca sistem bildirimleri açıkken tutulur.",
+        "empty": "Henüz bildirim yok.",
+        "clear": "Tümünü temizle"
+      }
+    },
+    "studio": {
+      "title": "Prompt Stüdyosu",
+      "intro": "Promptları gerçek bir transkript üzerinde test edin ve motorları yan yana karşılaştırın. Çalıştırmalar gerçek bir diktemle aynı motor hattını kullanır ama başka uygulamalara hiçbir şey yazılmaz ve geçmişe hiçbir şey kaydedilmez.",
+      "source": {
+        "label": "Kaynak metin",
+        "description": "Stüdyonun işlediği transkript: son diktiniz veya geçmişteki herhangi bir kayıt.",
+        "last": "Son transkript",
+        "loading": "Kayıtlar yükleniyor..."
+      },
+      "prompts": {
+        "label": "Promptlar",
+        "description": "Çalıştırılacak bir veya daha fazla şablon seçin."
+      },
+      "engines": {
+        "label": "Motorlar",
+        "description": "Bunları çalıştıracağınız bir veya daha fazla motor seçin.",
+        "appleUnavailable": "Apple Intelligence bu Mac'te kullanılamıyor",
+        "noModel": "Yapılandırılmış model yok",
+        "noModelHint": "Model ayarlanmadı. Post Process altından seçin."
+      },
+      "run_one": "1 çift çalıştır",
+      "run_other": "{{count}} çift çalıştır",
+      "runHint_one": "1 motorda 1 prompt. Hiçbir şey yazılmaz veya kaydedilmez.",
+      "runHint_other": "{{count}} prompt-motor çifti. Hiçbir şey yazılmaz veya kaydedilmez.",
+      "running": "Çalışıyor...",
+      "rerun": "Yeniden çalıştır",
+      "latency": "{{ms}} ms",
+      "rawKept": "Motor başarısız oldu veya atlandı, bu nedenle ham transkript korunurdu.",
+      "partialFailure": "Bazı çalışmalar başarısız oldu veya atlanırken diğerleri sonuç üretti. Her kartı kontrol edin.",
+      "results_one": "1 sonuç",
+      "results_other": "{{count}} sonuç",
+      "errors": {
+        "engineNotFound": "'{{id}}' motoru yapılandırılmamış.",
+        "entryNotFound": "Seçilen geçmiş kaydı artık yok.",
+        "emptyBatch": "En az bir prompt ve bir motor seçin."
+      },
+      "diff": {
+        "lines": "satır",
+        "charsChanged_one": "1 karakter değişti",
+        "charsChanged_other": "{{count}} karakter değişti",
+        "identical": "Değişiklik yok."
+      },
+      "resultsEmptyTitle": "Sonuçlar burada görünecek",
+      "resultsEmptyHint": "Yukarıdan bir kaynak, promptlar ve motorlar seçip çalıştırın. Her kart cilalanmış metni, değişiklikleri ve hızını gösterir."
     }
   },
   "footer": {
@@ -1202,11 +1327,18 @@
       "postProcessOutputInvalid": "Parlatma kullanılamaz metin döndürdü, özgün transkript korundu.",
       "postProcessCloudFailed": "Parlatma başarısız oldu, özgün transkript korundu: {{detail}}",
       "postProcessPromptCycled": "Son işlem şablonu: {{name}}",
+      "postProcessPromptCycledPosition": "Son işlem şablonu: {{name}} ({{position}}/{{total}})",
+      "postProcessSessionUpgraded": "Bu oturum için son işlem açık: {{name}}",
+      "postProcessSessionDowngraded": "Bu oturum için son işlem kapalı",
       "companionDisconnected": "Telefon bağlantısı kesildi. Kaydedilenle bitiriliyor.",
       "companionServerFailed": "Eşlik sunucusu başarısız: {{error}}",
-      "companionSessionCapped": "Eşlik eden cihazdan dikte sona erdi: {{device}} üzerinde 15 dakikalık oturum sınırına ulaşıldı."
+      "companionSessionCapped": "Eşlik eden cihazdan dikte sona erdi: {{device}} üzerinde 15 dakikalık oturum sınırına ulaşıldı.",
+      "companionZeroAudio": "Eşlik cihazından dikten ses olmadan sona erdi. Hiçbir şey yazıya dökülmedi.",
+      "postProcessUnchanged": "Parlatma bitti ama hiçbir şeyi değiştirmedi; transkript tam dikte edildiği gibi yapıştırıldı.",
+      "postProcessNotConfigured": "Son işlem çalıştırılmadı: {{detail}}. Ham transkript korundu."
     },
     "commandBadge": "Komut modu",
+    "ppBadge": "Son işlem",
     "ppChip": "Parlatılıyor ({{model}}) {{seconds}}sn",
     "companionBadge": "Eşlik mikrofonu"
   },
@@ -1254,13 +1386,15 @@
     "subtitle": "Telefonun artık Mac'in için mikrofon ve düğme.",
     "certNote": "Tarayıcı bağlantı konusunda uyarırsa sertifika parmak izini VoxBar ayarlarındaki ile karşılaştır ve bir kez kabul et.",
     "noToken": "Bu sayfayı VoxBar ayarlarındaki QR koduyla aç.",
-    "micDenied": "Mikrofon erişimi reddedildi. Tarayıcıda izin ver ve yeniden yükle.",
+    "micDenied": "Mikrofon erişimi başarısız oldu. Tarayıcıda izin ver ve tekrar dene.",
+    "micRetry": "Tekrar dene",
     "badToken": "Eşleştirme başarısız. VoxBar ayarlarındaki QR kodunu yeniden tara.",
     "wrongSubnet": "Bu telefon Mac'ten farklı bir ağda. Aynı Wi-Fi'ye katıl ve yeniden eşleştir.",
     "rateLimited": "Çok fazla eşleştirme denemesi. Bir dakika bekle ve tekrar dene.",
     "busy": "Mac halihazırda başka bir düğmeden dikte ediyor.",
     "disconnectedFinalized": "Bağlantı koptu. Mac söylediklerini korudu.",
     "capped": "Oturum 15 dakikayla sınırlı. Devam etmek için yeniden bas.",
+    "zeroAudio": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup konuş.",
     "serverStopped": "Mac eşlik sunucusunu durdurdu.",
     "reconnect": "Yeniden bağlan",
     "holdToTalk": "Konuşmak için basılı tut",
@@ -1272,6 +1406,16 @@
     "stateReady": "Hazır",
     "stateRecording": "Kaydediyor",
     "stateDisconnected": "Bağlantı kesildi",
-    "stateError": "Hata"
+    "stateError": "Hata",
+    "targetLabel": "Gönder",
+    "targetPc": "Bilgisayara",
+    "targetPhone": "Telefona",
+    "postProcessLabel": "Metni cilala",
+    "resultTitle": "Deşifre",
+    "copy": "Kopyala",
+    "copied": "Kopyalandı",
+    "polished": "Cilalandı",
+    "historyTitle": "Son kayıtlar",
+    "historyEmpty": "Bu telefonla yapılan dikatler burada görünür."
   }
 }

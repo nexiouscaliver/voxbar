@@ -134,6 +134,50 @@ async resetCompanionPairing() : Promise<Result<null, string>> {
 async getCompanionStatus() : Promise<CompanionStatus> {
     return await TAURI_INVOKE("get_companion_status");
 },
+/**
+ * v1.6.0: persist the companion network configuration (interface
+ * choice, advertised-host override, port). Validation happens BEFORE
+ * the write (see validate_companion_network_override), and the server
+ * is NOT bounced here: the settings panel's restart button applies the
+ * new configuration, with restart_pending flagging the difference.
+ */
+async changeCompanionNetworkSetting(bindIp: string | null, advertisedHost: string | null, port: number) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_companion_network_setting", { bindIp, advertisedHost, port }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * v1.6.0: persist the manual TLS certificate pair for the companion
+ * listener. Both paths or neither: one without the other is rejected,
+ * and a set pair must actually load (readable files, parseable PEM) so
+ * a restart can never arm a broken certificate. Unset keeps the
+ * self-signed behavior exactly.
+ */
+async changeCompanionTlsSetting(certPath: string | null, keyPath: string | null) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("change_companion_tls_setting", { certPath, keyPath }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * v1.6.0: apply the persisted companion configuration by bouncing the
+ * server (the settings panel's restart button). Start failures surface
+ * verbatim, port conflicts included: the OS bind error is the error
+ * string. A stopped server starts when the effective gate allows it.
+ */
+async restartCompanionServer() : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("restart_companion_server") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async changeAutoFallbackSetting(enabled: boolean) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("change_auto_fallback_setting", { enabled }) };
@@ -520,6 +564,34 @@ async cyclePostProcessPrompt() : Promise<Result<null, string>> {
 async testPostProcessPrompt(promptId: string) : Promise<Result<PromptTestOutcome, TestPromptError>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("test_post_process_prompt", { promptId }) };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * The Prompt Studio batch (v1.6.0 W1-L6): run a batch of (template,
+ * engine) pairs over ONE source transcript. Every pair runs through the
+ * exact engine lifecycle a dictation uses (provider + its configured
+ * model, shared validator, pp: record under the `prompt_studio` marker),
+ * WITHOUT pasting anything and WITHOUT writing any history row: the seam
+ * it drives never touches the paste or history pipelines.
+ * 
+ * Validation is pre-flight and refuses the whole batch: an empty batch,
+ * a dangling template id, or an engine id that is not a configured
+ * provider errors before any run starts. Per-run engine failures are NOT
+ * command errors: they come back as outcome tokens (`failed:<class>`,
+ * `skipped:<reason>`) on their own card, so one dead engine never hides
+ * its siblings' results (the studio's partial-failure state).
+ * 
+ * Runs are sequential on purpose: the local engine is an exclusive memory
+ * swap (voice out, LLM in), so two concurrent local generations would
+ * fight over the swap on a memory-constrained machine. Results return in
+ * request order, each labeled with its request.
+ */
+async testPostProcessPromptBatch(source: StudioSource, runs: StudioRunRequest[]) : Promise<Result<StudioRunResult[], TestPromptError>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("test_post_process_prompt_batch", { source, runs }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1434,6 +1506,21 @@ async getHistoryEntries(cursor: number | null, limit: number | null) : Promise<R
     else return { status: "error", error: e  as any };
 }
 },
+/**
+ * v1.6.0: the phone-facing recent list for the Mac UI's companion chip -
+ * the last companion-source entries (deliverable text + timestamp),
+ * newest first. The same query feeds the RecentHistory wire frame the
+ * phones receive; the window is fixed by the protocol constant so the two
+ * surfaces can never disagree.
+ */
+async getRecentCompanionEntries() : Promise<Result<RecentCompanionEntry[], string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("get_recent_companion_entries") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
 async toggleHistoryEntrySaved(id: number) : Promise<Result<null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("toggle_history_entry_saved", { id }) };
@@ -1503,6 +1590,43 @@ async getPostProcessRuns(limit: number | null) : Promise<Result<PostProcessRunRe
 async isLaptop() : Promise<Result<boolean, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("is_laptop") };
+} catch (e) {
+    if(e instanceof Error) throw e;
+    else return { status: "error", error: e  as any };
+}
+},
+/**
+ * The state query command: the settings UI and the frontend priming flow
+ * read the REAL macOS grant through this (the plugin's desktop stub
+ * always says granted).
+ */
+async notificationPermissionState() : Promise<NotificationPermissionState> {
+    return await TAURI_INVOKE("notification_permission_state");
+},
+/**
+ * The one-shot request command for the priming flow: resolves
+ * NotDetermined with the system prompt and reports the outcome. The OS's
+ * own deny-once semantics make repeats no-ops.
+ */
+async requestNotificationPermission() : Promise<NotificationPermissionState> {
+    return await TAURI_INVOKE("request_notification_permission");
+},
+/**
+ * Post one persistent notice. The command returns as soon as the notice
+ * is handed to the platform; the click wait happens on its own thread.
+ * 
+ * Fleet pass 2: the send is gated on the REAL macOS authorization state
+ * (notification_permission), because the tauri plugin's desktop build
+ * stubs every permission query as granted and mac-notification-sys
+ * resolves a disabled-in-System-Settings send as a plain no-response -
+ * the old path posted into a void with no log, no error, and no state
+ * anywhere. Denied and Unknown are LOUD here (an actionable warn plus an
+ * Err the frontend logs); NotDetermined resolves with the system prompt
+ * first, which is what makes the app's asks-once claim true.
+ */
+async postPersistentNotice(body: string, code: string, target: string) : Promise<Result<null, string>> {
+    try {
+    return { status: "ok", data: await TAURI_INVOKE("post_persistent_notice", { body, code, target }) };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
@@ -1795,7 +1919,30 @@ companion_pairing_subnet?: string | null;
 /**
  * Name of the last device that completed a hello handshake.
  */
-companion_last_device?: string | null }
+companion_last_device?: string | null; 
+/**
+ * v1.6.0: the interface IP the companion server binds and advertises
+ * (chosen in the settings picker). None/empty means the automatic
+ * LAN-preferred ranking, the pre-v1.6.0 behavior. A Tailscale
+ * 100.64/10 interface is selectable here.
+ */
+companion_bind_ip?: string | null; 
+/**
+ * v1.6.0: manual hostname or IPv4 advertised in the pairing URL
+ * instead of the bound interface's IP (e.g. a MagicDNS name).
+ * None/empty advertises the bound IP, the pre-v1.6.0 behavior.
+ */
+companion_advertised_host?: string | null; 
+/**
+ * v1.6.0: manual TLS certificate pair for the companion listener
+ * (tailscale-issued or own certs). BOTH set means manual; anything
+ * else keeps the self-signed certificate behavior.
+ */
+companion_tls_cert_path?: string | null; 
+/**
+ * The key file paired with `companion_tls_cert_path`.
+ */
+companion_tls_key_path?: string | null }
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AvailableAccelerators = { transcribe: string[]; ort: string[]; gpu_devices: GpuDeviceOption[] }
@@ -1831,10 +1978,45 @@ export type CommandId = "period" | "comma" | "questionMark" | "exclamation" | "c
  */
 export type CommandMatrixEntry = { command: CommandId; phrases: string[] }
 /**
+ * One picker row: an interface address with its name and kind.
+ */
+export type CompanionInterface = { ip: string; name: string; kind: string }
+/**
  * The status snapshot the settings panel renders (QR, URL, devices,
  * fingerprint, error).
  */
-export type CompanionStatus = { enabled: boolean; running: boolean; supported: boolean; url: string | null; port: number; qr_svg: string | null; fingerprint: string | null; token: string | null; subnet: string | null; last_device: string | null; devices: string[]; error: string | null }
+export type CompanionStatus = { enabled: boolean; running: boolean; supported: boolean; url: string | null; port: number; qr_svg: string | null; fingerprint: string | null; token: string | null; subnet: string | null; last_device: string | null; devices: string[]; error: string | null; 
+/**
+ * v1.6.0: every candidate interface the picker can surface, with
+ * its OS name and classification ("lan" | "tailscale" | "vpn").
+ */
+interfaces: CompanionInterface[]; 
+/**
+ * The IPv4 the current configuration resolves to bind (live while
+ * running, a preview of the next start while stopped). None when
+ * the configured choice cannot resolve.
+ */
+bind_ip: string | null; 
+/**
+ * The manual hostname/IP override for the pairing URL, when set.
+ */
+advertised_host: string | null; 
+/**
+ * Why `bind_ip` could not resolve (a chosen interface that is no
+ * longer present, or a malformed stored value).
+ */
+bind_error: string | null; 
+/**
+ * True when the running server was started with a manual
+ * certificate pair rather than the self-signed one.
+ */
+tls_manual: boolean; 
+/**
+ * True while the server runs with a configuration the persisted
+ * settings no longer match (interface, host, port, or TLS source
+ * changed since start): a restart applies them.
+ */
+restart_pending: boolean }
 export type CustomSounds = { start: boolean; stop: boolean }
 export type EngineType = 
 /**
@@ -1923,7 +2105,18 @@ model_id: string | null;
  * latency. `None` for pre-cycle rows and entries whose dictation ran
  * without post-processing.
  */
-post_process_provider: string | null; post_process_model: string | null; post_process_prompt_id: string | null; post_process_outcome: string | null; post_process_latency_ms: number | null }
+post_process_provider: string | null; post_process_model: string | null; post_process_prompt_id: string | null; post_process_outcome: string | null; post_process_latency_ms: number | null; 
+/**
+ * v1.6.0: where the audio came from, "local" (keyboard session) or
+ * "companion" (phone session). Pre-migration rows read "local".
+ */
+capture_source: string; 
+/**
+ * v1.6.0: where the transcript was (or, for a failed entry, was meant
+ * to be) delivered, "mac" (pasted on the Mac) or "phone" (sent to the
+ * phone). Pre-migration rows read "mac".
+ */
+delivery_destination: string }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
  * Result of changing keyboard implementation
@@ -2039,6 +2232,29 @@ export type ModelUnloadTimeout = "never" | "immediately" | "min_2" | "min_5" | "
  */
 { custom: { seconds: number } }
 /**
+ * The authorization states callers act on. `Granted` folds Apple's
+ * Authorized/Provisional/Ephemeral together: all three deliver.
+ */
+export type NotificationPermissionState = 
+/**
+ * The system prompt has not been shown (or answered) yet.
+ */
+"not_determined" | 
+/**
+ * The operator denied the grant; nothing will be delivered.
+ */
+"denied" | 
+/**
+ * Authorized (or provisional/ephemeral): delivery proceeds.
+ */
+"granted" | 
+/**
+ * The real query could not be completed (FFI/timeout failure). Never
+ * treated as a grant: callers skip loudly rather than post into a
+ * void they cannot see.
+ */
+"unknown"
+/**
  * How spoken number words are written in the transcript. Post-model and
  * deterministic (number_format.rs); `as_transcribed` restores the 1.1.0
  * behavior byte-for-byte. The release default is `digits` because the
@@ -2140,6 +2356,15 @@ export type PostProcessOutcome =
  */
 { kind: "applied" } | 
 /**
+ * The engine returned the transcript byte-identical (after trim): it
+ * ran, validated, and changed nothing, so the pasted text equals the
+ * raw transcript either way. Round 7's no-op guard: before this
+ * variant a verbatim echo from a weak engine recorded as `applied`,
+ * which made "the polish did nothing" indistinguishable from a real
+ * cleanup in the outcome column and in history.
+ */
+{ kind: "unchanged" } | 
+/**
  * The engine never produced output (expected, recoverable); the raw
  * transcript was used. Carries the local-engine skip vocabulary.
  */
@@ -2199,7 +2424,16 @@ template_language: string | null; phases_engine: PostProcessEnginePhase; phases_
 /**
  * `None` while the run is still live.
  */
-outcome: PostProcessOutcome | null; chars_in: number | null; chars_out: number | null; 
+outcome: PostProcessOutcome | null; 
+/**
+ * Why the run ended the way it did, when a reason exists: the skip
+ * reason's explanation, the cloud failure's error text, or the no-op
+ * guard's "engine returned the transcript unchanged". This is the
+ * fallback-reason surface the Debug table renders (round 7: before
+ * this field the detail rode only the pp: log line, so the table
+ * could say "skipped" but never why).
+ */
+outcome_detail: string | null; chars_in: number | null; chars_out: number | null; 
 /**
  * chars_out / chars_in (how much of the transcript survived), None
  * when chars_in is 0 or the run produced no output.
@@ -2231,6 +2465,14 @@ export type PromptRegister = "professional" | "casual" | "technical" | "minimal"
  * or `skipped` for pre-run config states that never mint a run).
  */
 export type PromptTestOutcome = { before: string; after: string | null; outcome: string; latency_ms: number }
+/**
+ * One entry of the phone-facing recent list (v1.6.0): the deliverable text
+ * of a companion-source history row (post-processed when the session
+ * polished it, else the raw transcript) plus the entry timestamp. The
+ * RecentHistory wire frame and the get_recent_companion_entries command
+ * both carry these.
+ */
+export type RecentCompanionEntry = { text: string; timestamp: number }
 export type RecordingRetentionPeriod = "never" | "preserve_limit" | "days_3" | "weeks_2" | "months_3"
 export type SecretMap = Partial<{ [key in string]: string }>
 export type SecureInputStatus = { 
@@ -2333,6 +2575,24 @@ deleted?: string | null }
  */
 export type StreamWorkKind = "transcribing" | "polishing"
 /**
+ * One studio run: a (template, engine) pair. The engine is the provider
+ * id (local | apple_intelligence | a configured cloud id), exactly the
+ * vocabulary the settings store and the run records use.
+ */
+export type StudioRunRequest = { prompt_id: string; provider_id: string }
+/**
+ * One studio result, labeled by the request that produced it so the cards
+ * can render side by side no matter how the batch was ordered.
+ */
+export type StudioRunResult = { request: StudioRunRequest; outcome: PromptTestOutcome }
+/**
+ * Where a Prompt Studio batch polishes from (v1.6.0 W1-L6): the newest
+ * history entry's transcript, or one picked entry. The RAW transcript in
+ * both cases: that is what a dictation feeds the engine, so studio runs
+ * replay the real input, not an already-polished output.
+ */
+export type StudioSource = { kind: "last_transcript" } | { kind: "history_entry"; id: number }
+/**
  * The Test Connection verdict, assembled by the command from the model
  * list, the completion probe, or the on-device state. `completion_ok` is
  * None when no probe ran (local/Apple providers, or no model selected);
@@ -2340,12 +2600,13 @@ export type StreamWorkKind = "transcribing" | "polishing"
  */
 export type TestConnectionResult = { model_list_ok: boolean; completion_ok: boolean | null; latency_ms: number | null; failure_class: PostProcessFailureClass | null; detail: string }
 /**
- * Structured error for the test command: the tag is the failure the UI
+ * Structured error for the test commands: the tag is the failure the UI
  * keys on (`no_history` when there is nothing to test against,
- * `prompt_not_found` for a dangling template id, `other` for a history
- * store read failure).
+ * `prompt_not_found` for a dangling template id, `engine_not_found` and
+ * `empty_batch` for studio batch validation, `entry_not_found` for a
+ * deleted source entry, `other` for a history store read failure).
  */
-export type TestPromptError = { kind: "no_history" } | { kind: "prompt_not_found"; id: string } | { kind: "other"; detail: string }
+export type TestPromptError = { kind: "no_history" } | { kind: "prompt_not_found"; id: string } | { kind: "engine_not_found"; id: string } | { kind: "entry_not_found"; id: number } | { kind: "empty_batch" } | { kind: "other"; detail: string }
 /**
  * UI appearance mode. `System` follows the OS `prefers-color-scheme`; `Light`
  * and `Dark` force one of the two palettes Handy already ships.

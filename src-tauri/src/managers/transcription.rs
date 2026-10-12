@@ -441,6 +441,19 @@ pub enum NoticeCode {
     /// validator), so the raw transcript was kept. The visible fallback
     /// for the never-lose-the-transcript rule on the cloud path.
     PostProcessOutputInvalid,
+    /// Post-processing was requested (the dedicated binding or the master
+    /// toggle) but a configuration gap means no engine ever ran; the raw
+    /// transcript was pasted with zero processing (round 7: these states
+    /// previously only debug!-logged, so an enabled-but-unusable polish
+    /// looked like the feature doing nothing). Error tone: the operator's
+    /// explicit request did not run and needs a Settings fix. Detail
+    /// carries the specific gap.
+    PostProcessNotConfigured,
+    /// A post-process run completed and validated, but the engine returned
+    /// the transcript unchanged (the round 7 no-op guard): the pasted text
+    /// equals the raw transcript because nothing was changed, not because
+    /// the run failed. Info. Detail carries the no-op detail line.
+    PostProcessUnchanged,
     /// A cloud post-process run failed (transport, auth, provider error);
     /// the raw transcript was kept. Detail carries provider/model and the
     /// classified cause.
@@ -466,8 +479,18 @@ pub enum NoticeCode {
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     GnomeOverlayFallback,
     /// The cycle-prompt hotkey advanced the selected post-process template.
-    /// Info; detail carries the new template's name.
+    /// Info; detail carries the new template's name plus its position in
+    /// the library (v1.6.0 W1-L7, unit-separator encoded - see
+    /// `cycle_notice_detail`).
     PostProcessPromptCycled,
+    /// The post-process hotkey upgraded the live session to post-processed
+    /// (v1.6.0 W1-L7 mid-session switching). Info; detail carries the
+    /// selected template's name (empty when none is selected).
+    PostProcessSessionUpgraded,
+    /// The post-process hotkey reverted the live session to a normal one
+    /// (v1.6.0 W1-L7 mid-session switching: a further press on an already
+    /// post-process session). Info; no detail.
+    PostProcessSessionDowngraded,
     /// A companion device (phone mic) disconnected mid-dictation; the
     /// session finalized and pasted everything captured up to the drop.
     /// Info. Detail carries the device name.
@@ -478,6 +501,15 @@ pub enum NoticeCode {
     /// A companion phone dictation hit the 15-minute session cap and was
     /// force-finalized. Info. Detail carries the device name.
     CompanionSessionCapped,
+    /// A companion session ended having captured zero audio samples, so
+    /// nothing was transcribed and no history entry exists (v1.6.0: this
+    /// used to be a silent drop, which is why phone output "vanished").
+    /// The dominant cause is a suspended AudioContext on the phone (iOS
+    /// Safari autoplay policy: no chunks are ever posted). Error tone.
+    /// Detail carries the device name. Classified phone-forwarding in the
+    /// AUD-01 table: the phone triggered the session and must hear why
+    /// nothing came back.
+    CompanionZeroAudio,
     /// The command-mode modifier was engaged with no live dictation
     /// session (replaces the former bare command-mode-no-session event).
     /// Info.
@@ -500,9 +532,12 @@ impl NoticeCode {
             | NoticeCode::WaylandTauriHotkeys
             | NoticeCode::GnomeOverlayFallback
             | NoticeCode::PostProcessPromptCycled
+            | NoticeCode::PostProcessSessionUpgraded
+            | NoticeCode::PostProcessSessionDowngraded
             | NoticeCode::CompanionDisconnected
             | NoticeCode::CompanionSessionCapped
-            | NoticeCode::CommandModeNoSession => OverlayNoticeKind::Info,
+            | NoticeCode::CommandModeNoSession
+            | NoticeCode::PostProcessUnchanged => OverlayNoticeKind::Info,
             _ => OverlayNoticeKind::Error,
         }
     }
@@ -525,6 +560,8 @@ impl NoticeCode {
             NoticeCode::PostProcessLengthGuard => "post_process_length_guard",
             NoticeCode::PostProcessTooLong => "post_process_too_long",
             NoticeCode::PostProcessOutputInvalid => "post_process_output_invalid",
+            NoticeCode::PostProcessNotConfigured => "post_process_not_configured",
+            NoticeCode::PostProcessUnchanged => "post_process_unchanged",
             NoticeCode::PostProcessCloudFailed => "post_process_cloud_failed",
             NoticeCode::DeleteLastWordNoSession => "delete_last_word_no_session",
             NoticeCode::DeleteLastWordNoBuffer => "delete_last_word_no_buffer",
@@ -534,9 +571,12 @@ impl NoticeCode {
             NoticeCode::WaylandTauriHotkeys => "wayland_tauri_hotkeys",
             NoticeCode::GnomeOverlayFallback => "gnome_overlay_fallback",
             NoticeCode::PostProcessPromptCycled => "post_process_prompt_cycled",
+            NoticeCode::PostProcessSessionUpgraded => "post_process_session_upgraded",
+            NoticeCode::PostProcessSessionDowngraded => "post_process_session_downgraded",
             NoticeCode::CompanionDisconnected => "companion_disconnected_finalized",
             NoticeCode::CompanionServerFailed => "companion_server_failed",
             NoticeCode::CompanionSessionCapped => "companion_session_capped",
+            NoticeCode::CompanionZeroAudio => "companion_zero_audio",
             NoticeCode::CommandModeNoSession => "command_mode_no_session",
         }
     }
@@ -1783,6 +1823,21 @@ impl TranscriptionManager {
             return estimate().map(|e| (e, false));
         }
         None
+    }
+
+    /// KB-218 seam for the tray's models status block (W1-L8): the measured
+    /// worker RSS the voice gate's per-model map holds for the CURRENTLY
+    /// loaded model, when the resident engine is transcribe-cpp (only its
+    /// worker has a captured RSS; in-process ONNX engines read None by
+    /// construction). A load-time reading that stays valid even when the
+    /// live pid probe in [`Self::resident_model_footprint`] fails, which is
+    /// exactly why the tray composes the two (live first, this as the
+    /// measured fallback before any size-derived estimate).
+    pub fn measured_asr_rss_current(&self) -> Option<u64> {
+        let model_id = self.get_current_model()?;
+        let is_transcribe_cpp = self.engine.loaded().is_some();
+        let measured = self.measured_asr_rss.lock().ok()?;
+        measured_asr_rss_for(&measured, &model_id, is_transcribe_cpp)
     }
 
     /// Downloaded-model candidates for the RAM auto-fallback (see the memory
@@ -4477,7 +4532,11 @@ mod tests {
             NoticeCode::PostProcessTooLong,
             NoticeCode::PostProcessOutputInvalid,
             NoticeCode::PostProcessCloudFailed,
+            NoticeCode::PostProcessNotConfigured,
+            NoticeCode::PostProcessUnchanged,
             NoticeCode::PostProcessPromptCycled,
+            NoticeCode::PostProcessSessionUpgraded,
+            NoticeCode::PostProcessSessionDowngraded,
             NoticeCode::DeleteLastWordNoSession,
             NoticeCode::DeleteLastWordNoBuffer,
             NoticeCode::UndoNoSession,
@@ -4488,6 +4547,10 @@ mod tests {
             NoticeCode::CompanionDisconnected,
             NoticeCode::CompanionServerFailed,
             NoticeCode::CompanionSessionCapped,
+            // Round 7 drive-by: this variant joined the enum in the
+            // zero-audio fix but was never added to this pin list, so the
+            // table below silently stopped covering the universe.
+            NoticeCode::CompanionZeroAudio,
             NoticeCode::CommandModeNoSession,
         ];
         let mut codes: Vec<&str> = all.iter().map(|c| c.as_str()).collect();
@@ -4513,7 +4576,10 @@ mod tests {
             NoticeCode::PostProcessLengthGuard,
             NoticeCode::PostProcessOutputInvalid,
             NoticeCode::PostProcessCloudFailed,
+            NoticeCode::PostProcessNotConfigured,
             NoticeCode::CompanionServerFailed,
+            // Error tone per its enum doc (a vanished phone session).
+            NoticeCode::CompanionZeroAudio,
         ] {
             assert_eq!(
                 code.kind(),
@@ -4534,9 +4600,12 @@ mod tests {
             NoticeCode::WaylandTauriHotkeys,
             NoticeCode::GnomeOverlayFallback,
             NoticeCode::PostProcessPromptCycled,
+            NoticeCode::PostProcessSessionUpgraded,
+            NoticeCode::PostProcessSessionDowngraded,
             NoticeCode::CompanionDisconnected,
             NoticeCode::CompanionSessionCapped,
             NoticeCode::CommandModeNoSession,
+            NoticeCode::PostProcessUnchanged,
         ] {
             assert_eq!(code.kind(), OverlayNoticeKind::Info, "{:?} is info", code);
         }

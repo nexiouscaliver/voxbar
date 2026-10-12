@@ -4204,6 +4204,8 @@ version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9df9128cbbfef73cda168416ccf7f837b62737d748333bfe9ab71c245d76613e"
 dependencies = [
+ "bitflags 2.11.0",
+ "block2",
  "objc2",
  "objc2-foundation",
 ]
@@ -7838,9 +7840,10 @@ checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "voxbar"
-version = "1.5.4"
+version = "1.6.0"
 dependencies = [
  "anyhow",
+ "block2",
  "chrono",
  "clap",
  "cpal",
@@ -7860,12 +7863,14 @@ dependencies = [
  "libc",
  "llama-cpp-2",
  "log",
+ "mac-notification-sys",
  "mach2 0.7.0",
  "natural",
  "objc2",
  "objc2-app-kit",
  "objc2-foundation",
  "objc2-service-management",
+ "objc2-user-notifications",
  "once_cell",
  "qrcode",
  "rcgen",
