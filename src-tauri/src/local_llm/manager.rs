@@ -155,16 +155,20 @@ pub enum SwapOutcome {
 /// output schema); `template_language` is the prompt template's language
 /// tag, threaded so the shared output validator's language-sanity rule
 /// (identical for local and cloud) can honor a declared script switch
-/// such as hi-Latn; `is_cancelled` is the stop path's cancel-generation
-/// closure so user cancellation reaches the runner with zero new plumbing
-/// (it is polled, never awaited); `run_id` is the pp: observability run the
-/// phases report into (None only in legacy tests).
+/// such as hi-Latn; `template_id` is the template's store id, threaded so
+/// the same validator can exempt the restructuring Prompt Enhancer from
+/// the cleanup templates' length-collapse guard; `is_cancelled` is the
+/// stop path's cancel-generation closure so user cancellation reaches the
+/// runner with zero new plumbing (it is polled, never awaited); `run_id`
+/// is the pp: observability run the phases report into (None only in
+/// legacy tests).
 #[derive(Clone)]
 pub struct SwapRequest {
     pub transcript: String,
     pub system_prompt: String,
     pub grammar: Option<String>,
     pub template_language: Option<String>,
+    pub template_id: Option<String>,
     pub is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
     pub run_id: Option<u64>,
 }
@@ -304,12 +308,14 @@ fn validate_output(
     transcript: &str,
     generated: &str,
     template_language: Option<&str>,
+    template_id: Option<&str>,
 ) -> Result<String, (SkipReason, Option<String>)> {
     crate::actions::validate_post_process_output(
         transcript,
         generated,
         crate::actions::PostProcessOutputMode::StructuredJson,
         template_language,
+        template_id,
     )
     .map_err(|failure| (failure.skip_reason, Some(failure.detail)))
 }
@@ -1469,6 +1475,7 @@ fn swap_runner(llm: &LlmManager, request: &SwapRequest, cfg: RunnerConfig) -> Sw
                                     &request.transcript,
                                     &text,
                                     request.template_language.as_deref(),
+                                    request.template_id.as_deref(),
                                 ) {
                                     Ok(clean) => {
                                         processed = Some(clean);
@@ -2331,6 +2338,7 @@ mod tests {
             system_prompt: "clean the transcript".to_string(),
             grammar: Some("root ::= ...".to_string()),
             template_language: None,
+            template_id: None,
             is_cancelled: None,
             run_id: None,
         }
@@ -2660,6 +2668,7 @@ mod tests {
             system_prompt: String::new(),
             grammar: None,
             template_language: None,
+            template_id: None,
             is_cancelled: None,
             run_id: None,
         };
@@ -2690,6 +2699,7 @@ mod tests {
             system_prompt: String::new(),
             grammar: None,
             template_language: None,
+            template_id: None,
             is_cancelled: None,
             run_id: None,
         };

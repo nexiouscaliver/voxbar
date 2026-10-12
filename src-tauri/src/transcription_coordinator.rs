@@ -72,6 +72,10 @@ struct PendingRelease {
 struct PendingPress {
     binding_id: String,
     hotkey_string: String,
+    /// The companion prefs the remembered press carried, so the session
+    /// the drain starts runs with the prefs of the press that asked for
+    /// it, not whatever a later press left in the shared slot.
+    companion_prefs: Option<crate::companion::protocol::SessionPrefs>,
     /// The real key-down time, so a hold that straddles the drain is still
     /// measured from when the user pressed, not from when recording began.
     pressed_at: Instant,
@@ -170,6 +174,12 @@ struct InputEvent {
     /// They fire on every edge by design and must never be debounced -
     /// dropping one desyncs toggle parity and wedges recording on.
     external: bool,
+    /// v1.6.0: the companion session preferences folded on the connection
+    /// that sent this edge. Only companion edges carry them; the effect
+    /// they arm applies them to the live slot at the same serialized
+    /// instant the start is committed, so a concurrent press from another
+    /// phone can never overwrite them in the arm-to-freeze window.
+    companion_prefs: Option<crate::companion::protocol::SessionPrefs>,
 }
 
 impl InputEvent {
@@ -191,6 +201,10 @@ enum Effect {
     Start {
         binding_id: String,
         hotkey_string: String,
+        /// v1.6.0: the companion prefs the starting press edge carried;
+        /// the executor applies them as the session's own before the
+        /// start preamble runs. None for keyboard/signal starts.
+        companion_prefs: Option<crate::companion::protocol::SessionPrefs>,
     },
     Stop {
         binding_id: String,
@@ -322,13 +336,18 @@ struct CoordinatorState {
     /// pasted as literal dictation.
     command_hold_edges: Option<(Instant, Instant)>,
     /// v1.6.0 W1-L7: the live (or just-stopped, pre-drain) session's
-    /// post-process mode as an EXPLICIT in-session decision. Some(true) is
-    /// set when a session that will post-process begins recording (the pp
-    /// hotkey's own start, or the start arm resolving a companion session's
-    /// frozen preference) and flipped by each in-session pp-hotkey press;
-    /// Some(false) is an explicitly reverted session; None means no
-    /// in-session decision (the legacy stop-time resolution applies). Read
-    /// by the stop pipeline through the mirror: it deliberately survives
+    /// post-process mode as an EXPLICIT in-session decision. Every session
+    /// that began recording gets its mode resolved ONCE at start (the pp
+    /// hotkey's own start always true; a companion session while its frozen
+    /// preference asks AND the master toggle is on at that instant; a
+    /// keyboard normal session false), so the stop pipeline never re-reads
+    /// the master toggle at a second instant - the badge and the shipped
+    /// behavior cannot diverge when the operator flips the global switch
+    /// mid-session. Each in-session pp-hotkey press flips the resolved
+    /// mode. None means no session this coordinator arm resolved (test
+    /// contexts, pre-start states); the legacy stop-time resolution is the
+    /// fallback for that case only. Read by the stop pipeline through the
+    /// mirror: it deliberately survives
     /// [`CoordinatorState::begin_processing`] so the pipeline honors the
     /// FINAL mode, and is cleared on cancel, failed-start rollback, and
     /// every new [`CoordinatorState::begin_recording`].
@@ -504,6 +523,7 @@ impl CoordinatorState {
                         locked: input.mode == ShortcutActivation::Toggle,
                         binding_id: input.binding_id,
                         hotkey_string: input.hotkey_string,
+                        companion_prefs: input.companion_prefs,
                         pressed_at: now,
                     });
                 }
@@ -526,6 +546,7 @@ impl CoordinatorState {
                     return Some(self.begin_recording(
                         input.binding_id,
                         input.hotkey_string,
+                        input.companion_prefs,
                         now,
                         locked,
                     ));
@@ -727,6 +748,7 @@ impl CoordinatorState {
         Some(self.begin_recording(
             pending.binding_id,
             pending.hotkey_string,
+            pending.companion_prefs,
             pending.pressed_at,
             pending.locked,
         ))
@@ -756,18 +778,20 @@ impl CoordinatorState {
         &mut self,
         binding_id: String,
         hotkey_string: String,
+        companion_prefs: Option<crate::companion::protocol::SessionPrefs>,
         pressed_at: Instant,
         locked: bool,
     ) -> Effect {
         self.stage = Stage::Recording(binding_id.clone());
         self.hold = Some(Hold { pressed_at, locked });
         // A fresh session starts with no in-session post-process decision;
-        // the executor's start arm sets Some(true) for a session that will
-        // post-process (the pp hotkey's own, or a companion pp session).
+        // the executor's start arm immediately resolves the session's mode
+        // (freeze-at-start: the stop pipeline reads this same value).
         self.set_session_post_process(None);
         Effect::Start {
             binding_id,
             hotkey_string,
+            companion_prefs,
         }
     }
 
@@ -1184,6 +1208,7 @@ impl TranscriptionCoordinator {
             mode,
             hold_threshold,
             false,
+            None,
         );
     }
 
@@ -1197,6 +1222,7 @@ impl TranscriptionCoordinator {
             ShortcutActivation::Toggle,
             Duration::ZERO,
             true,
+            None,
         );
     }
 
@@ -1205,8 +1231,16 @@ impl TranscriptionCoordinator {
     /// triggers (network edges must never be debounced - dropping one
     /// desyncs the phone's button state), but honoring the user's activation
     /// mode and hold threshold so hold-to-talk and tap-to-lock behave from
-    /// the phone exactly as they do from the keyboard.
-    pub fn send_companion_edge(&self, app: &AppHandle, pressed: bool) {
+    /// the phone exactly as they do from the keyboard. The edge carries the
+    /// connection's folded session prefs WITH it: the effect that commits
+    /// the start applies exactly these prefs to the live slot, closing the
+    /// arm-to-freeze window another phone's press could otherwise race.
+    pub fn send_companion_edge(
+        &self,
+        app: &AppHandle,
+        pressed: bool,
+        prefs: crate::companion::protocol::SessionPrefs,
+    ) {
         let settings = crate::settings::get_settings(app);
         self.send(
             COMPANION_BINDING_ID,
@@ -1215,6 +1249,7 @@ impl TranscriptionCoordinator {
             settings.shortcut_activation,
             Duration::from_millis(settings.hold_threshold_ms),
             true,
+            Some(prefs),
         );
     }
 
@@ -1246,6 +1281,7 @@ impl TranscriptionCoordinator {
         }
     }
 
+    #[allow(clippy::too_many_arguments)] // arity mirrors the InputEvent it wraps
     fn send(
         &self,
         binding_id: &str,
@@ -1254,6 +1290,7 @@ impl TranscriptionCoordinator {
         mode: ShortcutActivation,
         hold_threshold: Duration,
         external: bool,
+        companion_prefs: Option<crate::companion::protocol::SessionPrefs>,
     ) {
         if self
             .tx
@@ -1264,6 +1301,7 @@ impl TranscriptionCoordinator {
                 mode,
                 hold_threshold,
                 external,
+                companion_prefs,
             }))
             .is_err()
         {
@@ -1318,9 +1356,11 @@ fn toggled_session_post_process(current: Option<bool>) -> bool {
 /// the pp hotkey's own session always will; a companion session will while
 /// its frozen per-session preference asks AND the master toggle is on (the
 /// same off promise the pp hotkey's registration enforces). A keyboard
-/// normal session will not. Pure truth table, mirroring the stop pipeline's
-/// legacy resolution (`actions::session_runs_post_process`) for the
-/// no-override case.
+/// normal session will not. The resolved value is stored as the session's
+/// mode (the stop pipeline's override), so the master toggle is read at
+/// exactly ONE instant per session. Pure truth table, mirroring the stop
+/// pipeline's legacy resolution (`actions::session_runs_post_process`) for
+/// the no-override fallback case.
 fn started_session_post_processes(
     pp_binding_start: bool,
     companion_session: bool,
@@ -1392,23 +1432,40 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
         Effect::Start {
             binding_id,
             hotkey_string,
+            companion_prefs,
         } => {
+            // The session's prefs are applied HERE, on the coordinator's
+            // single serialized thread, at the instant this start is
+            // committed and BEFORE start()'s multi-millisecond preamble -
+            // not read back from the shared pending slot inside
+            // on_session_changed after the preamble. A concurrent press
+            // from another phone is queued behind this command, so it can
+            // only arm the NEXT session; the arm-to-freeze window is gone.
+            if let Some(prefs) = companion_prefs {
+                crate::companion::begin_session_prefs(app, prefs);
+            }
             let started = start(app, &binding_id, &hotkey_string);
             state.on_start_result(&binding_id, started);
-            // v1.6.0 W1-L7: a session that actually began recording and
-            // will post-process lights the PP badge from the single moment
-            // every fact is known (the binding, the companion prefs frozen
-            // inside start(), the master toggle). A failed start already
-            // cleared it through the rollback above.
-            if started
-                && started_session_post_processes(
+            // v1.6.0 W1-L7: a session that actually began recording gets
+            // its post-process mode resolved HERE, at the single moment
+            // every fact is known (the binding, the companion prefs the
+            // Start effect applied just above, the master toggle), and the
+            // resolved mode is
+            // what the stop pipeline's override reads - the master toggle
+            // is never re-read at stop, so flipping it mid-session cannot
+            // make the badge lie in either direction (a lit-badge session
+            // shipping after a global disable, or a dark-badge session
+            // silently post-processing). Some(false) for a session that
+            // will not post-process is the same no-badge state as the old
+            // None, but frozen. A failed start already cleared it through
+            // the rollback above.
+            if started {
+                state.set_session_post_process(Some(started_session_post_processes(
                     binding_id == POST_PROCESS_BINDING_ID,
                     binding_id == COMPANION_BINDING_ID,
                     crate::companion::session_prefs(app).post_process,
                     crate::settings::get_settings(app).post_process_enabled,
-                )
-            {
-                state.set_session_post_process(Some(true));
+                )));
             }
         }
         Effect::Stop {
@@ -1610,6 +1667,14 @@ mod tests {
     const COMPANION_BINDING: &str = "transcribe_companion";
 
     fn companion_edge(pressed: bool, mode: ShortcutActivation) -> InputEvent {
+        companion_edge_with_prefs(pressed, mode, None)
+    }
+
+    fn companion_edge_with_prefs(
+        pressed: bool,
+        mode: ShortcutActivation,
+        prefs: Option<crate::companion::protocol::SessionPrefs>,
+    ) -> InputEvent {
         InputEvent {
             binding_id: COMPANION_BINDING.to_string(),
             hotkey_string: "companion".to_string(),
@@ -1617,7 +1682,112 @@ mod tests {
             mode,
             hold_threshold: Duration::from_millis(300),
             external: true,
+            companion_prefs: prefs,
         }
+    }
+
+    /// v1.6.0 prefs handoff (the arm-to-freeze race fix): the companion
+    /// prefs a press edge carries ride INTO the Start effect it triggers,
+    /// so the executor applies exactly the starting press's prefs to the
+    /// live slot at the single serialized instant it commits the start -
+    /// a concurrent press from another phone queues behind this command
+    /// and can only arm the NEXT session. The remembered-press drain must
+    /// carry the remembered press's prefs the same way, and keyboard
+    /// starts carry None.
+    #[test]
+    fn companion_start_effects_carry_the_pressing_edges_prefs() {
+        let phone_a = crate::companion::protocol::SessionPrefs {
+            output_target: crate::companion::protocol::OutputTarget::Phone,
+            post_process: true,
+        };
+        let phone_b = crate::companion::protocol::SessionPrefs {
+            output_target: crate::companion::protocol::OutputTarget::Phone,
+            post_process: false,
+        };
+
+        // A press with prefs A produces a Start effect carrying exactly A.
+        let mut state = CoordinatorState::new();
+        let effect = state.on_input(
+            companion_edge_with_prefs(true, ShortcutActivation::Toggle, Some(phone_a)),
+            Instant::now(),
+        );
+        assert!(matches!(
+            effect,
+            Some(Effect::Start { companion_prefs: Some(p), .. }) if p == phone_a
+        ));
+
+        // A remembered press drained after a busy pipeline starts its own
+        // session with ITS prefs (B), not whatever a later press armed.
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        assert!(matches!(
+            state.on_input(ptt_input(true), t0),
+            Some(Effect::Start { .. })
+        ));
+        assert!(state
+            .on_input(ptt_input(false), t0 + Duration::from_millis(100))
+            .is_none());
+        assert!(matches!(
+            state.on_grace_expired(),
+            Some(Effect::Stop { .. })
+        ));
+        // Pipeline busy: the companion press (prefs B) is remembered.
+        assert!(state
+            .on_input(
+                companion_edge_with_prefs(true, ShortcutActivation::Toggle, Some(phone_b)),
+                t0 + Duration::from_millis(50),
+            )
+            .is_none());
+        let effect = state.on_processing_finished();
+        assert!(matches!(
+            effect,
+            Some(Effect::Start { companion_prefs: Some(p), .. }) if p == phone_b
+        ));
+
+        // Keyboard starts never carry companion prefs.
+        let mut state = CoordinatorState::new();
+        assert!(matches!(
+            state.on_input(toggle_input(true), Instant::now()),
+            Some(Effect::Start {
+                companion_prefs: None,
+                ..
+            })
+        ));
+    }
+
+    /// The executor half of the prefs handoff, pinned against this
+    /// committed source (the emit arms need a Tauri AppHandle a unit test
+    /// cannot mount, the same convention as the badge wiring pin): the
+    /// Start effect applies the carried prefs through the companion seam
+    /// BEFORE start()'s preamble runs, and never reads the shared pending
+    /// slot back.
+    #[test]
+    fn start_effect_applies_carried_prefs_before_the_preamble() {
+        let source = include_str!("transcription_coordinator.rs");
+        let run_effect_at = source.find("fn run_effect").expect("run_effect");
+        let start_arm_at = run_effect_at
+            + source[run_effect_at..]
+                .find("Effect::Start {")
+                .expect("the Start arm");
+        let start_arm_end = start_arm_at
+            + source[start_arm_at..]
+                .find("Effect::Stop {")
+                .expect("the arm boundary");
+        let start_arm = &source[start_arm_at..start_arm_end];
+        let apply_at = start_arm
+            .find("begin_session_prefs(app, prefs);")
+            .expect("the Start arm applies carried prefs through the companion seam");
+        let preamble_at = start_arm
+            .find("start(app, &binding_id")
+            .expect("the start preamble call");
+        assert!(
+            apply_at < preamble_at,
+            "carried prefs must be applied BEFORE the start preamble: applying them after reopens the arm-to-freeze window the fix closes"
+        );
+        assert!(
+            !start_arm.contains("pending_session_prefs"),
+            "the Start effect must never read the shared pending slot back: another connection can write it concurrently"
+        );
     }
 
     #[test]
@@ -2585,7 +2755,10 @@ mod tests {
 
         // The Start arm: gates on `started`, feeds the resolver ALL four
         // facts (pp binding, companion binding, frozen companion pref,
-        // master toggle), and arms the mode through the single setter.
+        // master toggle), and stores the RESOLVED mode through the single
+        // setter - unconditionally on the resolved value, so the master
+        // toggle is read at exactly one instant per session and the stop
+        // pipeline's override can never contradict the badge.
         let run_effect_at = source.find("fn run_effect").expect("run_effect");
         let start_arm_at = run_effect_at
             + source[run_effect_at..]
@@ -2603,13 +2776,19 @@ mod tests {
             "binding_id == COMPANION_BINDING_ID",
             "session_prefs(app).post_process",
             "post_process_enabled",
-            "set_session_post_process(Some(true))",
+            "state.set_session_post_process(Some(started_session_post_processes(",
         ] {
             assert!(
                 start_arm.contains(needle),
                 "the Start arm must keep wiring `{needle}` (badge-on for a pp or companion-pp start)"
             );
         }
+        assert!(
+            !start_arm.contains("&& started_session_post_processes"),
+            "the mode store must not be conditional on the resolved value: a Some(false) \
+freeze-at-start is what keeps a master-toggle flip mid-session from making \
+the badge lie (dark-badge session silently post-processing at stop)"
+        );
 
         // The toggle arm: resolves through the pure flip, applies it through
         // the single setter, and confirms both directions through the
@@ -2641,9 +2820,10 @@ mod tests {
         let emit_at = source
             .find("fn emit_post_process_badge")
             .expect("emit_post_process_badge");
-        let emit_end = emit_at + source[emit_at..].find("pub(crate) fn refresh_lit").expect(
-            "the refresh helper that follows the emit fn",
-        );
+        let emit_end = emit_at
+            + source[emit_at..]
+                .find("pub(crate) fn refresh_lit")
+                .expect("the refresh helper that follows the emit fn");
         let emit_fn = &source[emit_at..emit_end];
         for needle in [
             "emit_to(",
@@ -2876,6 +3056,7 @@ mod tests {
             mode: ShortcutActivation::PushToTalk,
             hold_threshold: Duration::ZERO,
             external: false,
+            companion_prefs: None,
         }
     }
 
@@ -3022,6 +3203,7 @@ mod tests {
                     mode: ShortcutActivation::Toggle,
                     hold_threshold: Duration::ZERO,
                     external: true,
+                    companion_prefs: None,
                 },
                 at,
             )
@@ -3083,6 +3265,7 @@ mod tests {
             is_pressed: true,
             mode: ShortcutActivation::Toggle,
             hold_threshold: Duration::ZERO,
+            companion_prefs: None,
             external,
         }
     }
@@ -3209,6 +3392,7 @@ mod tests {
             mode,
             hold_threshold: HOLD_THRESHOLD,
             external: false,
+            companion_prefs: None,
         }
     }
 

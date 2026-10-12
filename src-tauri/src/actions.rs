@@ -134,10 +134,14 @@ fn transcript_delivery(
 /// per-session preference, the latter still gated on the master
 /// post-process toggle - the same off promise the pp hotkey's registration
 /// enforces (a globally disabled layer must not ship transcripts to any
-/// provider just because a phone asked). v1.6.0 W1-L7: an in-session
-/// decision (the pp hotkey pressed mid-recording: an upgrade, or a revert
-/// of a session that would otherwise have post-processed) ALWAYS wins -
-/// the pipeline honors the session's final mode.
+/// provider just because a phone asked). v1.6.0 W1-L7: the session
+/// override ALWAYS wins when present - the coordinator resolves every
+/// started session's mode at START (freezing the master toggle at that one
+/// instant, so a mid-session flip can never make the badge and the shipped
+/// behavior diverge) and each in-session pp-hotkey press flips it, so the
+/// pipeline honors the session's final mode. The legacy resolution below
+/// the override serves only the None case (no coordinator arm resolved a
+/// mode: manager-less test contexts).
 fn session_runs_post_process(
     static_post_process: bool,
     source: CaptureSource,
@@ -153,10 +157,7 @@ fn session_runs_post_process(
 
 /// The history provenance pair for one session: where the audio came from
 /// and where the transcript was (or was meant to be) delivered.
-fn history_provenance(
-    source: CaptureSource,
-    delivery: TranscriptDelivery,
-) -> (String, String) {
+fn history_provenance(source: CaptureSource, delivery: TranscriptDelivery) -> (String, String) {
     (
         match source {
             CaptureSource::Local => "local",
@@ -428,6 +429,7 @@ async fn run_cloud_lifecycle(
     structured_supported: bool,
     legacy_prompt: String,
     template_language: Option<&str>,
+    template_id: Option<&str>,
     notify: impl Fn(crate::managers::transcription::NoticeCode, Option<String>),
 ) -> Option<String> {
     use crate::llm_client::PostProcessCompletion;
@@ -468,6 +470,7 @@ async fn run_cloud_lifecycle(
                         &content,
                         $mode,
                         template_language,
+                        template_id,
                     ) {
                         Ok(result) => {
                             let ms =
@@ -848,6 +851,7 @@ async fn post_process_with_prompt(
                     transcription,
                     &prompt_entry.prompt,
                     &prompt_entry.language,
+                    &prompt_entry.id,
                     is_cancelled,
                 )
                 .await
@@ -875,6 +879,7 @@ async fn post_process_with_prompt(
                     &prompt_entry.prompt,
                     &model,
                     &prompt_entry.language,
+                    &prompt_entry.id,
                 )
                 .await
             }
@@ -920,6 +925,7 @@ async fn post_process_with_prompt(
             provider.supports_structured_output,
             legacy_prompt,
             Some(prompt_entry.language.as_str()),
+            Some(prompt_entry.id.as_str()),
             notify,
         )
         .await
@@ -1157,6 +1163,7 @@ async fn run_local_lifecycle(
     transcription: &str,
     prompt: &str,
     template_language: &str,
+    template_id: &str,
     is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
 ) -> Option<String> {
     // Availability must be decided for the model the swap runner will
@@ -1207,6 +1214,7 @@ async fn run_local_lifecycle(
         system_prompt,
         grammar,
         template_language: Some(template_language.to_string()),
+        template_id: Some(template_id.to_string()),
         is_cancelled,
         run_id: Some(run_id),
     };
@@ -1284,6 +1292,7 @@ async fn run_apple_intelligence_lifecycle(
     prompt: &str,
     model: &str,
     template_language: &str,
+    template_id: &str,
 ) -> Option<String> {
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     {
@@ -1319,6 +1328,7 @@ async fn run_apple_intelligence_lifecycle(
                     &result,
                     PostProcessOutputMode::FreeText,
                     Some(template_language),
+                    Some(template_id),
                 ) {
                     Ok(clean) => {
                         // finish_applied (round 7): the no-op guard applies
@@ -1714,20 +1724,25 @@ impl ShortcutAction for TranscribeAction {
         // Play audio feedback for recording stop
         play_feedback_sound(app, SoundType::Stop);
 
-        let binding_id = binding_id.to_string(); // Clone binding_id for the async task
         // v1.6.0 companion preferences, resolved ONCE here on the
-        // coordinator's stop call (before any await): the per-session prefs
-        // were frozen at the press edge that started the session, so a
+        // coordinator's stop call (before any await): the session's prefs
+        // were carried by its starting press's edge and applied on the
+        // coordinator thread at the instant that start was committed, so a
         // press racing this pipeline can only arm the NEXT session's prefs
         // and cannot retarget this one.
+        let binding_id = binding_id.to_string(); // Clone binding_id for the async task
         let capture_source = self.source;
         let session_prefs = crate::companion::session_prefs(app);
         let delivery = transcript_delivery(capture_source, session_prefs.output_target);
-        // v1.6.0 W1-L7: the coordinator's in-session decision (the pp hotkey
-        // pressed mid-recording) rides above the legacy resolution, so the
-        // pipeline honors the session's FINAL mode. stop() runs inside the
-        // coordinator's Stop effect, before its mirror republishes, so this
-        // reads exactly the mode the just-ended session had.
+        // v1.6.0 W1-L7: the session override rides above the legacy
+        // resolution, so the pipeline honors the session's FINAL mode. The
+        // coordinator resolved that mode at START (master toggle read at
+        // that one instant; each mid-recording pp-hotkey press flips it),
+        // so this reads exactly the mode the just-ended session had - the
+        // live get_settings read below feeds only the override-less None
+        // fallback (manager-less test contexts) and can never contradict
+        // a badge the start arm lit or darkened. stop() runs inside the
+        // coordinator's Stop effect, before its mirror republishes.
         let session_pp_override = app
             .try_state::<TranscriptionCoordinator>()
             .and_then(|c| c.session_post_process_override());
@@ -3709,6 +3724,7 @@ mod tests {
             true,
             "clean: um hello world".to_string(),
             None,
+            None,
             |code, _detail| notices.lock().unwrap().push(code.as_str().to_string()),
         ));
         assert_eq!(text.as_deref(), Some("Hello, world."));
@@ -3760,6 +3776,7 @@ mod tests {
             Some("clean it".to_string()),
             true,
             format!("clean: {transcript}"),
+            None,
             None,
             |code, _detail| notices.lock().unwrap().push(code.as_str().to_string()),
         ));
@@ -3824,6 +3841,7 @@ mod tests {
             true,
             "clean: hello world".to_string(),
             None,
+            None,
             |code, _detail| notices.lock().unwrap().push(code.as_str().to_string()),
         ));
         assert_eq!(text, None, "the raw transcript is used, never model text");
@@ -3868,6 +3886,7 @@ mod tests {
             true,
             "clean: um hello world".to_string(),
             None,
+            None,
             |_code, _detail| {},
         ));
         assert_eq!(text.as_deref(), Some("Hello, world."));
@@ -3902,6 +3921,7 @@ mod tests {
             Some("clean it".to_string()),
             true,
             "clean: hello world".to_string(),
+            None,
             None,
             |_code, _detail| {},
         ));
@@ -3943,6 +3963,7 @@ mod tests {
                 true,
                 "clean: hello world this is a longer transcript".to_string(),
                 None,
+                None,
                 |code, _detail| notices.lock().unwrap().push(code.as_str().to_string()),
             ));
             assert_eq!(text, None, "raw model content must not paste: {bad}");
@@ -3978,6 +3999,7 @@ mod tests {
                 "{\"transcription\":\"Hello, world.\"}",
                 PostProcessOutputMode::StructuredJson,
                 None,
+                None,
             )
             .unwrap(),
             "Hello, world."
@@ -3988,6 +4010,7 @@ mod tests {
                 "hello world",
                 bad,
                 PostProcessOutputMode::StructuredJson,
+                None,
                 None,
             )
             .unwrap_err();
@@ -4000,6 +4023,7 @@ mod tests {
             "{\"transcription\":\"gone\"}",
             PostProcessOutputMode::StructuredJson,
             None,
+            None,
         )
         .unwrap_err();
         assert_eq!(failure.skip_reason, SkipReason::LengthGuard);
@@ -4007,6 +4031,7 @@ mod tests {
             long.trim(),
             "gone",
             PostProcessOutputMode::FreeText,
+            None,
             None,
         )
         .unwrap_err();
@@ -4017,7 +4042,8 @@ mod tests {
                 "hello world",
                 "Hello, world.",
                 PostProcessOutputMode::FreeText,
-                None
+                None,
+                None,
             )
             .unwrap(),
             "Hello, world."
@@ -4028,8 +4054,102 @@ mod tests {
             "  ",
             PostProcessOutputMode::FreeText,
             None,
+            None,
         )
         .unwrap_err();
         assert_eq!(failure.skip_reason, SkipReason::EngineFailed);
+    }
+
+    /// The Prompt Enhancer exemption from the length-collapse guard: its
+    /// core use case condenses a rambling >= 20-unit dictation into a
+    /// tight structured prompt below 40% of the original length, which the
+    /// cleanup-shaped collapse guard would reject (raw-transcript
+    /// fallback + a failure notice). The enhancer template id validates;
+    /// the same output under a cleanup template id (and the no-template
+    /// legacy callers) still trips the guard, and the enhancer keeps the
+    /// empty and expansion guards.
+    #[test]
+    fn prompt_enhancer_output_is_exempt_from_the_collapse_guard_only() {
+        use super::validate_post_process_output;
+        use crate::local_llm::SkipReason;
+
+        let rambling = "um so basically I want you to write a thing that
+            summarizes my notes and, uh, also sends them somewhere maybe
+            email or slack I do not care also it should be short and, like,
+            use bullets or whatever"
+            .replace('\n', " ");
+        // A tight restructure far below 40% of the input's units.
+        let structured_prompt =
+            "Goal: summarize notes and deliver them. Constraints: short, bullets.";
+        let structured_json = format!("{{\"transcription\":\"{structured_prompt}\"}}");
+
+        // The enhancer template id accepts the condensed restructure.
+        assert_eq!(
+            validate_post_process_output(
+                &rambling,
+                &structured_json,
+                PostProcessOutputMode::StructuredJson,
+                None,
+                Some(crate::settings::PROMPT_ENHANCER_TEMPLATE_ID),
+            )
+            .unwrap(),
+            structured_prompt
+        );
+        // Free-text engines too.
+        assert_eq!(
+            validate_post_process_output(
+                &rambling,
+                structured_prompt,
+                PostProcessOutputMode::FreeText,
+                None,
+                Some(crate::settings::PROMPT_ENHANCER_TEMPLATE_ID),
+            )
+            .unwrap(),
+            structured_prompt
+        );
+
+        // The same collapse under a cleanup template id still fails.
+        let failure = validate_post_process_output(
+            &rambling,
+            &structured_json,
+            PostProcessOutputMode::StructuredJson,
+            None,
+            Some("german"),
+        )
+        .unwrap_err();
+        assert_eq!(failure.skip_reason, SkipReason::LengthGuard);
+        // And with no template id at all (the legacy caller shape).
+        let failure = validate_post_process_output(
+            &rambling,
+            &structured_json,
+            PostProcessOutputMode::StructuredJson,
+            None,
+            None,
+        )
+        .unwrap_err();
+        assert_eq!(failure.skip_reason, SkipReason::LengthGuard);
+
+        // The exemption is scoped to the collapse guard: an empty output
+        // still never validates, and a runaway expansion still trips.
+        let failure = validate_post_process_output(
+            &rambling,
+            "  ",
+            PostProcessOutputMode::FreeText,
+            None,
+            Some(crate::settings::PROMPT_ENHANCER_TEMPLATE_ID),
+        )
+        .unwrap_err();
+        assert_eq!(failure.skip_reason, SkipReason::EngineFailed);
+        // The expansion ceiling is 10x the input's units.
+        let expanded = format!("{{\"transcription\":\"{}\"}}", "padded filler ".repeat(300));
+        let failure = validate_post_process_output(
+            &rambling,
+            &expanded,
+            PostProcessOutputMode::StructuredJson,
+            None,
+            Some(crate::settings::PROMPT_ENHANCER_TEMPLATE_ID),
+        )
+        .unwrap_err();
+        assert_eq!(failure.skip_reason, SkipReason::LengthGuard);
     }
 }

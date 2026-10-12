@@ -218,8 +218,28 @@ mod tests {
         // send a Ptt edge: the Mac would record a silent session.
         let press = between(CLIENT_HTML, "function pressStart", "function pressEnd");
         assert!(
-            press.contains("if (micFailed)"),
+            press.contains("if (micFailed && !recording)"),
             "the press handler checks the mic failure flag"
+        );
+    }
+
+    /// The mic-failure gate must only block NEW sessions. A start-tap can
+    /// pass the gate while getUserMedia is still pending (the permission
+    /// prompt is up), arm the Mac's locked toggle session, and only then
+    /// have the denial set micFailed - so the NEXT tap is the session's
+    /// only stop edge. Gating it on micFailed alone strands the locked
+    /// session with zero audio until the 15-minute cap; the gate must let
+    /// the stop-tap through whenever the Mac reports a live session.
+    #[test]
+    fn mic_failure_gate_still_forwards_the_stop_tap_of_a_live_session() {
+        let press = between(CLIENT_HTML, "function pressStart", "function pressEnd");
+        assert!(
+            press.contains("if (micFailed && !recording)"),
+            "the gate is scoped to sessions that have not started (recording flag)"
+        );
+        assert!(
+            press.contains("return;\n        }\n        pressing = true;"),
+            "the gate's early return sits before the edge send, so a live-session press falls through to sendPtt(true)"
         );
     }
 

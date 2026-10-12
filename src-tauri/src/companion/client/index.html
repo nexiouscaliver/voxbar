@@ -1162,10 +1162,15 @@
         if (ev) ev.preventDefault();
         if (ptt.disabled || pressing) return;
         ensureAudio();
-        if (micFailed) {
+        if (micFailed && !recording) {
           // A session with no microphone is a guaranteed zero-audio
           // capture; this press retries the microphone instead. The
-          // button stays alive, never dead.
+          // button stays alive, never dead. The gate only blocks a NEW
+          // session: while the Mac reports a live session (recording),
+          // this press is the STOP edge in toggle mode - the start-tap
+          // passed this gate while getUserMedia was still pending, and
+          // swallowing the stop here would strand the Mac's locked
+          // session until the 15-minute cap.
           return;
         }
         pressing = true;

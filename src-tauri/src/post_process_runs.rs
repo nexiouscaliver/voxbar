@@ -919,7 +919,10 @@ pub(crate) fn is_no_op_output(transcript: &str, extracted: &str) -> bool {
 ///
 /// 1. non-empty (an empty extraction never pastes),
 /// 2. the CJK-aware length guards (collapse via forecast::
-///    fails_fidelity_guard, expansion via fails_expansion_guard),
+///    fails_fidelity_guard, expansion via fails_expansion_guard) - the
+///    collapse half is SKIPPED for the Prompt Enhancer template, whose
+///    restructuring job legitimately condenses a rambling dictation below
+///    the cleanup templates' 40% floor,
 /// 3. language sanity (the dominant script must match unless the
 ///    template's language tag sanctions the change).
 ///
@@ -929,6 +932,7 @@ pub(crate) fn validate_post_process_output(
     generated: &str,
     mode: PostProcessOutputMode,
     template_language: Option<&str>,
+    template_id: Option<&str>,
 ) -> Result<String, PostProcessValidationFailure> {
     use crate::local_llm::SkipReason;
     let engine_invalid =
@@ -956,7 +960,9 @@ pub(crate) fn validate_post_process_output(
     if extracted.trim().is_empty() {
         return Err(engine_invalid("the model output was empty"));
     }
-    if crate::local_llm::forecast::fails_fidelity_guard(transcript, &extracted) {
+    if template_id != Some(crate::settings::PROMPT_ENHANCER_TEMPLATE_ID)
+        && crate::local_llm::forecast::fails_fidelity_guard(transcript, &extracted)
+    {
         return Err(validation_failure(
             SkipReason::LengthGuard,
             "the cleaned text collapsed below the fidelity threshold",
@@ -1308,8 +1314,9 @@ mod tests {
                 }
                 PostProcessOutputMode::FreeText => (transcript, japanese.to_string()),
             };
-            let failure = validate_post_process_output(transcript_text, &output_text, mode, None)
-                .unwrap_err();
+            let failure =
+                validate_post_process_output(transcript_text, &output_text, mode, None, None)
+                    .unwrap_err();
             assert!(
                 failure.detail.contains("switched script"),
                 "mode {mode:?}: {}",
@@ -1326,6 +1333,7 @@ mod tests {
             &format!("{{\"transcription\":\"{latin}\"}}"),
             PostProcessOutputMode::StructuredJson,
             Some("hi-Latn"),
+            None,
         )
         .is_ok());
         // Without the sanction the same output fails.
@@ -1334,6 +1342,7 @@ mod tests {
             &format!("{{\"transcription\":\"{latin}\"}}"),
             PostProcessOutputMode::StructuredJson,
             Some("hi"),
+            None,
         )
         .is_err());
     }
@@ -1354,6 +1363,7 @@ mod tests {
             &format!("{{\"transcription\":\"{expanded}\"}}"),
             PostProcessOutputMode::StructuredJson,
             None,
+            None,
         )
         .unwrap_err();
         assert_eq!(
@@ -1366,6 +1376,7 @@ mod tests {
             "{\"transcription\":\"gone\"}",
             PostProcessOutputMode::StructuredJson,
             None,
+            None,
         )
         .unwrap_err();
         assert_eq!(
@@ -1377,6 +1388,7 @@ mod tests {
             input_20,
             "{\"transcription\":\"\"}",
             PostProcessOutputMode::StructuredJson,
+            None,
             None,
         )
         .unwrap_err();
@@ -1391,6 +1403,7 @@ mod tests {
                 "{\"transcription\":\"One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty.\"}",
                 PostProcessOutputMode::StructuredJson,
                 None,
+                None,
             )
             .unwrap(),
             "One two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen twenty."
@@ -1399,6 +1412,7 @@ mod tests {
             input_20,
             "One two three four five six seven eight nine ten.",
             PostProcessOutputMode::FreeText,
+            None,
             None,
         )
         .is_ok());
