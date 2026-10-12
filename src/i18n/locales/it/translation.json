@@ -1195,10 +1195,13 @@
         "emptyBatch": "Scegli almeno un prompt e un motore."
       },
       "diff": {
-        "lines": "righe",
+        "identical": "Nessuna modifica.",
+        "added_one": "+{{count}} aggiunta",
+        "added_other": "+{{count}} aggiunte",
+        "removed_one": "{{count}} rimossa",
+        "removed_other": "{{count}} rimosse",
         "charsChanged_one": "1 carattere modificato",
-        "charsChanged_other": "{{count}} caratteri modificati",
-        "identical": "Nessuna modifica."
+        "charsChanged_other": "{{count}} caratteri modificati"
       },
       "resultsEmptyTitle": "I risultati appariranno qui",
       "resultsEmptyHint": "Scegli sopra origine, prompt e motori, quindi esegui. Ogni scheda mostra il testo rifinito, le modifiche e la velocità."

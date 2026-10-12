@@ -1205,12 +1205,19 @@
         "emptyBatch": "Wybierz co najmniej jeden prompt i jeden silnik."
       },
       "diff": {
-        "lines": "linii",
+        "identical": "Brak zmian.",
+        "added_few": "+{{count}} dodane",
+        "added_many": "+{{count}} dodanych",
+        "added_one": "+1 dodana",
+        "added_other": "Dodane: {{count}}",
+        "removed_few": "{{count}} usunięte",
+        "removed_many": "{{count}} usuniętych",
+        "removed_one": "1 usunięta",
+        "removed_other": "Usunięte: {{count}}",
         "charsChanged_one": "Zmieniono 1 znak",
         "charsChanged_few": "Zmieniono {{count}} znaki",
         "charsChanged_many": "Zmieniono {{count}} znaków",
-        "charsChanged_other": "Zmieniono znaków: {{count}}",
-        "identical": "Brak zmian."
+        "charsChanged_other": "Zmieniono znaków: {{count}}"
       },
       "resultsEmptyTitle": "Wyniki pojawią się tutaj",
       "resultsEmptyHint": "Wybierz wyżej źródło, prompty i silniki, a potem uruchom. Każda karta pokazuje dopracowany tekst, zmiany i czas działania."

@@ -554,6 +554,15 @@
         test_post_process_prompt_batch: { kind: "no_history" },
       };
     },
+    // Prompt Studio mixed batch: the first pair applies, every further
+    // pair keeps the raw transcript (skipped:memory_gate). A multi-engine
+    // run under this scenario renders BOTH warning surfaces - the kept-raw
+    // card's amber caption and the partial-failure Alert - which is the
+    // light-theme warning-contrast verification surface.
+    "studio-mixed": (s) => {
+      SCENARIOS["settings-full"](s);
+      s.studioMixedOutcomes = true;
+    },
     // Companion devices panel: companion on, one paired phone, QR up.
     "settings-companion": (s) => {
       SCENARIOS["settings-experimental"](s);
@@ -969,16 +978,23 @@
           ? "so the conclusion basically restates that the migration finished on tuesday without any data loss which is good news for the rollout plan"
           : "please send the client the updated timeline asap thanks";
       const runs = Array.isArray(args.runs) ? args.runs : [];
-      return runs.map((run, i) => ({
-        request: run,
-        outcome: {
-          before: sourceText,
-          after:
-            "Please send the client the updated timeline as soon as possible. Thanks!",
-          outcome: "applied",
-          latency_ms: 1200 + i * 260,
-        },
-      }));
+      return runs.map((run, i) => {
+        // studio-mixed scenario: pairs after the first keep the raw
+        // transcript (skipped), so a 2-engine batch renders the kept-raw
+        // warning caption plus the partial-failure Alert.
+        const keptRaw = state.studioMixedOutcomes && i > 0;
+        return {
+          request: run,
+          outcome: {
+            before: sourceText,
+            after: keptRaw
+              ? null
+              : "Please send the client the updated timeline as soon as possible. Thanks!",
+            outcome: keptRaw ? "skipped:memory_gate" : "applied",
+            latency_ms: 1200 + i * 260,
+          },
+        };
+      });
     },
 
     // --- misc backend state ---

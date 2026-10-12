@@ -1195,10 +1195,13 @@
         "emptyBatch": "Tria com a mínim un prompt i un motor."
       },
       "diff": {
-        "lines": "línies",
+        "identical": "Sense canvis.",
+        "added_one": "+{{count}} afegida",
+        "added_other": "+{{count}} afegides",
+        "removed_one": "{{count}} eliminada",
+        "removed_other": "{{count}} eliminades",
         "charsChanged_one": "1 caràcter canviat",
-        "charsChanged_other": "{{count}} caràcters canviats",
-        "identical": "Sense canvis."
+        "charsChanged_other": "{{count}} caràcters canviats"
       },
       "resultsEmptyTitle": "Els resultats apareixeran aquí",
       "resultsEmptyHint": "Tria a dalt una font, prompts i motors i executa. Cada targeta mostra el text polit, els canvis i la velocitat."

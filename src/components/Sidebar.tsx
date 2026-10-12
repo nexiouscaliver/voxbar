@@ -175,7 +175,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               key={section.id}
               className={`flex gap-2 items-center py-1.5 px-2 w-full shrink-0 rounded-lg transition-colors ${
                 isActive
-                  ? "bg-logo-primary/80"
+                  ? // The selected pill fills with the solid accent and
+                    // carries on-accent content, matching Badge's primary
+                    // variant: the fill/onFill pair is contrast-tested for
+                    // every accent in both themes (>= 4.5:1), unlike the
+                    // old logo-primary/80 tint where the 13px label fell to
+                    // 3.03:1 on dark accent fills.
+                    "bg-background-ui text-accent-on"
                   : "hover:bg-mid-gray/20 hover:opacity-100 opacity-85"
               } ${section.enabledNow ? "cursor-pointer" : "cursor-default"}`}
               aria-disabled={!section.enabledNow}

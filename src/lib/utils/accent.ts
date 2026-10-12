@@ -18,8 +18,12 @@ import { commands } from "@/bindings";
  * Contrast discipline: monochrome accents would vanish if rendered literally
  * (black on the dark theme, white on light), so each swatch carries a
  * deliberate light-theme and dark-theme render color plus the colors for
- * content placed on solid accent fills (badge text, toggle knob). The pure
- * mapping below is unit-tested (`accent.test.ts`) against WCAG ratios.
+ * content placed on solid accent fills (badge text, toggle knob). Fills are
+ * 600/700-depth in both themes carrying white content, so the ON toggle's
+ * knob is white for every chromatic accent in every theme; only the
+ * monochrome accents' dark fills (light tracks) keep an ink knob and label.
+ * The pure mapping below is unit-tested (`accent.test.ts`) against WCAG
+ * ratios.
  */
 
 export interface AccentPalette {
@@ -48,12 +52,17 @@ export const ACCENT_STORAGE_KEY = "voxbar.accent";
 
 /*
  * Fixed palette. Light render colors sit at Tailwind 600/700 depth (white
- * content on them passes 4.5:1), dark render colors at 400 depth (readable on
- * #2c2b29). The monochrome entries flip: black renders near-black on light
- * and light gray on dark, white vice versa - the only accessible reading of
- * those choices. The default `pink` entry pins today's exact values
- * (logo-primary #faa2ca/#f28cbb, background-ui #da5893, knob white, content
- * color = theme text) so the mapping is a no-op until a user picks.
+ * content on them passes 4.5:1), dark RENDER colors at 400 depth (readable
+ * as text/icons on #2c2b29). Solid FILLS are 600/700 depth in BOTH themes
+ * with white content: white label + white knob on one saturated track in
+ * every theme, so the ON toggle (and any selected pill) renders as the
+ * same component everywhere; the audit's near-black knob on the 400-depth
+ * blue/violet dark tracks read as a hole. The monochrome entries flip:
+ * black renders near-black on light and light gray on dark - their dark
+ * fills stay light tracks and are the ONLY accents keeping an ink knob
+ * and ink label. The default `pink` entry pins today's exact values
+ * (logo-primary #c2417c/#f28cbb, background-ui #c2417c, white knob and
+ * white content on the fill) so the mapping is a no-op until a user picks.
  */
 export const ACCENTS: readonly AccentDefinition[] = [
   {
@@ -115,9 +124,9 @@ export const ACCENTS: readonly AccentDefinition[] = [
     },
     dark: {
       color: "#f87171",
-      fill: "#f87171",
-      onFill: "#1c1c1f",
-      knob: "#1c1c1f",
+      fill: "#dc2626",
+      onFill: "#ffffff",
+      knob: "#ffffff",
     },
   },
   {
@@ -131,9 +140,9 @@ export const ACCENTS: readonly AccentDefinition[] = [
     },
     dark: {
       color: "#fb923c",
-      fill: "#fb923c",
-      onFill: "#1c1c1f",
-      knob: "#1c1c1f",
+      fill: "#c2410c",
+      onFill: "#ffffff",
+      knob: "#ffffff",
     },
   },
   {
@@ -147,9 +156,9 @@ export const ACCENTS: readonly AccentDefinition[] = [
     },
     dark: {
       color: "#fbbf24",
-      fill: "#fbbf24",
-      onFill: "#1c1c1f",
-      knob: "#1c1c1f",
+      fill: "#b45309",
+      onFill: "#ffffff",
+      knob: "#ffffff",
     },
   },
   {
@@ -163,9 +172,9 @@ export const ACCENTS: readonly AccentDefinition[] = [
     },
     dark: {
       color: "#4ade80",
-      fill: "#4ade80",
-      onFill: "#1c1c1f",
-      knob: "#1c1c1f",
+      fill: "#15803d",
+      onFill: "#ffffff",
+      knob: "#ffffff",
     },
   },
   {
@@ -179,9 +188,9 @@ export const ACCENTS: readonly AccentDefinition[] = [
     },
     dark: {
       color: "#2dd4bf",
-      fill: "#2dd4bf",
-      onFill: "#1c1c1f",
-      knob: "#1c1c1f",
+      fill: "#0f766e",
+      onFill: "#ffffff",
+      knob: "#ffffff",
     },
   },
   {
@@ -195,9 +204,9 @@ export const ACCENTS: readonly AccentDefinition[] = [
     },
     dark: {
       color: "#22d3ee",
-      fill: "#22d3ee",
-      onFill: "#1c1c1f",
-      knob: "#1c1c1f",
+      fill: "#0e7490",
+      onFill: "#ffffff",
+      knob: "#ffffff",
     },
   },
   {
@@ -211,9 +220,9 @@ export const ACCENTS: readonly AccentDefinition[] = [
     },
     dark: {
       color: "#60a5fa",
-      fill: "#60a5fa",
-      onFill: "#1c1c1f",
-      knob: "#1c1c1f",
+      fill: "#2563eb",
+      onFill: "#ffffff",
+      knob: "#ffffff",
     },
   },
   {
@@ -227,9 +236,9 @@ export const ACCENTS: readonly AccentDefinition[] = [
     },
     dark: {
       color: "#818cf8",
-      fill: "#818cf8",
-      onFill: "#1c1c1f",
-      knob: "#1c1c1f",
+      fill: "#4f46e5",
+      onFill: "#ffffff",
+      knob: "#ffffff",
     },
   },
   {
@@ -243,9 +252,9 @@ export const ACCENTS: readonly AccentDefinition[] = [
     },
     dark: {
       color: "#a78bfa",
-      fill: "#a78bfa",
-      onFill: "#1c1c1f",
-      knob: "#1c1c1f",
+      fill: "#7c3aed",
+      onFill: "#ffffff",
+      knob: "#ffffff",
     },
   },
   {
@@ -259,20 +268,22 @@ export const ACCENTS: readonly AccentDefinition[] = [
     },
     dark: {
       color: "#e879f9",
-      fill: "#e879f9",
-      onFill: "#1c1c1f",
-      knob: "#1c1c1f",
+      fill: "#c026d3",
+      onFill: "#ffffff",
+      knob: "#ffffff",
     },
   },
   {
     id: DEFAULT_ACCENT_ID,
     swatch: "#f28cbb",
-    // Pins today's palette: logo pink render color, deep pink fill (white on
-    // it passes 4.5:1), white knob and white content on the fill. Only
-    // reachable through the pure mapping (applyAccent clears overrides
-    // instead), kept so the mapping is total.
+    // Pins today's palette: deep pink render color in light (#c2417c on
+    // #fbfbfb = 4.84:1 as text; the pale #faa2ca tint measured 1.83:1),
+    // pink render color in dark, deep pink fill in both themes, white knob
+    // and white content on the fill. Only reachable through the pure
+    // mapping (applyAccent clears overrides instead), kept so the mapping
+    // is total.
     light: {
-      color: "#faa2ca",
+      color: "#c2417c",
       fill: "#c2417c",
       onFill: "#ffffff",
       knob: "#ffffff",

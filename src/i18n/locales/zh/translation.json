@@ -1195,10 +1195,13 @@
         "emptyBatch": "请至少选择一个提示词和一个引擎。"
       },
       "diff": {
-        "lines": "行",
+        "identical": "无更改。",
+        "added_one": "新增 {{count}} 行",
+        "added_other": "新增 {{count}} 行",
+        "removed_one": "删除 {{count}} 行",
+        "removed_other": "删除 {{count}} 行",
         "charsChanged_one": "1 个字符变更",
-        "charsChanged_other": "{{count}} 个字符变更",
-        "identical": "无更改。"
+        "charsChanged_other": "{{count}} 个字符变更"
       },
       "resultsEmptyTitle": "结果将显示在这里",
       "resultsEmptyHint": "在上方选择来源、提示词和引擎后运行。每张卡片会显示润色后的文本、改动内容和运行速度。"

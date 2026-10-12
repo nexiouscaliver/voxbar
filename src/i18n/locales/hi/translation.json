@@ -1195,10 +1195,13 @@
         "emptyBatch": "कम से कम एक प्रॉम्प्ट और एक इंजन चुनें।"
       },
       "diff": {
-        "lines": "पंक्तियाँ",
+        "identical": "कोई बदलाव नहीं।",
+        "added_one": "+{{count}} जोड़ी गई",
+        "added_other": "+{{count}} जोड़ी गईं",
+        "removed_one": "{{count}} हटाई गई",
+        "removed_other": "{{count}} हटाई गईं",
         "charsChanged_one": "{{count}} अक्षर बदला",
-        "charsChanged_other": "{{count}} अक्षर बदले",
-        "identical": "कोई बदलाव नहीं।"
+        "charsChanged_other": "{{count}} अक्षर बदले"
       },
       "resultsEmptyTitle": "परिणाम यहां दिखेंगे",
       "resultsEmptyHint": "ऊपर स्रोत, प्रॉम्प्ट और इंजन चुनकर चलाएं। हर कार्ड पर परिष्कृत टेक्स्ट, बदलाव और गति दिखती है।"

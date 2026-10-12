@@ -1205,12 +1205,19 @@
         "emptyBatch": "Vyberte alespoň jeden prompt a jeden engin."
       },
       "diff": {
-        "lines": "řádků",
+        "identical": "Žádné změny.",
+        "added_few": "+{{count}} přidáno",
+        "added_many": "+{{count}} přidáno",
+        "added_one": "+1 přidáno",
+        "added_other": "Přidáno: {{count}}",
+        "removed_few": "{{count}} odebráno",
+        "removed_many": "{{count}} odebráno",
+        "removed_one": "1 odebráno",
+        "removed_other": "Odebráno: {{count}}",
         "charsChanged_one": "Změněn 1 znak",
         "charsChanged_few": "Změněny {{count}} znaky",
         "charsChanged_many": "Změněno {{count}} znaků",
-        "charsChanged_other": "Změněno znaků: {{count}}",
-        "identical": "Žádné změny."
+        "charsChanged_other": "Změněno znaků: {{count}}"
       },
       "resultsEmptyTitle": "Výsledky se zobrazí zde",
       "resultsEmptyHint": "Vyberte výše zdroj, prompty a enginy a spusťte. Každá karta ukazuje upravený text, změny a rychlost."

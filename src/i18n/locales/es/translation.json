@@ -1195,10 +1195,13 @@
         "emptyBatch": "Elige al menos un prompt y un motor."
       },
       "diff": {
-        "lines": "líneas",
+        "identical": "Sin cambios.",
+        "added_one": "+{{count}} añadida",
+        "added_other": "+{{count}} añadidas",
+        "removed_one": "{{count}} eliminada",
+        "removed_other": "{{count}} eliminadas",
         "charsChanged_one": "1 carácter cambiado",
-        "charsChanged_other": "{{count}} caracteres cambiados",
-        "identical": "Sin cambios."
+        "charsChanged_other": "{{count}} caracteres cambiados"
       },
       "resultsEmptyTitle": "Los resultados aparecerán aquí",
       "resultsEmptyHint": "Elige arriba un origen, prompts y motores, y ejecuta. Cada tarjeta muestra el texto pulido, sus cambios y su velocidad."

@@ -1195,10 +1195,13 @@
         "emptyBatch": "Wähle mindestens einen Prompt und eine Engine."
       },
       "diff": {
-        "lines": "Zeilen",
+        "identical": "Keine Änderungen.",
+        "added_one": "+{{count}} hinzugefügt",
+        "added_other": "+{{count}} hinzugefügt",
+        "removed_one": "{{count}} entfernt",
+        "removed_other": "{{count}} entfernt",
         "charsChanged_one": "1 Zeichen geändert",
-        "charsChanged_other": "{{count}} Zeichen geändert",
-        "identical": "Keine Änderungen."
+        "charsChanged_other": "{{count}} Zeichen geändert"
       },
       "resultsEmptyTitle": "Ergebnisse erscheinen hier",
       "resultsEmptyHint": "Wähle oben Quelle, Prompts und Engines und führe sie aus. Jede Karte zeigt den bearbeiteten Text, seine Änderungen und wie schnell er lief."

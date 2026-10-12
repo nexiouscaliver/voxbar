@@ -1205,12 +1205,19 @@
         "emptyBatch": "Выберите хотя бы один промпт и один движок."
       },
       "diff": {
-        "lines": "строк",
+        "identical": "Нет изменений.",
+        "added_few": "+{{count}} добавлено",
+        "added_many": "+{{count}} добавлено",
+        "added_one": "+1 добавлено",
+        "added_other": "Добавлено: {{count}}",
+        "removed_few": "{{count}} удалено",
+        "removed_many": "{{count}} удалено",
+        "removed_one": "1 удалено",
+        "removed_other": "Удалено: {{count}}",
         "charsChanged_one": "Изменён 1 символ",
         "charsChanged_few": "Изменено {{count}} символа",
         "charsChanged_many": "Изменено {{count}} символов",
-        "charsChanged_other": "Изменено символов: {{count}}",
-        "identical": "Нет изменений."
+        "charsChanged_other": "Изменено символов: {{count}}"
       },
       "resultsEmptyTitle": "Результаты появятся здесь",
       "resultsEmptyHint": "Выберите выше источник, шаблоны и движки, затем запустите. Каждая карточка показывает обработанный текст, изменения и скорость."

@@ -201,10 +201,14 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
                     <button
                       key={language.value}
                       type="button"
-                      className={`w-full px-2 py-1 text-sm text-start hover:bg-logo-primary/10 transition-colors duration-150 ${
+                      className={`w-full px-2 py-1 text-sm text-start transition-colors duration-150 ${
                         selectedLanguage === language.value
-                          ? "bg-logo-primary/20 text-logo-primary font-medium"
-                          : ""
+                          ? // Solid accent fill + on-accent label (the
+                            // contrast-tested Badge primary pair; the old
+                            // logo-primary tint + logo-primary text fell
+                            // below AA in light theme).
+                            "bg-background-ui text-accent-on font-medium"
+                          : "hover:bg-logo-primary/10"
                       }`}
                       onClick={() => handleLanguageSelect(language.value)}
                     >

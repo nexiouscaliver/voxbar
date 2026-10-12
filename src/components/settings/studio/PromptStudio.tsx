@@ -116,9 +116,7 @@ const ResultCard: React.FC<{
       </div>
 
       {card.status === "running" ? (
-        <p className="text-xs text-secondary/70">
-          {t("settings.studio.running")}
-        </p>
+        <p className="text-xs text-secondary">{t("settings.studio.running")}</p>
       ) : card.result ? (
         <>
           <div className="flex flex-wrap items-center gap-2">
@@ -382,7 +380,7 @@ export const PromptStudio: React.FC = () => {
         <h2 className="text-sm font-semibold text-text/70 uppercase tracking-wide">
           {t("settings.studio.title")}
         </h2>
-        <p className="mt-1 text-xs text-secondary/80">
+        <p className="mt-1 text-xs text-secondary">
           {t("settings.studio.intro")}
         </p>
       </div>
@@ -408,11 +406,11 @@ export const PromptStudio: React.FC = () => {
             className="w-full"
           />
           {entriesLoading ? (
-            <p className="text-xs text-secondary/70">
+            <p className="text-xs text-secondary">
               {t("settings.studio.source.loading")}
             </p>
           ) : entries.length === 0 ? (
-            <p className="text-xs text-secondary/70">
+            <p className="text-xs text-secondary">
               {t("settings.postProcessing.prompts.testNoHistory")}
             </p>
           ) : null}
@@ -499,7 +497,7 @@ export const PromptStudio: React.FC = () => {
               : t("settings.studio.run", { count: batch.length })}
           </span>
         </Button>
-        <span className="text-xs text-secondary/70">
+        <span className="text-xs text-secondary">
           {t("settings.studio.runHint", { count: batch.length })}
         </span>
       </div>
@@ -545,7 +543,7 @@ export const PromptStudio: React.FC = () => {
             <p className="text-sm text-secondary">
               {t("settings.studio.resultsEmptyTitle")}
             </p>
-            <p className="text-xs text-secondary/70 max-w-sm">
+            <p className="text-xs text-secondary max-w-sm">
               {t("settings.studio.resultsEmptyHint")}
             </p>
           </div>

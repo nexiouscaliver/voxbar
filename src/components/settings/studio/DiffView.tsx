@@ -57,10 +57,12 @@ const DiffLineRow: React.FC<{ line: DiffLine }> = ({ line }) => {
   );
 };
 
-/** The "+2 -1 lines · 3 chars changed" chip above a diff: the numbers that
- * make a 1-character polish in a wall of text visible before the diff
- * opens. The middot separates the line count from the char count so the
- * summary reads as two facts, not one run-on sentence (W1-L9). */
+/** The "+1 added · 1 removed · 19 chars changed" chip above a diff: the
+ * numbers that make a 1-character polish in a wall of text visible before
+ * the diff opens. Added/removed counts read the semantic success/error
+ * tokens (green-700/red-600 on light, green-400/red-400 on dark) instead
+ * of raw Tailwind 500s, which measured 2.13:1 on the light card; each
+ * locale string carries its own singular/plural form and sign. */
 export const DiffSummaryBadge: React.FC<{
   addedLines: number;
   removedLines: number;
@@ -73,9 +75,12 @@ export const DiffSummaryBadge: React.FC<{
     <span
       className={`inline-flex items-center gap-1.5 font-mono text-xs ${className ?? ""}`}
     >
-      <span className="text-green-500">+{addedLines}</span>
-      <span className="text-red-500">-{removedLines}</span>
-      <span className="text-secondary">{t("settings.studio.diff.lines")}</span>
+      <span className="text-success">
+        {t("settings.studio.diff.added", { count: addedLines })}
+      </span>
+      <span className="text-error">
+        {t("settings.studio.diff.removed", { count: removedLines })}
+      </span>
       <span className="text-secondary/50" aria-hidden="true">
         &middot;
       </span>

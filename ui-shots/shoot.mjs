@@ -744,6 +744,36 @@ const shots = [
     },
   }),
 
+  // ---- Studio partial failure in LIGHT theme: both warning-text surfaces
+  // (the kept-raw card's amber caption and the partial-failure Alert body)
+  // on the light palette, where the old warning token measured 3.08:1.
+  settingsShot({
+    name: "theme-light-studio-warning",
+    scenario: "studio-mixed",
+    section: "promptStudio",
+    theme: "light",
+    state: "theme-light-warning",
+    prepare: async (page) => {
+      // Second engine so the batch mixes one applied + one kept-raw run.
+      await page.getByText("OpenAI", { exact: true }).first().click({
+        timeout: 5000,
+      });
+      const runLabel = tIn("en", "settings.studio.run_other").replace(
+        "{{count}}",
+        "2",
+      );
+      await page.getByRole("button", { name: runLabel }).click({
+        timeout: 5000,
+      });
+      await settle(1400);
+      await page.evaluate(() => {
+        const scroller = document.querySelector("[data-settings-scroll]");
+        if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      });
+      await settle(400);
+    },
+  }),
+
   // ---- Post Process tab on a cloud provider (model selection surface) ----
   settingsShot({
     name: "settings-postprocessing-cloud",
@@ -925,6 +955,35 @@ const shots = [
       await input.click({ timeout: 5000 });
       await input.fill("microphone");
       await settle(600);
+    },
+  },
+
+  // ---- shared Dropdown open with its selected row visible (light theme:
+  // the selected-row fill/label contrast pair). The History tab's
+  // retention dropdown sits at the top of the pane; its trigger shows the
+  // current value ("Keep latest 5" under the default mock settings), and
+  // opening it renders one selected row among the unselected ones.
+  {
+    name: "dropdown-selected-light",
+    scenario: "settings-default",
+    url: MAIN,
+    viewport: { width: 680, height: 570 },
+    theme: "light",
+    state: "theme-light",
+    prepare: async (page) => {
+      await openMain(page);
+      await clickSidebar(page, tIn("en", "sidebar.history"));
+      // The trigger's label is the selected option's localized text; the
+      // default mock keeps "preserve_limit" with history_limit 5.
+      const triggerLabel = tIn(
+        "en",
+        "settings.debug.recordingRetention.preserveLimit",
+      ).replace("{{count}}", "5");
+      await page
+        .locator("button", { hasText: triggerLabel })
+        .first()
+        .click({ timeout: 5000 });
+      await settle(400);
     },
   },
 

@@ -1195,10 +1195,13 @@
         "emptyBatch": "Pilih setidaknya satu prompt dan satu mesin."
       },
       "diff": {
-        "lines": "baris",
+        "identical": "Tidak ada perubahan.",
+        "added_one": "+{{count}} ditambahkan",
+        "added_other": "+{{count}} ditambahkan",
+        "removed_one": "{{count}} dihapus",
+        "removed_other": "{{count}} dihapus",
         "charsChanged_one": "1 karakter berubah",
-        "charsChanged_other": "{{count}} karakter berubah",
-        "identical": "Tidak ada perubahan."
+        "charsChanged_other": "{{count}} karakter berubah"
       },
       "resultsEmptyTitle": "Hasil akan muncul di sini",
       "resultsEmptyHint": "Pilih sumber, prompt, dan mesin di atas, lalu jalankan. Setiap kartu menampilkan teks yang dipoles, perubahannya, dan kecepatannya."

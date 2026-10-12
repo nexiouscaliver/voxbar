@@ -19,7 +19,7 @@ export const DROPDOWN_PANEL_CLASS =
   "absolute bg-background border border-mid-gray/20 rounded-lg shadow-lg z-50 overflow-y-auto";
 
 export const DROPDOWN_ROW_CLASS =
-  "w-full text-start text-sm rounded-lg mx-1 my-0.5 px-2 py-1.5 transition-colors duration-150 hover:bg-logo-primary/10";
+  "w-full text-start text-sm rounded-lg mx-1 my-0.5 px-2 py-1.5 transition-colors duration-150";
 
 interface DropdownProps {
   options: DropdownOption[];
@@ -112,34 +112,46 @@ export const Dropdown: React.FC<DropdownProps> = ({
               {t("common.noOptionsFound")}
             </div>
           ) : (
-            options.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                className={`${DROPDOWN_ROW_CLASS} ${
-                  selectedValue === option.value
-                    ? "bg-logo-primary/20 text-logo-primary"
-                    : ""
-                } ${option.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
-                onClick={() => handleSelect(option.value)}
-                disabled={option.disabled}
-              >
-                <span
-                  className={`block whitespace-normal break-words ${
-                    option.description || selectedValue === option.value
-                      ? "font-medium"
-                      : ""
-                  }`}
+            options.map((option) => {
+              const isSelected = selectedValue === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  className={`${DROPDOWN_ROW_CLASS} ${
+                    isSelected
+                      ? // Selected rows fill with the solid accent and
+                        // carry on-accent content (the Badge primary pair,
+                        // contrast-tested >= 4.5:1 for every accent in both
+                        // themes). The old logo-primary tint + logo-primary
+                        // text fell to 1.63:1 in light theme. No hover tint
+                        // on the solid row: it would put white text on a
+                        // pale wash.
+                        "bg-background-ui text-accent-on"
+                      : "hover:bg-logo-primary/10"
+                  } ${option.disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+                  onClick={() => handleSelect(option.value)}
+                  disabled={option.disabled}
                 >
-                  {option.label}
-                </span>
-                {option.description && (
-                  <span className="mt-0.5 block whitespace-normal text-xs font-normal leading-snug text-secondary">
-                    {option.description}
+                  <span
+                    className={`block whitespace-normal break-words ${
+                      option.description || isSelected ? "font-medium" : ""
+                    }`}
+                  >
+                    {option.label}
                   </span>
-                )}
-              </button>
-            ))
+                  {option.description && (
+                    <span
+                      className={`mt-0.5 block whitespace-normal text-xs font-normal leading-snug ${
+                        isSelected ? "text-accent-on" : "text-secondary"
+                      }`}
+                    >
+                      {option.description}
+                    </span>
+                  )}
+                </button>
+              );
+            })
           )}
         </div>
       )}

@@ -1195,10 +1195,13 @@
         "emptyBatch": "プロンプトとエンジンをそれぞれ 1 つ以上選択してください。"
       },
       "diff": {
-        "lines": "行",
+        "identical": "変更なし。",
+        "added_one": "+{{count}} 行追加",
+        "added_other": "+{{count}} 行追加",
+        "removed_one": "{{count}} 行削除",
+        "removed_other": "{{count}} 行削除",
         "charsChanged_one": "1 文字変更",
-        "charsChanged_other": "{{count}} 文字変更",
-        "identical": "変更なし。"
+        "charsChanged_other": "{{count}} 文字変更"
       },
       "resultsEmptyTitle": "結果はここに表示されます",
       "resultsEmptyHint": "上でソース、プロンプト、エンジンを選んで実行してください。各カードに整形後のテキスト、変更点、所要時間が表示されます。"

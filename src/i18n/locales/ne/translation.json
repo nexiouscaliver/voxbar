@@ -1195,10 +1195,13 @@
         "emptyBatch": "कम्तीमा एक प्रम्प्ट र एक इन्जिन छान्नुहोस्।"
       },
       "diff": {
-        "lines": "लाइनहरू",
+        "identical": "कुनै परिवर्तन छैन।",
+        "added_one": "+{{count}} थपियो",
+        "added_other": "+{{count}} थपियो",
+        "removed_one": "{{count}} हटाइयो",
+        "removed_other": "{{count}} हटाइयो",
         "charsChanged_one": "{{count}} अक्षर परिवर्तन",
-        "charsChanged_other": "{{count}} अक्षर परिवर्तन",
-        "identical": "कुनै परिवर्तन छैन।"
+        "charsChanged_other": "{{count}} अक्षर परिवर्तन"
       },
       "resultsEmptyTitle": "नतिजा यहाँ देखिनेछ",
       "resultsEmptyHint": "माथि स्रोत, प्रम्प्ट र इन्जिन छानी चलाउनुहोस्। हरेक कार्डमा परिमार्जित पाठ, परिवर्तनहरू र गति देखिन्छ।"

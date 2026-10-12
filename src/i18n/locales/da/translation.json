@@ -1195,10 +1195,13 @@
         "emptyBatch": "Vælg mindst én prompt og én motor."
       },
       "diff": {
-        "lines": "linjer",
+        "identical": "Ingen ændringer.",
+        "added_one": "+{{count}} tilføjet",
+        "added_other": "+{{count}} tilføjet",
+        "removed_one": "{{count}} fjernet",
+        "removed_other": "{{count}} fjernet",
         "charsChanged_one": "1 tegn ændret",
-        "charsChanged_other": "{{count}} tegn ændret",
-        "identical": "Ingen ændringer."
+        "charsChanged_other": "{{count}} tegn ændret"
       },
       "resultsEmptyTitle": "Resultater vises her",
       "resultsEmptyHint": "Vælg kilde, prompts og motorer ovenfor og kør. Hvert kort viser den polerede tekst, ændringerne og hastigheden."

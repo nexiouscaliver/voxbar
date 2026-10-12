@@ -1200,11 +1200,16 @@
         "emptyBatch": "בחרו לפחות פרומפט אחד ומנוע אחד."
       },
       "diff": {
-        "lines": "שורות",
+        "identical": "אין שינויים.",
+        "added_one": "+{{count}} נוספה",
+        "added_other": "+{{count}} נוספו",
+        "added_two": "+{{count}} נוספו",
+        "removed_one": "{{count}} הוסרה",
+        "removed_other": "{{count}} הוסרו",
+        "removed_two": "{{count}} הוסרו",
         "charsChanged_one": "תו אחד השתנה",
         "charsChanged_two": "{{count}} תווים השתנו",
-        "charsChanged_other": "{{count}} תווים השתנו",
-        "identical": "אין שינויים."
+        "charsChanged_other": "{{count}} תווים השתנו"
       },
       "resultsEmptyTitle": "התוצאות יופיעו כאן",
       "resultsEmptyHint": "בחר למעלה מקור, פרומפטים ומנועים והרץ. כל כרטיס מציג את הטקסט המלוטש, את השינויים ואת המהירות."

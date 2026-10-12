@@ -1195,10 +1195,13 @@
         "emptyBatch": "請至少選擇一個提示詞和一個引擎。"
       },
       "diff": {
-        "lines": "行",
+        "identical": "無變更。",
+        "added_one": "新增 {{count}} 行",
+        "added_other": "新增 {{count}} 行",
+        "removed_one": "刪除 {{count}} 行",
+        "removed_other": "刪除 {{count}} 行",
         "charsChanged_one": "1 個字元變更",
-        "charsChanged_other": "{{count}} 個字元變更",
-        "identical": "無變更。"
+        "charsChanged_other": "{{count}} 個字元變更"
       },
       "resultsEmptyTitle": "結果會顯示在這裡",
       "resultsEmptyHint": "在上方選擇來源、提示詞與引擎後執行。每張卡片會顯示潤飾後的文字、變更內容與執行速度。"

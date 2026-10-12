@@ -1195,10 +1195,13 @@
         "emptyBatch": "Choisissez au moins un prompt et un moteur."
       },
       "diff": {
-        "lines": "lignes",
+        "identical": "Aucune modification.",
+        "added_one": "+{{count}} ajoutée",
+        "added_other": "+{{count}} ajoutées",
+        "removed_one": "{{count}} supprimée",
+        "removed_other": "{{count}} supprimées",
         "charsChanged_one": "{{count}} caractère modifié",
-        "charsChanged_other": "{{count}} caractères modifiés",
-        "identical": "Aucune modification."
+        "charsChanged_other": "{{count}} caractères modifiés"
       },
       "resultsEmptyTitle": "Les résultats apparaîtront ici",
       "resultsEmptyHint": "Choisissez une source, des prompts et des moteurs ci-dessus, puis lancez. Chaque carte montre le texte poli, ses changements et sa vitesse."

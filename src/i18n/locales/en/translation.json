@@ -1195,10 +1195,13 @@
         "emptyBatch": "Pick at least one prompt and one engine."
       },
       "diff": {
-        "lines": "lines",
+        "identical": "No changes.",
+        "added_one": "+{{count}} added",
+        "added_other": "+{{count}} added",
+        "removed_one": "{{count}} removed",
+        "removed_other": "{{count}} removed",
         "charsChanged_one": "1 char changed",
-        "charsChanged_other": "{{count}} chars changed",
-        "identical": "No changes."
+        "charsChanged_other": "{{count}} chars changed"
       },
       "resultsEmptyTitle": "Results will appear here",
       "resultsEmptyHint": "Pick a source, prompts, and engines above, then run. Each card shows the polished text, its changes, and how fast it ran."

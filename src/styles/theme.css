@@ -6,7 +6,12 @@
      in App.css reference these, so a hex value lives in exactly one place. */
   --light-color-text: #0f0f0f;
   --light-color-background: #fbfbfb;
-  --light-color-logo-primary: #faa2ca;
+  /* The deep pink (not the pale #faa2ca brand tint): logo-primary doubles
+     as the accent TEXT color (selected rows, saved-star, links, hover
+     icons), and #c2417c on #fbfbfb = 4.84:1 passes AA while the pale tint
+     measured 1.83:1. The pale pink survives only inside the logo mark's
+     decorative gradients, never as text. */
+  --light-color-logo-primary: #c2417c;
   --light-color-logo-stroke: #382731;
 
   --dark-color-text: #fbfbfb;
@@ -17,19 +22,20 @@
   /* Control fill / hover-tint pair (checked toggle, tab + button hovers).
      Overridden per accent via inline document-root custom properties
      (lib/utils/accent.ts) when the user picks a non-default accent.
-     The default pink fill is deliberately deeper than the logo pink: white
-     text on it passes 4.5:1 (#c2417c vs #ffffff = 4.84), so any surface that
-     fills with the accent and carries text (buttons, badges) stays legible.
-     The lighter logo pink stays the render color for text, icons, borders
-     and tints, where it sits on the theme background instead. */
+     Fills are held at 600/700 depth in BOTH themes so white content on
+     them passes 4.5:1 (#c2417c vs #ffffff = 4.84), so any surface that
+     fills with the accent and carries text (buttons, badges, selected
+     rows) stays legible; the light-theme render color IS this same deep
+     pink. Dark-theme accents keep a lighter RENDER color (400 depth) for
+     text/icons on the dark background while their FILL stays deep. */
   --light-color-background-ui: #c2417c;
   --dark-color-background-ui: #c2417c;
 
   /* Content placed on solid accent fills. `on` is for text (badge labels,
-     solid accent buttons), `knob` for the toggle knob. Defaults keep white
-     content on the pink fill in both themes (4.84:1). A non-default accent
-     overrides both pairs inline so a white knob never sits on a light fill
-     (black/white/gray accents) and solid-fill text stays legible. */
+     solid accent buttons), `knob` for the toggle knob. Chromatic accents
+     carry white content on their deep fills in both themes (>= 4.5:1);
+     the monochrome accents flip (their dark fills are light tracks), and
+     only those keep an ink knob. */
   --light-accent-on: #ffffff;
   --dark-accent-on: #ffffff;
   --light-accent-knob: #ffffff;
@@ -37,15 +43,30 @@
 
   /* Semantic status colors. First used by SecureInputWarning; intended to
      replace the ad-hoc yellow-500/red-500 usages (e.g. ui/Alert.tsx) over
-     time so status styling is themeable from one place. */
-  --light-color-warning: #d97706;
+     time so status styling is themeable from one place.
+     Warning ratios: light #92400e on #fbfbfb = 6.85:1 and 5.97:1 on its
+     own /10 alert tint (amber-700 #b45309 would fall to 4.23:1 there,
+     under AA for 13px body text); dark #fbbf24 on #2c2b29 = 8.47:1.
+     Success: #15803d on #fbfbfb = 5.02:1, #4ade80 on #2c2b29 = 8.11:1.
+     Error passes on the plain backgrounds (4.67:1 light / 5.11:1 dark);
+     on its own /10 tint light error still composites to ~4.0:1, a known
+     pre-existing gap outside this pass's scope. */
+  --light-color-warning: #92400e;
   --light-color-error: #dc2626;
   --dark-color-warning: #fbbf24;
   --dark-color-error: #f87171;
+  --light-color-success: #15803d;
+  --dark-color-success: #4ade80;
 
   /* Tokens that do not change between light and dark */
   --color-text-stroke: #f6f6f6;
   --color-mid-gray: #808080;
+  /* Hairline for delimiting same-luminance surfaces (accent swatches on
+     their card, #18181b on the dark card measured 1.25:1). Derived from
+     the theme text color, so it flips with the theme: ~rgba(0,0,0,0.15)
+     on light, ~rgba(255,255,255,0.15) on dark. Resolves lazily against
+     --color-text, so the single definition tracks every theme selector. */
+  --color-hairline: color-mix(in srgb, var(--color-text) 15%, transparent);
 
   /* Secondary reading text. mid-gray (#808080) measures 3.58:1 on the dark
      panel surface and 3.82:1 on light, below the 4.5:1 small-text floor, so
@@ -68,6 +89,7 @@
   --color-secondary: var(--light-color-secondary);
   --color-warning: var(--light-color-warning);
   --color-error: var(--light-color-error);
+  --color-success: var(--light-color-success);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -82,6 +104,7 @@
     --color-secondary: var(--dark-color-secondary);
     --color-warning: var(--dark-color-warning);
     --color-error: var(--dark-color-error);
+    --color-success: var(--dark-color-success);
   }
 }
 
@@ -106,6 +129,7 @@
   --color-secondary: var(--light-color-secondary);
   --color-warning: var(--light-color-warning);
   --color-error: var(--light-color-error);
+  --color-success: var(--light-color-success);
 }
 
 :root[data-theme="dark"] {
@@ -119,4 +143,5 @@
   --color-secondary: var(--dark-color-secondary);
   --color-warning: var(--dark-color-warning);
   --color-error: var(--dark-color-error);
+  --color-success: var(--dark-color-success);
 }

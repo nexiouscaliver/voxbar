@@ -1195,10 +1195,13 @@
         "emptyBatch": "En az bir prompt ve bir motor seçin."
       },
       "diff": {
-        "lines": "satır",
+        "identical": "Değişiklik yok.",
+        "added_one": "+{{count}} eklendi",
+        "added_other": "+{{count}} eklendi",
+        "removed_one": "{{count}} kaldırıldı",
+        "removed_other": "{{count}} kaldırıldı",
         "charsChanged_one": "1 karakter değişti",
-        "charsChanged_other": "{{count}} karakter değişti",
-        "identical": "Değişiklik yok."
+        "charsChanged_other": "{{count}} karakter değişti"
       },
       "resultsEmptyTitle": "Sonuçlar burada görünecek",
       "resultsEmptyHint": "Yukarıdan bir kaynak, promptlar ve motorlar seçip çalıştırın. Her kart cilalanmış metni, değişiklikleri ve hızını gösterir."

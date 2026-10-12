@@ -1195,10 +1195,13 @@
         "emptyBatch": "Välj minst en prompt och en motor."
       },
       "diff": {
-        "lines": "rader",
+        "identical": "Inga ändringar.",
+        "added_one": "+{{count}} tillagd",
+        "added_other": "+{{count}} tillagda",
+        "removed_one": "{{count}} borttagen",
+        "removed_other": "{{count}} borttagna",
         "charsChanged_one": "1 tecken ändrat",
-        "charsChanged_other": "{{count}} tecken ändrade",
-        "identical": "Inga ändringar."
+        "charsChanged_other": "{{count}} tecken ändrade"
       },
       "resultsEmptyTitle": "Resultaten visas här",
       "resultsEmptyHint": "Välj källa, prompts och motorer ovan och kör. Varje kort visar den putsade texten, ändringarna och hastigheten."

@@ -55,7 +55,11 @@ export const AccentColorSelector: React.FC<AccentColorSelectorProps> =
                 className={`w-6 h-6 rounded-full cursor-pointer transition-transform duration-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-logo-primary focus-visible:ring-offset-1 focus-visible:ring-offset-background ${
                   selected
                     ? "border-2 border-text ring-1 ring-text ring-offset-1 ring-offset-background scale-110"
-                    : "border border-mid-gray/50 hover:scale-110 hover:border-mid-gray"
+                    : // Every swatch carries the theme hairline plus a soft
+                      // shadow: the black swatch on the dark card measured
+                      // 1.25:1 and the white swatch 1.03:1 on light, each
+                      // reading as an empty gap in its theme.
+                      "border border-hairline shadow-sm hover:scale-110 hover:border-mid-gray"
                 }`}
                 style={{ backgroundColor: accent.swatch }}
               />

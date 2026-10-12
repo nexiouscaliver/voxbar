@@ -1195,10 +1195,13 @@
         "emptyBatch": "Изберете поне един промпт и един двигател."
       },
       "diff": {
-        "lines": "реда",
+        "identical": "Няма промени.",
+        "added_one": "+{{count}} добавен",
+        "added_other": "+{{count}} добавени",
+        "removed_one": "{{count}} премахнат",
+        "removed_other": "{{count}} премахнати",
         "charsChanged_one": "Променен 1 знак",
-        "charsChanged_other": "Променени знаци: {{count}}",
-        "identical": "Няма промени."
+        "charsChanged_other": "Променени знаци: {{count}}"
       },
       "resultsEmptyTitle": "Резултатите ще се появят тук",
       "resultsEmptyHint": "Изберете горе източник, подканки и двигатели и стартирайте. Всяка карта показва обработения текст, промените и скоростта."

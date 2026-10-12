@@ -16,6 +16,8 @@
   --color-secondary: var(--color-secondary);
   --color-warning: var(--color-warning);
   --color-error: var(--color-error);
+  --color-success: var(--color-success);
+  --color-hairline: var(--color-hairline);
 }
 
 /* The app's type scale, pinned to whole pixels: 11 / 13 / 15. The rem-based

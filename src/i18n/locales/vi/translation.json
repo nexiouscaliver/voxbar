@@ -1195,10 +1195,13 @@
         "emptyBatch": "Chọn ít nhất một prompt và một engine."
       },
       "diff": {
-        "lines": "dòng",
+        "identical": "Không có thay đổi.",
+        "added_one": "+{{count}} đã thêm",
+        "added_other": "+{{count}} đã thêm",
+        "removed_one": "{{count}} đã xóa",
+        "removed_other": "{{count}} đã xóa",
         "charsChanged_one": "1 ký tự thay đổi",
-        "charsChanged_other": "{{count}} ký tự thay đổi",
-        "identical": "Không có thay đổi."
+        "charsChanged_other": "{{count}} ký tự thay đổi"
       },
       "resultsEmptyTitle": "Kết quả sẽ hiện ở đây",
       "resultsEmptyHint": "Chọn nguồn, prompt và engine ở trên rồi chạy. Mỗi thẻ hiển thị văn bản đã chỉnh, các thay đổi và tốc độ."

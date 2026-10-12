@@ -1205,12 +1205,19 @@
         "emptyBatch": "Виберіть принаймні один промпт і один рушій."
       },
       "diff": {
-        "lines": "рядків",
+        "identical": "Без змін.",
+        "added_few": "+{{count}} додано",
+        "added_many": "+{{count}} додано",
+        "added_one": "+1 додано",
+        "added_other": "Додано: {{count}}",
+        "removed_few": "{{count}} видалено",
+        "removed_many": "{{count}} видалено",
+        "removed_one": "1 видалено",
+        "removed_other": "Видалено: {{count}}",
         "charsChanged_one": "Змінено 1 символ",
         "charsChanged_few": "Змінено {{count}} символи",
         "charsChanged_many": "Змінено {{count}} символів",
-        "charsChanged_other": "Змінено символів: {{count}}",
-        "identical": "Без змін."
+        "charsChanged_other": "Змінено символів: {{count}}"
       },
       "resultsEmptyTitle": "Результати з'являться тут",
       "resultsEmptyHint": "Виберіть вище джерело, шаблони та рушії, потім запустіть. Кожна картка показує оброблений текст, зміни та швидкість."

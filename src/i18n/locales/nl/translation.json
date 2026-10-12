@@ -1195,10 +1195,13 @@
         "emptyBatch": "Kies minstens één prompt en één engine."
       },
       "diff": {
-        "lines": "regels",
+        "identical": "Geen wijzigingen.",
+        "added_one": "+{{count}} toegevoegd",
+        "added_other": "+{{count}} toegevoegd",
+        "removed_one": "{{count}} verwijderd",
+        "removed_other": "{{count}} verwijderd",
         "charsChanged_one": "1 teken gewijzigd",
-        "charsChanged_other": "{{count}} tekens gewijzigd",
-        "identical": "Geen wijzigingen."
+        "charsChanged_other": "{{count}} tekens gewijzigd"
       },
       "resultsEmptyTitle": "Resultaten verschijnen hier",
       "resultsEmptyHint": "Kies hierboven een bron, prompts en engines en voer ze uit. Elke kaart toont de gepolijste tekst, de wijzigingen en de snelheid."

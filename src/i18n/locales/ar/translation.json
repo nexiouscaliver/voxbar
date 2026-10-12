@@ -1215,14 +1215,25 @@
         "emptyBatch": "اختر برومبتًا واحدًا ومحركًا واحدًا على الأقل."
       },
       "diff": {
-        "lines": "أسطر",
+        "identical": "لا توجد تغييرات.",
+        "added_few": "تمت إضافة {{count}} أسطر",
+        "added_many": "تمت إضافة {{count}} سطرًا",
+        "added_one": "تمت إضافة سطر واحد",
+        "added_other": "تمت إضافة {{count}} سطر",
+        "added_two": "تمت إضافة {{count}} سطرين",
+        "added_zero": "تمت إضافة {{count}} أسطر",
+        "removed_few": "تم حذف {{count}} أسطر",
+        "removed_many": "تم حذف {{count}} سطرًا",
+        "removed_one": "تم حذف سطر واحد",
+        "removed_other": "تم حذف {{count}} سطر",
+        "removed_two": "تم حذف {{count}} سطرين",
+        "removed_zero": "تم حذف {{count}} أسطر",
         "charsChanged_one": "تغيّر حرف واحد",
         "charsChanged_zero": "تغيّر {{count}} حرف",
         "charsChanged_two": "تغيّر {{count}} حرفين",
         "charsChanged_few": "تغيّر {{count}} أحرف",
         "charsChanged_many": "تغيّر {{count}} حرفًا",
-        "charsChanged_other": "تغيّر {{count}} حرفًا",
-        "identical": "لا توجد تغييرات."
+        "charsChanged_other": "تغيّر {{count}} حرفًا"
       },
       "resultsEmptyTitle": "ستظهر النتائج هنا",
       "resultsEmptyHint": "اختر أعلاه المصدر والقوالب والمحرّكات ثم شغّل. تعرض كل بطاقة النص المحسّن وتغييراته وسرعته."
