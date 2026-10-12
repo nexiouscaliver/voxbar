@@ -2606,8 +2606,11 @@ impl TranscriptionManager {
         crate::shortcut::unregister_cancel_shortcut(&self.app_handle, cancel_session_key);
         self.cancel_stream();
         self.cancel_transcription();
-        crate::tray::set_tray_state(&self.app_handle, crate::tray::TrayIconState::Idle);
-        crate::overlay::hide_recording_overlay_after_error(&self.app_handle);
+        // The multi-phone guard: this teardown resolved ONE target; a phone
+        // lane still recording owns the shared surfaces until its own drain.
+        // The readable-notice arm keeps the in-card load-failure error
+        // readable exactly as the direct hide did.
+        crate::actions::retire_session_surfaces(&self.app_handle, true);
         self.maybe_unload_immediately("hotkey model-load failure");
         if let Some(coordinator) = self
             .app_handle
@@ -4763,6 +4766,38 @@ mod tests {
             load_failure_action(false),
             LoadFailureAction::LogOnly,
             "no session means nothing to tear down"
+        );
+    }
+
+    /// Multi-phone review round 2, source pin: the hotkey load-failure
+    /// teardown retires the shared surfaces through the guarded helper.
+    /// The teardown resolves ONE target (the scoped cancel_recording
+    /// above), but the tray and overlay are singletons: with a phone lane
+    /// still recording when this Mac-path failure fires, the old
+    /// unconditional Idle-plus-hide retired both under the surviving
+    /// session's feet. The readable-notice arm keeps the in-card
+    /// load-failure error readable exactly as the direct hide did.
+    /// Pinned against this committed source because the hook needs a live
+    /// TranscriptionManager (the same convention as the cancel pins).
+    #[test]
+    fn hotkey_load_failure_retires_shared_surfaces_through_the_guard() {
+        let source = include_str!("transcription.rs");
+        let fn_at = source
+            .find("fn handle_hotkey_load_failure")
+            .expect("the load-failure hook");
+        let body_end = fn_at + source[fn_at..].find("\n    }\n").expect("fn end");
+        let body = &source[fn_at..body_end];
+        assert!(
+            body.contains("crate::actions::retire_session_surfaces(&self.app_handle, true);"),
+            "the teardown must retire the surfaces only when no other session is live, keeping the error-read delay"
+        );
+        assert!(
+            !body.contains("TrayIconState::Idle"),
+            "no direct tray flip may live in the teardown"
+        );
+        assert!(
+            !body.contains("hide_recording_overlay"),
+            "no direct overlay hide may live in the teardown"
         );
     }
 

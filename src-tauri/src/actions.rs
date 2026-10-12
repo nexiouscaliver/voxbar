@@ -171,26 +171,29 @@ enum TranscriptDelivery {
 }
 
 /// v1.6.2 multi-phone review fix: retire the shared recording surfaces
-/// (tray icon + overlay card) at ONE pipeline's drain, but only when no
+/// (tray icon + overlay card) at ONE session's teardown, but only when no
 /// OTHER session is still live. Overlapping sessions are a v1.6.2 design
 /// fact - a second phone may still be mid-dictation when this pipeline
 /// finishes - and the tray and overlay are singletons, so the
-/// unconditional flip every drain used to run showed TrayIconState::Idle
+/// unconditional flip this code used to run showed TrayIconState::Idle
 /// and hid the card under a live session's feet (the overlay's
 /// show-generation guard only protects NEWER shows, not the still-live
 /// session whose show predates this pipeline). At every call site the
-/// pipeline's own recorder is already torn down, so `rm.is_recording()`
-/// reads exactly the OTHER sessions' liveness - the failed-start path's
-/// guard, applied to every drain. `readable_notice` picks the
-/// notice-readable delayed hide for paths that just put an error on the
-/// card (the zero-audio notice, a failed paste).
-fn retire_session_surfaces(
-    rm: &Arc<AudioRecordingManager>,
-    app: &AppHandle,
-    readable_notice: bool,
-) {
-    if rm.is_recording() {
-        // Another session owns the shared surfaces until its own drain.
+/// caller's own recorder is already torn down (the stop pipeline's lane
+/// entry, the cancel path's resolved target), so `is_recording()` reads
+/// exactly the OTHER sessions' liveness - the failed-start path's guard,
+/// applied to every teardown: the stop pipeline's drains, the
+/// Escape-cancel route, and the hotkey model-load-failure teardown.
+/// `readable_notice` picks the notice-readable delayed hide for paths
+/// that just put an error on the card (the zero-audio notice, a failed
+/// paste, the load-failure notice). A manager-less context (unit tests)
+/// has no concurrent sessions and retires unconditionally.
+pub(crate) fn retire_session_surfaces(app: &AppHandle, readable_notice: bool) {
+    if app
+        .try_state::<Arc<AudioRecordingManager>>()
+        .is_some_and(|rm| rm.is_recording())
+    {
+        // Another session owns the shared surfaces until its own teardown.
         return;
     }
     set_tray_state(app, TrayIconState::Idle);
@@ -2254,7 +2257,7 @@ impl ShortcutAction for TranscribeAction {
                 if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                     debug!("Transcription operation cancelled after recording stop");
                     tm.cancel_stream();
-                    retire_session_surfaces(&rm, &ah, false);
+                    retire_session_surfaces(&ah, false);
                     return;
                 }
 
@@ -2292,13 +2295,13 @@ impl ShortcutAction for TranscribeAction {
                             tm.cancel_stream();
                             rm.clear_stream_owner_if(stream_owner);
                         }
-                        retire_session_surfaces(&rm, &ah, true);
+                        retire_session_surfaces(&ah, true);
                         return;
                     }
                     // Tear down any streaming worker so its channel doesn't leak
                     // and block the next start_stream.
                     tm.cancel_stream();
-                    retire_session_surfaces(&rm, &ah, false);
+                    retire_session_surfaces(&ah, false);
                 } else {
                     // Save WAV concurrently with transcription
                     let sample_count = samples.len();
@@ -2415,7 +2418,7 @@ impl ShortcutAction for TranscribeAction {
 
                     if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                         debug!("Transcription operation cancelled before output handling");
-                        retire_session_surfaces(&rm, &ah, false);
+                        retire_session_surfaces(&ah, false);
                         return;
                     }
 
@@ -2462,13 +2465,13 @@ impl ShortcutAction for TranscribeAction {
                                 // never shows a phantom live run.
                                 crate::post_process_runs::runs()
                                     .cancel_live_dictation_runs();
-                                retire_session_surfaces(&rm, &ah, false);
+                                retire_session_surfaces(&ah, false);
                                 return;
                             };
 
                             if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                                 debug!("Transcription operation cancelled before paste");
-                                retire_session_surfaces(&rm, &ah, false);
+                                retire_session_surfaces(&ah, false);
                                 return;
                             }
 
@@ -2523,7 +2526,7 @@ impl ShortcutAction for TranscribeAction {
                                         stop_to_end_ms: stop_time.elapsed().as_millis(),
                                     })
                                 );
-                                retire_session_surfaces(&rm, &ah, false);
+                                retire_session_surfaces(&ah, false);
                             } else if matches!(delivery, TranscriptDelivery::PhoneSend) {
                                 // v1.6.0 phone-target delivery: skip every
                                 // Mac paste step (preview, paste, clipboard
@@ -2558,7 +2561,7 @@ impl ShortcutAction for TranscribeAction {
                                         stop_to_end_ms: stop_time.elapsed().as_millis(),
                                     })
                                 );
-                                retire_session_surfaces(&rm, &ah, false);
+                                retire_session_surfaces(&ah, false);
                             } else {
                                 // Final-text preview before the paste: batch
                                 // models show nothing while recording, so
@@ -2611,7 +2614,7 @@ impl ShortcutAction for TranscribeAction {
                                             debug!(
                                                 "Transcription operation cancelled during final preview"
                                             );
-                                            retire_session_surfaces(&rm, &ah, false);
+                                            retire_session_surfaces(&ah, false);
                                             return;
                                         }
                                         tokio::time::sleep(CANCELLATION_POLL_INTERVAL).await;
@@ -2644,7 +2647,7 @@ impl ShortcutAction for TranscribeAction {
                                 ah.run_on_main_thread(move || {
                                     if rm_for_paste.was_cancelled_since(cancel_lane, cancel_generation) {
                                         debug!("Transcription operation cancelled before paste");
-                                        retire_session_surfaces(&rm_for_paste, &ah_clone, false);
+                                        retire_session_surfaces(&ah_clone, false);
                                         return;
                                     }
 
@@ -2681,7 +2684,6 @@ impl ShortcutAction for TranscribeAction {
                                         stop_time.elapsed().as_millis();
                                     info!("{}", format_session_outcome(&outcome_summary));
                                     retire_session_surfaces(
-                                        &rm_for_paste,
                                         &ah_clone,
                                         paste_failed_flag.load(std::sync::atomic::Ordering::Acquire),
                                     );
@@ -2700,7 +2702,7 @@ impl ShortcutAction for TranscribeAction {
                                             stop_to_end_ms: stop_time.elapsed().as_millis(),
                                         })
                                     );
-                                    retire_session_surfaces(&rm, &ah, false);
+                                    retire_session_surfaces(&ah, false);
                                 });
                             }
                         }
@@ -2709,7 +2711,7 @@ impl ShortcutAction for TranscribeAction {
                                 debug!(
                                     "Transcription operation cancelled after transcription error"
                                 );
-                                retire_session_surfaces(&rm, &ah, false);
+                                retire_session_surfaces(&ah, false);
                                 return;
                             }
 
@@ -2752,7 +2754,7 @@ impl ShortcutAction for TranscribeAction {
                                 }
                             }
                             // Delayed hide so the in-card error stays readable.
-                            retire_session_surfaces(&rm, &ah, true);
+                            retire_session_surfaces(&ah, true);
                         }
                     }
                 }
@@ -2766,7 +2768,7 @@ impl ShortcutAction for TranscribeAction {
                     tm.cancel_stream();
                     rm.clear_stream_owner_if(stream_owner);
                 }
-                retire_session_surfaces(&rm, &ah, false);
+                retire_session_surfaces(&ah, false);
             }
                 })
             })
@@ -3400,7 +3402,7 @@ mod tests {
                     .find("fn transcript_delivery(")
                     .expect("the helper's end")];
         let guard_at = helper
-            .find("if rm.is_recording() {")
+            .find(".is_some_and(|rm| rm.is_recording())")
             .expect("the other-session liveness guard");
         let tray_at = helper
             .find("set_tray_state(app, TrayIconState::Idle);")
@@ -3741,7 +3743,7 @@ mod tests {
             .expect("the local-empty cleanup that follows the remote arm");
         let zero_audio_arm = &stop_body[emit_at..local_cleanup_at];
         assert!(
-            zero_audio_arm.contains("retire_session_surfaces(&rm, &ah, true)"),
+            zero_audio_arm.contains("retire_session_surfaces(&ah, true)"),
             "the zero-audio notice must stay readable: the arm retires through the error-read delay, not the plain 300 ms hide"
         );
 

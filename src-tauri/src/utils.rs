@@ -151,9 +151,12 @@ pub fn cancel_current_operation(app: &AppHandle) {
         tm.cancel_transcription();
     }
 
-    // Update tray icon and hide overlay
-    set_tray_state(app, crate::tray::TrayIconState::Idle);
-    hide_recording_overlay(app);
+    // Update tray icon and hide overlay. The multi-phone guard: the cancel
+    // above resolved to exactly ONE target, and with another session still
+    // live (a phone lane still recording) the shared surfaces belong to it
+    // until its own teardown - an unconditional flip here showed Idle and
+    // hid the card under the surviving session's feet.
+    crate::actions::retire_session_surfaces(app, false);
 
     // Unload model if immediate unload is enabled. Done before notifying the
     // coordinator, so a recording started next always loads afresh; it
@@ -281,6 +284,23 @@ mod tests {
         assert!(
             body.contains("shortcut::unregister_cancel_shortcut(app, cancel_session_key);"),
             "the cancel releases exactly the torn-down session's want; another live session's Escape stays armed"
+        );
+        // Multi-phone review round 2: the shared surfaces retire through
+        // the guarded helper, never an unconditional flip. The cancel
+        // resolves to ONE target (pinned above); with phones A and B both
+        // live, the Escape tears down B (most recent) and an unconditional
+        // Idle-plus-hide retired the tray and card under A's live session.
+        assert!(
+            body.contains("crate::actions::retire_session_surfaces(app, false);"),
+            "the surfaces must retire only when no other session is live (the guarded helper), not unconditionally"
+        );
+        assert!(
+            !body.contains("TrayIconState::Idle"),
+            "no direct tray flip may live in the cancel route"
+        );
+        assert!(
+            !body.contains("hide_recording_overlay"),
+            "no direct overlay hide may live in the cancel route"
         );
     }
 
