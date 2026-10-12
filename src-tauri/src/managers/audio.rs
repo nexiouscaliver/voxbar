@@ -1415,10 +1415,15 @@ impl AudioRecordingManager {
         // Multi-phone review pin: through local_capture_active, so the
         // Mac session's own Stopping tail (this fold runs on the stop
         // pipeline's spawned thread and CAN land inside it) keeps the
-        // mirror honest exactly as set_state does.
+        // mirror honest exactly as set_state does. Fleet pass 3: the
+        // release-buffer sleep above can span another lane's whole start,
+        // and the still_recording snapshot taken BEFORE it would clobber
+        // that start's mirror to false while it records - so the fold
+        // re-loads remote_lanes_recording fresh, never the stale snapshot.
         let local_active = local_capture_active(&*self.state.lock().unwrap());
+        let lanes_active = self.remote_lanes_recording.load(Ordering::SeqCst);
         self.recording_active
-            .store(local_active || still_recording, Ordering::SeqCst);
+            .store(local_active || lanes_active, Ordering::SeqCst);
 
         if self.was_cancelled_since(Some(lane), cancel_generation) {
             debug!("Recording stop cancelled; discarding captured samples");
@@ -1544,9 +1549,15 @@ impl AudioRecordingManager {
         drop(lanes);
         self.remote_lanes_recording.store(false, Ordering::SeqCst);
         self.last_recording_lane.store(0, Ordering::SeqCst);
-        // Fold the shared mirror with the local machine's state.
+        // Fold the shared mirror with the local machine's state and the
+        // lanes' CURRENT truth: a lane start can commit between the drain
+        // above and this fold, and folding from the drain's result alone
+        // (implicitly "no lane records") would clobber that start's mirror
+        // to false mid-recording. Same fresh-atomic discipline as set_state.
         let local_active = local_capture_active(&*self.state.lock().unwrap());
-        self.recording_active.store(local_active, Ordering::SeqCst);
+        let lanes_active = self.remote_lanes_recording.load(Ordering::SeqCst);
+        self.recording_active
+            .store(local_active || lanes_active, Ordering::SeqCst);
     }
 
     /// v1.6.2 W1-L2: claim the streaming-engine token for one session.
@@ -1780,18 +1791,6 @@ impl AudioRecordingManager {
     /// stream needs nothing: the next session open resolves the device
     /// fresh through the same `desired_microphone` path.
     pub fn handle_clamshell_change(&self) {
-        let state = self.state.lock().unwrap();
-        if capture_restart_forbidden(&state) {
-            drop(state);
-            self.clamshell_reresolve_pending
-                .store(true, Ordering::SeqCst);
-            debug!(
-                "Clamshell change deferred: a local recording is live; the \
-                 stop pipeline will re-resolve the microphone"
-            );
-            return;
-        }
-        drop(state);
         self.restart_open_stream_on_new_device();
     }
 
@@ -1822,7 +1821,37 @@ impl AudioRecordingManager {
     /// current environment. Best-effort by design, like the always-on
     /// startup open: a failed reopen is logged and the next recording start
     /// re-attempts it where the user can act on the error.
+    ///
+    /// Fleet pass 3 (the KB-010 lock scope): the recording-state check and
+    /// the restart run under ONE hold of the state lock, exactly like the
+    /// device, channel, and clamshell-preference switches - and for the
+    /// same reason: a hotkey start that committed between the old Idle
+    /// sample (taken under a lock dropped before this ran) and the
+    /// restart's force-stop had its fresh recorder's ring destroyed and
+    /// the dictation silently discarded. Holding the lock across the
+    /// CoreAudio stop/start is deadlock-free (update_clamshell_microphone
+    /// already holds it across the same pair; neither helper takes it).
+    /// A live recording defers instead of restarting underneath.
+    ///
+    /// Fleet pass 3 (the KB-010 mode blindness): only the ALWAYS-ON stream
+    /// reopens. An on-demand stream sits open only inside its lazy-close
+    /// window; the restart's close_generation bump already cancels that
+    /// timer, so reopening it here left the mic hot with no close ever
+    /// armed (the stranded-hot-mic class KB-237 documents). The on-demand
+    /// stream closes now and the next session open resolves the flipped
+    /// lid fresh through the same desired_microphone path.
     fn restart_open_stream_on_new_device(&self) {
+        let state = self.state.lock().unwrap();
+        if capture_restart_forbidden(&state) {
+            drop(state);
+            self.clamshell_reresolve_pending
+                .store(true, Ordering::SeqCst);
+            debug!(
+                "Capture environment change deferred: a local recording is \
+                 live; the stop pipeline will re-resolve the microphone"
+            );
+            return;
+        }
         let was_open = *self.is_open.lock().unwrap();
         if !was_open {
             return;
@@ -1830,6 +1859,13 @@ impl AudioRecordingManager {
         self.invalidate_device_cache();
         self.close_generation.fetch_add(1, Ordering::SeqCst);
         self.stop_microphone_stream();
+        if !matches!(*self.mode.lock().unwrap(), MicrophoneMode::AlwaysOn) {
+            debug!(
+                "Capture environment change closed the on-demand stream; the \
+                 next session open resolves the lid state fresh"
+            );
+            return;
+        }
         if let Err(e) = self.start_microphone_stream() {
             error!(
                 "Failed to reopen the microphone after a capture environment \
@@ -2150,9 +2186,14 @@ impl AudioRecordingManager {
                 let _ = entry.recorder.close();
             }
             drop(lanes);
+            // Fleet pass 3: fold from the lanes' CURRENT truth (the atomic),
+            // never the still_recording snapshot - another lane can start in
+            // the gap between the snapshot and this fold, and the snapshot
+            // would clobber its mirror to false mid-recording.
             let local_active = local_capture_active(&*self.state.lock().unwrap());
+            let lanes_active = self.remote_lanes_recording.load(Ordering::SeqCst);
             self.recording_active
-                .store(local_active || still_recording, Ordering::SeqCst);
+                .store(local_active || lanes_active, Ordering::SeqCst);
             self.remove_mute();
             return CancelTarget::Lane(lane);
         }
@@ -2271,6 +2312,162 @@ mod tests {
         assert!(
             !body.contains("RecordingState::Recording { .. }"),
             "no inline Recording-only membership match may live in the fold"
+        );
+    }
+
+    /// Fleet pass 3, source pin (the interleave needs real recorders, so
+    /// the folds are pinned against this committed source, the convention
+    /// above): every lane-stop-shaped fold of the shared recording mirror
+    /// must read the lanes' CURRENT truth - the remote_lanes_recording
+    /// atomic, exactly as set_state does - never a still_recording
+    /// snapshot taken before the release-buffer sleep or the lock drop. A
+    /// lane start that lands inside that gap stores recording_active=true;
+    /// a fold from the stale snapshot then clobbers it to false
+    /// MID-RECORDING, and every mirror reader (the Escape gate, the
+    /// failed-start surface guard, the local-LLM keep-warm planner, the
+    /// server-stop close decision) reads a lie.
+    #[test]
+    fn lane_stop_folds_read_the_lanes_atomic_not_the_stale_snapshot() {
+        let source = include_str!("audio.rs");
+        let stop_at = source
+            .find("pub fn stop_remote_lane_recording(")
+            .expect("the lane stop");
+        let stop_body =
+            &source[stop_at..source.find("pub fn lane_is_recording").expect("its end")];
+        let cancel_at = source
+            .find("pub fn cancel_recording(&self) -> CancelTarget")
+            .expect("cancel_recording");
+        let cancel_body =
+            &source[cancel_at..cancel_at + source[cancel_at..].find("\n    }\n}\n").expect("fn end")];
+        let close_at = source
+            .find("pub fn close_remote_stream(&self)")
+            .expect("close_remote_stream");
+        let close_body =
+            &source[close_at..source.find("pub fn set_stream_owner").expect("its end")];
+        for (body, name) in [
+            (stop_body, "stop_remote_lane_recording"),
+            (cancel_body, "cancel_recording's lane arm"),
+            (close_body, "close_remote_stream"),
+        ] {
+            assert!(
+                body.contains("self.remote_lanes_recording.load(Ordering::SeqCst)"),
+                "{name}: the fold must read the lanes' CURRENT truth, not a pre-window snapshot"
+            );
+            assert!(
+                body.contains("store(local_active || lanes_active"),
+                "{name}: the fold must OR the fresh lanes truth in"
+            );
+            assert!(
+                !body.contains("local_active || still_recording"),
+                "{name}: folding from the stale still_recording snapshot clobbers a lane that started during the window"
+            );
+        }
+    }
+
+    /// Fleet pass 3, source pin (the interleave needs real CoreAudio, so
+    /// the lock scope is pinned against this committed source, the
+    /// convention above): the capture-environment restart must hold the
+    /// recording-state lock across the WHOLE switch - the guard, the stop,
+    /// and the reopen - exactly like update_selected_device,
+    /// update_selected_channel, and update_clamshell_microphone. The lid
+    /// watcher used to sample Idle under a lock it dropped before the
+    /// restart ran, so a hotkey start that committed in between had its
+    /// fresh recorder force-stopped and its ring destroyed (the silent
+    /// "no audio" outcome). The deferral arm is the ONLY place the guard
+    /// lock may be dropped, and the lid entry point must delegate
+    /// wholesale instead of sampling-and-releasing ahead of the restart.
+    #[test]
+    fn capture_environment_restart_holds_the_state_lock_across_the_switch() {
+        let source = include_str!("audio.rs");
+        let at = source
+            .find("fn restart_open_stream_on_new_device(&self)")
+            .expect("the capture-environment restart");
+        let body =
+            &source[at..source.find("pub fn update_clamshell_microphone").expect("its end")];
+        let lock_at = body
+            .find("let state = self.state.lock().unwrap();")
+            .expect("the restart takes the state lock");
+        let guard_at = body
+            .find("capture_restart_forbidden(&state)")
+            .expect("the restart re-checks the recording state under the lock");
+        let stop_at = body
+            .find("self.stop_microphone_stream();")
+            .expect("the restart stops the stream");
+        let start_at = body
+            .find("self.start_microphone_stream()")
+            .expect("the restart reopens the stream");
+        assert!(
+            lock_at < guard_at && guard_at < stop_at && stop_at < start_at,
+            "the state lock must span the guard, the stop, and the reopen"
+        );
+        assert_eq!(
+            body.matches("drop(state);").count(),
+            1,
+            "exactly one unlock, and it must live in the deferral arm"
+        );
+        let drop_at = body.find("drop(state);").expect("the deferral unlock");
+        let defer_at = body
+            .find("clamshell_reresolve_pending")
+            .expect("the deferral parking");
+        assert!(
+            drop_at < defer_at && defer_at < stop_at,
+            "the unlock belongs to the deferral arm, which returns before any stop"
+        );
+
+        // The lid entry point must not sample Idle ahead of the restart
+        // under a lock it drops - that TOCTOU was the hole.
+        let handler_at = source
+            .find("pub fn handle_clamshell_change(&self)")
+            .expect("the lid entry point");
+        let handler_body = &source[handler_at
+            ..source
+                .find("fn run_deferred_clamshell_reresolve")
+                .expect("its end")];
+        assert!(
+            !handler_body.contains("drop(state);")
+                && !handler_body.contains("capture_restart_forbidden"),
+            "the lid entry point must delegate the guarded restart, not sample-and-release"
+        );
+    }
+
+    /// Fleet pass 3, source pin (same convention): the capture-environment
+    /// restart is MODE-AWARE. Only the always-on stream reopens - the
+    /// restart's close_generation bump cancels the armed lazy-close timer,
+    /// so re-opening an on-demand stream inside its 30 s lazy-close window
+    /// left the mic hot indefinitely with no close ever armed again (the
+    /// stranded-hot-mic class KB-237 documents). The on-demand arm closes
+    /// and returns BEFORE any reopen; the next session open resolves the
+    /// flipped lid fresh.
+    #[test]
+    fn capture_environment_restart_reopens_only_the_always_on_stream() {
+        let source = include_str!("audio.rs");
+        let at = source
+            .find("fn restart_open_stream_on_new_device(&self)")
+            .expect("the capture-environment restart");
+        let body =
+            &source[at..source.find("pub fn update_clamshell_microphone").expect("its end")];
+        let stop_at = body
+            .find("self.stop_microphone_stream();")
+            .expect("the stop");
+        let mode_gate_at = body
+            .find("matches!(*self.mode.lock().unwrap(), MicrophoneMode::AlwaysOn)")
+            .expect("the restart gates the reopen on the always-on mode");
+        let start_at = body
+            .find("self.start_microphone_stream()")
+            .expect("the reopen");
+        assert!(
+            stop_at < mode_gate_at && mode_gate_at < start_at,
+            "the mode gate must sit between the stop and the reopen: an on-demand stream closes and returns before any reopen"
+        );
+        // The deferred path keeps its own mode gate, so a deferred
+        // on-demand re-resolve is dropped rather than restarted.
+        let deferred_at = source
+            .find("fn run_deferred_clamshell_reresolve(&self)")
+            .expect("the deferred re-resolve");
+        let deferred_body = &source[deferred_at..at];
+        assert!(
+            deferred_body.contains("MicrophoneMode::AlwaysOn"),
+            "the deferred re-resolve must stay gated on the always-on mode"
         );
     }
 

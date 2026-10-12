@@ -4100,16 +4100,28 @@ fn whisper_initial_prompt(
     // Units keep each input's original internal spacing: a matrix phrase
     // like "question mark" stays two space-joined words (never
     // "question, mark"), and so does a multi-word custom entry. Units are
-    // joined with ", " exactly as before.
+    // joined with ", " exactly as before. Fleet pass 3: an empty or
+    // whitespace-only entry builds NO unit - an empty unit contributed
+    // nothing to the prompt and made the over-budget shedding loops below
+    // call Vec::remove(0) on an empty inner vec (out of bounds, panicking
+    // the stop-pipeline thread mid-dictation). Custom words are stored
+    // verbatim by settings and update_custom_words (only the React UI
+    // normalizes), so this seam must tolerate them.
     let mut units: Vec<Vec<&str>> = Vec::new();
     if !insert_phrases.is_empty() && !is_latin_language(output_language) {
         for phrase in insert_phrases {
-            units.push(phrase.split_whitespace().collect());
+            let words: Vec<&str> = phrase.split_whitespace().collect();
+            if !words.is_empty() {
+                units.push(words);
+            }
         }
     }
     let custom_start_words: usize = units.iter().map(|u| u.len()).sum();
     for word in custom_words {
-        units.push(word.split_whitespace().collect());
+        let words: Vec<&str> = word.split_whitespace().collect();
+        if !words.is_empty() {
+            units.push(words);
+        }
     }
 
     // Bound: separators join the budget (each ", " approximates one
@@ -4128,10 +4140,11 @@ fn whisper_initial_prompt(
     if cost(&units) > WHISPER_INITIAL_PROMPT_APPROX_TOKENS {
         let mut phrase_words_left = custom_start_words;
         while phrase_words_left > 0 && cost(&units) > WHISPER_INITIAL_PROMPT_APPROX_TOKENS {
-            // Shed one word from the front unit, dropping the unit when
-            // it empties.
+            // Shed one word from the front unit, dropping the unit when it
+            // empties (front_len <= 1 also covers an already-empty front
+            // unit, so no arm ever removes from an empty vec).
             let front_len = units[0].len();
-            if front_len == 1 {
+            if front_len <= 1 {
                 units.remove(0);
             } else {
                 units[0].remove(0);
@@ -4145,7 +4158,7 @@ fn whisper_initial_prompt(
         // approximation; whisper's own truncation handles that case.
         while units.len() > 1 && cost(&units) > WHISPER_INITIAL_PROMPT_APPROX_TOKENS {
             let front_len = units[0].len();
-            if front_len == 1 {
+            if front_len <= 1 {
                 units.remove(0);
             } else {
                 units[0].remove(0);
@@ -6734,6 +6747,61 @@ mod tests {
                 "hi"
             ),
             "comma, Alpha, Beta"
+        );
+    }
+
+    /// Fleet pass 3: an empty (or whitespace-only) custom word used to
+    /// build an EMPTY unit, and the over-budget shedding loop's else arm
+    /// then called units[0].remove(0) on it - Vec::remove out of bounds,
+    /// panicking the stop-pipeline thread mid-dictation and losing the
+    /// transcript. Custom words reach this seam verbatim (settings
+    /// deserialization and update_custom_words store the vec unchanged;
+    /// only the React UI normalizes), so the seam itself must tolerate
+    /// them. This test is the panic's executable pin: it runs the exact
+    /// over-budget shape that used to abort.
+    #[test]
+    fn whisper_initial_prompt_tolerates_empty_custom_words() {
+        // Empty and whitespace-only entries contribute no unit: the prompt
+        // is exactly the healthy words.
+        assert_eq!(
+            whisper_initial_prompt(
+                &["Alpha".to_string(), "".to_string(), "   ".to_string()],
+                &[],
+                "en"
+            ),
+            "Alpha"
+        );
+        // The phrase arm skips empties the same way (defense in depth for
+        // a seam the matrix filter upstream already cleans).
+        assert_eq!(
+            whisper_initial_prompt(
+                &["Alpha".to_string()],
+                &["".to_string(), "comma".to_string()],
+                "hi"
+            ),
+            "comma, Alpha"
+        );
+
+        // The panic's exact trigger: over budget WITH empties in the list,
+        // so the shedding loops run to completion. Pre-fix this aborted
+        // with "removal index (is 0) should be < len (is 0)".
+        let mut huge: Vec<String> = (0..300).map(|i| format!("custom{i}")).collect();
+        huge.insert(0, "".to_string());
+        huge.insert(5, "   ".to_string());
+        let bounded = whisper_initial_prompt(&huge, &[], "en");
+        assert!(
+            bounded.ends_with("custom299"),
+            "the tail custom word survives, got: {bounded}"
+        );
+        assert!(
+            bounded.split(", ").count() * 2 <= WHISPER_INITIAL_PROMPT_MAX_TOKENS,
+            "the bounded prompt stays under the whisper cap"
+        );
+
+        // Empties alone never produce a prompt and never panic.
+        assert_eq!(
+            whisper_initial_prompt(&["".to_string(), "  ".to_string()], &[], "zh"),
+            ""
         );
     }
 

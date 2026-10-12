@@ -94,6 +94,16 @@ pub fn cancel_current_operation(app: &AppHandle) {
     let recording_was_active = audio_manager.is_recording();
     let cancel_target = audio_manager.cancel_recording();
 
+    // v1.6.2 fleet pass 3 (the W1-L0 admission rule): a cancelled LANE
+    // session must end its companion session record exactly as the
+    // pipeline's own stop does (actions.rs). Without this the record stayed
+    // live: the phone kept streaming, its button stayed in the recording
+    // state, and the server kept admitting audio into a recorder the cancel
+    // had already removed - silently blackholed, never counted, forever.
+    if let crate::managers::audio::CancelTarget::Lane(lane) = cancel_target {
+        crate::companion::on_lane_session_changed(app, lane, false);
+    }
+
     // v1.6.2 fleet pass 2: release exactly the torn-down session's want of
     // the cancel shortcut (the keyboard's None, or the cancelled lane's) -
     // the key stays armed while any other live session still wants it. The
@@ -301,6 +311,35 @@ mod tests {
         assert!(
             !body.contains("hide_recording_overlay"),
             "no direct overlay hide may live in the cancel route"
+        );
+    }
+
+    /// Fleet pass 3, source pin (the W1-L0 admission rule): a cancel that
+    /// resolves to a LANE must end that lane's companion session record
+    /// through the same on_lane_session_changed(lane, false) call the
+    /// pipeline's stop uses - it flips the record's liveness (the server's
+    /// admission truth), sends the phone State{recording:false}, and
+    /// clears the overlay badge. Before this the record stayed live
+    /// forever: the phone kept streaming into the recorder the cancel had
+    /// removed, its UI stayed in the recording state, and the chunks were
+    /// dropped silently without even counting as out-of-session. Pinned
+    /// against this committed source because mounting an AppHandle in a
+    /// unit test is not possible (same convention as the pin above).
+    #[test]
+    fn cancel_current_operation_ends_a_cancelled_lanes_companion_session() {
+        let source = include_str!("utils.rs");
+        let fn_at = source
+            .find("pub fn cancel_current_operation")
+            .expect("cancel_current_operation");
+        let body_end = fn_at + source[fn_at..].find("\n}\n").expect("fn end");
+        let body = &source[fn_at..body_end];
+        assert!(
+            body.contains("if let crate::managers::audio::CancelTarget::Lane(lane) = cancel_target"),
+            "the lane-resolved cancel must be branched on before the teardown below"
+        );
+        assert!(
+            body.contains("crate::companion::on_lane_session_changed(app, lane, false);"),
+            "a lane-resolved cancel must end the lane's companion session record (liveness flip + State{{recording:false}} to the phone), exactly as the pipeline's stop does"
         );
     }
 

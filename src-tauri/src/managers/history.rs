@@ -191,6 +191,45 @@ fn init_database_at(db_path: &std::path::Path) -> Result<()> {
     Ok(())
 }
 
+/// Fleet pass 3 (the KB-179 quarantine scope): classify an init failure as
+/// "the database file itself is unreadable" before the quarantine may
+/// displace it. Only SQLite's own corruption verdicts qualify - NOTADB
+/// (the file is not a SQLite database at all, the garbage-bytes fixture)
+/// and CORRUPT. Everything else leaves a HEALTHY file at the live path: a
+/// schema version written by a newer build (DatabaseTooFarAhead), a busy
+/// or locked database, a transient I/O error. Renaming any of those aside
+/// boots the app with an empty history and discards the user's data for
+/// no reason, so the classifier fails closed toward NOT quarantining: an
+/// unclassified error keeps the file in place and propagates (the visible
+/// pre-KB-179 launch failure), because a false quarantine silently loses
+/// data while a missed quarantine only fails one launch visibly.
+fn init_error_is_corruption(error: &anyhow::Error) -> bool {
+    for cause in error.chain() {
+        // Version-class, named so the intent survives: a database this
+        // binary's MIGRATIONS list does not know is exactly what a future
+        // build wrote - healthy by definition.
+        if matches!(
+            cause.downcast_ref::<rusqlite_migration::Error>(),
+            Some(rusqlite_migration::Error::MigrationDefinition(
+                rusqlite_migration::MigrationDefinitionError::DatabaseTooFarAhead
+            ))
+        ) {
+            return false;
+        }
+        if let Some(rusqlite::Error::SqliteFailure(ffi_err, _)) =
+            cause.downcast_ref::<rusqlite::Error>()
+        {
+            if matches!(
+                ffi_err.code,
+                rusqlite::ErrorCode::NotADatabase | rusqlite::ErrorCode::DatabaseCorrupt
+            ) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// KB-179 (operator decision D3): move an unreadable history database out
 /// of the way so the next open starts fresh. The first quarantine takes
 /// the plain `history.db.corrupt` name; when that already exists (an
@@ -271,6 +310,17 @@ impl HistoryManager {
         // can be renamed or created in it) still fails construction.
         let mut db_recovery = None;
         if let Err(first_error) = init_database_at(&db_path) {
+            // Fleet pass 3 (the KB-179 quarantine scope): the quarantine may
+            // displace the file ONLY on a corruption verdict. Any other
+            // failure leaves a healthy database at the live path - a newer
+            // build's schema, a busy database, a transient I/O error - so the
+            // error propagates and this launch fails visibly instead of
+            // booting with empty history while the data sits renamed aside.
+            if !init_error_is_corruption(&first_error) {
+                return Err(first_error.context(
+                    "history database init failed without a corruption verdict; keeping the file in place",
+                ));
+            }
             error!(
                 "History database at {:?} failed to initialize ({}); quarantining it and starting a fresh database",
                 db_path, first_error
@@ -2086,6 +2136,138 @@ mod tests {
             })
             .expect("query fresh database");
         assert_eq!(count, 0, "the fresh database starts empty");
+    }
+
+    /// Fleet pass 3 (the KB-179 quarantine scope): the classifier accepts
+    /// ONLY SQLite's own corruption verdicts. A version-class error (a
+    /// database this binary's MIGRATIONS does not know - what a future
+    /// build wrote), a busy database, and an unclassified error must all
+    /// read as "keep the file in place", because each of those leaves a
+    /// healthy database at the live path.
+    #[test]
+    fn quarantine_classifier_only_accepts_a_corruption_verdict() {
+        // ffi::Error::new maps SQLite's primary result codes.
+        let not_a_db = anyhow::Error::new(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_NOTADB),
+            None,
+        ));
+        assert!(
+            init_error_is_corruption(&not_a_db),
+            "SQLITE_NOTADB (the garbage-bytes fixture) is corruption"
+        );
+        let corrupt = anyhow::Error::new(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_CORRUPT),
+            None,
+        ));
+        assert!(
+            init_error_is_corruption(&corrupt),
+            "SQLITE_CORRUPT is corruption"
+        );
+
+        let too_far_ahead = anyhow::Error::new(rusqlite_migration::Error::MigrationDefinition(
+            rusqlite_migration::MigrationDefinitionError::DatabaseTooFarAhead,
+        ));
+        assert!(
+            !init_error_is_corruption(&too_far_ahead),
+            "a newer build's schema version is a healthy database, never quarantined"
+        );
+        let busy = anyhow::Error::new(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_BUSY),
+            None,
+        ));
+        assert!(
+            !init_error_is_corruption(&busy),
+            "a busy database is transient, never quarantined"
+        );
+        let locked = anyhow::Error::new(rusqlite::Error::SqliteFailure(
+            rusqlite::ffi::Error::new(rusqlite::ffi::SQLITE_LOCKED),
+            None,
+        ));
+        assert!(
+            !init_error_is_corruption(&locked),
+            "a locked database is transient, never quarantined"
+        );
+        assert!(
+            !init_error_is_corruption(&anyhow::Error::msg("something else entirely")),
+            "an unclassified error fails closed toward keeping the file"
+        );
+    }
+
+    /// Fleet pass 3 (the KB-179 quarantine scope), end to end against a
+    /// REAL database: a healthy file whose user_version exceeds this
+    /// binary's MIGRATIONS list (written by a future build, then this one
+    /// run against it) fails init with the version-class error, the
+    /// classifier reads it as not-corruption, and the file must stay at
+    /// the live path - the pre-fix code quarantined exactly this fixture
+    /// and booted with empty history.
+    #[test]
+    fn newer_version_db_fails_init_but_is_never_quarantined() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let db_path = dir.path().join("history.db");
+        init_database_at(&db_path).expect("seed a healthy database");
+
+        // Write one row so the fixture proves DATA would be lost.
+        let conn = Connection::open(&db_path).expect("open seeded database");
+        conn.execute(
+            "INSERT INTO transcription_history (file_name, timestamp, saved, title, transcription_text)
+             VALUES ('seed.wav', 0, 0, 'seed', 'the user history that must survive')",
+            [],
+        )
+        .expect("seed row");
+        conn.pragma_update(None, "user_version", MIGRATIONS.len() as i32 + 1)
+            .expect("bump past this binary's migrations");
+        drop(conn);
+
+        let err = init_database_at(&db_path).expect_err("a too-far-ahead version must fail init");
+        assert!(
+            !init_error_is_corruption(&err),
+            "the version-class failure must read as not-corruption (error was: {err})"
+        );
+        assert!(
+            db_path.exists(),
+            "the healthy database stays at the live path"
+        );
+        assert!(
+            !dir.path().join("history.db.corrupt").exists(),
+            "no quarantine file may appear"
+        );
+        let conn = Connection::open(&db_path).expect("reopen the kept database");
+        let text: String = conn
+            .query_row(
+                "SELECT transcription_text FROM transcription_history",
+                [],
+                |row| row.get(0),
+            )
+            .expect("the kept database is still readable");
+        assert_eq!(text, "the user history that must survive");
+    }
+
+    /// Fleet pass 3 (the KB-179 quarantine scope), source pin: HistoryManager
+    /// ::new must gate the quarantine on the corruption classifier BEFORE
+    /// any quarantine_history_db call - mounting an AppHandle in a unit
+    /// test is not possible (same convention as utils.rs's cancel pins).
+    #[test]
+    fn new_gates_the_quarantine_on_the_corruption_classifier() {
+        let source = include_str!("history.rs");
+        let fn_at = source
+            .find("pub fn new(app_handle: &AppHandle)")
+            .expect("HistoryManager::new");
+        let body_end = fn_at + source[fn_at..].find("\n    }\n").expect("fn end");
+        let body = &source[fn_at..body_end];
+        let gate_at = body.find("if !init_error_is_corruption(&first_error)").expect(
+            "the quarantine decision must branch on the corruption classifier",
+        );
+        let quarantine_at = body
+            .find("quarantine_history_db(&db_path")
+            .expect("the quarantine call");
+        assert!(
+            gate_at < quarantine_at,
+            "the classifier gate must run before the file is displaced"
+        );
+        assert!(
+            body.contains("return Err(first_error.context("),
+            "a non-corruption failure must propagate instead of quarantining"
+        );
     }
 
     /// KB-179: when history.db.corrupt already exists (an earlier corrupt
