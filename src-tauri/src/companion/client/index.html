@@ -1247,29 +1247,45 @@
         }
       }
 
-      ptt.addEventListener("pointerdown", pressStart);
-      ptt.addEventListener("pointerup", pressEnd);
-      ptt.addEventListener("pointercancel", pressEnd);
-      ptt.addEventListener("pointerleave", pressEnd);
+      // ONE edge source. Mobile engines can fire a single physical tap as
+      // pointerdown, pointerup, THEN touchstart, touchend (the pressing
+      // guard resets on pointerup, so the late touchstart passes it) - two
+      // full press cycles per tap, which in toggle mode starts and instantly
+      // stops the session while the caller keeps talking into a dead
+      // recorder (the zero-audio notice then fires on a session the user
+      // never intended to end). Pointer events drive the button wherever
+      // they exist; touch handlers only suppress the iOS long-press
+      // callout, and legacy engines without pointer events fall back to
+      // touch-driven edges so the button still works there.
+      const hasPointerEvents = !!window.PointerEvent;
+      if (hasPointerEvents) {
+        ptt.addEventListener("pointerdown", pressStart);
+        ptt.addEventListener("pointerup", pressEnd);
+        ptt.addEventListener("pointercancel", pressEnd);
+        ptt.addEventListener("pointerleave", pressEnd);
+        ptt.addEventListener("touchstart", (ev) => ev.preventDefault(), {
+          passive: false,
+        });
+      } else {
+        ptt.addEventListener(
+          "touchstart",
+          (ev) => {
+            ev.preventDefault();
+            pressStart();
+          },
+          { passive: false },
+        );
+        ptt.addEventListener(
+          "touchend",
+          (ev) => {
+            ev.preventDefault();
+            pressEnd();
+          },
+          { passive: false },
+        );
+        ptt.addEventListener("touchcancel", () => pressEnd());
+      }
       ptt.addEventListener("contextmenu", (ev) => ev.preventDefault());
-      // Long-press text selection / callout suppression on iOS Safari.
-      ptt.addEventListener(
-        "touchstart",
-        (ev) => {
-          ev.preventDefault();
-          pressStart();
-        },
-        { passive: false },
-      );
-      ptt.addEventListener(
-        "touchend",
-        (ev) => {
-          ev.preventDefault();
-          pressEnd();
-        },
-        { passive: false },
-      );
-      ptt.addEventListener("touchcancel", () => pressEnd());
       document.addEventListener("gesturestart", (ev) => ev.preventDefault());
 
       document.addEventListener("visibilitychange", () => {
