@@ -749,6 +749,7 @@ const shots = [
     name: "settings-postprocessing-cloud",
     scenario: "settings-pp-cloud",
     section: "postprocessing",
+    state: "cloud-provider",
     prepare: async (page) => {
       // Let the on-open model-list fetch resolve and render.
       await settle(900);
