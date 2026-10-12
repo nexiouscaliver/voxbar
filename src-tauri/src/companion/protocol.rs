@@ -245,51 +245,80 @@ impl ServerFrame {
     }
 }
 
-/// Tracks the recording-session boundary for guardrails: when audio may
-/// flow, and when the hard cap forces an auto-finalize.
+/// v1.6.2 W1-L0: decides when audio may flow into the recorder and when
+/// the hard cap force-finalizes, from OBSERVED session truth rather than
+/// raw Ptt edges. A hold-or-toggle tap releases the button within
+/// milliseconds while the session it locked stays live until the next
+/// press, so the pre-v1.6.2 edge tracker (admission open between press
+/// and release) closed its admission window at the finger-lift and
+/// silently dropped every chunk after the first: VAD saw one leading
+/// silence chunk, finish collected zero samples, the zero-audio notice
+/// fired on every healthy tap session. The server feeds this the
+/// manager's lane-scoped session state (`session_live` plus the
+/// `session_lane` frozen from this connection's own starting press)
+/// wherever it can change: every received frame and every keepalive tick,
+/// so admission follows exactly the state the State frames broadcast to
+/// the phone (the phone itself refuses to stream before that broadcast).
 #[derive(Debug)]
-pub struct SessionTracker {
-    recording_since: Option<Instant>,
+pub struct SessionAdmission {
+    /// The Mac's live session is owned by THIS connection's lane.
+    live: bool,
+    /// When that session was first observed live; the cap clock.
+    live_since: Option<Instant>,
     cap: Duration,
 }
 
-impl SessionTracker {
+impl SessionAdmission {
     pub fn new() -> Self {
-        SessionTracker {
-            recording_since: None,
+        SessionAdmission {
+            live: false,
+            live_since: None,
             cap: SESSION_CAP,
         }
     }
 
-    pub fn recording(&self) -> bool {
-        self.recording_since.is_some()
-    }
-
-    pub fn press(&mut self, now: Instant) {
-        if self.recording_since.is_none() {
-            self.recording_since = Some(now);
+    /// Observe the session truth for this connection's lane. True only
+    /// while the Mac's live companion session was started by THIS
+    /// connection's own press (the lane its starting edge carried); a
+    /// spectator phone, a reconnecting phone, and a keyboard dictation
+    /// all observe false and their audio stays out-of-session.
+    pub fn observe(&mut self, now: Instant, live_for_lane: bool) {
+        if live_for_lane {
+            if self.live_since.is_none() {
+                self.live_since = Some(now);
+            }
+            self.live = true;
+        } else {
+            self.live = false;
+            self.live_since = None;
         }
     }
 
-    pub fn release(&mut self) {
-        self.recording_since = None;
+    /// Whether an audio chunk may enter the recorder right now.
+    pub fn admits(&self) -> bool {
+        self.live
     }
 
-    /// True exactly once when the live session has run past the cap: the
-    /// caller must synthesize the release edge (auto-finalize).
+    /// True exactly once per observed-live run past the cap: the caller
+    /// must force-finalize (a locked tap session ignores release edges, so
+    /// only the forced finalize can end it). Continued observation of a
+    /// still-live session re-arms the clock, so a finalize that failed to
+    /// land retries at the next cap interval instead of never; the normal
+    /// path clears the clock first, through the false observation the
+    /// stop pipeline's session-state change produces.
     pub fn cap_exceeded(&mut self, now: Instant) -> bool {
-        let Some(started) = self.recording_since else {
+        let Some(started) = self.live_since else {
             return false;
         };
         if now.duration_since(started) >= self.cap {
-            self.recording_since = None;
+            self.live_since = None;
             return true;
         }
         false
     }
 }
 
-impl Default for SessionTracker {
+impl Default for SessionAdmission {
     fn default() -> Self {
         Self::new()
     }
@@ -548,26 +577,88 @@ mod tests {
         assert!(empty.contains(r#""entries":[]"#));
     }
 
+    /// v1.6.2 W1-L0 pin: admission follows observed session truth, never
+    /// the raw edges. The defect this replaces had admission open between
+    /// a press edge and its release edge, so a hold-or-toggle TAP (press,
+    /// sub-threshold release, session locked live) admitted only the
+    /// finger-hold sliver and dropped every later chunk. Here the release
+    /// edge is not even an input: admission stays open across any number
+    /// of further observations while the session stays live, and closes
+    /// only when the Mac's session state actually goes false.
     #[test]
-    fn session_tracker_caps_at_fifteen_minutes_exactly_once() {
-        let mut tracker = SessionTracker::new();
+    fn session_admission_follows_observed_truth_not_release_edges() {
+        let mut admission = SessionAdmission::new();
         let t0 = Instant::now();
-        assert!(!tracker.recording());
-        assert!(!tracker.cap_exceeded(t0), "idle never caps");
+        assert!(!admission.admits(), "no session has ever been live");
 
-        tracker.press(t0);
-        assert!(tracker.recording());
-        assert!(!tracker.cap_exceeded(t0 + Duration::from_secs(14 * 60)));
-        assert!(tracker.cap_exceeded(t0 + Duration::from_secs(15 * 60)));
-        // Fired once: the synthesized release already ended the session.
-        assert!(!tracker.recording());
-        assert!(!tracker.cap_exceeded(t0 + Duration::from_secs(16 * 60)));
+        // The press edge is forwarded (the start commits behind it); the
+        // truth it leaves behind is still false, and audio stays refused.
+        admission.observe(t0, false);
+        assert!(!admission.admits(), "the press edge alone admits nothing");
 
-        // A second session starts fresh.
-        tracker.press(t0 + Duration::from_secs(17 * 60));
-        assert!(!tracker.cap_exceeded(t0 + Duration::from_secs(17 * 60 + 60)));
-        tracker.release();
-        assert!(!tracker.recording());
+        // The start committed: the State broadcast went out and the phone
+        // began streaming; the truth is now live for this lane.
+        let t1 = t0 + Duration::from_millis(62);
+        admission.observe(t1, true);
+        assert!(admission.admits(), "a live session admits audio");
+
+        // The tap's release edge arrived (and did NOT close admission),
+        // then every subsequent chunk observes the session still live.
+        for ms in [120u64, 400, 1_500, 60_000, 120_000] {
+            admission.observe(t0 + Duration::from_millis(ms), true);
+            assert!(
+                admission.admits(),
+                "a locked tap session keeps admitting at {ms}ms past the release edge"
+            );
+        }
+
+        // The second tap's stop pipeline landed: the session state went
+        // false, and audio from this point is out-of-session again.
+        admission.observe(t0 + Duration::from_secs(150), false);
+        assert!(!admission.admits());
+    }
+
+    /// v1.6.2 W1-L0 pin: the cap clock also follows session truth, so a
+    /// locked tap session (whose release edge used to kill the tracker
+    /// and with it the cap) still force-finalizes at 15 minutes. The
+    /// clock arms at the FIRST live observation, fires exactly once, and
+    /// re-arms only through continued observation of a still-live
+    /// session.
+    #[test]
+    fn session_admission_caps_a_locked_session_at_fifteen_minutes() {
+        let mut admission = SessionAdmission::new();
+        let t0 = Instant::now();
+        assert!(!admission.cap_exceeded(t0), "idle never caps");
+
+        admission.observe(t0, true);
+        assert!(!admission.cap_exceeded(t0 + Duration::from_secs(14 * 60)));
+        // The tap's release edge changed nothing; chunks keep observing
+        // the session live, and the cap still fires at the threshold.
+        admission.observe(t0 + Duration::from_secs(14 * 60), true);
+        assert!(admission.cap_exceeded(t0 + Duration::from_secs(15 * 60)));
+
+        // The forced finalize landed and the session state went false: no
+        // refire, and the next session arms a fresh clock.
+        admission.observe(t0 + Duration::from_secs(15 * 60 + 5), false);
+        assert!(!admission.cap_exceeded(t0 + Duration::from_secs(16 * 60)));
+        admission.observe(t0 + Duration::from_secs(17 * 60), true);
+        assert!(!admission.cap_exceeded(t0 + Duration::from_secs(17 * 60 + 14 * 60)));
+        assert!(admission.cap_exceeded(t0 + Duration::from_secs(17 * 60 + 15 * 60)));
+
+        // A finalize that FAILED to land leaves the session live; the
+        // continued live observation re-arms the clock so the cap retries
+        // at the next interval instead of never (the re-arm happens at
+        // the observation instant, one second past the first fire).
+        let refire_armed = t0 + Duration::from_secs(17 * 60 + 15 * 60 + 1);
+        admission.observe(refire_armed, true);
+        assert!(!admission.cap_exceeded(refire_armed + Duration::from_secs(14 * 60)));
+        assert!(admission.cap_exceeded(refire_armed + Duration::from_secs(15 * 60)));
+
+        // A session that never went live never caps (a swallowed press
+        // used to arm the old tracker and fire a spurious cap notice).
+        let mut idle = SessionAdmission::new();
+        idle.observe(t0, false);
+        assert!(!idle.cap_exceeded(t0 + Duration::from_secs(60 * 60)));
     }
 
     #[test]

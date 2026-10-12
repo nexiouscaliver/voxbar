@@ -1398,6 +1398,7 @@
     "serverStopped": "Mac eşlik sunucusunu durdurdu.",
     "reconnect": "Yeniden bağlan",
     "holdToTalk": "Konuşmak için basılı tut",
+    "holdOrToggleToTalk": "Konuşmak için basılı tut, kilitlemek için dokun",
     "tapToTalk": "Konuşmak için dokun",
     "release": "Bitirmek için bırak",
     "tapToStop": "Durdurmak için dokun",

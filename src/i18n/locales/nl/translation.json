@@ -1398,6 +1398,7 @@
     "serverStopped": "De Mac stopte de companion-server.",
     "reconnect": "Opnieuw verbinden",
     "holdToTalk": "Houd ingedrukt om te praten",
+    "holdOrToggleToTalk": "Houd ingedrukt om te praten, tik om te vergrendelen",
     "tapToTalk": "Tik om te praten",
     "release": "Laat los om te stoppen",
     "tapToStop": "Tik om te stoppen",

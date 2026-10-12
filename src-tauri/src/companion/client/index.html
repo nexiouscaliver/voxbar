@@ -606,9 +606,12 @@
             ? t("tapToStop", "Tap to stop")
             : t("tapToTalk", "Tap to talk");
         } else if (activation === "hold_or_toggle") {
+          // v1.6.2 W1-L0: the idle button must name BOTH modes. A bare
+          // "hold to talk" hides the tap-to-lock behavior the operator
+          // actually uses, so quick taps read as a broken hold button.
           ptt.textContent = recording
             ? t("tapToStop", "Tap to stop")
-            : t("holdToTalk", "Hold to talk");
+            : t("holdOrToggleToTalk", "Hold to talk, tap to lock");
         } else {
           ptt.textContent = recording
             ? t("release", "Release to finish")
@@ -828,10 +831,14 @@
               recording = !!msg.recording;
               ptt.disabled = false;
               setState("ready", t("stateReady", "Ready"));
+              // The welcome hint follows the activation the Mac sent;
+              // hold_or_toggle names both of its modes (v1.6.2 W1-L0).
               setHint(
                 activation === "toggle"
                   ? t("tapToTalk", "")
-                  : t("holdToTalk", ""),
+                  : activation === "hold_or_toggle"
+                    ? t("holdOrToggleToTalk", "")
+                    : t("holdToTalk", ""),
               );
               refreshButton();
               // Warm the microphone (permission prompt, stream) but NEVER

@@ -1398,6 +1398,7 @@
     "serverStopped": "The Mac stopped the companion server.",
     "reconnect": "Reconnect",
     "holdToTalk": "Hold to talk",
+    "holdOrToggleToTalk": "Hold to talk, tap to lock",
     "tapToTalk": "Tap to talk",
     "release": "Release to finish",
     "tapToStop": "Tap to stop",

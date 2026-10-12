@@ -1398,6 +1398,7 @@
     "serverStopped": "Mac 已停止伴侣服务器。",
     "reconnect": "重新连接",
     "holdToTalk": "按住说话",
+    "holdOrToggleToTalk": "按住说话，点按锁定",
     "tapToTalk": "点按说话",
     "release": "松开结束",
     "tapToStop": "点按停止",

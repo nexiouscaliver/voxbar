@@ -1398,6 +1398,7 @@
     "serverStopped": "Macen stoppede følgeserveren.",
     "reconnect": "Genopret forbindelse",
     "holdToTalk": "Hold nede for at tale",
+    "holdOrToggleToTalk": "Hold nede for at tale, tryk for at låse",
     "tapToTalk": "Tryk for at tale",
     "release": "Slip for at afslutte",
     "tapToStop": "Tryk for at stoppe",

@@ -1398,6 +1398,7 @@
     "serverStopped": "Macがコンパニオンサーバーを停止しました。",
     "reconnect": "再接続",
     "holdToTalk": "押しながら話す",
+    "holdOrToggleToTalk": "押しながら話す、タップでロック",
     "tapToTalk": "タップして話す",
     "release": "離して終了",
     "tapToStop": "タップして停止",

@@ -1410,6 +1410,7 @@
     "serverStopped": "Mac zatrzymał serwer towarzyszący.",
     "reconnect": "Połącz ponownie",
     "holdToTalk": "Przytrzymaj, aby mówić",
+    "holdOrToggleToTalk": "Przytrzymaj, aby mówić, dotknij, aby zablokować",
     "tapToTalk": "Dotknij, aby mówić",
     "release": "Puść, aby zakończyć",
     "tapToStop": "Dotknij, aby zatrzymać",

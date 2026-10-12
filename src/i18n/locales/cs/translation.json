@@ -1410,6 +1410,7 @@
     "serverStopped": "Mac zastavil doprovodný server.",
     "reconnect": "Připojit znovu",
     "holdToTalk": "Držte pro mluvení",
+    "holdOrToggleToTalk": "Držte pro mluvení, klepněte pro uzamčení",
     "tapToTalk": "Klepněte pro mluvení",
     "release": "Pusťte pro dokončení",
     "tapToStop": "Klepněte pro zastavení",

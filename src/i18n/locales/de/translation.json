@@ -1398,6 +1398,7 @@
     "serverStopped": "Der Mac hat den Begleitserver gestoppt.",
     "reconnect": "Erneut verbinden",
     "holdToTalk": "Zum Sprechen halten",
+    "holdOrToggleToTalk": "Zum Sprechen halten, zum Sperren tippen",
     "tapToTalk": "Tippen zum Sprechen",
     "release": "Loslassen zum Beenden",
     "tapToStop": "Tippen zum Stoppen",

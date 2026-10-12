@@ -1398,6 +1398,7 @@
     "serverStopped": "Macen stoppade kompanionservern.",
     "reconnect": "Anslut igen",
     "holdToTalk": "Håll för att tala",
+    "holdOrToggleToTalk": "Håll för att tala, tryck för att låsa",
     "tapToTalk": "Tryck för att tala",
     "release": "Släpp för att sluta",
     "tapToStop": "Tryck för att sluta",

@@ -1422,6 +1422,7 @@
     "serverStopped": "أوقف الـ Mac خادم المرافقة.",
     "reconnect": "إعادة الاتصال",
     "holdToTalk": "استمر بالضغط للكلام",
+    "holdOrToggleToTalk": "استمر بالضغط للكلام، وانقر للقفل",
     "tapToTalk": "انقر للكلام",
     "release": "حرر للإنهاء",
     "tapToStop": "انقر للإيقاف",

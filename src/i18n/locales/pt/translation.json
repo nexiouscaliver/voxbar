@@ -1398,6 +1398,7 @@
     "serverStopped": "O Mac parou o servidor companheiro.",
     "reconnect": "Reconectar",
     "holdToTalk": "Segure para falar",
+    "holdOrToggleToTalk": "Segure para falar, toque para travar",
     "tapToTalk": "Toque para falar",
     "release": "Solte para terminar",
     "tapToStop": "Toque para parar",

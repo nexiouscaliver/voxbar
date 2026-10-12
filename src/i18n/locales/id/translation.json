@@ -1398,6 +1398,7 @@
     "serverStopped": "Mac menghentikan server pendamping.",
     "reconnect": "Sambungkan ulang",
     "holdToTalk": "Tahan untuk bicara",
+    "holdOrToggleToTalk": "Tahan untuk bicara, ketuk untuk mengunci",
     "tapToTalk": "Ketuk untuk bicara",
     "release": "Lepaskan untuk selesai",
     "tapToStop": "Ketuk untuk berhenti",

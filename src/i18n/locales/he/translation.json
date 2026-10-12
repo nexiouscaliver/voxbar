@@ -1404,6 +1404,7 @@
     "serverStopped": "ה־Mac עצר את שרת הליווי.",
     "reconnect": "התחברות מחדש",
     "holdToTalk": "החזיקו כדי לדבר",
+    "holdOrToggleToTalk": "החזיקו כדי לדבר, הקישו כדי לנעול",
     "tapToTalk": "הקישו כדי לדבר",
     "release": "שחררו כדי לסיים",
     "tapToStop": "הקישו כדי לעצור",

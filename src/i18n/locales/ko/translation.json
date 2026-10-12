@@ -1398,6 +1398,7 @@
     "serverStopped": "Mac이 컴패니언 서버를 중지했습니다.",
     "reconnect": "다시 연결",
     "holdToTalk": "누르고 말하기",
+    "holdOrToggleToTalk": "누르고 말하기, 탭하여 잠그기",
     "tapToTalk": "탭하여 말하기",
     "release": "떼서 끝내기",
     "tapToStop": "탭하여 중지",

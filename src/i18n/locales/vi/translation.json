@@ -1398,6 +1398,7 @@
     "serverStopped": "Máy Mac đã dừng máy chủ đồng hành.",
     "reconnect": "Kết nối lại",
     "holdToTalk": "Giữ để nói",
+    "holdOrToggleToTalk": "Giữ để nói, nhấn để khóa",
     "tapToTalk": "Nhấn để nói",
     "release": "Nhả để kết thúc",
     "tapToStop": "Nhấn để dừng",

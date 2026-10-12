@@ -267,12 +267,15 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     // exactly this connection as its delivery target.
     let device_lane: u64;
     let mut device_lane_rx: tokio::sync::mpsc::UnboundedReceiver<String>;
-    let mut tracker = protocol::SessionTracker::new();
+    let mut admission = protocol::SessionAdmission::new();
     let mut rate_cap = protocol::InputRateCap::new(Instant::now());
     let mut last_rx = Instant::now();
-    // Audio frames that arrived while this connection's edge tracker said
-    // not-recording (dropped by design; counted for the disconnect log line
-    // so an edge-desynced phone is diagnosable from the log alone).
+    // v1.6.2 W1-L0: audio frames that arrived while the Mac's session
+    // state said no live session for this connection's lane (dropped by
+    // design; counted for the disconnect log line so a state-desynced
+    // phone is diagnosable from the log alone). Healthy tap sessions stay
+    // at zero: their speech is all inside the session their press locked
+    // on, release edges notwithstanding).
     let mut out_of_session_audio_chunks: u64 = 0;
 
     let hello = tokio::select! {
@@ -442,14 +445,22 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 if sink.send(Message::Ping(Vec::new().into())).await.is_err() {
                     break;
                 }
-                // Hard session cap: auto-finalize exactly once.
-                if tracker.cap_exceeded(Instant::now()) {
+                // Hard session cap: auto-finalize exactly once per cap
+                // interval. The truth observation keeps the clock honest for
+                // a silent-but-live session (chunks refresh it too, but the
+                // cap must never depend on audio arriving).
+                admission.observe(
+                    Instant::now(),
+                    lane_owns_live_session(&manager, device_lane),
+                );
+                if admission.cap_exceeded(Instant::now()) {
                     log::info!("companion: session cap reached for {device_name}; finalizing");
                     if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
                         // Forced finalize: the cap must end the session even
-                        // when it is locked (toggle mode), where a synthesized
-                        // release edge is ignored and the session would run on
-                        // with its audio blocked by the tracker.
+                        // when it is locked (toggle mode or a tap-locked
+                        // hold-or-toggle session), where a synthesized
+                        // release edge is ignored and the session would run
+                        // on with its audio still admitted.
                         coordinator.finalize_companion_session();
                     }
                     // KB-016: the cap notice used to reach the phone only -
@@ -495,18 +506,32 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                                 // arm-to-freeze window.
                                 manager.set_pending_session_prefs(prefs);
                             }
+                            // v1.6.2 W1-L0: refresh the admission truth
+                            // BEFORE forwarding the edge. This frame is what
+                            // carries the lane into the coordinator, so the
+                            // truth read here necessarily predates any start
+                            // this edge may commit: the observation closes
+                            // any stale live window from an earlier session
+                            // of this same phone instead of mistaking the
+                            // about-to-commit start for its continuation.
+                            // The release edge deliberately does NOT close
+                            // admission: a hold-or-toggle tap locks the
+                            // session ON at the finger-lift, and the Mac's
+                            // session state (not the finger) decides when
+                            // audio stops flowing.
+                            admission.observe(
+                                Instant::now(),
+                                lane_owns_live_session(&manager, device_lane),
+                            );
                             if let Some(coordinator) =
                                 app.try_state::<crate::TranscriptionCoordinator>()
                             {
                                 coordinator.send_companion_edge(&app, pressed, prefs, device_lane);
                             }
                             if pressed {
-                                tracker.press(Instant::now());
                                 // Audio is only meaningful during a session;
                                 // reset the rate window with it.
                                 rate_cap = protocol::InputRateCap::new(Instant::now());
-                            } else {
-                                tracker.release();
                             }
                         }
                         Some(ClientFrame::Hello { .. }) => {
@@ -534,7 +559,17 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                             // healthy reconnect or a manual stop.
                             break;
                         }
-                        if tracker.recording() {
+                        // v1.6.2 W1-L0: sample the session truth at the
+                        // chunk itself. This is the same state the State
+                        // frames broadcast (and the disconnect-finalize
+                        // path consults), read live: no broadcast lag, no
+                        // edge-desync window between a tap's release and
+                        // the locked session it left behind.
+                        admission.observe(
+                            Instant::now(),
+                            lane_owns_live_session(&manager, device_lane),
+                        );
+                        if admission.admits() {
                             if let Some(rm) = app
                                 .try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
                             {
@@ -609,11 +644,332 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     log::info!("companion: {device_name} disconnected");
     if out_of_session_audio_chunks > 0 {
         // Not an error by itself (spectator audio is refused the same way),
-        // but a live symptom of edge desync: speech kept arriving after this
-        // connection's session edge ended.
+        // but a live symptom of state desync: speech kept arriving while the
+        // Mac's session state said no live session for this connection's
+        // lane.
         log::info!(
             "companion: {device_name} sent {out_of_session_audio_chunks} audio chunk(s) \
              outside a recording session; they were dropped"
         );
+    }
+}
+
+/// v1.6.2 W1-L0: the Mac's session truth for one connection's lane. The
+/// session lane was frozen from this connection's own starting press at
+/// the instant the coordinator committed the start (begin_session_lane),
+/// so this is true exactly while the session THIS connection owns is
+/// live: a spectator phone, a reconnecting phone that has not pressed,
+/// and a keyboard dictation (whose sessions never touch the companion
+/// session state) all read false, and their audio stays out-of-session.
+fn lane_owns_live_session(manager: &CompanionManager, lane: u64) -> bool {
+    // Child-module access to the frozen lane slot; the stop pipeline's
+    // phone-target delivery (deliver_transcript_to_phone) reads the same
+    // slot the same way.
+    manager.session_live() && *manager.session_lane.lock().unwrap() == Some(lane)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::lane_owns_live_session;
+    use crate::companion::protocol::SessionAdmission;
+    use crate::companion::CompanionManager;
+    use std::sync::atomic::Ordering;
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+    use tauri::Manager;
+
+    /// One connection's admission rig: the same two seams the connection
+    /// loop drives (the lane-scoped session truth and the admission it
+    /// feeds) plus the counters the loop maintains. Frames are simulated
+    /// by calling the same methods the loop's handlers call, in wire
+    /// order; time is an explicit parameter because the cap contract runs
+    /// to fifteen minutes.
+    struct Rig {
+        admission: SessionAdmission,
+        lane: u64,
+        admitted_samples: usize,
+        out_of_session_chunks: u64,
+    }
+
+    impl Rig {
+        fn new(lane: u64) -> Self {
+            Rig {
+                admission: SessionAdmission::new(),
+                lane,
+                admitted_samples: 0,
+                out_of_session_chunks: 0,
+            }
+        }
+
+        /// A Ptt frame, exactly as the loop's text handler processes it:
+        /// observe the truth BEFORE the edge is forwarded (the frame is
+        /// what carries the lane into the coordinator). The edge itself
+        /// goes to the coordinator and mutates nothing here.
+        fn ptt(&mut self, manager: &CompanionManager, pressed: bool, now: Instant) {
+            self.admission
+                .observe(now, lane_owns_live_session(manager, self.lane));
+            let _ = pressed;
+        }
+
+        /// A binary audio chunk, exactly as the loop's binary handler
+        /// processes it: observe the truth, then admit (push into the
+        /// remote source, counted as samples here) or count it
+        /// out-of-session.
+        fn chunk(&mut self, manager: &CompanionManager, samples: usize, now: Instant) {
+            self.admission
+                .observe(now, lane_owns_live_session(manager, self.lane));
+            if self.admission.admits() {
+                self.admitted_samples += samples;
+            } else {
+                self.out_of_session_chunks += 1;
+            }
+        }
+
+        /// The keepalive tick, exactly as the loop's Tick arm processes
+        /// the cap: observe the truth (the clock must never depend on
+        /// audio arriving), then check the cap. True means the loop would
+        /// run the forced finalize plus the cap notice.
+        fn tick(&mut self, manager: &CompanionManager, now: Instant) -> bool {
+            self.admission
+                .observe(now, lane_owns_live_session(manager, self.lane));
+            self.admission.cap_exceeded(now)
+        }
+    }
+
+    /// The coordinator's Start-effect commit, as the connection observes
+    /// it: the lane freezes from the starting press's own edge
+    /// (begin_session_lane) and the session state flips live before the
+    /// State broadcast tells the phone to stream. on_session_changed is
+    /// Wry-typed, so the mock-app tests drive the same two slots its true
+    /// branch writes (the mod.rs test pattern).
+    fn commit_session_start<R: tauri::Runtime>(
+        app: &tauri::AppHandle<R>,
+        manager: &CompanionManager,
+        lane: u64,
+    ) {
+        crate::companion::begin_session_lane(app, lane);
+        manager.session_live.store(true, Ordering::Release);
+    }
+
+    /// The stop pipeline's landing, as the connection observes it: the
+    /// session state flips false (the State broadcast the phone stops
+    /// streaming on).
+    fn commit_session_end(manager: &CompanionManager) {
+        manager.session_live.store(false, Ordering::Release);
+    }
+
+    /// v1.6.2 W1-L0 pin: reproduces the operator's exact sequence from
+    /// the live log (06:19:03 through 06:19:10). A quick tap locks a
+    /// hold-or-toggle session on (~62 ms press-hold), the finger-lift
+    /// release edge arrives while the session is still live, and every
+    /// chunk after it must be captured. The pre-v1.6.2 edge tracker ended
+    /// its admission window at that release edge, so all speech after
+    /// the first ~100 ms was silently dropped as out-of-session audio
+    /// (VAD saw one 40-50 ms leading-silence chunk, finish collected
+    /// zero samples, the zero-audio notice fired on every tap). Asserted:
+    /// the FULL audio is captured, not just the pre-release sliver, and
+    /// the out-of-session counter stays at zero for the healthy tap
+    /// session (task 4).
+    #[test]
+    fn tap_locked_session_captures_the_full_audio_after_the_release_edge() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+        manager.claim_session_device("Pixel 8");
+        let (lane, _lane_rx) = manager.register_device_lane();
+        let mut rig = Rig::new(lane);
+        let t0 = Instant::now();
+
+        // The tap's press edge is forwarded; its start has not committed.
+        rig.ptt(&manager, true, t0);
+        // The coordinator commits the start (lane frozen, state live,
+        // State broadcast out; the phone begins streaming on it).
+        commit_session_start(app.handle(), &manager, lane);
+        // The finger-lift release edge lands 62 ms later: below the hold
+        // threshold, so the session LOCKED ON. The coordinator ignores
+        // the release for stopping purposes; the server no longer lets
+        // it close admission either.
+        rig.ptt(&manager, false, t0 + Duration::from_millis(62));
+
+        // The whole dictation streams after the release edge.
+        let chunk_samples = 320; // 20 ms at 16 kHz
+        let speech_chunks = 250usize; // ~5 s of speech, all post-release
+        for i in 0..speech_chunks {
+            rig.chunk(
+                &manager,
+                chunk_samples,
+                t0 + Duration::from_millis(100 + 20 * (i as u64)),
+            );
+        }
+        let spoken = chunk_samples * speech_chunks;
+        assert_eq!(
+            rig.admitted_samples, spoken,
+            "the FULL post-release audio must be captured, not a pre-release sliver"
+        );
+        assert_eq!(
+            rig.out_of_session_chunks, 0,
+            "a healthy tap session sends zero out-of-session chunks"
+        );
+
+        // The second tap stops it: the press edge (a press, never a
+        // release, is the stop edge for a locked session) observes the
+        // session still live, then the stop pipeline lands.
+        rig.ptt(&manager, true, t0 + Duration::from_secs(6));
+        commit_session_end(&manager);
+        // The phone stops streaming once the State broadcast reaches it;
+        // nothing further is admitted after the state flip.
+        rig.chunk(
+            &manager,
+            chunk_samples,
+            t0 + Duration::from_secs(6) + Duration::from_millis(50),
+        );
+        assert_eq!(
+            rig.admitted_samples, spoken,
+            "audio after the session state ends is not admitted"
+        );
+        assert_eq!(rig.out_of_session_chunks, 1);
+    }
+
+    /// v1.6.2 W1-L0 pin: push-to-talk holds keep working end to end.
+    /// Audio during the hold is admitted, a chunk racing the release
+    /// still lands (the recorder consumes until the stop pipeline flips
+    /// the state), and admission closes exactly when the session ends,
+    /// never at the release edge itself.
+    #[test]
+    fn push_to_talk_hold_admits_until_the_session_actually_ends() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+        manager.claim_session_device("Pixel 8");
+        let (lane, _lane_rx) = manager.register_device_lane();
+        let mut rig = Rig::new(lane);
+        let t0 = Instant::now();
+
+        // Press and hold: the session starts and speech streams through.
+        rig.ptt(&manager, true, t0);
+        commit_session_start(app.handle(), &manager, lane);
+        for i in 0..100 {
+            rig.chunk(&manager, 320, t0 + Duration::from_millis(20 * i));
+        }
+
+        // The release edge (a 2 s hold, above every threshold). The
+        // coordinator classifies it as a hold and stops the session; a
+        // chunk that raced the stop pipeline still lands, because the
+        // recorder is consuming until the state actually flips.
+        rig.ptt(&manager, false, t0 + Duration::from_secs(2));
+        rig.chunk(
+            &manager,
+            320,
+            t0 + Duration::from_secs(2) + Duration::from_millis(5),
+        );
+        assert_eq!(rig.admitted_samples, 101 * 320);
+
+        // The stop pipeline lands: later chunks are out-of-session.
+        commit_session_end(&manager);
+        rig.chunk(
+            &manager,
+            320,
+            t0 + Duration::from_secs(2) + Duration::from_millis(80),
+        );
+        assert_eq!(rig.admitted_samples, 101 * 320);
+        assert_eq!(rig.out_of_session_chunks, 1);
+    }
+
+    /// v1.6.2 W1-L0 pin, exhaustive over the truth inputs a connection
+    /// can face: audio is admitted only while THIS connection's lane
+    /// owns the live session. No session at all, another phone's live
+    /// session, and this phone's own ended session (stale lane) all
+    /// refuse and count, so a spectator phone can never feed another
+    /// phone's dictation and a press that never started a session never
+    /// contaminates the pre-warmed ring.
+    #[test]
+    fn audio_is_refused_whenever_this_lanes_session_is_not_live() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+        manager.claim_session_device("iPhone 15");
+        let (mine, _mine_rx) = manager.register_device_lane();
+        let (other, _other_rx) = manager.register_device_lane();
+        let mut rig = Rig::new(mine);
+        let t0 = Instant::now();
+
+        // No session has ever been live.
+        rig.chunk(&manager, 320, t0);
+        assert_eq!(rig.admitted_samples, 0);
+        assert_eq!(rig.out_of_session_chunks, 1);
+
+        // Another phone's session is live: spectator audio stays out.
+        commit_session_start(app.handle(), &manager, other);
+        rig.chunk(&manager, 320, t0 + Duration::from_millis(50));
+        assert_eq!(
+            rig.admitted_samples, 0,
+            "a spectator must not feed another phone's dictation"
+        );
+        assert_eq!(rig.out_of_session_chunks, 2);
+
+        // That session ends (and a keyboard dictation in between changes
+        // nothing: companion session state stays false throughout, which
+        // is exactly what this lane reads).
+        commit_session_end(&manager);
+        rig.chunk(&manager, 320, t0 + Duration::from_millis(100));
+        assert_eq!(rig.admitted_samples, 0);
+        assert_eq!(rig.out_of_session_chunks, 3);
+
+        // Our own session opens admission...
+        commit_session_start(app.handle(), &manager, mine);
+        rig.chunk(&manager, 320, t0 + Duration::from_millis(150));
+        assert_eq!(rig.admitted_samples, 320);
+
+        // ...and the stale lane of our ended session never re-opens it.
+        commit_session_end(&manager);
+        rig.chunk(&manager, 320, t0 + Duration::from_millis(200));
+        assert_eq!(rig.admitted_samples, 320);
+        assert_eq!(rig.out_of_session_chunks, 4);
+    }
+
+    /// v1.6.2 W1-L0 pin: a tap-locked session still force-finalizes at
+    /// the 15-minute cap. The pre-v1.6.2 tracker cleared its clock at the
+    /// tap's release edge together with admission, so locked tap sessions
+    /// had no cap at all; now the Tick's truth observation keeps the
+    /// clock armed for as long as the session stays live (silent or
+    /// not), and the forced finalize (which works against locked
+    /// sessions) fires exactly once per cap interval.
+    #[test]
+    fn tap_locked_session_still_hits_the_cap_from_the_tick_path() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+        manager.claim_session_device("Pixel 8");
+        let (lane, _lane_rx) = manager.register_device_lane();
+        let mut rig = Rig::new(lane);
+        let t0 = Instant::now();
+
+        // The tap that locks on, then fifteen minutes of live session.
+        rig.ptt(&manager, true, t0);
+        commit_session_start(app.handle(), &manager, lane);
+        rig.ptt(&manager, false, t0 + Duration::from_millis(62));
+
+        let cap = Duration::from_secs(15 * 60);
+        // The release edge's observation is the first LIVE one, so that
+        // is where the cap clock arms; fifteen minutes of live session
+        // follow, with the phone streaming and the keepalive ticking.
+        let armed = t0 + Duration::from_millis(62);
+        let mut now = armed;
+        while now < armed + cap {
+            rig.chunk(&manager, 320, now);
+            if (now - armed).as_secs() % 10 == 0 {
+                assert!(
+                    !rig.tick(&manager, now),
+                    "the cap must not fire before fifteen minutes (at {})",
+                    (now - armed).as_secs()
+                );
+            }
+            now += Duration::from_secs(1);
+        }
+
+        // At the threshold the tick fires the forced finalize exactly
+        // once; the next tick does not refire while the stop lands.
+        assert!(rig.tick(&manager, armed + cap));
+        assert!(!rig.tick(&manager, armed + cap + Duration::from_secs(10)));
     }
 }

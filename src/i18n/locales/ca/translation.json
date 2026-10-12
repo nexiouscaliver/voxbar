@@ -1398,6 +1398,7 @@
     "serverStopped": "El Mac ha aturat el servidor acompanyant.",
     "reconnect": "Torna a connectar",
     "holdToTalk": "Mantén premut per parlar",
+    "holdOrToggleToTalk": "Mantén premut per parlar, toca per blocar",
     "tapToTalk": "Toca per parlar",
     "release": "Deixa anar per acabar",
     "tapToStop": "Toca per aturar",
