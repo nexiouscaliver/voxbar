@@ -263,7 +263,8 @@
           "set": "Misslyckades med att ställa in kortkommando: {{error}}",
           "reset": "Misslyckades med att återställa kortkommando till ursprungsvärdet"
         },
-        "unbound": "Ej kopplad"
+        "unbound": "Ej kopplad",
+        "recordHint": "Klicka för att spela in en ny genväg"
       },
       "language": {
         "title": "Språk",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 prompt på 1 motor. Inget skrivs eller sparas.",
       "runHint_other": "{{count}} prompt-motor-par. Inget skrivs eller sparas.",
       "running": "Kör...",
+      "appliedLabel": "Lyckades",
       "rerun": "Kör igen",
       "latency": "{{ms}} ms",
       "rawKept": "Motorn misslyckades eller hoppades över, så råtranskriptionen skulle behållas.",

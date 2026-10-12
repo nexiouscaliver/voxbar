@@ -135,7 +135,13 @@ const ResultCard: React.FC<{
               variant={kind === "applied" ? "success" : "secondary"}
               className={kind === "failed" ? "text-error" : undefined}
             >
-              {t(`settings.ppOutcome.${outcomeBase}`)}
+              {/* "Success", not "applied": the studio types and saves
+                 nothing, so an "applied" pill contradicted the run
+                 caption beside it. The other outcome words (skipped,
+                 failed, unchanged) make no such claim and stay as-is. */}
+              {kind === "applied"
+                ? t("settings.studio.appliedLabel")
+                : t(`settings.ppOutcome.${outcomeBase}`)}
               {kind === "other" ? ` (${outcomeToken})` : ""}
             </Badge>
             <span className="text-xs text-secondary">
@@ -398,13 +404,13 @@ export const PromptStudio: React.FC = () => {
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
+      {/* Page header: the large title-case convention the Models page set
+          (h1 text-xl font-medium + a one-line description). The old
+          all-caps letter-spaced eyebrow style is reserved for section
+          headers, like the RESULTS eyebrow below. */}
       <div>
-        <h2 className="text-sm font-semibold text-text/70 uppercase tracking-wide">
-          {t("settings.studio.title")}
-        </h2>
-        <p className="mt-1 text-xs text-secondary">
-          {t("settings.studio.intro")}
-        </p>
+        <h1 className="text-xl font-medium mb-2">{t("settings.studio.title")}</h1>
+        <p className="text-sm text-text/60">{t("settings.studio.intro")}</p>
       </div>
 
       <SettingContainer
@@ -525,13 +531,17 @@ export const PromptStudio: React.FC = () => {
       </div>
 
       {runError ? (
-        <Alert variant="error" contained>
+        /* Rounded like every other container on the page: `contained`
+           strips the radius for banners nested INSIDE a card, but these
+           sit standalone on the pane, where square corners read as a
+           rendering defect against the ~10px card language. */
+        <Alert variant="error">
           {runError}
         </Alert>
       ) : null}
 
       {partialFailure ? (
-        <Alert variant="warning" contained>
+        <Alert variant="warning">
           {t("settings.studio.partialFailure")}
         </Alert>
       ) : null}

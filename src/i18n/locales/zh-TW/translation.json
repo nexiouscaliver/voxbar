@@ -263,7 +263,8 @@
           "set": "無法設定快捷鍵: {{error}}",
           "reset": "無法將快捷鍵重設為原始值"
         },
-        "unbound": "未綁定"
+        "unbound": "未綁定",
+        "recordHint": "點按來錄製新的快速鍵"
       },
       "language": {
         "title": "語言",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 個提示詞在 1 個引擎上執行。不會輸入或儲存任何內容。",
       "runHint_other": "{{count}} 組提示詞與引擎。不會輸入或儲存任何內容。",
       "running": "執行中...",
+      "appliedLabel": "成功",
       "rerun": "重新執行",
       "latency": "{{ms}} 毫秒",
       "rawKept": "引擎失敗或被略過，因此將保留原始轉錄。",

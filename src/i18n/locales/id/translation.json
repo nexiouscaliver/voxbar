@@ -263,7 +263,8 @@
           "set": "Gagal mengatur pintasan: {{error}}",
           "reset": "Gagal mengembalikan pintasan ke nilai awal"
         },
-        "unbound": "Belum ditetapkan"
+        "unbound": "Belum ditetapkan",
+        "recordHint": "Klik untuk merekam pintasan baru"
       },
       "language": {
         "title": "Bahasa",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 prompt pada 1 mesin. Tidak ada yang diketik atau disimpan.",
       "runHint_other": "{{count}} pasangan prompt-mesin. Tidak ada yang diketik atau disimpan.",
       "running": "Sedang berjalan...",
+      "appliedLabel": "Berhasil",
       "rerun": "Jalankan lagi",
       "latency": "{{ms}} md",
       "rawKept": "Mesin gagal atau dilewati, sehingga transkripsi mentah akan dipertahankan.",

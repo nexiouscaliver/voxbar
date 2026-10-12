@@ -263,7 +263,8 @@
           "set": "Failed to set shortcut: {{error}}",
           "reset": "Failed to reset shortcut to original value"
         },
-        "unbound": "Not bound"
+        "unbound": "Not bound",
+        "recordHint": "Click to record a new shortcut"
       },
       "language": {
         "title": "Language",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 prompt on 1 engine. Nothing is typed or saved.",
       "runHint_other": "{{count}} prompt-engine pairs. Nothing is typed or saved.",
       "running": "Running...",
+      "appliedLabel": "Success",
       "rerun": "Re-run",
       "latency": "{{ms}} ms",
       "rawKept": "The engine failed or skipped, so the raw transcript would be kept.",

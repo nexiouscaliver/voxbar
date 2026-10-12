@@ -242,12 +242,45 @@ const ModelSelector: React.FC = () => {
     return modelStatus;
   };
 
+  // The status word that pairs with the dot (tooltip + accessible label):
+  // color is never the only carrier of the state (WCAG 1.4.1).
+  const getStatusLabel = (): string => {
+    switch (getDisplayStatus()) {
+      case "ready":
+        return t("modelSelector.modelReady");
+      case "loading":
+        return t("modelSelector.loadingGeneric");
+      case "downloading": {
+        const first = Object.values(downloadProgress)[0];
+        return first
+          ? t("modelSelector.downloading", {
+              percentage: Math.max(
+                0,
+                Math.min(100, Math.round(first.percentage)),
+              ),
+            })
+          : t("modelSelector.loadingGeneric");
+      }
+      case "verifying":
+        return t("modelSelector.verifyingGenericShort");
+      case "extracting":
+        return t("modelSelector.extractingGenericShort");
+      case "error":
+        return t("modelSelector.modelError");
+      case "none":
+        return t("modelSelector.noModelDownloadRequired");
+      default:
+        return t("modelSelector.modelUnloaded");
+    }
+  };
+
   return (
     <>
       {/* Model Status and Switcher */}
       <div className="relative" ref={dropdownRef}>
         <ModelStatusButton
           status={getDisplayStatus()}
+          statusLabel={getStatusLabel()}
           displayText={getModelDisplayText()}
           isDropdownOpen={showModelDropdown}
           onClick={() => setShowModelDropdown(!showModelDropdown)}

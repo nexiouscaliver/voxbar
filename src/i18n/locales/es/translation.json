@@ -316,7 +316,8 @@
           "set": "Error al configurar el atajo: {{error}}",
           "reset": "Error al restablecer el atajo al valor original"
         },
-        "unbound": "Sin asignar"
+        "unbound": "Sin asignar",
+        "recordHint": "Haz clic para grabar un atajo nuevo"
       },
       "language": {
         "title": "Idioma",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 prompt en 1 motor. No se escribe ni se guarda nada.",
       "runHint_other": "{{count}} pares de prompt y motor. No se escribe ni se guarda nada.",
       "running": "Ejecutando...",
+      "appliedLabel": "Correcto",
       "rerun": "Reejecutar",
       "latency": "{{ms}} ms",
       "rawKept": "El motor falló o se omitió, así que se conservaría la transcripción sin procesar.",

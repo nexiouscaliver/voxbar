@@ -316,7 +316,8 @@
           "set": "无法设置快捷键: {{error}}",
           "reset": "无法将快捷键重置为原始值"
         },
-        "unbound": "未绑定"
+        "unbound": "未绑定",
+        "recordHint": "点击以录制新快捷键"
       },
       "language": {
         "title": "语言",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 个提示词在 1 个引擎上运行。不会输入或保存任何内容。",
       "runHint_other": "{{count}} 组提示词和引擎。不会输入或保存任何内容。",
       "running": "运行中...",
+      "appliedLabel": "成功",
       "rerun": "重新运行",
       "latency": "{{ms}} 毫秒",
       "rawKept": "引擎失败或被跳过，因此将保留原始转录。",

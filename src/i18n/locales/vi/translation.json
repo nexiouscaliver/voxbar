@@ -316,7 +316,8 @@
           "set": "Không thể đặt phím tắt: {{error}}",
           "reset": "Không thể đặt lại phím tắt về giá trị gốc"
         },
-        "unbound": "Chưa gán"
+        "unbound": "Chưa gán",
+        "recordHint": "Bấm để ghi lối tắt mới"
       },
       "language": {
         "title": "Ngôn ngữ",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 prompt trên 1 engine. Không gõ hay lưu gì.",
       "runHint_other": "{{count}} cặp prompt-engine. Không gõ hay lưu gì.",
       "running": "Đang chạy...",
+      "appliedLabel": "Thành công",
       "rerun": "Chạy lại",
       "latency": "{{ms}} ms",
       "rawKept": "Engine lỗi hoặc bị bỏ qua nên bản ghi thô sẽ được giữ nguyên.",

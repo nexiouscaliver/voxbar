@@ -316,7 +316,8 @@
           "set": "Nepodařilo se nastavit zkratku: {{error}}",
           "reset": "Nepodařilo se vrátit zkratku na původní hodnotu"
         },
-        "unbound": "Nepřiřazeno"
+        "unbound": "Nepřiřazeno",
+        "recordHint": "Kliknutím nahrajete novou klávesovou zkratku"
       },
       "language": {
         "title": "Jazyk",
@@ -1206,6 +1207,7 @@
       "runHint_many": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
       "runHint_other": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
       "running": "Běží...",
+      "appliedLabel": "Úspěch",
       "rerun": "Spustit znovu",
       "latency": "{{ms}} ms",
       "rawKept": "Engin selhal nebo byl přeskočen, proto by zůstal původní přepis.",

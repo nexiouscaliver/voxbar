@@ -316,7 +316,8 @@
           "set": "Échec de la définition du raccourci : {{error}}",
           "reset": "Échec de la réinitialisation du raccourci à sa valeur d'origine"
         },
-        "unbound": "Non assigné"
+        "unbound": "Non assigné",
+        "recordHint": "Cliquez pour enregistrer un nouveau raccourci"
       },
       "language": {
         "title": "Langue",
@@ -1198,6 +1199,7 @@
       "runHint_one": "{{count}} prompt sur 1 moteur. Rien n'est tapé ni enregistré.",
       "runHint_other": "{{count}} paires prompt-moteur. Rien n'est tapé ni enregistré.",
       "running": "Exécution...",
+      "appliedLabel": "Succès",
       "rerun": "Relancer",
       "latency": "{{ms}} ms",
       "rawKept": "Le moteur a échoué ou a été ignoré, la transcription brute serait donc conservée.",

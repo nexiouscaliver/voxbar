@@ -263,7 +263,8 @@
           "set": "Instellen van sneltoets mislukt: {{error}}",
           "reset": "Sneltoets terugzetten naar standaardwaarde mislukt"
         },
-        "unbound": "Niet toegewezen"
+        "unbound": "Niet toegewezen",
+        "recordHint": "Klik om een nieuwe sneltoets op te nemen"
       },
       "language": {
         "title": "Taal",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 prompt op 1 engine. Er wordt niets getypt of opgeslagen.",
       "runHint_other": "{{count}} prompt-engineparen. Er wordt niets getypt of opgeslagen.",
       "running": "Bezig met uitvoeren...",
+      "appliedLabel": "Succes",
       "rerun": "Opnieuw uitvoeren",
       "latency": "{{ms}} ms",
       "rawKept": "De engine mislukte of werd overgeslagen, dus de ruwe transcriptie zou behouden blijven.",

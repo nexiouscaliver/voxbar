@@ -316,7 +316,8 @@
           "set": "Tastenkürzel konnte nicht gesetzt werden: {{error}}",
           "reset": "Tastenkürzel konnte nicht auf Originalwert zurückgesetzt werden"
         },
-        "unbound": "Nicht zugewiesen"
+        "unbound": "Nicht zugewiesen",
+        "recordHint": "Klicken, um eine neue Tastenkombination aufzunehmen"
       },
       "language": {
         "title": "Sprache",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 Prompt auf 1 Engine. Es wird nichts eingetippt oder gespeichert.",
       "runHint_other": "{{count}} Prompt-Engine-Paare. Es wird nichts eingetippt oder gespeichert.",
       "running": "Wird ausgeführt...",
+      "appliedLabel": "Erfolg",
       "rerun": "Erneut ausführen",
       "latency": "{{ms}} ms",
       "rawKept": "Die Engine ist fehlgeschlagen oder wurde übersprungen, daher würde das rohe Transkript behalten.",

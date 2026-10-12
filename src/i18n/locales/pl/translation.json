@@ -316,7 +316,8 @@
           "set": "Nie udało się ustawić skrótu: {{error}}",
           "reset": "Nie udało się zresetować skrótu do wartości domyślnej"
         },
-        "unbound": "Nie przypisano"
+        "unbound": "Nie przypisano",
+        "recordHint": "Kliknij, aby nagrać nowy skrót"
       },
       "language": {
         "title": "Język",
@@ -1206,6 +1207,7 @@
       "runHint_many": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "runHint_other": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "running": "Uruchamianie...",
+      "appliedLabel": "Sukces",
       "rerun": "Uruchom ponownie",
       "latency": "{{ms}} ms",
       "rawKept": "Silnik nie powiódł się lub został pominięty, więc surowa transkrypcja zostałaby zachowana.",

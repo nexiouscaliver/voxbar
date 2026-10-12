@@ -263,7 +263,8 @@
           "set": "No s'ha pogut definir la drecera: {{error}}",
           "reset": "No s'ha pogut restablir la drecera al valor original"
         },
-        "unbound": "Sense assignar"
+        "unbound": "Sense assignar",
+        "recordHint": "Feu clic per enregistrar una drecera nova"
       },
       "language": {
         "title": "Llengua",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 prompt en 1 motor. No s'escriu ni es desa res.",
       "runHint_other": "{{count}} parells prompt-motor. No s'escriu ni es desa res.",
       "running": "S'està executant...",
+      "appliedLabel": "Èxit",
       "rerun": "Tornar a executar",
       "latency": "{{ms}} ms",
       "rawKept": "El motor ha fallat o s'ha omès, per tant es mantindria la transcripció en brut.",

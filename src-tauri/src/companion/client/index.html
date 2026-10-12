@@ -362,11 +362,12 @@
         flex-shrink: 0;
       }
       #resultModel {
+        /* Footnote under the transcript text: full width, no ellipsis
+           squeeze against the Copy button. */
+        margin: 10px 0 0;
         color: var(--muted);
         font-size: 11px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
       }
       #resultCopy {
         margin-left: auto;
@@ -476,10 +477,20 @@
       #reconnect:active {
         filter: brightness(1.12);
       }
-      #micbar {
+      /* Recording feedback row: level bar + elapsed timer, shown only
+         while the Mac reports a live session. */
+      #meterRow {
         display: none;
-        width: min(80vw, 300px);
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
         margin-top: 16px;
+      }
+      #meterRow.show {
+        display: flex;
+      }
+      #micbar {
+        width: min(70vw, 260px);
         height: 4px;
         border-radius: 4px;
         background: var(--card-2);
@@ -491,8 +502,14 @@
         background: var(--accent);
         transition: width 80ms linear;
       }
-      #micbar.show {
-        display: block;
+      #recTimer {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
+          monospace;
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+        min-width: 32px;
       }
       .cert {
         margin-top: 14px;
@@ -533,7 +550,13 @@
     </header>
 
     <div id="state"><span class="dot"></span><span id="stateText"></span></div>
-    <div id="micbar"><div class="lvl"></div></div>
+    <!-- The recording meter: the level bar plus a monospaced elapsed
+         timer, so the unlabeled purple bar alone never has to say "live
+         session in progress". -->
+    <div id="meterRow">
+      <div id="micbar"><div class="lvl"></div></div>
+      <span id="recTimer" aria-hidden="true"></span>
+    </div>
 
     <button id="ptt" disabled aria-live="polite"></button>
     <div id="hint"></div>
@@ -561,13 +584,17 @@
     </section>
 
     <section id="result" class="card">
+      <!-- Header keeps three elements, not four: the model tag used to sit
+           between the badge and Copy, where the 390pt row over-subscribed
+           and truncated it to "Canary 1...". It lives as a full-width
+           footnote under the transcript text now. -->
       <div class="result-head">
         <span class="card-title" id="t-result-title"></span>
         <span id="resultBadge"></span>
-        <span id="resultModel"></span>
         <button type="button" id="resultCopy"></button>
       </div>
       <div id="resultText"></div>
+      <p id="resultModel"></p>
     </section>
 
     <section id="recent" class="card">
@@ -631,6 +658,8 @@
       const reconnectBtn = document.getElementById("reconnect");
       const micbar = document.getElementById("micbar");
       const miclvl = micbar.querySelector(".lvl");
+      const meterRow = document.getElementById("meterRow");
+      const recTimer = document.getElementById("recTimer");
       const micErrorCard = document.getElementById("micError");
       const micErrorMsg = document.getElementById("micErrorMsg");
       const micRetryBtn = document.getElementById("micRetry");
@@ -700,6 +729,38 @@
       function setState(cls, text) {
         stateEl.className = cls;
         stateText.textContent = text;
+      }
+      // ---- recording meter + elapsed timer ----
+      // The bar shows the mic level; the timer says how long the session
+      // has been live, so the meter row reads as an active recorder
+      // instead of an unlabeled purple bar. Starts on the Mac's first
+      // recording=true frame, stops and clears on the stop edge.
+      let recTimerId = 0;
+      let recStartAt = 0;
+      function renderRecTimer() {
+        const s = Math.max(
+          0,
+          Math.floor((Date.now() - recStartAt) / 1000),
+        );
+        recTimer.textContent =
+          Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
+      }
+      function startRecTimer() {
+        stopRecTimer();
+        recStartAt = Date.now();
+        renderRecTimer();
+        recTimerId = window.setInterval(renderRecTimer, 250);
+      }
+      function stopRecTimer() {
+        if (recTimerId) {
+          window.clearInterval(recTimerId);
+          recTimerId = 0;
+        }
+      }
+      function setMeter(show) {
+        meterRow.classList.toggle("show", show);
+        if (show) startRecTimer();
+        else stopRecTimer();
       }
       function setHint(text, isError) {
         hint.textContent = text || "";
@@ -854,6 +915,7 @@
         resultBadge.textContent = t("polished", "Polished");
         resultBadge.style.display = polished ? "" : "none";
         resultModel.textContent = model || "";
+        resultModel.style.display = model ? "" : "none";
         resultCopyBtn.textContent = t("copy", "Copy");
         resultCard.classList.add("show");
         refreshScrollFade();
@@ -979,11 +1041,12 @@
               ptt.disabled = false;
               setControlsEnabled(true);
               setState("ready", t("stateReady", "Ready"));
-              setHint(
-                activation === "toggle"
-                  ? t("tapToTalk", "")
-                  : t("holdToTalk", ""),
-              );
+              // The caption stays empty in the default mode: the button
+              // right above already says "Hold to talk"/"Tap to talk", and
+              // repeating it within ~40px was noise. The caption is
+              // reserved for state-conditional guidance (mic errors,
+              // pairing failures, disconnect reasons).
+              setHint("");
               refreshButton();
               // Warm the microphone (permission prompt, stream) but NEVER
               // the AudioContext: it is created and resumed inside the
@@ -1003,8 +1066,8 @@
               } else {
                 setState("ready", t("stateReady", "Ready"));
               }
-              setHint(recording ? "" : "");
-              micbar.classList.toggle("show", recording);
+              setHint("");
+              setMeter(recording);
               if (!recording) {
                 pressing = false;
                 ptt.classList.remove("held");
@@ -1078,7 +1141,7 @@
 
         socket.onclose = () => {
           ptt.disabled = true;
-          micbar.classList.remove("show");
+          setMeter(false);
           stopMic();
           setControlsEnabled(false);
           if (deliberateClose) return;
@@ -1359,7 +1422,7 @@
           for (const track of micStream.getTracks()) track.stop();
           micStream = null;
         }
-        micbar.classList.remove("show");
+        setMeter(false);
       }
 
       // ---- PTT edges ----

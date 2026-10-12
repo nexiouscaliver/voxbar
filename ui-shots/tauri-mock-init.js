@@ -462,6 +462,11 @@
       s.settings.onboarding_completed = true;
       s.settings.selected_model = PARAKEET_ID;
       s.settings.whats_new_last_seen_version = APP_VERSION;
+      // The user rebound the post-process hotkey away from its default, so
+      // the shortcut rows show both affordance states: a customized row
+      // carries its reset arrow, on-default and unbound rows do not.
+      s.settings.bindings.transcribe_with_post_process.current_binding =
+        "option+shift+p";
     },
     // Same user with the two gated tabs enabled.
     "settings-full": (s) => {
@@ -713,12 +718,12 @@
       return clone(state.models.find((m) => m.id === id) ?? null);
     },
     get_current_model: () => state.settings.selected_model || "",
-    get_transcription_model_status: () => {
-      const m = state.models.find(
-        (x) => x.id === state.settings.selected_model,
-      );
-      return m ? m.name : null;
-    },
+    // The backend returns the transcription manager's current_model_id (an
+    // id, not a display name) and the footer compares it against the
+    // selected model id; the old mock returned m.name here, so the
+    // comparison could never match and every settings shot rendered the
+    // "unloaded" gray dot next to an active model.
+    get_transcription_model_status: () => state.settings.selected_model || null,
     get_model_load_status: () => ({
       is_loaded: Boolean(state.settings.selected_model),
       current_model: state.settings.selected_model || null,

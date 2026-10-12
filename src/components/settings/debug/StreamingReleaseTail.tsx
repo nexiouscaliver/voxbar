@@ -31,6 +31,7 @@ export const StreamingReleaseTail: React.FC<StreamingReleaseTailProps> = ({
       value={settings?.streaming_release_tail_ms ?? 200}
       onChange={handleTailChange}
       onReset={() => resetSetting("streaming_release_tail_ms")}
+      defaultValue={200}
       isResetting={isUpdating("streaming_release_tail_ms")}
       min={0}
       max={1000}

@@ -18,6 +18,10 @@ interface SliderProps {
   formatValue?: (value: number) => string;
   onReset?: () => void;
   isResetting?: boolean;
+  /** The setting's default. While the value sits on it there is nothing
+   * to restore, so the reset arrow stays hidden instead of rendering as a
+   * dead control on every slider row. */
+  defaultValue?: number;
 }
 
 export const Slider: React.FC<SliderProps> = ({
@@ -35,6 +39,7 @@ export const Slider: React.FC<SliderProps> = ({
   formatValue = (v) => v.toFixed(2),
   onReset,
   isResetting = false,
+  defaultValue,
 }) => {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(parseFloat(e.target.value));
@@ -80,9 +85,18 @@ export const Slider: React.FC<SliderProps> = ({
               {formatValue(value)}
             </span>
           )}
-          {onReset && (
-            <ResetButton onClick={onReset} disabled={disabled || isResetting} />
-          )}
+          {/* Reset exists only while the value actually differs from its
+              default (and the row is enabled); hidden otherwise so the
+              arrow never renders as a dead control. */}
+          {onReset &&
+            !disabled &&
+            defaultValue !== undefined &&
+            value !== defaultValue && (
+              <ResetButton
+                onClick={onReset}
+                disabled={isResetting}
+              />
+            )}
         </div>
       </div>
     </SettingContainer>

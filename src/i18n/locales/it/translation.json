@@ -316,7 +316,8 @@
           "set": "Errore nella configurazione della scorciatoia: {{error}}",
           "reset": "Errore nella reinizializzazione della scorciatoia al valore originale"
         },
-        "unbound": "Non assegnato"
+        "unbound": "Non assegnato",
+        "recordHint": "Fai clic per registrare una nuova scorciatoia"
       },
       "language": {
         "title": "Lingua",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 prompt su 1 motore. Nulla viene digitato o salvato.",
       "runHint_other": "{{count}} coppie prompt-motore. Nulla viene digitato o salvato.",
       "running": "Esecuzione...",
+      "appliedLabel": "Successo",
       "rerun": "Esegui di nuovo",
       "latency": "{{ms}} ms",
       "rawKept": "Il motore ha fallito o è stato saltato, quindi la trascrizione grezza verrebbe mantenuta.",

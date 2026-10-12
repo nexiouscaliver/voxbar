@@ -263,7 +263,8 @@
           "set": "Kunne ikke indstille genvej: {{error}}",
           "reset": "Kunne ikke nulstille genvej til oprindelig indstilling"
         },
-        "unbound": "Ikke tildelt"
+        "unbound": "Ikke tildelt",
+        "recordHint": "Klik for at optage en ny genvej"
       },
       "language": {
         "title": "Sprog",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 prompt på 1 motor. Der tastes eller gemmes intet.",
       "runHint_other": "{{count}} prompt-motor-par. Der tastes eller gemmes intet.",
       "running": "Kører...",
+      "appliedLabel": "Lykkedes",
       "rerun": "Kør igen",
       "latency": "{{ms}} ms",
       "rawKept": "Motoren fejlede eller blev sprunget over, så råtransskriptionen ville blive beholdt.",

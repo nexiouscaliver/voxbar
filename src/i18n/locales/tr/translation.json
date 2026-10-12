@@ -316,7 +316,8 @@
           "set": "Kısayol ayarlanamadı: {{error}}",
           "reset": "Kısayol orijinal değerine sıfırlanamadı"
         },
-        "unbound": "Atanmadı"
+        "unbound": "Atanmadı",
+        "recordHint": "Yeni bir kısayol kaydetmek için tıklayın"
       },
       "language": {
         "title": "Dil",
@@ -1198,6 +1199,7 @@
       "runHint_one": "1 motorda 1 prompt. Hiçbir şey yazılmaz veya kaydedilmez.",
       "runHint_other": "{{count}} prompt-motor çifti. Hiçbir şey yazılmaz veya kaydedilmez.",
       "running": "Çalışıyor...",
+      "appliedLabel": "Başarılı",
       "rerun": "Yeniden çalıştır",
       "latency": "{{ms}} ms",
       "rawKept": "Motor başarısız oldu veya atlandı, bu nedenle ham transkript korunurdu.",
