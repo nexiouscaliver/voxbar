@@ -235,7 +235,10 @@ engine. Turn on Companion Devices in Settings, Advanced, Experimental, scan
 the QR code with the phone camera, and the phone opens a web page with one
 big talk button. Pair more than one phone: each runs its own session with
 its own recorder and recent list, so two phones can dictate at the same
-time and one stopping never cuts the other off. No app to install; the
+time and one stopping never cuts the other off. Each phone keeps a
+persistent identity in its browser, shown as a short tag after the
+platform name (iPhone#7f3a), so even two phones that report the same name
+never share a session or a recent list. No app to install; the
 page is served by your Mac, in all 26 app languages.
 
 The phone page carries per-session controls:
@@ -260,6 +263,8 @@ swallowed with a notice on both surfaces. Audio rides the same path the
 built-in microphone uses, so the overlay, live text, voice commands,
 post-processing, and paste behave the same. When two sessions overlap in
 time, both record and transcribe at stop instead of streaming live text.
+Esc cancels the most recently started session, so with several live you
+stop them one at a time.
 If the phone leaves the network mid-dictation, the session finishes with
 everything captured up to that moment. A session that ends with no audio
 at all is called out by name on both surfaces rather than silently pasting
@@ -510,8 +515,10 @@ corrupted or unreadable, VoxBar does not fail to launch. It keeps the
 broken file beside the new one as `history.db.corrupt` (with a timestamp
 suffix when that name is already taken), starts a fresh history at the
 same location, and posts one persistent Notification Center notice naming
-the quarantined file so you can inspect it or delete it. Your saved audio
-WAVs are not touched.
+the quarantined file so you can inspect it or delete it. The notice (and
+its notification-log row) follows the system-notifications master toggle,
+so with notifications off the quarantine still happens, silently. Your
+saved audio WAVs are not touched.
 
 ## Contributing
 

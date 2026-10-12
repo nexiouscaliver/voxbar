@@ -764,7 +764,7 @@ rather than a one-line fix, so v1.6.0 ships with them disclosed.
   corroborates the interface name (utun family, ip.rs:82-96) before the
   CGNAT range is called Tailscale; an uncorroborated CGNAT address labels
   and pairs as plain LAN (/24, never the whole /10), and the README carries
-  the org-tailnet token-scope security note (README.md:289-295).
+  the org-tailnet token-scope security note (README.md:301-307).
 
 ---
 
@@ -778,7 +778,14 @@ Six implementer lanes then landed the cycle: 86178659 (W1-L0, the tap-lock
 audio-admission fix plus activation copy), f2014843 (W1-L2, per-lane
 multi-phone sessions), 8b94fdc1 (the data-integrity wave), 58a920ff (W1-L3,
 the UX polish wave), 6b054cd1 (W1-L4, the pipeline quality wave), fd63e677
-(W1-L5, the platform wave). The program register with the operator decisions
+(W1-L5, the platform wave). The cycle then closed under its own
+verification: two fleet passes over the landed tree confirmed and fixed
+twelve more defects (37a53abd, 801d48d3), a line-by-line review of the
+architectural lane's diff found three defects in the per-lane seams plus
+two sibling escapes and pinned the prewarm RAM rule (4872ee5f, 9e0124e2,
+94291724), and two W1-L4 follow-ups closed the remaining instances of
+their defect classes (33529030, 186a222d). The program register with the
+operator decisions
 lives in the shared vault (programs/mission-control-voxbar-v1.6.2-backlog-clear);
 the fleet's per-item verdicts live in the controller session record, and the
 anchors below were re-checked in this tree where the fix landed here (fleet
@@ -844,16 +851,16 @@ by construction (each connection owns its recorder, ring, coordinator
 session, delivery target, and recents); round 8's KB-254 (wrong-phone
 zero-audio attribution) and KB-255 (reconnect erasing a fresh registration)
 fall out of per-lane identity. Pins in this tree: route_input at
-transcription_coordinator.rs:1700 with input_routing_is_exhaustively_classified
-(:3919), two_lanes_each_hold_a_live_session_with_independent_stops (:4153),
+transcription_coordinator.rs:1710 with input_routing_is_exhaustively_classified
+(:4013), two_lanes_each_hold_a_live_session_with_independent_stops (:4247),
 a_companion_press_while_the_keyboard_records_never_reaches_the_lane_machine
-(:4242), registrations_release_by_lane_and_generation_never_by_name
-(companion/mod.rs:1291), session_identity_freezes_per_lane_and_cannot_be_renamed,
+(:4419), registrations_release_by_lane_and_generation_never_by_name
+(companion/mod.rs:1457), session_identity_freezes_per_lane_and_cannot_be_renamed,
 session_prefs_freeze_per_lane_and_survive_the_stop_pipeline,
 transcript_delivery_and_state_frames_flow_through_app_state_per_lane,
 stream_owner_tokens_round_trip_and_never_collide; the new capture_device
 column (managers/history.rs:70) with
-per_device_recents_show_each_phone_only_its_own_sessions (:1903, query at
+per_device_recents_show_each_phone_only_its_own_sessions (:1900, query at
 :611-639). One cross-source rule survives: a local recording and a companion
 recording never coexist; companion sessions coexist freely.
 
@@ -930,6 +937,43 @@ card_durably_visible_reads_pending_hide_before_current_generation), and the
 two CI lines (check:text-style and check:model-languages beside
 check:translations, ci.yml:187/190), which finish KB-100 and KB-012.
 
+**Fleet pass 1 over the landed tree (37a53abd), six confirmed defects:**
+KB-263 through KB-266 (below), the KB-015/KB-122 residual (the memory-gate
+notice code was missing from DETAIL_INTERPOLATING_CODES, so its OS
+notification body re-localized with an empty detail and rendered dangling
+mid-sentence slots in all 26 locales; the code joined the set and the body
+keeps the fully interpolated line, noticeMessage.ts:216), and
+one test-hygiene repair (emit_overlay_notice's probe comment named the
+wrong atomic, tripping the AUD-14 comment-accuracy pin).
+
+**Fleet pass 2 (801d48d3), six confirmed defects:** KB-267 through KB-271
+(below), plus the KB-179 residual: history_db_recovered joined the notice
+discipline (NOTICE_CHANNEL_TABLE, noticeRouting.ts:262), so the recovery
+notice consults the notifications master toggle like every persistent
+notice; with it off neither durable leg fires, and with it on the in-app
+log row rides the OS post as the denied-permission backstop.
+
+**W1-L1, the multi-phone review pass (4872ee5f, 9e0124e2, 94291724):** the
+line-by-line review of f2014843's owned seams found KB-272, KB-273, and
+KB-274 (below); review round 2 caught the KB-273 guard missing on the two
+sibling teardown paths (the scoped cancel in utils.rs and the hotkey
+load-failure mirror in managers/transcription.rs); and the prewarm RAM
+discipline (keep only the most recent connection's idle recorder, never
+touch a recording lane's) was extracted as the pure prewarm_retires and
+pinned by
+prewarm_retires_every_idle_recorder_except_the_target_and_spares_recording_lanes,
+behavior identical.
+
+**W1-L4 follow-ups (33529030, 186a222d):** KB-239's sweep found four more
+byte-length logs still labeled as chars (the cloud/structured success log
+and the legacy prompt-length log in actions.rs, the cmd-mode release-flush
+resolved/total pair, and the live-preview finalize counter in
+managers/transcription.rs), pinned by output_length_logs_count_chars_not_bytes_kb239
+and chars_labeled_logs_count_chars_not_bytes_kb239, both mutation-checked;
+and KB-242's delete arm (delete_post_process_prompt) now propagates its
+tray re-sync and badge refresh like the edit sibling, with the source pin
+extended to scope the delete body (also mutation-checked).
+
 ## New entries
 
 - **KB-260 · FIXED · a tap-locked phone session admitted only the ~62 ms
@@ -941,7 +985,7 @@ check:translations, ci.yml:187/190), which finish KB-100 and KB-012.
   VAD, zero samples at finish, the zero-audio notice). Found from the
   operator's live log by the fleet, not by code review. Admission now
   follows the Mac's live session state for the connection's own lane,
-  sampled at every received frame and keepalive tick (server.rs:460-582);
+  sampled at every received frame and keepalive tick (server.rs:455-595);
   the release edge no longer closes it, the 15-minute cap keeps
   force-finalizing locked tap sessions, and spectator or busy-swallowed
   presses never feed another session's ring. Pinned by
@@ -966,12 +1010,145 @@ check:translations, ci.yml:187/190), which finish KB-100 and KB-012.
   43f4c092: commands/mod.rs:141-152, apple_intelligence_stub.swift:24).
   Fix shape: an available / os-unsupported / build-lacks enum plus one
   locale string.
+- **KB-263 · FIXED · a grace-expired phone stop ran as a keyboard stop and
+  wedged its lane machine in Processing with a stranded recorder (round 9
+  fleet pass 1, 37a53abd).** expire_due_graces fired the grace-expired
+  Stop effect without its lane tag, so the effect ran through the keyboard
+  arm, skipped note_stopping_session, and never closed the lane's recorder:
+  every HoldOrToggle hold and every PushToTalk session that ended by grace
+  instead of a clean release edge was stranded. Fixed: the loop tags the
+  effect with its lane before run_effect. Pinned by
+  a_lane_grace_expired_release_stops_with_the_lane_tagged and
+  expire_due_graces_tags_lane_stop_effects_before_run_effect
+  (transcription_coordinator.rs:4339, 4388).
+- **KB-264 · FIXED · one phone's Escape could discard another phone's
+  in-flight stop pipeline, and a lane Escape fired the engine-wide cancel
+  (round 9 fleet pass 1, 37a53abd).** cancel_recording bumped a single
+  global cancel generation, so cancelling phone A invalidated the
+  generation phone B's just-queued pipeline gated on (the 200 ms streaming
+  release-tail window included); a lane-resolved Escape also cancelled the
+  engine-wide transcription. Fixed: per-lane cancel generations bumped only
+  through the target-scoped helper, and the engine cancel is a
+  per-resolution decision. Pinned by cancel_bump_lane_scopes_the_bump_to_the_cancelled_target,
+  cancel_recording_bumps_only_through_the_target_scoped_helper, and
+  cancel_current_operation_scopes_singletons_to_the_cancel_target
+  (utils.rs:256).
+- **KB-265 · FIXED · same-platform phones collapsed into one identity and
+  one shared recents list (round 9 fleet pass 1, 37a53abd).** The hello's
+  device name is a UA platform token (two iPhones both say iPhone, every
+  Chrome-Android phone says Linux), so the per-device recents the W1-L2
+  lane built keyed every same-platform phone into one list, private
+  phone-destined dictations included. Fixed: the client carries a
+  persistent device id (localStorage, client index.html:641-652) and
+  identity is name#tag, the id's first four alphanumerics, filtered so a
+  hostile id cannot smuggle length or separators into a display string
+  (protocol.rs:165-184); registration, session freeze, capture_device
+  provenance, and recents all key the composite. Pinned by
+  hello_parses_the_persistent_device_id and
+  device_identity_name_disambiguates_same_platform_phones.
+- **KB-266 · FIXED · one binding's resume failure stranded every later
+  binding as a dead hotkey until restart (round 9 fleet pass 1,
+  37a53abd).** resume_all_shortcuts returned on the first error, and the
+  recorder commit's guaranteed already-in-use duplicate made that
+  near-certain after a rebind (change_binding registers the committed
+  chord before the frontend resumes; the HashMap iterates arbitrarily, so
+  on the stock two-binding config roughly half of rebinds left a dead
+  hotkey). Fixed: unmount before re-arm, collect failures, report only
+  after the loop. Pinned by
+  resume_all_shortcuts_never_aborts_mid_loop_on_a_duplicate
+  (shortcut/mod.rs:3558).
+- **KB-267 · FIXED · stopping the companion server silently discarded every
+  live phone dictation (round 9 fleet pass 2, 801d48d3).** stop() cleared
+  the lane session map synchronously while the finalize pipelines it had
+  just queued were asynchronous mpsc sends whose Stop effects read those
+  records through note_stopping_session: every pipeline raced into a None
+  identity (no transcript, no history row) and stranded its recorder
+  recording=true. Server stop, restart, and toggle-off all shared the
+  path. Fixed: the sweep retains exactly the live lanes' records
+  (retain_live_lane_sessions, companion/mod.rs:361) and never touches the
+  transient stopping slot. Pinned by
+  server_stop_sweep_keeps_live_lanes_records_for_their_pipelines and
+  stop_routes_the_sweep_not_a_clear.
+- **KB-268 · FIXED · the cancel shortcut's want was one boolean, so the
+  first overlapping drain unregistered Escape for every concurrently-live
+  session (round 9 fleet pass 2, 801d48d3).** Fixed: the want is a
+  per-session set keyed None for the keyboard and Some(lane) per phone
+  (CANCEL_WANTERS, shortcut/mod.rs:186); each start adds its key,
+  FinishGuard and both teardown paths release exactly their own key
+  idempotently, and the Carbon fallback mirrors the set-folded boolean
+  (secure_input.rs:87-94). Pinned by
+  cancel_wanters_track_sessions_not_the_last_call and
+  cancel_shortcut_arms_are_keyed_by_session.
+- **KB-269 · FIXED · an Escape with nothing recording ignored in-flight
+  pipelines, and a local Escape fired the engine-wide cancel under a lane
+  pipeline's engine work (round 9 fleet pass 2, 801d48d3).** Fixed: stop
+  pipelines register their session key as in flight (removed by their
+  FinishGuard); when the cancel resolves to nothing it bumps every
+  in-flight lane's cancel generation so those pipelines abort cleanly at
+  their gates (no paste, no spurious failure notice, no empty history
+  row). Pinned inside
+  cancel_current_operation_scopes_singletons_to_the_cancel_target
+  (utils.rs:271-284) and by
+  in_flight_pipeline_registry_tracks_lanes_and_drains.
+- **KB-270 · FIXED · a failed start could cancel another session's live
+  stream and tear down its surfaces mid-dictation (round 9 fleet pass 2,
+  801d48d3).** The failed-start teardown cancelled the stream singleton and
+  flipped the tray and overlay unconditionally, so a failed non-owner
+  start under lane overlap killed a live session's audio. Fixed: cancel
+  the stream only when this start claimed the singleton (and hand the
+  claim back), retire surfaces only when no other session is live. Pinned
+  by failed_start_teardown_is_scoped_to_what_it_owns.
+- **KB-271 · FIXED · the start-success probe read the folded is_recording
+  mirror, so a failed lane start never rolled back (round 9 fleet pass 2,
+  801d48d3).** The mirror stays true while any other lane records, so a
+  start that failed under overlap looked successful; its machine wedged in
+  Recording with a dead session record. Fixed: the probe reads the
+  STARTING session's truth (its lane's recorder, or local_is_recording
+  for the keyboard). Pinned by
+  start_success_probe_is_scoped_to_the_starting_session
+  (transcription_coordinator.rs:2285).
+- **KB-272 · FIXED · a phone lane's stop could flip the shared recording
+  mirror false mid-capture (round 9 W1-L1 review, 9e0124e2).**
+  stop_remote_lane_recording's local fold inlined a Recording-only match
+  while its three sibling folds counted Recording|Stopping, so a lane stop
+  landing inside the Mac session's Stopping tail lied to the Escape gate,
+  the local-LLM keep-warm idle timer, and the failed-start tray guard.
+  Fixed: one pure local_capture_active predicate (audio.rs:436) at all
+  four fold sites. Pinned by local_capture_active_counts_the_stopping_tail
+  and stop_remote_lane_folds_the_mirror_through_the_shared_predicate.
+- **KB-273 · FIXED · every stop-pipeline drain retired the shared tray and
+  overlay unconditionally, so the first finisher hid the second phone's
+  live session (round 9 W1-L1 review, 9e0124e2 + 94291724).** With phones
+  A and B both live, the first drain flipped the tray to Idle and hid the
+  card under B's still-live session (the overlay's show-generation guard
+  only protects newer shows); cancel_current_operation and the hotkey
+  load-failure teardown carried the same unconditional flip, escaping the
+  first fix's drain-side pin. Fixed: retire_session_surfaces
+  (actions.rs:191) skips both flips while any other session is live; all
+  fifteen drains plus both siblings retire through it, the error-read
+  delay preserved via the readable_notice flag. Pinned by
+  stop_pipeline_drains_retire_shared_surfaces_only_when_no_other_session_is_live,
+  hotkey_load_failure_retires_shared_surfaces_through_the_guard, and the
+  no-direct-flip assertions in
+  cancel_current_operation_scopes_singletons_to_the_cancel_target.
+- **KB-274 · FIXED · the starting-session slot held the last phone lane
+  forever, so its None-for-keyboard contract was false (round 9 W1-L1
+  review, 9e0124e2).** Only begin_session wrote the slot, so after any
+  phone session every keyboard start read a stale lane (inert solely
+  because every consumer re-checks the capture source). Fixed: the
+  coordinator's Start arm writes the slot for every start (begin_session
+  for a lane, clear_starting_session for the keyboard). Pinned by
+  the_starting_slot_reads_none_for_keyboard_starts_after_any_phone_session
+  plus the Start-arm assertions in
+  start_success_probe_is_scoped_to_the_starting_session
+  (transcription_coordinator.rs:2319-2336).
 
 ## Still open after this cycle (anchors refreshed where re-read)
 
 - **KB-028:** companion stop() still closes the lane recorders only when
-  nothing is recording (companion/mod.rs:570-574 in this tree); the shape
-  survived the W1-L2 rewrite. A disable during a live local recording can
+  nothing is recording (companion/mod.rs:604-609 in this tree, now after
+  the KB-267 sweep); the shape survived the W1-L2 rewrite and both fleet
+  passes. A disable during a live local recording can
   still strand the pre-warmed idle recorder.
 - **KB-029:** reset-pairing failures still never set status.error, so the
   panel renders a clean Stopped (fleet verdict at 43f4c092; the companion
@@ -980,10 +1157,11 @@ check:translations, ci.yml:187/190), which finish KB-100 and KB-012.
   v1.6.0 manual-cert-pair mitigation stands (fleet verdict; cert.rs:31-33
   at 43f4c092).
 - **KB-085 residual:** the rapid off/on port race (stop returns without
-  awaiting the accept loop; bind fails EADDRINUSE with no retry). The
+  awaiting the accept loop, whose only signal is the shutdown send at
+  companion/mod.rs:600; bind fails EADDRINUSE with no retry). The
   pre-auth deadline half was already fixed in 9655d8fc.
 - **KB-086 residual:** the two dead protocol fields. The zero-tests half is
-  closed this cycle: server.rs now carries a tests module (server.rs:686)
+  closed this cycle: server.rs now carries a tests module (server.rs:695)
   from the W1-L0 work.
 - **KB-155 residual:** model-download cancel failures are still invisible
   in the settings UI (fleet verdict; the delete half renders only the
@@ -996,7 +1174,7 @@ check:translations, ci.yml:187/190), which finish KB-100 and KB-012.
   keys before :141's requiresExperimental block).
 - **KB-258:** the phone's Polish-text toggle still arms the NEXT session;
   per-lane prefs freeze at session start (freeze_session,
-  companion/mod.rs:308, pinned by
+  companion/mod.rs:313, pinned by
   session_prefs_freeze_per_lane_and_survive_the_stop_pipeline) and the phone
   surface still does not say so.
 - **KB-261 and KB-262 above.**
@@ -1014,3 +1192,12 @@ check:translations, ci.yml:187/190), which finish KB-100 and KB-012.
   no material gaps (one trust-boundary nit, closed by fd63e677's security
   note); this round's W1-L6 pass then updated it for the v1.6.2 multi-phone
   session rules, the per-phone recents, and the history quarantine.
+- This round was first written mid-cycle (09b31437, after W1-L5, before
+  the verification passes); the section as it stands is the final record:
+  the fleet passes, the W1-L1 review, and the W1-L4 follow-ups are folded
+  in with their own ids (KB-263 through KB-274), the fixed-this-cycle pin
+  anchors were re-read at HEAD (the closing commits moved several), and
+  the still-open anchors were re-verified. The final W1-L6 pass also
+  taught the README the phone-identity tag, the one-at-a-time Esc under
+  overlapping sessions, and the quarantine notice's master-toggle
+  behavior.
