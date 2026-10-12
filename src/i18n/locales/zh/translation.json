@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ 快捷键被 Secure Input 阻止",
     "postProcessPrompt": "后处理提示词"
   },
+  "trayCopyOutcome": {
+    "copied": "已将听写文本复制到剪贴板。",
+    "empty": "还没有可复制的内容。",
+    "failed": "无法将听写文本复制到剪贴板。"
+  },
   "sidebar": {
     "general": "通用",
     "commands": "命令",
@@ -642,7 +647,7 @@
       },
       "voiceDeletion": {
         "title": "语音删除命令",
-        "description": "\"scratch that\"、\"delete that\"、\"remove that\" 删除上一个词，\"delete last three words\" 删除多个词，\"delete everything\" 或 \"start over\" 清空整段听写。关闭后保留为普通文字。"
+        "description": "\"scratch that\"、\"delete that\"、\"remove that\" 删除上一个词，\"delete last three words\" 删除多个词，\"delete everything\" 或 \"scratch everything\" 清空整段听写。关闭后保留为普通文字。"
       },
       "previewBeforePaste": {
         "title": "粘贴前预览",
@@ -659,7 +664,7 @@
       },
       "numberFormat": {
         "title": "语音数字",
-        "description": "将口述的数字词写成数字，\"one eight zero one\" 会以 1801 粘贴。“保持原样”让数字保持口述原词；Smart 还会转换复合序数词以及十一以上的单个数字。",
+        "description": "将口述的数字词写成数字，\"one eight zero one\" 会以 1801 粘贴。该转换支持英语和印地语（包括印地式英语）的口语数字；其他语言的数字保持口述原样。“保持原样”让数字保持口述原词；Smart 还会转换复合序数词以及十一以上的单个数字。",
         "options": {
           "asTranscribed": "保持原样",
           "digits": "数字",
@@ -926,6 +931,7 @@
       "empty": "还没有转录记录。开始录制以建立您的历史记录！",
       "copyToClipboard": "复制转录到剪贴板",
       "copyError": "无法将转录复制到剪贴板。",
+      "savedToggleError": "无法更新保存状态。",
       "save": "保存转录",
       "unsave": "从已保存中移除",
       "delete": "删除条目",
@@ -944,7 +950,8 @@
       },
       "viaPostProcess": "经 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒处理",
       "viewChanges": "查看更改",
-      "hideChanges": "收起更改"
+      "hideChanges": "收起更改",
+      "dbRecoveredNotice": "转录历史数据库无法读取，因此已启动一个新数据库。原数据库已保留为 {{file}}。"
     },
     "debug": {
       "title": "调试",
@@ -1183,6 +1190,8 @@
       "runHint_one": "1 个提示词在 1 个引擎上运行。不会输入或保存任何内容。",
       "runHint_other": "{{count}} 组提示词和引擎。不会输入或保存任何内容。",
       "running": "运行中...",
+      "cancel": "取消",
+      "cancelledCard": "此运行启动前已取消。",
       "rerun": "重新运行",
       "latency": "{{ms}} 毫秒",
       "rawKept": "引擎失败或被跳过，因此将保留原始转录。",
@@ -1268,6 +1277,8 @@
     "recordingFailed": "录音启动失败: {{error}}",
     "modelLoadFailed": "加载模型失败: {{model}}",
     "modelLoadFailedUnknown": "未知模型",
+    "modelLoadFailedMemoryGate": "内存不足，无法加载 {{model}}：需要约 {{needed}}，仅约 {{free}} 可用。",
+    "modelLoadFailedDetail": "模型未更改。具体原因请查看日志文件。",
     "modelFallbackTitle": "内存不足",
     "modelFallback": "本次听写已切换到 {{model}}",
     "pasteFailedTitle": "粘贴文本失败",
@@ -1398,6 +1409,7 @@
     "serverStopped": "Mac 已停止伴侣服务器。",
     "reconnect": "重新连接",
     "holdToTalk": "按住说话",
+    "holdOrToggleToTalk": "按住说话，点按锁定",
     "tapToTalk": "点按说话",
     "release": "松开结束",
     "tapToStop": "点按停止",

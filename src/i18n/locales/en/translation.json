@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Shortcuts blocked by Secure Input",
     "postProcessPrompt": "Post-process Prompt"
   },
+  "trayCopyOutcome": {
+    "copied": "Copied the transcript to the clipboard.",
+    "empty": "Nothing to copy yet.",
+    "failed": "Could not copy the transcript to the clipboard."
+  },
   "sidebar": {
     "general": "General",
     "commands": "Commands",
@@ -642,7 +647,7 @@
       },
       "voiceDeletion": {
         "title": "Voice Deletion Commands",
-        "description": "\"scratch that\", \"delete that\" and \"remove that\" delete the previous word, \"delete last three words\" deletes several, and \"delete everything\" or \"start over\" clears the dictation. Turn off to keep these as plain words."
+        "description": "\"scratch that\", \"delete that\" and \"remove that\" delete the previous word, \"delete last three words\" deletes several, and \"delete everything\" or \"scratch everything\" clears the dictation. Turn off to keep these as plain words."
       },
       "previewBeforePaste": {
         "title": "Preview Before Paste",
@@ -659,7 +664,7 @@
       },
       "numberFormat": {
         "title": "Spoken Numbers",
-        "description": "Writes spoken number words as digits, so \"one eight zero one\" pastes as 1801. As Transcribed keeps numbers as spoken; Smart also converts compound ordinals and lone numbers from eleven up.",
+        "description": "Writes spoken number words as digits, so \"one eight zero one\" pastes as 1801. The conversion knows English and Hindi (including Hinglish) number words; other languages keep numbers as spoken. As Transcribed keeps numbers as spoken; Smart also converts compound ordinals and lone numbers from eleven up.",
         "options": {
           "asTranscribed": "As Transcribed",
           "digits": "Digits",
@@ -926,6 +931,7 @@
       "empty": "No transcriptions yet. Start recording to build your history!",
       "copyToClipboard": "Copy transcription to clipboard",
       "copyError": "Failed to copy transcription to clipboard.",
+      "savedToggleError": "Could not update the saved status.",
       "save": "Save transcription",
       "unsave": "Remove from saved",
       "delete": "Delete entry",
@@ -944,7 +950,8 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "View changes",
-      "hideChanges": "Hide changes"
+      "hideChanges": "Hide changes",
+      "dbRecoveredNotice": "Your transcription history database was unreadable, so a fresh one was started. The previous database was kept as {{file}}."
     },
     "debug": {
       "title": "Debug",
@@ -1183,6 +1190,8 @@
       "runHint_one": "1 prompt on 1 engine. Nothing is typed or saved.",
       "runHint_other": "{{count}} prompt-engine pairs. Nothing is typed or saved.",
       "running": "Running...",
+      "cancel": "Cancel",
+      "cancelledCard": "Cancelled before this run started.",
       "rerun": "Re-run",
       "latency": "{{ms}} ms",
       "rawKept": "The engine failed or skipped, so the raw transcript would be kept.",
@@ -1271,6 +1280,8 @@
     "recordingFailed": "Failed to start recording: {{error}}",
     "modelLoadFailed": "Failed to load model: {{model}}",
     "modelLoadFailedUnknown": "unknown model",
+    "modelLoadFailedMemoryGate": "Not enough free memory to load {{model}}: it needs about {{needed}}, with about {{free}} free.",
+    "modelLoadFailedDetail": "The model was not changed. The technical reason is in the log file.",
     "modelFallbackTitle": "Low memory",
     "modelFallback": "Switched to {{model}} for this dictation",
     "pasteFailedTitle": "Failed to Paste Text",
@@ -1398,6 +1409,7 @@
     "serverStopped": "The Mac stopped the companion server.",
     "reconnect": "Reconnect",
     "holdToTalk": "Hold to talk",
+    "holdOrToggleToTalk": "Hold to talk, tap to lock",
     "tapToTalk": "Tap to talk",
     "release": "Release to finish",
     "tapToStop": "Tap to stop",

@@ -167,6 +167,21 @@ pub fn unregister_shortcut(app: &AppHandle, binding: ShortcutBinding) -> Result<
         }
     };
 
+    // KB-243 groundwork: unregistering a chord that is not registered is
+    // SUCCESS (nothing live to retire). The recorder commits run while
+    // every binding is suspended, and on Windows the underlying
+    // UnregisterHotKey errors for an unknown id - without this guard the
+    // abort-on-failure rule below would refuse every suspended-state
+    // rebind. The error path stays reserved for a registration that
+    // exists and could not be removed.
+    if !app.global_shortcut().is_registered(shortcut) {
+        debug!(
+            "unregister_tauri_shortcut: '{}' is not registered; nothing to retire",
+            binding.current_binding
+        );
+        return Ok(());
+    }
+
     app.global_shortcut().unregister(shortcut).map_err(|e| {
         let error_msg = format!(
             "Failed to unregister shortcut '{}': {}",

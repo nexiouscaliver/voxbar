@@ -141,6 +141,35 @@ assert.ok(html.includes("localStorage.setItem(TARGET_KEY, outputTarget)"));
 assert.ok(html.includes("localStorage.getItem(PP_KEY)"));
 assert.ok(html.includes("localStorage.setItem(PP_KEY,"));
 
+// v1.6.2 fleet pass 1: the hello carries a persistent device id. The
+// UA-derived device name is a platform token every same-platform phone
+// shares (two iPhones both say "iPhone", every Chrome-Android phone says
+// "Linux"), so per-phone data keyed on it alone collapsed same-platform
+// phones into one Recent list - private phone-destined dictations
+// included. The id is persisted like the prefs and rides every hello.
+assert.ok(
+  html.includes('const DEVICE_ID_KEY = "voxbarCompanion.deviceId";'),
+  "the device id has a stable storage key",
+);
+const deviceIdentity = sliceBetween(
+  html,
+  "function deviceIdentity",
+  "function loadPrefs",
+);
+assert.ok(
+  deviceIdentity.includes("localStorage.getItem(DEVICE_ID_KEY)"),
+  "the device id is read from storage",
+);
+assert.ok(
+  deviceIdentity.includes("localStorage.setItem(DEVICE_ID_KEY, id)"),
+  "a fresh device id is persisted for the next visit",
+);
+const helloSend = sliceBetween(html, 'type: "hello",', "}),");
+assert.ok(
+  helloSend.includes("deviceId: deviceIdentity(),"),
+  "the hello must carry the persistent device id alongside the platform name",
+);
+
 // The new server frames render.
 const transcriptCase = sliceBetween(html, 'case "transcript":', "break;");
 assert.ok(transcriptCase.includes("showTranscript("));

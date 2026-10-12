@@ -606,9 +606,12 @@
             ? t("tapToStop", "Tap to stop")
             : t("tapToTalk", "Tap to talk");
         } else if (activation === "hold_or_toggle") {
+          // v1.6.2 W1-L0: the idle button must name BOTH modes. A bare
+          // "hold to talk" hides the tap-to-lock behavior the operator
+          // actually uses, so quick taps read as a broken hold button.
           ptt.textContent = recording
             ? t("tapToStop", "Tap to stop")
-            : t("holdToTalk", "Hold to talk");
+            : t("holdOrToggleToTalk", "Hold to talk, tap to lock");
         } else {
           ptt.textContent = recording
             ? t("release", "Release to finish")
@@ -626,6 +629,34 @@
       const PP_KEY = "voxbarCompanion.postProcess";
       let outputTarget = "pc"; // "pc" | "phone"
       let postProcess = false;
+
+      // ---- device identity (v1.6.2) ----
+      // The hello's human name is derived from the user agent and is a
+      // PLATFORM token every same-platform phone shares (two iPhones both
+      // say "iPhone", every Chrome-Android phone says "Linux"), so it
+      // cannot tell this phone from its twin. A random id, persisted like
+      // the prefs, can: the Mac pairs it with the name to key this phone's
+      // data (the Recent list), so same-platform phones never share one
+      // identity.
+      const DEVICE_ID_KEY = "voxbarCompanion.deviceId";
+      function deviceIdentity() {
+        try {
+          let id = localStorage.getItem(DEVICE_ID_KEY);
+          if (!id) {
+            id =
+              window.crypto && crypto.randomUUID
+                ? crypto.randomUUID()
+                : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+            localStorage.setItem(DEVICE_ID_KEY, id);
+          }
+          return id;
+        } catch (e) {
+          // Storage unavailable (private mode): a per-load random id still
+          // separates this phone from its same-platform twin for the
+          // session.
+          return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+        }
+      }
 
       function loadPrefs() {
         try {
@@ -808,6 +839,7 @@
                   .split(";")[0]
                   .trim()
                   .slice(0, 48) || "Phone",
+              deviceId: deviceIdentity(),
               lang: LANG,
             }),
           );
@@ -828,10 +860,14 @@
               recording = !!msg.recording;
               ptt.disabled = false;
               setState("ready", t("stateReady", "Ready"));
+              // The welcome hint follows the activation the Mac sent;
+              // hold_or_toggle names both of its modes (v1.6.2 W1-L0).
               setHint(
                 activation === "toggle"
                   ? t("tapToTalk", "")
-                  : t("holdToTalk", ""),
+                  : activation === "hold_or_toggle"
+                    ? t("holdOrToggleToTalk", "")
+                    : t("holdToTalk", ""),
               );
               refreshButton();
               // Warm the microphone (permission prompt, stream) but NEVER

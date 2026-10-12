@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Skróty zablokowane przez Secure Input",
     "postProcessPrompt": "Prompt postprocessingu"
   },
+  "trayCopyOutcome": {
+    "copied": "Dyktando zostało skopiowane do schowka.",
+    "empty": "Nie ma jeszcze niczego do skopiowania.",
+    "failed": "Nie udało się skopiować dyktanda do schowka."
+  },
   "sidebar": {
     "general": "Ogólne",
     "commands": "Polecenia",
@@ -642,7 +647,7 @@
       },
       "voiceDeletion": {
         "title": "Głosowe polecenia usuwania",
-        "description": "\"scratch that\", \"delete that\" i \"remove that\" usuwają poprzednie słowo, \"delete last three words\" usuwa kilka słów, a \"delete everything\" lub \"start over\" czyści dyktando. Wyłącz, aby zachować je jako zwykłe słowa."
+        "description": "\"scratch that\", \"delete that\" i \"remove that\" usuwają poprzednie słowo, \"delete last three words\" usuwa kilka słów, a \"delete everything\" lub \"scratch everything\" czyści dyktando. Wyłącz, aby zachować je jako zwykłe słowa."
       },
       "previewBeforePaste": {
         "title": "Podgląd przed wklejeniem",
@@ -659,7 +664,7 @@
       },
       "numberFormat": {
         "title": "Mówione liczby",
-        "description": "Zapisuje mówione liczby jako cyfry, więc \"one eight zero one\" zostanie wklejone jako 1801. \"Jak transkrybowano\" zachowuje liczby tak, jak wypowiedziano; Smart zamienia także złożone liczebniki porządkowe i pojedyncze liczby od jedenastu w górę.",
+        "description": "Zapisuje mówione liczby jako cyfry, więc \"one eight zero one\" zostanie wklejone jako 1801. Konwersja rozpoznaje słowne liczby w języku angielskim i hindi (w tym hinglish); w innych językach liczby pozostają wypowiedziane słownie. \"Jak transkrybowano\" zachowuje liczby tak, jak wypowiedziano; Smart zamienia także złożone liczebniki porządkowe i pojedyncze liczby od jedenastu w górę.",
         "options": {
           "asTranscribed": "Jak w transkrypcji",
           "digits": "Cyfry",
@@ -930,6 +935,7 @@
       "empty": "Brak transkrypcji. Rozpocznij nagrywanie, aby zbudować historię!",
       "copyToClipboard": "Kopiuj transkrypcję do schowka",
       "copyError": "Nie udało się skopiować transkrypcji do schowka.",
+      "savedToggleError": "Nie udało się zaktualizować stanu zapisania.",
       "save": "Zapisz transkrypcję",
       "unsave": "Usuń z zapisanych",
       "delete": "Usuń wpis",
@@ -948,7 +954,8 @@
       },
       "viaPostProcess": "przez {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Pokaż zmiany",
-      "hideChanges": "Ukryj zmiany"
+      "hideChanges": "Ukryj zmiany",
+      "dbRecoveredNotice": "Baza danych historii transkrypcji była nieczytelna, więc rozpoczęto nową. Poprzednia baza danych została zachowana jako {{file}}."
     },
     "debug": {
       "title": "Debugowanie",
@@ -1191,6 +1198,8 @@
       "runHint_many": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "runHint_other": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "running": "Uruchamianie...",
+      "cancel": "Anuluj",
+      "cancelledCard": "Anulowano przed rozpoczęciem tego uruchomienia.",
       "rerun": "Uruchom ponownie",
       "latency": "{{ms}} ms",
       "rawKept": "Silnik nie powiódł się lub został pominięty, więc surowa transkrypcja zostałaby zachowana.",
@@ -1280,6 +1289,8 @@
     "recordingFailed": "Nie udało się rozpocząć nagrywania: {{error}}",
     "modelLoadFailed": "Nie udało się załadować modelu: {{model}}",
     "modelLoadFailedUnknown": "nieznany model",
+    "modelLoadFailedMemoryGate": "Za mało wolnej pamięci, aby wczytać {{model}}: potrzeba ok. {{needed}}, dostępne ok. {{free}}.",
+    "modelLoadFailedDetail": "Model nie został zmieniony. Przyczyna techniczna znajduje się w pliku dziennika.",
     "modelFallbackTitle": "Mało pamięci",
     "modelFallback": "Przełączono na {{model}} dla tego dyktanda",
     "pasteFailedTitle": "Nie udało się wkleić tekstu",
@@ -1410,6 +1421,7 @@
     "serverStopped": "Mac zatrzymał serwer towarzyszący.",
     "reconnect": "Połącz ponownie",
     "holdToTalk": "Przytrzymaj, aby mówić",
+    "holdOrToggleToTalk": "Przytrzymaj, aby mówić, dotknij, aby zablokować",
     "tapToTalk": "Dotknij, aby mówić",
     "release": "Puść, aby zakończyć",
     "tapToStop": "Dotknij, aby zatrzymać",

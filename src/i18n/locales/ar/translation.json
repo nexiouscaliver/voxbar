@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ الاختصارات محجوبة بواسطة Secure Input",
     "postProcessPrompt": "مطالبة ما بعد المعالجة"
   },
+  "trayCopyOutcome": {
+    "copied": "تم نسخ النص إلى الحافظة.",
+    "empty": "لا يوجد ما يمكن نسخه بعد.",
+    "failed": "تعذّر نسخ النص إلى الحافظة."
+  },
   "sidebar": {
     "general": "عام",
     "commands": "الأوامر",
@@ -586,7 +591,7 @@
       },
       "voiceDeletion": {
         "title": "أوامر الحذف الصوتي",
-        "description": "تحذف \"scratch that\" و\"delete that\" و\"remove that\" الكلمة السابقة، وتحذف \"delete last three words\" عدة كلمات، وتمسح \"delete everything\" أو \"start over\" الإملاء بالكامل. أطفئه لتبقى كلمات عادية."
+        "description": "تحذف \"scratch that\" و\"delete that\" و\"remove that\" الكلمة السابقة، وتحذف \"delete last three words\" عدة كلمات، وتمسح \"delete everything\" أو \"scratch everything\" الإملاء بالكامل. أطفئه لتبقى كلمات عادية."
       },
       "previewBeforePaste": {
         "title": "معاينة قبل اللصق",
@@ -603,7 +608,7 @@
       },
       "numberFormat": {
         "title": "الأرقام المنطوقة",
-        "description": "يكتب أرقام الكلام المنطوق كأرقام، فيُلصق \"one eight zero one\" كـ 1801. \"كما نُطق\" يبقي الأرقام كما نُطقت؛ ويحوّل Smart أيضاً الأعداد الترتيبية المركبة والأرقام المفردة من أحد عشر فأعلى.",
+        "description": "يكتب أرقام الكلام المنطوق كأرقام، فيُلصق \"one eight zero one\" كـ 1801. يتعرّف التحويل على الأرقام المنطوقة بالإنجليزية والهندية (بما في ذلك الهندية المكتوبة بالحروف اللاتينية)؛ وفي اللغات الأخرى تبقى الأرقام كما نُطقت. \"كما نُطق\" يبقي الأرقام كما نُطقت؛ ويحوّل Smart أيضاً الأعداد الترتيبية المركبة والأرقام المفردة من أحد عشر فأعلى.",
         "options": {
           "asTranscribed": "كما نُسخ",
           "digits": "أرقام",
@@ -878,6 +883,7 @@
       "empty": "!لا يوجد تفريغ صوتي بعد. ابدأ التسجيل لبناء سجلك",
       "copyToClipboard": "نسخ التفريغ إلى الحافظة",
       "copyError": "تعذر نسخ التفريغ إلى الحافظة.",
+      "savedToggleError": "تعذّر تحديث حالة الحفظ.",
       "save": "حفظ التفريغ",
       "unsave": "إزالة من المحفوظات",
       "delete": "حذف الإدخال",
@@ -896,7 +902,8 @@
       },
       "viaPostProcess": "عبر {{model}} · {{prompt}} · {{outcome}} · {{latency}} م.ث",
       "viewChanges": "عرض التغييرات",
-      "hideChanges": "إخفاء التغييرات"
+      "hideChanges": "إخفاء التغييرات",
+      "dbRecoveredNotice": "تعذر قراءة قاعدة بيانات سجل النسخ لديك، لذلك تم بدء قاعدة جديدة. تم الاحتفاظ بقاعدة البيانات السابقة باسم {{file}}."
     },
     "debug": {
       "title": "تصحيح الأخطاء",
@@ -1199,6 +1206,8 @@
       "runHint_many": "{{count}} زوجًا من القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
       "runHint_other": "{{count}} من أزواج القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
       "running": "قيد التشغيل...",
+      "cancel": "إلغاء",
+      "cancelledCard": "أُلغي قبل بدء هذه التشغيلة.",
       "rerun": "إعادة التشغيل",
       "latency": "{{ms}} مللي ثانية",
       "rawKept": "فشل المحرك أو تم تخطيه، لذا سيُحتفظ بالنص المكتوب الخام.",
@@ -1292,6 +1301,8 @@
     "recordingFailed": "فشل في بدء التسجيل: {{error}}",
     "modelLoadFailed": "فشل في تحميل النموذج: {{model}}",
     "modelLoadFailedUnknown": "نموذج غير معروف",
+    "modelLoadFailedMemoryGate": "لا توجد ذاكرة حرة كافية لتحميل {{model}}: يحتاج نحو {{needed}}، والمتاح نحو {{free}}.",
+    "modelLoadFailedDetail": "لم يتغير النموذج. السبب التقني موجود في ملف السجل.",
     "modelFallbackTitle": "ذاكرة منخفضة",
     "modelFallback": "تم التبديل إلى {{model}} لهذا الإملاء",
     "pasteFailedTitle": "فشل لصق النص",
@@ -1422,6 +1433,7 @@
     "serverStopped": "أوقف الـ Mac خادم المرافقة.",
     "reconnect": "إعادة الاتصال",
     "holdToTalk": "استمر بالضغط للكلام",
+    "holdOrToggleToTalk": "استمر بالضغط للكلام، وانقر للقفل",
     "tapToTalk": "انقر للكلام",
     "release": "حرر للإنهاء",
     "tapToStop": "انقر للإيقاف",

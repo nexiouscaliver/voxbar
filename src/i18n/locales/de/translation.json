@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Tastenkürzel durch Secure Input blockiert",
     "postProcessPrompt": "Nachbearbeitungs-Prompt"
   },
+  "trayCopyOutcome": {
+    "copied": "Das Diktat wurde in die Zwischenablage kopiert.",
+    "empty": "Es gibt noch nichts zu kopieren.",
+    "failed": "Das Diktat konnte nicht in die Zwischenablage kopiert werden."
+  },
   "sidebar": {
     "general": "Allgemein",
     "commands": "Befehle",
@@ -642,7 +647,7 @@
       },
       "voiceDeletion": {
         "title": "Sprachlöschbefehle",
-        "description": "\"scratch that\", \"delete that\" und \"remove that\" löschen das vorherige Wort, \"delete last three words\" löscht mehrere, und \"delete everything\" oder \"start over\" löscht das gesamte Diktat. Ausschalten, um sie als normale Wörter zu behalten."
+        "description": "\"scratch that\", \"delete that\" und \"remove that\" löschen das vorherige Wort, \"delete last three words\" löscht mehrere, und \"delete everything\" oder \"scratch everything\" löscht das gesamte Diktat. Ausschalten, um sie als normale Wörter zu behalten."
       },
       "previewBeforePaste": {
         "title": "Vorschau vor dem Einfügen",
@@ -659,7 +664,7 @@
       },
       "numberFormat": {
         "title": "Gesprochene Zahlen",
-        "description": "Schreibt gesprochene Zahlwörter als Ziffern, sodass \"one eight zero one\" als 1801 eingefügt wird. \"Wie transkribiert\" behält Zahlen wie gesprochen; Smart wandelt zusätzlich zusammengesetzte Ordinalzahlen und Einzelzahlen ab elf um.",
+        "description": "Schreibt gesprochene Zahlwörter als Ziffern, sodass \"one eight zero one\" als 1801 eingefügt wird. Die Umwandlung kennt englische und hindische Zahlwörter (einschließlich Hinglish); in anderen Sprachen bleiben Zahlen wie gesprochen. \"Wie transkribiert\" behält Zahlen wie gesprochen; Smart wandelt zusätzlich zusammengesetzte Ordinalzahlen und Einzelzahlen ab elf um.",
         "options": {
           "asTranscribed": "Wie transkribiert",
           "digits": "Ziffern",
@@ -926,6 +931,7 @@
       "empty": "Noch keine Transkriptionen. Starte eine Aufnahme, um deinen Verlauf aufzubauen!",
       "copyToClipboard": "Transkription in Zwischenablage kopieren",
       "copyError": "Transkription konnte nicht in die Zwischenablage kopiert werden.",
+      "savedToggleError": "Gespeichert-Status konnte nicht aktualisiert werden.",
       "save": "Transkription speichern",
       "unsave": "Aus Gespeicherten entfernen",
       "delete": "Eintrag löschen",
@@ -944,7 +950,8 @@
       },
       "viaPostProcess": "über {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Änderungen anzeigen",
-      "hideChanges": "Änderungen ausblenden"
+      "hideChanges": "Änderungen ausblenden",
+      "dbRecoveredNotice": "Die Datenbank Ihres Transkriptionsverlaufs war unlesbar, daher wurde eine neue gestartet. Die vorherige Datenbank wurde als {{file}} aufbewahrt."
     },
     "debug": {
       "title": "Debug",
@@ -1183,6 +1190,8 @@
       "runHint_one": "1 Prompt auf 1 Engine. Es wird nichts eingetippt oder gespeichert.",
       "runHint_other": "{{count}} Prompt-Engine-Paare. Es wird nichts eingetippt oder gespeichert.",
       "running": "Wird ausgeführt...",
+      "cancel": "Abbrechen",
+      "cancelledCard": "Abgebrochen, bevor dieser Lauf startete.",
       "rerun": "Erneut ausführen",
       "latency": "{{ms}} ms",
       "rawKept": "Die Engine ist fehlgeschlagen oder wurde übersprungen, daher würde das rohe Transkript behalten.",
@@ -1268,6 +1277,8 @@
     "recordingFailed": "Aufnahme konnte nicht gestartet werden: {{error}}",
     "modelLoadFailed": "Modell konnte nicht geladen werden: {{model}}",
     "modelLoadFailedUnknown": "unbekanntes Modell",
+    "modelLoadFailedMemoryGate": "Nicht genug freier Speicher, um {{model}} zu laden: benötigt etwa {{needed}}, etwa {{free}} frei.",
+    "modelLoadFailedDetail": "Das Modell wurde nicht geändert. Der technische Grund steht in der Protokolldatei.",
     "modelFallbackTitle": "Wenig Speicher",
     "modelFallback": "Für diese Diktation wurde zu {{model}} gewechselt",
     "pasteFailedTitle": "Text konnte nicht eingefügt werden",
@@ -1398,6 +1409,7 @@
     "serverStopped": "Der Mac hat den Begleitserver gestoppt.",
     "reconnect": "Erneut verbinden",
     "holdToTalk": "Zum Sprechen halten",
+    "holdOrToggleToTalk": "Zum Sprechen halten, zum Sperren tippen",
     "tapToTalk": "Tippen zum Sprechen",
     "release": "Loslassen zum Beenden",
     "tapToStop": "Tippen zum Stoppen",

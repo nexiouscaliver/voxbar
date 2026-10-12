@@ -94,6 +94,7 @@ const ALL_NOTICE_CODES = [
   "transcription_failed",
   "paste_failed",
   "model_load_failed",
+  "model_load_failed_memory_gate",
   "model_fallback",
   "post_process_memory_gate",
   "post_process_download_missing",
@@ -120,6 +121,7 @@ const ALL_NOTICE_CODES = [
   "companion_session_capped",
   "companion_zero_audio",
   "command_mode_no_session",
+  "history_db_recovered",
 ] as const;
 
 // The three orphaned Info codes (AUD-02 symptom 1) plus the dual-toasting
@@ -171,12 +173,17 @@ const UNROUTED = [
   "transcription_failed",
   "paste_failed",
   "model_load_failed",
+  "model_load_failed_memory_gate",
   "post_process_memory_gate",
   "post_process_engine_failed",
   "post_process_timeout",
   "post_process_length_guard",
   "post_process_output_invalid",
   "post_process_cloud_failed",
+  // Fleet pass 2: the frontend-only boot code (KB-179). The event router
+  // never sees it (it never rides the overlay-notice event); its surfaces
+  // are driven by historyDbRecovery.ts through the channel table.
+  "history_db_recovered",
 ];
 
 // Test self-check: the policy groups partition the notice universe exactly.
@@ -420,5 +427,39 @@ assert.deepEqual(
   [...CARD_GATED, ...LEGACY_SURFACE, ...ALWAYS_TOAST, ...CAP].sort(),
   "ROUTED_NOTICE_CODES must be exactly the 18 non-unrouted codes (12 pre-AUD-02 + model_fallback, post_process_download_missing, post_process_too_long, companion_server_failed + round 7's post_process_not_configured and post_process_unchanged)",
 );
+
+// KB-087: tray copy outcomes notify only while the notifications master
+// toggle is on. The outcome group sub-toggle is deliberately NOT consulted:
+// a copy confirmation is neither an error nor a phone-session outcome, and
+// the master toggle is the one the tray user turned on or off.
+{
+  const { trayCopyOutcomeDispatch } = routing as unknown as {
+    trayCopyOutcomeDispatch: (prefs: {
+      enabled: boolean;
+      outcomes: boolean;
+    }) => { notify: boolean };
+  };
+  assert.deepEqual(trayCopyOutcomeDispatch({ enabled: true, outcomes: true }), {
+    notify: true,
+  });
+  assert.deepEqual(
+    trayCopyOutcomeDispatch({ enabled: true, outcomes: false }),
+    {
+      notify: true,
+    },
+  );
+  assert.deepEqual(
+    trayCopyOutcomeDispatch({ enabled: false, outcomes: true }),
+    {
+      notify: false,
+    },
+  );
+  assert.deepEqual(
+    trayCopyOutcomeDispatch({ enabled: false, outcomes: false }),
+    {
+      notify: false,
+    },
+  );
+}
 
 console.log("noticeRouting tests passed");

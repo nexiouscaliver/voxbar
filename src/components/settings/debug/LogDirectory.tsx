@@ -69,12 +69,15 @@ export const LogDirectory: React.FC<LogDirectoryProps> = ({
       grouped={grouped}
       layout="stacked"
     >
+      {/* KB-092: tokenized skeleton and error block (mid-gray washes plus the
+          semantic error pair, as in AppDataDirectory), not the hardcoded
+          light-theme grays and red wash. */}
       {loading ? (
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-100 rounded" />
+          <div className="h-8 bg-mid-gray/10 rounded" />
         </div>
       ) : error ? (
-        <div className="p-3 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+        <div className="p-3 bg-error/10 border border-error/30 rounded text-xs text-error">
           {t("errors.loadDirectory", { error })}
         </div>
       ) : (

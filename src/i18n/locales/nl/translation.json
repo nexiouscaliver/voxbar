@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Sneltoetsen geblokkeerd door Secure Input",
     "postProcessPrompt": "Postprocesprompt"
   },
+  "trayCopyOutcome": {
+    "copied": "De transcriptie is naar het klembord gekopieerd.",
+    "empty": "Er is nog niets om te kopiëren.",
+    "failed": "Kon de transcriptie niet naar het klembord kopiëren."
+  },
   "sidebar": {
     "general": "Algemeen",
     "commands": "Opdrachten",
@@ -642,7 +647,7 @@
       },
       "voiceDeletion": {
         "title": "Spraakopdrachten voor verwijderen",
-        "description": "\"scratch that\", \"delete that\" en \"remove that\" verwijderen het vorige woord, \"delete last three words\" verwijdert er meerdere, en \"delete everything\" of \"start over\" wist de dictee. Zet uit om ze als gewone woorden te behouden."
+        "description": "\"scratch that\", \"delete that\" en \"remove that\" verwijderen het vorige woord, \"delete last three words\" verwijdert er meerdere, en \"delete everything\" of \"scratch everything\" wist de dictee. Zet uit om ze als gewone woorden te behouden."
       },
       "previewBeforePaste": {
         "title": "Voorvertoning vóór het plakken",
@@ -659,7 +664,7 @@
       },
       "numberFormat": {
         "title": "Gesproken getallen",
-        "description": "Schrijft gesproken getalwoorden als cijfers, zodat \"one eight zero one\" als 1801 wordt geplakt. \"Zo getranscribeerd\" laat getallen zoals gesproken; Smart zet ook samengestelde rangtelwoorden en losse getallen vanaf elf om.",
+        "description": "Schrijft gesproken getalwoorden als cijfers, zodat \"one eight zero one\" als 1801 wordt geplakt. De conversie kent Engelse en Hindi-getalwoorden (inclusief Hinglish); in andere talen blijven cijfers zoals gesproken. \"Zo getranscribeerd\" laat getallen zoals gesproken; Smart zet ook samengestelde rangtelwoorden en losse getallen vanaf elf om.",
         "options": {
           "asTranscribed": "Zoals getranscribeerd",
           "digits": "Cijfers",
@@ -926,6 +931,7 @@
       "empty": "Nog geen transcripties. Start met opnemen om je geschiedenis op te bouwen!",
       "copyToClipboard": "Transcriptie naar klembord kopiëren",
       "copyError": "Transcriptie naar het klembord kopiëren mislukt.",
+      "savedToggleError": "Kon de opgeslagen status niet bijwerken.",
       "save": "Transcriptie opslaan",
       "unsave": "Verwijderen uit opgeslagen",
       "delete": "Item verwijderen",
@@ -944,7 +950,8 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Wijzigingen bekijken",
-      "hideChanges": "Wijzigingen verbergen"
+      "hideChanges": "Wijzigingen verbergen",
+      "dbRecoveredNotice": "De database van uw transcriptiegeschiedenis was onleesbaar, dus er is een nieuwe gestart. De vorige database is bewaard als {{file}}."
     },
     "debug": {
       "title": "Probleemoplossing",
@@ -1183,6 +1190,8 @@
       "runHint_one": "1 prompt op 1 engine. Er wordt niets getypt of opgeslagen.",
       "runHint_other": "{{count}} prompt-engineparen. Er wordt niets getypt of opgeslagen.",
       "running": "Bezig met uitvoeren...",
+      "cancel": "Annuleren",
+      "cancelledCard": "Geannuleerd voordat deze run begon.",
       "rerun": "Opnieuw uitvoeren",
       "latency": "{{ms}} ms",
       "rawKept": "De engine mislukte of werd overgeslagen, dus de ruwe transcriptie zou behouden blijven.",
@@ -1271,6 +1280,8 @@
     "recordingFailed": "Opname starten mislukt: {{error}}",
     "modelLoadFailed": "Model laden mislukt: {{model}}",
     "modelLoadFailedUnknown": "onbekend model",
+    "modelLoadFailedMemoryGate": "Niet genoeg vrij geheugen om {{model}} te laden: ongeveer {{needed}} nodig, circa {{free}} vrij.",
+    "modelLoadFailedDetail": "Het model is niet gewijzigd. De technische reden staat in het logbestand.",
     "modelFallbackTitle": "Te weinig geheugen",
     "modelFallback": "Overgeschakeld naar {{model}} voor deze dicteeropname",
     "pasteFailedTitle": "Tekst plakken mislukt",
@@ -1398,6 +1409,7 @@
     "serverStopped": "De Mac stopte de companion-server.",
     "reconnect": "Opnieuw verbinden",
     "holdToTalk": "Houd ingedrukt om te praten",
+    "holdOrToggleToTalk": "Houd ingedrukt om te praten, tik om te vergrendelen",
     "tapToTalk": "Tik om te praten",
     "release": "Laat los om te stoppen",
     "tapToStop": "Tik om te stoppen",

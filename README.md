@@ -14,17 +14,17 @@ into whatever app has focus.
 
 ## At a glance
 
-| Capability          | What you get                                                                                 |
-| ------------------- | -------------------------------------------------------------------------------------------- |
-| Streaming dictation | Words appear on the overlay as you speak; paste on release                                   |
-| Models              | 69-model catalog plus any public Hugging Face GGUF; streaming marked                         |
-| Spoken commands     | 30 built-in commands, editable phrase matrix, command mode                                   |
-| Post-processing     | Local LLM, Apple Intelligence, or 8 cloud providers; prompt templates, Prompt Studio, diffs  |
-| Companion phone     | Phone as mic and trigger over Wi-Fi or Tailscale; transcript to the Mac or back to the phone |
-| Notifications       | Persistent macOS notifications for errors and outcomes, with an in-app log                   |
-| Tray                | Live status, model RAM, recent dictations, companion state, model and prompt switching       |
-| Memory guard        | Refuses loads that would not fit; auto-fallback to a smaller model you have                  |
-| Interface           | 26 languages including right-to-left layouts                                                 |
+| Capability          | What you get                                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Streaming dictation | Words appear on the overlay as you speak; paste on release                                                             |
+| Models              | 69-model catalog plus any public Hugging Face GGUF; streaming marked                                                   |
+| Spoken commands     | 30 built-in commands, editable phrase matrix, command mode                                                             |
+| Post-processing     | Local LLM, Apple Intelligence, or 8 cloud providers; prompt templates, Prompt Studio, diffs                            |
+| Companion phones    | Phones as mic and trigger over Wi-Fi or Tailscale, each in its own session; transcript to the Mac or back to the phone |
+| Notifications       | Persistent macOS notifications for errors and outcomes, with an in-app log                                             |
+| Tray                | Live status, model RAM, recent dictations, companion state, model and prompt switching                                 |
+| Memory guard        | Refuses loads that would not fit; auto-fallback to a smaller model you have                                            |
+| Interface           | 26 languages including right-to-left layouts                                                                           |
 
 ## Quick start
 
@@ -233,8 +233,13 @@ keeps its recording so you can retry it from History.
 Your phone can be the microphone and the trigger, with your Mac as the
 engine. Turn on Companion Devices in Settings, Advanced, Experimental, scan
 the QR code with the phone camera, and the phone opens a web page with one
-big talk button. No app to install; the page is served by your Mac, in all
-26 app languages.
+big talk button. Pair more than one phone: each runs its own session with
+its own recorder and recent list, so two phones can dictate at the same
+time and one stopping never cuts the other off. Each phone keeps a
+persistent identity in its browser, shown as a short tag after the
+platform name (iPhone#7f3a), so even two phones that report the same name
+never share a session or a recent list. No app to install; the
+page is served by your Mac, in all 26 app languages.
 
 The phone page carries per-session controls:
 
@@ -246,30 +251,40 @@ The phone page carries per-session controls:
 - The choice persists on the phone and is armed at the moment you press,
   so a session that is already recording keeps the shape it started with.
 - Hold to talk, tap to lock, or toggle, matching your keyboard shortcut
-  behavior. A recent list shows the last five phone dictations with copy
-  buttons.
+  behavior. A recent list on each phone shows that phone's last five
+  dictations with copy buttons.
 
-The same session rules apply as the keyboard: the phone and the keyboard
-arbitrate over one recording, and a press that gets swallowed shows a
-notice on both surfaces. Audio rides the same path the built-in microphone
-uses, so the overlay, live text, voice commands, post-processing, and
-paste behave the same. If the phone leaves the network mid-dictation, the
-session finishes with everything captured up to that moment. A session
-that ends with no audio at all is called out by name on both surfaces
-rather than silently pasting nothing. Sessions cap at 15 minutes with
-auto-finalize, and a microphone failure on the phone shows an inline error
-with a retry button instead of recording silence.
+Each phone runs its own recording independently: two phones can dictate at
+once, and one phone stopping, dropping off the network, or merely watching
+never cuts another session short. The Mac's keyboard still arbitrates with
+companion sessions, because the overlay and the paste surface are single
+things: a press that arrives while the other side is already recording is
+swallowed with a notice on both surfaces. Audio rides the same path the
+built-in microphone uses, so the overlay, live text, voice commands,
+post-processing, and paste behave the same. When two sessions overlap in
+time, both record and transcribe at stop instead of streaming live text.
+Esc cancels the Mac's own recording first; with none live it stops the
+most recently started phone session, and the other phones keep recording.
+If the phone leaves the network mid-dictation, the session finishes with
+everything captured up to that moment. A session that ends with no audio
+at all is called out by name on both surfaces rather than silently pasting
+nothing. Sessions cap at 15 minutes with auto-finalize, and a microphone
+failure on the phone shows an inline error with a retry button instead of
+recording silence.
 
 ### Network and listener control
 
 Settings shows every candidate network interface with its OS name and a
 classification: LAN, Tailscale, or VPN. Automatic picks the LAN first; a
 phone on your tailnet works too, because the Tailscale CGNAT range
-(100.64.0.0/10) is a first-class interface, so pairing works over
-Tailscale with no shared Wi-Fi. You can also pin a specific interface, set
-the port, and override the advertised host or IP for proxies and odd
-networks. When the running server no longer matches the saved
-configuration, Settings says a restart is pending and offers the button.
+(100.64.0.0/10) on a utun interface is a first-class candidate, so pairing
+works over Tailscale with no shared Wi-Fi. The range alone is not treated
+as proof: a carrier network handing out 100.64.x.x leases on your physical
+interface is labeled plain LAN and pairs on its /24 like any LAN. You can
+also pin a specific interface, set the port, and override the advertised
+host or IP for proxies and odd networks. When the running server no longer
+matches the saved configuration, Settings says a restart is pending and
+offers the button.
 
 TLS options: the built-in self-signed certificate (fingerprint shown in
 Settings so you can check the browser warning the first time), or your own
@@ -282,6 +297,14 @@ input is capped at 2x realtime against ring flooding, and off by default
 means no listener and no threads until you switch it on. Reset pairing any
 time to revoke phones. Companion devices need macOS this cycle; the phone
 page works in mobile Safari and Chrome.
+
+Security note on Tailscale scope: binding the companion server to a
+Tailscale interface issues the pairing token for the entire tailnet, not
+just your devices. On a shared or organization tailnet, every member of
+that tailnet who can reach your Mac and gets the token (or reads it off a
+QR you show) can pair as a microphone. Treat the token like a password
+into your Mac's dictation, prefer a LAN bind when the phone is on your
+Wi-Fi, and reset pairing whenever a device or person leaves the tailnet.
 
 ## Notifications
 
@@ -486,6 +509,16 @@ picker in Settings, Advanced, Experimental, Companion Devices; a chosen
 interface that is no longer present is reported there instead of silently
 rebinding. macOS may also have prompted to allow incoming connections the
 first time; allow it, or phones cannot reach this Mac.
+
+**The history database cannot be read.** If the history database is ever
+corrupted or unreadable, VoxBar does not fail to launch. It keeps the
+broken file beside the new one as `history.db.corrupt` (with a timestamp
+suffix when that name is already taken), starts a fresh history at the
+same location, and posts one persistent Notification Center notice naming
+the quarantined file so you can inspect it or delete it. The notice (and
+its notification-log row) follows the system-notifications master toggle,
+so with notifications off the quarantine still happens, silently. Your
+saved audio WAVs are not touched.
 
 ## Contributing
 

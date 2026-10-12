@@ -26,7 +26,7 @@ pub fn set_model_unload_timeout(app: AppHandle, timeout: ModelUnloadTimeout) {
     // checkmark and Custom… hint) - re-sync so the tray reflects the new
     // value now instead of after the next unrelated rebuild (the KB-031/
     // 034/188 rule every other menu-visible setter follows).
-    crate::tray::update_tray_menu(&app);
+    let _ = crate::tray::update_tray_menu(&app);
 }
 
 /// Set the total-request timeout for cloud post-process calls, in seconds.
@@ -109,7 +109,7 @@ pub fn set_model_unload_timeout_custom_seconds(app: AppHandle, seconds: u64) -> 
 
     // KB-200: same rule as set_model_unload_timeout - the Custom value
     // drives the "Unload After" checkmark/hint through MenuInputs.
-    crate::tray::update_tray_menu(&app);
+    let _ = crate::tray::update_tray_menu(&app);
 
     Ok(())
 }

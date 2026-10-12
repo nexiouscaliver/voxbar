@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Atajos bloqueados por Secure Input",
     "postProcessPrompt": "Prompt de posprocesado"
   },
+  "trayCopyOutcome": {
+    "copied": "El dictado se copió al portapapeles.",
+    "empty": "Todavía no hay nada que copiar.",
+    "failed": "No se pudo copiar el dictado al portapapeles."
+  },
   "sidebar": {
     "general": "General",
     "commands": "Comandos",
@@ -642,7 +647,7 @@
       },
       "voiceDeletion": {
         "title": "Comandos de borrado por voz",
-        "description": "\"scratch that\", \"delete that\" y \"remove that\" borran la palabra anterior, \"delete last three words\" borra varias, y \"delete everything\" o \"start over\" borra el dictado. Desactívalo para mantenerlas como palabras normales."
+        "description": "\"scratch that\", \"delete that\" y \"remove that\" borran la palabra anterior, \"delete last three words\" borra varias, y \"delete everything\" o \"scratch everything\" borra el dictado. Desactívalo para mantenerlas como palabras normales."
       },
       "previewBeforePaste": {
         "title": "Vista previa antes de pegar",
@@ -659,7 +664,7 @@
       },
       "numberFormat": {
         "title": "Números hablados",
-        "description": "Escribe los números hablados como dígitos, de modo que \"one eight zero one\" se pegue como 1801. \"Tal como se transcribió\" mantiene los números tal como se dijeron; Smart también convierte ordinales compuestos y números sueltos a partir de once.",
+        "description": "Escribe los números hablados como dígitos, de modo que \"one eight zero one\" se pegue como 1801. La conversión reconoce los números hablados en inglés e hindi (incluido el hinglish); en otros idiomas los números se mantienen como se dijeron. \"Tal como se transcribió\" mantiene los números tal como se dijeron; Smart también convierte ordinales compuestos y números sueltos a partir de once.",
         "options": {
           "asTranscribed": "Tal como se transcribió",
           "digits": "Dígitos",
@@ -926,6 +931,7 @@
       "empty": "Aún no hay transcripciones. ¡Comienza a grabar para crear tu historial!",
       "copyToClipboard": "Copiar transcripción al portapapeles",
       "copyError": "No se pudo copiar la transcripción al portapapeles.",
+      "savedToggleError": "No se pudo actualizar el estado de guardado.",
       "save": "Guardar transcripción",
       "unsave": "Eliminar de guardados",
       "delete": "Eliminar entrada",
@@ -944,7 +950,8 @@
       },
       "viaPostProcess": "vía {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Ver cambios",
-      "hideChanges": "Ocultar cambios"
+      "hideChanges": "Ocultar cambios",
+      "dbRecoveredNotice": "La base de datos del historial de transcripciones no se podía leer, así que se inició una nueva. La base de datos anterior se conservó como {{file}}."
     },
     "debug": {
       "title": "Depuración",
@@ -1183,6 +1190,8 @@
       "runHint_one": "1 prompt en 1 motor. No se escribe ni se guarda nada.",
       "runHint_other": "{{count}} pares de prompt y motor. No se escribe ni se guarda nada.",
       "running": "Ejecutando...",
+      "cancel": "Cancelar",
+      "cancelledCard": "Se canceló antes de que comenzara esta ejecución.",
       "rerun": "Reejecutar",
       "latency": "{{ms}} ms",
       "rawKept": "El motor falló o se omitió, así que se conservaría la transcripción sin procesar.",
@@ -1268,6 +1277,8 @@
     "recordingFailed": "Error al iniciar la grabación: {{error}}",
     "modelLoadFailed": "Error al cargar el modelo: {{model}}",
     "modelLoadFailedUnknown": "modelo desconocido",
+    "modelLoadFailedMemoryGate": "No hay suficiente memoria libre para cargar {{model}}: necesita unos {{needed}} y hay unos {{free}} libres.",
+    "modelLoadFailedDetail": "El modelo no cambió. El motivo técnico está en el archivo de registro.",
     "modelFallbackTitle": "Memoria insuficiente",
     "modelFallback": "Se cambió a {{model}} para este dictado",
     "pasteFailedTitle": "Error al pegar el texto",
@@ -1398,6 +1409,7 @@
     "serverStopped": "El Mac detuvo el servidor acompañante.",
     "reconnect": "Reconectar",
     "holdToTalk": "Mantén pulsado para hablar",
+    "holdOrToggleToTalk": "Mantén pulsado para hablar, toca para bloquear",
     "tapToTalk": "Toca para hablar",
     "release": "Suelta para terminar",
     "tapToStop": "Toca para detener",

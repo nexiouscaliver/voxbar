@@ -178,3 +178,13 @@ jobs:
 
       - name: Check translations
         run: bun run check:translations
+
+      # KB-100's other half (the docs/quality-goldmine.md audits kept
+      # finding these green locally and absent here): the operator-voice
+      # and catalog-coverage gates must run in CI like check:translations,
+      # or a regression ships because nobody ran them.
+      - name: Check text style
+        run: bun run check:text-style
+
+      - name: Check model language coverage
+        run: bun run check:model-languages

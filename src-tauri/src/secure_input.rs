@@ -84,14 +84,14 @@ pub fn note_recorder_blocked(app: &AppHandle) {
     imp::note_recorder_blocked(app)
 }
 
-/// Register/unregister the dynamic Cancel binding through the Carbon fallback
-/// while a recording and sustained Secure Input overlap.
-pub fn register_cancel_fallback(app: &AppHandle) {
-    imp::register_cancel_fallback(app)
-}
-
-pub fn unregister_cancel_fallback(app: &AppHandle) {
-    imp::unregister_cancel_fallback(app)
+/// Mirror the cancel key's wanted state into the Carbon fallback: while a
+/// recording and sustained Secure Input overlap, the fallback shadows the
+/// dynamic Cancel binding. v1.6.2 fleet pass 2: the input is the ANY-session
+/// wanted boolean (the shortcut module's want SET folded), not the last
+/// register/unregister CALL - with overlapping pipelines, the first one to
+/// drain must not disarm the fallback while another session is still live.
+pub fn note_cancel_wanted(app: &AppHandle, wanted: bool) {
+    imp::note_cancel_wanted(app, wanted)
 }
 
 /// Synchronize Carbon fallback registrations with current settings and
@@ -631,21 +631,13 @@ mod imp {
         });
     }
 
-    pub fn register_cancel_fallback(app: &AppHandle) {
+    pub fn note_cancel_wanted(app: &AppHandle, wanted: bool) {
         let state = app.state::<SecureInputState>();
-        state.cancel_requested.store(true, Ordering::SeqCst);
+        state.cancel_requested.store(wanted, Ordering::SeqCst);
         // Without sustained Secure Input there are no Carbon shadows to
         // update. The monitor performs reconciliation when sustained mode is
         // entered or left, so spawning here would only race the normal tray
         // state transition for every recording start.
-        if state.is_sustained() {
-            schedule_reconcile(app);
-        }
-    }
-
-    pub fn unregister_cancel_fallback(app: &AppHandle) {
-        let state = app.state::<SecureInputState>();
-        state.cancel_requested.store(false, Ordering::SeqCst);
         if state.is_sustained() {
             schedule_reconcile(app);
         }
@@ -805,9 +797,7 @@ mod imp {
 
     pub fn note_recorder_blocked(_app: &AppHandle) {}
 
-    pub fn register_cancel_fallback(_app: &AppHandle) {}
-
-    pub fn unregister_cancel_fallback(_app: &AppHandle) {}
+    pub fn note_cancel_wanted(_app: &AppHandle, _wanted: bool) {}
 
     pub fn reconcile_fallback(_app: &AppHandle) {}
 

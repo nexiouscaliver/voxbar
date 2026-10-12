@@ -667,6 +667,32 @@ fn type_text_via_xdotool(text: &str) -> Result<(), DirectTypingFailure> {
     Ok(())
 }
 
+/// KB-018: build dotool's stdin script for `text`. dotool parses EACH stdin
+/// line as a command, so typing a multi-line transcript as one `type` line
+/// left every later line to be parsed as a command of its own: a transcript
+/// line like "key enter" would execute as a literal key press, and any
+/// other line became an unknown command dotool logged and skipped (the
+/// typed output silently lost everything after the first newline). The
+/// script splits the text on newlines: each line is one `type` command, and
+/// each newline becomes an explicit `key enter`, so the typed output
+/// reproduces the transcript line for line with no line ever interpreted
+/// as a command. Pure so the construction is pinnable on hosts without
+/// dotool (the typing call itself stays Linux-gated).
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+pub(crate) fn dotool_script_for_text(text: &str) -> String {
+    use std::fmt::Write as _;
+
+    let mut script = String::with_capacity(text.len() + text.len() / 8 + 16);
+    let mut lines = text.split('\n').peekable();
+    while let Some(line) = lines.next() {
+        let _ = writeln!(script, "type {line}");
+        if lines.peek().is_some() {
+            script.push_str("key enter\n");
+        }
+    }
+    script
+}
+
 /// Type text directly via dotool (works on both Wayland and X11 via uinput).
 ///
 /// dotool reads commands from stdin, so the failure shape is richer than the
@@ -686,10 +712,14 @@ fn type_text_via_dotool(text: &str) -> Result<(), DirectTypingFailure> {
         .spawn()
         .map_err(|e| DirectTypingFailure::Spawn(format!("Failed to spawn dotool: {}", e)))?;
 
-    // dotool uses "type <text>" command. The write result is recorded, not
-    // returned: the child's exit evidence below decides the phase.
+    // KB-018: the whole script (one `type` command per line plus an
+    // explicit `key enter` per newline) is written at once; dotool parses
+    // each stdin line as a command, so no transcript line can ever be
+    // interpreted as one. The write result is recorded, not returned: the
+    // child's exit evidence below decides the phase.
+    let script = dotool_script_for_text(text);
     let write_failed = if let Some(mut stdin) = child.stdin.take() {
-        writeln!(stdin, "type {}", text).is_err()
+        stdin.write_all(script.as_bytes()).is_err()
     } else {
         false
     };
@@ -1187,6 +1217,64 @@ mod tests {
             TypingLadderAction::Abort,
             "indeterminate must default to abort"
         );
+    }
+
+    /// KB-018 pin: the dotool stdin script. dotool parses each stdin line
+    /// as a command, so the script must keep every transcript line inside a
+    /// `type` argument and reproduce each newline as an explicit
+    /// `key enter`; a bare multi-line `type` left later lines to execute as
+    /// commands (a transcript line "key enter" would press Enter for real).
+    /// Static-only pin (this host has no dotool): the construction is a
+    /// pure function, so the exact script is asserted without spawning the
+    /// tool, on every platform.
+    #[test]
+    fn dotool_script_types_each_line_and_presses_enter_per_newline() {
+        // Single line: exactly the old one-line shape, nothing extra.
+        assert_eq!(dotool_script_for_text("hello world"), "type hello world\n");
+
+        // Multi-line: one type per line, key enter between them, in order.
+        assert_eq!(
+            dotool_script_for_text("first\nsecond\nthird"),
+            "type first\nkey enter\ntype second\nkey enter\ntype third\n"
+        );
+
+        // A transcript whose later line IS a dotool command stays data: it
+        // rides inside a type argument and can never execute.
+        assert_eq!(
+            dotool_script_for_text("note\nkey enter"),
+            "type note\nkey enter\ntype key enter\n"
+        );
+
+        // Empty lines are typed as empty type commands (dotool types
+        // nothing for them) while their newlines still press Enter.
+        assert_eq!(
+            dotool_script_for_text("a\n\nb"),
+            "type a\nkey enter\ntype \nkey enter\ntype b\n"
+        );
+
+        // A trailing newline still presses Enter at the end; the trailing
+        // empty type command types nothing.
+        assert_eq!(dotool_script_for_text("a\n"), "type a\nkey enter\ntype \n");
+
+        // Empty text degenerates to the old single empty type command.
+        assert_eq!(dotool_script_for_text(""), "type \n");
+
+        // No transcript line is ever handed to dotool as a bare command:
+        // every line of the script is exactly "type <content>" or
+        // "key enter".
+        for text in [
+            "plain",
+            "multi\nline\ntext",
+            "trailing newline\n",
+            "command-ish\nsleep 5\nclick",
+        ] {
+            for line in dotool_script_for_text(text).lines() {
+                assert!(
+                    line == "key enter" || line.starts_with("type "),
+                    "unexpected bare command {line:?} in the script for {text:?}"
+                );
+            }
+        }
     }
 
     #[cfg(target_os = "linux")]

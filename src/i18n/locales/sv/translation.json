@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Kortkommandon blockeras av Secure Input",
     "postProcessPrompt": "Efterbearbetningsprompt"
   },
+  "trayCopyOutcome": {
+    "copied": "Dikteringen har kopierats till urklippet.",
+    "empty": "Det finns inget att kopiera ännu.",
+    "failed": "Kunde inte kopiera dikteringen till urklippet."
+  },
   "sidebar": {
     "general": "Allmänt",
     "commands": "Kommandon",
@@ -642,7 +647,7 @@
       },
       "voiceDeletion": {
         "title": "Röstkommandon för borttagning",
-        "description": "\"scratch that\", \"delete that\" och \"remove that\" tar bort föregående ord, \"delete last three words\" tar bort flera, och \"delete everything\" eller \"start over\" rensar dikteringen. Stäng av för att behålla dem som vanliga ord."
+        "description": "\"scratch that\", \"delete that\" och \"remove that\" tar bort föregående ord, \"delete last three words\" tar bort flera, och \"delete everything\" eller \"scratch everything\" rensar dikteringen. Stäng av för att behålla dem som vanliga ord."
       },
       "previewBeforePaste": {
         "title": "Förhandsvisning före inklistring",
@@ -659,7 +664,7 @@
       },
       "numberFormat": {
         "title": "Dikterade tal",
-        "description": "Skriver uttalade talord som siffror, så att \"one eight zero one\" klistras in som 1801. \"Såsom transkriberat\" behåller tal såsom sagda; Smart konverterar även sammansatta ordningstal och enskilda tal från elva och uppåt.",
+        "description": "Skriver uttalade talord som siffror, så att \"one eight zero one\" klistras in som 1801. Konverteringen känner igen talade talord på engelska och hindi (inklusive hinglish); på andra språk behålls talen som sagda. \"Såsom transkriberat\" behåller tal såsom sagda; Smart konverterar även sammansatta ordningstal och enskilda tal från elva och uppåt.",
         "options": {
           "asTranscribed": "Som transkriberat",
           "digits": "Siffror",
@@ -926,6 +931,7 @@
       "empty": "Inga transkriptioner ännu. Börja spela in för att bygga upp din historik!",
       "copyToClipboard": "Kopiera transkription till urklipp",
       "copyError": "Det gick inte att kopiera transkriptionen till urklipp.",
+      "savedToggleError": "Kunde inte uppdatera sparadestatus.",
       "save": "Spara transkription",
       "unsave": "Ta bort från sparade",
       "delete": "Ta bort post",
@@ -944,7 +950,8 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Visa ändringar",
-      "hideChanges": "Dölj ändringar"
+      "hideChanges": "Dölj ändringar",
+      "dbRecoveredNotice": "Databasen för din transkriberingshistorik kunde inte läsas, så en ny har startats. Den tidigare databasen sparades som {{file}}."
     },
     "debug": {
       "title": "Felsökning",
@@ -1183,6 +1190,8 @@
       "runHint_one": "1 prompt på 1 motor. Inget skrivs eller sparas.",
       "runHint_other": "{{count}} prompt-motor-par. Inget skrivs eller sparas.",
       "running": "Kör...",
+      "cancel": "Avbryt",
+      "cancelledCard": "Avbröts innan denna körning startade.",
       "rerun": "Kör igen",
       "latency": "{{ms}} ms",
       "rawKept": "Motorn misslyckades eller hoppades över, så råtranskriptionen skulle behållas.",
@@ -1266,6 +1275,8 @@
     "recordingFailed": "Misslyckades med att starta inspelning: {{error}}",
     "modelLoadFailed": "Misslyckades med att ladda modell: {{model}}",
     "modelLoadFailedUnknown": "okänd modell",
+    "modelLoadFailedMemoryGate": "Inte tillräckligt med ledigt minne för att läsa in {{model}}: kräver cirka {{needed}}, cirka {{free}} ledigt.",
+    "modelLoadFailedDetail": "Modellen ändrades inte. Det tekniska skälet finns i loggfilen.",
     "modelFallbackTitle": "Lite minne",
     "modelFallback": "Växlade till {{model}} för denna diktering",
     "noInputDeviceTitle": "Ingen mikrofon hittades",
@@ -1398,6 +1409,7 @@
     "serverStopped": "Macen stoppade kompanionservern.",
     "reconnect": "Anslut igen",
     "holdToTalk": "Håll för att tala",
+    "holdOrToggleToTalk": "Håll för att tala, tryck för att låsa",
     "tapToTalk": "Tryck för att tala",
     "release": "Släpp för att sluta",
     "tapToStop": "Tryck för att sluta",

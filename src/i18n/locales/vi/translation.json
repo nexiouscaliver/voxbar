@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Phím tắt bị Secure Input chặn",
     "postProcessPrompt": "Câu lệnh hậu xử lý"
   },
+  "trayCopyOutcome": {
+    "copied": "Đã sao chép bản đọc vào bộ nhớ tạm.",
+    "empty": "Chưa có gì để sao chép.",
+    "failed": "Không thể sao chép bản đọc vào bộ nhớ tạm."
+  },
   "sidebar": {
     "general": "Chung",
     "commands": "Lệnh",
@@ -642,7 +647,7 @@
       },
       "voiceDeletion": {
         "title": "Lệnh xóa bằng giọng nói",
-        "description": "\"scratch that\", \"delete that\" và \"remove that\" xóa từ liền trước, \"delete last three words\" xóa nhiều từ, còn \"delete everything\" hoặc \"start over\" xóa toàn bộ bản đọc. Tắt để giữ chúng là từ thường."
+        "description": "\"scratch that\", \"delete that\" và \"remove that\" xóa từ liền trước, \"delete last three words\" xóa nhiều từ, còn \"delete everything\" hoặc \"scratch everything\" xóa toàn bộ bản đọc. Tắt để giữ chúng là từ thường."
       },
       "previewBeforePaste": {
         "title": "Xem trước trước khi dán",
@@ -659,7 +664,7 @@
       },
       "numberFormat": {
         "title": "Số nói",
-        "description": "Viết các từ số thành chữ số, nên \"one eight zero one\" được dán thành 1801. \"Như đã chuyển ghi\" giữ số như đã nói; Smart còn chuyển đổi số thứ tự ghép và các số đơn lẻ từ mười một trở lên.",
+        "description": "Viết các từ số thành chữ số, nên \"one eight zero one\" được dán thành 1801. Phép chuyển đổi nhận biết số đọc bằng tiếng Anh và tiếng Hindi (bao gồm Hinglish); các ngôn ngữ khác giữ số như đã đọc. \"Như đã chuyển ghi\" giữ số như đã nói; Smart còn chuyển đổi số thứ tự ghép và các số đơn lẻ từ mười một trở lên.",
         "options": {
           "asTranscribed": "Giữ nguyên bản chép",
           "digits": "Chữ số",
@@ -926,6 +931,7 @@
       "empty": "Chưa có bản ghi nào. Bắt đầu ghi âm để xây dựng lịch sử của bạn!",
       "copyToClipboard": "Sao chép bản ghi vào clipboard",
       "copyError": "Không thể sao chép bản ghi vào bộ nhớ tạm.",
+      "savedToggleError": "Không thể cập nhật trạng thái đã lưu.",
       "save": "Lưu bản ghi",
       "unsave": "Xóa khỏi đã lưu",
       "delete": "Xóa mục",
@@ -944,7 +950,8 @@
       },
       "viaPostProcess": "qua {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Xem thay đổi",
-      "hideChanges": "Ẩn thay đổi"
+      "hideChanges": "Ẩn thay đổi",
+      "dbRecoveredNotice": "Không thể đọc cơ sở dữ liệu lịch sử bản ghi của bạn, nên một cơ sở dữ liệu mới đã được bắt đầu. Cơ sở dữ liệu trước đó được giữ lại dưới dạng {{file}}."
     },
     "debug": {
       "title": "Gỡ lỗi",
@@ -1183,6 +1190,8 @@
       "runHint_one": "1 prompt trên 1 engine. Không gõ hay lưu gì.",
       "runHint_other": "{{count}} cặp prompt-engine. Không gõ hay lưu gì.",
       "running": "Đang chạy...",
+      "cancel": "Hủy",
+      "cancelledCard": "Đã hủy trước khi lần chạy này bắt đầu.",
       "rerun": "Chạy lại",
       "latency": "{{ms}} ms",
       "rawKept": "Engine lỗi hoặc bị bỏ qua nên bản ghi thô sẽ được giữ nguyên.",
@@ -1268,6 +1277,8 @@
     "recordingFailed": "Không thể bắt đầu ghi âm: {{error}}",
     "modelLoadFailed": "Không thể tải mô hình: {{model}}",
     "modelLoadFailedUnknown": "mô hình không xác định",
+    "modelLoadFailedMemoryGate": "Không đủ bộ nhớ trống để tải {{model}}: cần khoảng {{needed}}, chỉ còn khoảng {{free}}.",
+    "modelLoadFailedDetail": "Mô hình không thay đổi. Nguyên nhân kỹ thuật nằm trong tệp nhật ký.",
     "modelFallbackTitle": "Bộ nhớ thấp",
     "modelFallback": "Đã chuyển sang {{model}} cho lần đọc này",
     "pasteFailedTitle": "Không thể dán văn bản",
@@ -1398,6 +1409,7 @@
     "serverStopped": "Máy Mac đã dừng máy chủ đồng hành.",
     "reconnect": "Kết nối lại",
     "holdToTalk": "Giữ để nói",
+    "holdOrToggleToTalk": "Giữ để nói, nhấn để khóa",
     "tapToTalk": "Nhấn để nói",
     "release": "Nhả để kết thúc",
     "tapToStop": "Nhấn để dừng",

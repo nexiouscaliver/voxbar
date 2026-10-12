@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Dreceres blocades per l'entrada segura",
     "postProcessPrompt": "Indicació de postprocessament"
   },
+  "trayCopyOutcome": {
+    "copied": "S'ha copiat la transcripció al porta-retalls.",
+    "empty": "Encara no hi ha res per copiar.",
+    "failed": "No s'ha pogut copiar la transcripció al porta-retalls."
+  },
   "sidebar": {
     "general": "General",
     "commands": "Ordres",
@@ -642,7 +647,7 @@
       },
       "voiceDeletion": {
         "title": "Ordres de supressió per veu",
-        "description": "\"scratch that\", \"delete that\" i \"remove that\" suprimeixen la paraula anterior, \"delete last three words\" en suprimeix diverses, i \"delete everything\" o \"start over\" esborra el dictat. Desactiveu-ho per mantenir-les com a paraules normals."
+        "description": "\"scratch that\", \"delete that\" i \"remove that\" suprimeixen la paraula anterior, \"delete last three words\" en suprimeix diverses, i \"delete everything\" o \"scratch everything\" esborra el dictat. Desactiveu-ho per mantenir-les com a paraules normals."
       },
       "previewBeforePaste": {
         "title": "Previsualització abans d'enganxar",
@@ -659,7 +664,7 @@
       },
       "numberFormat": {
         "title": "Nombres parlats",
-        "description": "Escriu els nombres dits com a dígits, de manera que \"one eight zero one\" s'enganxi com a 1801. \"Tal com s'ha transcrit\" manté els nombres tal com s'han dit; Smart també converteix ordinals compostos i números solts a partir d'onze.",
+        "description": "Escriu els nombres dits com a dígits, de manera que \"one eight zero one\" s'enganxi com a 1801. La conversió coneix els nombres parlats en anglès i hindi (inclòs el hinglish); en altres idiomes els nombres es mantenen com es van dir. \"Tal com s'ha transcrit\" manté els nombres tal com s'han dit; Smart també converteix ordinals compostos i números solts a partir d'onze.",
         "options": {
           "asTranscribed": "Tal com s'ha transcrit",
           "digits": "Dígits",
@@ -926,6 +931,7 @@
       "empty": "Encara no hi ha transcripcions. Comenceu a enregistrar per crear l'historial!",
       "copyToClipboard": "Copia la transcripció al porta-retalls",
       "copyError": "No s'ha pogut copiar la transcripció al porta-retalls.",
+      "savedToggleError": "No s'ha pogut actualitzar l'estat de desat.",
       "save": "Desa la transcripció",
       "unsave": "Treu de les desades",
       "delete": "Suprimeix l'entrada",
@@ -944,7 +950,8 @@
       },
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Veure els canvis",
-      "hideChanges": "Amagar els canvis"
+      "hideChanges": "Amagar els canvis",
+      "dbRecoveredNotice": "La base de dades de l'historial de transcripcions no es podia llegir, així que se n'ha iniciat una de nova. La base de dades anterior s'ha conservat com a {{file}}."
     },
     "debug": {
       "title": "Depuració",
@@ -1183,6 +1190,8 @@
       "runHint_one": "1 prompt en 1 motor. No s'escriu ni es desa res.",
       "runHint_other": "{{count}} parells prompt-motor. No s'escriu ni es desa res.",
       "running": "S'està executant...",
+      "cancel": "Cancel·la",
+      "cancelledCard": "S'ha cancel·lat abans que comencés aquesta execució.",
       "rerun": "Tornar a executar",
       "latency": "{{ms}} ms",
       "rawKept": "El motor ha fallat o s'ha omès, per tant es mantindria la transcripció en brut.",
@@ -1271,6 +1280,8 @@
     "recordingFailed": "No s'ha pogut iniciar l'enregistrament: {{error}}",
     "modelLoadFailed": "No s'ha pogut carregar el model: {{model}}",
     "modelLoadFailedUnknown": "model desconegut",
+    "modelLoadFailedMemoryGate": "No hi ha prou memòria lliure per carregar {{model}}: necessita uns {{needed}}, amb uns {{free}} lliures.",
+    "modelLoadFailedDetail": "El model no ha canviat. El motiu tècnic és al fitxer de registre.",
     "modelFallbackTitle": "Memòria baixa",
     "modelFallback": "Canviat a {{model}} per aquest dictat",
     "pasteFailedTitle": "No s'ha pogut enganxar el text",
@@ -1398,6 +1409,7 @@
     "serverStopped": "El Mac ha aturat el servidor acompanyant.",
     "reconnect": "Torna a connectar",
     "holdToTalk": "Mantén premut per parlar",
+    "holdOrToggleToTalk": "Mantén premut per parlar, toca per blocar",
     "tapToTalk": "Toca per parlar",
     "release": "Deixa anar per acabar",
     "tapToStop": "Toca per aturar",

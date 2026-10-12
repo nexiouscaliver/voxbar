@@ -65,7 +65,7 @@ export interface StudioRunOutcome {
   outcome: PromptTestOutcome;
 }
 
-export type StudioCardStatus = "running" | "done";
+export type StudioCardStatus = "running" | "done" | "cancelled";
 
 export interface StudioCardState {
   key: string;
@@ -133,6 +133,23 @@ export const markRunning = (
   const running = new Set(pairs.map(pairKey));
   return cards.map((card) =>
     running.has(card.key) ? { ...card, status: "running", result: null } : card,
+  );
+};
+
+/**
+ * KB-257: settle a finished (or cancelled) batch. Every card still in the
+ * running state when the batch command resolved never got its result:
+ * with `cancelled` that is because the cancel landed before its turn, so
+ * it reads as cancelled; the flag is false only on the error paths that
+ * keep today's behavior (the cards stay as the caller left them).
+ */
+export const settleUnfinished = (
+  cards: readonly StudioCardState[],
+  cancelled: boolean,
+): StudioCardState[] => {
+  if (!cancelled) return [...cards];
+  return cards.map((card) =>
+    card.status === "running" ? { ...card, status: "cancelled" } : card,
   );
 };
 

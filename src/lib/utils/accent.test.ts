@@ -123,4 +123,40 @@ for (const accent of ACCENTS) {
   }
 }
 
+/* KB-032 pin: the six surfaces that fill with the accent (--color-background-ui)
+   must label with text-accent-on, never a hardcoded text-white. A white label
+   survives only while the accent fill stays dark; the white/gray/red/orange/
+   amber dark accent fills (accent.ts) pair with light on-values, where white
+   text is near-invisible. Pinned by reading the component sources - the class
+   strings are data, not behavior, and a regression is a one-word revert. */
+{
+  const fs = await import("node:fs");
+  const KB032_FILES = [
+    "src/components/ui/Button.tsx",
+    "src/components/settings/post-processing/AddLlmModelFromHuggingFace.tsx",
+    "src/components/settings/models/AddModelFromHuggingFace.tsx",
+    "src/components/onboarding/AccessibilityOnboarding.tsx",
+  ];
+  for (const file of KB032_FILES) {
+    const source = fs.readFileSync(file, "utf8");
+    assert.ok(
+      !source.includes("text-white"),
+      `${file}: no hardcoded text-white on accent fills (KB-032; use text-accent-on)`,
+    );
+  }
+  // The primary Button variant and the onboarding accent buttons carry the
+  // token explicitly, so the swap cannot be deleted together with the class.
+  const button = fs.readFileSync(KB032_FILES[0], "utf8");
+  assert.ok(
+    button.includes("text-accent-on bg-background-ui"),
+    "Button's primary variant must pair the accent fill with text-accent-on",
+  );
+  const onboarding = fs.readFileSync(KB032_FILES[3], "utf8");
+  assert.ok(
+    (onboarding.match(/bg-background-ui[^"]*text-accent-on/g) ?? []).length >=
+      3,
+    "AccessibilityOnboarding's three accent buttons must carry text-accent-on",
+  );
+}
+
 console.log("accent: all assertions passed");

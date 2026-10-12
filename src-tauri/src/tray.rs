@@ -36,7 +36,7 @@ use std::time::{Duration, Instant};
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIcon;
-use tauri::{AppHandle, Manager, Theme};
+use tauri::{AppHandle, Emitter, Manager, Theme};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -320,7 +320,7 @@ pub fn get_icon_path(theme: AppTheme, state: TrayIconState, warning: bool) -> &'
 
 /// Sets the recording state shown by the tray (icon + Cancel/model menu).
 pub fn set_tray_state(app: &AppHandle, state: TrayIconState) {
-    sync_tray_with(app, |inner| inner.icon_state = state);
+    let _ = sync_tray_with(app, |inner| inner.icon_state = state);
 }
 
 /// Re-syncs the tray after something other than the recording state changed
@@ -331,8 +331,15 @@ pub fn refresh_tray_icon(app: &AppHandle) {
 
 /// Re-syncs the tray after something the menu depends on changed (model
 /// list/selection/loaded state, language, settings).
-pub fn update_tray_menu(app: &AppHandle) {
-    sync_tray(app);
+///
+/// KB-242: the re-sync's synchronous failure (the menu icon could not be
+/// loaded) is returned so the settings commands that trigger it can report
+/// the tray falling out of sync instead of logging and pretending the
+/// change applied everywhere. The apply itself stays scheduled on the main
+/// thread (see [`sync_tray_with`]); callers that only want the old
+/// fire-and-forget behavior discard the Result.
+pub fn update_tray_menu(app: &AppHandle) -> Result<(), String> {
+    sync_tray_with(app, |_| {})
 }
 
 /// Records the current desired tray state and schedules one apply on the main
@@ -343,12 +350,12 @@ pub fn update_tray_menu(app: &AppHandle) {
 /// *calling* thread on purpose: the main-thread applier must not take manager
 /// locks that a worker may hold across slow work (see #1716).
 pub fn sync_tray(app: &AppHandle) {
-    sync_tray_with(app, |_| {});
+    let _ = sync_tray_with(app, |_| {});
 }
 
-fn sync_tray_with(app: &AppHandle, update: impl FnOnce(&mut TrayInner)) {
+fn sync_tray_with(app: &AppHandle, update: impl FnOnce(&mut TrayInner)) -> Result<(), String> {
     let Some(state) = app.try_state::<TrayState>() else {
-        return;
+        return Ok(());
     };
 
     // Record intent and claim a sequence number in one critical section, so
@@ -363,13 +370,17 @@ fn sync_tray_with(app: &AppHandle, update: impl FnOnce(&mut TrayInner)) {
     // Tray not built yet (early secure-input monitor callbacks). The intent
     // is kept and picked up by the first sync after the tray exists.
     if app.try_state::<TrayIcon>().is_none() {
-        return;
+        return Ok(());
     }
 
     let desired = compute_desired(app, icon_state);
 
     // Decode the icon off the main thread, once per path, outside the lock.
+    // KB-242: a failed load is returned (the menu re-sync the caller asked
+    // for did not happen) while still scheduling the apply, so the tray
+    // keeps running on its last decoded icon instead of vanishing.
     let needs_icon = !state.lock().icons.contains_key(desired.icon_path);
+    let mut sync_error = None;
     let loaded_icon = if needs_icon {
         match load_tray_icon(
             app.path()
@@ -378,6 +389,10 @@ fn sync_tray_with(app: &AppHandle, update: impl FnOnce(&mut TrayInner)) {
             Ok(image) => Some(image),
             Err(err) => {
                 error!("Failed to load tray icon '{}': {err}", desired.icon_path);
+                sync_error = Some(format!(
+                    "failed to load the tray icon '{}': {err}",
+                    desired.icon_path
+                ));
                 None
             }
         }
@@ -397,7 +412,7 @@ fn sync_tray_with(app: &AppHandle, update: impl FnOnce(&mut TrayInner)) {
                 "tray sync: request {seq} superseded by {}",
                 inner.desired_seq
             );
-            return;
+            return Ok(());
         }
         inner.desired = Some(desired);
         inner.desired_seq = seq;
@@ -410,6 +425,10 @@ fn sync_tray_with(app: &AppHandle, update: impl FnOnce(&mut TrayInner)) {
         post_apply(app);
     } else {
         trace!("tray sync: apply already pending");
+    }
+    match sync_error {
+        Some(err) => Err(err),
+        None => Ok(()),
     }
 }
 
@@ -1605,7 +1624,7 @@ pub fn refresh_tray_history(app: &AppHandle) {
         if let Some(snapshot) = handle.try_state::<TrayHistory>() {
             *snapshot.lock() = rows;
         }
-        update_tray_menu(&handle);
+        let _ = update_tray_menu(&handle);
     });
 }
 
@@ -1689,6 +1708,50 @@ fn write_clipboard_on_main(app: &AppHandle, text: &str) -> bool {
     }
 }
 
+/// KB-087: the tray copy actions' outcome event. The menu gives no visual
+/// feedback of its own (the menu closes and nothing else happens on any
+/// surface), so every terminal path of both copy actions reports here and
+/// the frontend's App-level listener turns the outcome into the OS
+/// notification the notifications toggle governs. Field names are the
+/// payload contract App.tsx reads.
+#[derive(Clone, Copy, Debug, serde::Serialize, PartialEq, Eq)]
+pub struct TrayCopyOutcome {
+    pub ok: bool,
+    /// Fleet pass: WHAT happened, so the surface can say it. The old
+    /// single bool conflated "nothing to copy" with "the clipboard write
+    /// failed", and every failure leg rendered as "Could not copy the
+    /// transcript to the clipboard." - false on a machine that had simply
+    /// never dictated anything.
+    pub reason: TrayCopyOutcomeReason,
+}
+
+/// Fleet pass: the tray copy outcome's cause. `Empty` is the nothing-to-
+/// copy class (no completed entry yet, an empty transcript, an entry that
+/// fell out of the store); `Failed` is a real failure (query error,
+/// clipboard write refused); `Copied` is success.
+#[derive(Clone, Copy, Debug, serde::Serialize, PartialEq, Eq)]
+pub enum TrayCopyOutcomeReason {
+    #[serde(rename = "copied")]
+    Copied,
+    #[serde(rename = "empty")]
+    Empty,
+    #[serde(rename = "failed")]
+    Failed,
+}
+
+/// The event name the webview listens for (App.tsx). Plain string event,
+/// same wiring style as request-update-check.
+pub const TRAY_COPY_OUTCOME_EVENT: &str = "tray-copy-outcome";
+
+/// Report one tray copy outcome to the frontend. Never throws the caller's
+/// flow: a failed emit is logged, not propagated.
+fn emit_tray_copy_outcome(app: &AppHandle, reason: TrayCopyOutcomeReason) {
+    let ok = matches!(reason, TrayCopyOutcomeReason::Copied);
+    if let Err(err) = app.emit(TRAY_COPY_OUTCOME_EVENT, TrayCopyOutcome { ok, reason }) {
+        error!("Failed to emit {TRAY_COPY_OUTCOME_EVENT}: {err}");
+    }
+}
+
 pub fn copy_last_transcript(app: &AppHandle) {
     // The history query runs on a spawned thread (W1-L8: no synchronous
     // history queries on the UI thread - this handler runs there), with
@@ -1700,6 +1763,7 @@ pub fn copy_last_transcript(app: &AppHandle) {
             Ok(Some(entry)) => entry,
             Ok(None) => {
                 warn!("No completed transcription history entries available for tray copy.");
+                emit_tray_copy_outcome(&handle, TrayCopyOutcomeReason::Empty);
                 return;
             }
             Err(err) => {
@@ -1707,6 +1771,7 @@ pub fn copy_last_transcript(app: &AppHandle) {
                     "Failed to fetch last completed transcription entry: {}",
                     err
                 );
+                emit_tray_copy_outcome(&handle, TrayCopyOutcomeReason::Failed);
                 return;
             }
         };
@@ -1714,13 +1779,23 @@ pub fn copy_last_transcript(app: &AppHandle) {
         let text = last_transcript_text(&entry).to_string();
         if text.trim().is_empty() {
             warn!("Last completed transcription is empty; skipping tray copy.");
+            emit_tray_copy_outcome(&handle, TrayCopyOutcomeReason::Empty);
             return;
         }
         let write_handle = handle.clone();
         let _ = handle.run_on_main_thread(move || {
-            if write_clipboard_on_main(&write_handle, &text) {
+            let ok = write_clipboard_on_main(&write_handle, &text);
+            if ok {
                 info!("Copied last transcript to clipboard via tray.");
             }
+            emit_tray_copy_outcome(
+                &write_handle,
+                if ok {
+                    TrayCopyOutcomeReason::Copied
+                } else {
+                    TrayCopyOutcomeReason::Failed
+                },
+            );
         });
     });
 }
@@ -1741,11 +1816,21 @@ pub fn copy_recent_dictation(app: &AppHandle, entry_id: i64) {
     }) {
         if text.trim().is_empty() {
             warn!("Recent dictation {entry_id} is empty; skipping tray copy.");
+            emit_tray_copy_outcome(app, TrayCopyOutcomeReason::Empty);
             return;
         }
-        if write_clipboard_on_main(app, &text) {
+        let ok = write_clipboard_on_main(app, &text);
+        if ok {
             info!("Copied recent dictation {entry_id} to clipboard via tray.");
         }
+        emit_tray_copy_outcome(
+            app,
+            if ok {
+                TrayCopyOutcomeReason::Copied
+            } else {
+                TrayCopyOutcomeReason::Failed
+            },
+        );
         return;
     }
 
@@ -1759,19 +1844,33 @@ pub fn copy_recent_dictation(app: &AppHandle, entry_id: i64) {
                 let text = last_transcript_text(&entry).to_string();
                 if text.trim().is_empty() {
                     warn!("Recent dictation {entry_id} is empty; skipping tray copy.");
+                    emit_tray_copy_outcome(&handle, TrayCopyOutcomeReason::Empty);
                     return;
                 }
                 let write_handle = handle.clone();
                 let _ = handle.run_on_main_thread(move || {
-                    if write_clipboard_on_main(&write_handle, &text) {
+                    let ok = write_clipboard_on_main(&write_handle, &text);
+                    if ok {
                         info!("Copied recent dictation {entry_id} to clipboard via tray.");
                     }
+                    emit_tray_copy_outcome(
+                        &write_handle,
+                        if ok {
+                            TrayCopyOutcomeReason::Copied
+                        } else {
+                            TrayCopyOutcomeReason::Failed
+                        },
+                    );
                 });
             }
             Ok(None) => {
-                warn!("Recent dictation {entry_id} no longer exists; skipping tray copy.")
+                warn!("Recent dictation {entry_id} no longer exists; skipping tray copy.");
+                emit_tray_copy_outcome(&handle, TrayCopyOutcomeReason::Empty);
             }
-            Err(err) => error!("Failed to fetch recent dictation {entry_id}: {err}"),
+            Err(err) => {
+                error!("Failed to fetch recent dictation {entry_id}: {err}");
+                emit_tray_copy_outcome(&handle, TrayCopyOutcomeReason::Failed);
+            }
         }
     });
 }
@@ -1787,7 +1886,8 @@ mod tests {
         recent_dictations_submenu_rows, resolve_model_label_name, status_line_text,
         title_reconciliation, truncate_chars, unload_after_custom_label,
         unload_after_preset_is_active, AppTheme, CompanionMenuStatus, MenuInputs, ModelStatusLine,
-        TitleAction, TrayIconState, RECENT_WORDS_MAX_CHARS, TRAY_TITLE_MAX_CHARS,
+        TitleAction, TrayCopyOutcome, TrayCopyOutcomeReason, TrayIconState, RECENT_WORDS_MAX_CHARS,
+        TRAY_COPY_OUTCOME_EVENT, TRAY_TITLE_MAX_CHARS,
     };
     use crate::managers::history::HistoryEntry;
     use crate::settings::ModelUnloadTimeout;
@@ -1813,6 +1913,7 @@ mod tests {
             post_process_latency_ms: None,
             capture_source: "local".to_string(),
             delivery_destination: "mac".to_string(),
+            capture_device: String::new(),
         }
     }
 
@@ -2769,5 +2870,87 @@ mod tests {
             rss: Some("449 MB".to_string()),
         });
         assert_ne!(inputs(), with_pp);
+    }
+    /// KB-087: the tray copy actions report EVERY terminal path through the
+    /// tray-copy-outcome event (the menu itself gives no feedback; the
+    /// frontend listener turns the outcome into the notifications-toggle-
+    /// governed OS notification). The copy fns need a live clipboard and
+    /// history a unit test cannot mount, so the emits are pinned against
+    /// this committed source: exactly one emit per terminal path, counted
+    /// per function - adding a path without an emit (or dropping one) fails
+    /// here. Same convention as the actions.rs stop-pipeline wiring pin.
+    #[test]
+    fn kb087_tray_copy_reports_every_terminal_path() {
+        let source = include_str!("tray.rs");
+        let fn_at = |name: &str| {
+            let at = source
+                .find(name)
+                .unwrap_or_else(|| panic!("{name} must exist in tray.rs"));
+            let rest = &source[at..];
+            let end = rest.find("\n}\n").map(|i| i + 3).unwrap_or(rest.len());
+            &rest[..end]
+        };
+
+        // copy_last_transcript: no entry, fetch error, empty text, and the
+        // clipboard-write outcome = 4 terminal paths.
+        let copy_last = fn_at("pub fn copy_last_transcript(");
+        assert_eq!(
+            copy_last.matches("emit_tray_copy_outcome").count(),
+            4,
+            "copy_last_transcript must report all 4 terminal paths"
+        );
+
+        // copy_recent_dictation: snapshot empty, snapshot write outcome,
+        // fetch empty, fetch write outcome, entry gone, fetch error
+        // = 6 terminal paths.
+        let copy_recent = fn_at("pub fn copy_recent_dictation(");
+        assert_eq!(
+            copy_recent.matches("emit_tray_copy_outcome").count(),
+            6,
+            "copy_recent_dictation must report all 6 terminal paths"
+        );
+
+        // The event name is a wire contract with the App.tsx listener.
+        assert_eq!(TRAY_COPY_OUTCOME_EVENT, "tray-copy-outcome");
+        // The payload serializes to the shape the listener reads: the
+        // legacy ok bool plus the fleet-pass reason, so the surface can
+        // tell "nothing to copy" from "the clipboard write failed".
+        assert_eq!(
+            serde_json::to_value(TrayCopyOutcome {
+                ok: true,
+                reason: TrayCopyOutcomeReason::Copied,
+            })
+            .unwrap(),
+            serde_json::json!({ "ok": true, "reason": "copied" })
+        );
+        assert_eq!(
+            serde_json::to_value(TrayCopyOutcome {
+                ok: false,
+                reason: TrayCopyOutcomeReason::Empty,
+            })
+            .unwrap(),
+            serde_json::json!({ "ok": false, "reason": "empty" })
+        );
+        assert_eq!(
+            serde_json::to_value(TrayCopyOutcome {
+                ok: false,
+                reason: TrayCopyOutcomeReason::Failed,
+            })
+            .unwrap(),
+            serde_json::json!({ "ok": false, "reason": "failed" })
+        );
+
+        // Fleet pass: the reason classes must be routed to the right
+        // legs. Nothing-to-copy (no entry, empty text, entry gone) is
+        // Empty; a query error or a refused clipboard write is Failed.
+        // Pinned against this committed source (the handlers need an
+        // AppHandle with history and a clipboard).
+        let reasons_in = |body: &str, reason: &str| body.matches(reason).count();
+        let copy_last = fn_at("pub fn copy_last_transcript(");
+        assert_eq!(reasons_in(copy_last, "TrayCopyOutcomeReason::Empty"), 2);
+        assert_eq!(reasons_in(copy_last, "TrayCopyOutcomeReason::Failed"), 2);
+        let copy_recent = fn_at("pub fn copy_recent_dictation(");
+        assert_eq!(reasons_in(copy_recent, "TrayCopyOutcomeReason::Empty"), 3);
+        assert_eq!(reasons_in(copy_recent, "TrayCopyOutcomeReason::Failed"), 3);
     }
 }

@@ -48,7 +48,7 @@ No P0 remains open at v1.4.0.
 - **KB-104 · FIXED · both setters now apply before persisting (device residual closed in cycle 3, fcb3e742).** `update_microphone_mode` is fixed (above); the device setter no longer persists-first either: `set_selected_microphone` (commands/audio.rs:246-273) applies through `update_selected_device` BEFORE anything is written and propagates its error, and `update_selected_device` (managers/audio.rs:1186-1226) rejects the switch while a recording is live, persists only after the reopen resolves its device from settings, and on a failed reopen undoes the write and brings the previous device's stream back (the KB-104 comment block). Round 4 verified this fix (its list names "KB-104 residual") but the entry kept the stale residual sentence until the round 6 pass flipped it.
 - **KB-005 · still FIXED, but its guard test is unwired:** historyLimitInput.test.ts registers 0 tests under `bun test`, no package.json script, not in CI (R3 ran both invocations); third instance of the KB-136 class.
 
-Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-007, KB-041-core, KB-096 (residual: FALLBACK_APP_VERSION '0.1.2' at appVersion.ts:9; re-verified [R3 ×2]).
+Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-007, KB-041-core, KB-096 (residual closed in v1.6.2, 6b054cd1: the version is injected at build time from package.json and the fallback literal is pinned to it, src/lib/utils/appVersion.ts).
 
 **Narrowed in the final round:** KB-011 residual (no-model path only: re-verified [R3 ×2]); KB-013 residuals (show wipes notice + Info-tone fallback: re-verified [R3 ×2]); KB-083 residual folded into KB-085 [R3]; KB-025 **correction** (see below).
 
@@ -56,33 +56,33 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 ## P1, MEDIUM, OPEN (38 at v1.4.0 - 12 since fixed in cycle 3, entries updated in place)
 
-**KB-008 · OPEN (re-verified 3× at 5bf5b893, mod.rs:1407-1428).** Post-process toggle off unregisters only `transcribe_with_post_process`; cycle key stays registered + system-swallowed while `CyclePromptAction::start` no-ops (actions.rs:1965-1978). Fix template: delete-last-word/undo/command-mode handlers all live-unregister (mod.rs:2110-2185 [R3]). Stale UI comment stands.
+**KB-008 · FIXED (371f2b41, roster pinned 6670025b; round 4 verified, round 9 fleet re-verified).** Was: post-process toggle off unregistered only `transcribe_with_post_process`; cycle key stayed registered + system-swallowed. Now binding_is_active gates `cycle_post_process_prompt` and the toggle drives both keys through POST_PROCESS_TOGGLE_BINDINGS. Do not re-report.
 
-**KB-009 · OPEN.** `change_binding` registers without `binding_is_active` (mod.rs:391-414); disabled is opacity-only (SettingContainer.tsx:135); recorder onClick unguarded. Secure-input's shadow DOES consult binding_is_active (secure_input.rs:483-488); the intended rule exists [R3].
+**KB-009 · FIXED (backend 371f2b41, frontend ab25b849; round 4 verified, round 9 fleet re-verified).** Was: `change_binding` registered without `binding_is_active`; disabled was opacity-only. Now the command registers only post-update-active bindings, restore_registration is gated the same way, and the recorder chips hard-guard arming.
 
-**KB-010 · OPEN.** No lid watcher (only `is_clamshell` caller is desired_microphone); AlwaysOn never switches on lid close; `set_clamshell_microphone` never restarts (commands/audio.rs:338-347) vs `set_selected_channel`'s guarded restart [R3 full mechanics].
+**KB-010 · FIXED (v1.6.2, fd63e677).** Was: no lid watcher; AlwaysOn never switched on lid close; `set_clamshell_microphone` never restarted. Now an IOKit lid watcher (kIOGeneralInterest on IOPMrootDomain, runloop thread + deduped offload) re-resolves the desired microphone on every real lid transition with the guarded restart, a mid-recording flip parks a pending flag the stop and cancel pipelines honor, and the setter applies before persisting. Pinned by kb010_lid_watcher_registers_an_iokit_interest_and_dedups plus a runtime-probe test.
 
-**KB-012 · OPEN (fresh run in the final consolidation pass: exit 1, 15 hi/hi-Latn ambiguities; also re-run by R3).** Not wired into CI (ci.yml:100-109).
+**KB-012 · FIXED (script half dbd2e1b8; the CI line landed in v1.6.2 fd63e677, ci.yml:190).** The hi/hi-Latn script-variant family rule passes read-only runs, and `check:model-languages` now runs in CI beside check:translations. Round 9 fleet re-verified both halves.
 
-**KB-014 · OPEN (re-verified 2×).** Preview burns the full 1.2 s with overlay_style=none (actions.rs:1655-1686 gates only on the toggle; show_final_preview_overlay no-ops on None, overlay.rs:644-648). New copy angle: the row renders in the Output tab far from the overlay-style control; OFF is what the copy already promises [R3].
+**KB-014 · FIXED (v1.6.2, 58a920ff).** Preview burns the full 1.2 s with overlay_style=none (actions.rs:1655-1686 gates only on the toggle; show_final_preview_overlay no-ops on None, overlay.rs:644-648). New copy angle: the row renders in the Output tab far from the overlay-style control; OFF is what the copy already promises [R3]. Fixed: the preview wait is skipped when overlay_style is None (both preview branches are no-ops there), pinned by kb014_preview_wait_runs_only_when_something_can_show and the stop-pipeline twin.
 
-**KB-015 · OPEN (re-verified 2×).** model_load_failed interpolates raw English into the {{model}} slot; full memory-gate refusal sentence lands in the slot (transcription.rs:1953-1984, 234-268 [R3]).
+**KB-015 · FIXED (v1.6.2, 6b054cd1, with the KB-122 umbrella).** Was: model_load_failed interpolates raw English into the {{model}} slot; full memory-gate refusal sentence lands in the slot (transcription.rs:1953-1984, 234-268 [R3]). Fixed: the memory-gate refusal gets its own notice code with a structured model/needed/free detail, and the raw-English toast descriptions (transcription-error, model-state-changed) show localized copy. Pinned by memory_gate_notice_detail_carries_model_needed_free_kb015_kb122.
 
 **KB-016 · FIXED · companion codes reach the main window.** As found [R3]: companion codes had no main-window surface; `companion_session_capped` had **no NoticeCode variant at all** (enum transcription.rs:394-459); broadcast to phones only; disconnected is Info (no sound). Fixed in cycle 3: d540241b adds the `CompanionSessionCapped` NoticeCode (Info, detail = device name) and emits it Mac-side from the server cap site; a6997aec routes it through the App.tsx notice router (toast, plus a macOS notification when the window is hidden and the card could not render) with `overlay.notice.companionSessionCapped` copy in all 26 locales; the shared code→message mapping is pinned over the full enum by src/lib/noticeMessage.test.ts. Device-name detail on disconnect remains KB-163 (open).
 
-**KB-017 · OPEN.** Failed reliable-paste chord silent on macOS+Windows AND drops the owed auto-submit Enter + clipboard write (settle requires receipt_seen, impossible after chord failure: macos.rs:142-155 [R3]).
+**KB-017 · FIXED (05ef0cf9, the KB-223 fix; round 9 fleet).** A failed reliable-paste chord now settles the waiter, restores the clipboard, and surfaces as a real paste failure (stable prefix, PasteFailed notice) on both platforms; the auto-submit Enter is a pinned not-owed after chord failure rather than a silent drop.
 
-**KB-018 · OPEN (static, all rounds: no dotool on this host).** Multi-line transcript written as one `type` line; later lines execute as dotool commands (clipboard.rs:691-692).
+**KB-018 · FIXED (v1.6.2, fd63e677).** Was (static, all rounds: no dotool on this host): multi-line transcript written as one `type` line; later lines execute as dotool commands (clipboard.rs:691-692). Fixed: multi-line transcripts reach dotool as per-line type commands plus an explicit key enter per newline (dotool_script_for_text), pinned as a pure function by dotool_script_types_each_line_and_presses_enter_per_newline.
 
-**KB-020 · PARTIALLY FIXED · card-less notices now have surfaces.** As found [R3]: Info-tone notices fired while the card is hidden were invisible on every surface; cycle-prompt was the worst case (pressed between sessions by design) (transcription.rs:458-476, 543-562; RecordingOverlay.tsx:441). Fixed in cycle 3: d540241b computes `card_visible` at emit time on OverlayNoticeEvent; a6997aec turns the App.tsx listener into a router - card-less notices toast (error tone for Error kind) and fire a macOS notification when the main window is hidden - via the shared mapping in src/lib/noticeMessage.ts, pinned over the full enum. Residual: three info codes are now routed hidden-only, and the fade-window TOCTOU stays open - `card_visible` is probed at emit time, so a notice emitted just before the card fades out is still marked card-visible and never routed.
+**KB-020 · PARTIALLY FIXED · card-less notices now have surfaces.** As found [R3]: Info-tone notices fired while the card is hidden were invisible on every surface; cycle-prompt was the worst case (pressed between sessions by design) (transcription.rs:458-476, 543-562; RecordingOverlay.tsx:441). Fixed in cycle 3: d540241b computes `card_visible` at emit time on OverlayNoticeEvent; a6997aec turns the App.tsx listener into a router - card-less notices toast (error tone for Error kind) and fire a macOS notification when the main window is hidden - via the shared mapping in src/lib/noticeMessage.ts, pinned over the full enum. Residual, three info codes routed hidden-only: kept. Residual, the fade-window TOCTOU (`card_visible` probed at emit time): CLOSED in v1.6.2 fd63e677 - notices now probe the show and hide generations (card_durably_visible, pending-hide marker) instead of raw is_visible.
 
-**KB-021 · OPEN (all 26 locales re-swept by R3 python script: start_over=True, scratch_everything=False everywhere).**
+**KB-021 · FIXED (v1.6.2, 58a920ff).** Was (all 26 locales re-swept by R3 python script: start_over=True, scratch_everything=False everywhere). Fixed: every locale's voice-deletion description advertises the live scratch everything phrase instead of the dead start over, cross-pinned against the recognizer's ClearAll defaults.
 
-**KB-022 · OPEN.** Commands-tab add/remove before defaults resolve (or after silent `.catch(() => {})`) persists ~29 zero-phrase commands (CommandsSettings.tsx:212-251; backend accepts, command_matrix.rs:378-424) [R3]. resetRow IS guarded: the odd one out.
+**KB-022 · FIXED (v1.6.2, 8b94fdc1).** Was: commands-tab add/remove before defaults resolve (or after silent `.catch(() => {})`) persists ~29 zero-phrase commands (CommandsSettings.tsx:212-251; backend accepts, command_matrix.rs:378-424) [R3]; resetRow IS guarded: the odd one out. Fixed: the Commands tab passes the loaded defaults into every add, remove and undo table build and disables add/remove while defaults are unresolved.
 
-**KB-023 · OPEN, sharpened: the retry refresh is HALF-done**: `update_transcription` rewrites post_process_prompt but none of the five summary columns, so one row half-reports two different runs (managers/history.rs:404-418 [R3]).
+**KB-023 · FIXED, with KB-240 (v1.6.2, 8b94fdc1).** Was, sharpened: the retry refresh is HALF-done - `update_transcription` rewrites post_process_prompt but none of the five summary columns, so one row half-reports two different runs (managers/history.rs:404-418 [R3]). Fixed: update_transcription rewrites the five pp summary columns atomically with the text and NULLs them when the leg did not run; the retry command threads the fresh summary it used to drop.
 
-**KB-025 · OPEN + CORRECTION.** Cleanup emits no event (ghost rows; save-before-emit order at history.rs:296-307 [R3]); and the in-tab HistoryLimit/retention controls make ghost rows manifest inside the same view. **Correction: the R1/R2 claim "history_limit=0 pinned by test" is WRONG for this tree: no test anywhere covers cleanup** (R3 ran managers::history → 7 passed; grep found no cleanup test).
+**KB-025 · FIXED (v1.6.2, 8b94fdc1).** Was + CORRECTION: cleanup emits no event (ghost rows; save-before-emit order at history.rs:296-307 [R3]); the in-tab HistoryLimit/retention controls make ghost rows manifest inside the same view; the R1/R2 "pinned by test" claim was wrong (no cleanup test existed). Fixed: delete_entries_and_files emits per-id Deleted events (the retention cleanups included), the History tab listener handles deleted by filtering the id, and the previously missing cleanup tests exist (count and time selection seams).
 
 **KB-027 · FIXED · companion toggle applies before persisting and rolls back.** As found [R3]: `change_companion_devices_setting` persisted+Ok'd unconditionally (mod.rs:845-851) while the always_on updater directly above (landed in 5bf5b893) threw and rolled back. Fixed in a9e1159e: `companion::apply_enabled` returns Err on a failed start (logged, stored on the manager, noticed) and the command applies it BEFORE persisting, so the settings store rolls the toggle back instead of persisting an enabled state with no server behind it; the startup path stays best-effort.
 
@@ -92,39 +92,39 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-031 · FIXED · change_theme_setting syncs the tray.** As found [R3]: the theme setter never rebuilt the tray, so the menu bar kept the previous theme's icon (mod.rs:940-959). Fixed in a9e1159e: `change_theme_setting` calls `tray::update_tray_menu` after `apply_window_theme` (which the icon lookup reads the window theme from), so the tray re-syncs on every theme change.
 
-**KB-032 · OPEN, impact-sized.** Six text-white-on-accent sites; accent.ts ships white/gray/red/orange/amber dark fills that are light → near-invisible labels (e.g. #fafafa fill + white text) [R3].
+**KB-032 · FIXED (v1.6.2, 58a920ff).** Was (impact-sized): six text-white-on-accent sites; accent.ts ships light fills that made white labels near-invisible. Fixed: the six sites use text-accent-on, the pair that flips with a non-default accent, pinned by accent.test.ts.
 
 **KB-033 · PARTIALLY FIXED · update checks fail closed while the lock is unknown.** As found [R3]: About button ungated, silent no-op (AboutSettings.tsx:49-55; updaterFlow.ts:332 exits before reveal :364); `updateChecksAllowed` failed OPEN while `updateChecksLocked` was still null - a locked install could run a real network check during the loading window. Fixed in 14369da8: the gate now fails CLOSED (`updateChecksLocked !== false` → not allowed) and the About check button mirrors it exactly (disabled while not known-allowed, locked/disabled tooltip). Residual: the inFlight drop and the tray lock-null window are now handled as well (the update-check gate module, this cycle) - recheck under AUD-10.
 
 **KB-034 · FIXED · update_checks toggle rebuilds the tray.** As found [R3 ×2]: the toggle never re-synced the tray's "Check for Updates" enablement (mod.rs:1161-1181; en description promises exactly the tray behavior). Fixed in a9e1159e: `change_update_checks_setting` calls `tray::update_tray_menu` right after persisting, so the tray reflects the toggle immediately instead of after the next restart.
 
-**KB-035 · OPEN + NEW ANGLE.** Release notes stop at 1.2.0.md vs version 1.3.0 (all three version files [R3]); modal reads only bundled files. **New: pre-key migrants see the stale 1.2.0 notes** (default_whats_new_last_seen_version migration blanks, settings.rs:953-955, 2002-2003 [R3]).
+**KB-035 · FIXED (by v1.6.0; round 9 fleet).** Release notes ship through per-version files (up to 1.6.0.md at the time of verification) and the blank last-seen migration resolves to the newest applicable note, so pre-key migrants see the current release's notes, not stale ones.
 
-**KB-036 · OPEN.** Keyboard-impl switch mid-recording deterministically kills the cancel key; the promised reconcile is never scheduled (grep: only mod.rs:169/177/372) [R3].
+**KB-036 · FIXED (371f2b41; round 4 verified, round 9 fleet re-verified).** Was: keyboard-impl switch mid-recording deterministically killed the cancel key; the promised reconcile was never scheduled. Now the switch rearms the live cancel key at both success exits and the KB-199 error exit.
 
-**KB-045 · OPEN, sharpened.** No concurrent-start guard on either download path (model.rs:2288-2292, 2606-2610 [R3]); **cancel_download always returns Ok and clears is_downloading even when no token exists** (:3017-3028); after the token overwrite, Cancel flips the card back to Downloadable while a transfer still runs; a third click starts a third transfer [R3].
+**KB-045 · FIXED, with KB-047 (v1.6.2, 8b94fdc1).** Was, sharpened: no concurrent-start guard on either download path; cancel_download always returns Ok and clears is_downloading even when no token exists; a third click starts a third transfer [R3]. Fixed: both paths claim a per-model slot atomically (duplicate starts no-op instead of overwriting the live token) and cancel with no token is a no-op (no state clear, no cancelled event).
 
-**KB-047 · OPEN.** DownloadCleanup::drop removes the token without ownership check (model.rs:603-616) [R3 ×2].
+**KB-047 · FIXED, with KB-045 (v1.6.2, 8b94fdc1).** Was: DownloadCleanup::drop removes the token without ownership check (model.rs:603-616) [R3 ×2]. Fixed: the DownloadCleanup guard removes only its own token.
 
-**KB-105 · OPEN (mechanics fully pinned by R3).** Delayed hide-after-error (2.6 s) hides the NEXT session's card: hide snapshots generation at CALL time (after the sleep), so a show during the window is overwritten; two doc comments promise the opposite; armed at four sites (actions.rs:1344/1755/1826, transcription.rs:2297). Fix shape: snapshot at ERROR time or re-check after sleeping [R3].
+**KB-105 · FIXED (v1.6.2, 58a920ff).** Was (mechanics fully pinned by R3): delayed hide-after-error (2.6 s) hides the NEXT session's card: hide snapshots generation at CALL time (after the sleep), so a show during the window is overwritten; armed at four sites. Fixed: hide-after-error snapshots the show generation at ERROR time, before the read delay, pinned by kb105_error_hide_snapshots_the_generation_before_the_read_delay.
 
-**KB-106 · OPEN.** Linux default config: failed paste invisible everywhere (App overlayNotice listener drops paste_failed; card never exists under style=none) [R3].
+**KB-106 · FIXED (754c0fc5, v1.6.0's notification lane; round 9 fleet).** paste_failed now routes through the notice channel to a persistent OS notification regardless of window or card visibility.
 
 **KB-107 · FIXED · api-key change drops the stale cached model list.** As found [R3]: the api-key handler re-hydrated the OLD key's cached model list (`[]` treated as absent; base-URL handler clears the cache, api-key handler didn't: mod.rs:1487-1499 contrast :1441-1470). Fixed in a9e1159e: `change_post_process_api_key_setting` removes the provider's `post_process_model_lists` entry before persisting, so the dropdown refetches with the new key.
 
-**KB-108 · OPEN (re-verified 2×).** Built-in template delete not durable: seed loop pushes missing ids on every read (settings.rs:1581-1604), resurrecting at the END of the catalog after selection was reassigned (mod.rs:1728-1752) [R3].
+**KB-108 · FIXED (v1.6.2, 8b94fdc1).** Was (re-verified 2×): built-in template delete not durable: seed loop pushes missing ids on every read, resurrecting at the END of the catalog after selection was reassigned [R3]. Fixed: deleting a built-in records a persisted tombstone the seed loop honors (user templates tombstone nothing), pinned by deleted_builtin_prompt_tombstones_and_never_resurrects and the tombstone round-trip tests.
 
-**KB-109 · OPEN (re-verified 3×).** History retry ignores the post-process master toggle: per-entry snapshot is the only gate; `active_post_process_provider` has no enabled check; retry sends the stored transcript to the CURRENT (possibly cloud) provider/model/prompt [R3].
+**KB-109 · FIXED (master-toggle half b746d17a, cycle 3; the provider-pinning half v1.6.2, 8b94fdc1).** Was (re-verified 3×): retry ignores the post-process master toggle and sends the stored transcript to the CURRENT provider/model/prompt. Fixed: the retry's post-process leg resolves provider, model and prompt from the entry's recorded summary first (a model_override pin beside the provider_override), falling back to current settings only for fields the entry never recorded; a recorded prompt that no longer exists skips the leg with a notice.
 
-**KB-110 · OPEN.** Second phone's press contaminates/cuts the shared session (per-connection trackers press unconditionally; one shared ring; shared binding) (server.rs:414-461) [R3; companion tests 24 passed, no two-connection coverage].
+**KB-110 · FIXED by construction (v1.6.2, f2014843).** Was: second phone's press contaminates/cuts the shared session (per-connection trackers press unconditionally; one shared ring; shared binding) [R3]. Fixed: each authenticated connection owns its recorder, ring, coordinator session, delivery target and recents; see round 9.
 
-**KB-111 · OPEN.** Either phone dropping finalizes the shared session while the other streams (disconnect tests active_source==Remote only) (server.rs:492-519) [R3].
+**KB-111 · FIXED by construction (v1.6.2, f2014843).** Was: either phone dropping finalizes the shared session while the other streams. Fixed: per-lane sessions stop independently; one phone's stop or disconnect never touches the other's session (two_lanes_each_hold_a_live_session_with_independent_stops).
 
 **KB-112 · FIXED · autostart failures propagate and roll the toggle back (cycle 3 wave 4, fcb3e742).** Was [R3]: `apply_autostart` returned (), failures were warn-only, the command Ok'd unconditionally. Fixed: `apply_autostart` returns `Result` and its doc comment names KB-112 (autostart.rs:25-46); `change_autostart_setting` applies the login item BEFORE persisting and propagates failures so the settings store rolls the toggle back (shortcut/mod.rs:1313-1331); the startup call stays deliberately best-effort (lib.rs:510-513, the companion-init rule: the preference is re-applied every launch so a transient failure self-heals). Missed by the round 4 verified list although it shipped in the same wave 4 commit as KB-104/145/183/188; corrected in the round 6 pass (which also adjusts the round 4 closed count from 29 to 30).
 
-**KB-113 · OPEN (re-verified 2×).** Successful download never dismisses the loading toast (only the failure path reuses the id; sonner loading toasts never auto-dismiss) [R3].
+**KB-113 · FIXED (obsolete; round 4 ruled closure by removal, round 9 fleet re-confirmed).** No loading toast exists on any model-download path anymore, so the stuck-toast defect has no trigger surface.
 
-**KB-144 · OPEN, upgraded to medium.** Search indexes experimental-gated rows (jump targets don't render) AND Companion Devices has no search entry at all [R3 ×3].
+**KB-144 · FIXED (v1.6.2, 58a920ff).** Was, upgraded to medium: search indexes experimental-gated rows (jump targets don't render) AND Companion Devices has no search entry at all [R3 ×3]. Fixed: the experimental-only entries carry requiresExperimental and hide while the flag is off, and Companion Devices joins the index gated the same way. Residual (KB-244): the post-processing row keys remain unindexed.
 
 **KB-148 · PARTIALLY FIXED · update-flow prompts notify while the window is hidden.** As found [R3]: the auto-check 'ask' card + install-policy restart prompts lived only in the hidden window; no reveal, no tray badge. Fixed in a6997aec: the ask card, the download/install failure toast and the restart prompt each also fire a macOS notification (`notifyDesktop`) when `document.visibilityState !== "visible"`. Residual: the auto-check-failure path - runUpdateCheck's catch toasts only when `trigger === "manual"`, so a failed AUTO check stays console-only with the window hidden (addressed separately by this cycle's check-failure notify work).
 
@@ -134,21 +134,21 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-155 · OPEN · NEW · model delete and download-cancel failures are invisible in the settings UI**: both handlers console.error only and ignore the store's recorded error (ModelsSettings.tsx:189-204; modelStore sets error + returns false), so a swap-guard refusal or fs error leaves the user with zero feedback after confirming a native dialog [R3].
 
-**KB-159 · OPEN · NEW · rebinding cancel to a chord another binding already holds reports success but silently leaves cancel dead**: the branch does format-only validation, retires the old registration, returns Ok (mod.rs:346-379 ✓R4 shape; conflict rejection happens only at the deferred reconcile, whose register failure is error!-only at mod.rs:223-227); every future session retries and fails until the conflict is removed [R3]. (KB-001 follow-on.)
+**KB-159 · FIXED (371f2b41; round 4 verified via KB-194's twin, round 9 fleet re-verified).** Rebinding cancel onto a chord another active binding holds is rejected up front by binding_conflicts_with_active_binding, in both the cancel and the generic branch.
 
-**KB-160 · OPEN · NEW · closing the settings window while the Tauri-backend shortcut recorder is armed leaves every global binding suspended with zero feedback**: suspension resumes only on commit/cancel inside the component; window close is prevent_close+hide (lib.rs:1142-1145) so the armed state persists hidden; hotkeys dead until the window is reopened and clicked. HandyKeys twin cleans up correctly (contrast at HandyKeysShortcutInput.tsx:175-183) [R3].
+**KB-160 · FIXED (backend 371f2b41, frontend ab25b849, static pins b2e36c72; round 9 fleet).** Closing the settings window while a recorder is armed now emits main-window-hidden exactly once and both recorders cancel and release the binding suspension.
 
 **KB-162 · FIXED · the batch final preview keeps the session's tail notice.** Was [R3]: the show listener's reset covered 'preview' (setNotice(null) + noticeTimer cleared), so a post-process skip emitted during transcribing was cut off before its designed 5 s read window - an error-sound skip (memory gate) showed nothing on the card exactly when the user was looking at the previewed text; the streaming branch kept the notice. Fixed in a6997aec: the reset now skips the notice (and its timer) when `overlayState === "preview"`; fresh sessions (recording/streaming) still start notice-clean and hide-overlay still clears it.
 
-**KB-176 · OPEN · NEW · the whisper initial prompt is unbounded and puts custom words at the HEAD**: the default matrix's ~109 Insert phrases (English + Devanagari + romanized + CJK) join ~1.2k chars ahead of custom words with no cap; HF's get_prompt_ids truncates keeping the TAIL, so custom words are first to fall off for every non-Latin output language (transcription.rs:3663-3676, 2995-3012; engine contract read from transcribe-cpp-sys headers). Truncation not executed (no model run); boundlessness/head-placement are code-read [R3].
+**KB-176 · FIXED (v1.6.2, 6b054cd1).** Was: the whisper initial prompt is unbounded and puts custom words at the HEAD, so HF's tail-keeping truncation sheds custom words first for every non-Latin output language. Fixed: the prompt is bounded and custom words ride the tail, pinned by whisper_initial_prompt_bounds_and_keeps_custom_words_last_kb176.
 
-**KB-179 · OPEN · NEW · a corrupted or unwritable history.db panics the app at every launch**: `HistoryManager::new(...).expect(...)` in setup; new() propagates create_dir_all/Connection/migrations errors. Same class 5bf5b893 just fixed for audio; recovery requires deleting history.db outside the app. Medium (needs external corruption/disk-full, no in-app toggle arms it) [R3].
+**KB-179 · FIXED (v1.6.2, 8b94fdc1, operator decision D3).** Was: a corrupted or unwritable history.db panics the app at every launch (`HistoryManager::new(...).expect(...)` in setup) [R3]. Fixed: new() quarantines the unreadable file as history.db.corrupt (timestamped suffix when taken, stale rollback journal dropped), starts a fresh database at the same path, and records the recovery; the frontend posts one persistent notice naming the quarantined file (settings.history.dbRecoveredNotice across all locales). Pinned by corrupt_db_is_quarantined_and_a_fresh_one_starts, second_quarantine_takes_the_timestamped_suffix, quarantine_drops_the_stale_rollback_journal, init_failure_quarantines_and_retries_instead_of_failing.
 
 **KB-183 · FIXED · Experimental off is now a companion kill switch (cycle 3 wave 4 fcb3e742; hardened in the v1.5.4 cycle 69a7820c + da66553a).** Was [R3]: the LAN TLS server kept running with its only control unmounted (AdvancedSettings gates rendering only; companion::init armed purely on companion_devices_enabled), re-armed every boot, findable by neither search nor tray. Fixed: `effective_enabled` requires BOTH toggles with a 4-combination test (companion/mod.rs:537-539, 783-815); `init` arms on the conjunction (mod.rs:551); the toggle command applies the conjunction, never the raw flag - including for direct IPC callers the UI unmount cannot gate (shortcut/mod.rs:955-990, `companion_toggle_runtime_value`, this cycle); the Experimental switch itself stops the server (shortcut/mod.rs:1689). The persist re-reads settings AFTER apply so the pairing token `start()` regenerates mid-enable survives the full-store write (da66553a). Round 4's list already verified the wave 4 half; the entry above was the stale part.
 
 **KB-185 · FIXED · tray "Unload After → Custom…" switches mode before focusing.** Was [R3]: a silent no-op whenever the setting was a preset - the custom input rendered only when the stored value was already Custom (`customActive = isCustom(storedValue)` ✓R4 at ModelUnloadTimeout.tsx:41), so the promised focus landed on a null ref and nothing switched modes. Fixed in 14369da8: the tray-focus effect first switches the stored setting to custom (backend command + optimistic store update, seeding 90 s like the dropdown does) when a preset is stored, so the field has rendered by the time the await resolves and the ref is attached.
 
-**KB-186 · OPEN · NEW · first-run onboarding's model step is a silent dead end offline:** the catalog-fetch-failure state renders only logo/subtitle/hotkey hint: no error, no retry, no skip: and onboarding gates the entire app (Onboarding.tsx:331,353; store error never read) [R3].
+**KB-186 · FIXED (0b0e3323; round 4's bracketed correction already said so, round 9 fleet re-verified).** The onboarding model step renders an error card with Retry and Skip when the catalog fetch fails; the bundled-catalog caveat (an IPC-failure surface, not an offline one) stands.
 
 ---
 
@@ -162,10 +162,10 @@ _Re-verified in round 3 (tag `[R3]`) unless marked `carried`:_
 - **KB-048** word-correction f64 unclamped; consumed raw where a huge threshold rewrites ordinary words (mod.rs:1236-1241) [R3]. **KB-049** AccelerationSelector display mismatch [R3]. **KB-050** style→none never hides live card + frontend reconcile handles only language/placement [R3]. **KB-051** streaming preview indistinguishable from working: exact mechanism pinned (only two emit_stream_working sites; caret suppression) [R3]. **KB-052** arming affordances + aria 'cancel' (localized Cancel keys exist to lift) [R3]. **KB-053** Windows preview-size misclassification (static, all rounds) [R3]. **KB-054** dropdown flashes 'live' [R3].
 - **KB-055** stale debug-gated claim [R3]. **KB-056** delay sliders inert with reliable paste [R3]. **KB-057** auto-submit × paste-method None [R3]. **KB-058** Dropdown English placeholder: instances now also: stale custom sound theme (SoundPicker builds Custom only when wavs exist) [R3]. **KB-059** send_edit_action dead + still-false doc (grep exit=1) [R3]. **KB-060** Linux probe forking (static) [R3]. **KB-061** generic paste toast + enigo init console.warn only [R3]. **KB-062** main-thread paste sleeps >10 s worst case [R3]. **KB-063** TypingTool probe staleness [R3].
 - **KB-064** global timeout dead + wired command [R3]. **KB-065** verdict detail English (26 locales) [R3]. **KB-066** tray staleness: now THREE surfaces: prompt submenu (all five settings-side mutations silent), local-LLM submenu (post-process-model-changed has zero listeners), AND voice Models submenu (download-complete/model-deleted never rebuild; only model-state-changed does: lib.rs:468-478) [R3 ×4]. **KB-067** runs table binding column: _carried_. **KB-068** renamed built-in masked [R3]. **KB-069** reseed drops NAME; no rename-only test case (re-ran, confirms gap) [R3]. **KB-070** evicted-live run loses outcome line + starts leak [R3]. **KB-071** ${output} never validated; legacy path sends no transcript [R3]. **KB-072** timestamp-ms ids + false comment + unguarded Duplicate [R3]. **KB-073** versionLabel dead key (re-grepped: 26 locale files, 0 refs) [R3 ×2].
-- **KB-074** spoken undo/paste inert vs copy in 26 locales [R3]. **KB-075** mid-session snapshot vs fresh finalize (fresh line evidence) [R3]. **KB-076** ASCII terminal punctuation on CJK/Hindi [R3]. **KB-077** filler \b never fires between Han [R3: bites only once a writer exists, cf KB-078]. **KB-078** custom_filler_words dead setting [R3]. **KB-079** lazy retention, three call sites [R3].
-- **KB-080 · upgraded to medium [R3]:** silent play of missing WAV: reachable in one step from the "Open Recordings Folder" button. **KB-081** star toggle race + blind revert [R3]. **KB-082** cert SAN freezes first LAN IP (load_persisted ignores current IP, cert.rs:31-33) [R3]. **KB-085** pre-auth no deadline + rapid off/on port race (KB-083 residual folded here) [R3]. **KB-086** zero server.rs tests + two dead protocol fields [R3]. **KB-087** copy-last silent on all paths [R3]. **KB-088** debug-key auto-repeat [R3]. **KB-089** ghost Debug section (sharpened: neither renderer checks debug_mode) [R3]. **KB-090** dark: follows OS (+ log-surface override also media-query-only) [R3]. **KB-091** verify-state mislabel + light colors + no feedback on still-denied [R3]. **KB-092** AppData+LogDirectory light colors [R3 ×2]. **KB-093** no ErrorBoundary on settings tree [R3].
-- **KB-094** failed install still shows "installed" prompt [R3 ×2]. **KB-095** confirm-card stacking [R3]. **KB-097** attribution literals [R3]. **KB-098** tray empty-string hole (re-measured clean today; gate counts "" as present) [R3 ×2]. **KB-099** translocation toast: mount-only, 15 s, expires unseen for start_hidden; comment's promise wrong; English race [R3 ×2]. **KB-100** only updaterPlatform.test.ts; **CI runs neither test:updater nor check:text-style** [R3 extended]. **KB-101** up-to-date path logs nothing [R3]. **KB-149** text-style omits release-notes + tsx literals (ran clean today) [R3].
-- **KB-114** command-mode latch (re-verified ×2) [R3]. **KB-115** unclamped u64 family: now also paste*delay_ms/paste_delay_after_ms (five setters total; R3 re-read all bodies) [R3 ×2]. **KB-116** margin no upper bound [R3]. **KB-117** delete_model no in-flight guard, both layers (re-verified ×2) [R3]. **KB-118** keyboard-impl dropdown literals: instance family grows: **LogLevelSelector.tsx:8-13 same class** [R3]. **KB-119** SoundPicker no disabled prop [R3]. **KB-120** per-drag full-store writes: family now: volume + **all five Output-tab sliders + the two new post-process sliders (timeout/keep-warm) + word-correction slider** [R3 ×3]. **KB-121** position/style/language no settings-changed emit → inverted card (fix shape: one emit per command) [R3]. **KB-122** raw-English interpolation umbrella: instances re-confirmed across overlay notices, channel toast, companion panel+notice, verdicts (check:translations re-run, structurally blind) [R3 ×3]. **KB-123** Shift+F4 on macOS + setter accepts hidden methods [R3]. **KB-124** toggle-off no-op no feedback (re-verified ×2) [R3]. **KB-125** external script unvalidated [R3]. **KB-126** Windows auto-submit try_lock skip: \_carried*. **KB-127** final clipboard-write failure inverts signal [R3]. **KB-128** isNotAPostProcessModelError dead [R3]. **KB-129** allow_base_url_edit decorative (three hardcoded gates) [R3]. **KB-130** off-path grid flash [R3]. **KB-131** Apple chars_out bytes (changed_ratio ~3× for CJK) [R3 ×2]. **KB-132** prompt_test consumes toast budgets: extended: also the skip-reason budget AND arms the overlay "Polishing" chip during a Test [R3 ×2]. **KB-133** shared test state/panel [R3 ×2]. **KB-134** everyday-gate English-only [R3]. **KB-135** CJK ASCII punctuation (pinned by test) [R3]. **KB-136** assert-script tests never run in CI: now THREE instances: commandGroups, skipToastDedupe, historyLimitInput (R3 ran both invocations for two of them) [R3 ×2]. **KB-137** `|| 5` coercion [R3]. **KB-138** AudioPlayer aria [R3]. **KB-139** retry toast drops detail [R3]. **KB-140** no-confirm delete + page-1 reload [R3]. **KB-141** stale synthesized-release comments (one now factually wrong about stop()) [R3]. **KB-142** sync-command main-thread block: second instance: **change_keyboard_implementation_setting, up to 10 s on first handy_keys switch** [R3]. **KB-143** tray submenu sync rejections log-only [R3]. **KB-145** experimental-off hides but doesn't deactivate [R3]. **KB-146** degenerate submenu label [R3 ×2]. **KB-147** sidebar mouse-only [R3].
+- **KB-074** spoken undo/paste inert vs copy in 26 locales [R3]. **KB-075** mid-session snapshot vs fresh finalize (fresh line evidence) [R3]. **KB-076 · FIXED (v1.6.2, 6b054cd1)** (was: ASCII terminal punctuation on CJK/Hindi; the marks are script aware now, with KB-135/KB-178). **KB-077** filler \b never fires between Han [R3: bites only once a writer exists, cf KB-078]. **KB-078** custom_filler_words dead setting [R3]. **KB-079** lazy retention, three call sites [R3].
+- **KB-080 · FIXED (v1.6.2, 58a920ff):** was (upgraded to medium [R3]) silent play of missing WAV, reachable in one step from the "Open Recordings Folder" button; custom cues now resolve through an existence check that falls back to the default theme's same cue. **KB-081 · FIXED (v1.6.2, 58a920ff)** (was: star toggle race + blind revert; now per-row pending, revert-to-pre-click, failure toast). **KB-082** cert SAN freezes first LAN IP (load_persisted ignores current IP, cert.rs:31-33) [R3; round 9 fleet re-verified open]. **KB-085 residual** rapid off/on port race (pre-auth deadline half fixed in 9655d8fc; KB-083 residual folded here) [R3; round 9 fleet re-verified]. **KB-086 residual** two dead protocol fields (the zero-tests half closed in v1.6.2: server.rs:686 now carries a tests module). **KB-087 · FIXED (v1.6.2, 58a920ff)** (was: copy-last silent on all paths; both tray copy actions now report every terminal path). **KB-088 · FIXED (v1.6.2, 58a920ff)** (was: debug-key auto-repeat; the chord ignores repeats). **KB-089 · FIXED (82e8700d)** ghost Debug section (sharpened: neither renderer checks debug_mode) [R3; round 9 fleet re-verified]. **KB-090 · FIXED (v1.6.2, 58a920ff)** (was: dark: follows OS + log-surface override media-query-only; a custom dark variant now follows the app theme). **KB-091 · FIXED (v1.6.2, 58a920ff)** (was: verify-state mislabel + light colors + no feedback on still-denied; Check Again answers current state, paired emerald shades). **KB-092 · FIXED (v1.6.2, 58a920ff)** (was: AppData+LogDirectory light colors; skeletons and errors on tokens). **KB-093 · FIXED (v1.6.2, 58a920ff)** (was: no ErrorBoundary on settings tree; the scroll content sits inside one).
+- **KB-094** failed install still shows "installed" prompt [R3 ×2]. **KB-095** confirm-card stacking [R3]. **KB-097** attribution literals [R3]. **KB-098** tray empty-string hole (re-measured clean today; gate counts "" as present) [R3 ×2]. **KB-099** translocation toast: mount-only, 15 s, expires unseen for start_hidden; comment's promise wrong; English race [R3 ×2]. **KB-100 · CLOSED (test:updater half 2bdd6049 per round 6 item 5; check:text-style half v1.6.2 fd63e677, ci.yml:187; round 9 fleet re-verified both).** **KB-101** up-to-date path logs nothing [R3]. **KB-149** text-style omits release-notes + tsx literals (ran clean today) [R3].
+- **KB-114** command-mode latch (re-verified ×2) [R3]. **KB-115** unclamped u64 family: now also paste*delay_ms/paste_delay_after_ms (five setters total; R3 re-read all bodies) [R3 ×2]. **KB-116** margin no upper bound [R3]. **KB-117** delete_model no in-flight guard, both layers (re-verified ×2) [R3]. **KB-118** keyboard-impl dropdown literals: instance family grows: **LogLevelSelector.tsx:8-13 same class** [R3]. **KB-119** SoundPicker no disabled prop [R3]. **KB-120** per-drag full-store writes: family now: volume + **all five Output-tab sliders + the two new post-process sliders (timeout/keep-warm) + word-correction slider** [R3 ×3]. **KB-121** position/style/language no settings-changed emit → inverted card (fix shape: one emit per command) [R3]. **KB-122 · FIXED (v1.6.2, 6b054cd1, with KB-015)** (was: raw-English interpolation umbrella: instances re-confirmed across overlay notices, channel toast, companion panel+notice, verdicts; the memory-gate refusal and the raw toast descriptions now localize). **KB-123** Shift+F4 on macOS + setter accepts hidden methods [R3]. **KB-124** toggle-off no-op no feedback (re-verified ×2) [R3]. **KB-125** external script unvalidated [R3]. **KB-126** Windows auto-submit try_lock skip: \_carried*. **KB-127** final clipboard-write failure inverts signal [R3]. **KB-128** isNotAPostProcessModelError dead [R3]. **KB-129** allow_base_url_edit decorative (three hardcoded gates) [R3]. **KB-130** off-path grid flash [R3]. **KB-131** Apple chars_out bytes (changed_ratio ~3× for CJK) [R3 ×2]. **KB-132** prompt_test consumes toast budgets: extended: also the skip-reason budget AND arms the overlay "Polishing" chip during a Test [R3 ×2]. **KB-133** shared test state/panel [R3 ×2]. **KB-134** everyday-gate English-only [R3]. **KB-135 · FIXED (v1.6.2, 6b054cd1)** (was: CJK ASCII punctuation pinned by test; terminal punctuation is script aware now, with KB-076/KB-178). **KB-136** assert-script tests never run in CI: now THREE instances: commandGroups, skipToastDedupe, historyLimitInput (R3 ran both invocations for two of them) [R3 ×2]. **KB-137** `|| 5` coercion [R3]. **KB-138** AudioPlayer aria [R3]. **KB-139** retry toast drops detail [R3]. **KB-140** no-confirm delete + page-1 reload [R3]. **KB-141** stale synthesized-release comments (one now factually wrong about stop()) [R3]. **KB-142** sync-command main-thread block: second instance: **change_keyboard_implementation_setting, up to 10 s on first handy_keys switch** [R3]. **KB-143** tray submenu sync rejections log-only [R3]. **KB-145** experimental-off hides but doesn't deactivate [R3]. **KB-146** degenerate submenu label [R3 ×2]. **KB-147** sidebar mouse-only [R3].
 
 _New in round 3 (KB-152, 153, 156-158, 161, 163-175, 177, 178, 180-182, 184, 187-193):_
 
@@ -189,7 +189,7 @@ _New in round 3 (KB-152, 153, 156-158, 161, 163-175, 177, 178, 180-182, 184, 187
 - **KB-174 ·** user templates can never carry language/register/description (add hardcodes auto/General/empty; update takes only name+prompt; no editor controls); badges are read-only decoration and the script guard can never sanction a custom script-switch template (mod.rs:1538-1547) [R3].
 - **KB-175 ·** the dictation-cancel sweep concludes live prompt_test runs as failed:cancelled (only history_retry exempted), dropping the test's real outcome from the runs table (post_process_runs.rs:566-573) [R3].
 - **KB-177 ·** "Reset to default" on an unedited matrix (stored=null) silently converts the store to Some(snapshot); freezing the user out of future default-phrase additions; only Reset All restores (CommandsSettings.tsx:273-289) [R3].
-- **KB-178 ·** Spoken Numbers only runs for English/Hindi-Hinglish output; the dropdown promises digit conversion in all 26 locales with no scope caveat (number_format.rs:98-110) [R3].
+- **KB-178 · FIXED (v1.6.2, 6b054cd1).** Was: Spoken Numbers only runs for English/Hindi-Hinglish output while the dropdown promised digit conversion in all 26 locales with no scope caveat. Now the copy states the scope in every locale (and the pp validator's digit-script guard keeps scripts consistent).
 - **KB-180 ·** failed first-page history load renders the "No transcriptions yet" empty state (catch console-only; no error state/retry) (HistorySettings.tsx:113-114, 255-259) [R3].
 - **KB-181 ·** "Open Recordings Folder" reveals-not-opens on macOS (NSWorkspace activateFileViewerSelectingURLs selects the folder in its parent); deliberate ACL workaround, residual is label-vs-behavior (commands/mod.rs:92-107; plugin source read; static) [R3].
 - **KB-182 ·** a failed history save during dictation is invisible on every surface (both call sites log-only; text pastes normally but never appears in History) (actions.rs:1601-1612, 1812-1813) [R3].
@@ -313,9 +313,11 @@ path anymore; the stuck-toast defect has no trigger surface. Mark closed.
   (settingsSearchIndex.ts:152-158, the AUD-11 comment: "the Theme and
   Accent Color rows (theme.title, theme.accentColor.label) are reachable by
   search"). Round 5 verified this; the entry above was the stale part.
-- **KB-207** 300ms hide-unmap race: card_visible=true while the overlay
-  already returned null; an info notice in the window is invisible on every
-  surface (overlay.rs:731-742 vs RecordingOverlay.tsx:385).
+- **KB-207 · FIXED (v1.6.2, fd63e677)** 300ms hide-unmap race: card_visible=true
+  while the overlay already returned null; an info notice in the window is
+  invisible on every surface (overlay.rs:731-742 vs RecordingOverlay.tsx:385).
+  Notices now probe the show and hide generations (card_durably_visible with
+  a pending-hide marker), so the fade window no longer routes card-only.
 
 ## New findings (P3)
 
@@ -424,17 +426,18 @@ KB-231 secure-input unregister failure leaks a double-firing Carbon shadow;
 KB-232 release notes hardcoded in release-macos.sh jq arg; KB-233 nothing in
 CI gates the release scripts (bash -n would have caught KB-217); KB-234
 1.5.0.md + 1.3.0/1.4.0 notes are English-only in all locales (scope call).
-LOW tail: KB-207 300ms unmap race; KB-208 companion detail dropped; KB-209
+LOW tail: KB-207 fixed in v1.6.2 (fd63e677, card_durably_visible); KB-208 companion detail dropped; KB-209
 prompt-id collision + false comment; KB-212r register-alias conflicts
 bypass the string-equality pre-check; KB-235 Tauri chord-keyed unregister
 kills an active sibling's registration (gate on binding_is_active);
-KB-236 handy-keys recorder bricked by impl-switch-while-armed; KB-237
-always-on flip during remote session strands local mic hot; KB-238
-doomed-mic-preference broadcast before restart outcome; KB-239 AI FFI
-blocks an async worker + chars_out in bytes; KB-240 retry desyncs the five
-pp summary columns (toggle-off retry now deletes output while the stale
-applied-chip survives); KB-241 dead is_model_loading API; KB-242 unit-
-returning setters; KB-243 log-only unregister-old in change_binding;
+KB-236 handy-keys recorder bricked by impl-switch-while-armed (residual
+open, round 9 fleet); KB-237 fixed in v1.6.2 (strand closed by the
+per-lane split f2014843, pinned as mode_flip_may_close_local_stream in
+fd63e677); KB-238 doomed-mic-preference broadcast before restart outcome
+(not re-verified by the round 9 fleet); KB-239 fixed in v1.6.2
+(6b054cd1, blocking pool + chars); KB-240 fixed in v1.6.2 (8b94fdc1,
+with KB-023); KB-241 fixed in v1.6.2 (removed, 6b054cd1); KB-242 fixed
+in v1.6.2 (6b054cd1); KB-243 fixed in v1.6.2 (6b054cd1);
 KB-244 search index micro-gaps (pp models/timeout/keep-warm, debug runs);
 KB-245 KB-136 family third instance (searchKeyboardNav unwired); KB-100
 half-closed (test:updater still not in CI); run-frontend-tests misses
@@ -717,34 +720,543 @@ All six verified by the fleet consolidator with path:line evidence; each is
 low severity today and needs a design decision or connection-identity work
 rather than a one-line fix, so v1.6.0 ships with them disclosed.
 
-- **KB-254 · OPEN · zero-audio notice can name the wrong phone.**
-  session_device is claimed only at hello-while-idle (mod.rs:182-187,
-  KB-197) and on_session_changed(true) re-reads the stale slot
-  (mod.rs:745-749), so phone B's zero-audio session after spectating phone
-  A names A in the notice detail (actions.rs:1793-1797). Needs per-connection
-  device identity carried with the session, not the manager slot.
-- **KB-255 · OPEN · quick reconnect can zero the tray's paired count.**
-  forget_device removes by NAME on every connection end (server.rs:520-522,
-  mod.rs:264-268) while keepalive death detection lags 20s, so a stale
-  socket's death can erase a fresh same-name registration (mod.rs:410-416
-  feeds the tray count). Needs generation/identity on registrations.
-- **KB-256 · OPEN · a v1.5.x built-in rename strands the template on the
-  gen-1 body.** update_post_process_prompt always bumps version on a
-  name-only edit (shortcut/mod.rs:2268-2272), so the migration's
-  version<seed guard (settings.rs:1711) never reaches its body-match
-  fallback. Decide: bump only on body change, or add a body-match pass.
-- **KB-257 · OPEN · studio batches have no cancellation and outlive their
-  UI.** The backend loop has no cancel token (shortcut/mod.rs:2224-2250,
-  cloud timeout up to 600s) and unmounting PromptStudio discards the cards
-  while the batch runs; a second batch can stack on the first (local pairs
-  degrade to LeaseDenied). Needs a cancel affordance + run registry.
+- **KB-254 · FIXED (v1.6.2, f2014843) · zero-audio notice can name the wrong phone.**
+  Was open: session_device was claimed only at hello-while-idle (mod.rs:182-187,
+  KB-197) and on_session_changed(true) re-read the stale slot, so phone B's
+  zero-audio session after spectating phone A named A in the notice detail.
+  Fixed by construction: per-lane identity means the zero-audio notice names
+  the session's own device (round 8 meaning; see the round 9 correction log
+  for the id collision with round 7's KB-254).
+- **KB-255 · FIXED (v1.6.2, f2014843) · quick reconnect can zero the tray's
+  paired count.** Was open: forget_device removed by NAME on every
+  connection end (server.rs:520-522, mod.rs:264-268) while keepalive death
+  detection lagged 20s, so a stale socket's death could erase a fresh
+  same-name registration. Fixed: connections register by (server-assigned
+  lane, monotonic generation) and release only on a matching pair, pinned by
+  registrations_release_by_lane_and_generation_never_by_name
+  (companion/mod.rs:1291); the device list derives from live registrations
+  (round 8 meaning; see the round 9 correction log for the id collision
+  with round 7's KB-255).
+- **KB-256 · FIXED (v1.6.2, 8b94fdc1) · a v1.5.x built-in rename strands the
+  template on the gen-1 body.** Was open: update_post_process_prompt always
+  bumped version on a name-only edit (shortcut/mod.rs:2268-2272), so the
+  migration's version<seed guard never reached its body-match fallback.
+  Fixed: the version bumps only when the body changed, so a rename of an
+  untouched gen-1 builtin takes the generation reseed instead of being
+  stranded as a fake user edit (round 8 meaning; see the round 9 correction
+  log for the id collision with round 7's KB-256, the Prompt Enhancer).
+- **KB-257 · FIXED (v1.6.2, 6b054cd1) · studio batches have no cancellation
+  and outlive their UI.** Was open: the backend loop had no cancel token and
+  unmounting PromptStudio discarded the cards while the batch ran; a second
+  batch could stack on the first. Fixed: a cancel generation checked between
+  runs, a Cancel button, and a module-level batch controller so remounts
+  reflect (and cannot stack on) the running batch, pinned by
+  studio_batch_cancel_generation_retires_only_older_batches_kb257.
 - **KB-258 · OPEN · the phone 'Polish text' toggle only arms the NEXT
   session.** Prefs freeze at session start (mod.rs:738-744, pinned), while
   the keyboard pp hotkey flips the live session; the phone surface does not
   say so (index.html:530-533). Either fold mid-session pref updates or label
   the toggle with a next-dictation hint (one new string x26 locales).
-- **KB-259 · OPEN · Tailscale classification is range-based only.** Any
-  100.64.0.0/10 address is labeled Tailscale and widens the pairing token to
-  the whole /10 regardless of interface (ip.rs:61-95); an ISP-CGNAT LAN can
-  present as Tailscale in the picker. Consider interface-name corroboration
-  (utun) plus a README security note on org-tailnet token scope.
+- **KB-259 · FIXED (v1.6.2, fd63e677) · Tailscale classification is range-based only.**
+  Was open: any 100.64.0.0/10 address was labeled Tailscale and widened the
+  pairing token to the whole /10 regardless of interface (ip.rs:61-95); an
+  ISP-CGNAT LAN could present as Tailscale in the picker. Fixed: the label
+  corroborates the interface name (utun family, ip.rs:82-96) before the
+  CGNAT range is called Tailscale; an uncorroborated CGNAT address labels
+  and pairs as plain LAN (/24, never the whole /10), and the README carries
+  the org-tailnet token-scope security note (README.md:301-307).
+
+---
+
+# Round 9 (v1.6.2 backlog-clear cycle, 2026-10-12, branch cycle10/v1.6.2-backlog-clear)
+
+Before any lane ran, a seven-agent verification fleet re-verified the open
+backlog against main at 43f4c092 (v1.6.0): fourteen items were already fixed
+(the ledger statuses were stale; flipped in place above and below), and the
+rest were verified open with fresh anchors and baked into the lane briefs.
+Six implementer lanes then landed the cycle: 86178659 (W1-L0, the tap-lock
+audio-admission fix plus activation copy), f2014843 (W1-L2, per-lane
+multi-phone sessions), 8b94fdc1 (the data-integrity wave), 58a920ff (W1-L3,
+the UX polish wave), 6b054cd1 (W1-L4, the pipeline quality wave), fd63e677
+(W1-L5, the platform wave). The cycle then closed under its own
+verification: two fleet passes over the landed tree confirmed and fixed
+twelve more defects (37a53abd, 801d48d3), a line-by-line review of the
+architectural lane's diff found three defects in the per-lane seams plus
+two sibling escapes and pinned the prewarm RAM rule (4872ee5f, 9e0124e2,
+94291724), and two W1-L4 follow-ups closed the remaining instances of
+their defect classes (33529030, 186a222d). The program register with the
+operator decisions
+lives in the shared vault (programs/mission-control-voxbar-v1.6.2-backlog-clear);
+the fleet's per-item verdicts live in the controller session record, and the
+anchors below were re-checked in this tree where the fix landed here (fleet
+anchors cite 43f4c092 where the file has since moved).
+
+## Closed as already-fixed by the verification fleet (do not re-file)
+
+- **KB-008** (371f2b41, roster pinned by 6670025b): binding_is_active gates
+  cycle_post_process_prompt and the pp toggle drives both keys through
+  POST_PROCESS_TOGGLE_BINDINGS. Round 4's verified list already named it;
+  the P1 entry above was the stale part and is now flipped.
+- **KB-009** (backend 371f2b41, frontend ab25b849): change_binding registers
+  only post-update-active bindings, restore_registration is gated the same
+  way, and the recorder chips hard-guard arming while their master toggle
+  is off (fleet anchors: mod.rs:482-504, 538-551, shortcutGating.ts:15-49).
+- **KB-036** (371f2b41): rearm_cancel_after_implementation_switch runs at
+  both success exits of the impl switch and the KB-199 error exit schedules
+  the reconcile too (fleet anchors: mod.rs:269-272, 675, 685, 880-887).
+- **KB-159** (371f2b41): binding_conflicts_with_active_binding pre-checks
+  chord conflicts in the cancel branch and the generic branch (KB-194's
+  twin, fleet anchors mod.rs:116-127, 394-408, 444-454).
+- **KB-160** (371f2b41 + ab25b849 + static pins b2e36c72): the single hide
+  path emits main-window-hidden exactly once and both recorders cancel and
+  release the suspension (shortcutRecorderWindowHide.test.ts:33-76).
+- **KB-017** (05ef0cf9, the KB-223 fix): a reliable-paste chord failure
+  settles the waiter, restores the clipboard, and surfaces as PasteFailed
+  on both platforms; the auto-submit Enter is a pinned not-owed after chord
+  failure (paste_tx/mod.rs:97-103, pinned :356-370).
+- **KB-106** (754c0fc5, v1.6.0's notification lane): paste_failed routes a
+  persistent OS notification through the notice router regardless of window
+  or card visibility (noticeRouting.ts:217, desktopNotify.ts:160-172).
+- **KB-186** (0b0e3323): the onboarding model step renders an error card
+  with Retry and Skip instead of the silent dead end (Onboarding.tsx:312-341
+  at 43f4c092); round 4's bracketed correction already said so.
+- **KB-035** (by v1.6.0): release notes ship through per-version files up
+  to 1.6.0.md and the blank last-seen migration resolves to the newest note
+  (settings.rs:2151-2153, releaseNotes.ts:70-78 at 43f4c092).
+- **KB-089** (82e8700d): both renderers gate Debug on debug_mode
+  (Sidebar.tsx:112-117, SettingsSearch.tsx:42-53 at 43f4c092).
+- **KB-113** (obsolete): no loading toast exists on any model-download
+  path anymore; round 4 had already ruled closure by removal, the P1 line
+  above kept a stale re-verified marker.
+- **KB-245** (82e8700d): searchKeyboardReducer is wired into SettingsSearch
+  (SettingsSearch.tsx:98-116 at 43f4c092); round 6 item 5 already retired
+  the note.
+- **KB-100, test:updater half** (2bdd6049, the KB-214 CI mechanism; round 6
+  item 5). The other half (check:text-style) is one of the two CI lines
+  fd63e677 added this cycle, so KB-100 is now fully closed.
+- **KB-012, script half** (dbd2e1b8): the hi/hi-Latn family rule passes.
+  The CI half is the second line fd63e677 added, so KB-012 is fully closed
+  too (ci.yml:187/190 in this tree).
+
+## Fixed this cycle, by lane
+
+**W1-L0 (86178659): the tap-lock admission defect, now KB-260 below**, plus
+the activation copy: the phone's hold_or_toggle idle button and welcome hint
+name both modes (companion.holdOrToggleToTalk across en plus all 26 locales,
+embedded strings regenerated; client_page.rs:252-294 pins the page carries
+the key).
+
+**W1-L2 (f2014843): per-lane multi-phone sessions.** KB-110 and KB-111 die
+by construction (each connection owns its recorder, ring, coordinator
+session, delivery target, and recents); round 8's KB-254 (wrong-phone
+zero-audio attribution) and KB-255 (reconnect erasing a fresh registration)
+fall out of per-lane identity. Pins in this tree: route_input at
+transcription_coordinator.rs:1710 with input_routing_is_exhaustively_classified
+(:4013), two_lanes_each_hold_a_live_session_with_independent_stops (:4247),
+a_companion_press_while_the_keyboard_records_never_reaches_the_lane_machine
+(:4419), registrations_release_by_lane_and_generation_never_by_name
+(companion/mod.rs:1457), session_identity_freezes_per_lane_and_cannot_be_renamed,
+session_prefs_freeze_per_lane_and_survive_the_stop_pipeline,
+transcript_delivery_and_state_frames_flow_through_app_state_per_lane,
+stream_owner_tokens_round_trip_and_never_collide; the new capture_device
+column (managers/history.rs:70) with
+per_device_recents_show_each_phone_only_its_own_sessions (:1900, query at
+:611-639). One cross-source rule survives: a local recording and a companion
+recording never coexist; companion sessions coexist freely.
+
+**Data-integrity wave (8b94fdc1):** KB-179 (quarantine, below), KB-023 +
+KB-240 (update_transcription rewrites the five pp summary columns atomically
+and NULLs them when the leg did not run; the retry threads the fresh
+summary), KB-025 (delete_entries_and_files emits per-id Deleted events and
+the cleanup tests exist), KB-108 (persisted tombstones keep built-in prompts
+deleted: deleted_builtin_prompt_tombstones_and_never_resurrects,
+tombstone_list_round_trips_through_the_store,
+tombstone_with_a_restored_row_drops_the_zombie,
+prompt_commands_wire_the_tombstone_and_version_seams), KB-109 remaining
+half (retry resolves provider, model, and prompt from the entry's recorded
+summary first; a recorded prompt that no longer exists skips the leg with a
+notice), KB-022 (the Commands tab passes loaded defaults into every table
+build and disables add/remove while unresolved), KB-045 + KB-047 (per-model
+download slots claimed atomically, DownloadCleanup removes only its own
+token, cancel with no token is a no-op), and round 8's KB-256 (the version
+bump only on body change, so a v1.5.x rename of an untouched gen-1 builtin
+takes the generation reseed).
+
+**W1-L3 (58a920ff), fourteen verified findings:** KB-032 (the six
+text-white-on-accent sites now text-accent-on, Button.tsx:30 in this tree,
+pinned by accent.test.ts), KB-105
+(kb105_error_hide_snapshots_the_generation_before_the_read_delay), KB-014
+(kb014_preview_wait_runs_only_when_something_can_show and the stop-pipeline
+twin), KB-093 (ErrorBoundary context="Settings" wraps the settings scroll
+content, App.tsx:840), KB-144 (requiresExperimental on the experimental-only
+search rows plus the Companion Devices entry, settingsSearchIndex.ts:14,
+146, 155), KB-021 (every locale's voice-deletion description names the live
+scratch-everything phrase, cross-pinned against the recognizer defaults),
+KB-080 (custom cues resolve through an existence check that falls back to
+the default theme's cue, four kb080 tests), KB-081 (per-row pending state,
+revert-to-pre-click, failure toast on the history star), KB-087
+(kb087_tray_copy_reports_every_terminal_path), KB-088 (the debug chord
+ignores auto repeats), KB-090 (a custom dark variant follows the app theme;
+the log override too), KB-091 (Check Again answers with the current
+permission state; paired emerald shades), KB-092 (AppData and LogDirectory
+skeletons and errors on tokens), KB-181
+(kb181_directory_buttons_open_instead_of_reveal).
+
+**W1-L4 (6b054cd1), nine backlog items:** KB-239 (the Apple Intelligence
+FFI moves onto the blocking pool and the output-length logs count chars,
+actions.rs:1293, 1359), KB-257 (studio batch cancellation:
+studio_batch_cancel_generation_retires_only_older_batches_kb257), KB-176
+(whisper_initial_prompt_bounds_and_keeps_custom_words_last_kb176), KB-015 +
+KB-122 (the memory-gate refusal gets its own notice code with structured
+model/needed/free detail and the transcription-error and model-state-changed
+toasts show localized copy:
+memory_gate_notice_detail_carries_model_needed_free_kb015_kb122), KB-076 +
+KB-135 + KB-178 (script-aware terminal punctuation, the digit-script
+validator guard, and the spoken-numbers scope copy in all 26 locales:
+test_terminal_punctuation_is_script_aware_kb076_kb135_kb178,
+validator_rejects_unsanctioned_digit_rewrites), KB-242
+(surface_syncs_propagate_their_failures_kb242), KB-243
+(unregister_failure_aborts_the_change_kb243), KB-241 (the inverted
+is_model_loading command is removed; no references remain), KB-096 (the
+version is injected at build time from package.json and the fallback literal
+is pinned to it, src/lib/utils/appVersion.ts).
+
+**W1-L5 (fd63e677), six platform items:** KB-237 (the always-on flip's
+close guard extracted and pinned as mode_flip_may_close_local_stream,
+managers/audio.rs:300 with the pin at :2156; the strand itself was closed
+by the W1-L2 per-lane split), KB-010 (an IOKit lid watcher re-resolves the
+desired microphone on real lid transitions with a guarded restart;
+kb010_lid_watcher_registers_an_iokit_interest_and_dedups and the
+runtime-probe test), KB-018 (multi-line transcripts reach dotool as
+per-line type commands plus an explicit enter per newline:
+dotool_script_types_each_line_and_presses_enter_per_newline), KB-259
+(above), the card_visible TOCTOU that KB-020's residual and KB-207 carried
+(notices probe the show and hide generations via card_durably_visible with
+the pending-hide marker, pinned by
+card_durably_visible_reads_pending_hide_before_current_generation), and the
+two CI lines (check:text-style and check:model-languages beside
+check:translations, ci.yml:187/190), which finish KB-100 and KB-012.
+
+**Fleet pass 1 over the landed tree (37a53abd), six confirmed defects:**
+KB-263 through KB-266 (below), the KB-015/KB-122 residual (the memory-gate
+notice code sat in DETAIL_INTERPOLATING_CODES, whose members' OS
+notification bodies re-localize with an empty detail, so the gate's body
+rendered dangling mid-sentence slots in all 26 locales; the fix removed
+the code from the set, the session cap's decision, so the body keeps the
+fully interpolated line, noticeMessage.ts:208-235), and
+one test-hygiene repair (emit_overlay_notice's probe comment named the
+wrong atomic, tripping the AUD-14 comment-accuracy pin).
+
+**Fleet pass 2 (801d48d3), six confirmed defects:** KB-267 through KB-271
+(below), plus the KB-179 residual: history_db_recovered joined the notice
+discipline (NOTICE_CHANNEL_TABLE, noticeRouting.ts:262), so the recovery
+notice consults the notifications master toggle like every persistent
+notice; with it off neither durable leg fires, and with it on the in-app
+log row rides the OS post as the denied-permission backstop.
+
+**W1-L1, the multi-phone review pass (4872ee5f, 9e0124e2, 94291724):** the
+line-by-line review of f2014843's owned seams found KB-272, KB-273, and
+KB-274 (below); review round 2 caught the KB-273 guard missing on the two
+sibling teardown paths (the scoped cancel in utils.rs and the hotkey
+load-failure mirror in managers/transcription.rs); and the prewarm RAM
+discipline (keep only the most recent connection's idle recorder, never
+touch a recording lane's) was extracted as the pure prewarm_retires and
+pinned by
+prewarm_retires_every_idle_recorder_except_the_target_and_spares_recording_lanes,
+behavior identical.
+
+**W1-L4 follow-ups (33529030, 186a222d):** KB-239's sweep found four more
+byte-length logs still labeled as chars (the cloud/structured success log
+and the legacy prompt-length log in actions.rs, the cmd-mode release-flush
+resolved/total pair, and the live-preview finalize counter in
+managers/transcription.rs), pinned by output_length_logs_count_chars_not_bytes_kb239
+and chars_labeled_logs_count_chars_not_bytes_kb239, both mutation-checked;
+and KB-242's delete arm (delete_post_process_prompt) now propagates its
+tray re-sync and badge refresh like the edit sibling, with the source pin
+extended to scope the delete body (also mutation-checked).
+
+## New entries
+
+- **KB-260 · FIXED · a tap-locked phone session admitted only the ~62 ms
+  press-hold sliver of the speech (round 9, W1-L0, 86178659).** The server's
+  per-connection edge tracker ended the audio-admission window at the
+  finger-lift release edge while the coordinator kept a hold-or-toggle tap's
+  session locked live until the next press, so everything after the first
+  ~100 ms was dropped as out-of-session audio (one leading-silence chunk to
+  VAD, zero samples at finish, the zero-audio notice). Found from the
+  operator's live log by the fleet, not by code review. Admission now
+  follows the Mac's live session state for the connection's own lane,
+  sampled at every received frame and keepalive tick (server.rs:455-595);
+  the release edge no longer closes it, the 15-minute cap keeps
+  force-finalizing locked tap sessions, and spectator or busy-swallowed
+  presses never feed another session's ring. Pinned by
+  session_admission_follows_observed_truth_not_release_edges,
+  tap_locked_session_captures_the_full_audio_after_the_release_edge,
+  tap_locked_session_still_hits_the_cap_from_the_tick_path,
+  session_admission_caps_a_locked_session_at_fifteen_minutes, and
+  audio_is_refused_whenever_this_lanes_session_is_not_live.
+- **KB-261 · OPEN · the build still emits ggml duplicate-symbol warnings
+  (round 9 fleet).** Both ggml-building sys crates are still linked
+  (transcribe-cpp 0.3.1 and llama-cpp-2 0.1.159, src-tauri/Cargo.toml:92,
+  102 at 43f4c092), so every release build logs the duplicate-symbol set
+  for the shared ggml backend-registration objects (the v1.6.0 release
+  build log carried them again). The link succeeds; cosmetic, but it
+  muddies every release log. Fix shape: stop one crate from compiling
+  ggml-backend-reg.cpp or force a single ggml instance.
+- **KB-262 · OPEN · the AI-unavailable copy cannot distinguish a
+  build-lacking-AI Mac from an OS-lacking one (round 9 fleet).** The
+  availability probe is a single bool, so a stub-linked build renders the
+  same "requires macOS Tahoe" message the OS-lacks case gets; the stub's
+  own distinct string never reaches the availability path (fleet anchors at
+  43f4c092: commands/mod.rs:141-152, apple_intelligence_stub.swift:24).
+  Fix shape: an available / os-unsupported / build-lacks enum plus one
+  locale string.
+- **KB-263 · FIXED · a grace-expired phone stop ran as a keyboard stop and
+  wedged its lane machine in Processing with a stranded recorder (round 9
+  fleet pass 1, 37a53abd).** expire_due_graces fired the grace-expired
+  Stop effect without its lane tag, so the effect ran through the keyboard
+  arm, skipped note_stopping_session, and never closed the lane's recorder:
+  every HoldOrToggle hold and every PushToTalk session that ended by grace
+  instead of a clean release edge was stranded. Fixed: the loop tags the
+  effect with its lane before run_effect. Pinned by
+  a_lane_grace_expired_release_stops_with_the_lane_tagged and
+  expire_due_graces_tags_lane_stop_effects_before_run_effect
+  (transcription_coordinator.rs:4339, 4388).
+- **KB-264 · FIXED · one phone's Escape could discard another phone's
+  in-flight stop pipeline, and a lane Escape fired the engine-wide cancel
+  (round 9 fleet pass 1, 37a53abd).** cancel_recording bumped a single
+  global cancel generation, so cancelling phone A invalidated the
+  generation phone B's just-queued pipeline gated on (the 200 ms streaming
+  release-tail window included); a lane-resolved Escape also cancelled the
+  engine-wide transcription. Fixed: per-lane cancel generations bumped only
+  through the target-scoped helper, and the engine cancel is a
+  per-resolution decision. Pinned by cancel_bump_lane_scopes_the_bump_to_the_cancelled_target,
+  cancel_recording_bumps_only_through_the_target_scoped_helper, and
+  cancel_current_operation_scopes_singletons_to_the_cancel_target
+  (utils.rs:256).
+- **KB-265 · FIXED · same-platform phones collapsed into one identity and
+  one shared recents list (round 9 fleet pass 1, 37a53abd).** The hello's
+  device name is a UA platform token (two iPhones both say iPhone, every
+  Chrome-Android phone says Linux), so the per-device recents the W1-L2
+  lane built keyed every same-platform phone into one list, private
+  phone-destined dictations included. Fixed: the client carries a
+  persistent device id (localStorage, client index.html:641-652) and
+  identity is name#tag, the id's first four alphanumerics, filtered so a
+  hostile id cannot smuggle length or separators into a display string
+  (protocol.rs:165-184); registration, session freeze, capture_device
+  provenance, and recents all key the composite. Pinned by
+  hello_parses_the_persistent_device_id and
+  device_identity_name_disambiguates_same_platform_phones.
+- **KB-266 · FIXED · one binding's resume failure stranded every later
+  binding as a dead hotkey until restart (round 9 fleet pass 1,
+  37a53abd).** resume_all_shortcuts returned on the first error, and the
+  recorder commit's guaranteed already-in-use duplicate made that
+  near-certain after a rebind (change_binding registers the committed
+  chord before the frontend resumes; the HashMap iterates arbitrarily, so
+  on the stock two-binding config roughly half of rebinds left a dead
+  hotkey). Fixed: unmount before re-arm, collect failures, report only
+  after the loop. Pinned by
+  resume_all_shortcuts_never_aborts_mid_loop_on_a_duplicate
+  (shortcut/mod.rs:3558).
+- **KB-267 · FIXED · stopping the companion server silently discarded every
+  live phone dictation (round 9 fleet pass 2, 801d48d3).** stop() cleared
+  the lane session map synchronously while the finalize pipelines it had
+  just queued were asynchronous mpsc sends whose Stop effects read those
+  records through note_stopping_session: every pipeline raced into a None
+  identity (no transcript, no history row) and stranded its recorder
+  recording=true. Server stop, restart, and toggle-off all shared the
+  path. Fixed: the sweep retains exactly the live lanes' records
+  (retain_live_lane_sessions, companion/mod.rs:361) and never touches the
+  transient stopping slot. Pinned by
+  server_stop_sweep_keeps_live_lanes_records_for_their_pipelines and
+  stop_routes_the_sweep_not_a_clear.
+- **KB-268 · FIXED · the cancel shortcut's want was one boolean, so the
+  first overlapping drain unregistered Escape for every concurrently-live
+  session (round 9 fleet pass 2, 801d48d3).** Fixed: the want is a
+  per-session set keyed None for the keyboard and Some(lane) per phone
+  (CANCEL_WANTERS, shortcut/mod.rs:186); each start adds its key,
+  FinishGuard and both teardown paths release exactly their own key
+  idempotently, and the Carbon fallback mirrors the set-folded boolean
+  (secure_input.rs:87-94). Pinned by
+  cancel_wanters_track_sessions_not_the_last_call and
+  cancel_shortcut_arms_are_keyed_by_session.
+- **KB-269 · FIXED · an Escape with nothing recording ignored in-flight
+  pipelines, and a local Escape fired the engine-wide cancel under a lane
+  pipeline's engine work (round 9 fleet pass 2, 801d48d3).** Fixed: stop
+  pipelines register their session key as in flight (removed by their
+  FinishGuard); when the cancel resolves to nothing it bumps every
+  in-flight lane's cancel generation so those pipelines abort cleanly at
+  their gates (no paste, no spurious failure notice, no empty history
+  row). Pinned inside
+  cancel_current_operation_scopes_singletons_to_the_cancel_target
+  (utils.rs:271-284) and by
+  in_flight_pipeline_registry_tracks_lanes_and_drains.
+- **KB-270 · FIXED · a failed start could cancel another session's live
+  stream and tear down its surfaces mid-dictation (round 9 fleet pass 2,
+  801d48d3).** The failed-start teardown cancelled the stream singleton and
+  flipped the tray and overlay unconditionally, so a failed non-owner
+  start under lane overlap killed a live session's audio. Fixed: cancel
+  the stream only when this start claimed the singleton (and hand the
+  claim back), retire surfaces only when no other session is live. Pinned
+  by failed_start_teardown_is_scoped_to_what_it_owns.
+- **KB-271 · FIXED · the start-success probe read the folded is_recording
+  mirror, so a failed lane start never rolled back (round 9 fleet pass 2,
+  801d48d3).** The mirror stays true while any other lane records, so a
+  start that failed under overlap looked successful; its machine wedged in
+  Recording with a dead session record. Fixed: the probe reads the
+  STARTING session's truth (its lane's recorder, or local_is_recording
+  for the keyboard). Pinned by
+  start_success_probe_is_scoped_to_the_starting_session
+  (transcription_coordinator.rs:2285).
+- **KB-272 · FIXED · a phone lane's stop could flip the shared recording
+  mirror false mid-capture (round 9 W1-L1 review, 9e0124e2).**
+  stop_remote_lane_recording's local fold inlined a Recording-only match
+  while its three sibling folds counted Recording|Stopping, so a lane stop
+  landing inside the Mac session's Stopping tail lied to the Escape gate,
+  the local-LLM keep-warm idle timer, and the failed-start tray guard.
+  Fixed: one pure local_capture_active predicate (audio.rs:436) at all
+  four fold sites. Pinned by local_capture_active_counts_the_stopping_tail
+  and stop_remote_lane_folds_the_mirror_through_the_shared_predicate.
+- **KB-273 · FIXED · every stop-pipeline drain retired the shared tray and
+  overlay unconditionally, so the first finisher hid the second phone's
+  live session (round 9 W1-L1 review, 9e0124e2 + 94291724).** With phones
+  A and B both live, the first drain flipped the tray to Idle and hid the
+  card under B's still-live session (the overlay's show-generation guard
+  only protects newer shows); cancel_current_operation and the hotkey
+  load-failure teardown carried the same unconditional flip, escaping the
+  first fix's drain-side pin. Fixed: retire_session_surfaces
+  (actions.rs:191) skips both flips while any other session is live; all
+  fifteen drains plus both siblings retire through it, the error-read
+  delay preserved via the readable_notice flag. Pinned by
+  stop_pipeline_drains_retire_shared_surfaces_only_when_no_other_session_is_live,
+  hotkey_load_failure_retires_shared_surfaces_through_the_guard, and the
+  no-direct-flip assertions in
+  cancel_current_operation_scopes_singletons_to_the_cancel_target.
+- **KB-274 · FIXED · the starting-session slot held the last phone lane
+  forever, so its None-for-keyboard contract was false (round 9 W1-L1
+  review, 9e0124e2).** Only begin_session wrote the slot, so after any
+  phone session every keyboard start read a stale lane (inert solely
+  because every consumer re-checks the capture source). Fixed: the
+  coordinator's Start arm writes the slot for every start (begin_session
+  for a lane, clear_starting_session for the keyboard). Pinned by
+  the_starting_slot_reads_none_for_keyboard_starts_after_any_phone_session
+  plus the Start-arm assertions in
+  start_success_probe_is_scoped_to_the_starting_session
+  (transcription_coordinator.rs:2319-2336).
+- **KB-275 · OPEN · the Esc resolution cannot reach older live phone
+  sessions, and every Esc resets every Recording-stage lane machine (round
+  9 W1-L6 review).** Two gaps in the cancel resolution, read from code:
+  (1) last_recording_lane is stored only at recorder start
+  (audio.rs:1336) and reset only in close_remote_stream (audio.rs:1546);
+  the cancel lane arm removes the lane's entry without re-pointing the
+  pointer (audio.rs:2136-2151), and it only fires while the local machine
+  is Idle (audio.rs:2130), so after the newest phone session is cancelled
+  OR merely stops, the next Esc resolves to CancelTarget::None
+  (audio.rs:2205) and only bumps in-flight stop pipelines
+  (utils.rs:141-144): a still-live older phone session is unreachable from
+  the keyboard until close_remote_stream resets the pointer; with the
+  keyboard recording, Esc always resolves to the keyboard no matter which
+  session started later (documented design at audio.rs:2109-2113, so only
+  the no-re-point half is a defect). (2) cancel_current_operation always
+  sends Command::Cancel (utils.rs:168), and the coordinator arm resets
+  EVERY Recording-stage lane machine (transcription_coordinator.rs:1243-
+  1249, the reset at :752-758) while the survivor's recorder and companion
+  session record live on: a keyboard-resolved Esc leaves a live phone
+  lane's machine Idle under a still-capturing recorder, reconciled only
+  at its next edge. Fix shape: re-point last_recording_lane to another
+  recording lane on cancel and stop (or resolve by most-recent start
+  across live lanes), and scope the coordinator's on_cancel to the
+  cancelled target's machine the way the audio-side generations already
+  are.
+
+## Still open after this cycle (anchors refreshed where re-read)
+
+- **KB-028:** companion stop() still closes the lane recorders only when
+  nothing is recording (companion/mod.rs:604-609 in this tree, now after
+  the KB-267 sweep); the shape survived the W1-L2 rewrite and both fleet
+  passes. A disable during a live local recording can
+  still strand the pre-warmed idle recorder.
+- **KB-029:** reset-pairing failures still never set status.error, so the
+  panel renders a clean Stopped (fleet verdict at 43f4c092; the companion
+  rewrite did not touch the reset legs).
+- **KB-082:** the self-signed cert SAN still freezes the first LAN IP; the
+  v1.6.0 manual-cert-pair mitigation stands (fleet verdict; cert.rs:31-33
+  at 43f4c092).
+- **KB-085 residual:** the rapid off/on port race (stop returns without
+  awaiting the accept loop, whose only signal is the shutdown send at
+  companion/mod.rs:600; bind fails EADDRINUSE with no retry). The
+  pre-auth deadline half was already fixed in 9655d8fc.
+- **KB-086 residual:** the two dead protocol fields. The zero-tests half is
+  closed this cycle: server.rs now carries a tests module (server.rs:695)
+  from the W1-L0 work.
+- **KB-155 residual:** model-download cancel failures are still invisible
+  in the settings UI (fleet verdict; the delete half renders only the
+  live-session refusal).
+- **KB-236 residual:** the impl-switch teardown gap for an armed handy-keys
+  recorder; unreachable through today's tab layout but one refactor away.
+- **KB-244 residual:** the post-processing row keys are still unindexed
+  (api.model, timeout, keep-warm, provider rows; re-checked in this tree:
+  no such keys in settingsSearchIndex.ts, whose pp section ends at the four
+  keys before :141's requiresExperimental block).
+- **KB-258:** the phone's Polish-text toggle still arms the NEXT session;
+  per-lane prefs freeze at session start (freeze_session,
+  companion/mod.rs:313, pinned by
+  session_prefs_freeze_per_lane_and_survive_the_stop_pipeline) and the phone
+  surface still does not say so.
+- **KB-261, KB-262, and KB-275 above.**
+
+## Correction log (this round)
+
+- Round 8's queue reused KB-254, KB-255, and KB-256, ids round 7 had
+  already spent on the post-processing truth pass (skip-detail, ASR
+  preamble, Prompt Enhancer). Both rounds' entries stand as written; every
+  v1.6.2 commit message cites the ROUND 8 meanings (wrong-phone attribution,
+  reconnect registration race, rename strand), and this round's flips
+  above follow that convention. Search with the round qualifier when an id
+  hits twice.
+- The fleet also re-verified the README against v1.6.0 behavior and found
+  no material gaps (one trust-boundary nit, closed by fd63e677's security
+  note); this round's W1-L6 pass then updated it for the v1.6.2 multi-phone
+  session rules, the per-phone recents, and the history quarantine.
+- This round was first written mid-cycle (09b31437, after W1-L5, before
+  the verification passes); the section as it stands is the final record:
+  the fleet passes, the W1-L1 review, and the W1-L4 follow-ups are folded
+  in with their own ids (KB-263 through KB-274), the fixed-this-cycle pin
+  anchors were re-read at HEAD (the closing commits moved several), and
+  the still-open anchors were re-verified. The final W1-L6 pass also
+  taught the README the phone-identity tag, the Esc resolution order under
+  overlapping sessions, and the quarantine notice's master-toggle
+  behavior.
+- The W1-L6 review round caught two errors in this section's first final
+  draft, both fixed here: the fleet-pass-1 residual parenthetical
+  inverted the memory-gate fix (the code SAT in DETAIL_INTERPOLATING_CODES
+  and the fix removed it; the set's members are the codes whose OS bodies
+  re-localize with an empty detail, noticeMessage.ts:267-271), and the
+  README's first Esc sentence claimed a one-at-a-time teardown the
+  resolution logic does not deliver. The Esc resolution's own gaps,
+  surfaced by that review, are filed as KB-275.
+
+## Round 10 queue: the nineteen verified lows kept open after the v1.6.2 fleets (2026-10-12)
+
+All verified by the fleet consolidators with anchors; each is low severity and
+ships disclosed in v1.6.2.
+
+- KB-260 device-id fallback collision on no-crypto browsers (client index.html:646-657 + protocol.rs:171-176: timestamp-leading tag chars identical across devices for hours).
+- KB-261 per-phone identity resets when the Mac's advertised origin changes (LAN IP change or Tailscale-vs-LAN pairing mints a new localStorage deviceId; Recent list silently resets; index.html:641-659, mod.rs:446-462, history.rs:616-624).
+- KB-262 zeroAudio recovery copy is activation-blind ("Hold the button" under the default tap-to-lock; en companion.zeroAudio).
+- KB-263 disconnect ack_remote_pause runs before any Stop raises the pause request, so drop-finalize always pays the full 2s timeout (server.rs:632).
+- KB-264 utun corroboration is not Tailscale-specific; other utun VPNs with CGNAT addresses still widen the token to the /10 (ip.rs:82-92, 240-252; README tailnet framing understates).
+- KB-265 digit-script guard tie-breaks against Latin and sanctions only dominant-script carry-over, discarding valid polish on mixed-digit text (post_process_runs.rs:934-940, 985-987; worked trace in the fleet evidence).
+- KB-266 cancel-wanted fold to Secure Input races outside the want-set lock (shortcut/mod.rs:229-242; stale armed or missing Carbon Escape shadow until the next event).
+- KB-267 emerald-600 Granted labels still 3.64:1 in light (need emerald-700; AccessibilityOnboarding.tsx:463,523).
+- KB-268 AppData/LogDirectory open buttons swallow {status:"error"} resolutions (bindings never throw; only transport errors caught; LogDirectory.tsx:47-61).
+- KB-269 dotool split keeps literal \r on CRLF transcripts, typing stray carriage returns (clipboard.rs:682-696; test covers \n only).
+- KB-270 per-lane bookkeeping grows without bound (coordinator lanes map never pruned, dead lane_sessions until server stop, cancel generations never removed; flapping phone = monotonic growth).
+- KB-271 historyDbRecovery swallows {status:"error"} pulls with no log anywhere, so the KB-179 notice can silently never post (historyDbRecovery.ts:52-66).
+- KB-272 push_remote_chunk drops admitted audio silently when a lane's recorder is closed, with zero tests at the only call site (server.rs:599, audio.rs:1470-1479).
+- KB-273 lid watcher restarts the stream on every flip even with no clamshell mic configured, under the state mutex (audio.rs:1843-1861; the UI-freeze class).
+- KB-275 opener:allow-open-path granted to the webview but unused by any frontend code (capabilities/default.json:9); drop or scope it.
+- KB-276 plural parity model misses the two secureInput count families and liveLogs.lineCount; wrong grammar in ru/uk/pl/cs/he/ar plus "1 lines" in English (pluralCoverage.test.ts:39-46).
+- KB-277 README streaming-overlap sentence contradicts the singleton-engine design (first session keeps streaming; README.md:264-265 vs actions.rs:1880-1888).
+- KB-278 stale notice-routing comments describe pre-cycle behavior (memory-gate body stripping removed; history_db_recovered click target exception undocumented; noticeRouting.ts:230-234, 391-393).
+- (Plus the carried KB-254..259 six-pack from round 8, unchanged this cycle.)

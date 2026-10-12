@@ -243,6 +243,63 @@ mod tests {
         );
     }
 
+    /// v1.6.2 W1-L0: with hold_or_toggle the idle button must name BOTH of
+    /// the activation's modes. A bare "hold to talk" hides the tap-to-lock
+    /// behavior the operator actually uses (every session in the live log
+    /// was a 34-62 ms tap that locked on), so quick taps read as a broken
+    /// hold button and the user never learns the session stayed live. The
+    /// button label and the welcome hint both carry the dedicated
+    /// holdOrToggleToTalk key; the plain holdToTalk key remains exactly
+    /// for push_to_talk.
+    #[test]
+    fn hold_or_toggle_button_names_both_modes() {
+        let refresh = between(CLIENT_HTML, "function refreshButton", "const TARGET_KEY");
+        let hold_or_toggle_arm = refresh
+            .find("} else if (activation === \"hold_or_toggle\") {")
+            .expect("the hold_or_toggle arm exists in refreshButton");
+        let arm = &refresh[hold_or_toggle_arm..];
+        assert!(
+            arm.contains("holdOrToggleToTalk"),
+            "the idle hold_or_toggle label must use the two-mode copy key"
+        );
+        // The plain hold key still belongs to push_to_talk alone: the
+        // hold_or_toggle arm must not fall back to it while idle.
+        let idle_label = arm.find("t(\"tapToStop\"").expect("the recording label");
+        assert!(
+            arm[idle_label..].contains("holdOrToggleToTalk"),
+            "the idle (not recording) label is the two-mode one"
+        );
+
+        // The welcome hint follows the same split: toggle names its tap,
+        // hold_or_toggle names both modes, push_to_talk keeps the plain
+        // hold copy.
+        let welcome = between(CLIENT_HTML, "case \"welcome\":", "break;");
+        assert!(
+            welcome.contains("activation === \"hold_or_toggle\""),
+            "the welcome hint distinguishes hold_or_toggle"
+        );
+        assert!(
+            welcome.contains("t(\"holdOrToggleToTalk\", \"\")"),
+            "the welcome hint uses the two-mode copy for hold_or_toggle"
+        );
+        assert!(
+            welcome.contains("t(\"holdToTalk\", \"\")"),
+            "push_to_talk keeps the plain hold copy in the hint"
+        );
+
+        // The key ships in every embedded locale (the generator hard-fails
+        // on a missing key; this pins the shipped blob itself).
+        let page = render_client_page();
+        assert!(
+            page.contains("\"holdOrToggleToTalk\""),
+            "the embedded strings carry the two-mode key"
+        );
+        assert!(
+            page.contains("Hold to talk, tap to lock"),
+            "the en value of the two-mode copy is present"
+        );
+    }
+
     /// v1.6.0 per-session preferences: every Ptt edge carries the output
     /// target and the post-process flag (the wire names the server parses
     /// are target/postProcess), and the phone persists its last choice in

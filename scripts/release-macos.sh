@@ -144,7 +144,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: phone dictation actually captures audio now, the phone can keep the transcript for itself or paste it on the Mac with per-session polish and a recent list, pairing works over Tailscale with manual listener and TLS control, errors and outcomes arrive as persistent macOS notifications, post-processing is provable with history diffs, a Prompt Studio, voice-aware templates, and a new Prompt Enhancer, and the tray and overlay gained live status and mid-session controls." \
+  --arg notes "VoxBar ${VERSION}: tap-locked phone sessions capture the whole dictation, several phones can dictate at once with per-phone sessions, histories, and cancels that touch only their own session, a corrupted history database is quarantined with a recovery notice while newer-build databases stay intact, history retries keep the settings they were recorded with, the interface landed a fourteen-fix polish pass, Prompt Studio batches can be canceled mid-run, the Whisper prompt is bounded and Apple Intelligence no longer parks the app's worker, Tailscale interfaces are labeled honestly, and the microphone follows the laptop lid." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \

@@ -119,6 +119,37 @@ fn remote_stop_with_silent_dead_source_still_finalizes_within_the_pause_timeout(
     assert_eq!(&samples[..2], &[4.0, 5.0]);
 }
 
+/// Fleet pass: the lane stop closes the SOURCE before stopping the
+/// recorder (its map entry is gone and admission already refuses the
+/// not-live session, so no boundary write can ever acknowledge the pause).
+/// A producer that is already gone must read as an immediate
+/// acknowledgement: fast return, the ring's samples intact, and none of
+/// the pause_timed_out fallout (the stream_error rebuild). Before the
+/// producer_gone check this exact shape paid the full 2 s
+/// PAUSE_ACK_TIMEOUT on every healthy phone dictation.
+#[test]
+fn remote_stop_after_source_close_skips_the_pause_wait_entirely() {
+    let mut recorder = AudioRecorder::new().expect("recorder");
+    let source = recorder.open_remote().expect("open remote source");
+    let ready = recorder.start(VadPolicy::Disabled).expect("start");
+    source.push_chunk(&[6.0, 7.0, 8.0]);
+    ready.recv_timeout(Duration::from_secs(1)).expect("ready");
+
+    source.close();
+    let began = Instant::now();
+    let samples = recorder.stop().expect("stop returns buffered samples");
+    assert!(
+        began.elapsed() < Duration::from_millis(750),
+        "a producer-gone stop must skip the pause wait entirely, took {:?}",
+        began.elapsed()
+    );
+    assert_eq!(
+        &samples[..3],
+        &[6.0, 7.0, 8.0],
+        "the ring's samples survive the source close"
+    );
+}
+
 #[test]
 fn remote_source_counts_overruns_when_the_ring_fills() {
     let mut recorder = AudioRecorder::new().expect("recorder");

@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Zkratky blokuje Secure Input",
     "postProcessPrompt": "Prompt následného zpracování"
   },
+  "trayCopyOutcome": {
+    "copied": "Přepis byl zkopírován do schránky.",
+    "empty": "Zatím není co kopírovat.",
+    "failed": "Přepis se nepodařilo zkopírovat do schránky."
+  },
   "sidebar": {
     "general": "Obecné",
     "commands": "Příkazy",
@@ -642,7 +647,7 @@
       },
       "voiceDeletion": {
         "title": "Hlasové příkazy pro mazání",
-        "description": "\"scratch that\", \"delete that\" a \"remove that\" smažou předchozí slovo, \"delete last three words\" smaže více slov a \"delete everything\" nebo \"start over\" vymaže celý přepis. Vypněte, aby zůstaly běžnými slovy."
+        "description": "\"scratch that\", \"delete that\" a \"remove that\" smažou předchozí slovo, \"delete last three words\" smaže více slov a \"delete everything\" nebo \"scratch everything\" vymaže celý přepis. Vypněte, aby zůstaly běžnými slovy."
       },
       "previewBeforePaste": {
         "title": "Náhled před vložením",
@@ -659,7 +664,7 @@
       },
       "numberFormat": {
         "title": "Mluvená čísla",
-        "description": "Zapisuje mluvená čísla jako číslice, takže \"one eight zero one\" se vloží jako 1801. \"Jak přepsáno\" ponechá čísla tak, jak byla řečena; Smart navíc převádí složené řadové číslovky a samostatná čísla od jedenácti výš.",
+        "description": "Zapisuje mluvená čísla jako číslice, takže \"one eight zero one\" se vloží jako 1801. Převod zná mluvené číslovky v angličtině a hindštině (včetně hingliše); v jiných jazycích zůstanou čísla tak, jak byla vyslovena. \"Jak přepsáno\" ponechá čísla tak, jak byla řečena; Smart navíc převádí složené řadové číslovky a samostatná čísla od jedenácti výš.",
         "options": {
           "asTranscribed": "Jak bylo přepsáno",
           "digits": "Číslice",
@@ -930,6 +935,7 @@
       "empty": "Zatím žádné přepisy. Začněte nahrávat a vytvořte si historii!",
       "copyToClipboard": "Kopírovat přepis do schránky",
       "copyError": "Přepis se nepodařilo zkopírovat do schránky.",
+      "savedToggleError": "Nepodařilo se aktualizovat stav uložení.",
       "save": "Uložit přepis",
       "unsave": "Odebrat z uložených",
       "delete": "Smazat záznam",
@@ -948,7 +954,8 @@
       },
       "viaPostProcess": "přes {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Zobrazit změny",
-      "hideChanges": "Skrýt změny"
+      "hideChanges": "Skrýt změny",
+      "dbRecoveredNotice": "Databáze vaší historie přepisů byla nečitelná, proto byla spuštěna nová. Předchozí databáze byla zachována jako {{file}}."
     },
     "debug": {
       "title": "Ladění",
@@ -1191,6 +1198,8 @@
       "runHint_many": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
       "runHint_other": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
       "running": "Běží...",
+      "cancel": "Zrušit",
+      "cancelledCard": "Zrušeno před zahájením tohoto spuštění.",
       "rerun": "Spustit znovu",
       "latency": "{{ms}} ms",
       "rawKept": "Engin selhal nebo byl přeskočen, proto by zůstal původní přepis.",
@@ -1280,6 +1289,8 @@
     "recordingFailed": "Nepodařilo se spustit nahrávání: {{error}}",
     "modelLoadFailed": "Nepodařilo se načíst model: {{model}}",
     "modelLoadFailedUnknown": "neznámý model",
+    "modelLoadFailedMemoryGate": "Není dost volné paměti pro načtení {{model}}: je potřeba asi {{needed}}, volných je asi {{free}}.",
+    "modelLoadFailedDetail": "Model nebyl změněn. Technický důvod je v souboru protokolu.",
     "modelFallbackTitle": "Málo paměti",
     "modelFallback": "Pro toto diktování bylo přepnuto na {{model}}",
     "pasteFailedTitle": "Vložení textu se nezdařilo",
@@ -1410,6 +1421,7 @@
     "serverStopped": "Mac zastavil doprovodný server.",
     "reconnect": "Připojit znovu",
     "holdToTalk": "Držte pro mluvení",
+    "holdOrToggleToTalk": "Držte pro mluvení, klepněte pro uzamčení",
     "tapToTalk": "Klepněte pro mluvení",
     "release": "Pusťte pro dokončení",
     "tapToStop": "Klepněte pro zastavení",

@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Kısayollar Secure Input tarafından engelleniyor",
     "postProcessPrompt": "Son işlem promptu"
   },
+  "trayCopyOutcome": {
+    "copied": "Dikte panoya kopyalandı.",
+    "empty": "Henüz kopyalanacak bir şey yok.",
+    "failed": "Dikte panoya kopyalanamadı."
+  },
   "sidebar": {
     "general": "Genel",
     "commands": "Komutlar",
@@ -642,7 +647,7 @@
       },
       "voiceDeletion": {
         "title": "Sesli silme komutları",
-        "description": "\"scratch that\", \"delete that\" ve \"remove that\" önceki kelimeyi siler, \"delete last three words\" birkaç kelimeyi siler, \"delete everything\" veya \"start over\" dikteyi temizler. Sıradan kelime olarak bırakmak için kapatın."
+        "description": "\"scratch that\", \"delete that\" ve \"remove that\" önceki kelimeyi siler, \"delete last three words\" birkaç kelimeyi siler, \"delete everything\" veya \"scratch everything\" dikteyi temizler. Sıradan kelime olarak bırakmak için kapatın."
       },
       "previewBeforePaste": {
         "title": "Yapıştırmadan önce önizleme",
@@ -659,7 +664,7 @@
       },
       "numberFormat": {
         "title": "Söylenen sayılar",
-        "description": "Söylenen sayıları rakam olarak yazar, böylece \"one eight zero one\" 1801 olarak yapıştırılır. \"Transkript edildiği gibi\" sayıları söylendiği gibi tutar; Smart ayrıca bileşik sıra sayılarını ve on bir ve üzeri tek sayıları dönüştürür.",
+        "description": "Söylenen sayıları rakam olarak yazar, böylece \"one eight zero one\" 1801 olarak yapıştırılır. Dönüştürme, İngilizce ve Hintçe (Hinglish dahil) sözlü sayıları bilir; diğer dillerde sayılar söylendiği gibi kalır. \"Transkript edildiği gibi\" sayıları söylendiği gibi tutar; Smart ayrıca bileşik sıra sayılarını ve on bir ve üzeri tek sayıları dönüştürür.",
         "options": {
           "asTranscribed": "Transkripsiyondaki gibi",
           "digits": "Rakamlar",
@@ -926,6 +931,7 @@
       "empty": "Henüz transkripsiyon yok. Geçmişinizi oluşturmak için kayda başlayın!",
       "copyToClipboard": "Transkripsiyonu panoya kopyala",
       "copyError": "Transkripsiyon panoya kopyalanamadı.",
+      "savedToggleError": "Kayıt durumu güncellenemedi.",
       "save": "Transkripsiyonu kaydet",
       "unsave": "Kaydedilenlerden kaldır",
       "delete": "Kaydı sil",
@@ -944,7 +950,8 @@
       },
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms ile",
       "viewChanges": "Değişiklikleri göster",
-      "hideChanges": "Değişiklikleri gizle"
+      "hideChanges": "Değişiklikleri gizle",
+      "dbRecoveredNotice": "Transkripsiyon geçmişi veritabanınız okunamadığı için yenisi başlatıldı. Önceki veritabanı {{file}} olarak saklandı."
     },
     "debug": {
       "title": "Hata Ayıklama",
@@ -1183,6 +1190,8 @@
       "runHint_one": "1 motorda 1 prompt. Hiçbir şey yazılmaz veya kaydedilmez.",
       "runHint_other": "{{count}} prompt-motor çifti. Hiçbir şey yazılmaz veya kaydedilmez.",
       "running": "Çalışıyor...",
+      "cancel": "İptal",
+      "cancelledCard": "Bu çalışma başlamadan önce iptal edildi.",
       "rerun": "Yeniden çalıştır",
       "latency": "{{ms}} ms",
       "rawKept": "Motor başarısız oldu veya atlandı, bu nedenle ham transkript korunurdu.",
@@ -1268,6 +1277,8 @@
     "recordingFailed": "Kayıt başlatılamadı: {{error}}",
     "modelLoadFailed": "Model yüklenemedi: {{model}}",
     "modelLoadFailedUnknown": "bilinmeyen model",
+    "modelLoadFailedMemoryGate": "{{model}} modelini yüklemek için yeterli boş bellek yok: yaklaşık {{needed}} gerekiyor, yaklaşık {{free}} boş.",
+    "modelLoadFailedDetail": "Model değiştirilmedi. Teknik neden günlük dosyasında.",
     "modelFallbackTitle": "Düşük bellek",
     "modelFallback": "Bu dikte için {{model}} modeline geçildi",
     "pasteFailedTitle": "Metin yapıştırılamadı",
@@ -1398,6 +1409,7 @@
     "serverStopped": "Mac eşlik sunucusunu durdurdu.",
     "reconnect": "Yeniden bağlan",
     "holdToTalk": "Konuşmak için basılı tut",
+    "holdOrToggleToTalk": "Konuşmak için basılı tut, kilitlemek için dokun",
     "tapToTalk": "Konuşmak için dokun",
     "release": "Bitirmek için bırak",
     "tapToStop": "Durdurmak için dokun",
