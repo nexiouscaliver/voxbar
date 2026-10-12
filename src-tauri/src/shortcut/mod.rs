@@ -1098,11 +1098,7 @@ pub fn change_companion_network_setting(
     advertised_host: Option<String>,
     port: u16,
 ) -> Result<(), String> {
-    validate_companion_network_override(
-        bind_ip.as_deref(),
-        advertised_host.as_deref(),
-        port,
-    )?;
+    validate_companion_network_override(bind_ip.as_deref(), advertised_host.as_deref(), port)?;
     let mut settings = settings::get_settings(&app);
     settings.companion_bind_ip = normalize_optional_setting(bind_ip);
     settings.companion_advertised_host = normalize_optional_setting(advertised_host);
@@ -1114,8 +1110,7 @@ pub fn change_companion_network_setting(
 /// v1.6.0: normalize a manual-override string field: trimmed, with empty
 /// meaning None (unset), so "  " can never masquerade as a choice.
 fn normalize_optional_setting(raw: Option<String>) -> Option<String> {
-    raw.map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
+    raw.map(|s| s.trim().to_string()).filter(|s| !s.is_empty())
 }
 
 /// v1.6.0: persist the manual TLS certificate pair for the companion
@@ -1135,7 +1130,10 @@ pub fn change_companion_tls_setting(
     match (&cert_path, &key_path) {
         (None, None) => {}
         (Some(cert), Some(key)) => {
-            crate::companion::cert::load_manual_pair(std::path::Path::new(cert), std::path::Path::new(key))?;
+            crate::companion::cert::load_manual_pair(
+                std::path::Path::new(cert),
+                std::path::Path::new(key),
+            )?;
         }
         (single, _) => {
             return Err(format!(
@@ -3181,7 +3179,10 @@ mod tests {
         let source = include_str!("mod.rs");
 
         for (marker, label) in [
-            ("fn cycle_prompt_and_notify", "the cycle hotkey/tray command"),
+            (
+                "fn cycle_prompt_and_notify",
+                "the cycle hotkey/tray command",
+            ),
             (
                 "fn set_post_process_selected_prompt",
                 "the settings dropdown + tray submenu write path",

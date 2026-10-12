@@ -39,7 +39,10 @@ fn load_persisted(cert_path: &Path, key_path: &Path) -> Option<CompanionCert> {
     let cert_pem = std::fs::read_to_string(cert_path).ok()?;
     let key_pem = std::fs::read_to_string(key_path).ok()?;
     let loaded = parse_pair(&cert_pem, &key_pem).ok()?;
-    log::info!("companion: loaded persisted TLS certificate ({})", loaded.fingerprint);
+    log::info!(
+        "companion: loaded persisted TLS certificate ({})",
+        loaded.fingerprint
+    );
     Some(loaded)
 }
 

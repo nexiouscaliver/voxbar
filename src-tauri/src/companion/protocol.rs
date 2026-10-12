@@ -137,9 +137,7 @@ pub fn parse_client_frame(text: &str) -> Option<ClientFrame> {
                     .get("target")
                     .and_then(|t| t.as_str())
                     .and_then(OutputTarget::from_wire),
-                post_process: value
-                    .get("postProcess")
-                    .and_then(|p| p.as_bool()),
+                post_process: value.get("postProcess").and_then(|p| p.as_bool()),
             },
         }),
         _ => None,

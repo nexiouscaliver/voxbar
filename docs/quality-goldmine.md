@@ -610,7 +610,7 @@ with three visibility defects and one genuine product defect - all four now
 fixed on this branch.
 
 - **KB-252 · FIXED · the validator had no identity guard: a verbatim echo
-  recorded as `applied` (round 7).** validate_post_process_output checked
+  recorded as `applied` (round 7).** `validate_post_process_output` checked
   non-empty, collapse, expansion, and script - never output-vs-input - so a
   weak local model that near-echoes the transcript (the 0.6B on row 122)
   sailed through and the outcome column could not distinguish "cleaned" from
@@ -626,9 +626,9 @@ fixed on this branch.
   character in thousands) stay `applied` with their changed ratio on the
   outcome line, which is the honest limit of a one-run guard. Pinned by:
   no_op_guard_is_exact_identity_after_trim (which includes a one-character
-  near-echo as NOT a no-op), finish_applied_distinguishes_changed_
-  from_unchanged, verbatim_echo_records_unchanged_not_applied (local runner
-  fakes), and verbatim_echo_cloud_run_records_unchanged_and_notices (cloud
+  near-echo as NOT a no-op),
+  `finish_applied_distinguishes_changed_from_unchanged`,
+  `verbatim_echo_records_unchanged_not_applied` (local runner fakes), and verbatim_echo_cloud_run_records_unchanged_and_notices (cloud
   seam, which also pins the info notice).
 - **KB-253 · FIXED · a requested-but-unstartable polish was completely
   silent (round 7).** The dictation seam's pre-run config guards (no provider
@@ -636,14 +636,14 @@ fixed on this branch.
   dangles, the template body is empty) only debug!-logged and returned raw -
   the exact "post-processing has no effect" machine: the operator presses the
   pp binding, raw text lands, nothing anywhere says why. And the default
-  selected_prompt_id is None, so "toggle on, never pick a template" walks
+  `selected_prompt_id` is None, so "toggle on, never pick a template" walks
   straight into it. Fix: the pure, exhaustive classifier
   `post_process_request_gap` (actions.rs) names the specific gap, and
   post_process_transcription emits the new error-tone
   `post_process_not_configured` notice (overlay card row, hidden-window
   toast, persistent OS notification in the download_missing class) with that
-  cause as detail. Pinned by post_process_request_gap_tables_every_config_
-  fallback; the phone-forwarder classification (companion/mod.rs allow list)
+  cause as detail. Pinned by
+  `post_process_request_gap_tables_every_config_fallback`; the phone-forwarder classification (companion/mod.rs allow list)
   and the frontend routing tables (noticeRouting.ts, noticeMessage.ts, both
   pinned test mirrors) carry the code exhaustively.
 - **KB-254 · FIXED · the pp runs table could say "skipped" but never why

@@ -100,8 +100,8 @@ pub fn classify_v4(ip: Ipv4Addr) -> Option<InterfaceKind> {
 /// feature unavailable rather than guessing.
 #[cfg(any(target_os = "macos", target_os = "linux"))]
 pub fn interface_candidates() -> Vec<InterfaceCandidate> {
-    use std::ffi::CStr;
     use libc::{freeifaddrs, getifaddrs, ifaddrs, sockaddr_in, AF_INET};
+    use std::ffi::CStr;
 
     let mut ifap: *mut ifaddrs = std::ptr::null_mut();
     if unsafe { getifaddrs(&mut ifap) } != 0 {
@@ -224,8 +224,13 @@ pub fn is_valid_advertised_host(raw: &str) -> bool {
                 .bytes()
                 .next()
                 .is_some_and(|b| b.is_ascii_alphanumeric())
-            && label.bytes().last().is_some_and(|b| b.is_ascii_alphanumeric())
-            && label.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+            && label
+                .bytes()
+                .last()
+                .is_some_and(|b| b.is_ascii_alphanumeric())
+            && label
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b == b'-')
     })
 }
 
@@ -350,7 +355,10 @@ mod tests {
     #[test]
     fn enumerated_candidates_are_classified_and_named() {
         for c in interface_candidates() {
-            assert_eq!(c.kind, classify_v4(c.ip).expect("enumerated candidates classify"));
+            assert_eq!(
+                c.kind,
+                classify_v4(c.ip).expect("enumerated candidates classify")
+            );
             assert!(!c.ip.is_loopback());
             assert!(!c.name.is_empty(), "getifaddrs always carries a name");
         }
@@ -361,28 +369,20 @@ mod tests {
 
     #[test]
     fn lan_outranks_tailscale_even_when_tailscale_is_first() {
-        let picked = pick_interface(&[
-            cand(100, 101, 7, 24, "utun9"),
-            cand(192, 168, 1, 42, "en0"),
-        ]);
+        let picked =
+            pick_interface(&[cand(100, 101, 7, 24, "utun9"), cand(192, 168, 1, 42, "en0")]);
         assert_eq!(picked, Some(Ipv4Addr::new(192, 168, 1, 42)));
     }
 
     #[test]
     fn tailscale_outranks_the_corporate_vpn_range() {
-        let picked = pick_interface(&[
-            cand(10, 20, 0, 5, "utun3"),
-            cand(100, 101, 7, 24, "utun9"),
-        ]);
+        let picked = pick_interface(&[cand(10, 20, 0, 5, "utun3"), cand(100, 101, 7, 24, "utun9")]);
         assert_eq!(picked, Some(Ipv4Addr::new(100, 101, 7, 24)));
     }
 
     #[test]
     fn vpn_range_loses_to_192_168_even_when_first() {
-        let picked = pick_interface(&[
-            cand(10, 20, 0, 5, "utun3"),
-            cand(192, 168, 1, 42, "en0"),
-        ]);
+        let picked = pick_interface(&[cand(10, 20, 0, 5, "utun3"), cand(192, 168, 1, 42, "en0")]);
         assert_eq!(picked, Some(Ipv4Addr::new(192, 168, 1, 42)));
     }
 
@@ -407,10 +407,7 @@ mod tests {
     fn same_tier_keeps_first_found_order() {
         // Tiebreak inside one tier: enumeration order, as before KB-225.
         assert_eq!(
-            pick_interface(&[
-                cand(192, 168, 1, 10, "en0"),
-                cand(192, 168, 2, 20, "en1"),
-            ]),
+            pick_interface(&[cand(192, 168, 1, 10, "en0"), cand(192, 168, 2, 20, "en1"),]),
             Some(Ipv4Addr::new(192, 168, 1, 10))
         );
     }
@@ -443,10 +440,7 @@ mod tests {
 
     #[test]
     fn resolve_honors_a_present_chosen_interface_including_tailscale() {
-        let candidates = [
-            cand(192, 168, 1, 42, "en0"),
-            cand(100, 101, 7, 24, "utun9"),
-        ];
+        let candidates = [cand(192, 168, 1, 42, "en0"), cand(100, 101, 7, 24, "utun9")];
         assert_eq!(
             resolve_bind_ip(&candidates, Some("100.101.7.24")).unwrap(),
             Ipv4Addr::new(100, 101, 7, 24),

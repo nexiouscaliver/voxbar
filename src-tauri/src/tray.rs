@@ -2700,7 +2700,10 @@ mod tests {
         assert_eq!(
             rows,
             vec![
-                ("history_copy:7".to_string(), "14:32 · hello world".to_string()),
+                (
+                    "history_copy:7".to_string(),
+                    "14:32 · hello world".to_string()
+                ),
                 (
                     "history_copy:6".to_string(),
                     "2026-10-10 · earlier one".to_string()

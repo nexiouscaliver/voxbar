@@ -39,7 +39,9 @@ export function isValidAdvertisedHost(raw: string): boolean {
   const s = raw.trim();
   if (!s || s.length > 253) return false;
   if (isIpv4Literal(s)) return true;
-  return s.split(".").every((label) => label.length <= 63 && HOST_LABEL_RE.test(label));
+  return s
+    .split(".")
+    .every((label) => label.length <= 63 && HOST_LABEL_RE.test(label));
 }
 
 /** Parse the advertised-host field: unset, a valid host, or invalid. */
@@ -65,7 +67,10 @@ export function parseCompanionPort(raw: string): PortField {
 
 /** Both halves of the manual TLS pair or neither (the backend's
  * both-or-neither rule; a lone path never persists). */
-export function tlsPairShape(cert: string, key: string): "both" | "neither" | "half" {
+export function tlsPairShape(
+  cert: string,
+  key: string,
+): "both" | "neither" | "half" {
   const c = cert.trim() !== "";
   const k = key.trim() !== "";
   if (c && k) return "both";

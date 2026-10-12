@@ -114,7 +114,10 @@ export const CompanionDevices: React.FC = () => {
           port.value,
         );
         if (result.status === "error") {
-          console.error("Failed to update companion network setting:", result.error);
+          console.error(
+            "Failed to update companion network setting:",
+            result.error,
+          );
           toast.error(i18n.t("toast.settingNotSaved", { error: result.error }));
           return;
         }
@@ -144,7 +147,10 @@ export const CompanionDevices: React.FC = () => {
           shape === "both" ? keyRaw.trim() : null,
         );
         if (result.status === "error") {
-          console.error("Failed to update companion TLS setting:", result.error);
+          console.error(
+            "Failed to update companion TLS setting:",
+            result.error,
+          );
           toast.error(i18n.t("toast.settingNotSaved", { error: result.error }));
           return;
         }
@@ -272,9 +278,7 @@ export const CompanionDevices: React.FC = () => {
             <div className="space-y-1">
               <button
                 type="button"
-                onClick={() =>
-                  void applyNetwork(null, hostValue, portValue)
-                }
+                onClick={() => void applyNetwork(null, hostValue, portValue)}
                 className={`flex w-full items-center justify-between rounded-md border px-3 py-1.5 text-left text-xs ${
                   storedBindIp
                     ? "border-mid-gray/20 hover:border-mid-gray/40"
@@ -350,7 +354,9 @@ export const CompanionDevices: React.FC = () => {
                 id="companion-advertised-host"
                 type="text"
                 className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-background-ui/40 px-2 py-1 font-mono text-xs text-text focus:border-logo-primary focus:outline-none"
-                placeholder={t("settings.advanced.companionDevices.hostPlaceholder")}
+                placeholder={t(
+                  "settings.advanced.companionDevices.hostPlaceholder",
+                )}
                 value={hostValue}
                 onChange={(e) => setHostDraft(e.target.value)}
                 onBlur={() =>
