@@ -1554,6 +1554,12 @@ for (const shot of shots) {
         .waitForSelector("#root div", { timeout: 5000 })
         .catch(() => {});
     }
+    // Park the synthetic pointer at the window corner. prepare() clicks
+    // leave the cursor sitting on the last target, so its :hover state
+    // (and any hover-only affordance it lights up) would bleed into the
+    // capture and read as a rendering artifact.
+    await page.mouse.move(0, 0).catch(() => {});
+    await settle(120);
     let target = page;
     if (shot.clipTo) {
       const el = await shot.clipTo(page);
