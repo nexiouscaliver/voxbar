@@ -420,6 +420,21 @@ struct RemoteLane {
     generation: u64,
 }
 
+/// v1.6.2 W1-L2 RAM discipline, pure so it is pinnable without the VAD
+/// asset a real pre-warm loads: which open lane recorders a pre-warm of
+/// `target` retires. Every idle recorder OTHER than the target goes (the
+/// most-recent-connection rule: after the call at most one idle
+/// pre-warmed recorder exists, the target's), while the target itself
+/// stays whatever its state and a RECORDING lane always stays (its stop
+/// pipeline owns the teardown; retiring it would discard a live
+/// dictation's recorder out from under the session).
+fn prewarm_retires(lanes: impl Iterator<Item = (u64, bool)>, target: u64) -> Vec<u64> {
+    lanes
+        .filter(|&(lane, recording)| lane != target && !recording)
+        .map(|(lane, _)| lane)
+        .collect()
+}
+
 /// Tracks our forced "mute while recording" so we can restore the user's audio
 /// exactly as it was. `did_mute` is true while our mute is active; `prev_muted`
 /// is the system mute state captured just before we muted, used to decide
@@ -1457,11 +1472,8 @@ impl AudioRecordingManager {
     pub fn prewarm_remote_lane(&self, lane: u64) -> Result<(), anyhow::Error> {
         {
             let mut lanes = self.remote_lanes.lock().unwrap();
-            let retired: Vec<u64> = lanes
-                .iter()
-                .filter(|(&l, entry)| l != lane && !entry.recording)
-                .map(|(&l, _)| l)
-                .collect();
+            let retired =
+                prewarm_retires(lanes.iter().map(|(&l, entry)| (l, entry.recording)), lane);
             for retired_lane in retired {
                 if let Some(mut entry) = lanes.remove(&retired_lane) {
                     debug!(
@@ -2207,6 +2219,40 @@ mod tests {
         assert_eq!(effective_release_buffer_ms(0, 200, false), 0);
         // The off path: a zero tail restores the old behavior exactly.
         assert_eq!(effective_release_buffer_ms(0, 0, true), 0);
+    }
+
+    /// v1.6.2 W1-L2 pin: the pre-warm RAM rule is most-recent-connection
+    /// only. A pre-warm retires every idle recorder OTHER than its
+    /// target, never the target itself, and never a recording lane (its
+    /// stop pipeline owns the teardown). Without the rule, N paired
+    /// phones kept N idle VAD sessions and N rings alive at once (see the
+    /// RemoteLane budget above); with it, the steady-state idle cost is
+    /// one recorder no matter how many phones are paired.
+    #[test]
+    fn prewarm_retires_every_idle_recorder_except_the_target_and_spares_recording_lanes() {
+        // Three phones paired: lane 7 mid-dictation, lanes 9 and 12 idle.
+        // Pre-warming 12 (the most recent connection) retires only 9.
+        let mut retired = prewarm_retires([(7u64, true), (9, false), (12, false)].into_iter(), 12);
+        retired.sort_unstable();
+        assert_eq!(retired, vec![9]);
+
+        // A fresh connection pre-warming a lane that has no recorder yet
+        // (the reconnect scenario): every older idle recorder retires.
+        let mut retired = prewarm_retires([(9u64, false), (12, false)].into_iter(), 5);
+        retired.sort_unstable();
+        assert_eq!(retired, vec![9, 12]);
+
+        // A recording target stays (its session keeps its recorder), and
+        // it still retires the other idle lanes while sparing its fellow
+        // recording lane.
+        let mut retired = prewarm_retires([(3u64, true), (4, true), (6, false)].into_iter(), 3);
+        retired.sort_unstable();
+        assert_eq!(retired, vec![6]);
+
+        // All lanes recording: a pre-warm retires nothing (every teardown
+        // belongs to a stop pipeline), and an empty map retires nothing.
+        assert!(prewarm_retires([(3u64, true), (4, true)].into_iter(), 9).is_empty());
+        assert!(prewarm_retires(std::iter::empty(), 9).is_empty());
     }
 
     /// Fleet pass 1: the cancel cross-fire rule, pinned pure. A cancel
