@@ -2477,14 +2477,17 @@ pub fn delete_post_process_prompt(app: AppHandle, id: String) -> Result<(), Stri
 
     // KB-201 (KB-066 surface 1): the deleted template leaves the prompt
     // submenu (and may move its checkmark) through MenuInputs - re-sync
-    // now.
-    let _ = tray::update_tray_menu(&app);
+    // now. KB-242: the re-sync's failure is returned, not discarded -
+    // reporting success while the menu bar keeps the deleted row is the
+    // lie this lane was filed against.
+    tray::update_tray_menu(&app)?;
 
     // v1.6.0 W1-L7 review residual: deleting the SELECTED template
     // silently moved the selection to the fallback (first) template above,
     // and the stop pipeline resolves whatever is selected at run time - a
     // lit badge must hear the new name, not keep naming the deleted one.
-    let _ = crate::transcription_coordinator::refresh_lit_post_process_badge(&app);
+    // KB-242: a failed badge refresh is returned too.
+    crate::transcription_coordinator::refresh_lit_post_process_badge(&app)?;
 
     Ok(())
 }
@@ -3496,6 +3499,29 @@ mod tests {
         assert!(
             edit.contains("refresh_lit_post_process_badge(&app)?;"),
             "update_post_process_prompt must propagate the badge refresh"
+        );
+
+        // The review residual the first pass missed: delete_post_process_prompt
+        // sits in the same brief span as its edit sibling and shares the exact
+        // two syncs, so it propagates them too - and the discards are gone.
+        let delete = body_of("fn delete_post_process_prompt");
+        assert!(
+            delete.contains("tray::update_tray_menu(&app)?;"),
+            "delete_post_process_prompt must propagate the tray re-sync"
+        );
+        assert!(
+            delete.contains("refresh_lit_post_process_badge(&app)?;"),
+            "delete_post_process_prompt must propagate the badge refresh"
+        );
+        assert!(
+            !delete.contains("let _ = tray::update_tray_menu"),
+            "the tray re-sync discard is back in the delete path"
+        );
+        assert!(
+            !delete.contains(
+                "let _ = crate::transcription_coordinator::refresh_lit_post_process_badge"
+            ),
+            "the badge refresh discard is back in the delete path"
         );
 
         let suspend = body_of("pub fn suspend_all_shortcuts");
