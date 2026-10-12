@@ -710,3 +710,41 @@ main-window skip/failure toasts dedupe once per reason per app session
 machine's second-and-later memory-gate refusals; and Apple Intelligence has
 still never been exercised as a pp engine on the operator's machine (he
 switched after the 10:05PM refusals; no run exists post-switch).
+
+## Round 8 queue: the six structural lows kept open after the v1.6.0 fleet (2026-10-12)
+
+All six verified by the fleet consolidator with path:line evidence; each is
+low severity today and needs a design decision or connection-identity work
+rather than a one-line fix, so v1.6.0 ships with them disclosed.
+
+- **KB-254 · OPEN · zero-audio notice can name the wrong phone.**
+  session_device is claimed only at hello-while-idle (mod.rs:182-187,
+  KB-197) and on_session_changed(true) re-reads the stale slot
+  (mod.rs:745-749), so phone B's zero-audio session after spectating phone
+  A names A in the notice detail (actions.rs:1793-1797). Needs per-connection
+  device identity carried with the session, not the manager slot.
+- **KB-255 · OPEN · quick reconnect can zero the tray's paired count.**
+  forget_device removes by NAME on every connection end (server.rs:520-522,
+  mod.rs:264-268) while keepalive death detection lags 20s, so a stale
+  socket's death can erase a fresh same-name registration (mod.rs:410-416
+  feeds the tray count). Needs generation/identity on registrations.
+- **KB-256 · OPEN · a v1.5.x built-in rename strands the template on the
+  gen-1 body.** update_post_process_prompt always bumps version on a
+  name-only edit (shortcut/mod.rs:2268-2272), so the migration's
+  version<seed guard (settings.rs:1711) never reaches its body-match
+  fallback. Decide: bump only on body change, or add a body-match pass.
+- **KB-257 · OPEN · studio batches have no cancellation and outlive their
+  UI.** The backend loop has no cancel token (shortcut/mod.rs:2224-2250,
+  cloud timeout up to 600s) and unmounting PromptStudio discards the cards
+  while the batch runs; a second batch can stack on the first (local pairs
+  degrade to LeaseDenied). Needs a cancel affordance + run registry.
+- **KB-258 · OPEN · the phone 'Polish text' toggle only arms the NEXT
+  session.** Prefs freeze at session start (mod.rs:738-744, pinned), while
+  the keyboard pp hotkey flips the live session; the phone surface does not
+  say so (index.html:530-533). Either fold mid-session pref updates or label
+  the toggle with a next-dictation hint (one new string x26 locales).
+- **KB-259 · OPEN · Tailscale classification is range-based only.** Any
+  100.64.0.0/10 address is labeled Tailscale and widens the pairing token to
+  the whole /10 regardless of interface (ip.rs:61-95); an ISP-CGNAT LAN can
+  present as Tailscale in the picker. Consider interface-name corroboration
+  (utun) plus a README security note on org-tailnet token scope.
