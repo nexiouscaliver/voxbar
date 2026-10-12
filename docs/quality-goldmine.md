@@ -1235,3 +1235,28 @@ extended to scope the delete body (also mutation-checked).
   README's first Esc sentence claimed a one-at-a-time teardown the
   resolution logic does not deliver. The Esc resolution's own gaps,
   surfaced by that review, are filed as KB-275.
+
+## Round 10 queue: the nineteen verified lows kept open after the v1.6.2 fleets (2026-10-12)
+
+All verified by the fleet consolidators with anchors; each is low severity and
+ships disclosed in v1.6.2.
+
+- KB-260 device-id fallback collision on no-crypto browsers (client index.html:646-657 + protocol.rs:171-176: timestamp-leading tag chars identical across devices for hours).
+- KB-261 per-phone identity resets when the Mac's advertised origin changes (LAN IP change or Tailscale-vs-LAN pairing mints a new localStorage deviceId; Recent list silently resets; index.html:641-659, mod.rs:446-462, history.rs:616-624).
+- KB-262 zeroAudio recovery copy is activation-blind ("Hold the button" under the default tap-to-lock; en companion.zeroAudio).
+- KB-263 disconnect ack_remote_pause runs before any Stop raises the pause request, so drop-finalize always pays the full 2s timeout (server.rs:632).
+- KB-264 utun corroboration is not Tailscale-specific; other utun VPNs with CGNAT addresses still widen the token to the /10 (ip.rs:82-92, 240-252; README tailnet framing understates).
+- KB-265 digit-script guard tie-breaks against Latin and sanctions only dominant-script carry-over, discarding valid polish on mixed-digit text (post_process_runs.rs:934-940, 985-987; worked trace in the fleet evidence).
+- KB-266 cancel-wanted fold to Secure Input races outside the want-set lock (shortcut/mod.rs:229-242; stale armed or missing Carbon Escape shadow until the next event).
+- KB-267 emerald-600 Granted labels still 3.64:1 in light (need emerald-700; AccessibilityOnboarding.tsx:463,523).
+- KB-268 AppData/LogDirectory open buttons swallow {status:"error"} resolutions (bindings never throw; only transport errors caught; LogDirectory.tsx:47-61).
+- KB-269 dotool split keeps literal \r on CRLF transcripts, typing stray carriage returns (clipboard.rs:682-696; test covers \n only).
+- KB-270 per-lane bookkeeping grows without bound (coordinator lanes map never pruned, dead lane_sessions until server stop, cancel generations never removed; flapping phone = monotonic growth).
+- KB-271 historyDbRecovery swallows {status:"error"} pulls with no log anywhere, so the KB-179 notice can silently never post (historyDbRecovery.ts:52-66).
+- KB-272 push_remote_chunk drops admitted audio silently when a lane's recorder is closed, with zero tests at the only call site (server.rs:599, audio.rs:1470-1479).
+- KB-273 lid watcher restarts the stream on every flip even with no clamshell mic configured, under the state mutex (audio.rs:1843-1861; the UI-freeze class).
+- KB-275 opener:allow-open-path granted to the webview but unused by any frontend code (capabilities/default.json:9); drop or scope it.
+- KB-276 plural parity model misses the two secureInput count families and liveLogs.lineCount; wrong grammar in ru/uk/pl/cs/he/ar plus "1 lines" in English (pluralCoverage.test.ts:39-46).
+- KB-277 README streaming-overlap sentence contradicts the singleton-engine design (first session keeps streaming; README.md:264-265 vs actions.rs:1880-1888).
+- KB-278 stale notice-routing comments describe pre-cycle behavior (memory-gate body stripping removed; history_db_recovered click target exception undocumented; noticeRouting.ts:230-234, 391-393).
+- (Plus the carried KB-254..259 six-pack from round 8, unchanged this cycle.)
