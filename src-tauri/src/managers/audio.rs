@@ -1943,6 +1943,22 @@ impl AudioRecordingManager {
         }
     }
 
+    /// v1.6.2 fleet pass 2: bump the cancel generations of exactly these
+    /// lanes - the abort-all resolution an Escape takes when nothing is
+    /// recording anymore and only stop pipelines remain (their gates, and
+    /// the transcription-error arm's cancelled check, then classify the
+    /// abort cleanly instead of pasting or reporting a spurious failure).
+    /// A lane no pipeline ever captured is a harmless no-op bump.
+    pub fn bump_lane_cancel_generations(&self, lanes: &[u64]) {
+        if lanes.is_empty() {
+            return;
+        }
+        let mut map = self.lane_cancel_generations.lock().unwrap();
+        for lane in lanes {
+            *map.entry(*lane).or_insert(0) += 1;
+        }
+    }
+
     /// Stop the LOCAL recording session and return its captured samples.
     /// v1.6.2 W1-L2: companion lane sessions stopped through
     /// [`Self::stop_remote_lane_recording`] never pass through here, so a
@@ -2047,6 +2063,19 @@ impl AudioRecordingManager {
         // across a slow CoreAudio open/close → main-thread deadlock / UI
         // freeze).
         self.recording_active.load(Ordering::SeqCst)
+    }
+
+    /// Whether the LOCAL machine's own session is live (Recording or
+    /// Stopping) WITHOUT the per-lane fold. v1.6.2 fleet pass 2: the
+    /// coordinator's start-success probe for a KEYBOARD start must read
+    /// exactly the keyboard session's truth - the folded mirror stays true
+    /// while any phone lane records, which reported a failed keyboard
+    /// start as started and skipped its rollback.
+    pub fn local_is_recording(&self) -> bool {
+        matches!(
+            *self.state.lock().unwrap(),
+            RecordingState::Recording { .. } | RecordingState::Stopping
+        )
     }
 
     /// Cancel any ongoing recording without returning audio samples.

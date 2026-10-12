@@ -86,9 +86,6 @@ fn native_windows_machine() -> Option<u16> {
 pub fn cancel_current_operation(app: &AppHandle) {
     info!("Initiating operation cancellation...");
 
-    // Unregister the cancel shortcut asynchronously
-    shortcut::unregister_cancel_shortcut(app);
-
     // Cancel any ongoing recording. v1.6.2 fleet pass 1: the cancel resolves
     // to exactly one target (local, or the most-recently-started lane) and
     // bumps only that target's cancel generation, so it can never discard
@@ -97,13 +94,27 @@ pub fn cancel_current_operation(app: &AppHandle) {
     let recording_was_active = audio_manager.is_recording();
     let cancel_target = audio_manager.cancel_recording();
 
+    // v1.6.2 fleet pass 2: release exactly the torn-down session's want of
+    // the cancel shortcut (the keyboard's None, or the cancelled lane's) -
+    // the key stays armed while any other live session still wants it. The
+    // torn-down session's own FinishGuard release is idempotent.
+    let cancel_session_key = match cancel_target {
+        crate::managers::audio::CancelTarget::Lane(lane) => Some(lane),
+        _ => None,
+    };
+    shortcut::unregister_cancel_shortcut(app, cancel_session_key);
+
     // Abandon any live streaming transcription, and stop a transcription
     // already in progress - scoped to the cancelled target, because both are
     // process singletons: an unconditional cancel here would kill ANOTHER
     // lane's live stream (or its finalize) exactly when this Escape resolved
     // elsewhere. The stream is only cancelled when the target owned it; the
-    // engine-wide transcription cancel stays reserved for a local/none
-    // resolution (the keyboard user's abort), never a lane's cancel.
+    // engine-wide transcription cancel stays reserved for the keyboard's
+    // abort (a local resolution, or the abort-all below), never a lane's
+    // own cancel. Fleet pass 2: a local resolution also skips the engine
+    // cancel while any LANE pipeline is in flight - that engine work
+    // belongs to the phone's pipeline, and killing it would misreport the
+    // abort as a transcription failure.
     let tm = app.state::<Arc<TranscriptionManager>>();
     let owns_stream = match cancel_target {
         crate::managers::audio::CancelTarget::Local => {
@@ -117,7 +128,26 @@ pub fn cancel_current_operation(app: &AppHandle) {
     if owns_stream {
         tm.cancel_stream();
     }
-    if !matches!(cancel_target, crate::managers::audio::CancelTarget::Lane(_)) {
+    // Fleet pass 2, the abort-all resolution: nothing is recording anymore,
+    // so the only work left in the process is the in-flight stop pipelines,
+    // and the Mac's Escape means "abort the current work" exactly as it did
+    // in the single-session era. Bump every in-flight LANE's cancel
+    // generation: each pipeline's gates (and its transcription-error arm's
+    // cancelled check, which fires when the engine cancel below aborts its
+    // batch mid-run) then classify the abort cleanly - no paste, no
+    // spurious failure notice, no empty history row. When no lane pipeline
+    // is in flight this is a no-op and the Escape stays the keyboard's own
+    // abort.
+    let in_flight_lanes = crate::actions::in_flight_lane_pipelines();
+    if matches!(cancel_target, crate::managers::audio::CancelTarget::None) {
+        audio_manager.bump_lane_cancel_generations(&in_flight_lanes);
+    }
+    let engine_cancel = match cancel_target {
+        crate::managers::audio::CancelTarget::Lane(_) => false,
+        crate::managers::audio::CancelTarget::Local => in_flight_lanes.is_empty(),
+        crate::managers::audio::CancelTarget::None => true,
+    };
+    if engine_cancel {
         tm.cancel_transcription();
     }
 
@@ -205,15 +235,20 @@ pub fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> String {
 mod tests {
     use super::*;
 
-    /// Fleet pass 1, source pin: cancel_current_operation must scope the
-    /// process-singleton transcription teardown to the cancelled target -
-    /// cancel_stream only when the target owned the stream, and the
-    /// engine-wide cancel_transcription never for a lane-resolved cancel.
-    /// Unconditional calls cross-fired into whichever other lane was live
-    /// (the same bug the per-lane cancel generation closes on the capture
-    /// side). Pinned against this committed source because mounting an
-    /// AppHandle in a unit test is not possible (same convention as the
-    /// audio manager's cancel pins).
+    /// Fleet pass 1 + 2, source pin: cancel_current_operation must scope
+    /// the process-singleton transcription teardown to the cancelled
+    /// target - cancel_stream only when the target owned the stream, the
+    /// engine-wide cancel_transcription never for a lane-resolved cancel
+    /// and never for a local resolution while any LANE pipeline is in
+    /// flight (that engine work belongs to the phone's pipeline; killing it
+    /// misreports the abort as a transcription failure), and the
+    /// abort-all resolution (nothing recording, pipelines in flight) bumps
+    /// exactly the in-flight lanes' generations so those pipelines cancel
+    /// cleanly. Unconditional calls cross-fired into whichever other lane
+    /// was live (the same bug the per-lane cancel generation closes on the
+    /// capture side). Pinned against this committed source because
+    /// mounting an AppHandle in a unit test is not possible (same
+    /// convention as the audio manager's cancel pins).
     #[test]
     fn cancel_current_operation_scopes_singletons_to_the_cancel_target() {
         let source = include_str!("utils.rs");
@@ -230,11 +265,22 @@ mod tests {
             body.contains("if owns_stream {") && body.contains("tm.cancel_stream();"),
             "the stream singleton must be cancelled only when the cancelled target owned it"
         );
+        // Fleet pass 2: the engine cancel rule and the abort-all resolution.
         assert!(
-            body.contains(
-                "if !matches!(cancel_target, crate::managers::audio::CancelTarget::Lane(_))"
-            ),
-            "a lane-resolved cancel must never touch the engine-wide transcription cancel"
+            body.contains("let engine_cancel = match cancel_target {"),
+            "the engine-wide cancel must be a per-resolution decision, not an unconditional call"
+        );
+        assert!(
+            body.contains("CancelTarget::Local => in_flight_lanes.is_empty(),"),
+            "a local-resolved cancel must not kill a lane pipeline's in-flight engine work"
+        );
+        assert!(
+            body.contains("audio_manager.bump_lane_cancel_generations(&in_flight_lanes);"),
+            "the abort-all resolution (nothing recording, only pipelines left) must bump the in-flight lanes' generations so they cancel cleanly"
+        );
+        assert!(
+            body.contains("shortcut::unregister_cancel_shortcut(app, cancel_session_key);"),
+            "the cancel releases exactly the torn-down session's want; another live session's Escape stays armed"
         );
     }
 

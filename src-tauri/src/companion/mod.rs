@@ -349,6 +349,23 @@ impl CompanionManager {
         lanes
     }
 
+    /// Fleet pass 2: the session-record sweep the server-stop path runs
+    /// AFTER queueing its finalize commands. Those commands are resolved
+    /// later, on the coordinator thread, and each pipeline reads its
+    /// lane's record through note_stopping_session - so the sweep may only
+    /// remove records whose sessions are NOT live (already-drained entries
+    /// from an earlier cycle). A live lane's record must survive until its
+    /// own pipeline consumes it, or the pipeline resolves session_lane
+    /// None and discards the dictation. Pure map surgery; pinned with the
+    /// note_stopping_session roundtrip in the tests below.
+    fn retain_live_lane_sessions(&self) {
+        let live: std::collections::HashSet<u64> = self.live_session_lanes().into_iter().collect();
+        self.lane_sessions
+            .lock()
+            .unwrap()
+            .retain(|lane, _| live.contains(lane));
+    }
+
     /// v1.6.0: arm the preferences the next companion session will run
     /// with. Called by the server on every press edge, so the tray's
     /// companion status block shows the latest phone choice as "what the
@@ -562,8 +579,20 @@ impl CompanionManager {
                 coordinator.finalize_companion_lane(lane);
             }
         }
-        self.lane_sessions.lock().unwrap().clear();
-        *self.stopping.lock().unwrap() = None;
+        // Fleet pass 2: those finalize commands are ASYNCHRONOUS (mpsc
+        // sends; the coordinator thread turns each into a Stop effect
+        // whose pipeline reads THIS lane's session record through
+        // note_stopping_session), so this thread must NOT clear the map
+        // out from under them - the pre-fix synchronous clear raced every
+        // pipeline into session_lane None and silently discarded the
+        // dictation (no transcript, no history row) while stranding the
+        // lane's recorder recording=true. Keep exactly the LIVE lanes'
+        // records (their pipelines consume them, flip liveness, and leave
+        // them for the next stop() to sweep); never touch the stopping
+        // slot at all (it is transient by design: note_stopping_session
+        // writes it and take_stopping_session consumes it on the same
+        // thread).
+        self.retain_live_lane_sessions();
 
         self.broadcast_frame(&protocol::ServerFrame::Goodbye {
             reason: "server_stopping",
@@ -1285,6 +1314,93 @@ mod tests {
         assert_eq!(manager.live_session_lanes(), vec![lane_b]);
         on_lane_session_changed(app.handle(), lane_b, false);
         assert!(manager.live_session_lanes().is_empty());
+    }
+
+    /// Fleet pass 2: the server-stop sweep must not race the finalize
+    /// pipelines it just queued. stop() sends one finalize command per
+    /// live lane (an mpsc send resolved LATER on the coordinator thread)
+    /// and then sweeps the session records on ITS OWN thread; the
+    /// pre-fix sweep was a full clear, so every pipeline found no record,
+    /// resolved session_lane None, and silently discarded its dictation.
+    /// The sweep must keep exactly the LIVE lanes' records - the pipeline
+    /// handoff (note_stopping_session -> take_stopping_session) still
+    /// resolves after it - and may only remove already-drained entries.
+    #[test]
+    fn server_stop_sweep_keeps_live_lanes_records_for_their_pipelines() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+
+        let (lane_a, _gen_a, _rx_a) = manager.register_connection("iPhone#7f3a");
+        let (lane_b, _gen_b, _rx_b) = manager.register_connection("iPhone#c3d4");
+        let prefs = protocol::SessionPrefs {
+            output_target: protocol::OutputTarget::Phone,
+            post_process: false,
+        };
+        begin_session(app.handle(), lane_a, prefs.clone());
+        begin_session(app.handle(), lane_b, prefs.clone());
+        // Lane B's session already drained (an earlier cycle's leftover:
+        // live=false, its pipeline long finished).
+        on_lane_session_changed(app.handle(), lane_b, false);
+
+        // The sweep, exactly as stop() runs it after queueing its
+        // finalizes.
+        manager.retain_live_lane_sessions();
+
+        // The drained record is gone; the LIVE record survived, and the
+        // pipeline handoff still resolves it: note_stopping_session (the
+        // coordinator thread's Stop-effect seam) reads the record, and
+        // take_stopping_session (the pipeline's first step) receives the
+        // lane, device, and prefs - the identity whose absence made the
+        // pre-fix stop discard the audio.
+        note_stopping_session(app.handle(), lane_a);
+        let stopping = take_stopping_session(app.handle());
+        assert_eq!(
+            stopping,
+            Some((lane_a, "iPhone#7f3a".to_string(), prefs)),
+            "a live lane's record must survive the server-stop sweep so its finalize pipeline resolves its identity"
+        );
+
+        // The stopping slot was never cleared by the sweep (it is
+        // transient: written by the Stop effect, consumed exactly once).
+        assert!(take_stopping_session(app.handle()).is_none());
+        // And a second sweep (the next server stop) collects the drained
+        // record once its pipeline flipped liveness.
+        on_lane_session_changed(app.handle(), lane_a, false);
+        manager.retain_live_lane_sessions();
+        assert!(manager.live_session_lanes().is_empty());
+        note_stopping_session(app.handle(), lane_a);
+        assert!(
+            take_stopping_session(app.handle()).is_none(),
+            "a drained record no longer hands out an identity"
+        );
+    }
+
+    /// The source-level companion of the sweep test above: stop() must run
+    /// the sweep (retain), never a synchronous clear, and never touch the
+    /// stopping slot. Mounting a RUNNING TLS server in a unit test is not
+    /// practical, so the arm is pinned against this committed source (the
+    /// same convention as the coordinator's executor pins).
+    #[test]
+    fn stop_routes_the_sweep_not_a_clear() {
+        let source = include_str!("mod.rs");
+        let at = source
+            .find("pub fn stop(&self, app: &AppHandle)")
+            .expect("stop");
+        let end = at + source[at..].find("\n    }\n").expect("fn end");
+        let body = &source[at..end];
+        assert!(
+            body.contains("self.retain_live_lane_sessions();"),
+            "stop() must sweep through retain_live_lane_sessions after queueing its finalizes"
+        );
+        assert!(
+            !body.contains("lane_sessions.lock().unwrap().clear()"),
+            "stop() must never clear the session map synchronously: the finalize pipelines it just queued read those records"
+        );
+        assert!(
+            !body.contains("stopping.lock"),
+            "stop() must never touch the stopping slot: note_stopping_session writes it and take_stopping_session consumes it on the pipeline thread"
+        );
     }
 
     /// v1.6.2 W1-L2 (KB-255): paired-device bookkeeping keys on

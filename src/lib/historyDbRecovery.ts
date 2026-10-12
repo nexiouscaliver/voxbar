@@ -11,6 +11,12 @@
 
 import { commands, type HistoryDbRecovery } from "@/bindings";
 import { notifyDesktopPersistent } from "./desktopNotify";
+import {
+  getNotificationLog,
+  pushNotificationLogEntry,
+} from "./notificationLog";
+import { getOsNotificationPrefs } from "./notificationPrefs";
+import { osNoticeDecision } from "./noticeRouting";
 
 // The translate function react-i18next's useTranslation hands to
 // components, typed structurally as the other shared modules take it.
@@ -59,11 +65,42 @@ export async function postHistoryDbRecoveryNoticeOnce(
     return;
   }
   postedThisSession = true;
-  await notifyDesktopPersistent({
-    body: t("settings.history.dbRecoveredNotice", {
-      file: recovery.quarantined_file,
-    }),
-    code: "history_db_recovered",
-    target: "history",
-  });
+  // Fleet pass 2: the recovery rides the SAME discipline as every other
+  // persistent notice (planNoticeDispatch's contract) instead of bypassing
+  // it. The master toggle gates both durable legs: with it off there is no
+  // OS post and no log write (the off path adds no durable state); with it
+  // on the in-app notification log gets the row - the backstop that
+  // survives a denied macOS notification permission, which otherwise left
+  // the recovery invisible on every surface - and the OS post fires per
+  // the code's classification in NOTICE_CHANNEL_TABLE.
+  const prefs = getOsNotificationPrefs();
+  const { persistent } = osNoticeDecision("history_db_recovered", prefs);
+  if (prefs.enabled) {
+    pushNotificationLogEntry({
+      code: "history_db_recovered",
+      detail: recovery.quarantined_file,
+      kind: "error",
+      receivedAt: Date.now(),
+    });
+  }
+  if (persistent) {
+    await notifyDesktopPersistent({
+      body: t("settings.history.dbRecoveredNotice", {
+        file: recovery.quarantined_file,
+      }),
+      code: "history_db_recovered",
+      target: "history",
+    });
+  }
+}
+
+/** Test-only: clear the once-per-session latch between scenarios. */
+export function resetRecoveryLatchForTests(): void {
+  postedThisSession = false;
+}
+
+/** Test-only: read the current in-app log rows for this code. */
+export function recoveryLogRowsForTests(): number {
+  return getNotificationLog().filter((e) => e.code === "history_db_recovered")
+    .length;
 }

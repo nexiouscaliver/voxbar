@@ -102,6 +102,14 @@ export const NOTICE_ROUTE_POLICIES: Record<string, NoticeRoutePolicy> = {
   companion_session_capped: "session-cap",
   companion_zero_audio: "session-cap",
 
+  // Fleet pass 2: the KB-179 history-database recovery is a FRONTEND-only
+  // boot code (the backend quarantined history.db before any webview
+  // existed; it never rides the overlay-notice event). Unrouted keeps the
+  // event router inert for it - historyDbRecovery.ts drives its surfaces
+  // itself through the channel classification below, so the master toggle
+  // and the in-app log apply to it exactly like every persistent notice.
+  history_db_recovered: "unrouted",
+
   // Unrouted: every failure code with a dedicated legacy listener — those
   // keep their legacy toast plus the error sound, and routing them here too
   // would stack two toasts for one failure whenever the card was hidden.
@@ -244,6 +252,14 @@ export const NOTICE_CHANNEL_TABLE: Record<string, NoticeChannelEntry> = {
   // (not history) precisely because NO history entry exists - the log row
   // is the only durable record of why the phone session vanished.
   companion_zero_audio: NOTIFICATION("error", "notifications"),
+  // Fleet pass 2 (frontend-only boot code, not a Rust NoticeCode): the
+  // KB-179 history-database recovery. Same persistent discipline as every
+  // notifying code - the master toggle gates it and the in-app log row
+  // rides with it - so a denied macOS notification permission (or the
+  // toggle off) can no longer make the recovery invisible on every
+  // surface. Error group (dictation history was lost and quarantined); a
+  // click lands on History, the freshly reset database the notice names.
+  history_db_recovered: NOTIFICATION("error", "history"),
 
   // Outcome group: final companion-session results. The finalized
   // transcript lives in history, so a click goes there.

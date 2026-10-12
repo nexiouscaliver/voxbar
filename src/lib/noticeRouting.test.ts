@@ -121,6 +121,7 @@ const ALL_NOTICE_CODES = [
   "companion_session_capped",
   "companion_zero_audio",
   "command_mode_no_session",
+  "history_db_recovered",
 ] as const;
 
 // The three orphaned Info codes (AUD-02 symptom 1) plus the dual-toasting
@@ -179,6 +180,10 @@ const UNROUTED = [
   "post_process_length_guard",
   "post_process_output_invalid",
   "post_process_cloud_failed",
+  // Fleet pass 2: the frontend-only boot code (KB-179). The event router
+  // never sees it (it never rides the overlay-notice event); its surfaces
+  // are driven by historyDbRecovery.ts through the channel table.
+  "history_db_recovered",
 ];
 
 // Test self-check: the policy groups partition the notice universe exactly.

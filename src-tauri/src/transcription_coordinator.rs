@@ -1857,7 +1857,7 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
             if let Some(lane) = companion_lane {
                 crate::companion::begin_session(app, lane, companion_prefs.unwrap_or_default());
             }
-            let started = start(app, &binding_id, &hotkey_string);
+            let started = start(app, &binding_id, &hotkey_string, companion_lane);
             state.on_start_result(&binding_id, started);
             // A lane whose start never began recording leaves no session
             // record behind (a later session on the same lane starts
@@ -1986,7 +1986,18 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
 
 /// Execute a start effect; returns whether recording actually began, so the
 /// state machine can roll back its optimistic transition on failure.
-fn start(app: &AppHandle, binding_id: &str, hotkey_string: &str) -> bool {
+/// v1.6.2 fleet pass 2: the success probe is scoped to THIS session - the
+/// lane's own recorder for a companion start, the local machine alone for
+/// a keyboard start. The folded is_recording() mirror stays true while any
+/// OTHER lane records, which reported a failed start as started and
+/// skipped the rollback (the machine then wedged in Recording with a dead
+/// session record, swallowing that phone's next edges).
+fn start(
+    app: &AppHandle,
+    binding_id: &str,
+    hotkey_string: &str,
+    companion_lane: Option<u64>,
+) -> bool {
     let Some(action) = ACTION_MAP.get(binding_id) else {
         warn!("No action in ACTION_MAP for '{binding_id}'");
         return false;
@@ -1994,7 +2005,10 @@ fn start(app: &AppHandle, binding_id: &str, hotkey_string: &str) -> bool {
     action.start(app, binding_id, hotkey_string);
     let recording = app
         .try_state::<Arc<AudioRecordingManager>>()
-        .is_some_and(|a| a.is_recording());
+        .is_some_and(|a| match companion_lane {
+            Some(lane) => a.lane_is_recording(lane),
+            None => a.local_is_recording(),
+        });
     if !recording {
         debug!("Start for '{binding_id}' did not begin recording; staying idle");
     }
@@ -2249,6 +2263,50 @@ mod tests {
             !start_arm.contains("pending_session_prefs")
                 && !start_arm.contains("set_pending_session_prefs"),
             "the Start effect must never read the shared pending slot back: another connection can write it concurrently"
+        );
+    }
+
+    /// Fleet pass 2: the start-success probe is scoped to the STARTING
+    /// session. The folded is_recording() mirror stays true while any
+    /// OTHER lane records, which reported a failed lane start as started,
+    /// skipped the rollback, and wedged that phone's machine in Recording
+    /// with a dead session record (its next edges then swallowed as
+    /// key-held or a phantom zero-audio stop). Source pin: the probe needs
+    /// the audio manager's AppHandle.
+    #[test]
+    fn start_success_probe_is_scoped_to_the_starting_session() {
+        let source = include_str!("transcription_coordinator.rs");
+        // The definition (a leading newline so this pin's own text can
+        // never match itself), through the next executor fn.
+        let at = source.find("\nfn start(").expect("the start executor");
+        let end = at + source[at..].find("\nfn stop(").expect("fn end");
+        let body = &source[at..end];
+        assert!(
+            body.contains("companion_lane: Option<u64>"),
+            "the executor carries the starting session's lane"
+        );
+        assert!(
+            body.contains("a.lane_is_recording(lane)"),
+            "a companion start's success is ITS lane's recorder, not the process fold"
+        );
+        assert!(
+            body.contains("a.local_is_recording()"),
+            "a keyboard start's success is the local machine alone, not the process fold"
+        );
+        assert!(
+            !body.contains("a.is_recording()"),
+            "the folded mirror is true while any other lane records: it must never decide a start's rollback"
+        );
+        // And the Start arm hands the effect's lane to the probe.
+        let run_effect_at = source.find("fn run_effect").expect("run_effect");
+        let start_arm_at = run_effect_at
+            + source[run_effect_at..]
+                .find("Effect::Start {")
+                .expect("the Start arm");
+        assert!(
+            source[start_arm_at..]
+                .contains("start(app, &binding_id, &hotkey_string, companion_lane)"),
+            "the Start effect must pass its carried lane into the scoped probe"
         );
     }
 

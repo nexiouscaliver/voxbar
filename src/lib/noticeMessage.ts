@@ -189,6 +189,17 @@ export function noticeMessage(
     // strings ride along.
     case "command_mode_no_session":
       return t("app.commandNoSession");
+    // Fleet pass 2: the frontend-only boot code (KB-179). Not a Rust
+    // NoticeCode - the backend quarantined the database before any webview
+    // existed - but the arm keeps the routing tables' cross-pin whole and
+    // resolves the recovery's localized body through the same seam. The
+    // detail is the quarantined file's name (user-facing content, not a
+    // raw diagnostic: the OS body keeps the full line, like the session
+    // cap's device name).
+    case "history_db_recovered":
+      return t("settings.history.dbRecoveredNotice", {
+        file: detail ?? "",
+      });
     default:
       return null;
   }

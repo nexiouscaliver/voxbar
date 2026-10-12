@@ -2588,14 +2588,22 @@ impl TranscriptionManager {
         warn!(
             "model load failed while a dictation session was live; tearing the session down ({error})"
         );
-        crate::shortcut::unregister_cancel_shortcut(&self.app_handle);
         let recording_was_active = self
             .app_handle
             .try_state::<Arc<AudioRecordingManager>>()
             .is_some_and(|a| a.is_recording());
+        // Fleet pass 2: the teardown resolves its ONE target, and the
+        // cancel want released is exactly that session's key (the keyboard's
+        // None, or the cancelled lane's) - another concurrently-live
+        // session's Escape stays armed.
+        let mut cancel_session_key: Option<u64> = None;
         if let Some(rm) = self.app_handle.try_state::<Arc<AudioRecordingManager>>() {
-            rm.cancel_recording();
+            cancel_session_key = match rm.cancel_recording() {
+                crate::managers::audio::CancelTarget::Lane(lane) => Some(lane),
+                _ => None,
+            };
         }
+        crate::shortcut::unregister_cancel_shortcut(&self.app_handle, cancel_session_key);
         self.cancel_stream();
         self.cancel_transcription();
         crate::tray::set_tray_state(&self.app_handle, crate::tray::TrayIconState::Idle);

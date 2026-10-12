@@ -16,7 +16,7 @@ pub mod tauri_impl;
 use log::{debug, error, info, warn};
 use serde::Serialize;
 use specta::Type;
-use std::sync::atomic::{AtomicBool, Ordering};
+
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::llm_client::{PostProcessModelError, TestConnectionResult};
@@ -172,9 +172,42 @@ pub fn init_shortcuts(app: &AppHandle) {
     }
 }
 
-/// Whether the recording lifecycle currently wants the cancel shortcut.
-/// Written synchronously by start/stop, so it always holds the latest request.
-static CANCEL_REQUESTED: AtomicBool = AtomicBool::new(false);
+/// v1.6.2 fleet pass 2: the sessions that currently want the cancel
+/// shortcut armed, keyed by pipeline session key (None = the keyboard's
+/// session, Some(lane) = one phone's). A single boolean could not express
+/// OVERLAPPING pipelines, which v1.6.2 runs by design: the first pipeline
+/// to drain flipped the boolean off and the reconcile unregistered Escape
+/// globally while another session was still recording or mid-pipeline.
+/// Each session's start adds its key exactly once; the key leaves exactly
+/// once at that session's true end (FinishGuard drop, the load-failure
+/// teardown, the Escape teardown), and removal is idempotent, so a session
+/// torn down early (whose FinishGuard still fires later) cannot corrupt
+/// another's want. The key stays armed while the set is non-empty.
+static CANCEL_WANTERS: std::sync::Mutex<Vec<Option<u64>>> = std::sync::Mutex::new(Vec::new());
+
+/// Whether ANY session wants the cancel shortcut (the reconcile's arming
+/// input, and the secure-input fallback's shadow input).
+fn cancel_wanted_by_any() -> bool {
+    !CANCEL_WANTERS
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .is_empty()
+}
+
+/// Fleet pass 2, pure seam for the pin tests: add one session's want.
+/// Idempotent - a session cannot want twice.
+fn cancel_wanters_add(wanters: &mut Vec<Option<u64>>, session: Option<u64>) {
+    if !wanters.contains(&session) {
+        wanters.push(session);
+    }
+}
+
+/// Fleet pass 2, pure seam for the pin tests: remove one session's want.
+/// Idempotent - removing an absent key (a session whose teardown already
+/// ran) never touches any other key.
+fn cancel_wanters_remove(wanters: &mut Vec<Option<u64>>, session: Option<u64>) {
+    wanters.retain(|key| *key != session);
+}
 
 /// Whether the cancel shortcut is actually registered with the backend.
 /// The lock also serializes reconciliation passes. Tracked on every platform
@@ -182,21 +215,31 @@ static CANCEL_REQUESTED: AtomicBool = AtomicBool::new(false);
 /// [`handy_keys::cancel_reconcile_enabled`]), not the platform itself.
 static CANCEL_REGISTERED: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
 
-/// Register the cancel shortcut (called when recording starts)
-pub fn register_cancel_shortcut(app: &AppHandle) {
-    // Track recording lifecycle independently of the current implementation so
-    // switching implementations mid-recording cannot leave stale fallback state.
-    crate::secure_input::register_cancel_fallback(app);
-
-    CANCEL_REQUESTED.store(true, Ordering::SeqCst);
+/// Register the cancel shortcut for ONE session (called when that session
+/// begins recording). The key stays armed while ANY session wants it.
+pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>) {
+    {
+        let mut wanters = CANCEL_WANTERS.lock().unwrap_or_else(|e| e.into_inner());
+        cancel_wanters_add(&mut wanters, session);
+    }
+    // Track the lifecycle independently of the current implementation so
+    // switching implementations mid-recording cannot leave stale fallback
+    // state. The fallback mirrors the SET (any session), never the single
+    // call: the first pipeline to drain must not disarm the fallback while
+    // another session is still live.
+    crate::secure_input::note_cancel_wanted(app, cancel_wanted_by_any());
     schedule_cancel_reconcile(app);
 }
 
-/// Unregister the cancel shortcut (called when recording stops)
-pub fn unregister_cancel_shortcut(app: &AppHandle) {
-    crate::secure_input::unregister_cancel_fallback(app);
-
-    CANCEL_REQUESTED.store(false, Ordering::SeqCst);
+/// Unregister ONE session's want of the cancel shortcut (called at that
+/// session's true end: FinishGuard drop, the load-failure teardown, the
+/// Escape teardown). The key unregisters only when NO session wants it.
+pub fn unregister_cancel_shortcut(app: &AppHandle, session: Option<u64>) {
+    {
+        let mut wanters = CANCEL_WANTERS.lock().unwrap_or_else(|e| e.into_inner());
+        cancel_wanters_remove(&mut wanters, session);
+    }
+    crate::secure_input::note_cancel_wanted(app, cancel_wanted_by_any());
     schedule_cancel_reconcile(app);
 }
 
@@ -234,7 +277,7 @@ fn reconcile_cancel_shortcut(app: &AppHandle) {
 
     {
         let mut registered = CANCEL_REGISTERED.lock().unwrap_or_else(|e| e.into_inner());
-        let requested = CANCEL_REQUESTED.load(Ordering::SeqCst);
+        let requested = cancel_wanted_by_any();
         if requested == *registered {
             return;
         }
@@ -265,7 +308,7 @@ fn reconcile_cancel_shortcut(app: &AppHandle) {
 /// flag and, depending on direction, a dead or orphaned cancel key until
 /// something else fired. Reset the flag so the next reconcile re-arms the
 /// key under the NEW implementation; the reconcile itself no-ops when no
-/// live recording requested it (CANCEL_REQUESTED false).
+/// live session wants the key (the CANCEL_WANTERS set is empty).
 fn rearm_cancel_after_implementation_switch(app: &AppHandle) {
     *CANCEL_REGISTERED.lock().unwrap_or_else(|e| e.into_inner()) = false;
     schedule_cancel_reconcile(app);
@@ -820,7 +863,7 @@ fn unregister_all_shortcuts(app: &AppHandle, implementation: KeyboardImplementat
     // handy_keys cancel registration after a rollback to Tauri on Linux).
     // Tear it down through the OLD implementation; the next reconcile pass
     // re-arms it under the new one wherever that is allowed.
-    if CANCEL_REQUESTED.load(Ordering::SeqCst) {
+    if cancel_wanted_by_any() {
         if let Some(cancel_binding) = bindings.get("cancel").cloned() {
             let result = match implementation {
                 KeyboardImplementation::Tauri => {
@@ -3053,11 +3096,84 @@ mod tests {
 
     use super::{
         bare_key_rejection, binding_conflicts_with_active_binding, binding_is_active,
-        cancel_rebind_retirement, cancel_studio_batches, companion_toggle_runtime_value,
-        is_bare_key_binding, normalize_headroom_mb, normalize_optional_setting,
-        restore_registration_is_due, studio_batch_cancelled, studio_batch_generation,
-        validate_companion_network_override, POST_PROCESS_TOGGLE_BINDINGS,
+        cancel_rebind_retirement, cancel_studio_batches, cancel_wanters_add, cancel_wanters_remove,
+        companion_toggle_runtime_value, is_bare_key_binding, normalize_headroom_mb,
+        normalize_optional_setting, restore_registration_is_due, studio_batch_cancelled,
+        studio_batch_generation, validate_companion_network_override, POST_PROCESS_TOGGLE_BINDINGS,
     };
+
+    /// Fleet pass 2: the cancel want is a per-session SET, not a boolean.
+    /// With overlapping pipelines (a v1.6.2 design fact), the first
+    /// pipeline to drain flipped the old boolean off and the reconcile
+    /// unregistered Escape globally while another session was still
+    /// recording or mid-pipeline. Pinned on the pure seams the register /
+    /// unregister arms drive.
+    #[test]
+    fn cancel_wanters_track_sessions_not_the_last_call() {
+        let mut wanters = Vec::new();
+        // The keyboard session and one phone's session want the key.
+        cancel_wanters_add(&mut wanters, None);
+        cancel_wanters_add(&mut wanters, Some(7));
+        // A duplicate add (the same session twice) is still one wanter.
+        cancel_wanters_add(&mut wanters, Some(7));
+        assert_eq!(wanters.len(), 2);
+
+        // Phone A's pipeline drains FIRST: the keyboard's want survives it
+        // (the pre-fix boolean unregister killed the key here).
+        cancel_wanters_remove(&mut wanters, Some(7));
+        assert_eq!(
+            wanters,
+            vec![None],
+            "another session's drain must not release the keyboard's want"
+        );
+
+        // Removal is idempotent: a teardown path that already released the
+        // session (the Escape or load-failure teardown) followed by the
+        // FinishGuard's own release is two removes, one net effect.
+        cancel_wanters_remove(&mut wanters, Some(7));
+        assert_eq!(wanters, vec![None]);
+
+        // The last wanter out unregisters the key; nobody is left.
+        cancel_wanters_remove(&mut wanters, None);
+        assert!(
+            wanters.is_empty(),
+            "the key unregisters only when no session wants it"
+        );
+    }
+
+    /// The source-level companion of the set test: the register and
+    /// unregister arms carry the session key, and the reconcile arms on
+    /// the SET (any session), never the last call. Mounting the
+    /// registration backends needs a real app, so the arms are pinned
+    /// against this committed source (the KB-242 convention).
+    #[test]
+    fn cancel_shortcut_arms_are_keyed_by_session() {
+        let source = include_str!("mod.rs");
+        let register_at = source
+            .find("pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>)")
+            .expect("register carries the session key");
+        let register_body = &source[register_at..register_at + 700];
+        assert!(
+            register_body.contains("cancel_wanters_add"),
+            "register adds exactly ITS session's want"
+        );
+        let unregister_at = source
+            .find("pub fn unregister_cancel_shortcut(app: &AppHandle, session: Option<u64>)")
+            .expect("unregister carries the session key");
+        let unregister_body = &source[unregister_at..unregister_at + 700];
+        assert!(
+            unregister_body.contains("cancel_wanters_remove"),
+            "unregister removes exactly ITS session's want"
+        );
+        let reconcile_at = source
+            .find("fn reconcile_cancel_shortcut(app: &AppHandle)")
+            .expect("the reconcile");
+        let reconcile_body = &source[reconcile_at..reconcile_at + 1500];
+        assert!(
+            reconcile_body.contains("let requested = cancel_wanted_by_any();"),
+            "the reconcile arms while ANY session wants the key - a per-call boolean killed Escape for concurrent sessions"
+        );
+    }
 
     #[test]
     fn compound_shortcut_keys_parse_on_both_backends() {

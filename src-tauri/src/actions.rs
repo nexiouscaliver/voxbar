@@ -61,8 +61,14 @@ impl Drop for FinishGuard {
         // left a wedged post-process request with no keyboard escape
         // (the handler gate also required a live recording), so only the
         // tray Cancel could break out. Unregistering here, at the true end
-        // of the pipeline, keeps Escape alive the entire time.
-        crate::shortcut::unregister_cancel_shortcut(&self.0);
+        // of the pipeline, keeps Escape alive the entire time. Fleet pass 2:
+        // this releases ONLY this pipeline's session want - the key stays
+        // armed while any OTHER session still wants it (overlapping
+        // pipelines are a v1.6.2 design fact).
+        crate::shortcut::unregister_cancel_shortcut(&self.0, self.2);
+        // Fleet pass 2: leave the in-flight pipeline registry the same way
+        // (the Escape path's abort-all resolution reads it).
+        unregister_in_flight_pipeline(self.2);
         self.1.maybe_unload_immediately("transcription session");
         if let Some(c) = self.0.try_state::<TranscriptionCoordinator>() {
             c.notify_processing_finished_for(self.2);
@@ -72,6 +78,44 @@ impl Drop for FinishGuard {
         // they don't sit in malloc arenas until they get swapped out (#1792).
         crate::memory::trim_freed_memory();
     }
+}
+
+// v1.6.2 fleet pass 2: the session keys of the stop pipelines currently in
+// flight (None = the keyboard's, Some(lane) = one phone's). The Escape
+// path's abort-all resolution reads it: when a cancel resolves to NOTHING
+// (no recording anywhere to tear down), the only work left in the process
+// is these pipelines, and the Mac's Escape means "abort the current work"
+// exactly as it did in the single-session era. Registered by each stop
+// pipeline thread at spawn, removed by its FinishGuard at drain.
+static IN_FLIGHT_PIPELINES: std::sync::Mutex<Vec<Option<u64>>> = std::sync::Mutex::new(Vec::new());
+
+pub(crate) fn register_in_flight_pipeline(session: Option<u64>) {
+    let mut in_flight = IN_FLIGHT_PIPELINES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if !in_flight.contains(&session) {
+        in_flight.push(session);
+    }
+}
+
+pub(crate) fn unregister_in_flight_pipeline(session: Option<u64>) {
+    IN_FLIGHT_PIPELINES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .retain(|key| *key != session);
+}
+
+/// The lane ids whose stop pipelines are in flight right now (the
+/// abort-all resolution's targets). The keyboard's None key is deliberately
+/// NOT returned: that pipeline gates on the local cancel generation, which
+/// the cancel path already bumps.
+pub(crate) fn in_flight_lane_pipelines() -> Vec<u64> {
+    IN_FLIGHT_PIPELINES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .iter()
+        .filter_map(|key| *key)
+        .collect()
 }
 
 // Shortcut Action Trait
@@ -1941,16 +1985,40 @@ impl ShortcutAction for TranscribeAction {
         }
 
         if recording_error.is_none() {
-            // Dynamically register the cancel shortcut in a separate task to avoid deadlock
-            shortcut::register_cancel_shortcut(app);
+            // Dynamically register the cancel shortcut in a separate task to avoid deadlock.
+            // Fleet pass 2: THIS session's key (its lane for a phone start,
+            // None for the keyboard) - the want is per session, so the first
+            // overlapping pipeline to drain cannot disarm another's Escape.
+            let session_key = match (self.source, starting_lane) {
+                (CaptureSource::Remote, Some(lane)) => Some(lane),
+                _ => None,
+            };
+            shortcut::register_cancel_shortcut(app, session_key);
         } else {
             // Starting failed (for example due to blocked microphone permissions).
             // Revert UI state so we don't stay stuck in the recording overlay.
             // The overlay hide is DELAYED so the notice row below stays
             // readable on the card; the show-generation guard cancels the
             // hide if a new session starts within the read window.
-            tm.cancel_stream();
-            set_tray_state(app, TrayIconState::Idle);
+            //
+            // Fleet pass 2: every teardown here is scoped to what THIS
+            // failed start owns. The stream is cancelled only when this
+            // start CLAIMED it (a failed non-owner start - another lane's
+            // recorder open failure while a different session streams -
+            // must not cancel that session's live stream); the claim is
+            // also handed back, mirroring the early-return path above. The
+            // tray and overlay are reverted only when NO other session is
+            // live: this failed start holds no recorder, so is_recording()
+            // is exactly the other sessions' liveness, and a concurrent
+            // phone dictation owns the tray/overlay until it ends.
+            if let Some(owner) = claimed_owner {
+                tm.cancel_stream();
+                rm.clear_stream_owner_if(owner);
+            }
+            let other_session_live = rm.is_recording();
+            if !other_session_live {
+                set_tray_state(app, TrayIconState::Idle);
+            }
             if let Some(err) = recording_error {
                 let error_type = if is_microphone_access_denied(&err) {
                     "microphone_permission_denied"
@@ -1974,7 +2042,9 @@ impl ShortcutAction for TranscribeAction {
                     Some(err),
                 );
             }
-            utils::hide_recording_overlay_after_error(app);
+            if !other_session_live {
+                utils::hide_recording_overlay_after_error(app);
+            }
         }
 
         debug!(
@@ -2122,6 +2192,11 @@ impl ShortcutAction for TranscribeAction {
             .name("stop-pipeline".into())
             .spawn(move || {
                 tauri::async_runtime::block_on(async move {
+            // Fleet pass 2: publish this pipeline as in flight (the Escape
+            // path's abort-all resolution bumps exactly these lanes'
+            // generations when nothing is recording anymore); the guard
+            // below removes it at drain, on every exit path.
+            register_in_flight_pipeline(session_lane);
             let _guard = FinishGuard(ah.clone(), Arc::clone(&tm), session_lane);
             debug!(
                 "Starting async transcription task for binding: {}",
@@ -3150,6 +3225,139 @@ mod tests {
         assert!(
             !stop_body.contains("if get_settings(&ah).preview_before_paste {"),
             "the preview block must not gate on preview_before_paste alone"
+        );
+    }
+
+    /// Fleet pass 2: the in-flight pipeline registry the Escape path's
+    /// abort-all resolution reads. Registered at pipeline spawn, removed at
+    /// FinishGuard drain; the lane view deliberately hides the keyboard's
+    /// None key (that pipeline gates on the local generation the cancel
+    /// path already bumps). Self-cleaning so it can live on the process
+    /// static.
+    #[test]
+    fn in_flight_pipeline_registry_tracks_lanes_and_drains() {
+        use super::{
+            in_flight_lane_pipelines, register_in_flight_pipeline, unregister_in_flight_pipeline,
+        };
+
+        register_in_flight_pipeline(None);
+        register_in_flight_pipeline(Some(7));
+        register_in_flight_pipeline(Some(9));
+        // Duplicate registration (the same lane twice) is one entry.
+        register_in_flight_pipeline(Some(7));
+        let mut lanes = in_flight_lane_pipelines();
+        lanes.sort_unstable();
+        assert_eq!(
+            lanes,
+            vec![7, 9],
+            "lane keys only; the keyboard's None key is not an abort-all target"
+        );
+
+        // A lane's drain removes exactly its own entry.
+        unregister_in_flight_pipeline(Some(7));
+        assert_eq!(in_flight_lane_pipelines(), vec![9]);
+        // Idempotent removal (its FinishGuard may fire again on a teardown
+        // path that already released it).
+        unregister_in_flight_pipeline(Some(7));
+        assert_eq!(in_flight_lane_pipelines(), vec![9]);
+        // The keyboard pipeline's drain removes its own key without
+        // touching any lane's.
+        unregister_in_flight_pipeline(None);
+        assert_eq!(in_flight_lane_pipelines(), vec![9]);
+        unregister_in_flight_pipeline(Some(9));
+        assert!(in_flight_lane_pipelines().is_empty());
+    }
+
+    /// Fleet pass 2 wiring pin: the pipeline publishes itself as in flight
+    /// BEFORE its FinishGuard exists (so every exit path removes it), and
+    /// the guard releases exactly its own session key from BOTH the cancel
+    /// want set and the registry.
+    #[test]
+    fn stop_pipeline_registers_in_flight_and_guard_releases_its_own_key() {
+        let source = include_str!("actions.rs");
+        let spawn_at = source
+            .find(".name(\"stop-pipeline\"")
+            .expect("the stop pipeline spawn");
+        let guard_at = spawn_at
+            + source[spawn_at..]
+                .find("let _guard = FinishGuard")
+                .expect("the guard");
+        let register_at = spawn_at
+            + source[spawn_at..]
+                .find("register_in_flight_pipeline(session_lane);")
+                .expect("the pipeline registers itself as in flight");
+        assert!(
+            register_at < guard_at,
+            "the in-flight registration must precede the FinishGuard so every exit path drains it"
+        );
+        let guard_at = source
+            .find("impl Drop for FinishGuard")
+            .expect("the guard impl");
+        let guard_end = guard_at
+            + source[guard_at..]
+                .find("\n    }\n}\n")
+                .expect("the guard impl end");
+        let guard_body = &source[guard_at..guard_end];
+        assert!(
+            guard_body.contains("unregister_cancel_shortcut(&self.0, self.2)"),
+            "the guard releases exactly ITS session's cancel want: a global unregister killed Escape for every concurrently-live session"
+        );
+        assert!(
+            guard_body.contains("unregister_in_flight_pipeline(self.2);"),
+            "the guard leaves the in-flight registry on every exit path"
+        );
+    }
+
+    /// Fleet pass 2: a failed start must tear down only what IT owns. The
+    /// stream is cancelled only when this start claimed it (a failed
+    /// non-owner start would otherwise cancel another session's live
+    /// stream), the claim is handed back, and the tray/overlay revert only
+    /// when no other session is live. Source pin: the start arm needs a
+    /// full app a unit test cannot mount.
+    #[test]
+    fn failed_start_teardown_is_scoped_to_what_it_owns() {
+        let source = include_str!("actions.rs");
+        let impl_at = source
+            .find("impl ShortcutAction for TranscribeAction")
+            .expect("the TranscribeAction impl");
+        let start_at = impl_at + source[impl_at..].find("fn start(").expect("its start fn");
+        let start_body =
+            &source[start_at..start_at + source[start_at..].find("fn stop(").expect("its stop fn")];
+        let failed_at = start_body.find("} else {").expect("the failed-start arm");
+        let failed = &start_body[failed_at..];
+        let cancel_stream_at = failed
+            .find("tm.cancel_stream();")
+            .expect("the stream teardown");
+        let claim_guard_at = failed
+            .find("if let Some(owner) = claimed_owner {")
+            .expect("the claim guard");
+        assert!(
+            claim_guard_at < cancel_stream_at,
+            "a failed start may cancel the stream ONLY when it claimed the singleton: a non-owner's failure must not kill the owner's live stream"
+        );
+        assert!(
+            failed[claim_guard_at..].contains("rm.clear_stream_owner_if(owner);"),
+            "a failed claim is handed back, mirroring the early-return path"
+        );
+        let tray_at = failed
+            .find("set_tray_state(app, TrayIconState::Idle);")
+            .expect("the tray revert");
+        let liveness_guard_at = failed
+            .find("let other_session_live = rm.is_recording();")
+            .expect("the other-session liveness guard");
+        assert!(
+            liveness_guard_at < tray_at,
+            "the tray may revert to Idle only when no other session is live"
+        );
+        let hide_at = failed
+            .rfind("utils::hide_recording_overlay_after_error(app);")
+            .expect("the overlay hide");
+        let hide_guard_at = failed[..hide_at]
+            .rfind("if !other_session_live {")
+            .expect("the liveness guard before the overlay hide");
+        assert!(
+            hide_guard_at < hide_at,
+            "the overlay hide rides the same liveness guard: a concurrent session's overlay must survive this start's failure"
         );
     }
 
