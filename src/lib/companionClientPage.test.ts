@@ -170,6 +170,77 @@ assert.ok(
   "the hello must carry the persistent device id alongside the platform name",
 );
 
+// KB-260 (v1.6.4): the no-crypto fallback id must be high-entropy in the
+// digits the server's identity tag READS. The tag is the id's first four
+// alphanumeric characters (protocol.rs device_identity_name), and the old
+// fallback led with Date.now(): two no-crypto phones pairing in the same
+// hour minted timestamp-leading ids whose tags were byte-identical, so the
+// same-platform twins collapsed into one Recent list. The fallback now
+// leads with Math.random, and this pin EXECUTES the committed fallback
+// expression (frozen clock, scripted randomness) and applies the server's
+// exact tag rule, so a timestamp-leading regression fails here.
+{
+  const fallback = sliceBetween(
+    html,
+    "function fallbackDeviceId",
+    "function deviceIdentity",
+  );
+  const exprMatch = fallback.match(/return \(([\s\S]+?)\);/);
+  assert.ok(
+    exprMatch,
+    "the fallback must keep a single return (...) expression for this pin",
+  );
+  const expr = exprMatch[1];
+  const serverTag = (id: string) =>
+    (id.match(/[a-zA-Z0-9]/g) || []).slice(0, 4).join("");
+  const makeId = (randomSequence: number[], nowMs: number) =>
+    new Function(
+      "Math",
+      "Date",
+      `"use strict"; return (${expr});`,
+    )(
+      {
+        random: () => randomSequence.shift() ?? 0,
+      } as unknown as Math,
+      { now: () => nowMs } as unknown as DateConstructor,
+    ) as string;
+
+  // Two no-crypto phones pairing in the SAME millisecond (the collision
+  // window the old timestamp-leading ids shared for hours): distinct
+  // randomness must yield distinct tags through the server's rule.
+  const nowMs = 1760000000000;
+  const tags = new Set<string>();
+  const DRAWS = 64;
+  for (let i = 0; i < DRAWS; i++) {
+    const id = makeId([0.01 + i * 0.013, 0.4], nowMs);
+    const tag = serverTag(id);
+    assert.ok(
+      tag.length === 4,
+      `the tag must hold four alphanumerics (id ${id})`,
+    );
+    tags.add(tag);
+  }
+  assert.strictEqual(
+    tags.size,
+    DRAWS,
+    "64 same-instant no-crypto phones must yield 64 distinct identity tags",
+  );
+
+  // The tag must depend on the RANDOM half, not the clock: the same
+  // randomness at different instants keeps one identity, and different
+  // randomness at one instant differs.
+  assert.strictEqual(
+    serverTag(makeId([0.37, 0.5], nowMs)),
+    serverTag(makeId([0.37, 0.5], nowMs + 60_000)),
+    "same randomness keeps the tag stable across instants",
+  );
+  assert.notEqual(
+    serverTag(makeId([0.37, 0.5], nowMs)),
+    serverTag(makeId([0.91, 0.5], nowMs)),
+    "different randomness at the same instant must differ",
+  );
+}
+
 // The new server frames render.
 const transcriptCase = sliceBetween(html, 'case "transcript":', "break;");
 assert.ok(transcriptCase.includes("showTranscript("));

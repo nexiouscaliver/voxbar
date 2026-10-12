@@ -1488,12 +1488,42 @@ impl AudioRecordingManager {
         }
     }
 
-    /// Acknowledge one lane's in-flight stop-pause when its socket dies
-    /// mid-session, so the lane's Stop never waits the 2 s pause timeout.
-    pub fn ack_remote_pause(&self, lane: u64) {
-        let lanes = self.remote_lanes.lock().unwrap();
-        if let Some(entry) = lanes.get(&lane) {
-            entry.source.ack_pause();
+    /// KB-263 (v1.6.4): acknowledge one lane's stop-pause the moment the
+    /// recorder actually RAISES it, bounded by `within`. The disconnect
+    /// path used to ack eagerly, before any Stop had raised the request,
+    /// so the acknowledgement landed as a no-op and was wiped again by the
+    /// Stop that followed - the drop-finalize then relied entirely on the
+    /// pipeline's source-close fast path for its pause wait. This seam
+    /// (the replacement for that bare eager ack) waits for the request,
+    /// then acks through the source, so the handshake is honored whichever
+    /// stop shape runs: an ack is only counted once the consumer's Stop
+    /// has raised `pause_requested`, and the consumer wipes any earlier
+    /// acknowledgement when it starts the pause. A lane whose entry leaves
+    /// the map (the pipeline took it) or whose stop never raises the
+    /// request simply returns at the deadline. Blocking by design (poll at
+    /// 2 ms); the companion server runs it on a detached worker, never the
+    /// async connection task.
+    pub fn ack_remote_pause_when_requested(&self, lane: u64, within: Duration) {
+        let deadline = Instant::now() + within;
+        loop {
+            {
+                let lanes = self.remote_lanes.lock().unwrap();
+                match lanes.get(&lane) {
+                    // The pipeline removed the entry: nothing left to ack
+                    // (its own source close already skips the pause wait).
+                    None => return,
+                    Some(entry) => {
+                        if entry.source.pause_requested() {
+                            entry.source.ack_pause();
+                            return;
+                        }
+                    }
+                }
+            }
+            if Instant::now() >= deadline {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(2));
         }
     }
 
@@ -1864,6 +1894,25 @@ impl AudioRecordingManager {
     /// stream closes now and the next session open resolves the flipped
     /// lid fresh through the same desired_microphone path.
     fn restart_open_stream_on_new_device(&self) {
+        // KB-273 (v1.6.4): a lid flip can only change the desired
+        // microphone when a clamshell microphone is configured; with none
+        // configured, desired_microphone resolves identically for an open
+        // and a closed lid, so the stop/start (and the state-lock hold
+        // across it, which blocks every start/stop pipeline for the length
+        // of the CoreAudio reopen - the UI-freeze class) served nothing.
+        // Gate BEFORE the lock: the common no-clamshell-mic flip now costs
+        // nothing at all.
+        if get_settings(&self.app_handle)
+            .clamshell_microphone
+            .as_deref()
+            .is_none()
+        {
+            debug!(
+                "Capture environment change skipped: no clamshell microphone is \
+                 configured, so the lid state cannot change the desired microphone"
+            );
+            return;
+        }
         let state = self.state.lock().unwrap();
         if capture_restart_forbidden(&state) {
             drop(state);
@@ -2043,6 +2092,18 @@ impl AudioRecordingManager {
         for lane in lanes {
             *map.entry(*lane).or_insert(0) += 1;
         }
+    }
+
+    /// KB-270 (v1.6.4): drop one dead lane's cancel-generation entry. The
+    /// map grew by an entry per lane id forever (ids are never reused), so
+    /// a flapping phone grew it monotonically. Safe only when the lane has
+    /// no pipeline in flight: a pipeline holding a captured generation for
+    /// this lane would read the default 0 after the removal and classify
+    /// its own drain as a cancellation, discarding the dictation - the
+    /// coordinator's retirement rule (lane_machine_retirable) calls this
+    /// only for a fully drained machine whose connection is gone.
+    pub fn drop_lane_cancel_generation(&self, lane: u64) {
+        self.lane_cancel_generations.lock().unwrap().remove(&lane);
     }
 
     /// Stop the LOCAL recording session and return its captured samples.
@@ -2502,6 +2563,88 @@ mod tests {
         assert!(
             deferred_body.contains("MicrophoneMode::AlwaysOn"),
             "the deferred re-resolve must stay gated on the always-on mode"
+        );
+    }
+
+    /// KB-273 (v1.6.4) source pin: the lid-driven capture restart is GATED
+    /// on a configured clamshell microphone BEFORE the state lock is ever
+    /// taken. A lid flip can only change the desired microphone when a
+    /// clamshell microphone is configured; without one, the old path still
+    /// took the state lock and ran the full CoreAudio stop/start across it
+    /// on EVERY flip (blocking every start/stop pipeline for the reopen's
+    /// duration - the UI-freeze class) to resolve the identical device.
+    /// The stop/reopen stays under the state lock WHEN a clamshell
+    /// microphone is configured: the fleet-pass-3 lock-across-switch
+    /// discipline (pinned above) closes a real start-commit TOCTOU, and
+    /// this gate is what removes the pointless restarts entirely.
+    #[test]
+    fn kb273_lid_restart_is_gated_on_a_configured_clamshell_microphone_first() {
+        let source = include_str!("audio.rs");
+        let at = source
+            .find("fn restart_open_stream_on_new_device(&self)")
+            .expect("the capture-environment restart");
+        let end = source[at..]
+            .find("pub fn update_clamshell_microphone")
+            .expect("its end");
+        let body = &source[at..at + end];
+        let gate_at = body
+            .find("clamshell_microphone")
+            .expect("the clamshell-microphone gate");
+        let gate_return_at = body[..gate_at + 400]
+            .find("return;")
+            .expect("the gate returns before any restart work");
+        let lock_at = body
+            .find("let state = self.state.lock().unwrap();")
+            .expect("the restart takes the state lock after the gate");
+        assert!(
+            gate_at < gate_return_at && gate_return_at < lock_at,
+            "the clamshell gate must return BEFORE the state lock is taken"
+        );
+        // The gate is the FIRST thing in the function: nothing ahead of it
+        // takes a lock or touches capture.
+        let before_gate = &body[..gate_at];
+        assert!(
+            !before_gate.contains(".lock()"),
+            "nothing ahead of the gate may take a lock (the every-lid-flip freeze)"
+        );
+    }
+
+    /// KB-272 (v1.6.4) source pin, the manager half: push_remote_chunk's
+    /// bool is EXACTLY lane-map membership - a hit pushes into that lane's
+    /// own source under the lanes lock (never the state lock), a miss
+    /// returns false without touching anything. The companion server
+    /// counts the false arm as an admitted-but-dropped chunk (see the
+    /// server-side KB-272 pins); this pins the manager seam that bool
+    /// comes from, which had zero direct coverage when the round 10 queue
+    /// was cut. The push semantics themselves (drop-newest overruns, the
+    /// closed-source discard, the pause acknowledgement) are pinned
+    /// directly at the recorder level (audio_toolkit recorder tests:
+    /// remote_source_round_trips_fed_samples,
+    /// remote_source_counts_overruns_when_the_ring_fills,
+    /// remote_source_close_discards_late_audio).
+    #[test]
+    fn kb272_push_remote_chunk_bool_is_lane_map_membership_under_the_lanes_lock() {
+        let source = include_str!("audio.rs");
+        let at = source
+            .find("pub fn push_remote_chunk(&self, lane: u64, samples: &[f32]) -> bool {")
+            .expect("push_remote_chunk");
+        let end = at + source[at..].find("\n    }\n").expect("fn end");
+        let body = &source[at..end];
+        assert!(
+            body.contains("let lanes = self.remote_lanes.lock().unwrap();"),
+            "the push takes the lanes lock"
+        );
+        assert!(
+            body.contains("entry.source.push_chunk(samples);"),
+            "a hit pushes into THIS lane's own source"
+        );
+        assert!(
+            body.contains("None => false,"),
+            "a lane with no recorder returns false (the server's admitted-dropped counter)"
+        );
+        assert!(
+            !body.contains("self.state.lock()"),
+            "the push must never take the recording-state lock (phone audio ingestion would block on every Mac session transition)"
         );
     }
 

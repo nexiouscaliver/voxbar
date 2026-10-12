@@ -295,6 +295,13 @@ enum Command {
     FinalizeCompanion {
         lane: Option<u64>,
     },
+    /// KB-270 (v1.6.4): one connection's socket is gone (its registration
+    /// was released). The lane's machine is retired once nothing needs it
+    /// (see [`lane_machine_retirable`]); a machine still mid-flight is
+    /// left for its own ProcessingFinished drain to retire.
+    LaneGone {
+        lane: u64,
+    },
 }
 
 /// Decide whether a key-up should be deferred (so auto-repeat can cancel it)
@@ -1171,6 +1178,47 @@ impl TranscriptionCoordinator {
                             .max()
                     };
 
+                // KB-270 (v1.6.4): retire one dead lane's bookkeeping -
+                // its machine, its post-process mirror entry, and its
+                // audio-side cancel generation - once nothing needs them
+                // (the pure rule in lane_machine_retirable). Called from
+                // BOTH the LaneGone arm (a socket death with the machine
+                // already idle) and the lane's ProcessingFinished drain
+                // (a socket death that raced a stop pipeline). The audio
+                // sweep is safe exactly because the machine is Idle: no
+                // pipeline of this lane is in flight, so nothing holds a
+                // captured cancel generation for it.
+                let retire_dead_lane =
+                    |app: &AppHandle,
+                     lanes: &mut std::collections::HashMap<u64, CoordinatorState>,
+                     lane: u64| {
+                        let Some(machine) = lanes.get(&lane) else {
+                            return;
+                        };
+                        // No companion manager (test contexts): the connection
+                        // bookkeeping is inherently gone, so treat it as such.
+                        let connection_gone = app
+                            .try_state::<Arc<crate::companion::CompanionManager>>()
+                            .map(|m| m.inner().connection_device(lane).is_none())
+                            .unwrap_or(true);
+                        if !lane_machine_retirable(machine, connection_gone) {
+                            return;
+                        }
+                        lanes.remove(&lane);
+                        lane_session_post_process_mirror
+                            .lock()
+                            .unwrap_or_else(|e| e.into_inner())
+                            .remove(&lane);
+                        if let Some(rm) =
+                            app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
+                        {
+                            rm.drop_lane_cancel_generation(lane);
+                        }
+                        debug!(
+                        "companion: retired lane {lane} coordinator bookkeeping (connection gone)"
+                    );
+                    };
+
                 loop {
                     let cmd = if let Some(deadline) = next_grace_deadline(&keyboard, &lanes) {
                         match rx.recv_timeout(deadline.saturating_duration_since(Instant::now())) {
@@ -1291,6 +1339,12 @@ impl TranscriptionCoordinator {
                                         run_effect(&app, machine, effect);
                                     }
                                 }
+                                // KB-270: the drain is the safe retirement
+                                // point for a lane whose socket died while
+                                // its stop pipeline was in flight (the
+                                // disconnect path's LaneGone saw a machine
+                                // in Processing and deferred to here).
+                                retire_dead_lane(&app, &mut lanes, lane);
                             }
                         },
                         Command::CommandModifier { is_pressed } => {
@@ -1325,6 +1379,14 @@ impl TranscriptionCoordinator {
                                 }
                             }
                         },
+                        // KB-270 (v1.6.4): the socket died. A machine that is
+                        // mid-flight (Recording or Processing) is left for
+                        // its own drain, which runs the same retirement;
+                        // the companion server's disconnect path finalizes
+                        // the recording session itself.
+                        Command::LaneGone { lane } => {
+                            retire_dead_lane(&app, &mut lanes, lane);
+                        }
                     }
                     // KB-221: publish a completed hold's edges to the
                     // mirror. Store-only-when-Some: the pair is consumed by
@@ -1615,6 +1677,17 @@ impl TranscriptionCoordinator {
         }
     }
 
+    /// KB-270 (v1.6.4): a connection's registration was released (its
+    /// socket died). Best-effort bookkeeping signal: the coordinator
+    /// retires the lane's machine when it holds no in-flight work, and
+    /// leaves a mid-flight machine to its own drain, which performs the
+    /// same retirement check.
+    pub fn notify_lane_gone(&self, lane: u64) {
+        if self.tx.send(Command::LaneGone { lane }).is_err() {
+            warn!("Transcription coordinator channel closed");
+        }
+    }
+
     /// Send a press/release of the command-mode binding. The binding is a
     /// during-dictation modifier: the coordinator engages command
     /// interpretation only when a session is live at the press, and the
@@ -1778,6 +1851,19 @@ fn tag_stop_effect_lane(effect: &mut Effect, lane: u64) {
     if let Effect::Stop { companion_lane, .. } = effect {
         *companion_lane = Some(lane);
     }
+}
+
+/// KB-270 (v1.6.4): may a lane's coordinator machine be retired? Only a
+/// machine that is fully drained (Idle - not Recording, not Processing,
+/// and holding no remembered press a drain would have started a session
+/// from) AND whose connection is gone. A live connection's machine stays
+/// for its next press (the same lane is reused while the socket lives); a
+/// mid-flight machine stays until its own ProcessingFinished drain, which
+/// re-runs this check. Before this rule, every lane id a phone ever
+/// registered left a machine in the coordinator's map forever (lane ids
+/// are never reused), so a flapping phone grew the map monotonically.
+fn lane_machine_retirable(machine: &CoordinatorState, connection_gone: bool) -> bool {
+    connection_gone && matches!(machine.stage, Stage::Idle)
 }
 
 /// v1.6.0 W1-L7: the mode an in-session pp-hotkey press flips the session
@@ -5100,6 +5186,127 @@ the badge lie (dark-badge session silently post-processing at stop)"
             tm[teardown_at..teardown_end]
                 .contains("coordinator.notify_cancel(recording_was_active, cancel_session_key);"),
             "the model-load-failure teardown must pass the resolved lane too"
+        );
+    }
+
+    /// KB-270 (v1.6.4): the lane-machine retirement rule, pinned pure. A
+    /// lane's coordinator machine may be retired only when it holds no
+    /// in-flight work (Idle - a Recording or Processing machine still owes
+    /// effects, and its stop pipeline's drain is the retirement point) AND
+    /// its connection is gone (a live connection's machine serves its next
+    /// press). Before this rule, every lane id a phone ever registered
+    /// left a machine in the coordinator's lanes map forever (lane ids are
+    /// never reused), so a flapping phone grew the map monotonically.
+    #[test]
+    fn kb270_lane_machine_retirement_needs_an_idle_machine_and_a_gone_connection() {
+        // A drained machine whose phone left: retire (the growth case).
+        assert!(
+            lane_machine_retirable(&CoordinatorState::new(), true),
+            "an idle machine with no connection is dead weight: retire it"
+        );
+        // The same drained machine on a LIVE connection: keep it for the
+        // phone's next press (the lane id is reused while the socket
+        // lives).
+        assert!(
+            !lane_machine_retirable(&CoordinatorState::new(), false),
+            "a live connection's machine must stay for its next press"
+        );
+
+        // A machine mid-flight never retires, connection or not: Recording
+        // still owes its stop, Processing owes its drain (which performs
+        // the retirement itself).
+        let mut recording = CoordinatorState::new();
+        assert!(matches!(
+            recording.on_input(
+                companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(7)),
+                Instant::now()
+            ),
+            Some(Effect::Start { .. })
+        ));
+        assert!(matches!(recording.stage, Stage::Recording(_)));
+        assert!(
+            !lane_machine_retirable(&recording, true),
+            "a Recording machine never retires (its session is live)"
+        );
+        assert!(matches!(
+            recording.on_input(
+                companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(7)),
+                Instant::now()
+            ),
+            Some(Effect::Stop { .. })
+        ));
+        assert_eq!(recording.stage, Stage::Processing);
+        assert!(
+            !lane_machine_retirable(&recording, true),
+            "a Processing machine waits for its own drain to retire it"
+        );
+        // The drain lands it on Idle, and THEN the rule fires.
+        assert!(recording.on_processing_finished().is_none());
+        assert_eq!(recording.stage, Stage::Idle);
+        assert!(lane_machine_retirable(&recording, true));
+    }
+
+    /// KB-270 source pin (the coordinator thread needs a channel and an
+    /// AppHandle, so the loop arms are pinned against this committed
+    /// source, the convention above): BOTH retirement sites must route
+    /// through the shared retire_dead_lane helper - the LaneGone arm (a
+    /// socket death with the machine already idle) and the lane's
+    /// ProcessingFinished drain (a socket death that raced a stop
+    /// pipeline) - and the helper must sweep all three bookkeeping maps:
+    /// the coordinator's machine, the post-process mirror entry, and the
+    /// audio side's lane cancel generation.
+    #[test]
+    fn kb270_both_retirement_sites_sweep_the_machine_mirror_and_cancel_generation() {
+        let source = include_str!("transcription_coordinator.rs");
+
+        // The helper sweeps all three maps (the slice runs to the main
+        // loop that follows the closure, so formatting changes to the
+        // closure's own layout cannot break the pin).
+        let helper_at = source
+            .find("let retire_dead_lane =")
+            .expect("the retirement helper");
+        let helper_end = helper_at
+            + source[helper_at..]
+                .find("\n\n                loop {")
+                .expect("the main loop after the helper");
+        let helper = &source[helper_at..helper_end];
+        assert!(
+            helper.contains("lane_machine_retirable(machine, connection_gone)"),
+            "the helper routes through the pure retirement rule"
+        );
+        assert!(
+            helper.contains("lanes.remove(&lane);"),
+            "the helper removes the lane's machine"
+        );
+        assert!(
+            helper.contains(".remove(&lane);")
+                && helper.contains("lane_session_post_process_mirror"),
+            "the helper removes the lane's post-process mirror entry"
+        );
+        assert!(
+            helper.contains("drop_lane_cancel_generation(lane);"),
+            "the helper drops the lane's audio cancel generation"
+        );
+
+        // The LaneGone arm routes through the helper.
+        let lane_gone_at = source
+            .find("Command::LaneGone { lane } => {")
+            .expect("the LaneGone arm");
+        let lane_gone_arm = &source[lane_gone_at..lane_gone_at + 300];
+        assert!(
+            lane_gone_arm.contains("retire_dead_lane(&app, &mut lanes, lane);"),
+            "the LaneGone arm must retire through the shared helper"
+        );
+
+        // The lane's ProcessingFinished drain routes through the helper
+        // too (a disconnect that raced the pipeline).
+        let drain_at = source
+            .find("Command::ProcessingFinished { lane } => match lane {")
+            .expect("the ProcessingFinished arm");
+        let drain_arm = &source[drain_at..drain_at + 1400];
+        assert!(
+            drain_arm.contains("retire_dead_lane(&app, &mut lanes, lane);"),
+            "the lane drain must re-run the retirement after on_processing_finished"
         );
     }
 }

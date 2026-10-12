@@ -678,12 +678,21 @@ fn type_text_via_xdotool(text: &str) -> Result<(), DirectTypingFailure> {
 /// reproduces the transcript line for line with no line ever interpreted
 /// as a command. Pure so the construction is pinnable on hosts without
 /// dotool (the typing call itself stays Linux-gated).
+///
+/// KB-269 (v1.6.4): the split normalizes line endings first. A CRLF (or
+/// lone-CR) transcript split on a bare `\n` kept the `\r` inside the
+/// `type` argument, so dotool typed a stray carriage return at the end of
+/// every line (and a lone-CR transcript arrived as ONE giant line). Both
+/// `\r\n` and a lone `\r` are folded to `\n` before splitting, so the
+/// typed output carries no carriage returns regardless of which line
+/// ending the transcript source used.
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(crate) fn dotool_script_for_text(text: &str) -> String {
     use std::fmt::Write as _;
 
     let mut script = String::with_capacity(text.len() + text.len() / 8 + 16);
-    let mut lines = text.split('\n').peekable();
+    let normalized = text.replace("\r\n", "\n").replace('\r', "\n");
+    let mut lines = normalized.split('\n').peekable();
     while let Some(line) = lines.next() {
         let _ = writeln!(script, "type {line}");
         if lines.peek().is_some() {
@@ -1255,6 +1264,31 @@ mod tests {
         // A trailing newline still presses Enter at the end; the trailing
         // empty type command types nothing.
         assert_eq!(dotool_script_for_text("a\n"), "type a\nkey enter\ntype \n");
+
+        // KB-269 (v1.6.4): CRLF and lone-CR transcripts normalize to the
+        // same script as their LF form - the split used to keep the \r
+        // inside each type argument, so dotool typed a stray carriage
+        // return at the end of every CRLF line, and a lone-CR transcript
+        // arrived as one giant unsplit line.
+        assert_eq!(
+            dotool_script_for_text("first\r\nsecond\r\n"),
+            "type first\nkey enter\ntype second\nkey enter\ntype \n",
+            "CRLF folds to LF: no \\r may survive into a type argument"
+        );
+        assert_eq!(
+            dotool_script_for_text("crlf\r\nonly"),
+            dotool_script_for_text("crlf\nonly"),
+            "a CRLF transcript types exactly what its LF form types"
+        );
+        assert_eq!(
+            dotool_script_for_text("old mac\rlines"),
+            "type old mac\nkey enter\ntype lines\n",
+            "a lone CR is a line ending too, not one giant line"
+        );
+        assert!(
+            !dotool_script_for_text("windows\r\ntranscript\r\n").contains('\r'),
+            "no carriage return may appear anywhere in the script"
+        );
 
         // Empty text degenerates to the old single empty type command.
         assert_eq!(dotool_script_for_text(""), "type \n");

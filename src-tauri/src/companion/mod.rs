@@ -150,6 +150,15 @@ struct StoppingSession {
 }
 
 pub struct CompanionManager {
+    // Locking note (v1.6.4, the crashed-client accept-wedge hardening):
+    // every std Mutex this manager owns is acquired poison-tolerantly
+    // (`lock().unwrap_or_else(|e| e.into_inner())`). A panicking task that
+    // held one of these locks used to poison it, and every later
+    // connection task then panicked at its own `.lock().unwrap()` - the
+    // server answered no new phone until restart (the v1.6.3 proof-run
+    // wedge shape). These are bookkeeping maps whose invariants survive a
+    // mid-critical-section panic (insert/remove/flag flips), so recovery
+    // beats poisoning the whole companion surface.
     inner: Mutex<CompanionInner>,
     /// Server frames fanned out to every live client connection.
     broadcast: tokio::sync::broadcast::Sender<String>,
@@ -220,7 +229,7 @@ impl CompanionManager {
     }
 
     pub fn is_running(&self) -> bool {
-        self.inner.lock().unwrap().running
+        self.inner.lock().unwrap_or_else(|e| e.into_inner()).running
     }
 
     /// v1.6.2 W1-L2: register one authenticated connection. Returns its
@@ -241,12 +250,15 @@ impl CompanionManager {
             .next_generation
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        self.connections.lock().unwrap().push(ConnectionEntry {
-            lane,
-            generation,
-            device: device.to_string(),
-            tx,
-        });
+        self.connections
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(ConnectionEntry {
+                lane,
+                generation,
+                device: device.to_string(),
+                tx,
+            });
         (lane, generation, rx)
     }
 
@@ -273,7 +285,7 @@ impl CompanionManager {
     /// count stays honest. Registry-only (the tray re-sync lives in
     /// [`Self::note_device_disconnected`]).
     pub fn unregister_connection(&self, lane: u64, generation: u64) {
-        let mut connections = self.connections.lock().unwrap();
+        let mut connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
         connections.retain(|entry| !(entry.lane == lane && entry.generation == generation));
     }
 
@@ -287,7 +299,12 @@ impl CompanionManager {
     /// registration order (the settings panel's device list).
     pub fn devices(&self) -> Vec<String> {
         let mut names: Vec<String> = Vec::new();
-        for entry in self.connections.lock().unwrap().iter() {
+        for entry in self
+            .connections
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+        {
             if !names.iter().any(|n| n == &entry.device) {
                 names.push(entry.device.clone());
             }
@@ -300,10 +317,97 @@ impl CompanionManager {
     pub fn connection_device(&self, lane: u64) -> Option<String> {
         self.connections
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .iter()
             .find(|entry| entry.lane == lane)
             .map(|entry| entry.device.clone())
+    }
+
+    /// KB-261 (v1.6.4): the connection's IDENTITY, resolved against the
+    /// identities this Mac already knows. The phone's persistent device id
+    /// lives in localStorage, which is origin-scoped: a Mac address change
+    /// (new LAN IP, or a Tailscale-vs-LAN pairing switch) changes the QR
+    /// URL's origin, so every phone arrives with a freshly minted id and
+    /// per-phone data (the Recent list) silently reset. The server keeps a
+    /// bounded set of known identities (settings,
+    /// `companion_known_identities`) and adopts the PRIOR identity when a
+    /// new-id hello unambiguously matches it by platform name (the
+    /// `sticky_identity_adoption` rule): the Recent list, registration, and
+    /// history attribution keep one identity across origin changes.
+    ///
+    /// Disclosed limits: the match is by hello platform name, so a second
+    /// same-platform phone pairing while the first is NOT connected adopts
+    /// the first's identity (and two same-platform phones already known
+    /// make the match ambiguous, so neither adopts - a phone of that
+    /// platform re-pairing after an origin change then resets its list).
+    /// Private mode (storage unavailable, per-load ids) rides the same
+    /// rule: one same-platform phone keeps its list across loads, twins do
+    /// not.
+    pub fn resolve_device_identity(
+        &self,
+        app: &AppHandle,
+        device: &str,
+        device_id: Option<&str>,
+    ) -> String {
+        let raw = protocol::device_identity_name(device, device_id);
+        let mut settings = crate::settings::get_settings(app);
+        let known = settings.companion_known_identities.clone();
+        match self.resolve_identity_against_known(&known, device, &raw) {
+            IdentityResolution::Known => raw,
+            IdentityResolution::Adopted(prior) => {
+                log::info!(
+                    "companion: {device} re-paired under a new device id; keeping its known \
+                     identity {prior} (KB-261)"
+                );
+                prior
+            }
+            IdentityResolution::New => {
+                // A genuinely new identity: remember it (bounded, most
+                // recent last) so this phone's NEXT re-pair can be matched.
+                let mut updated = known;
+                updated.push(raw.clone());
+                let keep_from = updated.len().saturating_sub(KNOWN_IDENTITIES_LIMIT);
+                settings.companion_known_identities = updated[keep_from..].to_vec();
+                crate::settings::write_settings(app, settings);
+                raw
+            }
+        }
+    }
+
+    /// KB-261: the pure core of the identity resolution (settings-free, so
+    /// the rule is pinnable without a store). `raw` is the hello's fresh
+    /// composite identity; `known` the persisted identity set.
+    fn resolve_identity_against_known(
+        &self,
+        known: &[String],
+        hello_device: &str,
+        raw: &str,
+    ) -> IdentityResolution {
+        if known.iter().any(|k| k == raw) {
+            // This exact identity paired before (same origin, same stored
+            // id, or an earlier adoption): nothing changes.
+            return IdentityResolution::Known;
+        }
+        let adoptable = sticky_identity_adoption(known, hello_device)
+            // Never fold a live connection's identity into a newcomer: the
+            // adoption exists for a phone RETURNING, and a same-platform
+            // phone that is connected right now is by definition a
+            // different one.
+            .filter(|prior| !self.identity_connected(prior));
+        match adoptable {
+            Some(prior) => IdentityResolution::Adopted(prior),
+            None => IdentityResolution::New,
+        }
+    }
+
+    /// Whether any live connection is currently registered under this
+    /// identity (the KB-261 adoption guard).
+    fn identity_connected(&self, identity: &str) -> bool {
+        self.connections
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+            .any(|entry| entry.device == identity)
     }
 
     /// v1.6.2 W1-L2: freeze one lane's session identity at the instant the
@@ -327,7 +431,7 @@ impl CompanionManager {
     pub fn lane_owns_live_session(&self, lane: u64) -> bool {
         self.lane_sessions
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .get(&lane)
             .is_some_and(|session| session.live)
     }
@@ -340,7 +444,7 @@ impl CompanionManager {
         let mut lanes: Vec<u64> = self
             .lane_sessions
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .iter()
             .filter(|(_, session)| session.live)
             .map(|(lane, _)| *lane)
@@ -362,7 +466,7 @@ impl CompanionManager {
         let live: std::collections::HashSet<u64> = self.live_session_lanes().into_iter().collect();
         self.lane_sessions
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .retain(|lane, _| live.contains(lane));
     }
 
@@ -372,14 +476,14 @@ impl CompanionManager {
     /// next press will do". Display-and-default only: the session's own
     /// prefs ride its starting edge into the coordinator.
     pub fn set_pending_session_prefs(&self, prefs: protocol::SessionPrefs) {
-        *self.pending_prefs.lock().unwrap() = prefs;
+        *self.pending_prefs.lock().unwrap_or_else(|e| e.into_inner()) = prefs;
     }
 
     /// v1.6.0: the preferences the NEXT companion session will run with
     /// (armed by the phones' press edges, defaults before any). The tray's
     /// companion status block reads this as the active output target.
     pub fn pending_session_prefs(&self) -> protocol::SessionPrefs {
-        *self.pending_prefs.lock().unwrap()
+        *self.pending_prefs.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     pub fn broadcast_frame(&self, frame: &protocol::ServerFrame) {
@@ -399,7 +503,7 @@ impl CompanionManager {
     /// when that lane is gone (the phone dropped): the caller treats it as
     /// the documented no-subscriber no-op.
     pub fn send_frame_to_lane(&self, lane: u64, frame: &protocol::ServerFrame) -> bool {
-        let connections = self.connections.lock().unwrap();
+        let connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
         match connections.iter().find(|entry| entry.lane == lane) {
             Some(entry) => entry.tx.send(frame.to_json()).is_ok(),
             None => false,
@@ -538,7 +642,7 @@ impl CompanionManager {
         }
 
         {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             inner.running = true;
             inner.bind_ip = Some(bind_ip);
             inner.port = port;
@@ -587,8 +691,8 @@ impl CompanionManager {
         // pipeline into session_lane None and silently discarded the
         // dictation (no transcript, no history row) while stranding the
         // lane's recorder recording=true. Keep exactly the LIVE lanes'
-        // records (their pipelines consume them, flip liveness, and leave
-        // them for the next stop() to sweep); never touch the stopping
+        // records (their pipelines consume them and the false edge removes
+        // them, KB-270); never touch the stopping
         // slot at all (it is transient by design: note_stopping_session
         // writes it and take_stopping_session consumes it on the same
         // thread).
@@ -607,13 +711,16 @@ impl CompanionManager {
             }
         }
 
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         inner.running = false;
         inner.bind_ip = None;
         inner.port = 0;
         inner.advertised_host = None;
         inner.tls_manual = false;
-        self.connections.lock().unwrap().clear();
+        self.connections
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
         log::info!("companion: server stopped");
     }
 
@@ -658,7 +765,7 @@ impl CompanionManager {
         let advertised_host =
             effective_advertised_host(settings.companion_advertised_host.as_deref());
         let resolved = ip::resolve_bind_ip(&candidates, settings.companion_bind_ip.as_deref());
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let supported = platform_supported();
         // Config-derived on purpose: the URL, QR, and this port describe
         // what the NEXT start advertises (the preview the panel is for),
@@ -744,7 +851,10 @@ impl CompanionManager {
     }
 
     pub fn set_last_error(&self, error: Option<String>) {
-        self.inner.lock().unwrap().last_error = error;
+        self.inner
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .last_error = error;
     }
 
     /// Reset pairing: fresh token (rebound to the advertised interface's
@@ -771,7 +881,10 @@ impl CompanionManager {
     /// the paired phones too, so a swallowed busy press is visible on both
     /// surfaces).
     pub fn register_notice_forwarder(self: &Arc<Self>, app: &AppHandle) {
-        let mut guard = self.notice_listener.lock().unwrap();
+        let mut guard = self
+            .notice_listener
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if guard.is_some() {
             return;
         }
@@ -843,6 +956,45 @@ impl Default for CompanionManager {
     }
 }
 
+/// KB-261: how many phone identities the Mac remembers for re-pair
+/// matching. Bounded so a kiosk Mac strangers keep scanning cannot grow the
+/// settings store forever; the most recent identities survive.
+const KNOWN_IDENTITIES_LIMIT: usize = 8;
+
+/// KB-261: the outcome of resolving one hello's identity against the known
+/// set. `Known` is the same identity pairing again (nothing changes);
+/// `Adopted` is a fresh-id hello matched back to its prior identity (the
+/// origin-change re-pair); `New` is a first-time identity to remember.
+#[derive(Debug, PartialEq, Eq)]
+enum IdentityResolution {
+    Known,
+    Adopted(String),
+    New,
+}
+
+/// KB-261: the platform-name half of an identity (`iPhone#7f3a` -> `iPhone`).
+/// An identity with no tag (an old client's bare name) is its own base.
+fn identity_base(identity: &str) -> &str {
+    identity.split_once('#').map_or(identity, |(base, _)| base)
+}
+
+/// KB-261: the pure re-pair matching rule. A hello whose raw identity is
+/// unknown adopts the PRIOR identity when exactly one known identity
+/// shares the hello's platform name - the shape of the same physical phone
+/// returning from a new origin (fresh localStorage id, same UA platform
+/// token). Two or more known identities on the same platform name make the
+/// match ambiguous (same-platform twins), so nobody adopts: a wrong
+/// adoption would collapse two phones into one Recent list, the exact
+/// KB-265 defect the identity tags fixed. None also when the known set has
+/// never seen this platform.
+fn sticky_identity_adoption(known: &[String], hello_device: &str) -> Option<String> {
+    let mut matches = known.iter().filter(|k| identity_base(k) == hello_device);
+    match (matches.next(), matches.next()) {
+        (Some(only), None) => Some(only.clone()),
+        _ => None,
+    }
+}
+
 fn qr_svg_for(url: &str) -> Result<String, String> {
     use qrcode::render::svg::Color;
     use qrcode::QrCode;
@@ -906,17 +1058,31 @@ pub fn on_lane_session_changed<R: tauri::Runtime>(
     let Some(manager) = manager(app) else {
         return;
     };
-    let mut sessions = manager.lane_sessions.lock().unwrap();
-    match sessions.get_mut(&lane) {
+    let mut sessions = manager
+        .lane_sessions
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let device = match sessions.get_mut(&lane) {
         Some(session) => {
             session.live = active;
+            session.device.clone()
         }
         None => return, // no session was ever committed for this lane
+    };
+    // KB-270 (v1.6.4): the session END sweeps the record right here. The
+    // stop pipeline resolved this session's identity BEFORE this edge (the
+    // coordinator's Stop effect hands it over through
+    // note_stopping_session, and the pipeline's first synchronous step
+    // takes it - both strictly before on_lane_session_changed(false) runs
+    // inside stop()), so the drained record is dead weight; leaving it for
+    // the next server stop's sweep grew the map by one entry per session
+    // per lane forever (a flapping phone = monotonic growth). Removal is
+    // observably identical to live=false: lane_owns_live_session reads
+    // false either way, and the next session on the lane re-inserts a
+    // fresh record at its own Start commit.
+    if !active {
+        sessions.remove(&lane);
     }
-    let device = sessions
-        .get(&lane)
-        .map(|s| s.device.clone())
-        .unwrap_or_else(|| "Companion".to_string());
     drop(sessions);
     manager.send_frame_to_lane(lane, &protocol::ServerFrame::State { recording: active });
     let _ = app.emit_to(
@@ -944,8 +1110,15 @@ pub fn begin_session<R: tauri::Runtime>(
 ) {
     if let Some(manager) = manager(app) {
         let session = manager.freeze_session(lane, prefs);
-        manager.lane_sessions.lock().unwrap().insert(lane, session);
-        *manager.starting_lane.lock().unwrap() = Some(lane);
+        manager
+            .lane_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(lane, session);
+        *manager
+            .starting_lane
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(lane);
     }
 }
 
@@ -954,7 +1127,7 @@ pub fn begin_session<R: tauri::Runtime>(
 /// behind begin_session on the coordinator thread). None for
 /// keyboard/signal starts.
 pub fn starting_session_lane<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<u64> {
-    manager(app).and_then(|m| *m.starting_lane.lock().unwrap())
+    manager(app).and_then(|m| *m.starting_lane.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
 /// v1.6.2 multi-phone review fix: clear the starting-session slot for a
@@ -968,7 +1141,10 @@ pub fn starting_session_lane<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Op
 /// is always fresh for the effect being executed.
 pub fn clear_starting_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     if let Some(manager) = manager(app) {
-        *manager.starting_lane.lock().unwrap() = None;
+        *manager
+            .starting_lane
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
     }
 }
 
@@ -977,7 +1153,11 @@ pub fn clear_starting_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 /// lane starts clean).
 pub fn discard_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
     if let Some(manager) = manager(app) {
-        manager.lane_sessions.lock().unwrap().remove(&lane);
+        manager
+            .lane_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&lane);
     }
 }
 
@@ -990,9 +1170,12 @@ pub fn note_stopping_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane:
     let Some(manager) = manager(app) else {
         return;
     };
-    let sessions = manager.lane_sessions.lock().unwrap();
+    let sessions = manager
+        .lane_sessions
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
     if let Some(session) = sessions.get(&lane) {
-        *manager.stopping.lock().unwrap() = Some(StoppingSession {
+        *manager.stopping.lock().unwrap_or_else(|e| e.into_inner()) = Some(StoppingSession {
             lane,
             device: session.device.clone(),
             prefs: session.prefs,
@@ -1008,7 +1191,11 @@ pub fn take_stopping_session<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Option<(u64, String, protocol::SessionPrefs)> {
     let manager = manager(app)?;
-    let stopping = manager.stopping.lock().unwrap().take()?;
+    let stopping = manager
+        .stopping
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take()?;
     Some((stopping.lane, stopping.device, stopping.prefs))
 }
 
@@ -1087,7 +1274,7 @@ pub fn broadcast_recent_history<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     for (lane, device) in manager
         .connections
         .lock()
-        .unwrap()
+        .unwrap_or_else(|e| e.into_inner())
         .iter()
         .map(|entry| (entry.lane, entry.device.clone()))
         .collect::<Vec<_>>()
@@ -1439,7 +1626,7 @@ mod tests {
             "stop() must sweep through retain_live_lane_sessions after queueing its finalizes"
         );
         assert!(
-            !body.contains("lane_sessions.lock().unwrap().clear()"),
+            !body.contains("lane_sessions.lock().unwrap_or_else(|e| e.into_inner()).clear()"),
             "stop() must never clear the session map synchronously: the finalize pipelines it just queued read those records"
         );
         assert!(
@@ -1504,6 +1691,269 @@ mod tests {
         let (lane_e, _gen_e, _rx_e) = manager.register_connection("iPhone 15");
         assert_ne!(lane_e, lane_c);
         assert_ne!(lane_e, lane_d);
+    }
+
+    /// KB-261 (v1.6.4): the sticky re-pair matching rule, pinned pure. A
+    /// hello whose raw identity is unknown adopts the PRIOR identity when
+    /// exactly one known identity shares the hello's platform name (the
+    /// same physical phone returning from a new origin); two known
+    /// identities on the same platform name (twins) make the match
+    /// ambiguous, so NOBODY adopts - a wrong adoption would collapse two
+    /// phones into one Recent list, the KB-265 defect the tags fixed. The
+    /// live-connection guard (a connected prior never adopts out) is
+    /// exercised separately below.
+    #[test]
+    fn kb261_sticky_identity_adoption_requires_one_unambiguous_prior() {
+        // The platform-name half of an identity.
+        assert_eq!(identity_base("iPhone#7f3a"), "iPhone");
+        assert_eq!(
+            identity_base("Linux"),
+            "Linux",
+            "a bare name is its own base"
+        );
+
+        // One known iPhone: a fresh-id iPhone hello (the origin-change
+        // re-pair) adopts it and keeps its Recent list.
+        let known_one = vec!["iPhone#7f3a".to_string()];
+        assert_eq!(
+            sticky_identity_adoption(&known_one, "iPhone"),
+            Some("iPhone#7f3a".to_string()),
+            "a phone returning from a new origin keeps its known identity"
+        );
+        // A different platform never matches another platform's identity.
+        assert_eq!(sticky_identity_adoption(&known_one, "iPad"), None);
+
+        // Two known iPhones (twins): the match is ambiguous, nobody adopts.
+        let known_twins = vec!["iPhone#7f3a".to_string(), "iPhone#c3d4".to_string()];
+        assert_eq!(
+            sticky_identity_adoption(&known_twins, "iPhone"),
+            None,
+            "an ambiguous platform match must not collapse twins (KB-265)"
+        );
+        // The twins rule holds per platform: the iPad's single entry still
+        // adopts.
+        let known_mixed = vec![
+            "iPhone#7f3a".to_string(),
+            "iPhone#c3d4".to_string(),
+            "iPad#99aa".to_string(),
+        ];
+        assert_eq!(
+            sticky_identity_adoption(&known_mixed, "iPad"),
+            Some("iPad#99aa".to_string())
+        );
+
+        // Nothing known: nothing to adopt (the first pairing).
+        assert_eq!(sticky_identity_adoption(&[], "iPhone"), None);
+
+        // The known set stays bounded: the manager keeps the most recent
+        // KNOWN_IDENTITIES_LIMIT identities (pinned here so a change is a
+        // deliberate decision, not drift).
+        assert_eq!(KNOWN_IDENTITIES_LIMIT, 8);
+    }
+
+    /// KB-261 (v1.6.4): the full identity resolution through the real
+    /// manager core (settings-free; the persistence wrapper's write is
+    /// source-pinned below). A phone's SECOND pairing under a fresh id
+    /// (the origin change) adopts its FIRST identity, so the Recent list
+    /// keyed on it survives; a same-platform twin pairing while the first
+    /// phone is CONNECTED gets its own identity (the live-connection
+    /// guard); and once two same-platform identities are known, later
+    /// fresh-id hellos are ambiguous and keep their own (the disclosed
+    /// twins limit).
+    #[test]
+    fn kb261_identity_resolution_survives_the_origin_change() {
+        let manager = CompanionManager::new();
+        let known_one = vec!["iPhone#aaaa".to_string()];
+
+        // The phone returns from a new origin (fresh localStorage id): its
+        // connection is gone, so the fresh identity ADOPTS the remembered
+        // one and the Recent list keyed on it survives.
+        assert_eq!(
+            manager.resolve_identity_against_known(&known_one, "iPhone", "iPhone#zzzz"),
+            IdentityResolution::Adopted("iPhone#aaaa".to_string()),
+            "a re-pair from a new origin keeps the known identity"
+        );
+
+        // The same identity pairing again (same origin, same stored id):
+        // nothing changes.
+        assert_eq!(
+            manager.resolve_identity_against_known(&known_one, "iPhone", "iPhone#aaaa"),
+            IdentityResolution::Known
+        );
+
+        // A same-platform twin connecting WHILE the prior identity is live
+        // must not fold into it: the live-connection guard refuses the
+        // adoption and the twin resolves as NEW.
+        let (_twin_lane, _twin_gen, _twin_rx) = manager.register_connection("iPhone#aaaa");
+        assert_eq!(
+            manager.resolve_identity_against_known(&known_one, "iPhone", "iPhone#bbbb"),
+            IdentityResolution::New,
+            "a same-platform phone pairing while the prior identity is connected gets its own"
+        );
+
+        // Once both are known, the platform match is ambiguous for any
+        // later fresh-id hello (the disclosed KB-261 limit: after twins
+        // have paired, an origin change on either resets its Recent list).
+        let known_twins = vec!["iPhone#aaaa".to_string(), "iPhone#bbbb".to_string()];
+        assert_eq!(
+            manager.resolve_identity_against_known(&known_twins, "iPhone", "iPhone#cccc"),
+            IdentityResolution::New,
+            "an ambiguous platform match never adopts (KB-265)"
+        );
+
+        // A different platform never touches the iPhone's resolution.
+        assert_eq!(
+            manager.resolve_identity_against_known(&known_twins, "iPad", "iPad#dddd"),
+            IdentityResolution::New
+        );
+    }
+
+    /// KB-261 source pin (the settings write needs the real store, which a
+    /// mock app cannot mount): the persistence wrapper must remember NEW
+    /// identities through the bounded settings field, and never rewrite
+    /// the store for a Known or Adopted resolution.
+    #[test]
+    fn kb261_new_identities_persist_bounded_through_the_settings_store() {
+        let source = include_str!("mod.rs");
+        let at = source
+            .find("pub fn resolve_device_identity(")
+            .expect("the identity resolution wrapper");
+        let end = at + source[at..].find("\n    }\n").expect("fn end");
+        let body = &source[at..end];
+        assert!(
+            body.contains("companion_known_identities"),
+            "the wrapper reads and writes the persisted identity set"
+        );
+        let new_arm_at = body
+            .find("IdentityResolution::New =>")
+            .expect("the New arm");
+        let new_arm = &body[new_arm_at..];
+        assert!(
+            new_arm.contains("keep_from")
+                && new_arm.contains("KNOWN_IDENTITIES_LIMIT")
+                && new_arm.contains("write_settings"),
+            "the New arm remembers the identity bounded through write_settings"
+        );
+        // Known and Adopted resolve without touching the store.
+        let known_arm = &body[..new_arm_at];
+        assert!(
+            known_arm.contains("IdentityResolution::Known => raw")
+                && known_arm.contains("IdentityResolution::Adopted(prior)"),
+            "Known and Adopted arms resolve in-memory"
+        );
+        assert!(
+            !known_arm.contains("write_settings"),
+            "no store write on the unchanged-identity paths"
+        );
+    }
+
+    /// KB-270 (v1.6.4): the per-lane session records stop growing. Every
+    /// session END sweeps its record (the stop pipeline has already
+    /// consumed the identity by then), so a phone flapping through
+    /// reconnect-and-dictate cycles leaves the map EMPTY, not one drained
+    /// record per cycle - the pre-fix growth was monotonic because lane
+    /// ids are never reused and the sweep ran only at server stop.
+    #[test]
+    fn kb270_lane_session_records_are_swept_at_every_session_end() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+
+        // A flapping phone: N reconnect cycles, one dictation each.
+        for cycle in 0..25u64 {
+            let (lane, _gen, _rx) = manager.register_connection("Pixel 8");
+            begin_session(app.handle(), lane, protocol::SessionPrefs::default());
+            assert!(
+                manager.lane_owns_live_session(lane),
+                "cycle {cycle}: the session is live while recording"
+            );
+            // The stop pipeline consumed the identity (production order),
+            // then the session END lands.
+            note_stopping_session(app.handle(), lane);
+            assert!(
+                take_stopping_session(app.handle()).is_some(),
+                "cycle {cycle}: the identity resolves before the end"
+            );
+            on_lane_session_changed(app.handle(), lane, false);
+            assert!(
+                manager.lane_sessions.lock().unwrap().is_empty(),
+                "cycle {cycle}: a drained session leaves no record behind"
+            );
+        }
+
+        // Two live sessions coexist and each end removes exactly its own.
+        let (lane_a, _ga, _ra) = manager.register_connection("iPhone#7f3a");
+        let (lane_b, _gb, _rb) = manager.register_connection("iPhone#c3d4");
+        begin_session(app.handle(), lane_a, protocol::SessionPrefs::default());
+        begin_session(app.handle(), lane_b, protocol::SessionPrefs::default());
+        on_lane_session_changed(app.handle(), lane_a, false);
+        assert!(manager.lane_owns_live_session(lane_b), "B survives A's end");
+        on_lane_session_changed(app.handle(), lane_b, false);
+        assert!(manager.lane_sessions.lock().unwrap().is_empty());
+    }
+
+    /// v1.6.4 accept-wedge hardening: a panic in a task holding one of the
+    /// manager's std Mutexes must not poison the companion surface. The
+    /// pre-fix `.lock().unwrap()` acquisitions panicked on a poisoned lock,
+    /// so one poisoned map wedged every later connection task until
+    /// restart. Every hot-path acquisition is now poison-tolerant; this
+    /// test POISONS the registries deliberately and asserts the manager
+    /// keeps serving registrations, device lists, and session records.
+    #[test]
+    fn poisoned_manager_locks_never_wedge_later_connections() {
+        let manager = CompanionManager::new();
+
+        // Poison the connections registry and the session map: panic in a
+        // task while holding each guard (caught, like tokio catches a task
+        // panic).
+        for poison in ["connections", "lane_sessions", "pending_prefs", "stopping"] {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match poison {
+                "connections" => {
+                    let _guard = manager
+                        .connections
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    panic!("poison {poison}");
+                }
+                "lane_sessions" => {
+                    let _guard = manager
+                        .lane_sessions
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    panic!("poison {poison}");
+                }
+                "pending_prefs" => {
+                    let _guard = manager
+                        .pending_prefs
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    panic!("poison {poison}");
+                }
+                _ => {
+                    let _guard = manager.stopping.lock().unwrap_or_else(|e| e.into_inner());
+                    panic!("poison {poison}");
+                }
+            }));
+            assert!(
+                result.is_err(),
+                "the {poison} poisoning panic must be caught"
+            );
+        }
+
+        // The very next connection still registers, unregisters, and reads
+        // every surface the connection path touches - no unwrap panic, no
+        // wedge.
+        let (lane, generation, _rx) = manager.register_connection("iPhone#7f3a");
+        assert_eq!(manager.devices(), vec!["iPhone#7f3a".to_string()]);
+        assert_eq!(manager.paired_device_count(), 1);
+        manager.set_pending_session_prefs(protocol::SessionPrefs::default());
+        assert_eq!(
+            manager.pending_session_prefs(),
+            protocol::SessionPrefs::default()
+        );
+        assert!(!manager.lane_owns_live_session(lane));
+        manager.unregister_connection(lane, generation);
+        assert!(manager.devices().is_empty());
     }
 
     /// Contract under test (AUD-01): a pure forwarder filter
@@ -1733,14 +2183,20 @@ mod tests {
         // (the tray's next-press display); A's session keeps its own.
         manager.set_pending_session_prefs(protocol::SessionPrefs::default());
 
-        // The session ends; the stop handoff still resolves A's session's
-        // copy (the false edge must not clear what the pipeline reads).
-        on_lane_session_changed(app.handle(), lane_a, false);
+        // The session ends. Production order: the coordinator's Stop
+        // effect hands the identity over (note_stopping_session), the
+        // pipeline's first synchronous step takes it, and only THEN does
+        // the false edge land (KB-270: which now also sweeps the record).
         note_stopping_session(app.handle(), lane_a);
         let (stop_lane, _device, prefs) =
             take_stopping_session(app.handle()).expect("A's stopping session resolves");
         assert_eq!(stop_lane, lane_a);
         assert_eq!(prefs, phone_target);
+        on_lane_session_changed(app.handle(), lane_a, false);
+        assert!(
+            manager.lane_sessions.lock().unwrap().get(&lane_a).is_none(),
+            "the session END sweeps the drained record (KB-270)"
+        );
 
         // The NEXT session on another lane freezes ITS own prefs, whatever
         // later presses left in the pending slot.

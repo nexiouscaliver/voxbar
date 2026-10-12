@@ -310,7 +310,10 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             ..
         }) => {
             let blocked = {
-                let mut limiter = manager.failure_limiter_pin().lock().unwrap();
+                let mut limiter = manager
+                    .failure_limiter_pin()
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
                 limiter.is_blocked(peer, Instant::now())
             };
             if blocked {
@@ -331,7 +334,7 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 manager
                     .failure_limiter_pin()
                     .lock()
-                    .unwrap()
+                    .unwrap_or_else(|e| e.into_inner())
                     .register_failure(peer, Instant::now());
                 let code = if subnet_ok {
                     "bad_token"
@@ -344,7 +347,11 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 log::warn!("companion: refused hello from {peer} ({code})");
                 return;
             }
-            manager.failure_limiter_pin().lock().unwrap().clear(peer);
+            manager
+                .failure_limiter_pin()
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clear(peer);
 
             // v1.6.2 fleet pass 1: the connection's identity is the human
             // name disambiguated by the phone's persistent device id (the
@@ -354,7 +361,11 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             // name-keyed downstream (the registration, the frozen session,
             // history's capture_device, the per-phone recents filter) uses
             // this composite, so same-platform phones never share it.
-            device_name = protocol::device_identity_name(&device, device_id.as_deref());
+            // KB-261 (v1.6.4): the composite resolves against the Mac's
+            // known identities first, so a phone re-pairing from a new
+            // origin (fresh localStorage id after a Mac address change)
+            // keeps the identity its Recent list is keyed on.
+            device_name = manager.resolve_device_identity(&app, &device, device_id.as_deref());
             // v1.6.2 W1-L2: the registration IS the paired-device
             // bookkeeping (KB-255: keyed on lane + generation, never the
             // name), and the lane is the connection's session identity.
@@ -362,7 +373,19 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             device_lane = lane;
             device_generation = generation;
             device_lane_rx = rx;
-            manager.note_device_connected(&app, &device_name);
+            // v1.6.4 (accept-wedge hardening): the connect-edge bookkeeping
+            // (settings read + write, tray re-sync) is synchronous disk and
+            // main-thread work; run it on a detached worker instead of this
+            // async task, so a storm of reconnecting clients cannot pin
+            // every async runtime worker and stall the accept loop.
+            {
+                let app = app.clone();
+                let connected_manager = Arc::clone(&manager);
+                let connected_device = device_name.clone();
+                std::thread::spawn(move || {
+                    connected_manager.note_device_connected(&app, &connected_device);
+                });
+            }
 
             let settings = crate::settings::get_settings(&app);
             let activation = match settings.shortcut_activation {
@@ -386,7 +409,23 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             // (filtered to this phone's sessions), and its lane's recorder
             // is the one pre-warmed (the RAM rule: pre-warm keeps only the
             // most recent connection's recorder).
-            crate::companion::send_recent_history_to_lane(&app, device_lane, &device_name);
+            // v1.6.4 (accept-wedge hardening): the history query is a
+            // synchronous SQLite read; run it on a detached worker instead
+            // of this async task, so a reconnecting-client storm cannot pin
+            // the async runtime's workers (a wedged accept loop until
+            // restart is exactly the v1.6.3 proof-run failure).
+            {
+                let app = app.clone();
+                let history_device = device_name.clone();
+                let history_lane = device_lane;
+                std::thread::spawn(move || {
+                    crate::companion::send_recent_history_to_lane(
+                        &app,
+                        history_lane,
+                        &history_device,
+                    );
+                });
+            }
             if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
             {
                 let rm = Arc::clone(&rm);
@@ -660,14 +699,31 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     // reconnect carries the old pair, matches nothing, and the fresh
     // registration survives with the tray's paired count intact.
     manager.unregister_connection(device_lane, device_generation);
+    // KB-270 (v1.6.4): the lane's coordinator machine and its bookkeeping
+    // are now dead weight once their pipeline drains; the coordinator
+    // retires them at the drain (and immediately when the machine is
+    // already idle), so a flapping phone cannot grow the maps forever.
+    if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
+        coordinator.notify_lane_gone(device_lane);
+    }
     manager.note_device_disconnected(&app);
 
-    // Acknowledge THIS lane's stop-pause handshake so its Stop never waits
-    // the 2 s timeout on a vanished phone, and retire the lane's idle
+    // KB-263 (v1.6.4): acknowledge THIS lane's stop-pause handshake the
+    // moment the recorder actually RAISES the pause request - the eager
+    // ack this path used to run happened before any Stop raised it, so it
+    // landed as a no-op (acknowledge_pause_after_write is inert until the
+    // request is live) and was wiped again by the Stop that followed; the
+    // drop-finalize's pause wait survived only through the pipeline's own
+    // source close. The watcher polls on a detached worker (bounded), so
+    // it never blocks this async task. Also retire the lane's idle
     // recorder (the RAM rule: no idle lane recorder outlives its
     // connection once a newer pre-warm or this teardown claims the slot).
     if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
-        rm.ack_remote_pause(device_lane);
+        let ack_rm = Arc::clone(&rm);
+        let ack_lane = device_lane;
+        std::thread::spawn(move || {
+            ack_rm.ack_remote_pause_when_requested(ack_lane, Duration::from_secs(3));
+        });
         rm.close_remote_lane(device_lane);
     }
 
@@ -1160,6 +1216,118 @@ mod tests {
         assert!(
             disconnect_arm.contains("admitted_dropped_chunks} admitted audio chunk(s)"),
             "the disconnect log line names the count"
+        );
+    }
+
+    /// KB-263 source pin (the interleave needs real sockets): the
+    /// disconnect path must acknowledge the lane's stop-pause only once
+    /// the recorder RAISES the request, never eagerly. The pre-fix eager
+    /// `ack_remote_pause` ran before any Stop raised the pause, landed as
+    /// a no-op (an ack is inert until the request is live), and was wiped
+    /// again by the Stop that followed - the timing contract this pins:
+    /// the deferred watcher (`ack_remote_pause_when_requested`, on a
+    /// detached worker so the async task never blocks) must be in place
+    /// BEFORE the disconnect-finalize is enqueued.
+    #[test]
+    fn kb263_disconnect_acks_the_pause_only_once_the_recorder_requests_it() {
+        let source = include_str!("server.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+
+        // No eager bare ack remains anywhere on the disconnect path.
+        assert!(
+            !production.contains("rm.ack_remote_pause(device_lane);"),
+            "the eager disconnect ack (a no-op before any Stop raised the request) may not remain"
+        );
+        // The deferred watcher is spawned on a detached worker...
+        let watcher_at = production
+            .find("ack_rm.ack_remote_pause_when_requested(ack_lane,")
+            .expect("the deferred pause watcher");
+        let spawn_at = production[..watcher_at]
+            .rfind("std::thread::spawn(move || {")
+            .expect("the watcher runs on a detached worker, never the async task");
+        assert!(spawn_at < watcher_at);
+        // ...and it is armed BEFORE the disconnect-finalize enqueue, so it
+        // can never miss the handshake window. (The cap tick's finalize
+        // shares the call shape; anchor inside the disconnect section.)
+        let disconnect_section_at = production
+            .find("---- disconnect: graceful finalize ----")
+            .expect("the disconnect section");
+        let disconnect_section = &production[disconnect_section_at..];
+        let finalize_at = disconnect_section_at
+            + disconnect_section
+                .find("coordinator.finalize_companion_lane(device_lane);")
+                .expect("the disconnect finalize");
+        assert!(
+            spawn_at < finalize_at,
+            "the pause watcher must be armed before the finalize is enqueued"
+        );
+    }
+
+    /// KB-270 source pin: the disconnect path must tell the coordinator the
+    /// lane is gone right after releasing its registration, so the
+    /// coordinator can retire the lane's machine (immediately when idle,
+    /// at the drain when a pipeline is in flight) instead of growing its
+    /// lanes map forever on a flapping phone.
+    #[test]
+    fn kb270_disconnect_notifies_the_coordinator_the_lane_is_gone() {
+        let source = include_str!("server.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+        let unregister_at = production
+            .find("manager.unregister_connection(device_lane, device_generation);")
+            .expect("the registration release");
+        let notify_at = production
+            .find("coordinator.notify_lane_gone(device_lane);")
+            .expect("the lane-gone notification");
+        assert!(
+            unregister_at < notify_at,
+            "the lane-gone notification follows the registration release"
+        );
+    }
+
+    /// v1.6.4 accept-wedge hardening, source pin (a live reproduction
+    /// needs the real TLS server on a Wry app, which the unit harness
+    /// cannot mount): the hello path's synchronous seams - the SQLite
+    /// recent-history query and the settings-read-plus-tray-write of the
+    /// connect-edge bookkeeping - must run on detached workers, never
+    /// inside the async connection task. The v1.6.3 proof runs left the
+    /// accept loop not answering new clients until restart after a client
+    /// died mid-session; blocking sync work on the async runtime's
+    /// workers is the wedge vector this removes (the manager's std Mutexes
+    /// are poison-proofed for the same reason; see the manager's locking
+    /// note and its poisoned-lock pin in companion/mod.rs).
+    #[test]
+    fn hello_blocking_seams_run_off_the_async_connection_task() {
+        let source = include_str!("server.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+
+        // The recent-history delivery (a synchronous SQLite read) rides a
+        // detached worker.
+        let history_at = production
+            .find("crate::companion::send_recent_history_to_lane(")
+            .expect("the recent-history delivery call");
+        let history_spawn_at = production[..history_at]
+            .rfind("std::thread::spawn(move || {")
+            .expect("the history delivery spawns a worker");
+        assert!(history_spawn_at < history_at);
+
+        // The connect-edge bookkeeping (settings read + write, tray sync)
+        // rides a detached worker too.
+        let connected_at = production
+            .find("manager.note_device_connected(&app, &connected_device);")
+            .expect("the connect-edge bookkeeping call");
+        let connected_spawn_at = production[..connected_at]
+            .rfind("std::thread::spawn(move || {")
+            .expect("the bookkeeping spawns a worker");
+        assert!(connected_spawn_at < connected_at);
+
+        // Neither seam remains as a direct call on the async task.
+        assert!(
+            !production.contains("send_recent_history_to_lane(&app, device_lane, &device_name);"),
+            "the direct (blocking) history call may not remain on the async task"
+        );
+        assert!(
+            !production.contains("manager.note_device_connected(&app, &device_name);"),
+            "the direct (blocking) bookkeeping call may not remain on the async task"
         );
     }
 }
