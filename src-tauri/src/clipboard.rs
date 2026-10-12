@@ -1254,10 +1254,7 @@ mod tests {
 
         // A trailing newline still presses Enter at the end; the trailing
         // empty type command types nothing.
-        assert_eq!(
-            dotool_script_for_text("a\n"),
-            "type a\nkey enter\ntype \n"
-        );
+        assert_eq!(dotool_script_for_text("a\n"), "type a\nkey enter\ntype \n");
 
         // Empty text degenerates to the old single empty type command.
         assert_eq!(dotool_script_for_text(""), "type \n");

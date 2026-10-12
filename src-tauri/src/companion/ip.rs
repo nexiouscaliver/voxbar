@@ -401,7 +401,11 @@ mod tests {
             assert_eq!(wire_of(kind), wire);
         }
         for (ip, name) in none_samples() {
-            assert_eq!(classify_v4(ip, name), None, "{ip}: must never be a candidate");
+            assert_eq!(
+                classify_v4(ip, name),
+                None,
+                "{ip}: must never be a candidate"
+            );
         }
     }
 
@@ -570,7 +574,10 @@ mod tests {
         );
         // Plain LANs keep the pre-v1.6.0 /24.
         assert_eq!(
-            pairing_subnet_for(&[cand(192, 168, 1, 42, "en0")], Ipv4Addr::new(192, 168, 1, 42)),
+            pairing_subnet_for(
+                &[cand(192, 168, 1, 42, "en0")],
+                Ipv4Addr::new(192, 168, 1, 42)
+            ),
             "192.168.1.0/24"
         );
         assert_eq!(
@@ -592,7 +599,10 @@ mod tests {
         ));
         assert!(!super::super::auth::same_subnet(
             IpAddr::V4(Ipv4Addr::new(192, 168, 2, 9)),
-            &pairing_subnet_for(&[cand(192, 168, 1, 2, "en0")], Ipv4Addr::new(192, 168, 1, 2))
+            &pairing_subnet_for(
+                &[cand(192, 168, 1, 2, "en0")],
+                Ipv4Addr::new(192, 168, 1, 2)
+            )
         ));
     }
 

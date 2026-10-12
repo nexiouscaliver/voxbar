@@ -2254,9 +2254,9 @@ mod tests {
             .expect("HistoryManager::new");
         let body_end = fn_at + source[fn_at..].find("\n    }\n").expect("fn end");
         let body = &source[fn_at..body_end];
-        let gate_at = body.find("if !init_error_is_corruption(&first_error)").expect(
-            "the quarantine decision must branch on the corruption classifier",
-        );
+        let gate_at = body
+            .find("if !init_error_is_corruption(&first_error)")
+            .expect("the quarantine decision must branch on the corruption classifier");
         let quarantine_at = body
             .find("quarantine_history_db(&db_path")
             .expect("the quarantine call");

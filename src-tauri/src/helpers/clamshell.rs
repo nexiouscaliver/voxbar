@@ -47,10 +47,7 @@ mod watcher_ffi {
     #[link(name = "IOKit", kind = "framework")]
     extern "C" {
         pub fn IOServiceMatching(name: *const c_char) -> *mut c_void;
-        pub fn IOServiceGetMatchingService(
-            master_port: u32,
-            matching: *mut c_void,
-        ) -> u32;
+        pub fn IOServiceGetMatchingService(master_port: u32, matching: *mut c_void) -> u32;
         pub fn IONotificationPortCreate(master_port: u32) -> *mut IonotificationPort;
         pub fn IONotificationPortGetRunLoopSource(
             notify_port: *mut IonotificationPort,
@@ -120,7 +117,9 @@ extern "C" fn clamshell_interest_callback(
                 return;
             }
         };
-        let was_closed = state.last_closed.swap(closed_now, std::sync::atomic::Ordering::SeqCst);
+        let was_closed = state
+            .last_closed
+            .swap(closed_now, std::sync::atomic::Ordering::SeqCst);
         if was_closed != closed_now {
             log::info!(
                 "clamshell watcher: lid {}",
@@ -338,13 +337,22 @@ mod tests {
             .find("std::thread::spawn")
             .expect("the callback offloads its work to a worker thread");
         assert!(
-            offload < callback_body.find("is_clamshell()").expect("the callback probes the lid state"),
+            offload
+                < callback_body
+                    .find("is_clamshell()")
+                    .expect("the callback probes the lid state"),
             "the probe must run off the runloop thread"
         );
 
+        // rustfmt wraps the AtomicBool method chain across lines, so the
+        // pin matches the field and the swap call separately.
+        assert!(
+            callback_body.contains("last_closed"),
+            "the callback compares against the last seen lid state"
+        );
         let swap = callback_body
-            .find("last_closed.swap")
-            .expect("the callback compares against the last seen lid state");
+            .find(".swap(")
+            .expect("the callback publishes the observed lid state atomically");
         let fire = callback_body
             .find("(state.on_change)()")
             .expect("the callback fires the handler");
@@ -353,8 +361,7 @@ mod tests {
             "the state comparison must gate the handler call"
         );
         assert!(
-            callback_body[swap..fire]
-                .contains("was_closed != closed_now"),
+            callback_body[swap..fire].contains("was_closed != closed_now"),
             "the handler fires only on an actual lid transition"
         );
     }
@@ -378,7 +385,10 @@ mod tests {
 
         unsafe {
             let matching = watcher_ffi::IOServiceMatching(c"IOPMrootDomain".as_ptr());
-            assert!(!matching.is_null(), "IOServiceMatching must build the dictionary");
+            assert!(
+                !matching.is_null(),
+                "IOServiceMatching must build the dictionary"
+            );
             let service = watcher_ffi::IOServiceGetMatchingService(
                 watcher_ffi::KIO_MASTER_PORT_DEFAULT,
                 matching,
