@@ -269,7 +269,9 @@ enum Command {
     /// One stop pipeline drained. v1.6.2 W1-L2: `lane` says whose - a
     /// companion lane's machine resumes from ITS remembered press, the
     /// keyboard machine (None) from its own.
-    ProcessingFinished { lane: Option<u64> },
+    ProcessingFinished {
+        lane: Option<u64>,
+    },
     /// Press/release of the command-mode binding (a during-dictation
     /// modifier, never a recording trigger).
     CommandModifier {
@@ -283,7 +285,9 @@ enum Command {
     /// `lane: None` means all lanes (server stop, app shutdown).
     /// v1.6.2 W1-L2: per-lane - one phone's finalize never ends another
     /// phone's session (KB-111).
-    FinalizeCompanion { lane: Option<u64> },
+    FinalizeCompanion {
+        lane: Option<u64>,
+    },
 }
 
 /// Decide whether a key-up should be deferred (so auto-repeat can cancel it)
@@ -982,8 +986,7 @@ pub struct TranscriptionCoordinator {
     /// `session_post_process`, republished at the same points the keyboard
     /// slot is. A companion lane's stop pipeline resolves ITS session's
     /// final mode here.
-    lane_session_post_process:
-        Arc<Mutex<std::collections::HashMap<u64, Option<bool>>>>,
+    lane_session_post_process: Arc<Mutex<std::collections::HashMap<u64, Option<bool>>>>,
     /// v1.6.0 W1-L7: mirror of `CoordinatorState::pp_badge` for the
     /// cycle-prompt path: true while a live post-process session's badge is
     /// lit, so cycling templates refreshes the name the badge shows only
@@ -1052,34 +1055,41 @@ impl TranscriptionCoordinator {
                 // (phones send only Ptt edges; their machines can never
                 // engage the modifier); the stage mirrors fold every
                 // machine.
-                let publish_state = |keyboard: &CoordinatorState,
-                                     lanes: &std::collections::HashMap<
-                    u64,
-                    CoordinatorState,
-                >,
-                                     most_recent_live_lane: &Option<u64>| {
-                    let any_machine = |pred: &dyn Fn(&CoordinatorState) -> bool| {
-                        pred(keyboard) || lanes.values().any(pred)
-                    };
-                    recording_mirror.store(any_machine(&|m| matches!(m.stage, Stage::Recording(_))), Ordering::Release);
-                    processing_mirror.store(any_machine(&|m| matches!(m.stage, Stage::Processing)), Ordering::Release);
-                    pending_press_mirror.store(any_machine(&|m| m.pending_press.is_some()), Ordering::Release);
-                    command_modifier_mirror.store(keyboard.command_modifier, Ordering::Release);
-                    *session_post_process_mirror
-                        .lock()
-                        .unwrap_or_else(|e| e.into_inner()) = keyboard.session_post_process;
-                    {
-                        let mut lane_modes = lane_session_post_process_mirror
+                let publish_state =
+                    |keyboard: &CoordinatorState,
+                     lanes: &std::collections::HashMap<u64, CoordinatorState>,
+                     most_recent_live_lane: &Option<u64>| {
+                        let any_machine = |pred: &dyn Fn(&CoordinatorState) -> bool| {
+                            pred(keyboard) || lanes.values().any(pred)
+                        };
+                        recording_mirror.store(
+                            any_machine(&|m| matches!(m.stage, Stage::Recording(_))),
+                            Ordering::Release,
+                        );
+                        processing_mirror.store(
+                            any_machine(&|m| matches!(m.stage, Stage::Processing)),
+                            Ordering::Release,
+                        );
+                        pending_press_mirror.store(
+                            any_machine(&|m| m.pending_press.is_some()),
+                            Ordering::Release,
+                        );
+                        command_modifier_mirror.store(keyboard.command_modifier, Ordering::Release);
+                        *session_post_process_mirror
                             .lock()
-                            .unwrap_or_else(|e| e.into_inner());
-                        lane_modes.clear();
-                        for (lane, machine) in lanes {
-                            lane_modes.insert(*lane, machine.session_post_process);
+                            .unwrap_or_else(|e| e.into_inner()) = keyboard.session_post_process;
+                        {
+                            let mut lane_modes = lane_session_post_process_mirror
+                                .lock()
+                                .unwrap_or_else(|e| e.into_inner());
+                            lane_modes.clear();
+                            for (lane, machine) in lanes {
+                                lane_modes.insert(*lane, machine.session_post_process);
+                            }
                         }
-                    }
-                    pp_badge_mirror.store(any_machine(&|m| m.pp_badge), Ordering::Release);
-                    let _ = most_recent_live_lane;
-                };
+                        pp_badge_mirror.store(any_machine(&|m| m.pp_badge), Ordering::Release);
+                        let _ = most_recent_live_lane;
+                    };
                 publish_state(&keyboard, &lanes, &most_recent_live_lane);
 
                 // The earliest release-grace deadline across every machine
@@ -1168,9 +1178,9 @@ impl TranscriptionCoordinator {
                         Command::Input(input) => {
                             let was_keyboard_recording =
                                 matches!(keyboard.stage, Stage::Recording(_));
-                            let any_lane_recording = lanes.values().any(|m| {
-                                matches!(m.stage, Stage::Recording(_))
-                            });
+                            let any_lane_recording = lanes
+                                .values()
+                                .any(|m| matches!(m.stage, Stage::Recording(_)));
                             match route_input(
                                 &input,
                                 was_keyboard_recording,
@@ -1178,14 +1188,15 @@ impl TranscriptionCoordinator {
                                 most_recent_live_lane,
                             ) {
                                 InputRoute::Keyboard => {
-                                    if let Some(effect) = keyboard.on_input(input, Instant::now())
-                                    {
+                                    if let Some(effect) = keyboard.on_input(input, Instant::now()) {
                                         run_effect(&app, &mut keyboard, effect);
                                     }
                                 }
                                 InputRoute::Lane(lane) => {
-                                    let machine = lanes.entry(lane).or_insert_with(CoordinatorState::new);
-                                    if let Some(mut effect) = machine.on_input(input, Instant::now())
+                                    let machine =
+                                        lanes.entry(lane).or_insert_with(CoordinatorState::new);
+                                    if let Some(mut effect) =
+                                        machine.on_input(input, Instant::now())
                                     {
                                         tag_stop_effect_lane(&mut effect, lane);
                                         run_effect(&app, machine, effect);
@@ -1631,11 +1642,7 @@ impl TranscriptionCoordinator {
     /// legacy lane-less call serves the keyboard machine (and pre-lane
     /// callers).
     pub fn notify_processing_finished_for(&self, lane: Option<u64>) {
-        if self
-            .tx
-            .send(Command::ProcessingFinished { lane })
-            .is_err()
-        {
+        if self.tx.send(Command::ProcessingFinished { lane }).is_err() {
             warn!("Transcription coordinator channel closed");
         }
     }
@@ -1783,20 +1790,19 @@ pub(crate) fn post_process_badge_payload(
 /// chip naming the selected template; the off edge carries no name. Shared
 /// by the coordinator's badge notifications and the selection-change
 /// refresh, so every emitter resolves the name from the same settings.
-pub(crate) fn emit_post_process_badge(app: &AppHandle, active: bool) {
+pub(crate) fn emit_post_process_badge(app: &AppHandle, active: bool) -> Result<(), String> {
     use tauri::Emitter;
     let template = if active {
         crate::settings::get_settings(app).selected_post_process_prompt_name()
     } else {
         None
     };
-    if let Err(e) = app.emit_to(
+    app.emit_to(
         "recording_overlay",
         POST_PROCESS_BADGE_EVENT,
         post_process_badge_payload(active, template.as_deref()),
-    ) {
-        warn!("Failed to emit {POST_PROCESS_BADGE_EVENT}: {e}");
-    }
+    )
+    .map_err(|e| format!("failed to emit {POST_PROCESS_BADGE_EVENT}: {e}"))
 }
 
 /// v1.6.0 W1-L7 review fix: refresh a LIT PP badge after anything changed
@@ -1808,13 +1814,17 @@ pub(crate) fn emit_post_process_badge(app: &AppHandle, active: bool) {
 /// the stop pipeline resolves the selection at run time, so a live
 /// post-process session must hear the change; a dark badge stays dark (no
 /// live session is consuming templates, and the next session's start arm
-/// lights it fresh).
-pub(crate) fn refresh_lit_post_process_badge(app: &AppHandle) {
+/// lights it fresh). KB-242: the emit's failure is returned so the
+/// settings commands that changed what the badge names can report it
+/// (Ok when no session is lit or no coordinator exists - nothing to
+/// refresh).
+pub(crate) fn refresh_lit_post_process_badge(app: &AppHandle) -> Result<(), String> {
     if let Some(coordinator) = app.try_state::<TranscriptionCoordinator>() {
         if coordinator.is_session_post_process_active() {
-            emit_post_process_badge(app, true);
+            return emit_post_process_badge(app, true);
         }
     }
+    Ok(())
 }
 
 fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
@@ -1835,11 +1845,7 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
             // behind this command and starts its OWN session, so nothing
             // can retarget this one's delivery or attribution later.
             if let Some(lane) = companion_lane {
-                crate::companion::begin_session(
-                    app,
-                    lane,
-                    companion_prefs.unwrap_or_default(),
-                );
+                crate::companion::begin_session(app, lane, companion_prefs.unwrap_or_default());
             }
             let started = start(app, &binding_id, &hotkey_string);
             state.on_start_result(&binding_id, started);
@@ -1958,7 +1964,13 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
                 detail,
             );
         }
-        Effect::PostProcessModeChanged { active } => emit_post_process_badge(app, active),
+        Effect::PostProcessModeChanged { active } => {
+            // KB-242: fallible emit, but the session lifecycle has no
+            // caller to hand the error to - it stays a warn like before.
+            if let Err(e) = emit_post_process_badge(app, active) {
+                warn!("{e}");
+            }
+        }
     }
 }
 
@@ -3923,7 +3935,12 @@ the badge lie (dark-badge session silently post-processing at stop)"
                 Lane(lane_a),
             ),
             (
-                companion_edge_with_identity(true, ShortcutActivation::PushToTalk, None, Some(lane_a)),
+                companion_edge_with_identity(
+                    true,
+                    ShortcutActivation::PushToTalk,
+                    None,
+                    Some(lane_a),
+                ),
                 false,
                 true,
                 Some(lane_b),
@@ -3980,13 +3997,7 @@ the badge lie (dark-badge session silently post-processing at stop)"
             ),
             // No lane recording: everything keyboard-side routes home,
             // pp included (it starts its own session as always).
-            (
-                keyboard_edge(BINDING, true),
-                false,
-                false,
-                None,
-                Keyboard,
-            ),
+            (keyboard_edge(BINDING, true), false, false, None, Keyboard),
             (
                 keyboard_edge(POST_PROCESS_BINDING_ID, true),
                 false,
@@ -3995,7 +4006,13 @@ the badge lie (dark-badge session silently post-processing at stop)"
                 Keyboard,
             ),
             // Releases always route home (the machine resolves them).
-            (keyboard_edge(BINDING, false), false, true, Some(lane_a), Keyboard),
+            (
+                keyboard_edge(BINDING, false),
+                false,
+                true,
+                Some(lane_a),
+                Keyboard,
+            ),
         ];
         for (input, kb_rec, any_lane, recent, expected) in cases {
             assert_eq!(
@@ -4045,8 +4062,7 @@ the badge lie (dark-badge session silently post-processing at stop)"
                                     companion_prefs: None,
                                     companion_lane: lane_present.then_some(lane_a),
                                 };
-                                let route =
-                                    route_input(&input, kb_rec, any_lane, recent);
+                                let route = route_input(&input, kb_rec, any_lane, recent);
                                 seen_routes.insert(route);
                                 match route {
                                     InputRoute::Lane(routed) => {
@@ -4064,10 +4080,7 @@ the badge lie (dark-badge session silently post-processing at stop)"
                                         );
                                     }
                                     InputRoute::Busy => {
-                                        assert!(
-                                            pressed,
-                                            "releases are never swallowed"
-                                        );
+                                        assert!(pressed, "releases are never swallowed");
                                         assert!(
                                             kb_rec || any_lane,
                                             "Busy protects a live session; with nothing recording there is nothing to protect"
@@ -4092,8 +4105,7 @@ the badge lie (dark-badge session silently post-processing at stop)"
                                             // keyboard machine while a lane
                                             // records is the pp hotkey
                                             // toggling the LOCAL session.
-                                            assert!(binding == POST_PROCESS_BINDING_ID
-                                                && kb_rec);
+                                            assert!(binding == POST_PROCESS_BINDING_ID && kb_rec);
                                         }
                                     }
                                 }
@@ -4151,14 +4163,20 @@ the badge lie (dark-badge session silently post-processing at stop)"
                 companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(7)),
                 t0
             ),
-            Some(Effect::Start { companion_lane: Some(7), .. })
+            Some(Effect::Start {
+                companion_lane: Some(7),
+                ..
+            })
         ));
         assert!(matches!(
             lane_b.on_input(
                 companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(9)),
                 t0 + Duration::from_millis(50)
             ),
-            Some(Effect::Start { companion_lane: Some(9), .. })
+            Some(Effect::Start {
+                companion_lane: Some(9),
+                ..
+            })
         ));
         assert!(matches!(lane_a.stage, Stage::Recording(_)));
         assert!(matches!(lane_b.stage, Stage::Recording(_)));
@@ -4174,7 +4192,10 @@ the badge lie (dark-badge session silently post-processing at stop)"
         tag_stop_effect_lane(&mut stop_effect, 7);
         assert!(matches!(
             stop_effect,
-            Effect::Stop { companion_lane: Some(7), .. }
+            Effect::Stop {
+                companion_lane: Some(7),
+                ..
+            }
         ));
         assert!(matches!(lane_a.stage, Stage::Processing));
         // B's session never noticed.
@@ -4204,7 +4225,10 @@ the badge lie (dark-badge session silently post-processing at stop)"
         ));
         assert!(matches!(
             lane_a.on_processing_finished(),
-            Some(Effect::Start { companion_lane: Some(7), .. })
+            Some(Effect::Start {
+                companion_lane: Some(7),
+                ..
+            })
         ));
         assert!(lane_b.on_processing_finished().is_none());
     }
@@ -4244,10 +4268,16 @@ the badge lie (dark-badge session silently post-processing at stop)"
             keyboard.on_input(keyboard_edge(BINDING, true), t0 + Duration::from_secs(1)),
             Some(Effect::Stop { .. })
         ));
-        assert!(matches!(lane.on_input(
-            companion_edge_with_identity(true, ShortcutActivation::PushToTalk, None, Some(4)),
-            t0 + Duration::from_secs(2)
-        ), Some(Effect::Start { companion_lane: Some(4), .. })));
+        assert!(matches!(
+            lane.on_input(
+                companion_edge_with_identity(true, ShortcutActivation::PushToTalk, None, Some(4)),
+                t0 + Duration::from_secs(2)
+            ),
+            Some(Effect::Start {
+                companion_lane: Some(4),
+                ..
+            })
+        ));
     }
 
     // ---------------------------------------------------------------------

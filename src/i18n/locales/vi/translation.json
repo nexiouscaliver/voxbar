@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Số nói",
-        "description": "Viết các từ số thành chữ số, nên \"one eight zero one\" được dán thành 1801. \"Như đã chuyển ghi\" giữ số như đã nói; Smart còn chuyển đổi số thứ tự ghép và các số đơn lẻ từ mười một trở lên.",
+        "description": "Viết các từ số thành chữ số, nên \"one eight zero one\" được dán thành 1801. Phép chuyển đổi nhận biết số đọc bằng tiếng Anh và tiếng Hindi (bao gồm Hinglish); các ngôn ngữ khác giữ số như đã đọc. \"Như đã chuyển ghi\" giữ số như đã nói; Smart còn chuyển đổi số thứ tự ghép và các số đơn lẻ từ mười một trở lên.",
         "options": {
           "asTranscribed": "Giữ nguyên bản chép",
           "digits": "Chữ số",
@@ -1189,6 +1189,8 @@
       "runHint_one": "1 prompt trên 1 engine. Không gõ hay lưu gì.",
       "runHint_other": "{{count}} cặp prompt-engine. Không gõ hay lưu gì.",
       "running": "Đang chạy...",
+      "cancel": "Hủy",
+      "cancelledCard": "Đã hủy trước khi lần chạy này bắt đầu.",
       "rerun": "Chạy lại",
       "latency": "{{ms}} ms",
       "rawKept": "Engine lỗi hoặc bị bỏ qua nên bản ghi thô sẽ được giữ nguyên.",
@@ -1274,6 +1276,8 @@
     "recordingFailed": "Không thể bắt đầu ghi âm: {{error}}",
     "modelLoadFailed": "Không thể tải mô hình: {{model}}",
     "modelLoadFailedUnknown": "mô hình không xác định",
+    "modelLoadFailedMemoryGate": "Không đủ bộ nhớ trống để tải {{model}}: cần khoảng {{needed}}, chỉ còn khoảng {{free}}.",
+    "modelLoadFailedDetail": "Mô hình không thay đổi. Nguyên nhân kỹ thuật nằm trong tệp nhật ký.",
     "modelFallbackTitle": "Bộ nhớ thấp",
     "modelFallback": "Đã chuyển sang {{model}} cho lần đọc này",
     "pasteFailedTitle": "Không thể dán văn bản",

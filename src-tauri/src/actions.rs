@@ -1290,8 +1290,11 @@ async fn run_local_lifecycle(
                     );
                 }
                 debug!(
+                    // KB-239: str::len() is BYTES; the label says chars, and
+                    // for non-ASCII post-processed text the two disagree by
+                    // the UTF-8 width.
                     "Local post-processing succeeded. Output length: {} chars",
-                    text.len()
+                    text.chars().count()
                 );
                 Some(text)
             }
@@ -1353,11 +1356,24 @@ async fn run_apple_intelligence_lifecycle(
         let token_limit = model.trim().parse::<i32>().unwrap_or(0);
         runs().engine_phase(Some(app), run_id, None, None);
         let generation_started = Instant::now();
-        match apple_intelligence::process_text_with_system_prompt(
-            &system_prompt,
-            transcription,
-            token_limit,
-        ) {
+        // KB-239: the Swift side parks the calling thread on a
+        // DispatchSemaphore until generation completes
+        // (apple_intelligence.swift), so invoking the FFI straight from
+        // this async fn blocked a tokio worker for the whole generation.
+        // spawn_blocking moves that wait onto the dedicated blocking
+        // pool; a join panic (engine wedged) maps to the same Err arm
+        // the FFI's own failures take.
+        let transcription_for_ffi = transcription.to_string();
+        let generation = tokio::task::spawn_blocking(move || {
+            apple_intelligence::process_text_with_system_prompt(
+                &system_prompt,
+                &transcription_for_ffi,
+                token_limit,
+            )
+        })
+        .await
+        .unwrap_or_else(|join_err| Err(format!("Apple Intelligence task panicked: {join_err}")));
+        match generation {
             Ok(result) => {
                 let ms = generation_started.elapsed().as_millis() as u64;
                 runs().generation_phase(Some(app), run_id, Some(ms), Some(0));
@@ -1382,8 +1398,10 @@ async fn run_apple_intelligence_lifecycle(
                             );
                         }
                         debug!(
+                            // KB-239: chars, not str::len()'s bytes (CJK and
+                            // Devanagari output made the old label lie).
                             "Apple Intelligence post-processing succeeded. Output length: {} chars",
-                            clean.len()
+                            clean.chars().count()
                         );
                         Some(clean)
                     }

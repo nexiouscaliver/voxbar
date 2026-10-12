@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Spoken Numbers",
-        "description": "Writes spoken number words as digits, so \"one eight zero one\" pastes as 1801. As Transcribed keeps numbers as spoken; Smart also converts compound ordinals and lone numbers from eleven up.",
+        "description": "Writes spoken number words as digits, so \"one eight zero one\" pastes as 1801. The conversion knows English and Hindi (including Hinglish) number words; other languages keep numbers as spoken. As Transcribed keeps numbers as spoken; Smart also converts compound ordinals and lone numbers from eleven up.",
         "options": {
           "asTranscribed": "As Transcribed",
           "digits": "Digits",
@@ -1189,6 +1189,8 @@
       "runHint_one": "1 prompt on 1 engine. Nothing is typed or saved.",
       "runHint_other": "{{count}} prompt-engine pairs. Nothing is typed or saved.",
       "running": "Running...",
+      "cancel": "Cancel",
+      "cancelledCard": "Cancelled before this run started.",
       "rerun": "Re-run",
       "latency": "{{ms}} ms",
       "rawKept": "The engine failed or skipped, so the raw transcript would be kept.",
@@ -1277,6 +1279,8 @@
     "recordingFailed": "Failed to start recording: {{error}}",
     "modelLoadFailed": "Failed to load model: {{model}}",
     "modelLoadFailedUnknown": "unknown model",
+    "modelLoadFailedMemoryGate": "Not enough free memory to load {{model}}: it needs about {{needed}}, with about {{free}} free.",
+    "modelLoadFailedDetail": "The model was not changed. The technical reason is in the log file.",
     "modelFallbackTitle": "Low memory",
     "modelFallback": "Switched to {{model}} for this dictation",
     "pasteFailedTitle": "Failed to Paste Text",

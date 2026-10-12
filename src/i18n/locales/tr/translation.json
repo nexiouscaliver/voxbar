@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Söylenen sayılar",
-        "description": "Söylenen sayıları rakam olarak yazar, böylece \"one eight zero one\" 1801 olarak yapıştırılır. \"Transkript edildiği gibi\" sayıları söylendiği gibi tutar; Smart ayrıca bileşik sıra sayılarını ve on bir ve üzeri tek sayıları dönüştürür.",
+        "description": "Söylenen sayıları rakam olarak yazar, böylece \"one eight zero one\" 1801 olarak yapıştırılır. Dönüştürme, İngilizce ve Hintçe (Hinglish dahil) sözlü sayıları bilir; diğer dillerde sayılar söylendiği gibi kalır. \"Transkript edildiği gibi\" sayıları söylendiği gibi tutar; Smart ayrıca bileşik sıra sayılarını ve on bir ve üzeri tek sayıları dönüştürür.",
         "options": {
           "asTranscribed": "Transkripsiyondaki gibi",
           "digits": "Rakamlar",
@@ -1189,6 +1189,8 @@
       "runHint_one": "1 motorda 1 prompt. Hiçbir şey yazılmaz veya kaydedilmez.",
       "runHint_other": "{{count}} prompt-motor çifti. Hiçbir şey yazılmaz veya kaydedilmez.",
       "running": "Çalışıyor...",
+      "cancel": "İptal",
+      "cancelledCard": "Bu çalışma başlamadan önce iptal edildi.",
       "rerun": "Yeniden çalıştır",
       "latency": "{{ms}} ms",
       "rawKept": "Motor başarısız oldu veya atlandı, bu nedenle ham transkript korunurdu.",
@@ -1274,6 +1276,8 @@
     "recordingFailed": "Kayıt başlatılamadı: {{error}}",
     "modelLoadFailed": "Model yüklenemedi: {{model}}",
     "modelLoadFailedUnknown": "bilinmeyen model",
+    "modelLoadFailedMemoryGate": "{{model}} modelini yüklemek için yeterli boş bellek yok: yaklaşık {{needed}} gerekiyor, yaklaşık {{free}} boş.",
+    "modelLoadFailedDetail": "Model değiştirilmedi. Teknik neden günlük dosyasında.",
     "modelFallbackTitle": "Düşük bellek",
     "modelFallback": "Bu dikte için {{model}} modeline geçildi",
     "pasteFailedTitle": "Metin yapıştırılamadı",

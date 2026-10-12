@@ -95,6 +95,11 @@ pub fn number_pass(settings: &AppSettings, output_language: &OutputLanguageEvide
     }
 }
 
+/// The pass's script scope: English and Devanagari (plus the explicit
+/// hi-Latn intent). The number-word VOCABULARY below exists only for
+/// those languages, so every other output script is untouched - the
+/// Advanced settings copy states this scope (KB-135: keep the copy and
+/// this table in sync when the vocabulary grows).
 pub fn number_pass_scripts(
     settings: &AppSettings,
     output_language: &OutputLanguageEvidence,

@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "语音数字",
-        "description": "将口述的数字词写成数字，\"one eight zero one\" 会以 1801 粘贴。“保持原样”让数字保持口述原词；Smart 还会转换复合序数词以及十一以上的单个数字。",
+        "description": "将口述的数字词写成数字，\"one eight zero one\" 会以 1801 粘贴。该转换支持英语和印地语（包括印地式英语）的口语数字；其他语言的数字保持口述原样。“保持原样”让数字保持口述原词；Smart 还会转换复合序数词以及十一以上的单个数字。",
         "options": {
           "asTranscribed": "保持原样",
           "digits": "数字",
@@ -1189,6 +1189,8 @@
       "runHint_one": "1 个提示词在 1 个引擎上运行。不会输入或保存任何内容。",
       "runHint_other": "{{count}} 组提示词和引擎。不会输入或保存任何内容。",
       "running": "运行中...",
+      "cancel": "取消",
+      "cancelledCard": "此运行启动前已取消。",
       "rerun": "重新运行",
       "latency": "{{ms}} 毫秒",
       "rawKept": "引擎失败或被跳过，因此将保留原始转录。",
@@ -1274,6 +1276,8 @@
     "recordingFailed": "录音启动失败: {{error}}",
     "modelLoadFailed": "加载模型失败: {{model}}",
     "modelLoadFailedUnknown": "未知模型",
+    "modelLoadFailedMemoryGate": "内存不足，无法加载 {{model}}：需要约 {{needed}}，仅约 {{free}} 可用。",
+    "modelLoadFailedDetail": "模型未更改。具体原因请查看日志文件。",
     "modelFallbackTitle": "内存不足",
     "modelFallback": "本次听写已切换到 {{model}}",
     "pasteFailedTitle": "粘贴文本失败",

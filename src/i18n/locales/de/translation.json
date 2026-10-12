@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Gesprochene Zahlen",
-        "description": "Schreibt gesprochene Zahlwörter als Ziffern, sodass \"one eight zero one\" als 1801 eingefügt wird. \"Wie transkribiert\" behält Zahlen wie gesprochen; Smart wandelt zusätzlich zusammengesetzte Ordinalzahlen und Einzelzahlen ab elf um.",
+        "description": "Schreibt gesprochene Zahlwörter als Ziffern, sodass \"one eight zero one\" als 1801 eingefügt wird. Die Umwandlung kennt englische und hindische Zahlwörter (einschließlich Hinglish); in anderen Sprachen bleiben Zahlen wie gesprochen. \"Wie transkribiert\" behält Zahlen wie gesprochen; Smart wandelt zusätzlich zusammengesetzte Ordinalzahlen und Einzelzahlen ab elf um.",
         "options": {
           "asTranscribed": "Wie transkribiert",
           "digits": "Ziffern",
@@ -1189,6 +1189,8 @@
       "runHint_one": "1 Prompt auf 1 Engine. Es wird nichts eingetippt oder gespeichert.",
       "runHint_other": "{{count}} Prompt-Engine-Paare. Es wird nichts eingetippt oder gespeichert.",
       "running": "Wird ausgeführt...",
+      "cancel": "Abbrechen",
+      "cancelledCard": "Abgebrochen, bevor dieser Lauf startete.",
       "rerun": "Erneut ausführen",
       "latency": "{{ms}} ms",
       "rawKept": "Die Engine ist fehlgeschlagen oder wurde übersprungen, daher würde das rohe Transkript behalten.",
@@ -1274,6 +1276,8 @@
     "recordingFailed": "Aufnahme konnte nicht gestartet werden: {{error}}",
     "modelLoadFailed": "Modell konnte nicht geladen werden: {{model}}",
     "modelLoadFailedUnknown": "unbekanntes Modell",
+    "modelLoadFailedMemoryGate": "Nicht genug freier Speicher, um {{model}} zu laden: benötigt etwa {{needed}}, etwa {{free}} frei.",
+    "modelLoadFailedDetail": "Das Modell wurde nicht geändert. Der technische Grund steht in der Protokolldatei.",
     "modelFallbackTitle": "Wenig Speicher",
     "modelFallback": "Für diese Diktation wurde zu {{model}} gewechselt",
     "pasteFailedTitle": "Text konnte nicht eingefügt werden",

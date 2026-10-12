@@ -407,7 +407,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                     };
                     commands::transcription::set_model_unload_timeout(app_clone.clone(), value);
                     log::info!("Model unload timeout set to {:?} via tray.", value);
-                    tray::update_tray_menu(&app_clone);
+                    let _ = tray::update_tray_menu(&app_clone);
                 });
             }
             "cancel" => {
@@ -435,7 +435,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                             log::error!("Failed to switch model via tray: {}", e);
                         }
                     }
-                    tray::update_tray_menu(&app_clone);
+                    let _ = tray::update_tray_menu(&app_clone);
                 });
             }
             // Post-process model submenu: persists through the same command
@@ -459,7 +459,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                             log::error!("Failed to set post-process model via tray: {}", e);
                         }
                     }
-                    tray::update_tray_menu(&app_clone);
+                    let _ = tray::update_tray_menu(&app_clone);
                 });
             }
             // Post-process prompt submenu: selects the template through the
@@ -481,7 +481,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
                             log::error!("Failed to set post-process prompt via tray: {}", e);
                         }
                     }
-                    tray::update_tray_menu(&app_clone);
+                    let _ = tray::update_tray_menu(&app_clone);
                 });
             }
             _ => {}
@@ -491,7 +491,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     app_handle.manage(tray);
 
     // Initialize tray menu with idle state
-    tray::update_tray_menu(app_handle);
+    let _ = tray::update_tray_menu(app_handle);
     // Fill the Recent Dictations submenu's snapshot (background thread; the
     // query never runs on the UI thread) and re-sync the menu when it lands.
     tray::refresh_tray_history(app_handle);
@@ -505,7 +505,7 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // Refresh tray menu when model state changes
     let app_handle_for_listener = app_handle.clone();
     app_handle.listen("model-state-changed", move |_| {
-        tray::update_tray_menu(&app_handle_for_listener);
+        let _ = tray::update_tray_menu(&app_handle_for_listener);
         // Keep the periodic RAM refresher in step with residency: running
         // while (and only while) a model is loaded, so the tray RAM segment
         // and menu-bar title track the live worker footprint. No-op when the
@@ -1356,6 +1356,7 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             shortcut::cycle_post_process_prompt,
             shortcut::test_post_process_prompt,
             shortcut::test_post_process_prompt_batch,
+            shortcut::cancel_post_process_prompt_batch,
             shortcut::update_custom_words,
             shortcut::suspend_all_bindings,
             shortcut::resume_all_bindings,
@@ -1418,7 +1419,6 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             commands::models::set_active_model_deferred,
             commands::models::get_current_model,
             commands::models::get_transcription_model_status,
-            commands::models::is_model_loading,
             commands::models::rescan_local_models,
             commands::models::resolve_hf_model,
             commands::models::add_hf_model,

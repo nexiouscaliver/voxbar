@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { noticeMessage } from "./noticeMessage";
+import { noticeMessage, noticeNotificationBody } from "./noticeMessage";
 
 // A translate fn that echoes the key plus sorted interpolation options, so
 // the assertions pin the exact key AND detail each code passes to i18n.
@@ -43,6 +43,35 @@ assert.equal(
   noticeMessage(t, "model_load_failed"),
   "errors.modelLoadFailed[model=errors.modelLoadFailedUnknown]",
   "model_load_failed without detail falls back to the unknown-model key",
+);
+// KB-015/KB-122: the memory-gate refusal's own code. The detail is
+// unit-separator encoded (model, needed, free - memory_gate_notice_detail
+// in transcription.rs); the localized line interpolates all three instead
+// of pasting the raw English refusal sentence into the model-name slot.
+assert.equal(
+  noticeMessage(
+    t,
+    "model_load_failed_memory_gate",
+    "Whisper Tiny\u001f43 MB\u001f1.0 GB",
+  ),
+  "errors.modelLoadFailedMemoryGate[free=1.0 GB,model=Whisper Tiny,needed=43 MB]",
+  "the encoded refusal detail interpolates model, needed, and free",
+);
+assert.equal(
+  noticeMessage(t, "model_load_failed_memory_gate", "Whisper Tiny"),
+  "errors.modelLoadFailedMemoryGate[free=,model=Whisper Tiny,needed=]",
+  "a bare-model refusal detail interpolates empty amounts, never literals",
+);
+// The OS notification body strips the interpolated amounts (the raw
+// numbers stay off the system surface; the log row keeps them).
+assert.equal(
+  noticeNotificationBody(
+    t,
+    "model_load_failed_memory_gate",
+    "Whisper Tiny\u001f43 MB\u001f1.0 GB",
+  ) !== null,
+  true,
+  "the memory-gate refusal still posts a notification body",
 );
 assert.equal(
   noticeMessage(t, "model_fallback", "whisper-tiny"),

@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Angka lisan",
-        "description": "Menulis kata angka lisan sebagai digit, sehingga \"one eight zero one\" ditempel sebagai 1801. \"Sesuai transkrip\" mempertahankan angka seperti diucapkan; Smart juga mengonversi bilangan tingkat majemuk dan angka tunggal sebelas ke atas.",
+        "description": "Menulis kata angka lisan sebagai digit, sehingga \"one eight zero one\" ditempel sebagai 1801. Konversi ini mengenali kata angka lisan bahasa Inggris dan Hindi (termasuk Hinglish); bahasa lain mempertahankan angka seperti yang diucapkan. \"Sesuai transkrip\" mempertahankan angka seperti diucapkan; Smart juga mengonversi bilangan tingkat majemuk dan angka tunggal sebelas ke atas.",
         "options": {
           "asTranscribed": "Sesuai transkripsi",
           "digits": "Digit",
@@ -1189,6 +1189,8 @@
       "runHint_one": "1 prompt pada 1 mesin. Tidak ada yang diketik atau disimpan.",
       "runHint_other": "{{count}} pasangan prompt-mesin. Tidak ada yang diketik atau disimpan.",
       "running": "Sedang berjalan...",
+      "cancel": "Batalkan",
+      "cancelledCard": "Dibatalkan sebelum eksekusi ini dimulai.",
       "rerun": "Jalankan lagi",
       "latency": "{{ms}} md",
       "rawKept": "Mesin gagal atau dilewati, sehingga transkripsi mentah akan dipertahankan.",
@@ -1277,6 +1279,8 @@
     "recordingFailed": "Gagal memulai perekaman: {{error}}",
     "modelLoadFailed": "Gagal memuat model: {{model}}",
     "modelLoadFailedUnknown": "model tidak dikenal",
+    "modelLoadFailedMemoryGate": "Memori bebas tidak cukup untuk memuat {{model}}: membutuhkan sekitar {{needed}}, dengan sekitar {{free}} tersedia.",
+    "modelLoadFailedDetail": "Model tidak berubah. Alasan teknisnya ada di berkas log.",
     "modelFallbackTitle": "Memori rendah",
     "modelFallback": "Beralih ke {{model}} untuk dikte ini",
     "pasteFailedTitle": "Gagal Menempelkan Teks",

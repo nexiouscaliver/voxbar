@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Dikterede tal",
-        "description": "Skriver talte talord som cifre, så \"one eight zero one\" indsættes som 1801. \"Som transkriberet\" bevarer tal som sagt; Smart konverterer også sammensatte ordenstal og enkelttal fra elleve og opefter.",
+        "description": "Skriver talte talord som cifre, så \"one eight zero one\" indsættes som 1801. Konverteringen kender talte talord på engelsk og hindi (inklusive hinglish); på andre sprog bevares tallene som sagt. \"Som transkriberet\" bevarer tal som sagt; Smart konverterer også sammensatte ordenstal og enkelttal fra elleve og opefter.",
         "options": {
           "asTranscribed": "Som transskriberet",
           "digits": "Cifre",
@@ -1189,6 +1189,8 @@
       "runHint_one": "1 prompt på 1 motor. Der tastes eller gemmes intet.",
       "runHint_other": "{{count}} prompt-motor-par. Der tastes eller gemmes intet.",
       "running": "Kører...",
+      "cancel": "Annullér",
+      "cancelledCard": "Annulleret, før denne kørsel startede.",
       "rerun": "Kør igen",
       "latency": "{{ms}} ms",
       "rawKept": "Motoren fejlede eller blev sprunget over, så råtransskriptionen ville blive beholdt.",
@@ -1277,6 +1279,8 @@
     "recordingFailed": "Kunne ikke starte optagelse: {{error}}",
     "modelLoadFailed": "Kunne ikke indlæse model: {{model}}",
     "modelLoadFailedUnknown": "ukendt model",
+    "modelLoadFailedMemoryGate": "Ikke nok ledig hukommelse til at indlæse {{model}}: kræver ca. {{needed}}, ca. {{free}} ledigt.",
+    "modelLoadFailedDetail": "Modellen blev ikke ændret. Den tekniske årsag findes i logfilen.",
     "modelFallbackTitle": "Lav hukommelse",
     "modelFallback": "Skiftede til {{model}} for denne diktering",
     "pasteFailedTitle": "Kunne ikke indsætte tekst",

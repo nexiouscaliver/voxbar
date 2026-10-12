@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Nombres parlats",
-        "description": "Escriu els nombres dits com a dígits, de manera que \"one eight zero one\" s'enganxi com a 1801. \"Tal com s'ha transcrit\" manté els nombres tal com s'han dit; Smart també converteix ordinals compostos i números solts a partir d'onze.",
+        "description": "Escriu els nombres dits com a dígits, de manera que \"one eight zero one\" s'enganxi com a 1801. La conversió coneix els nombres parlats en anglès i hindi (inclòs el hinglish); en altres idiomes els nombres es mantenen com es van dir. \"Tal com s'ha transcrit\" manté els nombres tal com s'han dit; Smart també converteix ordinals compostos i números solts a partir d'onze.",
         "options": {
           "asTranscribed": "Tal com s'ha transcrit",
           "digits": "Dígits",
@@ -1189,6 +1189,8 @@
       "runHint_one": "1 prompt en 1 motor. No s'escriu ni es desa res.",
       "runHint_other": "{{count}} parells prompt-motor. No s'escriu ni es desa res.",
       "running": "S'està executant...",
+      "cancel": "Cancel·la",
+      "cancelledCard": "S'ha cancel·lat abans que comencés aquesta execució.",
       "rerun": "Tornar a executar",
       "latency": "{{ms}} ms",
       "rawKept": "El motor ha fallat o s'ha omès, per tant es mantindria la transcripció en brut.",
@@ -1277,6 +1279,8 @@
     "recordingFailed": "No s'ha pogut iniciar l'enregistrament: {{error}}",
     "modelLoadFailed": "No s'ha pogut carregar el model: {{model}}",
     "modelLoadFailedUnknown": "model desconegut",
+    "modelLoadFailedMemoryGate": "No hi ha prou memòria lliure per carregar {{model}}: necessita uns {{needed}}, amb uns {{free}} lliures.",
+    "modelLoadFailedDetail": "El model no ha canviat. El motiu tècnic és al fitxer de registre.",
     "modelFallbackTitle": "Memòria baixa",
     "modelFallback": "Canviat a {{model}} per aquest dictat",
     "pasteFailedTitle": "No s'ha pogut enganxar el text",

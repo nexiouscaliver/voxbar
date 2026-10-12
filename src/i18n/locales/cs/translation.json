@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Mluvená čísla",
-        "description": "Zapisuje mluvená čísla jako číslice, takže \"one eight zero one\" se vloží jako 1801. \"Jak přepsáno\" ponechá čísla tak, jak byla řečena; Smart navíc převádí složené řadové číslovky a samostatná čísla od jedenácti výš.",
+        "description": "Zapisuje mluvená čísla jako číslice, takže \"one eight zero one\" se vloží jako 1801. Převod zná mluvené číslovky v angličtině a hindštině (včetně hingliše); v jiných jazycích zůstanou čísla tak, jak byla vyslovena. \"Jak přepsáno\" ponechá čísla tak, jak byla řečena; Smart navíc převádí složené řadové číslovky a samostatná čísla od jedenácti výš.",
         "options": {
           "asTranscribed": "Jak bylo přepsáno",
           "digits": "Číslice",
@@ -1197,6 +1197,8 @@
       "runHint_many": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
       "runHint_other": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
       "running": "Běží...",
+      "cancel": "Zrušit",
+      "cancelledCard": "Zrušeno před zahájením tohoto spuštění.",
       "rerun": "Spustit znovu",
       "latency": "{{ms}} ms",
       "rawKept": "Engin selhal nebo byl přeskočen, proto by zůstal původní přepis.",
@@ -1286,6 +1288,8 @@
     "recordingFailed": "Nepodařilo se spustit nahrávání: {{error}}",
     "modelLoadFailed": "Nepodařilo se načíst model: {{model}}",
     "modelLoadFailedUnknown": "neznámý model",
+    "modelLoadFailedMemoryGate": "Není dost volné paměti pro načtení {{model}}: je potřeba asi {{needed}}, volných je asi {{free}}.",
+    "modelLoadFailedDetail": "Model nebyl změněn. Technický důvod je v souboru protokolu.",
     "modelFallbackTitle": "Málo paměti",
     "modelFallback": "Pro toto diktování bylo přepnuto na {{model}}",
     "pasteFailedTitle": "Vložení textu se nezdařilo",

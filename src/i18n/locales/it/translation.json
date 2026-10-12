@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Numeri dettati",
-        "description": "Scrive i numeri dettati come cifre, così \"one eight zero one\" viene incollato come 1801. \"Come trascritto\" mantiene i numeri come dettati; Smart converte anche ordinali composti e numeri singoli da undici in su.",
+        "description": "Scrive i numeri dettati come cifre, così \"one eight zero one\" viene incollato come 1801. La conversione riconosce i numeri dettati in inglese e hindi (hinglish incluso); nelle altre lingue i numeri restano come dettati. \"Come trascritto\" mantiene i numeri come dettati; Smart converte anche ordinali composti e numeri singoli da undici in su.",
         "options": {
           "asTranscribed": "Come trascritto",
           "digits": "Cifre",
@@ -1189,6 +1189,8 @@
       "runHint_one": "1 prompt su 1 motore. Nulla viene digitato o salvato.",
       "runHint_other": "{{count}} coppie prompt-motore. Nulla viene digitato o salvato.",
       "running": "Esecuzione...",
+      "cancel": "Annulla",
+      "cancelledCard": "Annullato prima dell'avvio di questa esecuzione.",
       "rerun": "Esegui di nuovo",
       "latency": "{{ms}} ms",
       "rawKept": "Il motore ha fallito o è stato saltato, quindi la trascrizione grezza verrebbe mantenuta.",
@@ -1274,6 +1276,8 @@
     "recordingFailed": "Impossibile avviare la registrazione: {{error}}",
     "modelLoadFailed": "Impossibile caricare il modello: {{model}}",
     "modelLoadFailedUnknown": "modello sconosciuto",
+    "modelLoadFailedMemoryGate": "Memoria libera insufficiente per caricare {{model}}: servono circa {{needed}}, con circa {{free}} liberi.",
+    "modelLoadFailedDetail": "Il modello non è stato modificato. Il motivo tecnico è nel file di log.",
     "modelFallbackTitle": "Memoria insufficiente",
     "modelFallback": "Passato a {{model}} per questa dettatura",
     "pasteFailedTitle": "Impossibile incollare il testo",

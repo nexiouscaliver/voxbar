@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Nombres dictés",
-        "description": "Écrit les nombres dictés en chiffres, ainsi \"one eight zero one\" est collé en 1801. \"Tel que transcrit\" garde les nombres tels que dictés ; Smart convertit aussi les ordinaux composés et les nombres isolés à partir de onze.",
+        "description": "Écrit les nombres dictés en chiffres, ainsi \"one eight zero one\" est collé en 1801. La conversion connaît les nombres dictés en anglais et en hindi (hinglish inclus) ; dans les autres langues, les nombres restent tels que dictés. \"Tel que transcrit\" garde les nombres tels que dictés ; Smart convertit aussi les ordinaux composés et les nombres isolés à partir de onze.",
         "options": {
           "asTranscribed": "Tel que transcrit",
           "digits": "Chiffres",
@@ -1189,6 +1189,8 @@
       "runHint_one": "{{count}} prompt sur 1 moteur. Rien n'est tapé ni enregistré.",
       "runHint_other": "{{count}} paires prompt-moteur. Rien n'est tapé ni enregistré.",
       "running": "Exécution...",
+      "cancel": "Annuler",
+      "cancelledCard": "Annulé avant le début de cette exécution.",
       "rerun": "Relancer",
       "latency": "{{ms}} ms",
       "rawKept": "Le moteur a échoué ou a été ignoré, la transcription brute serait donc conservée.",
@@ -1274,6 +1276,8 @@
     "recordingFailed": "Échec du démarrage de l'enregistrement : {{error}}",
     "modelLoadFailed": "Échec du chargement du modèle : {{model}}",
     "modelLoadFailedUnknown": "modèle inconnu",
+    "modelLoadFailedMemoryGate": "Mémoire libre insuffisante pour charger {{model}} : il faut environ {{needed}}, pour environ {{free}} libres.",
+    "modelLoadFailedDetail": "Le modèle n'a pas changé. La raison technique se trouve dans le fichier journal.",
     "modelFallbackTitle": "Mémoire insuffisante",
     "modelFallback": "Basculé sur {{model}} pour cette dictée",
     "pasteFailedTitle": "Échec du collage du texte",

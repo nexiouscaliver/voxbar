@@ -265,6 +265,21 @@ fn format_margin_mb(headroom: u64) -> String {
     format!("{} MB", (headroom / (1024 * 1024)).max(1))
 }
 
+/// The memory-gate refusal notice's structured detail (KB-015/KB-122):
+/// model, needed, and free joined by the ASCII unit separator (0x1f), the
+/// same convention as `cycle_notice_detail` - no real model name contains
+/// a control character - so one plain string can feed the localized
+/// interpolation on the frontend. Amounts reuse the log message's
+/// formatter (MB/GB), locale-neutral by design.
+pub(crate) fn memory_gate_notice_detail(model_name: &str, forecast: u64, free: u64) -> String {
+    [
+        model_name,
+        &format_memory_amount(forecast),
+        &format_memory_amount(free),
+    ]
+    .join("\u{1f}")
+}
+
 /// The exact refusal string users see, pure over the decision's inputs so
 /// the wording is unit-testable. The margin clause appears only when the
 /// margin is non-zero.
@@ -423,6 +438,13 @@ pub enum NoticeCode {
     PasteFailed,
     /// A voice model load failed (hotkey- or settings-driven).
     ModelLoadFailed,
+    /// A voice model load was refused by the memory gate (KB-015/KB-122:
+    /// the refusal used to ride ModelLoadFailed with the full raw English
+    /// refusal sentence in the model-name slot). Error tone; the detail is
+    /// unit-separator encoded (model, needed, free - the same convention
+    /// as `cycle_notice_detail`) so the localized line can interpolate all
+    /// three facts instead of pasting backend prose.
+    ModelLoadFailedMemoryGate,
     /// The memory gate swapped to a smaller model for this dictation.
     ModelFallback,
     /// Local post-process fell back to the raw transcript (memory gate).
@@ -552,6 +574,7 @@ impl NoticeCode {
             NoticeCode::TranscriptionFailed => "transcription_failed",
             NoticeCode::PasteFailed => "paste_failed",
             NoticeCode::ModelLoadFailed => "model_load_failed",
+            NoticeCode::ModelLoadFailedMemoryGate => "model_load_failed_memory_gate",
             NoticeCode::ModelFallback => "model_fallback",
             NoticeCode::PostProcessMemoryGate => "post_process_memory_gate",
             NoticeCode::PostProcessDownloadMissing => "post_process_download_missing",
@@ -2053,8 +2076,11 @@ impl TranscriptionManager {
                 );
                 emit_overlay_notice(
                     &self.app_handle,
+                    // KB-015/KB-122: the notice slot interpolates a MODEL
+                    // NAME; the raw "Model not found: <id>" sentence is log
+                    // and event payload, not localized copy.
                     NoticeCode::ModelLoadFailed,
-                    Some(error_msg.clone()),
+                    Some(model_id.to_string()),
                 );
                 return Err(anyhow::anyhow!(error_msg));
             }
@@ -2075,10 +2101,13 @@ impl TranscriptionManager {
             );
             // The toast above lands in the (usually hidden) main window; the
             // notice channel carries the same failure to the overlay user.
+            // KB-015/KB-122: the notice slot interpolates a MODEL NAME; the
+            // raw backend sentence (log and event payload) stays off the
+            // localized surfaces.
             emit_overlay_notice(
                 &self.app_handle,
                 NoticeCode::ModelLoadFailed,
-                Some(error_msg.to_string()),
+                Some(model_info.name.clone()),
             );
         };
 
@@ -2241,8 +2270,17 @@ impl TranscriptionManager {
                     );
                     emit_overlay_notice(
                         &self.app_handle,
-                        NoticeCode::ModelLoadFailed,
-                        Some(error_msg.clone()),
+                        // KB-015/KB-122: the refusal gets its own code and a
+                        // structured detail (model, needed, free) so the
+                        // localized line interpolates the facts instead of
+                        // pasting the raw English refusal sentence into the
+                        // model-name slot of the generic failure line.
+                        NoticeCode::ModelLoadFailedMemoryGate,
+                        Some(memory_gate_notice_detail(
+                            &model_info.name,
+                            forecast,
+                            free_bytes,
+                        )),
                     );
                     return Err(anyhow::anyhow!(error_msg));
                 }
@@ -3997,25 +4035,111 @@ fn is_latin_language(language: &str) -> bool {
     )
 }
 
+/// KB-176: the whole-prompt budget, in approximate whisper tokens. The
+/// backend caps the decode bias at 224 tokens and keeps the TAIL of an
+/// over-long prompt, so the built prompt must stay under that cap on its
+/// own. One whitespace word approximates one token plus one for its ", "
+/// separator and short command/custom words rarely split further, so 110
+/// words keeps the joined string comfortably below the cap; a non-ASCII
+/// word is weighed by its character count (a CJK or Devanagari word is one
+/// or more tokens per character, not per word).
+const WHISPER_INITIAL_PROMPT_MAX_TOKENS: usize = 224;
+const WHISPER_INITIAL_PROMPT_APPROX_TOKENS: usize = 180;
+// The working budget must stay under the backend's cap with margin.
+const _: () = assert!(WHISPER_INITIAL_PROMPT_APPROX_TOKENS <= WHISPER_INITIAL_PROMPT_MAX_TOKENS);
+
 /// Build the whisper initial prompt for a batch run: the operator's custom
 /// words, plus (when the run's output language is non-Latin) the matrix
 /// Insert phrases, biasing the decode toward spelling command words in a
 /// script the matching passes recognize. Latin output and empty inputs
 /// leave the prompt exactly as before. Streaming models take no decode
 /// prompt at all (unchanged); the aliases cover streaming.
+///
+/// KB-176: custom words ride the TAIL. Whisper truncates an over-long
+/// initial prompt from the front (the tail survives), so the operator's
+/// own words must come last to survive that cut while the regenerable
+/// matrix phrases absorb it. The prompt is also bounded up front (see
+/// [`WHISPER_INITIAL_PROMPT_APPROX_TOKENS`]) so the bias never silently
+/// degrades into "whatever fit": the matrix words are dropped from the
+/// front first, before any custom word is touched.
 fn whisper_initial_prompt(
     custom_words: &[String],
     insert_phrases: &[String],
     output_language: &str,
 ) -> String {
-    let mut parts: Vec<String> = Vec::new();
-    if !custom_words.is_empty() {
-        parts.push(custom_words.join(", "));
+    // Weigh one word's token cost: ASCII words approximate one token (plus
+    // the separator, counted alongside); non-ASCII words weigh per
+    // character, where BPE spends a token or more per glyph.
+    fn token_weight(word: &str) -> usize {
+        let non_ascii = word.chars().filter(|c| !c.is_ascii()).count();
+        if non_ascii == 0 {
+            1
+        } else {
+            non_ascii
+        }
     }
+
+    // Units keep each input's original internal spacing: a matrix phrase
+    // like "question mark" stays two space-joined words (never
+    // "question, mark"), and so does a multi-word custom entry. Units are
+    // joined with ", " exactly as before.
+    let mut units: Vec<Vec<&str>> = Vec::new();
     if !insert_phrases.is_empty() && !is_latin_language(output_language) {
-        parts.push(insert_phrases.join(", "));
+        for phrase in insert_phrases {
+            units.push(phrase.split_whitespace().collect());
+        }
     }
-    parts.join(", ")
+    let custom_start_words: usize = units.iter().map(|u| u.len()).sum();
+    for word in custom_words {
+        units.push(word.split_whitespace().collect());
+    }
+
+    // Bound: separators join the budget (each ", " approximates one
+    // token). Cut words from the FRONT and only from the phrase units
+    // (everything before the custom block), so the budget eats matrix
+    // words first and never a custom word while phrase words remain.
+    let cost = |units: &[Vec<&str>]| {
+        let words: usize = units.iter().map(|u| u.len()).sum();
+        let weights: usize = units
+            .iter()
+            .flat_map(|u| u.iter())
+            .map(|w| token_weight(w))
+            .sum();
+        weights + words.saturating_sub(1)
+    };
+    if cost(&units) > WHISPER_INITIAL_PROMPT_APPROX_TOKENS {
+        let mut phrase_words_left = custom_start_words;
+        while phrase_words_left > 0 && cost(&units) > WHISPER_INITIAL_PROMPT_APPROX_TOKENS {
+            // Shed one word from the front unit, dropping the unit when
+            // it empties.
+            let front_len = units[0].len();
+            if front_len == 1 {
+                units.remove(0);
+            } else {
+                units[0].remove(0);
+            }
+            phrase_words_left -= 1;
+        }
+        // Defensive tail cap: a custom-word list alone over the budget
+        // sheds words from the front, mirroring the head cut whisper's
+        // own tail-keeping truncation would apply. A single word is
+        // never split, so one enormous custom word can still exceed the
+        // approximation; whisper's own truncation handles that case.
+        while units.len() > 1 && cost(&units) > WHISPER_INITIAL_PROMPT_APPROX_TOKENS {
+            let front_len = units[0].len();
+            if front_len == 1 {
+                units.remove(0);
+            } else {
+                units[0].remove(0);
+            }
+        }
+    }
+
+    units
+        .iter()
+        .map(|u| u.join(" "))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 /// The matrix's Insert phrases (tokens rejoined with single spaces), for
@@ -4523,6 +4647,7 @@ mod tests {
             NoticeCode::TranscriptionFailed,
             NoticeCode::PasteFailed,
             NoticeCode::ModelLoadFailed,
+            NoticeCode::ModelLoadFailedMemoryGate,
             NoticeCode::ModelFallback,
             NoticeCode::PostProcessMemoryGate,
             NoticeCode::PostProcessDownloadMissing,
@@ -4570,6 +4695,7 @@ mod tests {
             NoticeCode::TranscriptionFailed,
             NoticeCode::PasteFailed,
             NoticeCode::ModelLoadFailed,
+            NoticeCode::ModelLoadFailedMemoryGate,
             NoticeCode::PostProcessMemoryGate,
             NoticeCode::PostProcessEngineFailed,
             NoticeCode::PostProcessTimeout,
@@ -6430,10 +6556,12 @@ mod tests {
     #[test]
     fn whisper_initial_prompt_biases_non_latin_decodes_toward_command_words() {
         let phrases = vec!["comma".to_string(), "question mark".to_string()];
-        // Non-Latin output: custom words plus the matrix Insert phrases.
+        // Non-Latin output: the matrix Insert phrases plus the custom words
+        // (KB-176: custom words ride the TAIL so whisper's front-cutting
+        // truncation cannot drop them first).
         assert_eq!(
             whisper_initial_prompt(&["Alpha".to_string()], &phrases, "hi"),
-            "Alpha, comma, question mark"
+            "comma, question mark, Alpha"
         );
         // No custom words: the phrases alone carry the prompt.
         assert_eq!(
@@ -6455,6 +6583,71 @@ mod tests {
         assert!(!is_latin_language("ru"));
         assert!(is_latin_language("en"));
         assert!(is_latin_language("pt"));
+    }
+
+    #[test]
+    fn whisper_initial_prompt_bounds_and_keeps_custom_words_last_kb176() {
+        // KB-176: an unbounded prompt let whisper's tail-keeping truncation
+        // drop the HEAD, which was where the custom words sat; the bound
+        // now sheds matrix words from the front first, so every custom
+        // word survives and the joined prompt stays under the cap.
+        let custom = vec!["Zeta".to_string()];
+        let many_phrases: Vec<String> = (0..200)
+            .map(|i| format!("phrase number {i} words here"))
+            .collect();
+        let bounded = whisper_initial_prompt(&custom, &many_phrases, "zh");
+        assert!(
+            bounded.ends_with("Zeta"),
+            "the custom word must survive at the tail, got: {bounded}"
+        );
+        let approx_tokens = bounded.split(", ").count() * 2;
+        assert!(
+            approx_tokens <= WHISPER_INITIAL_PROMPT_MAX_TOKENS,
+            "the bounded prompt must stay under the whisper cap, got ~{approx_tokens} tokens"
+        );
+
+        // Custom words alone can exceed the budget: the prompt sheds from
+        // the front (the same head cut whisper applies) rather than
+        // growing past the cap.
+        let huge_custom: Vec<String> = (0..300).map(|i| format!("custom{i}")).collect();
+        let alone = whisper_initial_prompt(&huge_custom, &[], "en");
+        assert!(
+            alone.ends_with("custom299"),
+            "the tail custom word survives"
+        );
+        assert!(
+            alone.split(", ").count() * 2 <= WHISPER_INITIAL_PROMPT_MAX_TOKENS,
+            "a custom-only prompt is bounded too"
+        );
+
+        // CJK custom words are weighed per character (a Han glyph is a
+        // token or more), not per whitespace word.
+        let cjk_words: Vec<String> = std::iter::repeat("词汇".to_string()).take(100).collect();
+        let cjk_bounded = whisper_initial_prompt(&cjk_words, &[], "zh");
+        let kept_words = cjk_bounded.split(", ").count();
+        assert!(
+            kept_words < 100,
+            "a per-character-weighed CJK list is cut short, kept {kept_words}"
+        );
+        let approx_cjk_tokens: usize = cjk_bounded
+            .chars()
+            .filter(|c| !c.is_ascii() && !c.is_whitespace())
+            .count()
+            + kept_words.saturating_sub(1);
+        assert!(
+            approx_cjk_tokens <= WHISPER_INITIAL_PROMPT_MAX_TOKENS,
+            "the CJK-bounded prompt stays under the cap, got ~{approx_cjk_tokens}"
+        );
+
+        // Under the budget nothing is cut: the exact ordering pin.
+        assert_eq!(
+            whisper_initial_prompt(
+                &["Alpha".to_string(), "Beta".to_string()],
+                &["comma".to_string()],
+                "hi"
+            ),
+            "comma, Alpha, Beta"
+        );
     }
 
     #[test]
@@ -7250,6 +7443,27 @@ mod tests {
         let msg = memory_gate_refusal_message("Parakeet EN Q8", 766_509_056, 1_610_612_736, 0);
         assert!(msg.contains("731 MB"), "{msg}");
         assert!(msg.contains("1.5 GB"), "{msg}");
+    }
+
+    /// KB-015/KB-122: the memory-gate refusal notice's structured detail.
+    /// Model, needed, and free ride one unit-separator-encoded string (the
+    /// cycle_notice_detail convention) with the same MB/GB formatting the
+    /// log line uses, so the frontend's localized line interpolates the
+    /// facts and never pastes this raw English sentence.
+    #[test]
+    fn memory_gate_notice_detail_carries_model_needed_free_kb015_kb122() {
+        let detail = memory_gate_notice_detail("Whisper Tiny", 45_088_768, 1_087_373_312);
+        let parts: Vec<&str> = detail.split('\u{1f}').collect();
+        assert_eq!(parts.len(), 3, "exactly three fields: {detail:?}");
+        assert_eq!(parts[0], "Whisper Tiny");
+        assert_eq!(parts[1], "43 MB", "needed uses the amount formatter");
+        assert_eq!(parts[2], "1.0 GB", "free uses the amount formatter");
+        // A model name with a comma or space cannot shift the fields: the
+        // separator is the control character, not ", ".
+        let tricky = memory_gate_notice_detail("Parakeet, EN (Q8)", 766_509_056, 1_610_612_736);
+        let tricky_parts: Vec<&str> = tricky.split('\u{1f}').collect();
+        assert_eq!(tricky_parts[0], "Parakeet, EN (Q8)");
+        assert_eq!(tricky_parts.len(), 3);
     }
 
     #[test]

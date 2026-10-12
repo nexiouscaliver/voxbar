@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Números falados",
-        "description": "Escreve números falados como dígitos, de modo que \"one eight zero one\" seja colado como 1801. \"Como transcrito\" mantém os números como falados; Smart também converte ordinais compostos e números isolados a partir de onze.",
+        "description": "Escreve números falados como dígitos, de modo que \"one eight zero one\" seja colado como 1801. A conversão reconhece os números falados em inglês e híndi (incluindo hinglish); em outros idiomas, os números ficam como foram falados. \"Como transcrito\" mantém os números como falados; Smart também converte ordinais compostos e números isolados a partir de onze.",
         "options": {
           "asTranscribed": "Como transcrito",
           "digits": "Dígitos",
@@ -1189,6 +1189,8 @@
       "runHint_one": "{{count}} prompt em 1 motor. Nada é digitado ou guardado.",
       "runHint_other": "{{count}} pares prompt-motor. Nada é digitado ou guardado.",
       "running": "Executando...",
+      "cancel": "Cancelar",
+      "cancelledCard": "Cancelado antes do início desta execução.",
       "rerun": "Executar novamente",
       "latency": "{{ms}} ms",
       "rawKept": "O motor falhou ou foi ignorado, então a transcrição bruta seria mantida.",
@@ -1274,6 +1276,8 @@
     "recordingFailed": "Falha ao iniciar a gravação: {{error}}",
     "modelLoadFailed": "Falha ao carregar o modelo: {{model}}",
     "modelLoadFailedUnknown": "modelo desconhecido",
+    "modelLoadFailedMemoryGate": "Não há memória livre suficiente para carregar {{model}}: precisa de cerca de {{needed}}, com cerca de {{free}} livres.",
+    "modelLoadFailedDetail": "O modelo não foi alterado. O motivo técnico está no arquivo de registro.",
     "modelFallbackTitle": "Pouca memória",
     "modelFallback": "Trocado para {{model}} para este ditado",
     "pasteFailedTitle": "Falha ao colar o texto",

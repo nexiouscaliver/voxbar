@@ -2,12 +2,23 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { resolve } from "path";
+import pkg from "./package.json";
 
 const host = process.env.TAURI_DEV_HOST;
 
 // https://vitejs.dev/config/
 export default defineConfig(async () => ({
   plugins: [react(), tailwindcss()],
+
+  // KB-096: inject the real package version at build time so the footer
+  // and About fallback can never drift from the shipping version (the
+  // hardcoded "0.1.2" predates v1.0 and kept showing in tests and plain
+  // browser previews). appVersion.ts reads it via typeof so non-vite
+  // contexts (bun tests) fall back to the synced literal instead of a
+  // ReferenceError.
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+  },
 
   // Path aliases
   resolve: {

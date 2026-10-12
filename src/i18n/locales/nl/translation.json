@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Gesproken getallen",
-        "description": "Schrijft gesproken getalwoorden als cijfers, zodat \"one eight zero one\" als 1801 wordt geplakt. \"Zo getranscribeerd\" laat getallen zoals gesproken; Smart zet ook samengestelde rangtelwoorden en losse getallen vanaf elf om.",
+        "description": "Schrijft gesproken getalwoorden als cijfers, zodat \"one eight zero one\" als 1801 wordt geplakt. De conversie kent Engelse en Hindi-getalwoorden (inclusief Hinglish); in andere talen blijven cijfers zoals gesproken. \"Zo getranscribeerd\" laat getallen zoals gesproken; Smart zet ook samengestelde rangtelwoorden en losse getallen vanaf elf om.",
         "options": {
           "asTranscribed": "Zoals getranscribeerd",
           "digits": "Cijfers",
@@ -1189,6 +1189,8 @@
       "runHint_one": "1 prompt op 1 engine. Er wordt niets getypt of opgeslagen.",
       "runHint_other": "{{count}} prompt-engineparen. Er wordt niets getypt of opgeslagen.",
       "running": "Bezig met uitvoeren...",
+      "cancel": "Annuleren",
+      "cancelledCard": "Geannuleerd voordat deze run begon.",
       "rerun": "Opnieuw uitvoeren",
       "latency": "{{ms}} ms",
       "rawKept": "De engine mislukte of werd overgeslagen, dus de ruwe transcriptie zou behouden blijven.",
@@ -1277,6 +1279,8 @@
     "recordingFailed": "Opname starten mislukt: {{error}}",
     "modelLoadFailed": "Model laden mislukt: {{model}}",
     "modelLoadFailedUnknown": "onbekend model",
+    "modelLoadFailedMemoryGate": "Niet genoeg vrij geheugen om {{model}} te laden: ongeveer {{needed}} nodig, circa {{free}} vrij.",
+    "modelLoadFailedDetail": "Het model is niet gewijzigd. De technische reden staat in het logbestand.",
     "modelFallbackTitle": "Te weinig geheugen",
     "modelFallback": "Overgeschakeld naar {{model}} voor deze dicteeropname",
     "pasteFailedTitle": "Tekst plakken mislukt",

@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "Dikterade tal",
-        "description": "Skriver uttalade talord som siffror, så att \"one eight zero one\" klistras in som 1801. \"Såsom transkriberat\" behåller tal såsom sagda; Smart konverterar även sammansatta ordningstal och enskilda tal från elva och uppåt.",
+        "description": "Skriver uttalade talord som siffror, så att \"one eight zero one\" klistras in som 1801. Konverteringen känner igen talade talord på engelska och hindi (inklusive hinglish); på andra språk behålls talen som sagda. \"Såsom transkriberat\" behåller tal såsom sagda; Smart konverterar även sammansatta ordningstal och enskilda tal från elva och uppåt.",
         "options": {
           "asTranscribed": "Som transkriberat",
           "digits": "Siffror",
@@ -1189,6 +1189,8 @@
       "runHint_one": "1 prompt på 1 motor. Inget skrivs eller sparas.",
       "runHint_other": "{{count}} prompt-motor-par. Inget skrivs eller sparas.",
       "running": "Kör...",
+      "cancel": "Avbryt",
+      "cancelledCard": "Avbröts innan denna körning startade.",
       "rerun": "Kör igen",
       "latency": "{{ms}} ms",
       "rawKept": "Motorn misslyckades eller hoppades över, så råtranskriptionen skulle behållas.",
@@ -1272,6 +1274,8 @@
     "recordingFailed": "Misslyckades med att starta inspelning: {{error}}",
     "modelLoadFailed": "Misslyckades med att ladda modell: {{model}}",
     "modelLoadFailedUnknown": "okänd modell",
+    "modelLoadFailedMemoryGate": "Inte tillräckligt med ledigt minne för att läsa in {{model}}: kräver cirka {{needed}}, cirka {{free}} ledigt.",
+    "modelLoadFailedDetail": "Modellen ändrades inte. Det tekniska skälet finns i loggfilen.",
     "modelFallbackTitle": "Lite minne",
     "modelFallback": "Växlade till {{model}} för denna diktering",
     "noInputDeviceTitle": "Ingen mikrofon hittades",

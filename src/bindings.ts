@@ -587,7 +587,10 @@ async testPostProcessPrompt(promptId: string) : Promise<Result<PromptTestOutcome
  * Runs are sequential on purpose: the local engine is an exclusive memory
  * swap (voice out, LLM in), so two concurrent local generations would
  * fight over the swap on a memory-constrained machine. Results return in
- * request order, each labeled with its request.
+ * request order, each labeled with its request. KB-257: the loop checks
+ * the cancellation generation between runs and returns the PARTIAL
+ * results when a cancel landed (the unstarted pairs mint no result, so
+ * the frontend can tell cancelled from finished).
  */
 async testPostProcessPromptBatch(source: StudioSource, runs: StudioRunRequest[]) : Promise<Result<StudioRunResult[], TestPromptError>> {
     try {
@@ -596,6 +599,14 @@ async testPostProcessPromptBatch(source: StudioSource, runs: StudioRunRequest[])
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };
 }
+},
+/**
+ * KB-257: the Prompt Studio's cancel affordance. Bumps the batch
+ * generation, so every in-flight `test_post_process_prompt_batch` stops
+ * before its next run and returns the results it already collected.
+ */
+async cancelPostProcessPromptBatch() : Promise<number> {
+    return await TAURI_INVOKE("cancel_post_process_prompt_batch");
 },
 async updateCustomWords(words: string[]) : Promise<Result<null, string>> {
     try {
@@ -1149,14 +1160,6 @@ async getCurrentModel() : Promise<Result<string, string>> {
 async getTranscriptionModelStatus() : Promise<Result<string | null, string>> {
     try {
     return { status: "ok", data: await TAURI_INVOKE("get_transcription_model_status") };
-} catch (e) {
-    if(e instanceof Error) throw e;
-    else return { status: "error", error: e  as any };
-}
-},
-async isModelLoading() : Promise<Result<boolean, string>> {
-    try {
-    return { status: "ok", data: await TAURI_INVOKE("is_model_loading") };
 } catch (e) {
     if(e instanceof Error) throw e;
     else return { status: "error", error: e  as any };

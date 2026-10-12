@@ -35,6 +35,23 @@ function parseCycleDetail(detail: string): {
   return { name: detail };
 }
 
+// KB-015/KB-122: the memory-gate refusal's structured detail - model,
+// needed, free - unit-separator encoded by memory_gate_notice_detail
+// (transcription.rs), the same convention as the cycle detail, so the
+// localized line interpolates the three facts instead of pasting the raw
+// English refusal sentence into the model-name slot.
+function parseMemoryGateDetail(detail: string): {
+  model: string;
+  needed?: string;
+  free?: string;
+} {
+  const parts = detail.split(CYCLE_DETAIL_SEPARATOR);
+  if (parts.length === 3 && parts[1] !== "" && parts[2] !== "") {
+    return { model: parts[0], needed: parts[1], free: parts[2] };
+  }
+  return { model: detail };
+}
+
 // Localize one notice code. `detail` is the event's optional diagnostic
 // (error text, model names); the codes that interpolate it fall back to
 // empty strings, except model_load_failed whose fallback names the unknown
@@ -61,6 +78,20 @@ export function noticeMessage(
       return t("errors.modelLoadFailed", {
         model: detail ?? t("errors.modelLoadFailedUnknown"),
       });
+    // KB-015/KB-122: the memory-gate refusal gets its own line so the
+    // raw English refusal sentence never interpolates into the generic
+    // failure's model-name slot. The detail carries model, needed, and
+    // free (unit-separator encoded); a bare-model detail (a defensive
+    // shape) interpolates empty amounts rather than the literal
+    // "{{needed}}".
+    case "model_load_failed_memory_gate": {
+      const gate = parseMemoryGateDetail(detail ?? "");
+      return t("errors.modelLoadFailedMemoryGate", {
+        model: gate.model,
+        needed: gate.needed ?? "",
+        free: gate.free ?? "",
+      });
+    }
     case "model_fallback":
       return t("errors.modelFallback", { model: detail ?? "" });
     case "post_process_memory_gate":
@@ -173,6 +204,7 @@ export function noticeMessage(
 const DETAIL_INTERPOLATING_CODES = new Set([
   "recording_failed",
   "model_load_failed",
+  "model_load_failed_memory_gate",
   "model_fallback",
   "post_process_memory_gate",
   "post_process_cloud_failed",

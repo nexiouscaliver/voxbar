@@ -616,31 +616,127 @@ pub fn normalize_spoken_punctuation(text: &str, matrix: &CompiledCommandMatrix) 
 }
 
 /// Openers that mark a transcript as a question when it is the first word.
+/// English and the common Devanagari interrogatives (KB-076/KB-135/KB-178:
+/// Hindi questions start with kya/kaise/kahan the same way English ones
+/// start with what/why, and the terminal pass must see them).
 const INTERROGATIVE_OPENERS: &[&str] = &[
-    "what", "why", "how", "when", "who", "where", "which", "is", "are", "do", "does", "can",
-    "could", "would", "should", "will",
+    "what",
+    "why",
+    "how",
+    "when",
+    "who",
+    "where",
+    "which",
+    "is",
+    "are",
+    "do",
+    "does",
+    "can",
+    "could",
+    "would",
+    "should",
+    "will",
+    // Devanagari interrogatives (romanized in comments for grep-ability):
+    // kya, kaise, kaisa, kahan, kab, kaun, kyon, kitne, kitna.
+    "क्या",
+    "कैसे",
+    "कैसा",
+    "कहाँ",
+    "कहां",
+    "कब",
+    "कौन",
+    "क्यों",
+    "कितने",
+    "कितना",
 ];
+
+/// Sentence-final particles that mark a CJK transcript as a question
+/// (mandarin ma/ne, japanese ka). The Latin opener list cannot match CJK
+/// text, so without these the fullwidth question mark would be unreachable.
+const CJK_QUESTION_PARTICLES: &[char] = &['吗', '呢', 'か'];
 
 fn starts_with_interrogative(text: &str) -> bool {
     text.split_whitespace().next().is_some_and(|first| {
+        // Strip only ATTACHED punctuation (a leading quote, a trailing
+        // comma); interior combining marks must survive, or a Devanagari
+        // interrogative with its virama ("kya") never matches its list
+        // entry. The Devanagari block range keeps matras and the virama
+        // un-stripped even where is_alphanumeric cannot see them.
         let key: String = first
-            .chars()
-            .filter(|c| c.is_alphanumeric())
-            .flat_map(|c| c.to_lowercase())
-            .collect();
+            .trim_matches(|c: char| !c.is_alphanumeric() && !matches!(c, '\u{0900}'..='\u{097F}'))
+            .to_lowercase();
         INTERROGATIVE_OPENERS.contains(&key.as_str())
     })
 }
 
+/// The script family the appended terminal mark must belong to
+/// (KB-076/KB-135/KB-178): CJK text takes the fullwidth marks, Devanagari
+/// takes danda for statements (its questions keep the ordinary "?"),
+/// everything else keeps today's ASCII marks. Counted over the text's
+/// script-bearing characters; a tie, a weak single-character signal, or
+/// text with no script signal at all keeps the ASCII default, so mixed
+/// text is never rewritten into one script's convention.
+enum TerminalMarkScript {
+    Cjk,
+    Devanagari,
+    Default,
+}
+
+fn terminal_mark_script(text: &str) -> TerminalMarkScript {
+    let mut cjk = 0usize;
+    let mut devanagari = 0usize;
+    for c in text.chars() {
+        match c as u32 {
+            // Hiragana + katakana + CJK ideographs (+ compat/extension A).
+            0x3040..=0x30FF | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF => cjk += 1,
+            0x0900..=0x097F => devanagari += 1,
+            _ => {}
+        }
+    }
+    if cjk >= 2 && cjk > devanagari {
+        TerminalMarkScript::Cjk
+    } else if devanagari >= 2 && devanagari > cjk {
+        TerminalMarkScript::Devanagari
+    } else {
+        TerminalMarkScript::Default
+    }
+}
+
+/// Whether the trimmed transcript reads as a question: a Latin or
+/// Devanagari interrogative opener, or a CJK sentence-final question
+/// particle.
+fn reads_as_question(trimmed: &str) -> bool {
+    starts_with_interrogative(trimmed)
+        || trimmed
+            .chars()
+            .next_back()
+            .is_some_and(|last| CJK_QUESTION_PARTICLES.contains(&last))
+}
+
+/// Whether a final character means "the sentence is still open" (a mark
+/// should be appended after it). Alphanumeric covers letters and digits in
+/// every script; the Devanagari block range adds its vowel signs and other
+/// combining marks, which `is_alphanumeric` does not uniformly see but a
+/// Hindi transcript routinely ends with (है, किया). Danda itself
+/// (U+0964/U+0965) is deliberately excluded so an existing Devanagari
+/// terminal mark is never doubled.
+fn sentence_still_open(c: char) -> bool {
+    c.is_alphanumeric() || matches!(c as u32, 0x0900..=0x0963 | 0x0966..=0x097F)
+}
+
 /// Appends terminal punctuation when a transcript does not end with any.
 ///
-/// If the final character is alphanumeric, "?" is appended when the first
-/// word is an interrogative ([`INTERROGATIVE_OPENERS`]), otherwise ".".
-/// Existing terminal punctuation is never doubled and empty/whitespace-only
-/// text is returned unchanged. The check runs on the trimmed text so a
-/// trailing space cannot swallow the appended mark (the trailing whitespace
-/// itself is dropped, matching the downstream trim in
-/// [`normalize_transcription_output`]). A trailing newline run is layout the
+/// If the final character is alphanumeric, a question mark is appended when
+/// the transcript reads as a question (an interrogative opener, or a CJK
+/// question particle in final position), otherwise a full stop. The mark's
+/// GLYPH follows the text's script (KB-076/KB-135/KB-178): CJK takes the
+/// fullwidth `。` / `？`, Devanagari takes danda `।` for statements (its
+/// questions conventionally use the ordinary `?`), and every other script
+/// keeps the ASCII marks. Existing terminal punctuation is never doubled
+/// and empty/whitespace-only text is returned unchanged. The check runs on
+/// the trimmed text so a trailing space cannot swallow the appended mark
+/// (the trailing whitespace itself is dropped, matching the downstream trim
+/// in [`normalize_transcription_output`]). A trailing newline run is layout the
 /// operator spoke, so the mark is inserted BEFORE it: "hello\n" becomes
 /// "hello.\n" and "para one\n\n" becomes "para one.\n\n".
 pub fn apply_terminal_punctuation(text: &str) -> String {
@@ -651,18 +747,19 @@ pub fn apply_terminal_punctuation(text: &str) -> String {
         return text.to_string();
     }
 
-    if !trimmed
-        .chars()
-        .next_back()
-        .is_some_and(|c| c.is_alphanumeric())
-    {
+    if !trimmed.chars().next_back().is_some_and(sentence_still_open) {
         return text.to_string();
     }
 
-    let mark = if starts_with_interrogative(trimmed) {
-        "?"
+    let (statement_mark, question_mark) = match terminal_mark_script(trimmed) {
+        TerminalMarkScript::Cjk => ("。", "？"),
+        TerminalMarkScript::Devanagari => ("।", "?"),
+        TerminalMarkScript::Default => (".", "?"),
+    };
+    let mark = if reads_as_question(trimmed) {
+        question_mark
     } else {
-        "."
+        statement_mark
     };
 
     format!("{trimmed}{mark}{newline_run}")
@@ -1866,6 +1963,46 @@ mod tests {
         assert_eq!(apply_terminal_punctuation("hello world"), "hello world.");
         // Trailing whitespace is dropped so the mark is not stranded.
         assert_eq!(apply_terminal_punctuation("hello world  "), "hello world.");
+    }
+
+    #[test]
+    fn test_terminal_punctuation_is_script_aware_kb076_kb135_kb178() {
+        // CJK statements take the fullwidth full stop...
+        assert_eq!(apply_terminal_punctuation("你好世界"), "你好世界。");
+        assert_eq!(
+            apply_terminal_punctuation("今日はいい天気"),
+            "今日はいい天気。"
+        );
+        // ...and CJK questions (final particle, or an opener the Latin list
+        // cannot match) take the fullwidth question mark.
+        assert_eq!(apply_terminal_punctuation("你来吗"), "你来吗？");
+        assert_eq!(apply_terminal_punctuation("你去哪里呢"), "你去哪里呢？");
+        // Devanagari statements take danda; its questions keep the ASCII
+        // question mark, and the Devanagari interrogative openers are seen.
+        assert_eq!(
+            apply_terminal_punctuation("मुझे खाना पसंद है"),
+            "मुझे खाना पसंद है।"
+        );
+        assert_eq!(
+            apply_terminal_punctuation("क्या तुम आओगे"),
+            "क्या तुम आओगे?",
+            "the Devanagari interrogative opener asks a question"
+        );
+        // Latin text keeps the ASCII marks even with a stray CJK glyph
+        // (weak single-character signal never switches the convention).
+        assert_eq!(
+            apply_terminal_punctuation("hello 吗 world"),
+            "hello 吗 world."
+        );
+        // Existing CJK/Devanagari terminal marks are never doubled.
+        assert_eq!(apply_terminal_punctuation("你好世界。"), "你好世界。");
+        assert_eq!(apply_terminal_punctuation("你来吗？"), "你来吗？");
+        assert_eq!(
+            apply_terminal_punctuation("मुझे खाना पसंद है।"),
+            "मुझे खाना पसंद है।"
+        );
+        // The mark lands before a trailing newline run in CJK too.
+        assert_eq!(apply_terminal_punctuation("你好世界\n"), "你好世界。\n");
     }
 
     #[test]

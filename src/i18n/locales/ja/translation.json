@@ -663,7 +663,7 @@
       },
       "numberFormat": {
         "title": "音声数値",
-        "description": "読み上げた数値語を数字で書き出し、\"one eight zero one\" は 1801 として貼り付けられます。「文字起こしのまま」は数値を話したとおりに残し、Smart は合成序数や11以上の単独の数も変換します。",
+        "description": "読み上げた数値語を数字で書き出し、\"one eight zero one\" は 1801 として貼り付けられます。この変換は英語とヒンディー語（ヒングリッシュを含む）の読み上げ数字に対応しています。他の言語では数字は発話どおりに保持されます。「文字起こしのまま」は数値を話したとおりに残し、Smart は合成序数や11以上の単独の数も変換します。",
         "options": {
           "asTranscribed": "文字起こしのまま",
           "digits": "数字",
@@ -1189,6 +1189,8 @@
       "runHint_one": "1 つのプロンプトを 1 つのエンジンで実行。入力も保存もされません。",
       "runHint_other": "プロンプトとエンジンの組み合わせ {{count}} 件。入力も保存もされません。",
       "running": "実行中...",
+      "cancel": "キャンセル",
+      "cancelledCard": "この実行が始まる前にキャンセルされました。",
       "rerun": "再実行",
       "latency": "{{ms}} ミリ秒",
       "rawKept": "エンジンが失敗またはスキップされたため、元の文字起こしが保持されます。",
@@ -1274,6 +1276,8 @@
     "recordingFailed": "録音の開始に失敗しました: {{error}}",
     "modelLoadFailed": "モデルの読み込みに失敗しました: {{model}}",
     "modelLoadFailedUnknown": "不明なモデル",
+    "modelLoadFailedMemoryGate": "メモリ不足のため {{model}} を読み込めません：約 {{needed}} 必要ですが、空きは約 {{free}} です。",
+    "modelLoadFailedDetail": "モデルは変更されていません。技術的な原因はログファイルにあります。",
     "modelFallbackTitle": "メモリ不足",
     "modelFallback": "このディクテーションでは {{model}} に切り替えました",
     "pasteFailedTitle": "テキストの貼り付けに失敗しました",

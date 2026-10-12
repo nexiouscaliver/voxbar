@@ -320,7 +320,7 @@ pub fn get_icon_path(theme: AppTheme, state: TrayIconState, warning: bool) -> &'
 
 /// Sets the recording state shown by the tray (icon + Cancel/model menu).
 pub fn set_tray_state(app: &AppHandle, state: TrayIconState) {
-    sync_tray_with(app, |inner| inner.icon_state = state);
+    let _ = sync_tray_with(app, |inner| inner.icon_state = state);
 }
 
 /// Re-syncs the tray after something other than the recording state changed
@@ -331,8 +331,15 @@ pub fn refresh_tray_icon(app: &AppHandle) {
 
 /// Re-syncs the tray after something the menu depends on changed (model
 /// list/selection/loaded state, language, settings).
-pub fn update_tray_menu(app: &AppHandle) {
-    sync_tray(app);
+///
+/// KB-242: the re-sync's synchronous failure (the menu icon could not be
+/// loaded) is returned so the settings commands that trigger it can report
+/// the tray falling out of sync instead of logging and pretending the
+/// change applied everywhere. The apply itself stays scheduled on the main
+/// thread (see [`sync_tray_with`]); callers that only want the old
+/// fire-and-forget behavior discard the Result.
+pub fn update_tray_menu(app: &AppHandle) -> Result<(), String> {
+    sync_tray_with(app, |_| {})
 }
 
 /// Records the current desired tray state and schedules one apply on the main
@@ -343,12 +350,12 @@ pub fn update_tray_menu(app: &AppHandle) {
 /// *calling* thread on purpose: the main-thread applier must not take manager
 /// locks that a worker may hold across slow work (see #1716).
 pub fn sync_tray(app: &AppHandle) {
-    sync_tray_with(app, |_| {});
+    let _ = sync_tray_with(app, |_| {});
 }
 
-fn sync_tray_with(app: &AppHandle, update: impl FnOnce(&mut TrayInner)) {
+fn sync_tray_with(app: &AppHandle, update: impl FnOnce(&mut TrayInner)) -> Result<(), String> {
     let Some(state) = app.try_state::<TrayState>() else {
-        return;
+        return Ok(());
     };
 
     // Record intent and claim a sequence number in one critical section, so
@@ -363,13 +370,17 @@ fn sync_tray_with(app: &AppHandle, update: impl FnOnce(&mut TrayInner)) {
     // Tray not built yet (early secure-input monitor callbacks). The intent
     // is kept and picked up by the first sync after the tray exists.
     if app.try_state::<TrayIcon>().is_none() {
-        return;
+        return Ok(());
     }
 
     let desired = compute_desired(app, icon_state);
 
     // Decode the icon off the main thread, once per path, outside the lock.
+    // KB-242: a failed load is returned (the menu re-sync the caller asked
+    // for did not happen) while still scheduling the apply, so the tray
+    // keeps running on its last decoded icon instead of vanishing.
     let needs_icon = !state.lock().icons.contains_key(desired.icon_path);
+    let mut sync_error = None;
     let loaded_icon = if needs_icon {
         match load_tray_icon(
             app.path()
@@ -378,6 +389,10 @@ fn sync_tray_with(app: &AppHandle, update: impl FnOnce(&mut TrayInner)) {
             Ok(image) => Some(image),
             Err(err) => {
                 error!("Failed to load tray icon '{}': {err}", desired.icon_path);
+                sync_error = Some(format!(
+                    "failed to load the tray icon '{}': {err}",
+                    desired.icon_path
+                ));
                 None
             }
         }
@@ -397,7 +412,7 @@ fn sync_tray_with(app: &AppHandle, update: impl FnOnce(&mut TrayInner)) {
                 "tray sync: request {seq} superseded by {}",
                 inner.desired_seq
             );
-            return;
+            return Ok(());
         }
         inner.desired = Some(desired);
         inner.desired_seq = seq;
@@ -410,6 +425,10 @@ fn sync_tray_with(app: &AppHandle, update: impl FnOnce(&mut TrayInner)) {
         post_apply(app);
     } else {
         trace!("tray sync: apply already pending");
+    }
+    match sync_error {
+        Some(err) => Err(err),
+        None => Ok(()),
     }
 }
 
@@ -1605,7 +1624,7 @@ pub fn refresh_tray_history(app: &AppHandle) {
         if let Some(snapshot) = handle.try_state::<TrayHistory>() {
             *snapshot.lock() = rows;
         }
-        update_tray_menu(&handle);
+        let _ = update_tray_menu(&handle);
     });
 }
 

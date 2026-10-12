@@ -105,7 +105,9 @@ export const NOTICE_ROUTE_POLICIES: Record<string, NoticeRoutePolicy> = {
   // Unrouted: every failure code with a dedicated legacy listener — those
   // keep their legacy toast plus the error sound, and routing them here too
   // would stack two toasts for one failure whenever the card was hidden.
-  // Retiring those legacy listeners is follow-up work.
+  // Retiring those legacy listeners is follow-up work. KB-015/KB-122: the
+  // memory-gate refusal rides the same model-state-changed listener as the
+  // generic load failure, so it is unrouted with it.
   no_model_selected: "unrouted",
   microphone_permission_denied: "unrouted",
   no_input_device: "unrouted",
@@ -113,6 +115,7 @@ export const NOTICE_ROUTE_POLICIES: Record<string, NoticeRoutePolicy> = {
   transcription_failed: "unrouted",
   paste_failed: "unrouted",
   model_load_failed: "unrouted",
+  model_load_failed_memory_gate: "unrouted",
   post_process_memory_gate: "unrouted",
   post_process_engine_failed: "unrouted",
   post_process_timeout: "unrouted",
@@ -216,6 +219,11 @@ export const NOTICE_CHANNEL_TABLE: Record<string, NoticeChannelEntry> = {
   transcription_failed: NOTIFICATION("error", "notifications"),
   paste_failed: NOTIFICATION("error", "notifications"),
   model_load_failed: NOTIFICATION("error", "notifications"),
+  // KB-015/KB-122: the memory-gate refusal is the same failure class as
+  // the generic load failure (the model did not load); its localized
+  // notification body strips the interpolated amounts via the
+  // detail-interpolating-code path.
+  model_load_failed_memory_gate: NOTIFICATION("error", "notifications"),
   // A persistent misconfiguration, not a per-dictation condition: the
   // enabled polish silently never runs. Same class as a dead server.
   post_process_download_missing: NOTIFICATION("error", "notifications"),

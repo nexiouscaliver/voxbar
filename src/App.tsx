@@ -23,6 +23,7 @@ import "./App.css";
 import AccessibilityPermissions from "./components/AccessibilityPermissions";
 import SecureInputWarning from "./components/SecureInputWarning";
 import Footer from "./components/footer";
+import { formatMemoryAmount } from "./components/onboarding/modelRefusal";
 import Onboarding, { AccessibilityOnboarding } from "./components/onboarding";
 import {
   DebugSettings,
@@ -254,11 +255,14 @@ function App() {
   }, [t]);
 
   // Listen for transcription failures and show a toast.
-  // The payload is the backend error message (also logged to voxbar.log).
+  // KB-015/KB-122: the payload is a raw backend sentence (English prose,
+  // also logged to voxbar.log on the Rust side); the toast shows the
+  // localized line the overlay notice channel already ships for this
+  // failure instead of pasting it into every locale.
   useEffect(() => {
-    const unlisten = listen<string>("transcription-error", (event) => {
+    const unlisten = listen<string>("transcription-error", () => {
       toast.error(t("errors.transcriptionFailedTitle"), {
-        description: event.payload,
+        description: t("overlay.notice.transcriptionFailed"),
       });
     });
     return () => {
@@ -288,19 +292,26 @@ function App() {
     };
   }, [t]);
 
-  // Listen for model loading failures and show a toast
+  // Listen for model loading failures and show a toast.
+  // KB-015/KB-122: the structured memory_gate payload (present only on the
+  // gate's Refuse path) drives the localized memory-gate line with its
+  // formatted numbers; every other failure shows the localized detail-free
+  // description. The raw backend sentence stays in voxbar.log, never on a
+  // localized surface.
   useEffect(() => {
     const unlisten = listen<ModelStateEvent>("model-state-changed", (event) => {
       if (event.payload.event_type === "loading_failed") {
-        toast.error(
-          t("errors.modelLoadFailed", {
-            model:
-              event.payload.model_name || t("errors.modelLoadFailedUnknown"),
-          }),
-          {
-            description: event.payload.error,
-          },
-        );
+        const model =
+          event.payload.model_name || t("errors.modelLoadFailedUnknown");
+        const gate = event.payload.memory_gate;
+        const description = gate
+          ? t("errors.modelLoadFailedMemoryGate", {
+              model,
+              needed: formatMemoryAmount(gate.forecast_bytes),
+              free: formatMemoryAmount(gate.free_bytes),
+            })
+          : t("errors.modelLoadFailedDetail");
+        toast.error(t("errors.modelLoadFailed", { model }), { description });
       }
     });
     return () => {

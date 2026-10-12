@@ -228,11 +228,7 @@ impl CompanionManager {
     pub fn register_connection(
         &self,
         device: &str,
-    ) -> (
-        u64,
-        u64,
-        tokio::sync::mpsc::UnboundedReceiver<String>,
-    ) {
+    ) -> (u64, u64, tokio::sync::mpsc::UnboundedReceiver<String>) {
         let lane = self
             .next_lane_id
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
@@ -261,7 +257,7 @@ impl CompanionManager {
             settings.companion_last_device = Some(device.to_string());
             crate::settings::write_settings(app, settings);
         }
-        crate::tray::update_tray_menu(app);
+        let _ = crate::tray::update_tray_menu(app);
     }
 
     /// v1.6.2 W1-L2 (KB-255): release a connection's registration. Both
@@ -279,7 +275,7 @@ impl CompanionManager {
     /// The disconnect-edge tray re-sync (the forget_device rule, now
     /// keyed on registrations instead of names).
     pub fn note_device_disconnected(&self, app: &AppHandle) {
-        crate::tray::update_tray_menu(app);
+        let _ = crate::tray::update_tray_menu(app);
     }
 
     /// The deduplicated device names of the live connections, in
@@ -866,7 +862,11 @@ pub fn apply_enabled(app: &AppHandle, enabled: bool) -> Result<(), String> {
 /// the recording overlay badge carries the session's own frozen device
 /// name. The per-lane record's liveness flips here, which is exactly the
 /// truth the server's audio admission samples.
-pub fn on_lane_session_changed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64, active: bool) {
+pub fn on_lane_session_changed<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    lane: u64,
+    active: bool,
+) {
     let Some(manager) = manager(app) else {
         return;
     };
@@ -882,10 +882,7 @@ pub fn on_lane_session_changed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lan
         .map(|s| s.device.clone())
         .unwrap_or_else(|| "Companion".to_string());
     drop(sessions);
-    manager.send_frame_to_lane(
-        lane,
-        &protocol::ServerFrame::State { recording: active },
-    );
+    manager.send_frame_to_lane(lane, &protocol::ServerFrame::State { recording: active });
     let _ = app.emit_to(
         "recording_overlay",
         "companion-session-changed",
@@ -920,9 +917,7 @@ pub fn begin_session<R: tauri::Runtime>(
 /// being executed (read back by the shared action's start, synchronously
 /// behind begin_session on the coordinator thread). None for
 /// keyboard/signal starts.
-pub fn starting_session_lane<R: tauri::Runtime>(
-    app: &tauri::AppHandle<R>,
-) -> Option<u64> {
+pub fn starting_session_lane<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<u64> {
     manager(app).and_then(|m| *m.starting_lane.lock().unwrap())
 }
 
@@ -1013,10 +1008,7 @@ pub fn send_recent_history_to_lane<R: tauri::Runtime>(
     let Some(hm) = app.try_state::<Arc<crate::managers::history::HistoryManager>>() else {
         return;
     };
-    match hm.recent_companion_entries_for_device(
-        device,
-        protocol::RECENT_HISTORY_LIMIT,
-    ) {
+    match hm.recent_companion_entries_for_device(device, protocol::RECENT_HISTORY_LIMIT) {
         Ok(entries) => {
             let _ = manager.send_frame_to_lane(
                 lane,
@@ -1299,7 +1291,10 @@ mod tests {
         // A quick reconnect: the fresh registration is a NEW lane and
         // generation under the SAME name.
         let (lane_b, gen_b, _rx_b) = manager.register_connection("Pixel 8");
-        assert_ne!(lane_a, lane_b, "lane ids are per registration, never per name");
+        assert_ne!(
+            lane_a, lane_b,
+            "lane ids are per registration, never per name"
+        );
         assert_eq!(
             manager.paired_device_count(),
             1,
@@ -1421,6 +1416,11 @@ mod tests {
                 TranscriptionFailed,
                 PasteFailed,
                 ModelLoadFailed,
+                // KB-015/KB-122: the memory-gate refusal is the same
+                // forward-with-the-pipeline class as the generic load
+                // failure (a phone dictation can trigger it through the
+                // shared load path).
+                ModelLoadFailedMemoryGate,
                 ModelFallback,
                 PostProcessMemoryGate,
                 PostProcessDownloadMissing,

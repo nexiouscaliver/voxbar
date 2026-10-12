@@ -13,7 +13,7 @@ mod handler;
 pub mod handy_keys;
 pub mod tauri_impl;
 
-use log::{debug, error, info, warn};
+use log::{error, info, warn};
 use serde::Serialize;
 use specta::Type;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -414,7 +414,21 @@ pub fn change_binding(
 
             if let Some(retired) = cancel_rebind_retirement(&previous) {
                 if let Err(e) = unregister_shortcut(&app, retired) {
-                    error!("Failed to unregister previous cancel shortcut: {}", e);
+                    // KB-243: the old chord is still registered system-wide
+                    // (and still consuming its keys). Reporting success
+                    // here left Settings showing the new chord while the
+                    // OLD one stayed live. Roll the persisted binding back
+                    // to the previous chord - the one still registered -
+                    // and refuse the change. (An unregistered chord reads
+                    // as success in unregister_shortcut itself, so this
+                    // only fires when a live registration refused to go.)
+                    let error_msg =
+                        format!("Failed to unregister the previous cancel shortcut: {}", e);
+                    error!("change_binding error: {}", error_msg);
+                    let mut rollback = settings::get_settings(&app);
+                    rollback.bindings.insert(id.clone(), previous.clone());
+                    settings::write_settings(&app, rollback);
+                    return Err(error_msg);
                 }
             }
             // Force the next reconcile pass to register rather than assume
@@ -458,12 +472,20 @@ pub fn change_binding(
     // hands a registration to a toggle-off binding (KB-009), while the
     // Tauri unregister is chord-keyed and would destroy a live sibling
     // that legally owns the same chord after a KB-194-permitted rebind.
+    // KB-243: a failed unregister ABORTS the change. The old chord is
+    // still registered system-wide; proceeding would persist the new
+    // string and report success while the stale chord kept firing (and
+    // swallowing its keys). Settings are untouched at this point, so the
+    // still-registered old chord and the stored old string stay
+    // consistent. (unregister_shortcut itself treats an unregistered
+    // chord as success, so a suspended-state rebind still commits.)
     if !binding_to_modify.current_binding.trim().is_empty()
         && binding_is_active(&settings, &id, &binding_to_modify)
     {
         if let Err(e) = unregister_shortcut(&app, binding_to_modify.clone()) {
             let error_msg = format!("Failed to unregister shortcut: {}", e);
             error!("change_binding error: {}", error_msg);
+            return Err(error_msg);
         }
     }
 
@@ -560,8 +582,11 @@ pub fn reset_binding(app: AppHandle, id: String) -> Result<BindingResponse, Stri
 /// Unregister every binding while the user is recording a new shortcut in
 /// the UI, so no existing shortcut can fire (or swallow the keystrokes)
 /// mid-capture. The "cancel" binding is untouched: it is managed dynamically
-/// by the recording lifecycle.
-pub fn suspend_all_shortcuts(app: &AppHandle) {
+/// by the recording lifecycle. KB-242: returns the first failure (with the
+/// binding id named) instead of logging it into a void - a shortcut left
+/// armed during capture is exactly the keystroke-swallowing bug the
+/// suspend exists to prevent.
+pub fn suspend_all_shortcuts(app: &AppHandle) -> Result<(), String> {
     for (id, binding) in settings::get_bindings(app) {
         if id == "cancel" {
             continue;
@@ -572,18 +597,19 @@ pub fn suspend_all_shortcuts(app: &AppHandle) {
             continue;
         }
         if let Err(e) = unregister_shortcut(app, binding) {
-            debug!(
-                "suspend_all_shortcuts: could not unregister '{}': {}",
-                id, e
-            );
+            return Err(format!("could not suspend the '{id}' shortcut: {e}"));
         }
     }
+    Ok(())
 }
 
 /// Re-register every binding from settings after shortcut recording ends.
 /// Registering an already-registered shortcut fails cleanly in both
 /// implementations, so this is idempotent and safe on every exit path.
-pub fn resume_all_shortcuts(app: &AppHandle) {
+/// KB-242: returns the first failure (with the binding id named) instead
+/// of logging it - a binding that stayed suspended after the recorder
+/// closed is a dead hotkey reported as success.
+pub fn resume_all_shortcuts(app: &AppHandle) -> Result<(), String> {
     let settings = get_settings(app);
     for (id, binding) in &settings.bindings {
         if id == "cancel" {
@@ -593,9 +619,10 @@ pub fn resume_all_shortcuts(app: &AppHandle) {
             continue;
         }
         if let Err(e) = register_shortcut(app, binding.clone()) {
-            debug!("resume_all_shortcuts: could not register '{}': {}", id, e);
+            return Err(format!("could not resume the '{id}' shortcut: {e}"));
         }
     }
+    Ok(())
 }
 
 /// Temporarily unregister all bindings while the user is recording a
@@ -603,16 +630,14 @@ pub fn resume_all_shortcuts(app: &AppHandle) {
 #[tauri::command]
 #[specta::specta]
 pub fn suspend_all_bindings(app: AppHandle) -> Result<(), String> {
-    suspend_all_shortcuts(&app);
-    Ok(())
+    suspend_all_shortcuts(&app)
 }
 
 /// Re-register all bindings after the user has finished recording.
 #[tauri::command]
 #[specta::specta]
 pub fn resume_all_bindings(app: AppHandle) -> Result<(), String> {
-    resume_all_shortcuts(&app);
-    Ok(())
+    resume_all_shortcuts(&app)
 }
 
 // ============================================================================
@@ -1020,7 +1045,7 @@ pub fn change_companion_devices_setting(app: AppHandle, enabled: bool) -> Result
     settings::write_settings(&app, settings);
     // W1-L8: the tray's companion status block reads this toggle; re-sync
     // so the line flips with the click, exactly like the sibling toggles.
-    tray::update_tray_menu(&app);
+    let _ = tray::update_tray_menu(&app);
     Ok(())
 }
 
@@ -1192,7 +1217,7 @@ pub fn change_menu_bar_model_title_setting(app: AppHandle, enabled: bool) -> Res
     // Apply immediately (mirrors change_show_tray_icon_setting): a tray sync
     // recomputes the desired title, and the applier's applied_title diff
     // clears the displayed title when the setting turned off.
-    tray::update_tray_menu(&app);
+    let _ = tray::update_tray_menu(&app);
 
     Ok(())
 }
@@ -1253,11 +1278,15 @@ pub fn change_theme_setting(app: AppHandle, theme: String) -> Result<(), String>
     // KB-031: the tray icon is theme-dependent - re-sync so the menu bar
     // picks the icon for the new theme instead of the one chosen the last
     // time the tray was built. Runs after apply_window_theme, which the
-    // icon lookup reads the window theme from.
-    tray::update_tray_menu(&app);
+    // icon lookup reads the window theme from. KB-242: a failed re-sync
+    // (or a failed overlay notify) is returned like the binding setters
+    // return theirs, instead of being logged into a void while Settings
+    // reports success.
+    tray::update_tray_menu(&app)?;
     // Notify other webviews (the recording overlay) so they re-apply the palette
     // live - they set `data-theme` on their own document and can't see this one.
-    let _ = app.emit("theme-changed", parsed);
+    app.emit("theme-changed", parsed)
+        .map_err(|e| format!("Failed to notify the overlay of the theme change: {e}"))?;
     Ok(())
 }
 
@@ -1272,8 +1301,10 @@ pub fn change_accent_color_setting(app: AppHandle, accent: String) -> Result<(),
     settings.accent_color = accent.clone();
     settings::write_settings(&app, settings);
     // Notify other webviews (the recording overlay) so they re-apply the
-    // accent live - each window sets the palette override on its own document.
-    let _ = app.emit("accent-changed", accent);
+    // accent live - each window sets the palette override on its own
+    // document. KB-242: a failed notify is returned, not discarded.
+    app.emit("accent-changed", accent)
+        .map_err(|e| format!("Failed to notify the overlay of the accent change: {e}"))?;
     Ok(())
 }
 
@@ -1480,7 +1511,7 @@ pub fn change_update_checks_setting(app: AppHandle, enabled: bool) -> Result<(),
     // KB-034: the tray's "Check for Updates" item is enabled exactly while
     // this setting is on - re-sync so the tray reflects the toggle now
     // instead of after the next restart.
-    tray::update_tray_menu(&app);
+    let _ = tray::update_tray_menu(&app);
 
     let _ = app.emit(
         "settings-changed",
@@ -1807,7 +1838,7 @@ pub fn change_post_process_enabled_setting(app: AppHandle, enabled: bool) -> Res
     // while this setting is on - re-sync so the tray reflects the toggle
     // now instead of after the next unrelated rebuild (the same rule the
     // update-checks toggle follows, KB-034).
-    tray::update_tray_menu(&app);
+    let _ = tray::update_tray_menu(&app);
 
     crate::secure_input::reconcile_fallback(&app);
     Ok(())
@@ -1841,7 +1872,7 @@ pub fn change_experimental_enabled_setting(app: AppHandle, enabled: bool) -> Res
     settings::write_settings(&app, settings);
     // W1-L8: the tray's companion status reads the effective gate
     // (this switch AND the companion toggle), so it must re-sync here too.
-    tray::update_tray_menu(&app);
+    let _ = tray::update_tray_menu(&app);
     Ok(())
 }
 
@@ -1937,8 +1968,9 @@ pub fn set_post_process_provider(app: AppHandle, provider_id: String) -> Result<
     // KB-201: the provider flip drives post_process_local_active, which
     // decides whether the WHOLE Post-process Model submenu exists in the
     // tray - re-sync so the menu shape follows the switch now instead of
-    // after the next unrelated rebuild (the KB-031/034/188 rule).
-    tray::update_tray_menu(&app);
+    // after the next unrelated rebuild (the KB-031/034/188 rule). KB-242:
+    // the re-sync's failure is returned, not logged into a void.
+    tray::update_tray_menu(&app)?;
 
     Ok(())
 }
@@ -1973,7 +2005,7 @@ pub fn add_post_process_prompt(
     // KB-201 (KB-066 surface 1): the template library rides MenuInputs
     // (the Post-process Prompt submenu) - re-sync so a new template shows
     // up immediately.
-    tray::update_tray_menu(&app);
+    let _ = tray::update_tray_menu(&app);
 
     Ok(new_prompt)
 }
@@ -1994,7 +2026,7 @@ pub fn duplicate_post_process_prompt(app: AppHandle, id: String) -> Result<LLMPr
 
     // KB-201 (KB-066 surface 1): the duplicated template joins the prompt
     // submenu through MenuInputs - re-sync now.
-    tray::update_tray_menu(&app);
+    let _ = tray::update_tray_menu(&app);
 
     Ok(duplicate)
 }
@@ -2104,8 +2136,8 @@ pub(crate) fn cycle_prompt_and_notify(app: &AppHandle) -> Result<(), String> {
     // mid-session cycle refreshes it - but only while the badge is lit; a
     // dark badge stays dark (the cycle armed the NEXT session's template,
     // nothing current).
-    crate::transcription_coordinator::refresh_lit_post_process_badge(app);
-    tray::update_tray_menu(app);
+    let _ = crate::transcription_coordinator::refresh_lit_post_process_badge(app);
+    let _ = tray::update_tray_menu(app);
     Ok(())
 }
 
@@ -2156,6 +2188,41 @@ pub async fn test_post_process_prompt(
     )
 }
 
+/// KB-257: the studio batch cancellation generation. Batches are
+/// sequential and a cloud run can take as long as its provider timeout
+/// (up to 600s), while the Prompt Studio UI is a settings page the
+/// operator can navigate away from at any instant - the batch used to
+/// outlive its UI with no way to stop it, and remounting the page stacked
+/// a SECOND batch behind the orphaned one. A batch records the live
+/// generation when it starts and re-checks it between runs; the cancel
+/// command (and only it) bumps the generation, so one bump retires every
+/// in-flight batch while a batch started afterwards runs clean.
+static STUDIO_BATCH_GENERATION: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The generation a new batch should record as its own.
+pub(crate) fn studio_batch_generation() -> u64 {
+    STUDIO_BATCH_GENERATION.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+/// Cancel every in-flight studio batch (returns the new generation).
+pub(crate) fn cancel_studio_batches() -> u64 {
+    STUDIO_BATCH_GENERATION.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1
+}
+
+/// Whether a batch that recorded `started_at` has been cancelled.
+pub(crate) fn studio_batch_cancelled(started_at: u64) -> bool {
+    studio_batch_generation() != started_at
+}
+
+/// KB-257: the Prompt Studio's cancel affordance. Bumps the batch
+/// generation, so every in-flight `test_post_process_prompt_batch` stops
+/// before its next run and returns the results it already collected.
+#[tauri::command]
+#[specta::specta]
+pub fn cancel_post_process_prompt_batch() -> u64 {
+    cancel_studio_batches()
+}
+
 /// The Prompt Studio batch (v1.6.0 W1-L6): run a batch of (template,
 /// engine) pairs over ONE source transcript. Every pair runs through the
 /// exact engine lifecycle a dictation uses (provider + its configured
@@ -2173,7 +2240,10 @@ pub async fn test_post_process_prompt(
 /// Runs are sequential on purpose: the local engine is an exclusive memory
 /// swap (voice out, LLM in), so two concurrent local generations would
 /// fight over the swap on a memory-constrained machine. Results return in
-/// request order, each labeled with its request.
+/// request order, each labeled with its request. KB-257: the loop checks
+/// the cancellation generation between runs and returns the PARTIAL
+/// results when a cancel landed (the unstarted pairs mint no result, so
+/// the frontend can tell cancelled from finished).
 #[tauri::command]
 #[specta::specta]
 pub async fn test_post_process_prompt_batch(
@@ -2220,7 +2290,22 @@ pub async fn test_post_process_prompt_batch(
     };
 
     let mut results = Vec::with_capacity(runs.len());
-    for run in &runs {
+    // KB-257: the batch's cancellation token. A batch records the live
+    // generation at start; the cancel command bumps it, and every check
+    // between runs sees the mismatch and stops the loop. The partial
+    // results collected so far still return (their runs really happened
+    // and their pp: records exist); the pairs never started simply never
+    // mint a result.
+    let batch_generation = studio_batch_generation();
+    for (index, run) in runs.iter().enumerate() {
+        if studio_batch_cancelled(batch_generation) {
+            info!(
+                "studio batch cancelled after {} of {} runs",
+                index,
+                runs.len()
+            );
+            break;
+        }
         // Re-resolve instead of holding borrows across the await below.
         // validate_studio_batch already guaranteed these exist; the
         // ok_or is the defensive backstop, not a second opinion.
@@ -2280,14 +2365,16 @@ pub fn update_post_process_prompt(
         settings::write_settings(&app, settings);
 
         // KB-201 (KB-066 surface 1): a renamed template relabels its
-        // prompt-submenu entry through MenuInputs - re-sync now.
-        tray::update_tray_menu(&app);
+        // prompt-submenu entry through MenuInputs - re-sync now. KB-242:
+        // the re-sync's failure is returned, not logged into a void.
+        tray::update_tray_menu(&app)?;
 
         // v1.6.0 W1-L7 review residual: the badge names the SELECTED
         // template by its display name, so an edit that renames it must
         // refresh a lit badge (a body-only edit re-emits the same name;
-        // the helper is a no-op unless a session's badge is lit).
-        crate::transcription_coordinator::refresh_lit_post_process_badge(&app);
+        // the helper is a no-op unless a session's badge is lit). KB-242:
+        // a failed badge refresh is returned too.
+        crate::transcription_coordinator::refresh_lit_post_process_badge(&app)?;
 
         Ok(())
     } else {
@@ -2329,13 +2416,13 @@ pub fn delete_post_process_prompt(app: AppHandle, id: String) -> Result<(), Stri
     // KB-201 (KB-066 surface 1): the deleted template leaves the prompt
     // submenu (and may move its checkmark) through MenuInputs - re-sync
     // now.
-    tray::update_tray_menu(&app);
+    let _ = tray::update_tray_menu(&app);
 
     // v1.6.0 W1-L7 review residual: deleting the SELECTED template
     // silently moved the selection to the fallback (first) template above,
     // and the stop pipeline resolves whatever is selected at run time - a
     // lit badge must hear the new name, not keep naming the deleted one.
-    crate::transcription_coordinator::refresh_lit_post_process_badge(&app);
+    let _ = crate::transcription_coordinator::refresh_lit_post_process_badge(&app);
 
     Ok(())
 }
@@ -2545,14 +2632,14 @@ pub fn set_post_process_selected_prompt(app: AppHandle, id: String) -> Result<()
 
     // KB-201 (KB-066 surface 1): the selection moves the prompt submenu's
     // checkmark and label through MenuInputs - re-sync now.
-    tray::update_tray_menu(&app);
+    let _ = tray::update_tray_menu(&app);
 
     // v1.6.0 W1-L7 review fix: the settings dropdown and the tray submenu
     // both land here, and a live post-process session's badge names the
     // ACTIVE template - the same refresh the cycle hotkey performs, so the
     // chip can never keep naming the template the pipeline just stopped
     // using.
-    crate::transcription_coordinator::refresh_lit_post_process_badge(&app);
+    let _ = crate::transcription_coordinator::refresh_lit_post_process_badge(&app);
 
     Ok(())
 }
@@ -2842,7 +2929,7 @@ pub fn change_app_language_setting(app: AppHandle, language: String) -> Result<(
     settings::write_settings(&app, settings);
 
     // Refresh the tray menu with the new language
-    tray::update_tray_menu(&app);
+    let _ = tray::update_tray_menu(&app);
 
     Ok(())
 }
@@ -2947,8 +3034,9 @@ mod tests {
 
     use super::{
         bare_key_rejection, binding_conflicts_with_active_binding, binding_is_active,
-        cancel_rebind_retirement, companion_toggle_runtime_value, is_bare_key_binding,
-        normalize_headroom_mb, normalize_optional_setting, restore_registration_is_due,
+        cancel_rebind_retirement, cancel_studio_batches, companion_toggle_runtime_value,
+        is_bare_key_binding, normalize_headroom_mb, normalize_optional_setting,
+        restore_registration_is_due, studio_batch_cancelled, studio_batch_generation,
         validate_companion_network_override, POST_PROCESS_TOGGLE_BINDINGS,
     };
 
@@ -3221,6 +3309,147 @@ mod tests {
                 "{label} must refresh a lit PP badge after changing what it names"
             );
         }
+    }
+
+    /// KB-242: the change_* setters that drive other surfaces (the tray
+    /// menu, the overlay palette events, the lit PP badge) must PROPAGATE
+    /// those syncs' failures instead of discarding them - a discarded
+    /// failure is Settings reporting success while the menu bar, overlay,
+    /// or badge silently missed the change, and the suspend/resume pair
+    /// logging its unregister failures left armed shortcuts mid-capture
+    /// and dead hotkeys after it. Pinned against this committed source
+    /// because each write path is a Tauri command a unit test cannot
+    /// mount (the same convention as the lit-badge pin above).
+    #[test]
+    fn surface_syncs_propagate_their_failures_kb242() {
+        let source = include_str!("mod.rs");
+
+        let body_of = |marker: &str| -> String {
+            let at = source.find(marker).expect(marker);
+            let rest = &source[at..];
+            let end = rest.find("\n#[tauri::command]").unwrap_or(rest.len());
+            rest[..end].to_string()
+        };
+
+        let theme = body_of("fn change_theme_setting");
+        assert!(
+            theme.contains("tray::update_tray_menu(&app)?;"),
+            "change_theme_setting must propagate the tray re-sync"
+        );
+        assert!(
+            theme.contains("\"theme-changed\", parsed)") && theme.contains("map_err"),
+            "change_theme_setting must propagate the overlay notify"
+        );
+
+        let accent = body_of("fn change_accent_color_setting");
+        assert!(
+            accent.contains("\"accent-changed\", accent)") && accent.contains("map_err"),
+            "change_accent_color_setting must propagate the overlay notify"
+        );
+
+        let provider = body_of("fn set_post_process_provider");
+        assert!(
+            provider.contains("tray::update_tray_menu(&app)?;"),
+            "set_post_process_provider must propagate the tray re-sync"
+        );
+
+        let edit = body_of("fn update_post_process_prompt");
+        assert!(
+            edit.contains("tray::update_tray_menu(&app)?;"),
+            "update_post_process_prompt must propagate the tray re-sync"
+        );
+        assert!(
+            edit.contains("refresh_lit_post_process_badge(&app)?;"),
+            "update_post_process_prompt must propagate the badge refresh"
+        );
+
+        let suspend = body_of("pub fn suspend_all_shortcuts");
+        assert!(
+            suspend.contains("could not suspend the '{id}' shortcut"),
+            "suspend_all_shortcuts must return (not log) its first failure"
+        );
+        let resume = body_of("pub fn resume_all_shortcuts");
+        assert!(
+            resume.contains("could not resume the '{id}' shortcut"),
+            "resume_all_shortcuts must return (not log) its first failure"
+        );
+        for marker in ["fn suspend_all_bindings", "fn resume_all_bindings"] {
+            let command = body_of(marker);
+            assert!(
+                !command.trim_end().ends_with("Ok(())") || command.contains("?"),
+                "{marker} must hand the delegated Result through, not re-wrap a discarded call"
+            );
+        }
+    }
+
+    /// KB-243: both change_binding branches must ABORT on a failed
+    /// old-binding unregister instead of logging it and reporting success
+    /// with the stale chord still live, and the cancel branch (which has
+    /// already persisted the new chord) must roll the stored binding back
+    /// to the chord that is still registered. The tauri impl must treat
+    /// an unregistered chord as success so a recorder commit made while
+    /// everything is suspended still goes through. Source-pinned (Tauri
+    /// command, no unit-test harness).
+    #[test]
+    fn unregister_failure_aborts_the_change_kb243() {
+        let source = include_str!("mod.rs");
+
+        // The cancel branch: rollback then Err.
+        let cancel_at = source
+            .find("if let Some(retired) = cancel_rebind_retirement(&previous)")
+            .expect("the cancel retirement block");
+        let cancel_block = &source[cancel_at..cancel_at + 1600];
+        assert!(
+            cancel_block.contains("rollback.bindings.insert(id.clone(), previous.clone())")
+                && cancel_block.contains("return Err(error_msg);"),
+            "a failed cancel retirement must roll the stored binding back and refuse"
+        );
+
+        // The generic branch: Err before anything else is touched.
+        let generic_at = source
+            .find("KB-243: a failed unregister ABORTS the change")
+            .expect("the generic-branch abort comment");
+        let generic_block = &source[generic_at..generic_at + 1400];
+        assert!(
+            generic_block.contains("return Err(error_msg);"),
+            "a failed unregister must abort the rebind"
+        );
+
+        // The idempotence that keeps suspended-state commits working.
+        let tauri_impl = include_str!("tauri_impl.rs");
+        let guard_at = tauri_impl
+            .find("KB-243 groundwork")
+            .expect("the idempotent-unregister guard");
+        let guard_block = &tauri_impl[guard_at..guard_at + 900];
+        assert!(
+            guard_block.contains("is_registered(shortcut)")
+                && guard_block.contains("return Ok(())"),
+            "unregistering an unregistered chord must read as success"
+        );
+    }
+
+    /// KB-257: the batch cancellation generation. A batch records the
+    /// generation at start; the cancel bump retires exactly the batches
+    /// that started before it, and a batch started after the bump runs
+    /// clean. This is the whole contract the between-runs check and the
+    /// frontend cancel button lean on.
+    #[test]
+    fn studio_batch_cancel_generation_retires_only_older_batches_kb257() {
+        let started = studio_batch_generation();
+        assert!(
+            !studio_batch_cancelled(started),
+            "a fresh batch is not cancelled"
+        );
+        cancel_studio_batches();
+        assert!(
+            studio_batch_cancelled(started),
+            "the bump cancels batches that started before it"
+        );
+        let after_bump = studio_batch_generation();
+        assert!(
+            !studio_batch_cancelled(after_bump),
+            "a batch started after the bump runs clean"
+        );
     }
 
     /// Duplicating a template: fresh id, " copy" name, user flags
