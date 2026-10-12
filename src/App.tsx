@@ -129,12 +129,20 @@ function App() {
   );
   const hasCompletedPostOnboardingInit = useRef(false);
   const settingsScrollRef = useRef<HTMLDivElement | null>(null);
-  // Whether the settings pane still has content below the fold. Drives the
-  // bottom fade above the footer so a pane that clips mid-row at its resting
-  // scroll reads as scrollable instead of as a rendering defect.
-  const [contentScrollable, setContentScrollable] = useState(false);
+  // Geometry of the painted scroll indicator + bottom fade for the settings
+  // pane. `scrollable` says the pane has content below (or above) the fold;
+  // the thumb percentages place a painted scrollbar indicator so the pane
+  // reads as scrollable at its resting position. The native scrollbar stays
+  // interactive (macOS draws it as an overlay while scrolling); headless
+  // screenshot rigs never paint native scrollbars at all, so a painted
+  // indicator is the only affordance that shows everywhere.
+  const [scrollState, setScrollState] = useState<{
+    scrollable: boolean;
+    thumbTopPct: number;
+    thumbHeightPct: number;
+  }>({ scrollable: false, thumbTopPct: 0, thumbHeightPct: 100 });
   // Flips when the settings scroll container mounts/unmounts (it only
-  // exists once onboarding is out of the way), so the fade-tracking effect
+  // exists once onboarding is out of the way), so the scroll-tracking effect
   // below attaches to the real node instead of running once against null.
   const [settingsShellMounted, setSettingsShellMounted] = useState(false);
   const isShowingOnboarding =
@@ -156,17 +164,38 @@ function App() {
     settingsScrollRef.current?.scrollTo({ top: 0 });
   }, [currentSection]);
 
-  // Track whether the settings scroller can still move: the fade must appear
-  // and disappear as content loads, the section changes, or the user scrolls.
-  // A ResizeObserver on the scroller and its children catches async content
-  // growth (history entries, model lists) without polling.
+  // Track whether the settings scroller can still move and where its thumb
+  // sits: the indicator and fade must appear, move and disappear as content
+  // loads, the section changes, or the user scrolls. A ResizeObserver on the
+  // scroller and its children catches async content growth (history entries,
+  // model lists) without polling.
   useEffect(() => {
     const scroller = settingsScrollRef.current;
     if (!scroller || !settingsShellMounted) return;
     const measure = () => {
-      setContentScrollable(
-        scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight > 4,
+      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+      if (maxScroll <= 4) {
+        setScrollState({
+          scrollable: false,
+          thumbTopPct: 0,
+          thumbHeightPct: 100,
+        });
+        return;
+      }
+      // Thumb size mirrors the viewport fraction of the content (clamped to a
+      // minimum so long lists still show a grabbable-looking thumb, matching
+      // the native scrollbar convention), and its top follows the scroll
+      // position across the remaining track.
+      const heightPct = Math.max(
+        (scroller.clientHeight / scroller.scrollHeight) * 100,
+        8,
       );
+      const travel = Math.min(scroller.scrollTop / maxScroll, 1);
+      setScrollState({
+        scrollable: true,
+        thumbTopPct: travel * (100 - heightPct),
+        thumbHeightPct: heightPct,
+      });
     };
     const observer = new ResizeObserver(measure);
     observer.observe(scroller);
@@ -823,30 +852,56 @@ function App() {
             <div className="shrink-0 border-b border-mid-gray/20 px-4 pb-3 pt-4">
               <SettingsSearch onSelect={setCurrentSection} />
             </div>
-            <div
-              ref={(node) => {
-                settingsScrollRef.current = node;
-                setSettingsShellMounted(Boolean(node));
-              }}
-              data-settings-scroll=""
-              className="settings-scroll flex-1 overflow-y-auto"
-            >
-              <div className="flex flex-col items-center px-4 pb-10 pt-4 gap-4">
-                <AccessibilityPermissions />
-                <SecureInputWarning />
-                {renderSettingsContent(currentSection, setOnboardingPreview)}
-              </div>
-            </div>
-            {/* Bottom fade above the footer: only while content continues
-                below the fold, so a pane that ends mid-row at its resting
-                scroll reads as scrollable (with the inset scrollbar) instead
-                of as a clipped edge. */}
-            {contentScrollable && (
+            {/* The scroller and its painted affordances share one relative
+                wrapper so the indicator's track always spans exactly the
+                scroll viewport, whatever the pinned header's height. */}
+            <div className="relative min-h-0 flex-1">
               <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-b from-transparent to-background"
-              />
-            )}
+                ref={(node) => {
+                  settingsScrollRef.current = node;
+                  setSettingsShellMounted(Boolean(node));
+                }}
+                data-settings-scroll=""
+                className="absolute inset-0 overflow-y-auto"
+              >
+                <div className="flex flex-col items-center px-4 pb-10 pt-4 gap-4">
+                  <AccessibilityPermissions />
+                  <SecureInputWarning />
+                  {renderSettingsContent(currentSection, setOnboardingPreview)}
+                </div>
+              </div>
+              {scrollState.scrollable && (
+                <>
+                  {/* Painted scroll indicator: a thin inset track with a thumb
+                      that mirrors position and size. Native scrollbars are
+                      invisible in headless capture and, on macOS, only appear
+                      as overlays during scrolling, so this painted thumb is
+                      the persistent "there is more below" affordance. It is
+                      decorative (pointer-events-none); scrolling itself stays
+                      native. */}
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute end-1 top-2 bottom-3 z-10 w-1.5 rounded-full bg-mid-gray/25"
+                  >
+                    <div
+                      className="absolute inset-x-0 rounded-full bg-text/50"
+                      style={{
+                        top: `${scrollState.thumbTopPct}%`,
+                        height: `${scrollState.thumbHeightPct}%`,
+                      }}
+                    />
+                  </div>
+                  {/* Bottom fade above the footer: only while content
+                      continues below the fold, so a pane that ends mid-row at
+                      its resting scroll reads as scrollable instead of as a
+                      clipped edge. */}
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-b from-transparent to-background"
+                  />
+                </>
+              )}
+            </div>
           </div>
         </div>
         {/* Fixed footer at bottom */}
