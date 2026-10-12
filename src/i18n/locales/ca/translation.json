@@ -686,6 +686,7 @@
         "noDevices": "Encara no hi ha dispositius connectats",
         "resetPairing": "Restableix la vinculació",
         "fingerprintLabel": "Empremta del certificat (SHA-256)",
+        "fingerprintCopied": "Copiat",
         "firewallNote": "macOS pot demanar permetre connexions entrants el primer cop que ho activis. Permet-ho, o els mòbils no arribaran a aquest Mac.",
         "unavailable": "Els dispositius acompanyants requereixen macOS en aquest cicle.",
         "serverError": "El servidor ha fallat: {{error}}",
@@ -938,6 +939,7 @@
       "save": "Desa la transcripció",
       "unsave": "Treu de les desades",
       "delete": "Suprimeix l'entrada",
+      "deleteConfirm": "Vols suprimir aquesta entrada? L'enregistrament i la seva transcripció s'eliminaran permanentment.",
       "deleteError": "No s'ha pogut suprimir l'entrada. Torneu-ho a provar.",
       "retranscribe": "Torneu a transcriure",
       "retranscribeError": "No s'ha pogut tornar a transcriure. Torneu-ho a provar.",
@@ -975,6 +977,7 @@
         "pause": "Pauseu",
         "resume": "Repreneu",
         "copied": "Copiat",
+        "clearConfirm": "Vols esborrar les línies capturades d'aquesta vista? El fitxer de registre del disc es conserva.",
         "lineCount": "{{count}} línies",
         "empty": "S'estan esperant registres… Les entrades apareixeran aquí a mesura que l'aplicació les emeti."
       },

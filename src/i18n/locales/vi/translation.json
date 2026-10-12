@@ -686,6 +686,7 @@
         "noDevices": "Chưa có thiết bị nào kết nối",
         "resetPairing": "Đặt lại ghép nối",
         "fingerprintLabel": "Dấu vân tay chứng chỉ (SHA-256)",
+        "fingerprintCopied": "Đã sao chép",
         "firewallNote": "Lần bật đầu tiên, macOS có thể hỏi cho phép kết nối đến. Hãy cho phép, nếu không điện thoại sẽ không kết nối được với máy Mac này.",
         "unavailable": "Thiết bị đồng hành cần macOS trong chu kỳ này.",
         "serverError": "Máy chủ lỗi: {{error}}",
@@ -938,6 +939,7 @@
       "save": "Lưu bản ghi",
       "unsave": "Xóa khỏi đã lưu",
       "delete": "Xóa mục",
+      "deleteConfirm": "Xóa mục này? Bản ghi âm và bản chép lời của nó sẽ bị xóa vĩnh viễn.",
       "deleteError": "Không thể xóa mục. Vui lòng thử lại.",
       "retranscribe": "Phiên âm lại",
       "retranscribeError": "Không thể phiên âm lại. Vui lòng thử lại.",
@@ -975,6 +977,7 @@
         "pause": "Tạm dừng",
         "resume": "Tiếp tục",
         "copied": "Đã sao chép",
+        "clearConfirm": "Xóa các dòng đã ghi trong chế độ xem này? Tệp nhật ký trên đĩa vẫn được giữ.",
         "lineCount": "{{count}} dòng",
         "empty": "Đang chờ nhật ký… Các mục sẽ xuất hiện ở đây khi ứng dụng phát ra."
       },

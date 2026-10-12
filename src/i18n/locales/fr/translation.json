@@ -686,6 +686,7 @@
         "noDevices": "Aucun appareil connecté pour l'instant",
         "resetPairing": "Réinitialiser le jumelage",
         "fingerprintLabel": "Empreinte du certificat (SHA-256)",
+        "fingerprintCopied": "Copié",
         "firewallNote": "macOS peut demander d'autoriser les connexions entrantes au premier activage. Autorisez-les, sinon les téléphones ne peuvent pas joindre ce Mac.",
         "unavailable": "Les appareils compagnons nécessitent macOS pour ce cycle.",
         "serverError": "Échec du serveur : {{error}}",
@@ -938,6 +939,7 @@
       "save": "Enregistrer la transcription",
       "unsave": "Retirer des favoris",
       "delete": "Supprimer l'entrée",
+      "deleteConfirm": "Supprimer cette entrée ? L'enregistrement et sa transcription seront définitivement supprimés.",
       "deleteError": "Échec de la suppression de l'entrée. Veuillez réessayer.",
       "retranscribe": "Re-transcrire",
       "retranscribeError": "Impossible de re-transcrire. Veuillez réessayer.",
@@ -975,6 +977,7 @@
         "pause": "Pause",
         "resume": "Reprendre",
         "copied": "Copié",
+        "clearConfirm": "Effacer les lignes capturées de cette vue ? Le fichier journal sur le disque est conservé.",
         "lineCount": "{{count}} lignes",
         "empty": "En attente de journaux… Les entrées apparaîtront ici au fur et à mesure que l'application les émet."
       },

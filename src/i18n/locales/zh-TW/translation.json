@@ -686,6 +686,7 @@
         "noDevices": "還沒有裝置連線",
         "resetPairing": "重設配對",
         "fingerprintLabel": "憑證指紋（SHA-256）",
+        "fingerprintCopied": "已複製",
         "firewallNote": "首次開啟時 macOS 可能請求允許傳入連線。請允許，否則手機無法連到這台 Mac。",
         "unavailable": "伴侶裝置在本週期需要 macOS。",
         "serverError": "伺服器失敗：{{error}}",
@@ -938,6 +939,7 @@
       "save": "儲存轉錄",
       "unsave": "從已儲存中移除",
       "delete": "刪除條目",
+      "deleteConfirm": "刪除此項目？錄音及其逐字稿將被永久刪除。",
       "deleteError": "刪除條目失敗，請重試",
       "retranscribe": "重新轉錄",
       "retranscribeError": "重新轉錄失敗，請重試。",
@@ -975,6 +977,7 @@
         "pause": "暫停",
         "resume": "繼續",
         "copied": "已複製",
+        "clearConfirm": "清除此檢視中擷取的行？磁碟上的日誌檔會保留。",
         "lineCount": "{{count}} 行",
         "empty": "正在等待日誌…… 應用程式產生日誌時會顯示於此。"
       },

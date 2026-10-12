@@ -686,6 +686,7 @@
         "noDevices": "Belum ada perangkat tersambung",
         "resetPairing": "Atur ulang pemasangan",
         "fingerprintLabel": "Sidik jari sertifikat (SHA-256)",
+        "fingerprintCopied": "Disalin",
         "firewallNote": "macOS mungkin meminta izin koneksi masuk saat pertama diaktifkan. Izinkan, jika tidak ponsel tidak dapat menjangkau Mac ini.",
         "unavailable": "Perangkat pendamping memerlukan macOS pada siklus ini.",
         "serverError": "Server gagal: {{error}}",
@@ -938,6 +939,7 @@
       "save": "Simpan transkripsi",
       "unsave": "Hapus dari daftar tersimpan",
       "delete": "Hapus entri",
+      "deleteConfirm": "Hapus entri ini? Rekaman dan transkripsinya akan dihapus secara permanen.",
       "deleteError": "Gagal menghapus entri. Silakan coba lagi.",
       "retranscribe": "Transkripsikan ulang",
       "retranscribeError": "Gagal mentranskripsikan ulang. Silakan coba lagi.",
@@ -975,6 +977,7 @@
         "pause": "Jeda",
         "resume": "Lanjutkan",
         "copied": "Disalin",
+        "clearConfirm": "Hapus baris yang ditangkap dari tampilan ini? File log di disk tetap disimpan.",
         "lineCount": "{{count}} baris",
         "empty": "Menunggu log… Entri akan muncul di sini saat aplikasi menghasilkannya."
       },

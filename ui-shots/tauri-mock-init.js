@@ -691,6 +691,10 @@
     "plugin:opener|open_path": () => null,
     "plugin:opener|reveal_item_in_dir": () => null,
     "plugin:dialog|open": () => null,
+    // Native confirm() dialogs auto-accept under the rig: the screenshot
+    // asserts styling and states, not the OS dialog chrome.
+    "plugin:dialog|ask": () => true,
+    "plugin:dialog|confirm": () => true,
     "plugin:fs|read_text_file": () => "",
     "plugin:fs|read_file": () => new ArrayBuffer(0),
     "plugin:autostart|is_enabled": () => state.settings.autostart_enabled,
@@ -956,7 +960,11 @@
       port: 4177,
       qr_svg:
         '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" fill="#fff"/><rect x="8" y="8" width="24" height="24" fill="#000"/><rect x="64" y="8" width="24" height="24" fill="#000"/><rect x="8" y="64" width="24" height="24" fill="#000"/><rect x="44" y="44" width="8" height="8" fill="#000"/><rect x="60" y="60" width="12" height="12" fill="#000"/></svg>',
-      fingerprint: "3f:9a:c2:11:7e:04:bb:58:d0:21:af:63:90:1c:4d:e7",
+      // Raw 64-char lowercase hex, the exact shape companion/cert.rs
+      // fingerprint_hex emits (full 32-byte SHA-256); the settings panel
+      // groups it for display.
+      fingerprint:
+        "3f9ac2117e04bb58d021af63901c4de7a5c93f60be147df02c88a3d14597f6e2",
       token: "0123456789abcdef0123456789abcdef",
       subnet: "192.168.1.0/24",
       last_device: "Shahil's iPhone",

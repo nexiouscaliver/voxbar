@@ -273,7 +273,14 @@
   overflow-wrap: break-word;
 }
 .stext-cap .tentative {
-  color: inherit;
+  /* The live recognized words are the user's own current speech: full
+     text color, upright and slightly heavier against the italic dimmed
+     committed text, so on the core surface the boundary between what is
+     finalized and what is still being heard (and can still change) is
+     visible at a glance. The pink caret follows this span. */
+  color: var(--color-text);
+  font-style: normal;
+  font-weight: 500;
 }
 .scaret {
   display: inline-block;

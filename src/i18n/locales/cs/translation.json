@@ -686,6 +686,7 @@
         "noDevices": "Zatím žádná připojená zařízení",
         "resetPairing": "Resetovat párování",
         "fingerprintLabel": "Otisk certifikátu (SHA-256)",
+        "fingerprintCopied": "Zkopírováno",
         "firewallNote": "macOS může při prvním zapnutí požádat o povolení příchozích spojení. Povolte je, jinak telefony tohoto Maca nenajdou.",
         "unavailable": "Doprovodná zařízení v tomto cyklu vyžadují macOS.",
         "serverError": "Server selhal: {{error}}",
@@ -942,6 +943,7 @@
       "save": "Uložit přepis",
       "unsave": "Odebrat z uložených",
       "delete": "Smazat záznam",
+      "deleteConfirm": "Odstranit tuto položku? Nahrávka i její přepis budou trvale odstraněny.",
       "deleteError": "Nepodařilo se smazat záznam. Zkuste to prosím znovu.",
       "retranscribe": "Přepsat znovu",
       "retranscribeError": "Opětovný přepis se nezdařil. Zkuste to prosím znovu.",
@@ -979,6 +981,7 @@
         "pause": "Pozastavit",
         "resume": "Pokračovat",
         "copied": "Zkopírováno",
+        "clearConfirm": "Vymazat zachycené řádky z tohoto zobrazení? Soubor protokolu na disku zůstane zachován.",
         "lineCount": "Řádků: {{count}}",
         "empty": "Čekání na logy… Záznamy se zde zobrazí, jakmile je aplikace vygeneruje."
       },

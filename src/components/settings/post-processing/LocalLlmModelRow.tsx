@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
+import { ask } from "@tauri-apps/plugin-dialog";
+import { Trash2 } from "lucide-react";
 import {
   commands,
   type LlmModelEntry,
@@ -129,6 +131,15 @@ export const LocalLlmModelRow: React.FC = () => {
   }, [refreshStatus]);
 
   const handleDelete = useCallback(async () => {
+    // Destructive and unrecoverable without a re-download: confirm first,
+    // the same native warning dialog the Models page delete uses.
+    const confirmed = await ask(
+      t("settings.models.deleteConfirm", {
+        modelName: LOCAL_LLM_MODEL_NAME,
+      }),
+      { kind: "warning" },
+    );
+    if (!confirmed) return;
     setDeleteRefused(false);
     setDeleteFailure(null);
     setDownloadError(null);
@@ -146,7 +157,7 @@ export const LocalLlmModelRow: React.FC = () => {
       }
     }
     await refreshStatus();
-  }, [refreshStatus]);
+  }, [refreshStatus, t]);
 
   const statusText = isStatusUnknown
     ? t("settings.postProcessing.local.modelStatus.checking")
@@ -180,10 +191,12 @@ export const LocalLlmModelRow: React.FC = () => {
         {isDownloaded ? (
           <Button
             onClick={() => void handleDelete()}
-            variant="secondary"
+            variant="danger-ghost"
             size="md"
             disabled={isDownloading}
+            className="flex items-center gap-1.5"
           >
+            <Trash2 className="w-3.5 h-3.5" aria-hidden="true" />
             {t("settings.postProcessing.local.delete")}
           </Button>
         ) : (

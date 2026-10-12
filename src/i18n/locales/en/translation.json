@@ -686,6 +686,7 @@
         "noDevices": "No devices connected yet",
         "resetPairing": "Reset pairing",
         "fingerprintLabel": "Certificate fingerprint (SHA-256)",
+        "fingerprintCopied": "Copied",
         "firewallNote": "macOS may ask to allow incoming connections the first time you enable this. Allow it, or phones cannot reach this Mac.",
         "unavailable": "Companion devices need macOS this cycle.",
         "serverError": "Server failed: {{error}}",
@@ -938,6 +939,7 @@
       "save": "Save transcription",
       "unsave": "Remove from saved",
       "delete": "Delete entry",
+      "deleteConfirm": "Delete this entry? The recording and its transcript will be removed permanently.",
       "deleteError": "Failed to delete entry. Please try again.",
       "retranscribe": "Re-transcribe",
       "retranscribeError": "Failed to re-transcribe. Please try again.",
@@ -975,6 +977,7 @@
         "pause": "Pause",
         "resume": "Resume",
         "copied": "Copied",
+        "clearConfirm": "Clear the captured lines from this view? The log file on disk is kept.",
         "lineCount": "{{count}} lines",
         "empty": "Waiting for logs… Entries appear here as the app emits them."
       },

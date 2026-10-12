@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { SettingContainer } from "../../ui/SettingContainer";
 import { Button } from "../../ui/Button";
 
@@ -151,10 +152,17 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
   }, []);
 
   const handleClear = useCallback(() => {
-    pendingRef.current = [];
-    setLogs([]);
-    pinnedRef.current = true;
-  }, []);
+    // Destructive: the captured lines are gone (the log file on disk is
+    // kept), so the clear sits behind a confirm like every delete.
+    void ask(t("settings.debug.liveLogs.clearConfirm"), {
+      kind: "warning",
+    }).then((confirmed) => {
+      if (!confirmed) return;
+      pendingRef.current = [];
+      setLogs([]);
+      pinnedRef.current = true;
+    });
+  }, [t]);
 
   const handleCopy = useCallback(async () => {
     const text = logs
@@ -213,7 +221,7 @@ export const LiveLogViewer: React.FC<LiveLogViewerProps> = ({
             {copied ? t("settings.debug.liveLogs.copied") : t("common.copy")}
           </Button>
           <Button
-            variant="secondary"
+            variant="danger-ghost"
             size="sm"
             onClick={handleClear}
             disabled={logs.length === 0}

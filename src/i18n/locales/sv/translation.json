@@ -686,6 +686,7 @@
         "noDevices": "Inga enheter anslutna än",
         "resetPairing": "Återställ parkoppling",
         "fingerprintLabel": "Certifikatfingeravtryck (SHA-256)",
+        "fingerprintCopied": "Kopierad",
         "firewallNote": "macOS kan vid första aktiveringen fråga om inkommande anslutningar ska tillåtas. Tillåt, annars når telefoner inte den här Macen.",
         "unavailable": "Kompanionenheter kräver macOS i den här cykeln.",
         "serverError": "Servern misslyckades: {{error}}",
@@ -938,6 +939,7 @@
       "save": "Spara transkription",
       "unsave": "Ta bort från sparade",
       "delete": "Ta bort post",
+      "deleteConfirm": "Radera den här posten? Inspelningen och dess transkription tas bort permanent.",
       "deleteError": "Misslyckades med att ta bort post. Försök igen.",
       "retranscribe": "Transkribera igen",
       "retranscribeError": "Misslyckades med att transkribera igen. Försök igen.",
@@ -975,6 +977,7 @@
         "pause": "Pausa",
         "resume": "Återuppta",
         "copied": "Kopierad",
+        "clearConfirm": "Rensa de fångade raderna från den här vyn? Loggfilen på disken behålls.",
         "lineCount": "{{count}} rader",
         "empty": "Väntar på loggar… Poster visas här när appen skickar dem."
       },

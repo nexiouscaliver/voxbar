@@ -63,7 +63,12 @@ const CheckRow: React.FC<{
     <span className="min-w-0 flex-1">
       <span className="block text-sm font-medium truncate">{label}</span>
       {note ? (
-        <span className="block text-xs text-secondary truncate">{note}</span>
+        /* The sublabel wraps instead of ellipsizing: it names where to go
+           ("No model set. Choose one in Post Process.") and a cut-off
+           destination is a dead end. */
+        <span className="block text-xs leading-snug text-secondary break-words">
+          {note}
+        </span>
       ) : null}
     </span>
   </label>

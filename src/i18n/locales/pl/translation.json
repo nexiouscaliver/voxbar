@@ -686,6 +686,7 @@
         "noDevices": "Brak połączonych urządzeń",
         "resetPairing": "Resetuj parowanie",
         "fingerprintLabel": "Odcisk certyfikatu (SHA-256)",
+        "fingerprintCopied": "Skopiowano",
         "firewallNote": "macOS może przy pierwszym włączeniu poprosić o zezwolenie na połączenia przychodzące. Zezwól, inaczej telefony nie dotrą do tego Maca.",
         "unavailable": "Urządzenia towarzyszące w tym cyklu wymagają macOS.",
         "serverError": "Serwer nie działa: {{error}}",
@@ -942,6 +943,7 @@
       "save": "Zapisz transkrypcję",
       "unsave": "Usuń z zapisanych",
       "delete": "Usuń wpis",
+      "deleteConfirm": "Usunąć ten wpis? Nagranie i jego transkrypcja zostaną trwale usunięte.",
       "deleteError": "Nie udało się usunąć wpisu. Spróbuj ponownie.",
       "retranscribe": "Transkrybuj ponownie",
       "retranscribeError": "Nie udało się ponownie transkrybować. Spróbuj ponownie.",
@@ -979,6 +981,7 @@
         "pause": "Wstrzymaj",
         "resume": "Wznów",
         "copied": "Skopiowano",
+        "clearConfirm": "Wyczyścić przechwycone wiersze z tego widoku? Plik dziennika na dysku zostanie zachowany.",
         "lineCount": "Wierszy: {{count}}",
         "empty": "Oczekiwanie na logi… Wpisy pojawią się tutaj, gdy aplikacja je wygeneruje."
       },

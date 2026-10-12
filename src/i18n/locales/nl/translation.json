@@ -686,6 +686,7 @@
         "noDevices": "Nog geen apparaten verbonden",
         "resetPairing": "Koppeling herstellen",
         "fingerprintLabel": "Certificaat-vingerafdruk (SHA-256)",
+        "fingerprintCopied": "Gekopieerd",
         "firewallNote": "macOS kan bij de eerste keer inschakelen vragen inkomende verbindingen toe te staan. Sta het toe, anders bereiken telefoons deze Mac niet.",
         "unavailable": "Companion-apparaten vereisen macOS in deze cyclus.",
         "serverError": "Server mislukt: {{error}}",
@@ -938,6 +939,7 @@
       "save": "Transcriptie opslaan",
       "unsave": "Verwijderen uit opgeslagen",
       "delete": "Item verwijderen",
+      "deleteConfirm": "Dit item verwijderen? De opname en het transcript worden permanent verwijderd.",
       "deleteError": "Item verwijderen mislukt. Probeer het opnieuw.",
       "retranscribe": "Opnieuw transcriberen",
       "retranscribeError": "Opnieuw transcriberen mislukt. Probeer het opnieuw.",
@@ -975,6 +977,7 @@
         "pause": "Pauzeren",
         "resume": "Hervatten",
         "copied": "Gekopieerd",
+        "clearConfirm": "De vastgelegde regels uit deze weergave wissen? Het logbestand op schijf blijft bewaard.",
         "lineCount": "{{count}} regels",
         "empty": "Wachten op logboeken... Meldingen verschijnen hier zodra de app ze genereert."
       },

@@ -686,6 +686,7 @@
         "noDevices": "Nessun dispositivo collegato",
         "resetPairing": "Reimposta abbinamento",
         "fingerprintLabel": "Impronta del certificato (SHA-256)",
+        "fingerprintCopied": "Copiato",
         "firewallNote": "al primo attivazione macOS può chiedere di consentire le connessioni in entrata. Consenti, altrimenti i telefoni non raggiungono questo Mac.",
         "unavailable": "I dispositivi companion richiedono macOS in questo ciclo.",
         "serverError": "Server non riuscito: {{error}}",
@@ -938,6 +939,7 @@
       "save": "Salva la trascrizione",
       "unsave": "Rimuovi dai salvataggi",
       "delete": "Elimina elemento",
+      "deleteConfirm": "Eliminare questa voce? La registrazione e la sua trascrizione verranno rimosse definitivamente.",
       "deleteError": "Errore nell'eliminazione dell'elemento. Riprova.",
       "retranscribe": "Ri-trascrivere",
       "retranscribeError": "Impossibile ri-trascrivere. Riprova.",
@@ -975,6 +977,7 @@
         "pause": "Pausa",
         "resume": "Riprendi",
         "copied": "Copiato",
+        "clearConfirm": "Cancellare le righe acquisite da questa vista? Il file di log su disco viene mantenuto.",
         "lineCount": "{{count}} righe",
         "empty": "In attesa di log… Le voci appariranno qui man mano che l'app le emette."
       },

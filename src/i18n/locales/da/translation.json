@@ -686,6 +686,7 @@
         "noDevices": "Ingen enheder tilsluttet endnu",
         "resetPairing": "Nulstil parring",
         "fingerprintLabel": "Certifikatfingeraftryk (SHA-256)",
+        "fingerprintCopied": "Kopieret",
         "firewallNote": "macOS kan ved første aktivering spørge om indgående forbindelser skal tillades. Tillad det, ellers kan telefoner ikke nå denne Mac.",
         "unavailable": "Følgeenheder kræver macOS i denne cyklus.",
         "serverError": "Serveren fejlede: {{error}}",
@@ -938,6 +939,7 @@
       "save": "Gem transskription",
       "unsave": "Fjern fra gemte",
       "delete": "Slet post",
+      "deleteConfirm": "Slet denne post? Optagelsen og dens transskription fjernes permanent.",
       "deleteError": "Kunne ikke slette posten. Prøv igen.",
       "retranscribe": "Transskribér igen",
       "retranscribeError": "Kunne ikke transskribere igen. Prøv igen.",
@@ -975,6 +977,7 @@
         "pause": "Pause",
         "resume": "Genoptag",
         "copied": "Kopieret",
+        "clearConfirm": "Ryd de opsamlede linjer i denne visning? Logfilen på disken bevares.",
         "lineCount": "{{count}} linjer",
         "empty": "Venter på logs… Poster vises her, når appen udsender dem."
       },

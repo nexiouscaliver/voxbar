@@ -300,30 +300,33 @@ export const CommandsSettings: React.FC = () => {
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex min-w-40 flex-1 items-center gap-2">
-          <Search
-            className="h-4 w-4 shrink-0 text-mid-gray"
-            aria-hidden="true"
-          />
-          <Input
-            type="text"
-            variant="compact"
-            className="w-full"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("settings.commands.searchPlaceholder")}
-            aria-label={t("settings.commands.searchPlaceholder")}
-          />
-        </div>
+      {/* The pane's own filter reads as a scoped list filter, not a second
+          copy of the boxed "Search settings" field pinned above it: compact,
+          right-aligned, underline-only, glyph inside the field. The
+          destructive reset-all sits opposite it, separated. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button
-          variant="secondary"
+          variant="danger-ghost"
           size="sm"
           onClick={() => setResetAllOpen(true)}
           disabled={busy}
         >
           {t("settings.commands.resetAll")}
         </Button>
+        <div className="relative w-56 max-w-full">
+          <Search
+            className="pointer-events-none absolute start-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text/40"
+            aria-hidden="true"
+          />
+          <input
+            type="text"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("settings.commands.searchPlaceholder")}
+            aria-label={t("settings.commands.searchPlaceholder")}
+            className="w-full rounded-none border-0 border-b border-mid-gray/50 bg-transparent py-1 ps-7 pe-2 text-sm transition-colors placeholder:text-text/40 hover:border-mid-gray focus:border-logo-primary focus:outline-none"
+          />
+        </div>
       </div>
 
       {!filtering && (
@@ -380,7 +383,7 @@ export const CommandsSettings: React.FC = () => {
             >
               {t("settings.commands.resetAllConfirmCancel")}
             </Button>
-            <Button variant="primary" size="sm" onClick={confirmResetAll}>
+            <Button variant="danger" size="sm" onClick={confirmResetAll}>
               {t("settings.commands.resetAllConfirmConfirm")}
             </Button>
           </>

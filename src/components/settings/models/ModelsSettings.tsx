@@ -6,7 +6,6 @@ import {
   ChevronDown,
   Globe,
   Languages,
-  RefreshCw,
   Search,
 } from "lucide-react";
 import type { ModelCardStatus } from "@/components/onboarding";
@@ -68,12 +67,10 @@ export const ModelsSettings: React.FC = () => {
     verifyingModels,
     extractingModels,
     loading,
-    isRescanning,
     downloadModel,
     cancelDownload,
     selectModel,
     deleteModel,
-    rescanLocalModels,
   } = useModelStore();
 
   // click outside handler for language dropdown
@@ -308,35 +305,26 @@ export const ModelsSettings: React.FC = () => {
               {t("settings.models.yourModels")}
             </h2>
             <div className="flex items-center gap-2">
-              {/* Rescan local sources for models added outside VoxBar */}
-              <button
-                type="button"
-                onClick={() => rescanLocalModels()}
-                disabled={isRescanning}
-                title={t("settings.models.rescan.tooltip")}
-                aria-label={t("settings.models.rescan.tooltip")}
-                className="flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${isRescanning ? "animate-spin" : ""}`}
-                />
-              </button>
-
-              {/* Vertical divider separating action from filters */}
-              <div className="h-4 w-px bg-mid-gray/30 mx-0.5" />
+              {/* Capability filters carry their label inline (icon-only
+                  pills read as mystery toggles, and the translate glyph
+                  crowded the language dropdown beside it). Rescan lives
+                  once, labeled, in the Add-model card above. */}
               <button
                 type="button"
                 onClick={() => setFilterStreaming((enabled) => !enabled)}
                 title={t("settings.models.filters.streaming")}
                 aria-label={t("settings.models.filters.streaming")}
                 aria-pressed={filterStreaming}
-                className={`flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg transition-colors ${
+                className={`flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
                   filterStreaming
                     ? "bg-logo-primary/20 text-logo-primary hover:bg-logo-primary/30"
                     : "bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20"
                 }`}
               >
-                <AudioLines className="w-3.5 h-3.5" />
+                <AudioLines className="w-3.5 h-3.5" aria-hidden="true" />
+                {/* The short capability word the model cards themselves use;
+                    the full sentence rides the tooltip. */}
+                <span>{t("modelSelector.streaming")}</span>
               </button>
               <button
                 type="button"
@@ -344,13 +332,14 @@ export const ModelsSettings: React.FC = () => {
                 title={t("settings.models.filters.translation")}
                 aria-label={t("settings.models.filters.translation")}
                 aria-pressed={filterTranslation}
-                className={`flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg transition-colors ${
+                className={`flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
                   filterTranslation
                     ? "bg-logo-primary/20 text-logo-primary hover:bg-logo-primary/30"
                     : "bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20"
                 }`}
               >
-                <Languages className="w-3.5 h-3.5" />
+                <Languages className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>{t("modelSelector.capabilities.translate")}</span>
               </button>
               {/* Language filter dropdown */}
               <div className="relative" ref={languageDropdownRef}>

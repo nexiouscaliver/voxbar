@@ -234,28 +234,35 @@ const ModelCard: React.FC<ModelCardProps> = ({
         {(model.accuracy_score > 0 || model.speed_score > 0) && (
           <div className="hidden sm:flex items-center ms-4">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-text/60 w-24 text-end">
-                  {t("onboarding.modelCard.accuracy")}
-                </p>
-                <div className="w-16 h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-logo-primary rounded-full"
-                    style={{ width: `${model.accuracy_score * 100}%` }}
-                  />
+              {(
+                [
+                  ["accuracy", model.accuracy_score],
+                  ["speed", model.speed_score],
+                ] as const
+              ).map(([kind, score]) => (
+                <div
+                  key={kind}
+                  className="flex items-center gap-2"
+                  /* The scale tooltip: the bar is a 0-100 relative score,
+                     not a percentage of anything measured. */
+                  title={`${t(`onboarding.modelCard.${kind}`)}: ${Math.round(score * 100)} / 100`}
+                >
+                  <p className="text-xs text-text/60 w-24 text-end">
+                    {t(`onboarding.modelCard.${kind}`)}
+                  </p>
+                  <div className="w-16 h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-logo-primary rounded-full"
+                      style={{ width: `${score * 100}%` }}
+                    />
+                  </div>
+                  {/* The concrete value beside the bar so the meter carries
+                      its number, not just a length. */}
+                  <span className="w-7 text-end text-xs tabular-nums text-text/60">
+                    {Math.round(score * 100)}
+                  </span>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-text/60 w-24 text-end">
-                  {t("onboarding.modelCard.speed")}
-                </p>
-                <div className="w-16 h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-logo-primary rounded-full"
-                    style={{ width: `${model.speed_score * 100}%` }}
-                  />
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         )}
@@ -342,16 +349,31 @@ const ModelCard: React.FC<ModelCardProps> = ({
             </Button>
           )}
           {onDelete && (status === "available" || status === "active") && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleDelete}
-              title={t("modelSelector.deleteModel", { modelName: displayName })}
-              className="flex items-center gap-1.5 text-logo-primary/85 hover:text-logo-primary hover:bg-logo-primary/10"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>{t("common.delete")}</span>
-            </Button>
+            <>
+              {/* A hairline keeps the destructive action visually separate
+                  from the size/actions it trails. */}
+              <div
+                className="h-4 w-px bg-mid-gray/30 mx-0.5"
+                aria-hidden="true"
+              />
+              <Button
+                variant="danger-ghost"
+                size="sm"
+                onClick={handleDelete}
+                /* The active model cannot be deleted in place: deleting the
+                   model that is loaded for transcription would stop every
+                   dictation. Select another model first; the confirm dialog
+                   (ModelsSettings) guards every enabled delete. */
+                disabled={status === "active"}
+                title={t("modelSelector.deleteModel", {
+                  modelName: displayName,
+                })}
+                className="flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{t("common.delete")}</span>
+              </Button>
+            </>
           )}
         </div>
       </div>

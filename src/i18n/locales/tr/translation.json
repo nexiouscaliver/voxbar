@@ -686,6 +686,7 @@
         "noDevices": "Henüz bağlı cihaz yok",
         "resetPairing": "Eşleştirmeyi sıfırla",
         "fingerprintLabel": "Sertifika parmak izi (SHA-256)",
+        "fingerprintCopied": "Kopyalandı",
         "firewallNote": "İlk açışta macOS gelen bağlantılara izin isteyebilir. İzin ver, yoksa telefonlar bu Mac'e ulaşamaz.",
         "unavailable": "Eşlik eden cihazlar bu döngüde macOS gerektirir.",
         "serverError": "Sunucu başarısız: {{error}}",
@@ -938,6 +939,7 @@
       "save": "Transkripsiyonu kaydet",
       "unsave": "Kaydedilenlerden kaldır",
       "delete": "Kaydı sil",
+      "deleteConfirm": "Bu girdi silinsin mi? Kayıt ve dökümü kalıcı olarak kaldırılacak.",
       "deleteError": "Kayıt silinemedi. Lütfen tekrar deneyin.",
       "retranscribe": "Yeniden transkribe et",
       "retranscribeError": "Yeniden transkripsiyon başarısız oldu. Lütfen tekrar deneyin.",
@@ -975,6 +977,7 @@
         "pause": "Duraklat",
         "resume": "Sürdür",
         "copied": "Kopyalandı",
+        "clearConfirm": "Bu görünümden yakalanan satırlar temizlensin mi? Diskteki günlük dosyası saklanır.",
         "lineCount": "{{count}} satır",
         "empty": "Loglar bekleniyor… Uygulama logları ürettikçe girişler burada görünür."
       },

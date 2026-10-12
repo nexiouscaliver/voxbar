@@ -686,6 +686,7 @@
         "noDevices": "Noch keine Geräte verbunden",
         "resetPairing": "Kopplung zurücksetzen",
         "fingerprintLabel": "Zertifikat-Fingerprint (SHA-256)",
+        "fingerprintCopied": "Kopiert",
         "firewallNote": "macOS fragt beim ersten Aktivieren möglicherweise nach eingehenden Verbindungen. Erlaube sie, sonst erreichen Telefone diesen Mac nicht.",
         "unavailable": "Begleitgeräte brauchen in diesem Zyklus macOS.",
         "serverError": "Server fehlgeschlagen: {{error}}",
@@ -938,6 +939,7 @@
       "save": "Transkription speichern",
       "unsave": "Aus Gespeicherten entfernen",
       "delete": "Eintrag löschen",
+      "deleteConfirm": "Diesen Eintrag löschen? Die Aufnahme und ihr Transkript werden dauerhaft entfernt.",
       "deleteError": "Eintrag konnte nicht gelöscht werden. Bitte versuche es erneut.",
       "retranscribe": "Erneut transkribieren",
       "retranscribeError": "Erneute Transkription fehlgeschlagen. Bitte versuche es erneut.",
@@ -975,6 +977,7 @@
         "pause": "Pausieren",
         "resume": "Fortsetzen",
         "copied": "Kopiert",
+        "clearConfirm": "Die erfassten Zeilen aus dieser Ansicht löschen? Die Protokolldatei auf der Festplatte bleibt erhalten.",
         "lineCount": "{{count}} Zeilen",
         "empty": "Warte auf Logs … Einträge erscheinen hier, sobald die App sie ausgibt."
       },

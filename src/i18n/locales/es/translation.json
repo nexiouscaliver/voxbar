@@ -686,6 +686,7 @@
         "noDevices": "Aún no hay dispositivos conectados",
         "resetPairing": "Restablecer vinculación",
         "fingerprintLabel": "Huella del certificado (SHA-256)",
+        "fingerprintCopied": "Copiado",
         "firewallNote": "macOS puede pedir permitir conexiones entrantes la primera vez que actives esto. Permítelo, o los teléfonos no podrán llegar a este Mac.",
         "unavailable": "Los dispositivos acompañantes requieren macOS en este ciclo.",
         "serverError": "El servidor falló: {{error}}",
@@ -938,6 +939,7 @@
       "save": "Guardar transcripción",
       "unsave": "Eliminar de guardados",
       "delete": "Eliminar entrada",
+      "deleteConfirm": "¿Eliminar esta entrada? La grabación y su transcripción se eliminarán de forma permanente.",
       "deleteError": "Error al eliminar la entrada. Por favor, intenta de nuevo.",
       "retranscribe": "Re-transcribir",
       "retranscribeError": "No se pudo re-transcribir. Por favor, inténtalo de nuevo.",
@@ -975,6 +977,7 @@
         "pause": "Pausar",
         "resume": "Reanudar",
         "copied": "Copiado",
+        "clearConfirm": "¿Borrar las líneas capturadas de esta vista? El archivo de registro del disco se conserva.",
         "lineCount": "{{count}} líneas",
         "empty": "Esperando registros… Las entradas aparecerán aquí a medida que la aplicación las emita."
       },

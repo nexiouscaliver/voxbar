@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { readFile } from "@tauri-apps/plugin-fs";
+import { ask } from "@tauri-apps/plugin-dialog";
 import {
   Check,
   ChevronDown,
@@ -29,6 +30,8 @@ import {
 } from "@/bindings";
 import { useOsType } from "@/hooks/useOsType";
 import { useSettings } from "@/hooks/useSettings";
+import { useModelStore } from "@/stores/modelStore";
+import { getTranslatedModelName } from "@/lib/utils/modelTranslation";
 import { diffText } from "@/lib/diff";
 import { formatDate, formatDateTime, formatTimeOnly } from "@/utils/dateFormat";
 import { AudioPlayer, AudioPlayerGroup } from "../../ui/AudioPlayer";
@@ -45,15 +48,21 @@ const IconButton: React.FC<{
   title: string;
   disabled?: boolean;
   active?: boolean;
+  destructive?: boolean;
   children: React.ReactNode;
-}> = ({ onClick, title, disabled, active, children }) => (
+}> = ({ onClick, title, disabled, active, destructive, children }) => (
   <button
     onClick={onClick}
     disabled={disabled}
     className={`p-1.5 rounded-md flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:text-text/20 ${
-      active
-        ? "text-logo-primary hover:text-logo-primary/80"
-        : "text-text/50 hover:text-logo-primary"
+      destructive
+        ? // The one destructive action on the row carries the app's error
+          // red on hover (and its tint as the resting glyph stays neutral
+          // gray like its siblings), so it never reads as a safe peer.
+          "text-text/50 hover:text-error hover:bg-error/10"
+        : active
+          ? "text-logo-primary hover:text-logo-primary/80"
+          : "text-text/50 hover:text-logo-primary"
     }`}
     title={title}
   >
@@ -139,6 +148,18 @@ export const HistorySettings: React.FC = () => {
   const { t, i18n } = useTranslation();
   const osType = useOsType();
   const { settings, getSetting, updateSetting, isUpdating } = useSettings();
+  // The catalog (loaded app-wide at startup) names the same models the
+  // footer's selector shows; entry badges reuse those friendly names so
+  // the two labels for one model agree. The full raw id stays on the
+  // tooltip.
+  const catalogModels = useModelStore((state) => state.models);
+  const modelDisplayName = useCallback(
+    (modelId: string): string => {
+      const info = catalogModels.find((model) => model.id === modelId);
+      return info ? getTranslatedModelName(info, t) : shortModelId(modelId);
+    },
+    [catalogModels, t],
+  );
 
   const showModelBadge = getSetting("show_history_model") ?? true;
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
@@ -354,6 +375,7 @@ export const HistorySettings: React.FC = () => {
                   <HistoryEntryComponent
                     entry={entry}
                     showModelBadge={showModelBadge}
+                    modelDisplayName={modelDisplayName}
                     promptName={
                       entry.post_process_prompt_id
                         ? settings?.post_process_prompts?.find(
@@ -431,6 +453,10 @@ export const HistorySettings: React.FC = () => {
 interface HistoryEntryProps {
   entry: HistoryEntry;
   showModelBadge: boolean;
+  /** Resolves a model id to the catalog's friendly display name (the
+   * footer's selector shows the same), falling back to the id's tail for
+   * models that are no longer installed. */
+  modelDisplayName: (modelId: string) => string;
   /** The selected prompt's display name for the entry's prompt id, when
    * the entry carries a post-process summary and the prompt still exists. */
   promptName?: string;
@@ -452,6 +478,7 @@ const outcomeWord = (outcome: string, t: (key: string) => string): string => {
 const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   entry,
   showModelBadge,
+  modelDisplayName,
   promptName,
   onToggleSaved,
   onCopyText,
@@ -506,6 +533,13 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   };
 
   const handleDeleteEntry = async () => {
+    // Deleting removes the recording and its transcript for good: the
+    // trash icon sits behind the same native confirm the Models page
+    // delete uses (the mock rig auto-accepts it for screenshots).
+    const confirmed = await ask(t("settings.history.deleteConfirm"), {
+      kind: "warning",
+    });
+    if (!confirmed) return;
     try {
       await deleteAudio(entry.id);
     } catch (error) {
@@ -546,10 +580,10 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
               className="px-1.5 py-0.5 text-xs leading-none font-medium rounded bg-mid-gray/20 text-secondary truncate min-w-0 max-w-[16rem]"
               title={`${t("settings.history.model")}: ${entry.model_id}`}
             >
-              {/* The short tail of the id (segment after the last '/') so the
-                  chip names the model instead of truncating mid-path; the
-                  full id rides along as the tooltip. */}
-              {shortModelId(entry.model_id)}
+              {/* The catalog's friendly name (the same label the footer's
+                  model selector shows), so the two labels for one model
+                  agree; the full raw id rides along as the tooltip. */}
+              {modelDisplayName(entry.model_id)}
             </span>
           ) : null}
           {/* The pp: run summary (WS3): which engine and prompt polished
@@ -567,7 +601,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
               })}`}
             >
               {t("settings.history.viaPostProcess", {
-                model: shortModelId(entry.post_process_model),
+                model: modelDisplayName(entry.post_process_model),
                 prompt: promptName ?? entry.post_process_prompt_id ?? "-",
                 outcome: outcomeWord(
                   entry.post_process_outcome ?? "applied",
@@ -624,6 +658,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           <IconButton
             onClick={handleDeleteEntry}
             disabled={retrying}
+            destructive
             title={t("settings.history.delete")}
           >
             <Trash2 width={16} height={16} />
