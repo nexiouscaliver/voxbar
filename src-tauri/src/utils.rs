@@ -89,16 +89,37 @@ pub fn cancel_current_operation(app: &AppHandle) {
     // Unregister the cancel shortcut asynchronously
     shortcut::unregister_cancel_shortcut(app);
 
-    // Cancel any ongoing recording
+    // Cancel any ongoing recording. v1.6.2 fleet pass 1: the cancel resolves
+    // to exactly one target (local, or the most-recently-started lane) and
+    // bumps only that target's cancel generation, so it can never discard
+    // another session's in-flight stop pipeline.
     let audio_manager = app.state::<Arc<AudioRecordingManager>>();
     let recording_was_active = audio_manager.is_recording();
-    audio_manager.cancel_recording();
+    let cancel_target = audio_manager.cancel_recording();
 
     // Abandon any live streaming transcription, and stop a transcription
-    // already in progress
+    // already in progress - scoped to the cancelled target, because both are
+    // process singletons: an unconditional cancel here would kill ANOTHER
+    // lane's live stream (or its finalize) exactly when this Escape resolved
+    // elsewhere. The stream is only cancelled when the target owned it; the
+    // engine-wide transcription cancel stays reserved for a local/none
+    // resolution (the keyboard user's abort), never a lane's cancel.
     let tm = app.state::<Arc<TranscriptionManager>>();
-    tm.cancel_stream();
-    tm.cancel_transcription();
+    let owns_stream = match cancel_target {
+        crate::managers::audio::CancelTarget::Local => {
+            audio_manager.stream_owner() == crate::managers::audio::StreamOwner::Local
+        }
+        crate::managers::audio::CancelTarget::Lane(lane) => {
+            audio_manager.stream_owner() == crate::managers::audio::StreamOwner::Lane(lane)
+        }
+        crate::managers::audio::CancelTarget::None => false,
+    };
+    if owns_stream {
+        tm.cancel_stream();
+    }
+    if !matches!(cancel_target, crate::managers::audio::CancelTarget::Lane(_)) {
+        tm.cancel_transcription();
+    }
 
     // Update tray icon and hide overlay
     set_tray_state(app, crate::tray::TrayIconState::Idle);
@@ -183,6 +204,39 @@ pub fn panic_payload_message(payload: &(dyn std::any::Any + Send)) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Fleet pass 1, source pin: cancel_current_operation must scope the
+    /// process-singleton transcription teardown to the cancelled target -
+    /// cancel_stream only when the target owned the stream, and the
+    /// engine-wide cancel_transcription never for a lane-resolved cancel.
+    /// Unconditional calls cross-fired into whichever other lane was live
+    /// (the same bug the per-lane cancel generation closes on the capture
+    /// side). Pinned against this committed source because mounting an
+    /// AppHandle in a unit test is not possible (same convention as the
+    /// audio manager's cancel pins).
+    #[test]
+    fn cancel_current_operation_scopes_singletons_to_the_cancel_target() {
+        let source = include_str!("utils.rs");
+        let fn_at = source
+            .find("pub fn cancel_current_operation")
+            .expect("cancel_current_operation");
+        let body_end = fn_at + source[fn_at..].find("\n}\n").expect("fn end");
+        let body = &source[fn_at..body_end];
+        assert!(
+            body.contains("let cancel_target = audio_manager.cancel_recording();"),
+            "the cancel's resolved target must be captured"
+        );
+        assert!(
+            body.contains("if owns_stream {") && body.contains("tm.cancel_stream();"),
+            "the stream singleton must be cancelled only when the cancelled target owned it"
+        );
+        assert!(
+            body.contains(
+                "if !matches!(cancel_target, crate::managers::audio::CancelTarget::Lane(_))"
+            ),
+            "a lane-resolved cancel must never touch the engine-wide transcription cancel"
+        );
+    }
 
     #[test]
     fn arm64_native_machine_is_the_only_match() {

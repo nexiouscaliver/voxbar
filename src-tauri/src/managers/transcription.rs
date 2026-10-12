@@ -654,12 +654,13 @@ pub fn emit_overlay_notice(app: &AppHandle, code: NoticeCode, detail: Option<Str
         detail.as_deref().unwrap_or("-")
     );
     // "Could the overlay card durably show this" via the cached
-    // overlay-enabled flag (overlay.rs: fed at startup from the loaded
-    // settings and on every change_overlay_style_setting write) plus the
-    // pending-hide generation probe: a single atomic load instead of a
-    // full get_settings() deserialize per notice, and no notice lands on a
-    // card inside its fade window. A missing window or a failed
-    // is_visible() counts as not visible, so the probe never panics.
+    // overlay_enabled atomic (overlay.rs: fed at startup from the loaded
+    // settings and on every change_overlay_style_setting write; the probe
+    // reads it inside card_durably_visible) plus the pending-hide
+    // generation probe: a single atomic load instead of a full
+    // get_settings() deserialize per notice, and no notice lands on a card
+    // inside its fade window. A missing window or a failed is_visible()
+    // counts as not visible, so the probe never panics.
     let card_visible = crate::overlay::card_durably_visible(app);
     let _ = OverlayNoticeEvent {
         kind,

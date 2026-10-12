@@ -630,6 +630,34 @@
       let outputTarget = "pc"; // "pc" | "phone"
       let postProcess = false;
 
+      // ---- device identity (v1.6.2) ----
+      // The hello's human name is derived from the user agent and is a
+      // PLATFORM token every same-platform phone shares (two iPhones both
+      // say "iPhone", every Chrome-Android phone says "Linux"), so it
+      // cannot tell this phone from its twin. A random id, persisted like
+      // the prefs, can: the Mac pairs it with the name to key this phone's
+      // data (the Recent list), so same-platform phones never share one
+      // identity.
+      const DEVICE_ID_KEY = "voxbarCompanion.deviceId";
+      function deviceIdentity() {
+        try {
+          let id = localStorage.getItem(DEVICE_ID_KEY);
+          if (!id) {
+            id =
+              window.crypto && crypto.randomUUID
+                ? crypto.randomUUID()
+                : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+            localStorage.setItem(DEVICE_ID_KEY, id);
+          }
+          return id;
+        } catch (e) {
+          // Storage unavailable (private mode): a per-load random id still
+          // separates this phone from its same-platform twin for the
+          // session.
+          return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+        }
+      }
+
       function loadPrefs() {
         try {
           const savedTarget = localStorage.getItem(TARGET_KEY);
@@ -811,6 +839,7 @@
                   .split(";")[0]
                   .trim()
                   .slice(0, 48) || "Phone",
+              deviceId: deviceIdentity(),
               lang: LANG,
             }),
           );

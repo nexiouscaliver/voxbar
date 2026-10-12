@@ -294,6 +294,7 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
         Some(ClientFrame::Hello {
             token: provided,
             device,
+            device_id,
             ..
         }) => {
             let blocked = {
@@ -333,7 +334,15 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             }
             manager.failure_limiter_pin().lock().unwrap().clear(peer);
 
-            device_name = device;
+            // v1.6.2 fleet pass 1: the connection's identity is the human
+            // name disambiguated by the phone's persistent device id (the
+            // name alone is a platform token every same-platform phone
+            // shares, which collapsed two iPhones into one Recent list -
+            // private phone-destined dictations included). Everything
+            // name-keyed downstream (the registration, the frozen session,
+            // history's capture_device, the per-phone recents filter) uses
+            // this composite, so same-platform phones never share it.
+            device_name = protocol::device_identity_name(&device, device_id.as_deref());
             // v1.6.2 W1-L2: the registration IS the paired-device
             // bookkeeping (KB-255: keyed on lane + generation, never the
             // name), and the lane is the connection's session identity.
@@ -756,10 +765,7 @@ mod tests {
     /// phone to stream. on_lane_session_changed is Wry-typed, so the
     /// mock-app tests drive the same record its true branch writes (the
     /// mod.rs test pattern).
-    fn commit_session_start<R: tauri::Runtime>(
-        app: &tauri::AppHandle<R>,
-        lane: u64,
-    ) {
+    fn commit_session_start<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
         crate::companion::begin_session(app, lane, Default::default());
     }
 
@@ -787,7 +793,7 @@ mod tests {
         let app = tauri::test::mock_app();
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
-                let (lane, _, _) = manager.register_connection("Pixel 8");
+        let (lane, _, _) = manager.register_connection("Pixel 8");
         let mut rig = Rig::new(lane);
         let t0 = Instant::now();
 
@@ -851,7 +857,7 @@ mod tests {
         let app = tauri::test::mock_app();
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
-                let (lane, _, _) = manager.register_connection("Pixel 8");
+        let (lane, _, _) = manager.register_connection("Pixel 8");
         let mut rig = Rig::new(lane);
         let t0 = Instant::now();
 
@@ -948,7 +954,7 @@ mod tests {
         let app = tauri::test::mock_app();
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
-                let (lane, _, _) = manager.register_connection("Pixel 8");
+        let (lane, _, _) = manager.register_connection("Pixel 8");
         let mut rig = Rig::new(lane);
         let t0 = Instant::now();
 

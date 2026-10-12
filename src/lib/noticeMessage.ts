@@ -196,15 +196,24 @@ export function noticeMessage(
 
 // The codes whose localized line ends in (or carries) a raw diagnostic
 // detail that must not leave the app's own surfaces — the same arms above
-// that pass `detail` into t()'s options, except companion_session_capped:
-// its {{device}} slot is user-facing content (which phone's session
-// capped), sits mid-sentence in most locales, and removing it would break
-// the localized grammar ("wurde auf erreicht."), so the cap's notification
-// body keeps the full line.
+// that pass `detail` into t()'s options, except:
+//
+// * companion_session_capped: its {{device}} slot is user-facing content
+//   (which phone's session capped), sits mid-sentence in most locales, and
+//   removing it would break the localized grammar ("wurde auf erreicht."),
+//   so the cap's notification body keeps the full line.
+// * model_load_failed_memory_gate (fleet pass 1): its detail is not a raw
+//   backend diagnostic but the app-manufactured structured triple (model,
+//   needed, free - memory_gate_notice_detail), and ALL THREE slots sit
+//   mid-sentence in every one of the 26 locale templates with text after
+//   each. Re-localizing with an empty detail - the stripping this set
+//   applies - left dangling colons, commas, and empty slots in every
+//   locale ("Not enough free memory to load : it needs about , with about
+//   free."), so the gate's notification body keeps the fully interpolated
+//   line, the same decision as the cap's.
 const DETAIL_INTERPOLATING_CODES = new Set([
   "recording_failed",
   "model_load_failed",
-  "model_load_failed_memory_gate",
   "model_fallback",
   "post_process_memory_gate",
   "post_process_cloud_failed",

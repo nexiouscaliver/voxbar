@@ -1696,12 +1696,9 @@ mod tests {
             .expect("fetch latest entry")
             .expect("entry exists");
         assert_eq!(mapped.capture_device, "");
-        let recents = HistoryManager::recent_companion_entries_for_device_with_conn(
-            &conn,
-            "Pixel 8",
-            5,
-        )
-        .expect("query per-device recents");
+        let recents =
+            HistoryManager::recent_companion_entries_for_device_with_conn(&conn, "Pixel 8", 5)
+                .expect("query per-device recents");
         assert!(
             recents.is_empty(),
             "a legacy deviceless row must not appear in any phone's list"
@@ -1932,12 +1929,9 @@ mod tests {
 
         // Pixel 8's list: its own two sessions, phone-destined included,
         // newest first; nobody else's.
-        let pixel = HistoryManager::recent_companion_entries_for_device_with_conn(
-            &conn,
-            "Pixel 8",
-            5,
-        )
-        .expect("query pixel recents");
+        let pixel =
+            HistoryManager::recent_companion_entries_for_device_with_conn(&conn, "Pixel 8", 5)
+                .expect("query pixel recents");
         assert_eq!(
             pixel
                 .iter()
@@ -1948,28 +1942,18 @@ mod tests {
         );
 
         // iPhone 15's list is disjoint.
-        let iphone = HistoryManager::recent_companion_entries_for_device_with_conn(
-            &conn,
-            "iPhone 15",
-            5,
-        )
-        .expect("query iphone recents");
+        let iphone =
+            HistoryManager::recent_companion_entries_for_device_with_conn(&conn, "iPhone 15", 5)
+                .expect("query iphone recents");
         assert_eq!(
-            iphone
-                .iter()
-                .map(|e| e.timestamp)
-                .collect::<Vec<_>>(),
+            iphone.iter().map(|e| e.timestamp).collect::<Vec<_>>(),
             vec![400, 200]
         );
 
         // The deviceless legacy row (capture_device '') belongs to no
         // phone, and a name nothing ever froze gets an empty list.
-        let legacy = HistoryManager::recent_companion_entries_for_device_with_conn(
-            &conn,
-            "",
-            5,
-        )
-        .expect("query legacy recents");
+        let legacy = HistoryManager::recent_companion_entries_for_device_with_conn(&conn, "", 5)
+            .expect("query legacy recents");
         assert!(
             !legacy.iter().any(|e| e.text.contains("keyboard")),
             "the keyboard session never appears in any phone list"
@@ -1980,13 +1964,79 @@ mod tests {
         assert!(nobody.is_empty());
 
         // The limit caps the per-phone window too.
-        let capped = HistoryManager::recent_companion_entries_for_device_with_conn(
-            &conn,
-            "Pixel 8",
-            1,
-        )
-        .expect("query capped per-phone recents");
-        assert_eq!(capped.iter().map(|e| e.timestamp).collect::<Vec<_>>(), vec![300]);
+        let capped =
+            HistoryManager::recent_companion_entries_for_device_with_conn(&conn, "Pixel 8", 1)
+                .expect("query capped per-phone recents");
+        assert_eq!(
+            capped.iter().map(|e| e.timestamp).collect::<Vec<_>>(),
+            vec![300]
+        );
+    }
+
+    /// Fleet pass 1: the SAME-PLATFORM collision the fleet traced. The
+    /// hello's human name is a UA platform token (two iPhones both hello
+    /// "iPhone", every Chrome-Android phone "Linux"), so the identity the
+    /// phone's sessions freeze is the id-tagged composite (see
+    /// `companion::protocol::device_identity_name`). Two iPhones sharing
+    /// the platform name must hold DISJOINT recent lists - private
+    /// phone-destined dictations included - and the pre-fix world (both
+    /// freezing the bare platform name) is exactly the shared-list leak
+    /// this pins away: with distinct composites, neither phone's bare name
+    /// matches the other's rows.
+    #[test]
+    fn same_platform_phones_hold_disjoint_recent_lists() {
+        let conn = setup_conn();
+
+        let insert = |id: i64, device: &str, dest: &str, raw: &str| {
+            conn.execute(
+                "INSERT INTO transcription_history (
+                    file_name, timestamp, saved, title, transcription_text,
+                    post_processed_text, post_process_prompt, post_process_requested,
+                    capture_source, delivery_destination, capture_device
+                ) VALUES (?1, ?2, 0, ?3, ?4, NULL, NULL, 0, 'companion', ?5, ?6)",
+                params![
+                    format!("voxbar-{id}.wav"),
+                    id,
+                    format!("Recording {id}"),
+                    raw,
+                    dest,
+                    device,
+                ],
+            )
+            .expect("insert entry");
+        };
+
+        // The real client shape: two iPhones, identity composites tagged
+        // by each phone's persistent device id.
+        insert(100, "iPhone#7f3a", "mac", "phone a mac dictation");
+        insert(200, "iPhone#7f3a", "phone", "phone a private dictation");
+        insert(300, "iPhone#c3d4", "mac", "phone b mac dictation");
+        insert(400, "iPhone#c3d4", "phone", "phone b private dictation");
+
+        let list_for = |device: &str| {
+            HistoryManager::recent_companion_entries_for_device_with_conn(&conn, device, 5)
+                .expect("query recents")
+                .into_iter()
+                .map(|e| e.text)
+                .collect::<Vec<_>>()
+        };
+
+        // Phone A's list: its own two, its private phone-destined one
+        // included, none of phone B's.
+        assert_eq!(
+            list_for("iPhone#7f3a"),
+            vec!["phone a private dictation", "phone a mac dictation"]
+        );
+        // Phone B's list is disjoint.
+        assert_eq!(
+            list_for("iPhone#c3d4"),
+            vec!["phone b private dictation", "phone b mac dictation"]
+        );
+        // A bare platform name (a pre-id client) matches no tagged phone's
+        // rows: the leak the finding traced, where both iPhones froze
+        // "iPhone" and shared one list, cannot re-form across the tag
+        // boundary.
+        assert!(list_for("iPhone").is_empty());
     }
 
     /// KB-179 (operator decision D3): a corrupt history.db must not take

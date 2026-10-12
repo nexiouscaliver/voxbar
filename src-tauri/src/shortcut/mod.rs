@@ -13,7 +13,7 @@ mod handler;
 pub mod handy_keys;
 pub mod tauri_impl;
 
-use log::{error, info, warn};
+use log::{debug, error, info, warn};
 use serde::Serialize;
 use specta::Type;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -604,13 +604,19 @@ pub fn suspend_all_shortcuts(app: &AppHandle) -> Result<(), String> {
 }
 
 /// Re-register every binding from settings after shortcut recording ends.
-/// Registering an already-registered shortcut fails cleanly in both
-/// implementations, so this is idempotent and safe on every exit path.
-/// KB-242: returns the first failure (with the binding id named) instead
-/// of logging it - a binding that stayed suspended after the recorder
-/// closed is a dead hotkey reported as success.
+/// A recorder commit has ALREADY registered the new chord by the time this
+/// runs, so the loop is idempotent per binding: unmount the chord first,
+/// then re-arm it, which makes the guaranteed duplicate (the just-committed
+/// binding) a no-op instead of an "already in use" error. KB-242: a
+/// binding that cannot be re-armed is still reported (first failure, id
+/// named) - but only AFTER the loop finishes. Returning mid-loop (the
+/// pre-fix first-fail abort) stranded every binding iterated after the
+/// duplicate as an unregistered, dead hotkey until app restart, and the
+/// bindings HashMap iterates in arbitrary order, so each rebind silently
+/// killed a random subset of the stock bindings (fleet pass 1).
 pub fn resume_all_shortcuts(app: &AppHandle) -> Result<(), String> {
     let settings = get_settings(app);
+    let mut first_failure: Option<String> = None;
     for (id, binding) in &settings.bindings {
         if id == "cancel" {
             continue;
@@ -618,11 +624,22 @@ pub fn resume_all_shortcuts(app: &AppHandle) -> Result<(), String> {
         if !binding_is_active(&settings, id, binding) {
             continue;
         }
+        // Unmount first (a not-armed chord is a harmless no-op): the
+        // recorder commit already armed this binding's new chord, and
+        // re-registering an armed chord errors "already in use".
+        let _ = unregister_shortcut(app, binding.clone());
         if let Err(e) = register_shortcut(app, binding.clone()) {
-            return Err(format!("could not resume the '{id}' shortcut: {e}"));
+            let failure = format!("could not resume the '{id}' shortcut: {e}");
+            match &first_failure {
+                None => first_failure = Some(failure),
+                Some(_) => debug!("resume_all_shortcuts: {}", failure),
+            }
         }
     }
-    Ok(())
+    match first_failure {
+        Some(failure) => Err(failure),
+        None => Ok(()),
+    }
 }
 
 /// Temporarily unregister all bindings while the user is recording a
@@ -3382,6 +3399,41 @@ mod tests {
                 "{marker} must hand the delegated Result through, not re-wrap a discarded call"
             );
         }
+    }
+
+    /// Fleet pass 1: the recorder-commit duplicate must not abort the
+    /// resume loop. change_binding registers the committed chord BEFORE
+    /// the frontend calls resumeAllBindings, so resume ALWAYS reaches a
+    /// binding that is already armed; the bindings HashMap iterates in
+    /// arbitrary order, so the pre-fix `return Err` on that duplicate
+    /// stranded every binding iterated after it as a dead hotkey until
+    /// app restart (on the stock two-binding config, roughly a coin flip
+    /// per rebind). The loop must keep going past a failure and make the
+    /// duplicate itself a no-op (unmount before re-arm). Source pin: the
+    /// registration seams need an AppHandle a unit test cannot mount
+    /// (same convention as the KB-242 pin above).
+    #[test]
+    fn resume_all_shortcuts_never_aborts_mid_loop_on_a_duplicate() {
+        let source = include_str!("mod.rs");
+        let at = source
+            .find("pub fn resume_all_shortcuts")
+            .expect("resume_all_shortcuts");
+        let rest = &source[at..];
+        let end = rest.find("\n#[tauri::command]").unwrap_or(rest.len());
+        let body = &rest[..end];
+        assert!(
+            !body.contains("return Err"),
+            "resume_all_shortcuts must not return mid-loop: one binding's failure (the recorder commit's guaranteed 'already in use' duplicate, or any other) must not strand the bindings iterated after it"
+        );
+        assert!(
+            body.contains("first_failure"),
+            "failures are collected and reported only after the loop finishes"
+        );
+        assert!(
+            body.contains("let _ = unregister_shortcut(app, binding.clone());")
+                && body.contains("register_shortcut(app, binding.clone())"),
+            "resume must unmount before re-arm so the just-committed chord's duplicate registration is a no-op, not an error"
+        );
     }
 
     /// KB-243: both change_binding branches must ABORT on a failed

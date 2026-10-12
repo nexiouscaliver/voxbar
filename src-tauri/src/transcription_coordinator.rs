@@ -1117,9 +1117,19 @@ impl TranscriptionCoordinator {
                             run_effect(app, keyboard, effect);
                         }
                     }
-                    for machine in lanes.values_mut() {
+                    for (lane, machine) in lanes.iter_mut() {
                         if machine.grace_deadline().is_some_and(|d| d <= now) {
-                            if let Some(effect) = machine.on_grace_expired() {
+                            if let Some(mut effect) = machine.on_grace_expired() {
+                                // v1.6.2 W1-L2: the grace path produces the
+                                // lane's Stop effect with the same untagged
+                                // shape begin_processing emits; every other
+                                // lane-machine run_effect site stamps the
+                                // producing lane, and an untagged Stop would
+                                // skip note_stopping_session, wedge this
+                                // machine in Processing, and strand the lane's
+                                // recorder. Tag it here exactly as the direct
+                                // input paths do.
+                                tag_stop_effect_lane(&mut effect, *lane);
                                 run_effect(app, machine, effect);
                             }
                         }
@@ -4231,6 +4241,89 @@ the badge lie (dark-badge session silently post-processing at stop)"
             })
         ));
         assert!(lane_b.on_processing_finished().is_none());
+    }
+
+    /// Fleet pass 1, grace-path twin of the tagging pinned above: a hold
+    /// mode's FIRST release is deferred (classify_ptt_event), and the
+    /// coordinator loop resolves it 50 ms later in expire_due_graces - the
+    /// ONE lane-machine run_effect site that is not a direct input path.
+    /// Its Stop effect must leave that arm carrying the producing lane,
+    /// exactly like every direct input path: untagged, the executor skips
+    /// note_stopping_session, the lane's session record stays live, the
+    /// recorder is never stopped, and the machine wedges in Processing.
+    #[test]
+    fn a_lane_grace_expired_release_stops_with_the_lane_tagged() {
+        let t0 = Instant::now();
+        let mut lane = CoordinatorState::new();
+
+        // Push-to-talk press starts the lane's session...
+        assert!(matches!(
+            lane.on_input(
+                companion_edge_with_identity(true, ShortcutActivation::PushToTalk, None, Some(7)),
+                t0
+            ),
+            Some(Effect::Start {
+                companion_lane: Some(7),
+                ..
+            })
+        ));
+        // ...and the hold-to-stop release is DEFERRED (auto-repeat guard),
+        // not resolved inline.
+        assert!(lane
+            .on_input(
+                companion_edge_with_identity(false, ShortcutActivation::PushToTalk, None, Some(7)),
+                t0 + Duration::from_secs(2)
+            )
+            .is_none());
+        assert!(lane.grace_deadline().is_some(), "the release is pending");
+
+        // The loop's timeout arm resolves it. The raw effect is untagged
+        // (begin_processing cannot know the lane); the loop's expire arm
+        // stamps it, so what reaches run_effect carries companion_lane.
+        let mut effect = lane
+            .on_grace_expired()
+            .expect("the grace-expired hold stops the session");
+        tag_stop_effect_lane(&mut effect, 7);
+        assert!(matches!(
+            effect,
+            Effect::Stop {
+                companion_lane: Some(7),
+                ..
+            }
+        ));
+        assert!(matches!(lane.stage, Stage::Processing));
+    }
+
+    /// The source-level pin for the same fix: the expire_due_graces lane
+    /// loop (the only lane-machine run_effect site outside the direct
+    /// input paths) must call tag_stop_effect_lane on the effect before
+    /// run_effect. The behavioral test above proves the raw effect is
+    /// untagged; this pin holds the production loop to the tagging the
+    /// behavioral test models (same convention as the Start-arm pin).
+    #[test]
+    fn expire_due_graces_tags_lane_stop_effects_before_run_effect() {
+        let source = include_str!("transcription_coordinator.rs");
+        let expire_at = source
+            .find("let expire_due_graces =")
+            .expect("the expire_due_graces closure");
+        let expire_end = expire_at
+            + source[expire_at..]
+                .find("// Track the most-recent-live-lane")
+                .expect("the closure boundary");
+        let expire_arm = &source[expire_at..expire_end];
+        let lane_loop_at = expire_arm
+            .find("lanes.iter_mut()")
+            .expect("the lane loop carries its keys so it can tag");
+        let run_effect_at = expire_arm[lane_loop_at..]
+            .find("run_effect(")
+            .expect("the lane loop runs the expired effect");
+        let tag_at = expire_arm[lane_loop_at..]
+            .find("tag_stop_effect_lane(&mut effect")
+            .expect("the lane loop tags the expired Stop effect");
+        assert!(
+            tag_at < run_effect_at,
+            "expire_due_graces must tag a lane's grace-expired effect with its lane BEFORE run_effect: an untagged Stop skips note_stopping_session and wedges the lane machine in Processing"
+        );
     }
 
     /// The cross-source rule through the real machines: a companion press

@@ -92,11 +92,17 @@ impl SessionPrefs {
 /// Client-to-server TEXT control frames.
 #[derive(Debug, Clone, PartialEq)]
 pub enum ClientFrame {
-    /// First frame on a fresh socket: the pairing token from the QR URL and
-    /// a human device name.
+    /// First frame on a fresh socket: the pairing token from the QR URL, a
+    /// human device name, and (v1.6.2 fleet pass 1) the phone's persistent
+    /// device id. The name is a UA-derived PLATFORM token every
+    /// same-platform phone shares (two iPhones both say "iPhone", every
+    /// Chrome-Android phone says "Linux"), so it cannot identify one phone;
+    /// the id disambiguates same-platform phones (see
+    /// [`device_identity_name`]). Older clients send no id.
     Hello {
         token: String,
         device: String,
+        device_id: Option<String>,
         lang: Option<String>,
     },
     /// Push-to-talk edges. The Mac resolves mode/hold-threshold from its
@@ -125,6 +131,12 @@ pub fn parse_client_frame(text: &str) -> Option<ClientFrame> {
                 .chars()
                 .take(64)
                 .collect(),
+            device_id: value
+                .get("deviceId")
+                .and_then(|d| d.as_str())
+                .map(str::trim)
+                .filter(|d| !d.is_empty())
+                .map(|d| d.chars().take(64).collect()),
             lang: value
                 .get("lang")
                 .and_then(|l| l.as_str())
@@ -141,6 +153,33 @@ pub fn parse_client_frame(text: &str) -> Option<ClientFrame> {
             },
         }),
         _ => None,
+    }
+}
+
+/// v1.6.2 fleet pass 1: the connection's IDENTITY name, built from the
+/// hello. The human `device` name is a UA platform token every
+/// same-platform phone shares (two iPhones both hello "iPhone", every
+/// Chrome-Android phone "Linux"), so per-phone data keyed on it alone
+/// collapses same-platform phones into one Recent list - private
+/// phone-destined dictations included. The client's persistent device id
+/// disambiguates: identity is `name#tag`, where the tag is the id's first
+/// four alphanumeric characters (client ids are UUID-ish; the filter keeps
+/// a hostile id from smuggling length or separators into a display
+/// string). A client with no id keeps the bare name, exactly the
+/// pre-existing behavior. Pure, so the rule is pinnable.
+pub fn device_identity_name(device: &str, device_id: Option<&str>) -> String {
+    let Some(id) = device_id else {
+        return device.to_string();
+    };
+    let tag: String = id
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .take(4)
+        .collect();
+    if tag.is_empty() {
+        device.to_string()
+    } else {
+        format!("{device}#{tag}")
     }
 }
 
@@ -373,6 +412,7 @@ mod tests {
             ClientFrame::Hello {
                 token: "abc123".to_string(),
                 device: "Pixel 7".to_string(),
+                device_id: None,
                 lang: Some("de".to_string()),
             }
         );
@@ -386,9 +426,81 @@ mod tests {
             ClientFrame::Hello {
                 token: "t".to_string(),
                 device: "Companion".to_string(),
+                device_id: None,
                 lang: None,
             }
         );
+    }
+
+    /// Fleet pass 1: the hello carries the phone's persistent device id,
+    /// the identity half the UA platform name cannot provide.
+    #[test]
+    fn hello_parses_the_persistent_device_id() {
+        let frame = parse_client_frame(
+            r#"{"type":"hello","token":"t","device":"iPhone","deviceId":" 7f3a9c2e-1111-2222-3333-444455556666 "}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            frame,
+            ClientFrame::Hello {
+                token: "t".to_string(),
+                device: "iPhone".to_string(),
+                device_id: Some("7f3a9c2e-1111-2222-3333-444455556666".to_string()),
+                lang: None,
+            }
+        );
+        // Whitespace-only or absent ids read as None (an old client).
+        assert!(matches!(
+            parse_client_frame(r#"{"type":"hello","token":"t","device":"iPhone","deviceId":"  "}"#),
+            Some(ClientFrame::Hello {
+                device_id: None,
+                ..
+            })
+        ));
+        assert!(matches!(
+            parse_client_frame(r#"{"type":"hello","token":"t","device":"iPhone"}"#),
+            Some(ClientFrame::Hello {
+                device_id: None,
+                ..
+            })
+        ));
+    }
+
+    /// Fleet pass 1: the per-phone identity rule, pinned pure. The UA
+    /// platform name alone cannot tell two iPhones (or two Chrome-Android
+    /// phones, which all hello "Linux") apart; the persistent id's short
+    /// tag can. Same name + different ids MUST differ (the Recent-list
+    /// collision the fleet traced); same id MUST be stable across
+    /// reconnects; a hostile id cannot smuggle length or separators into
+    /// the display string.
+    #[test]
+    fn device_identity_name_disambiguates_same_platform_phones() {
+        // Two same-platform phones get distinct identities...
+        let a = device_identity_name("iPhone", Some("7f3a9c2e-1111-2222-3333-444455556666"));
+        let b = device_identity_name("iPhone", Some("c3d4e5f6-1111-2222-3333-444455556666"));
+        assert_eq!(a, "iPhone#7f3a");
+        assert_eq!(b, "iPhone#c3d4");
+        assert_ne!(a, b);
+        // ...every Chrome-Android phone's "Linux" collapses the same way...
+        assert_eq!(
+            device_identity_name("Linux", Some("a1b2c3d4")),
+            "Linux#a1b2"
+        );
+        // ...and the same phone keeps ONE identity across reconnects.
+        assert_eq!(
+            device_identity_name("iPhone", Some("7f3a9c2e-0000-0000-0000-000000000000")),
+            a
+        );
+        // A hostile id contributes at most four plain alphanumerics - no
+        // separators, no length, no injection into the display string.
+        assert_eq!(
+            device_identity_name("iPhone", Some("###@@--,,,,####!!!!")),
+            "iPhone"
+        );
+        // Old clients with no id keep the bare name (pre-existing
+        // behavior, no worse than before the fix).
+        assert_eq!(device_identity_name("iPhone", None), "iPhone");
+        assert_eq!(device_identity_name("iPhone", Some("   ")), "iPhone");
     }
 
     #[test]

@@ -363,6 +363,32 @@ pub(crate) fn stream_owner_from_token(token: u64) -> StreamOwner {
     }
 }
 
+/// v1.6.2 fleet pass 1: what an Escape actually cancelled, resolved by
+/// [`AudioRecordingManager::cancel_recording`]. The caller scopes the
+/// transcription-side teardown (stream, engine) to this target only, so
+/// cancelling one session never touches another lane's live work.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CancelTarget {
+    /// Nothing was recording: the cancel tore down no capture session.
+    None,
+    /// The local (keyboard/signal) session was cancelled.
+    Local,
+    /// One companion lane's session was cancelled.
+    Lane(u64),
+}
+
+/// v1.6.2 fleet pass 1: which cancel generation an Escape resolution bumps
+/// - pure, so the cross-fire rule is pinnable without an AppHandle. A
+/// lane-resolved cancel bumps ONLY that lane's generation; every other
+/// resolution bumps the local machine's shared generation (the keyboard
+/// user's own abort). No resolution may bump a lane it did not cancel.
+pub(crate) fn cancel_bump_lane(target: CancelTarget) -> Option<u64> {
+    match target {
+        CancelTarget::Lane(lane) => Some(lane),
+        _ => None,
+    }
+}
+
 /// v1.6.2 W1-L2: one companion connection lane's recorder pair. Each
 /// authenticated connection owns its recorder and its ring independently,
 /// so one phone's session (start, stop, disconnect) cannot touch another
@@ -598,6 +624,14 @@ pub struct AudioRecordingManager {
     mute_state: Arc<Mutex<MuteState>>,
     close_generation: Arc<AtomicU64>,
     cancel_generation: Arc<AtomicU64>,
+    /// v1.6.2 fleet pass 1: the PER-LANE cancel generations, the lane twin
+    /// of `cancel_generation`. A stop pipeline gates on its own session's
+    /// generation only, and an Escape bumps exactly the generation of the
+    /// session it tore down (see [`AudioRecordingManager::cancel_recording`])
+    /// - under the one global generation, cancelling one phone discarded
+    /// another phone's in-flight stop pipeline (its captured audio included)
+    /// whenever the two overlapped.
+    lane_cancel_generations: Arc<Mutex<std::collections::HashMap<u64, u64>>>,
     stream_router: Arc<StreamRouter>,
     /// Lock-free mirror of "is the state in {Recording, Stopping}",
     /// maintained by `set_state()`. The hot-path `is_recording()` reads THIS
@@ -700,9 +734,8 @@ impl AudioRecordingManager {
         } else {
             MicrophoneMode::OnDemand
         };
-        let stream_owner: Arc<AtomicU64> = Arc::new(AtomicU64::new(stream_owner_token(
-            StreamOwner::None,
-        )));
+        let stream_owner: Arc<AtomicU64> =
+            Arc::new(AtomicU64::new(stream_owner_token(StreamOwner::None)));
 
         let recorder_factory: RecorderFactory = Arc::new(default_recorder_factory(
             Arc::clone(&stream_router),
@@ -720,6 +753,7 @@ impl AudioRecordingManager {
             mute_state: Arc::new(Mutex::new(MuteState::default())),
             close_generation: Arc::new(AtomicU64::new(0)),
             cancel_generation: Arc::new(AtomicU64::new(0)),
+            lane_cancel_generations: Arc::new(Mutex::new(std::collections::HashMap::new())),
             stream_router,
             recording_active: Arc::new(AtomicBool::new(false)),
             capture_generation: Arc::new(AtomicU64::new(0)),
@@ -1203,9 +1237,7 @@ impl AudioRecordingManager {
     fn ensure_remote_lane(&self, lane: u64) -> Result<(), anyhow::Error> {
         let needs_reopen = {
             let lanes = self.remote_lanes.lock().unwrap();
-            lanes
-                .get(&lane)
-                .is_none_or(|l| l.recorder.needs_reopen())
+            lanes.get(&lane).is_none_or(|l| l.recorder.needs_reopen())
         };
         if !needs_reopen {
             return Ok(());
@@ -1224,12 +1256,15 @@ impl AudioRecordingManager {
         let source = rec
             .open_remote()
             .map_err(|e| anyhow::anyhow!("Failed to open remote capture source: {}", e))?;
-        lanes.insert(lane, RemoteLane {
-            recorder: rec,
-            source,
-            recording: false,
-            generation: 0,
-        });
+        lanes.insert(
+            lane,
+            RemoteLane {
+                recorder: rec,
+                source,
+                recording: false,
+                generation: 0,
+            },
+        );
         Ok(())
     }
 
@@ -1321,7 +1356,7 @@ impl AudioRecordingManager {
                 let started = Instant::now();
                 let buffer = Duration::from_millis(buffer_ms);
                 while started.elapsed() < buffer {
-                    if self.was_cancelled_since(cancel_generation) {
+                    if self.was_cancelled_since(Some(lane), cancel_generation) {
                         debug!("Recording stop cancelled during extra buffer");
                         break;
                     }
@@ -1345,11 +1380,14 @@ impl AudioRecordingManager {
         let _ = entry.recorder.close();
 
         // Fold the shared recording mirror with the local machine's state.
-        let local_active = matches!(*self.state.lock().unwrap(), RecordingState::Recording { .. });
+        let local_active = matches!(
+            *self.state.lock().unwrap(),
+            RecordingState::Recording { .. }
+        );
         self.recording_active
             .store(local_active || still_recording, Ordering::SeqCst);
 
-        if self.was_cancelled_since(cancel_generation) {
+        if self.was_cancelled_since(Some(lane), cancel_generation) {
             debug!("Recording stop cancelled; discarding captured samples");
             return None;
         }
@@ -1508,7 +1546,6 @@ impl AudioRecordingManager {
             .compare_exchange(token, 0, Ordering::AcqRel, Ordering::Acquire)
             .ok();
     }
-
 
     /// Replace the VAD implementation while idle. If the microphone stream is
     /// currently warm (always-on or lazy-close mode), reopen it with the new
@@ -1865,12 +1902,45 @@ impl AudioRecordingManager {
         self.capture_generation.load(Ordering::Acquire) == generation
     }
 
-    pub fn cancel_generation(&self) -> u64 {
-        self.cancel_generation.load(Ordering::Acquire)
+    /// v1.6.2 fleet pass 1: the cancel generation ONE session's stop
+    /// pipeline gates on - `None` is the local machine's shared generation,
+    /// `Some(lane)` that lane's own. Capture it at pipeline start and pass
+    /// it back through [`Self::was_cancelled_since`]; only a cancel that
+    /// resolved to THIS session bumps it.
+    pub fn cancel_generation(&self, lane: Option<u64>) -> u64 {
+        match lane {
+            Some(lane) => self
+                .lane_cancel_generations
+                .lock()
+                .unwrap()
+                .get(&lane)
+                .copied()
+                .unwrap_or(0),
+            None => self.cancel_generation.load(Ordering::Acquire),
+        }
     }
 
-    pub fn was_cancelled_since(&self, generation: u64) -> bool {
-        self.cancel_generation.load(Ordering::Acquire) != generation
+    /// Whether the session identified by `lane` (None = the local machine)
+    /// was cancelled since `generation` was captured. Same lane routing as
+    /// [`Self::cancel_generation`].
+    pub fn was_cancelled_since(&self, lane: Option<u64>, generation: u64) -> bool {
+        self.cancel_generation(lane) != generation
+    }
+
+    /// Bump exactly one session's cancel generation: the cancel teardown's
+    /// own target, never any other lane's (the cross-fire the single global
+    /// bump allowed).
+    fn bump_cancel_generation(&self, lane: Option<u64>) {
+        match lane {
+            Some(lane) => {
+                let mut lanes = self.lane_cancel_generations.lock().unwrap();
+                let generation = lanes.entry(lane).or_insert(0);
+                *generation += 1;
+            }
+            None => {
+                self.cancel_generation.fetch_add(1, Ordering::AcqRel);
+            }
+        }
     }
 
     /// Stop the LOCAL recording session and return its captured samples.
@@ -1912,7 +1982,7 @@ impl AudioRecordingManager {
                     let started = Instant::now();
                     let buffer = Duration::from_millis(buffer_ms);
                     while started.elapsed() < buffer {
-                        if self.was_cancelled_since(cancel_generation) {
+                        if self.was_cancelled_since(None, cancel_generation) {
                             debug!("Recording stop cancelled during extra buffer");
                             break;
                         }
@@ -1951,7 +2021,7 @@ impl AudioRecordingManager {
                 // the always-on stream now that the state is Idle.
                 self.run_deferred_clamshell_reresolve();
 
-                if self.was_cancelled_since(cancel_generation) {
+                if self.was_cancelled_since(None, cancel_generation) {
                     debug!("Recording stop cancelled; discarding captured samples");
                     return None;
                 }
@@ -1985,9 +2055,18 @@ impl AudioRecordingManager {
     /// Escape on); with no local recording, the MOST RECENTLY STARTED lane
     /// session is the one cancelled - the phone session the operator just
     /// saw start. Other lanes keep recording.
-    pub fn cancel_recording(&self) {
+    ///
+    /// v1.6.2 fleet pass 1: returns the target that was cancelled so the
+    /// caller can scope the transcription-side teardown to it, and bumps
+    /// EXACTLY that target's cancel generation - the lane arm leaves the
+    /// local generation alone and every other lane's alone, so one phone's
+    /// Escape can no longer discard another phone's in-flight stop pipeline
+    /// (the cross-fire the single global bump allowed). The local
+    /// generation still bumps even when nothing is recording: that is the
+    /// keyboard user's way to abort their own stop pipeline that is already
+    /// past capture (mid-transcription), which no lane arm may steal.
+    pub fn cancel_recording(&self) -> CancelTarget {
         self.invalidate_recording_readiness();
-        self.cancel_generation.fetch_add(1, Ordering::AcqRel);
         let mut state = self.state.lock().unwrap();
 
         // The per-lane cancel first: a lane session's teardown never touches
@@ -1999,6 +2078,7 @@ impl AudioRecordingManager {
             None
         };
         if let Some(lane) = cancel_lane {
+            self.bump_cancel_generation(cancel_bump_lane(CancelTarget::Lane(lane)));
             drop(state);
             let mut lanes = self.remote_lanes.lock().unwrap();
             if let Some(entry) = lanes.get_mut(&lane) {
@@ -2021,10 +2101,10 @@ impl AudioRecordingManager {
             self.recording_active
                 .store(local_active || still_recording, Ordering::SeqCst);
             self.remove_mute();
-            return;
+            return CancelTarget::Lane(lane);
         }
 
-        match *state {
+        let target = match *state {
             RecordingState::Recording { .. } => {
                 self.set_state(&mut state, RecordingState::Idle);
                 drop(state);
@@ -2058,6 +2138,7 @@ impl AudioRecordingManager {
                 // KB-010: a lid change that arrived mid-recording re-resolves
                 // the always-on stream now that the state is Idle.
                 self.run_deferred_clamshell_reresolve();
+                CancelTarget::Local
             }
             RecordingState::Stopping => {
                 debug!("Cancellation requested while recording is stopping");
@@ -2066,9 +2147,15 @@ impl AudioRecordingManager {
                 // forced mute behind even if the pipeline's own teardown is
                 // interrupted. remove_mute is a no-op when we did not mute.
                 self.remove_mute();
+                CancelTarget::Local
             }
-            RecordingState::Idle => {}
-        }
+            RecordingState::Idle => CancelTarget::None,
+        };
+        // Every non-lane resolution is the local machine's business (the
+        // Idle bump included: it aborts the LOCAL stop pipeline already past
+        // capture, and cannot touch any lane's scoped generation).
+        self.bump_cancel_generation(cancel_bump_lane(target));
+        target
     }
 }
 
@@ -2091,6 +2178,50 @@ mod tests {
         assert_eq!(effective_release_buffer_ms(0, 200, false), 0);
         // The off path: a zero tail restores the old behavior exactly.
         assert_eq!(effective_release_buffer_ms(0, 0, true), 0);
+    }
+
+    /// Fleet pass 1: the cancel cross-fire rule, pinned pure. A cancel
+    /// resolution may bump ONLY the generation of the session it tore
+    /// down: a lane-resolved Escape names its own lane, and no resolution
+    /// may ever name a lane it did not cancel. Under the single global
+    /// generation, cancelling one phone discarded another phone's
+    /// in-flight stop pipeline (its captured audio with it).
+    #[test]
+    fn cancel_bump_lane_scopes_the_bump_to_the_cancelled_target() {
+        assert_eq!(cancel_bump_lane(CancelTarget::Lane(7)), Some(7));
+        assert_eq!(cancel_bump_lane(CancelTarget::Lane(9)), Some(9));
+        // Local and nothing-resolved cancels belong to the LOCAL machine's
+        // shared generation (None), never a lane's.
+        assert_eq!(cancel_bump_lane(CancelTarget::Local), None);
+        assert_eq!(cancel_bump_lane(CancelTarget::None), None);
+    }
+
+    /// The source-level pin for the same fix: cancel_recording bumps only
+    /// through the target-scoped helper - the unconditional global
+    /// `cancel_generation.fetch_add` that cross-fired every concurrent
+    /// lane stop pipeline must stay out of it (the manager needs a Tauri
+    /// AppHandle, so the arm is pinned against this committed source, the
+    /// same convention as the coordinator's executor pins).
+    #[test]
+    fn cancel_recording_bumps_only_through_the_target_scoped_helper() {
+        let source = include_str!("audio.rs");
+        let fn_at = source
+            .find("pub fn cancel_recording(&self) -> CancelTarget")
+            .expect("cancel_recording");
+        let body_end = fn_at + source[fn_at..].find("\n    }\n}\n").expect("fn end");
+        let body = &source[fn_at..body_end];
+        assert!(
+            body.contains("bump_cancel_generation(cancel_bump_lane(CancelTarget::Lane(lane)))"),
+            "the lane arm must bump its own lane's generation only"
+        );
+        assert!(
+            body.contains("bump_cancel_generation(cancel_bump_lane(target))"),
+            "every non-lane resolution must route through the same scoped helper"
+        );
+        assert!(
+            !body.contains("cancel_generation.fetch_add"),
+            "cancel_recording must never bump the shared generation directly: the pre-fix unconditional bump is what discarded other lanes' stop pipelines"
+        );
     }
 
     // Manager-level remote-session tests (start/stop on the remote source

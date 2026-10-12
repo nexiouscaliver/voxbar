@@ -110,7 +110,12 @@ struct CompanionInner {
 struct ConnectionEntry {
     lane: u64,
     generation: u64,
-    /// The hello's device name (client-controlled, display-only).
+    /// The hello's IDENTITY name: the client's display name tagged with
+    /// its persistent device id (see `protocol::device_identity_name`),
+    /// unique per phone where the UA-derived display name alone is a
+    /// platform token every same-platform phone shares. Keyed into the
+    /// session freeze and history's capture_device, so per-phone data (the
+    /// Recent list) can never collapse two same-platform phones.
     device: String,
     tx: tokio::sync::mpsc::UnboundedSender<String>,
 }

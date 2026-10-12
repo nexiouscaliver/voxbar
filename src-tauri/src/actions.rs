@@ -2088,7 +2088,16 @@ impl ShortcutAction for TranscribeAction {
             CaptureSource::Remote => session_device.clone().unwrap_or_default(),
             CaptureSource::Local => String::new(),
         };
-        let cancel_generation = rm.cancel_generation();
+        // v1.6.2 fleet pass 1: this pipeline gates on ITS OWN session's
+        // cancel generation - the local machine's shared one, or its lane's
+        // private one - so a cancel that resolves to any OTHER session
+        // (another lane's, or the local machine's while this is a lane
+        // pipeline) can never discard this pipeline's captured audio.
+        let cancel_lane = match capture_source {
+            CaptureSource::Remote => session_lane,
+            CaptureSource::Local => None,
+        };
+        let cancel_generation = rm.cancel_generation(cancel_lane);
         // v1.6.2 W1-L2: does THIS session own the streaming engine? Only
         // its Stop may finalize it - another lane's pipeline (or the
         // keyboard's) finalizing a stream it does not own would swallow
@@ -2136,7 +2145,7 @@ impl ShortcutAction for TranscribeAction {
                     samples.len()
                 );
 
-                if rm.was_cancelled_since(cancel_generation) {
+                if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                     debug!("Transcription operation cancelled after recording stop");
                     tm.cancel_stream();
                     utils::hide_recording_overlay(&ah);
@@ -2301,7 +2310,7 @@ impl ShortcutAction for TranscribeAction {
                         }
                     };
 
-                    if rm.was_cancelled_since(cancel_generation) {
+                    if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                         debug!("Transcription operation cancelled before output handling");
                         utils::hide_recording_overlay(&ah);
                         set_tray_state(&ah, TrayIconState::Idle);
@@ -2330,7 +2339,7 @@ impl ShortcutAction for TranscribeAction {
                             let rm_for_swap = Arc::clone(&rm);
                             let is_cancelled: Option<Arc<dyn Fn() -> bool + Send + Sync>> =
                                 Some(Arc::new(move || {
-                                    rm_for_swap.was_cancelled_since(cancel_generation)
+                                    rm_for_swap.was_cancelled_since(cancel_lane, cancel_generation)
                                 }));
                             let Some(processed) = complete_unless_cancelled(
                                 process_transcription_output(
@@ -2340,7 +2349,7 @@ impl ShortcutAction for TranscribeAction {
                                     post_process,
                                     is_cancelled,
                                 ),
-                                || rm.was_cancelled_since(cancel_generation),
+                                || rm.was_cancelled_since(cancel_lane, cancel_generation),
                             )
                             .await
                             else {
@@ -2356,7 +2365,7 @@ impl ShortcutAction for TranscribeAction {
                                 return;
                             };
 
-                            if rm.was_cancelled_since(cancel_generation) {
+                            if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                                 debug!("Transcription operation cancelled before paste");
                                 utils::hide_recording_overlay(&ah);
                                 set_tray_state(&ah, TrayIconState::Idle);
@@ -2500,7 +2509,7 @@ impl ShortcutAction for TranscribeAction {
 
                                     let mut waited = Duration::ZERO;
                                     while waited < PREVIEW_BEFORE_PASTE_DELAY {
-                                        if rm.was_cancelled_since(cancel_generation) {
+                                        if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                                             debug!(
                                                 "Transcription operation cancelled during final preview"
                                             );
@@ -2536,7 +2545,7 @@ impl ShortcutAction for TranscribeAction {
                                     stop_to_end_ms: 0,
                                 };
                                 ah.run_on_main_thread(move || {
-                                    if rm_for_paste.was_cancelled_since(cancel_generation) {
+                                    if rm_for_paste.was_cancelled_since(cancel_lane, cancel_generation) {
                                         debug!("Transcription operation cancelled before paste");
                                         utils::hide_recording_overlay(&ah_clone);
                                         set_tray_state(&ah_clone, TrayIconState::Idle);
@@ -2605,7 +2614,7 @@ impl ShortcutAction for TranscribeAction {
                             }
                         }
                         Err(err) => {
-                            if rm.was_cancelled_since(cancel_generation) {
+                            if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                                 debug!(
                                     "Transcription operation cancelled after transcription error"
                                 );

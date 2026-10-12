@@ -62,16 +62,24 @@ assert.equal(
   "errors.modelLoadFailedMemoryGate[free=,model=Whisper Tiny,needed=]",
   "a bare-model refusal detail interpolates empty amounts, never literals",
 );
-// The OS notification body strips the interpolated amounts (the raw
-// numbers stay off the system surface; the log row keeps them).
+// Fleet pass 1: the memory-gate notification body keeps the FULLY
+// interpolated line. The code is not in the body-stripping set: its three
+// slots (model, needed, free) all sit mid-sentence in every one of the 26
+// locale templates with text after each, so the empty-detail re-localize
+// this test's sibling codes go through left grammatically broken output
+// in every locale ("Not enough free memory to load : it needs about ,
+// with about free."). The detail is app-manufactured (model name and two
+// human-readable amounts, never a raw backend diagnostic), so the full
+// line is safe on the system surface - the same decision as the
+// companion_session_capped device slot.
 assert.equal(
   noticeNotificationBody(
     t,
     "model_load_failed_memory_gate",
     "Whisper Tiny\u001f43 MB\u001f1.0 GB",
-  ) !== null,
-  true,
-  "the memory-gate refusal still posts a notification body",
+  ),
+  "errors.modelLoadFailedMemoryGate[free=1.0 GB,model=Whisper Tiny,needed=43 MB]",
+  "the memory-gate notification body is the fully interpolated line, never the detail-stripped garble",
 );
 assert.equal(
   noticeMessage(t, "model_fallback", "whisper-tiny"),
