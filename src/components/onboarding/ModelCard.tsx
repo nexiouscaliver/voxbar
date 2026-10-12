@@ -368,7 +368,11 @@ const ModelCard: React.FC<ModelCardProps> = ({
                 title={t("modelSelector.deleteModel", {
                   modelName: displayName,
                 })}
-                className="flex items-center gap-1.5"
+                /* Dimmed to 0.7 (not the default 0.5) while disabled so the
+                   destructive identity survives: half-strength red reads as
+                   washed-out gray on the dark card, 0.7 still reads
+                   unmistakably as error-red-and-unavailable. */
+                className="flex items-center gap-1.5 disabled:opacity-70"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>{t("common.delete")}</span>

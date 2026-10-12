@@ -722,6 +722,40 @@ const shots = [
     ["settings-about", "about"],
   ].map(([name, section]) => settingsShot({ name, section })),
 
+  // ---- Models: the ACTIVE model card's action row in view. The resting
+  // tab shot keeps the first card clipped at the fold, so the destructive
+  // Delete (error red, disabled while active, behind the divider) needs
+  // its own scrolled capture to be visibly in evidence.
+  settingsShot({
+    name: "settings-models-active-delete",
+    section: "models",
+    state: "active-delete-row",
+    prepare: async (page) => {
+      await page
+        .locator("div.rounded-xl")
+        .filter({ hasText: tIn("en", "modelSelector.active") })
+        .first()
+        .scrollIntoViewIfNeeded({ timeout: 5000 });
+      await settle(500);
+    },
+  }),
+
+  // ---- Commands: the reset-all confirmation dialog open, capturing the
+  // danger (solid error-red) confirm button against the cancel ghost.
+  settingsShot({
+    name: "settings-commands-reset-dialog",
+    section: "commands",
+    state: "reset-dialog",
+    prepare: async (page) => {
+      await page
+        .getByRole("button", {
+          name: tIn("en", "settings.commands.resetAll"),
+        })
+        .click({ timeout: 5000 });
+      await settle(600);
+    },
+  }),
+
   // ---- disabled-control pass: the behavior toggles that gate the general
   // tab's shortcut rows are off, so those rows render disabled ----
   settingsShot({
@@ -765,6 +799,26 @@ const shots = [
 
   // ---- Prompt Studio (v1.6.0 W1-L6: always enabled) ----
   settingsShot({ name: "settings-studio", section: "promptStudio" }),
+  // Engines grid scrolled into view with OpenRouter carrying no model
+  // (mock default): the "No model set. Choose one in Post Process." note
+  // wraps to a second line instead of ellipsizing mid-destination.
+  settingsShot({
+    name: "settings-studio-engines-no-model",
+    section: "promptStudio",
+    state: "engines-no-model",
+    prepare: async (page) => {
+      const enginesLabel = tIn("en", "settings.studio.engines.label");
+      await page
+        .locator("h2, h3, p", { hasText: enginesLabel })
+        .last()
+        .scrollIntoViewIfNeeded({ timeout: 5000 });
+      await page.evaluate(() => {
+        const scroller = document.querySelector("[data-settings-scroll]");
+        if (scroller) scroller.scrollTop -= 40;
+      });
+      await settle(500);
+    },
+  }),
   settingsShot({
     name: "settings-studio-run",
     scenario: "settings-full",

@@ -57,9 +57,10 @@ const IconButton: React.FC<{
     className={`p-1.5 rounded-md flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:text-text/20 ${
       destructive
         ? // The one destructive action on the row carries the app's error
-          // red on hover (and its tint as the resting glyph stays neutral
-          // gray like its siblings), so it never reads as a safe peer.
-          "text-text/50 hover:text-error hover:bg-error/10"
+          // red at rest - the same resting treatment the danger-ghost
+          // buttons use - with the tint surfacing on hover, so it never
+          // reads as a safe peer (in static captures too).
+          "text-error hover:bg-error/10"
         : active
           ? "text-logo-primary hover:text-logo-primary/80"
           : "text-text/50 hover:text-logo-primary"

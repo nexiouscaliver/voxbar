@@ -300,11 +300,15 @@ export const ModelsSettings: React.FC = () => {
       <div className="space-y-6">
         {/* Downloaded Models Section - header always visible so filter stays accessible */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-text/60">
+          {/* The heading keeps its single line (whitespace-nowrap) and the
+              filter cluster wraps to its own row beneath it when the
+              labeled pills plus the language dropdown outgrow the ~450px
+              settings column - the cluster gives way, never the heading. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+            <h2 className="text-sm font-medium text-text/60 whitespace-nowrap">
               {t("settings.models.yourModels")}
             </h2>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
               {/* Capability filters carry their label inline (icon-only
                   pills read as mystery toggles, and the translate glyph
                   crowded the language dropdown beside it). Rescan lives
@@ -315,7 +319,7 @@ export const ModelsSettings: React.FC = () => {
                 title={t("settings.models.filters.streaming")}
                 aria-label={t("settings.models.filters.streaming")}
                 aria-pressed={filterStreaming}
-                className={`flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                className={`flex items-center gap-1.5 h-8 px-2 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
                   filterStreaming
                     ? "bg-logo-primary/20 text-logo-primary hover:bg-logo-primary/30"
                     : "bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20"
@@ -332,7 +336,7 @@ export const ModelsSettings: React.FC = () => {
                 title={t("settings.models.filters.translation")}
                 aria-label={t("settings.models.filters.translation")}
                 aria-pressed={filterTranslation}
-                className={`flex items-center gap-1.5 h-8 px-2.5 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
+                className={`flex items-center gap-1.5 h-8 px-2 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
                   filterTranslation
                     ? "bg-logo-primary/20 text-logo-primary hover:bg-logo-primary/30"
                     : "bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20"
@@ -346,7 +350,7 @@ export const ModelsSettings: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
-                  className={`flex items-center gap-1.5 h-8 px-3 text-sm font-medium rounded-lg transition-colors ${
+                  className={`flex items-center gap-1.5 h-8 px-2 text-xs font-medium rounded-lg transition-colors ${
                     languageFilter !== "all"
                       ? "bg-logo-primary/20 text-logo-primary"
                       : "bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20"
