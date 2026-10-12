@@ -265,11 +265,14 @@ with a retry button instead of recording silence.
 Settings shows every candidate network interface with its OS name and a
 classification: LAN, Tailscale, or VPN. Automatic picks the LAN first; a
 phone on your tailnet works too, because the Tailscale CGNAT range
-(100.64.0.0/10) is a first-class interface, so pairing works over
-Tailscale with no shared Wi-Fi. You can also pin a specific interface, set
-the port, and override the advertised host or IP for proxies and odd
-networks. When the running server no longer matches the saved
-configuration, Settings says a restart is pending and offers the button.
+(100.64.0.0/10) on a utun interface is a first-class candidate, so pairing
+works over Tailscale with no shared Wi-Fi. The range alone is not treated
+as proof: a carrier network handing out 100.64.x.x leases on your physical
+interface is labeled plain LAN and pairs on its /24 like any LAN. You can
+also pin a specific interface, set the port, and override the advertised
+host or IP for proxies and odd networks. When the running server no longer
+matches the saved configuration, Settings says a restart is pending and
+offers the button.
 
 TLS options: the built-in self-signed certificate (fingerprint shown in
 Settings so you can check the browser warning the first time), or your own
@@ -282,6 +285,14 @@ input is capped at 2x realtime against ring flooding, and off by default
 means no listener and no threads until you switch it on. Reset pairing any
 time to revoke phones. Companion devices need macOS this cycle; the phone
 page works in mobile Safari and Chrome.
+
+Security note on Tailscale scope: binding the companion server to a
+Tailscale interface issues the pairing token for the entire tailnet, not
+just your devices. On a shared or organization tailnet, every member of
+that tailnet who can reach your Mac and gets the token (or reads it off a
+QR you show) can pair as a microphone. Treat the token like a password
+into your Mac's dictation, prefer a LAN bind when the phone is on your
+Wi-Fi, and reset pairing whenever a device or person leaves the tailnet.
 
 ## Notifications
 

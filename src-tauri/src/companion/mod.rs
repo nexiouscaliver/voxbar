@@ -417,9 +417,10 @@ impl CompanionManager {
 
         // Pairing token: generate on enable, and rebind when the advertised
         // subnet changed (a token from another network never validates).
-        // A Tailscale bind issues the token for the whole CGNAT /10, so
-        // every tailnet peer validates (ip::pairing_subnet_for).
-        let subnet = ip::pairing_subnet_for(bind_ip);
+        // A corroborated Tailscale bind (KB-259: CGNAT range on a utun
+        // interface) issues the token for the whole CGNAT /10, so every
+        // tailnet peer validates (ip::pairing_subnet_for).
+        let subnet = ip::pairing_subnet_for(&candidates, bind_ip);
         {
             let mut settings = crate::settings::get_settings(app);
             let token_stale = settings
@@ -647,6 +648,7 @@ impl CompanionManager {
             token.as_deref(),
             settings.companion_pairing_subnet.as_deref(),
             port,
+            &candidates,
         );
 
         let restart_pending = inner.running && {
@@ -722,7 +724,7 @@ impl CompanionManager {
                 .companion_bind_ip
                 .as_deref(),
         )?;
-        let subnet = ip::pairing_subnet_for(bind_ip);
+        let subnet = ip::pairing_subnet_for(&candidates, bind_ip);
         let mut settings = crate::settings::get_settings(app);
         settings.companion_pairing_token = Some(auth::generate_pairing_token());
         settings.companion_pairing_subnet = Some(subnet);
@@ -1137,12 +1139,17 @@ fn restart_needed(
 /// subnet than the effective address implies - start() regenerates a
 /// stale token at the next start, so advertising it would hand the
 /// phone a bad_token exactly after the restart the preview promised.
+/// `candidates` carries the current enumeration so the expected subnet
+/// corroborates the Tailscale tier through the interface name (KB-259);
+/// a live bind that is no longer enumerated falls back to the narrow
+/// /24, which merely suppresses this preview.
 fn advertised_url_qr(
     advertised_host: Option<&str>,
     effective_ip: Option<Ipv4Addr>,
     token: Option<&str>,
     stored_pairing_subnet: Option<&str>,
     port: u16,
+    candidates: &[ip::InterfaceCandidate],
 ) -> (Option<String>, Option<String>) {
     let Some(ip) = effective_ip else {
         return (None, None);
@@ -1151,8 +1158,9 @@ fn advertised_url_qr(
         return (None, None);
     };
     // A token issued for another subnet never validates (auth::same_subnet
-    // refuses); pairing_subnet_for widens Tailscale binds to the CGNAT /10.
-    if stored_pairing_subnet != Some(ip::pairing_subnet_for(ip).as_str()) {
+    // refuses); pairing_subnet_for widens corroborated Tailscale binds to
+    // the CGNAT /10.
+    if stored_pairing_subnet != Some(ip::pairing_subnet_for(candidates, ip).as_str()) {
         return (None, None);
     }
     let host = advertised_host
@@ -1822,11 +1830,24 @@ mod tests {
     /// advertised_url_qr status() calls, not a re-implementation). The
     /// URL rides the advertised-host override when set and the
     /// effective interface IP otherwise, on the configured port, and is
-    /// suppressed outright when there is no address or no token.
+    /// suppressed outright when there is no address or no token. The
+    /// candidates carry the KB-259 corroboration: the Tailscale address
+    /// rides a utun, the LAN addresses ride physical interfaces.
     #[test]
     fn pairing_url_prefers_the_advertised_host_override() {
         let lan = Ipv4Addr::new(192, 168, 1, 42);
         let lan_subnet = Some("192.168.1.0/24");
+        let lan_candidates = [ip::InterfaceCandidate {
+            ip: lan,
+            name: "en0".to_string(),
+            kind: ip::InterfaceKind::Lan,
+        }];
+        let ts = Ipv4Addr::new(100, 101, 7, 24);
+        let ts_candidates = [ip::InterfaceCandidate {
+            ip: ts,
+            name: "utun9".to_string(),
+            kind: ip::InterfaceKind::Tailscale,
+        }];
 
         // Override wins over the interface IP.
         let (url, qr) = advertised_url_qr(
@@ -1835,6 +1856,7 @@ mod tests {
             Some("tok"),
             lan_subnet,
             4177,
+            &lan_candidates,
         );
         assert_eq!(
             url.as_deref(),
@@ -1843,26 +1865,39 @@ mod tests {
         assert!(qr.is_some(), "a valid URL always carries a QR");
 
         // No override: the effective IP, on the configured port.
-        let (url, _) = advertised_url_qr(None, Some(lan), Some("tok"), lan_subnet, 8443);
+        let (url, _) = advertised_url_qr(
+            None,
+            Some(lan),
+            Some("tok"),
+            lan_subnet,
+            8443,
+            &lan_candidates,
+        );
         assert_eq!(url.as_deref(), Some("https://192.168.1.42:8443/#t=tok"));
 
         // Tailscale effective address with a token bound for it (the /10).
-        let ts = Ipv4Addr::new(100, 101, 7, 24);
-        let (url, _) = advertised_url_qr(None, Some(ts), Some("tok"), Some("100.64.0.0/10"), 4177);
+        let (url, _) = advertised_url_qr(
+            None,
+            Some(ts),
+            Some("tok"),
+            Some("100.64.0.0/10"),
+            4177,
+            &ts_candidates,
+        );
         assert_eq!(url.as_deref(), Some("https://100.101.7.24:4177/#t=tok"));
 
         // No effective address (stopped, unresolvable choice) or no
         // token: nothing to advertise.
         assert_eq!(
-            advertised_url_qr(None, None, Some("tok"), lan_subnet, 4177),
+            advertised_url_qr(None, None, Some("tok"), lan_subnet, 4177, &lan_candidates),
             (None, None)
         );
         assert_eq!(
-            advertised_url_qr(None, Some(lan), None, lan_subnet, 4177),
+            advertised_url_qr(None, Some(lan), None, lan_subnet, 4177, &lan_candidates),
             (None, None)
         );
         assert_eq!(
-            advertised_url_qr(None, Some(lan), Some(""), lan_subnet, 4177),
+            advertised_url_qr(None, Some(lan), Some(""), lan_subnet, 4177, &lan_candidates),
             (None, None)
         );
     }
@@ -1880,6 +1915,16 @@ mod tests {
     fn a_stale_token_for_the_resolved_subnet_is_never_advertised() {
         let lan = Ipv4Addr::new(192, 168, 1, 42);
         let tailscale = Ipv4Addr::new(100, 101, 7, 24);
+        let lan_candidates = [ip::InterfaceCandidate {
+            ip: lan,
+            name: "en0".to_string(),
+            kind: ip::InterfaceKind::Lan,
+        }];
+        let ts_candidates = [ip::InterfaceCandidate {
+            ip: tailscale,
+            name: "utun9".to_string(),
+            kind: ip::InterfaceKind::Tailscale,
+        }];
 
         // LAN token, Tailscale choice pending: no URL, no QR.
         assert_eq!(
@@ -1888,7 +1933,8 @@ mod tests {
                 Some(tailscale),
                 Some("tok"),
                 Some("192.168.1.0/24"),
-                4177
+                4177,
+                &ts_candidates
             ),
             (None, None),
             "a /24 token advertised on a /10 address pairs against a dead token after restart"
@@ -1896,25 +1942,38 @@ mod tests {
 
         // The reverse switch is equally suppressed.
         assert_eq!(
-            advertised_url_qr(None, Some(lan), Some("tok"), Some("100.64.0.0/10"), 4177),
+            advertised_url_qr(
+                None,
+                Some(lan),
+                Some("tok"),
+                Some("100.64.0.0/10"),
+                4177,
+                &lan_candidates
+            ),
             (None, None)
         );
 
         // A same-/24 interface change (en0 to a bridge on the same LAN)
         // keeps the token valid, so the preview stays honest there.
         let bridge = Ipv4Addr::new(192, 168, 1, 50);
+        let bridge_candidates = [ip::InterfaceCandidate {
+            ip: bridge,
+            name: "bridge100".to_string(),
+            kind: ip::InterfaceKind::Lan,
+        }];
         let (url, _) = advertised_url_qr(
             None,
             Some(bridge),
             Some("tok"),
             Some("192.168.1.0/24"),
             4177,
+            &bridge_candidates,
         );
         assert_eq!(url.as_deref(), Some("https://192.168.1.50:4177/#t=tok"));
 
         // Never-paired state (no stored subnet): nothing yet.
         assert_eq!(
-            advertised_url_qr(None, Some(lan), Some("tok"), None, 4177),
+            advertised_url_qr(None, Some(lan), Some("tok"), None, 4177, &lan_candidates),
             (None, None)
         );
     }

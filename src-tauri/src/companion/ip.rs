@@ -79,19 +79,52 @@ pub fn is_tailscale_cgnat(ip: Ipv4Addr) -> bool {
     o[0] == 100 && (64..=127).contains(&o[1])
 }
 
+/// KB-259: interface names that corroborate a Tailscale address. On macOS
+/// Tailscale rides the utun family (utun0, utun1, ...); on Linux it names
+/// its interface tailscale0. The CGNAT range ALONE is not proof: carrier
+/// and home networks behind ISP CGNAT hand out 100.64.0.0/10 leases on the
+/// physical interface (en0), and treating those as Tailscale both
+/// mislabels the LAN in the picker and widens the pairing token to the
+/// whole /10. The interface name is the second, independent signal.
+pub fn is_tailscale_interface_name(name: &str) -> bool {
+    let name = name.trim();
+    name.starts_with("utun") || name.starts_with("tailscale")
+}
+
 /// Classify a candidate address for the picker. Loopback and public
-/// addresses classify as None and never become candidates.
-pub fn classify_v4(ip: Ipv4Addr) -> Option<InterfaceKind> {
+/// addresses classify as None and never become candidates. The Tailscale
+/// tier is corroborated with the interface name (KB-259): a CGNAT-range
+/// address on the utun family is the tailnet, while the same range on a
+/// physical interface is an ISP-CGNAT LAN and labels (and pairs) as plain
+/// LAN.
+pub fn classify_v4(ip: Ipv4Addr, interface_name: &str) -> Option<InterfaceKind> {
     let o = ip.octets();
     if (o[0] == 192 && o[1] == 168) || (o[0] == 172 && (16..=31).contains(&o[1])) {
         Some(InterfaceKind::Lan)
     } else if is_tailscale_cgnat(ip) {
-        Some(InterfaceKind::Tailscale)
+        if is_tailscale_interface_name(interface_name) {
+            Some(InterfaceKind::Tailscale)
+        } else {
+            // ISP CGNAT on the physical LAN: it IS the local network, so
+            // it ranks as LAN and pairs on its /24 like any LAN.
+            Some(InterfaceKind::Lan)
+        }
     } else if o[0] == 10 {
         Some(InterfaceKind::CorporateVpn)
     } else {
         None
     }
+}
+
+/// The name-less range gate the stored-override pre-validation uses
+/// (shortcut/mod.rs): a hand-typed bind address must sit in a range the
+/// picker could ever offer. The corroborated classification (the label,
+/// and with it the pairing scope) happens against the enumerated
+/// interfaces at server start; the corroborating name passed here simply
+/// admits the CGNAT range, because a genuine tailnet address must pass
+/// this gate too.
+pub fn classify_v4_by_range(ip: Ipv4Addr) -> Option<InterfaceKind> {
+    classify_v4(ip, "utun0")
 }
 
 /// Enumerate this machine's candidate IPv4 addresses with their interface
@@ -128,7 +161,7 @@ pub fn interface_candidates() -> Vec<InterfaceCandidate> {
                         .to_string_lossy()
                         .into_owned()
                 };
-                if let Some(kind) = classify_v4(ip) {
+                if let Some(kind) = classify_v4(ip, &name) {
                     out.push(InterfaceCandidate { ip, name, kind });
                 }
             }
@@ -195,15 +228,27 @@ pub fn resolve_bind_ip(
     }
 }
 
-/// The subnet the pairing token is issued for when advertising `ip`: the
-/// whole CGNAT /10 for a Tailscale interface (tailnet peers sit anywhere
-/// in it), the /24 otherwise (unchanged pre-v1.6.0 binding).
-pub fn pairing_subnet_for(ip: Ipv4Addr) -> String {
-    if is_tailscale_cgnat(ip) {
-        TAILSCALE_CGNAT_SUBNET.to_string()
-    } else {
-        super::auth::subnet_of(ip)
-    }
+/// The subnet the pairing token is issued for when advertising `ip`,
+/// corroborated through the candidate the address was enumerated on
+/// (KB-259): the whole CGNAT /10 only for a Tailscale-labeled interface
+/// (tailnet peers sit anywhere in it); everything else, including a
+/// CGNAT-range address on a physical interface (an ISP-CGNAT LAN), keeps
+/// the /24 (the unchanged pre-v1.6.0 binding). An address that is not in
+/// the current enumeration (a live bind whose interface has since gone
+/// away) falls back to the NARROW /24 scope deliberately: a stale preview
+/// is better than a token advertised wider than its interface warrants.
+pub fn pairing_subnet_for(candidates: &[InterfaceCandidate], ip: Ipv4Addr) -> String {
+    candidates
+        .iter()
+        .find(|c| c.ip == ip)
+        .map(|c| {
+            if c.kind == InterfaceKind::Tailscale {
+                TAILSCALE_CGNAT_SUBNET.to_string()
+            } else {
+                super::auth::subnet_of(c.ip)
+            }
+        })
+        .unwrap_or_else(|| super::auth::subnet_of(ip))
 }
 
 /// Validate the manual advertised-host override: an IPv4 literal or a
@@ -247,7 +292,8 @@ mod tests {
         InterfaceCandidate {
             ip: Ipv4Addr::new(a, b, c, d),
             name: name.to_string(),
-            kind: classify_v4(Ipv4Addr::new(a, b, c, d)).expect("test candidates must classify"),
+            kind: classify_v4(Ipv4Addr::new(a, b, c, d), name)
+                .expect("test candidates must classify"),
         }
     }
 
@@ -276,13 +322,15 @@ mod tests {
         ])));
     }
 
-    /// The v1.6.0 classification table, in the phone_visibility! mold:
-    /// one list generates BOTH the exhaustive `wire_of` match (no
-    /// wildcard arm, so extending InterfaceKind breaks compilation of
-    /// this test until the new kind consciously joins the table) AND the
-    /// sample array the agreement loop iterates. Each row pins
-    /// representative (plus boundary) addresses per class, including
-    /// both edges of the CGNAT /10.
+    /// The v1.6.0 classification table extended with the KB-259 interface
+    /// corroboration, in the phone_visibility! mold: one list generates
+    /// BOTH the exhaustive `wire_of` match (no wildcard arm, so extending
+    /// InterfaceKind breaks compilation of this test until the new kind
+    /// consciously joins the table) AND the sample array the agreement
+    /// loop iterates. Each row pins representative (plus boundary)
+    /// addresses per class with the interface name that corroborates them,
+    /// including both edges of the CGNAT /10 and the KB-259 split inside
+    /// it: the same address is Tailscale on a utun and plain LAN on en0.
     #[test]
     fn every_interface_kind_has_a_deliberate_classification_table() {
         macro_rules! classification_table {
@@ -292,7 +340,7 @@ mod tests {
                 // macro matcher), so the sample lists carry trailing
                 // commas in the invocation below.
                 none [ $( $none:expr, )+ ]
-                $( $kind:ident as $str:expr => [ $( $ip:expr, )+ ] $(,)? )+
+                $( $kind:ident as $str:expr => [ $( ($ip:expr, $name:expr), )+ ] $(,)? )+
             ) => {
                 // Exhaustive over InterfaceKind: no wildcard arm, so a
                 // new variant fails compilation until it joins the table.
@@ -301,14 +349,14 @@ mod tests {
                         $( InterfaceKind::$kind => $str, )+
                     }
                 }
-                fn samples() -> Vec<(InterfaceKind, &'static str, Ipv4Addr)> {
+                fn samples() -> Vec<(InterfaceKind, &'static str, Ipv4Addr, &'static str)> {
                     let mut v = Vec::new();
-                    $( v.extend([ $( $ip ),* ].into_iter()
-                        .map(|ip| (InterfaceKind::$kind, $str, ip))); )+
+                    $( v.extend([ $( ($ip, $name) ),* ].into_iter()
+                        .map(|(ip, name)| (InterfaceKind::$kind, $str, ip, name))); )+
                     v
                 }
-                fn none_samples() -> Vec<Ipv4Addr> {
-                    vec![ $( $none ),* ]
+                fn none_samples() -> Vec<(Ipv4Addr, &'static str)> {
+                    vec![ $( ($none, "utun0") ),* ]
                 }
             };
         }
@@ -323,32 +371,37 @@ mod tests {
                 Ipv4Addr::new(172, 32, 0, 1),     // one above 172.16/12
             ]
             Lan as "lan" => [
-                Ipv4Addr::new(192, 168, 1, 42),
-                Ipv4Addr::new(172, 16, 0, 1),
-                Ipv4Addr::new(172, 31, 255, 254),
+                (Ipv4Addr::new(192, 168, 1, 42), "en0"),
+                (Ipv4Addr::new(172, 16, 0, 1), "en1"),
+                (Ipv4Addr::new(172, 31, 255, 254), "bridge100"),
+                // KB-259: ISP CGNAT on the physical LAN is LAN, not Tailscale.
+                (Ipv4Addr::new(100, 64, 0, 1), "en0"),
+                (Ipv4Addr::new(100, 101, 7, 24), "en0"),
+                (Ipv4Addr::new(100, 127, 255, 254), "bridge100"),
             ]
             Tailscale as "tailscale" => [
-                Ipv4Addr::new(100, 64, 0, 1),      // first address of the /10
-                Ipv4Addr::new(100, 101, 7, 24),    // typical tailnet address
-                Ipv4Addr::new(100, 127, 255, 254), // last address of the /10
+                (Ipv4Addr::new(100, 64, 0, 1), "utun9"),      // first address of the /10
+                (Ipv4Addr::new(100, 101, 7, 24), "utun3"),    // typical tailnet address
+                (Ipv4Addr::new(100, 127, 255, 254), "utun9"), // last address of the /10
+                (Ipv4Addr::new(100, 101, 7, 24), "tailscale0"), // the Linux interface name
             ]
             CorporateVpn as "vpn" => [
-                Ipv4Addr::new(10, 20, 0, 5),
-                Ipv4Addr::new(10, 0, 30, 2),
+                (Ipv4Addr::new(10, 20, 0, 5), "utun3"),
+                (Ipv4Addr::new(10, 0, 30, 2), "en0"),
             ]
         }
 
-        for (kind, wire, ip) in samples() {
+        for (kind, wire, ip, name) in samples() {
             assert_eq!(
-                classify_v4(ip),
+                classify_v4(ip, name),
                 Some(kind),
-                "{ip}: classified wrong for {wire}"
+                "{ip} on {name}: classified wrong for {wire}"
             );
             assert_eq!(kind.as_str(), wire, "wire string must match the table");
             assert_eq!(wire_of(kind), wire);
         }
-        for ip in none_samples() {
-            assert_eq!(classify_v4(ip), None, "{ip}: must never be a candidate");
+        for (ip, name) in none_samples() {
+            assert_eq!(classify_v4(ip, name), None, "{ip}: must never be a candidate");
         }
     }
 
@@ -357,11 +410,30 @@ mod tests {
         for c in interface_candidates() {
             assert_eq!(
                 c.kind,
-                classify_v4(c.ip).expect("enumerated candidates classify")
+                classify_v4(c.ip, &c.name).expect("enumerated candidates classify"),
+                "{} on {}: the label must follow the corroborated classification",
+                c.ip,
+                c.name
             );
             assert!(!c.ip.is_loopback());
             assert!(!c.name.is_empty(), "getifaddrs always carries a name");
         }
+    }
+
+    /// KB-259: the interface-name half of the corroboration. The utun
+    /// family (any utunN) and the Linux tailscale0 corroborate; physical
+    /// interfaces, bridges, loopback, and empty names never do.
+    #[test]
+    fn tailscale_interface_names_are_the_utun_family() {
+        assert!(is_tailscale_interface_name("utun0"));
+        assert!(is_tailscale_interface_name("utun9"));
+        assert!(is_tailscale_interface_name("tailscale0"));
+        assert!(is_tailscale_interface_name(" utun4 "), "trimmed first");
+        assert!(!is_tailscale_interface_name("en0"));
+        assert!(!is_tailscale_interface_name("bridge100"));
+        assert!(!is_tailscale_interface_name("lo0"));
+        assert!(!is_tailscale_interface_name("gif0"));
+        assert!(!is_tailscale_interface_name(""));
     }
 
     // KB-225 (kept) + v1.6.0 Tailscale tier: physical LAN ranges outrank
@@ -469,32 +541,58 @@ mod tests {
         assert!(resolve_bind_ip(&[], None).is_err());
     }
 
-    /// The pairing-token binding: a Tailscale bind issues the token for
-    /// the whole CGNAT /10 (tailnet peers sit outside any one /24); a
-    /// LAN bind keeps the pre-v1.6.0 /24 exactly.
+    /// The pairing-token binding: only a corroborated Tailscale interface
+    /// (KB-259: CGNAT range PLUS utun-family name) issues the token for the
+    /// whole CGNAT /10 (tailnet peers sit outside any one /24); the same
+    /// CGNAT address on a physical interface (an ISP-CGNAT LAN) keeps the
+    /// /24 like any LAN, and a plain LAN bind keeps the pre-v1.6.0 /24
+    /// exactly. An address missing from the enumeration falls back to the
+    /// narrow /24.
     #[test]
-    fn pairing_subnet_widens_to_the_cgnat_slash_10_for_tailscale() {
+    fn pairing_subnet_widens_to_the_cgnat_slash_10_only_for_tailscale_interfaces() {
+        let tailscale = [cand(100, 101, 7, 24, "utun9")];
         assert_eq!(
-            pairing_subnet_for(Ipv4Addr::new(100, 101, 7, 24)),
+            pairing_subnet_for(&tailscale, Ipv4Addr::new(100, 101, 7, 24)),
             "100.64.0.0/10"
         );
+        // The Linux interface name corroborates the same way.
+        let tailscale_linux = [cand(100, 101, 7, 24, "tailscale0")];
         assert_eq!(
-            pairing_subnet_for(Ipv4Addr::new(192, 168, 1, 42)),
+            pairing_subnet_for(&tailscale_linux, Ipv4Addr::new(100, 101, 7, 24)),
+            "100.64.0.0/10"
+        );
+        // KB-259: the same address on the physical LAN never widens.
+        let isp_cgnat_lan = [cand(100, 101, 7, 24, "en0")];
+        assert_eq!(
+            pairing_subnet_for(&isp_cgnat_lan, Ipv4Addr::new(100, 101, 7, 24)),
+            "100.101.7.0/24",
+            "an ISP-CGNAT LAN pairs on its /24, not the whole /10"
+        );
+        // Plain LANs keep the pre-v1.6.0 /24.
+        assert_eq!(
+            pairing_subnet_for(&[cand(192, 168, 1, 42, "en0")], Ipv4Addr::new(192, 168, 1, 42)),
             "192.168.1.0/24"
         );
         assert_eq!(
-            pairing_subnet_for(Ipv4Addr::new(10, 20, 0, 5)),
+            pairing_subnet_for(&[cand(10, 20, 0, 5, "utun3")], Ipv4Addr::new(10, 20, 0, 5)),
             "10.20.0.0/24"
+        );
+        // An address the enumeration no longer carries (a live bind whose
+        // interface went away) falls back to the NARROW scope.
+        assert_eq!(
+            pairing_subnet_for(&[], Ipv4Addr::new(100, 101, 7, 24)),
+            "100.101.7.0/24"
         );
         // And the /10 binding actually validates a far-away tailnet peer
         // through the existing auth check.
+        let far_tailnet_bind = [cand(100, 64, 1, 2, "utun7")];
         assert!(super::super::auth::same_subnet(
             IpAddr::V4(Ipv4Addr::new(100, 127, 200, 9)),
-            &pairing_subnet_for(Ipv4Addr::new(100, 64, 1, 2))
+            &pairing_subnet_for(&far_tailnet_bind, Ipv4Addr::new(100, 64, 1, 2))
         ));
         assert!(!super::super::auth::same_subnet(
             IpAddr::V4(Ipv4Addr::new(192, 168, 2, 9)),
-            &pairing_subnet_for(Ipv4Addr::new(192, 168, 1, 2))
+            &pairing_subnet_for(&[cand(192, 168, 1, 2, "en0")], Ipv4Addr::new(192, 168, 1, 2))
         ));
     }
 

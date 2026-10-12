@@ -719,6 +719,52 @@ fn update_overlay_position_on_main(app_handle: &AppHandle) {
 /// the instant it drained, well inside the 300 ms hide delay.
 static OVERLAY_SHOW_GENERATION: AtomicU64 = AtomicU64::new(0);
 
+/// The show generation the currently pending delayed hide was scheduled at
+/// (0 means no delayed hide is pending). `hide_recording_overlay` arms this
+/// beside its staleness snapshot, and only the arming hide clears it (by
+/// compare-and-swap against its own snapshot, so a stale skip can never
+/// clear a newer hide's marker). The card-visible probe reads this so a
+/// notice emitted inside the ~300 ms fade window is NOT routed onto a card
+/// that is about to unmap: `is_visible` alone stays true through the whole
+/// fade, which stranded such notices on a dying card (they never showed on
+/// any surface, the KB-020 failure shape again).
+static OVERLAY_PENDING_HIDE_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// The pure core of the card-visible probe: the card can durably show a
+/// notice when no delayed hide is pending, or when the pending one was
+/// invalidated by a newer show (its own staleness check will skip it).
+/// `pending_hide_generation == 0` is the "no pending hide" sentinel.
+fn card_visible_despite_pending_hide(
+    pending_hide_generation: u64,
+    current_show_generation: u64,
+) -> bool {
+    pending_hide_generation == 0 || pending_hide_generation != current_show_generation
+}
+
+/// Whether the overlay card is visible AND not inside a fade window that a
+/// pending delayed hide is about to unmap. This is the probe notice emitters
+/// must use instead of a raw `is_visible()` (which stays true through the
+/// 300 ms fade and routed notices onto a dying card). Read order matters
+/// and is pinned by test: the pending-hide marker first, the current show
+/// generation second, `is_visible` last, so a show that invalidates a
+/// pending hide between the two atomic reads still yields durable, and a
+/// hide that fires between them yields not-durable (the conservative
+/// side of both interleavings).
+pub fn card_durably_visible(app_handle: &AppHandle) -> bool {
+    if !overlay_enabled() {
+        return false;
+    }
+    let pending_hide = OVERLAY_PENDING_HIDE_GENERATION.load(Ordering::SeqCst);
+    let current_show = OVERLAY_SHOW_GENERATION.load(Ordering::SeqCst);
+    if !card_visible_despite_pending_hide(pending_hide, current_show) {
+        return false;
+    }
+    app_handle
+        .get_webview_window("recording_overlay")
+        .and_then(|window| window.is_visible().ok())
+        .unwrap_or(false)
+}
+
 /// Hides the recording overlay window with fade-out animation
 pub fn hide_recording_overlay(app_handle: &AppHandle) {
     // Always hide the overlay regardless of settings - if setting was changed while recording,
@@ -727,6 +773,9 @@ pub fn hide_recording_overlay(app_handle: &AppHandle) {
         // Snapshot before doing anything observable, so any show that lands
         // after this point invalidates the delayed hide below.
         let scheduled_at = OVERLAY_SHOW_GENERATION.load(Ordering::SeqCst);
+        // Publish the pending hide for card_durably_visible's probe (see
+        // the static's doc); cleared only by this hide's own resolution.
+        OVERLAY_PENDING_HIDE_GENERATION.store(scheduled_at, Ordering::SeqCst);
         // Emit event to trigger fade-out animation
         let _ = overlay_window.emit("hide-overlay", ());
         // Hide the window after a short delay to allow animation to complete,
@@ -736,11 +785,26 @@ pub fn hide_recording_overlay(app_handle: &AppHandle) {
             std::thread::sleep(std::time::Duration::from_millis(300));
             if OVERLAY_SHOW_GENERATION.load(Ordering::SeqCst) != scheduled_at {
                 log::debug!("Skipping stale overlay hide: a newer session is showing the overlay");
+                clear_pending_hide_marker(scheduled_at);
                 return;
             }
             let _ = window_clone.hide();
+            clear_pending_hide_marker(scheduled_at);
         });
     }
+}
+
+/// Retract the pending-hide marker, but only when it is still OURS: a hide
+/// that was invalidated by a show must not clear the marker a NEWER
+/// scheduled hide owns (the stale skip and the new arm can interleave in
+/// either order).
+fn clear_pending_hide_marker(scheduled_at: u64) {
+    let _ = OVERLAY_PENDING_HIDE_GENERATION.compare_exchange(
+        scheduled_at,
+        0,
+        Ordering::SeqCst,
+        Ordering::SeqCst,
+    );
 }
 
 /// How long an error notice stays readable on the card before the overlay
@@ -902,6 +966,119 @@ mod tests {
         assert!(
             recheck < hide,
             "the staleness re-check must gate the hide call"
+        );
+    }
+
+    /// The card_visible TOCTOU probe's pure core: a notice may land on the
+    /// card only when no delayed hide is pending, or when the pending one
+    /// was invalidated by a newer show (its own staleness check will skip
+    /// it). The raw is_visible() query this replaces stays true through
+    /// the whole ~300 ms fade window, so notices emitted there were routed
+    /// onto a card the pending hide was about to unmap and showed nowhere
+    /// (the KB-020 failure shape through a new door).
+    #[test]
+    fn card_visible_probe_refuses_the_fade_window_but_accepts_a_new_show() {
+        // No pending hide: the durable pre-fix behavior.
+        assert!(
+            card_visible_despite_pending_hide(0, 7),
+            "no pending delayed hide: the card may show the notice"
+        );
+        // A pending hide nobody invalidated: the card is fading out.
+        assert!(
+            !card_visible_despite_pending_hide(7, 7),
+            "a pending hide at the current show generation will unmap the card"
+        );
+        // A pending hide a newer show invalidated: that hide will be
+        // skipped, the card is durably up again.
+        assert!(
+            card_visible_despite_pending_hide(7, 8),
+            "a show after the hide was scheduled retires that hide"
+        );
+    }
+
+    /// Sequencing pin for the probe's read order: the pending-hide marker
+    /// must be read BEFORE the current show generation (a show landing
+    /// between the two reads then yields durable, which is correct because
+    /// it invalidated the pending hide), and is_visible last. Reading the
+    /// current generation first would let a show land between the reads,
+    // leave the stale pending marker equal to the stale generation read,
+    // and wrongly refuse a card that is actually staying up. The live
+    /// race needs a real overlay window; the ordering is pinned against
+    /// this committed source (the KB-105 convention).
+    #[test]
+    fn card_durably_visible_reads_pending_hide_before_current_generation() {
+        let source = include_str!("overlay.rs");
+        let at = source
+            .find("pub fn card_durably_visible")
+            .expect("card_durably_visible exists");
+        let end = at
+            + source[at..]
+                .find("/// Hides the recording overlay window")
+                .expect("the next item after the probe");
+        let body = &source[at..end];
+
+        let pending = body
+            .find("OVERLAY_PENDING_HIDE_GENERATION.load")
+            .expect("the probe reads the pending-hide marker");
+        let current = body
+            .find("OVERLAY_SHOW_GENERATION.load")
+            .expect("the probe reads the show generation");
+        assert!(
+            pending < current,
+            "the pending-hide marker must be read before the current show generation"
+        );
+
+        let visible = body
+            .find(".is_visible()")
+            .expect("the probe queries the window");
+        assert!(
+            current < visible,
+            "is_visible runs last, after the generation probe settled"
+        );
+    }
+
+    /// The pending-hide marker lifecycle: hide_recording_overlay arms it
+    /// right beside its staleness snapshot, and ONLY the arming hide clears
+    /// it (compare-and-swap against its own snapshot, so a stale skip can
+    /// never clear a newer hide's marker).
+    #[test]
+    fn hide_overlays_pending_marker_is_armed_and_cas_cleared() {
+        let source = include_str!("overlay.rs");
+        let at = source
+            .find("pub fn hide_recording_overlay")
+            .expect("hide_recording_overlay exists");
+        let end = at
+            + source[at..]
+                .find("fn clear_pending_hide_marker")
+                .expect("the marker helper after the hide");
+        let body = &source[at..end];
+
+        let snapshot = body
+            .find("OVERLAY_SHOW_GENERATION.load")
+            .expect("the hide snapshots the show generation");
+        let arm = body
+            .find("OVERLAY_PENDING_HIDE_GENERATION.store")
+            .expect("the hide arms the pending marker");
+        assert!(
+            snapshot < arm,
+            "the marker records the same snapshot the staleness check uses"
+        );
+
+        let skip_clear = body
+            .find("clear_pending_hide_marker(scheduled_at)")
+            .expect("the skipped hide clears its marker");
+        let fire_clear = body
+            .rfind("clear_pending_hide_marker(scheduled_at)")
+            .expect("the fired hide clears its marker");
+        assert_ne!(
+            skip_clear, fire_clear,
+            "both resolution branches clear the marker"
+        );
+
+        let helper = &source[end..];
+        assert!(
+            helper.contains("compare_exchange"),
+            "the clear must be a compare-and-swap against the arming snapshot"
         );
     }
 

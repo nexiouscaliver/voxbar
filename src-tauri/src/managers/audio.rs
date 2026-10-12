@@ -282,6 +282,25 @@ fn capture_restart_forbidden(state: &RecordingState) -> bool {
     !matches!(state, RecordingState::Idle)
 }
 
+/// KB-237: whether flipping always-on off may close the local mic stream
+/// right now. Only a live LOCAL recording defers the close; its own stop or
+/// cancel pipeline performs it once the samples are drained (both check the
+/// mode, which is already OnDemand by then). A companion lane session NEVER
+/// defers the close: lane recorders are fully independent of the local
+/// stream (the v1.6.2 W1-L2 per-lane split), so a lane session leaves the
+/// state Idle and the flip closes the Mac's microphone immediately even
+/// while a phone records. Before that split the remote session shared this
+/// state machine, this guard read as "not Idle", a flip during a phone
+/// session was skipped, and the remote stop arm never closed the local
+/// stream: the local microphone stayed hot forever after the user had
+/// turned always-on off. Deliberately the same predicate family as
+/// [`capture_restart_forbidden`] (one rule about live local recordings, two
+/// consumers with different questions), so the privacy contract and the
+/// capture-shape contract can never drift apart.
+fn mode_flip_may_close_local_stream(state: &RecordingState) -> bool {
+    !capture_restart_forbidden(state)
+}
+
 #[derive(Clone, Debug)]
 pub enum MicrophoneMode {
     AlwaysOn,
@@ -620,6 +639,12 @@ pub struct AudioRecordingManager {
     /// [`StreamOwner`]). Read per frame by every recorder's audio callback
     /// through [`stream_owner_token`].
     stream_owner: Arc<AtomicU64>,
+    /// KB-010: a lid (clamshell) change that arrived while a local recording
+    /// was live could not restart the stream (the guarded restart refuses to
+    /// discard a live recording's samples), so the watcher parks the request
+    /// here and the local stop and cancel pipelines perform it once the
+    /// state returns to Idle.
+    clamshell_reresolve_pending: Arc<AtomicBool>,
     /// Factory for building recorders. Production always uses
     /// `create_audio_recorder`; tests inject a bare recorder so the manager
     /// logic can run without the Silero ONNX asset.
@@ -704,6 +729,7 @@ impl AudioRecordingManager {
             remote_lanes_recording: Arc::new(AtomicBool::new(false)),
             last_recording_lane: Arc::new(AtomicU64::new(0)),
             stream_owner,
+            clamshell_reresolve_pending: Arc::new(AtomicBool::new(false)),
             recorder_factory,
         };
 
@@ -1068,7 +1094,11 @@ impl AudioRecordingManager {
 
         match (cur_mode, &new_mode) {
             (MicrophoneMode::AlwaysOn, MicrophoneMode::OnDemand) => {
-                if matches!(*self.state.lock().unwrap(), RecordingState::Idle) {
+                // KB-237: a companion lane session keeps the state Idle, so
+                // the close also runs mid phone session (the lane recorders
+                // are independent of the local stream); only a live LOCAL
+                // recording defers to its stop pipeline.
+                if mode_flip_may_close_local_stream(&self.state.lock().unwrap()) {
                     self.close_generation.fetch_add(1, Ordering::SeqCst);
                     self.stop_microphone_stream();
                 }
@@ -1674,6 +1704,145 @@ impl AudioRecordingManager {
         Ok(())
     }
 
+    /* ---------- KB-010: lid (clamshell) driven re-resolution ---------- */
+
+    /// KB-010: re-resolve the desired microphone after the lid state
+    /// changed (the watcher in helpers/clamshell.rs) and restart the warm
+    /// stream on the newly desired device. Mirrors the guarded restart of
+    /// [`Self::update_selected_channel`]: a live local recording is never
+    /// restarted underneath (its samples would be discarded); the request
+    /// is parked in `clamshell_reresolve_pending` and the stop or cancel
+    /// pipeline performs it once the state is Idle again. A cold on-demand
+    /// stream needs nothing: the next session open resolves the device
+    /// fresh through the same `desired_microphone` path.
+    pub fn handle_clamshell_change(&self) {
+        let state = self.state.lock().unwrap();
+        if capture_restart_forbidden(&state) {
+            drop(state);
+            self.clamshell_reresolve_pending
+                .store(true, Ordering::SeqCst);
+            debug!(
+                "Clamshell change deferred: a local recording is live; the \
+                 stop pipeline will re-resolve the microphone"
+            );
+            return;
+        }
+        drop(state);
+        self.restart_open_stream_on_new_device();
+    }
+
+    /// Perform a clamshell re-resolve that a live recording deferred, once
+    /// the state is Idle again. Only an always-on stream needs it: an
+    /// on-demand stream has just been closed by its stop pipeline, and its
+    /// next open resolves the (possibly flipped) lid state fresh.
+    fn run_deferred_clamshell_reresolve(&self) {
+        if !self
+            .clamshell_reresolve_pending
+            .swap(false, Ordering::SeqCst)
+        {
+            return;
+        }
+        if !matches!(*self.mode.lock().unwrap(), MicrophoneMode::AlwaysOn) {
+            debug!(
+                "Deferred clamshell re-resolve dropped: the stream is on-demand \
+                 and the next session open resolves the lid state fresh"
+            );
+            return;
+        }
+        debug!("Performing the clamshell re-resolve deferred by a recording");
+        self.restart_open_stream_on_new_device();
+    }
+
+    /// Stop an open stream and reopen it, which re-runs
+    /// `desired_microphone` (and therefore the clamshell probe) against the
+    /// current environment. Best-effort by design, like the always-on
+    /// startup open: a failed reopen is logged and the next recording start
+    /// re-attempts it where the user can act on the error.
+    fn restart_open_stream_on_new_device(&self) {
+        let was_open = *self.is_open.lock().unwrap();
+        if !was_open {
+            return;
+        }
+        self.invalidate_device_cache();
+        self.close_generation.fetch_add(1, Ordering::SeqCst);
+        self.stop_microphone_stream();
+        if let Err(e) = self.start_microphone_stream() {
+            error!(
+                "Failed to reopen the microphone after a capture environment \
+                 change (lid state or clamshell preference): {e:#}"
+            );
+        }
+    }
+
+    /// KB-010: switch the clamshell (lid-closed) microphone preference.
+    /// Same contract as [`Self::update_selected_device`]: rejected outright
+    /// while a local recording is live (nothing changes, not the live
+    /// capture and not the persisted preference); on acceptance the
+    /// preference is persisted here so the restart below resolves the new
+    /// device from disk, an open stream restarts on it, and a failed
+    /// restart rolls the preference back (the settings UI rolls its
+    /// dropdown back on this error, and the store must agree with it).
+    pub fn update_clamshell_microphone(
+        &self,
+        clamshell_microphone: Option<String>,
+    ) -> Result<(), anyhow::Error> {
+        // Serialize against recording start/stop for the whole switch, like
+        // the device and channel changes do.
+        let state = self.state.lock().unwrap();
+        if capture_restart_forbidden(&state) {
+            return Err(anyhow::anyhow!(
+                "Cannot change the clamshell microphone while recording"
+            ));
+        }
+
+        let mut settings = get_settings(&self.app_handle);
+        let previous_device = settings.clamshell_microphone.clone();
+        if settings.clamshell_microphone != clamshell_microphone {
+            settings.clamshell_microphone = clamshell_microphone;
+            write_settings(&self.app_handle, settings);
+            // The same convergence signal the device switch emits, so every
+            // open surface re-reads the store.
+            let _ = self.app_handle.emit(
+                "settings-changed",
+                serde_json::json!({
+                    "setting": "clamshell_microphone"
+                }),
+            );
+        }
+
+        let was_open = *self.is_open.lock().unwrap();
+        if was_open {
+            self.invalidate_device_cache();
+            self.close_generation.fetch_add(1, Ordering::SeqCst);
+            self.stop_microphone_stream();
+            if let Err(restart_error) = self.start_microphone_stream() {
+                // The reopen resolves its device from settings, so undo the
+                // write above and bring the previous configuration's stream
+                // back (the same rollback shape as the device switch).
+                let mut settings = get_settings(&self.app_handle);
+                if settings.clamshell_microphone != previous_device {
+                    settings.clamshell_microphone = previous_device;
+                    write_settings(&self.app_handle, settings);
+                    let _ = self.app_handle.emit(
+                        "settings-changed",
+                        serde_json::json!({
+                            "setting": "clamshell_microphone"
+                        }),
+                    );
+                }
+                if let Err(rollback_error) = self.start_microphone_stream() {
+                    error!(
+                        "Failed to restore the microphone stream after a failed \
+                         clamshell microphone switch: {rollback_error}"
+                    );
+                }
+                return Err(restart_error);
+            }
+        }
+        drop(state);
+        Ok(())
+    }
+
     /// Invalidate pending first-sample UI and audio-feedback work immediately.
     /// Called at the beginning of stop, before the slower capture drain starts.
     pub fn invalidate_recording_readiness(&self) {
@@ -1778,6 +1947,10 @@ impl AudioRecordingManager {
                     }
                 }
 
+                // KB-010: a lid change that arrived mid-recording re-resolves
+                // the always-on stream now that the state is Idle.
+                self.run_deferred_clamshell_reresolve();
+
                 if self.was_cancelled_since(cancel_generation) {
                     debug!("Recording stop cancelled; discarding captured samples");
                     return None;
@@ -1881,6 +2054,10 @@ impl AudioRecordingManager {
                         self.stop_microphone_stream();
                     }
                 }
+
+                // KB-010: a lid change that arrived mid-recording re-resolves
+                // the always-on stream now that the state is Idle.
+                self.run_deferred_clamshell_reresolve();
             }
             RecordingState::Stopping => {
                 debug!("Cancellation requested while recording is stopping");
@@ -1956,6 +2133,38 @@ mod tests {
         assert!(
             capture_restart_forbidden(&RecordingState::Stopping),
             "a recording in its stop pipeline still holds samples: no restart"
+        );
+    }
+
+    /// KB-237 privacy pin: flipping always-on off may close the local mic
+    /// stream unless a LOCAL recording is live. A companion lane session
+    /// keeps the state Idle (lane recorders are independent of the local
+    /// stream), so a flip during a phone session closes the Mac's
+    /// microphone immediately; a live local recording defers the close to
+    /// its own stop or cancel pipeline, which performs it because the mode
+    /// is OnDemand by then. Before the v1.6.2 per-lane split the remote
+    /// session shared the single state machine, this guard read as "not
+    /// Idle", the flip was skipped mid phone session, and the remote stop
+    /// arm never touched the local stream: the local mic stayed hot
+    /// forever after the user had turned always-on off. Manager-level
+    /// update_mode is not runnable under tauri::test's MockRuntime (see
+    /// the note above), so the guard update_mode routes through is pinned
+    /// here.
+    #[test]
+    fn always_on_flip_closes_the_local_stream_unless_a_local_recording_is_live() {
+        assert!(
+            mode_flip_may_close_local_stream(&RecordingState::Idle),
+            "idle (including during a companion lane session): close the local stream now"
+        );
+        assert!(
+            !mode_flip_may_close_local_stream(&RecordingState::Recording {
+                binding_id: "transcribe".to_string()
+            }),
+            "a live LOCAL recording defers the close to its stop pipeline"
+        );
+        assert!(
+            !mode_flip_may_close_local_stream(&RecordingState::Stopping),
+            "a recording in its stop pipeline still holds samples: the stop pipeline closes"
         );
     }
 

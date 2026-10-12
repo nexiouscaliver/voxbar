@@ -337,15 +337,27 @@ pub async fn play_test_sound(app: AppHandle, sound_type: String) {
 
 #[tauri::command]
 #[specta::specta]
-pub fn set_clamshell_microphone(app: AppHandle, device_name: String) -> Result<(), String> {
-    let mut settings = get_settings(&app);
-    settings.clamshell_microphone = if device_name == "default" {
+pub async fn set_clamshell_microphone(app: AppHandle, device_name: String) -> Result<(), String> {
+    // Apply the runtime change before it becomes durable (the same
+    // apply-first rule as set_selected_channel): update_clamshell_microphone
+    // rejects the switch outright while a recording is live and performs the
+    // guarded stream restart on acceptance, so neither the live capture nor
+    // the stored preference changes on rejection. It persists the preference
+    // itself (the restart resolves the device from settings at open time).
+    let selection = if device_name == "default" {
         None
     } else {
         Some(device_name)
     };
-    write_settings(&app, settings);
-    Ok(())
+
+    // The restart can stop/start the cpal stream (blocking CoreAudio) and
+    // takes the manager std mutexes - run it on a blocking thread, not
+    // inline on the webview/main run loop.
+    let rm = app.state::<Arc<AudioRecordingManager>>().inner().clone();
+    tokio::task::spawn_blocking(move || rm.update_clamshell_microphone(selection))
+        .await
+        .map_err(|e| format!("audio task join failed: {}", e))?
+        .map_err(|e| format!("Failed to update clamshell microphone: {}", e))
 }
 
 #[tauri::command]

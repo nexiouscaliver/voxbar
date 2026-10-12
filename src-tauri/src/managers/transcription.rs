@@ -637,7 +637,11 @@ impl NoticeCode {
 /// The event carries `card_visible` - whether the overlay card could show
 /// this notice at emit time - so the frontend can route card-less notices
 /// to a macOS notification instead (KB-020: info notices fired while the
-/// card is hidden were invisible on every surface).
+/// card is hidden were invisible on every surface). The probe is
+/// generation-aware (overlay::card_durably_visible), not a raw
+/// `is_visible()`: the raw query stays true through the ~300 ms fade
+/// window, so a notice emitted there was routed onto a card the pending
+/// delayed hide was about to unmap, and it showed nowhere.
 pub fn emit_overlay_notice(app: &AppHandle, code: NoticeCode, detail: Option<String>) {
     let kind = code.kind();
     info!(
@@ -649,18 +653,14 @@ pub fn emit_overlay_notice(app: &AppHandle, code: NoticeCode, detail: Option<Str
         code.as_str(),
         detail.as_deref().unwrap_or("-")
     );
-    // "Could the overlay card ever show" via the cached overlay-enabled
-    // flag (overlay.rs: fed at startup from the loaded settings and on
-    // every change_overlay_style_setting write): a single atomic load
-    // instead of a full get_settings() deserialize per notice. The
-    // is_visible() half stays a live per-emit query: a missing window or
-    // a failed is_visible() counts as not visible, so the probe never
-    // panics.
-    let card_visible = crate::overlay::overlay_enabled()
-        && app
-            .get_webview_window("recording_overlay")
-            .and_then(|window| window.is_visible().ok())
-            .unwrap_or(false);
+    // "Could the overlay card durably show this" via the cached
+    // overlay-enabled flag (overlay.rs: fed at startup from the loaded
+    // settings and on every change_overlay_style_setting write) plus the
+    // pending-hide generation probe: a single atomic load instead of a
+    // full get_settings() deserialize per notice, and no notice lands on a
+    // card inside its fade window. A missing window or a failed
+    // is_visible() counts as not visible, so the probe never panics.
+    let card_visible = crate::overlay::card_durably_visible(app);
     let _ = OverlayNoticeEvent {
         kind,
         code: code.as_str().to_string(),

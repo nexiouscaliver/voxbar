@@ -253,6 +253,17 @@ fn initialize_core_logic(app_handle: &AppHandle) {
     // setting: an inert manager with no listener/threads until enabled.
     companion::init(app_handle);
 
+    // KB-010: watch the lid (clamshell) state so a warm always-on stream
+    // re-resolves the desired microphone the moment the lid flips, instead
+    // of waiting for the next recording. macOS-only (a no-op elsewhere);
+    // the guarded restart lives in the recording manager.
+    {
+        let rm_for_lid = recording_manager.clone();
+        crate::helpers::clamshell::spawn_clamshell_watcher(move || {
+            rm_for_lid.handle_clamshell_change();
+        });
+    }
+
     // Note: Shortcuts are NOT initialized here.
     // The frontend is responsible for calling the `initialize_shortcuts` command
     // after permissions are confirmed (on macOS) or after onboarding completes.

@@ -1091,7 +1091,9 @@ fn validate_companion_network_override(
         let parsed: std::net::Ipv4Addr = ip
             .parse()
             .map_err(|_| format!("Interface must be an IPv4 address, got {ip:?}"))?;
-        if crate::companion::ip::classify_v4(parsed).is_none() {
+        // The name-less range gate (KB-259): the corroborated label is
+        // decided against the enumerated interfaces at server start.
+        if crate::companion::ip::classify_v4_by_range(parsed).is_none() {
             return Err(format!(
                 "Interface {ip} is not a private LAN, VPN, or Tailscale address"
             ));
