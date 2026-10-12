@@ -76,6 +76,9 @@ struct PendingPress {
     /// the drain starts runs with the prefs of the press that asked for
     /// it, not whatever a later press left in the shared slot.
     companion_prefs: Option<crate::companion::protocol::SessionPrefs>,
+    /// The lane id the remembered press's connection owned, carried into
+    /// the drained Start for the same reason.
+    companion_lane: Option<u64>,
     /// The real key-down time, so a hold that straddles the drain is still
     /// measured from when the user pressed, not from when recording began.
     pressed_at: Instant,
@@ -180,6 +183,12 @@ struct InputEvent {
     /// instant the start is committed, so a concurrent press from another
     /// phone can never overwrite them in the arm-to-freeze window.
     companion_prefs: Option<crate::companion::protocol::SessionPrefs>,
+    /// v1.6.0: the server-assigned lane id of the connection that sent
+    /// this edge. Frozen as the session's lane at the same instant the
+    /// start is committed, so the stop pipeline's phone-target delivery
+    /// resolves the exact connection whose press started the session -
+    /// never a name-keyed slot a later hello can claim.
+    companion_lane: Option<u64>,
 }
 
 impl InputEvent {
@@ -205,6 +214,11 @@ enum Effect {
         /// the executor applies them as the session's own before the
         /// start preamble runs. None for keyboard/signal starts.
         companion_prefs: Option<crate::companion::protocol::SessionPrefs>,
+        /// v1.6.0: the lane id of the connection whose press edge started
+        /// this session; frozen as the session's lane for the stop
+        /// pipeline's phone-target delivery. None for keyboard/signal
+        /// starts.
+        companion_lane: Option<u64>,
     },
     Stop {
         binding_id: String,
@@ -508,10 +522,32 @@ impl CoordinatorState {
                         "Ignoring input for '{}': '{}' is already pending",
                         input.binding_id, pending.binding_id
                     );
+                    // A swallowed PRESS is never silent (the same rule as
+                    // the Recording-stage arm below): a phone or key press
+                    // during the transcription window cannot start a
+                    // recording - its audio has nowhere to go - and the
+                    // user must hear why on the surface they are looking
+                    // at. A release stays silent: it is noise here.
+                    if input.is_pressed {
+                        return Some(Effect::NotifyRecordingBusy {
+                            binding_id: input.binding_id.clone(),
+                        });
+                    }
                     return None;
                 }
             }
+            let busy_notice_binding = input.binding_id.clone();
             let remembered = self.pending_press.as_ref().map(|p| p.remembered());
+            // Whether this input is a press the user DELIBERATELY swung at
+            // the pipeline (or another binding's pending press) versus
+            // auto-repeat noise or a release. A deliberate press is
+            // swallowed here - no recording can start until the pipeline
+            // drains, so the user's audio has nowhere to go - and it must
+            // carry the busy notice exactly like a press swallowed against
+            // a live recording, never a silent drop. Auto-repeat presses
+            // (a key already held, already remembered) and releases stay
+            // silent: the first press already spoke.
+            let mut swallowed_press = false;
             match classify_busy_input(input.is_pressed, input.mode, remembered) {
                 BusyAction::Remember => {
                     debug!(
@@ -524,16 +560,24 @@ impl CoordinatorState {
                         binding_id: input.binding_id,
                         hotkey_string: input.hotkey_string,
                         companion_prefs: input.companion_prefs,
+                        companion_lane: input.companion_lane,
                         pressed_at: now,
                     });
+                    swallowed_press = true;
                 }
                 BusyAction::Forget => {
                     debug!("Forgetting remembered press for '{}'", input.binding_id);
                     self.pending_press = None;
+                    swallowed_press = input.is_pressed;
                 }
                 BusyAction::Ignore => {
                     debug!("Ignoring input for '{}': pipeline busy", input.binding_id);
                 }
+            }
+            if swallowed_press {
+                return Some(Effect::NotifyRecordingBusy {
+                    binding_id: busy_notice_binding,
+                });
             }
             return None;
         }
@@ -547,6 +591,7 @@ impl CoordinatorState {
                         input.binding_id,
                         input.hotkey_string,
                         input.companion_prefs,
+                        input.companion_lane,
                         now,
                         locked,
                     ));
@@ -749,6 +794,7 @@ impl CoordinatorState {
             pending.binding_id,
             pending.hotkey_string,
             pending.companion_prefs,
+            pending.companion_lane,
             pending.pressed_at,
             pending.locked,
         ))
@@ -774,11 +820,13 @@ impl CoordinatorState {
     /// Optimistic transition to `Recording`; rolled back via
     /// [`CoordinatorState::on_start_result`] if the effect fails to start
     /// recording for real.
+    #[allow(clippy::too_many_arguments)] // arity mirrors the InputEvent fields it consumes
     fn begin_recording(
         &mut self,
         binding_id: String,
         hotkey_string: String,
         companion_prefs: Option<crate::companion::protocol::SessionPrefs>,
+        companion_lane: Option<u64>,
         pressed_at: Instant,
         locked: bool,
     ) -> Effect {
@@ -792,6 +840,7 @@ impl CoordinatorState {
             binding_id,
             hotkey_string,
             companion_prefs,
+            companion_lane,
         }
     }
 
@@ -1209,6 +1258,7 @@ impl TranscriptionCoordinator {
             hold_threshold,
             false,
             None,
+            None,
         );
     }
 
@@ -1222,6 +1272,7 @@ impl TranscriptionCoordinator {
             ShortcutActivation::Toggle,
             Duration::ZERO,
             true,
+            None,
             None,
         );
     }
@@ -1240,6 +1291,7 @@ impl TranscriptionCoordinator {
         app: &AppHandle,
         pressed: bool,
         prefs: crate::companion::protocol::SessionPrefs,
+        lane: u64,
     ) {
         let settings = crate::settings::get_settings(app);
         self.send(
@@ -1250,6 +1302,7 @@ impl TranscriptionCoordinator {
             Duration::from_millis(settings.hold_threshold_ms),
             true,
             Some(prefs),
+            Some(lane),
         );
     }
 
@@ -1291,6 +1344,7 @@ impl TranscriptionCoordinator {
         hold_threshold: Duration,
         external: bool,
         companion_prefs: Option<crate::companion::protocol::SessionPrefs>,
+        companion_lane: Option<u64>,
     ) {
         if self
             .tx
@@ -1302,6 +1356,7 @@ impl TranscriptionCoordinator {
                 hold_threshold,
                 external,
                 companion_prefs,
+                companion_lane,
             }))
             .is_err()
         {
@@ -1433,16 +1488,25 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
             binding_id,
             hotkey_string,
             companion_prefs,
+            companion_lane,
         } => {
-            // The session's prefs are applied HERE, on the coordinator's
-            // single serialized thread, at the instant this start is
-            // committed and BEFORE start()'s multi-millisecond preamble -
-            // not read back from the shared pending slot inside
+            // The session's prefs and lane are applied HERE, on the
+            // coordinator's single serialized thread, at the instant this
+            // start is committed and BEFORE start()'s multi-millisecond
+            // preamble - not read back from shared slots inside
             // on_session_changed after the preamble. A concurrent press
             // from another phone is queued behind this command, so it can
             // only arm the NEXT session; the arm-to-freeze window is gone.
+            // The lane id (server-assigned per connection) is what the
+            // stop pipeline's phone-target delivery resolves minutes
+            // later, so a hello claiming the session-device name or a
+            // same-name connection during the transcription window cannot
+            // redirect the transcript to another phone.
             if let Some(prefs) = companion_prefs {
                 crate::companion::begin_session_prefs(app, prefs);
+            }
+            if let Some(lane) = companion_lane {
+                crate::companion::begin_session_lane(app, lane);
             }
             let started = start(app, &binding_id, &hotkey_string);
             state.on_start_result(&binding_id, started);
@@ -1606,10 +1670,12 @@ mod tests {
         assert_eq!(state.stage, Stage::Processing);
         assert!(state.pending_press.is_none(), "busy but not pressed");
 
-        // A press while busy is remembered: latch set.
-        assert!(state
-            .on_input(toggle_input(true), now + Duration::from_millis(200))
-            .is_none());
+        // A press while busy is remembered: latch set, and the swallowed
+        // press carries the busy notice (never a silent drop).
+        assert!(matches!(
+            state.on_input(toggle_input(true), now + Duration::from_millis(200)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         assert!(
             state.pending_press.is_some(),
             "press during Processing latches pending_press"
@@ -1629,9 +1695,13 @@ mod tests {
         // nothing starts on the drain.
         state.on_input(toggle_input(true), now + Duration::from_millis(300));
         assert!(state.stage == Stage::Processing);
-        assert!(state
-            .on_input(toggle_input(true), now + Duration::from_millis(400))
-            .is_none());
+        // The parity-cancel press (the second toggle of the remembered
+        // pair) is also a deliberate swallowed press: it forgets the
+        // remembered one and carries the busy notice.
+        assert!(matches!(
+            state.on_input(toggle_input(true), now + Duration::from_millis(400)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         assert!(state.pending_press.is_some());
         state.on_cancel(false);
         assert!(
@@ -1675,6 +1745,15 @@ mod tests {
         mode: ShortcutActivation,
         prefs: Option<crate::companion::protocol::SessionPrefs>,
     ) -> InputEvent {
+        companion_edge_with_identity(pressed, mode, prefs, None)
+    }
+
+    fn companion_edge_with_identity(
+        pressed: bool,
+        mode: ShortcutActivation,
+        prefs: Option<crate::companion::protocol::SessionPrefs>,
+        lane: Option<u64>,
+    ) -> InputEvent {
         InputEvent {
             binding_id: COMPANION_BINDING.to_string(),
             hotkey_string: "companion".to_string(),
@@ -1683,6 +1762,7 @@ mod tests {
             hold_threshold: Duration::from_millis(300),
             external: true,
             companion_prefs: prefs,
+            companion_lane: lane,
         }
     }
 
@@ -1705,15 +1785,16 @@ mod tests {
             post_process: false,
         };
 
-        // A press with prefs A produces a Start effect carrying exactly A.
+        // A press with prefs A from lane 7 produces a Start effect
+        // carrying exactly A and lane 7.
         let mut state = CoordinatorState::new();
         let effect = state.on_input(
-            companion_edge_with_prefs(true, ShortcutActivation::Toggle, Some(phone_a)),
+            companion_edge_with_identity(true, ShortcutActivation::Toggle, Some(phone_a), Some(7)),
             Instant::now(),
         );
         assert!(matches!(
             effect,
-            Some(Effect::Start { companion_prefs: Some(p), .. }) if p == phone_a
+            Some(Effect::Start { companion_prefs: Some(p), companion_lane: Some(7), .. }) if p == phone_a
         ));
 
         // A remembered press drained after a busy pipeline starts its own
@@ -1731,25 +1812,33 @@ mod tests {
             state.on_grace_expired(),
             Some(Effect::Stop { .. })
         ));
-        // Pipeline busy: the companion press (prefs B) is remembered.
-        assert!(state
-            .on_input(
-                companion_edge_with_prefs(true, ShortcutActivation::Toggle, Some(phone_b)),
+        // Pipeline busy: the companion press (prefs B, lane 9) is
+        // remembered.
+        assert!(matches!(
+            state.on_input(
+                companion_edge_with_identity(
+                    true,
+                    ShortcutActivation::Toggle,
+                    Some(phone_b),
+                    Some(9)
+                ),
                 t0 + Duration::from_millis(50),
-            )
-            .is_none());
+            ),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         let effect = state.on_processing_finished();
         assert!(matches!(
             effect,
-            Some(Effect::Start { companion_prefs: Some(p), .. }) if p == phone_b
+            Some(Effect::Start { companion_prefs: Some(p), companion_lane: Some(9), .. }) if p == phone_b
         ));
 
-        // Keyboard starts never carry companion prefs.
+        // Keyboard starts never carry companion prefs or a lane.
         let mut state = CoordinatorState::new();
         assert!(matches!(
             state.on_input(toggle_input(true), Instant::now()),
             Some(Effect::Start {
                 companion_prefs: None,
+                companion_lane: None,
                 ..
             })
         ));
@@ -1777,17 +1866,70 @@ mod tests {
         let apply_at = start_arm
             .find("begin_session_prefs(app, prefs);")
             .expect("the Start arm applies carried prefs through the companion seam");
+        let lane_at = start_arm
+            .find("begin_session_lane(app, lane);")
+            .expect("the Start arm freezes the carried lane through the companion seam");
         let preamble_at = start_arm
             .find("start(app, &binding_id")
             .expect("the start preamble call");
         assert!(
-            apply_at < preamble_at,
-            "carried prefs must be applied BEFORE the start preamble: applying them after reopens the arm-to-freeze window the fix closes"
+            apply_at < preamble_at && lane_at < preamble_at,
+            "carried prefs and lane must be applied BEFORE the start preamble: applying them after reopens the arm-to-freeze window the fix closes"
         );
         assert!(
-            !start_arm.contains("pending_session_prefs"),
-            "the Start effect must never read the shared pending slot back: another connection can write it concurrently"
+            !start_arm.contains("pending_session_prefs")
+                && !start_arm.contains("session_device_name"),
+            "the Start effect must never read the shared pending slot or the claimable session-device name back: another connection can write them concurrently"
         );
+    }
+
+    /// Fleet pass 2: a companion press swallowed by a busy stop pipeline
+    /// (Stage::Processing - the transcription/post-process window) must
+    /// carry the busy notice. Before the fix it was Remember/Ignore with
+    /// a debug log only: the phone's user spoke into a press that could
+    /// not start a recording (the broadcast never said recording, and the
+    /// audio gates drop the samples), and NO surface said a word - the
+    /// silent total dictation loss this branch otherwise hunts.
+    #[test]
+    fn companion_press_swallowed_by_a_busy_pipeline_notifies_both_surfaces() {
+        let mut state = CoordinatorState::new();
+        let t0 = Instant::now();
+        drive_into_processing(&mut state, t0);
+
+        // The phone's press during the busy window: remembered for the
+        // drain, AND surfaced - never a silent drop.
+        assert!(matches!(
+            state.on_input(companion_edge(true, ShortcutActivation::Toggle), t0 + Duration::from_millis(200)),
+            Some(Effect::NotifyRecordingBusy { binding_id }) if binding_id == COMPANION_BINDING
+        ));
+        assert!(
+            state.pending_press.is_some(),
+            "the press is still remembered; the drain will start its session"
+        );
+
+        // The parity-cancel press (a second toggle tap) also speaks; an
+        // auto-repeat press while the first is remembered does not.
+        assert!(matches!(
+            state.on_input(
+                companion_edge(true, ShortcutActivation::Toggle),
+                t0 + Duration::from_millis(300)
+            ),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
+        assert!(state.pending_press.is_none(), "the pair nets to no-op");
+
+        // A release during the busy window stays silent (releases never
+        // notify), and a DIFFERENT binding's press is surfaced too.
+        assert!(state
+            .on_input(
+                companion_edge(false, ShortcutActivation::PushToTalk),
+                t0 + Duration::from_millis(350)
+            )
+            .is_none());
+        assert!(matches!(
+            state.on_input(toggle_input_for(BINDING, true), t0 + Duration::from_millis(400)),
+            Some(Effect::NotifyRecordingBusy { binding_id }) if binding_id == BINDING
+        ));
     }
 
     #[test]
@@ -1990,12 +2132,13 @@ mod tests {
             ),
             Some(Effect::Stop { .. })
         ));
-        assert!(state
-            .on_input(
+        assert!(matches!(
+            state.on_input(
                 companion_edge(true, ShortcutActivation::Toggle),
                 t0 + Duration::from_millis(200)
-            )
-            .is_none());
+            ),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         assert!(state.pending_press.is_some());
 
         // Finalize during Processing: the remembered press goes with the
@@ -2490,9 +2633,10 @@ mod tests {
         let t0 = Instant::now();
         drive_into_processing(&mut state, t0);
 
-        assert!(state
-            .on_input(pp_toggle_input(), t0 + Duration::from_millis(200))
-            .is_none());
+        assert!(matches!(
+            state.on_input(pp_toggle_input(), t0 + Duration::from_millis(200)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         assert!(
             state
                 .pending_press
@@ -3057,6 +3201,7 @@ the badge lie (dark-badge session silently post-processing at stop)"
             hold_threshold: Duration::ZERO,
             external: false,
             companion_prefs: None,
+            companion_lane: None,
         }
     }
 
@@ -3171,7 +3316,10 @@ the badge lie (dark-badge session silently post-processing at stop)"
         assert!(matches!(effect, Some(Effect::Stop { .. })));
 
         let effect = state.on_input(ptt_input(true), now + Duration::from_millis(200));
-        assert!(effect.is_none(), "busy pipeline must remember, not start");
+        assert!(
+            matches!(effect, Some(Effect::NotifyRecordingBusy { .. })),
+            "busy pipeline must remember, not start"
+        );
 
         let effect = state.on_processing_finished();
         assert!(
@@ -3204,15 +3352,16 @@ the badge lie (dark-badge session silently post-processing at stop)"
                     hold_threshold: Duration::ZERO,
                     external: true,
                     companion_prefs: None,
+                    companion_lane: None,
                 },
                 at,
             )
         };
 
         let effect = toggle(&mut state, now + Duration::from_millis(200));
-        assert!(effect.is_none());
+        assert!(matches!(effect, Some(Effect::NotifyRecordingBusy { .. })));
         let effect = toggle(&mut state, now + Duration::from_millis(300));
-        assert!(effect.is_none());
+        assert!(matches!(effect, Some(Effect::NotifyRecordingBusy { .. })));
 
         let effect = state.on_processing_finished();
         assert!(
@@ -3237,7 +3386,7 @@ the badge lie (dark-badge session silently post-processing at stop)"
         assert!(matches!(effect, Some(Effect::Stop { .. })));
 
         let effect = state.on_input(ptt_input(true), now + Duration::from_millis(200));
-        assert!(effect.is_none());
+        assert!(matches!(effect, Some(Effect::NotifyRecordingBusy { .. })));
 
         state.on_cancel(false);
         assert_eq!(
@@ -3266,6 +3415,7 @@ the badge lie (dark-badge session silently post-processing at stop)"
             mode: ShortcutActivation::Toggle,
             hold_threshold: Duration::ZERO,
             companion_prefs: None,
+            companion_lane: None,
             external,
         }
     }
@@ -3292,11 +3442,18 @@ the badge lie (dark-badge session silently post-processing at stop)"
         drive_into_processing(&mut state, now);
 
         let at = |ms| now + Duration::from_millis(ms);
-        assert!(state.on_input(toggle_input(true), at(200)).is_none());
-        assert!(state
-            .on_input(toggle_input_for(OTHER_BINDING, true), at(300))
-            .is_none());
-        assert!(state.on_input(toggle_input(true), at(400)).is_none());
+        assert!(matches!(
+            state.on_input(toggle_input(true), at(200)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
+        assert!(matches!(
+            state.on_input(toggle_input_for(OTHER_BINDING, true), at(300)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
+        assert!(matches!(
+            state.on_input(toggle_input(true), at(400)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
 
         let effect = state.on_processing_finished();
         assert!(
@@ -3315,10 +3472,14 @@ the badge lie (dark-badge session silently post-processing at stop)"
         drive_into_processing(&mut state, now);
 
         let at = |ms| now + Duration::from_millis(ms);
-        assert!(state.on_input(toggle_input(true), at(200)).is_none());
-        assert!(state
-            .on_input(toggle_input_for(OTHER_BINDING, true), at(300))
-            .is_none());
+        assert!(matches!(
+            state.on_input(toggle_input(true), at(200)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
+        assert!(matches!(
+            state.on_input(toggle_input_for(OTHER_BINDING, true), at(300)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
 
         match state.on_processing_finished() {
             Some(Effect::Start { binding_id, .. }) => assert_eq!(binding_id, BINDING),
@@ -3393,6 +3554,7 @@ the badge lie (dark-badge session silently post-processing at stop)"
             hold_threshold: HOLD_THRESHOLD,
             external: false,
             companion_prefs: None,
+            companion_lane: None,
         }
     }
 
@@ -3482,7 +3644,10 @@ the badge lie (dark-badge session silently post-processing at stop)"
         let t0 = Instant::now();
 
         state.on_input(input(mode, true), t0);
-        assert!(state.on_input(input(mode, true), t0 + ms(400)).is_none());
+        assert!(
+            state.on_input(input(mode, true), t0 + ms(400)).is_none(),
+            "an auto-repeat press while the key is already remembered stays silent"
+        );
         assert_eq!(state.stage, Stage::Recording(BINDING.to_string()));
         assert!(!state.is_locked());
     }
@@ -3506,7 +3671,10 @@ the badge lie (dark-badge session silently post-processing at stop)"
             clock += ms(5);
             assert!(state.on_input(input(mode, false), clock).is_none());
             clock += ms(5);
-            assert!(state.on_input(input(mode, true), clock).is_none());
+            assert!(
+                state.on_input(input(mode, true), clock).is_none(),
+                "repeat presses in an auto-repeat burst stay silent"
+            );
             assert!(
                 state.grace_deadline().is_none(),
                 "auto-repeat press must cancel the deferred release"
@@ -3540,7 +3708,10 @@ the badge lie (dark-badge session silently post-processing at stop)"
         ));
 
         // Pressed again while busy; still held when the pipeline drains 700ms later.
-        assert!(state.on_input(input(mode, true), t0 + ms(1000)).is_none());
+        assert!(matches!(
+            state.on_input(input(mode, true), t0 + ms(1000)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         assert!(matches!(
             state.on_processing_finished(),
             Some(Effect::Start { .. })
@@ -3656,7 +3827,10 @@ the badge lie (dark-badge session silently post-processing at stop)"
         let t0 = Instant::now();
         hold_or_toggle_into_processing(&mut state, t0);
 
-        assert!(state.on_input(input(mode, true), t0 + ms(1000)).is_none());
+        assert!(matches!(
+            state.on_input(input(mode, true), t0 + ms(1000)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         assert!(state.on_input(input(mode, false), t0 + ms(1100)).is_none());
         assert!(state.on_grace_expired().is_none());
         assert!(state.is_locked(), "a busy tap should queue a locked start");
@@ -3674,7 +3848,10 @@ the badge lie (dark-badge session silently post-processing at stop)"
         let t0 = Instant::now();
         hold_or_toggle_into_processing(&mut state, t0);
 
-        assert!(state.on_input(input(mode, true), t0 + ms(1000)).is_none());
+        assert!(matches!(
+            state.on_input(input(mode, true), t0 + ms(1000)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         assert!(state.on_input(input(mode, false), t0 + ms(1600)).is_none());
         assert!(state.on_grace_expired().is_none());
         assert!(!state.is_locked());
@@ -3693,12 +3870,18 @@ the badge lie (dark-badge session silently post-processing at stop)"
         let t0 = Instant::now();
         hold_or_toggle_into_processing(&mut state, t0);
 
-        assert!(state.on_input(input(mode, true), t0 + ms(1000)).is_none());
+        assert!(matches!(
+            state.on_input(input(mode, true), t0 + ms(1000)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         assert!(state.on_input(input(mode, false), t0 + ms(1100)).is_none());
         assert!(state.on_grace_expired().is_none());
         assert!(state.is_locked());
 
-        assert!(state.on_input(input(mode, true), t0 + ms(1500)).is_none());
+        assert!(matches!(
+            state.on_input(input(mode, true), t0 + ms(1500)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         assert!(
             !state.is_locked(),
             "the second tap's press forgets the queued tap"
@@ -3716,7 +3899,10 @@ the badge lie (dark-badge session silently post-processing at stop)"
         let t0 = Instant::now();
         hold_or_toggle_into_processing(&mut state, t0);
 
-        assert!(state.on_input(ptt_input(true), t0 + ms(1000)).is_none());
+        assert!(matches!(
+            state.on_input(ptt_input(true), t0 + ms(1000)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         assert!(state.on_input(ptt_input(false), t0 + ms(1040)).is_none());
         assert!(state.on_grace_expired().is_none());
         assert!(state.on_processing_finished().is_none());
@@ -3732,7 +3918,10 @@ the badge lie (dark-badge session silently post-processing at stop)"
         let t0 = Instant::now();
         hold_or_toggle_into_processing(&mut state, t0);
 
-        assert!(state.on_input(input(mode, true), t0 + ms(1000)).is_none());
+        assert!(matches!(
+            state.on_input(input(mode, true), t0 + ms(1000)),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         assert!(state.on_input(input(mode, false), t0 + ms(1100)).is_none());
         assert!(matches!(
             state.on_processing_finished(),
@@ -3756,12 +3945,18 @@ the badge lie (dark-badge session silently post-processing at stop)"
         hold_or_toggle_into_processing(&mut state, t0);
 
         let mut clock = t0 + ms(1000);
-        assert!(state.on_input(input(mode, true), clock).is_none());
+        assert!(matches!(
+            state.on_input(input(mode, true), clock),
+            Some(Effect::NotifyRecordingBusy { .. })
+        ));
         for _ in 0..30 {
             clock += ms(5);
             assert!(state.on_input(input(mode, false), clock).is_none());
             clock += ms(5);
-            assert!(state.on_input(input(mode, true), clock).is_none());
+            assert!(
+                state.on_input(input(mode, true), clock).is_none(),
+                "repeat presses in an auto-repeat burst stay silent"
+            );
             assert!(state.grace_deadline().is_none());
         }
 
@@ -3776,7 +3971,10 @@ the badge lie (dark-badge session silently post-processing at stop)"
             clock += ms(5);
             assert!(state.on_input(input(mode, false), clock).is_none());
             clock += ms(5);
-            assert!(state.on_input(input(mode, true), clock).is_none());
+            assert!(
+                state.on_input(input(mode, true), clock).is_none(),
+                "repeat presses in an auto-repeat burst stay silent"
+            );
         }
         assert_eq!(clock, t0 + ms(1400));
         assert!(state.on_input(input(mode, false), clock).is_none());

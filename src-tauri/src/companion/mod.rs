@@ -118,13 +118,24 @@ pub struct CompanionManager {
     /// Armed by the press edge that starts it (server.rs), consumed when
     /// the session actually starts.
     pending_prefs: Mutex<protocol::SessionPrefs>,
-    /// v1.6.0: one targeted text lane per paired device name, keyed by the
-    /// hello-claimed name so frames the whole fleet must not see (the
-    /// phone-target transcript) reach exactly the session's own phone and
-    /// no bystander. A later connection with the same name replaces the
-    /// entry (a reconnect); the replaced lane's sender drops and its
-    /// receiver closes, ending the superseded connection.
-    device_sinks: Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<String>>>,
+    /// v1.6.0: one targeted text lane per authenticated connection, keyed
+    /// by a SERVER-assigned lane id (never the client-controlled hello
+    /// name, which any paired phone can repeat to seize a name-keyed
+    /// lane). Frames the whole fleet must not see (the phone-target
+    /// transcript) reach exactly the owning connection's lane.
+    device_lanes: Mutex<HashMap<u64, tokio::sync::mpsc::UnboundedSender<String>>>,
+    /// The lane-id allocator; strictly monotonic, so a lane id is bound to
+    /// exactly one connection for the process's lifetime.
+    next_lane_id: std::sync::atomic::AtomicU64,
+    /// v1.6.0: the lane of the companion session being (or most recently)
+    /// run, frozen from the starting press's own edge on the coordinator
+    /// thread at the instant that start is committed - the same
+    /// handoff-at-commit that protects the session's prefs. The stop
+    /// pipeline's phone-target delivery resolves THIS lane, so neither a
+    /// hello claiming the session-device name during the transcription
+    /// window nor a same-name connection registering a fresh lane can
+    /// redirect the transcript to another phone.
+    session_lane: Mutex<Option<u64>>,
     /// v1.6.0: the preferences of the live (or most recently finished)
     /// companion session, set from the starting press's own edge on the
     /// coordinator thread so nothing can retarget a session that is
@@ -158,7 +169,9 @@ impl CompanionManager {
             session_live: AtomicBool::new(false),
             session_device: Mutex::new(None),
             pending_prefs: Mutex::new(protocol::SessionPrefs::default()),
-            device_sinks: Mutex::new(HashMap::new()),
+            device_lanes: Mutex::new(HashMap::new()),
+            next_lane_id: std::sync::atomic::AtomicU64::new(1),
+            session_lane: Mutex::new(None),
             live_prefs: Mutex::new(protocol::SessionPrefs::default()),
             failure_limiter: Mutex::new(auth::FailureLimiter::new(
                 5,
@@ -251,52 +264,48 @@ impl CompanionManager {
         self.broadcast.subscribe()
     }
 
-    /// v1.6.0: claim this device name's targeted lane. Returns the sender
-    /// (the connection keeps it to identify itself at unregister) and the
-    /// receiver the connection's select drains. A same-name connection
-    /// that registered earlier is superseded: its lane's sender drops, so
-    /// its receiver closes and that connection winds down.
-    pub fn register_device_sink(
-        &self,
-        name: &str,
-    ) -> (
-        tokio::sync::mpsc::UnboundedSender<String>,
-        tokio::sync::mpsc::UnboundedReceiver<String>,
-    ) {
+    /// v1.6.0: claim one targeted lane for an authenticated connection.
+    /// Returns the SERVER-assigned lane id (the connection passes it on
+    /// every Ptt edge and uses it to release the lane) and the receiver
+    /// its select drains. Ids are never reused and never derive from the
+    /// client-controlled device name, so no later connection can seize or
+    /// supersede an existing lane.
+    pub fn register_device_lane(&self) -> (u64, tokio::sync::mpsc::UnboundedReceiver<String>) {
+        let lane = self
+            .next_lane_id
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        self.device_sinks
-            .lock()
-            .unwrap()
-            .insert(name.to_string(), tx.clone());
-        (tx, rx)
+        self.device_lanes.lock().unwrap().insert(lane, tx);
+        (lane, rx)
     }
 
-    /// Release the device name's lane, but only if this connection's
-    /// sender still owns it (a superseding same-name registration must
-    /// survive the superseded connection's exit).
-    pub fn unregister_device_sink(
-        &self,
-        name: &str,
-        sender: &tokio::sync::mpsc::UnboundedSender<String>,
-    ) {
-        let mut sinks = self.device_sinks.lock().unwrap();
-        if sinks
-            .get(name)
-            .is_some_and(|current| current.same_channel(sender))
-        {
-            sinks.remove(name);
-        }
+    /// Release the connection's lane (its socket ended). A session still
+    /// pointing at this lane reads it as the documented dropped-phone
+    /// no-op; the id is never reused.
+    pub fn unregister_device_lane(&self, lane: u64) {
+        self.device_lanes.lock().unwrap().remove(&lane);
     }
 
-    /// Send one frame down exactly one device's targeted lane. False when
-    /// no connection currently holds that name (the phone dropped): the
-    /// caller treats it as the documented no-subscriber no-op.
-    pub fn send_frame_to_device(&self, device: &str, frame: &protocol::ServerFrame) -> bool {
-        let sinks = self.device_sinks.lock().unwrap();
-        match sinks.get(device) {
+    /// Send one frame down exactly one connection's targeted lane. False
+    /// when that lane is gone (the phone dropped): the caller treats it as
+    /// the documented no-subscriber no-op.
+    pub fn send_frame_to_lane(&self, lane: u64, frame: &protocol::ServerFrame) -> bool {
+        let lanes = self.device_lanes.lock().unwrap();
+        match lanes.get(&lane) {
             Some(tx) => tx.send(frame.to_json()).is_ok(),
             None => false,
         }
+    }
+
+    /// v1.6.0: freeze the lane of the companion session being committed.
+    /// Called ONLY from the coordinator thread's Start effect with the
+    /// lane id that arrived ON the starting press's edge, before the start
+    /// preamble - the same serialized handoff-at-commit that protects the
+    /// session's prefs, so the stop pipeline's delivery (which resolves
+    /// minutes later, after transcription and post-process) can never be
+    /// redirected by a later hello or lane registration.
+    fn set_session_lane(&self, lane: u64) {
+        *self.session_lane.lock().unwrap() = Some(lane);
     }
 
     pub fn shutdown_signal(&self) -> watch::Receiver<bool> {
@@ -875,6 +884,16 @@ pub fn begin_session_prefs<R: tauri::Runtime>(
     }
 }
 
+/// v1.6.0: freeze the lane of the companion session being committed, from
+/// the starting press's own edge (see [`CompanionManager::set_session_lane`]).
+/// Same call site and same serialized instant as [`begin_session_prefs`]:
+/// the coordinator thread's Start effect, before the start preamble.
+pub fn begin_session_lane<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
+    if let Some(manager) = manager(app) {
+        manager.set_session_lane(lane);
+    }
+}
+
 /// v1.6.0: the device name of the live (or most recent) companion session,
 /// for notice detail lines. None outside a companion context.
 pub fn session_device_name<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<String> {
@@ -882,39 +901,47 @@ pub fn session_device_name<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Opti
 }
 
 /// v1.6.0 phone-target delivery: send the final transcript of a companion
-/// session whose output target is the phone to exactly the session's own
-/// device lane, never the broadcast channel every paired phone subscribes
-/// to - a bystander phone must not render (and silently clipboard-write)
-/// a dictation it did not make. One frame, one emission site (the stop
-/// pipeline's phone-delivery branch). A session with no resolvable device
-/// or no live lane for it (the phone dropped) is a no-op; the transcript
-/// is already in history, and the disconnect finalize's notice says
-/// exactly that.
+/// session whose output target is the phone down the session's OWN frozen
+/// lane, never the broadcast channel every paired phone subscribes to and
+/// never anything resolved from the claimable session-device name - a
+/// bystander phone must not render (and silently clipboard-write) a
+/// dictation it did not make, and a phone that connected during the
+/// transcription window must not inherit it either. The lane was frozen
+/// from the starting press's edge at the moment the coordinator committed
+/// the start; by delivery time (minutes later, after transcription and
+/// post-process) the name slot and the lane registry may both have
+/// changed, and neither can redirect this frame. One frame, one emission
+/// site (the stop pipeline's phone-delivery branch). A session with no
+/// frozen lane (pre-v1.6.0 test contexts) or a gone lane (the phone
+/// dropped) is a no-op; the transcript is already in history, and the
+/// disconnect finalize's notice says exactly that.
 pub fn deliver_transcript_to_phone<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     text: &str,
     post_processed: bool,
     model: &str,
 ) {
-    let device = session_device_name(app);
     let Some(manager) = manager(app) else {
         return;
     };
-    let Some(device) = device.as_deref() else {
+    let lane = *manager.session_lane.lock().unwrap();
+    let Some(lane) = lane else {
         log::warn!(
-            "companion: phone-target transcript has no session device to target; history keeps it"
+            "companion: phone-target transcript has no session lane to target; history keeps it"
         );
         return;
     };
-    if !manager.send_frame_to_device(
-        device,
+    if !manager.send_frame_to_lane(
+        lane,
         &protocol::ServerFrame::TranscriptResult {
             text: text.to_string(),
             post_processed,
             model: model.to_string(),
         },
     ) {
-        log::debug!("companion: no live lane for {device}; the transcript stays in history");
+        log::debug!(
+            "companion: session lane {lane} is gone (the phone dropped); the transcript stays in history"
+        );
     }
 }
 
@@ -1407,15 +1434,16 @@ mod tests {
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
 
-        // Two paired phones with live targeted lanes; the broadcast
-        // subscriber stands in for every connection's broadcast arm.
-        let (_pixel_lane_tx, mut pixel_lane_rx) = manager.register_device_sink("Pixel 8");
-        let (_iphone_lane_tx, mut iphone_lane_rx) = manager.register_device_sink("iPhone 15");
+        // Two paired phones' connections, each with its own server-assigned
+        // lane; the broadcast subscriber stands in for every connection's
+        // broadcast arm.
+        let (pixel_lane, mut pixel_lane_rx) = manager.register_device_lane();
+        let (_bystander_lane, mut bystander_lane_rx) = manager.register_device_lane();
         let mut broadcast = manager.subscribe();
 
-        // The session: Pixel 8's press carried phone-target prefs, the
-        // Start-effect seam applied them, and the session badge claims the
-        // device.
+        // The session: Pixel 8's press carried phone-target prefs AND its
+        // connection's lane id; the Start-effect seams froze both, and the
+        // session badge claims the device.
         manager.claim_session_device("Pixel 8");
         begin_session_prefs(
             app.handle(),
@@ -1424,6 +1452,7 @@ mod tests {
                 post_process: false,
             },
         );
+        begin_session_lane(app.handle(), pixel_lane);
         manager.session_live.store(true, Ordering::Release);
         assert_eq!(
             session_prefs(app.handle()).output_target,
@@ -1448,7 +1477,7 @@ mod tests {
         // The bystander phone's lane stays empty, and so does the
         // broadcast channel: the transcript is targeted, full stop.
         assert!(
-            iphone_lane_rx.try_recv().is_err(),
+            bystander_lane_rx.try_recv().is_err(),
             "a bystander phone must not receive another phone's transcript"
         );
         assert!(
@@ -1470,62 +1499,82 @@ mod tests {
             "the notice-detail helper resolves the session device through app state"
         );
 
-        // Delivery with no live lane for the session device (the phone
-        // dropped) is the documented no-op, not a bystander broadcast.
-        manager.unregister_device_sink("Pixel 8", &_pixel_lane_tx);
+        // The stop pipeline flipped session_live false long before this
+        // point; a NEW phone's hello during that window claims the
+        // session-device name, and its connection registers a fresh lane -
+        // neither can redirect the frozen session's delivery.
+        manager.claim_session_device("iPhone 15");
+        let (_late_lane, mut late_lane_rx) = manager.register_device_lane();
+        deliver_transcript_to_phone(app.handle(), "frozen aim", false, "m");
+        assert!(
+            pixel_lane_rx
+                .try_recv()
+                .is_ok_and(|frame| frame.contains("frozen aim")),
+            "the frozen lane keeps receiving even after a later claim and lane registration"
+        );
+        assert!(late_lane_rx.try_recv().is_err());
+
+        // Delivery with no live lane for the session (the phone dropped) is
+        // the documented no-op, not a bystander broadcast.
+        manager.unregister_device_lane(pixel_lane);
         deliver_transcript_to_phone(app.handle(), "after the drop", false, "m");
         assert!(pixel_lane_rx.try_recv().is_err());
         assert!(
-            iphone_lane_rx.try_recv().is_err(),
+            late_lane_rx.try_recv().is_err(),
             "a dropped phone's transcript must not fall back to bystanders"
         );
         assert!(broadcast.try_recv().is_err());
     }
 
-    /// The targeted lanes' registry semantics: a same-name re-registration
-    /// supersedes the older lane (the reconnect case - the new connection
-    /// receives the frames), and the superseded connection's exit cannot
-    /// unregister the successor's lane (identity-checked release).
+    /// The targeted lanes' registry semantics (wrong-phone fix): lane ids
+    /// are SERVER-assigned per connection and never derive from the
+    /// client-controlled hello name, so two connections claiming the SAME
+    /// device name get distinct lanes - neither can seize or supersede the
+    /// other - and a frozen session's lane cannot be redirected by any
+    /// later registration. Release removes exactly the named lane; a
+    /// session still pointing at a released lane reads the documented
+    /// no-op.
     #[test]
-    fn device_lanes_supersede_by_name_and_release_identity_checked() {
+    fn device_lanes_are_per_connection_and_never_name_seizable() {
         let manager = CompanionManager::new();
 
-        let (old_tx, mut old_rx) = manager.register_device_sink("Pixel 8");
-        let (new_tx, mut new_rx) = manager.register_device_sink("Pixel 8");
+        // Two connections claiming the SAME name: distinct lanes, both
+        // live, no supersession.
+        let (lane_a, mut rx_a) = manager.register_device_lane();
+        let (lane_b, mut rx_b) = manager.register_device_lane();
+        assert_ne!(lane_a, lane_b, "lane ids are per connection, not per name");
 
         assert!(
-            manager
-                .send_frame_to_device("Pixel 8", &protocol::ServerFrame::State { recording: true }),
-            "the name resolves to the live (superseding) lane"
+            manager.send_frame_to_lane(lane_a, &protocol::ServerFrame::State { recording: true })
         );
+        assert!(rx_a.try_recv().is_ok());
         assert!(
-            new_rx.try_recv().is_ok(),
-            "the successor lane receives the frame"
-        );
-        assert!(
-            old_rx.try_recv().is_err(),
-            "the superseded lane receives nothing"
+            rx_b.try_recv().is_err(),
+            "a same-name connection cannot seize another connection's lane"
         );
 
-        // The superseded connection exits: its release must leave the
-        // successor's lane registered.
-        manager.unregister_device_sink("Pixel 8", &old_tx);
+        // A frozen session keeps its own lane even after later
+        // registrations; a send to the frozen lane is unaffected.
+        let (_lane_c, mut rx_c) = manager.register_device_lane();
         assert!(
-            manager.send_frame_to_device(
-                "Pixel 8",
-                &protocol::ServerFrame::State { recording: false }
-            ),
-            "the successor's lane survives the predecessor's exit"
+            manager.send_frame_to_lane(lane_a, &protocol::ServerFrame::State { recording: false })
         );
-        assert!(new_rx.try_recv().is_ok());
+        assert!(rx_a.try_recv().is_ok());
+        assert!(rx_c.try_recv().is_err());
 
-        // The successor's own release removes the lane; a send becomes the
-        // documented no-subscriber no-op.
-        manager.unregister_device_sink("Pixel 8", &new_tx);
-        assert!(!manager.send_frame_to_device(
-            "Pixel 8",
-            &protocol::ServerFrame::State { recording: false }
-        ));
+        // Release removes exactly one lane; ids are never reused.
+        manager.unregister_device_lane(lane_a);
+        assert!(
+            !manager.send_frame_to_lane(lane_a, &protocol::ServerFrame::State { recording: false }),
+            "a released lane reads as the dropped-phone no-op"
+        );
+        assert!(
+            manager.send_frame_to_lane(lane_b, &protocol::ServerFrame::State { recording: false })
+        );
+        assert!(rx_b.try_recv().is_ok());
+        assert!(rx_c.try_recv().is_err());
+        let (lane_d, _rx_d) = manager.register_device_lane();
+        assert_ne!(lane_d, lane_a, "lane ids are never reused");
     }
 
     /// v1.6.0 settings seams: the advertised-host override trims and

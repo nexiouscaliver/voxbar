@@ -746,6 +746,8 @@
           "visibleDescription": "Model, który przepisuje transkrypcję po każdym dyktowaniu.",
           "fetchingList": "Pobieranie listy modeli...",
           "listSummary_one": "1 model, pobrano {{time}}",
+          "listSummary_few": "{{count}} modele, pobrano {{time}}",
+          "listSummary_many": "{{count}} modeli, pobrano {{time}}",
           "listSummary_other": "{{count}} modeli, pobrano {{time}}",
           "notFetched": "Nie ma jeszcze listy modeli.",
           "emptyTitle": "Brak modeli na liście",
@@ -754,6 +756,8 @@
           "customHint": "Działa dowolny identyfikator modelu od dostawcy, nawet jeśli nie ma go na liście.",
           "filterPlaceholder": "Filtruj modele",
           "showAll_one": "Pokaż wszystkie ({{count}})",
+          "showAll_few": "Pokaż wszystkie ({{count}})",
+          "showAll_many": "Pokaż wszystkie ({{count}})",
           "showAll_other": "Pokaż wszystkie ({{count}})",
           "showFewer": "Pokaż mniej"
         },
@@ -1179,8 +1183,12 @@
         "noModelHint": "Nie ustawiono modelu. Wybierz go w Post Process."
       },
       "run_one": "Uruchom 1 parę",
+      "run_few": "Uruchom {{count}} pary",
+      "run_many": "Uruchom {{count}} par",
       "run_other": "Uruchom pary: {{count}}",
       "runHint_one": "1 prompt na 1 silniku. Nic nie jest wpisywane ani zapisywane.",
+      "runHint_few": "{{count}} pary prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
+      "runHint_many": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "runHint_other": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "running": "Uruchamianie...",
       "rerun": "Uruchom ponownie",
@@ -1188,6 +1196,8 @@
       "rawKept": "Silnik nie powiódł się lub został pominięty, więc surowa transkrypcja zostałaby zachowana.",
       "partialFailure": "Niektóre uruchomienia nie powiodły się lub zostały pominięte, a inne dały wynik. Sprawdź każdą kartę.",
       "results_one": "1 wynik",
+      "results_few": "{{count}} wyniki",
+      "results_many": "{{count}} wyników",
       "results_other": "Wyników: {{count}}",
       "errors": {
         "engineNotFound": "Silnik '{{id}}' nie jest skonfigurowany.",
@@ -1197,6 +1207,8 @@
       "diff": {
         "lines": "linii",
         "charsChanged_one": "Zmieniono 1 znak",
+        "charsChanged_few": "Zmieniono {{count}} znaki",
+        "charsChanged_many": "Zmieniono {{count}} znaków",
         "charsChanged_other": "Zmieniono znaków: {{count}}",
         "identical": "Brak zmian."
       },

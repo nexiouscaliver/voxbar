@@ -746,6 +746,7 @@
           "visibleDescription": "המודל שכותב מחדש את התמליל אחרי כל הקלטה.",
           "fetchingList": "טוען את רשימת המודלים...",
           "listSummary_one": "מודל אחד, נטען {{time}}",
+          "listSummary_two": "{{count}} מודלים, נטענו {{time}}",
           "listSummary_other": "{{count}} מודלים, נטענו {{time}}",
           "notFetched": "עדיין אין רשימת מודלים.",
           "emptyTitle": "אין מודלים ברשימה",
@@ -754,6 +755,7 @@
           "customHint": "כל מזהה מודל שהספק שלך מציע עובד, גם אם הוא לא ברשימה.",
           "filterPlaceholder": "סינון מודלים",
           "showAll_one": "הצג הכול ({{count}})",
+          "showAll_two": "הצג הכול ({{count}})",
           "showAll_other": "הצג הכול ({{count}})",
           "showFewer": "הצג פחות"
         },
@@ -1179,8 +1181,10 @@
         "noModelHint": "לא הוגדר מודל. בחר אחד ב-Post Process."
       },
       "run_one": "הרצת זוג אחד",
+      "run_two": "הרצת {{count}} זוגות",
       "run_other": "הרצת {{count}} זוגות",
       "runHint_one": "פרומפט אחד על מנוע אחד. שום דבר לא מוקלד או נשמר.",
+      "runHint_two": "{{count}} זוגות פרומפט-מנוע. שום דבר לא מוקלד או נשמר.",
       "runHint_other": "{{count}} זוגות פרומפט-מנוע. שום דבר לא מוקלד או נשמר.",
       "running": "מריץ...",
       "rerun": "הרצה חוזרת",
@@ -1188,6 +1192,7 @@
       "rawKept": "המנוע נכשל או דולג, ולכן התמליל הגולמי יישמר.",
       "partialFailure": "חלק מההרצות נכשלו או דולגו בעוד אחרות הניבו תוצאה. בדקו כל כרטיס.",
       "results_one": "תוצאה אחת",
+      "results_two": "{{count}} תוצאות",
       "results_other": "{{count}} תוצאות",
       "errors": {
         "engineNotFound": "המנוע '{{id}}' אינו מוגדר.",
@@ -1197,6 +1202,7 @@
       "diff": {
         "lines": "שורות",
         "charsChanged_one": "תו אחד השתנה",
+        "charsChanged_two": "{{count}} תווים השתנו",
         "charsChanged_other": "{{count}} תווים השתנו",
         "identical": "אין שינויים."
       },

@@ -76,6 +76,19 @@ const stubWindow = {
       if (cmd === "plugin:window|is_visible") return windowVisible;
       if (cmd === "plugin:notification|is_permission_granted")
         return StubNotification.permission === "granted";
+      if (cmd === "notification_permission_state") {
+        if (StubNotification.permission === "granted") return "granted";
+        if (StubNotification.permission === "denied") return "denied";
+        return "not_determined";
+      }
+      // The Rust seam refuses the persistent post when the real grant is
+      // missing (fleet pass 2): simulate the Err the denied state returns.
+      if (
+        cmd === "post_persistent_notice" &&
+        StubNotification.permission === "denied"
+      ) {
+        throw new Error("stub: persistent notice not delivered (denied)");
+      }
       if (
         cmd === "plugin:notification|register_listener" ||
         cmd === "plugin:notification|registerListener"
@@ -114,11 +127,12 @@ const {
 // ---------------------------------------------------------------------------
 
 // Window VISIBLE: the persistent surface still posts (this is the point of
-// the surface), through the single Rust seam. With the web Notification
-// permission already "granted" the permission check short-circuits on the
-// static property, so the only IPC traffic is the command itself - and in
-// particular there is deliberately NO plugin:window|is_visible roundtrip
-// here (that query is the legacy surface's gate, pinned below).
+// the surface), through the single Rust seam. Fleet pass 2: the permission
+// gate lives in the RUST seam (the plugin's desktop stub always says
+// granted, so a JS-side gate was vacuous), so the only IPC traffic is the
+// command itself - and in particular there is deliberately NO
+// plugin:window|is_visible roundtrip here (that query is the legacy
+// surface's gate, pinned below).
 invokedCommands.length = 0;
 windowVisible = true;
 await notifyDesktopPersistent({
@@ -168,14 +182,33 @@ windowVisible = true;
 await desktop.notifyDesktop("transient banner");
 assert.deepEqual(sent, [], "legacy surface stays quiet while visible");
 
-// Permission denied: silent, no prompt, no command (a notification is a
-// courtesy surface; priming is primeNotificationPermission's job).
+// Permission denied (fleet pass 2 contract): the command IS invoked - the
+// real authorization gate lives in the Rust seam, which consults
+// UNUserNotificationCenter and returns Err on denial (the old JS gate never
+// fired because the plugin's desktop stub always said granted, so a
+// System-Settings denial silently posted into a void). The Err lands in
+// the catch and is logged, never thrown, and the JS surface never prompts
+// (priming is primeNotificationPermission's job).
 invokedCommands.length = 0;
 StubNotification.permission = "denied";
-await notifyDesktopPersistent({ body: "b", code: "c", target: "history" });
+const originalWarnDenied = console.warn;
+let deniedWarns = 0;
+console.warn = () => {
+  deniedWarns++;
+};
+try {
+  await notifyDesktopPersistent({ body: "b", code: "c", target: "history" });
+} finally {
+  console.warn = originalWarnDenied;
+}
 assert.ok(
-  !invokedCommands.some((entry) => entry.cmd === "post_persistent_notice"),
-  "denied permission means no post",
+  invokedCommands.some((entry) => entry.cmd === "post_persistent_notice"),
+  "the Rust seam decides: the command is invoked even when the grant is missing",
+);
+assert.equal(
+  deniedWarns,
+  1,
+  "the seam's refusal is LOUD on this surface (logged once), not silent",
 );
 assert.ok(
   !invokedCommands.some(

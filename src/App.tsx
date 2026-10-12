@@ -419,10 +419,13 @@ function App() {
   // window show, never lazily inside notifyDesktop — the old lazy request
   // could surface the macOS system prompt with no window visible (the
   // notice arrived while hidden), and one silent denial then disabled the
-  // surface for the whole run. Only a genuine request FAILURE (the request
-  // threw) gets a toast, via the requestFailed key; a plain user denial is
-  // silent - the system prompt is the only way back, the user just
-  // declined it, and macOS deny-once makes an in-app retry a no-op.
+  // surface for the whole run. Fleet pass 2: the ask goes through the Rust
+  // seam (real UNUserNotificationCenter state on macOS; the plugin's
+  // desktop stub never asked). Only a genuine FAILURE (the state could not
+  // be resolved, or the request threw) gets a toast, via the requestFailed
+  // key; a plain user denial is silent - the system prompt is the only way
+  // back, the user just declined it, and macOS deny-once makes an in-app
+  // retry a no-op.
   // primeNotificationPermission is a once-per-run no-op after the first
   // call, so the subscription may safely re-arm on language change.
   useEffect(() => {

@@ -19,6 +19,7 @@ mod llm_client;
 pub mod local_llm;
 mod managers;
 mod memory;
+mod notification_permission;
 mod number_format;
 mod overlay;
 mod paste_tx;
@@ -1463,6 +1464,8 @@ fn build_specta_builder() -> Builder<tauri::Wry> {
             commands::history::update_recording_retention_period,
             post_process_runs::get_post_process_runs,
             helpers::clamshell::is_laptop,
+            notification_permission::notification_permission_state,
+            notification_permission::request_notification_permission,
             persistent_notice::post_persistent_notice,
         ])
         .events(collect_events![

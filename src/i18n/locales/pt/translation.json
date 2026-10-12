@@ -745,7 +745,7 @@
           "retry": "Tentar novamente",
           "visibleDescription": "O modelo que reescreve a sua transcrição após cada ditado.",
           "fetchingList": "A obter a lista de modelos...",
-          "listSummary_one": "1 modelo, obtido {{time}}",
+          "listSummary_one": "{{count}} modelo, obtido {{time}}",
           "listSummary_other": "{{count}} modelos, obtidos {{time}}",
           "notFetched": "Ainda sem lista de modelos.",
           "emptyTitle": "Nenhum modelo listado",
@@ -1178,16 +1178,16 @@
         "noModel": "Nenhum modelo configurado",
         "noModelHint": "Sem modelo definido. Escolha um em Post Process."
       },
-      "run_one": "Executar 1 par",
+      "run_one": "Executar {{count}} par",
       "run_other": "Executar {{count}} pares",
-      "runHint_one": "1 prompt em 1 motor. Nada é digitado ou guardado.",
+      "runHint_one": "{{count}} prompt em 1 motor. Nada é digitado ou guardado.",
       "runHint_other": "{{count}} pares prompt-motor. Nada é digitado ou guardado.",
       "running": "Executando...",
       "rerun": "Executar novamente",
       "latency": "{{ms}} ms",
       "rawKept": "O motor falhou ou foi ignorado, então a transcrição bruta seria mantida.",
       "partialFailure": "Algumas execuções falharam ou foram ignoradas enquanto outras produziram resultado. Verifique cada cartão.",
-      "results_one": "1 resultado",
+      "results_one": "{{count}} resultado",
       "results_other": "{{count}} resultados",
       "errors": {
         "engineNotFound": "O motor '{{id}}' não está configurado.",
@@ -1196,7 +1196,7 @@
       },
       "diff": {
         "lines": "linhas",
-        "charsChanged_one": "1 caractere alterado",
+        "charsChanged_one": "{{count}} caractere alterado",
         "charsChanged_other": "{{count}} caracteres alterados",
         "identical": "Nenhuma alteração."
       },

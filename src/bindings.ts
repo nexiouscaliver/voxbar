@@ -1596,8 +1596,33 @@ async isLaptop() : Promise<Result<boolean, string>> {
 }
 },
 /**
+ * The state query command: the settings UI and the frontend priming flow
+ * read the REAL macOS grant through this (the plugin's desktop stub
+ * always says granted).
+ */
+async notificationPermissionState() : Promise<NotificationPermissionState> {
+    return await TAURI_INVOKE("notification_permission_state");
+},
+/**
+ * The one-shot request command for the priming flow: resolves
+ * NotDetermined with the system prompt and reports the outcome. The OS's
+ * own deny-once semantics make repeats no-ops.
+ */
+async requestNotificationPermission() : Promise<NotificationPermissionState> {
+    return await TAURI_INVOKE("request_notification_permission");
+},
+/**
  * Post one persistent notice. The command returns as soon as the notice
  * is handed to the platform; the click wait happens on its own thread.
+ * 
+ * Fleet pass 2: the send is gated on the REAL macOS authorization state
+ * (notification_permission), because the tauri plugin's desktop build
+ * stubs every permission query as granted and mac-notification-sys
+ * resolves a disabled-in-System-Settings send as a plain no-response -
+ * the old path posted into a void with no log, no error, and no state
+ * anywhere. Denied and Unknown are LOUD here (an actionable warn plus an
+ * Err the frontend logs); NotDetermined resolves with the system prompt
+ * first, which is what makes the app's asks-once claim true.
  */
 async postPersistentNotice(body: string, code: string, target: string) : Promise<Result<null, string>> {
     try {
@@ -2206,6 +2231,29 @@ export type ModelUnloadTimeout = "never" | "immediately" | "min_2" | "min_5" | "
  * string wire format, so stored settings are unaffected.
  */
 { custom: { seconds: number } }
+/**
+ * The authorization states callers act on. `Granted` folds Apple's
+ * Authorized/Provisional/Ephemeral together: all three deliver.
+ */
+export type NotificationPermissionState = 
+/**
+ * The system prompt has not been shown (or answered) yet.
+ */
+"not_determined" | 
+/**
+ * The operator denied the grant; nothing will be delivered.
+ */
+"denied" | 
+/**
+ * Authorized (or provisional/ephemeral): delivery proceeds.
+ */
+"granted" | 
+/**
+ * The real query could not be completed (FFI/timeout failure). Never
+ * treated as a grant: callers skip loudly rather than post into a
+ * void they cannot see.
+ */
+"unknown"
 /**
  * How spoken number words are written in the transcript. Post-model and
  * deterministic (number_format.rs); `as_transcribed` restores the 1.1.0

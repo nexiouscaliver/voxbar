@@ -745,7 +745,7 @@
           "retry": "Réessayer",
           "visibleDescription": "Le modèle qui réécrit votre transcription après chaque dictée.",
           "fetchingList": "Récupération de la liste des modèles...",
-          "listSummary_one": "1 modèle, récupéré {{time}}",
+          "listSummary_one": "{{count}} modèle, récupéré {{time}}",
           "listSummary_other": "{{count}} modèles, récupérés {{time}}",
           "notFetched": "Aucune liste de modèles pour l'instant.",
           "emptyTitle": "Aucun modèle listé",
@@ -1178,16 +1178,16 @@
         "noModel": "Aucun modèle configuré",
         "noModelHint": "Aucun modèle défini. Choisissez-en un dans Post Process."
       },
-      "run_one": "Exécuter 1 paire",
+      "run_one": "Exécuter {{count}} paire",
       "run_other": "Exécuter {{count}} paires",
-      "runHint_one": "1 prompt sur 1 moteur. Rien n'est tapé ni enregistré.",
+      "runHint_one": "{{count}} prompt sur 1 moteur. Rien n'est tapé ni enregistré.",
       "runHint_other": "{{count}} paires prompt-moteur. Rien n'est tapé ni enregistré.",
       "running": "Exécution...",
       "rerun": "Relancer",
       "latency": "{{ms}} ms",
       "rawKept": "Le moteur a échoué ou a été ignoré, la transcription brute serait donc conservée.",
       "partialFailure": "Certaines exécutions ont échoué ou été ignorées tandis que d'autres ont produit un résultat. Vérifiez chaque carte.",
-      "results_one": "1 résultat",
+      "results_one": "{{count}} résultat",
       "results_other": "{{count}} résultats",
       "errors": {
         "engineNotFound": "Le moteur '{{id}}' n'est pas configuré.",
@@ -1196,7 +1196,7 @@
       },
       "diff": {
         "lines": "lignes",
-        "charsChanged_one": "1 caractère modifié",
+        "charsChanged_one": "{{count}} caractère modifié",
         "charsChanged_other": "{{count}} caractères modifiés",
         "identical": "Aucune modification."
       },

@@ -745,7 +745,7 @@
           "retry": "फिर कोशिश करें",
           "visibleDescription": "हर डिक्टेशन के बाद आपकी ट्रांसक्रिप्ट को फिर से लिखने वाला मॉडल।",
           "fetchingList": "मॉडल सूची लाई जा रही है...",
-          "listSummary_one": "1 मॉडल, {{time}} पर लाया गया",
+          "listSummary_one": "{{count}} मॉडल, {{time}} पर लाया गया",
           "listSummary_other": "{{count}} मॉडल, {{time}} पर लाए गए",
           "notFetched": "अभी कोई मॉडल सूची नहीं है।",
           "emptyTitle": "सूची में कोई मॉडल नहीं",
@@ -1178,16 +1178,16 @@
         "noModel": "कोई मॉडल कॉन्फ़िगर नहीं है",
         "noModelHint": "कोई मॉडल सेट नहीं है। Post Process में एक चुनें।"
       },
-      "run_one": "1 जोड़ी चलाएँ",
+      "run_one": "{{count}} जोड़ी चलाएँ",
       "run_other": "{{count}} जोड़ियाँ चलाएँ",
-      "runHint_one": "1 इंजन पर 1 प्रॉम्प्ट। कुछ भी टाइप या सेव नहीं होता।",
+      "runHint_one": "1 इंजन पर {{count}} प्रॉम्प्ट। कुछ भी टाइप या सेव नहीं होता।",
       "runHint_other": "{{count}} प्रॉम्प्ट-इंजन जोड़े। कुछ भी टाइप या सेव नहीं होता।",
       "running": "चल रहा है...",
       "rerun": "फिर से चलाएँ",
       "latency": "{{ms}} ms",
       "rawKept": "इंजन विफल हुआ या छोड़ दिया गया, इसलिए कच्चा ट्रांसक्रिप्ट ही रहता।",
       "partialFailure": "कुछ रन विफल हुए या छूटे, जबकि अन्य ने परिणाम दिया। हर कार्ड जाँचें।",
-      "results_one": "1 परिणाम",
+      "results_one": "{{count}} परिणाम",
       "results_other": "{{count}} परिणाम",
       "errors": {
         "engineNotFound": "इंजन '{{id}}' कॉन्फ़िगर नहीं है।",
@@ -1196,7 +1196,7 @@
       },
       "diff": {
         "lines": "पंक्तियाँ",
-        "charsChanged_one": "1 अक्षर बदला",
+        "charsChanged_one": "{{count}} अक्षर बदला",
         "charsChanged_other": "{{count}} अक्षर बदले",
         "identical": "कोई बदलाव नहीं।"
       },

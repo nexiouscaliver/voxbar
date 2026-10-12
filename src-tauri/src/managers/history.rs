@@ -440,8 +440,16 @@ impl HistoryManager {
     /// first. The deliverable text is the post-processed transcript when
     /// the session polished it, else the raw transcription; entries whose
     /// deliverable text is blank (failed sessions saved for retry) are
-    /// skipped - the phone list shows what was actually dictated. Split on
-    /// a connection so tests exercise the real query in memory.
+    /// skipped - the phone list shows what was actually dictated.
+    /// Phone-DESTINED transcripts are excluded too: the RecentHistory
+    /// frame rides the broadcast every paired phone receives, and a
+    /// phone-target dictation must reach only its own phone (the targeted
+    /// lane the stop pipeline delivers it through) - listing it in the
+    /// shared recents would hand it to bystanders after all. The schema
+    /// records no device identity, so per-device recents are unenforceable
+    /// without another migration; excluding phone-destined rows is the
+    /// honest scope. Split on a connection so tests exercise the real
+    /// query in memory.
     fn recent_companion_entries_with_conn(
         conn: &Connection,
         limit: usize,
@@ -452,6 +460,7 @@ impl HistoryManager {
              FROM transcription_history
              WHERE capture_source = 'companion'
                AND TRIM(COALESCE(NULLIF(post_processed_text, ''), transcription_text)) != ''
+               AND COALESCE(delivery_destination, 'mac') != 'phone'
              ORDER BY id DESC
              LIMIT ?1",
         )?;
@@ -910,8 +919,13 @@ impl HistoryManager {
     pub async fn delete_entry(&self, id: i64) -> Result<()> {
         let conn = self.get_connection()?;
 
-        // Get the entry to find the file name
+        // Get the entry to find the file name (and remember whether it was
+        // a companion row: deleting one must refresh the phones' recent
+        // lists, or the deleted transcript stays rendered and copyable on
+        // every paired phone until their next dictation or reconnect).
+        let mut deleted_companion_row = false;
         if let Some(entry) = self.get_entry_by_id(id).await? {
+            deleted_companion_row = entry.capture_source == "companion";
             // Delete the audio file first
             let file_path = self.get_audio_file_path(&entry.file_name);
             if file_path.exists() {
@@ -933,6 +947,14 @@ impl HistoryManager {
         // Emit history updated event
         if let Err(e) = (HistoryUpdatePayload::Deleted { id }).emit(&self.app_handle) {
             error!("Failed to emit history-updated event: {}", e);
+        }
+
+        // Refresh the paired phones' recent lists so a deleted transcript
+        // disappears everywhere (best effort: the broadcast no-ops without
+        // a running companion server, and a query failure logs without
+        // failing the delete that already succeeded).
+        if deleted_companion_row {
+            crate::companion::broadcast_recent_history(&self.app_handle);
         }
 
         Ok(())
@@ -1055,7 +1077,10 @@ mod tests {
         // empty-state placeholder.
         let empty = HistoryManager::recent_completed_entries_with_conn(&conn, 5)
             .expect("query empty history");
-        assert!(empty.is_empty(), "no rows => the tray renders the empty state");
+        assert!(
+            empty.is_empty(),
+            "no rows => the tray renders the empty state"
+        );
 
         insert_entry(&conn, 100, "first", None);
         insert_entry(&conn, 300, "", None); // in-flight or failed: never listed
@@ -1349,7 +1374,10 @@ mod tests {
                     |row| row.get(0),
                 )
                 .unwrap_or_else(|e| panic!("query pragma_table_info for {column}: {e}"));
-            assert_eq!(notnull, 1, "{column} must be NOT NULL (it always has a value)");
+            assert_eq!(
+                notnull, 1,
+                "{column} must be NOT NULL (it always has a value)"
+            );
         }
 
         // The legacy row reads back with the legacy defaults.
@@ -1417,7 +1445,45 @@ mod tests {
     /// The phone-facing recent list (v1.6.0): companion entries only,
     /// newest first, capped at the limit, with the post-processed text
     /// preferred over the raw transcript, blank (failed-for-retry) entries
-    /// skipped, and an empty history reading as an empty list.
+    /// skipped, PHONE-DESTINED transcripts excluded (the recents frame is
+    /// a broadcast; a phone-target dictation must reach only its own
+    /// phone), and an empty history reading as an empty list.
+    /// Fleet pass 2 wiring pin: deleting a COMPANION row must refresh the
+    /// paired phones' recent lists (broadcast_recent_history), or the
+    /// deleted transcript stays rendered and copyable on every phone until
+    /// the next dictation or reconnect. The delete path needs a full
+    /// manager plus app handle a conn-level test cannot mount, so the
+    /// wiring is pinned against this committed source (the same convention
+    /// as the coordinator's emit pins): the companion-source flag is
+    /// captured from the entry BEFORE the row goes away, and the broadcast
+    /// rides the successful delete.
+    #[test]
+    fn deleting_a_companion_entry_refreshes_the_phone_recents() {
+        let source = include_str!("history.rs");
+        let at = source
+            .find("pub async fn delete_entry")
+            .expect("delete_entry");
+        let end = at
+            + source[at..]
+                .find("fn format_timestamp_title")
+                .expect("the fn after delete_entry");
+        let body = &source[at..end];
+        let capture = body
+            .find("entry.capture_source == \"companion\"")
+            .expect("the delete captures whether the row was companion-source");
+        let refresh = body
+            .find("crate::companion::broadcast_recent_history(&self.app_handle)")
+            .expect("the delete broadcasts the refreshed recents");
+        assert!(
+            capture < refresh,
+            "the source flag must be captured before the row is deleted"
+        );
+        assert!(
+            body.contains("if deleted_companion_row {"),
+            "the refresh is scoped to companion rows (a local delete changes no phone list)"
+        );
+    }
+
     #[test]
     fn recent_companion_entries_exact_contract() {
         let conn = setup_conn();
@@ -1448,7 +1514,30 @@ mod tests {
         insert(500, "companion", "raw five", Some("polished five"));
         insert(600, "companion", "raw six", None);
 
-        // Newest first, processed preferred, blanks skipped, local excluded.
+        // Phone-destined transcripts. The phone-target dictation already
+        // reached exactly its own phone through the targeted lane; listing
+        // it in the SHARED recents would hand it to every bystander. (The
+        // destination column is NOT NULL, so no legacy NULL rows exist.)
+        for (id, dest) in [(700i64, "phone"), (800i64, "phone")] {
+            conn.execute(
+                "INSERT INTO transcription_history (
+                    file_name, timestamp, saved, title, transcription_text,
+                    post_processed_text, post_process_prompt, post_process_requested,
+                    capture_source, delivery_destination
+                ) VALUES (?1, ?2, 0, ?3, ?4, NULL, NULL, 0, 'companion', ?5)",
+                params![
+                    format!("voxbar-{id}.wav"),
+                    id,
+                    format!("Recording {id}"),
+                    format!("raw {id}"),
+                    dest,
+                ],
+            )
+            .expect("insert entry");
+        }
+
+        // Newest first, processed preferred, blanks skipped, local and
+        // phone-destined rows excluded.
         let entries = HistoryManager::recent_companion_entries_with_conn(&conn, 5)
             .expect("query recent companion entries");
         assert_eq!(
@@ -1462,13 +1551,13 @@ mod tests {
                 ("raw three", 300),
                 ("polished two", 200),
             ],
-            "newest first; processed text wins; blank and local rows never appear"
+            "newest first; processed text wins; blank, local, and phone-destined rows never appear"
         );
 
         // The limit window caps the list (the protocol's RecentHistory
         // frame carries 5).
-        let capped = HistoryManager::recent_companion_entries_with_conn(&conn, 2)
-            .expect("query capped");
+        let capped =
+            HistoryManager::recent_companion_entries_with_conn(&conn, 2).expect("query capped");
         assert_eq!(
             capped.iter().map(|e| e.timestamp).collect::<Vec<_>>(),
             vec![600, 500]
@@ -1476,8 +1565,10 @@ mod tests {
 
         // An empty history is an empty list, not an error.
         let empty_conn = setup_conn();
-        assert!(HistoryManager::recent_companion_entries_with_conn(&empty_conn, 5)
-            .expect("query empty history")
-            .is_empty());
+        assert!(
+            HistoryManager::recent_companion_entries_with_conn(&empty_conn, 5)
+                .expect("query empty history")
+                .is_empty()
+        );
     }
 }

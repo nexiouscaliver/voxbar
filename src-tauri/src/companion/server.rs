@@ -261,9 +261,11 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
 
     // ---- hello handshake ----
     let device_name: String;
-    // This connection's targeted frame lane, claimed under the device
-    // name once the hello authenticates (see the claim below).
-    let device_lane_tx: tokio::sync::mpsc::UnboundedSender<String>;
+    // This connection's targeted frame lane: a SERVER-assigned id (never
+    // the client-controlled device name), claimed once the hello
+    // authenticates and passed on every Ptt edge so the session freezes
+    // exactly this connection as its delivery target.
+    let device_lane: u64;
     let mut device_lane_rx: tokio::sync::mpsc::UnboundedReceiver<String>;
     let mut tracker = protocol::SessionTracker::new();
     let mut rate_cap = protocol::InputRateCap::new(Instant::now());
@@ -326,13 +328,15 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             // (see claim_session_device) - a second phone connecting
             // mid-dictation is a spectator, not the session's device.
             manager.claim_session_device(&device_name);
-            // v1.6.0: claim this connection's targeted frame lane under
-            // the device name. Phone-target transcripts ride it (never the
-            // broadcast every paired phone sees), so a bystander phone
-            // cannot render or clipboard-write a dictation it did not make.
-            // A same-name reconnect supersedes the older lane.
-            let (tx, rx) = manager.register_device_sink(&device_name);
-            device_lane_tx = tx;
+            // v1.6.0: claim this connection's targeted frame lane.
+            // Phone-target transcripts ride it (never the broadcast every
+            // paired phone sees), so a bystander phone cannot render or
+            // clipboard-write a dictation it did not make. The lane is
+            // keyed by a server-assigned id, not the hello name: a paired
+            // phone repeating another phone's name cannot seize the lane,
+            // and same-named connections coexist.
+            let (lane, rx) = manager.register_device_lane();
+            device_lane = lane;
             device_lane_rx = rx;
 
             let settings = crate::settings::get_settings(&app);
@@ -395,8 +399,9 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             },
             out = device_lane_rx.recv() => match out {
                 Some(text) => Step::Targeted(text),
-                // The lane was superseded by a same-name reconnect; this
-                // connection is done (the phone has a fresh one).
+                // Unreachable while this connection holds its lane (the
+                // map keeps the sender alive); kept as a safe wind-down if
+                // the lane is ever released elsewhere.
                 None => break,
             },
             _ = ping_ticker.tick() => Step::Tick,
@@ -489,7 +494,7 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                             if let Some(coordinator) =
                                 app.try_state::<crate::TranscriptionCoordinator>()
                             {
-                                coordinator.send_companion_edge(&app, pressed, prefs);
+                                coordinator.send_companion_edge(&app, pressed, prefs, device_lane);
                             }
                             if pressed {
                                 tracker.press(Instant::now());
@@ -551,9 +556,10 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     // ---- disconnect: graceful finalize ----
     let _ = sink.close().await;
     manager.forget_device(&app, &device_name);
-    // Release the targeted lane this connection claimed - identity-checked,
-    // so a same-name successor's lane survives the predecessor's exit.
-    manager.unregister_device_sink(&device_name, &device_lane_tx);
+    // Release the targeted lane this connection claimed. Ids are never
+    // reused, so a session still pointing at it reads the miss as the
+    // documented dropped-phone no-op.
+    manager.unregister_device_lane(device_lane);
 
     // Acknowledge the recorder's stop-pause handshake so Stop never waits
     // the 2 s timeout on a vanished phone.

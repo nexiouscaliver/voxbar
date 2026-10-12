@@ -73,6 +73,15 @@ pub fn click_action_for(
 
 /// Post one persistent notice. The command returns as soon as the notice
 /// is handed to the platform; the click wait happens on its own thread.
+///
+/// Fleet pass 2: the send is gated on the REAL macOS authorization state
+/// (notification_permission), because the tauri plugin's desktop build
+/// stubs every permission query as granted and mac-notification-sys
+/// resolves a disabled-in-System-Settings send as a plain no-response -
+/// the old path posted into a void with no log, no error, and no state
+/// anywhere. Denied and Unknown are LOUD here (an actionable warn plus an
+/// Err the frontend logs); NotDetermined resolves with the system prompt
+/// first, which is what makes the app's asks-once claim true.
 #[tauri::command]
 #[specta::specta]
 pub fn post_persistent_notice(
@@ -81,9 +90,28 @@ pub fn post_persistent_notice(
     code: String,
     target: String,
 ) -> Result<(), String> {
-    let payload = NoticeNotificationClick { code, target };
-    post_and_watch(&app, body, payload);
-    Ok(())
+    match crate::notification_permission::request_if_needed() {
+        crate::notification_permission::NotificationPermissionState::Denied => {
+            let detail = "persistent notice not delivered: macOS notifications are denied for                 this app. Re-enable them in System Settings > Notifications > VoxBar.";
+            log::warn!("{detail}");
+            Err(detail.to_string())
+        }
+        crate::notification_permission::NotificationPermissionState::Unknown => {
+            let detail =
+                "persistent notice not delivered: the macOS notification authorization state                 could not be queried; skipping rather than posting into an unreadable void.";
+            log::warn!("{detail}");
+            Err(detail.to_string())
+        }
+        crate::notification_permission::NotificationPermissionState::Granted
+        | crate::notification_permission::NotificationPermissionState::NotDetermined => {
+            // Granted posts. NotDetermined cannot survive request_if_needed
+            // (it resolves the prompt and returns the outcome), so this arm
+            // is Granted in practice; the match keeps every state named.
+            let payload = NoticeNotificationClick { code, target };
+            post_and_watch(&app, body, payload);
+            Ok(())
+        }
+    }
 }
 
 /// The bundle identity notifications attribute to: the configured app id,
@@ -182,6 +210,49 @@ mod tests {
         );
         // The event name is a wire contract with the webview listener.
         assert_eq!(NOTICE_CLICK_EVENT, "notice-notification-click");
+    }
+
+    /// Fleet pass 2 wiring pin: the macOS send path must gate on the REAL
+    /// authorization state (notification_permission) BEFORE any
+    /// mac-notification-sys send, and Denied/Unknown must be loud (warn +
+    /// Err). The gate needs a live UNUserNotificationCenter a unit test
+    /// cannot mount headless, so the wiring is pinned against this
+    /// committed source - the same convention as the coordinator's emit
+    /// pins. Before the fix the plugin's desktop stub made every state
+    /// read Granted, so a System-Settings denial posted into a void with
+    /// no log on any surface.
+    #[test]
+    fn send_path_gates_on_the_real_authorization_and_fails_loud() {
+        let source = include_str!("persistent_notice.rs");
+        let at = source
+            .find("pub fn post_persistent_notice")
+            .expect("post_persistent_notice");
+        let end = at
+            + source[at..]
+                .find("fn sender_identity")
+                .expect("the fn after the command");
+        let body = &source[at..end];
+        let gate = body
+            .find("notification_permission::request_if_needed()")
+            .expect("the command consults the real authorization state");
+        let send = body
+            .find("post_and_watch(&app, body, payload)")
+            .expect("the send call");
+        assert!(
+            gate < send,
+            "the authorization gate must run BEFORE the platform send"
+        );
+        for needle in [
+            "NotificationPermissionState::Denied =>",
+            "NotificationPermissionState::Unknown =>",
+            "log::warn!",
+            "Err(detail.to_string())",
+        ] {
+            assert!(
+                body.contains(needle),
+                "the denied/unknown paths must stay loud: `{needle}` missing"
+            );
+        }
     }
 
     #[test]

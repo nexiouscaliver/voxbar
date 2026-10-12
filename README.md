@@ -301,8 +301,10 @@ Settings, Notifications carries the controls:
   all button. New entries are recorded only while system notifications
   are on.
 
-macOS asks for notification permission once. If you deny it, re-enable
-VoxBar in System Settings, Notifications.
+macOS asks for notification permission once, through the app's own
+authorization request (System Settings, Notifications, VoxBar). If you
+deny it, the app detects that and says so in its log every time a
+notification is skipped; re-enable VoxBar there to restore delivery.
 
 ## Tray
 

@@ -1,42 +1,54 @@
 import {
   isPermissionGranted,
   onAction,
-  requestPermission,
   sendNotification,
 } from "@tauri-apps/plugin-notification";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { listen } from "@tauri-apps/api/event";
-import { commands } from "@/bindings";
+import { commands, type NotificationPermissionState } from "@/bindings";
 
 let permissionPrimed = false;
 
 // Ask for notification permission once per app run, ideally while the main
 // window is visible so the system prompt never appears over a hidden app.
-// Already-granted runs resolve without any prompt. `onFailure` fires at most
-// once per run - only when the permission request genuinely THREW (plugin
-// error), so the caller can show its failure toast. A plain user DENIAL is
-// silent (log only): the system prompt is the only way back and the user
-// just declined it - on macOS a deny-once makes an in-app retry a no-op, so
-// advising "try again" (or re-nagging every run) would be wrong advice.
+// Fleet pass 2: the ask goes through the Rust seam
+// (commands.requestNotificationPermission), which talks to
+// UNUserNotificationCenter for real on macOS. The tauri plugin's desktop
+// build stubs its permission API as always-granted (and shims
+// window.Notification.permission = "granted" at boot), so the previous
+// plugin-driven flow NEVER asked and NEVER detected a denial: without the
+// System Settings grant every notification silently posted into a void.
+// The Rust seam shows the system prompt exactly once per the OS's own
+// bookkeeping and reports granted | denied | not_determined | unknown.
+// `onFailure` fires at most once per run - when the state could not be
+// resolved (unknown) or the command genuinely threw - so the caller can
+// show its failure toast. A plain user DENIAL is log-only: the system
+// prompt is the only way back and the user just declined it - on macOS a
+// deny-once makes an in-app retry a no-op, so advising "try again" (or
+// re-nagging every run) would be wrong advice.
 // Never throws: permission is a courtesy surface.
 export async function primeNotificationPermission(
   onFailure?: () => void,
 ): Promise<void> {
   if (permissionPrimed) return;
   permissionPrimed = true;
-  let granted = false;
+  let state: NotificationPermissionState | undefined;
   try {
-    granted = await isPermissionGranted();
-    if (!granted) {
-      await requestPermission();
-      granted = await isPermissionGranted();
-    }
+    state = await commands.requestNotificationPermission();
   } catch (error) {
     console.warn("Notification permission request failed:", error);
     onFailure?.();
     return;
   }
-  if (!granted) {
+  if (state === "unknown") {
+    console.warn(
+      "Notification permission state could not be resolved; notifications " +
+        "stay off for this run. Check System Settings > Notifications.",
+    );
+    onFailure?.();
+    return;
+  }
+  if (state === "denied" || state === "not_determined") {
     console.info(
       "Notification permission denied; notifications stay off for this run " +
         "(re-enable via the system prompt in System Settings).",
@@ -56,13 +68,18 @@ export function resetPrimingLatchForTests(): void {
 // signal. When even that cannot be queried (no Tauri window context), warn
 // once and stay quiet: a context that cannot know must not notify.
 let warnedVisibilityUnavailable = false;
+let warnedPermissionUnavailable = false;
 
 // Post one OS notification, but only when this webview's window is not
 // visible. Never throws: a notification is a courtesy surface, so a failure
 // (missing permission, plugin error) is logged and swallowed rather than
 // breaking the flow that tried to tell the user something. Permission is
-// NOT requested here (see primeNotificationPermission): a denial simply
-// means no notification, and the app's own toast surfaces still carry the
+// NOT requested here (see primeNotificationPermission), but it IS checked
+// for real (fleet pass 2): the plugin's isPermissionGranted is a stub that
+// always says granted on desktop, so this gate consults the Rust seam's
+// UNUserNotificationCenter state instead, and an ungranted skip warns once
+// per run instead of silently posting into a void. A denial simply means
+// no notification, and the app's own toast surfaces still carry the
 // message. "VoxBar" is the product name and intentionally not localized.
 export async function notifyDesktop(body: string): Promise<void> {
   let visible: boolean;
@@ -80,8 +97,15 @@ export async function notifyDesktop(body: string): Promise<void> {
   }
   try {
     if (visible) return;
-    if (await isPermissionGranted()) {
+    const state = await commands.notificationPermissionState();
+    if (state === "granted") {
       sendNotification({ title: "VoxBar", body });
+    } else if (!warnedPermissionUnavailable) {
+      warnedPermissionUnavailable = true;
+      console.warn(
+        "Desktop notification skipped: the OS notification grant is not " +
+          `available (state: ${state}). Re-enable VoxBar in System Settings > Notifications.`,
+      );
     }
   } catch (error) {
     console.warn("Desktop notification failed:", error);
@@ -124,20 +148,24 @@ export interface PersistentNoticeNotification {
 }
 
 // Post one persistent notification. No visibility gate by design (that is
-// the point of this surface); still permission-gated and never prompting,
-// never throwing. Delivery is fire-and-forget like notifyDesktop: the
-// command returns once the notice is handed to the platform.
+// the point of this surface); never throwing. Fleet pass 2: the permission
+// gate lives in the RUST seam, not here - the plugin's isPermissionGranted
+// is a stub that always says granted on desktop, so gating here was
+// vacuous and a System-Settings denial meant posting into a void with no
+// log anywhere. The Rust side consults the real UNUserNotificationCenter
+// state (requesting the prompt when still undetermined) and returns Err
+// on denial or an unresolvable state, which lands in this catch and is
+// logged. Delivery is fire-and-forget like notifyDesktop: the command
+// returns once the notice is handed to the platform.
 export async function notifyDesktopPersistent(
   notification: PersistentNoticeNotification,
 ): Promise<void> {
   try {
-    if (await isPermissionGranted()) {
-      await commands.postPersistentNotice(
-        notification.body,
-        notification.code,
-        notification.target,
-      );
-    }
+    await commands.postPersistentNotice(
+      notification.body,
+      notification.code,
+      notification.target,
+    );
   } catch (error) {
     console.warn("Persistent desktop notification failed:", error);
   }
