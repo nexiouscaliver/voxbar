@@ -20,14 +20,29 @@ pub const SESSION_CAP: Duration = Duration::from_secs(15 * 60);
 pub const INPUT_RATE_MULTIPLIER: f64 = 2.0;
 
 /// Decode a binary frame into f32 samples (little-endian). Trailing partial
-/// samples (a torn frame) are dropped, never guessed.
-pub fn decode_f32_le(bytes: &[u8]) -> Vec<f32> {
-    bytes
+/// samples (a torn frame) are dropped, never guessed. Non-finite samples
+/// (NaN or infinity, from a hostile or buggy client) are scrubbed to 0.0 and
+/// counted in the returned total: a single NaN poisons Silero's voice
+/// probability into a permanent unvoiced read (`NaN > threshold` is false),
+/// which withholds the entire recording - the v1.6.3 companion-zero-audio
+/// defect - so no non-finite sample may ever reach the VAD by construction.
+pub fn decode_f32_le(bytes: &[u8]) -> (Vec<f32>, usize) {
+    let mut non_finite = 0;
+    let samples = bytes
         .as_chunks::<4>()
         .0
         .iter()
-        .map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]]))
-        .collect()
+        .map(|c| {
+            let v = f32::from_le_bytes([c[0], c[1], c[2], c[3]]);
+            if v.is_finite() {
+                v
+            } else {
+                non_finite += 1;
+                0.0
+            }
+        })
+        .collect();
+    (samples, non_finite)
 }
 
 /// How many companion-source history entries the RecentHistory frame (and
@@ -615,11 +630,36 @@ mod tests {
             .iter()
             .flat_map(|s| s.to_le_bytes())
             .collect();
-        assert_eq!(decode_f32_le(&bytes), vec![1.0, -0.5, 2.5]);
+        let (samples, non_finite) = decode_f32_le(&bytes);
+        assert_eq!(samples, vec![1.0, -0.5, 2.5]);
+        assert_eq!(non_finite, 0, "finite audio scrubs nothing");
         // A torn trailing sample is dropped, not guessed.
         let mut torn = bytes.clone();
         torn.extend_from_slice(&[0, 0]);
-        assert_eq!(decode_f32_le(&torn), vec![1.0, -0.5, 2.5]);
+        let (samples, non_finite) = decode_f32_le(&torn);
+        assert_eq!(samples, vec![1.0, -0.5, 2.5]);
+        assert_eq!(non_finite, 0);
+    }
+
+    /// v1.6.3 defense in depth: the decode boundary scrubs non-finite
+    /// samples to 0.0 and reports how many, so a hostile or buggy client
+    /// can never again wedge Silero into a permanent unvoiced
+    /// classification (the whole-stream NaN poisoning of the companion
+    /// zero-audio defect passed through here unfiltered in v1.6.2).
+    #[test]
+    fn binary_audio_decode_scrubs_non_finite_samples_to_zero_and_counts_them() {
+        let nan = f32::NAN.to_le_bytes();
+        let inf = f32::INFINITY.to_le_bytes();
+        let neg_inf = f32::NEG_INFINITY.to_le_bytes();
+        let mut bytes: Vec<u8> = Vec::new();
+        bytes.extend_from_slice(&0.25f32.to_le_bytes());
+        bytes.extend_from_slice(&nan);
+        bytes.extend_from_slice(&inf);
+        bytes.extend_from_slice(&(-0.75f32).to_le_bytes());
+        bytes.extend_from_slice(&neg_inf);
+        let (samples, non_finite) = decode_f32_le(&bytes);
+        assert_eq!(samples, vec![0.25, 0.0, 0.0, -0.75, 0.0]);
+        assert_eq!(non_finite, 3, "NaN, +inf and -inf are each counted");
     }
 
     #[test]

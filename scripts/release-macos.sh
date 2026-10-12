@@ -44,6 +44,16 @@ log() { printf '[release] %s\n' "$*"; }
 # reports AI unavailable on every machine. If full Xcode is installed and
 # the builder did not pin a toolchain, prefer Xcode for this build without
 # touching the machine's global xcode-select.
+# The Swift AI bridge links FoundationModels from the SDK it compiled
+# against; a stale or unset SDKROOT resolves a CommandLineTools SDK whose
+# FoundationModels lacks the GenerationOptions init the bridge references
+# (link-time undefined symbol on a fresh compile). Export the full-Xcode SDK
+# for this build whenever it is unset, mirroring DEVELOPER_DIR above.
+if [ -z "${SDKROOT:-}" ] && [ -d /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk ]; then
+  export SDKROOT=/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk
+  log "using full Xcode SDK for this build (SDKROOT=$SDKROOT)"
+fi
+
 if [ -z "${DEVELOPER_DIR:-}" ] && [ -d /Applications/Xcode.app/Contents/Developer ]; then
   export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
   log "using full Xcode toolchain for this build (DEVELOPER_DIR=$DEVELOPER_DIR)"
@@ -144,7 +154,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: tap-locked phone sessions capture the whole dictation, several phones can dictate at once with per-phone sessions, histories, and cancels that touch only their own session, a corrupted history database is quarantined with a recovery notice while newer-build databases stay intact, history retries keep the settings they were recorded with, the interface landed a fourteen-fix polish pass, Prompt Studio batches can be canceled mid-run, the Whisper prompt is bounded and Apple Intelligence no longer parks the app's worker, Tailscale interfaces are labeled honestly, and the microphone follows the laptop lid." \
+  --arg notes "VoxBar ${VERSION}: phone dictation audio actually transmits now (the v1.6.2 resampler corrupted a sample at every block boundary and the Mac read the whole stream as silence, in both hold and tap-to-lock modes), the phone's level meter shows only audio that was really sent and decays to empty and dim when the gate is closed, the zero-audio recovery advice names the mode you were using in every supported language, and audio the Mac admits but has to drop is counted per phone, warned at the first occurrence, and totaled at disconnect instead of being eaten silently." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \

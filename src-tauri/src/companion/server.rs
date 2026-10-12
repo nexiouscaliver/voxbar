@@ -281,6 +281,18 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     // at zero: their speech is all inside the session their press locked
     // on, release edges notwithstanding).
     let mut out_of_session_audio_chunks: u64 = 0;
+    // KB-272 (v1.6.3): chunks admission ACCEPTED whose push into the lane's
+    // ring still failed (no live lane recorder). Before this counter the
+    // only call site ignored push_remote_chunk's bool, so this exact class
+    // of silent drop had to be ruled out by hand in the v1.6.3 forensic
+    // pass; now it is counted for the disconnect log line and warned about
+    // at its first occurrence.
+    let mut admitted_dropped_chunks: u64 = 0;
+    // v1.6.3 defense in depth: non-finite samples the decode boundary
+    // scrubbed to silence (a hostile or buggy client), surfaced the same
+    // way so a poisoned stream is diagnosable from the log alone.
+    let mut scrubbed_non_finite_samples: u64 = 0;
+    let mut non_finite_audio_warned = false;
 
     let hello = tokio::select! {
         _ = tokio::time::sleep(HELLO_TIMEOUT) => None,
@@ -561,7 +573,21 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                         None => break,
                     },
                     Message::Binary(bytes) => {
-                        let samples = protocol::decode_f32_le(&bytes);
+                        // v1.6.3 defense in depth: the decode boundary
+                        // scrubs non-finite samples to silence (a single
+                        // NaN poisons Silero into reading the whole stream
+                        // unvoiced) and reports how many it scrubbed.
+                        let (samples, non_finite) = protocol::decode_f32_le(&bytes);
+                        if non_finite > 0 {
+                            scrubbed_non_finite_samples += non_finite as u64;
+                            if !non_finite_audio_warned {
+                                non_finite_audio_warned = true;
+                                log::warn!(
+                                    "companion: {device_name} sent non-finite audio samples; \
+                                     scrubbing them to silence"
+                                );
+                            }
+                        }
                         if samples.is_empty() {
                             continue;
                         }
@@ -593,10 +619,22 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                             // connection's own ring; no other phone's
                             // session can receive it and no shared recorder
                             // exists to cross-contaminate.
-                            if let Some(rm) = app
+                            // KB-272 (v1.6.3): a false return means the
+                            // chunk was admitted but the lane's recorder is
+                            // gone (never pre-warmed, or its session already
+                            // closed it) - count it, never swallow it.
+                            let delivered = app
                                 .try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
-                            {
-                                rm.push_remote_chunk(device_lane, &samples);
+                                .map(|rm| rm.push_remote_chunk(device_lane, &samples))
+                                .unwrap_or(false);
+                            if !delivered {
+                                admitted_dropped_chunks += 1;
+                                if admitted_dropped_chunks == 1 {
+                                    log::warn!(
+                                        "companion: {device_name} audio admitted but the lane \
+                                         recorder is closed; dropping it"
+                                    );
+                                }
                             }
                         } else {
                             out_of_session_audio_chunks += 1;
@@ -666,6 +704,21 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
         }
     }
     log::info!("companion: {device_name} disconnected");
+    if admitted_dropped_chunks > 0 {
+        // KB-272: admitted audio that never reached the ring. This is the
+        // recorder-lifecycle failure mode the v1.6.3 forensic pass had to
+        // rule out with no signal at all; it must never hide again.
+        log::warn!(
+            "companion: {device_name} had {admitted_dropped_chunks} admitted audio chunk(s) \
+             dropped: no live lane recorder; they never reached the ring"
+        );
+    }
+    if scrubbed_non_finite_samples > 0 {
+        log::warn!(
+            "companion: {device_name} sent {scrubbed_non_finite_samples} non-finite audio \
+             sample(s); they were scrubbed to silence"
+        );
+    }
     if out_of_session_audio_chunks > 0 {
         // Not an error by itself (spectator audio is refused the same way),
         // but a live symptom of state desync: speech kept arriving while the
@@ -711,6 +764,10 @@ mod tests {
         lane: u64,
         admitted_samples: usize,
         out_of_session_chunks: u64,
+        /// KB-272: admitted chunks whose push into the lane's ring failed
+        /// (no live lane recorder) - the counter the disconnect log line
+        /// surfaces.
+        admitted_dropped_chunks: u64,
     }
 
     impl Rig {
@@ -720,6 +777,7 @@ mod tests {
                 lane,
                 admitted_samples: 0,
                 out_of_session_chunks: 0,
+                admitted_dropped_chunks: 0,
             }
         }
 
@@ -736,12 +794,29 @@ mod tests {
         /// A binary audio chunk, exactly as the loop's binary handler
         /// processes it: observe the truth, then admit (push into the
         /// remote source, counted as samples here) or count it
-        /// out-of-session.
+        /// out-of-session. The healthy path (a live lane recorder).
         fn chunk(&mut self, manager: &CompanionManager, samples: usize, now: Instant) {
+            self.chunk_delivery(manager, samples, now, true);
+        }
+
+        /// The same chunk with an explicit push outcome, mirroring the
+        /// KB-272 seam: `delivered` is push_remote_chunk's bool at the
+        /// call site (false when the lane's recorder is gone).
+        fn chunk_delivery(
+            &mut self,
+            manager: &CompanionManager,
+            samples: usize,
+            now: Instant,
+            delivered: bool,
+        ) {
             self.admission
                 .observe(now, lane_owns_live_session(manager, self.lane));
             if self.admission.admits() {
-                self.admitted_samples += samples;
+                if delivered {
+                    self.admitted_samples += samples;
+                } else {
+                    self.admitted_dropped_chunks += 1;
+                }
             } else {
                 self.out_of_session_chunks += 1;
             }
@@ -985,5 +1060,106 @@ mod tests {
         // once; the next tick does not refire while the stop lands.
         assert!(rig.tick(&manager, armed + cap));
         assert!(!rig.tick(&manager, armed + cap + Duration::from_secs(10)));
+    }
+
+    /// KB-272 pin (v1.6.3): an admitted chunk whose push into the lane's
+    /// ring fails is COUNTED, never silently swallowed. Before this, the
+    /// only call site ignored push_remote_chunk's bool, so a recorder-
+    /// lifecycle drop of admitted audio produced no signal at all - the
+    /// exact failure class the v1.6.3 forensic pass had to rule out by
+    /// hand. Asserted at the connection loop's own seam: the dropped
+    /// chunks are separated from delivered samples AND from out-of-session
+    /// chunks, so the disconnect log line can name them.
+    #[test]
+    fn admitted_chunks_the_lane_recorder_refuses_are_counted_not_swallowed() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+        let (lane, _, _) = manager.register_connection("Pixel 8");
+        let mut rig = Rig::new(lane);
+        let t0 = Instant::now();
+
+        // A healthy hold session: press, start commits, speech flows.
+        rig.ptt(&manager, true, t0);
+        commit_session_start(app.handle(), lane);
+        rig.chunk(&manager, 640, t0 + Duration::from_millis(50));
+        assert_eq!(rig.admitted_samples, 640);
+        assert_eq!(rig.admitted_dropped_chunks, 0);
+
+        // The lane's recorder dies mid-session (never pre-warmed back, or
+        // its session already closed it): push_remote_chunk returns false
+        // for every further chunk. Admission still says live (the Mac's
+        // session state has not flipped), so these chunks are ADMITTED
+        // yet undeliverable - the KB-272 class. They must land in their
+        // own counter, not in the delivered samples, not in the
+        // out-of-session count.
+        for i in 0..5 {
+            rig.chunk_delivery(
+                &manager,
+                640,
+                t0 + Duration::from_millis(100 + 40 * i),
+                false,
+            );
+        }
+        assert_eq!(
+            rig.admitted_samples, 640,
+            "undeliverable chunks never count as delivered samples"
+        );
+        assert_eq!(rig.admitted_dropped_chunks, 5);
+        assert_eq!(
+            rig.out_of_session_chunks, 0,
+            "an admitted-but-dropped chunk is NOT an out-of-session chunk"
+        );
+
+        // The session ends; post-session audio keeps its own bucket.
+        commit_session_end(app.handle(), lane);
+        rig.chunk(&manager, 640, t0 + Duration::from_secs(2));
+        assert_eq!(rig.admitted_dropped_chunks, 5);
+        assert_eq!(rig.out_of_session_chunks, 1);
+    }
+
+    /// KB-272 source pin (the interleave needs real recorders, so the call
+    /// site is pinned against this committed source, the audio.rs
+    /// convention): the binary handler must CONSUME push_remote_chunk's
+    /// return into the admitted-dropped counter and warn at the first
+    /// drop, and the disconnect path must surface the counter - the exact
+    /// regression (an ignored bool) may never come back unnoticed.
+    #[test]
+    fn binary_handler_consumes_push_remote_chunks_return_and_disconnect_surfaces_it() {
+        // Production source only: include_str! would otherwise also read
+        // this test module, whose own literals would self-match.
+        let source = include_str!("server.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+        // The call site: admitted branch pushes and handles the bool.
+        let push_at = production
+            .find(".map(|rm| rm.push_remote_chunk(device_lane, &samples))")
+            .expect("the push_remote_chunk call site");
+        let admitted_arm = &production[push_at..push_at + 600];
+        assert!(
+            admitted_arm.contains(".unwrap_or(false)"),
+            "the push outcome must be a bool, not ()"
+        );
+        assert!(
+            admitted_arm.contains("if !delivered {"),
+            "the false arm must be explicit"
+        );
+        assert!(
+            admitted_arm.contains("admitted_dropped_chunks += 1"),
+            "a refused admitted chunk must be counted"
+        );
+        // No silent `rm.push_remote_chunk(` discard remains in production.
+        assert!(
+            !production.contains("rm.push_remote_chunk(device_lane, &samples);"),
+            "the bare statement form (return value dropped) may not remain"
+        );
+        // The disconnect path surfaces the counter.
+        let disconnect_at = production
+            .find("if admitted_dropped_chunks > 0 {")
+            .expect("the disconnect surfacing");
+        let disconnect_arm = &production[disconnect_at..disconnect_at + 500];
+        assert!(
+            disconnect_arm.contains("admitted_dropped_chunks} admitted audio chunk(s)"),
+            "the disconnect log line names the count"
+        );
     }
 }

@@ -2501,10 +2501,37 @@ impl ShortcutAction for TranscribeAction {
                                         // v1.6.0: every companion write
                                         // refreshes the phones' recent lists
                                         // (the RecentHistory frame, each
-                                        // phone its own). Best effort; the
-                                        // write itself already succeeded.
+                                        // phone its own). v1.6.3: strictly
+                                        // OFF the stop pipeline. The proof
+                                        // runs reproduced the stop task
+                                        // wedging inside this broadcast (the
+                                        // SQLite recents query plus the
+                                        // registry lock), freezing the
+                                        // pipeline between the history write
+                                        // and the transcript delivery: the
+                                        // phone never got its text and the
+                                        // binding stayed busy until restart.
+                                        // The refresh is best effort (the
+                                        // write already succeeded), so it
+                                        // runs on a blocking worker the
+                                        // pipeline never waits on; the
+                                        // transcript delivery below stays
+                                        // synchronous because its send is
+                                        // provably non-blocking (an
+                                        // unbounded channel under a
+                                        // momentary lock).
                                         if matches!(capture_source, CaptureSource::Remote) {
-                                            crate::companion::broadcast_recent_history(&ah);
+                                            let ah_for_recents = ah.clone();
+                                            tauri::async_runtime::spawn_blocking(move || {
+                                                let started = std::time::Instant::now();
+                                                crate::companion::broadcast_recent_history(
+                                                    &ah_for_recents,
+                                                );
+                                                log::debug!(
+                                                    "companion: post-save recent-history refresh finished in {:?}",
+                                                    started.elapsed()
+                                                );
+                                            });
                                         }
                                     }
                                     Err(err) => error!("Failed to save history entry: {}", err),
