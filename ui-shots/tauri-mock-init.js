@@ -104,12 +104,24 @@
         default_binding: "option+shift+space",
         current_binding: "option+shift+space",
       },
-      cancel: {
-        id: "cancel",
-        name: "Cancel",
-        description: "Cancels the current recording.",
-        default_binding: "escape",
-        current_binding: "escape",
+      transcribe_commands: {
+        id: "transcribe_commands",
+        name: "Command Mode",
+        description:
+          "Hold during a live dictation to switch it into command interpretation. Unbound by default.",
+        default_binding: "",
+        current_binding: "",
+      },
+      // Faithful mirror of settings.rs: this binding exists in the backend
+      // defaults but was missing from the mock, so the Post Process tab's
+      // second shortcut row rendered against undefined.
+      cycle_post_process_prompt: {
+        id: "cycle_post_process_prompt",
+        name: "Cycle Post-Process Prompt",
+        description:
+          "Advances the selected post-process template to the next one in the library (wraps around) and confirms the new template through the overlay notice. Unbound by default.",
+        default_binding: "",
+        current_binding: "",
       },
       delete_last_word: {
         id: "delete_last_word",
@@ -124,14 +136,6 @@
         name: "Undo",
         description:
           "While a dictation is live: clears it (start over). Does nothing otherwise. Unbound by default.",
-        default_binding: "",
-        current_binding: "",
-      },
-      transcribe_commands: {
-        id: "transcribe_commands",
-        name: "Command Mode",
-        description:
-          "Hold during a live dictation to switch it into command interpretation. Unbound by default.",
         default_binding: "",
         current_binding: "",
       },
@@ -442,6 +446,12 @@
     models: modelCatalog(),
     history: historyFixture(),
     defaultCommandMatrix: DEFAULT_COMMAND_MATRIX,
+    // Scenario-set failure/hang injection: failCommands maps command name
+    // to the value the IPC rejects with (bindings.ts wraps non-Error
+    // rejections into { status: "error", error }); pendingCommands lists
+    // commands whose promise never settles (loading states).
+    failCommands: {},
+    pendingCommands: [],
   };
 
   const SCENARIOS = {
@@ -503,8 +513,85 @@
       SCENARIOS["settings-default"](s);
       s.settings.overlay_style = "minimal";
     },
+    // Advanced tab with the Experimental group on: keyboard implementation,
+    // acceleration, lazy stream close, VAD backend, companion devices.
+    "settings-experimental": (s) => {
+      SCENARIOS["settings-default"](s);
+      s.settings.experimental_enabled = true;
+    },
+    // Disabled-control pass: the behavior toggles that gate the general
+    // tab's shortcut rows are all off, so those rows render disabled.
+    "settings-gated-off": (s) => {
+      SCENARIOS["settings-default"](s);
+      s.settings.delete_last_word_enabled = false;
+      s.settings.undo_enabled = false;
+      s.settings.command_mode_enabled = false;
+    },
+    // History with every entry gone: the empty-state line.
+    "history-empty": (s) => {
+      SCENARIOS["settings-default"](s);
+      s.history = [];
+    },
+    // get_history_entries never answers: the loading state stays up.
+    "history-pending": (s) => {
+      SCENARIOS["settings-default"](s);
+      s.pendingCommands = ["get_history_entries"];
+    },
+    // Model step with a dead catalog: models empty AND the fetch failing
+    // is the offline dead end the Onboarding step must render (KB-186).
+    "onboarding-model-offline": (s) => {
+      SCENARIOS["onboarding-model"](s);
+      s.models = [];
+      s.failCommands = {
+        get_available_models: { kind: "catalog_unavailable" },
+      };
+    },
+    // Prompt Studio run refused by the backend: the error block under the
+    // run controls (here: nothing to test against).
+    "studio-error": (s) => {
+      SCENARIOS["settings-default"](s);
+      s.failCommands = {
+        test_post_process_prompt_batch: { kind: "no_history" },
+      };
+    },
+    // Companion devices panel: companion on, one paired phone, QR up.
+    "settings-companion": (s) => {
+      SCENARIOS["settings-experimental"](s);
+      s.settings.companion_devices_enabled = true;
+    },
   };
   (SCENARIOS[scenarioName] || SCENARIOS["settings-default"])(state);
+
+  // Per-shot overrides via URL params, on top of the scenario preset:
+  //   &theme=light|dark   forced App theme (AppSettings.theme)
+  //   &accent=<id>        accent swatch (AppSettings.accent_color)
+  //   &lang=<code>        app language (AppSettings.app_language)
+  // The theme/accent values are also seeded into the localStorage keys the
+  // app applies synchronously on boot (theme.ts THEME_STORAGE_KEY,
+  // accent.ts ACCENT_STORAGE_KEY), so the shot never shows a flash of the
+  // wrong palette before the async settings sync lands.
+  const overrideParam = (name) => {
+    const value = params.get(name);
+    return value && value.length > 0 && value !== "default" ? value : null;
+  };
+  const themeOverride = overrideParam("theme");
+  const accentOverride = overrideParam("accent");
+  const langOverride = overrideParam("lang");
+  if (themeOverride) {
+    state.settings.theme = themeOverride;
+    try {
+      localStorage.setItem("handy.theme", themeOverride);
+    } catch (e) {}
+  }
+  if (accentOverride) {
+    state.settings.accent_color = accentOverride;
+    try {
+      localStorage.setItem("voxbar.accent", accentOverride);
+    } catch (e) {}
+  }
+  if (langOverride) {
+    state.settings.app_language = langOverride;
+  }
 
   // ---- callback + event plumbing (mirrors @tauri-apps/api mocks.js) ----
   const callbacks = new Map();
@@ -774,6 +861,126 @@
       return null;
     },
 
+    // --- notifications ---
+    notification_permission_state: () => "granted",
+
+    // --- post-process run observability (Debug tab runs table) ---
+    // One record per outcome kind so the table renders its full column
+    // vocabulary: applied, unchanged, skipped (memory gate), failed (auth).
+    get_post_process_runs: () => {
+      const base = Date.now() - 4 * 3600_000;
+      const rec = (over) =>
+        Object.assign(
+          {
+            run_id: 1,
+            started_at_unix_ms: base,
+            binding: "transcribe_with_post_process",
+            engine: "local",
+            provider_id: "local",
+            model: LOCAL_LLM_MODEL_ID,
+            prompt_id: "default_improve_transcriptions",
+            prompt_name: "Improve Transcriptions",
+            prompt_version: null,
+            template_language: null,
+            phases_engine: {
+              model_load_ms: 812,
+              cache_hit: false,
+              swap_wait_ms: 40,
+            },
+            phases_generation: { ms: 1830, retries: 0 },
+            outcome: { kind: "applied" },
+            outcome_detail: null,
+            chars_in: 214,
+            chars_out: 198,
+            changed_ratio: 0.925,
+            total_ms: 2712,
+            log_lines: ["pp: requested binding=transcribe_with_post_process"],
+          },
+          over,
+        );
+      return [
+        rec({}),
+        rec({
+          run_id: 2,
+          started_at_unix_ms: base + 900_000,
+          outcome: { kind: "unchanged" },
+          outcome_detail: "engine returned the transcript unchanged",
+          changed_ratio: 1,
+        }),
+        rec({
+          run_id: 3,
+          started_at_unix_ms: base + 1800_000,
+          outcome: { kind: "skipped", reason: "memory_gate" },
+          outcome_detail: "2.4 GB free, model needs 3.1 GB",
+          phases_generation: { ms: null, retries: null },
+          chars_out: null,
+          changed_ratio: null,
+          total_ms: 60,
+        }),
+        rec({
+          run_id: 4,
+          started_at_unix_ms: base + 2700_000,
+          engine: "cloud",
+          provider_id: "openai",
+          model: "gpt-4o-mini",
+          phases_engine: {
+            model_load_ms: null,
+            cache_hit: null,
+            swap_wait_ms: null,
+          },
+          outcome: { kind: "failed", class: "auth" },
+          outcome_detail: "invalid api key",
+        }),
+      ];
+    },
+
+    // --- companion devices panel (Advanced > Experimental) ---
+    get_companion_status: () => ({
+      enabled: Boolean(state.settings.companion_devices_enabled),
+      running: Boolean(state.settings.companion_devices_enabled),
+      supported: true,
+      url: state.settings.companion_devices_enabled
+        ? "https://192.168.1.42:4177/"
+        : null,
+      port: 4177,
+      qr_svg:
+        '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96"><rect width="96" height="96" fill="#fff"/><rect x="8" y="8" width="24" height="24" fill="#000"/><rect x="64" y="8" width="24" height="24" fill="#000"/><rect x="8" y="64" width="24" height="24" fill="#000"/><rect x="44" y="44" width="8" height="8" fill="#000"/><rect x="60" y="60" width="12" height="12" fill="#000"/></svg>',
+      fingerprint: "3f:9a:c2:11:7e:04:bb:58:d0:21:af:63:90:1c:4d:e7",
+      token: "0123456789abcdef0123456789abcdef",
+      subnet: "192.168.1.0/24",
+      last_device: "Shahil's iPhone",
+      devices: ["Shahil's iPhone", "Pixel 8a"],
+      error: null,
+      interfaces: [
+        { ip: "192.168.1.42", name: "en0", kind: "lan" },
+        { ip: "100.64.0.7", name: "utun3", kind: "tailscale" },
+      ],
+      bind_ip: "192.168.1.42",
+      advertised_host: null,
+      bind_error: null,
+    }),
+
+    // --- Prompt Studio batch (Run button) ---
+    // One result per (template, engine) pair the studio submitted, carrying
+    // the before/after diff the cards render.
+    test_post_process_prompt_batch: (args) => {
+      const sourceText =
+        args.source && args.source.kind === "history_entry"
+          ? "so the conclusion basically restates that the migration finished on tuesday without any data loss which is good news for the rollout plan"
+          : "please send the client the updated timeline asap thanks";
+      const runs = Array.isArray(args.runs) ? args.runs : [];
+      return runs.map((run, i) => ({
+        request: run,
+        outcome: {
+          before: sourceText,
+          after:
+            "Please send the client the updated timeline as soon as possible. Thanks!",
+          outcome: "applied",
+          latency_ms: 1200 + i * 260,
+        },
+      }));
+    },
+
     // --- misc backend state ---
     is_recording: () => false,
     is_laptop: () => true,
@@ -1036,6 +1243,17 @@
     invoke: (cmd, args = {}) => {
       calls.count += 1;
       calls.byCommand[cmd] = (calls.byCommand[cmd] ?? 0) + 1;
+      // Scenario-injected hang: the command never settles (loading states).
+      if (state.pendingCommands.includes(cmd)) {
+        return new Promise(() => {});
+      }
+      // Scenario-injected failure: reject with the scenario's value. Real
+      // Tauri IPC rejects with the command's own error payload, and
+      // bindings.ts wraps non-Error rejections into a Result error, so
+      // structured values (TestPromptError kinds etc.) survive.
+      if (state.failCommands[cmd] !== undefined) {
+        return Promise.reject(state.failCommands[cmd]);
+      }
       const handler = handlers[cmd];
       try {
         if (handler) return ipcDelay(handler(args));
@@ -1051,7 +1269,7 @@
         calls.unknown.push(cmd);
         return ipcDelay(null);
       } catch (error) {
-        return Promise.reject(String(error));
+        return Promise.reject(error instanceof Error ? error.message : error);
       }
     },
     transformCallback,
