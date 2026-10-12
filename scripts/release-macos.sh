@@ -144,7 +144,7 @@ UPDATE_URL="https://github.com/nexiouscaliver/voxbar/releases/download/v${VERSIO
 LATEST_JSON_PATH="src-tauri/target/release/bundle/macos/latest.json"
 jq -n \
   --arg version "$VERSION" \
-  --arg notes "VoxBar ${VERSION}: the macOS release now hard-verifies real Apple Intelligence linkage, Mac-only keyboard feedback like undo and delete-word no longer buzzes the paired phone, HuggingFace downloads are sha256-verified, settings changes made before the store hydrates are no longer lost or double-written, the tray menu stays accurate after prompt and provider changes, and CI and tests gained another hardening pass." \
+  --arg notes "VoxBar ${VERSION}: phone dictation actually captures audio now, the phone can keep the transcript for itself or paste it on the Mac with per-session polish and a recent list, pairing works over Tailscale with manual listener and TLS control, errors and outcomes arrive as persistent macOS notifications, post-processing is provable with history diffs, a Prompt Studio, voice-aware templates, and a new Prompt Enhancer, and the tray and overlay gained live status and mid-session controls." \
   --arg pub_date "$PUB_DATE" \
   --arg sig "$SIG_CONTENT" \
   --arg url "$UPDATE_URL" \
