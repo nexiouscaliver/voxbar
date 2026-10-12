@@ -270,6 +270,10 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     let mut tracker = protocol::SessionTracker::new();
     let mut rate_cap = protocol::InputRateCap::new(Instant::now());
     let mut last_rx = Instant::now();
+    // Audio frames that arrived while this connection's edge tracker said
+    // not-recording (dropped by design; counted for the disconnect log line
+    // so an edge-desynced phone is diagnosable from the log alone).
+    let mut out_of_session_audio_chunks: u64 = 0;
 
     let hello = tokio::select! {
         _ = tokio::time::sleep(HELLO_TIMEOUT) => None,
@@ -538,6 +542,8 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                                     source.push_chunk(&samples);
                                 }
                             }
+                        } else {
+                            out_of_session_audio_chunks += 1;
                         }
                     }
                     Message::Ping(payload) => {
@@ -601,4 +607,13 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
         }
     }
     log::info!("companion: {device_name} disconnected");
+    if out_of_session_audio_chunks > 0 {
+        // Not an error by itself (spectator audio is refused the same way),
+        // but a live symptom of edge desync: speech kept arriving after this
+        // connection's session edge ended.
+        log::info!(
+            "companion: {device_name} sent {out_of_session_audio_chunks} audio chunk(s) \
+             outside a recording session; they were dropped"
+        );
+    }
 }
