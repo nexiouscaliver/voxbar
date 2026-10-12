@@ -170,6 +170,37 @@ enum TranscriptDelivery {
     PhoneSend,
 }
 
+/// v1.6.2 multi-phone review fix: retire the shared recording surfaces
+/// (tray icon + overlay card) at ONE pipeline's drain, but only when no
+/// OTHER session is still live. Overlapping sessions are a v1.6.2 design
+/// fact - a second phone may still be mid-dictation when this pipeline
+/// finishes - and the tray and overlay are singletons, so the
+/// unconditional flip every drain used to run showed TrayIconState::Idle
+/// and hid the card under a live session's feet (the overlay's
+/// show-generation guard only protects NEWER shows, not the still-live
+/// session whose show predates this pipeline). At every call site the
+/// pipeline's own recorder is already torn down, so `rm.is_recording()`
+/// reads exactly the OTHER sessions' liveness - the failed-start path's
+/// guard, applied to every drain. `readable_notice` picks the
+/// notice-readable delayed hide for paths that just put an error on the
+/// card (the zero-audio notice, a failed paste).
+fn retire_session_surfaces(
+    rm: &Arc<AudioRecordingManager>,
+    app: &AppHandle,
+    readable_notice: bool,
+) {
+    if rm.is_recording() {
+        // Another session owns the shared surfaces until its own drain.
+        return;
+    }
+    set_tray_state(app, TrayIconState::Idle);
+    if readable_notice {
+        utils::hide_recording_overlay_after_error(app);
+    } else {
+        utils::hide_recording_overlay(app);
+    }
+}
+
 /// The pure routing decision for one finished session: `source` is the
 /// binding's capture source, `target` the companion session's frozen
 /// output-target preference. Extracted so the phone-delivery path is
@@ -2223,8 +2254,7 @@ impl ShortcutAction for TranscribeAction {
                 if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                     debug!("Transcription operation cancelled after recording stop");
                     tm.cancel_stream();
-                    utils::hide_recording_overlay(&ah);
-                    set_tray_state(&ah, TrayIconState::Idle);
+                    retire_session_surfaces(&rm, &ah, false);
                     return;
                 }
 
@@ -2262,15 +2292,13 @@ impl ShortcutAction for TranscribeAction {
                             tm.cancel_stream();
                             rm.clear_stream_owner_if(stream_owner);
                         }
-                        set_tray_state(&ah, TrayIconState::Idle);
-                        utils::hide_recording_overlay_after_error(&ah);
+                        retire_session_surfaces(&rm, &ah, true);
                         return;
                     }
                     // Tear down any streaming worker so its channel doesn't leak
                     // and block the next start_stream.
                     tm.cancel_stream();
-                    utils::hide_recording_overlay(&ah);
-                    set_tray_state(&ah, TrayIconState::Idle);
+                    retire_session_surfaces(&rm, &ah, false);
                 } else {
                     // Save WAV concurrently with transcription
                     let sample_count = samples.len();
@@ -2387,8 +2415,7 @@ impl ShortcutAction for TranscribeAction {
 
                     if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                         debug!("Transcription operation cancelled before output handling");
-                        utils::hide_recording_overlay(&ah);
-                        set_tray_state(&ah, TrayIconState::Idle);
+                        retire_session_surfaces(&rm, &ah, false);
                         return;
                     }
 
@@ -2435,15 +2462,13 @@ impl ShortcutAction for TranscribeAction {
                                 // never shows a phantom live run.
                                 crate::post_process_runs::runs()
                                     .cancel_live_dictation_runs();
-                                utils::hide_recording_overlay(&ah);
-                                set_tray_state(&ah, TrayIconState::Idle);
+                                retire_session_surfaces(&rm, &ah, false);
                                 return;
                             };
 
                             if rm.was_cancelled_since(cancel_lane, cancel_generation) {
                                 debug!("Transcription operation cancelled before paste");
-                                utils::hide_recording_overlay(&ah);
-                                set_tray_state(&ah, TrayIconState::Idle);
+                                retire_session_surfaces(&rm, &ah, false);
                                 return;
                             }
 
@@ -2498,8 +2523,7 @@ impl ShortcutAction for TranscribeAction {
                                         stop_to_end_ms: stop_time.elapsed().as_millis(),
                                     })
                                 );
-                                utils::hide_recording_overlay(&ah);
-                                set_tray_state(&ah, TrayIconState::Idle);
+                                retire_session_surfaces(&rm, &ah, false);
                             } else if matches!(delivery, TranscriptDelivery::PhoneSend) {
                                 // v1.6.0 phone-target delivery: skip every
                                 // Mac paste step (preview, paste, clipboard
@@ -2534,8 +2558,7 @@ impl ShortcutAction for TranscribeAction {
                                         stop_to_end_ms: stop_time.elapsed().as_millis(),
                                     })
                                 );
-                                utils::hide_recording_overlay(&ah);
-                                set_tray_state(&ah, TrayIconState::Idle);
+                                retire_session_surfaces(&rm, &ah, false);
                             } else {
                                 // Final-text preview before the paste: batch
                                 // models show nothing while recording, so
@@ -2588,8 +2611,7 @@ impl ShortcutAction for TranscribeAction {
                                             debug!(
                                                 "Transcription operation cancelled during final preview"
                                             );
-                                            utils::hide_recording_overlay(&ah);
-                                            set_tray_state(&ah, TrayIconState::Idle);
+                                            retire_session_surfaces(&rm, &ah, false);
                                             return;
                                         }
                                         tokio::time::sleep(CANCELLATION_POLL_INTERVAL).await;
@@ -2622,8 +2644,7 @@ impl ShortcutAction for TranscribeAction {
                                 ah.run_on_main_thread(move || {
                                     if rm_for_paste.was_cancelled_since(cancel_lane, cancel_generation) {
                                         debug!("Transcription operation cancelled before paste");
-                                        utils::hide_recording_overlay(&ah_clone);
-                                        set_tray_state(&ah_clone, TrayIconState::Idle);
+                                        retire_session_surfaces(&rm_for_paste, &ah_clone, false);
                                         return;
                                     }
 
@@ -2659,15 +2680,11 @@ impl ShortcutAction for TranscribeAction {
                                     outcome_summary.stop_to_end_ms =
                                         stop_time.elapsed().as_millis();
                                     info!("{}", format_session_outcome(&outcome_summary));
-                                    set_tray_state(&ah_clone, TrayIconState::Idle);
-                                    if paste_failed_flag.load(std::sync::atomic::Ordering::Acquire)
-                                    {
-                                        // Delayed hide so the in-card paste
-                                        // error stays readable.
-                                        utils::hide_recording_overlay_after_error(&ah_clone);
-                                    } else {
-                                        utils::hide_recording_overlay(&ah_clone);
-                                    }
+                                    retire_session_surfaces(
+                                        &rm_for_paste,
+                                        &ah_clone,
+                                        paste_failed_flag.load(std::sync::atomic::Ordering::Acquire),
+                                    );
                                 })
                                 .unwrap_or_else(|e| {
                                     error!("Failed to run paste on main thread: {:?}", e);
@@ -2683,8 +2700,7 @@ impl ShortcutAction for TranscribeAction {
                                             stop_to_end_ms: stop_time.elapsed().as_millis(),
                                         })
                                     );
-                                    utils::hide_recording_overlay(&ah);
-                                    set_tray_state(&ah, TrayIconState::Idle);
+                                    retire_session_surfaces(&rm, &ah, false);
                                 });
                             }
                         }
@@ -2693,8 +2709,7 @@ impl ShortcutAction for TranscribeAction {
                                 debug!(
                                     "Transcription operation cancelled after transcription error"
                                 );
-                                utils::hide_recording_overlay(&ah);
-                                set_tray_state(&ah, TrayIconState::Idle);
+                                retire_session_surfaces(&rm, &ah, false);
                                 return;
                             }
 
@@ -2737,8 +2752,7 @@ impl ShortcutAction for TranscribeAction {
                                 }
                             }
                             // Delayed hide so the in-card error stays readable.
-                            set_tray_state(&ah, TrayIconState::Idle);
-                            utils::hide_recording_overlay_after_error(&ah);
+                            retire_session_surfaces(&rm, &ah, true);
                         }
                     }
                 }
@@ -2752,8 +2766,7 @@ impl ShortcutAction for TranscribeAction {
                     tm.cancel_stream();
                     rm.clear_stream_owner_if(stream_owner);
                 }
-                utils::hide_recording_overlay(&ah);
-                set_tray_state(&ah, TrayIconState::Idle);
+                retire_session_surfaces(&rm, &ah, false);
             }
                 })
             })
@@ -3361,6 +3374,77 @@ mod tests {
         );
     }
 
+    /// v1.6.2 multi-phone review pin: EVERY stop-pipeline drain retires the
+    /// shared surfaces (tray icon + overlay card) through the
+    /// other-session liveness guard. The drains used to flip
+    /// TrayIconState::Idle and hide the overlay unconditionally; with two
+    /// phones dictating at once, the first pipeline to finish showed Idle
+    /// and hid the card while the second phone was still recording (the
+    /// overlay's show-generation guard only protects NEWER shows, not the
+    /// still-live session whose show predates the pipeline). Pinned
+    /// against this committed source (the pipeline needs live recorders),
+    /// the same convention as the failed-start guard pin above: the
+    /// helper's guard precedes its tray flip, and no drain site may flip
+    /// the tray or hide the overlay directly.
+    #[test]
+    fn stop_pipeline_drains_retire_shared_surfaces_only_when_no_other_session_is_live() {
+        let source = include_str!("actions.rs");
+        // The helper reads the other-session truth before touching either
+        // surface.
+        let helper_at = source
+            .find("fn retire_session_surfaces(")
+            .expect("the retire helper");
+        let helper = &source[helper_at
+            ..helper_at
+                + source[helper_at..]
+                    .find("fn transcript_delivery(")
+                    .expect("the helper's end")];
+        let guard_at = helper
+            .find("if rm.is_recording() {")
+            .expect("the other-session liveness guard");
+        let tray_at = helper
+            .find("set_tray_state(app, TrayIconState::Idle);")
+            .expect("the tray flip");
+        assert!(
+            guard_at < tray_at,
+            "the helper may retire the surfaces only when no other session is live"
+        );
+        // And no drain site bypasses the helper: the pipeline body holds no
+        // direct Idle flip or overlay hide of its own. Scoped to
+        // TranscribeAction::stop's own body (the trait declaration and the
+        // failed-start arm inside `fn start` legitimately use the plain
+        // calls with their own guard).
+        let impl_at = source
+            .find("impl ShortcutAction for TranscribeAction")
+            .expect("the TranscribeAction impl");
+        let stop_at = impl_at
+            + source[impl_at..]
+                .find("fn stop(&self")
+                .expect("its stop fn");
+        let stop_end = stop_at
+            + source[stop_at..]
+                .find("\n// Cancel Action")
+                .expect("the end of the impl");
+        let pipeline = &source[stop_at..stop_end];
+        assert!(
+            !pipeline.contains("TrayIconState::Idle"),
+            "every drain routes its tray flip through retire_session_surfaces"
+        );
+        assert!(
+            !pipeline.contains("utils::hide_recording_overlay"),
+            "every drain routes its overlay hide through retire_session_surfaces"
+        );
+        // The drains are all there: every exit of the spawned pipeline
+        // (cancel paths, empty audio, empty text, phone delivery, paste
+        // tail, error tails) calls the helper exactly once. The helper's
+        // own definition sits before `fn stop`, outside this slice.
+        let calls = pipeline.matches("retire_session_surfaces(").count();
+        assert!(
+            calls >= 15,
+            "every pipeline exit must retire the surfaces through the helper (found {calls})"
+        );
+    }
+
     /// The finalize-outcome x unload-timeout decision table: batch stays the
     /// fallback for every ordinary configuration and every state where the
     /// model is still resident; ONLY the Immediately configuration with the
@@ -3642,10 +3726,13 @@ mod tests {
                 .expect("the end of the impl");
         let stop_body = &source[stop_at..end_at];
 
-        // The zero-audio emit exists, and its arm hides through the
-        // error-read delay: a plain hide retires the card ~300 ms after
-        // the notice landed on it (review finding: the notice was
-        // effectively unreadable on the Mac).
+        // The zero-audio emit exists, and its arm retires the surfaces
+        // through the readable-notice path (the error-read delay, not the
+        // plain 300 ms hide: a plain hide retires the card ~300 ms after
+        // the notice landed on it - review finding: the notice was
+        // effectively unreadable on the Mac). Multi-phone review: the
+        // retirement now rides the shared retire_session_surfaces guard,
+        // so the `true` argument IS the error-read choice.
         let emit_at = stop_body
             .find("NoticeCode::CompanionZeroAudio")
             .expect("the zero-audio emit in the empty-samples branch");
@@ -3654,8 +3741,8 @@ mod tests {
             .expect("the local-empty cleanup that follows the remote arm");
         let zero_audio_arm = &stop_body[emit_at..local_cleanup_at];
         assert!(
-            zero_audio_arm.contains("hide_recording_overlay_after_error"),
-            "the zero-audio notice must stay readable: the arm hides through the error-read delay, not the plain 300 ms hide"
+            zero_audio_arm.contains("retire_session_surfaces(&rm, &ah, true)"),
+            "the zero-audio notice must stay readable: the arm retires through the error-read delay, not the plain 300 ms hide"
         );
 
         // The phone-delivery branch: the transcript goes to the session's

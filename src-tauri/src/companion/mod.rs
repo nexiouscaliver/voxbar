@@ -957,6 +957,21 @@ pub fn starting_session_lane<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Op
     manager(app).and_then(|m| *m.starting_lane.lock().unwrap())
 }
 
+/// v1.6.2 multi-phone review fix: clear the starting-session slot for a
+/// KEYBOARD start. begin_session is the only writer, so before this the
+/// slot held the LAST phone session's lane forever after: the accessor's
+/// documented contract ("None for keyboard/signal starts") was false the
+/// moment any phone had ever dictated, and every consumer had to defend
+/// itself with a source re-check to keep the stale lane inert. The
+/// coordinator's Start arm now writes the slot for EVERY start - the
+/// lane for a companion session, None for the keyboard's - so the slot
+/// is always fresh for the effect being executed.
+pub fn clear_starting_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    if let Some(manager) = manager(app) {
+        *manager.starting_lane.lock().unwrap() = None;
+    }
+}
+
 /// v1.6.2 W1-L2: drop a lane's session record entirely (a start that never
 /// began recording - the rollback path - so a later session on the same
 /// lane starts clean).
@@ -1269,6 +1284,36 @@ mod tests {
         assert!(
             take_stopping_session(app.handle()).is_none(),
             "a spectator lane with no session record resolves no stopping session"
+        );
+    }
+
+    /// v1.6.2 multi-phone review pin: the starting-session slot is fresh
+    /// for every start. begin_session is the only writer, so before the
+    /// clear the slot held the LAST phone session's lane forever - the
+    /// accessor's documented contract ("None for keyboard/signal starts")
+    /// was false after any phone had ever dictated, and every consumer
+    /// had to re-check the capture source to keep the stale lane inert.
+    /// The coordinator's Start arm writes the slot for every start; this
+    /// pins the keyboard arm's clear against that stale residue.
+    #[test]
+    fn the_starting_slot_reads_none_for_keyboard_starts_after_any_phone_session() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+        assert_eq!(starting_session_lane(app.handle()), None);
+
+        // A phone session commits and its start resolves.
+        let (lane, _gen, _rx) = manager.register_connection("Pixel 8");
+        begin_session(app.handle(), lane, protocol::SessionPrefs::default());
+        assert_eq!(starting_session_lane(app.handle()), Some(lane));
+
+        // The next KEYBOARD start's effect clears the slot before the
+        // shared action reads it, so the contract holds again.
+        clear_starting_session(app.handle());
+        assert_eq!(
+            starting_session_lane(app.handle()),
+            None,
+            "a keyboard start must never inherit the last phone session's lane"
         );
     }
 

@@ -1856,6 +1856,14 @@ fn run_effect(app: &AppHandle, state: &mut CoordinatorState, effect: Effect) {
             // can retarget this one's delivery or attribution later.
             if let Some(lane) = companion_lane {
                 crate::companion::begin_session(app, lane, companion_prefs.unwrap_or_default());
+            } else {
+                // Multi-phone review fix: the starting slot must be fresh
+                // for EVERY start. begin_session is the only other writer,
+                // so without this clear the slot held the last phone
+                // session's lane and a keyboard start read a stale lane
+                // (inert only because every consumer re-checks the source,
+                // and a lie against the accessor's documented contract).
+                crate::companion::clear_starting_session(app);
             }
             let started = start(app, &binding_id, &hotkey_string, companion_lane);
             state.on_start_result(&binding_id, started);
@@ -2307,6 +2315,24 @@ mod tests {
             source[start_arm_at..]
                 .contains("start(app, &binding_id, &hotkey_string, companion_lane)"),
             "the Start effect must pass its carried lane into the scoped probe"
+        );
+        // Multi-phone review pin: the starting slot is written for EVERY
+        // start. The companion arm freezes the lane (begin_session); the
+        // keyboard arm clears it, so the shared action's
+        // starting_session_lane read is never the LAST phone session's
+        // stale lane.
+        let start_arm_end = start_arm_at
+            + source[start_arm_at..]
+                .find("Effect::Stop {")
+                .expect("the Stop arm");
+        let start_arm = &source[start_arm_at..start_arm_end];
+        assert!(
+            start_arm.contains("crate::companion::begin_session("),
+            "a companion start freezes its lane into the starting slot"
+        );
+        assert!(
+            start_arm.contains("crate::companion::clear_starting_session(app);"),
+            "a keyboard start clears the starting slot; the accessor's None-for-keyboard contract must hold after any phone session"
         );
     }
 

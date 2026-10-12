@@ -420,6 +420,26 @@ struct RemoteLane {
     generation: u64,
 }
 
+/// v1.6.2 multi-phone review pin: the LOCAL machine's contribution to the
+/// shared recording mirror (`recording_active`). The active set is
+/// {Recording, Stopping} - Stopping is the local stop pipeline's capture
+/// tail (the release-buffer window plus the recorder stop, which still
+/// holds the microphone and can still be cancelled), the exact membership
+/// `set_state` derives. Every fold site that recomputes the mirror from
+/// outside `set_state` (a lane's stop, the lane-recorder teardown, the
+/// cancel lane arm) MUST route through this one predicate: the lane-stop
+/// fold once inlined a Recording-only match, and with stop pipelines
+/// running on their own spawned threads a phone lane's stop could land
+/// inside the Mac session's Stopping tail and flip the shared mirror to
+/// false while the Mac was still capturing (readers: the Escape gate, the
+/// local-LLM keep-warm idle timer, the failed-start tray/overlay guard).
+pub(crate) fn local_capture_active(state: &RecordingState) -> bool {
+    matches!(
+        state,
+        RecordingState::Recording { .. } | RecordingState::Stopping
+    )
+}
+
 /// v1.6.2 W1-L2 RAM discipline, pure so it is pinnable without the VAD
 /// asset a real pre-warm loads: which open lane recorders a pre-warm of
 /// `target` retires. Every idle recorder OTHER than the target goes (the
@@ -1175,10 +1195,7 @@ impl AudioRecordingManager {
     /// reverse).
     fn set_state(&self, guard: &mut RecordingState, new_state: RecordingState) {
         *guard = new_state;
-        let local_active = matches!(
-            *guard,
-            RecordingState::Recording { .. } | RecordingState::Stopping
-        );
+        let local_active = local_capture_active(guard);
         let lanes_active = self.remote_lanes_recording.load(Ordering::SeqCst);
         self.recording_active
             .store(local_active || lanes_active, Ordering::SeqCst);
@@ -1395,10 +1412,11 @@ impl AudioRecordingManager {
         let _ = entry.recorder.close();
 
         // Fold the shared recording mirror with the local machine's state.
-        let local_active = matches!(
-            *self.state.lock().unwrap(),
-            RecordingState::Recording { .. }
-        );
+        // Multi-phone review pin: through local_capture_active, so the
+        // Mac session's own Stopping tail (this fold runs on the stop
+        // pipeline's spawned thread and CAN land inside it) keeps the
+        // mirror honest exactly as set_state does.
+        let local_active = local_capture_active(&*self.state.lock().unwrap());
         self.recording_active
             .store(local_active || still_recording, Ordering::SeqCst);
 
@@ -1527,10 +1545,7 @@ impl AudioRecordingManager {
         self.remote_lanes_recording.store(false, Ordering::SeqCst);
         self.last_recording_lane.store(0, Ordering::SeqCst);
         // Fold the shared mirror with the local machine's state.
-        let local_active = matches!(
-            *self.state.lock().unwrap(),
-            RecordingState::Recording { .. } | RecordingState::Stopping
-        );
+        let local_active = local_capture_active(&*self.state.lock().unwrap());
         self.recording_active.store(local_active, Ordering::SeqCst);
     }
 
@@ -2135,10 +2150,7 @@ impl AudioRecordingManager {
                 let _ = entry.recorder.close();
             }
             drop(lanes);
-            let local_active = matches!(
-                *self.state.lock().unwrap(),
-                RecordingState::Recording { .. } | RecordingState::Stopping
-            );
+            let local_active = local_capture_active(&*self.state.lock().unwrap());
             self.recording_active
                 .store(local_active || still_recording, Ordering::SeqCst);
             self.remove_mute();
@@ -2219,6 +2231,47 @@ mod tests {
         assert_eq!(effective_release_buffer_ms(0, 200, false), 0);
         // The off path: a zero tail restores the old behavior exactly.
         assert_eq!(effective_release_buffer_ms(0, 0, true), 0);
+    }
+
+    /// v1.6.2 multi-phone review pin: the shared recording mirror's local
+    /// contribution is {Recording, Stopping} - Stopping is the Mac
+    /// session's capture tail (release buffer plus recorder stop, still
+    /// holding the mic), not idle. The lane-stop fold once inlined a
+    /// Recording-only match, so a phone lane's stop landing inside the
+    /// Mac's Stopping tail (stop pipelines run on their own spawned
+    /// threads) flipped the mirror to false mid-capture.
+    #[test]
+    fn local_capture_active_counts_the_stopping_tail() {
+        assert!(!local_capture_active(&RecordingState::Idle));
+        assert!(local_capture_active(&RecordingState::Recording {
+            binding_id: "transcribe".to_string()
+        }));
+        assert!(local_capture_active(&RecordingState::Stopping));
+    }
+
+    /// Source pin for the same fix (the lane-stop fold needs real
+    /// recorders, so its body is pinned against this committed source,
+    /// the cancel-path convention): stop_remote_lane_recording must fold
+    /// the mirror through the shared local_capture_active predicate, not
+    /// an inline Recording-only match that re-opens the Stopping hole.
+    #[test]
+    fn stop_remote_lane_folds_the_mirror_through_the_shared_predicate() {
+        let source = include_str!("audio.rs");
+        let at = source
+            .find("pub fn stop_remote_lane_recording(")
+            .expect("the lane stop");
+        let body = &source[at..at
+            + source[at..]
+                .find("pub fn lane_is_recording")
+                .expect("its end")];
+        assert!(
+            body.contains("local_capture_active(&*self.state.lock().unwrap())"),
+            "the lane-stop fold must use the shared local-activity predicate"
+        );
+        assert!(
+            !body.contains("RecordingState::Recording { .. }"),
+            "no inline Recording-only membership match may live in the fold"
+        );
     }
 
     /// v1.6.2 W1-L2 pin: the pre-warm RAM rule is most-recent-connection
