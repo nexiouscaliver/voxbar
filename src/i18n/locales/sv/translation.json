@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "noggrannhet",
-      "speed": "hastighet"
+      "speed": "hastighet",
+      "installed": "Installerad",
+      "selected": "Valt"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "Misslyckades med att kontrollera behörigheter. Försök igen.",
         "requestFailed": "Misslyckades med att begära behörighet. Försök igen."
-      }
+      },
+      "done": "Klar",
+      "openSettings": "Öppna inställningar"
     },
     "hotkeyHint": "Starta diktering med {{hotkey}} när som helst.",
     "hotkeyChangeHint": "Du kan ändra denna genväg i Inställningar > Allmänt.",
@@ -166,6 +170,10 @@
       "body": "VoxBar kunde inte nå modellkatalogen. Kontrollera din anslutning och försök igen, eller hoppa över det här steget och välj en modell senare i Inställningar.",
       "retry": "Försök igen",
       "skip": "Hoppa över nu"
+    },
+    "postProcessGroup": {
+      "title": "Valfritt: Efterbearbetning",
+      "caption": "För att förbättra transkriptioner efter diktering. Används inte för transkription."
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "Kopierat",
     "polished": "Polerad",
     "historyTitle": "Senaste",
-    "historyEmpty": "Diktat från den här telefonen visas här."
+    "historyEmpty": "Diktat från den här telefonen visas här.",
+    "stateMicBlocked": "Mikrofon blockerad",
+    "micBlockedRetry": "Mikrofon blockerad. Tryck för att försöka igen."
   }
 }

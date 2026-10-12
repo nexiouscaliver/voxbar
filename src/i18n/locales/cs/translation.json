@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "přesnost",
-      "speed": "rychlost"
+      "speed": "rychlost",
+      "installed": "Nainstalováno",
+      "selected": "Vybráno"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "Nepodařilo se zkontrolovat oprávnění. Zkuste to prosím znovu.",
         "requestFailed": "Nepodařilo se požádat o oprávnění. Zkuste to prosím znovu."
-      }
+      },
+      "done": "Hotovo",
+      "openSettings": "Otevřít nastavení"
     },
     "hotkeyHint": "Diktování spustíte klávesou {{hotkey}} kdykoli.",
     "hotkeyChangeHint": "Tuto zkratku můžete změnit v Nastavení > Obecné.",
@@ -166,6 +170,10 @@
       "body": "VoxBar se nedostal ke katalogu modelů. Zkontrolujte připojení a zkuste to znovu, nebo tento krok přeskočte a model si vyberte později v Nastavení.",
       "retry": "Zkusit znovu",
       "skip": "Nyní přeskočit"
+    },
+    "postProcessGroup": {
+      "title": "Volitelné: Následné zpracování",
+      "caption": "Pro úpravu přepisů po diktování. Nepoužívá se k přepisu řeči."
     }
   },
   "modelSelector": {
@@ -1440,6 +1448,8 @@
     "copied": "Zkopírováno",
     "polished": "Uhlazený",
     "historyTitle": "Nedávné",
-    "historyEmpty": "Diktáty z tohoto telefonu se zobrazí zde."
+    "historyEmpty": "Diktáty z tohoto telefonu se zobrazí zde.",
+    "stateMicBlocked": "Mikrofon zablokován",
+    "micBlockedRetry": "Mikrofon zablokován. Klepnutím zkuste znovu."
   }
 }

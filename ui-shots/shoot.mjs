@@ -604,8 +604,14 @@ const shots = [
     url: MAIN,
     viewport: { width: 680, height: 570 },
     prepare: async (page) => {
-      // Permissions are granted, so the wizard auto-advances (~0.3s timer).
+      // Permissions are granted, so the wizard shows the All set! card,
+      // which now waits for the user's Done instead of auto-advancing.
       await page.waitForSelector("#root div", { timeout: 15000 });
+      await page
+        .getByRole("button", {
+          name: tIn("en", "onboarding.permissions.done"),
+        })
+        .click({ timeout: 15000 });
       await page.waitForFunction(() => document.body.innerText.length > 200, {
         timeout: 15000,
       });
@@ -649,6 +655,12 @@ const shots = [
     state: "catalog-offline-error",
     prepare: async (page) => {
       await page.waitForSelector("#root div", { timeout: 15000 });
+      // The All set! card waits for Done before the (dead) model step.
+      await page
+        .getByRole("button", {
+          name: tIn("en", "onboarding.permissions.done"),
+        })
+        .click({ timeout: 15000 });
       await page.waitForFunction(
         (label) => document.body.innerText.includes(label),
         tIn("en", "onboarding.modelError.title"),
@@ -667,6 +679,11 @@ const shots = [
     state: "model-downloading",
     prepare: async (page) => {
       await page.waitForSelector("#root div", { timeout: 15000 });
+      await page
+        .getByRole("button", {
+          name: tIn("en", "onboarding.permissions.done"),
+        })
+        .click({ timeout: 15000 });
       await page.waitForFunction(() => document.body.innerText.length > 200, {
         timeout: 15000,
       });

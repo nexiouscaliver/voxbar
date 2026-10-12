@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "độ chính xác",
-      "speed": "tốc độ"
+      "speed": "tốc độ",
+      "installed": "Đã cài đặt",
+      "selected": "Đã chọn"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "Không thể kiểm tra quyền. Vui lòng thử lại.",
         "requestFailed": "Không thể yêu cầu quyền. Vui lòng thử lại."
-      }
+      },
+      "done": "Xong",
+      "openSettings": "Mở cài đặt"
     },
     "hotkeyHint": "Bắt đầu đọc chính tả bằng {{hotkey}} bất cứ lúc nào.",
     "hotkeyChangeHint": "Bạn có thể đổi phím tắt này trong Cài đặt > Chung.",
@@ -166,6 +170,10 @@
       "body": "VoxBar không thể truy cập danh mục mô hình. Kiểm tra kết nối và thử lại, hoặc bỏ qua bước này và chọn mô hình sau trong Cài đặt.",
       "retry": "Thử lại",
       "skip": "Bỏ qua tạm thời"
+    },
+    "postProcessGroup": {
+      "title": "Tùy chọn: Xử lý sau",
+      "caption": "Để chỉnh sửa bản ghi sau khi đọc chính tả. Không dùng để chuyển giọng nói thành văn bản."
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "Đã sao chép",
     "polished": "Đã đánh bóng",
     "historyTitle": "Gần đây",
-    "historyEmpty": "Những lần đọc từ điện thoại này sẽ hiện ở đây."
+    "historyEmpty": "Những lần đọc từ điện thoại này sẽ hiện ở đây.",
+    "stateMicBlocked": "Micrô bị chặn",
+    "micBlockedRetry": "Micrô bị chặn. Nhấn để thử lại."
   }
 }

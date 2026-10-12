@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "precisão",
-      "speed": "velocidade"
+      "speed": "velocidade",
+      "installed": "Instalado",
+      "selected": "Selecionado"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "Erro ao verificar permissões. Por favor, tente novamente.",
         "requestFailed": "Erro ao solicitar permissão. Por favor, tente novamente."
-      }
+      },
+      "done": "Concluído",
+      "openSettings": "Abrir configurações"
     },
     "hotkeyHint": "Inicie o ditado com {{hotkey}} a qualquer momento.",
     "hotkeyChangeHint": "Você pode mudar este atalho em Configurações > Geral.",
@@ -166,6 +170,10 @@
       "body": "O VoxBar não conseguiu acessar o catálogo de modelos. Verifique sua conexão e tente novamente, ou pule esta etapa e escolha um modelo depois nas Configurações.",
       "retry": "Tentar novamente",
       "skip": "Pular por agora"
+    },
+    "postProcessGroup": {
+      "title": "Opcional: Pós-Processamento",
+      "caption": "Para polir transcrições após o ditado. Não é usado para transcrição."
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "Copiado",
     "polished": "Polida",
     "historyTitle": "Recentes",
-    "historyEmpty": "Os ditados deste telefone aparecem aqui."
+    "historyEmpty": "Os ditados deste telefone aparecem aqui.",
+    "stateMicBlocked": "Microfone bloqueado",
+    "micBlockedRetry": "Microfone bloqueado. Toque para tentar novamente."
   }
 }

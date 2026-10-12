@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "準確度",
-      "speed": "速度"
+      "speed": "速度",
+      "installed": "已安裝",
+      "selected": "已選擇"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "檢查權限失敗，請重試",
         "requestFailed": "請求權限失敗，請重試"
-      }
+      },
+      "done": "完成",
+      "openSettings": "開啟設定"
     },
     "hotkeyHint": "隨時按 {{hotkey}} 開始聽寫。",
     "hotkeyChangeHint": "可以在 設定 > 一般 中變更此快捷鍵。",
@@ -166,6 +170,10 @@
       "body": "VoxBar 無法連線到模型目錄。請檢查網路連線後重試，或略過此步驟，稍後在設定中選擇模型。",
       "retry": "重試",
       "skip": "暫時略過"
+    },
+    "postProcessGroup": {
+      "title": "選用：後處理",
+      "caption": "用於在聽寫後潤飾文字稿。不用於語音轉寫。"
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "已複製",
     "polished": "已潤飾",
     "historyTitle": "最近",
-    "historyEmpty": "來自這支手機的聽寫會顯示在這裡。"
+    "historyEmpty": "來自這支手機的聽寫會顯示在這裡。",
+    "stateMicBlocked": "麥克風已被封鎖",
+    "micBlockedRetry": "麥克風已被封鎖。點按以重試。"
   }
 }

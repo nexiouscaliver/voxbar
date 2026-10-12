@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "doğruluk",
-      "speed": "hız"
+      "speed": "hız",
+      "installed": "Yüklü",
+      "selected": "Seçili"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "İzinler kontrol edilemedi. Lütfen tekrar deneyin.",
         "requestFailed": "İzin isteği başarısız oldu. Lütfen tekrar deneyin."
-      }
+      },
+      "done": "Tamam",
+      "openSettings": "Ayarları aç"
     },
     "hotkeyHint": "Dikteyi istediğiniz zaman {{hotkey}} ile başlatın.",
     "hotkeyChangeHint": "Bu kısayolu Ayarlar > Genel bölümünden değiştirebilirsiniz.",
@@ -166,6 +170,10 @@
       "body": "VoxBar model kataloğuna ulaşamadı. Bağlantınızı kontrol edip tekrar deneyin ya da bu adımı atlayıp daha sonra Ayarlar'dan bir model seçin.",
       "retry": "Tekrar dene",
       "skip": "Şimdilik atla"
+    },
+    "postProcessGroup": {
+      "title": "İsteğe bağlı: Son İşlem",
+      "caption": "Dikteden sonra metinleri düzeltmek için kullanılır. Konuşma tanıma için kullanılmaz."
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "Kopyalandı",
     "polished": "Cilalandı",
     "historyTitle": "Son kayıtlar",
-    "historyEmpty": "Bu telefonla yapılan dikatler burada görünür."
+    "historyEmpty": "Bu telefonla yapılan dikatler burada görünür.",
+    "stateMicBlocked": "Mikrofon engellendi",
+    "micBlockedRetry": "Mikrofon engellendi. Yeniden denemek için dokunun."
   }
 }

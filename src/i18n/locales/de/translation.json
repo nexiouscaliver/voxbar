@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "Genauigkeit",
-      "speed": "Geschwindigkeit"
+      "speed": "Geschwindigkeit",
+      "installed": "Installiert",
+      "selected": "Ausgewählt"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "Berechtigungsprüfung fehlgeschlagen. Bitte erneut versuchen.",
         "requestFailed": "Berechtigungsanfrage fehlgeschlagen. Bitte erneut versuchen."
-      }
+      },
+      "done": "Fertig",
+      "openSettings": "Einstellungen öffnen"
     },
     "hotkeyHint": "Diktat jederzeit mit {{hotkey}} starten.",
     "hotkeyChangeHint": "Sie können diese Tastenkombination unter Einstellungen > Allgemein ändern.",
@@ -166,6 +170,10 @@
       "body": "VoxBar konnte den Modellkatalog nicht erreichen. Prüfe deine Verbindung und versuche es erneut, oder überspringe diesen Schritt und wähle später in den Einstellungen ein Modell.",
       "retry": "Erneut versuchen",
       "skip": "Vorerst überspringen"
+    },
+    "postProcessGroup": {
+      "title": "Optional: Nachbearbeitung",
+      "caption": "Zum Polieren von Transkripten nach dem Diktieren. Wird nicht für die Transkription verwendet."
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "Kopiert",
     "polished": "Poliert",
     "historyTitle": "Zuletzt",
-    "historyEmpty": "Diktate von diesem Telefon erscheinen hier."
+    "historyEmpty": "Diktate von diesem Telefon erscheinen hier.",
+    "stateMicBlocked": "Mikrofon blockiert",
+    "micBlockedRetry": "Mikrofon blockiert. Zum Wiederholen tippen."
   }
 }

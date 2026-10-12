@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "dokładność",
-      "speed": "szybkość"
+      "speed": "szybkość",
+      "installed": "Zainstalowano",
+      "selected": "Wybrano"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "Nie udało się sprawdzić uprawnień. Spróbuj ponownie.",
         "requestFailed": "Nie udało się poprosić o uprawnienie. Spróbuj ponownie."
-      }
+      },
+      "done": "Gotowe",
+      "openSettings": "Otwórz ustawienia"
     },
     "hotkeyHint": "Dyktowanie uruchomisz klawiszem {{hotkey}} w każdej chwili.",
     "hotkeyChangeHint": "Ten skrót zmienisz w Ustawienia > Ogólne.",
@@ -166,6 +170,10 @@
       "body": "VoxBar nie mógł połączyć się z katalogiem modeli. Sprawdź połączenie i spróbuj ponownie albo pomiń ten krok i wybierz model później w Ustawieniach.",
       "retry": "Spróbuj ponownie",
       "skip": "Pomiń na razie"
+    },
+    "postProcessGroup": {
+      "title": "Opcjonalnie: Postproces",
+      "caption": "Do dopracowywania transkrypcji po dyktowaniu. Nie służy do transkrypcji."
     }
   },
   "modelSelector": {
@@ -1440,6 +1448,8 @@
     "copied": "Skopiowano",
     "polished": "Wygładzony",
     "historyTitle": "Ostatnie",
-    "historyEmpty": "Dyktowania z tego telefonu pojawią się tutaj."
+    "historyEmpty": "Dyktowania z tego telefonu pojawią się tutaj.",
+    "stateMicBlocked": "Mikrofon zablokowany",
+    "micBlockedRetry": "Mikrofon zablokowany. Dotknij, aby ponowić."
   }
 }

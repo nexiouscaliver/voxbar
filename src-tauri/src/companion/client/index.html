@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <meta name="theme-color" content="#101014" />
     <title>VoxBar Companion</title>
@@ -44,10 +44,28 @@
         flex-direction: column;
         align-items: center;
         padding: max(20px, env(safe-area-inset-top)) 20px
-          max(28px, env(safe-area-inset-bottom));
+          calc(env(safe-area-inset-bottom) + 28px);
         user-select: none;
         -webkit-user-select: none;
         touch-action: manipulation;
+      }
+      /* 44pt minimum touch targets at an unchanged visual size: every
+         button (the ptt circle is already far larger) carries an invisible
+         pseudo-element band, so the hit area is at least 44px tall while
+         the painted control stays compact. Vertical-only slop: the
+         segments sit side by side, so horizontal extension would let one
+         segment steal its neighbor's taps. */
+      button:not(#ptt) {
+        position: relative;
+      }
+      button:not(#ptt)::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 44px;
+        transform: translateY(-50%);
       }
       header {
         text-align: center;
@@ -94,6 +112,20 @@
       }
       #state.warn .dot {
         background: var(--warn);
+      }
+      #state.warn {
+        color: #ffd9a0;
+        background: rgba(245, 165, 36, 0.16);
+      }
+      /* A pairing failure must read stronger than a plain disconnect: the
+         error pill carries the recording red at a steady (non-pulsing)
+         dot, tinted background, and warm text. */
+      #state.error {
+        color: #ffb4b8;
+        background: rgba(229, 72, 77, 0.22);
+      }
+      #state.error .dot {
+        background: var(--rec);
       }
       @keyframes pulse {
         50% {
@@ -142,6 +174,25 @@
         filter: grayscale(0.7) brightness(0.7);
         box-shadow: none;
       }
+      /* Mic-blocked: the button stays tappable (its next press retries the
+         microphone) but drops to a subdued desaturated amber so the page
+         never shows a vivid "talk" control above a microphone failure. */
+      #ptt.mic-blocked {
+        background: radial-gradient(
+          circle at 32% 28%,
+          #7a6b4a,
+          #4a4028 65%
+        );
+        box-shadow:
+          0 10px 26px rgba(0, 0, 0, 0.4),
+          inset 0 2px 6px rgba(255, 255, 255, 0.12);
+        padding: 0 20px;
+        font-size: 17px;
+      }
+      #ptt.mic-blocked:active,
+      #ptt.mic-blocked.held {
+        filter: brightness(1.08);
+      }
       #hint {
         color: var(--muted);
         font-size: 13px;
@@ -149,6 +200,17 @@
         text-align: center;
         max-width: 320px;
         min-height: 18px;
+      }
+      /* Pairing failures render their message as a red-tinted banner (the
+         same card treatment the mic-error banner uses, in the error tone)
+         instead of bare caption text. */
+      #hint.error-banner {
+        background: var(--card);
+        border: 1px solid rgba(229, 72, 77, 0.4);
+        border-radius: 12px;
+        padding: 12px 14px;
+        color: #ffb4b8;
+        font-size: 14px;
       }
       #notice {
         margin-top: 10px;
@@ -234,16 +296,28 @@
         background: var(--accent);
         color: #fff;
       }
+      .seg button:disabled {
+        opacity: 0.45;
+      }
+      /* The whole controls card dims while the socket is down: the
+         segmented control and the Polish switch change nothing until the
+         phone reconnects, so they must not look live. */
+      #controls.offline {
+        opacity: 0.55;
+      }
       .switch {
         width: 48px;
         height: 28px;
         border-radius: 999px;
-        border: none;
-        background: var(--card-2);
+        border: 1px solid #4a4a56;
+        background: #3a3a44;
         position: relative;
         padding: 0;
         flex-shrink: 0;
         transition: background 120ms ease;
+      }
+      .switch:disabled {
+        opacity: 0.45;
       }
       .switch .knob {
         position: absolute;
@@ -375,6 +449,7 @@
       .linkrow {
         margin-top: auto;
         padding-top: 18px;
+        padding-bottom: 14px;
       }
       button.secondary {
         background: var(--card-2);
@@ -384,6 +459,22 @@
         padding: 10px 18px;
         font-size: 15px;
         font-weight: 600;
+      }
+      /* Reconnect is THE recovery action of a dead pairing: the filled
+         accent primary, clearly separated from the certificate footnote
+         below it, not a low-emphasis ghost sibling. */
+      #reconnect {
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 26px;
+        font-size: 15px;
+        font-weight: 700;
+        box-shadow: 0 8px 22px rgba(124, 58, 237, 0.35);
+      }
+      #reconnect:active {
+        filter: brightness(1.12);
       }
       #micbar {
         display: none;
@@ -409,6 +500,27 @@
         font-size: 12px;
         max-width: 330px;
         text-align: center;
+      }
+      /* Scroll-continuation hint: while content extends below the fold the
+         bottom edge of the viewport carries a soft fade into the page
+         background, so a list cut at the fold reads as scrollable rather
+         than sliced. It disappears at the very bottom so the last row is
+         never permanently faded. */
+      #scrollFade {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 72px;
+        background: linear-gradient(
+          to bottom,
+          rgba(16, 16, 20, 0),
+          var(--bg) 92%
+        );
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 250ms ease;
+        z-index: 4;
       }
     </style>
   </head>
@@ -465,9 +577,10 @@
     </section>
 
     <div class="linkrow">
-      <button class="secondary" id="reconnect" style="display: none"></button>
+      <button id="reconnect" style="display: none"></button>
     </div>
     <p class="cert" id="t-cert"></p>
+    <div id="scrollFade" aria-hidden="true"></div>
 
     <script>
       "use strict";
@@ -532,6 +645,8 @@
       const recentCard = document.getElementById("recent");
       const recentList = document.getElementById("recentList");
       const recentEmpty = document.getElementById("recentEmpty");
+      const controlsCard = document.getElementById("controls");
+      const scrollFade = document.getElementById("scrollFade");
 
       document.getElementById("t-title").textContent = t(
         "title",
@@ -586,9 +701,30 @@
         stateEl.className = cls;
         stateText.textContent = text;
       }
-      function setHint(text) {
+      function setHint(text, isError) {
         hint.textContent = text || "";
+        hint.classList.toggle("error-banner", !!isError && !!text);
       }
+      // The send-to controls only mean something on a live socket: while
+      // the pairing is down (error, goodbye, dropped connection) they dim
+      // and stop taking taps until a fresh welcome re-enables them.
+      function setControlsEnabled(enabled) {
+        controlsCard.classList.toggle("offline", !enabled);
+        tgtPcBtn.disabled = !enabled;
+        tgtPhoneBtn.disabled = !enabled;
+        ppToggle.disabled = !enabled;
+      }
+      // Bottom-edge fade while more content sits below the fold.
+      function refreshScrollFade() {
+        const doc = document.documentElement;
+        const more =
+          window.scrollY + window.innerHeight < doc.scrollHeight - 2;
+        scrollFade.style.opacity = more ? "1" : "0";
+      }
+      window.addEventListener("scroll", refreshScrollFade, {
+        passive: true,
+      });
+      window.addEventListener("resize", refreshScrollFade);
       function showNotice(text) {
         notice.textContent = text;
         notice.classList.add("show");
@@ -601,6 +737,16 @@
       }
 
       function refreshButton() {
+        // Mic-blocked is a state, not a disabled control: the caption says
+        // so and the next press retries the microphone. While the Mac
+        // reports a live session the stop caption wins, so a toggle-mode
+        // session can always be ended.
+        ptt.classList.toggle("mic-blocked", micFailed && !recording);
+        if (micFailed && !recording) {
+          ptt.textContent = t("micBlockedRetry", "Mic blocked. Tap to retry");
+          ptt.classList.remove("recording");
+          return;
+        }
         if (activation === "toggle") {
           ptt.textContent = recording
             ? t("tapToStop", "Tap to stop")
@@ -710,6 +856,7 @@
         resultModel.textContent = model || "";
         resultCopyBtn.textContent = t("copy", "Copy");
         resultCard.classList.add("show");
+        refreshScrollFade();
         // Auto-copy where the platform allows a write outside a gesture;
         // where it does not, the Copy button above does it inside the tap.
         copyText(text, resultCopyBtn);
@@ -741,6 +888,7 @@
         recentCard.classList.add("show");
         recentList.textContent = "";
         recentEmpty.style.display = recentEntries.length ? "none" : "";
+        refreshScrollFade();
         recentEntries.forEach((entry, idx) => {
           const li = document.createElement("li");
           li.className = "recent-item";
@@ -783,7 +931,9 @@
           setState("error", t("stateError", "Error"));
           setHint(
             t("noToken", "Open this page from the QR code in VoxBar settings."),
+            true,
           );
+          setControlsEnabled(false);
           return;
         }
 
@@ -792,7 +942,8 @@
           socket = new WebSocket(WS_URL);
         } catch (e) {
           setState("error", t("stateError", "Error"));
-          setHint(String((e && e.message) || e));
+          setHint(String((e && e.message) || e), true);
+          setControlsEnabled(false);
           return;
         }
         socket.binaryType = "arraybuffer";
@@ -813,7 +964,6 @@
           );
           setState("waiting", t("stateWaitMic", "Waiting for microphone"));
         };
-
         socket.onmessage = (ev) => {
           let msg = null;
           try {
@@ -827,6 +977,7 @@
               activation = msg.activation || "push_to_talk";
               recording = !!msg.recording;
               ptt.disabled = false;
+              setControlsEnabled(true);
               setState("ready", t("stateReady", "Ready"));
               setHint(
                 activation === "toggle"
@@ -842,12 +993,16 @@
               break;
             case "state":
               recording = !!msg.recording;
-              setState(
-                recording ? "recording" : "ready",
-                recording
-                  ? t("stateRecording", "Recording")
-                  : t("stateReady", "Ready"),
-              );
+              // Back to idle: the pill returns to Ready only when the
+              // microphone actually works; a blocked mic keeps the amber
+              // "Mic blocked" pill instead of re-asserting readiness.
+              if (recording) {
+                setState("recording", t("stateRecording", "Recording"));
+              } else if (micFailed) {
+                setState("warn", t("stateMicBlocked", "Mic blocked"));
+              } else {
+                setState("ready", t("stateReady", "Ready"));
+              }
               setHint(recording ? "" : "");
               micbar.classList.toggle("show", recording);
               if (!recording) {
@@ -894,12 +1049,13 @@
               deliberateClose = true;
               ptt.disabled = true;
               setState("error", t("stateError", "Error"));
-              if (msg.code === "bad_token") setHint(t("badToken", ""));
+              if (msg.code === "bad_token") setHint(t("badToken", ""), true);
               else if (msg.code === "wrong_subnet")
-                setHint(t("wrongSubnet", ""));
+                setHint(t("wrongSubnet", ""), true);
               else if (msg.code === "rate_limited")
-                setHint(t("rateLimited", ""));
-              else setHint(msg.code || "");
+                setHint(t("rateLimited", ""), true);
+              else setHint(msg.code || "", true);
+              setControlsEnabled(false);
               try {
                 socket.close();
               } catch (e) {}
@@ -913,6 +1069,7 @@
                 setHint(t("serverStopped", ""));
               else if (msg.reason === "rate_cap") setHint(t("rateLimited", ""));
               else setHint("");
+              setControlsEnabled(false);
               stopMic();
               reconnectBtn.style.display = "";
               break;
@@ -923,6 +1080,7 @@
           ptt.disabled = true;
           micbar.classList.remove("show");
           stopMic();
+          setControlsEnabled(false);
           if (deliberateClose) return;
           setState("warn", t("stateDisconnected", "Disconnected"));
           setHint("");
@@ -950,9 +1108,22 @@
           "Microphone access failed. Allow it in the browser, then try again.",
         );
         micErrorCard.classList.add("show");
+        // State consistency: a failed microphone must never leave a green
+        // "Ready" pill above the failure banner. The pill goes amber until
+        // the mic is granted again (hideMicError).
+        if (!recording) {
+          setState("warn", t("stateMicBlocked", "Mic blocked"));
+        }
+        refreshButton();
+        refreshScrollFade();
       }
       function hideMicError() {
         micErrorCard.classList.remove("show");
+        if (!recording) {
+          setState("ready", t("stateReady", "Ready"));
+        }
+        refreshButton();
+        refreshScrollFade();
       }
 
       function openMic() {
@@ -1286,7 +1457,10 @@
         ptt.addEventListener("touchcancel", () => pressEnd());
       }
       ptt.addEventListener("contextmenu", (ev) => ev.preventDefault());
-      document.addEventListener("gesturestart", (ev) => ev.preventDefault());
+      // Pinch-zoom stays available (WCAG 1.4.4): the viewport meta no
+      // longer caps the scale, and no gesture blocker runs here.
+      // touch-action: manipulation on body still suppresses the accidental
+      // double-tap zoom around the talk button without touching pinch.
 
       document.addEventListener("visibilitychange", () => {
         // Backgrounded mid-press: treat as release so audio never leaks on.
@@ -1301,6 +1475,7 @@
       refreshControls();
       refreshButton();
       connect();
+      refreshScrollFade();
     </script>
   </body>
 </html>

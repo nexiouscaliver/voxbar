@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "precisión",
-      "speed": "velocidad"
+      "speed": "velocidad",
+      "installed": "Instalado",
+      "selected": "Seleccionado"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "Error al verificar permisos. Por favor, inténtalo de nuevo.",
         "requestFailed": "Error al solicitar permiso. Por favor, inténtalo de nuevo."
-      }
+      },
+      "done": "Listo",
+      "openSettings": "Abrir ajustes"
     },
     "hotkeyHint": "Inicia el dictado con {{hotkey}} en cualquier momento.",
     "hotkeyChangeHint": "Puedes cambiar este atajo en Configuración > General.",
@@ -166,6 +170,10 @@
       "body": "VoxBar no pudo acceder al catálogo de modelos. Comprueba tu conexión e inténtalo de nuevo, u omite este paso y elige un modelo más tarde en Ajustes.",
       "retry": "Reintentar",
       "skip": "Omitir por ahora"
+    },
+    "postProcessGroup": {
+      "title": "Opcional: Post proceso",
+      "caption": "Para pulir transcripciones después del dictado. No se usa para transcribir."
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "Copiado",
     "polished": "Pulido",
     "historyTitle": "Reciente",
-    "historyEmpty": "Los dictados de este teléfono aparecerán aquí."
+    "historyEmpty": "Los dictados de este teléfono aparecerán aquí.",
+    "stateMicBlocked": "Micrófono bloqueado",
+    "micBlockedRetry": "Micrófono bloqueado. Toca para reintentar."
   }
 }

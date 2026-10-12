@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "nauwkeurigheid",
-      "speed": "snelheid"
+      "speed": "snelheid",
+      "installed": "Geïnstalleerd",
+      "selected": "Geselecteerd"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "Machtigingen controleren mislukt. Probeer het opnieuw.",
         "requestFailed": "Machtiging aanvragen mislukt. Probeer het opnieuw."
-      }
+      },
+      "done": "Gereed",
+      "openSettings": "Instellingen openen"
     },
     "hotkeyHint": "Start dicteren met {{hotkey}}, altijd.",
     "hotkeyChangeHint": "Je kunt deze sneltoets wijzigen via Instellingen > Algemeen.",
@@ -166,6 +170,10 @@
       "body": "VoxBar kon de modelcatalogus niet bereiken. Controleer je verbinding en probeer het opnieuw, of sla deze stap over en kies later een model in Instellingen.",
       "retry": "Opnieuw proberen",
       "skip": "Nu overslaan"
+    },
+    "postProcessGroup": {
+      "title": "Optioneel: Naverwerking",
+      "caption": "Voor het bijschaven van transcripties na dicteren. Niet gebruikt voor transcriptie."
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "Gekopieerd",
     "polished": "Gepolijst",
     "historyTitle": "Recent",
-    "historyEmpty": "Dicteeropnames van deze telefoon verschijnen hier."
+    "historyEmpty": "Dicteeropnames van deze telefoon verschijnen hier.",
+    "stateMicBlocked": "Microfoon geblokkeerd",
+    "micBlockedRetry": "Microfoon geblokkeerd. Tik om het opnieuw te proberen."
   }
 }

@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "précision",
-      "speed": "vitesse"
+      "speed": "vitesse",
+      "installed": "Installé",
+      "selected": "Sélectionné"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "Échec de la vérification des autorisations. Veuillez réessayer.",
         "requestFailed": "Échec de la demande d'autorisation. Veuillez réessayer."
-      }
+      },
+      "done": "Terminé",
+      "openSettings": "Ouvrir les réglages"
     },
     "hotkeyHint": "Lancez la dictée avec {{hotkey}} à tout moment.",
     "hotkeyChangeHint": "Vous pouvez changer ce raccourci dans Paramètres > Général.",
@@ -166,6 +170,10 @@
       "body": "VoxBar n'a pas pu joindre le catalogue de modèles. Vérifiez votre connexion et réessayez, ou passez cette étape et choisissez un modèle plus tard dans les Réglages.",
       "retry": "Réessayer",
       "skip": "Passer pour l'instant"
+    },
+    "postProcessGroup": {
+      "title": "Facultatif : Post-traitement",
+      "caption": "Pour peaufiner les transcriptions après la dictée. Non utilisé pour la transcription."
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "Copié",
     "polished": "Polie",
     "historyTitle": "Récents",
-    "historyEmpty": "Les dictées de ce téléphone apparaîtront ici."
+    "historyEmpty": "Les dictées de ce téléphone apparaîtront ici.",
+    "stateMicBlocked": "Micro bloqué",
+    "micBlockedRetry": "Micro bloqué. Touchez pour réessayer."
   }
 }

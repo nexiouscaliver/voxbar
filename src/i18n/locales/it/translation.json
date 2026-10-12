@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "accuratezza",
-      "speed": "velocità"
+      "speed": "velocità",
+      "installed": "Installato",
+      "selected": "Selezionato"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "Impossibile verificare i permessi. Riprova.",
         "requestFailed": "Impossibile richiedere il permesso. Riprova."
-      }
+      },
+      "done": "Fine",
+      "openSettings": "Apri impostazioni"
     },
     "hotkeyHint": "Avvia la dettatura con {{hotkey}} in qualsiasi momento.",
     "hotkeyChangeHint": "Puoi cambiare questa scorciatoia in Impostazioni > Generali.",
@@ -166,6 +170,10 @@
       "body": "VoxBar non ha raggiunto il catalogo dei modelli. Controlla la connessione e riprova, oppure salta questo passaggio e scegli un modello più tardi nelle Impostazioni.",
       "retry": "Riprova",
       "skip": "Salta per ora"
+    },
+    "postProcessGroup": {
+      "title": "Opzionale: Post-Elaborazione",
+      "caption": "Per rifinire le trascrizioni dopo la dettatura. Non viene usato per la trascrizione."
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "Copiato",
     "polished": "Rifinito",
     "historyTitle": "Recenti",
-    "historyEmpty": "Le dettature da questo telefono compaiono qui."
+    "historyEmpty": "Le dettature da questo telefono compaiono qui.",
+    "stateMicBlocked": "Microfono bloccato",
+    "micBlockedRetry": "Microfono bloccato. Tocca per riprovare."
   }
 }

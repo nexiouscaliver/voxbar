@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "akurasi",
-      "speed": "kecepatan"
+      "speed": "kecepatan",
+      "installed": "Terpasang",
+      "selected": "Dipilih"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "Gagal memeriksa izin. Silakan coba lagi.",
         "requestFailed": "Gagal meminta izin. Silakan coba lagi."
-      }
+      },
+      "done": "Selesai",
+      "openSettings": "Buka Pengaturan"
     },
     "hotkeyHint": "Mulai dikte dengan {{hotkey}} kapan saja.",
     "hotkeyChangeHint": "Pintasan ini bisa diubah di Pengaturan > Umum.",
@@ -166,6 +170,10 @@
       "body": "VoxBar tidak dapat menjangkau katalog model. Periksa koneksi Anda dan coba lagi, atau lewati langkah ini dan pilih model nanti di Pengaturan.",
       "retry": "Coba lagi",
       "skip": "Lewati dulu"
+    },
+    "postProcessGroup": {
+      "title": "Opsional: Pascaproses",
+      "caption": "Untuk memoles transkrip setelah dikte. Tidak digunakan untuk transkripsi."
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "Tersalin",
     "polished": "Dipoles",
     "historyTitle": "Terbaru",
-    "historyEmpty": "Dikte dari ponsel ini muncul di sini."
+    "historyEmpty": "Dikte dari ponsel ini muncul di sini.",
+    "stateMicBlocked": "Mikrofon diblokir",
+    "micBlockedRetry": "Mikrofon diblokir. Ketuk untuk mencoba lagi."
   }
 }

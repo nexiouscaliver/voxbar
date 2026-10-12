@@ -69,7 +69,9 @@
     },
     "modelCard": {
       "accuracy": "accuracy",
-      "speed": "speed"
+      "speed": "speed",
+      "installed": "Installed",
+      "selected": "Selected"
     },
     "models": {
       "small": {
@@ -163,10 +165,16 @@
       "errors": {
         "checkFailed": "Failed to check permissions. Please try again.",
         "requestFailed": "Failed to request permission. Please try again."
-      }
+      },
+      "done": "Done",
+      "openSettings": "Open Settings"
     },
     "hotkeyHint": "Start dictation with {{hotkey}} anytime.",
-    "hotkeyChangeHint": "You can change this shortcut in Settings > General."
+    "hotkeyChangeHint": "You can change this shortcut in Settings > General.",
+    "postProcessGroup": {
+      "title": "Optional: Post-processing",
+      "caption": "For polishing transcripts after dictation. Not used for transcription."
+    }
   },
   "modelSelector": {
     "custom": "Custom",
@@ -1424,6 +1432,8 @@
     "copied": "Copied",
     "polished": "Polished",
     "historyTitle": "Recent",
-    "historyEmpty": "Dictations from this phone appear here."
+    "historyEmpty": "Dictations from this phone appear here.",
+    "stateMicBlocked": "Mic blocked",
+    "micBlockedRetry": "Mic blocked. Tap to retry"
   }
 }

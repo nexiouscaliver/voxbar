@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "准确度",
-      "speed": "速度"
+      "speed": "速度",
+      "installed": "已安装",
+      "selected": "已选择"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "检查权限失败。请重试。",
         "requestFailed": "请求权限失败。请重试。"
-      }
+      },
+      "done": "完成",
+      "openSettings": "打开设置"
     },
     "hotkeyHint": "随时按 {{hotkey}} 开始听写。",
     "hotkeyChangeHint": "可以在 设置 > 通用 中更改此快捷键。",
@@ -166,6 +170,10 @@
       "body": "VoxBar 无法连接到模型目录。请检查网络连接后重试，或跳过此步骤，稍后在设置中选择模型。",
       "retry": "重试",
       "skip": "暂时跳过"
+    },
+    "postProcessGroup": {
+      "title": "可选：后处理",
+      "caption": "用于在听写后润色文字稿。不用于语音转写。"
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "已复制",
     "polished": "已润色",
     "historyTitle": "最近",
-    "historyEmpty": "来自这台手机的听写会显示在这里。"
+    "historyEmpty": "来自这台手机的听写会显示在这里。",
+    "stateMicBlocked": "麦克风已被阻止",
+    "micBlockedRetry": "麦克风已被阻止。点按可重试。"
   }
 }

@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "精度",
-      "speed": "速度"
+      "speed": "速度",
+      "installed": "インストール済み",
+      "selected": "選択中"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "権限の確認に失敗しました。もう一度お試しください。",
         "requestFailed": "権限のリクエストに失敗しました。もう一度お試しください。"
-      }
+      },
+      "done": "完了",
+      "openSettings": "設定を開く"
     },
     "hotkeyHint": "いつでも {{hotkey}} でディテーションを開始できます。",
     "hotkeyChangeHint": "このショートカットは 設定 > 一般 で変更できます。",
@@ -166,6 +170,10 @@
       "body": "VoxBarがモデルカタログに接続できませんでした。接続を確認して再試行するか、このステップをスキップして後で設定からモデルを選択してください。",
       "retry": "再試行",
       "skip": "今はスキップ"
+    },
+    "postProcessGroup": {
+      "title": "オプション: 後処理",
+      "caption": "ディクテーション後の文字起こしを整えるために使用します。音声認識には使用されません。"
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "コピーしました",
     "polished": "整形済み",
     "historyTitle": "最近",
-    "historyEmpty": "このスマホでのディクテーションがここに表示されます。"
+    "historyEmpty": "このスマホでのディクテーションがここに表示されます。",
+    "stateMicBlocked": "マイクがブロックされています",
+    "micBlockedRetry": "マイクがブロックされています。タップして再試行"
   }
 }

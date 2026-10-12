@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "nøjagtighed",
-      "speed": "hastighed"
+      "speed": "hastighed",
+      "installed": "Installeret",
+      "selected": "Valgt"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "Kunne ikke tjekke tilladelser. Prøv igen.",
         "requestFailed": "Kunne ikke anmode om tilladelse. Prøv igen."
-      }
+      },
+      "done": "Udført",
+      "openSettings": "Åbn indstillinger"
     },
     "hotkeyHint": "Start diktering med {{hotkey}} når som helst.",
     "hotkeyChangeHint": "Du kan ændre denne genvej i Indstillinger > Generelt.",
@@ -166,6 +170,10 @@
       "body": "VoxBar kunne ikke nå modelkataloget. Tjek din forbindelse og prøv igen, eller spring dette trin over og vælg en model senere i Indstillinger.",
       "retry": "Prøv igen",
       "skip": "Spring over nu"
+    },
+    "postProcessGroup": {
+      "title": "Valgfrit: Efterbehandling",
+      "caption": "Til at forbedre transskriptioner efter diktat. Bruges ikke til transskription."
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "Kopieret",
     "polished": "Poleret",
     "historyTitle": "Seneste",
-    "historyEmpty": "Diktater fra denne telefon vises her."
+    "historyEmpty": "Diktater fra denne telefon vises her.",
+    "stateMicBlocked": "Mikrofon blokeret",
+    "micBlockedRetry": "Mikrofon blokeret. Tryk for at prøve igen."
   }
 }

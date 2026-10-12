@@ -63,7 +63,9 @@
     },
     "modelCard": {
       "accuracy": "precisió",
-      "speed": "velocitat"
+      "speed": "velocitat",
+      "installed": "Instal·lat",
+      "selected": "Seleccionat"
     },
     "models": {
       "small": {
@@ -157,7 +159,9 @@
       "errors": {
         "checkFailed": "No s'han pogut comprovar els permisos. Torneu-ho a provar.",
         "requestFailed": "No s'ha pogut sol·licitar el permís. Torneu-ho a provar."
-      }
+      },
+      "done": "Fet",
+      "openSettings": "Obre la configuració"
     },
     "hotkeyHint": "Inicieu el dictat amb {{hotkey}} en qualsevol moment.",
     "hotkeyChangeHint": "Podeu canviar aquesta drecera a Configuració > General.",
@@ -166,6 +170,10 @@
       "body": "VoxBar no ha pogut accedir al catàleg de models. Comproveu la connexió i torneu-ho a provar, o ometeu aquest pas i trieu un model més tard a Paràmetres.",
       "retry": "Reintenta",
       "skip": "Omet per ara"
+    },
+    "postProcessGroup": {
+      "title": "Opcional: Postprocessament",
+      "caption": "Per polir transcripcions després del dictat. No s'utilitza per transcriure."
     }
   },
   "modelSelector": {
@@ -1424,6 +1432,8 @@
     "copied": "Copiat",
     "polished": "Polit",
     "historyTitle": "Recents",
-    "historyEmpty": "Els dictats d'aquest mòbil apareixen aquí."
+    "historyEmpty": "Els dictats d'aquest mòbil apareixen aquí.",
+    "stateMicBlocked": "Micròfon bloquejat",
+    "micBlockedRetry": "Micròfon bloquejat. Toca per tornar-ho a provar."
   }
 }
