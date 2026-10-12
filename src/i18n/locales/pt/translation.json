@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Atalhos bloqueados pelo Secure Input",
     "postProcessPrompt": "Prompt de pós-processamento"
   },
+  "trayCopyOutcome": {
+    "copied": "O ditado foi copiado para a área de transferência.",
+    "failed": "Não foi possível copiar o ditado para a área de transferência."
+  },
   "sidebar": {
     "general": "Geral",
     "commands": "Comandos",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Comandos de eliminação por voz",
-        "description": "\"scratch that\", \"delete that\" e \"remove that\" eliminam a palavra anterior, \"delete last three words\" elimina várias, e \"delete everything\" ou \"start over\" limpa o ditado. Desative para mantê-las como palavras comuns."
+        "description": "\"scratch that\", \"delete that\" e \"remove that\" eliminam a palavra anterior, \"delete last three words\" elimina várias, e \"delete everything\" ou \"scratch everything\" limpa o ditado. Desative para mantê-las como palavras comuns."
       },
       "previewBeforePaste": {
         "title": "Pré-visualização antes de colar",
@@ -926,6 +930,7 @@
       "empty": "Nenhuma transcrição ainda. Comece a gravar para construir seu histórico!",
       "copyToClipboard": "Copiar transcrição para área de transferência",
       "copyError": "Não foi possível copiar a transcrição para a área de transferência.",
+      "savedToggleError": "Não foi possível atualizar o status de salvo.",
       "save": "Salvar transcrição",
       "unsave": "Remover dos salvos",
       "delete": "Excluir entrada",

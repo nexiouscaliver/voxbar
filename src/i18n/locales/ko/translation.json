@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Secure Input으로 단축키가 차단됨",
     "postProcessPrompt": "후처리 프롬프트"
   },
+  "trayCopyOutcome": {
+    "copied": "받아쓰기를 클립보드에 복사했습니다.",
+    "failed": "받아쓰기를 클립보드에 복사하지 못했습니다."
+  },
   "sidebar": {
     "general": "일반",
     "commands": "명령어",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "음성 삭제 명령",
-        "description": "\"scratch that\", \"delete that\", \"remove that\"은 바로 앞 단어를 지우고, \"delete last three words\"는 여러 단어를 지우며, \"delete everything\" 또는 \"start over\"는 받아쓰기를 모두 지웁니다. 끄면 일반 단어로 남습니다."
+        "description": "\"scratch that\", \"delete that\", \"remove that\"은 바로 앞 단어를 지우고, \"delete last three words\"는 여러 단어를 지우며, \"delete everything\" 또는 \"scratch everything\"는 받아쓰기를 모두 지웁니다. 끄면 일반 단어로 남습니다."
       },
       "previewBeforePaste": {
         "title": "붙여넣기 전 미리보기",
@@ -926,6 +930,7 @@
       "empty": "아직 변환된 내용이 없습니다. 녹음을 시작하여 히스토리를 만드세요!",
       "copyToClipboard": "녹음 내용을 클립보드에 복사",
       "copyError": "전사 내용을 클립보드에 복사하지 못했습니다.",
+      "savedToggleError": "저장 상태를 업데이트하지 못했습니다.",
       "save": "변환된 텍스트 저장",
       "unsave": "저장에서 제거",
       "delete": "항목 삭제",

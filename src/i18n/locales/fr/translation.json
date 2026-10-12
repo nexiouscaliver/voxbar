@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Raccourcis bloqués par Secure Input",
     "postProcessPrompt": "Prompt de post-traitement"
   },
+  "trayCopyOutcome": {
+    "copied": "La dictée a été copiée dans le presse-papiers.",
+    "failed": "Impossible de copier la dictée dans le presse-papiers."
+  },
   "sidebar": {
     "general": "Général",
     "commands": "Commandes",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Commandes de suppression vocale",
-        "description": "\"scratch that\", \"delete that\" et \"remove that\" suppriment le mot précédent, \"delete last three words\" en supprime plusieurs, et \"delete everything\" ou \"start over\" efface la dictée. Désactivez pour les garder comme mots simples."
+        "description": "\"scratch that\", \"delete that\" et \"remove that\" suppriment le mot précédent, \"delete last three words\" en supprime plusieurs, et \"delete everything\" ou \"scratch everything\" efface la dictée. Désactivez pour les garder comme mots simples."
       },
       "previewBeforePaste": {
         "title": "Aperçu avant collage",
@@ -926,6 +930,7 @@
       "empty": "Pas encore de transcriptions. Commencez à enregistrer pour créer votre historique !",
       "copyToClipboard": "Copier la transcription dans le presse-papiers",
       "copyError": "Impossible de copier la transcription dans le presse-papiers.",
+      "savedToggleError": "Impossible de mettre à jour l'état enregistré.",
       "save": "Enregistrer la transcription",
       "unsave": "Retirer des favoris",
       "delete": "Supprimer l'entrée",

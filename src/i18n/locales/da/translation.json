@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Genveje blokeret af Secure Input",
     "postProcessPrompt": "Efterbehandlingstekst"
   },
+  "trayCopyOutcome": {
+    "copied": "Dikteringen er kopieret til udklipsholderen.",
+    "failed": "Kunne ikke kopiere dikteringen til udklipsholderen."
+  },
   "sidebar": {
     "general": "Generelt",
     "commands": "Kommandoer",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Talekommandoer til sletning",
-        "description": "\"scratch that\", \"delete that\" og \"remove that\" sletter det forrige ord, \"delete last three words\" sletter flere, og \"delete everything\" eller \"start over\" rydder dikteringen. Slå fra for at beholde dem som almindelige ord."
+        "description": "\"scratch that\", \"delete that\" og \"remove that\" sletter det forrige ord, \"delete last three words\" sletter flere, og \"delete everything\" eller \"scratch everything\" rydder dikteringen. Slå fra for at beholde dem som almindelige ord."
       },
       "previewBeforePaste": {
         "title": "Forhåndsvisning før indsættelse",
@@ -926,6 +930,7 @@
       "empty": "Ingen transskriptioner endnu. Start optagelse for at opbygge din historik!",
       "copyToClipboard": "Kopiér transskription til udklipsholder",
       "copyError": "Kunne ikke kopiere transskriptionen til udklipsholderen.",
+      "savedToggleError": "Kunne ikke opdatere den gemte status.",
       "save": "Gem transskription",
       "unsave": "Fjern fra gemte",
       "delete": "Slet post",

@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Secure Input でショートカットがブロック中",
     "postProcessPrompt": "後処理プロンプト"
   },
+  "trayCopyOutcome": {
+    "copied": "文字起こしをクリップボードにコピーしました。",
+    "failed": "文字起こしをクリップボードにコピーできませんでした。"
+  },
   "sidebar": {
     "general": "一般",
     "commands": "コマンド",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "音声削除コマンド",
-        "description": "\"scratch that\"、\"delete that\"、\"remove that\" は直前の単語を削除し、\"delete last three words\" は複数の単語を削除し、\"delete everything\" または \"start over\" でディテーション全体を消去します。オフにすると通常の単語のまま残ります。"
+        "description": "\"scratch that\"、\"delete that\"、\"remove that\" は直前の単語を削除し、\"delete last three words\" は複数の単語を削除し、\"delete everything\" または \"scratch everything\" でディテーション全体を消去します。オフにすると通常の単語のまま残ります。"
       },
       "previewBeforePaste": {
         "title": "貼り付け前のプレビュー",
@@ -926,6 +930,7 @@
       "empty": "まだ文字起こしがありません。録音を開始して履歴を作成しましょう!",
       "copyToClipboard": "文字起こしをクリップボードにコピー",
       "copyError": "文字起こしをクリップボードにコピーできませんでした。",
+      "savedToggleError": "保存状態を更新できませんでした。",
       "save": "文字起こしを保存",
       "unsave": "保存から削除",
       "delete": "エントリーを削除",

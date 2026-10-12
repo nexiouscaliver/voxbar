@@ -191,7 +191,26 @@ export const HistorySettings: React.FC = () => {
     };
   }, []);
 
+  // KB-081: per-row pending set for the star toggle. The old optimistic
+  // flip could be re-clicked mid-flight (racing the first request) and its
+  // failure path re-derived the revert as another blind flip off the
+  // CURRENT value, which a concurrent "updated" history event had already
+  // replaced - so a failed toggle could land on the opposite of what the
+  // row showed before the click.
+  const [pendingSavedIds, setPendingSavedIds] = useState<Set<number>>(
+    () => new Set(),
+  );
+
   const toggleSaved = async (id: number) => {
+    // One in-flight toggle per row: a second click during the first
+    // request's round trip is exactly the race that broke the revert.
+    if (pendingSavedIds.has(id)) return;
+
+    // Capture the pre-click value: the failure path restores THIS, not a
+    // flip of whatever the row happens to show when the rejection lands.
+    const before = entries.find((e) => e.id === id)?.saved ?? false;
+
+    setPendingSavedIds((prev) => new Set(prev).add(id));
     // Optimistic update
     setEntries((prev) =>
       prev.map((e) => (e.id === id ? { ...e, saved: !e.saved } : e)),
@@ -199,17 +218,24 @@ export const HistorySettings: React.FC = () => {
     try {
       const result = await commands.toggleHistoryEntrySaved(id);
       if (result.status !== "ok") {
-        // Revert on failure
+        // Revert to the captured pre-click state (KB-081) and say so.
         setEntries((prev) =>
-          prev.map((e) => (e.id === id ? { ...e, saved: !e.saved } : e)),
+          prev.map((e) => (e.id === id ? { ...e, saved: before } : e)),
         );
+        toast.error(t("settings.history.savedToggleError"));
       }
     } catch (error) {
       console.error("Failed to toggle saved status:", error);
-      // Revert on failure
       setEntries((prev) =>
-        prev.map((e) => (e.id === id ? { ...e, saved: !e.saved } : e)),
+        prev.map((e) => (e.id === id ? { ...e, saved: before } : e)),
       );
+      toast.error(t("settings.history.savedToggleError"));
+    } finally {
+      setPendingSavedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
     }
   };
 
@@ -300,6 +326,7 @@ export const HistorySettings: React.FC = () => {
                     : undefined
                 }
                 onToggleSaved={() => toggleSaved(entry.id)}
+                savedPending={pendingSavedIds.has(entry.id)}
                 onCopyText={() =>
                   // The FINAL text: what a polished dictation actually
                   // pasted (v1.6.0 W1-L6). Entries without post-processing
@@ -370,6 +397,9 @@ interface HistoryEntryProps {
    * the entry carries a post-process summary and the prompt still exists. */
   promptName?: string;
   onToggleSaved: () => void;
+  /** KB-081: true while this row's star toggle request is in flight; the
+   * button disables so a second click cannot race the first revert. */
+  savedPending: boolean;
   onCopyText: () => Promise<boolean>;
   getAudioUrl: (fileName: string) => Promise<string | null>;
   deleteAudio: (id: number) => Promise<void>;
@@ -389,6 +419,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
   showModelBadge,
   promptName,
   onToggleSaved,
+  savedPending,
   onCopyText,
   getAudioUrl,
   deleteAudio,
@@ -520,7 +551,7 @@ const HistoryEntryComponent: React.FC<HistoryEntryProps> = ({
           </IconButton>
           <IconButton
             onClick={onToggleSaved}
-            disabled={retrying}
+            disabled={retrying || savedPending}
             active={entry.saved}
             title={
               entry.saved

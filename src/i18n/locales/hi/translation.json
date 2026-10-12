@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Secure Input ने शॉर्टकट ब्लॉक किए हैं",
     "postProcessPrompt": "पोस्ट-प्रोसेस प्रॉम्प्ट"
   },
+  "trayCopyOutcome": {
+    "copied": "ट्रांसक्रिप्ट क्लिपबोर्ड पर कॉपी हो गया।",
+    "failed": "ट्रांसक्रिप्ट क्लिपबोर्ड पर कॉपी नहीं हो सका।"
+  },
   "sidebar": {
     "general": "सामान्य",
     "commands": "कमांड",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "वॉयेस डिलीशन कमांड",
-        "description": "\"scratch that\", \"delete that\" और \"remove that\" पिछला शब्द मिटाते हैं, \"delete last three words\" कई शब्द मिटाता है, और \"delete everything\" या \"start over\" पूरी डिक्टेशन साफ़ कर देता है। सामान्य शब्दों के रूप में रखने के लिए बंद करें।"
+        "description": "\"scratch that\", \"delete that\" और \"remove that\" पिछला शब्द मिटाते हैं, \"delete last three words\" कई शब्द मिटाता है, और \"delete everything\" या \"scratch everything\" पूरी डिक्टेशन साफ़ कर देता है। सामान्य शब्दों के रूप में रखने के लिए बंद करें।"
       },
       "previewBeforePaste": {
         "title": "पेस्ट करने से पहले पूर्वावलोकन",
@@ -926,6 +930,7 @@
       "empty": "अभी तक कोई ट्रांसक्रिप्शन नहीं है. अपना इतिहास बनाने के लिए रिकॉर्डिंग शुरू करें!",
       "copyToClipboard": "ट्रांसक्रिप्शन क्लिपबोर्ड पर कॉपी करें",
       "copyError": "ट्रांसक्रिप्शन को क्लिपबोर्ड पर कॉपी नहीं किया जा सका.",
+      "savedToggleError": "सहेजी गई स्थिति अपडेट नहीं हो सकी।",
       "save": "ट्रांसक्रिप्शन सेव करें",
       "unsave": "सेव किए गए से हटाएं",
       "delete": "एंट्री हटाएं",

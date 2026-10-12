@@ -6,6 +6,7 @@
   "permissions": [
     "core:default",
     "opener:default",
+    "opener:allow-open-path",
     "store:default",
     "dialog:default",
     "global-shortcut:allow-is-registered",

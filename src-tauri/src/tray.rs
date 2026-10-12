@@ -36,7 +36,7 @@ use std::time::{Duration, Instant};
 use tauri::image::Image;
 use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem, Submenu};
 use tauri::tray::TrayIcon;
-use tauri::{AppHandle, Manager, Theme};
+use tauri::{AppHandle, Emitter, Manager, Theme};
 use tauri_plugin_clipboard_manager::ClipboardExt;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1689,6 +1689,29 @@ fn write_clipboard_on_main(app: &AppHandle, text: &str) -> bool {
     }
 }
 
+/// KB-087: the tray copy actions' outcome event. The menu gives no visual
+/// feedback of its own (the menu closes and nothing else happens on any
+/// surface), so every terminal path of both copy actions reports here and
+/// the frontend's App-level listener turns the outcome into the OS
+/// notification the notifications toggle governs. Field names are the
+/// payload contract App.tsx reads.
+#[derive(Clone, Copy, Debug, serde::Serialize, PartialEq, Eq)]
+pub struct TrayCopyOutcome {
+    pub ok: bool,
+}
+
+/// The event name the webview listens for (App.tsx). Plain string event,
+/// same wiring style as request-update-check.
+pub const TRAY_COPY_OUTCOME_EVENT: &str = "tray-copy-outcome";
+
+/// Report one tray copy outcome to the frontend. Never throws the caller's
+/// flow: a failed emit is logged, not propagated.
+fn emit_tray_copy_outcome(app: &AppHandle, ok: bool) {
+    if let Err(err) = app.emit(TRAY_COPY_OUTCOME_EVENT, TrayCopyOutcome { ok }) {
+        error!("Failed to emit {TRAY_COPY_OUTCOME_EVENT}: {err}");
+    }
+}
+
 pub fn copy_last_transcript(app: &AppHandle) {
     // The history query runs on a spawned thread (W1-L8: no synchronous
     // history queries on the UI thread - this handler runs there), with
@@ -1700,6 +1723,7 @@ pub fn copy_last_transcript(app: &AppHandle) {
             Ok(Some(entry)) => entry,
             Ok(None) => {
                 warn!("No completed transcription history entries available for tray copy.");
+                emit_tray_copy_outcome(&handle, false);
                 return;
             }
             Err(err) => {
@@ -1707,6 +1731,7 @@ pub fn copy_last_transcript(app: &AppHandle) {
                     "Failed to fetch last completed transcription entry: {}",
                     err
                 );
+                emit_tray_copy_outcome(&handle, false);
                 return;
             }
         };
@@ -1714,13 +1739,16 @@ pub fn copy_last_transcript(app: &AppHandle) {
         let text = last_transcript_text(&entry).to_string();
         if text.trim().is_empty() {
             warn!("Last completed transcription is empty; skipping tray copy.");
+            emit_tray_copy_outcome(&handle, false);
             return;
         }
         let write_handle = handle.clone();
         let _ = handle.run_on_main_thread(move || {
-            if write_clipboard_on_main(&write_handle, &text) {
+            let ok = write_clipboard_on_main(&write_handle, &text);
+            if ok {
                 info!("Copied last transcript to clipboard via tray.");
             }
+            emit_tray_copy_outcome(&write_handle, ok);
         });
     });
 }
@@ -1741,11 +1769,14 @@ pub fn copy_recent_dictation(app: &AppHandle, entry_id: i64) {
     }) {
         if text.trim().is_empty() {
             warn!("Recent dictation {entry_id} is empty; skipping tray copy.");
+            emit_tray_copy_outcome(app, false);
             return;
         }
-        if write_clipboard_on_main(app, &text) {
+        let ok = write_clipboard_on_main(app, &text);
+        if ok {
             info!("Copied recent dictation {entry_id} to clipboard via tray.");
         }
+        emit_tray_copy_outcome(app, ok);
         return;
     }
 
@@ -1759,19 +1790,26 @@ pub fn copy_recent_dictation(app: &AppHandle, entry_id: i64) {
                 let text = last_transcript_text(&entry).to_string();
                 if text.trim().is_empty() {
                     warn!("Recent dictation {entry_id} is empty; skipping tray copy.");
+                    emit_tray_copy_outcome(&handle, false);
                     return;
                 }
                 let write_handle = handle.clone();
                 let _ = handle.run_on_main_thread(move || {
-                    if write_clipboard_on_main(&write_handle, &text) {
+                    let ok = write_clipboard_on_main(&write_handle, &text);
+                    if ok {
                         info!("Copied recent dictation {entry_id} to clipboard via tray.");
                     }
+                    emit_tray_copy_outcome(&write_handle, ok);
                 });
             }
             Ok(None) => {
-                warn!("Recent dictation {entry_id} no longer exists; skipping tray copy.")
+                warn!("Recent dictation {entry_id} no longer exists; skipping tray copy.");
+                emit_tray_copy_outcome(&handle, false);
             }
-            Err(err) => error!("Failed to fetch recent dictation {entry_id}: {err}"),
+            Err(err) => {
+                error!("Failed to fetch recent dictation {entry_id}: {err}");
+                emit_tray_copy_outcome(&handle, false);
+            }
         }
     });
 }
@@ -1787,7 +1825,8 @@ mod tests {
         recent_dictations_submenu_rows, resolve_model_label_name, status_line_text,
         title_reconciliation, truncate_chars, unload_after_custom_label,
         unload_after_preset_is_active, AppTheme, CompanionMenuStatus, MenuInputs, ModelStatusLine,
-        TitleAction, TrayIconState, RECENT_WORDS_MAX_CHARS, TRAY_TITLE_MAX_CHARS,
+        TitleAction, TrayCopyOutcome, TrayIconState, RECENT_WORDS_MAX_CHARS,
+        TRAY_COPY_OUTCOME_EVENT, TRAY_TITLE_MAX_CHARS,
     };
     use crate::managers::history::HistoryEntry;
     use crate::settings::ModelUnloadTimeout;
@@ -2770,5 +2809,52 @@ mod tests {
             rss: Some("449 MB".to_string()),
         });
         assert_ne!(inputs(), with_pp);
+    }
+    /// KB-087: the tray copy actions report EVERY terminal path through the
+    /// tray-copy-outcome event (the menu itself gives no feedback; the
+    /// frontend listener turns the outcome into the notifications-toggle-
+    /// governed OS notification). The copy fns need a live clipboard and
+    /// history a unit test cannot mount, so the emits are pinned against
+    /// this committed source: exactly one emit per terminal path, counted
+    /// per function - adding a path without an emit (or dropping one) fails
+    /// here. Same convention as the actions.rs stop-pipeline wiring pin.
+    #[test]
+    fn kb087_tray_copy_reports_every_terminal_path() {
+        let source = include_str!("tray.rs");
+        let fn_at = |name: &str| {
+            let at = source
+                .find(name)
+                .unwrap_or_else(|| panic!("{name} must exist in tray.rs"));
+            let rest = &source[at..];
+            let end = rest.find("\n}\n").map(|i| i + 3).unwrap_or(rest.len());
+            &rest[..end]
+        };
+
+        // copy_last_transcript: no entry, fetch error, empty text, and the
+        // clipboard-write outcome = 4 terminal paths.
+        let copy_last = fn_at("pub fn copy_last_transcript(");
+        assert_eq!(
+            copy_last.matches("emit_tray_copy_outcome").count(),
+            4,
+            "copy_last_transcript must report all 4 terminal paths"
+        );
+
+        // copy_recent_dictation: snapshot empty, snapshot write outcome,
+        // fetch empty, fetch write outcome, entry gone, fetch error
+        // = 6 terminal paths.
+        let copy_recent = fn_at("pub fn copy_recent_dictation(");
+        assert_eq!(
+            copy_recent.matches("emit_tray_copy_outcome").count(),
+            6,
+            "copy_recent_dictation must report all 6 terminal paths"
+        );
+
+        // The event name is a wire contract with the App.tsx listener.
+        assert_eq!(TRAY_COPY_OUTCOME_EVENT, "tray-copy-outcome");
+        // The payload serializes to the shape the listener reads.
+        assert_eq!(
+            serde_json::to_value(TrayCopyOutcome { ok: true }).unwrap(),
+            serde_json::json!({ "ok": true })
+        );
     }
 }

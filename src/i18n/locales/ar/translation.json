@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ الاختصارات محجوبة بواسطة Secure Input",
     "postProcessPrompt": "مطالبة ما بعد المعالجة"
   },
+  "trayCopyOutcome": {
+    "copied": "تم نسخ النص إلى الحافظة.",
+    "failed": "تعذّر نسخ النص إلى الحافظة."
+  },
   "sidebar": {
     "general": "عام",
     "commands": "الأوامر",
@@ -586,7 +590,7 @@
       },
       "voiceDeletion": {
         "title": "أوامر الحذف الصوتي",
-        "description": "تحذف \"scratch that\" و\"delete that\" و\"remove that\" الكلمة السابقة، وتحذف \"delete last three words\" عدة كلمات، وتمسح \"delete everything\" أو \"start over\" الإملاء بالكامل. أطفئه لتبقى كلمات عادية."
+        "description": "تحذف \"scratch that\" و\"delete that\" و\"remove that\" الكلمة السابقة، وتحذف \"delete last three words\" عدة كلمات، وتمسح \"delete everything\" أو \"scratch everything\" الإملاء بالكامل. أطفئه لتبقى كلمات عادية."
       },
       "previewBeforePaste": {
         "title": "معاينة قبل اللصق",
@@ -878,6 +882,7 @@
       "empty": "!لا يوجد تفريغ صوتي بعد. ابدأ التسجيل لبناء سجلك",
       "copyToClipboard": "نسخ التفريغ إلى الحافظة",
       "copyError": "تعذر نسخ التفريغ إلى الحافظة.",
+      "savedToggleError": "تعذّر تحديث حالة الحفظ.",
       "save": "حفظ التفريغ",
       "unsave": "إزالة من المحفوظات",
       "delete": "حذف الإدخال",

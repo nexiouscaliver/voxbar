@@ -235,6 +235,16 @@ fn should_use_streaming_overlay(style: OverlayStyle, is_streaming: bool) -> bool
     style == OverlayStyle::Live && is_streaming
 }
 
+/// KB-014: whether the final-preview step has anything to show, and with it
+/// whether the stop pipeline should pay PREVIEW_BEFORE_PASTE_DELAY before
+/// the paste. With `overlay_style = None` both preview branches are no-ops
+/// (`show_final_preview_overlay` returns early and no streaming overlay
+/// window was ever shown), so the 1.2 s wait delayed every paste while
+/// showing nothing. Pure, like `should_use_streaming_overlay`.
+fn preview_worth_waiting_for(style: OverlayStyle, preview_before_paste: bool) -> bool {
+    preview_before_paste && style != OverlayStyle::None
+}
+
 /// What the stop pipeline does when a stream finalize produced no usable
 /// text (`None`, or a blank/whitespace-only string). Extracted so the
 /// decision is unit-testable.
@@ -1848,9 +1858,7 @@ impl ShortcutAction for TranscribeAction {
                         }
                         _ => {
                             let rm_check = Arc::clone(&rm_clone);
-                            Arc::new(move || {
-                                rm_check.is_recording_readiness_current(generation)
-                            })
+                            Arc::new(move || rm_check.is_recording_readiness_current(generation))
                         }
                     };
                 std::thread::spawn(move || {
@@ -1986,9 +1994,7 @@ impl ShortcutAction for TranscribeAction {
                 .clone(),
             (None, CaptureSource::Local) => None,
         };
-        let session_prefs = stopping
-            .map(|(_, _, prefs)| prefs)
-            .unwrap_or_default();
+        let session_prefs = stopping.map(|(_, _, prefs)| prefs).unwrap_or_default();
 
         if let Some(lane) = session_lane {
             if matches!(self.source, CaptureSource::Remote) {
@@ -2044,12 +2050,12 @@ impl ShortcutAction for TranscribeAction {
         // coordinator's Stop effect, before its mirror republishes.
         // v1.6.2 W1-L2: a companion session's override reads from ITS
         // lane's mirror.
-        let session_pp_override = app
-            .try_state::<TranscriptionCoordinator>()
-            .and_then(|c| match session_lane {
-                Some(lane) => c.lane_session_post_process_override(lane),
-                None => c.session_post_process_override(),
-            });
+        let session_pp_override =
+            app.try_state::<TranscriptionCoordinator>()
+                .and_then(|c| match session_lane {
+                    Some(lane) => c.lane_session_post_process_override(lane),
+                    None => c.session_post_process_override(),
+                });
         let post_process = session_runs_post_process(
             self.post_process,
             capture_source,
@@ -2444,7 +2450,19 @@ impl ShortcutAction for TranscribeAction {
                                 // the paste entirely (the loop below polls
                                 // the same cancellation generation the paste
                                 // closure checks).
-                                if get_settings(&ah).preview_before_paste {
+                                //
+                                // KB-014: read the settings CURRENT here
+                                // (mirroring show_final_preview_overlay's
+                                // own overlay-style check): overlay_style
+                                // None makes the preview a no-op, so the
+                                // 1.2 s read delay is skipped - the paste
+                                // lands immediately instead of 1.2 s late
+                                // with nothing shown for it.
+                                let preview_settings = get_settings(&ah);
+                                if preview_worth_waiting_for(
+                                    preview_settings.overlay_style,
+                                    preview_settings.preview_before_paste,
+                                ) {
                                     if use_streaming_overlay {
                                         let _ = StreamTextEvent {
                                             committed: processed.final_text.clone(),
@@ -2851,8 +2869,8 @@ pub static ACTION_MAP: Lazy<HashMap<String, Arc<dyn ShortcutAction>>> = Lazy::ne
 mod tests {
     use super::{
         complete_unless_cancelled, is_blank_transcription, local_engine_availability,
-        post_process_output_schema, should_use_streaming_overlay, strip_think_block,
-        uses_local_engine, TRANSCRIPTION_FIELD,
+        post_process_output_schema, preview_worth_waiting_for, should_use_streaming_overlay,
+        strip_think_block, uses_local_engine, TRANSCRIPTION_FIELD,
     };
     use crate::settings::OverlayStyle;
     use std::future;
@@ -3059,6 +3077,53 @@ mod tests {
         assert!(!should_use_streaming_overlay(OverlayStyle::Live, false));
         assert!(!should_use_streaming_overlay(OverlayStyle::Minimal, true));
         assert!(!should_use_streaming_overlay(OverlayStyle::None, true));
+    }
+
+    /// KB-014 pin: the preview wait only runs when the preview can render.
+    /// The exhaustive overlay-style x toggle table - a None style with the
+    /// toggle ON is the bug's exact configuration (show_final_preview_overlay
+    /// no-ops, yet the 1.2 s delay still ran before every paste).
+    #[test]
+    fn kb014_preview_wait_runs_only_when_something_can_show() {
+        assert!(preview_worth_waiting_for(OverlayStyle::Live, true));
+        assert!(preview_worth_waiting_for(OverlayStyle::Minimal, true));
+        // The bug: overlay off, preview toggle on - nothing to show, so no
+        // delay.
+        assert!(!preview_worth_waiting_for(OverlayStyle::None, true));
+        // Toggle off: no preview step at all, in any style.
+        assert!(!preview_worth_waiting_for(OverlayStyle::Live, false));
+        assert!(!preview_worth_waiting_for(OverlayStyle::Minimal, false));
+        assert!(!preview_worth_waiting_for(OverlayStyle::None, false));
+    }
+
+    /// KB-014 wiring pin: the stop pipeline's preview block must gate on
+    /// `preview_worth_waiting_for` (the overlay-style-aware decision), not
+    /// on `preview_before_paste` alone. The pipeline needs a full app a unit
+    /// test cannot mount, so the call is pinned against this committed
+    /// source - the same convention as the v1.6.0 companion wiring pin.
+    #[test]
+    fn kb014_stop_pipeline_gates_the_preview_wait_on_the_overlay_style() {
+        let source = include_str!("actions.rs");
+        let impl_at = source
+            .find("impl ShortcutAction for TranscribeAction")
+            .expect("the TranscribeAction impl");
+        let stop_at = impl_at + source[impl_at..].find("fn stop(").expect("its stop fn");
+        let end_at = stop_at
+            + source[stop_at..]
+                .find("\n// Cancel Action")
+                .expect("the end of the impl");
+        let stop_body = &source[stop_at..end_at];
+
+        assert!(
+            stop_body.contains("preview_worth_waiting_for("),
+            "the preview wait must go through the overlay-style-aware gate"
+        );
+        // ...and the raw toggle-only condition that burned the full delay
+        // with nothing to show is gone from the pipeline.
+        assert!(
+            !stop_body.contains("if get_settings(&ah).preview_before_paste {"),
+            "the preview block must not gate on preview_before_paste alone"
+        );
     }
 
     /// The finalize-outcome x unload-timeout decision table: batch stays the

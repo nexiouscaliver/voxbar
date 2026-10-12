@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Zkratky blokuje Secure Input",
     "postProcessPrompt": "Prompt následného zpracování"
   },
+  "trayCopyOutcome": {
+    "copied": "Přepis byl zkopírován do schránky.",
+    "failed": "Přepis se nepodařilo zkopírovat do schránky."
+  },
   "sidebar": {
     "general": "Obecné",
     "commands": "Příkazy",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Hlasové příkazy pro mazání",
-        "description": "\"scratch that\", \"delete that\" a \"remove that\" smažou předchozí slovo, \"delete last three words\" smaže více slov a \"delete everything\" nebo \"start over\" vymaže celý přepis. Vypněte, aby zůstaly běžnými slovy."
+        "description": "\"scratch that\", \"delete that\" a \"remove that\" smažou předchozí slovo, \"delete last three words\" smaže více slov a \"delete everything\" nebo \"scratch everything\" vymaže celý přepis. Vypněte, aby zůstaly běžnými slovy."
       },
       "previewBeforePaste": {
         "title": "Náhled před vložením",
@@ -930,6 +934,7 @@
       "empty": "Zatím žádné přepisy. Začněte nahrávat a vytvořte si historii!",
       "copyToClipboard": "Kopírovat přepis do schránky",
       "copyError": "Přepis se nepodařilo zkopírovat do schránky.",
+      "savedToggleError": "Nepodařilo se aktualizovat stav uložení.",
       "save": "Uložit přepis",
       "unsave": "Odebrat z uložených",
       "delete": "Smazat záznam",

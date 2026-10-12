@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Сочетания клавиш заблокированы Secure Input",
     "postProcessPrompt": "Запрос постобработки"
   },
+  "trayCopyOutcome": {
+    "copied": "Диктовка скопирована в буфер обмена.",
+    "failed": "Не удалось скопировать диктовку в буфер обмена."
+  },
   "sidebar": {
     "general": "Общие",
     "commands": "Команды",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Голосовые команды удаления",
-        "description": "\"scratch that\", \"delete that\" и \"remove that\" удаляют предыдущее слово, \"delete last three words\" удаляет несколько, а \"delete everything\" или \"start over\" очищает диктовку. Отключите, чтобы оставить их обычными словами."
+        "description": "\"scratch that\", \"delete that\" и \"remove that\" удаляют предыдущее слово, \"delete last three words\" удаляет несколько, а \"delete everything\" или \"scratch everything\" очищает диктовку. Отключите, чтобы оставить их обычными словами."
       },
       "previewBeforePaste": {
         "title": "Предпросмотр перед вставкой",
@@ -930,6 +934,7 @@
       "empty": "Транскрипций пока нет. Начните запись, чтобы создать свою историю!",
       "copyToClipboard": "Скопировать транскрипцию в буфер обмена",
       "copyError": "Не удалось скопировать транскрипцию в буфер обмена.",
+      "savedToggleError": "Не удалось обновить статус сохранения.",
       "save": "Сохранить транскрипцию",
       "unsave": "Удалить из сохраненных",
       "delete": "Удалить запись",

@@ -1,6 +1,24 @@
 @import "tailwindcss";
 @import "./styles/theme.css";
 
+/* KB-090: `dark:` follows the APP theme, not the OS. Tailwind's default
+   dark variant keys on prefers-color-scheme alone, so every dark: utility
+   (the debug tables' level accents, the onboarding checkmarks) kept the
+   OS palette after the user forced the other one in settings. This variant
+   mirrors the token resolution theme.css performs: dark when data-theme is
+   forced to dark, or when no explicit light override exists and the OS
+   prefers dark. */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:not([data-theme="light"], [data-theme="light"] *)) {
+      @slot;
+    }
+  }
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+}
+
 /* Register the shared color tokens (src/styles/theme.css) as Tailwind
    utilities */
 @theme inline {
@@ -76,11 +94,18 @@ body {
   font-size: 15px;
 }
 
+/* KB-090: the log console surface follows the app theme for the same reason
+   as the dark variant above - the old media-query-only override left the
+   console dark while its text tokens went light (forced-light on a dark OS)
+   or the reverse. Same resolution: forced themes win, otherwise the OS. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     /* Just a bit darker than the (already dark) background, keeping its warm tint */
     --color-log-surface: color-mix(in srgb, var(--color-background), black 15%);
   }
+}
+:root[data-theme="dark"] {
+  --color-log-surface: color-mix(in srgb, var(--color-background), black 15%);
 }
 
 /* Keep onboarding centered when classic scrollbars consume layout space.

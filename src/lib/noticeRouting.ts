@@ -375,3 +375,18 @@ export function noticeClickSection(
 ): NoticeClickSection {
   return click.target === "history" ? "history" : "notifications";
 }
+
+// KB-087: the tray copy actions' outcome dispatch. The tray menu itself
+// gives no feedback (it closes and nothing further happens on any
+// surface), so the Rust side emits one tray-copy-outcome event per copy
+// attempt and App.tsx consults THIS decision before posting the OS
+// notification: only while the notifications master toggle is on, the same
+// gate the persistent surface honors. Delivery still funnels through
+// notifyDesktop, whose live window-visibility query keeps a frontmost
+// main window un-spammed (the tray click happens with the window hidden,
+// which is exactly when the banner earns its place).
+export function trayCopyOutcomeDispatch(prefs: OsNotificationPrefs): {
+  notify: boolean;
+} {
+  return { notify: prefs.enabled };
+}

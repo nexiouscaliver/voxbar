@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Phím tắt bị Secure Input chặn",
     "postProcessPrompt": "Câu lệnh hậu xử lý"
   },
+  "trayCopyOutcome": {
+    "copied": "Đã sao chép bản đọc vào bộ nhớ tạm.",
+    "failed": "Không thể sao chép bản đọc vào bộ nhớ tạm."
+  },
   "sidebar": {
     "general": "Chung",
     "commands": "Lệnh",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Lệnh xóa bằng giọng nói",
-        "description": "\"scratch that\", \"delete that\" và \"remove that\" xóa từ liền trước, \"delete last three words\" xóa nhiều từ, còn \"delete everything\" hoặc \"start over\" xóa toàn bộ bản đọc. Tắt để giữ chúng là từ thường."
+        "description": "\"scratch that\", \"delete that\" và \"remove that\" xóa từ liền trước, \"delete last three words\" xóa nhiều từ, còn \"delete everything\" hoặc \"scratch everything\" xóa toàn bộ bản đọc. Tắt để giữ chúng là từ thường."
       },
       "previewBeforePaste": {
         "title": "Xem trước trước khi dán",
@@ -926,6 +930,7 @@
       "empty": "Chưa có bản ghi nào. Bắt đầu ghi âm để xây dựng lịch sử của bạn!",
       "copyToClipboard": "Sao chép bản ghi vào clipboard",
       "copyError": "Không thể sao chép bản ghi vào bộ nhớ tạm.",
+      "savedToggleError": "Không thể cập nhật trạng thái đã lưu.",
       "save": "Lưu bản ghi",
       "unsave": "Xóa khỏi đã lưu",
       "delete": "Xóa mục",

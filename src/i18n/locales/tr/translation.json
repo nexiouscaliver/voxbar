@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Kısayollar Secure Input tarafından engelleniyor",
     "postProcessPrompt": "Son işlem promptu"
   },
+  "trayCopyOutcome": {
+    "copied": "Dikte panoya kopyalandı.",
+    "failed": "Dikte panoya kopyalanamadı."
+  },
   "sidebar": {
     "general": "Genel",
     "commands": "Komutlar",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Sesli silme komutları",
-        "description": "\"scratch that\", \"delete that\" ve \"remove that\" önceki kelimeyi siler, \"delete last three words\" birkaç kelimeyi siler, \"delete everything\" veya \"start over\" dikteyi temizler. Sıradan kelime olarak bırakmak için kapatın."
+        "description": "\"scratch that\", \"delete that\" ve \"remove that\" önceki kelimeyi siler, \"delete last three words\" birkaç kelimeyi siler, \"delete everything\" veya \"scratch everything\" dikteyi temizler. Sıradan kelime olarak bırakmak için kapatın."
       },
       "previewBeforePaste": {
         "title": "Yapıştırmadan önce önizleme",
@@ -926,6 +930,7 @@
       "empty": "Henüz transkripsiyon yok. Geçmişinizi oluşturmak için kayda başlayın!",
       "copyToClipboard": "Transkripsiyonu panoya kopyala",
       "copyError": "Transkripsiyon panoya kopyalanamadı.",
+      "savedToggleError": "Kayıt durumu güncellenemedi.",
       "save": "Transkripsiyonu kaydet",
       "unsave": "Kaydedilenlerden kaldır",
       "delete": "Kaydı sil",

@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Бързите клавиши са блокирани от Secure Input",
     "postProcessPrompt": "Подкан за последваща обработка"
   },
+  "trayCopyOutcome": {
+    "copied": "Транскрипцията е копирана в клипборда.",
+    "failed": "Транскрипцията не можа да бъде копирана в клипборда."
+  },
   "sidebar": {
     "general": "Общи",
     "commands": "Команди",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Гласови команди за изтриване",
-        "description": "\"scratch that\", \"delete that\" и \"remove that\" изтриват предишната дума, \"delete last three words\" изтрива няколко, а \"delete everything\" или \"start over\" изчиства цялата диктовка. Изключете, за да останат обикновени думи."
+        "description": "\"scratch that\", \"delete that\" и \"remove that\" изтриват предишната дума, \"delete last three words\" изтрива няколко, а \"delete everything\" или \"scratch everything\" изчиства цялата диктовка. Изключете, за да останат обикновени думи."
       },
       "previewBeforePaste": {
         "title": "Преглед преди поставяне",
@@ -926,6 +930,7 @@
       "empty": "Все още няма транскрипции. Започнете запис, за да изградите история!",
       "copyToClipboard": "Копиране на транскрипцията в клипборда",
       "copyError": "Транскрипцията не бе копирана в клипборда.",
+      "savedToggleError": "Неуспешно обновяване на състоянието на записаното.",
       "save": "Запазване на транскрипцията",
       "unsave": "Премахване от запазените",
       "delete": "Изтриване на записа",

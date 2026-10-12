@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Kortkommandon blockeras av Secure Input",
     "postProcessPrompt": "Efterbearbetningsprompt"
   },
+  "trayCopyOutcome": {
+    "copied": "Dikteringen har kopierats till urklippet.",
+    "failed": "Kunde inte kopiera dikteringen till urklippet."
+  },
   "sidebar": {
     "general": "Allmänt",
     "commands": "Kommandon",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Röstkommandon för borttagning",
-        "description": "\"scratch that\", \"delete that\" och \"remove that\" tar bort föregående ord, \"delete last three words\" tar bort flera, och \"delete everything\" eller \"start over\" rensar dikteringen. Stäng av för att behålla dem som vanliga ord."
+        "description": "\"scratch that\", \"delete that\" och \"remove that\" tar bort föregående ord, \"delete last three words\" tar bort flera, och \"delete everything\" eller \"scratch everything\" rensar dikteringen. Stäng av för att behålla dem som vanliga ord."
       },
       "previewBeforePaste": {
         "title": "Förhandsvisning före inklistring",
@@ -926,6 +930,7 @@
       "empty": "Inga transkriptioner ännu. Börja spela in för att bygga upp din historik!",
       "copyToClipboard": "Kopiera transkription till urklipp",
       "copyError": "Det gick inte att kopiera transkriptionen till urklipp.",
+      "savedToggleError": "Kunde inte uppdatera sparadestatus.",
       "save": "Spara transkription",
       "unsave": "Ta bort från sparade",
       "delete": "Ta bort post",

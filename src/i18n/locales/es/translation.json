@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Atajos bloqueados por Secure Input",
     "postProcessPrompt": "Prompt de posprocesado"
   },
+  "trayCopyOutcome": {
+    "copied": "El dictado se copió al portapapeles.",
+    "failed": "No se pudo copiar el dictado al portapapeles."
+  },
   "sidebar": {
     "general": "General",
     "commands": "Comandos",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Comandos de borrado por voz",
-        "description": "\"scratch that\", \"delete that\" y \"remove that\" borran la palabra anterior, \"delete last three words\" borra varias, y \"delete everything\" o \"start over\" borra el dictado. Desactívalo para mantenerlas como palabras normales."
+        "description": "\"scratch that\", \"delete that\" y \"remove that\" borran la palabra anterior, \"delete last three words\" borra varias, y \"delete everything\" o \"scratch everything\" borra el dictado. Desactívalo para mantenerlas como palabras normales."
       },
       "previewBeforePaste": {
         "title": "Vista previa antes de pegar",
@@ -926,6 +930,7 @@
       "empty": "Aún no hay transcripciones. ¡Comienza a grabar para crear tu historial!",
       "copyToClipboard": "Copiar transcripción al portapapeles",
       "copyError": "No se pudo copiar la transcripción al portapapeles.",
+      "savedToggleError": "No se pudo actualizar el estado de guardado.",
       "save": "Guardar transcripción",
       "unsave": "Eliminar de guardados",
       "delete": "Eliminar entrada",

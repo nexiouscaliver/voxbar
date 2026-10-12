@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ 快捷键被 Secure Input 阻止",
     "postProcessPrompt": "后处理提示词"
   },
+  "trayCopyOutcome": {
+    "copied": "已将听写文本复制到剪贴板。",
+    "failed": "无法将听写文本复制到剪贴板。"
+  },
   "sidebar": {
     "general": "通用",
     "commands": "命令",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "语音删除命令",
-        "description": "\"scratch that\"、\"delete that\"、\"remove that\" 删除上一个词，\"delete last three words\" 删除多个词，\"delete everything\" 或 \"start over\" 清空整段听写。关闭后保留为普通文字。"
+        "description": "\"scratch that\"、\"delete that\"、\"remove that\" 删除上一个词，\"delete last three words\" 删除多个词，\"delete everything\" 或 \"scratch everything\" 清空整段听写。关闭后保留为普通文字。"
       },
       "previewBeforePaste": {
         "title": "粘贴前预览",
@@ -926,6 +930,7 @@
       "empty": "还没有转录记录。开始录制以建立您的历史记录！",
       "copyToClipboard": "复制转录到剪贴板",
       "copyError": "无法将转录复制到剪贴板。",
+      "savedToggleError": "无法更新保存状态。",
       "save": "保存转录",
       "unsave": "从已保存中移除",
       "delete": "删除条目",

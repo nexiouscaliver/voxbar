@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ 快捷鍵被 Secure Input 阻擋",
     "postProcessPrompt": "後處理提示詞"
   },
+  "trayCopyOutcome": {
+    "copied": "已將聽寫文字複製到剪貼板。",
+    "failed": "無法將聽寫文字複製到剪貼板。"
+  },
   "sidebar": {
     "general": "一般",
     "commands": "命令",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "語音刪除命令",
-        "description": "\"scratch that\"、\"delete that\"、\"remove that\" 刪除上一個詞，\"delete last three words\" 刪除多個詞，\"delete everything\" 或 \"start over\" 清空整段聽寫。關閉後保留為一般文字。"
+        "description": "\"scratch that\"、\"delete that\"、\"remove that\" 刪除上一個詞，\"delete last three words\" 刪除多個詞，\"delete everything\" 或 \"scratch everything\" 清空整段聽寫。關閉後保留為一般文字。"
       },
       "previewBeforePaste": {
         "title": "貼上前預覽",
@@ -926,6 +930,7 @@
       "empty": "還沒有轉錄紀錄。開始錄製以建立您的歷史紀錄！",
       "copyToClipboard": "複製轉錄到剪貼簿",
       "copyError": "無法將轉錄複製到剪貼簿。",
+      "savedToggleError": "無法更新儲存狀態。",
       "save": "儲存轉錄",
       "unsave": "從已儲存中移除",
       "delete": "刪除條目",

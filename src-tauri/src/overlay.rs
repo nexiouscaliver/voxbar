@@ -751,13 +751,30 @@ const ERROR_READ_DELAY: std::time::Duration = std::time::Duration::from_millis(2
 
 /// Hide the overlay after the error-read delay instead of immediately: the
 /// failure path has just put a notice on the card, and yanking the card
-/// 300 ms later would make the notice unreadable. The eventual hide reuses
-/// [`hide_recording_overlay`], so the show-generation guard cancels it when
-/// a newer session shows the overlay in the meantime.
+/// 300 ms later would make the notice unreadable.
+///
+/// KB-105: the show-generation snapshot is taken HERE, at ERROR time,
+/// BEFORE the read delay - not inside [`hide_recording_overlay`] after the
+/// sleep. Snapshotting late meant a session that started during the 2.6 s
+/// read window bumped the generation and then the delayed hide snapshotted
+/// the NEW generation, considered itself current, and tore down the new
+/// session's card the moment its own 300 ms fade elapsed. The early
+/// snapshot makes any post-error show invalidate this hide (the re-check
+/// below), so the read window can only ever retire the card it was armed
+/// for; [`hide_recording_overlay`] still keeps its own inner snapshot for
+/// the 300 ms tail, so a show landing between the re-check and the fade is
+/// covered too.
 pub fn hide_recording_overlay_after_error(app_handle: &AppHandle) {
+    let scheduled_at = OVERLAY_SHOW_GENERATION.load(Ordering::SeqCst);
     let handle = app_handle.clone();
     std::thread::spawn(move || {
         std::thread::sleep(ERROR_READ_DELAY);
+        if OVERLAY_SHOW_GENERATION.load(Ordering::SeqCst) != scheduled_at {
+            log::debug!(
+                "Skipping stale error overlay hide: a newer session is showing the overlay"
+            );
+            return;
+        }
         hide_recording_overlay(&handle);
     });
 }
@@ -840,6 +857,53 @@ pub fn emit_levels(app_handle: &AppHandle, levels: &[f32]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// KB-105 sequencing pin: inside `hide_recording_overlay_after_error`,
+    /// the OVERLAY_SHOW_GENERATION snapshot MUST be taken before the
+    /// ERROR_READ_DELAY sleep (at error time), and the generation must be
+    /// re-checked after the sleep before the hide fires. Snapshotting late
+    /// (the pre-fix shape: a bare sleep then
+    /// `hide_recording_overlay`, whose own snapshot lands post-sleep) armed
+    /// the hide against whatever session showed DURING the 2.6 s read
+    /// window, killing the next session's card. The race needs a live
+    /// overlay window a unit test cannot mount, so the ordering is pinned
+    /// against this committed source - the same convention as the
+    /// persistent_notice authorization-gate pin.
+    #[test]
+    fn kb105_error_hide_snapshots_the_generation_before_the_read_delay() {
+        let source = include_str!("overlay.rs");
+        let at = source
+            .find("pub fn hide_recording_overlay_after_error")
+            .expect("hide_recording_overlay_after_error");
+        let end = at
+            + source[at..]
+                .find("// Cached \"overlay is enabled\" flag")
+                .expect("the next item after the error hide");
+        let body = &source[at..end];
+
+        let snapshot = body
+            .find("OVERLAY_SHOW_GENERATION.load")
+            .expect("the error hide snapshots the show generation");
+        let sleep = body
+            .find("std::thread::sleep(ERROR_READ_DELAY)")
+            .expect("the error read delay sleep");
+        assert!(
+            snapshot < sleep,
+            "the generation snapshot must be taken at ERROR time, before the read delay sleep"
+        );
+
+        // The post-sleep re-check must precede the actual hide call.
+        let recheck = body
+            .find("if OVERLAY_SHOW_GENERATION.load(Ordering::SeqCst) != scheduled_at")
+            .expect("the post-sleep staleness re-check");
+        let hide = body
+            .find("hide_recording_overlay(&handle)")
+            .expect("the eventual hide");
+        assert!(
+            recheck < hide,
+            "the staleness re-check must gate the hide call"
+        );
+    }
 
     #[test]
     fn monitor_hit_test_uses_half_open_physical_bounds() {

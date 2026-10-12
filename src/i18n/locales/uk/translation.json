@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Комбінації клавіш заблоковано Secure Input",
     "postProcessPrompt": "Промпт постобробки"
   },
+  "trayCopyOutcome": {
+    "copied": "Диктування скопійовано в буфер обміну.",
+    "failed": "Не вдалося скопіювати диктування в буфер обміну."
+  },
   "sidebar": {
     "general": "Загальні",
     "commands": "Команди",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Голосові команди видалення",
-        "description": "\"scratch that\", \"delete that\" і \"remove that\" видаляють попереднє слово, \"delete last three words\" видаляє кілька, а \"delete everything\" або \"start over\" очищає диктування. Вимкніть, щоб залишити їх звичайними словами."
+        "description": "\"scratch that\", \"delete that\" і \"remove that\" видаляють попереднє слово, \"delete last three words\" видаляє кілька, а \"delete everything\" або \"scratch everything\" очищає диктування. Вимкніть, щоб залишити їх звичайними словами."
       },
       "previewBeforePaste": {
         "title": "Попередній перегляд перед вставленням",
@@ -930,6 +934,7 @@
       "empty": "Транскрипцій поки немає. Почніть запис, щоб створити історію!",
       "copyToClipboard": "Копіювати транскрипцію в буфер обміну",
       "copyError": "Не вдалося скопіювати транскрипцію в буфер обміну.",
+      "savedToggleError": "Не вдалося оновити стан збереження.",
       "save": "Зберегти транскрипцію",
       "unsave": "Видалити зі збережених",
       "delete": "Видалити запис",

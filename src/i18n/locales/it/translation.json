@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Scorciatoie bloccate da Secure Input",
     "postProcessPrompt": "Prompt di post-elaborazione"
   },
+  "trayCopyOutcome": {
+    "copied": "La dettatura è stata copiata negli appunti.",
+    "failed": "Impossibile copiare la dettatura negli appunti."
+  },
   "sidebar": {
     "general": "Generale",
     "commands": "Comandi",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Comandi di eliminazione vocale",
-        "description": "\"scratch that\", \"delete that\" e \"remove that\" eliminano la parola precedente, \"delete last three words\" ne elimina diverse, e \"delete everything\" o \"start over\" cancella la dettatura. Disattiva per mantenerle come parole normali."
+        "description": "\"scratch that\", \"delete that\" e \"remove that\" eliminano la parola precedente, \"delete last three words\" ne elimina diverse, e \"delete everything\" o \"scratch everything\" cancella la dettatura. Disattiva per mantenerle come parole normali."
       },
       "previewBeforePaste": {
         "title": "Anteprima prima di incollare",
@@ -926,6 +930,7 @@
       "empty": "Non ci sono ancora trascrizioni. Comincia a registrare per costruire la tua cronologia!",
       "copyToClipboard": "Copia la trascrizione negli appunti",
       "copyError": "Impossibile copiare la trascrizione negli appunti.",
+      "savedToggleError": "Impossibile aggiornare lo stato salvato.",
       "save": "Salva la trascrizione",
       "unsave": "Rimuovi dai salvataggi",
       "delete": "Elimina elemento",

@@ -356,11 +356,32 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
     }
   };
 
-  const handleCheckAgain = () => {
+  // KB-091: Check Again answers with the permission's CURRENT state, not a
+  // fresh 60s waiting spinner. The poller never stopped while the mic card
+  // shows the denied guidance, so a new wait can only add dead time; and the
+  // deadline that produced the guidance must not be re-armed, or a second
+  // minute of spinner replaces the still-denied answer the click asked for.
+  // A grant is acted on immediately; a denial keeps the guidance on screen.
+  const handleCheckAgain = async () => {
     if (preview) return;
-    setPermissions((prev) => ({ ...prev, microphone: "waiting" }));
-    startMicDeadline();
+    // Restart the poller only if it died (the consecutive-error stop): a
+    // live poller makes this a no-op, and a live poller plus this immediate
+    // check covers both the System-Settings flip and the race where the
+    // grant landed between the deadline firing and this click.
     startPolling();
+    try {
+      const granted = isWindows
+        ? await hasWindowsMicrophoneAccess()
+        : await checkMicrophonePermission();
+      if (granted) {
+        setPermissions((prev) => ({ ...prev, microphone: "granted" }));
+      }
+      // Still denied: micDeadline stays elapsed (micDenied true), so the
+      // card keeps the open-settings guidance - the immediate answer.
+    } catch (error) {
+      console.error("Failed to re-check microphone permission:", error);
+      toast.error(t("onboarding.permissions.errors.checkFailed"));
+    }
   };
 
   const isChecking =
@@ -386,7 +407,10 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center gap-4">
         <div className="p-4 rounded-full bg-emerald-500/20">
-          <Check className="w-12 h-12 text-emerald-400" />
+          {/* KB-091: emerald-600 in light theme (the 400 shade fails 4.5:1 on
+              the near-white background), emerald-400 in dark - the same pair
+              the debug tables use. */}
+          <Check className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
         </div>
         <p className="text-lg font-medium text-text">
           {t("onboarding.permissions.allGranted")}
@@ -436,7 +460,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                   {t("onboarding.permissions.microphone.description")}
                 </p>
                 {permissions.microphone === "granted" ? (
-                  <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm">
                     <Check className="w-4 h-4" />
                     {t("onboarding.permissions.granted")}
                   </div>
@@ -448,7 +472,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                     <div className="flex flex-wrap gap-2">
                       <button
                         onClick={handleOpenMicSettings}
-                        className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-white text-sm font-medium transition-colors"
+                        className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-accent-on text-sm font-medium transition-colors"
                       >
                         {t("onboarding.permissions.microphone.openSettings")}
                       </button>
@@ -468,7 +492,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                 ) : (
                   <button
                     onClick={handleGrantMicrophone}
-                    className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-white text-sm font-medium transition-colors"
+                    className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-accent-on text-sm font-medium transition-colors"
                   >
                     {isWindows
                       ? t("accessibility.openSettings")
@@ -496,7 +520,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                   {t("onboarding.permissions.accessibility.description")}
                 </p>
                 {permissions.accessibility === "granted" ? (
-                  <div className="flex items-center gap-2 text-emerald-400 text-sm">
+                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm">
                     <Check className="w-4 h-4" />
                     {t("onboarding.permissions.granted")}
                   </div>
@@ -508,7 +532,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                 ) : (
                   <button
                     onClick={handleGrantAccessibility}
-                    className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-white text-sm font-medium transition-colors"
+                    className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-accent-on text-sm font-medium transition-colors"
                   >
                     {t("onboarding.permissions.grant")}
                   </button>

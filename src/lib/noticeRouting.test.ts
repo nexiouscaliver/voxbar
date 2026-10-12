@@ -421,4 +421,38 @@ assert.deepEqual(
   "ROUTED_NOTICE_CODES must be exactly the 18 non-unrouted codes (12 pre-AUD-02 + model_fallback, post_process_download_missing, post_process_too_long, companion_server_failed + round 7's post_process_not_configured and post_process_unchanged)",
 );
 
+// KB-087: tray copy outcomes notify only while the notifications master
+// toggle is on. The outcome group sub-toggle is deliberately NOT consulted:
+// a copy confirmation is neither an error nor a phone-session outcome, and
+// the master toggle is the one the tray user turned on or off.
+{
+  const { trayCopyOutcomeDispatch } = routing as unknown as {
+    trayCopyOutcomeDispatch: (prefs: {
+      enabled: boolean;
+      outcomes: boolean;
+    }) => { notify: boolean };
+  };
+  assert.deepEqual(trayCopyOutcomeDispatch({ enabled: true, outcomes: true }), {
+    notify: true,
+  });
+  assert.deepEqual(
+    trayCopyOutcomeDispatch({ enabled: true, outcomes: false }),
+    {
+      notify: true,
+    },
+  );
+  assert.deepEqual(
+    trayCopyOutcomeDispatch({ enabled: false, outcomes: true }),
+    {
+      notify: false,
+    },
+  );
+  assert.deepEqual(
+    trayCopyOutcomeDispatch({ enabled: false, outcomes: false }),
+    {
+      notify: false,
+    },
+  );
+}
+
 console.log("noticeRouting tests passed");

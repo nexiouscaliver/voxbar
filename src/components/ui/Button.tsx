@@ -23,8 +23,11 @@ export const Button: React.FC<ButtonProps> = ({
     "font-medium rounded-lg border focus:outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer";
 
   const variantClasses = {
+    // KB-032: the label pairs with the fill through the accent-on token; a
+    // hardcoded white label vanishes on the light accent fills accent.ts
+    // ships (white/gray/red/orange/amber dark fills).
     primary:
-      "text-white bg-background-ui border-background-ui hover:bg-background-ui/80 hover:border-background-ui/80 focus:ring-1 focus:ring-background-ui",
+      "text-accent-on bg-background-ui border-background-ui hover:bg-background-ui/80 hover:border-background-ui/80 focus:ring-1 focus:ring-background-ui",
     "primary-soft":
       "text-text bg-logo-primary/20 border-transparent hover:bg-logo-primary/30 focus:ring-1 focus:ring-logo-primary",
     secondary:

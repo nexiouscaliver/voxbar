@@ -51,6 +51,7 @@ import {
   noticeClickSection,
   noticeClickTarget,
   planNoticeDispatch,
+  trayCopyOutcomeDispatch,
 } from "@/lib/noticeRouting";
 import {
   attachNativeNoticeClickSource,
@@ -176,6 +177,11 @@ function App() {
   // Handle keyboard shortcuts for debug mode toggle
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // KB-088: a held chord auto-repeats in some environments (terminal
+      // focus, remote-desktop keyboards); every repeat re-toggled debug
+      // mode, so holding the keys flickered the whole Debug section on and
+      // off. Only the initial press toggles.
+      if (event.repeat) return;
       // Check for Ctrl+Shift+D (Windows/Linux) or Cmd+Shift+D (macOS)
       const isDebugShortcut =
         event.shiftKey &&
@@ -254,6 +260,28 @@ function App() {
       toast.error(t("errors.transcriptionFailedTitle"), {
         description: event.payload,
       });
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [t]);
+
+  // KB-087: tray copy outcomes (Copy Last Transcript and the Recent
+  // Dictations rows) report through this event because the tray menu gives
+  // no feedback of its own - the menu closes and nothing else happens on
+  // any surface. The outcome becomes an OS notification, gated on the
+  // notifications master toggle (trayCopyOutcomeDispatch); notifyDesktop's
+  // own live-visibility query then keeps a frontmost main window quiet,
+  // which is right: the banner earns its place exactly when the window is
+  // hidden and the tray was the reachable surface.
+  useEffect(() => {
+    const unlisten = listen<{ ok: boolean }>("tray-copy-outcome", (event) => {
+      if (!trayCopyOutcomeDispatch(getOsNotificationPrefs()).notify) return;
+      void notifyDesktop(
+        event.payload?.ok
+          ? t("trayCopyOutcome.copied")
+          : t("trayCopyOutcome.failed"),
+      );
     });
     return () => {
       unlisten.then((fn) => fn());
@@ -793,14 +821,21 @@ function App() {
           {/* Scrollable content area */}
           <div className="flex-1 flex flex-col overflow-hidden">
             <div ref={settingsScrollRef} className="flex-1 overflow-y-auto">
-              <div className="flex flex-col items-center p-4 gap-4">
-                <AccessibilityPermissions />
-                <SecureInputWarning />
-                {/* Settings-wide search sits above the tab content; picking a
-                    match jumps to the section that owns the setting. */}
-                <SettingsSearch onSelect={setCurrentSection} />
-                {renderSettingsContent(currentSection, setOnboardingPreview)}
-              </div>
+              {/* KB-093: one render throw inside any settings tab must not
+                  blank the whole app. The boundary renders nothing on
+                  failure (the WhatsNewGate precedent), so the sidebar and
+                  footer survive and the user can still switch sections or
+                  use the tray while the tab is fixed. */}
+              <ErrorBoundary context="Settings">
+                <div className="flex flex-col items-center p-4 gap-4">
+                  <AccessibilityPermissions />
+                  <SecureInputWarning />
+                  {/* Settings-wide search sits above the tab content; picking a
+                      match jumps to the section that owns the setting. */}
+                  <SettingsSearch onSelect={setCurrentSection} />
+                  {renderSettingsContent(currentSection, setOnboardingPreview)}
+                </div>
+              </ErrorBoundary>
             </div>
           </div>
         </div>

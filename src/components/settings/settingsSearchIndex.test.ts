@@ -93,4 +93,53 @@ assert.ok(
   'searching "accent" must reach the About section',
 );
 
+// KB-144: entries whose rows render only inside Advanced's experimental
+// group must carry requiresExperimental, so SettingsSearch drops them while
+// experimental_enabled is off (a hit that jumps to a row that does not
+// render is a dead result). Exhaustive by explicit list: the gated set is
+// exactly the experimental group's rows (AdvancedSettings renders that
+// whole SettingsGroup behind the flag) - a row moving in or out of the
+// group fails here until its entry's gate moves with it.
+const gated = SEARCH_INDEX.filter((entry) => entry.requiresExperimental);
+assert.deepEqual(
+  gated.map((entry) => entry.key).sort(),
+  [
+    "settings.advanced.groups.experimental",
+    "settings.debug.keyboardImplementation.title",
+    "settings.advanced.acceleration.ort.title",
+    "settings.advanced.acceleration.transcribe.title",
+    "settings.advanced.lazyStreamClose.label",
+    "settings.advanced.vadBackend.title",
+    // Companion Devices lives in the same experimental group
+    // (CompanionDevices.tsx's ToggleSwitch label key) and was previously
+    // missing from the index entirely.
+    "settings.advanced.companionDevices.label",
+  ].sort(),
+  "the experimental-gated search entries must be exactly the experimental group's rows",
+);
+
+// The always-rendering Advanced siblings must NOT be gated: the post-process
+// on-ramp toggle renders unconditionally (AdvancedSettings promotes it out
+// of the experimental group), and the ExperimentalToggle itself must stay
+// reachable by search or a default-config user could never turn the group
+// on (the same reason the sidebar keeps the toggle visible).
+for (const alwaysVisible of [
+  "settings.debug.postProcessingToggle.label",
+  "settings.advanced.experimentalToggle.label",
+]) {
+  const entry = SEARCH_INDEX.find((e) => e.key === alwaysVisible);
+  assert.ok(entry, `${alwaysVisible} must stay indexed`);
+  assert.ok(
+    !entry?.requiresExperimental,
+    `${alwaysVisible} renders outside the experimental group and must not be gated`,
+  );
+}
+
+// The companion entry resolves to a real English label users can match.
+assert.match(
+  String(resolveEn("settings.advanced.companionDevices.label")),
+  /companion/i,
+  "settings.advanced.companionDevices.label must resolve to an English label containing 'companion'",
+);
+
 console.log("settingsSearchIndex tests passed");

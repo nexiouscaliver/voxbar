@@ -43,4 +43,46 @@ assert.equal(
   `KB-187: no className may use bg-white/5, invisible on the light theme (found ${whiteTintClasses})`,
 );
 
+/* ---- KB-091 pins ---- */
+
+// Check Again must answer with the permission's CURRENT state, never re-arm
+// the 60s waiting spinner: the deadline that produced the denied guidance
+// stays elapsed, so a still-denied answer keeps the guidance on screen
+// (handleCheckAgain neither sets microphone to "waiting" nor calls
+// startMicDeadline), and an immediate permission query decides.
+const checkAgainAt = onboardingSrc.indexOf("const handleCheckAgain");
+assert.ok(checkAgainAt >= 0, "handleCheckAgain must exist");
+const checkAgainEnd = onboardingSrc.indexOf("};", checkAgainAt) + 2;
+const checkAgain = onboardingSrc.slice(checkAgainAt, checkAgainEnd);
+assert.ok(
+  !checkAgain.includes("startMicDeadline"),
+  "KB-091: Check Again must not re-arm the 60s denial deadline",
+);
+assert.ok(
+  !checkAgain.includes('"waiting"') && !checkAgain.includes("'waiting'"),
+  "KB-091: Check Again must not re-enter the waiting spinner state",
+);
+assert.ok(
+  checkAgain.includes("checkMicrophonePermission") ||
+    checkAgain.includes("hasWindowsMicrophoneAccess"),
+  "KB-091: Check Again must query the permission state immediately",
+);
+
+// The three emerald checkmarks carry the light/dark pair (emerald-400 alone
+// fails 4.5:1 on the light theme's near-white background).
+const emeraldPairs = (
+  onboardingSrc.match(/text-emerald-600 dark:text-emerald-400/g) ?? []
+).length;
+assert.equal(
+  emeraldPairs,
+  3,
+  `KB-091: all three checkmarks must pair text-emerald-600 with dark:text-emerald-400 (found ${emeraldPairs})`,
+);
+assert.ok(
+  !/text-emerald-400(?! )/.test(
+    onboardingSrc.replace(/dark:text-emerald-400/g, ""),
+  ),
+  "KB-091: no lone text-emerald-400 may remain (light-theme contrast)",
+);
+
 console.log("AccessibilityOnboarding: all assertions passed");

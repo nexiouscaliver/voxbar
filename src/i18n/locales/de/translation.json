@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Tastenkürzel durch Secure Input blockiert",
     "postProcessPrompt": "Nachbearbeitungs-Prompt"
   },
+  "trayCopyOutcome": {
+    "copied": "Das Diktat wurde in die Zwischenablage kopiert.",
+    "failed": "Das Diktat konnte nicht in die Zwischenablage kopiert werden."
+  },
   "sidebar": {
     "general": "Allgemein",
     "commands": "Befehle",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Sprachlöschbefehle",
-        "description": "\"scratch that\", \"delete that\" und \"remove that\" löschen das vorherige Wort, \"delete last three words\" löscht mehrere, und \"delete everything\" oder \"start over\" löscht das gesamte Diktat. Ausschalten, um sie als normale Wörter zu behalten."
+        "description": "\"scratch that\", \"delete that\" und \"remove that\" löschen das vorherige Wort, \"delete last three words\" löscht mehrere, und \"delete everything\" oder \"scratch everything\" löscht das gesamte Diktat. Ausschalten, um sie als normale Wörter zu behalten."
       },
       "previewBeforePaste": {
         "title": "Vorschau vor dem Einfügen",
@@ -926,6 +930,7 @@
       "empty": "Noch keine Transkriptionen. Starte eine Aufnahme, um deinen Verlauf aufzubauen!",
       "copyToClipboard": "Transkription in Zwischenablage kopieren",
       "copyError": "Transkription konnte nicht in die Zwischenablage kopiert werden.",
+      "savedToggleError": "Gespeichert-Status konnte nicht aktualisiert werden.",
       "save": "Transkription speichern",
       "unsave": "Aus Gespeicherten entfernen",
       "delete": "Eintrag löschen",

@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Shortcuts blocked by Secure Input",
     "postProcessPrompt": "Post-process Prompt"
   },
+  "trayCopyOutcome": {
+    "copied": "Copied the transcript to the clipboard.",
+    "failed": "Could not copy the transcript to the clipboard."
+  },
   "sidebar": {
     "general": "General",
     "commands": "Commands",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Voice Deletion Commands",
-        "description": "\"scratch that\", \"delete that\" and \"remove that\" delete the previous word, \"delete last three words\" deletes several, and \"delete everything\" or \"start over\" clears the dictation. Turn off to keep these as plain words."
+        "description": "\"scratch that\", \"delete that\" and \"remove that\" delete the previous word, \"delete last three words\" deletes several, and \"delete everything\" or \"scratch everything\" clears the dictation. Turn off to keep these as plain words."
       },
       "previewBeforePaste": {
         "title": "Preview Before Paste",
@@ -926,6 +930,7 @@
       "empty": "No transcriptions yet. Start recording to build your history!",
       "copyToClipboard": "Copy transcription to clipboard",
       "copyError": "Failed to copy transcription to clipboard.",
+      "savedToggleError": "Could not update the saved status.",
       "save": "Save transcription",
       "unsave": "Remove from saved",
       "delete": "Delete entry",

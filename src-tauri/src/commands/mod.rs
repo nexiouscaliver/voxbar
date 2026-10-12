@@ -95,12 +95,15 @@ pub fn open_recordings_folder(app: AppHandle) -> Result<(), String> {
 
     let recordings_dir = app_data_dir.join("recordings");
 
-    // Reveal (Finder opens with the item selected), not open_path: the
-    // opener plugin's default permission set covers reveal-item-in-dir but
-    // NOT open-path, so open_path was silently ACL-denied and these buttons
-    // did nothing.
+    // KB-181: open the folder itself (the label says Open, so Finder shows
+    // the recordings). The earlier reveal-instead-of-open was an ACL
+    // workaround for the FRONTEND plugin command; this Rust-side OpenerExt
+    // call bypasses that ACL entirely, and the opener:allow-open-path
+    // capability is granted alongside so any future direct use is legal
+    // too. Reveal selected the folder inside its parent - technically
+    // visible, but every "Open ... Folder" button behaved like Show.
     app.opener()
-        .reveal_item_in_dir(&recordings_dir)
+        .open_path(recordings_dir.to_string_lossy(), None::<&str>)
         .map_err(|e| format!("Failed to open recordings folder: {}", e))?;
 
     Ok(())
@@ -112,9 +115,9 @@ pub fn open_log_dir(app: AppHandle) -> Result<(), String> {
     let log_dir = crate::portable::app_log_dir(&app)
         .map_err(|e| format!("Failed to get log directory: {}", e))?;
 
-    // Reveal, not open_path: see open_recordings_folder.
+    // Open, matching the button's label: see open_recordings_folder (KB-181).
     app.opener()
-        .reveal_item_in_dir(&log_dir)
+        .open_path(log_dir.to_string_lossy(), None::<&str>)
         .map_err(|e| format!("Failed to open log directory: {}", e))?;
 
     Ok(())
@@ -126,9 +129,9 @@ pub fn open_app_data_dir(app: AppHandle) -> Result<(), String> {
     let app_data_dir = crate::portable::app_data_dir(&app)
         .map_err(|e| format!("Failed to get app data directory: {}", e))?;
 
-    // Reveal, not open_path: see open_recordings_folder.
+    // Open, matching the button's label: see open_recordings_folder (KB-181).
     app.opener()
-        .reveal_item_in_dir(&app_data_dir)
+        .open_path(app_data_dir.to_string_lossy(), None::<&str>)
         .map_err(|e| format!("Failed to open app data directory: {}", e))?;
 
     Ok(())
@@ -207,4 +210,38 @@ pub fn initialize_shortcuts(app: AppHandle) -> Result<(), String> {
 
     log::info!("Shortcuts initialized successfully");
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    /// KB-181 pin: every directory button that says "Open" actually opens
+    /// the directory (Finder shows its CONTENTS), instead of revealing the
+    /// folder selected inside its parent. The opener calls need a live app
+    /// a unit test cannot mount, so the three commands are pinned against
+    /// this committed source - the same convention as the overlay and
+    /// persistent-notice wiring pins.
+    #[test]
+    fn kb181_directory_buttons_open_instead_of_reveal() {
+        let source = include_str!("mod.rs");
+        for fn_name in [
+            "pub fn open_recordings_folder(",
+            "pub fn open_log_dir(",
+            "pub fn open_app_data_dir(",
+        ] {
+            let at = source
+                .find(fn_name)
+                .unwrap_or_else(|| panic!("{fn_name} must exist in commands/mod.rs"));
+            let rest = &source[at..];
+            let end = rest.find("\n}\n").map(|i| i + 3).unwrap_or(rest.len());
+            let body = &rest[..end];
+            assert!(
+                body.contains(".open_path("),
+                "{fn_name} must open the directory itself"
+            );
+            assert!(
+                !body.contains("reveal_item_in_dir"),
+                "{fn_name} must not reveal (select) the directory inside its parent"
+            );
+        }
+    }
 }

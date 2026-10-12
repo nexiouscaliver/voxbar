@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Dreceres blocades per l'entrada segura",
     "postProcessPrompt": "Indicació de postprocessament"
   },
+  "trayCopyOutcome": {
+    "copied": "S'ha copiat la transcripció al porta-retalls.",
+    "failed": "No s'ha pogut copiar la transcripció al porta-retalls."
+  },
   "sidebar": {
     "general": "General",
     "commands": "Ordres",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Ordres de supressió per veu",
-        "description": "\"scratch that\", \"delete that\" i \"remove that\" suprimeixen la paraula anterior, \"delete last three words\" en suprimeix diverses, i \"delete everything\" o \"start over\" esborra el dictat. Desactiveu-ho per mantenir-les com a paraules normals."
+        "description": "\"scratch that\", \"delete that\" i \"remove that\" suprimeixen la paraula anterior, \"delete last three words\" en suprimeix diverses, i \"delete everything\" o \"scratch everything\" esborra el dictat. Desactiveu-ho per mantenir-les com a paraules normals."
       },
       "previewBeforePaste": {
         "title": "Previsualització abans d'enganxar",
@@ -926,6 +930,7 @@
       "empty": "Encara no hi ha transcripcions. Comenceu a enregistrar per crear l'historial!",
       "copyToClipboard": "Copia la transcripció al porta-retalls",
       "copyError": "No s'ha pogut copiar la transcripció al porta-retalls.",
+      "savedToggleError": "No s'ha pogut actualitzar l'estat de desat.",
       "save": "Desa la transcripció",
       "unsave": "Treu de les desades",
       "delete": "Suprimeix l'entrada",

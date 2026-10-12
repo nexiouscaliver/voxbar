@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Skróty zablokowane przez Secure Input",
     "postProcessPrompt": "Prompt postprocessingu"
   },
+  "trayCopyOutcome": {
+    "copied": "Dyktando zostało skopiowane do schowka.",
+    "failed": "Nie udało się skopiować dyktanda do schowka."
+  },
   "sidebar": {
     "general": "Ogólne",
     "commands": "Polecenia",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Głosowe polecenia usuwania",
-        "description": "\"scratch that\", \"delete that\" i \"remove that\" usuwają poprzednie słowo, \"delete last three words\" usuwa kilka słów, a \"delete everything\" lub \"start over\" czyści dyktando. Wyłącz, aby zachować je jako zwykłe słowa."
+        "description": "\"scratch that\", \"delete that\" i \"remove that\" usuwają poprzednie słowo, \"delete last three words\" usuwa kilka słów, a \"delete everything\" lub \"scratch everything\" czyści dyktando. Wyłącz, aby zachować je jako zwykłe słowa."
       },
       "previewBeforePaste": {
         "title": "Podgląd przed wklejeniem",
@@ -930,6 +934,7 @@
       "empty": "Brak transkrypcji. Rozpocznij nagrywanie, aby zbudować historię!",
       "copyToClipboard": "Kopiuj transkrypcję do schowka",
       "copyError": "Nie udało się skopiować transkrypcji do schowka.",
+      "savedToggleError": "Nie udało się zaktualizować stanu zapisania.",
       "save": "Zapisz transkrypcję",
       "unsave": "Usuń z zapisanych",
       "delete": "Usuń wpis",

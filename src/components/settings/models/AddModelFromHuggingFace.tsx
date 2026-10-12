@@ -163,7 +163,7 @@ export const AddModelFromHuggingFace: React.FC = () => {
           type="button"
           onClick={handleResolve}
           disabled={!input.trim() || busy}
-          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-transparent bg-background-ui text-white hover:bg-background-ui/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
+          className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg border border-transparent bg-background-ui text-accent-on hover:bg-background-ui/70 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
         >
           {phase === "resolving" || phase === "adding" ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />

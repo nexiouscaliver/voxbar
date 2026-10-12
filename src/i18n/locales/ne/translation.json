@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Secure Input ले सर्टकटहरू रोकेको छ",
     "postProcessPrompt": "पोस्ट-प्रोसेस प्रम्प्ट"
   },
+  "trayCopyOutcome": {
+    "copied": "ट्रान्सक्रिप्ट क्लिपबोर्डमा प्रतिलिपि गरियो।",
+    "failed": "ट्रान्सक्रिप्ट क्लिपबोर्डमा प्रतिलिपि गर्न सकिएन।"
+  },
   "sidebar": {
     "general": "सामान्य",
     "commands": "आदेश",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "आवाजद्वारा मेट्ने आदेश",
-        "description": "\"scratch that\", \"delete that\" र \"remove that\" अघिल्लो शब्द मेट्छन्, \"delete last three words\" कयौं शब्द मेट्छ, र \"delete everything\" वा \"start over\" सम्पूर्ण डिक्टेसन खाली गर्छ। सामान्य शब्दका रूपमा राख्न बन्ध गर्नुहोस्।"
+        "description": "\"scratch that\", \"delete that\" र \"remove that\" अघिल्लो शब्द मेट्छन्, \"delete last three words\" कयौं शब्द मेट्छ, र \"delete everything\" वा \"scratch everything\" सम्पूर्ण डिक्टेसन खाली गर्छ। सामान्य शब्दका रूपमा राख्न बन्ध गर्नुहोस्।"
       },
       "previewBeforePaste": {
         "title": "टाँस्नु अघि पूर्वावलोकन",
@@ -926,6 +930,7 @@
       "empty": "अहिलेसम्म कुनै ट्रान्सक्रिप्सन छैन। हिस्ट्री बनाउन रेकर्डिङ सुरु गर्नुहोस्!",
       "copyToClipboard": "ट्रान्सक्रिप्सन क्लिपबोर्डमा कपी गर्नुहोस्",
       "copyError": "ट्रान्सक्रिप्सन क्लिपबोर्डमा कपी गर्न सकिएन।",
+      "savedToggleError": "सुरक्षित स्थिति अद्यावधिक गर्न सकिएन।",
       "save": "ट्रान्सक्रिप्सन सेभ गर्नुहोस्",
       "unsave": "सेभ गरिएकाबाट हटाउनुहोस्",
       "delete": "प्रविष्टि मेटाउनुहोस्",

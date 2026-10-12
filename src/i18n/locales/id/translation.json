@@ -29,6 +29,10 @@
     "secureInputWarning": "⚠ Pintasan diblokir oleh Secure Input",
     "postProcessPrompt": "Prompt pasca-proses"
   },
+  "trayCopyOutcome": {
+    "copied": "Transkrip telah disalin ke papan klip.",
+    "failed": "Gagal menyalin transkrip ke papan klip."
+  },
   "sidebar": {
     "general": "Umum",
     "commands": "Perintah",
@@ -642,7 +646,7 @@
       },
       "voiceDeletion": {
         "title": "Perintah penghapusan suara",
-        "description": "\"scratch that\", \"delete that\", dan \"remove that\" menghapus kata sebelumnya, \"delete last three words\" menghapus beberapa kata, dan \"delete everything\" atau \"start over\" mengosongkan dikte. Matikan untuk membiarkannya sebagai kata biasa."
+        "description": "\"scratch that\", \"delete that\", dan \"remove that\" menghapus kata sebelumnya, \"delete last three words\" menghapus beberapa kata, dan \"delete everything\" atau \"scratch everything\" mengosongkan dikte. Matikan untuk membiarkannya sebagai kata biasa."
       },
       "previewBeforePaste": {
         "title": "Pratinjau sebelum tempel",
@@ -926,6 +930,7 @@
       "empty": "Belum ada transkripsi. Mulai merekam untuk mengisi riwayat Anda!",
       "copyToClipboard": "Salin transkripsi ke papan klip",
       "copyError": "Gagal menyalin transkripsi ke papan klip.",
+      "savedToggleError": "Gagal memperbarui status tersimpan.",
       "save": "Simpan transkripsi",
       "unsave": "Hapus dari daftar tersimpan",
       "delete": "Hapus entri",
