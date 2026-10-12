@@ -1813,6 +1813,7 @@ mod tests {
             post_process_latency_ms: None,
             capture_source: "local".to_string(),
             delivery_destination: "mac".to_string(),
+            capture_device: String::new(),
         }
     }
 

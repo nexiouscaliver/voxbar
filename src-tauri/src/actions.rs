@@ -31,6 +31,16 @@ const CANCELLATION_POLL_INTERVAL: Duration = Duration::from_millis(25);
 /// when `preview_before_paste` is enabled.
 const PREVIEW_BEFORE_PASTE_DELAY: Duration = Duration::from_millis(1200);
 
+/// v1.6.2 W1-L2: serializes the ASR-engine-consuming region of the stop
+/// pipeline (stream finalize and its batch fallback) across CONCURRENT
+/// pipelines. Several phones' sessions may record simultaneously (per-lane
+/// recorders), so their stop pipelines can overlap - but the transcription
+/// engine is a process singleton, and two pipelines driving it at once (a
+/// finalize racing a batch, or two batches contending the resident model)
+/// has no defined behavior. Capture stays fully concurrent; only the
+/// engine step waits its turn.
+static ENGINE_PIPELINE_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
+
 #[derive(Clone, serde::Serialize)]
 struct RecordingErrorEvent {
     error_type: String,
@@ -38,8 +48,11 @@ struct RecordingErrorEvent {
 }
 
 /// Drop guard that finishes the transcription pipeline, including immediate
-/// model unloading on early exits.
-struct FinishGuard(AppHandle, Arc<TranscriptionManager>);
+/// model unloading on early exits. v1.6.2 W1-L2: carries the pipeline's
+/// session key (a companion lane, or None for the keyboard session), so the
+/// coordinator resumes exactly the machine whose pipeline drained when
+/// several phones' pipelines overlap.
+struct FinishGuard(AppHandle, Arc<TranscriptionManager>, Option<u64>);
 impl Drop for FinishGuard {
     fn drop(&mut self) {
         // The cancel shortcut stays registered for the WHOLE pipeline
@@ -52,7 +65,7 @@ impl Drop for FinishGuard {
         crate::shortcut::unregister_cancel_shortcut(&self.0);
         self.1.maybe_unload_immediately("transcription session");
         if let Some(c) = self.0.try_state::<TranscriptionCoordinator>() {
-            c.notify_processing_finished();
+            c.notify_processing_finished_for(self.2);
         }
         // The pipeline just freed its large transient buffers (captured PCM,
         // WAV copy, engine scratch); hand the cached pages back to the OS so
@@ -1476,12 +1489,17 @@ impl ShortcutAction for TranscribeAction {
         let tm = app.state::<Arc<TranscriptionManager>>();
         let rm = app.state::<Arc<AudioRecordingManager>>();
 
+        // v1.6.2 W1-L2: the lane of the companion session this Start effect
+        // commits (frozen a moment ago by the coordinator's begin_session,
+        // on the same serialized thread). None for keyboard/signal starts.
+        let starting_lane = crate::companion::starting_session_lane(app);
+
         // Load ASR model and VAD model in parallel
         let kickoff_started = Instant::now();
         tm.initiate_model_load();
         // The local VAD warm-up only pays off for the local capture path;
-        // the companion server pre-warms the remote recorder when enabled,
-        // so a phone press skips this entirely.
+        // the companion server pre-warms each lane's recorder when the
+        // phone connects, so a phone press skips this entirely.
         if matches!(self.source, CaptureSource::Local) {
             let rm_clone = Arc::clone(&rm);
             std::thread::spawn(move || {
@@ -1540,16 +1558,35 @@ impl ShortcutAction for TranscribeAction {
             .as_ref()
             .map(|m| m.supports_streaming)
             .unwrap_or(false);
+        // v1.6.2 W1-L2: the streaming engine is a process singleton, so at
+        // most ONE live session may own it. The owner is decided HERE, on
+        // the coordinator's serialized thread, before any recorder runs:
+        // the first session to start claims it, and every concurrently
+        // recording session (another phone, or a phone while the keyboard
+        // drains) records with the offline VAD profile and
+        // batch-transcribes its ring at stop.
+        let stream_free =
+            model_supports_streaming && !tm.is_streaming() && !tm.stream_router().is_open();
         let vad_policy = if !settings.vad_enabled {
             VadPolicy::Disabled
-        } else if model_supports_streaming {
+        } else if stream_free {
             VadPolicy::Streaming
         } else {
             VadPolicy::Offline
         };
-        if model_supports_streaming {
+        let claimed_owner = if stream_free {
+            let owner = match (self.source, starting_lane) {
+                (CaptureSource::Remote, Some(lane)) => {
+                    crate::managers::audio::StreamOwner::Lane(lane)
+                }
+                _ => crate::managers::audio::StreamOwner::Local,
+            };
             tm.start_stream();
-        }
+            rm.set_stream_owner(owner);
+            Some(owner)
+        } else {
+            None
+        };
         let plan_elapsed = plan_started.elapsed();
 
         // Sizing the overlay follows the same advertised capability. A model that
@@ -1574,18 +1611,43 @@ impl ShortcutAction for TranscribeAction {
 
         let mut recording_error: Option<String> = None;
         let recording_start_time = Instant::now();
-        match rm.try_start_recording_for(self.source, &binding_id, vad_policy) {
+        let start_result = match (self.source, starting_lane) {
+            (CaptureSource::Remote, Some(lane)) => {
+                rm.try_start_remote_lane_recording(lane, &binding_id, vad_policy)
+            }
+            (CaptureSource::Remote, None) => Err("Companion session has no lane".to_string()),
+            (CaptureSource::Local, _) => rm.try_start_recording_for(&binding_id, vad_policy),
+        };
+        match start_result {
             Ok(readiness) => {
                 debug!(
                     "Recording request accepted in {:?}; waiting for first microphone samples",
                     recording_start_time.elapsed()
                 );
-                if matches!(self.source, CaptureSource::Remote) {
-                    crate::companion::on_session_changed(app, true);
+                if let Some(lane) = starting_lane {
+                    if matches!(self.source, CaptureSource::Remote) {
+                        crate::companion::on_lane_session_changed(app, lane, true);
+                    }
                 }
                 let generation = readiness.generation();
                 let app_clone = app.clone();
                 let rm_clone = Arc::clone(&rm);
+                // v1.6.2 W1-L2: remote readiness validates per LANE (its
+                // stop only ever removes its own entry), local readiness
+                // against the global capture generation as before.
+                let readiness_current: Arc<dyn Fn() -> bool + Send + Sync> =
+                    match (self.source, starting_lane) {
+                        (CaptureSource::Remote, Some(lane)) => {
+                            let rm_check = Arc::clone(&rm);
+                            Arc::new(move || rm_check.lane_readiness_current(lane, generation))
+                        }
+                        _ => {
+                            let rm_check = Arc::clone(&rm_clone);
+                            Arc::new(move || {
+                                rm_check.is_recording_readiness_current(generation)
+                            })
+                        }
+                    };
                 std::thread::spawn(move || {
                     if !readiness.wait() {
                         debug!("Microphone readiness wait ended without receiving samples");
@@ -1607,7 +1669,7 @@ impl ShortcutAction for TranscribeAction {
                         }
                     }
 
-                    if !rm_clone.is_recording_readiness_current(generation) {
+                    if !readiness_current() {
                         debug!("Microphone became ready for an inactive recording");
                         return;
                     }
@@ -1619,10 +1681,10 @@ impl ShortcutAction for TranscribeAction {
                     // first real input callback rather than Stream::play() or a
                     // fixed delay. The helper returns immediately when feedback
                     // is disabled; mute still follows the same readiness point.
-                    if rm_clone.is_recording_readiness_current(generation) {
+                    if readiness_current() {
                         play_feedback_sound_blocking(&app_clone, SoundType::Start);
                     }
-                    if rm_clone.is_recording_readiness_current(generation) {
+                    if readiness_current() {
                         rm_clone.apply_mute();
                     }
                 });
@@ -1630,10 +1692,19 @@ impl ShortcutAction for TranscribeAction {
             Err(e) => {
                 debug!("Failed to start recording: {}", e);
                 recording_error = Some(e);
-                if matches!(self.source, CaptureSource::Remote) {
-                    // The badge must never outlive a start that did not
-                    // begin recording.
-                    crate::companion::on_session_changed(app, false);
+                if let Some(lane) = starting_lane {
+                    if matches!(self.source, CaptureSource::Remote) {
+                        // The badge must never outlive a start that did not
+                        // begin recording.
+                        crate::companion::on_lane_session_changed(app, lane, false);
+                    }
+                }
+                // v1.6.2 W1-L2: a start that claimed the streaming engine
+                // but never recorded must give it back (the idle stream
+                // worker would otherwise swallow the next session's frames
+                // until its finalize).
+                if let Some(owner) = claimed_owner {
+                    rm.clear_stream_owner_if(owner);
                 }
             }
         }
@@ -1692,10 +1763,34 @@ impl ShortcutAction for TranscribeAction {
         let stop_time = Instant::now();
         debug!("TranscribeAction::stop called for binding: {}", binding_id);
 
-        if matches!(self.source, CaptureSource::Remote) {
-            // The phone session ends here; the pipeline below (finalize,
-            // transcribe, paste) is the shared one.
-            crate::companion::on_session_changed(app, false);
+        // v1.6.2 W1-L2: the stopping session's identity, handed over by the
+        // coordinator's Stop effect (note_stopping_session). Everything the
+        // pipeline resolves per session - the delivery target, the prefs,
+        // the attribution device (KB-254), the recorder to stop, the
+        // history device - comes from THIS record, never from a slot
+        // another connection can claim.
+        let stopping = crate::companion::take_stopping_session(app);
+        let session_lane = stopping.as_ref().map(|(lane, _, _)| *lane);
+        let session_device = match (&stopping, self.source) {
+            (Some((_, device, _)), _) => Some(device.clone()),
+            // Manager-less/test Remote contexts with no session record keep
+            // the legacy name resolution; a keyboard session resolves no
+            // device at all (and skips the settings read entirely).
+            (None, CaptureSource::Remote) => crate::settings::get_settings(app)
+                .companion_last_device
+                .clone(),
+            (None, CaptureSource::Local) => None,
+        };
+        let session_prefs = stopping
+            .map(|(_, _, prefs)| prefs)
+            .unwrap_or_default();
+
+        if let Some(lane) = session_lane {
+            if matches!(self.source, CaptureSource::Remote) {
+                // The phone session ends here; the pipeline below (finalize,
+                // transcribe, deliver) is the shared one.
+                crate::companion::on_lane_session_changed(app, lane, false);
+            }
         }
 
         let ah = app.clone();
@@ -1726,26 +1821,30 @@ impl ShortcutAction for TranscribeAction {
 
         // v1.6.0 companion preferences, resolved ONCE here on the
         // coordinator's stop call (before any await): the session's prefs
-        // were carried by its starting press's edge and applied on the
-        // coordinator thread at the instant that start was committed, so a
-        // press racing this pipeline can only arm the NEXT session's prefs
-        // and cannot retarget this one.
+        // were frozen into its per-lane record at the instant its start
+        // committed on the coordinator thread, so a press racing this
+        // pipeline can only arm the NEXT session's prefs and cannot
+        // retarget this one.
         let binding_id = binding_id.to_string(); // Clone binding_id for the async task
         let capture_source = self.source;
-        let session_prefs = crate::companion::session_prefs(app);
         let delivery = transcript_delivery(capture_source, session_prefs.output_target);
         // v1.6.0 W1-L7: the session override rides above the legacy
         // resolution, so the pipeline honors the session's FINAL mode. The
         // coordinator resolved that mode at START (master toggle read at
         // that one instant; each mid-recording pp-hotkey press flips it),
-        // so this reads exactly the mode the just-ended session had - the
+        // so this reads exactly the mode the just-ended session had. The
         // live get_settings read below feeds only the override-less None
         // fallback (manager-less test contexts) and can never contradict
         // a badge the start arm lit or darkened. stop() runs inside the
         // coordinator's Stop effect, before its mirror republishes.
+        // v1.6.2 W1-L2: a companion session's override reads from ITS
+        // lane's mirror.
         let session_pp_override = app
             .try_state::<TranscriptionCoordinator>()
-            .and_then(|c| c.session_post_process_override());
+            .and_then(|c| match session_lane {
+                Some(lane) => c.lane_session_post_process_override(lane),
+                None => c.session_post_process_override(),
+            });
         let post_process = session_runs_post_process(
             self.post_process,
             capture_source,
@@ -1755,7 +1854,22 @@ impl ShortcutAction for TranscribeAction {
         );
         let (history_capture_source, history_destination) =
             history_provenance(capture_source, delivery);
+        // v1.6.2 W1-L2: the history device (per-phone recents filter).
+        let history_capture_device = match capture_source {
+            CaptureSource::Remote => session_device.clone().unwrap_or_default(),
+            CaptureSource::Local => String::new(),
+        };
         let cancel_generation = rm.cancel_generation();
+        // v1.6.2 W1-L2: does THIS session own the streaming engine? Only
+        // its Stop may finalize it - another lane's pipeline (or the
+        // keyboard's) finalizing a stream it does not own would swallow
+        // the owner's transcript and break its own batch fallback.
+        let stream_owner = rm.stream_owner();
+        let owns_stream = match capture_source {
+            CaptureSource::Local => stream_owner == crate::managers::audio::StreamOwner::Local,
+            CaptureSource::Remote => matches!(session_lane,
+                Some(lane) if stream_owner == crate::managers::audio::StreamOwner::Lane(lane)),
+        };
 
         // The stop pipeline runs on a dedicated std::thread (mirroring
         // run_stream_worker), entering the async world via block_on only for
@@ -1770,14 +1884,23 @@ impl ShortcutAction for TranscribeAction {
             .name("stop-pipeline".into())
             .spawn(move || {
                 tauri::async_runtime::block_on(async move {
-            let _guard = FinishGuard(ah.clone(), Arc::clone(&tm));
+            let _guard = FinishGuard(ah.clone(), Arc::clone(&tm), session_lane);
             debug!(
                 "Starting async transcription task for binding: {}",
                 binding_id
             );
 
             let stop_recording_time = Instant::now();
-            if let Some(samples) = rm.stop_recording(&binding_id, cancel_generation) {
+            let stopped_samples = match (capture_source, session_lane) {
+                (CaptureSource::Remote, Some(lane)) => {
+                    rm.stop_remote_lane_recording(lane, cancel_generation)
+                }
+                (CaptureSource::Remote, None) => None,
+                (CaptureSource::Local, _) => {
+                    rm.stop_recording(&binding_id, cancel_generation)
+                }
+            };
+            if let Some(samples) = stopped_samples {
                 debug!(
                     "Recording stopped and samples retrieved in {:?}, sample count: {}",
                     stop_recording_time.elapsed(),
@@ -1804,11 +1927,14 @@ impl ShortcutAction for TranscribeAction {
                         // through the notice channel AND the phone through
                         // the forwarder (companion_zero_audio is classified
                         // phone-forwarding); emitting anywhere else would
-                        // double-broadcast.
+                        // double-broadcast. v1.6.2 W1-L2 (KB-254): the
+                        // detail names THIS session's own device, from the
+                        // stopping session record - never a claimable slot
+                        // a spectating phone's hello could have renamed.
                         crate::managers::transcription::emit_overlay_notice(
                             &ah,
                             crate::managers::transcription::NoticeCode::CompanionZeroAudio,
-                            crate::companion::session_device_name(&ah),
+                            session_device.clone(),
                         );
                         // The notice just landed on the card the stop path
                         // showed; the error-read hide keeps it readable
@@ -1816,7 +1942,13 @@ impl ShortcutAction for TranscribeAction {
                         // while the frontend's session-cap-class routing
                         // offers the macOS notification independently of the
                         // card, because this hide WILL retire the card.
-                        tm.cancel_stream();
+                        if owns_stream {
+                            // Only the stream's owner may tear it down; a
+                            // concurrent session's stream must survive this
+                            // pipeline (W1-L2).
+                            tm.cancel_stream();
+                            rm.clear_stream_owner_if(stream_owner);
+                        }
                         set_tray_state(&ah, TrayIconState::Idle);
                         utils::hide_recording_overlay_after_error(&ah);
                         return;
@@ -1850,52 +1982,71 @@ impl ShortcutAction for TranscribeAction {
                     // In-session command edits (the command-mode modifier) and
                     // manual buffer edits fold into the final text through the
                     // session buffer inside finalize_stream.
+                    //
+                    // v1.6.2 W1-L2: only the stream's OWNER finalizes it; a
+                    // concurrent session's pipeline (which recorded batch)
+                    // transcribes its own samples and never touches the
+                    // owner's stream. The engine lock serializes the whole
+                    // engine-consuming region across overlapping pipelines.
                     let transcription_time = Instant::now();
                     let stream_model = tm.get_current_model().unwrap_or_default();
-                    let finalize = tm.finalize_stream();
                     // The summary line's source term: which arm produced the
                     // text (finalize-vs-batch, the survey's unanswerable
                     // question).
                     let mut outcome_source: &'static str = "stream-finalize";
-                    let transcription_result = match finalize {
+                    let _engine_guard = ENGINE_PIPELINE_LOCK.lock().await;
+                    let transcription_result = if owns_stream {
+                        let finalize = tm.finalize_stream();
+                        rm.clear_stream_owner_if(stream_owner);
                         // A finalized stream with usable text wins. An empty result
                         // (no active stream, produced nothing, or the stream failed
                         // or its worker crashed) falls back to a full batch
                         // transcription of the same audio. A cancelled finalize is
                         // surfaced instead, so a cancel never starts a batch run.
-                        Ok(Some(text)) if !text.trim().is_empty() => {
-                            Ok((text, stream_model.clone()))
-                        }
-                        Ok(empty) => {
-                            // The one exception: an empty finalize with the
-                            // model already evicted by the Immediately unload
-                            // returns the quiet empty result instead of a
-                            // batch run that can only fail (see
-                            // empty_finalize_outcome).
-                            let unload_is_immediately = get_settings(&ah).model_unload_timeout
-                                == ModelUnloadTimeout::Immediately;
-                            match empty_finalize_outcome(
-                                unload_is_immediately,
-                                tm.is_model_loaded(),
-                            ) {
-                                EmptyFinalizeOutcome::QuietEmpty => {
-                                    debug!(
-                                        "Stream finalize produced no text ({}) and the model \
-                                         was unloaded by the Immediately setting; returning the \
-                                         quiet empty result",
-                                        empty.as_deref().map(str::len).unwrap_or(0)
-                                    );
-                                    outcome_source = "quiet-empty";
-                                    Ok((String::new(), stream_model.clone()))
-                                }
-                                EmptyFinalizeOutcome::Batch => {
-                                    outcome_source = "batch";
-                                    tm.transcribe_with_model(samples)
+                        match finalize {
+                            Ok(Some(text)) if !text.trim().is_empty() => {
+                                Ok((text, stream_model.clone()))
+                            }
+                            Ok(empty) => {
+                                // The one exception: an empty finalize with the
+                                // model already evicted by the Immediately unload
+                                // returns the quiet empty result instead of a
+                                // batch run that can only fail (see
+                                // empty_finalize_outcome).
+                                let unload_is_immediately = get_settings(&ah)
+                                    .model_unload_timeout
+                                    == ModelUnloadTimeout::Immediately;
+                                match empty_finalize_outcome(
+                                    unload_is_immediately,
+                                    tm.is_model_loaded(),
+                                ) {
+                                    EmptyFinalizeOutcome::QuietEmpty => {
+                                        debug!(
+                                            "Stream finalize produced no text ({}) and the model \
+                                             was unloaded by the Immediately setting; returning the \
+                                             quiet empty result",
+                                            empty.as_deref().map(str::len).unwrap_or(0)
+                                        );
+                                        outcome_source = "quiet-empty";
+                                        Ok((String::new(), stream_model.clone()))
+                                    }
+                                    EmptyFinalizeOutcome::Batch => {
+                                        outcome_source = "batch";
+                                        tm.transcribe_with_model(samples)
+                                    }
                                 }
                             }
+                            Err(err) => Err(err),
                         }
-                        Err(err) => Err(err),
+                    } else {
+                        // v1.6.2 W1-L2: a session that does not own the
+                        // streaming engine (another session claimed it while
+                        // this one recorded, or the model does not stream)
+                        // batch-transcribes its own ring.
+                        outcome_source = "batch";
+                        tm.transcribe_with_model(samples)
                     };
+                    drop(_engine_guard);
 
                     // Await WAV save and verify
                     let wav_saved = match wav_handle.await {
@@ -1995,13 +2146,14 @@ impl ShortcutAction for TranscribeAction {
                                     processed.post_process_summary.clone(),
                                     history_capture_source.clone(),
                                     history_destination.clone(),
+                                    history_capture_device.clone(),
                                 ) {
                                     Ok(_) => {
                                         // v1.6.0: every companion write
-                                        // refreshes the phones' recent list
-                                        // (the RecentHistory frame). Best
-                                        // effort; the write itself already
-                                        // succeeded.
+                                        // refreshes the phones' recent lists
+                                        // (the RecentHistory frame, each
+                                        // phone its own). Best effort; the
+                                        // write itself already succeeded.
                                         if matches!(capture_source, CaptureSource::Remote) {
                                             crate::companion::broadcast_recent_history(&ah);
                                         }
@@ -2039,19 +2191,24 @@ impl ShortcutAction for TranscribeAction {
                                 // v1.6.0 phone-target delivery: skip every
                                 // Mac paste step (preview, paste, clipboard
                                 // handling, auto-submit all live inside the
-                                // paste path below) and broadcast the final
+                                // paste path below) and send the final
                                 // transcript to the phone instead. History
                                 // was already written above with
                                 // destination=phone; the RecentHistory
                                 // refresh rode that write. A send with no
-                                // subscribers (the phone dropped) is a
+                                // subscriber (the phone dropped) is a
                                 // no-op - the transcript is safe in history.
-                                crate::companion::deliver_transcript_to_phone(
-                                    &ah,
-                                    &processed.final_text,
-                                    processed.post_processed_text.is_some(),
-                                    &used_model,
-                                );
+                                // v1.6.2 W1-L2: the target is the stopping
+                                // session's OWN lane.
+                                if let Some(lane) = session_lane {
+                                    crate::companion::deliver_transcript_to_lane(
+                                        &ah,
+                                        lane,
+                                        &processed.final_text,
+                                        processed.post_processed_text.is_some(),
+                                        &used_model,
+                                    );
+                                }
                                 info!(
                                     "{}",
                                     format_session_outcome(&SessionOutcomeSummary {
@@ -2249,6 +2406,7 @@ impl ShortcutAction for TranscribeAction {
                                     None,
                                     history_capture_source.clone(),
                                     history_destination.clone(),
+                                    history_capture_device.clone(),
                                 ) {
                                     error!("Failed to save failed history entry: {}", save_err);
                                 }
@@ -2262,7 +2420,13 @@ impl ShortcutAction for TranscribeAction {
             } else {
                 debug!("No samples retrieved from recording stop");
                 // Tear down any streaming worker so its channel doesn't leak.
-                tm.cancel_stream();
+                // v1.6.2 W1-L2: only the stream's owner may (a concurrent
+                // session's stream must survive this pipeline's no-sample
+                // exit).
+                if owns_stream {
+                    tm.cancel_stream();
+                    rm.clear_stream_owner_if(stream_owner);
+                }
                 utils::hide_recording_overlay(&ah);
                 set_tray_state(&ah, TrayIconState::Idle);
             }
@@ -2989,23 +3153,25 @@ mod tests {
             "the zero-audio notice must stay readable: the arm hides through the error-read delay, not the plain 300 ms hide"
         );
 
-        // The phone-delivery branch: the transcript goes to the broadcast
-        // seam and the outcome line records the delivery.
+        // The phone-delivery branch: the transcript goes to the session's
+        // own targeted lane (v1.6.2 W1-L2) and the outcome line records
+        // the delivery.
         let phone_branch_at = stop_body
             .find("TranscriptDelivery::PhoneSend")
             .expect("the PhoneSend branch");
         let phone_arm = &stop_body[phone_branch_at..];
         assert!(
-            phone_arm.contains("deliver_transcript_to_phone"),
-            "the branch must deliver through the companion broadcast seam"
+            phone_arm.contains("deliver_transcript_to_lane"),
+            "the branch must deliver through the session's own targeted lane"
         );
         assert!(
             phone_arm.contains("\"sent-to-phone\""),
             "the outcome line must record the phone delivery"
         );
 
-        // The history writes carry the provenance pair, and every
-        // companion write refreshes the phones' recent list.
+        // The history writes carry the provenance triple (source,
+        // destination, device), and every companion write refreshes the
+        // phones' recent lists (each its own).
         assert!(
             stop_body.contains("history_capture_source.clone()"),
             "the pipeline must pass the capture source into the history write"
@@ -3015,8 +3181,12 @@ mod tests {
             "the pipeline must pass the delivery destination into the history write"
         );
         assert!(
+            stop_body.contains("history_capture_device.clone()"),
+            "the pipeline must pass the capture device into the history write (per-phone recents)"
+        );
+        assert!(
             stop_body.contains("broadcast_recent_history"),
-            "a companion history write must refresh the phones' recent list"
+            "a companion history write must refresh the phones' recent lists"
         );
     }
 

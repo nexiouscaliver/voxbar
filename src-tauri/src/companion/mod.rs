@@ -22,7 +22,6 @@ use serde::Serialize;
 use specta::Type;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Listener, Manager};
@@ -96,11 +95,53 @@ struct CompanionInner {
     port: u16,
     fingerprint: Option<String>,
     last_error: Option<String>,
-    devices: Vec<String>,
     /// v1.6.0: the configuration snapshot the running server was started
     /// with, so status() can tell a restart is pending.
     advertised_host: Option<String>,
     tls_manual: bool,
+}
+
+/// v1.6.2 W1-L2: one authenticated connection. Lane ids are SERVER-assigned
+/// and never reused, and every registration carries its own monotonically
+/// increasing generation: a disconnecting socket releases its registration
+/// by (lane, generation) pair, so a stale socket's late death can never
+/// erase a fresh same-name registration (KB-255 - the old name-keyed
+/// forget_device zeroed the tray's paired count exactly this way).
+struct ConnectionEntry {
+    lane: u64,
+    generation: u64,
+    /// The hello's device name (client-controlled, display-only).
+    device: String,
+    tx: tokio::sync::mpsc::UnboundedSender<String>,
+}
+
+/// v1.6.2 W1-L2: one lane's session identity, frozen on the coordinator
+/// thread at the single serialized instant a Start effect commits (the same
+/// handoff-at-commit discipline v1.6.0 used for prefs). The device name and
+/// preferences ride the session itself, so the stop pipeline resolves
+/// delivery, attribution, and post-process from THIS record minutes later -
+/// never from a claimable manager slot another hello can overwrite (KB-254
+/// dies by construction: the zero-audio notice names the stopping session's
+/// own device).
+struct LaneSession {
+    device: String,
+    prefs: protocol::SessionPrefs,
+    /// True from the Start commit until the stop pipeline's session-state
+    /// flip (the lane-scoped truth the server's admission reads).
+    live: bool,
+}
+
+/// v1.6.2 W1-L2: the session whose Stop effect is being executed, handed
+/// from the coordinator thread (which knows the lane) to the shared
+/// pipeline (whose action signature predates lanes). Written by
+/// [`note_stopping_session`] immediately before the Stop effect runs and
+/// consumed exactly once by the pipeline's first synchronous step, on the
+/// same serialized thread - no window for another session's stop to
+/// interleave.
+struct StoppingSession {
+    lane: u64,
+    device: String,
+    prefs: protocol::SessionPrefs,
 }
 
 pub struct CompanionManager {
@@ -109,40 +150,32 @@ pub struct CompanionManager {
     broadcast: tokio::sync::broadcast::Sender<String>,
     /// Signalled (true) to stop the accept loop and every connection.
     shutdown_tx: watch::Sender<bool>,
-    /// True while a companion recording session is live (for the phone's
-    /// state and the disconnect-finalize decision).
-    session_live: AtomicBool,
-    /// The device name behind the live session, if any.
-    session_device: Mutex<Option<String>>,
-    /// v1.6.0: the preferences the NEXT companion session will run with.
-    /// Armed by the press edge that starts it (server.rs), consumed when
-    /// the session actually starts.
-    pending_prefs: Mutex<protocol::SessionPrefs>,
-    /// v1.6.0: one targeted text lane per authenticated connection, keyed
-    /// by a SERVER-assigned lane id (never the client-controlled hello
-    /// name, which any paired phone can repeat to seize a name-keyed
-    /// lane). Frames the whole fleet must not see (the phone-target
-    /// transcript) reach exactly the owning connection's lane.
-    device_lanes: Mutex<HashMap<u64, tokio::sync::mpsc::UnboundedSender<String>>>,
+    /// v1.6.2 W1-L2: the authenticated connections, in registration order
+    /// (a handful at most, so linear scans are the honest data structure).
+    /// Replaces the name-keyed device list AND the v1.6.0 lane-sender map.
+    connections: Mutex<Vec<ConnectionEntry>>,
     /// The lane-id allocator; strictly monotonic, so a lane id is bound to
     /// exactly one connection for the process's lifetime.
     next_lane_id: std::sync::atomic::AtomicU64,
-    /// v1.6.0: the lane of the companion session being (or most recently)
-    /// run, frozen from the starting press's own edge on the coordinator
-    /// thread at the instant that start is committed - the same
-    /// handoff-at-commit that protects the session's prefs. The stop
-    /// pipeline's phone-target delivery resolves THIS lane, so neither a
-    /// hello claiming the session-device name during the transcription
-    /// window nor a same-name connection registering a fresh lane can
-    /// redirect the transcript to another phone.
-    session_lane: Mutex<Option<u64>>,
-    /// v1.6.0: the preferences of the live (or most recently finished)
-    /// companion session, set from the starting press's own edge on the
-    /// coordinator thread so nothing can retarget a session that is
-    /// recording or transcribing. The stop pipeline reads this to decide
-    /// paste-vs-phone delivery and the post-process leg. Defaults
-    /// reproduce the pre-v1.6.0 behavior exactly.
-    live_prefs: Mutex<protocol::SessionPrefs>,
+    /// The registration-generation allocator (KB-255's second key).
+    next_generation: std::sync::atomic::AtomicU64,
+    /// v1.6.2 W1-L2: per-lane session records (see [`LaneSession`]).
+    lane_sessions: Mutex<HashMap<u64, LaneSession>>,
+    /// The lane whose Start effect is being executed right now (the
+    /// coordinator thread writes it in [`begin_session`] immediately
+    /// before the shared action's start runs and reads it back
+    /// synchronously on that same thread - the same serialized
+    /// handoff-at-commit discipline as the session record itself).
+    starting_lane: Mutex<Option<u64>>,
+    /// The Stop-effect handoff slot (see [`StoppingSession`]).
+    stopping: Mutex<Option<StoppingSession>>,
+    /// v1.6.0: the preferences the NEXT companion session will run with.
+    /// Armed by the most recent press edge the server saw (display-only:
+    /// the tray's companion status block reads this as "what the next
+    /// press will do"). The session ITSELF never reads this slot - its
+    /// prefs ride the edge into the coordinator, which freezes them per
+    /// lane at the start commit.
+    pending_prefs: Mutex<protocol::SessionPrefs>,
     /// Per-IP auth-failure limiting shared across connections.
     failure_limiter: Mutex<auth::FailureLimiter>,
     /// The Rust-side notice listener id (registered once at init).
@@ -160,19 +193,18 @@ impl CompanionManager {
                 port: 0,
                 fingerprint: None,
                 last_error: None,
-                devices: Vec::new(),
                 advertised_host: None,
                 tls_manual: false,
             }),
             broadcast,
             shutdown_tx,
-            session_live: AtomicBool::new(false),
-            session_device: Mutex::new(None),
-            pending_prefs: Mutex::new(protocol::SessionPrefs::default()),
-            device_lanes: Mutex::new(HashMap::new()),
+            connections: Mutex::new(Vec::new()),
             next_lane_id: std::sync::atomic::AtomicU64::new(1),
-            session_lane: Mutex::new(None),
-            live_prefs: Mutex::new(protocol::SessionPrefs::default()),
+            next_generation: std::sync::atomic::AtomicU64::new(1),
+            lane_sessions: Mutex::new(HashMap::new()),
+            starting_lane: Mutex::new(None),
+            stopping: Mutex::new(None),
+            pending_prefs: Mutex::new(protocol::SessionPrefs::default()),
             failure_limiter: Mutex::new(auth::FailureLimiter::new(
                 5,
                 Duration::from_secs(60),
@@ -186,69 +218,150 @@ impl CompanionManager {
         self.inner.lock().unwrap().running
     }
 
-    pub fn session_live(&self) -> bool {
-        self.session_live.load(Ordering::Acquire)
+    /// v1.6.2 W1-L2: register one authenticated connection. Returns its
+    /// SERVER-assigned lane id, its KB-255 registration generation, and the
+    /// receiver its select loop drains. Registry-only on purpose (the
+    /// settings/tray bookkeeping lives in [`Self::note_device_connected`],
+    /// which needs a real app handle); the device list (tray count,
+    /// settings panel) derives from live registrations, never from a
+    /// name-keyed slot a stale socket can erase.
+    pub fn register_connection(
+        &self,
+        device: &str,
+    ) -> (
+        u64,
+        u64,
+        tokio::sync::mpsc::UnboundedReceiver<String>,
+    ) {
+        let lane = self
+            .next_lane_id
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        let generation = self
+            .next_generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+        self.connections.lock().unwrap().push(ConnectionEntry {
+            lane,
+            generation,
+            device: device.to_string(),
+            tx,
+        });
+        (lane, generation, rx)
     }
 
-    /// The device name of the live (or most recent) session.
-    pub fn session_device(&self) -> Option<String> {
-        self.session_device.lock().unwrap().clone()
-    }
-
-    /// KB-197: an authenticated hello claims the session-device slot - the
-    /// source `on_session_changed` badges the session with and blames on
-    /// cap/disconnect notices - but ONLY while no session is live. Once a
-    /// phone is dictating, an additional hello is a spectator or a
-    /// reconnect: overwriting the slot would rename the session after the
-    /// fact (and the next session's badge) to a phone that never pressed.
-    /// A same-name reconnect mid-session is a no-op by the same guard.
-    pub fn claim_session_device(&self, name: &str) {
-        if self.session_live() {
-            return;
+    /// v1.6.2 W1-L2: the connect-edge bookkeeping the server runs right
+    /// after a hello registers (the remember_device rule): persist the
+    /// newest name as `companion_last_device` and re-sync the tray's
+    /// companion block (W1-L8 - the paired count tracks the connection,
+    /// not the next unrelated sync point; runs on the server's task thread
+    /// so the snapshot compute never lands on the UI thread).
+    pub fn note_device_connected(&self, app: &AppHandle, device: &str) {
+        let mut settings = crate::settings::get_settings(app);
+        if settings.companion_last_device.as_deref() != Some(device) {
+            settings.companion_last_device = Some(device.to_string());
+            crate::settings::write_settings(app, settings);
         }
-        *self.session_device.lock().unwrap() = Some(name.to_string());
+        crate::tray::update_tray_menu(app);
+    }
+
+    /// v1.6.2 W1-L2 (KB-255): release a connection's registration. Both
+    /// keys must match: the lane id (never reused) and the registration
+    /// generation. A stale socket whose keepalive death lagged behind a
+    /// same-name reconnect carries the OLD pair, which no longer matches
+    /// any entry, so the fresh registration survives and the tray's paired
+    /// count stays honest. Registry-only (the tray re-sync lives in
+    /// [`Self::note_device_disconnected`]).
+    pub fn unregister_connection(&self, lane: u64, generation: u64) {
+        let mut connections = self.connections.lock().unwrap();
+        connections.retain(|entry| !(entry.lane == lane && entry.generation == generation));
+    }
+
+    /// The disconnect-edge tray re-sync (the forget_device rule, now
+    /// keyed on registrations instead of names).
+    pub fn note_device_disconnected(&self, app: &AppHandle) {
+        crate::tray::update_tray_menu(app);
+    }
+
+    /// The deduplicated device names of the live connections, in
+    /// registration order (the settings panel's device list).
+    pub fn devices(&self) -> Vec<String> {
+        let mut names: Vec<String> = Vec::new();
+        for entry in self.connections.lock().unwrap().iter() {
+            if !names.iter().any(|n| n == &entry.device) {
+                names.push(entry.device.clone());
+            }
+        }
+        names
+    }
+
+    /// The device name one connection hello'd with (None when the
+    /// connection is gone).
+    pub fn connection_device(&self, lane: u64) -> Option<String> {
+        self.connections
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|entry| entry.lane == lane)
+            .map(|entry| entry.device.clone())
+    }
+
+    /// v1.6.2 W1-L2: freeze one lane's session identity at the instant the
+    /// coordinator commits its Start (see [`begin_session`]). The device
+    /// resolves from the connection registry; a lane with no live
+    /// connection (test contexts) freezes as the generic Companion name.
+    fn freeze_session(&self, lane: u64, prefs: protocol::SessionPrefs) -> LaneSession {
+        let device = self
+            .connection_device(lane)
+            .unwrap_or_else(|| "Companion".to_string());
+        LaneSession {
+            device,
+            prefs,
+            live: true,
+        }
+    }
+
+    /// Whether THIS lane's session is live - the lane-scoped truth the
+    /// server's audio admission reads (a spectator phone, a reconnecting
+    /// phone, and a keyboard dictation all read false).
+    pub fn lane_owns_live_session(&self, lane: u64) -> bool {
+        self.lane_sessions
+            .lock()
+            .unwrap()
+            .get(&lane)
+            .is_some_and(|session| session.live)
+    }
+
+    /// v1.6.2 W1-L2: the lanes with live sessions right now, sorted (the
+    /// server-stop and disconnect-all teardowns finalize exactly these;
+    /// sorted so callers and tests see a deterministic order despite the
+    /// HashMap underneath).
+    pub fn live_session_lanes(&self) -> Vec<u64> {
+        let mut lanes: Vec<u64> = self
+            .lane_sessions
+            .lock()
+            .unwrap()
+            .iter()
+            .filter(|(_, session)| session.live)
+            .map(|(lane, _)| *lane)
+            .collect();
+        lanes.sort_unstable();
+        lanes
     }
 
     /// v1.6.0: arm the preferences the next companion session will run
     /// with. Called by the server on every press edge, so the tray's
     /// companion status block shows the latest phone choice as "what the
-    /// next press will do". The session ITSELF never reads this slot: its
-    /// prefs ride the edge into the coordinator, which applies them to the
-    /// live slot at the single serialized instant it commits the start -
-    /// the pending slot is display-and-default only, so a concurrent press
-    /// from another phone cannot overwrite a starting session's prefs in
-    /// the old arm-to-freeze window.
+    /// next press will do". Display-and-default only: the session's own
+    /// prefs ride its starting edge into the coordinator.
     pub fn set_pending_session_prefs(&self, prefs: protocol::SessionPrefs) {
         *self.pending_prefs.lock().unwrap() = prefs;
     }
 
     /// v1.6.0: the preferences the NEXT companion session will run with
-    /// (armed by the phone's press edges, defaults before any). The tray's
-    /// companion status block reads this as the active output target: it
-    /// is what the next press will actually do, unlike
-    /// [`Self::live_session_prefs`] which stays frozen at the last
-    /// session's start.
+    /// (armed by the phones' press edges, defaults before any). The tray's
+    /// companion status block reads this as the active output target.
     pub fn pending_session_prefs(&self) -> protocol::SessionPrefs {
         *self.pending_prefs.lock().unwrap()
-    }
-
-    /// v1.6.0: the preferences of the live (or most recently finished)
-    /// companion session. Set from the starting press's own edge at the
-    /// instant the coordinator commits the start, so a later press edge
-    /// (busy-remembered or on another phone) cannot retarget a session that
-    /// is already recording or mid-pipeline.
-    pub fn live_session_prefs(&self) -> protocol::SessionPrefs {
-        *self.live_prefs.lock().unwrap()
-    }
-
-    /// v1.6.0: set the preferences the session being committed will run
-    /// with. Called ONLY from the coordinator thread (through
-    /// [`begin_session_prefs`], at the instant a start effect is committed)
-    /// with the prefs that arrived ON the starting press's edge - never
-    /// read back from the pending slot, which other connections can write
-    /// concurrently.
-    fn set_live_session_prefs(&self, prefs: protocol::SessionPrefs) {
-        *self.live_prefs.lock().unwrap() = prefs;
     }
 
     pub fn broadcast_frame(&self, frame: &protocol::ServerFrame) {
@@ -264,48 +377,15 @@ impl CompanionManager {
         self.broadcast.subscribe()
     }
 
-    /// v1.6.0: claim one targeted lane for an authenticated connection.
-    /// Returns the SERVER-assigned lane id (the connection passes it on
-    /// every Ptt edge and uses it to release the lane) and the receiver
-    /// its select drains. Ids are never reused and never derive from the
-    /// client-controlled device name, so no later connection can seize or
-    /// supersede an existing lane.
-    pub fn register_device_lane(&self) -> (u64, tokio::sync::mpsc::UnboundedReceiver<String>) {
-        let lane = self
-            .next_lane_id
-            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        self.device_lanes.lock().unwrap().insert(lane, tx);
-        (lane, rx)
-    }
-
-    /// Release the connection's lane (its socket ended). A session still
-    /// pointing at this lane reads it as the documented dropped-phone
-    /// no-op; the id is never reused.
-    pub fn unregister_device_lane(&self, lane: u64) {
-        self.device_lanes.lock().unwrap().remove(&lane);
-    }
-
     /// Send one frame down exactly one connection's targeted lane. False
     /// when that lane is gone (the phone dropped): the caller treats it as
     /// the documented no-subscriber no-op.
     pub fn send_frame_to_lane(&self, lane: u64, frame: &protocol::ServerFrame) -> bool {
-        let lanes = self.device_lanes.lock().unwrap();
-        match lanes.get(&lane) {
-            Some(tx) => tx.send(frame.to_json()).is_ok(),
+        let connections = self.connections.lock().unwrap();
+        match connections.iter().find(|entry| entry.lane == lane) {
+            Some(entry) => entry.tx.send(frame.to_json()).is_ok(),
             None => false,
         }
-    }
-
-    /// v1.6.0: freeze the lane of the companion session being committed.
-    /// Called ONLY from the coordinator thread's Start effect with the
-    /// lane id that arrived ON the starting press's edge, before the start
-    /// preamble - the same serialized handoff-at-commit that protects the
-    /// session's prefs, so the stop pipeline's delivery (which resolves
-    /// minutes later, after transcription and post-process) can never be
-    /// redirected by a later hello or lane registration.
-    fn set_session_lane(&self, lane: u64) {
-        *self.session_lane.lock().unwrap() = Some(lane);
     }
 
     pub fn shutdown_signal(&self) -> watch::Receiver<bool> {
@@ -314,33 +394,6 @@ impl CompanionManager {
 
     pub fn failure_limiter_pin(&self) -> &Mutex<auth::FailureLimiter> {
         &self.failure_limiter
-    }
-
-    /// Remember a hello'd device (deduplicated) and persist the name as
-    /// `companion_last_device`.
-    pub fn remember_device(&self, app: &AppHandle, name: &str) {
-        {
-            let mut inner = self.inner.lock().unwrap();
-            if !inner.devices.iter().any(|d| d == name) {
-                inner.devices.push(name.to_string());
-            }
-        }
-        let mut settings = crate::settings::get_settings(app);
-        if settings.companion_last_device.as_deref() != Some(name) {
-            settings.companion_last_device = Some(name.to_string());
-            crate::settings::write_settings(app, settings);
-        }
-        // W1-L8: the paired-device count the tray's companion status block
-        // shows just changed; re-sync so the count tracks the connection,
-        // not the next unrelated sync point. Runs on the server's task
-        // thread, so the snapshot compute never lands on the UI thread.
-        crate::tray::update_tray_menu(app);
-    }
-
-    pub fn forget_device(&self, app: &AppHandle, name: &str) {
-        self.inner.lock().unwrap().devices.retain(|d| d != name);
-        // W1-L8: same re-sync as remember_device for the disconnect edge.
-        crate::tray::update_tray_menu(app);
     }
 
     /// Start the server. Idempotent. Resolves the bind address from the
@@ -475,17 +528,12 @@ impl CompanionManager {
             inner.tls_manual = tls_manual;
         }
 
-        // Pre-warm the remote recorder (VAD load off the press path).
-        if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
-            let rm = Arc::clone(&rm);
-            let app_bg = app.clone();
-            std::thread::spawn(move || {
-                if let Err(e) = rm.prewarm_remote() {
-                    log::debug!("companion: remote recorder pre-warm failed: {e}");
-                    let _ = app_bg;
-                }
-            });
-        }
+        // Pre-warm the remote recorder for the FIRST arriving connection
+        // (VAD load off the press path). v1.6.2 W1-L2: pre-warming is
+        // per-lane and keeps only the most recent connection's recorder
+        // (see prewarm_remote_lane); the server pre-warms each subsequent
+        // hello'd lane as it arrives.
+        // (No lane exists until the first hello; the hello path warms.)
 
         log::info!(
             "companion: server running on https://{bind_ip}:{port} (subnet {subnet}, advertised as {})",
@@ -494,34 +542,34 @@ impl CompanionManager {
         Ok(())
     }
 
-    /// Stop the server: finalize a live companion session first (the forced
-    /// finalize runs the ordinary Stop pipeline, which closes the remote
-    /// recorder itself), then close the listener and all connections.
-    /// Idempotent.
+    /// Stop the server: finalize every live companion session first (the
+    /// forced finalize runs the ordinary Stop pipeline, which closes each
+    /// lane's recorder itself), then close the listener and all
+    /// connections. Idempotent.
     pub fn stop(&self, app: &AppHandle) {
         if !self.is_running() {
             return;
         }
 
-        // Graceful finalize: if a phone session is live, finalize it so
-        // everything captured is transcribed and pasted. Forced rather than
-        // a synthesized release edge: a locked (toggle) session ignores
-        // release edges by design and would otherwise strand the recording.
+        // Graceful finalize: every live phone session is finalized so
+        // everything captured is transcribed and delivered. Forced rather
+        // than synthesized release edges: locked (toggle) sessions ignore
+        // release edges by design and would otherwise strand recordings.
         if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
-            if self.session_live() {
-                coordinator.finalize_companion_session();
+            for lane in self.live_session_lanes() {
+                coordinator.finalize_companion_lane(lane);
             }
         }
-        self.session_live.store(false, Ordering::Release);
-        *self.session_device.lock().unwrap() = None;
+        self.lane_sessions.lock().unwrap().clear();
+        *self.stopping.lock().unwrap() = None;
 
         self.broadcast_frame(&protocol::ServerFrame::Goodbye {
             reason: "server_stopping",
         });
         let _ = self.shutdown_tx.send(true);
 
-        // Close the pre-warmed remote recorder unless the stop pipeline is
-        // using it right now (it closes it at its own end).
+        // Close the lane recorders unless a stop pipeline is using them
+        // right now (each pipeline closes its own at its end).
         if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
             if !rm.is_recording() {
                 rm.close_remote_stream();
@@ -534,7 +582,7 @@ impl CompanionManager {
         inner.port = 0;
         inner.advertised_host = None;
         inner.tls_manual = false;
-        inner.devices.clear();
+        self.connections.lock().unwrap().clear();
         log::info!("companion: server stopped");
     }
 
@@ -642,7 +690,7 @@ impl CompanionManager {
             token,
             subnet: settings.companion_pairing_subnet.clone(),
             last_device: settings.companion_last_device.clone(),
-            devices: inner.devices.clone(),
+            devices: self.devices(),
             error: inner.last_error.clone(),
             interfaces: candidates.iter().map(CompanionInterface::from).collect(),
             bind_ip: effective_ip.map(|ip| ip.to_string()),
@@ -654,11 +702,13 @@ impl CompanionManager {
     }
 
     /// Paired-device count for the tray's companion status block (W1-L8):
-    /// a cheap lock read, deliberately NOT the full [`Self::status`]
-    /// snapshot, which enumerates network interfaces on every call - far
-    /// too heavy for a value the tray re-reads on every menu sync.
+    /// the deduplicated device names of the live connections (v1.6.2: the
+    /// registration-keyed list KB-255 protects). A cheap lock read,
+    /// deliberately NOT the full [`Self::status`] snapshot, which
+    /// enumerates network interfaces on every call - far too heavy for a
+    /// value the tray re-reads on every menu sync.
     pub fn paired_device_count(&self) -> usize {
-        self.inner.lock().unwrap().devices.len()
+        self.devices().len()
     }
 
     pub fn set_last_error(&self, error: Option<String>) {
@@ -808,127 +858,128 @@ pub fn apply_enabled(app: &AppHandle, enabled: bool) -> Result<(), String> {
     Ok(())
 }
 
-/// Companion session boundary, reported by the shared TranscribeAction:
-/// badges the recording overlay (emit_to the overlay window, the
-/// command-mode pattern) and broadcasts the state to paired phones.
-pub fn on_session_changed(app: &AppHandle, active: bool) {
-    if let Some(manager) = manager(app) {
-        manager.session_live.store(active, Ordering::Release);
-        if active {
-            // v1.6.0: the session's prefs were already applied on the
-            // coordinator thread (begin_session_prefs, from the starting
-            // press's own edge) BEFORE start()'s preamble reached this
-            // broadcast - freezing them here, after the preamble, was the
-            // arm-to-freeze race another phone's press could overwrite.
-            // NOT cleared on the false edge: the stop pipeline reads the
-            // session's prefs after this broadcast (target delivery,
-            // post-process leg), and no new companion session can start
-            // until that pipeline drains (the coordinator's busy
-            // arbitration), so the slot cannot go stale under it.
-            let device = manager
-                .session_device()
-                .or_else(|| crate::settings::get_settings(app).companion_last_device)
-                .unwrap_or_else(|| "Companion".to_string());
-            *manager.session_device.lock().unwrap() = Some(device.clone());
-            manager.broadcast_frame(&protocol::ServerFrame::State { recording: true });
-            let _ = app.emit_to(
-                "recording_overlay",
-                "companion-session-changed",
-                serde_json::json!({ "active": true, "device": device }),
-            );
-        } else {
-            manager.broadcast_frame(&protocol::ServerFrame::State { recording: false });
-            let _ = app.emit_to(
-                "recording_overlay",
-                "companion-session-changed",
-                serde_json::json!({ "active": false, "device": null }),
-            );
+/// v1.6.2 W1-L2: one lane's session boundary, reported by the shared
+/// TranscribeAction. The State frame goes ONLY to the session's own lane
+/// (each connection learns its own session's liveness - a second phone
+/// recording concurrently never flips the first phone's button, and a
+/// spectator's client never streams audio it would only have dropped), and
+/// the recording overlay badge carries the session's own frozen device
+/// name. The per-lane record's liveness flips here, which is exactly the
+/// truth the server's audio admission samples.
+pub fn on_lane_session_changed<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64, active: bool) {
+    let Some(manager) = manager(app) else {
+        return;
+    };
+    let mut sessions = manager.lane_sessions.lock().unwrap();
+    match sessions.get_mut(&lane) {
+        Some(session) => {
+            session.live = active;
         }
-    } else {
-        // Manager not initialized (tests): still badge the overlay so the
-        // shared action path stays self-contained.
-        let _ = app.emit_to(
-            "recording_overlay",
-            "companion-session-changed",
-            serde_json::json!({ "active": active, "device": null }),
-        );
+        None => return, // no session was ever committed for this lane
     }
+    let device = sessions
+        .get(&lane)
+        .map(|s| s.device.clone())
+        .unwrap_or_else(|| "Companion".to_string());
+    drop(sessions);
+    manager.send_frame_to_lane(
+        lane,
+        &protocol::ServerFrame::State { recording: active },
+    );
+    let _ = app.emit_to(
+        "recording_overlay",
+        "companion-session-changed",
+        serde_json::json!({
+            "active": active,
+            "device": if active { Some(device) } else { None },
+        }),
+    );
 }
 
-/// v1.6.0: the live companion session's preferences (output target,
-/// post-process request), carried by the press edge that started the
-/// session and applied when the coordinator commits that start. Reads as
-/// the defaults (paste on the Mac, no post-process - exactly the
-/// pre-v1.6.0 behavior) when no manager is initialized or no companion
-/// session has run, so keyboard sessions and test contexts need no
-/// special-casing.
-pub fn session_prefs<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> protocol::SessionPrefs {
-    manager(app)
-        .map(|m| m.live_session_prefs())
-        .unwrap_or_default()
-}
-
-/// v1.6.0: apply the preferences a starting press edge carried as the live
-/// session's. Called ONLY from the coordinator thread's Start effect, at
-/// the single serialized instant the start is committed and before
-/// start()'s preamble, so the session runs with exactly the prefs of the
-/// press that started it - a concurrent press from another phone is
-/// queued behind the same coordinator command and can only arm the NEXT
-/// session (the pending slot the server writes stays display-only).
-pub fn begin_session_prefs<R: tauri::Runtime>(
+/// v1.6.2 W1-L2: freeze one lane's session identity (device name from the
+/// connection registry + the prefs the starting press edge carried) as the
+/// session being committed. Called ONLY from the coordinator thread's Start
+/// effect, at the single serialized instant the start commits and BEFORE
+/// start()'s preamble - the v1.6.0 handoff-at-commit discipline, now keyed
+/// per lane, so a concurrent press from another phone (queued behind the
+/// same coordinator command) can only start its OWN session and nothing
+/// can retarget this one's delivery or attribution later.
+pub fn begin_session<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
+    lane: u64,
     prefs: protocol::SessionPrefs,
 ) {
     if let Some(manager) = manager(app) {
-        manager.set_live_session_prefs(prefs);
+        let session = manager.freeze_session(lane, prefs);
+        manager.lane_sessions.lock().unwrap().insert(lane, session);
+        *manager.starting_lane.lock().unwrap() = Some(lane);
     }
 }
 
-/// v1.6.0: freeze the lane of the companion session being committed, from
-/// the starting press's own edge (see [`CompanionManager::set_session_lane`]).
-/// Same call site and same serialized instant as [`begin_session_prefs`]:
-/// the coordinator thread's Start effect, before the start preamble.
-pub fn begin_session_lane<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
-    if let Some(manager) = manager(app) {
-        manager.set_session_lane(lane);
-    }
-}
-
-/// v1.6.0: the device name of the live (or most recent) companion session,
-/// for notice detail lines. None outside a companion context.
-pub fn session_device_name<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<String> {
-    manager(app).and_then(|m| m.session_device())
-}
-
-/// v1.6.0 phone-target delivery: send the final transcript of a companion
-/// session whose output target is the phone down the session's OWN frozen
-/// lane, never the broadcast channel every paired phone subscribes to and
-/// never anything resolved from the claimable session-device name - a
-/// bystander phone must not render (and silently clipboard-write) a
-/// dictation it did not make, and a phone that connected during the
-/// transcription window must not inherit it either. The lane was frozen
-/// from the starting press's edge at the moment the coordinator committed
-/// the start; by delivery time (minutes later, after transcription and
-/// post-process) the name slot and the lane registry may both have
-/// changed, and neither can redirect this frame. One frame, one emission
-/// site (the stop pipeline's phone-delivery branch). A session with no
-/// frozen lane (pre-v1.6.0 test contexts) or a gone lane (the phone
-/// dropped) is a no-op; the transcript is already in history, and the
-/// disconnect finalize's notice says exactly that.
-pub fn deliver_transcript_to_phone<R: tauri::Runtime>(
+/// v1.6.2 W1-L2: the lane of the companion session whose Start effect is
+/// being executed (read back by the shared action's start, synchronously
+/// behind begin_session on the coordinator thread). None for
+/// keyboard/signal starts.
+pub fn starting_session_lane<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
+) -> Option<u64> {
+    manager(app).and_then(|m| *m.starting_lane.lock().unwrap())
+}
+
+/// v1.6.2 W1-L2: drop a lane's session record entirely (a start that never
+/// began recording - the rollback path - so a later session on the same
+/// lane starts clean).
+pub fn discard_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
+    if let Some(manager) = manager(app) {
+        manager.lane_sessions.lock().unwrap().remove(&lane);
+    }
+}
+
+/// v1.6.2 W1-L2: hand the stopping session's identity from the coordinator
+/// thread (which knows the lane its Stop effect ends) to the shared
+/// pipeline, whose TranscribeAction signature predates lanes. Called
+/// immediately before the Stop effect runs; consumed exactly once by the
+/// pipeline's first synchronous step on the same thread.
+pub fn note_stopping_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
+    let Some(manager) = manager(app) else {
+        return;
+    };
+    let sessions = manager.lane_sessions.lock().unwrap();
+    if let Some(session) = sessions.get(&lane) {
+        *manager.stopping.lock().unwrap() = Some(StoppingSession {
+            lane,
+            device: session.device.clone(),
+            prefs: session.prefs,
+        });
+    }
+}
+
+/// v1.6.2 W1-L2: take the stopping session's identity for the pipeline
+/// about to run (delivery target, prefs, and attribution device resolve
+/// from it - KB-254: the zero-audio notice names THIS session's device,
+/// never a claimable slot). None for keyboard sessions and test contexts.
+pub fn take_stopping_session<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+) -> Option<(u64, String, protocol::SessionPrefs)> {
+    let manager = manager(app)?;
+    let stopping = manager.stopping.lock().unwrap().take()?;
+    Some((stopping.lane, stopping.device, stopping.prefs))
+}
+
+/// v1.6.2 W1-L2 phone-target delivery: send the final transcript of one
+/// companion session down ITS OWN frozen lane, never the broadcast channel
+/// every paired phone subscribes to. The lane arrives from the stopping
+/// session handoff (the connection whose press started the session); a
+/// gone lane (the phone dropped) is a no-op - the transcript is already in
+/// history, and the disconnect finalize's notice says exactly that.
+pub fn deliver_transcript_to_lane<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    lane: u64,
     text: &str,
     post_processed: bool,
     model: &str,
 ) {
     let Some(manager) = manager(app) else {
-        return;
-    };
-    let lane = *manager.session_lane.lock().unwrap();
-    let Some(lane) = lane else {
-        log::warn!(
-            "companion: phone-target transcript has no session lane to target; history keeps it"
-        );
         return;
     };
     if !manager.send_frame_to_lane(
@@ -945,29 +996,60 @@ pub fn deliver_transcript_to_phone<R: tauri::Runtime>(
     }
 }
 
-/// v1.6.0: broadcast the RecentHistory frame (the last companion-source
-/// entries) to every paired phone. Emitted at welcome (a fresh or
-/// reconnecting phone catches up) and after every companion history write
-/// (the list stays current). Best effort: a query failure logs and skips -
+/// v1.6.2 W1-L2: send one phone its OWN recent list (the last
+/// companion-source entries THAT phone dictated, identified by its hello
+/// device name). Per-phone by construction: a phone's phone-destined
+/// dictations appear in its own list (they are private to its lane) and
+/// never in another phone's. Best effort: a query failure logs and skips -
 /// history delivery must never break the pipeline that just wrote it.
-pub fn broadcast_recent_history<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+pub fn send_recent_history_to_lane<R: tauri::Runtime>(
+    app: &tauri::AppHandle<R>,
+    lane: u64,
+    device: &str,
+) {
     let Some(manager) = manager(app) else {
         return;
     };
     let Some(hm) = app.try_state::<Arc<crate::managers::history::HistoryManager>>() else {
         return;
     };
-    match hm.recent_companion_entries(protocol::RECENT_HISTORY_LIMIT) {
-        Ok(entries) => manager.broadcast_frame(&protocol::ServerFrame::RecentHistory {
-            entries: entries
-                .into_iter()
-                .map(|e| protocol::RecentHistoryEntry {
-                    text: e.text,
-                    timestamp: e.timestamp,
-                })
-                .collect(),
-        }),
+    match hm.recent_companion_entries_for_device(
+        device,
+        protocol::RECENT_HISTORY_LIMIT,
+    ) {
+        Ok(entries) => {
+            let _ = manager.send_frame_to_lane(
+                lane,
+                &protocol::ServerFrame::RecentHistory {
+                    entries: entries
+                        .into_iter()
+                        .map(|e| protocol::RecentHistoryEntry {
+                            text: e.text,
+                            timestamp: e.timestamp,
+                        })
+                        .collect(),
+                },
+            );
+        }
         Err(e) => log::warn!("companion: recent history query failed: {e}"),
+    }
+}
+
+/// v1.6.2 W1-L2: refresh EVERY live connection's recent list (each with
+/// its own device filter). Emitted after every companion history write.
+pub fn broadcast_recent_history<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
+    let Some(manager) = manager(app) else {
+        return;
+    };
+    for (lane, device) in manager
+        .connections
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|entry| (entry.lane, entry.device.clone()))
+        .collect::<Vec<_>>()
+    {
+        send_recent_history_to_lane(app, lane, &device);
     }
 }
 
@@ -1109,48 +1191,150 @@ mod tests {
         assert!(qr_svg_for(&"x".repeat(4000)).is_err());
     }
 
-    /// KB-197: a hello claims the session-device slot (the badge/blame
-    /// source `on_session_changed` reads) only while no session is live.
-    /// Mid-session, another phone's hello is a spectator and must not
-    /// rename the session; a same-name reconnect is a no-op by the same
-    /// guard, so neither changes the slot.
+    /// v1.6.2 W1-L2 (KB-254 by construction): per-lane session identity.
+    /// A session's device name freezes from ITS OWN connection's
+    /// registration at the instant the coordinator commits the start, so a
+    /// second phone connecting (or reconnecting under any name) before,
+    /// during, or after phone A's session can never rename A's session or
+    /// blame its notices on the wrong device - the old claimable
+    /// session-device slot is gone entirely.
     #[test]
-    fn hello_claims_the_session_device_only_while_no_session_is_live() {
+    fn session_identity_freezes_per_lane_and_cannot_be_renamed() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+
+        // Phone A connects and its session commits.
+        let (lane_a, _gen_a, _rx_a) = manager.register_connection("Pixel 8");
+        begin_session(app.handle(), lane_a, protocol::SessionPrefs::default());
+        assert!(manager.lane_owns_live_session(lane_a));
+
+        // Phone B spectates mid-session (v1.6.0 KB-197's scenario, now
+        // impossible to get wrong: B's hello registers a lane; it cannot
+        // touch A's frozen record).
+        let (_lane_b, _gen_b, _rx_b) = manager.register_connection("iPhone 15");
+        assert_eq!(
+            manager.lane_owns_live_session(lane_a),
+            true,
+            "a mid-session hello must not disturb the live session's record"
+        );
+
+        // The stopping-session handoff resolves A's session to A's device
+        // (the zero-audio notice names exactly this).
+        note_stopping_session(app.handle(), lane_a);
+        let (stop_lane, device, _prefs) =
+            take_stopping_session(app.handle()).expect("the stopping session resolves");
+        assert_eq!(stop_lane, lane_a);
+        assert_eq!(device, "Pixel 8");
+
+        // A lane that never froze a session (B, the spectator) hands the
+        // pipeline nothing - and consuming the slot once means a second
+        // take resolves nothing either.
+        assert!(take_stopping_session(app.handle()).is_none());
+        note_stopping_session(app.handle(), _lane_b);
+        assert!(
+            take_stopping_session(app.handle()).is_none(),
+            "a spectator lane with no session record resolves no stopping session"
+        );
+    }
+
+    /// v1.6.2 W1-L2 (KB-110/KB-111 by construction): two connections each
+    /// own their session independently. Both sessions are live at once;
+    /// ending one flips exactly its lane's liveness (an independent stop),
+    /// and the disconnect-finalize decision (the server consults
+    /// live_session_lanes / lane liveness) sees only the dropped phone's
+    /// session - the other phone keeps streaming into its own recorder.
+    #[test]
+    fn two_connections_own_independent_live_sessions() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+
+        let (lane_a, _gen_a, _rx_a) = manager.register_connection("Pixel 8");
+        let (lane_b, _gen_b, _rx_b) = manager.register_connection("iPhone 15");
+        begin_session(app.handle(), lane_a, protocol::SessionPrefs::default());
+        begin_session(app.handle(), lane_b, protocol::SessionPrefs::default());
+
+        // Both live simultaneously - the one-shared-session era's
+        // impossibility.
+        assert!(manager.lane_owns_live_session(lane_a));
+        assert!(manager.lane_owns_live_session(lane_b));
+        assert_eq!(
+            manager.live_session_lanes(),
+            vec![lane_a, lane_b],
+            "both lanes report live sessions for the teardown paths"
+        );
+
+        // Phone A stops: only its session ends. B's stays live.
+        on_lane_session_changed(app.handle(), lane_a, false);
+        assert!(!manager.lane_owns_live_session(lane_a));
+        assert_eq!(
+            manager.lane_owns_live_session(lane_b),
+            true,
+            "one phone's stop must not end the other's session (KB-110)"
+        );
+        assert_eq!(manager.live_session_lanes(), vec![lane_b]);
+
+        // Phone B's socket dies: the disconnect path finalizes exactly
+        // lane B, and A (already finished) is untouched by it.
+        assert_eq!(manager.live_session_lanes(), vec![lane_b]);
+        on_lane_session_changed(app.handle(), lane_b, false);
+        assert!(manager.live_session_lanes().is_empty());
+    }
+
+    /// v1.6.2 W1-L2 (KB-255): paired-device bookkeeping keys on
+    /// lane/generation, never the name. A stale socket's late unregister
+    /// (keepalive death lags up to 20 s) carries the old pair and must not
+    /// erase a fresh same-name registration; a matching pair removes
+    /// exactly its own entry; lane ids are never reused.
+    #[test]
+    fn registrations_release_by_lane_and_generation_never_by_name() {
         let manager = CompanionManager::new();
 
-        // No session live: the hello claims the slot.
-        manager.claim_session_device("Pixel 8");
-        assert_eq!(manager.session_device().as_deref(), Some("Pixel 8"));
+        // Phone A connects under a name.
+        let (lane_a, gen_a, _rx_a) = manager.register_connection("Pixel 8");
+        assert_eq!(manager.devices(), vec!["Pixel 8".to_string()]);
+        assert_eq!(manager.paired_device_count(), 1);
 
-        // Session live: a different phone's hello is a spectator.
-        manager.session_live.store(true, Ordering::Release);
-        manager.claim_session_device("iPhone 15");
+        // A quick reconnect: the fresh registration is a NEW lane and
+        // generation under the SAME name.
+        let (lane_b, gen_b, _rx_b) = manager.register_connection("Pixel 8");
+        assert_ne!(lane_a, lane_b, "lane ids are per registration, never per name");
         assert_eq!(
-            manager.session_device().as_deref(),
-            Some("Pixel 8"),
-            "a mid-session hello must not rename the live session's device"
+            manager.paired_device_count(),
+            1,
+            "same-name registrations deduplicate for the tray count"
         );
 
-        // Session live: the same phone reconnecting (rate-cap drop without
-        // finalize, server-side reconnect) updates nothing - the slot
-        // already holds the name it would write.
-        manager.claim_session_device("Pixel 8");
+        // The STALE socket's death arrives late: its (lane, generation)
+        // pair no longer matches anything, so the fresh registration
+        // survives and the paired count never zeroes (KB-255).
+        manager.unregister_connection(lane_a, gen_a);
         assert_eq!(
-            manager.session_device().as_deref(),
-            Some("Pixel 8"),
-            "a same-name reconnect is a no-op"
+            manager.devices(),
+            vec!["Pixel 8".to_string()],
+            "a stale socket's death must not erase a fresh same-name registration"
         );
+        assert_eq!(manager.paired_device_count(), 1);
 
-        // Session over: the next hello claims the slot again (the
-        // post-session reconnect path - a genuine drop finalizes, clearing
-        // liveness, so the re-hello re-arms the slot for the next press).
-        manager.session_live.store(false, Ordering::Release);
-        manager.claim_session_device("iPhone 15");
+        // The fresh socket's own death removes exactly its entry.
+        manager.unregister_connection(lane_b, gen_b);
+        assert!(manager.devices().is_empty());
+        assert_eq!(manager.paired_device_count(), 0);
+
+        // Distinct names coexist and leave in registration order.
+        let (lane_c, _gen_c, _rx_c) = manager.register_connection("iPhone 15");
+        let (lane_d, _gen_d, _rx_d) = manager.register_connection("iPad");
         assert_eq!(
-            manager.session_device().as_deref(),
-            Some("iPhone 15"),
-            "with no session live a hello claims the slot again"
+            manager.devices(),
+            vec!["iPhone 15".to_string(), "iPad".to_string()]
         );
+        manager.unregister_connection(lane_c, _gen_c);
+        assert_eq!(manager.devices(), vec!["iPad".to_string()]);
+        // Lane ids are never reused.
+        let (lane_e, _gen_e, _rx_e) = manager.register_connection("iPhone 15");
+        assert_ne!(lane_e, lane_c);
+        assert_ne!(lane_e, lane_d);
     }
 
     /// Contract under test (AUD-01): a pure forwarder filter
@@ -1345,124 +1529,94 @@ mod tests {
         );
     }
 
-    /// v1.6.0: the per-session preference lifecycle. The session's prefs
-    /// ride the STARTING press's edge and are applied to the live slot by
-    /// the coordinator's Start-effect seam (begin_session_prefs) at the
-    /// single serialized instant the start is committed - never read back
-    /// from the pending slot another connection can write concurrently,
-    /// which was the arm-to-freeze race. The applied copy survives both
-    /// later pending arms (a concurrent press from another phone must not
-    /// retarget the live session) and the session's own stop (the pipeline
-    /// reads the copy after the false edge). Defaults reproduce the
-    /// pre-v1.6.0 behavior: paste on the Mac, no post-process.
+    /// v1.6.0 (per-session prefs, v1.6.2 per-lane): the session's prefs
+    /// ride the STARTING press's edge and freeze into ITS lane's session
+    /// record at the single serialized instant the coordinator commits
+    /// the start (begin_session) - never read back from the pending slot
+    /// another connection can write concurrently, which was the
+    /// arm-to-freeze race. The frozen copy survives later pending arms (a
+    /// concurrent press from another phone must not retarget the live
+    /// session) and the session's own end (the stop pipeline takes the
+    /// copy AFTER the false edge). Defaults reproduce the pre-v1.6.0
+    /// behavior: paste on the Mac, no post-process.
     #[test]
-    fn session_prefs_apply_from_the_starting_edge_and_survive_the_stop_pipeline() {
+    fn session_prefs_freeze_per_lane_and_survive_the_stop_pipeline() {
         let app = tauri::test::mock_app();
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
 
-        // No session has run: defaults.
-        assert_eq!(manager.live_session_prefs(), Default::default());
+        let (lane_a, _gen_a, _rx_a) = manager.register_connection("Pixel 8");
+        let (lane_b, _gen_b, _rx_b) = manager.register_connection("iPhone 15");
+        let phone_target = protocol::SessionPrefs {
+            output_target: protocol::OutputTarget::Phone,
+            post_process: true,
+        };
 
-        // Phone A's press carries phone-target prefs; the coordinator's
-        // Start-effect seam applies exactly those as the session's own.
-        begin_session_prefs(
-            app.handle(),
-            protocol::SessionPrefs {
-                output_target: protocol::OutputTarget::Phone,
-                post_process: true,
-            },
-        );
-        assert_eq!(
-            manager.live_session_prefs(),
-            protocol::SessionPrefs {
-                output_target: protocol::OutputTarget::Phone,
-                post_process: true,
-            }
-        );
-
-        // A concurrent press from another phone only arms the pending
-        // slot (the tray's next-press display); the live session keeps
-        // the prefs of the edge that started it.
+        // Phone A's press carried phone-target prefs; the coordinator's
+        // Start-effect seam freezes exactly those into A's lane record.
+        begin_session(app.handle(), lane_a, phone_target);
+        // A concurrent press from another phone only arms the pending slot
+        // (the tray's next-press display); A's session keeps its own.
         manager.set_pending_session_prefs(protocol::SessionPrefs::default());
-        assert_eq!(
-            manager.live_session_prefs().output_target,
-            protocol::OutputTarget::Phone,
-            "the live session keeps its own prefs; a later press cannot retarget it"
-        );
 
-        // The session ends; the stop pipeline still reads the session's
-        // copy.
-        manager.session_live.store(false, Ordering::Release);
-        assert_eq!(
-            manager.live_session_prefs().output_target,
-            protocol::OutputTarget::Phone,
-            "the false edge must not clear the prefs the stop pipeline is about to read"
-        );
+        // The session ends; the stop handoff still resolves A's session's
+        // copy (the false edge must not clear what the pipeline reads).
+        on_lane_session_changed(app.handle(), lane_a, false);
+        note_stopping_session(app.handle(), lane_a);
+        let (stop_lane, _device, prefs) =
+            take_stopping_session(app.handle()).expect("A's stopping session resolves");
+        assert_eq!(stop_lane, lane_a);
+        assert_eq!(prefs, phone_target);
 
-        // The NEXT session applies ITS starting edge's prefs, whatever
+        // The NEXT session on another lane freezes ITS own prefs, whatever
         // later presses left in the pending slot.
-        begin_session_prefs(app.handle(), protocol::SessionPrefs::default());
-        assert_eq!(manager.live_session_prefs(), Default::default());
+        begin_session(app.handle(), lane_b, protocol::SessionPrefs::default());
+        note_stopping_session(app.handle(), lane_b);
+        let (_, _, prefs_b) = take_stopping_session(app.handle()).expect("B resolves");
+        assert_eq!(prefs_b, Default::default());
     }
 
-    /// v1.6.0 wiring, exercised through real app state: the prefs seam
-    /// resolves a managed manager (defaults when unmanaged), the
-    /// coordinator's Start-effect seam applies the starting edge's prefs,
-    /// and the phone-delivery seam pushes the TranscriptResult wire frame
-    /// down the session device's TARGETED lane - never the broadcast
-    /// channel every paired phone subscribes to, so a bystander phone
-    /// neither renders the dictation nor silently replaces its clipboard.
-    /// Two registered lanes plus a broadcast subscriber, asserted from a
-    /// mock app (the same pattern commands/local_llm.rs uses for its
-    /// download-failure events); the stop pipeline's own invocation of
-    /// these seams is pinned in actions.rs (the pipeline needs a full
-    /// recorder/model rig a unit test cannot mount).
+    /// v1.6.2 W1-L2 wiring, exercised through real app state: the phone
+    /// delivery seam pushes the TranscriptResult wire frame down the
+    /// session's OWN lane - never the broadcast channel every paired
+    /// phone subscribes to - and the per-lane State frames flip exactly
+    /// the recording phone's button. Two registered connections plus a
+    /// broadcast subscriber, asserted from a mock app; the stop
+    /// pipeline's own invocation of these seams is pinned in actions.rs
+    /// (the pipeline needs a full recorder/model rig a unit test cannot
+    /// mount).
     #[test]
-    fn transcript_delivery_and_prefs_flow_through_app_state() {
+    fn transcript_delivery_and_state_frames_flow_through_app_state_per_lane() {
         let app = tauri::test::mock_app();
-
-        // Unmanaged app: the seam reads as the defaults, so keyboard
-        // sessions and manager-less test contexts need no special-casing.
-        assert_eq!(
-            session_prefs(app.handle()),
-            Default::default(),
-            "no managed CompanionManager means the pre-v1.6.0 defaults"
-        );
-        assert_eq!(session_device_name(app.handle()), None);
-
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
 
-        // Two paired phones' connections, each with its own server-assigned
-        // lane; the broadcast subscriber stands in for every connection's
-        // broadcast arm.
-        let (pixel_lane, mut pixel_lane_rx) = manager.register_device_lane();
-        let (_bystander_lane, mut bystander_lane_rx) = manager.register_device_lane();
+        // Unmanaged helper behavior: no stopping session resolves.
+        let bare = tauri::test::mock_app();
+        assert!(take_stopping_session(bare.handle()).is_none());
+        assert_eq!(starting_session_lane(bare.handle()), None);
+
+        let (pixel_lane, _gen_p, mut pixel_lane_rx) = manager.register_connection("Pixel 8");
+        let (_bystander_lane, _gen_b, mut bystander_lane_rx) =
+            manager.register_connection("iPhone 15");
         let mut broadcast = manager.subscribe();
 
         // The session: Pixel 8's press carried phone-target prefs AND its
-        // connection's lane id; the Start-effect seams froze both, and the
-        // session badge claims the device.
-        manager.claim_session_device("Pixel 8");
-        begin_session_prefs(
+        // connection's lane id; the Start-effect seam froze both.
+        begin_session(
             app.handle(),
+            pixel_lane,
             protocol::SessionPrefs {
                 output_target: protocol::OutputTarget::Phone,
                 post_process: false,
             },
         );
-        begin_session_lane(app.handle(), pixel_lane);
-        manager.session_live.store(true, Ordering::Release);
-        assert_eq!(
-            session_prefs(app.handle()).output_target,
-            protocol::OutputTarget::Phone,
-            "the Start-effect seam applies the starting edge's prefs as the live session's"
-        );
-        // Phone-target delivery: the session's own phone receives the
-        // exact wire frame the stop pipeline's PhoneSend branch sends.
-        deliver_transcript_to_phone(
+        assert_eq!(starting_session_lane(app.handle()), Some(pixel_lane));
+        // Phone-target delivery: the session's own phone receives the exact
+        // wire frame the stop pipeline's PhoneSend branch sends.
+        deliver_transcript_to_lane(
             app.handle(),
+            pixel_lane,
             "hello from the phone lane",
             true,
             "whisper-large-v3-turbo",
@@ -1474,8 +1628,8 @@ mod tests {
         assert!(frame.contains("hello from the phone lane"));
         assert!(frame.contains(r#""postProcessed":true"#));
         assert!(frame.contains(r#""model":"whisper-large-v3-turbo""#));
-        // The bystander phone's lane stays empty, and so does the
-        // broadcast channel: the transcript is targeted, full stop.
+        // The bystander phone's lane stays empty, and so does the broadcast
+        // channel: the transcript is targeted, full stop.
         assert!(
             bystander_lane_rx.try_recv().is_err(),
             "a bystander phone must not receive another phone's transcript"
@@ -1485,39 +1639,50 @@ mod tests {
             "transcripts must never ride the broadcast channel"
         );
 
-        // The session ends; the session's prefs survive the end for the
-        // stop pipeline that reads them after it.
-        manager.session_live.store(false, Ordering::Release);
-        assert_eq!(
-            session_prefs(app.handle()).output_target,
-            protocol::OutputTarget::Phone,
-            "the false edge must not clear the prefs the stop pipeline reads"
+        // v1.6.2 W1-L2: State frames are per-lane. Pixel 8's session going
+        // live flips ONLY its own connection's button; the bystander
+        // (whose client gates audio streaming on its own recording flag)
+        // never streams a chunk it would only have dropped.
+        on_lane_session_changed(app.handle(), pixel_lane, true);
+        let state = pixel_lane_rx
+            .try_recv()
+            .expect("the State frame reaches the recording phone's lane");
+        assert!(state.contains(r#""type":"state""#));
+        assert!(state.contains(r#""recording":true"#));
+        assert!(
+            bystander_lane_rx.try_recv().is_err(),
+            "another phone's session must not flip this phone's button"
         );
-        assert_eq!(
-            session_device_name(app.handle()).as_deref(),
-            Some("Pixel 8"),
-            "the notice-detail helper resolves the session device through app state"
+        assert!(
+            broadcast.try_recv().is_err(),
+            "session State frames must never ride the broadcast channel"
         );
 
-        // The stop pipeline flipped session_live false long before this
-        // point; a NEW phone's hello during that window claims the
-        // session-device name, and its connection registers a fresh lane -
-        // neither can redirect the frozen session's delivery.
-        manager.claim_session_device("iPhone 15");
-        let (_late_lane, mut late_lane_rx) = manager.register_device_lane();
-        deliver_transcript_to_phone(app.handle(), "frozen aim", false, "m");
+        // The stop pipeline flipped the session not-live long before this
+        // point; a NEW phone's hello during that window registers a fresh
+        // lane - it cannot redirect the frozen session's delivery.
+        on_lane_session_changed(app.handle(), pixel_lane, false);
+        assert!(
+            pixel_lane_rx
+                .try_recv()
+                .is_ok_and(|frame| frame.contains(r#""recording":false"#)),
+            "the lane's own State frame lands on its lane"
+        );
+        let (late_lane, _gen_l, mut late_lane_rx) = manager.register_connection("iPad");
+        let _ = late_lane;
+        deliver_transcript_to_lane(app.handle(), pixel_lane, "frozen aim", false, "m");
         assert!(
             pixel_lane_rx
                 .try_recv()
                 .is_ok_and(|frame| frame.contains("frozen aim")),
-            "the frozen lane keeps receiving even after a later claim and lane registration"
+            "the frozen lane keeps receiving even after a later lane registration"
         );
         assert!(late_lane_rx.try_recv().is_err());
 
         // Delivery with no live lane for the session (the phone dropped) is
         // the documented no-op, not a bystander broadcast.
-        manager.unregister_device_lane(pixel_lane);
-        deliver_transcript_to_phone(app.handle(), "after the drop", false, "m");
+        manager.unregister_connection(pixel_lane, _gen_p);
+        deliver_transcript_to_lane(app.handle(), pixel_lane, "after the drop", false, "m");
         assert!(pixel_lane_rx.try_recv().is_err());
         assert!(
             late_lane_rx.try_recv().is_err(),
@@ -1529,9 +1694,9 @@ mod tests {
     /// The targeted lanes' registry semantics (wrong-phone fix): lane ids
     /// are SERVER-assigned per connection and never derive from the
     /// client-controlled hello name, so two connections claiming the SAME
-    /// device name get distinct lanes - neither can seize or supersede the
-    /// other - and a frozen session's lane cannot be redirected by any
-    /// later registration. Release removes exactly the named lane; a
+    /// device name get distinct lanes - neither can seize or supersede
+    /// the other - and a frozen session's lane cannot be redirected by
+    /// any later registration. Release removes exactly the named lane; a
     /// session still pointing at a released lane reads the documented
     /// no-op.
     #[test]
@@ -1540,8 +1705,8 @@ mod tests {
 
         // Two connections claiming the SAME name: distinct lanes, both
         // live, no supersession.
-        let (lane_a, mut rx_a) = manager.register_device_lane();
-        let (lane_b, mut rx_b) = manager.register_device_lane();
+        let (lane_a, gen_a, mut rx_a) = manager.register_connection("Pixel 8");
+        let (lane_b, _gen_b, mut rx_b) = manager.register_connection("Pixel 8");
         assert_ne!(lane_a, lane_b, "lane ids are per connection, not per name");
 
         assert!(
@@ -1555,7 +1720,7 @@ mod tests {
 
         // A frozen session keeps its own lane even after later
         // registrations; a send to the frozen lane is unaffected.
-        let (_lane_c, mut rx_c) = manager.register_device_lane();
+        let (_lane_c, _gen_c, mut rx_c) = manager.register_connection("iPad");
         assert!(
             manager.send_frame_to_lane(lane_a, &protocol::ServerFrame::State { recording: false })
         );
@@ -1563,7 +1728,7 @@ mod tests {
         assert!(rx_c.try_recv().is_err());
 
         // Release removes exactly one lane; ids are never reused.
-        manager.unregister_device_lane(lane_a);
+        manager.unregister_connection(lane_a, gen_a);
         assert!(
             !manager.send_frame_to_lane(lane_a, &protocol::ServerFrame::State { recording: false }),
             "a released lane reads as the dropped-phone no-op"
@@ -1573,7 +1738,7 @@ mod tests {
         );
         assert!(rx_b.try_recv().is_ok());
         assert!(rx_c.try_recv().is_err());
-        let (lane_d, _rx_d) = manager.register_device_lane();
+        let (lane_d, _gen_d, _rx_d) = manager.register_connection("iPhone 15");
         assert_ne!(lane_d, lane_a, "lane ids are never reused");
     }
 

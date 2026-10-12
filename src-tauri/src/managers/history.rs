@@ -60,6 +60,15 @@ static MIGRATIONS: &[M] = &[
         "ALTER TABLE transcription_history ADD COLUMN capture_source TEXT NOT NULL DEFAULT 'local';
          ALTER TABLE transcription_history ADD COLUMN delivery_destination TEXT NOT NULL DEFAULT 'mac';",
     ),
+    // v1.6.2 W1-L2: WHICH phone a companion entry came from (the hello
+    // device name; '' for keyboard sessions and pre-migration rows). The
+    // per-phone recent lists filter on it, so one phone's recents show
+    // only its own dictations. NOT NULL with the legacy default, so every
+    // pre-migration companion row reads '' and appears in no phone's list
+    // (the honest truth: the schema recorded no device identity then).
+    M::up(
+        "ALTER TABLE transcription_history ADD COLUMN capture_device TEXT NOT NULL DEFAULT '';",
+    ),
 ];
 
 #[derive(Clone, Debug, Serialize, Deserialize, Type)]
@@ -114,6 +123,10 @@ pub struct HistoryEntry {
     /// to be) delivered, "mac" (pasted on the Mac) or "phone" (sent to the
     /// phone). Pre-migration rows read "mac".
     pub delivery_destination: String,
+    /// v1.6.2 W1-L2: which companion device dictated this entry (the hello
+    /// device name the session froze). "" for keyboard sessions and
+    /// pre-migration rows. The per-phone recent lists filter on it.
+    pub capture_device: String,
 }
 
 /// One entry of the phone-facing recent list (v1.6.0): the deliverable text
@@ -281,6 +294,7 @@ impl HistoryManager {
             post_process_latency_ms: row.get("post_process_latency_ms")?,
             capture_source: row.get("capture_source")?,
             delivery_destination: row.get("delivery_destination")?,
+            capture_device: row.get("capture_device")?,
         })
     }
 
@@ -296,7 +310,10 @@ impl HistoryManager {
     /// `post_process_summary` carries the pp: run's summary (provider,
     /// model, prompt, outcome, latency) for the row detail.
     /// `capture_source` is "local" or "companion"; `delivery_destination`
-    /// is "mac" or "phone" (v1.6.0 provenance columns).
+    /// is "mac" or "phone" (v1.6.0 provenance columns);
+    /// `capture_device` is the companion hello device name (v1.6.2 W1-L2,
+    /// '' for keyboard sessions).
+    #[allow(clippy::too_many_arguments)] // the row's provenance triple rides with the text
     pub fn save_entry(
         &self,
         file_name: String,
@@ -308,6 +325,7 @@ impl HistoryManager {
         post_process_summary: Option<crate::post_process_runs::PostProcessRunSummary>,
         capture_source: String,
         delivery_destination: String,
+        capture_device: String,
     ) -> Result<HistoryEntry> {
         let timestamp = Utc::now().timestamp();
         let title = self.format_timestamp_title(timestamp);
@@ -324,6 +342,7 @@ impl HistoryManager {
             post_process_summary,
             capture_source,
             delivery_destination,
+            capture_device,
             timestamp,
             title,
         )?;
@@ -347,6 +366,7 @@ impl HistoryManager {
     /// INSERT a new history row and return the resulting entry. Split out of
     /// [`save_entry`](Self::save_entry) so tests can exercise the write path
     /// (including the model id) against an in-memory connection.
+    #[allow(clippy::too_many_arguments)] // the row's provenance triple rides with the text
     fn insert_entry_with_conn(
         conn: &Connection,
         file_name: String,
@@ -358,6 +378,7 @@ impl HistoryManager {
         post_process_summary: Option<crate::post_process_runs::PostProcessRunSummary>,
         capture_source: String,
         delivery_destination: String,
+        capture_device: String,
         timestamp: i64,
         title: String,
     ) -> Result<HistoryEntry> {
@@ -392,8 +413,9 @@ impl HistoryManager {
                 post_process_outcome,
                 post_process_latency_ms,
                 capture_source,
-                delivery_destination
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16)",
+                delivery_destination,
+                capture_device
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)",
             params![
                 &file_name,
                 timestamp,
@@ -411,6 +433,7 @@ impl HistoryManager {
                 &pp_latency,
                 &capture_source,
                 &delivery_destination,
+                &capture_device,
             ],
         )?;
 
@@ -432,6 +455,7 @@ impl HistoryManager {
             post_process_latency_ms: pp_latency,
             capture_source,
             delivery_destination,
+            capture_device,
         })
     }
 
@@ -441,15 +465,11 @@ impl HistoryManager {
     /// the session polished it, else the raw transcription; entries whose
     /// deliverable text is blank (failed sessions saved for retry) are
     /// skipped - the phone list shows what was actually dictated.
-    /// Phone-DESTINED transcripts are excluded too: the RecentHistory
-    /// frame rides the broadcast every paired phone receives, and a
-    /// phone-target dictation must reach only its own phone (the targeted
-    /// lane the stop pipeline delivers it through) - listing it in the
-    /// shared recents would hand it to bystanders after all. The schema
-    /// records no device identity, so per-device recents are unenforceable
-    /// without another migration; excluding phone-destined rows is the
-    /// honest scope. Split on a connection so tests exercise the real
-    /// query in memory.
+    /// Phone-DESTINED transcripts are excluded from the device-agnostic
+    /// list (the get_recent_companion_entries command's legacy shape):
+    /// that list describes no single phone, and a phone-target dictation
+    /// must reach only its own phone. Split on a connection so tests
+    /// exercise the real query in memory.
     fn recent_companion_entries_with_conn(
         conn: &Connection,
         limit: usize,
@@ -481,6 +501,52 @@ impl HistoryManager {
     pub fn recent_companion_entries(&self, limit: usize) -> Result<Vec<RecentCompanionEntry>> {
         let conn = self.get_connection()?;
         Self::recent_companion_entries_with_conn(&conn, limit)
+    }
+
+    /// v1.6.2 W1-L2: ONE phone's own recent list, filtered by the device
+    /// name its sessions froze (the hello name). Because the frame this
+    /// feeds is delivered down THAT phone's targeted lane alone, its own
+    /// phone-DESTINED dictations are INCLUDED here - they are private to
+    /// it, and the v1.6.0 broadcast-era exclusion (which protected
+    /// bystanders from seeing them) no longer applies to a per-lane list.
+    /// Pre-migration companion rows read capture_device '' and appear in
+    /// no phone's list (the schema recorded no device identity then).
+    /// Split on a connection so tests exercise the real query in memory.
+    fn recent_companion_entries_for_device_with_conn(
+        conn: &Connection,
+        device: &str,
+        limit: usize,
+    ) -> Result<Vec<RecentCompanionEntry>> {
+        let mut stmt = conn.prepare(
+            "SELECT COALESCE(NULLIF(post_processed_text, ''), transcription_text) AS deliverable,
+                    timestamp
+             FROM transcription_history
+             WHERE capture_source = 'companion'
+               AND capture_device = ?1
+               AND TRIM(COALESCE(NULLIF(post_processed_text, ''), transcription_text)) != ''
+             ORDER BY id DESC
+             LIMIT ?2",
+        )?;
+        let entries = stmt
+            .query_map(params![device, limit as i64], |row| {
+                Ok(RecentCompanionEntry {
+                    text: row.get("deliverable")?,
+                    timestamp: row.get("timestamp")?,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        Ok(entries)
+    }
+
+    /// The per-phone twin of [`Self::recent_companion_entries`] (v1.6.2
+    /// W1-L2): that device's own dictations, newest first.
+    pub fn recent_companion_entries_for_device(
+        &self,
+        device: &str,
+        limit: usize,
+    ) -> Result<Vec<RecentCompanionEntry>> {
+        let conn = self.get_connection()?;
+        Self::recent_companion_entries_for_device_with_conn(&conn, device, limit)
     }
 
     /// Update an existing history entry with new transcription results (used by retry).
@@ -519,7 +585,7 @@ impl HistoryManager {
                 "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id,
                 post_process_provider, post_process_model, post_process_prompt_id,
                 post_process_outcome, post_process_latency_ms,
-                capture_source, delivery_destination
+                capture_source, delivery_destination, capture_device
                  FROM transcription_history WHERE id = ?1",
                 params![id],
                 Self::map_history_entry,
@@ -689,7 +755,7 @@ impl HistoryManager {
                     "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id,
                 post_process_provider, post_process_model, post_process_prompt_id,
                 post_process_outcome, post_process_latency_ms,
-                capture_source, delivery_destination
+                capture_source, delivery_destination, capture_device
                      FROM transcription_history
                      WHERE id < ?1
                      ORDER BY id DESC
@@ -706,7 +772,7 @@ impl HistoryManager {
                     "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id,
                 post_process_provider, post_process_model, post_process_prompt_id,
                 post_process_outcome, post_process_latency_ms,
-                capture_source, delivery_destination
+                capture_source, delivery_destination, capture_device
                      FROM transcription_history
                      ORDER BY id DESC
                      LIMIT ?1",
@@ -721,7 +787,7 @@ impl HistoryManager {
                     "SELECT id, file_name, timestamp, saved, title, transcription_text, post_processed_text, post_process_prompt, post_process_requested, model_id,
                 post_process_provider, post_process_model, post_process_prompt_id,
                 post_process_outcome, post_process_latency_ms,
-                capture_source, delivery_destination
+                capture_source, delivery_destination, capture_device
                      FROM transcription_history
                      ORDER BY id DESC",
                 )?;
@@ -760,7 +826,7 @@ impl HistoryManager {
                 post_process_outcome,
                 post_process_latency_ms,
                 capture_source,
-                delivery_destination
+                delivery_destination, capture_device
              FROM transcription_history
              ORDER BY timestamp DESC
              LIMIT 1",
@@ -795,7 +861,7 @@ impl HistoryManager {
                 post_process_outcome,
                 post_process_latency_ms,
                 capture_source,
-                delivery_destination
+                delivery_destination, capture_device
              FROM transcription_history
              WHERE transcription_text != ''
              ORDER BY timestamp DESC
@@ -874,7 +940,7 @@ impl HistoryManager {
                 post_process_outcome,
                 post_process_latency_ms,
                 capture_source,
-                delivery_destination
+                delivery_destination, capture_device
              FROM transcription_history
              WHERE transcription_text != ''
              ORDER BY timestamp DESC
@@ -906,7 +972,7 @@ impl HistoryManager {
                 post_process_outcome,
                 post_process_latency_ms,
                 capture_source,
-                delivery_destination
+                delivery_destination, capture_device
              FROM transcription_history
              WHERE id = ?1",
         )?;
@@ -996,7 +1062,8 @@ mod tests {
                 post_process_outcome TEXT,
                 post_process_latency_ms INTEGER,
                 capture_source TEXT NOT NULL DEFAULT 'local',
-                delivery_destination TEXT NOT NULL DEFAULT 'mac'
+                delivery_destination TEXT NOT NULL DEFAULT 'mac',
+                capture_device TEXT NOT NULL DEFAULT ''
             );",
         )
         .expect("create transcription_history table");
@@ -1123,10 +1190,11 @@ mod tests {
         let mut conn = Connection::open_in_memory().expect("open in-memory db");
 
         // Build the previous database state: every migration except the
-        // model_id one and the later pp-summary and provenance ones (which
-        // must not run here either, or this row would gain those columns
-        // too), tracked via user_version exactly like a live DB.
-        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 3].to_vec());
+        // model_id one and the later pp-summary, provenance, and
+        // capture_device ones (which must not run here either, or this row
+        // would gain those columns too), tracked via user_version exactly
+        // like a live DB.
+        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 4].to_vec());
         previous
             .to_latest(&mut conn)
             .expect("apply pre-model_id migrations");
@@ -1188,6 +1256,7 @@ mod tests {
             None,
             "local".to_string(),
             "mac".to_string(),
+            String::new(),
             200,
             "Recording 200".to_string(),
         )
@@ -1216,6 +1285,7 @@ mod tests {
             None,
             "local".to_string(),
             "mac".to_string(),
+            String::new(),
             300,
             "Recording 300".to_string(),
         )
@@ -1312,6 +1382,7 @@ mod tests {
             }),
             "local".to_string(),
             "mac".to_string(),
+            String::new(),
             400,
             "Recording 400".to_string(),
         )
@@ -1347,8 +1418,9 @@ mod tests {
         let mut conn = Connection::open_in_memory().expect("open in-memory db");
 
         // Build the previous database state: every migration except the
-        // provenance one, tracked via user_version exactly like a live DB.
-        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 1].to_vec());
+        // provenance one (and the later capture_device one), tracked via
+        // user_version exactly like a live DB.
+        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 2].to_vec());
         previous
             .to_latest(&mut conn)
             .expect("apply pre-provenance migrations");
@@ -1389,6 +1461,62 @@ mod tests {
         assert_eq!(mapped.delivery_destination, "mac");
     }
 
+    /// Version-forward migration test (v1.6.2 W1-L2): a database at the
+    /// previous version (no capture_device) gains the column via the
+    /// migration chain, it is NOT NULL with the legacy default, and
+    /// pre-existing companion rows read '' - belonging to no phone's
+    /// recent list, the honest truth for rows the schema could not
+    /// attribute.
+    #[test]
+    fn migration_adds_capture_device_and_legacy_rows_belong_to_no_phone() {
+        let mut conn = Connection::open_in_memory().expect("open in-memory db");
+
+        // Build the previous database state: every migration except the
+        // capture_device one, tracked via user_version exactly like a live
+        // DB.
+        let previous = Migrations::new(MIGRATIONS[..MIGRATIONS.len() - 1].to_vec());
+        previous
+            .to_latest(&mut conn)
+            .expect("apply pre-capture_device migrations");
+        insert_entry(&conn, 100, "legacy entry", None);
+
+        // Roll forward with the full chain; it continues from user_version.
+        let latest = Migrations::new(MIGRATIONS.to_vec());
+        latest
+            .to_latest(&mut conn)
+            .expect("apply latest migrations");
+
+        let notnull: i32 = conn
+            .query_row(
+                "SELECT [notnull] FROM pragma_table_info('transcription_history')
+                 WHERE name = 'capture_device'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("query pragma_table_info for capture_device");
+        assert_eq!(
+            notnull, 1,
+            "capture_device must be NOT NULL (it always has a value, '' for unknown)"
+        );
+
+        // The legacy row reads back with the legacy default and appears in
+        // no phone's per-device list.
+        let mapped = HistoryManager::get_latest_entry_with_conn(&conn)
+            .expect("fetch latest entry")
+            .expect("entry exists");
+        assert_eq!(mapped.capture_device, "");
+        let recents = HistoryManager::recent_companion_entries_for_device_with_conn(
+            &conn,
+            "Pixel 8",
+            5,
+        )
+        .expect("query per-device recents");
+        assert!(
+            recents.is_empty(),
+            "a legacy deviceless row must not appear in any phone's list"
+        );
+    }
+
     /// Save path: the provenance pair lands in the row and reads back
     /// field for field, for both the local/mac and companion/phone shapes.
     #[test]
@@ -1406,6 +1534,7 @@ mod tests {
             None,
             "companion".to_string(),
             "phone".to_string(),
+            "Pixel 8".to_string(),
             500,
             "Recording 500".to_string(),
         )
@@ -1415,7 +1544,7 @@ mod tests {
 
         let row: (String, String) = conn
             .query_row(
-                "SELECT capture_source, delivery_destination FROM transcription_history WHERE id = ?1",
+                "SELECT capture_source, delivery_destination, capture_device FROM transcription_history WHERE id = ?1",
                 params![companion.id],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
@@ -1434,6 +1563,7 @@ mod tests {
             None,
             "local".to_string(),
             "mac".to_string(),
+            String::new(),
             600,
             "Recording 600".to_string(),
         )
@@ -1493,8 +1623,8 @@ mod tests {
                 "INSERT INTO transcription_history (
                     file_name, timestamp, saved, title, transcription_text,
                     post_processed_text, post_process_prompt, post_process_requested,
-                    capture_source, delivery_destination
-                ) VALUES (?1, ?2, 0, ?3, ?4, ?5, NULL, 0, ?6, 'mac')",
+                    capture_source, delivery_destination, capture_device
+                ) VALUES (?1, ?2, 0, ?3, ?4, ?5, NULL, 0, ?6, 'mac', '')",
                 params![
                     format!("voxbar-{id}.wav"),
                     id,
@@ -1516,15 +1646,16 @@ mod tests {
 
         // Phone-destined transcripts. The phone-target dictation already
         // reached exactly its own phone through the targeted lane; listing
-        // it in the SHARED recents would hand it to every bystander. (The
-        // destination column is NOT NULL, so no legacy NULL rows exist.)
+        // it in the SHARED (device-agnostic) recents would hand it to every
+        // bystander. (The destination column is NOT NULL, so no legacy NULL
+        // rows exist.)
         for (id, dest) in [(700i64, "phone"), (800i64, "phone")] {
             conn.execute(
                 "INSERT INTO transcription_history (
                     file_name, timestamp, saved, title, transcription_text,
                     post_processed_text, post_process_prompt, post_process_requested,
-                    capture_source, delivery_destination
-                ) VALUES (?1, ?2, 0, ?3, ?4, NULL, NULL, 0, 'companion', ?5)",
+                    capture_source, delivery_destination, capture_device
+                ) VALUES (?1, ?2, 0, ?3, ?4, NULL, NULL, 0, 'companion', ?5, '')",
                 params![
                     format!("voxbar-{id}.wav"),
                     id,
@@ -1570,5 +1701,100 @@ mod tests {
                 .expect("query empty history")
                 .is_empty()
         );
+    }
+
+    /// v1.6.2 W1-L2: the per-phone recent list. One phone's list shows
+    /// exactly ITS OWN dictations (filtered by the device name its
+    /// sessions froze), INCLUDING its phone-destined ones (private to its
+    /// targeted lane), and never another phone's - even a same-named
+    /// legacy row (capture_device '') that no phone can claim.
+    #[test]
+    fn per_device_recents_show_each_phone_only_its_own_sessions() {
+        let conn = setup_conn();
+
+        let insert = |id: i64, source: &str, device: &str, dest: &str, raw: &str| {
+            conn.execute(
+                "INSERT INTO transcription_history (
+                    file_name, timestamp, saved, title, transcription_text,
+                    post_processed_text, post_process_prompt, post_process_requested,
+                    capture_source, delivery_destination, capture_device
+                ) VALUES (?1, ?2, 0, ?3, ?4, NULL, NULL, 0, ?5, ?6, ?7)",
+                params![
+                    format!("voxbar-{id}.wav"),
+                    id,
+                    format!("Recording {id}"),
+                    raw,
+                    source,
+                    dest,
+                    device,
+                ],
+            )
+            .expect("insert entry");
+        };
+
+        insert(100, "companion", "Pixel 8", "mac", "pixel mac one");
+        insert(200, "companion", "iPhone 15", "mac", "iphone mac two");
+        insert(300, "companion", "Pixel 8", "phone", "pixel phone three");
+        insert(400, "companion", "iPhone 15", "phone", "iphone phone four");
+        insert(500, "local", "", "mac", "keyboard five");
+        insert(600, "companion", "", "mac", "legacy deviceless six");
+
+        // Pixel 8's list: its own two sessions, phone-destined included,
+        // newest first; nobody else's.
+        let pixel = HistoryManager::recent_companion_entries_for_device_with_conn(
+            &conn,
+            "Pixel 8",
+            5,
+        )
+        .expect("query pixel recents");
+        assert_eq!(
+            pixel
+                .iter()
+                .map(|e| (e.text.as_str(), e.timestamp))
+                .collect::<Vec<_>>(),
+            vec![("pixel phone three", 300), ("pixel mac one", 100)],
+            "a phone's recents include its own phone-destined dictations and exclude every other phone's"
+        );
+
+        // iPhone 15's list is disjoint.
+        let iphone = HistoryManager::recent_companion_entries_for_device_with_conn(
+            &conn,
+            "iPhone 15",
+            5,
+        )
+        .expect("query iphone recents");
+        assert_eq!(
+            iphone
+                .iter()
+                .map(|e| e.timestamp)
+                .collect::<Vec<_>>(),
+            vec![400, 200]
+        );
+
+        // The deviceless legacy row (capture_device '') belongs to no
+        // phone, and a name nothing ever froze gets an empty list.
+        let legacy = HistoryManager::recent_companion_entries_for_device_with_conn(
+            &conn,
+            "",
+            5,
+        )
+        .expect("query legacy recents");
+        assert!(
+            !legacy.iter().any(|e| e.text.contains("keyboard")),
+            "the keyboard session never appears in any phone list"
+        );
+        let nobody =
+            HistoryManager::recent_companion_entries_for_device_with_conn(&conn, "iPad", 5)
+                .expect("query empty recents");
+        assert!(nobody.is_empty());
+
+        // The limit caps the per-phone window too.
+        let capped = HistoryManager::recent_companion_entries_for_device_with_conn(
+            &conn,
+            "Pixel 8",
+            1,
+        )
+        .expect("query capped per-phone recents");
+        assert_eq!(capped.iter().map(|e| e.timestamp).collect::<Vec<_>>(), vec![300]);
     }
 }

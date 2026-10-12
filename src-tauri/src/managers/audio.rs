@@ -291,14 +291,88 @@ pub enum MicrophoneMode {
 /// Where a recording session's audio comes from. `Local` is the cpal
 /// microphone path exactly as it has always run; `Remote` is a companion
 /// device (phone/tablet on the LAN) pushing 16 kHz mono chunks through a
-/// `RemoteAudioSource`. Both sources share the single-session state machine
-/// and the recorder built by `create_audio_recorder` (same VAD, level, and
-/// StreamRouter callbacks), so everything downstream of the ring is
-/// byte-identical.
+/// `RemoteAudioSource` (v1.6.2 W1-L2: one recorder PER CONNECTION LANE, so
+/// several phones can record simultaneously). Both sources share the
+/// recorder construction (same VAD, level, and StreamRouter wiring), so
+/// everything downstream of each ring is byte-identical.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CaptureSource {
     Local,
     Remote,
+}
+
+/// v1.6.2 W1-L2: which session owns the process's ONE streaming engine.
+/// The ASR model is a singleton: at most one live session may feed
+/// `StreamRouter` (its frames would otherwise interleave two speakers into
+/// one transcript). The owner is claimed on the coordinator thread at the
+/// single serialized instant a start commits (first session wins); every
+/// other concurrently-recording session runs with the Offline VAD policy
+/// and batch-transcribes its ring at stop. A `Remote` lane's recorder feeds
+/// the router only while IT holds the token, and the local recorder feeds
+/// it only while a local session holds it, so a session that starts while
+/// another's stop pipeline is still draining can never pollute the
+/// draining stream.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StreamOwner {
+    /// No live session owns the stream (no stream is open at all, or the
+    /// owner's stop pipeline already finalized).
+    None,
+    /// The keyboard/signal session on the local microphone.
+    Local,
+    /// The companion connection identified by its server-assigned lane id.
+    Lane(u64),
+}
+
+/// The lock-free encoding of [`StreamOwner`] the recorder callbacks check
+/// per frame (a relaxed atomic load, never a mutex: this runs on the audio
+/// path). 0 means none, 1 means local, lane ids encode as lane + 1 (lane
+/// ids start at 1, so the encoding is injective).
+pub(crate) fn stream_owner_token(owner: StreamOwner) -> u64 {
+    match owner {
+        StreamOwner::None => 0,
+        StreamOwner::Local => 1,
+        StreamOwner::Lane(lane) => lane + 1,
+    }
+}
+
+/// The inverse of [`stream_owner_token`]. Pure, and paired with it in tests.
+pub(crate) fn stream_owner_from_token(token: u64) -> StreamOwner {
+    match token {
+        0 => StreamOwner::None,
+        1 => StreamOwner::Local,
+        lane => StreamOwner::Lane(lane - 1),
+    }
+}
+
+/// v1.6.2 W1-L2: one companion connection lane's recorder pair. Each
+/// authenticated connection owns its recorder and its ring independently,
+/// so one phone's session (start, stop, disconnect) cannot touch another
+/// phone's capture. RAM budget per lane, documented once here:
+///
+/// * ring: 2 s at 16 kHz f32 = 32 000 samples x 4 B = 128 KiB
+/// * VAD: one Silero ONNX session per recorder (the detector is stateful -
+///   hangover/prefill - so recorders can never share one instance). The
+///   silero_vad_v4.onnx asset is 1.8 MiB on disk plus the runtime session
+///   workspace, so each concurrently OPEN lane recorder costs a few MiB.
+///
+/// Discipline that keeps the total bounded: a lane's recorder CLOSES at its
+/// session's stop (same as the pre-v1.6.2 shared recorder did), and
+/// pre-warming keeps at most ONE idle lane recorder alive - the most
+/// recently connected phone's - so the steady-state idle cost is one
+/// recorder no matter how many phones are paired. The number of
+/// simultaneously RECORDING lanes is bounded by the phones actually
+/// pressing, which is a human bound, not a protocol bound.
+struct RemoteLane {
+    recorder: AudioRecorder,
+    source: RemoteAudioSource,
+    /// True while this lane's recording session is live (between
+    /// `try_start_remote_lane_recording` and its stop).
+    recording: bool,
+    /// The capture-generation snapshot this lane's recording started with;
+    /// the lane's readiness watcher validates against it (per-lane, so one
+    /// lane's stop never invalidates another lane's pending first-sample
+    /// cue the way the global generation does for local sessions).
+    generation: u64,
 }
 
 /// Tracks our forced "mute while recording" so we can restore the user's audio
@@ -372,6 +446,8 @@ fn create_audio_recorder(
     app_handle: &tauri::AppHandle,
     selected_channel: Option<u16>,
     stream_router: Arc<StreamRouter>,
+    stream_owner: Arc<AtomicU64>,
+    owner: StreamOwner,
 ) -> Result<AudioRecorder, anyhow::Error> {
     let detector: Box<dyn VoiceActivityDetector> = match backend {
         VadBackend::Silero => {
@@ -414,9 +490,13 @@ fn create_audio_recorder(
         backend, frame_samples
     );
 
-    // Recorder with VAD, a spectrum-level callback that forwards level updates to
-    // the frontend, and an audio-frame callback that feeds live streaming via a
-    // shared `StreamRouter` (captured directly, not via Tauri state - see its docs).
+    // v1.6.2 W1-L2: the router feed is gated on stream ownership. The
+    // process has ONE streaming engine; a recorder whose session does not
+    // hold the token must never feed it (two speakers interleaved into one
+    // transcript, or a late-starting local session polluting a draining
+    // companion stream). The gate is a relaxed atomic load on the audio
+    // path - identical cost to the router's own open check.
+    let owner_token = stream_owner_token(owner);
     let recorder = AudioRecorder::new()
         .map_err(|e| anyhow::anyhow!("Failed to create AudioRecorder: {}", e))?
         .with_vad(
@@ -434,11 +514,36 @@ fn create_audio_recorder(
         .with_audio_callback({
             let router = stream_router;
             move |frame| {
-                router.feed(frame);
+                if stream_owner.load(Ordering::Relaxed) == owner_token {
+                    router.feed(frame);
+                }
             }
         });
 
     Ok(recorder)
+}
+
+/// v1.6.2 W1-L2: build the recorder for ONE companion connection lane. Same
+/// construction as the local path ([`create_audio_recorder`]: same VAD
+/// settings, same level callback, same router wiring), except the router
+/// feed is gated on THIS lane holding the stream-ownership token and the
+/// recorder is opened remote (its ring producer handed to the phone's
+/// connection) rather than on a cpal device.
+fn create_remote_lane_recorder(
+    app_handle: &tauri::AppHandle,
+    stream_router: Arc<StreamRouter>,
+    stream_owner: Arc<AtomicU64>,
+    lane: u64,
+) -> Result<AudioRecorder, anyhow::Error> {
+    let settings = get_settings(app_handle);
+    create_audio_recorder(
+        settings.vad_backend,
+        app_handle,
+        settings.selected_channel,
+        stream_router,
+        stream_owner,
+        StreamOwner::Lane(lane),
+    )
 }
 
 /* ──────────────────────────────────────────────────────────────── */
@@ -498,18 +603,23 @@ pub struct AudioRecordingManager {
     /// so the retry re-enumerates. The system-default case is never cached -
     /// the recorder resolves the current default itself, cheaply.
     cached_device: Arc<Mutex<Option<(String, cpal::Device)>>>,
-    /// The recorder for REMOTE (companion) sessions. A second recorder, not
-    /// a mode of the local one: the local recorder keeps its cpal stream
-    /// untouched, and the remote one hands its ring producer to the
-    /// companion server. Built by the same `create_audio_recorder`, so VAD,
-    /// level, and StreamRouter wiring are identical for both sources.
-    remote_recorder: Arc<Mutex<Option<AudioRecorder>>>,
-    /// The current session's push handle into the remote recorder's ring.
-    /// Cloned out for the companion server; cleared when the session ends.
-    remote_source: Arc<Mutex<Option<RemoteAudioSource>>>,
-    /// Which recorder a stop/cancel must talk to. Only meaningful while a
-    /// session is live; reset to Local when a session ends.
-    active_source: Arc<Mutex<CaptureSource>>,
+    /// v1.6.2 W1-L2: one recorder pair PER companion connection lane (see
+    /// [`RemoteLane`] for the RAM budget and retirement rules). Replaces the
+    /// single shared `remote_recorder`/`remote_source` pair, which forced
+    /// every phone to share one ring and one session.
+    remote_lanes: Arc<Mutex<std::collections::HashMap<u64, RemoteLane>>>,
+    /// Lock-free mirror of "any lane is recording", so `set_state` (which
+    /// holds the `state` mutex) can fold it into `recording_active` without
+    /// ever taking the lanes lock (lock order: never state -> lanes).
+    remote_lanes_recording: Arc<AtomicBool>,
+    /// The lane that most recently began recording; the cancel path's tie
+    /// break when several phones record at once (a local recording always
+    /// wins; 0 means no lane has recorded since the last teardown).
+    last_recording_lane: Arc<AtomicU64>,
+    /// v1.6.2 W1-L2: the streaming-engine ownership token (see
+    /// [`StreamOwner`]). Read per frame by every recorder's audio callback
+    /// through [`stream_owner_token`].
+    stream_owner: Arc<AtomicU64>,
     /// Factory for building recorders. Production always uses
     /// `create_audio_recorder`; tests inject a bare recorder so the manager
     /// logic can run without the Silero ONNX asset.
@@ -521,6 +631,7 @@ type RecorderFactory =
 
 fn default_recorder_factory(
     stream_router: Arc<StreamRouter>,
+    stream_owner: Arc<AtomicU64>,
 ) -> impl Fn(&tauri::AppHandle) -> Result<AudioRecorder, anyhow::Error> + Send + Sync {
     move |app| {
         let settings = get_settings(app);
@@ -529,6 +640,8 @@ fn default_recorder_factory(
             app,
             settings.selected_channel,
             Arc::clone(&stream_router),
+            Arc::clone(&stream_owner),
+            StreamOwner::Local,
         )
     }
 }
@@ -562,9 +675,14 @@ impl AudioRecordingManager {
         } else {
             MicrophoneMode::OnDemand
         };
+        let stream_owner: Arc<AtomicU64> = Arc::new(AtomicU64::new(stream_owner_token(
+            StreamOwner::None,
+        )));
 
-        let recorder_factory: RecorderFactory =
-            Arc::new(default_recorder_factory(Arc::clone(&stream_router)));
+        let recorder_factory: RecorderFactory = Arc::new(default_recorder_factory(
+            Arc::clone(&stream_router),
+            Arc::clone(&stream_owner),
+        ));
 
         let manager = Self {
             state: Arc::new(Mutex::new(RecordingState::Idle)),
@@ -582,9 +700,10 @@ impl AudioRecordingManager {
             capture_generation: Arc::new(AtomicU64::new(0)),
             exit_teardown: Arc::new(AtomicBool::new(false)),
             cached_device: Arc::new(Mutex::new(None)),
-            remote_recorder: Arc::new(Mutex::new(None)),
-            remote_source: Arc::new(Mutex::new(None)),
-            active_source: Arc::new(Mutex::new(CaptureSource::Local)),
+            remote_lanes: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            remote_lanes_recording: Arc::new(AtomicBool::new(false)),
+            last_recording_lane: Arc::new(AtomicU64::new(0)),
+            stream_owner,
             recorder_factory,
         };
 
@@ -970,27 +1089,30 @@ impl AudioRecordingManager {
     /// The one place `state` is written. Derives `recording_active` (the
     /// lock-free mirror read by `is_recording()`) from the new value itself,
     /// so the two can never drift: a new `RecordingState` variant only needs
-    /// its active-set membership decided here, once.
+    /// its active-set membership decided here, once. v1.6.2 W1-L2: the
+    /// mirror folds in the per-lane recording count through its own
+    /// lock-free atomic, so this never takes the lanes lock while holding
+    /// the state lock (lock order: lanes methods may take state, never the
+    /// reverse).
     fn set_state(&self, guard: &mut RecordingState, new_state: RecordingState) {
         *guard = new_state;
-        self.recording_active.store(
-            matches!(
-                *guard,
-                RecordingState::Recording { .. } | RecordingState::Stopping
-            ),
-            Ordering::SeqCst,
+        let local_active = matches!(
+            *guard,
+            RecordingState::Recording { .. } | RecordingState::Stopping
         );
+        let lanes_active = self.remote_lanes_recording.load(Ordering::SeqCst);
+        self.recording_active
+            .store(local_active || lanes_active, Ordering::SeqCst);
     }
 
-    /// Start a recording session from `source`. The single-session state
-    /// machine is shared: a remote session and a local hotkey press
-    /// arbitrate exactly like the two keyboard bindings do today ("Already
-    /// recording"). `Local` is byte-for-byte the old `try_start_recording`
-    /// path; `Remote` opens the companion recorder instead of the cpal
-    /// stream and remembers the source for stop/cancel.
+    /// Start a LOCAL recording session. The single-session state machine is
+    /// shared by the two keyboard bindings exactly as before ("Already
+    /// recording" when one is live); companion lanes address their own
+    /// recorders through [`Self::try_start_remote_lane_recording`] and never
+    /// pass through here. `Local` is byte-for-byte the old
+    /// `try_start_recording` path.
     pub fn try_start_recording_for(
         &self,
-        source: CaptureSource,
         binding_id: &str,
         vad_policy: VadPolicy,
     ) -> Result<RecordingReadiness, String> {
@@ -1000,46 +1122,29 @@ impl AudioRecordingManager {
             // Cancel any pending lazy close (no-op in always-on mode, where
             // closes are never scheduled).
             self.close_generation.fetch_add(1, Ordering::SeqCst);
-            match source {
-                CaptureSource::Local => {
-                    // Opens the stream in on-demand mode. In always-on mode
-                    // the stream is normally already open and this is a
-                    // cheap aliveness check - but if the capture worker died
-                    // (device disconnect), it rebuilds the stream instead of
-                    // leaving every subsequent start wedged on "Recorder not
-                    // available".
-                    if let Err(e) = self.start_microphone_stream() {
-                        let msg = format!("{e}");
-                        error!("Failed to open microphone stream: {msg}");
-                        return Err(msg);
-                    }
-                }
-                CaptureSource::Remote => {
-                    if let Err(e) = self.start_remote_stream() {
-                        let msg = format!("{e}");
-                        error!("Failed to open remote capture source: {msg}");
-                        return Err(msg);
-                    }
-                }
+            // Opens the stream in on-demand mode. In always-on mode the
+            // stream is normally already open and this is a cheap aliveness
+            // check - but if the capture worker died (device disconnect),
+            // it rebuilds the stream instead of leaving every subsequent
+            // start wedged on "Recorder not available".
+            if let Err(e) = self.start_microphone_stream() {
+                let msg = format!("{e}");
+                error!("Failed to open microphone stream: {msg}");
+                return Err(msg);
             }
 
-            let recorder_slot = match source {
-                CaptureSource::Local => &self.recorder,
-                CaptureSource::Remote => &self.remote_recorder,
-            };
-            if let Some(rec) = recorder_slot.lock().unwrap().as_ref() {
+            if let Some(rec) = self.recorder.lock().unwrap().as_ref() {
                 match rec.start(vad_policy) {
                     Ok(receiver) => {
                         let generation = self.capture_generation.fetch_add(1, Ordering::AcqRel) + 1;
                         *self.is_recording.lock().unwrap() = true;
-                        *self.active_source.lock().unwrap() = source;
                         self.set_state(
                             &mut state,
                             RecordingState::Recording {
                                 binding_id: binding_id.to_string(),
                             },
                         );
-                        debug!("Recording requested for binding {binding_id} ({source:?})");
+                        debug!("Recording requested for binding {binding_id} (Local)");
                         return Ok(RecordingReadiness {
                             receiver,
                             generation,
@@ -1054,68 +1159,326 @@ impl AudioRecordingManager {
         }
     }
 
-    /// Ensure the remote recorder exists and is open, reusing a healthy one
-    /// (the companion server pre-warms it when the feature is enabled so the
-    /// press-to-capture path pays no VAD load). Rebuilds a dead worker like
-    /// `start_microphone_stream` does for a disconnected mic.
-    fn start_remote_stream(&self) -> Result<(), anyhow::Error> {
-        let needs_reopen = self
-            .remote_recorder
-            .lock()
-            .unwrap()
-            .as_ref()
-            .map_or(true, |rec| rec.needs_reopen());
+    // ------------------------------------------------------------------
+    // v1.6.2 W1-L2: per-lane remote sessions. Each companion connection
+    // owns its recorder and its ring; one phone's start/stop/disconnect
+    // cannot touch another phone's capture (KB-110/KB-111 die by
+    // construction).
+    // ------------------------------------------------------------------
+
+    /// Ensure one lane's recorder exists and is open, reusing a healthy one
+    /// (pre-warmed on the connection's hello). Rebuilds a dead worker like
+    /// `start_microphone_stream` does for a disconnected mic. Lock-free
+    /// except the lanes map itself; never takes the `state` lock.
+    fn ensure_remote_lane(&self, lane: u64) -> Result<(), anyhow::Error> {
+        let needs_reopen = {
+            let lanes = self.remote_lanes.lock().unwrap();
+            lanes
+                .get(&lane)
+                .is_none_or(|l| l.recorder.needs_reopen())
+        };
         if !needs_reopen {
             return Ok(());
         }
 
-        if let Some(rec) = self.remote_recorder.lock().unwrap().as_mut() {
-            let _ = rec.close();
+        let mut lanes = self.remote_lanes.lock().unwrap();
+        if let Some(old) = lanes.get_mut(&lane) {
+            let _ = old.recorder.close();
         }
-        let mut rec = (self.recorder_factory)(&self.app_handle)?;
+        let mut rec = create_remote_lane_recorder(
+            &self.app_handle,
+            Arc::clone(&self.stream_router),
+            Arc::clone(&self.stream_owner),
+            lane,
+        )?;
         let source = rec
             .open_remote()
             .map_err(|e| anyhow::anyhow!("Failed to open remote capture source: {}", e))?;
-        *self.remote_source.lock().unwrap() = Some(source);
-        *self.remote_recorder.lock().unwrap() = Some(rec);
+        lanes.insert(lane, RemoteLane {
+            recorder: rec,
+            source,
+            recording: false,
+            generation: 0,
+        });
         Ok(())
     }
 
-    /// The push handle for the current remote recorder, if one is open. The
-    /// companion server clones this to feed phone audio into the ring.
-    pub fn remote_source(&self) -> Option<RemoteAudioSource> {
-        self.remote_source.lock().unwrap().clone()
-    }
-
-    /// Pre-warm the remote recorder (loads the VAD, opens the ring) while
-    /// idle so a phone press pays no recorder construction cost. Called by
-    /// the companion server when the feature is enabled; refuses while any
-    /// session is live.
-    pub fn prewarm_remote(&self) -> Result<(), anyhow::Error> {
-        let state = self.state.lock().unwrap();
-        if !matches!(*state, RecordingState::Idle) {
-            return Ok(()); // a session is live; its recorder already exists
+    /// Start ONE lane's recording session. Independent of every other lane
+    /// and of the local machine: a second phone may start while the first
+    /// still records (the pre-v1.6.2 "Already recording" cross-phone
+    /// refusal is gone); only THIS lane's own live session refuses a double
+    /// start.
+    pub fn try_start_remote_lane_recording(
+        &self,
+        lane: u64,
+        binding_id: &str,
+        vad_policy: VadPolicy,
+    ) -> Result<RecordingReadiness, String> {
+        if let Err(e) = self.ensure_remote_lane(lane) {
+            let msg = format!("{e}");
+            error!("Failed to open remote capture source for lane {lane}: {msg}");
+            return Err(msg);
         }
-        drop(state);
-        self.start_remote_stream()
+        let mut lanes = self.remote_lanes.lock().unwrap();
+        let entry = lanes
+            .get_mut(&lane)
+            .ok_or_else(|| "Recorder not available".to_string())?;
+        if entry.recording {
+            return Err("Already recording".to_string());
+        }
+        match entry.recorder.start(vad_policy) {
+            Ok(receiver) => {
+                let generation = self.capture_generation.fetch_add(1, Ordering::AcqRel) + 1;
+                entry.recording = true;
+                entry.generation = generation;
+                // Publish the lane mirrors, then fold the shared mirror with
+                // the LOCAL machine's activity (state lock taken only AFTER
+                // the lanes lock is released - see the lock-order note on
+                // set_state).
+                self.remote_lanes_recording.store(true, Ordering::SeqCst);
+                self.last_recording_lane.store(lane, Ordering::SeqCst);
+                drop(lanes);
+                self.recording_active.store(true, Ordering::SeqCst);
+                debug!("Recording requested for binding {binding_id} (lane {lane})");
+                Ok(RecordingReadiness {
+                    receiver,
+                    generation,
+                })
+            }
+            Err(error) => Err(format!("Failed to start recorder: {error}")),
+        }
     }
 
-    /// Which recorder the live session (if any) is using.
-    pub fn active_source(&self) -> CaptureSource {
-        *self.active_source.lock().unwrap()
+    /// Stop ONE lane's recording session and return its captured samples.
+    /// The per-lane twin of [`Self::stop_recording`]: same release-buffer
+    /// window, same stop-pause handshake, same short-buffer padding - but
+    /// scoped to this lane's recorder, and closing it (the RAM budget rule:
+    /// no idle lane recorder outlives its session). Other lanes and the
+    /// local machine are untouched.
+    pub fn stop_remote_lane_recording(
+        &self,
+        lane: u64,
+        cancel_generation: u64,
+    ) -> Option<Vec<f32>> {
+        // The entry removal below is this lane's readiness invalidation
+        // (per-lane generation: another lane's watchers never noticed).
+        let mut lanes = self.remote_lanes.lock().unwrap();
+        // No recorder for this lane: nothing was recording on it.
+        let mut entry = lanes.remove(&lane)?;
+        let was_recording = entry.recording;
+        entry.recording = false;
+        let still_recording = lanes.values().any(|l| l.recording);
+        self.remote_lanes_recording
+            .store(still_recording, Ordering::SeqCst);
+        drop(lanes);
+
+        let samples = if was_recording {
+            // Optionally keep recording for a bit longer to capture trailing
+            // audio. The predicate is STREAM-ACTIVE, not the VAD policy
+            // (see stop_recording).
+            let settings = get_settings(&self.app_handle);
+            let stream_active = self.stream_router.is_open();
+            let buffer_ms = effective_release_buffer_ms(
+                settings.extra_recording_buffer_ms,
+                settings.streaming_release_tail_ms,
+                stream_active,
+            );
+            if buffer_ms > 0 {
+                debug!(
+                    "Extra recording buffer: sleeping {}ms before stopping lane {lane}",
+                    buffer_ms
+                );
+                let started = Instant::now();
+                let buffer = Duration::from_millis(buffer_ms);
+                while started.elapsed() < buffer {
+                    if self.was_cancelled_since(cancel_generation) {
+                        debug!("Recording stop cancelled during extra buffer");
+                        break;
+                    }
+                    let remaining = buffer.saturating_sub(started.elapsed());
+                    std::thread::sleep(remaining.min(Duration::from_millis(25)));
+                }
+            }
+            match entry.recorder.stop() {
+                Ok(buf) => buf,
+                Err(e) => {
+                    error!("stop() failed for lane {lane}: {e}");
+                    Vec::new()
+                }
+            }
+        } else {
+            Vec::new()
+        };
+        // The phone session is over: close the lane's recorder so a stale
+        // socket cannot keep pushing into a dead ring, and release the
+        // recorder's RAM (ring + VAD session) back.
+        let _ = entry.recorder.close();
+
+        // Fold the shared recording mirror with the local machine's state.
+        let local_active = matches!(*self.state.lock().unwrap(), RecordingState::Recording { .. });
+        self.recording_active
+            .store(local_active || still_recording, Ordering::SeqCst);
+
+        if self.was_cancelled_since(cancel_generation) {
+            debug!("Recording stop cancelled; discarding captured samples");
+            return None;
+        }
+
+        // Pad if very short
+        let s_len = samples.len();
+        if s_len < WHISPER_SAMPLE_RATE && s_len > 0 {
+            let mut padded = samples;
+            padded.resize(WHISPER_SAMPLE_RATE * 5 / 4, 0.0);
+            Some(padded)
+        } else {
+            Some(samples)
+        }
     }
 
-    /// Close the remote recorder and its push handle outside a session
-    /// (companion feature disabled, or app shutdown). A live remote session
-    /// must be stopped first; this only tears down the idle recorder.
+    /// Whether one lane's recording session is live (the server's admission
+    /// truth and disconnect-finalize decision).
+    pub fn lane_is_recording(&self, lane: u64) -> bool {
+        self.remote_lanes
+            .lock()
+            .unwrap()
+            .get(&lane)
+            .is_some_and(|l| l.recording)
+    }
+
+    /// Whether a lane's readiness work (first-sample cue, chime, mute
+    /// apply) is still current: the SAME recording that handed out the
+    /// generation must still be live. Per-lane by construction - another
+    /// lane's stop cannot invalidate this lane's pending cue, and a
+    /// restarted session on the same lane gets a fresh generation.
+    pub fn lane_readiness_current(&self, lane: u64, generation: u64) -> bool {
+        self.remote_lanes
+            .lock()
+            .unwrap()
+            .get(&lane)
+            .is_some_and(|l| l.recording && l.generation == generation)
+    }
+
+    /// Push one audio chunk into ONE lane's ring (the server routes each
+    /// connection's binary frames here). False when the lane has no
+    /// recorder (never pre-warmed, or its session already closed it).
+    pub fn push_remote_chunk(&self, lane: u64, samples: &[f32]) -> bool {
+        let lanes = self.remote_lanes.lock().unwrap();
+        match lanes.get(&lane) {
+            Some(entry) => {
+                entry.source.push_chunk(samples);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// Acknowledge one lane's in-flight stop-pause when its socket dies
+    /// mid-session, so the lane's Stop never waits the 2 s pause timeout.
+    pub fn ack_remote_pause(&self, lane: u64) {
+        let lanes = self.remote_lanes.lock().unwrap();
+        if let Some(entry) = lanes.get(&lane) {
+            entry.source.ack_pause();
+        }
+    }
+
+    /// Pre-warm ONE lane's recorder (loads the VAD, opens the ring) while
+    /// idle so that phone's press pays no recorder construction cost.
+    /// v1.6.2 RAM discipline: pre-warming retires every OTHER idle lane
+    /// recorder first, so at most one idle pre-warmed recorder exists at a
+    /// time - the most recently connected phone's (W1-L2).
+    pub fn prewarm_remote_lane(&self, lane: u64) -> Result<(), anyhow::Error> {
+        {
+            let mut lanes = self.remote_lanes.lock().unwrap();
+            let retired: Vec<u64> = lanes
+                .iter()
+                .filter(|(&l, entry)| l != lane && !entry.recording)
+                .map(|(&l, _)| l)
+                .collect();
+            for retired_lane in retired {
+                if let Some(mut entry) = lanes.remove(&retired_lane) {
+                    debug!(
+                        "companion: retiring idle lane {retired_lane} recorder \
+                         (pre-warm keeps only the most recent connection)"
+                    );
+                    let _ = entry.recorder.close();
+                }
+            }
+        }
+        self.ensure_remote_lane(lane)
+    }
+
+    /// Close ONE lane's idle recorder (its connection went away without a
+    /// session, or after its session's stop already closed it). A lane
+    /// still recording is left alone - its stop pipeline owns the teardown.
+    pub fn close_remote_lane(&self, lane: u64) {
+        let mut lanes = self.remote_lanes.lock().unwrap();
+        if let Some(entry) = lanes.get(&lane) {
+            if entry.recording {
+                return;
+            }
+        }
+        if let Some(mut entry) = lanes.remove(&lane) {
+            let _ = entry.recorder.close();
+        }
+    }
+
+    /// Close every lane recorder (companion feature disabled, server stop,
+    /// or app shutdown). A lane still recording is stopped first - its
+    /// samples are discarded on this path, which only the
+    /// no-more-audio-source teardowns take (the graceful stop finalizes
+    /// each live session BEFORE calling here).
     pub fn close_remote_stream(&self) {
-        if let Some(rec) = self.remote_recorder.lock().unwrap().as_mut() {
-            let _ = rec.close();
+        let mut lanes = self.remote_lanes.lock().unwrap();
+        let live: Vec<u64> = lanes
+            .iter()
+            .filter(|(_, l)| l.recording)
+            .map(|(l, _)| *l)
+            .collect();
+        for lane in live {
+            if let Some(entry) = lanes.get_mut(&lane) {
+                let _ = entry.recorder.stop();
+                entry.recording = false;
+            }
         }
-        *self.remote_recorder.lock().unwrap() = None;
-        *self.remote_source.lock().unwrap() = None;
-        *self.active_source.lock().unwrap() = CaptureSource::Local;
+        for (_, mut entry) in lanes.drain() {
+            let _ = entry.recorder.close();
+        }
+        drop(lanes);
+        self.remote_lanes_recording.store(false, Ordering::SeqCst);
+        self.last_recording_lane.store(0, Ordering::SeqCst);
+        // Fold the shared mirror with the local machine's state.
+        let local_active = matches!(
+            *self.state.lock().unwrap(),
+            RecordingState::Recording { .. } | RecordingState::Stopping
+        );
+        self.recording_active.store(local_active, Ordering::SeqCst);
     }
+
+    /// v1.6.2 W1-L2: claim the streaming-engine token for one session.
+    /// Called ONLY from the coordinator thread's Start effect (the single
+    /// serialized instant the start commits), after confirming the engine
+    /// is actually free, so no two sessions can ever both believe they own
+    /// the stream.
+    pub fn set_stream_owner(&self, owner: StreamOwner) {
+        self.stream_owner
+            .store(stream_owner_token(owner), Ordering::Release);
+    }
+
+    /// The current streaming-engine owner.
+    pub fn stream_owner(&self) -> StreamOwner {
+        stream_owner_from_token(self.stream_owner.load(Ordering::Acquire))
+    }
+
+    /// Release the token, but only if `owner` still holds it (the stop
+    /// pipeline of a session that lost the token to a teardown must not
+    /// clear a newer owner's claim).
+    pub fn clear_stream_owner_if(&self, owner: StreamOwner) {
+        let token = stream_owner_token(owner);
+        self.stream_owner
+            .compare_exchange(token, 0, Ordering::AcqRel, Ordering::Acquire)
+            .ok();
+    }
+
 
     /// Replace the VAD implementation while idle. If the microphone stream is
     /// currently warm (always-on or lazy-close mode), reopen it with the new
@@ -1123,7 +1486,7 @@ impl AudioRecordingManager {
     /// recorder so the persisted setting can remain unchanged.
     pub fn update_vad_backend(&self, backend: VadBackend) -> Result<(), anyhow::Error> {
         let state = self.state.lock().unwrap();
-        if !matches!(*state, RecordingState::Idle) {
+        if capture_restart_forbidden(&state) || self.remote_lanes_recording.load(Ordering::SeqCst) {
             return Err(anyhow::anyhow!(
                 "Cannot change the VAD backend while recording"
             ));
@@ -1135,8 +1498,27 @@ impl AudioRecordingManager {
             &self.app_handle,
             settings.selected_channel,
             Arc::clone(&self.stream_router),
+            Arc::clone(&self.stream_owner),
+            StreamOwner::Local,
         )?;
         let was_open = *self.is_open.lock().unwrap();
+
+        // v1.6.2 W1-L2: idle lane recorders were built under the OLD
+        // backend; retire them so the next press rebuilds each lane with
+        // the new one (a recording lane would have blocked us above).
+        {
+            let mut lanes = self.remote_lanes.lock().unwrap();
+            let idle: Vec<u64> = lanes
+                .iter()
+                .filter(|(_, entry)| !entry.recording)
+                .map(|(l, _)| *l)
+                .collect();
+            for lane in idle {
+                if let Some(mut entry) = lanes.remove(&lane) {
+                    let _ = entry.recorder.close();
+                }
+            }
+        }
 
         // Invalidate any delayed close before swapping the recorder it targets.
         self.close_generation.fetch_add(1, Ordering::SeqCst);
@@ -1322,6 +1704,11 @@ impl AudioRecordingManager {
         self.cancel_generation.load(Ordering::Acquire) != generation
     }
 
+    /// Stop the LOCAL recording session and return its captured samples.
+    /// v1.6.2 W1-L2: companion lane sessions stopped through
+    /// [`Self::stop_remote_lane_recording`] never pass through here, so a
+    /// phone session's stop cannot end (or steal the buffer of) a keyboard
+    /// session, and vice versa.
     pub fn stop_recording(&self, binding_id: &str, cancel_generation: u64) -> Option<Vec<f32>> {
         self.invalidate_recording_readiness();
         let mut state = self.state.lock().unwrap();
@@ -1365,12 +1752,7 @@ impl AudioRecordingManager {
                     }
                 }
 
-                let source = self.active_source();
-                let recorder_slot = match source {
-                    CaptureSource::Local => &self.recorder,
-                    CaptureSource::Remote => &self.remote_recorder,
-                };
-                let samples = if let Some(rec) = recorder_slot.lock().unwrap().as_ref() {
+                let samples = if let Some(rec) = self.recorder.lock().unwrap().as_ref() {
                     match rec.stop() {
                         Ok(buf) => buf,
                         Err(e) => {
@@ -1386,23 +1768,13 @@ impl AudioRecordingManager {
                 *self.is_recording.lock().unwrap() = false;
                 self.set_state(&mut self.state.lock().unwrap(), RecordingState::Idle);
 
-                match source {
-                    CaptureSource::Remote => {
-                        // The phone session is over: close the remote
-                        // recorder so a stale socket cannot keep pushing
-                        // into a dead ring, and clear the push handle.
-                        self.close_remote_stream();
-                    }
-                    CaptureSource::Local => {
-                        // In on-demand mode, close the mic (lazily if the
-                        // setting is enabled)
-                        if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
-                            if get_settings(&self.app_handle).lazy_stream_close {
-                                self.schedule_lazy_close();
-                            } else {
-                                self.stop_microphone_stream();
-                            }
-                        }
+                // In on-demand mode, close the mic (lazily if the setting
+                // is enabled)
+                if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
+                    if get_settings(&self.app_handle).lazy_stream_close {
+                        self.schedule_lazy_close();
+                    } else {
+                        self.stop_microphone_stream();
                     }
                 }
 
@@ -1434,11 +1806,50 @@ impl AudioRecordingManager {
         self.recording_active.load(Ordering::SeqCst)
     }
 
-    /// Cancel any ongoing recording without returning audio samples
+    /// Cancel any ongoing recording without returning audio samples.
+    /// v1.6.2 W1-L2 cancel rule, documented once here: a LOCAL recording
+    /// always wins (the keyboard is the surface the user is pressing
+    /// Escape on); with no local recording, the MOST RECENTLY STARTED lane
+    /// session is the one cancelled - the phone session the operator just
+    /// saw start. Other lanes keep recording.
     pub fn cancel_recording(&self) {
         self.invalidate_recording_readiness();
         self.cancel_generation.fetch_add(1, Ordering::AcqRel);
         let mut state = self.state.lock().unwrap();
+
+        // The per-lane cancel first: a lane session's teardown never touches
+        // the local machine, so it runs before the local arm's match.
+        let cancel_lane = if matches!(*state, RecordingState::Idle) {
+            let lane = self.last_recording_lane.load(Ordering::SeqCst);
+            (lane != 0 && self.lane_is_recording(lane)).then_some(lane)
+        } else {
+            None
+        };
+        if let Some(lane) = cancel_lane {
+            drop(state);
+            let mut lanes = self.remote_lanes.lock().unwrap();
+            if let Some(entry) = lanes.get_mut(&lane) {
+                if entry.recording {
+                    let _ = entry.recorder.stop(); // Discard the result
+                    entry.recording = false;
+                }
+            }
+            let still_recording = lanes.values().any(|l| l.recording);
+            self.remote_lanes_recording
+                .store(still_recording, Ordering::SeqCst);
+            if let Some(mut entry) = lanes.remove(&lane) {
+                let _ = entry.recorder.close();
+            }
+            drop(lanes);
+            let local_active = matches!(
+                *self.state.lock().unwrap(),
+                RecordingState::Recording { .. } | RecordingState::Stopping
+            );
+            self.recording_active
+                .store(local_active || still_recording, Ordering::SeqCst);
+            self.remove_mute();
+            return;
+        }
 
         match *state {
             RecordingState::Recording { .. } => {
@@ -1448,36 +1859,26 @@ impl AudioRecordingManager {
                 // Restore the forced mute the same way the normal stop path
                 // does (actions.rs calls remove_mute on stop). Without this,
                 // cancellation never restores it: in always-on mode the local
-                // stream stays open so stop_microphone_stream never runs, the
-                // remote path's close_remote_stream has no mute restore, and
+                // stream stays open so stop_microphone_stream never runs,
+                // the remote path's close_remote_stream has no mute restore, and
                 // the on-demand lazy close defers it by the 30 s idle
                 // timeout - the system stayed muted until the next
                 // NON-cancelled dictation completed (KB-002).
                 self.remove_mute();
 
-                let source = self.active_source();
-                let recorder_slot = match source {
-                    CaptureSource::Local => &self.recorder,
-                    CaptureSource::Remote => &self.remote_recorder,
-                };
-                if let Some(rec) = recorder_slot.lock().unwrap().as_ref() {
+                if let Some(rec) = self.recorder.lock().unwrap().as_ref() {
                     let _ = rec.stop(); // Discard the result
                 }
 
                 *self.is_recording.lock().unwrap() = false;
 
-                match source {
-                    CaptureSource::Remote => self.close_remote_stream(),
-                    CaptureSource::Local => {
-                        // In on-demand mode, close the mic (lazily if the
-                        // setting is enabled)
-                        if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
-                            if get_settings(&self.app_handle).lazy_stream_close {
-                                self.schedule_lazy_close();
-                            } else {
-                                self.stop_microphone_stream();
-                            }
-                        }
+                // In on-demand mode, close the mic (lazily if the setting
+                // is enabled)
+                if matches!(*self.mode.lock().unwrap(), MicrophoneMode::OnDemand) {
+                    if get_settings(&self.app_handle).lazy_stream_close {
+                        self.schedule_lazy_close();
+                    } else {
+                        self.stop_microphone_stream();
                     }
                 }
             }
@@ -1555,6 +1956,47 @@ mod tests {
         assert!(
             capture_restart_forbidden(&RecordingState::Stopping),
             "a recording in its stop pipeline still holds samples: no restart"
+        );
+    }
+
+    /// v1.6.2 W1-L2: the streaming-engine ownership token codec. Every
+    /// recorder's audio callback compares its owner's token against the
+    /// atomic on every frame, so the encoding must be injective over the
+    /// owner space (None, Local, and every lane id) and round-trip
+    /// exactly - a collision would silently let a non-owner recorder feed
+    /// the stream.
+    #[test]
+    fn stream_owner_tokens_round_trip_and_never_collide() {
+        let owners = [
+            StreamOwner::None,
+            StreamOwner::Local,
+            StreamOwner::Lane(1),
+            StreamOwner::Lane(2),
+            StreamOwner::Lane(7),
+            StreamOwner::Lane(u64::MAX - 1),
+        ];
+        let mut tokens: Vec<u64> = Vec::new();
+        for owner in owners {
+            let token = stream_owner_token(owner);
+            assert_eq!(
+                stream_owner_from_token(token),
+                owner,
+                "the owner token must round-trip for {owner:?}"
+            );
+            tokens.push(token);
+        }
+        tokens.sort_unstable();
+        let unique = tokens.len();
+        tokens.dedup();
+        assert_eq!(
+            tokens.len(),
+            unique,
+            "distinct owners must encode to distinct tokens (a collision would gate the wrong recorder into the stream)"
+        );
+        assert_eq!(
+            stream_owner_token(StreamOwner::None),
+            0,
+            "zero is the no-owner sentinel the recorder gates read as closed"
         );
     }
 

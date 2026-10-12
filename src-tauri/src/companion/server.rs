@@ -261,11 +261,15 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
 
     // ---- hello handshake ----
     let device_name: String;
-    // This connection's targeted frame lane: a SERVER-assigned id (never
-    // the client-controlled device name), claimed once the hello
-    // authenticates and passed on every Ptt edge so the session freezes
-    // exactly this connection as its delivery target.
+    // This connection's identity: a SERVER-assigned lane id (never the
+    // client-controlled device name) plus its KB-255 registration
+    // generation. Claimed once the hello authenticates; the lane rides
+    // every Ptt edge so the session freezes exactly this connection as its
+    // owner, and the (lane, generation) pair keys the registration so a
+    // stale socket's late death cannot erase a fresh same-name
+    // registration.
     let device_lane: u64;
+    let device_generation: u64;
     let mut device_lane_rx: tokio::sync::mpsc::UnboundedReceiver<String>;
     let mut admission = protocol::SessionAdmission::new();
     let mut rate_cap = protocol::InputRateCap::new(Instant::now());
@@ -330,21 +334,14 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             manager.failure_limiter_pin().lock().unwrap().clear(peer);
 
             device_name = device;
-            manager.remember_device(&app, &device_name);
-            // KB-197: claim the session slot only while no session is live
-            // (see claim_session_device) - a second phone connecting
-            // mid-dictation is a spectator, not the session's device.
-            manager.claim_session_device(&device_name);
-            // v1.6.0: claim this connection's targeted frame lane.
-            // Phone-target transcripts ride it (never the broadcast every
-            // paired phone sees), so a bystander phone cannot render or
-            // clipboard-write a dictation it did not make. The lane is
-            // keyed by a server-assigned id, not the hello name: a paired
-            // phone repeating another phone's name cannot seize the lane,
-            // and same-named connections coexist.
-            let (lane, rx) = manager.register_device_lane();
+            // v1.6.2 W1-L2: the registration IS the paired-device
+            // bookkeeping (KB-255: keyed on lane + generation, never the
+            // name), and the lane is the connection's session identity.
+            let (lane, generation, rx) = manager.register_connection(&device_name);
             device_lane = lane;
+            device_generation = generation;
             device_lane_rx = rx;
+            manager.note_device_connected(&app, &device_name);
 
             let settings = crate::settings::get_settings(&app);
             let activation = match settings.shortcut_activation {
@@ -355,18 +352,29 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             let welcome = ServerFrame::Welcome {
                 activation,
                 hold_threshold_ms: settings.hold_threshold_ms,
-                recording: manager.session_live(),
+                // Per-lane truth (W1-L2): the fresh connection owns no
+                // session yet - a reconnecting phone's orphaned session was
+                // force-finalized at its disconnect - so this is false
+                // exactly when THIS phone has nothing live.
+                recording: manager.lane_owns_live_session(device_lane),
             };
             if sink.send(Message::text(welcome.to_json())).await.is_err() {
                 return;
             }
-            // v1.6.0: the phone's recent companion history rides along with
-            // the welcome, so the client can render its recent list right
-            // away (and a reconnecting phone catches up on sessions it
-            // missed). Broadcast: every paired phone shares the same Mac
-            // history, and this connection's subscription predates the
-            // handshake.
-            crate::companion::broadcast_recent_history(&app);
+            // v1.6.2 W1-L2: the phone's OWN recent list rides the welcome
+            // (filtered to this phone's sessions), and its lane's recorder
+            // is the one pre-warmed (the RAM rule: pre-warm keeps only the
+            // most recent connection's recorder).
+            crate::companion::send_recent_history_to_lane(&app, device_lane, &device_name);
+            if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
+            {
+                let rm = Arc::clone(&rm);
+                std::thread::spawn(move || {
+                    if let Err(e) = rm.prewarm_remote_lane(device_lane) {
+                        log::debug!("companion: lane {device_lane} recorder pre-warm failed: {e}");
+                    }
+                });
+            }
         }
         _ => {
             // No valid hello in the window: drop without revealing why.
@@ -460,8 +468,10 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                         // when it is locked (toggle mode or a tap-locked
                         // hold-or-toggle session), where a synthesized
                         // release edge is ignored and the session would run
-                        // on with its audio still admitted.
-                        coordinator.finalize_companion_session();
+                        // on with its audio still admitted. v1.6.2 W1-L2:
+                        // per-lane - THIS connection's session ends, every
+                        // other phone's keeps recording.
+                        coordinator.finalize_companion_lane(device_lane);
                     }
                     // KB-016: the cap notice used to reach the phone only -
                     // the Mac had no NoticeCode variant and no emit, so a
@@ -570,12 +580,14 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                             lane_owns_live_session(&manager, device_lane),
                         );
                         if admission.admits() {
+                            // v1.6.2 W1-L2: the chunk lands in THIS
+                            // connection's own ring; no other phone's
+                            // session can receive it and no shared recorder
+                            // exists to cross-contaminate.
                             if let Some(rm) = app
                                 .try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
                             {
-                                if let Some(source) = rm.remote_source() {
-                                    source.push_chunk(&samples);
-                                }
+                                rm.push_remote_chunk(device_lane, &samples);
                             }
                         } else {
                             out_of_session_audio_chunks += 1;
@@ -596,33 +608,36 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
 
     // ---- disconnect: graceful finalize ----
     let _ = sink.close().await;
-    manager.forget_device(&app, &device_name);
-    // Release the targeted lane this connection claimed. Ids are never
-    // reused, so a session still pointing at it reads the miss as the
-    // documented dropped-phone no-op.
-    manager.unregister_device_lane(device_lane);
+    // KB-255: release the registration by BOTH keys (lane + generation).
+    // A stale socket whose keepalive death lagged behind a same-name
+    // reconnect carries the old pair, matches nothing, and the fresh
+    // registration survives with the tray's paired count intact.
+    manager.unregister_connection(device_lane, device_generation);
+    manager.note_device_disconnected(&app);
 
-    // Acknowledge the recorder's stop-pause handshake so Stop never waits
-    // the 2 s timeout on a vanished phone.
+    // Acknowledge THIS lane's stop-pause handshake so its Stop never waits
+    // the 2 s timeout on a vanished phone, and retire the lane's idle
+    // recorder (the RAM rule: no idle lane recorder outlives its
+    // connection once a newer pre-warm or this teardown claims the slot).
     if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
-        if let Some(source) = rm.remote_source() {
-            source.ack_pause();
-        }
+        rm.ack_remote_pause(device_lane);
+        rm.close_remote_lane(device_lane);
     }
 
     // The server stopping mid-session already synthesized the release edge
     // (CompanionManager::stop); only a genuine phone drop runs the
     // disconnect-finalize here.
     if !server_stopping {
-        let companion_recording_live = app
+        // v1.6.2 W1-L2 (KB-111): the decision is scoped to THIS lane's
+        // session. Another phone still recording reads false here and its
+        // session is untouched - either phone dropping used to finalize
+        // the ONE shared session while the other kept streaming.
+        let lane_recording_live = app
             .try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
-            .map(|rm| {
-                rm.is_recording()
-                    && rm.active_source() == crate::managers::audio::CaptureSource::Remote
-            })
+            .map(|rm| rm.lane_is_recording(device_lane))
             .unwrap_or(false);
 
-        if companion_recording_live {
+        if lane_recording_live {
             log::info!(
                 "companion: {device_name} dropped mid-dictation; finalizing what was captured"
             );
@@ -637,7 +652,7 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 // and it works against locked (toggle) sessions too, which a
                 // synthesized release edge would silently drop, stranding the
                 // recording the notice above just claimed was finalized.
-                coordinator.finalize_companion_session();
+                coordinator.finalize_companion_lane(device_lane);
             }
         }
     }
@@ -654,18 +669,17 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     }
 }
 
-/// v1.6.2 W1-L0: the Mac's session truth for one connection's lane. The
-/// session lane was frozen from this connection's own starting press at
-/// the instant the coordinator committed the start (begin_session_lane),
-/// so this is true exactly while the session THIS connection owns is
-/// live: a spectator phone, a reconnecting phone that has not pressed,
-/// and a keyboard dictation (whose sessions never touch the companion
-/// session state) all read false, and their audio stays out-of-session.
+/// v1.6.2 W1-L0/W1-L2: the Mac's session truth for one connection's lane.
+/// The session record was frozen from this connection's own starting press
+/// at the instant the coordinator committed the start (begin_session), so
+/// this is true exactly while the session THIS connection owns is live: a
+/// spectator phone, a reconnecting phone that has not pressed, and a
+/// keyboard dictation (whose sessions never touch the companion session
+/// state) all read false, and their audio stays out-of-session. With
+/// per-lane sessions, another phone's live session reads false here too -
+/// each connection sees only its own.
 fn lane_owns_live_session(manager: &CompanionManager, lane: u64) -> bool {
-    // Child-module access to the frozen lane slot; the stop pipeline's
-    // phone-target delivery (deliver_transcript_to_phone) reads the same
-    // slot the same way.
-    manager.session_live() && *manager.session_lane.lock().unwrap() == Some(lane)
+    manager.lane_owns_live_session(lane)
 }
 
 #[cfg(test)]
@@ -673,7 +687,6 @@ mod tests {
     use super::lane_owns_live_session;
     use crate::companion::protocol::SessionAdmission;
     use crate::companion::CompanionManager;
-    use std::sync::atomic::Ordering;
     use std::sync::Arc;
     use std::time::{Duration, Instant};
     use tauri::Manager;
@@ -737,25 +750,24 @@ mod tests {
     }
 
     /// The coordinator's Start-effect commit, as the connection observes
-    /// it: the lane freezes from the starting press's own edge
-    /// (begin_session_lane) and the session state flips live before the
-    /// State broadcast tells the phone to stream. on_session_changed is
-    /// Wry-typed, so the mock-app tests drive the same two slots its true
-    /// branch writes (the mod.rs test pattern).
+    /// it: the per-lane session record freezes from the starting press's
+    /// own edge (begin_session, live from the instant of the commit) and
+    /// the shared action's start lands before the State frame tells the
+    /// phone to stream. on_lane_session_changed is Wry-typed, so the
+    /// mock-app tests drive the same record its true branch writes (the
+    /// mod.rs test pattern).
     fn commit_session_start<R: tauri::Runtime>(
         app: &tauri::AppHandle<R>,
-        manager: &CompanionManager,
         lane: u64,
     ) {
-        crate::companion::begin_session_lane(app, lane);
-        manager.session_live.store(true, Ordering::Release);
+        crate::companion::begin_session(app, lane, Default::default());
     }
 
     /// The stop pipeline's landing, as the connection observes it: the
-    /// session state flips false (the State broadcast the phone stops
+    /// session record flips not-live (the State frame the phone stops
     /// streaming on).
-    fn commit_session_end(manager: &CompanionManager) {
-        manager.session_live.store(false, Ordering::Release);
+    fn commit_session_end<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
+        crate::companion::on_lane_session_changed(app, lane, false);
     }
 
     /// v1.6.2 W1-L0 pin: reproduces the operator's exact sequence from
@@ -775,8 +787,7 @@ mod tests {
         let app = tauri::test::mock_app();
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
-        manager.claim_session_device("Pixel 8");
-        let (lane, _lane_rx) = manager.register_device_lane();
+                let (lane, _, _) = manager.register_connection("Pixel 8");
         let mut rig = Rig::new(lane);
         let t0 = Instant::now();
 
@@ -784,7 +795,7 @@ mod tests {
         rig.ptt(&manager, true, t0);
         // The coordinator commits the start (lane frozen, state live,
         // State broadcast out; the phone begins streaming on it).
-        commit_session_start(app.handle(), &manager, lane);
+        commit_session_start(app.handle(), lane);
         // The finger-lift release edge lands 62 ms later: below the hold
         // threshold, so the session LOCKED ON. The coordinator ignores
         // the release for stopping purposes; the server no longer lets
@@ -815,7 +826,7 @@ mod tests {
         // release, is the stop edge for a locked session) observes the
         // session still live, then the stop pipeline lands.
         rig.ptt(&manager, true, t0 + Duration::from_secs(6));
-        commit_session_end(&manager);
+        commit_session_end(app.handle(), lane);
         // The phone stops streaming once the State broadcast reaches it;
         // nothing further is admitted after the state flip.
         rig.chunk(
@@ -840,14 +851,13 @@ mod tests {
         let app = tauri::test::mock_app();
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
-        manager.claim_session_device("Pixel 8");
-        let (lane, _lane_rx) = manager.register_device_lane();
+                let (lane, _, _) = manager.register_connection("Pixel 8");
         let mut rig = Rig::new(lane);
         let t0 = Instant::now();
 
         // Press and hold: the session starts and speech streams through.
         rig.ptt(&manager, true, t0);
-        commit_session_start(app.handle(), &manager, lane);
+        commit_session_start(app.handle(), lane);
         for i in 0..100 {
             rig.chunk(&manager, 320, t0 + Duration::from_millis(20 * i));
         }
@@ -865,7 +875,7 @@ mod tests {
         assert_eq!(rig.admitted_samples, 101 * 320);
 
         // The stop pipeline lands: later chunks are out-of-session.
-        commit_session_end(&manager);
+        commit_session_end(app.handle(), lane);
         rig.chunk(
             &manager,
             320,
@@ -887,9 +897,8 @@ mod tests {
         let app = tauri::test::mock_app();
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
-        manager.claim_session_device("iPhone 15");
-        let (mine, _mine_rx) = manager.register_device_lane();
-        let (other, _other_rx) = manager.register_device_lane();
+        let (mine, _, _) = manager.register_connection("iPhone 15");
+        let (other, _, _) = manager.register_connection("iPad");
         let mut rig = Rig::new(mine);
         let t0 = Instant::now();
 
@@ -899,7 +908,7 @@ mod tests {
         assert_eq!(rig.out_of_session_chunks, 1);
 
         // Another phone's session is live: spectator audio stays out.
-        commit_session_start(app.handle(), &manager, other);
+        commit_session_start(app.handle(), other);
         rig.chunk(&manager, 320, t0 + Duration::from_millis(50));
         assert_eq!(
             rig.admitted_samples, 0,
@@ -910,18 +919,18 @@ mod tests {
         // That session ends (and a keyboard dictation in between changes
         // nothing: companion session state stays false throughout, which
         // is exactly what this lane reads).
-        commit_session_end(&manager);
+        commit_session_end(app.handle(), other);
         rig.chunk(&manager, 320, t0 + Duration::from_millis(100));
         assert_eq!(rig.admitted_samples, 0);
         assert_eq!(rig.out_of_session_chunks, 3);
 
         // Our own session opens admission...
-        commit_session_start(app.handle(), &manager, mine);
+        commit_session_start(app.handle(), mine);
         rig.chunk(&manager, 320, t0 + Duration::from_millis(150));
         assert_eq!(rig.admitted_samples, 320);
 
         // ...and the stale lane of our ended session never re-opens it.
-        commit_session_end(&manager);
+        commit_session_end(app.handle(), mine);
         rig.chunk(&manager, 320, t0 + Duration::from_millis(200));
         assert_eq!(rig.admitted_samples, 320);
         assert_eq!(rig.out_of_session_chunks, 4);
@@ -939,14 +948,13 @@ mod tests {
         let app = tauri::test::mock_app();
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
-        manager.claim_session_device("Pixel 8");
-        let (lane, _lane_rx) = manager.register_device_lane();
+                let (lane, _, _) = manager.register_connection("Pixel 8");
         let mut rig = Rig::new(lane);
         let t0 = Instant::now();
 
         // The tap that locks on, then fifteen minutes of live session.
         rig.ptt(&manager, true, t0);
-        commit_session_start(app.handle(), &manager, lane);
+        commit_session_start(app.handle(), lane);
         rig.ptt(&manager, false, t0 + Duration::from_millis(62));
 
         let cap = Duration::from_secs(15 * 60);

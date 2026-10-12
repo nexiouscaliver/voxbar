@@ -2116,7 +2116,13 @@ capture_source: string;
  * to be) delivered, "mac" (pasted on the Mac) or "phone" (sent to the
  * phone). Pre-migration rows read "mac".
  */
-delivery_destination: string }
+delivery_destination: string; 
+/**
+ * v1.6.2 W1-L2: which companion device dictated this entry (the hello
+ * device name the session froze). "" for keyboard sessions and
+ * pre-migration rows. The per-phone recent lists filter on it.
+ */
+capture_device: string }
 export type HistoryUpdatePayload = { action: "added"; entry: HistoryEntry } | { action: "updated"; entry: HistoryEntry } | { action: "deleted"; id: number } | { action: "toggled"; id: number }
 /**
  * Result of changing keyboard implementation
