@@ -939,10 +939,11 @@ check:translations, ci.yml:187/190), which finish KB-100 and KB-012.
 
 **Fleet pass 1 over the landed tree (37a53abd), six confirmed defects:**
 KB-263 through KB-266 (below), the KB-015/KB-122 residual (the memory-gate
-notice code was missing from DETAIL_INTERPOLATING_CODES, so its OS
-notification body re-localized with an empty detail and rendered dangling
-mid-sentence slots in all 26 locales; the code joined the set and the body
-keeps the fully interpolated line, noticeMessage.ts:216), and
+notice code sat in DETAIL_INTERPOLATING_CODES, whose members' OS
+notification bodies re-localize with an empty detail, so the gate's body
+rendered dangling mid-sentence slots in all 26 locales; the fix removed
+the code from the set, the session cap's decision, so the body keeps the
+fully interpolated line, noticeMessage.ts:208-235), and
 one test-hygiene repair (emit_overlay_notice's probe comment named the
 wrong atomic, tripping the AUD-14 comment-accuracy pin).
 
@@ -1142,6 +1143,31 @@ extended to scope the delete body (also mutation-checked).
   plus the Start-arm assertions in
   start_success_probe_is_scoped_to_the_starting_session
   (transcription_coordinator.rs:2319-2336).
+- **KB-275 · OPEN · the Esc resolution cannot reach older live phone
+  sessions, and every Esc resets every Recording-stage lane machine (round
+  9 W1-L6 review).** Two gaps in the cancel resolution, read from code:
+  (1) last_recording_lane is stored only at recorder start
+  (audio.rs:1336) and reset only in close_remote_stream (audio.rs:1546);
+  the cancel lane arm removes the lane's entry without re-pointing the
+  pointer (audio.rs:2136-2151), and it only fires while the local machine
+  is Idle (audio.rs:2130), so after the newest phone session is cancelled
+  OR merely stops, the next Esc resolves to CancelTarget::None
+  (audio.rs:2205) and only bumps in-flight stop pipelines
+  (utils.rs:141-144): a still-live older phone session is unreachable from
+  the keyboard until close_remote_stream resets the pointer; with the
+  keyboard recording, Esc always resolves to the keyboard no matter which
+  session started later (documented design at audio.rs:2109-2113, so only
+  the no-re-point half is a defect). (2) cancel_current_operation always
+  sends Command::Cancel (utils.rs:168), and the coordinator arm resets
+  EVERY Recording-stage lane machine (transcription_coordinator.rs:1243-
+  1249, the reset at :752-758) while the survivor's recorder and companion
+  session record live on: a keyboard-resolved Esc leaves a live phone
+  lane's machine Idle under a still-capturing recorder, reconciled only
+  at its next edge. Fix shape: re-point last_recording_lane to another
+  recording lane on cancel and stop (or resolve by most-recent start
+  across live lanes), and scope the coordinator's on_cancel to the
+  cancelled target's machine the way the audio-side generations already
+  are.
 
 ## Still open after this cycle (anchors refreshed where re-read)
 
@@ -1177,7 +1203,7 @@ extended to scope the delete body (also mutation-checked).
   companion/mod.rs:313, pinned by
   session_prefs_freeze_per_lane_and_survive_the_stop_pipeline) and the phone
   surface still does not say so.
-- **KB-261 and KB-262 above.**
+- **KB-261, KB-262, and KB-275 above.**
 
 ## Correction log (this round)
 
@@ -1198,6 +1224,14 @@ extended to scope the delete body (also mutation-checked).
   in with their own ids (KB-263 through KB-274), the fixed-this-cycle pin
   anchors were re-read at HEAD (the closing commits moved several), and
   the still-open anchors were re-verified. The final W1-L6 pass also
-  taught the README the phone-identity tag, the one-at-a-time Esc under
+  taught the README the phone-identity tag, the Esc resolution order under
   overlapping sessions, and the quarantine notice's master-toggle
   behavior.
+- The W1-L6 review round caught two errors in this section's first final
+  draft, both fixed here: the fleet-pass-1 residual parenthetical
+  inverted the memory-gate fix (the code SAT in DETAIL_INTERPOLATING_CODES
+  and the fix removed it; the set's members are the codes whose OS bodies
+  re-localize with an empty detail, noticeMessage.ts:267-271), and the
+  README's first Esc sentence claimed a one-at-a-time teardown the
+  resolution logic does not deliver. The Esc resolution's own gaps,
+  surfaced by that review, are filed as KB-275.

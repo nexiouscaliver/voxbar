@@ -263,8 +263,8 @@ swallowed with a notice on both surfaces. Audio rides the same path the
 built-in microphone uses, so the overlay, live text, voice commands,
 post-processing, and paste behave the same. When two sessions overlap in
 time, both record and transcribe at stop instead of streaming live text.
-Esc cancels the most recently started session, so with several live you
-stop them one at a time.
+Esc cancels the Mac's own recording first; with none live it stops the
+most recently started phone session, and the other phones keep recording.
 If the phone leaves the network mid-dictation, the session finishes with
 everything captured up to that moment. A session that ends with no audio
 at all is called out by name on both surfaces rather than silently pasting
