@@ -86,10 +86,7 @@ function sliceHandler(source: string, name: string): string {
 }
 
 function readComponent(): string {
-  return fs.readFileSync(
-    path.join(here, "ModelsSettings.tsx"),
-    "utf8",
-  );
+  return fs.readFileSync(path.join(here, "ModelsSettings.tsx"), "utf8");
 }
 
 async function runHandler(

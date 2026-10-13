@@ -220,8 +220,9 @@ assert.ok(
       path.join(import.meta.dirname, "..", debugFile),
       "utf8",
     );
-    const amberShade = debugSrc.match(/text-amber-(\d{3}) dark:text-amber-400/)
-      ?.[1];
+    const amberShade = debugSrc.match(
+      /text-amber-(\d{3}) dark:text-amber-400/,
+    )?.[1];
     assert.ok(
       amberShade !== undefined,
       `KB-283: ${debugFile} must pair a light amber shade with dark:text-amber-400`,

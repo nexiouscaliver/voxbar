@@ -146,8 +146,7 @@ mod tests {
             assert!(
                 matches!(
                     status,
-                    AppleIntelligenceStatus::Available
-                        | AppleIntelligenceStatus::OsUnsupported
+                    AppleIntelligenceStatus::Available | AppleIntelligenceStatus::OsUnsupported
                 ),
                 "a real-linked build must answer from the OS probe, got {:?}",
                 status

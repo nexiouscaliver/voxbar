@@ -215,9 +215,8 @@ export const PromptStudio: React.FC = () => {
   // KB-262: the engine row's note follows the tri-state probe so a build
   // lacking Apple Intelligence reads its own copy, not the OS-requirements
   // one.
-  const [appleStatus, setAppleStatus] = useState<AppleIntelligenceStatus>(
-    "available",
-  );
+  const [appleStatus, setAppleStatus] =
+    useState<AppleIntelligenceStatus>("available");
   // KB-257: the batch state (cards, in-flight flag, error) lives in the
   // module-level controller, so navigating away and back reflects the
   // still-running batch instead of discarding it - and a remount can no

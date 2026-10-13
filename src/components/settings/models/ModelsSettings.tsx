@@ -211,7 +211,9 @@ export const ModelsSettings: React.FC = () => {
             // console-only failure is invisible after the confirm dialog.
             setSelectionError({
               modelId,
-              message: t("settings.models.deleteFailed", { error: raw || String(error ?? "") }),
+              message: t("settings.models.deleteFailed", {
+                error: raw || String(error ?? ""),
+              }),
             });
           }
         }

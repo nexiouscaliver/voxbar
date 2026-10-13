@@ -134,10 +134,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
             // The backend gracefully handles unavailable Apple Intelligence
           }
         } catch (error) {
-          console.error(
-            "Apple Intelligence availability check failed:",
-            error,
-          );
+          console.error("Apple Intelligence availability check failed:", error);
           // The probe itself failed (transport or IPC); it established
           // NOTHING about the OS, so rendering the OS-requirements copy
           // would assert facts a failed probe cannot support (fleet, cycle
