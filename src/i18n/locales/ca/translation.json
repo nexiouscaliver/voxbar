@@ -438,7 +438,9 @@
         "notAsrModel": "Aquest model és el motor local de postprocessat. Poleix les transcripcions després del dictat, no pot transcriure àudio.",
         "generic": "No s'ha pogut canviar a aquest model: {{error}}"
       },
-      "deleteRefusedLive": "El VoxBar està dictant amb aquest model. Torneu-ho a provar quan acabi el dictat."
+      "deleteRefusedLive": "El VoxBar està dictant amb aquest model. Torneu-ho a provar quan acabi el dictat.",
+      "deleteFailed": "No s'ha pogut suprimir aquest model: {{error}}",
+      "cancelFailed": "No s'ha pogut cancel·lar aquesta baixada: {{error}}"
     },
     "sound": {
       "title": "So",
@@ -739,7 +741,8 @@
           "description": "Seleccioneu un proveïdor compatible amb OpenAI."
         },
         "appleIntelligence": {
-          "unavailable": "L'Apple Intelligence no està disponible en aquest dispositiu. Cal un Mac amb Apple Silicon i macOS Tahoe (26.0) o posterior, amb l'Apple Intelligence activada a la configuració del sistema."
+          "unavailable": "L'Apple Intelligence no està disponible en aquest dispositiu. Cal un Mac amb Apple Silicon i macOS Tahoe (26.0) o posterior, amb l'Apple Intelligence activada a la configuració del sistema.",
+          "buildLacks": "L'Apple Intelligence no està disponible en aquesta compilació del VoxBar, que s'ha creat sense aquesta funció. Instal·leu una compilació oficial per utilitzar-la."
         },
         "baseUrl": {
           "title": "URL de base",
@@ -1458,6 +1461,7 @@
     "targetPc": "Al PC",
     "targetPhone": "Al mòbil",
     "postProcessLabel": "Poleix el text",
+    "postProcessHint": "S'aplica a partir del proper dictat.",
     "resultTitle": "Transcripció",
     "copy": "Copia",
     "copied": "Copiat",

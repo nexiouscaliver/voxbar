@@ -438,7 +438,9 @@
         "notAsrModel": "Този модел е локалният двигател за последваща обработка. Той подобрява текста след диктовката, но не може да транскрибира звук.",
         "generic": "Неуспешно превключване към този модел: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar диктува с този модел. Опитайте отново след края на диктовката."
+      "deleteRefusedLive": "VoxBar диктува с този модел. Опитайте отново след края на диктовката.",
+      "deleteFailed": "Този модел не можа да бъде изтрит: {{error}}",
+      "cancelFailed": "Отмяната на това изтегляне не успя: {{error}}"
     },
     "sound": {
       "title": "Звук",
@@ -739,7 +741,8 @@
           "description": "Изберете доставчик, съвместим с OpenAI."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence не е налична на това устройство. Необходим е Mac с Apple Silicon и macOS Tahoe (26.0) или по-нова с включена Apple Intelligence в Системните настройки."
+          "unavailable": "Apple Intelligence не е налична на това устройство. Необходим е Mac с Apple Silicon и macOS Tahoe (26.0) или по-нова с включена Apple Intelligence в Системните настройки.",
+          "buildLacks": "Apple Intelligence не е налична в тази компилация на VoxBar, която е събрана без него. Инсталирайте официална релизна компилация, за да го използвате."
         },
         "baseUrl": {
           "title": "Базов URL",
@@ -1458,6 +1461,7 @@
     "targetPc": "Към компютъра",
     "targetPhone": "Към телефона",
     "postProcessLabel": "Изглади текста",
+    "postProcessHint": "Влиза в сила от следващата диктовка.",
     "resultTitle": "Транскрипция",
     "copy": "Копирай",
     "copied": "Копирано",

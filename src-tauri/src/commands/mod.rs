@@ -140,19 +140,17 @@ pub fn open_app_data_dir(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Check if Apple Intelligence is available on this device.
-/// Called by the frontend when the user selects Apple Intelligence provider.
+/// Probe Apple Intelligence availability as a tri-state (KB-262):
+/// "available" / "os_unsupported" / "build_lacks". Called by the frontend
+/// when the user selects the Apple Intelligence provider and by the
+/// studio's engine list. The two unavailable verdicts localize
+/// differently: a stub-linked build lacking Apple Intelligence is not an
+/// OS-requirements problem, and the bool probe this replaced rendered the
+/// same "requires macOS Tahoe" copy for both.
 #[specta::specta]
 #[tauri::command]
-pub fn check_apple_intelligence_available() -> bool {
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    {
-        crate::apple_intelligence::check_apple_intelligence_availability()
-    }
-    #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-    {
-        false
-    }
+pub fn check_apple_intelligence_available() -> crate::apple_intelligence::AppleIntelligenceStatus {
+    crate::apple_intelligence::check_apple_intelligence_status()
 }
 
 /// Try to initialize Enigo (keyboard/mouse simulation).

@@ -276,7 +276,9 @@
         "notAsrModel": "Ce modèle est le moteur local de post-traitement. Il polit les transcriptions après la dictée, il ne peut pas transcrire l'audio.",
         "generic": "Impossible de passer à ce modèle : {{error}}"
       },
-      "deleteRefusedLive": "VoxBar est en train de dicter avec ce modèle. Réessayez une fois la dictée terminée."
+      "deleteRefusedLive": "VoxBar est en train de dicter avec ce modèle. Réessayez une fois la dictée terminée.",
+      "deleteFailed": "Impossible de supprimer ce modèle : {{error}}",
+      "cancelFailed": "Impossible d'annuler ce téléchargement : {{error}}"
     },
     "general": {
       "title": "Général",
@@ -739,7 +741,8 @@
           "description": "Sélectionnez un fournisseur compatible OpenAI."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence n'est pas disponible sur cet appareil. Nécessite un Mac Apple Silicon exécutant macOS Tahoe (26.0) ou une version ultérieure avec Apple Intelligence activé dans les Préférences Système."
+          "unavailable": "Apple Intelligence n'est pas disponible sur cet appareil. Nécessite un Mac Apple Silicon exécutant macOS Tahoe (26.0) ou une version ultérieure avec Apple Intelligence activé dans les Préférences Système.",
+          "buildLacks": "Apple Intelligence n'est pas disponible dans cette version de VoxBar, qui a été compilée sans cette fonction. Installez une version officielle pour l'utiliser."
         },
         "baseUrl": {
           "title": "URL de base",
@@ -1458,6 +1461,7 @@
     "targetPc": "Vers le PC",
     "targetPhone": "Vers le téléphone",
     "postProcessLabel": "Polir le texte",
+    "postProcessHint": "Prend effet à partir de la prochaine dictée.",
     "resultTitle": "Transcription",
     "copy": "Copier",
     "copied": "Copié",

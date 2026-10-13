@@ -260,6 +260,31 @@ for (const locale of ["ru", "uk"] as const) {
   }
 }
 
+// 6. KB-286: Arabic dual forms must be BARE. The Arabic dual noun
+//    (اختصارين، سطرين، ...) already numbers the noun as exactly-two, so
+//    an interpolated {{count}} beside it reads "2 two-shortcuts" - the
+//    numeral restates what the noun's own grammar already says. The
+//    lineCount_two form ships the correct pattern (سطران, bare); this
+//    facet sweeps every count family's _two key the same way. showAll is
+//    exempt: its string is a parenthesized count badge ("Show all (2)")
+//    with no noun to number, so the numeral IS the content.
+{
+  const ar = loadLocale("ar");
+  for (const family of KEY_FAMILIES.filter(
+    (f) => f !== "settings.postProcessing.api.model.showAll",
+  )) {
+    const { parent, leaf } = parentAndLeaf(ar, family);
+    const dual = parent[`${leaf}_two`];
+    if (typeof dual !== "string") continue;
+    assert.ok(
+      !dual.includes("{{count}}"),
+      `KB-286: ar ${family}_two must use the bare dual - the dual noun itself ` +
+        `numbers the noun as two, so {{count}} beside it reads "2 two-things"; ` +
+        `found: ${dual}`,
+    );
+  }
+}
+
 console.log(
   `pluralCoverage: ${locales.length} locales x ${KEY_FAMILIES.length} families x ` +
     `${PROBE_COUNTS.length} counts covered, no English leaks, numerals accurate`,

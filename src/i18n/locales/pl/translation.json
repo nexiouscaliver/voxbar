@@ -276,7 +276,9 @@
         "notAsrModel": "Ten model to lokalny silnik przetwarzania końcowego. Polepsza transkrypcje po dyktowaniu, nie potrafi transkrybować dźwięku.",
         "generic": "Nie udało się przełączyć na ten model: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar dyktuje teraz tym modelem. Spróbuj ponownie po zakończeniu dyktowania."
+      "deleteRefusedLive": "VoxBar dyktuje teraz tym modelem. Spróbuj ponownie po zakończeniu dyktowania.",
+      "deleteFailed": "Nie udało się usunąć tego modelu: {{error}}",
+      "cancelFailed": "Nie udało się anulować tego pobierania: {{error}}"
     },
     "general": {
       "title": "Ogólne",
@@ -739,7 +741,8 @@
           "description": "Wybierz dostawcę zgodnego z OpenAI."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence nie jest dostępne na tym urządzeniu. Wymaga komputera Mac z Apple Silicon i systemem macOS Tahoe (26.0) lub nowszym z włączonym Apple Intelligence w Ustawieniach systemowych."
+          "unavailable": "Apple Intelligence nie jest dostępne na tym urządzeniu. Wymaga komputera Mac z Apple Silicon i systemem macOS Tahoe (26.0) lub nowszym z włączonym Apple Intelligence w Ustawieniach systemowych.",
+          "buildLacks": "Apple Intelligence nie jest dostępne w tej kompilacji VoxBar, która została zbudowana bez tej funkcji. Zainstaluj oficjalną kompilację wydawniczą, aby z niej korzystać."
         },
         "baseUrl": {
           "title": "Adres bazowy",
@@ -1480,6 +1483,7 @@
     "targetPc": "Na komputer",
     "targetPhone": "Na telefon",
     "postProcessLabel": "Wygładź tekst",
+    "postProcessHint": "Zacznie obowiązywać od następnego dyktowania.",
     "resultTitle": "Transkrypcja",
     "copy": "Kopiuj",
     "copied": "Skopiowano",

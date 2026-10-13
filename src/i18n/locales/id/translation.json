@@ -438,7 +438,9 @@
         "notAsrModel": "Model ini adalah engine pascaproses lokal. Model ini memoles transkripsi setelah dikte, tidak dapat mentranskripsi audio.",
         "generic": "Tidak dapat beralih ke model ini: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar sedang mendikte dengan model ini. Coba lagi setelah dikte selesai."
+      "deleteRefusedLive": "VoxBar sedang mendikte dengan model ini. Coba lagi setelah dikte selesai.",
+      "deleteFailed": "Model ini tidak dapat dihapus: {{error}}",
+      "cancelFailed": "Unduhan ini tidak dapat dibatalkan: {{error}}"
     },
     "sound": {
       "title": "Suara",
@@ -739,7 +741,8 @@
           "description": "Pilih penyedia yang kompatibel dengan OpenAI."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence tidak tersedia di perangkat ini. Memerlukan Mac Apple Silicon yang menjalankan macOS Tahoe (26.0) atau yang lebih baru dengan Apple Intelligence diaktifkan di Pengaturan Sistem."
+          "unavailable": "Apple Intelligence tidak tersedia di perangkat ini. Memerlukan Mac Apple Silicon yang menjalankan macOS Tahoe (26.0) atau yang lebih baru dengan Apple Intelligence diaktifkan di Pengaturan Sistem.",
+          "buildLacks": "Apple Intelligence tidak tersedia di build VoxBar ini, yang dikompilasi tanpanya. Instal build rilis resmi untuk menggunakannya."
         },
         "baseUrl": {
           "title": "URL Dasar",
@@ -1458,6 +1461,7 @@
     "targetPc": "Ke PC",
     "targetPhone": "Ke ponsel",
     "postProcessLabel": "Poles teks",
+    "postProcessHint": "Berlaku mulai dikte berikutnya.",
     "resultTitle": "Transkrip",
     "copy": "Salin",
     "copied": "Tersalin",

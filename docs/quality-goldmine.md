@@ -132,7 +132,7 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-154 · PARTIALLY FIXED · arch allowlists are disjoint again.** Was [R3]: "granite" sat in BOTH KNOWN_ARCHES and LLM_ARCHES, breaking the documented disjointness both add-from-HF gates rely on (model_capabilities.rs:43 and :61 ✓R4): a granite LLM text GGUF registers as an ASR model; a granite ASR GGUF passes the post-process gate. Fixed in a9e1159e: bare `granite` removed from KNOWN_ARCHES (llama.cpp's LLM arch lives in LLM_ARCHES alone; transcribe-cpp's granite ASR family is the suffixed variants), with disjointness now pinned by tests in model_capabilities.rs and catalog/llm.rs. Residual: granite_nar/cohere arch-string mismatches remain (pre-existing catalog-metadata drift, not introduced by the fix).
 
-**KB-155 · OPEN · NEW · model delete and download-cancel failures are invisible in the settings UI**: both handlers console.error only and ignore the store's recorded error (ModelsSettings.tsx:189-204; modelStore sets error + returns false), so a swap-guard refusal or fs error leaves the user with zero feedback after confirming a native dialog [R3].
+**KB-155 · FIXED (v1.6.5 residuals cycle, lane R2) · model delete and download-cancel failures are invisible in the settings UI.** Was [R3]: both handlers console.error'd only and ignored the store's recorded error (modelStore sets error + returns false), so a swap-guard refusal or fs error left the user with zero feedback after confirming a native dialog. Fixed: every failure resolution routes through the row alert - the delete handler's non-refusal branch and its transport catch render settings.models.deleteFailed, and the cancel handler (which had ignored cancelDownload's false result entirely) reads the store error and renders settings.models.cancelFailed, both interpolating {{error}} across all 26 locales (ModelsSettings.tsx:174-256); the live-session refusal keeps its dedicated KB-117/220 copy. Pinned by modelActionErrorPins.test.ts, which executes the committed handler bodies against stubbed false-result/refusal/rejected/ok resolutions (mutation-checked both halves: delete back to console-only and cancel back to result-ignoring each trip it).
 
 **KB-159 · FIXED (371f2b41; round 4 verified via KB-194's twin, round 9 fleet re-verified).** Rebinding cancel onto a chord another active binding holds is rejected up front by binding_conflicts_with_active_binding, in both the cancel and the generic branch.
 
@@ -752,11 +752,20 @@ rather than a one-line fix, so v1.6.0 ships with them disclosed.
   runs, a Cancel button, and a module-level batch controller so remounts
   reflect (and cannot stack on) the running batch, pinned by
   studio_batch_cancel_generation_retires_only_older_batches_kb257.
-- **KB-258 · OPEN · the phone 'Polish text' toggle only arms the NEXT
-  session.** Prefs freeze at session start (mod.rs:738-744, pinned), while
-  the keyboard pp hotkey flips the live session; the phone surface does not
-  say so (index.html:530-533). Either fold mid-session pref updates or label
-  the toggle with a next-dictation hint (one new string x26 locales).
+- **KB-258 · FIXED (v1.6.5 residuals cycle, lane R2) · the phone 'Polish text'
+  toggle only arms the NEXT session.** Was open: prefs freeze at session
+  start (mod.rs:738-744, pinned), while the keyboard pp hotkey flips the
+  live session; the phone surface did not say so. Fixed via the label
+  branch of the either/or: the toggle row carries a hint line under the
+  label (companion.postProcessHint, "Takes effect from the next
+  dictation.", shipped across all 26 locales; the row renders it at
+  companion/client/index.html:612 and initializes it at :740, embedded
+  blob regenerated through scripts/embed-companion-strings.ts). Pinned by
+  the KB-258 block in companionClientPage.test.ts (hint element inside
+  the toggle's own row, postProcessHint key, all-locale coverage;
+  mutation-checked by deleting the hint element). The fold-mid-session
+  branch stays the deeper change if flipping the live session is ever
+  wanted.
 - **KB-259 · FIXED (v1.6.2, fd63e677) · Tailscale classification is range-based only.**
   Was open: any 100.64.0.0/10 address was labeled Tailscale and widened the
   pairing token to the whole /10 regardless of interface (ip.rs:61-95); an
@@ -1003,14 +1012,30 @@ extended to scope the delete body (also mutation-checked).
   build log carried them again). The link succeeds; cosmetic, but it
   muddies every release log. Fix shape: stop one crate from compiling
   ggml-backend-reg.cpp or force a single ggml instance.
-- **KB-262 · OPEN · the AI-unavailable copy cannot distinguish a
-  build-lacking-AI Mac from an OS-lacking one (round 9 fleet).** The
-  availability probe is a single bool, so a stub-linked build renders the
-  same "requires macOS Tahoe" message the OS-lacks case gets; the stub's
-  own distinct string never reaches the availability path (fleet anchors at
-  43f4c092: commands/mod.rs:141-152, apple_intelligence_stub.swift:24).
-  Fix shape: an available / os-unsupported / build-lacks enum plus one
-  locale string.
+- **KB-262 · FIXED (v1.6.5 residuals cycle, lane R2) · the AI-unavailable
+  copy cannot distinguish a build-lacking-AI Mac from an OS-lacking one
+  (round 9 fleet).** Was open: the availability probe was a single bool,
+  so a stub-linked build rendered the same "requires macOS Tahoe" message
+  the OS-lacks case gets, and the stub's own distinct string never
+  reached the availability path (fleet anchors at 43f4c092:
+  commands/mod.rs:141-152, apple_intelligence_stub.swift:24). Fixed per
+  the fix shape: the probe returns the available / os-unsupported /
+  build-lacks enum (AppleIntelligenceStatus at apple_intelligence.rs:32,
+  probe at :49, command at commands/mod.rs:152; build.rs:476 emits the
+  apple_intelligence_stub rustc-cfg on the stub arm only - registered at
+  build.rs:409 - so a stub-linked build answers build_lacks instead of
+  the stub's constant-0 bool), one new locale string
+  (settings.postProcessing.api.appleIntelligence.buildLacks) ships across
+  all 26 locales, and both surfaces render it (the settings card at
+  PostProcessingSettings.tsx:288, the studio engine row at
+  PromptStudio.tsx:481; bindings regenerated to
+  Promise<AppleIntelligenceStatus>). Pinned by
+  availability_probe_reports_the_tri_state_kb262 and
+  build_script_flags_the_stub_arm_for_the_probe_kb262
+  (apple_intelligence.rs:139, :169) plus appleAvailabilityPins.test.ts
+  (tri-state binding, both render surfaces, all-locale coverage;
+  mutation-checked by collapsing the binding back to bool and by dropping
+  the settings build_lacks branch).
 - **KB-263 · FIXED · a grace-expired phone stop ran as a keyboard stop and
   wedged its lane machine in Processing with a stranded recorder (round 9
   fleet pass 1, 37a53abd).** expire_due_graces fired the grace-expired
@@ -1213,9 +1238,12 @@ extended to scope the delete body (also mutation-checked).
   closed this cycle: server.rs now carries a tests module
   (companion/server.rs:952 after the fleet pass 2 re-read)
   from the W1-L0 work.
-- **KB-155 residual:** model-download cancel failures are still invisible
-  in the settings UI (fleet verdict; the delete half renders only the
-  live-session refusal).
+- **KB-155 residual:** CLOSED in the v1.6.5 residuals cycle (lane R2),
+  together with the round 9 half: the cancel handler now checks
+  cancelDownload's false result and the store error it records, and
+  renders the row alert with the localized cancelFailed copy next to the
+  delete halves (ModelsSettings.tsx:229-256; pinned in
+  modelActionErrorPins.test.ts).
 - **KB-236 residual:** the impl-switch teardown gap for an armed handy-keys
   recorder; unreachable through today's tab layout but one refactor away.
   (Round 11 re-verified against this tree: the switch path never stops an
@@ -1230,11 +1258,13 @@ extended to scope the delete body (also mutation-checked).
   (api.model, timeout, keep-warm, provider rows; re-checked in this tree:
   no such keys in settingsSearchIndex.ts, whose pp section ends at the four
   keys before :141's requiresExperimental block).
-- **KB-258:** the phone's Polish-text toggle still arms the NEXT session;
-  per-lane prefs freeze at session start (freeze_session,
-  companion/mod.rs:467 after the fleet pass 2 re-read, pinned by
-  session_prefs_freeze_per_lane_and_survive_the_stop_pipeline) and the phone
-  surface still does not say so.
+- **KB-258:** CLOSED in the v1.6.5 residuals cycle (lane R2) via the
+  label branch: per-lane prefs still freeze at session start
+  (freeze_session, companion/mod.rs:467 after the fleet pass 2 re-read,
+  pinned by session_prefs_freeze_per_lane_and_survive_the_stop_pipeline),
+  but the phone surface now says so - the toggle row carries the
+  companion.postProcessHint next-dictation hint across all 26 locales
+  (companion/client/index.html:612, :740).
 - **KB-261, KB-262, and KB-275 above** (KB-275 now reads PARTIALLY
   FIXED: the fleet commits 81dae89a/520a47e6 closed its lane-machine
   reset gap after this section was first written; the no-re-point half is
@@ -1467,8 +1497,9 @@ residual (protocol.rs's only change this cycle is the KB-260 doc
 comment, so the dead fields stand), KB-244 residual
 (settingsSearchIndex.ts untouched this cycle), KB-258 (above), KB-261
 (both ggml-building crates still linked, Cargo.toml:92 and :102),
-KB-262 (the availability probe is still a single bool; commands/mod.rs
-changed only its KB-181 comment this cycle), and KB-275's gap-1
+KB-262 (closed in the v1.6.5 residuals cycle, lane R2: the probe now
+returns the tri-state; this round 11 note records the v1.6.4 state, when
+commands/mod.rs changed only its KB-181 comment), and KB-275's gap-1
 residual (above).
 
 ## Copy and commit lint
@@ -1679,10 +1710,10 @@ report (dwfrun-adf93b4e).
 - KB-280 cancel-after-LaneGone interleave leaks a deferred machine past KB-270's retirement (Command::Cancel resets a Recording machine that LaneGone deferred to a drain that never comes). transcription_coordinator.rs:1298-1325, 1382-1388.
 - KB-281 unregister-before-register inversion permanently leaks a lane-keyed cancel want (Escape registered system-wide until restart). shortcut/mod.rs:239-267, actions.rs:1935-2038.
 - KB-282 opener:default still bundles unscoped reveal-item-in-dir (arbitrary-path Finder reveal from webview JS); swap for allow-open-url + default-urls. capabilities/default.json:8.
-- KB-283 amber-600 legs measure 3.08:1 in light inside the very cells the emerald fix touched; amber-700 passes. PostProcessRunsTable.tsx:71, LiveLogViewer.tsx:51.
+- KB-283 CLOSED in the v1.6.5 residuals cycle (lane R2): the skipped/unchanged outcome legs and the live-log WARN tag carry amber-700 (PostProcessRunsTable.tsx:78, LiveLogViewer.tsx:55; 4.85:1 on the light background vs amber-600's 3.08:1), and the KB-267 contrast pin gained the amber family in the same pattern - the WCAG ratio is computed from a palette hex table, every non-test source under src is swept for a surviving text-amber-600, and both debug files must carry the amber-700/400 pair (AccessibilityOnboarding.test.ts:189; mutation-checked by reverting one WARN tag to amber-600).
 - KB-284 three production comments still document the deleted ack_remote_pause as live. audio.rs:1557-1562, 2244, 2735.
 - KB-285 get_settings runs inline on the connection task after the four spawned seams; its migration/salvage writes are the same wedge vector. server.rs:401, settings.rs:2143-2179.
-- KB-286 Arabic dual forms carry the numeral plus the dual noun ("2 two-shortcuts"); the bare dual is correct. ar/translation.json:1391, 1397.
+- KB-286 CLOSED in the v1.6.5 residuals cycle (lane R2): every Arabic dual form that carried {{count}} beside the dual noun now uses the bare dual - listSummary, run, runHint, results, charsChanged, added, removed, blockedWithCulprit, blockedNoCulprit (ar/translation.json:713, 1229, 1235, 1248, 1261, 1270, 1276, 1441, 1445), the lineCount_two pattern; showAll_two keeps {{count}} because its parenthesized count badge has no noun to number. pluralCoverage.test.ts facet 6 pins that every Arabic _two count-family form stays bare (mutation-checked by restoring one "{{count}} dual-noun" form).
 - KB-287 the KB-277 README sentence is pinned only as a ledger marker; no test reads README.md.
 - KB-288 the KB-267 contrast pin hardcodes the background and hex table instead of reading theme.css.
 - KB-289 start()/reset_pairing/set_log_level still whole-settings-write outside the connect-edge RMW lock (lost-update interleave). companion/mod.rs:563-580, 905-912; commands/mod.rs:57-74.

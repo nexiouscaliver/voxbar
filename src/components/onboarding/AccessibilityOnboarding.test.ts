@@ -186,4 +186,91 @@ assert.ok(
   }
 }
 
+/* ---- KB-283 pin (amber family, same pattern as KB-267) ---- */
+
+// The amber legs inside the very cells the emerald fix touched (the pp
+// runs skipped/unchanged outcome and the live-log WARN tag) still carried
+// amber-600, which measures 3.08:1 on the light background - under the
+// 4.5:1 bar the emerald fix established for this table. Same pin shape as
+// the emerald half above: compute the WCAG ratio from the real palette
+// hexes, sweep every non-test source for the too-dim shade, and require
+// the debug files to actually carry the passing pair.
+{
+  const LIGHT_BACKGROUND = "#fbfbfb"; // styles/theme.css: --light-color-background
+  const relativeLuminance = (hex: string): number => {
+    const channels = [1, 3, 5].map(
+      (at) => parseInt(hex.slice(at, at + 2), 16) / 255,
+    );
+    const [r, g, b] = channels.map((c) =>
+      c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4,
+    );
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (fg: string, bg: string): number => {
+    const [l1, l2] = [relativeLuminance(fg), relativeLuminance(bg)].sort(
+      (a, b) => b - a,
+    );
+    return (l1 + 0.05) / (l2 + 0.05);
+  };
+  // Tailwind v4 default palette: amber-600 #d97706, amber-700 #b45309.
+  const AMBER: Record<string, string> = {
+    "600": "#d97706",
+    "700": "#b45309",
+  };
+  assert.ok(
+    contrast(AMBER["600"], LIGHT_BACKGROUND) < 4.5,
+    "KB-283: the hex table must keep amber-600 measurable (3.08:1 expected)",
+  );
+  const walk = (dir: string): string[] =>
+    fs
+      .readdirSync(dir, { withFileTypes: true })
+      .flatMap((entry) =>
+        entry.isDirectory()
+          ? walk(path.join(dir, entry.name))
+          : /\.(ts|tsx)$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)
+            ? [path.join(dir, entry.name)]
+            : [],
+      );
+  const srcRoot = path.join(import.meta.dirname, "..", "..");
+  for (const file of walk(srcRoot)) {
+    const source = fs.readFileSync(file, "utf8");
+    assert.ok(
+      !source.includes("text-amber-600"),
+      `KB-283: ${path.relative(srcRoot, file)} must not use text-amber-600 ` +
+        `(3.08:1 on the light background; amber-700 is the light shade)`,
+    );
+  }
+  for (const debugFile of [
+    "settings/debug/LiveLogViewer.tsx",
+    "settings/debug/PostProcessRunsTable.tsx",
+  ]) {
+    const debugSrc = fs.readFileSync(
+      path.join(import.meta.dirname, "..", debugFile),
+      "utf8",
+    );
+    const amberShade = debugSrc.match(/text-amber-(\d{3}) dark:text-amber-400/)
+      ?.[1];
+    assert.ok(
+      amberShade !== undefined,
+      `KB-283: ${debugFile} must pair a light amber shade with dark:text-amber-400`,
+    );
+    const amberHex = AMBER[amberShade];
+    assert.ok(
+      amberHex !== undefined,
+      `KB-283: the light shade must be a known amber hex (got amber-${amberShade})`,
+    );
+    const ratio = contrast(amberHex, LIGHT_BACKGROUND);
+    assert.ok(
+      ratio >= 4.5,
+      `KB-283: ${debugFile} amber-${amberShade} light-theme text must reach ` +
+        `4.5:1 on ${LIGHT_BACKGROUND}, measured ${ratio.toFixed(2)}:1 ` +
+        `(amber-600 is 3.08:1; amber-700 is 4.85:1)`,
+    );
+    assert.ok(
+      debugSrc.includes("text-amber-700 dark:text-amber-400"),
+      `KB-283: ${debugFile} must carry the amber-700/400 light/dark pair`,
+    );
+  }
+}
+
 console.log("AccessibilityOnboarding: all assertions passed");

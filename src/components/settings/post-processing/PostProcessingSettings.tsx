@@ -281,7 +281,15 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         // local worker's lifetime, which is engine config.
         <PostProcessKeepWarmRow />
       ) : state.isAppleProvider ? (
-        state.appleIntelligenceUnavailable ? (
+        // KB-262: the tri-state probe words the two unavailable verdicts
+        // differently - a build compiled without Apple Intelligence is not
+        // an OS-requirements problem, so it gets its own copy instead of
+        // the "requires macOS Tahoe" message.
+        state.appleIntelligenceStatus === "build_lacks" ? (
+          <Alert variant="error" contained>
+            {t("settings.postProcessing.api.appleIntelligence.buildLacks")}
+          </Alert>
+        ) : state.appleIntelligenceStatus === "os_unsupported" ? (
           <Alert variant="error" contained>
             {t("settings.postProcessing.api.appleIntelligence.unavailable")}
           </Alert>

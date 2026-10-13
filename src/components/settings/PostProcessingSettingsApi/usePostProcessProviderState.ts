@@ -16,6 +16,14 @@ import {
   showLocalRow,
 } from "../post-processing/localLlmRouting";
 
+// The KB-262 tri-state the backend probe returns: why Apple Intelligence
+// is (un)available. The two unavailable verdicts localize differently (a
+// build lacking it is not an OS-requirements problem).
+export type AppleIntelligenceStatus =
+  | "available"
+  | "os_unsupported"
+  | "build_lacks";
+
 type PostProcessProviderState = {
   providerOptions: DropdownOption[];
   selectedProviderId: string;
@@ -23,7 +31,7 @@ type PostProcessProviderState = {
   isCustomProvider: boolean;
   isAppleProvider: boolean;
   isLocalProvider: boolean;
-  appleIntelligenceUnavailable: boolean;
+  appleIntelligenceStatus: AppleIntelligenceStatus;
   baseUrl: string;
   handleBaseUrlChange: (value: string) => void;
   isBaseUrlUpdating: boolean;
@@ -81,8 +89,8 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
 
   const isAppleProvider = selectedProvider?.id === APPLE_PROVIDER_ID;
   const isLocalProvider = showLocalRow(selectedProviderId);
-  const [appleIntelligenceUnavailable, setAppleIntelligenceUnavailable] =
-    useState(false);
+  const [appleIntelligenceStatus, setAppleIntelligenceStatus] =
+    useState<AppleIntelligenceStatus>("available");
 
   // Use settings directly as single source of truth
   const baseUrl = selectedProvider?.base_url ?? "";
@@ -105,18 +113,30 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
 
   const handleProviderSelect = useCallback(
     async (providerId: string) => {
-      // Clear error state on any selection attempt (allows dismissing the error)
-      setAppleIntelligenceUnavailable(false);
+      // Clear the verdict on any selection attempt (allows dismissing the error)
+      setAppleIntelligenceStatus("available");
 
       if (providerId === selectedProviderId) return;
 
-      // Check Apple Intelligence availability before selecting
+      // Check Apple Intelligence availability before selecting. The probe
+      // answers with the KB-262 tri-state so the panel can word a
+      // build-lacks copy differently from the OS-requirements one.
       if (providerId === APPLE_PROVIDER_ID) {
-        const available = await commands.checkAppleIntelligenceAvailable();
-        if (!available) {
-          setAppleIntelligenceUnavailable(true);
-          // Don't return - still set the provider so dropdown shows the selection
-          // The backend gracefully handles unavailable Apple Intelligence
+        try {
+          const status = await commands.checkAppleIntelligenceAvailable();
+          if (status !== "available") {
+            setAppleIntelligenceStatus(status);
+            // Don't return - still set the provider so dropdown shows the selection
+            // The backend gracefully handles unavailable Apple Intelligence
+          }
+        } catch (error) {
+          console.error(
+            "Apple Intelligence availability check failed:",
+            error,
+          );
+          // The probe itself failed (transport); the conservative verdict
+          // is os_unsupported, the copy the bool probe always produced.
+          setAppleIntelligenceStatus("os_unsupported");
         }
       }
 
@@ -329,7 +349,7 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
     isCustomProvider,
     isAppleProvider,
     isLocalProvider,
-    appleIntelligenceUnavailable,
+    appleIntelligenceStatus,
     baseUrl,
     handleBaseUrlChange,
     isBaseUrlUpdating,

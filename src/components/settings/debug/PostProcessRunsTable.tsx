@@ -73,7 +73,9 @@ const OutcomeCell: React.FC<{ record: PostProcessRunRecord }> = ({
         base === "failed"
           ? "text-red-600 dark:text-red-400"
           : base === "skipped" || base === "unchanged"
-            ? "text-amber-600 dark:text-amber-400"
+            // KB-283: amber-600 measures 3.08:1 on the light background;
+            // amber-700 keeps the skipped/unchanged legs at 4.85:1.
+            ? "text-amber-700 dark:text-amber-400"
             : "text-emerald-700 dark:text-emerald-400"
       }
       title={tooltip}

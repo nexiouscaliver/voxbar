@@ -402,6 +402,11 @@ fn build_apple_intelligence_bridge() {
     println!("cargo:rerun-if-env-changed=DEVELOPER_DIR");
     println!("cargo:rerun-if-env-changed=SWIFTC");
     println!("cargo:rerun-if-env-changed=HANDY_FORCE_AI_STUB");
+    // KB-262: register the apple_intelligence_stub cfg (emitted on the
+    // stub arm below) so rustc accepts it as expected on BOTH arms - the
+    // #[cfg(not(apple_intelligence_stub))] code is parsed even in a
+    // real-linked build.
+    println!("cargo::rustc-check-cfg=cfg(apple_intelligence_stub)");
 
     let out_dir = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
     let object_path = out_dir.join("apple_intelligence.o");
@@ -464,6 +469,11 @@ fn build_apple_intelligence_bridge() {
         } else {
             println!("cargo:warning=Apple Intelligence SDK not found. Building with stubs.");
         }
+        // KB-262: tell the Rust side this build links the stub, so the
+        // availability probe can answer build-lacks instead of the
+        // OS-unsupported verdict the stub's constant-0 bool forced. Emitted
+        // ONLY on the stub arm (the real arm keeps the cfg unset).
+        println!("cargo:rustc-cfg=apple_intelligence_stub");
         STUB_SWIFT_FILE
     };
 

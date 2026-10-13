@@ -438,7 +438,9 @@
         "notAsrModel": "Denne model er den lokale efterbehandlingsmotor. Den forbedrer transskriptioner efter diktat, men kan ikke transskribere lyd.",
         "generic": "Kunne ikke skifte til denne model: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar dikterer med denne model. Prøv igen, når dikteringen er færdig."
+      "deleteRefusedLive": "VoxBar dikterer med denne model. Prøv igen, når dikteringen er færdig.",
+      "deleteFailed": "Modellen kunne ikke slettes: {{error}}",
+      "cancelFailed": "Downloaden kunne ikke annulleres: {{error}}"
     },
     "sound": {
       "title": "Lyd",
@@ -739,7 +741,8 @@
           "description": "Vælg en OpenAI-kompatibel udbyder."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence er ikke tilgængelig på denne enhed. Kræver en Apple Silicon Mac med macOS Tahoe (26.0) eller nyere med Apple Intelligence aktiveret i Systemindstillinger."
+          "unavailable": "Apple Intelligence er ikke tilgængelig på denne enhed. Kræver en Apple Silicon Mac med macOS Tahoe (26.0) eller nyere med Apple Intelligence aktiveret i Systemindstillinger.",
+          "buildLacks": "Apple Intelligence er ikke tilgængelig i denne build af VoxBar, som er kompileret uden den. Installér en officiel udgivelsesbuild for at bruge den."
         },
         "baseUrl": {
           "title": "Basis-URL",
@@ -1458,6 +1461,7 @@
     "targetPc": "Til pc",
     "targetPhone": "Til telefonen",
     "postProcessLabel": "Polér teksten",
+    "postProcessHint": "Træder i kraft ved næste diktering.",
     "resultTitle": "Transskription",
     "copy": "Kopiér",
     "copied": "Kopieret",

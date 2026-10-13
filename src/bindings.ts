@@ -1061,10 +1061,15 @@ async openAppDataDir() : Promise<Result<null, string>> {
 }
 },
 /**
- * Check if Apple Intelligence is available on this device.
- * Called by the frontend when the user selects Apple Intelligence provider.
+ * Probe Apple Intelligence availability as a tri-state (KB-262):
+ * "available" / "os_unsupported" / "build_lacks". Called by the frontend
+ * when the user selects the Apple Intelligence provider and by the
+ * studio's engine list. The two unavailable verdicts localize
+ * differently: a stub-linked build lacking Apple Intelligence is not an
+ * OS-requirements problem, and the bool probe this replaced rendered the
+ * same "requires macOS Tahoe" copy for both.
  */
-async checkAppleIntelligenceAvailable() : Promise<boolean> {
+async checkAppleIntelligenceAvailable() : Promise<AppleIntelligenceStatus> {
     return await TAURI_INVOKE("check_apple_intelligence_available");
 },
 /**
@@ -1990,6 +1995,16 @@ companion_tls_cert_path?: string | null;
  * The key file paired with `companion_tls_cert_path`.
  */
 companion_tls_key_path?: string | null }
+/**
+ * KB-262: WHY Apple Intelligence is (un)available, as a tri-state the
+ * frontend localizes differently. A stub-linked build ("this copy of
+ * VoxBar was compiled without it") is a different message than an OS
+ * that lacks it ("requires macOS Tahoe..."), but the bool probe returned
+ * the same false for both, so a build-lacks Mac showed the OS
+ * requirements copy - and the stub's own distinct string never reached
+ * the availability path.
+ */
+export type AppleIntelligenceStatus = "available" | "os_unsupported" | "build_lacks"
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AvailableAccelerators = { transcribe: string[]; ort: string[]; gpu_devices: GpuDeviceOption[] }
