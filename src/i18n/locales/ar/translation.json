@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ الاختصارات محجوبة بواسطة Secure Input",
     "postProcessPrompt": "مطالبة ما بعد المعالجة"
   },
+  "trayCopyOutcome": {
+    "copied": "تم نسخ النص إلى الحافظة.",
+    "empty": "لا يوجد ما يمكن نسخه بعد.",
+    "failed": "تعذّر نسخ النص إلى الحافظة."
+  },
   "sidebar": {
     "general": "عام",
     "commands": "الأوامر",
@@ -892,6 +897,7 @@
       "empty": "!لا يوجد تفريغ صوتي بعد. ابدأ التسجيل لبناء سجلك",
       "copyToClipboard": "نسخ التفريغ إلى الحافظة",
       "copyError": "تعذر نسخ التفريغ إلى الحافظة.",
+      "savedToggleError": "تعذّر تحديث حالة الحفظ.",
       "save": "حفظ التفريغ",
       "unsave": "إزالة من المحفوظات",
       "delete": "حذف الإدخال",
@@ -911,13 +917,12 @@
       "viaPostProcess": "عبر {{model}} · {{prompt}} · {{outcome}} · {{latency}} م.ث",
       "viewChanges": "عرض التغييرات",
       "hideChanges": "إخفاء التغييرات",
+      "dbRecoveredNotice": "تعذر قراءة قاعدة بيانات سجل النسخ لديك، لذلك تم بدء قاعدة جديدة. تم الاحتفاظ بقاعدة البيانات السابقة باسم {{file}}.",
       "emptyTitle": "لا توجد نسخ بعد",
       "emptyHint": "اضغط اختصار التسجيل لتسجيل أول إملاء لك.",
       "deleteConfirm": "هل تريد حذف هذا الإدخال؟ سيتم حذف التسجيل ونصه نهائيًا.",
       "today": "اليوم",
-      "yesterday": "أمس",
-      "savedToggleError": "تعذّر تحديث حالة الحفظ.",
-      "dbRecoveredNotice": "تعذر قراءة قاعدة بيانات سجل النسخ لديك، لذلك تم بدء قاعدة جديدة. تم الاحتفاظ بقاعدة البيانات السابقة باسم {{file}}."
+      "yesterday": "أمس"
     },
     "debug": {
       "title": "تصحيح الأخطاء",
@@ -939,6 +944,12 @@
         "copied": "تم النسخ",
         "lineCount": "{{count}} سطر",
         "empty": "بانتظار السجلات… ستظهر الإدخالات هنا فور إصدار التطبيق لها.",
+        "lineCount_one": "سطر واحد",
+        "lineCount_zero": "{{count}} أسطر",
+        "lineCount_two": "سطران",
+        "lineCount_few": "{{count}} أسطر",
+        "lineCount_many": "{{count}} سطرًا",
+        "lineCount_other": "{{count}} سطر",
         "clearConfirm": "هل تريد مسح الأسطر المعروضة هنا؟ يبقى ملف السجل على القرص.",
         "clearConfirmTitle": "هل تريد محو السطور الملتقطة؟"
       },
@@ -1223,6 +1234,8 @@
       "runHint_many": "{{count}} زوجًا من القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
       "runHint_other": "{{count}} من أزواج القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
       "running": "قيد التشغيل...",
+      "cancel": "إلغاء",
+      "cancelledCard": "أُلغي قبل بدء هذه التشغيلة.",
       "rerun": "إعادة التشغيل",
       "latency": "{{ms}} مللي ثانية",
       "rawKept": "فشل المحرك أو تم تخطيه، لذا سيُحتفظ بالنص المكتوب الخام.",
@@ -1262,9 +1275,7 @@
       },
       "resultsEmptyTitle": "ستظهر النتائج هنا",
       "resultsEmptyHint": "اختر أعلاه المصدر والقوالب والمحرّكات ثم شغّل. تعرض كل بطاقة النص المحسّن وتغييراته وسرعته.",
-      "appliedLabel": "نجاح",
-      "cancel": "إلغاء",
-      "cancelledCard": "أُلغي قبل بدء هذه التشغيلة."
+      "appliedLabel": "نجاح"
     }
   },
   "footer": {
@@ -1333,6 +1344,8 @@
     "recordingFailed": "فشل في بدء التسجيل: {{error}}",
     "modelLoadFailed": "فشل في تحميل النموذج: {{model}}",
     "modelLoadFailedUnknown": "نموذج غير معروف",
+    "modelLoadFailedMemoryGate": "لا توجد ذاكرة حرة كافية لتحميل {{model}}: يحتاج نحو {{needed}}، والمتاح نحو {{free}}.",
+    "modelLoadFailedDetail": "لم يتغير النموذج. السبب التقني موجود في ملف السجل.",
     "modelFallbackTitle": "ذاكرة منخفضة",
     "modelFallback": "تم التبديل إلى {{model}} لهذا الإملاء",
     "pasteFailedTitle": "فشل لصق النص",
@@ -1340,9 +1353,7 @@
     "transcriptionFailedTitle": "فشل التفريغ النصي",
     "noModelSelectedTitle": "لم يتم اختيار نموذج",
     "noModelSelected": "اختر نموذج نسخ في الإعدادات قبل الإملاء.",
-    "openDirectory": "تعذّر فتح المجلد: {{error}}",
-    "modelLoadFailedMemoryGate": "لا توجد ذاكرة حرة كافية لتحميل {{model}}: يحتاج نحو {{needed}}، والمتاح نحو {{free}}.",
-    "modelLoadFailedDetail": "لم يتغير النموذج. السبب التقني موجود في ملف السجل."
+    "openDirectory": "تعذّر فتح المجلد: {{error}}"
   },
   "appLanguage": {
     "title": "لغة التطبيق",
@@ -1422,7 +1433,15 @@
     "recorderBlockedNoCulprit": "يمنع macOS مؤقتًا تغيير الاختصارات",
     "learnMore": "كيفية الإصلاح",
     "recorderBlocked": "لا يمكن تسجيل الاختصارات الآن - يحجب Secure Input في macOS أحداث المفاتيح. عالج تحذير Secure Input أولاً.",
-    "dismiss": "تجاهل"
+    "dismiss": "تجاهل",
+    "blockedWithCulprit_zero": "قد يحظر {{name}} {{count}} اختصارات",
+    "blockedWithCulprit_two": "قد يحظر {{name}} {{count}} اختصارين",
+    "blockedWithCulprit_few": "قد يحظر {{name}} {{count}} اختصارات",
+    "blockedWithCulprit_many": "قد يحظر {{name}} {{count}} اختصارًا",
+    "blockedNoCulprit_zero": "يحظر macOS مؤقتًا {{count}} اختصارات",
+    "blockedNoCulprit_two": "يحظر macOS مؤقتًا {{count}} اختصارين",
+    "blockedNoCulprit_few": "يحظر macOS مؤقتًا {{count}} اختصارات",
+    "blockedNoCulprit_many": "يحظر macOS مؤقتًا {{count}} اختصارًا"
   },
   "toast": {
     "postProcessSkip": {
@@ -1463,9 +1482,13 @@
     "disconnectedFinalized": "انقطع الاتصال. احتفظ الـ Mac بما قلته.",
     "capped": "تنتهي الجلسة عند 15 دقيقة. اضغط مرة أخرى للمتابعة.",
     "zeroAudio": "لم يصل أي صوت إلى الـ Mac. استمر بالضغط على الزر ثم تحدث.",
+    "zeroAudioHold": "لم يصل أي صوت إلى الـ Mac. استمر بالضغط على الزر ثم تحدث.",
+    "zeroAudioHoldOrToggle": "لم يصل أي صوت إلى الـ Mac. استمر بالضغط أو انقر الزر ثم تحدث.",
+    "zeroAudioTap": "لم يصل أي صوت إلى الـ Mac. انقر الزر ثم تحدث.",
     "serverStopped": "أوقف الـ Mac خادم المرافقة.",
     "reconnect": "إعادة الاتصال",
     "holdToTalk": "استمر بالضغط للكلام",
+    "holdOrToggleToTalk": "استمر بالضغط للكلام، وانقر للقفل",
     "tapToTalk": "انقر للكلام",
     "release": "حرر للإنهاء",
     "tapToStop": "انقر للإيقاف",
@@ -1486,15 +1509,6 @@
     "historyTitle": "الأحدث",
     "historyEmpty": "تظهر هنا الإملاءات الصادرة من هذا الهاتف.",
     "stateMicBlocked": "الميكروفون محظور",
-    "micBlockedRetry": "الميكروفون محظور. انقر لإعادة المحاولة.",
-    "zeroAudioHold": "لم يصل أي صوت إلى الـ Mac. استمر بالضغط على الزر ثم تحدث.",
-    "zeroAudioHoldOrToggle": "لم يصل أي صوت إلى الـ Mac. استمر بالضغط أو انقر الزر ثم تحدث.",
-    "zeroAudioTap": "لم يصل أي صوت إلى الـ Mac. انقر الزر ثم تحدث.",
-    "holdOrToggleToTalk": "استمر بالضغط للكلام، وانقر للقفل"
-  },
-  "trayCopyOutcome": {
-    "copied": "تم نسخ النص إلى الحافظة.",
-    "empty": "لا يوجد ما يمكن نسخه بعد.",
-    "failed": "تعذّر نسخ النص إلى الحافظة."
+    "micBlockedRetry": "الميكروفون محظور. انقر لإعادة المحاولة."
   }
 }

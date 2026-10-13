@@ -26,6 +26,13 @@ import i18next from "i18next";
 // Counts are integers by construction (pairs, results, chars, model-list
 // sizes); fractional categories exist in some CLDR sets but are
 // unreachable from the UI, so the sweep stays integral.
+//
+// KB-276 (v1.6.4): the sweep missed three count families, so they regressed
+// while the six above stayed pinned - the two secureInput families (whose
+// SecureInputWarning call site hand-rolled a one/other suffix instead of
+// letting i18next resolve, wrong grammar in ru/uk/pl/cs/he/ar) and
+// liveLogs.lineCount (a bare "{{count}} lines" key that rendered
+// "1 lines" in English). All three now ride the same three invariants.
 
 const LOCALES_DIR = fileURLToPath(new URL("./locales", import.meta.url));
 const locales = readdirSync(LOCALES_DIR).filter((name) =>
@@ -45,7 +52,15 @@ const KEY_FAMILIES = [
   "settings.studio.diff.removed",
   "settings.postProcessing.api.model.listSummary",
   "settings.postProcessing.api.model.showAll",
+  // KB-276: the secureInput count families and the live-log line count.
+  "secureInput.blockedWithCulprit",
+  "secureInput.blockedNoCulprit",
+  "settings.debug.liveLogs.lineCount",
 ];
+
+// The empirical digit-equality check (facet 4b) runs on the KB-276
+// families, whose strings carry no incidental numerals.
+const NUMERAL_FAMILIES = KEY_FAMILIES.slice(-3);
 
 const PROBE_COUNTS = [0, 1, 2, 3, 4, 5, 9, 10, 11, 21, 22, 100, 101, 1000];
 
@@ -146,7 +161,106 @@ for (const locale of locales) {
   }
 }
 
+// 4. NUMERAL accuracy for ALL nine count families. Russian and Ukrainian
+//    'one' also fires at 21, 31, 41, ..., 101, 1001 (CLDR: n%10=1 &&
+//    n%100!=11), so a "1 строка"-style _one key renders the WRONG NUMBER at
+//    21+ - the exact defect the KB-276 lane introduced for its own three
+//    families and the pre-existing instance the review then surfaced in the
+//    six fleet-pass-2 families (ru/uk run/runHint/results/charsChanged/
+//    listSummary; showAll already interpolated). Two complementary checks:
+//
+//    a) STATIC, every family: a category that fires at any probe count
+//       other than 1 must either interpolate {{count}} or carry no ASCII
+//       digit at all. Word-numbered forms stay legal (the Arabic dual
+//       "سطران", Hebrew "שורה אחת"), and an incidental static numeral is
+//       legal only alongside the interpolation (runHint's "…on 1 engine",
+//       where the 1 names the engine half of the pair, not the count).
+//       A bare hardcoded numeral with no {{count}} in a category that can
+//       fire elsewhere is the wrong-number bug class, caught here.
+//    b) EMPIRICAL, the three KB-276 families (their strings carry no
+//       incidental numerals, so equality is exact): every digit run in the
+//       rendered output must equal the count, through the same i18next
+//       resolution the app performs.
+for (const locale of locales) {
+  const tree = loadLocale(locale);
+  const rules = new Intl.PluralRules(locale);
+  const beyondOne = new Set(
+    PROBE_COUNTS.filter((count) => count !== 1).map((count) =>
+      rules.select(count),
+    ),
+  );
+  for (const family of KEY_FAMILIES) {
+    const { parent, leaf } = parentAndLeaf(tree, family);
+    for (const category of beyondOne) {
+      const raw = parent[`${leaf}_${category}`];
+      assert.ok(
+        typeof raw === "string" &&
+          (raw.includes("{{count}}") || !/[0-9]/.test(raw)),
+        `${locale}: ${family}_${category} fires at a count other than 1, so it ` +
+          `must interpolate {{count}} or number the noun in words - a hardcoded ` +
+          `numeral renders the wrong number (e.g. at 21 or 101); found: ${raw}`,
+      );
+    }
+  }
+}
+
+for (const locale of locales) {
+  const t = i18next.getFixedT(locale);
+  for (const family of NUMERAL_FAMILIES) {
+    for (const count of PROBE_COUNTS) {
+      const rendered = t(family, { count });
+      assert.ok(typeof rendered === "string" && rendered.length > 0);
+      for (const digitRun of rendered.match(/\d+/g) ?? []) {
+        assert.equal(
+          digitRun,
+          String(count),
+          `${locale}: ${family} at count=${count} rendered the numeral ` +
+            `"${digitRun}" - a plural category that fires beyond count=1 ` +
+            `must interpolate {{count}}, not hardcode a number`,
+        );
+      }
+    }
+  }
+}
+
+// 5. Fleet pass 1: ru/uk runHint_one must carry the PAIR shape. The
+//    studio Run hint counts the cartesian product of prompts x engines
+//    (batch.length at PromptStudio.tsx), and CLDR ru/uk 'one' fires at 21,
+//    31, ... 101 - the old "{{count}} шаблон на 1 движке" asserted "21
+//    templates on 1 engine" for a 21-pair batch that spans several
+//    engines. The static numeral facet above could not catch it: the
+//    hardcoded 1 sat ALONGSIDE the interpolation, legal as an "incidental"
+//    numeral. It was not incidental - it was a factual claim about the
+//    batch - so ru/uk runHint must name the pair, never the engine count.
+for (const locale of ["ru", "uk"] as const) {
+  const { parent, leaf } = parentAndLeaf(
+    loadLocale(locale),
+    "settings.studio.runHint",
+  );
+  for (const category of ["one", "few", "many", "other"] as const) {
+    const raw = parent[`${leaf}_${category}`];
+    assert.ok(
+      typeof raw === "string",
+      `${locale}: runHint_${category} must exist`,
+    );
+    assert.ok(
+      raw.includes("{{count}}"),
+      `${locale}: runHint_${category} must interpolate the count`,
+    );
+    assert.ok(
+      !/[0-9]/.test(raw),
+      `${locale}: runHint_${category} must carry no hardcoded numeral - the ` +
+        `batch's engine count is not 1, and this category fires at 21/101; found: ${raw}`,
+    );
+    assert.ok(
+      /пара|пари|пар/.test(raw),
+      `${locale}: runHint_${category} must name the prompt-engine PAIR, ` +
+        `the quantity the count actually measures`,
+    );
+  }
+}
+
 console.log(
   `pluralCoverage: ${locales.length} locales x ${KEY_FAMILIES.length} families x ` +
-    `${PROBE_COUNTS.length} counts covered, no English leaks`,
+    `${PROBE_COUNTS.length} counts covered, no English leaks, numerals accurate`,
 );

@@ -928,15 +928,56 @@ fn native_digit_script(script: TextScript) -> Option<DigitScript> {
     }
 }
 
-/// A text's dominant digit script: the most frequent digit-classified
-/// character. Digits are dense signals (a rewritten number is a run of
-/// them), so no minimum count is imposed; text without digits reads None.
+/// A text's dominant digit script: the digit-classified character count's
+/// strict leader, mirroring [`dominant_script`]. Digits are dense signals
+/// (a rewritten number is a run of them), so no minimum count is imposed;
+/// text without digits reads None, and a tie is genuinely mixed text (no
+/// dominant script, no check) - never a BTreeMap-ordering verdict against
+/// Latin, whose ASCII glyphs are the app's universal convention (KB-265).
 pub(crate) fn dominant_digit_script(text: &str) -> Option<DigitScript> {
     let mut counts = std::collections::BTreeMap::<DigitScript, usize>::new();
     for digit in text.chars().filter_map(DigitScript::from_char) {
         *counts.entry(digit).or_default() += 1;
     }
-    counts.into_iter().max_by_key(|(_, n)| *n).map(|(d, _)| d)
+    let mut ranked: Vec<(DigitScript, usize)> = counts.into_iter().collect();
+    ranked.sort_by(|a, b| b.1.cmp(&a.1));
+    match ranked.as_slice() {
+        [(first, first_n), (second, second_n), ..] if first_n > second_n => Some(*first),
+        [(only, _)] => Some(*only),
+        _ => None,
+    }
+}
+
+/// Every maximal run of `script` digits in `text`: the number-glyph groups
+/// a cleanup either carries over from the transcript or rewrites.
+fn digit_runs<'a>(text: &'a str, script: DigitScript) -> Vec<&'a str> {
+    let mut runs = Vec::new();
+    let mut start: Option<usize> = None;
+    for (idx, c) in text.char_indices() {
+        if DigitScript::from_char(c) == Some(script) {
+            if start.is_none() {
+                start = Some(idx);
+            }
+        } else if let Some(from) = start.take() {
+            runs.push(&text[from..idx]);
+        }
+    }
+    if let Some(from) = start {
+        runs.push(&text[from..]);
+    }
+    runs
+}
+
+/// The carry-over sanction, run for run (KB-265): the transcript's own
+/// digits, carried over rather than rewritten. Every digit run of
+/// `script` in the output must appear somewhere in the transcript, so a
+/// minority-script run the transcript genuinely held is as sanctioned as
+/// a dominant one, while a run the transcript never contained is a
+/// rewrite regardless of which script leads the transcript's counts.
+fn carries_transcript_digit_runs(transcript: &str, output: &str, script: DigitScript) -> bool {
+    digit_runs(output, script)
+        .iter()
+        .all(|run| transcript.contains(run))
 }
 
 /// The digit-script consistency rule, the script guard's neighbor: the
@@ -947,8 +988,11 @@ pub(crate) fn dominant_digit_script(text: &str) -> Option<DigitScript> {
 /// no script classification. Sanctioned sources, in order: ASCII digits
 /// (the app's universal output convention, never a defect), the output
 /// letter script's own native digits, the template language's declared
-/// script's native digits, and the transcript's own digits (carried
-/// over, not rewritten). Letter scripts with no strict native digit set
+/// script's native digits, and the transcript's own digits (carried over
+/// run for run, not rewritten - every output digit run of the script
+/// appears in the transcript, so a minority-script run the transcript
+/// held survives the fold; see [`carries_transcript_digit_runs`]).
+/// Letter scripts with no strict native digit set
 /// (Han/Kana/Hangul, and Cyrillic/Greek/Hebrew with their ASCII digits)
 /// never trip: their typography legitimately mixes digit forms.
 pub(crate) fn fails_digit_script_guard(
@@ -982,7 +1026,7 @@ pub(crate) fn fails_digit_script_guard(
     {
         return false;
     }
-    if dominant_digit_script(transcript) == Some(output_digits) {
+    if carries_transcript_digit_runs(transcript, output, output_digits) {
         return false;
     }
     true
@@ -1455,6 +1499,53 @@ mod tests {
         assert!(fails_digit_script_guard(
             "call me at five five five",
             "call me at २५५ or 25",
+            None,
+        ));
+    }
+
+    /// KB-265: the guard's own sanctions, honored exactly. A tie between
+    /// digit scripts is genuinely mixed text, never a BTreeMap-ordering
+    /// verdict against Latin (Latin loses every max_by_key tie), and the
+    /// transcript's digits sanction carried runs run for run, not only
+    /// when they dominate the transcript's counts. The worked trace from
+    /// the fleet evidence: an English transcript whose Devanagari number
+    /// is a minority run (dominant digits ASCII), polished down to keep
+    /// that run verbatim while dropping most ASCII numbers - valid polish
+    /// the old guard discarded twice over.
+    #[test]
+    fn digit_script_guard_honors_ties_and_carried_minority_runs_kb265() {
+        // The worked trace: the transcript's dominant digits are ASCII
+        // (25 and 2 against २५); the polish keeps the Devanagari number
+        // verbatim and its Devanagari run strictly leads the output, so
+        // the old dominant-vs-dominant carry-over compared Latin against
+        // Devanagari and failed valid polish.
+        assert!(!fails_digit_script_guard(
+            "we shipped fix 25 and 2 more today, २५ issues remain open now",
+            "Shipped 2 fixes; २५ issues remain.",
+            None,
+        ));
+        // The tie case: two ASCII digits against two Devanagari digits in
+        // the output is genuinely mixed text; the old BTreeMap max_by_key
+        // resolved the tie against Latin and the guard proceeded.
+        assert!(!fails_digit_script_guard(
+            "table for 48 at 8pm, tara said २५ guests will come",
+            "Table 48; २५ guests.",
+            None,
+        ));
+        // The tie itself reads None, mirroring the letter-script rule, and
+        // a strict leader still resolves after the fix.
+        assert_eq!(dominant_digit_script("25 २५"), None);
+        assert_eq!(
+            dominant_digit_script("२५ २५ 12"),
+            Some(DigitScript::Devanagari)
+        );
+        // Carry-over is verbatim, not script-wide: the transcript holding
+        // some Devanagari digits (२५) does not sanction a different
+        // Devanagari run (२६) it never contained - that is still a
+        // rewrite, so the widened sanction does not weaken the guard.
+        assert!(fails_digit_script_guard(
+            "we shipped fix 25 and 2 more today, २५ issues remain open now",
+            "Shipped 2 fixes; २६ issues remain.",
             None,
         ));
     }

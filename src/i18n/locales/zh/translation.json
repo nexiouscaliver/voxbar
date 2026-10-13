@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ 快捷键被 Secure Input 阻止",
     "postProcessPrompt": "后处理提示词"
   },
+  "trayCopyOutcome": {
+    "copied": "已将听写文本复制到剪贴板。",
+    "empty": "还没有可复制的内容。",
+    "failed": "无法将听写文本复制到剪贴板。"
+  },
   "sidebar": {
     "general": "通用",
     "commands": "命令",
@@ -758,7 +763,7 @@
           "retry": "重试",
           "visibleDescription": "每次听写后改写转录文本的模型。",
           "fetchingList": "正在获取模型列表...",
-          "listSummary_one": "1 个模型，获取于 {{time}}",
+          "listSummary_one": "{{count}} 个模型，获取于 {{time}}",
           "listSummary_other": "{{count}} 个模型，获取于 {{time}}",
           "notFetched": "尚未获取模型列表。",
           "emptyTitle": "列表中没有模型",
@@ -940,6 +945,7 @@
       "empty": "还没有转录记录。开始录制以建立您的历史记录！",
       "copyToClipboard": "复制转录到剪贴板",
       "copyError": "无法将转录复制到剪贴板。",
+      "savedToggleError": "无法更新保存状态。",
       "save": "保存转录",
       "unsave": "从已保存中移除",
       "delete": "删除条目",
@@ -959,13 +965,12 @@
       "viaPostProcess": "经 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒处理",
       "viewChanges": "查看更改",
       "hideChanges": "收起更改",
+      "dbRecoveredNotice": "转录历史数据库无法读取，因此已启动一个新数据库。原数据库已保留为 {{file}}。",
       "emptyTitle": "还没有听写记录",
       "emptyHint": "按下录音快捷键，开始你的第一次听写。",
       "deleteConfirm": "删除此条目？录音及其转写将被永久删除。",
       "today": "今天",
-      "yesterday": "昨天",
-      "savedToggleError": "无法更新保存状态。",
-      "dbRecoveredNotice": "转录历史数据库无法读取，因此已启动一个新数据库。原数据库已保留为 {{file}}。"
+      "yesterday": "昨天"
     },
     "debug": {
       "title": "调试",
@@ -987,6 +992,8 @@
         "copied": "已复制",
         "lineCount": "{{count}} 行",
         "empty": "正在等待日志…… 应用产生日志时将显示在此处。",
+        "lineCount_one": "{{count}} 行",
+        "lineCount_other": "{{count}} 行",
         "clearConfirm": "清除此视图中捕获的行？磁盘上的日志文件会保留。",
         "clearConfirmTitle": "清除已捕获的行？"
       },
@@ -1202,16 +1209,18 @@
         "noModel": "未配置模型",
         "noModelHint": "未设置模型。请在 Post Process 中选择。"
       },
-      "run_one": "运行 1 组",
+      "run_one": "运行 {{count}} 组",
       "run_other": "运行 {{count}} 组",
-      "runHint_one": "1 个提示词在 1 个引擎上运行。不会输入或保存任何内容。",
+      "runHint_one": "运行 {{count}} 组。不会输入或保存任何内容。",
       "runHint_other": "{{count}} 组提示词和引擎。不会输入或保存任何内容。",
       "running": "运行中...",
+      "cancel": "取消",
+      "cancelledCard": "此运行启动前已取消。",
       "rerun": "重新运行",
       "latency": "{{ms}} 毫秒",
       "rawKept": "引擎失败或被跳过，因此将保留原始转录。",
       "partialFailure": "部分运行失败或被跳过，其他运行已产生结果。请检查每张卡片。",
-      "results_one": "1 个结果",
+      "results_one": "{{count}} 个结果",
       "results_other": "{{count}} 个结果",
       "errors": {
         "engineNotFound": "引擎 '{{id}}' 未配置。",
@@ -1220,7 +1229,7 @@
       },
       "diff": {
         "lines": "行",
-        "charsChanged_one": "1 个字符变更",
+        "charsChanged_one": "{{count}} 个字符变更",
         "charsChanged_other": "{{count}} 个字符变更",
         "identical": "无更改。",
         "added_one": "新增 {{count}} 行",
@@ -1230,9 +1239,7 @@
       },
       "resultsEmptyTitle": "结果将显示在这里",
       "resultsEmptyHint": "在上方选择来源、提示词和引擎后运行。每张卡片会显示润色后的文本、改动内容和运行速度。",
-      "appliedLabel": "成功",
-      "cancel": "取消",
-      "cancelledCard": "此运行启动前已取消。"
+      "appliedLabel": "成功"
     }
   },
   "footer": {
@@ -1301,6 +1308,8 @@
     "recordingFailed": "录音启动失败: {{error}}",
     "modelLoadFailed": "加载模型失败: {{model}}",
     "modelLoadFailedUnknown": "未知模型",
+    "modelLoadFailedMemoryGate": "内存不足，无法加载 {{model}}：需要约 {{needed}}，仅约 {{free}} 可用。",
+    "modelLoadFailedDetail": "模型未更改。具体原因请查看日志文件。",
     "modelFallbackTitle": "内存不足",
     "modelFallback": "本次听写已切换到 {{model}}",
     "pasteFailedTitle": "粘贴文本失败",
@@ -1308,9 +1317,7 @@
     "transcriptionFailedTitle": "转录失败",
     "noModelSelectedTitle": "未选择模型",
     "noModelSelected": "听写前请先在设置中选择一个转写模型。",
-    "openDirectory": "无法打开文件夹：{{error}}",
-    "modelLoadFailedMemoryGate": "内存不足，无法加载 {{model}}：需要约 {{needed}}，仅约 {{free}} 可用。",
-    "modelLoadFailedDetail": "模型未更改。具体原因请查看日志文件。"
+    "openDirectory": "无法打开文件夹：{{error}}"
   },
   "appLanguage": {
     "title": "应用语言",
@@ -1382,9 +1389,9 @@
     "gotIt": "知道了"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} 可能正在阻止 1 个快捷键",
+    "blockedWithCulprit_one": "{{name}} 可能正在阻止 {{count}} 个快捷键",
     "blockedWithCulprit_other": "{{name}} 可能正在阻止 {{count}} 个快捷键",
-    "blockedNoCulprit_one": "macOS 正在暂时阻止 1 个快捷键",
+    "blockedNoCulprit_one": "macOS 正在暂时阻止 {{count}} 个快捷键",
     "blockedNoCulprit_other": "macOS 正在暂时阻止 {{count}} 个快捷键",
     "recorderBlockedWithCulprit": "{{name}} 可能正在阻止快捷键更改",
     "recorderBlockedNoCulprit": "macOS 正在暂时阻止快捷键更改",
@@ -1431,9 +1438,13 @@
     "disconnectedFinalized": "连接中断。Mac 已保留你说的内容。",
     "capped": "会话以 15 分钟为限。再按一次即可继续。",
     "zeroAudio": "没有声音传到 Mac。请按住按钮后说话。",
+    "zeroAudioHold": "没有声音传到 Mac。请按住按钮后说话。",
+    "zeroAudioHoldOrToggle": "没有声音传到 Mac。请按住或点按按钮后说话。",
+    "zeroAudioTap": "没有声音传到 Mac。请点按按钮后说话。",
     "serverStopped": "Mac 已停止伴侣服务器。",
     "reconnect": "重新连接",
     "holdToTalk": "按住说话",
+    "holdOrToggleToTalk": "按住说话，点按锁定",
     "tapToTalk": "点按说话",
     "release": "松开结束",
     "tapToStop": "点按停止",
@@ -1454,15 +1465,6 @@
     "historyTitle": "最近",
     "historyEmpty": "来自这台手机的听写会显示在这里。",
     "stateMicBlocked": "麦克风已被阻止",
-    "micBlockedRetry": "麦克风已被阻止。点按可重试。",
-    "zeroAudioHold": "没有声音传到 Mac。请按住按钮后说话。",
-    "zeroAudioHoldOrToggle": "没有声音传到 Mac。请按住或点按按钮后说话。",
-    "zeroAudioTap": "没有声音传到 Mac。请点按按钮后说话。",
-    "holdOrToggleToTalk": "按住说话，点按锁定"
-  },
-  "trayCopyOutcome": {
-    "copied": "已将听写文本复制到剪贴板。",
-    "empty": "还没有可复制的内容。",
-    "failed": "无法将听写文本复制到剪贴板。"
+    "micBlockedRetry": "麦克风已被阻止。点按可重试。"
   }
 }

@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Genveje blokeret af Secure Input",
     "postProcessPrompt": "Efterbehandlingstekst"
   },
+  "trayCopyOutcome": {
+    "copied": "Dikteringen er kopieret til udklipsholderen.",
+    "empty": "Der er endnu intet at kopiere.",
+    "failed": "Kunne ikke kopiere dikteringen til udklipsholderen."
+  },
   "sidebar": {
     "general": "Generelt",
     "commands": "Kommandoer",
@@ -758,7 +763,7 @@
           "retry": "Prøv igen",
           "visibleDescription": "Modellen, der omskriver din transskription efter hver diktéring.",
           "fetchingList": "Henter modellisten...",
-          "listSummary_one": "1 model, hentet {{time}}",
+          "listSummary_one": "{{count}} model, hentet {{time}}",
           "listSummary_other": "{{count}} modeller, hentet {{time}}",
           "notFetched": "Endnu ingen modelliste.",
           "emptyTitle": "Ingen modeller på listen",
@@ -940,6 +945,7 @@
       "empty": "Ingen transskriptioner endnu. Start optagelse for at opbygge din historik!",
       "copyToClipboard": "Kopiér transskription til udklipsholder",
       "copyError": "Kunne ikke kopiere transskriptionen til udklipsholderen.",
+      "savedToggleError": "Kunne ikke opdatere den gemte status.",
       "save": "Gem transskription",
       "unsave": "Fjern fra gemte",
       "delete": "Slet post",
@@ -959,13 +965,12 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Vis ændringer",
       "hideChanges": "Skjul ændringer",
+      "dbRecoveredNotice": "Din transskriptionshistorik-database kunne ikke læses, så en ny blev startet. Den tidligere database blev gemt som {{file}}.",
       "emptyTitle": "Ingen transskriptioner endnu",
       "emptyHint": "Tryk på din optagegenvej for at lave din første diktering.",
       "deleteConfirm": "Slet denne post? Optagelsen og dens transskription fjernes permanent.",
       "today": "I dag",
-      "yesterday": "I går",
-      "savedToggleError": "Kunne ikke opdatere den gemte status.",
-      "dbRecoveredNotice": "Din transskriptionshistorik-database kunne ikke læses, så en ny blev startet. Den tidligere database blev gemt som {{file}}."
+      "yesterday": "I går"
     },
     "debug": {
       "title": "Fejlfinding",
@@ -987,6 +992,8 @@
         "copied": "Kopieret",
         "lineCount": "{{count}} linjer",
         "empty": "Venter på logs… Poster vises her, når appen udsender dem.",
+        "lineCount_one": "{{count}} linje",
+        "lineCount_other": "{{count}} linjer",
         "clearConfirm": "Ryd de opsamlede linjer i denne visning? Logfilen på disken bevares.",
         "clearConfirmTitle": "Ryd opsamlede linjer?"
       },
@@ -1202,16 +1209,18 @@
         "noModel": "Ingen model konfigureret",
         "noModelHint": "Ingen model valgt. Vælg en under Post Process."
       },
-      "run_one": "Kør 1 par",
+      "run_one": "Kør {{count}} par",
       "run_other": "Kør {{count}} par",
-      "runHint_one": "1 prompt på 1 motor. Der tastes eller gemmes intet.",
+      "runHint_one": "Kør {{count}} par. Der tastes eller gemmes intet.",
       "runHint_other": "{{count}} prompt-motor-par. Der tastes eller gemmes intet.",
       "running": "Kører...",
+      "cancel": "Annullér",
+      "cancelledCard": "Annulleret, før denne kørsel startede.",
       "rerun": "Kør igen",
       "latency": "{{ms}} ms",
       "rawKept": "Motoren fejlede eller blev sprunget over, så råtransskriptionen ville blive beholdt.",
       "partialFailure": "Nogle kørsler fejlede eller blev sprunget over, mens andre gav output. Tjek hvert kort.",
-      "results_one": "1 resultat",
+      "results_one": "{{count}} resultat",
       "results_other": "{{count}} resultater",
       "errors": {
         "engineNotFound": "Motoren '{{id}}' er ikke konfigureret.",
@@ -1220,7 +1229,7 @@
       },
       "diff": {
         "lines": "linjer",
-        "charsChanged_one": "1 tegn ændret",
+        "charsChanged_one": "{{count}} tegn ændret",
         "charsChanged_other": "{{count}} tegn ændret",
         "identical": "Ingen ændringer.",
         "added_one": "+{{count}} tilføjet",
@@ -1230,9 +1239,7 @@
       },
       "resultsEmptyTitle": "Resultater vises her",
       "resultsEmptyHint": "Vælg kilde, prompts og motorer ovenfor og kør. Hvert kort viser den polerede tekst, ændringerne og hastigheden.",
-      "appliedLabel": "Lykkedes",
-      "cancel": "Annullér",
-      "cancelledCard": "Annulleret, før denne kørsel startede."
+      "appliedLabel": "Lykkedes"
     }
   },
   "footer": {
@@ -1305,6 +1312,8 @@
     "recordingFailed": "Kunne ikke starte optagelse: {{error}}",
     "modelLoadFailed": "Kunne ikke indlæse model: {{model}}",
     "modelLoadFailedUnknown": "ukendt model",
+    "modelLoadFailedMemoryGate": "Ikke nok ledig hukommelse til at indlæse {{model}}: kræver ca. {{needed}}, ca. {{free}} ledigt.",
+    "modelLoadFailedDetail": "Modellen blev ikke ændret. Den tekniske årsag findes i logfilen.",
     "modelFallbackTitle": "Lav hukommelse",
     "modelFallback": "Skiftede til {{model}} for denne diktering",
     "pasteFailedTitle": "Kunne ikke indsætte tekst",
@@ -1312,9 +1321,7 @@
     "transcriptionFailedTitle": "Transskription mislykkedes",
     "noModelSelectedTitle": "Ingen model valgt",
     "noModelSelected": "Vælg en transkriptionsmodel i Indstillinger, før du dikterer.",
-    "openDirectory": "Mappen kunne ikke åbnes: {{error}}",
-    "modelLoadFailedMemoryGate": "Ikke nok ledig hukommelse til at indlæse {{model}}: kræver ca. {{needed}}, ca. {{free}} ledigt.",
-    "modelLoadFailedDetail": "Modellen blev ikke ændret. Den tekniske årsag findes i logfilen."
+    "openDirectory": "Mappen kunne ikke åbnes: {{error}}"
   },
   "appLanguage": {
     "title": "Applikationssprog",
@@ -1382,9 +1389,9 @@
     "companionBadge": "Følgeomikrofon"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} blokerer muligvis 1 genvej",
+    "blockedWithCulprit_one": "{{name}} blokerer muligvis {{count}} genvej",
     "blockedWithCulprit_other": "{{name}} blokerer muligvis {{count}} genveje",
-    "blockedNoCulprit_one": "macOS blokerer midlertidigt 1 genvej",
+    "blockedNoCulprit_one": "macOS blokerer midlertidigt {{count}} genvej",
     "blockedNoCulprit_other": "macOS blokerer midlertidigt {{count}} genveje",
     "recorderBlockedWithCulprit": "{{name}} blokerer muligvis ændringer af genveje",
     "recorderBlockedNoCulprit": "macOS blokerer midlertidigt ændringer af genveje",
@@ -1431,9 +1438,13 @@
     "disconnectedFinalized": "Forbindelsen blev afbrudt. Macen gemte det, du sagde.",
     "capped": "Sessionen er begrænset til 15 minutter. Tryk igen for at fortsætte.",
     "zeroAudio": "Ingen lyd nåede Mac'en. Hold knappen nede, og tal.",
+    "zeroAudioHold": "Ingen lyd nåede Mac'en. Hold knappen nede, og tal.",
+    "zeroAudioHoldOrToggle": "Ingen lyd nåede Mac'en. Hold eller tryk på knappen, og tal.",
+    "zeroAudioTap": "Ingen lyd nåede Mac'en. Tryk på knappen, og tal.",
     "serverStopped": "Macen stoppede følgeserveren.",
     "reconnect": "Genopret forbindelse",
     "holdToTalk": "Hold nede for at tale",
+    "holdOrToggleToTalk": "Hold nede for at tale, tryk for at låse",
     "tapToTalk": "Tryk for at tale",
     "release": "Slip for at afslutte",
     "tapToStop": "Tryk for at stoppe",
@@ -1454,15 +1465,6 @@
     "historyTitle": "Seneste",
     "historyEmpty": "Diktater fra denne telefon vises her.",
     "stateMicBlocked": "Mikrofon blokeret",
-    "micBlockedRetry": "Mikrofon blokeret. Tryk for at prøve igen.",
-    "zeroAudioHold": "Ingen lyd nåede Mac'en. Hold knappen nede, og tal.",
-    "zeroAudioHoldOrToggle": "Ingen lyd nåede Mac'en. Hold eller tryk på knappen, og tal.",
-    "zeroAudioTap": "Ingen lyd nåede Mac'en. Tryk på knappen, og tal.",
-    "holdOrToggleToTalk": "Hold nede for at tale, tryk for at låse"
-  },
-  "trayCopyOutcome": {
-    "copied": "Dikteringen er kopieret til udklipsholderen.",
-    "empty": "Der er endnu intet at kopiere.",
-    "failed": "Kunne ikke kopiere dikteringen til udklipsholderen."
+    "micBlockedRetry": "Mikrofon blokeret. Tryk for at prøve igen."
   }
 }

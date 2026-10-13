@@ -120,6 +120,19 @@ struct ConnectionEntry {
     tx: tokio::sync::mpsc::UnboundedSender<String>,
 }
 
+/// KB-261 (v1.6.4): one authenticated connection's registration outcome.
+/// `device` is the connection's exact raw identity (see
+/// [`protocol::device_identity_name`]); the lane and generation are the
+/// KB-255 registration keys; `persist_identities` is Some when this
+/// identity was not already known and the CALLER owns persisting the
+/// bounded set off the connection task (see [`persist_known_identities`]).
+pub struct ConnectionRegistration {
+    pub device: String,
+    pub lane: u64,
+    pub generation: u64,
+    pub persist_identities: Option<Vec<String>>,
+}
+
 /// v1.6.2 W1-L2: one lane's session identity, frozen on the coordinator
 /// thread at the single serialized instant a Start effect commits (the same
 /// handoff-at-commit discipline v1.6.0 used for prefs). The device name and
@@ -150,6 +163,15 @@ struct StoppingSession {
 }
 
 pub struct CompanionManager {
+    // Locking note (v1.6.4, the crashed-client accept-wedge hardening):
+    // every std Mutex this manager owns is acquired poison-tolerantly
+    // (`lock().unwrap_or_else(|e| e.into_inner())`). A panicking task that
+    // held one of these locks used to poison it, and every later
+    // connection task then panicked at its own `.lock().unwrap()` - the
+    // server answered no new phone until restart (the v1.6.3 proof-run
+    // wedge shape). These are bookkeeping maps whose invariants survive a
+    // mid-critical-section panic (insert/remove/flag flips), so recovery
+    // beats poisoning the whole companion surface.
     inner: Mutex<CompanionInner>,
     /// Server frames fanned out to every live client connection.
     broadcast: tokio::sync::broadcast::Sender<String>,
@@ -181,6 +203,14 @@ pub struct CompanionManager {
     /// prefs ride the edge into the coordinator, which freezes them per
     /// lane at the start commit.
     pending_prefs: Mutex<protocol::SessionPrefs>,
+    /// KB-261 (v1.6.4): the phone identities this Mac has paired, in-memory
+    /// and authoritative (seeded from the persisted
+    /// `companion_known_identities` at server start, bounded to
+    /// KNOWN_IDENTITIES_LIMIT). The durable record of WHICH phones paired:
+    /// an exact re-pair owes no persistence, and a restart reseeds from it.
+    /// Fleet pass 1: it is no longer an adoption matcher - identities are
+    /// exact (see [`Self::register_connection_with_identity`]).
+    known_identities: Mutex<Vec<String>>,
     /// Per-IP auth-failure limiting shared across connections.
     failure_limiter: Mutex<auth::FailureLimiter>,
     /// The Rust-side notice listener id (registered once at init).
@@ -210,6 +240,7 @@ impl CompanionManager {
             starting_lane: Mutex::new(None),
             stopping: Mutex::new(None),
             pending_prefs: Mutex::new(protocol::SessionPrefs::default()),
+            known_identities: Mutex::new(Vec::new()),
             failure_limiter: Mutex::new(auth::FailureLimiter::new(
                 5,
                 Duration::from_secs(60),
@@ -220,7 +251,7 @@ impl CompanionManager {
     }
 
     pub fn is_running(&self) -> bool {
-        self.inner.lock().unwrap().running
+        self.inner.lock().unwrap_or_else(|e| e.into_inner()).running
     }
 
     /// v1.6.2 W1-L2: register one authenticated connection. Returns its
@@ -241,12 +272,15 @@ impl CompanionManager {
             .next_generation
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        self.connections.lock().unwrap().push(ConnectionEntry {
-            lane,
-            generation,
-            device: device.to_string(),
-            tx,
-        });
+        self.connections
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .push(ConnectionEntry {
+                lane,
+                generation,
+                device: device.to_string(),
+                tx,
+            });
         (lane, generation, rx)
     }
 
@@ -257,11 +291,20 @@ impl CompanionManager {
     /// not the next unrelated sync point; runs on the server's task thread
     /// so the snapshot compute never lands on the UI thread).
     pub fn note_device_connected(&self, app: &AppHandle, device: &str) {
-        let mut settings = crate::settings::get_settings(app);
-        if settings.companion_last_device.as_deref() != Some(device) {
-            settings.companion_last_device = Some(device.to_string());
-            crate::settings::write_settings(app, settings);
-        }
+        // KB-261 (fleet pass 1): this whole-settings read-modify-write rides
+        // the connect-edge lock, because the same first-pairing hello also
+        // spawns the persist_known_identities worker - unsynchronized, the
+        // interleave [persist reads][connected reads][persist writes]
+        // [connected writes] let the last whole-settings writer erase the
+        // other's field.
+        connect_edge_settings_rmw(app, &|settings| {
+            if settings.companion_last_device.as_deref() != Some(device) {
+                settings.companion_last_device = Some(device.to_string());
+                true
+            } else {
+                false
+            }
+        });
         let _ = crate::tray::update_tray_menu(app);
     }
 
@@ -273,7 +316,7 @@ impl CompanionManager {
     /// count stays honest. Registry-only (the tray re-sync lives in
     /// [`Self::note_device_disconnected`]).
     pub fn unregister_connection(&self, lane: u64, generation: u64) {
-        let mut connections = self.connections.lock().unwrap();
+        let mut connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
         connections.retain(|entry| !(entry.lane == lane && entry.generation == generation));
     }
 
@@ -287,7 +330,12 @@ impl CompanionManager {
     /// registration order (the settings panel's device list).
     pub fn devices(&self) -> Vec<String> {
         let mut names: Vec<String> = Vec::new();
-        for entry in self.connections.lock().unwrap().iter() {
+        for entry in self
+            .connections
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .iter()
+        {
             if !names.iter().any(|n| n == &entry.device) {
                 names.push(entry.device.clone());
             }
@@ -300,10 +348,116 @@ impl CompanionManager {
     pub fn connection_device(&self, lane: u64) -> Option<String> {
         self.connections
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .iter()
             .find(|entry| entry.lane == lane)
             .map(|entry| entry.device.clone())
+    }
+
+    /// KB-261 (v1.6.4, fleet pass 1): register one authenticated
+    /// connection under its EXACT identity. The identity is the hello's
+    /// `name#tag` composite ([`protocol::device_identity_name`]); the
+    /// Recent list, registration, and history attribution key on it, and a
+    /// phone keeps all three across Mac restarts and re-pairs as long as
+    /// its stored device id survives - which it does while the pairing
+    /// URL's origin is stable.
+    ///
+    /// Fleet pass 1 REMOVED platform-name adoption, so one phone's data
+    /// can never fold into another's. The v1.6.4 cut let a fresh-id hello
+    /// adopt a known identity on platform-name equality alone; that match
+    /// key is client-controlled and every same-platform phone shares it,
+    /// so any pairing-token holder helloing while the prior phone was away
+    /// (asleep, off-WiFi - the normal steady state) received the prior's
+    /// Recent list and transcript history, and its own dictations were
+    /// attributed to the prior - the KB-265 defect class, between
+    /// household token holders, in the common two-Android-phones case
+    /// where both hellos say "Linux". Adoption also broke itself: the
+    /// ordinary re-pair (a network switch leaves the old socket registered
+    /// up to the keepalive deadline while the phone hellos from the new
+    /// origin) was refused by the live-connection guard, minted a fresh
+    /// id, and pushed it to the known set - after which two same-base
+    /// entries made the platform match ambiguous forever, silently. And
+    /// bare no-id hellos adopted known tagged identities in both
+    /// directions, violating the pinned protocol invariant that a client
+    /// with no id keeps the bare name. The disclosed cost of exactness: an
+    /// origin change (new LAN IP, Tailscale-vs-LAN) mints a fresh
+    /// localStorage id on the phone, so its Recent list resets - the
+    /// pre-v1.6.4 behavior, now safe.
+    ///
+    /// RACE FREEDOM: the registration insert and the known-set update
+    /// happen inside ONE hold of the connections lock (lock order:
+    /// connections, then known_identities; no other site takes both), so
+    /// the devices list and the pairing record never observe a half-state
+    /// under a reconnect storm. The method performs NO settings IO (the
+    /// connection task only touches in-memory maps); persisting a newly
+    /// known identity is the caller's job through the returned
+    /// `persist_identities` payload (see `persist_known_identities`).
+    pub fn register_connection_with_identity(
+        &self,
+        device: &str,
+        device_id: Option<&str>,
+    ) -> (
+        ConnectionRegistration,
+        tokio::sync::mpsc::UnboundedReceiver<String>,
+    ) {
+        let raw = protocol::device_identity_name(device, device_id);
+        let lane = self
+            .next_lane_id
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        let generation = self
+            .next_generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
+
+        // The atomic insert + known-set update: connections first, then
+        // the known set; both held until the entry is pushed so no
+        // concurrent registration can observe the half-state.
+        let mut connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
+        let mut known = self
+            .known_identities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
+        let identity = raw.clone();
+        let mut persist_identities = None;
+        if !known.iter().any(|k| k == &raw) {
+            // A genuinely new identity: remember it (bounded, most recent
+            // last) so a restart's seed knows this phone paired. The
+            // in-memory set is authoritative; the persisted copy is the
+            // caller's payload.
+            known.push(raw.clone());
+            let keep_from = known.len().saturating_sub(KNOWN_IDENTITIES_LIMIT);
+            *known = known.split_off(keep_from);
+            persist_identities = Some(known.clone());
+        }
+
+        connections.push(ConnectionEntry {
+            lane,
+            generation,
+            device: identity.clone(),
+            tx,
+        });
+        drop(known);
+        drop(connections);
+
+        (
+            ConnectionRegistration {
+                device: identity,
+                lane,
+                generation,
+                persist_identities,
+            },
+            rx,
+        )
+    }
+
+    /// KB-261: the current in-memory known-identity set (what
+    /// `persist_known_identities` writes and start() seeds).
+    fn known_identities_snapshot(&self) -> Vec<String> {
+        self.known_identities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone()
     }
 
     /// v1.6.2 W1-L2: freeze one lane's session identity at the instant the
@@ -327,7 +481,7 @@ impl CompanionManager {
     pub fn lane_owns_live_session(&self, lane: u64) -> bool {
         self.lane_sessions
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .get(&lane)
             .is_some_and(|session| session.live)
     }
@@ -340,7 +494,7 @@ impl CompanionManager {
         let mut lanes: Vec<u64> = self
             .lane_sessions
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .iter()
             .filter(|(_, session)| session.live)
             .map(|(lane, _)| *lane)
@@ -349,37 +503,20 @@ impl CompanionManager {
         lanes
     }
 
-    /// Fleet pass 2: the session-record sweep the server-stop path runs
-    /// AFTER queueing its finalize commands. Those commands are resolved
-    /// later, on the coordinator thread, and each pipeline reads its
-    /// lane's record through note_stopping_session - so the sweep may only
-    /// remove records whose sessions are NOT live (already-drained entries
-    /// from an earlier cycle). A live lane's record must survive until its
-    /// own pipeline consumes it, or the pipeline resolves session_lane
-    /// None and discards the dictation. Pure map surgery; pinned with the
-    /// note_stopping_session roundtrip in the tests below.
-    fn retain_live_lane_sessions(&self) {
-        let live: std::collections::HashSet<u64> = self.live_session_lanes().into_iter().collect();
-        self.lane_sessions
-            .lock()
-            .unwrap()
-            .retain(|lane, _| live.contains(lane));
-    }
-
     /// v1.6.0: arm the preferences the next companion session will run
     /// with. Called by the server on every press edge, so the tray's
     /// companion status block shows the latest phone choice as "what the
     /// next press will do". Display-and-default only: the session's own
     /// prefs ride its starting edge into the coordinator.
     pub fn set_pending_session_prefs(&self, prefs: protocol::SessionPrefs) {
-        *self.pending_prefs.lock().unwrap() = prefs;
+        *self.pending_prefs.lock().unwrap_or_else(|e| e.into_inner()) = prefs;
     }
 
     /// v1.6.0: the preferences the NEXT companion session will run with
     /// (armed by the phones' press edges, defaults before any). The tray's
     /// companion status block reads this as the active output target.
     pub fn pending_session_prefs(&self) -> protocol::SessionPrefs {
-        *self.pending_prefs.lock().unwrap()
+        *self.pending_prefs.lock().unwrap_or_else(|e| e.into_inner())
     }
 
     pub fn broadcast_frame(&self, frame: &protocol::ServerFrame) {
@@ -399,7 +536,7 @@ impl CompanionManager {
     /// when that lane is gone (the phone dropped): the caller treats it as
     /// the documented no-subscriber no-op.
     pub fn send_frame_to_lane(&self, lane: u64, frame: &protocol::ServerFrame) -> bool {
-        let connections = self.connections.lock().unwrap();
+        let connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
         match connections.iter().find(|entry| entry.lane == lane) {
             Some(entry) => entry.tx.send(frame.to_json()).is_ok(),
             None => false,
@@ -436,6 +573,15 @@ impl CompanionManager {
         let bind_ip = ip::resolve_bind_ip(&candidates, settings.companion_bind_ip.as_deref())?;
         let advertised_host =
             effective_advertised_host(settings.companion_advertised_host.as_deref());
+
+        // KB-261 (v1.6.4): seed the in-memory known-identity cache from the
+        // persisted store here, on the enable path, so the hello path never
+        // reads settings for the identity resolution (the connection task
+        // only touches the in-memory maps from here on).
+        *self
+            .known_identities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = settings.companion_known_identities.clone();
 
         // Pairing token: generate on enable, and rebind when the advertised
         // subnet changed (a token from another network never validates).
@@ -538,7 +684,7 @@ impl CompanionManager {
         }
 
         {
-            let mut inner = self.inner.lock().unwrap();
+            let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
             inner.running = true;
             inner.bind_ip = Some(bind_ip);
             inner.port = port;
@@ -579,20 +725,20 @@ impl CompanionManager {
                 coordinator.finalize_companion_lane(lane);
             }
         }
-        // Fleet pass 2: those finalize commands are ASYNCHRONOUS (mpsc
-        // sends; the coordinator thread turns each into a Stop effect
-        // whose pipeline reads THIS lane's session record through
-        // note_stopping_session), so this thread must NOT clear the map
-        // out from under them - the pre-fix synchronous clear raced every
-        // pipeline into session_lane None and silently discarded the
-        // dictation (no transcript, no history row) while stranding the
-        // lane's recorder recording=true. Keep exactly the LIVE lanes'
-        // records (their pipelines consume them, flip liveness, and leave
-        // them for the next stop() to sweep); never touch the stopping
-        // slot at all (it is transient by design: note_stopping_session
-        // writes it and take_stopping_session consumes it on the same
-        // thread).
-        self.retain_live_lane_sessions();
+        // Fleet pass 2 (KB-270 review): those finalize commands are
+        // ASYNCHRONOUS (mpsc sends; the coordinator thread turns each into
+        // a Stop effect whose pipeline reads THIS lane's session record
+        // through note_stopping_session), so this thread must not touch
+        // the session map at all - the pre-review synchronous clear raced
+        // every pipeline into session_lane None and silently discarded the
+        // dictation, and the retain-live-only sweep that replaced it
+        // removed exactly the false-edged-but-unconsumed records whose
+        // cancel pipelines were still in flight. Records are consumed (and
+        // removed) by their own pipelines now, so the map here holds only
+        // records those queued commands will consume; never touch the
+        // stopping slot either (it is transient by design:
+        // note_stopping_session writes it and take_stopping_session
+        // consumes it on the same thread).
 
         self.broadcast_frame(&protocol::ServerFrame::Goodbye {
             reason: "server_stopping",
@@ -607,13 +753,16 @@ impl CompanionManager {
             }
         }
 
-        let mut inner = self.inner.lock().unwrap();
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         inner.running = false;
         inner.bind_ip = None;
         inner.port = 0;
         inner.advertised_host = None;
         inner.tls_manual = false;
-        self.connections.lock().unwrap().clear();
+        self.connections
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clear();
         log::info!("companion: server stopped");
     }
 
@@ -658,7 +807,7 @@ impl CompanionManager {
         let advertised_host =
             effective_advertised_host(settings.companion_advertised_host.as_deref());
         let resolved = ip::resolve_bind_ip(&candidates, settings.companion_bind_ip.as_deref());
-        let inner = self.inner.lock().unwrap();
+        let inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
         let supported = platform_supported();
         // Config-derived on purpose: the URL, QR, and this port describe
         // what the NEXT start advertises (the preview the panel is for),
@@ -744,7 +893,10 @@ impl CompanionManager {
     }
 
     pub fn set_last_error(&self, error: Option<String>) {
-        self.inner.lock().unwrap().last_error = error;
+        self.inner
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .last_error = error;
     }
 
     /// Reset pairing: fresh token (rebound to the advertised interface's
@@ -771,7 +923,10 @@ impl CompanionManager {
     /// the paired phones too, so a swallowed busy press is visible on both
     /// surfaces).
     pub fn register_notice_forwarder(self: &Arc<Self>, app: &AppHandle) {
-        let mut guard = self.notice_listener.lock().unwrap();
+        let mut guard = self
+            .notice_listener
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         if guard.is_some() {
             return;
         }
@@ -843,6 +998,65 @@ impl Default for CompanionManager {
     }
 }
 
+/// KB-261: how many phone identities the Mac remembers. Bounded so a
+/// kiosk Mac strangers keep scanning cannot grow the settings store
+/// forever; the most recent identities survive.
+const KNOWN_IDENTITIES_LIMIT: usize = 8;
+
+/// KB-261 (fleet pass 1): serializes the connect-edge settings
+/// read-modify-write cycles. A first-pairing hello spawns
+/// [`persist_known_identities`] and
+/// [`CompanionManager::note_device_connected`] as two detached workers,
+/// and each does get_settings -> mutate one field -> write_settings over
+/// the WHOLE settings object; unsynchronized, the interleave [persist
+/// reads][connected reads][persist writes][connected writes] let the last
+/// whole-settings writer erase the other's field - exactly the same
+/// pairing that mints a new identity also changes the last device, so
+/// both workers fire together on the feature's primary scenario, and a
+/// lost identities persist silently shrank the Mac's pairing record
+/// after the next restart (start() re-seeds from the store).
+static CONNECT_EDGE_SETTINGS_RMW: Mutex<()> = Mutex::new(());
+
+/// One settings read-modify-write cycle under [`CONNECT_EDGE_SETTINGS_RMW`]:
+/// the guard spans get_settings through write_settings, so the two
+/// connect-edge workers serialize and each read sees the other's write.
+/// The closure returns whether the field changed; an unchanged field
+/// writes nothing.
+fn connect_edge_settings_rmw(
+    app: &AppHandle,
+    mutate: &dyn Fn(&mut crate::settings::AppSettings) -> bool,
+) {
+    let _guard = CONNECT_EDGE_SETTINGS_RMW
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut settings = crate::settings::get_settings(app);
+    if mutate(&mut settings) {
+        crate::settings::write_settings(app, settings);
+    }
+}
+
+/// KB-261 (v1.6.4): persist the manager's CURRENT known-identity set to
+/// settings, off the connection task (the caller owns the thread). Reads
+/// the fresh in-memory set at run time - not a stale payload - so
+/// out-of-order persist workers converge to the latest set, and merges
+/// into the CURRENT settings (this field only) so a concurrent writer of
+/// another field is not clobbered by a stale whole-settings copy - a
+/// claim fleet pass 1 makes TRUE by running under
+/// [`CONNECT_EDGE_SETTINGS_RMW`] with note_device_connected's cycle. Best
+/// effort by design: a lost persisted entry costs one phone one
+/// Recent-list reset after a restart, never a wrong merge.
+pub(crate) fn persist_known_identities(app: &AppHandle, manager: &CompanionManager) {
+    let identities = manager.known_identities_snapshot();
+    connect_edge_settings_rmw(app, &|settings| {
+        if settings.companion_known_identities != identities {
+            settings.companion_known_identities = identities.clone();
+            true
+        } else {
+            false
+        }
+    });
+}
+
 fn qr_svg_for(url: &str) -> Result<String, String> {
     use qrcode::render::svg::Color;
     use qrcode::QrCode;
@@ -906,17 +1120,40 @@ pub fn on_lane_session_changed<R: tauri::Runtime>(
     let Some(manager) = manager(app) else {
         return;
     };
-    let mut sessions = manager.lane_sessions.lock().unwrap();
-    match sessions.get_mut(&lane) {
+    let mut sessions = manager
+        .lane_sessions
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    // Fleet pass 2 (KB-270 review): the record is KEPT here on the false
+    // edge, as live=false - the v1.6.4 sweep removed it at this edge on
+    // the assumption the stop pipeline had already consumed the identity,
+    // but the cancel path raises this same false edge BEFORE its pipeline
+    // runs note_stopping_session (the coordinator's cancel arm), so the
+    // removal raced the handoff: note_stopping_session found no record,
+    // take_stopping_session returned None, and the stop pipeline fell back
+    // to companion_last_device - the most recent phone to hello, possibly
+    // a DIFFERENT phone - attributing the dictation's history row and
+    // Recent-list routing to the wrong identity. Removal now happens at
+    // the consumption point (note_stopping_session), so the record is
+    // observably identical to the pre-branch live=false drain: every
+    // present record has a pipeline that will consume it, nothing
+    // accumulates (KB-270's growth bound holds: consumption removes), and
+    // the next session on the lane re-inserts a fresh record at its own
+    // Start commit.
+    let device = match sessions.get_mut(&lane) {
         Some(session) => {
             session.live = active;
+            Some(session.device.clone())
         }
-        None => return, // no session was ever committed for this lane
-    }
-    let device = sessions
-        .get(&lane)
-        .map(|s| s.device.clone())
-        .unwrap_or_else(|| "Companion".to_string());
+        // A live edge with no record is meaningless (no session was ever
+        // committed for this lane); a FALSE edge without one is the
+        // normal post-consumption stop (the pipeline already took the
+        // identity) and must still send the State frame and clear the
+        // overlay - returning early here would leave the phone's record
+        // button stuck on "recording".
+        None if active => return,
+        None => None,
+    };
     drop(sessions);
     manager.send_frame_to_lane(lane, &protocol::ServerFrame::State { recording: active });
     let _ = app.emit_to(
@@ -924,7 +1161,7 @@ pub fn on_lane_session_changed<R: tauri::Runtime>(
         "companion-session-changed",
         serde_json::json!({
             "active": active,
-            "device": if active { Some(device) } else { None },
+            "device": device.filter(|_| active),
         }),
     );
 }
@@ -944,8 +1181,15 @@ pub fn begin_session<R: tauri::Runtime>(
 ) {
     if let Some(manager) = manager(app) {
         let session = manager.freeze_session(lane, prefs);
-        manager.lane_sessions.lock().unwrap().insert(lane, session);
-        *manager.starting_lane.lock().unwrap() = Some(lane);
+        manager
+            .lane_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .insert(lane, session);
+        *manager
+            .starting_lane
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(lane);
     }
 }
 
@@ -954,7 +1198,7 @@ pub fn begin_session<R: tauri::Runtime>(
 /// behind begin_session on the coordinator thread). None for
 /// keyboard/signal starts.
 pub fn starting_session_lane<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Option<u64> {
-    manager(app).and_then(|m| *m.starting_lane.lock().unwrap())
+    manager(app).and_then(|m| *m.starting_lane.lock().unwrap_or_else(|e| e.into_inner()))
 }
 
 /// v1.6.2 multi-phone review fix: clear the starting-session slot for a
@@ -968,7 +1212,10 @@ pub fn starting_session_lane<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> Op
 /// is always fresh for the effect being executed.
 pub fn clear_starting_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     if let Some(manager) = manager(app) {
-        *manager.starting_lane.lock().unwrap() = None;
+        *manager
+            .starting_lane
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = None;
     }
 }
 
@@ -977,7 +1224,11 @@ pub fn clear_starting_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
 /// lane starts clean).
 pub fn discard_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
     if let Some(manager) = manager(app) {
-        manager.lane_sessions.lock().unwrap().remove(&lane);
+        manager
+            .lane_sessions
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&lane);
     }
 }
 
@@ -986,15 +1237,28 @@ pub fn discard_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) 
 /// pipeline, whose TranscribeAction signature predates lanes. Called
 /// immediately before the Stop effect runs; consumed exactly once by the
 /// pipeline's first synchronous step on the same thread.
+///
+/// Fleet pass 2 (KB-270 review): this handoff is also the record's
+/// CONSUMPTION point - the record is removed here, not at the session's
+/// false edge, because the cancel path false-edges the session BEFORE its
+/// pipeline reaches this seam (the coordinator's cancel arm), and a record
+/// removed at the edge left this seam nothing to hand over (the pipeline
+/// then fell back to companion_last_device, attributing the dictation to
+/// whatever phone hello'd most recently). Removal here keeps KB-270's
+/// growth bound exactly: a record exists from its Start commit to its
+/// pipeline's handoff, nothing accumulates on a flapping phone.
 pub fn note_stopping_session<R: tauri::Runtime>(app: &tauri::AppHandle<R>, lane: u64) {
     let Some(manager) = manager(app) else {
         return;
     };
-    let sessions = manager.lane_sessions.lock().unwrap();
-    if let Some(session) = sessions.get(&lane) {
-        *manager.stopping.lock().unwrap() = Some(StoppingSession {
+    let mut sessions = manager
+        .lane_sessions
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    if let Some(session) = sessions.remove(&lane) {
+        *manager.stopping.lock().unwrap_or_else(|e| e.into_inner()) = Some(StoppingSession {
             lane,
-            device: session.device.clone(),
+            device: session.device,
             prefs: session.prefs,
         });
     }
@@ -1008,7 +1272,11 @@ pub fn take_stopping_session<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
 ) -> Option<(u64, String, protocol::SessionPrefs)> {
     let manager = manager(app)?;
-    let stopping = manager.stopping.lock().unwrap().take()?;
+    let stopping = manager
+        .stopping
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .take()?;
     Some((stopping.lane, stopping.device, stopping.prefs))
 }
 
@@ -1087,7 +1355,7 @@ pub fn broadcast_recent_history<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     for (lane, device) in manager
         .connections
         .lock()
-        .unwrap()
+        .unwrap_or_else(|e| e.into_inner())
         .iter()
         .map(|entry| (entry.lane, entry.device.clone()))
         .collect::<Vec<_>>()
@@ -1361,17 +1629,17 @@ mod tests {
         assert!(manager.live_session_lanes().is_empty());
     }
 
-    /// Fleet pass 2: the server-stop sweep must not race the finalize
-    /// pipelines it just queued. stop() sends one finalize command per
-    /// live lane (an mpsc send resolved LATER on the coordinator thread)
-    /// and then sweeps the session records on ITS OWN thread; the
-    /// pre-fix sweep was a full clear, so every pipeline found no record,
-    /// resolved session_lane None, and silently discarded its dictation.
-    /// The sweep must keep exactly the LIVE lanes' records - the pipeline
-    /// handoff (note_stopping_session -> take_stopping_session) still
-    /// resolves after it - and may only remove already-drained entries.
+    /// Fleet pass 2 (KB-270 review): session records survive until their
+    /// pipeline CONSUMES them, in both stop orders. The v1.6.4 edge sweep
+    /// removed the record at on_lane_session_changed(false), which raced
+    /// the cancel path (its false edge lands BEFORE the pipeline's
+    /// note_stopping_session): the handoff found nothing, and the stop
+    /// pipeline attributed the dictation to companion_last_device - the
+    /// most recent phone to hello, possibly a different phone. Now the
+    /// false edge only drains (live=false) and note_stopping_session is
+    /// the consumption point that removes.
     #[test]
-    fn server_stop_sweep_keeps_live_lanes_records_for_their_pipelines() {
+    fn server_stop_leaves_records_for_their_pipelines_in_both_stop_orders() {
         let app = tauri::test::mock_app();
         let manager = Arc::new(CompanionManager::new());
         app.manage(Arc::clone(&manager));
@@ -1384,50 +1652,70 @@ mod tests {
         };
         begin_session(app.handle(), lane_a, prefs.clone());
         begin_session(app.handle(), lane_b, prefs.clone());
-        // Lane B's session already drained (an earlier cycle's leftover:
-        // live=false, its pipeline long finished).
-        on_lane_session_changed(app.handle(), lane_b, false);
 
-        // The sweep, exactly as stop() runs it after queueing its
-        // finalizes.
-        manager.retain_live_lane_sessions();
-
-        // The drained record is gone; the LIVE record survived, and the
-        // pipeline handoff still resolves it: note_stopping_session (the
-        // coordinator thread's Stop-effect seam) reads the record, and
-        // take_stopping_session (the pipeline's first step) receives the
-        // lane, device, and prefs - the identity whose absence made the
-        // pre-fix stop discard the audio.
+        // The ordinary order (a release-edge Stop): the coordinator's Stop
+        // effect hands the identity over first, the false edge lands after.
         note_stopping_session(app.handle(), lane_a);
         let stopping = take_stopping_session(app.handle());
         assert_eq!(
             stopping,
-            Some((lane_a, "iPhone#7f3a".to_string(), prefs)),
-            "a live lane's record must survive the server-stop sweep so its finalize pipeline resolves its identity"
+            Some((lane_a, "iPhone#7f3a".to_string(), prefs.clone())),
+            "the ordinary stop order resolves the identity"
+        );
+        on_lane_session_changed(app.handle(), lane_a, false);
+        assert!(
+            !manager.lane_owns_live_session(lane_a),
+            "the consumed lane is no longer live"
         );
 
-        // The stopping slot was never cleared by the sweep (it is
-        // transient: written by the Stop effect, consumed exactly once).
+        // The CANCEL order (the review's finding): the false edge lands
+        // FIRST (the coordinator's cancel arm), the pipeline's handoff
+        // runs later. The drained record must still be there to hand over
+        // ITS OWN identity - not companion_last_device's.
+        on_lane_session_changed(app.handle(), lane_b, false);
+        assert!(
+            !manager.lane_owns_live_session(lane_b),
+            "the false edge drained the session"
+        );
+        note_stopping_session(app.handle(), lane_b);
+        let stopping = take_stopping_session(app.handle());
+        assert_eq!(
+            stopping,
+            Some((lane_b, "iPhone#c3d4".to_string(), prefs)),
+            "a session false-edged before its pipeline still hands over its OWN identity"
+        );
+
+        // Consumption removed both records: nothing accumulates.
+        assert!(
+            manager
+                .lane_sessions
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .is_empty(),
+            "consumption removes the record, so no drained entry outlives its pipeline"
+        );
+        // The stopping slot was consumed exactly once (it is transient:
+        // written by the Stop effect, consumed exactly once).
         assert!(take_stopping_session(app.handle()).is_none());
-        // And a second sweep (the next server stop) collects the drained
-        // record once its pipeline flipped liveness.
-        on_lane_session_changed(app.handle(), lane_a, false);
-        manager.retain_live_lane_sessions();
-        assert!(manager.live_session_lanes().is_empty());
-        note_stopping_session(app.handle(), lane_a);
+        // And a second handoff for an already-consumed lane hands out
+        // nothing (a drained record no longer exists to re-adopt).
+        note_stopping_session(app.handle(), lane_b);
         assert!(
             take_stopping_session(app.handle()).is_none(),
-            "a drained record no longer hands out an identity"
+            "a consumed record no longer hands out an identity"
         );
     }
 
-    /// The source-level companion of the sweep test above: stop() must run
-    /// the sweep (retain), never a synchronous clear, and never touch the
-    /// stopping slot. Mounting a RUNNING TLS server in a unit test is not
+    /// The source-level companion of the test above: stop() must not touch
+    /// the session map at all - no synchronous clear (the pre-fix race
+    /// that discarded dictations), no retain-based sweep (the fleet pass 2
+    /// finding: it removed exactly the false-edged-but-unconsumed records
+    /// whose cancel pipelines were still in flight), no stopping-slot
+    /// surgery. Mounting a RUNNING TLS server in a unit test is not
     /// practical, so the arm is pinned against this committed source (the
     /// same convention as the coordinator's executor pins).
     #[test]
-    fn stop_routes_the_sweep_not_a_clear() {
+    fn stop_leaves_the_session_map_to_its_pipelines() {
         let source = include_str!("mod.rs");
         let at = source
             .find("pub fn stop(&self, app: &AppHandle)")
@@ -1435,12 +1723,12 @@ mod tests {
         let end = at + source[at..].find("\n    }\n").expect("fn end");
         let body = &source[at..end];
         assert!(
-            body.contains("self.retain_live_lane_sessions();"),
-            "stop() must sweep through retain_live_lane_sessions after queueing its finalizes"
+            !body.contains("lane_sessions"),
+            "stop() must not touch the session map: every record still present belongs to a pipeline that will consume it (live lanes' queued finalizes and false-edged lanes' in-flight stop pipelines)"
         );
         assert!(
-            !body.contains("lane_sessions.lock().unwrap().clear()"),
-            "stop() must never clear the session map synchronously: the finalize pipelines it just queued read those records"
+            !body.contains("retain_live_lane_sessions"),
+            "the retain sweep is gone: it removed pending-consumption records"
         );
         assert!(
             !body.contains("stopping.lock"),
@@ -1504,6 +1792,427 @@ mod tests {
         let (lane_e, _gen_e, _rx_e) = manager.register_connection("iPhone 15");
         assert_ne!(lane_e, lane_c);
         assert_ne!(lane_e, lane_d);
+    }
+
+    /// KB-261 (fleet pass 1): identities are exact, so no phone's data can
+    /// ever fold into another's. The v1.6.4 platform-name adoption is
+    /// pinned REMOVED here: a fresh-id same-platform hello while the prior
+    /// is away (the old adoption trigger - and any pairing-token holder
+    /// hits it, which shipped the prior's transcript history to the
+    /// newcomer and attributed the newcomer's dictations to the prior),
+    /// bare no-id hellos never folding into known tagged identities (and
+    /// tagged hellos never folding into a known bare one), and no
+    /// poisoning (an ordinary re-pair can no longer disable anything,
+    /// because there is no cross-identity rule left to disable).
+    #[test]
+    fn kb261_identities_are_exact_and_never_adopt() {
+        let manager = CompanionManager::new();
+        // The persisted known set this server run was seeded with (start()
+        // loads it into the manager).
+        *manager
+            .known_identities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = vec!["iPhone#aaaa".to_string()];
+
+        // A fresh-id same-platform hello while the prior identity is AWAY:
+        // the v1.6.4 cut adopted "iPhone#aaaa" here, delivering that
+        // phone's Recent list and transcript history to whichever phone
+        // helloed. The identity must be its own; history keyed on
+        // "iPhone#aaaa" can never ship to this connection's socket,
+        // because the recent-list filter keys on the registration's own
+        // identity (send_recent_history_to_lane ->
+        // recent_companion_entries_for_device).
+        let (newcomer, _rx) =
+            manager.register_connection_with_identity("iPhone", Some("zzzz9999-0000"));
+        assert_eq!(
+            newcomer.device, "iPhone#zzzz",
+            "a fresh-id hello must never fold into a known same-platform identity"
+        );
+        assert_eq!(
+            newcomer.persist_identities,
+            Some(vec!["iPhone#aaaa".to_string(), "iPhone#zzzz".to_string()]),
+            "the newcomer's own identity is owed to persistence, bounded, most recent last"
+        );
+
+        // The ordinary re-pair the old rule broke: the prior identity's
+        // connection is STILL registered (its socket lingers up to the
+        // keepalive deadline after a network switch) - the newcomer still
+        // gets its own identity, and nothing is poisoned for later hellos
+        // (the next fresh-id hello resolves exactly the same way).
+        let (repair, _rx) =
+            manager.register_connection_with_identity("iPhone", Some("cccc3333-0000"));
+        assert_eq!(repair.device, "iPhone#cccc");
+
+        // The same identity re-pairing (same origin, same stored id, or a
+        // Mac restart): nothing changes, nothing owed.
+        let (again, _rx) =
+            manager.register_connection_with_identity("iPhone", Some("aaaa1111-0000"));
+        assert_eq!(again.device, "iPhone#aaaa");
+        assert!(again.persist_identities.is_none());
+
+        // A no-id hello keeps the bare name, the pinned protocol invariant:
+        // it never adopts a known tagged identity (two phones sharing one
+        // Recent list, the KB-265 defect class), in either direction.
+        let (bare, _rx) = manager.register_connection_with_identity("iPhone", None);
+        assert_eq!(
+            bare.device, "iPhone",
+            "a client with no id keeps the bare name (protocol.rs invariant)"
+        );
+        let manager_bare = CompanionManager::new();
+        *manager_bare
+            .known_identities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = vec!["iPhone".to_string()];
+        let (tagged, _rx) =
+            manager_bare.register_connection_with_identity("iPhone", Some("bbbb2222-0000"));
+        assert_eq!(
+            tagged.device, "iPhone#bbbb",
+            "a tagged hello must never fold into a known bare identity"
+        );
+
+        // A different platform never touches the iPhone's resolution.
+        let (ipad, _rx) = manager.register_connection_with_identity("iPad", Some("dddd4444-0000"));
+        assert_eq!(ipad.device, "iPad#dddd");
+
+        // The known set stays bounded: the manager keeps the most recent
+        // KNOWN_IDENTITIES_LIMIT identities (pinned here so a change is a
+        // deliberate decision, not drift).
+        assert_eq!(KNOWN_IDENTITIES_LIMIT, 8);
+    }
+
+    /// KB-261 (v1.6.4 review pass, re-anchored by fleet pass 1): the twin
+    /// race. The v1.6.4 adoption cut resolved the identity BEFORE
+    /// registering, leaving a window where a concurrent same-platform
+    /// hello adopted a known identity and collapsed two phones into one
+    /// Recent list (the KB-265 defect class). Identities are now exact and
+    /// the registration insert and known-set update share one critical
+    /// section, so N same-platform phones registering CONCURRENTLY all end
+    /// up with DISTINCT identities.
+    #[test]
+    fn kb261_concurrent_same_platform_registrations_never_share_an_identity() {
+        let manager = Arc::new(CompanionManager::new());
+        const PHONES: usize = 8;
+        let barrier = Arc::new(std::sync::Barrier::new(PHONES));
+        let registrations = Arc::new(Mutex::new(Vec::<(String, u64, u64)>::new()));
+
+        let mut handles = Vec::new();
+        for i in 0..PHONES {
+            let manager = Arc::clone(&manager);
+            let barrier = Arc::clone(&barrier);
+            let sink = Arc::clone(&registrations);
+            handles.push(std::thread::spawn(move || {
+                // Every phone is the same platform with a fresh id (a
+                // reconnect storm after a Mac origin change).
+                let device_id = format!("{:04x}-fresh", 0x1000 + i);
+                barrier.wait();
+                let (registration, _rx) =
+                    manager.register_connection_with_identity("iPhone", Some(&device_id));
+                sink.lock().unwrap_or_else(|e| e.into_inner()).push((
+                    registration.device,
+                    registration.lane,
+                    registration.generation,
+                ));
+            }));
+        }
+        for handle in handles {
+            handle
+                .join()
+                .expect("no registration panics under contention");
+        }
+
+        let registrations = registrations
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        assert_eq!(registrations.len(), PHONES);
+        let mut identities: Vec<String> = registrations.iter().map(|(d, _, _)| d.clone()).collect();
+        identities.sort();
+        let unique = identities.len();
+        identities.dedup();
+        assert_eq!(
+            identities.len(),
+            unique,
+            "every concurrent same-platform phone must own a DISTINCT identity (got {identities:?})"
+        );
+        // And the in-memory known set recorded every one of them, bounded
+        // by the limit.
+        let known = manager.known_identities_snapshot();
+        assert_eq!(
+            known.len(),
+            PHONES.min(KNOWN_IDENTITIES_LIMIT),
+            "the known set grew by every minted identity, bounded"
+        );
+    }
+
+    /// KB-261 source pin (the settings write needs the real store, which a
+    /// mock app cannot mount): persistence must (1) be owned by the
+    /// CALLER off the connection task (the server spawns the worker; that
+    /// half is pinned in server.rs), (2) read the FRESH in-memory set at
+    /// run time so out-of-order workers converge, (3) merge into the
+    /// current settings rather than writing a stale whole-settings copy,
+    /// and (4) be seeded from the persisted store at server start so the
+    /// registration path performs no settings IO.
+    #[test]
+    fn kb261_new_identities_persist_bounded_through_the_settings_store() {
+        let source = include_str!("mod.rs");
+        let persist_at = source
+            .find("pub(crate) fn persist_known_identities(")
+            .expect("the persistence helper");
+        let persist_end = persist_at + source[persist_at..].find("\n}\n").expect("fn end");
+        let persist = &source[persist_at..persist_end];
+        assert!(
+            persist.contains("manager.known_identities_snapshot()"),
+            "persistence reads the FRESH in-memory set at run time, never a stale payload"
+        );
+        assert!(
+            persist.contains("if settings.companion_known_identities != identities"),
+            "persistence writes only when the field changed"
+        );
+        assert!(
+            persist.contains("settings.companion_known_identities = identities"),
+            "persistence merges into the CURRENT settings (this field only)"
+        );
+
+        // The registration mints bounded sets and owes them to the caller.
+        let register_at = source
+            .find("pub fn register_connection_with_identity(")
+            .expect("the registration");
+        let register_end = register_at + source[register_at..].find("\n    }\n").expect("fn end");
+        let register = &source[register_at..register_end];
+        assert!(
+            register.contains("KNOWN_IDENTITIES_LIMIT")
+                && register.contains("persist_identities = Some("),
+            "a minted identity returns the bounded set for the caller to persist"
+        );
+        assert!(
+            !register.contains("get_settings") && !register.contains("write_settings"),
+            "the registration itself performs no settings IO"
+        );
+
+        // Server start seeds the in-memory cache from the store.
+        let start_at = source
+            .find("pub fn start(&self, app: &AppHandle)")
+            .expect("start");
+        let start_end = start_at + source[start_at..].find("\n    }\n").expect("fn end");
+        assert!(
+            source[start_at..start_end].contains("settings.companion_known_identities.clone()"),
+            "start() seeds the known-identity cache from the persisted store"
+        );
+
+        // Fleet pass 1: platform-name adoption is gone entirely - no code
+        // path may match identities across phones again (the manager-level
+        // pin above holds the behavior; this keeps the mechanism itself
+        // from creeping back in). The needles are concatenated so this
+        // assertion's own literals cannot satisfy it.
+        let adoption_fn = ["sticky", "_identity", "_adoption"].concat();
+        let base_fn = ["identity", "_ba", "se("].concat();
+        assert!(
+            !source.contains(&adoption_fn) && !source.contains(&base_fn),
+            "platform-name adoption and its base splitter must not reappear"
+        );
+    }
+
+    /// KB-261 (fleet pass 1) source pin: the two connect-edge settings
+    /// read-modify-write cycles SERIALIZE. The first-pairing hello spawns
+    /// persist_known_identities and note_device_connected as two detached
+    /// workers, and each does get_settings -> mutate one field ->
+    /// write_settings over the WHOLE settings object; unsynchronized, the
+    /// interleave [persist reads][connected reads][persist writes]
+    /// [connected writes] let the last whole-settings writer erase the
+    /// other's field (the real store cannot mount under a mock app, so the
+    /// lock discipline is pinned on the source, the same convention as the
+    /// test above).
+    #[test]
+    fn kb261_connect_edge_settings_rmws_serialize_through_one_lock() {
+        let source = include_str!("mod.rs");
+
+        // The shared lock and the helper that holds it across the whole
+        // get -> mutate -> write span.
+        let helper_at = source
+            .find("fn connect_edge_settings_rmw(")
+            .expect("the connect-edge RMW helper");
+        let helper_end = helper_at + source[helper_at..].find("\n}\n").expect("fn end");
+        let helper = &source[helper_at..helper_end];
+        let guard_at = helper.find("CONNECT_EDGE_SETTINGS_RMW").expect("the guard");
+        let read_at = helper.find("get_settings").expect("the read");
+        let write_at = helper.find("write_settings").expect("the write");
+        assert!(
+            guard_at < read_at && read_at < write_at,
+            "the RMW helper must take the lock BEFORE reading settings and keep it past the write"
+        );
+
+        // Both connect-edge cycles route through the helper (a whole-
+        // settings write outside it would reintroduce the lost update).
+        // The method (impl indent) and the free fn (module indent) close
+        // differently, so each carries its own terminator.
+        for (site, terminator) in [
+            ("pub(crate) fn persist_known_identities(", "\n}\n"),
+            ("pub fn note_device_connected(", "\n    }\n"),
+        ] {
+            let at = source
+                .find(site)
+                .unwrap_or_else(|| panic!("the connect-edge settings writer must exist: {site}"));
+            let end = at + source[at..].find(terminator).expect("fn end");
+            let body = &source[at..end];
+            assert!(
+                body.contains("connect_edge_settings_rmw(app"),
+                "{site} must run its whole-settings cycle under the connect-edge lock"
+            );
+            assert!(
+                !body.contains("write_settings(app"),
+                "{site} must not write settings outside the locked helper"
+            );
+        }
+    }
+
+    /// KB-270 (v1.6.4, fleet pass 2): the per-lane session records stop
+    /// growing because the pipeline's handoff CONSUMES its record
+    /// (note_stopping_session removes it), so a phone flapping through
+    /// reconnect-and-dictate cycles leaves the map EMPTY - in the ordinary
+    /// stop order AND the cancel order (false edge first), and even when a
+    /// cycle's false edge lands with no pipeline at all before the next
+    /// Start re-commits the lane (the next begin_session replaces the
+    /// drained record in place).
+    #[test]
+    fn kb270_lane_session_records_are_consumed_at_every_session_end() {
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+
+        // A flapping phone: N reconnect cycles, one dictation each, in the
+        // production order (handoff, take, then the false edge).
+        for cycle in 0..25u64 {
+            let (lane, _gen, _rx) = manager.register_connection("Pixel 8");
+            begin_session(app.handle(), lane, protocol::SessionPrefs::default());
+            assert!(
+                manager.lane_owns_live_session(lane),
+                "cycle {cycle}: the session is live while recording"
+            );
+            note_stopping_session(app.handle(), lane);
+            assert!(
+                take_stopping_session(app.handle()).is_some(),
+                "cycle {cycle}: the identity resolves before the end"
+            );
+            on_lane_session_changed(app.handle(), lane, false);
+            assert!(
+                manager.lane_sessions.lock().unwrap().is_empty(),
+                "cycle {cycle}: a consumed session leaves no record behind"
+            );
+        }
+
+        // The cancel order on the same flapping shape: false edge first
+        // (the coordinator's cancel arm), pipeline handoff after. The map
+        // is empty after the handoff too - and the identity it handed over
+        // was the drained record's OWN (the wrong-phone guard the fleet
+        // pass pinned above in
+        // server_stop_leaves_records_for_their_pipelines_in_both_stop_orders).
+        for cycle in 0..25u64 {
+            let (lane, _gen, _rx) = manager.register_connection("Pixel 8");
+            begin_session(app.handle(), lane, protocol::SessionPrefs::default());
+            on_lane_session_changed(app.handle(), lane, false);
+            note_stopping_session(app.handle(), lane);
+            assert!(
+                take_stopping_session(app.handle()).is_some(),
+                "cycle {cycle}: the cancel order still resolves the identity"
+            );
+            assert!(
+                manager.lane_sessions.lock().unwrap().is_empty(),
+                "cycle {cycle}: the cancel order leaves no record either"
+            );
+        }
+
+        // Two live sessions coexist; draining one leaves the other's
+        // record pending, and each consumption removes exactly its own.
+        let (lane_a, _ga, _ra) = manager.register_connection("iPhone#7f3a");
+        let (lane_b, _gb, _rb) = manager.register_connection("iPhone#c3d4");
+        begin_session(app.handle(), lane_a, protocol::SessionPrefs::default());
+        begin_session(app.handle(), lane_b, protocol::SessionPrefs::default());
+        on_lane_session_changed(app.handle(), lane_a, false);
+        assert!(manager.lane_owns_live_session(lane_b), "B survives A's end");
+        note_stopping_session(app.handle(), lane_a);
+        assert!(manager.lane_owns_live_session(lane_b), "B still live");
+        note_stopping_session(app.handle(), lane_b);
+        assert!(manager.lane_sessions.lock().unwrap().is_empty());
+    }
+
+    /// v1.6.4 accept-wedge hardening: a panic in a task holding one of the
+    /// manager's std Mutexes must not poison the companion surface. The
+    /// pre-fix `.lock().unwrap()` acquisitions panicked on a poisoned lock,
+    /// so one poisoned map wedged every later connection task until
+    /// restart. Every hot-path acquisition is now poison-tolerant; this
+    /// test POISONS the registries deliberately and asserts the manager
+    /// keeps serving registrations, device lists, and session records.
+    #[test]
+    fn poisoned_manager_locks_never_wedge_later_connections() {
+        let manager = CompanionManager::new();
+
+        // Poison the connections registry, the session map, and the
+        // identity set: panic in a task while holding each guard (caught,
+        // like tokio catches a task panic).
+        for poison in [
+            "connections",
+            "lane_sessions",
+            "pending_prefs",
+            "stopping",
+            "known_identities",
+        ] {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match poison {
+                "connections" => {
+                    let _guard = manager
+                        .connections
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    panic!("poison {poison}");
+                }
+                "lane_sessions" => {
+                    let _guard = manager
+                        .lane_sessions
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    panic!("poison {poison}");
+                }
+                "pending_prefs" => {
+                    let _guard = manager
+                        .pending_prefs
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    panic!("poison {poison}");
+                }
+                "known_identities" => {
+                    let _guard = manager
+                        .known_identities
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    panic!("poison {poison}");
+                }
+                _ => {
+                    let _guard = manager.stopping.lock().unwrap_or_else(|e| e.into_inner());
+                    panic!("poison {poison}");
+                }
+            }));
+            assert!(
+                result.is_err(),
+                "the {poison} poisoning panic must be caught"
+            );
+        }
+
+        // The very next connection still registers (with its identity
+        // resolution), unregisters, and reads every surface the
+        // connection path touches - no unwrap panic, no wedge.
+        let (registration, _rx) =
+            manager.register_connection_with_identity("iPhone", Some("aaaa1111-0000"));
+        let (lane, generation) = (registration.lane, registration.generation);
+        assert_eq!(registration.device, "iPhone#aaaa");
+        assert_eq!(manager.devices(), vec!["iPhone#aaaa".to_string()]);
+        assert_eq!(manager.paired_device_count(), 1);
+        manager.set_pending_session_prefs(protocol::SessionPrefs::default());
+        assert_eq!(
+            manager.pending_session_prefs(),
+            protocol::SessionPrefs::default()
+        );
+        assert!(!manager.lane_owns_live_session(lane));
+        manager.unregister_connection(lane, generation);
+        assert!(manager.devices().is_empty());
     }
 
     /// Contract under test (AUD-01): a pure forwarder filter
@@ -1733,14 +2442,20 @@ mod tests {
         // (the tray's next-press display); A's session keeps its own.
         manager.set_pending_session_prefs(protocol::SessionPrefs::default());
 
-        // The session ends; the stop handoff still resolves A's session's
-        // copy (the false edge must not clear what the pipeline reads).
-        on_lane_session_changed(app.handle(), lane_a, false);
+        // The session ends. Production order: the coordinator's Stop
+        // effect hands the identity over (note_stopping_session), the
+        // pipeline's first synchronous step takes it, and only THEN does
+        // the false edge land (KB-270: which now also sweeps the record).
         note_stopping_session(app.handle(), lane_a);
         let (stop_lane, _device, prefs) =
             take_stopping_session(app.handle()).expect("A's stopping session resolves");
         assert_eq!(stop_lane, lane_a);
         assert_eq!(prefs, phone_target);
+        on_lane_session_changed(app.handle(), lane_a, false);
+        assert!(
+            manager.lane_sessions.lock().unwrap().get(&lane_a).is_none(),
+            "the session END sweeps the drained record (KB-270)"
+        );
 
         // The NEXT session on another lane freezes ITS own prefs, whatever
         // later presses left in the pending slot.

@@ -44,7 +44,7 @@ const LEVEL_META: Record<
   },
   3: {
     tag: "INFO",
-    tagClass: "text-emerald-600 dark:text-emerald-400",
+    tagClass: "text-emerald-700 dark:text-emerald-400",
     msgClass: "text-text",
   },
   4: {

@@ -25,4 +25,5 @@ src-tauri/src/companion
 .zcode
 .video_agent
 src-tauri/vendor
-shots/
+# Proof-run scratch (untracked screenshots, probe scripts, reports)
+shots

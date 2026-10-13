@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Dreceres blocades per l'entrada segura",
     "postProcessPrompt": "Indicació de postprocessament"
   },
+  "trayCopyOutcome": {
+    "copied": "S'ha copiat la transcripció al porta-retalls.",
+    "empty": "Encara no hi ha res per copiar.",
+    "failed": "No s'ha pogut copiar la transcripció al porta-retalls."
+  },
   "sidebar": {
     "general": "General",
     "commands": "Ordres",
@@ -758,7 +763,7 @@
           "retry": "Torna-ho a provar",
           "visibleDescription": "El model que reescriu la teva transcripció després de cada dictat.",
           "fetchingList": "S'està obtenint la llista de models...",
-          "listSummary_one": "1 model, obtingut {{time}}",
+          "listSummary_one": "{{count}} model, obtingut {{time}}",
           "listSummary_other": "{{count}} models, obtinguts {{time}}",
           "notFetched": "Encara no hi ha llista de models.",
           "emptyTitle": "Cap model a la llista",
@@ -940,6 +945,7 @@
       "empty": "Encara no hi ha transcripcions. Comenceu a enregistrar per crear l'historial!",
       "copyToClipboard": "Copia la transcripció al porta-retalls",
       "copyError": "No s'ha pogut copiar la transcripció al porta-retalls.",
+      "savedToggleError": "No s'ha pogut actualitzar l'estat de desat.",
       "save": "Desa la transcripció",
       "unsave": "Treu de les desades",
       "delete": "Suprimeix l'entrada",
@@ -959,13 +965,12 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Veure els canvis",
       "hideChanges": "Amagar els canvis",
+      "dbRecoveredNotice": "La base de dades de l'historial de transcripcions no es podia llegir, així que se n'ha iniciat una de nova. La base de dades anterior s'ha conservat com a {{file}}.",
       "emptyTitle": "Encara no hi ha transcripcions",
       "emptyHint": "Premeu la drecera d'enregistrament per capturar el vostre primer dictat.",
       "deleteConfirm": "Vols suprimir aquesta entrada? L'enregistrament i la seva transcripció s'eliminaran permanentment.",
       "today": "Avui",
-      "yesterday": "Ahir",
-      "savedToggleError": "No s'ha pogut actualitzar l'estat de desat.",
-      "dbRecoveredNotice": "La base de dades de l'historial de transcripcions no es podia llegir, així que se n'ha iniciat una de nova. La base de dades anterior s'ha conservat com a {{file}}."
+      "yesterday": "Ahir"
     },
     "debug": {
       "title": "Depuració",
@@ -987,6 +992,8 @@
         "copied": "Copiat",
         "lineCount": "{{count}} línies",
         "empty": "S'estan esperant registres… Les entrades apareixeran aquí a mesura que l'aplicació les emeti.",
+        "lineCount_one": "{{count}} línia",
+        "lineCount_other": "{{count}} línies",
         "clearConfirm": "Vols esborrar les línies capturades d'aquesta vista? El fitxer de registre del disc es conserva.",
         "clearConfirmTitle": "Voleu esborrar les línies capturades?"
       },
@@ -1202,16 +1209,18 @@
         "noModel": "Cap model configurat",
         "noModelHint": "Cap model establert. Tria'n un a Post Process."
       },
-      "run_one": "Executar 1 parell",
+      "run_one": "Executar {{count}} parell",
       "run_other": "Executar {{count}} parells",
-      "runHint_one": "1 prompt en 1 motor. No s'escriu ni es desa res.",
+      "runHint_one": "Executar {{count}} parell. No s'escriu ni es desa res.",
       "runHint_other": "{{count}} parells prompt-motor. No s'escriu ni es desa res.",
       "running": "S'està executant...",
+      "cancel": "Cancel·la",
+      "cancelledCard": "S'ha cancel·lat abans que comencés aquesta execució.",
       "rerun": "Tornar a executar",
       "latency": "{{ms}} ms",
       "rawKept": "El motor ha fallat o s'ha omès, per tant es mantindria la transcripció en brut.",
       "partialFailure": "Algunes execucions han fallat o s'han omès mentre d'altres han produït resultats. Comprova cada targeta.",
-      "results_one": "1 resultat",
+      "results_one": "{{count}} resultat",
       "results_other": "{{count}} resultats",
       "errors": {
         "engineNotFound": "El motor '{{id}}' no està configurat.",
@@ -1220,7 +1229,7 @@
       },
       "diff": {
         "lines": "línies",
-        "charsChanged_one": "1 caràcter canviat",
+        "charsChanged_one": "{{count}} caràcter canviat",
         "charsChanged_other": "{{count}} caràcters canviats",
         "identical": "Sense canvis.",
         "added_one": "+{{count}} afegida",
@@ -1230,9 +1239,7 @@
       },
       "resultsEmptyTitle": "Els resultats apareixeran aquí",
       "resultsEmptyHint": "Tria a dalt una font, prompts i motors i executa. Cada targeta mostra el text polit, els canvis i la velocitat.",
-      "appliedLabel": "Èxit",
-      "cancel": "Cancel·la",
-      "cancelledCard": "S'ha cancel·lat abans que comencés aquesta execució."
+      "appliedLabel": "Èxit"
     }
   },
   "footer": {
@@ -1305,6 +1312,8 @@
     "recordingFailed": "No s'ha pogut iniciar l'enregistrament: {{error}}",
     "modelLoadFailed": "No s'ha pogut carregar el model: {{model}}",
     "modelLoadFailedUnknown": "model desconegut",
+    "modelLoadFailedMemoryGate": "No hi ha prou memòria lliure per carregar {{model}}: necessita uns {{needed}}, amb uns {{free}} lliures.",
+    "modelLoadFailedDetail": "El model no ha canviat. El motiu tècnic és al fitxer de registre.",
     "modelFallbackTitle": "Memòria baixa",
     "modelFallback": "Canviat a {{model}} per aquest dictat",
     "pasteFailedTitle": "No s'ha pogut enganxar el text",
@@ -1312,9 +1321,7 @@
     "transcriptionFailedTitle": "La transcripció ha fallat",
     "noModelSelectedTitle": "Cap model seleccionat",
     "noModelSelected": "Trieu un model de transcripció a Configuració abans de dictar.",
-    "openDirectory": "No s'ha pogut obrir la carpeta: {{error}}",
-    "modelLoadFailedMemoryGate": "No hi ha prou memòria lliure per carregar {{model}}: necessita uns {{needed}}, amb uns {{free}} lliures.",
-    "modelLoadFailedDetail": "El model no ha canviat. El motiu tècnic és al fitxer de registre."
+    "openDirectory": "No s'ha pogut obrir la carpeta: {{error}}"
   },
   "appLanguage": {
     "title": "Llengua de l'aplicació",
@@ -1382,9 +1389,9 @@
     "companionBadge": "Micròfon acompanyant"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} pot estar blocant 1 drecera",
+    "blockedWithCulprit_one": "{{name}} pot estar blocant {{count}} drecera",
     "blockedWithCulprit_other": "{{name}} pot estar blocant {{count}} dreceres",
-    "blockedNoCulprit_one": "El macOS està blocant temporalment 1 drecera",
+    "blockedNoCulprit_one": "El macOS està blocant temporalment {{count}} drecera",
     "blockedNoCulprit_other": "El macOS està blocant temporalment {{count}} dreceres",
     "recorderBlockedWithCulprit": "{{name}} pot estar blocant els canvis de dreceres",
     "recorderBlockedNoCulprit": "El macOS està blocant temporalment els canvis de dreceres",
@@ -1431,9 +1438,13 @@
     "disconnectedFinalized": "S'ha perdut la connexió. El Mac ha conservat el que has dit.",
     "capped": "Sessió limitada a 15 minuts. Torna a prémer per continuar.",
     "zeroAudio": "Cap àudio no ha arribat al Mac. Mantén premut el botó i parla.",
+    "zeroAudioHold": "Cap àudio no ha arribat al Mac. Mantén premut el botó i parla.",
+    "zeroAudioHoldOrToggle": "Cap àudio no ha arribat al Mac. Mantén premut o toca el botó i parla.",
+    "zeroAudioTap": "Cap àudio no ha arribat al Mac. Toca el botó i parla.",
     "serverStopped": "El Mac ha aturat el servidor acompanyant.",
     "reconnect": "Torna a connectar",
     "holdToTalk": "Mantén premut per parlar",
+    "holdOrToggleToTalk": "Mantén premut per parlar, toca per blocar",
     "tapToTalk": "Toca per parlar",
     "release": "Deixa anar per acabar",
     "tapToStop": "Toca per aturar",
@@ -1454,15 +1465,6 @@
     "historyTitle": "Recents",
     "historyEmpty": "Els dictats d'aquest mòbil apareixen aquí.",
     "stateMicBlocked": "Micròfon bloquejat",
-    "micBlockedRetry": "Micròfon bloquejat. Toca per tornar-ho a provar.",
-    "zeroAudioHold": "Cap àudio no ha arribat al Mac. Mantén premut el botó i parla.",
-    "zeroAudioHoldOrToggle": "Cap àudio no ha arribat al Mac. Mantén premut o toca el botó i parla.",
-    "zeroAudioTap": "Cap àudio no ha arribat al Mac. Toca el botó i parla.",
-    "holdOrToggleToTalk": "Mantén premut per parlar, toca per blocar"
-  },
-  "trayCopyOutcome": {
-    "copied": "S'ha copiat la transcripció al porta-retalls.",
-    "empty": "Encara no hi ha res per copiar.",
-    "failed": "No s'ha pogut copiar la transcripció al porta-retalls."
+    "micBlockedRetry": "Micròfon bloquejat. Toca per tornar-ho a provar."
   }
 }

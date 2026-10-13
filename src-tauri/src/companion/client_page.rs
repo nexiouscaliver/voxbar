@@ -270,21 +270,16 @@ mod tests {
             "the idle (not recording) label is the two-mode one"
         );
 
-        // The welcome hint follows the same split: toggle names its tap,
-        // hold_or_toggle names both modes, push_to_talk keeps the plain
-        // hold copy.
+        // The welcome caption stays EMPTY in the default state (the UI
+        // visual pass removed the hint that repeated the button's own
+        // words within ~40px; the button label above already names both
+        // modes via the arm pinned earlier in this test). The caption is
+        // reserved for state-conditional guidance: mic errors, pairing
+        // failures, disconnect reasons.
         let welcome = between(CLIENT_HTML, "case \"welcome\":", "break;");
         assert!(
-            welcome.contains("activation === \"hold_or_toggle\""),
-            "the welcome hint distinguishes hold_or_toggle"
-        );
-        assert!(
-            welcome.contains("t(\"holdOrToggleToTalk\", \"\")"),
-            "the welcome hint uses the two-mode copy for hold_or_toggle"
-        );
-        assert!(
-            welcome.contains("t(\"holdToTalk\", \"\")"),
-            "push_to_talk keeps the plain hold copy in the hint"
+            welcome.contains("setHint(\"\")"),
+            "the welcome caption stays empty: the activation-aware button label carries the mode naming"
         );
 
         // The key ships in every embedded locale (the generator hard-fails

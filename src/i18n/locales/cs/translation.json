@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Zkratky blokuje Secure Input",
     "postProcessPrompt": "Prompt následného zpracování"
   },
+  "trayCopyOutcome": {
+    "copied": "Přepis byl zkopírován do schránky.",
+    "empty": "Zatím není co kopírovat.",
+    "failed": "Přepis se nepodařilo zkopírovat do schránky."
+  },
   "sidebar": {
     "general": "Obecné",
     "commands": "Příkazy",
@@ -758,7 +763,7 @@
           "retry": "Zkusit znovu",
           "visibleDescription": "Model, který přepíše váš přepis po každém diktování.",
           "fetchingList": "Načítá se seznam modelů...",
-          "listSummary_one": "1 model, načteno {{time}}",
+          "listSummary_one": "{{count}} model, načteno {{time}}",
           "listSummary_few": "{{count}} modely, načteno {{time}}",
           "listSummary_many": "{{count}} modelů, načteno {{time}}",
           "listSummary_other": "{{count}} modelů, načteno {{time}}",
@@ -944,6 +949,7 @@
       "empty": "Zatím žádné přepisy. Začněte nahrávat a vytvořte si historii!",
       "copyToClipboard": "Kopírovat přepis do schránky",
       "copyError": "Přepis se nepodařilo zkopírovat do schránky.",
+      "savedToggleError": "Nepodařilo se aktualizovat stav uložení.",
       "save": "Uložit přepis",
       "unsave": "Odebrat z uložených",
       "delete": "Smazat záznam",
@@ -963,13 +969,12 @@
       "viaPostProcess": "přes {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Zobrazit změny",
       "hideChanges": "Skrýt změny",
+      "dbRecoveredNotice": "Databáze vaší historie přepisů byla nečitelná, proto byla spuštěna nová. Předchozí databáze byla zachována jako {{file}}.",
       "emptyTitle": "Zatím žádné přepisy",
       "emptyHint": "Stiskněte klávesovou zkratku nahrávání a pořiďte svůj první diktát.",
       "deleteConfirm": "Odstranit tuto položku? Nahrávka i její přepis budou trvale odstraněny.",
       "today": "Dnes",
-      "yesterday": "Včera",
-      "savedToggleError": "Nepodařilo se aktualizovat stav uložení.",
-      "dbRecoveredNotice": "Databáze vaší historie přepisů byla nečitelná, proto byla spuštěna nová. Předchozí databáze byla zachována jako {{file}}."
+      "yesterday": "Včera"
     },
     "debug": {
       "title": "Ladění",
@@ -991,6 +996,10 @@
         "copied": "Zkopírováno",
         "lineCount": "Řádků: {{count}}",
         "empty": "Čekání na logy… Záznamy se zde zobrazí, jakmile je aplikace vygeneruje.",
+        "lineCount_one": "{{count}} řádek",
+        "lineCount_few": "{{count}} řádky",
+        "lineCount_many": "{{count}} řádků",
+        "lineCount_other": "Řádků: {{count}}",
         "clearConfirm": "Vymazat zachycené řádky z tohoto zobrazení? Soubor protokolu na disku zůstane zachován.",
         "clearConfirmTitle": "Vymazat zachycené řádky?"
       },
@@ -1206,20 +1215,22 @@
         "noModel": "Není nakonfigurován žádný model",
         "noModelHint": "Není nastaven žádný model. Vyberte ho v Post Process."
       },
-      "run_one": "Spustit 1 pár",
+      "run_one": "Spustit {{count}} pár",
       "run_few": "Spustit {{count}} páry",
       "run_many": "Spustit {{count}} párů",
       "run_other": "Spustit párů: {{count}}",
-      "runHint_one": "1 prompt na 1 enginu. Nic se nepíše ani neukládá.",
+      "runHint_one": "Spustit {{count}} pár. Nic se nepíše ani neukládá.",
       "runHint_few": "{{count}} páry prompt-engin. Nic se nepíše ani neukládá.",
       "runHint_many": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
       "runHint_other": "{{count}} párů prompt-engin. Nic se nepíše ani neukládá.",
       "running": "Běží...",
+      "cancel": "Zrušit",
+      "cancelledCard": "Zrušeno před zahájením tohoto spuštění.",
       "rerun": "Spustit znovu",
       "latency": "{{ms}} ms",
       "rawKept": "Engin selhal nebo byl přeskočen, proto by zůstal původní přepis.",
       "partialFailure": "Některé běhy selhaly nebo byly přeskočeny, zatímco jiné daly výsledek. Zkontrolujte každou kartu.",
-      "results_one": "1 výsledek",
+      "results_one": "{{count}} výsledek",
       "results_few": "{{count}} výsledky",
       "results_many": "{{count}} výsledků",
       "results_other": "Výsledků: {{count}}",
@@ -1230,25 +1241,23 @@
       },
       "diff": {
         "lines": "řádků",
-        "charsChanged_one": "Změněn 1 znak",
+        "charsChanged_one": "Změněn {{count}} znak",
         "charsChanged_few": "Změněny {{count}} znaky",
         "charsChanged_many": "Změněno {{count}} znaků",
         "charsChanged_other": "Změněno znaků: {{count}}",
         "identical": "Žádné změny.",
         "added_few": "+{{count}} přidáno",
         "added_many": "+{{count}} přidáno",
-        "added_one": "+1 přidáno",
+        "added_one": "+{{count}} přidáno",
         "added_other": "Přidáno: {{count}}",
         "removed_few": "{{count}} odebráno",
         "removed_many": "{{count}} odebráno",
-        "removed_one": "1 odebráno",
+        "removed_one": "{{count}} odebráno",
         "removed_other": "Odebráno: {{count}}"
       },
       "resultsEmptyTitle": "Výsledky se zobrazí zde",
       "resultsEmptyHint": "Vyberte výše zdroj, prompty a enginy a spusťte. Každá karta ukazuje upravený text, změny a rychlost.",
-      "appliedLabel": "Úspěch",
-      "cancel": "Zrušit",
-      "cancelledCard": "Zrušeno před zahájením tohoto spuštění."
+      "appliedLabel": "Úspěch"
     }
   },
   "footer": {
@@ -1317,6 +1326,8 @@
     "recordingFailed": "Nepodařilo se spustit nahrávání: {{error}}",
     "modelLoadFailed": "Nepodařilo se načíst model: {{model}}",
     "modelLoadFailedUnknown": "neznámý model",
+    "modelLoadFailedMemoryGate": "Není dost volné paměti pro načtení {{model}}: je potřeba asi {{needed}}, volných je asi {{free}}.",
+    "modelLoadFailedDetail": "Model nebyl změněn. Technický důvod je v souboru protokolu.",
     "modelFallbackTitle": "Málo paměti",
     "modelFallback": "Pro toto diktování bylo přepnuto na {{model}}",
     "pasteFailedTitle": "Vložení textu se nezdařilo",
@@ -1324,9 +1335,7 @@
     "transcriptionFailedTitle": "Přepis selhal",
     "noModelSelectedTitle": "Není vybrán žádný model",
     "noModelSelected": "Před diktováním vyberte v Nastavení model přepisu.",
-    "openDirectory": "Složku nelze otevřít: {{error}}",
-    "modelLoadFailedMemoryGate": "Není dost volné paměti pro načtení {{model}}: je potřeba asi {{needed}}, volných je asi {{free}}.",
-    "modelLoadFailedDetail": "Model nebyl změněn. Technický důvod je v souboru protokolu."
+    "openDirectory": "Složku nelze otevřít: {{error}}"
   },
   "appLanguage": {
     "title": "Jazyk aplikace",
@@ -1398,15 +1407,19 @@
     "gotIt": "Rozumím"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} může blokovat 1 zkratku",
+    "blockedWithCulprit_one": "{{name}} může blokovat {{count}} zkratku",
     "blockedWithCulprit_other": "{{name}} může blokovat {{count}} zkratek",
-    "blockedNoCulprit_one": "macOS dočasně blokuje 1 zkratku",
+    "blockedNoCulprit_one": "macOS dočasně blokuje {{count}} zkratku",
     "blockedNoCulprit_other": "macOS dočasně blokuje {{count}} zkratek",
     "recorderBlockedWithCulprit": "{{name}} může blokovat změny zkratek",
     "recorderBlockedNoCulprit": "macOS dočasně blokuje změny zkratek",
     "learnMore": "Jak to vyřešit",
     "recorderBlocked": "Zkratky teď nelze nahrát - Secure Input v macOS blokuje události kláves. Nejprve vyřešte upozornění na Secure Input.",
-    "dismiss": "Zavřít"
+    "dismiss": "Zavřít",
+    "blockedWithCulprit_few": "{{name}} může blokovat {{count}} zkratky",
+    "blockedWithCulprit_many": "{{name}} může blokovat {{count}} zkratek",
+    "blockedNoCulprit_few": "macOS dočasně blokuje {{count}} zkratky",
+    "blockedNoCulprit_many": "macOS dočasně blokuje {{count}} zkratek"
   },
   "toast": {
     "postProcessSkip": {
@@ -1447,9 +1460,13 @@
     "disconnectedFinalized": "Spojení přerušeno. Mac si uložil, co jste řekli.",
     "capped": "Relace omezena na 15 minut. Stiskněte znovu pro pokračování.",
     "zeroAudio": "K Macu se nedostal žádný zvuk. Podržte tlačítko a mluvte.",
+    "zeroAudioHold": "K Macu se nedostal žádný zvuk. Podržte tlačítko a mluvte.",
+    "zeroAudioHoldOrToggle": "K Macu se nedostal žádný zvuk. Podržte nebo klepněte na tlačítko a mluvte.",
+    "zeroAudioTap": "K Macu se nedostal žádný zvuk. Klepněte na tlačítko a mluvte.",
     "serverStopped": "Mac zastavil doprovodný server.",
     "reconnect": "Připojit znovu",
     "holdToTalk": "Držte pro mluvení",
+    "holdOrToggleToTalk": "Držte pro mluvení, klepněte pro uzamčení",
     "tapToTalk": "Klepněte pro mluvení",
     "release": "Pusťte pro dokončení",
     "tapToStop": "Klepněte pro zastavení",
@@ -1470,15 +1487,6 @@
     "historyTitle": "Nedávné",
     "historyEmpty": "Diktáty z tohoto telefonu se zobrazí zde.",
     "stateMicBlocked": "Mikrofon zablokován",
-    "micBlockedRetry": "Mikrofon zablokován. Klepnutím zkuste znovu.",
-    "zeroAudioHold": "K Macu se nedostal žádný zvuk. Podržte tlačítko a mluvte.",
-    "zeroAudioHoldOrToggle": "K Macu se nedostal žádný zvuk. Podržte nebo klepněte na tlačítko a mluvte.",
-    "zeroAudioTap": "K Macu se nedostal žádný zvuk. Klepněte na tlačítko a mluvte.",
-    "holdOrToggleToTalk": "Držte pro mluvení, klepněte pro uzamčení"
-  },
-  "trayCopyOutcome": {
-    "copied": "Přepis byl zkopírován do schránky.",
-    "empty": "Zatím není co kopírovat.",
-    "failed": "Přepis se nepodařilo zkopírovat do schránky."
+    "micBlockedRetry": "Mikrofon zablokován. Klepnutím zkuste znovu."
   }
 }

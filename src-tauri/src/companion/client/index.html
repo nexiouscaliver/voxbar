@@ -889,6 +889,18 @@
       // data (the Recent list), so same-platform phones never share one
       // identity.
       const DEVICE_ID_KEY = "voxbarCompanion.deviceId";
+      // KB-260 (v1.6.4): the fallback id LEADS with entropy. The server's
+      // identity tag is the id's first four alphanumeric characters, and the
+      // old fallback put the timestamp there: two no-crypto phones pairing
+      // in the same hour minted ids whose tags were identical, collapsing
+      // them into one Recent list (the exact defect the id exists to fix).
+      // The random half leads, so the tag differs per phone; the timestamp
+      // only trails as a nicety.
+      function fallbackDeviceId() {
+        return (
+          Math.random().toString(36).slice(2, 12) + Date.now().toString(36)
+        );
+      }
       function deviceIdentity() {
         try {
           let id = localStorage.getItem(DEVICE_ID_KEY);
@@ -896,7 +908,7 @@
             id =
               window.crypto && crypto.randomUUID
                 ? crypto.randomUUID()
-                : Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+                : fallbackDeviceId();
             localStorage.setItem(DEVICE_ID_KEY, id);
           }
           return id;
@@ -904,7 +916,7 @@
           // Storage unavailable (private mode): a per-load random id still
           // separates this phone from its same-platform twin for the
           // session.
-          return Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+          return fallbackDeviceId();
         }
       }
 

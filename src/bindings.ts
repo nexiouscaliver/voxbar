@@ -1948,6 +1948,18 @@ companion_pairing_subnet?: string | null;
  */
 companion_last_device?: string | null; 
 /**
+ * KB-261 (v1.6.4): the phone identities this Mac has ever paired with
+ * (`name#tag` strings, most recent last, bounded) - the durable
+ * pairing record the server reseeds its in-memory set from at start,
+ * so an exact re-pair after a restart owes no persistence. Fleet pass
+ * 1: this set is no longer an adoption matcher (platform-name
+ * adoption shipped one phone's transcript history to whichever
+ * same-platform token holder paired while its owner was away);
+ * identities are exact, so a phone keeps its Recent list while its
+ * stored device id survives the pairing URL's origin.
+ */
+companion_known_identities?: string[]; 
+/**
  * v1.6.0: the interface IP the companion server binds and advertises
  * (chosen in the settings picker). None/empty means the automatic
  * LAN-preferred ranking, the pre-v1.6.0 behavior. A Tailscale

@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Shortcuts blocked by Secure Input",
     "postProcessPrompt": "Post-process Prompt"
   },
+  "trayCopyOutcome": {
+    "copied": "Copied the transcript to the clipboard.",
+    "empty": "Nothing to copy yet.",
+    "failed": "Could not copy the transcript to the clipboard."
+  },
   "sidebar": {
     "general": "General",
     "commands": "Commands",
@@ -758,7 +763,7 @@
           "retry": "Retry",
           "visibleDescription": "The model that rewrites your transcript after each dictation.",
           "fetchingList": "Fetching the model list...",
-          "listSummary_one": "1 model, fetched {{time}}",
+          "listSummary_one": "{{count}} model, fetched {{time}}",
           "listSummary_other": "{{count}} models, fetched {{time}}",
           "notFetched": "No model list yet.",
           "emptyTitle": "No models listed",
@@ -940,6 +945,7 @@
       "empty": "No transcriptions yet. Start recording to build your history!",
       "copyToClipboard": "Copy transcription to clipboard",
       "copyError": "Failed to copy transcription to clipboard.",
+      "savedToggleError": "Could not update the saved status.",
       "save": "Save transcription",
       "unsave": "Remove from saved",
       "delete": "Delete entry",
@@ -959,13 +965,12 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "View changes",
       "hideChanges": "Hide changes",
+      "dbRecoveredNotice": "Your transcription history database was unreadable, so a fresh one was started. The previous database was kept as {{file}}.",
       "emptyTitle": "No transcriptions yet",
       "emptyHint": "Press your record shortcut to capture your first dictation.",
       "deleteConfirm": "Delete this entry? The recording and its transcript will be removed permanently.",
       "today": "Today",
-      "yesterday": "Yesterday",
-      "savedToggleError": "Could not update the saved status.",
-      "dbRecoveredNotice": "Your transcription history database was unreadable, so a fresh one was started. The previous database was kept as {{file}}."
+      "yesterday": "Yesterday"
     },
     "debug": {
       "title": "Debug",
@@ -987,6 +992,8 @@
         "copied": "Copied",
         "lineCount": "{{count}} lines",
         "empty": "Waiting for logs… Entries appear here as the app emits them.",
+        "lineCount_one": "{{count}} line",
+        "lineCount_other": "{{count}} lines",
         "clearConfirm": "Clear the captured lines from this view? The log file on disk is kept.",
         "clearConfirmTitle": "Clear captured lines?"
       },
@@ -1202,16 +1209,18 @@
         "noModel": "No model configured",
         "noModelHint": "No model set. Choose one in Post Process."
       },
-      "run_one": "Run 1 pair",
+      "run_one": "Run {{count}} pair",
       "run_other": "Run {{count}} pairs",
-      "runHint_one": "1 prompt on 1 engine. Nothing is typed or saved.",
+      "runHint_one": "Run {{count}} pair. Nothing is typed or saved.",
       "runHint_other": "{{count}} prompt-engine pairs. Nothing is typed or saved.",
       "running": "Running...",
+      "cancel": "Cancel",
+      "cancelledCard": "Cancelled before this run started.",
       "rerun": "Re-run",
       "latency": "{{ms}} ms",
       "rawKept": "The engine failed or skipped, so the raw transcript would be kept.",
       "partialFailure": "Some runs failed or skipped while others produced output. Check each card.",
-      "results_one": "1 result",
+      "results_one": "{{count}} result",
       "results_other": "{{count}} results",
       "errors": {
         "engineNotFound": "Engine '{{id}}' is not configured.",
@@ -1220,7 +1229,7 @@
       },
       "diff": {
         "lines": "lines",
-        "charsChanged_one": "1 char changed",
+        "charsChanged_one": "{{count}} char changed",
         "charsChanged_other": "{{count}} chars changed",
         "identical": "No changes.",
         "added_one": "+{{count}} added",
@@ -1230,9 +1239,7 @@
       },
       "resultsEmptyTitle": "Results will appear here",
       "resultsEmptyHint": "Pick a source, prompts, and engines above, then run. Each card shows the polished text, its changes, and how fast it ran.",
-      "appliedLabel": "Success",
-      "cancel": "Cancel",
-      "cancelledCard": "Cancelled before this run started."
+      "appliedLabel": "Success"
     }
   },
   "footer": {
@@ -1305,6 +1312,8 @@
     "recordingFailed": "Failed to start recording: {{error}}",
     "modelLoadFailed": "Failed to load model: {{model}}",
     "modelLoadFailedUnknown": "unknown model",
+    "modelLoadFailedMemoryGate": "Not enough free memory to load {{model}}: it needs about {{needed}}, with about {{free}} free.",
+    "modelLoadFailedDetail": "The model was not changed. The technical reason is in the log file.",
     "modelFallbackTitle": "Low memory",
     "modelFallback": "Switched to {{model}} for this dictation",
     "pasteFailedTitle": "Failed to Paste Text",
@@ -1312,9 +1321,7 @@
     "transcriptionFailedTitle": "Transcription Failed",
     "noModelSelectedTitle": "No model selected",
     "noModelSelected": "Pick a transcription model in Settings before dictating.",
-    "openDirectory": "Could not open the folder: {{error}}",
-    "modelLoadFailedMemoryGate": "Not enough free memory to load {{model}}: it needs about {{needed}}, with about {{free}} free.",
-    "modelLoadFailedDetail": "The model was not changed. The technical reason is in the log file."
+    "openDirectory": "Could not open the folder: {{error}}"
   },
   "appLanguage": {
     "title": "Application Language",
@@ -1382,9 +1389,9 @@
     "companionBadge": "Companion microphone"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} may be blocking 1 shortcut",
+    "blockedWithCulprit_one": "{{name}} may be blocking {{count}} shortcut",
     "blockedWithCulprit_other": "{{name}} may be blocking {{count}} shortcuts",
-    "blockedNoCulprit_one": "macOS is temporarily blocking 1 shortcut",
+    "blockedNoCulprit_one": "macOS is temporarily blocking {{count}} shortcut",
     "blockedNoCulprit_other": "macOS is temporarily blocking {{count}} shortcuts",
     "recorderBlockedWithCulprit": "{{name}} may be blocking shortcut changes",
     "recorderBlockedNoCulprit": "macOS is temporarily blocking shortcut changes",
@@ -1431,9 +1438,13 @@
     "disconnectedFinalized": "Connection dropped. The Mac kept what you said.",
     "capped": "Session capped at 15 minutes. Press again to continue.",
     "zeroAudio": "No audio reached the Mac. Hold the button, then speak.",
+    "zeroAudioHold": "No audio reached the Mac. Hold the button, then speak.",
+    "zeroAudioHoldOrToggle": "No audio reached the Mac. Hold or tap the button, then speak.",
+    "zeroAudioTap": "No audio reached the Mac. Tap the button, then speak.",
     "serverStopped": "The Mac stopped the companion server.",
     "reconnect": "Reconnect",
     "holdToTalk": "Hold to talk",
+    "holdOrToggleToTalk": "Hold to talk, tap to lock",
     "tapToTalk": "Tap to talk",
     "release": "Release to finish",
     "tapToStop": "Tap to stop",
@@ -1454,15 +1465,6 @@
     "historyTitle": "Recent",
     "historyEmpty": "Dictations from this phone appear here.",
     "stateMicBlocked": "Mic blocked",
-    "micBlockedRetry": "Mic blocked. Tap to retry",
-    "zeroAudioHold": "No audio reached the Mac. Hold the button, then speak.",
-    "zeroAudioHoldOrToggle": "No audio reached the Mac. Hold or tap the button, then speak.",
-    "zeroAudioTap": "No audio reached the Mac. Tap the button, then speak.",
-    "holdOrToggleToTalk": "Hold to talk, tap to lock"
-  },
-  "trayCopyOutcome": {
-    "copied": "Copied the transcript to the clipboard.",
-    "empty": "Nothing to copy yet.",
-    "failed": "Could not copy the transcript to the clipboard."
+    "micBlockedRetry": "Mic blocked. Tap to retry"
   }
 }

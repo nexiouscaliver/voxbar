@@ -184,9 +184,11 @@ impl RemoteAudioSource {
         self.inner.transport.overrun_samples.load(Ordering::Relaxed)
     }
 
-    /// Whether the consumer's Stop has raised the pause request. Test seam
-    /// for sequencing an acknowledgement inside the handshake window.
-    #[cfg(test)]
+    /// Whether the consumer's Stop has raised the pause request. KB-263:
+    /// production seam for the companion disconnect path, which must
+    /// acknowledge only ONCE the request is live (an early ack is wiped by
+    /// the consumer when it starts the pause); also the test seam for
+    /// sequencing an acknowledgement inside the handshake window.
     pub fn pause_requested(&self) -> bool {
         self.inner.transport.pause_requested.load(Ordering::Acquire)
     }

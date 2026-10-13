@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Kısayollar Secure Input tarafından engelleniyor",
     "postProcessPrompt": "Son işlem promptu"
   },
+  "trayCopyOutcome": {
+    "copied": "Dikte panoya kopyalandı.",
+    "empty": "Henüz kopyalanacak bir şey yok.",
+    "failed": "Dikte panoya kopyalanamadı."
+  },
   "sidebar": {
     "general": "Genel",
     "commands": "Komutlar",
@@ -758,7 +763,7 @@
           "retry": "Yeniden dene",
           "visibleDescription": "Her diktemden sonra transkriptinizi yeniden yazan model.",
           "fetchingList": "Model listesi alınıyor...",
-          "listSummary_one": "1 model, {{time}} tarihinde alındı",
+          "listSummary_one": "{{count}} model, {{time}} tarihinde alındı",
           "listSummary_other": "{{count}} model, {{time}} tarihinde alındı",
           "notFetched": "Henüz model listesi yok.",
           "emptyTitle": "Listede model yok",
@@ -940,6 +945,7 @@
       "empty": "Henüz transkripsiyon yok. Geçmişinizi oluşturmak için kayda başlayın!",
       "copyToClipboard": "Transkripsiyonu panoya kopyala",
       "copyError": "Transkripsiyon panoya kopyalanamadı.",
+      "savedToggleError": "Kayıt durumu güncellenemedi.",
       "save": "Transkripsiyonu kaydet",
       "unsave": "Kaydedilenlerden kaldır",
       "delete": "Kaydı sil",
@@ -959,13 +965,12 @@
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms ile",
       "viewChanges": "Değişiklikleri göster",
       "hideChanges": "Değişiklikleri gizle",
+      "dbRecoveredNotice": "Transkripsiyon geçmişi veritabanınız okunamadığı için yenisi başlatıldı. Önceki veritabanı {{file}} olarak saklandı.",
       "emptyTitle": "Henüz transkripsiyon yok",
       "emptyHint": "İlk diktinizi kaydetmek için kayıt kısayolunuza basın.",
       "deleteConfirm": "Bu girdi silinsin mi? Kayıt ve dökümü kalıcı olarak kaldırılacak.",
       "today": "Bugün",
-      "yesterday": "Dün",
-      "savedToggleError": "Kayıt durumu güncellenemedi.",
-      "dbRecoveredNotice": "Transkripsiyon geçmişi veritabanınız okunamadığı için yenisi başlatıldı. Önceki veritabanı {{file}} olarak saklandı."
+      "yesterday": "Dün"
     },
     "debug": {
       "title": "Hata Ayıklama",
@@ -987,6 +992,8 @@
         "copied": "Kopyalandı",
         "lineCount": "{{count}} satır",
         "empty": "Loglar bekleniyor… Uygulama logları ürettikçe girişler burada görünür.",
+        "lineCount_one": "{{count}} satır",
+        "lineCount_other": "{{count}} satır",
         "clearConfirm": "Bu görünümden yakalanan satırlar temizlensin mi? Diskteki günlük dosyası saklanır.",
         "clearConfirmTitle": "Yakalanan satırlar temizlensin mi?"
       },
@@ -1202,16 +1209,18 @@
         "noModel": "Yapılandırılmış model yok",
         "noModelHint": "Model ayarlanmadı. Post Process altından seçin."
       },
-      "run_one": "1 çift çalıştır",
+      "run_one": "{{count}} çift çalıştır",
       "run_other": "{{count}} çift çalıştır",
-      "runHint_one": "1 motorda 1 prompt. Hiçbir şey yazılmaz veya kaydedilmez.",
+      "runHint_one": "{{count}} çift çalıştır. Hiçbir şey yazılmaz veya kaydedilmez.",
       "runHint_other": "{{count}} prompt-motor çifti. Hiçbir şey yazılmaz veya kaydedilmez.",
       "running": "Çalışıyor...",
+      "cancel": "İptal",
+      "cancelledCard": "Bu çalışma başlamadan önce iptal edildi.",
       "rerun": "Yeniden çalıştır",
       "latency": "{{ms}} ms",
       "rawKept": "Motor başarısız oldu veya atlandı, bu nedenle ham transkript korunurdu.",
       "partialFailure": "Bazı çalışmalar başarısız oldu veya atlanırken diğerleri sonuç üretti. Her kartı kontrol edin.",
-      "results_one": "1 sonuç",
+      "results_one": "{{count}} sonuç",
       "results_other": "{{count}} sonuç",
       "errors": {
         "engineNotFound": "'{{id}}' motoru yapılandırılmamış.",
@@ -1220,7 +1229,7 @@
       },
       "diff": {
         "lines": "satır",
-        "charsChanged_one": "1 karakter değişti",
+        "charsChanged_one": "{{count}} karakter değişti",
         "charsChanged_other": "{{count}} karakter değişti",
         "identical": "Değişiklik yok.",
         "added_one": "+{{count}} eklendi",
@@ -1230,9 +1239,7 @@
       },
       "resultsEmptyTitle": "Sonuçlar burada görünecek",
       "resultsEmptyHint": "Yukarıdan bir kaynak, promptlar ve motorlar seçip çalıştırın. Her kart cilalanmış metni, değişiklikleri ve hızını gösterir.",
-      "appliedLabel": "Başarılı",
-      "cancel": "İptal",
-      "cancelledCard": "Bu çalışma başlamadan önce iptal edildi."
+      "appliedLabel": "Başarılı"
     }
   },
   "footer": {
@@ -1301,6 +1308,8 @@
     "recordingFailed": "Kayıt başlatılamadı: {{error}}",
     "modelLoadFailed": "Model yüklenemedi: {{model}}",
     "modelLoadFailedUnknown": "bilinmeyen model",
+    "modelLoadFailedMemoryGate": "{{model}} modelini yüklemek için yeterli boş bellek yok: yaklaşık {{needed}} gerekiyor, yaklaşık {{free}} boş.",
+    "modelLoadFailedDetail": "Model değiştirilmedi. Teknik neden günlük dosyasında.",
     "modelFallbackTitle": "Düşük bellek",
     "modelFallback": "Bu dikte için {{model}} modeline geçildi",
     "pasteFailedTitle": "Metin yapıştırılamadı",
@@ -1308,9 +1317,7 @@
     "transcriptionFailedTitle": "Transkripsiyon başarısız oldu",
     "noModelSelectedTitle": "Model seçilmedi",
     "noModelSelected": "Dikteye başlamadan önce Ayarlar'dan bir transkripsiyon modeli seçin.",
-    "openDirectory": "Klasör açılamadı: {{error}}",
-    "modelLoadFailedMemoryGate": "{{model}} modelini yüklemek için yeterli boş bellek yok: yaklaşık {{needed}} gerekiyor, yaklaşık {{free}} boş.",
-    "modelLoadFailedDetail": "Model değiştirilmedi. Teknik neden günlük dosyasında."
+    "openDirectory": "Klasör açılamadı: {{error}}"
   },
   "appLanguage": {
     "title": "Uygulama Dili",
@@ -1382,9 +1389,9 @@
     "gotIt": "Anladım"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} 1 kısayolu engelliyor olabilir",
+    "blockedWithCulprit_one": "{{name}} {{count}} kısayolu engelliyor olabilir",
     "blockedWithCulprit_other": "{{name}} {{count}} kısayolu engelliyor olabilir",
-    "blockedNoCulprit_one": "macOS geçici olarak 1 kısayolu engelliyor",
+    "blockedNoCulprit_one": "macOS geçici olarak {{count}} kısayolu engelliyor",
     "blockedNoCulprit_other": "macOS geçici olarak {{count}} kısayolu engelliyor",
     "recorderBlockedWithCulprit": "{{name}} kısayol değişikliklerini engelliyor olabilir",
     "recorderBlockedNoCulprit": "macOS geçici olarak kısayol değişikliklerini engelliyor",
@@ -1431,9 +1438,13 @@
     "disconnectedFinalized": "Bağlantı koptu. Mac söylediklerini korudu.",
     "capped": "Oturum 15 dakikayla sınırlı. Devam etmek için yeniden bas.",
     "zeroAudio": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup konuş.",
+    "zeroAudioHold": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup konuş.",
+    "zeroAudioHoldOrToggle": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup ya da dokunup konuş.",
+    "zeroAudioTap": "Ses Mac'e ulaşmadı. Düğmeye dokunup konuş.",
     "serverStopped": "Mac eşlik sunucusunu durdurdu.",
     "reconnect": "Yeniden bağlan",
     "holdToTalk": "Konuşmak için basılı tut",
+    "holdOrToggleToTalk": "Konuşmak için basılı tut, kilitlemek için dokun",
     "tapToTalk": "Konuşmak için dokun",
     "release": "Bitirmek için bırak",
     "tapToStop": "Durdurmak için dokun",
@@ -1454,15 +1465,6 @@
     "historyTitle": "Son kayıtlar",
     "historyEmpty": "Bu telefonla yapılan dikatler burada görünür.",
     "stateMicBlocked": "Mikrofon engellendi",
-    "micBlockedRetry": "Mikrofon engellendi. Yeniden denemek için dokunun.",
-    "zeroAudioHold": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup konuş.",
-    "zeroAudioHoldOrToggle": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup ya da dokunup konuş.",
-    "zeroAudioTap": "Ses Mac'e ulaşmadı. Düğmeye dokunup konuş.",
-    "holdOrToggleToTalk": "Konuşmak için basılı tut, kilitlemek için dokun"
-  },
-  "trayCopyOutcome": {
-    "copied": "Dikte panoya kopyalandı.",
-    "empty": "Henüz kopyalanacak bir şey yok.",
-    "failed": "Dikte panoya kopyalanamadı."
+    "micBlockedRetry": "Mikrofon engellendi. Yeniden denemek için dokunun."
   }
 }

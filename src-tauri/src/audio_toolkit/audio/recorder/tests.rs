@@ -199,6 +199,42 @@ fn wait_for_pause_request(source: &super::RemoteAudioSource, timeout: Duration) 
     }
 }
 
+/// KB-263 (v1.6.4) pin: an acknowledgement that lands BEFORE any Stop
+/// raised the pause request is worthless - `acknowledge_pause_after_write`
+/// is inert until the request is live, and the consumer's Stop wipes
+/// `pause_acknowledged` when it starts the pause. This is exactly the old
+/// companion disconnect path, which acked eagerly at socket death and
+/// expected the drop-finalize's Stop to be covered; the Stop paid the full
+/// 2 s PAUSE_ACK_TIMEOUT anyway (only the later source-close fast path
+/// rescued it). The companion disconnect path therefore performs NO ack at
+/// all: every lane stop shape closes the source before stopping the
+/// recorder, and the producer-gone close is the immediate acknowledgement
+/// (see remote_stop_after_source_close_skips_the_pause_wait_entirely).
+/// This test deliberately pays the timeout once to pin why no eager or
+/// deferred ack can ever substitute for the source close.
+#[test]
+fn kb263_an_ack_before_any_stop_raises_the_pause_request_is_wiped() {
+    let mut recorder = AudioRecorder::new().expect("recorder");
+    let source = recorder.open_remote().expect("open remote source");
+    let ready = recorder.start(VadPolicy::Disabled).expect("start");
+    source.push_chunk(&[9.0, 8.0, 7.0]);
+    ready.recv_timeout(Duration::from_secs(1)).expect("ready");
+
+    // The eager ack: no Stop has raised the request yet, so it stores
+    // nothing (and would be wiped even if it had).
+    assert!(!source.pause_requested());
+    source.ack_pause();
+
+    let began = Instant::now();
+    let samples = recorder.stop().expect("stop returns buffered samples");
+    assert!(
+        began.elapsed() >= Duration::from_millis(1500),
+        "an early ack must not shorten the pause wait; the Stop waits out the timeout (took {:?})",
+        began.elapsed()
+    );
+    assert_eq!(&samples[..3], &[9.0, 8.0, 7.0]);
+}
+
 #[test]
 fn remote_source_close_discards_late_audio() {
     let mut recorder = AudioRecorder::new().expect("recorder");

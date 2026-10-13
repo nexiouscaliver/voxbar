@@ -45,7 +45,15 @@ export const LogDirectory: React.FC<LogDirectoryProps> = ({
   const handleOpen = async () => {
     if (!logDir) return;
     try {
-      await commands.openLogDir();
+      const result = await commands.openLogDir();
+      // KB-268: the generated bindings resolve a Rust Err as
+      // {status:"error"} instead of throwing, so checking only the
+      // transport catch below swallowed every real open failure (the
+      // exact silent-ACL-death this toast exists to prevent).
+      if (result.status !== "ok") {
+        toast.error(t("errors.openDirectory", { error: String(result.error) }));
+        return;
+      }
     } catch (openError) {
       // Visible failure: this button silently ACL-died for a whole release
       // because the error only reached the console.

@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Tastenkürzel durch Secure Input blockiert",
     "postProcessPrompt": "Nachbearbeitungs-Prompt"
   },
+  "trayCopyOutcome": {
+    "copied": "Das Diktat wurde in die Zwischenablage kopiert.",
+    "empty": "Es gibt noch nichts zu kopieren.",
+    "failed": "Das Diktat konnte nicht in die Zwischenablage kopiert werden."
+  },
   "sidebar": {
     "general": "Allgemein",
     "commands": "Befehle",
@@ -758,7 +763,7 @@
           "retry": "Erneut versuchen",
           "visibleDescription": "Das Modell, das dein Transkript nach jedem Diktat neu schreibt.",
           "fetchingList": "Modellliste wird geladen...",
-          "listSummary_one": "1 Modell, geladen {{time}}",
+          "listSummary_one": "{{count}} Modell, geladen {{time}}",
           "listSummary_other": "{{count}} Modelle, geladen {{time}}",
           "notFetched": "Noch keine Modellliste.",
           "emptyTitle": "Keine Modelle gelistet",
@@ -940,6 +945,7 @@
       "empty": "Noch keine Transkriptionen. Starte eine Aufnahme, um deinen Verlauf aufzubauen!",
       "copyToClipboard": "Transkription in Zwischenablage kopieren",
       "copyError": "Transkription konnte nicht in die Zwischenablage kopiert werden.",
+      "savedToggleError": "Gespeichert-Status konnte nicht aktualisiert werden.",
       "save": "Transkription speichern",
       "unsave": "Aus Gespeicherten entfernen",
       "delete": "Eintrag löschen",
@@ -959,13 +965,12 @@
       "viaPostProcess": "über {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Änderungen anzeigen",
       "hideChanges": "Änderungen ausblenden",
+      "dbRecoveredNotice": "Die Datenbank Ihres Transkriptionsverlaufs war unlesbar, daher wurde eine neue gestartet. Die vorherige Datenbank wurde als {{file}} aufbewahrt.",
       "emptyTitle": "Noch keine Transkriptionen",
       "emptyHint": "Drücke deine Aufnahme-Tastenkombination, um dein erstes Diktat aufzunehmen.",
       "deleteConfirm": "Diesen Eintrag löschen? Die Aufnahme und ihr Transkript werden dauerhaft entfernt.",
       "today": "Heute",
-      "yesterday": "Gestern",
-      "savedToggleError": "Gespeichert-Status konnte nicht aktualisiert werden.",
-      "dbRecoveredNotice": "Die Datenbank Ihres Transkriptionsverlaufs war unlesbar, daher wurde eine neue gestartet. Die vorherige Datenbank wurde als {{file}} aufbewahrt."
+      "yesterday": "Gestern"
     },
     "debug": {
       "title": "Debug",
@@ -987,6 +992,8 @@
         "copied": "Kopiert",
         "lineCount": "{{count}} Zeilen",
         "empty": "Warte auf Logs … Einträge erscheinen hier, sobald die App sie ausgibt.",
+        "lineCount_one": "{{count}} Zeile",
+        "lineCount_other": "{{count}} Zeilen",
         "clearConfirm": "Die erfassten Zeilen aus dieser Ansicht löschen? Die Protokolldatei auf der Festplatte bleibt erhalten.",
         "clearConfirmTitle": "Erfasste Zeilen löschen?"
       },
@@ -1202,16 +1209,18 @@
         "noModel": "Kein Modell konfiguriert",
         "noModelHint": "Kein Modell gesetzt. Wähle eines unter Post Process."
       },
-      "run_one": "1 Paar ausführen",
+      "run_one": "{{count}} Paar ausführen",
       "run_other": "{{count}} Paare ausführen",
-      "runHint_one": "1 Prompt auf 1 Engine. Es wird nichts eingetippt oder gespeichert.",
+      "runHint_one": "{{count}} Paar ausführen. Es wird nichts eingetippt oder gespeichert.",
       "runHint_other": "{{count}} Prompt-Engine-Paare. Es wird nichts eingetippt oder gespeichert.",
       "running": "Wird ausgeführt...",
+      "cancel": "Abbrechen",
+      "cancelledCard": "Abgebrochen, bevor dieser Lauf startete.",
       "rerun": "Erneut ausführen",
       "latency": "{{ms}} ms",
       "rawKept": "Die Engine ist fehlgeschlagen oder wurde übersprungen, daher würde das rohe Transkript behalten.",
       "partialFailure": "Einige Läufe sind fehlgeschlagen oder wurden übersprungen, während andere Ausgaben erzeugt haben. Prüfe jede Karte.",
-      "results_one": "1 Ergebnis",
+      "results_one": "{{count}} Ergebnis",
       "results_other": "{{count}} Ergebnisse",
       "errors": {
         "engineNotFound": "Engine '{{id}}' ist nicht konfiguriert.",
@@ -1220,7 +1229,7 @@
       },
       "diff": {
         "lines": "Zeilen",
-        "charsChanged_one": "1 Zeichen geändert",
+        "charsChanged_one": "{{count}} Zeichen geändert",
         "charsChanged_other": "{{count}} Zeichen geändert",
         "identical": "Keine Änderungen.",
         "added_one": "+{{count}} hinzugefügt",
@@ -1230,9 +1239,7 @@
       },
       "resultsEmptyTitle": "Ergebnisse erscheinen hier",
       "resultsEmptyHint": "Wähle oben Quelle, Prompts und Engines und führe sie aus. Jede Karte zeigt den bearbeiteten Text, seine Änderungen und wie schnell er lief.",
-      "appliedLabel": "Erfolg",
-      "cancel": "Abbrechen",
-      "cancelledCard": "Abgebrochen, bevor dieser Lauf startete."
+      "appliedLabel": "Erfolg"
     }
   },
   "footer": {
@@ -1301,6 +1308,8 @@
     "recordingFailed": "Aufnahme konnte nicht gestartet werden: {{error}}",
     "modelLoadFailed": "Modell konnte nicht geladen werden: {{model}}",
     "modelLoadFailedUnknown": "unbekanntes Modell",
+    "modelLoadFailedMemoryGate": "Nicht genug freier Speicher, um {{model}} zu laden: benötigt etwa {{needed}}, etwa {{free}} frei.",
+    "modelLoadFailedDetail": "Das Modell wurde nicht geändert. Der technische Grund steht in der Protokolldatei.",
     "modelFallbackTitle": "Wenig Speicher",
     "modelFallback": "Für diese Diktation wurde zu {{model}} gewechselt",
     "pasteFailedTitle": "Text konnte nicht eingefügt werden",
@@ -1308,9 +1317,7 @@
     "transcriptionFailedTitle": "Transkription fehlgeschlagen",
     "noModelSelectedTitle": "Kein Modell ausgewählt",
     "noModelSelected": "Wählen Sie vor dem Diktieren ein Transkriptionsmodell in den Einstellungen.",
-    "openDirectory": "Ordner konnte nicht geöffnet werden: {{error}}",
-    "modelLoadFailedMemoryGate": "Nicht genug freier Speicher, um {{model}} zu laden: benötigt etwa {{needed}}, etwa {{free}} frei.",
-    "modelLoadFailedDetail": "Das Modell wurde nicht geändert. Der technische Grund steht in der Protokolldatei."
+    "openDirectory": "Ordner konnte nicht geöffnet werden: {{error}}"
   },
   "appLanguage": {
     "title": "Anwendungssprache",
@@ -1382,9 +1389,9 @@
     "gotIt": "Verstanden"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} blockiert möglicherweise 1 Tastenkürzel",
+    "blockedWithCulprit_one": "{{name}} blockiert möglicherweise {{count}} Tastenkürzel",
     "blockedWithCulprit_other": "{{name}} blockiert möglicherweise {{count}} Tastenkürzel",
-    "blockedNoCulprit_one": "macOS blockiert vorübergehend 1 Tastenkürzel",
+    "blockedNoCulprit_one": "macOS blockiert vorübergehend {{count}} Tastenkürzel",
     "blockedNoCulprit_other": "macOS blockiert vorübergehend {{count}} Tastenkürzel",
     "recorderBlockedWithCulprit": "{{name}} blockiert möglicherweise Änderungen an Tastenkürzeln",
     "recorderBlockedNoCulprit": "macOS blockiert vorübergehend Änderungen an Tastenkürzeln",
@@ -1431,9 +1438,13 @@
     "disconnectedFinalized": "Verbindung getrennt. Der Mac hat behalten, was du gesagt hast.",
     "capped": "Sitzung nach 15 Minuten begrenzt. Drücke erneut, um weiterzumachen.",
     "zeroAudio": "Kein Audio erreichte den Mac. Halte die Taste gedrückt und sprich dann.",
+    "zeroAudioHold": "Kein Audio erreichte den Mac. Halte die Taste gedrückt und sprich dann.",
+    "zeroAudioHoldOrToggle": "Kein Audio erreichte den Mac. Halte die Taste gedrückt oder tippe darauf und sprich dann.",
+    "zeroAudioTap": "Kein Audio erreichte den Mac. Tippe auf die Taste und sprich dann.",
     "serverStopped": "Der Mac hat den Begleitserver gestoppt.",
     "reconnect": "Erneut verbinden",
     "holdToTalk": "Zum Sprechen halten",
+    "holdOrToggleToTalk": "Zum Sprechen halten, zum Sperren tippen",
     "tapToTalk": "Tippen zum Sprechen",
     "release": "Loslassen zum Beenden",
     "tapToStop": "Tippen zum Stoppen",
@@ -1454,15 +1465,6 @@
     "historyTitle": "Zuletzt",
     "historyEmpty": "Diktate von diesem Telefon erscheinen hier.",
     "stateMicBlocked": "Mikrofon blockiert",
-    "micBlockedRetry": "Mikrofon blockiert. Zum Wiederholen tippen.",
-    "zeroAudioHold": "Kein Audio erreichte den Mac. Halte die Taste gedrückt und sprich dann.",
-    "zeroAudioHoldOrToggle": "Kein Audio erreichte den Mac. Halte die Taste gedrückt oder tippe darauf und sprich dann.",
-    "zeroAudioTap": "Kein Audio erreichte den Mac. Tippe auf die Taste und sprich dann.",
-    "holdOrToggleToTalk": "Zum Sprechen halten, zum Sperren tippen"
-  },
-  "trayCopyOutcome": {
-    "copied": "Das Diktat wurde in die Zwischenablage kopiert.",
-    "empty": "Es gibt noch nichts zu kopieren.",
-    "failed": "Das Diktat konnte nicht in die Zwischenablage kopiert werden."
+    "micBlockedRetry": "Mikrofon blockiert. Zum Wiederholen tippen."
   }
 }

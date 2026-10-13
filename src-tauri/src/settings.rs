@@ -906,6 +906,17 @@ pub struct AppSettings {
     /// Name of the last device that completed a hello handshake.
     #[serde(default)]
     pub companion_last_device: Option<String>,
+    /// KB-261 (v1.6.4): the phone identities this Mac has ever paired with
+    /// (`name#tag` strings, most recent last, bounded) - the durable
+    /// pairing record the server reseeds its in-memory set from at start,
+    /// so an exact re-pair after a restart owes no persistence. Fleet pass
+    /// 1: this set is no longer an adoption matcher (platform-name
+    /// adoption shipped one phone's transcript history to whichever
+    /// same-platform token holder paired while its owner was away);
+    /// identities are exact, so a phone keeps its Recent list while its
+    /// stored device id survives the pairing URL's origin.
+    #[serde(default)]
+    pub companion_known_identities: Vec<String>,
     /// v1.6.0: the interface IP the companion server binds and advertises
     /// (chosen in the settings picker). None/empty means the automatic
     /// LAN-preferred ranking, the pre-v1.6.0 behavior. A Tailscale
@@ -2037,6 +2048,7 @@ pub fn get_default_settings() -> AppSettings {
         companion_pairing_token: None,
         companion_pairing_subnet: None,
         companion_last_device: None,
+        companion_known_identities: Vec::new(),
         companion_bind_ip: None,
         companion_advertised_host: None,
         companion_tls_cert_path: None,

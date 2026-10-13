@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Skróty zablokowane przez Secure Input",
     "postProcessPrompt": "Prompt postprocessingu"
   },
+  "trayCopyOutcome": {
+    "copied": "Dyktando zostało skopiowane do schowka.",
+    "empty": "Nie ma jeszcze niczego do skopiowania.",
+    "failed": "Nie udało się skopiować dyktanda do schowka."
+  },
   "sidebar": {
     "general": "Ogólne",
     "commands": "Polecenia",
@@ -758,7 +763,7 @@
           "retry": "Spróbuj ponownie",
           "visibleDescription": "Model, który przepisuje transkrypcję po każdym dyktowaniu.",
           "fetchingList": "Pobieranie listy modeli...",
-          "listSummary_one": "1 model, pobrano {{time}}",
+          "listSummary_one": "{{count}} model, pobrano {{time}}",
           "listSummary_few": "{{count}} modele, pobrano {{time}}",
           "listSummary_many": "{{count}} modeli, pobrano {{time}}",
           "listSummary_other": "{{count}} modeli, pobrano {{time}}",
@@ -944,6 +949,7 @@
       "empty": "Brak transkrypcji. Rozpocznij nagrywanie, aby zbudować historię!",
       "copyToClipboard": "Kopiuj transkrypcję do schowka",
       "copyError": "Nie udało się skopiować transkrypcji do schowka.",
+      "savedToggleError": "Nie udało się zaktualizować stanu zapisania.",
       "save": "Zapisz transkrypcję",
       "unsave": "Usuń z zapisanych",
       "delete": "Usuń wpis",
@@ -963,13 +969,12 @@
       "viaPostProcess": "przez {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Pokaż zmiany",
       "hideChanges": "Ukryj zmiany",
+      "dbRecoveredNotice": "Baza danych historii transkrypcji była nieczytelna, więc rozpoczęto nową. Poprzednia baza danych została zachowana jako {{file}}.",
       "emptyTitle": "Brak transkrypcji",
       "emptyHint": "Naciśnij skrót nagrywania, aby przechwycić swoje pierwsze polecenie.",
       "deleteConfirm": "Usunąć ten wpis? Nagranie i jego transkrypcja zostaną trwale usunięte.",
       "today": "Dzisiaj",
-      "yesterday": "Wczoraj",
-      "savedToggleError": "Nie udało się zaktualizować stanu zapisania.",
-      "dbRecoveredNotice": "Baza danych historii transkrypcji była nieczytelna, więc rozpoczęto nową. Poprzednia baza danych została zachowana jako {{file}}."
+      "yesterday": "Wczoraj"
     },
     "debug": {
       "title": "Debugowanie",
@@ -991,6 +996,10 @@
         "copied": "Skopiowano",
         "lineCount": "Wierszy: {{count}}",
         "empty": "Oczekiwanie na logi… Wpisy pojawią się tutaj, gdy aplikacja je wygeneruje.",
+        "lineCount_one": "{{count}} wiersz",
+        "lineCount_few": "{{count}} wiersze",
+        "lineCount_many": "{{count}} wierszy",
+        "lineCount_other": "Wierszy: {{count}}",
         "clearConfirm": "Wyczyścić przechwycone wiersze z tego widoku? Plik dziennika na dysku zostanie zachowany.",
         "clearConfirmTitle": "Wyczyścić przechwycone wiersze?"
       },
@@ -1206,20 +1215,22 @@
         "noModel": "Brak skonfigurowanego modelu",
         "noModelHint": "Nie ustawiono modelu. Wybierz go w Post Process."
       },
-      "run_one": "Uruchom 1 parę",
+      "run_one": "Uruchom {{count}} parę",
       "run_few": "Uruchom {{count}} pary",
       "run_many": "Uruchom {{count}} par",
       "run_other": "Uruchom pary: {{count}}",
-      "runHint_one": "1 prompt na 1 silniku. Nic nie jest wpisywane ani zapisywane.",
+      "runHint_one": "Uruchom {{count}} parę. Nic nie jest wpisywane ani zapisywane.",
       "runHint_few": "{{count}} pary prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "runHint_many": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "runHint_other": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "running": "Uruchamianie...",
+      "cancel": "Anuluj",
+      "cancelledCard": "Anulowano przed rozpoczęciem tego uruchomienia.",
       "rerun": "Uruchom ponownie",
       "latency": "{{ms}} ms",
       "rawKept": "Silnik nie powiódł się lub został pominięty, więc surowa transkrypcja zostałaby zachowana.",
       "partialFailure": "Niektóre uruchomienia nie powiodły się lub zostały pominięte, a inne dały wynik. Sprawdź każdą kartę.",
-      "results_one": "1 wynik",
+      "results_one": "{{count}} wynik",
       "results_few": "{{count}} wyniki",
       "results_many": "{{count}} wyników",
       "results_other": "Wyników: {{count}}",
@@ -1230,25 +1241,23 @@
       },
       "diff": {
         "lines": "linii",
-        "charsChanged_one": "Zmieniono 1 znak",
+        "charsChanged_one": "Zmieniono {{count}} znak",
         "charsChanged_few": "Zmieniono {{count}} znaki",
         "charsChanged_many": "Zmieniono {{count}} znaków",
         "charsChanged_other": "Zmieniono znaków: {{count}}",
         "identical": "Brak zmian.",
         "added_few": "+{{count}} dodane",
         "added_many": "+{{count}} dodanych",
-        "added_one": "+1 dodana",
+        "added_one": "+{{count}} dodana",
         "added_other": "Dodane: {{count}}",
         "removed_few": "{{count}} usunięte",
         "removed_many": "{{count}} usuniętych",
-        "removed_one": "1 usunięta",
+        "removed_one": "{{count}} usunięta",
         "removed_other": "Usunięte: {{count}}"
       },
       "resultsEmptyTitle": "Wyniki pojawią się tutaj",
       "resultsEmptyHint": "Wybierz wyżej źródło, prompty i silniki, a potem uruchom. Każda karta pokazuje dopracowany tekst, zmiany i czas działania.",
-      "appliedLabel": "Sukces",
-      "cancel": "Anuluj",
-      "cancelledCard": "Anulowano przed rozpoczęciem tego uruchomienia."
+      "appliedLabel": "Sukces"
     }
   },
   "footer": {
@@ -1317,6 +1326,8 @@
     "recordingFailed": "Nie udało się rozpocząć nagrywania: {{error}}",
     "modelLoadFailed": "Nie udało się załadować modelu: {{model}}",
     "modelLoadFailedUnknown": "nieznany model",
+    "modelLoadFailedMemoryGate": "Za mało wolnej pamięci, aby wczytać {{model}}: potrzeba ok. {{needed}}, dostępne ok. {{free}}.",
+    "modelLoadFailedDetail": "Model nie został zmieniony. Przyczyna techniczna znajduje się w pliku dziennika.",
     "modelFallbackTitle": "Mało pamięci",
     "modelFallback": "Przełączono na {{model}} dla tego dyktanda",
     "pasteFailedTitle": "Nie udało się wkleić tekstu",
@@ -1324,9 +1335,7 @@
     "transcriptionFailedTitle": "Transkrypcja nie powiodła się",
     "noModelSelectedTitle": "Nie wybrano modelu",
     "noModelSelected": "Przed dyktowaniem wybierz model transkrypcji w Ustawieniach.",
-    "openDirectory": "Nie udało się otworzyć folderu: {{error}}",
-    "modelLoadFailedMemoryGate": "Za mało wolnej pamięci, aby wczytać {{model}}: potrzeba ok. {{needed}}, dostępne ok. {{free}}.",
-    "modelLoadFailedDetail": "Model nie został zmieniony. Przyczyna techniczna znajduje się w pliku dziennika."
+    "openDirectory": "Nie udało się otworzyć folderu: {{error}}"
   },
   "appLanguage": {
     "title": "Język aplikacji",
@@ -1398,15 +1407,19 @@
     "gotIt": "Rozumiem"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} może blokować 1 skrót",
+    "blockedWithCulprit_one": "{{name}} może blokować {{count}} skrót",
     "blockedWithCulprit_other": "{{name}} może blokować {{count}} skrótów",
-    "blockedNoCulprit_one": "macOS tymczasowo blokuje 1 skrót",
+    "blockedNoCulprit_one": "macOS tymczasowo blokuje {{count}} skrót",
     "blockedNoCulprit_other": "macOS tymczasowo blokuje {{count}} skrótów",
     "recorderBlockedWithCulprit": "{{name}} może blokować zmiany skrótów",
     "recorderBlockedNoCulprit": "macOS tymczasowo blokuje zmiany skrótów",
     "learnMore": "Jak to naprawić",
     "recorderBlocked": "Nie można teraz nagrać skrótu - Secure Input w macOS blokuje zdarzenia klawiszy. Najpierw rozwiąż ostrzeżenie o Secure Input.",
-    "dismiss": "Odrzuć"
+    "dismiss": "Odrzuć",
+    "blockedWithCulprit_few": "{{name}} może blokować {{count}} skróty",
+    "blockedWithCulprit_many": "{{name}} może blokować {{count}} skrótów",
+    "blockedNoCulprit_few": "macOS tymczasowo blokuje {{count}} skróty",
+    "blockedNoCulprit_many": "macOS tymczasowo blokuje {{count}} skrótów"
   },
   "toast": {
     "postProcessSkip": {
@@ -1447,9 +1460,13 @@
     "disconnectedFinalized": "Połączenie zerwane. Mac zachował to, co powiedziałeś.",
     "capped": "Sesja ograniczona do 15 minut. Naciśnij ponownie, aby kontynuować.",
     "zeroAudio": "Dźwięk nie dotarł do Maca. Przytrzymaj przycisk i mów.",
+    "zeroAudioHold": "Dźwięk nie dotarł do Maca. Przytrzymaj przycisk i mów.",
+    "zeroAudioHoldOrToggle": "Dźwięk nie dotarł do Maca. Przytrzymaj lub dotknij przycisku i mów.",
+    "zeroAudioTap": "Dźwięk nie dotarł do Maca. Dotknij przycisku i mów.",
     "serverStopped": "Mac zatrzymał serwer towarzyszący.",
     "reconnect": "Połącz ponownie",
     "holdToTalk": "Przytrzymaj, aby mówić",
+    "holdOrToggleToTalk": "Przytrzymaj, aby mówić, dotknij, aby zablokować",
     "tapToTalk": "Dotknij, aby mówić",
     "release": "Puść, aby zakończyć",
     "tapToStop": "Dotknij, aby zatrzymać",
@@ -1470,15 +1487,6 @@
     "historyTitle": "Ostatnie",
     "historyEmpty": "Dyktowania z tego telefonu pojawią się tutaj.",
     "stateMicBlocked": "Mikrofon zablokowany",
-    "micBlockedRetry": "Mikrofon zablokowany. Dotknij, aby ponowić.",
-    "zeroAudioHold": "Dźwięk nie dotarł do Maca. Przytrzymaj przycisk i mów.",
-    "zeroAudioHoldOrToggle": "Dźwięk nie dotarł do Maca. Przytrzymaj lub dotknij przycisku i mów.",
-    "zeroAudioTap": "Dźwięk nie dotarł do Maca. Dotknij przycisku i mów.",
-    "holdOrToggleToTalk": "Przytrzymaj, aby mówić, dotknij, aby zablokować"
-  },
-  "trayCopyOutcome": {
-    "copied": "Dyktando zostało skopiowane do schowka.",
-    "empty": "Nie ma jeszcze niczego do skopiowania.",
-    "failed": "Nie udało się skopiować dyktanda do schowka."
+    "micBlockedRetry": "Mikrofon zablokowany. Dotknij, aby ponowić."
   }
 }

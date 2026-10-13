@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Secure Input でショートカットがブロック中",
     "postProcessPrompt": "後処理プロンプト"
   },
+  "trayCopyOutcome": {
+    "copied": "文字起こしをクリップボードにコピーしました。",
+    "empty": "コピーするものがまだありません。",
+    "failed": "文字起こしをクリップボードにコピーできませんでした。"
+  },
   "sidebar": {
     "general": "一般",
     "commands": "コマンド",
@@ -758,7 +763,7 @@
           "retry": "再試行",
           "visibleDescription": "ディテーションごとに文字起こしを書き直すモデルです。",
           "fetchingList": "モデル一覧を取得中...",
-          "listSummary_one": "1 件のモデル、{{time}} に取得",
+          "listSummary_one": "{{count}} 件のモデル、{{time}} に取得",
           "listSummary_other": "{{count}} 件のモデル、{{time}} に取得",
           "notFetched": "モデル一覧はまだありません。",
           "emptyTitle": "モデルが一覧にありません",
@@ -940,6 +945,7 @@
       "empty": "まだ文字起こしがありません。録音を開始して履歴を作成しましょう!",
       "copyToClipboard": "文字起こしをクリップボードにコピー",
       "copyError": "文字起こしをクリップボードにコピーできませんでした。",
+      "savedToggleError": "保存状態を更新できませんでした。",
       "save": "文字起こしを保存",
       "unsave": "保存から削除",
       "delete": "エントリーを削除",
@@ -959,13 +965,12 @@
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms で処理",
       "viewChanges": "変更を表示",
       "hideChanges": "変更を閉じる",
+      "dbRecoveredNotice": "文字起こし履歴のデータベースを読み込めなかったため、新しいデータベースを開始しました。以前のデータベースは {{file}} として保存されています。",
       "emptyTitle": "まだ文字起こしがありません",
       "emptyHint": "録音ショートカットを押して、最初のディテーションを録音しましょう。",
       "deleteConfirm": "このエントリを削除しますか？録音とその文字起こしは完全に削除されます。",
       "today": "今日",
-      "yesterday": "昨日",
-      "savedToggleError": "保存状態を更新できませんでした。",
-      "dbRecoveredNotice": "文字起こし履歴のデータベースを読み込めなかったため、新しいデータベースを開始しました。以前のデータベースは {{file}} として保存されています。"
+      "yesterday": "昨日"
     },
     "debug": {
       "title": "デバッグ",
@@ -987,6 +992,8 @@
         "copied": "コピーしました",
         "lineCount": "{{count}}行",
         "empty": "ログを待機中… アプリが出力すると、ここにエントリが表示されます。",
+        "lineCount_one": "{{count}}行",
+        "lineCount_other": "{{count}}行",
         "clearConfirm": "このビューのキャプチャー行を消去しますか？ディスク上のログファイルは残ります。",
         "clearConfirmTitle": "キャプチャした行を消去しますか？"
       },
@@ -1202,16 +1209,18 @@
         "noModel": "モデルが未設定です",
         "noModelHint": "モデルが未設定です。Post Process で選択してください。"
       },
-      "run_one": "1 ペアを実行",
+      "run_one": "{{count}} ペアを実行",
       "run_other": "{{count}} ペアを実行",
-      "runHint_one": "1 つのプロンプトを 1 つのエンジンで実行。入力も保存もされません。",
+      "runHint_one": "{{count}} ペアを実行。入力も保存もされません。",
       "runHint_other": "プロンプトとエンジンの組み合わせ {{count}} 件。入力も保存もされません。",
       "running": "実行中...",
+      "cancel": "キャンセル",
+      "cancelledCard": "この実行が始まる前にキャンセルされました。",
       "rerun": "再実行",
       "latency": "{{ms}} ミリ秒",
       "rawKept": "エンジンが失敗またはスキップされたため、元の文字起こしが保持されます。",
       "partialFailure": "一部の実行は失敗またはスキップされ、他の実行は結果を生成しました。各カードを確認してください。",
-      "results_one": "1 件の結果",
+      "results_one": "{{count}} 件の結果",
       "results_other": "{{count}} 件の結果",
       "errors": {
         "engineNotFound": "エンジン '{{id}}' は設定されていません。",
@@ -1220,7 +1229,7 @@
       },
       "diff": {
         "lines": "行",
-        "charsChanged_one": "1 文字変更",
+        "charsChanged_one": "{{count}} 文字変更",
         "charsChanged_other": "{{count}} 文字変更",
         "identical": "変更なし。",
         "added_one": "+{{count}} 行追加",
@@ -1230,9 +1239,7 @@
       },
       "resultsEmptyTitle": "結果はここに表示されます",
       "resultsEmptyHint": "上でソース、プロンプト、エンジンを選んで実行してください。各カードに整形後のテキスト、変更点、所要時間が表示されます。",
-      "appliedLabel": "成功",
-      "cancel": "キャンセル",
-      "cancelledCard": "この実行が始まる前にキャンセルされました。"
+      "appliedLabel": "成功"
     }
   },
   "footer": {
@@ -1301,6 +1308,8 @@
     "recordingFailed": "録音の開始に失敗しました: {{error}}",
     "modelLoadFailed": "モデルの読み込みに失敗しました: {{model}}",
     "modelLoadFailedUnknown": "不明なモデル",
+    "modelLoadFailedMemoryGate": "メモリ不足のため {{model}} を読み込めません：約 {{needed}} 必要ですが、空きは約 {{free}} です。",
+    "modelLoadFailedDetail": "モデルは変更されていません。技術的な原因はログファイルにあります。",
     "modelFallbackTitle": "メモリ不足",
     "modelFallback": "このディクテーションでは {{model}} に切り替えました",
     "pasteFailedTitle": "テキストの貼り付けに失敗しました",
@@ -1308,9 +1317,7 @@
     "transcriptionFailedTitle": "文字起こしに失敗しました",
     "noModelSelectedTitle": "モデルが選択されていません",
     "noModelSelected": "ディテーションの前に、設定で文字起こしモデルを選んでください。",
-    "openDirectory": "フォルダを開けませんでした: {{error}}",
-    "modelLoadFailedMemoryGate": "メモリ不足のため {{model}} を読み込めません：約 {{needed}} 必要ですが、空きは約 {{free}} です。",
-    "modelLoadFailedDetail": "モデルは変更されていません。技術的な原因はログファイルにあります。"
+    "openDirectory": "フォルダを開けませんでした: {{error}}"
   },
   "appLanguage": {
     "title": "アプリの言語",
@@ -1431,9 +1438,13 @@
     "disconnectedFinalized": "接続が切れました。Macは話した内容を保持しています。",
     "capped": "セッションは15分で打ち切られます。続けるにはもう一度押してください。",
     "zeroAudio": "音声がMacに届きませんでした。ボタンを押したまま話してください。",
+    "zeroAudioHold": "音声がMacに届きませんでした。ボタンを押したまま話してください。",
+    "zeroAudioHoldOrToggle": "音声がMacに届きませんでした。ボタンを押したまま、またはタップして話してください。",
+    "zeroAudioTap": "音声がMacに届きませんでした。ボタンをタップして話してください。",
     "serverStopped": "Macがコンパニオンサーバーを停止しました。",
     "reconnect": "再接続",
     "holdToTalk": "押しながら話す",
+    "holdOrToggleToTalk": "押しながら話す、タップでロック",
     "tapToTalk": "タップして話す",
     "release": "離して終了",
     "tapToStop": "タップして停止",
@@ -1454,15 +1465,6 @@
     "historyTitle": "最近",
     "historyEmpty": "このスマホでのディクテーションがここに表示されます。",
     "stateMicBlocked": "マイクがブロックされています",
-    "micBlockedRetry": "マイクがブロックされています。タップして再試行",
-    "zeroAudioHold": "音声がMacに届きませんでした。ボタンを押したまま話してください。",
-    "zeroAudioHoldOrToggle": "音声がMacに届きませんでした。ボタンを押したまま、またはタップして話してください。",
-    "zeroAudioTap": "音声がMacに届きませんでした。ボタンをタップして話してください。",
-    "holdOrToggleToTalk": "押しながら話す、タップでロック"
-  },
-  "trayCopyOutcome": {
-    "copied": "文字起こしをクリップボードにコピーしました。",
-    "empty": "コピーするものがまだありません。",
-    "failed": "文字起こしをクリップボードにコピーできませんでした。"
+    "micBlockedRetry": "マイクがブロックされています。タップして再試行"
   }
 }

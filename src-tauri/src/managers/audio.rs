@@ -455,6 +455,38 @@ fn prewarm_retires(lanes: impl Iterator<Item = (u64, bool)>, target: u64) -> Vec
         .collect()
 }
 
+/// KB-272 (v1.6.4): the routing core of
+/// [`AudioRecordingManager::push_remote_chunk`], free so it is testable
+/// with REAL lane recorders (the manager pins tauri::AppHandle and cannot
+/// be constructed under tauri::test's MockRuntime; see the test-module
+/// note). True means the chunk entered THIS lane's own ring; false means
+/// the lane has no recorder (never pre-warmed, or its stop pipeline
+/// already removed the entry) and the caller must count the chunk as
+/// admitted-but-dropped, never swallow it. Takes only the lanes map -
+/// never the recording-state lock - so phone audio ingestion can never
+/// block on a Mac session transition.
+fn route_remote_chunk(
+    lanes: &Mutex<std::collections::HashMap<u64, RemoteLane>>,
+    lane: u64,
+    samples: &[f32],
+) -> bool {
+    // Fleet pass 2: poison-tolerant, like every companion-manager lock
+    // (see companion/mod.rs's locking note). This guard runs on EVERY
+    // phone audio frame on the connection task, and the map is poisonable
+    // in practice (try_start_remote_lane_recording opens the CoreAudio
+    // device and the VAD under it); a poisoned `.unwrap()` here panicked
+    // every later push, killing all phone dictation until restart with a
+    // stderr-only trace.
+    let lanes = lanes.lock().unwrap_or_else(|e| e.into_inner());
+    match lanes.get(&lane) {
+        Some(entry) => {
+            entry.source.push_chunk(samples);
+            true
+        }
+        None => false,
+    }
+}
+
 /// Tracks our forced "mute while recording" so we can restore the user's audio
 /// exactly as it was. `did_mute` is true while our mute is active; `prev_muted`
 /// is the system mute state captured just before we muted, used to decide
@@ -1477,24 +1509,12 @@ impl AudioRecordingManager {
     /// Push one audio chunk into ONE lane's ring (the server routes each
     /// connection's binary frames here). False when the lane has no
     /// recorder (never pre-warmed, or its session already closed it).
+    /// KB-272: delegates to [`route_remote_chunk`], the free core that is
+    /// behaviorally tested with real recorders (the manager itself pins
+    /// tauri::AppHandle and cannot be constructed under the mock runtime;
+    /// see the test-module note below).
     pub fn push_remote_chunk(&self, lane: u64, samples: &[f32]) -> bool {
-        let lanes = self.remote_lanes.lock().unwrap();
-        match lanes.get(&lane) {
-            Some(entry) => {
-                entry.source.push_chunk(samples);
-                true
-            }
-            None => false,
-        }
-    }
-
-    /// Acknowledge one lane's in-flight stop-pause when its socket dies
-    /// mid-session, so the lane's Stop never waits the 2 s pause timeout.
-    pub fn ack_remote_pause(&self, lane: u64) {
-        let lanes = self.remote_lanes.lock().unwrap();
-        if let Some(entry) = lanes.get(&lane) {
-            entry.source.ack_pause();
-        }
+        route_remote_chunk(&self.remote_lanes, lane, samples)
     }
 
     /// Pre-warm ONE lane's recorder (loads the VAD, opens the ring) while
@@ -1864,6 +1884,25 @@ impl AudioRecordingManager {
     /// stream closes now and the next session open resolves the flipped
     /// lid fresh through the same desired_microphone path.
     fn restart_open_stream_on_new_device(&self) {
+        // KB-273 (v1.6.4): a lid flip can only change the desired
+        // microphone when a clamshell microphone is configured; with none
+        // configured, desired_microphone resolves identically for an open
+        // and a closed lid, so the stop/start (and the state-lock hold
+        // across it, which blocks every start/stop pipeline for the length
+        // of the CoreAudio reopen - the UI-freeze class) served nothing.
+        // Gate BEFORE the lock: the common no-clamshell-mic flip now costs
+        // nothing at all.
+        if get_settings(&self.app_handle)
+            .clamshell_microphone
+            .as_deref()
+            .is_none()
+        {
+            debug!(
+                "Capture environment change skipped: no clamshell microphone is \
+                 configured, so the lid state cannot change the desired microphone"
+            );
+            return;
+        }
         let state = self.state.lock().unwrap();
         if capture_restart_forbidden(&state) {
             drop(state);
@@ -2043,6 +2082,27 @@ impl AudioRecordingManager {
         for lane in lanes {
             *map.entry(*lane).or_insert(0) += 1;
         }
+    }
+
+    /// KB-270 (v1.6.4): drop one dead lane's cancel-generation entry. The
+    /// map grew by an entry per lane id forever (ids are never reused), so
+    /// a flapping phone grew it monotonically. Safe only when the lane has
+    /// no pipeline in flight: a pipeline holding a captured generation for
+    /// this lane would read the default 0 after the removal and classify
+    /// its own drain as a cancellation, discarding the dictation - the
+    /// coordinator's retirement rule (lane_machine_retirable) calls this
+    /// only for a fully drained machine whose connection is gone.
+    /// Fleet pass 2: poison-tolerant, like route_remote_chunk's guard -
+    /// this runs on the COORDINATOR thread inside retire_dead_lane, and a
+    /// poisoned `.unwrap()` here would end that thread permanently (its
+    /// catch_unwind logs once and exits, no restart), extending a poison's
+    /// blast radius from one pipeline to keyboard plus all phone
+    /// dictation.
+    pub fn drop_lane_cancel_generation(&self, lane: u64) {
+        self.lane_cancel_generations
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .remove(&lane);
     }
 
     /// Stop the LOCAL recording session and return its captured samples.
@@ -2503,6 +2563,255 @@ mod tests {
             deferred_body.contains("MicrophoneMode::AlwaysOn"),
             "the deferred re-resolve must stay gated on the always-on mode"
         );
+    }
+
+    /// KB-273 (v1.6.4) source pin: the lid-driven capture restart is GATED
+    /// on a configured clamshell microphone BEFORE the state lock is ever
+    /// taken. A lid flip can only change the desired microphone when a
+    /// clamshell microphone is configured; without one, the old path still
+    /// took the state lock and ran the full CoreAudio stop/start across it
+    /// on EVERY flip (blocking every start/stop pipeline for the reopen's
+    /// duration - the UI-freeze class) to resolve the identical device.
+    /// The stop/reopen stays under the state lock WHEN a clamshell
+    /// microphone is configured: the fleet-pass-3 lock-across-switch
+    /// discipline (pinned above) closes a real start-commit TOCTOU, and
+    /// this gate is what removes the pointless restarts entirely.
+    #[test]
+    fn kb273_lid_restart_is_gated_on_a_configured_clamshell_microphone_first() {
+        let source = include_str!("audio.rs");
+        let at = source
+            .find("fn restart_open_stream_on_new_device(&self)")
+            .expect("the capture-environment restart");
+        let end = source[at..]
+            .find("pub fn update_clamshell_microphone")
+            .expect("its end");
+        let body = &source[at..at + end];
+        let gate_at = body
+            .find("clamshell_microphone")
+            .expect("the clamshell-microphone gate");
+        let gate_return_at = body[..gate_at + 400]
+            .find("return;")
+            .expect("the gate returns before any restart work");
+        let lock_at = body
+            .find("let state = self.state.lock().unwrap();")
+            .expect("the restart takes the state lock after the gate");
+        assert!(
+            gate_at < gate_return_at && gate_return_at < lock_at,
+            "the clamshell gate must return BEFORE the state lock is taken"
+        );
+        // The gate is the FIRST thing in the function: nothing ahead of it
+        // takes a lock or touches capture.
+        let before_gate = &body[..gate_at];
+        assert!(
+            !before_gate.contains(".lock()"),
+            "nothing ahead of the gate may take a lock (the every-lid-flip freeze)"
+        );
+    }
+
+    /// KB-272 (v1.6.4) source pin, the manager half: push_remote_chunk
+    /// must DELEGATE to the free routing core (which the behavioral test
+    /// below executes with real recorders) and the core's bool must be
+    /// EXACTLY lane-map membership - a hit pushes into that lane's own
+    /// source under the lanes lock (never the state lock), a miss returns
+    /// false without touching anything. The companion server counts the
+    /// false arm as an admitted-but-dropped chunk (see the server-side
+    /// KB-272 pins).
+    #[test]
+    fn kb272_push_remote_chunk_delegates_to_the_testable_routing_core() {
+        let source = include_str!("audio.rs");
+        let at = source
+            .find("pub fn push_remote_chunk(&self, lane: u64, samples: &[f32]) -> bool {")
+            .expect("push_remote_chunk");
+        let end = at + source[at..].find("\n    }\n").expect("fn end");
+        let body = &source[at..end];
+        assert!(
+            body.contains("route_remote_chunk(&self.remote_lanes, lane, samples)"),
+            "the method must delegate its whole body to the free core (so the behavioral test covers the exact code the server runs)"
+        );
+        let core_at = source
+            .find("fn route_remote_chunk(")
+            .expect("the routing core");
+        let core_end = core_at + source[core_at..].find("\n}\n").expect("core end");
+        let core = &source[core_at..core_end];
+        assert!(
+            core.contains("entry.source.push_chunk(samples);"),
+            "a hit pushes into THIS lane's own source"
+        );
+        assert!(
+            core.contains("None => false,"),
+            "a lane with no recorder returns false (the server's admitted-dropped counter)"
+        );
+        assert!(
+            !core.contains("self.state"),
+            "the push must never take the recording-state lock (phone audio ingestion would block on every Mac session transition)"
+        );
+    }
+
+    /// KB-272 (v1.6.4): the routing core EXECUTED with real lane recorders
+    /// (AudioRecorder::open_remote builds the exact RemoteLane pair the
+    /// production pre-warm builds; only the manager shell around the map is
+    /// out of reach under the mock runtime). A hit routes the chunk into
+    /// THIS lane's own ring and it round-trips through the real
+    /// stop pipeline shape (source close first, then stop); a lane whose
+    /// entry a stop pipeline already REMOVED returns false - the exact
+    /// admitted-but-dropped shape the server counts; a lane that never
+    /// existed returns false forever without panicking or accruing
+    /// overruns; and one lane's ring never receives another lane's chunk.
+    #[test]
+    fn kb272_route_remote_chunk_round_trips_real_recorders_and_reports_membership() {
+        let mut lane7_rec = AudioRecorder::new().expect("recorder for lane 7");
+        let lane7_source = lane7_rec.open_remote().expect("open lane 7 source");
+        let mut lane12_rec = AudioRecorder::new().expect("recorder for lane 12");
+        let lane12_source = lane12_rec.open_remote().expect("open lane 12 source");
+
+        let mut lanes = std::collections::HashMap::new();
+        lanes.insert(
+            7u64,
+            RemoteLane {
+                recorder: lane7_rec,
+                source: lane7_source,
+                recording: true,
+                generation: 1,
+            },
+        );
+        lanes.insert(
+            12u64,
+            RemoteLane {
+                recorder: lane12_rec,
+                source: lane12_source,
+                recording: false,
+                generation: 2,
+            },
+        );
+        let lanes = Mutex::new(lanes);
+
+        // A hit: the chunk enters lane 7's ring (the recorder must be
+        // started for the consumer to drain it into a recording).
+        let ready = {
+            let mut guard = lanes.lock().unwrap();
+            guard
+                .get_mut(&7)
+                .expect("lane 7")
+                .recorder
+                .start(VadPolicy::Disabled)
+                .expect("start")
+        };
+        let speech: Vec<f32> = (0..1600).map(|i| (i as f32 * 0.005) - 4.0).collect();
+        assert!(
+            route_remote_chunk(&lanes, 7, &speech),
+            "a live lane's chunk is delivered"
+        );
+        ready
+            .recv_timeout(Duration::from_secs(1))
+            .expect("lane 7 capture ready");
+
+        // Isolation: lane 12 receives its own chunk and lane 7's stays
+        // untouched (lane 12 is not started, so its chunk only needs to
+        // land in the ring; the assertion below drains lane 7 only).
+        assert!(route_remote_chunk(&lanes, 12, &[0.25, -0.25]));
+
+        // The stop pipeline's shape for lane 7: remove the entry, close the
+        // source first, then stop - the captured audio comes back.
+        let mut taken = lanes.lock().unwrap().remove(&7).expect("take lane 7");
+        taken.source.close();
+        let samples = taken.recorder.stop().expect("stop returns the samples");
+        assert_eq!(
+            &samples[..speech.len()],
+            &speech[..],
+            "the routed chunk round-trips through the real ring"
+        );
+        let _ = taken.recorder.close();
+
+        // KB-272 proper: after the stop pipeline removed the entry, the
+        // admission may still say live (the Mac's session state has not
+        // flipped yet) - the route must return false for every further
+        // chunk, the exact admitted-but-dropped shape the server counts.
+        for _ in 0..3 {
+            assert!(
+                !route_remote_chunk(&lanes, 7, &speech),
+                "a removed lane reports non-delivery for every chunk"
+            );
+        }
+        // A lane that never existed: false forever, no panic, no overrun
+        // leak through any recorder (lane 12's ring is untouched).
+        for _ in 0..3 {
+            assert!(!route_remote_chunk(&lanes, 99, &speech));
+        }
+        let mut lane12 = lanes.lock().unwrap().remove(&12).expect("lane 12 intact");
+        let lane12_overruns = lane12.source.overrun_samples();
+        let _ = lane12.recorder.close();
+        assert_eq!(lane12_overruns, 0, "chunks for unknown lanes touch nothing");
+    }
+
+    /// Fleet pass 2: the routing core survives a POISONED lanes guard. The
+    /// companion manager converted every std Mutex it owns to
+    /// poison-tolerant acquisition for exactly this failure class (a panic
+    /// under the guard - try_start_remote_lane_recording opens the
+    /// CoreAudio device and the VAD while holding it), but
+    /// route_remote_chunk's `.lock().unwrap()` was left behind: after one
+    /// poison, EVERY phone audio frame panicked its connection task - all
+    /// phone dictation dead until restart, stderr-only. The guard is
+    /// bookkeeping (route by lane key), so recovery beats poisoning the
+    /// whole phone-ingestion surface.
+    #[test]
+    fn kb272_route_remote_chunk_survives_a_poisoned_lanes_guard() {
+        let lanes = Mutex::new(std::collections::HashMap::new());
+
+        // Poison the guard: panic in a task while holding it (caught, the
+        // way tokio catches a task panic).
+        let _ = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            let _guard = lanes.lock().unwrap();
+            panic!("poison the lanes guard");
+        }));
+
+        // Every later phone frame must still route - an unknown lane
+        // reports false, the admitted-dropped shape - instead of
+        // panicking its connection task.
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            route_remote_chunk(&lanes, 7, &[0.5, -0.5])
+        }));
+        assert_eq!(
+            result.expect("a poisoned guard must not panic the routing core"),
+            false,
+            "an unknown lane still reports not-delivered under poison"
+        );
+    }
+
+    /// Fleet pass 2, source pin (the manager shell cannot be constructed
+    /// under the mock runtime; see the module note): the two NEW audio-side
+    /// lock sites on the phone path stay poison-tolerant like the
+    /// companion manager's -
+    /// route_remote_chunk (every phone audio frame, connection task) and
+    /// drop_lane_cancel_generation (the coordinator thread's
+    /// retire_dead_lane, whose catch_unwind logs once and exits with no
+    /// restart - a poison there ends keyboard AND phone dictation). A
+    /// `.lock().unwrap()` at either site reintroduces the exact failure
+    /// class the companion locks were converted for.
+    #[test]
+    fn phone_path_lock_sites_are_poison_tolerant() {
+        let source = include_str!("../managers/audio.rs");
+        for site in [
+            "fn route_remote_chunk(",
+            "pub fn drop_lane_cancel_generation(",
+        ] {
+            let at = source
+                .find(site)
+                .unwrap_or_else(|| panic!("{site} must exist"));
+            let end = at
+                + source[at..]
+                    .find("\n    }\n")
+                    .or_else(|| source[at..].find("\n}\n"))
+                    .expect("fn end");
+            let body = &source[at..end];
+            assert!(
+                body.contains("unwrap_or_else(|e| e.into_inner())"),
+                "{site} must acquire its lock poison-tolerantly (see companion/mod.rs's locking note)"
+            );
+            assert!(
+                !body.contains(".lock().unwrap()"),
+                "{site} must not panic on a poisoned lock"
+            );
+        }
     }
 
     /// Fleet pass, source pin (the interleavings need real sockets, so the

@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Scorciatoie bloccate da Secure Input",
     "postProcessPrompt": "Prompt di post-elaborazione"
   },
+  "trayCopyOutcome": {
+    "copied": "La dettatura è stata copiata negli appunti.",
+    "empty": "Non c'è ancora nulla da copiare.",
+    "failed": "Impossibile copiare la dettatura negli appunti."
+  },
   "sidebar": {
     "general": "Generale",
     "commands": "Comandi",
@@ -758,7 +763,7 @@
           "retry": "Riprova",
           "visibleDescription": "Il modello che riscrive la trascrizione dopo ogni dettatura.",
           "fetchingList": "Recupero dell'elenco dei modelli...",
-          "listSummary_one": "1 modello, recuperato {{time}}",
+          "listSummary_one": "{{count}} modello, recuperato {{time}}",
           "listSummary_other": "{{count}} modelli, recuperati {{time}}",
           "notFetched": "Nessun elenco di modelli.",
           "emptyTitle": "Nessun modello in elenco",
@@ -940,6 +945,7 @@
       "empty": "Non ci sono ancora trascrizioni. Comincia a registrare per costruire la tua cronologia!",
       "copyToClipboard": "Copia la trascrizione negli appunti",
       "copyError": "Impossibile copiare la trascrizione negli appunti.",
+      "savedToggleError": "Impossibile aggiornare lo stato salvato.",
       "save": "Salva la trascrizione",
       "unsave": "Rimuovi dai salvataggi",
       "delete": "Elimina elemento",
@@ -959,13 +965,12 @@
       "viaPostProcess": "tramite {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Visualizza modifiche",
       "hideChanges": "Nascondi modifiche",
+      "dbRecoveredNotice": "Il database della cronologia delle trascrizioni era illeggibile, quindi ne è stato avviato uno nuovo. Il database precedente è stato conservato come {{file}}.",
       "emptyTitle": "Ancora nessuna trascrizione",
       "emptyHint": "Premi la scorciatoia di registrazione per acquisire la prima dettatura.",
       "deleteConfirm": "Eliminare questa voce? La registrazione e la sua trascrizione verranno rimosse definitivamente.",
       "today": "Oggi",
-      "yesterday": "Ieri",
-      "savedToggleError": "Impossibile aggiornare lo stato salvato.",
-      "dbRecoveredNotice": "Il database della cronologia delle trascrizioni era illeggibile, quindi ne è stato avviato uno nuovo. Il database precedente è stato conservato come {{file}}."
+      "yesterday": "Ieri"
     },
     "debug": {
       "title": "Debug",
@@ -987,6 +992,8 @@
         "copied": "Copiato",
         "lineCount": "{{count}} righe",
         "empty": "In attesa di log… Le voci appariranno qui man mano che l'app le emette.",
+        "lineCount_one": "{{count}} riga",
+        "lineCount_other": "{{count}} righe",
         "clearConfirm": "Cancellare le righe acquisite da questa vista? Il file di log su disco viene mantenuto.",
         "clearConfirmTitle": "Cancellare le righe catturate?"
       },
@@ -1202,16 +1209,18 @@
         "noModel": "Nessun modello configurato",
         "noModelHint": "Nessun modello impostato. Scegline uno in Post Process."
       },
-      "run_one": "Esegui 1 coppia",
+      "run_one": "Esegui {{count}} coppia",
       "run_other": "Esegui {{count}} coppie",
-      "runHint_one": "1 prompt su 1 motore. Nulla viene digitato o salvato.",
+      "runHint_one": "Esegui {{count}} coppia. Nulla viene digitato o salvato.",
       "runHint_other": "{{count}} coppie prompt-motore. Nulla viene digitato o salvato.",
       "running": "Esecuzione...",
+      "cancel": "Annulla",
+      "cancelledCard": "Annullato prima dell'avvio di questa esecuzione.",
       "rerun": "Esegui di nuovo",
       "latency": "{{ms}} ms",
       "rawKept": "Il motore ha fallito o è stato saltato, quindi la trascrizione grezza verrebbe mantenuta.",
       "partialFailure": "Alcune esecuzioni sono fallite o saltate mentre altre hanno prodotto output. Controlla ogni scheda.",
-      "results_one": "1 risultato",
+      "results_one": "{{count}} risultato",
       "results_other": "{{count}} risultati",
       "errors": {
         "engineNotFound": "Il motore '{{id}}' non è configurato.",
@@ -1220,7 +1229,7 @@
       },
       "diff": {
         "lines": "righe",
-        "charsChanged_one": "1 carattere modificato",
+        "charsChanged_one": "{{count}} carattere modificato",
         "charsChanged_other": "{{count}} caratteri modificati",
         "identical": "Nessuna modifica.",
         "added_one": "+{{count}} aggiunta",
@@ -1230,9 +1239,7 @@
       },
       "resultsEmptyTitle": "I risultati appariranno qui",
       "resultsEmptyHint": "Scegli sopra origine, prompt e motori, quindi esegui. Ogni scheda mostra il testo rifinito, le modifiche e la velocità.",
-      "appliedLabel": "Successo",
-      "cancel": "Annulla",
-      "cancelledCard": "Annullato prima dell'avvio di questa esecuzione."
+      "appliedLabel": "Successo"
     }
   },
   "footer": {
@@ -1301,6 +1308,8 @@
     "recordingFailed": "Impossibile avviare la registrazione: {{error}}",
     "modelLoadFailed": "Impossibile caricare il modello: {{model}}",
     "modelLoadFailedUnknown": "modello sconosciuto",
+    "modelLoadFailedMemoryGate": "Memoria libera insufficiente per caricare {{model}}: servono circa {{needed}}, con circa {{free}} liberi.",
+    "modelLoadFailedDetail": "Il modello non è stato modificato. Il motivo tecnico è nel file di log.",
     "modelFallbackTitle": "Memoria insufficiente",
     "modelFallback": "Passato a {{model}} per questa dettatura",
     "pasteFailedTitle": "Impossibile incollare il testo",
@@ -1308,9 +1317,7 @@
     "transcriptionFailedTitle": "Trascrizione non riuscita",
     "noModelSelectedTitle": "Nessun modello selezionato",
     "noModelSelected": "Scegli un modello di trascrizione in Impostazioni prima di dettare.",
-    "openDirectory": "Impossibile aprire la cartella: {{error}}",
-    "modelLoadFailedMemoryGate": "Memoria libera insufficiente per caricare {{model}}: servono circa {{needed}}, con circa {{free}} liberi.",
-    "modelLoadFailedDetail": "Il modello non è stato modificato. Il motivo tecnico è nel file di log."
+    "openDirectory": "Impossibile aprire la cartella: {{error}}"
   },
   "appLanguage": {
     "title": "Lingua Applicazione",
@@ -1382,9 +1389,9 @@
     "gotIt": "Ho capito"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} potrebbe bloccare 1 scorciatoia",
+    "blockedWithCulprit_one": "{{name}} potrebbe bloccare {{count}} scorciatoia",
     "blockedWithCulprit_other": "{{name}} potrebbe bloccare {{count}} scorciatoie",
-    "blockedNoCulprit_one": "macOS sta bloccando temporaneamente 1 scorciatoia",
+    "blockedNoCulprit_one": "macOS sta bloccando temporaneamente {{count}} scorciatoia",
     "blockedNoCulprit_other": "macOS sta bloccando temporaneamente {{count}} scorciatoie",
     "recorderBlockedWithCulprit": "{{name}} potrebbe bloccare le modifiche alle scorciatoie",
     "recorderBlockedNoCulprit": "macOS sta bloccando temporaneamente le modifiche alle scorciatoie",
@@ -1431,9 +1438,13 @@
     "disconnectedFinalized": "Connessione persa. Il Mac ha conservato ciò che hai detto.",
     "capped": "Sessione limitata a 15 minuti. Premi di nuovo per continuare.",
     "zeroAudio": "Nessun audio ha raggiunto il Mac. Tieni premuto il pulsante e parla.",
+    "zeroAudioHold": "Nessun audio ha raggiunto il Mac. Tieni premuto il pulsante e parla.",
+    "zeroAudioHoldOrToggle": "Nessun audio ha raggiunto il Mac. Tieni premuto o tocca il pulsante e parla.",
+    "zeroAudioTap": "Nessun audio ha raggiunto il Mac. Tocca il pulsante e parla.",
     "serverStopped": "Il Mac ha fermato il server companion.",
     "reconnect": "Riconnetti",
     "holdToTalk": "Tieni premuto per parlare",
+    "holdOrToggleToTalk": "Tieni premuto per parlare, tocca per bloccare",
     "tapToTalk": "Tocca per parlare",
     "release": "Rilascia per terminare",
     "tapToStop": "Tocca per fermare",
@@ -1454,15 +1465,6 @@
     "historyTitle": "Recenti",
     "historyEmpty": "Le dettature da questo telefono compaiono qui.",
     "stateMicBlocked": "Microfono bloccato",
-    "micBlockedRetry": "Microfono bloccato. Tocca per riprovare.",
-    "zeroAudioHold": "Nessun audio ha raggiunto il Mac. Tieni premuto il pulsante e parla.",
-    "zeroAudioHoldOrToggle": "Nessun audio ha raggiunto il Mac. Tieni premuto o tocca il pulsante e parla.",
-    "zeroAudioTap": "Nessun audio ha raggiunto il Mac. Tocca il pulsante e parla.",
-    "holdOrToggleToTalk": "Tieni premuto per parlare, tocca per bloccare"
-  },
-  "trayCopyOutcome": {
-    "copied": "La dettatura è stata copiata negli appunti.",
-    "empty": "Non c'è ancora nulla da copiare.",
-    "failed": "Impossibile copiare la dettatura negli appunti."
+    "micBlockedRetry": "Microfono bloccato. Tocca per riprovare."
   }
 }

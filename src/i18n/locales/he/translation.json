@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ קיצורי המקשים חסומים על ידי Secure Input",
     "postProcessPrompt": "פרומפט לעיבוד לאחר"
   },
+  "trayCopyOutcome": {
+    "copied": "התמליל הועתק ללוח.",
+    "empty": "אין עדיין מה להעתיק.",
+    "failed": "העתקת התמליל ללוח נכשלה."
+  },
   "sidebar": {
     "general": "כללי",
     "commands": "פקודות",
@@ -942,6 +947,7 @@
       "empty": "עדיין אין תמלולים. התחל להקליט כדי לבנות את ההיסטוריה שלך!",
       "copyToClipboard": "העתק תמלול ללוח",
       "copyError": "לא ניתן להעתיק את התמלול ללוח.",
+      "savedToggleError": "עדכון מצב השמירה נכשל.",
       "save": "שמור תמלול",
       "unsave": "הסר משמורים",
       "delete": "מחק רשומה",
@@ -961,13 +967,12 @@
       "viaPostProcess": "דרך {{model}} · {{prompt}} · {{outcome}} · {{latency}} מ״ש",
       "viewChanges": "הצגת שינויים",
       "hideChanges": "הסתרת שינויים",
+      "dbRecoveredNotice": "מסד הנתונים של היסטוריית התמלילים שלך לא ניתן לקריאה, לכן הוחל במסד חדש. מסד הנתונים הקודם נשמר בשם {{file}}.",
       "emptyTitle": "אין עדיין תמלילים",
       "emptyHint": "לחץ על קיצור המקלדת להקלטה כדי לתעד את ההקלדה הראשונה שלך.",
       "deleteConfirm": "למחוק רשומה זו? ההקלטה והתמליל שלה יוסרו לצמיתות.",
       "today": "היום",
-      "yesterday": "אתמול",
-      "savedToggleError": "עדכון מצב השמירה נכשל.",
-      "dbRecoveredNotice": "מסד הנתונים של היסטוריית התמלילים שלך לא ניתן לקריאה, לכן הוחל במסד חדש. מסד הנתונים הקודם נשמר בשם {{file}}."
+      "yesterday": "אתמול"
     },
     "debug": {
       "title": "ניפוי שגיאות",
@@ -989,6 +994,9 @@
         "copied": "הועתק",
         "lineCount": "{{count}} שורות",
         "empty": "ממתין ללוגים… רשומות יופיעו כאן כשהאפליקציה תפיק אותן.",
+        "lineCount_one": "שורה אחת",
+        "lineCount_two": "{{count}} שורות",
+        "lineCount_other": "{{count}} שורות",
         "clearConfirm": "לנקות את השורות שנלכדו בתצוגה זו? קובץ היומן בדיסק נשמר.",
         "clearConfirmTitle": "לנקות את השורות שנלכדו?"
       },
@@ -1211,6 +1219,8 @@
       "runHint_two": "{{count}} זוגות פרומפט-מנוע. שום דבר לא מוקלד או נשמר.",
       "runHint_other": "{{count}} זוגות פרומפט-מנוע. שום דבר לא מוקלד או נשמר.",
       "running": "מריץ...",
+      "cancel": "ביטול",
+      "cancelledCard": "בוטל לפני שריצה זו החלה.",
       "rerun": "הרצה חוזרת",
       "latency": "{{ms}} מ״ש",
       "rawKept": "המנוע נכשל או דולג, ולכן התמליל הגולמי יישמר.",
@@ -1238,9 +1248,7 @@
       },
       "resultsEmptyTitle": "התוצאות יופיעו כאן",
       "resultsEmptyHint": "בחר למעלה מקור, פרומפטים ומנועים והרץ. כל כרטיס מציג את הטקסט המלוטש, את השינויים ואת המהירות.",
-      "appliedLabel": "הצלחה",
-      "cancel": "ביטול",
-      "cancelledCard": "בוטל לפני שריצה זו החלה."
+      "appliedLabel": "הצלחה"
     }
   },
   "footer": {
@@ -1309,6 +1317,8 @@
     "recordingFailed": "הפעלת ההקלטה נכשלה: {{error}}",
     "modelLoadFailed": "טעינת המודל נכשלה: {{model}}",
     "modelLoadFailedUnknown": "מודל לא ידוע",
+    "modelLoadFailedMemoryGate": "אין מספיק זיכרון פנוי לטעון את {{model}}: נדרשים בערך {{needed}}, ופנויים בערך {{free}}.",
+    "modelLoadFailedDetail": "המודל לא השתנה. הסיבה הטכנית נמצאת בקובץ היומן.",
     "modelFallbackTitle": "זיכרון נמוך",
     "modelFallback": "עבר אל {{model}} עבור הכתבה זו",
     "pasteFailedTitle": "ההדבקה נכשלה",
@@ -1316,9 +1326,7 @@
     "transcriptionFailedTitle": "התמלול נכשל",
     "noModelSelectedTitle": "לא נבחר מודל",
     "noModelSelected": "בחרו מודל תמלול בהגדרות לפני הקלטה.",
-    "openDirectory": "לא ניתן היה לפתוח את התיקייה: {{error}}",
-    "modelLoadFailedMemoryGate": "אין מספיק זיכרון פנוי לטעון את {{model}}: נדרשים בערך {{needed}}, ופנויים בערך {{free}}.",
-    "modelLoadFailedDetail": "המודל לא השתנה. הסיבה הטכנית נמצאת בקובץ היומן."
+    "openDirectory": "לא ניתן היה לפתוח את התיקייה: {{error}}"
   },
   "appLanguage": {
     "title": "שפת האפליקציה",
@@ -1398,7 +1406,9 @@
     "recorderBlockedNoCulprit": "macOS חוסם זמנית שינויים בקיצורי דרך",
     "learnMore": "איך לתקן את זה",
     "recorderBlocked": "לא ניתן להקליט קיצורים כרגע - Secure Input של macOS חוסם אירועי מקשים. פתור תחילה את אזהרת Secure Input.",
-    "dismiss": "התעלם"
+    "dismiss": "התעלם",
+    "blockedWithCulprit_two": "ייתכן ש-{{name}} חוסם {{count}} קיצורי דרך",
+    "blockedNoCulprit_two": "macOS חוסם זמנית {{count}} קיצורי דרך"
   },
   "toast": {
     "postProcessSkip": {
@@ -1439,9 +1449,13 @@
     "disconnectedFinalized": "החיבור נותק. ה־Mac שמר את מה שאמרתם.",
     "capped": "ההקלטה מוגבלת ל־15 דקות. לחצו שוב כדי להמשיך.",
     "zeroAudio": "אף צליל לא הגיע ל־Mac. החזיקו את הכפתור ודברו.",
+    "zeroAudioHold": "אף צליל לא הגיע ל־Mac. החזיקו את הכפתור ודברו.",
+    "zeroAudioHoldOrToggle": "אף צליל לא הגיע ל־Mac. החזיקו או הקישו על הכפתור ודברו.",
+    "zeroAudioTap": "אף צליל לא הגיע ל־Mac. הקישו על הכפתור ודברו.",
     "serverStopped": "ה־Mac עצר את שרת הליווי.",
     "reconnect": "התחברות מחדש",
     "holdToTalk": "החזיקו כדי לדבר",
+    "holdOrToggleToTalk": "החזיקו כדי לדבר, הקישו כדי לנעול",
     "tapToTalk": "הקישו כדי לדבר",
     "release": "שחררו כדי לסיים",
     "tapToStop": "הקישו כדי לעצור",
@@ -1462,15 +1476,6 @@
     "historyTitle": "אחרונים",
     "historyEmpty": "הקלטות מהטלפון הזה יופיעו כאן.",
     "stateMicBlocked": "המיקרופון חסום",
-    "micBlockedRetry": "המיקרופון חסום. הקש כדי לנסות שוב.",
-    "zeroAudioHold": "אף צליל לא הגיע ל־Mac. החזיקו את הכפתור ודברו.",
-    "zeroAudioHoldOrToggle": "אף צליל לא הגיע ל־Mac. החזיקו או הקישו על הכפתור ודברו.",
-    "zeroAudioTap": "אף צליל לא הגיע ל־Mac. הקישו על הכפתור ודברו.",
-    "holdOrToggleToTalk": "החזיקו כדי לדבר, הקישו כדי לנעול"
-  },
-  "trayCopyOutcome": {
-    "copied": "התמליל הועתק ללוח.",
-    "empty": "אין עדיין מה להעתיק.",
-    "failed": "העתקת התמליל ללוח נכשלה."
+    "micBlockedRetry": "המיקרופון חסום. הקש כדי לנסות שוב."
   }
 }

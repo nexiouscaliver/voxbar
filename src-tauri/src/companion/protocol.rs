@@ -182,6 +182,12 @@ pub fn parse_client_frame(text: &str) -> Option<ClientFrame> {
 /// a hostile id from smuggling length or separators into a display
 /// string). A client with no id keeps the bare name, exactly the
 /// pre-existing behavior. Pure, so the rule is pinnable.
+///
+/// KB-260 (v1.6.4): because the tag reads the id's FIRST four
+/// alphanumerics, the client's no-crypto fallback must LEAD with entropy -
+/// its old timestamp-leading fallback made two no-crypto phones pairing
+/// in the same hour byte-identical here (the client now leads with
+/// Math.random; pinned client-side in companionClientPage.test.ts).
 pub fn device_identity_name(device: &str, device_id: Option<&str>) -> String {
     let Some(id) = device_id else {
         return device.to_string();

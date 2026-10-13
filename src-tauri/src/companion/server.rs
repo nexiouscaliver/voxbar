@@ -241,6 +241,158 @@ async fn handle_connection<S: AsyncRead + AsyncWrite + Unpin>(
     }
 }
 
+/// Fleet pass 2: the detached connect/disconnect workers have no failure
+/// surface of their own - a panic inside one (a store that cannot mount,
+/// a serialization failure) printed to raw stderr only, which a packaged
+/// .app launched from Finder never surfaces into the rotating log the
+/// debug panel and diagnostics read. Every spawned connect/disconnect
+/// worker body therefore runs under catch_unwind with the panic logged
+/// through the app's logger (the work itself stays best-effort: the log
+/// line is the fix, not a retry).
+fn spawn_worker(name: &'static str, body: impl FnOnce() + Send + 'static) {
+    std::thread::spawn(move || {
+        if let Err(panic) = std::panic::catch_unwind(std::panic::AssertUnwindSafe(body)) {
+            log::error!("companion: {name} worker panicked: {panic:?}");
+        }
+    });
+}
+
+/// Fleet pass 2 (KB-270 recovery gap): the disconnect finalize every
+/// connection owes - registration release by both KB-255 keys, the
+/// coordinator's lane retirement, the tray re-sync, the lane recorder
+/// teardown, and the mid-dictation finalize. Extracted from the session
+/// loop's tail so the ONE post-registration early exit (the Welcome send
+/// failing because the phone died between hello and welcome) runs the
+/// same teardown instead of leaking the connections entry (a phantom
+/// phone in the tray's paired count) and the lane machine, post-process
+/// mirror entry, and cancel generation forever - the exact growth the
+/// KB-270 lane promised could not happen. `server_stopping` is false on
+/// the welcome-failure path (no loop ran), and a connection that never
+/// received its Welcome owns no session, so the mid-dictation branch
+/// reads false there by construction.
+#[allow(clippy::too_many_arguments)] // arity mirrors the serve_websocket locals the teardown consumes
+async fn finalize_disconnected_connection<S: AsyncRead + AsyncWrite + Unpin>(
+    sink: &mut futures_util::stream::SplitSink<WebSocketStream<S>, Message>,
+    app: &tauri::AppHandle,
+    manager: &Arc<CompanionManager>,
+    device_name: &str,
+    device_lane: u64,
+    device_generation: u64,
+    server_stopping: bool,
+    admitted_dropped_chunks: u64,
+    scrubbed_non_finite_samples: u64,
+    out_of_session_audio_chunks: u64,
+) {
+    let _ = sink.close().await;
+    // KB-255: release the registration by BOTH keys (lane + generation).
+    // A stale socket whose keepalive death lagged behind a same-name
+    // reconnect carries the old pair, matches nothing, and the fresh
+    // registration survives with the tray's paired count intact.
+    manager.unregister_connection(device_lane, device_generation);
+    // KB-270 (v1.6.4): the lane's coordinator machine and its bookkeeping
+    // are now dead weight once their pipeline drains; the coordinator
+    // retires them at the drain (and immediately when the machine is
+    // already idle), so a flapping phone cannot grow the maps forever.
+    if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
+        coordinator.notify_lane_gone(device_lane);
+    }
+    // v1.6.4 (accept-wedge hardening): the disconnect-edge tray re-sync
+    // computes the tray snapshot (settings + model list, a disk icon load
+    // on cache miss) on its calling thread by design (tray.rs); this is
+    // exactly the edge a dead client lands on, so run it on a detached
+    // worker instead of this async task - the same rule the connect edge
+    // (note_device_connected) already follows.
+    {
+        let app = app.clone();
+        let disconnected_manager = Arc::clone(manager);
+        spawn_worker("note_device_disconnected", move || {
+            disconnected_manager.note_device_disconnected(&app);
+        });
+    }
+
+    // KB-263 (v1.6.4): NO pause acknowledgement happens on the disconnect
+    // path, deliberately. The old eager ack ran before any Stop had
+    // raised the request, so it was inert (an ack only counts once
+    // `pause_requested` is live, and the Stop that follows wipes any
+    // earlier one - pinned by the recorder test
+    // kb263_an_ack_before_any_stop_raises_the_pause_request_is_wiped), and
+    // no deferred ack can work either: every lane stop shape removes the
+    // map entry and closes the SOURCE before stopping the recorder (pinned
+    // by lane_stops_run_outside_the_lanes_lock_and_close_the_source_first),
+    // so by the time any Stop raises the pause request there is no ack
+    // route left. The source close IS the acknowledgement: it marks the
+    // producer gone, which the consumer reads as an immediate ack and
+    // skips the 2 s wait (pinned by
+    // remote_stop_after_source_close_skips_the_pause_wait_entirely). A
+    // future stop shape that waits with the producer alive must arrange
+    // its own ack at the moment it raises the request. Also retire the
+    // lane's idle recorder (the RAM rule: no idle lane recorder outlives
+    // its connection once a newer pre-warm or this teardown claims the
+    // slot).
+    if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
+        rm.close_remote_lane(device_lane);
+    }
+
+    // The server stopping mid-session already synthesized the release edge
+    // (CompanionManager::stop); only a genuine phone drop runs the
+    // disconnect-finalize here.
+    if !server_stopping {
+        // v1.6.2 W1-L2 (KB-111): the decision is scoped to THIS lane's
+        // session. Another phone still recording reads false here and its
+        // session is untouched - either phone dropping used to finalize
+        // the ONE shared session while the other kept streaming.
+        let lane_recording_live = app
+            .try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
+            .map(|rm| rm.lane_is_recording(device_lane))
+            .unwrap_or(false);
+
+        if lane_recording_live {
+            log::info!(
+                "companion: {device_name} dropped mid-dictation; finalizing what was captured"
+            );
+            crate::managers::transcription::emit_overlay_notice(
+                app,
+                crate::managers::transcription::NoticeCode::CompanionDisconnected,
+                Some(device_name.to_string()),
+            );
+            if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
+                // Forced finalize: the ordinary Stop effect runs, everything
+                // captured (ring backlog included) transcribes and pastes -
+                // and it works against locked (toggle) sessions too, which a
+                // synthesized release edge would silently drop, stranding the
+                // recording the notice above just claimed was finalized.
+                coordinator.finalize_companion_lane(device_lane);
+            }
+        }
+    }
+    log::info!("companion: {device_name} disconnected");
+    if admitted_dropped_chunks > 0 {
+        // KB-272: admitted audio that never reached the ring. This is the
+        // recorder-lifecycle failure mode the v1.6.3 forensic pass had to
+        // rule out with no signal at all; it must never hide again.
+        log::warn!(
+            "companion: {device_name} had {admitted_dropped_chunks} admitted audio chunk(s) \
+             dropped: no live lane recorder; they never reached the ring"
+        );
+    }
+    if scrubbed_non_finite_samples > 0 {
+        log::warn!(
+            "companion: {device_name} sent {scrubbed_non_finite_samples} non-finite audio \
+             sample(s); they were scrubbed to silence"
+        );
+    }
+    if out_of_session_audio_chunks > 0 {
+        // Not an error by itself (spectator audio is refused the same way),
+        // but a live symptom of state desync: speech kept arriving while the
+        // Mac's session state said no live session for this connection's
+        // lane.
+        log::info!(
+            "companion: {device_name} sent {out_of_session_audio_chunks} audio chunk(s) \
+             outside a recording session; they were dropped"
+        );
+    }
+}
+
 async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     app: tauri::AppHandle,
     ws: WebSocketStream<S>,
@@ -310,7 +462,10 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             ..
         }) => {
             let blocked = {
-                let mut limiter = manager.failure_limiter_pin().lock().unwrap();
+                let mut limiter = manager
+                    .failure_limiter_pin()
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
                 limiter.is_blocked(peer, Instant::now())
             };
             if blocked {
@@ -331,7 +486,7 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 manager
                     .failure_limiter_pin()
                     .lock()
-                    .unwrap()
+                    .unwrap_or_else(|e| e.into_inner())
                     .register_failure(peer, Instant::now());
                 let code = if subnet_ok {
                     "bad_token"
@@ -344,7 +499,11 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 log::warn!("companion: refused hello from {peer} ({code})");
                 return;
             }
-            manager.failure_limiter_pin().lock().unwrap().clear(peer);
+            manager
+                .failure_limiter_pin()
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .clear(peer);
 
             // v1.6.2 fleet pass 1: the connection's identity is the human
             // name disambiguated by the phone's persistent device id (the
@@ -354,25 +513,88 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             // name-keyed downstream (the registration, the frozen session,
             // history's capture_device, the per-phone recents filter) uses
             // this composite, so same-platform phones never share it.
-            device_name = protocol::device_identity_name(&device, device_id.as_deref());
-            // v1.6.2 W1-L2: the registration IS the paired-device
-            // bookkeeping (KB-255: keyed on lane + generation, never the
-            // name), and the lane is the connection's session identity.
-            let (lane, generation, rx) = manager.register_connection(&device_name);
-            device_lane = lane;
-            device_generation = generation;
+            // KB-261 (v1.6.4, fleet pass 1): the identity is EXACT - the
+            // raw name#tag composite, nothing else. The v1.6.4
+            // platform-name adoption (a fresh-id hello folding into an
+            // absent prior's identity) is removed: the platform token is
+            // client-controlled and shared by every same-platform phone,
+            // so adoption shipped one phone's transcript history to
+            // whichever same-platform token holder paired while its owner
+            // was away. The resolution is in-memory only (no settings IO
+            // on this async task); a freshly known identity persists on a
+            // detached worker below.
+            let (registration, rx) =
+                manager.register_connection_with_identity(&device, device_id.as_deref());
+            device_name = registration.device;
+            device_lane = registration.lane;
+            device_generation = registration.generation;
             device_lane_rx = rx;
-            manager.note_device_connected(&app, &device_name);
+            if registration.persist_identities.is_some() {
+                // KB-261: the settings write for a newly known identity is
+                // synchronous store work; run it off the async task. It
+                // shares the connect-edge settings lock with the
+                // note_device_connected worker below, so the two
+                // whole-settings cycles serialize instead of erasing each
+                // other's field. Fleet pass 2: the body rides
+                // spawn_worker so a panic surfaces in the app log instead
+                // of raw stderr.
+                let app = app.clone();
+                let persist_manager = Arc::clone(&manager);
+                spawn_worker("persist_known_identities", move || {
+                    crate::companion::persist_known_identities(&app, &persist_manager);
+                });
+            }
+            // v1.6.4 (accept-wedge hardening): the connect-edge bookkeeping
+            // (settings read + write, tray re-sync) is synchronous disk and
+            // main-thread work; run it on a detached worker instead of this
+            // async task, so a storm of reconnecting clients cannot pin
+            // every async runtime worker and stall the accept loop.
+            {
+                let app = app.clone();
+                let connected_manager = Arc::clone(&manager);
+                let connected_device = device_name.clone();
+                spawn_worker("note_device_connected", move || {
+                    connected_manager.note_device_connected(&app, &connected_device);
+                });
+            }
 
-            let settings = crate::settings::get_settings(&app);
-            let activation = match settings.shortcut_activation {
-                crate::settings::ShortcutActivation::PushToTalk => "push_to_talk",
-                crate::settings::ShortcutActivation::Toggle => "toggle",
-                crate::settings::ShortcutActivation::HoldOrToggle => "hold_or_toggle",
-            };
+            // Fleet pass 2 (accept-wedge hardening, closed seam): the
+            // Welcome frame needs a settings read, and get_settings is a
+            // read-modify-write on the store (migration and binding-merge
+            // write-backs) that takes the plugin store's per-store mutex -
+            // the exact synchronous store IO the hardening moved off this
+            // task, sitting right after the workers it was extracted into.
+            // The read now runs on the blocking pool and the async task
+            // awaits the handle; a failed read falls back to the shipped
+            // defaults so a panicking worker cannot take the connection
+            // down with it.
+            let welcome_app = app.clone();
+            let (activation, hold_threshold_ms) = tauri::async_runtime::spawn_blocking(move || {
+                let settings = crate::settings::get_settings(&welcome_app);
+                let activation = match settings.shortcut_activation {
+                    crate::settings::ShortcutActivation::PushToTalk => "push_to_talk",
+                    crate::settings::ShortcutActivation::Toggle => "toggle",
+                    crate::settings::ShortcutActivation::HoldOrToggle => "hold_or_toggle",
+                };
+                (activation, settings.hold_threshold_ms)
+            })
+            .await
+            .unwrap_or_else(|panic| {
+                log::error!(
+                    "companion: welcome settings read panicked ({panic:?}); \
+                         using the shipped defaults"
+                );
+                let defaults = crate::settings::get_default_settings();
+                let activation = match defaults.shortcut_activation {
+                    crate::settings::ShortcutActivation::PushToTalk => "push_to_talk",
+                    crate::settings::ShortcutActivation::Toggle => "toggle",
+                    crate::settings::ShortcutActivation::HoldOrToggle => "hold_or_toggle",
+                };
+                (activation, defaults.hold_threshold_ms)
+            });
             let welcome = ServerFrame::Welcome {
                 activation,
-                hold_threshold_ms: settings.hold_threshold_ms,
+                hold_threshold_ms,
                 // Per-lane truth (W1-L2): the fresh connection owns no
                 // session yet - a reconnecting phone's orphaned session was
                 // force-finalized at its disconnect - so this is false
@@ -380,13 +602,53 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                 recording: manager.lane_owns_live_session(device_lane),
             };
             if sink.send(Message::text(welcome.to_json())).await.is_err() {
+                // Fleet pass 2: the phone died between hello and the
+                // welcome write. This used to be a bare silent return that
+                // skipped the ENTIRE disconnect finalize below - leaking
+                // the connections entry (a phantom phone in the tray's
+                // paired count until server stop) and the KB-270 lane
+                // machine, post-process mirror entry, and cancel
+                // generation forever. Run the same finalize every other
+                // disconnect owes.
+                log::info!(
+                    "companion: {device_name} dropped before its Welcome; finalizing the lane"
+                );
+                finalize_disconnected_connection(
+                    &mut sink,
+                    &app,
+                    &manager,
+                    &device_name,
+                    device_lane,
+                    device_generation,
+                    false,
+                    0,
+                    0,
+                    0,
+                )
+                .await;
                 return;
             }
             // v1.6.2 W1-L2: the phone's OWN recent list rides the welcome
             // (filtered to this phone's sessions), and its lane's recorder
             // is the one pre-warmed (the RAM rule: pre-warm keeps only the
             // most recent connection's recorder).
-            crate::companion::send_recent_history_to_lane(&app, device_lane, &device_name);
+            // v1.6.4 (accept-wedge hardening): the history query is a
+            // synchronous SQLite read; run it on a detached worker instead
+            // of this async task, so a reconnecting-client storm cannot pin
+            // the async runtime's workers (a wedged accept loop until
+            // restart is exactly the v1.6.3 proof-run failure).
+            {
+                let app = app.clone();
+                let history_device = device_name.clone();
+                let history_lane = device_lane;
+                spawn_worker("send_recent_history_to_lane", move || {
+                    crate::companion::send_recent_history_to_lane(
+                        &app,
+                        history_lane,
+                        &history_device,
+                    );
+                });
+            }
             if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
             {
                 let rm = Arc::clone(&rm);
@@ -654,81 +916,23 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     }
 
     // ---- disconnect: graceful finalize ----
-    let _ = sink.close().await;
-    // KB-255: release the registration by BOTH keys (lane + generation).
-    // A stale socket whose keepalive death lagged behind a same-name
-    // reconnect carries the old pair, matches nothing, and the fresh
-    // registration survives with the tray's paired count intact.
-    manager.unregister_connection(device_lane, device_generation);
-    manager.note_device_disconnected(&app);
-
-    // Acknowledge THIS lane's stop-pause handshake so its Stop never waits
-    // the 2 s timeout on a vanished phone, and retire the lane's idle
-    // recorder (the RAM rule: no idle lane recorder outlives its
-    // connection once a newer pre-warm or this teardown claims the slot).
-    if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
-        rm.ack_remote_pause(device_lane);
-        rm.close_remote_lane(device_lane);
-    }
-
-    // The server stopping mid-session already synthesized the release edge
-    // (CompanionManager::stop); only a genuine phone drop runs the
-    // disconnect-finalize here.
-    if !server_stopping {
-        // v1.6.2 W1-L2 (KB-111): the decision is scoped to THIS lane's
-        // session. Another phone still recording reads false here and its
-        // session is untouched - either phone dropping used to finalize
-        // the ONE shared session while the other kept streaming.
-        let lane_recording_live = app
-            .try_state::<Arc<crate::managers::audio::AudioRecordingManager>>()
-            .map(|rm| rm.lane_is_recording(device_lane))
-            .unwrap_or(false);
-
-        if lane_recording_live {
-            log::info!(
-                "companion: {device_name} dropped mid-dictation; finalizing what was captured"
-            );
-            crate::managers::transcription::emit_overlay_notice(
-                &app,
-                crate::managers::transcription::NoticeCode::CompanionDisconnected,
-                Some(device_name.clone()),
-            );
-            if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
-                // Forced finalize: the ordinary Stop effect runs, everything
-                // captured (ring backlog included) transcribes and pastes -
-                // and it works against locked (toggle) sessions too, which a
-                // synthesized release edge would silently drop, stranding the
-                // recording the notice above just claimed was finalized.
-                coordinator.finalize_companion_lane(device_lane);
-            }
-        }
-    }
-    log::info!("companion: {device_name} disconnected");
-    if admitted_dropped_chunks > 0 {
-        // KB-272: admitted audio that never reached the ring. This is the
-        // recorder-lifecycle failure mode the v1.6.3 forensic pass had to
-        // rule out with no signal at all; it must never hide again.
-        log::warn!(
-            "companion: {device_name} had {admitted_dropped_chunks} admitted audio chunk(s) \
-             dropped: no live lane recorder; they never reached the ring"
-        );
-    }
-    if scrubbed_non_finite_samples > 0 {
-        log::warn!(
-            "companion: {device_name} sent {scrubbed_non_finite_samples} non-finite audio \
-             sample(s); they were scrubbed to silence"
-        );
-    }
-    if out_of_session_audio_chunks > 0 {
-        // Not an error by itself (spectator audio is refused the same way),
-        // but a live symptom of state desync: speech kept arriving while the
-        // Mac's session state said no live session for this connection's
-        // lane.
-        log::info!(
-            "companion: {device_name} sent {out_of_session_audio_chunks} audio chunk(s) \
-             outside a recording session; they were dropped"
-        );
-    }
+    // Fleet pass 2: the whole block lives in
+    // finalize_disconnected_connection now, so the ONE post-registration
+    // early exit (the Welcome send failing) runs the same teardown the
+    // session loop's tail does - no path off the hello may skip it.
+    finalize_disconnected_connection(
+        &mut sink,
+        &app,
+        &manager,
+        &device_name,
+        device_lane,
+        device_generation,
+        server_stopping,
+        admitted_dropped_chunks,
+        scrubbed_non_finite_samples,
+        out_of_session_audio_chunks,
+    )
+    .await;
 }
 
 /// v1.6.2 W1-L0/W1-L2: the Mac's session truth for one connection's lane.
@@ -1160,6 +1364,265 @@ mod tests {
         assert!(
             disconnect_arm.contains("admitted_dropped_chunks} admitted audio chunk(s)"),
             "the disconnect log line names the count"
+        );
+    }
+
+    /// KB-263 source pin (the interleave needs real sockets): the
+    /// disconnect path performs NO pause acknowledgement of any shape.
+    /// Fleet pass 2: the disconnect finalize is extracted into
+    /// finalize_disconnected_connection (so the Welcome-failure exit runs
+    /// it too), and this pin slices THAT fn - the whole disconnect path
+    /// now lives there. The pre-fix eager `ack_remote_pause` ran before
+    /// any Stop raised the request and was inert (an ack only counts once
+    /// `pause_requested` is live, and the Stop that follows wipes any
+    /// earlier one - pinned by the recorder test
+    /// kb263_an_ack_before_any_stop_raises_the_pause_request_is_wiped);
+    /// a deferred "ack once requested" watcher is equally dead, because
+    /// every lane stop shape removes the map entry and closes the source
+    /// BEFORE the recorder raises the request (pinned in audio.rs by
+    /// lane_stops_run_outside_the_lanes_lock_and_close_the_source_first),
+    /// so no ack route exists at the moment the request goes live. The
+    /// contract this pins instead: the source close IS the acknowledgement
+    /// (producer_gone makes the consumer skip the 2 s wait - pinned at
+    /// recorder level by
+    /// remote_stop_after_source_close_skips_the_pause_wait_entirely), so
+    /// the disconnect path must not grow any ack machinery again.
+    #[test]
+    fn kb263_disconnect_performs_no_pause_ack_the_source_close_is_the_ack() {
+        let source = include_str!("server.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+        let disconnect_section_at = production
+            .find("async fn finalize_disconnected_connection")
+            .expect("the disconnect finalize fn");
+        let disconnect_section = &production[disconnect_section_at..];
+
+        // No pause-ack machinery of any shape on the disconnect path.
+        assert!(
+            !disconnect_section.contains("ack_remote_pause"),
+            "the disconnect path must not acknowledge the stop-pause: every lane stop shape closes the source first, and the producer-gone close is the immediate acknowledgement"
+        );
+        assert!(
+            !disconnect_section.contains("ack_pause"),
+            "no direct source-level ack either"
+        );
+        // The disconnect still retires the idle lane recorder (the RAM
+        // rule that always lived beside the old ack).
+        assert!(
+            disconnect_section.contains("rm.close_remote_lane(device_lane);"),
+            "the idle lane recorder is still retired at disconnect"
+        );
+
+        // The covering contract is pinned where it lives: the audio-side
+        // ordering (source closed before every recorder stop) must exist
+        // in audio.rs, and the recorder must skip the pause wait for a
+        // gone producer. Cross-file guards so this pin cannot drift from
+        // the mechanism it relies on.
+        let audio = include_str!("../managers/audio.rs");
+        let ordering_pin_at = audio
+            .find("fn lane_stops_run_outside_the_lanes_lock_and_close_the_source_first()")
+            .expect("the audio-side close-first ordering pin");
+        assert!(
+            audio[..ordering_pin_at].contains("entry.source.close();"),
+            "the production lane stop closes the source before the recorder stop"
+        );
+        let recorder = include_str!("../audio_toolkit/audio/recorder/tests.rs");
+        assert!(
+            recorder.contains("fn remote_stop_after_source_close_skips_the_pause_wait_entirely()"),
+            "the producer-gone fast-return pin must stay in the recorder suite"
+        );
+        assert!(
+            recorder
+                .contains("fn kb263_an_ack_before_any_stop_raises_the_pause_request_is_wiped()"),
+            "the early-ack-is-wiped pin must stay in the recorder suite"
+        );
+    }
+
+    /// KB-270 source pin: the disconnect path must tell the coordinator the
+    /// lane is gone right after releasing its registration, so the
+    /// coordinator can retire the lane's machine (immediately when idle,
+    /// at the drain when a pipeline is in flight) instead of growing its
+    /// lanes map forever on a flapping phone.
+    #[test]
+    fn kb270_disconnect_notifies_the_coordinator_the_lane_is_gone() {
+        let source = include_str!("server.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+        let unregister_at = production
+            .find("manager.unregister_connection(device_lane, device_generation);")
+            .expect("the registration release");
+        let notify_at = production
+            .find("coordinator.notify_lane_gone(device_lane);")
+            .expect("the lane-gone notification");
+        assert!(
+            unregister_at < notify_at,
+            "the lane-gone notification follows the registration release"
+        );
+    }
+
+    /// v1.6.4 accept-wedge hardening, source pin (a live reproduction
+    /// needs the real TLS server on a Wry app, which the unit harness
+    /// cannot mount). SCOPE (fleet pass 2, after the blanket claim was
+    /// found false): this pin checks exactly the seams it enumerates -
+    /// (1) the SQLite recent-history query at hello, (2) the connect-edge
+    /// settings+tray bookkeeping, (3) the disconnect-edge tray re-sync,
+    /// (4) the settings persistence of a newly known identity, each
+    /// riding the panic-capturing spawn_worker; and (5) the Welcome
+    /// frame's settings read riding spawn_blocking (fleet pass 2: it sat
+    /// inline on the async task through the original hardening, and
+    /// get_settings is a read-modify-write over the plugin store's mutex,
+    /// not a pure read). It does NOT certify the absence of other
+    /// blocking calls; the async task itself must stay free of direct
+    /// get_settings/write_settings only in the seams named here.
+    #[test]
+    fn connection_blocking_seams_run_off_the_async_connection_task() {
+        let source = include_str!("server.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+
+        // The four detached connect/disconnect seams ride spawn_worker by
+        // name (also the fleet pass 2 panic-capture pin: a worker panic
+        // must surface in the app log, not raw stderr).
+        for (name, call) in [
+            (
+                "persist_known_identities",
+                "crate::companion::persist_known_identities(&app, &persist_manager);",
+            ),
+            (
+                "note_device_connected",
+                "manager.note_device_connected(&app, &connected_device);",
+            ),
+            (
+                "send_recent_history_to_lane",
+                "crate::companion::send_recent_history_to_lane(",
+            ),
+            (
+                "note_device_disconnected",
+                "disconnected_manager.note_device_disconnected(&app);",
+            ),
+        ] {
+            let call_at = production
+                .find(call)
+                .unwrap_or_else(|| panic!("the seam call must exist: {call}"));
+            let head = production[..call_at]
+                .rfind("spawn_worker(\"")
+                .expect("the seam must be introduced by the panic-capturing spawn_worker helper");
+            assert!(
+                production[head..].starts_with(&format!("spawn_worker(\"{name}\", move || {{")),
+                "the {name} worker must ride spawn_worker with its name (panic-capture + seam routing)"
+            );
+        }
+        // And the helper itself catches panics into the app log.
+        let helper_at = production
+            .find("fn spawn_worker(")
+            .expect("the panic-capturing worker helper");
+        let helper_end = helper_at + production[helper_at..].find("\n}\n").expect("fn end");
+        let helper = &production[helper_at..helper_end];
+        assert!(
+            helper.contains("catch_unwind") && helper.contains("log::error!"),
+            "a worker panic must be caught and logged, never stderr-only"
+        );
+
+        // (5) The Welcome settings read rides spawn_blocking, and the old
+        // inline form is gone.
+        let welcome_read_at = production
+            .find("let settings = crate::settings::get_settings(&welcome_app);")
+            .expect("the welcome settings read");
+        let blocking_at = production
+            .find("tauri::async_runtime::spawn_blocking(move || {")
+            .expect("the blocking-pool dispatch");
+        assert!(
+            blocking_at < welcome_read_at,
+            "the Welcome settings read must run on the blocking pool, never the async task"
+        );
+        assert!(
+            !production.contains("let settings = crate::settings::get_settings(&app);"),
+            "the direct (blocking) settings read may not remain on the async task"
+        );
+
+        let manager_source = include_str!("mod.rs");
+        let register_at = manager_source
+            .find("pub fn register_connection_with_identity(")
+            .expect("the identity registration");
+        let register_end = register_at
+            + manager_source[register_at..]
+                .find("\n    }\n")
+                .expect("fn end");
+        let register_body = &manager_source[register_at..register_end];
+        assert!(
+            !register_body.contains("get_settings") && !register_body.contains("write_settings"),
+            "the registration must stay in-memory only (no settings IO on the async task)"
+        );
+        assert!(
+            register_body.contains("let mut connections")
+                && register_body.contains("let mut known"),
+            "the decision holds both the connections registry and the known-identity set guards"
+        );
+        let push_at = register_body
+            .find("connections.push(ConnectionEntry {")
+            .expect("the registration insert");
+        let drop_known_at = register_body
+            .find("drop(known);")
+            .expect("the guards release after the insert");
+        assert!(
+            push_at < drop_known_at,
+            "the decision, the registration insert, and the known-set update share one critical section (the guards release only after the insert)"
+        );
+
+        // None of the blocking seams remain as direct calls on the async
+        // task.
+        assert!(
+            !production.contains("send_recent_history_to_lane(&app, device_lane, &device_name);"),
+            "the direct (blocking) history call may not remain on the async task"
+        );
+        assert!(
+            !production.contains("manager.note_device_connected(&app, &device_name);"),
+            "the direct (blocking) connect-edge call may not remain on the async task"
+        );
+        assert!(
+            !production
+                .lines()
+                .any(|line| line.trim() == "manager.note_device_disconnected(&app);"),
+            "the direct (blocking) disconnect-edge call may not remain on the async task (the worker's own call goes through the disconnected_manager binding)"
+        );
+    }
+
+    /// Fleet pass 2 (KB-270 recovery gap), source pin: the ONE
+    /// post-registration early exit - the Welcome send failing because
+    /// the phone died between hello and welcome - must run the disconnect
+    /// finalize (registration release, coordinator lane retirement, tray
+    /// re-sync, recorder teardown) before returning, instead of the old
+    /// silent bare return that leaked the connections entry and the lane
+    /// bookkeeping forever. The exit must also log: every other exit on
+    /// the path does.
+    #[test]
+    fn welcome_send_failure_finalizes_the_lane_instead_of_leaking_it() {
+        let source = include_str!("server.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+        let fail_arm_at = production
+            .find("if sink.send(Message::text(welcome.to_json())).await.is_err() {")
+            .expect("the welcome-failure arm");
+        let fail_arm = &production[fail_arm_at..fail_arm_at + 1200];
+        let log_at = fail_arm
+            .find("dropped before its Welcome")
+            .expect("the welcome-failure exit must log");
+        let finalize_at = fail_arm
+            .find("finalize_disconnected_connection(")
+            .expect("the welcome-failure exit must run the disconnect finalize");
+        let ret_at = fail_arm
+            .find("return;")
+            .expect("the welcome-failure exit returns after the finalize");
+        assert!(
+            log_at < finalize_at && finalize_at < ret_at,
+            "the arm must log, finalize, and only then return"
+        );
+
+        // And the session loop's tail routes through the SAME finalize fn
+        // (one teardown, two entry points), so the tail cannot drift from
+        // the welcome-failure path.
+        let tail_at = production
+            .find("---- disconnect: graceful finalize ----")
+            .expect("the session-loop tail");
+        assert!(
+            production[tail_at..].contains("finalize_disconnected_connection("),
+            "the session-loop tail must route through the same finalize fn"
         );
     }
 }

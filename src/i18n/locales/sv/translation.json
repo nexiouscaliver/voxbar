@@ -29,6 +29,11 @@
     "secureInputWarning": "⚠ Kortkommandon blockeras av Secure Input",
     "postProcessPrompt": "Efterbearbetningsprompt"
   },
+  "trayCopyOutcome": {
+    "copied": "Dikteringen har kopierats till urklippet.",
+    "empty": "Det finns inget att kopiera ännu.",
+    "failed": "Kunde inte kopiera dikteringen till urklippet."
+  },
   "sidebar": {
     "general": "Allmänt",
     "commands": "Kommandon",
@@ -758,7 +763,7 @@
           "retry": "Försök igen",
           "visibleDescription": "Modellen som skriver om din transkription efter varje diktering.",
           "fetchingList": "Hämtar modellistan...",
-          "listSummary_one": "1 modell, hämtad {{time}}",
+          "listSummary_one": "{{count}} modell, hämtad {{time}}",
           "listSummary_other": "{{count}} modeller, hämtade {{time}}",
           "notFetched": "Ingen modelllista ännu.",
           "emptyTitle": "Inga modeller i listan",
@@ -940,6 +945,7 @@
       "empty": "Inga transkriptioner ännu. Börja spela in för att bygga upp din historik!",
       "copyToClipboard": "Kopiera transkription till urklipp",
       "copyError": "Det gick inte att kopiera transkriptionen till urklipp.",
+      "savedToggleError": "Kunde inte uppdatera sparadestatus.",
       "save": "Spara transkription",
       "unsave": "Ta bort från sparade",
       "delete": "Ta bort post",
@@ -959,13 +965,12 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Visa ändringar",
       "hideChanges": "Dölj ändringar",
+      "dbRecoveredNotice": "Databasen för din transkriberingshistorik kunde inte läsas, så en ny har startats. Den tidigare databasen sparades som {{file}}.",
       "emptyTitle": "Inga transkriptioner än",
       "emptyHint": "Tryck på din inspelningsgenväg för att fånga din första diktering.",
       "deleteConfirm": "Radera den här posten? Inspelningen och dess transkription tas bort permanent.",
       "today": "Idag",
-      "yesterday": "Igår",
-      "savedToggleError": "Kunde inte uppdatera sparadestatus.",
-      "dbRecoveredNotice": "Databasen för din transkriberingshistorik kunde inte läsas, så en ny har startats. Den tidigare databasen sparades som {{file}}."
+      "yesterday": "Igår"
     },
     "debug": {
       "title": "Felsökning",
@@ -987,6 +992,8 @@
         "copied": "Kopierad",
         "lineCount": "{{count}} rader",
         "empty": "Väntar på loggar… Poster visas här när appen skickar dem.",
+        "lineCount_one": "{{count}} rad",
+        "lineCount_other": "{{count}} rader",
         "clearConfirm": "Rensa de fångade raderna från den här vyn? Loggfilen på disken behålls.",
         "clearConfirmTitle": "Rensa insamlade rader?"
       },
@@ -1202,16 +1209,18 @@
         "noModel": "Ingen modell konfigurerad",
         "noModelHint": "Ingen modell vald. Välj en under Post Process."
       },
-      "run_one": "Kör 1 par",
+      "run_one": "Kör {{count}} par",
       "run_other": "Kör {{count}} par",
-      "runHint_one": "1 prompt på 1 motor. Inget skrivs eller sparas.",
+      "runHint_one": "Kör {{count}} par. Inget skrivs eller sparas.",
       "runHint_other": "{{count}} prompt-motor-par. Inget skrivs eller sparas.",
       "running": "Kör...",
+      "cancel": "Avbryt",
+      "cancelledCard": "Avbröts innan denna körning startade.",
       "rerun": "Kör igen",
       "latency": "{{ms}} ms",
       "rawKept": "Motorn misslyckades eller hoppades över, så råtranskriptionen skulle behållas.",
       "partialFailure": "Vissa körningar misslyckades eller hoppades över medan andra gav resultat. Kontrollera varje kort.",
-      "results_one": "1 resultat",
+      "results_one": "{{count}} resultat",
       "results_other": "{{count}} resultat",
       "errors": {
         "engineNotFound": "Motorn '{{id}}' är inte konfigurerad.",
@@ -1220,7 +1229,7 @@
       },
       "diff": {
         "lines": "rader",
-        "charsChanged_one": "1 tecken ändrat",
+        "charsChanged_one": "{{count}} tecken ändrat",
         "charsChanged_other": "{{count}} tecken ändrade",
         "identical": "Inga ändringar.",
         "added_one": "+{{count}} tillagd",
@@ -1230,9 +1239,7 @@
       },
       "resultsEmptyTitle": "Resultaten visas här",
       "resultsEmptyHint": "Välj källa, prompts och motorer ovan och kör. Varje kort visar den putsade texten, ändringarna och hastigheten.",
-      "appliedLabel": "Lyckades",
-      "cancel": "Avbryt",
-      "cancelledCard": "Avbröts innan denna körning startade."
+      "appliedLabel": "Lyckades"
     }
   },
   "footer": {
@@ -1299,6 +1306,8 @@
     "recordingFailed": "Misslyckades med att starta inspelning: {{error}}",
     "modelLoadFailed": "Misslyckades med att ladda modell: {{model}}",
     "modelLoadFailedUnknown": "okänd modell",
+    "modelLoadFailedMemoryGate": "Inte tillräckligt med ledigt minne för att läsa in {{model}}: kräver cirka {{needed}}, cirka {{free}} ledigt.",
+    "modelLoadFailedDetail": "Modellen ändrades inte. Det tekniska skälet finns i loggfilen.",
     "modelFallbackTitle": "Lite minne",
     "modelFallback": "Växlade till {{model}} för denna diktering",
     "noInputDeviceTitle": "Ingen mikrofon hittades",
@@ -1308,9 +1317,7 @@
     "transcriptionFailedTitle": "Transkriptionen misslyckades",
     "noModelSelectedTitle": "Ingen modell vald",
     "noModelSelected": "Välj en transkriberingsmodell i Inställningar innan du dikterar.",
-    "openDirectory": "Mappen kunde inte öppnas: {{error}}",
-    "modelLoadFailedMemoryGate": "Inte tillräckligt med ledigt minne för att läsa in {{model}}: kräver cirka {{needed}}, cirka {{free}} ledigt.",
-    "modelLoadFailedDetail": "Modellen ändrades inte. Det tekniska skälet finns i loggfilen."
+    "openDirectory": "Mappen kunde inte öppnas: {{error}}"
   },
   "appLanguage": {
     "title": "Applikationsspråk",
@@ -1382,9 +1389,9 @@
     "gotIt": "Uppfattat"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} kanske blockerar 1 kortkommando",
+    "blockedWithCulprit_one": "{{name}} kanske blockerar {{count}} kortkommando",
     "blockedWithCulprit_other": "{{name}} kanske blockerar {{count}} kortkommandon",
-    "blockedNoCulprit_one": "macOS blockerar tillfälligt 1 kortkommando",
+    "blockedNoCulprit_one": "macOS blockerar tillfälligt {{count}} kortkommando",
     "blockedNoCulprit_other": "macOS blockerar tillfälligt {{count}} kortkommandon",
     "recorderBlockedWithCulprit": "{{name}} kanske blockerar ändringar av kortkommandon",
     "recorderBlockedNoCulprit": "macOS blockerar tillfälligt ändringar av kortkommandon",
@@ -1431,9 +1438,13 @@
     "disconnectedFinalized": "Anslutningen bröts. Macen sparade det du sa.",
     "capped": "Sessionen begränsas till 15 minuter. Tryck igen för att fortsätta.",
     "zeroAudio": "Ingen ljud nådde Mac:en. Håll knappen intryckt och tala.",
+    "zeroAudioHold": "Ingen ljud nådde Mac:en. Håll knappen intryckt och tala.",
+    "zeroAudioHoldOrToggle": "Ingen ljud nådde Mac:en. Håll knappen intryckt eller tryck på den och tala.",
+    "zeroAudioTap": "Ingen ljud nådde Mac:en. Tryck på knappen och tala.",
     "serverStopped": "Macen stoppade kompanionservern.",
     "reconnect": "Anslut igen",
     "holdToTalk": "Håll för att tala",
+    "holdOrToggleToTalk": "Håll för att tala, tryck för att låsa",
     "tapToTalk": "Tryck för att tala",
     "release": "Släpp för att sluta",
     "tapToStop": "Tryck för att sluta",
@@ -1454,15 +1465,6 @@
     "historyTitle": "Senaste",
     "historyEmpty": "Diktat från den här telefonen visas här.",
     "stateMicBlocked": "Mikrofon blockerad",
-    "micBlockedRetry": "Mikrofon blockerad. Tryck för att försöka igen.",
-    "zeroAudioHold": "Ingen ljud nådde Mac:en. Håll knappen intryckt och tala.",
-    "zeroAudioHoldOrToggle": "Ingen ljud nådde Mac:en. Håll knappen intryckt eller tryck på den och tala.",
-    "zeroAudioTap": "Ingen ljud nådde Mac:en. Tryck på knappen och tala.",
-    "holdOrToggleToTalk": "Håll för att tala, tryck för att låsa"
-  },
-  "trayCopyOutcome": {
-    "copied": "Dikteringen har kopierats till urklippet.",
-    "empty": "Det finns inget att kopiera ännu.",
-    "failed": "Kunde inte kopiera dikteringen till urklippet."
+    "micBlockedRetry": "Mikrofon blockerad. Tryck för att försöka igen."
   }
 }
