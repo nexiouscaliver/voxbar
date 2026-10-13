@@ -843,10 +843,28 @@ impl CompanionManager {
         inner.port = 0;
         inner.advertised_host = None;
         inner.tls_manual = false;
-        self.connections
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clear();
+        // KB-296 residual (fleet, cycle 15): this wholesale clear is itself
+        // a registration-release path, so every lane it clears must get its
+        // LaneGone here. A lane's LaneGone otherwise arrives only from its
+        // connection task's tail, which first awaits a socket close and an
+        // outbound Goodbye send with no write timeout - a black-holed socket
+        // or a panicked task never reaches it, and the KB-296 deferred-set
+        // gate would then block that lane's retirement forever (the KB-270
+        // leak class). Queued AFTER the clear so the retire probe reads
+        // connection_gone at its first attempt; a tail's later duplicate
+        // LaneGone for the same lane is idempotent (no machine left: the
+        // deferral is spent either way).
+        let cleared_lanes: Vec<u64> = {
+            let mut connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
+            let lanes: Vec<u64> = connections.iter().map(|entry| entry.lane).collect();
+            connections.clear();
+            lanes
+        };
+        if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
+            for lane in cleared_lanes {
+                coordinator.notify_lane_gone(lane);
+            }
+        }
         log::info!("companion: server stopped");
     }
 
@@ -2159,6 +2177,38 @@ mod tests {
             helper.contains("catch_unwind") && helper.contains("tray_resync_abandon()"),
             "a panicking pass must release the gate (a wedged gate freezes the companion tray block forever)"
         );
+
+        // Fleet, cycle 15: containment alone kept two mutations green - an
+        // inverted break (exiting while the probe's dirty arm still holds
+        // the gate claimed wedges every future edge to a dirty mark no
+        // pass ever settles) and a rebuild-before-claim reorder (two
+        // rebuilds live at once, the original KB-292 defect). Both are
+        // pinned positionally, the kb296 pin's gate-before-poll convention:
+        // the claim must precede the rebuild it guards, and the loop must
+        // break on the NEGATED settle probe (break-on-quiet polarity: the
+        // probe's true arm clears dirty and schedules one more pass, its
+        // false arm releases the gate, and only that exit is correct).
+        let claim_at = helper
+            .find("self.claim_tray_resync()")
+            .expect("the gate claim");
+        let rebuild_at = helper
+            .find("crate::tray::update_tray_menu(app)")
+            .expect("the tray rebuild inside the loop");
+        assert!(
+            claim_at < rebuild_at,
+            "the helper must claim the gate BEFORE any rebuild: a rebuild before the claim puts two rebuilds live at once (the original KB-292 defect)"
+        );
+        let quiet_probe_at = helper
+            .find("if !self.tray_resync_pass_done()")
+            .expect("the loop's break-on-quiet probe (the negated settle check)");
+        assert!(
+            helper[quiet_probe_at..quiet_probe_at + 80].contains("break"),
+            "the negated settle probe must guard the loop's break"
+        );
+        assert!(
+            !helper.contains("if self.tray_resync_pass_done()"),
+            "an inverted break (breaking while the probe's dirty arm still holds the gate claimed) exits with running=true: every future edge only marks dirty and the tray re-sync is wedged forever"
+        );
     }
 
     /// KB-261 (v1.6.4 review pass, re-anchored by fleet pass 1): the twin
@@ -3197,6 +3247,48 @@ mod tests {
         assert!(
             !effective_enabled(&settings),
             "experimental on does not arm the server on its own"
+        );
+    }
+
+    /// KB-296 residual (fleet, cycle 15) source pin: stop()'s wholesale
+    /// registry clear is itself a registration-release path, so it must
+    /// queue a LaneGone for every lane it clears - AFTER the clear, so the
+    /// coordinator's retire probe reads connection_gone at its first
+    /// attempt instead of deferring against a registration that will never
+    /// come back. Before the fix, a lane's LaneGone came only from its
+    /// connection task's tail (an awaited socket close plus an outbound
+    /// send with no write timeout, with no catch_unwind on the task), so a
+    /// black-holed socket or a panicked task left the lane outside the
+    /// deferred-retire set forever and the set gate blocked every later
+    /// retire probe - the machine, mirror row, and cancel generation leaked
+    /// for process lifetime, and restart() re-ran the clear on every
+    /// companion toggle. Pinned against the committed source (mounting a
+    /// running TLS server is not practical, the stop_leaves_the_session_map
+    /// convention above); the lane ids come from the registry being
+    /// cleared, so a partial queue cannot pass either.
+    #[test]
+    fn kb296_server_stop_queues_lane_gone_for_every_lane_it_clears() {
+        let source = include_str!("mod.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+        let stop_at = production
+            .find("pub fn stop(&self, app: &AppHandle)")
+            .expect("the stop fn");
+        let stop_end = stop_at + production[stop_at..].find("\n    }\n").expect("fn end");
+        let stop_body = &production[stop_at..stop_end];
+        let collect_at = stop_body
+            .find("connections.iter().map(|entry| entry.lane)")
+            .expect("stop() must collect the lanes from the registry it clears");
+        let clear_at = stop_body.find(".clear();").expect("the registry clear");
+        let notify_at = stop_body
+            .find("coordinator.notify_lane_gone(lane);")
+            .expect("stop() must queue a LaneGone for each cleared lane");
+        assert!(
+            collect_at < clear_at,
+            "the collected lanes must be the registry's own: collect before the clear empties it"
+        );
+        assert!(
+            clear_at < notify_at,
+            "the LaneGone queue must FOLLOW the clear: a probe before the clear reads a live registration, defers, and never drains"
         );
     }
 }

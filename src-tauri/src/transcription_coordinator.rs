@@ -1185,9 +1185,9 @@ impl TranscriptionCoordinator {
                 // drain probing retirement after every pipeline, on this
                 // hot loop - is a set miss that never polls the companion
                 // connections mutex. The set is filled only by the LaneGone
-                // arm, and the only production path that releases a
-                // registration (companion/server.rs:291) always queues
-                // LaneGone immediately after, so a connection-gone lane
+                // arm, and every production path that releases a registration
+                // (the tail at companion/server.rs:291 and the manager stop's
+                // wholesale clear) queues a LaneGone, so a connection-gone lane
                 // cannot exist outside this set. Loop-owned, no lock.
                 let mut deferred_retire_lanes: std::collections::HashSet<u64> =
                     std::collections::HashSet::new();
