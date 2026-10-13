@@ -742,7 +742,8 @@
         },
         "appleIntelligence": {
           "unavailable": "Apple Intelligence không khả dụng trên thiết bị này. Yêu cầu Mac Apple Silicon chạy macOS Tahoe (26.0) trở lên với Apple Intelligence được bật trong Cài đặt Hệ thống.",
-          "buildLacks": "Apple Intelligence không khả dụng trong bản build VoxBar này, được biên dịch mà không có nó. Hãy cài đặt bản build phát hành chính thức để sử dụng."
+          "buildLacks": "Apple Intelligence không khả dụng trong bản build VoxBar này, được biên dịch mà không có nó. Hãy cài đặt bản build phát hành chính thức để sử dụng.",
+          "probeFailed": "Không thể kiểm tra mức độ khả dụng của Apple Intelligence trên Mac này. Hãy thử chọn lại nhà cung cấp."
         },
         "baseUrl": {
           "title": "URL cơ sở",

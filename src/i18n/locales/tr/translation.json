@@ -742,7 +742,8 @@
         },
         "appleIntelligence": {
           "unavailable": "Apple Intelligence bu cihazda kullanılamıyor. macOS Tahoe (26.0) veya üzeri ve Sistem Ayarları'nda Apple Intelligence etkin olan bir Apple Silicon Mac gerektirir.",
-          "buildLacks": "Apple Intelligence, bu özellik olmadan derlenen VoxBar derlemesinde kullanılamıyor. Kullanmak için resmi bir sürüm derlemesi yükleyin."
+          "buildLacks": "Apple Intelligence, bu özellik olmadan derlenen VoxBar derlemesinde kullanılamıyor. Kullanmak için resmi bir sürüm derlemesi yükleyin.",
+          "probeFailed": "Bu Mac'te Apple Intelligence kullanılabilirliği kontrol edilemedi. Sağlayıcıyı yeniden seçmeyi deneyin."
         },
         "baseUrl": {
           "title": "Temel URL",

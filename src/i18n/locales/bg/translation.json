@@ -742,7 +742,8 @@
         },
         "appleIntelligence": {
           "unavailable": "Apple Intelligence не е налична на това устройство. Необходим е Mac с Apple Silicon и macOS Tahoe (26.0) или по-нова с включена Apple Intelligence в Системните настройки.",
-          "buildLacks": "Apple Intelligence не е налична в тази компилация на VoxBar, която е събрана без него. Инсталирайте официална релизна компилация, за да го използвате."
+          "buildLacks": "Apple Intelligence не е налична в тази компилация на VoxBar, която е събрана без него. Инсталирайте официална релизна компилация, за да го използвате.",
+          "probeFailed": "Не можа да се провери наличността на Apple Intelligence на този Mac. Опитайте да изберете доставчика отново."
         },
         "baseUrl": {
           "title": "Базов URL",

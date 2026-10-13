@@ -742,7 +742,8 @@
         },
         "appleIntelligence": {
           "unavailable": "Apple Intelligence недоступний на цьому пристрої. Потрібен Mac з Apple Silicon під управлінням macOS Tahoe (26.0) або новіше з увімкненим Apple Intelligence в Системних налаштуваннях.",
-          "buildLacks": "Apple Intelligence недоступний у цій збірці VoxBar, яка скомпільована без нього. Встановіть офіційну релізну збірку, щоб ним користуватися."
+          "buildLacks": "Apple Intelligence недоступний у цій збірці VoxBar, яка скомпільована без нього. Встановіть офіційну релізну збірку, щоб ним користуватися.",
+          "probeFailed": "Не вдалося перевірити доступність Apple Intelligence на цьому Mac. Спробуйте вибрати провайдера ще раз."
         },
         "baseUrl": {
           "title": "Базова URL-адреса",

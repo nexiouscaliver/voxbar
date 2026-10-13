@@ -284,7 +284,9 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         // KB-262: the tri-state probe words the two unavailable verdicts
         // differently - a build compiled without Apple Intelligence is not
         // an OS-requirements problem, so it gets its own copy instead of
-        // the "requires macOS Tahoe" message.
+        // the "requires macOS Tahoe" message. A probe that failed to
+        // answer (fleet, cycle 14) gets the availability-unknown copy: a
+        // transport failure established nothing about the OS.
         state.appleIntelligenceStatus === "build_lacks" ? (
           <Alert variant="error" contained>
             {t("settings.postProcessing.api.appleIntelligence.buildLacks")}
@@ -292,6 +294,10 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
         ) : state.appleIntelligenceStatus === "os_unsupported" ? (
           <Alert variant="error" contained>
             {t("settings.postProcessing.api.appleIntelligence.unavailable")}
+          </Alert>
+        ) : state.appleIntelligenceStatus === "probe_failed" ? (
+          <Alert variant="error" contained>
+            {t("settings.postProcessing.api.appleIntelligence.probeFailed")}
           </Alert>
         ) : null
       ) : (

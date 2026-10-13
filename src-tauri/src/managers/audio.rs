@@ -1700,7 +1700,9 @@ impl AudioRecordingManager {
     /// any session is live and the LAST session-end fold re-checks here. A
     /// lane start can never race this clear-and-close window: the flag is
     /// only parked while the companion server is stopped, and lane starts
-    /// require a live server connection.
+    /// require a live server connection - an invariant
+    /// [`Self::clear_deferred_remote_close`] ENFORCES (a stop-time park
+    /// never survives the next start).
     fn run_deferred_remote_close(&self) {
         if !self.remote_close_pending.load(Ordering::SeqCst) || self.is_recording() {
             return;
@@ -1708,6 +1710,23 @@ impl AudioRecordingManager {
         self.remote_close_pending.store(false, Ordering::SeqCst);
         debug!("companion: running the deferred lane-recorder close (KB-028)");
         self.close_remote_stream();
+    }
+
+    /// KB-028 residual (fleet, cycle 14): drop a parked close.
+    /// `CompanionManager::start` calls this once its listener is live: the
+    /// parked close exists to reclaim idle lane recorders after the last
+    /// session ends while the server is STOPPED, and a new server epoch
+    /// pre-warms its own recorders as phones re-hello - letting a
+    /// stop-time park survive the restart would run the stale close
+    /// against the live server (closing a re-hello'd phone's pre-warmed
+    /// recorder and moving the re-open cost onto the press path, zeroing
+    /// last_recording_lane, and force-stopping a lane whose start
+    /// committed past the runner's is_recording() check while its pushes
+    /// fell into admitted-but-dropped). After the clear the flag is only
+    /// ever parked while the server is stopped, which is what
+    /// [`Self::run_deferred_remote_close`]'s doc claims.
+    pub fn clear_deferred_remote_close(&self) {
+        self.remote_close_pending.store(false, Ordering::SeqCst);
     }
 
     /// v1.6.2 W1-L2: claim the streaming-engine token for one session.
@@ -2620,6 +2639,51 @@ mod tests {
             4,
             "KB-028: the parked close must run at all four session-end folds: \
              the lane stop, the local stop, and the two cancel arms"
+        );
+    }
+
+    /// KB-028 residual (fleet, cycle 14), source pin: a stop-time parked
+    /// close must never survive into the next server epoch. The flag had
+    /// no writer anywhere except the park site and the runner, so a
+    /// disable-during-recording followed by a re-enable left the park
+    /// armed while the server was LIVE; the next session-end fold then ran
+    /// the stale close against it (closing a re-hello'd phone's pre-warmed
+    /// recorder, zeroing last_recording_lane, and force-stopping a lane
+    /// whose start committed between the runner's is_recording() check and
+    /// its drain). CompanionManager::start() now clears the park the
+    /// moment its listener is live, so the flag is only ever parked while
+    /// the server is stopped.
+    #[test]
+    fn kb028_a_parked_close_never_survives_into_the_next_server_epoch() {
+        let source = include_str!("audio.rs");
+
+        // The clear helper exists and stores the flag false.
+        let clear_at = source
+            .find("pub fn clear_deferred_remote_close(&self)")
+            .expect("the park clear");
+        let clear_end = clear_at + source[clear_at..].find("\n    }\n").expect("fn end");
+        assert!(
+            source[clear_at..clear_end]
+                .contains("remote_close_pending.store(false, Ordering::SeqCst)"),
+            "the clear helper must store the flag false"
+        );
+
+        // Companion start() clears the park AFTER the new epoch's listener
+        // is live (the running flip), never before.
+        let companion = include_str!("../companion/mod.rs");
+        let start_at = companion
+            .find("pub fn start(&self, app: &AppHandle) -> Result<(), String>")
+            .expect("companion start");
+        let start_body = &companion[start_at..start_at + 9000];
+        let running_at = start_body
+            .find("inner.running = true;")
+            .expect("the running flip");
+        let clear_call_at = start_body
+            .find("rm.clear_deferred_remote_close();")
+            .expect("start() must clear a parked close for the new epoch");
+        assert!(
+            running_at < clear_call_at,
+            "the clear must run once the new epoch's listener is live (after the running flip)"
         );
     }
 

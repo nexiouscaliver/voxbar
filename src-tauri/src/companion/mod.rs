@@ -590,8 +590,11 @@ impl CompanionManager {
         // tailnet peer validates (ip::pairing_subnet_for).
         // KB-289: the rebind's whole-settings write rides the serialized
         // RMW lock (the connect-edge workers' lock) instead of a bare
-        // get/mutate/write outside any lock, so a concurrent
-        // whole-settings writer can no longer interleave a lost update.
+        // get/mutate/write outside any lock, so no other RIDER of that
+        // lock can interleave a lost update against it. The guarantee is
+        // scoped (see connect_edge_settings_rmw): the app's whole-settings
+        // writers outside the lock - the shortcut rebinding among them -
+        // can still interleave with it.
         let subnet = ip::pairing_subnet_for(&candidates, bind_ip);
         connect_edge_settings_rmw(app, &|settings| {
             let token_stale = settings
@@ -696,6 +699,21 @@ impl CompanionManager {
             inner.fingerprint = Some(fingerprint);
             inner.advertised_host = advertised_host.clone();
             inner.tls_manual = tls_manual;
+        }
+
+        // KB-028 residual (fleet, cycle 14): a close parked by the previous
+        // stop() must not survive into this server epoch. The parked close
+        // reclaims idle lane recorders once the last session ends while the
+        // server is STOPPED; this start() just bound a live listener, and
+        // the phones are about to re-hello and pre-warm their recorders
+        // against the new epoch - a parked close running at the next
+        // session-end fold would close a re-hello'd phone's pre-warmed
+        // recorder and force-stop a lane whose start committed after that
+        // fold's is_recording() check. Clearing here keeps the flag parked
+        // only while the server is stopped, the premise
+        // run_deferred_remote_close already documents.
+        if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
+            rm.clear_deferred_remote_close();
         }
 
         // Pre-warm the remote recorder for the FIRST arriving connection
@@ -1033,19 +1051,26 @@ const KNOWN_IDENTITIES_LIMIT: usize = 8;
 static CONNECT_EDGE_SETTINGS_RMW: Mutex<()> = Mutex::new(());
 
 /// One settings read-modify-write cycle under [`CONNECT_EDGE_SETTINGS_RMW`]:
-/// the guard spans get_settings through write_settings, so concurrent
-/// whole-settings writers serialize and each read sees the other's write.
-/// The closure returns whether the field changed; an unchanged field
-/// writes nothing.
+/// the guard spans get_settings through write_settings, so the riders of
+/// this lock serialize with one another and each rider's read sees every
+/// other rider's write. The closure returns whether the field changed; an
+/// unchanged field writes nothing.
 ///
-/// KB-289 (v1.6.5): the lock is the app's serialized RMW for the whole
-/// settings store, not only the connect edge. Companion `start()`'s
-/// pairing-token rebind, [`CompanionManager::reset_pairing`], and the
-/// `set_log_level` command ride the same cycle - each used to
-/// whole-settings-write outside any lock, so a connect-edge interleave
-/// could erase their field (the same lost update the connect-edge workers
-/// serialize against). The historical name stays: the KB-261 pin and the
-/// ledger anchors cite it.
+/// KB-289 (v1.6.5): the lock is the serialized RMW for every writer of
+/// the companion pairing/identity fields and log_level - companion
+/// `start()`'s pairing-token rebind, [`CompanionManager::reset_pairing`],
+/// and the `set_log_level` command ride the same cycle the connect-edge
+/// workers already did - each used to whole-settings-write outside any
+/// lock, so a connect-edge interleave could erase their field (the same
+/// lost update the connect-edge workers serialize against). The
+/// guarantee is NOT store-wide: get_settings and write_settings remain
+/// separate lock-free store operations and the app still holds
+/// whole-settings writers that ride no lock (the shortcut rebinding's
+/// change_binding among them), so a rider can still interleave a lost
+/// update with one of THOSE; closing that would need a store-level lock
+/// touching every caller, the blast radius this fix deliberately avoids.
+/// The historical name stays: the KB-261 pin and the ledger anchors cite
+/// it.
 pub(crate) fn connect_edge_settings_rmw(
     app: &AppHandle,
     mutate: &dyn Fn(&mut crate::settings::AppSettings) -> bool,
@@ -2181,6 +2206,57 @@ mod tests {
         assert!(
             !log_body.contains("write_settings(&app, settings);"),
             "set_log_level must not bare-write the whole store outside the lock"
+        );
+    }
+
+    /// KB-289 residual (fleet, cycle 14), doc pin: the helper's docs must
+    /// state the lock's ACTUAL guarantee. The first cut of the widened
+    /// docs claimed "the lock is the app's serialized RMW for the whole
+    /// settings store" and "a concurrent whole-settings writer can no
+    /// longer interleave a lost update" - contradicted by the code: only
+    /// the riders serialize, while the app's other whole-settings writers
+    /// (the shortcut rebinding's change_binding among them) still do bare
+    /// get/mutate/write outside any lock, so a rider CAN still lose an
+    /// update against one of those. A doc that overclaims a store-wide
+    /// guarantee invites relying on one that does not exist.
+    #[test]
+    fn kb289_the_rmw_doc_states_the_scoped_guarantee() {
+        let source = include_str!("mod.rs");
+        let helper_at = source
+            .find("pub(crate) fn connect_edge_settings_rmw(")
+            .expect("the RMW helper");
+        // The doc block sits directly above the fn.
+        let doc = &source[helper_at - 2600..helper_at];
+        assert!(
+            doc.contains("serialized RMW for every writer of")
+                && doc.contains("NOT store-wide"),
+            "the helper doc must scope the guarantee to the riders (companion pairing/identity fields and log_level) and state it is not store-wide"
+        );
+        assert!(
+            !doc.contains("for the whole settings store, not only the connect edge"),
+            "the store-wide overclaim must not survive in the helper doc"
+        );
+        assert!(
+            !doc.contains("concurrent whole-settings writers serialize"),
+            "the doc must not claim ALL concurrent whole-settings writers serialize; only the riders do"
+        );
+
+        // start()'s rebind comment carries the same scoped wording.
+        let start_at = source
+            .find("pub fn start(&self, app: &AppHandle) -> Result<(), String>")
+            .expect("companion start");
+        let start_body = &source[start_at..start_at + 9000];
+        let rebind_comment = &start_body[start_body
+            .find("KB-289: the rebind's whole-settings write")
+            .expect("the rebind comment")..];
+        assert!(
+            !rebind_comment[..900]
+                .contains("a concurrent whole-settings writer can no longer interleave"),
+            "the rebind comment must not claim immunity against non-riding writers"
+        );
+        assert!(
+            rebind_comment[..900].contains("no other RIDER of that"),
+            "the rebind comment must scope the immunity to the lock's riders"
         );
     }
 

@@ -742,7 +742,8 @@
         },
         "appleIntelligence": {
           "unavailable": "このデバイスでは Apple Intelligence を利用できません。macOS Tahoe (26.0) 以降を実行し、システム設定で Apple Intelligence が有効になっている Apple Silicon Mac が必要です。",
-          "buildLacks": "この VoxBar のビルドは Apple Intelligence を含まずにコンパイルされているため、利用できません。利用するには公式リリースビルドをインストールしてください。"
+          "buildLacks": "この VoxBar のビルドは Apple Intelligence を含まずにコンパイルされているため、利用できません。利用するには公式リリースビルドをインストールしてください。",
+          "probeFailed": "このMacでの Apple Intelligence の利用可否を確認できませんでした。プロバイダーをもう一度選択してお試しください。"
         },
         "baseUrl": {
           "title": "ベース URL",

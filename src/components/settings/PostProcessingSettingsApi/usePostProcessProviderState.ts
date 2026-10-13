@@ -18,11 +18,15 @@ import {
 
 // The KB-262 tri-state the backend probe returns: why Apple Intelligence
 // is (un)available. The two unavailable verdicts localize differently (a
-// build lacking it is not an OS-requirements problem).
+// build lacking it is not an OS-requirements problem). The fourth value is
+// frontend-only (fleet, cycle 14): a probe that failed to ANSWER (transport
+// or IPC error) is not a verdict about the OS at all, so it must not render
+// the OS-requirements copy - it renders the availability-unknown string.
 export type AppleIntelligenceStatus =
   | "available"
   | "os_unsupported"
-  | "build_lacks";
+  | "build_lacks"
+  | "probe_failed";
 
 type PostProcessProviderState = {
   providerOptions: DropdownOption[];
@@ -134,9 +138,11 @@ export const usePostProcessProviderState = (): PostProcessProviderState => {
             "Apple Intelligence availability check failed:",
             error,
           );
-          // The probe itself failed (transport); the conservative verdict
-          // is os_unsupported, the copy the bool probe always produced.
-          setAppleIntelligenceStatus("os_unsupported");
+          // The probe itself failed (transport or IPC); it established
+          // NOTHING about the OS, so rendering the OS-requirements copy
+          // would assert facts a failed probe cannot support (fleet, cycle
+          // 14). The verdict is availability-unknown copy instead.
+          setAppleIntelligenceStatus("probe_failed");
         }
       }
 

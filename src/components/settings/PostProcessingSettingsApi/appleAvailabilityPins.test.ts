@@ -64,16 +64,20 @@ function read(rel: string): string {
   );
   const appleBranch = settings.slice(
     settings.indexOf("state.isAppleProvider ?"),
-    settings.indexOf("state.selectedProvider?.id === \"custom\""),
+    settings.indexOf('state.selectedProvider?.id === "custom"'),
   );
   assert.ok(
     appleBranch.includes('=== "build_lacks"') &&
-      appleBranch.includes("settings.postProcessing.api.appleIntelligence.buildLacks"),
+      appleBranch.includes(
+        "settings.postProcessing.api.appleIntelligence.buildLacks",
+      ),
     "KB-262: the settings card must render the buildLacks copy for a build lacking AI",
   );
   assert.ok(
     appleBranch.includes('=== "os_unsupported"') &&
-      appleBranch.includes("settings.postProcessing.api.appleIntelligence.unavailable"),
+      appleBranch.includes(
+        "settings.postProcessing.api.appleIntelligence.unavailable",
+      ),
     "KB-262: the settings card must keep the OS-requirements copy for os_unsupported",
   );
 }
@@ -84,7 +88,9 @@ function read(rel: string): string {
   const studio = read("src/components/settings/studio/PromptStudio.tsx");
   assert.ok(
     studio.includes('appleStatus === "build_lacks"') &&
-      studio.includes("settings.postProcessing.api.appleIntelligence.buildLacks"),
+      studio.includes(
+        "settings.postProcessing.api.appleIntelligence.buildLacks",
+      ),
     "KB-262: the studio engine row must render the buildLacks note",
   );
   assert.ok(
@@ -105,9 +111,80 @@ function read(rel: string): string {
     "src/components/settings/PostProcessingSettingsApi/usePostProcessProviderState.ts",
   );
   assert.ok(
-    hook.includes('setAppleIntelligenceStatus(status)') &&
+    hook.includes("setAppleIntelligenceStatus(status)") &&
       hook.includes('if (status !== "available")'),
     "KB-262: the provider-select hook must branch on the tri-state verdict",
+  );
+}
+
+// 4b. Fleet, cycle 14: a probe that failed to ANSWER (transport/IPC) is
+// not a verdict about the OS. Neither catch site may collapse the failure
+// onto os_unsupported (the OS-requirements copy asserted facts a failed
+// probe cannot support); both set the frontend-only probe_failed verdict,
+// both render surfaces carry a probe_failed branch reading the
+// availability-unknown string, and the type carries the variant.
+{
+  const hook = read(
+    "src/components/settings/PostProcessingSettingsApi/usePostProcessProviderState.ts",
+  );
+  assert.ok(
+    hook.includes('| "probe_failed"'),
+    "KB-262: the status type must carry the probe_failed variant",
+  );
+  const selectBranch = hook.slice(
+    hook.indexOf("if (providerId === APPLE_PROVIDER_ID)"),
+    hook.indexOf("await setPostProcessProvider(providerId)"),
+  );
+  assert.ok(
+    selectBranch.includes('setAppleIntelligenceStatus("probe_failed")') &&
+      !selectBranch.includes('setAppleIntelligenceStatus("os_unsupported")'),
+    "KB-262: the provider-select catch must report probe_failed, never os_unsupported",
+  );
+
+  const settings = read(
+    "src/components/settings/post-processing/PostProcessingSettings.tsx",
+  );
+  assert.ok(
+    settings.includes('=== "probe_failed"') &&
+      settings.includes(
+        "settings.postProcessing.api.appleIntelligence.probeFailed",
+      ),
+    "KB-262: the settings card must render the availability-unknown copy for probe_failed",
+  );
+
+  const studio = read("src/components/settings/studio/PromptStudio.tsx");
+  assert.ok(
+    studio.includes('setAppleStatus("probe_failed")') &&
+      !studio.includes('setAppleStatus("os_unsupported")'),
+    "KB-262: the studio probe catch must report probe_failed, never os_unsupported",
+  );
+  assert.ok(
+    studio.includes('appleStatus === "probe_failed"') &&
+      studio.includes(
+        "settings.postProcessing.api.appleIntelligence.probeFailed",
+      ),
+    "KB-262: the studio engine row must render the availability-unknown copy",
+  );
+}
+
+// 4c. Fleet, cycle 14: the CheckRow note span keeps the single-line
+// truncate the half-width grid cell demands, so the full verdict sentence
+// (the build-lacks and probe-failed copies run 100+ chars) is reachable
+// only through a title attribute - exactly like the truncated siblings
+// in ResultCard. A clipped-only span would hide the verdict's
+// distinguishing clause and its remediation with no way to read them.
+{
+  const studio = read("src/components/settings/studio/PromptStudio.tsx");
+  const rowAt = studio.indexOf("const CheckRow: React.FC");
+  assert.ok(rowAt >= 0, "KB-262: the CheckRow component must exist");
+  const noteSpanAt = studio
+    .slice(rowAt, rowAt + 2000)
+    .indexOf("block text-xs text-secondary truncate");
+  assert.ok(noteSpanAt >= 0, "KB-262: the CheckRow note span must exist");
+  const window = studio.slice(rowAt + noteSpanAt, rowAt + noteSpanAt + 400);
+  assert.ok(
+    window.includes("title={note}"),
+    "KB-262: the truncated note span must carry title={note} so the full verdict stays readable",
   );
 }
 

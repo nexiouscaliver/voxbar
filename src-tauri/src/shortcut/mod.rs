@@ -234,27 +234,39 @@ fn cancel_wanters_remove(wanters: &mut Vec<Option<u64>>, session: Option<u64>) {
 /// [`handy_keys::cancel_reconcile_enabled`]), not the platform itself.
 static CANCEL_REGISTERED: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
 
-/// KB-281: whether a lane-keyed cancel-want register may add its want.
+/// KB-281: whether a session-keyed cancel-want register may add its want.
 /// The unregister-before-register inversion (a session's teardown on
 /// another thread - the Escape teardown, the load-failure teardown -
-/// releases the lane's want while the start path is still between its
+/// releases the session's want while the start path is still between its
 /// readiness commit and its register arm) left the LATE register adding a
 /// want no session would ever release, so Escape stayed registered
-/// system-wide until restart. The lane's own companion session record is
-/// the discriminator, which gives the removal add-then-remove ordering at
-/// the add side: it flips live BEFORE the start path's register arm runs
-/// (same thread) and every want-releasing teardown flips it dead BEFORE
-/// releasing the want, and the register arm reads the record under the
-/// SAME want-set lock hold as its add (see
-/// [`register_cancel_shortcut`]) - so against a teardown that has
-/// already flipped, the read finds the record dead and the register is
+/// system-wide until restart. Each key's own liveness discriminator gives
+/// the removal add-then-remove ordering at the add side: it flips live
+/// BEFORE the start path's register arm runs (same thread) and every
+/// want-releasing teardown flips it dead BEFORE releasing the want, and
+/// the register arm reads it under the SAME want-set lock hold as its add
+/// (see [`register_cancel_shortcut`]) - so against a teardown that has
+/// already flipped, the read finds the session dead and the register is
 /// refused, and against a teardown still to release, the add lands under
 /// the hold the release must wait for, leaving the want present for that
 /// release to remove. Either interleave resolves to no leaked want.
-/// `None` means no companion manager exists (test/early-startup contexts,
-/// where no lanes exist at all): the legacy add stands, fail-open.
-fn lane_keyed_register_may_add_want(lane_session_live: Option<bool>) -> bool {
-    lane_session_live.unwrap_or(true)
+///
+/// A lane key's discriminator is the lane's companion session record
+/// (`lane_owns_live_session`). The keyboard's None key has no companion
+/// record; its discriminator is the LOCAL recorder's state
+/// (`local_is_recording`): the start path arms that recorder BEFORE its
+/// register arm runs, and every want-releasing teardown that resolves
+/// Local (the Escape cancel, the load-failure teardown) flips it Idle
+/// BEFORE releasing the want - the same flip-before-release ordering. The
+/// fleet cycle 14 residual this closes: while a phone lane records, a
+/// keyboard start's late register re-added the None key after one of
+/// those teardowns had already resolved Local, arming Escape
+/// system-wide with no live keyboard session to ever release it.
+/// `None` for the Option means no manager exists (test/early-startup
+/// contexts, where no session of that kind exists at all): the legacy add
+/// stands, fail-open.
+fn session_keyed_register_may_add_want(session_live: Option<bool>) -> bool {
+    session_live.unwrap_or(true)
 }
 
 /// Register the cancel shortcut for ONE session (called when that session
@@ -262,38 +274,54 @@ fn lane_keyed_register_may_add_want(lane_session_live: Option<bool>) -> bool {
 pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>) {
     {
         let mut wanters = CANCEL_WANTERS.lock().unwrap_or_else(|e| e.into_inner());
-        // KB-281: the lane-liveness read rides the SAME CANCEL_WANTERS
+        // KB-281: the session-liveness read rides the SAME CANCEL_WANTERS
         // hold as the want add below, so a concurrent teardown cannot land
-        // its record-flip and want-release BETWEEN the read and the add
+        // its liveness-flip and want-release BETWEEN the read and the add
         // (the review round's race: reading live before the flip, adding
         // after the release, leaking the want forever). Every
-        // want-releasing teardown flips the record dead BEFORE it takes
-        // this lock (utils.rs's cancel edge, the load-failure teardown),
-        // so under the hold the read sees every flip that already
-        // happened, and a teardown yet to release cannot slip its removal
-        // in ahead of the add: whichever order the arms interleave, the
-        // net is [add then remove] (the release finds the want present)
-        // or [flip then read] (the register is refused). The
-        // wanters -> lane_sessions nesting is deadlock-safe: no path
+        // want-releasing teardown flips its session's liveness dead BEFORE
+        // it takes this lock (utils.rs's cancel edge, the load-failure
+        // teardown), so under the hold the read sees every flip that
+        // already happened, and a teardown yet to release cannot slip its
+        // removal in ahead of the add: whichever order the arms
+        // interleave, the net is [add then remove] (the release finds the
+        // want present) or [flip then read] (the register is refused).
+        // The wanters -> lane_sessions nesting is deadlock-safe: no path
         // holds lane_sessions while taking this lock
         // (on_lane_session_changed drops the record lock before its
-        // sends; every register/unregister arm call site is top-level).
-        // The keyboard's None key has no companion record to consult and
-        // keeps the legacy behavior. Residual, disclosed in the ledger: a
-        // teardown that completes BEFORE the start path creates the
-        // session record is invisible to this gate, because the record it
-        // reads is the fresh live one the start path then inserts.
-        if let Some(lane) = session {
-            let lane_live = app
+        // sends; every register/unregister arm call site is top-level),
+        // and the None arm's audio state read nests the same way: no path
+        // in managers/audio.rs calls into this module while holding the
+        // state mutex (both teardowns flip the state inside
+        // cancel_recording and release the want only after it returns).
+        //
+        // KB-281 residual (fleet, cycle 14): the keyboard's None key rides
+        // the same gate on the LOCAL recorder's own liveness. While a
+        // phone lane records the folded mirrors stay true, so the
+        // keyboard's session cannot be discriminated through them - but
+        // the teardown that resolves Local (the Escape cancel, the
+        // load-failure teardown) flips the LOCAL state Idle before
+        // releasing the None want, so a start path whose register arm runs
+        // after that flip reads a dead recorder and is refused instead of
+        // re-adding a want no session will ever release. Residual,
+        // disclosed in the ledger: a teardown that completes BEFORE the
+        // start path arms its liveness discriminator is invisible to this
+        // gate, because the discriminator it then reads is the fresh live
+        // one the start path's own arm set.
+        let session_live = match session {
+            Some(lane) => app
                 .try_state::<std::sync::Arc<crate::companion::CompanionManager>>()
-                .map(|manager| manager.lane_owns_live_session(lane));
-            if !lane_keyed_register_may_add_want(lane_live) {
-                debug!(
-                    "skipped a stale lane {} cancel-want register: its session was already torn down (KB-281)",
-                    lane
-                );
-                return;
-            }
+                .map(|manager| manager.lane_owns_live_session(lane)),
+            None => app
+                .try_state::<std::sync::Arc<crate::managers::audio::AudioRecordingManager>>()
+                .map(|audio| audio.local_is_recording()),
+        };
+        if !session_keyed_register_may_add_want(session_live) {
+            debug!(
+                "skipped a stale {:?}-keyed cancel-want register: its session was already torn down (KB-281)",
+                session
+            );
+            return;
         }
         cancel_wanters_add(&mut wanters, session);
         // Track the lifecycle independently of the current implementation
@@ -3271,15 +3299,15 @@ mod tests {
     /// the SET (any session), never the last call. Mounting the
     /// registration backends needs a real app, so the arms are pinned
     /// against this committed source (the KB-242 convention). The register
-    /// window spans KB-281's lane-liveness gate, which sits BEFORE the
-    /// want-set mutation by design.
+    /// window spans KB-281's session-liveness gate (both arms), which sits
+    /// BEFORE the want-set mutation by design.
     #[test]
     fn cancel_shortcut_arms_are_keyed_by_session() {
         let source = include_str!("mod.rs");
         let register_at = source
             .find("pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>)")
             .expect("register carries the session key");
-        let register_body = &source[register_at..register_at + 3000];
+        let register_body = &source[register_at..register_at + 4200];
         assert!(
             register_body.contains("cancel_wanters_add"),
             "register adds exactly ITS session's want"
@@ -3344,10 +3372,10 @@ mod tests {
             ),
         ] {
             let arm_at = source.find(arm).unwrap_or_else(|| panic!("{mutation} arm"));
-            // 3200 spans KB-281's lane-liveness gate and its ordering
-            // comment, which precede the register arm's want-set mutation
-            // by design.
-            let body = &source[arm_at..arm_at + 3200];
+            // 4200 spans KB-281's session-liveness gate (both arms) and
+            // its ordering comment, which precede the register arm's
+            // want-set mutation by design.
+            let body = &source[arm_at..arm_at + 4200];
             let mutation_at = body.find(mutation).expect("the want-set mutation");
             let fold_at = body
                 .find("note_cancel_wanted_locked(&wanters, app)")
@@ -4364,7 +4392,7 @@ mod tests {
     /// secure-input fallback, whose state a unit test cannot mount).
     #[test]
     fn kb281_a_dead_lanes_late_register_cannot_re_add_the_cancel_want() {
-        use super::lane_keyed_register_may_add_want;
+        use super::session_keyed_register_may_add_want;
         use crate::companion::{self, CompanionManager};
         use std::sync::Arc;
         use tauri::Manager;
@@ -4378,9 +4406,7 @@ mod tests {
         // owns no live session), so the start path's LATE register must be
         // refused.
         assert!(
-            !lane_keyed_register_may_add_want(Some(
-                manager.lane_owns_live_session(lane)
-            )),
+            !session_keyed_register_may_add_want(Some(manager.lane_owns_live_session(lane))),
             "a register whose lane session is dead must not add the want"
         );
 
@@ -4389,47 +4415,46 @@ mod tests {
         companion::begin_session(app.handle(), lane, Default::default());
         assert!(manager.lane_owns_live_session(lane));
         assert!(
-            lane_keyed_register_may_add_want(Some(true)),
+            session_keyed_register_may_add_want(Some(true)),
             "a live session's register must add the want"
         );
         // The record flips dead at every want-releasing teardown, so the
         // next late register is refused again.
         companion::on_lane_session_changed(app.handle(), lane, false);
         assert!(!manager.lane_owns_live_session(lane));
-        assert!(!lane_keyed_register_may_add_want(Some(false)));
+        assert!(!session_keyed_register_may_add_want(Some(false)));
 
         // Manager-less contexts (no lanes exist at all) keep the legacy
         // add, fail-open.
         assert!(
-            lane_keyed_register_may_add_want(None),
+            session_keyed_register_may_add_want(None),
             "no companion manager means nothing to verify; the legacy add stands"
         );
     }
 
     /// KB-281 wiring pin (review round): the register arm consults the
-    /// lane's live session record BEFORE its want-set mutation, for lane
-    /// keys only (the keyboard's None key has no record and keeps the
-    /// legacy arm) - AND the liveness read rides the SAME CANCEL_WANTERS
-    /// lock hold as the add. Reading liveness outside the hold left the
-    /// review round's race: [register reads live] [teardown flips dead]
+    /// session's live discriminator BEFORE its want-set mutation, for BOTH
+    /// keys - AND the liveness read rides the SAME CANCEL_WANTERS lock
+    /// hold as the add. Reading liveness outside the hold left the review
+    /// round's race: [register reads live] [teardown flips dead]
     /// [teardown removes the absent want] [register adds] leaked the want
     /// exactly as pre-fix. Structurally pinned like the KB-266 fold pin:
     /// the lock acquisition precedes the read, the read precedes the add,
     /// and the hold closes (the `}` before schedule_cancel_reconcile)
     /// only after the fold, so read and add share one critical section.
     #[test]
-    fn kb281_the_register_arm_gates_on_the_lanes_live_session_record() {
+    fn kb281_the_register_arm_gates_on_the_sessions_live_discriminator() {
         let source = include_str!("mod.rs");
         let register_at = source
             .find("pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>)")
             .expect("the register arm");
-        let register_body = &source[register_at..register_at + 3600];
+        let register_body = &source[register_at..register_at + 4200];
         let lock_at = register_body
             .find("let mut wanters = CANCEL_WANTERS.lock()")
             .expect("the want-set lock acquisition");
         let gate_at = register_body
-            .find("lane_keyed_register_may_add_want(lane_live)")
-            .expect("the lane-liveness gate");
+            .find("session_keyed_register_may_add_want(session_live)")
+            .expect("the session-liveness gate");
         let add_at = register_body
             .find("cancel_wanters_add(&mut wanters, session)")
             .expect("the want-set mutation");
@@ -4455,9 +4480,105 @@ mod tests {
             register_body[fold_at..reconcile_at].contains('}'),
             "the lock scope must close only after the add and fold"
         );
+        // BOTH keys are gated: the lane arm reads the companion session
+        // record, the None arm reads the LOCAL recorder's own state (the
+        // fleet cycle 14 residual: the None key used to fall through to
+        // the add unchecked).
         assert!(
-            register_body[..gate_at].contains("if let Some(lane) = session"),
-            "only lane keys are gated; the keyboard's None key is not"
+            register_body[..gate_at].contains("manager.lane_owns_live_session(lane)"),
+            "the lane arm must read the lane's live companion session record"
+        );
+        assert!(
+            register_body[..gate_at].contains("audio.local_is_recording()"),
+            "the None arm must read the keyboard session's own local-recorder liveness"
+        );
+    }
+
+    /// KB-281 None-key pin (fleet, cycle 14): the keyboard session's
+    /// cancel-want register gates on the LOCAL recorder's liveness, so the
+    /// None-key arm of the unregister-before-register inversion (Escape,
+    /// or a model load failing before the keyboard preamble ends, while a
+    /// phone lane keeps the folded mirrors true) can no longer re-add the
+    /// None want after the teardown already resolved Local and released
+    /// it. The orderings that make the gate sound are pinned on the
+    /// teardown sources: both want-releasing teardowns flip the local
+    /// state dead INSIDE cancel_recording, strictly BEFORE the
+    /// unregister_cancel_shortcut release, and the start path arms the
+    /// recorder (try_start_recording_for) strictly BEFORE its register
+    /// arm - so under the want-set hold the read sees every flip that
+    /// already happened, exactly as the lane arm's record does.
+    #[test]
+    fn kb281_the_none_key_register_gates_on_the_local_recorders_liveness() {
+        use super::session_keyed_register_may_add_want;
+
+        // A keyboard session whose recorder a teardown already flipped
+        // dead (cancel_recording resolved Local) is refused; a live one
+        // arms as before; a manager-less context (no AudioRecordingManager
+        // mounted, test/early-startup) keeps the legacy add, fail-open.
+        assert!(
+            !session_keyed_register_may_add_want(Some(false)),
+            "a register whose local recorder is dead must not add the None want"
+        );
+        assert!(
+            session_keyed_register_may_add_want(Some(true)),
+            "a live local recorder's register must add the None want"
+        );
+        assert!(
+            session_keyed_register_may_add_want(None),
+            "no audio manager means nothing to verify; the legacy add stands"
+        );
+
+        // The teardown ordering, utils.rs's Escape edge: the local state
+        // flips dead inside cancel_recording BEFORE the want release.
+        let utils = include_str!("../utils.rs");
+        let cancel_fn = utils
+            .find("pub fn cancel_current_operation(app: &AppHandle)")
+            .expect("the Escape teardown");
+        let cancel_body = &utils[cancel_fn..cancel_fn + 2600];
+        let flip_at = cancel_body
+            .find("audio_manager.cancel_recording()")
+            .expect("the cancel that flips the local state");
+        let release_at = cancel_body
+            .find("shortcut::unregister_cancel_shortcut(app, cancel_session_key)")
+            .expect("the want release");
+        assert!(
+            flip_at < release_at,
+            "the local state flip must precede the None want release (KB-281 None-key gate)"
+        );
+
+        // The load-failure teardown keeps the same ordering.
+        let transcription = include_str!("../managers/transcription.rs");
+        let teardown_at = transcription
+            .find("fn handle_hotkey_load_failure(&self, error: &anyhow::Error)")
+            .expect("the load-failure teardown");
+        let teardown = &transcription[teardown_at..teardown_at + 3200];
+        let flip_at = teardown
+            .find("rm.cancel_recording()")
+            .expect("the cancel that flips the local state");
+        let release_at = teardown
+            .find(
+                "crate::shortcut::unregister_cancel_shortcut(&self.app_handle, cancel_session_key)",
+            )
+            .expect("the want release");
+        assert!(
+            flip_at < release_at,
+            "the load-failure teardown must flip the local state before releasing the None want"
+        );
+
+        // The start path arms the recorder BEFORE its register arm, so a
+        // non-stale register always reads a live recorder.
+        let actions = include_str!("../actions.rs");
+        let start_at = actions
+            .find(
+                "(CaptureSource::Local, _) => rm.try_start_recording_for(&binding_id, vad_policy)",
+            )
+            .expect("the local recorder arm");
+        let register_at = actions
+            .find("shortcut::register_cancel_shortcut(app, session_key)")
+            .expect("the register arm");
+        assert!(
+            start_at < register_at,
+            "the start path must arm the local recorder before its register arm runs"
         );
     }
 }

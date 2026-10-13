@@ -742,7 +742,8 @@
         },
         "appleIntelligence": {
           "unavailable": "Apple Intelligence tidak tersedia di perangkat ini. Memerlukan Mac Apple Silicon yang menjalankan macOS Tahoe (26.0) atau yang lebih baru dengan Apple Intelligence diaktifkan di Pengaturan Sistem.",
-          "buildLacks": "Apple Intelligence tidak tersedia di build VoxBar ini, yang dikompilasi tanpanya. Instal build rilis resmi untuk menggunakannya."
+          "buildLacks": "Apple Intelligence tidak tersedia di build VoxBar ini, yang dikompilasi tanpanya. Instal build rilis resmi untuk menggunakannya.",
+          "probeFailed": "Ketersediaan Apple Intelligence di Mac ini tidak dapat diperiksa. Coba pilih penyedia lagi."
         },
         "baseUrl": {
           "title": "URL Dasar",

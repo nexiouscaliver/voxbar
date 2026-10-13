@@ -742,7 +742,8 @@
         },
         "appleIntelligence": {
           "unavailable": "Apple Intelligence nie jest dostępne na tym urządzeniu. Wymaga komputera Mac z Apple Silicon i systemem macOS Tahoe (26.0) lub nowszym z włączonym Apple Intelligence w Ustawieniach systemowych.",
-          "buildLacks": "Apple Intelligence nie jest dostępne w tej kompilacji VoxBar, która została zbudowana bez tej funkcji. Zainstaluj oficjalną kompilację wydawniczą, aby z niej korzystać."
+          "buildLacks": "Apple Intelligence nie jest dostępne w tej kompilacji VoxBar, która została zbudowana bez tej funkcji. Zainstaluj oficjalną kompilację wydawniczą, aby z niej korzystać.",
+          "probeFailed": "Nie udało się sprawdzić dostępności Apple Intelligence na tym Macu. Spróbuj ponownie wybrać dostawcę."
         },
         "baseUrl": {
           "title": "Adres bazowy",

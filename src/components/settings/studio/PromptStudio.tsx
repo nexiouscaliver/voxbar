@@ -68,7 +68,14 @@ const CheckRow: React.FC<{
     <span className="min-w-0 flex-1">
       <span className="block text-sm font-medium truncate">{label}</span>
       {note ? (
-        <span className="block text-xs text-secondary truncate">{note}</span>
+        /* KB-262 residual (fleet, cycle 14): the note span keeps the
+           single-line truncate the half-width grid cell demands, but the
+           full sentence (the build-lacks verdict and its remediation run
+           118+ chars) must stay reachable - title mirrors the truncated
+           siblings in ResultCard below. */
+        <span className="block text-xs text-secondary truncate" title={note}>
+          {note}
+        </span>
       ) : null}
     </span>
   </label>
@@ -259,9 +266,10 @@ export const PromptStudio: React.FC = () => {
       })
       .catch((error) => {
         console.error("Apple Intelligence availability check failed:", error);
-        // Probe transport failure: the conservative verdict is the
-        // OS-unsupported copy the bool probe always produced.
-        if (!cancelled) setAppleStatus("os_unsupported");
+        // Probe transport failure: it established NOTHING about the OS, so
+        // the verdict is the availability-unknown copy, never the
+        // OS-requirements sentence (fleet, cycle 14).
+        if (!cancelled) setAppleStatus("probe_failed");
       });
     return () => {
       cancelled = true;
@@ -476,11 +484,17 @@ export const PromptStudio: React.FC = () => {
             const apple = provider.id === APPLE_PROVIDER_ID;
             // KB-262: the unavailable note words a build lacking Apple
             // Intelligence differently from an OS lacking it (one new
-            // locale string, shared with the settings surface).
+            // locale string, shared with the settings surface); a probe
+            // that failed to answer gets the availability-unknown wording
+            // (fleet, cycle 14) instead of asserting OS facts.
             const appleNote =
               appleStatus === "build_lacks"
                 ? t("settings.postProcessing.api.appleIntelligence.buildLacks")
-                : t("settings.studio.engines.appleUnavailable");
+                : appleStatus === "probe_failed"
+                  ? t(
+                      "settings.postProcessing.api.appleIntelligence.probeFailed",
+                    )
+                  : t("settings.studio.engines.appleUnavailable");
             const model = models[provider.id] ?? "";
             const note =
               apple && appleStatus !== "available"

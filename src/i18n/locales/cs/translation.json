@@ -742,7 +742,8 @@
         },
         "appleIntelligence": {
           "unavailable": "Apple Intelligence není na tomto zařízení k dispozici. Vyžaduje Mac s Apple Silicon a macOS Tahoe (26.0) nebo novější a povolené Apple Intelligence v Nastavení systému.",
-          "buildLacks": "Apple Intelligence není k dispozici v tomto sestavení VoxBar, které bylo zkompilováno bez něj. Nainstalujte oficiální sestavení, pokud jej chcete používat."
+          "buildLacks": "Apple Intelligence není k dispozici v tomto sestavení VoxBar, které bylo zkompilováno bez něj. Nainstalujte oficiální sestavení, pokud jej chcete používat.",
+          "probeFailed": "Dostupnost Apple Intelligence na tomto Macu se nepodařilo zkontrolovat. Zkuste poskytovatele vybrat znovu."
         },
         "baseUrl": {
           "title": "Základní URL",

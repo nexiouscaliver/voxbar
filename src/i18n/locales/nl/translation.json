@@ -742,7 +742,8 @@
         },
         "appleIntelligence": {
           "unavailable": "Apple Intelligence is niet beschikbaar op dit apparaat. Vereist een Apple Silicon Mac met macOS Tahoe (26.0) of nieuwer waarop Apple Intelligence is ingeschakeld via de Systeeminstellingen.",
-          "buildLacks": "Apple Intelligence is niet beschikbaar in deze build van VoxBar, die zonder deze functie is gecompileerd. Installeer een officiële releasebuild om deze te gebruiken."
+          "buildLacks": "Apple Intelligence is niet beschikbaar in deze build van VoxBar, die zonder deze functie is gecompileerd. Installeer een officiële releasebuild om deze te gebruiken.",
+          "probeFailed": "De beschikbaarheid van Apple Intelligence op deze Mac kon niet worden gecontroleerd. Probeer de provider opnieuw te selecteren."
         },
         "baseUrl": {
           "title": "Basis-URL",

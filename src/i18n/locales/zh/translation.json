@@ -742,7 +742,8 @@
         },
         "appleIntelligence": {
           "unavailable": "Apple Intelligence 在此设备上不可用。需要运行 macOS Tahoe（26.0）或更高版本的 Apple Silicon Mac，并在系统设置中启用 Apple Intelligence。",
-          "buildLacks": "此 VoxBar 构建版本编译时未包含 Apple Intelligence，因此无法使用。如需使用，请安装官方发布版本。"
+          "buildLacks": "此 VoxBar 构建版本编译时未包含 Apple Intelligence，因此无法使用。如需使用，请安装官方发布版本。",
+          "probeFailed": "无法在这台 Mac 上检查 Apple Intelligence 的可用性。请尝试重新选择提供商。"
         },
         "baseUrl": {
           "title": "基础 URL",

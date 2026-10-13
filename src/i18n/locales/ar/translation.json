@@ -684,7 +684,8 @@
         },
         "appleIntelligence": {
           "unavailable": "Apple Intelligence غير متاح على هذا الجهاز. يتطلب جهاز Mac بمعالج Apple Silicon يعمل بنظام macOS Tahoe (26.0) أو أحدث مع تمكين Apple Intelligence في إعدادات النظام.",
-          "buildLacks": "Apple Intelligence غير متاح في هذه النسخة من VoxBar، فقد تم تجميعها بدونه. ثبّت نسخة إصدار رسمية لاستخدامه."
+          "buildLacks": "Apple Intelligence غير متاح في هذه النسخة من VoxBar، فقد تم تجميعها بدونه. ثبّت نسخة إصدار رسمية لاستخدامه.",
+          "probeFailed": "تعذّر التحقق من مدى توفّر Apple Intelligence على هذا الـ Mac. جرّب اختيار المزوّد مرة أخرى."
         },
         "baseUrl": {
           "title": "URL الأساسي",
