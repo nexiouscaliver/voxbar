@@ -229,8 +229,12 @@ export const NOTICE_CHANNEL_TABLE: Record<string, NoticeChannelEntry> = {
   model_load_failed: NOTIFICATION("error", "notifications"),
   // KB-015/KB-122: the memory-gate refusal is the same failure class as
   // the generic load failure (the model did not load); its localized
-  // notification body strips the interpolated amounts via the
-  // detail-interpolating-code path.
+  // notification body keeps the fully interpolated amounts (model,
+  // needed, free). The code deliberately sits OUTSIDE
+  // DETAIL_INTERPOLATING_CODES (v1.6.2 fleet pass 1): that set's members
+  // re-localize with an empty detail, and the gate's slots sit
+  // mid-sentence in every locale, so stripping left dangling punctuation
+  // ("to load : it needs about ,"). Do not re-add it there.
   model_load_failed_memory_gate: NOTIFICATION("error", "notifications"),
   // A persistent misconfiguration, not a per-dictation condition: the
   // enabled polish silently never runs. Same class as a dead server.
@@ -388,10 +392,14 @@ export interface NoticeNotificationClickLike {
   target?: string;
 }
 
-// The navigation one notification click performs (App.tsx wiring): errors
-// and anything unmapped land on the notifications log section; session
-// outcomes (the history-target codes) land on history. Total by design:
-// a garbage or missing target never throws and never strands the click.
+// The navigation one notification click performs (App.tsx wiring): each
+// code follows its OWN target, not its group. The error-group codes point
+// at the notifications log section (the durable in-app record) except
+// history_db_recovered, whose click lands on History - the freshly reset
+// database the notice names; the outcome codes point at history, where
+// the finalized transcript lives. Anything unmapped defaults to the log.
+// Total by design: a garbage or missing target never throws and never
+// strands the click.
 export type NoticeClickSection = "notifications" | "history";
 
 export function noticeClickSection(

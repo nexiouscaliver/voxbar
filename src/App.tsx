@@ -638,8 +638,10 @@ function App() {
   }, [t]);
 
   // v1.6.0 W1-L4 click-through: activating a posted notification focuses
-  // the app and navigates via the pure noticeClickSection seam: errors go
-  // to the in-app notifications log section, session outcomes to history.
+  // the app and navigates via the pure noticeClickSection seam: each code
+  // follows its own target, errors to the in-app notifications log section
+  // (except history_db_recovered, which lands on History), session
+  // outcomes to history.
   // On macOS the native path delivers this: the Rust send leg
   // (persistent_notice.rs) raises the main window on the click itself and
   // emits notice-notification-click, which attachNativeNoticeClickSource

@@ -194,6 +194,25 @@ fn cancel_wanted_by_any() -> bool {
         .is_empty()
 }
 
+/// KB-266: mirror the want set's fold into the secure-input fallback WHILE
+/// the want-set lock is still held (the guard parameter is the proof the
+/// lock is live). The fold used to read and store outside the lock, after
+/// the mutating critical section released it, so an unregister interleaved
+/// between another call's mutation and its note could store its staler
+/// fold LAST: a register's true overwritten by an unregister's false left
+/// a live session without its Carbon Escape shadow, and the mirrored
+/// inversion armed the shadow after the last wanter drained. Folding under
+/// the lock serializes mutation and store in one order, so the final
+/// store always carries the final set's fold. note_cancel_wanted only
+/// touches an atomic (plus a spawn under sustained Secure Input), so
+/// holding the want-set lock across it cannot nest locks.
+fn note_cancel_wanted_locked(
+    wanters: &std::sync::MutexGuard<'_, Vec<Option<u64>>>,
+    app: &AppHandle,
+) {
+    crate::secure_input::note_cancel_wanted(app, !wanters.is_empty());
+}
+
 /// Fleet pass 2, pure seam for the pin tests: add one session's want.
 /// Idempotent - a session cannot want twice.
 fn cancel_wanters_add(wanters: &mut Vec<Option<u64>>, session: Option<u64>) {
@@ -221,13 +240,14 @@ pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>) {
     {
         let mut wanters = CANCEL_WANTERS.lock().unwrap_or_else(|e| e.into_inner());
         cancel_wanters_add(&mut wanters, session);
+        // Track the lifecycle independently of the current implementation
+        // so switching implementations mid-recording cannot leave stale
+        // fallback state. The fallback mirrors the SET (any session),
+        // never the single call: the first pipeline to drain must not
+        // disarm the fallback while another session is still live. The
+        // fold rides the SAME lock hold as the add (KB-266).
+        note_cancel_wanted_locked(&wanters, app);
     }
-    // Track the lifecycle independently of the current implementation so
-    // switching implementations mid-recording cannot leave stale fallback
-    // state. The fallback mirrors the SET (any session), never the single
-    // call: the first pipeline to drain must not disarm the fallback while
-    // another session is still live.
-    crate::secure_input::note_cancel_wanted(app, cancel_wanted_by_any());
     schedule_cancel_reconcile(app);
 }
 
@@ -238,8 +258,11 @@ pub fn unregister_cancel_shortcut(app: &AppHandle, session: Option<u64>) {
     {
         let mut wanters = CANCEL_WANTERS.lock().unwrap_or_else(|e| e.into_inner());
         cancel_wanters_remove(&mut wanters, session);
+        // Same lock-held fold (KB-266): the store serializes with the
+        // removal, so a racing register's fold can never be overwritten by
+        // a staler one.
+        note_cancel_wanted_locked(&wanters, app);
     }
-    crate::secure_input::note_cancel_wanted(app, cancel_wanted_by_any());
     schedule_cancel_reconcile(app);
 }
 
@@ -3176,6 +3199,71 @@ mod tests {
             reconcile_body.contains("let requested = cancel_wanted_by_any();"),
             "the reconcile arms while ANY session wants the key - a per-call boolean killed Escape for concurrent sessions"
         );
+    }
+
+    /// KB-266: the cancel-wanted fold to Secure Input rides the SAME lock
+    /// hold as the want-set mutation. The old arms mutated under the lock,
+    /// then read the set and stored the fold only after releasing it, so
+    /// an unregister interleaved between another call's mutation and its
+    /// note stored its staler fold last: a live session lost its Carbon
+    /// Escape shadow (its register's true overwritten by the drain's
+    /// false), or the shadow stayed armed after the last wanter drained.
+    /// The interleave is pinned structurally and by type: the fold helper
+    /// TAKES the live MutexGuard (callable only under the want-set lock),
+    /// each arm folds between its mutation and the lock scope's close, and
+    /// the off-thread reconcile stays outside the hold. Mounting the
+    /// secure-input state needs a real app, so the arms are pinned against
+    /// this committed source (the KB-242 convention).
+    #[test]
+    fn cancel_wanted_fold_rides_the_want_set_lock_kb266() {
+        let source = include_str!("mod.rs");
+        // The helper's parameter is the live guard, so the compiler itself
+        // enforces lock-held-ness, and its body folds the GUARDED set
+        // rather than re-locking for a read that could interleave.
+        let helper_at = source
+            .find("fn note_cancel_wanted_locked(")
+            .expect("the lock-held fold helper");
+        let helper_body = &source[helper_at..helper_at + 900];
+        assert!(
+            helper_body.contains("wanters: &std::sync::MutexGuard<'_, Vec<Option<u64>>>"),
+            "the fold helper is only callable while the want-set lock is held"
+        );
+        assert!(
+            helper_body.contains("note_cancel_wanted(app, !wanters.is_empty())"),
+            "the helper folds the guarded set, not a post-release re-read"
+        );
+        for (arm, mutation) in [
+            (
+                "pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>)",
+                "cancel_wanters_add",
+            ),
+            (
+                "pub fn unregister_cancel_shortcut(app: &AppHandle, session: Option<u64>)",
+                "cancel_wanters_remove",
+            ),
+        ] {
+            let arm_at = source.find(arm).unwrap_or_else(|| panic!("{mutation} arm"));
+            let body = &source[arm_at..arm_at + 1000];
+            let mutation_at = body.find(mutation).expect("the want-set mutation");
+            let fold_at = body
+                .find("note_cancel_wanted_locked(&wanters, app)")
+                .expect("the fold rides the live guard inside the arm");
+            let reconcile_at = body
+                .find("schedule_cancel_reconcile(app)")
+                .expect("the reconcile scheduling");
+            assert!(
+                mutation_at < fold_at,
+                "{mutation}: the fold must ride the mutation's own lock hold"
+            );
+            assert!(
+                fold_at < reconcile_at,
+                "{mutation}: the fold must run inside the arm's critical section"
+            );
+            assert!(
+                body[fold_at..reconcile_at].contains('}'),
+                "{mutation}: the lock scope must close after the fold and before the off-thread reconcile"
+            );
+        }
     }
 
     #[test]

@@ -262,7 +262,9 @@ things: a press that arrives while the other side is already recording is
 swallowed with a notice on both surfaces. Audio rides the same path the
 built-in microphone uses, so the overlay, live text, voice commands,
 post-processing, and paste behave the same. When two sessions overlap in
-time, both record and transcribe at stop instead of streaming live text.
+time, the first keeps streaming live text: a session that starts while
+another is already recording transcribes at stop instead, because the
+streaming engine is a singleton the first session owns.
 Esc cancels the Mac's own recording first; with none live it stops the
 most recently started phone session, and the other phones keep recording.
 If the phone leaves the network mid-dictation, the session finishes with
