@@ -361,18 +361,29 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             // name-keyed downstream (the registration, the frozen session,
             // history's capture_device, the per-phone recents filter) uses
             // this composite, so same-platform phones never share it.
-            // KB-261 (v1.6.4): the composite resolves against the Mac's
-            // known identities first, so a phone re-pairing from a new
-            // origin (fresh localStorage id after a Mac address change)
-            // keeps the identity its Recent list is keyed on.
-            device_name = manager.resolve_device_identity(&app, &device, device_id.as_deref());
-            // v1.6.2 W1-L2: the registration IS the paired-device
-            // bookkeeping (KB-255: keyed on lane + generation, never the
-            // name), and the lane is the connection's session identity.
-            let (lane, generation, rx) = manager.register_connection(&device_name);
-            device_lane = lane;
-            device_generation = generation;
+            // KB-261 (v1.6.4): the identity resolves ATOMICALLY with the
+            // registration against the Mac's known identities, so a phone
+            // re-pairing from a new origin (fresh localStorage id after a
+            // Mac address change) keeps the identity its Recent list is
+            // keyed on while a concurrent same-platform twin never folds
+            // into it. The resolution is in-memory only (no settings IO on
+            // this async task); a freshly minted identity persists on a
+            // detached worker below.
+            let (registration, rx) =
+                manager.register_connection_with_identity(&device, device_id.as_deref());
+            device_name = registration.device;
+            device_lane = registration.lane;
+            device_generation = registration.generation;
             device_lane_rx = rx;
+            if registration.persist_identities.is_some() {
+                // KB-261: the settings write for a newly minted identity is
+                // synchronous store work; run it off the async task.
+                let app = app.clone();
+                let persist_manager = Arc::clone(&manager);
+                std::thread::spawn(move || {
+                    crate::companion::persist_known_identities(&app, &persist_manager);
+                });
+            }
             // v1.6.4 (accept-wedge hardening): the connect-edge bookkeeping
             // (settings read + write, tray re-sync) is synchronous disk and
             // main-thread work; run it on a detached worker instead of this
@@ -706,24 +717,40 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
     if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
         coordinator.notify_lane_gone(device_lane);
     }
-    manager.note_device_disconnected(&app);
-
-    // KB-263 (v1.6.4): acknowledge THIS lane's stop-pause handshake the
-    // moment the recorder actually RAISES the pause request - the eager
-    // ack this path used to run happened before any Stop raised it, so it
-    // landed as a no-op (acknowledge_pause_after_write is inert until the
-    // request is live) and was wiped again by the Stop that followed; the
-    // drop-finalize's pause wait survived only through the pipeline's own
-    // source close. The watcher polls on a detached worker (bounded), so
-    // it never blocks this async task. Also retire the lane's idle
-    // recorder (the RAM rule: no idle lane recorder outlives its
-    // connection once a newer pre-warm or this teardown claims the slot).
-    if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
-        let ack_rm = Arc::clone(&rm);
-        let ack_lane = device_lane;
+    // v1.6.4 (accept-wedge hardening): the disconnect-edge tray re-sync
+    // computes the tray snapshot (settings + model list, a disk icon load
+    // on cache miss) on its calling thread by design (tray.rs); this is
+    // exactly the edge a dead client lands on, so run it on a detached
+    // worker instead of this async task - the same rule the connect edge
+    // (note_device_connected) already follows.
+    {
+        let app = app.clone();
+        let disconnected_manager = Arc::clone(&manager);
         std::thread::spawn(move || {
-            ack_rm.ack_remote_pause_when_requested(ack_lane, Duration::from_secs(3));
+            disconnected_manager.note_device_disconnected(&app);
         });
+    }
+
+    // KB-263 (v1.6.4): NO pause acknowledgement happens on the disconnect
+    // path, deliberately. The old eager ack ran before any Stop had
+    // raised the request, so it was inert (an ack only counts once
+    // `pause_requested` is live, and the Stop that follows wipes any
+    // earlier one - pinned by the recorder test
+    // kb263_an_ack_before_any_stop_raises_the_pause_request_is_wiped), and
+    // no deferred ack can work either: every lane stop shape removes the
+    // map entry and closes the SOURCE before stopping the recorder (pinned
+    // by lane_stops_run_outside_the_lanes_lock_and_close_the_source_first),
+    // so by the time any Stop raises the pause request there is no ack
+    // route left. The source close IS the acknowledgement: it marks the
+    // producer gone, which the consumer reads as an immediate ack and
+    // skips the 2 s wait (pinned by
+    // remote_stop_after_source_close_skips_the_pause_wait_entirely). A
+    // future stop shape that waits with the producer alive must arrange
+    // its own ack at the moment it raises the request. Also retire the
+    // lane's idle recorder (the RAM rule: no idle lane recorder outlives
+    // its connection once a newer pre-warm or this teardown claims the
+    // slot).
+    if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
         rm.close_remote_lane(device_lane);
     }
 
@@ -1220,46 +1247,69 @@ mod tests {
     }
 
     /// KB-263 source pin (the interleave needs real sockets): the
-    /// disconnect path must acknowledge the lane's stop-pause only once
-    /// the recorder RAISES the request, never eagerly. The pre-fix eager
-    /// `ack_remote_pause` ran before any Stop raised the pause, landed as
-    /// a no-op (an ack is inert until the request is live), and was wiped
-    /// again by the Stop that followed - the timing contract this pins:
-    /// the deferred watcher (`ack_remote_pause_when_requested`, on a
-    /// detached worker so the async task never blocks) must be in place
-    /// BEFORE the disconnect-finalize is enqueued.
+    /// disconnect path performs NO pause acknowledgement of any shape.
+    /// The pre-fix eager `ack_remote_pause` ran before any Stop raised the
+    /// request and was inert (an ack only counts once `pause_requested`
+    /// is live, and the Stop that follows wipes any earlier one - pinned
+    /// by the recorder test
+    /// kb263_an_ack_before_any_stop_raises_the_pause_request_is_wiped);
+    /// a deferred "ack once requested" watcher is equally dead, because
+    /// every lane stop shape removes the map entry and closes the source
+    /// BEFORE the recorder raises the request (pinned in audio.rs by
+    /// lane_stops_run_outside_the_lanes_lock_and_close_the_source_first),
+    /// so no ack route exists at the moment the request goes live. The
+    /// contract this pins instead: the source close IS the acknowledgement
+    /// (producer_gone makes the consumer skip the 2 s wait - pinned at
+    /// recorder level by
+    /// remote_stop_after_source_close_skips_the_pause_wait_entirely), so
+    /// the disconnect path must not grow any ack machinery again.
     #[test]
-    fn kb263_disconnect_acks_the_pause_only_once_the_recorder_requests_it() {
+    fn kb263_disconnect_performs_no_pause_ack_the_source_close_is_the_ack() {
         let source = include_str!("server.rs");
         let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
-
-        // No eager bare ack remains anywhere on the disconnect path.
-        assert!(
-            !production.contains("rm.ack_remote_pause(device_lane);"),
-            "the eager disconnect ack (a no-op before any Stop raised the request) may not remain"
-        );
-        // The deferred watcher is spawned on a detached worker...
-        let watcher_at = production
-            .find("ack_rm.ack_remote_pause_when_requested(ack_lane,")
-            .expect("the deferred pause watcher");
-        let spawn_at = production[..watcher_at]
-            .rfind("std::thread::spawn(move || {")
-            .expect("the watcher runs on a detached worker, never the async task");
-        assert!(spawn_at < watcher_at);
-        // ...and it is armed BEFORE the disconnect-finalize enqueue, so it
-        // can never miss the handshake window. (The cap tick's finalize
-        // shares the call shape; anchor inside the disconnect section.)
         let disconnect_section_at = production
             .find("---- disconnect: graceful finalize ----")
             .expect("the disconnect section");
         let disconnect_section = &production[disconnect_section_at..];
-        let finalize_at = disconnect_section_at
-            + disconnect_section
-                .find("coordinator.finalize_companion_lane(device_lane);")
-                .expect("the disconnect finalize");
+
+        // No pause-ack machinery of any shape on the disconnect path.
         assert!(
-            spawn_at < finalize_at,
-            "the pause watcher must be armed before the finalize is enqueued"
+            !disconnect_section.contains("ack_remote_pause"),
+            "the disconnect path must not acknowledge the stop-pause: every lane stop shape closes the source first, and the producer-gone close is the immediate acknowledgement"
+        );
+        assert!(
+            !disconnect_section.contains("ack_pause"),
+            "no direct source-level ack either"
+        );
+        // The disconnect still retires the idle lane recorder (the RAM
+        // rule that always lived beside the old ack).
+        assert!(
+            disconnect_section.contains("rm.close_remote_lane(device_lane);"),
+            "the idle lane recorder is still retired at disconnect"
+        );
+
+        // The covering contract is pinned where it lives: the audio-side
+        // ordering (source closed before every recorder stop) must exist
+        // in audio.rs, and the recorder must skip the pause wait for a
+        // gone producer. Cross-file guards so this pin cannot drift from
+        // the mechanism it relies on.
+        let audio = include_str!("../managers/audio.rs");
+        let ordering_pin_at = audio
+            .find("fn lane_stops_run_outside_the_lanes_lock_and_close_the_source_first()")
+            .expect("the audio-side close-first ordering pin");
+        assert!(
+            audio[..ordering_pin_at].contains("entry.source.close();"),
+            "the production lane stop closes the source before the recorder stop"
+        );
+        let recorder = include_str!("../audio_toolkit/audio/recorder/tests.rs");
+        assert!(
+            recorder.contains("fn remote_stop_after_source_close_skips_the_pause_wait_entirely()"),
+            "the producer-gone fast-return pin must stay in the recorder suite"
+        );
+        assert!(
+            recorder
+                .contains("fn kb263_an_ack_before_any_stop_raises_the_pause_request_is_wiped()"),
+            "the early-ack-is-wiped pin must stay in the recorder suite"
         );
     }
 
@@ -1286,48 +1336,96 @@ mod tests {
 
     /// v1.6.4 accept-wedge hardening, source pin (a live reproduction
     /// needs the real TLS server on a Wry app, which the unit harness
-    /// cannot mount): the hello path's synchronous seams - the SQLite
-    /// recent-history query and the settings-read-plus-tray-write of the
-    /// connect-edge bookkeeping - must run on detached workers, never
-    /// inside the async connection task. The v1.6.3 proof runs left the
-    /// accept loop not answering new clients until restart after a client
-    /// died mid-session; blocking sync work on the async runtime's
+    /// cannot mount): every synchronous seam on the connection task - the
+    /// SQLite recent-history query at hello, the settings-read-plus-tray
+    /// writes of the connect/disconnect bookkeeping, and the settings
+    /// persistence of a newly minted identity - must run on detached
+    /// workers, never inside the async task. The v1.6.3 proof runs left
+    /// the accept loop not answering new clients until restart after a
+    /// client died mid-session; blocking sync work on the async runtime's
     /// workers is the wedge vector this removes (the manager's std Mutexes
     /// are poison-proofed for the same reason; see the manager's locking
     /// note and its poisoned-lock pin in companion/mod.rs).
     #[test]
-    fn hello_blocking_seams_run_off_the_async_connection_task() {
+    fn connection_blocking_seams_run_off_the_async_connection_task() {
         let source = include_str!("server.rs");
         let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+        let spawn_ahead = |at: usize| {
+            production[..at]
+                .rfind("std::thread::spawn(move || {")
+                .expect("the call rides a detached worker")
+        };
 
-        // The recent-history delivery (a synchronous SQLite read) rides a
-        // detached worker.
+        // The recent-history delivery (a synchronous SQLite read).
         let history_at = production
             .find("crate::companion::send_recent_history_to_lane(")
             .expect("the recent-history delivery call");
-        let history_spawn_at = production[..history_at]
-            .rfind("std::thread::spawn(move || {")
-            .expect("the history delivery spawns a worker");
-        assert!(history_spawn_at < history_at);
+        assert!(spawn_ahead(history_at) < history_at);
 
-        // The connect-edge bookkeeping (settings read + write, tray sync)
-        // rides a detached worker too.
+        // The connect-edge bookkeeping (settings read + write, tray sync).
         let connected_at = production
             .find("manager.note_device_connected(&app, &connected_device);")
             .expect("the connect-edge bookkeeping call");
-        let connected_spawn_at = production[..connected_at]
-            .rfind("std::thread::spawn(move || {")
-            .expect("the bookkeeping spawns a worker");
-        assert!(connected_spawn_at < connected_at);
+        assert!(spawn_ahead(connected_at) < connected_at);
 
-        // Neither seam remains as a direct call on the async task.
+        // The disconnect-edge tray re-sync (settings + model list, a disk
+        // icon load on cache miss) - the exact edge a dead client lands
+        // on (review finding).
+        let disconnected_at = production
+            .find("disconnected_manager.note_device_disconnected(&app);")
+            .expect("the disconnect-edge bookkeeping call");
+        assert!(spawn_ahead(disconnected_at) < disconnected_at);
+
+        // KB-261: a newly minted identity persists on a worker, and the
+        // registration itself performs no settings IO.
+        let persist_at = production
+            .find("crate::companion::persist_known_identities(&app, &persist_manager);")
+            .expect("the identity persistence call");
+        assert!(spawn_ahead(persist_at) < persist_at);
+        let manager_source = include_str!("mod.rs");
+        let register_at = manager_source
+            .find("pub fn register_connection_with_identity(")
+            .expect("the identity registration");
+        let register_end = register_at
+            + manager_source[register_at..]
+                .find("\n    }\n")
+                .expect("fn end");
+        let register_body = &manager_source[register_at..register_end];
+        assert!(
+            !register_body.contains("get_settings") && !register_body.contains("write_settings"),
+            "the registration must stay in-memory only (no settings IO on the async task)"
+        );
+        assert!(
+            register_body.contains("let mut connections")
+                && register_body.contains("let mut known"),
+            "the decision holds both the connections registry and the known-identity set guards"
+        );
+        let push_at = register_body
+            .find("connections.push(ConnectionEntry {")
+            .expect("the registration insert");
+        let drop_known_at = register_body
+            .find("drop(known);")
+            .expect("the guards release after the insert");
+        assert!(
+            push_at < drop_known_at,
+            "the decision, the registration insert, and the known-set update share one critical section (the guards release only after the insert)"
+        );
+
+        // None of the blocking seams remain as direct calls on the async
+        // task.
         assert!(
             !production.contains("send_recent_history_to_lane(&app, device_lane, &device_name);"),
             "the direct (blocking) history call may not remain on the async task"
         );
         assert!(
             !production.contains("manager.note_device_connected(&app, &device_name);"),
-            "the direct (blocking) bookkeeping call may not remain on the async task"
+            "the direct (blocking) connect-edge call may not remain on the async task"
+        );
+        assert!(
+            !production
+                .lines()
+                .any(|line| line.trim() == "manager.note_device_disconnected(&app);"),
+            "the direct (blocking) disconnect-edge call may not remain on the async task (the worker's own call goes through the disconnected_manager binding)"
         );
     }
 }

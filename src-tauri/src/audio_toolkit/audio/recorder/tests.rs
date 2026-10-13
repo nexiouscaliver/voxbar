@@ -206,9 +206,12 @@ fn wait_for_pause_request(source: &super::RemoteAudioSource, timeout: Duration) 
 /// companion disconnect path, which acked eagerly at socket death and
 /// expected the drop-finalize's Stop to be covered; the Stop paid the full
 /// 2 s PAUSE_ACK_TIMEOUT anyway (only the later source-close fast path
-/// rescued it). The companion server now acks through
-/// `ack_remote_pause_when_requested`, which waits for this request first.
-/// This test deliberately pays the timeout once to pin the contract.
+/// rescued it). The companion disconnect path therefore performs NO ack at
+/// all: every lane stop shape closes the source before stopping the
+/// recorder, and the producer-gone close is the immediate acknowledgement
+/// (see remote_stop_after_source_close_skips_the_pause_wait_entirely).
+/// This test deliberately pays the timeout once to pin why no eager or
+/// deferred ack can ever substitute for the source close.
 #[test]
 fn kb263_an_ack_before_any_stop_raises_the_pause_request_is_wiped() {
     let mut recorder = AudioRecorder::new().expect("recorder");

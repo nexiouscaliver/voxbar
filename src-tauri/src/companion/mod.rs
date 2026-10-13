@@ -120,6 +120,19 @@ struct ConnectionEntry {
     tx: tokio::sync::mpsc::UnboundedSender<String>,
 }
 
+/// KB-261 (v1.6.4): one authenticated connection's registration outcome.
+/// `device` is the resolved identity (adopted or minted); the lane and
+/// generation are the KB-255 registration keys; `persist_identities` is
+/// Some when this registration minted a NEW identity and the CALLER owns
+/// persisting the bounded set off the connection task (see
+/// [`persist_known_identities`]).
+pub struct ConnectionRegistration {
+    pub device: String,
+    pub lane: u64,
+    pub generation: u64,
+    pub persist_identities: Option<Vec<String>>,
+}
+
 /// v1.6.2 W1-L2: one lane's session identity, frozen on the coordinator
 /// thread at the single serialized instant a Start effect commits (the same
 /// handoff-at-commit discipline v1.6.0 used for prefs). The device name and
@@ -190,6 +203,13 @@ pub struct CompanionManager {
     /// prefs ride the edge into the coordinator, which freezes them per
     /// lane at the start commit.
     pending_prefs: Mutex<protocol::SessionPrefs>,
+    /// KB-261 (v1.6.4): the phone identities this Mac knows, in-memory and
+    /// authoritative (seeded from the persisted
+    /// `companion_known_identities` at server start, bounded to
+    /// KNOWN_IDENTITIES_LIMIT). The registration path consults and updates
+    /// it under the connections lock; persistence is best-effort off the
+    /// connection task through [`persist_known_identities`].
+    known_identities: Mutex<Vec<String>>,
     /// Per-IP auth-failure limiting shared across connections.
     failure_limiter: Mutex<auth::FailureLimiter>,
     /// The Rust-side notice listener id (registered once at init).
@@ -219,6 +239,7 @@ impl CompanionManager {
             starting_lane: Mutex::new(None),
             stopping: Mutex::new(None),
             pending_prefs: Mutex::new(protocol::SessionPrefs::default()),
+            known_identities: Mutex::new(Vec::new()),
             failure_limiter: Mutex::new(auth::FailureLimiter::new(
                 5,
                 Duration::from_secs(60),
@@ -323,17 +344,34 @@ impl CompanionManager {
             .map(|entry| entry.device.clone())
     }
 
-    /// KB-261 (v1.6.4): the connection's IDENTITY, resolved against the
-    /// identities this Mac already knows. The phone's persistent device id
-    /// lives in localStorage, which is origin-scoped: a Mac address change
-    /// (new LAN IP, or a Tailscale-vs-LAN pairing switch) changes the QR
-    /// URL's origin, so every phone arrives with a freshly minted id and
-    /// per-phone data (the Recent list) silently reset. The server keeps a
-    /// bounded set of known identities (settings,
-    /// `companion_known_identities`) and adopts the PRIOR identity when a
-    /// new-id hello unambiguously matches it by platform name (the
-    /// `sticky_identity_adoption` rule): the Recent list, registration, and
-    /// history attribution keep one identity across origin changes.
+    /// KB-261 (v1.6.4): register one authenticated connection WITH its
+    /// identity resolved atomically against the identities this Mac knows.
+    /// The phone's persistent device id lives in localStorage, which is
+    /// origin-scoped: a Mac address change (new LAN IP, or a
+    /// Tailscale-vs-LAN pairing switch) changes the QR URL's origin, so
+    /// every phone arrives with a freshly minted id and per-phone data
+    /// (the Recent list) silently reset. The manager keeps a bounded
+    /// in-memory set of known identities (seeded from the persisted
+    /// `companion_known_identities` at server start) and adopts the PRIOR
+    /// identity when a new-id hello unambiguously matches it by platform
+    /// name (the `sticky_identity_adoption` rule): the Recent list,
+    /// registration, and history attribution keep one identity across
+    /// origin changes.
+    ///
+    /// RACE FREEDOM (the review pass): the decision, the registration
+    /// insert, and the known-set update happen inside ONE hold of the
+    /// connections lock (lock order: connections, then known_identities;
+    /// no other site takes both). Resolving the identity BEFORE
+    /// registering - the first cut of this - left a window where a
+    /// same-platform twin's concurrent hello saw exactly one known
+    /// identity and no live connection for it, and ADOPTED it: two phones
+    /// collapsed into one Recent list, the KB-265 defect class. Under the
+    /// single lock, a twin either sees the first phone's connection
+    /// registered (adoption refused) or two known identities (ambiguous,
+    /// refused). The method performs NO settings IO (the connection task
+    /// only touches in-memory maps); persisting a newly minted identity is
+    /// the caller's job through the returned `persist_identities` payload
+    /// (see `persist_known_identities`).
     ///
     /// Disclosed limits: the match is by hello platform name, so a second
     /// same-platform phone pairing while the first is NOT connected adopts
@@ -343,71 +381,99 @@ impl CompanionManager {
     /// Private mode (storage unavailable, per-load ids) rides the same
     /// rule: one same-platform phone keeps its list across loads, twins do
     /// not.
-    pub fn resolve_device_identity(
+    pub fn register_connection_with_identity(
         &self,
-        app: &AppHandle,
         device: &str,
         device_id: Option<&str>,
-    ) -> String {
+    ) -> (
+        ConnectionRegistration,
+        tokio::sync::mpsc::UnboundedReceiver<String>,
+    ) {
         let raw = protocol::device_identity_name(device, device_id);
-        let mut settings = crate::settings::get_settings(app);
-        let known = settings.companion_known_identities.clone();
-        match self.resolve_identity_against_known(&known, device, &raw) {
-            IdentityResolution::Known => raw,
-            IdentityResolution::Adopted(prior) => {
-                log::info!(
-                    "companion: {device} re-paired under a new device id; keeping its known \
-                     identity {prior} (KB-261)"
-                );
-                prior
-            }
-            IdentityResolution::New => {
-                // A genuinely new identity: remember it (bounded, most
-                // recent last) so this phone's NEXT re-pair can be matched.
-                let mut updated = known;
-                updated.push(raw.clone());
-                let keep_from = updated.len().saturating_sub(KNOWN_IDENTITIES_LIMIT);
-                settings.companion_known_identities = updated[keep_from..].to_vec();
-                crate::settings::write_settings(app, settings);
-                raw
-            }
-        }
-    }
+        let lane = self
+            .next_lane_id
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        let generation = self
+            .next_generation
+            .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-    /// KB-261: the pure core of the identity resolution (settings-free, so
-    /// the rule is pinnable without a store). `raw` is the hello's fresh
-    /// composite identity; `known` the persisted identity set.
-    fn resolve_identity_against_known(
-        &self,
-        known: &[String],
-        hello_device: &str,
-        raw: &str,
-    ) -> IdentityResolution {
-        if known.iter().any(|k| k == raw) {
+        // The atomic decision + insert: connections first, then the known
+        // set; both held until the entry is pushed so no concurrent
+        // registration can observe the half-state the review found.
+        let mut connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
+        let mut known = self
+            .known_identities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
+
+        let connected = |identity: &str| connections.iter().any(|e| e.device == identity);
+        let mut minted_new_identity = false;
+        let identity = if known.iter().any(|k| k == &raw) {
             // This exact identity paired before (same origin, same stored
             // id, or an earlier adoption): nothing changes.
-            return IdentityResolution::Known;
+            raw.clone()
+        } else {
+            match sticky_identity_adoption(&known, device)
+                // Never fold a live connection's identity into a newcomer:
+                // the adoption exists for a phone RETURNING, and a
+                // same-platform phone that is connected right now is by
+                // definition a different one.
+                .filter(|prior| !connected(prior))
+            {
+                Some(prior) => {
+                    log::info!(
+                        "companion: {device} re-paired under a new device id; keeping its known \
+                         identity {prior} (KB-261)"
+                    );
+                    prior
+                }
+                None => {
+                    minted_new_identity = true;
+                    raw.clone()
+                }
+            }
+        };
+
+        let mut persist_identities = None;
+        if minted_new_identity {
+            // A genuinely new identity: remember it (bounded, most recent
+            // last) so this phone's NEXT re-pair can be matched. The
+            // in-memory set is authoritative; the persisted copy is the
+            // caller's payload.
+            known.push(raw.clone());
+            let keep_from = known.len().saturating_sub(KNOWN_IDENTITIES_LIMIT);
+            *known = known.split_off(keep_from);
+            persist_identities = Some(known.clone());
         }
-        let adoptable = sticky_identity_adoption(known, hello_device)
-            // Never fold a live connection's identity into a newcomer: the
-            // adoption exists for a phone RETURNING, and a same-platform
-            // phone that is connected right now is by definition a
-            // different one.
-            .filter(|prior| !self.identity_connected(prior));
-        match adoptable {
-            Some(prior) => IdentityResolution::Adopted(prior),
-            None => IdentityResolution::New,
-        }
+
+        connections.push(ConnectionEntry {
+            lane,
+            generation,
+            device: identity.clone(),
+            tx,
+        });
+        drop(known);
+        drop(connections);
+
+        (
+            ConnectionRegistration {
+                device: identity,
+                lane,
+                generation,
+                persist_identities,
+            },
+            rx,
+        )
     }
 
-    /// Whether any live connection is currently registered under this
-    /// identity (the KB-261 adoption guard).
-    fn identity_connected(&self, identity: &str) -> bool {
-        self.connections
+    /// KB-261: the current in-memory known-identity set (what
+    /// `persist_known_identities` writes and start() seeds).
+    fn known_identities_snapshot(&self) -> Vec<String> {
+        self.known_identities
             .lock()
             .unwrap_or_else(|e| e.into_inner())
-            .iter()
-            .any(|entry| entry.device == identity)
+            .clone()
     }
 
     /// v1.6.2 W1-L2: freeze one lane's session identity at the instant the
@@ -540,6 +606,15 @@ impl CompanionManager {
         let bind_ip = ip::resolve_bind_ip(&candidates, settings.companion_bind_ip.as_deref())?;
         let advertised_host =
             effective_advertised_host(settings.companion_advertised_host.as_deref());
+
+        // KB-261 (v1.6.4): seed the in-memory known-identity cache from the
+        // persisted store here, on the enable path, so the hello path never
+        // reads settings for the identity resolution (the connection task
+        // only touches the in-memory maps from here on).
+        *self
+            .known_identities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = settings.companion_known_identities.clone();
 
         // Pairing token: generate on enable, and rebind when the advertised
         // subnet changed (a token from another network never validates).
@@ -961,15 +1036,21 @@ impl Default for CompanionManager {
 /// settings store forever; the most recent identities survive.
 const KNOWN_IDENTITIES_LIMIT: usize = 8;
 
-/// KB-261: the outcome of resolving one hello's identity against the known
-/// set. `Known` is the same identity pairing again (nothing changes);
-/// `Adopted` is a fresh-id hello matched back to its prior identity (the
-/// origin-change re-pair); `New` is a first-time identity to remember.
-#[derive(Debug, PartialEq, Eq)]
-enum IdentityResolution {
-    Known,
-    Adopted(String),
-    New,
+/// KB-261 (v1.6.4): persist the manager's CURRENT known-identity set to
+/// settings, off the connection task (the caller owns the thread). Reads
+/// the fresh in-memory set at run time - not a stale payload - so
+/// out-of-order persist workers converge to the latest set, and merges
+/// into the CURRENT settings (this field only) so a concurrent writer of
+/// another field is not clobbered by a stale whole-settings copy. Best
+/// effort by design: a lost persisted entry costs one phone one
+/// Recent-list reset after a restart, never a wrong merge.
+pub(crate) fn persist_known_identities(app: &AppHandle, manager: &CompanionManager) {
+    let identities = manager.known_identities_snapshot();
+    let mut settings = crate::settings::get_settings(app);
+    if settings.companion_known_identities != identities {
+        settings.companion_known_identities = identities;
+        crate::settings::write_settings(app, settings);
+    }
 }
 
 /// KB-261: the platform-name half of an identity (`iPhone#7f3a` -> `iPhone`).
@@ -1751,99 +1832,200 @@ mod tests {
         assert_eq!(KNOWN_IDENTITIES_LIMIT, 8);
     }
 
-    /// KB-261 (v1.6.4): the full identity resolution through the real
-    /// manager core (settings-free; the persistence wrapper's write is
-    /// source-pinned below). A phone's SECOND pairing under a fresh id
+    /// KB-261 (v1.6.4): the atomic identity+registration seam, exercised
+    /// through the real manager. A phone's SECOND pairing under a fresh id
     /// (the origin change) adopts its FIRST identity, so the Recent list
     /// keyed on it survives; a same-platform twin pairing while the first
     /// phone is CONNECTED gets its own identity (the live-connection
-    /// guard); and once two same-platform identities are known, later
-    /// fresh-id hellos are ambiguous and keep their own (the disclosed
-    /// twins limit).
+    /// guard, now evaluated under the SAME lock as the registration); and
+    /// once two same-platform identities are known, later fresh-id hellos
+    /// are ambiguous and keep their own (the disclosed twins limit).
     #[test]
     fn kb261_identity_resolution_survives_the_origin_change() {
         let manager = CompanionManager::new();
-        let known_one = vec!["iPhone#aaaa".to_string()];
+        // The persisted known set this server run was seeded with (start()
+        // loads it into the manager).
+        *manager
+            .known_identities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = vec!["iPhone#aaaa".to_string()];
 
         // The phone returns from a new origin (fresh localStorage id): its
         // connection is gone, so the fresh identity ADOPTS the remembered
-        // one and the Recent list keyed on it survives.
+        // one and the Recent list keyed on it survives. No persistence is
+        // owed for an adoption.
+        let (repaired, _rx) =
+            manager.register_connection_with_identity("iPhone", Some("zzzz9999-0000"));
         assert_eq!(
-            manager.resolve_identity_against_known(&known_one, "iPhone", "iPhone#zzzz"),
-            IdentityResolution::Adopted("iPhone#aaaa".to_string()),
+            repaired.device, "iPhone#aaaa",
             "a re-pair from a new origin keeps the known identity"
+        );
+        assert!(
+            repaired.persist_identities.is_none(),
+            "an adoption rewrites nothing"
         );
 
         // The same identity pairing again (same origin, same stored id):
-        // nothing changes.
-        assert_eq!(
-            manager.resolve_identity_against_known(&known_one, "iPhone", "iPhone#aaaa"),
-            IdentityResolution::Known
-        );
+        // nothing changes, nothing owed.
+        let (again, _rx) =
+            manager.register_connection_with_identity("iPhone", Some("aaaa1111-0000"));
+        assert_eq!(again.device, "iPhone#aaaa");
+        assert!(again.persist_identities.is_none());
 
         // A same-platform twin connecting WHILE the prior identity is live
         // must not fold into it: the live-connection guard refuses the
-        // adoption and the twin resolves as NEW.
-        let (_twin_lane, _twin_gen, _twin_rx) = manager.register_connection("iPhone#aaaa");
+        // adoption, the twin mints its own identity, and the bounded set
+        // (owed to persistence) grows by exactly it.
+        let (twin, _rx) =
+            manager.register_connection_with_identity("iPhone", Some("bbbb2222-0000"));
         assert_eq!(
-            manager.resolve_identity_against_known(&known_one, "iPhone", "iPhone#bbbb"),
-            IdentityResolution::New,
+            twin.device, "iPhone#bbbb",
             "a same-platform phone pairing while the prior identity is connected gets its own"
+        );
+        assert_eq!(
+            twin.persist_identities,
+            Some(vec!["iPhone#aaaa".to_string(), "iPhone#bbbb".to_string()]),
+            "a minted identity is owed to persistence, bounded, most recent last"
         );
 
         // Once both are known, the platform match is ambiguous for any
         // later fresh-id hello (the disclosed KB-261 limit: after twins
         // have paired, an origin change on either resets its Recent list).
-        let known_twins = vec!["iPhone#aaaa".to_string(), "iPhone#bbbb".to_string()];
+        let (later, _rx) =
+            manager.register_connection_with_identity("iPhone", Some("cccc3333-0000"));
+        assert_eq!(later.device, "iPhone#cccc");
         assert_eq!(
-            manager.resolve_identity_against_known(&known_twins, "iPhone", "iPhone#cccc"),
-            IdentityResolution::New,
-            "an ambiguous platform match never adopts (KB-265)"
+            later.persist_identities,
+            Some(vec![
+                "iPhone#aaaa".to_string(),
+                "iPhone#bbbb".to_string(),
+                "iPhone#cccc".to_string()
+            ])
         );
 
         // A different platform never touches the iPhone's resolution.
+        let (ipad, _rx) = manager.register_connection_with_identity("iPad", Some("dddd4444-0000"));
+        assert_eq!(ipad.device, "iPad#dddd");
+    }
+
+    /// KB-261 (v1.6.4, review pass): the twin race. Resolving the identity
+    /// BEFORE registering left a window where a concurrent same-platform
+    /// hello saw exactly one known identity, no live connection for it,
+    /// and ADOPTED it - collapsing two phones into one Recent list (the
+    /// KB-265 defect class). The decision, the registration insert, and
+    /// the known-set update now share one critical section, so N
+    /// same-platform phones registering CONCURRENTLY all end up with
+    /// DISTINCT identities (the first mints, everyone else sees it
+    /// connected or two known entries and mints their own).
+    #[test]
+    fn kb261_concurrent_same_platform_registrations_never_share_an_identity() {
+        let manager = Arc::new(CompanionManager::new());
+        const PHONES: usize = 8;
+        let barrier = Arc::new(std::sync::Barrier::new(PHONES));
+        let registrations = Arc::new(Mutex::new(Vec::<(String, u64, u64)>::new()));
+
+        let mut handles = Vec::new();
+        for i in 0..PHONES {
+            let manager = Arc::clone(&manager);
+            let barrier = Arc::clone(&barrier);
+            let sink = Arc::clone(&registrations);
+            handles.push(std::thread::spawn(move || {
+                // Every phone is the same platform with a fresh id (a
+                // reconnect storm after a Mac origin change).
+                let device_id = format!("{:04x}-fresh", 0x1000 + i);
+                barrier.wait();
+                let (registration, _rx) =
+                    manager.register_connection_with_identity("iPhone", Some(&device_id));
+                sink.lock().unwrap_or_else(|e| e.into_inner()).push((
+                    registration.device,
+                    registration.lane,
+                    registration.generation,
+                ));
+            }));
+        }
+        for handle in handles {
+            handle
+                .join()
+                .expect("no registration panics under contention");
+        }
+
+        let registrations = registrations
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .clone();
+        assert_eq!(registrations.len(), PHONES);
+        let mut identities: Vec<String> = registrations.iter().map(|(d, _, _)| d.clone()).collect();
+        identities.sort();
+        let unique = identities.len();
+        identities.dedup();
         assert_eq!(
-            manager.resolve_identity_against_known(&known_twins, "iPad", "iPad#dddd"),
-            IdentityResolution::New
+            identities.len(),
+            unique,
+            "every concurrent same-platform phone must own a DISTINCT identity (got {identities:?})"
+        );
+        // And the in-memory known set recorded every one of them, bounded
+        // by the limit.
+        let known = manager.known_identities_snapshot();
+        assert_eq!(
+            known.len(),
+            PHONES.min(KNOWN_IDENTITIES_LIMIT),
+            "the known set grew by every minted identity, bounded"
         );
     }
 
     /// KB-261 source pin (the settings write needs the real store, which a
-    /// mock app cannot mount): the persistence wrapper must remember NEW
-    /// identities through the bounded settings field, and never rewrite
-    /// the store for a Known or Adopted resolution.
+    /// mock app cannot mount): persistence must (1) be owned by the
+    /// CALLER off the connection task (the server spawns the worker; that
+    /// half is pinned in server.rs), (2) read the FRESH in-memory set at
+    /// run time so out-of-order workers converge, (3) merge into the
+    /// current settings rather than writing a stale whole-settings copy,
+    /// and (4) be seeded from the persisted store at server start so the
+    /// registration path performs no settings IO.
     #[test]
     fn kb261_new_identities_persist_bounded_through_the_settings_store() {
         let source = include_str!("mod.rs");
-        let at = source
-            .find("pub fn resolve_device_identity(")
-            .expect("the identity resolution wrapper");
-        let end = at + source[at..].find("\n    }\n").expect("fn end");
-        let body = &source[at..end];
+        let persist_at = source
+            .find("pub(crate) fn persist_known_identities(")
+            .expect("the persistence helper");
+        let persist_end = persist_at + source[persist_at..].find("\n}\n").expect("fn end");
+        let persist = &source[persist_at..persist_end];
         assert!(
-            body.contains("companion_known_identities"),
-            "the wrapper reads and writes the persisted identity set"
-        );
-        let new_arm_at = body
-            .find("IdentityResolution::New =>")
-            .expect("the New arm");
-        let new_arm = &body[new_arm_at..];
-        assert!(
-            new_arm.contains("keep_from")
-                && new_arm.contains("KNOWN_IDENTITIES_LIMIT")
-                && new_arm.contains("write_settings"),
-            "the New arm remembers the identity bounded through write_settings"
-        );
-        // Known and Adopted resolve without touching the store.
-        let known_arm = &body[..new_arm_at];
-        assert!(
-            known_arm.contains("IdentityResolution::Known => raw")
-                && known_arm.contains("IdentityResolution::Adopted(prior)"),
-            "Known and Adopted arms resolve in-memory"
+            persist.contains("manager.known_identities_snapshot()"),
+            "persistence reads the FRESH in-memory set at run time, never a stale payload"
         );
         assert!(
-            !known_arm.contains("write_settings"),
-            "no store write on the unchanged-identity paths"
+            persist.contains("if settings.companion_known_identities != identities"),
+            "persistence writes only when the field changed"
+        );
+        assert!(
+            persist.contains("settings.companion_known_identities = identities;"),
+            "persistence merges into the CURRENT settings (this field only)"
+        );
+
+        // The registration mints bounded sets and owes them to the caller.
+        let register_at = source
+            .find("pub fn register_connection_with_identity(")
+            .expect("the registration");
+        let register_end = register_at + source[register_at..].find("\n    }\n").expect("fn end");
+        let register = &source[register_at..register_end];
+        assert!(
+            register.contains("KNOWN_IDENTITIES_LIMIT")
+                && register.contains("persist_identities = Some("),
+            "a minted identity returns the bounded set for the caller to persist"
+        );
+        assert!(
+            !register.contains("get_settings") && !register.contains("write_settings"),
+            "the registration itself performs no settings IO"
+        );
+
+        // Server start seeds the in-memory cache from the store.
+        let start_at = source
+            .find("pub fn start(&self, app: &AppHandle)")
+            .expect("start");
+        let start_end = start_at + source[start_at..].find("\n    }\n").expect("fn end");
+        assert!(
+            source[start_at..start_end].contains("settings.companion_known_identities.clone()"),
+            "start() seeds the known-identity cache from the persisted store"
         );
     }
 
@@ -1903,10 +2085,16 @@ mod tests {
     fn poisoned_manager_locks_never_wedge_later_connections() {
         let manager = CompanionManager::new();
 
-        // Poison the connections registry and the session map: panic in a
-        // task while holding each guard (caught, like tokio catches a task
-        // panic).
-        for poison in ["connections", "lane_sessions", "pending_prefs", "stopping"] {
+        // Poison the connections registry, the session map, and the
+        // identity set: panic in a task while holding each guard (caught,
+        // like tokio catches a task panic).
+        for poison in [
+            "connections",
+            "lane_sessions",
+            "pending_prefs",
+            "stopping",
+            "known_identities",
+        ] {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match poison {
                 "connections" => {
                     let _guard = manager
@@ -1929,6 +2117,13 @@ mod tests {
                         .unwrap_or_else(|e| e.into_inner());
                     panic!("poison {poison}");
                 }
+                "known_identities" => {
+                    let _guard = manager
+                        .known_identities
+                        .lock()
+                        .unwrap_or_else(|e| e.into_inner());
+                    panic!("poison {poison}");
+                }
                 _ => {
                     let _guard = manager.stopping.lock().unwrap_or_else(|e| e.into_inner());
                     panic!("poison {poison}");
@@ -1940,11 +2135,14 @@ mod tests {
             );
         }
 
-        // The very next connection still registers, unregisters, and reads
-        // every surface the connection path touches - no unwrap panic, no
-        // wedge.
-        let (lane, generation, _rx) = manager.register_connection("iPhone#7f3a");
-        assert_eq!(manager.devices(), vec!["iPhone#7f3a".to_string()]);
+        // The very next connection still registers (with its identity
+        // resolution), unregisters, and reads every surface the
+        // connection path touches - no unwrap panic, no wedge.
+        let (registration, _rx) =
+            manager.register_connection_with_identity("iPhone", Some("aaaa1111-0000"));
+        let (lane, generation) = (registration.lane, registration.generation);
+        assert_eq!(registration.device, "iPhone#aaaa");
+        assert_eq!(manager.devices(), vec!["iPhone#aaaa".to_string()]);
         assert_eq!(manager.paired_device_count(), 1);
         manager.set_pending_session_prefs(protocol::SessionPrefs::default());
         assert_eq!(

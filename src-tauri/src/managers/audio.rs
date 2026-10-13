@@ -455,6 +455,31 @@ fn prewarm_retires(lanes: impl Iterator<Item = (u64, bool)>, target: u64) -> Vec
         .collect()
 }
 
+/// KB-272 (v1.6.4): the routing core of
+/// [`AudioRecordingManager::push_remote_chunk`], free so it is testable
+/// with REAL lane recorders (the manager pins tauri::AppHandle and cannot
+/// be constructed under tauri::test's MockRuntime; see the test-module
+/// note). True means the chunk entered THIS lane's own ring; false means
+/// the lane has no recorder (never pre-warmed, or its stop pipeline
+/// already removed the entry) and the caller must count the chunk as
+/// admitted-but-dropped, never swallow it. Takes only the lanes map -
+/// never the recording-state lock - so phone audio ingestion can never
+/// block on a Mac session transition.
+fn route_remote_chunk(
+    lanes: &Mutex<std::collections::HashMap<u64, RemoteLane>>,
+    lane: u64,
+    samples: &[f32],
+) -> bool {
+    let lanes = lanes.lock().unwrap();
+    match lanes.get(&lane) {
+        Some(entry) => {
+            entry.source.push_chunk(samples);
+            true
+        }
+        None => false,
+    }
+}
+
 /// Tracks our forced "mute while recording" so we can restore the user's audio
 /// exactly as it was. `did_mute` is true while our mute is active; `prev_muted`
 /// is the system mute state captured just before we muted, used to decide
@@ -1477,54 +1502,12 @@ impl AudioRecordingManager {
     /// Push one audio chunk into ONE lane's ring (the server routes each
     /// connection's binary frames here). False when the lane has no
     /// recorder (never pre-warmed, or its session already closed it).
+    /// KB-272: delegates to [`route_remote_chunk`], the free core that is
+    /// behaviorally tested with real recorders (the manager itself pins
+    /// tauri::AppHandle and cannot be constructed under the mock runtime;
+    /// see the test-module note below).
     pub fn push_remote_chunk(&self, lane: u64, samples: &[f32]) -> bool {
-        let lanes = self.remote_lanes.lock().unwrap();
-        match lanes.get(&lane) {
-            Some(entry) => {
-                entry.source.push_chunk(samples);
-                true
-            }
-            None => false,
-        }
-    }
-
-    /// KB-263 (v1.6.4): acknowledge one lane's stop-pause the moment the
-    /// recorder actually RAISES it, bounded by `within`. The disconnect
-    /// path used to ack eagerly, before any Stop had raised the request,
-    /// so the acknowledgement landed as a no-op and was wiped again by the
-    /// Stop that followed - the drop-finalize then relied entirely on the
-    /// pipeline's source-close fast path for its pause wait. This seam
-    /// (the replacement for that bare eager ack) waits for the request,
-    /// then acks through the source, so the handshake is honored whichever
-    /// stop shape runs: an ack is only counted once the consumer's Stop
-    /// has raised `pause_requested`, and the consumer wipes any earlier
-    /// acknowledgement when it starts the pause. A lane whose entry leaves
-    /// the map (the pipeline took it) or whose stop never raises the
-    /// request simply returns at the deadline. Blocking by design (poll at
-    /// 2 ms); the companion server runs it on a detached worker, never the
-    /// async connection task.
-    pub fn ack_remote_pause_when_requested(&self, lane: u64, within: Duration) {
-        let deadline = Instant::now() + within;
-        loop {
-            {
-                let lanes = self.remote_lanes.lock().unwrap();
-                match lanes.get(&lane) {
-                    // The pipeline removed the entry: nothing left to ack
-                    // (its own source close already skips the pause wait).
-                    None => return,
-                    Some(entry) => {
-                        if entry.source.pause_requested() {
-                            entry.source.ack_pause();
-                            return;
-                        }
-                    }
-                }
-            }
-            if Instant::now() >= deadline {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(2));
-        }
+        route_remote_chunk(&self.remote_lanes, lane, samples)
     }
 
     /// Pre-warm ONE lane's recorder (loads the VAD, opens the ring) while
@@ -2609,21 +2592,16 @@ mod tests {
         );
     }
 
-    /// KB-272 (v1.6.4) source pin, the manager half: push_remote_chunk's
-    /// bool is EXACTLY lane-map membership - a hit pushes into that lane's
-    /// own source under the lanes lock (never the state lock), a miss
-    /// returns false without touching anything. The companion server
-    /// counts the false arm as an admitted-but-dropped chunk (see the
-    /// server-side KB-272 pins); this pins the manager seam that bool
-    /// comes from, which had zero direct coverage when the round 10 queue
-    /// was cut. The push semantics themselves (drop-newest overruns, the
-    /// closed-source discard, the pause acknowledgement) are pinned
-    /// directly at the recorder level (audio_toolkit recorder tests:
-    /// remote_source_round_trips_fed_samples,
-    /// remote_source_counts_overruns_when_the_ring_fills,
-    /// remote_source_close_discards_late_audio).
+    /// KB-272 (v1.6.4) source pin, the manager half: push_remote_chunk
+    /// must DELEGATE to the free routing core (which the behavioral test
+    /// below executes with real recorders) and the core's bool must be
+    /// EXACTLY lane-map membership - a hit pushes into that lane's own
+    /// source under the lanes lock (never the state lock), a miss returns
+    /// false without touching anything. The companion server counts the
+    /// false arm as an admitted-but-dropped chunk (see the server-side
+    /// KB-272 pins).
     #[test]
-    fn kb272_push_remote_chunk_bool_is_lane_map_membership_under_the_lanes_lock() {
+    fn kb272_push_remote_chunk_delegates_to_the_testable_routing_core() {
         let source = include_str!("audio.rs");
         let at = source
             .find("pub fn push_remote_chunk(&self, lane: u64, samples: &[f32]) -> bool {")
@@ -2631,21 +2609,122 @@ mod tests {
         let end = at + source[at..].find("\n    }\n").expect("fn end");
         let body = &source[at..end];
         assert!(
-            body.contains("let lanes = self.remote_lanes.lock().unwrap();"),
-            "the push takes the lanes lock"
+            body.contains("route_remote_chunk(&self.remote_lanes, lane, samples)"),
+            "the method must delegate its whole body to the free core (so the behavioral test covers the exact code the server runs)"
         );
+        let core_at = source
+            .find("fn route_remote_chunk(")
+            .expect("the routing core");
+        let core_end = core_at + source[core_at..].find("\n}\n").expect("core end");
+        let core = &source[core_at..core_end];
         assert!(
-            body.contains("entry.source.push_chunk(samples);"),
+            core.contains("entry.source.push_chunk(samples);"),
             "a hit pushes into THIS lane's own source"
         );
         assert!(
-            body.contains("None => false,"),
+            core.contains("None => false,"),
             "a lane with no recorder returns false (the server's admitted-dropped counter)"
         );
         assert!(
-            !body.contains("self.state.lock()"),
+            !core.contains("self.state"),
             "the push must never take the recording-state lock (phone audio ingestion would block on every Mac session transition)"
         );
+    }
+
+    /// KB-272 (v1.6.4): the routing core EXECUTED with real lane recorders
+    /// (AudioRecorder::open_remote builds the exact RemoteLane pair the
+    /// production pre-warm builds; only the manager shell around the map is
+    /// out of reach under the mock runtime). A hit routes the chunk into
+    /// THIS lane's own ring and it round-trips through the real
+    /// stop pipeline shape (source close first, then stop); a lane whose
+    /// entry a stop pipeline already REMOVED returns false - the exact
+    /// admitted-but-dropped shape the server counts; a lane that never
+    /// existed returns false forever without panicking or accruing
+    /// overruns; and one lane's ring never receives another lane's chunk.
+    #[test]
+    fn kb272_route_remote_chunk_round_trips_real_recorders_and_reports_membership() {
+        let mut lane7_rec = AudioRecorder::new().expect("recorder for lane 7");
+        let lane7_source = lane7_rec.open_remote().expect("open lane 7 source");
+        let mut lane12_rec = AudioRecorder::new().expect("recorder for lane 12");
+        let lane12_source = lane12_rec.open_remote().expect("open lane 12 source");
+
+        let mut lanes = std::collections::HashMap::new();
+        lanes.insert(
+            7u64,
+            RemoteLane {
+                recorder: lane7_rec,
+                source: lane7_source,
+                recording: true,
+                generation: 1,
+            },
+        );
+        lanes.insert(
+            12u64,
+            RemoteLane {
+                recorder: lane12_rec,
+                source: lane12_source,
+                recording: false,
+                generation: 2,
+            },
+        );
+        let lanes = Mutex::new(lanes);
+
+        // A hit: the chunk enters lane 7's ring (the recorder must be
+        // started for the consumer to drain it into a recording).
+        let ready = {
+            let mut guard = lanes.lock().unwrap();
+            guard
+                .get_mut(&7)
+                .expect("lane 7")
+                .recorder
+                .start(VadPolicy::Disabled)
+                .expect("start")
+        };
+        let speech: Vec<f32> = (0..1600).map(|i| (i as f32 * 0.005) - 4.0).collect();
+        assert!(
+            route_remote_chunk(&lanes, 7, &speech),
+            "a live lane's chunk is delivered"
+        );
+        ready
+            .recv_timeout(Duration::from_secs(1))
+            .expect("lane 7 capture ready");
+
+        // Isolation: lane 12 receives its own chunk and lane 7's stays
+        // untouched (lane 12 is not started, so its chunk only needs to
+        // land in the ring; the assertion below drains lane 7 only).
+        assert!(route_remote_chunk(&lanes, 12, &[0.25, -0.25]));
+
+        // The stop pipeline's shape for lane 7: remove the entry, close the
+        // source first, then stop - the captured audio comes back.
+        let mut taken = lanes.lock().unwrap().remove(&7).expect("take lane 7");
+        taken.source.close();
+        let samples = taken.recorder.stop().expect("stop returns the samples");
+        assert_eq!(
+            &samples[..speech.len()],
+            &speech[..],
+            "the routed chunk round-trips through the real ring"
+        );
+        let _ = taken.recorder.close();
+
+        // KB-272 proper: after the stop pipeline removed the entry, the
+        // admission may still say live (the Mac's session state has not
+        // flipped yet) - the route must return false for every further
+        // chunk, the exact admitted-but-dropped shape the server counts.
+        for _ in 0..3 {
+            assert!(
+                !route_remote_chunk(&lanes, 7, &speech),
+                "a removed lane reports non-delivery for every chunk"
+            );
+        }
+        // A lane that never existed: false forever, no panic, no overrun
+        // leak through any recorder (lane 12's ring is untouched).
+        for _ in 0..3 {
+            assert!(!route_remote_chunk(&lanes, 99, &speech));
+        }
+        let mut lane12 = lanes.lock().unwrap().remove(&12).expect("lane 12 intact");
+        let lane12_overruns = lane12.source.overrun_samples();
+        let _ = lane12.recorder.close();
+        assert_eq!(lane12_overruns, 0, "chunks for unknown lanes touch nothing");
     }
 
     /// Fleet pass, source pin (the interleavings need real sockets, so the
