@@ -2248,9 +2248,24 @@ impl ShortcutAction for TranscribeAction {
         // synchronous batch transcription, the history SQLite insert, and
         // the 1.2s preview wait. stop() runs on the shortcut handler thread,
         // never inside the runtime, so block_on here cannot deadlock.
+        //
+        // KB-299 (v1.6.7): the whole pipeline body is panic-contained, the
+        // spawn_worker convention. A panic ANYWHERE in the body used to
+        // unwind the thread with no surface cleanup: the FinishGuard still
+        // dropped (the registry drained), but retire_session_surfaces never
+        // ran, so the streaming overlay stayed on screen mid-teardown and
+        // the tray stayed busy until force quit - the shipped v1.6.6 and
+        // earlier wedged exactly this way when the settings store's plugin
+        // registration died mid-session (get_settings' .expect detonated
+        // inside set_tray_state's compute_desired). The catch arm retires
+        // the shared surfaces once more (post-fix get_settings can no
+        // longer panic, but this makes ANY future tail panic a logged
+        // one-session defect instead of a force-quit wedge).
+        let ah_for_panic = ah.clone();
         std::thread::Builder::new()
             .name("stop-pipeline".into())
             .spawn(move || {
+                let pipeline = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
                 tauri::async_runtime::block_on(async move {
             // Fleet pass 2: publish this pipeline as in flight (the Escape
             // path's abort-all resolution bumps exactly these lanes'
@@ -2824,6 +2839,16 @@ impl ShortcutAction for TranscribeAction {
                 retire_session_surfaces(&ah, false);
             }
                 })
+                }));
+                // KB-299: the FinishGuard already dropped during the unwind
+                // (the in-flight registry drained with it); the surfaces are
+                // the gap, so one best-effort retire closes the card and the
+                // busy tray instead of leaving the "transcribing" overlay on
+                // screen until force quit.
+                if let Err(panic) = pipeline {
+                    error!("stop pipeline panicked: {panic:?}");
+                    retire_session_surfaces(&ah_for_panic, false);
+                }
             })
             .expect("failed to spawn the stop pipeline thread");
 
@@ -3448,6 +3473,53 @@ mod tests {
         assert!(
             guard_body.contains("unregister_in_flight_pipeline(self.2);"),
             "the guard leaves the in-flight registry on every exit path"
+        );
+    }
+
+    /// KB-299 (v1.6.7): the stop pipeline body is panic-contained. The
+    /// shipped wedge: a panic anywhere in the body (the settings store's
+    /// plugin registration dying mid-session detonated get_settings'
+    /// .expect inside set_tray_state) unwound the thread with the registry
+    /// drained but the shared surfaces stranded - the "transcribing"
+    /// overlay stuck on screen and no new recording from any source until
+    /// force quit. Pin: the block_on rides inside catch_unwind, and the
+    /// catch arm retires the shared surfaces so any future tail panic is a
+    /// logged one-session defect, never a force-quit wedge.
+    #[test]
+    fn stop_pipeline_body_is_panic_contained() {
+        let source = include_str!("actions.rs");
+        let spawn_at = source
+            .find(".name(\"stop-pipeline\"")
+            .expect("the stop pipeline spawn");
+        let catch_at = spawn_at
+            + source[spawn_at..]
+                .find("std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {")
+                .expect("the pipeline body wrapped in catch_unwind");
+        let block_on_at = catch_at
+            + source[catch_at..]
+                .find("tauri::async_runtime::block_on(async move {")
+                .expect("block_on inside the catch");
+        let arm_at = block_on_at
+            + source[block_on_at..]
+                .find("if let Err(panic) = pipeline {")
+                .expect("the panic arm after the body");
+        let arm_end = arm_at
+            + source[arm_at..]
+                .find("\n            })\n")
+                .expect("the spawn close");
+        let arm = &source[arm_at..arm_end];
+        assert!(
+            arm.contains("retire_session_surfaces(&ah_for_panic, false);"),
+            "the panic arm must retire the shared surfaces: without it a tail panic leaves the overlay stuck until force quit"
+        );
+        // Mutation check hook: the guard-handled clone must exist BEFORE the
+        // spawn so the catch arm can retire without borrowing the moved body.
+        let clone_at = source[..spawn_at]
+            .rfind("let ah_for_panic = ah.clone();")
+            .expect("the panic-arm handle cloned before the spawn");
+        assert!(
+            clone_at < spawn_at,
+            "the panic arm's AppHandle must be cloned before the thread takes ownership"
         );
     }
 
