@@ -80,7 +80,17 @@ export const CompanionDevices: React.FC = () => {
   const resetPairing = useCallback(async () => {
     setResetting(true);
     try {
-      await commands.resetCompanionPairing();
+      const result = await commands.resetCompanionPairing();
+      if (result.status === "error") {
+        // KB-029: a failed reset (the restart leg, a port conflict most
+        // commonly) must not die in a console.error - the command stores
+        // the failure as the panel's server-error line; this toast is the
+        // instant feedback, exactly like the restart button. The bindings
+        // resolve a Rust Err as {status:"error"}, so the catch below never
+        // sees it.
+        console.error("Failed to reset companion pairing:", result.error);
+        toast.error(i18n.t("toast.settingNotSaved", { error: result.error }));
+      }
       await refreshStatus();
     } catch (error) {
       console.error("Failed to reset companion pairing:", error);

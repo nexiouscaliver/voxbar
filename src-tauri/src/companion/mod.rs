@@ -746,11 +746,16 @@ impl CompanionManager {
         let _ = self.shutdown_tx.send(true);
 
         // Close the lane recorders unless a stop pipeline is using them
-        // right now (each pipeline closes its own at its end).
+        // right now (each pipeline closes its own at its end). KB-028
+        // (v1.6.5): the skip used to be SILENT - a disable during a LOCAL
+        // recording skipped the close and nothing re-triggered it after
+        // the session ended, leaking every pre-warmed idle lane recorder
+        // (ring + VAD session) until the next companion start/stop or app
+        // shutdown. The helper parks the skipped close on the audio
+        // manager and every session-end fold runs it once nothing is
+        // recording anywhere.
         if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
-            if !rm.is_recording() {
-                rm.close_remote_stream();
-            }
+            rm.close_remote_stream_or_defer();
         }
 
         let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
@@ -1733,6 +1738,35 @@ mod tests {
         assert!(
             !body.contains("stopping.lock"),
             "stop() must never touch the stopping slot: note_stopping_session writes it and take_stopping_session consumes it on the pipeline thread"
+        );
+    }
+
+    /// KB-028 (v1.6.5), source pin (same convention as the test above -
+    /// mounting a RUNNING TLS server in a unit test is not practical):
+    /// stop()'s lane-recorder close may never be SILENTLY skipped while a
+    /// recording is live. The pre-fix guard - close only when
+    /// `!rm.is_recording()` - leaked every pre-warmed idle lane recorder
+    /// whenever a LOCAL recording was the skip's reason: the local session
+    /// has no lane pipeline, so nothing re-triggered the close after it
+    /// ended, and the recorders (ring + VAD session) lived on until the
+    /// next companion start/stop or app shutdown. The close now routes
+    /// through the audio manager's close_remote_stream_or_defer, which
+    /// parks the skipped close and runs it at the last session end.
+    #[test]
+    fn kb028_stop_defers_the_lane_recorder_close_instead_of_silently_skipping_it() {
+        let source = include_str!("mod.rs");
+        let at = source
+            .find("pub fn stop(&self, app: &AppHandle)")
+            .expect("stop");
+        let end = at + source[at..].find("\n    }\n").expect("fn end");
+        let body = &source[at..end];
+        assert!(
+            body.contains("rm.close_remote_stream_or_defer();"),
+            "the lane-recorder close must route through the park-and-run helper"
+        );
+        assert!(
+            !body.contains("if !rm.is_recording()"),
+            "the silent skip is gone: a skipped close must be parked on the audio manager (KB-028)"
         );
     }
 

@@ -1135,6 +1135,14 @@ pub fn change_companion_devices_setting(app: AppHandle, enabled: bool) -> Result
 /// Issue a fresh pairing token (rebound to the current LAN /24) and
 /// restart the server if it is running, so the QR changes and phones
 /// holding the old token are refused.
+/// KB-029 (v1.6.5): a failed reset must land on the SAME surface
+/// [`restart_companion_server`] uses - `status.error` (the panel's
+/// server-error line, via the manager's `last_error`) plus the
+/// CompanionServerFailed notice - instead of a bare Err the frontend only
+/// console.errors. The restart leg (a port conflict, most commonly) used
+/// to leave the panel rendering a clean "Stopped" while the fresh token
+/// had already persisted, so the QR changed under a server that never
+/// came back and nothing told the user why.
 #[tauri::command]
 #[specta::specta]
 pub fn reset_companion_pairing(app: AppHandle) -> Result<(), String> {
@@ -1142,7 +1150,17 @@ pub fn reset_companion_pairing(app: AppHandle) -> Result<(), String> {
         .state::<std::sync::Arc<crate::companion::CompanionManager>>()
         .inner()
         .clone();
-    manager.reset_pairing(&app)
+    if let Err(e) = manager.reset_pairing(&app) {
+        manager.set_last_error(Some(e.clone()));
+        crate::managers::transcription::emit_overlay_notice(
+            &app,
+            crate::managers::transcription::NoticeCode::CompanionServerFailed,
+            Some(e.clone()),
+        );
+        return Err(e);
+    }
+    manager.set_last_error(None);
+    Ok(())
 }
 
 /// Snapshot for the settings panel: QR (SVG), URL, port, fingerprint,
@@ -4164,5 +4182,60 @@ mod tests {
             !update_body.contains("saturating_add(1)"),
             "no blind version increment remains in the edit path"
         );
+    }
+
+    /// KB-029 (v1.6.5): a reset-pairing failure must surface exactly the
+    /// way restart_companion_server's does - the manager's last_error
+    /// (which status() renders as the panel's server-error line) plus the
+    /// CompanionServerFailed notice - instead of a bare Err the frontend
+    /// only console.errors. The reset leg's restart calls start()
+    /// directly, so before this fix a failed restart (a port conflict,
+    /// most commonly) left the panel rendering a clean "Stopped" while
+    /// the fresh pairing token had already persisted. Both commands need
+    /// a full app a unit test cannot mount, so both are pinned against
+    /// this committed source (the convention above).
+    #[test]
+    fn kb029_reset_pairing_failures_surface_on_the_restart_error_path() {
+        let source = include_str!("mod.rs");
+
+        let at = source
+            .find("pub fn reset_companion_pairing(app: AppHandle) -> Result<(), String>")
+            .expect("reset_companion_pairing");
+        let rest = &source[at..];
+        let body_end = rest.find("\n#[tauri::command]").unwrap_or(rest.len());
+        let body = &rest[..body_end];
+        assert!(
+            body.contains("manager.set_last_error(Some(e.clone()));"),
+            "a failed reset must land on status.error (the panel's server-error line)"
+        );
+        assert!(
+            body.contains("NoticeCode::CompanionServerFailed"),
+            "a failed reset must emit the same notice the restart button's failures do"
+        );
+        assert!(
+            body.contains("manager.set_last_error(None);"),
+            "a successful reset clears the stale error, exactly like the restart leg"
+        );
+
+        // The two commands stay in lockstep: the restart leg carries the
+        // identical trio, so one drifting from the other reopens the hole.
+        let restart_at = source
+            .find("pub fn restart_companion_server(app: AppHandle) -> Result<(), String>")
+            .expect("restart_companion_server");
+        let restart_rest = &source[restart_at..];
+        let restart_end = restart_rest
+            .find("\n#[tauri::command]")
+            .unwrap_or(restart_rest.len());
+        let restart_body = &restart_rest[..restart_end];
+        for token in [
+            "manager.set_last_error(Some(e.clone()));",
+            "NoticeCode::CompanionServerFailed",
+            "manager.set_last_error(None);",
+        ] {
+            assert!(
+                restart_body.contains(token),
+                "the restart leg must keep its {token} arm (the pin compares the two)"
+            );
+        }
     }
 }

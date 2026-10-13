@@ -118,6 +118,14 @@ async changeCompanionDevicesSetting(enabled: boolean) : Promise<Result<null, str
  * Issue a fresh pairing token (rebound to the current LAN /24) and
  * restart the server if it is running, so the QR changes and phones
  * holding the old token are refused.
+ * KB-029 (v1.6.5): a failed reset must land on the SAME surface
+ * [`restart_companion_server`] uses - `status.error` (the panel's
+ * server-error line, via the manager's `last_error`) plus the
+ * CompanionServerFailed notice - instead of a bare Err the frontend only
+ * console.errors. The restart leg (a port conflict, most commonly) used
+ * to leave the panel rendering a clean "Stopped" while the fresh token
+ * had already persisted, so the QR changed under a server that never
+ * came back and nothing told the user why.
  */
 async resetCompanionPairing() : Promise<Result<null, string>> {
     try {

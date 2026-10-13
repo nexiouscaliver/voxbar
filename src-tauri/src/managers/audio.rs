@@ -746,6 +746,18 @@ pub struct AudioRecordingManager {
     /// here and the local stop and cancel pipelines perform it once the
     /// state returns to Idle.
     clamshell_reresolve_pending: Arc<AtomicBool>,
+    /// KB-028 (v1.6.5): the companion teardown's lane-recorder close was
+    /// SKIPPED while anything recorded (a mid-flight stop pipeline owns its
+    /// lane's recorder), but a disable during a LOCAL recording had no lane
+    /// pipeline coming - the skip was silent, nothing re-triggered the
+    /// close after the local session ended, and every pre-warmed idle lane
+    /// recorder (ring + VAD session) leaked until the next companion
+    /// start/stop or app shutdown. The teardown now routes through
+    /// [`Self::close_remote_stream_or_defer`], which parks the skipped
+    /// close here; every session-end fold (local stop, local cancel, lane
+    /// stop, lane cancel) runs [`Self::run_deferred_remote_close`] once
+    /// NOTHING is recording anywhere.
+    remote_close_pending: Arc<AtomicBool>,
     /// Factory for building recorders. Production always uses
     /// `create_audio_recorder`; tests inject a bare recorder so the manager
     /// logic can run without the Silero ONNX asset.
@@ -786,6 +798,43 @@ fn effective_release_buffer_ms(extra_ms: u64, tail_ms: u64, stream_active: bool)
     } else {
         extra_ms
     }
+}
+
+/// KB-294 (v1.6.5): the release-buffer window ONE lane's stop pays. The
+/// local stop's tail exists to keep capturing while the user's finger is
+/// still on the mic; a lane's tail exists to keep capturing TRAILING AUDIO
+/// FROM THE PHONE - so when the lane's route (its connection) is already
+/// gone, no chunk can ever arrive again and the sleep is pure added
+/// latency on top of a mid-dictation disconnect. Pure so the leak-shape
+/// is pinnable without a live connection: route gone means NO window,
+/// regardless of the settings; route live keeps
+/// [`effective_release_buffer_ms`] exactly.
+fn lane_release_buffer_ms(
+    route_live: bool,
+    extra_ms: u64,
+    tail_ms: u64,
+    stream_active: bool,
+) -> u64 {
+    if route_live {
+        effective_release_buffer_ms(extra_ms, tail_ms, stream_active)
+    } else {
+        0
+    }
+}
+
+/// KB-294: whether THIS lane's audio route is still live. A lane's only
+/// push route is its connection's socket (`push_remote_chunk` keys on the
+/// lane id, and lane ids are never reused, so a reconnect cannot revive a
+/// dead lane's route). The disconnect edge unregisters the connection
+/// BEFORE queueing the forced finalize, so by the time the stop pipeline
+/// reaches the release-buffer decision the registration read is already
+/// false - the exact mid-dictation-disconnect shape whose tail must not
+/// be paid. No companion manager state (tests, pre-init teardowns) also
+/// reads as route-gone: nothing can push on a lane without one.
+fn lane_route_live(app: &tauri::AppHandle, lane: u64) -> bool {
+    app.try_state::<std::sync::Arc<crate::companion::CompanionManager>>()
+        .map(|manager| manager.connection_device(lane).is_some())
+        .unwrap_or(false)
 }
 
 impl AudioRecordingManager {
@@ -831,6 +880,7 @@ impl AudioRecordingManager {
             last_recording_lane: Arc::new(AtomicU64::new(0)),
             stream_owner,
             clamshell_reresolve_pending: Arc::new(AtomicBool::new(false)),
+            remote_close_pending: Arc::new(AtomicBool::new(false)),
             recorder_factory,
         };
 
@@ -1300,14 +1350,14 @@ impl AudioRecordingManager {
     /// except the lanes map itself; never takes the `state` lock.
     fn ensure_remote_lane(&self, lane: u64) -> Result<(), anyhow::Error> {
         let needs_reopen = {
-            let lanes = self.remote_lanes.lock().unwrap();
+            let lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
             lanes.get(&lane).is_none_or(|l| l.recorder.needs_reopen())
         };
         if !needs_reopen {
             return Ok(());
         }
 
-        let mut lanes = self.remote_lanes.lock().unwrap();
+        let mut lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(old) = lanes.get_mut(&lane) {
             let _ = old.recorder.close();
         }
@@ -1348,7 +1398,7 @@ impl AudioRecordingManager {
             error!("Failed to open remote capture source for lane {lane}: {msg}");
             return Err(msg);
         }
-        let mut lanes = self.remote_lanes.lock().unwrap();
+        let mut lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
         let entry = lanes
             .get_mut(&lane)
             .ok_or_else(|| "Recorder not available".to_string())?;
@@ -1391,7 +1441,7 @@ impl AudioRecordingManager {
     ) -> Option<Vec<f32>> {
         // The entry removal below is this lane's readiness invalidation
         // (per-lane generation: another lane's watchers never noticed).
-        let mut lanes = self.remote_lanes.lock().unwrap();
+        let mut lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
         // No recorder for this lane: nothing was recording on it.
         let mut entry = lanes.remove(&lane)?;
         let was_recording = entry.recording;
@@ -1404,10 +1454,22 @@ impl AudioRecordingManager {
         let samples = if was_recording {
             // Optionally keep recording for a bit longer to capture trailing
             // audio. The predicate is STREAM-ACTIVE, not the VAD policy
-            // (see stop_recording).
+            // (see stop_recording). KB-294: the tail is skipped entirely
+            // when the lane's route is already gone - a mid-dictation
+            // disconnect unregisters the connection before queueing the
+            // forced finalize, so trailing audio cannot arrive and the
+            // sleep was pure latency on the disconnect's recovery path.
             let settings = get_settings(&self.app_handle);
             let stream_active = self.stream_router.is_open();
-            let buffer_ms = effective_release_buffer_ms(
+            let route_live = lane_route_live(&self.app_handle, lane);
+            if !route_live {
+                debug!(
+                    "lane {lane} route gone before its stop: skipping the \
+                     release-buffer tail (KB-294)"
+                );
+            }
+            let buffer_ms = lane_release_buffer_ms(
+                route_live,
                 settings.extra_recording_buffer_ms,
                 settings.streaming_release_tail_ms,
                 stream_active,
@@ -1467,6 +1529,10 @@ impl AudioRecordingManager {
         self.recording_active
             .store(local_active || lanes_active, Ordering::SeqCst);
 
+        // KB-028: this lane's end may be the last session anywhere - run a
+        // companion teardown's parked lane-recorder close if so.
+        self.run_deferred_remote_close();
+
         if self.was_cancelled_since(Some(lane), cancel_generation) {
             debug!("Recording stop cancelled; discarding captured samples");
             return None;
@@ -1488,7 +1554,7 @@ impl AudioRecordingManager {
     pub fn lane_is_recording(&self, lane: u64) -> bool {
         self.remote_lanes
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .get(&lane)
             .is_some_and(|l| l.recording)
     }
@@ -1501,7 +1567,7 @@ impl AudioRecordingManager {
     pub fn lane_readiness_current(&self, lane: u64, generation: u64) -> bool {
         self.remote_lanes
             .lock()
-            .unwrap()
+            .unwrap_or_else(|e| e.into_inner())
             .get(&lane)
             .is_some_and(|l| l.recording && l.generation == generation)
     }
@@ -1524,7 +1590,7 @@ impl AudioRecordingManager {
     /// time - the most recently connected phone's (W1-L2).
     pub fn prewarm_remote_lane(&self, lane: u64) -> Result<(), anyhow::Error> {
         {
-            let mut lanes = self.remote_lanes.lock().unwrap();
+            let mut lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
             let retired =
                 prewarm_retires(lanes.iter().map(|(&l, entry)| (l, entry.recording)), lane);
             for retired_lane in retired {
@@ -1544,7 +1610,7 @@ impl AudioRecordingManager {
     /// session, or after its session's stop already closed it). A lane
     /// still recording is left alone - its stop pipeline owns the teardown.
     pub fn close_remote_lane(&self, lane: u64) {
-        let mut lanes = self.remote_lanes.lock().unwrap();
+        let mut lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
         if let Some(entry) = lanes.get(&lane) {
             if entry.recording {
                 return;
@@ -1568,7 +1634,7 @@ impl AudioRecordingManager {
         // PAUSE_ACK_TIMEOUT per recording lane with every phone's pushes
         // locked out.
         let drained: Vec<_> = {
-            let mut lanes = self.remote_lanes.lock().unwrap();
+            let mut lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
             lanes.drain().collect()
         };
         for (_, mut entry) in drained {
@@ -1587,7 +1653,7 @@ impl AudioRecordingManager {
         // committed after the drain must keep its truth, and the store
         // shares the start's critical section so the two cannot interleave.
         {
-            let lanes = self.remote_lanes.lock().unwrap();
+            let lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
             let still = lanes.values().any(|l| l.recording);
             self.remote_lanes_recording.store(still, Ordering::SeqCst);
         }
@@ -1601,6 +1667,46 @@ impl AudioRecordingManager {
         let lanes_active = self.remote_lanes_recording.load(Ordering::SeqCst);
         self.recording_active
             .store(local_active || lanes_active, Ordering::SeqCst);
+    }
+
+    /// KB-028 (v1.6.5): close every lane recorder now, or - while any
+    /// session (local or lane) is live - park the close in
+    /// `remote_close_pending` for the moment the LAST one ends. The
+    /// companion server-stop path calls this instead of a bare
+    /// [`Self::close_remote_stream`]: its skip-while-recording guard used
+    /// to leak every pre-warmed idle recorder whenever a LOCAL recording
+    /// was the reason for the skip, because no lane pipeline existed to
+    /// close them and nothing re-triggered the close after the local
+    /// session ended. The deferred run never discards a live lane's
+    /// dictation: it waits for `is_recording()` to read false, and every
+    /// lane pipeline removes its own map entry BEFORE its release-buffer
+    /// window, so a drain then finds only idle (or pipeline-less) lanes.
+    pub fn close_remote_stream_or_defer(&self) {
+        if self.is_recording() {
+            debug!(
+                "companion: lane-recorder close deferred while a recording \
+                 is live (KB-028); the last session end runs it"
+            );
+            self.remote_close_pending.store(true, Ordering::SeqCst);
+        } else {
+            self.close_remote_stream();
+        }
+    }
+
+    /// KB-028 (v1.6.5): run a parked lane-recorder close once NOTHING is
+    /// recording anywhere. A lane still mid-pipeline owns its recorder
+    /// (its dictation must survive the teardown), so this is a no-op while
+    /// any session is live and the LAST session-end fold re-checks here. A
+    /// lane start can never race this clear-and-close window: the flag is
+    /// only parked while the companion server is stopped, and lane starts
+    /// require a live server connection.
+    fn run_deferred_remote_close(&self) {
+        if !self.remote_close_pending.load(Ordering::SeqCst) || self.is_recording() {
+            return;
+        }
+        self.remote_close_pending.store(false, Ordering::SeqCst);
+        debug!("companion: running the deferred lane-recorder close (KB-028)");
+        self.close_remote_stream();
     }
 
     /// v1.6.2 W1-L2: claim the streaming-engine token for one session.
@@ -1655,7 +1761,7 @@ impl AudioRecordingManager {
         // backend; retire them so the next press rebuilds each lane with
         // the new one (a recording lane would have blocked us above).
         {
-            let mut lanes = self.remote_lanes.lock().unwrap();
+            let mut lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
             let idle: Vec<u64> = lanes
                 .iter()
                 .filter(|(_, entry)| !entry.recording)
@@ -2037,7 +2143,7 @@ impl AudioRecordingManager {
             Some(lane) => self
                 .lane_cancel_generations
                 .lock()
-                .unwrap()
+                .unwrap_or_else(|e| e.into_inner())
                 .get(&lane)
                 .copied()
                 .unwrap_or(0),
@@ -2058,7 +2164,10 @@ impl AudioRecordingManager {
     fn bump_cancel_generation(&self, lane: Option<u64>) {
         match lane {
             Some(lane) => {
-                let mut lanes = self.lane_cancel_generations.lock().unwrap();
+                let mut lanes = self
+                    .lane_cancel_generations
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner());
                 let generation = lanes.entry(lane).or_insert(0);
                 *generation += 1;
             }
@@ -2078,7 +2187,10 @@ impl AudioRecordingManager {
         if lanes.is_empty() {
             return;
         }
-        let mut map = self.lane_cancel_generations.lock().unwrap();
+        let mut map = self
+            .lane_cancel_generations
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         for lane in lanes {
             *map.entry(*lane).or_insert(0) += 1;
         }
@@ -2183,6 +2295,11 @@ impl AudioRecordingManager {
                 // the always-on stream now that the state is Idle.
                 self.run_deferred_clamshell_reresolve();
 
+                // KB-028: a companion disable that arrived mid-recording
+                // parked its lane-recorder close; the local session's end
+                // (this fold) is what re-triggers it.
+                self.run_deferred_remote_close();
+
                 if self.was_cancelled_since(None, cancel_generation) {
                     debug!("Recording stop cancelled; discarding captured samples");
                     return None;
@@ -2262,7 +2379,7 @@ impl AudioRecordingManager {
             // ack for the full 2 s PAUSE_ACK_TIMEOUT with every phone's
             // pushes locked out and the shortcut dispatch thread blocked.
             let cancelled = {
-                let mut lanes = self.remote_lanes.lock().unwrap();
+                let mut lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
                 let entry = lanes.remove(&lane);
                 let still_recording = lanes.values().any(|l| l.recording);
                 self.remote_lanes_recording
@@ -2288,6 +2405,9 @@ impl AudioRecordingManager {
             self.recording_active
                 .store(local_active || lanes_active, Ordering::SeqCst);
             self.remove_mute();
+            // KB-028: a cancelled lane's end is a session end too - a parked
+            // companion close runs here when nothing else records.
+            self.run_deferred_remote_close();
             return CancelTarget::Lane(lane);
         }
 
@@ -2325,6 +2445,9 @@ impl AudioRecordingManager {
                 // KB-010: a lid change that arrived mid-recording re-resolves
                 // the always-on stream now that the state is Idle.
                 self.run_deferred_clamshell_reresolve();
+                // KB-028: the cancelled local session's end re-triggers a
+                // companion disable's parked lane-recorder close.
+                self.run_deferred_remote_close();
                 CancelTarget::Local
             }
             RecordingState::Stopping => {
@@ -2365,6 +2488,136 @@ mod tests {
         assert_eq!(effective_release_buffer_ms(0, 200, false), 0);
         // The off path: a zero tail restores the old behavior exactly.
         assert_eq!(effective_release_buffer_ms(0, 0, true), 0);
+    }
+
+    /// KB-294 (v1.6.5): a lane whose route (its connection) is already
+    /// gone pays NO release-buffer window. The disconnect edge unregisters
+    /// the connection BEFORE queueing the forced finalize, so by the time
+    /// the stop pipeline reaches the tail decision no chunk can ever
+    /// arrive - the sleep was pure added latency on the mid-dictation
+    /// disconnect's recovery path. Route LIVE keeps
+    /// effective_release_buffer_ms exactly (the trailing-consonant tail
+    /// still applies while the phone is connected).
+    #[test]
+    fn kb294_a_dead_lanes_route_pays_no_release_buffer_window() {
+        // Route live: the full predicate, value for value.
+        assert_eq!(lane_release_buffer_ms(true, 0, 200, true), 200);
+        assert_eq!(lane_release_buffer_ms(true, 500, 200, true), 500);
+        assert_eq!(lane_release_buffer_ms(true, 300, 200, false), 300);
+        assert_eq!(lane_release_buffer_ms(true, 0, 0, true), 0);
+        // Route gone: no window at all, whatever the settings say - the
+        // leak-shape the old code paid on every mid-dictation disconnect.
+        assert_eq!(lane_release_buffer_ms(false, 500, 200, true), 0);
+        assert_eq!(lane_release_buffer_ms(false, 0, 200, true), 0);
+        assert_eq!(lane_release_buffer_ms(false, 300, 0, false), 0);
+    }
+
+    /// KB-294, source pin (the interleave needs a live connection, so the
+    /// lane stop's decision is pinned against this committed source, the
+    /// cancel-path convention): the lane stop must gate the window on the
+    /// lane's OWN route through lane_route_live / lane_release_buffer_ms -
+    /// not call effective_release_buffer_ms directly, which has no
+    /// route-gone arm and silently reintroduces the paid tail.
+    #[test]
+    fn kb294_lane_stop_gates_the_tail_on_the_lanes_own_route() {
+        let source = include_str!("audio.rs");
+        let at = source
+            .find("pub fn stop_remote_lane_recording(")
+            .expect("the lane stop");
+        let body = &source[at..source.find("pub fn lane_is_recording").expect("its end")];
+        assert!(
+            body.contains("lane_route_live(&self.app_handle, lane)"),
+            "the lane stop must read the lane's own route liveness"
+        );
+        assert!(
+            body.contains("lane_release_buffer_ms("),
+            "the lane stop must size its window through the route-aware helper"
+        );
+        assert!(
+            !body.contains("effective_release_buffer_ms"),
+            "a direct effective_release_buffer_ms call has no route-gone arm (KB-294)"
+        );
+        // The route read itself keys on the CONNECTION (the lane's only
+        // push route), never on the local machine's stream state.
+        let helper_at = source
+            .find("fn lane_route_live(app: &tauri::AppHandle, lane: u64)")
+            .expect("the route liveness helper");
+        let helper_end = helper_at + source[helper_at..].find("\n}\n").expect("helper end");
+        let helper = &source[helper_at..helper_end];
+        assert!(
+            helper.contains("connection_device(lane).is_some()"),
+            "route liveness is the lane's connection registration"
+        );
+    }
+
+    /// KB-028 (v1.6.5), source pin (reproducing the leak needs the real
+    /// companion teardown racing a live local recording, so the shape is
+    /// pinned against this committed source, the convention above): the
+    /// companion teardown's lane-recorder close may never be SILENTLY
+    /// skipped while a recording is live. The pre-fix shape in
+    /// CompanionManager::stop - skip close_remote_stream() whenever
+    /// is_recording() - leaked every pre-warmed idle lane recorder (ring +
+    /// VAD session) whenever a LOCAL recording was the skip's reason: no
+    /// lane pipeline existed to close them and nothing re-triggered the
+    /// close when the local session ended. The close now parks in
+    /// remote_close_pending and runs once nothing records anywhere.
+    #[test]
+    fn kb028_the_lane_recorder_close_parks_and_runs_at_every_session_end() {
+        let source = include_str!("audio.rs");
+
+        // 1. The park helper: parks exactly while a session is live,
+        //    closes immediately otherwise.
+        let defer_at = source
+            .find("pub fn close_remote_stream_or_defer(&self)")
+            .expect("the park helper");
+        let defer_end = defer_at + source[defer_at..].find("\n    }\n").expect("fn end");
+        let defer_body = &source[defer_at..defer_end];
+        assert!(
+            defer_body.contains("self.is_recording()"),
+            "the park decision reads the folded recording mirror"
+        );
+        assert!(
+            defer_body.contains("remote_close_pending.store(true"),
+            "a skipped close must be PARKED, never dropped"
+        );
+        assert!(
+            defer_body.contains("self.close_remote_stream();"),
+            "the idle path closes immediately, exactly as before"
+        );
+
+        // 2. The deferred runner: never fires while anything still
+        //    records (a lane mid-pipeline owns its recorder), then closes.
+        let run_at = source
+            .find("fn run_deferred_remote_close(&self)")
+            .expect("the deferred runner");
+        let run_end = run_at + source[run_at..].find("\n    }\n").expect("fn end");
+        let run_body = &source[run_at..run_end];
+        assert!(
+            run_body.contains(
+                "!self.remote_close_pending.load(Ordering::SeqCst) || self.is_recording()"
+            ),
+            "the runner waits for NOTHING to be recording anywhere"
+        );
+        assert!(
+            run_body.contains("self.close_remote_stream();"),
+            "the runner performs the parked close"
+        );
+
+        // 3. Exactly the four session-end folds re-trigger it: the lane
+        //    stop, the local stop, and both cancel arms. A session end
+        //    added without this call silently reintroduces the leak for
+        //    that session shape. (Scoped to the production half of the
+        //    file - this pin's own text is not a call site, and the
+        //    file's top holds cfg(test) helper blocks.)
+        let production = &source[..source.find("\nmod tests {").expect("the test module")];
+        assert_eq!(
+            production
+                .matches("self.run_deferred_remote_close();")
+                .count(),
+            4,
+            "KB-028: the parked close must run at all four session-end folds: \
+             the lane stop, the local stop, and the two cancel arms"
+        );
     }
 
     /// v1.6.2 multi-phone review pin: the shared recording mirror's local
@@ -2787,6 +3040,17 @@ mod tests {
     /// restart - a poison there ends keyboard AND phone dictation). A
     /// `.lock().unwrap()` at either site reintroduces the exact failure
     /// class the companion locks were converted for.
+    ///
+    /// KB-279 (v1.6.5): the two slices above pinned only the sites the
+    /// fleet pass converted, and every OTHER acquisition on the audio
+    /// side's `remote_lanes` and `lane_cancel_generations` maps still
+    /// unwrapped - the manager-side hardening stopped at the boundary. A
+    /// panic under any of them (try_start_remote_lane_recording opens the
+    /// CoreAudio device and the VAD under the lanes guard) re-wedged
+    /// connections the same way. The enumeration below walks the two MAPS
+    /// wholesale, whitespace-stripped so multi-line acquisitions count:
+    /// every acquisition must be poison-tolerant and no plain
+    /// `.lock().unwrap()` acquisition may remain on either map.
     #[test]
     fn phone_path_lock_sites_are_poison_tolerant() {
         let source = include_str!("../managers/audio.rs");
@@ -2810,6 +3074,32 @@ mod tests {
             assert!(
                 !body.contains(".lock().unwrap()"),
                 "{site} must not panic on a poisoned lock"
+            );
+        }
+
+        // KB-279: enumerate the two maps wholesale. Strip whitespace so a
+        // rustfmt-split acquisition (`self\n    .remote_lanes\n    .lock()`)
+        // is seen as the same site as a one-liner.
+        let normalized: String = source.chars().filter(|c| !c.is_whitespace()).collect();
+        for map in ["remote_lanes", "lane_cancel_generations"] {
+            let acquire = format!("{map}.lock()");
+            let tolerant = format!("{map}.lock().unwrap_or_else(|e|e.into_inner())");
+            let total = normalized.matches(&acquire).count();
+            let good = normalized.matches(&tolerant).count();
+            assert!(
+                total > 0,
+                "KB-279: the {map} enumeration found no lock sites - the pin went stale"
+            );
+            assert_eq!(
+                good,
+                total,
+                "KB-279: every {map} acquisition must be poison-tolerant; \
+                 {} plain .lock().unwrap() site(s) remain",
+                total - good
+            );
+            assert!(
+                !normalized.contains(&format!("{map}.lock().unwrap()")),
+                "KB-279: a plain .lock().unwrap() on {map} panics on poison"
             );
         }
     }
