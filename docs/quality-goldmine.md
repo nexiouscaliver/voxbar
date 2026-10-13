@@ -1540,14 +1540,14 @@ reintroducing its defect and watching it trip).
   swallowed {status:"error"} resolutions (the bindings resolve a Rust Err
   instead of throwing; the command has real Err paths on every platform)
   - the KB-268 lane fixed this class for the AppData/LogDirectory
-  buttons but missed the onboarding siblings in the file it edited. After
-  a swallowed failure, handleGrantMicrophone armed the 60 s waiting
-  spinner that no settings flip could satisfy and handleOpenMicSettings'
-  button silently did nothing. Both now check result.status and toast
-  (AccessibilityOnboarding.tsx:337 and :362), pinned by
-  micSettingsErrorPins.test.ts executing the committed handler bodies
-  against error, ok, and rejected resolutions, asserting the spinner
-  never arms on failure (mutation-checked by stripping the status check).
+    buttons but missed the onboarding siblings in the file it edited. After
+    a swallowed failure, handleGrantMicrophone armed the 60 s waiting
+    spinner that no settings flip could satisfy and handleOpenMicSettings'
+    button silently did nothing. Both now check result.status and toast
+    (AccessibilityOnboarding.tsx:337 and :362), pinned by
+    micSettingsErrorPins.test.ts executing the committed handler bodies
+    against error, ok, and rejected resolutions, asserting the spinner
+    never arms on failure (mutation-checked by stripping the status check).
 - **ru/uk runHint_one engine claim · FIXED (fleet pass 1).** The studio
   Run hint counts the prompts x engines cartesian product, and CLDR
   ru/uk 'one' fires at 21, 31, ... 101, so "{{count}} шаблон на 1
@@ -1559,7 +1559,7 @@ reintroducing its defect and watching it trip).
 - **KB-276 call-site half pinned · FIXED (fleet pass 1).** The locale
   half of KB-276 was pinned by pluralCoverage, but nothing executed
   SecureInputWarning's message expression, so a regression back to the
-  hand-rolled blockedWithCulprit_${suffix} key kept the suite green.
+  hand-rolled blockedWithCulprit\_${suffix} key kept the suite green.
   secureInputCallSitePins.test.ts now executes the committed expression
   verbatim with a recording t() across all four status/count
   combinations and asserts the bare family keys with count riding the

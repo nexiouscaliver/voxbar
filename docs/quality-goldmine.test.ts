@@ -288,7 +288,6 @@ assert.ok(
     "(the Already-recording refusal seam)",
 );
 
-
 // Fleet pass 2 (v1.6.4 review): the ledger cites companion-file
 // path:line anchors in every round, and the pass 1 companion rewrite
 // moved them wholesale - 13+ citations in the round 10/11 sections alone
@@ -320,35 +319,80 @@ assert.ok(
   };
 
   // [file, firstLine, lastLine, token that must appear within the span]
-  const anchorTable: [fileKind: "mod" | "server", a: number, b: number, token: string][] = [
+  const anchorTable: [
+    fileKind: "mod" | "server",
+    a: number,
+    b: number,
+    token: string,
+  ][] = [
     ["mod", 1373, 1373, "fn effective_enabled("],
     ["server", 952, 952, "mod tests {"],
-    ["mod", 1745, 1745, "fn registrations_release_by_lane_and_generation_never_by_name()"],
+    [
+      "mod",
+      1745,
+      1745,
+      "fn registrations_release_by_lane_and_generation_never_by_name()",
+    ],
     ["mod", 1250, 1250, "fn note_stopping_session"],
     ["mod", 750, 755, "close_remote_stream();"],
     ["mod", 746, 746, "shutdown_tx.send(true)"],
     ["mod", 673, 673, "spawn(server::run("],
     ["mod", 467, 467, "fn freeze_session("],
-    ["mod", 1519, 1519, "fn session_identity_freezes_per_lane_and_cannot_be_renamed()"],
+    [
+      "mod",
+      1519,
+      1519,
+      "fn session_identity_freezes_per_lane_and_cannot_be_renamed()",
+    ],
     ["mod", 213, 213, "known_identities: Mutex<Vec<String>>"],
     ["server", 526, 526, "let (registration, rx) ="],
-    ["mod", 1892, 1892, "fn kb261_concurrent_same_platform_registrations_never_share_an_identity()"],
+    [
+      "mod",
+      1892,
+      1892,
+      "fn kb261_concurrent_same_platform_registrations_never_share_an_identity()",
+    ],
     ["server", 313, 313, "NO pause acknowledgement"],
     ["server", 297, 297, "notify_lane_gone(device_lane);"],
     ["server", 436, 436, "chunks admission ACCEPTED"],
     ["mod", 905, 918, "fn reset_pairing("],
     ["mod", 1018, 1018, "CONNECT_EDGE_SETTINGS_RMW: Mutex<()>"],
     ["mod", 1025, 1025, "fn connect_edge_settings_rmw("],
-    ["mod", 2026, 2026, "fn kb261_connect_edge_settings_rmws_serialize_through_one_lock()"],
+    [
+      "mod",
+      2026,
+      2026,
+      "fn kb261_connect_edge_settings_rmws_serialize_through_one_lock()",
+    ],
     ["mod", 395, 395, "fn register_connection_with_identity("],
     ["mod", 1808, 1808, "fn kb261_identities_are_exact_and_never_adopt()"],
     ["server", 614, 614, "dropped before its Welcome"],
     ["server", 274, 274, "async fn finalize_disconnected_connection"],
-    ["server", 1596, 1596, "fn welcome_send_failure_finalizes_the_lane_instead_of_leaking_it()"],
-    ["mod", 1642, 1642, "fn server_stop_leaves_records_for_their_pipelines_in_both_stop_orders()"],
+    [
+      "server",
+      1596,
+      1596,
+      "fn welcome_send_failure_finalizes_the_lane_instead_of_leaking_it()",
+    ],
+    [
+      "mod",
+      1642,
+      1642,
+      "fn server_stop_leaves_records_for_their_pipelines_in_both_stop_orders()",
+    ],
     ["mod", 1718, 1718, "fn stop_leaves_the_session_map_to_its_pipelines()"],
-    ["mod", 2077, 2077, "fn kb270_lane_session_records_are_consumed_at_every_session_end()"],
-    ["server", 1476, 1476, "fn connection_blocking_seams_run_off_the_async_connection_task()"],
+    [
+      "mod",
+      2077,
+      2077,
+      "fn kb270_lane_session_records_are_consumed_at_every_session_end()",
+    ],
+    [
+      "server",
+      1476,
+      1476,
+      "fn connection_blocking_seams_run_off_the_async_connection_task()",
+    ],
     ["server", 252, 252, "fn spawn_worker("],
   ];
 

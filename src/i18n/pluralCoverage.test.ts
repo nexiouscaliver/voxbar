@@ -231,7 +231,10 @@ for (const locale of locales) {
 //    numeral. It was not incidental - it was a factual claim about the
 //    batch - so ru/uk runHint must name the pair, never the engine count.
 for (const locale of ["ru", "uk"] as const) {
-  const { parent, leaf } = parentAndLeaf(loadLocale(locale), "settings.studio.runHint");
+  const { parent, leaf } = parentAndLeaf(
+    loadLocale(locale),
+    "settings.studio.runHint",
+  );
   for (const category of ["one", "few", "many", "other"] as const) {
     const raw = parent[`${leaf}_${category}`];
     assert.ok(

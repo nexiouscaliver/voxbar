@@ -53,10 +53,10 @@ function makeGrantScope(openResult: Promise<OpenResult>) {
       return Promise.resolve();
     },
     setPermissions: (
-      update: (prev: {
+      update: (prev: { accessibility: string; microphone: string }) => {
         accessibility: string;
         microphone: string;
-      }) => { accessibility: string; microphone: string },
+      },
     ) => {
       const next = update({ accessibility: "needed", microphone: "needed" });
       if (next.microphone === "waiting") calls.waiting++;
@@ -96,10 +96,7 @@ function readComponent(): string {
   );
 }
 
-async function runHandleGrant(
-  scope: GrantScope,
-  toast: Toast,
-): Promise<void> {
+async function runHandleGrant(scope: GrantScope, toast: Toast): Promise<void> {
   const rawInner = sliceHandler(readComponent(), "handleGrantMicrophone");
   const handler = new Function(
     "preview",

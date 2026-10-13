@@ -24,7 +24,10 @@ interface TCall {
   opts: Record<string, unknown> | undefined;
 }
 
-function makeT(): { calls: TCall[]; t: (key: string, opts?: Record<string, unknown>) => string } {
+function makeT(): {
+  calls: TCall[];
+  t: (key: string, opts?: Record<string, unknown>) => string;
+} {
   const calls: TCall[] = [];
   return {
     calls,
@@ -83,7 +86,11 @@ const messageOf = makeMessageFn();
     "secureInput.blockedWithCulprit",
     "the key must be the bare plural family - no hand-rolled suffix",
   );
-  assert.equal(calls[0].opts?.name, "Terminal", "the culprit name rides the call");
+  assert.equal(
+    calls[0].opts?.name,
+    "Terminal",
+    "the culprit name rides the call",
+  );
   assert.equal(
     calls[0].opts?.count,
     21,
