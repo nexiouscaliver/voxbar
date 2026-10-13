@@ -448,4 +448,51 @@ assert.ok(
   }
 }
 
+// KB-287 (v1.6.5 residuals): the KB-277 fix (cdb14c51) rewrote the
+// README's streaming-overlap sentence to state the singleton-engine
+// truth, but nothing TESTED it - the fix was pinned only by this ledger's
+// prose, so a docs revert of that one sentence would sail through CI.
+// This content pin reads README.md itself: the companion section must
+// keep the singleton-engine phrasing (the first session keeps streaming,
+// a concurrently-starting session transcribes at stop, because the
+// streaming engine is a singleton), and the pre-fix false claim (both
+// sessions "record and transcribe at stop instead of streaming live
+// text" - the exact wording cdb14c51 deleted) must not return. The code
+// truth it mirrors: actions.rs decides stream ownership on the
+// coordinator's serialized thread before any recorder runs - the first
+// session to start claims the singleton (actions.rs:1880).
+{
+  const readme = readFileSync(join(docsDir, "..", "README.md"), "utf8");
+  const companionSection = readme.slice(
+    readme.indexOf("Each phone runs its own recording independently"),
+    readme.indexOf("### Network and listener control"),
+  );
+  assert.ok(
+    companionSection.length > 0,
+    "README.md must keep the companion recording section this pin slices",
+  );
+  assert.ok(
+    companionSection.includes("the first keeps streaming live text"),
+    "KB-277/KB-287: the README must state that the FIRST session keeps " +
+      "streaming when sessions overlap",
+  );
+  assert.ok(
+    companionSection.includes("transcribes at stop"),
+    "KB-277/KB-287: the README must state that a concurrently-started " +
+      "session transcribes at stop",
+  );
+  assert.ok(
+    companionSection.includes("streaming engine is a singleton"),
+    "KB-277/KB-287: the README must name the singleton-engine reason",
+  );
+  assert.ok(
+    !companionSection.includes(
+      "both record and transcribe at stop instead of streaming live text",
+    ),
+    "KB-277/KB-287: the pre-fix sentence (no session streams during an " +
+      "overlap) contradicts the singleton design cdb14c51 documented - a " +
+      "revert of that README fix must fail here",
+  );
+}
+
 console.log("quality-goldmine ledger (AUD-15 + round 11) tests passed");

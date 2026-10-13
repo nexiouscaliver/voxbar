@@ -1628,11 +1628,12 @@ impl AudioRecordingManager {
     /// each live session BEFORE calling here).
     pub fn close_remote_stream(&self) {
         // Fleet pass: take the whole map under the lock, then stop and
-        // close OUTSIDE it. stop()'s pause handshake is acknowledged
-        // through push_remote_chunk / ack_remote_pause, which need this
-        // same lock - stopping under it serialized the full 2 s
-        // PAUSE_ACK_TIMEOUT per recording lane with every phone's pushes
-        // locked out.
+        // close OUTSIDE it. stop()'s pause handshake is acknowledged from
+        // the pushing side - push_remote_chunk routes every phone's
+        // chunks to the recorder under this same lock, and each write
+        // acknowledges an in-flight pause request - so stopping under it
+        // serialized the full 2 s PAUSE_ACK_TIMEOUT per recording lane
+        // with every phone's pushes locked out.
         let drained: Vec<_> = {
             let mut lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
             lanes.drain().collect()
@@ -2374,10 +2375,12 @@ impl AudioRecordingManager {
             drop(state);
             // Fleet pass: the entry leaves the map under the lock and the
             // recorder stops OUTSIDE it. stop()'s pause handshake is
-            // acknowledged through push_remote_chunk / ack_remote_pause,
-            // which need this same lock - stopping under it deadlocked the
-            // ack for the full 2 s PAUSE_ACK_TIMEOUT with every phone's
-            // pushes locked out and the shortcut dispatch thread blocked.
+            // acknowledged from the pushing side - push_remote_chunk
+            // routes every phone's chunks to the recorder under this same
+            // lock, and each write acknowledges an in-flight pause
+            // request - so stopping under it deadlocked the ack for the
+            // full 2 s PAUSE_ACK_TIMEOUT with every phone's pushes locked
+            // out and the shortcut dispatch thread blocked.
             let cancelled = {
                 let mut lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
                 let entry = lanes.remove(&lane);
@@ -3109,10 +3112,12 @@ mod tests {
     /// above): no lane path may call recorder.stop() while holding the
     /// remote_lanes lock, and every lane stop closes the source BEFORE
     /// stopping the recorder. stop()'s pause handshake is acknowledged
-    /// through push_remote_chunk / ack_remote_pause, which take that same
-    /// lock - a stop under it deadlocks its own ack for the full 2 s
-    /// PAUSE_ACK_TIMEOUT, stalling every phone's audio ingestion and (on
-    /// the cancel path) the shortcut dispatch thread. And a lane whose map
+    /// from the pushing side - push_remote_chunk routes every phone's
+    /// chunks to the recorder under that same lock, and each write
+    /// acknowledges an in-flight pause request - so a stop under it
+    /// deadlocks its own ack for the full 2 s PAUSE_ACK_TIMEOUT, stalling
+    /// every phone's audio ingestion and (on the cancel path) the
+    /// shortcut dispatch thread. And a lane whose map
     /// entry is gone has no push route left, so without the source-close
     /// first the stop pays the same timeout on every healthy phone stop.
     #[test]
@@ -3176,6 +3181,27 @@ mod tests {
         assert!(
             drain_at < loop_at && loop_at < teardown_stop_at,
             "the teardown's stops must run on drained entries AFTER the map lock was released"
+        );
+    }
+
+    /// KB-284 (v1.6.5 residuals): the explicit `ack_remote_pause` helper
+    /// was deleted (KB-263: the source close IS the acknowledgement -
+    /// producer_gone makes the consumer skip the 2 s wait), but three
+    /// production comments in this file still named it as the live ack
+    /// route, documenting a function that no longer exists. The handshake
+    /// is acknowledged from the pushing side: every write through
+    /// push_remote_chunk acknowledges an in-flight pause request, and the
+    /// source close / producer drop acknowledges it for a vanished phone.
+    /// No production text in this file may name `ack_remote_pause` again
+    /// (the companion server's KB-263 pin keeps its historical pre-fix
+    /// mention - that one describes the past, not a live route).
+    #[test]
+    fn kb284_no_comment_documents_the_deleted_ack_remote_pause_as_live() {
+        let source = include_str!("audio.rs");
+        let production = &source[..source.find("\nmod tests {").expect("the test module")];
+        assert!(
+            !production.contains("ack_remote_pause"),
+            "KB-284: ack_remote_pause was deleted; a production comment in audio.rs names it as the live ack route - document the real handshake (push-side post-write ack + source-close producer_gone) instead"
         );
     }
 

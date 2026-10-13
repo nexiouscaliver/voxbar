@@ -1005,14 +1005,65 @@ extended to scope the delete body (also mutation-checked).
   tap_locked_session_still_hits_the_cap_from_the_tick_path,
   session_admission_caps_a_locked_session_at_fifteen_minutes, and
   audio_is_refused_whenever_this_lanes_session_is_not_live.
-- **KB-261 · OPEN · the build still emits ggml duplicate-symbol warnings
-  (round 9 fleet).** Both ggml-building sys crates are still linked
-  (transcribe-cpp 0.3.1 and llama-cpp-2 0.1.159, src-tauri/Cargo.toml:92,
-  102 at 43f4c092), so every release build logs the duplicate-symbol set
-  for the shared ggml backend-registration objects (the v1.6.0 release
-  build log carried them again). The link succeeds; cosmetic, but it
-  muddies every release log. Fix shape: stop one crate from compiling
-  ggml-backend-reg.cpp or force a single ggml instance.
+- **KB-261 · DEFERRED-UPSTREAM (investigated v1.6.5 residuals cycle, lane
+  R4) · the build still emits ggml duplicate-symbol warnings (round 9
+  fleet).** Both ggml-building sys crates are still linked (transcribe-cpp
+  0.3.1 and llama-cpp-2 0.1.159, src-tauri/Cargo.toml:92, 102), so every
+  release build logs the duplicate-symbol set: exactly 10 symbols, all
+  defined in ggml-backend-reg.cpp, compiled into BOTH sys rlibs (the
+  release-build.log pairs libtranscribe_cpp_sys rlib[128]
+  (ggml-backend-reg.cpp.o) against libllama_cpp_sys_2 rlib[58]
+  (ggml-backend-reg.cpp.o)). The link succeeds (ld keeps the first
+  definition); cosmetic, but it muddies every release log. Lane R4
+  investigated both vendored sys crates in the cargo registry for the fix
+  shape (stop one crate from compiling ggml-backend-reg.cpp or force a
+  single ggml instance) and found NO clean seam in this repo; the exact
+  upstream constraints, verified against the vendored sources: (1) the
+  llama side HAS seams - llama-cpp-2 0.1.159 forwards a system-ggml
+  feature (llama-cpp-2/Cargo.toml:59) that sets LLAMA_USE_SYSTEM_GGML=ON,
+  making llama.cpp/CMakeLists.txt:214-218 find_package(ggml REQUIRED)
+  instead of building its vendored ggml, and its build.rs even exports
+  cargo:ggml_cmake_dir (llama-cpp-sys-2 0.1.159 build.rs:1084-1094) with
+  the comment "a dependent crate that also builds ggml can put this path
+  in CMAKE_PREFIX_PATH and use this ggml. Then there is only one ggml in
+  the program. Two copies of ggml in one program cause duplicate
+  symbols" - but the system-ggml route needs a system-installed ggml
+  whose version matches what the pinned bindings target (ggml 0.24.0 at
+  llama.cpp/ggml/CMakeLists.txt:6-8; Homebrew ships one rolling
+  unversioned ggml and ggml has no stable ABI across minors), and would
+  make the packaged .app depend on bundling that dylib; the
+  ggml_cmake_dir route needs the OTHER ggml builder to be a DIRECT
+  dependent (Cargo links metadata only flows one edge) that reads
+  DEP_LLAMA_GGML_CMAKE_DIR and find_package's ggml - transcribe-cpp-sys
+  is a sibling with no edge, no metadata reader, and no find_package
+  path, so the export is inert here. (2) The transcribe side has NO seam
+  at all: transcribe-cpp-sys 0.3.1 vendors ggml 0.25.3
+  (transcribe-cpp-sys/ggml/CMakeLists.txt:5-8) and CMakeLists.txt:430
+  add_subdirectory(ggml)'s it UNCONDITIONALLY - its feature set
+  (cuda/metal/openmp/rocm/vulkan/shared/dynamic-backends) has no
+  system-ggml analog, no GGML_ROOT, and no find_package(ggml) anywhere,
+  so nothing can stop it compiling its ggml or point it at another one.
+  (3) Version skew blocks the single-instance shape outright: llama
+  vendors ggml 0.24.0, transcribe vendors 0.25.3, and a single shared
+  ggml must serve both - neither crate can build against the other's
+  version (bindgen'd bindings plus API drift between ggml minors).
+  (4) dynamic-backends does not help: the duplicated symbols live in
+  ggml-backend-reg.cpp, which stays in the base ggml lib under
+  GGML_BACKEND_DL. The one LOCAL (non-fork) shape found: build
+  transcribe-cpp with its shared feature (TRANSCRIBE_BUILD_SHARED=ON;
+  its build.rs already stages the installed dylibs beside cargo
+  artifacts) so its ggml objects stop being relocatable inputs to the
+  final link and the warnings stop - at the cost of bundling, rpath-ing,
+  and codesigning the libtranscribe plus ggml dylibs inside the
+  distributed .app, a release-posture change disproportionate to a
+  cosmetic warning, so not taken this cycle. Upstream constraint, stated
+  for whoever revisits: the clean fix needs transcribe-cpp-sys to gain
+  either an external-ggml seam (find_package(ggml) honoring a prefix
+  path) or an optional dependency on llama-cpp-sys-2 consuming
+  DEP_LLAMA_GGML_CMAKE_DIR (the seam llama-cpp-sys-2's own build comment
+  invites), with the two vendored ggml versions aligned. Until one
+  lands, both rlibs keep compiling ggml-backend-reg.cpp; no fork or
+  vendor patch was made (per this cycle's rules).
 - **KB-262 · FIXED (v1.6.5 residuals cycle, lane R2) · the AI-unavailable
   copy cannot distinguish a build-lacking-AI Mac from an OS-lacking one
   (round 9 fleet).** Was open: the availability probe was a single bool,
@@ -1440,7 +1491,9 @@ pass), cdb14c51 (the validator wave), 5223d8a2, e7f9abc5, and 560440a2
 - **KB-267 · FIXED (5223d8a2 + e7f9abc5).** The Granted labels reach
   5.30:1 in light and the pin now computes the WCAG ratio from the real
   theme tokens and sweeps every non-test source under src for a
-  surviving text-emerald-600 (AccessibilityOnboarding.test.ts:88-186).
+  surviving text-emerald-600 (AccessibilityOnboarding.test.ts:94-176;
+  range refreshed by the KB-288 pass, which moved the hex table into
+  lib/utils/wcagContrast.ts).
 - **KB-268 · FIXED (5223d8a2).** The AppData and LogDirectory open
   buttons toast on {status:"error"} resolutions; pinned by
   directoryOpenErrorPins.test.ts.
@@ -1720,12 +1773,12 @@ report (dwfrun-adf93b4e).
 - KB-280 cancel-after-LaneGone interleave leaks a deferred machine past KB-270's retirement (Command::Cancel resets a Recording machine that LaneGone deferred to a drain that never comes). transcription_coordinator.rs:1298-1325, 1382-1388.
 - KB-281 CLOSED in the v1.6.5 residuals cycle (lane R3, hardened in the review round): the late register of the unregister-before-register inversion can no longer re-add a lane-keyed cancel want. register_cancel_shortcut (shortcut/mod.rs:262) gates lane keys on the lane's live companion session record through lane_keyed_register_may_add_want (shortcut/mod.rs:256) BEFORE the want-set add, and the review round moved the liveness read INSIDE the same CANCEL_WANTERS lock hold as the add - the first cut read liveness under the CompanionManager lock and added under CANCEL_WANTERS, so a teardown landing its record-flip AND want-release between the read and the add leaked the want exactly as pre-fix (read live, flip dead, remove absent, add). Under one hold the interleave closes: every want-releasing teardown flips the record dead BEFORE taking the want-set lock (the Escape teardown utils.rs:104-115 and the load-failure teardown managers/transcription.rs:2618-2620, both order-pinned), so a register either reads dead and is refused, or adds under the hold the release must wait for, leaving the want present for that release to remove; the wanters -> lane_sessions nesting is deadlock-safe because no path holds lane_sessions into the want-set lock (on_lane_session_changed drops the record lock before its sends). The record flips live on the start path before its register arm runs (actions.rs:1948 precedes actions.rs:2038); the keyboard's None key and manager-less contexts keep the legacy arm. The load-failure teardown now ends the cancelled lane's session record like the Escape teardown already did, before releasing the want (the W1-L0 rule from utils.rs). Pinned by kb281_a_dead_lanes_late_register_cannot_re_add_the_cancel_want (executable against a real CompanionManager), kb281_the_register_arm_gates_on_the_lanes_live_session_record (structural pin: lock acquisition precedes the liveness read, read precedes the add, the hold closes only after the fold), load_failure_teardown_ends_the_cancelled_lanes_session_record_kb281 (transcription.rs), and the order assertion added to cancel_current_operation_ends_a_cancelled_lanes_companion_session (utils.rs: flip precedes release). Residual, disclosed: a teardown that completes BEFORE the start path creates the session record (before actions.rs:1948) is invisible to the gate, because the record the register then reads is the fresh live one the start path inserts - that sub-window is the stale-live-record race, not the named inversion, and is bounded by the same session-record consumption rules (KB-270).
 - KB-282 CLOSED in the v1.6.5 residuals cycle (lane R3): the default capability swaps opener:default for opener:allow-open-url plus opener:allow-default-urls (capabilities/default.json:8-9), so no arbitrary-path command (reveal-item-in-dir, open-path) is webview-reachable while every frontend openUrl call (https help, releases, and whats-new links) keeps working under the default URL schemes; the Rust-side OpenerExt calls bypass the ACL and stay untouched (the KB-181 open-path note at commands/mod.rs stands). Pinned by src/capabilitiesAclPins.test.ts (allow-open-url and allow-default-urls present; opener:default, reveal-item-in-dir, and open-path absent from the permissions array and the file).
-- KB-283 CLOSED in the v1.6.5 residuals cycle (lane R2): the skipped/unchanged outcome legs and the live-log WARN tag carry amber-700 (PostProcessRunsTable.tsx:78, LiveLogViewer.tsx:55; 4.85:1 on the light background vs amber-600's 3.08:1), and the KB-267 contrast pin gained the amber family in the same pattern - the WCAG ratio is computed from a palette hex table, every non-test source under src is swept for a surviving text-amber-600, and both debug files must carry the amber-700/400 pair (AccessibilityOnboarding.test.ts:189; mutation-checked by reverting one WARN tag to amber-600).
-- KB-284 three production comments still document the deleted ack_remote_pause as live. audio.rs:1557-1562, 2244, 2735.
+- KB-283 CLOSED in the v1.6.5 residuals cycle (lane R2): the skipped/unchanged outcome legs and the live-log WARN tag carry amber-700 (PostProcessRunsTable.tsx:78, LiveLogViewer.tsx:55; 4.85:1 on the light background vs amber-600's 3.08:1), and the KB-267 contrast pin gained the amber family in the same pattern - the WCAG ratio is computed from a palette hex table, every non-test source under src is swept for a surviving text-amber-600, and both debug files must carry the amber-700/400 pair (AccessibilityOnboarding.test.ts:179; marker line moved by the KB-288 pass, which moved the hex table into lib/utils/wcagContrast.ts; mutation-checked by reverting one WARN tag to amber-600).
+- KB-284 CLOSED in the v1.6.5 residuals cycle (lane R4): no production comment in audio.rs names the deleted ack_remote_pause any more. The three stale sites (found at managers/audio.rs:1557-1562, 2244, 2735 on the round 12 tree) now document the handshake that actually exists: the pause is acknowledged from the pushing side - every write routed through push_remote_chunk acknowledges an in-flight pause request under the remote_lanes lock, and the source close / producer drop acknowledges it for a vanished phone (the KB-263 rule: the source close IS the acknowledgement) - so the comments' lock-ordering rationale (stop outside the lanes lock) survives with true premises (managers/audio.rs:1630-1637, 2376-2383, and the source pin's own doc at 3113-3121). Pinned by kb284_no_comment_documents_the_deleted_ack_remote_pause_as_live (managers/audio.rs:3186-3205; the production slice of the file must not contain the token, so reintroducing a comment that names the deleted helper fails CI; the companion server's KB-263 pin keeps its historical pre-fix mention, which describes the past, not a live route).
 - KB-285 get_settings runs inline on the connection task after the four spawned seams; its migration/salvage writes are the same wedge vector. server.rs:401, settings.rs:2143-2179.
 - KB-286 CLOSED in the v1.6.5 residuals cycle (lane R2): every Arabic dual form that carried {{count}} beside the dual noun now uses the bare dual - listSummary, run, runHint, results, charsChanged, added, removed, blockedWithCulprit, blockedNoCulprit (ar/translation.json:713, 1229, 1235, 1248, 1261, 1270, 1276, 1441, 1445), the lineCount_two pattern; showAll_two keeps {{count}} because its parenthesized count badge has no noun to number. pluralCoverage.test.ts facet 6 pins that every Arabic _two count-family form stays bare (mutation-checked by restoring one "{{count}} dual-noun" form).
-- KB-287 the KB-277 README sentence is pinned only as a ledger marker; no test reads README.md.
-- KB-288 the KB-267 contrast pin hardcodes the background and hex table instead of reading theme.css.
+- KB-287 CLOSED in the v1.6.5 residuals cycle (lane R4): a content pin now reads README.md itself, so a revert of the KB-277 fix (cdb14c51) fails CI instead of silently restoring the false sentence. The pin slices the companion recording section and asserts the singleton-engine phrasing on all three clauses - the first session keeps streaming live text, a concurrently-started session transcribes at stop, and the streaming engine is a singleton - plus a negative assert that the exact pre-fix wording ("both record and transcribe at stop instead of streaming live text") cannot return (docs/quality-goldmine.test.ts:451-501; the code truth it mirrors is the ownership decision on the coordinator's serialized thread, actions.rs:1880-1888). Mutation-checked by reverting the README sentence in the working tree: the pin failed on the first clause, and passed again after restore.
+- KB-288 CLOSED in the v1.6.5 residuals cycle (lane R4): the KB-267 and KB-283 contrast pins no longer hardcode the light background or the palette hexes. Both blocks now read them from one shared table, lib/utils/wcagContrast.ts (the module: contrastRatio at :35, themeHex at :45, TAILWIND_TEXT_HEX at :64), whose themeHex parses --light-color-background out of src/styles/theme.css at run time and fails loudly if the token is renamed or deleted, and whose Tailwind hex table is the single definition for the emerald and amber families (the repo's CSS never redefines those shades). The onboarding pin consumes it at AccessibilityOnboarding.test.ts:94-127 (emerald) and :179-253 (amber). Mutation-checked by repointing theme.css's --light-color-background at the dark hex #2c2b29: the emerald ratio assert failed with the moved measurement ("2.58:1 on #2c2b29"), proving the pin tracks the live token, and passed again after restore. accent.test.ts still carries its own THEME_BACKGROUND copy (out of this item's scope, disclosed; it measures the accent palette, not the text-on-background contrast families this item named).
 - KB-289 CLOSED in the v1.6.5 residuals cycle (lane R3): all three whole-settings writers now ride the serialized RMW cycle instead of bare get/write pairs outside any lock. start()'s pairing-token rebind runs through connect_edge_settings_rmw (companion/mod.rs:593-612), reset_pairing persists its fresh token through the same cycle (companion/mod.rs:915-930), and set_log_level's persist routes through crate::companion::connect_edge_settings_rmw (commands/mod.rs:86-94). The helper stays under its historical name and lock (companion/mod.rs:1049) - the smaller blast radius versus lifting the guard to a store-level lock, which would touch every get_settings/write_settings caller; its doc now records the widened role and the KB-261 pins still pass unchanged. Pinned by kb289_whole_settings_writers_ride_the_serialized_rmw_lock (companion tests: all three sites carry the helper call, no bare whole-settings write remains in the reset_pairing/set_log_level bodies, and the rebind closure keeps computing staleness and minting the token).
 - KB-290 stop-then-start re-seed can drop a freshly minted identity whose detached persist worker is mid-flight. companion/mod.rs:577-584, companion/server.rs:539-543.
 - KB-291 companion_known_identities is behaviorally write-only machinery justified by a stale cost rationale; delete or wire it. companion/mod.rs:395-434, companion/mod.rs:1048-1075.
@@ -1736,3 +1789,65 @@ report (dwfrun-adf93b4e).
 - KB-296 retire_dead_lane polls the connections mutex after every dictation drain on the coordinator's hot loop; a deferred-retire set removes the lock. transcription_coordinator.rs:1191-1225, 1347.
 - KB-297 the identity-list hydration seed does not clamp to KNOWN_IDENTITIES_LIMIT at the read boundary. companion/mod.rs:577-584.
 - KB-298 the persist payload Vec is documented and pinned as the set to persist but every consumer ignores it; make it a flag or fix the docs. companion/mod.rs:125-133, companion/mod.rs:1063-1067.
+
+## Round 13: the v1.6.5 residuals cycle record (2026-10-13, branch cycle14/v1.6.5-residuals, base origin/main 28f3b040)
+
+Four lanes worked the round 12 queue and the carried residuals; every
+closure flipped its entry in place above, and this section is the
+cycle-closing record. All citations below carry the full
+companion/xx.rs:N-M prefix form the ledger live-check pin requires (the
+companion anchors were re-verified against the anchor table in
+docs/quality-goldmine.test.ts, which passes at this tree).
+
+- Lane R1 (bad4490b): KB-028 closed (the teardown's skipped lane-recorder
+  close parks and runs at every session end, companion/mod.rs:758-763),
+  KB-029 closed (reset-pairing failures surface on the restart error
+  path), KB-279 closed (every audio-side remote_lanes and
+  lane_cancel_generations acquisition is poison-tolerant, both maps
+  enumerated by the poison pin), and KB-294 closed (a route-gone lane
+  pays no release-buffer tail).
+- Lane R2 (deb873a5): KB-155 closed (model delete and download-cancel
+  failures route through the settings row alert, x26 locales), KB-262
+  closed (the Apple Intelligence probe is a tri-state with a
+  build-lacks string rendered in settings and studio, x26), KB-283
+  closed (the amber legs carry amber-700 at 4.85:1), KB-286 closed (the
+  Arabic dual forms are bare, pluralCoverage facet), and KB-258 closed
+  (the phone Polish-text toggle labels the next dictation, x26).
+- Lane R3 (2e556778, hardened in the review round 65757b06): KB-236
+  closed (the impl-switch force-stops an armed recorder before the
+  backend teardown), KB-281 closed and then hardened (the lane-liveness
+  gate reads inside the same CANCEL_WANTERS hold as the want add; the
+  disclosed sub-window is recorded in the entry), KB-282 closed (the
+  default capability grants opener:allow-open-url plus
+  opener:allow-default-urls, no arbitrary-path command), and KB-289
+  closed (all three whole-settings writers ride the serialized RMW
+  cycle, companion/mod.rs:593-612, companion/mod.rs:915-930, and the
+  helper at companion/mod.rs:1049).
+- Lane R4 (this lane's commit): KB-284 closed (no production comment in
+  managers/audio.rs names the deleted ack_remote_pause; the three sites
+  now document the push-side post-write ack plus the source-close
+  producer_gone route, pinned by
+  kb284_no_comment_documents_the_deleted_ack_remote_pause_as_live at
+  managers/audio.rs:3186-3205), KB-287 closed (a content pin now reads
+  README.md and asserts the KB-277 singleton-engine phrasing on all
+  three clauses plus the absence of the pre-fix sentence,
+  docs/quality-goldmine.test.ts:451-501), and KB-288 closed (the KB-267
+  and KB-283 contrast pins read the light background and the palette
+  hexes from the shared table lib/utils/wcagContrast.ts, which parses
+  --light-color-background out of src/styles/theme.css at run time).
+  KB-261 (the ggml duplicate-symbol warnings) is moved to
+  DEFERRED-UPSTREAM with the full investigation in its entry above: no
+  clean seam exists in either vendored sys crate at the pinned versions
+  (llama-cpp-sys-2 0.1.159's system-ggml and ggml_cmake_dir seams both
+  require a consumer transcribe-cpp-sys does not offer, the vendored
+  ggml versions skew 0.24.0 vs 0.25.3, and the one local shape -
+  building transcribe-cpp shared - is a release-posture change
+  disproportionate to a cosmetic warning).
+- Goldmine hygiene this round: two citations refreshed after lane R4's
+  test-file edits moved the pinned blocks (the KB-267 emerald sweep now
+  lives at AccessibilityOnboarding.test.ts:94-176 and the KB-283 amber
+  marker at :179; both noted inline where they are cited).
+
+Still open from the round 12 queue after this cycle, unchanged and
+available for the next fleet: KB-280, KB-285, KB-290, KB-291, KB-292,
+KB-293, KB-295, KB-296, KB-297, KB-298.
