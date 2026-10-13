@@ -6,9 +6,7 @@ import React, {
   useSyncExternalStore,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { FlaskConical, Play, RotateCcw, Square,
-  Loader2,
-} from "lucide-react";
+import { FlaskConical, Play, RotateCcw, Square, Loader2 } from "lucide-react";
 import { commands, type HistoryEntry, type StudioSource } from "@/bindings";
 import { useSettings } from "@/hooks/useSettings";
 import { formatDateTime } from "@/utils/dateFormat";
