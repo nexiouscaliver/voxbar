@@ -906,17 +906,6 @@ pub struct AppSettings {
     /// Name of the last device that completed a hello handshake.
     #[serde(default)]
     pub companion_last_device: Option<String>,
-    /// KB-261 (v1.6.4): the phone identities this Mac has ever paired with
-    /// (`name#tag` strings, most recent last, bounded) - the durable
-    /// pairing record the server reseeds its in-memory set from at start,
-    /// so an exact re-pair after a restart owes no persistence. Fleet pass
-    /// 1: this set is no longer an adoption matcher (platform-name
-    /// adoption shipped one phone's transcript history to whichever
-    /// same-platform token holder paired while its owner was away);
-    /// identities are exact, so a phone keeps its Recent list while its
-    /// stored device id survives the pairing URL's origin.
-    #[serde(default)]
-    pub companion_known_identities: Vec<String>,
     /// v1.6.0: the interface IP the companion server binds and advertises
     /// (chosen in the settings picker). None/empty means the automatic
     /// LAN-preferred ranking, the pre-v1.6.0 behavior. A Tailscale
@@ -2048,7 +2037,6 @@ pub fn get_default_settings() -> AppSettings {
         companion_pairing_token: None,
         companion_pairing_subnet: None,
         companion_last_device: None,
-        companion_known_identities: Vec::new(),
         companion_bind_ip: None,
         companion_advertised_host: None,
         companion_tls_cert_path: None,
@@ -2523,6 +2511,54 @@ mod tests {
             .remove("post_process_model_lists");
         let legacy: AppSettings = serde_json::from_value(legacy).unwrap();
         assert!(legacy.post_process_model_lists.is_empty());
+    }
+
+    /// KB-295 (v1.6.6, riding the KB-291 deletion): the house serde
+    /// round-trip/backfill pattern for the REMOVED
+    /// `companion_known_identities` key. The field no longer exists on
+    /// AppSettings - the known-identity machinery it fed was
+    /// behaviorally write-only and is deleted - so this pin holds the
+    /// rollback shape instead: a legacy store that still CARRIES the key
+    /// hydrates cleanly (serde tolerates and ignores the unknown key; no
+    /// migration step is owed) and the next write DROPS it (a hydrated
+    /// AppSettings serializes without the key, so the stale entry cannot
+    /// survive into a fresh store). This is the exact round trip the
+    /// pre-deletion machinery never had a test for.
+    #[test]
+    fn kb295_legacy_known_identities_store_hydrates_and_the_key_drops_on_the_next_write() {
+        // A v1.6.5-era store: defaults plus a populated known-identity list.
+        let mut legacy = serde_json::to_value(get_default_settings()).unwrap();
+        legacy.as_object_mut().unwrap().insert(
+            "companion_known_identities".to_string(),
+            serde_json::json!(["iPhone#aaaa", "iPad#dddd"]),
+        );
+        assert!(
+            legacy
+                .get("companion_known_identities")
+                .is_some_and(|v| v.as_array().is_some_and(|a| a.len() == 2)),
+            "the legacy store fixture really carries the removed key"
+        );
+
+        // Hydration tolerates and ignores the unknown key - no error, no
+        // migration owed, and the rest of the store survives intact.
+        let hydrated: AppSettings =
+            serde_json::from_value(legacy.clone()).expect("the legacy store hydrates cleanly");
+        assert_eq!(
+            serde_json::to_value(&hydrated).unwrap(),
+            serde_json::to_value(get_default_settings()).unwrap(),
+            "a store whose only extra key was the removed one hydrates to the defaults"
+        );
+
+        // The next write drops the key: serializing the hydrated settings
+        // emits no companion_known_identities entry.
+        let rewritten = serde_json::to_value(&hydrated).unwrap();
+        assert!(
+            !rewritten
+                .as_object()
+                .expect("settings serialize as an object")
+                .contains_key("companion_known_identities"),
+            "the removed key must not survive a store rewrite"
+        );
     }
 
     /// T19: the one-time migration predicate via the absent-key marker,
