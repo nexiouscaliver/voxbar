@@ -512,8 +512,19 @@ export const PromptStudio: React.FC = () => {
       {/* The run controls pin to the bottom of the visible area while the
           pickers above them are scrolled: at the minimum window size the
           idle layout is taller than the pane, and a statically placed Run
-          button rendered as a clipped sliver above the footer on load. */}
-      <div className="sticky bottom-0 z-10 -mx-2 flex flex-wrap items-center gap-3 rounded-lg bg-background px-2 py-2 shadow-[0_-4px_12px_-6px_rgba(0,0,0,0.25)]">
+          button rendered as a clipped sliver above the footer on load. The
+          bar's top edge fades out instead of cutting opaque, and the padding
+          above the button stays slim: at rest the occluded second engine
+          row's top edge lands inside the gradient (a there-is-more hint)
+          instead of behind fully opaque background, and content scrolling
+          underneath dissolves instead of slicing mid-glyph. */}
+      <div
+        className="sticky bottom-0 z-10 -mx-2 flex flex-wrap items-center gap-3 px-2 pt-2 pb-2 rounded-b-lg"
+        style={{
+          background:
+            "linear-gradient(to bottom, transparent 0px, var(--color-background) 22px, var(--color-background) 100%)",
+        }}
+      >
         <Button
           onClick={handleRun}
           variant="primary"

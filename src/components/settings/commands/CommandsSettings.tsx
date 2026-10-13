@@ -29,6 +29,8 @@ import {
 interface CommandRowProps {
   command: CommandId;
   entries: CommandMatrixEntry[];
+  /** Phrases of the pristine backend default table (the seeded triggers). */
+  defaultPhrases: ReadonlySet<string>;
   defaultCount: number | null;
   collision: RowResetCollision | null;
   busy: boolean;
@@ -47,6 +49,7 @@ interface CommandRowProps {
 const CommandRow: React.FC<CommandRowProps> = ({
   command,
   entries,
+  defaultPhrases,
   defaultCount,
   collision,
   busy,
@@ -60,6 +63,23 @@ const CommandRow: React.FC<CommandRowProps> = ({
 
   const phrases =
     entries.find((entry) => entry.command === command)?.phrases ?? [];
+
+  // A seeded Latin-script trigger is the recognizer's English vocabulary
+  // (command_matrix.rs pins Latin seeds to English on purpose), which used
+  // to leave bare English chips inside an otherwise translated panel. The
+  // chip now leads with the command's translated name and keeps the literal
+  // phrase as a dimmed gloss: the panel reads localized while the chip
+  // still shows the exact spoken string. User-added phrases and the
+  // non-Latin built-in aliases (already in the recognizer's output
+  // language) render bare, and a locale whose name matches the literal
+  // (English itself) skips the gloss.
+  const localizedSeedLabel = (phrase: string): string | null => {
+    if (!defaultPhrases.has(phrase)) return null;
+    // eslint-disable-next-line no-control-regex
+    if (!/^[\x20-\x7E]+$/.test(phrase)) return null;
+    const localized: string = t(`settings.commands.names.${command}`);
+    return localized.toLowerCase() === phrase.toLowerCase() ? null : localized;
+  };
 
   const tryAdd = () => {
     const normalized = normalizePhrase(draft);
@@ -96,25 +116,37 @@ const CommandRow: React.FC<CommandRowProps> = ({
     >
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          {phrases.map((phrase) => (
-            <span
-              key={phrase}
-              className="inline-flex max-w-64 items-center gap-1 rounded-md border border-mid-gray/20 bg-mid-gray/10 px-2 py-0.5 text-xs"
-            >
-              <span className="truncate" title={phrase}>
-                {phrase}
-              </span>
-              <button
-                type="button"
-                onClick={() => onRemove(command, phrase)}
-                disabled={busy}
-                aria-label={t("settings.commands.removePhrase", { phrase })}
-                className="shrink-0 cursor-pointer rounded-sm text-mid-gray transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
+          {phrases.map((phrase) => {
+            const label = localizedSeedLabel(phrase);
+            return (
+              <span
+                key={phrase}
+                className="inline-flex max-w-64 items-center gap-1 rounded-md border border-mid-gray/20 bg-mid-gray/10 px-2 py-0.5 text-xs"
               >
-                <X className="h-3 w-3" aria-hidden="true" />
-              </button>
-            </span>
-          ))}
+                {label ? (
+                  <>
+                    <span className="truncate">{label}</span>
+                    <span className="truncate text-mid-gray" title={phrase}>
+                      ({phrase})
+                    </span>
+                  </>
+                ) : (
+                  <span className="truncate" title={phrase}>
+                    {phrase}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onRemove(command, phrase)}
+                  disabled={busy}
+                  aria-label={t("settings.commands.removePhrase", { phrase })}
+                  className="shrink-0 cursor-pointer rounded-sm text-mid-gray transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <X className="h-3 w-3" aria-hidden="true" />
+                </button>
+              </span>
+            );
+          })}
           <Input
             type="text"
             variant="compact"
@@ -211,6 +243,13 @@ export const CommandsSettings: React.FC = () => {
   // null (or not yet loaded) means the built-in defaults.
   const stored = getSetting("command_phrases");
   const entries = useMemo(() => stored ?? defaults ?? [], [stored, defaults]);
+
+  // Every phrase of the pristine default table: the set that decides which
+  // chips render with the translated-name + literal-gloss treatment.
+  const defaultPhrases = useMemo(
+    () => new Set(defaults?.flatMap((entry) => entry.phrases) ?? []),
+    [defaults],
+  );
 
   // Latest table ref so a toast's Undo action never commits a stale table
   // when the user has edited other rows in the meantime.
@@ -331,19 +370,24 @@ export const CommandsSettings: React.FC = () => {
 
       {!filtering && (
         <SettingsGroup title={t("settings.commands.behavior")}>
-          <AutoInterpretCommands descriptionMode="tooltip" grouped={true} />
-          <SpokenPunctuation descriptionMode="tooltip" grouped={true} />
-          <NumberFormatSetting descriptionMode="tooltip" grouped={true} />
-          <TerminalPunctuation descriptionMode="tooltip" grouped={true} />
-          <VoiceDeletionCommands descriptionMode="tooltip" grouped={true} />
+          {/* Behavior toggles explain themselves: the caption text under each
+              row states what the toggle does, so no row needs the persistent
+              ⓘ (the info-icon audit: the icon stays only on genuinely
+              non-obvious rows). */}
+          <AutoInterpretCommands descriptionMode="inline" grouped={true} />
+          <SpokenPunctuation descriptionMode="inline" grouped={true} />
+          <NumberFormatSetting descriptionMode="inline" grouped={true} />
+          <TerminalPunctuation descriptionMode="inline" grouped={true} />
+          <VoiceDeletionCommands descriptionMode="inline" grouped={true} />
         </SettingsGroup>
       )}
 
-      {/* The seeded trigger phrases are the recognizer's English defaults
-          (plus its built-in Devanagari/CJK aliases), so a translated panel
-          still shows English chips: one honest caption above the phrase
-          groups names that and points at the add-phrase field instead of
-          the chips reading as a missed translation. */}
+      {/* The seeded Latin-script trigger phrases are the recognizer's
+          English defaults (command_matrix.rs documents why Latin seeds stay
+          English), so each default chip renders the command's translated
+          name with the literal phrase as a dimmed gloss instead of a bare
+          English string; the caption still names the arrangement and points
+          at the add-phrase field for other languages. */}
       {visibleGroups.length > 0 && (
         <p className="px-4 text-xs text-secondary">
           {t("settings.commands.defaultPhrasesNote")}
@@ -360,6 +404,7 @@ export const CommandsSettings: React.FC = () => {
               key={command}
               command={command}
               entries={entries}
+              defaultPhrases={defaultPhrases}
               defaultCount={
                 defaults?.find((entry) => entry.command === command)?.phrases
                   .length ?? null
