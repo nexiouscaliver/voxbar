@@ -1698,20 +1698,28 @@ impl TranscriptionCoordinator {
     /// connection's folded session prefs WITH it: the effect that commits
     /// the start applies exactly these prefs to the live slot, closing the
     /// arm-to-freeze window another phone's press could otherwise race.
+    /// KB-285 (v1.6.6): the activation mode and hold threshold arrive as
+    /// parameters because get_settings is a read-modify-write over the
+    /// plugin store's mutex (migration and binding-merge write-backs), and
+    /// this method's only caller runs on the async connection task - the
+    /// caller reads the store through the blocking pool (the Welcome
+    /// read's seam) so no synchronous store IO rides the connection task.
+    /// The values stay per-edge (never a connect-time snapshot) so a
+    /// mid-connection activation change is honored by the very next press.
     pub fn send_companion_edge(
         &self,
-        app: &AppHandle,
         pressed: bool,
         prefs: crate::companion::protocol::SessionPrefs,
         lane: u64,
+        mode: crate::settings::ShortcutActivation,
+        hold_threshold: Duration,
     ) {
-        let settings = crate::settings::get_settings(app);
         self.send(
             COMPANION_BINDING_ID,
             "companion",
             pressed,
-            settings.shortcut_activation,
-            Duration::from_millis(settings.hold_threshold_ms),
+            mode,
+            hold_threshold,
             true,
             Some(prefs),
             Some(lane),

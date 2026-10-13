@@ -806,7 +806,49 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                             if let Some(coordinator) =
                                 app.try_state::<crate::TranscriptionCoordinator>()
                             {
-                                coordinator.send_companion_edge(&app, pressed, prefs, device_lane);
+                                // KB-285 (v1.6.6): the edge's activation
+                                // mode and hold threshold live in the
+                                // settings store, and get_settings is a
+                                // read-modify-write over the plugin store's
+                                // mutex (migration and binding-merge
+                                // write-backs) - the exact blocking class
+                                // the hello-path seams moved off this task,
+                                // and this edge fires on every phone press.
+                                // Read through the blocking pool and await
+                                // the handle (the Welcome read's seam); a
+                                // panicking read falls back to the shipped
+                                // defaults. The read stays per-edge, never
+                                // a connect-time snapshot, so a
+                                // mid-connection activation change is
+                                // honored by the next press.
+                                let edge_app = app.clone();
+                                let (mode, hold_threshold) =
+                                    tauri::async_runtime::spawn_blocking(move || {
+                                        let settings = crate::settings::get_settings(&edge_app);
+                                        (
+                                            settings.shortcut_activation,
+                                            Duration::from_millis(settings.hold_threshold_ms),
+                                        )
+                                    })
+                                    .await
+                                    .unwrap_or_else(|panic| {
+                                        log::error!(
+                                            "companion: ptt-edge settings read panicked \
+                                                 ({panic:?}); using the shipped defaults"
+                                        );
+                                        let defaults = crate::settings::get_default_settings();
+                                        (
+                                            defaults.shortcut_activation,
+                                            Duration::from_millis(defaults.hold_threshold_ms),
+                                        )
+                                    });
+                                coordinator.send_companion_edge(
+                                    pressed,
+                                    prefs,
+                                    device_lane,
+                                    mode,
+                                    hold_threshold,
+                                );
                             }
                             if pressed {
                                 // Audio is only meaningful during a session;
@@ -1453,13 +1495,17 @@ mod tests {
     /// exactly the seams it enumerates - (1) the SQLite recent-history
     /// query at hello, (2) the connect-edge settings+tray bookkeeping,
     /// (3) the disconnect-edge tray re-sync, each riding the
-    /// panic-capturing spawn_worker; and (4) the Welcome frame's settings
+    /// panic-capturing spawn_worker; (4) the Welcome frame's settings
     /// read riding spawn_blocking (fleet pass 2: it sat inline on the
     /// async task through the original hardening, and get_settings is a
     /// read-modify-write over the plugin store's mutex, not a pure
-    /// read). It does NOT certify the absence of other blocking calls;
-    /// the async task itself must stay free of direct
-    /// get_settings/write_settings only in the seams named here.
+    /// read); and (5) the Ptt-edge settings read riding spawn_blocking
+    /// (KB-285 in v1.6.6: send_companion_edge read the store inline on
+    /// this task for every phone press/release edge - the same
+    /// migration/salvage write-back wedge). It does NOT certify the
+    /// absence of other blocking calls; the async task itself must stay
+    /// free of direct get_settings/write_settings only in the seams
+    /// named here.
     #[test]
     fn connection_blocking_seams_run_off_the_async_connection_task() {
         let source = include_str!("server.rs");
@@ -1527,6 +1573,43 @@ mod tests {
         assert!(
             !production.contains("let settings = crate::settings::get_settings(&app);"),
             "the direct (blocking) settings read may not remain on the async task"
+        );
+
+        // (5) KB-285: the Ptt-edge settings read rides spawn_blocking too.
+        // The read must sit inside its own blocking-pool dispatch (the
+        // nearest preceding one, distinct from the Welcome seam's), and
+        // the old inline edge call (the coordinator reading the store
+        // itself) may not return.
+        let edge_read_at = production
+            .find("crate::settings::get_settings(&edge_app)")
+            .expect("the ptt-edge settings read");
+        let edge_dispatch_before = production[..edge_read_at]
+            .rfind("tauri::async_runtime::spawn_blocking(move || {")
+            .expect("the ptt-edge read must be introduced by a blocking-pool dispatch");
+        assert!(
+            edge_dispatch_before > blocking_at,
+            "the Ptt-edge settings read must have its own blocking-pool dispatch after the Welcome seam's (never the async task)"
+        );
+        assert!(
+            !production
+                .contains("coordinator.send_companion_edge(&app, pressed, prefs, device_lane);"),
+            "the direct edge call that read the store on the async task may not return (KB-285)"
+        );
+        // Cross-file: the coordinator's edge forwarder must not read the
+        // store itself (reintroducing the read there silently moves the
+        // blocking IO back onto the connection task).
+        let coordinator_source = include_str!("../transcription_coordinator.rs");
+        let edge_at = coordinator_source
+            .find("pub fn send_companion_edge(")
+            .expect("the edge forwarder");
+        let edge_end = edge_at
+            + coordinator_source[edge_at..]
+                .find("\n    }\n")
+                .expect("fn end");
+        let edge_body = &coordinator_source[edge_at..edge_end];
+        assert!(
+            !edge_body.contains("get_settings"),
+            "send_companion_edge must not read the settings store; its caller resolves the values off the async task (KB-285)"
         );
 
         let manager_source = include_str!("mod.rs");
