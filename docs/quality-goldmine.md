@@ -1661,3 +1661,30 @@ watched its pin trip; every restore re-verified green).
   must be introduced by spawn_worker with its name, and the helper must
   catch and log; mutation-checked by reducing the helper to a bare
   spawn).
+
+## Round 12 queue: twenty verified lows kept open after the v1.6.4 fleets (2026-10-13)
+
+All verified with anchors by the fleet consolidators; each ships disclosed in
+v1.6.4. The full evidence for every entry lives in the stabilization run's
+report (dwfrun-adf93b4e).
+
+- KB-279 audio-side remote_lanes and lane_cancel_generations locks still unwrap (a panic there re-wedges connections; the manager-side hardening stopped at the boundary). audio.rs:473, 2089.
+- KB-280 cancel-after-LaneGone interleave leaks a deferred machine past KB-270's retirement (Command::Cancel resets a Recording machine that LaneGone deferred to a drain that never comes). transcription_coordinator.rs:1298-1325, 1382-1388.
+- KB-281 unregister-before-register inversion permanently leaks a lane-keyed cancel want (Escape registered system-wide until restart). shortcut/mod.rs:239-267, actions.rs:1935-2038.
+- KB-282 opener:default still bundles unscoped reveal-item-in-dir (arbitrary-path Finder reveal from webview JS); swap for allow-open-url + default-urls. capabilities/default.json:8.
+- KB-283 amber-600 legs measure 3.08:1 in light inside the very cells the emerald fix touched; amber-700 passes. PostProcessRunsTable.tsx:71, LiveLogViewer.tsx:51.
+- KB-284 three production comments still document the deleted ack_remote_pause as live. audio.rs:1557-1562, 2244, 2735.
+- KB-285 get_settings runs inline on the connection task after the four spawned seams; its migration/salvage writes are the same wedge vector. server.rs:401, settings.rs:2143-2179.
+- KB-286 Arabic dual forms carry the numeral plus the dual noun ("2 two-shortcuts"); the bare dual is correct. ar/translation.json:1391, 1397.
+- KB-287 the KB-277 README sentence is pinned only as a ledger marker; no test reads README.md.
+- KB-288 the KB-267 contrast pin hardcodes the background and hex table instead of reading theme.css.
+- KB-289 start()/reset_pairing/set_log_level still whole-settings-write outside the connect-edge RMW lock (lost-update interleave). companion/mod.rs:609-626, 931-934; commands/mod.rs:57-74.
+- KB-290 stop-then-start re-seed can drop a freshly minted identity whose detached persist worker is mid-flight. companion/mod.rs:594-601, server.rs:385-391.
+- KB-291 companion_known_identities is behaviorally write-only machinery justified by a stale cost rationale; delete or wire it. companion/mod.rs:395-434, 1046-1075.
+- KB-292 every hello/disconnect spawns uncoalesced workers (up to 3 + 1) and both edges rebuild the tray; a coalescing flag bounds the storm. server.rs:389-449, 735.
+- KB-293 retire_dead_lane guards by correlation (Stage==Idle + connection-gone) not the IN_FLIGHT_PIPELINES registry; one registry check makes it by-construction. transcription_coordinator.rs:1186-1222.
+- KB-294 a mid-dictation disconnect still pays the release-buffer sleep for unroutable audio; skip the tail when the lane route is gone. audio.rs:1397-1433.
+- KB-295 companion_known_identities lacks the house serde round-trip/backfill test pattern. settings.rs test module.
+- KB-296 retire_dead_lane polls the connections mutex after every dictation drain on the coordinator's hot loop; a deferred-retire set removes the lock. transcription_coordinator.rs:1191-1225, 1347.
+- KB-297 the identity-list hydration seed does not clamp to KNOWN_IDENTITIES_LIMIT at the read boundary. companion/mod.rs:598-601.
+- KB-298 the persist payload Vec is documented and pinned as the set to persist but every consumer ignores it; make it a flag or fix the docs. companion/mod.rs:125-133, 1055-1067.
