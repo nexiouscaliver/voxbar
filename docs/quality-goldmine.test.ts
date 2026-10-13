@@ -137,20 +137,29 @@ assert.ok(
 // -- Round 11 (v1.6.4 stabilization) reconciliation pins ------------------
 //
 // The round 11 pass reconciled the ledger against the code the v1.6.4
-// cycle landed on. Two invariants are pinned here:
+// cycle landed on. Three invariants are pinned here:
 //
 // 1. KB-275's round 9 entry is no longer a blanket OPEN: the fleet
 //    commits 81dae89a/520a47e6 closed its lane-machine-reset gap after
 //    that section was finalized, so the entry must read PARTIALLY FIXED
-//    with the no-re-point half named as the residual. entryStatus reads
-//    the FIRST bold span for the id, which is the round 9 entry (round
-//    10's queue lists ids unbolded), so the whole-file check targets it.
+//    with the no-re-point half named as the residual. The round 9
+//    heading is a MULTI-LINE bold span, which entryStatus's single-line
+//    regex cannot see (its first matchable KB-275 span was the round 11
+//    flip note, so the first cut of this pin enforced nothing); the
+//    check therefore uses a newline-tolerant span reader whose first
+//    KB-275 span is the round 9 entry itself (round 10's queue lists
+//    ids unbolded). Mutation-checked: rewriting the round 9 slot back
+//    to a blanket OPEN trips it.
 // 2. The round 11 section records a FIXED marker for every round 10 id
 //    the cycle's six commits closed, keeps KB-264/KB-271 as the open
 //    leftovers, and carries the six named reconciliations (KB-236 open
 //    with fresh anchors; KB-237/254/255/241/245 verified). Scoped to the
 //    section's text because rounds 9 and 10 reused these ids with
 //    different meanings (the round 9 correction-log convention).
+// 3. The round 9 KB-085 residual's shutdown-send anchor must point at
+//    the line companion/mod.rs actually carries it on (the v1.6.4
+//    companion rewrite moved it; the review round caught the stale
+//    citation), so the anchor is checked against the live source file.
 
 const round11Start = goldmine.indexOf("# Round 11");
 assert.ok(
@@ -160,12 +169,67 @@ assert.ok(
 );
 const round11 = goldmine.slice(round11Start);
 
+// Same contract as entryStatus, but the bold span may wrap across lines
+// (the ledger wraps long headings), so `[\s\S]` replaces `[^\\n]`.
+const entryStatusMultiline = (md: string, id: string): string => {
+  const span = md.match(
+    new RegExp(`\\*\\*KB-${id}(?![0-9])([\\s\\S]*?)\\*\\*`),
+  );
+  assert.ok(
+    span,
+    `KB-${id} has no bold entry heading (**KB-${id} …**) in quality-goldmine.md`,
+  );
+  const segments = (span[1] ?? "").split("·").map((s) => s.trim());
+  return segments.find((s) => s.length > 0) ?? "";
+};
+
+const kb275Status = entryStatusMultiline(goldmine, "275");
 assert.match(
-  entryStatus(goldmine, "275"),
+  kb275Status,
   /PARTIALLY FIXED/,
-  "KB-275's round 9 entry must read PARTIALLY FIXED (the post-round-9 " +
-    "fleet commits 81dae89a/520a47e6 closed its lane-machine-reset gap; " +
-    "the no-re-point half is the residual)",
+  `KB-275's round 9 entry (the first KB-275 bold span, read across its ` +
+    `wrapped lines) must read PARTIALLY FIXED — the post-round-9 fleet ` +
+    `commits 81dae89a/520a47e6 closed its lane-machine-reset gap; the ` +
+    `no-re-point half is the residual (status slot: ` +
+    `"${kb275Status.slice(0, 80)}")`,
+);
+assert.ok(
+  !/^\s*OPEN/.test(kb275Status),
+  `KB-275's round 9 status slot must not read as a blanket OPEN any more ` +
+    `(status slot: "${kb275Status.slice(0, 80)}")`,
+);
+
+// KB-085 residual anchor vs the live source: the round 9 entry cites the
+// shutdown send inside stop(), so the cited line must be where mod.rs
+// actually sends it today.
+const companionModPath = join(
+  docsDir,
+  "..",
+  "src-tauri",
+  "src",
+  "companion",
+  "mod.rs",
+);
+const companionMod = readFileSync(companionModPath, "utf8");
+const shutdownSendLine =
+  companionMod
+    .split("\n")
+    .findIndex((l) => l.includes("shutdown_tx.send(true)")) + 1;
+assert.ok(
+  shutdownSendLine > 0,
+  "companion/mod.rs no longer contains the shutdown send `shutdown_tx.send(true)` — " +
+    "update the KB-085 residual anchor and this pin together",
+);
+const kb085Entry = goldmine.match(/- \*\*KB-085 residual:\*\*[\s\S]{0,700}/);
+assert.ok(
+  kb085Entry,
+  "the round 9 still-open list must carry a bold KB-085 residual entry",
+);
+assert.ok(
+  kb085Entry[0].includes(`companion/mod.rs:${shutdownSendLine}`),
+  `KB-085's residual must cite the CURRENT shutdown-send line ` +
+    `(companion/mod.rs:${shutdownSendLine}); the v1.6.4 companion rewrite ` +
+    `moved it once already`,
 );
 
 const ROUND_11_FIXED = [

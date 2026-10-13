@@ -1185,8 +1185,16 @@ extended to scope the delete body (also mutation-checked).
   at 43f4c092).
 - **KB-085 residual:** the rapid off/on port race (stop returns without
   awaiting the accept loop, whose only signal is the shutdown send at
-  companion/mod.rs:600; bind fails EADDRINUSE with no retry). The
-  pre-auth deadline half was already fixed in 9655d8fc.
+  companion/mod.rs:779 in this tree; the anchor was mod.rs:600 before the
+  v1.6.4 companion rewrite; bind fails EADDRINUSE with no retry). The
+  pre-auth deadline half was already fixed in 9655d8fc. (Round 11
+  re-verified against the rewritten file: start() spawns the accept loop
+  fire-and-forget at companion/mod.rs:706 and waits only on the bind
+  outcome, stop() sends and returns at :779, restart() bridges the two
+  with a fixed 150 ms sleep at :813, and the accept loop releases the
+  listener only when its select breaks on the shutdown watch at
+  server.rs:83 - so a rebinding start inside the sleep window can still
+  lose the race, exactly the round 9 shape.)
 - **KB-086 residual:** the two dead protocol fields. The zero-tests half is
   closed this cycle: server.rs now carries a tests module (server.rs:695)
   from the W1-L0 work.
@@ -1413,8 +1421,16 @@ untouched this cycle).
 
 KB-028 (anchor refreshed, companion/mod.rs:783-787), KB-029
 (reset_pairing returns its error to the caller with no status.error
-write, companion/mod.rs:938-951), KB-082 and KB-085 residual and KB-155
-residual (their files are untouched by this cycle's diff), KB-086
+write, companion/mod.rs:938-951), KB-085 residual (re-verified against
+the REWRITTEN companion file, not waved off: this cycle's diff touched
+companion/mod.rs and server.rs heavily, so the round 9 anchor was
+re-read - the residual holds, with the shutdown send now at
+companion/mod.rs:779, the fire-and-forget accept spawn at :706, the
+fixed 150 ms restart sleep at :813, and the accept loop's shutdown
+break at server.rs:83; the round 9 entry above carries the refreshed
+anchor), KB-082 and KB-155 residual (their anchored files, cert.rs and
+the model-settings sources, are genuinely untouched by this cycle's
+diff), KB-086
 residual (protocol.rs's only change this cycle is the KB-260 doc
 comment, so the dead fields stand), KB-244 residual
 (settingsSearchIndex.ts untouched this cycle), KB-258 (above), KB-261
