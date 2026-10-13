@@ -86,6 +86,9 @@ const CommandRow: React.FC<CommandRowProps> = ({
     return localized.toLowerCase() === phrase.toLowerCase() ? null : localized;
   };
 
+  // KB-022: edits disabled while defaults are unresolved (see the prop).
+  const editsLocked = busy || defaultsPending;
+
   const tryAdd = () => {
     const normalized = normalizePhrase(draft);
     if (!normalized || editsLocked) return;

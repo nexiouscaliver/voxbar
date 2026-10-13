@@ -409,6 +409,7 @@ export const HistorySettings: React.FC = () => {
                   )}
                   <HistoryEntryComponent
                     entry={entry}
+                    savedPending={pendingSavedIds.has(entry.id)}
                     showModelBadge={showModelBadge}
                     modelDisplayName={modelDisplayName}
                     promptName={

@@ -980,11 +980,19 @@ function App() {
                 data-settings-scroll=""
                 className="absolute inset-0 overflow-y-auto"
               >
-                <div className="flex flex-col items-center px-4 pb-10 pt-4 gap-4">
-                  <AccessibilityPermissions />
-                  <SecureInputWarning />
-                  {renderSettingsContent(currentSection, setOnboardingPreview)}
-                </div>
+                {/* KB-093: one render throw retires the settings pane, not
+                    the app; the boundary wraps the banners and the section
+                    content the scroller carries. */}
+                <ErrorBoundary context="Settings">
+                  <div className="flex flex-col items-center px-4 pb-10 pt-4 gap-4">
+                    <AccessibilityPermissions />
+                    <SecureInputWarning />
+                    {renderSettingsContent(
+                      currentSection,
+                      setOnboardingPreview,
+                    )}
+                  </div>
+                </ErrorBoundary>
               </div>
               {scrollState.scrollable && (
                 <>

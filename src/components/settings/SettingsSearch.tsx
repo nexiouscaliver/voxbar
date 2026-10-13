@@ -45,10 +45,6 @@ export const SettingsSearch: React.FC<SettingsSearchProps> = ({ onSelect }) => {
   // dead results while the flag is off, exactly like disabled sections.
   const experimentalEnabled = settings?.experimental_enabled ?? false;
 
-  // KB-144: rows that only render inside Advanced's experimental group are
-  // dead results while the flag is off, exactly like disabled sections.
-  const experimentalEnabled = settings?.experimental_enabled ?? false;
-
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return [];
