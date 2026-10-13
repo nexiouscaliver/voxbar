@@ -25,3 +25,4 @@ src-tauri/src/companion
 .zcode
 .video_agent
 src-tauri/vendor
+shots/
