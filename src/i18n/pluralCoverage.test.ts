@@ -56,7 +56,8 @@ const KEY_FAMILIES = [
   "settings.debug.liveLogs.lineCount",
 ];
 
-// The numeral-accuracy facet (check 4) runs on the KB-276 families.
+// The empirical digit-equality check (facet 4b) runs on the KB-276
+// families, whose strings carry no incidental numerals.
 const NUMERAL_FAMILIES = KEY_FAMILIES.slice(-3);
 
 const PROBE_COUNTS = [0, 1, 2, 3, 4, 5, 9, 10, 11, 21, 22, 100, 101, 1000];
@@ -158,19 +159,49 @@ for (const locale of locales) {
   }
 }
 
-// 4. NUMERAL accuracy for the KB-276 families: a category that fires at a
-//    count OTHER than 1 must never hardcode the numeral 1. Russian and
-//    Ukrainian 'one' also fires at 21, 31, 41, ..., 101, 1001 (CLDR: n%10=1
-//    && n%100!=11), so a "1 строка"-style _one key renders the WRONG NUMBER
-//    at 21 lines in the live-log counter and the secure-input banner - the
-//    regression this facet exists to catch. Every digit run in the rendered
-//    string must equal the count, checked empirically through the same
-//    i18next resolution the app performs. Scoped to the three KB-276
-//    families: the six fleet-pass-2 families still carry hardcoded "1" in
-//    their ru/uk _one keys (twenty keys, the same wrong-number class at
-//    21+); that defect predates this lane - these families already
-//    resolved through i18next before it, so nothing here regressed them -
-//    and they stay out until a dedicated pass fixes the copy.
+// 4. NUMERAL accuracy for ALL nine count families. Russian and Ukrainian
+//    'one' also fires at 21, 31, 41, ..., 101, 1001 (CLDR: n%10=1 &&
+//    n%100!=11), so a "1 строка"-style _one key renders the WRONG NUMBER at
+//    21+ - the exact defect the KB-276 lane introduced for its own three
+//    families and the pre-existing instance the review then surfaced in the
+//    six fleet-pass-2 families (ru/uk run/runHint/results/charsChanged/
+//    listSummary; showAll already interpolated). Two complementary checks:
+//
+//    a) STATIC, every family: a category that fires at any probe count
+//       other than 1 must either interpolate {{count}} or carry no ASCII
+//       digit at all. Word-numbered forms stay legal (the Arabic dual
+//       "سطران", Hebrew "שורה אחת"), and an incidental static numeral is
+//       legal only alongside the interpolation (runHint's "…on 1 engine",
+//       where the 1 names the engine half of the pair, not the count).
+//       A bare hardcoded numeral with no {{count}} in a category that can
+//       fire elsewhere is the wrong-number bug class, caught here.
+//    b) EMPIRICAL, the three KB-276 families (their strings carry no
+//       incidental numerals, so equality is exact): every digit run in the
+//       rendered output must equal the count, through the same i18next
+//       resolution the app performs.
+for (const locale of locales) {
+  const tree = loadLocale(locale);
+  const rules = new Intl.PluralRules(locale);
+  const beyondOne = new Set(
+    PROBE_COUNTS.filter((count) => count !== 1).map((count) =>
+      rules.select(count),
+    ),
+  );
+  for (const family of KEY_FAMILIES) {
+    const { parent, leaf } = parentAndLeaf(tree, family);
+    for (const category of beyondOne) {
+      const raw = parent[`${leaf}_${category}`];
+      assert.ok(
+        typeof raw === "string" &&
+          (raw.includes("{{count}}") || !/[0-9]/.test(raw)),
+        `${locale}: ${family}_${category} fires at a count other than 1, so it ` +
+          `must interpolate {{count}} or number the noun in words - a hardcoded ` +
+          `numeral renders the wrong number (e.g. at 21 or 101); found: ${raw}`,
+      );
+    }
+  }
+}
+
 for (const locale of locales) {
   const t = i18next.getFixedT(locale);
   for (const family of NUMERAL_FAMILIES) {
