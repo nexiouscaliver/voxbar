@@ -121,11 +121,11 @@ struct ConnectionEntry {
 }
 
 /// KB-261 (v1.6.4): one authenticated connection's registration outcome.
-/// `device` is the resolved identity (adopted or minted); the lane and
-/// generation are the KB-255 registration keys; `persist_identities` is
-/// Some when this registration minted a NEW identity and the CALLER owns
-/// persisting the bounded set off the connection task (see
-/// [`persist_known_identities`]).
+/// `device` is the connection's exact raw identity (see
+/// [`protocol::device_identity_name`]); the lane and generation are the
+/// KB-255 registration keys; `persist_identities` is Some when this
+/// identity was not already known and the CALLER owns persisting the
+/// bounded set off the connection task (see [`persist_known_identities`]).
 pub struct ConnectionRegistration {
     pub device: String,
     pub lane: u64,
@@ -203,12 +203,13 @@ pub struct CompanionManager {
     /// prefs ride the edge into the coordinator, which freezes them per
     /// lane at the start commit.
     pending_prefs: Mutex<protocol::SessionPrefs>,
-    /// KB-261 (v1.6.4): the phone identities this Mac knows, in-memory and
-    /// authoritative (seeded from the persisted
+    /// KB-261 (v1.6.4): the phone identities this Mac has paired, in-memory
+    /// and authoritative (seeded from the persisted
     /// `companion_known_identities` at server start, bounded to
-    /// KNOWN_IDENTITIES_LIMIT). The registration path consults and updates
-    /// it under the connections lock; persistence is best-effort off the
-    /// connection task through [`persist_known_identities`].
+    /// KNOWN_IDENTITIES_LIMIT). The durable record of WHICH phones paired:
+    /// an exact re-pair owes no persistence, and a restart reseeds from it.
+    /// Fleet pass 1: it is no longer an adoption matcher - identities are
+    /// exact (see [`Self::register_connection_with_identity`]).
     known_identities: Mutex<Vec<String>>,
     /// Per-IP auth-failure limiting shared across connections.
     failure_limiter: Mutex<auth::FailureLimiter>,
@@ -290,11 +291,20 @@ impl CompanionManager {
     /// not the next unrelated sync point; runs on the server's task thread
     /// so the snapshot compute never lands on the UI thread).
     pub fn note_device_connected(&self, app: &AppHandle, device: &str) {
-        let mut settings = crate::settings::get_settings(app);
-        if settings.companion_last_device.as_deref() != Some(device) {
-            settings.companion_last_device = Some(device.to_string());
-            crate::settings::write_settings(app, settings);
-        }
+        // KB-261 (fleet pass 1): this whole-settings read-modify-write rides
+        // the connect-edge lock, because the same first-pairing hello also
+        // spawns the persist_known_identities worker - unsynchronized, the
+        // interleave [persist reads][connected reads][persist writes]
+        // [connected writes] let the last whole-settings writer erase the
+        // other's field.
+        connect_edge_settings_rmw(app, &|settings| {
+            if settings.companion_last_device.as_deref() != Some(device) {
+                settings.companion_last_device = Some(device.to_string());
+                true
+            } else {
+                false
+            }
+        });
         let _ = crate::tray::update_tray_menu(app);
     }
 
@@ -344,43 +354,44 @@ impl CompanionManager {
             .map(|entry| entry.device.clone())
     }
 
-    /// KB-261 (v1.6.4): register one authenticated connection WITH its
-    /// identity resolved atomically against the identities this Mac knows.
-    /// The phone's persistent device id lives in localStorage, which is
-    /// origin-scoped: a Mac address change (new LAN IP, or a
-    /// Tailscale-vs-LAN pairing switch) changes the QR URL's origin, so
-    /// every phone arrives with a freshly minted id and per-phone data
-    /// (the Recent list) silently reset. The manager keeps a bounded
-    /// in-memory set of known identities (seeded from the persisted
-    /// `companion_known_identities` at server start) and adopts the PRIOR
-    /// identity when a new-id hello unambiguously matches it by platform
-    /// name (the `sticky_identity_adoption` rule): the Recent list,
-    /// registration, and history attribution keep one identity across
-    /// origin changes.
+    /// KB-261 (v1.6.4, fleet pass 1): register one authenticated
+    /// connection under its EXACT identity. The identity is the hello's
+    /// `name#tag` composite ([`protocol::device_identity_name`]); the
+    /// Recent list, registration, and history attribution key on it, and a
+    /// phone keeps all three across Mac restarts and re-pairs as long as
+    /// its stored device id survives - which it does while the pairing
+    /// URL's origin is stable.
     ///
-    /// RACE FREEDOM (the review pass): the decision, the registration
-    /// insert, and the known-set update happen inside ONE hold of the
-    /// connections lock (lock order: connections, then known_identities;
-    /// no other site takes both). Resolving the identity BEFORE
-    /// registering - the first cut of this - left a window where a
-    /// same-platform twin's concurrent hello saw exactly one known
-    /// identity and no live connection for it, and ADOPTED it: two phones
-    /// collapsed into one Recent list, the KB-265 defect class. Under the
-    /// single lock, a twin either sees the first phone's connection
-    /// registered (adoption refused) or two known identities (ambiguous,
-    /// refused). The method performs NO settings IO (the connection task
-    /// only touches in-memory maps); persisting a newly minted identity is
-    /// the caller's job through the returned `persist_identities` payload
-    /// (see `persist_known_identities`).
+    /// Fleet pass 1 REMOVED platform-name adoption, so one phone's data
+    /// can never fold into another's. The v1.6.4 cut let a fresh-id hello
+    /// adopt a known identity on platform-name equality alone; that match
+    /// key is client-controlled and every same-platform phone shares it,
+    /// so any pairing-token holder helloing while the prior phone was away
+    /// (asleep, off-WiFi - the normal steady state) received the prior's
+    /// Recent list and transcript history, and its own dictations were
+    /// attributed to the prior - the KB-265 defect class, between
+    /// household token holders, in the common two-Android-phones case
+    /// where both hellos say "Linux". Adoption also broke itself: the
+    /// ordinary re-pair (a network switch leaves the old socket registered
+    /// up to the keepalive deadline while the phone hellos from the new
+    /// origin) was refused by the live-connection guard, minted a fresh
+    /// id, and pushed it to the known set - after which two same-base
+    /// entries made the platform match ambiguous forever, silently. And
+    /// bare no-id hellos adopted known tagged identities in both
+    /// directions, violating the pinned protocol invariant that a client
+    /// with no id keeps the bare name. The disclosed cost of exactness: an
+    /// origin change (new LAN IP, Tailscale-vs-LAN) mints a fresh
+    /// localStorage id on the phone, so its Recent list resets - the
+    /// pre-v1.6.4 behavior, now safe.
     ///
-    /// Disclosed limits: the match is by hello platform name, so a second
-    /// same-platform phone pairing while the first is NOT connected adopts
-    /// the first's identity (and two same-platform phones already known
-    /// make the match ambiguous, so neither adopts - a phone of that
-    /// platform re-pairing after an origin change then resets its list).
-    /// Private mode (storage unavailable, per-load ids) rides the same
-    /// rule: one same-platform phone keeps its list across loads, twins do
-    /// not.
+    /// RACE FREEDOM: the registration insert and the known-set update
+    /// happen inside ONE hold of the connections lock (lock order:
+    /// connections, then known_identities; no other site takes both), so
+    /// the devices list and the pairing record never observe a half-state
+    /// under a reconnect storm. The method performs NO settings IO (the
+    /// connection task only touches in-memory maps); persisting a newly
+    /// known identity is the caller's job through the returned
+    /// `persist_identities` payload (see `persist_known_identities`).
     pub fn register_connection_with_identity(
         &self,
         device: &str,
@@ -398,47 +409,20 @@ impl CompanionManager {
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-        // The atomic decision + insert: connections first, then the known
-        // set; both held until the entry is pushed so no concurrent
-        // registration can observe the half-state the review found.
+        // The atomic insert + known-set update: connections first, then
+        // the known set; both held until the entry is pushed so no
+        // concurrent registration can observe the half-state.
         let mut connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
         let mut known = self
             .known_identities
             .lock()
             .unwrap_or_else(|e| e.into_inner());
 
-        let connected = |identity: &str| connections.iter().any(|e| e.device == identity);
-        let mut minted_new_identity = false;
-        let identity = if known.iter().any(|k| k == &raw) {
-            // This exact identity paired before (same origin, same stored
-            // id, or an earlier adoption): nothing changes.
-            raw.clone()
-        } else {
-            match sticky_identity_adoption(&known, device)
-                // Never fold a live connection's identity into a newcomer:
-                // the adoption exists for a phone RETURNING, and a
-                // same-platform phone that is connected right now is by
-                // definition a different one.
-                .filter(|prior| !connected(prior))
-            {
-                Some(prior) => {
-                    log::info!(
-                        "companion: {device} re-paired under a new device id; keeping its known \
-                         identity {prior} (KB-261)"
-                    );
-                    prior
-                }
-                None => {
-                    minted_new_identity = true;
-                    raw.clone()
-                }
-            }
-        };
-
+        let identity = raw.clone();
         let mut persist_identities = None;
-        if minted_new_identity {
+        if !known.iter().any(|k| k == &raw) {
             // A genuinely new identity: remember it (bounded, most recent
-            // last) so this phone's NEXT re-pair can be matched. The
+            // last) so a restart's seed knows this phone paired. The
             // in-memory set is authoritative; the persisted copy is the
             // caller's payload.
             known.push(raw.clone());
@@ -1031,49 +1015,63 @@ impl Default for CompanionManager {
     }
 }
 
-/// KB-261: how many phone identities the Mac remembers for re-pair
-/// matching. Bounded so a kiosk Mac strangers keep scanning cannot grow the
-/// settings store forever; the most recent identities survive.
+/// KB-261: how many phone identities the Mac remembers. Bounded so a
+/// kiosk Mac strangers keep scanning cannot grow the settings store
+/// forever; the most recent identities survive.
 const KNOWN_IDENTITIES_LIMIT: usize = 8;
+
+/// KB-261 (fleet pass 1): serializes the connect-edge settings
+/// read-modify-write cycles. A first-pairing hello spawns
+/// [`persist_known_identities`] and
+/// [`CompanionManager::note_device_connected`] as two detached workers,
+/// and each does get_settings -> mutate one field -> write_settings over
+/// the WHOLE settings object; unsynchronized, the interleave [persist
+/// reads][connected reads][persist writes][connected writes] let the last
+/// whole-settings writer erase the other's field - exactly the same
+/// pairing that mints a new identity also changes the last device, so
+/// both workers fire together on the feature's primary scenario, and a
+/// lost identities persist silently shrank the Mac's pairing record
+/// after the next restart (start() re-seeds from the store).
+static CONNECT_EDGE_SETTINGS_RMW: Mutex<()> = Mutex::new(());
+
+/// One settings read-modify-write cycle under [`CONNECT_EDGE_SETTINGS_RMW`]:
+/// the guard spans get_settings through write_settings, so the two
+/// connect-edge workers serialize and each read sees the other's write.
+/// The closure returns whether the field changed; an unchanged field
+/// writes nothing.
+fn connect_edge_settings_rmw(
+    app: &AppHandle,
+    mutate: &dyn Fn(&mut crate::settings::AppSettings) -> bool,
+) {
+    let _guard = CONNECT_EDGE_SETTINGS_RMW
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let mut settings = crate::settings::get_settings(app);
+    if mutate(&mut settings) {
+        crate::settings::write_settings(app, settings);
+    }
+}
 
 /// KB-261 (v1.6.4): persist the manager's CURRENT known-identity set to
 /// settings, off the connection task (the caller owns the thread). Reads
 /// the fresh in-memory set at run time - not a stale payload - so
 /// out-of-order persist workers converge to the latest set, and merges
 /// into the CURRENT settings (this field only) so a concurrent writer of
-/// another field is not clobbered by a stale whole-settings copy. Best
+/// another field is not clobbered by a stale whole-settings copy - a
+/// claim fleet pass 1 makes TRUE by running under
+/// [`CONNECT_EDGE_SETTINGS_RMW`] with note_device_connected's cycle. Best
 /// effort by design: a lost persisted entry costs one phone one
 /// Recent-list reset after a restart, never a wrong merge.
 pub(crate) fn persist_known_identities(app: &AppHandle, manager: &CompanionManager) {
     let identities = manager.known_identities_snapshot();
-    let mut settings = crate::settings::get_settings(app);
-    if settings.companion_known_identities != identities {
-        settings.companion_known_identities = identities;
-        crate::settings::write_settings(app, settings);
-    }
-}
-
-/// KB-261: the platform-name half of an identity (`iPhone#7f3a` -> `iPhone`).
-/// An identity with no tag (an old client's bare name) is its own base.
-fn identity_base(identity: &str) -> &str {
-    identity.split_once('#').map_or(identity, |(base, _)| base)
-}
-
-/// KB-261: the pure re-pair matching rule. A hello whose raw identity is
-/// unknown adopts the PRIOR identity when exactly one known identity
-/// shares the hello's platform name - the shape of the same physical phone
-/// returning from a new origin (fresh localStorage id, same UA platform
-/// token). Two or more known identities on the same platform name make the
-/// match ambiguous (same-platform twins), so nobody adopts: a wrong
-/// adoption would collapse two phones into one Recent list, the exact
-/// KB-265 defect the identity tags fixed. None also when the known set has
-/// never seen this platform.
-fn sticky_identity_adoption(known: &[String], hello_device: &str) -> Option<String> {
-    let mut matches = known.iter().filter(|k| identity_base(k) == hello_device);
-    match (matches.next(), matches.next()) {
-        (Some(only), None) => Some(only.clone()),
-        _ => None,
-    }
+    connect_edge_settings_rmw(app, &|settings| {
+        if settings.companion_known_identities != identities {
+            settings.companion_known_identities = identities.clone();
+            true
+        } else {
+            false
+        }
+    });
 }
 
 fn qr_svg_for(url: &str) -> Result<String, String> {
@@ -1774,74 +1772,18 @@ mod tests {
         assert_ne!(lane_e, lane_d);
     }
 
-    /// KB-261 (v1.6.4): the sticky re-pair matching rule, pinned pure. A
-    /// hello whose raw identity is unknown adopts the PRIOR identity when
-    /// exactly one known identity shares the hello's platform name (the
-    /// same physical phone returning from a new origin); two known
-    /// identities on the same platform name (twins) make the match
-    /// ambiguous, so NOBODY adopts - a wrong adoption would collapse two
-    /// phones into one Recent list, the KB-265 defect the tags fixed. The
-    /// live-connection guard (a connected prior never adopts out) is
-    /// exercised separately below.
+    /// KB-261 (fleet pass 1): identities are exact, so no phone's data can
+    /// ever fold into another's. The v1.6.4 platform-name adoption is
+    /// pinned REMOVED here: a fresh-id same-platform hello while the prior
+    /// is away (the old adoption trigger - and any pairing-token holder
+    /// hits it, which shipped the prior's transcript history to the
+    /// newcomer and attributed the newcomer's dictations to the prior),
+    /// bare no-id hellos never folding into known tagged identities (and
+    /// tagged hellos never folding into a known bare one), and no
+    /// poisoning (an ordinary re-pair can no longer disable anything,
+    /// because there is no cross-identity rule left to disable).
     #[test]
-    fn kb261_sticky_identity_adoption_requires_one_unambiguous_prior() {
-        // The platform-name half of an identity.
-        assert_eq!(identity_base("iPhone#7f3a"), "iPhone");
-        assert_eq!(
-            identity_base("Linux"),
-            "Linux",
-            "a bare name is its own base"
-        );
-
-        // One known iPhone: a fresh-id iPhone hello (the origin-change
-        // re-pair) adopts it and keeps its Recent list.
-        let known_one = vec!["iPhone#7f3a".to_string()];
-        assert_eq!(
-            sticky_identity_adoption(&known_one, "iPhone"),
-            Some("iPhone#7f3a".to_string()),
-            "a phone returning from a new origin keeps its known identity"
-        );
-        // A different platform never matches another platform's identity.
-        assert_eq!(sticky_identity_adoption(&known_one, "iPad"), None);
-
-        // Two known iPhones (twins): the match is ambiguous, nobody adopts.
-        let known_twins = vec!["iPhone#7f3a".to_string(), "iPhone#c3d4".to_string()];
-        assert_eq!(
-            sticky_identity_adoption(&known_twins, "iPhone"),
-            None,
-            "an ambiguous platform match must not collapse twins (KB-265)"
-        );
-        // The twins rule holds per platform: the iPad's single entry still
-        // adopts.
-        let known_mixed = vec![
-            "iPhone#7f3a".to_string(),
-            "iPhone#c3d4".to_string(),
-            "iPad#99aa".to_string(),
-        ];
-        assert_eq!(
-            sticky_identity_adoption(&known_mixed, "iPad"),
-            Some("iPad#99aa".to_string())
-        );
-
-        // Nothing known: nothing to adopt (the first pairing).
-        assert_eq!(sticky_identity_adoption(&[], "iPhone"), None);
-
-        // The known set stays bounded: the manager keeps the most recent
-        // KNOWN_IDENTITIES_LIMIT identities (pinned here so a change is a
-        // deliberate decision, not drift).
-        assert_eq!(KNOWN_IDENTITIES_LIMIT, 8);
-    }
-
-    /// KB-261 (v1.6.4): the atomic identity+registration seam, exercised
-    /// through the real manager. A phone's SECOND pairing under a fresh id
-    /// (the origin change) adopts its FIRST identity, so the Recent list
-    /// keyed on it survives; a same-platform twin pairing while the first
-    /// phone is CONNECTED gets its own identity (the live-connection
-    /// guard, now evaluated under the SAME lock as the registration); and
-    /// once two same-platform identities are known, later fresh-id hellos
-    /// are ambiguous and keep their own (the disclosed twins limit).
-    #[test]
-    fn kb261_identity_resolution_survives_the_origin_change() {
+    fn kb261_identities_are_exact_and_never_adopt() {
         let manager = CompanionManager::new();
         // The persisted known set this server run was seeded with (start()
         // loads it into the manager).
@@ -1850,73 +1792,80 @@ mod tests {
             .lock()
             .unwrap_or_else(|e| e.into_inner()) = vec!["iPhone#aaaa".to_string()];
 
-        // The phone returns from a new origin (fresh localStorage id): its
-        // connection is gone, so the fresh identity ADOPTS the remembered
-        // one and the Recent list keyed on it survives. No persistence is
-        // owed for an adoption.
-        let (repaired, _rx) =
+        // A fresh-id same-platform hello while the prior identity is AWAY:
+        // the v1.6.4 cut adopted "iPhone#aaaa" here, delivering that
+        // phone's Recent list and transcript history to whichever phone
+        // helloed. The identity must be its own; history keyed on
+        // "iPhone#aaaa" can never ship to this connection's socket,
+        // because the recent-list filter keys on the registration's own
+        // identity (send_recent_history_to_lane ->
+        // recent_companion_entries_for_device).
+        let (newcomer, _rx) =
             manager.register_connection_with_identity("iPhone", Some("zzzz9999-0000"));
         assert_eq!(
-            repaired.device, "iPhone#aaaa",
-            "a re-pair from a new origin keeps the known identity"
+            newcomer.device, "iPhone#zzzz",
+            "a fresh-id hello must never fold into a known same-platform identity"
         );
-        assert!(
-            repaired.persist_identities.is_none(),
-            "an adoption rewrites nothing"
+        assert_eq!(
+            newcomer.persist_identities,
+            Some(vec!["iPhone#aaaa".to_string(), "iPhone#zzzz".to_string()]),
+            "the newcomer's own identity is owed to persistence, bounded, most recent last"
         );
 
-        // The same identity pairing again (same origin, same stored id):
-        // nothing changes, nothing owed.
+        // The ordinary re-pair the old rule broke: the prior identity's
+        // connection is STILL registered (its socket lingers up to the
+        // keepalive deadline after a network switch) - the newcomer still
+        // gets its own identity, and nothing is poisoned for later hellos
+        // (the next fresh-id hello resolves exactly the same way).
+        let (repair, _rx) =
+            manager.register_connection_with_identity("iPhone", Some("cccc3333-0000"));
+        assert_eq!(repair.device, "iPhone#cccc");
+
+        // The same identity re-pairing (same origin, same stored id, or a
+        // Mac restart): nothing changes, nothing owed.
         let (again, _rx) =
             manager.register_connection_with_identity("iPhone", Some("aaaa1111-0000"));
         assert_eq!(again.device, "iPhone#aaaa");
         assert!(again.persist_identities.is_none());
 
-        // A same-platform twin connecting WHILE the prior identity is live
-        // must not fold into it: the live-connection guard refuses the
-        // adoption, the twin mints its own identity, and the bounded set
-        // (owed to persistence) grows by exactly it.
-        let (twin, _rx) =
-            manager.register_connection_with_identity("iPhone", Some("bbbb2222-0000"));
+        // A no-id hello keeps the bare name, the pinned protocol invariant:
+        // it never adopts a known tagged identity (two phones sharing one
+        // Recent list, the KB-265 defect class), in either direction.
+        let (bare, _rx) = manager.register_connection_with_identity("iPhone", None);
         assert_eq!(
-            twin.device, "iPhone#bbbb",
-            "a same-platform phone pairing while the prior identity is connected gets its own"
+            bare.device, "iPhone",
+            "a client with no id keeps the bare name (protocol.rs invariant)"
         );
+        let manager_bare = CompanionManager::new();
+        *manager_bare
+            .known_identities
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = vec!["iPhone".to_string()];
+        let (tagged, _rx) =
+            manager_bare.register_connection_with_identity("iPhone", Some("bbbb2222-0000"));
         assert_eq!(
-            twin.persist_identities,
-            Some(vec!["iPhone#aaaa".to_string(), "iPhone#bbbb".to_string()]),
-            "a minted identity is owed to persistence, bounded, most recent last"
-        );
-
-        // Once both are known, the platform match is ambiguous for any
-        // later fresh-id hello (the disclosed KB-261 limit: after twins
-        // have paired, an origin change on either resets its Recent list).
-        let (later, _rx) =
-            manager.register_connection_with_identity("iPhone", Some("cccc3333-0000"));
-        assert_eq!(later.device, "iPhone#cccc");
-        assert_eq!(
-            later.persist_identities,
-            Some(vec![
-                "iPhone#aaaa".to_string(),
-                "iPhone#bbbb".to_string(),
-                "iPhone#cccc".to_string()
-            ])
+            tagged.device, "iPhone#bbbb",
+            "a tagged hello must never fold into a known bare identity"
         );
 
         // A different platform never touches the iPhone's resolution.
         let (ipad, _rx) = manager.register_connection_with_identity("iPad", Some("dddd4444-0000"));
         assert_eq!(ipad.device, "iPad#dddd");
+
+        // The known set stays bounded: the manager keeps the most recent
+        // KNOWN_IDENTITIES_LIMIT identities (pinned here so a change is a
+        // deliberate decision, not drift).
+        assert_eq!(KNOWN_IDENTITIES_LIMIT, 8);
     }
 
-    /// KB-261 (v1.6.4, review pass): the twin race. Resolving the identity
-    /// BEFORE registering left a window where a concurrent same-platform
-    /// hello saw exactly one known identity, no live connection for it,
-    /// and ADOPTED it - collapsing two phones into one Recent list (the
-    /// KB-265 defect class). The decision, the registration insert, and
-    /// the known-set update now share one critical section, so N
-    /// same-platform phones registering CONCURRENTLY all end up with
-    /// DISTINCT identities (the first mints, everyone else sees it
-    /// connected or two known entries and mints their own).
+    /// KB-261 (v1.6.4 review pass, re-anchored by fleet pass 1): the twin
+    /// race. The v1.6.4 adoption cut resolved the identity BEFORE
+    /// registering, leaving a window where a concurrent same-platform
+    /// hello adopted a known identity and collapsed two phones into one
+    /// Recent list (the KB-265 defect class). Identities are now exact and
+    /// the registration insert and known-set update share one critical
+    /// section, so N same-platform phones registering CONCURRENTLY all end
+    /// up with DISTINCT identities.
     #[test]
     fn kb261_concurrent_same_platform_registrations_never_share_an_identity() {
         let manager = Arc::new(CompanionManager::new());
@@ -1998,7 +1947,7 @@ mod tests {
             "persistence writes only when the field changed"
         );
         assert!(
-            persist.contains("settings.companion_known_identities = identities;"),
+            persist.contains("settings.companion_known_identities = identities"),
             "persistence merges into the CURRENT settings (this field only)"
         );
 
@@ -2027,6 +1976,71 @@ mod tests {
             source[start_at..start_end].contains("settings.companion_known_identities.clone()"),
             "start() seeds the known-identity cache from the persisted store"
         );
+
+        // Fleet pass 1: platform-name adoption is gone entirely - no code
+        // path may match identities across phones again (the manager-level
+        // pin above holds the behavior; this keeps the mechanism itself
+        // from creeping back in). The needles are concatenated so this
+        // assertion's own literals cannot satisfy it.
+        let adoption_fn = ["sticky", "_identity", "_adoption"].concat();
+        let base_fn = ["identity", "_ba", "se("].concat();
+        assert!(
+            !source.contains(&adoption_fn) && !source.contains(&base_fn),
+            "platform-name adoption and its base splitter must not reappear"
+        );
+    }
+
+    /// KB-261 (fleet pass 1) source pin: the two connect-edge settings
+    /// read-modify-write cycles SERIALIZE. The first-pairing hello spawns
+    /// persist_known_identities and note_device_connected as two detached
+    /// workers, and each does get_settings -> mutate one field ->
+    /// write_settings over the WHOLE settings object; unsynchronized, the
+    /// interleave [persist reads][connected reads][persist writes]
+    /// [connected writes] let the last whole-settings writer erase the
+    /// other's field (the real store cannot mount under a mock app, so the
+    /// lock discipline is pinned on the source, the same convention as the
+    /// test above).
+    #[test]
+    fn kb261_connect_edge_settings_rmws_serialize_through_one_lock() {
+        let source = include_str!("mod.rs");
+
+        // The shared lock and the helper that holds it across the whole
+        // get -> mutate -> write span.
+        let helper_at = source
+            .find("fn connect_edge_settings_rmw(")
+            .expect("the connect-edge RMW helper");
+        let helper_end = helper_at + source[helper_at..].find("\n}\n").expect("fn end");
+        let helper = &source[helper_at..helper_end];
+        let guard_at = helper.find("CONNECT_EDGE_SETTINGS_RMW").expect("the guard");
+        let read_at = helper.find("get_settings").expect("the read");
+        let write_at = helper.find("write_settings").expect("the write");
+        assert!(
+            guard_at < read_at && read_at < write_at,
+            "the RMW helper must take the lock BEFORE reading settings and keep it past the write"
+        );
+
+        // Both connect-edge cycles route through the helper (a whole-
+        // settings write outside it would reintroduce the lost update).
+        // The method (impl indent) and the free fn (module indent) close
+        // differently, so each carries its own terminator.
+        for (site, terminator) in [
+            ("pub(crate) fn persist_known_identities(", "\n}\n"),
+            ("pub fn note_device_connected(", "\n    }\n"),
+        ] {
+            let at = source
+                .find(site)
+                .unwrap_or_else(|| panic!("the connect-edge settings writer must exist: {site}"));
+            let end = at + source[at..].find(terminator).expect("fn end");
+            let body = &source[at..end];
+            assert!(
+                body.contains("connect_edge_settings_rmw(app"),
+                "{site} must run its whole-settings cycle under the connect-edge lock"
+            );
+            assert!(
+                !body.contains("write_settings(app"),
+                "{site} must not write settings outside the locked helper"
+            );
+        }
     }
 
     /// KB-270 (v1.6.4): the per-lane session records stop growing. Every

@@ -330,7 +330,15 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
 
     try {
       if (isWindows) {
-        await commands.openMicrophonePrivacySettings();
+        // KB-268: the generated bindings resolve a Rust Err as
+        // {status:"error"} instead of throwing, so only the transport catch
+        // below would fire - and the swallowed failure left the card armed
+        // with a 60s waiting spinner no settings flip could ever satisfy.
+        const result = await commands.openMicrophonePrivacySettings();
+        if (result.status !== "ok") {
+          toast.error(t("onboarding.permissions.errors.requestFailed"));
+          return;
+        }
       } else {
         await requestMicrophonePermission();
       }
@@ -349,7 +357,13 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
   const handleOpenMicSettings = async () => {
     if (preview) return;
     try {
-      await commands.openMicrophonePrivacySettings();
+      // KB-268: same resolve-not-throw seam as handleGrantMicrophone -
+      // without the status check the button silently did nothing.
+      const result = await commands.openMicrophonePrivacySettings();
+      if (result.status !== "ok") {
+        toast.error(t("onboarding.permissions.errors.requestFailed"));
+        return;
+      }
     } catch (error) {
       console.error("Failed to open microphone privacy settings:", error);
       toast.error(t("onboarding.permissions.errors.requestFailed"));

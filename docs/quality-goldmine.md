@@ -1172,8 +1172,9 @@ extended to scope the delete body (also mutation-checked).
 ## Still open after this cycle (anchors refreshed where re-read)
 
 - **KB-028:** companion stop() still closes the lane recorders only when
-  nothing is recording (companion/mod.rs:783-787 after the v1.6.4
-  rewrite; the anchor at round 9 time was mod.rs:604-609); the shape
+  nothing is recording (companion/mod.rs:766-772 after the v1.6.4
+  rewrite and the fleet pass 1 re-read; the anchor at round 9 time was
+  mod.rs:604-609); the shape
   survived the W1-L2 rewrite, both fleet passes, and the v1.6.4 lane. A
   disable during a live local recording can still strand the pre-warmed
   idle recorder.
@@ -1185,13 +1186,15 @@ extended to scope the delete body (also mutation-checked).
   at 43f4c092).
 - **KB-085 residual:** the rapid off/on port race (stop returns without
   awaiting the accept loop, whose only signal is the shutdown send at
-  companion/mod.rs:779 in this tree; the anchor was mod.rs:600 before the
-  v1.6.4 companion rewrite; bind fails EADDRINUSE with no retry). The
+  companion/mod.rs:763 in this tree; the anchor was mod.rs:600 before the
+  v1.6.4 companion rewrite and :779 before the fleet pass 1 companion
+  edits; bind fails EADDRINUSE with no retry). The
   pre-auth deadline half was already fixed in 9655d8fc. (Round 11
-  re-verified against the rewritten file: start() spawns the accept loop
-  fire-and-forget at companion/mod.rs:706 and waits only on the bind
-  outcome, stop() sends and returns at :779, restart() bridges the two
-  with a fixed 150 ms sleep at :813, and the accept loop releases the
+  re-verified against the rewritten file, anchors refreshed by the fleet
+  pass 1 companion re-read: start() spawns the accept loop
+  fire-and-forget at companion/mod.rs:690 and waits only on the bind
+  outcome, stop() sends and returns at :763, restart() bridges the two
+  with a fixed 150 ms sleep at :797, and the accept loop releases the
   listener only when its select breaks on the shutdown watch at
   server.rs:83 - so a rebinding start inside the sleep window can still
   lose the race, exactly the round 9 shape.)
@@ -1348,7 +1351,7 @@ none touched a KB item, so no statuses moved.
   was and is open (re-verified: the phone's "Polish text" label,
   client/index.html:554-557, still carries no next-session hint).
 - Round 9's KB-028 anchor refreshed to the current tree
-  (companion/mod.rs:783-787).
+  (companion/mod.rs:766-772 after the fleet pass 1 companion edits).
 
 ## Round 10 closures recorded (this cycle's lanes; round 10 meanings)
 
@@ -1419,14 +1422,16 @@ untouched this cycle).
 
 ## Round 9 open list, re-verified this pass
 
-KB-028 (anchor refreshed, companion/mod.rs:783-787), KB-029
+KB-028 (anchor refreshed, companion/mod.rs:766-772 after fleet pass 1),
+KB-029
 (reset_pairing returns its error to the caller with no status.error
-write, companion/mod.rs:938-951), KB-085 residual (re-verified against
+write, companion/mod.rs:922-935 after fleet pass 1), KB-085 residual (re-verified against
 the REWRITTEN companion file, not waved off: this cycle's diff touched
 companion/mod.rs and server.rs heavily, so the round 9 anchor was
 re-read - the residual holds, with the shutdown send now at
-companion/mod.rs:779, the fire-and-forget accept spawn at :706, the
-fixed 150 ms restart sleep at :813, and the accept loop's shutdown
+companion/mod.rs:763 (fleet pass 1 re-read), the fire-and-forget accept
+spawn at :690, the
+fixed 150 ms restart sleep at :797, and the accept loop's shutdown
 break at server.rs:83; the round 9 entry above carries the refreshed
 anchor), KB-082 and KB-155 residual (their anchored files, cert.rs and
 the model-settings sources, are genuinely untouched by this cycle's
@@ -1460,3 +1465,82 @@ residual (above).
   (572 commits by CJ Pais on this history, 2025-02-03 through
   2026-10-07, plus other upstream authors) never enters the window, so
   no carve-out was needed.
+
+## Round 12 (fleet pass 1 fixes, 2026-10-13)
+
+The fleet review pass confirmed six findings on this branch; all six are
+fixed in one commit, each with its own pin (every pin mutation-checked by
+reintroducing its defect and watching it trip).
+
+- **KB-261 connect-edge lost update · FIXED (fleet pass 1).** The
+  first-pairing hello spawns persist_known_identities and
+  note_device_connected as two detached workers, and each did
+  get_settings -> mutate one field -> write_settings over the WHOLE
+  settings object, so the interleave [persist reads][connected reads]
+  [persist writes][connected writes] let the last whole-settings writer
+  erase the other's field - and both fire together exactly when a first
+  pairing mints an identity and changes the last device. Both cycles now
+  route through CONNECT_EDGE_SETTINGS_RMW (companion/mod.rs:1035), whose
+  guard spans the read through the write (companion/mod.rs:1042), making
+  the persist doc's no-clobber claim true. Pinned by
+  kb261_connect_edge_settings_rmws_serialize_through_one_lock
+  (companion/mod.rs:1996; the real store cannot mount under a mock app,
+  so the lock discipline is pinned on the source, the established
+  convention). Mutation-checked by reverting note_device_connected to a
+  direct get/write pair and watching the pin fail.
+- **KB-261 platform-name adoption removed · FIXED (fleet pass 1).** The
+  v1.6.4 adoption rule matched a fresh-id hello to a known identity on
+  platform-name equality alone with only a not-currently-connected guard.
+  That match key is client-controlled and shared by every same-platform
+  phone, so any pairing-token holder helloing while the prior phone was
+  away (asleep, off-WiFi - the normal steady state, and the common
+  two-Android-phones case needs both hellos to merely say "Linux")
+  received the prior's Recent list and transcript history on its socket
+  and attributed its own dictations to the prior's capture_device: the
+  KB-265 defect class between household token holders. Adoption also
+  poisoned itself (an ordinary re-pair while the old socket lingers up
+  to the 20 s keepalive deadline was refused, minted a fresh id, and
+  pushed it to the known set, after which the platform match was
+  ambiguous forever) and let bare no-id hellos adopt in both directions,
+  violating the pinned protocol invariant that a client with no id keeps
+  the bare name. Identities are now exact
+  (companion/mod.rs:395, register_connection_with_identity); the known
+  set stays as the durable pairing record (seeded at :601, persisted at
+  :1065). Disclosed cost: a Mac origin change resets that phone's Recent
+  list, the pre-v1.6.4 behavior - the round 10 KB-261 UX half this cycle
+  tried to fix stays open as a design question (a consent prompt on the
+  phone is the shape that could bring adoption back safely). Pinned by
+  kb261_identities_are_exact_and_never_adopt (companion/mod.rs:1786) plus
+  a source pin that the adoption matcher cannot reappear
+  (mutation-checked by re-adding the function and watching the pin
+  trip); the round 11 KB-261 FIXED marker above records the v1.6.4
+  commits' state and stands as history.
+- **KB-268 onboarding mic settings · FIXED (fleet pass 1).** The two
+  openMicrophonePrivacySettings handlers in AccessibilityOnboarding
+  swallowed {status:"error"} resolutions (the bindings resolve a Rust Err
+  instead of throwing; the command has real Err paths on every platform)
+  - the KB-268 lane fixed this class for the AppData/LogDirectory
+  buttons but missed the onboarding siblings in the file it edited. After
+  a swallowed failure, handleGrantMicrophone armed the 60 s waiting
+  spinner that no settings flip could satisfy and handleOpenMicSettings'
+  button silently did nothing. Both now check result.status and toast
+  (AccessibilityOnboarding.tsx:337 and :362), pinned by
+  micSettingsErrorPins.test.ts executing the committed handler bodies
+  against error, ok, and rejected resolutions, asserting the spinner
+  never arms on failure (mutation-checked by stripping the status check).
+- **ru/uk runHint_one engine claim · FIXED (fleet pass 1).** The studio
+  Run hint counts the prompts x engines cartesian product, and CLDR
+  ru/uk 'one' fires at 21, 31, ... 101, so "{{count}} шаблон на 1
+  движке" asserted "21 templates on 1 engine" for multi-engine batches.
+  Both one-forms now carry the pair shape (ru/uk translation.json:1199),
+  and pluralCoverage.test.ts gains a fifth facet: ru/uk runHint must
+  name the pair and carry no hardcoded numeral in any category
+  (mutation-checked by restoring the old ru string and watching it fail).
+- **KB-276 call-site half pinned · FIXED (fleet pass 1).** The locale
+  half of KB-276 was pinned by pluralCoverage, but nothing executed
+  SecureInputWarning's message expression, so a regression back to the
+  hand-rolled blockedWithCulprit_${suffix} key kept the suite green.
+  secureInputCallSitePins.test.ts now executes the committed expression
+  verbatim with a recording t() across all four status/count
+  combinations and asserts the bare family keys with count riding the
+  call (mutation-checked by regressing to a suffixed key).

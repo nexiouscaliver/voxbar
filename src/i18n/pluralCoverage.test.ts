@@ -221,6 +221,40 @@ for (const locale of locales) {
   }
 }
 
+// 5. Fleet pass 1: ru/uk runHint_one must carry the PAIR shape. The
+//    studio Run hint counts the cartesian product of prompts x engines
+//    (batch.length at PromptStudio.tsx), and CLDR ru/uk 'one' fires at 21,
+//    31, ... 101 - the old "{{count}} шаблон на 1 движке" asserted "21
+//    templates on 1 engine" for a 21-pair batch that spans several
+//    engines. The static numeral facet above could not catch it: the
+//    hardcoded 1 sat ALONGSIDE the interpolation, legal as an "incidental"
+//    numeral. It was not incidental - it was a factual claim about the
+//    batch - so ru/uk runHint must name the pair, never the engine count.
+for (const locale of ["ru", "uk"] as const) {
+  const { parent, leaf } = parentAndLeaf(loadLocale(locale), "settings.studio.runHint");
+  for (const category of ["one", "few", "many", "other"] as const) {
+    const raw = parent[`${leaf}_${category}`];
+    assert.ok(
+      typeof raw === "string",
+      `${locale}: runHint_${category} must exist`,
+    );
+    assert.ok(
+      raw.includes("{{count}}"),
+      `${locale}: runHint_${category} must interpolate the count`,
+    );
+    assert.ok(
+      !/[0-9]/.test(raw),
+      `${locale}: runHint_${category} must carry no hardcoded numeral - the ` +
+        `batch's engine count is not 1, and this category fires at 21/101; found: ${raw}`,
+    );
+    assert.ok(
+      /пара|пари|пар/.test(raw),
+      `${locale}: runHint_${category} must name the prompt-engine PAIR, ` +
+        `the quantity the count actually measures`,
+    );
+  }
+}
+
 console.log(
   `pluralCoverage: ${locales.length} locales x ${KEY_FAMILIES.length} families x ` +
     `${PROBE_COUNTS.length} counts covered, no English leaks, numerals accurate`,

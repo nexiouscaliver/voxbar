@@ -361,13 +361,15 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             // name-keyed downstream (the registration, the frozen session,
             // history's capture_device, the per-phone recents filter) uses
             // this composite, so same-platform phones never share it.
-            // KB-261 (v1.6.4): the identity resolves ATOMICALLY with the
-            // registration against the Mac's known identities, so a phone
-            // re-pairing from a new origin (fresh localStorage id after a
-            // Mac address change) keeps the identity its Recent list is
-            // keyed on while a concurrent same-platform twin never folds
-            // into it. The resolution is in-memory only (no settings IO on
-            // this async task); a freshly minted identity persists on a
+            // KB-261 (v1.6.4, fleet pass 1): the identity is EXACT - the
+            // raw name#tag composite, nothing else. The v1.6.4
+            // platform-name adoption (a fresh-id hello folding into an
+            // absent prior's identity) is removed: the platform token is
+            // client-controlled and shared by every same-platform phone,
+            // so adoption shipped one phone's transcript history to
+            // whichever same-platform token holder paired while its owner
+            // was away. The resolution is in-memory only (no settings IO
+            // on this async task); a freshly known identity persists on a
             // detached worker below.
             let (registration, rx) =
                 manager.register_connection_with_identity(&device, device_id.as_deref());
@@ -376,8 +378,12 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             device_generation = registration.generation;
             device_lane_rx = rx;
             if registration.persist_identities.is_some() {
-                // KB-261: the settings write for a newly minted identity is
-                // synchronous store work; run it off the async task.
+                // KB-261: the settings write for a newly known identity is
+                // synchronous store work; run it off the async task. It
+                // shares the connect-edge settings lock with the
+                // note_device_connected worker below, so the two
+                // whole-settings cycles serialize instead of erasing each
+                // other's field.
                 let app = app.clone();
                 let persist_manager = Arc::clone(&manager);
                 std::thread::spawn(move || {

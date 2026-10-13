@@ -907,14 +907,14 @@ pub struct AppSettings {
     #[serde(default)]
     pub companion_last_device: Option<String>,
     /// KB-261 (v1.6.4): the phone identities this Mac has ever paired with
-    /// (`name#tag` strings, most recent last, bounded). The phone's
-    /// persistent device id lives in localStorage, which is ORIGIN-scoped:
-    /// when the Mac's advertised address changes (LAN IP change, or a
-    /// Tailscale-vs-LAN pairing switch) the QR URL's origin changes with it
-    /// and every phone mints a fresh id, so per-phone data (the Recent
-    /// list) silently reset. The server keeps this set so a phone that
-    /// re-pairs under a new origin can be matched back to its known
-    /// identity (see CompanionManager::resolve_device_identity).
+    /// (`name#tag` strings, most recent last, bounded) - the durable
+    /// pairing record the server reseeds its in-memory set from at start,
+    /// so an exact re-pair after a restart owes no persistence. Fleet pass
+    /// 1: this set is no longer an adoption matcher (platform-name
+    /// adoption shipped one phone's transcript history to whichever
+    /// same-platform token holder paired while its owner was away);
+    /// identities are exact, so a phone keeps its Recent list while its
+    /// stored device id survives the pairing URL's origin.
     #[serde(default)]
     pub companion_known_identities: Vec<String>,
     /// v1.6.0: the interface IP the companion server binds and advertises
