@@ -1143,39 +1143,40 @@ extended to scope the delete body (also mutation-checked).
   plus the Start-arm assertions in
   start_success_probe_is_scoped_to_the_starting_session
   (transcription_coordinator.rs:2319-2336).
-- **KB-275 · OPEN · the Esc resolution cannot reach older live phone
-  sessions, and every Esc resets every Recording-stage lane machine (round
-  9 W1-L6 review).** Two gaps in the cancel resolution, read from code:
-  (1) last_recording_lane is stored only at recorder start
-  (audio.rs:1336) and reset only in close_remote_stream (audio.rs:1546);
-  the cancel lane arm removes the lane's entry without re-pointing the
-  pointer (audio.rs:2136-2151), and it only fires while the local machine
-  is Idle (audio.rs:2130), so after the newest phone session is cancelled
-  OR merely stops, the next Esc resolves to CancelTarget::None
-  (audio.rs:2205) and only bumps in-flight stop pipelines
-  (utils.rs:141-144): a still-live older phone session is unreachable from
-  the keyboard until close_remote_stream resets the pointer; with the
-  keyboard recording, Esc always resolves to the keyboard no matter which
-  session started later (documented design at audio.rs:2109-2113, so only
-  the no-re-point half is a defect). (2) cancel_current_operation always
-  sends Command::Cancel (utils.rs:168), and the coordinator arm resets
-  EVERY Recording-stage lane machine (transcription_coordinator.rs:1243-
-  1249, the reset at :752-758) while the survivor's recorder and companion
-  session record live on: a keyboard-resolved Esc leaves a live phone
-  lane's machine Idle under a still-capturing recorder, reconciled only
-  at its next edge. Fix shape: re-point last_recording_lane to another
-  recording lane on cancel and stop (or resolve by most-recent start
-  across live lanes), and scope the coordinator's on_cancel to the
-  cancelled target's machine the way the audio-side generations already
-  are.
+- **KB-275 · PARTIALLY FIXED (gap 2 closed by the post-round-9 fleet;
+  flipped round 11) · the Esc resolution cannot reach older live phone
+  sessions (round 9 W1-L6 review).** Two gaps in the cancel resolution,
+  read from code: (1) last_recording_lane is stored only at recorder
+  start (audio.rs:1361 in this tree) and reset only in
+  close_remote_stream (audio.rs:1587); the cancel lane arm removes the
+  lane's entry without re-pointing the pointer, and it only fires while
+  the local machine is Idle (audio.rs:2232-2236), so after the newest
+  phone session is cancelled OR merely stops, the next Esc resolves to
+  CancelTarget::None and only bumps in-flight stop pipelines: a
+  still-live older phone session is unreachable from the keyboard until
+  close_remote_stream resets the pointer; with the keyboard recording,
+  Esc always resolves to the keyboard no matter which session started
+  later (documented design, so only the no-re-point half is a defect).
+  This gap is the open residual. (2) CLOSED by the fleet commits that
+  ran after this section was first written (81dae89a, 520a47e6, the
+  cancel fan-out fix): Command::Cancel now carries the resolved lane and
+  the coordinator arm resets exactly the cancelled lane's machine or the
+  keyboard (transcription_coordinator.rs:1298-1325, source pin at
+  :5130-5165), while cancel_current_operation scopes its singleton
+  teardown to the same target (utils.rs:86-140, pinned by
+  cancel_current_operation_scopes_singletons_to_the_cancel_target);
+  verified against this tree in round 11. Fix shape for the residual:
+  re-point last_recording_lane to another recording lane on cancel and
+  stop, or resolve by most-recent start across live lanes.
 
 ## Still open after this cycle (anchors refreshed where re-read)
 
 - **KB-028:** companion stop() still closes the lane recorders only when
-  nothing is recording (companion/mod.rs:604-609 in this tree, now after
-  the KB-267 sweep); the shape survived the W1-L2 rewrite and both fleet
-  passes. A disable during a live local recording can
-  still strand the pre-warmed idle recorder.
+  nothing is recording (companion/mod.rs:783-787 after the v1.6.4
+  rewrite; the anchor at round 9 time was mod.rs:604-609); the shape
+  survived the W1-L2 rewrite, both fleet passes, and the v1.6.4 lane. A
+  disable during a live local recording can still strand the pre-warmed
+  idle recorder.
 - **KB-029:** reset-pairing failures still never set status.error, so the
   panel renders a clean Stopped (fleet verdict at 43f4c092; the companion
   rewrite did not touch the reset legs).
@@ -1194,6 +1195,14 @@ extended to scope the delete body (also mutation-checked).
   live-session refusal).
 - **KB-236 residual:** the impl-switch teardown gap for an armed handy-keys
   recorder; unreachable through today's tab layout but one refactor away.
+  (Round 11 re-verified against this tree: the switch path never stops an
+  armed recorder - change_keyboard_implementation_setting,
+  shortcut/mod.rs:744, calls no stop_recording, which nothing outside
+  handy_keys.rs's own command wrapper ever calls; the state survives a
+  switch away and back because initialize_handy_keys_with_rollback
+  no-ops on existing state, shortcut/mod.rs:976-978; and the next
+  start_recording then refuses with "Already recording",
+  handy_keys.rs:421-423, until restart.)
 - **KB-244 residual:** the post-processing row keys are still unindexed
   (api.model, timeout, keep-warm, provider rows; re-checked in this tree:
   no such keys in settingsSearchIndex.ts, whose pp section ends at the four
@@ -1203,7 +1212,10 @@ extended to scope the delete body (also mutation-checked).
   companion/mod.rs:313, pinned by
   session_prefs_freeze_per_lane_and_survive_the_stop_pipeline) and the phone
   surface still does not say so.
-- **KB-261, KB-262, and KB-275 above.**
+- **KB-261, KB-262, and KB-275 above** (KB-275 now reads PARTIALLY
+  FIXED: the fleet commits 81dae89a/520a47e6 closed its lane-machine
+  reset gap after this section was first written; the no-re-point half is
+  the residual. Flipped round 11.)
 
 ## Correction log (this round)
 
@@ -1259,4 +1271,176 @@ ships disclosed in v1.6.2.
 - KB-276 plural parity model misses the two secureInput count families and liveLogs.lineCount; wrong grammar in ru/uk/pl/cs/he/ar plus "1 lines" in English (pluralCoverage.test.ts:39-46).
 - KB-277 README streaming-overlap sentence contradicts the singleton-engine design (first session keeps streaming; README.md:264-265 vs actions.rs:1880-1888).
 - KB-278 stale notice-routing comments describe pre-cycle behavior (memory-gate body stripping removed; history_db_recovered click target exception undocumented; noticeRouting.ts:230-234, 391-393).
-- (Plus the carried KB-254..259 six-pack from round 8, unchanged this cycle.)
+- (Plus the carried KB-254..259 six-pack from round 8, unchanged this
+  cycle - though only KB-258 of it was still open when this queue was
+  cut: 254, 255, 256, 257, and 259 already carried their FIXED markers
+  in the round 8 entries above. Clarified round 11.)
+
+---
+
+# Round 11 (v1.6.4 stabilization cycle, 2026-10-13, branch cycle13/v1.6.4-stabilization)
+
+A reconciliation pass, not a review fleet: the ledger was re-verified
+against the code this cycle landed on (base d9647255, the v1.6.3 merge,
+plus this cycle's six commits), every status flip cites the commit or
+path:line it was verified against, and the copy and commit lint ran
+clean. One inter-cycle record first: the v1.6.3 companion-proof cycle
+(cycle12, merged as d9647255) never got a ledger section. Its commits
+are acb656d2 (the phone resampler's NaN stream silenced every session),
+fb3ffb76 (the post-save recent-history refresh moved off the stop
+pipeline onto a blocking worker after proof runs reproduced the stop
+task wedging between the history write and transcript delivery), and
+bbaf7ed6 (release-macos.sh exports the full Xcode SDKROOT when unset);
+none touched a KB item, so no statuses moved.
+
+## The named reconciliations
+
+- **KB-236 · OPEN, re-verified with fresh anchors (see the round 9
+  residual above).** The impl-switch teardown gap is still real: the
+  switch path calls no stop_recording (shortcut/mod.rs:744), the state
+  survives a round trip because the init no-ops on existing state
+  (shortcut/mod.rs:976-978), and the next start refuses with "Already
+  recording" (handy_keys.rs:421-423). The round 5 and round 9 markers
+  stand.
+- **KB-237 · FIXED, verified against this tree.** The pin
+  mode_flip_may_close_local_stream is live (managers/audio.rs:300, call
+  site :1195, pin cases :2943-2953). The round 5 and round 9 W1-L5
+  markers stand.
+- **KB-254 · FIXED (round 8 meaning), verified against this tree.** The
+  zero-audio detail names the stopping session's own device, with the
+  KB-254 note at the emit seam (actions.rs:2282-2296); per-lane identity
+  is pinned by session_identity_freezes_per_lane_and_cannot_be_renamed
+  (companion/mod.rs:1519). Round 8's fixed-by-construction marker
+  stands.
+- **KB-255 · FIXED (round 8 meaning), verified against this tree.** The
+  lane-plus-generation release rule is pinned by
+  registrations_release_by_lane_and_generation_never_by_name
+  (companion/mod.rs:1725). Round 8's marker stands.
+- **KB-241 · FIXED, verified.** No is_model_loading reference remains in
+  any shipped source (grep over src/, src-tauri/src/, and the generated
+  bindings; the only repo hit is a .zcode workflow draft artifact, which
+  is session scratch, not shipped code). Round 9's removal marker
+  stands.
+- **KB-245 · FIXED, verified.** searchKeyboardReducer is imported and
+  dispatched in SettingsSearch.tsx:9 and :108. Round 9's marker stands.
+
+## Stale markers flipped this pass
+
+- **KB-275 flipped to PARTIALLY FIXED in round 9 above.** Round 9's
+  entry was finalized before the v1.6.2 fleets finished; the fleet
+  commits 81dae89a and 520a47e6 closed its gap (2), and the entry now
+  says so with this tree's anchors (the scoped coordinator arm at
+  transcription_coordinator.rs:1298-1325 with its source pin at
+  :5130-5165, and the scoped singleton teardown at utils.rs:86-140).
+  Gap (1), the last_recording_lane no-re-point, is the open residual
+  (stored only at audio.rs:1361, reset only at :1587, read only while
+  Idle at :2232-2236).
+- The round 10 tail's carried six-pack line was cut while five of the
+  six round 8 entries already read FIXED; it now says so. Only KB-258
+  was and is open (re-verified: the phone's "Polish text" label,
+  client/index.html:554-557, still carries no next-session hint).
+- Round 9's KB-028 anchor refreshed to the current tree
+  (companion/mod.rs:783-787).
+
+## Round 10 closures recorded (this cycle's lanes; round 10 meanings)
+
+Six commits: 645e3eff and cba077a9 (the companion lane plus its review
+pass), cdb14c51 (the validator wave), 5223d8a2, e7f9abc5, and 560440a2
+(the frontend lows, their review pass, and the numeral follow-up).
+
+- **KB-260 · FIXED (645e3eff).** The no-crypto fallback device id leads
+  with entropy (client/index.html:660-672, protocol.rs:186), so
+  same-hour phones stop sharing an identity tag.
+- **KB-261 · FIXED (645e3eff + cba077a9).** A persisted known-identity
+  set survives a Mac origin change (companion/mod.rs:206, seeded at
+  :610, persisted at :1039) and identity resolution is atomic with
+  registration under one critical section (server.rs:364, barrier race
+  pin at companion/mod.rs:1911).
+- **KB-262 · FIXED (5223d8a2; the mechanical fix landed in v1.6.3 under
+  the same id).** The zeroAudio recovery advice is activation-aware,
+  all 26 locales ship the variants, locked by the KB-262 block in
+  companionClientPage.test.ts.
+- **KB-263 · FIXED (645e3eff, corrected by cba077a9).** The disconnect
+  path performs no pause ack at all (the eager ack was a no-op and is
+  removed; the producer-gone close is the ack), pinned across server,
+  audio, and recorder tests (server.rs:734, source pin :1249).
+- **KB-265 · FIXED (cdb14c51).** The digit-script guard keeps a strict
+  tie leader and sanctions carried digit runs verbatim; pinned at
+  post_process_runs.rs:1516.
+- **KB-266 · FIXED (cdb14c51).** The cancel-wanted fold rides the
+  want-set lock hold; pinned at shortcut/mod.rs:3218.
+- **KB-267 · FIXED (5223d8a2 + e7f9abc5).** The Granted labels reach
+  5.30:1 in light and the pin now computes the WCAG ratio from the real
+  theme tokens and sweeps every non-test source under src for a
+  surviving text-emerald-600 (AccessibilityOnboarding.test.ts:88-186).
+- **KB-268 · FIXED (5223d8a2).** The AppData and LogDirectory open
+  buttons toast on {status:"error"} resolutions; pinned by
+  directoryOpenErrorPins.test.ts.
+- **KB-269 · FIXED (645e3eff).** The dotool split normalizes CRLF and
+  lone CR before typing (clipboard.rs:682, pin :1268).
+- **KB-270 · FIXED (645e3eff).** Session end sweeps the lane record
+  (companion/mod.rs:1153, pin :2032) and the disconnect retires the
+  lane's coordinator machine and bookkeeping (server.rs:713, source pin
+  :1316).
+- **KB-272 · FIXED (645e3eff + cba077a9).** push_remote_chunk routes
+  through the free core with real-lane-recorder coverage: round trip,
+  lane isolation, and the removed-lane false (audio.rs:458,
+  server.rs:284, pins :1148 and :1204).
+- **KB-273 · FIXED (645e3eff).** The lid-driven capture restart is
+  gated on a configured clamshell microphone before the state lock
+  (audio.rs:1880-1894, source pin :2552).
+- **KB-275 · FIXED (5223d8a2).** The opener:allow-open-path capability
+  is gone from capabilities/default.json and the KB-181 comment states
+  the real gate (commands/mod.rs:98-108).
+- **KB-276 · FIXED (5223d8a2 + e7f9abc5 + 560440a2).** All nine count
+  families interpolate the count where CLDR fires one at 21 and up, and
+  the plural coverage numeral facet covers every family as a static
+  rule (pluralCoverage.test.ts).
+- **KB-277 · FIXED (cdb14c51).** The README streaming-overlap sentence
+  states the singleton-engine truth (README.md:265).
+- **KB-278 · FIXED (cdb14c51).** The notice-routing comments match
+  reality: the memory-gate body keeps its interpolated amounts with the
+  reason named at the seam, and history_db_recovered's History click
+  target is documented at the click seam and in App.tsx.
+
+Still open from round 10: **KB-264** (any utun interface corroborates
+Tailscale, companion/ip.rs:86-91 in this tree; the file is untouched
+this cycle) and **KB-271** (historyDbRecovery still swallows
+{status:"error"} pulls with no log anywhere, historyDbRecovery.ts:52-60;
+untouched this cycle).
+
+## Round 9 open list, re-verified this pass
+
+KB-028 (anchor refreshed, companion/mod.rs:783-787), KB-029
+(reset_pairing returns its error to the caller with no status.error
+write, companion/mod.rs:938-951), KB-082 and KB-085 residual and KB-155
+residual (their files are untouched by this cycle's diff), KB-086
+residual (protocol.rs's only change this cycle is the KB-260 doc
+comment, so the dead fields stand), KB-244 residual
+(settingsSearchIndex.ts untouched this cycle), KB-258 (above), KB-261
+(both ggml-building crates still linked, Cargo.toml:92 and :102),
+KB-262 (the availability probe is still a single bool; commands/mod.rs
+changed only its KB-181 comment this cycle), and KB-275's gap-1
+residual (above).
+
+## Copy and commit lint
+
+- Marketing-vapor sweep over every en locale string (including the
+  companion.\* phone page keys, which scripts/embed-companion-strings.ts
+  embeds from the same files), the phone page's inline English
+  fallbacks, and the README: zero hits for seamlessly, effortlessly,
+  elevate, delve, cutting-edge, game-changing, state-of-the-art, and a
+  wider net (unleash, empower, supercharge, revolutionize,
+  next-generation, blazing, redefining, intuitive, frictionless, and
+  more). The one near-hit, "amazing" in the transcribe.cpp credits line
+  (en translation.json:1133), is a thank-you to upstream authors rather
+  than product vapor and stays as written.
+- Last 200 commit subjects: 0 contain an em or en dash (verified twice,
+  once with grep and once with an independent perl unicode pass), and 0
+  commit bodies carry a co-authored-by, generated-with, or other AI
+  trailer. All 200 commits are downstream-era work by the operator (177
+  nexiouscaliver, 23 Shahil kadia; the operator's first commit is
+  2026-10-07 and the window starts 2026-10-09); the upstream fork era
+  (572 commits by CJ Pais on this history, 2025-02-03 through
+  2026-10-07, plus other upstream authors) never enters the window, so
+  no carve-out was needed.

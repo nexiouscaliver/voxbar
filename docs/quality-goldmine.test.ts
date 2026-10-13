@@ -134,4 +134,94 @@ assert.ok(
   "corrections file must tie the KB-162/163 additions to wave 2",
 );
 
-console.log("quality-goldmine ledger (AUD-15) tests passed");
+// -- Round 11 (v1.6.4 stabilization) reconciliation pins ------------------
+//
+// The round 11 pass reconciled the ledger against the code the v1.6.4
+// cycle landed on. Two invariants are pinned here:
+//
+// 1. KB-275's round 9 entry is no longer a blanket OPEN: the fleet
+//    commits 81dae89a/520a47e6 closed its lane-machine-reset gap after
+//    that section was finalized, so the entry must read PARTIALLY FIXED
+//    with the no-re-point half named as the residual. entryStatus reads
+//    the FIRST bold span for the id, which is the round 9 entry (round
+//    10's queue lists ids unbolded), so the whole-file check targets it.
+// 2. The round 11 section records a FIXED marker for every round 10 id
+//    the cycle's six commits closed, keeps KB-264/KB-271 as the open
+//    leftovers, and carries the six named reconciliations (KB-236 open
+//    with fresh anchors; KB-237/254/255/241/245 verified). Scoped to the
+//    section's text because rounds 9 and 10 reused these ids with
+//    different meanings (the round 9 correction-log convention).
+
+const round11Start = goldmine.indexOf("# Round 11");
+assert.ok(
+  round11Start !== -1,
+  "quality-goldmine.md has no Round 11 section — the v1.6.4 cycle's " +
+    "closures and reconciliations must be recorded there",
+);
+const round11 = goldmine.slice(round11Start);
+
+assert.match(
+  entryStatus(goldmine, "275"),
+  /PARTIALLY FIXED/,
+  "KB-275's round 9 entry must read PARTIALLY FIXED (the post-round-9 " +
+    "fleet commits 81dae89a/520a47e6 closed its lane-machine-reset gap; " +
+    "the no-re-point half is the residual)",
+);
+
+const ROUND_11_FIXED = [
+  "260",
+  "261",
+  "262",
+  "263",
+  "265",
+  "266",
+  "267",
+  "268",
+  "269",
+  "270",
+  "272",
+  "273",
+  "275",
+  "276",
+  "277",
+  "278",
+] as const;
+for (const id of ROUND_11_FIXED) {
+  assert.ok(
+    round11.includes(`**KB-${id} · FIXED`),
+    `the Round 11 section must record KB-${id} (round 10 meaning) as FIXED ` +
+      `with its landing commit`,
+  );
+}
+for (const id of ["264", "271"] as const) {
+  assert.ok(
+    new RegExp(`\\*\\*KB-${id}\\*\\*`).test(round11),
+    `the Round 11 section must keep KB-${id} in its still-open-from-round-10 ` +
+      `list with a current anchor`,
+  );
+}
+for (const marker of [
+  "KB-236 · OPEN",
+  "KB-237 · FIXED",
+  "KB-254 · FIXED",
+  "KB-255 · FIXED",
+  "KB-241 · FIXED",
+  "KB-245 · FIXED",
+] as const) {
+  assert.ok(
+    round11.includes(marker),
+    `the Round 11 section must carry the "${marker}" reconciliation verdict`,
+  );
+}
+assert.ok(
+  goldmine.includes("Clarified round 11"),
+  "the round 10 six-pack tail must carry its round 11 clarification " +
+    "(only KB-258 of it was open when the queue was cut)",
+);
+assert.ok(
+  goldmine.includes("handy_keys.rs:421-423"),
+  "KB-236's residual must keep its round 11 refreshed anchor " +
+    "(the Already-recording refusal seam)",
+);
+
+console.log("quality-goldmine ledger (AUD-15 + round 11) tests passed");
