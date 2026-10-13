@@ -407,10 +407,12 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center gap-4">
         <div className="p-4 rounded-full bg-emerald-500/20">
-          {/* KB-091: emerald-600 in light theme (the 400 shade fails 4.5:1 on
-              the near-white background), emerald-400 in dark - the same pair
+          {/* KB-091 + KB-267: emerald-700 in light theme (emerald-600
+              measures 3.64:1 and emerald-400 far less on the near-white
+              background, both under this comment's own 4.5:1 bar; 700
+              measures 5.30:1), emerald-400 in dark - the same pair
               the debug tables use. */}
-          <Check className="w-12 h-12 text-emerald-600 dark:text-emerald-400" />
+          <Check className="w-12 h-12 text-emerald-700 dark:text-emerald-400" />
         </div>
         <p className="text-lg font-medium text-text">
           {t("onboarding.permissions.allGranted")}
@@ -460,7 +462,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                   {t("onboarding.permissions.microphone.description")}
                 </p>
                 {permissions.microphone === "granted" ? (
-                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm">
+                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-sm">
                     <Check className="w-4 h-4" />
                     {t("onboarding.permissions.granted")}
                   </div>
@@ -520,7 +522,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                   {t("onboarding.permissions.accessibility.description")}
                 </p>
                 {permissions.accessibility === "granted" ? (
-                  <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400 text-sm">
+                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400 text-sm">
                     <Check className="w-4 h-4" />
                     {t("onboarding.permissions.granted")}
                   </div>

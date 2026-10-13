@@ -971,7 +971,8 @@
         "pause": "Pausieren",
         "resume": "Fortsetzen",
         "copied": "Kopiert",
-        "lineCount": "{{count}} Zeilen",
+        "lineCount_one": "{{count}} Zeile",
+        "lineCount_other": "{{count}} Zeilen",
         "empty": "Warte auf Logs … Einträge erscheinen hier, sobald die App sie ausgibt."
       },
       "updateChecks": {

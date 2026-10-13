@@ -971,7 +971,8 @@
         "pause": "一時停止",
         "resume": "再開",
         "copied": "コピーしました",
-        "lineCount": "{{count}}行",
+        "lineCount_one": "{{count}}行",
+        "lineCount_other": "{{count}}行",
         "empty": "ログを待機中… アプリが出力すると、ここにエントリが表示されます。"
       },
       "updateChecks": {

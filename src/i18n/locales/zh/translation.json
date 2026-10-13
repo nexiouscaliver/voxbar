@@ -971,7 +971,8 @@
         "pause": "暂停",
         "resume": "继续",
         "copied": "已复制",
-        "lineCount": "{{count}} 行",
+        "lineCount_one": "{{count}} 行",
+        "lineCount_other": "{{count}} 行",
         "empty": "正在等待日志…… 应用产生日志时将显示在此处。"
       },
       "updateChecks": {

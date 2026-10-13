@@ -971,7 +971,8 @@
         "pause": "Pausar",
         "resume": "Retomar",
         "copied": "Copiado",
-        "lineCount": "{{count}} linhas",
+        "lineCount_one": "{{count}} linha",
+        "lineCount_other": "{{count}} linhas",
         "empty": "Aguardando logs… As entradas aparecem aqui à medida que o app as emite."
       },
       "updateChecks": {
@@ -1357,9 +1358,9 @@
     "title": "Novidades no VoxBar v{{version}}"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} pode estar bloqueando 1 atalho",
+    "blockedWithCulprit_one": "{{name}} pode estar bloqueando {{count}} atalho",
     "blockedWithCulprit_other": "{{name}} pode estar bloqueando {{count}} atalhos",
-    "blockedNoCulprit_one": "O macOS está bloqueando temporariamente 1 atalho",
+    "blockedNoCulprit_one": "O macOS está bloqueando temporariamente {{count}} atalho",
     "blockedNoCulprit_other": "O macOS está bloqueando temporariamente {{count}} atalhos",
     "recorderBlockedWithCulprit": "{{name}} pode estar bloqueando alterações nos atalhos",
     "recorderBlockedNoCulprit": "O macOS está bloqueando temporariamente alterações nos atalhos",

@@ -971,7 +971,8 @@
         "pause": "Jeda",
         "resume": "Lanjutkan",
         "copied": "Disalin",
-        "lineCount": "{{count}} baris",
+        "lineCount_one": "{{count}} baris",
+        "lineCount_other": "{{count}} baris",
         "empty": "Menunggu log… Entri akan muncul di sini saat aplikasi menghasilkannya."
       },
       "updateChecks": {

@@ -971,7 +971,8 @@
         "pause": "Tạm dừng",
         "resume": "Tiếp tục",
         "copied": "Đã sao chép",
-        "lineCount": "{{count}} dòng",
+        "lineCount_one": "{{count}} dòng",
+        "lineCount_other": "{{count}} dòng",
         "empty": "Đang chờ nhật ký… Các mục sẽ xuất hiện ở đây khi ứng dụng phát ra."
       },
       "updateChecks": {

@@ -973,7 +973,9 @@
         "pause": "השהה",
         "resume": "המשך",
         "copied": "הועתק",
-        "lineCount": "{{count}} שורות",
+        "lineCount_one": "שורה אחת",
+        "lineCount_two": "{{count}} שורות",
+        "lineCount_other": "{{count}} שורות",
         "empty": "ממתין ללוגים… רשומות יופיעו כאן כשהאפליקציה תפיק אותן."
       },
       "updateChecks": {
@@ -1364,8 +1366,10 @@
   },
   "secureInput": {
     "blockedWithCulprit_one": "ייתכן ש-{{name}} חוסם קיצור דרך אחד",
+    "blockedWithCulprit_two": "ייתכן ש-{{name}} חוסם {{count}} קיצורי דרך",
     "blockedWithCulprit_other": "ייתכן ש-{{name}} חוסם {{count}} קיצורי דרך",
     "blockedNoCulprit_one": "macOS חוסם זמנית קיצור דרך אחד",
+    "blockedNoCulprit_two": "macOS חוסם זמנית {{count}} קיצורי דרך",
     "blockedNoCulprit_other": "macOS חוסם זמנית {{count}} קיצורי דרך",
     "recorderBlockedWithCulprit": "ייתכן ש-{{name}} חוסם שינויים בקיצורי דרך",
     "recorderBlockedNoCulprit": "macOS חוסם זמנית שינויים בקיצורי דרך",

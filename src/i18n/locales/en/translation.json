@@ -971,7 +971,8 @@
         "pause": "Pause",
         "resume": "Resume",
         "copied": "Copied",
-        "lineCount": "{{count}} lines",
+        "lineCount_one": "{{count}} line",
+        "lineCount_other": "{{count}} lines",
         "empty": "Waiting for logs… Entries appear here as the app emits them."
       },
       "updateChecks": {

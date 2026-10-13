@@ -971,7 +971,8 @@
         "pause": "Пауза",
         "resume": "Възобновяване",
         "copied": "Копирано",
-        "lineCount": "Редове: {{count}}",
+        "lineCount_one": "{{count}} ред",
+        "lineCount_other": "Редове: {{count}}",
         "empty": "Изчакване на логове… Записите ще се появят тук, щом приложението ги генерира."
       },
       "updateChecks": {

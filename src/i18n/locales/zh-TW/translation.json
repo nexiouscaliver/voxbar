@@ -971,7 +971,8 @@
         "pause": "暫停",
         "resume": "繼續",
         "copied": "已複製",
-        "lineCount": "{{count}} 行",
+        "lineCount_one": "{{count}} 行",
+        "lineCount_other": "{{count}} 行",
         "empty": "正在等待日誌…… 應用程式產生日誌時會顯示於此。"
       },
       "updateChecks": {

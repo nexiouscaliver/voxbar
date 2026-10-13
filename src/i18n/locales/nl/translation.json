@@ -971,7 +971,8 @@
         "pause": "Pauzeren",
         "resume": "Hervatten",
         "copied": "Gekopieerd",
-        "lineCount": "{{count}} regels",
+        "lineCount_one": "{{count}} regel",
+        "lineCount_other": "{{count}} regels",
         "empty": "Wachten op logboeken... Meldingen verschijnen hier zodra de app ze genereert."
       },
       "updateChecks": {

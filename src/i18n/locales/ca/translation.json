@@ -971,7 +971,8 @@
         "pause": "Pauseu",
         "resume": "Repreneu",
         "copied": "Copiat",
-        "lineCount": "{{count}} línies",
+        "lineCount_one": "{{count}} línia",
+        "lineCount_other": "{{count}} línies",
         "empty": "S'estan esperant registres… Les entrades apareixeran aquí a mesura que l'aplicació les emeti."
       },
       "updateChecks": {

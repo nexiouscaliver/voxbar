@@ -971,7 +971,8 @@
         "pause": "Pause",
         "resume": "Reprendre",
         "copied": "Copié",
-        "lineCount": "{{count}} lignes",
+        "lineCount_one": "{{count}} ligne",
+        "lineCount_other": "{{count}} lignes",
         "empty": "En attente de journaux… Les entrées apparaîtront ici au fur et à mesure que l'application les émet."
       },
       "updateChecks": {
@@ -1357,9 +1358,9 @@
     "title": "Nouveautés de VoxBar v{{version}}"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} bloque peut-être 1 raccourci",
+    "blockedWithCulprit_one": "{{name}} bloque peut-être {{count}} raccourci",
     "blockedWithCulprit_other": "{{name}} bloque peut-être {{count}} raccourcis",
-    "blockedNoCulprit_one": "macOS bloque temporairement 1 raccourci",
+    "blockedNoCulprit_one": "macOS bloque temporairement {{count}} raccourci",
     "blockedNoCulprit_other": "macOS bloque temporairement {{count}} raccourcis",
     "recorderBlockedWithCulprit": "{{name}} bloque peut-être la modification des raccourcis",
     "recorderBlockedNoCulprit": "macOS bloque temporairement la modification des raccourcis",

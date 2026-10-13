@@ -26,6 +26,13 @@ import i18next from "i18next";
 // Counts are integers by construction (pairs, results, chars, model-list
 // sizes); fractional categories exist in some CLDR sets but are
 // unreachable from the UI, so the sweep stays integral.
+//
+// KB-276 (v1.6.4): the sweep missed three count families, so they regressed
+// while the six above stayed pinned - the two secureInput families (whose
+// SecureInputWarning call site hand-rolled a one/other suffix instead of
+// letting i18next resolve, wrong grammar in ru/uk/pl/cs/he/ar) and
+// liveLogs.lineCount (a bare "{{count}} lines" key that rendered
+// "1 lines" in English). All three now ride the same three invariants.
 
 const LOCALES_DIR = fileURLToPath(new URL("./locales", import.meta.url));
 const locales = readdirSync(LOCALES_DIR).filter((name) =>
@@ -43,6 +50,10 @@ const KEY_FAMILIES = [
   "settings.studio.diff.charsChanged",
   "settings.postProcessing.api.model.listSummary",
   "settings.postProcessing.api.model.showAll",
+  // KB-276: the secureInput count families and the live-log line count.
+  "secureInput.blockedWithCulprit",
+  "secureInput.blockedNoCulprit",
+  "settings.debug.liveLogs.lineCount",
 ];
 
 const PROBE_COUNTS = [0, 1, 2, 3, 4, 5, 9, 10, 11, 21, 22, 100, 101, 1000];

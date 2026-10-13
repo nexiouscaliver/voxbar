@@ -975,7 +975,10 @@
         "pause": "Приостановить",
         "resume": "Возобновить",
         "copied": "Скопировано",
-        "lineCount": "Строк: {{count}}",
+        "lineCount_one": "1 строка",
+        "lineCount_few": "{{count}} строки",
+        "lineCount_many": "{{count}} строк",
+        "lineCount_other": "Строк: {{count}}",
         "empty": "Ожидание журналов… Записи появятся здесь, как только приложение их создаст."
       },
       "updateChecks": {
@@ -1370,8 +1373,12 @@
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} может блокировать 1 сочетание клавиш",
+    "blockedWithCulprit_few": "{{name}} может блокировать {{count}} сочетания клавиш",
+    "blockedWithCulprit_many": "{{name}} может блокировать {{count}} сочетаний клавиш",
     "blockedWithCulprit_other": "{{name}} может блокировать {{count}} сочетаний клавиш",
     "blockedNoCulprit_one": "macOS временно блокирует 1 сочетание клавиш",
+    "blockedNoCulprit_few": "macOS временно блокирует {{count}} сочетания клавиш",
+    "blockedNoCulprit_many": "macOS временно блокирует {{count}} сочетаний клавиш",
     "blockedNoCulprit_other": "macOS временно блокирует {{count}} сочетаний клавиш",
     "recorderBlockedWithCulprit": "{{name}} может блокировать изменение сочетаний клавиш",
     "recorderBlockedNoCulprit": "macOS временно блокирует изменение сочетаний клавиш",

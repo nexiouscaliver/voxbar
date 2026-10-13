@@ -43,7 +43,14 @@ export const AppDataDirectory: React.FC<AppDataDirectoryProps> = ({
   const handleOpen = async () => {
     if (!appDirPath) return;
     try {
-      await commands.openAppDataDir();
+      const result = await commands.openAppDataDir();
+      // KB-268: the generated bindings resolve a Rust Err as
+      // {status:"error"} instead of throwing, so checking only the
+      // transport catch below swallowed every real open failure.
+      if (result.status !== "ok") {
+        toast.error(t("errors.openDirectory", { error: String(result.error) }));
+        return;
+      }
     } catch (openError) {
       console.error("Failed to open app data directory:", openError);
       toast.error(

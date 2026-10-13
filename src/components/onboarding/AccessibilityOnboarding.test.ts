@@ -71,12 +71,12 @@ assert.ok(
 // The three emerald checkmarks carry the light/dark pair (emerald-400 alone
 // fails 4.5:1 on the light theme's near-white background).
 const emeraldPairs = (
-  onboardingSrc.match(/text-emerald-600 dark:text-emerald-400/g) ?? []
+  onboardingSrc.match(/text-emerald-700 dark:text-emerald-400/g) ?? []
 ).length;
 assert.equal(
   emeraldPairs,
   3,
-  `KB-091: all three checkmarks must pair text-emerald-600 with dark:text-emerald-400 (found ${emeraldPairs})`,
+  `KB-091: all three checkmarks must pair text-emerald-700 with dark:text-emerald-400 (found ${emeraldPairs})`,
 );
 assert.ok(
   !/text-emerald-400(?! )/.test(
@@ -84,5 +84,56 @@ assert.ok(
   ),
   "KB-091: no lone text-emerald-400 may remain (light-theme contrast)",
 );
+
+/* ---- KB-267 pin ---- */
+
+// The Granted labels' own comment promised a 4.5:1 bar, but emerald-600 on
+// the light background measures 3.64:1. This pin COMPUTES the WCAG 2.1
+// contrast ratio of the light-theme text color actually used against the
+// light background token (theme.css --light-color-background), so a future
+// shade swap that dips under the bar fails with the measured number.
+{
+  const LIGHT_BACKGROUND = "#fbfbfb"; // styles/theme.css: --light-color-background
+  const relativeLuminance = (hex: string): number => {
+    const channels = [1, 3, 5].map(
+      (at) => parseInt(hex.slice(at, at + 2), 16) / 255,
+    );
+    const [r, g, b] = channels.map((c) =>
+      c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4,
+    );
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+  };
+  const contrast = (fg: string, bg: string): number => {
+    const [l1, l2] = [relativeLuminance(fg), relativeLuminance(bg)].sort(
+      (a, b) => b - a,
+    );
+    return (l1 + 0.05) / (l2 + 0.05);
+  };
+  const shadeHex = onboardingSrc.match(
+    /text-emerald-(\d{3}) dark:text-emerald-400/,
+  )?.[1];
+  assert.ok(shadeHex, "the checkmark pair must keep a numeric emerald shade");
+  // Tailwind v4 default palette: emerald-600 #059669, emerald-700 #047857.
+  const EMERALD: Record<string, string> = {
+    "600": "#059669",
+    "700": "#047857",
+  };
+  const lightShade = EMERALD[shadeHex];
+  assert.ok(
+    lightShade !== undefined,
+    `the light shade must be a known emerald hex (got emerald-${shadeHex})`,
+  );
+  const ratio = contrast(lightShade, LIGHT_BACKGROUND);
+  assert.ok(
+    ratio >= 4.5,
+    `KB-267: light-theme Granted text must reach 4.5:1 on ${LIGHT_BACKGROUND}, ` +
+      `measured ${ratio.toFixed(2)}:1 (emerald-600 is 3.64:1; emerald-700 is 5.30:1)`,
+  );
+  // And the too-dim shade is gone from the light slot entirely.
+  assert.ok(
+    !onboardingSrc.includes("text-emerald-600"),
+    "KB-267: text-emerald-600 must not remain (3.64:1 on the light background)",
+  );
+}
 
 console.log("AccessibilityOnboarding: all assertions passed");

@@ -971,7 +971,8 @@
         "pause": "Duraklat",
         "resume": "Sürdür",
         "copied": "Kopyalandı",
-        "lineCount": "{{count}} satır",
+        "lineCount_one": "{{count}} satır",
+        "lineCount_other": "{{count}} satır",
         "empty": "Loglar bekleniyor… Uygulama logları ürettikçe girişler burada görünür."
       },
       "updateChecks": {

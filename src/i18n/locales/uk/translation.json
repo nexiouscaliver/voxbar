@@ -975,7 +975,10 @@
         "pause": "Призупинити",
         "resume": "Відновити",
         "copied": "Скопійовано",
-        "lineCount": "Рядків: {{count}}",
+        "lineCount_one": "1 рядок",
+        "lineCount_few": "{{count}} рядки",
+        "lineCount_many": "{{count}} рядків",
+        "lineCount_other": "Рядків: {{count}}",
         "empty": "Очікування логів… Записи з'являтимуться тут, щойно застосунок їх створюватиме."
       },
       "updateChecks": {
@@ -1370,8 +1373,12 @@
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} може блокувати 1 комбінацію клавіш",
+    "blockedWithCulprit_few": "{{name}} може блокувати {{count}} комбінації клавіш",
+    "blockedWithCulprit_many": "{{name}} може блокувати {{count}} комбінацій клавіш",
     "blockedWithCulprit_other": "{{name}} може блокувати {{count}} комбінацій клавіш",
     "blockedNoCulprit_one": "macOS тимчасово блокує 1 комбінацію клавіш",
+    "blockedNoCulprit_few": "macOS тимчасово блокує {{count}} комбінації клавіш",
+    "blockedNoCulprit_many": "macOS тимчасово блокує {{count}} комбінацій клавіш",
     "blockedNoCulprit_other": "macOS тимчасово блокує {{count}} комбінацій клавіш",
     "recorderBlockedWithCulprit": "{{name}} може блокувати зміну комбінацій клавіш",
     "recorderBlockedNoCulprit": "macOS тимчасово блокує зміну комбінацій клавіш",

@@ -971,7 +971,8 @@
         "pause": "일시정지",
         "resume": "재개",
         "copied": "복사됨",
-        "lineCount": "{{count}}줄",
+        "lineCount_one": "{{count}}줄",
+        "lineCount_other": "{{count}}줄",
         "empty": "로그 대기 중… 앱이 로그를 출력하면 여기에 표시됩니다."
       },
       "updateChecks": {

@@ -971,7 +971,8 @@
         "pause": "Pausar",
         "resume": "Reanudar",
         "copied": "Copiado",
-        "lineCount": "{{count}} líneas",
+        "lineCount_one": "{{count}} línea",
+        "lineCount_other": "{{count}} líneas",
         "empty": "Esperando registros… Las entradas aparecerán aquí a medida que la aplicación las emita."
       },
       "updateChecks": {

@@ -971,7 +971,8 @@
         "pause": "Pausa",
         "resume": "Riprendi",
         "copied": "Copiato",
-        "lineCount": "{{count}} righe",
+        "lineCount_one": "{{count}} riga",
+        "lineCount_other": "{{count}} righe",
         "empty": "In attesa di log… Le voci appariranno qui man mano che l'app le emette."
       },
       "updateChecks": {

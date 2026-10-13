@@ -971,7 +971,8 @@
         "pause": "रोकें",
         "resume": "फिर से शुरू करें",
         "copied": "कॉपी हो गया",
-        "lineCount": "{{count}} लाइनें",
+        "lineCount_one": "{{count}} लाइन",
+        "lineCount_other": "{{count}} लाइनें",
         "empty": "लॉग का इंतज़ार है… ऐप से लॉग आते ही एंट्री यहां दिखेंगी."
       },
       "updateChecks": {
@@ -1357,9 +1358,9 @@
     "companionBadge": "कॉम्पैनियन माइक्रोफ़ोन"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} शायद 1 शॉर्टकट को ब्लॉक कर रहा है",
+    "blockedWithCulprit_one": "{{name}} शायद {{count}} शॉर्टकट को ब्लॉक कर रहा है",
     "blockedWithCulprit_other": "{{name}} शायद {{count}} शॉर्टकट को ब्लॉक कर रहा है",
-    "blockedNoCulprit_one": "macOS अस्थायी रूप से 1 शॉर्टकट को ब्लॉक कर रहा है",
+    "blockedNoCulprit_one": "macOS अस्थायी रूप से {{count}} शॉर्टकट को ब्लॉक कर रहा है",
     "blockedNoCulprit_other": "macOS अस्थायी रूप से {{count}} शॉर्टकट को ब्लॉक कर रहा है",
     "recorderBlockedWithCulprit": "{{name}} शायद शॉर्टकट में बदलाव को ब्लॉक कर रहा है",
     "recorderBlockedNoCulprit": "macOS अस्थायी रूप से शॉर्टकट में बदलाव को ब्लॉक कर रहा है",

@@ -971,7 +971,8 @@
         "pause": "Pausa",
         "resume": "Återuppta",
         "copied": "Kopierad",
-        "lineCount": "{{count}} rader",
+        "lineCount_one": "{{count}} rad",
+        "lineCount_other": "{{count}} rader",
         "empty": "Väntar på loggar… Poster visas här när appen skickar dem."
       },
       "updateChecks": {

@@ -98,9 +98,12 @@ pub fn open_recordings_folder(app: AppHandle) -> Result<(), String> {
     // KB-181: open the folder itself (the label says Open, so Finder shows
     // the recordings). The earlier reveal-instead-of-open was an ACL
     // workaround for the FRONTEND plugin command; this Rust-side OpenerExt
-    // call bypasses that ACL entirely, and the opener:allow-open-path
-    // capability is granted alongside so any future direct use is legal
-    // too. Reveal selected the folder inside its parent - technically
+    // call bypasses that ACL entirely (KB-275: the capabilities file only
+    // gates webview invokes, so the opener:allow-open-path permission that
+    // used to sit alongside serves nothing - no frontend code calls the
+    // plugin's open-path command, only openUrl via opener:default - and a
+    // future direct webview use must add its own scoped permission again).
+    // Reveal selected the folder inside its parent - technically
     // visible, but every "Open ... Folder" button behaved like Show.
     app.opener()
         .open_path(recordings_dir.to_string_lossy(), None::<&str>)

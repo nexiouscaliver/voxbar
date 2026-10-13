@@ -71,17 +71,18 @@ const SecureInputWarning: React.FC = () => {
     ...status.uncovered_bindings,
     ...status.degraded_bindings,
   ]).size;
-  const countSuffix = affectedCount === 1 ? "one" : "other";
+  // KB-276: pass count and let i18next resolve the plural suffix through
+  // Intl.PluralRules, like every other count family. The old hand-rolled
+  // one/other pick read as wrong grammar in every locale whose CLDR rules
+  // have more categories (ru/uk/pl/cs few+many, he two, ar the whole set).
   const message =
     affectedCount > 0
       ? status.culprit_name !== null
-        ? t(`secureInput.blockedWithCulprit_${countSuffix}`, {
+        ? t("secureInput.blockedWithCulprit", {
             name: status.culprit_name,
             count: affectedCount,
           })
-        : t(`secureInput.blockedNoCulprit_${countSuffix}`, {
-            count: affectedCount,
-          })
+        : t("secureInput.blockedNoCulprit", { count: affectedCount })
       : status.culprit_name !== null
         ? t("secureInput.recorderBlockedWithCulprit", {
             name: status.culprit_name,
