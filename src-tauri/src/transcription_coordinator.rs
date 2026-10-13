@@ -1178,21 +1178,49 @@ impl TranscriptionCoordinator {
                             .max()
                     };
 
+                // KB-296 (v1.6.6): the lanes whose socket-death retirement
+                // LaneGone had to defer because the machine was still
+                // mid-flight. Only a lane in this set can ever retire, so
+                // the retire helper's common case - a LIVE lane's dictation
+                // drain probing retirement after every pipeline, on this
+                // hot loop - is a set miss that never polls the companion
+                // connections mutex. The set is filled only by the LaneGone
+                // arm, and the only production path that releases a
+                // registration (companion/server.rs:291) always queues
+                // LaneGone immediately after, so a connection-gone lane
+                // cannot exist outside this set. Loop-owned, no lock.
+                let mut deferred_retire_lanes: std::collections::HashSet<u64> =
+                    std::collections::HashSet::new();
                 // KB-270 (v1.6.4): retire one dead lane's bookkeeping -
                 // its machine, its post-process mirror entry, and its
                 // audio-side cancel generation - once nothing needs them
-                // (the pure rule in lane_machine_retirable). Called from
-                // BOTH the LaneGone arm (a socket death with the machine
-                // already idle) and the lane's ProcessingFinished drain
-                // (a socket death that raced a stop pipeline). The audio
-                // sweep is safe exactly because the machine is Idle: no
-                // pipeline of this lane is in flight, so nothing holds a
-                // captured cancel generation for it.
+                // (the pure rule in lane_machine_retirable, plus the KB-293
+                // registry guard in lane_retirement_ready). Called from the
+                // LaneGone arm (a socket death with the machine already
+                // idle), the lane's ProcessingFinished drain (a socket
+                // death that raced a stop pipeline), and KB-280's Cancel
+                // arm (a cancel that landed after LaneGone and reset the
+                // deferred machine to Idle - the one reset with no drain of
+                // its own). The audio sweep is guarded twice: the machine
+                // is Idle, and no pipeline of this lane is in flight, so
+                // nothing holds a captured cancel generation for it.
                 let retire_dead_lane =
                     |app: &AppHandle,
                      lanes: &mut std::collections::HashMap<u64, CoordinatorState>,
+                     deferred: &mut std::collections::HashSet<u64>,
                      lane: u64| {
+                        // KB-296 (v1.6.6): a lane whose socket-death
+                        // retirement was never deferred (a live lane's
+                        // drain, a cancel on a connected phone) is a set
+                        // miss: return without touching the connections
+                        // mutex at all.
+                        if !deferred.contains(&lane) {
+                            return;
+                        }
                         let Some(machine) = lanes.get(&lane) else {
+                            // No machine left to retire: the deferral is
+                            // spent either way.
+                            deferred.remove(&lane);
                             return;
                         };
                         // No companion manager (test contexts): the connection
@@ -1201,9 +1229,17 @@ impl TranscriptionCoordinator {
                             .try_state::<Arc<crate::companion::CompanionManager>>()
                             .map(|m| m.inner().connection_device(lane).is_none())
                             .unwrap_or(true);
-                        if !lane_machine_retirable(machine, connection_gone) {
+                        if !lane_retirement_ready(
+                            machine,
+                            connection_gone,
+                            crate::actions::lane_pipeline_in_flight(lane),
+                        ) {
+                            // Still mid-flight: the deferral stands, and the
+                            // machine's own drain (or a later cancel, for
+                            // KB-280's interleave) re-runs this helper.
                             return;
                         }
+                        deferred.remove(&lane);
                         lanes.remove(&lane);
                         lane_session_post_process_mirror
                             .lock()
@@ -1317,6 +1353,29 @@ impl TranscriptionCoordinator {
                                     if let Some(machine) = lanes.get_mut(&lane) {
                                         machine.on_cancel(recording_was_active);
                                     }
+                                    // KB-280 (v1.6.6): a cancel that lands
+                                    // AFTER LaneGone can be the only drain
+                                    // the deferred retirement ever gets.
+                                    // on_cancel resets a Recording machine
+                                    // to Idle outright, so the disconnect
+                                    // path's FinalizeCompanion then finds
+                                    // an Idle machine - no session to
+                                    // finalize, no stop pipeline, no
+                                    // ProcessingFinished - and the machine
+                                    // leaked in the map forever. Retiring
+                                    // here closes that: the helper still
+                                    // requires the deferral (a live lane's
+                                    // cancel is a set miss and retires
+                                    // nothing) and the KB-293 registry
+                                    // guard (a machine whose pipeline is
+                                    // still in flight defers to its
+                                    // drain).
+                                    retire_dead_lane(
+                                        &app,
+                                        &mut lanes,
+                                        &mut deferred_retire_lanes,
+                                        lane,
+                                    );
                                 }
                                 None => keyboard.on_cancel(recording_was_active),
                             }
@@ -1344,7 +1403,15 @@ impl TranscriptionCoordinator {
                                 // its stop pipeline was in flight (the
                                 // disconnect path's LaneGone saw a machine
                                 // in Processing and deferred to here).
-                                retire_dead_lane(&app, &mut lanes, lane);
+                                // KB-296: for every LIVE lane this probe is
+                                // a deferred-set miss - no connections
+                                // mutex poll on the hot loop.
+                                retire_dead_lane(
+                                    &app,
+                                    &mut lanes,
+                                    &mut deferred_retire_lanes,
+                                    lane,
+                                );
                             }
                         },
                         Command::CommandModifier { is_pressed } => {
@@ -1384,8 +1451,14 @@ impl TranscriptionCoordinator {
                         // its own drain, which runs the same retirement;
                         // the companion server's disconnect path finalizes
                         // the recording session itself.
+                        // KB-296 (v1.6.6): the deferral is recorded in the
+                        // deferred-retire set FIRST - that membership is
+                        // what every later retire probe (the drain's, or a
+                        // racing cancel's, KB-280) keys on, and what keeps
+                        // live lanes off the connections mutex.
                         Command::LaneGone { lane } => {
-                            retire_dead_lane(&app, &mut lanes, lane);
+                            deferred_retire_lanes.insert(lane);
+                            retire_dead_lane(&app, &mut lanes, &mut deferred_retire_lanes, lane);
                         }
                     }
                     // KB-221: publish a completed hold's edges to the
@@ -1864,6 +1937,26 @@ fn tag_stop_effect_lane(effect: &mut Effect, lane: u64) {
 /// are never reused), so a flapping phone grew the map monotonically.
 fn lane_machine_retirable(machine: &CoordinatorState, connection_gone: bool) -> bool {
     connection_gone && matches!(machine.stage, Stage::Idle)
+}
+
+/// KB-293 (v1.6.6): the by-construction retirement guard. KB-270's rule
+/// (Idle machine + connection gone) correlated with "no pipeline of this
+/// lane is in flight" for every stop shape alive today, but correlation is
+/// not the guarantee: a future stop shape that resets its machine to Idle
+/// while its pipeline still drains would let retirement sweep the audio
+/// side's cancel generation (drop_lane_cancel_generation) out from under
+/// the pipeline's captured guard. The IN_FLIGHT_PIPELINES registry - not
+/// the machine's stage - is the authority: a lane with a pipeline in
+/// flight is never retired, whatever its stage says. Every deferral this
+/// veto creates has its own drain, because the pipeline's FinishGuard
+/// unregisters from the registry BEFORE reporting ProcessingFinished, and
+/// that drain re-runs this check with the registry empty.
+fn lane_retirement_ready(
+    machine: &CoordinatorState,
+    connection_gone: bool,
+    pipeline_in_flight: bool,
+) -> bool {
+    lane_machine_retirable(machine, connection_gone) && !pipeline_in_flight
 }
 
 /// v1.6.0 W1-L7: the mode an in-session pp-hotkey press flips the session
@@ -5271,8 +5364,9 @@ the badge lie (dark-badge session silently post-processing at stop)"
                 .expect("the main loop after the helper");
         let helper = &source[helper_at..helper_end];
         assert!(
-            helper.contains("lane_machine_retirable(machine, connection_gone)"),
-            "the helper routes through the pure retirement rule"
+            helper.contains("lane_retirement_ready(")
+                && helper.contains("crate::actions::lane_pipeline_in_flight(lane)"),
+            "the helper routes through the pure retirement rule with the live registry read"
         );
         assert!(
             helper.contains("lanes.remove(&lane);"),
@@ -5294,19 +5388,249 @@ the badge lie (dark-badge session silently post-processing at stop)"
             .expect("the LaneGone arm");
         let lane_gone_arm = &source[lane_gone_at..lane_gone_at + 300];
         assert!(
-            lane_gone_arm.contains("retire_dead_lane(&app, &mut lanes, lane);"),
+            lane_gone_arm
+                .contains("retire_dead_lane(&app, &mut lanes, &mut deferred_retire_lanes, lane);"),
             "the LaneGone arm must retire through the shared helper"
         );
 
         // The lane's ProcessingFinished drain routes through the helper
-        // too (a disconnect that raced the pipeline).
+        // too (a disconnect that raced the pipeline). The slice runs to
+        // the next arm so formatting churn cannot dodge the pin.
         let drain_at = source
             .find("Command::ProcessingFinished { lane } => match lane {")
             .expect("the ProcessingFinished arm");
-        let drain_arm = &source[drain_at..drain_at + 1400];
+        let drain_end = drain_at
+            + source[drain_at..]
+                .find("Command::CommandModifier")
+                .expect("the next arm");
+        let drain_arm = &source[drain_at..drain_end];
         assert!(
-            drain_arm.contains("retire_dead_lane(&app, &mut lanes, lane);"),
+            drain_arm.contains("retire_dead_lane("),
             "the lane drain must re-run the retirement after on_processing_finished"
+        );
+    }
+
+    /// KB-280 (v1.6.6): the cancel-after-LaneGone interleave, pinned at
+    /// machine level. LaneGone deferred the retirement of a Recording
+    /// machine (not Idle); the cancel that lands next resets that machine
+    /// to Idle outright - and the disconnect path's FinalizeCompanion then
+    /// finds an Idle machine, so no stop pipeline starts, no
+    /// ProcessingFinished drain ever comes, and the machine leaked in the
+    /// lanes map forever (past KB-270's retirement). The uncancelled twin
+    /// shows the drain the deferral was promised: its FinalizeCompanion
+    /// DOES start the pipeline. The Cancel arm must therefore retire
+    /// through the shared helper - the cancel is that machine's only
+    /// drain.
+    #[test]
+    fn kb280_a_cancel_after_lane_gone_is_the_deferred_retirements_only_drain() {
+        // The cancelled twin: Recording when the socket dies.
+        let mut cancelled = CoordinatorState::new();
+        assert!(matches!(
+            cancelled.on_input(
+                companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(12)),
+                Instant::now()
+            ),
+            Some(Effect::Start { .. })
+        ));
+        assert!(matches!(cancelled.stage, Stage::Recording(_)));
+        // LaneGone arrives: the retirement defers (the machine is
+        // mid-flight, KB-270's rule).
+        assert!(!lane_machine_retirable(&cancelled, true));
+        // The cancel lands: on_cancel resets a Recording machine to Idle.
+        cancelled.on_cancel(true);
+        assert!(matches!(cancelled.stage, Stage::Idle));
+        // The promised drain can never come: the disconnect path's
+        // FinalizeCompanion on the reset machine produces nothing (no
+        // session to finalize), so no pipeline, no ProcessingFinished.
+        assert!(cancelled.on_finalize_companion().is_none());
+        // The machine is retirement-ready the instant the cancel lands -
+        // if the Cancel arm does not retire it, nothing ever will.
+        assert!(lane_retirement_ready(&cancelled, true, false));
+
+        // The uncancelled twin: same Recording state, no cancel - its
+        // FinalizeCompanion starts the stop pipeline, so ITS deferral has
+        // the drain the cancelled one lost.
+        let mut draining = CoordinatorState::new();
+        assert!(matches!(
+            draining.on_input(
+                companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(13)),
+                Instant::now()
+            ),
+            Some(Effect::Start { .. })
+        ));
+        assert!(matches!(
+            draining.on_finalize_companion(),
+            Some(Effect::Stop { .. })
+        ));
+        assert!(matches!(draining.stage, Stage::Processing));
+    }
+
+    /// KB-280 source pin: the Cancel arm's lane leg must run the shared
+    /// retirement helper AFTER the machine teardown, so the deferral
+    /// LaneGone left is honored at the one reset that has no drain of its
+    /// own. The keyboard leg (None) never retires: there is no lane
+    /// bookkeeping for the local machine. Pinned against this committed
+    /// source (the convention above: the loop needs a channel and an
+    /// AppHandle).
+    #[test]
+    fn kb280_the_cancel_arm_honors_the_lane_gone_deferral() {
+        let source = include_str!("transcription_coordinator.rs");
+        let arm_at = source
+            .find("Command::Cancel {")
+            .expect("the Cancel command arm");
+        let arm_end = arm_at
+            + source[arm_at..]
+                .find("Command::ProcessingFinished")
+                .expect("the next arm");
+        let arm = &source[arm_at..arm_end];
+        let teardown_at = arm
+            .find("machine.on_cancel(recording_was_active);")
+            .expect("the lane machine teardown");
+        let retire_at = arm
+            .find("retire_dead_lane(")
+            .expect("the Cancel arm's retirement probe");
+        assert!(
+            teardown_at < retire_at,
+            "the retire probe must run after the machine teardown, on the reset machine"
+        );
+        assert_eq!(
+            arm.matches("retire_dead_lane(").count(),
+            1,
+            "exactly one retirement probe: the keyboard (None) leg has no lane bookkeeping"
+        );
+        // The probe rides the deferred set, so a live lane's cancel is a
+        // set miss and retires nothing (KB-296's gate).
+        assert!(
+            arm.contains("&mut deferred_retire_lanes,"),
+            "the Cancel arm's probe must key on the deferred-retire set"
+        );
+    }
+
+    /// KB-293 (v1.6.6): a lane with an in-flight pipeline is never
+    /// retired, by construction. KB-270's stage rule alone would call an
+    /// Idle machine on a dead connection retirement-ready; the registry
+    /// veto must block it whatever the machine's stage says, so a future
+    /// stop shape that resets its machine while its pipeline drains
+    /// cannot have the audio cancel generation swept out from under the
+    /// pipeline.
+    #[test]
+    fn kb293_a_lane_with_an_in_flight_pipeline_is_never_retired() {
+        // The machine KB-270 alone would retire: Idle, connection gone.
+        let machine = CoordinatorState::new();
+        assert!(matches!(machine.stage, Stage::Idle));
+        assert!(lane_machine_retirable(&machine, true));
+        // The registry veto alone blocks it.
+        assert!(
+            !lane_retirement_ready(&machine, true, true),
+            "an in-flight pipeline vetoes retirement even for an Idle machine on a dead connection"
+        );
+        // With the registry empty, the same machine retires.
+        assert!(lane_retirement_ready(&machine, true, false));
+        // KB-270's rule survives intact inside the composition: a live
+        // connection keeps its machine, pipeline or not.
+        assert!(!lane_retirement_ready(&machine, false, false));
+        assert!(!lane_retirement_ready(&machine, false, true));
+
+        // A mid-flight machine is blocked both ways (stage AND registry).
+        let mut recording = CoordinatorState::new();
+        assert!(matches!(
+            recording.on_input(
+                companion_edge_with_identity(true, ShortcutActivation::Toggle, None, Some(14)),
+                Instant::now()
+            ),
+            Some(Effect::Start { .. })
+        ));
+        assert!(matches!(recording.stage, Stage::Recording(_)));
+        assert!(!lane_retirement_ready(&recording, true, true));
+        assert!(!lane_retirement_ready(&recording, true, false));
+    }
+
+    /// KB-296 (v1.6.6) source pin, the hot-path shape: the retire helper
+    /// gates on the deferred-retire set BEFORE any companion connections
+    /// poll, so a live lane's dictation drain (the common case on this
+    /// hot loop) pays a set lookup and never locks the connections mutex.
+    /// The set is loop-owned with no lock of its own, and only the
+    /// LaneGone arm fills it - the deferral that makes a lane retireable
+    /// at all.
+    #[test]
+    fn kb296_a_live_lanes_drain_never_polls_the_companion_connections_mutex() {
+        let source = include_str!("transcription_coordinator.rs");
+
+        // The deferred-retire set is a plain loop-owned HashSet: no lock.
+        let set_at = source
+            .find("let mut deferred_retire_lanes")
+            .expect("the deferred-retire set declaration");
+        let set_decl = &source[set_at..set_at + 120];
+        assert!(
+            set_decl.contains("HashSet<u64>"),
+            "the deferred-retire set is a HashSet"
+        );
+        assert!(
+            !set_decl.contains("Mutex"),
+            "the set must be loop-owned: adding a lock would rebuild the hot-path cost it removes"
+        );
+
+        // The helper: the set gate precedes the connections poll.
+        let helper_at = source
+            .find("let retire_dead_lane =")
+            .expect("the retirement helper");
+        let helper_end = helper_at
+            + source[helper_at..]
+                .find("\n\n                loop {")
+                .expect("the main loop after the helper");
+        let helper = &source[helper_at..helper_end];
+        let gate_at = helper
+            .find("deferred.contains(&lane)")
+            .expect("the deferred-set gate");
+        let poll_at = helper
+            .find("try_state::<Arc<crate::companion::CompanionManager>>")
+            .expect("the companion connections poll");
+        assert!(
+            gate_at < poll_at,
+            "the set gate must run before the connections poll: a set miss never takes the mutex"
+        );
+
+        // Only the LaneGone arm fills the set (the deferral), and it
+        // fills it BEFORE its retire attempt.
+        let lane_gone_at = source
+            .find("Command::LaneGone { lane } => {")
+            .expect("the LaneGone arm");
+        let lane_gone_arm = &source[lane_gone_at..lane_gone_at + 300];
+        let insert_at = lane_gone_arm
+            .find("deferred_retire_lanes.insert(lane);")
+            .expect("the LaneGone arm records the deferral");
+        let retire_at = lane_gone_arm
+            .find("retire_dead_lane(&app, &mut lanes, &mut deferred_retire_lanes, lane);")
+            .expect("the LaneGone arm's retire attempt");
+        assert!(
+            insert_at < retire_at,
+            "the deferral is recorded before the first retire attempt"
+        );
+        assert_eq!(
+            source[..source.find("mod tests {").expect("the test module")]
+                .matches("deferred_retire_lanes.insert(lane);")
+                .count(),
+            1,
+            "exactly one fill site in production: only LaneGone defers"
+        );
+
+        // The drain's probe passes the set, so the gate actually governs
+        // the hot path. The slice runs to the next arm.
+        let drain_at = source
+            .find("Command::ProcessingFinished { lane } => match lane {")
+            .expect("the ProcessingFinished arm");
+        let drain_end = drain_at
+            + source[drain_at..]
+                .find("Command::CommandModifier")
+                .expect("the next arm");
+        let drain_arm = &source[drain_at..drain_end];
+        assert!(
+            drain_arm.contains("retire_dead_lane("),
+            "the lane drain's probe must route through the set-gated helper"
+        );
+        assert!(
+            drain_arm.contains("&mut deferred_retire_lanes,"),
+            "the drain's probe passes the deferred set"
         );
     }
 }

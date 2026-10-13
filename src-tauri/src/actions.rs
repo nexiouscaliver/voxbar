@@ -118,6 +118,24 @@ pub(crate) fn in_flight_lane_pipelines() -> Vec<u64> {
         .collect()
 }
 
+/// KB-293 (v1.6.6): is THIS lane's stop pipeline in flight right now? The
+/// coordinator's lane-retirement rule consults the registry directly
+/// (through lane_retirement_ready on the coordinator side): retirement
+/// used to rely on the correlation that a Stage::Idle machine has no
+/// pipeline in flight, which holds for every stop shape alive today but
+/// guarantees nothing against a future shape that resets its machine
+/// while the pipeline drains - and retirement's audio sweep
+/// (drop_lane_cancel_generation) would break that pipeline's captured
+/// generation. One registry lookup makes retirement by-construction safe
+/// against any stop shape. The keyboard's None key is not a lane and
+/// never matches.
+pub(crate) fn lane_pipeline_in_flight(lane: u64) -> bool {
+    IN_FLIGHT_PIPELINES
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .contains(&Some(lane))
+}
+
 // Shortcut Action Trait
 pub trait ShortcutAction: Send + Sync {
     fn start(&self, app: &AppHandle, binding_id: &str, shortcut_str: &str);
@@ -3346,6 +3364,51 @@ mod tests {
         assert_eq!(in_flight_lane_pipelines(), vec![9]);
         unregister_in_flight_pipeline(Some(9));
         assert!(in_flight_lane_pipelines().is_empty());
+    }
+
+    /// KB-293 (v1.6.6): the single-lane registry read the coordinator's
+    /// retirement guard consumes (through lane_retirement_ready on the
+    /// coordinator side). Truth table against the live registry: a lane
+    /// reads in flight exactly while its own pipeline is registered, a
+    /// neighboring lane's registration never reads as this lane's, and
+    /// the keyboard's None key never matches. Lane ids here touch no id
+    /// another test uses (the registry is a process static and tests run
+    /// in parallel).
+    #[test]
+    fn kb293_lane_pipeline_in_flight_reads_the_live_registry() {
+        use super::{
+            lane_pipeline_in_flight, register_in_flight_pipeline, unregister_in_flight_pipeline,
+        };
+
+        const LANE: u64 = 4242;
+        const NEIGHBOR: u64 = 4243;
+        assert!(
+            !lane_pipeline_in_flight(LANE),
+            "an unregistered lane reads not-in-flight"
+        );
+        register_in_flight_pipeline(Some(LANE));
+        assert!(
+            lane_pipeline_in_flight(LANE),
+            "the lane's own registration reads in flight"
+        );
+        // A neighboring lane's registration is not this lane's.
+        register_in_flight_pipeline(Some(NEIGHBOR));
+        assert!(lane_pipeline_in_flight(NEIGHBOR));
+        // The drain removes exactly its own entry.
+        unregister_in_flight_pipeline(Some(LANE));
+        assert!(
+            !lane_pipeline_in_flight(LANE),
+            "the drain clears the lane's own entry"
+        );
+        assert!(lane_pipeline_in_flight(NEIGHBOR));
+        unregister_in_flight_pipeline(Some(NEIGHBOR));
+        // The keyboard's None key never reads as a lane pipeline.
+        register_in_flight_pipeline(None);
+        assert!(
+            !lane_pipeline_in_flight(LANE),
+            "the keyboard's None key is not a lane key"
+        );
+        unregister_in_flight_pipeline(None);
     }
 
     /// Fleet pass 2 wiring pin: the pipeline publishes itself as in flight
