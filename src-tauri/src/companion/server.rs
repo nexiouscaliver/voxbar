@@ -521,29 +521,16 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
             // so adoption shipped one phone's transcript history to
             // whichever same-platform token holder paired while its owner
             // was away. The resolution is in-memory only (no settings IO
-            // on this async task); a freshly known identity persists on a
-            // detached worker below.
+            // on this async task). KB-291 (v1.6.6): the
+            // persist_known_identities worker this block used to spawn for
+            // a freshly known identity is deleted with the write-only
+            // known-identity machinery it served.
             let (registration, rx) =
                 manager.register_connection_with_identity(&device, device_id.as_deref());
             device_name = registration.device;
             device_lane = registration.lane;
             device_generation = registration.generation;
             device_lane_rx = rx;
-            if registration.persist_identities.is_some() {
-                // KB-261: the settings write for a newly known identity is
-                // synchronous store work; run it off the async task. It
-                // shares the connect-edge settings lock with the
-                // note_device_connected worker below, so the two
-                // whole-settings cycles serialize instead of erasing each
-                // other's field. Fleet pass 2: the body rides
-                // spawn_worker so a panic surfaces in the app log instead
-                // of raw stderr.
-                let app = app.clone();
-                let persist_manager = Arc::clone(&manager);
-                spawn_worker("persist_known_identities", move || {
-                    crate::companion::persist_known_identities(&app, &persist_manager);
-                });
-            }
             // v1.6.4 (accept-wedge hardening): the connect-edge bookkeeping
             // (settings read + write, tray re-sync) is synchronous disk and
             // main-thread work; run it on a detached worker instead of this
@@ -819,7 +806,49 @@ async fn serve_websocket<S: AsyncRead + AsyncWrite + Unpin>(
                             if let Some(coordinator) =
                                 app.try_state::<crate::TranscriptionCoordinator>()
                             {
-                                coordinator.send_companion_edge(&app, pressed, prefs, device_lane);
+                                // KB-285 (v1.6.6): the edge's activation
+                                // mode and hold threshold live in the
+                                // settings store, and get_settings is a
+                                // read-modify-write over the plugin store's
+                                // mutex (migration and binding-merge
+                                // write-backs) - the exact blocking class
+                                // the hello-path seams moved off this task,
+                                // and this edge fires on every phone press.
+                                // Read through the blocking pool and await
+                                // the handle (the Welcome read's seam); a
+                                // panicking read falls back to the shipped
+                                // defaults. The read stays per-edge, never
+                                // a connect-time snapshot, so a
+                                // mid-connection activation change is
+                                // honored by the next press.
+                                let edge_app = app.clone();
+                                let (mode, hold_threshold) =
+                                    tauri::async_runtime::spawn_blocking(move || {
+                                        let settings = crate::settings::get_settings(&edge_app);
+                                        (
+                                            settings.shortcut_activation,
+                                            Duration::from_millis(settings.hold_threshold_ms),
+                                        )
+                                    })
+                                    .await
+                                    .unwrap_or_else(|panic| {
+                                        log::error!(
+                                            "companion: ptt-edge settings read panicked \
+                                                 ({panic:?}); using the shipped defaults"
+                                        );
+                                        let defaults = crate::settings::get_default_settings();
+                                        (
+                                            defaults.shortcut_activation,
+                                            Duration::from_millis(defaults.hold_threshold_ms),
+                                        )
+                                    });
+                                coordinator.send_companion_edge(
+                                    pressed,
+                                    prefs,
+                                    device_lane,
+                                    mode,
+                                    hold_threshold,
+                                );
                             }
                             if pressed {
                                 // Audio is only meaningful during a session;
@@ -1461,30 +1490,31 @@ mod tests {
     /// v1.6.4 accept-wedge hardening, source pin (a live reproduction
     /// needs the real TLS server on a Wry app, which the unit harness
     /// cannot mount). SCOPE (fleet pass 2, after the blanket claim was
-    /// found false): this pin checks exactly the seams it enumerates -
-    /// (1) the SQLite recent-history query at hello, (2) the connect-edge
-    /// settings+tray bookkeeping, (3) the disconnect-edge tray re-sync,
-    /// (4) the settings persistence of a newly known identity, each
-    /// riding the panic-capturing spawn_worker; and (5) the Welcome
-    /// frame's settings read riding spawn_blocking (fleet pass 2: it sat
-    /// inline on the async task through the original hardening, and
-    /// get_settings is a read-modify-write over the plugin store's mutex,
-    /// not a pure read). It does NOT certify the absence of other
-    /// blocking calls; the async task itself must stay free of direct
-    /// get_settings/write_settings only in the seams named here.
+    /// found false; seam count narrowed by KB-291 in v1.6.6, which
+    /// deleted the persist_known_identities worker): this pin checks
+    /// exactly the seams it enumerates - (1) the SQLite recent-history
+    /// query at hello, (2) the connect-edge settings+tray bookkeeping,
+    /// (3) the disconnect-edge tray re-sync, each riding the
+    /// panic-capturing spawn_worker; (4) the Welcome frame's settings
+    /// read riding spawn_blocking (fleet pass 2: it sat inline on the
+    /// async task through the original hardening, and get_settings is a
+    /// read-modify-write over the plugin store's mutex, not a pure
+    /// read); and (5) the Ptt-edge settings read riding spawn_blocking
+    /// (KB-285 in v1.6.6: send_companion_edge read the store inline on
+    /// this task for every phone press/release edge - the same
+    /// migration/salvage write-back wedge). It does NOT certify the
+    /// absence of other blocking calls; the async task itself must stay
+    /// free of direct get_settings/write_settings only in the seams
+    /// named here.
     #[test]
     fn connection_blocking_seams_run_off_the_async_connection_task() {
         let source = include_str!("server.rs");
         let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
 
-        // The four detached connect/disconnect seams ride spawn_worker by
+        // The three detached connect/disconnect seams ride spawn_worker by
         // name (also the fleet pass 2 panic-capture pin: a worker panic
         // must surface in the app log, not raw stderr).
         for (name, call) in [
-            (
-                "persist_known_identities",
-                "crate::companion::persist_known_identities(&app, &persist_manager);",
-            ),
             (
                 "note_device_connected",
                 "manager.note_device_connected(&app, &connected_device);",
@@ -1509,6 +1539,14 @@ mod tests {
                 "the {name} worker must ride spawn_worker with its name (panic-capture + seam routing)"
             );
         }
+        // KB-291: the deleted persist worker may not return either (the
+        // needle is concatenated so the history comments that name the
+        // deleted worker cannot satisfy it).
+        let persist_spawn = ["spawn_worker(\"persist_", "known_identities\""].concat();
+        assert!(
+            !production.contains(&persist_spawn),
+            "the known-identity persist worker is deleted machinery (KB-291)"
+        );
         // And the helper itself catches panics into the app log.
         let helper_at = production
             .find("fn spawn_worker(")
@@ -1520,7 +1558,7 @@ mod tests {
             "a worker panic must be caught and logged, never stderr-only"
         );
 
-        // (5) The Welcome settings read rides spawn_blocking, and the old
+        // (4) The Welcome settings read rides spawn_blocking, and the old
         // inline form is gone.
         let welcome_read_at = production
             .find("let settings = crate::settings::get_settings(&welcome_app);")
@@ -1537,6 +1575,43 @@ mod tests {
             "the direct (blocking) settings read may not remain on the async task"
         );
 
+        // (5) KB-285: the Ptt-edge settings read rides spawn_blocking too.
+        // The read must sit inside its own blocking-pool dispatch (the
+        // nearest preceding one, distinct from the Welcome seam's), and
+        // the old inline edge call (the coordinator reading the store
+        // itself) may not return.
+        let edge_read_at = production
+            .find("crate::settings::get_settings(&edge_app)")
+            .expect("the ptt-edge settings read");
+        let edge_dispatch_before = production[..edge_read_at]
+            .rfind("tauri::async_runtime::spawn_blocking(move || {")
+            .expect("the ptt-edge read must be introduced by a blocking-pool dispatch");
+        assert!(
+            edge_dispatch_before > blocking_at,
+            "the Ptt-edge settings read must have its own blocking-pool dispatch after the Welcome seam's (never the async task)"
+        );
+        assert!(
+            !production
+                .contains("coordinator.send_companion_edge(&app, pressed, prefs, device_lane);"),
+            "the direct edge call that read the store on the async task may not return (KB-285)"
+        );
+        // Cross-file: the coordinator's edge forwarder must not read the
+        // store itself (reintroducing the read there silently moves the
+        // blocking IO back onto the connection task).
+        let coordinator_source = include_str!("../transcription_coordinator.rs");
+        let edge_at = coordinator_source
+            .find("pub fn send_companion_edge(")
+            .expect("the edge forwarder");
+        let edge_end = edge_at
+            + coordinator_source[edge_at..]
+                .find("\n    }\n")
+                .expect("fn end");
+        let edge_body = &coordinator_source[edge_at..edge_end];
+        assert!(
+            !edge_body.contains("get_settings"),
+            "send_companion_edge must not read the settings store; its caller resolves the values off the async task (KB-285)"
+        );
+
         let manager_source = include_str!("mod.rs");
         let register_at = manager_source
             .find("pub fn register_connection_with_identity(")
@@ -1551,19 +1626,18 @@ mod tests {
             "the registration must stay in-memory only (no settings IO on the async task)"
         );
         assert!(
-            register_body.contains("let mut connections")
-                && register_body.contains("let mut known"),
-            "the decision holds both the connections registry and the known-identity set guards"
+            register_body.contains("let mut connections"),
+            "the registration holds the connections registry guard"
         );
         let push_at = register_body
             .find("connections.push(ConnectionEntry {")
             .expect("the registration insert");
-        let drop_known_at = register_body
-            .find("drop(known);")
-            .expect("the guards release after the insert");
+        let drop_at = register_body
+            .find("drop(connections);")
+            .expect("the guard releases after the insert");
         assert!(
-            push_at < drop_known_at,
-            "the decision, the registration insert, and the known-set update share one critical section (the guards release only after the insert)"
+            push_at < drop_at,
+            "the registration insert happens inside the guard's critical section (the guard releases only after the insert)"
         );
 
         // None of the blocking seams remain as direct calls on the async

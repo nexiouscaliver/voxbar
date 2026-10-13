@@ -123,14 +123,13 @@ struct ConnectionEntry {
 /// KB-261 (v1.6.4): one authenticated connection's registration outcome.
 /// `device` is the connection's exact raw identity (see
 /// [`protocol::device_identity_name`]); the lane and generation are the
-/// KB-255 registration keys; `persist_identities` is Some when this
-/// identity was not already known and the CALLER owns persisting the
-/// bounded set off the connection task (see [`persist_known_identities`]).
+/// KB-255 registration keys. KB-291 (v1.6.6): the former
+/// `persist_identities` payload is gone with the known-identity set it
+/// served - that machinery was behaviorally write-only and is deleted.
 pub struct ConnectionRegistration {
     pub device: String,
     pub lane: u64,
     pub generation: u64,
-    pub persist_identities: Option<Vec<String>>,
 }
 
 /// v1.6.2 W1-L2: one lane's session identity, frozen on the coordinator
@@ -160,6 +159,29 @@ struct StoppingSession {
     lane: u64,
     device: String,
     prefs: protocol::SessionPrefs,
+}
+
+/// KB-292 (v1.6.6): the coalescing gate for the connect/disconnect tray
+/// re-syncs. Every hello and every disconnect used to spawn a detached
+/// worker whose body recomputed the full tray snapshot (a settings read,
+/// the model list, an icon decode) - a flapping phone firing N reconnect
+/// edges in quick succession paid N full rebuilds whose intermediate
+/// results were stale the moment the next edge landed. The gate collapses
+/// the storm: the FIRST edge in a quiet period claims the rebuild, every
+/// edge landing while a rebuild is live only marks the state dirty, and
+/// the rebuilding pass loops once more after finishing so the FINAL
+/// rebuild always reflects the settled registration state (the rebuild
+/// reads live state, never the worker's captured arguments, so whichever
+/// worker holds the gate picks every later edge up). At most one rebuild
+/// is live at any instant and at most one rebuild runs per settled state.
+#[derive(Default)]
+struct TrayResyncGate {
+    /// A rebuild pass is live (claimed, not yet settled).
+    running: bool,
+    /// An edge landed while a pass was live: the next
+    /// [`CompanionManager::tray_resync_pass_done`] must schedule one more
+    /// pass instead of releasing the gate.
+    dirty: bool,
 }
 
 pub struct CompanionManager {
@@ -203,18 +225,13 @@ pub struct CompanionManager {
     /// prefs ride the edge into the coordinator, which freezes them per
     /// lane at the start commit.
     pending_prefs: Mutex<protocol::SessionPrefs>,
-    /// KB-261 (v1.6.4): the phone identities this Mac has paired, in-memory
-    /// and authoritative (seeded from the persisted
-    /// `companion_known_identities` at server start, bounded to
-    /// KNOWN_IDENTITIES_LIMIT). The durable record of WHICH phones paired:
-    /// an exact re-pair owes no persistence, and a restart reseeds from it.
-    /// Fleet pass 1: it is no longer an adoption matcher - identities are
-    /// exact (see [`Self::register_connection_with_identity`]).
-    known_identities: Mutex<Vec<String>>,
     /// Per-IP auth-failure limiting shared across connections.
     failure_limiter: Mutex<auth::FailureLimiter>,
     /// The Rust-side notice listener id (registered once at init).
     notice_listener: Mutex<Option<tauri::EventId>>,
+    /// KB-292 (v1.6.6): the coalescing gate for the edge tray re-syncs
+    /// (see [`TrayResyncGate`]).
+    tray_resync: Mutex<TrayResyncGate>,
 }
 
 impl CompanionManager {
@@ -240,13 +257,13 @@ impl CompanionManager {
             starting_lane: Mutex::new(None),
             stopping: Mutex::new(None),
             pending_prefs: Mutex::new(protocol::SessionPrefs::default()),
-            known_identities: Mutex::new(Vec::new()),
             failure_limiter: Mutex::new(auth::FailureLimiter::new(
                 5,
                 Duration::from_secs(60),
                 Duration::from_secs(60),
             )),
             notice_listener: Mutex::new(None),
+            tray_resync: Mutex::new(TrayResyncGate::default()),
         }
     }
 
@@ -289,14 +306,19 @@ impl CompanionManager {
     /// newest name as `companion_last_device` and re-sync the tray's
     /// companion block (W1-L8 - the paired count tracks the connection,
     /// not the next unrelated sync point; runs on the server's task thread
-    /// so the snapshot compute never lands on the UI thread).
+    /// so the snapshot compute never lands on the UI thread). KB-292
+    /// (v1.6.6): the tray re-sync rides the coalescing gate, so a
+    /// reconnect storm's N edges pay at most one rebuild per settled
+    /// state; the settings RMW above still runs per edge (serialized by
+    /// its own lock, and the persisted name must track every hello).
     pub fn note_device_connected(&self, app: &AppHandle, device: &str) {
         // KB-261 (fleet pass 1): this whole-settings read-modify-write rides
-        // the connect-edge lock, because the same first-pairing hello also
-        // spawns the persist_known_identities worker - unsynchronized, the
-        // interleave [persist reads][connected reads][persist writes]
-        // [connected writes] let the last whole-settings writer erase the
-        // other's field.
+        // the connect-edge lock because the same hello can race the other
+        // riders of that lock (KB-289's set_log_level and start()'s rebind
+        // among them) - unsynchronized whole-settings writers could erase
+        // each other's field. The persist_known_identities worker that
+        // motivated the lock originally is gone with its machinery (KB-291,
+        // v1.6.6).
         connect_edge_settings_rmw(app, &|settings| {
             if settings.companion_last_device.as_deref() != Some(device) {
                 settings.companion_last_device = Some(device.to_string());
@@ -305,7 +327,7 @@ impl CompanionManager {
                 false
             }
         });
-        let _ = crate::tray::update_tray_menu(app);
+        self.resync_tray_coalesced(app);
     }
 
     /// v1.6.2 W1-L2 (KB-255): release a connection's registration. Both
@@ -321,9 +343,79 @@ impl CompanionManager {
     }
 
     /// The disconnect-edge tray re-sync (the forget_device rule, now
-    /// keyed on registrations instead of names).
+    /// keyed on registrations instead of names). KB-292 (v1.6.6): rides
+    /// the same coalescing gate as the connect edge, so a reconnect
+    /// storm's alternating hello/drop edges collapse to the latest tray
+    /// state instead of paying one full rebuild per edge.
     pub fn note_device_disconnected(&self, app: &AppHandle) {
-        let _ = crate::tray::update_tray_menu(app);
+        self.resync_tray_coalesced(app);
+    }
+
+    /// KB-292 (v1.6.6): an edge wants the tray re-synced. Returns true
+    /// when the caller must run the rebuild (no rebuild is live, and this
+    /// call claimed it); false when a live rebuild will pick this edge's
+    /// state up (the dirty mark makes it loop once more, so the settled
+    /// state is always rebuilt). The claim/release pair is one critical
+    /// section each, so an edge either marks dirty before the live pass
+    /// settles (the pass loops again) or claims after the release (it
+    /// rebuilds itself) - no lost wakeup.
+    fn claim_tray_resync(&self) -> bool {
+        let mut gate = self.tray_resync.lock().unwrap_or_else(|e| e.into_inner());
+        if gate.running {
+            gate.dirty = true;
+            false
+        } else {
+            gate.running = true;
+            true
+        }
+    }
+
+    /// KB-292 (v1.6.6): a rebuild pass finished. Returns true when an edge
+    /// landed during the pass (the caller must rebuild once more so the
+    /// tray reflects the settled state); false when the gate is quiet
+    /// again (the pass releases the gate and its caller stops looping).
+    fn tray_resync_pass_done(&self) -> bool {
+        let mut gate = self.tray_resync.lock().unwrap_or_else(|e| e.into_inner());
+        if gate.dirty {
+            gate.dirty = false;
+            true
+        } else {
+            gate.running = false;
+            false
+        }
+    }
+
+    /// KB-292 (v1.6.6): a rebuild pass panicked mid-loop. Resets the gate
+    /// so the next edge claims a fresh rebuild instead of marking a gate
+    /// dirty that no pass will ever settle (a wedged gate would freeze
+    /// the companion tray block forever).
+    fn tray_resync_abandon(&self) {
+        let mut gate = self.tray_resync.lock().unwrap_or_else(|e| e.into_inner());
+        *gate = TrayResyncGate::default();
+    }
+
+    /// KB-292 (v1.6.6): the coalesced tray re-sync both connection edges
+    /// route through. The claiming caller loops rebuild passes until the
+    /// gate settles (every rebuild reads LIVE state, so the last pass
+    /// always reflects the settled registration set); concurrent edge
+    /// workers return immediately, their dirty mark absorbed by the live
+    /// loop. A panicking pass is caught here so the gate is always
+    /// released (the panic is logged through the app's logger, the
+    /// spawn_worker convention).
+    fn resync_tray_coalesced(&self, app: &AppHandle) {
+        if !self.claim_tray_resync() {
+            return;
+        }
+        let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| loop {
+            let _ = crate::tray::update_tray_menu(app);
+            if !self.tray_resync_pass_done() {
+                break;
+            }
+        }));
+        if let Err(panic) = result {
+            self.tray_resync_abandon();
+            log::error!("companion: tray re-sync pass panicked: {panic:?}");
+        }
     }
 
     /// The deduplicated device names of the live connections, in
@@ -384,14 +476,14 @@ impl CompanionManager {
     /// localStorage id on the phone, so its Recent list resets - the
     /// pre-v1.6.4 behavior, now safe.
     ///
-    /// RACE FREEDOM: the registration insert and the known-set update
-    /// happen inside ONE hold of the connections lock (lock order:
-    /// connections, then known_identities; no other site takes both), so
-    /// the devices list and the pairing record never observe a half-state
-    /// under a reconnect storm. The method performs NO settings IO (the
-    /// connection task only touches in-memory maps); persisting a newly
-    /// known identity is the caller's job through the returned
-    /// `persist_identities` payload (see `persist_known_identities`).
+    /// KB-291 (v1.6.6): the known-identity bookkeeping this method used to
+    /// maintain is DELETED. Its only readers were its own seed and its own
+    /// newness check - a circle whose only output was deciding whether to
+    /// re-persist itself - while the tray count reads live connections and
+    /// the Recent list keys on the phone's localStorage identity. The
+    /// method now only mints the exact identity and registers the
+    /// connection; it performs NO settings IO (the connection task touches
+    /// in-memory maps only).
     pub fn register_connection_with_identity(
         &self,
         device: &str,
@@ -409,35 +501,14 @@ impl CompanionManager {
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
-        // The atomic insert + known-set update: connections first, then
-        // the known set; both held until the entry is pushed so no
-        // concurrent registration can observe the half-state.
-        let mut connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
-        let mut known = self
-            .known_identities
-            .lock()
-            .unwrap_or_else(|e| e.into_inner());
-
         let identity = raw.clone();
-        let mut persist_identities = None;
-        if !known.iter().any(|k| k == &raw) {
-            // A genuinely new identity: remember it (bounded, most recent
-            // last) so a restart's seed knows this phone paired. The
-            // in-memory set is authoritative; the persisted copy is the
-            // caller's payload.
-            known.push(raw.clone());
-            let keep_from = known.len().saturating_sub(KNOWN_IDENTITIES_LIMIT);
-            *known = known.split_off(keep_from);
-            persist_identities = Some(known.clone());
-        }
-
+        let mut connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
         connections.push(ConnectionEntry {
             lane,
             generation,
             device: identity.clone(),
             tx,
         });
-        drop(known);
         drop(connections);
 
         (
@@ -445,19 +516,9 @@ impl CompanionManager {
                 device: identity,
                 lane,
                 generation,
-                persist_identities,
             },
             rx,
         )
-    }
-
-    /// KB-261: the current in-memory known-identity set (what
-    /// `persist_known_identities` writes and start() seeds).
-    fn known_identities_snapshot(&self) -> Vec<String> {
-        self.known_identities
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clone()
     }
 
     /// v1.6.2 W1-L2: freeze one lane's session identity at the instant the
@@ -574,14 +635,9 @@ impl CompanionManager {
         let advertised_host =
             effective_advertised_host(settings.companion_advertised_host.as_deref());
 
-        // KB-261 (v1.6.4): seed the in-memory known-identity cache from the
-        // persisted store here, on the enable path, so the hello path never
-        // reads settings for the identity resolution (the connection task
-        // only touches the in-memory maps from here on).
-        *self
-            .known_identities
-            .lock()
-            .unwrap_or_else(|e| e.into_inner()) = settings.companion_known_identities.clone();
+        // KB-291 (v1.6.6): start() no longer seeds a known-identity cache -
+        // the cache, its persisted store, and its re-seed race (KB-290,
+        // KB-297) are deleted with the write-only machinery they served.
 
         // Pairing token: generate on enable, and rebind when the advertised
         // subnet changed (a token from another network never validates).
@@ -787,10 +843,28 @@ impl CompanionManager {
         inner.port = 0;
         inner.advertised_host = None;
         inner.tls_manual = false;
-        self.connections
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .clear();
+        // KB-296 residual (fleet, cycle 15): this wholesale clear is itself
+        // a registration-release path, so every lane it clears must get its
+        // LaneGone here. A lane's LaneGone otherwise arrives only from its
+        // connection task's tail, which first awaits a socket close and an
+        // outbound Goodbye send with no write timeout - a black-holed socket
+        // or a panicked task never reaches it, and the KB-296 deferred-set
+        // gate would then block that lane's retirement forever (the KB-270
+        // leak class). Queued AFTER the clear so the retire probe reads
+        // connection_gone at its first attempt; a tail's later duplicate
+        // LaneGone for the same lane is idempotent (no machine left: the
+        // deferral is spent either way).
+        let cleared_lanes: Vec<u64> = {
+            let mut connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
+            let lanes: Vec<u64> = connections.iter().map(|entry| entry.lane).collect();
+            connections.clear();
+            lanes
+        };
+        if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
+            for lane in cleared_lanes {
+                coordinator.notify_lane_gone(lane);
+            }
+        }
         log::info!("companion: server stopped");
     }
 
@@ -1031,23 +1105,16 @@ impl Default for CompanionManager {
     }
 }
 
-/// KB-261: how many phone identities the Mac remembers. Bounded so a
-/// kiosk Mac strangers keep scanning cannot grow the settings store
-/// forever; the most recent identities survive.
-const KNOWN_IDENTITIES_LIMIT: usize = 8;
-
-/// KB-261 (fleet pass 1): serializes the connect-edge settings
-/// read-modify-write cycles. A first-pairing hello spawns
-/// [`persist_known_identities`] and
-/// [`CompanionManager::note_device_connected`] as two detached workers,
-/// and each does get_settings -> mutate one field -> write_settings over
-/// the WHOLE settings object; unsynchronized, the interleave [persist
-/// reads][connected reads][persist writes][connected writes] let the last
-/// whole-settings writer erase the other's field - exactly the same
-/// pairing that mints a new identity also changes the last device, so
-/// both workers fire together on the feature's primary scenario, and a
-/// lost identities persist silently shrank the Mac's pairing record
-/// after the next restart (start() re-seeds from the store).
+/// KB-261 (fleet pass 1, narrowed by KB-291 in v1.6.6): serializes the
+/// connect-edge settings read-modify-write cycles. A hello spawns
+/// [`CompanionManager::note_device_connected`] as a detached worker doing
+/// get_settings -> mutate one field -> write_settings over the WHOLE
+/// settings object; unsynchronized, two such whole-settings writers can
+/// erase each other's field. The persist_known_identities worker whose
+/// race with note_device_connected motivated the lock is deleted with its
+/// machinery (KB-291), but the lock stays: it is the serialized RMW the
+/// KB-289 riders (start()'s rebind, reset_pairing, set_log_level) share
+/// with the connect edge.
 static CONNECT_EDGE_SETTINGS_RMW: Mutex<()> = Mutex::new(());
 
 /// One settings read-modify-write cycle under [`CONNECT_EDGE_SETTINGS_RMW`]:
@@ -1084,27 +1151,9 @@ pub(crate) fn connect_edge_settings_rmw(
     }
 }
 
-/// KB-261 (v1.6.4): persist the manager's CURRENT known-identity set to
-/// settings, off the connection task (the caller owns the thread). Reads
-/// the fresh in-memory set at run time - not a stale payload - so
-/// out-of-order persist workers converge to the latest set, and merges
-/// into the CURRENT settings (this field only) so a concurrent writer of
-/// another field is not clobbered by a stale whole-settings copy - a
-/// claim fleet pass 1 makes TRUE by running under
-/// [`CONNECT_EDGE_SETTINGS_RMW`] with note_device_connected's cycle. Best
-/// effort by design: a lost persisted entry costs one phone one
-/// Recent-list reset after a restart, never a wrong merge.
-pub(crate) fn persist_known_identities(app: &AppHandle, manager: &CompanionManager) {
-    let identities = manager.known_identities_snapshot();
-    connect_edge_settings_rmw(app, &|settings| {
-        if settings.companion_known_identities != identities {
-            settings.companion_known_identities = identities.clone();
-            true
-        } else {
-            false
-        }
-    });
-}
+/// KB-291 (v1.6.6): the persist_known_identities helper that lived here is
+/// deleted with the known-identity machinery it served - the set it
+/// persisted had no reader outside its own seed and newness check.
 
 fn qr_svg_for(url: &str) -> Result<String, String> {
     use qrcode::render::svg::Color;
@@ -1882,34 +1931,27 @@ mod tests {
     /// tagged hellos never folding into a known bare one), and no
     /// poisoning (an ordinary re-pair can no longer disable anything,
     /// because there is no cross-identity rule left to disable).
+    /// KB-291 (v1.6.6): the known-identity set this test used to seed is
+    /// deleted with its machinery; exactness never depended on it (the
+    /// identity is minted from the hello's own name and id, never matched
+    /// against a set).
     #[test]
     fn kb261_identities_are_exact_and_never_adopt() {
         let manager = CompanionManager::new();
-        // The persisted known set this server run was seeded with (start()
-        // loads it into the manager).
-        *manager
-            .known_identities
-            .lock()
-            .unwrap_or_else(|e| e.into_inner()) = vec!["iPhone#aaaa".to_string()];
 
-        // A fresh-id same-platform hello while the prior identity is AWAY:
-        // the v1.6.4 cut adopted "iPhone#aaaa" here, delivering that
-        // phone's Recent list and transcript history to whichever phone
-        // helloed. The identity must be its own; history keyed on
-        // "iPhone#aaaa" can never ship to this connection's socket,
-        // because the recent-list filter keys on the registration's own
-        // identity (send_recent_history_to_lane ->
+        // A fresh-id same-platform hello while a prior same-platform
+        // identity is AWAY: the v1.6.4 cut adopted "iPhone#aaaa" here,
+        // delivering that phone's Recent list and transcript history to
+        // whichever phone helloed. The identity must be its own; history
+        // keyed on "iPhone#aaaa" can never ship to this connection's
+        // socket, because the recent-list filter keys on the
+        // registration's own identity (send_recent_history_to_lane ->
         // recent_companion_entries_for_device).
         let (newcomer, _rx) =
             manager.register_connection_with_identity("iPhone", Some("zzzz9999-0000"));
         assert_eq!(
             newcomer.device, "iPhone#zzzz",
             "a fresh-id hello must never fold into a known same-platform identity"
-        );
-        assert_eq!(
-            newcomer.persist_identities,
-            Some(vec!["iPhone#aaaa".to_string(), "iPhone#zzzz".to_string()]),
-            "the newcomer's own identity is owed to persistence, bounded, most recent last"
         );
 
         // The ordinary re-pair the old rule broke: the prior identity's
@@ -1922,14 +1964,13 @@ mod tests {
         assert_eq!(repair.device, "iPhone#cccc");
 
         // The same identity re-pairing (same origin, same stored id, or a
-        // Mac restart): nothing changes, nothing owed.
+        // Mac restart): the same exact identity again.
         let (again, _rx) =
             manager.register_connection_with_identity("iPhone", Some("aaaa1111-0000"));
         assert_eq!(again.device, "iPhone#aaaa");
-        assert!(again.persist_identities.is_none());
 
         // A no-id hello keeps the bare name, the pinned protocol invariant:
-        // it never adopts a known tagged identity (two phones sharing one
+        // it never adopts a tagged identity (two phones sharing one
         // Recent list, the KB-265 defect class), in either direction.
         let (bare, _rx) = manager.register_connection_with_identity("iPhone", None);
         assert_eq!(
@@ -1937,10 +1978,6 @@ mod tests {
             "a client with no id keeps the bare name (protocol.rs invariant)"
         );
         let manager_bare = CompanionManager::new();
-        *manager_bare
-            .known_identities
-            .lock()
-            .unwrap_or_else(|e| e.into_inner()) = vec!["iPhone".to_string()];
         let (tagged, _rx) =
             manager_bare.register_connection_with_identity("iPhone", Some("bbbb2222-0000"));
         assert_eq!(
@@ -1952,20 +1989,235 @@ mod tests {
         let (ipad, _rx) = manager.register_connection_with_identity("iPad", Some("dddd4444-0000"));
         assert_eq!(ipad.device, "iPad#dddd");
 
-        // The known set stays bounded: the manager keeps the most recent
-        // KNOWN_IDENTITIES_LIMIT identities (pinned here so a change is a
-        // deliberate decision, not drift).
-        assert_eq!(KNOWN_IDENTITIES_LIMIT, 8);
+        // Fleet pass 1: platform-name adoption is gone entirely - no code
+        // path may match identities across phones again (the manager-level
+        // asserts above hold the behavior; this keeps the mechanism itself
+        // from creeping back in). The needles are concatenated so this
+        // assertion's own literals cannot satisfy it. (Carried here from
+        // the deleted kb261_new_identities_persist test in v1.6.6.)
+        let source = include_str!("mod.rs");
+        let adoption_fn = ["sticky", "_identity", "_adoption"].concat();
+        let base_fn = ["identity", "_ba", "se("].concat();
+        assert!(
+            !source.contains(&adoption_fn) && !source.contains(&base_fn),
+            "platform-name adoption and its base splitter must not reappear"
+        );
+    }
+
+    /// KB-291 (v1.6.6) source pin: the known-identity machinery is DELETED,
+    /// not merely unwired. Before v1.6.6 the manager kept an in-memory
+    /// known-identity set, seeded it from a persisted settings field at
+    /// start(), grew it inside register_connection_with_identity's
+    /// newness check, and re-persisted it through a detached
+    /// persist_known_identities worker - a circle whose only readers were
+    /// its own seed and its own newness check, while the tray count reads
+    /// live connections and the Recent list keys on the phone's own
+    /// localStorage identity. This pin fails if any piece creeps back:
+    /// the field, the snapshot read, the seed, the persist helper, or the
+    /// payload the registration used to return. The needles are
+    /// concatenated so this assertion's own literals cannot satisfy it.
+    #[test]
+    fn kb291_the_known_identity_machinery_is_gone() {
+        let source = include_str!("mod.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+        let field = ["known_", "identities: Mutex"].concat();
+        let seed = ["companion_known_", "identities.clone()"].concat();
+        let snapshot = ["fn known_identities_", "snapshot("].concat();
+        let persist_fn = ["fn persist_known_", "identities("].concat();
+        for (name, needle) in [
+            ("the manager field", field.as_str()),
+            ("the start() seed", seed.as_str()),
+            ("the snapshot read", snapshot.as_str()),
+            ("the persist helper", persist_fn.as_str()),
+        ] {
+            assert!(
+                !production.contains(needle),
+                "KB-291: {name} of the known-identity machinery must not return"
+            );
+        }
+        let payload = ["persist_", "identities: Option"].concat();
+        assert!(
+            !production.contains(&payload),
+            "KB-291: the registration's persist payload must not return"
+        );
+
+        // The registration that replaced the machinery still mints the
+        // exact identity and registers the connection (machine level).
+        let manager = CompanionManager::new();
+        let (registration, _rx) =
+            manager.register_connection_with_identity("iPhone", Some("aaaa1111-0000"));
+        assert_eq!(registration.device, "iPhone#aaaa");
+        assert_eq!(manager.devices(), vec!["iPhone#aaaa".to_string()]);
+    }
+
+    /// KB-292 (v1.6.6): the coalescing gate. N rapid edges landing while a
+    /// rebuild is live schedule at most ONE more rebuild (the dirty mark),
+    /// never one rebuild per edge; the settled state gets exactly one
+    /// final rebuild and the gate goes quiet, so the next edge after the
+    /// storm claims a fresh rebuild. Drives the gate's claim/settle pair
+    /// directly (the same methods resync_tray_coalesced drives in its
+    /// loop; a live tray rebuild needs a Wry app the unit harness cannot
+    /// mount, the established convention for tray seams).
+    #[test]
+    fn kb292_n_rapid_edges_schedule_at_most_one_tray_rebuild_per_settled_state() {
+        let manager = CompanionManager::new();
+
+        // Quiet period: the first edge claims the rebuild.
+        assert!(
+            manager.claim_tray_resync(),
+            "the first edge in a quiet period must claim the rebuild"
+        );
+
+        // The storm: N rapid edges (a flapping phone's alternating hellos
+        // and drops) all land while that rebuild is live.
+        const STORM: usize = 24;
+        for _ in 0..STORM {
+            assert!(
+                !manager.claim_tray_resync(),
+                "an edge while a rebuild is live must NOT schedule another rebuild; it marks the state dirty and the live pass picks it up"
+            );
+        }
+
+        // The live pass finishes: the whole storm's N edges collapse into
+        // exactly ONE further pass (which rebuilds the settled state).
+        assert!(
+            manager.tray_resync_pass_done(),
+            "the storm's dirty mark must schedule exactly one final pass"
+        );
+        // An edge landing during that final pass coalesces into it the
+        // same way - still no per-edge rebuild.
+        assert!(!manager.claim_tray_resync());
+        assert!(
+            manager.tray_resync_pass_done(),
+            "the final pass must absorb the late edge into one more pass"
+        );
+        // The state has settled: the gate releases, quiet again.
+        assert!(
+            !manager.tray_resync_pass_done(),
+            "a settled gate must release (no phantom rebuilds)"
+        );
+
+        // The next edge after the storm claims a fresh rebuild (the gate
+        // never wedges quiet-shut).
+        assert!(manager.claim_tray_resync());
+        assert!(!manager.tray_resync_pass_done());
+    }
+
+    /// KB-292 (v1.6.6): a panicking rebuild pass must not wedge the gate.
+    /// The pass is caught by resync_tray_coalesced and the gate reset, so
+    /// the next edge claims a fresh rebuild instead of marking a gate
+    /// dirty that no pass will ever settle (a wedged gate would freeze
+    /// the companion tray block forever).
+    #[test]
+    fn kb292_a_panicking_pass_releases_the_gate_for_the_next_edge() {
+        let manager = CompanionManager::new();
+        assert!(manager.claim_tray_resync());
+        // Edges land during the ill-fated pass.
+        assert!(!manager.claim_tray_resync());
+        // The pass panics; the abandon resets the gate wholesale.
+        manager.tray_resync_abandon();
+        // The next edge claims a fresh rebuild (no wedge).
+        assert!(
+            manager.claim_tray_resync(),
+            "after a panicked pass the gate must accept a fresh claim"
+        );
+        // And the reset dropped the storm's stale dirty mark: the fresh
+        // pass settles immediately.
+        assert!(
+            !manager.tray_resync_pass_done(),
+            "the abandon must clear the stale dirty mark (no phantom second pass)"
+        );
+    }
+
+    /// KB-292 (v1.6.6) source pin: both connection edges route their tray
+    /// re-sync through the coalescing gate - no bare update_tray_menu call
+    /// may return in either edge body (that is the uncoalesced per-edge
+    /// storm shape), and the gated helper's loop must catch panics and
+    /// abandon the gate so a failed pass cannot wedge it.
+    #[test]
+    fn kb292_edge_tray_resyncs_ride_the_coalescing_gate() {
+        let source = include_str!("mod.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+
+        for site in [
+            "pub fn note_device_connected(",
+            "pub fn note_device_disconnected(",
+        ] {
+            let at = source
+                .find(site)
+                .unwrap_or_else(|| panic!("the edge bookkeeping must exist: {site}"));
+            let end = at + source[at..].find("\n    }\n").expect("fn end");
+            let body = &source[at..end];
+            assert!(
+                body.contains("self.resync_tray_coalesced(app);"),
+                "{site} must route its tray re-sync through the coalescing gate"
+            );
+            assert!(
+                !body.contains("crate::tray::update_tray_menu(app)"),
+                "{site} must not rebuild the tray directly (the uncoalesced per-edge storm, KB-292)"
+            );
+        }
+
+        // The gated helper: claim, loop until settled, and the panic path
+        // that releases the gate.
+        let helper_at = production
+            .find("fn resync_tray_coalesced(")
+            .expect("the coalescing tray re-sync helper");
+        let helper_end = helper_at + production[helper_at..].find("\n    }\n").expect("fn end");
+        let helper = &production[helper_at..helper_end];
+        assert!(
+            helper.contains("claim_tray_resync()"),
+            "the helper must claim the gate before rebuilding"
+        );
+        assert!(
+            helper.contains("tray_resync_pass_done()"),
+            "the helper must loop passes until the gate settles"
+        );
+        assert!(
+            helper.contains("catch_unwind") && helper.contains("tray_resync_abandon()"),
+            "a panicking pass must release the gate (a wedged gate freezes the companion tray block forever)"
+        );
+
+        // Fleet, cycle 15: containment alone kept two mutations green - an
+        // inverted break (exiting while the probe's dirty arm still holds
+        // the gate claimed wedges every future edge to a dirty mark no
+        // pass ever settles) and a rebuild-before-claim reorder (two
+        // rebuilds live at once, the original KB-292 defect). Both are
+        // pinned positionally, the kb296 pin's gate-before-poll convention:
+        // the claim must precede the rebuild it guards, and the loop must
+        // break on the NEGATED settle probe (break-on-quiet polarity: the
+        // probe's true arm clears dirty and schedules one more pass, its
+        // false arm releases the gate, and only that exit is correct).
+        let claim_at = helper
+            .find("self.claim_tray_resync()")
+            .expect("the gate claim");
+        let rebuild_at = helper
+            .find("crate::tray::update_tray_menu(app)")
+            .expect("the tray rebuild inside the loop");
+        assert!(
+            claim_at < rebuild_at,
+            "the helper must claim the gate BEFORE any rebuild: a rebuild before the claim puts two rebuilds live at once (the original KB-292 defect)"
+        );
+        let quiet_probe_at = helper
+            .find("if !self.tray_resync_pass_done()")
+            .expect("the loop's break-on-quiet probe (the negated settle check)");
+        assert!(
+            helper[quiet_probe_at..quiet_probe_at + 80].contains("break"),
+            "the negated settle probe must guard the loop's break"
+        );
+        assert!(
+            !helper.contains("if self.tray_resync_pass_done()"),
+            "an inverted break (breaking while the probe's dirty arm still holds the gate claimed) exits with running=true: every future edge only marks dirty and the tray re-sync is wedged forever"
+        );
     }
 
     /// KB-261 (v1.6.4 review pass, re-anchored by fleet pass 1): the twin
     /// race. The v1.6.4 adoption cut resolved the identity BEFORE
     /// registering, leaving a window where a concurrent same-platform
     /// hello adopted a known identity and collapsed two phones into one
-    /// Recent list (the KB-265 defect class). Identities are now exact and
-    /// the registration insert and known-set update share one critical
-    /// section, so N same-platform phones registering CONCURRENTLY all end
-    /// up with DISTINCT identities.
+    /// Recent list (the KB-265 defect class). Identities are exact, so
+    /// N same-platform phones registering CONCURRENTLY all end up with
+    /// DISTINCT identities.
     #[test]
     fn kb261_concurrent_same_platform_registrations_never_share_an_identity() {
         let manager = Arc::new(CompanionManager::new());
@@ -2012,94 +2264,20 @@ mod tests {
             unique,
             "every concurrent same-platform phone must own a DISTINCT identity (got {identities:?})"
         );
-        // And the in-memory known set recorded every one of them, bounded
-        // by the limit.
-        let known = manager.known_identities_snapshot();
-        assert_eq!(
-            known.len(),
-            PHONES.min(KNOWN_IDENTITIES_LIMIT),
-            "the known set grew by every minted identity, bounded"
-        );
     }
 
-    /// KB-261 source pin (the settings write needs the real store, which a
-    /// mock app cannot mount): persistence must (1) be owned by the
-    /// CALLER off the connection task (the server spawns the worker; that
-    /// half is pinned in server.rs), (2) read the FRESH in-memory set at
-    /// run time so out-of-order workers converge, (3) merge into the
-    /// current settings rather than writing a stale whole-settings copy,
-    /// and (4) be seeded from the persisted store at server start so the
-    /// registration path performs no settings IO.
-    #[test]
-    fn kb261_new_identities_persist_bounded_through_the_settings_store() {
-        let source = include_str!("mod.rs");
-        let persist_at = source
-            .find("pub(crate) fn persist_known_identities(")
-            .expect("the persistence helper");
-        let persist_end = persist_at + source[persist_at..].find("\n}\n").expect("fn end");
-        let persist = &source[persist_at..persist_end];
-        assert!(
-            persist.contains("manager.known_identities_snapshot()"),
-            "persistence reads the FRESH in-memory set at run time, never a stale payload"
-        );
-        assert!(
-            persist.contains("if settings.companion_known_identities != identities"),
-            "persistence writes only when the field changed"
-        );
-        assert!(
-            persist.contains("settings.companion_known_identities = identities"),
-            "persistence merges into the CURRENT settings (this field only)"
-        );
-
-        // The registration mints bounded sets and owes them to the caller.
-        let register_at = source
-            .find("pub fn register_connection_with_identity(")
-            .expect("the registration");
-        let register_end = register_at + source[register_at..].find("\n    }\n").expect("fn end");
-        let register = &source[register_at..register_end];
-        assert!(
-            register.contains("KNOWN_IDENTITIES_LIMIT")
-                && register.contains("persist_identities = Some("),
-            "a minted identity returns the bounded set for the caller to persist"
-        );
-        assert!(
-            !register.contains("get_settings") && !register.contains("write_settings"),
-            "the registration itself performs no settings IO"
-        );
-
-        // Server start seeds the in-memory cache from the store.
-        let start_at = source
-            .find("pub fn start(&self, app: &AppHandle)")
-            .expect("start");
-        let start_end = start_at + source[start_at..].find("\n    }\n").expect("fn end");
-        assert!(
-            source[start_at..start_end].contains("settings.companion_known_identities.clone()"),
-            "start() seeds the known-identity cache from the persisted store"
-        );
-
-        // Fleet pass 1: platform-name adoption is gone entirely - no code
-        // path may match identities across phones again (the manager-level
-        // pin above holds the behavior; this keeps the mechanism itself
-        // from creeping back in). The needles are concatenated so this
-        // assertion's own literals cannot satisfy it.
-        let adoption_fn = ["sticky", "_identity", "_adoption"].concat();
-        let base_fn = ["identity", "_ba", "se("].concat();
-        assert!(
-            !source.contains(&adoption_fn) && !source.contains(&base_fn),
-            "platform-name adoption and its base splitter must not reappear"
-        );
-    }
-
-    /// KB-261 (fleet pass 1) source pin: the two connect-edge settings
-    /// read-modify-write cycles SERIALIZE. The first-pairing hello spawns
-    /// persist_known_identities and note_device_connected as two detached
-    /// workers, and each does get_settings -> mutate one field ->
-    /// write_settings over the WHOLE settings object; unsynchronized, the
-    /// interleave [persist reads][connected reads][persist writes]
-    /// [connected writes] let the last whole-settings writer erase the
+    /// KB-261 (fleet pass 1) source pin, narrowed by KB-291 in v1.6.6: the
+    /// connect-edge settings read-modify-write cycles SERIALIZE. The hello
+    /// spawns note_device_connected as a detached worker doing
+    /// get_settings -> mutate one field -> write_settings over the WHOLE
+    /// settings object, and start()'s rebind rides the same lock;
+    /// unsynchronized, the interleave [one reads][other reads][one
+    /// writes][other writes] lets the last whole-settings writer erase the
     /// other's field (the real store cannot mount under a mock app, so the
-    /// lock discipline is pinned on the source, the same convention as the
-    /// test above).
+    /// lock discipline is pinned on the source, the established
+    /// convention). The persist_known_identities worker that was this
+    /// lock's second rider is deleted with its machinery (KB-291); the
+    /// KB-289 pin below holds the other riders.
     #[test]
     fn kb261_connect_edge_settings_rmws_serialize_through_one_lock() {
         let source = include_str!("mod.rs");
@@ -2119,28 +2297,23 @@ mod tests {
             "the RMW helper must take the lock BEFORE reading settings and keep it past the write"
         );
 
-        // Both connect-edge cycles route through the helper (a whole-
+        // The connect-edge cycle routes through the helper (a whole-
         // settings write outside it would reintroduce the lost update).
-        // The method (impl indent) and the free fn (module indent) close
-        // differently, so each carries its own terminator.
-        for (site, terminator) in [
-            ("pub(crate) fn persist_known_identities(", "\n}\n"),
-            ("pub fn note_device_connected(", "\n    }\n"),
-        ] {
-            let at = source
-                .find(site)
-                .unwrap_or_else(|| panic!("the connect-edge settings writer must exist: {site}"));
-            let end = at + source[at..].find(terminator).expect("fn end");
-            let body = &source[at..end];
-            assert!(
-                body.contains("connect_edge_settings_rmw(app"),
-                "{site} must run its whole-settings cycle under the connect-edge lock"
-            );
-            assert!(
-                !body.contains("write_settings(app"),
-                "{site} must not write settings outside the locked helper"
-            );
-        }
+        // The method (impl indent) closes with the impl terminator.
+        let site = "pub fn note_device_connected(";
+        let at = source
+            .find(site)
+            .unwrap_or_else(|| panic!("the connect-edge settings writer must exist: {site}"));
+        let end = at + source[at..].find("\n    }\n").expect("fn end");
+        let body = &source[at..end];
+        assert!(
+            body.contains("connect_edge_settings_rmw(app"),
+            "{site} must run its whole-settings cycle under the connect-edge lock"
+        );
+        assert!(
+            !body.contains("write_settings(app"),
+            "{site} must not write settings outside the locked helper"
+        );
     }
 
     /// KB-289: the three whole-settings writers that lived OUTSIDE the
@@ -2341,16 +2514,11 @@ mod tests {
     fn poisoned_manager_locks_never_wedge_later_connections() {
         let manager = CompanionManager::new();
 
-        // Poison the connections registry, the session map, and the
-        // identity set: panic in a task while holding each guard (caught,
-        // like tokio catches a task panic).
-        for poison in [
-            "connections",
-            "lane_sessions",
-            "pending_prefs",
-            "stopping",
-            "known_identities",
-        ] {
+        // Poison the connections registry and the session-side maps (the
+        // known-identity set this loop also poisoned is deleted with its
+        // machinery, KB-291): panic in a task while holding each guard
+        // (caught, like tokio catches a task panic).
+        for poison in ["connections", "lane_sessions", "pending_prefs", "stopping"] {
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match poison {
                 "connections" => {
                     let _guard = manager
@@ -2369,13 +2537,6 @@ mod tests {
                 "pending_prefs" => {
                     let _guard = manager
                         .pending_prefs
-                        .lock()
-                        .unwrap_or_else(|e| e.into_inner());
-                    panic!("poison {poison}");
-                }
-                "known_identities" => {
-                    let _guard = manager
-                        .known_identities
                         .lock()
                         .unwrap_or_else(|e| e.into_inner());
                     panic!("poison {poison}");
@@ -3086,6 +3247,48 @@ mod tests {
         assert!(
             !effective_enabled(&settings),
             "experimental on does not arm the server on its own"
+        );
+    }
+
+    /// KB-296 residual (fleet, cycle 15) source pin: stop()'s wholesale
+    /// registry clear is itself a registration-release path, so it must
+    /// queue a LaneGone for every lane it clears - AFTER the clear, so the
+    /// coordinator's retire probe reads connection_gone at its first
+    /// attempt instead of deferring against a registration that will never
+    /// come back. Before the fix, a lane's LaneGone came only from its
+    /// connection task's tail (an awaited socket close plus an outbound
+    /// send with no write timeout, with no catch_unwind on the task), so a
+    /// black-holed socket or a panicked task left the lane outside the
+    /// deferred-retire set forever and the set gate blocked every later
+    /// retire probe - the machine, mirror row, and cancel generation leaked
+    /// for process lifetime, and restart() re-ran the clear on every
+    /// companion toggle. Pinned against the committed source (mounting a
+    /// running TLS server is not practical, the stop_leaves_the_session_map
+    /// convention above); the lane ids come from the registry being
+    /// cleared, so a partial queue cannot pass either.
+    #[test]
+    fn kb296_server_stop_queues_lane_gone_for_every_lane_it_clears() {
+        let source = include_str!("mod.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+        let stop_at = production
+            .find("pub fn stop(&self, app: &AppHandle)")
+            .expect("the stop fn");
+        let stop_end = stop_at + production[stop_at..].find("\n    }\n").expect("fn end");
+        let stop_body = &production[stop_at..stop_end];
+        let collect_at = stop_body
+            .find("connections.iter().map(|entry| entry.lane)")
+            .expect("stop() must collect the lanes from the registry it clears");
+        let clear_at = stop_body.find(".clear();").expect("the registry clear");
+        let notify_at = stop_body
+            .find("coordinator.notify_lane_gone(lane);")
+            .expect("stop() must queue a LaneGone for each cleared lane");
+        assert!(
+            collect_at < clear_at,
+            "the collected lanes must be the registry's own: collect before the clear empties it"
+        );
+        assert!(
+            clear_at < notify_at,
+            "the LaneGone queue must FOLLOW the clear: a probe before the clear reads a live registration, defers, and never drains"
         );
     }
 }

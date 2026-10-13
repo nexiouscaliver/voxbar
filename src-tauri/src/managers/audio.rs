@@ -1349,6 +1349,25 @@ impl AudioRecordingManager {
     /// `start_microphone_stream` does for a disconnected mic. Lock-free
     /// except the lanes map itself; never takes the `state` lock.
     fn ensure_remote_lane(&self, lane: u64) -> Result<(), anyhow::Error> {
+        // Fleet, cycle 15: a lane whose connection registration is gone has
+        // no edge source any more (its phone task is dead), so it must not
+        // get a fresh recorder. The drain's remembered-press restart lands
+        // here with the lane's socket already dead - a press remembered
+        // while the machine was Processing, a phone drop in that window
+        // sends no finalize, so the press survives to the drain - and the
+        // unconditional recreation used to return started=true, stranding a
+        // Recording machine whose only audio source was gone forever. The
+        // refusal fails the start, the machine rolls back to Idle
+        // (on_start_result), and the lane's deferred retirement drains. A
+        // missing manager (test contexts) proves nothing either way, so the
+        // start keeps its historical behavior there.
+        let connection_gone = self
+            .app_handle
+            .try_state::<Arc<crate::companion::CompanionManager>>()
+            .is_some_and(|m| m.connection_device(lane).is_none());
+        if connection_gone {
+            anyhow::bail!("lane {lane} has no live companion connection");
+        }
         let needs_reopen = {
             let lanes = self.remote_lanes.lock().unwrap_or_else(|e| e.into_inner());
             lanes.get(&lane).is_none_or(|l| l.recorder.needs_reopen())
@@ -3615,6 +3634,50 @@ mod tests {
         assert!(
             !should_apply_forced_mute(true, false, false, true),
             "exit teardown vetoes the apply regardless of capture state"
+        );
+    }
+
+    /// Fleet, cycle 15 source pin: a remembered press must not restart a
+    /// recording on a lane whose connection is gone. The coordinator's
+    /// drain (on_processing_finished) consumes a press remembered while
+    /// the machine was Processing through begin_recording, whose Start
+    /// effect lands here through try_start_remote_lane_recording; a press
+    /// remembered on a lane whose phone dropped in the Processing window
+    /// never sees its finalize (the disconnect teardown finalizes only
+    /// while lane_is_recording, and the stop pipeline already removed the
+    /// recorder), so nothing drops it. Before the gate this helper
+    /// recreated the recorder unconditionally and the start returned
+    /// started=true, stranding a Recording machine whose only edge source
+    /// was dead - no finalize ever came, and the deferred retirement
+    /// vetoed on stage until shutdown. The gate refuses the recreation
+    /// when the lane has no registration; the failed start rolls the
+    /// machine back to Idle (on_start_result) and the lane's deferred
+    /// retirement drains. Order pinned: the liveness gate must run BEFORE
+    /// any recorder recreation (the kb296 gate-before-poll convention).
+    #[test]
+    fn a_remembered_press_cannot_recreate_a_dead_lanes_recorder() {
+        let source = include_str!("audio.rs");
+        let production = &source[..source.find("\nmod tests {").expect("the test module")];
+        let helper_at = production
+            .find("fn ensure_remote_lane(")
+            .expect("the ensure_remote_lane helper");
+        let helper_end = helper_at + production[helper_at..].find("\n    }\n").expect("fn end");
+        let helper = &production[helper_at..helper_end];
+        let gate_at = helper
+            .find("connection_device(lane).is_none()")
+            .expect("the connection-registry liveness gate");
+        let recreate_at = helper
+            .find("create_remote_lane_recorder(")
+            .expect("the recorder recreation");
+        assert!(
+            gate_at < recreate_at,
+            "the liveness gate must run BEFORE the recorder recreation: a lane with no connection must never get a fresh recorder"
+        );
+        // And the refusal is a real error, not a silent Ok: only an Err
+        // fails the start and rolls the machine back to Idle.
+        assert!(
+            helper.contains("anyhow::bail!("),
+            "a dead lane's start must fail loudly so the optimistic Recording stage rolls back"
         );
     }
 }

@@ -290,6 +290,51 @@ assert.ok(
     "(the Already-recording refusal seam)",
 );
 
+// -- Round 12 / v1.6.6 queue pins (fleet, cycle 15) -----------------------
+//
+// The v1.6.6 companion-machinery cycle closed the round 12 queue and its
+// round 15 section recorded the goal state as a one-time manual sweep:
+// all twenty entries (KB-279..KB-298) CLOSED with pins named, KB-261 the
+// one non-closed STATUS SLOT (DEFERRED-UPSTREAM). Nothing persisted
+// those checks - the round 12 entries are list-form ("- KB-280 CLOSED
+// ..."), which the status-slot machinery above never sees - so any
+// future reopen or status-word drift would trip nothing. These pins
+// persist the sweep: a reopened entry, a drifted CLOSED marker, or a
+// lost DEFERRED-UPSTREAM verdict now fails CI.
+{
+  const queueStart = goldmine.indexOf("## Round 12 queue");
+  assert.ok(
+    queueStart !== -1,
+    "quality-goldmine.md has no Round 12 queue section",
+  );
+  const queueEnd = goldmine.indexOf("\n## ", queueStart + 1);
+  const queue = goldmine.slice(
+    queueStart,
+    queueEnd === -1 ? undefined : queueEnd,
+  );
+  for (let id = 279; id <= 298; id++) {
+    const padded = String(id);
+    assert.ok(
+      queue.includes(`- KB-${padded} CLOSED `) ||
+        queue.includes(`- KB-${padded} CLOSED\n`),
+      `the Round 12 queue entry for KB-${padded} must keep its CLOSED marker - ` +
+        `the cycle closed all twenty; a reopen must be a deliberate, visible flip`,
+    );
+  }
+  // KB-261's standing verdict, pinned on the P1 entry's status slot.
+  // The FIRST bold KB-261 span in the file is an early summary line, so
+  // the pin keys on the entry heading's own shape (id + separator +
+  // verdict); later sections reuse the id with other meanings and their
+  // own FIXED markers.
+  assert.ok(
+    goldmine.includes("**KB-261 · DEFERRED-UPSTREAM"),
+    "KB-261's P1 entry must stand DEFERRED-UPSTREAM - the ggml " +
+      "duplicate-symbol investigation is deferred upstream at the pinned " +
+      "crate versions; flipping it to closed or open needs the entry's " +
+      "own evidence",
+  );
+}
+
 // Fleet pass 2 (v1.6.4 review): the ledger cites companion-file
 // path:line anchors in every round, and the pass 1 companion rewrite
 // moved them wholesale - 13+ citations in the round 10/11 sections alone
@@ -297,115 +342,219 @@ assert.ok(
 // anchor, KB-085's). The doc's own promise ("every status flip cites the
 // commit or path:line it was verified against") needs every CITATION to
 // be live-checked. Every companion/mod.rs and companion/server.rs
-// citation in the ledger (the branch's churn zone - these two files are
-// what the v1.6.4 companion lane rewrites) must appear in the table
-// below with the token its cited line must carry: adding a citation
-// without adding a row fails the enumeration check, moving the code
-// without refreshing the ledger fails the token check, and a new
-// companion citation in a future round is forced through the same
-// discipline. Anchors in files outside the companion module are out of
-// this pin's scope (disclosed; the KB-085 check above remains the
-// canary for the pattern).
+// citation in the ledger must appear in the table below with the token
+// its cited line must carry. Fleet, cycle 15: the regex is WIDENED to
+// the other three files the ledger cites with path:line anchors -
+// transcription_coordinator.rs (the cycle's most-churned file, +372
+// lines, carrying eight new citations the companion-only regex could
+// not see), actions.rs, and settings.rs - so a citation drifts stale in
+// any of the five files, or a new citation appears without a row, and
+// this pin fails. Anchors in files outside these five (audio.rs, utils,
+// frontend files - disclosed; the KB-085 check above remains the canary
+// for the pattern) are out of this pin's scope.
 {
-  const companionModAnchors = readFileSync(
-    join(docsDir, "..", "src-tauri", "src", "companion", "mod.rs"),
-    "utf8",
-  ).split("\n");
-  const companionServerAnchors = readFileSync(
-    join(docsDir, "..", "src-tauri", "src", "companion", "server.rs"),
-    "utf8",
-  ).split("\n");
+  const readSrc = (rel: string): string[] =>
+    readFileSync(join(docsDir, "..", "src-tauri", "src", rel), "utf8").split(
+      "\n",
+    );
   const sources: Record<string, string[]> = {
-    mod: companionModAnchors,
-    server: companionServerAnchors,
+    mod: readSrc("companion/mod.rs"),
+    server: readSrc("companion/server.rs"),
+    transcription_coordinator: readSrc("transcription_coordinator.rs"),
+    actions: readSrc("actions.rs"),
+    settings: readSrc("settings.rs"),
   };
+  // The citation text names these files without their directory prefixes
+  // except the companion pair; this maps the regex's stem to both the
+  // sources key and the human-readable path in failure messages.
+  const citeLabel = (kind: string): string =>
+    kind === "mod" || kind === "server" ? `companion/${kind}.rs` : `${kind}.rs`;
 
   // [file, firstLine, lastLine, token that must appear within the span]
   const anchorTable: [
-    fileKind: "mod" | "server",
+    fileKind:
+      | "mod"
+      | "server"
+      | "transcription_coordinator"
+      | "actions"
+      | "settings",
     a: number,
     b: number,
     token: string,
   ][] = [
-    ["mod", 1422, 1422, "fn effective_enabled("],
-    ["server", 952, 952, "mod tests {"],
+    ["mod", 1471, 1471, "fn effective_enabled("],
+    ["server", 981, 981, "mod tests {"],
     [
       "mod",
-      1823,
-      1823,
+      1872,
+      1872,
       "fn registrations_release_by_lane_and_generation_never_by_name()",
     ],
-    ["mod", 1299, 1299, "fn note_stopping_session"],
-    ["mod", 781, 786, "close_remote_stream_or_defer();"],
-    ["mod", 769, 769, "shutdown_tx.send(true)"],
-    ["mod", 681, 681, "spawn(server::run("],
-    ["mod", 467, 467, "fn freeze_session("],
+    ["mod", 1348, 1348, "fn note_stopping_session"],
+    ["mod", 837, 839, "close_remote_stream_or_defer();"],
+    ["mod", 825, 825, "shutdown_tx.send(true)"],
+    ["mod", 737, 737, "spawn(server::run("],
+    ["mod", 528, 528, "fn freeze_session("],
     [
       "mod",
-      1568,
-      1568,
+      1617,
+      1617,
       "fn session_identity_freezes_per_lane_and_cannot_be_renamed()",
     ],
-    ["mod", 213, 213, "known_identities: Mutex<Vec<String>>"],
-    ["server", 526, 526, "let (registration, rx) ="],
     [
       "mod",
-      1970,
-      1970,
+      2222,
+      2222,
       "fn kb261_concurrent_same_platform_registrations_never_share_an_identity()",
     ],
     ["server", 313, 313, "NO pause acknowledgement"],
+    [
+      "server",
+      291,
+      291,
+      "manager.unregister_connection(device_lane, device_generation);",
+    ],
     ["server", 297, 297, "notify_lane_gone(device_lane);"],
+    ["server", 364, 364, "finalize_companion_lane(device_lane);"],
     ["server", 436, 436, "chunks admission ACCEPTED"],
-    ["mod", 933, 948, "fn reset_pairing("],
-    ["mod", 1051, 1051, "CONNECT_EDGE_SETTINGS_RMW: Mutex<()>"],
-    ["mod", 1074, 1074, "fn connect_edge_settings_rmw("],
-    ["mod", 599, 618, "connect_edge_settings_rmw(app, &|settings| {"],
-    ["mod", 716, 716, "rm.clear_deferred_remote_close();"],
+    ["mod", 1007, 1026, "fn reset_pairing("],
+    ["mod", 1118, 1118, "CONNECT_EDGE_SETTINGS_RMW: Mutex<()>"],
+    ["mod", 1141, 1141, "fn connect_edge_settings_rmw("],
+    ["mod", 655, 673, "connect_edge_settings_rmw(app, &|settings| {"],
+    ["mod", 772, 772, "rm.clear_deferred_remote_close();"],
     [
       "mod",
-      2104,
-      2104,
+      2282,
+      2282,
       "fn kb261_connect_edge_settings_rmws_serialize_through_one_lock()",
     ],
-    ["mod", 395, 395, "fn register_connection_with_identity("],
-    ["mod", 1886, 1886, "fn kb261_identities_are_exact_and_never_adopt()"],
-    ["server", 614, 614, "dropped before its Welcome"],
+    ["mod", 487, 487, "fn register_connection_with_identity("],
+    ["mod", 487, 522, "fn register_connection_with_identity("],
+    ["mod", 1939, 1939, "fn kb261_identities_are_exact_and_never_adopt()"],
+    ["mod", 2007, 2050, "kb291_the_known_identity_machinery_is_gone"],
+    ["mod", 638, 640, "no longer seeds a known-identity cache"],
+    ["mod", 123, 133, "ConnectionRegistration"],
+    ["server", 516, 527, "KB-291 (v1.6.6)"],
+    ["server", 528, 528, "let (registration, rx) ="],
+    ["server", 601, 601, "dropped before its Welcome"],
     ["server", 274, 274, "async fn finalize_disconnected_connection"],
     [
       "server",
-      1596,
-      1596,
+      1670,
+      1670,
       "fn welcome_send_failure_finalizes_the_lane_instead_of_leaking_it()",
     ],
     [
       "mod",
-      1691,
-      1691,
+      1740,
+      1740,
       "fn server_stop_leaves_records_for_their_pipelines_in_both_stop_orders()",
     ],
-    ["mod", 1767, 1767, "fn stop_leaves_the_session_map_to_its_pipelines()"],
+    ["mod", 1816, 1816, "fn stop_leaves_the_session_map_to_its_pipelines()"],
     [
       "mod",
-      2272,
-      2272,
+      2445,
+      2445,
       "fn kb270_lane_session_records_are_consumed_at_every_session_end()",
     ],
     [
       "server",
-      1476,
-      1476,
+      1510,
+      1510,
       "fn connection_blocking_seams_run_off_the_async_connection_task()",
     ],
     ["server", 252, 252, "fn spawn_worker("],
-    ["mod", 577, 584, "companion_known_identities.clone()"],
-    ["server", 539, 543, "persist_known_identities"],
-    ["server", 543, 655, "spawn_worker("],
-    ["mod", 395, 434, "fn register_connection_with_identity("],
-    ["mod", 1097, 1124, "fn persist_known_identities("],
-    ["mod", 125, 133, "persist_identities"],
-    ["mod", 1088, 1092, "converge"],
-    ["server", 655, 655, "std::thread::spawn"],
+    ["server", 543, 642, "spawn_worker("],
+    ["server", 806, 851, "KB-285 (v1.6.6)"],
+    ["mod", 178, 188, "struct TrayResyncGate {"],
+    ["mod", 362, 418, "fn claim_tray_resync("],
+    ["mod", 314, 330, "pub fn note_device_connected("],
+    ["mod", 350, 351, "pub fn note_device_disconnected("],
+    [
+      "mod",
+      2062,
+      2103,
+      "fn kb292_n_rapid_edges_schedule_at_most_one_tray_rebuild_per_settled_state()",
+    ],
+    // Fleet, cycle 15 (KB-296 residual): stop()'s wholesale clear queues
+    // a LaneGone per cleared lane, and the pin that holds it.
+    ["mod", 846, 867, "coordinator.notify_lane_gone(lane);"],
+    [
+      "mod",
+      3253,
+      3295,
+      "kb296_server_stop_queues_lane_gone_for_every_lane_it_clears",
+    ],
+    // Fleet, cycle 15: transcription_coordinator.rs, actions.rs, and
+    // settings.rs citations join the live check. Rows below are ordered
+    // by first appearance in the ledger.
+    ["transcription_coordinator", 1181, 1206, "deferred_retire_lanes"],
+    ["transcription_coordinator", 1213, 1219, "deferred.contains(&lane)"],
+    [
+      "transcription_coordinator",
+      1226,
+      1231,
+      "connection_device(lane).is_none()",
+    ],
+    ["transcription_coordinator", 1232, 1237, "lane_retirement_ready"],
+    [
+      "transcription_coordinator",
+      1334,
+      1381,
+      "exactly the cancelled lane's machine",
+    ],
+    ["transcription_coordinator", 1351, 1375, "retire_dead_lane("],
+    [
+      "transcription_coordinator",
+      1449,
+      1462,
+      "Command::LaneGone { lane } => {",
+    ],
+    ["transcription_coordinator", 1709, 1726, "fn send_companion_edge("],
+    ["transcription_coordinator", 1896, 1896, "fn route_input("],
+    ["transcription_coordinator", 1950, 1968, "fn lane_retirement_ready"],
+    [
+      "transcription_coordinator",
+      2504,
+      2504,
+      "fn start_success_probe_is_scoped_to_the_starting_session",
+    ],
+    [
+      "transcription_coordinator",
+      2527,
+      2556,
+      "the Start arm hands the effect's lane",
+    ],
+    [
+      "transcription_coordinator",
+      4558,
+      4558,
+      "fn a_lane_grace_expired_release_stops_with_the_lane_tagged()",
+    ],
+    [
+      "transcription_coordinator",
+      4607,
+      4607,
+      "fn expire_due_graces_tags_lane_stop_effects_before_run_effect()",
+    ],
+    ["actions", 71, 74, "unregister_in_flight_pipeline"],
+    ["actions", 121, 138, "lane_pipeline_in_flight"],
+    ["actions", 191, 191, "retire the shared recording surfaces"],
+    ["actions", 334, 341, "preview_worth_waiting_for"],
+    ["actions", 707, 711, "KB-239"],
+    ["actions", 1312, 1318, "KB-019"],
+    ["actions", 1464, 1474, "spawn_blocking"],
+    ["actions", 1794, 1801, "history_retry"],
+    ["actions", 1898, 1903, "process singleton"],
+    ["actions", 1966, 1966, "on_lane_session_changed(app, lane, true)"],
+    ["actions", 2290, 2291, "skipping persistence"],
+    ["actions", 2290, 2306, "KB-254"],
+    ["actions", 2554, 2556, "Failed to save history entry"],
+    ["actions", 2805, 2807, "Failed to save failed history entry"],
+    ["settings", 2080, 2084, "active_post_process_provider"],
+    ["settings", 2130, 2163, "store.get"],
+    ["settings", 2244, 2246, "whats_new_last_seen_version"],
+    ["settings", 2369, 2374, "pub fn write_settings"],
   ];
 
   // 1. Every table row's token really sits in the cited span of the live
@@ -414,29 +563,32 @@ assert.ok(
     const lines = sources[kind];
     assert.ok(
       b <= lines.length,
-      `the anchor companion/${kind}.rs:${a}-${b} points past the file (only ${lines.length} lines) - refresh the ledger`,
+      `the anchor ${citeLabel(kind)}:${a}-${b} points past the file (only ${lines.length} lines) - refresh the ledger`,
     );
     const span = lines.slice(a - 1, b).join("\n");
     assert.ok(
       span.includes(token),
-      `companion/${kind}.rs:${a}${a === b ? "" : `-${b}`} no longer carries "${token}" - the code moved; refresh the ledger citation`,
+      `${citeLabel(kind)}:${a}${a === b ? "" : `-${b}`} no longer carries "${token}" - the code moved; refresh the ledger citation`,
     );
   }
 
-  // 2. Every companion citation in the ledger is covered by a table row:
-  //    no citation may exist that this pin does not live-check.
-  const citationRe = /companion\/(mod|server)\.rs:(\d+)(?:-(\d+))?/g;
+  // 2. Every citation in the ledger's five live-checked files is covered
+  //    by a table row: no citation may exist that this pin does not
+  //    live-check.
+  const citationRe =
+    /(?:companion\/(mod|server)|(transcription_coordinator|actions|settings))\.rs:(\d+)(?:-(\d+))?/g;
   const cited = new Set<string>();
   for (const m of goldmine.matchAll(citationRe)) {
-    const a = Number(m[2]);
-    const b = m[3] ? Number(m[3]) : a;
-    cited.add(`${m[1]}:${a}-${b}`);
+    const kind = m[1] ?? m[2];
+    const a = Number(m[3]);
+    const b = m[4] ? Number(m[4]) : a;
+    cited.add(`${kind}:${a}-${b}`);
   }
   const covered = new Set(anchorTable.map(([k, a, b]) => `${k}:${a}-${b}`));
   for (const key of cited) {
     assert.ok(
       covered.has(key),
-      `the ledger cites companion/${key.replace(":", ".rs:")} but the anchor table does not live-check it - add the row (or refresh the citation)`,
+      `the ledger cites ${citeLabel(key.split(":")[0])}:${key.split(":")[1]} but the anchor table does not live-check it - add the row (or refresh the citation)`,
     );
   }
   // And no dead table rows (a refreshed citation leaves its old row
@@ -444,7 +596,7 @@ assert.ok(
   for (const key of covered) {
     assert.ok(
       cited.has(key),
-      `the anchor table checks companion/${key.replace(":", ".rs:")} but the ledger no longer cites it - drop the row`,
+      `the anchor table checks ${citeLabel(key.split(":")[0])}:${key.split(":")[1]} but the ledger no longer cites it - drop the row`,
     );
   }
 }
@@ -496,4 +648,6 @@ assert.ok(
   );
 }
 
-console.log("quality-goldmine ledger (AUD-15 + round 11) tests passed");
+console.log(
+  "quality-goldmine ledger (AUD-15 + round 11 + round 12) tests passed",
+);
