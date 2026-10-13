@@ -86,7 +86,7 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-027 · FIXED · companion toggle applies before persisting and rolls back.** As found [R3]: `change_companion_devices_setting` persisted+Ok'd unconditionally (mod.rs:845-851) while the always_on updater directly above (landed in 5bf5b893) threw and rolled back. Fixed in a9e1159e: `companion::apply_enabled` returns Err on a failed start (logged, stored on the manager, noticed) and the command applies it BEFORE persisting, so the settings store rolls the toggle back instead of persisting an enabled state with no server behind it; the startup path stays best-effort.
 
-**KB-028 · FIXED (v1.6.5 residuals, lane R1; residual closed in the fleet confirmation pass).** Was: disable-during-local-recording leaked the pre-warmed remote recorder; stop() skipped the close while anything recorded and nothing re-triggered it after the session ended (mod.rs:285-289 at find time; prewarm refuses only while live, audio.rs:1049-1056) [R3]. Fixed: the teardown close routes through `AudioRecordingManager::close_remote_stream_or_defer` - it parks the skipped close in `remote_close_pending` and every session-end fold (local stop, local cancel, lane stop, lane cancel) runs it once nothing records anywhere, so a disable during a LOCAL recording no longer strands the pre-warmed idle recorders (companion/mod.rs:837-839). Fleet confirmation pass, residual closed: the park survived a re-enable - nothing cleared `remote_close_pending` except the runner itself, so disable-during-recording then re-enable left the close parked while the server was LIVE, and the next session-end fold ran it against the live epoch (closing a re-hello'd phone's pre-warmed recorder, zeroing last_recording_lane, and force-stopping a lane whose start committed past the runner's is_recording() check). `CompanionManager::start` now clears the park through the new `clear_deferred_remote_close` (companion/mod.rs:772, the clear at managers/audio.rs:1728) once the new epoch's listener is live, so the flag is only ever parked while the server is stopped - the premise run_deferred_remote_close's doc already claimed. Pinned by kb028_stop_defers_the_lane_recorder_close_instead_of_silently_skipping_it (companion tests), kb028_the_lane_recorder_close_parks_and_runs_at_every_session_end (managers/audio.rs tests, which also pins the four fold sites), and kb028_a_parked_close_never_survives_into_the_next_server_epoch (the clear helper plus the start()-side clear after the running flip).
+**KB-028 · FIXED (v1.6.5 residuals, lane R1; residual closed in the fleet confirmation pass).** Was: disable-during-local-recording leaked the pre-warmed remote recorder; stop() skipped the close while anything recorded and nothing re-triggered it after the session ended (mod.rs:285-289 at find time; prewarm refuses only while live, audio.rs:1049-1056) [R3]. Fixed: the teardown close routes through `AudioRecordingManager::close_remote_stream_or_defer` - it parks the skipped close in `remote_close_pending` and every session-end fold (local stop, local cancel, lane stop, lane cancel) runs it once nothing records anywhere, so a disable during a LOCAL recording no longer strands the pre-warmed idle recorders (companion/mod.rs:872-874). Fleet confirmation pass, residual closed: the park survived a re-enable - nothing cleared `remote_close_pending` except the runner itself, so disable-during-recording then re-enable left the close parked while the server was LIVE, and the next session-end fold ran it against the live epoch (closing a re-hello'd phone's pre-warmed recorder, zeroing last_recording_lane, and force-stopping a lane whose start committed past the runner's is_recording() check). `CompanionManager::start` now clears the park through the new `clear_deferred_remote_close` (companion/mod.rs:807, the clear at managers/audio.rs:1728) once the new epoch's listener is live, so the flag is only ever parked while the server is stopped - the premise run_deferred_remote_close's doc already claimed. Pinned by kb028_stop_defers_the_lane_recorder_close_instead_of_silently_skipping_it (companion tests), kb028_the_lane_recorder_close_parks_and_runs_at_every_session_end (managers/audio.rs tests, which also pins the four fold sites), and kb028_a_parked_close_never_survives_into_the_next_server_epoch (the clear helper plus the start()-side clear after the running flip).
 
 **KB-029 · FIXED (v1.6.5 residuals, lane R1).** Was, sharper: reset-pairing failures console.error only AND the restart leg calls manager.start() directly so status.error was never set: the panel rendered a clean "Stopped" [R3]. Fixed: the `reset_companion_pairing` command routes failures through the exact surface `restart_companion_server` uses - `set_last_error` (the panel's server-error line) plus the CompanionServerFailed notice, cleared on success - and the panel's resetPairing handler checks `result.status === "error"` (the bindings resolve a Rust Err as a result, never a throw) and toasts with the shared settingNotSaved key (shortcut/mod.rs + CompanionDevices.tsx). Pinned by kb029_reset_pairing_failures_surface_on_the_restart_error_path (shortcut tests, comparing both commands' arms) and companionResetPairingPins.test.ts (executes the committed handler against all three resolutions).
 
@@ -144,7 +144,7 @@ Prior FIXED (unchanged, do not re-report): KB-001, KB-003, KB-004, KB-006, KB-00
 
 **KB-179 · FIXED (v1.6.2, 8b94fdc1, operator decision D3).** Was: a corrupted or unwritable history.db panics the app at every launch (`HistoryManager::new(...).expect(...)` in setup) [R3]. Fixed: new() quarantines the unreadable file as history.db.corrupt (timestamped suffix when taken, stale rollback journal dropped), starts a fresh database at the same path, and records the recovery; the frontend posts one persistent notice naming the quarantined file (settings.history.dbRecoveredNotice across all locales). Pinned by corrupt_db_is_quarantined_and_a_fresh_one_starts, second_quarantine_takes_the_timestamped_suffix, quarantine_drops_the_stale_rollback_journal, init_failure_quarantines_and_retries_instead_of_failing.
 
-**KB-183 · FIXED · Experimental off is now a companion kill switch (cycle 3 wave 4 fcb3e742; hardened in the v1.5.4 cycle 69a7820c + da66553a).** Was [R3]: the LAN TLS server kept running with its only control unmounted (AdvancedSettings gates rendering only; companion::init armed purely on companion_devices_enabled), re-armed every boot, findable by neither search nor tray. Fixed: `effective_enabled` requires BOTH toggles with a 4-combination test (companion/mod.rs:1471 and the test at :2868, fleet pass 2 re-read); `init` arms on the conjunction (mod.rs:1382); the toggle command applies the conjunction, never the raw flag - including for direct IPC callers the UI unmount cannot gate (shortcut/mod.rs:983-1018, `companion_toggle_runtime_value`, this cycle); the Experimental switch itself stops the server (shortcut/mod.rs:1717). The persist re-reads settings AFTER apply so the pairing token `start()` regenerates mid-enable survives the full-store write (da66553a). Round 4's list already verified the wave 4 half; the entry above was the stale part.
+**KB-183 · FIXED · Experimental off is now a companion kill switch (cycle 3 wave 4 fcb3e742; hardened in the v1.5.4 cycle 69a7820c + da66553a).** Was [R3]: the LAN TLS server kept running with its only control unmounted (AdvancedSettings gates rendering only; companion::init armed purely on companion_devices_enabled), re-armed every boot, findable by neither search nor tray. Fixed: `effective_enabled` requires BOTH toggles with a 4-combination test (companion/mod.rs:1510 and the test at :2868, fleet pass 2 re-read); `init` arms on the conjunction (mod.rs:1382); the toggle command applies the conjunction, never the raw flag - including for direct IPC callers the UI unmount cannot gate (shortcut/mod.rs:983-1018, `companion_toggle_runtime_value`, this cycle); the Experimental switch itself stops the server (shortcut/mod.rs:1717). The persist re-reads settings AFTER apply so the pairing token `start()` regenerates mid-enable survives the full-store write (da66553a). Round 4's list already verified the wave 4 half; the entry above was the stale part.
 
 **KB-185 · FIXED · tray "Unload After → Custom…" switches mode before focusing.** Was [R3]: a silent no-op whenever the setting was a preset - the custom input rendered only when the stored value was already Custom (`customActive = isCustom(storedValue)` ✓R4 at ModelUnloadTimeout.tsx:41), so the promised focus landed on a null ref and nothing switched modes. Fixed in 14369da8: the tray-focus effect first switches the stored setting to custom (backend command + optimistic store update, seeding 90 s like the dropdown does) when a preset is stored, so the field has rendered by the time the await resolves and the ref is attached.
 
@@ -478,7 +478,7 @@ commits); each entry names the path or commit it was verified against.
    failed reopen, KB-104 comment).
 3. **KB-183 OPEN -> FIXED** (fcb3e742 + this cycle 69a7820c/da66553a).
    Round 4's list names KB-145/183 as verified; the entry above was never
-   flipped. Verified: companion/mod.rs:1471 (effective_enabled
+   flipped. Verified: companion/mod.rs:1510 (effective_enabled
    conjunction, fleet pass 2 re-read) + :1382 (init) + :2868 (4-combination test);
    shortcut/mod.rs:983-1018 (IPC gate) and :1689 (Experimental kill switch).
 4. **KB-206 -> FIXED** (b63cd215, cycle 3 wave 5; round 5 verified). The
@@ -735,7 +735,7 @@ rather than a one-line fix, so v1.6.0 ships with them disclosed.
   same-name registration. Fixed: connections register by (server-assigned
   lane, monotonic generation) and release only on a matching pair, pinned by
   registrations_release_by_lane_and_generation_never_by_name
-  (companion/mod.rs:1872 after the fleet pass 2 re-read); the device list derives from live registrations
+  (companion/mod.rs:1911 after the fleet pass 2 re-read); the device list derives from live registrations
   (round 8 meaning; see the round 9 correction log for the id collision
   with round 7's KB-255).
 - **KB-256 · FIXED (v1.6.2, 8b94fdc1) · a v1.5.x built-in rename strands the
@@ -874,7 +874,7 @@ transcription_coordinator.rs:1896 with input_routing_is_exhaustively_classified
 (:4232), two_lanes_each_hold_a_live_session_with_independent_stops (:4247),
 a_companion_press_while_the_keyboard_records_never_reaches_the_lane_machine
 (:4419), registrations_release_by_lane_and_generation_never_by_name
-(companion/mod.rs:1872 after the fleet pass 2 re-read), session_identity_freezes_per_lane_and_cannot_be_renamed,
+(companion/mod.rs:1911 after the fleet pass 2 re-read), session_identity_freezes_per_lane_and_cannot_be_renamed,
 session_prefs_freeze_per_lane_and_survive_the_stop_pipeline,
 transcript_delivery_and_state_frames_flow_through_app_state_per_lane,
 stream_owner_tokens_round_trip_and_never_collide; the new capture_device
@@ -1178,7 +1178,7 @@ extended to scope the delete body (also mutation-checked).
   superseded this shape: the retain sweep removed exactly the
   false-edged-but-unconsumed records whose cancel pipelines were still in
   flight, so records are now removed at their pipeline's consumption
-  point, note_stopping_session at companion/mod.rs:1348, and stop()
+  point, note_stopping_session at companion/mod.rs:1387, and stop()
   performs no map surgery at all; pinned by
   server_stop_leaves_records_for_their_pipelines_in_both_stop_orders and
   stop_leaves_the_session_map_to_its_pipelines.)
@@ -1285,7 +1285,7 @@ extended to scope the delete body (also mutation-checked).
 
 - **KB-028:** closed in the v1.6.5 residuals cycle (lane R1): stop()'s
   lane-recorder close now parks on the audio manager when a recording is
-  live and runs at the last session end (companion/mod.rs:837-839 on the
+  live and runs at the last session end (companion/mod.rs:872-874 on the
   residuals tree; the pre-v1.6.5 anchor read mod.rs:750-755
   after the v1.6.4 rewrite and the fleet pass 2 re-read, and the anchor
   at round 9 time was mod.rs:604-609). The shape had survived the W1-L2
@@ -1299,7 +1299,7 @@ extended to scope the delete body (also mutation-checked).
   at 43f4c092).
 - **KB-085 residual:** the rapid off/on port race (stop returns without
   awaiting the accept loop, whose only signal is the shutdown send at
-  companion/mod.rs:825 in this tree; the anchor was mod.rs:600 before the
+  companion/mod.rs:860 in this tree; the anchor was mod.rs:600 before the
   v1.6.4 companion rewrite, :779 before the fleet pass 1 companion
   edits, and :763 before the fleet pass 2 edits; bind fails EADDRINUSE
   with no retry). The
@@ -1307,7 +1307,7 @@ extended to scope the delete body (also mutation-checked).
   re-verified against the rewritten file, anchors refreshed by the fleet
   pass 1 companion re-read and refreshed again by pass 2: start() spawns
   the accept loop
-  fire-and-forget at companion/mod.rs:737 and waits only on the bind
+  fire-and-forget at companion/mod.rs:772 and waits only on the bind
   outcome, stop() sends and returns at :746, restart() bridges the two
   with a fixed 150 ms sleep at :780, and the accept loop releases the
   listener only when its select breaks on the shutdown watch at
@@ -1345,7 +1345,7 @@ extended to scope the delete body (also mutation-checked).
   keys before :141's requiresExperimental block).
 - **KB-258:** CLOSED in the v1.6.5 residuals cycle (lane R2) via the
   label branch: per-lane prefs still freeze at session start
-  (freeze_session, companion/mod.rs:528 after the fleet pass 2 re-read,
+  (freeze_session, companion/mod.rs:549 after the fleet pass 2 re-read,
   pinned by session_prefs_freeze_per_lane_and_survive_the_stop_pipeline),
   but the phone surface now says so - the toggle row carries the
   companion.postProcessHint next-dictation hint across all 26 locales
@@ -1451,12 +1451,12 @@ none touched a KB item, so no statuses moved.
   zero-audio detail names the stopping session's own device, with the
   KB-254 note at the emit seam (actions.rs:2305-2321); per-lane identity
   is pinned by session_identity_freezes_per_lane_and_cannot_be_renamed
-  (companion/mod.rs:1617). Round 8's fixed-by-construction marker
+  (companion/mod.rs:1656). Round 8's fixed-by-construction marker
   stands.
 - **KB-255 · FIXED (round 8 meaning), verified against this tree.** The
   lane-plus-generation release rule is pinned by
   registrations_release_by_lane_and_generation_never_by_name
-  (companion/mod.rs:1872 after the fleet pass 2 re-read). Round 8's
+  (companion/mod.rs:1911 after the fleet pass 2 re-read). Round 8's
   marker stands.
 - **KB-241 · FIXED, verified.** No is_model_loading reference remains in
   any shipped source (grep over src/, src-tauri/src/, and the generated
@@ -1483,7 +1483,7 @@ none touched a KB item, so no statuses moved.
   client/index.html:554-557, still carries no next-session hint).
 - Round 9's KB-028 anchor refreshed to the current tree
   (the fleet pass 2 companion edits left it at mod.rs:750-755;
-  the v1.6.5 residuals fix moved the close block to companion/mod.rs:837-839).
+  the v1.6.5 residuals fix moved the close block to companion/mod.rs:872-874).
 
 ## Round 10 closures recorded (this cycle's lanes; round 10 meanings)
 
@@ -1498,9 +1498,9 @@ pass), cdb14c51 (the validator wave), 5223d8a2, e7f9abc5, and 560440a2
   set survived a Mac origin change (the field, seed, and persist helper
   this entry originally cited are DELETED with the KB-291
   write-only machinery in v1.6.6; the deletion is pinned at
-  companion/mod.rs:2007-2050) and identity resolution is atomic with
+  companion/mod.rs:2059-2102) and identity resolution is atomic with
   registration under one critical section (companion/server.rs:528,
-  barrier race pin at companion/mod.rs:2222).
+  barrier race pin at companion/mod.rs:2261).
 - **KB-262 · FIXED (5223d8a2; the mechanical fix landed in v1.6.3 under
   the same id).** The zeroAudio recovery advice is activation-aware,
   all 26 locales ship the variants, locked by the KB-262 block in
@@ -1529,7 +1529,7 @@ pass), cdb14c51 (the validator wave), 5223d8a2, e7f9abc5, and 560440a2
   lone CR before typing (clipboard.rs:682, pin :1268).
 - **KB-270 · FIXED (645e3eff; consumption point moved by fleet pass
   2).** The lane record is removed by its stop pipeline's handoff
-  (note_stopping_session, companion/mod.rs:1348 - the pass 2 fix for the
+  (note_stopping_session, companion/mod.rs:1387 - the pass 2 fix for the
   cancel-vs-Stop interleave that used to strip the record before the
   pipeline could read it; pin :2077) and the disconnect retires the
   lane's coordinator machine and bookkeeping
@@ -1568,16 +1568,16 @@ untouched this cycle).
 KB-028 (closed in the v1.6.5 residuals cycle, lane R1 - the close block
 the fleet had pinned at mod.rs:750-755 after fleet pass 2 now
 parks and re-runs; the residuals-tree anchor is
-companion/mod.rs:837-839),
+companion/mod.rs:872-874),
 KB-029
 (closed in the v1.6.5 residuals cycle, lane R1 - the reset legs
 the fleet read at mod.rs:905-918 after fleet pass 2 live at
-companion/mod.rs:1007-1026 on the residuals tree; reset_pairing itself is
+companion/mod.rs:1046-1065 on the residuals tree; reset_pairing itself is
 unchanged, the fix landed in the command and the panel), KB-085 residual (re-verified against
 the REWRITTEN companion file, not waved off: this cycle's diff touched
 companion/mod.rs and server.rs heavily, so the round 9 anchor was
 re-read - the residual holds, with the shutdown send now at
-companion/mod.rs:825 (fleet pass 2 re-read), the fire-and-forget accept
+companion/mod.rs:860 (fleet pass 2 re-read), the fire-and-forget accept
 spawn at :673, the
 fixed 150 ms restart sleep at :780, and the accept loop's shutdown
 break at server.rs:83; the round 9 entry above carries the refreshed
@@ -1629,14 +1629,14 @@ reintroducing its defect and watching it trip).
   [persist writes][connected writes] let the last whole-settings writer
   erase the other's field - and both fired together exactly when a first
   pairing minted an identity and changed the last device. Both cycles
-  routed through CONNECT_EDGE_SETTINGS_RMW (companion/mod.rs:1118), whose
-  guard spans the read through the write (companion/mod.rs:1141), making
+  routed through CONNECT_EDGE_SETTINGS_RMW (companion/mod.rs:1157), whose
+  guard spans the read through the write (companion/mod.rs:1180), making
   the persist doc's no-clobber claim true. (v1.6.6, KB-291: the
   persist_known_identities worker is deleted with the write-only
   machinery it served; the lock stays as the serialized RMW the KB-289
   riders share with the remaining connect-edge worker.) Pinned by
   kb261_connect_edge_settings_rmws_serialize_through_one_lock
-  (companion/mod.rs:2282 after the v1.6.6 re-read; the real store cannot mount under a mock app,
+  (companion/mod.rs:2321 after the v1.6.6 re-read; the real store cannot mount under a mock app,
   so the lock discipline is pinned on the source, the established
   convention). Mutation-checked by reverting note_device_connected to a
   direct get/write pair and watching the pin fail.
@@ -1656,14 +1656,14 @@ reintroducing its defect and watching it trip).
   ambiguous forever) and let bare no-id hellos adopt in both directions,
   violating the pinned protocol invariant that a client with no id keeps
   the bare name. Identities are now exact
-  (companion/mod.rs:487, register_connection_with_identity); the known
+  (companion/mod.rs:506, register_connection_with_identity); the known
   set that served as the durable pairing record is DELETED with the
   KB-291 write-only machinery in v1.6.6 (exactness never depended on it -
   the identity is minted, never matched). Disclosed cost: a Mac origin change resets that phone's Recent
   list, the pre-v1.6.4 behavior - the round 10 KB-261 UX half this cycle
   tried to fix stays open as a design question (a consent prompt on the
   phone is the shape that could bring adoption back safely). Pinned by
-  kb261_identities_are_exact_and_never_adopt (companion/mod.rs:1939,
+  kb261_identities_are_exact_and_never_adopt (companion/mod.rs:1978,
   which also carries the adoption-matcher source pin after the v1.6.6
   deletion absorbed its original host test; mutation-checked by
   re-adding the function and watching the pin
@@ -1741,7 +1741,7 @@ watched its pin trip; every restore re-verified green).
   hello, possibly a different phone), attributing the dictation's
   history row and Recent routing to the wrong identity. The record now
   survives the false edge as live=false and is removed at the
-  consumption point (note_stopping_session, companion/mod.rs:1348);
+  consumption point (note_stopping_session, companion/mod.rs:1387);
   stop()'s retain sweep is gone entirely (it removed exactly the
   pending-consumption records), so every record still present at server
   stop belongs to a pipeline that will consume it. The false edge with
@@ -1749,10 +1749,10 @@ watched its pin trip; every restore re-verified green).
   State frame and clears the overlay instead of returning early.
   Pinned by
   server_stop_leaves_records_for_their_pipelines_in_both_stop_orders
-  (companion/mod.rs:1740),
-  stop_leaves_the_session_map_to_its_pipelines (companion/mod.rs:1816), and the
+  (companion/mod.rs:1779),
+  stop_leaves_the_session_map_to_its_pipelines (companion/mod.rs:1855), and the
   reworked kb270_lane_session_records_are_consumed_at_every_session_end
-  (companion/mod.rs:2445); mutation-checked by restoring the edge removal.
+  (companion/mod.rs:2484); mutation-checked by restoring the edge removal.
 - **Accept-wedge hardening, closed seam · FIXED.** The Welcome frame's
   settings read ran get_settings synchronously ON the async connection
   task - a read-modify-write over the plugin store's mutex (migration
@@ -1816,16 +1816,16 @@ report (dwfrun-adf93b4e).
 - KB-286 CLOSED in the v1.6.5 residuals cycle (lane R2): every Arabic dual form that carried {{count}} beside the dual noun now uses the bare dual - listSummary, run, runHint, results, charsChanged, added, removed, blockedWithCulprit, blockedNoCulprit (ar/translation.json:713, 1229, 1235, 1248, 1261, 1270, 1276, 1441, 1445), the lineCount_two pattern; showAll_two keeps {{count}} because its parenthesized count badge has no noun to number. pluralCoverage.test.ts facet 6 pins that every Arabic \_two count-family form stays bare (mutation-checked by restoring one "{{count}} dual-noun" form).
 - KB-287 CLOSED in the v1.6.5 residuals cycle (lane R4): a content pin now reads README.md itself, so a revert of the KB-277 fix (cdb14c51) fails CI instead of silently restoring the false sentence. The pin slices the companion recording section and asserts the singleton-engine phrasing on all three clauses - the first session keeps streaming live text, a concurrently-started session transcribes at stop, and the streaming engine is a singleton - plus a negative assert that the exact pre-fix wording ("both record and transcribe at stop instead of streaming live text") cannot return (docs/quality-goldmine.test.ts:451-501; the code truth it mirrors is the ownership decision on the coordinator's serialized thread, actions.rs:1898-1903). Mutation-checked by reverting the README sentence in the working tree: the pin failed on the first clause, and passed again after restore.
 - KB-288 CLOSED in the v1.6.5 residuals cycle (lane R4): the KB-267 and KB-283 contrast pins no longer hardcode the light background or the palette hexes. Both blocks now read them from one shared table, lib/utils/wcagContrast.ts (the module: contrastRatio at :35, themeHex at :45, TAILWIND_TEXT_HEX at :64), whose themeHex parses --light-color-background out of src/styles/theme.css at run time and fails loudly if the token is renamed or deleted, and whose Tailwind hex table is the single definition for the emerald and amber families (the repo's CSS never redefines those shades). The onboarding pin consumes it at AccessibilityOnboarding.test.ts:94-127 (emerald) and :179-253 (amber). Mutation-checked by repointing theme.css's --light-color-background at the dark hex #2c2b29: the emerald ratio assert failed with the moved measurement ("2.58:1 on #2c2b29"), proving the pin tracks the live token, and passed again after restore. accent.test.ts still carries its own THEME_BACKGROUND copy (out of this item's scope, disclosed; it measures the accent palette, not the text-on-background contrast families this item named).
-- KB-289 CLOSED in the v1.6.5 residuals cycle (lane R3): all three whole-settings writers now ride the serialized RMW cycle instead of bare get/write pairs outside any lock. start()'s pairing-token rebind runs through connect_edge_settings_rmw (companion/mod.rs:655-673), reset_pairing persists its fresh token through the same cycle (companion/mod.rs:1007-1026), and set_log_level's persist routes through crate::companion::connect_edge_settings_rmw (commands/mod.rs:86-94). The helper stays under its historical name and lock (companion/mod.rs:1141) - the smaller blast radius versus lifting the guard to a store-level lock, which would touch every get_settings/write_settings caller; its doc now records the widened role and the KB-261 pins still pass unchanged. Pinned by kb289_whole_settings_writers_ride_the_serialized_rmw_lock (companion tests: all three sites carry the helper call, no bare whole-settings write remains in the reset_pairing/set_log_level bodies, and the rebind closure keeps computing staleness and minting the token). Fleet confirmation pass, docs residual closed: the widened doc comments overclaimed the guarantee ('the lock is the app's serialized RMW for the whole settings store'; 'a concurrent whole-settings writer can no longer interleave a lost update') while only the riders serialize - the app's other whole-settings writers (the shortcut rebinding's change_binding among them) still do bare get/mutate/write outside any lock, so a rider can still lose an update against one of those; the docs now state the scoped guarantee (serialized RMW for every writer of the companion pairing/identity fields and log_level, explicitly NOT store-wide), pinned by kb289_the_rmw_doc_states_the_scoped_guarantee (the overclaim sentences must not survive in the helper doc or start()'s rebind comment).
-- KB-290 CLOSED in the v1.6.6 companion-machinery cycle (lane M2) as FIXED-REMOVED: the race is deleted with the machinery that had it. The re-seed (start() overwriting the in-memory set while a freshly minted identity's detached persist worker was mid-flight, so the worker's stale snapshot re-persisted without it) required three pieces that KB-291's deletion removed wholesale - the seed, the in-flight worker, and the set they both served. start() no longer seeds (companion/mod.rs:638-640) and the hello block no longer spawns the persist worker (companion/server.rs:516-527); the deletion is pinned by kb291_the_known_identity_machinery_is_gone (companion/mod.rs:2007-2050), whose needles fail on the return of the field, the seed, the snapshot read, the persist helper, or the registration payload.
-- KB-291 CLOSED in the v1.6.6 companion-machinery cycle (lane M2) as FIXED-REMOVED: the machinery is deleted, not wired. Verified write-only at find time - its only readers were its own start() seed and its own newness check, a circle whose only output was deciding whether to re-persist itself; the tray's paired count reads live registrations (devices()) and the phone's Recent list keys on the registration's exact identity, which is minted from the hello's own name and device id and never matched against the set. Deleted in one stroke: the manager field, the start() seed, the newness check inside register_connection_with_identity (now a pure mint-and-register at companion/mod.rs:487-522), the known_identities_snapshot read, the persist_known_identities helper, the registration's persist payload (ConnectionRegistration now carries only the exact identity and the KB-255 keys, companion/mod.rs:123-133), the server's persist worker spawn, and the AppSettings field companion_known_identities (a legacy store that still carries the key hydrates cleanly and drops it on the next write - the KB-295 pin). The stale rationale (a durable pairing record so an exact re-pair after restart owes no persistence) described work whose only observable output was the settings file itself. Pinned by kb291_the_known_identity_machinery_is_gone (companion/mod.rs:2007-2050, mutation-checked by reintroducing the persist helper signature and watching it trip) plus the server-side absence pin inside connection_blocking_seams_run_off_the_async_connection_task (companion/server.rs:1510); the coalescing lock the persist worker rode stays for its remaining riders (KB-289).
-- KB-292 CLOSED in the v1.6.6 companion-machinery cycle (lane M3): both connection edges' tray re-syncs ride a coalescing gate, so a reconnect storm collapses to the latest tray state instead of paying one full snapshot rebuild (settings read, model list, icon decode) per edge. The gate (TrayResyncGate, companion/mod.rs:178-188: running plus dirty) sits behind resync_tray_coalesced (companion/mod.rs:362-418 with its claim/settle/abandon helpers): the first edge in a quiet period claims the rebuild, every edge landing while a pass is live only marks the state dirty, and the claiming pass loops until quiet - each pass rebuilds LIVE state, never the worker's captured arguments, so the final pass always reflects the settled registration set; at most one rebuild is live at any instant and at most one runs per settled state, and the claim/release pair is one critical section each, so an edge either marks dirty before the live pass settles or claims after the release (no lost wakeup). note_device_connected keeps its per-edge companion_last_device RMW (serialized by the KB-289 lock; the persisted name must track every hello) and routes its rebuild through the gate (companion/mod.rs:314-330), the disconnect twin likewise (companion/mod.rs:350-351), and the spawn seams themselves are unchanged (companion/server.rs:543-642). A panicking pass is caught inside the helper with the gate reset, so a failed rebuild cannot wedge the companion tray block frozen (the spawn_worker panic-capture convention, applied inside the helper because a wedged gate would outlive the worker). Pinned by kb292_n_rapid_edges_schedule_at_most_one_tray_rebuild_per_settled_state (24 rapid edges while a rebuild is live schedule exactly one final pass, the settled gate releases, and the next edge claims fresh; companion/mod.rs:2062-2103), kb292_a_panicking_pass_releases_the_gate_for_the_next_edge, and the source pin kb292_edge_tray_resyncs_ride_the_coalescing_gate (both edge bodies route through the gate, no bare update_tray_menu remains in either, and the helper keeps its catch_unwind plus abandon; fleet, cycle 15 extended the pin positionally - the claim must precede the rebuild it guards, and the loop must break on the NEGATED settle probe, break-on-quiet polarity - because containment alone kept an inverted break and a rebuild-before-claim reorder green); mutation-checked by restoring the bare rebuild in the disconnect twin, by disabling the coalescing in claim, and (cycle 15) by inverting the loop's break, each tripping the pins before the reverts.
+- KB-289 CLOSED in the v1.6.5 residuals cycle (lane R3): all three whole-settings writers now ride the serialized RMW cycle instead of bare get/write pairs outside any lock. start()'s pairing-token rebind runs through connect_edge_settings_rmw (companion/mod.rs:690-708), reset_pairing persists its fresh token through the same cycle (companion/mod.rs:1046-1065), and set_log_level's persist routes through crate::companion::connect_edge_settings_rmw (commands/mod.rs:86-94). The helper stays under its historical name and lock (companion/mod.rs:1180) - the smaller blast radius versus lifting the guard to a store-level lock, which would touch every get_settings/write_settings caller; its doc now records the widened role and the KB-261 pins still pass unchanged. Pinned by kb289_whole_settings_writers_ride_the_serialized_rmw_lock (companion tests: all three sites carry the helper call, no bare whole-settings write remains in the reset_pairing/set_log_level bodies, and the rebind closure keeps computing staleness and minting the token). Fleet confirmation pass, docs residual closed: the widened doc comments overclaimed the guarantee ('the lock is the app's serialized RMW for the whole settings store'; 'a concurrent whole-settings writer can no longer interleave a lost update') while only the riders serialize - the app's other whole-settings writers (the shortcut rebinding's change_binding among them) still do bare get/mutate/write outside any lock, so a rider can still lose an update against one of those; the docs now state the scoped guarantee (serialized RMW for every writer of the companion pairing/identity fields and log_level, explicitly NOT store-wide), pinned by kb289_the_rmw_doc_states_the_scoped_guarantee (the overclaim sentences must not survive in the helper doc or start()'s rebind comment).
+- KB-290 CLOSED in the v1.6.6 companion-machinery cycle (lane M2) as FIXED-REMOVED: the race is deleted with the machinery that had it. The re-seed (start() overwriting the in-memory set while a freshly minted identity's detached persist worker was mid-flight, so the worker's stale snapshot re-persisted without it) required three pieces that KB-291's deletion removed wholesale - the seed, the in-flight worker, and the set they both served. start() no longer seeds (companion/mod.rs:673-675) and the hello block no longer spawns the persist worker (companion/server.rs:516-527); the deletion is pinned by kb291_the_known_identity_machinery_is_gone (companion/mod.rs:2059-2102), whose needles fail on the return of the field, the seed, the snapshot read, the persist helper, or the registration payload.
+- KB-291 CLOSED in the v1.6.6 companion-machinery cycle (lane M2) as FIXED-REMOVED: the machinery is deleted, not wired. Verified write-only at find time - its only readers were its own start() seed and its own newness check, a circle whose only output was deciding whether to re-persist itself; the tray's paired count reads live registrations (devices()) and the phone's Recent list keys on the registration's exact identity, which is minted from the hello's own name and device id and never matched against the set. Deleted in one stroke: the manager field, the start() seed, the newness check inside register_connection_with_identity (now a pure mint-and-register at companion/mod.rs:506-541), the known_identities_snapshot read, the persist_known_identities helper, the registration's persist payload (ConnectionRegistration now carries only the exact identity and the KB-255 keys, companion/mod.rs:123-133), the server's persist worker spawn, and the AppSettings field companion_known_identities (a legacy store that still carries the key hydrates cleanly and drops it on the next write - the KB-295 pin). The stale rationale (a durable pairing record so an exact re-pair after restart owes no persistence) described work whose only observable output was the settings file itself. Pinned by kb291_the_known_identity_machinery_is_gone (companion/mod.rs:2059-2102, mutation-checked by reintroducing the persist helper signature and watching it trip) plus the server-side absence pin inside connection_blocking_seams_run_off_the_async_connection_task (companion/server.rs:1510); the coalescing lock the persist worker rode stays for its remaining riders (KB-289).
+- KB-292 CLOSED in the v1.6.6 companion-machinery cycle (lane M3): both connection edges' tray re-syncs ride a coalescing gate, so a reconnect storm collapses to the latest tray state instead of paying one full snapshot rebuild (settings read, model list, icon decode) per edge. The gate (TrayResyncGate, companion/mod.rs:178-188: running plus dirty) sits behind resync_tray_coalesced (companion/mod.rs:362-418 with its claim/settle/abandon helpers): the first edge in a quiet period claims the rebuild, every edge landing while a pass is live only marks the state dirty, and the claiming pass loops until quiet - each pass rebuilds LIVE state, never the worker's captured arguments, so the final pass always reflects the settled registration set; at most one rebuild is live at any instant and at most one runs per settled state, and the claim/release pair is one critical section each, so an edge either marks dirty before the live pass settles or claims after the release (no lost wakeup). note_device_connected keeps its per-edge companion_last_device RMW (serialized by the KB-289 lock; the persisted name must track every hello) and routes its rebuild through the gate (companion/mod.rs:331-347), the disconnect twin likewise (companion/mod.rs:369-370), and the spawn seams themselves are unchanged (companion/server.rs:543-642). A panicking pass is caught inside the helper with the gate reset, so a failed rebuild cannot wedge the companion tray block frozen (the spawn_worker panic-capture convention, applied inside the helper because a wedged gate would outlive the worker). Pinned by kb292_n_rapid_edges_schedule_at_most_one_tray_rebuild_per_settled_state (24 rapid edges while a rebuild is live schedule exactly one final pass, the settled gate releases, and the next edge claims fresh; companion/mod.rs:2062-2103), kb292_a_panicking_pass_releases_the_gate_for_the_next_edge, and the source pin kb292_edge_tray_resyncs_ride_the_coalescing_gate (both edge bodies route through the gate, no bare update_tray_menu remains in either, and the helper keeps its catch_unwind plus abandon; fleet, cycle 15 extended the pin positionally - the claim must precede the rebuild it guards, and the loop must break on the NEGATED settle probe, break-on-quiet polarity - because containment alone kept an inverted break and a rebuild-before-claim reorder green); mutation-checked by restoring the bare rebuild in the disconnect twin, by disabling the coalescing in claim, and (cycle 15) by inverting the loop's break, each tripping the pins before the reverts.
 - KB-293 CLOSED in the v1.6.6 companion-machinery cycle (lane M1): retirement is by construction now, not by correlation. The pure rule lane_retirement_ready (transcription_coordinator.rs:1950-1968) composes KB-270's stage rule with a registry veto - the IN_FLIGHT_PIPELINES registry, not the machine's stage, is the authority on in-flight work - and the retire helper reads it with the live registry (transcription_coordinator.rs:1232-1237 through the single-lane read lane_pipeline_in_flight at actions.rs:121-138), so no future stop shape that resets a machine to Idle while its pipeline drains can have the retirement's audio sweep (drop_lane_cancel_generation) run under a live pipeline's captured generation. Every deferral the veto creates has its own drain: the pipeline's FinishGuard unregisters from the registry BEFORE reporting ProcessingFinished (actions.rs:71-74), and that drain re-runs the retirement with the registry empty. Pinned by kb293_a_lane_with_an_in_flight_pipeline_is_never_retired (an Idle machine on a dead connection with a pipeline in flight is never retirement-ready; the live-connection and mid-flight cases stay blocked; KB-270's rule survives intact inside the composition) and kb293_lane_pipeline_in_flight_reads_the_live_registry (the single-lane read's truth table against the live registry: own registration reads in flight, a neighboring lane's registration never reads as this lane's, the drain clears exactly its own entry, the keyboard's None key never matches); the KB-270 source pin was refreshed to the composed call in the same commit.
 - KB-294 CLOSED in the v1.6.5 residuals cycle (lane R1): the lane stop sizes its release-buffer window through lane_release_buffer_ms(lane_route_live(...), ...) - the disconnect edge unregisters the connection BEFORE queueing the forced finalize, so a route-gone lane pays NO tail (found at audio.rs:1397-1433 paying it); route-live keeps effective_release_buffer_ms exactly. Pinned by kb294_a_dead_lanes_route_pays_no_release_buffer_window (pure seam, all settings combos) and kb294_lane_stop_gates_the_tail_on_the_lanes_own_route (source pin: no direct effective_release_buffer_ms call may return to the lane stop).
 - KB-295 CLOSED in the v1.6.6 companion-machinery cycle (lane M2): the house serde round-trip/backfill pattern now exists, pinned on the REMOVED key's rollback shape. The field this item named was deleted with the KB-291 machinery, so the pattern pins the deletion's contract instead: a legacy store that still carries companion_known_identities hydrates cleanly (the unknown key is tolerated and ignored - no migration step is owed) and the next store write DROPS it (a hydrated AppSettings serializes without the key, so the stale entry cannot survive into a fresh store). Pinned by kb295_legacy_known_identities_store_hydrates_and_the_key_drops_on_the_next_write (settings.rs test module; mutation-checked by re-adding the field and watching the pin trip on the surviving key).
-- KB-296 CLOSED in the v1.6.6 companion-machinery cycle (lane M1): the hot-path poll is gone. A loop-owned deferred-retire set (transcription_coordinator.rs:1181-1206, a plain HashSet, no lock) is filled only by the LaneGone arm when it records the deferral (transcription_coordinator.rs:1449-1462), and the retire helper gates on set membership BEFORE any companion connections poll (the set gate at transcription_coordinator.rs:1213-1219 precedes the try_state/connection_device read at transcription_coordinator.rs:1226-1231), so the common case - a LIVE lane's ProcessingFinished drain probing retirement after every dictation - is a set lookup that never locks the connections mutex; only a lane whose socket actually died (at most the LaneGone attempt plus one drain) ever polls. Safe because every production path that releases a registration queues a LaneGone: the connection tail's unregister at companion/server.rs:291 queues it at companion/server.rs:297, and CompanionManager::stop's wholesale registry clear queues one per cleared lane after the clear (companion/mod.rs:846-867; fleet, cycle 15 residual: the tail's LaneGone sits behind an awaited socket close and an outbound Goodbye send with no write timeout, and the task runs under no catch_unwind, so a black-holed socket or a panicked task never reaches it - before the stop-side queue such a lane sat outside the deferred set forever and the set gate blocked every later retire probe, the KB-270 leak class, and restart() re-ran the clear on every companion toggle). Pinned by kb296_a_live_lanes_drain_never_polls_the_companion_connections_mutex (source pin: the set is a lock-free HashSet, the gate precedes the connections poll inside the helper, exactly one fill site in production - the LaneGone arm - and it fills before its own retire attempt, and the drain's probe passes the set) and kb296_server_stop_queues_lane_gone_for_every_lane_it_clears (companion/mod.rs:3253-3295, source pin: stop() collects the cleared lanes from the registry, clears, then queues notify_lane_gone per lane - collect before the clear, queue after it; mutation-checked by dropping the queue).
-- KB-297 CLOSED in the v1.6.6 companion-machinery cycle (lane M2) as FIXED-REMOVED: the unclamped read boundary is deleted with the seed. The seed (start() loading the persisted list into the in-memory set without clamping to KNOWN_IDENTITIES_LIMIT, so a hand-edited or shrunken-limit store rehydrated over-sized) is gone with the KB-291 machinery - start() no longer seeds at all (companion/mod.rs:638-640), and no read boundary exists any more; the deletion is pinned by kb291_the_known_identity_machinery_is_gone (companion/mod.rs:2007-2050).
-- KB-298 CLOSED in the v1.6.6 companion-machinery cycle (lane M2) as FIXED-REMOVED: the persist payload Vec is deleted, so the doc/payload divergence cannot exist. The payload (persist_identities: Option<Vec<String>>, documented and pinned as the exact set to persist while every consumer actually re-read the fresh in-memory set, making the payload dead weight on every registration) is gone with the KB-291 machinery - ConnectionRegistration now carries only the exact device identity and the KB-255 lane/generation keys (companion/mod.rs:123-133), and the registration that minted it no longer computes a newness check at all (companion/mod.rs:487-522); the deletion is pinned by kb291_the_known_identity_machinery_is_gone (companion/mod.rs:2007-2050), whose payload needle fails on the field declaration's return.
+- KB-296 CLOSED in the v1.6.6 companion-machinery cycle (lane M1): the hot-path poll is gone. A loop-owned deferred-retire set (transcription_coordinator.rs:1181-1206, a plain HashSet, no lock) is filled only by the LaneGone arm when it records the deferral (transcription_coordinator.rs:1449-1462), and the retire helper gates on set membership BEFORE any companion connections poll (the set gate at transcription_coordinator.rs:1213-1219 precedes the try_state/connection_device read at transcription_coordinator.rs:1226-1231), so the common case - a LIVE lane's ProcessingFinished drain probing retirement after every dictation - is a set lookup that never locks the connections mutex; only a lane whose socket actually died (at most the LaneGone attempt plus one drain) ever polls. Safe because every production path that releases a registration queues a LaneGone: the connection tail's unregister at companion/server.rs:291 queues it at companion/server.rs:297, and CompanionManager::stop's wholesale registry clear queues one per cleared lane after the clear (companion/mod.rs:901-922; fleet, cycle 15 residual: the tail's LaneGone sits behind an awaited socket close and an outbound Goodbye send with no write timeout, and the task runs under no catch_unwind, so a black-holed socket or a panicked task never reaches it - before the stop-side queue such a lane sat outside the deferred set forever and the set gate blocked every later retire probe, the KB-270 leak class, and restart() re-ran the clear on every companion toggle). Pinned by kb296_a_live_lanes_drain_never_polls_the_companion_connections_mutex (source pin: the set is a lock-free HashSet, the gate precedes the connections poll inside the helper, exactly one fill site in production - the LaneGone arm - and it fills before its own retire attempt, and the drain's probe passes the set) and kb296_server_stop_queues_lane_gone_for_every_lane_it_clears (companion/mod.rs:3373-3397, source pin: stop() collects the cleared lanes from the registry, clears, then queues notify_lane_gone per lane - collect before the clear, queue after it; mutation-checked by dropping the queue).
+- KB-297 CLOSED in the v1.6.6 companion-machinery cycle (lane M2) as FIXED-REMOVED: the unclamped read boundary is deleted with the seed. The seed (start() loading the persisted list into the in-memory set without clamping to KNOWN_IDENTITIES_LIMIT, so a hand-edited or shrunken-limit store rehydrated over-sized) is gone with the KB-291 machinery - start() no longer seeds at all (companion/mod.rs:673-675), and no read boundary exists any more; the deletion is pinned by kb291_the_known_identity_machinery_is_gone (companion/mod.rs:2059-2102).
+- KB-298 CLOSED in the v1.6.6 companion-machinery cycle (lane M2) as FIXED-REMOVED: the persist payload Vec is deleted, so the doc/payload divergence cannot exist. The payload (persist_identities: Option<Vec<String>>, documented and pinned as the exact set to persist while every consumer actually re-read the fresh in-memory set, making the payload dead weight on every registration) is gone with the KB-291 machinery - ConnectionRegistration now carries only the exact device identity and the KB-255 lane/generation keys (companion/mod.rs:123-133), and the registration that minted it no longer computes a newness check at all (companion/mod.rs:506-541); the deletion is pinned by kb291_the_known_identity_machinery_is_gone (companion/mod.rs:2059-2102), whose payload needle fails on the field declaration's return.
 
 ## Round 13: the v1.6.5 residuals cycle record (2026-10-13, branch cycle14/v1.6.5-residuals, base origin/main 28f3b040)
 
@@ -1837,7 +1837,7 @@ companion anchors were re-verified against the anchor table in
 docs/quality-goldmine.test.ts, which passes at this tree).
 
 - Lane R1 (bad4490b): KB-028 closed (the teardown's skipped lane-recorder
-  close parks and runs at every session end, companion/mod.rs:837-839),
+  close parks and runs at every session end, companion/mod.rs:872-874),
   KB-029 closed (reset-pairing failures surface on the restart error
   path), KB-279 closed (every audio-side remote_lanes and
   lane_cancel_generations acquisition is poison-tolerant, both maps
@@ -1858,8 +1858,8 @@ docs/quality-goldmine.test.ts, which passes at this tree).
   default capability grants opener:allow-open-url plus
   opener:allow-default-urls, no arbitrary-path command), and KB-289
   closed (all three whole-settings writers ride the serialized RMW
-  cycle, companion/mod.rs:655-673, companion/mod.rs:1007-1026, and the
-  helper at companion/mod.rs:1141).
+  cycle, companion/mod.rs:690-708, companion/mod.rs:1046-1065, and the
+  helper at companion/mod.rs:1180).
 - Lane R4 (this lane's commit): KB-284 closed (no production comment in
   managers/audio.rs names the deleted ack_remote_pause; the three sites
   now document the push-side post-write ack plus the source-close
@@ -2080,3 +2080,51 @@ mutex-wait stacks) - no new session could start from any source.
 - Ledger hygiene this round: two anchor rows added for the new
   citations (settings.rs and actions.rs spans above), and the goldmine
   live-check passes at this tree.
+
+### Round 16, part 2: the shipped wedge's persistent face, severed structurally (2026-10-13, same branch)
+
+The v1.6.7 part-1 fixes (store self-heal + pipeline containment) shipped
+and released, but the rig re-reproduced the wedge against the installed
+v1.6.7 within one session: the panic the instrumented build captured was
+real (and its fixes stand as defense in depth) yet it was one face of the
+rot, not the shipped path's binding constraint. Three five-second samples
+of the wedged process - the third against a running debug-symbol build,
+so every frame carries its native name - settled the persistent shape:
+the stop pipeline's retire tail (retire_session_surfaces at
+actions.rs:209 into set_tray_state's compute_desired at tray.rs:539),
+BOTH tray-refresh threads the history writes spawn
+(refresh_tray_history's update_tray_menu at tray.rs:342 into
+compute_desired), and the post-save recents broadcast
+(broadcast_recent_history's send_recent_history_to_lane into
+send_frame_to_lane, companion/mod.rs:620-642 in this tree, at line 600 in the pre-fix tree) all sat
+queued on the companion connections mutex with no live owner thread
+anywhere in the process; the coordinator's command loop, the main
+thread, and the connection task were all healthy. Whichever interleaving
+strands that mutex, its two structural consumers were the wedge's
+gathering points, so both are severed:
+
+- Lane 1: the tray's paired-device count is now a lock-free atomic
+  (companion/mod.rs:221, live_connection_count, maintained inside every
+  registry critical section that changes it - the register push at
+  companion/mod.rs:525-529, the unregister retain at
+  companion/mod.rs:356-360, and the stop clear's reset at
+  companion/mod.rs:894-896 - so it can never drift from the registry's
+  truth), and paired_device_count reads the atomic
+  (companion/mod.rs:1029-1034). Every menu rebuild - including the
+  pipeline's retire - now exits before the registry lock exists.
+- Lane 2: send_frame_to_lane guards ONLY the lookup
+  (companion/mod.rs:620-642: the lock's scope clones the lane's sender
+  and ends, and the send rides the clone after it), so a strand inside
+  the channel send can never pin the registry for other readers. The
+  no-subscriber no-op contract is unchanged (a send on a dead lane's
+  cloned sender returns the same false).
+
+Pinned by kb299*the_tray_count_and_lane_sends_never_queue_on_the*
+connections_mutex (companion/mod.rs:3322-3372, source pin: the count
+reads the atomic and never the registry snapshot, all three mutation
+sites refresh the mirror inside their critical sections, and the lock
+scope in send_frame_to_lane contains only the lookup-plus-clone with the
+send outside it; mutation-checked by reverting the count to the registry
+read). Every companion/mod.rs citation the insertions shifted was
+refreshed together with the anchor table, and the goldmine live-check
+passes at this tree.

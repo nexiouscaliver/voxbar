@@ -22,6 +22,7 @@ use serde::Serialize;
 use specta::Type;
 use std::collections::HashMap;
 use std::net::Ipv4Addr;
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Listener, Manager};
@@ -203,6 +204,21 @@ pub struct CompanionManager {
     /// (a handful at most, so linear scans are the honest data structure).
     /// Replaces the name-keyed device list AND the v1.6.0 lane-sender map.
     connections: Mutex<Vec<ConnectionEntry>>,
+    /// KB-299 (v1.6.7): the lock-free mirror of `connections.len()` for
+    /// [`Self::paired_device_count`]. The tray's companion status block
+    /// reads the count on EVERY menu rebuild, and rebuilds fire from the
+    /// stop pipeline's retire tail, the history writes' refresh threads,
+    /// and every connect/disconnect edge: with the count behind the
+    /// connections mutex, any strand on that mutex (the shipped
+    /// post-phone-dictation wedge: the pipeline, two tray-refresh
+    /// threads, and the recents broadcast all queued on it with no live
+    /// owner) froze every one of those callers at once, which is what
+    /// stranded the "transcribing" overlay and refused all new
+    /// recordings. The atomic is maintained by register (increment),
+    /// unregister (decrement), and stop's wholesale clear (reset to 0)
+    /// under the same critical sections that mutate the Vec, so it can
+    /// never drift from the registry's truth.
+    live_connection_count: std::sync::atomic::AtomicUsize,
     /// The lane-id allocator; strictly monotonic, so a lane id is bound to
     /// exactly one connection for the process's lifetime.
     next_lane_id: std::sync::atomic::AtomicU64,
@@ -251,6 +267,7 @@ impl CompanionManager {
             broadcast,
             shutdown_tx,
             connections: Mutex::new(Vec::new()),
+            live_connection_count: std::sync::atomic::AtomicUsize::new(0),
             next_lane_id: std::sync::atomic::AtomicU64::new(1),
             next_generation: std::sync::atomic::AtomicU64::new(1),
             lane_sessions: Mutex::new(HashMap::new()),
@@ -289,15 +306,19 @@ impl CompanionManager {
             .next_generation
             .fetch_add(1, std::sync::atomic::Ordering::AcqRel);
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
-        self.connections
-            .lock()
-            .unwrap_or_else(|e| e.into_inner())
-            .push(ConnectionEntry {
+        {
+            let mut connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
+            connections.push(ConnectionEntry {
                 lane,
                 generation,
                 device: device.to_string(),
                 tx,
             });
+            self.live_connection_count.store(
+                Self::deduplicated_device_count(&connections),
+                Ordering::SeqCst,
+            );
+        }
         (lane, generation, rx)
     }
 
@@ -340,6 +361,10 @@ impl CompanionManager {
     pub fn unregister_connection(&self, lane: u64, generation: u64) {
         let mut connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
         connections.retain(|entry| !(entry.lane == lane && entry.generation == generation));
+        self.live_connection_count.store(
+            Self::deduplicated_device_count(&connections),
+            Ordering::SeqCst,
+        );
     }
 
     /// The disconnect-edge tray re-sync (the forget_device rule, now
@@ -416,6 +441,21 @@ impl CompanionManager {
             self.tray_resync_abandon();
             log::error!("companion: tray re-sync pass panicked: {panic:?}");
         }
+    }
+
+    /// KB-299: the registry's deduplicated device-name count (the tray
+    /// count's truth - same-name reconnects are one paired phone).
+    /// Computed under the registry lock by whichever critical section just
+    /// mutated it, then published to the lock-free mirror.
+    fn deduplicated_device_count(connections: &[ConnectionEntry]) -> usize {
+        let mut names: Vec<&str> = Vec::new();
+        for entry in connections {
+            let device = entry.device.as_str();
+            if !names.iter().any(|n| *n == device) {
+                names.push(device);
+            }
+        }
+        names.len()
     }
 
     /// The deduplicated device names of the live connections, in
@@ -509,6 +549,10 @@ impl CompanionManager {
             device: identity.clone(),
             tx,
         });
+        self.live_connection_count.store(
+            Self::deduplicated_device_count(&connections),
+            Ordering::SeqCst,
+        );
         drop(connections);
 
         (
@@ -597,9 +641,23 @@ impl CompanionManager {
     /// when that lane is gone (the phone dropped): the caller treats it as
     /// the documented no-subscriber no-op.
     pub fn send_frame_to_lane(&self, lane: u64, frame: &protocol::ServerFrame) -> bool {
-        let connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
-        match connections.iter().find(|entry| entry.lane == lane) {
-            Some(entry) => entry.tx.send(frame.to_json()).is_ok(),
+        // KB-299 (v1.6.7): the registry lock guards ONLY the lookup now.
+        // The send rides a cloned sender AFTER the guard is gone: the old
+        // send-under-lock kept the connections mutex across the channel's
+        // internal locking, so any strand inside that send pinned the
+        // registry for every later reader (the tray's count, the
+        // pipeline's retire, the recents broadcast - the shipped wedge's
+        // exact shape). A send on a dropped lane's cloned sender is the
+        // documented no-subscriber no-op (false), unchanged.
+        let sender = {
+            let connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
+            connections
+                .iter()
+                .find(|entry| entry.lane == lane)
+                .map(|entry| entry.tx.clone())
+        };
+        match sender {
+            Some(tx) => tx.send(frame.to_json()).is_ok(),
             None => false,
         }
     }
@@ -858,6 +916,7 @@ impl CompanionManager {
             let mut connections = self.connections.lock().unwrap_or_else(|e| e.into_inner());
             let lanes: Vec<u64> = connections.iter().map(|entry| entry.lane).collect();
             connections.clear();
+            self.live_connection_count.store(0, Ordering::SeqCst);
             lanes
         };
         if let Some(coordinator) = app.try_state::<crate::TranscriptionCoordinator>() {
@@ -991,7 +1050,10 @@ impl CompanionManager {
     /// enumerates network interfaces on every call - far too heavy for a
     /// value the tray re-reads on every menu sync.
     pub fn paired_device_count(&self) -> usize {
-        self.devices().len()
+        // KB-299: lock-free by construction (see the field's doc). The
+        // tray reads this on every rebuild; the registry itself stays
+        // for the settings panel's full device list.
+        self.live_connection_count.load(Ordering::SeqCst)
     }
 
     pub fn set_last_error(&self, error: Option<String>) {
@@ -3266,6 +3328,78 @@ mod tests {
     /// running TLS server is not practical, the stop_leaves_the_session_map
     /// convention above); the lane ids come from the registry being
     /// cleared, so a partial queue cannot pass either.
+    /// KB-299 round 2 (v1.6.7): the shipped post-phone-dictation wedge's
+    /// persistent face, established across three fully-symbolized samples
+    /// of the wedged shipping app: the stop pipeline's retire tail
+    /// (set_tray_state's compute_desired), the two tray-refresh threads
+    /// the history writes spawn, and the post-save recents broadcast all
+    /// queued on the connections mutex with no live owner anywhere in the
+    /// process - the overlay stayed mid-teardown and no recording would
+    /// start until force quit. Two structural severances, pinned here:
+    /// the tray's paired-device count is a lock-free atomic (every menu
+    /// rebuild reads it, so the registry lock can never again sit under
+    /// the retire tail), and send_frame_to_lane guards ONLY the lookup
+    /// (the send rides a cloned sender after the guard, so a strand in
+    /// the channel send can never pin the registry for other readers).
+    #[test]
+    fn kb299_the_tray_count_and_lane_sends_never_queue_on_the_connections_mutex() {
+        let source = include_str!("mod.rs");
+        let production = &source[..source.find("#[cfg(test)]").expect("the test module")];
+
+        // The count reads the atomic, never the registry.
+        let count_at = production
+            .find("pub fn paired_device_count")
+            .expect("paired_device_count");
+        let count_end = count_at + production[count_at..].find("\n    }").expect("its end");
+        let count_body = &production[count_at..count_end];
+        assert!(
+            count_body.contains("live_connection_count.load("),
+            "the tray's paired count must read the lock-free mirror: behind the registry mutex it wedged every menu rebuild with the registry"
+        );
+        assert!(
+            !count_body.contains("self.devices()"),
+            "the count must not derive from the registry snapshot"
+        );
+
+        // The atomic is maintained inside every registry critical section
+        // that changes the count: register, unregister, and the stop clear.
+        for site in [
+            "connections.push(ConnectionEntry",
+            "connections.retain(|entry|",
+            "connections.clear();",
+        ] {
+            let at = production.find(site).expect(site);
+            let until = at
+                + production[at..]
+                    .find("drop(connections);")
+                    .map(|d| d + 1)
+                    .unwrap_or_else(|| production[at..].find("\n    }").expect("section end"));
+            assert!(
+                production[at..until].contains("live_connection_count"),
+                "the {site} critical section must refresh the count mirror inside the same lock scope"
+            );
+        }
+
+        // send_frame_to_lane: the guard's scope contains only the lookup
+        // and the clone; the send sits after it.
+        let send_at = production
+            .find("pub fn send_frame_to_lane")
+            .expect("send_frame_to_lane");
+        let send_end = send_at + production[send_at..].find("\n    }\n").expect("its end");
+        let send_body = &production[send_at..send_end];
+        let lock_at = send_body.find(".connections.lock()").expect("the lock");
+        let scope_end = send_body[lock_at..].find("};").expect("the lock scope end");
+        let lock_scope = &send_body[lock_at..lock_at + scope_end];
+        assert!(
+            !lock_scope.contains(".send("),
+            "the send must ride a cloned sender AFTER the registry guard: a send under the lock strands the whole registry if the channel's internals wedge"
+        );
+        assert!(
+            lock_scope.contains(".map(|entry| entry.tx.clone())"),
+            "the lookup clones the sender so the send needs no registry access"
+        );
+    }
+
     #[test]
     fn kb296_server_stop_queues_lane_gone_for_every_lane_it_clears() {
         let source = include_str!("mod.rs");

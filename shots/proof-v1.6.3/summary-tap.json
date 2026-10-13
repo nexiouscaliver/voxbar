@@ -1,0 +1,42 @@
+{
+  "base": "https://100.114.70.58:4177",
+  "mode": "tap",
+  "welcome": {
+    "state": "Ready",
+    "activation": "hold_or_toggle"
+  },
+  "lockHeldAfter2s": true,
+  "lockedSnapshot": {
+    "state": "Recording",
+    "stateClass": "recording",
+    "resultShown": false,
+    "resultText": "",
+    "meterWidth": "0%",
+    "pttLabel": "Tap to stop"
+  },
+  "midLockSnapshot": {
+    "state": "Recording",
+    "stateClass": "recording",
+    "resultShown": false,
+    "resultText": "",
+    "meterWidth": "15%",
+    "pttLabel": "Tap to stop"
+  },
+  "afterStop": {
+    "state": "Ready",
+    "stateClass": "ready",
+    "resultShown": false,
+    "resultText": "",
+    "meterWidth": "15%",
+    "pttLabel": "Hold to talk, tap to lock"
+  },
+  "transcriptRendered": "Also modify all the prompts that we have currently to know that they are working on the transcription of voice so that they know that some small mistakes that have been made should be resolved by them. They should improve the transcription first and then work on their specific roles. They should have the previous knowledge that what they are working on is a voice transcription and there may have been some issues. So they need to resolve them as well. So for example, the formal English only does the formal English part and does not resolve my small improvements in the transcription. That is not something that I wanted. I want it to be a much more cohesive and much more better product. So add this into it as well.",
+  "serverProbeAfter": "http 200",
+  "wsFrames": [
+    "{\"activation\":\"hold_or_toggle\",\"holdThresholdMs\":300,\"recording\":false,\"type\":\"welcome\"}",
+    "{\"entries\":[],\"type\":\"recentHistory\"}",
+    "{\"recording\":true,\"type\":\"state\"}",
+    "{\"recording\":false,\"type\":\"state\"}",
+    "{\"model\":\"handy-computer/parakeet-unified-en-0.6b-gguf/parakeet-unified-en-0.6b-Q8_0.gguf\",\"postProcessed\":false,\"text\":\"Also modify all the prompts that we have currently to know that they are working on the transcription of voice so that they know that some small mistakes that have been made shoul"
+  ]
+}
