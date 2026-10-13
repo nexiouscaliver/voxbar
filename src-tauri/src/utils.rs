@@ -348,6 +348,23 @@ mod tests {
             body.contains("crate::companion::on_lane_session_changed(app, lane, false);"),
             "a lane-resolved cancel must end the lane's companion session record (liveness flip + State{{recording:false}} to the phone), exactly as the pipeline's stop does"
         );
+        // KB-281 (review round): the record flip must precede the cancel
+        // want's release - the shortcut module's register arm reads the
+        // record under the want-set lock hold, and that ordering is what
+        // makes every register/teardown interleave resolve to no leaked
+        // want (flip-then-read refuses the register; release-after-add
+        // finds the want present and removes it). The load-failure
+        // teardown carries the same order pin in transcription.rs.
+        let flip_at = body
+            .find("crate::companion::on_lane_session_changed(app, lane, false);")
+            .expect("the record flip");
+        let release_at = body
+            .find("shortcut::unregister_cancel_shortcut(app, cancel_session_key);")
+            .expect("the want release");
+        assert!(
+            flip_at < release_at,
+            "the lane's session record must flip dead BEFORE its cancel want is released (the KB-281 register gate's ordering contract)"
+        );
     }
 
     #[test]

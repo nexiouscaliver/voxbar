@@ -243,12 +243,16 @@ static CANCEL_REGISTERED: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
 /// system-wide until restart. The lane's own companion session record is
 /// the discriminator, which gives the removal add-then-remove ordering at
 /// the add side: it flips live BEFORE the start path's register arm runs
-/// (same thread) and every want-releasing teardown flips it dead first
-/// (utils.rs's cancel edge and the load-failure teardown both do), so a
-/// late register for a torn-down session finds the record dead while a
-/// fresh session's register finds it live. `None` means no companion
-/// manager exists (test/early-startup contexts, where no lanes exist at
-/// all): the legacy add stands, fail-open.
+/// (same thread) and every want-releasing teardown flips it dead BEFORE
+/// releasing the want, and the register arm reads the record under the
+/// SAME want-set lock hold as its add (see
+/// [`register_cancel_shortcut`]) - so against a teardown that has
+/// already flipped, the read finds the record dead and the register is
+/// refused, and against a teardown still to release, the add lands under
+/// the hold the release must wait for, leaving the want present for that
+/// release to remove. Either interleave resolves to no leaked want.
+/// `None` means no companion manager exists (test/early-startup contexts,
+/// where no lanes exist at all): the legacy add stands, fail-open.
 fn lane_keyed_register_may_add_want(lane_session_live: Option<bool>) -> bool {
     lane_session_live.unwrap_or(true)
 }
@@ -256,25 +260,41 @@ fn lane_keyed_register_may_add_want(lane_session_live: Option<bool>) -> bool {
 /// Register the cancel shortcut for ONE session (called when that session
 /// begins recording). The key stays armed while ANY session wants it.
 pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>) {
-    // KB-281: a lane-keyed register whose session record is already dead
-    // is the late arm of the unregister-before-register inversion - the
-    // teardown already released this want, and adding it back would arm
-    // Escape system-wide until restart. The keyboard's None key has no
-    // companion record to consult and keeps the legacy behavior.
-    if let Some(lane) = session {
-        let lane_live = app
-            .try_state::<std::sync::Arc<crate::companion::CompanionManager>>()
-            .map(|manager| manager.lane_owns_live_session(lane));
-        if !lane_keyed_register_may_add_want(lane_live) {
-            debug!(
-                "skipped a stale lane {} cancel-want register: its session was already torn down (KB-281)",
-                lane
-            );
-            return;
-        }
-    }
     {
         let mut wanters = CANCEL_WANTERS.lock().unwrap_or_else(|e| e.into_inner());
+        // KB-281: the lane-liveness read rides the SAME CANCEL_WANTERS
+        // hold as the want add below, so a concurrent teardown cannot land
+        // its record-flip and want-release BETWEEN the read and the add
+        // (the review round's race: reading live before the flip, adding
+        // after the release, leaking the want forever). Every
+        // want-releasing teardown flips the record dead BEFORE it takes
+        // this lock (utils.rs's cancel edge, the load-failure teardown),
+        // so under the hold the read sees every flip that already
+        // happened, and a teardown yet to release cannot slip its removal
+        // in ahead of the add: whichever order the arms interleave, the
+        // net is [add then remove] (the release finds the want present)
+        // or [flip then read] (the register is refused). The
+        // wanters -> lane_sessions nesting is deadlock-safe: no path
+        // holds lane_sessions while taking this lock
+        // (on_lane_session_changed drops the record lock before its
+        // sends; every register/unregister arm call site is top-level).
+        // The keyboard's None key has no companion record to consult and
+        // keeps the legacy behavior. Residual, disclosed in the ledger: a
+        // teardown that completes BEFORE the start path creates the
+        // session record is invisible to this gate, because the record it
+        // reads is the fresh live one the start path then inserts.
+        if let Some(lane) = session {
+            let lane_live = app
+                .try_state::<std::sync::Arc<crate::companion::CompanionManager>>()
+                .map(|manager| manager.lane_owns_live_session(lane));
+            if !lane_keyed_register_may_add_want(lane_live) {
+                debug!(
+                    "skipped a stale lane {} cancel-want register: its session was already torn down (KB-281)",
+                    lane
+                );
+                return;
+            }
+        }
         cancel_wanters_add(&mut wanters, session);
         // Track the lifecycle independently of the current implementation
         // so switching implementations mid-recording cannot leave stale
@@ -3259,7 +3279,7 @@ mod tests {
         let register_at = source
             .find("pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>)")
             .expect("register carries the session key");
-        let register_body = &source[register_at..register_at + 1600];
+        let register_body = &source[register_at..register_at + 3000];
         assert!(
             register_body.contains("cancel_wanters_add"),
             "register adds exactly ITS session's want"
@@ -3324,9 +3344,10 @@ mod tests {
             ),
         ] {
             let arm_at = source.find(arm).unwrap_or_else(|| panic!("{mutation} arm"));
-            // 2000 spans KB-281's lane-liveness gate, which precedes the
-            // register arm's want-set mutation by design.
-            let body = &source[arm_at..arm_at + 2000];
+            // 3200 spans KB-281's lane-liveness gate and its ordering
+            // comment, which precede the register arm's want-set mutation
+            // by design.
+            let body = &source[arm_at..arm_at + 3200];
             let mutation_at = body.find(mutation).expect("the want-set mutation");
             let fold_at = body
                 .find("note_cancel_wanted_locked(&wanters, app)")
@@ -4385,25 +4406,54 @@ mod tests {
         );
     }
 
-    /// KB-281 wiring pin: the register arm consults the lane's live
-    /// session record BEFORE its want-set mutation, for lane keys only (the
-    /// keyboard's None key has no record and keeps the legacy arm).
+    /// KB-281 wiring pin (review round): the register arm consults the
+    /// lane's live session record BEFORE its want-set mutation, for lane
+    /// keys only (the keyboard's None key has no record and keeps the
+    /// legacy arm) - AND the liveness read rides the SAME CANCEL_WANTERS
+    /// lock hold as the add. Reading liveness outside the hold left the
+    /// review round's race: [register reads live] [teardown flips dead]
+    /// [teardown removes the absent want] [register adds] leaked the want
+    /// exactly as pre-fix. Structurally pinned like the KB-266 fold pin:
+    /// the lock acquisition precedes the read, the read precedes the add,
+    /// and the hold closes (the `}` before schedule_cancel_reconcile)
+    /// only after the fold, so read and add share one critical section.
     #[test]
     fn kb281_the_register_arm_gates_on_the_lanes_live_session_record() {
         let source = include_str!("mod.rs");
         let register_at = source
             .find("pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>)")
             .expect("the register arm");
-        let register_body = &source[register_at..register_at + 1600];
+        let register_body = &source[register_at..register_at + 3600];
+        let lock_at = register_body
+            .find("let mut wanters = CANCEL_WANTERS.lock()")
+            .expect("the want-set lock acquisition");
         let gate_at = register_body
             .find("lane_keyed_register_may_add_want(lane_live)")
             .expect("the lane-liveness gate");
         let add_at = register_body
             .find("cancel_wanters_add(&mut wanters, session)")
             .expect("the want-set mutation");
+        let fold_at = register_body
+            .find("note_cancel_wanted_locked(&wanters, app)")
+            .expect("the secure-input fold");
+        let reconcile_at = register_body
+            .find("schedule_cancel_reconcile(app)")
+            .expect("the off-thread reconcile scheduling");
+        assert!(
+            lock_at < gate_at,
+            "the liveness read must sit INSIDE the want-set lock hold (the review round's race read it outside)"
+        );
         assert!(
             gate_at < add_at,
             "the gate must run before the want is added"
+        );
+        assert!(
+            add_at < fold_at && fold_at < reconcile_at,
+            "the add and fold share the hold, and the reconcile stays outside it"
+        );
+        assert!(
+            register_body[fold_at..reconcile_at].contains('}'),
+            "the lock scope must close only after the add and fold"
         );
         assert!(
             register_body[..gate_at].contains("if let Some(lane) = session"),
