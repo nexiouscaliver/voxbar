@@ -34,6 +34,8 @@
   --color-secondary: var(--color-secondary);
   --color-warning: var(--color-warning);
   --color-error: var(--color-error);
+  --color-success: var(--color-success);
+  --color-hairline: var(--color-hairline);
 }
 
 /* The app's type scale, pinned to whole pixels: 11 / 13 / 15. The rem-based
@@ -69,6 +71,19 @@
     in srgb,
     var(--color-text),
     transparent 70%
+  );
+  /* Clearly visible inset thumb for the settings content scroller and the
+     sidebar nav: ~40% of the text color reads as a real scrollbar on both
+     the light (#0f0f0f on #fbfbfb) and dark (#fbfbfb on #2c2b29) panes. */
+  --settings-scroll-thumb: color-mix(
+    in srgb,
+    var(--color-text),
+    transparent 60%
+  );
+  --settings-scroll-thumb-hover: color-mix(
+    in srgb,
+    var(--color-text),
+    transparent 45%
   );
 
   /* Log console surface - a subtle shade off the app background so the live log
@@ -138,6 +153,43 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background-color: var(--scrollbar-thumb-hover);
+}
+
+/* ---- Inset scroll surfaces (settings pane, sidebar nav, dialog bodies) ----
+   The global thumb above is 85% transparent (an overlay-scrollbar tint),
+   which reads as "no scrollbar" on the settings pane: users cannot tell a
+   clipped last row is scrollable. These surfaces use a thinner, clearly
+   visible inset thumb instead, so a pane that continues below the fold
+   says so. */
+.settings-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--settings-scroll-thumb) transparent;
+}
+.settings-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.settings-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.settings-scroll::-webkit-scrollbar-thumb {
+  background-color: var(--settings-scroll-thumb);
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+  min-height: 28px;
+}
+.settings-scroll::-webkit-scrollbar-thumb:hover {
+  background-color: var(--settings-scroll-thumb-hover);
+}
+
+/* ---- Toast stack (sonner, unstyled mode) ----
+   Sonner's collapsed-stack rule that fades out a behind toast's content
+   only targets [data-styled='true']; our unstyled toasts kept rendering
+   their raw body text through the front toast's edge, sliced mid-line.
+   Mirror the rule for unstyled toasts so the collapsed stack peeks as a
+   bare card sliver (hover expands and restores content, as designed). */
+[data-sonner-toast][data-expanded="false"][data-front="false"] > * {
+  opacity: 0;
 }
 
 @layer utilities {

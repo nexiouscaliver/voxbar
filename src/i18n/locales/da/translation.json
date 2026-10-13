@@ -46,7 +46,8 @@
     "debug": "Fejlfinding",
     "about": "Om",
     "notifications": "Underretninger",
-    "promptStudio": "Prompt-studio"
+    "promptStudio": "Prompt-studio",
+    "addonsGroup": "Udvidelser"
   },
   "onboarding": {
     "subtitle": "For at komme i gang skal du vælge en transskriptionsmodel",
@@ -68,7 +69,9 @@
     },
     "modelCard": {
       "accuracy": "nøjagtighed",
-      "speed": "hastighed"
+      "speed": "hastighed",
+      "installed": "Installeret",
+      "selected": "Valgt"
     },
     "models": {
       "small": {
@@ -162,7 +165,9 @@
       "errors": {
         "checkFailed": "Kunne ikke tjekke tilladelser. Prøv igen.",
         "requestFailed": "Kunne ikke anmode om tilladelse. Prøv igen."
-      }
+      },
+      "done": "Udført",
+      "openSettings": "Åbn indstillinger"
     },
     "hotkeyHint": "Start diktering med {{hotkey}} når som helst.",
     "hotkeyChangeHint": "Du kan ændre denne genvej i Indstillinger > Generelt.",
@@ -171,6 +176,10 @@
       "body": "VoxBar kunne ikke nå modelkataloget. Tjek din forbindelse og prøv igen, eller spring dette trin over og vælg en model senere i Indstillinger.",
       "retry": "Prøv igen",
       "skip": "Spring over nu"
+    },
+    "postProcessGroup": {
+      "title": "Valgfrit: Efterbehandling",
+      "caption": "Til at forbedre transskriptioner efter diktat. Bruges ikke til transskription."
     }
   },
   "modelSelector": {
@@ -260,7 +269,9 @@
           "set": "Kunne ikke indstille genvej: {{error}}",
           "reset": "Kunne ikke nulstille genvej til oprindelig indstilling"
         },
-        "unbound": "Ikke tildelt"
+        "unbound": "Ikke tildelt",
+        "recordHint": "Klik for at optage en ny genvej",
+        "gatedHint": "Slå {{action}} til for at binde en tast"
       },
       "language": {
         "title": "Sprog",
@@ -369,7 +380,8 @@
         "clearAll": "Sletter hele diktatet",
         "undo": "Kører fortryd i appen i fokus",
         "paste": "Indsætter udklipsholderen i appen i fokus"
-      }
+      },
+      "defaultPhrasesNote": "Standardfraserne er de engelske ord, genkenderen lytter efter, plust_indsatte hindi- og kinesiske aliaser. Tilføj din egen frase på ethvert sprog på enhver række."
     },
     "search": {
       "placeholder": "Søg i indstillinger",
@@ -712,7 +724,8 @@
         "restartButton": "Genstart serveren",
         "restartPending": "Ændringerne træder i kraft efter en genstart",
         "qrPreviewNote": "Forhåndsvisning: Denne URL anvendes, næste gang serveren starter.",
-        "sharedNetworkNote": "Telefonen og denne Mac skal dele et netværk: det samme Wi-Fi eller LAN, eller det samme tailnet (f.eks. begge på Tailscale)."
+        "sharedNetworkNote": "Telefonen og denne Mac skal dele et netværk: det samme Wi-Fi eller LAN, eller det samme tailnet (f.eks. begge på Tailscale).",
+        "fingerprintCopied": "Kopieret"
       }
     },
     "postProcessing": {
@@ -760,7 +773,8 @@
           "filterPlaceholder": "Filtrér modeller",
           "showAll_one": "Vis alle ({{count}})",
           "showAll_other": "Vis alle ({{count}})",
-          "showFewer": "Vis færre"
+          "showFewer": "Vis færre",
+          "emptyNoKey": "Indtast din API-nøgle ovenfor, og opdater derefter for at indlæse modeller."
         },
         "timeout": {
           "title": "Anmodningstimeout",
@@ -951,7 +965,12 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Vis ændringer",
       "hideChanges": "Skjul ændringer",
-      "dbRecoveredNotice": "Din transskriptionshistorik-database kunne ikke læses, så en ny blev startet. Den tidligere database blev gemt som {{file}}."
+      "dbRecoveredNotice": "Din transskriptionshistorik-database kunne ikke læses, så en ny blev startet. Den tidligere database blev gemt som {{file}}.",
+      "emptyTitle": "Ingen transskriptioner endnu",
+      "emptyHint": "Tryk på din optagegenvej for at lave din første diktering.",
+      "deleteConfirm": "Slet denne post? Optagelsen og dens transskription fjernes permanent.",
+      "today": "I dag",
+      "yesterday": "I går"
     },
     "debug": {
       "title": "Fejlfinding",
@@ -971,9 +990,12 @@
         "pause": "Pause",
         "resume": "Genoptag",
         "copied": "Kopieret",
+        "lineCount": "{{count}} linjer",
+        "empty": "Venter på logs… Poster vises her, når appen udsender dem.",
         "lineCount_one": "{{count}} linje",
         "lineCount_other": "{{count}} linjer",
-        "empty": "Venter på logs… Poster vises her, når appen udsender dem."
+        "clearConfirm": "Ryd de opsamlede linjer i denne visning? Logfilen på disken bevares.",
+        "clearConfirmTitle": "Ryd opsamlede linjer?"
       },
       "updateChecks": {
         "label": "Tjek for opdateringer",
@@ -1157,7 +1179,8 @@
       },
       "outcomes": {
         "label": "Underretninger om resultater",
-        "description": "Giv også underretning, når en telefonsession slutter, f.eks. når sessionsgrænsen nås, eller telefonen frakobles. Fra betyder kun fejl."
+        "description": "Giv også underretning, når en telefonsession slutter, f.eks. når sessionsgrænsen nås, eller telefonen frakobles. Fra betyder kun fejl.",
+        "requiresMaster": "Kun tilgængelig, mens systemmeddelelser er slået til."
       },
       "log": {
         "title": "Underretningslog",
@@ -1208,10 +1231,15 @@
         "lines": "linjer",
         "charsChanged_one": "1 tegn ændret",
         "charsChanged_other": "{{count}} tegn ændret",
-        "identical": "Ingen ændringer."
+        "identical": "Ingen ændringer.",
+        "added_one": "+{{count}} tilføjet",
+        "added_other": "+{{count}} tilføjet",
+        "removed_one": "{{count}} fjernet",
+        "removed_other": "{{count}} fjernet"
       },
       "resultsEmptyTitle": "Resultater vises her",
-      "resultsEmptyHint": "Vælg kilde, prompts og motorer ovenfor og kør. Hvert kort viser den polerede tekst, ændringerne og hastigheden."
+      "resultsEmptyHint": "Vælg kilde, prompts og motorer ovenfor og kør. Hvert kort viser den polerede tekst, ændringerne og hastigheden.",
+      "appliedLabel": "Lykkedes"
     }
   },
   "footer": {
@@ -1252,7 +1280,8 @@
     }
   },
   "whatsNew": {
-    "title": "Nyt i VoxBar v{{version}}"
+    "title": "Nyt i VoxBar v{{version}}",
+    "gotIt": "Forstået"
   },
   "common": {
     "loading": "Indlæser...",
@@ -1261,11 +1290,13 @@
     "open": "Åbn",
     "copy": "Kopiér",
     "clear": "Ryd",
-    "noOptionsFound": "Ingen muligheder fundet"
+    "noOptionsFound": "Ingen muligheder fundet",
+    "cancel": "Annuller"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar har brug for tilgængelighedstilladelser for at skrive den transskriberede tekst.",
-    "openSettings": "Åbn systemindstillinger"
+    "openSettings": "Åbn systemindstillinger",
+    "resetSetting": "Nulstil {{label}} til standardværdien"
   },
   "errors": {
     "loadDirectory": "Fejl ved indlæsning af mappe: {{error}}",
@@ -1432,6 +1463,8 @@
     "copied": "Kopieret",
     "polished": "Poleret",
     "historyTitle": "Seneste",
-    "historyEmpty": "Diktater fra denne telefon vises her."
+    "historyEmpty": "Diktater fra denne telefon vises her.",
+    "stateMicBlocked": "Mikrofon blokeret",
+    "micBlockedRetry": "Mikrofon blokeret. Tryk for at prøve igen."
   }
 }

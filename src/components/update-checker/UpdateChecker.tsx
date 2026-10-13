@@ -1,18 +1,20 @@
 import React, { useEffect, useRef } from "react";
 import { platform } from "@tauri-apps/plugin-os";
-import { openUrl } from "@tauri-apps/plugin-opener";
-import { useTranslation } from "react-i18next";
 import { useSettings } from "../../hooks/useSettings";
-import { RELEASES_URL, runUpdateCheck } from "./updaterFlow";
+import { runUpdateCheck } from "./updaterFlow";
 import { resolveAutoCheck } from "./updaterAutoCheck";
 import { updaterAutoUpdateSupported } from "./updaterPlatform";
 
-interface UpdateCheckerProps {
-  className?: string;
-}
-
-const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
-  const { t } = useTranslation();
+/**
+ * Headless update checker: runs the one-shot startup auto-check (and only
+ * that). The footer's old "Check for updates" text button rendered in the
+ * same gray, weight and size as the static version beside it, so the only
+ * clickable element in that run read as a label - and duplicated the About
+ * page's own Version-row button. The footer is now purely informational
+ * (model + version); the single, clearly interactive check control lives
+ * in the About Version row (AboutSettings.tsx).
+ */
+const UpdateChecker: React.FC = () => {
   const { settings, isLoading, updateChecksLocked } = useSettings();
   // Wait for the lock state too (null = not loaded yet), so the button never
   // flashes before the system lock (HANDY_DISABLE_UPDATER) is known.
@@ -53,37 +55,11 @@ const UpdateChecker: React.FC<UpdateCheckerProps> = ({ className = "" }) => {
     }
   }, [settingsLoaded, updateChecksEnabled, autoUpdateSupported]);
 
-  if (!settingsLoaded) {
-    return null;
-  }
-
-  if (!autoUpdateSupported) {
-    return (
-      <button
-        onClick={() => void openUrl(RELEASES_URL)}
-        className={`text-text/60 hover:text-text/80 transition-colors tabular-nums ${className}`}
-      >
-        {t("footer.updater.manualOnlyPlatform")}
-      </button>
-    );
-  }
-
-  if (!updateChecksEnabled) {
-    return (
-      <span className={`text-text/60 tabular-nums ${className}`}>
-        {t("footer.updateCheckingDisabled")}
-      </span>
-    );
-  }
-
-  return (
-    <button
-      onClick={() => void runUpdateCheck({ trigger: "manual" })}
-      className={`text-text/60 hover:text-text/80 transition-colors tabular-nums ${className}`}
-    >
-      {t("footer.checkForUpdates")}
-    </button>
-  );
+  // No UI: the manual "Check for updates" control lives once, as a real
+  // button, in the About Version row. The startup auto-check above still
+  // runs from here, so nothing about update behavior changes - only the
+  // duplicated affordance is gone.
+  return null;
 };
 
 export default UpdateChecker;

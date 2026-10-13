@@ -32,6 +32,7 @@ export const PasteDelay: React.FC<PasteDelayProps> = ({
       value={settings?.[settingKey] ?? 60}
       onChange={handleDelayChange}
       onReset={() => resetSetting(settingKey)}
+      defaultValue={60}
       isResetting={isUpdating(settingKey)}
       min={10}
       max={5000}

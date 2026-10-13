@@ -46,7 +46,8 @@
     "debug": "デバッグ",
     "about": "概要",
     "notifications": "通知",
-    "promptStudio": "プロンプトスタジオ"
+    "promptStudio": "プロンプトスタジオ",
+    "addonsGroup": "アドオン"
   },
   "onboarding": {
     "subtitle": "開始するには、文字起こしのモデルを選択してください",
@@ -68,7 +69,9 @@
     },
     "modelCard": {
       "accuracy": "精度",
-      "speed": "速度"
+      "speed": "速度",
+      "installed": "インストール済み",
+      "selected": "選択中"
     },
     "models": {
       "small": {
@@ -162,7 +165,9 @@
       "errors": {
         "checkFailed": "権限の確認に失敗しました。もう一度お試しください。",
         "requestFailed": "権限のリクエストに失敗しました。もう一度お試しください。"
-      }
+      },
+      "done": "完了",
+      "openSettings": "設定を開く"
     },
     "hotkeyHint": "いつでも {{hotkey}} でディテーションを開始できます。",
     "hotkeyChangeHint": "このショートカットは 設定 > 一般 で変更できます。",
@@ -171,6 +176,10 @@
       "body": "VoxBarがモデルカタログに接続できませんでした。接続を確認して再試行するか、このステップをスキップして後で設定からモデルを選択してください。",
       "retry": "再試行",
       "skip": "今はスキップ"
+    },
+    "postProcessGroup": {
+      "title": "オプション: 後処理",
+      "caption": "ディクテーション後の文字起こしを整えるために使用します。音声認識には使用されません。"
     }
   },
   "modelSelector": {
@@ -313,7 +322,9 @@
           "set": "ショートカットを設定できませんでした: {{error}}",
           "reset": "ショートカットを元の値にリセットできませんでした"
         },
-        "unbound": "未割り当て"
+        "unbound": "未割り当て",
+        "recordHint": "クリックして新しいショートカットを記録",
+        "gatedHint": "{{action}}をオンにするとキーを割り当てられます"
       },
       "language": {
         "title": "言語",
@@ -422,7 +433,8 @@
         "clearAll": "ディクテーション全体を削除します",
         "undo": "フォーカス中のアプリで取り消します",
         "paste": "フォーカス中のアプリにクリップボードを貼り付けます"
-      }
+      },
+      "defaultPhrasesNote": "デフォルトのフレーズは、認識器が聴き取る英語の単語で、組み込みのヒンディー語・中国語のエイリアスを含みます。どの行にも任意の言語で自分のフレーズを追加できます。"
     },
     "search": {
       "placeholder": "設定を検索",
@@ -712,7 +724,8 @@
         "restartButton": "サーバーを再起動",
         "restartPending": "変更は再起動後に適用されます",
         "qrPreviewNote": "プレビュー: サーバーが次に起動したとき、この URL が案内されます。",
-        "sharedNetworkNote": "スマホとこの Mac は同じネットワークにいる必要があります: 同じ Wi-Fi または LAN、または同じテールネット（例: 両方とも Tailscale）。"
+        "sharedNetworkNote": "スマホとこの Mac は同じネットワークにいる必要があります: 同じ Wi-Fi または LAN、または同じテールネット（例: 両方とも Tailscale）。",
+        "fingerprintCopied": "コピーしました"
       }
     },
     "postProcessing": {
@@ -760,7 +773,8 @@
           "filterPlaceholder": "モデルを絞り込み",
           "showAll_one": "すべて表示（{{count}}）",
           "showAll_other": "すべて表示（{{count}}）",
-          "showFewer": "表示を減らす"
+          "showFewer": "表示を減らす",
+          "emptyNoKey": "上の欄にAPIキーを入力し、更新するとモデル一覧を読み込みます。"
         },
         "timeout": {
           "title": "リクエストのタイムアウト",
@@ -951,7 +965,12 @@
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms で処理",
       "viewChanges": "変更を表示",
       "hideChanges": "変更を閉じる",
-      "dbRecoveredNotice": "文字起こし履歴のデータベースを読み込めなかったため、新しいデータベースを開始しました。以前のデータベースは {{file}} として保存されています。"
+      "dbRecoveredNotice": "文字起こし履歴のデータベースを読み込めなかったため、新しいデータベースを開始しました。以前のデータベースは {{file}} として保存されています。",
+      "emptyTitle": "まだ文字起こしがありません",
+      "emptyHint": "録音ショートカットを押して、最初のディテーションを録音しましょう。",
+      "deleteConfirm": "このエントリを削除しますか？録音とその文字起こしは完全に削除されます。",
+      "today": "今日",
+      "yesterday": "昨日"
     },
     "debug": {
       "title": "デバッグ",
@@ -971,9 +990,12 @@
         "pause": "一時停止",
         "resume": "再開",
         "copied": "コピーしました",
+        "lineCount": "{{count}}行",
+        "empty": "ログを待機中… アプリが出力すると、ここにエントリが表示されます。",
         "lineCount_one": "{{count}}行",
         "lineCount_other": "{{count}}行",
-        "empty": "ログを待機中… アプリが出力すると、ここにエントリが表示されます。"
+        "clearConfirm": "このビューのキャプチャー行を消去しますか？ディスク上のログファイルは残ります。",
+        "clearConfirmTitle": "キャプチャした行を消去しますか？"
       },
       "updateChecks": {
         "label": "アップデートを確認",
@@ -1157,7 +1179,8 @@
       },
       "outcomes": {
         "label": "結果の通知",
-        "description": "電話セッションの終了時（セッション上限への到達や電話の切断など）にも通知します。オフの場合はエラーのみです。"
+        "description": "電話セッションの終了時（セッション上限への到達や電話の切断など）にも通知します。オフの場合はエラーのみです。",
+        "requiresMaster": "システム通知が有効な間のみ利用できます。"
       },
       "log": {
         "title": "通知ログ",
@@ -1208,10 +1231,15 @@
         "lines": "行",
         "charsChanged_one": "1 文字変更",
         "charsChanged_other": "{{count}} 文字変更",
-        "identical": "変更なし。"
+        "identical": "変更なし。",
+        "added_one": "+{{count}} 行追加",
+        "added_other": "+{{count}} 行追加",
+        "removed_one": "{{count}} 行削除",
+        "removed_other": "{{count}} 行削除"
       },
       "resultsEmptyTitle": "結果はここに表示されます",
-      "resultsEmptyHint": "上でソース、プロンプト、エンジンを選んで実行してください。各カードに整形後のテキスト、変更点、所要時間が表示されます。"
+      "resultsEmptyHint": "上でソース、プロンプト、エンジンを選んで実行してください。各カードに整形後のテキスト、変更点、所要時間が表示されます。",
+      "appliedLabel": "成功"
     }
   },
   "footer": {
@@ -1258,11 +1286,13 @@
     "open": "開く",
     "copy": "コピー",
     "clear": "クリア",
-    "noOptionsFound": "オプションが見つかりません"
+    "noOptionsFound": "オプションが見つかりません",
+    "cancel": "キャンセル"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar が文字起こしテキストを入力するには、アクセシビリティ権限が必要です。",
-    "openSettings": "システム設定を開く"
+    "openSettings": "システム設定を開く",
+    "resetSetting": "{{label}}をデフォルトに戻す"
   },
   "errors": {
     "loadDirectory": "ディレクトリの読み込みエラー: {{error}}",
@@ -1355,7 +1385,8 @@
     "companionBadge": "コンパニオンマイク"
   },
   "whatsNew": {
-    "title": "VoxBar v{{version}} の新機能"
+    "title": "VoxBar v{{version}} の新機能",
+    "gotIt": "了解しました"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} が1個のショートカットをブロックしている可能性があります",
@@ -1432,6 +1463,8 @@
     "copied": "コピーしました",
     "polished": "整形済み",
     "historyTitle": "最近",
-    "historyEmpty": "このスマホでのディクテーションがここに表示されます。"
+    "historyEmpty": "このスマホでのディクテーションがここに表示されます。",
+    "stateMicBlocked": "マイクがブロックされています",
+    "micBlockedRetry": "マイクがブロックされています。タップして再試行"
   }
 }

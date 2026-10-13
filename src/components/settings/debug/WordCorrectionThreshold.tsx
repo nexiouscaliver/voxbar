@@ -23,6 +23,7 @@ export const WordCorrectionThreshold: React.FC<
       value={settings?.word_correction_threshold ?? 0.18}
       onChange={handleThresholdChange}
       onReset={() => resetSetting("word_correction_threshold")}
+      defaultValue={0.18}
       isResetting={isUpdating("word_correction_threshold")}
       min={0.0}
       max={1.0}

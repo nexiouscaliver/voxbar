@@ -46,7 +46,8 @@
     "models": "النماذج",
     "output": "الإخراج",
     "notifications": "الإشعارات",
-    "promptStudio": "استوديو البرومبت"
+    "promptStudio": "استوديو البرومبت",
+    "addonsGroup": "إضافات"
   },
   "onboarding": {
     "subtitle": "للبدء، اختر نموذج التفريغ الصوتي",
@@ -68,7 +69,9 @@
     },
     "modelCard": {
       "accuracy": "الدقة",
-      "speed": "السرعة"
+      "speed": "السرعة",
+      "installed": "مثبّت",
+      "selected": "محدد"
     },
     "models": {
       "small": {
@@ -162,7 +165,9 @@
       "errors": {
         "checkFailed": "فشل التحقق من الأذونات. يرجير المحاولة مرة أخرى.",
         "requestFailed": "فشل طلب الإذن. يرجى المحاولة مرة أخرى."
-      }
+      },
+      "done": "تم",
+      "openSettings": "فتح الإعدادات"
     },
     "hotkeyHint": "ابدأ الإملاء بـ {{hotkey}} في أي وقت.",
     "hotkeyChangeHint": "يمكنك تغيير هذا الاختصار في الإعدادات > عام.",
@@ -171,6 +176,10 @@
       "body": "لم يتمكن VoxBar من الوصول إلى كتالوج النماذج. تحقق من اتصالك وحاول مجددًا، أو تخطَّ هذه الخطوة واختر نموذجًا لاحقًا من الإعدادات.",
       "retry": "إعادة المحاولة",
       "skip": "التخطي الآن"
+    },
+    "postProcessGroup": {
+      "title": "اختياري: معالجة لاحقة",
+      "caption": "لمعالجة النصوص بعد الإملاء. لا يُستخدم للنسخ الصوتي."
     }
   },
   "modelSelector": {
@@ -257,7 +266,9 @@
           "set": "فشل تعيين الاختصار: {{error}}",
           "reset": "فشل إعادة تعيين الاختصار إلى قيمته الأصلية"
         },
-        "unbound": "غير معين"
+        "unbound": "غير معين",
+        "recordHint": "انقر لتسجيل اختصار جديد",
+        "gatedHint": "فعّل {{action}} لربط مفتاح"
       },
       "language": {
         "title": "اللغة",
@@ -366,7 +377,8 @@
         "clearAll": "يحذف كل النص المنطوق",
         "undo": "ينفذ التراجع في التطبيق النشط",
         "paste": "يلصق الحافظة في التطبيق النشط"
-      }
+      },
+      "defaultPhrasesNote": "العبارات الافتراضية هي الكلمات الإنجليزية التي يستمع إليهاالمتعرف عليها، بالإضافة إلى المرادفات المدمجة للهندية والصينية. أضف عبارتك الخاصة بأي لغة في أي صف."
     },
     "search": {
       "placeholder": "البحث في الإعدادات",
@@ -656,7 +668,8 @@
         "restartButton": "إعادة تشغيل الخادم",
         "restartPending": "تُطبق التغييرات بعد إعادة التشغيل",
         "qrPreviewNote": "معاينة: سيتم الإعلان عن هذا الرابط عند تشغيل الخادم في المرة القادمة.",
-        "sharedNetworkNote": "يجب أن يتشارك الهاتف وهذا الـ Mac الشبكة نفسها: نفس شبكة Wi-Fi أو الشبكة المحلية، أو نفس شبكة tailnet (مثل انضمامهما إلى Tailscale)."
+        "sharedNetworkNote": "يجب أن يتشارك الهاتف وهذا الـ Mac الشبكة نفسها: نفس شبكة Wi-Fi أو الشبكة المحلية، أو نفس شبكة tailnet (مثل انضمامهما إلى Tailscale).",
+        "fingerprintCopied": "تم النسخ"
       }
     },
     "postProcessing": {
@@ -712,7 +725,8 @@
           "showAll_few": "إظهار الكل ({{count}})",
           "showAll_many": "إظهار الكل ({{count}})",
           "showAll_other": "إظهار الكل ({{count}})",
-          "showFewer": "إظهار أقل"
+          "showFewer": "إظهار أقل",
+          "emptyNoKey": "أدخل مفتاح واجهة البرمجة أعلاه، ثم حدّث لتحميل النماذج."
         },
         "timeout": {
           "title": "مهلة الطلب",
@@ -903,7 +917,12 @@
       "viaPostProcess": "عبر {{model}} · {{prompt}} · {{outcome}} · {{latency}} م.ث",
       "viewChanges": "عرض التغييرات",
       "hideChanges": "إخفاء التغييرات",
-      "dbRecoveredNotice": "تعذر قراءة قاعدة بيانات سجل النسخ لديك، لذلك تم بدء قاعدة جديدة. تم الاحتفاظ بقاعدة البيانات السابقة باسم {{file}}."
+      "dbRecoveredNotice": "تعذر قراءة قاعدة بيانات سجل النسخ لديك، لذلك تم بدء قاعدة جديدة. تم الاحتفاظ بقاعدة البيانات السابقة باسم {{file}}.",
+      "emptyTitle": "لا توجد نسخ بعد",
+      "emptyHint": "اضغط اختصار التسجيل لتسجيل أول إملاء لك.",
+      "deleteConfirm": "هل تريد حذف هذا الإدخال؟ سيتم حذف التسجيل ونصه نهائيًا.",
+      "today": "اليوم",
+      "yesterday": "أمس"
     },
     "debug": {
       "title": "تصحيح الأخطاء",
@@ -923,13 +942,16 @@
         "pause": "إيقاف مؤقت",
         "resume": "استئناف",
         "copied": "تم النسخ",
+        "lineCount": "{{count}} سطر",
+        "empty": "بانتظار السجلات… ستظهر الإدخالات هنا فور إصدار التطبيق لها.",
         "lineCount_one": "سطر واحد",
         "lineCount_zero": "{{count}} أسطر",
         "lineCount_two": "سطران",
         "lineCount_few": "{{count}} أسطر",
         "lineCount_many": "{{count}} سطرًا",
         "lineCount_other": "{{count}} سطر",
-        "empty": "بانتظار السجلات… ستظهر الإدخالات هنا فور إصدار التطبيق لها."
+        "clearConfirm": "هل تريد مسح الأسطر المعروضة هنا؟ يبقى ملف السجل على القرص.",
+        "clearConfirmTitle": "هل تريد محو السطور الملتقطة؟"
       },
       "updateChecks": {
         "label": "التحقق من وجود تحديثات",
@@ -1169,7 +1191,8 @@
       },
       "outcomes": {
         "label": "إشعارات النتائج",
-        "description": "الإشعار أيضًا عند انتهاء جلسة الهاتف، مثل بلوغ حد الجلسة أو انقطاع اتصال الهاتف. الإيقاف يعني الأخطاء فقط."
+        "description": "الإشعار أيضًا عند انتهاء جلسة الهاتف، مثل بلوغ حد الجلسة أو انقطاع اتصال الهاتف. الإيقاف يعني الأخطاء فقط.",
+        "requiresMaster": "متاح فقط أثناء تشغيل إشعارات النظام."
       },
       "log": {
         "title": "سجل الإشعارات",
@@ -1236,10 +1259,23 @@
         "charsChanged_few": "تغيّر {{count}} أحرف",
         "charsChanged_many": "تغيّر {{count}} حرفًا",
         "charsChanged_other": "تغيّر {{count}} حرفًا",
-        "identical": "لا توجد تغييرات."
+        "identical": "لا توجد تغييرات.",
+        "added_few": "تمت إضافة {{count}} أسطر",
+        "added_many": "تمت إضافة {{count}} سطرًا",
+        "added_one": "تمت إضافة سطر واحد",
+        "added_other": "تمت إضافة {{count}} سطر",
+        "added_two": "تمت إضافة {{count}} سطرين",
+        "added_zero": "تمت إضافة {{count}} أسطر",
+        "removed_few": "تم حذف {{count}} أسطر",
+        "removed_many": "تم حذف {{count}} سطرًا",
+        "removed_one": "تم حذف سطر واحد",
+        "removed_other": "تم حذف {{count}} سطر",
+        "removed_two": "تم حذف {{count}} سطرين",
+        "removed_zero": "تم حذف {{count}} أسطر"
       },
       "resultsEmptyTitle": "ستظهر النتائج هنا",
-      "resultsEmptyHint": "اختر أعلاه المصدر والقوالب والمحرّكات ثم شغّل. تعرض كل بطاقة النص المحسّن وتغييراته وسرعته."
+      "resultsEmptyHint": "اختر أعلاه المصدر والقوالب والمحرّكات ثم شغّل. تعرض كل بطاقة النص المحسّن وتغييراته وسرعته.",
+      "appliedLabel": "نجاح"
     }
   },
   "footer": {
@@ -1286,11 +1322,13 @@
     "open": "فتح",
     "copy": "نسخ",
     "clear": "مسح",
-    "noOptionsFound": "لم يتم العثور على خيارات"
+    "noOptionsFound": "لم يتم العثور على خيارات",
+    "cancel": "إلغاء"
   },
   "accessibility": {
     "permissionsDescription": ".يحتاج VoxBar إلى أذونات إمكانية الوصول لكتابة النص المفرغ",
-    "openSettings": "فتح إعدادات النظام"
+    "openSettings": "فتح إعدادات النظام",
+    "resetSetting": "إعادة تعيين {{label}} إلى الافتراضي"
   },
   "errors": {
     "loadDirectory": "خطأ في تحميل المجلد: {{error}}",
@@ -1383,26 +1421,27 @@
     "companionBadge": "ميكروفون مرافق"
   },
   "whatsNew": {
-    "title": "الجديد في VoxBar v{{version}}"
+    "title": "الجديد في VoxBar v{{version}}",
+    "gotIt": "فهمت"
   },
   "secureInput": {
     "blockedWithCulprit_one": "قد يحظر {{name}} اختصارًا واحدًا",
-    "blockedWithCulprit_zero": "قد يحظر {{name}} {{count}} اختصارات",
-    "blockedWithCulprit_two": "قد يحظر {{name}} {{count}} اختصارين",
-    "blockedWithCulprit_few": "قد يحظر {{name}} {{count}} اختصارات",
-    "blockedWithCulprit_many": "قد يحظر {{name}} {{count}} اختصارًا",
     "blockedWithCulprit_other": "قد يحظر {{name}} {{count}} اختصارات",
     "blockedNoCulprit_one": "يحظر macOS مؤقتًا اختصارًا واحدًا",
-    "blockedNoCulprit_zero": "يحظر macOS مؤقتًا {{count}} اختصارات",
-    "blockedNoCulprit_two": "يحظر macOS مؤقتًا {{count}} اختصارين",
-    "blockedNoCulprit_few": "يحظر macOS مؤقتًا {{count}} اختصارات",
-    "blockedNoCulprit_many": "يحظر macOS مؤقتًا {{count}} اختصارًا",
     "blockedNoCulprit_other": "يحظر macOS مؤقتًا {{count}} اختصارات",
     "recorderBlockedWithCulprit": "قد يمنع {{name}} تغيير الاختصارات",
     "recorderBlockedNoCulprit": "يمنع macOS مؤقتًا تغيير الاختصارات",
     "learnMore": "كيفية الإصلاح",
     "recorderBlocked": "لا يمكن تسجيل الاختصارات الآن - يحجب Secure Input في macOS أحداث المفاتيح. عالج تحذير Secure Input أولاً.",
-    "dismiss": "تجاهل"
+    "dismiss": "تجاهل",
+    "blockedWithCulprit_zero": "قد يحظر {{name}} {{count}} اختصارات",
+    "blockedWithCulprit_two": "قد يحظر {{name}} {{count}} اختصارين",
+    "blockedWithCulprit_few": "قد يحظر {{name}} {{count}} اختصارات",
+    "blockedWithCulprit_many": "قد يحظر {{name}} {{count}} اختصارًا",
+    "blockedNoCulprit_zero": "يحظر macOS مؤقتًا {{count}} اختصارات",
+    "blockedNoCulprit_two": "يحظر macOS مؤقتًا {{count}} اختصارين",
+    "blockedNoCulprit_few": "يحظر macOS مؤقتًا {{count}} اختصارات",
+    "blockedNoCulprit_many": "يحظر macOS مؤقتًا {{count}} اختصارًا"
   },
   "toast": {
     "postProcessSkip": {
@@ -1468,6 +1507,8 @@
     "copied": "تم النسخ",
     "polished": "منقّح",
     "historyTitle": "الأحدث",
-    "historyEmpty": "تظهر هنا الإملاءات الصادرة من هذا الهاتف."
+    "historyEmpty": "تظهر هنا الإملاءات الصادرة من هذا الهاتف.",
+    "stateMicBlocked": "الميكروفون محظور",
+    "micBlockedRetry": "الميكروفون محظور. انقر لإعادة المحاولة."
   }
 }

@@ -46,7 +46,8 @@
     "debug": "ניפוי שגיאות",
     "about": "אודות",
     "notifications": "התראות",
-    "promptStudio": "סטודיו פרומפטים"
+    "promptStudio": "סטודיו פרומפטים",
+    "addonsGroup": "תוספות"
   },
   "onboarding": {
     "subtitle": "כדי להתחיל, בחר מודל תמלול",
@@ -68,7 +69,9 @@
     },
     "modelCard": {
       "accuracy": "דיוק",
-      "speed": "מהירות"
+      "speed": "מהירות",
+      "installed": "מותקן",
+      "selected": "נבחר"
     },
     "models": {
       "small": {
@@ -162,7 +165,9 @@
       "errors": {
         "checkFailed": "בדיקת ההרשאות נכשלה. נסה שוב.",
         "requestFailed": "בקשת ההרשאה נכשלה. נסה שוב."
-      }
+      },
+      "done": "סיום",
+      "openSettings": "פתח הגדרות"
     },
     "hotkeyHint": "התחילו הקלטה בכל עת עם {{hotkey}}.",
     "hotkeyChangeHint": "ניתן לשנות את קיצור המקלדת הזה בהגדרות > כללי.",
@@ -171,6 +176,10 @@
       "body": "VoxBar לא הצליח להגיע לקטלוג הדגמים. בדוק את החיבור ונסה שוב, או דלג על השלב הזה ובחר דגם מאוחר יותר בהגדרות.",
       "retry": "נסה שוב",
       "skip": "דלג לעת עתה"
+    },
+    "postProcessGroup": {
+      "title": "אופציונלי: עיבוד משלים",
+      "caption": "לשיפור תמלילים לאחר הקראה. לא משמש לתמלול."
     }
   },
   "modelSelector": {
@@ -260,7 +269,9 @@
           "set": "הגדרת קיצור הדרך נכשלה: {{error}}",
           "reset": "איפוס קיצור הדרך לערך המקורי נכשל"
         },
-        "unbound": "לא מוקצה"
+        "unbound": "לא מוקצה",
+        "recordHint": "לחץ כדי להקליט קיצור דרך חדש",
+        "gatedHint": "הפעל את {{action}} כדי להגדיר מקש"
       },
       "language": {
         "title": "שפה",
@@ -369,7 +380,8 @@
         "clearAll": "מוחק את כל ההכתבה",
         "undo": "מבצע ביטול ביישום הפעיל",
         "paste": "מדביק את לוח העריכה ביישום הפעיל"
-      }
+      },
+      "defaultPhrasesNote": "ברירת המחדל הן המילים באנגלית שהמזהה מקשיב להן, וכן כינויים מובנים בהינדית ובסינית. אפשר להוסיף ביטוי משלכם בכל שפה בכל שורה."
     },
     "search": {
       "placeholder": "חיפוש בהגדרות",
@@ -712,7 +724,8 @@
         "restartButton": "הפעלת השרת מחדש",
         "restartPending": "השינויים ייכנסו לתוקף לאחר הפעלה מחדש",
         "qrPreviewNote": "תצוגה מקדימה: כתובת URL זו תפורסם בהפעלה הבאה של השרת.",
-        "sharedNetworkNote": "הטלפון וה-Mac הזה חייבים לחלוק רשת: אותו Wi-Fi או LAN, או אותו tailnet (למשל שניהם ב-Tailscale)."
+        "sharedNetworkNote": "הטלפון וה-Mac הזה חייבים לחלוק רשת: אותו Wi-Fi או LAN, או אותו tailnet (למשל שניהם ב-Tailscale).",
+        "fingerprintCopied": "הועתק"
       }
     },
     "postProcessing": {
@@ -762,7 +775,8 @@
           "showAll_one": "הצג הכול ({{count}})",
           "showAll_two": "הצג הכול ({{count}})",
           "showAll_other": "הצג הכול ({{count}})",
-          "showFewer": "הצג פחות"
+          "showFewer": "הצג פחות",
+          "emptyNoKey": "הזן למעלה את מפתח ה-API שלך ולאחר מכן רענן כדי לטעון מודלים."
         },
         "timeout": {
           "title": "פסק זמן לבקשה",
@@ -953,7 +967,12 @@
       "viaPostProcess": "דרך {{model}} · {{prompt}} · {{outcome}} · {{latency}} מ״ש",
       "viewChanges": "הצגת שינויים",
       "hideChanges": "הסתרת שינויים",
-      "dbRecoveredNotice": "מסד הנתונים של היסטוריית התמלילים שלך לא ניתן לקריאה, לכן הוחל במסד חדש. מסד הנתונים הקודם נשמר בשם {{file}}."
+      "dbRecoveredNotice": "מסד הנתונים של היסטוריית התמלילים שלך לא ניתן לקריאה, לכן הוחל במסד חדש. מסד הנתונים הקודם נשמר בשם {{file}}.",
+      "emptyTitle": "אין עדיין תמלילים",
+      "emptyHint": "לחץ על קיצור המקלדת להקלטה כדי לתעד את ההקלדה הראשונה שלך.",
+      "deleteConfirm": "למחוק רשומה זו? ההקלטה והתמליל שלה יוסרו לצמיתות.",
+      "today": "היום",
+      "yesterday": "אתמול"
     },
     "debug": {
       "title": "ניפוי שגיאות",
@@ -973,10 +992,13 @@
         "pause": "השהה",
         "resume": "המשך",
         "copied": "הועתק",
+        "lineCount": "{{count}} שורות",
+        "empty": "ממתין ללוגים… רשומות יופיעו כאן כשהאפליקציה תפיק אותן.",
         "lineCount_one": "שורה אחת",
         "lineCount_two": "{{count}} שורות",
         "lineCount_other": "{{count}} שורות",
-        "empty": "ממתין ללוגים… רשומות יופיעו כאן כשהאפליקציה תפיק אותן."
+        "clearConfirm": "לנקות את השורות שנלכדו בתצוגה זו? קובץ היומן בדיסק נשמר.",
+        "clearConfirmTitle": "לנקות את השורות שנלכדו?"
       },
       "updateChecks": {
         "label": "בדוק עדכונים",
@@ -1160,7 +1182,8 @@
       },
       "outcomes": {
         "label": "התראות על תוצאות",
-        "description": "גם להתריע כשמסתיימת הפעלה של הטלפון, למשל בהגעה למגבלת ההפעלה או כשהטלפון מתנתק. כבוי פירושו שגיאות בלבד."
+        "description": "גם להתריע כשמסתיימת הפעלה של הטלפון, למשל בהגעה למגבלת ההפעלה או כשהטלפון מתנתק. כבוי פירושו שגיאות בלבד.",
+        "requiresMaster": "זמין רק כאשר התראות המערכת פועלות."
       },
       "log": {
         "title": "יומן התראות",
@@ -1215,10 +1238,17 @@
         "charsChanged_one": "תו אחד השתנה",
         "charsChanged_two": "{{count}} תווים השתנו",
         "charsChanged_other": "{{count}} תווים השתנו",
-        "identical": "אין שינויים."
+        "identical": "אין שינויים.",
+        "added_one": "+{{count}} נוספה",
+        "added_other": "+{{count}} נוספו",
+        "added_two": "+{{count}} נוספו",
+        "removed_one": "{{count}} הוסרה",
+        "removed_other": "{{count}} הוסרו",
+        "removed_two": "{{count}} הוסרו"
       },
       "resultsEmptyTitle": "התוצאות יופיעו כאן",
-      "resultsEmptyHint": "בחר למעלה מקור, פרומפטים ומנועים והרץ. כל כרטיס מציג את הטקסט המלוטש, את השינויים ואת המהירות."
+      "resultsEmptyHint": "בחר למעלה מקור, פרומפטים ומנועים והרץ. כל כרטיס מציג את הטקסט המלוטש, את השינויים ואת המהירות.",
+      "appliedLabel": "הצלחה"
     }
   },
   "footer": {
@@ -1265,11 +1295,13 @@
     "open": "פתח",
     "copy": "העתק",
     "clear": "נקה",
-    "noOptionsFound": "לא נמצאו אפשרויות"
+    "noOptionsFound": "לא נמצאו אפשרויות",
+    "cancel": "ביטול"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar צריך הרשאות נגישות כדי להקליד את הטקסט המתומלל.",
-    "openSettings": "פתח את הגדרות המערכת"
+    "openSettings": "פתח את הגדרות המערכת",
+    "resetSetting": "איפוס {{label}} לברירת המחדל"
   },
   "errors": {
     "loadDirectory": "שגיאה בטעינת תיקייה: {{error}}",
@@ -1362,20 +1394,21 @@
     "companionBadge": "מיקרופון מלווה"
   },
   "whatsNew": {
-    "title": "חדש ב-VoxBar v{{version}}"
+    "title": "חדש ב-VoxBar v{{version}}",
+    "gotIt": "הבנתי"
   },
   "secureInput": {
     "blockedWithCulprit_one": "ייתכן ש-{{name}} חוסם קיצור דרך אחד",
-    "blockedWithCulprit_two": "ייתכן ש-{{name}} חוסם {{count}} קיצורי דרך",
     "blockedWithCulprit_other": "ייתכן ש-{{name}} חוסם {{count}} קיצורי דרך",
     "blockedNoCulprit_one": "macOS חוסם זמנית קיצור דרך אחד",
-    "blockedNoCulprit_two": "macOS חוסם זמנית {{count}} קיצורי דרך",
     "blockedNoCulprit_other": "macOS חוסם זמנית {{count}} קיצורי דרך",
     "recorderBlockedWithCulprit": "ייתכן ש-{{name}} חוסם שינויים בקיצורי דרך",
     "recorderBlockedNoCulprit": "macOS חוסם זמנית שינויים בקיצורי דרך",
     "learnMore": "איך לתקן את זה",
     "recorderBlocked": "לא ניתן להקליט קיצורים כרגע - Secure Input של macOS חוסם אירועי מקשים. פתור תחילה את אזהרת Secure Input.",
-    "dismiss": "התעלם"
+    "dismiss": "התעלם",
+    "blockedWithCulprit_two": "ייתכן ש-{{name}} חוסם {{count}} קיצורי דרך",
+    "blockedNoCulprit_two": "macOS חוסם זמנית {{count}} קיצורי דרך"
   },
   "toast": {
     "postProcessSkip": {
@@ -1441,6 +1474,8 @@
     "copied": "הועתק",
     "polished": "מלוטש",
     "historyTitle": "אחרונים",
-    "historyEmpty": "הקלטות מהטלפון הזה יופיעו כאן."
+    "historyEmpty": "הקלטות מהטלפון הזה יופיעו כאן.",
+    "stateMicBlocked": "המיקרופון חסום",
+    "micBlockedRetry": "המיקרופון חסום. הקש כדי לנסות שוב."
   }
 }

@@ -24,10 +24,13 @@ const Footer: React.FC = () => {
           <ModelSelector />
         </div>
 
-        {/* Update Status */}
+        {/* Version only. The footer is purely informational: the footer's
+            old "Check for updates" text link rendered exactly like this
+            static version text, so it read as a label - the one interactive
+            update control lives in the About Version row. UpdateChecker
+            stays mounted headlessly for the startup auto-check. */}
         <div className="flex items-center gap-1">
           <UpdateChecker />
-          <span>•</span>
           {/* AUD-07 / KB-193: state starts empty and the IPC roundtrip takes
               a frame, so an ungated span would flash a bare "v"; render the
               version only once it has actually loaded. */}

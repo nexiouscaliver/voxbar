@@ -1,0 +1,346 @@
+{
+  "generatedAt": "2026-10-13T00:28:29.538Z",
+  "screens": {
+    "settings-studio-run": {
+      "unnamedButtons": [],
+      "fontSizes": [
+        {
+          "size": "13px",
+          "count": 23,
+          "weights": ["500", "400"],
+          "examples": [
+            "div.flex.flex-col.w-52 > div.settings-scroll.flex.flex-col > div.flex.gap-2.items-center > div.flex.flex-col.min-w-0 > p.text-sm.font-medium.truncate :: General",
+            "div.flex.flex-col.w-52 > div.settings-scroll.flex.flex-col > div.flex.gap-2.items-center > div.flex.flex-col.min-w-0 > p.text-sm.font-medium.truncate :: Commands",
+            "div.flex.flex-col.w-52 > div.settings-scroll.flex.flex-col > div.flex.gap-2.items-center > div.flex.flex-col.min-w-0 > p.text-sm.font-medium.truncate :: History"
+          ]
+        },
+        {
+          "size": "11px",
+          "count": 22,
+          "weights": ["400", "600", "500"],
+          "examples": [
+            "div.w-full > div.grid.gap-1.5.sm:grid-cols-2 > label.flex.items-center.gap-2.5 > span.min-w-0.flex-1 > span.block.text-xs.leading-snug :: auto · General",
+            "div.w-full > div.grid.gap-1.5.sm:grid-cols-2 > label.flex.items-center.gap-2.5 > span.min-w-0.flex-1 > span.block.text-xs.leading-snug :: Qwen3-0.6B-Q8_0.gguf",
+            "div.w-full > div.grid.gap-1.5.sm:grid-cols-2 > label.flex.items-center.gap-2.5 > span.min-w-0.flex-1 > span.block.text-xs.leading-snug :: gpt-4o-mini"
+          ]
+        },
+        {
+          "size": "76px",
+          "count": 1,
+          "weights": ["700"],
+          "examples": [
+            "div.h-screen.flex.flex-col > div.flex-1.flex.overflow-hidden > div.flex.flex-col.w-52 > svg > text :: VoxBar"
+          ]
+        },
+        {
+          "size": "20px",
+          "count": 1,
+          "weights": ["500"],
+          "examples": [
+            "div.absolute.inset-0.overflow-y-auto > div.flex.flex-col.items-center > div.max-w-3xl.w-full.mx-auto > div > h1.text-xl.font-medium.mb-2 :: Prompt Studio"
+          ]
+        }
+      ],
+      "contrast": {
+        "measuredPairs": 40,
+        "failing": [],
+        "failingCount": 0
+      },
+      "overflow": {
+        "findings": [
+          {
+            "selector": "div.relative.flex-1.flex > div.relative.min-h-0.flex-1 > div.absolute.inset-0.overflow-y-auto > div.flex.flex-col.items-center > div.max-w-3xl.w-full.mx-auto",
+            "kind": "overflowing",
+            "scrollWidth": 448,
+            "clientWidth": 440,
+            "scrollHeight": 771,
+            "clientHeight": 771,
+            "text": "Prompt StudioTest prompts on a real transcript and"
+          }
+        ],
+        "count": 1
+      },
+      "spacing": {
+        "distinctValues": [
+          {
+            "property": "columnGap",
+            "value": "8px",
+            "count": 19
+          },
+          {
+            "property": "rowGap",
+            "value": "8px",
+            "count": 19
+          },
+          {
+            "property": "paddingTop",
+            "value": "6px",
+            "count": 17
+          },
+          {
+            "property": "paddingBottom",
+            "value": "6px",
+            "count": 17
+          },
+          {
+            "property": "paddingRight",
+            "value": "8px",
+            "count": 15
+          },
+          {
+            "property": "paddingLeft",
+            "value": "8px",
+            "count": 14
+          },
+          {
+            "property": "paddingLeft",
+            "value": "16px",
+            "count": 7
+          },
+          {
+            "property": "paddingRight",
+            "value": "16px",
+            "count": 7
+          },
+          {
+            "property": "marginBottom",
+            "value": "8px",
+            "count": 7
+          },
+          {
+            "property": "paddingTop",
+            "value": "8px",
+            "count": 5
+          },
+          {
+            "property": "marginBottom",
+            "value": "24px",
+            "count": 5
+          },
+          {
+            "property": "paddingLeft",
+            "value": "10px",
+            "count": 5
+          },
+          {
+            "property": "paddingRight",
+            "value": "10px",
+            "count": 5
+          },
+          {
+            "property": "columnGap",
+            "value": "10px",
+            "count": 5
+          },
+          {
+            "property": "rowGap",
+            "value": "10px",
+            "count": 5
+          },
+          {
+            "property": "paddingBottom",
+            "value": "8px",
+            "count": 4
+          },
+          {
+            "property": "paddingBottom",
+            "value": "12px",
+            "count": 3
+          },
+          {
+            "property": "paddingTop",
+            "value": "4px",
+            "count": 3
+          },
+          {
+            "property": "paddingBottom",
+            "value": "4px",
+            "count": 3
+          },
+          {
+            "property": "paddingTop",
+            "value": "16px",
+            "count": 2
+          },
+          {
+            "property": "columnGap",
+            "value": "16px",
+            "count": 2
+          },
+          {
+            "property": "rowGap",
+            "value": "16px",
+            "count": 2
+          },
+          {
+            "property": "paddingTop",
+            "value": "5px",
+            "count": 2
+          },
+          {
+            "property": "paddingBottom",
+            "value": "5px",
+            "count": 2
+          },
+          {
+            "property": "columnGap",
+            "value": "6px",
+            "count": 2
+          },
+          {
+            "property": "rowGap",
+            "value": "6px",
+            "count": 2
+          },
+          {
+            "property": "columnGap",
+            "value": "12px",
+            "count": 2
+          },
+          {
+            "property": "rowGap",
+            "value": "12px",
+            "count": 2
+          },
+          {
+            "property": "paddingTop",
+            "value": "12px",
+            "count": 2
+          },
+          {
+            "property": "paddingLeft",
+            "value": "12px",
+            "count": 2
+          },
+          {
+            "property": "paddingRight",
+            "value": "12px",
+            "count": 2
+          },
+          {
+            "property": "marginTop",
+            "value": "12px",
+            "count": 1
+          },
+          {
+            "property": "marginBottom",
+            "value": "12px",
+            "count": 1
+          },
+          {
+            "property": "columnGap",
+            "value": "2px",
+            "count": 1
+          },
+          {
+            "property": "rowGap",
+            "value": "2px",
+            "count": 1
+          },
+          {
+            "property": "paddingLeft",
+            "value": "32px",
+            "count": 1
+          },
+          {
+            "property": "paddingBottom",
+            "value": "40px",
+            "count": 1
+          },
+          {
+            "property": "paddingLeft",
+            "value": "6px",
+            "count": 1
+          },
+          {
+            "property": "paddingRight",
+            "value": "6px",
+            "count": 1
+          },
+          {
+            "property": "columnGap",
+            "value": "4px",
+            "count": 1
+          },
+          {
+            "property": "rowGap",
+            "value": "4px",
+            "count": 1
+          }
+        ],
+        "offScale": [
+          {
+            "property": "paddingTop",
+            "value": "6px",
+            "count": 17
+          },
+          {
+            "property": "paddingBottom",
+            "value": "6px",
+            "count": 17
+          },
+          {
+            "property": "paddingLeft",
+            "value": "10px",
+            "count": 5
+          },
+          {
+            "property": "paddingRight",
+            "value": "10px",
+            "count": 5
+          },
+          {
+            "property": "columnGap",
+            "value": "10px",
+            "count": 5
+          },
+          {
+            "property": "rowGap",
+            "value": "10px",
+            "count": 5
+          },
+          {
+            "property": "paddingTop",
+            "value": "5px",
+            "count": 2
+          },
+          {
+            "property": "paddingBottom",
+            "value": "5px",
+            "count": 2
+          },
+          {
+            "property": "columnGap",
+            "value": "6px",
+            "count": 2
+          },
+          {
+            "property": "rowGap",
+            "value": "6px",
+            "count": 2
+          },
+          {
+            "property": "columnGap",
+            "value": "2px",
+            "count": 1
+          },
+          {
+            "property": "rowGap",
+            "value": "2px",
+            "count": 1
+          },
+          {
+            "property": "paddingLeft",
+            "value": "6px",
+            "count": 1
+          },
+          {
+            "property": "paddingRight",
+            "value": "6px",
+            "count": 1
+          }
+        ]
+      }
+    }
+  }
+}

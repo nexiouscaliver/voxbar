@@ -6,7 +6,6 @@ import {
   ChevronDown,
   Globe,
   Languages,
-  RefreshCw,
   Search,
 } from "lucide-react";
 import type { ModelCardStatus } from "@/components/onboarding";
@@ -68,12 +67,10 @@ export const ModelsSettings: React.FC = () => {
     verifyingModels,
     extractingModels,
     loading,
-    isRescanning,
     downloadModel,
     cancelDownload,
     selectModel,
     deleteModel,
-    rescanLocalModels,
   } = useModelStore();
 
   // click outside handler for language dropdown
@@ -297,58 +294,41 @@ export const ModelsSettings: React.FC = () => {
         </p>
       </div>
 
-      {/* Search bar - filter the catalog by name or description */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text/40 pointer-events-none" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder={t("settings.models.searchPlaceholder")}
-          className="w-full pl-9 pr-3 py-2 text-sm bg-mid-gray/10 border border-mid-gray/40 rounded-lg focus:outline-none focus:ring-1 focus:ring-logo-primary placeholder:text-text/40"
-        />
-      </div>
-
       {/* Add a model by pasting a Hugging Face repo, plus a prominent rescan */}
       <AddModelFromHuggingFace />
 
       <div className="space-y-6">
         {/* Downloaded Models Section - header always visible so filter stays accessible */}
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-medium text-text/60">
+          {/* The heading keeps its single line (whitespace-nowrap) and the
+              filter cluster wraps to its own row beneath it when the
+              labeled pills plus the language dropdown outgrow the ~450px
+              settings column - the cluster gives way, never the heading. */}
+          <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+            <h2 className="text-sm font-medium text-text/60 whitespace-nowrap">
               {t("settings.models.yourModels")}
             </h2>
-            <div className="flex items-center gap-2">
-              {/* Rescan local sources for models added outside VoxBar */}
-              <button
-                type="button"
-                onClick={() => rescanLocalModels()}
-                disabled={isRescanning}
-                title={t("settings.models.rescan.tooltip")}
-                aria-label={t("settings.models.rescan.tooltip")}
-                className="flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <RefreshCw
-                  className={`w-3.5 h-3.5 ${isRescanning ? "animate-spin" : ""}`}
-                />
-              </button>
-
-              {/* Vertical divider separating action from filters */}
-              <div className="h-4 w-px bg-mid-gray/30 mx-0.5" />
+            <div className="flex flex-wrap items-center gap-1.5">
+              {/* Capability filters carry their label inline (icon-only
+                  pills read as mystery toggles, and the translate glyph
+                  crowded the language dropdown beside it). Rescan lives
+                  once, labeled, in the Add-model card above. */}
               <button
                 type="button"
                 onClick={() => setFilterStreaming((enabled) => !enabled)}
                 title={t("settings.models.filters.streaming")}
                 aria-label={t("settings.models.filters.streaming")}
                 aria-pressed={filterStreaming}
-                className={`flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg transition-colors ${
+                className={`flex items-center gap-1.5 h-8 px-2 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
                   filterStreaming
                     ? "bg-logo-primary/20 text-logo-primary hover:bg-logo-primary/30"
                     : "bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20"
                 }`}
               >
-                <AudioLines className="w-3.5 h-3.5" />
+                <AudioLines className="w-3.5 h-3.5" aria-hidden="true" />
+                {/* The short capability word the model cards themselves use;
+                    the full sentence rides the tooltip. */}
+                <span>{t("modelSelector.streaming")}</span>
               </button>
               <button
                 type="button"
@@ -356,20 +336,21 @@ export const ModelsSettings: React.FC = () => {
                 title={t("settings.models.filters.translation")}
                 aria-label={t("settings.models.filters.translation")}
                 aria-pressed={filterTranslation}
-                className={`flex items-center justify-center w-8 h-8 text-sm font-medium rounded-lg transition-colors ${
+                className={`flex items-center gap-1.5 h-8 px-2 text-xs font-medium rounded-lg transition-colors cursor-pointer ${
                   filterTranslation
                     ? "bg-logo-primary/20 text-logo-primary hover:bg-logo-primary/30"
                     : "bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20"
                 }`}
               >
-                <Languages className="w-3.5 h-3.5" />
+                <Languages className="w-3.5 h-3.5" aria-hidden="true" />
+                <span>{t("modelSelector.capabilities.translate")}</span>
               </button>
               {/* Language filter dropdown */}
               <div className="relative" ref={languageDropdownRef}>
                 <button
                   type="button"
                   onClick={() => setLanguageDropdownOpen(!languageDropdownOpen)}
-                  className={`flex items-center gap-1.5 h-8 px-3 text-sm font-medium rounded-lg transition-colors ${
+                  className={`flex items-center gap-1.5 h-8 px-2 text-xs font-medium rounded-lg transition-colors ${
                     languageFilter !== "all"
                       ? "bg-logo-primary/20 text-logo-primary"
                       : "bg-mid-gray/10 text-text/60 hover:bg-mid-gray/20"
@@ -457,6 +438,21 @@ export const ModelsSettings: React.FC = () => {
                 )}
               </div>
             </div>
+          </div>
+          {/* Search bar - filters the downloaded/available model lists by
+              name or description. It lives INSIDE the models section (above
+              the first card) so it reads as filtering the list, not the
+              Hugging Face card that used to sit directly beneath it. */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text/40 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder={t("settings.models.searchPlaceholder")}
+              aria-label={t("settings.models.searchPlaceholder")}
+              className="w-full pl-9 pr-3 py-2 text-sm bg-mid-gray/10 border border-mid-gray/40 rounded-lg focus:outline-none focus:ring-1 focus:ring-logo-primary placeholder:text-text/40"
+            />
           </div>
           {downloadedModels.map((model: ModelInfo) => (
             <React.Fragment key={model.id}>

@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
-import { RefreshCcw, Search } from "lucide-react";
+import { Check, RefreshCcw, Search } from "lucide-react";
 import {
   commands,
   type LLMPrompt,
@@ -15,6 +15,7 @@ import {
   SettingsGroup,
   Slider,
   Textarea,
+  ToggleSwitch,
 } from "@/components/ui";
 import Badge from "../../ui/Badge";
 import { Button } from "../../ui/Button";
@@ -161,32 +162,72 @@ const PostProcessTimeoutRow: React.FC<{
 
 /// The keep-warm row for the LOCAL post-process model: how long the model
 /// worker stays in memory after a polish instead of unloading immediately
-/// (the default). 0 is exactly the v1.3.0 exclusive swap; anything longer
-/// holds the model resident for back-to-back polishing, and a dictation
-/// always evicts it first.
+/// (the default). The boolean reads as the app's standard pill switch (off =
+/// gray track + left knob; on = accent track), and the duration is an
+/// indented slider sub-row that only exists while warm-keeping is on - the
+/// old always-on slider rendered the Off state as a pink knob on a dead
+/// track plus a separate "Off" text, contradicting the accent-means-on
+/// language every other boolean on the page uses.
+const WARM_DEFAULT_SECS = 60;
+
 const PostProcessKeepWarmRow: React.FC = () => {
   const { t } = useTranslation();
-  const { settings, updateSetting, isUpdating } = useSettings();
+  const { getSetting, updateSetting, isUpdating } = useSettings();
+
+  const keepWarmSecs = getSetting("post_process_local_keep_warm_secs") ?? 0;
+  const warmOn = keepWarmSecs > 0;
+  const formatWarm = (v: number): string =>
+    v >= 60 && v % 60 === 0 ? `${v / 60}m` : `${v}s`;
 
   return (
-    <Slider
-      value={settings?.post_process_local_keep_warm_secs ?? 0}
-      onChange={(value) =>
-        updateSetting("post_process_local_keep_warm_secs", value)
-      }
-      onReset={() => updateSetting("post_process_local_keep_warm_secs", 0)}
-      isResetting={isUpdating("post_process_local_keep_warm_secs")}
-      min={0}
-      max={600}
-      step={5}
-      label={t("settings.postProcessing.local.keepWarm.title")}
-      description={t("settings.postProcessing.local.keepWarm.description")}
-      descriptionMode="tooltip"
-      grouped={true}
-      formatValue={(v) =>
-        v === 0 ? t("settings.postProcessing.local.keepWarm.off") : `${v}s`
-      }
-    />
+    <>
+      <ToggleSwitch
+        checked={warmOn}
+        onChange={(enabled) =>
+          updateSetting(
+            "post_process_local_keep_warm_secs",
+            enabled ? WARM_DEFAULT_SECS : 0,
+          )
+        }
+        isUpdating={isUpdating("post_process_local_keep_warm_secs")}
+        label={t("settings.postProcessing.local.keepWarm.title")}
+        description={t("settings.postProcessing.local.keepWarm.description")}
+        descriptionMode="tooltip"
+        grouped={true}
+      />
+      {warmOn && (
+        <div className="flex items-center gap-2 pl-8 pr-2 h-6">
+          <input
+            type="range"
+            min={5}
+            max={600}
+            step={5}
+            value={keepWarmSecs}
+            onChange={(event) =>
+              updateSetting(
+                "post_process_local_keep_warm_secs",
+                parseFloat(event.target.value),
+              )
+            }
+            aria-label={t("settings.postProcessing.local.keepWarm.title")}
+            className="flex-grow h-1.5 rounded-full appearance-none cursor-pointer focus:outline-none focus:ring-2 focus:ring-logo-primary/50 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-3.5 [&::-webkit-slider-thumb]:w-3.5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-background-ui [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-background [&::-moz-range-thumb]:h-3.5 [&::-moz-range-thumb]:w-3.5 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-background-ui [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-background"
+            style={{
+              background: `linear-gradient(to right, var(--color-background-ui) ${
+                ((keepWarmSecs - 5) / (600 - 5)) * 100
+              }%, rgba(128, 128, 128, 0.2) ${
+                ((keepWarmSecs - 5) / (600 - 5)) * 100
+              }%)`,
+            }}
+          />
+          <span
+            className="min-w-12 max-w-32 shrink-0 truncate text-end text-sm font-medium text-text/90"
+            title={formatWarm(keepWarmSecs)}
+          >
+            {formatWarm(keepWarmSecs)}
+          </span>
+        </div>
+      )}
+    </>
   );
 };
 
@@ -232,15 +273,13 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
       )}
 
       {state.isLocalProvider ? (
-        // The local on-device engine: no API fields, no model dropdown,
-        // just the models section (spec 7.2, generalized). The section
-        // itself renders the original pinned row unchanged until the user
-        // downloads or selects anything beyond the pinned model. The
-        // keep-warm row follows: it governs the local worker's lifetime.
-        <>
-          <PostProcessModelsSection />
-          <PostProcessKeepWarmRow />
-        </>
+        // The local on-device engine: no API fields, no model dropdown.
+        // The models catalog lives in its own section below this card
+        // (rendered by PostProcessingSettings at page level, so its header
+        // and padding match the sibling sections instead of nesting a card
+        // inside this card). The keep-warm row stays here: it governs the
+        // local worker's lifetime, which is engine config.
+        <PostProcessKeepWarmRow />
       ) : state.isAppleProvider ? (
         state.appleIntelligenceUnavailable ? (
           <Alert variant="error" contained>
@@ -301,6 +340,7 @@ const PostProcessingSettingsApiComponent: React.FC = () => {
           isFetchingModels={state.isFetchingModels}
           modelFetchError={state.modelFetchError}
           modelListFetchedAtUnix={state.modelListFetchedAtUnix}
+          apiKeyPresent={Boolean(state.apiKey.trim())}
           description={
             state.isCustomProvider
               ? t("settings.postProcessing.api.model.descriptionCustom")
@@ -383,6 +423,11 @@ const CloudModelPicker: React.FC<{
   isFetchingModels: boolean;
   modelFetchError: { kind: string; detail: string } | null;
   modelListFetchedAtUnix: number | null;
+  /** Whether the selected provider has an API key stored: without one a
+   * model-list fetch cannot succeed, so the refresh action rests disabled
+   * and the empty state names the key as the blocker instead of a dead-end
+   * "no list yet" next to a button that can never work. */
+  apiKeyPresent: boolean;
   /** The row description: provider-class aware (custom endpoints need the
    * "identifier your endpoint expects" wording). */
   description: string;
@@ -396,6 +441,7 @@ const CloudModelPicker: React.FC<{
   isFetchingModels,
   modelFetchError,
   modelListFetchedAtUnix,
+  apiKeyPresent,
   description,
   onSelect,
   onCreate,
@@ -458,14 +504,21 @@ const CloudModelPicker: React.FC<{
                       modelListFetchedAtUnix * 1000,
                     ).toLocaleTimeString(),
                   })
-                : t(`${base}.notFetched`)}
+                : apiKeyPresent
+                  ? t(`${base}.notFetched`)
+                  : t(`${base}.emptyNoKey`)}
           </p>
           <Button
             onClick={onRefresh}
             variant="secondary"
             size="sm"
-            disabled={isFetchingModels}
+            disabled={isFetchingModels || !apiKeyPresent}
             className="shrink-0 flex items-center gap-1.5"
+            title={
+              apiKeyPresent
+                ? undefined
+                : t("settings.postProcessing.api.model.emptyNoKey")
+            }
           >
             <RefreshCcw
               className={`h-3.5 w-3.5 ${isFetchingModels ? "animate-spin" : ""}`}
@@ -547,7 +600,12 @@ const CloudModelPicker: React.FC<{
                 {t(`${base}.emptyTitle`)}
               </p>
               <p className="mt-1 text-xs text-secondary/70">
-                {t(`${base}.emptyHint`)}
+                {/* The no-key state names the actual blocker (the key field
+                 * above) instead of a dead end; the plain hint only applies
+                 * once a refresh could succeed. */}
+                {apiKeyPresent
+                  ? t(`${base}.emptyHint`)
+                  : t(`${base}.emptyNoKey`)}
               </p>
             </div>
           )
@@ -616,6 +674,14 @@ const TemplateRow: React.FC<{
         defaultValue: prompt.description,
       })
     : prompt.description;
+  // The language pill only renders when the template carries one: an
+  // undefined language used to render an empty gray pill that read as a
+  // broken badge. "auto" localizes like every other language label.
+  const languageLabel = prompt.language
+    ? prompt.language === "auto"
+      ? t("settings.general.language.auto")
+      : prompt.language
+    : null;
 
   return (
     <div
@@ -633,7 +699,9 @@ const TemplateRow: React.FC<{
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-sm font-medium truncate">{displayName}</span>
-            <Badge variant="secondary">{prompt.language}</Badge>
+            {languageLabel && (
+              <Badge variant="secondary">{languageLabel}</Badge>
+            )}
             <Badge variant="secondary">
               {t(`${base}.registers.${prompt.register ?? "general"}`, {
                 defaultValue: prompt.register ?? "general",
@@ -655,14 +723,19 @@ const TemplateRow: React.FC<{
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <Button
-            onClick={onSelect}
-            variant="secondary"
-            size="sm"
-            disabled={isSelected}
-          >
-            {t(`${base}.selectPrompt`)}
-          </Button>
+          {isSelected ? (
+            /* A positive selected state (the models catalog's "Active"
+             * vocabulary) instead of a grayed-out Select button that read
+             * as a broken control on the very card that is selected. */
+            <Badge variant="primary" className="gap-1">
+              <Check className="h-3 w-3" aria-hidden="true" />
+              {t("settings.postProcessing.models.active")}
+            </Badge>
+          ) : (
+            <Button onClick={onSelect} variant="secondary" size="sm">
+              {t(`${base}.selectPrompt`)}
+            </Button>
+          )}
           <Button onClick={onEdit} variant="secondary" size="sm">
             {t(`${base}.editPrompt`)}
           </Button>
@@ -698,6 +771,10 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [draftName, setDraftName] = useState("");
   const [draftText, setDraftText] = useState("");
+  // The create form's Save/Cancel row: entering create mode scrolls it into
+  // view so the actions that commit the draft render fully above the fold
+  // instead of being clipped at the window bottom.
+  const createActionRef = useRef<HTMLDivElement>(null);
 
   const prompts = getSetting("post_process_prompts") || [];
   const selectedPromptId = getSetting("post_process_selected_prompt_id") || "";
@@ -808,6 +885,11 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
     setIsCreating(true);
     setDraftName("");
     setDraftText("");
+    // The form renders below the fold on short windows; bring its commit
+    // row into view once it exists.
+    requestAnimationFrame(() => {
+      createActionRef.current?.scrollIntoView({ block: "end" });
+    });
   };
 
   const hasPrompts = prompts.length > 0;
@@ -853,14 +935,19 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
             }
             className="flex-1 min-w-0"
           />
+          {/* While the create form is open this row swaps from the (now
+              pointless, disabled) Create New Prompt to an enabled Cancel, so
+              an actionable affordance always sits inside the visible area
+              even when the form's own Save/Cancel row is below the fold. */}
           <Button
-            onClick={handleStartCreate}
-            variant="primary"
+            onClick={isCreating ? handleCancelCreate : handleStartCreate}
+            variant={isCreating ? "secondary" : "primary"}
             size="md"
-            disabled={isCreating}
             className="shrink-0"
           >
-            {t("settings.postProcessing.prompts.createNew")}
+            {isCreating
+              ? t("settings.postProcessing.prompts.cancel")
+              : t("settings.postProcessing.prompts.createNew")}
           </Button>
         </div>
 
@@ -989,7 +1076,7 @@ const PostProcessingSettingsPromptsComponent: React.FC = () => {
               </p>
             </div>
 
-            <div className="flex gap-2 pt-2">
+            <div ref={createActionRef} className="flex gap-2 pt-2">
               <Button
                 onClick={handleCreatePrompt}
                 variant="primary"
@@ -1062,6 +1149,15 @@ export const PostProcessingSettings: React.FC = () => {
       >
         <PostProcessingSettingsApi />
       </SettingsGroup>
+
+      {/* The local models catalog: a page-level sibling of the ENGINE card,
+          not a nested card inside it. Rendering it here gives its header the
+          same clearance and its content the same inner padding as the
+          HOTKEY/ENGINE/PROMPTS sections (the old nesting glued the header to
+          the ENGINE card's border). */}
+      {showLocalRow(settings?.post_process_provider_id ?? "") && (
+        <PostProcessModelsSection />
+      )}
 
       <SettingsGroup title={t("settings.postProcessing.prompts.title")}>
         <PostProcessingSettingsPrompts />

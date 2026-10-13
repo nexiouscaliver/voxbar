@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import { SettingContainer } from "./SettingContainer";
 import { ResetButton } from "./ResetButton";
 import { RANGE_INPUT_CLASS } from "./rangeSlider";
@@ -18,6 +19,10 @@ interface SliderProps {
   formatValue?: (value: number) => string;
   onReset?: () => void;
   isResetting?: boolean;
+  /** The setting's default. While the value sits on it there is nothing
+   * to restore, so the reset arrow stays hidden instead of rendering as a
+   * dead control on every slider row. */
+  defaultValue?: number;
 }
 
 export const Slider: React.FC<SliderProps> = ({
@@ -35,7 +40,9 @@ export const Slider: React.FC<SliderProps> = ({
   formatValue = (v) => v.toFixed(2),
   onReset,
   isResetting = false,
+  defaultValue,
 }) => {
+  const { t } = useTranslation();
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onChange(parseFloat(e.target.value));
   };
@@ -50,7 +57,7 @@ export const Slider: React.FC<SliderProps> = ({
       disabled={disabled}
     >
       <div className="w-full">
-        <div className="flex items-center space-x-1 h-6">
+        <div className="flex items-center gap-2 h-6">
           <input
             type="range"
             min={min}
@@ -69,13 +76,30 @@ export const Slider: React.FC<SliderProps> = ({
             }}
           />
           {showValue && (
-            <span className="text-sm font-medium text-text/90 w-12 text-end">
+            // Content-fitting width: a fixed w-12 clipped longer localized
+            // labels (it-IT "Disattivato") under the reset icon. The value
+            // now grows with its text (min-w-12 floor keeps numbers aligned)
+            // and never wraps or collides with the reset button.
+            <span
+              className="min-w-12 max-w-32 shrink-0 truncate text-end text-sm font-medium text-text/90"
+              title={formatValue(value)}
+            >
               {formatValue(value)}
             </span>
           )}
-          {onReset && (
-            <ResetButton onClick={onReset} disabled={disabled || isResetting} />
-          )}
+          {/* Reset exists only while the value actually differs from its
+              default (and the row is enabled); hidden otherwise so the
+              arrow never renders as a dead control. */}
+          {onReset &&
+            !disabled &&
+            defaultValue !== undefined &&
+            value !== defaultValue && (
+              <ResetButton
+                onClick={onReset}
+                disabled={isResetting}
+                ariaLabel={t("accessibility.resetSetting", { label })}
+              />
+            )}
         </div>
       </div>
     </SettingContainer>

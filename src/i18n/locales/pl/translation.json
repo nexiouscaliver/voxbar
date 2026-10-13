@@ -46,7 +46,8 @@
     "debug": "Debugowanie",
     "about": "O programie",
     "notifications": "Powiadomienia",
-    "promptStudio": "Studio promptów"
+    "promptStudio": "Studio promptów",
+    "addonsGroup": "Dodatki"
   },
   "onboarding": {
     "subtitle": "Aby rozpocząć, wybierz model transkrypcji",
@@ -68,7 +69,9 @@
     },
     "modelCard": {
       "accuracy": "dokładność",
-      "speed": "szybkość"
+      "speed": "szybkość",
+      "installed": "Zainstalowano",
+      "selected": "Wybrano"
     },
     "models": {
       "small": {
@@ -162,7 +165,9 @@
       "errors": {
         "checkFailed": "Nie udało się sprawdzić uprawnień. Spróbuj ponownie.",
         "requestFailed": "Nie udało się poprosić o uprawnienie. Spróbuj ponownie."
-      }
+      },
+      "done": "Gotowe",
+      "openSettings": "Otwórz ustawienia"
     },
     "hotkeyHint": "Dyktowanie uruchomisz klawiszem {{hotkey}} w każdej chwili.",
     "hotkeyChangeHint": "Ten skrót zmienisz w Ustawienia > Ogólne.",
@@ -171,6 +176,10 @@
       "body": "VoxBar nie mógł połączyć się z katalogiem modeli. Sprawdź połączenie i spróbuj ponownie albo pomiń ten krok i wybierz model później w Ustawieniach.",
       "retry": "Spróbuj ponownie",
       "skip": "Pomiń na razie"
+    },
+    "postProcessGroup": {
+      "title": "Opcjonalnie: Postproces",
+      "caption": "Do dopracowywania transkrypcji po dyktowaniu. Nie służy do transkrypcji."
     }
   },
   "modelSelector": {
@@ -313,7 +322,9 @@
           "set": "Nie udało się ustawić skrótu: {{error}}",
           "reset": "Nie udało się zresetować skrótu do wartości domyślnej"
         },
-        "unbound": "Nie przypisano"
+        "unbound": "Nie przypisano",
+        "recordHint": "Kliknij, aby nagrać nowy skrót",
+        "gatedHint": "Włącz „{{action}}”, aby przypisać klawisz"
       },
       "language": {
         "title": "Język",
@@ -422,7 +433,8 @@
         "clearAll": "Usuwa całe dyktando",
         "undo": "Wykonuje cofnięcie w aktywnej aplikacji",
         "paste": "Wkleja schowek w aktywnej aplikacji"
-      }
+      },
+      "defaultPhrasesNote": "Domyślne frazy to angielskie słowa, których nasłuchuje rozpoznawanie,oraz wbudowane odpowiedniki w hindi i chińskim. Własną frazę dodasz w dowolnymjęzyku w dowolnym wierszu."
     },
     "search": {
       "placeholder": "Szukaj w ustawieniach",
@@ -712,7 +724,8 @@
         "restartButton": "Uruchom serwer ponownie",
         "restartPending": "Zmiany zostaną zastosowane po ponownym uruchomieniu",
         "qrPreviewNote": "Podgląd: ten adres URL będzie rozgłaszany przy następnym uruchomieniu serwera.",
-        "sharedNetworkNote": "Telefon i ten Mac muszą mieć wspólną sieć: tę samą sieć Wi-Fi lub LAN albo ten sam tailnet (na przykład oba w Tailscale)."
+        "sharedNetworkNote": "Telefon i ten Mac muszą mieć wspólną sieć: tę samą sieć Wi-Fi lub LAN albo ten sam tailnet (na przykład oba w Tailscale).",
+        "fingerprintCopied": "Skopiowano"
       }
     },
     "postProcessing": {
@@ -750,7 +763,7 @@
           "retry": "Spróbuj ponownie",
           "visibleDescription": "Model, który przepisuje transkrypcję po każdym dyktowaniu.",
           "fetchingList": "Pobieranie listy modeli...",
-          "listSummary_one": "{{count}} model, pobrano {{time}}",
+          "listSummary_one": "1 model, pobrano {{time}}",
           "listSummary_few": "{{count}} modele, pobrano {{time}}",
           "listSummary_many": "{{count}} modeli, pobrano {{time}}",
           "listSummary_other": "{{count}} modeli, pobrano {{time}}",
@@ -764,7 +777,8 @@
           "showAll_few": "Pokaż wszystkie ({{count}})",
           "showAll_many": "Pokaż wszystkie ({{count}})",
           "showAll_other": "Pokaż wszystkie ({{count}})",
-          "showFewer": "Pokaż mniej"
+          "showFewer": "Pokaż mniej",
+          "emptyNoKey": "Wpisz powyżej swój klucz API, a następnie odśwież, aby pobrać modele."
         },
         "timeout": {
           "title": "Limit czasu żądania",
@@ -955,7 +969,12 @@
       "viaPostProcess": "przez {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Pokaż zmiany",
       "hideChanges": "Ukryj zmiany",
-      "dbRecoveredNotice": "Baza danych historii transkrypcji była nieczytelna, więc rozpoczęto nową. Poprzednia baza danych została zachowana jako {{file}}."
+      "dbRecoveredNotice": "Baza danych historii transkrypcji była nieczytelna, więc rozpoczęto nową. Poprzednia baza danych została zachowana jako {{file}}.",
+      "emptyTitle": "Brak transkrypcji",
+      "emptyHint": "Naciśnij skrót nagrywania, aby przechwycić swoje pierwsze polecenie.",
+      "deleteConfirm": "Usunąć ten wpis? Nagranie i jego transkrypcja zostaną trwale usunięte.",
+      "today": "Dzisiaj",
+      "yesterday": "Wczoraj"
     },
     "debug": {
       "title": "Debugowanie",
@@ -975,11 +994,14 @@
         "pause": "Wstrzymaj",
         "resume": "Wznów",
         "copied": "Skopiowano",
+        "lineCount": "Wierszy: {{count}}",
+        "empty": "Oczekiwanie na logi… Wpisy pojawią się tutaj, gdy aplikacja je wygeneruje.",
         "lineCount_one": "{{count}} wiersz",
         "lineCount_few": "{{count}} wiersze",
         "lineCount_many": "{{count}} wierszy",
         "lineCount_other": "Wierszy: {{count}}",
-        "empty": "Oczekiwanie na logi… Wpisy pojawią się tutaj, gdy aplikacja je wygeneruje."
+        "clearConfirm": "Wyczyścić przechwycone wiersze z tego widoku? Plik dziennika na dysku zostanie zachowany.",
+        "clearConfirmTitle": "Wyczyścić przechwycone wiersze?"
       },
       "updateChecks": {
         "label": "Sprawdzaj aktualizacje",
@@ -1163,7 +1185,8 @@
       },
       "outcomes": {
         "label": "Powiadomienia o wynikach",
-        "description": "Powiadamiaj także o zakończeniu sesji telefonu, na przykład po osiągnięciu limitu sesji lub rozłączeniu telefonu. Wyłączone oznacza tylko błędy."
+        "description": "Powiadamiaj także o zakończeniu sesji telefonu, na przykład po osiągnięciu limitu sesji lub rozłączeniu telefonu. Wyłączone oznacza tylko błędy.",
+        "requiresMaster": "Dostępne tylko przy włączonych powiadomieniach systemowych."
       },
       "log": {
         "title": "Dziennik powiadomień",
@@ -1192,11 +1215,11 @@
         "noModel": "Brak skonfigurowanego modelu",
         "noModelHint": "Nie ustawiono modelu. Wybierz go w Post Process."
       },
-      "run_one": "Uruchom {{count}} parę",
+      "run_one": "Uruchom 1 parę",
       "run_few": "Uruchom {{count}} pary",
       "run_many": "Uruchom {{count}} par",
       "run_other": "Uruchom pary: {{count}}",
-      "runHint_one": "{{count}} prompt na 1 silniku. Nic nie jest wpisywane ani zapisywane.",
+      "runHint_one": "1 prompt na 1 silniku. Nic nie jest wpisywane ani zapisywane.",
       "runHint_few": "{{count}} pary prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "runHint_many": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "runHint_other": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
@@ -1207,7 +1230,7 @@
       "latency": "{{ms}} ms",
       "rawKept": "Silnik nie powiódł się lub został pominięty, więc surowa transkrypcja zostałaby zachowana.",
       "partialFailure": "Niektóre uruchomienia nie powiodły się lub zostały pominięte, a inne dały wynik. Sprawdź każdą kartę.",
-      "results_one": "{{count}} wynik",
+      "results_one": "1 wynik",
       "results_few": "{{count}} wyniki",
       "results_many": "{{count}} wyników",
       "results_other": "Wyników: {{count}}",
@@ -1218,14 +1241,23 @@
       },
       "diff": {
         "lines": "linii",
-        "charsChanged_one": "Zmieniono {{count}} znak",
+        "charsChanged_one": "Zmieniono 1 znak",
         "charsChanged_few": "Zmieniono {{count}} znaki",
         "charsChanged_many": "Zmieniono {{count}} znaków",
         "charsChanged_other": "Zmieniono znaków: {{count}}",
-        "identical": "Brak zmian."
+        "identical": "Brak zmian.",
+        "added_few": "+{{count}} dodane",
+        "added_many": "+{{count}} dodanych",
+        "added_one": "+1 dodana",
+        "added_other": "Dodane: {{count}}",
+        "removed_few": "{{count}} usunięte",
+        "removed_many": "{{count}} usuniętych",
+        "removed_one": "1 usunięta",
+        "removed_other": "Usunięte: {{count}}"
       },
       "resultsEmptyTitle": "Wyniki pojawią się tutaj",
-      "resultsEmptyHint": "Wybierz wyżej źródło, prompty i silniki, a potem uruchom. Każda karta pokazuje dopracowany tekst, zmiany i czas działania."
+      "resultsEmptyHint": "Wybierz wyżej źródło, prompty i silniki, a potem uruchom. Każda karta pokazuje dopracowany tekst, zmiany i czas działania.",
+      "appliedLabel": "Sukces"
     }
   },
   "footer": {
@@ -1272,11 +1304,13 @@
     "open": "Otwórz",
     "copy": "Kopiuj",
     "clear": "Wyczyść",
-    "noOptionsFound": "Nie znaleziono opcji"
+    "noOptionsFound": "Nie znaleziono opcji",
+    "cancel": "Anuluj"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar potrzebuje uprawnień dostępności, aby wpisywać transkrybowany tekst.",
-    "openSettings": "Otwórz ustawienia systemowe"
+    "openSettings": "Otwórz ustawienia systemowe",
+    "resetSetting": "Przywróć {{label}} do wartości domyślnej"
   },
   "errors": {
     "loadDirectory": "Błąd wczytywania katalogu: {{error}}",
@@ -1369,22 +1403,23 @@
     "companionBadge": "Mikrofon towarzyszący"
   },
   "whatsNew": {
-    "title": "Nowości w VoxBar v{{version}}"
+    "title": "Nowości w VoxBar v{{version}}",
+    "gotIt": "Rozumiem"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} może blokować {{count}} skrót",
-    "blockedWithCulprit_few": "{{name}} może blokować {{count}} skróty",
-    "blockedWithCulprit_many": "{{name}} może blokować {{count}} skrótów",
+    "blockedWithCulprit_one": "{{name}} może blokować 1 skrót",
     "blockedWithCulprit_other": "{{name}} może blokować {{count}} skrótów",
-    "blockedNoCulprit_one": "macOS tymczasowo blokuje {{count}} skrót",
-    "blockedNoCulprit_few": "macOS tymczasowo blokuje {{count}} skróty",
-    "blockedNoCulprit_many": "macOS tymczasowo blokuje {{count}} skrótów",
+    "blockedNoCulprit_one": "macOS tymczasowo blokuje 1 skrót",
     "blockedNoCulprit_other": "macOS tymczasowo blokuje {{count}} skrótów",
     "recorderBlockedWithCulprit": "{{name}} może blokować zmiany skrótów",
     "recorderBlockedNoCulprit": "macOS tymczasowo blokuje zmiany skrótów",
     "learnMore": "Jak to naprawić",
     "recorderBlocked": "Nie można teraz nagrać skrótu - Secure Input w macOS blokuje zdarzenia klawiszy. Najpierw rozwiąż ostrzeżenie o Secure Input.",
-    "dismiss": "Odrzuć"
+    "dismiss": "Odrzuć",
+    "blockedWithCulprit_few": "{{name}} może blokować {{count}} skróty",
+    "blockedWithCulprit_many": "{{name}} może blokować {{count}} skrótów",
+    "blockedNoCulprit_few": "macOS tymczasowo blokuje {{count}} skróty",
+    "blockedNoCulprit_many": "macOS tymczasowo blokuje {{count}} skrótów"
   },
   "toast": {
     "postProcessSkip": {
@@ -1450,6 +1485,8 @@
     "copied": "Skopiowano",
     "polished": "Wygładzony",
     "historyTitle": "Ostatnie",
-    "historyEmpty": "Dyktowania z tego telefonu pojawią się tutaj."
+    "historyEmpty": "Dyktowania z tego telefonu pojawią się tutaj.",
+    "stateMicBlocked": "Mikrofon zablokowany",
+    "micBlockedRetry": "Mikrofon zablokowany. Dotknij, aby ponowić."
   }
 }

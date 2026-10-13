@@ -46,7 +46,8 @@
     "debug": "Debug",
     "about": "About",
     "notifications": "Notifications",
-    "promptStudio": "Prompt Studio"
+    "promptStudio": "Prompt Studio",
+    "addonsGroup": "Add-ons"
   },
   "onboarding": {
     "subtitle": "To get started, choose a transcription model",
@@ -74,7 +75,9 @@
     },
     "modelCard": {
       "accuracy": "accuracy",
-      "speed": "speed"
+      "speed": "speed",
+      "installed": "Installed",
+      "selected": "Selected"
     },
     "models": {
       "small": {
@@ -168,10 +171,16 @@
       "errors": {
         "checkFailed": "Failed to check permissions. Please try again.",
         "requestFailed": "Failed to request permission. Please try again."
-      }
+      },
+      "done": "Done",
+      "openSettings": "Open Settings"
     },
     "hotkeyHint": "Start dictation with {{hotkey}} anytime.",
-    "hotkeyChangeHint": "You can change this shortcut in Settings > General."
+    "hotkeyChangeHint": "You can change this shortcut in Settings > General.",
+    "postProcessGroup": {
+      "title": "Optional: Post-processing",
+      "caption": "For polishing transcripts after dictation. Not used for transcription."
+    }
   },
   "modelSelector": {
     "custom": "Custom",
@@ -260,7 +269,9 @@
           "set": "Failed to set shortcut: {{error}}",
           "reset": "Failed to reset shortcut to original value"
         },
-        "unbound": "Not bound"
+        "unbound": "Not bound",
+        "recordHint": "Click to record a new shortcut",
+        "gatedHint": "Turn on {{action}} to bind a key"
       },
       "language": {
         "title": "Language",
@@ -369,7 +380,8 @@
         "clearAll": "Clears the whole dictation",
         "undo": "Runs undo in the focused app",
         "paste": "Pastes the clipboard in the focused app"
-      }
+      },
+      "defaultPhrasesNote": "Default phrases are the English words the recognizer listens for, plus built-in Hindi and Chinese aliases. Add your own phrase in any language on any row."
     },
     "search": {
       "placeholder": "Search settings",
@@ -712,7 +724,8 @@
         "restartButton": "Restart server",
         "restartPending": "Changes apply after a restart",
         "qrPreviewNote": "Preview: this URL is advertised when the server next starts.",
-        "sharedNetworkNote": "The phone and this Mac must share a network: the same Wi-Fi or LAN, or the same tailnet (for example both on Tailscale)."
+        "sharedNetworkNote": "The phone and this Mac must share a network: the same Wi-Fi or LAN, or the same tailnet (for example both on Tailscale).",
+        "fingerprintCopied": "Copied"
       }
     },
     "postProcessing": {
@@ -760,7 +773,8 @@
           "filterPlaceholder": "Filter models",
           "showAll_one": "Show all ({{count}})",
           "showAll_other": "Show all ({{count}})",
-          "showFewer": "Show fewer"
+          "showFewer": "Show fewer",
+          "emptyNoKey": "Enter your API key above, then refresh to load models."
         },
         "timeout": {
           "title": "Request timeout",
@@ -951,7 +965,12 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "View changes",
       "hideChanges": "Hide changes",
-      "dbRecoveredNotice": "Your transcription history database was unreadable, so a fresh one was started. The previous database was kept as {{file}}."
+      "dbRecoveredNotice": "Your transcription history database was unreadable, so a fresh one was started. The previous database was kept as {{file}}.",
+      "emptyTitle": "No transcriptions yet",
+      "emptyHint": "Press your record shortcut to capture your first dictation.",
+      "deleteConfirm": "Delete this entry? The recording and its transcript will be removed permanently.",
+      "today": "Today",
+      "yesterday": "Yesterday"
     },
     "debug": {
       "title": "Debug",
@@ -971,9 +990,12 @@
         "pause": "Pause",
         "resume": "Resume",
         "copied": "Copied",
+        "lineCount": "{{count}} lines",
+        "empty": "Waiting for logs… Entries appear here as the app emits them.",
         "lineCount_one": "{{count}} line",
         "lineCount_other": "{{count}} lines",
-        "empty": "Waiting for logs… Entries appear here as the app emits them."
+        "clearConfirm": "Clear the captured lines from this view? The log file on disk is kept.",
+        "clearConfirmTitle": "Clear captured lines?"
       },
       "updateChecks": {
         "label": "Check for Updates",
@@ -1157,7 +1179,8 @@
       },
       "outcomes": {
         "label": "Outcome notifications",
-        "description": "Also notify when a phone session ends, for example when the session limit is reached or the phone disconnects. Off means errors only."
+        "description": "Also notify when a phone session ends, for example when the session limit is reached or the phone disconnects. Off means errors only.",
+        "requiresMaster": "Available only while System notifications is on."
       },
       "log": {
         "title": "Notification log",
@@ -1208,10 +1231,15 @@
         "lines": "lines",
         "charsChanged_one": "1 char changed",
         "charsChanged_other": "{{count}} chars changed",
-        "identical": "No changes."
+        "identical": "No changes.",
+        "added_one": "+{{count}} added",
+        "added_other": "+{{count}} added",
+        "removed_one": "{{count}} removed",
+        "removed_other": "{{count}} removed"
       },
       "resultsEmptyTitle": "Results will appear here",
-      "resultsEmptyHint": "Pick a source, prompts, and engines above, then run. Each card shows the polished text, its changes, and how fast it ran."
+      "resultsEmptyHint": "Pick a source, prompts, and engines above, then run. Each card shows the polished text, its changes, and how fast it ran.",
+      "appliedLabel": "Success"
     }
   },
   "footer": {
@@ -1252,7 +1280,8 @@
     }
   },
   "whatsNew": {
-    "title": "New in VoxBar v{{version}}"
+    "title": "New in VoxBar v{{version}}",
+    "gotIt": "Got it"
   },
   "common": {
     "loading": "Loading...",
@@ -1261,11 +1290,13 @@
     "open": "Open",
     "copy": "Copy",
     "clear": "Clear",
-    "noOptionsFound": "No options found"
+    "noOptionsFound": "No options found",
+    "cancel": "Cancel"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar needs accessibility permissions to type transcribed text.",
-    "openSettings": "Open System Settings"
+    "openSettings": "Open System Settings",
+    "resetSetting": "Reset {{label}} to default"
   },
   "errors": {
     "loadDirectory": "Error loading directory: {{error}}",
@@ -1432,6 +1463,8 @@
     "copied": "Copied",
     "polished": "Polished",
     "historyTitle": "Recent",
-    "historyEmpty": "Dictations from this phone appear here."
+    "historyEmpty": "Dictations from this phone appear here.",
+    "stateMicBlocked": "Mic blocked",
+    "micBlockedRetry": "Mic blocked. Tap to retry"
   }
 }

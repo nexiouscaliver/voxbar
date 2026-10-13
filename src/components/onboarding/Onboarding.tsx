@@ -1,15 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, TriangleAlert } from "lucide-react";
 import { commands, type ModelInfo } from "@/bindings";
 import type { ModelCardStatus } from "./ModelCard";
 import ModelCard, { isLegacySource } from "./ModelCard";
+import StepDots from "./StepDots";
 import VoxBarLogo from "../icons/VoxBarLogo";
 import { useModelStore } from "../../stores/modelStore";
 import { useSettings } from "../../hooks/useSettings";
 import { useOsType } from "../../hooks/useOsType";
 import { formatKeyCombination } from "../../lib/utils/keyboard";
+import { Button } from "../ui/Button";
 import type { ModelStateEvent } from "../../lib/types/events";
 import {
   formatMarginMb,
@@ -79,6 +81,11 @@ const Onboarding: React.FC<OnboardingProps> = ({
 
   const isBusy = selectedModelId !== null;
 
+  // The local post-process LLM (Qwen3) is NOT a voice model: every ASR path
+  // refuses it. It renders in its own visually separated optional group so
+  // it never reads as a peer transcription choice.
+  const isPostProcessEngine = (m: ModelInfo) => m.engine_type === "LocalLlm";
+
   // Curate the download list: legacy (.bin/ONNX) downloads are deprecated and
   // never shown here (they still appear in the compatible section if already on
   // disk). The catalog arrives rank-sorted, so the first two recommended models
@@ -86,7 +93,8 @@ const Onboarding: React.FC<OnboardingProps> = ({
   // Streaming (multilingual). Everything else hides behind "Show all".
   const { downloadable, topPicks, otherRecommended, rest } = useMemo(() => {
     const downloadable = models.filter(
-      (m: ModelInfo) => !m.is_downloaded && !isLegacySource(m),
+      (m: ModelInfo) =>
+        !m.is_downloaded && !isLegacySource(m) && !isPostProcessEngine(m),
     );
     const recommended = downloadable.filter((m: ModelInfo) => m.is_recommended);
     // `models` arrives in editorial rank order (the backend sorts by rank_of,
@@ -100,6 +108,20 @@ const Onboarding: React.FC<OnboardingProps> = ({
       rest,
     };
   }, [models]);
+
+  // Downloaded voice models vs the post-process engine(s): two groups, so a
+  // non-voice model never renders as a "Compatible" transcription peer.
+  const { existingVoiceModels, postProcessModels } = useMemo(
+    () => ({
+      existingVoiceModels: models.filter(
+        (m: ModelInfo) => m.is_downloaded && !isPostProcessEngine(m),
+      ),
+      postProcessModels: models.filter(
+        (m: ModelInfo) => m.is_downloaded && isPostProcessEngine(m),
+      ),
+    }),
+    [models],
+  );
 
   const hasRecommended = topPicks.length > 0 || otherRecommended.length > 0;
   // When nothing recommended remains to download (e.g. all already on disk),
@@ -291,10 +313,20 @@ const Onboarding: React.FC<OnboardingProps> = ({
     bindings?.["transcribe"]?.current_binding || "option+space";
   const hotkeyDisplay = formatKeyCombination(hotkeyBinding, osType);
 
+  // The offline dead end is the ONLY content: center the whole
+  // logo+heading+card group like the permissions step instead of pinning it
+  // to the top of the window.
+  const catalogOnly = catalogFailed;
+
   return (
-    <div className="h-screen w-full flex flex-col p-6 gap-4">
+    <div
+      className={`h-screen w-full flex flex-col p-6 gap-4 ${
+        catalogOnly ? "justify-center" : ""
+      }`}
+    >
       <div className="flex flex-col items-center gap-2 shrink-0">
         <VoxBarLogo width={200} />
+        <StepDots active={2} />
         <p className="text-text/70 max-w-md font-medium mx-auto">
           {t("onboarding.subtitle")}
         </p>
@@ -303,39 +335,52 @@ const Onboarding: React.FC<OnboardingProps> = ({
         </p>
       </div>
 
-      <div className="max-w-[600px] w-full mx-auto text-center flex-1 flex flex-col min-h-0">
+      <div
+        className={`max-w-[600px] w-full mx-auto text-center ${
+          catalogOnly ? "" : "flex-1 flex flex-col min-h-0"
+        }`}
+      >
         {/* min-h-0 + overflow-y-auto: the model list scrolls inside the
             flex column on short windows instead of pushing the CTAs off
             screen (the whole step is h-screen, so this region is the only
             place the overflow can go). */}
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-6 pb-6">
+        <div
+          className={`space-y-6 ${
+            catalogOnly ? "" : "flex-1 min-h-0 overflow-y-auto pb-6"
+          }`}
+        >
           {catalogFailed && (
             <div
               data-testid="catalog-error-card"
-              className="rounded-lg border border-error/30 bg-error/5 p-4 space-y-3 text-left"
+              className="rounded-lg border border-error/50 bg-error/5 p-4 space-y-3 text-left"
             >
-              <h2 className="text-sm font-medium text-text">
-                {t("onboarding.modelError.title")}
-              </h2>
+              <div className="flex items-center gap-2">
+                <TriangleAlert
+                  className="w-4 h-4 shrink-0 text-error"
+                  aria-hidden="true"
+                />
+                <h2 className="text-sm font-medium text-text">
+                  {t("onboarding.modelError.title")}
+                </h2>
+              </div>
               <p className="text-sm text-text/80">
                 {t("onboarding.modelError.body")}
               </p>
               <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
                   onClick={handleRetryCatalog}
                   disabled={isRetryingCatalog}
-                  className="rounded-lg bg-text text-background px-3 py-1.5 text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {t("onboarding.modelError.retry")}
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
+                  variant="ghost"
                   onClick={handleSkipModelSelection}
-                  className="rounded-lg border border-text/20 px-3 py-1.5 text-sm font-medium text-text hover:bg-text/10 transition-colors"
+                  className="border border-text/20"
                 >
                   {t("onboarding.modelError.skip")}
-                </button>
+                </Button>
               </div>
             </div>
           )}
@@ -388,25 +433,25 @@ const Onboarding: React.FC<OnboardingProps> = ({
             </div>
           )}
 
-          {models.some((m: ModelInfo) => m.is_downloaded) && (
+          {existingVoiceModels.length > 0 && (
             <div className="space-y-3">
               <div className="text-left">
                 <h2 className="text-sm font-medium text-text/60">
                   {t("onboarding.existingModelsTitle")}
                 </h2>
               </div>
-              {models
-                .filter((m: ModelInfo) => m.is_downloaded)
-                .map((model: ModelInfo) => (
-                  <ModelCard
-                    key={model.id}
-                    model={model}
-                    status={getExistingModelStatus(model.id)}
-                    disabled={isBusy}
-                    onSelect={handleSelectExistingModel}
-                    showRecommended={false}
-                  />
-                ))}
+              {existingVoiceModels.map((model: ModelInfo) => (
+                <ModelCard
+                  key={model.id}
+                  model={model}
+                  status={getExistingModelStatus(model.id)}
+                  disabled={isBusy}
+                  selected={selectedModelId === model.id}
+                  onSelect={handleSelectExistingModel}
+                  showRecommended={false}
+                  showActions
+                />
+              ))}
             </div>
           )}
 
@@ -425,12 +470,14 @@ const Onboarding: React.FC<OnboardingProps> = ({
                   variant="featured"
                   status={getModelStatus(model.id)}
                   disabled={isBusy}
+                  selected={selectedModelId === model.id}
                   onSelect={handleDownloadModel}
                   onDownload={handleDownloadModel}
                   onCancel={handleCancelDownload}
                   downloadProgress={getModelDownloadProgress(model.id)}
                   downloadSpeed={getModelDownloadSpeed(model.id)}
                   showRecommended={false}
+                  showActions
                 />
               ))}
 
@@ -440,12 +487,14 @@ const Onboarding: React.FC<OnboardingProps> = ({
                   model={model}
                   status={getModelStatus(model.id)}
                   disabled={isBusy}
+                  selected={selectedModelId === model.id}
                   onSelect={handleDownloadModel}
                   onDownload={handleDownloadModel}
                   onCancel={handleCancelDownload}
                   downloadProgress={getModelDownloadProgress(model.id)}
                   downloadSpeed={getModelDownloadSpeed(model.id)}
                   showRecommended={false}
+                  showActions
                 />
               ))}
 
@@ -475,14 +524,44 @@ const Onboarding: React.FC<OnboardingProps> = ({
                     model={model}
                     status={getModelStatus(model.id)}
                     disabled={isBusy}
+                    selected={selectedModelId === model.id}
                     onSelect={handleDownloadModel}
                     onDownload={handleDownloadModel}
                     onCancel={handleCancelDownload}
                     downloadProgress={getModelDownloadProgress(model.id)}
                     downloadSpeed={getModelDownloadSpeed(model.id)}
                     showRecommended={false}
+                    showActions
                   />
                 ))}
+            </div>
+          )}
+
+          {/* The post-process engine is informational here: it is not a
+              transcription choice, so its cards sit in a visually separated
+              optional group with their own header and caption. */}
+          {postProcessModels.length > 0 && (
+            <div className="space-y-3 pt-4 border-t border-mid-gray/20">
+              <div className="text-left">
+                <h2 className="text-sm font-medium text-text/60">
+                  {t("onboarding.postProcessGroup.title")}
+                </h2>
+                <p className="text-xs text-text/50 mt-1">
+                  {t("onboarding.postProcessGroup.caption")}
+                </p>
+              </div>
+              {postProcessModels.map((model: ModelInfo) => (
+                <ModelCard
+                  key={model.id}
+                  model={model}
+                  status="available"
+                  disabled={isBusy}
+                  selectable={false}
+                  onSelect={handleSelectExistingModel}
+                  showRecommended={false}
+                  showActions
+                />
+              ))}
             </div>
           )}
         </div>

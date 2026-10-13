@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { Fragment, useEffect, useState, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { platform } from "@tauri-apps/plugin-os";
 import {
@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { commands } from "@/bindings";
 import { useSettingsStore } from "@/stores/settingsStore";
 import VoxBarLogo from "../icons/VoxBarLogo";
+import StepDots from "./StepDots";
 import { Keyboard, Mic, Check, Loader2 } from "lucide-react";
 import { formatKeyCombination } from "../../lib/utils/keyboard";
 import { useOsType } from "../../hooks/useOsType";
@@ -46,7 +47,6 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
     microphone: "checking",
   });
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const errorCountRef = useRef<number>(0);
   const MAX_POLLING_ERRORS = 3;
   // Mic-denial recovery: 60s after the mic card enters "waiting", the user
@@ -100,10 +100,32 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
       ? permissions.microphone === "granted"
       : true;
 
-  const completeOnboarding = useCallback(async () => {
+  // Refresh the audio device lists once every permission is in place. The
+  // All set! card then WAITS for the user: the old 300ms auto-advance
+  // flashed the only hotkey hint in the whole flow faster than it could be
+  // read, and the screen had no completion affordance at all.
+  const primeAfterPermissions = useCallback(async () => {
     await Promise.all([refreshAudioDevices(), refreshOutputDevices()]);
-    timeoutRef.current = setTimeout(() => onComplete(), 300);
-  }, [onComplete, refreshAudioDevices, refreshOutputDevices]);
+  }, [refreshAudioDevices, refreshOutputDevices]);
+
+  // The All set! card's completion affordance: Done advances the wizard,
+  // and Open Settings reveals the main window (the same IPC the tray's
+  // Settings item uses) so the pointer under the hint is actionable.
+  const handleDone = useCallback(async () => {
+    if (preview) return;
+    await primeAfterPermissions();
+    onComplete();
+  }, [preview, primeAfterPermissions, onComplete]);
+
+  const handleOpenSettings = useCallback(async () => {
+    if (preview) return;
+    try {
+      await commands.showMainWindowCommand();
+    } catch (error) {
+      console.error("Failed to open the settings window:", error);
+      toast.error(t("onboarding.permissions.errors.requestFailed"));
+    }
+  }, [preview, t]);
 
   const hasWindowsMicrophoneAccess = useCallback(async (): Promise<boolean> => {
     const microphoneStatus =
@@ -172,7 +194,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
           setPermissions(newState);
 
           if (accessibilityGranted && microphoneGranted) {
-            await completeOnboarding();
+            await primeAfterPermissions();
           }
         } catch (error) {
           console.error("Failed to check macOS permissions:", error);
@@ -195,7 +217,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
         });
 
         if (microphoneGranted) {
-          await completeOnboarding();
+          await primeAfterPermissions();
         }
       } catch (error) {
         console.warn("Failed to check Windows microphone permissions:", error);
@@ -203,12 +225,18 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
           accessibility: "granted",
           microphone: "granted",
         });
-        await completeOnboarding();
+        await primeAfterPermissions();
       }
     };
 
     checkInitial();
-  }, [completeOnboarding, hasWindowsMicrophoneAccess, onComplete, preview, t]);
+  }, [
+    hasWindowsMicrophoneAccess,
+    onComplete,
+    primeAfterPermissions,
+    preview,
+    t,
+  ]);
 
   // Polling for permissions after user clicks a button
   const startPolling = useCallback(() => {
@@ -227,7 +255,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
               pollingRef.current = null;
             }
 
-            await completeOnboarding();
+            await primeAfterPermissions();
           }
 
           errorCountRef.current = 0;
@@ -266,7 +294,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
             clearInterval(pollingRef.current);
             pollingRef.current = null;
           }
-          await completeOnboarding();
+          await primeAfterPermissions();
         }
 
         // Reset error count on success
@@ -295,16 +323,18 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
         }
       }
     }, 1000);
-  }, [completeOnboarding, hasWindowsMicrophoneAccess, permissionPlatform, t]);
+  }, [
+    hasWindowsMicrophoneAccess,
+    permissionPlatform,
+    primeAfterPermissions,
+    t,
+  ]);
 
   // Cleanup polling and timeouts on unmount
   useEffect(() => {
     return () => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
-      }
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
       }
       if (micWaitDeadlineRef.current) {
         clearTimeout(micWaitDeadlineRef.current);
@@ -414,12 +444,17 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
     );
   }
 
-  // All permissions granted - show success briefly, with the dictation
-  // hotkey so a first-time user knows how to actually start (it appears
-  // nowhere else during onboarding).
+  // All permissions granted - the confirmation step. Not a dead end: Done
+  // advances the wizard, and the hotkey hint renders the binding as keycap
+  // chips (split on the exact display string, so it works in any locale).
   if (allGranted) {
+    const hintParts = t("onboarding.hotkeyHint", {
+      hotkey: hotkeyDisplay,
+    }).split(hotkeyDisplay);
+    const hotkeyKeys = hotkeyDisplay.split(" + ").filter(Boolean);
     return (
       <div className="h-screen w-full flex flex-col items-center justify-center gap-4">
+        <StepDots active={1} />
         <div className="p-4 rounded-full bg-emerald-500/20">
           {/* KB-091 + KB-267: emerald-700 in light theme (emerald-600
               measures 3.64:1 and emerald-400 far less on the near-white
@@ -431,9 +466,32 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
         <p className="text-lg font-medium text-text">
           {t("onboarding.permissions.allGranted")}
         </p>
-        <p className="text-sm text-text/60">
-          {t("onboarding.hotkeyHint", { hotkey: hotkeyDisplay })}
+        <p className="text-sm text-text/60 flex flex-wrap items-center justify-center gap-1">
+          {hintParts[0]}
+          {hotkeyKeys.map((key, i) => (
+            <Fragment key={key + String(i)}>
+              {i > 0 && <span className="text-text/40 text-xs">+</span>}
+              <kbd className="inline-flex items-center px-1.5 py-0.5 rounded border border-mid-gray/40 bg-mid-gray/10 text-xs font-medium text-text">
+                {key}
+              </kbd>
+            </Fragment>
+          ))}
+          {hintParts[1]}
         </p>
+        <div className="flex flex-col items-center gap-2 mt-2">
+          <button
+            onClick={handleDone}
+            className="px-5 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-white text-sm font-medium transition-colors"
+          >
+            {t("onboarding.permissions.done")}
+          </button>
+          <button
+            onClick={handleOpenSettings}
+            className="text-sm font-medium text-logo-primary hover:text-logo-primary/80 underline underline-offset-4 transition-colors"
+          >
+            {t("onboarding.permissions.openSettings")}
+          </button>
+        </div>
         <p className="text-xs text-text/40">
           {t("onboarding.hotkeyChangeHint")}
         </p>
@@ -446,6 +504,7 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
     <div className="h-screen w-full flex flex-col p-6 gap-6 items-center justify-center">
       <div className="flex flex-col items-center gap-2">
         <VoxBarLogo width={200} />
+        <StepDots active={0} />
       </div>
 
       <div className="max-w-md w-full flex flex-col items-center gap-4">
@@ -499,22 +558,42 @@ const AccessibilityOnboarding: React.FC<AccessibilityOnboardingProps> = ({
                         {t("onboarding.permissions.microphone.checkAgain")}
                       </button>
                     </div>
-                  </div>
-                ) : permissions.microphone === "waiting" ? (
-                  <div className="flex items-center gap-2 text-text/50 text-sm">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    {t("onboarding.permissions.waiting")}
-                  </div>
-                ) : (
-                  <button
-                    onClick={handleGrantMicrophone}
-                    className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-accent-on text-sm font-medium transition-colors"
-                  >
-                    {isWindows
-                      ? t("accessibility.openSettings")
-                      : t("onboarding.permissions.grant")}
-                  </button>
-                )}
+                  ) : micDenied ? (
+                    <div className="space-y-2">
+                      <p className="text-sm text-text/70">
+                        {t("onboarding.permissions.microphone.deniedGuidance")}
+                      </p>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          onClick={handleOpenMicSettings}
+                          className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-white text-sm font-medium transition-colors"
+                        >
+                          {t("onboarding.permissions.microphone.openSettings")}
+                        </button>
+                        <button
+                          onClick={handleCheckAgain}
+                          className="px-4 py-2 rounded-lg border border-text/20 hover:bg-text/10 text-text text-sm font-medium transition-colors"
+                        >
+                          {t("onboarding.permissions.microphone.checkAgain")}
+                        </button>
+                      </div>
+                    </div>
+                  ) : permissions.microphone === "waiting" ? (
+                    <div className="flex items-center gap-2 text-text/50 text-sm">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      {t("onboarding.permissions.waiting")}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleGrantMicrophone}
+                      className="px-4 py-2 rounded-lg bg-background-ui hover:bg-background-ui/80 text-white text-sm font-medium transition-colors"
+                    >
+                      {isWindows
+                        ? t("accessibility.openSettings")
+                        : t("onboarding.permissions.grant")}
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </div>

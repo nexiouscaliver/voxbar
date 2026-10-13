@@ -104,7 +104,12 @@ assert.ok(
 
 // The settings scroll content (the per-section trees, the search, the
 // banners) is wrapped, so one render throw retires the pane, not the app.
-const scrollAt = appSrc.indexOf("ref={settingsScrollRef}");
+// The pinned-search shell moved the ref into a callback form; either form
+// proves the scroller exists.
+const scrollAt =
+  appSrc.indexOf("ref={settingsScrollRef}") >= 0
+    ? appSrc.indexOf("ref={settingsScrollRef}")
+    : appSrc.indexOf("settingsScrollRef.current = node");
 assert.ok(scrollAt >= 0, "the settings scroll container must exist");
 const scrollRegion = appSrc.slice(
   scrollAt,
@@ -115,9 +120,17 @@ assert.ok(
   "KB-093: the settings scroll content must sit inside an ErrorBoundary",
 );
 assert.ok(
-  scrollRegion.includes("<SettingsSearch") &&
-    scrollRegion.includes("renderSettingsContent"),
-  "KB-093: the boundary must wrap the section content itself",
+  scrollRegion.includes("renderSettingsContent") &&
+    scrollRegion.includes("<AccessibilityPermissions") &&
+    scrollRegion.includes("<SecureInputWarning"),
+  "KB-093: the boundary must wrap the section content and banners itself",
+);
+// The pinned-search shell moved SettingsSearch into the fixed header above
+// the scroller (by design: it stays put while the pane scrolls), so it is
+// no longer inside the boundary; its existence is pinned separately.
+assert.ok(
+  appSrc.includes("<SettingsSearch onSelect={setCurrentSection} />"),
+  "the pinned settings search must exist above the scroll region",
 );
 
 /* ---- KB-090: the app-theme-aware dark variant ---- */

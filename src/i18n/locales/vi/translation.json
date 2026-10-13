@@ -46,7 +46,8 @@
     "debug": "Gỡ lỗi",
     "about": "Giới thiệu",
     "notifications": "Thông báo",
-    "promptStudio": "Xưởng prompt"
+    "promptStudio": "Xưởng prompt",
+    "addonsGroup": "Tiện ích"
   },
   "onboarding": {
     "subtitle": "Để bắt đầu, hãy chọn một mô hình chuyển đổi giọng nói",
@@ -68,7 +69,9 @@
     },
     "modelCard": {
       "accuracy": "độ chính xác",
-      "speed": "tốc độ"
+      "speed": "tốc độ",
+      "installed": "Đã cài đặt",
+      "selected": "Đã chọn"
     },
     "models": {
       "small": {
@@ -162,7 +165,9 @@
       "errors": {
         "checkFailed": "Không thể kiểm tra quyền. Vui lòng thử lại.",
         "requestFailed": "Không thể yêu cầu quyền. Vui lòng thử lại."
-      }
+      },
+      "done": "Xong",
+      "openSettings": "Mở cài đặt"
     },
     "hotkeyHint": "Bắt đầu đọc chính tả bằng {{hotkey}} bất cứ lúc nào.",
     "hotkeyChangeHint": "Bạn có thể đổi phím tắt này trong Cài đặt > Chung.",
@@ -171,6 +176,10 @@
       "body": "VoxBar không thể truy cập danh mục mô hình. Kiểm tra kết nối và thử lại, hoặc bỏ qua bước này và chọn mô hình sau trong Cài đặt.",
       "retry": "Thử lại",
       "skip": "Bỏ qua tạm thời"
+    },
+    "postProcessGroup": {
+      "title": "Tùy chọn: Xử lý sau",
+      "caption": "Để chỉnh sửa bản ghi sau khi đọc chính tả. Không dùng để chuyển giọng nói thành văn bản."
     }
   },
   "modelSelector": {
@@ -313,7 +322,9 @@
           "set": "Không thể đặt phím tắt: {{error}}",
           "reset": "Không thể đặt lại phím tắt về giá trị gốc"
         },
-        "unbound": "Chưa gán"
+        "unbound": "Chưa gán",
+        "recordHint": "Bấm để ghi lối tắt mới",
+        "gatedHint": "Bật {{action}} để gán phím"
       },
       "language": {
         "title": "Ngôn ngữ",
@@ -422,7 +433,8 @@
         "clearAll": "Xóa toàn bộ nội dung đọc",
         "undo": "Thực hiện hoàn tác trong ứng dụng đang tập trung",
         "paste": "Dán bảng tạm vào ứng dụng đang tập trung"
-      }
+      },
+      "defaultPhrasesNote": "Cụm từ mặc định là các từ tiếng Anh mà bộ nhận diện lắng nghe, cùngcác biệt danh Hindi và Trung tích hợp. Bạn có thể thêm cụm từ của riêngmình bằng bất kỳ ngôn ngữ nào ở bất kỳ hàng nào."
     },
     "search": {
       "placeholder": "Tìm trong cài đặt",
@@ -712,7 +724,8 @@
         "restartButton": "Khởi động lại máy chủ",
         "restartPending": "Thay đổi sẽ áp dụng sau khi khởi động lại",
         "qrPreviewNote": "Xem trước: URL này sẽ được quảng bá lần tới máy chủ khởi động.",
-        "sharedNetworkNote": "Điện thoại và Mac này phải dùng chung mạng: cùng Wi-Fi hoặc LAN, hoặc cùng tailnet (ví dụ cả hai đều trên Tailscale)."
+        "sharedNetworkNote": "Điện thoại và Mac này phải dùng chung mạng: cùng Wi-Fi hoặc LAN, hoặc cùng tailnet (ví dụ cả hai đều trên Tailscale).",
+        "fingerprintCopied": "Đã sao chép"
       }
     },
     "postProcessing": {
@@ -760,7 +773,8 @@
           "filterPlaceholder": "Lọc mô hình",
           "showAll_one": "Hiện tất cả ({{count}})",
           "showAll_other": "Hiện tất cả ({{count}})",
-          "showFewer": "Thu gọn"
+          "showFewer": "Thu gọn",
+          "emptyNoKey": "Nhập khóa API của bạn vào ô trên, rồi làm mới để tải các mô hình."
         },
         "timeout": {
           "title": "Thời gian chờ yêu cầu",
@@ -951,7 +965,12 @@
       "viaPostProcess": "qua {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Xem thay đổi",
       "hideChanges": "Ẩn thay đổi",
-      "dbRecoveredNotice": "Không thể đọc cơ sở dữ liệu lịch sử bản ghi của bạn, nên một cơ sở dữ liệu mới đã được bắt đầu. Cơ sở dữ liệu trước đó được giữ lại dưới dạng {{file}}."
+      "dbRecoveredNotice": "Không thể đọc cơ sở dữ liệu lịch sử bản ghi của bạn, nên một cơ sở dữ liệu mới đã được bắt đầu. Cơ sở dữ liệu trước đó được giữ lại dưới dạng {{file}}.",
+      "emptyTitle": "Chưa có bản chép lời nào",
+      "emptyHint": "Nhấn phím tắt ghi âm để thực hiện lần đọc đầu tiên của bạn.",
+      "deleteConfirm": "Xóa mục này? Bản ghi âm và bản chép lời của nó sẽ bị xóa vĩnh viễn.",
+      "today": "Hôm nay",
+      "yesterday": "Hôm qua"
     },
     "debug": {
       "title": "Gỡ lỗi",
@@ -971,9 +990,12 @@
         "pause": "Tạm dừng",
         "resume": "Tiếp tục",
         "copied": "Đã sao chép",
+        "lineCount": "{{count}} dòng",
+        "empty": "Đang chờ nhật ký… Các mục sẽ xuất hiện ở đây khi ứng dụng phát ra.",
         "lineCount_one": "{{count}} dòng",
         "lineCount_other": "{{count}} dòng",
-        "empty": "Đang chờ nhật ký… Các mục sẽ xuất hiện ở đây khi ứng dụng phát ra."
+        "clearConfirm": "Xóa các dòng đã ghi trong chế độ xem này? Tệp nhật ký trên đĩa vẫn được giữ.",
+        "clearConfirmTitle": "Xóa các dòng đã ghi nhận?"
       },
       "updateChecks": {
         "label": "Kiểm tra cập nhật",
@@ -1157,7 +1179,8 @@
       },
       "outcomes": {
         "label": "Thông báo kết quả",
-        "description": "Cũng thông báo khi phiên điện thoại kết thúc, ví dụ khi đạt giới hạn phiên hoặc điện thoại ngắt kết nối. Tắt nghĩa là chỉ lỗi."
+        "description": "Cũng thông báo khi phiên điện thoại kết thúc, ví dụ khi đạt giới hạn phiên hoặc điện thoại ngắt kết nối. Tắt nghĩa là chỉ lỗi.",
+        "requiresMaster": "Chỉ khả dụng khi thông báo hệ thống đang bật."
       },
       "log": {
         "title": "Nhật ký thông báo",
@@ -1208,10 +1231,15 @@
         "lines": "dòng",
         "charsChanged_one": "1 ký tự thay đổi",
         "charsChanged_other": "{{count}} ký tự thay đổi",
-        "identical": "Không có thay đổi."
+        "identical": "Không có thay đổi.",
+        "added_one": "+{{count}} đã thêm",
+        "added_other": "+{{count}} đã thêm",
+        "removed_one": "{{count}} đã xóa",
+        "removed_other": "{{count}} đã xóa"
       },
       "resultsEmptyTitle": "Kết quả sẽ hiện ở đây",
-      "resultsEmptyHint": "Chọn nguồn, prompt và engine ở trên rồi chạy. Mỗi thẻ hiển thị văn bản đã chỉnh, các thay đổi và tốc độ."
+      "resultsEmptyHint": "Chọn nguồn, prompt và engine ở trên rồi chạy. Mỗi thẻ hiển thị văn bản đã chỉnh, các thay đổi và tốc độ.",
+      "appliedLabel": "Thành công"
     }
   },
   "footer": {
@@ -1258,11 +1286,13 @@
     "open": "Mở",
     "copy": "Sao chép",
     "clear": "Xóa",
-    "noOptionsFound": "Không tìm thấy tùy chọn"
+    "noOptionsFound": "Không tìm thấy tùy chọn",
+    "cancel": "Hủy"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar cần quyền truy cập để gõ văn bản đã chuyển đổi.",
-    "openSettings": "Mở Cài đặt Hệ thống"
+    "openSettings": "Mở Cài đặt Hệ thống",
+    "resetSetting": "Đặt lại {{label}} về mặc định"
   },
   "errors": {
     "loadDirectory": "Lỗi khi tải thư mục: {{error}}",
@@ -1355,7 +1385,8 @@
     "companionBadge": "Micrô đồng hành"
   },
   "whatsNew": {
-    "title": "Điểm mới trong VoxBar v{{version}}"
+    "title": "Điểm mới trong VoxBar v{{version}}",
+    "gotIt": "Đã hiểu"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} có thể đang chặn 1 phím tắt",
@@ -1432,6 +1463,8 @@
     "copied": "Đã sao chép",
     "polished": "Đã đánh bóng",
     "historyTitle": "Gần đây",
-    "historyEmpty": "Những lần đọc từ điện thoại này sẽ hiện ở đây."
+    "historyEmpty": "Những lần đọc từ điện thoại này sẽ hiện ở đây.",
+    "stateMicBlocked": "Micrô bị chặn",
+    "micBlockedRetry": "Micrô bị chặn. Nhấn để thử lại."
   }
 }

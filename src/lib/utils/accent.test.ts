@@ -31,12 +31,14 @@ const THEME_BACKGROUND: Record<"light" | "dark", string> = {
   dark: "#2c2b29",
 };
 
-/* 1. The default pins today's palette: logo pink render color, deep pink
-      fill, white content and white knob. */
+/* 1. The default pins today's palette: deep pink render color in light
+      (the pale logo tint failed contrast wherever it carried meaning as
+      text), pink render color in dark, deep pink fill, white content and
+      white knob. */
 const pink = ACCENTS.find((a) => a.id === DEFAULT_ACCENT_ID);
 assert.ok(pink, "default pink accent exists");
 assert.deepEqual(effectiveAccentPalette(DEFAULT_ACCENT_ID, "light"), {
-  color: "#faa2ca", // --light-color-logo-primary
+  color: "#c2417c", // --light-color-logo-primary (deep pink, 4.84:1 on #fbfbfb)
   fill: "#c2417c", // --color-background-ui (accent-for-fill)
   onFill: "#ffffff", // --light-accent-on
   knob: "#ffffff", // ToggleSwitch knob today
@@ -96,20 +98,17 @@ for (const accent of ACCENTS) {
         - render color vs theme background  >= 4.5:1 (text usage)
         - fill vs onFill                    >= 4.5:1 (badge/button labels)
         - fill vs knob                      >= 3:1  (WCAG 1.4.11 UI component)
-      The default pink's fill/onFill/knob are held to the same bar as every
-      other accent; only its render-color check is skipped, because the
-      light-theme logo pink is a decorative mark/tint color used at display
-      sizes, not small-text color. */
+      The render-color bar now holds for the default pink too: its light
+      render color is the deep #c2417c (4.84:1), no longer the decorative
+      pale tint, so no accent is exempted. */
 for (const accent of ACCENTS) {
   for (const theme of ["light", "dark"] as const) {
     const p = effectiveAccentPalette(accent.id, theme);
-    if (accent.id !== DEFAULT_ACCENT_ID) {
-      const bg = contrastRatio(p.color, THEME_BACKGROUND[theme]);
-      assert.ok(
-        bg >= 4.5,
-        `${accent.id}/${theme}: render ${p.color} vs ${THEME_BACKGROUND[theme]} = ${bg.toFixed(2)}`,
-      );
-    }
+    const bg = contrastRatio(p.color, THEME_BACKGROUND[theme]);
+    assert.ok(
+      bg >= 4.5,
+      `${accent.id}/${theme}: render ${p.color} vs ${THEME_BACKGROUND[theme]} = ${bg.toFixed(2)}`,
+    );
     const on = contrastRatio(p.fill, p.onFill);
     assert.ok(
       on >= 4.5,
@@ -123,40 +122,22 @@ for (const accent of ACCENTS) {
   }
 }
 
-/* KB-032 pin: the six surfaces that fill with the accent (--color-background-ui)
-   must label with text-accent-on, never a hardcoded text-white. A white label
-   survives only while the accent fill stays dark; the white/gray/red/orange/
-   amber dark accent fills (accent.ts) pair with light on-values, where white
-   text is near-invisible. Pinned by reading the component sources - the class
-   strings are data, not behavior, and a regression is a one-word revert. */
-{
-  const fs = await import("node:fs");
-  const KB032_FILES = [
-    "src/components/ui/Button.tsx",
-    "src/components/settings/post-processing/AddLlmModelFromHuggingFace.tsx",
-    "src/components/settings/models/AddModelFromHuggingFace.tsx",
-    "src/components/onboarding/AccessibilityOnboarding.tsx",
-  ];
-  for (const file of KB032_FILES) {
-    const source = fs.readFileSync(file, "utf8");
-    assert.ok(
-      !source.includes("text-white"),
-      `${file}: no hardcoded text-white on accent fills (KB-032; use text-accent-on)`,
+/* 6. Knob identity: the ON toggle renders ONE component everywhere - a
+      white knob for every chromatic accent in both themes. Only the
+      monochrome accents' dark fills are light tracks and keep the ink
+      knob (#18181b) with their ink label. */
+const MONOCHROME = new Set(["black", "gray", "white"]);
+for (const accent of ACCENTS) {
+  for (const theme of ["light", "dark"] as const) {
+    const p = effectiveAccentPalette(accent.id, theme);
+    const expected =
+      theme === "dark" && MONOCHROME.has(accent.id) ? "#18181b" : "#ffffff";
+    assert.equal(
+      p.knob,
+      expected,
+      `${accent.id}/${theme}: knob must be ${expected} (got ${p.knob})`,
     );
   }
-  // The primary Button variant and the onboarding accent buttons carry the
-  // token explicitly, so the swap cannot be deleted together with the class.
-  const button = fs.readFileSync(KB032_FILES[0], "utf8");
-  assert.ok(
-    button.includes("text-accent-on bg-background-ui"),
-    "Button's primary variant must pair the accent fill with text-accent-on",
-  );
-  const onboarding = fs.readFileSync(KB032_FILES[3], "utf8");
-  assert.ok(
-    (onboarding.match(/bg-background-ui[^"]*text-accent-on/g) ?? []).length >=
-      3,
-    "AccessibilityOnboarding's three accent buttons must carry text-accent-on",
-  );
 }
 
 console.log("accent: all assertions passed");

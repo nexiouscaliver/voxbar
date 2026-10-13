@@ -46,7 +46,8 @@
     "debug": "Debug",
     "about": "Tentang",
     "notifications": "Notifikasi",
-    "promptStudio": "Studio Prompt"
+    "promptStudio": "Studio Prompt",
+    "addonsGroup": "Add-on"
   },
   "onboarding": {
     "subtitle": "Untuk memulai, pilih model transkripsi",
@@ -68,7 +69,9 @@
     },
     "modelCard": {
       "accuracy": "akurasi",
-      "speed": "kecepatan"
+      "speed": "kecepatan",
+      "installed": "Terpasang",
+      "selected": "Dipilih"
     },
     "models": {
       "small": {
@@ -162,7 +165,9 @@
       "errors": {
         "checkFailed": "Gagal memeriksa izin. Silakan coba lagi.",
         "requestFailed": "Gagal meminta izin. Silakan coba lagi."
-      }
+      },
+      "done": "Selesai",
+      "openSettings": "Buka Pengaturan"
     },
     "hotkeyHint": "Mulai dikte dengan {{hotkey}} kapan saja.",
     "hotkeyChangeHint": "Pintasan ini bisa diubah di Pengaturan > Umum.",
@@ -171,6 +176,10 @@
       "body": "VoxBar tidak dapat menjangkau katalog model. Periksa koneksi Anda dan coba lagi, atau lewati langkah ini dan pilih model nanti di Pengaturan.",
       "retry": "Coba lagi",
       "skip": "Lewati dulu"
+    },
+    "postProcessGroup": {
+      "title": "Opsional: Pascaproses",
+      "caption": "Untuk memoles transkrip setelah dikte. Tidak digunakan untuk transkripsi."
     }
   },
   "modelSelector": {
@@ -260,7 +269,9 @@
           "set": "Gagal mengatur pintasan: {{error}}",
           "reset": "Gagal mengembalikan pintasan ke nilai awal"
         },
-        "unbound": "Belum ditetapkan"
+        "unbound": "Belum ditetapkan",
+        "recordHint": "Klik untuk merekam pintasan baru",
+        "gatedHint": "Aktifkan {{action}} untuk mengikat tombol"
       },
       "language": {
         "title": "Bahasa",
@@ -369,7 +380,8 @@
         "clearAll": "Menghapus seluruh dikte",
         "undo": "Menjalankan urungkan di aplikasi aktif",
         "paste": "Menempelkan papan klip di aplikasi aktif"
-      }
+      },
+      "defaultPhrasesNote": "Frasa bawaan adalah kata-kata bahasa Inggris yang didengarkan olehpengenal, ditambah alias bawaan Hindi dan Mandarin. Tambahkan frasa Andasendi dalam bahasa apa pun di baris mana pun."
     },
     "search": {
       "placeholder": "Cari pengaturan",
@@ -712,7 +724,8 @@
         "restartButton": "Mulai ulang server",
         "restartPending": "Perubahan diterapkan setelah mulai ulang",
         "qrPreviewNote": "Pratinjau: URL ini akan diiklankan saat server berikutnya menyala.",
-        "sharedNetworkNote": "Ponsel dan Mac ini harus berada di jaringan yang sama: Wi-Fi atau LAN yang sama, atau tailnet yang sama (misalnya keduanya di Tailscale)."
+        "sharedNetworkNote": "Ponsel dan Mac ini harus berada di jaringan yang sama: Wi-Fi atau LAN yang sama, atau tailnet yang sama (misalnya keduanya di Tailscale).",
+        "fingerprintCopied": "Disalin"
       }
     },
     "postProcessing": {
@@ -760,7 +773,8 @@
           "filterPlaceholder": "Filter model",
           "showAll_one": "Tampilkan semua ({{count}})",
           "showAll_other": "Tampilkan semua ({{count}})",
-          "showFewer": "Tampilkan lebih sedikit"
+          "showFewer": "Tampilkan lebih sedikit",
+          "emptyNoKey": "Masukkan kunci API Anda di atas, lalu muat ulang untuk memuat model."
         },
         "timeout": {
           "title": "Batas waktu permintaan",
@@ -951,7 +965,12 @@
       "viaPostProcess": "lewat {{model}} · {{prompt}} · {{outcome}} · {{latency}} md",
       "viewChanges": "Lihat perubahan",
       "hideChanges": "Sembunyikan perubahan",
-      "dbRecoveredNotice": "Database riwayat transkripsi Anda tidak dapat dibaca, sehingga database baru dimulai. Database sebelumnya disimpan sebagai {{file}}."
+      "dbRecoveredNotice": "Database riwayat transkripsi Anda tidak dapat dibaca, sehingga database baru dimulai. Database sebelumnya disimpan sebagai {{file}}.",
+      "emptyTitle": "Belum ada transkripsi",
+      "emptyHint": "Tekan pintasan rekam Anda untuk menangkap dikte pertama Anda.",
+      "deleteConfirm": "Hapus entri ini? Rekaman dan transkripsinya akan dihapus secara permanen.",
+      "today": "Hari ini",
+      "yesterday": "Kemarin"
     },
     "debug": {
       "title": "Debug",
@@ -971,9 +990,12 @@
         "pause": "Jeda",
         "resume": "Lanjutkan",
         "copied": "Disalin",
+        "lineCount": "{{count}} baris",
+        "empty": "Menunggu log… Entri akan muncul di sini saat aplikasi menghasilkannya.",
         "lineCount_one": "{{count}} baris",
         "lineCount_other": "{{count}} baris",
-        "empty": "Menunggu log… Entri akan muncul di sini saat aplikasi menghasilkannya."
+        "clearConfirm": "Hapus baris yang ditangkap dari tampilan ini? File log di disk tetap disimpan.",
+        "clearConfirmTitle": "Hapus baris yang ditangkap?"
       },
       "updateChecks": {
         "label": "Periksa Pembaruan",
@@ -1157,7 +1179,8 @@
       },
       "outcomes": {
         "label": "Notifikasi hasil",
-        "description": "Juga beri tahu saat sesi ponsel berakhir, misalnya saat batas sesi tercapai atau ponsel terputus. Nonaktif berarti hanya kesalahan."
+        "description": "Juga beri tahu saat sesi ponsel berakhir, misalnya saat batas sesi tercapai atau ponsel terputus. Nonaktif berarti hanya kesalahan.",
+        "requiresMaster": "Hanya tersedia saat notifikasi sistem aktif."
       },
       "log": {
         "title": "Log notifikasi",
@@ -1208,10 +1231,15 @@
         "lines": "baris",
         "charsChanged_one": "1 karakter berubah",
         "charsChanged_other": "{{count}} karakter berubah",
-        "identical": "Tidak ada perubahan."
+        "identical": "Tidak ada perubahan.",
+        "added_one": "+{{count}} ditambahkan",
+        "added_other": "+{{count}} ditambahkan",
+        "removed_one": "{{count}} dihapus",
+        "removed_other": "{{count}} dihapus"
       },
       "resultsEmptyTitle": "Hasil akan muncul di sini",
-      "resultsEmptyHint": "Pilih sumber, prompt, dan mesin di atas, lalu jalankan. Setiap kartu menampilkan teks yang dipoles, perubahannya, dan kecepatannya."
+      "resultsEmptyHint": "Pilih sumber, prompt, dan mesin di atas, lalu jalankan. Setiap kartu menampilkan teks yang dipoles, perubahannya, dan kecepatannya.",
+      "appliedLabel": "Berhasil"
     }
   },
   "footer": {
@@ -1252,7 +1280,8 @@
     }
   },
   "whatsNew": {
-    "title": "Baru di VoxBar v{{version}}"
+    "title": "Baru di VoxBar v{{version}}",
+    "gotIt": "Mengerti"
   },
   "common": {
     "loading": "Memuat...",
@@ -1261,11 +1290,13 @@
     "open": "Buka",
     "copy": "Salin",
     "clear": "Bersihkan",
-    "noOptionsFound": "Tidak ada opsi yang ditemukan"
+    "noOptionsFound": "Tidak ada opsi yang ditemukan",
+    "cancel": "Batal"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar memerlukan izin aksesibilitas untuk mengetik teks hasil transkripsi.",
-    "openSettings": "Buka Pengaturan Sistem"
+    "openSettings": "Buka Pengaturan Sistem",
+    "resetSetting": "Setel ulang {{label}} ke bawaan"
   },
   "errors": {
     "loadDirectory": "Kesalahan saat memuat direktori: {{error}}",
@@ -1432,6 +1463,8 @@
     "copied": "Tersalin",
     "polished": "Dipoles",
     "historyTitle": "Terbaru",
-    "historyEmpty": "Dikte dari ponsel ini muncul di sini."
+    "historyEmpty": "Dikte dari ponsel ini muncul di sini.",
+    "stateMicBlocked": "Mikrofon diblokir",
+    "micBlockedRetry": "Mikrofon diblokir. Ketuk untuk mencoba lagi."
   }
 }

@@ -46,7 +46,8 @@
     "debug": "Depuração",
     "about": "Sobre",
     "notifications": "Notificações",
-    "promptStudio": "Estúdio de prompts"
+    "promptStudio": "Estúdio de prompts",
+    "addonsGroup": "Extensões"
   },
   "onboarding": {
     "subtitle": "Para começar, escolha um modelo de transcrição",
@@ -68,7 +69,9 @@
     },
     "modelCard": {
       "accuracy": "precisão",
-      "speed": "velocidade"
+      "speed": "velocidade",
+      "installed": "Instalado",
+      "selected": "Selecionado"
     },
     "models": {
       "small": {
@@ -162,7 +165,9 @@
       "errors": {
         "checkFailed": "Erro ao verificar permissões. Por favor, tente novamente.",
         "requestFailed": "Erro ao solicitar permissão. Por favor, tente novamente."
-      }
+      },
+      "done": "Concluído",
+      "openSettings": "Abrir configurações"
     },
     "hotkeyHint": "Inicie o ditado com {{hotkey}} a qualquer momento.",
     "hotkeyChangeHint": "Você pode mudar este atalho em Configurações > Geral.",
@@ -171,6 +176,10 @@
       "body": "O VoxBar não conseguiu acessar o catálogo de modelos. Verifique sua conexão e tente novamente, ou pule esta etapa e escolha um modelo depois nas Configurações.",
       "retry": "Tentar novamente",
       "skip": "Pular por agora"
+    },
+    "postProcessGroup": {
+      "title": "Opcional: Pós-Processamento",
+      "caption": "Para polir transcrições após o ditado. Não é usado para transcrição."
     }
   },
   "modelSelector": {
@@ -260,7 +269,9 @@
           "set": "Falha ao definir atalho: {{error}}",
           "reset": "Falha ao redefinir atalho para o valor original"
         },
-        "unbound": "Não atribuído"
+        "unbound": "Não atribuído",
+        "recordHint": "Clique para gravar um novo atalho",
+        "gatedHint": "Ative {{action}} para atribuir uma tecla"
       },
       "language": {
         "title": "Idioma",
@@ -369,7 +380,8 @@
         "clearAll": "Apaga todo o ditado",
         "undo": "Executa desfazer no app em foco",
         "paste": "Cola a área de transferência no app em foco"
-      }
+      },
+      "defaultPhrasesNote": "As frases padrão são as palavras inglesas que o reconhecedor escuta,mais os apelidos integrados em híndi e chinês. Adicione a sua própria fraseem qualquer idioma em qualquer linha."
     },
     "search": {
       "placeholder": "Pesquisar nas configurações",
@@ -712,7 +724,8 @@
         "restartButton": "Reiniciar o servidor",
         "restartPending": "As alterações aplicam-se depois de reiniciar",
         "qrPreviewNote": "Pré-visualização: este URL será divulgado na próxima vez que o servidor arrancar.",
-        "sharedNetworkNote": "O telefone e este Mac têm de partilhar uma rede: a mesma Wi-Fi ou LAN, ou o mesmo tailnet (por exemplo, ambos no Tailscale)."
+        "sharedNetworkNote": "O telefone e este Mac têm de partilhar uma rede: a mesma Wi-Fi ou LAN, ou o mesmo tailnet (por exemplo, ambos no Tailscale).",
+        "fingerprintCopied": "Copiado"
       }
     },
     "postProcessing": {
@@ -760,7 +773,8 @@
           "filterPlaceholder": "Filtrar modelos",
           "showAll_one": "Mostrar todos ({{count}})",
           "showAll_other": "Mostrar todos ({{count}})",
-          "showFewer": "Mostrar menos"
+          "showFewer": "Mostrar menos",
+          "emptyNoKey": "Insira sua chave de API acima e atualize para carregar os modelos."
         },
         "timeout": {
           "title": "Tempo limite da solicitação",
@@ -951,7 +965,12 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Ver alterações",
       "hideChanges": "Ocultar alterações",
-      "dbRecoveredNotice": "O banco de dados do seu histórico de transcrições não pôde ser lido, então um novo foi iniciado. O banco de dados anterior foi mantido como {{file}}."
+      "dbRecoveredNotice": "O banco de dados do seu histórico de transcrições não pôde ser lido, então um novo foi iniciado. O banco de dados anterior foi mantido como {{file}}.",
+      "emptyTitle": "Ainda não há transcrições",
+      "emptyHint": "Pressione seu atalho de gravação para capturar seu primeiro ditado.",
+      "deleteConfirm": "Eliminar esta entrada? A gravação e a sua transcrição serão removidas permanentemente.",
+      "today": "Hoje",
+      "yesterday": "Ontem"
     },
     "debug": {
       "title": "Depuração",
@@ -971,9 +990,12 @@
         "pause": "Pausar",
         "resume": "Retomar",
         "copied": "Copiado",
+        "lineCount": "{{count}} linhas",
+        "empty": "Aguardando logs… As entradas aparecem aqui à medida que o app as emite.",
         "lineCount_one": "{{count}} linha",
         "lineCount_other": "{{count}} linhas",
-        "empty": "Aguardando logs… As entradas aparecem aqui à medida que o app as emite."
+        "clearConfirm": "Limpar as linhas capturadas desta vista? O ficheiro de registro no disco é mantido.",
+        "clearConfirmTitle": "Limpar as linhas capturadas?"
       },
       "updateChecks": {
         "label": "Verificar Atualizações",
@@ -1157,7 +1179,8 @@
       },
       "outcomes": {
         "label": "Notificações de resultados",
-        "description": "Notifica também quando uma sessão do telefone termina, por exemplo ao atingir o limite de sessão ou quando o telefone se desliga. Desativado significa apenas erros."
+        "description": "Notifica também quando uma sessão do telefone termina, por exemplo ao atingir o limite de sessão ou quando o telefone se desliga. Desativado significa apenas erros.",
+        "requiresMaster": "Disponível apenas enquanto as notificações do sistema estiverem ativadas."
       },
       "log": {
         "title": "Registo de notificações",
@@ -1208,10 +1231,15 @@
         "lines": "linhas",
         "charsChanged_one": "{{count}} caractere alterado",
         "charsChanged_other": "{{count}} caracteres alterados",
-        "identical": "Nenhuma alteração."
+        "identical": "Nenhuma alteração.",
+        "added_one": "+{{count}} adicionada",
+        "added_other": "+{{count}} adicionadas",
+        "removed_one": "{{count}} removida",
+        "removed_other": "{{count}} removidas"
       },
       "resultsEmptyTitle": "Os resultados aparecerão aqui",
-      "resultsEmptyHint": "Escolha acima a origem, os prompts e os motores e execute. Cada cartão mostra o texto polido, as alterações e a velocidade."
+      "resultsEmptyHint": "Escolha acima a origem, os prompts e os motores e execute. Cada cartão mostra o texto polido, as alterações e a velocidade.",
+      "appliedLabel": "Sucesso"
     }
   },
   "footer": {
@@ -1258,11 +1286,13 @@
     "open": "Abrir",
     "copy": "Copiar",
     "clear": "Limpar",
-    "noOptionsFound": "Nenhuma opção encontrada"
+    "noOptionsFound": "Nenhuma opção encontrada",
+    "cancel": "Cancelar"
   },
   "accessibility": {
     "permissionsDescription": "O VoxBar precisa de permissões de acessibilidade para digitar o texto transcrito.",
-    "openSettings": "Abrir Configurações do Sistema"
+    "openSettings": "Abrir Configurações do Sistema",
+    "resetSetting": "Redefinir {{label}} para o padrão"
   },
   "errors": {
     "loadDirectory": "Erro ao carregar diretório: {{error}}",
@@ -1355,12 +1385,13 @@
     "companionBadge": "Microfone companheiro"
   },
   "whatsNew": {
-    "title": "Novidades no VoxBar v{{version}}"
+    "title": "Novidades no VoxBar v{{version}}",
+    "gotIt": "Entendido"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} pode estar bloqueando {{count}} atalho",
+    "blockedWithCulprit_one": "{{name}} pode estar bloqueando 1 atalho",
     "blockedWithCulprit_other": "{{name}} pode estar bloqueando {{count}} atalhos",
-    "blockedNoCulprit_one": "O macOS está bloqueando temporariamente {{count}} atalho",
+    "blockedNoCulprit_one": "O macOS está bloqueando temporariamente 1 atalho",
     "blockedNoCulprit_other": "O macOS está bloqueando temporariamente {{count}} atalhos",
     "recorderBlockedWithCulprit": "{{name}} pode estar bloqueando alterações nos atalhos",
     "recorderBlockedNoCulprit": "O macOS está bloqueando temporariamente alterações nos atalhos",
@@ -1432,6 +1463,8 @@
     "copied": "Copiado",
     "polished": "Polida",
     "historyTitle": "Recentes",
-    "historyEmpty": "Os ditados deste telefone aparecem aqui."
+    "historyEmpty": "Os ditados deste telefone aparecem aqui.",
+    "stateMicBlocked": "Microfone bloqueado",
+    "micBlockedRetry": "Microfone bloqueado. Toque para tentar novamente."
   }
 }

@@ -88,12 +88,14 @@ export const PostProcessModelsSection: React.FC = () => {
   // The off path: until the user downloads or selects anything beyond the
   // pinned model (or asks for the catalog), the section renders the
   // original pinned row unchanged, with the browse affordance under it.
+  // Since the section moved out of the ENGINE card it carries its own
+  // titled card, exactly like the revealed catalog below.
   if (
     entries !== null &&
     showPinnedOnlyRow(entries, selectedId, catalogRevealed)
   ) {
     return (
-      <div className="space-y-2">
+      <SettingsGroup title={t("settings.postProcessing.models.title")}>
         <LocalLlmModelRow />
         {/* W1-L9 visual pass: the catalog reveal was a bare right-aligned
             underlined text link; it is now a visible, full-width bordered
@@ -101,12 +103,12 @@ export const PostProcessModelsSection: React.FC = () => {
         <button
           type="button"
           onClick={() => setCatalogRevealed(true)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-md border border-dashed border-mid-gray/40 px-3 py-2 text-xs text-text/60 transition-colors hover:border-logo-primary/50 hover:text-text cursor-pointer"
+          className="mx-4 my-2 flex items-center justify-center gap-1.5 rounded-md border border-dashed border-mid-gray/40 px-3 py-2 text-xs text-text/60 transition-colors hover:border-logo-primary/50 hover:text-text cursor-pointer"
         >
           <ChevronsDown className="h-3.5 w-3.5" aria-hidden="true" />
           {t("settings.postProcessing.models.browseCatalog")}
         </button>
-      </div>
+      </SettingsGroup>
     );
   }
 
@@ -121,7 +123,10 @@ export const PostProcessModelsSection: React.FC = () => {
 
   return (
     <SettingsGroup title={t("settings.postProcessing.models.title")}>
-      <div className="space-y-3">
+      {/* Inner padding matches the card rhythm (px-4 like every row); the
+          section content is not a SettingContainer row, so without this the
+          description and search hugged the card's edges. */}
+      <div className="space-y-3 px-4 py-3">
         <p className="text-xs text-text/50">
           {t("settings.postProcessing.models.description")}
         </p>
