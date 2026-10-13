@@ -1,10 +1,11 @@
 use crate::utils;
-use log::{debug, warn};
+use log::{debug, error, warn};
 use serde::de::{self, Visitor};
 use serde::{Deserialize, Deserializer, Serialize};
 use specta::Type;
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
 use tauri::AppHandle;
 use tauri_plugin_store::StoreExt;
 
@@ -2121,10 +2122,73 @@ pub fn load_or_create_app_settings(app: &AppHandle) -> AppSettings {
     settings
 }
 
+/// KB-299 (v1.6.7): the settings store acquisition, with self-healing for the
+/// plugin's stale-rid state. `app.store(path)` fails forever with
+/// `BadResourceId` once the store plugin's path-to-resource map names an id
+/// the resource table no longer holds (the eviction class the plugin itself
+/// documents): the map entry survives the failure, so every later call hits
+/// the same dead id. The old `.expect()` here turned that state into a panic
+/// bomb at the heart of every code path - the stop pipeline's tail panicked
+/// mid-retire (the "stuck transcribing overlay until force quit" wedge),
+/// the panic poisoned the plugin's internal `Mutex`es (they lock with
+/// `.unwrap()`), and every subsequent `get_settings` on every start path
+/// died too, which is why no new recording would start from the phone or
+/// the keyboard until the app was force quit. Recovery instead of panic:
+/// `create_new()` is the ONE plugin path that removes the dead map entry
+/// (its `stores.remove` + best-effort resource take), and `reload()`
+/// merges the on-disk settings back into the fresh store, so the user's
+/// persisted settings survive the rebuild. A serialized one-at-a-time gate
+/// keeps two concurrent recoveries from racing `create_new` against each
+/// other (the second would evict the first's healthy entry).
+fn acquire_settings_store(app: &AppHandle) -> Option<Arc<tauri_plugin_store::Store<tauri::Wry>>> {
+    let path = crate::portable::store_path(SETTINGS_STORE_PATH);
+    match app.store(&path) {
+        Ok(store) => return Some(store),
+        Err(first_err) => {
+            error!(
+                "settings store unavailable ({}); rebuilding its plugin registration",
+                first_err
+            );
+        }
+    }
+
+    static RECOVERY_GATE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _recovery = RECOVERY_GATE.lock().unwrap_or_else(|e| e.into_inner());
+
+    // A recovery that raced us may already have fixed the map; prefer the
+    // plain path when it works again before forcing another create_new.
+    if let Ok(store) = app.store(&path) {
+        return Some(store);
+    }
+
+    let rebuilt = app
+        .store_builder(&path)
+        .create_new()
+        .build()
+        .and_then(|store| store.reload().map(|_| store));
+    match rebuilt {
+        Ok(store) => {
+            error!("settings store registration rebuilt; persisted settings reloaded");
+            Some(store)
+        }
+        Err(second_err) => {
+            error!(
+                "settings store rebuild failed ({}); reads fall back to defaults",
+                second_err
+            );
+            None
+        }
+    }
+}
+
 pub fn get_settings(app: &AppHandle) -> AppSettings {
-    let store = app
-        .store(crate::portable::store_path(SETTINGS_STORE_PATH))
-        .expect("Failed to initialize store");
+    // KB-299: never a panic - a store that cannot be mounted reads as the
+    // shipped defaults (logged) so callers keep working; the next
+    // successful write re-persists the full settings object.
+    let Some(store) = acquire_settings_store(app) else {
+        error!("get_settings: serving shipped defaults (store unavailable)");
+        return get_default_settings();
+    };
 
     // Settings reads also persist one-time migrations. Migration helpers are
     // idempotent, so this converges after the first read of an older store.
@@ -2367,9 +2431,14 @@ pub fn update_checks_forced_disabled() -> bool {
 }
 
 pub fn write_settings(app: &AppHandle, settings: AppSettings) {
-    let store = app
-        .store(crate::portable::store_path(SETTINGS_STORE_PATH))
-        .expect("Failed to initialize store");
+    // KB-299: same self-healing acquisition as get_settings. A store that
+    // cannot be mounted (or rebuilt) skips THIS persist with an error log
+    // instead of panicking the caller - the in-memory settings keep serving
+    // and the next successful write persists the then-current state.
+    let Some(store) = acquire_settings_store(app) else {
+        error!("write_settings: settings NOT persisted (store unavailable)");
+        return;
+    };
 
     store.set("settings", serde_json::to_value(&settings).unwrap());
 }
@@ -2401,6 +2470,86 @@ pub fn get_recording_retention_period(app: &AppHandle) -> RecordingRetentionPeri
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// KB-299 (v1.6.7): the settings store acquisition self-heals instead
+    /// of panicking. The shipped wedge: once the store plugin's path map
+    /// named a resource id the resource table no longer held (BadResourceId
+    /// - a permanent state, the map entry survives every failed lookup),
+    /// get_settings' `.expect("Failed to initialize store")` detonated on
+    /// EVERY caller. In the stop pipeline's tail that panic stranded the
+    /// streaming overlay mid-retire (stuck "transcribing" until force
+    /// quit) and poisoned the plugin's internal `.unwrap()` Mutexes, after
+    /// which no new recording would start from the phone or the keyboard.
+    /// Pin: one self-healing acquisition helper exists, its recovery is the
+    /// plugin's ONLY dead-entry removal path (create_new) plus an on-disk
+    /// reload (so persisted settings survive the rebuild), every settings
+    /// reader and writer routes through it, and no `.expect` on the store
+    /// acquisition remains anywhere in the file.
+    #[test]
+    fn settings_store_acquisition_self_heals_instead_of_panicking() {
+        let full = include_str!("settings.rs");
+        // The scan covers the shipped code only: this test's own body quotes
+        // the banned panic literal, so the test module is excluded.
+        let source = &full[..full.find("#[cfg(test)]").expect("the test module")];
+        assert!(
+            !source.contains(".expect(\"Failed to initialize store\")"),
+            "the store acquisition must never be a panic bomb: it detonates on every caller once the plugin's rid map goes stale"
+        );
+
+        let helper_at = source
+            .find("fn acquire_settings_store(app: &AppHandle)")
+            .expect("the self-healing acquisition helper");
+        let helper_end = helper_at
+            + source[helper_at..]
+                .find("\npub fn get_settings(app: &AppHandle)")
+                .expect("the helper ends before get_settings");
+        let helper = &source[helper_at..helper_end];
+        assert!(
+            helper.contains(".create_new()"),
+            "recovery must use create_new: the plugin's only path that removes the dead map entry"
+        );
+        assert!(
+            helper.contains(".reload()"),
+            "recovery must reload from disk so the user's persisted settings survive the rebuild"
+        );
+        assert!(
+            helper.contains("static RECOVERY_GATE"),
+            "recovery must be serialized: two racing create_new calls would evict each other's healthy entry"
+        );
+
+        let get_at = source
+            .find("pub fn get_settings(app: &AppHandle)")
+            .expect("get_settings");
+        let get_body_end = get_at
+            + source[get_at..]
+                .find("\n}\n\n/// Rebuilds settings")
+                .expect("get_settings end");
+        assert!(
+            source[get_at..get_body_end].contains("acquire_settings_store(app)"),
+            "get_settings must route through the self-healing acquisition"
+        );
+        let write_at = source
+            .find("pub fn write_settings(app")
+            .expect("write_settings");
+        let write_body_end = write_at
+            + source[write_at..]
+                .find("\n}\n")
+                .expect("write_settings end");
+        assert!(
+            source[write_at..write_body_end].contains("acquire_settings_store(app)"),
+            "write_settings must route through the self-healing acquisition"
+        );
+        // The reader degrades to shipped defaults rather than dying, and the
+        // writer skips the persist with an error line instead of panicking.
+        assert!(
+            source[get_at..get_body_end].contains("return get_default_settings();"),
+            "a store that cannot be mounted must read as shipped defaults, never panic"
+        );
+        assert!(
+            source[write_at..write_body_end].contains("return;"),
+            "a store that cannot be mounted must skip the persist, never panic"
+        );
+    }
 
     /// T18: fresh defaults. The default provider is the local on-device
     /// engine; the provider row exists on every platform with NO models

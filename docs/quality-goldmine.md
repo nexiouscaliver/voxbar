@@ -32,7 +32,7 @@ below.)
 
 ## P0: the one that got away, now fixed
 
-**KB-150 · FIXED · switching the selected microphone while a recording was live silently killed and discarded that recording.** As found: `update_selected_device` (audio.rs:1129-1139 ✓R4) invalidated the cache and, when the stream was open (always true mid-recording), did `stop_microphone_stream()` + `start_microphone_stream()`: the stop **discarded the samples** (`let _ = rec.stop()` at audio.rs:887-894 [R3]) and zeroed `is_recording` while the state machine still said Recording; on hotkey release the empty buffer hit the silent skip branch "Recording produced no audio samples; skipping persistence" (actions.rs:2290-2291 [R3]); overlay hidden, tray Idle, zero feedback; streaming sessions lost everything after the switch. The sibling `update_selected_channel` locked state and rejected exactly this with a comment explaining why [R3]: the asymmetry was visible in the same read ✓R4. UI unguarded: MicrophoneSelector.tsx:60-64 disables only for isUpdating/isLoading/empty list [R3]. No test coverage at the time (R3 ran the full audio-module filter → 47 passed, none on this path).
+**KB-150 · FIXED · switching the selected microphone while a recording was live silently killed and discarded that recording.** As found: `update_selected_device` (audio.rs:1129-1139 ✓R4) invalidated the cache and, when the stream was open (always true mid-recording), did `stop_microphone_stream()` + `start_microphone_stream()`: the stop **discarded the samples** (`let _ = rec.stop()` at audio.rs:887-894 [R3]) and zeroed `is_recording` while the state machine still said Recording; on hotkey release the empty buffer hit the silent skip branch "Recording produced no audio samples; skipping persistence" (actions.rs:2305-2306 [R3]); overlay hidden, tray Idle, zero feedback; streaming sessions lost everything after the switch. The sibling `update_selected_channel` locked state and rejected exactly this with a comment explaining why [R3]: the asymmetry was visible in the same read ✓R4. UI unguarded: MicrophoneSelector.tsx:60-64 disables only for isUpdating/isLoading/empty list [R3]. No test coverage at the time (R3 ran the full audio-module filter → 47 passed, none on this path).
 
 Fixed after round 3 in commit c8b0f890 ("fix(review round 3): switching the microphone mid-recording silently discarded the dictation"): `update_selected_device` now takes the state lock and rejects the switch while Recording or Stopping through the shared `capture_restart_forbidden` predicate (managers/audio.rs:1152), the same rule as `update_selected_channel`; the predicate is pinned by test over all three recording states (managers/audio.rs:1457-1467). Verified in code for this document.
 
@@ -192,7 +192,7 @@ _New in round 3 (KB-152, 153, 156-158, 161, 163-175, 177, 178, 180-182, 184, 187
 - **KB-178 · FIXED (v1.6.2, 6b054cd1).** Was: Spoken Numbers only runs for English/Hindi-Hinglish output while the dropdown promised digit conversion in all 26 locales with no scope caveat. Now the copy states the scope in every locale (and the pp validator's digit-script guard keeps scripts consistent).
 - **KB-180 ·** failed first-page history load renders the "No transcriptions yet" empty state (catch console-only; no error state/retry) (HistorySettings.tsx:113-114, 255-259) [R3].
 - **KB-181 ·** "Open Recordings Folder" reveals-not-opens on macOS (NSWorkspace activateFileViewerSelectingURLs selects the folder in its parent); deliberate ACL workaround, residual is label-vs-behavior (commands/mod.rs:92-107; plugin source read; static) [R3].
-- **KB-182 ·** a failed history save during dictation is invisible on every surface (both call sites log-only; text pastes normally but never appears in History) (actions.rs:2554-2556 and actions.rs:2805-2807) [R3].
+- **KB-182 ·** a failed history save during dictation is invisible on every surface (both call sites log-only; text pastes normally but never appears in History) (actions.rs:2569-2571 and actions.rs:2820-2822) [R3].
 - **KB-184 ·** the phone vibrates for every forwarded overlay notice but can display only three codes: any other code buzzes with no visible message (client/index.html:400-407; ~25 codes exist) [R3].
 - **KB-187 · FIXED.** Was: onboarding permission cards used bg-white/5 - invisible fill in light theme (AccessibilityOnboarding.tsx:423, 482) [R3]. Fixed in 14369da8: both permission cards fill with `bg-background`, theme-safe in light and dark.
 - **KB-188 ·** tray Post-process Prompt submenu offered unconditionally: with pp off, picking a template silently moves a checkmark that affects nothing (tray.rs:710-726) [R3].
@@ -274,7 +274,7 @@ path anymore; the stuck-toast defect has no trigger surface. Mark closed.
 - **KB-109 re-confirmed by two reviewers, upgraded**: retry ignores the pp
   master toggle AND provider switch, so stored transcripts can ship to the
   CURRENT (possibly paid cloud) provider/model/prompt with pp off
-  (commands/history.rs:100-107, actions.rs:1794-1801, settings.rs:2080-2084).
+  (commands/history.rs:100-107, actions.rs:1794-1801, settings.rs:2081-2085).
 - **KB-198 · every toggle-ON hotkey registration discards failure with
   `let _ =`** (mod.rs:1497/1511/2244/2267/2290): a chord duplicated onto a
   toggle-off binding makes toggle-ON hit "already in use" silently; toggle
@@ -354,7 +354,7 @@ path anymore; the stuck-toast defect has no trigger surface. Mark closed.
 - **KB-215** silent value coercion: theme/sound-theme/overlay-position/style
   setters warn + substitute defaults yet return Ok (mod.rs:986-1123).
 - **KB-216** write_settings is unobservable (no error surface); persist
-  honesty stops at the apply leg (settings.rs:2369-2374).
+  honesty stops at the apply leg (settings.rs:2432-2437).
 - **KB-015 reach grew**: model_load_failed raw-English detail now also lands
   in the desktop-notification body via noticeMessage.
 
@@ -841,7 +841,7 @@ anchors cite 43f4c092 where the file has since moved).
   at 43f4c092); round 4's bracketed correction already said so.
 - **KB-035** (by v1.6.0): release notes ship through per-version files up
   to 1.6.0.md and the blank last-seen migration resolves to the newest note
-  (settings.rs:2244-2246, releaseNotes.ts:70-78 at 43f4c092).
+  (settings.rs:2307-2309, releaseNotes.ts:70-78 at 43f4c092).
 - **KB-089** (82e8700d): both renderers gate Debug on debug_mode
   (Sidebar.tsx:112-117, SettingsSearch.tsx:42-53 at 43f4c092).
 - **KB-113** (obsolete): no loading toast exists on any model-download
@@ -1449,7 +1449,7 @@ none touched a KB item, so no statuses moved.
   markers stand.
 - **KB-254 · FIXED (round 8 meaning), verified against this tree.** The
   zero-audio detail names the stopping session's own device, with the
-  KB-254 note at the emit seam (actions.rs:2290-2306); per-lane identity
+  KB-254 note at the emit seam (actions.rs:2305-2321); per-lane identity
   is pinned by session_identity_freezes_per_lane_and_cannot_be_renamed
   (companion/mod.rs:1617). Round 8's fixed-by-construction marker
   stands.
@@ -1812,7 +1812,7 @@ report (dwfrun-adf93b4e).
 - KB-282 CLOSED in the v1.6.5 residuals cycle (lane R3): the default capability swaps opener:default for opener:allow-open-url plus opener:allow-default-urls (capabilities/default.json:8-9), so no arbitrary-path command (reveal-item-in-dir, open-path) is webview-reachable while every frontend openUrl call (https help, releases, and whats-new links) keeps working under the default URL schemes; the Rust-side OpenerExt calls bypass the ACL and stay untouched (the KB-181 open-path note at commands/mod.rs stands). Pinned by src/capabilitiesAclPins.test.ts (allow-open-url and allow-default-urls present; opener:default, reveal-item-in-dir, and open-path absent from the permissions array and the file).
 - KB-283 CLOSED in the v1.6.5 residuals cycle (lane R2): the skipped/unchanged outcome legs and the live-log WARN tag carry amber-700 (PostProcessRunsTable.tsx:78, LiveLogViewer.tsx:55; 4.85:1 on the light background vs amber-600's 3.08:1), and the KB-267 contrast pin gained the amber family in the same pattern - the WCAG ratio is computed from a palette hex table, every non-test source under src is swept for a surviving text-amber-600, and both debug files must carry the amber-700/400 pair (AccessibilityOnboarding.test.ts:179; marker line moved by the KB-288 pass, which moved the hex table into lib/utils/wcagContrast.ts; mutation-checked by reverting one WARN tag to amber-600).
 - KB-284 CLOSED in the v1.6.5 residuals cycle (lane R4): no production comment in audio.rs names the deleted ack_remote_pause any more. The three stale sites (found at managers/audio.rs:1557-1562, 2244, 2735 on the round 12 tree) now document the handshake that actually exists: the pause is acknowledged from the pushing side - every write routed through push_remote_chunk acknowledges an in-flight pause request under the remote_lanes lock, and the source close / producer drop acknowledges it for a vanished phone (the KB-263 rule: the source close IS the acknowledgement) - so the comments' lock-ordering rationale (stop outside the lanes lock) survives with true premises (managers/audio.rs:1649-1656, managers/audio.rs:2395-2402, and the source pin's own doc at managers/audio.rs:3132-3140). Pinned by kb284_no_comment_documents_the_deleted_ack_remote_pause_as_live (managers/audio.rs:3269-3288; the production slice of the file must not contain the token, so reintroducing a comment that names the deleted helper fails CI; the companion server's KB-263 pin keeps its historical pre-fix mention, which describes the past, not a live route).
-- KB-285 CLOSED in the v1.6.6 companion-machinery cycle (lane M3): no settings read runs inline on the async connection task any more. The surviving read the premise named was the Ptt edge's: send_companion_edge read get_settings on the connection task for every phone press/release edge (the Welcome read had already moved to spawn_blocking in the v1.6.4 fleet pass 2), and get_settings is a read-modify-write over the plugin store's mutex whose migration, salvage, and binding-merge legs write the store back synchronously while holding it (settings.rs:2130-2163) - the same accept-wedge class the spawned seams exist to keep off the task. The activation mode and hold threshold now arrive as parameters on send_companion_edge (transcription_coordinator.rs:1709-1726, whose doc records why), and the connection task resolves them per edge through tauri::async_runtime::spawn_blocking with a shipped-defaults fallback on a panicking read (companion/server.rs:806-851) - the Welcome read's seam shape, so a mid-connection activation change is honored by the very next press (never a connect-time snapshot). The structural pin connection_blocking_seams_run_off_the_async_connection_task now enumerates the FIFTH seam: the edge read must sit inside its own blocking-pool dispatch after the Welcome seam's, the old direct edge call may not return, and send_companion_edge's body must stay free of get_settings (cross-file, the register_connection_with_identity pattern); mutation-checked both ways, by reintroducing the store read in the coordinator body and by inlining the read on the task, each tripping the pin before the reverts.
+- KB-285 CLOSED in the v1.6.6 companion-machinery cycle (lane M3): no settings read runs inline on the async connection task any more. The surviving read the premise named was the Ptt edge's: send_companion_edge read get_settings on the connection task for every phone press/release edge (the Welcome read had already moved to spawn_blocking in the v1.6.4 fleet pass 2), and get_settings is a read-modify-write over the plugin store's mutex whose migration, salvage, and binding-merge legs write the store back synchronously while holding it (settings.rs:2193-2226) - the same accept-wedge class the spawned seams exist to keep off the task. The activation mode and hold threshold now arrive as parameters on send_companion_edge (transcription_coordinator.rs:1709-1726, whose doc records why), and the connection task resolves them per edge through tauri::async_runtime::spawn_blocking with a shipped-defaults fallback on a panicking read (companion/server.rs:806-851) - the Welcome read's seam shape, so a mid-connection activation change is honored by the very next press (never a connect-time snapshot). The structural pin connection_blocking_seams_run_off_the_async_connection_task now enumerates the FIFTH seam: the edge read must sit inside its own blocking-pool dispatch after the Welcome seam's, the old direct edge call may not return, and send_companion_edge's body must stay free of get_settings (cross-file, the register_connection_with_identity pattern); mutation-checked both ways, by reintroducing the store read in the coordinator body and by inlining the read on the task, each tripping the pin before the reverts.
 - KB-286 CLOSED in the v1.6.5 residuals cycle (lane R2): every Arabic dual form that carried {{count}} beside the dual noun now uses the bare dual - listSummary, run, runHint, results, charsChanged, added, removed, blockedWithCulprit, blockedNoCulprit (ar/translation.json:713, 1229, 1235, 1248, 1261, 1270, 1276, 1441, 1445), the lineCount_two pattern; showAll_two keeps {{count}} because its parenthesized count badge has no noun to number. pluralCoverage.test.ts facet 6 pins that every Arabic \_two count-family form stays bare (mutation-checked by restoring one "{{count}} dual-noun" form).
 - KB-287 CLOSED in the v1.6.5 residuals cycle (lane R4): a content pin now reads README.md itself, so a revert of the KB-277 fix (cdb14c51) fails CI instead of silently restoring the false sentence. The pin slices the companion recording section and asserts the singleton-engine phrasing on all three clauses - the first session keeps streaming live text, a concurrently-started session transcribes at stop, and the streaming engine is a singleton - plus a negative assert that the exact pre-fix wording ("both record and transcribe at stop instead of streaming live text") cannot return (docs/quality-goldmine.test.ts:451-501; the code truth it mirrors is the ownership decision on the coordinator's serialized thread, actions.rs:1898-1903). Mutation-checked by reverting the README sentence in the working tree: the pin failed on the first clause, and passed again after restore.
 - KB-288 CLOSED in the v1.6.5 residuals cycle (lane R4): the KB-267 and KB-283 contrast pins no longer hardcode the light background or the palette hexes. Both blocks now read them from one shared table, lib/utils/wcagContrast.ts (the module: contrastRatio at :35, themeHex at :45, TAILWIND_TEXT_HEX at :64), whose themeHex parses --light-color-background out of src/styles/theme.css at run time and fails loudly if the token is renamed or deleted, and whose Tailwind hex table is the single definition for the emerald and amber families (the repo's CSS never redefines those shades). The onboarding pin consumes it at AccessibilityOnboarding.test.ts:94-127 (emerald) and :179-253 (amber). Mutation-checked by repointing theme.css's --light-color-background at the dark hex #2c2b29: the emerald ratio assert failed with the moved measurement ("2.58:1 on #2c2b29"), proving the pin tracks the live token, and passed again after restore. accent.test.ts still carries its own THEME_BACKGROUND copy (out of this item's scope, disclosed; it measures the accent palette, not the text-on-background contrast families this item named).
@@ -2014,3 +2014,69 @@ docs/quality-goldmine.test.ts, which passes at this tree).
   that were never closed (KB-163 among them) keep their original
   statusless list form - both shapes predate the queue this cycle
   closed and are recorded here rather than rewritten.
+
+## Round 16: the v1.6.7 stop-wedge cycle record (2026-10-13, branch cycle16/v1.6.7-stop-wedge, base origin/main 287260d8)
+
+The operator reported the shipping v1.6.6 wedging after every successful
+phone dictation: the text reached the phone, but the Mac's streaming
+overlay stayed on "transcribing" forever and no new recording would
+start from the phone or the keyboard until force quit. Rotated logs
+showed the shape was deterministic (every paste=sent-to-phone outcome on
+v1.6.3 and v1.6.6 was followed by a restart; every keyboard outcome
+continued), the wedge reproduced on demand against the installed app
+through the proof rig, and two five-second thread samples of the wedged
+process (symbolicated against a same-codematch local build with debug
+info) narrowed the block to the stop pipeline's retire tail. An
+instrumented build (entry/exit traces on the settings store acquisition,
+the tray sync, and every companion connections lock site) then caught
+the detonation verbatim on stderr: get_settings' .expect on the store
+acquisition panicking with BadResourceId once the store plugin's
+path-to-resource map names an id the resource table no longer holds -
+a permanent state, because the failed lookup never removes the dead map
+entry, so every subsequent get_settings on every start path dies the
+same way. That single panic explains both operator symptoms: in the stop
+pipeline's tail it cut retire_session_surfaces in half (set_tray_state
+had entered compute_desired; hide_recording_overlay never ran - the
+stuck overlay), and the plugin's internal Mutexes lock with .unwrap(),
+so the panicking holders poisoned them, after which each queued caller
+either woke into its own panic or sat queued forever (the sampled
+mutex-wait stacks) - no new session could start from any source.
+
+- KB-299 CLOSED in this cycle (two lanes): the settings store
+  acquisition self-heals instead of panicking (settings.rs:2143-2181,
+  acquire_settings_store: the dead plugin registration is rebuilt
+  through store_builder().create_new() - the plugin's one path that
+  removes the dead map entry - and the on-disk settings are merged back
+  with reload() so nothing is lost, all under a serialized recovery gate
+  so two racing recoveries cannot evict each other's healthy entry; a
+  store that still cannot mount serves the shipped defaults for reads
+  at settings.rs:2187-2190 and skips the single persist with a logged
+  error for writes at settings.rs:2437-2441, never a panic), and the
+  entire stop pipeline body is panic-contained (actions.rs:2268-2271
+  wraps the block_on in catch_unwind, the spawn_worker convention, with
+  the panic arm at actions.rs:2848-2851 retiring the shared surfaces
+  once more so any future tail failure is a logged one-session defect,
+  never a force-quit wedge; the FinishGuard already drains the in-flight
+  registry during the unwind). Pinned by
+  settings_store_acquisition_self_heals_instead_of_panicking
+  (settings.rs source pin: no .expect on the store acquisition remains,
+  the recovery carries create_new + reload + the serialized gate, and
+  both reader and writer route through the helper with their non-panic
+  fallbacks; mutation-checked by reintroducing the panic bomb) and
+  stop_pipeline_body_is_panic_contained (actions.rs source pin: the
+  block_on rides inside catch_unwind, the arm retires surfaces, and the
+  arm's AppHandle is cloned before the spawn; mutation-checked by
+  removing the arm's retire). Diagnosis artifacts: the wedge-repro rig
+  and the wedged-process samples live under shots/proof-v1.6.7/.
+- Upstream note: the stale-rid state itself is tauri-plugin-store
+  2.4.2's (its own build_inner comment names the eviction class, and
+  the observed dead id 0x30303030 suggests corrupted map state rather
+  than a clean eviction); the app-side healing and containment above
+  make VoxBar immune to it regardless of the plugin's fix schedule,
+  and the plugin's lock-with-.unwrap() internals are why one panic
+  cascaded the way it did. Recorded here rather than as an OPEN marker
+  because the app-side fix is complete and pinned; a future plugin
+  upgrade only narrows how often the healing path runs.
+- Ledger hygiene this round: two anchor rows added for the new
+  citations (settings.rs and actions.rs spans above), and the goldmine
+  live-check passes at this tree.
