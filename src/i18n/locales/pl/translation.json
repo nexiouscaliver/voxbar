@@ -975,7 +975,7 @@
         "pause": "Wstrzymaj",
         "resume": "Wznów",
         "copied": "Skopiowano",
-        "lineCount_one": "1 wiersz",
+        "lineCount_one": "{{count}} wiersz",
         "lineCount_few": "{{count}} wiersze",
         "lineCount_many": "{{count}} wierszy",
         "lineCount_other": "Wierszy: {{count}}",
@@ -1372,11 +1372,11 @@
     "title": "Nowości w VoxBar v{{version}}"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} może blokować 1 skrót",
+    "blockedWithCulprit_one": "{{name}} może blokować {{count}} skrót",
     "blockedWithCulprit_few": "{{name}} może blokować {{count}} skróty",
     "blockedWithCulprit_many": "{{name}} może blokować {{count}} skrótów",
     "blockedWithCulprit_other": "{{name}} może blokować {{count}} skrótów",
-    "blockedNoCulprit_one": "macOS tymczasowo blokuje 1 skrót",
+    "blockedNoCulprit_one": "macOS tymczasowo blokuje {{count}} skrót",
     "blockedNoCulprit_few": "macOS tymczasowo blokuje {{count}} skróty",
     "blockedNoCulprit_many": "macOS tymczasowo blokuje {{count}} skrótów",
     "blockedNoCulprit_other": "macOS tymczasowo blokuje {{count}} skrótów",

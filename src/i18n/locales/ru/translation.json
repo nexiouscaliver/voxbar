@@ -975,7 +975,7 @@
         "pause": "Приостановить",
         "resume": "Возобновить",
         "copied": "Скопировано",
-        "lineCount_one": "1 строка",
+        "lineCount_one": "{{count}} строка",
         "lineCount_few": "{{count}} строки",
         "lineCount_many": "{{count}} строк",
         "lineCount_other": "Строк: {{count}}",
@@ -1372,11 +1372,11 @@
     "title": "Новое в VoxBar v{{version}}"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} может блокировать 1 сочетание клавиш",
+    "blockedWithCulprit_one": "{{name}} может блокировать {{count}} сочетание клавиш",
     "blockedWithCulprit_few": "{{name}} может блокировать {{count}} сочетания клавиш",
     "blockedWithCulprit_many": "{{name}} может блокировать {{count}} сочетаний клавиш",
     "blockedWithCulprit_other": "{{name}} может блокировать {{count}} сочетаний клавиш",
-    "blockedNoCulprit_one": "macOS временно блокирует 1 сочетание клавиш",
+    "blockedNoCulprit_one": "macOS временно блокирует {{count}} сочетание клавиш",
     "blockedNoCulprit_few": "macOS временно блокирует {{count}} сочетания клавиш",
     "blockedNoCulprit_many": "macOS временно блокирует {{count}} сочетаний клавиш",
     "blockedNoCulprit_other": "macOS временно блокирует {{count}} сочетаний клавиш",

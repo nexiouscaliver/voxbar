@@ -136,4 +136,54 @@ assert.ok(
   );
 }
 
+// KB-267 review follow-up: the fix's own comment claims the onboarding pair
+// is "the same pair the debug tables use", but three sibling light-theme
+// sites (the live-log INFO tag and the post-process runs outcome/copied
+// labels) still carried emerald-600 - the exact 3.64:1 failure the item
+// fixes. They now carry the 700/400 pair, and this sweep pins both halves:
+// no source under src/ may name text-emerald-600 at all (test files are
+// exempt because this pin itself names the token it forbids; comments in
+// shipped sources are covered, so a stale claim fails too), and the debug
+// files must actually carry the pair (so the sweep cannot pass by deleting
+// the sites).
+{
+  const walk = (dir: string): string[] =>
+    fs
+      .readdirSync(dir, { withFileTypes: true })
+      .flatMap((entry) =>
+        entry.isDirectory()
+          ? walk(path.join(dir, entry.name))
+          : /\.(ts|tsx)$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)
+            ? [path.join(dir, entry.name)]
+            : [],
+      );
+  const srcRoot = path.join(import.meta.dirname, "..", "..");
+  const sources = walk(srcRoot);
+  assert.ok(
+    sources.length > 50,
+    `expected a real source tree, walked ${sources.length} files`,
+  );
+  for (const file of sources) {
+    const source = fs.readFileSync(file, "utf8");
+    assert.ok(
+      !source.includes("text-emerald-600"),
+      `KB-267: ${path.relative(srcRoot, file)} must not use text-emerald-600 ` +
+        `(3.64:1 on the light background; emerald-700 is the light shade)`,
+    );
+  }
+  for (const debugFile of [
+    "settings/debug/LiveLogViewer.tsx",
+    "settings/debug/PostProcessRunsTable.tsx",
+  ]) {
+    const debugSrc = fs.readFileSync(
+      path.join(import.meta.dirname, "..", debugFile),
+      "utf8",
+    );
+    assert.ok(
+      debugSrc.includes("text-emerald-700 dark:text-emerald-400"),
+      `KB-267: ${debugFile} must carry the emerald-700/400 light/dark pair`,
+    );
+  }
+}
+
 console.log("AccessibilityOnboarding: all assertions passed");

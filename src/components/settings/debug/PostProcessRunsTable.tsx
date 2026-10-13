@@ -69,7 +69,7 @@ const OutcomeCell: React.FC<{ record: PostProcessRunRecord }> = ({
           ? "text-red-600 dark:text-red-400"
           : base === "skipped" || base === "unchanged"
             ? "text-amber-600 dark:text-amber-400"
-            : "text-emerald-600 dark:text-emerald-400"
+            : "text-emerald-700 dark:text-emerald-400"
       }
       title={tooltip}
     >
@@ -223,7 +223,7 @@ export const PostProcessRunsTable: React.FC<PostProcessRunsTableProps> = ({
         </div>
       )}
       {copiedRun !== null && (
-        <div className="px-4 py-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+        <div className="px-4 py-1.5 text-xs text-emerald-700 dark:text-emerald-400">
           {t("settings.debug.ppRuns.copied", { run: copiedRun })}
         </div>
       )}

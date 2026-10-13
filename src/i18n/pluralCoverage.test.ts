@@ -56,6 +56,9 @@ const KEY_FAMILIES = [
   "settings.debug.liveLogs.lineCount",
 ];
 
+// The numeral-accuracy facet (check 4) runs on the KB-276 families.
+const NUMERAL_FAMILIES = KEY_FAMILIES.slice(-3);
+
 const PROBE_COUNTS = [0, 1, 2, 3, 4, 5, 9, 10, 11, 21, 22, 100, 101, 1000];
 
 function loadLocale(locale: string): Record<string, unknown> {
@@ -155,7 +158,39 @@ for (const locale of locales) {
   }
 }
 
+// 4. NUMERAL accuracy for the KB-276 families: a category that fires at a
+//    count OTHER than 1 must never hardcode the numeral 1. Russian and
+//    Ukrainian 'one' also fires at 21, 31, 41, ..., 101, 1001 (CLDR: n%10=1
+//    && n%100!=11), so a "1 строка"-style _one key renders the WRONG NUMBER
+//    at 21 lines in the live-log counter and the secure-input banner - the
+//    regression this facet exists to catch. Every digit run in the rendered
+//    string must equal the count, checked empirically through the same
+//    i18next resolution the app performs. Scoped to the three KB-276
+//    families: the six fleet-pass-2 families still carry hardcoded "1" in
+//    their ru/uk _one keys (twenty keys, the same wrong-number class at
+//    21+); that defect predates this lane - these families already
+//    resolved through i18next before it, so nothing here regressed them -
+//    and they stay out until a dedicated pass fixes the copy.
+for (const locale of locales) {
+  const t = i18next.getFixedT(locale);
+  for (const family of NUMERAL_FAMILIES) {
+    for (const count of PROBE_COUNTS) {
+      const rendered = t(family, { count });
+      assert.ok(typeof rendered === "string" && rendered.length > 0);
+      for (const digitRun of rendered.match(/\d+/g) ?? []) {
+        assert.equal(
+          digitRun,
+          String(count),
+          `${locale}: ${family} at count=${count} rendered the numeral ` +
+            `"${digitRun}" - a plural category that fires beyond count=1 ` +
+            `must interpolate {{count}}, not hardcode a number`,
+        );
+      }
+    }
+  }
+}
+
 console.log(
   `pluralCoverage: ${locales.length} locales x ${KEY_FAMILIES.length} families x ` +
-    `${PROBE_COUNTS.length} counts covered, no English leaks`,
+    `${PROBE_COUNTS.length} counts covered, no English leaks, numerals accurate`,
 );

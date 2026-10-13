@@ -975,7 +975,7 @@
         "pause": "Pozastavit",
         "resume": "Pokračovat",
         "copied": "Zkopírováno",
-        "lineCount_one": "1 řádek",
+        "lineCount_one": "{{count}} řádek",
         "lineCount_few": "{{count}} řádky",
         "lineCount_many": "{{count}} řádků",
         "lineCount_other": "Řádků: {{count}}",
@@ -1372,11 +1372,11 @@
     "title": "Novinky v VoxBar v{{version}}"
   },
   "secureInput": {
-    "blockedWithCulprit_one": "{{name}} může blokovat 1 zkratku",
+    "blockedWithCulprit_one": "{{name}} může blokovat {{count}} zkratku",
     "blockedWithCulprit_few": "{{name}} může blokovat {{count}} zkratky",
     "blockedWithCulprit_many": "{{name}} může blokovat {{count}} zkratek",
     "blockedWithCulprit_other": "{{name}} může blokovat {{count}} zkratek",
-    "blockedNoCulprit_one": "macOS dočasně blokuje 1 zkratku",
+    "blockedNoCulprit_one": "macOS dočasně blokuje {{count}} zkratku",
     "blockedNoCulprit_few": "macOS dočasně blokuje {{count}} zkratky",
     "blockedNoCulprit_many": "macOS dočasně blokuje {{count}} zkratek",
     "blockedNoCulprit_other": "macOS dočasně blokuje {{count}} zkratek",
