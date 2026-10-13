@@ -588,9 +588,12 @@ impl CompanionManager {
         // A corroborated Tailscale bind (KB-259: CGNAT range on a utun
         // interface) issues the token for the whole CGNAT /10, so every
         // tailnet peer validates (ip::pairing_subnet_for).
+        // KB-289: the rebind's whole-settings write rides the serialized
+        // RMW lock (the connect-edge workers' lock) instead of a bare
+        // get/mutate/write outside any lock, so a concurrent
+        // whole-settings writer can no longer interleave a lost update.
         let subnet = ip::pairing_subnet_for(&candidates, bind_ip);
-        {
-            let mut settings = crate::settings::get_settings(app);
+        connect_edge_settings_rmw(app, &|settings| {
             let token_stale = settings
                 .companion_pairing_subnet
                 .as_deref()
@@ -604,9 +607,11 @@ impl CompanionManager {
             if token_stale {
                 settings.companion_pairing_token = Some(auth::generate_pairing_token());
                 settings.companion_pairing_subnet = Some(subnet.clone());
-                crate::settings::write_settings(app, settings);
+                true
+            } else {
+                false
             }
-        }
+        });
         let settings = crate::settings::get_settings(app);
         let token = settings.companion_pairing_token.clone().unwrap_or_default();
         let port = settings.companion_port;
@@ -916,10 +921,15 @@ impl CompanionManager {
                 .as_deref(),
         )?;
         let subnet = ip::pairing_subnet_for(&candidates, bind_ip);
-        let mut settings = crate::settings::get_settings(app);
-        settings.companion_pairing_token = Some(auth::generate_pairing_token());
-        settings.companion_pairing_subnet = Some(subnet);
-        crate::settings::write_settings(app, settings);
+        // KB-289: the fresh token persists through the serialized RMW lock
+        // (the connect-edge workers' lock), not a bare whole-settings
+        // write outside any lock - a concurrent connect-edge writer could
+        // otherwise interleave a lost update here.
+        connect_edge_settings_rmw(app, &|settings| {
+            settings.companion_pairing_token = Some(auth::generate_pairing_token());
+            settings.companion_pairing_subnet = Some(subnet.clone());
+            true
+        });
 
         self.restart(app)
     }
@@ -1023,11 +1033,20 @@ const KNOWN_IDENTITIES_LIMIT: usize = 8;
 static CONNECT_EDGE_SETTINGS_RMW: Mutex<()> = Mutex::new(());
 
 /// One settings read-modify-write cycle under [`CONNECT_EDGE_SETTINGS_RMW`]:
-/// the guard spans get_settings through write_settings, so the two
-/// connect-edge workers serialize and each read sees the other's write.
+/// the guard spans get_settings through write_settings, so concurrent
+/// whole-settings writers serialize and each read sees the other's write.
 /// The closure returns whether the field changed; an unchanged field
 /// writes nothing.
-fn connect_edge_settings_rmw(
+///
+/// KB-289 (v1.6.5): the lock is the app's serialized RMW for the whole
+/// settings store, not only the connect edge. Companion `start()`'s
+/// pairing-token rebind, [`CompanionManager::reset_pairing`], and the
+/// `set_log_level` command ride the same cycle - each used to
+/// whole-settings-write outside any lock, so a connect-edge interleave
+/// could erase their field (the same lost update the connect-edge workers
+/// serialize against). The historical name stays: the KB-261 pin and the
+/// ledger anchors cite it.
+pub(crate) fn connect_edge_settings_rmw(
     app: &AppHandle,
     mutate: &dyn Fn(&mut crate::settings::AppSettings) -> bool,
 ) {
@@ -2097,6 +2116,72 @@ mod tests {
                 "{site} must not write settings outside the locked helper"
             );
         }
+    }
+
+    /// KB-289: the three whole-settings writers that lived OUTSIDE the
+    /// serialized RMW lock - companion start()'s pairing-token rebind,
+    /// reset_pairing, and the set_log_level command - now ride the same
+    /// cycle as the connect-edge workers (a bare get/mutate/write outside
+    /// the lock could interleave a lost update with any locked writer).
+    /// Source pin in the KB-261 style: start() needs a real listener and
+    /// set_log_level needs the log plugin state a unit test cannot mount.
+    #[test]
+    fn kb289_whole_settings_writers_ride_the_serialized_rmw_lock() {
+        let source = include_str!("mod.rs");
+
+        // start()'s pairing-token rebind: the RMW call replaced the inline
+        // get/token_stale/write block.
+        let start_at = source
+            .find("pub fn start(&self, app: &AppHandle) -> Result<(), String>")
+            .expect("companion start");
+        let start_body = &source[start_at..start_at + 4000];
+        assert!(
+            start_body.contains("connect_edge_settings_rmw(app, &|settings| {"),
+            "start()'s pairing-token rebind must ride the serialized RMW"
+        );
+        let rebind_at = start_body
+            .find("connect_edge_settings_rmw(app, &|settings| {")
+            .expect("the rebind");
+        let rebind_window = &start_body[rebind_at..rebind_at + 900];
+        assert!(
+            rebind_window.contains("token_stale"),
+            "the rebind closure must keep computing token staleness"
+        );
+        assert!(
+            rebind_window.contains("generate_pairing_token"),
+            "the rebind closure must keep minting the fresh token"
+        );
+
+        // reset_pairing: the fresh token persists through the helper, and
+        // no bare whole-settings write remains in the body.
+        let reset_at = source
+            .find("pub fn reset_pairing(&self, app: &AppHandle) -> Result<(), String>")
+            .expect("reset_pairing");
+        let reset_body = &source[reset_at..reset_at + 1400];
+        assert!(
+            reset_body.contains("connect_edge_settings_rmw(app, &|settings| {"),
+            "reset_pairing must ride the serialized RMW"
+        );
+        assert!(
+            !reset_body.contains("crate::settings::write_settings(app, settings);"),
+            "reset_pairing must not bare-write the whole store outside the lock"
+        );
+
+        // The set_log_level command (src/commands/mod.rs) rides the same
+        // helper through the crate path.
+        let commands = include_str!("../commands/mod.rs");
+        let log_at = commands
+            .find("pub fn set_log_level(app: AppHandle, level: LogLevel)")
+            .expect("set_log_level");
+        let log_body = &commands[log_at..log_at + 1700];
+        assert!(
+            log_body.contains("crate::companion::connect_edge_settings_rmw(&app, &|settings| {"),
+            "set_log_level must ride the serialized RMW"
+        );
+        assert!(
+            !log_body.contains("write_settings(&app, settings);"),
+            "set_log_level must not bare-write the whole store outside the lock"
+        );
     }
 
     /// KB-270 (v1.6.4, fleet pass 2): the per-lane session records stop

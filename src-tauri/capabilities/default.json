@@ -5,7 +5,8 @@
   "windows": ["main", "recording_overlay"],
   "permissions": [
     "core:default",
-    "opener:default",
+    "opener:allow-open-url",
+    "opener:allow-default-urls",
     "store:default",
     "dialog:default",
     "global-shortcut:allow-is-registered",

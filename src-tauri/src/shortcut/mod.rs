@@ -234,9 +234,45 @@ fn cancel_wanters_remove(wanters: &mut Vec<Option<u64>>, session: Option<u64>) {
 /// [`handy_keys::cancel_reconcile_enabled`]), not the platform itself.
 static CANCEL_REGISTERED: std::sync::Mutex<bool> = std::sync::Mutex::new(false);
 
+/// KB-281: whether a lane-keyed cancel-want register may add its want.
+/// The unregister-before-register inversion (a session's teardown on
+/// another thread - the Escape teardown, the load-failure teardown -
+/// releases the lane's want while the start path is still between its
+/// readiness commit and its register arm) left the LATE register adding a
+/// want no session would ever release, so Escape stayed registered
+/// system-wide until restart. The lane's own companion session record is
+/// the discriminator, which gives the removal add-then-remove ordering at
+/// the add side: it flips live BEFORE the start path's register arm runs
+/// (same thread) and every want-releasing teardown flips it dead first
+/// (utils.rs's cancel edge and the load-failure teardown both do), so a
+/// late register for a torn-down session finds the record dead while a
+/// fresh session's register finds it live. `None` means no companion
+/// manager exists (test/early-startup contexts, where no lanes exist at
+/// all): the legacy add stands, fail-open.
+fn lane_keyed_register_may_add_want(lane_session_live: Option<bool>) -> bool {
+    lane_session_live.unwrap_or(true)
+}
+
 /// Register the cancel shortcut for ONE session (called when that session
 /// begins recording). The key stays armed while ANY session wants it.
 pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>) {
+    // KB-281: a lane-keyed register whose session record is already dead
+    // is the late arm of the unregister-before-register inversion - the
+    // teardown already released this want, and adding it back would arm
+    // Escape system-wide until restart. The keyboard's None key has no
+    // companion record to consult and keeps the legacy behavior.
+    if let Some(lane) = session {
+        let lane_live = app
+            .try_state::<std::sync::Arc<crate::companion::CompanionManager>>()
+            .map(|manager| manager.lane_owns_live_session(lane));
+        if !lane_keyed_register_may_add_want(lane_live) {
+            debug!(
+                "skipped a stale lane {} cancel-want register: its session was already torn down (KB-281)",
+                lane
+            );
+            return;
+        }
+    }
     {
         let mut wanters = CANCEL_WANTERS.lock().unwrap_or_else(|e| e.into_inner());
         cancel_wanters_add(&mut wanters, session);
@@ -735,6 +771,23 @@ pub struct ImplementationChangeResult {
     pub reset_bindings: Vec<String>,
 }
 
+/// KB-236: force-stop an armed handy-keys recorder during the keyboard
+/// implementation switch, BEFORE the old backend's registrations are torn
+/// down. The switch path never ran the recorder's own stop command (which
+/// refuses once the setting has flipped), while the recorder state
+/// survived a switch away and back because
+/// [`initialize_handy_keys_with_rollback`] no-ops on existing state - so a
+/// recorder armed at switch time left the next start_recording refusing
+/// "Already recording" until app restart. Stopping here keeps the
+/// invariant independent of which UI surface can reach the switch command.
+/// Generic over the runtime so the pin test can drive it through a mock
+/// app. Returns whether an armed recorder was stopped.
+fn force_stop_armed_recorder<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> bool {
+    app.try_state::<handy_keys::HandyKeysState>()
+        .map(|state| state.force_stop_recording())
+        .unwrap_or(false)
+}
+
 /// Change the keyboard implementation with runtime switching.
 /// This will unregister all shortcuts from the old implementation,
 /// validate shortcuts for the new implementation (resetting invalid ones to defaults),
@@ -761,6 +814,14 @@ pub fn change_keyboard_implementation_setting(
         "Switching keyboard implementation from {:?} to {:?}",
         current_impl, new_impl
     );
+
+    // KB-236: stop an armed recorder before the old implementation's
+    // registrations are torn down, so the recorder state can never survive
+    // the switch (the recorder's own stop command refuses after the flip,
+    // and the init no-ops on surviving state).
+    if force_stop_armed_recorder(&app) {
+        info!("Stopped an armed VoxBar Keys recorder during the keyboard implementation switch");
+    }
 
     // Unregister all shortcuts from the current implementation
     unregister_all_shortcuts(&app, current_impl);
@@ -3189,14 +3250,16 @@ mod tests {
     /// unregister arms carry the session key, and the reconcile arms on
     /// the SET (any session), never the last call. Mounting the
     /// registration backends needs a real app, so the arms are pinned
-    /// against this committed source (the KB-242 convention).
+    /// against this committed source (the KB-242 convention). The register
+    /// window spans KB-281's lane-liveness gate, which sits BEFORE the
+    /// want-set mutation by design.
     #[test]
     fn cancel_shortcut_arms_are_keyed_by_session() {
         let source = include_str!("mod.rs");
         let register_at = source
             .find("pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>)")
             .expect("register carries the session key");
-        let register_body = &source[register_at..register_at + 700];
+        let register_body = &source[register_at..register_at + 1600];
         assert!(
             register_body.contains("cancel_wanters_add"),
             "register adds exactly ITS session's want"
@@ -3261,7 +3324,9 @@ mod tests {
             ),
         ] {
             let arm_at = source.find(arm).unwrap_or_else(|| panic!("{mutation} arm"));
-            let body = &source[arm_at..arm_at + 1000];
+            // 2000 spans KB-281's lane-liveness gate, which precedes the
+            // register arm's want-set mutation by design.
+            let body = &source[arm_at..arm_at + 2000];
             let mutation_at = body.find(mutation).expect("the want-set mutation");
             let fold_at = body
                 .find("note_cancel_wanted_locked(&wanters, app)")
@@ -4237,5 +4302,112 @@ mod tests {
                 "the restart leg must keep its {token} arm (the pin compares the two)"
             );
         }
+    }
+
+    /// KB-236: the implementation-switch command force-stops an armed
+    /// recorder BEFORE it unregisters the old backend's shortcuts. The
+    /// switch path used to tear the backend down without stopping a
+    /// recorder armed for the capture UI; the recorder state survived the
+    /// switch away and back (the init no-ops on existing state) and the
+    /// next start refused "Already recording" until restart. The
+    /// executable arm-switch-stop lifecycle pin lives in handy_keys.rs
+    /// (kb236_the_impl_switch_force_stops_an_armed_recorder); this pins
+    /// the switch command's ordering against the committed source (the
+    /// KB-242 convention - mounting the registration backends needs a real
+    /// app).
+    #[test]
+    fn impl_switch_stops_an_armed_recorder_before_unregistering_kb236() {
+        let source = include_str!("mod.rs");
+        let switch_at = source
+            .find("pub fn change_keyboard_implementation_setting(")
+            .expect("the implementation switch command");
+        let switch_body = &source[switch_at..switch_at + 3000];
+        let stop_at = switch_body
+            .find("force_stop_armed_recorder(&app)")
+            .expect("the switch must force-stop an armed recorder");
+        let unregister_at = switch_body
+            .find("unregister_all_shortcuts(&app, current_impl)")
+            .expect("the switch's backend teardown");
+        assert!(
+            stop_at < unregister_at,
+            "KB-236: the recorder stop must precede the backend teardown"
+        );
+    }
+
+    /// KB-281: a lane-keyed cancel-want register whose session record is
+    /// already dead is the late arm of the unregister-before-register
+    /// inversion and must not re-add the want (the pre-fix leak armed
+    /// Escape system-wide until restart). The discriminator is the lane's
+    /// live companion session record, exercised here against a REAL
+    /// CompanionManager (the full register arm also folds into the
+    /// secure-input fallback, whose state a unit test cannot mount).
+    #[test]
+    fn kb281_a_dead_lanes_late_register_cannot_re_add_the_cancel_want() {
+        use super::lane_keyed_register_may_add_want;
+        use crate::companion::{self, CompanionManager};
+        use std::sync::Arc;
+        use tauri::Manager;
+
+        let app = tauri::test::mock_app();
+        let manager = Arc::new(CompanionManager::new());
+        app.manage(Arc::clone(&manager));
+        let (lane, _generation, _rx) = manager.register_connection("Pixel 8");
+
+        // The inversion: the teardown's want release already ran (the lane
+        // owns no live session), so the start path's LATE register must be
+        // refused.
+        assert!(
+            !lane_keyed_register_may_add_want(Some(
+                manager.lane_owns_live_session(lane)
+            )),
+            "a register whose lane session is dead must not add the want"
+        );
+
+        // A live session's register arms as before: the record flips live
+        // on the start path BEFORE its register arm runs.
+        companion::begin_session(app.handle(), lane, Default::default());
+        assert!(manager.lane_owns_live_session(lane));
+        assert!(
+            lane_keyed_register_may_add_want(Some(true)),
+            "a live session's register must add the want"
+        );
+        // The record flips dead at every want-releasing teardown, so the
+        // next late register is refused again.
+        companion::on_lane_session_changed(app.handle(), lane, false);
+        assert!(!manager.lane_owns_live_session(lane));
+        assert!(!lane_keyed_register_may_add_want(Some(false)));
+
+        // Manager-less contexts (no lanes exist at all) keep the legacy
+        // add, fail-open.
+        assert!(
+            lane_keyed_register_may_add_want(None),
+            "no companion manager means nothing to verify; the legacy add stands"
+        );
+    }
+
+    /// KB-281 wiring pin: the register arm consults the lane's live
+    /// session record BEFORE its want-set mutation, for lane keys only (the
+    /// keyboard's None key has no record and keeps the legacy arm).
+    #[test]
+    fn kb281_the_register_arm_gates_on_the_lanes_live_session_record() {
+        let source = include_str!("mod.rs");
+        let register_at = source
+            .find("pub fn register_cancel_shortcut(app: &AppHandle, session: Option<u64>)")
+            .expect("the register arm");
+        let register_body = &source[register_at..register_at + 1600];
+        let gate_at = register_body
+            .find("lane_keyed_register_may_add_want(lane_live)")
+            .expect("the lane-liveness gate");
+        let add_at = register_body
+            .find("cancel_wanters_add(&mut wanters, session)")
+            .expect("the want-set mutation");
+        assert!(
+            gate_at < add_at,
+            "the gate must run before the want is added"
+        );
+        assert!(
+            register_body[..gate_at].contains("if let Some(lane) = session"),
+            "only lane keys are gated; the keyboard's None key is not"
+        );
     }
 }

@@ -152,8 +152,10 @@ assert.ok(
 //    to a blanket OPEN trips it.
 // 2. The round 11 section records a FIXED marker for every round 10 id
 //    the cycle's six commits closed, keeps KB-264/KB-271 as the open
-//    leftovers, and carries the six named reconciliations (KB-236 open
-//    with fresh anchors; KB-237/254/255/241/245 verified). Scoped to the
+//    leftovers, and carries the six named reconciliations (KB-236 was
+//    reconciled open with fresh anchors at round 11 and closed by the
+//    v1.6.5 residuals cycle, lane R3; KB-237/254/255/241/245 verified).
+//    Scoped to the
 //    section's text because rounds 9 and 10 reused these ids with
 //    different meanings (the round 9 correction-log convention).
 // 3. The round 9 KB-085 residual's shutdown-send anchor must point at
@@ -265,7 +267,7 @@ for (const id of ["264", "271"] as const) {
   );
 }
 for (const marker of [
-  "KB-236 · OPEN",
+  "KB-236 · CLOSED in the v1.6.5 residuals cycle (lane R3)",
   "KB-237 · FIXED",
   "KB-254 · FIXED",
   "KB-255 · FIXED",
@@ -325,47 +327,48 @@ assert.ok(
     b: number,
     token: string,
   ][] = [
-    ["mod", 1378, 1378, "fn effective_enabled("],
+    ["mod", 1397, 1397, "fn effective_enabled("],
     ["server", 952, 952, "mod tests {"],
     [
       "mod",
-      1779,
-      1779,
+      1798,
+      1798,
       "fn registrations_release_by_lane_and_generation_never_by_name()",
     ],
-    ["mod", 1255, 1255, "fn note_stopping_session"],
-    ["mod", 755, 759, "close_remote_stream_or_defer();"],
-    ["mod", 746, 746, "shutdown_tx.send(true)"],
-    ["mod", 673, 673, "spawn(server::run("],
+    ["mod", 1274, 1274, "fn note_stopping_session"],
+    ["mod", 758, 763, "close_remote_stream_or_defer();"],
+    ["mod", 751, 751, "shutdown_tx.send(true)"],
+    ["mod", 678, 678, "spawn(server::run("],
     ["mod", 467, 467, "fn freeze_session("],
     [
       "mod",
-      1524,
-      1524,
+      1543,
+      1543,
       "fn session_identity_freezes_per_lane_and_cannot_be_renamed()",
     ],
     ["mod", 213, 213, "known_identities: Mutex<Vec<String>>"],
     ["server", 526, 526, "let (registration, rx) ="],
     [
       "mod",
-      1926,
-      1926,
+      1945,
+      1945,
       "fn kb261_concurrent_same_platform_registrations_never_share_an_identity()",
     ],
     ["server", 313, 313, "NO pause acknowledgement"],
     ["server", 297, 297, "notify_lane_gone(device_lane);"],
     ["server", 436, 436, "chunks admission ACCEPTED"],
-    ["mod", 910, 925, "fn reset_pairing("],
-    ["mod", 1023, 1023, "CONNECT_EDGE_SETTINGS_RMW: Mutex<()>"],
-    ["mod", 1030, 1030, "fn connect_edge_settings_rmw("],
+    ["mod", 915, 930, "fn reset_pairing("],
+    ["mod", 1033, 1033, "CONNECT_EDGE_SETTINGS_RMW: Mutex<()>"],
+    ["mod", 1049, 1049, "fn connect_edge_settings_rmw("],
+    ["mod", 593, 612, "connect_edge_settings_rmw(app, &|settings| {"],
     [
       "mod",
-      2060,
-      2060,
+      2079,
+      2079,
       "fn kb261_connect_edge_settings_rmws_serialize_through_one_lock()",
     ],
     ["mod", 395, 395, "fn register_connection_with_identity("],
-    ["mod", 1842, 1842, "fn kb261_identities_are_exact_and_never_adopt()"],
+    ["mod", 1861, 1861, "fn kb261_identities_are_exact_and_never_adopt()"],
     ["server", 614, 614, "dropped before its Welcome"],
     ["server", 274, 274, "async fn finalize_disconnected_connection"],
     [
@@ -376,15 +379,15 @@ assert.ok(
     ],
     [
       "mod",
-      1647,
-      1647,
+      1666,
+      1666,
       "fn server_stop_leaves_records_for_their_pipelines_in_both_stop_orders()",
     ],
-    ["mod", 1723, 1723, "fn stop_leaves_the_session_map_to_its_pipelines()"],
+    ["mod", 1742, 1742, "fn stop_leaves_the_session_map_to_its_pipelines()"],
     [
       "mod",
-      2111,
-      2111,
+      2196,
+      2196,
       "fn kb270_lane_session_records_are_consumed_at_every_session_end()",
     ],
     [
@@ -394,14 +397,13 @@ assert.ok(
       "fn connection_blocking_seams_run_off_the_async_connection_task()",
     ],
     ["server", 252, 252, "fn spawn_worker("],
-    ["mod", 563, 580, "fn start("],
     ["mod", 577, 584, "companion_known_identities.clone()"],
     ["server", 539, 543, "persist_known_identities"],
     ["server", 543, 655, "spawn_worker("],
     ["mod", 395, 434, "fn register_connection_with_identity("],
     ["mod", 1048, 1075, "fn persist_known_identities("],
     ["mod", 125, 133, "persist_identities"],
-    ["mod", 1038, 1046, "converge"],
+    ["mod", 1063, 1067, "converge"],
     ["server", 655, 655, "std::thread::spawn"],
   ];
 
