@@ -588,9 +588,15 @@ impl CompanionManager {
         // A corroborated Tailscale bind (KB-259: CGNAT range on a utun
         // interface) issues the token for the whole CGNAT /10, so every
         // tailnet peer validates (ip::pairing_subnet_for).
+        // KB-289: the rebind's whole-settings write rides the serialized
+        // RMW lock (the connect-edge workers' lock) instead of a bare
+        // get/mutate/write outside any lock, so no other RIDER of that
+        // lock can interleave a lost update against it. The guarantee is
+        // scoped (see connect_edge_settings_rmw): the app's whole-settings
+        // writers outside the lock - the shortcut rebinding among them -
+        // can still interleave with it.
         let subnet = ip::pairing_subnet_for(&candidates, bind_ip);
-        {
-            let mut settings = crate::settings::get_settings(app);
+        connect_edge_settings_rmw(app, &|settings| {
             let token_stale = settings
                 .companion_pairing_subnet
                 .as_deref()
@@ -604,9 +610,11 @@ impl CompanionManager {
             if token_stale {
                 settings.companion_pairing_token = Some(auth::generate_pairing_token());
                 settings.companion_pairing_subnet = Some(subnet.clone());
-                crate::settings::write_settings(app, settings);
+                true
+            } else {
+                false
             }
-        }
+        });
         let settings = crate::settings::get_settings(app);
         let token = settings.companion_pairing_token.clone().unwrap_or_default();
         let port = settings.companion_port;
@@ -693,6 +701,21 @@ impl CompanionManager {
             inner.tls_manual = tls_manual;
         }
 
+        // KB-028 residual (fleet, cycle 14): a close parked by the previous
+        // stop() must not survive into this server epoch. The parked close
+        // reclaims idle lane recorders once the last session ends while the
+        // server is STOPPED; this start() just bound a live listener, and
+        // the phones are about to re-hello and pre-warm their recorders
+        // against the new epoch - a parked close running at the next
+        // session-end fold would close a re-hello'd phone's pre-warmed
+        // recorder and force-stop a lane whose start committed after that
+        // fold's is_recording() check. Clearing here keeps the flag parked
+        // only while the server is stopped, the premise
+        // run_deferred_remote_close already documents.
+        if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
+            rm.clear_deferred_remote_close();
+        }
+
         // Pre-warm the remote recorder for the FIRST arriving connection
         // (VAD load off the press path). v1.6.2 W1-L2: pre-warming is
         // per-lane and keeps only the most recent connection's recorder
@@ -746,11 +769,16 @@ impl CompanionManager {
         let _ = self.shutdown_tx.send(true);
 
         // Close the lane recorders unless a stop pipeline is using them
-        // right now (each pipeline closes its own at its end).
+        // right now (each pipeline closes its own at its end). KB-028
+        // (v1.6.5): the skip used to be SILENT - a disable during a LOCAL
+        // recording skipped the close and nothing re-triggered it after
+        // the session ended, leaking every pre-warmed idle lane recorder
+        // (ring + VAD session) until the next companion start/stop or app
+        // shutdown. The helper parks the skipped close on the audio
+        // manager and every session-end fold runs it once nothing is
+        // recording anywhere.
         if let Some(rm) = app.try_state::<Arc<crate::managers::audio::AudioRecordingManager>>() {
-            if !rm.is_recording() {
-                rm.close_remote_stream();
-            }
+            rm.close_remote_stream_or_defer();
         }
 
         let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
@@ -911,10 +939,15 @@ impl CompanionManager {
                 .as_deref(),
         )?;
         let subnet = ip::pairing_subnet_for(&candidates, bind_ip);
-        let mut settings = crate::settings::get_settings(app);
-        settings.companion_pairing_token = Some(auth::generate_pairing_token());
-        settings.companion_pairing_subnet = Some(subnet);
-        crate::settings::write_settings(app, settings);
+        // KB-289: the fresh token persists through the serialized RMW lock
+        // (the connect-edge workers' lock), not a bare whole-settings
+        // write outside any lock - a concurrent connect-edge writer could
+        // otherwise interleave a lost update here.
+        connect_edge_settings_rmw(app, &|settings| {
+            settings.companion_pairing_token = Some(auth::generate_pairing_token());
+            settings.companion_pairing_subnet = Some(subnet.clone());
+            true
+        });
 
         self.restart(app)
     }
@@ -1018,11 +1051,27 @@ const KNOWN_IDENTITIES_LIMIT: usize = 8;
 static CONNECT_EDGE_SETTINGS_RMW: Mutex<()> = Mutex::new(());
 
 /// One settings read-modify-write cycle under [`CONNECT_EDGE_SETTINGS_RMW`]:
-/// the guard spans get_settings through write_settings, so the two
-/// connect-edge workers serialize and each read sees the other's write.
-/// The closure returns whether the field changed; an unchanged field
-/// writes nothing.
-fn connect_edge_settings_rmw(
+/// the guard spans get_settings through write_settings, so the riders of
+/// this lock serialize with one another and each rider's read sees every
+/// other rider's write. The closure returns whether the field changed; an
+/// unchanged field writes nothing.
+///
+/// KB-289 (v1.6.5): the lock is the serialized RMW for every writer of
+/// the companion pairing/identity fields and log_level - companion
+/// `start()`'s pairing-token rebind, [`CompanionManager::reset_pairing`],
+/// and the `set_log_level` command ride the same cycle the connect-edge
+/// workers already did - each used to whole-settings-write outside any
+/// lock, so a connect-edge interleave could erase their field (the same
+/// lost update the connect-edge workers serialize against). The
+/// guarantee is NOT store-wide: get_settings and write_settings remain
+/// separate lock-free store operations and the app still holds
+/// whole-settings writers that ride no lock (the shortcut rebinding's
+/// change_binding among them), so a rider can still interleave a lost
+/// update with one of THOSE; closing that would need a store-level lock
+/// touching every caller, the blast radius this fix deliberately avoids.
+/// The historical name stays: the KB-261 pin and the ledger anchors cite
+/// it.
+pub(crate) fn connect_edge_settings_rmw(
     app: &AppHandle,
     mutate: &dyn Fn(&mut crate::settings::AppSettings) -> bool,
 ) {
@@ -1736,6 +1785,35 @@ mod tests {
         );
     }
 
+    /// KB-028 (v1.6.5), source pin (same convention as the test above -
+    /// mounting a RUNNING TLS server in a unit test is not practical):
+    /// stop()'s lane-recorder close may never be SILENTLY skipped while a
+    /// recording is live. The pre-fix guard - close only when
+    /// `!rm.is_recording()` - leaked every pre-warmed idle lane recorder
+    /// whenever a LOCAL recording was the skip's reason: the local session
+    /// has no lane pipeline, so nothing re-triggered the close after it
+    /// ended, and the recorders (ring + VAD session) lived on until the
+    /// next companion start/stop or app shutdown. The close now routes
+    /// through the audio manager's close_remote_stream_or_defer, which
+    /// parks the skipped close and runs it at the last session end.
+    #[test]
+    fn kb028_stop_defers_the_lane_recorder_close_instead_of_silently_skipping_it() {
+        let source = include_str!("mod.rs");
+        let at = source
+            .find("pub fn stop(&self, app: &AppHandle)")
+            .expect("stop");
+        let end = at + source[at..].find("\n    }\n").expect("fn end");
+        let body = &source[at..end];
+        assert!(
+            body.contains("rm.close_remote_stream_or_defer();"),
+            "the lane-recorder close must route through the park-and-run helper"
+        );
+        assert!(
+            !body.contains("if !rm.is_recording()"),
+            "the silent skip is gone: a skipped close must be parked on the audio manager (KB-028)"
+        );
+    }
+
     /// v1.6.2 W1-L2 (KB-255): paired-device bookkeeping keys on
     /// lane/generation, never the name. A stale socket's late unregister
     /// (keepalive death lags up to 20 s) carries the old pair and must not
@@ -2063,6 +2141,123 @@ mod tests {
                 "{site} must not write settings outside the locked helper"
             );
         }
+    }
+
+    /// KB-289: the three whole-settings writers that lived OUTSIDE the
+    /// serialized RMW lock - companion start()'s pairing-token rebind,
+    /// reset_pairing, and the set_log_level command - now ride the same
+    /// cycle as the connect-edge workers (a bare get/mutate/write outside
+    /// the lock could interleave a lost update with any locked writer).
+    /// Source pin in the KB-261 style: start() needs a real listener and
+    /// set_log_level needs the log plugin state a unit test cannot mount.
+    #[test]
+    fn kb289_whole_settings_writers_ride_the_serialized_rmw_lock() {
+        let source = include_str!("mod.rs");
+
+        // start()'s pairing-token rebind: the RMW call replaced the inline
+        // get/token_stale/write block.
+        let start_at = source
+            .find("pub fn start(&self, app: &AppHandle) -> Result<(), String>")
+            .expect("companion start");
+        let start_body = &source[start_at..start_at + 4000];
+        assert!(
+            start_body.contains("connect_edge_settings_rmw(app, &|settings| {"),
+            "start()'s pairing-token rebind must ride the serialized RMW"
+        );
+        let rebind_at = start_body
+            .find("connect_edge_settings_rmw(app, &|settings| {")
+            .expect("the rebind");
+        let rebind_window = &start_body[rebind_at..rebind_at + 900];
+        assert!(
+            rebind_window.contains("token_stale"),
+            "the rebind closure must keep computing token staleness"
+        );
+        assert!(
+            rebind_window.contains("generate_pairing_token"),
+            "the rebind closure must keep minting the fresh token"
+        );
+
+        // reset_pairing: the fresh token persists through the helper, and
+        // no bare whole-settings write remains in the body.
+        let reset_at = source
+            .find("pub fn reset_pairing(&self, app: &AppHandle) -> Result<(), String>")
+            .expect("reset_pairing");
+        let reset_body = &source[reset_at..reset_at + 1400];
+        assert!(
+            reset_body.contains("connect_edge_settings_rmw(app, &|settings| {"),
+            "reset_pairing must ride the serialized RMW"
+        );
+        assert!(
+            !reset_body.contains("crate::settings::write_settings(app, settings);"),
+            "reset_pairing must not bare-write the whole store outside the lock"
+        );
+
+        // The set_log_level command (src/commands/mod.rs) rides the same
+        // helper through the crate path.
+        let commands = include_str!("../commands/mod.rs");
+        let log_at = commands
+            .find("pub fn set_log_level(app: AppHandle, level: LogLevel)")
+            .expect("set_log_level");
+        let log_body = &commands[log_at..log_at + 1700];
+        assert!(
+            log_body.contains("crate::companion::connect_edge_settings_rmw(&app, &|settings| {"),
+            "set_log_level must ride the serialized RMW"
+        );
+        assert!(
+            !log_body.contains("write_settings(&app, settings);"),
+            "set_log_level must not bare-write the whole store outside the lock"
+        );
+    }
+
+    /// KB-289 residual (fleet, cycle 14), doc pin: the helper's docs must
+    /// state the lock's ACTUAL guarantee. The first cut of the widened
+    /// docs claimed "the lock is the app's serialized RMW for the whole
+    /// settings store" and "a concurrent whole-settings writer can no
+    /// longer interleave a lost update" - contradicted by the code: only
+    /// the riders serialize, while the app's other whole-settings writers
+    /// (the shortcut rebinding's change_binding among them) still do bare
+    /// get/mutate/write outside any lock, so a rider CAN still lose an
+    /// update against one of those. A doc that overclaims a store-wide
+    /// guarantee invites relying on one that does not exist.
+    #[test]
+    fn kb289_the_rmw_doc_states_the_scoped_guarantee() {
+        let source = include_str!("mod.rs");
+        let helper_at = source
+            .find("pub(crate) fn connect_edge_settings_rmw(")
+            .expect("the RMW helper");
+        // The doc block sits directly above the fn.
+        let doc = &source[helper_at - 2600..helper_at];
+        assert!(
+            doc.contains("serialized RMW for every writer of")
+                && doc.contains("NOT store-wide"),
+            "the helper doc must scope the guarantee to the riders (companion pairing/identity fields and log_level) and state it is not store-wide"
+        );
+        assert!(
+            !doc.contains("for the whole settings store, not only the connect edge"),
+            "the store-wide overclaim must not survive in the helper doc"
+        );
+        assert!(
+            !doc.contains("concurrent whole-settings writers serialize"),
+            "the doc must not claim ALL concurrent whole-settings writers serialize; only the riders do"
+        );
+
+        // start()'s rebind comment carries the same scoped wording.
+        let start_at = source
+            .find("pub fn start(&self, app: &AppHandle) -> Result<(), String>")
+            .expect("companion start");
+        let start_body = &source[start_at..start_at + 9000];
+        let rebind_comment = &start_body[start_body
+            .find("KB-289: the rebind's whole-settings write")
+            .expect("the rebind comment")..];
+        assert!(
+            !rebind_comment[..900]
+                .contains("a concurrent whole-settings writer can no longer interleave"),
+            "the rebind comment must not claim immunity against non-riding writers"
+        );
+        assert!(
+            rebind_comment[..900].contains("no other RIDER of that"),
+            "the rebind comment must scope the immunity to the lock's riders"
+        );
     }
 
     /// KB-270 (v1.6.4, fleet pass 2): the per-lane session records stop

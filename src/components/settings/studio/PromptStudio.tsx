@@ -31,6 +31,7 @@ import {
   type StudioBatchError,
 } from "./studioBatch";
 import { PRELOAD_PROMPT_STUDIO_EVENT } from "./studioEvents";
+import type { AppleIntelligenceStatus } from "../PostProcessingSettingsApi/usePostProcessProviderState";
 
 const STUDIO_HISTORY_PAGE_SIZE = 50;
 const LOCAL_PROVIDER_ID = "local";
@@ -67,7 +68,14 @@ const CheckRow: React.FC<{
     <span className="min-w-0 flex-1">
       <span className="block text-sm font-medium truncate">{label}</span>
       {note ? (
-        <span className="block text-xs text-secondary truncate">{note}</span>
+        /* KB-262 residual (fleet, cycle 14): the note span keeps the
+           single-line truncate the half-width grid cell demands, but the
+           full sentence (the build-lacks verdict and its remediation run
+           118+ chars) must stay reachable - title mirrors the truncated
+           siblings in ResultCard below. */
+        <span className="block text-xs text-secondary truncate" title={note}>
+          {note}
+        </span>
       ) : null}
     </span>
   </label>
@@ -204,7 +212,11 @@ export const PromptStudio: React.FC = () => {
   const [sourceValue, setSourceValue] = useState<string>(LAST_TRANSCRIPT_VALUE);
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [entriesLoading, setEntriesLoading] = useState(true);
-  const [appleUnavailable, setAppleUnavailable] = useState(false);
+  // KB-262: the engine row's note follows the tri-state probe so a build
+  // lacking Apple Intelligence reads its own copy, not the OS-requirements
+  // one.
+  const [appleStatus, setAppleStatus] =
+    useState<AppleIntelligenceStatus>("available");
   // KB-257: the batch state (cards, in-flight flag, error) lives in the
   // module-level controller, so navigating away and back reflects the
   // still-running batch instead of discarding it - and a remount can no
@@ -239,7 +251,8 @@ export const PromptStudio: React.FC = () => {
   }, []);
 
   // Apple Intelligence "as available": the provider row stays listed but
-  // checks off with a note when the platform check refuses it.
+  // checks off with a note when the probe refuses it (KB-262: the note
+  // words a build lacking AI differently from an OS lacking it).
   useEffect(() => {
     if (!providers.some((provider) => provider.id === APPLE_PROVIDER_ID)) {
       return;
@@ -247,12 +260,15 @@ export const PromptStudio: React.FC = () => {
     let cancelled = false;
     commands
       .checkAppleIntelligenceAvailable()
-      .then((available) => {
-        if (!cancelled) setAppleUnavailable(!available);
+      .then((status) => {
+        if (!cancelled) setAppleStatus(status);
       })
       .catch((error) => {
         console.error("Apple Intelligence availability check failed:", error);
-        if (!cancelled) setAppleUnavailable(true);
+        // Probe transport failure: it established NOTHING about the OS, so
+        // the verdict is the availability-unknown copy, never the
+        // OS-requirements sentence (fleet, cycle 14).
+        if (!cancelled) setAppleStatus("probe_failed");
       });
     return () => {
       cancelled = true;
@@ -464,13 +480,27 @@ export const PromptStudio: React.FC = () => {
       >
         <div className="grid gap-1.5 sm:grid-cols-2">
           {providers.map((provider) => {
-            const apple = provider.id === APPLE_PROVIDER_ID && appleUnavailable;
+            const apple = provider.id === APPLE_PROVIDER_ID;
+            // KB-262: the unavailable note words a build lacking Apple
+            // Intelligence differently from an OS lacking it (one new
+            // locale string, shared with the settings surface); a probe
+            // that failed to answer gets the availability-unknown wording
+            // (fleet, cycle 14) instead of asserting OS facts.
+            const appleNote =
+              appleStatus === "build_lacks"
+                ? t("settings.postProcessing.api.appleIntelligence.buildLacks")
+                : appleStatus === "probe_failed"
+                  ? t(
+                      "settings.postProcessing.api.appleIntelligence.probeFailed",
+                    )
+                  : t("settings.studio.engines.appleUnavailable");
             const model = models[provider.id] ?? "";
-            const note = apple
-              ? t("settings.studio.engines.appleUnavailable")
-              : model
-                ? shortModelId(model)
-                : t("settings.studio.engines.noModelHint");
+            const note =
+              apple && appleStatus !== "available"
+                ? appleNote
+                : model
+                  ? shortModelId(model)
+                  : t("settings.studio.engines.noModelHint");
             return (
               <CheckRow
                 key={provider.id}

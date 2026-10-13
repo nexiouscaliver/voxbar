@@ -49,7 +49,10 @@ const LEVEL_META: Record<
   },
   4: {
     tag: "WARN",
-    tagClass: "text-amber-600 dark:text-amber-400",
+    // KB-283: amber-600 measured 3.08:1 on the light background; the
+    // amber-700 tag keeps the WARN label at 4.85:1 (the message body
+    // already used 700).
+    tagClass: "text-amber-700 dark:text-amber-400",
     msgClass: "text-amber-700 dark:text-amber-300",
   },
   5: {

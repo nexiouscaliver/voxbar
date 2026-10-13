@@ -316,6 +316,54 @@ assert.ok(
   );
 }
 
+// KB-258 (v1.6.5): the Polish-text switch only arms the NEXT dictation -
+// per-lane prefs freeze at session start (freeze_session), while the
+// keyboard pp hotkey flips the live session - so the toggle's label must
+// carry a hint saying when the flip lands. The scoped fix is the label;
+// folding mid-session pref updates is the bigger change. Three pins: the
+// hint element renders next to the toggle, the page feeds it the
+// postProcessHint key, and every locale ships that companion string.
+{
+  assert.ok(
+    html.includes('id="t-pp-hint"'),
+    "KB-258: the Polish toggle row must render the hint element",
+  );
+  const ppRow = sliceBetween(html, 'id="t-pp-label"', "</div>");
+  assert.ok(
+    ppRow.includes('id="t-pp-hint"') && ppRow.includes('id="ppToggle"'),
+    "KB-258: the hint must sit inside the Polish toggle's own row",
+  );
+  const hintInit = sliceBetween(
+    html,
+    'document.getElementById("t-pp-hint")',
+    ");",
+  );
+  assert.ok(
+    hintInit.includes('t(\n        "postProcessHint",') ||
+      hintInit.includes('t("postProcessHint",'),
+    "KB-258: the hint must render the postProcessHint companion string",
+  );
+  assert.ok(
+    usedKeys.has("postProcessHint"),
+    "KB-258: the page must reference the postProcessHint key",
+  );
+  const localesDir = nodePath.join(repoRoot, "src", "i18n", "locales");
+  const shipped = fs.readdirSync(localesDir);
+  for (const locale of shipped) {
+    const companion = JSON.parse(
+      fs.readFileSync(
+        nodePath.join(localesDir, locale, "translation.json"),
+        "utf8",
+      ),
+    ).companion;
+    assert.ok(
+      typeof companion.postProcessHint === "string" &&
+        companion.postProcessHint.length > 0,
+      `KB-258: ${locale} must ship companion.postProcessHint`,
+    );
+  }
+}
+
 // The new server frames render.
 const transcriptCase = sliceBetween(html, 'case "transcript":', "break;");
 assert.ok(transcriptCase.includes("showTranscript("));

@@ -438,7 +438,9 @@
         "notAsrModel": "यह मॉडल स्थानीय पोस्ट-प्रोसेस इंजन है। यह डिक्टेशन के बाद ट्रांसक्रिप्ट सुधारता है, ऑडियो ट्रांसक्राइब नहीं कर सकता।",
         "generic": "इस मॉडल पर नहीं बदला जा सका: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar इस मॉडल से डिक्टेट कर रहा है। डिक्टेशन समाप्त होने के बाद फिर से कोशिश करें।"
+      "deleteRefusedLive": "VoxBar इस मॉडल से डिक्टेट कर रहा है। डिक्टेशन समाप्त होने के बाद फिर से कोशिश करें।",
+      "deleteFailed": "यह मॉडल हटाया नहीं जा सका: {{error}}",
+      "cancelFailed": "यह डाउनलोड रद्द नहीं किया जा सका: {{error}}"
     },
     "sound": {
       "title": "आवाज़",
@@ -739,7 +741,9 @@
           "description": "कोई OpenAI-संगत प्रोवाइडर चुनें."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence इस डिवाइस पर उपलब्ध नहीं है. इसके लिए macOS Tahoe (26.0) या उसके बाद का वर्शन चलाने वाला Apple Silicon Mac चाहिए, जिसमें System Settings में Apple Intelligence चालू हो."
+          "unavailable": "Apple Intelligence इस डिवाइस पर उपलब्ध नहीं है. इसके लिए macOS Tahoe (26.0) या उसके बाद का वर्शन चलाने वाला Apple Silicon Mac चाहिए, जिसमें System Settings में Apple Intelligence चालू हो.",
+          "buildLacks": "Apple Intelligence VoxBar के इस बिल्ड में उपलब्ध नहीं है, जिसे इसके बिना कंपाइल किया गया है. इसका उपयोग करने के लिए आधिकारिक रिलीज़ बिल्ड इंस्टॉल करें.",
+          "probeFailed": "इस Mac पर Apple Intelligence की उपलब्धता की जाँच नहीं हो सकी. प्रदाता को फिर से चुनने का प्रयास करें."
         },
         "baseUrl": {
           "title": "बेस URL",
@@ -1458,6 +1462,7 @@
     "targetPc": "PC पर",
     "targetPhone": "फ़ोन पर",
     "postProcessLabel": "टेक्स्ट पॉलिश करें",
+    "postProcessHint": "अगली डिक्टेशन से प्रभावी होगा.",
     "resultTitle": "ट्रांस्क्रिप्ट",
     "copy": "कॉपी करें",
     "copied": "कॉपी हो गया",

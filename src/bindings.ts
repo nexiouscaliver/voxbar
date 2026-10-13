@@ -118,6 +118,14 @@ async changeCompanionDevicesSetting(enabled: boolean) : Promise<Result<null, str
  * Issue a fresh pairing token (rebound to the current LAN /24) and
  * restart the server if it is running, so the QR changes and phones
  * holding the old token are refused.
+ * KB-029 (v1.6.5): a failed reset must land on the SAME surface
+ * [`restart_companion_server`] uses - `status.error` (the panel's
+ * server-error line, via the manager's `last_error`) plus the
+ * CompanionServerFailed notice - instead of a bare Err the frontend only
+ * console.errors. The restart leg (a port conflict, most commonly) used
+ * to leave the panel rendering a clean "Stopped" while the fresh token
+ * had already persisted, so the QR changed under a server that never
+ * came back and nothing told the user why.
  */
 async resetCompanionPairing() : Promise<Result<null, string>> {
     try {
@@ -1053,10 +1061,15 @@ async openAppDataDir() : Promise<Result<null, string>> {
 }
 },
 /**
- * Check if Apple Intelligence is available on this device.
- * Called by the frontend when the user selects Apple Intelligence provider.
+ * Probe Apple Intelligence availability as a tri-state (KB-262):
+ * "available" / "os_unsupported" / "build_lacks". Called by the frontend
+ * when the user selects the Apple Intelligence provider and by the
+ * studio's engine list. The two unavailable verdicts localize
+ * differently: a stub-linked build lacking Apple Intelligence is not an
+ * OS-requirements problem, and the bool probe this replaced rendered the
+ * same "requires macOS Tahoe" copy for both.
  */
-async checkAppleIntelligenceAvailable() : Promise<boolean> {
+async checkAppleIntelligenceAvailable() : Promise<AppleIntelligenceStatus> {
     return await TAURI_INVOKE("check_apple_intelligence_available");
 },
 /**
@@ -1982,6 +1995,16 @@ companion_tls_cert_path?: string | null;
  * The key file paired with `companion_tls_cert_path`.
  */
 companion_tls_key_path?: string | null }
+/**
+ * KB-262: WHY Apple Intelligence is (un)available, as a tri-state the
+ * frontend localizes differently. A stub-linked build ("this copy of
+ * VoxBar was compiled without it") is a different message than an OS
+ * that lacks it ("requires macOS Tahoe..."), but the bool probe returned
+ * the same false for both, so a build-lacks Mac showed the OS
+ * requirements copy - and the stub's own distinct string never reached
+ * the availability path.
+ */
+export type AppleIntelligenceStatus = "available" | "os_unsupported" | "build_lacks"
 export type AudioDevice = { index: string; name: string; is_default: boolean }
 export type AutoSubmitKey = "enter" | "ctrl_enter" | "cmd_enter"
 export type AvailableAccelerators = { transcribe: string[]; ort: string[]; gpu_devices: GpuDeviceOption[] }

@@ -152,8 +152,10 @@ assert.ok(
 //    to a blanket OPEN trips it.
 // 2. The round 11 section records a FIXED marker for every round 10 id
 //    the cycle's six commits closed, keeps KB-264/KB-271 as the open
-//    leftovers, and carries the six named reconciliations (KB-236 open
-//    with fresh anchors; KB-237/254/255/241/245 verified). Scoped to the
+//    leftovers, and carries the six named reconciliations (KB-236 was
+//    reconciled open with fresh anchors at round 11 and closed by the
+//    v1.6.5 residuals cycle, lane R3; KB-237/254/255/241/245 verified).
+//    Scoped to the
 //    section's text because rounds 9 and 10 reused these ids with
 //    different meanings (the round 9 correction-log convention).
 // 3. The round 9 KB-085 residual's shutdown-send anchor must point at
@@ -265,7 +267,7 @@ for (const id of ["264", "271"] as const) {
   );
 }
 for (const marker of [
-  "KB-236 · OPEN",
+  "KB-236 · CLOSED in the v1.6.5 residuals cycle (lane R3)",
   "KB-237 · FIXED",
   "KB-254 · FIXED",
   "KB-255 · FIXED",
@@ -325,47 +327,49 @@ assert.ok(
     b: number,
     token: string,
   ][] = [
-    ["mod", 1373, 1373, "fn effective_enabled("],
+    ["mod", 1422, 1422, "fn effective_enabled("],
     ["server", 952, 952, "mod tests {"],
     [
       "mod",
-      1745,
-      1745,
+      1823,
+      1823,
       "fn registrations_release_by_lane_and_generation_never_by_name()",
     ],
-    ["mod", 1250, 1250, "fn note_stopping_session"],
-    ["mod", 750, 755, "close_remote_stream();"],
-    ["mod", 746, 746, "shutdown_tx.send(true)"],
-    ["mod", 673, 673, "spawn(server::run("],
+    ["mod", 1299, 1299, "fn note_stopping_session"],
+    ["mod", 781, 786, "close_remote_stream_or_defer();"],
+    ["mod", 769, 769, "shutdown_tx.send(true)"],
+    ["mod", 681, 681, "spawn(server::run("],
     ["mod", 467, 467, "fn freeze_session("],
     [
       "mod",
-      1519,
-      1519,
+      1568,
+      1568,
       "fn session_identity_freezes_per_lane_and_cannot_be_renamed()",
     ],
     ["mod", 213, 213, "known_identities: Mutex<Vec<String>>"],
     ["server", 526, 526, "let (registration, rx) ="],
     [
       "mod",
-      1892,
-      1892,
+      1970,
+      1970,
       "fn kb261_concurrent_same_platform_registrations_never_share_an_identity()",
     ],
     ["server", 313, 313, "NO pause acknowledgement"],
     ["server", 297, 297, "notify_lane_gone(device_lane);"],
     ["server", 436, 436, "chunks admission ACCEPTED"],
-    ["mod", 905, 918, "fn reset_pairing("],
-    ["mod", 1018, 1018, "CONNECT_EDGE_SETTINGS_RMW: Mutex<()>"],
-    ["mod", 1025, 1025, "fn connect_edge_settings_rmw("],
+    ["mod", 933, 948, "fn reset_pairing("],
+    ["mod", 1051, 1051, "CONNECT_EDGE_SETTINGS_RMW: Mutex<()>"],
+    ["mod", 1074, 1074, "fn connect_edge_settings_rmw("],
+    ["mod", 599, 618, "connect_edge_settings_rmw(app, &|settings| {"],
+    ["mod", 716, 716, "rm.clear_deferred_remote_close();"],
     [
       "mod",
-      2026,
-      2026,
+      2104,
+      2104,
       "fn kb261_connect_edge_settings_rmws_serialize_through_one_lock()",
     ],
     ["mod", 395, 395, "fn register_connection_with_identity("],
-    ["mod", 1808, 1808, "fn kb261_identities_are_exact_and_never_adopt()"],
+    ["mod", 1886, 1886, "fn kb261_identities_are_exact_and_never_adopt()"],
     ["server", 614, 614, "dropped before its Welcome"],
     ["server", 274, 274, "async fn finalize_disconnected_connection"],
     [
@@ -376,15 +380,15 @@ assert.ok(
     ],
     [
       "mod",
-      1642,
-      1642,
+      1691,
+      1691,
       "fn server_stop_leaves_records_for_their_pipelines_in_both_stop_orders()",
     ],
-    ["mod", 1718, 1718, "fn stop_leaves_the_session_map_to_its_pipelines()"],
+    ["mod", 1767, 1767, "fn stop_leaves_the_session_map_to_its_pipelines()"],
     [
       "mod",
-      2077,
-      2077,
+      2272,
+      2272,
       "fn kb270_lane_session_records_are_consumed_at_every_session_end()",
     ],
     [
@@ -394,14 +398,13 @@ assert.ok(
       "fn connection_blocking_seams_run_off_the_async_connection_task()",
     ],
     ["server", 252, 252, "fn spawn_worker("],
-    ["mod", 563, 580, "fn start("],
     ["mod", 577, 584, "companion_known_identities.clone()"],
     ["server", 539, 543, "persist_known_identities"],
     ["server", 543, 655, "spawn_worker("],
     ["mod", 395, 434, "fn register_connection_with_identity("],
-    ["mod", 1048, 1075, "fn persist_known_identities("],
+    ["mod", 1097, 1124, "fn persist_known_identities("],
     ["mod", 125, 133, "persist_identities"],
-    ["mod", 1038, 1046, "converge"],
+    ["mod", 1088, 1092, "converge"],
     ["server", 655, 655, "std::thread::spawn"],
   ];
 
@@ -444,6 +447,53 @@ assert.ok(
       `the anchor table checks companion/${key.replace(":", ".rs:")} but the ledger no longer cites it - drop the row`,
     );
   }
+}
+
+// KB-287 (v1.6.5 residuals): the KB-277 fix (cdb14c51) rewrote the
+// README's streaming-overlap sentence to state the singleton-engine
+// truth, but nothing TESTED it - the fix was pinned only by this ledger's
+// prose, so a docs revert of that one sentence would sail through CI.
+// This content pin reads README.md itself: the companion section must
+// keep the singleton-engine phrasing (the first session keeps streaming,
+// a concurrently-starting session transcribes at stop, because the
+// streaming engine is a singleton), and the pre-fix false claim (both
+// sessions "record and transcribe at stop instead of streaming live
+// text" - the exact wording cdb14c51 deleted) must not return. The code
+// truth it mirrors: actions.rs decides stream ownership on the
+// coordinator's serialized thread before any recorder runs - the first
+// session to start claims the singleton (actions.rs:1880).
+{
+  const readme = readFileSync(join(docsDir, "..", "README.md"), "utf8");
+  const companionSection = readme.slice(
+    readme.indexOf("Each phone runs its own recording independently"),
+    readme.indexOf("### Network and listener control"),
+  );
+  assert.ok(
+    companionSection.length > 0,
+    "README.md must keep the companion recording section this pin slices",
+  );
+  assert.ok(
+    companionSection.includes("the first keeps streaming live text"),
+    "KB-277/KB-287: the README must state that the FIRST session keeps " +
+      "streaming when sessions overlap",
+  );
+  assert.ok(
+    companionSection.includes("transcribes at stop"),
+    "KB-277/KB-287: the README must state that a concurrently-started " +
+      "session transcribes at stop",
+  );
+  assert.ok(
+    companionSection.includes("streaming engine is a singleton"),
+    "KB-277/KB-287: the README must name the singleton-engine reason",
+  );
+  assert.ok(
+    !companionSection.includes(
+      "both record and transcribe at stop instead of streaming live text",
+    ),
+    "KB-277/KB-287: the pre-fix sentence (no session streams during an " +
+      "overlap) contradicts the singleton design cdb14c51 documented - a " +
+      "revert of that README fix must fail here",
+  );
 }
 
 console.log("quality-goldmine ledger (AUD-15 + round 11) tests passed");

@@ -2606,6 +2606,17 @@ impl TranscriptionManager {
                 _ => None,
             };
         }
+        // KB-281: the W1-L0 admission rule the Escape teardown (utils.rs)
+        // already follows - a cancelled LANE session must end its companion
+        // session record at the same instant its cancel want is released.
+        // The record is the discriminator the shortcut module's register
+        // arm consults (a lane-keyed register whose record is dead is the
+        // late arm of the unregister-before-register inversion and must not
+        // re-add the want), so EVERY want-releasing teardown has to flip it
+        // dead here too.
+        if let Some(lane) = cancel_session_key {
+            crate::companion::on_lane_session_changed(&self.app_handle, lane, false);
+        }
         crate::shortcut::unregister_cancel_shortcut(&self.app_handle, cancel_session_key);
         self.cancel_stream();
         self.cancel_transcription();
@@ -4665,6 +4676,35 @@ pub fn get_available_accelerators(tm: &TranscriptionManager) -> AvailableAcceler
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// KB-281: the load-failure teardown ends the cancelled lane's
+    /// companion session record BEFORE it releases the session's cancel
+    /// want - the W1-L0 admission rule the Escape teardown (utils.rs)
+    /// already follows. The record is the discriminator the shortcut
+    /// module's register arm consults (a lane-keyed register whose record
+    /// is dead is the late arm of the unregister-before-register inversion
+    /// and must not re-add the want), so leaving it live here would have
+    /// re-opened the system-wide Escape leak through this teardown path.
+    /// Pinned against this committed source (the KB-242 convention: the
+    /// teardown needs a live model-load failure a unit test cannot mount).
+    #[test]
+    fn load_failure_teardown_ends_the_cancelled_lanes_session_record_kb281() {
+        let source = include_str!("transcription.rs");
+        let teardown_at = source
+            .find("fn handle_hotkey_load_failure(&self, error: &anyhow::Error)")
+            .expect("the load-failure teardown");
+        let teardown_body = &source[teardown_at..teardown_at + 2200];
+        let flip_at = teardown_body
+            .find("crate::companion::on_lane_session_changed(&self.app_handle, lane, false);")
+            .expect("the teardown must flip the lane's session record dead");
+        let release_at = teardown_body
+            .find("crate::shortcut::unregister_cancel_shortcut(&self.app_handle, cancel_session_key);")
+            .expect("the want release");
+        assert!(
+            flip_at < release_at,
+            "the session record must die before the want is released (mirroring the Escape teardown)"
+        );
+    }
 
     /// KB-239: the two "chars"-labeled logs in this file count chars, not
     /// str::len() bytes. Dictation text is regularly non-ASCII, where the

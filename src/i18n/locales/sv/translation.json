@@ -438,7 +438,9 @@
         "notAsrModel": "Den här modellen är den lokala efterbehandlingsmotorn. Den förbättrar transkriptioner efter diktering, men kan inte transkribera ljud.",
         "generic": "Kunde inte byta till den här modellen: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar dikterar med den här modellen. Försök igen när dikteringen är klar."
+      "deleteRefusedLive": "VoxBar dikterar med den här modellen. Försök igen när dikteringen är klar.",
+      "deleteFailed": "Modellen kunde inte raderas: {{error}}",
+      "cancelFailed": "Nedladdningen kunde inte avbrytas: {{error}}"
     },
     "sound": {
       "title": "Ljud",
@@ -739,7 +741,9 @@
           "description": "Välj en OpenAI-kompatibel leverantör."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence är inte tillgängligt på den här enheten. Kräver en Apple Silicon Mac som kör macOS Tahoe (26.0) eller senare med Apple Intelligence aktiverat i systeminställningarna."
+          "unavailable": "Apple Intelligence är inte tillgängligt på den här enheten. Kräver en Apple Silicon Mac som kör macOS Tahoe (26.0) eller senare med Apple Intelligence aktiverat i systeminställningarna.",
+          "buildLacks": "Apple Intelligence är inte tillgängligt i den här builden av VoxBar, som kompilerades utan funktionen. Installera en officiell utgivningsbuild för att använda den.",
+          "probeFailed": "Det gick inte att kontrollera tillgängligheten för Apple Intelligence på denna Mac. Försök välja providern igen."
         },
         "baseUrl": {
           "title": "Bas-URL",
@@ -1458,6 +1462,7 @@
     "targetPc": "Till PC",
     "targetPhone": "Till telefonen",
     "postProcessLabel": "Polera texten",
+    "postProcessHint": "Gäller från nästa diktering.",
     "resultTitle": "Transkription",
     "copy": "Kopiera",
     "copied": "Kopierat",

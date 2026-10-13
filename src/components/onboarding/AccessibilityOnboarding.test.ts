@@ -2,6 +2,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 
+import {
+  TAILWIND_TEXT_HEX,
+  contrastRatio,
+  themeHex,
+} from "../../lib/utils/wcagContrast";
+
 // KB-187: both onboarding permission cards (microphone and accessibility)
 // used bg-white/5 as their card fill, which is invisible on the light
 // theme's near-white background - the cards read as unpainted outlines on
@@ -92,38 +98,22 @@ assert.ok(
 // contrast ratio of the light-theme text color actually used against the
 // light background token (theme.css --light-color-background), so a future
 // shade swap that dips under the bar fails with the measured number.
+// KB-288: the background and the palette hexes come from the shared
+// contrast table (lib/utils/wcagContrast.ts), which parses theme.css -
+// not from hardcoded copies here, so a theme background change moves the
+// measurement with it.
 {
-  const LIGHT_BACKGROUND = "#fbfbfb"; // styles/theme.css: --light-color-background
-  const relativeLuminance = (hex: string): number => {
-    const channels = [1, 3, 5].map(
-      (at) => parseInt(hex.slice(at, at + 2), 16) / 255,
-    );
-    const [r, g, b] = channels.map((c) =>
-      c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4,
-    );
-    return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  };
-  const contrast = (fg: string, bg: string): number => {
-    const [l1, l2] = [relativeLuminance(fg), relativeLuminance(bg)].sort(
-      (a, b) => b - a,
-    );
-    return (l1 + 0.05) / (l2 + 0.05);
-  };
+  const LIGHT_BACKGROUND = themeHex("--light-color-background");
   const shadeHex = onboardingSrc.match(
     /text-emerald-(\d{3}) dark:text-emerald-400/,
   )?.[1];
   assert.ok(shadeHex, "the checkmark pair must keep a numeric emerald shade");
-  // Tailwind v4 default palette: emerald-600 #059669, emerald-700 #047857.
-  const EMERALD: Record<string, string> = {
-    "600": "#059669",
-    "700": "#047857",
-  };
-  const lightShade = EMERALD[shadeHex];
+  const lightShade = TAILWIND_TEXT_HEX.emerald[shadeHex];
   assert.ok(
     lightShade !== undefined,
     `the light shade must be a known emerald hex (got emerald-${shadeHex})`,
   );
-  const ratio = contrast(lightShade, LIGHT_BACKGROUND);
+  const ratio = contrastRatio(lightShade, LIGHT_BACKGROUND);
   assert.ok(
     ratio >= 4.5,
     `KB-267: light-theme Granted text must reach 4.5:1 on ${LIGHT_BACKGROUND}, ` +
@@ -182,6 +172,76 @@ assert.ok(
     assert.ok(
       debugSrc.includes("text-emerald-700 dark:text-emerald-400"),
       `KB-267: ${debugFile} must carry the emerald-700/400 light/dark pair`,
+    );
+  }
+}
+
+/* ---- KB-283 pin (amber family, same pattern as KB-267) ---- */
+
+// The amber legs inside the very cells the emerald fix touched (the pp
+// runs skipped/unchanged outcome and the live-log WARN tag) still carried
+// amber-600, which measures 3.08:1 on the light background - under the
+// 4.5:1 bar the emerald fix established for this table. Same pin shape as
+// the emerald half above (and KB-288: same shared contrast table, with
+// the background parsed from theme.css): compute the WCAG ratio from the
+// real palette hexes, sweep every non-test source for the too-dim shade,
+// and require the debug files to actually carry the passing pair.
+{
+  const LIGHT_BACKGROUND = themeHex("--light-color-background");
+  const AMBER = TAILWIND_TEXT_HEX.amber;
+  assert.ok(
+    contrastRatio(AMBER["600"], LIGHT_BACKGROUND) < 4.5,
+    "KB-283: the hex table must keep amber-600 measurable (3.08:1 expected)",
+  );
+  const walk = (dir: string): string[] =>
+    fs
+      .readdirSync(dir, { withFileTypes: true })
+      .flatMap((entry) =>
+        entry.isDirectory()
+          ? walk(path.join(dir, entry.name))
+          : /\.(ts|tsx)$/.test(entry.name) && !/\.test\.tsx?$/.test(entry.name)
+            ? [path.join(dir, entry.name)]
+            : [],
+      );
+  const srcRoot = path.join(import.meta.dirname, "..", "..");
+  for (const file of walk(srcRoot)) {
+    const source = fs.readFileSync(file, "utf8");
+    assert.ok(
+      !source.includes("text-amber-600"),
+      `KB-283: ${path.relative(srcRoot, file)} must not use text-amber-600 ` +
+        `(3.08:1 on the light background; amber-700 is the light shade)`,
+    );
+  }
+  for (const debugFile of [
+    "settings/debug/LiveLogViewer.tsx",
+    "settings/debug/PostProcessRunsTable.tsx",
+  ]) {
+    const debugSrc = fs.readFileSync(
+      path.join(import.meta.dirname, "..", debugFile),
+      "utf8",
+    );
+    const amberShade = debugSrc.match(
+      /text-amber-(\d{3}) dark:text-amber-400/,
+    )?.[1];
+    assert.ok(
+      amberShade !== undefined,
+      `KB-283: ${debugFile} must pair a light amber shade with dark:text-amber-400`,
+    );
+    const amberHex = AMBER[amberShade];
+    assert.ok(
+      amberHex !== undefined,
+      `KB-283: the light shade must be a known amber hex (got amber-${amberShade})`,
+    );
+    const ratio = contrastRatio(amberHex, LIGHT_BACKGROUND);
+    assert.ok(
+      ratio >= 4.5,
+      `KB-283: ${debugFile} amber-${amberShade} light-theme text must reach ` +
+        `4.5:1 on ${LIGHT_BACKGROUND}, measured ${ratio.toFixed(2)}:1 ` +
+        `(amber-600 is 3.08:1; amber-700 is 4.85:1)`,
+    );
+    assert.ok(
+      debugSrc.includes("text-amber-700 dark:text-amber-400"),
+      `KB-283: ${debugFile} must carry the amber-700/400 light/dark pair`,
     );
   }
 }

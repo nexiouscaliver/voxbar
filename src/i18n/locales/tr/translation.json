@@ -276,7 +276,9 @@
         "notAsrModel": "Bu model yerel son işlem motorudur. Dikte sonrası transkriptleri cilalar, sesi transkribe edemez.",
         "generic": "Bu modele geçilemedi: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar şu anda bu modelle dikte ediyor. Dikte bittikten sonra tekrar deneyin."
+      "deleteRefusedLive": "VoxBar şu anda bu modelle dikte ediyor. Dikte bittikten sonra tekrar deneyin.",
+      "deleteFailed": "Bu model silinemedi: {{error}}",
+      "cancelFailed": "Bu indirme iptal edilemedi: {{error}}"
     },
     "general": {
       "title": "Genel",
@@ -739,7 +741,9 @@
           "description": "OpenAI uyumlu bir sağlayıcı seçin."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence bu cihazda kullanılamıyor. macOS Tahoe (26.0) veya üzeri ve Sistem Ayarları'nda Apple Intelligence etkin olan bir Apple Silicon Mac gerektirir."
+          "unavailable": "Apple Intelligence bu cihazda kullanılamıyor. macOS Tahoe (26.0) veya üzeri ve Sistem Ayarları'nda Apple Intelligence etkin olan bir Apple Silicon Mac gerektirir.",
+          "buildLacks": "Apple Intelligence, bu özellik olmadan derlenen VoxBar derlemesinde kullanılamıyor. Kullanmak için resmi bir sürüm derlemesi yükleyin.",
+          "probeFailed": "Bu Mac'te Apple Intelligence kullanılabilirliği kontrol edilemedi. Sağlayıcıyı yeniden seçmeyi deneyin."
         },
         "baseUrl": {
           "title": "Temel URL",
@@ -1458,6 +1462,7 @@
     "targetPc": "Bilgisayara",
     "targetPhone": "Telefona",
     "postProcessLabel": "Metni cilala",
+    "postProcessHint": "Bir sonraki dikteden itibaren geçerli olur.",
     "resultTitle": "Deşifre",
     "copy": "Kopyala",
     "copied": "Kopyalandı",

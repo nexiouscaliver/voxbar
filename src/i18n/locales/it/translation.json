@@ -276,7 +276,9 @@
         "notAsrModel": "Questo modello è il motore locale di post-elaborazione. Rifinisce le trascrizioni dopo la dettatura, non può trascrivere audio.",
         "generic": "Impossibile passare a questo modello: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar sta dettando con questo modello. Riprova al termine della dettatura."
+      "deleteRefusedLive": "VoxBar sta dettando con questo modello. Riprova al termine della dettatura.",
+      "deleteFailed": "Impossibile eliminare questo modello: {{error}}",
+      "cancelFailed": "Impossibile annullare questo download: {{error}}"
     },
     "general": {
       "title": "Generale",
@@ -739,7 +741,9 @@
           "description": "Seleziona un provider compatibile con OpenAI."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence non è disponibile su questo dispositivo. Necessita di un Mac con Apple Silicon e macOS Tahoe (26.0) o successivi con Apple Intelligence abilitata nelle Impostazioni di Sistema."
+          "unavailable": "Apple Intelligence non è disponibile su questo dispositivo. Necessita di un Mac con Apple Silicon e macOS Tahoe (26.0) o successivi con Apple Intelligence abilitata nelle Impostazioni di Sistema.",
+          "buildLacks": "Apple Intelligence non è disponibile in questa build di VoxBar, che è stata compilata senza questa funzione. Installa una build ufficiale per usarla.",
+          "probeFailed": "Impossibile verificare la disponibilità di Apple Intelligence su questo Mac. Prova a selezionare di nuovo il provider."
         },
         "baseUrl": {
           "title": "URL Base",
@@ -1458,6 +1462,7 @@
     "targetPc": "Al PC",
     "targetPhone": "Al telefono",
     "postProcessLabel": "Rifinisci il testo",
+    "postProcessHint": "Ha effetto dalla dettatura successiva.",
     "resultTitle": "Trascrizione",
     "copy": "Copia",
     "copied": "Copiato",

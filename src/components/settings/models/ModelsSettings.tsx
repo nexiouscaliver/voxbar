@@ -43,9 +43,11 @@ const isSelectionRefusalError = (error: string): boolean =>
 export const ModelsSettings: React.FC = () => {
   const { t } = useTranslation();
   const [switchingModelId, setSwitchingModelId] = useState<string | null>(null);
-  // A selection the backend refused, pinned to the row that triggered it so
-  // the error reads in place ("this model cannot transcribe") instead of
-  // vanishing into the console.
+  // A row-level failure the backend refused or failed to perform (a
+  // selection refusal, a failed delete, a failed download cancel), pinned
+  // to the row that triggered it so the error reads in place ("this model
+  // cannot transcribe", "could not delete: disk error") instead of
+  // vanishing into the console (KB-155).
   const [selectionError, setSelectionError] = useState<{
     modelId: string;
     message: string;
@@ -204,20 +206,54 @@ export const ModelsSettings: React.FC = () => {
               message: t("settings.models.deleteRefusedLive"),
             });
           } else {
-            console.error(`Failed to delete model ${modelId}:`, error);
+            // KB-155: every other delete failure (fs error, swap-guard
+            // refusal, missing file) must reach the row alert too - a
+            // console-only failure is invisible after the confirm dialog.
+            setSelectionError({
+              modelId,
+              message: t("settings.models.deleteFailed", {
+                error: raw || String(error ?? ""),
+              }),
+            });
           }
         }
       } catch (err) {
+        // KB-155: transport failures ride the same row alert.
         console.error(`Failed to delete model ${modelId}:`, err);
+        setSelectionError({
+          modelId,
+          message: t("settings.models.deleteFailed", { error: String(err) }),
+        });
       }
     }
   };
 
   const handleModelCancel = async (modelId: string) => {
     try {
-      await cancelDownload(modelId);
+      // KB-155: the store records a cancel failure in state (prefixed
+      // "Failed to cancel download: ") and returns false instead of
+      // throwing; ignoring the result left the row looking fine while the
+      // download kept running.
+      const cancelled = await cancelDownload(modelId);
+      if (!cancelled) {
+        const { error } = useModelStore.getState();
+        const raw =
+          typeof error === "string"
+            ? error.replace(/^Failed to cancel download:\s*/, "")
+            : "";
+        setSelectionError({
+          modelId,
+          message: t("settings.models.cancelFailed", {
+            error: raw || String(error ?? ""),
+          }),
+        });
+      }
     } catch (err) {
       console.error(`Failed to cancel download for ${modelId}:`, err);
+      setSelectionError({
+        modelId,
+        message: t("settings.models.cancelFailed", { error: String(err) }),
+      });
     }
   };
 

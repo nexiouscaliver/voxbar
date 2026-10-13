@@ -438,7 +438,9 @@
         "notAsrModel": "מודל זה הוא מנוע העיבוד המקומי. הוא משפר תמלילים לאחר הקלטה, אך אינו יכול לתמלל אודיו.",
         "generic": "לא ניתן היה לעבור למודל זה: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar מכתיב עם הדגם הזה. נסה שוב לאחר שההכתבה מסתיימת."
+      "deleteRefusedLive": "VoxBar מכתיב עם הדגם הזה. נסה שוב לאחר שההכתבה מסתיימת.",
+      "deleteFailed": "לא ניתן למחוק את הדגם הזה: {{error}}",
+      "cancelFailed": "לא ניתן לבטל את ההורדה הזו: {{error}}"
     },
     "sound": {
       "title": "שמע",
@@ -739,7 +741,9 @@
           "description": "בחר ספק שתואם ל-OpenAI."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence לא זמין במכשיר הזה. נדרש Mac עם Apple Silicon שמריץ macOS Tahoe (26.0) ומעלה, עם Apple Intelligence מופעל בהגדרות המערכת."
+          "unavailable": "Apple Intelligence לא זמין במכשיר הזה. נדרש Mac עם Apple Silicon שמריץ macOS Tahoe (26.0) ומעלה, עם Apple Intelligence מופעל בהגדרות המערכת.",
+          "buildLacks": "Apple Intelligence אינו זמין בגרסה הזו של VoxBar, שהודרה בלעדיו. התקן מהדורה רשמית כדי להשתמש בו.",
+          "probeFailed": "לא ניתן היה לבדוק את זמינות Apple Intelligence ב־Mac הזה. נסו לבחור את הספק שוב."
         },
         "baseUrl": {
           "title": "כתובת URL בסיסית",
@@ -1469,6 +1473,7 @@
     "targetPc": "אל המחשב",
     "targetPhone": "אל הטלפון",
     "postProcessLabel": "ליטוש הטקסט",
+    "postProcessHint": "נכנס לתוקף החל מההכתבה הבאה.",
     "resultTitle": "תמליל",
     "copy": "העתק",
     "copied": "הועתק",

@@ -438,7 +438,9 @@
         "notAsrModel": "此模型是本機後處理引擎。它會在聽寫後潤飾轉錄文字，無法轉錄音訊。",
         "generic": "無法切換到此模型：{{error}}"
       },
-      "deleteRefusedLive": "VoxBar 正在使用此模型聽寫。聽寫結束後請再試一次。"
+      "deleteRefusedLive": "VoxBar 正在使用此模型聽寫。聽寫結束後請再試一次。",
+      "deleteFailed": "無法刪除此模型：{{error}}",
+      "cancelFailed": "無法取消此下載：{{error}}"
     },
     "sound": {
       "title": "聲音",
@@ -739,7 +741,9 @@
           "description": "選擇一個相容 OpenAI 的供應商"
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence 在此裝置上不可用。需要執行 macOS Tahoe（26.0）或更高版本的 Apple Silicon Mac，並在系統設定中啟用 Apple Intelligence"
+          "unavailable": "Apple Intelligence 在此裝置上不可用。需要執行 macOS Tahoe（26.0）或更高版本的 Apple Silicon Mac，並在系統設定中啟用 Apple Intelligence",
+          "buildLacks": "此 VoxBar 建置版本編譯時未包含 Apple Intelligence，因此無法使用。如需使用，請安裝官方發行版本。",
+          "probeFailed": "無法在這部 Mac 上檢查 Apple Intelligence 的可用性。請嘗試重新選擇供應商。"
         },
         "baseUrl": {
           "title": "基礎網址",
@@ -1458,6 +1462,7 @@
     "targetPc": "傳到電腦",
     "targetPhone": "傳到手機",
     "postProcessLabel": "潤飾文字",
+    "postProcessHint": "自下一次聽寫起生效。",
     "resultTitle": "轉寫文字",
     "copy": "複製",
     "copied": "已複製",

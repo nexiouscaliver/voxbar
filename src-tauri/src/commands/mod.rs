@@ -5,9 +5,7 @@ pub mod models;
 pub mod transcription;
 pub mod updater;
 
-use crate::settings::{
-    get_settings, update_checks_forced_disabled, write_settings, AppSettings, LogLevel,
-};
+use crate::settings::{get_settings, update_checks_forced_disabled, AppSettings, LogLevel};
 use crate::utils::cancel_current_operation;
 use tauri::{AppHandle, Manager};
 use tauri_plugin_opener::OpenerExt;
@@ -80,9 +78,19 @@ pub fn set_log_level(app: AppHandle, level: LogLevel) -> Result<(), String> {
         std::sync::atomic::Ordering::Relaxed,
     );
 
-    let mut settings = get_settings(&app);
-    settings.log_level = level;
-    write_settings(&app, settings);
+    // KB-289: the persist rides the serialized RMW lock the connect-edge
+    // workers use, instead of a bare whole-settings read/write outside any
+    // lock - a concurrent pairing/identity write could otherwise interleave
+    // a lost update (the log level write re-read the whole store and wrote
+    // it back wholesale).
+    crate::companion::connect_edge_settings_rmw(&app, &|settings| {
+        if settings.log_level != level {
+            settings.log_level = level;
+            true
+        } else {
+            false
+        }
+    });
 
     Ok(())
 }
@@ -140,19 +148,17 @@ pub fn open_app_data_dir(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// Check if Apple Intelligence is available on this device.
-/// Called by the frontend when the user selects Apple Intelligence provider.
+/// Probe Apple Intelligence availability as a tri-state (KB-262):
+/// "available" / "os_unsupported" / "build_lacks". Called by the frontend
+/// when the user selects the Apple Intelligence provider and by the
+/// studio's engine list. The two unavailable verdicts localize
+/// differently: a stub-linked build lacking Apple Intelligence is not an
+/// OS-requirements problem, and the bool probe this replaced rendered the
+/// same "requires macOS Tahoe" copy for both.
 #[specta::specta]
 #[tauri::command]
-pub fn check_apple_intelligence_available() -> bool {
-    #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
-    {
-        crate::apple_intelligence::check_apple_intelligence_availability()
-    }
-    #[cfg(not(all(target_os = "macos", target_arch = "aarch64")))]
-    {
-        false
-    }
+pub fn check_apple_intelligence_available() -> crate::apple_intelligence::AppleIntelligenceStatus {
+    crate::apple_intelligence::check_apple_intelligence_status()
 }
 
 /// Try to initialize Enigo (keyboard/mouse simulation).

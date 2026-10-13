@@ -276,7 +276,9 @@
         "notAsrModel": "Este modelo es el motor local de posprocesamiento. Pule las transcripciones después del dictado, no puede transcribir audio.",
         "generic": "No se pudo cambiar a este modelo: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar está dictando con este modelo. Inténtalo de nuevo cuando termine el dictado."
+      "deleteRefusedLive": "VoxBar está dictando con este modelo. Inténtalo de nuevo cuando termine el dictado.",
+      "deleteFailed": "No se pudo eliminar este modelo: {{error}}",
+      "cancelFailed": "No se pudo cancelar esta descarga: {{error}}"
     },
     "general": {
       "title": "General",
@@ -739,7 +741,9 @@
           "description": "Selecciona un proveedor compatible con OpenAI."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence no está disponible en este dispositivo. Requiere un Mac con Apple Silicon ejecutando macOS Tahoe (26.0) o posterior con Apple Intelligence habilitado en Ajustes del Sistema."
+          "unavailable": "Apple Intelligence no está disponible en este dispositivo. Requiere un Mac con Apple Silicon ejecutando macOS Tahoe (26.0) o posterior con Apple Intelligence habilitado en Ajustes del Sistema.",
+          "buildLacks": "Apple Intelligence no está disponible en esta compilación de VoxBar, que se creó sin esta función. Instala una compilación oficial para usarla.",
+          "probeFailed": "No se pudo comprobar la disponibilidad de Apple Intelligence en este Mac. Vuelve a intentar seleccionar el proveedor."
         },
         "baseUrl": {
           "title": "URL base",
@@ -1458,6 +1462,7 @@
     "targetPc": "Al PC",
     "targetPhone": "Al teléfono",
     "postProcessLabel": "Pulir texto",
+    "postProcessHint": "Surte efecto a partir del próximo dictado.",
     "resultTitle": "Transcripción",
     "copy": "Copiar",
     "copied": "Copiado",

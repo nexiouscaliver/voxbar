@@ -514,6 +514,28 @@ impl HandyKeysState {
         debug!("Stopped handy-keys recording mode");
         Ok(())
     }
+
+    /// KB-236: force-stop an armed recorder from OUTSIDE the recording
+    /// lifecycle (the keyboard implementation switch calls this before it
+    /// tears the old backend's registrations down). The switch path never
+    /// ran the recorder's own stop command - which refuses once the
+    /// setting has flipped, and whose state survives a switch away and
+    /// back because the init no-ops on existing state - so a recorder
+    /// armed at switch time left the next start_recording refusing
+    /// "Already recording" until app restart. Returns whether a recorder
+    /// was armed; calling with none armed is a no-op.
+    pub fn force_stop_recording(&self) -> bool {
+        if !self.is_recording.load(Ordering::SeqCst) {
+            return false;
+        }
+        if let Err(e) = self.stop_recording() {
+            // stop_recording flips the flags (the parts the next start
+            // refuses on) first, so a poisoned-listener clear failure
+            // cannot leave the recorder armed.
+            error!("Failed to force-stop the handy-keys recorder: {}", e);
+        }
+        true
+    }
 }
 
 impl Drop for HandyKeysState {
@@ -840,6 +862,63 @@ mod tests {
     // ------------------------------------------------------------------
     // Manager-startup failure propagation (mocked result channel)
     // ------------------------------------------------------------------
+
+    // ------------------------------------------------------------------
+    // KB-236: the implementation switch force-stops an armed recorder
+    // ------------------------------------------------------------------
+
+    /// KB-236: an armed recorder must not survive the keyboard
+    /// implementation switch. The switch path never ran the recorder's own
+    /// stop command (which refuses once the setting has flipped), and the
+    /// state survived a switch away and back because the init no-ops on
+    /// existing state - so the pre-fix next start refused "Already
+    /// recording" until restart. This test ARMS a recorder, runs the
+    /// switch's recorder teardown (force_stop_armed_recorder, the seam the
+    /// switch command calls before unregistering the old backend), and
+    /// verifies the STOP. The real manager thread and keyboard listener
+    /// need input-backend permissions a unit test cannot mount, so the
+    /// state is built directly (stop_recording only touches these fields);
+    /// the switch-command ordering is pinned in shortcut/mod.rs
+    /// (impl_switch_stops_an_armed_recorder_before_unregistering_kb236).
+    #[test]
+    fn kb236_the_impl_switch_force_stops_an_armed_recorder() {
+        use super::super::force_stop_armed_recorder;
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::{Arc, Mutex};
+        use tauri::Manager;
+
+        // Arm: the state a recorder holds mid-capture.
+        let (tx, _rx) = mpsc::channel();
+        let state = HandyKeysState {
+            command_sender: Mutex::new(tx),
+            thread_handle: Mutex::new(None),
+            recording_listener: Mutex::new(None),
+            is_recording: AtomicBool::new(true),
+            recording_binding_id: Mutex::new(Some("transcribe".to_string())),
+            recording_running: Arc::new(AtomicBool::new(true)),
+        };
+        let app = tauri::test::mock_app();
+        app.manage(state);
+
+        // Switch (the recorder teardown the switch command performs first).
+        assert!(
+            force_stop_armed_recorder(&app.handle()),
+            "the switch must report it stopped an armed recorder"
+        );
+
+        // Stopped: no refusal flag for the next start, no binding, no
+        // recording loop.
+        let state = app.state::<HandyKeysState>();
+        assert!(
+            !state.is_recording.load(Ordering::SeqCst),
+            "the next start_recording must not refuse with Already recording"
+        );
+        assert!(state.recording_binding_id.lock().unwrap().is_none());
+        assert!(!state.recording_running.load(Ordering::SeqCst));
+
+        // Idempotent: an unarmed recorder reports no stop, never errors.
+        assert!(!force_stop_armed_recorder(&app.handle()));
+    }
 
     /// A manager thread that fails to create its HotkeyManager reports the
     /// vendored crate's actionable text over the startup channel, and the

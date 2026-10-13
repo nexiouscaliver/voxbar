@@ -683,7 +683,9 @@
           "description": "اختر مزوداً متوافقاً مع OpenAI."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence غير متاح على هذا الجهاز. يتطلب جهاز Mac بمعالج Apple Silicon يعمل بنظام macOS Tahoe (26.0) أو أحدث مع تمكين Apple Intelligence في إعدادات النظام."
+          "unavailable": "Apple Intelligence غير متاح على هذا الجهاز. يتطلب جهاز Mac بمعالج Apple Silicon يعمل بنظام macOS Tahoe (26.0) أو أحدث مع تمكين Apple Intelligence في إعدادات النظام.",
+          "buildLacks": "Apple Intelligence غير متاح في هذه النسخة من VoxBar، فقد تم تجميعها بدونه. ثبّت نسخة إصدار رسمية لاستخدامه.",
+          "probeFailed": "تعذّر التحقق من مدى توفّر Apple Intelligence على هذا الـ Mac. جرّب اختيار المزوّد مرة أخرى."
         },
         "baseUrl": {
           "title": "URL الأساسي",
@@ -709,7 +711,7 @@
           "fetchingList": "جارٍ جلب قائمة النماذج...",
           "listSummary_one": "نموذج واحد، تم جلبه {{time}}",
           "listSummary_zero": "{{count}} نماذج، تم جلبها {{time}}",
-          "listSummary_two": "{{count}} نموذجين، تم جلبهما {{time}}",
+          "listSummary_two": "نموذجان، تم جلبهما {{time}}",
           "listSummary_few": "{{count}} نماذج، تم جلبها {{time}}",
           "listSummary_many": "{{count}} نموذجًا، تم جلبها {{time}}",
           "listSummary_other": "{{count}} نموذجًا، تم جلبها {{time}}",
@@ -1175,7 +1177,9 @@
         "notAsrModel": "هذا النموذج هو محرك المعالجة اللاحقة المحلي. يحسّن النصوص بعد الإملاء، ولا يستطيع تحويل الصوت إلى نص.",
         "generic": "تعذر التبديل إلى هذا النموذج: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar يملي باستخدام هذا النموذج. حاول مجددًا بعد انتهاء الإملاء."
+      "deleteRefusedLive": "VoxBar يملي باستخدام هذا النموذج. حاول مجددًا بعد انتهاء الإملاء.",
+      "deleteFailed": "تعذّر حذف هذا النموذج: {{error}}",
+      "cancelFailed": "تعذّر إلغاء هذا التنزيل: {{error}}"
     },
     "ppOutcome": {
       "applied": "مُطبَّق",
@@ -1223,13 +1227,13 @@
       },
       "run_one": "تشغيل زوج واحد",
       "run_zero": "تشغيل {{count}} أزواج",
-      "run_two": "تشغيل {{count}} زوجين",
+      "run_two": "تشغيل زوجين",
       "run_few": "تشغيل {{count}} أزواج",
       "run_many": "تشغيل {{count}} زوجًا",
       "run_other": "تشغيل {{count}} أزواج",
       "runHint_one": "قالب واحد على محرّك واحد. لا يُكتب أو يُحفظ أي شيء.",
       "runHint_zero": "{{count}} من أزواج القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
-      "runHint_two": "{{count}} زوجان من القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
+      "runHint_two": "زوجان من القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
       "runHint_few": "{{count}} من أزواج القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
       "runHint_many": "{{count}} زوجًا من القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
       "runHint_other": "{{count}} من أزواج القالب والمحرّك. لا يُكتب أو يُحفظ أي شيء.",
@@ -1242,7 +1246,7 @@
       "partialFailure": "فشلت بعض التشغيلات أو تم تخطيها بينما أنتجت أخرى نتائج. تحقق من كل بطاقة.",
       "results_one": "نتيجة واحدة",
       "results_zero": "{{count}} نتائج",
-      "results_two": "{{count}} نتيجتين",
+      "results_two": "نتيجتان",
       "results_few": "{{count}} نتائج",
       "results_many": "{{count}} نتيجة",
       "results_other": "{{count}} نتائج",
@@ -1255,7 +1259,7 @@
         "lines": "أسطر",
         "charsChanged_one": "تغيّر حرف واحد",
         "charsChanged_zero": "تغيّر {{count}} حرف",
-        "charsChanged_two": "تغيّر {{count}} حرفين",
+        "charsChanged_two": "تغيّر حرفان",
         "charsChanged_few": "تغيّر {{count}} أحرف",
         "charsChanged_many": "تغيّر {{count}} حرفًا",
         "charsChanged_other": "تغيّر {{count}} حرفًا",
@@ -1264,13 +1268,13 @@
         "added_many": "تمت إضافة {{count}} سطرًا",
         "added_one": "تمت إضافة سطر واحد",
         "added_other": "تمت إضافة {{count}} سطر",
-        "added_two": "تمت إضافة {{count}} سطرين",
+        "added_two": "تمت إضافة سطرين",
         "added_zero": "تمت إضافة {{count}} أسطر",
         "removed_few": "تم حذف {{count}} أسطر",
         "removed_many": "تم حذف {{count}} سطرًا",
         "removed_one": "تم حذف سطر واحد",
         "removed_other": "تم حذف {{count}} سطر",
-        "removed_two": "تم حذف {{count}} سطرين",
+        "removed_two": "تم حذف سطرين",
         "removed_zero": "تم حذف {{count}} أسطر"
       },
       "resultsEmptyTitle": "ستظهر النتائج هنا",
@@ -1435,11 +1439,11 @@
     "recorderBlocked": "لا يمكن تسجيل الاختصارات الآن - يحجب Secure Input في macOS أحداث المفاتيح. عالج تحذير Secure Input أولاً.",
     "dismiss": "تجاهل",
     "blockedWithCulprit_zero": "قد يحظر {{name}} {{count}} اختصارات",
-    "blockedWithCulprit_two": "قد يحظر {{name}} {{count}} اختصارين",
+    "blockedWithCulprit_two": "قد يحظر {{name}} اختصارين",
     "blockedWithCulprit_few": "قد يحظر {{name}} {{count}} اختصارات",
     "blockedWithCulprit_many": "قد يحظر {{name}} {{count}} اختصارًا",
     "blockedNoCulprit_zero": "يحظر macOS مؤقتًا {{count}} اختصارات",
-    "blockedNoCulprit_two": "يحظر macOS مؤقتًا {{count}} اختصارين",
+    "blockedNoCulprit_two": "يحظر macOS مؤقتًا اختصارين",
     "blockedNoCulprit_few": "يحظر macOS مؤقتًا {{count}} اختصارات",
     "blockedNoCulprit_many": "يحظر macOS مؤقتًا {{count}} اختصارًا"
   },
@@ -1502,6 +1506,7 @@
     "targetPc": "إلى الحاسوب",
     "targetPhone": "إلى الهاتف",
     "postProcessLabel": "تنقيح النص",
+    "postProcessHint": "يسري بدءًا من الإملاء التالي.",
     "resultTitle": "التفريغ",
     "copy": "نسخ",
     "copied": "تم النسخ",

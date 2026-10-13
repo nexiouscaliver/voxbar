@@ -438,7 +438,9 @@
         "notAsrModel": "Dit model is de lokale nabewerkingsengine. Het verbetert transcripties na de dicteersessie, maar kan geen audio transcriberen.",
         "generic": "Kon niet naar dit model wisselen: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar dicteert momenteel met dit model. Probeer het opnieuw nadat de dicteersessie is afgerond."
+      "deleteRefusedLive": "VoxBar dicteert momenteel met dit model. Probeer het opnieuw nadat de dicteersessie is afgerond.",
+      "deleteFailed": "Dit model kon niet worden verwijderd: {{error}}",
+      "cancelFailed": "Deze download kon niet worden geannuleerd: {{error}}"
     },
     "sound": {
       "title": "Geluid",
@@ -739,7 +741,9 @@
           "description": "Selecteer een OpenAI-compatibele provider."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence is niet beschikbaar op dit apparaat. Vereist een Apple Silicon Mac met macOS Tahoe (26.0) of nieuwer waarop Apple Intelligence is ingeschakeld via de Systeeminstellingen."
+          "unavailable": "Apple Intelligence is niet beschikbaar op dit apparaat. Vereist een Apple Silicon Mac met macOS Tahoe (26.0) of nieuwer waarop Apple Intelligence is ingeschakeld via de Systeeminstellingen.",
+          "buildLacks": "Apple Intelligence is niet beschikbaar in deze build van VoxBar, die zonder deze functie is gecompileerd. Installeer een officiële releasebuild om deze te gebruiken.",
+          "probeFailed": "De beschikbaarheid van Apple Intelligence op deze Mac kon niet worden gecontroleerd. Probeer de provider opnieuw te selecteren."
         },
         "baseUrl": {
           "title": "Basis-URL",
@@ -1458,6 +1462,7 @@
     "targetPc": "Naar pc",
     "targetPhone": "Naar telefoon",
     "postProcessLabel": "Tekst polijsten",
+    "postProcessHint": "Wordt actief vanaf de volgende dicteersessie.",
     "resultTitle": "Transcript",
     "copy": "Kopiëren",
     "copied": "Gekopieerd",

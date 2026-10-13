@@ -276,7 +276,9 @@
         "notAsrModel": "Mô hình này là engine hậu xử lý cục bộ. Nó trau chuốt bản trích lời sau khi đọc chính tả, không thể trích lời âm thanh.",
         "generic": "Không thể chuyển sang mô hình này: {{error}}"
       },
-      "deleteRefusedLive": "VoxBar đang đọc chính tả với mô hình này. Hãy thử lại sau khi hoàn tất."
+      "deleteRefusedLive": "VoxBar đang đọc chính tả với mô hình này. Hãy thử lại sau khi hoàn tất.",
+      "deleteFailed": "Không thể xóa mô hình này: {{error}}",
+      "cancelFailed": "Không thể hủy tải xuống này: {{error}}"
     },
     "general": {
       "title": "Chung",
@@ -739,7 +741,9 @@
           "description": "Chọn một nhà cung cấp tương thích OpenAI."
         },
         "appleIntelligence": {
-          "unavailable": "Apple Intelligence không khả dụng trên thiết bị này. Yêu cầu Mac Apple Silicon chạy macOS Tahoe (26.0) trở lên với Apple Intelligence được bật trong Cài đặt Hệ thống."
+          "unavailable": "Apple Intelligence không khả dụng trên thiết bị này. Yêu cầu Mac Apple Silicon chạy macOS Tahoe (26.0) trở lên với Apple Intelligence được bật trong Cài đặt Hệ thống.",
+          "buildLacks": "Apple Intelligence không khả dụng trong bản build VoxBar này, được biên dịch mà không có nó. Hãy cài đặt bản build phát hành chính thức để sử dụng.",
+          "probeFailed": "Không thể kiểm tra mức độ khả dụng của Apple Intelligence trên Mac này. Hãy thử chọn lại nhà cung cấp."
         },
         "baseUrl": {
           "title": "URL cơ sở",
@@ -1458,6 +1462,7 @@
     "targetPc": "Tới máy tính",
     "targetPhone": "Tới điện thoại",
     "postProcessLabel": "Đánh bóng văn bản",
+    "postProcessHint": "Có hiệu lực từ lần đọc chính tả tiếp theo.",
     "resultTitle": "Bản chuyển ngữ",
     "copy": "Sao chép",
     "copied": "Đã sao chép",

@@ -276,6 +276,18 @@
         font-size: 13px;
         font-weight: 600;
       }
+      /* KB-258: the Polish switch only arms the NEXT dictation (per-lane
+         prefs freeze at session start), so the label carries a hint line
+         saying when the flip lands. Softer than the label: same muted
+         color, smaller, normal weight, a little tighter to its label. */
+      .ctl-hint {
+        display: block;
+        margin-top: 2px;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 400;
+        opacity: 0.85;
+      }
       .seg {
         display: flex;
         background: var(--card-2);
@@ -595,7 +607,10 @@
         </div>
       </div>
       <div class="ctl-row">
-        <span class="ctl-label" id="t-pp-label"></span>
+        <span class="ctl-label">
+          <span id="t-pp-label"></span>
+          <span class="ctl-hint" id="t-pp-hint"></span>
+        </span>
         <button
           type="button"
           id="ppToggle"
@@ -718,6 +733,13 @@
       document.getElementById("t-pp-label").textContent = t(
         "postProcessLabel",
         "Polish text",
+      );
+      // KB-258: the switch flips the stored pref, which freezes at the NEXT
+      // session's start - the hint says when the change lands so the live
+      // dictation's polishing does not look ignored.
+      document.getElementById("t-pp-hint").textContent = t(
+        "postProcessHint",
+        "Takes effect from the next dictation.",
       );
       document.getElementById("t-result-title").textContent = t(
         "resultTitle",
