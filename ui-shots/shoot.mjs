@@ -1351,6 +1351,18 @@ const shots = [
       state: "locale-zh",
     }),
   ),
+  // ---- Devanagari locale pass (hi) ----
+  // The other script family the finding names: conjunct stacks and matra
+  // marks stress line height and font fallback in ways Latin/CJK do not.
+  // General renders the densest mixed content (sidebar, rows, shortcut
+  // chips) in Devanagari.
+  settingsShot({
+    name: "locale-hi-settings-general",
+    scenario: "settings-default",
+    section: "general",
+    lang: "hi",
+    state: "locale-hi",
+  }),
 
   // ---- toast states (main window; each on a fresh page for dedupe) ----
   ...[
@@ -1460,7 +1472,9 @@ const shots = [
     name: "overlay-streaming-listening",
     scenario: "overlay",
     url: OVERLAY,
-    viewport: { width: 340, height: 240 },
+    // The native streaming window (overlay.rs OVERLAY_STREAM_* = 400x168):
+    // every streaming-state card shot frames the window the app opens.
+    viewport: { width: 400, height: 168 },
     prepare: async (page) => {
       await page.waitForFunction(() => Boolean(window.__voxshot), {
         timeout: 10000,
@@ -1484,7 +1498,7 @@ const shots = [
     name: "overlay-streaming-working",
     scenario: "overlay",
     url: OVERLAY,
-    viewport: { width: 340, height: 240 },
+    viewport: { width: 400, height: 168 },
     prepare: async (page) => {
       await page.waitForFunction(() => Boolean(window.__voxshot), {
         timeout: 10000,
@@ -1542,7 +1556,7 @@ const shots = [
     name: "overlay-command-mode",
     scenario: "overlay",
     url: OVERLAY,
-    viewport: { width: 340, height: 240 },
+    viewport: { width: 400, height: 168 },
     prepare: async (page) => {
       await page.waitForFunction(() => Boolean(window.__voxshot), {
         timeout: 10000,
@@ -1567,7 +1581,7 @@ const shots = [
     name: "overlay-deleted-chip",
     scenario: "overlay",
     url: OVERLAY,
-    viewport: { width: 340, height: 240 },
+    viewport: { width: 400, height: 168 },
     prepare: async (page) => {
       await page.waitForFunction(() => Boolean(window.__voxshot), {
         timeout: 10000,
