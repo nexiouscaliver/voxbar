@@ -367,6 +367,7 @@
       "searchPlaceholder": "コマンドを検索",
       "resetAll": "すべてのコマンドをリセット",
       "resetRow": "デフォルトに戻す",
+      "defaultPhrasesNote": "デフォルトのフレーズは認識エンジンが聞き取る英語の単語です。任意の行で任意の言語のフレーズを追加できます。",
       "addPhrase": "追加",
       "removePhrase": "{{phrase}} を削除",
       "placeholder": "フレーズを追加",
@@ -1272,7 +1273,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar が文字起こしテキストを入力するには、アクセシビリティ権限が必要です。",
-    "openSettings": "システム設定を開く"
+    "openSettings": "システム設定を開く",
+    "resetSetting": "{{label}}をデフォルトに戻す"
   },
   "errors": {
     "loadDirectory": "ディレクトリの読み込みエラー: {{error}}",

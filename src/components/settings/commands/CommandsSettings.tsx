@@ -339,6 +339,17 @@ export const CommandsSettings: React.FC = () => {
         </SettingsGroup>
       )}
 
+      {/* The seeded trigger phrases are the recognizer's English defaults
+          (plus its built-in Devanagari/CJK aliases), so a translated panel
+          still shows English chips: one honest caption above the phrase
+          groups names that and points at the add-phrase field instead of
+          the chips reading as a missed translation. */}
+      {visibleGroups.length > 0 && (
+        <p className="px-4 text-xs text-secondary">
+          {t("settings.commands.defaultPhrasesNote")}
+        </p>
+      )}
+
       {visibleGroups.map((group) => (
         <SettingsGroup
           key={group.key}

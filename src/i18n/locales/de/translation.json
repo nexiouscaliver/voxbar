@@ -367,6 +367,7 @@
       "searchPlaceholder": "Befehle suchen",
       "resetAll": "Alle Befehle zurücksetzen",
       "resetRow": "Auf Standard zurücksetzen",
+      "defaultPhrasesNote": "Die Standardphrasen sind die englischen Wörter, die die Erkennung abhört. Füge auf jeder Zeile eine eigene Phrase in beliebiger Sprache hinzu.",
       "addPhrase": "Hinzufügen",
       "removePhrase": "{{phrase}} entfernen",
       "placeholder": "Phrase hinzufügen",
@@ -1272,7 +1273,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar benötigt Bedienungshilfen-Berechtigungen, um transkribierten Text einzugeben.",
-    "openSettings": "Systemeinstellungen öffnen"
+    "openSettings": "Systemeinstellungen öffnen",
+    "resetSetting": "{{label}} auf Standard zurücksetzen"
   },
   "errors": {
     "loadDirectory": "Fehler beim Laden des Verzeichnisses: {{error}}",

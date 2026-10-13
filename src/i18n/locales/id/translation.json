@@ -314,6 +314,7 @@
       "searchPlaceholder": "Cari perintah",
       "resetAll": "Reset semua perintah",
       "resetRow": "Reset",
+      "defaultPhrasesNote": "Frasa bawaan adalah kata-kata bahasa Inggris yang didengarkan pengenal. Tambahkan frasa Anda sendiri dalam bahasa apa pun pada baris mana pun.",
       "addPhrase": "Tambah",
       "removePhrase": "Hapus {{phrase}}",
       "placeholder": "Tambah frasa",
@@ -1276,7 +1277,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar memerlukan izin aksesibilitas untuk mengetik teks hasil transkripsi.",
-    "openSettings": "Buka Pengaturan Sistem"
+    "openSettings": "Buka Pengaturan Sistem",
+    "resetSetting": "Setel ulang {{label}} ke bawaan"
   },
   "errors": {
     "loadDirectory": "Kesalahan saat memuat direktori: {{error}}",

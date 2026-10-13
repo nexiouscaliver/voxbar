@@ -316,6 +316,13 @@
         flex-shrink: 0;
         transition: background 120ms ease;
       }
+      /* Keyboard focus ring for every interactive control (segments,
+         switch, copy buttons): visible only for focus-visible, in the
+         lighter accent so it reads on the dark palette. */
+      button:focus-visible {
+        outline: 2px solid var(--accent-2);
+        outline-offset: 2px;
+      }
       .switch:disabled {
         opacity: 0.45;
       }
@@ -577,7 +584,13 @@
       </div>
       <div class="ctl-row">
         <span class="ctl-label" id="t-pp-label"></span>
-        <button type="button" id="ppToggle" class="switch" role="switch">
+        <button
+          type="button"
+          id="ppToggle"
+          class="switch"
+          role="switch"
+          aria-labelledby="t-pp-label"
+        >
           <span class="knob"></span>
         </button>
       </div>

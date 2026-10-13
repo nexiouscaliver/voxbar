@@ -314,6 +314,7 @@
       "searchPlaceholder": "Cerca ordres",
       "resetAll": "Restableix totes les ordres",
       "resetRow": "Restableix",
+      "defaultPhrasesNote": "Les frases predeterminades són les paraules angleses que escolta el reconeixedor. Afegeix la teva pròpia frase en qualsevol idioma a qualsevol fila.",
       "addPhrase": "Afegeix",
       "removePhrase": "Elimina {{phrase}}",
       "placeholder": "Afegeix una frase",
@@ -1276,7 +1277,8 @@
   },
   "accessibility": {
     "permissionsDescription": "El VoxBar necessita permisos d'accessibilitat per escriure el text transcrit.",
-    "openSettings": "Obriu la configuració del sistema"
+    "openSettings": "Obriu la configuració del sistema",
+    "resetSetting": "Restableix {{label}} al valor per defecte"
   },
   "errors": {
     "loadDirectory": "Error en carregar el directori: {{error}}",

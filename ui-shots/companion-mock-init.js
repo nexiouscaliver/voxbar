@@ -24,6 +24,11 @@
   // ---- fake WebSocket ----
   const sockets = [];
   const sent = [];
+  // The Connecting state lives between connect() and onopen; the default
+  // 25ms open fires too fast to frame, so the companion-connecting
+  // scenario simply never opens the socket (a phone waiting on a dead
+  // LAN route) and the pill stays on "Connecting" for the capture.
+  const neverOpens = scenario === "companion-connecting";
   class FakeWebSocket {
     static CONNECTING = 0;
     static OPEN = 1;
@@ -43,11 +48,13 @@
       sockets.push(this);
       // Real sockets take at least one round trip to open; the delay keeps
       // the Connecting pill renderable and the open edge asynchronous.
-      setTimeout(() => {
-        if (this.readyState !== 0) return;
-        this.readyState = 1;
-        if (this.onopen) this.onopen({ type: "open" });
-      }, 25);
+      if (!neverOpens) {
+        setTimeout(() => {
+          if (this.readyState !== 0) return;
+          this.readyState = 1;
+          if (this.onopen) this.onopen({ type: "open" });
+        }, 25);
+      }
     }
     send(data) {
       if (this.readyState !== 1) {

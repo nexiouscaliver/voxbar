@@ -225,6 +225,9 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         <ResetButton
           onClick={handleReset}
           disabled={isUpdating("selected_language")}
+          ariaLabel={t("accessibility.resetSetting", {
+            label: t("settings.general.language.title"),
+          })}
         />
       </div>
       {isUpdating("selected_language") && (

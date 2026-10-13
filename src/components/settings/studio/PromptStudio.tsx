@@ -105,8 +105,9 @@ const ResultCard: React.FC<{
             onRerun({ promptId: card.promptId, providerId: card.providerId })
           }
           disabled={rerunDisabled || card.status === "running"}
-          className="p-1.5 rounded-md flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:text-text/20 text-text/50 hover:text-logo-primary shrink-0"
+          className="p-1.5 rounded-md flex items-center justify-center transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-logo-primary disabled:cursor-not-allowed disabled:text-text/20 text-text/50 hover:text-logo-primary shrink-0"
           title={t("settings.studio.rerun")}
+          aria-label={t("settings.studio.rerun")}
         >
           <RotateCcw
             width={14}
@@ -409,7 +410,9 @@ export const PromptStudio: React.FC = () => {
           all-caps letter-spaced eyebrow style is reserved for section
           headers, like the RESULTS eyebrow below. */}
       <div>
-        <h1 className="text-xl font-medium mb-2">{t("settings.studio.title")}</h1>
+        <h1 className="text-xl font-medium mb-2">
+          {t("settings.studio.title")}
+        </h1>
         <p className="text-sm text-text/60">{t("settings.studio.intro")}</p>
       </div>
 
@@ -535,15 +538,11 @@ export const PromptStudio: React.FC = () => {
            strips the radius for banners nested INSIDE a card, but these
            sit standalone on the pane, where square corners read as a
            rendering defect against the ~10px card language. */
-        <Alert variant="error">
-          {runError}
-        </Alert>
+        <Alert variant="error">{runError}</Alert>
       ) : null}
 
       {partialFailure ? (
-        <Alert variant="warning">
-          {t("settings.studio.partialFailure")}
-        </Alert>
+        <Alert variant="warning">{t("settings.studio.partialFailure")}</Alert>
       ) : null}
 
       {cards.length > 0 ? (

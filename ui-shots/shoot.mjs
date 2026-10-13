@@ -328,11 +328,40 @@ const auditScript = () => {
   const contrastMeasured = { pairs: 0 };
   const overflowFindings = [];
   const spacingCounts = new Map();
+  // Buttons a screen reader would announce as just "button": no text
+  // content, no aria-label/labelledby, no title. Icon-only controls are the
+  // usual offenders (reset arrows, row actions), so every screen reports
+  // its unnamed-button list for the a11y pass to verify against.
+  const unnamedButtons = [];
   const all = Array.from(document.querySelectorAll("body *")).slice(0, 4000);
 
   for (const el of all) {
     if (!isVisible(el)) continue;
     const style = getComputedStyle(el);
+
+    // Accessible-name check on interactive buttons (visible ones only).
+    if (
+      el.tagName === "BUTTON" &&
+      !el.disabled &&
+      el.getAttribute("aria-hidden") !== "true"
+    ) {
+      const labelledby = el.getAttribute("aria-labelledby");
+      const labelledByText = labelledby
+        ? labelledby
+            .split(/\s+/)
+            .map((id) => document.getElementById(id)?.textContent?.trim() || "")
+            .join(" ")
+            .trim()
+        : "";
+      const label =
+        el.getAttribute("aria-label") ||
+        el.getAttribute("title") ||
+        el.textContent?.trim() ||
+        labelledByText;
+      if (!label) {
+        unnamedButtons.push(selectorOf(el));
+      }
+    }
 
     // Font sizes of elements that directly render text.
     const ownText = Array.from(el.childNodes).some(
@@ -464,6 +493,7 @@ const auditScript = () => {
   );
   const pxValue = (v) => Number(String(v).replace(/[^\d.]/g, "")) || 0;
   return {
+    unnamedButtons,
     fontSizes: Array.from(fontBuckets.values())
       .sort((a, b) => b.count - a.count)
       .map((e) => ({
@@ -706,6 +736,83 @@ const shots = [
           percentage: 33.3,
         });
       });
+      // The card's action row (progress bar + cancel) sits below the fold at
+      // the resting scroll; the progress caption is the row's own text, so
+      // scrolling IT into view frames the in-flight state as the subject
+      // instead of a cropped card edge.
+      await page
+        .getByText(tIn("en", "modelSelector.downloading").replace("{{percentage}}", "33"), { exact: false })
+        .last()
+        .scrollIntoViewIfNeeded({ timeout: 5000 });
+      await settle(900);
+    },
+  },
+  // Model step mid-verification: the download reached 100% and the backend
+  // began the sha256 pass, so the card shows the verifying spinner (the
+  // between-download-and-ready state the downloading shot cannot frame).
+  {
+    name: "onboarding-model-verifying",
+    scenario: "onboarding-model",
+    url: MAIN,
+    viewport: { width: 680, height: 570 },
+    state: "model-verifying",
+    prepare: async (page) => {
+      await page.waitForSelector("#root div", { timeout: 15000 });
+      await page
+        .getByRole("button", {
+          name: tIn("en", "onboarding.permissions.done"),
+        })
+        .click({ timeout: 15000 });
+      await page.waitForFunction(() => document.body.innerText.length > 200, {
+        timeout: 15000,
+      });
+      await settle(1600);
+      // Same real download gesture as the downloading shot, then the store's
+      // own model-verification-started listener flips the card to verifying.
+      await page
+        .getByText("Nemotron Streaming 3.5", { exact: true })
+        .first()
+        .click({ timeout: 5000 });
+      await settle(300);
+      await page.evaluate(() => {
+        window.__voxshot.emit("model-download-progress", {
+          model_id:
+            "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
+          downloaded: 679477248,
+          total: 679477248,
+          percentage: 100,
+        });
+        window.__voxshot.emit(
+          "model-verification-started",
+          "handy-computer/nemotron-3.5-asr-streaming-0.6b-gguf/nemotron-3.5-asr-streaming-0.6b-Q8_0.gguf",
+        );
+      });
+      // The verifying bar renders on the card's action row below the fold;
+      // scrolling the caption itself into view frames the state (the title
+      // stays already-in-view, so scrolling the card would be a no-op).
+      await page.waitForFunction(
+        (label) => document.body.innerText.includes(label),
+        tIn("en", "modelSelector.verifyingGeneric"),
+        { timeout: 5000 },
+      );
+      await page
+        .getByText(tIn("en", "modelSelector.verifyingGeneric"), { exact: true })
+        .last()
+        .scrollIntoViewIfNeeded({ timeout: 5000 });
+      await settle(400);
+    },
+  },
+  // First-run waiting state: the TCC permission checks have not answered
+  // yet, so onboarding renders its lone centered spinner (the frame the
+  // fresh/mic shots race through before first paint settles).
+  {
+    name: "onboarding-permissions-waiting",
+    scenario: "onboarding-permissions-pending",
+    url: MAIN,
+    viewport: { width: 680, height: 570 },
+    state: "permissions-pending",
+    prepare: async (page) => {
+      await page.waitForSelector("#root div", { timeout: 15000 });
       await settle(1200);
     },
   },
@@ -784,6 +891,28 @@ const shots = [
       await page.evaluate(() => {
         const scroller = document.querySelector("[data-settings-scroll]");
         if (scroller) scroller.scrollTop = scroller.scrollHeight;
+      });
+      await settle(600);
+    },
+  }),
+  // The pairing QR block: the devices shot above scrolls past it to the
+  // interface list, so the QR itself (title, code, hint) never rendered in
+  // any capture. Framed on its own via the panel's role=img QR container.
+  settingsShot({
+    name: "settings-advanced-companion-qr",
+    scenario: "settings-companion",
+    section: "advanced",
+    state: "companion-qr",
+    prepare: async (page) => {
+      const qrTitle = tIn("en", "settings.advanced.companionDevices.qrTitle");
+      await page
+        .getByText(qrTitle, { exact: true })
+        .scrollIntoViewIfNeeded({ timeout: 5000 });
+      await page.evaluate(() => {
+        // Back the QR up a little so the title above and hint below are
+        // both in frame, then let the pane settle.
+        const scroller = document.querySelector("[data-settings-scroll]");
+        if (scroller) scroller.scrollTop -= 60;
       });
       await settle(600);
     },
@@ -1138,16 +1267,39 @@ const shots = [
   // companion phone page ships a fixed dark palette only, so its theme
   // sweep row is the default render below (see not_capturable note).
   ...["light", "dark"].flatMap((theme) =>
-    ["general", "postprocessing", "history", "about"].map((section) =>
-      settingsShot({
+    ["general", "postprocessing", "history", "about"].map((section) => {
+      // The app's default theme is System, which resolves dark under this
+      // rig, so a dark row with the resting shot's own scenario renders
+      // byte-identical pixels to that shot (the audit's duplicate md5).
+      // Each dark row pairs with something its resting shot does not
+      // carry, so the sweep proves the explicit dark token AND adds a
+      // state no other capture holds; light rows already differ from the
+      // dark resting shots and keep the plain pairing.
+      const overrides =
+        theme === "dark"
+          ? {
+              // pp-on General: the sidebar's enabled Post Process row and
+              // the footer's polishing status, in explicit dark.
+              general: { scenario: "settings-full" },
+              // No dark-accent Post Process shot exists (the accent sweep
+              // covers light only): dark + blue here is new coverage.
+              postprocessing: { accent: "blue" },
+              // pp-on History: entries carry their post-process badges.
+              history: { scenario: "settings-full" },
+              // No accent sweep touches About: dark + blue is new.
+              about: { accent: "blue" },
+            }[section] || {}
+          : {};
+      return settingsShot({
         name: `theme-${theme}-settings-${section}`,
         scenario:
           section === "postprocessing" ? "settings-full" : "settings-default",
         section,
         theme,
         state: `theme-${theme}`,
-      }),
-    ),
+        ...overrides,
+      });
+    }),
   ),
   ...["blue", "violet"].flatMap((accent) =>
     ["light", "dark"].map((theme) =>
@@ -1182,6 +1334,21 @@ const shots = [
       section,
       lang: longestLocale.lang,
       state: "locale-overflow",
+    }),
+  ),
+
+  // ---- CJK locale pass (zh-Hans) ----
+  // No capture had ever rendered a CJK glyph set: font fallback, full-width
+  // punctuation and the wider line metrics only show under a real CJK
+  // locale. General carries the densest mixed content; Commands also shows
+  // the matrix's built-in CJK trigger aliases (句号 etc.) among the chips.
+  ...["general", "commands"].map((section) =>
+    settingsShot({
+      name: `locale-zh-settings-${section}`,
+      scenario: "settings-default",
+      section,
+      lang: "zh",
+      state: "locale-zh",
     }),
   ),
 
@@ -1267,7 +1434,13 @@ const shots = [
     name: "overlay-minimal-recording",
     scenario: "overlay-minimal",
     url: OVERLAY,
-    viewport: { width: 320, height: 140 },
+    // The minimal style's real window: Rust opens the compact overlay at
+    // 256x96 (overlay.rs OVERLAY_WIDTH/HEIGHT) and never the stream panel,
+    // so this shot frames the pill at its native size. The style itself is
+    // applied window-side (the page never reads overlay_style), which is
+    // why the old 320x140 framing rendered byte-identical to
+    // overlay-recording above.
+    viewport: { width: 256, height: 96 },
     prepare: async (page) => {
       await page.waitForFunction(() => Boolean(window.__voxshot), {
         timeout: 10000,
@@ -1596,6 +1769,67 @@ const shots = [
         await settle(400);
       },
     },
+    // The pre-open state: the phone loaded the page and is waiting on the
+    // WebSocket handshake (the mock's companion-connecting scenario never
+    // fires onopen, so the Connecting pill + disabled button stay framed).
+    {
+      name: "companion-connecting",
+      scenario: "companion-connecting",
+      state: "connecting",
+      prepare: async (page) => {
+        await page.waitForFunction(
+          (label) =>
+            document.getElementById("stateText")?.textContent === label,
+          tIn("en", "companion.stateConnecting"),
+          { timeout: 10000 },
+        );
+        await settle(600);
+      },
+    },
+    // A live pairing that lost the socket: after welcome/ready the fake
+    // socket drops (the Mac left the LAN), firing the page's own onclose
+    // path - warn pill, disabled controls, Reconnect surfaced.
+    {
+      name: "companion-disconnected",
+      scenario: "companion-ready",
+      state: "disconnected",
+      prepare: async (page) => {
+        await companionHandshake(page);
+        await page.waitForFunction(
+          (label) =>
+            document.getElementById("stateText")?.textContent === label,
+          tIn("en", "companion.stateReady"),
+          { timeout: 10000 },
+        );
+        await page.evaluate(() => window.__companion.drop());
+        await page.waitForFunction(
+          (label) =>
+            document.getElementById("stateText")?.textContent === label,
+          tIn("en", "companion.stateDisconnected"),
+          { timeout: 5000 },
+        );
+        await settle(400);
+      },
+    },
+    // The same ready surface under it-IT strings: the page resolves its
+    // locale from navigator.languages, so the context carries the locale
+    // and every label (pill, button, caption, footnote) renders translated.
+    {
+      name: "companion-it",
+      scenario: "companion-ready",
+      state: "ready-it",
+      contextOptions: { locale: "it-IT" },
+      prepare: async (page) => {
+        await companionHandshake(page);
+        await page.waitForFunction(
+          (label) =>
+            document.getElementById("stateText")?.textContent === label,
+          tIn("it", "companion.stateReady"),
+          { timeout: 10000 },
+        );
+        await settle(600);
+      },
+    },
   ].map((shot) => ({
     // The pairing token the page requires: any 32 hex chars, exactly the
     // format the QR URL carries (#t=<token>).
@@ -1674,6 +1908,7 @@ for (const shot of shots) {
     deviceScaleFactor: 2,
     colorScheme: "dark",
     ...(isCompanion ? { isMobile: true, hasTouch: true } : {}),
+    ...(shot.contextOptions || {}),
   });
   await context.addInitScript({
     path: isCompanion ? companionMockPath : mockPath,

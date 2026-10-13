@@ -314,6 +314,7 @@
       "searchPlaceholder": "חיפוש פקודות",
       "resetAll": "איפוס כל הפקודות",
       "resetRow": "איפוס לברירת מחדל",
+      "defaultPhrasesNote": "ביטויי ברירת המחדל הם המילים באנגלית שהמזהה מקשיב להן. הוסיפו ביטוי משלכם בכל שפה בכל שורה.",
       "addPhrase": "הוספה",
       "removePhrase": "הסרת {{phrase}}",
       "placeholder": "הוספת ביטוי",
@@ -1280,7 +1281,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar צריך הרשאות נגישות כדי להקליד את הטקסט המתומלל.",
-    "openSettings": "פתח את הגדרות המערכת"
+    "openSettings": "פתח את הגדרות המערכת",
+    "resetSetting": "איפוס {{label}} לברירת המחדל"
   },
   "errors": {
     "loadDirectory": "שגיאה בטעינת תיקייה: {{error}}",

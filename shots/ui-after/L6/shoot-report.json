@@ -1,0 +1,16 @@
+{
+  "generatedAt": "2026-10-13T00:28:29.538Z",
+  "base": "http://127.0.0.1:4320",
+  "localeOverflow": {
+    "lang": "it",
+    "max": 535
+  },
+  "shots": [
+    {
+      "name": "settings-studio-run",
+      "scenario": "settings-full",
+      "url": "index.html",
+      "file": "settings-studio-run.png"
+    }
+  ]
+}

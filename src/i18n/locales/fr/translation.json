@@ -367,6 +367,7 @@
       "searchPlaceholder": "Rechercher des commandes",
       "resetAll": "Réinitialiser toutes les commandes",
       "resetRow": "Réinitialiser",
+      "defaultPhrasesNote": "Les phrases par défaut sont les mots anglais que le module de reconnaissance écoute. Ajoutez votre propre phrase dans n'importe quelle langue sur n'importe quelle ligne.",
       "addPhrase": "Ajouter",
       "removePhrase": "Retirer {{phrase}}",
       "placeholder": "Ajouter une phrase",
@@ -1272,7 +1273,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar a besoin des autorisations d'accessibilité pour taper le texte transcrit.",
-    "openSettings": "Ouvrir les Préférences Système"
+    "openSettings": "Ouvrir les Préférences Système",
+    "resetSetting": "Réinitialiser {{label}} à la valeur par défaut"
   },
   "errors": {
     "loadDirectory": "Erreur lors du chargement du répertoire : {{error}}",

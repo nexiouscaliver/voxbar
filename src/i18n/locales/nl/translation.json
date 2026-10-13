@@ -314,6 +314,7 @@
       "searchPlaceholder": "Opdrachten zoeken",
       "resetAll": "Alle opdrachten terugzetten",
       "resetRow": "Terug naar standaard",
+      "defaultPhrasesNote": "De standaardfrases zijn de Engelse woorden waar de herkenner naar luistert. Voeg op elke rij je eigen frase in elke taal toe.",
       "addPhrase": "Toevoegen",
       "removePhrase": "{{phrase}} verwijderen",
       "placeholder": "Zinsnede toevoegen",
@@ -1276,7 +1277,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar heeft toegankelijkheidsmachtigingen nodig om getranscribeerde tekst te kunnen typen.",
-    "openSettings": "Systeeminstellingen openen"
+    "openSettings": "Systeeminstellingen openen",
+    "resetSetting": "{{label}} terug naar standaard"
   },
   "errors": {
     "loadDirectory": "Fout bij laden van map: {{error}}",

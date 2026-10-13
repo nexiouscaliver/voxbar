@@ -54,7 +54,7 @@ const IconButton: React.FC<{
   <button
     onClick={onClick}
     disabled={disabled}
-    className={`p-1.5 rounded-md flex items-center justify-center transition-colors cursor-pointer disabled:cursor-not-allowed disabled:text-text/20 ${
+    className={`p-1.5 rounded-md flex items-center justify-center transition-colors cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-logo-primary disabled:cursor-not-allowed disabled:text-text/20 ${
       destructive
         ? // The one destructive action on the row carries the app's error
           // red at rest - the same resting treatment the danger-ghost
@@ -66,6 +66,7 @@ const IconButton: React.FC<{
           : "text-text/50 hover:text-logo-primary"
     }`}
     title={title}
+    aria-label={title}
   >
     {children}
   </button>

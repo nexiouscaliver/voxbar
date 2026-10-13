@@ -367,6 +367,7 @@
       "searchPlaceholder": "Tìm lệnh",
       "resetAll": "Đặt lại tất cả lệnh",
       "resetRow": "Đặt lại",
+      "defaultPhrasesNote": "Cụm từ mặc định là các từ tiếng Anh mà trình nhận dạng lắng nghe. Thêm cụm từ của bạn bằng bất kỳ ngôn ngữ nào trên bất kỳ dòng nào.",
       "addPhrase": "Thêm",
       "removePhrase": "Xóa {{phrase}}",
       "placeholder": "Thêm cụm từ",
@@ -1272,7 +1273,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar cần quyền truy cập để gõ văn bản đã chuyển đổi.",
-    "openSettings": "Mở Cài đặt Hệ thống"
+    "openSettings": "Mở Cài đặt Hệ thống",
+    "resetSetting": "Đặt lại {{label}} về mặc định"
   },
   "errors": {
     "loadDirectory": "Lỗi khi tải thư mục: {{error}}",

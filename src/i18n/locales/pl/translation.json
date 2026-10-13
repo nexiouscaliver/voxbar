@@ -367,6 +367,7 @@
       "searchPlaceholder": "Szukaj poleceń",
       "resetAll": "Przywróć wszystkie polecenia",
       "resetRow": "Przywróć domyślne",
+      "defaultPhrasesNote": "Domyślne frazy to angielskie słowa, których słucha rozpoznawanie. Dodaj własną frazę w dowolnym języku w dowolnym wierszu.",
       "addPhrase": "Dodaj",
       "removePhrase": "Usuń {{phrase}}",
       "placeholder": "Dodaj wyrażenie",
@@ -1288,7 +1289,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar potrzebuje uprawnień dostępności, aby wpisywać transkrybowany tekst.",
-    "openSettings": "Otwórz ustawienia systemowe"
+    "openSettings": "Otwórz ustawienia systemowe",
+    "resetSetting": "Przywróć {{label}} do wartości domyślnej"
   },
   "errors": {
     "loadDirectory": "Błąd wczytywania katalogu: {{error}}",

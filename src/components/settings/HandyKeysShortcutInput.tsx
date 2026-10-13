@@ -374,7 +374,9 @@ export const HandyKeysShortcutInput: React.FC<HandyKeysShortcutInputProps> = ({
             }`}
             onClick={startRecording}
             aria-disabled={disabled}
-            title={disabled ? undefined : t("settings.general.shortcut.recordHint")}
+            title={
+              disabled ? undefined : t("settings.general.shortcut.recordHint")
+            }
           >
             {binding.current_binding
               ? formatKeyCombination(binding.current_binding, osType)
@@ -389,6 +391,9 @@ export const HandyKeysShortcutInput: React.FC<HandyKeysShortcutInputProps> = ({
           <ResetButton
             onClick={() => resetBinding(shortcutId)}
             disabled={isUpdating(`binding_${shortcutId}`)}
+            ariaLabel={t("accessibility.resetSetting", {
+              label: translatedName,
+            })}
           />
         )}
       </div>

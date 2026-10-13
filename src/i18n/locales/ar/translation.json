@@ -311,6 +311,7 @@
       "searchPlaceholder": "البحث في الأوامر",
       "resetAll": "إعادة تعيين كل الأوامر",
       "resetRow": "إعادة تعيين",
+      "defaultPhrasesNote": "العبارات الافتراضية هي الكلمات الإنجليزية التي يستمع إليها نظام التعرف. أضف عبارتك بأي لغة في أي صف.",
       "addPhrase": "إضافة",
       "removePhrase": "إزالة {{phrase}}",
       "placeholder": "أضف عبارة",
@@ -1304,7 +1305,8 @@
   },
   "accessibility": {
     "permissionsDescription": ".يحتاج VoxBar إلى أذونات إمكانية الوصول لكتابة النص المفرغ",
-    "openSettings": "فتح إعدادات النظام"
+    "openSettings": "فتح إعدادات النظام",
+    "resetSetting": "إعادة تعيين {{label}} إلى الافتراضي"
   },
   "errors": {
     "loadDirectory": "خطأ في تحميل المجلد: {{error}}",

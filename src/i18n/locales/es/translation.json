@@ -367,6 +367,7 @@
       "searchPlaceholder": "Buscar comandos",
       "resetAll": "Restablecer todos los comandos",
       "resetRow": "Restablecer",
+      "defaultPhrasesNote": "Las frases predeterminadas son las palabras en inglés que escucha el reconocedor. Añade tu propia frase en cualquier idioma en cualquier fila.",
       "addPhrase": "Añadir",
       "removePhrase": "Quitar {{phrase}}",
       "placeholder": "Añadir una frase",
@@ -1272,7 +1273,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar necesita permisos de accesibilidad para escribir texto transcrito.",
-    "openSettings": "Abrir Ajustes del Sistema"
+    "openSettings": "Abrir Ajustes del Sistema",
+    "resetSetting": "Restablecer {{label}} al valor predeterminado"
   },
   "errors": {
     "loadDirectory": "Error al cargar el directorio: {{error}}",

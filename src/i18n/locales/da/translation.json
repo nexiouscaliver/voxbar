@@ -314,6 +314,7 @@
       "searchPlaceholder": "Søg i kommandoer",
       "resetAll": "Nulstil alle kommandoer",
       "resetRow": "Nulstil",
+      "defaultPhrasesNote": "Standardfraserne er de engelske ord, genkenderen lytter efter. Tilføj din egen frase på ethvert sprog på enhver række.",
       "addPhrase": "Tilføj",
       "removePhrase": "Fjern {{phrase}}",
       "placeholder": "Tilføj en frase",
@@ -1276,7 +1277,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar har brug for tilgængelighedstilladelser for at skrive den transskriberede tekst.",
-    "openSettings": "Åbn systemindstillinger"
+    "openSettings": "Åbn systemindstillinger",
+    "resetSetting": "Nulstil {{label}} til standardværdien"
   },
   "errors": {
     "loadDirectory": "Fejl ved indlæsning af mappe: {{error}}",

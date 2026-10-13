@@ -314,6 +314,7 @@
       "searchPlaceholder": "Search commands",
       "resetAll": "Reset all commands",
       "resetRow": "Reset to default",
+      "defaultPhrasesNote": "Default phrases are the English words the recognizer listens for. Add your own phrase in any language on any row.",
       "addPhrase": "Add",
       "removePhrase": "Remove {{phrase}}",
       "placeholder": "Add a phrase",
@@ -1276,7 +1277,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar needs accessibility permissions to type transcribed text.",
-    "openSettings": "Open System Settings"
+    "openSettings": "Open System Settings",
+    "resetSetting": "Reset {{label}} to default"
   },
   "errors": {
     "loadDirectory": "Error loading directory: {{error}}",

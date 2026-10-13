@@ -337,7 +337,9 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
             }`}
             onClick={() => startRecording(shortcutId)}
             aria-disabled={disabled}
-            title={disabled ? undefined : t("settings.general.shortcut.recordHint")}
+            title={
+              disabled ? undefined : t("settings.general.shortcut.recordHint")
+            }
           >
             {binding.current_binding
               ? formatKeyCombination(binding.current_binding, osType)
@@ -352,6 +354,9 @@ export const GlobalShortcutInput: React.FC<GlobalShortcutInputProps> = ({
           <ResetButton
             onClick={() => resetBinding(shortcutId)}
             disabled={isUpdating(`binding_${shortcutId}`)}
+            ariaLabel={t("accessibility.resetSetting", {
+              label: translatedName,
+            })}
           />
         )}
       </div>

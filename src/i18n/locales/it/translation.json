@@ -367,6 +367,7 @@
       "searchPlaceholder": "Cerca comandi",
       "resetAll": "Ripristina tutti i comandi",
       "resetRow": "Ripristina",
+      "defaultPhrasesNote": "Le frasi predefinite sono le parole inglesi che il riconoscitore ascolta. Aggiungi una tua frase in qualsiasi lingua su qualsiasi riga.",
       "addPhrase": "Aggiungi",
       "removePhrase": "Rimuovi {{phrase}}",
       "placeholder": "Aggiungi una frase",
@@ -1272,7 +1273,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar ha bisogno dei permessi di accessibilità per digitare il testo trascritto.",
-    "openSettings": "Apri Impostazioni di Sistema"
+    "openSettings": "Apri Impostazioni di Sistema",
+    "resetSetting": "Ripristina {{label}} al valore predefinito"
   },
   "errors": {
     "loadDirectory": "Errore di caricamento cartella: {{error}}",

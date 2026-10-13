@@ -314,6 +314,7 @@
       "searchPlaceholder": "Sök kommandon",
       "resetAll": "Återställ alla kommandon",
       "resetRow": "Återställ",
+      "defaultPhrasesNote": "Standardfraserna är de engelska ord som igenkännaren lyssnar efter. Lägg till din egen fras på valfritt språk på valfri rad.",
       "addPhrase": "Lägg till",
       "removePhrase": "Ta bort {{phrase}}",
       "placeholder": "Lägg till en fras",
@@ -1272,7 +1273,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar behöver behörighet för hjälpmedel för att kunna skriva transkriberad text.",
-    "openSettings": "Öppna systeminställningar"
+    "openSettings": "Öppna systeminställningar",
+    "resetSetting": "Återställ {{label}} till standardvärdet"
   },
   "errors": {
     "loadDirectory": "Fel vid laddning av mapp: {{error}}",

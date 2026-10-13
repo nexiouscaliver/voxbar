@@ -75,6 +75,9 @@ export const OutputDeviceSelector: React.FC<OutputDeviceSelectorProps> =
               disabled={
                 disabled || isUpdating("selected_output_device") || isLoading
               }
+              ariaLabel={t("accessibility.resetSetting", {
+                label: t("settings.sound.outputDevice.title"),
+              })}
             />
           </div>
         </SettingContainer>

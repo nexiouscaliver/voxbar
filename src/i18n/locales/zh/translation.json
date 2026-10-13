@@ -367,6 +367,7 @@
       "searchPlaceholder": "搜索命令",
       "resetAll": "重置所有命令",
       "resetRow": "恢复默认",
+      "defaultPhrasesNote": "默认短语是识别器监听的英文单词。您可以在任意一行添加任意语言的自定义短语。",
       "addPhrase": "添加",
       "removePhrase": "移除 {{phrase}}",
       "placeholder": "添加短语",
@@ -1272,7 +1273,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar 需要辅助功能权限才能输入转录的文字。",
-    "openSettings": "打开系统设置"
+    "openSettings": "打开系统设置",
+    "resetSetting": "将{{label}}恢复默认"
   },
   "errors": {
     "loadDirectory": "加载目录时出错: {{error}}",

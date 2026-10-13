@@ -314,6 +314,7 @@
       "searchPlaceholder": "搜尋命令",
       "resetAll": "重設所有命令",
       "resetRow": "還原預設",
+      "defaultPhrasesNote": "預設短語是辨識器監聽的英文單字。您可以在任意行新增任意語言的自訂短語。",
       "addPhrase": "新增",
       "removePhrase": "移除 {{phrase}}",
       "placeholder": "新增片語",
@@ -1272,7 +1273,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar 需要輔助使用權限才能輸入轉錄的文字",
-    "openSettings": "開啟系統設定"
+    "openSettings": "開啟系統設定",
+    "resetSetting": "將{{label}}還原預設"
   },
   "errors": {
     "loadDirectory": "載入目錄時發生錯誤: {{error}}",

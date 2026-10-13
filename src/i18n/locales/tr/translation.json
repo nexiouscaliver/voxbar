@@ -367,6 +367,7 @@
       "searchPlaceholder": "Komutlarda ara",
       "resetAll": "Tüm komutları sıfırla",
       "resetRow": "Sıfırla",
+      "defaultPhrasesNote": "Varsayılan ifadeler, tanıyıcının dinlediği İngilizce kelimelerdir. Herhangi bir satıra herhangi bir dilde kendi ifadenizi ekleyin.",
       "addPhrase": "Ekle",
       "removePhrase": "{{phrase}} ifadesini kaldır",
       "placeholder": "Bir ifade ekle",
@@ -1272,7 +1273,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar, transkribe edilen metni yazabilmek için erişilebilirlik izinlerine ihtiyaç duyar.",
-    "openSettings": "Sistem Ayarlarını Aç"
+    "openSettings": "Sistem Ayarlarını Aç",
+    "resetSetting": "{{label}} ayarını varsayılana sıfırla"
   },
   "errors": {
     "loadDirectory": "Dizin yüklenirken hata oluştu: {{error}}",

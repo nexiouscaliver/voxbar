@@ -367,6 +367,7 @@
       "searchPlaceholder": "Hledat příkazy",
       "resetAll": "Obnovit všechny příkazy",
       "resetRow": "Obnovit výchozí",
+      "defaultPhrasesNote": "Výchozí fráze jsou anglická slova, která rozpoznávač poslouchá. Přidejte vlastní frázi v jakémkoli jazyce na kterýkoli řádek.",
       "addPhrase": "Přidat",
       "removePhrase": "Odebrat {{phrase}}",
       "placeholder": "Přidat frázi",
@@ -1288,7 +1289,8 @@
   },
   "accessibility": {
     "permissionsDescription": "VoxBar potřebuje oprávnění usnadnění přístupu, aby mohlo psát přepsaný text.",
-    "openSettings": "Otevřít Nastavení systému"
+    "openSettings": "Otevřít Nastavení systému",
+    "resetSetting": "Obnovit {{label}} na výchozí hodnotu"
   },
   "errors": {
     "loadDirectory": "Chyba při načítání adresáře: {{error}}",

@@ -501,6 +501,16 @@
       s.permissions.accessibility = false;
       s.permissions.microphone = false;
     },
+    // The permission checks never answer (a slow first-run TCC query): the
+    // onboarding's full-screen waiting spinner stays up, the state the
+    // fresh/mic scenarios race through before the first paint settles.
+    "onboarding-permissions-pending": (s) => {
+      SCENARIOS["onboarding-fresh"](s);
+      s.pendingCommands = [
+        "plugin:macos-permissions|check_accessibility_permission",
+        "plugin:macos-permissions|check_microphone_permission",
+      ];
+    },
     // Accessibility granted, mic still pending.
     "onboarding-mic": (s) => {
       s.permissions.accessibility = true;
