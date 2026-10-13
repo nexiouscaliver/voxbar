@@ -21,6 +21,11 @@ const formatClock = (unixMs: number): string => {
   )}`;
 };
 
+/* The engine cell's model id tail: the segment after the last "/" of the
+ * catalog path (e.g. "Qwen3-0.6B-Q8_0.gguf"), so the column fits the pane.
+ * The tooltip on the cell carries provider + full id. */
+const shortModelId = (id: string): string => id.split("/").pop()?.trim() || id;
+
 /* The outcome token (`applied` | `unchanged` | `skipped:<reason>` |
  * `failed:<class>`) built from the wire shape { kind, reason?/class? },
  * matching the token the backend writes into history and the pp: log
@@ -146,17 +151,31 @@ export const PostProcessRunsTable: React.FC<PostProcessRunsTableProps> = ({
       description={t("settings.debug.ppRuns.description")}
       descriptionMode={descriptionMode}
       grouped={grouped}
+      layout="stacked"
     >
       {runs.length === 0 ? (
         <div className="px-4 py-3 text-sm text-text/60">
           {t("settings.debug.ppRuns.empty")}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+        // The table is fitted to the pane: fixed columns with truncated
+        // engine paths (tail segment; the full id rides in the tooltip) and
+        // a capped outcome cell, so every column stays inside the card at
+        // the minimum window width instead of pushing a fourth column off
+        // screen with no scrollbar.
+        <div className="w-full">
+          <table className="w-full table-fixed text-xs">
+            <colgroup>
+              <col className="w-[60px]" />
+              <col className="w-[34%]" />
+              <col />
+              <col className="w-[64px]" />
+              <col className="w-[27%]" />
+              <col className="w-[30px]" />
+            </colgroup>
             <thead>
               <tr className="text-left text-secondary border-b border-mid-gray/20">
-                <th className="px-4 py-2 font-medium">
+                <th className="px-2 py-2 font-medium">
                   {t("settings.debug.ppRuns.time")}
                 </th>
                 <th className="px-2 py-2 font-medium">
@@ -165,13 +184,13 @@ export const PostProcessRunsTable: React.FC<PostProcessRunsTableProps> = ({
                 <th className="px-2 py-2 font-medium">
                   {t("settings.debug.ppRuns.prompt")}
                 </th>
-                <th className="px-2 py-2 font-medium">
+                <th className="px-2 py-2 font-medium text-end">
                   {t("settings.debug.ppRuns.latency")}
                 </th>
                 <th className="px-2 py-2 font-medium">
                   {t("settings.debug.ppRuns.outcome")}
                 </th>
-                <th className="px-2 py-2 font-medium" aria-label="copy" />
+                <th className="px-2 py-2" aria-label="copy" />
               </tr>
             </thead>
             <tbody>
@@ -180,29 +199,29 @@ export const PostProcessRunsTable: React.FC<PostProcessRunsTableProps> = ({
                   key={record.run_id}
                   className="border-b border-mid-gray/10 last:border-0"
                 >
-                  <td className="px-4 py-1.5 whitespace-nowrap text-secondary">
+                  <td className="px-2 py-1.5 whitespace-nowrap text-secondary">
                     {formatClock(record.started_at_unix_ms)}
                   </td>
                   <td
-                    className="px-2 py-1.5 whitespace-nowrap"
-                    title={record.model}
+                    className="px-2 py-1.5 truncate"
+                    title={`${record.provider_id}/${record.model}`}
                   >
-                    {record.provider_id}/{record.model}
+                    {record.provider_id}/{shortModelId(record.model)}
                   </td>
                   <td
-                    className="px-2 py-1.5 max-w-40 truncate"
+                    className="px-2 py-1.5 truncate"
                     title={record.prompt_name ?? record.prompt_id ?? ""}
                   >
                     {record.prompt_name ?? record.prompt_id ?? "-"}
                   </td>
-                  <td className="px-2 py-1.5 whitespace-nowrap">
+                  <td className="px-2 py-1.5 whitespace-nowrap text-end text-secondary">
                     {record.total_ms !== null
                       ? t("settings.debug.ppRuns.latencyMs", {
                           ms: record.total_ms,
                         })
                       : "-"}
                   </td>
-                  <td className="px-2 py-1.5 whitespace-nowrap">
+                  <td className="px-2 py-1.5 truncate">
                     <OutcomeCell record={record} />
                   </td>
                   <td className="px-2 py-1.5">

@@ -1,0 +1,422 @@
+[
+  {
+    "screen": "Settings — Post Process (sidebar brand, all scrolled panes)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/theme-light-settings-postprocessing.png",
+    "issue": "When any settings pane scrolls, the sidebar scrolls with the content and the brand header collapses from the full 61-63x56px logo+wordmark to a 17-19x16px waveform sliver (measured bbox y34-90 vs y33-49; same defect in settings-postprocessing.png, settings-studio-run.png, settings-postprocessing-prompt-editor.png, settings-postprocessing-prompt-create.png, settings-postprocessing-local-catalog.png), so the brand reads as a rendering defect on whole pane families.",
+    "severity": "high",
+    "fix": "Pin the sidebar (brand header + nav) outside the scroll container so only the right content pane scrolls, rendering the logo at a fixed size of at least 44px with the wordmark always visible at every scroll offset."
+  },
+  {
+    "screen": "Settings — Post Process (it-IT, keep-warm row)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/locale-it-settings-postprocessing.png",
+    "issue": "The Italian slider value 'Disattivato' overflows the fixed 48px (w-12) value span and the reset icon is drawn straight through the final 'o', leaving the default state label partially unreadable (verified at 3x pixel zoom; Slider.tsx:72, space-x-1 at Slider.tsx:53).",
+    "severity": "high",
+    "fix": "In Slider.tsx replace the fixed w-12 with a content-fitting width (min-w-12 max-w-32 whitespace-nowrap plus a title fallback) and change the row's space-x-1 to gap-2 so value text and reset keep a real gap at any locale length."
+  },
+  {
+    "screen": "Settings — History (light-theme pink text contrast)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/theme-light-settings-history.png",
+    "issue": "Light-theme logo-pink #faa2ca text fails contrast everywhere it carries meaning: 1.83:1 on #fbfbfb (theme.css:9), 1.63:1 for selected dropdown options (Dropdown.tsx:18-22,117-122) and as the saved-star color (HistorySettings.tsx:56), below even the 3:1 non-text floor while the dark theme passes at 6.23:1.",
+    "severity": "high",
+    "fix": "Use deep pink #c2417c (4.84:1, already the background-ui fill) as the light-theme logo-primary text/selected/icon color and reserve #faa2ca for decorative tints."
+  },
+  {
+    "screen": "Settings — panes (bottom-edge clipping: History, About, Commands, General)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-history.png",
+    "issue": "Settings panes clip content hard at the bottom edge with no scrollbar, fade or padding — the last history card is cut mid-word ('...on fifth street' halved, repeated in theme-dark-settings-history.png and theme-light-settings-history.png), About's App Data Directory row is severed mid-control (settings-about.png), and Commands/General end mid-glyph directly above the footer (settings-commands.png, settings-general.png).",
+    "severity": "high",
+    "fix": "Give the settings scroll view real bottom padding, a visible inset scrollbar and a bottom fade above the footer, and pad list bottoms so no card ever renders half-clipped."
+  },
+  {
+    "screen": "Settings — History (audio player, both themes)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/theme-light-settings-history.png",
+    "issue": "Every populated entry's audio player shows 0:00 on both elapsed and duration sides (same in settings-history.png and theme-dark-settings-history.png), so the player reads as broken or as an empty recording rather than ready to play.",
+    "severity": "high",
+    "fix": "Bind the right label to the clip's real total duration with an en-dash placeholder until metadata resolves, and inset the scrubber knob within the track."
+  },
+  {
+    "screen": "Settings — Prompt Studio (error state)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-studio-error.png",
+    "issue": "A refused run renders three contradictory states at once — the banner says 'No transcript history yet', the header says 0 RESULTS, yet a card below is stuck at 'Running…' with a re-run icon — because refused batches keep initCards() status:'running' (PromptStudio.tsx:336, studioRunState.ts:79-86), and the Source dropdown's 'Last transcript' default with empty history guarantees exactly this failure (settings-studio.png).",
+    "severity": "high",
+    "fix": "Reset refused batch cards to an idle/failed state so the banner is the only failure signal, keep the result count equal to the cards actually rendered, and when history is empty show a 'No transcripts yet' option or disable Run until a usable source exists."
+  },
+  {
+    "screen": "Settings — Prompt Studio (resting scroll)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-studio.png",
+    "issue": "At the page's resting scroll position only a ~5px pink sliver of the primary 'Run 1 pair' button peeks above the footer bar (verified in a 3x crop), so the main action looks broken and is effectively hidden on load.",
+    "severity": "high",
+    "fix": "Add at least 24px bottom padding to the scroll container's content and size the idle layout so the Run button is fully visible on load."
+  },
+  {
+    "screen": "Settings — Debug (post-process runs table)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-debug.png",
+    "issue": "The runs table overflows the pane: the Provider header is cut to 'Pro…', the outcome column renders only 'Imp…', a fourth column is fully off-screen with no scrollbar or fade (nowrap engine paths overflow the 680px viewport, PostProcessRunsTable.tsx:155,187-191; confirmed in settings-debug-live-log.png), and the 'Post-process runs' row label itself wraps to three lines with an orphaned info icon.",
+    "severity": "high",
+    "fix": "Fit the table to the pane — truncate engine paths to their tail with the full id in a tooltip, widen the label cell to a ~160px minimum, right-size the Provider/outcome columns, and add a visible horizontal scrollbar plus a right-edge fade if columns still exceed width."
+  },
+  {
+    "screen": "Companion (mobile web) — mic error state",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/companion-mic-error.png",
+    "issue": "The status pill still shows a green 'Ready' and the full-vividness 'Hold to talk' button sits directly above the amber 'Microphone access failed' banner, because the openMic failure path only calls showMicError() and never updates the pill (src-tauri/src/companion/client/index.html:830, ~:996), so the page asserts ready and failed simultaneously.",
+    "severity": "high",
+    "fix": "In showMicError() switch the pill to an amber/red 'Mic blocked' state and the button caption to 'Mic blocked — press to retry', restoring Ready in hideMicError() while keeping the button tappable since its next press retries the mic."
+  },
+  {
+    "screen": "Settings — Advanced (companion server, certificate fingerprint)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-advanced-companion-devices.png",
+    "issue": "The SHA-256 fingerprint hard-wraps at a fixed character count that splits bytes ('3f:9a:c2 :11:7e:0 4:bb:58:…' with the byte 04 torn across a space and dangling colons) and shows only 16 of 32 bytes under a SHA-256 label, defeating the byte-by-byte phone-vs-Mac comparison it exists for.",
+    "severity": "high",
+    "fix": "Reformat deterministically as 4-hex groups in fixed 8-byte rows (e.g. '3F9A C211 7E04 BB58 D021 AF63 901C 4DE7' repeated for 32 bytes) wrapping only at group boundaries, relabel 'first 16 bytes' if truncating, and add a copy button beside the label."
+  },
+  {
+    "screen": "Onboarding — model selection",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/onboarding-model-step.png",
+    "issue": "The model cards give no affordance and misgroup the post-process engine: no card has a button, radio or selected state (a hover cursor is the only signal, ModelCard.tsx:130), the explicitly non-voice 'Qwen3 0.6B (Post-process)' renders as a third peer under 'choose a transcription model', and in onboarding-model-downloading.png installed cards dim to near-disabled with no group header or 'Installed' signal (blanket disabled={isBusy} at Onboarding.tsx:405; header copy 'Compatible Models', translation.json:48).",
+    "severity": "high",
+    "fix": "Add explicit per-card actions ('Download · 644 MB' pill on downloadable cards, 'Use' on installed — handlers already exist at Onboarding.tsx:428-429) with an accent-ring + check selected state, move Qwen3 into a visually separated 'Optional: post-processing' group with its own header and caption, and dim downloads only to ~0.7 opacity with an 'Installed ✓' pill."
+  },
+  {
+    "screen": "Settings — General (icon-button accessibility)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/theme-dark-settings-general.png",
+    "issue": "Reset (circular-arrow) buttons render icon-only with no accessible name at all seven call sites (ResetButton.tsx:14-26 only sets aria-label when passed; Slider.tsx:77, LanguageSelector.tsx:221, GlobalShortcutInput.tsx:338, MicrophoneSelector.tsx:68, ClamshellMicrophoneSelector.tsx:94, HandyKeysShortcutInput.tsx:375, OutputDeviceSelector.tsx:73), and the four history row-action icons plus the studio rerun button rely on title alone with no focus-visible indicator (HistorySettings.tsx:41-58, PromptStudio.tsx:103), so screen readers announce unnamed buttons.",
+    "severity": "high",
+    "fix": "Pass an ariaLabel at every ResetButton call site (or default a generic 'Reset to default' inside ResetButton) and add aria-label alongside title plus a focus-visible ring to IconButton and the studio rerun button, matching Button.tsx:27."
+  },
+  {
+    "screen": "Settings — sidebar selected pill (dark AA + light inconsistency)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-notifications.png",
+    "issue": "The selected nav pill's white 13px label fails WCAG AA on every dark accent fill (3.03:1 on pink #ca789e sampled from bg-logo-primary/80 at Sidebar.tsx:165, 3.36:1 on blue and 3.56:1 on violet in accent-blue-dark-settings-general.png and accent-violet-dark-settings-general.png), while in light theme selection swings between a pale pink tint with black text and saturated blue/violet fills with black text (accent-violet-light-settings-general.png), so emphasis is both illegible and inconsistent.",
+    "severity": "medium",
+    "fix": "Define one selection rule per theme derived from per-accent luminance — dark-theme fills from the accent-600/700 range with a white label at 4.5:1 or better, or near-black ink; light theme one uniform treatment for all three accents — and re-verify every pair."
+  },
+  {
+    "screen": "Settings — General (toggle knob, dark blue/violet)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/accent-blue-dark-settings-general.png",
+    "issue": "In dark theme the ON-toggle knob renders near-black #1c1c1f on the blue #60a5fa and violet #a78bfa tracks (pixel-verified) while pink-dark and both light themes use #ffffff, so the same ON state renders as two different components and reads as a hole.",
+    "severity": "medium",
+    "fix": "Drive the thumb from a single white token in both themes for all accents, reserving a dark knob only for light tracks."
+  },
+  {
+    "screen": "Settings — global search field (all panes)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-general.png",
+    "issue": "The magnifier glyph floats outside the field border on every pane (icon x≈355-385 vs border at x≈400 in settings-general.png; flex sibling at SettingsSearch.tsx:89-91, also settings-models.png and the About shots), and the whole field scrolls away with content (settings-advanced-companion-devices.png) instead of staying pinned as macOS System Settings does.",
+    "severity": "medium",
+    "fix": "Wrap the input in a relative container with the icon absolutely positioned at left-3 and pl-9 on the input, and pin the search field in a non-scrolling header above the settings content area."
+  },
+  {
+    "screen": "Settings — General (shortcuts card states)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-general-shortcuts-disabled.png",
+    "issue": "Turning 'Delete Last Word Action'/'Undo Action' off dims the binding row ABOVE its governing toggle (binding rows drop to YMAX luma 142 vs 232 while toggle rows stay bright), so a dependent control is governed by a toggle below it and the dimmed pill+reset still read as clickable, and the 'VoxBar Shortcuts' row's empty state (settings-general.png) is plain gray text with no Configure affordance unlike every sibling row.",
+    "severity": "medium",
+    "fix": "Reorder so each governing toggle precedes or visually contains its binding (indented sub-row), swap the dimmed pill for an inline hint like 'Turn on … to bind a key', and add a trailing 'Configure…'/'+' button to the empty shortcuts row matching the sibling pill styling."
+  },
+  {
+    "screen": "Settings — Advanced (input states)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-advanced-companion-devices.png",
+    "issue": "All four companion text inputs use a pink/maroon fill unlike the neutral dark selects so healthy fields read as invalid or focused, their empty-field placeholders ('/path/to/cert.pem') render in saturated pink monospace more prominent than the real white value, and the 'Unload Model' dropdown shows 'Select an option…' as its resting value (settings-advanced.png) so the current setting is unknowable.",
+    "severity": "medium",
+    "fix": "Restyle resting fields to the neutral dark fill + hairline border of the selects with placeholders dimmed to ~40-50%, reserve the pink tint for focus/error/primary states, and show the actual Unload Model value with an explicit default selected."
+  },
+  {
+    "screen": "Settings — Post Process (keep-warm control)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-postprocessing.png",
+    "issue": "'Keep local model warm' renders as a long thin slider-like track with a floating accent-pink dot plus a separate 'Off' text while every other boolean in the app uses a proper pill switch, and the pink knob on an Off state contradicts the accent-means-on language used everywhere else.",
+    "severity": "medium",
+    "fix": "Replace it with the same pill switch component used on General/Commands (gray track + left knob when off, accent track when on) and drop the redundant 'Off' text."
+  },
+  {
+    "screen": "Settings — Post Process (cloud, no API key)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-postprocessing-cloud-nokey.png",
+    "issue": "With no API key the model area's only guidance is the dead-end 'No model list yet.' next to an enabled 'Refresh models' button that cannot succeed, never telling the user the missing key above is the actual blocker.",
+    "severity": "medium",
+    "fix": "Disable Refresh while the key field is empty and change the empty state to 'Enter your API key above, then refresh to load models', enabling the action on key input."
+  },
+  {
+    "screen": "Settings — Post Process (POST-PROCESS MODELS block)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-postprocessing-local-catalog.png",
+    "issue": "The POST-PROCESS MODELS header sits ~6px under the ENGINE card's bottom edge with its description ~6px from the card's top and left edges, versus ~40-55px clearance and ~24-30px padding on the sibling HOTKEY/ENGINE sections and Add card, so the block reads as glued to or clipped by the card above.",
+    "severity": "medium",
+    "fix": "Apply the same ~40px top margin and ~24-30px inner padding the sibling sections use, or drop the card border for the section-header + plain-text pattern."
+  },
+  {
+    "screen": "Settings — destructive controls (Models, Post Process, Debug, Commands, History)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-models.png",
+    "issue": "Destructive actions carry no destructive styling or guards: the Models page Delete renders in brand accent pink on the currently-active model with no confirmation (the status bar shows it in use), the Post Process engine Delete is a neutral gray pill in both themes (theme-light-settings-postprocessing.png, settings-postprocessing-prompt-create.png), and Debug 'Clear', Commands 'Reset all commands' and history's trash icon are styled as neutral peers of the safe actions beside them (settings-debug-live-log.png, settings-commands.png, settings-history.png).",
+    "severity": "medium",
+    "fix": "Style all destructive controls in system red per macOS convention, put Delete and Clear behind confirmation dialogs, disable Delete while the model is active, and separate them from adjacent safe actions with spacing or a divider."
+  },
+  {
+    "screen": "Settings — Models (search field placement)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-models.png",
+    "issue": "The 'Search models by name…' field (y≈302-370) sits directly above the 'Add model from Hugging Face' card (y≈400-615) while the list it actually filters starts at y≈712, so it reads as a search for Hugging Face repos rather than for downloaded models.",
+    "severity": "medium",
+    "fix": "Move the search into the Downloaded Models section — merged into the toolbar row right of the heading or immediately above the first card — leaving only the URL input inside the Add card."
+  },
+  {
+    "screen": "Settings — Models (toolbar + card meters)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-models.png",
+    "issue": "The Downloaded Models toolbar's waveform and translate filters are icon-only with no label or tooltip and unclear divider logic (the translate icon also overlaps the adjacent 'All Languages' dropdown, and the refresh icon duplicates 'Rescan models' above), and the accuracy/speed meters (x≈1163-1291) show bare unlabeled bars with no numeric value or scale.",
+    "severity": "medium",
+    "fix": "Label the filters (an 'All / Streaming / Translation' segmented control or native tooltips), fold the translate filter into the All Languages dropdown, keep a single rescan affordance, and print concrete values beside each meter (e.g. 'accuracy 92 · WER 3.8%', '8x realtime') with a scale tooltip."
+  },
+  {
+    "screen": "Settings — History (model badge)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-history.png",
+    "issue": "The model badge truncates the raw id mid-token with a run-on ellipsis ('parakeet-unified-en-0....', same in theme-dark-settings-history.png) while the status footer uses the friendly 'Parakeet Unified EN 0.6B', so the two labels for the same model disagree and every entry's chip looks identical and uninformative.",
+    "severity": "medium",
+    "fix": "Show the same short display name as the footer with the full id exposed via tooltip, or truncate at a hyphen boundary with a single standard ellipsis."
+  },
+  {
+    "screen": "Settings — History (empty and loading states)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-history-empty.png",
+    "issue": "The empty state is a single exclamation-marked sentence with no icon and no actionable next step (settings-history-empty.png), and loading is static gray 'Loading history...' text with no motion, indistinguishable from a stalled pane (settings-history-loading.png).",
+    "severity": "medium",
+    "fix": "Give the empty state a small illustration/icon plus a primary 'Start Recording' action (or 'Press ⌥Space to record') without the exclamation mark, and loading an indeterminate spinner or 2-3 skeleton rows mirroring the entry layout."
+  },
+  {
+    "screen": "Settings — History (date grouping, dark)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/theme-dark-settings-history.png",
+    "issue": "Same-day entries each repeat the full long date ('October 12, 2026 at 10:48 PM' / '...08:16 PM') instead of grouping under a day header, adding scan noise to every row.",
+    "severity": "medium",
+    "fix": "Group entries under 'Today'/date section headers and show only the time per row."
+  },
+  {
+    "screen": "Settings — History (diff summary, both themes)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/theme-light-settings-history.png",
+    "issue": "The '+1 −1' counts use raw Tailwind green-500/red-500 (DiffView.tsx:74-76) measuring 2.13:1 and 3.61:1 on light #fbfbfb and 3.74:1 red on dark at 11px mono size, and the summary string mixes units and pluralizes singles ('+1 −1 lines · 19 chars changed').",
+    "severity": "medium",
+    "fix": "Theme the pair like the semantic tokens (green-700 #15803d / red-600 #dc2626 for light, green-400 #4ade80 / red-400 #f87171 for dark) and format consistently with singular handling, e.g. '+1 added · 1 removed · 19 chars changed'."
+  },
+  {
+    "screen": "Settings — Post Process (prompt editor, selected card)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-postprocessing-prompt-editor.png",
+    "issue": "The already-selected 'Improve Transcriptions' card renders a tiny unlabeled gray dash pill that reads as a broken badge, a disabled-looking 'Select a prompt' button beside the active pink-outlined 'Edit', and a Prompt Instructions textarea whose last line rests on the bottom border with descenders touching and no visible scrollbar.",
+    "severity": "medium",
+    "fix": "Replace the dash pill with a real labeled 'Default' badge sized like the sibling General/Custom tags, swap the control for a positive '✓ Selected' state (enabled Select only on unselected prompts), and add bottom padding with visible scrollbar styling or a fade edge to the textarea."
+  },
+  {
+    "screen": "Settings — Post Process (prompt create)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-postprocessing-prompt-create.png",
+    "issue": "In create mode the header 'Create New Prompt' button sits disabled while the actual Save/Cancel pair is clipped at the window bottom (only the top few pixels visible below the tip line), leaving the visible screen with no actionable affordance.",
+    "severity": "medium",
+    "fix": "Swap the header button to an enabled 'Create' (or 'Cancel') once the form is empty-but-active and auto-scroll or bottom-pin the pane so the Save/Cancel row renders fully above the fold."
+  },
+  {
+    "screen": "Settings — Prompt Studio (OpenRouter helper)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-studio.png",
+    "issue": "The OpenRouter card's helper text truncates mid-word to 'No model set. Choose one in Po…' (verified in a 2x crop; also in the studio run and error shots), cutting off the destination the user is told to go to.",
+    "severity": "medium",
+    "fix": "Shorten the copy to fit one line (e.g. 'No model set — pick one in Post Process') or let the sublabel wrap to a second line instead of single-line ellipsis."
+  },
+  {
+    "screen": "Settings — Prompt Studio (secondary text contrast)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-studio.png",
+    "issue": "The muted secondary-gray token fails WCAG AA at small sizes: the run caption measures 3.44:1 and the intro paragraph 4.04:1 on dark while footer gray measures 5.96:1, and the 11px 'Running…' line uses text-secondary/70 compositing to 3.44:1 dark / 2.79:1 light (PromptStudio.tsx:119,411; theme.css:50-55 reserves secondary for >=13px text).",
+    "severity": "medium",
+    "fix": "Use full text-secondary (5.42:1 dark / 4.93:1 light) or a ~6:1 tone like the footer's #A9A8A7 for body-size captions and descriptions, or bump these lines to 13px."
+  },
+  {
+    "screen": "Settings — Prompt Studio (running feedback)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-studio-error.png",
+    "issue": "The in-flight 'Running…' status is plain static gray text with no spinner or progress while the pink 'Run 1 pair' button remains fully enabled, inviting a double trigger.",
+    "severity": "medium",
+    "fix": "Add an indeterminate spinner to the card's status line and swap the Run button to a visually disabled 'Running…' state while a run is in flight."
+  },
+  {
+    "screen": "Command-mode overlay (transcript legibility)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/overlay-command-mode.png",
+    "issue": "The live recognized word 'comma|' is set in the exact same italic style, size and color as the static instruction 'Everything you now say edits the buffer', so on the core surface the user cannot tell where the hint ends and their own speech begins.",
+    "severity": "medium",
+    "fix": "Split into two layers: render the static hint at ~55% opacity and ~14-15px above (or below) an 18-20px full-white regular-weight transcript line that alone carries the pink caret."
+  },
+  {
+    "screen": "Overlay — notice strip (error tone)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/overlay-notice-error.png",
+    "issue": "The shot labeled notice-error actually renders the info-toned model_fallback notice (noticeTone() hardcodes that code to info, RecordingOverlay.tsx:75-78, while the rig emits kind:'error'), so the red error styling is never captured anywhere, and the strip's third line is clipped mid-glyph past its 2-line clamp (RecordingOverlay.css:317-339) at the 340x240 capture versus the native 400x168 window (overlay.rs:57-58).",
+    "severity": "medium",
+    "fix": "Enforce the max-height clamp so the strip ends at a cleanly ellipsized second line, emit a non-fallback error code (e.g. transcription_failed) for this shot, and capture at the native 400x168 streaming window size."
+  },
+  {
+    "screen": "Settings — Commands (stacked search fields)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-commands.png",
+    "issue": "Two identically-styled search fields stack directly on top of each other ('Search settings' spanning to x1327 over 'Search commands' stopping at x1060; same pairing in locale-it-settings-commands.png), reading as a duplicated search UI with no cue about which does what.",
+    "severity": "medium",
+    "fix": "Keep a single global 'Search settings' field and move the commands filter into the COMMAND BEHAVIOR header as a compact right-aligned field (or restyle it borderless/underline with aligned right edges) so it clearly reads as a scoped filter."
+  },
+  {
+    "screen": "Settings — search results dropdown",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-search-dropdown.png",
+    "issue": "The dropdown lists two pixel-identical 'Microphone — General' rows (the index registers both the setting title and the group heading, settingsSearchIndex.ts:46,53 with en/translation.json:301,429), shows no highlighted match substring and only a faint tint on the active row, and its flat hairline-bordered panel visually merges with the 'VoxBar Shortcuts' row beneath in dark theme.",
+    "severity": "medium",
+    "fix": "Dedupe results by (title, section) or disambiguate with breadcrumb subtitles, bold or accent-tint the matched substring and give the keyboard-active row the accent-pill treatment, and add an elevation shadow with a slightly higher surface color."
+  },
+  {
+    "screen": "Settings — About (language dropdown)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-about.png",
+    "issue": "The Application Language dropdown shows 'English (English)' — the same name repeated in both native and translated form — which reads as a data bug in all three About shots.",
+    "severity": "medium",
+    "fix": "Render 'English' alone and use the 'Native (English)' pattern only when the two differ (e.g. 'Deutsch (German)')."
+  },
+  {
+    "screen": "Settings — About (accent swatches, both themes)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/theme-dark-settings-about.png",
+    "issue": "Extreme accent swatches disappear into their card: the black swatch measures 1.25:1 on the dark card #2c2b29 and the white swatch 1.03:1 on the light card (theme-light-settings-about.png) with no ring or border sampled, so each theme has one swatch that reads as an empty gap.",
+    "severity": "medium",
+    "fix": "Add a 1px hairline border (rgba(0,0,0,0.15) in light, rgba(255,255,255,0.18) in dark) plus a subtle shadow to every swatch so all 13 are visible on either surface."
+  },
+  {
+    "screen": "What's New modal",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/whats-new-modal.png",
+    "issue": "The body is a wall of 5-6 line changelog prose paragraphs with no bullets, bolding or icons, and the second section heading is clipped mid-heading at the modal's bottom edge with no scrollbar, fade or footer button (Dialog.tsx:196 scrolls but macOS overlay scrollbars are invisible until interaction; the Dialog footer prop at Dialog.tsx:20 is unused).",
+    "severity": "medium",
+    "fix": "Rewrite 1.2.0.md into scannable bullets with bold user-benefit lead-ins (max ~6 one-line bullets per section) and add a bottom gradient fade plus a 'Got it' primary button in the Dialog footer slot (WhatsNewModal.tsx:21-31)."
+  },
+  {
+    "screen": "Onboarding — model catalog error",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/onboarding-model-offline.png",
+    "issue": "The error state is under-signed and off-system: only a faint 1px red border and barely-darker tint mark the card with no icon or color anchor on the headline, the 'Retry' primary is white/near-white and smaller than every pink primary in the flow (Onboarding.tsx:328), and the top-anchored stack ends at ~53% of window height unlike the centered permissions screen (settings-debug-onboarding-preview.png).",
+    "severity": "medium",
+    "fix": "Anchor the error with a warning icon before the headline (or a 3-4px red left accent bar) and a clearly visible error-red border, restyle Retry as the pink accent primary at the standard padding scale with 'Skip for now' as the ghost secondary, and vertically center the logo+heading+card group."
+  },
+  {
+    "screen": "Onboarding — All set",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/onboarding-hotkey-hint.png",
+    "issue": "The final 'All set!' screen is a dead end: no Done/continue button, and the pointer 'You can change this shortcut in Settings > General' renders as plain <p> text rather than a link (AccessibilityOnboarding.tsx:397-399), leaving the user to guess how to close the window or reach Settings.",
+    "severity": "medium",
+    "fix": "Add a primary 'Done' button plus a working 'Open Settings' action (the Tauri IPC to show the settings window already exists for the tray/menu) and render the shortcut as keycap chips instead of inline text."
+  },
+  {
+    "screen": "Companion — pairing error (bad token)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/companion-error-bad-token.png",
+    "issue": "The failure is the calmest screen in the set: the 'Error' pill uses a neutral gray dot and gray text (weaker than the red Recording pill, so the pairing failure reads as offline), the message is plain caption text with no banner treatment, the 'Reconnect' recovery action is a low-emphasis dark ghost button, and the Send-to segmented control and Polish switch stay fully active though the socket is down.",
+    "severity": "medium",
+    "fix": "Give the pill a red dot with red-tinted background/text, render the message in the amber banner component used for mic errors, promote Reconnect to the filled primary with clear separation above the footnote, and disable+dim the segmented control and switch until reconnected."
+  },
+  {
+    "screen": "Companion — touch targets (all mobile states)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/companion-ready.png",
+    "issue": "Primary touch targets measure well under the 44pt minimum at the 390pt viewport: the To PC/To Phone segments are ~29px tall, the send-to switch 28px (index.html:237-247) and the per-row Copy buttons ~27px (index.html:361-370).",
+    "severity": "medium",
+    "fix": "Grow padding (or add negative-margin hit slop / pseudo-element padding) to bring segments, switch and copy buttons to >=44px hit height while keeping the visual size unchanged."
+  },
+  {
+    "screen": "Companion — Polish text switch",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/companion-ready.png",
+    "issue": "The switch's OFF state has almost no visible track — a lone gray knob on a near-black pill that blends into the card (also in companion-mic-error.png) — so the control reads as disabled or broken rather than off.",
+    "severity": "medium",
+    "fix": "Give the off state a readable track (e.g. #3A3A44 fill with a 1px #4A4A56 border, keeping the gray knob) and use the brand purple for the on state to match the 'To PC' segment."
+  },
+  {
+    "screen": "Companion — recents (bottom inset)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/companion-recents.png",
+    "issue": "The third RECENT item's timestamp 'Oct 11, 10:56 PM' is sliced in half at the viewport bottom edge (and transcript footnotes are cut in companion-transcript-copy.png) with no bottom safe-area inset or scroll-continuation hint.",
+    "severity": "medium",
+    "fix": "Add bottom padding of env(safe-area-inset-bottom) + ~16pt inside the scroll container and end the visible list with a subtle fade or a 'Show all' affordance so continuation is hinted."
+  },
+  {
+    "screen": "Companion (mobile web, viewport)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/companion-mic-error.png",
+    "issue": "The page blocks zoom via maximum-scale=1, user-scalable=no (index.html:7), a WCAG 1.4.4 Resize Text failure for a page with 14px body copy whose transcripts can exceed the viewport.",
+    "severity": "medium",
+    "fix": "Remove maximum-scale/user-scalable so iOS pinch-zoom works, keeping viewport-fit=cover."
+  },
+  {
+    "screen": "Companion — color chips (contrast)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/companion-ready.png",
+    "issue": "White text on the companion's color fills fails WCAG AA: the active To PC/To Phone segment chip is 13px/600 white on --accent #7c5cff = 4.35:1 (index.html:18,233-236; flagged on all 7 companion screens) and the 'Copied' confirmation is white 14px/700 on --ok #46a758 = 3.03:1 (index.html:21,297-310, companion-transcript-copy.png).",
+    "severity": "medium",
+    "fix": "Darken the fills that carry white labels — e.g. accent to #7c3aed (5.70:1) and copied green to #15803d (5.02:1) — or switch those labels to near-black on the existing fills."
+  },
+  {
+    "screen": "Settings — Post Process (light-theme warnings)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/theme-light-settings-postprocessing.png",
+    "issue": "Light-theme warning text --light-color-warning #d97706 on #fbfbfb measures 3.08:1 (theme.css:41) while Alert.tsx:27-28 sets body text to text-warning and its comment claims both themes pass 4.5:1, which is false for light warnings (PromptStudio.tsx:137 also renders 11px warning text).",
+    "severity": "medium",
+    "fix": "Deepen --light-color-warning to amber-700 #b45309 (5.0:1 on #fbfbfb) or render alert warning body text in --color-text with only the icon in the warning color, and correct the stale comment."
+  },
+  {
+    "screen": "Settings — sidebar rows (it-IT truncation + Post Process hint)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/locale-it-settings-general.png",
+    "issue": "Sidebar rows break the single-line rhythm: at the fixed 160px width (w-40, Sidebar.tsx:153) Italian labels ellipsize two of nine primary nav items ('Post-Elabora…', 'Studio dei pr…', repeated in locale-it-settings-commands.png and locale-it-settings-postprocessing.png), and the disabled Post Process hint 'Enable in Advanced' wraps to two lines even in English (Sidebar.tsx:193-197; settings-notifications.png, toast-info-post-process-skip.png, settings-models.png), while the row's extra top gap reads as a group separator that isn't one (settings-history.png).",
+    "severity": "medium",
+    "fix": "Widen the sidebar container to w-48 so 17-char labels fit, shorten the hint to a whitespace-nowrap one-liner (or drop it in favor of the existing title tooltip), and normalize the Post Process row's spacing or add an explicit 'Add-ons' separator before it."
+  },
+  {
+    "screen": "Settings — footer (Check for updates, all pages)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-notifications.png",
+    "issue": "'Check for updates' renders in the same gray, weight and size as the static 'v1.2.5' beside it on every pane (text-text/60, Footer.tsx:28-38, UpdateChecker.tsx:81-87), so the only clickable element in that run reads as a label, and on About it duplicates the Version row's own 'Check for updates' button (settings-about.png, theme-light-settings-about.png).",
+    "severity": "medium",
+    "fix": "Make the footer purely informational (model + version as plain muted text) and keep a single clearly interactive 'Check for updates' control (accent tint or underline-on-hover) in the About Version row."
+  },
+  {
+    "screen": "Settings — info icons (General, Commands, About)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-general.png",
+    "issue": "Every visible row carries the same persistent ⓘ icon (all six shortcut rows, 9 rows in About, all command rows) and it renders very dim gray on the dark cards, so the affordance is constant noise and the explanations it opens are nearly undiscoverable.",
+    "severity": "low",
+    "fix": "Keep ⓘ only on genuinely non-obvious rows, raise it to secondary-label contrast (~#98989F) with hover/pressed tooltip states, and move those explanations to caption text under the label."
+  },
+  {
+    "screen": "Settings — footer model status dot (all pages)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-models.png",
+    "issue": "Model status is a color-only 8px dot (sampled #5e5e5d 'unloaded' gray even though the shown model is active, ModelStatusButton.tsx:28-49) while the same app uses a green dot for 'Live' in Debug Live Logs, so the indicator reads as idle/offline and color is the sole carrier (WCAG 1.4.1).",
+    "severity": "low",
+    "fix": "Use the semantic green for loaded/ready states matching the Live Logs language, reserve gray for genuinely unloaded, and pair the dot with a short status word or text state on hover so color is never alone."
+  },
+  {
+    "screen": "Main-window toasts",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/toast-info-post-process-skip.png",
+    "issue": "Toasts have no dismiss control and float over content — one covers the 'COMMAND MODE' header, the 'Low memory' toast floats right of center nearly touching the status text (toast-warning-model-fallback.png), and in a stack the front toast slices the one behind mid-line of body text (toast-stack-mixed.png).",
+    "severity": "low",
+    "fix": "Add a close button to toasts, anchor them in a dedicated inset area bottom-center/right with at least 16px clearance above the status bar, and clamp the collapsed stack's peek height to the title row."
+  },
+  {
+    "screen": "Settings — shortcut reset affordances",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-general.png",
+    "issue": "The circular-arrow reset renders on every binding/slider row regardless of state — including 'Not bound' rows and rows dimmed by an action toggle — so it reads as a dead control, while the hotkey value chips themselves ('Option + Shift + Space', 'Not bound') look like static labels with no record-to-rebind affordance (settings-postprocessing-local-catalog.png).",
+    "severity": "low",
+    "fix": "Render the reset icon only when the current value differs from the default (disabled/dimmed otherwise and hidden on disabled rows), and style the chip as a bordered recorder field with a 'Record shortcut' hover/placeholder state per macOS convention."
+  },
+  {
+    "screen": "Audit coverage (capture-only gaps)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-advanced-companion-devices.png",
+    "issue": "Numerous coded states have no capture in the 70-shot manifest: the QR pairing block is scrolled out of its own scenario shot, the overlay error tone is never rendered and streaming shots use 340x240 instead of the native 400x168 (overlay.rs:57-58), and missing states include onboarding (waiting spinner, mic-denied, memory-refusal, verifying/extracting), models (loading, selection-refusal, HF add-error), post-processing (test-connection and model-fetch failures), debug (empty log and runs), notifications (populated log, master-off gating), commands (no-results, validation, reset dialog), studio (source loading, Apple-unavailable, partial failure), general (audio-gated rows, no devices), companion (Connecting, Disconnected, it-IT strings) and About (locked updates), plus any CJK/Devanagari locale render, and theme-dark-settings-general.png is byte-identical (md5 071ff8cc38ff95b5bcc96ee63168ea05) to settings-general.png.",
+    "severity": "low",
+    "fix": "Extend the capture rig: re-frame the QR shot, capture overlays at native size with a real error code, drive the listed coded states (the fake socket and mocks already support them), inject it-locale companion strings plus one CJK and one Devanagari render, and replace the duplicate theme shot with a distinct pairing."
+  },
+  {
+    "screen": "Onboarding — permissions (sequence)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/onboarding-accessibility-fresh.png",
+    "issue": "The permissions step shows two identical full-weight pink 'Grant Permission' primaries stacked with no ordering cue or flow-wide step indicator across the three-screen flow, and because the screen is vertically centered with an unreserved action zone (AccessibilityOnboarding.tsx:406), resolving one permission re-centers the whole composition ~8px at the exact moment the user is watching for feedback.",
+    "severity": "low",
+    "fix": "Differentiate the second action as a step (mic stays primary, Accessibility becomes primary once mic resolves, or add '1 / 2' markers), add a slim three-dot progress indicator under the logo, and fix the action zone's min-height so the card never changes height."
+  },
+  {
+    "screen": "Settings — Prompt Studio (minor polish)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-studio-error.png",
+    "issue": "Three small inconsistencies: the error banner has square 90° corners against the ~10px rounding used by every other container on the page, the green status pill reads 'applied' contradicting the 'Nothing is typed or saved' caption, and the all-caps letter-spaced 'PROMPT STUDIO' page title breaks the large title-case page-header convention the Models page uses.",
+    "severity": "low",
+    "fix": "Round the banner to the card radius (~10px), rename the pill to 'Success'/'Done', and use title-case 'Prompt Studio' at the standard page-title size, reserving the caps style for section eyebrows."
+  },
+  {
+    "screen": "Companion — mobile copy polish",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/companion-ready.png",
+    "issue": "Small redundancies crowd the mobile surfaces: the ready-state caption repeats the button's own 'Hold to talk' verbatim within ~40px (index.html:831-835) and vanishes during recording, the transcript header over-subscribes four elements truncating the model tag to 'Canary 1…' before the Copied button (companion-transcript-copy.png), and the recording state's only feedback is an unlabeled full-width purple bar with no timer (companion-recording.png).",
+    "severity": "low",
+    "fix": "Leave the caption empty in the default mode reserving it for state-conditional guidance, drop or relocate the model tag so the header breathes, and attach a monospaced elapsed timer to the meter with a visibly varying level so it reads as live audio."
+  },
+  {
+    "screen": "Settings — Commands (it-IT seeded triggers)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/locale-it-settings-commands.png",
+    "issue": "Under the fully Italian command 'Punto — Inserisce .' the default trigger chips remain English ('period ×', 'full stop ×'), a localization gap inside an otherwise translated panel.",
+    "severity": "low",
+    "fix": "Localize the seeded default trigger phrases per locale (e.g. 'punto', 'punto fermo' for it-IT) or translate them at display time while storing canonical ids."
+  },
+  {
+    "screen": "Settings — toggle feedback (Experimental, Notifications)",
+    "shot": "/Users/shahil/work/regenai-repo/mission-control/voxbar-c4/shots/ui-audit/settings-advanced-experimental.png",
+    "issue": "Toggles fail to communicate their effects: turning 'Experimental Features' on produces zero visible change in the viewport (settings-advanced-experimental.png vs settings-advanced.png), the outcome-notifications dependency on the master toggle is buried in group descriptions and hover tooltips (NotificationsSettings.tsx:81, 65/74), and the empty notification log spends its strongest bottom-right position on a correctly-disabled but dead 'Clear all' button (NotificationsSettings.tsx:125).",
+    "severity": "low",
+    "fix": "Reveal the experimental rows or an inline note beneath the toggle, surface the dependency as secondary text under the Outcome notifications row, and hide 'Clear all' entirely when the log is empty."
+  }
+]

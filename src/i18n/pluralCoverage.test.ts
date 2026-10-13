@@ -41,6 +41,8 @@ const KEY_FAMILIES = [
   "settings.studio.runHint",
   "settings.studio.results",
   "settings.studio.diff.charsChanged",
+  "settings.studio.diff.added",
+  "settings.studio.diff.removed",
   "settings.postProcessing.api.model.listSummary",
   "settings.postProcessing.api.model.showAll",
 ];

@@ -17,6 +17,12 @@ interface AudioPlayerProps {
   onLoadRequest?: () => Promise<string | null>;
   className?: string;
   autoPlay?: boolean;
+  /** Resolve onLoadRequest once on mount (metadata only: the element keeps
+   * preload="metadata" and never plays) so the total-duration label binds
+   * to the clip's real length instead of resting at 0:00. Off by default
+   * because the request may be expensive for the caller (the History list
+   * only enables it where the URL is a cheap path lookup). */
+  eagerMetadata?: boolean;
 }
 
 interface AudioPlayerGroupContextValue {
@@ -56,6 +62,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   onLoadRequest,
   className = "",
   autoPlay = false,
+  eagerMetadata = false,
 }) => {
   const group = useContext(AudioPlayerGroupContext);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -64,6 +71,10 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
   const [isDragging, setIsDragging] = useState(false);
   const [loadedSrc, setLoadedSrc] = useState<string | null>(initialSrc ?? null);
   const [isLoading, setIsLoading] = useState(false);
+  // Whether the pending src load was requested by a play press: only then
+  // may playback start once the src resolves. An eagerMetadata load resolves
+  // the same way but must never auto-play.
+  const playAfterLoadRef = useRef(false);
 
   const audioRef = useRef<HTMLAudioElement>(null);
   const src = loadedSrc;
@@ -157,14 +168,17 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     };
   }, [group]);
 
-  // Auto-play when src becomes available (via onLoadRequest or autoPlay prop)
+  // Auto-play when src becomes available (via onLoadRequest or autoPlay prop).
+  // A src resolved by an eagerMetadata load must NOT start playback, so the
+  // play decision rides playAfterLoadRef (armed only by a play press).
   const prevLoadedSrc = useRef<string | null>(null);
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
     // Play when loadedSrc changes from null to a value (lazy load case)
-    if (loadedSrc && !prevLoadedSrc.current && onLoadRequest) {
+    if (loadedSrc && !prevLoadedSrc.current && playAfterLoadRef.current) {
+      playAfterLoadRef.current = false;
       audio.play().catch((error) => {
         console.error("Auto-play failed:", error);
       });
@@ -177,7 +191,22 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
     }
 
     prevLoadedSrc.current = loadedSrc;
-  }, [loadedSrc, autoPlay, initialSrc, onLoadRequest]);
+  }, [loadedSrc, autoPlay, initialSrc]);
+
+  // Eager metadata probe (see eagerMetadata): resolve the URL once on mount
+  // so preload="metadata" can fetch the clip's real length for the duration
+  // label. Guarded by a ref so a StrictMode double-mount issues it once.
+  const eagerRequestedRef = useRef(false);
+  useEffect(() => {
+    if (!eagerMetadata || eagerRequestedRef.current) return;
+    if (loadedSrc || !onLoadRequest) return;
+    eagerRequestedRef.current = true;
+    onLoadRequest().then((url) => {
+      // Only adopt the URL when nothing else loaded one in the meantime
+      // (the user may have pressed play first).
+      setLoadedSrc((current) => current ?? url);
+    });
+  }, [eagerMetadata, loadedSrc, onLoadRequest]);
 
   // Global drag handlers
   const handleMouseUp = useCallback(() => {
@@ -223,6 +252,7 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
         // If no src loaded yet, request it
         if (!src && onLoadRequest) {
           setIsLoading(true);
+          playAfterLoadRef.current = true;
           const newSrc = await onLoadRequest();
           setIsLoading(false);
           if (newSrc) {
@@ -308,14 +338,37 @@ export const AudioPlayer: React.FC<AudioPlayerProps> = ({
           onChange={handleSeek}
           onMouseDown={handleSliderMouseDown}
           onTouchStart={handleSliderTouchStart}
-          className={`${RANGE_INPUT_CLASS} flex-1 ${progressPercent >= 99.5 ? "[&::-webkit-slider-thumb]:translate-x-0.5 [&::-moz-range-thumb]:translate-x-0.5" : ""}`}
+          className={`${RANGE_INPUT_CLASS} flex-1 ${
+            progressPercent >= 99.5
+              ? "[&::-webkit-slider-thumb]:translate-x-0.5 [&::-moz-range-thumb]:translate-x-0.5"
+              : progressPercent <= 0.5
+                ? // Symmetric with the >=99.5 inset: at rest (and after a
+                  // seek back to the start) the 14px knob's left half would
+                  // protrude past the track's start edge into the elapsed
+                  // label, so it tucks 2px inside the track instead.
+                  "[&::-webkit-slider-thumb]:-translate-x-0.5 [&::-moz-range-thumb]:-translate-x-0.5"
+                : ""
+          }`}
           style={{
             background: `linear-gradient(to right, var(--color-background-ui) 0%, var(--color-background-ui) ${progressPercent}%, rgba(128, 128, 128, 0.2) ${progressPercent}%, rgba(128, 128, 128, 0.2) 100%)`,
           }}
         />
 
-        <span className="text-xs text-text/60 min-w-[30px] tabular-nums">
-          {formatTime(duration)}
+        <span
+          className="text-xs text-text/60 min-w-[30px] tabular-nums"
+          title={
+            duration > 0 && isFinite(duration)
+              ? formatTime(duration)
+              : undefined
+          }
+        >
+          {/* The total binds to the clip's real length once metadata
+           * resolves; before that an en-dash placeholder says "unknown"
+           * instead of a fake 0:00 that read as a broken or empty
+           * recording. */}
+          {duration > 0 && isFinite(duration)
+            ? formatTime(duration)
+            : "\u2013:\u2013\u2013"}
         </span>
       </div>
     </div>

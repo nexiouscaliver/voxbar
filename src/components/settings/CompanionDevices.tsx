@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Copy } from "lucide-react";
 import { toast } from "sonner";
 import i18n from "../../i18n";
 import { commands } from "@/bindings";
@@ -184,7 +185,19 @@ export const CompanionDevices: React.FC = () => {
 
   const supported = status?.supported ?? true;
   const running = status?.running ?? false;
-  const fingerprint = (status?.fingerprint ?? "").match(/.{1,8}/g) ?? [];
+  // The digest arrives as raw lowercase hex (companion/cert.rs
+  // fingerprint_hex: the full 32-byte SHA-256). Display groups it as
+  // uppercase 2-byte words in fixed 16-byte rows so a wrap can only ever
+  // fall on a group boundary - the byte-by-byte phone-vs-Mac comparison
+  // the label exists for must never see a byte torn across lines.
+  const fingerprintHex = (status?.fingerprint ?? "")
+    .replace(/[^0-9a-fA-F]/g, "")
+    .toUpperCase();
+  const fingerprintGroups = fingerprintHex.match(/.{1,4}/g) ?? [];
+  const fingerprintRows: string[] = [];
+  for (let i = 0; i < fingerprintGroups.length; i += 8) {
+    fingerprintRows.push(fingerprintGroups.slice(i, i + 8).join(" "));
+  }
   const address = status?.url
     ? status.url.replace(/^https:\/\//, "").split("/")[0]
     : null;
@@ -353,7 +366,7 @@ export const CompanionDevices: React.FC = () => {
               <input
                 id="companion-advertised-host"
                 type="text"
-                className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-background-ui/40 px-2 py-1 font-mono text-xs text-text focus:border-logo-primary focus:outline-none"
+                className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-mid-gray/10 px-2 py-1 font-mono text-xs text-text placeholder:text-text/40 focus:border-logo-primary focus:outline-none"
                 placeholder={t(
                   "settings.advanced.companionDevices.hostPlaceholder",
                 )}
@@ -375,7 +388,7 @@ export const CompanionDevices: React.FC = () => {
                 id="companion-port"
                 type="text"
                 inputMode="numeric"
-                className="w-24 rounded-md border border-mid-gray/30 bg-background-ui/40 px-2 py-1 font-mono text-xs text-text focus:border-logo-primary focus:outline-none"
+                className="w-24 rounded-md border border-mid-gray/30 bg-mid-gray/10 px-2 py-1 font-mono text-xs text-text placeholder:text-text/40 focus:border-logo-primary focus:outline-none"
                 value={portValue}
                 onChange={(e) => setPortDraft(e.target.value)}
                 onBlur={() =>
@@ -410,7 +423,7 @@ export const CompanionDevices: React.FC = () => {
               <input
                 id="companion-tls-cert"
                 type="text"
-                className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-background-ui/40 px-2 py-1 font-mono text-xs text-text focus:border-logo-primary focus:outline-none"
+                className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-mid-gray/10 px-2 py-1 font-mono text-xs text-text placeholder:text-text/40 focus:border-logo-primary focus:outline-none"
                 placeholder="/path/to/cert.pem"
                 value={certValue}
                 onChange={(e) => setCertDraft(e.target.value)}
@@ -427,7 +440,7 @@ export const CompanionDevices: React.FC = () => {
               <input
                 id="companion-tls-key"
                 type="text"
-                className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-background-ui/40 px-2 py-1 font-mono text-xs text-text focus:border-logo-primary focus:outline-none"
+                className="min-w-0 flex-1 rounded-md border border-mid-gray/30 bg-mid-gray/10 px-2 py-1 font-mono text-xs text-text placeholder:text-text/40 focus:border-logo-primary focus:outline-none"
                 placeholder="/path/to/key.pem"
                 value={keyValue}
                 onChange={(e) => setKeyDraft(e.target.value)}
@@ -463,13 +476,39 @@ export const CompanionDevices: React.FC = () => {
                 )}
               </dd>
             </div>
-            {fingerprint.length > 0 && (
+            {fingerprintRows.length > 0 && (
               <div className="flex flex-col gap-1">
-                <dt className="text-secondary/70">
-                  {t("settings.advanced.companionDevices.fingerprintLabel")}
-                </dt>
-                <dd className="break-all font-mono text-[11px] leading-4 text-secondary">
-                  {fingerprint.join(" ")}
+                <div className="flex items-center gap-2">
+                  <dt className="text-secondary/70">
+                    {t("settings.advanced.companionDevices.fingerprintLabel")}
+                  </dt>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard
+                        .writeText(fingerprintGroups.join(" "))
+                        .then(() =>
+                          toast.success(
+                            t(
+                              "settings.advanced.companionDevices.fingerprintCopied",
+                            ),
+                          ),
+                        )
+                        .catch(() => {});
+                    }}
+                    title={t("common.copy")}
+                    aria-label={t("common.copy")}
+                    className="flex items-center justify-center p-1 rounded-md text-text/50 hover:text-logo-primary hover:bg-mid-gray/10 transition-colors cursor-pointer"
+                  >
+                    <Copy className="w-3 h-3" />
+                  </button>
+                </div>
+                <dd className="font-mono text-[11px] leading-4 text-secondary">
+                  {fingerprintRows.map((row) => (
+                    <span key={row} className="block whitespace-pre">
+                      {row}
+                    </span>
+                  ))}
                 </dd>
               </div>
             )}

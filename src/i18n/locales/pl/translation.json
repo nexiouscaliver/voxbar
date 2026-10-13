@@ -29,11 +29,6 @@
     "secureInputWarning": "⚠ Skróty zablokowane przez Secure Input",
     "postProcessPrompt": "Prompt postprocessingu"
   },
-  "trayCopyOutcome": {
-    "copied": "Dyktando zostało skopiowane do schowka.",
-    "empty": "Nie ma jeszcze niczego do skopiowania.",
-    "failed": "Nie udało się skopiować dyktanda do schowka."
-  },
   "sidebar": {
     "general": "Ogólne",
     "commands": "Polecenia",
@@ -46,7 +41,8 @@
     "debug": "Debugowanie",
     "about": "O programie",
     "notifications": "Powiadomienia",
-    "promptStudio": "Studio promptów"
+    "promptStudio": "Studio promptów",
+    "addonsGroup": "Dodatki"
   },
   "onboarding": {
     "subtitle": "Aby rozpocząć, wybierz model transkrypcji",
@@ -68,7 +64,9 @@
     },
     "modelCard": {
       "accuracy": "dokładność",
-      "speed": "szybkość"
+      "speed": "szybkość",
+      "installed": "Zainstalowano",
+      "selected": "Wybrano"
     },
     "models": {
       "small": {
@@ -162,7 +160,9 @@
       "errors": {
         "checkFailed": "Nie udało się sprawdzić uprawnień. Spróbuj ponownie.",
         "requestFailed": "Nie udało się poprosić o uprawnienie. Spróbuj ponownie."
-      }
+      },
+      "done": "Gotowe",
+      "openSettings": "Otwórz ustawienia"
     },
     "hotkeyHint": "Dyktowanie uruchomisz klawiszem {{hotkey}} w każdej chwili.",
     "hotkeyChangeHint": "Ten skrót zmienisz w Ustawienia > Ogólne.",
@@ -171,6 +171,10 @@
       "body": "VoxBar nie mógł połączyć się z katalogiem modeli. Sprawdź połączenie i spróbuj ponownie albo pomiń ten krok i wybierz model później w Ustawieniach.",
       "retry": "Spróbuj ponownie",
       "skip": "Pomiń na razie"
+    },
+    "postProcessGroup": {
+      "title": "Opcjonalnie: Postproces",
+      "caption": "Do dopracowywania transkrypcji po dyktowaniu. Nie służy do transkrypcji."
     }
   },
   "modelSelector": {
@@ -313,7 +317,9 @@
           "set": "Nie udało się ustawić skrótu: {{error}}",
           "reset": "Nie udało się zresetować skrótu do wartości domyślnej"
         },
-        "unbound": "Nie przypisano"
+        "unbound": "Nie przypisano",
+        "recordHint": "Kliknij, aby nagrać nowy skrót",
+        "gatedHint": "Włącz „{{action}}”, aby przypisać klawisz"
       },
       "language": {
         "title": "Język",
@@ -422,7 +428,8 @@
         "clearAll": "Usuwa całe dyktando",
         "undo": "Wykonuje cofnięcie w aktywnej aplikacji",
         "paste": "Wkleja schowek w aktywnej aplikacji"
-      }
+      },
+      "defaultPhrasesNote": "Domyślne frazy to angielskie słowa, których nasłuchuje rozpoznawanie,oraz wbudowane odpowiedniki w hindi i chińskim. Własną frazę dodasz w dowolnymjęzyku w dowolnym wierszu."
     },
     "search": {
       "placeholder": "Szukaj w ustawieniach",
@@ -712,7 +719,8 @@
         "restartButton": "Uruchom serwer ponownie",
         "restartPending": "Zmiany zostaną zastosowane po ponownym uruchomieniu",
         "qrPreviewNote": "Podgląd: ten adres URL będzie rozgłaszany przy następnym uruchomieniu serwera.",
-        "sharedNetworkNote": "Telefon i ten Mac muszą mieć wspólną sieć: tę samą sieć Wi-Fi lub LAN albo ten sam tailnet (na przykład oba w Tailscale)."
+        "sharedNetworkNote": "Telefon i ten Mac muszą mieć wspólną sieć: tę samą sieć Wi-Fi lub LAN albo ten sam tailnet (na przykład oba w Tailscale).",
+        "fingerprintCopied": "Skopiowano"
       }
     },
     "postProcessing": {
@@ -764,7 +772,8 @@
           "showAll_few": "Pokaż wszystkie ({{count}})",
           "showAll_many": "Pokaż wszystkie ({{count}})",
           "showAll_other": "Pokaż wszystkie ({{count}})",
-          "showFewer": "Pokaż mniej"
+          "showFewer": "Pokaż mniej",
+          "emptyNoKey": "Wpisz powyżej swój klucz API, a następnie odśwież, aby pobrać modele."
         },
         "timeout": {
           "title": "Limit czasu żądania",
@@ -935,7 +944,6 @@
       "empty": "Brak transkrypcji. Rozpocznij nagrywanie, aby zbudować historię!",
       "copyToClipboard": "Kopiuj transkrypcję do schowka",
       "copyError": "Nie udało się skopiować transkrypcji do schowka.",
-      "savedToggleError": "Nie udało się zaktualizować stanu zapisania.",
       "save": "Zapisz transkrypcję",
       "unsave": "Usuń z zapisanych",
       "delete": "Usuń wpis",
@@ -955,6 +963,12 @@
       "viaPostProcess": "przez {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Pokaż zmiany",
       "hideChanges": "Ukryj zmiany",
+      "emptyTitle": "Brak transkrypcji",
+      "emptyHint": "Naciśnij skrót nagrywania, aby przechwycić swoje pierwsze polecenie.",
+      "deleteConfirm": "Usunąć ten wpis? Nagranie i jego transkrypcja zostaną trwale usunięte.",
+      "today": "Dzisiaj",
+      "yesterday": "Wczoraj",
+      "savedToggleError": "Nie udało się zaktualizować stanu zapisania.",
       "dbRecoveredNotice": "Baza danych historii transkrypcji była nieczytelna, więc rozpoczęto nową. Poprzednia baza danych została zachowana jako {{file}}."
     },
     "debug": {
@@ -976,7 +990,9 @@
         "resume": "Wznów",
         "copied": "Skopiowano",
         "lineCount": "Wierszy: {{count}}",
-        "empty": "Oczekiwanie na logi… Wpisy pojawią się tutaj, gdy aplikacja je wygeneruje."
+        "empty": "Oczekiwanie na logi… Wpisy pojawią się tutaj, gdy aplikacja je wygeneruje.",
+        "clearConfirm": "Wyczyścić przechwycone wiersze z tego widoku? Plik dziennika na dysku zostanie zachowany.",
+        "clearConfirmTitle": "Wyczyścić przechwycone wiersze?"
       },
       "updateChecks": {
         "label": "Sprawdzaj aktualizacje",
@@ -1160,7 +1176,8 @@
       },
       "outcomes": {
         "label": "Powiadomienia o wynikach",
-        "description": "Powiadamiaj także o zakończeniu sesji telefonu, na przykład po osiągnięciu limitu sesji lub rozłączeniu telefonu. Wyłączone oznacza tylko błędy."
+        "description": "Powiadamiaj także o zakończeniu sesji telefonu, na przykład po osiągnięciu limitu sesji lub rozłączeniu telefonu. Wyłączone oznacza tylko błędy.",
+        "requiresMaster": "Dostępne tylko przy włączonych powiadomieniach systemowych."
       },
       "log": {
         "title": "Dziennik powiadomień",
@@ -1198,8 +1215,6 @@
       "runHint_many": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "runHint_other": "{{count}} par prompt-silnik. Nic nie jest wpisywane ani zapisywane.",
       "running": "Uruchamianie...",
-      "cancel": "Anuluj",
-      "cancelledCard": "Anulowano przed rozpoczęciem tego uruchomienia.",
       "rerun": "Uruchom ponownie",
       "latency": "{{ms}} ms",
       "rawKept": "Silnik nie powiódł się lub został pominięty, więc surowa transkrypcja zostałaby zachowana.",
@@ -1219,10 +1234,21 @@
         "charsChanged_few": "Zmieniono {{count}} znaki",
         "charsChanged_many": "Zmieniono {{count}} znaków",
         "charsChanged_other": "Zmieniono znaków: {{count}}",
-        "identical": "Brak zmian."
+        "identical": "Brak zmian.",
+        "added_few": "+{{count}} dodane",
+        "added_many": "+{{count}} dodanych",
+        "added_one": "+1 dodana",
+        "added_other": "Dodane: {{count}}",
+        "removed_few": "{{count}} usunięte",
+        "removed_many": "{{count}} usuniętych",
+        "removed_one": "1 usunięta",
+        "removed_other": "Usunięte: {{count}}"
       },
       "resultsEmptyTitle": "Wyniki pojawią się tutaj",
-      "resultsEmptyHint": "Wybierz wyżej źródło, prompty i silniki, a potem uruchom. Każda karta pokazuje dopracowany tekst, zmiany i czas działania."
+      "resultsEmptyHint": "Wybierz wyżej źródło, prompty i silniki, a potem uruchom. Każda karta pokazuje dopracowany tekst, zmiany i czas działania.",
+      "appliedLabel": "Sukces",
+      "cancel": "Anuluj",
+      "cancelledCard": "Anulowano przed rozpoczęciem tego uruchomienia."
     }
   },
   "footer": {
@@ -1269,11 +1295,13 @@
     "open": "Otwórz",
     "copy": "Kopiuj",
     "clear": "Wyczyść",
-    "noOptionsFound": "Nie znaleziono opcji"
+    "noOptionsFound": "Nie znaleziono opcji",
+    "cancel": "Anuluj"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar potrzebuje uprawnień dostępności, aby wpisywać transkrybowany tekst.",
-    "openSettings": "Otwórz ustawienia systemowe"
+    "openSettings": "Otwórz ustawienia systemowe",
+    "resetSetting": "Przywróć {{label}} do wartości domyślnej"
   },
   "errors": {
     "loadDirectory": "Błąd wczytywania katalogu: {{error}}",
@@ -1289,8 +1317,6 @@
     "recordingFailed": "Nie udało się rozpocząć nagrywania: {{error}}",
     "modelLoadFailed": "Nie udało się załadować modelu: {{model}}",
     "modelLoadFailedUnknown": "nieznany model",
-    "modelLoadFailedMemoryGate": "Za mało wolnej pamięci, aby wczytać {{model}}: potrzeba ok. {{needed}}, dostępne ok. {{free}}.",
-    "modelLoadFailedDetail": "Model nie został zmieniony. Przyczyna techniczna znajduje się w pliku dziennika.",
     "modelFallbackTitle": "Mało pamięci",
     "modelFallback": "Przełączono na {{model}} dla tego dyktanda",
     "pasteFailedTitle": "Nie udało się wkleić tekstu",
@@ -1298,7 +1324,9 @@
     "transcriptionFailedTitle": "Transkrypcja nie powiodła się",
     "noModelSelectedTitle": "Nie wybrano modelu",
     "noModelSelected": "Przed dyktowaniem wybierz model transkrypcji w Ustawieniach.",
-    "openDirectory": "Nie udało się otworzyć folderu: {{error}}"
+    "openDirectory": "Nie udało się otworzyć folderu: {{error}}",
+    "modelLoadFailedMemoryGate": "Za mało wolnej pamięci, aby wczytać {{model}}: potrzeba ok. {{needed}}, dostępne ok. {{free}}.",
+    "modelLoadFailedDetail": "Model nie został zmieniony. Przyczyna techniczna znajduje się w pliku dziennika."
   },
   "appLanguage": {
     "title": "Język aplikacji",
@@ -1366,7 +1394,8 @@
     "companionBadge": "Mikrofon towarzyszący"
   },
   "whatsNew": {
-    "title": "Nowości w VoxBar v{{version}}"
+    "title": "Nowości w VoxBar v{{version}}",
+    "gotIt": "Rozumiem"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} może blokować 1 skrót",
@@ -1418,13 +1447,9 @@
     "disconnectedFinalized": "Połączenie zerwane. Mac zachował to, co powiedziałeś.",
     "capped": "Sesja ograniczona do 15 minut. Naciśnij ponownie, aby kontynuować.",
     "zeroAudio": "Dźwięk nie dotarł do Maca. Przytrzymaj przycisk i mów.",
-    "zeroAudioHold": "Dźwięk nie dotarł do Maca. Przytrzymaj przycisk i mów.",
-    "zeroAudioHoldOrToggle": "Dźwięk nie dotarł do Maca. Przytrzymaj lub dotknij przycisku i mów.",
-    "zeroAudioTap": "Dźwięk nie dotarł do Maca. Dotknij przycisku i mów.",
     "serverStopped": "Mac zatrzymał serwer towarzyszący.",
     "reconnect": "Połącz ponownie",
     "holdToTalk": "Przytrzymaj, aby mówić",
-    "holdOrToggleToTalk": "Przytrzymaj, aby mówić, dotknij, aby zablokować",
     "tapToTalk": "Dotknij, aby mówić",
     "release": "Puść, aby zakończyć",
     "tapToStop": "Dotknij, aby zatrzymać",
@@ -1443,6 +1468,17 @@
     "copied": "Skopiowano",
     "polished": "Wygładzony",
     "historyTitle": "Ostatnie",
-    "historyEmpty": "Dyktowania z tego telefonu pojawią się tutaj."
+    "historyEmpty": "Dyktowania z tego telefonu pojawią się tutaj.",
+    "stateMicBlocked": "Mikrofon zablokowany",
+    "micBlockedRetry": "Mikrofon zablokowany. Dotknij, aby ponowić.",
+    "zeroAudioHold": "Dźwięk nie dotarł do Maca. Przytrzymaj przycisk i mów.",
+    "zeroAudioHoldOrToggle": "Dźwięk nie dotarł do Maca. Przytrzymaj lub dotknij przycisku i mów.",
+    "zeroAudioTap": "Dźwięk nie dotarł do Maca. Dotknij przycisku i mów.",
+    "holdOrToggleToTalk": "Przytrzymaj, aby mówić, dotknij, aby zablokować"
+  },
+  "trayCopyOutcome": {
+    "copied": "Dyktando zostało skopiowane do schowka.",
+    "empty": "Nie ma jeszcze niczego do skopiowania.",
+    "failed": "Nie udało się skopiować dyktanda do schowka."
   }
 }

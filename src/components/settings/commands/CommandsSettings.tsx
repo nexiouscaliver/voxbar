@@ -29,6 +29,8 @@ import {
 interface CommandRowProps {
   command: CommandId;
   entries: CommandMatrixEntry[];
+  /** Phrases of the pristine backend default table (the seeded triggers). */
+  defaultPhrases: ReadonlySet<string>;
   defaultCount: number | null;
   /** KB-022: true while the default phrases have not resolved yet; add
    * and remove wait so a pre-resolution edit cannot persist zero-phrase
@@ -51,6 +53,7 @@ interface CommandRowProps {
 const CommandRow: React.FC<CommandRowProps> = ({
   command,
   entries,
+  defaultPhrases,
   defaultCount,
   defaultsPending,
   collision,
@@ -65,6 +68,23 @@ const CommandRow: React.FC<CommandRowProps> = ({
 
   const phrases =
     entries.find((entry) => entry.command === command)?.phrases ?? [];
+
+  // A seeded Latin-script trigger is the recognizer's English vocabulary
+  // (command_matrix.rs pins Latin seeds to English on purpose), which used
+  // to leave bare English chips inside an otherwise translated panel. The
+  // chip now leads with the command's translated name and keeps the literal
+  // phrase as a dimmed gloss: the panel reads localized while the chip
+  // still shows the exact spoken string. User-added phrases and the
+  // non-Latin built-in aliases (already in the recognizer's output
+  // language) render bare, and a locale whose name matches the literal
+  // (English itself) skips the gloss.
+  const localizedSeedLabel = (phrase: string): string | null => {
+    if (!defaultPhrases.has(phrase)) return null;
+    // eslint-disable-next-line no-control-regex
+    if (!/^[\x20-\x7E]+$/.test(phrase)) return null;
+    const localized: string = t(`settings.commands.names.${command}`);
+    return localized.toLowerCase() === phrase.toLowerCase() ? null : localized;
+  };
 
   // KB-022: edits disabled while defaults are unresolved (see the prop).
   const editsLocked = busy || defaultsPending;
@@ -104,25 +124,37 @@ const CommandRow: React.FC<CommandRowProps> = ({
     >
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
-          {phrases.map((phrase) => (
-            <span
-              key={phrase}
-              className="inline-flex max-w-64 items-center gap-1 rounded-md border border-mid-gray/20 bg-mid-gray/10 px-2 py-0.5 text-xs"
-            >
-              <span className="truncate" title={phrase}>
-                {phrase}
-              </span>
-              <button
-                type="button"
-                onClick={() => onRemove(command, phrase)}
-                disabled={editsLocked}
-                aria-label={t("settings.commands.removePhrase", { phrase })}
-                className="shrink-0 cursor-pointer rounded-sm text-mid-gray transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
+          {phrases.map((phrase) => {
+            const label = localizedSeedLabel(phrase);
+            return (
+              <span
+                key={phrase}
+                className="inline-flex max-w-64 items-center gap-1 rounded-md border border-mid-gray/20 bg-mid-gray/10 px-2 py-0.5 text-xs"
               >
-                <X className="h-3 w-3" aria-hidden="true" />
-              </button>
-            </span>
-          ))}
+                {label ? (
+                  <>
+                    <span className="truncate">{label}</span>
+                    <span className="truncate text-mid-gray" title={phrase}>
+                      ({phrase})
+                    </span>
+                  </>
+                ) : (
+                  <span className="truncate" title={phrase}>
+                    {phrase}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onRemove(command, phrase)}
+                  disabled={busy}
+                  aria-label={t("settings.commands.removePhrase", { phrase })}
+                  className="shrink-0 cursor-pointer rounded-sm text-mid-gray transition-colors hover:text-error disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <X className="h-3 w-3" aria-hidden="true" />
+                </button>
+              </span>
+            );
+          })}
           <Input
             type="text"
             variant="compact"
@@ -219,6 +251,13 @@ export const CommandsSettings: React.FC = () => {
   // null (or not yet loaded) means the built-in defaults.
   const stored = getSetting("command_phrases");
   const entries = useMemo(() => stored ?? defaults ?? [], [stored, defaults]);
+
+  // Every phrase of the pristine default table: the set that decides which
+  // chips render with the translated-name + literal-gloss treatment.
+  const defaultPhrases = useMemo(
+    () => new Set(defaults?.flatMap((entry) => entry.phrases) ?? []),
+    [defaults],
+  );
 
   // Latest table ref so a toast's Undo action never commits a stale table
   // when the user has edited other rows in the meantime.
@@ -322,40 +361,59 @@ export const CommandsSettings: React.FC = () => {
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex min-w-40 flex-1 items-center gap-2">
-          <Search
-            className="h-4 w-4 shrink-0 text-mid-gray"
-            aria-hidden="true"
-          />
-          <Input
-            type="text"
-            variant="compact"
-            className="w-full"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder={t("settings.commands.searchPlaceholder")}
-            aria-label={t("settings.commands.searchPlaceholder")}
-          />
-        </div>
+      {/* The pane's own filter reads as a scoped list filter, not a second
+          copy of the boxed "Search settings" field pinned above it: compact,
+          right-aligned, underline-only, glyph inside the field. The
+          destructive reset-all sits opposite it, separated. */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <Button
-          variant="secondary"
+          variant="danger-ghost"
           size="sm"
           onClick={() => setResetAllOpen(true)}
           disabled={busy}
         >
           {t("settings.commands.resetAll")}
         </Button>
+        <div className="relative w-56 max-w-full">
+          <Search
+            className="pointer-events-none absolute start-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text/40"
+            aria-hidden="true"
+          />
+          <input
+            type="text"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t("settings.commands.searchPlaceholder")}
+            aria-label={t("settings.commands.searchPlaceholder")}
+            className="w-full rounded-none border-0 border-b border-mid-gray/50 bg-transparent py-1 ps-7 pe-2 text-sm transition-colors placeholder:text-text/40 hover:border-mid-gray focus:border-logo-primary focus:outline-none"
+          />
+        </div>
       </div>
 
       {!filtering && (
         <SettingsGroup title={t("settings.commands.behavior")}>
-          <AutoInterpretCommands descriptionMode="tooltip" grouped={true} />
-          <SpokenPunctuation descriptionMode="tooltip" grouped={true} />
-          <NumberFormatSetting descriptionMode="tooltip" grouped={true} />
-          <TerminalPunctuation descriptionMode="tooltip" grouped={true} />
-          <VoiceDeletionCommands descriptionMode="tooltip" grouped={true} />
+          {/* Behavior toggles explain themselves: the caption text under each
+              row states what the toggle does, so no row needs the persistent
+              ⓘ (the info-icon audit: the icon stays only on genuinely
+              non-obvious rows). */}
+          <AutoInterpretCommands descriptionMode="inline" grouped={true} />
+          <SpokenPunctuation descriptionMode="inline" grouped={true} />
+          <NumberFormatSetting descriptionMode="inline" grouped={true} />
+          <TerminalPunctuation descriptionMode="inline" grouped={true} />
+          <VoiceDeletionCommands descriptionMode="inline" grouped={true} />
         </SettingsGroup>
+      )}
+
+      {/* The seeded Latin-script trigger phrases are the recognizer's
+          English defaults (command_matrix.rs documents why Latin seeds stay
+          English), so each default chip renders the command's translated
+          name with the literal phrase as a dimmed gloss instead of a bare
+          English string; the caption still names the arrangement and points
+          at the add-phrase field for other languages. */}
+      {visibleGroups.length > 0 && (
+        <p className="px-4 text-xs text-secondary">
+          {t("settings.commands.defaultPhrasesNote")}
+        </p>
       )}
 
       {visibleGroups.map((group) => (
@@ -368,6 +426,7 @@ export const CommandsSettings: React.FC = () => {
               key={command}
               command={command}
               entries={entries}
+              defaultPhrases={defaultPhrases}
               defaultCount={
                 defaults?.find((entry) => entry.command === command)?.phrases
                   .length ?? null
@@ -403,7 +462,7 @@ export const CommandsSettings: React.FC = () => {
             >
               {t("settings.commands.resetAllConfirmCancel")}
             </Button>
-            <Button variant="primary" size="sm" onClick={confirmResetAll}>
+            <Button variant="danger" size="sm" onClick={confirmResetAll}>
               {t("settings.commands.resetAllConfirmConfirm")}
             </Button>
           </>

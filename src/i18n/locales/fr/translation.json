@@ -29,11 +29,6 @@
     "secureInputWarning": "⚠ Raccourcis bloqués par Secure Input",
     "postProcessPrompt": "Prompt de post-traitement"
   },
-  "trayCopyOutcome": {
-    "copied": "La dictée a été copiée dans le presse-papiers.",
-    "empty": "Il n'y a encore rien à copier.",
-    "failed": "Impossible de copier la dictée dans le presse-papiers."
-  },
   "sidebar": {
     "general": "Général",
     "commands": "Commandes",
@@ -46,7 +41,8 @@
     "debug": "Débogage",
     "about": "À propos",
     "notifications": "Notifications",
-    "promptStudio": "Studio de prompts"
+    "promptStudio": "Studio de prompts",
+    "addonsGroup": "Extensions"
   },
   "onboarding": {
     "subtitle": "Pour commencer, choisissez un modèle de transcription",
@@ -68,7 +64,9 @@
     },
     "modelCard": {
       "accuracy": "précision",
-      "speed": "vitesse"
+      "speed": "vitesse",
+      "installed": "Installé",
+      "selected": "Sélectionné"
     },
     "models": {
       "small": {
@@ -162,7 +160,9 @@
       "errors": {
         "checkFailed": "Échec de la vérification des autorisations. Veuillez réessayer.",
         "requestFailed": "Échec de la demande d'autorisation. Veuillez réessayer."
-      }
+      },
+      "done": "Terminé",
+      "openSettings": "Ouvrir les réglages"
     },
     "hotkeyHint": "Lancez la dictée avec {{hotkey}} à tout moment.",
     "hotkeyChangeHint": "Vous pouvez changer ce raccourci dans Paramètres > Général.",
@@ -171,6 +171,10 @@
       "body": "VoxBar n'a pas pu joindre le catalogue de modèles. Vérifiez votre connexion et réessayez, ou passez cette étape et choisissez un modèle plus tard dans les Réglages.",
       "retry": "Réessayer",
       "skip": "Passer pour l'instant"
+    },
+    "postProcessGroup": {
+      "title": "Facultatif : Post-traitement",
+      "caption": "Pour peaufiner les transcriptions après la dictée. Non utilisé pour la transcription."
     }
   },
   "modelSelector": {
@@ -313,7 +317,9 @@
           "set": "Échec de la définition du raccourci : {{error}}",
           "reset": "Échec de la réinitialisation du raccourci à sa valeur d'origine"
         },
-        "unbound": "Non assigné"
+        "unbound": "Non assigné",
+        "recordHint": "Cliquez pour enregistrer un nouveau raccourci",
+        "gatedHint": "Activez {{action}} pour associer une touche"
       },
       "language": {
         "title": "Langue",
@@ -422,7 +428,8 @@
         "clearAll": "Efface toute la dictée",
         "undo": "Annule dans l'application active",
         "paste": "Colle le presse-papiers dans l'application active"
-      }
+      },
+      "defaultPhrasesNote": "Les phrases par défaut sont les mots anglais écoutés par lereconnaissance, plus les alias intégrés en hindi et chinois. Ajoutez votrepropre phrase dans n'importe quelle langue sur n'importe quelle ligne."
     },
     "search": {
       "placeholder": "Rechercher dans les paramètres",
@@ -712,7 +719,8 @@
         "restartButton": "Redémarrer le serveur",
         "restartPending": "Les modifications s'appliqueront après un redémarrage",
         "qrPreviewNote": "Aperçu : cette URL sera annoncée au prochain démarrage du serveur.",
-        "sharedNetworkNote": "Le téléphone et ce Mac doivent partager un réseau : le même Wi-Fi ou LAN, ou le même tailnet (par exemple tous deux sur Tailscale)."
+        "sharedNetworkNote": "Le téléphone et ce Mac doivent partager un réseau : le même Wi-Fi ou LAN, ou le même tailnet (par exemple tous deux sur Tailscale).",
+        "fingerprintCopied": "Copié"
       }
     },
     "postProcessing": {
@@ -760,7 +768,8 @@
           "filterPlaceholder": "Filtrer les modèles",
           "showAll_one": "Tout afficher ({{count}})",
           "showAll_other": "Tout afficher ({{count}})",
-          "showFewer": "Afficher moins"
+          "showFewer": "Afficher moins",
+          "emptyNoKey": "Saisissez votre clé API ci-dessus, puis actualisez pour charger les modèles."
         },
         "timeout": {
           "title": "Délai de requête",
@@ -931,7 +940,6 @@
       "empty": "Pas encore de transcriptions. Commencez à enregistrer pour créer votre historique !",
       "copyToClipboard": "Copier la transcription dans le presse-papiers",
       "copyError": "Impossible de copier la transcription dans le presse-papiers.",
-      "savedToggleError": "Impossible de mettre à jour l'état enregistré.",
       "save": "Enregistrer la transcription",
       "unsave": "Retirer des favoris",
       "delete": "Supprimer l'entrée",
@@ -951,6 +959,12 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Voir les modifications",
       "hideChanges": "Masquer les modifications",
+      "emptyTitle": "Aucune transcription pour le moment",
+      "emptyHint": "Appuyez sur votre raccourci d'enregistrement pour capturer votre première dictée.",
+      "deleteConfirm": "Supprimer cette entrée ? L'enregistrement et sa transcription seront définitivement supprimés.",
+      "today": "Aujourd'hui",
+      "yesterday": "Hier",
+      "savedToggleError": "Impossible de mettre à jour l'état enregistré.",
       "dbRecoveredNotice": "La base de données de votre historique de transcription était illisible, une nouvelle a donc été démarrée. La base de données précédente a été conservée sous le nom {{file}}."
     },
     "debug": {
@@ -972,7 +986,9 @@
         "resume": "Reprendre",
         "copied": "Copié",
         "lineCount": "{{count}} lignes",
-        "empty": "En attente de journaux… Les entrées apparaîtront ici au fur et à mesure que l'application les émet."
+        "empty": "En attente de journaux… Les entrées apparaîtront ici au fur et à mesure que l'application les émet.",
+        "clearConfirm": "Effacer les lignes capturées de cette vue ? Le fichier journal sur le disque est conservé.",
+        "clearConfirmTitle": "Effacer les lignes capturées ?"
       },
       "updateChecks": {
         "label": "Vérifier les mises à jour",
@@ -1156,7 +1172,8 @@
       },
       "outcomes": {
         "label": "Notifications de résultats",
-        "description": "Notifie aussi la fin d'une session téléphone, par exemple à la limite de durée ou lorsque le téléphone se déconnecte. Désactivé signifie erreurs uniquement."
+        "description": "Notifie aussi la fin d'une session téléphone, par exemple à la limite de durée ou lorsque le téléphone se déconnecte. Désactivé signifie erreurs uniquement.",
+        "requiresMaster": "Disponible uniquement lorsque les notifications système sont activées."
       },
       "log": {
         "title": "Journal des notifications",
@@ -1190,8 +1207,6 @@
       "runHint_one": "{{count}} prompt sur 1 moteur. Rien n'est tapé ni enregistré.",
       "runHint_other": "{{count}} paires prompt-moteur. Rien n'est tapé ni enregistré.",
       "running": "Exécution...",
-      "cancel": "Annuler",
-      "cancelledCard": "Annulé avant le début de cette exécution.",
       "rerun": "Relancer",
       "latency": "{{ms}} ms",
       "rawKept": "Le moteur a échoué ou a été ignoré, la transcription brute serait donc conservée.",
@@ -1207,10 +1222,17 @@
         "lines": "lignes",
         "charsChanged_one": "{{count}} caractère modifié",
         "charsChanged_other": "{{count}} caractères modifiés",
-        "identical": "Aucune modification."
+        "identical": "Aucune modification.",
+        "added_one": "+{{count}} ajoutée",
+        "added_other": "+{{count}} ajoutées",
+        "removed_one": "{{count}} supprimée",
+        "removed_other": "{{count}} supprimées"
       },
       "resultsEmptyTitle": "Les résultats apparaîtront ici",
-      "resultsEmptyHint": "Choisissez une source, des prompts et des moteurs ci-dessus, puis lancez. Chaque carte montre le texte poli, ses changements et sa vitesse."
+      "resultsEmptyHint": "Choisissez une source, des prompts et des moteurs ci-dessus, puis lancez. Chaque carte montre le texte poli, ses changements et sa vitesse.",
+      "appliedLabel": "Succès",
+      "cancel": "Annuler",
+      "cancelledCard": "Annulé avant le début de cette exécution."
     }
   },
   "footer": {
@@ -1257,11 +1279,13 @@
     "open": "Ouvrir",
     "copy": "Copier",
     "clear": "Effacer",
-    "noOptionsFound": "Aucune option trouvée"
+    "noOptionsFound": "Aucune option trouvée",
+    "cancel": "Annuler"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar a besoin des autorisations d'accessibilité pour taper le texte transcrit.",
-    "openSettings": "Ouvrir les Préférences Système"
+    "openSettings": "Ouvrir les Préférences Système",
+    "resetSetting": "Réinitialiser {{label}} à la valeur par défaut"
   },
   "errors": {
     "loadDirectory": "Erreur lors du chargement du répertoire : {{error}}",
@@ -1277,8 +1301,6 @@
     "recordingFailed": "Échec du démarrage de l'enregistrement : {{error}}",
     "modelLoadFailed": "Échec du chargement du modèle : {{model}}",
     "modelLoadFailedUnknown": "modèle inconnu",
-    "modelLoadFailedMemoryGate": "Mémoire libre insuffisante pour charger {{model}} : il faut environ {{needed}}, pour environ {{free}} libres.",
-    "modelLoadFailedDetail": "Le modèle n'a pas changé. La raison technique se trouve dans le fichier journal.",
     "modelFallbackTitle": "Mémoire insuffisante",
     "modelFallback": "Basculé sur {{model}} pour cette dictée",
     "pasteFailedTitle": "Échec du collage du texte",
@@ -1286,7 +1308,9 @@
     "transcriptionFailedTitle": "Échec de la transcription",
     "noModelSelectedTitle": "Aucun modèle sélectionné",
     "noModelSelected": "Choisissez un modèle de transcription dans Paramètres avant de dicter.",
-    "openDirectory": "Impossible d'ouvrir le dossier : {{error}}"
+    "openDirectory": "Impossible d'ouvrir le dossier : {{error}}",
+    "modelLoadFailedMemoryGate": "Mémoire libre insuffisante pour charger {{model}} : il faut environ {{needed}}, pour environ {{free}} libres.",
+    "modelLoadFailedDetail": "Le modèle n'a pas changé. La raison technique se trouve dans le fichier journal."
   },
   "appLanguage": {
     "title": "Langue de l'application",
@@ -1354,7 +1378,8 @@
     "companionBadge": "Micro compagnon"
   },
   "whatsNew": {
-    "title": "Nouveautés de VoxBar v{{version}}"
+    "title": "Nouveautés de VoxBar v{{version}}",
+    "gotIt": "Compris"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} bloque peut-être 1 raccourci",
@@ -1406,13 +1431,9 @@
     "disconnectedFinalized": "Connexion coupée. Le Mac a gardé ce que vous avez dit.",
     "capped": "Session limitée à 15 minutes. Appuyez à nouveau pour continuer.",
     "zeroAudio": "Aucun son n'est parvenu au Mac. Maintenez le bouton puis parlez.",
-    "zeroAudioHold": "Aucun son n'est parvenu au Mac. Maintenez le bouton puis parlez.",
-    "zeroAudioHoldOrToggle": "Aucun son n'est parvenu au Mac. Maintenez ou touchez le bouton puis parlez.",
-    "zeroAudioTap": "Aucun son n'est parvenu au Mac. Touchez le bouton puis parlez.",
     "serverStopped": "Le Mac a arrêté le serveur compagnon.",
     "reconnect": "Reconnecter",
     "holdToTalk": "Maintenir pour parler",
-    "holdOrToggleToTalk": "Maintenir pour parler, toucher pour verrouiller",
     "tapToTalk": "Toucher pour parler",
     "release": "Relâcher pour finir",
     "tapToStop": "Toucher pour arrêter",
@@ -1431,6 +1452,17 @@
     "copied": "Copié",
     "polished": "Polie",
     "historyTitle": "Récents",
-    "historyEmpty": "Les dictées de ce téléphone apparaîtront ici."
+    "historyEmpty": "Les dictées de ce téléphone apparaîtront ici.",
+    "stateMicBlocked": "Micro bloqué",
+    "micBlockedRetry": "Micro bloqué. Touchez pour réessayer.",
+    "zeroAudioHold": "Aucun son n'est parvenu au Mac. Maintenez le bouton puis parlez.",
+    "zeroAudioHoldOrToggle": "Aucun son n'est parvenu au Mac. Maintenez ou touchez le bouton puis parlez.",
+    "zeroAudioTap": "Aucun son n'est parvenu au Mac. Touchez le bouton puis parlez.",
+    "holdOrToggleToTalk": "Maintenir pour parler, toucher pour verrouiller"
+  },
+  "trayCopyOutcome": {
+    "copied": "La dictée a été copiée dans le presse-papiers.",
+    "empty": "Il n'y a encore rien à copier.",
+    "failed": "Impossible de copier la dictée dans le presse-papiers."
   }
 }

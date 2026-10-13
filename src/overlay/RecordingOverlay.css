@@ -273,7 +273,14 @@
   overflow-wrap: break-word;
 }
 .stext-cap .tentative {
-  color: inherit;
+  /* The live recognized words are the user's own current speech: full
+     text color, upright and slightly heavier against the italic dimmed
+     committed text, so on the core surface the boundary between what is
+     finalized and what is still being heard (and can still change) is
+     visible at a glance. The pink caret follows this span. */
+  color: var(--color-text);
+  font-style: normal;
+  font-weight: 500;
 }
 .scaret {
   display: inline-block;
@@ -321,9 +328,16 @@
   font-size: 11px;
   font-style: normal;
   line-height: 1.35;
-  /* Two full lines plus the 8px vertical padding, so the line-clamp row
-     itself is never shaved mid-word (the ellipsis must be visible). */
-  max-height: calc(2 * 1.35em + 8px);
+  /* The strip shows exactly two whole text lines and never a shaved third:
+     box-sizing is border-box (set here because the overlay window loads no
+     preflight reset), and the height budget is 2 lines of content (2 x
+     1.35em) + 8px padding + 2px border, so the overflow cut lands exactly
+     on the line-2/line-3 boundary. The -webkit-line-clamp pair below still
+     applies where the engine honors it (the production WKWebView renders
+     the ellipsis); where it does not, the exact max-height keeps the cut
+     clean instead of slicing glyphs mid-line. */
+  box-sizing: border-box;
+  max-height: calc(2 * 1.35em + 8px + 2px);
   overflow: hidden;
   display: -webkit-box;
   -webkit-box-orient: vertical;
@@ -343,7 +357,13 @@
    one, which already fits that width). The compact pill keeps its width; the
    native compact window is narrower, so the strip clamps to two lines there
    and the sound plus toast carry the full message. */
-.scard.working.has-notice {
+/* Any streaming-form card (listening pill, working pill, open panel) steps
+   up to the open-panel width while a notice is up: the streaming window is
+   400px wide, so the wider card always fits and the sentence stays
+   readable. Only the compact form keeps its width: its native window is
+   narrower, so the strip clamps to two lines there and the sound plus
+   toast carry the full message. */
+.scard.has-notice:not(.compact) {
   width: var(--ov-open-w);
 }
 @keyframes scaret-blink {

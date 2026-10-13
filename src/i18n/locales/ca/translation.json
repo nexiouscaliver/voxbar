@@ -29,11 +29,6 @@
     "secureInputWarning": "⚠ Dreceres blocades per l'entrada segura",
     "postProcessPrompt": "Indicació de postprocessament"
   },
-  "trayCopyOutcome": {
-    "copied": "S'ha copiat la transcripció al porta-retalls.",
-    "empty": "Encara no hi ha res per copiar.",
-    "failed": "No s'ha pogut copiar la transcripció al porta-retalls."
-  },
   "sidebar": {
     "general": "General",
     "commands": "Ordres",
@@ -46,7 +41,8 @@
     "debug": "Depuració",
     "about": "Quant a",
     "notifications": "Notificacions",
-    "promptStudio": "Estudi de prompts"
+    "promptStudio": "Estudi de prompts",
+    "addonsGroup": "Complements"
   },
   "onboarding": {
     "subtitle": "Per començar, trieu un model de transcripció",
@@ -68,7 +64,9 @@
     },
     "modelCard": {
       "accuracy": "precisió",
-      "speed": "velocitat"
+      "speed": "velocitat",
+      "installed": "Instal·lat",
+      "selected": "Seleccionat"
     },
     "models": {
       "small": {
@@ -162,7 +160,9 @@
       "errors": {
         "checkFailed": "No s'han pogut comprovar els permisos. Torneu-ho a provar.",
         "requestFailed": "No s'ha pogut sol·licitar el permís. Torneu-ho a provar."
-      }
+      },
+      "done": "Fet",
+      "openSettings": "Obre la configuració"
     },
     "hotkeyHint": "Inicieu el dictat amb {{hotkey}} en qualsevol moment.",
     "hotkeyChangeHint": "Podeu canviar aquesta drecera a Configuració > General.",
@@ -171,6 +171,10 @@
       "body": "VoxBar no ha pogut accedir al catàleg de models. Comproveu la connexió i torneu-ho a provar, o ometeu aquest pas i trieu un model més tard a Paràmetres.",
       "retry": "Reintenta",
       "skip": "Omet per ara"
+    },
+    "postProcessGroup": {
+      "title": "Opcional: Postprocessament",
+      "caption": "Per polir transcripcions després del dictat. No s'utilitza per transcriure."
     }
   },
   "modelSelector": {
@@ -260,7 +264,9 @@
           "set": "No s'ha pogut definir la drecera: {{error}}",
           "reset": "No s'ha pogut restablir la drecera al valor original"
         },
-        "unbound": "Sense assignar"
+        "unbound": "Sense assignar",
+        "recordHint": "Feu clic per enregistrar una drecera nova",
+        "gatedHint": "Activa {{action}} per assignar una tecla"
       },
       "language": {
         "title": "Llengua",
@@ -369,7 +375,8 @@
         "clearAll": "Esborra tot el dictat",
         "undo": "Executa desfés a l'aplicació activa",
         "paste": "Enganxa el porta-retalls a l'aplicació activa"
-      }
+      },
+      "defaultPhrasesNote": "Les frases per defecte són les paraules angleses que escolta elreconeixedor, a més dels àlies integrats en hindi i xinès. Afegeix la tevafrase en qualsevol idioma a qualsevol fila."
     },
     "search": {
       "placeholder": "Cerca a la configuració",
@@ -712,7 +719,8 @@
         "restartButton": "Reinicia el servidor",
         "restartPending": "Els canvis s'apliquen després de reiniciar",
         "qrPreviewNote": "Previsualització: aquest URL s'anunciarà la propera vegada que arrenqui el servidor.",
-        "sharedNetworkNote": "El telèfon i aquest Mac han de compartir xarxa: el mateix Wi-Fi o LAN, o el mateix tailnet (per exemple, tots dos al Tailscale)."
+        "sharedNetworkNote": "El telèfon i aquest Mac han de compartir xarxa: el mateix Wi-Fi o LAN, o el mateix tailnet (per exemple, tots dos al Tailscale).",
+        "fingerprintCopied": "Copiat"
       }
     },
     "postProcessing": {
@@ -760,7 +768,8 @@
           "filterPlaceholder": "Filtra models",
           "showAll_one": "Mostra'ls tots ({{count}})",
           "showAll_other": "Mostra'ls tots ({{count}})",
-          "showFewer": "Mostra'n menys"
+          "showFewer": "Mostra'n menys",
+          "emptyNoKey": "Introduïu la vostra clau API a dalt i actualitzeu per carregar els models."
         },
         "timeout": {
           "title": "Temps d'espera de la sol·licitud",
@@ -931,7 +940,6 @@
       "empty": "Encara no hi ha transcripcions. Comenceu a enregistrar per crear l'historial!",
       "copyToClipboard": "Copia la transcripció al porta-retalls",
       "copyError": "No s'ha pogut copiar la transcripció al porta-retalls.",
-      "savedToggleError": "No s'ha pogut actualitzar l'estat de desat.",
       "save": "Desa la transcripció",
       "unsave": "Treu de les desades",
       "delete": "Suprimeix l'entrada",
@@ -951,6 +959,12 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Veure els canvis",
       "hideChanges": "Amagar els canvis",
+      "emptyTitle": "Encara no hi ha transcripcions",
+      "emptyHint": "Premeu la drecera d'enregistrament per capturar el vostre primer dictat.",
+      "deleteConfirm": "Vols suprimir aquesta entrada? L'enregistrament i la seva transcripció s'eliminaran permanentment.",
+      "today": "Avui",
+      "yesterday": "Ahir",
+      "savedToggleError": "No s'ha pogut actualitzar l'estat de desat.",
       "dbRecoveredNotice": "La base de dades de l'historial de transcripcions no es podia llegir, així que se n'ha iniciat una de nova. La base de dades anterior s'ha conservat com a {{file}}."
     },
     "debug": {
@@ -972,7 +986,9 @@
         "resume": "Repreneu",
         "copied": "Copiat",
         "lineCount": "{{count}} línies",
-        "empty": "S'estan esperant registres… Les entrades apareixeran aquí a mesura que l'aplicació les emeti."
+        "empty": "S'estan esperant registres… Les entrades apareixeran aquí a mesura que l'aplicació les emeti.",
+        "clearConfirm": "Vols esborrar les línies capturades d'aquesta vista? El fitxer de registre del disc es conserva.",
+        "clearConfirmTitle": "Voleu esborrar les línies capturades?"
       },
       "updateChecks": {
         "label": "Comproveu si hi ha actualitzacions",
@@ -1156,7 +1172,8 @@
       },
       "outcomes": {
         "label": "Notificacions de resultats",
-        "description": "Notifica també quan acaba una sessió del mòbil, per exemple en arribar al límit de sessió o quan el mòbil es desconnecta. Desactivat significa només errors."
+        "description": "Notifica també quan acaba una sessió del mòbil, per exemple en arribar al límit de sessió o quan el mòbil es desconnecta. Desactivat significa només errors.",
+        "requiresMaster": "Disponible només mentre les notificacions del sistema estan activades."
       },
       "log": {
         "title": "Registre de notificacions",
@@ -1190,8 +1207,6 @@
       "runHint_one": "1 prompt en 1 motor. No s'escriu ni es desa res.",
       "runHint_other": "{{count}} parells prompt-motor. No s'escriu ni es desa res.",
       "running": "S'està executant...",
-      "cancel": "Cancel·la",
-      "cancelledCard": "S'ha cancel·lat abans que comencés aquesta execució.",
       "rerun": "Tornar a executar",
       "latency": "{{ms}} ms",
       "rawKept": "El motor ha fallat o s'ha omès, per tant es mantindria la transcripció en brut.",
@@ -1207,10 +1222,17 @@
         "lines": "línies",
         "charsChanged_one": "1 caràcter canviat",
         "charsChanged_other": "{{count}} caràcters canviats",
-        "identical": "Sense canvis."
+        "identical": "Sense canvis.",
+        "added_one": "+{{count}} afegida",
+        "added_other": "+{{count}} afegides",
+        "removed_one": "{{count}} eliminada",
+        "removed_other": "{{count}} eliminades"
       },
       "resultsEmptyTitle": "Els resultats apareixeran aquí",
-      "resultsEmptyHint": "Tria a dalt una font, prompts i motors i executa. Cada targeta mostra el text polit, els canvis i la velocitat."
+      "resultsEmptyHint": "Tria a dalt una font, prompts i motors i executa. Cada targeta mostra el text polit, els canvis i la velocitat.",
+      "appliedLabel": "Èxit",
+      "cancel": "Cancel·la",
+      "cancelledCard": "S'ha cancel·lat abans que comencés aquesta execució."
     }
   },
   "footer": {
@@ -1251,7 +1273,8 @@
     }
   },
   "whatsNew": {
-    "title": "Novetats del VoxBar v{{version}}"
+    "title": "Novetats del VoxBar v{{version}}",
+    "gotIt": "Entesos"
   },
   "common": {
     "loading": "S'està carregant...",
@@ -1260,11 +1283,13 @@
     "open": "Obre",
     "copy": "Copia",
     "clear": "Neteja",
-    "noOptionsFound": "No s'ha trobat cap opció"
+    "noOptionsFound": "No s'ha trobat cap opció",
+    "cancel": "Cancel·la"
   },
   "accessibility": {
     "permissionsDescription": "El VoxBar necessita permisos d'accessibilitat per escriure el text transcrit.",
-    "openSettings": "Obriu la configuració del sistema"
+    "openSettings": "Obriu la configuració del sistema",
+    "resetSetting": "Restableix {{label}} al valor per defecte"
   },
   "errors": {
     "loadDirectory": "Error en carregar el directori: {{error}}",
@@ -1280,8 +1305,6 @@
     "recordingFailed": "No s'ha pogut iniciar l'enregistrament: {{error}}",
     "modelLoadFailed": "No s'ha pogut carregar el model: {{model}}",
     "modelLoadFailedUnknown": "model desconegut",
-    "modelLoadFailedMemoryGate": "No hi ha prou memòria lliure per carregar {{model}}: necessita uns {{needed}}, amb uns {{free}} lliures.",
-    "modelLoadFailedDetail": "El model no ha canviat. El motiu tècnic és al fitxer de registre.",
     "modelFallbackTitle": "Memòria baixa",
     "modelFallback": "Canviat a {{model}} per aquest dictat",
     "pasteFailedTitle": "No s'ha pogut enganxar el text",
@@ -1289,7 +1312,9 @@
     "transcriptionFailedTitle": "La transcripció ha fallat",
     "noModelSelectedTitle": "Cap model seleccionat",
     "noModelSelected": "Trieu un model de transcripció a Configuració abans de dictar.",
-    "openDirectory": "No s'ha pogut obrir la carpeta: {{error}}"
+    "openDirectory": "No s'ha pogut obrir la carpeta: {{error}}",
+    "modelLoadFailedMemoryGate": "No hi ha prou memòria lliure per carregar {{model}}: necessita uns {{needed}}, amb uns {{free}} lliures.",
+    "modelLoadFailedDetail": "El model no ha canviat. El motiu tècnic és al fitxer de registre."
   },
   "appLanguage": {
     "title": "Llengua de l'aplicació",
@@ -1406,13 +1431,9 @@
     "disconnectedFinalized": "S'ha perdut la connexió. El Mac ha conservat el que has dit.",
     "capped": "Sessió limitada a 15 minuts. Torna a prémer per continuar.",
     "zeroAudio": "Cap àudio no ha arribat al Mac. Mantén premut el botó i parla.",
-    "zeroAudioHold": "Cap àudio no ha arribat al Mac. Mantén premut el botó i parla.",
-    "zeroAudioHoldOrToggle": "Cap àudio no ha arribat al Mac. Mantén premut o toca el botó i parla.",
-    "zeroAudioTap": "Cap àudio no ha arribat al Mac. Toca el botó i parla.",
     "serverStopped": "El Mac ha aturat el servidor acompanyant.",
     "reconnect": "Torna a connectar",
     "holdToTalk": "Mantén premut per parlar",
-    "holdOrToggleToTalk": "Mantén premut per parlar, toca per blocar",
     "tapToTalk": "Toca per parlar",
     "release": "Deixa anar per acabar",
     "tapToStop": "Toca per aturar",
@@ -1431,6 +1452,17 @@
     "copied": "Copiat",
     "polished": "Polit",
     "historyTitle": "Recents",
-    "historyEmpty": "Els dictats d'aquest mòbil apareixen aquí."
+    "historyEmpty": "Els dictats d'aquest mòbil apareixen aquí.",
+    "stateMicBlocked": "Micròfon bloquejat",
+    "micBlockedRetry": "Micròfon bloquejat. Toca per tornar-ho a provar.",
+    "zeroAudioHold": "Cap àudio no ha arribat al Mac. Mantén premut el botó i parla.",
+    "zeroAudioHoldOrToggle": "Cap àudio no ha arribat al Mac. Mantén premut o toca el botó i parla.",
+    "zeroAudioTap": "Cap àudio no ha arribat al Mac. Toca el botó i parla.",
+    "holdOrToggleToTalk": "Mantén premut per parlar, toca per blocar"
+  },
+  "trayCopyOutcome": {
+    "copied": "S'ha copiat la transcripció al porta-retalls.",
+    "empty": "Encara no hi ha res per copiar.",
+    "failed": "No s'ha pogut copiar la transcripció al porta-retalls."
   }
 }

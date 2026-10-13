@@ -65,13 +65,21 @@ export const NotificationsSettings: React.FC = () => {
           descriptionMode="tooltip"
           grouped={true}
         />
+        {/* The dependency on the master toggle is stated on the row itself
+            (inline, not behind a hover tooltip) whenever it is the active
+            constraint - a disabled row that hides its reason reads as
+            broken rather than governed. */}
         <ToggleSwitch
           checked={prefs.enabled && prefs.outcomes}
           disabled={!prefs.enabled}
           onChange={(outcomes) => writePrefs({ ...prefs, outcomes })}
           label={t("settings.notifications.outcomes.label")}
-          description={t("settings.notifications.outcomes.description")}
-          descriptionMode="tooltip"
+          description={
+            prefs.enabled
+              ? t("settings.notifications.outcomes.description")
+              : t("settings.notifications.outcomes.requiresMaster")
+          }
+          descriptionMode={prefs.enabled ? "tooltip" : "inline"}
           grouped={true}
         />
       </SettingsGroup>
@@ -116,19 +124,23 @@ export const NotificationsSettings: React.FC = () => {
               })}
             </ul>
           )}
-          <div className="flex justify-end">
-            <Button
-              onClick={clearNotificationLog}
-              variant="secondary"
-              size="sm"
-              className="flex items-center gap-2"
-              disabled={entries.length === 0}
-              title={t("settings.notifications.log.clear")}
-            >
-              <Trash2 className="w-4 h-4" />
-              <span>{t("settings.notifications.log.clear")}</span>
-            </Button>
-          </div>
+          {/* Clear all only exists when there is something to clear: the
+              empty log spent its strongest bottom-right position on a
+              correctly-disabled, dead button. */}
+          {entries.length > 0 && (
+            <div className="flex justify-end">
+              <Button
+                onClick={clearNotificationLog}
+                variant="secondary"
+                size="sm"
+                className="flex items-center gap-2"
+                title={t("settings.notifications.log.clear")}
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>{t("settings.notifications.log.clear")}</span>
+              </Button>
+            </div>
+          )}
         </div>
       </SettingsGroup>
     </div>

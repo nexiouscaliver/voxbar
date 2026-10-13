@@ -131,11 +131,55 @@ function App() {
     (state) => state.refreshOutputDevices,
   );
   const hasCompletedPostOnboardingInit = useRef(false);
-  const settingsScrollRef = useRef<HTMLDivElement>(null);
+  const settingsScrollRef = useRef<HTMLDivElement | null>(null);
+  // Geometry of the painted scroll indicator + bottom fade for the settings
+  // pane. `scrollable` says the pane has content below (or above) the fold;
+  // the thumb percentages place a painted scrollbar indicator so the pane
+  // reads as scrollable at its resting position. The native scrollbar stays
+  // interactive (macOS draws it as an overlay while scrolling); headless
+  // screenshot rigs never paint native scrollbars at all, so a painted
+  // indicator is the only affordance that shows everywhere.
+  const [scrollState, setScrollState] = useState<{
+    scrollable: boolean;
+    thumbTopPct: number;
+    thumbHeightPct: number;
+  }>({ scrollable: false, thumbTopPct: 0, thumbHeightPct: 100 });
+  // Flips when the settings scroll container mounts/unmounts (it only
+  // exists once onboarding is out of the way), so the scroll-tracking effect
+  // below attaches to the real node instead of running once against null.
+  const [settingsShellMounted, setSettingsShellMounted] = useState(false);
+  // Bottom offset for the toast stack: viewport edge plus the footer's
+  // rendered height plus a 36px clearance, so the stack floats as an inset
+  // layer that clears the status line with margin and its bottom-left
+  // rounded corner never slices the section-header line at the pane's
+  // resting scroll (at a bare 16px gap the corner overlapped the header
+  // glyphs by ~11px in the captured states).
+  // While no footer is mounted (onboarding, debug previews) the stack keeps
+  // the bare 16px viewport clearance.
+  const [toastOffset, setToastOffset] = useState(16);
   const isShowingOnboarding =
     onboardingPreview !== null ||
     onboardingStep === "accessibility" ||
     onboardingStep === "model";
+
+  useEffect(() => {
+    // onboardingStep rides the deps: it flips null -> done after the async
+    // boot check, which is the moment the footer (and the main app) first
+    // mount. Keying on isShowingOnboarding alone would miss that transition
+    // (both states read false) and the stack would keep the bare viewport
+    // clearance forever.
+    if (isShowingOnboarding || onboardingStep === null) {
+      setToastOffset(16);
+      return;
+    }
+    const footer = document.getElementById("app-footer");
+    if (!footer) return;
+    const measure = () => setToastOffset(footer.offsetHeight + 36);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(footer);
+    return () => observer.disconnect();
+  }, [isShowingOnboarding, onboardingStep]);
 
   // Classic scrollbars consume layout space. Reserve a matching gutter on the
   // opposite edge while onboarding is visible so its content stays centered in
@@ -150,6 +194,52 @@ function App() {
   useLayoutEffect(() => {
     settingsScrollRef.current?.scrollTo({ top: 0 });
   }, [currentSection]);
+
+  // Track whether the settings scroller can still move and where its thumb
+  // sits: the indicator and fade must appear, move and disappear as content
+  // loads, the section changes, or the user scrolls. A ResizeObserver on the
+  // scroller and its children catches async content growth (history entries,
+  // model lists) without polling.
+  useEffect(() => {
+    const scroller = settingsScrollRef.current;
+    if (!scroller || !settingsShellMounted) return;
+    const measure = () => {
+      const maxScroll = scroller.scrollHeight - scroller.clientHeight;
+      if (maxScroll <= 4) {
+        setScrollState({
+          scrollable: false,
+          thumbTopPct: 0,
+          thumbHeightPct: 100,
+        });
+        return;
+      }
+      // Thumb size mirrors the viewport fraction of the content (clamped to a
+      // minimum so long lists still show a grabbable-looking thumb, matching
+      // the native scrollbar convention), and its top follows the scroll
+      // position across the remaining track.
+      const heightPct = Math.max(
+        (scroller.clientHeight / scroller.scrollHeight) * 100,
+        8,
+      );
+      const travel = Math.min(scroller.scrollTop / maxScroll, 1);
+      setScrollState({
+        scrollable: true,
+        thumbTopPct: travel * (100 - heightPct),
+        thumbHeightPct: heightPct,
+      });
+    };
+    const observer = new ResizeObserver(measure);
+    observer.observe(scroller);
+    Array.from(scroller.children).forEach((child) =>
+      observer.observe(child as Element),
+    );
+    scroller.addEventListener("scroll", measure);
+    measure();
+    return () => {
+      observer.disconnect();
+      scroller.removeEventListener("scroll", measure);
+    };
+  }, [settingsShellMounted]);
 
   useEffect(() => {
     checkOnboardingStatus();
@@ -778,6 +868,14 @@ function App() {
   const toaster = (
     <Toaster
       theme="system"
+      // Every toast carries its own dismiss control; without it a toast
+      // that covers content is un-dismissable until its timer runs out.
+      closeButton
+      // Anchored above the status bar: the offset is the footer's measured
+      // height plus a 36px clearance (toastOffset), so the stack floats as
+      // an inset layer and never covers the version label or the pane
+      // content behind the footer line.
+      offset={toastOffset}
       toastOptions={{
         unstyled: true,
         classNames: {
@@ -787,6 +885,12 @@ function App() {
           toast:
             "bg-background border border-mid-gray/20 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 text-sm w-[360px]",
           title: "font-medium",
+          // Sonner's own close-button chrome only applies to styled
+          // toasts; in unstyled mode the whole look is these classes
+          // (absolute top-right inside the fixed-width card, secondary
+          // until hovered).
+          closeButton:
+            "absolute top-1.5 right-1.5 rounded-md p-1 flex items-center justify-center text-secondary hover:text-text hover:bg-mid-gray/10 cursor-pointer",
           description: "text-secondary text-sm leading-relaxed",
           // Both buttons need whitespace-nowrap + shrink-0: without sonner's
           // built-in button CSS, a long action label squeezes the cancel
@@ -856,23 +960,71 @@ function App() {
             onSectionChange={setCurrentSection}
           />
           {/* Scrollable content area */}
-          <div className="flex-1 flex flex-col overflow-hidden">
-            <div ref={settingsScrollRef} className="flex-1 overflow-y-auto">
-              {/* KB-093: one render throw inside any settings tab must not
-                  blank the whole app. The boundary renders nothing on
-                  failure (the WhatsNewGate precedent), so the sidebar and
-                  footer survive and the user can still switch sections or
-                  use the tray while the tab is fixed. */}
-              <ErrorBoundary context="Settings">
-                <div className="flex flex-col items-center p-4 gap-4">
-                  <AccessibilityPermissions />
-                  <SecureInputWarning />
-                  {/* Settings-wide search sits above the tab content; picking a
-                      match jumps to the section that owns the setting. */}
-                  <SettingsSearch onSelect={setCurrentSection} />
-                  {renderSettingsContent(currentSection, setOnboardingPreview)}
-                </div>
-              </ErrorBoundary>
+          <div className="relative flex-1 flex flex-col overflow-hidden">
+            {/* Settings-wide search, pinned above the scrolling content the
+                way macOS System Settings pins its search: it stays put while
+                the pane below scrolls. Picking a match jumps to the section
+                that owns the setting. */}
+            <div className="shrink-0 border-b border-mid-gray/20 px-4 pb-3 pt-4">
+              <SettingsSearch onSelect={setCurrentSection} />
+            </div>
+            {/* The scroller and its painted affordances share one relative
+                wrapper so the indicator's track always spans exactly the
+                scroll viewport, whatever the pinned header's height. */}
+            <div className="relative min-h-0 flex-1">
+              <div
+                ref={(node) => {
+                  settingsScrollRef.current = node;
+                  setSettingsShellMounted(Boolean(node));
+                }}
+                data-settings-scroll=""
+                className="absolute inset-0 overflow-y-auto"
+              >
+                {/* KB-093: one render throw retires the settings pane, not
+                    the app; the boundary wraps the banners and the section
+                    content the scroller carries. */}
+                <ErrorBoundary context="Settings">
+                  <div className="flex flex-col items-center px-4 pb-10 pt-4 gap-4">
+                    <AccessibilityPermissions />
+                    <SecureInputWarning />
+                    {renderSettingsContent(
+                      currentSection,
+                      setOnboardingPreview,
+                    )}
+                  </div>
+                </ErrorBoundary>
+              </div>
+              {scrollState.scrollable && (
+                <>
+                  {/* Painted scroll indicator: a thin inset track with a thumb
+                      that mirrors position and size. Native scrollbars are
+                      invisible in headless capture and, on macOS, only appear
+                      as overlays during scrolling, so this painted thumb is
+                      the persistent "there is more below" affordance. It is
+                      decorative (pointer-events-none); scrolling itself stays
+                      native. */}
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute end-1 top-2 bottom-3 z-10 w-1.5 rounded-full bg-mid-gray/25"
+                  >
+                    <div
+                      className="absolute inset-x-0 rounded-full bg-text/50"
+                      style={{
+                        top: `${scrollState.thumbTopPct}%`,
+                        height: `${scrollState.thumbHeightPct}%`,
+                      }}
+                    />
+                  </div>
+                  {/* Bottom fade above the footer: only while content
+                      continues below the fold, so a pane that ends mid-row at
+                      its resting scroll reads as scrollable instead of as a
+                      clipped edge. */}
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-b from-transparent to-background"
+                  />
+                </>
+              )}
             </div>
           </div>
         </div>

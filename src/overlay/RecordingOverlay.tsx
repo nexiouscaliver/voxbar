@@ -68,12 +68,13 @@ function shortModelLabel(id: string): string {
   return tail || id;
 }
 
-// Which tone a notice renders in. Red is reserved for failures; a
-// model_fallback is a successful degradation (dictation continued on the
-// smaller model), so even when the backend tags it "error" it wears the
-// neutral info chip.
+// Which tone a notice renders in. The backend's kind is the authority: it
+// classifies model_fallback as an error AND plays the error sound for it,
+// so honoring the kind keeps the chip, the sound and the routed toast on
+// one truth. (The old frontend override forced model_fallback to the info
+// chip while the error sound played - two contradictory signals for one
+// event.)
 function noticeTone(notice: OverlayNoticeEvent): "err" | "info" {
-  if (notice.code === "model_fallback") return "info";
   return notice.kind === "error" ? "err" : "info";
 }
 

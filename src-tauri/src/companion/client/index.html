@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
     />
     <meta name="theme-color" content="#101014" />
     <title>VoxBar Companion</title>
@@ -15,10 +15,10 @@
         --card-2: #22222a;
         --text: #f2f2f5;
         --muted: #9a9aa5;
-        --accent: #7c5cff;
+        --accent: #7c3aed;
         --accent-2: #9d86ff;
         --rec: #e5484d;
-        --ok: #46a758;
+        --ok: #15803d;
         --warn: #f5a524;
       }
       * {
@@ -44,10 +44,28 @@
         flex-direction: column;
         align-items: center;
         padding: max(20px, env(safe-area-inset-top)) 20px
-          max(28px, env(safe-area-inset-bottom));
+          calc(env(safe-area-inset-bottom) + 28px);
         user-select: none;
         -webkit-user-select: none;
         touch-action: manipulation;
+      }
+      /* 44pt minimum touch targets at an unchanged visual size: every
+         button (the ptt circle is already far larger) carries an invisible
+         pseudo-element band, so the hit area is at least 44px tall while
+         the painted control stays compact. Vertical-only slop: the
+         segments sit side by side, so horizontal extension would let one
+         segment steal its neighbor's taps. */
+      button:not(#ptt) {
+        position: relative;
+      }
+      button:not(#ptt)::after {
+        content: "";
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        height: 44px;
+        transform: translateY(-50%);
       }
       header {
         text-align: center;
@@ -95,6 +113,20 @@
       #state.warn .dot {
         background: var(--warn);
       }
+      #state.warn {
+        color: #ffd9a0;
+        background: rgba(245, 165, 36, 0.16);
+      }
+      /* A pairing failure must read stronger than a plain disconnect: the
+         error pill carries the recording red at a steady (non-pulsing)
+         dot, tinted background, and warm text. */
+      #state.error {
+        color: #ffb4b8;
+        background: rgba(229, 72, 77, 0.22);
+      }
+      #state.error .dot {
+        background: var(--rec);
+      }
       @keyframes pulse {
         50% {
           opacity: 0.35;
@@ -116,7 +148,7 @@
         font-weight: 700;
         letter-spacing: 0.2px;
         box-shadow:
-          0 14px 40px rgba(124, 92, 255, 0.35),
+          0 14px 40px rgba(124, 58, 237, 0.35),
           inset 0 2px 6px rgba(255, 255, 255, 0.25);
         transition:
           transform 90ms ease,
@@ -142,6 +174,25 @@
         filter: grayscale(0.7) brightness(0.7);
         box-shadow: none;
       }
+      /* Mic-blocked: the button stays tappable (its next press retries the
+         microphone) but drops to a subdued desaturated amber so the page
+         never shows a vivid "talk" control above a microphone failure. */
+      #ptt.mic-blocked {
+        background: radial-gradient(
+          circle at 32% 28%,
+          #7a6b4a,
+          #4a4028 65%
+        );
+        box-shadow:
+          0 10px 26px rgba(0, 0, 0, 0.4),
+          inset 0 2px 6px rgba(255, 255, 255, 0.12);
+        padding: 0 20px;
+        font-size: 17px;
+      }
+      #ptt.mic-blocked:active,
+      #ptt.mic-blocked.held {
+        filter: brightness(1.08);
+      }
       #hint {
         color: var(--muted);
         font-size: 13px;
@@ -149,6 +200,17 @@
         text-align: center;
         max-width: 320px;
         min-height: 18px;
+      }
+      /* Pairing failures render their message as a red-tinted banner (the
+         same card treatment the mic-error banner uses, in the error tone)
+         instead of bare caption text. */
+      #hint.error-banner {
+        background: var(--card);
+        border: 1px solid rgba(229, 72, 77, 0.4);
+        border-radius: 12px;
+        padding: 12px 14px;
+        color: #ffb4b8;
+        font-size: 14px;
       }
       #notice {
         margin-top: 10px;
@@ -234,16 +296,35 @@
         background: var(--accent);
         color: #fff;
       }
+      .seg button:disabled {
+        opacity: 0.45;
+      }
+      /* The whole controls card dims while the socket is down: the
+         segmented control and the Polish switch change nothing until the
+         phone reconnects, so they must not look live. */
+      #controls.offline {
+        opacity: 0.55;
+      }
       .switch {
         width: 48px;
         height: 28px;
         border-radius: 999px;
-        border: none;
-        background: var(--card-2);
+        border: 1px solid #4a4a56;
+        background: #3a3a44;
         position: relative;
         padding: 0;
         flex-shrink: 0;
         transition: background 120ms ease;
+      }
+      /* Keyboard focus ring for every interactive control (segments,
+         switch, copy buttons): visible only for focus-visible, in the
+         lighter accent so it reads on the dark palette. */
+      button:focus-visible {
+        outline: 2px solid var(--accent-2);
+        outline-offset: 2px;
+      }
+      .switch:disabled {
+        opacity: 0.45;
       }
       .switch .knob {
         position: absolute;
@@ -279,7 +360,7 @@
         min-width: 0;
       }
       #resultBadge {
-        background: rgba(124, 92, 255, 0.25);
+        background: rgba(124, 58, 237, 0.25);
         color: var(--accent-2);
         font-size: 11px;
         font-weight: 700;
@@ -288,11 +369,12 @@
         flex-shrink: 0;
       }
       #resultModel {
+        /* Footnote under the transcript text: full width, no ellipsis
+           squeeze against the Copy button. */
+        margin: 10px 0 0;
         color: var(--muted);
         font-size: 11px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
+        overflow-wrap: anywhere;
       }
       #resultCopy {
         margin-left: auto;
@@ -375,6 +457,7 @@
       .linkrow {
         margin-top: auto;
         padding-top: 18px;
+        padding-bottom: 14px;
       }
       button.secondary {
         background: var(--card-2);
@@ -385,10 +468,36 @@
         font-size: 15px;
         font-weight: 600;
       }
-      #micbar {
+      /* Reconnect is THE recovery action of a dead pairing: the filled
+         accent primary, clearly separated from the certificate footnote
+         below it, not a low-emphasis ghost sibling. */
+      #reconnect {
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 12px;
+        padding: 12px 26px;
+        font-size: 15px;
+        font-weight: 700;
+        box-shadow: 0 8px 22px rgba(124, 58, 237, 0.35);
+      }
+      #reconnect:active {
+        filter: brightness(1.12);
+      }
+      /* Recording feedback row: level bar + elapsed timer, shown only
+         while the Mac reports a live session. */
+      #meterRow {
         display: none;
-        width: min(80vw, 300px);
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
         margin-top: 16px;
+      }
+      #meterRow.show {
+        display: flex;
+      }
+      #micbar {
+        width: min(70vw, 260px);
         height: 4px;
         border-radius: 4px;
         background: var(--card-2);
@@ -399,6 +508,15 @@
         width: 0%;
         background: var(--accent);
         transition: width 80ms linear;
+      }
+      #recTimer {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas,
+          monospace;
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        color: var(--text);
+        min-width: 32px;
       }
       /* Captured but NOT transmitted: the bar reads empty and dim, never
          a lively meter over audio nobody receives (v1.6.3 meter honesty). */
@@ -415,6 +533,31 @@
         max-width: 330px;
         text-align: center;
       }
+      /* Scroll-continuation hint: while content extends below the fold the
+         bottom edge of the viewport carries a soft fade into the page
+         background, so a list cut at the fold reads as scrollable rather
+         than sliced. It disappears at the very bottom so the last row is
+         never permanently faded. */
+      #scrollFade {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        /* 48px, not 72px: a tall gradient swallowed the static footnote's
+           last line whenever the page overflowed the fold by a few pixels
+           (the mic-error state). A shallower band only shades content that
+           is genuinely cut. */
+        height: 48px;
+        background: linear-gradient(
+          to bottom,
+          rgba(16, 16, 20, 0),
+          var(--bg) 92%
+        );
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 250ms ease;
+        z-index: 4;
+      }
     </style>
   </head>
   <body>
@@ -426,7 +569,13 @@
     </header>
 
     <div id="state"><span class="dot"></span><span id="stateText"></span></div>
-    <div id="micbar"><div class="lvl"></div></div>
+    <!-- The recording meter: the level bar plus a monospaced elapsed
+         timer, so the unlabeled purple bar alone never has to say "live
+         session in progress". -->
+    <div id="meterRow">
+      <div id="micbar"><div class="lvl"></div></div>
+      <span id="recTimer" aria-hidden="true"></span>
+    </div>
 
     <button id="ptt" disabled aria-live="polite"></button>
     <div id="hint"></div>
@@ -447,20 +596,30 @@
       </div>
       <div class="ctl-row">
         <span class="ctl-label" id="t-pp-label"></span>
-        <button type="button" id="ppToggle" class="switch" role="switch">
+        <button
+          type="button"
+          id="ppToggle"
+          class="switch"
+          role="switch"
+          aria-labelledby="t-pp-label"
+        >
           <span class="knob"></span>
         </button>
       </div>
     </section>
 
     <section id="result" class="card">
+      <!-- Header keeps three elements, not four: the model tag used to sit
+           between the badge and Copy, where the 390pt row over-subscribed
+           and truncated it to "Canary 1...". It lives as a full-width
+           footnote under the transcript text now. -->
       <div class="result-head">
         <span class="card-title" id="t-result-title"></span>
         <span id="resultBadge"></span>
-        <span id="resultModel"></span>
         <button type="button" id="resultCopy"></button>
       </div>
       <div id="resultText"></div>
+      <p id="resultModel"></p>
     </section>
 
     <section id="recent" class="card">
@@ -470,9 +629,10 @@
     </section>
 
     <div class="linkrow">
-      <button class="secondary" id="reconnect" style="display: none"></button>
+      <button id="reconnect" style="display: none"></button>
     </div>
     <p class="cert" id="t-cert"></p>
+    <div id="scrollFade" aria-hidden="true"></div>
 
     <script>
       "use strict";
@@ -523,6 +683,8 @@
       const reconnectBtn = document.getElementById("reconnect");
       const micbar = document.getElementById("micbar");
       const miclvl = micbar.querySelector(".lvl");
+      const meterRow = document.getElementById("meterRow");
+      const recTimer = document.getElementById("recTimer");
       const micErrorCard = document.getElementById("micError");
       const micErrorMsg = document.getElementById("micErrorMsg");
       const micRetryBtn = document.getElementById("micRetry");
@@ -537,6 +699,8 @@
       const recentCard = document.getElementById("recent");
       const recentList = document.getElementById("recentList");
       const recentEmpty = document.getElementById("recentEmpty");
+      const controlsCard = document.getElementById("controls");
+      const scrollFade = document.getElementById("scrollFade");
 
       document.getElementById("t-title").textContent = t(
         "title",
@@ -591,9 +755,67 @@
         stateEl.className = cls;
         stateText.textContent = text;
       }
-      function setHint(text) {
-        hint.textContent = text || "";
+      // ---- recording meter + elapsed timer ----
+      // The bar shows the mic level; the timer says how long the session
+      // has been live, so the meter row reads as an active recorder
+      // instead of an unlabeled purple bar. Starts on the Mac's first
+      // recording=true frame, stops and clears on the stop edge.
+      let recTimerId = 0;
+      let recStartAt = 0;
+      function renderRecTimer() {
+        const s = Math.max(
+          0,
+          Math.floor((Date.now() - recStartAt) / 1000),
+        );
+        recTimer.textContent =
+          Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0");
       }
+      function startRecTimer() {
+        stopRecTimer();
+        recStartAt = Date.now();
+        renderRecTimer();
+        recTimerId = window.setInterval(renderRecTimer, 250);
+      }
+      function stopRecTimer() {
+        if (recTimerId) {
+          window.clearInterval(recTimerId);
+          recTimerId = 0;
+        }
+      }
+      function setMeter(show) {
+        meterRow.classList.toggle("show", show);
+        if (show) startRecTimer();
+        else stopRecTimer();
+      }
+      function setHint(text, isError) {
+        hint.textContent = text || "";
+        hint.classList.toggle("error-banner", !!isError && !!text);
+      }
+      // The send-to controls only mean something on a live socket: while
+      // the pairing is down (error, goodbye, dropped connection) they dim
+      // and stop taking taps until a fresh welcome re-enables them.
+      function setControlsEnabled(enabled) {
+        controlsCard.classList.toggle("offline", !enabled);
+        tgtPcBtn.disabled = !enabled;
+        tgtPhoneBtn.disabled = !enabled;
+        ppToggle.disabled = !enabled;
+      }
+      // Bottom-edge fade while more content sits below the fold. A sliver
+      // of overflow must not light the fade: when the page overflows by
+      // less than the band height itself, the band can only ever shade
+      // content that is fully on screen (the mic-error state's static
+      // footnote read as permanently dimmed). The band only shows when a
+      // real chunk of content - more than the 48px band - is hidden, and
+      // scrolling to the bottom clears it.
+      function refreshScrollFade() {
+        const doc = document.documentElement;
+        const hidden = doc.scrollHeight - (window.scrollY + window.innerHeight);
+        scrollFade.style.opacity = hidden > 48 ? "1" : "0";
+      }
+      window.addEventListener("scroll", refreshScrollFade, {
+        passive: true,
+      });
+      window.addEventListener("resize", refreshScrollFade);
       function showNotice(text) {
         notice.textContent = text;
         notice.classList.add("show");
@@ -619,6 +841,16 @@
       }
 
       function refreshButton() {
+        // Mic-blocked is a state, not a disabled control: the caption says
+        // so and the next press retries the microphone. While the Mac
+        // reports a live session the stop caption wins, so a toggle-mode
+        // session can always be ended.
+        ptt.classList.toggle("mic-blocked", micFailed && !recording);
+        if (micFailed && !recording) {
+          ptt.textContent = t("micBlockedRetry", "Mic blocked. Tap to retry");
+          ptt.classList.remove("recording");
+          return;
+        }
         if (activation === "toggle") {
           ptt.textContent = recording
             ? t("tapToStop", "Tap to stop")
@@ -757,8 +989,10 @@
         resultBadge.textContent = t("polished", "Polished");
         resultBadge.style.display = polished ? "" : "none";
         resultModel.textContent = model || "";
+        resultModel.style.display = model ? "" : "none";
         resultCopyBtn.textContent = t("copy", "Copy");
         resultCard.classList.add("show");
+        refreshScrollFade();
         // Auto-copy where the platform allows a write outside a gesture;
         // where it does not, the Copy button above does it inside the tap.
         copyText(text, resultCopyBtn);
@@ -790,6 +1024,7 @@
         recentCard.classList.add("show");
         recentList.textContent = "";
         recentEmpty.style.display = recentEntries.length ? "none" : "";
+        refreshScrollFade();
         recentEntries.forEach((entry, idx) => {
           const li = document.createElement("li");
           li.className = "recent-item";
@@ -832,7 +1067,9 @@
           setState("error", t("stateError", "Error"));
           setHint(
             t("noToken", "Open this page from the QR code in VoxBar settings."),
+            true,
           );
+          setControlsEnabled(false);
           return;
         }
 
@@ -841,7 +1078,8 @@
           socket = new WebSocket(WS_URL);
         } catch (e) {
           setState("error", t("stateError", "Error"));
-          setHint(String((e && e.message) || e));
+          setHint(String((e && e.message) || e), true);
+          setControlsEnabled(false);
           return;
         }
         socket.binaryType = "arraybuffer";
@@ -863,7 +1101,6 @@
           );
           setState("waiting", t("stateWaitMic", "Waiting for microphone"));
         };
-
         socket.onmessage = (ev) => {
           let msg = null;
           try {
@@ -877,16 +1114,15 @@
               activation = msg.activation || "push_to_talk";
               recording = !!msg.recording;
               ptt.disabled = false;
+              setControlsEnabled(true);
               setState("ready", t("stateReady", "Ready"));
-              // The welcome hint follows the activation the Mac sent;
-              // hold_or_toggle names both of its modes (v1.6.2 W1-L0).
-              setHint(
-                activation === "toggle"
-                  ? t("tapToTalk", "")
-                  : activation === "hold_or_toggle"
-                    ? t("holdOrToggleToTalk", "")
-                    : t("holdToTalk", ""),
-              );
+              // The caption stays empty in the default mode: the button
+              // right above already names its activation modes (W1-L0's
+              // activation-aware label), and repeating it within ~40px was
+              // noise. The caption is reserved for state-conditional
+              // guidance (mic errors, pairing failures, disconnect
+              // reasons).
+              setHint("");
               refreshButton();
               // Warm the microphone (permission prompt, stream) but NEVER
               // the AudioContext: it is created and resumed inside the
@@ -896,14 +1132,18 @@
               break;
             case "state":
               recording = !!msg.recording;
-              setState(
-                recording ? "recording" : "ready",
-                recording
-                  ? t("stateRecording", "Recording")
-                  : t("stateReady", "Ready"),
-              );
-              setHint(recording ? "" : "");
-              micbar.classList.toggle("show", recording);
+              // Back to idle: the pill returns to Ready only when the
+              // microphone actually works; a blocked mic keeps the amber
+              // "Mic blocked" pill instead of re-asserting readiness.
+              if (recording) {
+                setState("recording", t("stateRecording", "Recording"));
+              } else if (micFailed) {
+                setState("warn", t("stateMicBlocked", "Mic blocked"));
+              } else {
+                setState("ready", t("stateReady", "Ready"));
+              }
+              setHint("");
+              setMeter(recording);
               if (!recording) {
                 pressing = false;
                 ptt.classList.remove("held");
@@ -948,12 +1188,13 @@
               deliberateClose = true;
               ptt.disabled = true;
               setState("error", t("stateError", "Error"));
-              if (msg.code === "bad_token") setHint(t("badToken", ""));
+              if (msg.code === "bad_token") setHint(t("badToken", ""), true);
               else if (msg.code === "wrong_subnet")
-                setHint(t("wrongSubnet", ""));
+                setHint(t("wrongSubnet", ""), true);
               else if (msg.code === "rate_limited")
-                setHint(t("rateLimited", ""));
-              else setHint(msg.code || "");
+                setHint(t("rateLimited", ""), true);
+              else setHint(msg.code || "", true);
+              setControlsEnabled(false);
               try {
                 socket.close();
               } catch (e) {}
@@ -967,6 +1208,7 @@
                 setHint(t("serverStopped", ""));
               else if (msg.reason === "rate_cap") setHint(t("rateLimited", ""));
               else setHint("");
+              setControlsEnabled(false);
               stopMic();
               reconnectBtn.style.display = "";
               break;
@@ -975,8 +1217,9 @@
 
         socket.onclose = () => {
           ptt.disabled = true;
-          micbar.classList.remove("show");
+          setMeter(false);
           stopMic();
+          setControlsEnabled(false);
           if (deliberateClose) return;
           setState("warn", t("stateDisconnected", "Disconnected"));
           setHint("");
@@ -1004,9 +1247,22 @@
           "Microphone access failed. Allow it in the browser, then try again.",
         );
         micErrorCard.classList.add("show");
+        // State consistency: a failed microphone must never leave a green
+        // "Ready" pill above the failure banner. The pill goes amber until
+        // the mic is granted again (hideMicError).
+        if (!recording) {
+          setState("warn", t("stateMicBlocked", "Mic blocked"));
+        }
+        refreshButton();
+        refreshScrollFade();
       }
       function hideMicError() {
         micErrorCard.classList.remove("show");
+        if (!recording) {
+          setState("ready", t("stateReady", "Ready"));
+        }
+        refreshButton();
+        refreshScrollFade();
       }
 
       function openMic() {
@@ -1287,7 +1543,7 @@
           for (const track of micStream.getTracks()) track.stop();
           micStream = null;
         }
-        micbar.classList.remove("show");
+        setMeter(false);
       }
 
       // ---- PTT edges ----
@@ -1385,7 +1641,10 @@
         ptt.addEventListener("touchcancel", () => pressEnd());
       }
       ptt.addEventListener("contextmenu", (ev) => ev.preventDefault());
-      document.addEventListener("gesturestart", (ev) => ev.preventDefault());
+      // Pinch-zoom stays available (WCAG 1.4.4): the viewport meta no
+      // longer caps the scale, and no gesture blocker runs here.
+      // touch-action: manipulation on body still suppresses the accidental
+      // double-tap zoom around the talk button without touching pinch.
 
       document.addEventListener("visibilitychange", () => {
         // Backgrounded mid-press: treat as release so audio never leaks on.
@@ -1400,6 +1659,7 @@
       refreshControls();
       refreshButton();
       connect();
+      refreshScrollFade();
     </script>
   </body>
 </html>

@@ -6,7 +6,7 @@ import React, {
   useSyncExternalStore,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { FlaskConical, Play, RotateCcw, Square } from "lucide-react";
+import { FlaskConical, Play, RotateCcw, Square, Loader2 } from "lucide-react";
 import { commands, type HistoryEntry, type StudioSource } from "@/bindings";
 import { useSettings } from "@/hooks/useSettings";
 import { formatDateTime } from "@/utils/dateFormat";
@@ -120,13 +120,17 @@ const ResultCard: React.FC<{
       </div>
 
       {card.status === "running" ? (
-        <p className="text-xs text-secondary/70">
+        <p className="flex items-center gap-1.5 text-xs text-secondary">
+          {/* In-flight feedback: the spinner keeps the running state visibly
+           * alive instead of static gray text a stalled run would render
+           * exactly like. */}
+          <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
           {t("settings.studio.running")}
         </p>
       ) : card.status === "cancelled" ? (
         /* KB-257: the cancel landed before this pair's turn; it never
            ran, so there is no outcome to badge or diff to show. */
-        <p className="text-xs text-secondary/70">
+        <p className="text-xs text-secondary">
           {t("settings.studio.cancelledCard")}
         </p>
       ) : card.result ? (
@@ -136,7 +140,13 @@ const ResultCard: React.FC<{
               variant={kind === "applied" ? "success" : "secondary"}
               className={kind === "failed" ? "text-error" : undefined}
             >
-              {t(`settings.ppOutcome.${outcomeBase}`)}
+              {/* "Success", not "applied": the studio types and saves
+                 nothing, so an "applied" pill contradicted the run
+                 caption beside it. The other outcome words (skipped,
+                 failed, unchanged) make no such claim and stay as-is. */}
+              {kind === "applied"
+                ? t("settings.studio.appliedLabel")
+                : t(`settings.ppOutcome.${outcomeBase}`)}
               {kind === "other" ? ` (${outcomeToken})` : ""}
             </Badge>
             <span className="text-xs text-secondary">
@@ -375,10 +385,10 @@ export const PromptStudio: React.FC = () => {
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
       <div>
-        <h2 className="text-sm font-semibold text-text/70 uppercase tracking-wide">
+        <h1 className="text-xl font-medium mb-2">
           {t("settings.studio.title")}
-        </h2>
-        <p className="mt-1 text-xs text-secondary/80">
+        </h1>
+        <p className="mt-1 text-xs text-secondary">
           {t("settings.studio.intro")}
         </p>
       </div>
@@ -404,11 +414,11 @@ export const PromptStudio: React.FC = () => {
             className="w-full"
           />
           {entriesLoading ? (
-            <p className="text-xs text-secondary/70">
+            <p className="text-xs text-secondary">
               {t("settings.studio.source.loading")}
             </p>
           ) : entries.length === 0 ? (
-            <p className="text-xs text-secondary/70">
+            <p className="text-xs text-secondary">
               {t("settings.postProcessing.prompts.testNoHistory")}
             </p>
           ) : null}
@@ -505,7 +515,7 @@ export const PromptStudio: React.FC = () => {
             <span>{t("settings.studio.cancel")}</span>
           </Button>
         ) : null}
-        <span className="text-xs text-secondary/70">
+        <span className="text-xs text-secondary">
           {t("settings.studio.runHint", { count: batch.length })}
         </span>
       </div>
@@ -551,7 +561,7 @@ export const PromptStudio: React.FC = () => {
             <p className="text-sm text-secondary">
               {t("settings.studio.resultsEmptyTitle")}
             </p>
-            <p className="text-xs text-secondary/70 max-w-sm">
+            <p className="text-xs text-secondary max-w-sm">
               {t("settings.studio.resultsEmptyHint")}
             </p>
           </div>

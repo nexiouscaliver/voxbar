@@ -29,11 +29,6 @@
     "secureInputWarning": "⚠ 快捷鍵被 Secure Input 阻擋",
     "postProcessPrompt": "後處理提示詞"
   },
-  "trayCopyOutcome": {
-    "copied": "已將聽寫文字複製到剪貼板。",
-    "empty": "還沒有可複製的內容。",
-    "failed": "無法將聽寫文字複製到剪貼板。"
-  },
   "sidebar": {
     "general": "一般",
     "commands": "命令",
@@ -46,7 +41,8 @@
     "debug": "偵錯",
     "about": "關於",
     "notifications": "通知",
-    "promptStudio": "提示詞工作室"
+    "promptStudio": "提示詞工作室",
+    "addonsGroup": "附加元件"
   },
   "onboarding": {
     "subtitle": "首先，請選擇一種模型",
@@ -68,7 +64,9 @@
     },
     "modelCard": {
       "accuracy": "準確度",
-      "speed": "速度"
+      "speed": "速度",
+      "installed": "已安裝",
+      "selected": "已選擇"
     },
     "models": {
       "small": {
@@ -162,7 +160,9 @@
       "errors": {
         "checkFailed": "檢查權限失敗，請重試",
         "requestFailed": "請求權限失敗，請重試"
-      }
+      },
+      "done": "完成",
+      "openSettings": "開啟設定"
     },
     "hotkeyHint": "隨時按 {{hotkey}} 開始聽寫。",
     "hotkeyChangeHint": "可以在 設定 > 一般 中變更此快捷鍵。",
@@ -171,6 +171,10 @@
       "body": "VoxBar 無法連線到模型目錄。請檢查網路連線後重試，或略過此步驟，稍後在設定中選擇模型。",
       "retry": "重試",
       "skip": "暫時略過"
+    },
+    "postProcessGroup": {
+      "title": "選用：後處理",
+      "caption": "用於在聽寫後潤飾文字稿。不用於語音轉寫。"
     }
   },
   "modelSelector": {
@@ -260,7 +264,9 @@
           "set": "無法設定快捷鍵: {{error}}",
           "reset": "無法將快捷鍵重設為原始值"
         },
-        "unbound": "未綁定"
+        "unbound": "未綁定",
+        "recordHint": "點按來錄製新的快速鍵",
+        "gatedHint": "開啟{{action}}後才能綁定按鍵"
       },
       "language": {
         "title": "語言",
@@ -369,7 +375,8 @@
         "clearAll": "刪除全部聽寫內容",
         "undo": "在使用中的 App 執行復原",
         "paste": "將剪貼簿貼到使用中的 App"
-      }
+      },
+      "defaultPhrasesNote": "預設短語是辨識器監聽的英文單字，外加內建的印地語和中文別名。你可以在任意行用任意語言新增自己的短語。"
     },
     "search": {
       "placeholder": "搜尋設定",
@@ -712,7 +719,8 @@
         "restartButton": "重新啟動伺服器",
         "restartPending": "變更會在重新啟動後生效",
         "qrPreviewNote": "預覽：伺服器下次啟動後會公布此 URL。",
-        "sharedNetworkNote": "手機和這台 Mac 必須處於同一網路：同一 Wi-Fi 或區域網路，或同一 tailnet（例如都加入 Tailscale）。"
+        "sharedNetworkNote": "手機和這台 Mac 必須處於同一網路：同一 Wi-Fi 或區域網路，或同一 tailnet（例如都加入 Tailscale）。",
+        "fingerprintCopied": "已複製"
       }
     },
     "postProcessing": {
@@ -760,7 +768,8 @@
           "filterPlaceholder": "篩選模型",
           "showAll_one": "顯示全部（{{count}}）",
           "showAll_other": "顯示全部（{{count}}）",
-          "showFewer": "收合"
+          "showFewer": "收合",
+          "emptyNoKey": "請先在上方輸入你的 API 金鑰，然後重新整理以載入模型列表。"
         },
         "timeout": {
           "title": "請求逾時",
@@ -931,7 +940,6 @@
       "empty": "還沒有轉錄紀錄。開始錄製以建立您的歷史紀錄！",
       "copyToClipboard": "複製轉錄到剪貼簿",
       "copyError": "無法將轉錄複製到剪貼簿。",
-      "savedToggleError": "無法更新儲存狀態。",
       "save": "儲存轉錄",
       "unsave": "從已儲存中移除",
       "delete": "刪除條目",
@@ -951,6 +959,12 @@
       "viaPostProcess": "經 {{model}} · {{prompt}} · {{outcome}} · {{latency}} 毫秒處理",
       "viewChanges": "檢視變更",
       "hideChanges": "收合變更",
+      "emptyTitle": "還沒有聽寫記錄",
+      "emptyHint": "按下錄音快速鍵，開始你的第一次聽寫。",
+      "deleteConfirm": "刪除此項目？錄音及其逐字稿將被永久刪除。",
+      "today": "今天",
+      "yesterday": "昨天",
+      "savedToggleError": "無法更新儲存狀態。",
       "dbRecoveredNotice": "轉錄歷史資料庫無法讀取，因此已啟動新的資料庫。原本的資料庫已保留為 {{file}}。"
     },
     "debug": {
@@ -972,7 +986,9 @@
         "resume": "繼續",
         "copied": "已複製",
         "lineCount": "{{count}} 行",
-        "empty": "正在等待日誌…… 應用程式產生日誌時會顯示於此。"
+        "empty": "正在等待日誌…… 應用程式產生日誌時會顯示於此。",
+        "clearConfirm": "清除此檢視中擷取的行？磁碟上的日誌檔會保留。",
+        "clearConfirmTitle": "清除已擷取的行？"
       },
       "updateChecks": {
         "label": "檢查更新",
@@ -1156,7 +1172,8 @@
       },
       "outcomes": {
         "label": "結果通知",
-        "description": "手機工作階段結束時也通知，例如達到工作階段上限或手機中斷連線時。關閉後僅通知錯誤。"
+        "description": "手機工作階段結束時也通知，例如達到工作階段上限或手機中斷連線時。關閉後僅通知錯誤。",
+        "requiresMaster": "僅在系統通知開啟時可用。"
       },
       "log": {
         "title": "通知記錄",
@@ -1190,8 +1207,6 @@
       "runHint_one": "1 個提示詞在 1 個引擎上執行。不會輸入或儲存任何內容。",
       "runHint_other": "{{count}} 組提示詞與引擎。不會輸入或儲存任何內容。",
       "running": "執行中...",
-      "cancel": "取消",
-      "cancelledCard": "此執行啟動前已取消。",
       "rerun": "重新執行",
       "latency": "{{ms}} 毫秒",
       "rawKept": "引擎失敗或被略過，因此將保留原始轉錄。",
@@ -1207,10 +1222,17 @@
         "lines": "行",
         "charsChanged_one": "1 個字元變更",
         "charsChanged_other": "{{count}} 個字元變更",
-        "identical": "無變更。"
+        "identical": "無變更。",
+        "added_one": "新增 {{count}} 行",
+        "added_other": "新增 {{count}} 行",
+        "removed_one": "刪除 {{count}} 行",
+        "removed_other": "刪除 {{count}} 行"
       },
       "resultsEmptyTitle": "結果會顯示在這裡",
-      "resultsEmptyHint": "在上方選擇來源、提示詞與引擎後執行。每張卡片會顯示潤飾後的文字、變更內容與執行速度。"
+      "resultsEmptyHint": "在上方選擇來源、提示詞與引擎後執行。每張卡片會顯示潤飾後的文字、變更內容與執行速度。",
+      "appliedLabel": "成功",
+      "cancel": "取消",
+      "cancelledCard": "此執行啟動前已取消。"
     }
   },
   "footer": {
@@ -1257,11 +1279,13 @@
     "open": "開啟",
     "copy": "複製",
     "clear": "清除",
-    "noOptionsFound": "未找到選項"
+    "noOptionsFound": "未找到選項",
+    "cancel": "取消"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar 需要輔助使用權限才能輸入轉錄的文字",
-    "openSettings": "開啟系統設定"
+    "openSettings": "開啟系統設定",
+    "resetSetting": "將{{label}}還原預設"
   },
   "errors": {
     "loadDirectory": "載入目錄時發生錯誤: {{error}}",
@@ -1277,8 +1301,6 @@
     "recordingFailed": "錄音啟動失敗: {{error}}",
     "modelLoadFailed": "載入模型失敗: {{model}}",
     "modelLoadFailedUnknown": "未知模型",
-    "modelLoadFailedMemoryGate": "記憶體不足，無法載入 {{model}}：需要約 {{needed}}，僅約 {{free}} 可用。",
-    "modelLoadFailedDetail": "模型未變更。技術原因請查看日誌檔案。",
     "modelFallbackTitle": "記憶體不足",
     "modelFallback": "本次聽寫已切換到 {{model}}",
     "pasteFailedTitle": "貼上文字失敗",
@@ -1286,7 +1308,9 @@
     "transcriptionFailedTitle": "轉錄失敗",
     "noModelSelectedTitle": "未選擇模型",
     "noModelSelected": "聽寫前請先在設定中選擇一個轉寫模型。",
-    "openDirectory": "無法開啟資料夾：{{error}}"
+    "openDirectory": "無法開啟資料夾：{{error}}",
+    "modelLoadFailedMemoryGate": "記憶體不足，無法載入 {{model}}：需要約 {{needed}}，僅約 {{free}} 可用。",
+    "modelLoadFailedDetail": "模型未變更。技術原因請查看日誌檔案。"
   },
   "appLanguage": {
     "title": "應用程式語言",
@@ -1354,7 +1378,8 @@
     "companionBadge": "伴侶麥克風"
   },
   "whatsNew": {
-    "title": "VoxBar v{{version}} 新功能"
+    "title": "VoxBar v{{version}} 新功能",
+    "gotIt": "知道了"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} 可能正在阻擋 1 個快捷鍵",
@@ -1406,13 +1431,9 @@
     "disconnectedFinalized": "連線中斷。Mac 已保留你說的內容。",
     "capped": "工作階段以 15 分鐘為限。再按一次即可繼續。",
     "zeroAudio": "沒有聲音傳到 Mac。請按住按鈕再說話。",
-    "zeroAudioHold": "沒有聲音傳到 Mac。請按住按鈕再說話。",
-    "zeroAudioHoldOrToggle": "沒有聲音傳到 Mac。請按住或點按按鈕再說話。",
-    "zeroAudioTap": "沒有聲音傳到 Mac。請點按按鈕再說話。",
     "serverStopped": "Mac 已停止伴侶伺服器。",
     "reconnect": "重新連線",
     "holdToTalk": "按住說話",
-    "holdOrToggleToTalk": "按住說話，點按鎖定",
     "tapToTalk": "點按說話",
     "release": "放開結束",
     "tapToStop": "點按停止",
@@ -1431,6 +1452,17 @@
     "copied": "已複製",
     "polished": "已潤飾",
     "historyTitle": "最近",
-    "historyEmpty": "來自這支手機的聽寫會顯示在這裡。"
+    "historyEmpty": "來自這支手機的聽寫會顯示在這裡。",
+    "stateMicBlocked": "麥克風已被封鎖",
+    "micBlockedRetry": "麥克風已被封鎖。點按以重試。",
+    "zeroAudioHold": "沒有聲音傳到 Mac。請按住按鈕再說話。",
+    "zeroAudioHoldOrToggle": "沒有聲音傳到 Mac。請按住或點按按鈕再說話。",
+    "zeroAudioTap": "沒有聲音傳到 Mac。請點按按鈕再說話。",
+    "holdOrToggleToTalk": "按住說話，點按鎖定"
+  },
+  "trayCopyOutcome": {
+    "copied": "已將聽寫文字複製到剪貼板。",
+    "empty": "還沒有可複製的內容。",
+    "failed": "無法將聽寫文字複製到剪貼板。"
   }
 }

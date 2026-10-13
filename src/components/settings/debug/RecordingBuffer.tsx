@@ -24,6 +24,7 @@ export const RecordingBuffer: React.FC<RecordingBufferProps> = ({
       value={settings?.extra_recording_buffer_ms ?? 0}
       onChange={handleBufferChange}
       onReset={() => resetSetting("extra_recording_buffer_ms")}
+      defaultValue={0}
       isResetting={isUpdating("extra_recording_buffer_ms")}
       min={0}
       max={1500}

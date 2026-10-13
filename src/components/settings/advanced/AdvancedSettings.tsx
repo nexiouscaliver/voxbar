@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { ModelUnloadTimeoutSetting } from "../ModelUnloadTimeout";
 import { MemoryPressureGuard } from "../MemoryPressureGuard";
@@ -34,8 +34,25 @@ import { CompanionDevices } from "../CompanionDevices";
  */
 export const AdvancedSettings: React.FC = () => {
   const { t } = useTranslation();
-  const { getSetting } = useSettings();
+  const { getSetting, updateSetting } = useSettings();
   const experimentalEnabled = getSetting("experimental_enabled") || false;
+  const experimentalGroupRef = useRef<HTMLDivElement>(null);
+
+  /* Turning the toggle on reveals the Experimental group far below the
+   * fold - with the page resting where the toggle is, the flip produced
+   * zero visible change. Bring the freshly revealed group into view so
+   * the toggle's effect is immediate and visible. */
+  const handleExperimentalChange = (enabled: boolean) => {
+    updateSetting("experimental_enabled", enabled);
+    if (enabled) {
+      requestAnimationFrame(() => {
+        experimentalGroupRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    }
+  };
 
   return (
     <div className="max-w-3xl w-full mx-auto space-y-6">
@@ -49,7 +66,11 @@ export const AdvancedSettings: React.FC = () => {
         <MemoryHeadroom descriptionMode="tooltip" grouped={true} />
         <AutoFallback descriptionMode="tooltip" grouped={true} />
         <MenuBarModelTitle descriptionMode="tooltip" grouped={true} />
-        <ExperimentalToggle descriptionMode="tooltip" grouped={true} />
+        <ExperimentalToggle
+          descriptionMode="tooltip"
+          grouped={true}
+          onChange={handleExperimentalChange}
+        />
       </SettingsGroup>
 
       <SettingsGroup title={t("settings.advanced.groups.transcription")}>
@@ -61,18 +82,20 @@ export const AdvancedSettings: React.FC = () => {
       </SettingsGroup>
 
       {experimentalEnabled && (
-        <SettingsGroup title={t("settings.advanced.groups.experimental")}>
-          <KeyboardImplementationSelector
-            descriptionMode="tooltip"
-            grouped={true}
-          />
-          <AccelerationSelector descriptionMode="tooltip" grouped={true} />
-          <LazyStreamClose descriptionMode="tooltip" grouped={true} />
-          <VadBackendSelector descriptionMode="tooltip" grouped={true} />
-          {/* Companion devices carry their own OFF-by-default toggle; it
-              lives behind the experimental flag this cycle. */}
-          <CompanionDevices />
-        </SettingsGroup>
+        <div ref={experimentalGroupRef}>
+          <SettingsGroup title={t("settings.advanced.groups.experimental")}>
+            <KeyboardImplementationSelector
+              descriptionMode="tooltip"
+              grouped={true}
+            />
+            <AccelerationSelector descriptionMode="tooltip" grouped={true} />
+            <LazyStreamClose descriptionMode="tooltip" grouped={true} />
+            <VadBackendSelector descriptionMode="tooltip" grouped={true} />
+            {/* Companion devices carry their own OFF-by-default toggle; it
+                lives behind the experimental flag this cycle. */}
+            <CompanionDevices />
+          </SettingsGroup>
+        </div>
       )}
     </div>
   );

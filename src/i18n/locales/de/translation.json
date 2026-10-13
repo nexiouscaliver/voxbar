@@ -29,11 +29,6 @@
     "secureInputWarning": "⚠ Tastenkürzel durch Secure Input blockiert",
     "postProcessPrompt": "Nachbearbeitungs-Prompt"
   },
-  "trayCopyOutcome": {
-    "copied": "Das Diktat wurde in die Zwischenablage kopiert.",
-    "empty": "Es gibt noch nichts zu kopieren.",
-    "failed": "Das Diktat konnte nicht in die Zwischenablage kopiert werden."
-  },
   "sidebar": {
     "general": "Allgemein",
     "commands": "Befehle",
@@ -46,7 +41,8 @@
     "debug": "Debug",
     "about": "Info",
     "notifications": "Benachrichtigungen",
-    "promptStudio": "Prompt-Studio"
+    "promptStudio": "Prompt-Studio",
+    "addonsGroup": "Add-ons"
   },
   "onboarding": {
     "subtitle": "Wähle ein Transkriptionsmodell, um loszulegen",
@@ -68,7 +64,9 @@
     },
     "modelCard": {
       "accuracy": "Genauigkeit",
-      "speed": "Geschwindigkeit"
+      "speed": "Geschwindigkeit",
+      "installed": "Installiert",
+      "selected": "Ausgewählt"
     },
     "models": {
       "small": {
@@ -162,7 +160,9 @@
       "errors": {
         "checkFailed": "Berechtigungsprüfung fehlgeschlagen. Bitte erneut versuchen.",
         "requestFailed": "Berechtigungsanfrage fehlgeschlagen. Bitte erneut versuchen."
-      }
+      },
+      "done": "Fertig",
+      "openSettings": "Einstellungen öffnen"
     },
     "hotkeyHint": "Diktat jederzeit mit {{hotkey}} starten.",
     "hotkeyChangeHint": "Sie können diese Tastenkombination unter Einstellungen > Allgemein ändern.",
@@ -171,6 +171,10 @@
       "body": "VoxBar konnte den Modellkatalog nicht erreichen. Prüfe deine Verbindung und versuche es erneut, oder überspringe diesen Schritt und wähle später in den Einstellungen ein Modell.",
       "retry": "Erneut versuchen",
       "skip": "Vorerst überspringen"
+    },
+    "postProcessGroup": {
+      "title": "Optional: Nachbearbeitung",
+      "caption": "Zum Polieren von Transkripten nach dem Diktieren. Wird nicht für die Transkription verwendet."
     }
   },
   "modelSelector": {
@@ -313,7 +317,9 @@
           "set": "Tastenkürzel konnte nicht gesetzt werden: {{error}}",
           "reset": "Tastenkürzel konnte nicht auf Originalwert zurückgesetzt werden"
         },
-        "unbound": "Nicht zugewiesen"
+        "unbound": "Nicht zugewiesen",
+        "recordHint": "Klicken, um eine neue Tastenkombination aufzunehmen",
+        "gatedHint": "Aktivieren Sie {{action}}, um eine Taste zuzuordnen"
       },
       "language": {
         "title": "Sprache",
@@ -422,7 +428,8 @@
         "clearAll": "Löscht das komplette Diktat",
         "undo": "Führt Rückgängig in der fokussierten App aus",
         "paste": "Fügt die Zwischenablage in der fokussierten App ein"
-      }
+      },
+      "defaultPhrasesNote": "Die Standardphrasen sind die englischen Wörter, auf die die Erkennunghört, plus eingebaute Hindi- und chinesische Aliase. Eigene Phrasen können inbeliebiger Sprache in jeder Zeile hinzugefügt werden."
     },
     "search": {
       "placeholder": "Einstellungen durchsuchen",
@@ -712,7 +719,8 @@
         "restartButton": "Server neu starten",
         "restartPending": "Änderungen greifen nach einem Neustart",
         "qrPreviewNote": "Vorschau: Diese URL gilt, sobald der Server das nächste Mal startet.",
-        "sharedNetworkNote": "Das Telefon und dieser Mac müssen ein Netzwerk teilen: dasselbe WLAN oder LAN oder dasselbe Tailnet (zum Beispiel beide in Tailscale)."
+        "sharedNetworkNote": "Das Telefon und dieser Mac müssen ein Netzwerk teilen: dasselbe WLAN oder LAN oder dasselbe Tailnet (zum Beispiel beide in Tailscale).",
+        "fingerprintCopied": "Kopiert"
       }
     },
     "postProcessing": {
@@ -760,7 +768,8 @@
           "filterPlaceholder": "Modelle filteren",
           "showAll_one": "Alle anzeigen ({{count}})",
           "showAll_other": "Alle anzeigen ({{count}})",
-          "showFewer": "Weniger anzeigen"
+          "showFewer": "Weniger anzeigen",
+          "emptyNoKey": "Gib oben deinen API-Schlüssel ein und lade dann neu, um die Modelle zu laden."
         },
         "timeout": {
           "title": "Anfrage-Timeout",
@@ -931,7 +940,6 @@
       "empty": "Noch keine Transkriptionen. Starte eine Aufnahme, um deinen Verlauf aufzubauen!",
       "copyToClipboard": "Transkription in Zwischenablage kopieren",
       "copyError": "Transkription konnte nicht in die Zwischenablage kopiert werden.",
-      "savedToggleError": "Gespeichert-Status konnte nicht aktualisiert werden.",
       "save": "Transkription speichern",
       "unsave": "Aus Gespeicherten entfernen",
       "delete": "Eintrag löschen",
@@ -951,6 +959,12 @@
       "viaPostProcess": "über {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Änderungen anzeigen",
       "hideChanges": "Änderungen ausblenden",
+      "emptyTitle": "Noch keine Transkriptionen",
+      "emptyHint": "Drücke deine Aufnahme-Tastenkombination, um dein erstes Diktat aufzunehmen.",
+      "deleteConfirm": "Diesen Eintrag löschen? Die Aufnahme und ihr Transkript werden dauerhaft entfernt.",
+      "today": "Heute",
+      "yesterday": "Gestern",
+      "savedToggleError": "Gespeichert-Status konnte nicht aktualisiert werden.",
       "dbRecoveredNotice": "Die Datenbank Ihres Transkriptionsverlaufs war unlesbar, daher wurde eine neue gestartet. Die vorherige Datenbank wurde als {{file}} aufbewahrt."
     },
     "debug": {
@@ -972,7 +986,9 @@
         "resume": "Fortsetzen",
         "copied": "Kopiert",
         "lineCount": "{{count}} Zeilen",
-        "empty": "Warte auf Logs … Einträge erscheinen hier, sobald die App sie ausgibt."
+        "empty": "Warte auf Logs … Einträge erscheinen hier, sobald die App sie ausgibt.",
+        "clearConfirm": "Die erfassten Zeilen aus dieser Ansicht löschen? Die Protokolldatei auf der Festplatte bleibt erhalten.",
+        "clearConfirmTitle": "Erfasste Zeilen löschen?"
       },
       "updateChecks": {
         "label": "Nach Updates suchen",
@@ -1156,7 +1172,8 @@
       },
       "outcomes": {
         "label": "Benachrichtigungen zu Sitzungsergebnissen",
-        "description": "Außerdem benachrichtigen, wenn eine Telefonsitzung endet, etwa beim Erreichen des Sitzungslimits oder beim Trennen der Verbindung. Aus bedeutet nur Fehler."
+        "description": "Außerdem benachrichtigen, wenn eine Telefonsitzung endet, etwa beim Erreichen des Sitzungslimits oder beim Trennen der Verbindung. Aus bedeutet nur Fehler.",
+        "requiresMaster": "Nur verfügbar, solange Systembenachrichtigungen aktiviert sind."
       },
       "log": {
         "title": "Benachrichtigungsprotokoll",
@@ -1190,8 +1207,6 @@
       "runHint_one": "1 Prompt auf 1 Engine. Es wird nichts eingetippt oder gespeichert.",
       "runHint_other": "{{count}} Prompt-Engine-Paare. Es wird nichts eingetippt oder gespeichert.",
       "running": "Wird ausgeführt...",
-      "cancel": "Abbrechen",
-      "cancelledCard": "Abgebrochen, bevor dieser Lauf startete.",
       "rerun": "Erneut ausführen",
       "latency": "{{ms}} ms",
       "rawKept": "Die Engine ist fehlgeschlagen oder wurde übersprungen, daher würde das rohe Transkript behalten.",
@@ -1207,10 +1222,17 @@
         "lines": "Zeilen",
         "charsChanged_one": "1 Zeichen geändert",
         "charsChanged_other": "{{count}} Zeichen geändert",
-        "identical": "Keine Änderungen."
+        "identical": "Keine Änderungen.",
+        "added_one": "+{{count}} hinzugefügt",
+        "added_other": "+{{count}} hinzugefügt",
+        "removed_one": "{{count}} entfernt",
+        "removed_other": "{{count}} entfernt"
       },
       "resultsEmptyTitle": "Ergebnisse erscheinen hier",
-      "resultsEmptyHint": "Wähle oben Quelle, Prompts und Engines und führe sie aus. Jede Karte zeigt den bearbeiteten Text, seine Änderungen und wie schnell er lief."
+      "resultsEmptyHint": "Wähle oben Quelle, Prompts und Engines und führe sie aus. Jede Karte zeigt den bearbeiteten Text, seine Änderungen und wie schnell er lief.",
+      "appliedLabel": "Erfolg",
+      "cancel": "Abbrechen",
+      "cancelledCard": "Abgebrochen, bevor dieser Lauf startete."
     }
   },
   "footer": {
@@ -1257,11 +1279,13 @@
     "open": "Öffnen",
     "copy": "Kopieren",
     "clear": "Leeren",
-    "noOptionsFound": "Keine Optionen gefunden"
+    "noOptionsFound": "Keine Optionen gefunden",
+    "cancel": "Abbrechen"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar benötigt Bedienungshilfen-Berechtigungen, um transkribierten Text einzugeben.",
-    "openSettings": "Systemeinstellungen öffnen"
+    "openSettings": "Systemeinstellungen öffnen",
+    "resetSetting": "{{label}} auf Standard zurücksetzen"
   },
   "errors": {
     "loadDirectory": "Fehler beim Laden des Verzeichnisses: {{error}}",
@@ -1277,8 +1301,6 @@
     "recordingFailed": "Aufnahme konnte nicht gestartet werden: {{error}}",
     "modelLoadFailed": "Modell konnte nicht geladen werden: {{model}}",
     "modelLoadFailedUnknown": "unbekanntes Modell",
-    "modelLoadFailedMemoryGate": "Nicht genug freier Speicher, um {{model}} zu laden: benötigt etwa {{needed}}, etwa {{free}} frei.",
-    "modelLoadFailedDetail": "Das Modell wurde nicht geändert. Der technische Grund steht in der Protokolldatei.",
     "modelFallbackTitle": "Wenig Speicher",
     "modelFallback": "Für diese Diktation wurde zu {{model}} gewechselt",
     "pasteFailedTitle": "Text konnte nicht eingefügt werden",
@@ -1286,7 +1308,9 @@
     "transcriptionFailedTitle": "Transkription fehlgeschlagen",
     "noModelSelectedTitle": "Kein Modell ausgewählt",
     "noModelSelected": "Wählen Sie vor dem Diktieren ein Transkriptionsmodell in den Einstellungen.",
-    "openDirectory": "Ordner konnte nicht geöffnet werden: {{error}}"
+    "openDirectory": "Ordner konnte nicht geöffnet werden: {{error}}",
+    "modelLoadFailedMemoryGate": "Nicht genug freier Speicher, um {{model}} zu laden: benötigt etwa {{needed}}, etwa {{free}} frei.",
+    "modelLoadFailedDetail": "Das Modell wurde nicht geändert. Der technische Grund steht in der Protokolldatei."
   },
   "appLanguage": {
     "title": "Anwendungssprache",
@@ -1354,7 +1378,8 @@
     "companionBadge": "Begleitmikrofon"
   },
   "whatsNew": {
-    "title": "Neu in VoxBar v{{version}}"
+    "title": "Neu in VoxBar v{{version}}",
+    "gotIt": "Verstanden"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} blockiert möglicherweise 1 Tastenkürzel",
@@ -1406,13 +1431,9 @@
     "disconnectedFinalized": "Verbindung getrennt. Der Mac hat behalten, was du gesagt hast.",
     "capped": "Sitzung nach 15 Minuten begrenzt. Drücke erneut, um weiterzumachen.",
     "zeroAudio": "Kein Audio erreichte den Mac. Halte die Taste gedrückt und sprich dann.",
-    "zeroAudioHold": "Kein Audio erreichte den Mac. Halte die Taste gedrückt und sprich dann.",
-    "zeroAudioHoldOrToggle": "Kein Audio erreichte den Mac. Halte die Taste gedrückt oder tippe darauf und sprich dann.",
-    "zeroAudioTap": "Kein Audio erreichte den Mac. Tippe auf die Taste und sprich dann.",
     "serverStopped": "Der Mac hat den Begleitserver gestoppt.",
     "reconnect": "Erneut verbinden",
     "holdToTalk": "Zum Sprechen halten",
-    "holdOrToggleToTalk": "Zum Sprechen halten, zum Sperren tippen",
     "tapToTalk": "Tippen zum Sprechen",
     "release": "Loslassen zum Beenden",
     "tapToStop": "Tippen zum Stoppen",
@@ -1431,6 +1452,17 @@
     "copied": "Kopiert",
     "polished": "Poliert",
     "historyTitle": "Zuletzt",
-    "historyEmpty": "Diktate von diesem Telefon erscheinen hier."
+    "historyEmpty": "Diktate von diesem Telefon erscheinen hier.",
+    "stateMicBlocked": "Mikrofon blockiert",
+    "micBlockedRetry": "Mikrofon blockiert. Zum Wiederholen tippen.",
+    "zeroAudioHold": "Kein Audio erreichte den Mac. Halte die Taste gedrückt und sprich dann.",
+    "zeroAudioHoldOrToggle": "Kein Audio erreichte den Mac. Halte die Taste gedrückt oder tippe darauf und sprich dann.",
+    "zeroAudioTap": "Kein Audio erreichte den Mac. Tippe auf die Taste und sprich dann.",
+    "holdOrToggleToTalk": "Zum Sprechen halten, zum Sperren tippen"
+  },
+  "trayCopyOutcome": {
+    "copied": "Das Diktat wurde in die Zwischenablage kopiert.",
+    "empty": "Es gibt noch nichts zu kopieren.",
+    "failed": "Das Diktat konnte nicht in die Zwischenablage kopiert werden."
   }
 }

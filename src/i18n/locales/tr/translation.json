@@ -29,11 +29,6 @@
     "secureInputWarning": "⚠ Kısayollar Secure Input tarafından engelleniyor",
     "postProcessPrompt": "Son işlem promptu"
   },
-  "trayCopyOutcome": {
-    "copied": "Dikte panoya kopyalandı.",
-    "empty": "Henüz kopyalanacak bir şey yok.",
-    "failed": "Dikte panoya kopyalanamadı."
-  },
   "sidebar": {
     "general": "Genel",
     "commands": "Komutlar",
@@ -46,7 +41,8 @@
     "debug": "Hata Ayıklama",
     "about": "Hakkında",
     "notifications": "Bildirimler",
-    "promptStudio": "Prompt Stüdyosu"
+    "promptStudio": "Prompt Stüdyosu",
+    "addonsGroup": "Eklentiler"
   },
   "onboarding": {
     "subtitle": "Başlamak için bir transkripsiyon modeli seçin",
@@ -68,7 +64,9 @@
     },
     "modelCard": {
       "accuracy": "doğruluk",
-      "speed": "hız"
+      "speed": "hız",
+      "installed": "Yüklü",
+      "selected": "Seçili"
     },
     "models": {
       "small": {
@@ -162,7 +160,9 @@
       "errors": {
         "checkFailed": "İzinler kontrol edilemedi. Lütfen tekrar deneyin.",
         "requestFailed": "İzin isteği başarısız oldu. Lütfen tekrar deneyin."
-      }
+      },
+      "done": "Tamam",
+      "openSettings": "Ayarları aç"
     },
     "hotkeyHint": "Dikteyi istediğiniz zaman {{hotkey}} ile başlatın.",
     "hotkeyChangeHint": "Bu kısayolu Ayarlar > Genel bölümünden değiştirebilirsiniz.",
@@ -171,6 +171,10 @@
       "body": "VoxBar model kataloğuna ulaşamadı. Bağlantınızı kontrol edip tekrar deneyin ya da bu adımı atlayıp daha sonra Ayarlar'dan bir model seçin.",
       "retry": "Tekrar dene",
       "skip": "Şimdilik atla"
+    },
+    "postProcessGroup": {
+      "title": "İsteğe bağlı: Son İşlem",
+      "caption": "Dikteden sonra metinleri düzeltmek için kullanılır. Konuşma tanıma için kullanılmaz."
     }
   },
   "modelSelector": {
@@ -313,7 +317,9 @@
           "set": "Kısayol ayarlanamadı: {{error}}",
           "reset": "Kısayol orijinal değerine sıfırlanamadı"
         },
-        "unbound": "Atanmadı"
+        "unbound": "Atanmadı",
+        "recordHint": "Yeni bir kısayol kaydetmek için tıklayın",
+        "gatedHint": "Tuş atamak için {{action}} seçeneğini açın"
       },
       "language": {
         "title": "Dil",
@@ -422,7 +428,8 @@
         "clearAll": "Söylenen her şeyi siler",
         "undo": "Odaktaki uygulamada geri al çalıştırır",
         "paste": "Panoyu odaktaki uygulamaya yapıştırır"
-      }
+      },
+      "defaultPhrasesNote": "Varsayılan ifadeler, tanıyıcının dinlediği İngilizce kelimelerdir; ayrıcabuilt-in Hintçe ve Çince eş anlamlılar dahildir. Kendi ifadenizi herhangi birdilde, herhangi bir satıra ekleyebilirsiniz."
     },
     "search": {
       "placeholder": "Ayarlarda ara",
@@ -712,7 +719,8 @@
         "restartButton": "Sunucuyu yeniden başlat",
         "restartPending": "Değişiklikler yeniden başlatmadan sonra uygulanır",
         "qrPreviewNote": "Önizleme: Bu URL, sunucu bir dahaki sefere başladığında duyurulacak.",
-        "sharedNetworkNote": "Telefon ve bu Mac aynı ağı paylaşmalıdır: aynı Wi-Fi veya LAN ya da aynı tailnet (örneğin ikisi de Tailscale'de)."
+        "sharedNetworkNote": "Telefon ve bu Mac aynı ağı paylaşmalıdır: aynı Wi-Fi veya LAN ya da aynı tailnet (örneğin ikisi de Tailscale'de).",
+        "fingerprintCopied": "Kopyalandı"
       }
     },
     "postProcessing": {
@@ -760,7 +768,8 @@
           "filterPlaceholder": "Modelleri filtrele",
           "showAll_one": "Tümünü göster ({{count}})",
           "showAll_other": "Tümünü göster ({{count}})",
-          "showFewer": "Daha az göster"
+          "showFewer": "Daha az göster",
+          "emptyNoKey": "Modelleri yüklemek için önce yukarıya API anahtarınızı girin, sonra yenileyin."
         },
         "timeout": {
           "title": "İstek zaman aşımı",
@@ -931,7 +940,6 @@
       "empty": "Henüz transkripsiyon yok. Geçmişinizi oluşturmak için kayda başlayın!",
       "copyToClipboard": "Transkripsiyonu panoya kopyala",
       "copyError": "Transkripsiyon panoya kopyalanamadı.",
-      "savedToggleError": "Kayıt durumu güncellenemedi.",
       "save": "Transkripsiyonu kaydet",
       "unsave": "Kaydedilenlerden kaldır",
       "delete": "Kaydı sil",
@@ -951,6 +959,12 @@
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms ile",
       "viewChanges": "Değişiklikleri göster",
       "hideChanges": "Değişiklikleri gizle",
+      "emptyTitle": "Henüz transkripsiyon yok",
+      "emptyHint": "İlk diktinizi kaydetmek için kayıt kısayolunuza basın.",
+      "deleteConfirm": "Bu girdi silinsin mi? Kayıt ve dökümü kalıcı olarak kaldırılacak.",
+      "today": "Bugün",
+      "yesterday": "Dün",
+      "savedToggleError": "Kayıt durumu güncellenemedi.",
       "dbRecoveredNotice": "Transkripsiyon geçmişi veritabanınız okunamadığı için yenisi başlatıldı. Önceki veritabanı {{file}} olarak saklandı."
     },
     "debug": {
@@ -972,7 +986,9 @@
         "resume": "Sürdür",
         "copied": "Kopyalandı",
         "lineCount": "{{count}} satır",
-        "empty": "Loglar bekleniyor… Uygulama logları ürettikçe girişler burada görünür."
+        "empty": "Loglar bekleniyor… Uygulama logları ürettikçe girişler burada görünür.",
+        "clearConfirm": "Bu görünümden yakalanan satırlar temizlensin mi? Diskteki günlük dosyası saklanır.",
+        "clearConfirmTitle": "Yakalanan satırlar temizlensin mi?"
       },
       "updateChecks": {
         "label": "Güncellemeleri Kontrol Et",
@@ -1156,7 +1172,8 @@
       },
       "outcomes": {
         "label": "Sonuç bildirimleri",
-        "description": "Telefon oturumu bittiğinde de bildir; örneğin oturum sınırına ulaşıldığında veya telefon bağlantısı koptuğunda. Kapalı, yalnızca hatalar demektir."
+        "description": "Telefon oturumu bittiğinde de bildir; örneğin oturum sınırına ulaşıldığında veya telefon bağlantısı koptuğunda. Kapalı, yalnızca hatalar demektir.",
+        "requiresMaster": "Yalnızca sistem bildirimleri açıkken kullanılabilir."
       },
       "log": {
         "title": "Bildirim günlüğü",
@@ -1190,8 +1207,6 @@
       "runHint_one": "1 motorda 1 prompt. Hiçbir şey yazılmaz veya kaydedilmez.",
       "runHint_other": "{{count}} prompt-motor çifti. Hiçbir şey yazılmaz veya kaydedilmez.",
       "running": "Çalışıyor...",
-      "cancel": "İptal",
-      "cancelledCard": "Bu çalışma başlamadan önce iptal edildi.",
       "rerun": "Yeniden çalıştır",
       "latency": "{{ms}} ms",
       "rawKept": "Motor başarısız oldu veya atlandı, bu nedenle ham transkript korunurdu.",
@@ -1207,10 +1222,17 @@
         "lines": "satır",
         "charsChanged_one": "1 karakter değişti",
         "charsChanged_other": "{{count}} karakter değişti",
-        "identical": "Değişiklik yok."
+        "identical": "Değişiklik yok.",
+        "added_one": "+{{count}} eklendi",
+        "added_other": "+{{count}} eklendi",
+        "removed_one": "{{count}} kaldırıldı",
+        "removed_other": "{{count}} kaldırıldı"
       },
       "resultsEmptyTitle": "Sonuçlar burada görünecek",
-      "resultsEmptyHint": "Yukarıdan bir kaynak, promptlar ve motorlar seçip çalıştırın. Her kart cilalanmış metni, değişiklikleri ve hızını gösterir."
+      "resultsEmptyHint": "Yukarıdan bir kaynak, promptlar ve motorlar seçip çalıştırın. Her kart cilalanmış metni, değişiklikleri ve hızını gösterir.",
+      "appliedLabel": "Başarılı",
+      "cancel": "İptal",
+      "cancelledCard": "Bu çalışma başlamadan önce iptal edildi."
     }
   },
   "footer": {
@@ -1257,11 +1279,13 @@
     "open": "Aç",
     "copy": "Kopyala",
     "clear": "Temizle",
-    "noOptionsFound": "Seçenek bulunamadı"
+    "noOptionsFound": "Seçenek bulunamadı",
+    "cancel": "İptal"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar, transkribe edilen metni yazabilmek için erişilebilirlik izinlerine ihtiyaç duyar.",
-    "openSettings": "Sistem Ayarlarını Aç"
+    "openSettings": "Sistem Ayarlarını Aç",
+    "resetSetting": "{{label}} ayarını varsayılana sıfırla"
   },
   "errors": {
     "loadDirectory": "Dizin yüklenirken hata oluştu: {{error}}",
@@ -1277,8 +1301,6 @@
     "recordingFailed": "Kayıt başlatılamadı: {{error}}",
     "modelLoadFailed": "Model yüklenemedi: {{model}}",
     "modelLoadFailedUnknown": "bilinmeyen model",
-    "modelLoadFailedMemoryGate": "{{model}} modelini yüklemek için yeterli boş bellek yok: yaklaşık {{needed}} gerekiyor, yaklaşık {{free}} boş.",
-    "modelLoadFailedDetail": "Model değiştirilmedi. Teknik neden günlük dosyasında.",
     "modelFallbackTitle": "Düşük bellek",
     "modelFallback": "Bu dikte için {{model}} modeline geçildi",
     "pasteFailedTitle": "Metin yapıştırılamadı",
@@ -1286,7 +1308,9 @@
     "transcriptionFailedTitle": "Transkripsiyon başarısız oldu",
     "noModelSelectedTitle": "Model seçilmedi",
     "noModelSelected": "Dikteye başlamadan önce Ayarlar'dan bir transkripsiyon modeli seçin.",
-    "openDirectory": "Klasör açılamadı: {{error}}"
+    "openDirectory": "Klasör açılamadı: {{error}}",
+    "modelLoadFailedMemoryGate": "{{model}} modelini yüklemek için yeterli boş bellek yok: yaklaşık {{needed}} gerekiyor, yaklaşık {{free}} boş.",
+    "modelLoadFailedDetail": "Model değiştirilmedi. Teknik neden günlük dosyasında."
   },
   "appLanguage": {
     "title": "Uygulama Dili",
@@ -1354,7 +1378,8 @@
     "companionBadge": "Eşlik mikrofonu"
   },
   "whatsNew": {
-    "title": "VoxBar v{{version}} yenilikleri"
+    "title": "VoxBar v{{version}} yenilikleri",
+    "gotIt": "Anladım"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} 1 kısayolu engelliyor olabilir",
@@ -1406,13 +1431,9 @@
     "disconnectedFinalized": "Bağlantı koptu. Mac söylediklerini korudu.",
     "capped": "Oturum 15 dakikayla sınırlı. Devam etmek için yeniden bas.",
     "zeroAudio": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup konuş.",
-    "zeroAudioHold": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup konuş.",
-    "zeroAudioHoldOrToggle": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup ya da dokunup konuş.",
-    "zeroAudioTap": "Ses Mac'e ulaşmadı. Düğmeye dokunup konuş.",
     "serverStopped": "Mac eşlik sunucusunu durdurdu.",
     "reconnect": "Yeniden bağlan",
     "holdToTalk": "Konuşmak için basılı tut",
-    "holdOrToggleToTalk": "Konuşmak için basılı tut, kilitlemek için dokun",
     "tapToTalk": "Konuşmak için dokun",
     "release": "Bitirmek için bırak",
     "tapToStop": "Durdurmak için dokun",
@@ -1431,6 +1452,17 @@
     "copied": "Kopyalandı",
     "polished": "Cilalandı",
     "historyTitle": "Son kayıtlar",
-    "historyEmpty": "Bu telefonla yapılan dikatler burada görünür."
+    "historyEmpty": "Bu telefonla yapılan dikatler burada görünür.",
+    "stateMicBlocked": "Mikrofon engellendi",
+    "micBlockedRetry": "Mikrofon engellendi. Yeniden denemek için dokunun.",
+    "zeroAudioHold": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup konuş.",
+    "zeroAudioHoldOrToggle": "Ses Mac'e ulaşmadı. Düğmeyi basılı tutup ya da dokunup konuş.",
+    "zeroAudioTap": "Ses Mac'e ulaşmadı. Düğmeye dokunup konuş.",
+    "holdOrToggleToTalk": "Konuşmak için basılı tut, kilitlemek için dokun"
+  },
+  "trayCopyOutcome": {
+    "copied": "Dikte panoya kopyalandı.",
+    "empty": "Henüz kopyalanacak bir şey yok.",
+    "failed": "Dikte panoya kopyalanamadı."
   }
 }

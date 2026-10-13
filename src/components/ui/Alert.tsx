@@ -16,7 +16,11 @@ const variantStyles: Record<
   { container: string; icon: string; text: string }
 > = {
   // error/warning read the semantic tokens (theme.css) so the whole app
-  // carries one red and one yellow; text colors pass 4.5:1 on both themes.
+  // carries one red and one yellow. Light warning is amber-800 #92400e,
+  // which passes 4.5:1 both on #fbfbfb (6.85:1) and on this container's
+  // own warning/10 tint (5.97:1); the previous amber-600 #d97706 measured
+  // 3.08:1 on the light background, so the old claim that both themes
+  // passed 4.5:1 was true only for dark.
   error: {
     container: "bg-error/10",
     icon: "text-error",

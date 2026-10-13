@@ -359,23 +359,43 @@ export const HandyKeysShortcutInput: React.FC<HandyKeysShortcutInputProps> = ({
           </div>
         ) : (
           <div
-            className={`px-2 py-1 text-sm font-medium bg-mid-gray/10 border border-mid-gray/80 rounded-md ${
+            /* A recorder field, not a static label: an unbound value is the
+               empty state of the recorder (dashed border per macOS
+               convention), and the hover state reaches for the accent so
+               the chip visibly invites a click to rebind. */
+            className={`px-2 py-1 text-sm font-medium bg-mid-gray/10 border rounded-md ${
+              binding.current_binding
+                ? "border-mid-gray/80"
+                : "border-dashed border-mid-gray/80"
+            } ${
               disabled
                 ? "opacity-50 cursor-not-allowed select-none"
                 : "cursor-pointer hover:bg-logo-primary/10 hover:border-logo-primary"
             }`}
             onClick={startRecording}
             aria-disabled={disabled}
+            title={
+              disabled ? undefined : t("settings.general.shortcut.recordHint")
+            }
           >
             {binding.current_binding
               ? formatKeyCombination(binding.current_binding, osType)
               : t("settings.general.shortcut.unbound")}
           </div>
         )}
-        <ResetButton
-          onClick={() => resetBinding(shortcutId)}
-          disabled={disabled || isUpdating(`binding_${shortcutId}`)}
-        />
+        {/* The reset affordance exists only while a reset is possible: a
+            value still on its default (including a "Not bound" row whose
+            default is unbound) has nothing to restore, and a row dimmed by
+            its action toggle must not offer one. */}
+        {!disabled && binding.current_binding !== binding.default_binding && (
+          <ResetButton
+            onClick={() => resetBinding(shortcutId)}
+            disabled={isUpdating(`binding_${shortcutId}`)}
+            ariaLabel={t("accessibility.resetSetting", {
+              label: translatedName,
+            })}
+          />
+        )}
       </div>
     </SettingContainer>
   );

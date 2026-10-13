@@ -29,11 +29,6 @@
     "secureInputWarning": "⚠ Shortcuts blocked by Secure Input",
     "postProcessPrompt": "Post-process Prompt"
   },
-  "trayCopyOutcome": {
-    "copied": "Copied the transcript to the clipboard.",
-    "empty": "Nothing to copy yet.",
-    "failed": "Could not copy the transcript to the clipboard."
-  },
   "sidebar": {
     "general": "General",
     "commands": "Commands",
@@ -46,7 +41,8 @@
     "debug": "Debug",
     "about": "About",
     "notifications": "Notifications",
-    "promptStudio": "Prompt Studio"
+    "promptStudio": "Prompt Studio",
+    "addonsGroup": "Add-ons"
   },
   "onboarding": {
     "subtitle": "To get started, choose a transcription model",
@@ -74,7 +70,9 @@
     },
     "modelCard": {
       "accuracy": "accuracy",
-      "speed": "speed"
+      "speed": "speed",
+      "installed": "Installed",
+      "selected": "Selected"
     },
     "models": {
       "small": {
@@ -168,10 +166,16 @@
       "errors": {
         "checkFailed": "Failed to check permissions. Please try again.",
         "requestFailed": "Failed to request permission. Please try again."
-      }
+      },
+      "done": "Done",
+      "openSettings": "Open Settings"
     },
     "hotkeyHint": "Start dictation with {{hotkey}} anytime.",
-    "hotkeyChangeHint": "You can change this shortcut in Settings > General."
+    "hotkeyChangeHint": "You can change this shortcut in Settings > General.",
+    "postProcessGroup": {
+      "title": "Optional: Post-processing",
+      "caption": "For polishing transcripts after dictation. Not used for transcription."
+    }
   },
   "modelSelector": {
     "custom": "Custom",
@@ -260,7 +264,9 @@
           "set": "Failed to set shortcut: {{error}}",
           "reset": "Failed to reset shortcut to original value"
         },
-        "unbound": "Not bound"
+        "unbound": "Not bound",
+        "recordHint": "Click to record a new shortcut",
+        "gatedHint": "Turn on {{action}} to bind a key"
       },
       "language": {
         "title": "Language",
@@ -369,7 +375,8 @@
         "clearAll": "Clears the whole dictation",
         "undo": "Runs undo in the focused app",
         "paste": "Pastes the clipboard in the focused app"
-      }
+      },
+      "defaultPhrasesNote": "Default phrases are the English words the recognizer listens for, plus built-in Hindi and Chinese aliases. Add your own phrase in any language on any row."
     },
     "search": {
       "placeholder": "Search settings",
@@ -712,7 +719,8 @@
         "restartButton": "Restart server",
         "restartPending": "Changes apply after a restart",
         "qrPreviewNote": "Preview: this URL is advertised when the server next starts.",
-        "sharedNetworkNote": "The phone and this Mac must share a network: the same Wi-Fi or LAN, or the same tailnet (for example both on Tailscale)."
+        "sharedNetworkNote": "The phone and this Mac must share a network: the same Wi-Fi or LAN, or the same tailnet (for example both on Tailscale).",
+        "fingerprintCopied": "Copied"
       }
     },
     "postProcessing": {
@@ -760,7 +768,8 @@
           "filterPlaceholder": "Filter models",
           "showAll_one": "Show all ({{count}})",
           "showAll_other": "Show all ({{count}})",
-          "showFewer": "Show fewer"
+          "showFewer": "Show fewer",
+          "emptyNoKey": "Enter your API key above, then refresh to load models."
         },
         "timeout": {
           "title": "Request timeout",
@@ -931,7 +940,6 @@
       "empty": "No transcriptions yet. Start recording to build your history!",
       "copyToClipboard": "Copy transcription to clipboard",
       "copyError": "Failed to copy transcription to clipboard.",
-      "savedToggleError": "Could not update the saved status.",
       "save": "Save transcription",
       "unsave": "Remove from saved",
       "delete": "Delete entry",
@@ -951,6 +959,12 @@
       "viaPostProcess": "via {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "View changes",
       "hideChanges": "Hide changes",
+      "emptyTitle": "No transcriptions yet",
+      "emptyHint": "Press your record shortcut to capture your first dictation.",
+      "deleteConfirm": "Delete this entry? The recording and its transcript will be removed permanently.",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "savedToggleError": "Could not update the saved status.",
       "dbRecoveredNotice": "Your transcription history database was unreadable, so a fresh one was started. The previous database was kept as {{file}}."
     },
     "debug": {
@@ -972,7 +986,9 @@
         "resume": "Resume",
         "copied": "Copied",
         "lineCount": "{{count}} lines",
-        "empty": "Waiting for logs… Entries appear here as the app emits them."
+        "empty": "Waiting for logs… Entries appear here as the app emits them.",
+        "clearConfirm": "Clear the captured lines from this view? The log file on disk is kept.",
+        "clearConfirmTitle": "Clear captured lines?"
       },
       "updateChecks": {
         "label": "Check for Updates",
@@ -1156,7 +1172,8 @@
       },
       "outcomes": {
         "label": "Outcome notifications",
-        "description": "Also notify when a phone session ends, for example when the session limit is reached or the phone disconnects. Off means errors only."
+        "description": "Also notify when a phone session ends, for example when the session limit is reached or the phone disconnects. Off means errors only.",
+        "requiresMaster": "Available only while System notifications is on."
       },
       "log": {
         "title": "Notification log",
@@ -1190,8 +1207,6 @@
       "runHint_one": "1 prompt on 1 engine. Nothing is typed or saved.",
       "runHint_other": "{{count}} prompt-engine pairs. Nothing is typed or saved.",
       "running": "Running...",
-      "cancel": "Cancel",
-      "cancelledCard": "Cancelled before this run started.",
       "rerun": "Re-run",
       "latency": "{{ms}} ms",
       "rawKept": "The engine failed or skipped, so the raw transcript would be kept.",
@@ -1207,10 +1222,17 @@
         "lines": "lines",
         "charsChanged_one": "1 char changed",
         "charsChanged_other": "{{count}} chars changed",
-        "identical": "No changes."
+        "identical": "No changes.",
+        "added_one": "+{{count}} added",
+        "added_other": "+{{count}} added",
+        "removed_one": "{{count}} removed",
+        "removed_other": "{{count}} removed"
       },
       "resultsEmptyTitle": "Results will appear here",
-      "resultsEmptyHint": "Pick a source, prompts, and engines above, then run. Each card shows the polished text, its changes, and how fast it ran."
+      "resultsEmptyHint": "Pick a source, prompts, and engines above, then run. Each card shows the polished text, its changes, and how fast it ran.",
+      "appliedLabel": "Success",
+      "cancel": "Cancel",
+      "cancelledCard": "Cancelled before this run started."
     }
   },
   "footer": {
@@ -1251,7 +1273,8 @@
     }
   },
   "whatsNew": {
-    "title": "New in VoxBar v{{version}}"
+    "title": "New in VoxBar v{{version}}",
+    "gotIt": "Got it"
   },
   "common": {
     "loading": "Loading...",
@@ -1260,11 +1283,13 @@
     "open": "Open",
     "copy": "Copy",
     "clear": "Clear",
-    "noOptionsFound": "No options found"
+    "noOptionsFound": "No options found",
+    "cancel": "Cancel"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar needs accessibility permissions to type transcribed text.",
-    "openSettings": "Open System Settings"
+    "openSettings": "Open System Settings",
+    "resetSetting": "Reset {{label}} to default"
   },
   "errors": {
     "loadDirectory": "Error loading directory: {{error}}",
@@ -1280,8 +1305,6 @@
     "recordingFailed": "Failed to start recording: {{error}}",
     "modelLoadFailed": "Failed to load model: {{model}}",
     "modelLoadFailedUnknown": "unknown model",
-    "modelLoadFailedMemoryGate": "Not enough free memory to load {{model}}: it needs about {{needed}}, with about {{free}} free.",
-    "modelLoadFailedDetail": "The model was not changed. The technical reason is in the log file.",
     "modelFallbackTitle": "Low memory",
     "modelFallback": "Switched to {{model}} for this dictation",
     "pasteFailedTitle": "Failed to Paste Text",
@@ -1289,7 +1312,9 @@
     "transcriptionFailedTitle": "Transcription Failed",
     "noModelSelectedTitle": "No model selected",
     "noModelSelected": "Pick a transcription model in Settings before dictating.",
-    "openDirectory": "Could not open the folder: {{error}}"
+    "openDirectory": "Could not open the folder: {{error}}",
+    "modelLoadFailedMemoryGate": "Not enough free memory to load {{model}}: it needs about {{needed}}, with about {{free}} free.",
+    "modelLoadFailedDetail": "The model was not changed. The technical reason is in the log file."
   },
   "appLanguage": {
     "title": "Application Language",
@@ -1406,13 +1431,9 @@
     "disconnectedFinalized": "Connection dropped. The Mac kept what you said.",
     "capped": "Session capped at 15 minutes. Press again to continue.",
     "zeroAudio": "No audio reached the Mac. Hold the button, then speak.",
-    "zeroAudioHold": "No audio reached the Mac. Hold the button, then speak.",
-    "zeroAudioHoldOrToggle": "No audio reached the Mac. Hold or tap the button, then speak.",
-    "zeroAudioTap": "No audio reached the Mac. Tap the button, then speak.",
     "serverStopped": "The Mac stopped the companion server.",
     "reconnect": "Reconnect",
     "holdToTalk": "Hold to talk",
-    "holdOrToggleToTalk": "Hold to talk, tap to lock",
     "tapToTalk": "Tap to talk",
     "release": "Release to finish",
     "tapToStop": "Tap to stop",
@@ -1431,6 +1452,17 @@
     "copied": "Copied",
     "polished": "Polished",
     "historyTitle": "Recent",
-    "historyEmpty": "Dictations from this phone appear here."
+    "historyEmpty": "Dictations from this phone appear here.",
+    "stateMicBlocked": "Mic blocked",
+    "micBlockedRetry": "Mic blocked. Tap to retry",
+    "zeroAudioHold": "No audio reached the Mac. Hold the button, then speak.",
+    "zeroAudioHoldOrToggle": "No audio reached the Mac. Hold or tap the button, then speak.",
+    "zeroAudioTap": "No audio reached the Mac. Tap the button, then speak.",
+    "holdOrToggleToTalk": "Hold to talk, tap to lock"
+  },
+  "trayCopyOutcome": {
+    "copied": "Copied the transcript to the clipboard.",
+    "empty": "Nothing to copy yet.",
+    "failed": "Could not copy the transcript to the clipboard."
   }
 }

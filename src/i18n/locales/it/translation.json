@@ -29,11 +29,6 @@
     "secureInputWarning": "⚠ Scorciatoie bloccate da Secure Input",
     "postProcessPrompt": "Prompt di post-elaborazione"
   },
-  "trayCopyOutcome": {
-    "copied": "La dettatura è stata copiata negli appunti.",
-    "empty": "Non c'è ancora nulla da copiare.",
-    "failed": "Impossibile copiare la dettatura negli appunti."
-  },
   "sidebar": {
     "general": "Generale",
     "commands": "Comandi",
@@ -46,7 +41,8 @@
     "debug": "Debug",
     "about": "Informazioni",
     "notifications": "Notifiche",
-    "promptStudio": "Studio dei prompt"
+    "promptStudio": "Studio dei prompt",
+    "addonsGroup": "Estensioni"
   },
   "onboarding": {
     "subtitle": "Per cominciare, scegli un modello di riconoscimento vocale",
@@ -68,7 +64,9 @@
     },
     "modelCard": {
       "accuracy": "accuratezza",
-      "speed": "velocità"
+      "speed": "velocità",
+      "installed": "Installato",
+      "selected": "Selezionato"
     },
     "models": {
       "small": {
@@ -162,7 +160,9 @@
       "errors": {
         "checkFailed": "Impossibile verificare i permessi. Riprova.",
         "requestFailed": "Impossibile richiedere il permesso. Riprova."
-      }
+      },
+      "done": "Fine",
+      "openSettings": "Apri impostazioni"
     },
     "hotkeyHint": "Avvia la dettatura con {{hotkey}} in qualsiasi momento.",
     "hotkeyChangeHint": "Puoi cambiare questa scorciatoia in Impostazioni > Generali.",
@@ -171,6 +171,10 @@
       "body": "VoxBar non ha raggiunto il catalogo dei modelli. Controlla la connessione e riprova, oppure salta questo passaggio e scegli un modello più tardi nelle Impostazioni.",
       "retry": "Riprova",
       "skip": "Salta per ora"
+    },
+    "postProcessGroup": {
+      "title": "Opzionale: Post-Elaborazione",
+      "caption": "Per rifinire le trascrizioni dopo la dettatura. Non viene usato per la trascrizione."
     }
   },
   "modelSelector": {
@@ -313,7 +317,9 @@
           "set": "Errore nella configurazione della scorciatoia: {{error}}",
           "reset": "Errore nella reinizializzazione della scorciatoia al valore originale"
         },
-        "unbound": "Non assegnato"
+        "unbound": "Non assegnato",
+        "recordHint": "Fai clic per registrare una nuova scorciatoia",
+        "gatedHint": "Attiva {{action}} per associare un tasto"
       },
       "language": {
         "title": "Lingua",
@@ -422,7 +428,8 @@
         "clearAll": "Cancella tutta la dettatura",
         "undo": "Esegue annulla nell'app attiva",
         "paste": "Incolla gli appunti nell'app attiva"
-      }
+      },
+      "defaultPhrasesNote": "Le frasi predefinite sono le parole inglesi che il riconoscitore ascolta,più gli alias integrati in hindi e cinese. Aggiungi una tua frase in qualunquelingua su qualsiasi riga."
     },
     "search": {
       "placeholder": "Cerca nelle impostazioni",
@@ -712,7 +719,8 @@
         "restartButton": "Riavvia il server",
         "restartPending": "Le modifiche si applicano dopo un riavvio",
         "qrPreviewNote": "Anteprima: questo URL verrà annunciato al prossimo avvio del server.",
-        "sharedNetworkNote": "Il telefono e questo Mac devono condividere una rete: la stessa Wi-Fi o LAN, o lo stesso tailnet (ad esempio entrambi su Tailscale)."
+        "sharedNetworkNote": "Il telefono e questo Mac devono condividere una rete: la stessa Wi-Fi o LAN, o lo stesso tailnet (ad esempio entrambi su Tailscale).",
+        "fingerprintCopied": "Copiato"
       }
     },
     "postProcessing": {
@@ -760,7 +768,8 @@
           "filterPlaceholder": "Filtra modelli",
           "showAll_one": "Mostra tutti ({{count}})",
           "showAll_other": "Mostra tutti ({{count}})",
-          "showFewer": "Mostra meno"
+          "showFewer": "Mostra meno",
+          "emptyNoKey": "Inserisci la tua chiave API qui sopra, poi aggiorna per caricare i modelli."
         },
         "timeout": {
           "title": "Timeout della richiesta",
@@ -931,7 +940,6 @@
       "empty": "Non ci sono ancora trascrizioni. Comincia a registrare per costruire la tua cronologia!",
       "copyToClipboard": "Copia la trascrizione negli appunti",
       "copyError": "Impossibile copiare la trascrizione negli appunti.",
-      "savedToggleError": "Impossibile aggiornare lo stato salvato.",
       "save": "Salva la trascrizione",
       "unsave": "Rimuovi dai salvataggi",
       "delete": "Elimina elemento",
@@ -951,6 +959,12 @@
       "viaPostProcess": "tramite {{model}} · {{prompt}} · {{outcome}} · {{latency}} ms",
       "viewChanges": "Visualizza modifiche",
       "hideChanges": "Nascondi modifiche",
+      "emptyTitle": "Ancora nessuna trascrizione",
+      "emptyHint": "Premi la scorciatoia di registrazione per acquisire la prima dettatura.",
+      "deleteConfirm": "Eliminare questa voce? La registrazione e la sua trascrizione verranno rimosse definitivamente.",
+      "today": "Oggi",
+      "yesterday": "Ieri",
+      "savedToggleError": "Impossibile aggiornare lo stato salvato.",
       "dbRecoveredNotice": "Il database della cronologia delle trascrizioni era illeggibile, quindi ne è stato avviato uno nuovo. Il database precedente è stato conservato come {{file}}."
     },
     "debug": {
@@ -972,7 +986,9 @@
         "resume": "Riprendi",
         "copied": "Copiato",
         "lineCount": "{{count}} righe",
-        "empty": "In attesa di log… Le voci appariranno qui man mano che l'app le emette."
+        "empty": "In attesa di log… Le voci appariranno qui man mano che l'app le emette.",
+        "clearConfirm": "Cancellare le righe acquisite da questa vista? Il file di log su disco viene mantenuto.",
+        "clearConfirmTitle": "Cancellare le righe catturate?"
       },
       "updateChecks": {
         "label": "Controlla aggiornamenti",
@@ -1156,7 +1172,8 @@
       },
       "outcomes": {
         "label": "Notifiche degli esiti",
-        "description": "Notifica anche quando termina una sessione del telefono, ad esempio al raggiungimento del limite o alla disconnessione del telefono. Disattivato significa solo errori."
+        "description": "Notifica anche quando termina una sessione del telefono, ad esempio al raggiungimento del limite o alla disconnessione del telefono. Disattivato significa solo errori.",
+        "requiresMaster": "Disponibile solo mentre le notifiche di sistema sono attive."
       },
       "log": {
         "title": "Registro delle notifiche",
@@ -1190,8 +1207,6 @@
       "runHint_one": "1 prompt su 1 motore. Nulla viene digitato o salvato.",
       "runHint_other": "{{count}} coppie prompt-motore. Nulla viene digitato o salvato.",
       "running": "Esecuzione...",
-      "cancel": "Annulla",
-      "cancelledCard": "Annullato prima dell'avvio di questa esecuzione.",
       "rerun": "Esegui di nuovo",
       "latency": "{{ms}} ms",
       "rawKept": "Il motore ha fallito o è stato saltato, quindi la trascrizione grezza verrebbe mantenuta.",
@@ -1207,10 +1222,17 @@
         "lines": "righe",
         "charsChanged_one": "1 carattere modificato",
         "charsChanged_other": "{{count}} caratteri modificati",
-        "identical": "Nessuna modifica."
+        "identical": "Nessuna modifica.",
+        "added_one": "+{{count}} aggiunta",
+        "added_other": "+{{count}} aggiunte",
+        "removed_one": "{{count}} rimossa",
+        "removed_other": "{{count}} rimosse"
       },
       "resultsEmptyTitle": "I risultati appariranno qui",
-      "resultsEmptyHint": "Scegli sopra origine, prompt e motori, quindi esegui. Ogni scheda mostra il testo rifinito, le modifiche e la velocità."
+      "resultsEmptyHint": "Scegli sopra origine, prompt e motori, quindi esegui. Ogni scheda mostra il testo rifinito, le modifiche e la velocità.",
+      "appliedLabel": "Successo",
+      "cancel": "Annulla",
+      "cancelledCard": "Annullato prima dell'avvio di questa esecuzione."
     }
   },
   "footer": {
@@ -1257,11 +1279,13 @@
     "open": "Apri",
     "copy": "Copia",
     "clear": "Svuota",
-    "noOptionsFound": "Nessuna opzione trovata"
+    "noOptionsFound": "Nessuna opzione trovata",
+    "cancel": "Annulla"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar ha bisogno dei permessi di accessibilità per digitare il testo trascritto.",
-    "openSettings": "Apri Impostazioni di Sistema"
+    "openSettings": "Apri Impostazioni di Sistema",
+    "resetSetting": "Ripristina {{label}} al valore predefinito"
   },
   "errors": {
     "loadDirectory": "Errore di caricamento cartella: {{error}}",
@@ -1277,8 +1301,6 @@
     "recordingFailed": "Impossibile avviare la registrazione: {{error}}",
     "modelLoadFailed": "Impossibile caricare il modello: {{model}}",
     "modelLoadFailedUnknown": "modello sconosciuto",
-    "modelLoadFailedMemoryGate": "Memoria libera insufficiente per caricare {{model}}: servono circa {{needed}}, con circa {{free}} liberi.",
-    "modelLoadFailedDetail": "Il modello non è stato modificato. Il motivo tecnico è nel file di log.",
     "modelFallbackTitle": "Memoria insufficiente",
     "modelFallback": "Passato a {{model}} per questa dettatura",
     "pasteFailedTitle": "Impossibile incollare il testo",
@@ -1286,7 +1308,9 @@
     "transcriptionFailedTitle": "Trascrizione non riuscita",
     "noModelSelectedTitle": "Nessun modello selezionato",
     "noModelSelected": "Scegli un modello di trascrizione in Impostazioni prima di dettare.",
-    "openDirectory": "Impossibile aprire la cartella: {{error}}"
+    "openDirectory": "Impossibile aprire la cartella: {{error}}",
+    "modelLoadFailedMemoryGate": "Memoria libera insufficiente per caricare {{model}}: servono circa {{needed}}, con circa {{free}} liberi.",
+    "modelLoadFailedDetail": "Il modello non è stato modificato. Il motivo tecnico è nel file di log."
   },
   "appLanguage": {
     "title": "Lingua Applicazione",
@@ -1354,7 +1378,8 @@
     "companionBadge": "Microfono companion"
   },
   "whatsNew": {
-    "title": "Novità in VoxBar v{{version}}"
+    "title": "Novità in VoxBar v{{version}}",
+    "gotIt": "Ho capito"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} potrebbe bloccare 1 scorciatoia",
@@ -1406,13 +1431,9 @@
     "disconnectedFinalized": "Connessione persa. Il Mac ha conservato ciò che hai detto.",
     "capped": "Sessione limitata a 15 minuti. Premi di nuovo per continuare.",
     "zeroAudio": "Nessun audio ha raggiunto il Mac. Tieni premuto il pulsante e parla.",
-    "zeroAudioHold": "Nessun audio ha raggiunto il Mac. Tieni premuto il pulsante e parla.",
-    "zeroAudioHoldOrToggle": "Nessun audio ha raggiunto il Mac. Tieni premuto o tocca il pulsante e parla.",
-    "zeroAudioTap": "Nessun audio ha raggiunto il Mac. Tocca il pulsante e parla.",
     "serverStopped": "Il Mac ha fermato il server companion.",
     "reconnect": "Riconnetti",
     "holdToTalk": "Tieni premuto per parlare",
-    "holdOrToggleToTalk": "Tieni premuto per parlare, tocca per bloccare",
     "tapToTalk": "Tocca per parlare",
     "release": "Rilascia per terminare",
     "tapToStop": "Tocca per fermare",
@@ -1431,6 +1452,17 @@
     "copied": "Copiato",
     "polished": "Rifinito",
     "historyTitle": "Recenti",
-    "historyEmpty": "Le dettature da questo telefono compaiono qui."
+    "historyEmpty": "Le dettature da questo telefono compaiono qui.",
+    "stateMicBlocked": "Microfono bloccato",
+    "micBlockedRetry": "Microfono bloccato. Tocca per riprovare.",
+    "zeroAudioHold": "Nessun audio ha raggiunto il Mac. Tieni premuto il pulsante e parla.",
+    "zeroAudioHoldOrToggle": "Nessun audio ha raggiunto il Mac. Tieni premuto o tocca il pulsante e parla.",
+    "zeroAudioTap": "Nessun audio ha raggiunto il Mac. Tocca il pulsante e parla.",
+    "holdOrToggleToTalk": "Tieni premuto per parlare, tocca per bloccare"
+  },
+  "trayCopyOutcome": {
+    "copied": "La dettatura è stata copiata negli appunti.",
+    "empty": "Non c'è ancora nulla da copiare.",
+    "failed": "Impossibile copiare la dettatura negli appunti."
   }
 }

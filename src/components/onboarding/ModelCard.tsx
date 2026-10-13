@@ -75,6 +75,14 @@ interface ModelCardProps {
   downloadProgress?: number;
   downloadSpeed?: number; // MB/s
   showRecommended?: boolean;
+  /** Accent ring + Selected badge for the card the wizard is acting on. */
+  selected?: boolean;
+  /** False renders an informational card (no click, no action): used for
+   * the post-process engine card, which is not a voice-model choice. */
+  selectable?: boolean;
+  /** Explicit per-card action pills (Download / Use). Opt-in: the shared
+   * card also serves Settings > Models, which keeps its current look. */
+  showActions?: boolean;
 }
 
 const ModelCard: React.FC<ModelCardProps> = ({
@@ -90,6 +98,9 @@ const ModelCard: React.FC<ModelCardProps> = ({
   downloadProgress,
   downloadSpeed,
   showRecommended = true,
+  selected = false,
+  selectable = true,
+  showActions = false,
 }) => {
   const { t } = useTranslation();
   const debugMode = useSettingsStore(
@@ -98,7 +109,8 @@ const ModelCard: React.FC<ModelCardProps> = ({
   const isFeatured = variant === "featured";
   // The active model is already loaded - re-selecting it just reloads it for no
   // gain, so it is deliberately not clickable.
-  const isClickable = status === "available" || status === "downloadable";
+  const isClickable =
+    selectable && (status === "available" || status === "downloadable");
 
   // Get translated model name and description
   const displayName = getTranslatedModelName(model, t);
@@ -115,6 +127,9 @@ const ModelCard: React.FC<ModelCardProps> = ({
     "flex flex-col rounded-xl px-4 py-3 gap-2 text-left transition-all duration-200";
 
   const getVariantClasses = () => {
+    if (selected) {
+      return "border-2 border-logo-primary ring-2 ring-logo-primary/30 bg-logo-primary/5";
+    }
     if (status === "active") {
       return "border-2 border-logo-primary/50 bg-logo-primary/10";
     }
@@ -126,7 +141,10 @@ const ModelCard: React.FC<ModelCardProps> = ({
 
   const getInteractiveClasses = () => {
     if (!isClickable) return "";
-    if (disabled) return "opacity-50 cursor-not-allowed";
+    // While the wizard acts on another card, the rest dim but stay legible
+    // (0.7, not the old near-disabled 0.5); the card being acted on keeps
+    // full opacity so the progress on it reads clearly.
+    if (disabled) return selected ? "" : "opacity-70 cursor-not-allowed";
     return "cursor-pointer hover:border-logo-primary/50 hover:bg-logo-primary/5 hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] group";
   };
 
@@ -137,6 +155,11 @@ const ModelCard: React.FC<ModelCardProps> = ({
     } else {
       onSelect(model.id);
     }
+  };
+
+  const handleActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    handleClick();
   };
 
   const handleDelete = (e: React.MouseEvent) => {
@@ -173,6 +196,18 @@ const ModelCard: React.FC<ModelCardProps> = ({
             {showRecommended && model.is_recommended && (
               <Badge variant="primary">{t("onboarding.recommended")}</Badge>
             )}
+            {selected && (
+              <Badge variant="primary">
+                <Check className="w-3 h-3 mr-1" />
+                {t("onboarding.modelCard.selected")}
+              </Badge>
+            )}
+            {!selected && showActions && status === "available" && (
+              <Badge variant="secondary">
+                <HardDrive className="w-3 h-3 mr-1" />
+                {t("onboarding.modelCard.installed")}
+              </Badge>
+            )}
             {status === "active" && (
               <Badge variant="primary">
                 <Check className="w-3 h-3 mr-1" />
@@ -199,28 +234,35 @@ const ModelCard: React.FC<ModelCardProps> = ({
         {(model.accuracy_score > 0 || model.speed_score > 0) && (
           <div className="hidden sm:flex items-center ms-4">
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-text/60 w-24 text-end">
-                  {t("onboarding.modelCard.accuracy")}
-                </p>
-                <div className="w-16 h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-logo-primary rounded-full"
-                    style={{ width: `${model.accuracy_score * 100}%` }}
-                  />
+              {(
+                [
+                  ["accuracy", model.accuracy_score],
+                  ["speed", model.speed_score],
+                ] as const
+              ).map(([kind, score]) => (
+                <div
+                  key={kind}
+                  className="flex items-center gap-2"
+                  /* The scale tooltip: the bar is a 0-100 relative score,
+                     not a percentage of anything measured. */
+                  title={`${t(`onboarding.modelCard.${kind}`)}: ${Math.round(score * 100)} / 100`}
+                >
+                  <p className="text-xs text-text/60 w-24 text-end">
+                    {t(`onboarding.modelCard.${kind}`)}
+                  </p>
+                  <div className="w-16 h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-logo-primary rounded-full"
+                      style={{ width: `${score * 100}%` }}
+                    />
+                  </div>
+                  {/* The concrete value beside the bar so the meter carries
+                      its number, not just a length. */}
+                  <span className="w-7 text-end text-xs tabular-nums text-text/60">
+                    {Math.round(score * 100)}
+                  </span>
                 </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <p className="text-xs text-text/60 w-24 text-end">
-                  {t("onboarding.modelCard.speed")}
-                </p>
-                <div className="w-16 h-1.5 bg-mid-gray/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-logo-primary rounded-full"
-                    style={{ width: `${model.speed_score * 100}%` }}
-                  />
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         )}
@@ -261,31 +303,83 @@ const ModelCard: React.FC<ModelCardProps> = ({
             <span>{t("modelSelector.streaming")}</span>
           </div>
         )}
-        {showModelSize && (
-          <span className="flex items-center gap-1.5 ms-auto text-xs text-text/50">
-            {status === "downloadable" ? (
+        {/* Trailing zone: size info plus the explicit per-card action. With
+            actions on (onboarding), the Download pill carries the size on
+            downloadable cards; without them (Settings > Models) the plain
+            size span keeps its old rendering on every card. */}
+        <div className="flex items-center gap-2 ms-auto">
+          {showModelSize && (status !== "downloadable" || !showActions) && (
+            <span className="flex items-center gap-1.5 text-xs text-text/50">
+              {status === "downloadable" ? (
+                <Download className="w-3.5 h-3.5" />
+              ) : (
+                <HardDrive className="w-3.5 h-3.5" />
+              )}
+              <span>{formattedModelSize}</span>
+              {debugMode && quantLabel && (
+                <span className="text-text/40">{quantLabel}</span>
+              )}
+            </span>
+          )}
+          {showActions && isClickable && status === "downloadable" && (
+            <Button
+              variant="primary-soft"
+              size="sm"
+              onClick={handleActionClick}
+              disabled={disabled}
+              aria-label={`${t("settings.postProcessing.local.download")} ${displayName}`}
+              className="flex items-center gap-1.5"
+            >
               <Download className="w-3.5 h-3.5" />
-            ) : (
-              <HardDrive className="w-3.5 h-3.5" />
-            )}
-            <span>{formattedModelSize}</span>
-            {debugMode && quantLabel && (
-              <span className="text-text/40">{quantLabel}</span>
-            )}
-          </span>
-        )}
-        {onDelete && (status === "available" || status === "active") && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleDelete}
-            title={t("modelSelector.deleteModel", { modelName: displayName })}
-            className="flex items-center gap-1.5 text-logo-primary/85 hover:text-logo-primary hover:bg-logo-primary/10"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-            <span>{t("common.delete")}</span>
-          </Button>
-        )}
+              <span>
+                {t("settings.postProcessing.local.download")} ·{" "}
+                {formattedModelSize}
+              </span>
+            </Button>
+          )}
+          {showActions && isClickable && status === "available" && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleActionClick}
+              disabled={disabled}
+              aria-label={`${t("settings.postProcessing.models.select")} ${displayName}`}
+            >
+              {t("settings.postProcessing.models.select")}
+            </Button>
+          )}
+          {onDelete && (status === "available" || status === "active") && (
+            <>
+              {/* A hairline keeps the destructive action visually separate
+                  from the size/actions it trails. */}
+              <div
+                className="h-4 w-px bg-mid-gray/30 mx-0.5"
+                aria-hidden="true"
+              />
+              <Button
+                variant="danger-ghost"
+                size="sm"
+                onClick={handleDelete}
+                /* The active model cannot be deleted in place: deleting the
+                   model that is loaded for transcription would stop every
+                   dictation. Select another model first; the confirm dialog
+                   (ModelsSettings) guards every enabled delete. */
+                disabled={status === "active"}
+                title={t("modelSelector.deleteModel", {
+                  modelName: displayName,
+                })}
+                /* Dimmed to 0.7 (not the default 0.5) while disabled so the
+                   destructive identity survives: half-strength red reads as
+                   washed-out gray on the dark card, 0.7 still reads
+                   unmistakably as error-red-and-unavailable. */
+                className="flex items-center gap-1.5 disabled:opacity-70"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>{t("common.delete")}</span>
+              </Button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Download/extract progress */}

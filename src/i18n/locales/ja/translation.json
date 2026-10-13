@@ -29,11 +29,6 @@
     "secureInputWarning": "⚠ Secure Input でショートカットがブロック中",
     "postProcessPrompt": "後処理プロンプト"
   },
-  "trayCopyOutcome": {
-    "copied": "文字起こしをクリップボードにコピーしました。",
-    "empty": "コピーするものがまだありません。",
-    "failed": "文字起こしをクリップボードにコピーできませんでした。"
-  },
   "sidebar": {
     "general": "一般",
     "commands": "コマンド",
@@ -46,7 +41,8 @@
     "debug": "デバッグ",
     "about": "概要",
     "notifications": "通知",
-    "promptStudio": "プロンプトスタジオ"
+    "promptStudio": "プロンプトスタジオ",
+    "addonsGroup": "アドオン"
   },
   "onboarding": {
     "subtitle": "開始するには、文字起こしのモデルを選択してください",
@@ -68,7 +64,9 @@
     },
     "modelCard": {
       "accuracy": "精度",
-      "speed": "速度"
+      "speed": "速度",
+      "installed": "インストール済み",
+      "selected": "選択中"
     },
     "models": {
       "small": {
@@ -162,7 +160,9 @@
       "errors": {
         "checkFailed": "権限の確認に失敗しました。もう一度お試しください。",
         "requestFailed": "権限のリクエストに失敗しました。もう一度お試しください。"
-      }
+      },
+      "done": "完了",
+      "openSettings": "設定を開く"
     },
     "hotkeyHint": "いつでも {{hotkey}} でディテーションを開始できます。",
     "hotkeyChangeHint": "このショートカットは 設定 > 一般 で変更できます。",
@@ -171,6 +171,10 @@
       "body": "VoxBarがモデルカタログに接続できませんでした。接続を確認して再試行するか、このステップをスキップして後で設定からモデルを選択してください。",
       "retry": "再試行",
       "skip": "今はスキップ"
+    },
+    "postProcessGroup": {
+      "title": "オプション: 後処理",
+      "caption": "ディクテーション後の文字起こしを整えるために使用します。音声認識には使用されません。"
     }
   },
   "modelSelector": {
@@ -313,7 +317,9 @@
           "set": "ショートカットを設定できませんでした: {{error}}",
           "reset": "ショートカットを元の値にリセットできませんでした"
         },
-        "unbound": "未割り当て"
+        "unbound": "未割り当て",
+        "recordHint": "クリックして新しいショートカットを記録",
+        "gatedHint": "{{action}}をオンにするとキーを割り当てられます"
       },
       "language": {
         "title": "言語",
@@ -422,7 +428,8 @@
         "clearAll": "ディクテーション全体を削除します",
         "undo": "フォーカス中のアプリで取り消します",
         "paste": "フォーカス中のアプリにクリップボードを貼り付けます"
-      }
+      },
+      "defaultPhrasesNote": "デフォルトのフレーズは、認識器が聴き取る英語の単語で、組み込みのヒンディー語・中国語のエイリアスを含みます。どの行にも任意の言語で自分のフレーズを追加できます。"
     },
     "search": {
       "placeholder": "設定を検索",
@@ -712,7 +719,8 @@
         "restartButton": "サーバーを再起動",
         "restartPending": "変更は再起動後に適用されます",
         "qrPreviewNote": "プレビュー: サーバーが次に起動したとき、この URL が案内されます。",
-        "sharedNetworkNote": "スマホとこの Mac は同じネットワークにいる必要があります: 同じ Wi-Fi または LAN、または同じテールネット（例: 両方とも Tailscale）。"
+        "sharedNetworkNote": "スマホとこの Mac は同じネットワークにいる必要があります: 同じ Wi-Fi または LAN、または同じテールネット（例: 両方とも Tailscale）。",
+        "fingerprintCopied": "コピーしました"
       }
     },
     "postProcessing": {
@@ -760,7 +768,8 @@
           "filterPlaceholder": "モデルを絞り込み",
           "showAll_one": "すべて表示（{{count}}）",
           "showAll_other": "すべて表示（{{count}}）",
-          "showFewer": "表示を減らす"
+          "showFewer": "表示を減らす",
+          "emptyNoKey": "上の欄にAPIキーを入力し、更新するとモデル一覧を読み込みます。"
         },
         "timeout": {
           "title": "リクエストのタイムアウト",
@@ -931,7 +940,6 @@
       "empty": "まだ文字起こしがありません。録音を開始して履歴を作成しましょう!",
       "copyToClipboard": "文字起こしをクリップボードにコピー",
       "copyError": "文字起こしをクリップボードにコピーできませんでした。",
-      "savedToggleError": "保存状態を更新できませんでした。",
       "save": "文字起こしを保存",
       "unsave": "保存から削除",
       "delete": "エントリーを削除",
@@ -951,6 +959,12 @@
       "viaPostProcess": "{{model}} · {{prompt}} · {{outcome}} · {{latency}} ms で処理",
       "viewChanges": "変更を表示",
       "hideChanges": "変更を閉じる",
+      "emptyTitle": "まだ文字起こしがありません",
+      "emptyHint": "録音ショートカットを押して、最初のディテーションを録音しましょう。",
+      "deleteConfirm": "このエントリを削除しますか？録音とその文字起こしは完全に削除されます。",
+      "today": "今日",
+      "yesterday": "昨日",
+      "savedToggleError": "保存状態を更新できませんでした。",
       "dbRecoveredNotice": "文字起こし履歴のデータベースを読み込めなかったため、新しいデータベースを開始しました。以前のデータベースは {{file}} として保存されています。"
     },
     "debug": {
@@ -972,7 +986,9 @@
         "resume": "再開",
         "copied": "コピーしました",
         "lineCount": "{{count}}行",
-        "empty": "ログを待機中… アプリが出力すると、ここにエントリが表示されます。"
+        "empty": "ログを待機中… アプリが出力すると、ここにエントリが表示されます。",
+        "clearConfirm": "このビューのキャプチャー行を消去しますか？ディスク上のログファイルは残ります。",
+        "clearConfirmTitle": "キャプチャした行を消去しますか？"
       },
       "updateChecks": {
         "label": "アップデートを確認",
@@ -1156,7 +1172,8 @@
       },
       "outcomes": {
         "label": "結果の通知",
-        "description": "電話セッションの終了時（セッション上限への到達や電話の切断など）にも通知します。オフの場合はエラーのみです。"
+        "description": "電話セッションの終了時（セッション上限への到達や電話の切断など）にも通知します。オフの場合はエラーのみです。",
+        "requiresMaster": "システム通知が有効な間のみ利用できます。"
       },
       "log": {
         "title": "通知ログ",
@@ -1190,8 +1207,6 @@
       "runHint_one": "1 つのプロンプトを 1 つのエンジンで実行。入力も保存もされません。",
       "runHint_other": "プロンプトとエンジンの組み合わせ {{count}} 件。入力も保存もされません。",
       "running": "実行中...",
-      "cancel": "キャンセル",
-      "cancelledCard": "この実行が始まる前にキャンセルされました。",
       "rerun": "再実行",
       "latency": "{{ms}} ミリ秒",
       "rawKept": "エンジンが失敗またはスキップされたため、元の文字起こしが保持されます。",
@@ -1207,10 +1222,17 @@
         "lines": "行",
         "charsChanged_one": "1 文字変更",
         "charsChanged_other": "{{count}} 文字変更",
-        "identical": "変更なし。"
+        "identical": "変更なし。",
+        "added_one": "+{{count}} 行追加",
+        "added_other": "+{{count}} 行追加",
+        "removed_one": "{{count}} 行削除",
+        "removed_other": "{{count}} 行削除"
       },
       "resultsEmptyTitle": "結果はここに表示されます",
-      "resultsEmptyHint": "上でソース、プロンプト、エンジンを選んで実行してください。各カードに整形後のテキスト、変更点、所要時間が表示されます。"
+      "resultsEmptyHint": "上でソース、プロンプト、エンジンを選んで実行してください。各カードに整形後のテキスト、変更点、所要時間が表示されます。",
+      "appliedLabel": "成功",
+      "cancel": "キャンセル",
+      "cancelledCard": "この実行が始まる前にキャンセルされました。"
     }
   },
   "footer": {
@@ -1257,11 +1279,13 @@
     "open": "開く",
     "copy": "コピー",
     "clear": "クリア",
-    "noOptionsFound": "オプションが見つかりません"
+    "noOptionsFound": "オプションが見つかりません",
+    "cancel": "キャンセル"
   },
   "accessibility": {
     "permissionsDescription": "VoxBar が文字起こしテキストを入力するには、アクセシビリティ権限が必要です。",
-    "openSettings": "システム設定を開く"
+    "openSettings": "システム設定を開く",
+    "resetSetting": "{{label}}をデフォルトに戻す"
   },
   "errors": {
     "loadDirectory": "ディレクトリの読み込みエラー: {{error}}",
@@ -1277,8 +1301,6 @@
     "recordingFailed": "録音の開始に失敗しました: {{error}}",
     "modelLoadFailed": "モデルの読み込みに失敗しました: {{model}}",
     "modelLoadFailedUnknown": "不明なモデル",
-    "modelLoadFailedMemoryGate": "メモリ不足のため {{model}} を読み込めません：約 {{needed}} 必要ですが、空きは約 {{free}} です。",
-    "modelLoadFailedDetail": "モデルは変更されていません。技術的な原因はログファイルにあります。",
     "modelFallbackTitle": "メモリ不足",
     "modelFallback": "このディクテーションでは {{model}} に切り替えました",
     "pasteFailedTitle": "テキストの貼り付けに失敗しました",
@@ -1286,7 +1308,9 @@
     "transcriptionFailedTitle": "文字起こしに失敗しました",
     "noModelSelectedTitle": "モデルが選択されていません",
     "noModelSelected": "ディテーションの前に、設定で文字起こしモデルを選んでください。",
-    "openDirectory": "フォルダを開けませんでした: {{error}}"
+    "openDirectory": "フォルダを開けませんでした: {{error}}",
+    "modelLoadFailedMemoryGate": "メモリ不足のため {{model}} を読み込めません：約 {{needed}} 必要ですが、空きは約 {{free}} です。",
+    "modelLoadFailedDetail": "モデルは変更されていません。技術的な原因はログファイルにあります。"
   },
   "appLanguage": {
     "title": "アプリの言語",
@@ -1354,7 +1378,8 @@
     "companionBadge": "コンパニオンマイク"
   },
   "whatsNew": {
-    "title": "VoxBar v{{version}} の新機能"
+    "title": "VoxBar v{{version}} の新機能",
+    "gotIt": "了解しました"
   },
   "secureInput": {
     "blockedWithCulprit_one": "{{name}} が1個のショートカットをブロックしている可能性があります",
@@ -1406,13 +1431,9 @@
     "disconnectedFinalized": "接続が切れました。Macは話した内容を保持しています。",
     "capped": "セッションは15分で打ち切られます。続けるにはもう一度押してください。",
     "zeroAudio": "音声がMacに届きませんでした。ボタンを押したまま話してください。",
-    "zeroAudioHold": "音声がMacに届きませんでした。ボタンを押したまま話してください。",
-    "zeroAudioHoldOrToggle": "音声がMacに届きませんでした。ボタンを押したまま、またはタップして話してください。",
-    "zeroAudioTap": "音声がMacに届きませんでした。ボタンをタップして話してください。",
     "serverStopped": "Macがコンパニオンサーバーを停止しました。",
     "reconnect": "再接続",
     "holdToTalk": "押しながら話す",
-    "holdOrToggleToTalk": "押しながら話す、タップでロック",
     "tapToTalk": "タップして話す",
     "release": "離して終了",
     "tapToStop": "タップして停止",
@@ -1431,6 +1452,17 @@
     "copied": "コピーしました",
     "polished": "整形済み",
     "historyTitle": "最近",
-    "historyEmpty": "このスマホでのディクテーションがここに表示されます。"
+    "historyEmpty": "このスマホでのディクテーションがここに表示されます。",
+    "stateMicBlocked": "マイクがブロックされています",
+    "micBlockedRetry": "マイクがブロックされています。タップして再試行",
+    "zeroAudioHold": "音声がMacに届きませんでした。ボタンを押したまま話してください。",
+    "zeroAudioHoldOrToggle": "音声がMacに届きませんでした。ボタンを押したまま、またはタップして話してください。",
+    "zeroAudioTap": "音声がMacに届きませんでした。ボタンをタップして話してください。",
+    "holdOrToggleToTalk": "押しながら話す、タップでロック"
+  },
+  "trayCopyOutcome": {
+    "copied": "文字起こしをクリップボードにコピーしました。",
+    "empty": "コピーするものがまだありません。",
+    "failed": "文字起こしをクリップボードにコピーできませんでした。"
   }
 }
